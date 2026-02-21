@@ -167,5 +167,16 @@ void main() {
         'stackDepth: null)',
       );
     });
+
+    group('malformed JSON', () {
+      test('throws on wrong field type', () {
+        expect(
+          () => MontyLimits.fromJson(const {
+            'memory_bytes': 'not_a_number',
+          }),
+          throwsA(isA<TypeError>()),
+        );
+      });
+    });
   });
 }

@@ -1,39 +1,26 @@
 # =============================================================================
-# DCM Configuration - Stage 1: Metrics Only
+# DCM Configuration - Stage 2: Aggressive Rules & Tight Metrics
 # =============================================================================
-# This file configures Dart Code Metrics (DCM) for static analysis.
-# Stage 1 collects metrics without enforcing any rules.
-#
 # Documentation: https://dcm.dev/docs/configuration
 # =============================================================================
 
 dcm:
   # ---------------------------------------------------------------------------
-  # Metrics Thresholds
+  # Metrics Thresholds (tightened from Stage 1 baselines)
   # ---------------------------------------------------------------------------
-  # These thresholds generate WARNINGS when exceeded.
-  # Stage 1 uses relaxed values to establish a baseline.
 
   metrics:
-    # Cyclomatic complexity measures decision points (if/else/switch/loops)
-    # Relaxed: 20 (will tighten to 15 in Stage 5)
     cyclomatic-complexity:
-      threshold: 20
+      threshold: 10
 
-    # Lines of executable code per function (excludes comments/blanks)
-    # Relaxed: 100 (will tighten to 50 in Stage 5)
     lines-of-code:
-      threshold: 100
+      threshold: 50
 
-    # Maximum parameters per function/method
-    # Relaxed: 7 (will tighten to 5 in Stage 5)
     number-of-parameters:
-      threshold: 7
+      threshold: 6
 
-    # Maximum nesting depth (if inside if inside loop, etc.)
-    # Relaxed: 5 (will tighten to 4 in Stage 5)
     maximum-nesting-level:
-      threshold: 5
+      threshold: 4
 
   # ---------------------------------------------------------------------------
   # Exclusions
@@ -45,16 +32,85 @@ dcm:
       - "**/*.freezed.dart"
       - "build/**"
       - "native/**"
+      - "test/**"
+    rules:
+      - "**/*.g.dart"
+      - "**/*.freezed.dart"
 
   # ---------------------------------------------------------------------------
   # Rules
   # ---------------------------------------------------------------------------
 
   rules:
+    # --- Common Anti-Patterns ---
     - avoid-unused-parameters
-    - prefer-match-file-name
     - avoid-nested-conditional-expressions
-    - prefer-commenting-analyzer-ignores
+    - avoid-missing-enum-constant-in-map
     - avoid-unnecessary-type-assertions
     - avoid-unnecessary-type-casts
+    - avoid-unrelated-type-assertions
+    - avoid-redundant-async
+    - avoid-duplicate-exports
+    - avoid-collection-methods-with-unrelated-types
+    - avoid-passing-async-when-sync-expected
+
+    # --- Style & Formatting ---
+    - prefer-match-file-name:
+        exclude:
+          - "test/**"
     - prefer-immediate-return
+    - prefer-commenting-analyzer-ignores
+    - prefer-conditional-expressions
+    - prefer-trailing-comma
+    - prefer-moving-to-variable
+    - newline-before-return
+    - no-boolean-literal-compare
+    - no-empty-block
+    - no-equal-then-else
+    - prefer-first
+    - prefer-last
+    - binary-expression-operand-order
+    - double-literal-format
+
+    # --- Null Safety & Types ---
+    - avoid-late-keyword:
+        exclude:
+          - "test/**"
+    # Note: fromJson factories use Map<String, dynamic> per Dart convention.
+    # Excluding DTO files from avoid-dynamic is intentional.
+    - avoid-dynamic:
+        exclude:
+          - "test/**"
+          - "lib/**/*exception.dart"
+          - "lib/**/*result.dart"
+          - "lib/**/*usage.dart"
+          - "lib/**/*limits.dart"
+          - "lib/**/*progress.dart"
+    - avoid-non-null-assertion:
+        exclude:
+          - "lib/src/monty_platform.dart"
+
+    # --- Architecture Safety ---
+    - avoid-banned-imports:
+        entries:
+          - paths: ["lib/"]
+            deny: ["package:flutter/material.dart", "package:flutter/widgets.dart", "package:flutter/cupertino.dart"]
+            message: "This is a pure Dart platform interface. Do not import Flutter widgets."
+    - avoid-global-state:
+        exclude:
+          - "lib/src/monty_platform.dart"
+
+    # --- Member Ordering ---
+    - member-ordering:
+        order:
+          - constructors
+          - public-fields
+          - private-fields
+          - get-setters
+          - public-methods
+          - private-methods
+          - overridden-methods
+
+    # --- Testing ---
+    - prefer-test-matcher
+    - prefer-correct-test-file-name

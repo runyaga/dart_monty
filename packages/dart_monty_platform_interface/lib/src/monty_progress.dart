@@ -1,5 +1,9 @@
+import 'package:collection/collection.dart';
 import 'package:dart_monty_platform_interface/src/monty_result.dart';
 import 'package:meta/meta.dart';
+
+/// Deep equality instance shared across [MontyPending] operations.
+const _deepEquality = DeepCollectionEquality();
 
 /// The progress of a multi-step Monty Python execution.
 ///
@@ -26,6 +30,7 @@ sealed class MontyProgress {
   /// - `'pending'` → [MontyPending]
   factory MontyProgress.fromJson(Map<String, dynamic> json) {
     final type = json['type'] as String;
+
     return switch (type) {
       'complete' => MontyComplete.fromJson(json),
       'pending' => MontyPending.fromJson(json),
@@ -88,11 +93,13 @@ final class MontyPending extends MontyProgress {
   /// Creates a [MontyPending] from a JSON map.
   ///
   /// Expected keys: `type` (must be `'pending'`), `function_name`,
-  /// `arguments` (list).
+  /// `arguments` (list, defaults to empty if absent).
   factory MontyPending.fromJson(Map<String, dynamic> json) {
+    final rawArgs = json['arguments'] as List<dynamic>?;
+
     return MontyPending(
       functionName: json['function_name'] as String,
-      arguments: List<Object?>.from(json['arguments'] as List<dynamic>),
+      arguments: rawArgs != null ? List<Object?>.from(rawArgs) : const [],
     );
   }
 
@@ -116,21 +123,12 @@ final class MontyPending extends MontyProgress {
     return identical(this, other) ||
         (other is MontyPending &&
             other.functionName == functionName &&
-            _listEquals(other.arguments, arguments));
+            _deepEquality.equals(other.arguments, arguments));
   }
 
   @override
-  int get hashCode => Object.hash(functionName, Object.hashAll(arguments));
+  int get hashCode => Object.hash(functionName, _deepEquality.hash(arguments));
 
   @override
   String toString() => 'MontyPending($functionName, $arguments)';
-}
-
-bool _listEquals<T>(List<T> a, List<T> b) {
-  if (identical(a, b)) return true;
-  if (a.length != b.length) return false;
-  for (var i = 0; i < a.length; i++) {
-    if (a[i] != b[i]) return false;
-  }
-  return true;
 }

@@ -28,6 +28,16 @@ repos:
         entry: python3 tool/analyze_packages.py
         language: system
         pass_filenames: false
+      - id: dcm-analyze
+        name: dcm analyze
+        entry: dcm analyze .
+        language: system
+        pass_filenames: false
+      - id: dart-test-platform-interface
+        name: dart test (platform_interface)
+        entry: bash -c 'cd packages/dart_monty_platform_interface && dart test'
+        language: system
+        pass_filenames: false
   - repo: https://github.com/jackdewinter/pymarkdown
     rev: v0.9.35
     hooks:

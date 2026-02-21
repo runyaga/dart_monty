@@ -23,12 +23,40 @@ jobs:
       - run: flutter pub get
       - run: dart format --set-exit-if-changed .
       - run: flutter analyze --fatal-infos
+      - name: Analyze sub-packages
+        run: python3 tool/analyze_packages.py
+
+  dcm:
+    name: DCM
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - run: flutter pub get
+      - name: Install DCM
+        run: dart pub global activate dart_code_metrics
+      - name: DCM analyze
+        run: dcm analyze .
+
+  markdown:
+    name: Markdown lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npx markdownlint-cli "**/*.md" --ignore node_modules --ignore build --ignore native/target
 
   test:
     name: Test (${{ matrix.target }})
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: lint
+    needs: [lint, dcm]
     strategy:
       matrix:
         target:
@@ -54,6 +82,25 @@ jobs:
             flutter test --coverage
           else
             cd packages/${{ matrix.target }} && dart test --coverage=coverage
+          fi
+      - name: Check coverage (platform_interface)
+        if: matrix.target == 'dart_monty_platform_interface'
+        run: |
+          cd packages/dart_monty_platform_interface
+          dart pub global activate coverage
+          dart pub global run coverage:format_coverage \
+            --lcov --in=coverage --out=coverage/lcov.info --report-on=lib
+          TOTAL=$(grep -c '^DA:' coverage/lcov.info || true)
+          HIT=$(grep '^DA:' coverage/lcov.info | grep -cv ',0$' || true)
+          if [ "$TOTAL" -eq 0 ]; then
+            echo "ERROR: No coverage data found."
+            exit 1
+          fi
+          PCT=$(( HIT * 100 / TOTAL ))
+          echo "Coverage: $HIT/$TOTAL lines = ${PCT}%"
+          if [ "$PCT" -lt 90 ]; then
+            echo "FAIL: Coverage ${PCT}% < 90% minimum."
+            exit 1
           fi
 
   build-native:

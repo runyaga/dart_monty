@@ -9,6 +9,11 @@ analyzer:
     - 'build/**'
     - 'native/**'
 
+  language:
+    strict-casts: true
+    strict-inference: true
+    strict-raw-types: true
+
   errors:
     invalid_annotation_target: error
 

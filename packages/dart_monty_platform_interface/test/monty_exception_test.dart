@@ -190,5 +190,21 @@ void main() {
       final exception = MontyException(message: longMsg);
       expect(exception.message, longMsg);
     });
+
+    group('malformed JSON', () {
+      test('throws on missing message', () {
+        expect(
+          () => MontyException.fromJson(const <String, dynamic>{}),
+          throwsA(isA<TypeError>()),
+        );
+      });
+
+      test('throws on wrong message type', () {
+        expect(
+          () => MontyException.fromJson(const {'message': 123}),
+          throwsA(isA<TypeError>()),
+        );
+      });
+    });
   });
 }

@@ -208,5 +208,29 @@ void main() {
         expect(result.toString(), 'MontyResult.value(null)');
       });
     });
+
+    group('malformed JSON', () {
+      test('throws on missing usage', () {
+        expect(
+          () => MontyResult.fromJson(const {'value': 42}),
+          throwsA(isA<TypeError>()),
+        );
+      });
+
+      test('throws on wrong error type', () {
+        expect(
+          () => MontyResult.fromJson(const {
+            'value': null,
+            'error': 'not_a_map',
+            'usage': {
+              'memory_bytes_used': 0,
+              'time_elapsed_ms': 0,
+              'stack_depth_used': 0,
+            },
+          }),
+          throwsA(isA<TypeError>()),
+        );
+      });
+    });
   });
 }

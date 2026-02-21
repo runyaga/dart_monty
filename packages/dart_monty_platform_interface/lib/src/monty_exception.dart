@@ -90,6 +90,7 @@ final class MontyException implements Exception {
       }
       buffer.write(')');
     }
+
     return buffer.toString();
   }
 }

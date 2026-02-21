@@ -36,6 +36,7 @@ void main() {
         mock.runResult = const MontyResult(usage: usage);
         await mock.run('print("hello")');
         expect(mock.lastRunCode, 'print("hello")');
+        expect(mock.runCodes, ['print("hello")']);
       });
 
       test('captures inputs', () async {
@@ -63,6 +64,21 @@ void main() {
           ),
         );
       });
+
+      test('records multiple invocations', () async {
+        mock.runResult = const MontyResult(usage: usage);
+        await mock.run('first');
+        await mock.run('second', inputs: {'a': 1});
+        await mock.run('third');
+
+        expect(mock.runCodes, ['first', 'second', 'third']);
+        expect(mock.runInputsList, [
+          null,
+          {'a': 1},
+          null,
+        ]);
+        expect(mock.lastRunCode, 'third');
+      });
     });
 
     group('start', () {
@@ -78,19 +94,16 @@ void main() {
 
       test('captures code', () async {
         mock.enqueueProgress(
-          const MontyComplete(
-            result: MontyResult(usage: usage),
-          ),
+          const MontyComplete(result: MontyResult(usage: usage)),
         );
         await mock.start('my_code');
         expect(mock.lastStartCode, 'my_code');
+        expect(mock.startCodes, ['my_code']);
       });
 
       test('captures inputs', () async {
         mock.enqueueProgress(
-          const MontyComplete(
-            result: MontyResult(usage: usage),
-          ),
+          const MontyComplete(result: MontyResult(usage: usage)),
         );
         await mock.start('code', inputs: {'a': 1});
         expect(mock.lastStartInputs, {'a': 1});
@@ -98,9 +111,7 @@ void main() {
 
       test('captures external functions', () async {
         mock.enqueueProgress(
-          const MontyComplete(
-            result: MontyResult(usage: usage),
-          ),
+          const MontyComplete(result: MontyResult(usage: usage)),
         );
         await mock.start('code', externalFunctions: ['fn1', 'fn2']);
         expect(mock.lastStartExternalFunctions, ['fn1', 'fn2']);
@@ -109,9 +120,7 @@ void main() {
       test('captures limits', () async {
         const limits = MontyLimits(memoryBytes: 2048);
         mock.enqueueProgress(
-          const MontyComplete(
-            result: MontyResult(usage: usage),
-          ),
+          const MontyComplete(result: MontyResult(usage: usage)),
         );
         await mock.start('code', limits: limits);
         expect(mock.lastStartLimits, limits);
@@ -143,12 +152,11 @@ void main() {
 
       test('captures return value', () async {
         mock.enqueueProgress(
-          const MontyComplete(
-            result: MontyResult(usage: usage),
-          ),
+          const MontyComplete(result: MontyResult(usage: usage)),
         );
         await mock.resume('result');
         expect(mock.lastResumeReturnValue, 'result');
+        expect(mock.resumeReturnValues, ['result']);
       });
 
       test('throws StateError when queue empty', () {
@@ -174,12 +182,11 @@ void main() {
 
       test('captures error message', () async {
         mock.enqueueProgress(
-          const MontyComplete(
-            result: MontyResult(usage: usage),
-          ),
+          const MontyComplete(result: MontyResult(usage: usage)),
         );
         await mock.resumeWithError('bad input');
         expect(mock.lastResumeErrorMessage, 'bad input');
+        expect(mock.resumeErrorMessages, ['bad input']);
       });
 
       test('throws StateError when queue empty', () {
@@ -225,6 +232,7 @@ void main() {
         mock.restoreResult = MockMontyPlatform();
         await mock.restore(data);
         expect(mock.lastRestoreData, data);
+        expect(mock.restoreDataList, [data]);
       });
 
       test('throws StateError when not configured', () {
@@ -252,6 +260,48 @@ void main() {
       });
     });
 
+    group('convenience getters return null when empty', () {
+      test('lastRunCode', () {
+        expect(mock.lastRunCode, isNull);
+      });
+
+      test('lastRunInputs', () {
+        expect(mock.lastRunInputs, isNull);
+      });
+
+      test('lastRunLimits', () {
+        expect(mock.lastRunLimits, isNull);
+      });
+
+      test('lastStartCode', () {
+        expect(mock.lastStartCode, isNull);
+      });
+
+      test('lastStartInputs', () {
+        expect(mock.lastStartInputs, isNull);
+      });
+
+      test('lastStartExternalFunctions', () {
+        expect(mock.lastStartExternalFunctions, isNull);
+      });
+
+      test('lastStartLimits', () {
+        expect(mock.lastStartLimits, isNull);
+      });
+
+      test('lastResumeReturnValue', () {
+        expect(mock.lastResumeReturnValue, isNull);
+      });
+
+      test('lastResumeErrorMessage', () {
+        expect(mock.lastResumeErrorMessage, isNull);
+      });
+
+      test('lastRestoreData', () {
+        expect(mock.lastRestoreData, isNull);
+      });
+    });
+
     group('queue workflow', () {
       test('processes FIFO order', () async {
         const pending = MontyPending(
@@ -275,9 +325,7 @@ void main() {
 
       test('queue empty after all consumed', () async {
         mock.enqueueProgress(
-          const MontyComplete(
-            result: MontyResult(usage: usage),
-          ),
+          const MontyComplete(result: MontyResult(usage: usage)),
         );
         await mock.start('code');
 

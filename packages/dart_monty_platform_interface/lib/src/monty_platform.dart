@@ -34,6 +34,7 @@ abstract class MontyPlatform extends PlatformInterface {
         'Ensure a platform implementation is registered.',
       );
     }
+
     return _instance!;
   }
 

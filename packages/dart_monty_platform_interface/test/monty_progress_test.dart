@@ -313,5 +313,117 @@ void main() {
 
       expect(description, 'pending: doWork(2 args)');
     });
+
+    group('deep equality', () {
+      test('nested maps are equal', () {
+        const a = MontyPending(
+          functionName: 'fn',
+          arguments: [
+            {'key': 'val', 'nested': true},
+          ],
+        );
+        const b = MontyPending(
+          functionName: 'fn',
+          arguments: [
+            {'key': 'val', 'nested': true},
+          ],
+        );
+        expect(a, b);
+        expect(a.hashCode, b.hashCode);
+      });
+
+      test('nested lists are equal', () {
+        const a = MontyPending(
+          functionName: 'fn',
+          arguments: [
+            [1, 2, 3],
+            [4, 5],
+          ],
+        );
+        const b = MontyPending(
+          functionName: 'fn',
+          arguments: [
+            [1, 2, 3],
+            [4, 5],
+          ],
+        );
+        expect(a, b);
+        expect(a.hashCode, b.hashCode);
+      });
+
+      test('nested maps differ', () {
+        const a = MontyPending(
+          functionName: 'fn',
+          arguments: [
+            {'key': 'val1'},
+          ],
+        );
+        const b = MontyPending(
+          functionName: 'fn',
+          arguments: [
+            {'key': 'val2'},
+          ],
+        );
+        expect(a, isNot(b));
+      });
+
+      test('JSON round-trip with nested collections', () {
+        const original = MontyPending(
+          functionName: 'compute',
+          arguments: [
+            {'x': 1},
+            [2, 3],
+            'plain',
+          ],
+        );
+        final restored = MontyPending.fromJson(original.toJson());
+        expect(restored, original);
+      });
+    });
+
+    group('fromJson null safety', () {
+      test('missing arguments defaults to empty list', () {
+        final pending = MontyPending.fromJson(const {
+          'type': 'pending',
+          'function_name': 'fn',
+        });
+        expect(pending.arguments, isEmpty);
+      });
+
+      test('null arguments defaults to empty list', () {
+        final pending = MontyPending.fromJson(const {
+          'type': 'pending',
+          'function_name': 'fn',
+          'arguments': null,
+        });
+        expect(pending.arguments, isEmpty);
+      });
+    });
+
+    group('malformed JSON', () {
+      test('MontyProgress.fromJson throws on missing type', () {
+        expect(
+          () => MontyProgress.fromJson(const <String, dynamic>{}),
+          throwsA(isA<TypeError>()),
+        );
+      });
+
+      test('MontyComplete.fromJson throws on missing result', () {
+        expect(
+          () => MontyComplete.fromJson(const {'type': 'complete'}),
+          throwsA(isA<TypeError>()),
+        );
+      });
+
+      test('MontyPending.fromJson throws on missing function_name', () {
+        expect(
+          () => MontyPending.fromJson(const {
+            'type': 'pending',
+            'arguments': <dynamic>[],
+          }),
+          throwsA(isA<TypeError>()),
+        );
+      });
+    });
   });
 }

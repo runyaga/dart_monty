@@ -165,5 +165,25 @@ void main() {
         'stackDepthUsed: 10)',
       );
     });
+
+    group('malformed JSON', () {
+      test('throws on missing fields', () {
+        expect(
+          () => MontyResourceUsage.fromJson(const <String, dynamic>{}),
+          throwsA(isA<TypeError>()),
+        );
+      });
+
+      test('throws on wrong field type', () {
+        expect(
+          () => MontyResourceUsage.fromJson(const {
+            'memory_bytes_used': 'not_a_number',
+            'time_elapsed_ms': 0,
+            'stack_depth_used': 0,
+          }),
+          throwsA(isA<TypeError>()),
+        );
+      });
+    });
   });
 }

@@ -49,7 +49,7 @@ final class MontyResult {
   Map<String, dynamic> toJson() {
     return {
       'value': value,
-      if (error != null) 'error': error!.toJson(),
+      if (error case final e?) 'error': e.toJson(),
       'usage': usage.toJson(),
     };
   }
@@ -68,9 +68,10 @@ final class MontyResult {
 
   @override
   String toString() {
-    if (isError) {
-      return 'MontyResult.error(${error!.message})';
+    if (error case final e?) {
+      return 'MontyResult.error(${e.message})';
     }
+
     return 'MontyResult.value($value)';
   }
 }
