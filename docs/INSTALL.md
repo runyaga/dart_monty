@@ -45,11 +45,20 @@ rustup target add wasm32-wasip1-threads
 
 Verify: `rustc --version` (>= 1.91)
 
-**Note:** If you have Homebrew's `rust` package installed, ensure
-rustup's bin directory comes first in your PATH:
+**Important:** Do **not** install Homebrew's standalone `rust` formula
+(`brew install rust`). It conflicts with rustup by placing a stale
+`rustc`/`cargo` in `/opt/homebrew/bin/` that shadows rustup's managed
+toolchain. If you have it installed, remove it:
 
 ```bash
-export PATH="/opt/homebrew/opt/rustup/bin:$HOME/.rustup/toolchains/stable-aarch64-apple-darwin/bin:$PATH"
+brew uninstall rust
+```
+
+Ensure `~/.cargo/bin` is in your PATH (rustup installs proxy binaries
+there). Add to `~/.zprofile`:
+
+```bash
+export PATH="$HOME/.cargo/bin:$PATH"
 ```
 
 ### Python 3
