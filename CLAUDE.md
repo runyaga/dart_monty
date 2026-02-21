@@ -30,6 +30,7 @@ tool/                             # Developer scripts
 ## Architecture
 
 Federated plugin pattern:
+
 - `dart_monty` - app-facing API
 - `dart_monty_platform_interface` - abstract contract
 - `dart_monty_ffi` - `dart:ffi` calls into Rust->C shared library

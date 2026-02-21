@@ -64,6 +64,7 @@ the test runner picks it up automatically.
 - [ ] Unit tests: 90%+ coverage
 
 **Gate:**
+
 ```bash
 tool/test_m1.sh
 # Runs: dart pub get, dart format, dart analyze, dart test --coverage
@@ -87,6 +88,7 @@ tool/test_m1.sh
 - [ ] Integration tests: smoke, iterative execution, snapshots, panic safety, resource limits, WASM smoke
 
 **Gate:**
+
 ```bash
 tool/test_m2.sh
 # Runs: cargo fmt, cargo clippy, cargo test, cargo tarpaulin
@@ -114,6 +116,7 @@ tool/test_m2.sh
 - [ ] Integration tests: native FFI, web spike, parity, ladder, snapshots -- all automated
 
 **Gate:**
+
 ```bash
 tool/test_m3.sh
 # Runs: dart format, dart analyze, dart test --coverage (mock)
@@ -146,6 +149,7 @@ tool/test_m3.sh
 - [ ] Browser integration tests: 90%+ coverage
 
 **Gate:**
+
 ```bash
 tool/test_m4.sh
 # Runs: npm install && npm run build (JS wrapper)
@@ -172,6 +176,7 @@ tool/test_m4.sh
 - [ ] Widget tests + Isolate lifecycle integration tests: 90%+ coverage
 
 **Gate:**
+
 ```bash
 tool/test_m5.sh
 # Runs: tool/build_native.sh (build + copy to platform dirs)
@@ -199,6 +204,7 @@ tool/test_m5.sh
 - [ ] Browser integration tests: 90%+ coverage
 
 **Gate:**
+
 ```bash
 tool/test_m6.sh
 # Runs: dart format, flutter analyze
@@ -224,6 +230,7 @@ tool/test_m6.sh
 - [ ] 90%+ coverage per platform
 
 **Gate:**
+
 ```bash
 tool/test_m7.sh
 # Runs per platform (CI matrix):
@@ -249,6 +256,7 @@ tool/test_m7.sh
 - [ ] `docs/benchmarks.md` published
 
 **Gate:**
+
 ```bash
 tool/test_m8.sh
 # Runs: tool/test_all.sh (every platform)
@@ -336,7 +344,7 @@ No manual testing steps.
 
 To start implementation, type:
 
-```
+```text
 Start M1. Implement dart_monty_platform_interface with all value types,
 MontyPlatform contract, MockMontyPlatform, and tests. Gate: tool/test_m1.sh
 passes with 90%+ coverage.
