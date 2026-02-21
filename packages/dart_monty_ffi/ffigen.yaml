@@ -1,0 +1,12 @@
+name: DartMontyBindings
+description: Auto-generated FFI bindings for dart_monty native library.
+output: 'lib/src/generated/dart_monty_bindings.dart'
+headers:
+  entry-points:
+    - '../../native/include/dart_monty.h'
+  include-directives:
+    - '../../native/include/dart_monty.h'
+silence-enum-warning: true
+preamble: |
+  // AUTO-GENERATED — do not edit by hand.
+  // Regenerate with: bash tool/generate_bindings.sh

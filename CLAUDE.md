@@ -16,6 +16,7 @@ cd native && cargo fmt --check            # Check Rust formatting
 cd native && cargo clippy -- -D warnings  # Run Rust linter (zero warnings)
 bash tool/test_m1.sh                      # Full M1 validation gate
 bash tool/test_m2.sh                      # Full M2 validation gate (Rust + WASM)
+bash tool/test_m3a.sh                     # Full M3A validation gate (FFI package)
 pre-commit run --all-files                # Run all pre-commit hooks
 ```
 
