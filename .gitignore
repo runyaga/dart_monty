@@ -1,0 +1,32 @@
+# Dart/Flutter
+.dart_tool/
+.packages
+build/
+pubspec.lock
+*.iml
+.idea/
+.vscode/
+
+# Native build artifacts
+native/target/
+native/*.dylib
+native/*.so
+native/*.dll
+*.o
+*.a
+
+# Generated FFI bindings
+lib/src/generated/
+
+# Coverage
+coverage/
+lcov.info
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.*
+.venv/

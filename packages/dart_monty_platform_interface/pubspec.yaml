@@ -1,0 +1,16 @@
+name: dart_monty_platform_interface
+description: Platform interface for dart_monty. Defines the shared API contract implemented by native and web backends.
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: '>=3.5.0 <4.0.0'
+
+dependencies:
+  meta: ^1.11.0
+  plugin_platform_interface: ^2.1.8
+
+dev_dependencies:
+  mocktail: ^1.0.4
+  test: ^1.25.0
+  very_good_analysis: ^10.0.0

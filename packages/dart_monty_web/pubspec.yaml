@@ -1,0 +1,23 @@
+name: dart_monty_web
+description: Web implementation of dart_monty using @pydantic/monty JS package via dart:js_interop.
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: '>=3.5.0 <4.0.0'
+  flutter: '>=3.24.0'
+
+dependencies:
+  dart_monty_platform_interface:
+    path: ../dart_monty_platform_interface
+  flutter:
+    sdk: flutter
+  flutter_web_plugins:
+    sdk: flutter
+  web: ^1.1.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  mocktail: ^1.0.4
+  very_good_analysis: ^10.0.0

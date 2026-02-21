@@ -1,0 +1,40 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: no-commit-to-branch
+        args: ["--branch", "main", "--branch", "master"]
+      - id: check-merge-conflict
+      - id: check-toml
+      - id: check-yaml
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.0
+    hooks:
+      - id: gitleaks
+  - repo: local
+    hooks:
+      - id: dart-format
+        name: dart format
+        entry: dart format --set-exit-if-changed
+        language: system
+        types: [dart]
+      - id: flutter-analyze
+        name: flutter analyze
+        entry: flutter analyze --fatal-infos
+        language: system
+        pass_filenames: false
+      - id: dart-analyze-packages
+        name: dart analyze packages
+        entry: python3 tool/analyze_packages.py
+        language: system
+        pass_filenames: false
+  - repo: https://github.com/jackdewinter/pymarkdown
+    rev: v0.9.35
+    hooks:
+     - id: pymarkdown
+       args:
+        - "--set"
+        - "extensions.front-matter.enabled=$!True"
+        - "--disable-rules"
+        - "MD013,MD024,MD033,MD036,MD041,MD060"
+        - "scan"

@@ -1,0 +1,17 @@
+[package]
+name = "dart_monty_native"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[lib]
+name = "dart_monty_native"
+crate-type = ["cdylib", "staticlib"]
+
+[dependencies]
+monty = { git = "https://github.com/pydantic/monty.git", branch = "main" }
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+strip = true

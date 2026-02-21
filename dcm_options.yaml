@@ -1,0 +1,60 @@
+# =============================================================================
+# DCM Configuration - Stage 1: Metrics Only
+# =============================================================================
+# This file configures Dart Code Metrics (DCM) for static analysis.
+# Stage 1 collects metrics without enforcing any rules.
+#
+# Documentation: https://dcm.dev/docs/configuration
+# =============================================================================
+
+dcm:
+  # ---------------------------------------------------------------------------
+  # Metrics Thresholds
+  # ---------------------------------------------------------------------------
+  # These thresholds generate WARNINGS when exceeded.
+  # Stage 1 uses relaxed values to establish a baseline.
+
+  metrics:
+    # Cyclomatic complexity measures decision points (if/else/switch/loops)
+    # Relaxed: 20 (will tighten to 15 in Stage 5)
+    cyclomatic-complexity:
+      threshold: 20
+
+    # Lines of executable code per function (excludes comments/blanks)
+    # Relaxed: 100 (will tighten to 50 in Stage 5)
+    lines-of-code:
+      threshold: 100
+
+    # Maximum parameters per function/method
+    # Relaxed: 7 (will tighten to 5 in Stage 5)
+    number-of-parameters:
+      threshold: 7
+
+    # Maximum nesting depth (if inside if inside loop, etc.)
+    # Relaxed: 5 (will tighten to 4 in Stage 5)
+    maximum-nesting-level:
+      threshold: 5
+
+  # ---------------------------------------------------------------------------
+  # Exclusions
+  # ---------------------------------------------------------------------------
+
+  exclude:
+    metrics:
+      - "**/*.g.dart"
+      - "**/*.freezed.dart"
+      - "build/**"
+      - "native/**"
+
+  # ---------------------------------------------------------------------------
+  # Rules
+  # ---------------------------------------------------------------------------
+
+  rules:
+    - avoid-unused-parameters
+    - prefer-match-file-name
+    - avoid-nested-conditional-expressions
+    - prefer-commenting-analyzer-ignores
+    - avoid-unnecessary-type-assertions
+    - avoid-unnecessary-type-casts
+    - prefer-immediate-return
