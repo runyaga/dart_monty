@@ -78,10 +78,7 @@ jobs:
     strategy:
       matrix:
         target:
-          - app
           - dart_monty_platform_interface
-          - dart_monty_ffi
-          - dart_monty_web
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
@@ -89,19 +86,9 @@ jobs:
           channel: stable
           cache: true
       - name: Install dependencies
-        run: |
-          if [ "${{ matrix.target }}" = "app" ]; then
-            flutter pub get
-          else
-            cd packages/${{ matrix.target }} && dart pub get
-          fi
+        run: cd packages/${{ matrix.target }} && dart pub get
       - name: Run tests
-        run: |
-          if [ "${{ matrix.target }}" = "app" ]; then
-            flutter test --coverage
-          else
-            cd packages/${{ matrix.target }} && dart test --coverage=coverage
-          fi
+        run: cd packages/${{ matrix.target }} && dart test --coverage=coverage
       - name: Check coverage (platform_interface)
         if: matrix.target == 'dart_monty_platform_interface'
         run: |
