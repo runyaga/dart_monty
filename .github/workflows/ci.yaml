@@ -25,6 +25,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          cache: true
       - run: flutter pub get
       - run: dart format --set-exit-if-changed .
       - name: Analyze sub-packages
@@ -39,6 +40,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          cache: true
       - run: flutter pub get
       - uses: CQLabs/setup-dcm@v2
         with:
@@ -49,7 +51,7 @@ jobs:
           ci-key: ${{ secrets.DCM_CI_KEY }}
           email: ${{ secrets.DCM_EMAIL }}
           analyze: true
-          folders: lib,packages
+          folders: packages
 
   markdown:
     name: Markdown lint
@@ -85,6 +87,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          cache: true
       - name: Install dependencies
         run: |
           if [ "${{ matrix.target }}" = "app" ]; then
@@ -135,6 +138,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          cache: true
       - name: Build Rust native library
         working-directory: native
         run: cargo build --release
