@@ -49,7 +49,7 @@ jobs:
           ci-key: ${{ secrets.DCM_CI_KEY }}
           email: ${{ secrets.DCM_EMAIL }}
           analyze: true
-          folders: lib packages
+          folders: lib,packages
 
   markdown:
     name: Markdown lint
