@@ -8,13 +8,15 @@ limits, iterative execution, and snapshot/restore support.
 
 ## Status
 
-**Work in progress.** M1 (platform interface) is complete. See
-[PLAN.md](PLAN.md) for the full roadmap.
+**Work in progress.** M1 (platform interface) is complete. M2 (Rust C FFI
+layer + WASM build) is nearly complete — 17 C API functions implemented,
+56 Rust tests passing, WASM builds from same source. Coverage gate in CI
+is the remaining item. See [PLAN.md](PLAN.md) for the full roadmap.
 
 | Milestone | Description | Status |
 |-----------|-------------|--------|
 | M1 | Platform interface (value types, contract, mock) | Done |
-| M2 | Rust C FFI layer + WASM build | Planned |
+| M2 | Rust C FFI layer + WASM build | In Progress |
 | M3 | Dart FFI bindings + web spike + Python ladder | Planned |
 | M4 | Dart WASM package (pure Dart, browser) | Planned |
 | M5 | Flutter desktop plugin (macOS + Linux) | Planned |

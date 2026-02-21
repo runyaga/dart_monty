@@ -7,6 +7,8 @@ Instructions for AI coding agents working on this repository.
 1. Read `CLAUDE.md` for project conventions and commands.
 2. Read `PLAN.md` for the current milestone and implementation status.
 3. Check `docs/milestones/` for detailed requirements of each milestone.
+4. Read `docs/monty-rust-api.md` for the upstream Monty Rust API and the
+   C FFI JSON contract (required for any FFI or bindings work).
 
 ## Validation Workflow
 
@@ -28,6 +30,18 @@ cargo fmt --check
 cargo clippy -- -D warnings
 cargo test
 ```
+
+### Milestone Gate Scripts
+
+Prefer using the milestone gate scripts — they run all checks for that
+milestone in one shot:
+
+```bash
+bash tool/test_m1.sh    # Dart format + analyze + test + coverage
+bash tool/test_m2.sh    # Rust fmt + clippy + test + tarpaulin + WASM build
+```
+
+Do not commit unless the relevant gate script passes.
 
 ## Package-Level Development
 
@@ -70,3 +84,6 @@ Types: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`
 - Never add `// ignore:` directives to suppress analyzer warnings.
 - Resolve warnings by fixing the underlying issue.
 - Run `dart format` before committing; the CI enforces `--set-exit-if-changed`.
+- All JSON at the C FFI boundary must use snake\_case keys matching Dart
+  `fromJson` factories — see `docs/monty-rust-api.md` for the contract.
+- Maintain 90%+ line coverage for both Dart and Rust code.

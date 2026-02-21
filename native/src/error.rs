@@ -105,4 +105,13 @@ mod tests {
         let obj = json.as_object().unwrap();
         assert!(obj["message"].as_str().unwrap().contains("bad value"));
     }
+
+    #[test]
+    fn test_catch_ffi_panic_non_string_payload() {
+        // Panic with a non-string payload (Box<i32>) → "unknown panic" branch
+        let result = catch_ffi_panic(|| {
+            std::panic::resume_unwind(Box::new(42i32));
+        });
+        assert_eq!(result, Err("unknown panic".to_string()));
+    }
 }

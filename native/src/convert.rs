@@ -316,4 +316,82 @@ mod tests {
             _ => panic!("expected dict"),
         }
     }
+
+    #[test]
+    fn test_named_tuple() {
+        let nt = MontyObject::NamedTuple {
+            type_name: "Point".into(),
+            field_names: vec!["x".into(), "y".into()],
+            values: vec![MontyObject::Int(1), MontyObject::Int(2)],
+        };
+        assert_eq!(monty_object_to_json(&nt), json!([1, 2]));
+    }
+
+    #[test]
+    fn test_path() {
+        let p = MontyObject::Path("/tmp/foo".into());
+        assert_eq!(monty_object_to_json(&p), json!("/tmp/foo"));
+    }
+
+    #[test]
+    fn test_dataclass() {
+        let dc = MontyObject::Dataclass {
+            name: "MyClass".into(),
+            type_id: 1,
+            field_names: vec!["a".into()],
+            attrs: vec![(MontyObject::String("a".into()), MontyObject::Int(42))].into(),
+            frozen: false,
+        };
+        let val = monty_object_to_json(&dc);
+        assert_eq!(val["a"], json!(42));
+    }
+
+    #[test]
+    fn test_exception_with_arg() {
+        let exc = MontyObject::Exception {
+            exc_type: monty::ExcType::ValueError,
+            arg: Some("bad value".into()),
+        };
+        assert_eq!(
+            monty_object_to_json(&exc),
+            Value::String("ValueError: bad value".into())
+        );
+    }
+
+    #[test]
+    fn test_exception_no_arg() {
+        let exc = MontyObject::Exception {
+            exc_type: monty::ExcType::RuntimeError,
+            arg: None,
+        };
+        assert_eq!(
+            monty_object_to_json(&exc),
+            Value::String("RuntimeError".into())
+        );
+    }
+
+    #[test]
+    fn test_repr() {
+        let r = MontyObject::Repr("<object at 0x123>".into());
+        assert_eq!(
+            monty_object_to_json(&r),
+            Value::String("<object at 0x123>".into())
+        );
+    }
+
+    #[test]
+    fn test_frozen_set() {
+        let fs = MontyObject::FrozenSet(vec![MontyObject::Int(3), MontyObject::Int(4)]);
+        assert_eq!(monty_object_to_json(&fs), json!([3, 4]));
+    }
+
+    #[test]
+    fn test_json_to_monty_float() {
+        let val = json!(3.14);
+        let obj = json_to_monty_object(&val);
+        match obj {
+            MontyObject::Float(f) => assert!((f - 3.14).abs() < f64::EPSILON),
+            _ => panic!("expected Float"),
+        }
+    }
 }

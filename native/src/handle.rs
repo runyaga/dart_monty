@@ -573,6 +573,96 @@ result
     use serde_json::json;
 
     #[test]
+    fn test_iterative_no_limits() {
+        // Exercise the NoLimitTracker path through start/resume
+        let code = "result = ext_fn(10)\nresult + 5";
+        let mut handle = MontyHandle::new(code.into(), vec!["ext_fn".into()]).unwrap();
+        // No limits set — uses NoLimitTracker
+        let (tag, err) = handle.start();
+        assert_eq!(tag, MontyProgressTag::Pending);
+        assert!(err.is_none());
+        assert_eq!(handle.pending_fn_name(), Some("ext_fn"));
+
+        let (tag, err) = handle.resume("20");
+        assert_eq!(tag, MontyProgressTag::Complete);
+        assert!(err.is_none());
+
+        let result: Value = serde_json::from_str(handle.complete_result_json().unwrap()).unwrap();
+        assert_eq!(result["value"], json!(25));
+    }
+
+    #[test]
+    fn test_start_runtime_error() {
+        // Exception during start() — covers handle_exception via iterative path
+        let mut handle = MontyHandle::new("1/0".into(), vec![]).unwrap();
+        let (tag, err) = handle.start();
+        assert_eq!(tag, MontyProgressTag::Error);
+        assert!(err.is_some());
+        assert!(handle.complete_is_error() == Some(true));
+    }
+
+    #[test]
+    fn test_start_with_limits_complete() {
+        // LimitedTracker start that completes immediately
+        let mut handle = MontyHandle::new("2 + 2".into(), vec![]).unwrap();
+        handle.set_memory_limit(10 * 1024 * 1024);
+        handle.set_time_limit_ms(5000);
+        let (tag, err) = handle.start();
+        assert_eq!(tag, MontyProgressTag::Complete);
+        assert!(err.is_none());
+        assert_eq!(handle.complete_is_error(), Some(false));
+    }
+
+    #[test]
+    fn test_iterative_with_limits() {
+        // Exercise the LimitedTracker path through start/resume
+        let code = "result = ext_fn(1)\nresult * 2";
+        let mut handle = MontyHandle::new(code.into(), vec!["ext_fn".into()]).unwrap();
+        handle.set_memory_limit(10 * 1024 * 1024);
+        handle.set_time_limit_ms(5000);
+        let (tag, err) = handle.start();
+        assert_eq!(tag, MontyProgressTag::Pending);
+        assert!(err.is_none());
+
+        let (tag, err) = handle.resume("50");
+        assert_eq!(tag, MontyProgressTag::Complete);
+        assert!(err.is_none());
+
+        let result: Value = serde_json::from_str(handle.complete_result_json().unwrap()).unwrap();
+        assert_eq!(result["value"], json!(100));
+    }
+
+    #[test]
+    fn test_run_with_limits_error() {
+        // Run with limits that triggers an exception
+        let mut handle = MontyHandle::new("1/0".into(), vec![]).unwrap();
+        handle.set_memory_limit(10 * 1024 * 1024);
+        let (tag, _, err) = handle.run();
+        assert_eq!(tag, MontyResultTag::Error);
+        assert!(err.is_some());
+    }
+
+    #[test]
+    fn test_multiple_ext_fn_calls() {
+        // Multiple pauses: Paused→Paused→Complete
+        let code = "a = ext_fn(1)\nb = ext_fn(2)\na + b";
+        let mut handle = MontyHandle::new(code.into(), vec!["ext_fn".into()]).unwrap();
+        let (tag, _) = handle.start();
+        assert_eq!(tag, MontyProgressTag::Pending);
+        assert_eq!(handle.pending_fn_name(), Some("ext_fn"));
+
+        let (tag, _) = handle.resume("10");
+        assert_eq!(tag, MontyProgressTag::Pending);
+        assert_eq!(handle.pending_fn_name(), Some("ext_fn"));
+
+        let (tag, _) = handle.resume("20");
+        assert_eq!(tag, MontyProgressTag::Complete);
+
+        let result: Value = serde_json::from_str(handle.complete_result_json().unwrap()).unwrap();
+        assert_eq!(result["value"], json!(30));
+    }
+
+    #[test]
     fn test_default_usage_json() {
         let usage: Value = serde_json::from_str(&default_usage_json()).unwrap();
         assert_eq!(usage["memory_bytes_used"], 0);

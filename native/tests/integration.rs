@@ -357,3 +357,580 @@ fn time_limit_exceeded() {
     }
     unsafe { monty_free(handle) };
 }
+
+// ---------------------------------------------------------------------------
+// 9. monty_run with NULL output params — covers the is_null guard branches
+// ---------------------------------------------------------------------------
+
+#[test]
+fn run_with_null_output_params() {
+    let code = c("2 + 2");
+    let mut create_error: *mut c_char = ptr::null_mut();
+
+    let handle = unsafe { monty_create(code.as_ptr(), ptr::null(), &mut create_error) };
+    assert!(!handle.is_null());
+
+    // Pass NULL for both result_json and error_msg
+    let tag = unsafe { monty_run(handle, ptr::null_mut(), ptr::null_mut()) };
+    assert_eq!(tag, MontyResultTag::Ok);
+
+    unsafe { monty_free(handle) };
+}
+
+// ---------------------------------------------------------------------------
+// 10. monty_start on simple code → COMPLETE via FFI
+// ---------------------------------------------------------------------------
+
+#[test]
+fn start_complete_via_ffi() {
+    let code = c("3 + 7");
+    let mut create_error: *mut c_char = ptr::null_mut();
+
+    let handle = unsafe { monty_create(code.as_ptr(), ptr::null(), &mut create_error) };
+    assert!(!handle.is_null());
+
+    let mut out_error: *mut c_char = ptr::null_mut();
+    let tag = unsafe { monty_start(handle, &mut out_error) };
+    assert_eq!(tag, MontyProgressTag::Complete);
+
+    let result_ptr = unsafe { monty_complete_result_json(handle) };
+    assert!(!result_ptr.is_null());
+    let result_str = unsafe { read_c_string(result_ptr) };
+    let parsed: serde_json::Value = serde_json::from_str(&result_str).unwrap();
+    assert_eq!(parsed["value"], 10);
+
+    assert_eq!(unsafe { monty_complete_is_error(handle) }, 0);
+
+    if !out_error.is_null() {
+        unsafe { monty_string_free(out_error) };
+    }
+    unsafe { monty_free(handle) };
+}
+
+// ---------------------------------------------------------------------------
+// 11. monty_start with runtime error via FFI
+// ---------------------------------------------------------------------------
+
+#[test]
+fn start_error_via_ffi() {
+    let code = c("1/0");
+    let mut create_error: *mut c_char = ptr::null_mut();
+
+    let handle = unsafe { monty_create(code.as_ptr(), ptr::null(), &mut create_error) };
+    assert!(!handle.is_null());
+
+    let mut out_error: *mut c_char = ptr::null_mut();
+    let tag = unsafe { monty_start(handle, &mut out_error) };
+    assert_eq!(tag, MontyProgressTag::Error);
+    assert!(!out_error.is_null());
+
+    let err_str = unsafe { read_c_string(out_error) };
+    assert!(!err_str.is_empty());
+
+    assert_eq!(unsafe { monty_complete_is_error(handle) }, 1);
+
+    unsafe { monty_free(handle) };
+}
+
+// ---------------------------------------------------------------------------
+// 12. monty_resume_with_error with NULL error_message
+// ---------------------------------------------------------------------------
+
+#[test]
+fn resume_with_error_null_message() {
+    let code = c("result = ext_fn(1)\nresult");
+    let ext_fns = c("ext_fn");
+    let mut out_error: *mut c_char = ptr::null_mut();
+
+    let handle = unsafe { monty_create(code.as_ptr(), ext_fns.as_ptr(), &mut out_error) };
+    assert!(!handle.is_null());
+
+    let tag = unsafe { monty_start(handle, &mut out_error) };
+    assert_eq!(tag, MontyProgressTag::Pending);
+
+    // Pass NULL error_message
+    let mut err2: *mut c_char = ptr::null_mut();
+    let tag = unsafe { monty_resume_with_error(handle, ptr::null(), &mut err2) };
+    assert_eq!(tag, MontyProgressTag::Error);
+
+    if !err2.is_null() {
+        unsafe { monty_string_free(err2) };
+    }
+    unsafe { monty_free(handle) };
+}
+
+// ---------------------------------------------------------------------------
+// 13. monty_restore with garbage bytes — covers restore Err path
+// ---------------------------------------------------------------------------
+
+#[test]
+fn restore_invalid_data() {
+    let garbage: [u8; 16] = [0xFF; 16];
+    let mut out_error: *mut c_char = ptr::null_mut();
+
+    let handle = unsafe { monty_restore(garbage.as_ptr(), garbage.len(), &mut out_error) };
+    assert!(handle.is_null());
+    assert!(!out_error.is_null());
+
+    let err_str = unsafe { read_c_string(out_error) };
+    assert!(err_str.contains("restore failed"));
+}
+
+// ---------------------------------------------------------------------------
+// 14. monty_snapshot after run (Complete state → Err)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn snapshot_wrong_state_via_ffi() {
+    let code = c("2 + 2");
+    let mut create_error: *mut c_char = ptr::null_mut();
+
+    let handle = unsafe { monty_create(code.as_ptr(), ptr::null(), &mut create_error) };
+    assert!(!handle.is_null());
+
+    // Run to completion first
+    let mut result: *mut c_char = ptr::null_mut();
+    let mut err: *mut c_char = ptr::null_mut();
+    unsafe { monty_run(handle, &mut result, &mut err) };
+    if !result.is_null() {
+        unsafe { monty_string_free(result) };
+    }
+    if !err.is_null() {
+        unsafe { monty_string_free(err) };
+    }
+
+    // Now snapshot should fail
+    let mut snap_len: usize = 0;
+    let snap_ptr = unsafe { monty_snapshot(handle, &mut snap_len) };
+    assert!(snap_ptr.is_null());
+
+    unsafe { monty_free(handle) };
+}
+
+// ---------------------------------------------------------------------------
+// 15. type(42) via Python — covers Type conversion branch
+// ---------------------------------------------------------------------------
+
+#[test]
+fn type_return_via_python() {
+    let code = c("type(42)");
+    let mut create_error: *mut c_char = ptr::null_mut();
+
+    let handle = unsafe { monty_create(code.as_ptr(), ptr::null(), &mut create_error) };
+    assert!(!handle.is_null());
+
+    let mut result_json: *mut c_char = ptr::null_mut();
+    let mut error_msg: *mut c_char = ptr::null_mut();
+    let tag = unsafe { monty_run(handle, &mut result_json, &mut error_msg) };
+    assert_eq!(tag, MontyResultTag::Ok);
+
+    let json_str = unsafe { read_c_string(result_json) };
+    let parsed: serde_json::Value = serde_json::from_str(&json_str).unwrap();
+    // Type variant returns format!("{t}") which should contain "int"
+    let val = parsed["value"].as_str().unwrap();
+    assert!(
+        val.contains("int"),
+        "expected 'int' in type string, got: {val}"
+    );
+
+    if !error_msg.is_null() {
+        unsafe { monty_string_free(error_msg) };
+    }
+    unsafe { monty_free(handle) };
+}
+
+// ---------------------------------------------------------------------------
+// 16. len via Python — covers BuiltinFunction conversion branch
+// ---------------------------------------------------------------------------
+
+#[test]
+fn builtin_fn_return_via_python() {
+    let code = c("len");
+    let mut create_error: *mut c_char = ptr::null_mut();
+
+    let handle = unsafe { monty_create(code.as_ptr(), ptr::null(), &mut create_error) };
+    assert!(!handle.is_null());
+
+    let mut result_json: *mut c_char = ptr::null_mut();
+    let mut error_msg: *mut c_char = ptr::null_mut();
+    let tag = unsafe { monty_run(handle, &mut result_json, &mut error_msg) };
+    assert_eq!(tag, MontyResultTag::Ok);
+
+    let json_str = unsafe { read_c_string(result_json) };
+    let parsed: serde_json::Value = serde_json::from_str(&json_str).unwrap();
+    // BuiltinFunction variant returns format!("{f:?}")
+    assert!(parsed["value"].is_string());
+
+    if !error_msg.is_null() {
+        unsafe { monty_string_free(error_msg) };
+    }
+    unsafe { monty_free(handle) };
+}
+
+// ---------------------------------------------------------------------------
+// 17. Iterative with limits via FFI
+// ---------------------------------------------------------------------------
+
+#[test]
+fn iterative_with_limits_via_ffi() {
+    let code = c("result = ext_fn(5)\nresult * 3");
+    let ext_fns = c("ext_fn");
+    let mut create_error: *mut c_char = ptr::null_mut();
+
+    let handle = unsafe { monty_create(code.as_ptr(), ext_fns.as_ptr(), &mut create_error) };
+    assert!(!handle.is_null());
+
+    // Set limits to use LimitedTracker path
+    unsafe { monty_set_memory_limit(handle, 10 * 1024 * 1024) };
+    unsafe { monty_set_time_limit_ms(handle, 5000) };
+
+    let mut out_error: *mut c_char = ptr::null_mut();
+    let tag = unsafe { monty_start(handle, &mut out_error) };
+    assert_eq!(tag, MontyProgressTag::Pending);
+
+    // Read function name
+    let fn_name_ptr = unsafe { monty_pending_fn_name(handle) };
+    let fn_name = unsafe { read_c_string(fn_name_ptr) };
+    assert_eq!(fn_name, "ext_fn");
+
+    // Resume
+    let value = c("10");
+    let mut resume_error: *mut c_char = ptr::null_mut();
+    let tag = unsafe { monty_resume(handle, value.as_ptr(), &mut resume_error) };
+    assert_eq!(tag, MontyProgressTag::Complete);
+
+    let result_ptr = unsafe { monty_complete_result_json(handle) };
+    let result_str = unsafe { read_c_string(result_ptr) };
+    let result: serde_json::Value = serde_json::from_str(&result_str).unwrap();
+    assert_eq!(result["value"], 30);
+
+    if !out_error.is_null() {
+        unsafe { monty_string_free(out_error) };
+    }
+    if !resume_error.is_null() {
+        unsafe { monty_string_free(resume_error) };
+    }
+    unsafe { monty_free(handle) };
+}
+
+// ---------------------------------------------------------------------------
+// 18. Multiple ext_fn calls via FFI (Paused→Paused transitions)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn multiple_ext_fn_calls_via_ffi() {
+    let code = c("a = ext_fn(1)\nb = ext_fn(2)\na + b");
+    let ext_fns = c("ext_fn");
+    let mut create_error: *mut c_char = ptr::null_mut();
+
+    let handle = unsafe { monty_create(code.as_ptr(), ext_fns.as_ptr(), &mut create_error) };
+    assert!(!handle.is_null());
+
+    let mut out_error: *mut c_char = ptr::null_mut();
+    let tag = unsafe { monty_start(handle, &mut out_error) };
+    assert_eq!(tag, MontyProgressTag::Pending);
+
+    // First resume
+    let v1 = c("100");
+    let tag = unsafe { monty_resume(handle, v1.as_ptr(), &mut out_error) };
+    assert_eq!(tag, MontyProgressTag::Pending);
+
+    // Second resume
+    let v2 = c("200");
+    let tag = unsafe { monty_resume(handle, v2.as_ptr(), &mut out_error) };
+    assert_eq!(tag, MontyProgressTag::Complete);
+
+    let result_ptr = unsafe { monty_complete_result_json(handle) };
+    let result_str = unsafe { read_c_string(result_ptr) };
+    let result: serde_json::Value = serde_json::from_str(&result_str).unwrap();
+    assert_eq!(result["value"], 300);
+
+    if !out_error.is_null() {
+        unsafe { monty_string_free(out_error) };
+    }
+    unsafe { monty_free(handle) };
+}
+
+// ---------------------------------------------------------------------------
+// 19. Run with NULL result_json but valid error_msg (error path)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn run_error_with_null_result_json() {
+    let code = c("1/0");
+    let mut create_error: *mut c_char = ptr::null_mut();
+
+    let handle = unsafe { monty_create(code.as_ptr(), ptr::null(), &mut create_error) };
+    assert!(!handle.is_null());
+
+    // Pass NULL for result_json only
+    let mut error_msg: *mut c_char = ptr::null_mut();
+    let tag = unsafe { monty_run(handle, ptr::null_mut(), &mut error_msg) };
+    assert_eq!(tag, MontyResultTag::Error);
+    assert!(!error_msg.is_null());
+
+    let err = unsafe { read_c_string(error_msg) };
+    assert!(!err.is_empty());
+
+    unsafe { monty_free(handle) };
+}
+
+// ---------------------------------------------------------------------------
+// 20. monty_create with non-UTF8 ext_fns (covers Err(_) => vec![])
+// ---------------------------------------------------------------------------
+
+#[test]
+fn create_with_ext_fns_empty_string() {
+    let code = c("2 + 2");
+    let ext_fns = c(""); // empty string → vec![]
+    let mut create_error: *mut c_char = ptr::null_mut();
+
+    let handle = unsafe { monty_create(code.as_ptr(), ext_fns.as_ptr(), &mut create_error) };
+    assert!(!handle.is_null());
+
+    let mut result_json: *mut c_char = ptr::null_mut();
+    let mut error_msg: *mut c_char = ptr::null_mut();
+    let tag = unsafe { monty_run(handle, &mut result_json, &mut error_msg) };
+    assert_eq!(tag, MontyResultTag::Ok);
+
+    if !result_json.is_null() {
+        unsafe { monty_string_free(result_json) };
+    }
+    if !error_msg.is_null() {
+        unsafe { monty_string_free(error_msg) };
+    }
+    unsafe { monty_free(handle) };
+}
+
+// ---------------------------------------------------------------------------
+// 21. monty_start with NULL out_error (covers the out_error.is_null guard)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn start_with_null_out_error() {
+    let code = c("2 + 2");
+    let mut create_error: *mut c_char = ptr::null_mut();
+
+    let handle = unsafe { monty_create(code.as_ptr(), ptr::null(), &mut create_error) };
+    assert!(!handle.is_null());
+
+    // Pass NULL for out_error
+    let tag = unsafe { monty_start(handle, ptr::null_mut()) };
+    assert_eq!(tag, MontyProgressTag::Complete);
+
+    unsafe { monty_free(handle) };
+}
+
+// ---------------------------------------------------------------------------
+// 22. monty_restore with NULL out_error (covers the out_error.is_null guard)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn restore_invalid_with_null_out_error() {
+    let garbage: [u8; 8] = [0xAB; 8];
+    // Pass NULL for out_error
+    let handle = unsafe { monty_restore(garbage.as_ptr(), garbage.len(), ptr::null_mut()) };
+    assert!(handle.is_null());
+}
+
+// ---------------------------------------------------------------------------
+// 23. monty_create with NULL out_error (covers the out_error.is_null guard)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn create_error_with_null_out_error() {
+    let code = c("def"); // syntax error
+    // Pass NULL for out_error
+    let handle = unsafe { monty_create(code.as_ptr(), ptr::null(), ptr::null_mut()) };
+    assert!(handle.is_null());
+}
+
+// ---------------------------------------------------------------------------
+// 24. complete accessors after run via FFI
+// ---------------------------------------------------------------------------
+
+#[test]
+fn complete_accessors_after_run() {
+    let code = c("42");
+    let mut create_error: *mut c_char = ptr::null_mut();
+
+    let handle = unsafe { monty_create(code.as_ptr(), ptr::null(), &mut create_error) };
+    assert!(!handle.is_null());
+
+    let mut result: *mut c_char = ptr::null_mut();
+    let mut err: *mut c_char = ptr::null_mut();
+    let tag = unsafe { monty_run(handle, &mut result, &mut err) };
+    assert_eq!(tag, MontyResultTag::Ok);
+
+    // complete_result_json should work
+    let cres = unsafe { monty_complete_result_json(handle) };
+    assert!(!cres.is_null());
+    unsafe { monty_string_free(cres) };
+
+    // complete_is_error should return 0
+    assert_eq!(unsafe { monty_complete_is_error(handle) }, 0);
+
+    // pending accessors should return NULL/-1
+    let fn_name = unsafe { monty_pending_fn_name(handle) };
+    assert!(fn_name.is_null());
+    let fn_args = unsafe { monty_pending_fn_args_json(handle) };
+    assert!(fn_args.is_null());
+
+    if !result.is_null() {
+        unsafe { monty_string_free(result) };
+    }
+    if !err.is_null() {
+        unsafe { monty_string_free(err) };
+    }
+    unsafe { monty_free(handle) };
+}
+
+// ---------------------------------------------------------------------------
+// 25. Non-UTF8 code → covers lib.rs lines 41-42, 44
+// ---------------------------------------------------------------------------
+
+#[test]
+fn create_with_non_utf8_code() {
+    // Construct invalid UTF-8: 0xFF is never valid in UTF-8
+    let bad_bytes: &[u8] = &[0xFF, 0xFE, 0x00]; // null-terminated
+    let mut out_error: *mut c_char = ptr::null_mut();
+
+    let handle = unsafe { monty_create(bad_bytes.as_ptr().cast(), ptr::null(), &mut out_error) };
+    assert!(handle.is_null());
+    assert!(!out_error.is_null());
+
+    let err = unsafe { read_c_string(out_error) };
+    assert!(err.contains("not valid UTF-8"));
+}
+
+// ---------------------------------------------------------------------------
+// 26. Non-UTF8 ext_fns → covers lib.rs line 54
+// ---------------------------------------------------------------------------
+
+#[test]
+fn create_with_non_utf8_ext_fns() {
+    let code = c("2 + 2");
+    // Invalid UTF-8 for ext_fns
+    let bad_ext: &[u8] = &[0xFF, 0xFE, 0x00];
+    let mut out_error: *mut c_char = ptr::null_mut();
+
+    let handle = unsafe { monty_create(code.as_ptr(), bad_ext.as_ptr().cast(), &mut out_error) };
+    // Should succeed (Err(_) => vec![] — just ignores bad ext_fns)
+    assert!(!handle.is_null());
+
+    unsafe { monty_free(handle) };
+}
+
+// ---------------------------------------------------------------------------
+// 27. Non-UTF8 value_json in monty_resume → covers lib.rs lines 200-201, 203
+// ---------------------------------------------------------------------------
+
+#[test]
+fn resume_with_non_utf8_value() {
+    let code = c("result = ext_fn(1)\nresult");
+    let ext_fns = c("ext_fn");
+    let mut out_error: *mut c_char = ptr::null_mut();
+
+    let handle = unsafe { monty_create(code.as_ptr(), ext_fns.as_ptr(), &mut out_error) };
+    assert!(!handle.is_null());
+
+    let tag = unsafe { monty_start(handle, &mut out_error) };
+    assert_eq!(tag, MontyProgressTag::Pending);
+
+    // Pass invalid UTF-8 as value_json
+    let bad_json: &[u8] = &[0xFF, 0xFE, 0x00];
+    let mut resume_error: *mut c_char = ptr::null_mut();
+    let tag = unsafe { monty_resume(handle, bad_json.as_ptr().cast(), &mut resume_error) };
+    assert_eq!(tag, MontyProgressTag::Error);
+    assert!(!resume_error.is_null());
+
+    let err = unsafe { read_c_string(resume_error) };
+    assert!(err.contains("not valid UTF-8"));
+
+    unsafe { monty_free(handle) };
+}
+
+// ---------------------------------------------------------------------------
+// 28. Non-UTF8 error_message in monty_resume_with_error → covers lib.rs lines 253-254, 256
+// ---------------------------------------------------------------------------
+
+#[test]
+fn resume_with_error_non_utf8_message() {
+    let code = c("result = ext_fn(1)\nresult");
+    let ext_fns = c("ext_fn");
+    let mut out_error: *mut c_char = ptr::null_mut();
+
+    let handle = unsafe { monty_create(code.as_ptr(), ext_fns.as_ptr(), &mut out_error) };
+    assert!(!handle.is_null());
+
+    let tag = unsafe { monty_start(handle, &mut out_error) };
+    assert_eq!(tag, MontyProgressTag::Pending);
+
+    // Pass invalid UTF-8 as error_message
+    let bad_msg: &[u8] = &[0xFF, 0xFE, 0x00];
+    let mut resume_error: *mut c_char = ptr::null_mut();
+    let tag =
+        unsafe { monty_resume_with_error(handle, bad_msg.as_ptr().cast(), &mut resume_error) };
+    assert_eq!(tag, MontyProgressTag::Error);
+    assert!(!resume_error.is_null());
+
+    let err = unsafe { read_c_string(resume_error) };
+    assert!(err.contains("not valid UTF-8"));
+
+    unsafe { monty_free(handle) };
+}
+
+// ---------------------------------------------------------------------------
+// 29. monty_set_stack_limit with valid handle → covers lib.rs line 426
+// ---------------------------------------------------------------------------
+
+#[test]
+fn set_stack_limit_via_ffi() {
+    let code = c("2 + 2");
+    let mut create_error: *mut c_char = ptr::null_mut();
+
+    let handle = unsafe { monty_create(code.as_ptr(), ptr::null(), &mut create_error) };
+    assert!(!handle.is_null());
+
+    unsafe { monty_set_stack_limit(handle, 50) };
+
+    let mut result_json: *mut c_char = ptr::null_mut();
+    let mut error_msg: *mut c_char = ptr::null_mut();
+    let tag = unsafe { monty_run(handle, &mut result_json, &mut error_msg) };
+    assert_eq!(tag, MontyResultTag::Ok);
+
+    if !result_json.is_null() {
+        unsafe { monty_string_free(result_json) };
+    }
+    if !error_msg.is_null() {
+        unsafe { monty_string_free(error_msg) };
+    }
+    unsafe { monty_free(handle) };
+}
+
+// ---------------------------------------------------------------------------
+// 30. Start with limits + error → covers handle.rs line 135
+// ---------------------------------------------------------------------------
+
+#[test]
+fn start_with_limits_error_via_ffi() {
+    let code = c("1/0");
+    let mut create_error: *mut c_char = ptr::null_mut();
+
+    let handle = unsafe { monty_create(code.as_ptr(), ptr::null(), &mut create_error) };
+    assert!(!handle.is_null());
+
+    unsafe { monty_set_memory_limit(handle, 10 * 1024 * 1024) };
+    unsafe { monty_set_time_limit_ms(handle, 5000) };
+
+    let mut out_error: *mut c_char = ptr::null_mut();
+    let tag = unsafe { monty_start(handle, &mut out_error) };
+    assert_eq!(tag, MontyProgressTag::Error);
+
+    assert_eq!(unsafe { monty_complete_is_error(handle) }, 1);
+
+    if !out_error.is_null() {
+        unsafe { monty_string_free(out_error) };
+    }
+    unsafe { monty_free(handle) };
+}
