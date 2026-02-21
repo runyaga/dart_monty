@@ -51,7 +51,6 @@ enum HandleState {
 pub struct MontyHandle {
     state: HandleState,
     limits: Option<ResourceLimits>,
-    stdout_buffer: String,
     usage_json: String,
 }
 
@@ -62,7 +61,6 @@ impl MontyHandle {
         Ok(Self {
             state: HandleState::Ready(compiled),
             limits: None,
-            stdout_buffer: String::new(),
             usage_json: default_usage_json(),
         })
     }
@@ -82,7 +80,7 @@ impl MontyHandle {
             }
         };
 
-        let mut print = PrintWriter::Collect(std::mem::take(&mut self.stdout_buffer));
+        let mut print = PrintWriter::Disabled;
 
         let result = if let Some(limits) = self.limits.clone() {
             let tracker = LimitedTracker::new(limits);
@@ -90,10 +88,6 @@ impl MontyHandle {
         } else {
             compiled.run(vec![], NoLimitTracker, &mut print)
         };
-
-        if let Some(output) = print.collected_output() {
-            self.stdout_buffer = output.to_string();
-        }
 
         match result {
             Ok(obj) => {
@@ -132,30 +126,18 @@ impl MontyHandle {
             }
         };
 
-        let mut print = PrintWriter::Collect(std::mem::take(&mut self.stdout_buffer));
+        let mut print = PrintWriter::Disabled;
 
         if let Some(limits) = self.limits.clone() {
             let tracker = LimitedTracker::new(limits);
             match compiled.start(vec![], tracker, &mut print) {
-                Ok(progress) => {
-                    self.collect_output(&mut print);
-                    self.process_progress_limited(progress)
-                }
-                Err(exc) => {
-                    self.collect_output(&mut print);
-                    self.handle_exception(exc)
-                }
+                Ok(progress) => self.process_progress_limited(progress),
+                Err(exc) => self.handle_exception(exc),
             }
         } else {
             match compiled.start(vec![], NoLimitTracker, &mut print) {
-                Ok(progress) => {
-                    self.collect_output(&mut print);
-                    self.process_progress_no_limit(progress)
-                }
-                Err(exc) => {
-                    self.collect_output(&mut print);
-                    self.handle_exception(exc)
-                }
+                Ok(progress) => self.process_progress_no_limit(progress),
+                Err(exc) => self.handle_exception(exc),
             }
         }
     }
@@ -231,7 +213,6 @@ impl MontyHandle {
         Ok(Self {
             state: HandleState::Ready(compiled),
             limits: None,
-            stdout_buffer: String::new(),
             usage_json: default_usage_json(),
         })
     }
@@ -261,29 +242,17 @@ impl MontyHandle {
 
         match state {
             HandleState::PausedLimited { snapshot, .. } => {
-                let mut print = PrintWriter::Collect(std::mem::take(&mut self.stdout_buffer));
+                let mut print = PrintWriter::Disabled;
                 match snapshot.run(result, &mut print) {
-                    Ok(progress) => {
-                        self.collect_output(&mut print);
-                        self.process_progress_limited(progress)
-                    }
-                    Err(exc) => {
-                        self.collect_output(&mut print);
-                        self.handle_exception(exc)
-                    }
+                    Ok(progress) => self.process_progress_limited(progress),
+                    Err(exc) => self.handle_exception(exc),
                 }
             }
             HandleState::PausedNoLimit { snapshot, .. } => {
-                let mut print = PrintWriter::Collect(std::mem::take(&mut self.stdout_buffer));
+                let mut print = PrintWriter::Disabled;
                 match snapshot.run(result, &mut print) {
-                    Ok(progress) => {
-                        self.collect_output(&mut print);
-                        self.process_progress_no_limit(progress)
-                    }
-                    Err(exc) => {
-                        self.collect_output(&mut print);
-                        self.handle_exception(exc)
-                    }
+                    Ok(progress) => self.process_progress_no_limit(progress),
+                    Err(exc) => self.handle_exception(exc),
                 }
             }
             other => {
@@ -402,12 +371,6 @@ impl MontyHandle {
             is_error: true,
         };
         (MontyProgressTag::Error, Some(msg))
-    }
-
-    fn collect_output(&mut self, print: &mut PrintWriter<'_>) {
-        if let Some(output) = print.collected_output() {
-            self.stdout_buffer = output.to_string();
-        }
     }
 }
 

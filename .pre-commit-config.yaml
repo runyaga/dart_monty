@@ -51,6 +51,13 @@ repos:
         language: system
         files: ^native/
         pass_filenames: false
+      - id: cargo-tarpaulin
+        name: cargo tarpaulin (90% coverage)
+        entry: bash -c 'cd native && OUTPUT=$(cargo tarpaulin 2>&1) && echo "$OUTPUT" && PCT=$(echo "$OUTPUT" | grep -oE "[0-9]+\.[0-9]+% coverage" | grep -oE "[0-9]+\.[0-9]+" | tail -1 || echo "0") && WHOLE=${PCT%%.*} && [ "${WHOLE:-0}" -ge 90 ]'
+        language: system
+        files: ^native/
+        pass_filenames: false
+        stages: [pre-push]
   - repo: https://github.com/jackdewinter/pymarkdown
     rev: v0.9.35
     hooks:

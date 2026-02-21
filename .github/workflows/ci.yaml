@@ -174,9 +174,15 @@ jobs:
       - name: Run tarpaulin
         working-directory: native
         run: |
-          cargo tarpaulin --out Xml --output-dir target/tarpaulin
-          PCT=$(cargo tarpaulin --print-rust-flags 2>&1 | grep -oP '\d+\.\d+%' | head -1 | tr -d '%' || echo "0")
+          OUTPUT=$(cargo tarpaulin --out Xml --output-dir target/tarpaulin 2>&1)
+          echo "$OUTPUT"
+          PCT=$(echo "$OUTPUT" | grep -oP '\d+\.\d+% coverage' | grep -oP '\d+\.\d+' | tail -1 || echo "0")
           echo "Coverage: ${PCT}%"
+          WHOLE=${PCT%%.*}
+          if [ "${WHOLE:-0}" -lt 90 ]; then
+            echo "FAIL: Coverage ${PCT}% < 90% minimum."
+            exit 1
+          fi
 
   build-wasm:
     name: Build WASM
