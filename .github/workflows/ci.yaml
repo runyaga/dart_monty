@@ -52,6 +52,15 @@ jobs:
           email: ${{ secrets.DCM_EMAIL }}
           analyze: true
           folders: packages
+      - name: Upload to DCM Dashboard
+        if: github.ref == 'refs/heads/main'
+        run: >-
+          dcm run packages
+          --ci-key=${{ secrets.DCM_CI_KEY }}
+          --email=${{ secrets.DCM_EMAIL }}
+          --project=${{ secrets.DCM_PROJECT_KEY }}
+          --analyze
+          --upload
 
   markdown:
     name: Markdown lint
