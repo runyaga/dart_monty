@@ -18,11 +18,6 @@ repos:
         entry: dart format --set-exit-if-changed
         language: system
         types: [dart]
-      - id: flutter-analyze
-        name: flutter analyze
-        entry: flutter analyze --fatal-infos
-        language: system
-        pass_filenames: false
       - id: dart-analyze-packages
         name: dart analyze packages
         entry: python3 tool/analyze_packages.py

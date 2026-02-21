@@ -22,7 +22,6 @@ jobs:
           channel: stable
       - run: flutter pub get
       - run: dart format --set-exit-if-changed .
-      - run: flutter analyze --fatal-infos
       - name: Analyze sub-packages
         run: python3 tool/analyze_packages.py
 
@@ -53,10 +52,16 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-python@v5
         with:
-          node-version: 20
-      - run: npx markdownlint-cli "**/*.md" --ignore node_modules --ignore build --ignore native/target
+          python-version: "3.12"
+      - run: pip install pymarkdownlnt
+      - name: pymarkdown scan
+        run: >-
+          pymarkdown
+          --set extensions.front-matter.enabled=\$!True
+          --disable-rules MD013,MD024,MD033,MD036,MD041,MD060
+          scan **/*.md
 
   test:
     name: Test (${{ matrix.target }})

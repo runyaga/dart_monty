@@ -18,6 +18,11 @@ def main() -> int:
             continue
 
         print(f'\n--- Analyzing {name} ---')
+        subprocess.run(
+            ['dart', 'pub', 'get'],
+            cwd=pkg_path,
+            check=False,
+        )
         result = subprocess.run(
             ['dart', 'analyze', '--fatal-infos'],
             cwd=pkg_path,
