@@ -36,10 +36,16 @@ jobs:
         with:
           channel: stable
       - run: flutter pub get
-      - name: Install DCM
-        run: dart pub global activate dart_code_metrics
-      - name: DCM analyze
-        run: dcm analyze .
+      - uses: CQLabs/setup-dcm@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: CQLabs/dcm-action@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          ci-key: ${{ secrets.DCM_CI_KEY }}
+          email: ${{ secrets.DCM_EMAIL }}
+          analyze: true
+          folders: lib packages
 
   markdown:
     name: Markdown lint
