@@ -84,8 +84,8 @@ tool/test_m1.sh
 - [x] `catch_unwind` at every FFI boundary, NULL checks, error as C strings
 - [x] WASM build from same source (`cargo build --target wasm32-wasip1-threads`)
 - [x] Verify "resume with error" upstream support (`ExternalResult::Error`)
-- [x] 56 Rust tests (48 unit + 8 integration): smoke, iterative, resume-with-error, snapshots, panic safety, resource limits, time limits
-- [ ] Rust coverage: 90%+ (`cargo-tarpaulin`) — gate in CI
+- [x] 93 Rust tests (63 unit + 30 integration): smoke, iterative, resume-with-error, snapshots, panic safety, resource limits, time limits, non-UTF8, NULL safety
+- [x] Rust coverage: 90.34% (`cargo-tarpaulin`) — gate passes
 
 **Gate:**
 
@@ -342,10 +342,11 @@ No manual testing steps.
 
 ## When You Resume
 
-To start implementation, type:
+To start the next milestone, type:
 
 ```text
-Start M1. Implement dart_monty_platform_interface with all value types,
-MontyPlatform contract, MockMontyPlatform, and tests. Gate: tool/test_m1.sh
-passes with 90%+ coverage.
+Start M3. Implement dart_monty_ffi with ffigen bindings, high-level Dart
+wrapper, iterative execution, snapshots, web viability spike, cross-path
+parity tests, and Python ladder tiers 1-6. Gate: tool/test_m3.sh passes
+with 90%+ coverage on both native and WASM paths.
 ```
