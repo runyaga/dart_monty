@@ -1,0 +1,637 @@
+use std::time::Duration;
+
+use monty::{
+    ExternalResult, LimitedTracker, MontyException, MontyRun, NoLimitTracker, PrintWriter,
+    ResourceLimits, RunProgress, Snapshot,
+};
+use serde_json::Value;
+
+use crate::convert::{json_to_monty_object, monty_object_to_json};
+use crate::error::monty_exception_to_json;
+
+/// Result tag for `monty_run` — matches `MontyResultTag` in the C header.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MontyResultTag {
+    Ok = 0,
+    Error = 1,
+}
+
+/// Progress tag for `monty_start`/`monty_resume` — matches `MontyProgressTag`
+/// in the C header.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MontyProgressTag {
+    Complete = 0,
+    Pending = 1,
+    Error = 2,
+}
+
+/// Internal state of a running handle.
+enum HandleState {
+    Ready(MontyRun),
+    PausedLimited {
+        snapshot: Snapshot<LimitedTracker>,
+        fn_name: String,
+        args_json: String,
+    },
+    PausedNoLimit {
+        snapshot: Snapshot<NoLimitTracker>,
+        fn_name: String,
+        args_json: String,
+    },
+    Complete {
+        result_json: String,
+        is_error: bool,
+    },
+    Consumed,
+}
+
+/// Opaque handle exposed to C callers.
+pub struct MontyHandle {
+    state: HandleState,
+    limits: Option<ResourceLimits>,
+    stdout_buffer: String,
+    usage_json: String,
+}
+
+impl MontyHandle {
+    /// Create a new handle from Python source code.
+    pub fn new(code: String, external_functions: Vec<String>) -> Result<Self, MontyException> {
+        let compiled = MontyRun::new(code, "<input>", vec![], external_functions)?;
+        Ok(Self {
+            state: HandleState::Ready(compiled),
+            limits: None,
+            stdout_buffer: String::new(),
+            usage_json: default_usage_json(),
+        })
+    }
+
+    /// Run code to completion. Returns `(result_tag, result_json, error_msg)`.
+    pub fn run(&mut self) -> (MontyResultTag, String, Option<String>) {
+        let state = std::mem::replace(&mut self.state, HandleState::Consumed);
+        let compiled = match state {
+            HandleState::Ready(c) => c,
+            _ => {
+                self.state = state;
+                return (
+                    MontyResultTag::Error,
+                    String::new(),
+                    Some("handle not in Ready state".into()),
+                );
+            }
+        };
+
+        let mut print = PrintWriter::Collect(std::mem::take(&mut self.stdout_buffer));
+
+        let result = if let Some(limits) = self.limits.clone() {
+            let tracker = LimitedTracker::new(limits);
+            compiled.run(vec![], tracker, &mut print)
+        } else {
+            compiled.run(vec![], NoLimitTracker, &mut print)
+        };
+
+        if let Some(output) = print.collected_output() {
+            self.stdout_buffer = output.to_string();
+        }
+
+        match result {
+            Ok(obj) => {
+                let val = monty_object_to_json(&obj);
+                let result_json = build_result_json(val, None, &self.usage_json);
+                self.state = HandleState::Complete {
+                    result_json: result_json.clone(),
+                    is_error: false,
+                };
+                (MontyResultTag::Ok, result_json, None)
+            }
+            Err(exc) => {
+                let err_json = monty_exception_to_json(&exc);
+                let result_json = build_result_json(Value::Null, Some(err_json), &self.usage_json);
+                let msg = exc.summary();
+                self.state = HandleState::Complete {
+                    result_json: result_json.clone(),
+                    is_error: true,
+                };
+                (MontyResultTag::Error, result_json, Some(msg))
+            }
+        }
+    }
+
+    /// Start iterative execution. Returns progress tag and sets internal state.
+    pub fn start(&mut self) -> (MontyProgressTag, Option<String>) {
+        let state = std::mem::replace(&mut self.state, HandleState::Consumed);
+        let compiled = match state {
+            HandleState::Ready(c) => c,
+            _ => {
+                self.state = state;
+                return (
+                    MontyProgressTag::Error,
+                    Some("handle not in Ready state".into()),
+                );
+            }
+        };
+
+        let mut print = PrintWriter::Collect(std::mem::take(&mut self.stdout_buffer));
+
+        if let Some(limits) = self.limits.clone() {
+            let tracker = LimitedTracker::new(limits);
+            match compiled.start(vec![], tracker, &mut print) {
+                Ok(progress) => {
+                    self.collect_output(&mut print);
+                    self.process_progress_limited(progress)
+                }
+                Err(exc) => {
+                    self.collect_output(&mut print);
+                    self.handle_exception(exc)
+                }
+            }
+        } else {
+            match compiled.start(vec![], NoLimitTracker, &mut print) {
+                Ok(progress) => {
+                    self.collect_output(&mut print);
+                    self.process_progress_no_limit(progress)
+                }
+                Err(exc) => {
+                    self.collect_output(&mut print);
+                    self.handle_exception(exc)
+                }
+            }
+        }
+    }
+
+    /// Resume with a return value (JSON string).
+    pub fn resume(&mut self, value_json: &str) -> (MontyProgressTag, Option<String>) {
+        let val: Value = match serde_json::from_str(value_json) {
+            Ok(v) => v,
+            Err(e) => return (MontyProgressTag::Error, Some(format!("invalid JSON: {e}"))),
+        };
+        let obj = json_to_monty_object(&val);
+        let result = ExternalResult::Return(obj);
+        self.resume_with_result(result)
+    }
+
+    /// Resume with an error message.
+    pub fn resume_with_error(&mut self, error_message: &str) -> (MontyProgressTag, Option<String>) {
+        let exc = MontyException::new(
+            monty::ExcType::RuntimeError,
+            Some(error_message.to_string()),
+        );
+        let result = ExternalResult::Error(exc);
+        self.resume_with_result(result)
+    }
+
+    /// Get the pending function name (only valid in Paused state).
+    pub fn pending_fn_name(&self) -> Option<&str> {
+        match &self.state {
+            HandleState::PausedLimited { fn_name, .. }
+            | HandleState::PausedNoLimit { fn_name, .. } => Some(fn_name.as_str()),
+            _ => None,
+        }
+    }
+
+    /// Get the pending function args as JSON (only valid in Paused state).
+    pub fn pending_fn_args_json(&self) -> Option<&str> {
+        match &self.state {
+            HandleState::PausedLimited { args_json, .. }
+            | HandleState::PausedNoLimit { args_json, .. } => Some(args_json.as_str()),
+            _ => None,
+        }
+    }
+
+    /// Get the complete result as JSON (only valid in Complete state).
+    pub fn complete_result_json(&self) -> Option<&str> {
+        match &self.state {
+            HandleState::Complete { result_json, .. } => Some(result_json.as_str()),
+            _ => None,
+        }
+    }
+
+    /// Whether the complete result is an error.
+    pub fn complete_is_error(&self) -> Option<bool> {
+        match &self.state {
+            HandleState::Complete { is_error, .. } => Some(*is_error),
+            _ => None,
+        }
+    }
+
+    /// Serialize the compiled code to bytes (snapshot).
+    pub fn snapshot(&self) -> Result<Vec<u8>, String> {
+        match &self.state {
+            HandleState::Ready(compiled) => {
+                compiled.dump().map_err(|e| format!("snapshot failed: {e}"))
+            }
+            _ => Err("can only snapshot in Ready state".into()),
+        }
+    }
+
+    /// Restore a handle from serialized bytes.
+    pub fn restore(bytes: &[u8]) -> Result<Self, String> {
+        let compiled = MontyRun::load(bytes).map_err(|e| format!("restore failed: {e}"))?;
+        Ok(Self {
+            state: HandleState::Ready(compiled),
+            limits: None,
+            stdout_buffer: String::new(),
+            usage_json: default_usage_json(),
+        })
+    }
+
+    /// Set memory limit in bytes.
+    pub fn set_memory_limit(&mut self, bytes: usize) {
+        let limits = self.limits.get_or_insert_with(ResourceLimits::new);
+        limits.max_memory = Some(bytes);
+    }
+
+    /// Set time limit in milliseconds.
+    pub fn set_time_limit_ms(&mut self, ms: u64) {
+        let limits = self.limits.get_or_insert_with(ResourceLimits::new);
+        limits.max_duration = Some(Duration::from_millis(ms));
+    }
+
+    /// Set stack depth limit.
+    pub fn set_stack_limit(&mut self, depth: usize) {
+        let limits = self.limits.get_or_insert_with(ResourceLimits::new);
+        limits.max_recursion_depth = Some(depth);
+    }
+
+    // --- private helpers ---
+
+    fn resume_with_result(&mut self, result: ExternalResult) -> (MontyProgressTag, Option<String>) {
+        let state = std::mem::replace(&mut self.state, HandleState::Consumed);
+
+        match state {
+            HandleState::PausedLimited { snapshot, .. } => {
+                let mut print = PrintWriter::Collect(std::mem::take(&mut self.stdout_buffer));
+                match snapshot.run(result, &mut print) {
+                    Ok(progress) => {
+                        self.collect_output(&mut print);
+                        self.process_progress_limited(progress)
+                    }
+                    Err(exc) => {
+                        self.collect_output(&mut print);
+                        self.handle_exception(exc)
+                    }
+                }
+            }
+            HandleState::PausedNoLimit { snapshot, .. } => {
+                let mut print = PrintWriter::Collect(std::mem::take(&mut self.stdout_buffer));
+                match snapshot.run(result, &mut print) {
+                    Ok(progress) => {
+                        self.collect_output(&mut print);
+                        self.process_progress_no_limit(progress)
+                    }
+                    Err(exc) => {
+                        self.collect_output(&mut print);
+                        self.handle_exception(exc)
+                    }
+                }
+            }
+            other => {
+                self.state = other;
+                (
+                    MontyProgressTag::Error,
+                    Some("handle not in Paused state".into()),
+                )
+            }
+        }
+    }
+
+    fn process_progress_limited(
+        &mut self,
+        progress: RunProgress<LimitedTracker>,
+    ) -> (MontyProgressTag, Option<String>) {
+        match progress {
+            RunProgress::Complete(obj) => {
+                let val = monty_object_to_json(&obj);
+                let result_json = build_result_json(val, None, &self.usage_json);
+                self.state = HandleState::Complete {
+                    result_json,
+                    is_error: false,
+                };
+                (MontyProgressTag::Complete, None)
+            }
+            RunProgress::FunctionCall {
+                function_name,
+                args,
+                state: snapshot,
+                ..
+            } => {
+                let args_json = serde_json::to_string(
+                    &args.iter().map(monty_object_to_json).collect::<Vec<_>>(),
+                )
+                .unwrap_or_else(|_| "[]".into());
+                self.state = HandleState::PausedLimited {
+                    snapshot,
+                    fn_name: function_name,
+                    args_json,
+                };
+                (MontyProgressTag::Pending, None)
+            }
+            _ => {
+                // OsCall / ResolveFutures — not supported in this layer yet
+                self.state = HandleState::Complete {
+                    result_json: build_result_json(
+                        Value::Null,
+                        Some(serde_json::json!({"message": "unsupported progress type"})),
+                        &self.usage_json,
+                    ),
+                    is_error: true,
+                };
+                (
+                    MontyProgressTag::Error,
+                    Some("unsupported progress type (OsCall/ResolveFutures)".into()),
+                )
+            }
+        }
+    }
+
+    fn process_progress_no_limit(
+        &mut self,
+        progress: RunProgress<NoLimitTracker>,
+    ) -> (MontyProgressTag, Option<String>) {
+        match progress {
+            RunProgress::Complete(obj) => {
+                let val = monty_object_to_json(&obj);
+                let result_json = build_result_json(val, None, &self.usage_json);
+                self.state = HandleState::Complete {
+                    result_json,
+                    is_error: false,
+                };
+                (MontyProgressTag::Complete, None)
+            }
+            RunProgress::FunctionCall {
+                function_name,
+                args,
+                state: snapshot,
+                ..
+            } => {
+                let args_json = serde_json::to_string(
+                    &args.iter().map(monty_object_to_json).collect::<Vec<_>>(),
+                )
+                .unwrap_or_else(|_| "[]".into());
+                self.state = HandleState::PausedNoLimit {
+                    snapshot,
+                    fn_name: function_name,
+                    args_json,
+                };
+                (MontyProgressTag::Pending, None)
+            }
+            _ => {
+                self.state = HandleState::Complete {
+                    result_json: build_result_json(
+                        Value::Null,
+                        Some(serde_json::json!({"message": "unsupported progress type"})),
+                        &self.usage_json,
+                    ),
+                    is_error: true,
+                };
+                (
+                    MontyProgressTag::Error,
+                    Some("unsupported progress type (OsCall/ResolveFutures)".into()),
+                )
+            }
+        }
+    }
+
+    fn handle_exception(&mut self, exc: MontyException) -> (MontyProgressTag, Option<String>) {
+        let err_json = monty_exception_to_json(&exc);
+        let result_json = build_result_json(Value::Null, Some(err_json), &self.usage_json);
+        let msg = exc.summary();
+        self.state = HandleState::Complete {
+            result_json,
+            is_error: true,
+        };
+        (MontyProgressTag::Error, Some(msg))
+    }
+
+    fn collect_output(&mut self, print: &mut PrintWriter<'_>) {
+        if let Some(output) = print.collected_output() {
+            self.stdout_buffer = output.to_string();
+        }
+    }
+}
+
+fn default_usage_json() -> String {
+    r#"{"memory_bytes_used":0,"time_elapsed_ms":0,"stack_depth_used":0}"#.into()
+}
+
+fn build_result_json(value: Value, error: Option<Value>, usage_json: &str) -> String {
+    let usage: Value = serde_json::from_str(usage_json).unwrap_or(serde_json::json!({
+        "memory_bytes_used": 0,
+        "time_elapsed_ms": 0,
+        "stack_depth_used": 0,
+    }));
+    let mut result = serde_json::json!({
+        "value": value,
+        "usage": usage,
+    });
+    if let Some(err) = error {
+        result.as_object_mut().unwrap().insert("error".into(), err);
+    }
+    serde_json::to_string(&result).unwrap_or_default()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_create_handle() {
+        let handle = MontyHandle::new("2 + 2".into(), vec![]);
+        assert!(handle.is_ok());
+    }
+
+    #[test]
+    fn test_create_handle_syntax_error() {
+        let handle = MontyHandle::new("def".into(), vec![]);
+        assert!(handle.is_err());
+    }
+
+    #[test]
+    fn test_run_simple() {
+        let mut handle = MontyHandle::new("2 + 2".into(), vec![]).unwrap();
+        let (tag, result_json, err) = handle.run();
+        assert_eq!(tag, MontyResultTag::Ok);
+        assert!(err.is_none());
+        let parsed: Value = serde_json::from_str(&result_json).unwrap();
+        assert_eq!(parsed["value"], json!(4));
+    }
+
+    #[test]
+    fn test_run_error() {
+        let mut handle = MontyHandle::new("1/0".into(), vec![]).unwrap();
+        let (tag, _, err) = handle.run();
+        assert_eq!(tag, MontyResultTag::Error);
+        assert!(err.is_some());
+    }
+
+    #[test]
+    fn test_run_not_ready() {
+        let mut handle = MontyHandle::new("2 + 2".into(), vec![]).unwrap();
+        handle.run(); // consume Ready state
+        let (tag, _, err) = handle.run();
+        assert_eq!(tag, MontyResultTag::Error);
+        assert!(err.unwrap().contains("not in Ready state"));
+    }
+
+    #[test]
+    fn test_set_limits() {
+        let mut handle = MontyHandle::new("2 + 2".into(), vec![]).unwrap();
+        handle.set_memory_limit(1024 * 1024);
+        handle.set_time_limit_ms(5000);
+        handle.set_stack_limit(100);
+        let (tag, _, _) = handle.run();
+        assert_eq!(tag, MontyResultTag::Ok);
+    }
+
+    #[test]
+    fn test_snapshot_restore() {
+        let handle = MontyHandle::new("2 + 2".into(), vec![]).unwrap();
+        let bytes = handle.snapshot().unwrap();
+        assert!(!bytes.is_empty());
+
+        let mut restored = MontyHandle::restore(&bytes).unwrap();
+        let (tag, result_json, _) = restored.run();
+        assert_eq!(tag, MontyResultTag::Ok);
+        let parsed: Value = serde_json::from_str(&result_json).unwrap();
+        assert_eq!(parsed["value"], json!(4));
+    }
+
+    #[test]
+    fn test_snapshot_wrong_state() {
+        let mut handle = MontyHandle::new("2 + 2".into(), vec![]).unwrap();
+        handle.run();
+        let result = handle.snapshot();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_restore_invalid_bytes() {
+        let result = MontyHandle::restore(&[0, 1, 2, 3]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_start_complete() {
+        let mut handle = MontyHandle::new("2 + 2".into(), vec![]).unwrap();
+        let (tag, err) = handle.start();
+        assert_eq!(tag, MontyProgressTag::Complete);
+        assert!(err.is_none());
+        assert!(handle.complete_result_json().is_some());
+        assert_eq!(handle.complete_is_error(), Some(false));
+    }
+
+    #[test]
+    fn test_iterative_execution() {
+        let code = r#"
+result = ext_fn(42)
+result + 1
+"#;
+        let mut handle = MontyHandle::new(code.into(), vec!["ext_fn".into()]).unwrap();
+        let (tag, err) = handle.start();
+        assert_eq!(tag, MontyProgressTag::Pending);
+        assert!(err.is_none());
+        assert_eq!(handle.pending_fn_name(), Some("ext_fn"));
+
+        let args: Value = serde_json::from_str(handle.pending_fn_args_json().unwrap()).unwrap();
+        assert_eq!(args, json!([42]));
+
+        // Resume with 100
+        let (tag, err) = handle.resume("100");
+        assert_eq!(tag, MontyProgressTag::Complete);
+        assert!(err.is_none());
+
+        let result: Value = serde_json::from_str(handle.complete_result_json().unwrap()).unwrap();
+        assert_eq!(result["value"], json!(101));
+    }
+
+    #[test]
+    fn test_resume_with_error() {
+        let code = r#"
+try:
+    result = ext_fn(1)
+except RuntimeError as e:
+    result = str(e)
+result
+"#;
+        let mut handle = MontyHandle::new(code.into(), vec!["ext_fn".into()]).unwrap();
+        let (tag, _) = handle.start();
+        assert_eq!(tag, MontyProgressTag::Pending);
+
+        let (tag, _) = handle.resume_with_error("something went wrong");
+        assert_eq!(tag, MontyProgressTag::Complete);
+        assert_eq!(handle.complete_is_error(), Some(false));
+
+        let result: Value = serde_json::from_str(handle.complete_result_json().unwrap()).unwrap();
+        assert!(
+            result["value"]
+                .as_str()
+                .unwrap()
+                .contains("something went wrong")
+        );
+    }
+
+    #[test]
+    fn test_pending_accessors_wrong_state() {
+        let handle = MontyHandle::new("2 + 2".into(), vec![]).unwrap();
+        assert!(handle.pending_fn_name().is_none());
+        assert!(handle.pending_fn_args_json().is_none());
+        assert!(handle.complete_result_json().is_none());
+        assert!(handle.complete_is_error().is_none());
+    }
+
+    #[test]
+    fn test_start_not_ready() {
+        let mut handle = MontyHandle::new("2 + 2".into(), vec![]).unwrap();
+        handle.run();
+        let (tag, err) = handle.start();
+        assert_eq!(tag, MontyProgressTag::Error);
+        assert!(err.is_some());
+    }
+
+    #[test]
+    fn test_resume_not_paused() {
+        let mut handle = MontyHandle::new("2 + 2".into(), vec![]).unwrap();
+        let (tag, err) = handle.resume("42");
+        assert_eq!(tag, MontyProgressTag::Error);
+        assert!(err.is_some());
+    }
+
+    #[test]
+    fn test_resume_invalid_json() {
+        let code = "result = ext_fn(1)\nresult";
+        let mut handle = MontyHandle::new(code.into(), vec!["ext_fn".into()]).unwrap();
+        handle.start();
+        let (tag, err) = handle.resume("not valid json{");
+        assert_eq!(tag, MontyProgressTag::Error);
+        assert!(err.unwrap().contains("invalid JSON"));
+    }
+
+    use serde_json::json;
+
+    #[test]
+    fn test_default_usage_json() {
+        let usage: Value = serde_json::from_str(&default_usage_json()).unwrap();
+        assert_eq!(usage["memory_bytes_used"], 0);
+        assert_eq!(usage["time_elapsed_ms"], 0);
+        assert_eq!(usage["stack_depth_used"], 0);
+    }
+
+    #[test]
+    fn test_build_result_json_ok() {
+        let result = build_result_json(json!(42), None, &default_usage_json());
+        let parsed: Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(parsed["value"], 42);
+        assert!(parsed.get("error").is_none());
+        assert!(parsed["usage"].is_object());
+    }
+
+    #[test]
+    fn test_build_result_json_error() {
+        let err = json!({"message": "boom"});
+        let result = build_result_json(Value::Null, Some(err), &default_usage_json());
+        let parsed: Value = serde_json::from_str(&result).unwrap();
+        assert!(parsed["value"].is_null());
+        assert_eq!(parsed["error"]["message"], "boom");
+    }
+}

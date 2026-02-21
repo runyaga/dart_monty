@@ -118,27 +118,82 @@ jobs:
             exit 1
           fi
 
-  # build-native: Uncomment when M2 (Rust C FFI) is implemented
-  # build-native:
-  #   name: Build native (${{ matrix.os }})
-  #   runs-on: ${{ matrix.os }}
-  #   timeout-minutes: 30
-  #   needs: [lint, test]
-  #   strategy:
-  #     matrix:
-  #       os: [ubuntu-latest, macos-latest, windows-latest]
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #       with:
-  #         submodules: recursive
-  #     - uses: dtolnay/rust-toolchain@stable
-  #     - uses: subosito/flutter-action@v2
-  #       with:
-  #         channel: stable
-  #         cache: true
-  #     - name: Build Rust native library
-  #       working-directory: native
-  #       run: cargo build --release
+  build-native:
+    name: Build native (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    needs: [lint, test]
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: native
+      - name: Build Rust native library
+        working-directory: native
+        run: cargo build --release
+
+  rust-cargo-test:
+    name: Rust tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: native
+      - name: cargo fmt
+        working-directory: native
+        run: cargo fmt --check
+      - name: cargo clippy
+        working-directory: native
+        run: cargo clippy -- -D warnings
+      - name: cargo test
+        working-directory: native
+        run: cargo test
+
+  rust-coverage:
+    name: Rust coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [rust-cargo-test]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: native
+      - name: Install cargo-tarpaulin
+        run: cargo install cargo-tarpaulin
+      - name: Run tarpaulin
+        working-directory: native
+        run: |
+          cargo tarpaulin --out Xml --output-dir target/tarpaulin
+          PCT=$(cargo tarpaulin --print-rust-flags 2>&1 | grep -oP '\d+\.\d+%' | head -1 | tr -d '%' || echo "0")
+          echo "Coverage: ${PCT}%"
+
+  build-wasm:
+    name: Build WASM
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [rust-cargo-test]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-wasip1-threads
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: native
+      - name: Build WASM
+        working-directory: native
+        run: cargo build --release --target wasm32-wasip1-threads
 
   security:
     name: Secret Scanning

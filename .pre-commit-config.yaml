@@ -33,6 +33,24 @@ repos:
         entry: bash -c 'cd packages/dart_monty_platform_interface && dart test'
         language: system
         pass_filenames: false
+      - id: cargo-fmt
+        name: cargo fmt
+        entry: bash -c 'cd native && cargo fmt --check'
+        language: system
+        files: ^native/
+        pass_filenames: false
+      - id: cargo-clippy
+        name: cargo clippy
+        entry: bash -c 'cd native && cargo clippy -- -D warnings'
+        language: system
+        files: ^native/
+        pass_filenames: false
+      - id: cargo-test
+        name: cargo test
+        entry: bash -c 'cd native && cargo test'
+        language: system
+        files: ^native/
+        pass_filenames: false
   - repo: https://github.com/jackdewinter/pymarkdown
     rev: v0.9.35
     hooks:

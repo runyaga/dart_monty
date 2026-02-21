@@ -57,11 +57,11 @@ the test runner picks it up automatically.
 
 > [Full spec: `docs/milestones/M1.md`](docs/milestones/M1.md)
 
-- [ ] `MontyResult`, `MontyProgress` (sealed), `MontyLimits`, `MontyResourceUsage`, `MontyException`
-- [ ] JSON serialization, equality, `toString()` for all value types
-- [ ] `MontyPlatform` abstract class (run, start, resume, resumeWithError, snapshot, restore, dispose)
-- [ ] `MockMontyPlatform` with canned responses
-- [ ] Unit tests: 90%+ coverage
+- [x] `MontyResult`, `MontyProgress` (sealed), `MontyLimits`, `MontyResourceUsage`, `MontyException`
+- [x] JSON serialization, equality, `toString()` for all value types
+- [x] `MontyPlatform` abstract class (run, start, resume, resumeWithError, snapshot, restore, dispose)
+- [x] `MockMontyPlatform` with canned responses
+- [x] Unit tests: 175 tests, 100% coverage
 
 **Gate:**
 
@@ -77,15 +77,15 @@ tool/test_m1.sh
 
 > [Full spec: `docs/milestones/M2.md`](docs/milestones/M2.md)
 
-- [ ] `native/Cargo.toml` edition 2024, `monty` pinned to git rev, `Cargo.lock` committed
-- [ ] `rust-toolchain.toml` pinning stable Rust
-- [ ] `extern "C"` API: create, free, run, start, resume, resume_with_error, snapshot, restore, limits
-- [ ] `native/include/dart_monty.h` hand-written C header
-- [ ] `catch_unwind` at every FFI boundary, NULL checks, error as C strings
-- [ ] WASM build from same source (`cargo build --target wasm32-wasip1-threads`)
-- [ ] Verify "resume with error" upstream support
-- [ ] Rust tests: 90%+ coverage (`cargo-tarpaulin`)
-- [ ] Integration tests: smoke, iterative execution, snapshots, panic safety, resource limits, WASM smoke
+- [x] `native/Cargo.toml` edition 2024, `monty` pinned to git rev `87f8f31`, `Cargo.lock` committed
+- [x] `rust-toolchain.toml` pinning stable Rust + `wasm32-wasip1-threads` target
+- [x] `extern "C"` API: 17 functions (create, free, run, start, resume, resume\_with\_error, snapshot, restore, limits, accessors, memory management)
+- [x] `native/include/dart_monty.h` hand-written C header (ffigen-compatible)
+- [x] `catch_unwind` at every FFI boundary, NULL checks, error as C strings
+- [x] WASM build from same source (`cargo build --target wasm32-wasip1-threads`)
+- [x] Verify "resume with error" upstream support (`ExternalResult::Error`)
+- [x] 56 Rust tests (48 unit + 8 integration): smoke, iterative, resume-with-error, snapshots, panic safety, resource limits, time limits
+- [ ] Rust coverage: 90%+ (`cargo-tarpaulin`) — gate in CI
 
 **Gate:**
 

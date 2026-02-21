@@ -20,6 +20,15 @@ cd packages/<package_name> && dart test
 
 Do not commit unless all three pass with zero errors.
 
+For Rust changes in `native/`, also run:
+
+```bash
+cd native
+cargo fmt --check
+cargo clippy -- -D warnings
+cargo test
+```
+
 ## Package-Level Development
 
 Each sub-package resolves its own dependencies. Always run `dart pub get`
@@ -37,6 +46,9 @@ dart test
 |------|---------|-------|
 | Dart analyzer | `python3 tool/analyze_packages.py` | All sub-packages |
 | DCM | `dcm analyze packages` | All sub-packages |
+| Rust fmt | `cd native && cargo fmt --check` | `native/` |
+| Rust clippy | `cd native && cargo clippy -- -D warnings` | `native/` |
+| Rust tests | `cd native && cargo test` | `native/` |
 | Markdown | `pymarkdown scan **/*.md` | All `.md` files |
 | Secrets | `gitleaks detect` | Entire repo |
 
