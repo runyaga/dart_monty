@@ -19,7 +19,7 @@ limits, iterative execution, and snapshot/restore support.
 | M3B | Web viability spike (GO/NO-GO) | Done — **GO** |
 | M3C | Python compatibility ladder + cross-path parity | Done |
 | M4 | Dart WASM package (`dart_monty_wasm`, browser) | Done |
-| M5 | Flutter desktop plugin (macOS + Linux) | Planned |
+| M5 | Flutter desktop plugin (macOS + Linux) | Done |
 | M6 | Flutter web plugin | Planned |
 | M7 | Windows + iOS + Android | Planned |
 | M8 | Hardening, benchmarks, full test matrix | Planned |

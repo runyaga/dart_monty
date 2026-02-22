@@ -160,13 +160,13 @@ tool/test_python_ladder.sh          # Ladder tiers 1-6 on WASM path
 >
 > First Flutter-dependent code.
 
-- [ ] Federated plugin: root `default_package`, desktop `flutter.plugin.implements`
-- [ ] Native bundling: `.podspec` (macOS), `CMakeLists.txt` (Linux)
-- [ ] `FlutterMonty` class: background `Isolate`, `SendPort`/`ReceivePort`
-- [ ] External function callbacks via Isolate message passing
-- [ ] `example/` Flutter app (code input, run, output, resource usage)
-- [ ] **Python ladder tiers 1-6+** through `FlutterMonty` Isolate on macOS and Linux
-- [ ] Widget tests + Isolate lifecycle integration tests: 90%+ coverage
+- [x] Federated plugin: root `default_package`, desktop `flutter.plugin.implements`
+- [x] Native bundling: `.podspec` (macOS), `CMakeLists.txt` (Linux)
+- [x] `FlutterMonty` class: background `Isolate`, `SendPort`/`ReceivePort`
+- [x] External function callbacks via Isolate message passing
+- [x] `example/` Flutter app (code input, run, output, resource usage)
+- [x] **Python ladder tiers 1-6+** through `FlutterMonty` Isolate on macOS and Linux
+- [x] Widget tests + Isolate lifecycle integration tests: 90%+ coverage
 
 **Gate:**
 
@@ -333,11 +333,10 @@ No manual testing steps.
 
 ## When You Resume
 
-M1-M4 are complete. To start the next milestone, type:
+M1-M5 are complete. To start the next milestone, type:
 
 ```text
-Start M5. Implement the Flutter desktop plugin (macOS + Linux) with
-federated plugin wiring, native bundling, FlutterMonty Isolate class,
-external function callbacks, example app, and Python ladder via Isolate.
-Gate: tool/test_m5.sh passes with 90%+ coverage.
+Start M6. Implement the Flutter web plugin wrapping dart_monty_wasm
+with federated registration, script injection, COOP/COEP docs, and
+Python ladder in browser. Gate: tool/test_m6.sh passes with 90%+ coverage.
 ```
