@@ -26,6 +26,16 @@ lcov.info
 .DS_Store
 Thumbs.db
 
+# Compiled example binaries
+example/native/bin/dart_monty_example
+example/native/bin/libdart_monty.*
+example/native/bin/monty-py
+example/native/bin/monty_py.dart
+
+# Scratch files
+research.db
+test.py
+
 # Environment
 .env
 .env.*

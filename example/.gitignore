@@ -6,3 +6,4 @@ web/web/*.mjs
 web/web/*.wasm
 web/web/*.map
 web/web/*.deps
+web/web/fixtures/
