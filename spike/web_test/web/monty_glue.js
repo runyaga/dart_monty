@@ -1,186 +1,126 @@
 /**
- * monty_glue.js — Bridge between @pydantic/monty WASM and Dart JS interop.
+ * monty_glue.js — Bridge between @pydantic/monty WASM Worker and Dart JS interop.
  *
- * Exposes window.montyBridge with methods Dart can call via dart:js_interop.
- * This file is bundled by esbuild into monty_bundle.js for browser use.
+ * Monty WASM runs inside a Web Worker (monty_worker.js) to bypass Chrome's
+ * 8MB synchronous WASM compile limit. This glue exposes window.montyBridge
+ * with methods Dart can call via dart:js_interop.
  */
 
-let MontyModule = null;
+let worker = null;
+let nextId = 1;
+const pending = new Map(); // id -> { resolve, reject }
 
 /**
- * Initialize the Monty module. Must be called before any other method.
- * Tries to import @pydantic/monty; logs diagnostics on failure.
+ * Initialize the Monty Worker.
  *
- * @returns {Promise<boolean>} true if initialized successfully.
+ * @returns {Promise<boolean>} true if Worker loaded WASM successfully.
  */
 async function init() {
-  try {
-    MontyModule = await import('@pydantic/monty');
-    console.log('[monty_glue] @pydantic/monty loaded successfully');
-    console.log(
-      '[monty_glue] exports:',
-      Object.keys(MontyModule).join(', '),
-    );
-    return true;
-  } catch (e) {
-    console.error('[monty_glue] Failed to load @pydantic/monty:', e.message);
-    console.error('[monty_glue] Stack:', e.stack);
-    return false;
-  }
+  if (worker) return true;
+  return new Promise((resolve) => {
+    try {
+      worker = new Worker(
+        new URL('./monty_worker.js', window.location.href),
+        { type: 'module' },
+      );
+
+      worker.onmessage = (e) => {
+        const msg = e.data;
+
+        if (msg.type === 'ready') {
+          console.log('[monty_glue] Worker ready, exports:', msg.exports.join(', '));
+          resolve(true);
+          return;
+        }
+
+        if (msg.type === 'error' && !msg.id) {
+          console.error('[monty_glue] Worker init error:', msg.message);
+          resolve(false);
+          return;
+        }
+
+        // Route responses to pending promises
+        if (msg.id && pending.has(msg.id)) {
+          const { resolve: res } = pending.get(msg.id);
+          pending.delete(msg.id);
+          res(msg);
+        }
+      };
+
+      worker.onerror = (err) => {
+        console.error('[monty_glue] Worker error:', err.message || err);
+        resolve(false);
+      };
+    } catch (e) {
+      console.error('[monty_glue] Failed to create Worker:', e.message);
+      resolve(false);
+    }
+  });
 }
 
 /**
- * Run Python code to completion and return JSON result.
+ * Send a message to the Worker and wait for a response.
+ */
+function callWorker(msg) {
+  return new Promise((resolve, reject) => {
+    const id = nextId++;
+    pending.set(id, { resolve, reject });
+    worker.postMessage({ ...msg, id });
+  });
+}
+
+/**
+ * Run Python code to completion.
  *
  * @param {string} code  Python source code.
- * @returns {string} JSON: { "ok": true, "value": ..., "stdout": "..." }
- *                      or { "ok": false, "error": "...", "errorType": "..." }
+ * @returns {string} JSON result.
  */
-function run(code) {
-  if (!MontyModule) {
-    return JSON.stringify({
-      ok: false,
-      error: 'Monty not initialized. Call init() first.',
-      errorType: 'InitError',
-    });
+async function run(code) {
+  if (!worker) {
+    return JSON.stringify({ ok: false, error: 'Not initialized', errorType: 'InitError' });
   }
-
-  try {
-    const { Monty } = MontyModule;
-    const m = new Monty(code);
-    const result = m.run();
-    return JSON.stringify({
-      ok: true,
-      value: result,
-      stdout: '',
-    });
-  } catch (e) {
-    const errorType = e.constructor?.name || 'UnknownError';
-    return JSON.stringify({
-      ok: false,
-      error: e.message || String(e),
-      errorType: errorType,
-    });
-  }
+  const result = await callWorker({ type: 'run', code });
+  return JSON.stringify(result);
 }
 
 /**
- * Start iterative execution (pause at external function calls).
+ * Start iterative execution.
  *
- * @param {string} code           Python source code.
- * @param {string} extFnsJson     JSON array of external function names.
- * @returns {string} JSON result describing MontySnapshot or MontyComplete.
+ * @param {string} code        Python source code.
+ * @param {string} extFnsJson  JSON array of external function names.
+ * @returns {string} JSON result.
  */
-function start(code, extFnsJson) {
-  if (!MontyModule) {
-    return JSON.stringify({
-      ok: false,
-      error: 'Monty not initialized.',
-      errorType: 'InitError',
-    });
+async function start(code, extFnsJson) {
+  if (!worker) {
+    return JSON.stringify({ ok: false, error: 'Not initialized', errorType: 'InitError' });
   }
-
-  try {
-    const { Monty, MontySnapshot, MontyComplete } = MontyModule;
-    const extFns = JSON.parse(extFnsJson || '[]');
-
-    const opts = {};
-    if (extFns.length > 0) {
-      opts.externalFunctions = extFns;
-    }
-
-    const m = new Monty(code, opts);
-    const progress = m.start();
-
-    if (progress instanceof MontySnapshot) {
-      // Store snapshot on window for resume()
-      window._montySnapshot = progress;
-      return JSON.stringify({
-        ok: true,
-        state: 'pending',
-        functionName: progress.functionName,
-        args: progress.args,
-      });
-    }
-
-    // MontyComplete
-    return JSON.stringify({
-      ok: true,
-      state: 'complete',
-      value: progress.output,
-    });
-  } catch (e) {
-    return JSON.stringify({
-      ok: false,
-      error: e.message || String(e),
-      errorType: e.constructor?.name || 'UnknownError',
-    });
-  }
+  const extFns = JSON.parse(extFnsJson || '[]');
+  const result = await callWorker({ type: 'start', code, extFns });
+  return JSON.stringify(result);
 }
 
 /**
- * Resume a paused execution with a return value.
+ * Resume a paused execution.
  *
  * @param {string} valueJson  JSON value to return to Python.
- * @returns {string} JSON result describing next state.
+ * @returns {string} JSON result.
  */
-function resume(valueJson) {
-  if (!window._montySnapshot) {
-    return JSON.stringify({
-      ok: false,
-      error: 'No active snapshot to resume.',
-      errorType: 'StateError',
-    });
+async function resume(valueJson) {
+  if (!worker) {
+    return JSON.stringify({ ok: false, error: 'Not initialized', errorType: 'InitError' });
   }
-
-  try {
-    const { MontySnapshot, MontyComplete } = MontyModule;
-    const value = JSON.parse(valueJson);
-    const progress = window._montySnapshot.resume({ returnValue: value });
-
-    if (progress instanceof MontySnapshot) {
-      window._montySnapshot = progress;
-      return JSON.stringify({
-        ok: true,
-        state: 'pending',
-        functionName: progress.functionName,
-        args: progress.args,
-      });
-    }
-
-    // MontyComplete
-    window._montySnapshot = null;
-    return JSON.stringify({
-      ok: true,
-      state: 'complete',
-      value: progress.output,
-    });
-  } catch (e) {
-    window._montySnapshot = null;
-    return JSON.stringify({
-      ok: false,
-      error: e.message || String(e),
-      errorType: e.constructor?.name || 'UnknownError',
-    });
-  }
+  const value = JSON.parse(valueJson);
+  const result = await callWorker({ type: 'resume', value });
+  return JSON.stringify(result);
 }
 
 /**
- * Discover and report the available API surface.
- * Useful for diagnostics when the API shape is unknown.
+ * Discover available API surface.
  *
- * @returns {string} JSON describing available exports.
+ * @returns {string} JSON describing state.
  */
 function discover() {
-  if (!MontyModule) {
-    return JSON.stringify({ loaded: false, exports: [] });
-  }
-
-  const exports = {};
-  for (const [key, value] of Object.entries(MontyModule)) {
-    exports[key] = typeof value;
-  }
-  return JSON.stringify({ loaded: true, exports });
+  return JSON.stringify({ loaded: worker !== null, architecture: 'worker' });
 }
 
 // Expose bridge on window for Dart JS interop
@@ -192,4 +132,4 @@ window.montyBridge = {
   discover,
 };
 
-console.log('[monty_glue] montyBridge registered on window');
+console.log('[monty_glue] montyBridge registered on window (Worker architecture)');

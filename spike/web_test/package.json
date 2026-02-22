@@ -4,10 +4,17 @@
   "private": true,
   "description": "M3B web viability spike — @pydantic/monty in-browser via JS interop",
   "scripts": {
-    "bundle": "npx esbuild web/monty_glue.js --bundle --format=esm --outfile=web/monty_bundle.js --platform=browser"
+    "bundle:worker": "npx esbuild web/monty_worker_src.js --bundle --format=esm --outfile=web/monty_worker.js --platform=browser --external:'*.wasm'",
+    "bundle:glue": "npx esbuild web/monty_glue.js --bundle --format=iife --outfile=web/monty_bundle.js --platform=browser",
+    "bundle": "npm run bundle:worker && npm run bundle:glue"
   },
   "dependencies": {
-    "@pydantic/monty": "^0.0.7"
+    "@emnapi/core": "^1.8.1",
+    "@emnapi/runtime": "^1.8.1",
+    "@napi-rs/wasm-runtime": "^1.1.1",
+    "@pydantic/monty": "^0.0.7",
+    "@pydantic/monty-wasm32-wasi": "^0.0.7",
+    "@tybys/wasm-util": "^0.10.1"
   },
   "devDependencies": {
     "esbuild": "^0.24.0"

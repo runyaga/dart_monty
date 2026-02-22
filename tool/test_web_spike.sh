@@ -22,12 +22,28 @@ cd "$SPIKE"
 npm install
 
 # -------------------------------------------------------
-# Step 2: Bundle monty_glue.js with esbuild
+# Step 2: Bundle JS for browser
 # -------------------------------------------------------
-echo "--- esbuild bundle ---"
-npx esbuild web/monty_glue.js \
+echo "--- esbuild: bundle worker (resolves npm imports) ---"
+npx esbuild web/monty_worker_src.js \
   --bundle \
   --format=esm \
+  --outfile=web/monty_worker.js \
+  --platform=browser \
+  --external:'*.wasm' \
+  --log-level=info
+
+# Patch bare specifier for sub-worker URL (esbuild can't resolve new URL() imports)
+sed -i.bak 's|new URL("@pydantic/monty-wasm32-wasi/wasi-worker-browser.mjs"|new URL("./wasi-worker-browser.mjs"|g' \
+  web/monty_worker.js && rm -f web/monty_worker.js.bak
+
+# Copy WASI sub-worker to web/ (needed at runtime by the Worker)
+cp node_modules/@pydantic/monty-wasm32-wasi/wasi-worker-browser.mjs web/ 2>/dev/null || true
+
+echo "--- esbuild: bundle glue (IIFE for main thread) ---"
+npx esbuild web/monty_glue.js \
+  --bundle \
+  --format=iife \
   --outfile=web/monty_bundle.js \
   --platform=browser \
   --log-level=info
@@ -68,7 +84,15 @@ class COOPCOEPHandler(http.server.SimpleHTTPRequestHandler):
         self.send_header('Cross-Origin-Opener-Policy', 'same-origin')
         self.send_header('Cross-Origin-Embedder-Policy', 'require-corp')
         self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Cache-Control', 'no-store')
         super().end_headers()
+
+    def guess_type(self, path):
+        if path.endswith('.mjs'):
+            return 'application/javascript'
+        if path.endswith('.wasm'):
+            return 'application/wasm'
+        return super().guess_type(path)
 
     def log_message(self, fmt, *args):
         pass  # suppress request logs
@@ -111,17 +135,16 @@ fi
 
 echo "  Using: $CHROME"
 
-# Run headless Chrome, capture console output
+# Run headless Chrome with real timeout (virtual-time-budget freezes Worker timers)
 CONSOLE_LOG=$(mktemp)
 
-"$CHROME" \
+timeout 30 "$CHROME" \
   --headless=new \
   --disable-gpu \
   --no-sandbox \
   --disable-dev-shm-usage \
-  --virtual-time-budget=10000 \
   --enable-logging=stderr \
-  --v=1 \
+  --v=0 \
   "http://127.0.0.1:$SERVE_PORT" \
   2>"$CONSOLE_LOG" || true
 
