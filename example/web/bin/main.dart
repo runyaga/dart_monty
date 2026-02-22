@@ -63,8 +63,8 @@ def fib(n):
     return a
 fib(10)
 '''
-          .toJS)
-      .toDart)
+              .toJS)
+          .toDart)
       .toDart);
   print('  fib(10) = ${r['value']}');
 
