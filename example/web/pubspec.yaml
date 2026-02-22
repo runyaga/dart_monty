@@ -1,0 +1,9 @@
+name: web_example
+description: Run Python from Dart in the browser via WASM.
+publish_to: none
+
+environment:
+  sdk: '>=3.5.0 <4.0.0'
+
+dependencies:
+  web: ^1.1.1

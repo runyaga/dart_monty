@@ -8,11 +8,6 @@ limits, iterative execution, and snapshot/restore support.
 
 ## Status
 
-**Work in progress.** M3C (cross-platform parity) is complete — fixtures
-prove identical results on native FFI and web WASM. Next up: M4 (Dart
-WASM package).
-See [PLAN.md](PLAN.md) for the full roadmap.
-
 | Milestone | Description | Status |
 |-----------|-------------|--------|
 | M1 | Platform interface (value types, contract, mock) | Done |
@@ -20,12 +15,149 @@ See [PLAN.md](PLAN.md) for the full roadmap.
 | M3A | Native FFI package (`dart_monty_ffi`) | Done |
 | M3B | Web viability spike (GO/NO-GO) | Done — **GO** |
 | M3C | Python compatibility ladder + cross-path parity | Done |
-| M4 | Dart WASM package (pure Dart, browser) | Next |
+| M4 | Dart WASM package (`dart_monty_wasm`, browser) | Done |
 | M5 | Flutter desktop plugin (macOS + Linux) | Planned |
 | M6 | Flutter web plugin | Planned |
 | M7 | Windows + iOS + Android | Planned |
 | M8 | Hardening, benchmarks, full test matrix | Planned |
 | M9 | REPL, type checking, DevTools extension | Planned |
+
+See [PLAN.md](PLAN.md) for the full roadmap.
+
+## Try It
+
+### Native (desktop)
+
+Runs Python from Dart via FFI into the Rust native library.
+
+**Prerequisites:** Dart SDK >= 3.5.0, Rust stable
+
+```bash
+bash example/native/run.sh
+```
+
+<details>
+<summary>Expected output</summary>
+
+```
+── Simple expression ──
+  2 + 2 = 4
+  Memory: 0 bytes
+
+── Multi-line code ──
+  fib(10) = 55
+
+── Resource limits ──
+  "hello " * 3 = hello hello hello
+
+── Error handling ──
+  Caught: ZeroDivisionError: division by zero
+
+── Iterative execution ──
+  Python called: fetch([https://example.com])
+  Result: 29
+
+── Error injection ──
+  Injecting error into Python...
+  Result: caught: network timeout
+```
+
+</details>
+
+### Web (browser)
+
+Runs Python from Dart compiled to JS, via a Web Worker hosting the WASM
+interpreter. Opens in your default browser.
+
+**Prerequisites:** Dart SDK >= 3.5.0, Node.js >= 20, Google Chrome
+
+```bash
+bash example/web/run.sh
+```
+
+<details>
+<summary>Expected output (in browser and DevTools console)</summary>
+
+```
+=== dart_monty Web Example ===
+Worker initialized.
+
+── Simple expression ──
+  2 + 2 = 4
+
+── Multi-line code ──
+  fib(10) = 55
+
+── String result ──
+  "hello " * 3 = hello hello hello
+
+── Error handling ──
+  1/0 → error: division by zero
+
+── Iterative execution ──
+  start() → state=pending, fn=fetch
+  resume() → state=complete, value=<html>Hello from Dart!</html>
+
+── Error injection ──
+  start() → state=pending
+  resumeWithError() → value=caught: network timeout
+
+=== All examples complete ===
+```
+
+</details>
+
+### Manual steps (without run scripts)
+
+<details>
+<summary>Native — manual</summary>
+
+```bash
+# 1. Build the Rust native library
+cd native && cargo build --release && cd ..
+
+# 2. Install Dart deps
+cd example/native && dart pub get
+
+# 3. Run (macOS — use .so on Linux)
+DART_MONTY_LIB_PATH=../../native/target/release/libdart_monty_native.dylib \
+  dart run bin/main.dart
+```
+
+</details>
+
+<details>
+<summary>Web — manual</summary>
+
+```bash
+# 1. Build the JS bridge + WASM assets
+cd packages/dart_monty_wasm/js && npm install && npm run build && cd ../../..
+
+# 2. Install Dart deps and compile to JS
+cd example/web && dart pub get
+dart compile js bin/main.dart -o web/main.dart.js
+
+# 3. Copy assets alongside the HTML
+cp ../../packages/dart_monty_wasm/assets/dart_monty_bridge.js web/
+cp ../../packages/dart_monty_wasm/assets/dart_monty_worker.js web/
+cp ../../packages/dart_monty_wasm/assets/wasi-worker-browser.mjs web/
+cp ../../packages/dart_monty_wasm/assets/*.wasm web/
+
+# 4. Serve with COOP/COEP headers (required for SharedArrayBuffer)
+python3 -c "
+import http.server, functools
+class H(http.server.SimpleHTTPRequestHandler):
+    def end_headers(self):
+        self.send_header('Cross-Origin-Opener-Policy', 'same-origin')
+        self.send_header('Cross-Origin-Embedder-Policy', 'require-corp')
+        super().end_headers()
+handler = functools.partial(H, directory='web')
+http.server.HTTPServer(('127.0.0.1', 8088), handler).serve_forever()
+"
+# 5. Open http://localhost:8088/index.html
+```
+
+</details>
 
 ## Architecture
 
@@ -35,9 +167,11 @@ Federated plugin with four packages and two execution paths:
 dart_monty                           # App-facing API (M5+)
   ├── dart_monty_platform_interface  # Abstract contract (pure Dart)
   ├── dart_monty_ffi                 # Desktop/mobile via dart:ffi → Rust → C
-  └── dart_monty_web                 # Browser via dart:js_interop → WASM
+  └── dart_monty_wasm               # Browser via dart:js_interop → WASM Worker
 native/                              # Rust crate: C API wrapper around Monty
-spike/web_test/                      # Web spike + ladder runner
+example/
+  ├── native/                        # Desktop FFI example
+  └── web/                           # Browser WASM example
 test/fixtures/python_ladder/         # Cross-platform parity fixtures
 ```
 
@@ -45,9 +179,9 @@ test/fixtures/python_ladder/         # Cross-platform parity fixtures
 
 ```text
 Dart app
-  → dart_monty_ffi (MontyFfi implements MontyPlatform)
+  → MontyFfi (implements MontyPlatform)
     → dart:ffi (DynamicLibrary)
-      → native/libdart_monty_native.{dylib,so,dll}
+      → libdart_monty_native.{dylib,so,dll}
         → Monty Rust interpreter (17 extern "C" functions)
 ```
 
@@ -55,65 +189,58 @@ Dart app
 
 ```text
 Dart app (compiled to JS)
-  → dart_monty_web (dart:js_interop)
-    → monty_glue.js (window.montyBridge, postMessage)
-      → Web Worker (monty_worker.js)
-        → @pydantic/monty WASM (12MB, NAPI-RS)
+  → MontyWasm (implements MontyPlatform)
+    → dart:js_interop → DartMontyBridge
+      → Web Worker (dart_monty_worker.js)
+        → @pydantic/monty WASM (12 MB, NAPI-RS)
           → wasi-worker-browser.mjs (SharedArrayBuffer threads)
 ```
 
-The Web Worker architecture bypasses Chrome's 8MB synchronous WASM
+The Web Worker architecture bypasses Chrome's 8 MB synchronous WASM
 compilation limit. COOP/COEP HTTP headers are required for
 SharedArrayBuffer support.
 
 ### Cross-Platform Parity
 
-Both execution paths are verified to produce identical results via the
-**Python Compatibility Ladder** — JSON test fixtures across 6 tiers:
+Both execution paths produce identical results, verified via the
+**Python Compatibility Ladder** — JSON test fixtures across 6 tiers
+(expressions, variables, control flow, functions, errors, external
+functions). See [M3C milestone](docs/milestones/M3C.md) for details.
 
-| Tier | Feature |
-|------|---------|
-| 1 | Expressions (arithmetic, bitwise, unicode, None) |
-| 2 | Variables & collections (slicing, nesting, membership) |
-| 3 | Control flow (loops, comprehensions, ternary) |
-| 4 | Functions (recursion, closures, varargs, lambda) |
-| 5 | Error handling (try/except/finally, raise, uncaught) |
-| 6 | External functions (start/resume, sequential, error) |
+## API
 
-A native Dart test runner and a web Dart-to-JS runner execute the same
-fixtures; JSONL output is diffed for parity. See
-[M3C milestone](docs/milestones/M3C.md) for details.
-
-## Planned Usage
+Both backends implement the same `MontyPlatform` interface:
 
 ```dart
-import 'package:dart_monty/dart_monty.dart';
+// Simple execution
+final result = await monty.run('2 + 2');
+print(result.value); // 4
 
-final result = await DartMonty.run(
-  'x * 2 + 1',
-  inputs: {'x': 21},
-  limits: MontyLimits(timeoutMs: 5000),
+// With resource limits
+final result = await monty.run(
+  'fib(30)',
+  limits: MontyLimits(timeoutMs: 5000, memoryBytes: 10 * 1024 * 1024),
 );
 
-print(result.value); // 43
-print(result.usage.timeElapsedMs); // ~2
-```
-
-### Iterative Execution (External Functions)
-
-```dart
-var progress = await DartMonty.start(
+// Iterative execution (external functions)
+var progress = await monty.start(
   'fetch("https://example.com")',
   externalFunctions: ['fetch'],
 );
 
-while (progress is MontyPending) {
-  final data = await http.get(progress.arguments.first as String);
-  progress = await DartMonty.resume(data.body);
+if (progress is MontyPending) {
+  print('Python called: ${progress.functionName}');
+  progress = await monty.resume(myResult);
 }
 
 final complete = progress as MontyComplete;
 print(complete.result.value);
+
+// Error injection
+progress = await monty.resumeWithError('network timeout');
+
+// Cleanup
+await monty.dispose();
 ```
 
 ## Development
@@ -121,8 +248,8 @@ print(complete.result.value);
 ### Prerequisites
 
 - Dart SDK >= 3.5.0
-- Flutter SDK >= 3.24.0 (M5+)
-- Rust stable (M2+)
+- Rust stable (for native builds)
+- Node.js >= 20 (for WASM JS bridge)
 - Python 3.12+ (for tooling scripts)
 
 ### Quick Start
@@ -134,27 +261,28 @@ python3 tool/analyze_packages.py
 cd packages/dart_monty_platform_interface && dart test
 ```
 
-### Pre-commit Hooks
-
-Install [pre-commit](https://pre-commit.com/) and run:
+### Gate Scripts
 
 ```bash
-pre-commit install
+bash tool/test_m1.sh          # M1: platform interface
+bash tool/test_m2.sh          # M2: Rust + WASM
+bash tool/test_m3a.sh         # M3A: FFI package
+bash tool/test_wasm.sh        # M4: WASM package (unit + Chrome integration)
+bash tool/test_python_ladder.sh       # Python ladder (all backends)
+bash tool/test_cross_path_parity.sh   # JSONL parity diff
 ```
-
-Hooks run Dart format, package analysis, DCM, tests, pymarkdown, and
-gitleaks on every commit.
 
 ### CI
 
 GitHub Actions run on every push and PR to `main`:
 
 - **Lint** — format + ffigen + analyze all sub-packages
-- **Test** — per-package with 90% coverage gate (platform\_interface, ffi)
-- **Rust** — fmt + clippy + test + tarpaulin coverage
+- **Test** — per-package with 90% coverage gate (platform\_interface, ffi, wasm)
+- **Rust** — fmt + clippy + test + tarpaulin coverage (90% gate)
 - **Build WASM** — `cargo build --target wasm32-wasip1-threads`
+- **Build JS wrapper** — npm install + esbuild bridge/worker
 - **Build native** — Ubuntu + macOS matrix
-- **DCM** — Dart Code Metrics (commercial)
+- **DCM** — Dart Code Metrics
 - **Markdown** — pymarkdown scan
 - **Security** — gitleaks secret scanning
 

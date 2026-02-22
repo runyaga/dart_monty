@@ -1,0 +1,12 @@
+name: native_example
+description: Run Python from Dart via the native FFI backend.
+publish_to: none
+
+environment:
+  sdk: '>=3.5.0 <4.0.0'
+
+dependencies:
+  dart_monty_platform_interface:
+    path: ../../packages/dart_monty_platform_interface
+  dart_monty_ffi:
+    path: ../../packages/dart_monty_ffi

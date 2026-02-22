@@ -1,0 +1,7 @@
+**/pubspec.lock
+**/.dart_tool/
+web/web/*.js
+web/web/*.mjs
+web/web/*.wasm
+web/web/*.map
+web/web/*.deps
