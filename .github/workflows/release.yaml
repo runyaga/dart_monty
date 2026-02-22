@@ -37,14 +37,19 @@ jobs:
       - uses: dart-lang/setup-dart@v1
         with:
           sdk: stable
+      - name: Install libclang (for ffigen)
+        if: matrix.os == 'ubuntu-latest'
+        run: sudo apt-get update && sudo apt-get install -y libclang-dev
+      - name: Generate FFI bindings
+        run: bash tool/generate_bindings.sh
       - name: Install Dart dependencies
         working-directory: example/native
         run: dart pub get
       - name: Compile native example
+        working-directory: example/native
         run: >-
-          dart compile exe
-          example/native/bin/main.dart
-          -o dart_monty_example
+          dart compile exe bin/main.dart
+          -o ../../dart_monty_example
           -DDART_MONTY_LIB_PATH=./libdart_monty_native.${{ matrix.ext }}
 
       # ── Package tarball ────────────────────────────────────────────
