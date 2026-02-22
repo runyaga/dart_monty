@@ -12,4 +12,6 @@ Pod::Spec.new do |s|
 
   s.source_files     = 'Classes/**/*'
   s.vendored_libraries = 'libdart_monty_native.dylib'
+
+  s.dependency 'FlutterMacOS'
 end
