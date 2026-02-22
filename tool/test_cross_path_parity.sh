@@ -12,9 +12,11 @@ set -euo pipefail
 ROOT="$(git rev-parse --show-toplevel)"
 SPIKE="$ROOT/spike/web_test"
 FFI_PKG="$ROOT/packages/dart_monty_ffi"
+WASM_PKG="$ROOT/packages/dart_monty_wasm"
 
 NATIVE_JSONL="/tmp/parity_native.jsonl"
 WEB_JSONL="/tmp/parity_web.jsonl"
+WASM_JSONL="/tmp/parity_wasm.jsonl"
 
 echo "=== M3C Gate: Cross-Path Parity ==="
 echo ""
@@ -207,4 +209,164 @@ if mismatches > 0:
 "
 
 echo ""
-echo "=== M3C Parity: PASSED ==="
+echo "  Native vs Web spike: PASSED"
+
+# -------------------------------------------------------
+# Step 4: Build and run WASM package ladder runner
+# -------------------------------------------------------
+if [ -d "$WASM_PKG/js" ]; then
+  echo ""
+  echo "--- Building WASM package ladder runner ---"
+  cd "$WASM_PKG/js"
+  npm install --silent
+  npm run build 2>&1 | tail -1
+
+  WASM_INTEG="$WASM_PKG/test/integration/web"
+  cp "$WASM_PKG/assets/dart_monty_bridge.js" "$WASM_INTEG/"
+  cp "$WASM_PKG/assets/dart_monty_worker.js" "$WASM_INTEG/"
+  cp "$WASM_PKG/assets/wasi-worker-browser.mjs" "$WASM_INTEG/"
+  cp "$WASM_PKG/assets/"*.wasm "$WASM_INTEG/"
+
+  cd "$WASM_PKG"
+  dart pub get
+  dart compile js test/integration/python_ladder_test.dart \
+    -o "$WASM_INTEG/ladder_runner.dart.js"
+
+  mkdir -p "$WASM_INTEG/fixtures"
+  cp "$ROOT"/test/fixtures/python_ladder/tier_*.json "$WASM_INTEG/fixtures/"
+
+  echo ""
+  echo "--- Running WASM package ladder runner (headless Chrome) ---"
+
+  # Kill previous server
+  kill "$SERVE_PID" 2>/dev/null || true
+  wait "$SERVE_PID" 2>/dev/null || true
+
+  SERVE_PORT=8095
+  python3 -c "
+import http.server, functools
+class H(http.server.SimpleHTTPRequestHandler):
+    def end_headers(self):
+        self.send_header('Cross-Origin-Opener-Policy', 'same-origin')
+        self.send_header('Cross-Origin-Embedder-Policy', 'require-corp')
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Cache-Control', 'no-store')
+        super().end_headers()
+    def guess_type(self, path):
+        if path.endswith('.mjs'): return 'application/javascript'
+        if path.endswith('.wasm'): return 'application/wasm'
+        return super().guess_type(path)
+    def log_message(self, fmt, *args): pass
+handler = functools.partial(H, directory='$WASM_INTEG')
+http.server.HTTPServer(('127.0.0.1', $SERVE_PORT), handler).serve_forever()
+" &
+  SERVE_PID=$!
+  sleep 1
+
+  WASM_CONSOLE=$(mktemp)
+
+  timeout 60 "$CHROME" \
+    --headless=new \
+    --disable-gpu \
+    --no-sandbox \
+    --disable-dev-shm-usage \
+    --enable-logging=stderr \
+    --v=0 \
+    "http://127.0.0.1:$SERVE_PORT/ladder.html" \
+    2>"$WASM_CONSOLE" || true
+
+  grep -o 'LADDER_RESULT:{.*}' "$WASM_CONSOLE" 2>/dev/null | \
+    sed 's/^LADDER_RESULT://' > "$WASM_JSONL" || true
+
+  rm -f "$WASM_CONSOLE"
+
+  echo "  WASM results: $WASM_JSONL"
+  echo "  Lines: $(wc -l < "$WASM_JSONL" | tr -d ' ')"
+
+  # Clean up copied assets
+  rm -f "$WASM_INTEG/dart_monty_bridge.js" \
+        "$WASM_INTEG/dart_monty_worker.js" \
+        "$WASM_INTEG/wasi-worker-browser.mjs" \
+        "$WASM_INTEG/"*.wasm \
+        "$WASM_INTEG/ladder_runner.dart.js" \
+        "$WASM_INTEG/ladder_runner.dart.js.deps" \
+        "$WASM_INTEG/ladder_runner.dart.js.map"
+  rm -rf "$WASM_INTEG/fixtures"
+
+  # -------------------------------------------------------
+  # Step 5: Compare WASM package vs native
+  # -------------------------------------------------------
+  echo ""
+  echo "--- Comparing WASM package vs native ---"
+
+  python3 -c "
+import json, sys
+
+def load_results(path):
+    results = {}
+    with open(path) as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            obj = json.loads(line)
+            results[obj['id']] = obj
+    return results
+
+native = load_results('$NATIVE_JSONL')
+wasm = load_results('$WASM_JSONL')
+
+all_ids = sorted(set(native.keys()) | set(wasm.keys()))
+
+mismatches = 0
+matches = 0
+skipped = 0
+
+for fid in all_ids:
+    n = native.get(fid)
+    w = wasm.get(fid)
+
+    if w and w.get('skipped'):
+        print(f'  #{fid:2d}: SKIPPED (nativeOnly)')
+        skipped += 1
+        continue
+
+    if n is None:
+        print(f'  #{fid:2d}: MISMATCH — missing from native')
+        mismatches += 1
+        continue
+
+    if w is None:
+        print(f'  #{fid:2d}: MISMATCH — missing from wasm-pkg')
+        mismatches += 1
+        continue
+
+    n_ok = n.get('ok')
+    w_ok = w.get('ok')
+    n_val = n.get('value') if n_ok else n.get('error')
+    w_val = w.get('value') if w_ok else w.get('error')
+
+    if json.dumps(n_val, sort_keys=True) == json.dumps(w_val, sort_keys=True) and n_ok == w_ok:
+        print(f'  #{fid:2d}: MATCH (value={json.dumps(n_val)[:60]})')
+        matches += 1
+    else:
+        print(f'  #{fid:2d}: MISMATCH')
+        print(f'         native:   ok={n_ok} val={json.dumps(n_val)[:80]}')
+        print(f'         wasm-pkg: ok={w_ok} val={json.dumps(w_val)[:80]}')
+        mismatches += 1
+
+print()
+print(f'  Summary: {matches} match, {mismatches} mismatch, {skipped} skipped')
+
+if mismatches > 0:
+    sys.exit(1)
+"
+  echo ""
+  echo "  Native vs WASM package: PASSED"
+else
+  echo ""
+  echo "  WASM package not found, skipping WASM parity."
+fi
+
+echo ""
+echo "=== Parity: PASSED ==="

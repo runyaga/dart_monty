@@ -1,0 +1,16 @@
+name: dart_monty_wasm
+description: Web WASM implementation of dart_monty using dart:js_interop and @pydantic/monty.
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: '>=3.5.0 <4.0.0'
+
+dependencies:
+  dart_monty_platform_interface:
+    path: ../dart_monty_platform_interface
+  web: ^1.1.1
+
+dev_dependencies:
+  test: ^1.25.0
+  very_good_analysis: ^10.0.0

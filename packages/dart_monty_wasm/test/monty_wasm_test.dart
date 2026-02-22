@@ -1,0 +1,895 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
+import 'package:dart_monty_wasm/src/monty_wasm.dart';
+import 'package:dart_monty_wasm/src/wasm_bindings.dart';
+import 'package:test/test.dart';
+
+import 'mock_wasm_bindings.dart';
+
+void main() {
+  late MockWasmBindings mock;
+  late MontyWasm monty;
+
+  setUp(() {
+    mock = MockWasmBindings();
+    monty = MontyWasm(bindings: mock);
+  });
+
+  tearDown(() async {
+    // Ensure cleanup (double-dispose is safe).
+    await monty.dispose();
+  });
+
+  // ===========================================================================
+  // initialize()
+  // ===========================================================================
+  group('initialize()', () {
+    test('calls bindings.init()', () async {
+      await monty.initialize();
+      expect(mock.initCalls, 1);
+    });
+
+    test('is idempotent', () async {
+      await monty.initialize();
+      await monty.initialize();
+      expect(mock.initCalls, 1);
+    });
+
+    test('throws StateError on init failure', () async {
+      mock.nextInitResult = false;
+      expect(monty.initialize, throwsStateError);
+    });
+  });
+
+  // ===========================================================================
+  // run()
+  // ===========================================================================
+  group('run()', () {
+    test('returns OK result', () async {
+      mock.nextRunResult = const WasmRunResult(ok: true, value: 4);
+
+      final result = await monty.run('2 + 2');
+
+      expect(result.value, 4);
+      expect(result.isError, isFalse);
+      expect(result.usage.memoryBytesUsed, 0);
+      expect(result.usage.timeElapsedMs, 0);
+      expect(result.usage.stackDepthUsed, 0);
+      expect(mock.runCalls, hasLength(1));
+      expect(mock.runCalls.first.code, '2 + 2');
+    });
+
+    test('auto-initializes on first call', () async {
+      mock.nextRunResult = const WasmRunResult(ok: true, value: 1);
+      await monty.run('1');
+      expect(mock.initCalls, 1);
+    });
+
+    test('does not re-initialize after first call', () async {
+      mock.nextRunResult = const WasmRunResult(ok: true, value: 1);
+      await monty.run('1');
+      await monty.run('2');
+      expect(mock.initCalls, 1);
+    });
+
+    test('throws MontyException on error result', () async {
+      mock.nextRunResult = const WasmRunResult(
+        ok: false,
+        error: 'SyntaxError: invalid syntax',
+        errorType: 'SyntaxError',
+      );
+
+      expect(
+        () => monty.run('def'),
+        throwsA(
+          isA<MontyException>().having(
+            (e) => e.message,
+            'message',
+            'SyntaxError: invalid syntax',
+          ),
+        ),
+      );
+    });
+
+    test('applies resource limits', () async {
+      mock.nextRunResult = const WasmRunResult(ok: true, value: 42);
+
+      await monty.run(
+        'x',
+        limits: const MontyLimits(
+          memoryBytes: 1024,
+          timeoutMs: 500,
+          stackDepth: 10,
+        ),
+      );
+
+      expect(mock.runCalls, hasLength(1));
+      final limitsJson = mock.runCalls.first.limitsJson;
+      expect(limitsJson, isNotNull);
+      final decoded = json.decode(limitsJson!) as Map<String, dynamic>;
+      expect(decoded['memory_bytes'], 1024);
+      expect(decoded['timeout_ms'], 500);
+      expect(decoded['stack_depth'], 10);
+    });
+
+    test('passes null limitsJson when no limits', () async {
+      mock.nextRunResult = const WasmRunResult(ok: true, value: 1);
+      await monty.run('1');
+      expect(mock.runCalls.first.limitsJson, isNull);
+    });
+
+    test('passes null limitsJson when all limits are null', () async {
+      mock.nextRunResult = const WasmRunResult(ok: true, value: 1);
+      await monty.run('1', limits: const MontyLimits());
+      expect(mock.runCalls.first.limitsJson, isNull);
+    });
+
+    test('throws UnsupportedError for non-empty inputs', () {
+      expect(
+        () => monty.run('x', inputs: {'a': 1}),
+        throwsA(isA<UnsupportedError>()),
+      );
+    });
+
+    test('allows null inputs', () async {
+      mock.nextRunResult = const WasmRunResult(ok: true, value: 1);
+      // Verifying null inputs are accepted without error.
+      // ignore: avoid_redundant_argument_values
+      final result = await monty.run('1', inputs: null);
+      expect(result.value, 1);
+    });
+
+    test('allows empty inputs', () async {
+      mock.nextRunResult = const WasmRunResult(ok: true, value: 1);
+      final result = await monty.run('1', inputs: {});
+      expect(result.value, 1);
+    });
+
+    test('throws StateError when disposed', () async {
+      await monty.dispose();
+      expect(() => monty.run('x'), throwsStateError);
+    });
+
+    test('throws StateError when active', () async {
+      mock.nextStartResult = const WasmProgressResult(
+        ok: true,
+        state: 'pending',
+        functionName: 'fetch',
+        arguments: [],
+      );
+      await monty.start('x', externalFunctions: ['fetch']);
+
+      expect(() => monty.run('y'), throwsStateError);
+    });
+
+    test('returns null value', () async {
+      mock.nextRunResult = const WasmRunResult(ok: true);
+
+      final result = await monty.run('None');
+      expect(result.value, isNull);
+      expect(result.isError, isFalse);
+    });
+
+    test('returns string value', () async {
+      mock.nextRunResult = const WasmRunResult(ok: true, value: 'hello');
+
+      final result = await monty.run('"hello"');
+      expect(result.value, 'hello');
+    });
+
+    test('error with null message uses default', () async {
+      mock.nextRunResult = const WasmRunResult(ok: false);
+
+      expect(
+        () => monty.run('x'),
+        throwsA(
+          isA<MontyException>().having(
+            (e) => e.message,
+            'message',
+            'Unknown error',
+          ),
+        ),
+      );
+    });
+  });
+
+  // ===========================================================================
+  // start()
+  // ===========================================================================
+  group('start()', () {
+    test('returns MontyComplete when code completes immediately', () async {
+      mock.nextStartResult = const WasmProgressResult(
+        ok: true,
+        state: 'complete',
+        value: 42,
+      );
+
+      final progress = await monty.start('42');
+
+      expect(progress, isA<MontyComplete>());
+      final complete = progress as MontyComplete;
+      expect(complete.result.value, 42);
+    });
+
+    test('returns MontyPending for external function call', () async {
+      mock.nextStartResult = const WasmProgressResult(
+        ok: true,
+        state: 'pending',
+        functionName: 'fetch',
+        arguments: ['https://example.com'],
+      );
+
+      final progress = await monty.start(
+        'fetch("https://example.com")',
+        externalFunctions: ['fetch'],
+      );
+
+      expect(progress, isA<MontyPending>());
+      final pending = progress as MontyPending;
+      expect(pending.functionName, 'fetch');
+      expect(pending.arguments, ['https://example.com']);
+      expect(mock.startCalls.first.extFnsJson, '["fetch"]');
+    });
+
+    test('passes multiple external functions as JSON array', () async {
+      mock.nextStartResult = const WasmProgressResult(
+        ok: true,
+        state: 'pending',
+        functionName: 'a',
+        arguments: [],
+      );
+
+      await monty.start(
+        'a()',
+        externalFunctions: ['a', 'b', 'c'],
+      );
+
+      expect(mock.startCalls.first.extFnsJson, '["a","b","c"]');
+    });
+
+    test('passes null extFnsJson when empty list', () async {
+      mock.nextStartResult = const WasmProgressResult(
+        ok: true,
+        state: 'complete',
+      );
+
+      await monty.start('x', externalFunctions: []);
+
+      expect(mock.startCalls.first.extFnsJson, isNull);
+    });
+
+    test('passes null extFnsJson when null', () async {
+      mock.nextStartResult = const WasmProgressResult(
+        ok: true,
+        state: 'complete',
+      );
+
+      await monty.start('x');
+
+      expect(mock.startCalls.first.extFnsJson, isNull);
+    });
+
+    test('throws MontyException on error progress', () async {
+      mock.nextStartResult = const WasmProgressResult(
+        ok: false,
+        error: 'compilation failed',
+        errorType: 'CompileError',
+      );
+
+      expect(
+        () => monty.start('bad code'),
+        throwsA(
+          isA<MontyException>().having(
+            (e) => e.message,
+            'message',
+            'compilation failed',
+          ),
+        ),
+      );
+    });
+
+    test('throws UnsupportedError for non-empty inputs', () {
+      expect(
+        () => monty.start('x', inputs: {'a': 1}),
+        throwsA(isA<UnsupportedError>()),
+      );
+    });
+
+    test('throws StateError when disposed', () async {
+      await monty.dispose();
+      expect(() => monty.start('x'), throwsStateError);
+    });
+
+    test('throws StateError when active', () async {
+      mock.nextStartResult = const WasmProgressResult(
+        ok: true,
+        state: 'pending',
+        functionName: 'f',
+        arguments: [],
+      );
+      await monty.start('x', externalFunctions: ['f']);
+
+      expect(() => monty.start('y'), throwsStateError);
+    });
+
+    test('applies limits before starting', () async {
+      mock.nextStartResult = const WasmProgressResult(
+        ok: true,
+        state: 'complete',
+      );
+
+      await monty.start(
+        'x',
+        limits: const MontyLimits(memoryBytes: 512),
+      );
+
+      final limitsJson = mock.startCalls.first.limitsJson;
+      expect(limitsJson, isNotNull);
+      final decoded = json.decode(limitsJson!) as Map<String, dynamic>;
+      expect(decoded['memory_bytes'], 512);
+    });
+
+    test('error with null message uses default', () async {
+      mock.nextStartResult = const WasmProgressResult(ok: false);
+
+      expect(
+        () => monty.start('x'),
+        throwsA(
+          isA<MontyException>().having(
+            (e) => e.message,
+            'message',
+            'Unknown error',
+          ),
+        ),
+      );
+    });
+
+    test('unknown state throws StateError', () async {
+      mock.nextStartResult = const WasmProgressResult(
+        ok: true,
+        state: 'unknown',
+      );
+
+      expect(() => monty.start('x'), throwsStateError);
+    });
+  });
+
+  // ===========================================================================
+  // resume()
+  // ===========================================================================
+  group('resume()', () {
+    setUp(() async {
+      // Start in active state.
+      mock.nextStartResult = const WasmProgressResult(
+        ok: true,
+        state: 'pending',
+        functionName: 'fetch',
+        arguments: [],
+      );
+      await monty.start('x', externalFunctions: ['fetch']);
+    });
+
+    test('returns MontyComplete when execution finishes', () async {
+      mock.resumeResults.add(
+        const WasmProgressResult(
+          ok: true,
+          state: 'complete',
+          value: 'hello',
+        ),
+      );
+
+      final progress = await monty.resume('response');
+
+      expect(progress, isA<MontyComplete>());
+      expect(mock.resumeCalls, hasLength(1));
+      expect(mock.resumeCalls.first, '"response"');
+    });
+
+    test('returns MontyPending for another external call', () async {
+      mock.resumeResults.add(
+        const WasmProgressResult(
+          ok: true,
+          state: 'pending',
+          functionName: 'save',
+          arguments: ['data'],
+        ),
+      );
+
+      final progress = await monty.resume('response');
+
+      expect(progress, isA<MontyPending>());
+      final pending = progress as MontyPending;
+      expect(pending.functionName, 'save');
+      expect(pending.arguments, ['data']);
+    });
+
+    test('throws MontyException on error', () async {
+      mock.resumeResults.add(
+        const WasmProgressResult(
+          ok: false,
+          error: 'runtime error',
+          errorType: 'RuntimeError',
+        ),
+      );
+
+      expect(
+        () => monty.resume(null),
+        throwsA(isA<MontyException>()),
+      );
+    });
+
+    test('throws StateError when idle', () async {
+      // Complete the execution first to go back to idle.
+      mock.resumeResults.add(
+        const WasmProgressResult(
+          ok: true,
+          state: 'complete',
+        ),
+      );
+      await monty.resume(null);
+
+      expect(() => monty.resume(null), throwsStateError);
+    });
+
+    test('throws StateError when disposed', () async {
+      await monty.dispose();
+      expect(() => monty.resume(null), throwsStateError);
+    });
+
+    test('encodes complex return values as JSON', () async {
+      mock.resumeResults.add(
+        const WasmProgressResult(
+          ok: true,
+          state: 'complete',
+        ),
+      );
+
+      await monty.resume({
+        'key': [1, 2, 3],
+      });
+
+      expect(mock.resumeCalls.first, '{"key":[1,2,3]}');
+    });
+  });
+
+  // ===========================================================================
+  // resumeWithError()
+  // ===========================================================================
+  group('resumeWithError()', () {
+    setUp(() async {
+      mock.nextStartResult = const WasmProgressResult(
+        ok: true,
+        state: 'pending',
+        functionName: 'fetch',
+        arguments: [],
+      );
+      await monty.start('x', externalFunctions: ['fetch']);
+    });
+
+    test('returns MontyComplete after error injection', () async {
+      mock.resumeWithErrorResults.add(
+        const WasmProgressResult(
+          ok: true,
+          state: 'complete',
+        ),
+      );
+
+      final progress = await monty.resumeWithError('network failure');
+
+      expect(progress, isA<MontyComplete>());
+      expect(mock.resumeWithErrorCalls, hasLength(1));
+      expect(mock.resumeWithErrorCalls.first, 'network failure');
+    });
+
+    test('returns MontyPending for continuation', () async {
+      mock.resumeWithErrorResults.add(
+        const WasmProgressResult(
+          ok: true,
+          state: 'pending',
+          functionName: 'retry',
+          arguments: [],
+        ),
+      );
+
+      final progress = await monty.resumeWithError('timeout');
+
+      expect(progress, isA<MontyPending>());
+      final pending = progress as MontyPending;
+      expect(pending.functionName, 'retry');
+    });
+
+    test('throws StateError when idle', () {
+      final freshMonty = MontyWasm(bindings: mock);
+      expect(
+        () => freshMonty.resumeWithError('err'),
+        throwsStateError,
+      );
+    });
+
+    test('throws StateError when disposed', () async {
+      await monty.dispose();
+      expect(
+        () => monty.resumeWithError('err'),
+        throwsStateError,
+      );
+    });
+  });
+
+  // ===========================================================================
+  // snapshot()
+  // ===========================================================================
+  group('snapshot()', () {
+    setUp(() async {
+      mock.nextStartResult = const WasmProgressResult(
+        ok: true,
+        state: 'pending',
+        functionName: 'f',
+        arguments: [],
+      );
+      await monty.start('x', externalFunctions: ['f']);
+    });
+
+    test('returns snapshot bytes', () async {
+      mock.nextSnapshotData = Uint8List.fromList([10, 20, 30]);
+
+      final data = await monty.snapshot();
+
+      expect(data, Uint8List.fromList([10, 20, 30]));
+      expect(mock.snapshotCalls, 1);
+    });
+
+    test('throws StateError when idle', () {
+      final freshMonty = MontyWasm(bindings: mock);
+      expect(freshMonty.snapshot, throwsStateError);
+    });
+
+    test('throws StateError when disposed', () async {
+      await monty.dispose();
+      expect(() => monty.snapshot(), throwsStateError);
+    });
+  });
+
+  // ===========================================================================
+  // restore()
+  // ===========================================================================
+  group('restore()', () {
+    test('returns new MontyWasm instance', () async {
+      final data = Uint8List.fromList([1, 2, 3]);
+
+      final restored = await monty.restore(data);
+
+      expect(restored, isA<MontyWasm>());
+      expect(mock.restoreCalls, hasLength(1));
+      expect(mock.restoreCalls.first, data);
+    });
+
+    test('restored instance can run code', () async {
+      mock.nextRunResult = const WasmRunResult(ok: true, value: 10);
+
+      final restored = await monty.restore(Uint8List.fromList([1, 2, 3]));
+      final result = await (restored as MontyWasm).run('5 + 5');
+
+      expect(result.value, 10);
+    });
+
+    test('throws StateError when restore fails', () {
+      mock.nextRestoreError = 'invalid snapshot';
+
+      expect(
+        () => monty.restore(Uint8List.fromList([0xFF])),
+        throwsStateError,
+      );
+    });
+
+    test('throws StateError when disposed', () async {
+      await monty.dispose();
+      expect(
+        () => monty.restore(Uint8List.fromList([1])),
+        throwsStateError,
+      );
+    });
+
+    test('throws StateError when active', () async {
+      mock.nextStartResult = const WasmProgressResult(
+        ok: true,
+        state: 'pending',
+        functionName: 'f',
+        arguments: [],
+      );
+      await monty.start('x', externalFunctions: ['f']);
+
+      expect(
+        () => monty.restore(Uint8List.fromList([1])),
+        throwsStateError,
+      );
+    });
+  });
+
+  // ===========================================================================
+  // dispose()
+  // ===========================================================================
+  group('dispose()', () {
+    test('calls bindings dispose when initialized', () async {
+      await monty.initialize();
+      await monty.dispose();
+      expect(mock.disposeCalls, 1);
+    });
+
+    test('does not call bindings dispose when not initialized', () async {
+      await monty.dispose();
+      expect(mock.disposeCalls, 0);
+    });
+
+    test('double dispose is safe', () async {
+      await monty.initialize();
+      await monty.dispose();
+      await monty.dispose(); // should not throw
+
+      expect(mock.disposeCalls, 1);
+    });
+
+    test('disposed instance rejects all methods', () async {
+      await monty.dispose();
+
+      expect(() => monty.run('x'), throwsStateError);
+      expect(() => monty.start('x'), throwsStateError);
+      expect(() => monty.resume(null), throwsStateError);
+      expect(() => monty.resumeWithError('e'), throwsStateError);
+      expect(() => monty.snapshot(), throwsStateError);
+      expect(() => monty.restore(Uint8List(0)), throwsStateError);
+    });
+  });
+
+  // ===========================================================================
+  // State machine transitions
+  // ===========================================================================
+  group('state machine', () {
+    test('idle -> run -> idle', () async {
+      mock.nextRunResult = const WasmRunResult(ok: true, value: 1);
+
+      await monty.run('1');
+
+      // Can run again (still idle).
+      mock.nextRunResult = const WasmRunResult(ok: true, value: 2);
+      final result = await monty.run('2');
+      expect(result.value, 2);
+    });
+
+    test('idle -> start(complete) -> idle', () async {
+      mock.nextStartResult = const WasmProgressResult(
+        ok: true,
+        state: 'complete',
+        value: 42,
+      );
+
+      await monty.start('42');
+
+      // Back to idle, can run.
+      mock.nextRunResult = const WasmRunResult(ok: true, value: 1);
+      final result = await monty.run('1');
+      expect(result.value, 1);
+    });
+
+    test(
+      'idle -> start(pending) -> active -> resume(complete) -> idle',
+      () async {
+        mock.nextStartResult = const WasmProgressResult(
+          ok: true,
+          state: 'pending',
+          functionName: 'f',
+          arguments: [],
+        );
+
+        await monty.start('x', externalFunctions: ['f']);
+
+        mock.resumeResults.add(
+          const WasmProgressResult(
+            ok: true,
+            state: 'complete',
+            value: 'done',
+          ),
+        );
+
+        final progress = await monty.resume('value');
+        expect(progress, isA<MontyComplete>());
+
+        // Back to idle.
+        mock.nextRunResult = const WasmRunResult(ok: true, value: 1);
+        final result = await monty.run('1');
+        expect(result.value, 1);
+      },
+    );
+
+    test('active -> resume(pending) -> still active', () async {
+      mock.nextStartResult = const WasmProgressResult(
+        ok: true,
+        state: 'pending',
+        functionName: 'a',
+        arguments: [],
+      );
+      await monty.start('x', externalFunctions: ['a', 'b']);
+
+      mock.resumeResults.add(
+        const WasmProgressResult(
+          ok: true,
+          state: 'pending',
+          functionName: 'b',
+          arguments: ['arg'],
+        ),
+      );
+
+      final progress = await monty.resume('val');
+      expect(progress, isA<MontyPending>());
+
+      // Still active — can resume again.
+      mock.resumeResults.add(
+        const WasmProgressResult(
+          ok: true,
+          state: 'complete',
+        ),
+      );
+      final done = await monty.resume('val2');
+      expect(done, isA<MontyComplete>());
+    });
+
+    test('active -> dispose -> disposed', () async {
+      mock.nextStartResult = const WasmProgressResult(
+        ok: true,
+        state: 'pending',
+        functionName: 'f',
+        arguments: [],
+      );
+      await monty.start('x', externalFunctions: ['f']);
+
+      await monty.dispose();
+
+      expect(() => monty.run('x'), throwsStateError);
+    });
+
+    test('idle -> dispose -> disposed', () async {
+      await monty.dispose();
+      expect(() => monty.run('x'), throwsStateError);
+    });
+
+    test('start error returns to idle', () async {
+      mock.nextStartResult = const WasmProgressResult(
+        ok: false,
+        error: 'compile error',
+        errorType: 'CompileError',
+      );
+
+      try {
+        await monty.start('bad');
+      } on MontyException catch (_) {
+        // expected
+      }
+
+      // Should be back to idle — can run again.
+      mock.nextRunResult = const WasmRunResult(ok: true, value: 1);
+      final result = await monty.run('1');
+      expect(result.value, 1);
+    });
+
+    test('resume error returns to idle', () async {
+      mock.nextStartResult = const WasmProgressResult(
+        ok: true,
+        state: 'pending',
+        functionName: 'f',
+        arguments: [],
+      );
+      await monty.start('x', externalFunctions: ['f']);
+
+      mock.resumeResults.add(
+        const WasmProgressResult(
+          ok: false,
+          error: 'runtime error',
+          errorType: 'RuntimeError',
+        ),
+      );
+
+      try {
+        await monty.resume(null);
+      } on MontyException catch (_) {
+        // expected
+      }
+
+      // Back to idle.
+      mock.nextRunResult = const WasmRunResult(ok: true, value: 1);
+      final result = await monty.run('1');
+      expect(result.value, 1);
+    });
+  });
+
+  // ===========================================================================
+  // Edge cases
+  // ===========================================================================
+  group('edge cases', () {
+    test('pending with null arguments defaults to empty', () async {
+      mock.nextStartResult = const WasmProgressResult(
+        ok: true,
+        state: 'pending',
+        functionName: 'noop',
+      );
+
+      final progress = await monty.start(
+        'noop()',
+        externalFunctions: ['noop'],
+      );
+
+      final pending = progress as MontyPending;
+      expect(pending.arguments, isEmpty);
+    });
+
+    test('pending with empty arguments', () async {
+      mock.nextStartResult = const WasmProgressResult(
+        ok: true,
+        state: 'pending',
+        functionName: 'noop',
+        arguments: [],
+      );
+
+      final progress = await monty.start(
+        'noop()',
+        externalFunctions: ['noop'],
+      );
+
+      final pending = progress as MontyPending;
+      expect(pending.arguments, isEmpty);
+    });
+
+    test('pending with null functionName defaults to empty', () async {
+      mock.nextStartResult = const WasmProgressResult(
+        ok: true,
+        state: 'pending',
+      );
+
+      final progress = await monty.start(
+        'x()',
+        externalFunctions: ['x'],
+      );
+
+      final pending = progress as MontyPending;
+      expect(pending.functionName, '');
+    });
+
+    test('complete with null value', () async {
+      mock.nextStartResult = const WasmProgressResult(
+        ok: true,
+        state: 'complete',
+      );
+
+      final progress = await monty.start('None');
+
+      final complete = progress as MontyComplete;
+      expect(complete.result.value, isNull);
+    });
+
+    test('synthetic resource usage is all zeros', () async {
+      mock.nextRunResult = const WasmRunResult(ok: true, value: 1);
+
+      final result = await monty.run('1');
+
+      expect(result.usage.memoryBytesUsed, 0);
+      expect(result.usage.timeElapsedMs, 0);
+      expect(result.usage.stackDepthUsed, 0);
+    });
+
+    test('partial limits encode only present fields', () async {
+      mock.nextRunResult = const WasmRunResult(ok: true, value: 1);
+
+      await monty.run(
+        '1',
+        limits: const MontyLimits(timeoutMs: 300),
+      );
+
+      final limitsJson = mock.runCalls.first.limitsJson;
+      expect(limitsJson, isNotNull);
+      final decoded = json.decode(limitsJson!) as Map<String, dynamic>;
+      expect(decoded, {'timeout_ms': 300});
+      expect(decoded.containsKey('memory_bytes'), isFalse);
+      expect(decoded.containsKey('stack_depth'), isFalse);
+    });
+  });
+}

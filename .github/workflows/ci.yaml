@@ -93,6 +93,7 @@ jobs:
         target:
           - dart_monty_platform_interface
           - dart_monty_ffi
+          - dart_monty_wasm
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
@@ -147,6 +148,50 @@ jobs:
             echo "FAIL: Coverage ${PCT}% < 90% minimum."
             exit 1
           fi
+      - name: Check coverage (wasm)
+        if: matrix.target == 'dart_monty_wasm'
+        run: |
+          cd packages/dart_monty_wasm
+          dart pub global activate coverage
+          dart pub global run coverage:format_coverage \
+            --lcov --in=coverage --out=coverage/lcov.info --report-on=lib
+          TOTAL=$(grep -c '^DA:' coverage/lcov.info || true)
+          HIT=$(grep '^DA:' coverage/lcov.info | grep -cv ',0$' || true)
+          if [ "$TOTAL" -eq 0 ]; then
+            echo "ERROR: No coverage data found."
+            exit 1
+          fi
+          PCT=$(( HIT * 100 / TOTAL ))
+          echo "Coverage: $HIT/$TOTAL lines = ${PCT}%"
+          if [ "$PCT" -lt 90 ]; then
+            echo "FAIL: Coverage ${PCT}% < 90% minimum."
+            exit 1
+          fi
+
+  build-js-wrapper:
+    name: Build JS wrapper
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [lint]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: packages/dart_monty_wasm/js/package-lock.json
+      - name: Install dependencies
+        working-directory: packages/dart_monty_wasm/js
+        run: npm install
+      - name: Build bridge and worker
+        working-directory: packages/dart_monty_wasm/js
+        run: npm run build
+      - name: Verify assets
+        run: |
+          ls -la packages/dart_monty_wasm/assets/
+          test -f packages/dart_monty_wasm/assets/dart_monty_bridge.js
+          test -f packages/dart_monty_wasm/assets/dart_monty_worker.js
+          test -f packages/dart_monty_wasm/assets/wasi-worker-browser.mjs
 
   build-native:
     name: Build native (${{ matrix.os }})
