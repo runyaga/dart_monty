@@ -6,6 +6,13 @@ import subprocess
 import sys
 
 
+def _is_flutter_package(pubspec_path: str) -> bool:
+    """Check if a pubspec.yaml declares a Flutter SDK dependency."""
+    with open(pubspec_path) as f:
+        content = f.read()
+    return 'sdk: flutter' in content
+
+
 def main() -> int:
     packages_dir = os.path.join(os.path.dirname(__file__), '..', 'packages')
     packages_dir = os.path.abspath(packages_dir)
@@ -17,9 +24,12 @@ def main() -> int:
         if not os.path.isfile(pubspec):
             continue
 
-        print(f'\n--- Analyzing {name} ---')
+        is_flutter = _is_flutter_package(pubspec)
+        pub_cmd = ['flutter', 'pub', 'get'] if is_flutter else ['dart', 'pub', 'get']
+
+        print(f'\n--- Analyzing {name} {"(flutter)" if is_flutter else ""} ---')
         subprocess.run(
-            ['dart', 'pub', 'get'],
+            pub_cmd,
             cwd=pkg_path,
             check=False,
         )
