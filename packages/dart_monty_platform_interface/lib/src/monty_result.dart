@@ -15,6 +15,7 @@ final class MontyResult {
     required this.usage,
     this.value,
     this.error,
+    this.printOutput,
   });
 
   /// Creates a [MontyResult] from a JSON map.
@@ -29,6 +30,7 @@ final class MontyResult {
       usage: MontyResourceUsage.fromJson(
         json['usage'] as Map<String, dynamic>,
       ),
+      printOutput: json['print_output'] as String?,
     );
   }
 
@@ -42,6 +44,10 @@ final class MontyResult {
   /// Resource usage statistics from the execution.
   final MontyResourceUsage usage;
 
+  /// Captured output from Python `print()` calls, or `null` if nothing was
+  /// printed.
+  final String? printOutput;
+
   /// Whether this result represents an error.
   bool get isError => error != null;
 
@@ -51,6 +57,7 @@ final class MontyResult {
       'value': value,
       if (error case final e?) 'error': e.toJson(),
       'usage': usage.toJson(),
+      if (printOutput case final p?) 'print_output': p,
     };
   }
 
@@ -60,11 +67,12 @@ final class MontyResult {
         (other is MontyResult &&
             other.value == value &&
             other.error == error &&
-            other.usage == usage);
+            other.usage == usage &&
+            other.printOutput == printOutput);
   }
 
   @override
-  int get hashCode => Object.hash(value, error, usage);
+  int get hashCode => Object.hash(value, error, usage, printOutput);
 
   @override
   String toString() {

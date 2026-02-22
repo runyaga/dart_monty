@@ -52,6 +52,7 @@ pub struct MontyHandle {
     state: HandleState,
     limits: Option<ResourceLimits>,
     usage_json: String,
+    print_output: String,
 }
 
 impl MontyHandle {
@@ -62,6 +63,7 @@ impl MontyHandle {
             state: HandleState::Ready(compiled),
             limits: None,
             usage_json: default_usage_json(),
+            print_output: String::new(),
         })
     }
 
@@ -80,7 +82,7 @@ impl MontyHandle {
             }
         };
 
-        let mut print = PrintWriter::Disabled;
+        let mut print = PrintWriter::Collect(String::new());
 
         let result = if let Some(limits) = self.limits.clone() {
             let tracker = LimitedTracker::new(limits);
@@ -89,10 +91,15 @@ impl MontyHandle {
             compiled.run(vec![], NoLimitTracker, &mut print)
         };
 
+        if let PrintWriter::Collect(collected) = print {
+            self.print_output.push_str(&collected);
+        }
+
         match result {
             Ok(obj) => {
                 let val = monty_object_to_json(&obj);
-                let result_json = build_result_json(val, None, &self.usage_json);
+                let result_json =
+                    build_result_json(val, None, &self.usage_json, &self.print_output);
                 self.state = HandleState::Complete {
                     result_json: result_json.clone(),
                     is_error: false,
@@ -101,7 +108,12 @@ impl MontyHandle {
             }
             Err(exc) => {
                 let err_json = monty_exception_to_json(&exc);
-                let result_json = build_result_json(Value::Null, Some(err_json), &self.usage_json);
+                let result_json = build_result_json(
+                    Value::Null,
+                    Some(err_json),
+                    &self.usage_json,
+                    &self.print_output,
+                );
                 let msg = exc.summary();
                 self.state = HandleState::Complete {
                     result_json: result_json.clone(),
@@ -126,18 +138,38 @@ impl MontyHandle {
             }
         };
 
-        let mut print = PrintWriter::Disabled;
+        let mut print = PrintWriter::Collect(String::new());
 
         if let Some(limits) = self.limits.clone() {
             let tracker = LimitedTracker::new(limits);
             match compiled.start(vec![], tracker, &mut print) {
-                Ok(progress) => self.process_progress_limited(progress),
-                Err(exc) => self.handle_exception(exc),
+                Ok(progress) => {
+                    if let PrintWriter::Collect(collected) = print {
+                        self.print_output.push_str(&collected);
+                    }
+                    self.process_progress_limited(progress)
+                }
+                Err(exc) => {
+                    if let PrintWriter::Collect(collected) = print {
+                        self.print_output.push_str(&collected);
+                    }
+                    self.handle_exception(exc)
+                }
             }
         } else {
             match compiled.start(vec![], NoLimitTracker, &mut print) {
-                Ok(progress) => self.process_progress_no_limit(progress),
-                Err(exc) => self.handle_exception(exc),
+                Ok(progress) => {
+                    if let PrintWriter::Collect(collected) = print {
+                        self.print_output.push_str(&collected);
+                    }
+                    self.process_progress_no_limit(progress)
+                }
+                Err(exc) => {
+                    if let PrintWriter::Collect(collected) = print {
+                        self.print_output.push_str(&collected);
+                    }
+                    self.handle_exception(exc)
+                }
             }
         }
     }
@@ -214,6 +246,7 @@ impl MontyHandle {
             state: HandleState::Ready(compiled),
             limits: None,
             usage_json: default_usage_json(),
+            print_output: String::new(),
         })
     }
 
@@ -242,17 +275,37 @@ impl MontyHandle {
 
         match state {
             HandleState::PausedLimited { snapshot, .. } => {
-                let mut print = PrintWriter::Disabled;
+                let mut print = PrintWriter::Collect(String::new());
                 match snapshot.run(result, &mut print) {
-                    Ok(progress) => self.process_progress_limited(progress),
-                    Err(exc) => self.handle_exception(exc),
+                    Ok(progress) => {
+                        if let PrintWriter::Collect(collected) = print {
+                            self.print_output.push_str(&collected);
+                        }
+                        self.process_progress_limited(progress)
+                    }
+                    Err(exc) => {
+                        if let PrintWriter::Collect(collected) = print {
+                            self.print_output.push_str(&collected);
+                        }
+                        self.handle_exception(exc)
+                    }
                 }
             }
             HandleState::PausedNoLimit { snapshot, .. } => {
-                let mut print = PrintWriter::Disabled;
+                let mut print = PrintWriter::Collect(String::new());
                 match snapshot.run(result, &mut print) {
-                    Ok(progress) => self.process_progress_no_limit(progress),
-                    Err(exc) => self.handle_exception(exc),
+                    Ok(progress) => {
+                        if let PrintWriter::Collect(collected) = print {
+                            self.print_output.push_str(&collected);
+                        }
+                        self.process_progress_no_limit(progress)
+                    }
+                    Err(exc) => {
+                        if let PrintWriter::Collect(collected) = print {
+                            self.print_output.push_str(&collected);
+                        }
+                        self.handle_exception(exc)
+                    }
                 }
             }
             other => {
@@ -272,7 +325,8 @@ impl MontyHandle {
         match progress {
             RunProgress::Complete(obj) => {
                 let val = monty_object_to_json(&obj);
-                let result_json = build_result_json(val, None, &self.usage_json);
+                let result_json =
+                    build_result_json(val, None, &self.usage_json, &self.print_output);
                 self.state = HandleState::Complete {
                     result_json,
                     is_error: false,
@@ -303,6 +357,7 @@ impl MontyHandle {
                         Value::Null,
                         Some(serde_json::json!({"message": "unsupported progress type"})),
                         &self.usage_json,
+                        &self.print_output,
                     ),
                     is_error: true,
                 };
@@ -321,7 +376,8 @@ impl MontyHandle {
         match progress {
             RunProgress::Complete(obj) => {
                 let val = monty_object_to_json(&obj);
-                let result_json = build_result_json(val, None, &self.usage_json);
+                let result_json =
+                    build_result_json(val, None, &self.usage_json, &self.print_output);
                 self.state = HandleState::Complete {
                     result_json,
                     is_error: false,
@@ -351,6 +407,7 @@ impl MontyHandle {
                         Value::Null,
                         Some(serde_json::json!({"message": "unsupported progress type"})),
                         &self.usage_json,
+                        &self.print_output,
                     ),
                     is_error: true,
                 };
@@ -364,7 +421,12 @@ impl MontyHandle {
 
     fn handle_exception(&mut self, exc: MontyException) -> (MontyProgressTag, Option<String>) {
         let err_json = monty_exception_to_json(&exc);
-        let result_json = build_result_json(Value::Null, Some(err_json), &self.usage_json);
+        let result_json = build_result_json(
+            Value::Null,
+            Some(err_json),
+            &self.usage_json,
+            &self.print_output,
+        );
         let msg = exc.summary();
         self.state = HandleState::Complete {
             result_json,
@@ -378,7 +440,12 @@ fn default_usage_json() -> String {
     r#"{"memory_bytes_used":0,"time_elapsed_ms":0,"stack_depth_used":0}"#.into()
 }
 
-fn build_result_json(value: Value, error: Option<Value>, usage_json: &str) -> String {
+fn build_result_json(
+    value: Value,
+    error: Option<Value>,
+    usage_json: &str,
+    print_output: &str,
+) -> String {
     let usage: Value = serde_json::from_str(usage_json).unwrap_or(serde_json::json!({
         "memory_bytes_used": 0,
         "time_elapsed_ms": 0,
@@ -390,6 +457,12 @@ fn build_result_json(value: Value, error: Option<Value>, usage_json: &str) -> St
     });
     if let Some(err) = error {
         result.as_object_mut().unwrap().insert("error".into(), err);
+    }
+    if !print_output.is_empty() {
+        result
+            .as_object_mut()
+            .unwrap()
+            .insert("print_output".into(), Value::String(print_output.into()));
     }
     serde_json::to_string(&result).unwrap_or_default()
 }
@@ -672,19 +745,126 @@ result
 
     #[test]
     fn test_build_result_json_ok() {
-        let result = build_result_json(json!(42), None, &default_usage_json());
+        let result = build_result_json(json!(42), None, &default_usage_json(), "");
         let parsed: Value = serde_json::from_str(&result).unwrap();
         assert_eq!(parsed["value"], 42);
         assert!(parsed.get("error").is_none());
+        assert!(parsed.get("print_output").is_none());
         assert!(parsed["usage"].is_object());
     }
 
     #[test]
     fn test_build_result_json_error() {
         let err = json!({"message": "boom"});
-        let result = build_result_json(Value::Null, Some(err), &default_usage_json());
+        let result = build_result_json(Value::Null, Some(err), &default_usage_json(), "");
         let parsed: Value = serde_json::from_str(&result).unwrap();
         assert!(parsed["value"].is_null());
         assert_eq!(parsed["error"]["message"], "boom");
+    }
+
+    #[test]
+    fn test_build_result_json_with_print_output() {
+        let result = build_result_json(json!(42), None, &default_usage_json(), "hello world\n");
+        let parsed: Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(parsed["value"], 42);
+        assert_eq!(parsed["print_output"], "hello world\n");
+    }
+
+    #[test]
+    fn test_build_result_json_empty_print_output_omitted() {
+        let result = build_result_json(json!(42), None, &default_usage_json(), "");
+        let parsed: Value = serde_json::from_str(&result).unwrap();
+        assert!(parsed.get("print_output").is_none());
+    }
+
+    #[test]
+    fn test_run_captures_print_output() {
+        let mut handle = MontyHandle::new("print('hello')".into(), vec![]).unwrap();
+        let (tag, result_json, _) = handle.run();
+        assert_eq!(tag, MontyResultTag::Ok);
+        let parsed: Value = serde_json::from_str(&result_json).unwrap();
+        assert_eq!(parsed["print_output"], "hello\n");
+    }
+
+    #[test]
+    fn test_run_no_print_output_omits_key() {
+        let mut handle = MontyHandle::new("2 + 2".into(), vec![]).unwrap();
+        let (tag, result_json, _) = handle.run();
+        assert_eq!(tag, MontyResultTag::Ok);
+        let parsed: Value = serde_json::from_str(&result_json).unwrap();
+        assert!(parsed.get("print_output").is_none());
+    }
+
+    #[test]
+    fn test_start_captures_print_no_limits() {
+        let mut handle = MontyHandle::new("print('start')\n42".into(), vec![]).unwrap();
+        let (tag, err) = handle.start();
+        assert_eq!(tag, MontyProgressTag::Complete);
+        assert!(err.is_none());
+        let result: Value = serde_json::from_str(handle.complete_result_json().unwrap()).unwrap();
+        assert_eq!(result["print_output"], "start\n");
+        assert_eq!(result["value"], 42);
+    }
+
+    #[test]
+    fn test_start_captures_print_with_limits() {
+        let mut handle = MontyHandle::new("print('limited')\n99".into(), vec![]).unwrap();
+        handle.set_memory_limit(10 * 1024 * 1024);
+        let (tag, err) = handle.start();
+        assert_eq!(tag, MontyProgressTag::Complete);
+        assert!(err.is_none());
+        let result: Value = serde_json::from_str(handle.complete_result_json().unwrap()).unwrap();
+        assert_eq!(result["print_output"], "limited\n");
+        assert_eq!(result["value"], 99);
+    }
+
+    #[test]
+    fn test_iterative_captures_print_across_steps() {
+        let code = "print('before')\na = ext_fn(1)\nprint('after')\na + 10";
+        let mut handle = MontyHandle::new(code.into(), vec!["ext_fn".into()]).unwrap();
+        let (tag, _) = handle.start();
+        assert_eq!(tag, MontyProgressTag::Pending);
+
+        let (tag, _) = handle.resume("5");
+        assert_eq!(tag, MontyProgressTag::Complete);
+        let result: Value = serde_json::from_str(handle.complete_result_json().unwrap()).unwrap();
+        assert_eq!(result["value"], 15);
+        assert_eq!(result["print_output"], "before\nafter\n");
+    }
+
+    #[test]
+    fn test_iterative_captures_print_with_limits() {
+        let code = "print('hello')\na = ext_fn(1)\na";
+        let mut handle = MontyHandle::new(code.into(), vec!["ext_fn".into()]).unwrap();
+        handle.set_memory_limit(10 * 1024 * 1024);
+        let (tag, _) = handle.start();
+        assert_eq!(tag, MontyProgressTag::Pending);
+
+        let (tag, _) = handle.resume("7");
+        assert_eq!(tag, MontyProgressTag::Complete);
+        let result: Value = serde_json::from_str(handle.complete_result_json().unwrap()).unwrap();
+        assert_eq!(result["value"], 7);
+        assert_eq!(result["print_output"], "hello\n");
+    }
+
+    #[test]
+    fn test_start_error_captures_print() {
+        let code = "print('oops')\n1/0";
+        let mut handle = MontyHandle::new(code.into(), vec![]).unwrap();
+        let (tag, err) = handle.start();
+        assert_eq!(tag, MontyProgressTag::Error);
+        assert!(err.is_some());
+        let result: Value = serde_json::from_str(handle.complete_result_json().unwrap()).unwrap();
+        assert_eq!(result["print_output"], "oops\n");
+    }
+
+    #[test]
+    fn test_run_with_limits_captures_print() {
+        let mut handle = MontyHandle::new("print('lim')\n7".into(), vec![]).unwrap();
+        handle.set_memory_limit(10 * 1024 * 1024);
+        let (tag, result_json, _) = handle.run();
+        assert_eq!(tag, MontyResultTag::Ok);
+        let parsed: Value = serde_json::from_str(&result_json).unwrap();
+        assert_eq!(parsed["print_output"], "lim\n");
     }
 }
