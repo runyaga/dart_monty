@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>dart_monty — Algorithm Visualizer</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+      background: #1e1e1e;
+      color: #d4d4d4;
+      padding: 2rem;
+      max-width: 960px;
+      margin: 0 auto;
+    }
+    a { color: #569cd6; }
+    h1 {
+      color: #569cd6;
+      margin-bottom: 0.5rem;
+      font-size: 1.4rem;
+    }
+    .subtitle {
+      color: #808080;
+      margin-bottom: 1.5rem;
+      font-size: 0.9rem;
+    }
+    .nav { margin-bottom: 1.5rem; }
+    .nav a { margin-right: 1rem; font-size: 0.85rem; }
+
+    /* Status bar */
+    #status {
+      background: #2d2d2d;
+      border: 1px solid #404040;
+      border-radius: 4px;
+      padding: 0.75rem 1rem;
+      margin-bottom: 1.5rem;
+      font-size: 0.9rem;
+    }
+    #status.init { border-left: 3px solid #569cd6; }
+    #status.ready { border-left: 3px solid #6a9955; }
+    #status.sorting { border-left: 3px solid #dcdcaa; }
+    #status.complete { border-left: 3px solid #6a9955; }
+    #status.error { border-left: 3px solid #f44747; }
+
+    /* Controls panel */
+    .controls {
+      background: #252526;
+      border: 1px solid #404040;
+      border-radius: 6px;
+      padding: 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+    .control-row {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+    .control-row:last-child { margin-bottom: 0; }
+    .control-label {
+      color: #808080;
+      font-size: 0.8rem;
+      min-width: 80px;
+    }
+
+    /* Algorithm toggle buttons */
+    .algo-buttons { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .algo-btn {
+      background: #1e1e1e;
+      border: 1px solid #404040;
+      color: #d4d4d4;
+      padding: 0.4rem 0.8rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.8rem;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .algo-btn:hover { border-color: #569cd6; }
+    .algo-btn.active {
+      background: #569cd6;
+      color: #1e1e1e;
+      border-color: #569cd6;
+    }
+    .algo-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* Sliders */
+    .slider-group {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex: 1;
+    }
+    .slider-group input[type="range"] {
+      flex: 1;
+      accent-color: #569cd6;
+    }
+    .slider-value {
+      color: #dcdcaa;
+      font-size: 0.85rem;
+      min-width: 40px;
+      text-align: right;
+    }
+
+    /* Start button */
+    #start-btn {
+      background: #6a9955;
+      border: none;
+      color: #1e1e1e;
+      padding: 0.5rem 1.5rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.9rem;
+      font-weight: bold;
+      transition: background 0.2s;
+    }
+    #start-btn:hover { background: #7ec068; }
+    #start-btn:disabled {
+      background: #404040;
+      color: #808080;
+      cursor: not-allowed;
+    }
+    #stop-btn {
+      background: #f44747;
+      border: none;
+      color: #1e1e1e;
+      padding: 0.5rem 1.5rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.9rem;
+      font-weight: bold;
+      transition: background 0.2s;
+    }
+    #stop-btn:hover { background: #d73a3a; }
+
+    /* Bar chart */
+    .chart-container {
+      background: #252526;
+      border: 1px solid #404040;
+      border-radius: 6px;
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+      min-height: 280px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      gap: 1px;
+    }
+    .bar {
+      background: #569cd6;
+      border-radius: 2px 2px 0 0;
+      transition: height 0.08s ease-out, background-color 0.15s;
+      min-width: 2px;
+      flex: 1;
+      max-width: 20px;
+    }
+    .bar.comparing { background: #dcdcaa; }
+    .bar.swapped { background: #f44747; }
+    .bar.done { background: #6a9955; }
+
+    /* Stats row */
+    .stats {
+      display: flex;
+      gap: 2rem;
+      background: #252526;
+      border: 1px solid #404040;
+      border-radius: 4px;
+      padding: 0.75rem 1rem;
+      font-size: 0.85rem;
+    }
+    .stat-label { color: #808080; }
+    .stat-value { color: #dcdcaa; margin-left: 0.5rem; }
+
+    /* Legend */
+    .legend {
+      display: flex;
+      gap: 1.5rem;
+      margin-top: 1rem;
+      font-size: 0.75rem;
+      color: #808080;
+      flex-wrap: wrap;
+    }
+    .legend-item { display: flex; align-items: center; gap: 0.3rem; }
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+    }
+    .legend-dot.blue { background: #569cd6; }
+    .legend-dot.yellow { background: #dcdcaa; }
+    .legend-dot.red { background: #f44747; }
+    .legend-dot.green { background: #6a9955; }
+
+    /* Code editor */
+    .code-panel {
+      margin-bottom: 1.5rem;
+    }
+    .code-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+    .code-header-label {
+      color: #808080;
+      font-size: 0.8rem;
+    }
+    .code-hint {
+      color: #569cd6;
+      font-size: 0.75rem;
+    }
+    #code-editor {
+      width: 100%;
+      min-height: 200px;
+      background: #1e1e1e;
+      color: #d4d4d4;
+      border: 1px solid #404040;
+      border-radius: 4px;
+      padding: 0.75rem;
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+      font-size: 0.8rem;
+      line-height: 1.5;
+      resize: vertical;
+      tab-size: 4;
+    }
+    #code-editor:focus {
+      outline: none;
+      border-color: #569cd6;
+    }
+    #code-editor:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  </style>
+</head>
+<body>
+  <h1>Algorithm Visualizer</h1>
+  <p class="subtitle">Python sorting algorithms running step-by-step through Monty WASM</p>
+  <div class="nav">
+    <a href="index.html">&larr; Home</a>
+    <a href="demo.html">Demo</a>
+    <a href="ladder.html">Ladder</a>
+  </div>
+
+  <div id="status" class="init">Initializing WASM Worker...</div>
+
+  <div class="controls">
+    <div class="control-row">
+      <span class="control-label">Algorithm</span>
+      <div class="algo-buttons">
+        <button class="algo-btn active" data-algo="bubble">Bubble</button>
+        <button class="algo-btn" data-algo="selection">Selection</button>
+        <button class="algo-btn" data-algo="insertion">Insertion</button>
+        <button class="algo-btn" data-algo="quick">Quick</button>
+      </div>
+    </div>
+    <div class="control-row">
+      <span class="control-label">Array Size</span>
+      <div class="slider-group">
+        <input type="range" id="size-slider" min="10" max="100" value="30" step="5">
+        <span class="slider-value" id="size-value">30</span>
+      </div>
+    </div>
+    <div class="control-row">
+      <span class="control-label">Speed</span>
+      <div class="slider-group">
+        <input type="range" id="speed-slider" min="0" max="4" value="2" step="1">
+        <span class="slider-value" id="speed-value">Medium</span>
+      </div>
+    </div>
+    <div class="control-row">
+      <span class="control-label"></span>
+      <button id="start-btn" disabled>Start</button>
+      <button id="stop-btn" style="display:none">Stop</button>
+    </div>
+  </div>
+
+  <div class="code-panel">
+    <div class="code-header">
+      <span class="code-header-label">Python Code</span>
+      <span class="code-hint">INPUT_ARRAY is replaced with the random array at runtime</span>
+    </div>
+    <textarea id="code-editor" spellcheck="false"></textarea>
+  </div>
+
+  <div class="chart-container" id="chart"></div>
+
+  <div class="stats">
+    <div><span class="stat-label">Comparisons:</span><span class="stat-value" id="stat-compares">0</span></div>
+    <div><span class="stat-label">Swaps:</span><span class="stat-value" id="stat-swaps">0</span></div>
+    <div><span class="stat-label">Steps:</span><span class="stat-value" id="stat-steps">0</span></div>
+  </div>
+
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot blue"></div> Default</div>
+    <div class="legend-item"><div class="legend-dot yellow"></div> Comparing</div>
+    <div class="legend-item"><div class="legend-dot red"></div> Swapped</div>
+    <div class="legend-item"><div class="legend-dot green"></div> Sorted</div>
+  </div>
+
+  <script>
+    // ── Algorithm templates ──────────────────────────────────────────────
+    const algoTemplates = {
+      bubble: 'arr = INPUT_ARRAY[:]\nn = len(arr)\ni = 0\nwhile i < n:\n    j = 0\n    while j < n - i - 1:\n        yield_state(arr, j, j + 1, "compare")\n        if arr[j] > arr[j + 1]:\n            tmp = arr[j]\n            arr[j] = arr[j + 1]\n            arr[j + 1] = tmp\n            yield_state(arr, j, j + 1, "swap")\n        j = j + 1\n    i = i + 1\nyield_state(arr, -1, -1, "done")\narr',
+      selection: 'arr = INPUT_ARRAY[:]\nn = len(arr)\ni = 0\nwhile i < n:\n    min_idx = i\n    j = i + 1\n    while j < n:\n        yield_state(arr, min_idx, j, "compare")\n        if arr[j] < arr[min_idx]:\n            min_idx = j\n        j = j + 1\n    if min_idx != i:\n        tmp = arr[i]\n        arr[i] = arr[min_idx]\n        arr[min_idx] = tmp\n        yield_state(arr, i, min_idx, "swap")\n    i = i + 1\nyield_state(arr, -1, -1, "done")\narr',
+      insertion: 'arr = INPUT_ARRAY[:]\nn = len(arr)\ni = 1\nwhile i < n:\n    key = arr[i]\n    j = i - 1\n    while j >= 0:\n        yield_state(arr, j, i, "compare")\n        if arr[j] > key:\n            arr[j + 1] = arr[j]\n            yield_state(arr, j, j + 1, "swap")\n            j = j - 1\n        else:\n            break\n        if j < 0:\n            break\n    arr[j + 1] = key\n    i = i + 1\nyield_state(arr, -1, -1, "done")\narr',
+      quick: 'arr = INPUT_ARRAY[:]\nn = len(arr)\nstack = [[0, n - 1]]\nwhile len(stack) > 0:\n    pair = stack[len(stack) - 1]\n    stack = stack[:len(stack) - 1]\n    low = pair[0]\n    high = pair[1]\n    if low < high:\n        pivot = arr[high]\n        i = low - 1\n        j = low\n        while j < high:\n            yield_state(arr, j, high, "compare")\n            if arr[j] <= pivot:\n                i = i + 1\n                if i != j:\n                    tmp = arr[i]\n                    arr[i] = arr[j]\n                    arr[j] = tmp\n                    yield_state(arr, i, j, "swap")\n            j = j + 1\n        tmp = arr[i + 1]\n        arr[i + 1] = arr[high]\n        arr[high] = tmp\n        yield_state(arr, i + 1, high, "swap")\n        p = i + 1\n        stack.append([low, p - 1])\n        stack.append([p + 1, high])\nyield_state(arr, -1, -1, "done")\narr',
+    };
+
+    // ── State ──────────────────────────────────────────────────────────────
+    let selectedAlgo = 'bubble';
+    let sorting = false;
+    let stopRequested = false;
+    let startResolve = null;
+    let comparisons = 0;
+    let swaps = 0;
+    let steps = 0;
+
+    const speedMap = [500, 200, 100, 40, 10];
+    const speedLabels = ['Slow', 'Moderate', 'Medium', 'Fast', 'Fastest'];
+
+    // ── DOM refs ──────────────────────────────────────────────────────────
+    const statusEl = document.getElementById('status');
+    const chartEl = document.getElementById('chart');
+    const startBtn = document.getElementById('start-btn');
+    const sizeSlider = document.getElementById('size-slider');
+    const sizeValue = document.getElementById('size-value');
+    const speedSlider = document.getElementById('speed-slider');
+    const speedValue = document.getElementById('speed-value');
+    const statCompares = document.getElementById('stat-compares');
+    const statSwaps = document.getElementById('stat-swaps');
+    const statSteps = document.getElementById('stat-steps');
+    const algoBtns = document.querySelectorAll('.algo-btn');
+    const codeEditor = document.getElementById('code-editor');
+    const stopBtn = document.getElementById('stop-btn');
+
+    // Populate editor with initial template
+    codeEditor.value = algoTemplates[selectedAlgo];
+
+    // ── Controls ──────────────────────────────────────────────────────────
+    sizeSlider.addEventListener('input', () => {
+      sizeValue.textContent = sizeSlider.value;
+    });
+
+    speedSlider.addEventListener('input', () => {
+      speedValue.textContent = speedLabels[speedSlider.value];
+    });
+
+    algoBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (sorting) return;
+        algoBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selectedAlgo = btn.dataset.algo;
+        codeEditor.value = algoTemplates[selectedAlgo];
+      });
+    });
+
+    startBtn.addEventListener('click', () => {
+      if (startResolve && !sorting) {
+        stopRequested = false;
+        const config = JSON.stringify({
+          algorithm: selectedAlgo,
+          code: codeEditor.value,
+          size: parseInt(sizeSlider.value),
+          speed: speedMap[speedSlider.value],
+        });
+        startResolve(config);
+        startResolve = null;
+      }
+    });
+
+    stopBtn.addEventListener('click', () => {
+      stopRequested = true;
+    });
+
+    function setControlsEnabled(enabled) {
+      algoBtns.forEach(b => b.disabled = !enabled);
+      sizeSlider.disabled = !enabled;
+      codeEditor.disabled = !enabled;
+      startBtn.disabled = !enabled;
+    }
+
+    // ── Bar rendering ─────────────────────────────────────────────────────
+    function renderBars(arr, highlightI, highlightJ, action) {
+      const maxVal = Math.max(...arr);
+      const maxHeight = 240;
+
+      // Create bars if needed
+      while (chartEl.children.length < arr.length) {
+        const bar = document.createElement('div');
+        bar.className = 'bar';
+        chartEl.appendChild(bar);
+      }
+      while (chartEl.children.length > arr.length) {
+        chartEl.removeChild(chartEl.lastChild);
+      }
+
+      for (let k = 0; k < arr.length; k++) {
+        const bar = chartEl.children[k];
+        const h = Math.max(4, (arr[k] / maxVal) * maxHeight);
+        bar.style.height = h + 'px';
+        bar.className = 'bar';
+        if (action === 'done') {
+          bar.classList.add('done');
+        } else if (k === highlightI || k === highlightJ) {
+          bar.classList.add(action === 'swap' ? 'swapped' : 'comparing');
+        }
+      }
+    }
+
+    // ── Callbacks for Dart ────────────────────────────────────────────────
+    function onVisualizerReady() {
+      statusEl.className = 'ready';
+      statusEl.textContent = 'Ready — choose an algorithm and press Start';
+      startBtn.disabled = false;
+    }
+
+    function onVisualizerSortStarted(name, size) {
+      sorting = true;
+      setControlsEnabled(false);
+      startBtn.style.display = 'none';
+      stopBtn.style.display = '';
+      comparisons = 0;
+      swaps = 0;
+      steps = 0;
+      statCompares.textContent = '0';
+      statSwaps.textContent = '0';
+      statSteps.textContent = '0';
+      statusEl.className = 'sorting';
+      statusEl.textContent = 'Sorting: ' + name + ' (' + size + ' elements)';
+      chartEl.innerHTML = '';
+    }
+
+    function onVisualizerStep(arr, i, j, action) {
+      steps++;
+      statSteps.textContent = steps;
+      if (action === 'compare') {
+        comparisons++;
+        statCompares.textContent = comparisons;
+      } else if (action === 'swap') {
+        swaps++;
+        statSwaps.textContent = swaps;
+      }
+      renderBars(Array.from(arr), i, j, action);
+    }
+
+    function onVisualizerDone(arr) {
+      renderBars(Array.from(arr), -1, -1, 'done');
+      statusEl.className = 'complete';
+      statusEl.textContent = 'Complete — ' + comparisons + ' comparisons, ' + swaps + ' swaps, ' + steps + ' steps';
+      sorting = false;
+      stopBtn.style.display = 'none';
+      startBtn.style.display = '';
+      setControlsEnabled(true);
+    }
+
+    function onVisualizerStopped() {
+      statusEl.className = 'ready';
+      statusEl.textContent = 'Stopped after ' + steps + ' steps';
+      sorting = false;
+      stopBtn.style.display = 'none';
+      startBtn.style.display = '';
+      setControlsEnabled(true);
+    }
+
+    function onVisualizerError(msg) {
+      statusEl.className = 'error';
+      statusEl.textContent = 'Error: ' + msg;
+      sorting = false;
+      stopBtn.style.display = 'none';
+      startBtn.style.display = '';
+      setControlsEnabled(true);
+    }
+
+    function waitForStart() {
+      return new Promise((resolve) => {
+        startResolve = resolve;
+      });
+    }
+
+    function getSpeed() {
+      return speedMap[speedSlider.value];
+    }
+
+    function isStopped() {
+      return stopRequested;
+    }
+  </script>
+  <script src="coi-serviceworker.js"></script>
+  <script src="dart_monty_bridge.js"></script>
+  <script src="visualizer.dart.js"></script>
+</body>
+</html>

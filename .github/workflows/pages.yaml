@@ -48,6 +48,9 @@ jobs:
       - name: Compile ladder_showcase.dart
         working-directory: example/web
         run: dart compile js bin/ladder_showcase.dart -o web/ladder_showcase.dart.js
+      - name: Compile visualizer.dart
+        working-directory: example/web
+        run: dart compile js bin/visualizer.dart -o web/visualizer.dart.js
 
       # ── Assemble site ────────────────────────────────────────────────
       - name: Copy JS/WASM assets
