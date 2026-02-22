@@ -388,9 +388,8 @@ jobs:
         run: brew install llvm
       - name: Generate FFI bindings
         run: bash tool/generate_bindings.sh
-      - name: Build native library
-        working-directory: native
-        run: cargo build --release
+      - name: Build native library and copy to plugin
+        run: bash tool/build_native.sh
       - name: Install dependencies
         run: cd example/desktop && flutter pub get
       - name: Build
