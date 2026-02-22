@@ -71,6 +71,9 @@ const _algorithmNames = {
   'insertion': 'Insertion Sort',
   'quick': 'Quick Sort',
   'tim': 'Timsort',
+  'shell': 'Shell Sort',
+  'cocktail': 'Cocktail Sort',
+  'sleep': 'Sleep Sort',
 };
 
 // ---------------------------------------------------------------------------
@@ -137,9 +140,7 @@ Future<void> _runSort(
         return;
       }
 
-      result = _parse(
-        (await _bridgeResume('null'.toJS).toDart).toDart,
-      );
+      result = _parse((await _bridgeResume('null'.toJS).toDart).toDart);
 
       if (result['ok'] != true) {
         _onError('Resume failed: ${result['error']}'.toJS);
