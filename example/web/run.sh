@@ -13,6 +13,7 @@ ROOT="$(git rev-parse --show-toplevel)"
 WASM_PKG="$ROOT/packages/dart_monty_wasm"
 EXAMPLE="$ROOT/example/web"
 WEB_DIR="$EXAMPLE/web"
+FIXTURES_SRC="$ROOT/test/fixtures/python_ladder"
 
 echo "=== dart_monty Web Example ==="
 
@@ -35,15 +36,24 @@ cp "$WASM_PKG/assets/wasi-worker-browser.mjs" "$WEB_DIR/"
 cp "$WASM_PKG/assets/"*.wasm "$WEB_DIR/"
 echo "  Assets copied."
 
-# ── Step 3: Compile Dart to JS ───────────────────────────────────────────
+# ── Step 3: Copy fixture files for ladder showcase ───────────────────────
+echo ""
+echo "--- Copying fixtures ---"
+mkdir -p "$WEB_DIR/fixtures"
+cp "$FIXTURES_SRC"/tier_*.json "$WEB_DIR/fixtures/"
+echo "  Fixtures copied."
+
+# ── Step 4: Compile Dart to JS ───────────────────────────────────────────
 echo ""
 echo "--- Compiling Dart to JS ---"
 cd "$EXAMPLE"
 dart pub get
 dart compile js bin/main.dart -o "$WEB_DIR/main.dart.js"
 echo "  Compiled: web/main.dart.js"
+dart compile js bin/ladder_showcase.dart -o "$WEB_DIR/ladder_showcase.dart.js"
+echo "  Compiled: web/ladder_showcase.dart.js"
 
-# ── Step 4: Start COOP/COEP server ──────────────────────────────────────
+# ── Step 5: Start COOP/COEP server ──────────────────────────────────────
 PORT=8088
 cleanup() {
   if [ -n "${SERVER_PID:-}" ]; then
@@ -57,7 +67,11 @@ cleanup() {
         "$WEB_DIR/"*.wasm \
         "$WEB_DIR/main.dart.js" \
         "$WEB_DIR/main.dart.js.deps" \
-        "$WEB_DIR/main.dart.js.map"
+        "$WEB_DIR/main.dart.js.map" \
+        "$WEB_DIR/ladder_showcase.dart.js" \
+        "$WEB_DIR/ladder_showcase.dart.js.deps" \
+        "$WEB_DIR/ladder_showcase.dart.js.map"
+  rm -rf "$WEB_DIR/fixtures"
 }
 trap cleanup EXIT
 
@@ -85,13 +99,15 @@ SERVER_PID=$!
 sleep 1
 
 echo ""
-echo "  Open: http://localhost:$PORT/index.html"
+echo "  Home:    http://localhost:$PORT/"
+echo "  Demo:    http://localhost:$PORT/demo.html"
+echo "  Ladder:  http://localhost:$PORT/ladder.html"
 echo "  Press Ctrl+C to stop."
 echo ""
 
 # Open browser (macOS)
 if command -v open &>/dev/null; then
-  open "http://localhost:$PORT/index.html"
+  open "http://localhost:$PORT/"
 fi
 
 wait "$SERVER_PID"

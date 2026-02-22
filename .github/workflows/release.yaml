@@ -1,0 +1,154 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  build-native:
+    name: Native (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            ext: so
+            label: linux-x64
+          - os: macos-latest
+            ext: dylib
+            label: macos-x64
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── Build Rust library ─────────────────────────────────────────
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: native
+      - name: Build Rust native library
+        working-directory: native
+        run: cargo build --release
+
+      # ── Compile Dart AOT binary ────────────────────────────────────
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+      - name: Install Dart dependencies
+        working-directory: example/native
+        run: dart pub get
+      - name: Compile native example
+        run: >-
+          dart compile exe
+          example/native/bin/main.dart
+          -o dart_monty_example
+          -DDART_MONTY_LIB_PATH=./libdart_monty_native.${{ matrix.ext }}
+
+      # ── Package tarball ────────────────────────────────────────────
+      - name: Create tarball
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          DIR="dart_monty-${TAG}-${{ matrix.label }}"
+          mkdir "$DIR"
+          cp dart_monty_example "$DIR/"
+          cp "native/target/release/libdart_monty_native.${{ matrix.ext }}" "$DIR/"
+          cat > "$DIR/README.md" << 'HEREDOC'
+          # dart_monty native example
+
+          Run the bundled binary:
+
+              ./dart_monty_example
+
+          The binary loads `libdart_monty_native` from the same directory.
+          Override with `DART_MONTY_LIB_PATH` if needed.
+          HEREDOC
+          tar czf "${DIR}.tar.gz" "$DIR"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-${{ matrix.label }}
+          path: dart_monty-*-${{ matrix.label }}.tar.gz
+
+  build-web:
+    name: Web bundle
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── Build JS bridge ──────────────────────────────────────────
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: packages/dart_monty_wasm/js/package-lock.json
+      - name: Build JS bridge
+        working-directory: packages/dart_monty_wasm/js
+        run: npm install && npm run build
+
+      # ── Compile Dart to JS ─────────────────────────────────────────
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+      - name: Install Dart dependencies
+        working-directory: example/web
+        run: dart pub get
+      - name: Compile main.dart
+        working-directory: example/web
+        run: dart compile js bin/main.dart -o web/main.dart.js
+      - name: Compile ladder_showcase.dart
+        working-directory: example/web
+        run: dart compile js bin/ladder_showcase.dart -o web/ladder_showcase.dart.js
+
+      # ── Assemble bundle ────────────────────────────────────────────
+      - name: Assemble web bundle
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          DIR="dart_monty-${TAG}-web"
+          mkdir "$DIR"
+          # HTML pages
+          cp example/web/web/index.html "$DIR/"
+          cp example/web/web/demo.html "$DIR/"
+          cp example/web/web/ladder.html "$DIR/"
+          cp example/web/web/coi-serviceworker.js "$DIR/"
+          # Compiled JS
+          cp example/web/web/main.dart.js "$DIR/"
+          cp example/web/web/ladder_showcase.dart.js "$DIR/"
+          # Bridge assets
+          cp packages/dart_monty_wasm/assets/dart_monty_bridge.js "$DIR/"
+          cp packages/dart_monty_wasm/assets/dart_monty_worker.js "$DIR/"
+          cp packages/dart_monty_wasm/assets/wasi-worker-browser.mjs "$DIR/"
+          cp packages/dart_monty_wasm/assets/*.wasm "$DIR/"
+          # Fixtures
+          mkdir -p "$DIR/fixtures"
+          cp test/fixtures/python_ladder/tier_*.json "$DIR/fixtures/"
+          # Zip
+          zip -r "${DIR}.zip" "$DIR"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-bundle
+          path: dart_monty-*-web.zip
+
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [build-native, build-web]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          gh release create "$TAG" \
+            --title "dart_monty $TAG" \
+            --generate-notes \
+            dart_monty-*-linux-x64.tar.gz \
+            dart_monty-*-macos-x64.tar.gz \
+            dart_monty-*-web.zip

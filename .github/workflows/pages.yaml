@@ -1,0 +1,70 @@
+name: GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── Build JS bridge ──────────────────────────────────────────────
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: packages/dart_monty_wasm/js/package-lock.json
+      - name: Build JS bridge
+        working-directory: packages/dart_monty_wasm/js
+        run: npm install && npm run build
+
+      # ── Compile Dart to JS ───────────────────────────────────────────
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+      - name: Install Dart dependencies
+        working-directory: example/web
+        run: dart pub get
+      - name: Compile main.dart
+        working-directory: example/web
+        run: dart compile js bin/main.dart -o web/main.dart.js
+      - name: Compile ladder_showcase.dart
+        working-directory: example/web
+        run: dart compile js bin/ladder_showcase.dart -o web/ladder_showcase.dart.js
+
+      # ── Assemble site ────────────────────────────────────────────────
+      - name: Copy JS/WASM assets
+        run: |
+          cp packages/dart_monty_wasm/assets/dart_monty_bridge.js example/web/web/
+          cp packages/dart_monty_wasm/assets/dart_monty_worker.js example/web/web/
+          cp packages/dart_monty_wasm/assets/wasi-worker-browser.mjs example/web/web/
+          cp packages/dart_monty_wasm/assets/*.wasm example/web/web/
+      - name: Copy fixture files
+        run: |
+          mkdir -p example/web/web/fixtures
+          cp test/fixtures/python_ladder/tier_*.json example/web/web/fixtures/
+
+      # ── Deploy ───────────────────────────────────────────────────────
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: example/web/web
+      - id: deploy
+        uses: actions/deploy-pages@v4

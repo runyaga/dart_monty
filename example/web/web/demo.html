@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>dart_monty Web Demo</title>
+  <style>
+    body { font-family: monospace; background: #1e1e1e; color: #d4d4d4; padding: 2rem; }
+    h1 { color: #569cd6; }
+    .nav { margin-bottom: 1rem; font-size: 0.85rem; }
+    .nav a { color: #569cd6; margin-right: 1rem; }
+    pre { white-space: pre-wrap; line-height: 1.6; }
+  </style>
+</head>
+<body>
+  <h1>dart_monty — Run Python in the Browser</h1>
+  <div class="nav">
+    <a href="index.html">&larr; Home</a>
+    <a href="ladder.html">Ladder Showcase</a>
+  </div>
+  <p>Open DevTools console to see output, or watch below:</p>
+  <pre id="output">Loading...</pre>
+  <script>
+    // Mirror console.log to the page
+    const out = document.getElementById('output');
+    out.textContent = '';
+    const origLog = console.log.bind(console);
+    console.log = (...args) => {
+      origLog(...args);
+      out.textContent += args.join(' ') + '\n';
+    };
+  </script>
+  <script src="coi-serviceworker.js"></script>
+  <script src="dart_monty_bridge.js"></script>
+  <script src="main.dart.js"></script>
+</body>
+</html>

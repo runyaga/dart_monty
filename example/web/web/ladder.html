@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>dart_monty — Python Ladder Showcase</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+      background: #1e1e1e;
+      color: #d4d4d4;
+      padding: 2rem;
+      max-width: 960px;
+      margin: 0 auto;
+    }
+    a { color: #569cd6; }
+    h1 {
+      color: #569cd6;
+      margin-bottom: 0.5rem;
+      font-size: 1.4rem;
+    }
+    .subtitle {
+      color: #808080;
+      margin-bottom: 1.5rem;
+      font-size: 0.9rem;
+    }
+    .nav { margin-bottom: 1.5rem; }
+    .nav a { margin-right: 1rem; font-size: 0.85rem; }
+
+    /* Status bar */
+    #status {
+      background: #2d2d2d;
+      border: 1px solid #404040;
+      border-radius: 4px;
+      padding: 0.75rem 1rem;
+      margin-bottom: 1.5rem;
+      font-size: 0.9rem;
+    }
+    #status.init { border-left: 3px solid #569cd6; }
+    #status.running { border-left: 3px solid #dcdcaa; }
+    #status.done { border-left: 3px solid #6a9955; }
+    #status.error { border-left: 3px solid #f44747; }
+
+    /* Totals */
+    #totals {
+      display: none;
+      background: #2d2d2d;
+      border: 1px solid #404040;
+      border-radius: 4px;
+      padding: 0.75rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .progress-bar {
+      background: #404040;
+      border-radius: 3px;
+      height: 8px;
+      margin-top: 0.5rem;
+      overflow: hidden;
+    }
+    .progress-fill {
+      background: #6a9955;
+      height: 100%;
+      transition: width 0.3s;
+    }
+
+    /* Tier sections */
+    .tier {
+      margin-bottom: 1.5rem;
+    }
+    .tier-header {
+      color: #dcdcaa;
+      font-size: 1rem;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid #404040;
+      margin-bottom: 0.5rem;
+      cursor: pointer;
+      user-select: none;
+    }
+    .tier-header:hover { color: #e5c07b; }
+    .tier-header::before {
+      content: '▼ ';
+      font-size: 0.7rem;
+    }
+    .tier-header.collapsed::before {
+      content: '▶ ';
+    }
+    .tier-body.hidden { display: none; }
+
+    /* Test cards */
+    .test-card {
+      background: #252526;
+      border: 1px solid #333;
+      border-radius: 4px;
+      margin-bottom: 0.5rem;
+      overflow: hidden;
+    }
+    .test-card.pass { border-left: 3px solid #6a9955; }
+    .test-card.fail { border-left: 3px solid #f44747; }
+    .test-card.skip { border-left: 3px solid #808080; }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.4rem 0.75rem;
+      cursor: pointer;
+      user-select: none;
+    }
+    .card-header:hover { background: #2a2d2e; }
+    .test-name { font-size: 0.85rem; }
+    .badge {
+      font-size: 0.7rem;
+      padding: 0.15rem 0.5rem;
+      border-radius: 3px;
+      font-weight: bold;
+      text-transform: uppercase;
+    }
+    .badge.pass { background: #6a9955; color: #1e1e1e; }
+    .badge.fail { background: #f44747; color: #1e1e1e; }
+    .badge.skip { background: #808080; color: #1e1e1e; }
+
+    .card-body {
+      display: none;
+      padding: 0.5rem 0.75rem;
+      border-top: 1px solid #333;
+    }
+    .card-body.open { display: block; }
+
+    .card-body label {
+      display: block;
+      color: #808080;
+      font-size: 0.75rem;
+      margin-top: 0.4rem;
+      margin-bottom: 0.2rem;
+    }
+    .card-body pre {
+      background: #1e1e1e;
+      padding: 0.5rem;
+      border-radius: 3px;
+      font-size: 0.8rem;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      line-height: 1.4;
+    }
+    .code-block { color: #ce9178; }
+    .result-block { color: #b5cea8; }
+    .error-block { color: #f44747; }
+  </style>
+</head>
+<body>
+  <h1>Python Ladder Showcase</h1>
+  <p class="subtitle">Running all Python ladder fixtures through Monty WASM in the browser</p>
+  <div class="nav">
+    <a href="index.html">&larr; Home</a>
+    <a href="demo.html">Demo</a>
+  </div>
+
+  <div id="status" class="init">Initializing WASM Worker...</div>
+  <div id="totals"></div>
+  <div id="tiers"></div>
+
+  <script>
+    // DOM reporting functions called by Dart
+    const tiersEl = document.getElementById('tiers');
+    const statusEl = document.getElementById('status');
+    const totalsEl = document.getElementById('totals');
+    let currentTierBody = null;
+
+    function reportInit(ok, message) {
+      if (ok) {
+        statusEl.className = 'running';
+        statusEl.textContent = 'Running fixtures...';
+      } else {
+        statusEl.className = 'error';
+        statusEl.textContent = 'Init failed: ' + message;
+      }
+    }
+
+    function reportTierHeader(label) {
+      const tier = document.createElement('div');
+      tier.className = 'tier';
+
+      const header = document.createElement('div');
+      header.className = 'tier-header';
+      header.textContent = label;
+
+      const body = document.createElement('div');
+      body.className = 'tier-body';
+
+      header.addEventListener('click', () => {
+        header.classList.toggle('collapsed');
+        body.classList.toggle('hidden');
+      });
+
+      tier.appendChild(header);
+      tier.appendChild(body);
+      tiersEl.appendChild(tier);
+      currentTierBody = body;
+    }
+
+    function reportResult(tier, id, name, code, passed, detail) {
+      const card = document.createElement('div');
+      const isSkip = detail.startsWith('Skipped');
+      card.className = 'test-card ' + (isSkip ? 'skip' : (passed ? 'pass' : 'fail'));
+
+      const header = document.createElement('div');
+      header.className = 'card-header';
+
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'test-name';
+      nameSpan.textContent = '#' + id + ' ' + name;
+
+      const badge = document.createElement('span');
+      badge.className = 'badge ' + (isSkip ? 'skip' : (passed ? 'pass' : 'fail'));
+      badge.textContent = isSkip ? 'skip' : (passed ? 'pass' : 'fail');
+
+      header.appendChild(nameSpan);
+      header.appendChild(badge);
+
+      const body = document.createElement('div');
+      body.className = 'card-body';
+
+      if (code) {
+        const codeLabel = document.createElement('label');
+        codeLabel.textContent = 'Python code';
+        const codePre = document.createElement('pre');
+        codePre.className = 'code-block';
+        codePre.textContent = code;
+        body.appendChild(codeLabel);
+        body.appendChild(codePre);
+      }
+
+      const resultLabel = document.createElement('label');
+      resultLabel.textContent = passed ? 'Result' : 'Failure detail';
+      const resultPre = document.createElement('pre');
+      resultPre.className = passed ? 'result-block' : 'error-block';
+      resultPre.textContent = detail;
+      body.appendChild(resultLabel);
+      body.appendChild(resultPre);
+
+      // Auto-expand failures
+      if (!passed && !isSkip) body.classList.add('open');
+
+      header.addEventListener('click', () => body.classList.toggle('open'));
+
+      card.appendChild(header);
+      card.appendChild(body);
+
+      if (currentTierBody) {
+        currentTierBody.appendChild(card);
+      }
+    }
+
+    function reportDone(passed, total, skipped) {
+      const failed = total - passed;
+      const pct = total > 0 ? Math.round((passed / total) * 100) : 0;
+
+      statusEl.className = failed > 0 ? 'error' : 'done';
+      statusEl.textContent = failed > 0
+        ? passed + '/' + total + ' passed (' + failed + ' failed)'
+        : 'All ' + total + ' tests passed!';
+
+      totalsEl.style.display = 'block';
+      totalsEl.innerHTML =
+        '<strong>' + passed + '/' + total + ' passed</strong>' +
+        (skipped > 0 ? '  (' + skipped + ' skipped)' : '') +
+        '  — ' + pct + '%' +
+        '<div class="progress-bar"><div class="progress-fill" style="width:' + pct + '%"></div></div>';
+    }
+  </script>
+  <script src="coi-serviceworker.js"></script>
+  <script src="dart_monty_bridge.js"></script>
+  <script src="ladder_showcase.dart.js"></script>
+</body>
+</html>
