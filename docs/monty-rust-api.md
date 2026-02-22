@@ -218,13 +218,49 @@ impl PrintWriter<'_> {
 }
 ```
 
+### How Print Capture Works
+
+The Rust FFI layer uses `PrintWriter::Collect(String::new())` at every
+execution site (`run`, `start`, `resume`). When Python code calls
+`print()`, Monty appends the formatted output to the collected string
+inside the `PrintWriter`.
+
+After each execution call returns, the collected string is extracted and
+appended to `MontyHandle.print_output`. This accumulates across multiple
+`start`/`resume` steps in iterative execution, so a single
+`print_output` string contains all output from the entire session.
+
+When `build_result_json` constructs the final JSON, `print_output` is
+included only if non-empty (omitted when there was no print output).
+
+**Data flow (native):**
+
+```text
+Python print("hello") → Monty PrintWriter::Collect → MontyHandle.print_output
+  → build_result_json includes "print_output": "hello\n"
+  → monty_complete_result_json() returns JSON string via C FFI
+  → Dart MontyResult.fromJson reads json['print_output']
+  → MontyResult.printOutput available to app code
+```
+
+**Dart API:**
+
+```dart
+final result = await monty.run('print("hello")\n42');
+print(result.value);        // 42
+print(result.printOutput);  // "hello\n"
+```
+
+`printOutput` is `null` when no `print()` calls were made. It contains
+the full concatenated output (with newlines) when `print()` was called.
+
 ## JSON Contract (C FFI to Dart)
 
 All JSON must match Dart `fromJson` factories exactly (snake\_case keys):
 
 | Dart type | JSON shape |
 |-----------|-----------|
-| `MontyResult` | `{ "value": ..., "error": {...}?, "usage": {...} }` |
+| `MontyResult` | `{ "value": ..., "error": {...}?, "usage": {...}, "print_output": "..."? }` |
 | `MontyException` | `{ "message": "...", "filename": "..."?, "line_number": N?, "column_number": N?, "source_code": "..."? }` |
 | `MontyResourceUsage` | `{ "memory_bytes_used": N, "time_elapsed_ms": N, "stack_depth_used": N }` |
 | `MontyProgress` | discriminated by `"type": "complete"` or `"pending"` |

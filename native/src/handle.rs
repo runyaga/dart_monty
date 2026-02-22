@@ -867,4 +867,70 @@ result
         let parsed: Value = serde_json::from_str(&result_json).unwrap();
         assert_eq!(parsed["print_output"], "lim\n");
     }
+
+    #[test]
+    fn test_start_error_captures_print_with_limits() {
+        let code = "print('boom')\n1/0";
+        let mut handle = MontyHandle::new(code.into(), vec![]).unwrap();
+        handle.set_memory_limit(10 * 1024 * 1024);
+        let (tag, err) = handle.start();
+        assert_eq!(tag, MontyProgressTag::Error);
+        assert!(err.is_some());
+        let result: Value = serde_json::from_str(handle.complete_result_json().unwrap()).unwrap();
+        assert_eq!(result["print_output"], "boom\n");
+    }
+
+    #[test]
+    fn test_resume_error_captures_print_no_limits() {
+        // After resume, code raises an exception — exercises Err path in PausedNoLimit
+        let code = "a = ext_fn(1)\nprint('resumed')\n1/0";
+        let mut handle = MontyHandle::new(code.into(), vec!["ext_fn".into()]).unwrap();
+        let (tag, _) = handle.start();
+        assert_eq!(tag, MontyProgressTag::Pending);
+
+        let (tag, err) = handle.resume("42");
+        assert_eq!(tag, MontyProgressTag::Error);
+        assert!(err.is_some());
+        let result: Value = serde_json::from_str(handle.complete_result_json().unwrap()).unwrap();
+        assert_eq!(result["print_output"], "resumed\n");
+    }
+
+    #[test]
+    fn test_resume_error_captures_print_with_limits() {
+        // After resume, code raises — exercises Err path in PausedLimited
+        let code = "a = ext_fn(1)\nprint('lim_resumed')\n1/0";
+        let mut handle = MontyHandle::new(code.into(), vec!["ext_fn".into()]).unwrap();
+        handle.set_memory_limit(10 * 1024 * 1024);
+        let (tag, _) = handle.start();
+        assert_eq!(tag, MontyProgressTag::Pending);
+
+        let (tag, err) = handle.resume("42");
+        assert_eq!(tag, MontyProgressTag::Error);
+        assert!(err.is_some());
+        let result: Value = serde_json::from_str(handle.complete_result_json().unwrap()).unwrap();
+        assert_eq!(result["print_output"], "lim_resumed\n");
+    }
+
+    #[test]
+    fn test_run_error_captures_print() {
+        let code = "print('err')\n1/0";
+        let mut handle = MontyHandle::new(code.into(), vec![]).unwrap();
+        let (tag, result_json, err) = handle.run();
+        assert_eq!(tag, MontyResultTag::Error);
+        assert!(err.is_some());
+        let parsed: Value = serde_json::from_str(&result_json).unwrap();
+        assert_eq!(parsed["print_output"], "err\n");
+    }
+
+    #[test]
+    fn test_run_error_with_limits_captures_print() {
+        let code = "print('lim_err')\n1/0";
+        let mut handle = MontyHandle::new(code.into(), vec![]).unwrap();
+        handle.set_memory_limit(10 * 1024 * 1024);
+        let (tag, result_json, err) = handle.run();
+        assert_eq!(tag, MontyResultTag::Error);
+        assert!(err.is_some());
+        let parsed: Value = serde_json::from_str(&result_json).unwrap();
+        assert_eq!(parsed["print_output"], "lim_err\n");
+    }
 }
