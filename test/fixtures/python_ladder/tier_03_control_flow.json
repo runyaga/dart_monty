@@ -88,5 +88,50 @@
     "resumeValues": null,
     "resumeErrors": null,
     "nativeOnly": false
+  },
+  {
+    "id": 47,
+    "tier": 3,
+    "name": "for-else exhausted loop",
+    "code": "x = \"none\"\nfor i in range(3):\n    pass\nelse:\n    x = \"completed\"\nx",
+    "expected": "completed",
+    "expectedContains": null,
+    "expectedSorted": false,
+    "expectError": false,
+    "errorContains": null,
+    "externalFunctions": null,
+    "resumeValues": null,
+    "resumeErrors": null,
+    "nativeOnly": false
+  },
+  {
+    "id": 48,
+    "tier": 3,
+    "name": "nested list comprehension",
+    "code": "[[j for j in range(3)] for i in range(2)]",
+    "expected": [[0, 1, 2], [0, 1, 2]],
+    "expectedContains": null,
+    "expectedSorted": false,
+    "expectError": false,
+    "errorContains": null,
+    "externalFunctions": null,
+    "resumeValues": null,
+    "resumeErrors": null,
+    "nativeOnly": false
+  },
+  {
+    "id": 49,
+    "tier": 3,
+    "name": "flat comprehension",
+    "code": "[x for row in [[1, 2], [3, 4]] for x in row]",
+    "expected": [1, 2, 3, 4],
+    "expectedContains": null,
+    "expectedSorted": false,
+    "expectError": false,
+    "errorContains": null,
+    "externalFunctions": null,
+    "resumeValues": null,
+    "resumeErrors": null,
+    "nativeOnly": false
   }
 ]

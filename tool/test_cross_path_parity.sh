@@ -167,6 +167,8 @@ all_ids = sorted(set(native.keys()) | set(web.keys()))
 mismatches = 0
 matches = 0
 skipped = 0
+xfails = 0
+xpasses = 0
 
 for fid in all_ids:
     n = native.get(fid)
@@ -175,6 +177,31 @@ for fid in all_ids:
     if w and w.get('skipped'):
         print(f'  #{fid:2d}: SKIPPED (nativeOnly)')
         skipped += 1
+        continue
+
+    # Handle xfail/xpass before normal comparison
+    n_xfail = bool(n and n.get('xfail'))
+    w_xfail = bool(w and w.get('xfail'))
+    n_xpass = bool(n and n.get('xpass'))
+    w_xpass = bool(w and w.get('xpass'))
+
+    if n_xfail and w_xfail:
+        print(f'  #{fid:2d}: XFAIL (expected failure on both)')
+        xfails += 1
+        continue
+
+    if n_xpass or w_xpass:
+        sides = []
+        if n_xpass: sides.append('native')
+        if w_xpass: sides.append('web')
+        label = ', '.join(sides)
+        print(f'  #{fid:2d}: XPASS — Monty evolved! ({label})')
+        xpasses += 1
+        continue
+
+    if n_xfail or w_xfail:
+        print(f'  #{fid:2d}: XFAIL (partial)')
+        xfails += 1
         continue
 
     if n is None:
@@ -203,7 +230,7 @@ for fid in all_ids:
         mismatches += 1
 
 print()
-print(f'  Summary: {matches} match, {mismatches} mismatch, {skipped} skipped')
+print(f'  Summary: {matches} match, {mismatches} mismatch, {skipped} skipped, {xfails} xfail, {xpasses} xpass')
 
 if mismatches > 0:
     sys.exit(1)
@@ -322,6 +349,8 @@ all_ids = sorted(set(native.keys()) | set(wasm.keys()))
 mismatches = 0
 matches = 0
 skipped = 0
+xfails = 0
+xpasses = 0
 
 for fid in all_ids:
     n = native.get(fid)
@@ -330,6 +359,31 @@ for fid in all_ids:
     if w and w.get('skipped'):
         print(f'  #{fid:2d}: SKIPPED (nativeOnly)')
         skipped += 1
+        continue
+
+    # Handle xfail/xpass before normal comparison
+    n_xfail = bool(n and n.get('xfail'))
+    w_xfail = bool(w and w.get('xfail'))
+    n_xpass = bool(n and n.get('xpass'))
+    w_xpass = bool(w and w.get('xpass'))
+
+    if n_xfail and w_xfail:
+        print(f'  #{fid:2d}: XFAIL (expected failure on both)')
+        xfails += 1
+        continue
+
+    if n_xpass or w_xpass:
+        sides = []
+        if n_xpass: sides.append('native')
+        if w_xpass: sides.append('wasm-pkg')
+        label = ', '.join(sides)
+        print(f'  #{fid:2d}: XPASS — Monty evolved! ({label})')
+        xpasses += 1
+        continue
+
+    if n_xfail or w_xfail:
+        print(f'  #{fid:2d}: XFAIL (partial)')
+        xfails += 1
         continue
 
     if n is None:
@@ -357,7 +411,7 @@ for fid in all_ids:
         mismatches += 1
 
 print()
-print(f'  Summary: {matches} match, {mismatches} mismatch, {skipped} skipped')
+print(f'  Summary: {matches} match, {mismatches} mismatch, {skipped} skipped, {xfails} xfail, {xpasses} xpass')
 
 if mismatches > 0:
     sys.exit(1)

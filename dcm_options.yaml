@@ -58,6 +58,8 @@ dcm:
     - prefer-match-file-name:
         exclude:
           - "test/**"
+          - "lib/**/native_bindings.dart"
+          - "lib/**/wasm_bindings.dart"
     - prefer-immediate-return
     - prefer-commenting-analyzer-ignores
     - prefer-conditional-expressions
@@ -113,4 +115,6 @@ dcm:
 
     # --- Testing ---
     - prefer-test-matcher
-    - prefer-correct-test-file-name
+    - prefer-correct-test-file-name:
+        exclude:
+          - "**/python_ladder_runner.dart"

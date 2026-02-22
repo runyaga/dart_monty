@@ -47,6 +47,7 @@ class WasmBindingsJs extends WasmBindings {
   @override
   Future<bool> init() async {
     final result = await _jsInit().toDart;
+
     return result.toDart;
   }
 
@@ -57,6 +58,7 @@ class WasmBindingsJs extends WasmBindings {
       limitsJson?.toJS,
     ).toDart;
     final map = json.decode(resultJson.toDart) as Map<String, dynamic>;
+
     return WasmRunResult(
       ok: map['ok'] as bool,
       value: map['value'],
@@ -76,12 +78,14 @@ class WasmBindingsJs extends WasmBindings {
       extFnsJson?.toJS,
       limitsJson?.toJS,
     ).toDart;
+
     return _decodeProgress(resultJson.toDart);
   }
 
   @override
   Future<WasmProgressResult> resume(String valueJson) async {
     final resultJson = await _jsResume(valueJson.toJS).toDart;
+
     return _decodeProgress(resultJson.toDart);
   }
 
@@ -89,6 +93,7 @@ class WasmBindingsJs extends WasmBindings {
   Future<WasmProgressResult> resumeWithError(String errorMessage) async {
     final errorJson = json.encode(errorMessage);
     final resultJson = await _jsResumeWithError(errorJson.toJS).toDart;
+
     return _decodeProgress(resultJson.toDart);
   }
 
@@ -102,6 +107,7 @@ class WasmBindingsJs extends WasmBindings {
       );
     }
     final dataBase64 = map['data'] as String;
+
     return base64Decode(dataBase64);
   }
 
@@ -121,6 +127,7 @@ class WasmBindingsJs extends WasmBindings {
   Future<WasmDiscoverResult> discover() async {
     final jsonStr = _jsDiscover().toDart;
     final map = json.decode(jsonStr) as Map<String, dynamic>;
+
     return WasmDiscoverResult(
       loaded: map['loaded'] as bool,
       architecture: map['architecture'] as String,
@@ -144,7 +151,8 @@ class WasmBindingsJs extends WasmBindings {
 
   WasmProgressResult _decodeProgress(String jsonStr) {
     final map = json.decode(jsonStr) as Map<String, dynamic>;
-    final args = map['args'] as List<dynamic>?;
+    final args = map['args'] as List<Object?>?;
+
     return WasmProgressResult(
       ok: map['ok'] as bool,
       state: map['state'] as String?,

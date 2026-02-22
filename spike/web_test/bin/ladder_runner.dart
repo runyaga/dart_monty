@@ -51,6 +51,7 @@ const _tierFiles = [
   'fixtures/tier_04_functions.json',
   'fixtures/tier_05_errors.json',
   'fixtures/tier_06_external_fns.json',
+  'fixtures/tier_07_advanced.json',
 ];
 
 // ---------------------------------------------------------------------------
@@ -118,18 +119,29 @@ Future<Map<String, dynamic>> _runFixture(
   final id = fixture['id'] as int;
   final code = fixture['code'] as String;
   final expectError = fixture['expectError'] as bool? ?? false;
+  final xfail = fixture['xfail'] as String?;
 
+  Map<String, dynamic> result;
   try {
     if (fixture['externalFunctions'] != null) {
-      return await _runIterative(fixture);
+      result = await _runIterative(fixture);
     } else if (expectError) {
-      return await _runExpectError(id, code);
+      result = await _runExpectError(id, code);
     } else {
-      return await _runSimple(id, code);
+      result = await _runSimple(id, code);
     }
   } catch (e) {
-    return {'id': id, 'ok': false, 'error': '$e'};
+    result = {'id': id, 'ok': false, 'error': '$e'};
   }
+
+  if (xfail != null) {
+    if (result['ok'] == true) {
+      return {'id': id, 'ok': true, 'xpass': true};
+    } else {
+      return {'id': id, 'ok': true, 'xfail': true};
+    }
+  }
+  return result;
 }
 
 Future<Map<String, dynamic>> _runSimple(int id, String code) async {

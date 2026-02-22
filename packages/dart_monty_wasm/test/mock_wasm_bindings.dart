@@ -87,12 +87,14 @@ class MockWasmBindings extends WasmBindings {
   @override
   Future<bool> init() async {
     initCalls++;
+
     return nextInitResult;
   }
 
   @override
   Future<WasmRunResult> run(String code, {String? limitsJson}) async {
     runCalls.add((code: code, limitsJson: limitsJson));
+
     return nextRunResult;
   }
 
@@ -105,6 +107,7 @@ class MockWasmBindings extends WasmBindings {
     startCalls.add(
       (code: code, extFnsJson: extFnsJson, limitsJson: limitsJson),
     );
+
     return nextStartResult;
   }
 
@@ -112,6 +115,7 @@ class MockWasmBindings extends WasmBindings {
   Future<WasmProgressResult> resume(String valueJson) async {
     resumeCalls.add(valueJson);
     if (resumeResults.isNotEmpty) return resumeResults.removeAt(0);
+
     return const WasmProgressResult(
       ok: true,
       state: 'complete',
@@ -124,6 +128,7 @@ class MockWasmBindings extends WasmBindings {
     if (resumeWithErrorResults.isNotEmpty) {
       return resumeWithErrorResults.removeAt(0);
     }
+
     return const WasmProgressResult(
       ok: true,
       state: 'complete',
@@ -133,31 +138,36 @@ class MockWasmBindings extends WasmBindings {
   @override
   Future<Uint8List> snapshot() async {
     snapshotCalls++;
-    if (nextSnapshotError != null) {
-      throw StateError(nextSnapshotError!);
+    final snapshotError = nextSnapshotError;
+    if (snapshotError != null) {
+      throw StateError(snapshotError);
     }
+
     return nextSnapshotData;
   }
 
   @override
   Future<void> restore(Uint8List data) async {
     restoreCalls.add(data);
-    if (nextRestoreError != null) {
-      throw StateError(nextRestoreError!);
+    final restoreError = nextRestoreError;
+    if (restoreError != null) {
+      throw StateError(restoreError);
     }
   }
 
   @override
   Future<WasmDiscoverResult> discover() async {
     discoverCalls++;
+
     return nextDiscoverResult;
   }
 
   @override
   Future<void> dispose() async {
     disposeCalls++;
-    if (nextDisposeError != null) {
-      throw StateError(nextDisposeError!);
+    final disposeError = nextDisposeError;
+    if (disposeError != null) {
+      throw StateError(disposeError);
     }
   }
 }

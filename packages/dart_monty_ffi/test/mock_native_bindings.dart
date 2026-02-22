@@ -91,9 +91,11 @@ class MockNativeBindings extends NativeBindings {
   @override
   int create(String code, {String? externalFunctions}) {
     createCalls.add((code: code, externalFunctions: externalFunctions));
-    if (nextCreateError != null) {
-      throw StateError(nextCreateError!);
+    final createError = nextCreateError;
+    if (createError != null) {
+      throw StateError(createError);
     }
+
     return nextCreateHandle;
   }
 
@@ -105,12 +107,14 @@ class MockNativeBindings extends NativeBindings {
   @override
   RunResult run(int handle) {
     runCalls.add(handle);
+
     return nextRunResult;
   }
 
   @override
   ProgressResult start(int handle) {
     startCalls.add(handle);
+
     return nextStartResult;
   }
 
@@ -118,6 +122,7 @@ class MockNativeBindings extends NativeBindings {
   ProgressResult resume(int handle, String valueJson) {
     resumeCalls.add((handle: handle, valueJson: valueJson));
     if (resumeResults.isNotEmpty) return resumeResults.removeAt(0);
+
     return const ProgressResult(
       tag: 0,
       resultJson: '{"value": null, "usage": {"memory_bytes_used": 0, '
@@ -133,6 +138,7 @@ class MockNativeBindings extends NativeBindings {
     if (resumeWithErrorResults.isNotEmpty) {
       return resumeWithErrorResults.removeAt(0);
     }
+
     return const ProgressResult(
       tag: 0,
       resultJson: '{"value": null, "usage": {"memory_bytes_used": 0, '
@@ -158,15 +164,18 @@ class MockNativeBindings extends NativeBindings {
   @override
   Uint8List snapshot(int handle) {
     snapshotCalls.add(handle);
+
     return nextSnapshotData;
   }
 
   @override
   int restore(Uint8List data) {
     restoreCalls.add(data);
-    if (nextRestoreError != null) {
-      throw StateError(nextRestoreError!);
+    final restoreError = nextRestoreError;
+    if (restoreError != null) {
+      throw StateError(restoreError);
     }
+
     return nextRestoreHandle;
   }
 }
