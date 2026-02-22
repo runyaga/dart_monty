@@ -28,6 +28,10 @@ jobs:
           cache: true
       - run: flutter pub get
       - run: dart format --set-exit-if-changed .
+      - name: Install libclang (for ffigen)
+        run: sudo apt-get update && sudo apt-get install -y libclang-dev
+      - name: Generate FFI bindings
+        run: bash tool/generate_bindings.sh
       - name: Analyze sub-packages
         run: python3 tool/analyze_packages.py
 
@@ -88,12 +92,19 @@ jobs:
       matrix:
         target:
           - dart_monty_platform_interface
+          - dart_monty_ffi
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
+      - name: Install libclang (for ffigen)
+        if: matrix.target == 'dart_monty_ffi'
+        run: sudo apt-get update && sudo apt-get install -y libclang-dev
+      - name: Generate FFI bindings
+        if: matrix.target == 'dart_monty_ffi'
+        run: bash tool/generate_bindings.sh
       - name: Install dependencies
         run: cd packages/${{ matrix.target }} && dart pub get
       - name: Run tests
@@ -102,6 +113,25 @@ jobs:
         if: matrix.target == 'dart_monty_platform_interface'
         run: |
           cd packages/dart_monty_platform_interface
+          dart pub global activate coverage
+          dart pub global run coverage:format_coverage \
+            --lcov --in=coverage --out=coverage/lcov.info --report-on=lib
+          TOTAL=$(grep -c '^DA:' coverage/lcov.info || true)
+          HIT=$(grep '^DA:' coverage/lcov.info | grep -cv ',0$' || true)
+          if [ "$TOTAL" -eq 0 ]; then
+            echo "ERROR: No coverage data found."
+            exit 1
+          fi
+          PCT=$(( HIT * 100 / TOTAL ))
+          echo "Coverage: $HIT/$TOTAL lines = ${PCT}%"
+          if [ "$PCT" -lt 90 ]; then
+            echo "FAIL: Coverage ${PCT}% < 90% minimum."
+            exit 1
+          fi
+      - name: Check coverage (ffi)
+        if: matrix.target == 'dart_monty_ffi'
+        run: |
+          cd packages/dart_monty_ffi
           dart pub global activate coverage
           dart pub global run coverage:format_coverage \
             --lcov --in=coverage --out=coverage/lcov.info --report-on=lib
