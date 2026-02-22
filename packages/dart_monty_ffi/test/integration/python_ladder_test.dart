@@ -48,16 +48,40 @@ void main() {
         final code = fixture['code'] as String;
         final expectError = fixture['expectError'] as bool? ?? false;
 
+        final xfail = fixture['xfail'] as String?;
+
         test('#$id: $name', () async {
           final monty = MontyFfi(bindings: bindings);
 
           try {
-            if (fixture['externalFunctions'] != null) {
-              await _runIterativeFixture(monty, fixture);
-            } else if (expectError) {
-              await _runErrorFixture(monty, code, fixture);
+            if (xfail != null) {
+              var passed = false;
+              try {
+                if (fixture['externalFunctions'] != null) {
+                  await _runIterativeFixture(monty, fixture);
+                } else if (expectError) {
+                  await _runErrorFixture(monty, code, fixture);
+                } else {
+                  await _runSimpleFixture(monty, code, fixture);
+                }
+                passed = true;
+              } on Object catch (_) {
+                // Expected failure — xfail working as intended
+              }
+              if (passed) {
+                fail(
+                  'XPASS: #$id "$name" unexpectedly passed '
+                  '(xfail: $xfail)',
+                );
+              }
             } else {
-              await _runSimpleFixture(monty, code, fixture);
+              if (fixture['externalFunctions'] != null) {
+                await _runIterativeFixture(monty, fixture);
+              } else if (expectError) {
+                await _runErrorFixture(monty, code, fixture);
+              } else {
+                await _runSimpleFixture(monty, code, fixture);
+              }
             }
           } finally {
             await monty.dispose();
@@ -136,6 +160,7 @@ void _assertResult(Object? actual, Map<String, dynamic> fixture) {
       reason: 'Fixture #${fixture['id']}: expected value to contain '
           '"$expectedContains", got: "$actual"',
     );
+
     return;
   }
 

@@ -108,7 +108,7 @@ void main() {
       expect(mock.runCalls, hasLength(1));
       final limitsJson = mock.runCalls.first.limitsJson;
       expect(limitsJson, isNotNull);
-      final decoded = json.decode(limitsJson!) as Map<String, dynamic>;
+      final decoded = json.decode(limitsJson ?? '') as Map<String, dynamic>;
       expect(decoded['memory_bytes'], 1024);
       expect(decoded['timeout_ms'], 500);
       expect(decoded['stack_depth'], 10);
@@ -327,7 +327,7 @@ void main() {
 
       final limitsJson = mock.startCalls.first.limitsJson;
       expect(limitsJson, isNotNull);
-      final decoded = json.decode(limitsJson!) as Map<String, dynamic>;
+      final decoded = json.decode(limitsJson ?? '') as Map<String, dynamic>;
       expect(decoded['memory_bytes'], 512);
     });
 
@@ -886,7 +886,7 @@ void main() {
 
       final limitsJson = mock.runCalls.first.limitsJson;
       expect(limitsJson, isNotNull);
-      final decoded = json.decode(limitsJson!) as Map<String, dynamic>;
+      final decoded = json.decode(limitsJson ?? '') as Map<String, dynamic>;
       expect(decoded, {'timeout_ms': 300});
       expect(decoded.containsKey('memory_bytes'), isFalse);
       expect(decoded.containsKey('stack_depth'), isFalse);

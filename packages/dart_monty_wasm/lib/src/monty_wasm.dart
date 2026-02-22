@@ -27,6 +27,14 @@ class MontyWasm extends MontyPlatform {
   _State _state = _State.idle;
   bool _initialized = false;
 
+  /// Synthetic resource usage — the WASM bridge does not expose
+  /// `ResourceTracker` data yet.
+  static const _syntheticUsage = MontyResourceUsage(
+    memoryBytesUsed: 0,
+    timeElapsedMs: 0,
+    stackDepthUsed: 0,
+  );
+
   /// Initializes the WASM Worker.
   ///
   /// Must be called before any execution methods. Initialization is
@@ -42,12 +50,6 @@ class MontyWasm extends MontyPlatform {
     _initialized = true;
   }
 
-  Future<void> _ensureInitialized() async {
-    if (!_initialized) {
-      await initialize();
-    }
-  }
-
   @override
   Future<MontyResult> run(
     String code, {
@@ -61,6 +63,7 @@ class MontyWasm extends MontyPlatform {
 
     final limitsJson = _encodeLimits(limits);
     final result = await _bindings.run(code, limitsJson: limitsJson);
+
     return _translateRunResult(result);
   }
 
@@ -86,6 +89,7 @@ class MontyWasm extends MontyPlatform {
       extFnsJson: extFnsJson,
       limitsJson: limitsJson,
     );
+
     return _translateProgress(progress);
   }
 
@@ -96,6 +100,7 @@ class MontyWasm extends MontyPlatform {
 
     final valueJson = json.encode(returnValue);
     final progress = await _bindings.resume(valueJson);
+
     return _translateProgress(progress);
   }
 
@@ -105,11 +110,12 @@ class MontyWasm extends MontyPlatform {
     _assertActive('resumeWithError');
 
     final progress = await _bindings.resumeWithError(errorMessage);
+
     return _translateProgress(progress);
   }
 
   @override
-  Future<Uint8List> snapshot() async {
+  Future<Uint8List> snapshot() {
     _assertNotDisposed('snapshot');
     _assertActive('snapshot');
 
@@ -122,9 +128,8 @@ class MontyWasm extends MontyPlatform {
     _assertIdle('restore');
 
     await _bindings.restore(data);
-    final restored = MontyWasm(bindings: _bindings)
-      .._initialized = _initialized;
-    return restored;
+
+    return MontyWasm(bindings: _bindings).._initialized = _initialized;
   }
 
   @override
@@ -138,8 +143,14 @@ class MontyWasm extends MontyPlatform {
   }
 
   // ---------------------------------------------------------------------------
-  // Run result translation
+  // Private methods
   // ---------------------------------------------------------------------------
+
+  Future<void> _ensureInitialized() async {
+    if (!_initialized) {
+      await initialize();
+    }
+  }
 
   MontyResult _translateRunResult(WasmRunResult result) {
     if (result.ok) {
@@ -151,10 +162,6 @@ class MontyWasm extends MontyPlatform {
     throw MontyException(message: result.error ?? 'Unknown error');
   }
 
-  // ---------------------------------------------------------------------------
-  // Progress translation
-  // ---------------------------------------------------------------------------
-
   MontyProgress _translateProgress(WasmProgressResult progress) {
     if (!progress.ok) {
       _state = _State.idle;
@@ -164,6 +171,7 @@ class MontyWasm extends MontyPlatform {
     switch (progress.state) {
       case 'complete':
         _state = _State.idle;
+
         return MontyComplete(
           result: MontyResult(
             value: progress.value,
@@ -173,6 +181,7 @@ class MontyWasm extends MontyPlatform {
 
       case 'pending':
         _state = _State.active;
+
         return MontyPending(
           functionName: progress.functionName ?? '',
           arguments: progress.arguments ?? const [],
@@ -183,10 +192,6 @@ class MontyWasm extends MontyPlatform {
         throw StateError('Unknown progress state: ${progress.state}');
     }
   }
-
-  // ---------------------------------------------------------------------------
-  // State assertions
-  // ---------------------------------------------------------------------------
 
   void _assertNotDisposed(String method) {
     if (_state == _State.disposed) {
@@ -212,10 +217,6 @@ class MontyWasm extends MontyPlatform {
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // Helpers
-  // ---------------------------------------------------------------------------
-
   void _rejectInputs(Map<String, Object?>? inputs) {
     if (inputs != null && inputs.isNotEmpty) {
       throw UnsupportedError(
@@ -238,14 +239,7 @@ class MontyWasm extends MontyPlatform {
       map['stack_depth'] = depth;
     }
     if (map.isEmpty) return null;
+
     return json.encode(map);
   }
-
-  /// Synthetic resource usage — the WASM bridge does not expose
-  /// `ResourceTracker` data yet.
-  static const _syntheticUsage = MontyResourceUsage(
-    memoryBytesUsed: 0,
-    timeElapsedMs: 0,
-    stackDepthUsed: 0,
-  );
 }

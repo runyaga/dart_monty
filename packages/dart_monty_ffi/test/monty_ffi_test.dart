@@ -44,13 +44,15 @@ void main() {
 
       expect(result.value, 4);
       expect(result.isError, isFalse);
-      expect(result.usage.memoryBytesUsed, 100);
-      expect(result.usage.timeElapsedMs, 5);
-      expect(result.usage.stackDepthUsed, 3);
-      expect(mock.createCalls, hasLength(1));
+      final usage = result.usage;
+      expect(usage.memoryBytesUsed, 100);
+      expect(usage.timeElapsedMs, 5);
+      expect(usage.stackDepthUsed, 3);
+      final hasOne = hasLength(1);
+      expect(mock.createCalls, hasOne);
       expect(mock.createCalls.first.code, '2 + 2');
-      expect(mock.runCalls, hasLength(1));
-      expect(mock.freeCalls, hasLength(1));
+      expect(mock.runCalls, hasOne);
+      expect(mock.freeCalls, hasOne);
     });
 
     test('throws MontyException on error result', () async {
@@ -83,11 +85,12 @@ void main() {
         ),
       );
 
-      expect(mock.setMemoryLimitCalls, hasLength(1));
+      final hasOne = hasLength(1);
+      expect(mock.setMemoryLimitCalls, hasOne);
       expect(mock.setMemoryLimitCalls.first.bytes, 1024);
-      expect(mock.setTimeLimitMsCalls, hasLength(1));
+      expect(mock.setTimeLimitMsCalls, hasOne);
       expect(mock.setTimeLimitMsCalls.first.ms, 500);
-      expect(mock.setStackLimitCalls, hasLength(1));
+      expect(mock.setStackLimitCalls, hasOne);
       expect(mock.setStackLimitCalls.first.depth, 10);
     });
 
@@ -716,7 +719,9 @@ void main() {
 
       final result = await monty.run('x');
       expect(result.isError, isTrue);
-      expect(result.error!.message, 'NameError');
+      final error = result.error;
+      expect(error, isNotNull);
+      expect(error?.message, 'NameError');
     });
 
     test('pending with empty arguments', () async {

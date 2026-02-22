@@ -47,21 +47,31 @@ Future<Map<String, dynamic>> _runFixture(
   final id = fixture['id'] as int;
   final code = fixture['code'] as String;
   final expectError = fixture['expectError'] as bool? ?? false;
+  final xfail = fixture['xfail'] as String?;
   final monty = MontyFfi(bindings: bindings);
 
+  Map<String, dynamic> result;
   try {
     if (fixture['externalFunctions'] != null) {
-      return await _runIterative(monty, fixture);
+      result = await _runIterative(monty, fixture);
     } else if (expectError) {
-      return await _runExpectError(monty, id, code);
+      result = await _runExpectError(monty, id, code);
     } else {
-      return await _runSimple(monty, id, code);
+      result = await _runSimple(monty, id, code);
     }
   } on Object catch (e) {
-    return {'id': id, 'ok': false, 'error': '$e'};
+    result = {'id': id, 'ok': false, 'error': '$e'};
   } finally {
     await monty.dispose();
   }
+
+  if (xfail != null) {
+    return result['ok'] == true
+        ? {'id': id, 'ok': true, 'xpass': true}
+        : {'id': id, 'ok': true, 'xfail': true};
+  }
+
+  return result;
 }
 
 Future<Map<String, dynamic>> _runSimple(
@@ -70,6 +80,7 @@ Future<Map<String, dynamic>> _runSimple(
   String code,
 ) async {
   final result = await monty.run(code);
+
   return {'id': id, 'ok': true, 'value': result.value};
 }
 
@@ -80,6 +91,7 @@ Future<Map<String, dynamic>> _runExpectError(
 ) async {
   try {
     await monty.run(code);
+
     return {'id': id, 'ok': false, 'error': 'Expected error but succeeded'};
   } on MontyException catch (e) {
     return {'id': id, 'ok': true, 'error': e.message};
@@ -117,5 +129,6 @@ Future<Map<String, dynamic>> _runIterative(
   if (progress is! MontyComplete) {
     return {'id': id, 'ok': false, 'error': 'Expected complete state'};
   }
+
   return {'id': id, 'ok': true, 'value': progress.result.value};
 }

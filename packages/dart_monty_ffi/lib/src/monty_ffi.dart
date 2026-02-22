@@ -49,6 +49,7 @@ class MontyFfi extends MontyPlatform {
     try {
       _applyLimits(handle, limits);
       final result = _bindings.run(handle);
+
       return _decodeRunResult(result);
     } finally {
       _bindings.free(handle);
@@ -74,6 +75,7 @@ class MontyFfi extends MontyPlatform {
     _applyLimits(handle, limits);
 
     final progress = _bindings.start(handle);
+
     return _handleProgress(handle, progress);
   }
 
@@ -81,27 +83,41 @@ class MontyFfi extends MontyPlatform {
   Future<MontyProgress> resume(Object? returnValue) async {
     _assertNotDisposed('resume');
     _assertActive('resume');
+    final handle = _handle;
+    if (handle == null) {
+      throw StateError('Cannot resume: no active handle');
+    }
 
     final valueJson = json.encode(returnValue);
-    final progress = _bindings.resume(_handle!, valueJson);
-    return _handleProgress(_handle!, progress);
+    final progress = _bindings.resume(handle, valueJson);
+
+    return _handleProgress(handle, progress);
   }
 
   @override
   Future<MontyProgress> resumeWithError(String errorMessage) async {
     _assertNotDisposed('resumeWithError');
     _assertActive('resumeWithError');
+    final handle = _handle;
+    if (handle == null) {
+      throw StateError('Cannot resumeWithError: no active handle');
+    }
 
-    final progress = _bindings.resumeWithError(_handle!, errorMessage);
-    return _handleProgress(_handle!, progress);
+    final progress = _bindings.resumeWithError(handle, errorMessage);
+
+    return _handleProgress(handle, progress);
   }
 
   @override
   Future<Uint8List> snapshot() async {
     _assertNotDisposed('snapshot');
     _assertActive('snapshot');
+    final handle = _handle;
+    if (handle == null) {
+      throw StateError('Cannot snapshot: no active handle');
+    }
 
-    return _bindings.snapshot(_handle!);
+    return _bindings.snapshot(handle);
   }
 
   @override
@@ -110,6 +126,7 @@ class MontyFfi extends MontyPlatform {
     _assertIdle('restore');
 
     final handle = _bindings.restore(data);
+
     return MontyFfi._withHandle(bindings: _bindings, handle: handle);
   }
 
@@ -138,19 +155,24 @@ class MontyFfi extends MontyPlatform {
         }
         final jsonMap = json.decode(resultJson) as Map<String, dynamic>;
         _freeHandle(handle);
+
         return MontyComplete(result: MontyResult.fromJson(jsonMap));
 
       case 1: // MONTY_PROGRESS_PENDING
         _handle = handle;
         _state = _State.active;
-        return MontyPending(
-          functionName: progress.functionName!,
-          arguments: progress.argumentsJson != null
-              ? List<Object?>.from(
-                  json.decode(progress.argumentsJson!) as List<dynamic>,
-                )
-              : const [],
-        );
+        final fnName = progress.functionName;
+        if (fnName == null) {
+          throw StateError('Pending function name is null');
+        }
+        final argsJson = progress.argumentsJson;
+        final args = argsJson != null
+            ? List<Object?>.from(
+                json.decode(argsJson) as List<Object?>,
+              )
+            : const <Object?>[];
+
+        return MontyPending(functionName: fnName, arguments: args);
 
       case 2: // MONTY_PROGRESS_ERROR
         _freeHandle(handle);
@@ -169,10 +191,12 @@ class MontyFfi extends MontyPlatform {
   MontyResult _decodeRunResult(RunResult result) {
     if (result.tag == 0) {
       // MONTY_RESULT_OK
-      if (result.resultJson == null) {
+      final resultJson = result.resultJson;
+      if (resultJson == null) {
         throw StateError('OK result JSON is null');
       }
-      final jsonMap = json.decode(result.resultJson!) as Map<String, dynamic>;
+      final jsonMap = json.decode(resultJson) as Map<String, dynamic>;
+
       return MontyResult.fromJson(jsonMap);
     }
     // MONTY_RESULT_ERROR

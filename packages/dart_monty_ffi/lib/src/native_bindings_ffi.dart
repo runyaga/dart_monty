@@ -42,6 +42,7 @@ class NativeBindingsFfi extends NativeBindings {
         final errorMsg = _readAndFreeString(outError.value);
         throw StateError(errorMsg ?? 'monty_create returned null');
       }
+
       return handle.address;
     } finally {
       calloc.free(cCode);
@@ -86,6 +87,7 @@ class NativeBindingsFfi extends NativeBindings {
 
     try {
       final tag = _lib.monty_start(ptr, outError);
+
       return _buildProgressResult(ptr, tag, outError.value);
     } finally {
       calloc.free(outError);
@@ -100,6 +102,7 @@ class NativeBindingsFfi extends NativeBindings {
 
     try {
       final tag = _lib.monty_resume(ptr, cValue, outError);
+
       return _buildProgressResult(ptr, tag, outError.value);
     } finally {
       calloc
@@ -116,6 +119,7 @@ class NativeBindingsFfi extends NativeBindings {
 
     try {
       final tag = _lib.monty_resume_with_error(ptr, cError, outError);
+
       return _buildProgressResult(ptr, tag, outError.value);
     } finally {
       calloc
@@ -161,6 +165,7 @@ class NativeBindingsFfi extends NativeBindings {
       final len = outLen.value;
       final bytes = Uint8List.fromList(buf.cast<Uint8>().asTypedList(len));
       _lib.monty_bytes_free(buf, len);
+
       return bytes;
     } finally {
       calloc.free(outLen);
@@ -179,6 +184,7 @@ class NativeBindingsFfi extends NativeBindings {
         final errorMsg = _readAndFreeString(outError.value);
         throw StateError(errorMsg ?? 'monty_restore returned null');
       }
+
       return handle.address;
     } finally {
       calloc
@@ -201,6 +207,7 @@ class NativeBindingsFfi extends NativeBindings {
         final resultJsonPtr = _lib.monty_complete_result_json(ptr);
         final resultJson = _readAndFreeString(resultJsonPtr);
         final isError = _lib.monty_complete_is_error(ptr);
+
         return ProgressResult(
           tag: 0,
           resultJson: resultJson,
@@ -212,6 +219,7 @@ class NativeBindingsFfi extends NativeBindings {
         final fnName = _readAndFreeString(fnNamePtr);
         final argsPtr = _lib.monty_pending_fn_args_json(ptr);
         final argsJson = _readAndFreeString(argsPtr);
+
         return ProgressResult(
           tag: 1,
           functionName: fnName,
@@ -220,6 +228,7 @@ class NativeBindingsFfi extends NativeBindings {
 
       case MontyProgressTag.MONTY_PROGRESS_ERROR:
         final errorMsg = _readAndFreeString(errorPtr);
+
         return ProgressResult(tag: 2, errorMessage: errorMsg);
     }
   }
@@ -230,6 +239,7 @@ class NativeBindingsFfi extends NativeBindings {
     if (ptr == nullptr) return null;
     final str = ptr.cast<Utf8>().toDartString();
     _lib.monty_string_free(ptr);
+
     return str;
   }
 }
