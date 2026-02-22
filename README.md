@@ -39,7 +39,7 @@ bash example/native/run.sh
 <details>
 <summary>Expected output</summary>
 
-```
+```text
 ── Simple expression ──
   2 + 2 = 4
   Memory: 0 bytes
@@ -78,7 +78,7 @@ bash example/web/run.sh
 <details>
 <summary>Expected output (in browser and DevTools console)</summary>
 
-```
+```text
 === dart_monty Web Example ===
 Worker initialized.
 
