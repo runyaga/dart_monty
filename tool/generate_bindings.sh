@@ -13,6 +13,6 @@ echo "--- dart pub get ---"
 dart pub get
 
 echo "--- dart run ffigen ---"
-dart run ffigen
+dart run ffigen --config ffigen.yaml
 
 echo "=== Bindings generated ==="
