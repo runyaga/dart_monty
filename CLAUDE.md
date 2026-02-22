@@ -114,6 +114,38 @@ Run these checks after every code change:
 3. `dart test` (from package dir) — must pass all tests
 4. Maintain 90%+ line coverage (enforced by CI and pre-push hooks)
 
+## Pre-Commit/Push CI Gates
+
+**Before every commit and push**, run the full local CI pipeline:
+
+```bash
+bash tool/test_m1.sh       # M1: format + analyze + unit tests (platform_interface)
+bash tool/test_m2.sh       # M2: Rust build + test + clippy (skip if no cargo)
+bash tool/test_m3a.sh      # M3A: FFI package tests
+bash tool/test_python_ladder.sh  # M3C: Python ladder parity
+```
+
+Run all gates in parallel when possible. Gates that fail due to missing
+toolchains (e.g. `cargo` not installed, WASM cpu mismatch) are acceptable
+skips — but Dart gates (M1, M3A) must pass. Do not commit or push if any
+Dart gate fails.
+
+## PR Labels for Changelogs
+
+When creating PRs, add a label matching the conventional commit type so
+GitHub auto-generated release notes are categorized correctly:
+
+| PR title prefix | Label to apply |
+|-----------------|---------------|
+| `feat(…):` | `feat` |
+| `fix(…):` | `fix` |
+| `refactor(…):` | `refactor` |
+| `docs(…):` | `docs` |
+| `test(…):` | `test` |
+| `chore(…):` | `chore` |
+
+Config: `.github/release.yml`
+
 ## Linting
 
 - **Dart**: `dart analyze --fatal-infos` per sub-package (via `tool/analyze_packages.py`)
