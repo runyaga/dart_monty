@@ -5,7 +5,6 @@ assets/*.wasm
 
 # Node dependencies
 js/node_modules/
-js/package-lock.json
 
 # Dart coverage
 coverage/
