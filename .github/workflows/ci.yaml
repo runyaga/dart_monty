@@ -58,15 +58,7 @@ jobs:
           --project=${{ secrets.DCM_PROJECT_KEY }}
           --analyze
           --fatal-found
-      - name: Upload to DCM Dashboard
-        if: github.ref == 'refs/heads/main'
-        run: >-
-          dcm run packages
-          --ci-key=${{ secrets.DCM_CI_KEY }}
-          --email=${{ secrets.DCM_EMAIL }}
-          --project=${{ secrets.DCM_PROJECT_KEY }}
-          --analyze
-          --upload
+          ${{ github.ref == 'refs/heads/main' && '--upload' || '' }}
 
   markdown:
     name: Markdown lint
