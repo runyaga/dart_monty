@@ -1,3 +1,4 @@
+// Printing to stdout is expected in an example.
 // ignore_for_file: avoid_print
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 
@@ -7,7 +8,7 @@ import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart
 /// concrete implementation.
 void main() {
   // Construct a result from JSON (as returned by native/web backends).
-  final result = MontyResult.fromJson({
+  final result = MontyResult.fromJson(const {
     'value': 42,
     'usage': {
       'memory_bytes_used': 1024,

@@ -1,3 +1,4 @@
+// Printing to stdout is expected in an example.
 // ignore_for_file: avoid_print
 import 'package:dart_monty/dart_monty.dart';
 

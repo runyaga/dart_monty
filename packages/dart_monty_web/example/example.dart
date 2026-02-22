@@ -12,3 +12,8 @@
 /// print(result.value); // 4
 /// ```
 library;
+
+void main() {
+  // This package registers itself automatically.
+  // See the dart_monty package for usage examples.
+}
