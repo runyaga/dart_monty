@@ -1,0 +1,8 @@
+node_modules/
+.dart_tool/
+web/monty_bundle.js
+web/main.dart.js
+web/main.dart.js.deps
+web/main.dart.js.map
+package-lock.json
+pubspec.lock

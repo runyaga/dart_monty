@@ -1,0 +1,15 @@
+{
+  "name": "dart-monty-web-spike",
+  "version": "0.0.1",
+  "private": true,
+  "description": "M3B web viability spike — @pydantic/monty in-browser via JS interop",
+  "scripts": {
+    "bundle": "npx esbuild web/monty_glue.js --bundle --format=esm --outfile=web/monty_bundle.js --platform=browser"
+  },
+  "dependencies": {
+    "@pydantic/monty": "^0.0.7"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0"
+  }
+}

@@ -1,0 +1,10 @@
+name: web_test_spike
+description: M3B web viability spike — prove Dart can call Monty WASM in a browser.
+publish_to: 'none'
+version: 0.0.1
+
+environment:
+  sdk: '>=3.5.0 <4.0.0'
+
+dependencies:
+  web: ^1.1.1
