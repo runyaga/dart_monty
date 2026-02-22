@@ -70,6 +70,7 @@ const _algorithmNames = {
   'selection': 'Selection Sort',
   'insertion': 'Insertion Sort',
   'quick': 'Quick Sort',
+  'tim': 'Timsort',
 };
 
 // ---------------------------------------------------------------------------
