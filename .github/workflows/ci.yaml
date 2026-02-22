@@ -193,6 +193,114 @@ jobs:
           test -f packages/dart_monty_wasm/assets/dart_monty_worker.js
           test -f packages/dart_monty_wasm/assets/wasi-worker-browser.mjs
 
+  wasm-ladder:
+    name: WASM ladder integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [lint, dcm]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: packages/dart_monty_wasm/js/package-lock.json
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Build JS bridge
+        working-directory: packages/dart_monty_wasm/js
+        run: npm install && npm run build
+      - name: Prepare integration test
+        run: |
+          PKG=packages/dart_monty_wasm
+          INTEG_WEB="$PKG/test/integration/web"
+          cp "$PKG/assets/dart_monty_bridge.js" "$INTEG_WEB/"
+          cp "$PKG/assets/dart_monty_worker.js" "$INTEG_WEB/"
+          cp "$PKG/assets/wasi-worker-browser.mjs" "$INTEG_WEB/"
+          cp "$PKG/assets/"*.wasm "$INTEG_WEB/"
+          cd "$PKG"
+          dart pub get
+          dart compile js test/integration/python_ladder_test.dart \
+            -o test/integration/web/ladder_runner.dart.js
+          mkdir -p test/integration/web/fixtures
+          cp ../../test/fixtures/python_ladder/tier_*.json test/integration/web/fixtures/
+      - name: Run WASM ladder in headless Chrome
+        run: |
+          INTEG_WEB="packages/dart_monty_wasm/test/integration/web"
+          SERVE_PORT=8099
+
+          python3 << 'PYEOF' &
+          import http.server, functools, os
+          integ = os.environ.get("INTEG_WEB", "packages/dart_monty_wasm/test/integration/web")
+          port = int(os.environ.get("SERVE_PORT", "8099"))
+          class H(http.server.SimpleHTTPRequestHandler):
+              def end_headers(self):
+                  self.send_header("Cross-Origin-Opener-Policy", "same-origin")
+                  self.send_header("Cross-Origin-Embedder-Policy", "require-corp")
+                  self.send_header("Access-Control-Allow-Origin", "*")
+                  self.send_header("Cache-Control", "no-store")
+                  super().end_headers()
+              def guess_type(self, path):
+                  if path.endswith(".mjs"): return "application/javascript"
+                  if path.endswith(".wasm"): return "application/wasm"
+                  return super().guess_type(path)
+              def log_message(self, fmt, *args): pass
+          handler = functools.partial(H, directory=integ)
+          http.server.HTTPServer(("127.0.0.1", port), handler).serve_forever()
+          PYEOF
+          sleep 2
+
+          CHROME="google-chrome-stable"
+          LADDER_LOG=$(mktemp)
+
+          timeout 120 "$CHROME" \
+            --headless \
+            --disable-gpu \
+            --no-sandbox \
+            --disable-dev-shm-usage \
+            --enable-logging=stderr \
+            --v=0 \
+            "http://127.0.0.1:$SERVE_PORT/ladder.html" \
+            2>"$LADDER_LOG" || true
+
+          WEB_RESULTS=$(grep -o 'LADDER_RESULT:{.*}' "$LADDER_LOG" 2>/dev/null || true)
+          LADDER_DONE=$(grep -c 'LADDER_DONE' "$LADDER_LOG" 2>/dev/null || echo "0")
+
+          if [ -z "$WEB_RESULTS" ]; then
+            echo "ERROR: No LADDER_RESULT lines captured from Chrome."
+            grep -i "CONSOLE" "$LADDER_LOG" | head -20 || true
+            rm -f "$LADDER_LOG"
+            exit 1
+          fi
+
+          echo "$WEB_RESULTS" | while IFS= read -r line; do
+            echo "  $line"
+          done
+
+          TOTAL=$(echo "$WEB_RESULTS" | wc -l | tr -d ' ')
+          FAILURES=$(echo "$WEB_RESULTS" | grep -c '"ok":false' || echo "0")
+
+          rm -f "$LADDER_LOG"
+
+          echo ""
+          echo "Results: $TOTAL fixtures, $FAILURES failures"
+
+          if [ "$FAILURES" -gt 0 ]; then
+            echo "FAIL: WASM ladder had $FAILURES bridge failures"
+            exit 1
+          fi
+
+          if [ "$LADDER_DONE" -eq 0 ]; then
+            echo "WARN: LADDER_DONE signal not found"
+          fi
+
+          echo "WASM ladder: PASSED ($TOTAL fixtures)"
+        env:
+          INTEG_WEB: packages/dart_monty_wasm/test/integration/web
+          SERVE_PORT: "8099"
+
   build-native:
     name: Build native (${{ matrix.os }})
     runs-on: ${{ matrix.os }}

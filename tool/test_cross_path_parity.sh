@@ -28,6 +28,7 @@ echo "--- Running native ladder runner ---"
 cd "$FFI_PKG"
 dart pub get
 
+DART_MONTY_LIB_PATH="$ROOT/native/target/release/libdart_monty_native.$(uname -s | grep -qi darwin && echo dylib || echo so)" \
 DYLD_LIBRARY_PATH="$ROOT/native/target/release" \
 LD_LIBRARY_PATH="$ROOT/native/target/release" \
   dart test/integration/python_ladder_runner.dart > "$NATIVE_JSONL"

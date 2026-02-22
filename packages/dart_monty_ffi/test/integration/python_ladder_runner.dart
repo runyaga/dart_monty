@@ -57,7 +57,7 @@ Future<Map<String, dynamic>> _runFixture(
     } else {
       return await _runSimple(monty, id, code);
     }
-  } on Exception catch (e) {
+  } on Object catch (e) {
     return {'id': id, 'ok': false, 'error': '$e'};
   } finally {
     await monty.dispose();
