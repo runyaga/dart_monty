@@ -49,13 +49,14 @@ jobs:
       - uses: CQLabs/setup-dcm@v2
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-      - uses: CQLabs/dcm-action@v2
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          ci-key: ${{ secrets.DCM_CI_KEY }}
-          email: ${{ secrets.DCM_EMAIL }}
-          analyze: true
-          folders: packages
+      - name: DCM analyze
+        run: >-
+          dcm run packages
+          --ci-key=${{ secrets.DCM_CI_KEY }}
+          --email=${{ secrets.DCM_EMAIL }}
+          --project=${{ secrets.DCM_PROJECT_KEY }}
+          --analyze
+          --fatal-found
       - name: Upload to DCM Dashboard
         if: github.ref == 'refs/heads/main'
         run: >-
