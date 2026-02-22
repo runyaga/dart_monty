@@ -17,11 +17,11 @@ void main() {
       final path = NativeLibraryLoader.resolve();
 
       if (Platform.isMacOS || Platform.isIOS) {
-        expect(path, 'libdart_monty.dylib');
+        expect(path, 'libdart_monty_native.dylib');
       } else if (Platform.isLinux || Platform.isAndroid) {
-        expect(path, 'libdart_monty.so');
+        expect(path, 'libdart_monty_native.so');
       } else if (Platform.isWindows) {
-        expect(path, 'dart_monty.dll');
+        expect(path, 'dart_monty_native.dll');
       }
     });
 

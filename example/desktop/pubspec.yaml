@@ -1,0 +1,26 @@
+name: desktop_example
+description: Flutter desktop example — run Python from Dart via Isolate.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.5.0 <4.0.0'
+  flutter: '>=3.24.0'
+
+dependencies:
+  dart_monty:
+    path: ../..
+  dart_monty_ffi:
+    path: ../../packages/dart_monty_ffi
+  dart_monty_platform_interface:
+    path: ../../packages/dart_monty_platform_interface
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  very_good_analysis: ^10.0.0
+
+flutter:
+  uses-material-design: true

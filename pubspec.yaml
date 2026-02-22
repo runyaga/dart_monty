@@ -8,6 +8,8 @@ environment:
   flutter: '>=3.24.0'
 
 dependencies:
+  dart_monty_desktop:
+    path: packages/dart_monty_desktop
   dart_monty_platform_interface:
     path: packages/dart_monty_platform_interface
   flutter:
@@ -27,9 +29,9 @@ flutter:
       ios:
         ffiPlugin: true
       linux:
-        ffiPlugin: true
+        default_package: dart_monty_desktop
       macos:
-        ffiPlugin: true
+        default_package: dart_monty_desktop
       windows:
         ffiPlugin: true
       web:
