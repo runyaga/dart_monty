@@ -88,7 +88,7 @@ Key JSON shapes (Rust -> Dart):
 
 | Dart type | JSON |
 |-----------|------|
-| `MontyResult` | `{ "value": ..., "error": {...}?, "usage": {...} }` |
+| `MontyResult` | `{ "value": ..., "error": {...}?, "usage": {...}, "print_output": "..."? }` |
 | `MontyException` | `{ "message": "...", "filename"?, "line_number"?, "column_number"?, "source_code"? }` |
 | `MontyResourceUsage` | `{ "memory_bytes_used": N, "time_elapsed_ms": N, "stack_depth_used": N }` |
 

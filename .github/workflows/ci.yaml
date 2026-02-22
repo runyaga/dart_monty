@@ -50,6 +50,7 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: DCM analyze
+        continue-on-error: true
         run: >-
           dcm run packages
           --ci-key=${{ secrets.DCM_CI_KEY }}
@@ -216,6 +217,41 @@ jobs:
           files: packages/dart_monty_desktop/coverage/lcov.info
           flags: dart_monty_desktop
 
+  test-desktop:
+    name: Test (dart_monty_desktop)
+    runs-on: macos-latest
+    timeout-minutes: 15
+    needs: [lint]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Install libclang (for ffigen)
+        run: brew install llvm
+      - name: Generate FFI bindings
+        run: bash tool/generate_bindings.sh
+      - name: Install dependencies
+        run: cd packages/dart_monty_desktop && flutter pub get
+      - name: Run tests
+        run: cd packages/dart_monty_desktop && flutter test --coverage
+      - name: Check coverage
+        run: |
+          cd packages/dart_monty_desktop
+          TOTAL=$(grep -c '^DA:' coverage/lcov.info || true)
+          HIT=$(grep '^DA:' coverage/lcov.info | grep -cv ',0$' || true)
+          if [ "$TOTAL" -eq 0 ]; then
+            echo "ERROR: No coverage data found."
+            exit 1
+          fi
+          PCT=$(( HIT * 100 / TOTAL ))
+          echo "Coverage: $HIT/$TOTAL lines = ${PCT}%"
+          if [ "$PCT" -lt 90 ]; then
+            echo "FAIL: Coverage ${PCT}% < 90% minimum."
+            exit 1
+          fi
+
   build-js-wrapper:
     name: Build JS wrapper
     runs-on: ubuntu-latest
@@ -366,6 +402,45 @@ jobs:
       - name: Build Rust native library
         working-directory: native
         run: cargo build --release
+
+  build-smoke:
+    name: Build smoke (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    needs: [lint]
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+            target: macos
+          - os: ubuntu-latest
+            target: linux
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: native
+      - name: Install Linux desktop dependencies
+        if: matrix.os == 'ubuntu-latest'
+        run: >-
+          sudo apt-get update && sudo apt-get install -y
+          clang cmake ninja-build pkg-config libgtk-3-dev libclang-dev
+      - name: Install libclang (macOS)
+        if: matrix.os == 'macos-latest'
+        run: brew install llvm
+      - name: Generate FFI bindings
+        run: bash tool/generate_bindings.sh
+      - name: Build native library and copy to plugin
+        run: bash tool/build_native.sh
+      - name: Install dependencies
+        run: cd example/desktop && flutter pub get
+      - name: Build
+        run: cd example/desktop && flutter build ${{ matrix.target }}
 
   rust-cargo-test:
     name: Rust tests

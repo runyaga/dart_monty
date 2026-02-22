@@ -1,5 +1,8 @@
 **/pubspec.lock
 **/.dart_tool/
+**/build/
+**/.flutter-plugins-dependencies
+**/.metadata
 web/web/*.js
 !web/web/coi-serviceworker.js
 web/web/*.mjs

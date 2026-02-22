@@ -30,7 +30,18 @@ void main() {
       const result = MontyResult(usage: usage);
       expect(result.value, isNull);
       expect(result.error, isNull);
+      expect(result.printOutput, isNull);
       expect(result.isError, isFalse);
+    });
+
+    test('constructs with printOutput', () {
+      const result = MontyResult(
+        value: 42,
+        usage: usage,
+        printOutput: 'hello\n',
+      );
+      expect(result.value, 42);
+      expect(result.printOutput, 'hello\n');
     });
 
     test('value can be a string', () {
@@ -95,6 +106,33 @@ void main() {
         });
         expect(result.value, isNull);
         expect(result.error, isNull);
+        expect(result.printOutput, isNull);
+      });
+
+      test('parses print_output when present', () {
+        final result = MontyResult.fromJson(const {
+          'value': 42,
+          'print_output': 'hello world\n',
+          'usage': {
+            'memory_bytes_used': 512,
+            'time_elapsed_ms': 10,
+            'stack_depth_used': 3,
+          },
+        });
+        expect(result.value, 42);
+        expect(result.printOutput, 'hello world\n');
+      });
+
+      test('parses without print_output key', () {
+        final result = MontyResult.fromJson(const {
+          'value': 42,
+          'usage': {
+            'memory_bytes_used': 512,
+            'time_elapsed_ms': 10,
+            'stack_depth_used': 3,
+          },
+        });
+        expect(result.printOutput, isNull);
       });
     });
 
@@ -120,6 +158,20 @@ void main() {
         expect(json['error'], {'message': 'oops'});
         expect(json['value'], isNull);
       });
+
+      test('serializes print_output when non-null', () {
+        const result = MontyResult(
+          value: 42,
+          usage: usage,
+          printOutput: 'output\n',
+        );
+        expect(result.toJson()['print_output'], 'output\n');
+      });
+
+      test('omits print_output when null', () {
+        const result = MontyResult(value: 42, usage: usage);
+        expect(result.toJson().containsKey('print_output'), isFalse);
+      });
     });
 
     test('JSON round-trip for value result', () {
@@ -136,6 +188,16 @@ void main() {
           lineNumber: 1,
         ),
         usage: usage,
+      );
+      final restored = MontyResult.fromJson(original.toJson());
+      expect(restored, original);
+    });
+
+    test('JSON round-trip with printOutput', () {
+      const original = MontyResult(
+        value: 42,
+        usage: usage,
+        printOutput: 'hello\nworld\n',
       );
       final restored = MontyResult.fromJson(original.toJson());
       expect(restored, original);
@@ -175,6 +237,18 @@ void main() {
         );
         const a = MontyResult(value: 42, usage: usage);
         const b = MontyResult(value: 42, usage: otherUsage);
+        expect(a, isNot(b));
+      });
+
+      test('not equal when printOutput differs', () {
+        const a = MontyResult(value: 42, usage: usage, printOutput: 'a\n');
+        const b = MontyResult(value: 42, usage: usage, printOutput: 'b\n');
+        expect(a, isNot(b));
+      });
+
+      test('not equal when one has printOutput and other does not', () {
+        const a = MontyResult(value: 42, usage: usage, printOutput: 'a\n');
+        const b = MontyResult(value: 42, usage: usage);
         expect(a, isNot(b));
       });
 
