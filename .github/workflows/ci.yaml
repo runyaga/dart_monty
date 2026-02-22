@@ -217,41 +217,6 @@ jobs:
           files: packages/dart_monty_desktop/coverage/lcov.info
           flags: dart_monty_desktop
 
-  test-desktop:
-    name: Test (dart_monty_desktop)
-    runs-on: macos-latest
-    timeout-minutes: 15
-    needs: [lint]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          cache: true
-      - name: Install libclang (for ffigen)
-        run: brew install llvm
-      - name: Generate FFI bindings
-        run: bash tool/generate_bindings.sh
-      - name: Install dependencies
-        run: cd packages/dart_monty_desktop && flutter pub get
-      - name: Run tests
-        run: cd packages/dart_monty_desktop && flutter test --coverage
-      - name: Check coverage
-        run: |
-          cd packages/dart_monty_desktop
-          TOTAL=$(grep -c '^DA:' coverage/lcov.info || true)
-          HIT=$(grep '^DA:' coverage/lcov.info | grep -cv ',0$' || true)
-          if [ "$TOTAL" -eq 0 ]; then
-            echo "ERROR: No coverage data found."
-            exit 1
-          fi
-          PCT=$(( HIT * 100 / TOTAL ))
-          echo "Coverage: $HIT/$TOTAL lines = ${PCT}%"
-          if [ "$PCT" -lt 90 ]; then
-            echo "FAIL: Coverage ${PCT}% < 90% minimum."
-            exit 1
-          fi
-
   build-js-wrapper:
     name: Build JS wrapper
     runs-on: ubuntu-latest

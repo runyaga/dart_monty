@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/runyaga/dart_monty/actions/workflows/ci.yaml/badge.svg)](https://github.com/runyaga/dart_monty/actions/workflows/ci.yaml)
 [![Pages](https://github.com/runyaga/dart_monty/actions/workflows/pages.yaml/badge.svg)](https://runyaga.github.io/dart_monty/)
+[![codecov](https://codecov.io/gh/runyaga/dart_monty/graph/badge.svg)](https://codecov.io/gh/runyaga/dart_monty)
 
 Flutter plugin that exposes the [Monty](https://github.com/pydantic/monty)
 sandboxed Python interpreter to Dart and Flutter apps.
