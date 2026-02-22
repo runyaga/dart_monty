@@ -259,13 +259,16 @@
         <button class="algo-btn" data-algo="insertion">Insertion</button>
         <button class="algo-btn" data-algo="quick">Quick</button>
         <button class="algo-btn" data-algo="tim">Tim</button>
+        <button class="algo-btn" data-algo="shell">Shell</button>
+        <button class="algo-btn" data-algo="cocktail">Cocktail</button>
+        <button class="algo-btn" data-algo="sleep">Sleep</button>
       </div>
     </div>
     <div class="control-row">
       <span class="control-label">Array Size</span>
       <div class="slider-group">
-        <input type="range" id="size-slider" min="10" max="100" value="30" step="5">
-        <span class="slider-value" id="size-value">30</span>
+        <input type="range" id="size-slider" min="10" max="100" value="25" step="5">
+        <span class="slider-value" id="size-value">25</span>
       </div>
     </div>
     <div class="control-row">
@@ -313,6 +316,9 @@
       insertion: 'arr = INPUT_ARRAY[:]\nn = len(arr)\ni = 1\nwhile i < n:\n    key = arr[i]\n    j = i - 1\n    while j >= 0:\n        yield_state(arr, j, i, "compare")\n        if arr[j] > key:\n            arr[j + 1] = arr[j]\n            yield_state(arr, j, j + 1, "swap")\n            j = j - 1\n        else:\n            break\n        if j < 0:\n            break\n    arr[j + 1] = key\n    i = i + 1\nyield_state(arr, -1, -1, "done")\narr',
       quick: 'arr = INPUT_ARRAY[:]\nn = len(arr)\nstack = [[0, n - 1]]\nwhile len(stack) > 0:\n    pair = stack[len(stack) - 1]\n    stack = stack[:len(stack) - 1]\n    low = pair[0]\n    high = pair[1]\n    if low < high:\n        pivot = arr[high]\n        i = low - 1\n        j = low\n        while j < high:\n            yield_state(arr, j, high, "compare")\n            if arr[j] <= pivot:\n                i = i + 1\n                if i != j:\n                    tmp = arr[i]\n                    arr[i] = arr[j]\n                    arr[j] = tmp\n                    yield_state(arr, i, j, "swap")\n            j = j + 1\n        tmp = arr[i + 1]\n        arr[i + 1] = arr[high]\n        arr[high] = tmp\n        yield_state(arr, i + 1, high, "swap")\n        p = i + 1\n        stack.append([low, p - 1])\n        stack.append([p + 1, high])\nyield_state(arr, -1, -1, "done")\narr',
       tim: 'arr = INPUT_ARRAY[:]\nn = len(arr)\nRUN = 8\nstart = 0\nwhile start < n:\n    end = start + RUN\n    if end > n:\n        end = n\n    i = start + 1\n    while i < end:\n        key = arr[i]\n        j = i - 1\n        while j >= start:\n            yield_state(arr, j, i, "compare")\n            if arr[j] > key:\n                arr[j + 1] = arr[j]\n                yield_state(arr, j, j + 1, "swap")\n                j = j - 1\n            else:\n                break\n            if j < start:\n                break\n        arr[j + 1] = key\n        i = i + 1\n    start = start + RUN\nsize = RUN\nwhile size < n:\n    left = 0\n    while left < n:\n        mid = left + size\n        right = left + 2 * size\n        if mid > n:\n            mid = n\n        if right > n:\n            right = n\n        if mid < right:\n            left_half = arr[left:mid]\n            right_half = arr[mid:right]\n            i = 0\n            j = 0\n            k = left\n            while i < len(left_half) and j < len(right_half):\n                yield_state(arr, k, k + 1, "compare")\n                if left_half[i] <= right_half[j]:\n                    arr[k] = left_half[i]\n                    yield_state(arr, k, k, "swap")\n                    i = i + 1\n                else:\n                    arr[k] = right_half[j]\n                    yield_state(arr, k, k, "swap")\n                    j = j + 1\n                k = k + 1\n            while i < len(left_half):\n                arr[k] = left_half[i]\n                yield_state(arr, k, k, "swap")\n                i = i + 1\n                k = k + 1\n            while j < len(right_half):\n                arr[k] = right_half[j]\n                yield_state(arr, k, k, "swap")\n                j = j + 1\n                k = k + 1\n        left = left + 2 * size\n    size = size * 2\nyield_state(arr, -1, -1, "done")\narr',
+      shell: 'arr = INPUT_ARRAY[:]\nn = len(arr)\ngap = n // 2\nwhile gap > 0:\n    i = gap\n    while i < n:\n        temp = arr[i]\n        j = i\n        while j >= gap:\n            yield_state(arr, j, j - gap, "compare")\n            if arr[j - gap] > temp:\n                arr[j] = arr[j - gap]\n                yield_state(arr, j, j - gap, "swap")\n                j = j - gap\n            else:\n                break\n            if j < gap:\n                break\n        arr[j] = temp\n        i = i + 1\n    gap = gap // 2\nyield_state(arr, -1, -1, "done")\narr',
+      cocktail: 'arr = INPUT_ARRAY[:]\nn = len(arr)\nswapped = True\nstart = 0\nend = n - 1\nwhile swapped:\n    swapped = False\n    i = start\n    while i < end:\n        yield_state(arr, i, i + 1, "compare")\n        if arr[i] > arr[i + 1]:\n            tmp = arr[i]\n            arr[i] = arr[i + 1]\n            arr[i + 1] = tmp\n            yield_state(arr, i, i + 1, "swap")\n            swapped = True\n        i = i + 1\n    if not swapped:\n        break\n    swapped = False\n    end = end - 1\n    i = end - 1\n    while i >= start:\n        yield_state(arr, i, i + 1, "compare")\n        if arr[i] > arr[i + 1]:\n            tmp = arr[i]\n            arr[i] = arr[i + 1]\n            arr[i + 1] = tmp\n            yield_state(arr, i, i + 1, "swap")\n            swapped = True\n        i = i - 1\n    start = start + 1\nyield_state(arr, -1, -1, "done")\narr',
+      sleep: 'arr = INPUT_ARRAY[:]\nn = len(arr)\nresult = []\nmax_val = arr[0]\ni = 1\nwhile i < n:\n    if arr[i] > max_val:\n        max_val = arr[i]\n    i = i + 1\nt = 1\nwhile t <= max_val:\n    i = 0\n    while i < n:\n        yield_state(arr, i, len(result), "compare")\n        if arr[i] == t:\n            result.append(arr[i])\n            yield_state(arr, i, len(result) - 1, "swap")\n        i = i + 1\n    t = t + 1\ni = 0\nwhile i < n:\n    arr[i] = result[i]\n    i = i + 1\nyield_state(arr, -1, -1, "done")\narr',
     };
 
     // ── State ──────────────────────────────────────────────────────────────
@@ -385,8 +391,9 @@
     function setControlsEnabled(enabled) {
       algoBtns.forEach(b => b.disabled = !enabled);
       sizeSlider.disabled = !enabled;
-      codeEditor.disabled = !enabled;
       startBtn.disabled = !enabled;
+      codeEditor.readOnly = !enabled;
+      codeEditor.style.opacity = enabled ? '1' : '0.7';
     }
 
     // ── Bar rendering ─────────────────────────────────────────────────────
@@ -451,6 +458,8 @@
         statSwaps.textContent = swaps;
       }
       renderBars(Array.from(arr), i, j, action);
+      const template = algoTemplates[selectedAlgo] || '';
+      codeEditor.value = template.replace('INPUT_ARRAY', '[' + Array.from(arr).join(', ') + ']');
     }
 
     function onVisualizerDone(arr) {
