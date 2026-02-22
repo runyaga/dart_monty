@@ -17,6 +17,9 @@ cd native && cargo clippy -- -D warnings  # Run Rust linter (zero warnings)
 bash tool/test_m1.sh                      # Full M1 validation gate
 bash tool/test_m2.sh                      # Full M2 validation gate (Rust + WASM)
 bash tool/test_m3a.sh                     # Full M3A validation gate (FFI package)
+bash tool/test_python_ladder.sh           # M3C: Python ladder on native + web
+bash tool/test_cross_path_parity.sh       # M3C: JSONL parity diff (native vs web)
+bash tool/test_snapshot_portability.sh    # M3C: Snapshot portability probe
 pre-commit run --all-files                # Run all pre-commit hooks
 ```
 
@@ -28,6 +31,13 @@ packages/
   dart_monty_ffi/                 # Native FFI impl (desktop + mobile)
   dart_monty_web/                 # Web impl (JS interop with @pydantic/monty)
 native/                           # Rust crate: C API wrapper around monty (17 extern "C" fns)
+spike/
+  web_test/                       # M3B web spike + M3C web ladder runner
+    bin/                          # Dart entry points (main.dart, ladder_runner.dart)
+    web/                          # HTML, JS glue/worker, bundled assets
+test/
+  fixtures/
+    python_ladder/                # Cross-platform parity fixtures (M3C)
 docs/                             # Documentation, ADRs, and API references
   monty-rust-api.md               # Upstream Monty Rust API + C FFI JSON contract
   milestones/                     # Detailed milestone specs (M1-M9)
@@ -42,6 +52,27 @@ Federated plugin using four packages:
 - `dart_monty_platform_interface` — abstract contract (pure Dart, no Flutter)
 - `dart_monty_ffi` — calls into Rust shared library via `dart:ffi`
 - `dart_monty_web` — calls into `@pydantic/monty` npm package via `dart:js_interop`
+
+### Execution Paths
+
+**Native (desktop/mobile):**
+`Dart → dart_monty_ffi → dart:ffi → libdart_monty_native.dylib/so → Monty Rust`
+
+**Web (browser):**
+`Dart → dart:js_interop → monty_glue.js → Web Worker → @pydantic/monty WASM`
+
+The web path uses a Worker because Chrome's 8 MB synchronous WASM compile
+limit does not apply inside Workers. `monty_glue.js` bridges main thread
+Dart code to the Worker via `postMessage`. The Worker imports
+`@pydantic/monty-wasm32-wasi` NAPI-RS classes directly.
+
+### Cross-Platform Parity (M3C)
+
+Both paths are verified to produce identical results via JSON test
+fixtures in `test/fixtures/python_ladder/` (expressions, variables,
+control flow, functions, errors, external functions). A native Dart test
+runner and a web Dart-to-JS runner execute the same fixtures; JSONL output
+is diffed for parity.
 
 ## Monty API and JSON Contract
 

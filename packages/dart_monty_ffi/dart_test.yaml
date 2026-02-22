@@ -1,3 +1,5 @@
 tags:
   integration:
     skip: "Requires native library. Run with --tags=integration and DYLD_LIBRARY_PATH set."
+  ladder:
+    skip: "Requires native library. Run with --tags=ladder and DYLD_LIBRARY_PATH set."

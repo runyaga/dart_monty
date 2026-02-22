@@ -151,8 +151,55 @@ function handleResume(id, value) {
   }
 }
 
+function handleResumeWithError(id, errorMessage) {
+  if (!activeSnapshot) {
+    self.postMessage({
+      type: 'result',
+      id,
+      ok: false,
+      error: 'No active snapshot to resume.',
+      errorType: 'StateError',
+    });
+    return;
+  }
+  try {
+    const progress = activeSnapshot.resume({
+      exception: { type: 'Exception', message: errorMessage },
+    });
+    if (progress instanceof MontyException) {
+      activeSnapshot = null;
+      self.postMessage({ type: 'result', id, ok: false, ...formatError(progress) });
+      return;
+    }
+
+    if (progress instanceof MontySnapshot) {
+      activeSnapshot = progress;
+      self.postMessage({
+        type: 'result',
+        id,
+        ok: true,
+        state: 'pending',
+        functionName: progress.functionName,
+        args: progress.args,
+      });
+    } else {
+      activeSnapshot = null;
+      self.postMessage({
+        type: 'result',
+        id,
+        ok: true,
+        state: 'complete',
+        value: progress.output,
+      });
+    }
+  } catch (e) {
+    activeSnapshot = null;
+    self.postMessage({ type: 'result', id, ok: false, ...formatError(e) });
+  }
+}
+
 self.onmessage = (e) => {
-  const { type, id, code, extFns, value } = e.data;
+  const { type, id, code, extFns, value, errorMessage } = e.data;
   switch (type) {
     case 'run':
       handleRun(id, code);
@@ -162,6 +209,9 @@ self.onmessage = (e) => {
       break;
     case 'resume':
       handleResume(id, value);
+      break;
+    case 'resumeWithError':
+      handleResumeWithError(id, errorMessage);
       break;
     default:
       self.postMessage({ type: 'error', message: `Unknown message type: ${type}` });

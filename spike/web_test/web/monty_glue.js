@@ -123,12 +123,28 @@ function discover() {
   return JSON.stringify({ loaded: worker !== null, architecture: 'worker' });
 }
 
+/**
+ * Resume a paused execution with an error.
+ *
+ * @param {string} errorJson  JSON error message to propagate to Python.
+ * @returns {string} JSON result.
+ */
+async function resumeWithError(errorJson) {
+  if (!worker) {
+    return JSON.stringify({ ok: false, error: 'Not initialized', errorType: 'InitError' });
+  }
+  const errorMessage = JSON.parse(errorJson);
+  const result = await callWorker({ type: 'resumeWithError', errorMessage });
+  return JSON.stringify(result);
+}
+
 // Expose bridge on window for Dart JS interop
 window.montyBridge = {
   init,
   run,
   start,
   resume,
+  resumeWithError,
   discover,
 };
 

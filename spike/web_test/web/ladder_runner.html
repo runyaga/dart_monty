@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>M3C Python Ladder — Web Runner</title>
+  <style>
+    body {
+      font-family: monospace;
+      background: #1a1a2e;
+      color: #e0e0e0;
+      padding: 2rem;
+    }
+    h1 { color: #00d4ff; }
+    pre {
+      background: #0f0f23;
+      padding: 1rem;
+      border-radius: 4px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <h1>M3C Python Ladder — Web Runner</h1>
+  <p>Open DevTools console to see full output.</p>
+  <pre id="output">Loading...</pre>
+
+  <!-- Monty WASM bridge (bundled by esbuild) -->
+  <script type="module" src="monty_bundle.js"></script>
+
+  <!-- Dart compiled to JS -->
+  <script defer src="ladder_runner.dart.js"></script>
+
+  <script>
+    // Mirror console.log to the page for easy viewing
+    const outputEl = document.getElementById('output');
+    const originalLog = console.log;
+    const originalError = console.error;
+    let lines = [];
+
+    console.log = function(...args) {
+      originalLog.apply(console, args);
+      const text = args.map(a => typeof a === 'string' ? a : JSON.stringify(a)).join(' ');
+      lines.push(text);
+      outputEl.textContent = lines.join('\n');
+    };
+
+    console.error = function(...args) {
+      originalError.apply(console, args);
+      const text = args.map(a => typeof a === 'string' ? a : JSON.stringify(a)).join(' ');
+      lines.push('[ERROR] ' + text);
+      outputEl.textContent = lines.join('\n');
+    };
+  </script>
+</body>
+</html>
