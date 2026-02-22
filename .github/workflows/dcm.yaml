@@ -1,0 +1,40 @@
+name: DCM
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 9 * * 1" # Monday 9am UTC
+
+concurrency:
+  group: dcm-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  dcm:
+    name: DCM
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - uses: CQLabs/setup-dcm@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: DCM analyze
+        run: >-
+          dcm run packages
+          --ci-key=${{ secrets.DCM_CI_KEY }}
+          --email=${{ secrets.DCM_EMAIL }}
+          --project=${{ secrets.DCM_PROJECT_KEY }}
+          --analyze
+          --fatal-found
+          --upload
