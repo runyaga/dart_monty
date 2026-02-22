@@ -2,6 +2,14 @@ name: dart_monty_wasm
 description: Web WASM implementation of dart_monty using dart:js_interop and @pydantic/monty.
 publish_to: 'none'
 version: 0.1.0+1
+homepage: https://github.com/runyaga/dart_monty
+repository: https://github.com/runyaga/dart_monty
+issue_tracker: https://github.com/runyaga/dart_monty/issues
+topics:
+  - python
+  - sandbox
+  - wasm
+  - interpreter
 
 environment:
   sdk: '>=3.5.0 <4.0.0'

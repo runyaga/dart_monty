@@ -1,0 +1,68 @@
+name: Upstream monty check
+
+on:
+  schedule:
+    - cron: '0 8 * * 1'   # Weekly on Monday 08:00 UTC
+  workflow_dispatch:
+
+jobs:
+  check-upstream:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for new monty releases
+        id: check
+        run: |
+          # Rust crate: latest commit on pydantic/monty main
+          LATEST=$(gh api repos/pydantic/monty/commits/main --jq '.sha[:7]')
+          CURRENT=$(grep -oP 'rev = "\K[^"]*' native/Cargo.toml)
+          echo "latest=$LATEST" >> "$GITHUB_OUTPUT"
+          echo "current=$CURRENT" >> "$GITHUB_OUTPUT"
+          if [ "$LATEST" != "$CURRENT" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+          # NPM: latest version of @pydantic/monty
+          NPM_LATEST=$(npm view @pydantic/monty version 2>/dev/null || echo "unknown")
+          NPM_CURRENT=$(jq -r '.dependencies["@pydantic/monty"]' packages/dart_monty_wasm/js/package.json | tr -d '^~')
+          echo "npm_latest=$NPM_LATEST" >> "$GITHUB_OUTPUT"
+          echo "npm_current=$NPM_CURRENT" >> "$GITHUB_OUTPUT"
+          if [ "$NPM_LATEST" != "$NPM_CURRENT" ]; then
+            echo "npm_changed=true" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create PR for Rust update
+        if: steps.check.outputs.changed == 'true'
+        run: |
+          BRANCH="chore/bump-monty-${{ steps.check.outputs.latest }}"
+          git checkout -b "$BRANCH"
+          sed -i "s/rev = \"${{ steps.check.outputs.current }}\"/rev = \"${{ steps.check.outputs.latest }}\"/" native/Cargo.toml
+          git add native/Cargo.toml
+          git commit -m "chore(native): bump monty to ${{ steps.check.outputs.latest }}"
+          git push -u origin "$BRANCH"
+          gh pr create \
+            --title "chore(native): bump monty to ${{ steps.check.outputs.latest }}" \
+            --body "Upstream monty has new commits. CI will verify compatibility."
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create PR for NPM update
+        if: steps.check.outputs.npm_changed == 'true'
+        run: |
+          BRANCH="chore/bump-monty-npm-${{ steps.check.outputs.npm_latest }}"
+          git checkout -b "$BRANCH"
+          cd packages/dart_monty_wasm/js
+          npm install "@pydantic/monty@${{ steps.check.outputs.npm_latest }}" \
+                      "@pydantic/monty-wasm32-wasi@${{ steps.check.outputs.npm_latest }}"
+          cd -
+          git add packages/dart_monty_wasm/js/package.json packages/dart_monty_wasm/js/package-lock.json
+          git commit -m "chore(wasm): bump @pydantic/monty to ${{ steps.check.outputs.npm_latest }}"
+          git push -u origin "$BRANCH"
+          gh pr create \
+            --title "chore(wasm): bump @pydantic/monty to ${{ steps.check.outputs.npm_latest }}" \
+            --body "Upstream @pydantic/monty NPM has a new version. CI will verify compatibility."
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

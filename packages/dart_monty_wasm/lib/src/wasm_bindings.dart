@@ -90,6 +90,9 @@ final class WasmDiscoverResult {
 /// rather than via separate `setLimit` calls, avoiding extra Worker
 /// round-trips.
 abstract class WasmBindings {
+  /// Creates a [WasmBindings].
+  WasmBindings();
+
   /// Initializes the WASM Worker.
   ///
   /// Returns `true` if the Worker loaded successfully.

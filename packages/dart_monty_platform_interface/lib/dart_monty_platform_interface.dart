@@ -4,7 +4,6 @@
 /// This package is not intended for direct use — import `dart_monty` instead.
 library;
 
-export 'src/mock_monty_platform.dart';
 export 'src/monty_exception.dart';
 export 'src/monty_limits.dart';
 export 'src/monty_platform.dart';

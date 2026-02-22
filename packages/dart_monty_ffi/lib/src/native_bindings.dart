@@ -60,6 +60,9 @@ final class ProgressResult {
 /// All memory management (C string allocation/deallocation, pointer
 /// lifecycle) is the responsibility of the concrete implementation.
 abstract class NativeBindings {
+  /// Creates a [NativeBindings].
+  NativeBindings();
+
   /// Creates a handle from Python [code].
   ///
   /// If [externalFunctions] is non-null, it is a comma-separated list of
