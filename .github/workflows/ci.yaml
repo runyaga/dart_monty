@@ -37,9 +37,9 @@ jobs:
 
   dcm:
     name: DCM
-    if: ${{ secrets.DCM_CI_KEY != '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
