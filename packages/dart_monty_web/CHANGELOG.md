@@ -1,4 +1,7 @@
-## Unreleased
+## 0.4.2
+
+- Override `resumeAsFuture()`, `resolveFutures()`, `resolveFuturesWithErrors()` in `DartMontyWeb` with `UnsupportedError`
+- Expand web ladder runner to tiers 1-9, 13, 15 with `nativeOnly` skip handling
 
 ## 0.4.1
 

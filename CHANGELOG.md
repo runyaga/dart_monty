@@ -1,4 +1,11 @@
-## Unreleased
+## 0.4.2
+
+- Plumb async/futures API through desktop Isolate bridge (`resumeAsFuture()`, `resolveFutures()`, `resolveFuturesWithErrors()`)
+- Override async/futures methods in web plugin with `UnsupportedError`
+- Add tier 4 function parameter fixtures (keyword-only, mixed args/kwargs, forwarding, positional-only)
+- Enable tier 13 async ladder fixtures (remove xfail)
+- Add "Async gather" and "Function params" examples to desktop and web example apps
+- Expand web ladder runner to tiers 1-9, 13, 15
 
 ## 0.4.1
 
