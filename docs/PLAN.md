@@ -212,3 +212,12 @@ Items to investigate or address in future milestones:
   upstream monty emits `method_call: true` for `obj.ext_fn()` syntax on
   external functions. If supported, add a test; otherwise document as a
   known limitation.
+
+- **Worker onerror promise leak:** If the Web Worker crashes after init,
+  pending `callWorker` promises hang forever. `worker.onerror` should
+  reject all entries in the `pending` Map and clear it.
+
+- **restore() state machine:** `MontyWasm.restore()` returns a new
+  instance in `idle` state, but a restored `MontySnapshot` represents
+  paused execution that expects `resume()`. Consider setting
+  `_state = _State.active` on restored instances.
