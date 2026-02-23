@@ -101,69 +101,14 @@ jobs:
         run: cd packages/${{ matrix.target }} && dart pub get
       - name: Run tests
         run: cd packages/${{ matrix.target }} && dart test --coverage=coverage
-      - name: Check coverage (platform_interface)
-        if: matrix.target == 'dart_monty_platform_interface'
-        run: |
-          cd packages/dart_monty_platform_interface
-          dart pub global activate coverage
-          dart pub global run coverage:format_coverage \
-            --lcov --in=coverage --out=coverage/lcov.info --report-on=lib
-          TOTAL=$(grep -c '^DA:' coverage/lcov.info || true)
-          HIT=$(grep '^DA:' coverage/lcov.info | grep -cv ',0$' || true)
-          if [ "$TOTAL" -eq 0 ]; then
-            echo "ERROR: No coverage data found."
-            exit 1
-          fi
-          PCT=$(( HIT * 100 / TOTAL ))
-          echo "Coverage: $HIT/$TOTAL lines = ${PCT}%"
-          if [ "$PCT" -lt 90 ]; then
-            echo "FAIL: Coverage ${PCT}% < 90% minimum."
-            exit 1
-          fi
-      - name: Check coverage (ffi)
-        if: matrix.target == 'dart_monty_ffi'
-        run: |
-          cd packages/dart_monty_ffi
-          dart pub global activate coverage
-          dart pub global run coverage:format_coverage \
-            --lcov --in=coverage --out=coverage/lcov.info --report-on=lib
-          TOTAL=$(grep -c '^DA:' coverage/lcov.info || true)
-          HIT=$(grep '^DA:' coverage/lcov.info | grep -cv ',0$' || true)
-          if [ "$TOTAL" -eq 0 ]; then
-            echo "ERROR: No coverage data found."
-            exit 1
-          fi
-          PCT=$(( HIT * 100 / TOTAL ))
-          echo "Coverage: $HIT/$TOTAL lines = ${PCT}%"
-          if [ "$PCT" -lt 90 ]; then
-            echo "FAIL: Coverage ${PCT}% < 90% minimum."
-            exit 1
-          fi
-      - name: Check coverage (wasm)
-        if: matrix.target == 'dart_monty_wasm'
-        run: |
-          cd packages/dart_monty_wasm
-          dart pub global activate coverage
-          dart pub global run coverage:format_coverage \
-            --lcov --in=coverage --out=coverage/lcov.info --report-on=lib
-          TOTAL=$(grep -c '^DA:' coverage/lcov.info || true)
-          HIT=$(grep '^DA:' coverage/lcov.info | grep -cv ',0$' || true)
-          if [ "$TOTAL" -eq 0 ]; then
-            echo "ERROR: No coverage data found."
-            exit 1
-          fi
-          PCT=$(( HIT * 100 / TOTAL ))
-          echo "Coverage: $HIT/$TOTAL lines = ${PCT}%"
-          if [ "$PCT" -lt 90 ]; then
-            echo "FAIL: Coverage ${PCT}% < 90% minimum."
-            exit 1
-          fi
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5
+      - name: Enforce coverage
+        uses: ./.github/actions/enforce-coverage
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: packages/${{ matrix.target }}/coverage/lcov.info
-          flags: ${{ matrix.target }}
+          package-path: packages/${{ matrix.target }}
+          min-coverage: '90'
+          needs-format: 'true'
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+          codecov-flag: ${{ matrix.target }}
 
   test-desktop:
     name: Test (dart_monty_desktop)
@@ -185,27 +130,13 @@ jobs:
         run: cd packages/dart_monty_desktop && flutter pub get
       - name: Run tests
         run: cd packages/dart_monty_desktop && flutter test --coverage
-      - name: Check coverage
-        run: |
-          cd packages/dart_monty_desktop
-          TOTAL=$(grep -c '^DA:' coverage/lcov.info || true)
-          HIT=$(grep '^DA:' coverage/lcov.info | grep -cv ',0$' || true)
-          if [ "$TOTAL" -eq 0 ]; then
-            echo "ERROR: No coverage data found."
-            exit 1
-          fi
-          PCT=$(( HIT * 100 / TOTAL ))
-          echo "Coverage: $HIT/$TOTAL lines = ${PCT}%"
-          if [ "$PCT" -lt 90 ]; then
-            echo "FAIL: Coverage ${PCT}% < 90% minimum."
-            exit 1
-          fi
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5
+      - name: Enforce coverage
+        uses: ./.github/actions/enforce-coverage
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: packages/dart_monty_desktop/coverage/lcov.info
-          flags: dart_monty_desktop
+          package-path: packages/dart_monty_desktop
+          min-coverage: '90'
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+          codecov-flag: dart_monty_desktop
 
   test-web:
     name: Test (dart_monty_web)
