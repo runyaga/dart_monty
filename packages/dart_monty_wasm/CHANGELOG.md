@@ -1,5 +1,7 @@
 ## Unreleased
 
+## 0.4.0
+
 - Wire WASM JS bridge: kwargs, callId, scriptName, excType, and traceback in worker responses
 - Fix worker onerror to reject pending promises on crash
 - Fix `restore()` state machine to return active instance
