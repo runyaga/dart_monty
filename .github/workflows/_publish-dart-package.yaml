@@ -37,6 +37,7 @@ jobs:
     name: Publish ${{ inputs.package-name }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    environment: pub-dev
     permissions:
       id-token: write
     steps:
