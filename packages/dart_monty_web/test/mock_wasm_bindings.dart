@@ -153,6 +153,19 @@ class MockWasmBindings extends WasmBindings {
   }
 
   @override
+  Future<WasmProgressResult> resumeAsFuture() async {
+    throw UnsupportedError('WASM backend does not support resumeAsFuture');
+  }
+
+  @override
+  Future<WasmProgressResult> resolveFutures(
+    String resultsJson,
+    String errorsJson,
+  ) async {
+    throw UnsupportedError('WASM backend does not support resolveFutures');
+  }
+
+  @override
   Future<Uint8List> snapshot() async {
     snapshotCalls++;
     final snapshotError = nextSnapshotError;
