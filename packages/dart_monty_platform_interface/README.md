@@ -1,5 +1,9 @@
 # dart_monty_platform_interface
 
+Part of [dart_monty](https://github.com/runyaga/dart_monty) — Dart and Flutter bindings for [Monty](https://github.com/pydantic/monty), a Rust-built embeddable sandbox that runs a restricted subset of Python.
+
+[Documentation](https://runyaga.github.io/dart_monty/) | [GitHub](https://github.com/runyaga/dart_monty) | [Monty (upstream)](https://github.com/pydantic/monty)
+
 **Pure Dart** platform interface for dart_monty. Defines the shared API contract (`MontyPlatform`) implemented by native and web backends, along with common types like `MontyResult`, `MontyException`, and `MontyResourceUsage`.
 
 This package has no Flutter dependency and can be used in CLI tools, server-side Dart, or any Dart project.

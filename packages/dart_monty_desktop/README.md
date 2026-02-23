@@ -1,5 +1,9 @@
 # dart_monty_desktop
 
+Part of [dart_monty](https://github.com/runyaga/dart_monty) — Dart and Flutter bindings for [Monty](https://github.com/pydantic/monty), a Rust-built embeddable sandbox that runs a restricted subset of Python.
+
+[Documentation](https://runyaga.github.io/dart_monty/) | [GitHub](https://github.com/runyaga/dart_monty) | [Monty (upstream)](https://github.com/pydantic/monty)
+
 **Flutter plugin** — macOS and Linux desktop implementation of dart_monty using native FFI. Runs the Monty Python interpreter in a background Isolate for non-blocking execution from Flutter desktop apps.
 
 Requires Flutter. This package is not intended for direct use. Import `dart_monty` instead — the federated plugin system selects this package automatically on macOS and Linux.
