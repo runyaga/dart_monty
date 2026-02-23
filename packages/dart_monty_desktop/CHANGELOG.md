@@ -1,10 +1,6 @@
-## Unreleased
-
-- Thread `scriptName` parameter through `run()` and `start()`
-
 ## 0.3.5
 
-- Version bump for M6 milestone alignment
+- Thread `scriptName` parameter through `run()` and `start()`
 
 ## 0.3.4
 

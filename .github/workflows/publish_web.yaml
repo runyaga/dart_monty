@@ -1,0 +1,43 @@
+name: Publish web
+
+on:
+  push:
+    tags:
+      - 'web-v[0-9]*.[0-9]*.[0-9]*'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      id-token: write # Required for OIDC
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Install dependencies
+        working-directory: packages/dart_monty_web
+        run: flutter pub get
+
+      - name: Analyze
+        working-directory: packages/dart_monty_web
+        run: flutter analyze
+
+      - name: Verify version matches tag
+        working-directory: packages/dart_monty_web
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#web-v}"
+          PUBSPEC_VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //' | tr -d ' \r')
+          echo "Tag: $TAG_VERSION | Pubspec: $PUBSPEC_VERSION"
+          [ "$TAG_VERSION" = "$PUBSPEC_VERSION" ] || { echo "MISMATCH"; exit 1; }
+
+      - name: Dry run
+        working-directory: packages/dart_monty_web
+        run: dart pub publish --dry-run
+
+      - name: Publish
+        working-directory: packages/dart_monty_web
+        run: dart pub publish --force
