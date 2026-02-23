@@ -54,12 +54,22 @@ abstract class MontyPlatform extends PlatformInterface {
 
   /// Executes [code] and returns the result.
   ///
-  /// Optionally pass [inputs] as a map of variable bindings and [limits]
-  /// to constrain resource usage.
+  /// Optionally pass [inputs] as a map of variable bindings, [limits]
+  /// to constrain resource usage, and [scriptName] to identify the
+  /// script in error messages and tracebacks.
+  ///
+  /// ```dart
+  /// final result = await platform.run(
+  ///   'x + 1',
+  ///   inputs: {'x': 41},
+  ///   scriptName: 'math_helper.py',
+  /// );
+  /// ```
   Future<MontyResult> run(
     String code, {
     Map<String, Object?>? inputs,
     MontyLimits? limits,
+    String? scriptName,
   }) {
     throw UnimplementedError('run() has not been implemented.');
   }
@@ -69,11 +79,16 @@ abstract class MontyPlatform extends PlatformInterface {
   /// When the code calls an external function listed in
   /// [externalFunctions], execution pauses and returns a [MontyPending]
   /// progress. Use [resume] or [resumeWithError] to continue.
+  ///
+  /// Pass [scriptName] to identify this script in error tracebacks
+  /// and exception filename fields. Useful for multi-script pipelines
+  /// where each script needs distinct error attribution.
   Future<MontyProgress> start(
     String code, {
     Map<String, Object?>? inputs,
     List<String>? externalFunctions,
     MontyLimits? limits,
+    String? scriptName,
   }) {
     throw UnimplementedError('start() has not been implemented.');
   }

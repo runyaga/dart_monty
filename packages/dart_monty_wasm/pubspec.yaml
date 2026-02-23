@@ -19,3 +19,7 @@ dependencies:
 dev_dependencies:
   test: ^1.25.0
   very_good_analysis: ^10.0.0
+
+dependency_overrides:
+  dart_monty_platform_interface:
+    path: ../dart_monty_platform_interface

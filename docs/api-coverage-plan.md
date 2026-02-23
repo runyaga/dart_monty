@@ -20,7 +20,7 @@ The primary entry point for executing self-contained Python scripts.
 
 **Key methods:**
 
-```
+```rust
 MontyRun::new(code, script_name, input_names, external_functions) -> Result<Self, MontyException>
 MontyRun::run(&self, inputs, tracker, print) -> Result<MontyObject, MontyException>
 MontyRun::run_no_limits(&self, inputs) -> Result<MontyObject, MontyException>
@@ -66,7 +66,7 @@ Maintains persistent heap and namespace across multiple code snippets.
 
 **Key methods:**
 
-```
+```rust
 MontyRepl::new(code, script_name, inputs, ext_fns, ...) -> Result<(Self, MontyObject), MontyException>
 MontyRepl::start(self, code, print) -> Result<ReplProgress<T>, Box<ReplStartError<T>>>
 MontyRepl::feed(&mut self, code, print) -> Result<MontyObject, MontyException>
@@ -98,7 +98,7 @@ Cooperative multitasking where the host acts as the event loop.
 
 **Key methods:**
 
-```
+```rust
 FutureSnapshot::pending_call_ids(&self) -> &[u32]
 FutureSnapshot::resume(self, results: Vec<(u32, ExternalResult)>, print) -> Result<RunProgress<T>>
 
@@ -122,7 +122,7 @@ tasks are blocked -> host resolves futures -> VM resumes.
 
 **Additional public methods:**
 
-```
+```rust
 LimitedTracker::set_max_duration(&mut self, duration: Duration)  // re-arm time limit between phases
 ResourceTracker::check_large_result(&self, estimated_bytes) -> Result<(), ResourceError>
 ```
@@ -167,7 +167,7 @@ ResourceTracker::check_large_result(&self, estimated_bytes) -> Result<(), Resour
 
 **MontyException:**
 
-```
+```rust
 MontyException::exc_type(&self) -> ExcType
 MontyException::message(&self) -> Option<&str>
 MontyException::traceback(&self) -> &[StackFrame]
@@ -270,7 +270,7 @@ Type constructors: `bool`, `bytearray`, `bytes`, `complex`, `dict`,
 
 ### 2.4 Native C FFI Functions (17 functions)
 
-```
+```text
 monty_create, monty_free, monty_run,
 monty_start, monty_resume, monty_resume_with_error,
 monty_pending_fn_name, monty_pending_fn_args_json,
@@ -385,34 +385,34 @@ These unlock the most important use cases and affect existing API quality.
 
 These add entirely new capabilities.
 
-7. **REPL API** — `MontyRepl` class with `feed()`, session state
+1. **REPL API** — `MontyRepl` class with `feed()`, session state
    persistence, snapshot/restore. Requires: New C FFI functions, new
    JS bridge class, new Dart `MontyRepl` class in platform interface.
 
-8. **Async / Futures** — Support `ExternalResult::Future`,
+2. **Async / Futures** — Support `ExternalResult::Future`,
    `FutureSnapshot`, `ResolveFutures`. Requires: New progress variant,
    new C FFI functions, cooperative resume protocol. Depends on
    call_id support (Tier 1 item 6).
 
-9. **OS Calls** — Handle `RunProgress::OsCall` for `os.environ`,
+3. **OS Calls** — Handle `RunProgress::OsCall` for `os.environ`,
    `os.getenv`, `stat`, `dir_stat`, `file_stat`, `symlink_stat`.
    Requires: New progress variant or automatic host-side resolution.
 
-10. **Progress serialization** — Expose `RunProgress::dump/load` and
-    `ReplProgress::dump/load` for suspending/resuming in-flight
-    execution across process boundaries.
+4. **Progress serialization** — Expose `RunProgress::dump/load` and
+   `ReplProgress::dump/load` for suspending/resuming in-flight
+   execution across process boundaries.
 
 ### Tier 3 — Nice to Have
 
-11. **Type checking** — Expose static type checking (upstream JS:
-    `Monty.typeCheck(prefixCode?)`, Rust: `monty-type-checking` crate).
+1. **Type checking** — Expose static type checking (upstream JS:
+   `Monty.typeCheck(prefixCode?)`, Rust: `monty-type-checking` crate).
 
-12. **Rich MontyObject types** — Preserve `NamedTuple`, `Dataclass`,
-    `Set`, `FrozenSet`, `Tuple`, `Bytes`, `Path` type identity through
-    the JSON bridge using upstream `$tuple`/`$bytes`/`$set` tags.
+2. **Rich MontyObject types** — Preserve `NamedTuple`, `Dataclass`,
+   `Set`, `FrozenSet`, `Tuple`, `Bytes`, `Path` type identity through
+   the JSON bridge using upstream `$tuple`/`$bytes`/`$set` tags.
 
-13. **Resource limit completeness** — Expose `max_allocations`,
-    `gc_interval`, and `set_max_duration` for re-arming between phases.
+3. **Resource limit completeness** — Expose `max_allocations`,
+   `gc_interval`, and `set_max_duration` for re-arming between phases.
 
-14. **run_no_limits fast path** — Skip tracker setup for unconstrained
-    execution using `NoLimitTracker` (still enforces recursion depth 1000).
+4. **run_no_limits fast path** — Skip tracker setup for unconstrained
+   execution using `NoLimitTracker` (still enforces recursion depth 1000).

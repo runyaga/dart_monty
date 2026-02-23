@@ -61,6 +61,9 @@ class MockMontyPlatform extends MontyPlatform {
   /// Limits passed to [run], in call order.
   final List<MontyLimits?> runLimitsList = [];
 
+  /// Script names passed to [run], in call order.
+  final List<String?> runScriptNamesList = [];
+
   /// Codes passed to [start], in call order.
   final List<String> startCodes = [];
 
@@ -72,6 +75,9 @@ class MockMontyPlatform extends MontyPlatform {
 
   /// Limits passed to [start], in call order.
   final List<MontyLimits?> startLimitsList = [];
+
+  /// Script names passed to [start], in call order.
+  final List<String?> startScriptNamesList = [];
 
   /// Return values passed to [resume], in call order.
   final List<Object?> resumeReturnValues = [];
@@ -99,6 +105,10 @@ class MockMontyPlatform extends MontyPlatform {
   MontyLimits? get lastRunLimits =>
       runLimitsList.isEmpty ? null : runLimitsList.last;
 
+  /// The script name passed to the most recent [run] call.
+  String? get lastRunScriptName =>
+      runScriptNamesList.isEmpty ? null : runScriptNamesList.last;
+
   /// The code passed to the most recent [start] call.
   String? get lastStartCode => startCodes.isEmpty ? null : startCodes.last;
 
@@ -115,6 +125,10 @@ class MockMontyPlatform extends MontyPlatform {
   /// The limits passed to the most recent [start] call.
   MontyLimits? get lastStartLimits =>
       startLimitsList.isEmpty ? null : startLimitsList.last;
+
+  /// The script name passed to the most recent [start] call.
+  String? get lastStartScriptName =>
+      startScriptNamesList.isEmpty ? null : startScriptNamesList.last;
 
   /// The return value passed to the most recent [resume] call.
   Object? get lastResumeReturnValue =>
@@ -139,6 +153,7 @@ class MockMontyPlatform extends MontyPlatform {
     String code, {
     Map<String, Object?>? inputs,
     MontyLimits? limits,
+    String? scriptName,
   }) async {
     final result = runResult;
     if (result == null) {
@@ -149,6 +164,7 @@ class MockMontyPlatform extends MontyPlatform {
     runCodes.add(code);
     runInputsList.add(inputs);
     runLimitsList.add(limits);
+    runScriptNamesList.add(scriptName);
 
     return result;
   }
@@ -159,11 +175,13 @@ class MockMontyPlatform extends MontyPlatform {
     Map<String, Object?>? inputs,
     List<String>? externalFunctions,
     MontyLimits? limits,
+    String? scriptName,
   }) async {
     startCodes.add(code);
     startInputsList.add(inputs);
     startExternalFunctionsList.add(externalFunctions);
     startLimitsList.add(limits);
+    startScriptNamesList.add(scriptName);
 
     return _dequeueProgress();
   }

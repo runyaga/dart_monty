@@ -24,15 +24,25 @@ class NativeBindingsFfi extends NativeBindings {
   final DartMontyBindings _lib;
 
   @override
-  int create(String code, {String? externalFunctions}) {
+  int create(
+    String code, {
+    String? externalFunctions,
+    String? scriptName,
+  }) {
     final cCode = code.toNativeUtf8().cast<Char>();
     final cExtFns = externalFunctions != null
         ? externalFunctions.toNativeUtf8().cast<Char>()
+        : nullptr.cast<Char>();
+    final cScriptName = scriptName != null
+        ? scriptName.toNativeUtf8().cast<Char>()
         : nullptr.cast<Char>();
     final outError = calloc<Pointer<Char>>();
 
     try {
       final handle = _lib.monty_create(cCode, cExtFns, outError);
+      // TODO(m7a): Pass scriptName to monty_create once Rust API supports it.
+      // For now, scriptName is accepted at the Dart API level but not yet
+      // forwarded to the C layer.
       if (handle == nullptr) {
         final errorMsg = _readAndFreeString(outError.value);
         throw StateError(errorMsg ?? 'monty_create returned null');
@@ -42,6 +52,7 @@ class NativeBindingsFfi extends NativeBindings {
     } finally {
       calloc.free(cCode);
       if (externalFunctions != null) calloc.free(cExtFns);
+      if (scriptName != null) calloc.free(cScriptName);
       calloc.free(outError);
     }
   }

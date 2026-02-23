@@ -55,6 +55,7 @@ class MontyWasm extends MontyPlatform {
     String code, {
     Map<String, Object?>? inputs,
     MontyLimits? limits,
+    String? scriptName,
   }) async {
     _assertNotDisposed('run');
     _assertIdle('run');
@@ -62,7 +63,11 @@ class MontyWasm extends MontyPlatform {
     await _ensureInitialized();
 
     final limitsJson = _encodeLimits(limits);
-    final result = await _bindings.run(code, limitsJson: limitsJson);
+    final result = await _bindings.run(
+      code,
+      limitsJson: limitsJson,
+      scriptName: scriptName,
+    );
 
     return _translateRunResult(result);
   }
@@ -73,6 +78,7 @@ class MontyWasm extends MontyPlatform {
     Map<String, Object?>? inputs,
     List<String>? externalFunctions,
     MontyLimits? limits,
+    String? scriptName,
   }) async {
     _assertNotDisposed('start');
     _assertIdle('start');
@@ -88,6 +94,7 @@ class MontyWasm extends MontyPlatform {
       code,
       extFnsJson: extFnsJson,
       limitsJson: limitsJson,
+      scriptName: scriptName,
     );
 
     return _translateProgress(progress);
@@ -185,6 +192,9 @@ class MontyWasm extends MontyPlatform {
         return MontyPending(
           functionName: progress.functionName ?? '',
           arguments: progress.arguments ?? const [],
+          kwargs: progress.kwargs,
+          callId: progress.callId ?? 0,
+          methodCall: progress.methodCall ?? false,
         );
 
       default:

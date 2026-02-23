@@ -25,6 +25,33 @@ void main() {
       expect(exception.lineNumber, isNull);
       expect(exception.columnNumber, isNull);
       expect(exception.sourceCode, isNull);
+      expect(exception.excType, isNull);
+      expect(exception.traceback, isEmpty);
+    });
+
+    test('constructs with excType and traceback', () {
+      const exception = MontyException(
+        message: 'invalid literal',
+        excType: 'ValueError',
+        traceback: [
+          MontyStackFrame(
+            filename: 'main.py',
+            startLine: 5,
+            startColumn: 0,
+            frameName: '<module>',
+          ),
+          MontyStackFrame(
+            filename: 'main.py',
+            startLine: 2,
+            startColumn: 4,
+            frameName: 'parse',
+          ),
+        ],
+      );
+      expect(exception.excType, 'ValueError');
+      expect(exception.traceback, hasLength(2));
+      expect(exception.traceback[0].frameName, '<module>');
+      expect(exception.traceback[1].frameName, 'parse');
     });
 
     test('implements Exception', () {
@@ -57,6 +84,84 @@ void main() {
         expect(exception.lineNumber, isNull);
         expect(exception.columnNumber, isNull);
         expect(exception.sourceCode, isNull);
+        expect(exception.excType, isNull);
+        expect(exception.traceback, isEmpty);
+      });
+
+      test('parses JSON with excType', () {
+        final exception = MontyException.fromJson(const {
+          'message': 'division by zero',
+          'exc_type': 'ZeroDivisionError',
+        });
+        expect(exception.excType, 'ZeroDivisionError');
+        expect(exception.message, 'division by zero');
+      });
+
+      test('parses JSON with traceback', () {
+        final exception = MontyException.fromJson(const {
+          'message': 'name x is not defined',
+          'exc_type': 'NameError',
+          'traceback': [
+            {
+              'filename': 'script.py',
+              'start_line': 1,
+              'start_column': 0,
+              'frame_name': '<module>',
+            },
+          ],
+        });
+        expect(exception.excType, 'NameError');
+        expect(exception.traceback, hasLength(1));
+        expect(exception.traceback[0].filename, 'script.py');
+        expect(exception.traceback[0].frameName, '<module>');
+      });
+
+      test('parses JSON with empty traceback', () {
+        final exception = MontyException.fromJson(const {
+          'message': 'error',
+          'traceback': <dynamic>[],
+        });
+        expect(exception.traceback, isEmpty);
+      });
+
+      test('parses JSON with null traceback', () {
+        final exception = MontyException.fromJson(const {
+          'message': 'error',
+          'traceback': null,
+        });
+        expect(exception.traceback, isEmpty);
+      });
+
+      test('parses JSON with multi-frame traceback', () {
+        final exception = MontyException.fromJson(const {
+          'message': 'oops',
+          'exc_type': 'RuntimeError',
+          'traceback': [
+            {
+              'filename': 'main.py',
+              'start_line': 10,
+              'start_column': 0,
+              'frame_name': '<module>',
+            },
+            {
+              'filename': 'main.py',
+              'start_line': 5,
+              'start_column': 4,
+              'frame_name': 'outer',
+              'preview_line': '    inner()',
+            },
+            {
+              'filename': 'main.py',
+              'start_line': 2,
+              'start_column': 8,
+              'frame_name': 'inner',
+              'preview_line': '        raise RuntimeError("oops")',
+              'hide_caret': true,
+            },
+          ],
+        });
+        expect(exception.traceback, hasLength(3));
+        expect(exception.traceback[2].hideCaret, isTrue);
       });
     });
 
@@ -82,6 +187,38 @@ void main() {
         const exception = MontyException(message: 'error');
         expect(exception.toJson(), {'message': 'error'});
       });
+
+      test('serializes excType', () {
+        const exception = MontyException(
+          message: 'bad',
+          excType: 'ValueError',
+        );
+        final json = exception.toJson();
+        expect(json['exc_type'], 'ValueError');
+      });
+
+      test('serializes traceback', () {
+        const exception = MontyException(
+          message: 'err',
+          traceback: [
+            MontyStackFrame(
+              filename: 'a.py',
+              startLine: 1,
+              startColumn: 0,
+            ),
+          ],
+        );
+        final json = exception.toJson();
+        expect(json['traceback'], isA<List<dynamic>>());
+        final frames = json['traceback'] as List<dynamic>;
+        expect(frames, hasLength(1));
+      });
+
+      test('omits empty traceback', () {
+        const exception = MontyException(message: 'err');
+        final json = exception.toJson();
+        expect(json.containsKey('traceback'), isFalse);
+      });
     });
 
     test('JSON round-trip', () {
@@ -91,6 +228,32 @@ void main() {
         lineNumber: 42,
         columnNumber: 8,
         sourceCode: 'int("abc")',
+      );
+      final restored = MontyException.fromJson(original.toJson());
+      expect(restored, original);
+    });
+
+    test('JSON round-trip with excType and traceback', () {
+      const original = MontyException(
+        message: 'invalid literal',
+        excType: 'ValueError',
+        filename: 'script.py',
+        lineNumber: 3,
+        traceback: [
+          MontyStackFrame(
+            filename: 'script.py',
+            startLine: 1,
+            startColumn: 0,
+            frameName: '<module>',
+          ),
+          MontyStackFrame(
+            filename: 'script.py',
+            startLine: 3,
+            startColumn: 4,
+            frameName: 'parse',
+            previewLine: '    int("abc")',
+          ),
+        ],
       );
       final restored = MontyException.fromJson(original.toJson());
       expect(restored, original);
@@ -134,6 +297,69 @@ void main() {
         expect(a, isNot(b));
       });
 
+      test('not equal when excType differs', () {
+        const a = MontyException(
+          message: 'err',
+          excType: 'ValueError',
+        );
+        const b = MontyException(
+          message: 'err',
+          excType: 'TypeError',
+        );
+        expect(a, isNot(b));
+      });
+
+      test('not equal when traceback differs', () {
+        const a = MontyException(
+          message: 'err',
+          traceback: [
+            MontyStackFrame(
+              filename: 'a.py',
+              startLine: 1,
+              startColumn: 0,
+            ),
+          ],
+        );
+        const b = MontyException(
+          message: 'err',
+          traceback: [
+            MontyStackFrame(
+              filename: 'b.py',
+              startLine: 1,
+              startColumn: 0,
+            ),
+          ],
+        );
+        expect(a, isNot(b));
+      });
+
+      test('equal with same traceback', () {
+        const a = MontyException(
+          message: 'err',
+          excType: 'ValueError',
+          traceback: [
+            MontyStackFrame(
+              filename: 'a.py',
+              startLine: 1,
+              startColumn: 0,
+            ),
+          ],
+        );
+        const b = MontyException(
+          message: 'err',
+          excType: 'ValueError',
+          traceback: [
+            MontyStackFrame(
+              filename: 'a.py',
+              startLine: 1,
+              startColumn: 0,
+            ),
+          ],
+        );
+        expect(a, b);
+        expect(a.hashCode, b.hashCode);
+      });
+
       test('not equal to other types', () {
         const exception = MontyException(message: 'err');
         expect(exception, isNot('err'));
@@ -151,12 +377,36 @@ void main() {
         expect(exception.toString(), 'MontyException: boom');
       });
 
+      test('with excType', () {
+        const exception = MontyException(
+          message: 'division by zero',
+          excType: 'ZeroDivisionError',
+        );
+        expect(
+          exception.toString(),
+          'MontyException: ZeroDivisionError: division by zero',
+        );
+      });
+
       test('with filename', () {
         const exception = MontyException(
           message: 'err',
           filename: 'main.py',
         );
         expect(exception.toString(), 'MontyException: err (main.py)');
+      });
+
+      test('with excType and filename', () {
+        const exception = MontyException(
+          message: 'err',
+          excType: 'ValueError',
+          filename: 'main.py',
+          lineNumber: 5,
+        );
+        expect(
+          exception.toString(),
+          'MontyException: ValueError: err (main.py:5)',
+        );
       });
 
       test('with filename and line', () {

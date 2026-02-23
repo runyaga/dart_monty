@@ -53,13 +53,18 @@ class MontyDesktop extends MontyPlatform {
     String code, {
     Map<String, Object?>? inputs,
     MontyLimits? limits,
+    String? scriptName,
   }) async {
     _assertNotDisposed('run');
     _assertIdle('run');
     _rejectInputs(inputs);
     await _ensureInitialized();
 
-    final result = await _bindings.run(code, limits: limits);
+    final result = await _bindings.run(
+      code,
+      limits: limits,
+      scriptName: scriptName,
+    );
     return result.result;
   }
 
@@ -69,6 +74,7 @@ class MontyDesktop extends MontyPlatform {
     Map<String, Object?>? inputs,
     List<String>? externalFunctions,
     MontyLimits? limits,
+    String? scriptName,
   }) async {
     _assertNotDisposed('start');
     _assertIdle('start');
@@ -79,6 +85,7 @@ class MontyDesktop extends MontyPlatform {
       code,
       externalFunctions: externalFunctions,
       limits: limits,
+      scriptName: scriptName,
     );
     return _handleProgress(progress.progress);
   }
