@@ -702,7 +702,7 @@ updated — the CI should catch this.
 
 ### Fixture Progression Model
 
-```
+```text
 Feature not started:  xfail → test SKIPs (expected failure)
 Feature in progress:  xfail → some tests may XPASS (remove xfail for those)
 Feature complete:     no xfail → all tests PASS

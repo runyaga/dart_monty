@@ -12,6 +12,17 @@ MIN_COVERAGE=90
 
 cd "$(git rev-parse --show-toplevel)"
 
+echo "=== Markdown lint ==="
+if command -v pymarkdown &> /dev/null; then
+  pymarkdown \
+    --set "extensions.front-matter.enabled=\$!True" \
+    --disable-rules MD013,MD024,MD033,MD036,MD041,MD060 \
+    scan docs/*.md docs/**/*.md
+  echo "Markdown lint PASSED"
+else
+  echo "SKIP: pymarkdown not installed (pip install pymarkdownlnt)"
+fi
+
 echo "=== M1 Gate: $PKG ==="
 
 echo "--- dart pub get ---"

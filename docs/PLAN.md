@@ -75,7 +75,7 @@ hardened. M10 validates the complete, final API surface.
 
 ## Dependency Graph
 
-```
+```text
 M7A (Data Model Fidelity)
  ├── M13 (Async/Futures) ← REQUIRES M7A call_id
  ├── M8 (Rich Type Bridge) ← benefits from stable models
@@ -98,6 +98,7 @@ If shipping only 3-4 milestones before release:
 **Must-ship:** M7A + M13 + M8
 
 This gives agents:
+
 - kwargs on tool calls (M7A)
 - Concurrent async tool execution (M13)
 - Structured data round-trips (M8)

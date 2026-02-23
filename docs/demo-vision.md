@@ -203,7 +203,7 @@ Both ladder runners (native CLI and Dart web) execute the same
 fixtures and produce JSONL output. The parity diff tool
 (`tool/test_cross_path_parity.sh`) compares them field by field.
 
-```
+```text
 Native: 125 fixtures, 125 pass, 0 fail
 Web:    125 fixtures, 125 pass, 0 fail
 Parity: 125/125 identical results ✓
