@@ -1,0 +1,66 @@
+name: Enforce Dart coverage
+description: Check lcov coverage meets minimum threshold and upload to Codecov
+
+inputs:
+  package-path:
+    description: Path to the package directory (e.g. packages/dart_monty_ffi)
+    required: true
+  min-coverage:
+    description: Minimum coverage percentage (integer)
+    required: false
+    default: '90'
+  lcov-file:
+    description: Path to lcov.info relative to package-path
+    required: false
+    default: coverage/lcov.info
+  needs-format:
+    description: Whether to run coverage:format_coverage first (dart test --coverage output)
+    required: false
+    default: 'false'
+  codecov-token:
+    description: Codecov upload token
+    required: false
+    default: ''
+  codecov-flag:
+    description: Codecov flag name
+    required: false
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - name: Format coverage
+      if: inputs.needs-format == 'true'
+      shell: bash
+      working-directory: ${{ inputs.package-path }}
+      run: |
+        dart pub global activate coverage
+        dart pub global run coverage:format_coverage \
+          --lcov --in=coverage --out=coverage/lcov.info --report-on=lib
+
+    - name: Check coverage threshold
+      shell: bash
+      working-directory: ${{ inputs.package-path }}
+      run: |
+        LCOV="${{ inputs.lcov-file }}"
+        MIN="${{ inputs.min-coverage }}"
+        TOTAL=$(grep -c '^DA:' "$LCOV" || true)
+        HIT=$(grep '^DA:' "$LCOV" | grep -cv ',0$' || true)
+        if [ "$TOTAL" -eq 0 ]; then
+          echo "ERROR: No coverage data found in $LCOV"
+          exit 1
+        fi
+        PCT=$(( HIT * 100 / TOTAL ))
+        echo "Coverage: $HIT/$TOTAL lines = ${PCT}%"
+        if [ "$PCT" -lt "$MIN" ]; then
+          echo "FAIL: Coverage ${PCT}% < ${MIN}% minimum."
+          exit 1
+        fi
+
+    - name: Upload coverage to Codecov
+      if: inputs.codecov-token != ''
+      uses: codecov/codecov-action@v5
+      with:
+        token: ${{ inputs.codecov-token }}
+        files: ${{ inputs.package-path }}/${{ inputs.lcov-file }}
+        flags: ${{ inputs.codecov-flag }}
