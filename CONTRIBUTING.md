@@ -185,10 +185,17 @@ git push origin web-v<version> desktop-v<version>
 # 4. dart_monty root (depends on web + desktop)
 git tag dart_monty-v<version>
 git push origin dart_monty-v<version>
+# Wait for workflow to complete
+
+# 5. GitHub Release (builds native + web artifacts)
+git tag v<version>
+git push origin v<version>
 ```
 
-Each workflow runs: install deps → generate bindings (ffi only) → analyze →
-test → verify tag matches pubspec → dry-run → publish.
+Steps 1–4 publish to **pub.dev** via per-package OIDC workflows.
+Step 5 triggers `release.yaml` which builds native binaries (Linux + macOS),
+a web bundle, and creates a **GitHub Release** at
+`https://github.com/runyaga/dart_monty/releases` with all artifacts attached.
 
 ### Post-release verification
 
@@ -200,8 +207,12 @@ test → verify tag matches pubspec → dry-run → publish.
        "import sys,json; print(json.load(sys.stdin)['latest']['version'])")"
    done
    ```
-2. **Check GitHub Actions** — all 6 publish workflows should show green
-3. **Test downstream** — create a fresh project and add `dart_monty` as a
+2. **Check GitHub Actions** — all 6 publish workflows + release workflow should
+   show green
+3. **Check GitHub Release** — verify
+   `https://github.com/runyaga/dart_monty/releases` shows the new version with
+   native (linux-x64, macos-x64) and web artifacts attached
+4. **Test downstream** — create a fresh project and add `dart_monty` as a
    dependency to verify the published packages resolve correctly:
    ```bash
    dart create test_install && cd test_install
