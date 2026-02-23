@@ -23,6 +23,8 @@ dev_dependencies:
   very_good_analysis: ^10.0.0
 
 dependency_overrides:
+  dart_monty_desktop:
+    path: ../../packages/dart_monty_desktop
   dart_monty_ffi:
     path: ../../packages/dart_monty_ffi
   dart_monty_platform_interface:
