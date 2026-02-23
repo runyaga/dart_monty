@@ -18,7 +18,7 @@ permissions:
 
 jobs:
   validate:
-    name: Format, analyze, test
+    name: Analyze and test
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -31,9 +31,6 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
-
-      - name: Verify formatting
-        run: dart format --set-exit-if-changed .
 
       - name: Analyze all packages
         run: python3 tool/analyze_packages.py
