@@ -17,6 +17,7 @@ import {
 
 let activeSnapshot = null;
 let activeMonty = null;
+let callIdCounter = 0;
 
 // Signal ready
 self.postMessage({
@@ -24,13 +25,39 @@ self.postMessage({
   exports: ['Monty', 'MontySnapshot', 'MontyComplete'],
 });
 
+/**
+ * Convert a JS Frame object to the snake_case JSON that Dart expects.
+ */
+function frameToJson(f) {
+  const obj = {
+    filename: f.filename,
+    start_line: f.line,
+    start_column: f.column,
+    end_line: f.endLine,
+    end_column: f.endColumn,
+  };
+  if (f.functionName != null) obj.frame_name = f.functionName;
+  if (f.sourceLine != null) obj.preview_line = f.sourceLine;
+  return obj;
+}
+
 function formatError(e) {
   if (e instanceof MontyException) {
     const ex = e.exception || e;
-    return {
+    const result = {
       error: ex.message || String(e),
       errorType: ex.typeName || 'MontyException',
+      excType: ex.typeName || null,
     };
+    try {
+      const frames = e.traceback();
+      if (frames && frames.length > 0) {
+        result.traceback = frames.map(frameToJson);
+      }
+    } catch (_) {
+      // traceback() may fail for some error types
+    }
+    return result;
   }
   if (e instanceof MontyTypingError) {
     return { error: e.message || String(e), errorType: 'MontyTypingError' };
@@ -62,9 +89,10 @@ function translateLimits(limits) {
   return opts;
 }
 
-function handleRun(id, code, limits) {
+function handleRun(id, code, limits, scriptName) {
   try {
     const opts = translateLimits(limits);
+    if (scriptName) opts.scriptName = scriptName;
     const m = Monty.create(code, opts);
     if (m instanceof MontyException || m instanceof MontyTypingError) {
       self.postMessage({ type: 'result', id, ok: false, ...formatError(m) });
@@ -81,9 +109,11 @@ function handleRun(id, code, limits) {
   }
 }
 
-function handleStart(id, code, extFns, limits) {
+function handleStart(id, code, extFns, limits, scriptName) {
   try {
+    callIdCounter = 0;
     const opts = translateLimits(limits);
+    if (scriptName) opts.scriptName = scriptName;
     if (extFns && extFns.length > 0) {
       opts.externalFunctions = extFns;
     }
@@ -101,6 +131,7 @@ function handleStart(id, code, extFns, limits) {
     }
 
     if (progress instanceof MontySnapshot) {
+      callIdCounter++;
       activeSnapshot = progress;
       self.postMessage({
         type: 'result',
@@ -109,6 +140,8 @@ function handleStart(id, code, extFns, limits) {
         state: 'pending',
         functionName: progress.functionName,
         args: progress.args,
+        kwargs: progress.kwargs,
+        callId: callIdCounter,
       });
     } else {
       activeSnapshot = null;
@@ -149,6 +182,7 @@ function handleResume(id, value) {
     }
 
     if (progress instanceof MontySnapshot) {
+      callIdCounter++;
       activeSnapshot = progress;
       self.postMessage({
         type: 'result',
@@ -157,6 +191,8 @@ function handleResume(id, value) {
         state: 'pending',
         functionName: progress.functionName,
         args: progress.args,
+        kwargs: progress.kwargs,
+        callId: callIdCounter,
       });
     } else {
       activeSnapshot = null;
@@ -199,6 +235,7 @@ function handleResumeWithError(id, errorMessage) {
     }
 
     if (progress instanceof MontySnapshot) {
+      callIdCounter++;
       activeSnapshot = progress;
       self.postMessage({
         type: 'result',
@@ -207,6 +244,8 @@ function handleResumeWithError(id, errorMessage) {
         state: 'pending',
         functionName: progress.functionName,
         args: progress.args,
+        kwargs: progress.kwargs,
+        callId: callIdCounter,
       });
     } else {
       activeSnapshot = null;
@@ -278,13 +317,13 @@ function handleDispose(id) {
 }
 
 self.onmessage = (e) => {
-  const { type, id, code, extFns, value, errorMessage, limits, dataBase64 } = e.data;
+  const { type, id, code, extFns, value, errorMessage, limits, dataBase64, scriptName } = e.data;
   switch (type) {
     case 'run':
-      handleRun(id, code, limits);
+      handleRun(id, code, limits, scriptName);
       break;
     case 'start':
-      handleStart(id, code, extFns, limits);
+      handleStart(id, code, extFns, limits, scriptName);
       break;
     case 'resume':
       handleResume(id, value);

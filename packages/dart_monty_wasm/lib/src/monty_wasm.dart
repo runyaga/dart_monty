@@ -166,13 +166,21 @@ class MontyWasm extends MontyPlatform {
         usage: _syntheticUsage,
       );
     }
-    throw MontyException(message: result.error ?? 'Unknown error');
+    throw MontyException(
+      message: result.error ?? 'Unknown error',
+      excType: result.excType,
+      traceback: _parseTraceback(result.traceback),
+    );
   }
 
   MontyProgress _translateProgress(WasmProgressResult progress) {
     if (!progress.ok) {
       _state = _State.idle;
-      throw MontyException(message: progress.error ?? 'Unknown error');
+      throw MontyException(
+        message: progress.error ?? 'Unknown error',
+        excType: progress.excType,
+        traceback: _parseTraceback(progress.traceback),
+      );
     }
 
     switch (progress.state) {
@@ -251,5 +259,11 @@ class MontyWasm extends MontyPlatform {
     if (map.isEmpty) return null;
 
     return json.encode(map);
+  }
+
+  List<MontyStackFrame> _parseTraceback(List<dynamic>? raw) {
+    if (raw == null || raw.isEmpty) return const [];
+
+    return MontyStackFrame.listFromJson(raw);
   }
 }

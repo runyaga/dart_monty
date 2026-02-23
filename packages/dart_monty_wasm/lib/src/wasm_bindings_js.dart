@@ -12,13 +12,18 @@ import 'package:dart_monty_wasm/src/wasm_bindings.dart';
 external JSPromise<JSBoolean> _jsInit();
 
 @JS('DartMontyBridge.run')
-external JSPromise<JSString> _jsRun(JSString code, [JSString? limitsJson]);
+external JSPromise<JSString> _jsRun(
+  JSString code, [
+  JSString? limitsJson,
+  JSString? scriptName,
+]);
 
 @JS('DartMontyBridge.start')
 external JSPromise<JSString> _jsStart(
   JSString code, [
   JSString? extFnsJson,
   JSString? limitsJson,
+  JSString? scriptName,
 ]);
 
 @JS('DartMontyBridge.resume')
@@ -60,18 +65,21 @@ class WasmBindingsJs extends WasmBindings {
     String? limitsJson,
     String? scriptName,
   }) async {
-    // TODO(m7a): Pass scriptName to JS bridge once worker supports it.
     final resultJson = await _jsRun(
       code.toJS,
       limitsJson?.toJS,
+      scriptName?.toJS,
     ).toDart;
     final map = json.decode(resultJson.toDart) as Map<String, dynamic>;
+    final rawTraceback = map['traceback'] as List<dynamic>?;
 
     return WasmRunResult(
       ok: map['ok'] as bool,
       value: map['value'],
       error: map['error'] as String?,
       errorType: map['errorType'] as String?,
+      excType: map['excType'] as String?,
+      traceback: rawTraceback,
     );
   }
 
@@ -82,11 +90,11 @@ class WasmBindingsJs extends WasmBindings {
     String? limitsJson,
     String? scriptName,
   }) async {
-    // TODO(m7a): Pass scriptName to JS bridge once worker supports it.
     final resultJson = await _jsStart(
       code.toJS,
       extFnsJson?.toJS,
       limitsJson?.toJS,
+      scriptName?.toJS,
     ).toDart;
 
     return _decodeProgress(resultJson.toDart);

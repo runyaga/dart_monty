@@ -892,4 +892,158 @@ void main() {
       expect(decoded.containsKey('stack_depth'), isFalse);
     });
   });
+
+  // ===========================================================================
+  // kwargs, callId, methodCall, scriptName, excType, traceback
+  // ===========================================================================
+  group('data model fidelity', () {
+    test('start() returns MontyPending with kwargs', () async {
+      mock.nextStartResult = const WasmProgressResult(
+        ok: true,
+        state: 'pending',
+        functionName: 'fetch',
+        arguments: ['url'],
+        kwargs: {'timeout': 30, 'retries': 3},
+      );
+
+      final progress = await monty.start(
+        'fetch("url", timeout=30, retries=3)',
+        externalFunctions: ['fetch'],
+      );
+
+      final pending = progress as MontyPending;
+      expect(pending.kwargs, {'timeout': 30, 'retries': 3});
+    });
+
+    test('start() returns MontyPending with callId and methodCall', () async {
+      mock.nextStartResult = const WasmProgressResult(
+        ok: true,
+        state: 'pending',
+        functionName: 'fetch',
+        arguments: [],
+        callId: 42,
+        methodCall: true,
+      );
+
+      final progress = await monty.start(
+        'x',
+        externalFunctions: ['fetch'],
+      );
+
+      final pending = progress as MontyPending;
+      expect(pending.callId, 42);
+      expect(pending.methodCall, isTrue);
+    });
+
+    test('start() defaults kwargs/callId/methodCall when absent', () async {
+      mock.nextStartResult = const WasmProgressResult(
+        ok: true,
+        state: 'pending',
+        functionName: 'f',
+      );
+
+      final progress = await monty.start(
+        'x',
+        externalFunctions: ['f'],
+      );
+
+      final pending = progress as MontyPending;
+      expect(pending.kwargs, isNull);
+      expect(pending.callId, 0);
+      expect(pending.methodCall, isFalse);
+    });
+
+    test('run() passes scriptName to bindings', () async {
+      mock.nextRunResult = const WasmRunResult(ok: true, value: 1);
+
+      await monty.run('1', scriptName: 'my_script.py');
+
+      expect(mock.runCalls.first.scriptName, 'my_script.py');
+    });
+
+    test('start() passes scriptName to bindings', () async {
+      mock.nextStartResult = const WasmProgressResult(
+        ok: true,
+        state: 'complete',
+      );
+
+      await monty.start('x', scriptName: 'pipeline.py');
+
+      expect(mock.startCalls.first.scriptName, 'pipeline.py');
+    });
+
+    test('run() error includes excType and traceback', () async {
+      mock.nextRunResult = const WasmRunResult(
+        ok: false,
+        error: 'division by zero',
+        errorType: 'ZeroDivisionError',
+        excType: 'ZeroDivisionError',
+        traceback: [
+          {
+            'filename': '<input>',
+            'start_line': 1,
+            'start_column': 0,
+            'end_line': 1,
+            'end_column': 3,
+            'frame_name': '<module>',
+            'preview_line': '1/0',
+          },
+        ],
+      );
+
+      try {
+        await monty.run('1/0');
+        fail('Expected MontyException');
+      } on MontyException catch (e) {
+        expect(e.excType, 'ZeroDivisionError');
+        expect(e.traceback, hasLength(1));
+        expect(e.traceback.first.filename, '<input>');
+        expect(e.traceback.first.startLine, 1);
+        expect(e.traceback.first.frameName, '<module>');
+        expect(e.traceback.first.previewLine, '1/0');
+      }
+    });
+
+    test('start() error includes excType and traceback', () async {
+      mock.nextStartResult = const WasmProgressResult(
+        ok: false,
+        error: 'name error',
+        errorType: 'NameError',
+        excType: 'NameError',
+        traceback: [
+          {
+            'filename': 'test.py',
+            'start_line': 5,
+            'start_column': 2,
+          },
+        ],
+      );
+
+      try {
+        await monty.start('x');
+        fail('Expected MontyException');
+      } on MontyException catch (e) {
+        expect(e.excType, 'NameError');
+        expect(e.traceback, hasLength(1));
+        expect(e.traceback.first.filename, 'test.py');
+        expect(e.traceback.first.startLine, 5);
+      }
+    });
+
+    test('error with null traceback defaults to empty list', () async {
+      mock.nextRunResult = const WasmRunResult(
+        ok: false,
+        error: 'some error',
+        excType: 'ValueError',
+      );
+
+      try {
+        await monty.run('x');
+        fail('Expected MontyException');
+      } on MontyException catch (e) {
+        expect(e.excType, 'ValueError');
+        expect(e.traceback, isEmpty);
+      }
+    });
+  });
 }

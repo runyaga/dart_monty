@@ -73,14 +73,17 @@ function callWorker(msg) {
  *
  * @param {string} code       Python source code.
  * @param {string} limitsJson JSON-encoded limits map (optional).
+ * @param {string} scriptName Script name for tracebacks (optional).
  * @returns {Promise<string>} JSON result.
  */
-async function run(code, limitsJson) {
+async function run(code, limitsJson, scriptName) {
   if (!worker) {
     return JSON.stringify({ ok: false, error: 'Not initialized', errorType: 'InitError' });
   }
   const limits = limitsJson ? JSON.parse(limitsJson) : null;
-  const result = await callWorker({ type: 'run', code, limits });
+  const msg = { type: 'run', code, limits };
+  if (scriptName) msg.scriptName = scriptName;
+  const result = await callWorker(msg);
   return JSON.stringify(result);
 }
 
@@ -90,15 +93,18 @@ async function run(code, limitsJson) {
  * @param {string} code       Python source code.
  * @param {string} extFnsJson JSON array of external function names (optional).
  * @param {string} limitsJson JSON-encoded limits map (optional).
+ * @param {string} scriptName Script name for tracebacks (optional).
  * @returns {Promise<string>} JSON result.
  */
-async function start(code, extFnsJson, limitsJson) {
+async function start(code, extFnsJson, limitsJson, scriptName) {
   if (!worker) {
     return JSON.stringify({ ok: false, error: 'Not initialized', errorType: 'InitError' });
   }
   const extFns = extFnsJson ? JSON.parse(extFnsJson) : [];
   const limits = limitsJson ? JSON.parse(limitsJson) : null;
-  const result = await callWorker({ type: 'start', code, extFns, limits });
+  const msg = { type: 'start', code, extFns, limits };
+  if (scriptName) msg.scriptName = scriptName;
+  const result = await callWorker(msg);
   return JSON.stringify(result);
 }
 
