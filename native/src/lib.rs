@@ -53,7 +53,12 @@ pub unsafe extern "C" fn monty_create(
         match unsafe { CStr::from_ptr(ext_fns) }.to_str() {
             Ok("") => vec![],
             Ok(s) => s.split(',').map(|f| f.trim().to_string()).collect(),
-            Err(_) => vec![],
+            Err(_) => {
+                if !out_error.is_null() {
+                    unsafe { *out_error = to_c_string("ext_fns is not valid UTF-8") };
+                }
+                return ptr::null_mut();
+            }
         }
     };
 
@@ -62,7 +67,12 @@ pub unsafe extern "C" fn monty_create(
     } else {
         match unsafe { CStr::from_ptr(script_name) }.to_str() {
             Ok(s) => Some(s.to_string()),
-            Err(_) => None,
+            Err(_) => {
+                if !out_error.is_null() {
+                    unsafe { *out_error = to_c_string("script_name is not valid UTF-8") };
+                }
+                return ptr::null_mut();
+            }
         }
     };
 

@@ -867,10 +867,12 @@ fn create_with_non_utf8_ext_fns() {
             &mut out_error,
         )
     };
-    // Should succeed (Err(_) => vec![] — just ignores bad ext_fns)
-    assert!(!handle.is_null());
+    // Should fail with UTF-8 error
+    assert!(handle.is_null());
+    assert!(!out_error.is_null());
 
-    unsafe { monty_free(handle) };
+    let err = unsafe { read_c_string(out_error) };
+    assert!(err.contains("not valid UTF-8"));
 }
 
 // ---------------------------------------------------------------------------
