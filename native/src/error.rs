@@ -27,13 +27,19 @@ where
 
 /// Convert a `MontyException` to a snake_case JSON value matching Dart's
 /// `MontyException.fromJson`.
+///
+/// Includes `exc_type` (e.g. `"ValueError"`) and full `traceback` array
+/// with all frames from the upstream exception.
 pub fn monty_exception_to_json(e: &MontyException) -> Value {
     let mut obj = json!({
         "message": e.summary(),
+        "exc_type": e.exc_type().to_string(),
     });
     let map = obj.as_object_mut().unwrap();
 
     let traceback = e.traceback();
+
+    // Legacy single-frame fields (last frame) for backward compatibility
     if let Some(frame) = traceback.last() {
         map.insert("filename".into(), json!(frame.filename));
         map.insert("line_number".into(), json!(frame.start.line));
@@ -41,6 +47,37 @@ pub fn monty_exception_to_json(e: &MontyException) -> Value {
         if let Some(ref preview) = frame.preview_line {
             map.insert("source_code".into(), json!(preview));
         }
+    }
+
+    // Full traceback array
+    if !traceback.is_empty() {
+        let frames: Vec<Value> = traceback
+            .iter()
+            .map(|frame| {
+                let mut f = json!({
+                    "filename": frame.filename,
+                    "start_line": frame.start.line,
+                    "start_column": frame.start.column,
+                    "end_line": frame.end.line,
+                    "end_column": frame.end.column,
+                });
+                let fm = f.as_object_mut().unwrap();
+                if let Some(ref name) = frame.frame_name {
+                    fm.insert("frame_name".into(), json!(name));
+                }
+                if let Some(ref preview) = frame.preview_line {
+                    fm.insert("preview_line".into(), json!(preview));
+                }
+                if frame.hide_caret {
+                    fm.insert("hide_caret".into(), json!(true));
+                }
+                if frame.hide_frame_name {
+                    fm.insert("hide_frame_name".into(), json!(true));
+                }
+                f
+            })
+            .collect();
+        map.insert("traceback".into(), json!(frames));
     }
 
     obj

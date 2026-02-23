@@ -19,6 +19,7 @@ use error::{catch_ffi_panic, to_c_string};
 ///
 /// - `code`: NUL-terminated UTF-8 Python source.
 /// - `ext_fns`: NUL-terminated comma-separated external function names (or NULL).
+/// - `script_name`: NUL-terminated UTF-8 script name for tracebacks (or NULL for `"<input>"`).
 /// - `out_error`: on failure, receives an error message (caller frees with `monty_string_free`).
 ///
 /// Returns a heap-allocated handle, or NULL on error.
@@ -26,6 +27,7 @@ use error::{catch_ffi_panic, to_c_string};
 pub unsafe extern "C" fn monty_create(
     code: *const c_char,
     ext_fns: *const c_char,
+    script_name: *const c_char,
     out_error: *mut *mut c_char,
 ) -> *mut MontyHandle {
     if code.is_null() {
@@ -55,7 +57,16 @@ pub unsafe extern "C" fn monty_create(
         }
     };
 
-    match catch_ffi_panic(|| MontyHandle::new(code_str, ext_fn_list)) {
+    let name = if script_name.is_null() {
+        None
+    } else {
+        match unsafe { CStr::from_ptr(script_name) }.to_str() {
+            Ok(s) => Some(s.to_string()),
+            Err(_) => None,
+        }
+    };
+
+    match catch_ffi_panic(|| MontyHandle::new(code_str, ext_fn_list, name)) {
         Ok(Ok(handle)) => Box::into_raw(Box::new(handle)),
         Ok(Err(exc)) => {
             if !out_error.is_null() {
@@ -305,6 +316,47 @@ pub unsafe extern "C" fn monty_pending_fn_args_json(handle: *const MontyHandle) 
     match h.pending_fn_args_json() {
         Some(json) => to_c_string(json),
         None => ptr::null_mut(),
+    }
+}
+
+/// Get the pending function keyword arguments as a JSON object string.
+/// Returns `"{}"` if no kwargs were passed.
+/// Caller frees with `monty_string_free`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn monty_pending_fn_kwargs_json(handle: *const MontyHandle) -> *mut c_char {
+    if handle.is_null() {
+        return ptr::null_mut();
+    }
+    let h = unsafe { &*handle };
+    match h.pending_fn_kwargs_json() {
+        Some(json) => to_c_string(json),
+        None => ptr::null_mut(),
+    }
+}
+
+/// Get the pending call ID (monotonically increasing per-execution).
+/// Returns the call ID, or `u32::MAX` if not in Paused state.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn monty_pending_call_id(handle: *const MontyHandle) -> u32 {
+    if handle.is_null() {
+        return u32::MAX;
+    }
+    let h = unsafe { &*handle };
+    h.pending_call_id().unwrap_or(u32::MAX)
+}
+
+/// Whether the pending call is a method call (`obj.method()` vs `func()`).
+/// Returns 1 for method call, 0 for function call, -1 if not in Paused state.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn monty_pending_method_call(handle: *const MontyHandle) -> c_int {
+    if handle.is_null() {
+        return -1;
+    }
+    let h = unsafe { &*handle };
+    match h.pending_method_call() {
+        Some(true) => 1,
+        Some(false) => 0,
+        None => -1,
     }
 }
 
