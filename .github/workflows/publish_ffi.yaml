@@ -18,9 +18,16 @@ jobs:
         with:
           sdk: stable
 
+      - name: Install libclang
+        run: sudo apt-get update && sudo apt-get install -y libclang-dev
+
       - name: Install dependencies
         working-directory: packages/dart_monty_ffi
         run: dart pub get
+
+      - name: Generate FFI bindings
+        working-directory: packages/dart_monty_ffi
+        run: dart run ffigen --config ffigen.yaml
 
       - name: Analyze
         working-directory: packages/dart_monty_ffi
