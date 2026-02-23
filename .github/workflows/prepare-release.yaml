@@ -38,10 +38,17 @@ jobs:
       - name: Run tests
         run: |
           for dir in packages/dart_monty_platform_interface packages/dart_monty_ffi packages/dart_monty_wasm; do
-            echo "--- ${dir} ---"
+            echo "--- ${dir} (dart test) ---"
             cd "$dir"
             dart pub get
             dart test
+            cd "$GITHUB_WORKSPACE"
+          done
+          for dir in packages/dart_monty_desktop packages/dart_monty_web; do
+            echo "--- ${dir} (flutter test) ---"
+            cd "$dir"
+            flutter pub get
+            flutter test
             cd "$GITHUB_WORKSPACE"
           done
 
@@ -162,7 +169,8 @@ jobs:
         run: |
           VERSION="${{ inputs.version }}"
           git tag "v${VERSION}"
-          git push origin HEAD --tags
+          git push origin HEAD:main
+          git push origin "v${VERSION}"
 
       - name: Publish to pub.dev
         if: inputs.publish

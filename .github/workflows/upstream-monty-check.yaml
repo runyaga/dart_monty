@@ -37,6 +37,8 @@ jobs:
       - name: Create PR for Rust update
         if: steps.check.outputs.changed == 'true'
         run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
           BRANCH="chore/bump-monty-${{ steps.check.outputs.latest }}"
           git checkout -b "$BRANCH"
           sed -i "s/rev = \"${{ steps.check.outputs.current }}\"/rev = \"${{ steps.check.outputs.latest }}\"/" native/Cargo.toml
@@ -52,6 +54,8 @@ jobs:
       - name: Create PR for NPM update
         if: steps.check.outputs.npm_changed == 'true'
         run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
           BRANCH="chore/bump-monty-npm-${{ steps.check.outputs.npm_latest }}"
           git checkout -b "$BRANCH"
           cd packages/dart_monty_wasm/js

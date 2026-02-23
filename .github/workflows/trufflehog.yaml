@@ -29,12 +29,13 @@ jobs:
     needs: [trufflehog]
     if: failure()
     timeout-minutes: 2
+    env:
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_NOTIFY_URL }}
     steps:
       - name: Notify Slack on failure
+        if: env.SLACK_WEBHOOK_URL != ''
         uses: slackapi/slack-github-action@v2.1.1
         with:
-          webhook: ${{ secrets.SLACK_NOTIFY_URL }}
-          webhook-type: incoming-webhook
           payload: |
             {
               "channel": "#dart_monty",
