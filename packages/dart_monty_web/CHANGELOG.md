@@ -1,9 +1,14 @@
+## Unreleased
+
+## 0.4.0
+
+- Thread `scriptName` parameter through `run()` and `start()`
+
 ## 0.3.5
 
 - Add @visibleForTesting constructor for dependency injection
 - Add 52 unit tests covering all API methods
 - Add CI job and pre-commit hooks
-- Thread `scriptName` parameter through `run()` and `start()`
 
 ## 0.3.4
 

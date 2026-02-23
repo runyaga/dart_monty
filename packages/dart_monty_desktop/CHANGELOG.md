@@ -1,7 +1,12 @@
-## 0.3.5
+## Unreleased
+
+## 0.4.0
 
 - Thread `scriptName` parameter through `run()` and `start()`
-- Update `DesktopBindings` to accept `scriptName`
+
+## 0.3.5
+
+- Version bump for M6 milestone alignment
 
 ## 0.3.4
 
