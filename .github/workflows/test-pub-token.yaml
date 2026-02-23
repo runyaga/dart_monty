@@ -1,0 +1,31 @@
+name: Test pub.dev token
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-token:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+
+      - name: Configure pub.dev token
+        env:
+          PUB_TOKEN: ${{ secrets.PUB_TOKEN }}
+        run: |
+          echo "Token length: ${#PUB_TOKEN}"
+          dart pub token add https://pub.dev --env-var PUB_TOKEN
+          dart pub token list
+
+      - name: Test dry-run publish
+        env:
+          PUB_TOKEN: ${{ secrets.PUB_TOKEN }}
+        run: |
+          cd packages/dart_monty_platform_interface
+          dart pub get
+          dart pub publish --dry-run
