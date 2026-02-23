@@ -39,10 +39,7 @@ class NativeBindingsFfi extends NativeBindings {
     final outError = calloc<Pointer<Char>>();
 
     try {
-      final handle = _lib.monty_create(cCode, cExtFns, outError);
-      // TODO(m7a): Pass scriptName to monty_create once Rust API supports it.
-      // For now, scriptName is accepted at the Dart API level but not yet
-      // forwarded to the C layer.
+      final handle = _lib.monty_create(cCode, cExtFns, cScriptName, outError);
       if (handle == nullptr) {
         final errorMsg = _readAndFreeString(outError.value);
         throw StateError(errorMsg ?? 'monty_create returned null');
@@ -225,11 +222,18 @@ class NativeBindingsFfi extends NativeBindings {
         final fnName = _readAndFreeString(fnNamePtr);
         final argsPtr = _lib.monty_pending_fn_args_json(ptr);
         final argsJson = _readAndFreeString(argsPtr);
+        final kwargsPtr = _lib.monty_pending_fn_kwargs_json(ptr);
+        final kwargsJson = _readAndFreeString(kwargsPtr);
+        final callId = _lib.monty_pending_call_id(ptr);
+        final methodCall = _lib.monty_pending_method_call(ptr);
 
         return ProgressResult(
           tag: 1,
           functionName: fnName,
           argumentsJson: argsJson,
+          kwargsJson: kwargsJson,
+          callId: callId,
+          methodCall: methodCall == 1,
         );
 
       case MontyProgressTag.MONTY_PROGRESS_ERROR:

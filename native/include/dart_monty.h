@@ -47,14 +47,17 @@ typedef enum {
 /**
  * Create a new handle from Python source code.
  *
- * @param code       NUL-terminated UTF-8 Python source.
- * @param ext_fns    Comma-separated external function names, or NULL.
- * @param out_error  On failure, receives a heap-allocated error message.
- *                   Caller frees with monty_string_free(). May be NULL.
- * @return           Heap-allocated handle, or NULL on error.
+ * @param code         NUL-terminated UTF-8 Python source.
+ * @param ext_fns      Comma-separated external function names, or NULL.
+ * @param script_name  NUL-terminated script name for tracebacks, or NULL
+ *                     for the default ("<input>").
+ * @param out_error    On failure, receives a heap-allocated error message.
+ *                     Caller frees with monty_string_free(). May be NULL.
+ * @return             Heap-allocated handle, or NULL on error.
  */
 MontyHandle *monty_create(const char *code,
                            const char *ext_fns,
+                           const char *script_name,
                            char **out_error);
 
 /**
@@ -137,6 +140,31 @@ char *monty_pending_fn_name(const MontyHandle *handle);
  * @return  Heap-allocated JSON string, or NULL. Caller frees with monty_string_free().
  */
 char *monty_pending_fn_args_json(const MontyHandle *handle);
+
+/**
+ * Get the pending function keyword arguments as a JSON object.
+ * Only valid after monty_start/monty_resume returned MONTY_PROGRESS_PENDING.
+ *
+ * @return  Heap-allocated JSON string (e.g. "{}"), or NULL.
+ *          Caller frees with monty_string_free().
+ */
+char *monty_pending_fn_kwargs_json(const MontyHandle *handle);
+
+/**
+ * Get the pending call ID (monotonically increasing per execution).
+ * Only valid after monty_start/monty_resume returned MONTY_PROGRESS_PENDING.
+ *
+ * @return  Call ID, or UINT32_MAX if not in Paused state.
+ */
+uint32_t monty_pending_call_id(const MontyHandle *handle);
+
+/**
+ * Whether the pending call is a method call (obj.method() vs func()).
+ * Only valid after monty_start/monty_resume returned MONTY_PROGRESS_PENDING.
+ *
+ * @return  1 for method call, 0 for function call, -1 if not in Paused state.
+ */
+int monty_pending_method_call(const MontyHandle *handle);
 
 /**
  * Get the completed result as a JSON string.

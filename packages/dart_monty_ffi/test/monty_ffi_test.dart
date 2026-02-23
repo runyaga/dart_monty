@@ -94,6 +94,14 @@ void main() {
       expect(mock.setStackLimitCalls.first.depth, 10);
     });
 
+    test('passes scriptName to bindings', () async {
+      mock.nextRunResult = RunResult(tag: 0, resultJson: _okResultJson(4));
+
+      await monty.run('2 + 2', scriptName: 'test.py');
+
+      expect(mock.createCalls.first.scriptName, 'test.py');
+    });
+
     test('throws UnsupportedError for non-empty inputs', () {
       expect(
         () => monty.run('x', inputs: {'a': 1}),
@@ -210,6 +218,73 @@ void main() {
       await monty.start('x', externalFunctions: []);
 
       expect(mock.createCalls.first.externalFunctions, isNull);
+    });
+
+    test('returns MontyPending with kwargs', () async {
+      mock.nextStartResult = const ProgressResult(
+        tag: 1,
+        functionName: 'fetch',
+        argumentsJson: '[1]',
+        kwargsJson: '{"timeout": 30}',
+      );
+
+      final progress = await monty.start(
+        'fetch(1, timeout=30)',
+        externalFunctions: ['fetch'],
+      );
+
+      final pending = progress as MontyPending;
+      expect(pending.kwargs, {'timeout': 30});
+      expect(pending.arguments, [1]);
+    });
+
+    test('returns MontyPending with callId and methodCall', () async {
+      mock.nextStartResult = const ProgressResult(
+        tag: 1,
+        functionName: 'fetch',
+        argumentsJson: '[]',
+        callId: 7,
+        methodCall: true,
+      );
+
+      final progress = await monty.start(
+        'obj.fetch()',
+        externalFunctions: ['fetch'],
+      );
+
+      final pending = progress as MontyPending;
+      expect(pending.callId, 7);
+      expect(pending.methodCall, isTrue);
+    });
+
+    test('defaults kwargs to null when not provided', () async {
+      mock.nextStartResult = const ProgressResult(
+        tag: 1,
+        functionName: 'fetch',
+        argumentsJson: '[]',
+      );
+
+      final progress = await monty.start(
+        'fetch()',
+        externalFunctions: ['fetch'],
+      );
+
+      final pending = progress as MontyPending;
+      expect(pending.kwargs, isNull);
+      expect(pending.callId, 0);
+      expect(pending.methodCall, isFalse);
+    });
+
+    test('passes scriptName to bindings', () async {
+      mock.nextStartResult = ProgressResult(
+        tag: 0,
+        resultJson: _okResultJson(null),
+        isError: 0,
+      );
+
+      await monty.start('x', scriptName: 'my_script.py');
+
+      expect(mock.createCalls.first.scriptName, 'my_script.py');
     });
 
     test('throws MontyException on error progress', () async {
@@ -792,6 +867,24 @@ void main() {
           ),
         ),
       );
+    });
+
+    test('run error result includes excType and traceback', () async {
+      const errorJson = '{"value": null, "error": {'
+          ' "message": "division by zero",'
+          ' "exc_type": "ZeroDivisionError",'
+          ' "traceback": [{"filename": "test.py", "start_line": 1,'
+          ' "start_column": 1, "end_line": 1, "end_column": 4}]'
+          ' }, "usage": $_usageJson}';
+      mock.nextRunResult = const RunResult(tag: 0, resultJson: errorJson);
+
+      final result = await monty.run('1/0');
+      expect(result.isError, isTrue);
+      final error = result.error!;
+      expect(error.excType, 'ZeroDivisionError');
+      expect(error.traceback, hasLength(1));
+      expect(error.traceback.first.filename, 'test.py');
+      expect(error.traceback.first.startLine, 1);
     });
 
     test('run error with null message uses default', () async {
