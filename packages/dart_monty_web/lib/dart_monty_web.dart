@@ -12,6 +12,7 @@ import 'dart:typed_data';
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 import 'package:dart_monty_wasm/dart_monty_wasm.dart';
 import 'package:flutter_web_plugins/flutter_web_plugins.dart';
+import 'package:meta/meta.dart';
 
 /// Web implementation of [MontyPlatform].
 ///
@@ -20,6 +21,11 @@ import 'package:flutter_web_plugins/flutter_web_plugins.dart';
 class DartMontyWeb extends MontyPlatform {
   /// Creates a [DartMontyWeb].
   DartMontyWeb() : _delegate = MontyWasm(bindings: WasmBindingsJs());
+
+  /// Creates a [DartMontyWeb] with injected [bindings] for testing.
+  @visibleForTesting
+  DartMontyWeb.withBindings(WasmBindings bindings)
+      : _delegate = MontyWasm(bindings: bindings);
 
   final MontyWasm _delegate;
 
