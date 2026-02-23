@@ -32,7 +32,7 @@ jobs:
             echo "npm_changed=true" >> "$GITHUB_OUTPUT"
           fi
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.MONTY_USER_PAT }}
 
       - name: Create PR for Rust update
         if: steps.check.outputs.changed == 'true'
@@ -49,7 +49,7 @@ jobs:
             --title "chore(native): bump monty to ${{ steps.check.outputs.latest }}" \
             --body "Upstream monty has new commits. CI will verify compatibility."
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.MONTY_USER_PAT }}
 
       - name: Create PR for NPM update
         if: steps.check.outputs.npm_changed == 'true'
@@ -69,4 +69,4 @@ jobs:
             --title "chore(wasm): bump @pydantic/monty to ${{ steps.check.outputs.npm_latest }}" \
             --body "Upstream @pydantic/monty NPM has a new version. CI will verify compatibility."
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.MONTY_USER_PAT }}
