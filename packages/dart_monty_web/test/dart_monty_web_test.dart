@@ -102,6 +102,7 @@ void main() {
     });
 
     test('allows null inputs', () async {
+      // Explicitly passing null to verify the default path is accepted.
       // ignore: avoid_redundant_argument_values
       final result = await web.run('1', inputs: null);
       expect(result.value, 4);
