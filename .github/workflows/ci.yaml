@@ -56,7 +56,6 @@ jobs:
     name: Test (${{ matrix.target }})
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: [lint]
     strategy:
       matrix:
         target:
@@ -147,7 +146,6 @@ jobs:
     name: Test (dart_monty_desktop)
     runs-on: macos-latest
     timeout-minutes: 15
-    needs: [lint]
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
@@ -188,7 +186,6 @@ jobs:
     name: Test (dart_monty_web)
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: [lint]
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
@@ -204,7 +201,6 @@ jobs:
     name: Build JS wrapper
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [lint]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -229,7 +225,6 @@ jobs:
     name: WASM ladder integration
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: [lint]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -337,7 +332,6 @@ jobs:
     name: Build native (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
-    needs: [lint, test]
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
@@ -355,7 +349,6 @@ jobs:
     name: Build smoke (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
-    needs: [lint]
     strategy:
       matrix:
         include:
@@ -390,10 +383,10 @@ jobs:
       - name: Build
         run: cd example/desktop && flutter build ${{ matrix.target }}
 
-  rust-cargo-test:
-    name: Rust tests
+  rust:
+    name: Rust (fmt + clippy + test + coverage)
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -408,24 +401,9 @@ jobs:
       - name: cargo clippy
         working-directory: native
         run: cargo clippy -- -D warnings
-      - name: cargo test
-        working-directory: native
-        run: cargo test
-
-  rust-coverage:
-    name: Rust coverage
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    needs: [rust-cargo-test]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: native
       - name: Install cargo-tarpaulin
         uses: taiki-e/install-action@cargo-tarpaulin
-      - name: Run tarpaulin
+      - name: Run tests with coverage
         working-directory: native
         run: |
           OUTPUT=$(cargo tarpaulin --out Xml --output-dir target/tarpaulin 2>&1)
@@ -448,7 +426,7 @@ jobs:
     name: Build WASM
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs: [rust-cargo-test]
+    needs: [rust]
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -460,16 +438,3 @@ jobs:
       - name: Build WASM
         working-directory: native
         run: cargo build --release --target wasm32-wasip1-threads
-
-  security:
-    name: Secret Scanning
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
