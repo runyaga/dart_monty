@@ -1,7 +1,7 @@
 name: dart_monty_desktop
 description: macOS and Linux implementation of dart_monty using native FFI.
 publish_to: 'none'
-version: 0.3.1
+version: 0.3.2
 homepage: https://github.com/runyaga/dart_monty
 repository: https://github.com/runyaga/dart_monty
 issue_tracker: https://github.com/runyaga/dart_monty/issues
