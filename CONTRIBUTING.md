@@ -125,22 +125,22 @@ time the stamp script replaces it with the version heading.
 # 1. Review ## Unreleased sections, add any missing entries
 
 # 2. Stamp CHANGELOGs with the new version
-bash tool/stamp_changelogs.sh 0.2.0
+bash tool/stamp_changelogs.sh X.Y.Z
 
 # 3. Commit and push to main
-git add -A && git commit -m "chore: stamp changelogs for 0.2.0"
+git add -A && git commit -m "chore: stamp changelogs for X.Y.Z"
 git push origin main
 
 # 4. Trigger CI validation (dry-run, no publish)
-gh workflow run prepare-release.yaml -f version=0.2.0
+gh workflow run prepare-release.yaml -f version=X.Y.Z
 
 # 5. If green, re-trigger with publish
-gh workflow run prepare-release.yaml -f version=0.2.0 -f publish=true
+gh workflow run prepare-release.yaml -f version=X.Y.Z -f publish=true
 
 # 6. release.yaml auto-triggers from the tag → builds GitHub Release
 
 # 7. Verify all 6 packages are live on pub.dev
-bash tool/verify_publish.sh 0.2.0
+bash tool/verify_publish.sh X.Y.Z
 ```
 
 ### What the workflow does
@@ -149,12 +149,12 @@ bash tool/verify_publish.sh 0.2.0
 |------|--------|--------------|
 | Build native binaries (Linux + macOS) | x | |
 | `dart format --set-exit-if-changed .` | x | |
+| Analyze all packages | x | |
+| Run tests | x | |
 | Bump versions in all pubspecs | x | |
 | Stamp CHANGELOGs | x | |
 | Verify CHANGELOG entries | x | |
 | dartdoc dry-run (all 5 sub-packages) | x | |
-| Analyze all packages | x | |
-| Run tests | x | |
 | Commit version bumps | x | |
 | `dart pub publish --dry-run` | x | |
 | Tag and push | | x |

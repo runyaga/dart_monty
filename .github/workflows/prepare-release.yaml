@@ -17,6 +17,37 @@ permissions:
   contents: write
 
 jobs:
+  validate:
+    name: Format, analyze, test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Verify formatting
+        run: dart format --set-exit-if-changed .
+
+      - name: Analyze all packages
+        run: python3 tool/analyze_packages.py
+
+      - name: Run tests
+        run: |
+          for dir in packages/dart_monty_platform_interface packages/dart_monty_ffi packages/dart_monty_wasm; do
+            echo "--- ${dir} ---"
+            cd "$dir"
+            dart pub get
+            dart test
+            cd "$GITHUB_WORKSPACE"
+          done
+
   build-native:
     name: Build native (${{ matrix.label }})
     runs-on: ${{ matrix.os }}
@@ -58,11 +89,11 @@ jobs:
           name: native-${{ matrix.label }}
           path: ${{ matrix.dst }}
 
-  prepare:
-    name: Validate and tag
+  release:
+    name: Stamp, publish
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs: [build-native]
+    needs: [validate, build-native]
     steps:
       - uses: actions/checkout@v4
 
@@ -87,9 +118,6 @@ jobs:
              packages/dart_monty_desktop/macos/libdart_monty_native.dylib
           ls -lh packages/dart_monty_desktop/linux/
           ls -lh packages/dart_monty_desktop/macos/
-
-      - name: Verify formatting
-        run: dart format --set-exit-if-changed .
 
       - name: Bump version in all pubspecs
         run: |
@@ -118,19 +146,6 @@ jobs:
             cd "$dir"
             dart pub get
             dart doc --dry-run
-            cd "$GITHUB_WORKSPACE"
-          done
-
-      - name: Analyze all packages
-        run: python3 tool/analyze_packages.py
-
-      - name: Run tests
-        run: |
-          for dir in packages/dart_monty_platform_interface packages/dart_monty_ffi packages/dart_monty_wasm; do
-            echo "--- ${dir} ---"
-            cd "$dir"
-            dart pub get
-            dart test
             cd "$GITHUB_WORKSPACE"
           done
 
