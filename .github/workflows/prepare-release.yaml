@@ -15,6 +15,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write
 
 jobs:
   validate:
@@ -102,6 +103,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     needs: [validate, build-native]
+    environment: pub-dev
     steps:
       - uses: actions/checkout@v4
 
@@ -182,11 +184,7 @@ jobs:
 
       - name: Publish to pub.dev
         if: inputs.publish
-        env:
-          PUB_TOKEN: ${{ secrets.PUB_TOKEN }}
-        run: |
-          dart pub token add https://pub.dev --env-var PUB_TOKEN
-          bash tool/publish.sh --publish
+        run: bash tool/publish.sh --publish
 
       - name: Verify pub.dev publication
         if: inputs.publish
