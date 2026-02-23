@@ -1955,7 +1955,7 @@ final _examples = <_Example>[
   // 5. Real HTTP fetch — Python calls fetch(), Dart does the actual request
   _Example(
     '5. HTTP fetch',
-    'html = fetch("https://example.com")\n'
+    'html = fetch("https://runyaga.github.io/dart_monty/")\n'
         'n = len(html)\n'
         'n',
     (monty, code, limits, log) async {
@@ -1978,7 +1978,7 @@ final _examples = <_Example>[
   _Example(
     '6. Error injection',
     'try:\n'
-        '    data = fetch("https://httpstat.us/500")\n'
+        '    data = fetch("https://runyaga.github.io/dart_monty/no-such-page")\n'
         'except Exception as e:\n'
         '    result = f"caught: {e}"\n'
         'result',
