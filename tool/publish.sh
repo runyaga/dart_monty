@@ -111,12 +111,15 @@ for pkg in "${PACKAGES[@]}"; do
   echo "--- $pkg_name ---"
   cd "$pkg_dir"
   # Exit code 65 = warnings only (expected: pubspecs modified by path-dep swap).
-  # Fail on any other non-zero exit (actual errors).
+  # Exit code 69 = dep resolution failure (expected for unpublished sibling packages).
   rc=0
   dart pub publish --dry-run || rc=$?
-  if [ "$rc" -ne 0 ] && [ "$rc" -ne 65 ]; then
+  if [ "$rc" -ne 0 ] && [ "$rc" -ne 65 ] && [ "$rc" -ne 69 ]; then
     echo "ERROR: dart pub publish --dry-run failed with exit code $rc"
     exit "$rc"
+  fi
+  if [ "$rc" -eq 69 ]; then
+    echo "WARN: dep resolution failed (sibling packages not yet on pub.dev)"
   fi
   echo ""
 done
