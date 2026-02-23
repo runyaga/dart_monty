@@ -1,4 +1,5 @@
 build/
+docs/
 tool/
 test/fixtures/
 PLAN.md
