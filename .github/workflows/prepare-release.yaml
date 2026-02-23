@@ -32,6 +32,9 @@ jobs:
         with:
           channel: stable
 
+      - name: Generate FFI bindings
+        run: bash tool/generate_bindings.sh
+
       - name: Analyze all packages
         run: python3 tool/analyze_packages.py
 
@@ -142,6 +145,9 @@ jobs:
               exit 1
             fi
           done
+
+      - name: Generate FFI bindings
+        run: bash tool/generate_bindings.sh
 
       - name: Check dartdoc
         run: |
