@@ -565,13 +565,20 @@ void main() {
       expect(mock.restoreCalls.first, data);
     });
 
-    test('restored instance can run code', () async {
-      mock.nextRunResult = const WasmRunResult(ok: true, value: 10);
-
+    test('restored instance is in active state', () async {
       final restored = await monty.restore(Uint8List.fromList([1, 2, 3]));
-      final result = await (restored as MontyWasm).run('5 + 5');
+      final restoredWasm = restored as MontyWasm;
 
-      expect(result.value, 10);
+      // Restored snapshot is paused — run() should be rejected.
+      expect(() => restoredWasm.run('x'), throwsStateError);
+
+      // resume() should be allowed (active state).
+      mock.resumeResults.add(
+        const WasmProgressResult(ok: true, state: 'complete', value: 10),
+      );
+      final progress = await restoredWasm.resume('val');
+      expect(progress, isA<MontyComplete>());
+      expect((progress as MontyComplete).result.value, 10);
     });
 
     test('throws StateError when restore fails', () {

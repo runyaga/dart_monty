@@ -213,11 +213,7 @@ Items to investigate or address in future milestones:
   external functions. If supported, add a test; otherwise document as a
   known limitation.
 
-- **Worker onerror promise leak:** If the Web Worker crashes after init,
-  pending `callWorker` promises hang forever. `worker.onerror` should
-  reject all entries in the `pending` Map and clear it.
-
-- **restore() state machine:** `MontyWasm.restore()` returns a new
-  instance in `idle` state, but a restored `MontySnapshot` represents
-  paused execution that expects `resume()`. Consider setting
-  `_state = _State.active` on restored instances.
+- **Snapshot serialization performance:** The worker's base64 encoding
+  uses `String.fromCharCode` in a loop + `btoa`, which works but may
+  hit V8 string length limits for multi-MB snapshots. Consider chunked
+  `fromCharCode` or a `FileReaderSync` Blob approach if perf degrades.

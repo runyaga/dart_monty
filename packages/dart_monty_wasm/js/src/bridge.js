@@ -48,6 +48,10 @@ async function init() {
 
       worker.onerror = (err) => {
         console.error('[DartMontyBridge] Worker error:', err.message || err);
+        for (const [, { reject }] of pending) {
+          reject(err);
+        }
+        pending.clear();
         resolve(false);
       };
     } catch (e) {

@@ -4,6 +4,9 @@
 - Add Rust C FFI accessors and `script_name` parameter for richer run/start metadata
 - Reject invalid UTF-8 in native FFI external function names and script names
 - Wire FFI bindings to expose new native accessors to Dart
+- Wire WASM JS bridge: kwargs, callId, scriptName, excType, and traceback in worker responses
+- Fix worker onerror to reject pending promises on crash
+- Fix `restore()` state machine to return active instance
 
 ## 0.3.5
 

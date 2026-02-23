@@ -136,7 +136,9 @@ class MontyWasm extends MontyPlatform {
 
     await _bindings.restore(data);
 
-    return MontyWasm(bindings: _bindings).._initialized = _initialized;
+    return MontyWasm(bindings: _bindings)
+      .._initialized = _initialized
+      .._state = _State.active;
   }
 
   @override
