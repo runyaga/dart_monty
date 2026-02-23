@@ -16,8 +16,31 @@ permissions:
   pull-requests: write
 
 jobs:
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            code:
+              - 'packages/**'
+              - 'native/**'
+              - 'example/**'
+              - 'tool/**'
+              - 'pubspec.*'
+              - '.github/**'
+              - '!**.md'
+
   ffigen:
     name: Generate FFI bindings
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -140,6 +163,8 @@ jobs:
 
   test-web:
     name: Test (dart_monty_web)
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -155,6 +180,8 @@ jobs:
 
   build-js-wrapper:
     name: Build JS wrapper
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -179,6 +206,8 @@ jobs:
 
   wasm-ladder:
     name: WASM ladder integration
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -325,6 +354,8 @@ jobs:
 
   rust:
     name: Rust (fmt + clippy + test + coverage)
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
