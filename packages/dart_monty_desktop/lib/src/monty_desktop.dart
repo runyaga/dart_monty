@@ -148,6 +148,7 @@ class MontyDesktop extends MontyPlatform {
         return progress;
 
       case MontyPending():
+      case MontyResolveFutures():
         _state = _State.active;
         return progress;
     }
