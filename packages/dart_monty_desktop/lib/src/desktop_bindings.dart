@@ -64,6 +64,18 @@ abstract class DesktopBindings {
   /// Resumes a paused execution by raising an error with [errorMessage].
   Future<DesktopProgressResult> resumeWithError(String errorMessage);
 
+  /// Converts the current pending call into a future and continues execution.
+  Future<DesktopProgressResult> resumeAsFuture();
+
+  /// Resolves one or more pending futures with their [results].
+  Future<DesktopProgressResult> resolveFutures(Map<int, Object?> results);
+
+  /// Resolves pending futures with [results] and [errors].
+  Future<DesktopProgressResult> resolveFuturesWithErrors(
+    Map<int, Object?> results,
+    Map<int, String> errors,
+  );
+
   /// Captures the current interpreter state as a binary snapshot.
   Future<Uint8List> snapshot();
 

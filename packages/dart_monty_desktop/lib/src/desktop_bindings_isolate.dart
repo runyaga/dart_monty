@@ -60,6 +60,21 @@ final class _ResumeWithErrorRequest extends _Request {
   final String errorMessage;
 }
 
+final class _ResumeAsFutureRequest extends _Request {
+  const _ResumeAsFutureRequest(super.id);
+}
+
+final class _ResolveFuturesRequest extends _Request {
+  const _ResolveFuturesRequest(super.id, this.results);
+  final Map<int, Object?> results;
+}
+
+final class _ResolveFuturesWithErrorsRequest extends _Request {
+  const _ResolveFuturesWithErrorsRequest(super.id, this.results, this.errors);
+  final Map<int, Object?> results;
+  final Map<int, String> errors;
+}
+
 final class _SnapshotRequest extends _Request {
   const _SnapshotRequest(super.id);
 }
@@ -158,6 +173,23 @@ Future<void> _isolateEntryPoint(_InitMessage init) async {
 
         case _ResumeWithErrorRequest(:final id, :final errorMessage):
           final progress = await monty.resumeWithError(errorMessage);
+          init.mainSendPort.send(_ProgressResponse(id, progress));
+
+        case _ResumeAsFutureRequest(:final id):
+          final progress = await monty.resumeAsFuture();
+          init.mainSendPort.send(_ProgressResponse(id, progress));
+
+        case _ResolveFuturesRequest(:final id, :final results):
+          final progress = await monty.resolveFutures(results);
+          init.mainSendPort.send(_ProgressResponse(id, progress));
+
+        case _ResolveFuturesWithErrorsRequest(
+            :final id,
+            :final results,
+            :final errors,
+          ):
+          final progress =
+              await monty.resolveFuturesWithErrors(results, errors);
           init.mainSendPort.send(_ProgressResponse(id, progress));
 
         case _SnapshotRequest(:final id):
@@ -320,6 +352,35 @@ class DesktopBindingsIsolate extends DesktopBindings {
   Future<DesktopProgressResult> resumeWithError(String errorMessage) async {
     final response = await _send<_ProgressResponse>(
       _ResumeWithErrorRequest(_nextId++, errorMessage),
+    );
+    return DesktopProgressResult(progress: response.progress);
+  }
+
+  @override
+  Future<DesktopProgressResult> resumeAsFuture() async {
+    final response = await _send<_ProgressResponse>(
+      _ResumeAsFutureRequest(_nextId++),
+    );
+    return DesktopProgressResult(progress: response.progress);
+  }
+
+  @override
+  Future<DesktopProgressResult> resolveFutures(
+    Map<int, Object?> results,
+  ) async {
+    final response = await _send<_ProgressResponse>(
+      _ResolveFuturesRequest(_nextId++, results),
+    );
+    return DesktopProgressResult(progress: response.progress);
+  }
+
+  @override
+  Future<DesktopProgressResult> resolveFuturesWithErrors(
+    Map<int, Object?> results,
+    Map<int, String> errors,
+  ) async {
+    final response = await _send<_ProgressResponse>(
+      _ResolveFuturesWithErrorsRequest(_nextId++, results, errors),
     );
     return DesktopProgressResult(progress: response.progress);
   }

@@ -1089,6 +1089,11 @@ class _LadderPageState extends State<_LadderPage> {
       'tier_04_functions.json',
       'tier_05_errors.json',
       'tier_06_external_fns.json',
+      'tier_07_advanced.json',
+      'tier_08_kwargs.json',
+      'tier_09_exceptions.json',
+      'tier_13_async.json',
+      'tier_15_script_name.json',
     ];
 
     for (final file in tierFiles) {
@@ -1118,6 +1123,7 @@ class _LadderPageState extends State<_LadderPage> {
     Map<String, dynamic> fixture,
     _TestResult result,
   ) async {
+    final xfail = fixture['xfail'] as String?;
     final code = fixture['code'] as String;
     final expected = fixture['expected'];
     final expectedContains = fixture['expectedContains'] as String?;
@@ -1137,6 +1143,7 @@ class _LadderPageState extends State<_LadderPage> {
           externalFunctions,
           resumeValues,
           resumeErrors,
+          fixture,
           expected,
           expectedContains,
           result,
@@ -1147,10 +1154,17 @@ class _LadderPageState extends State<_LadderPage> {
         await _runSimple(monty, code, expected, expectedContains, result);
       }
     } on Object catch (e) {
-      result
-        ..status = _TestStatus.fail
-        ..detail = e.toString();
-      _fail++;
+      if (xfail != null) {
+        result
+          ..status = _TestStatus.skip
+          ..detail = 'xfail: $xfail';
+        _skip++;
+      } else {
+        result
+          ..status = _TestStatus.fail
+          ..detail = e.toString();
+        _fail++;
+      }
     } finally {
       await monty.dispose();
     }
@@ -1226,26 +1240,104 @@ class _LadderPageState extends State<_LadderPage> {
     List<String> externalFunctions,
     List<dynamic>? resumeValues,
     List<dynamic>? resumeErrors,
+    Map<String, dynamic> fixture,
     Object? expected,
     String? expectedContains,
     _TestResult result,
   ) async {
+    final asyncResumeMap = fixture['asyncResumeMap'] as Map<String, dynamic>?;
+    final asyncErrorMap = fixture['asyncErrorMap'] as Map<String, dynamic>?;
+
     var progress = await monty.start(
       code,
       externalFunctions: externalFunctions,
     );
 
-    var resumeIdx = 0;
-    while (progress is MontyPending) {
-      if (resumeErrors != null && resumeIdx < resumeErrors.length) {
-        progress =
-            await monty.resumeWithError(resumeErrors[resumeIdx].toString());
-      } else if (resumeValues != null && resumeIdx < resumeValues.length) {
-        progress = await monty.resume(resumeValues[resumeIdx]);
-      } else {
-        progress = await monty.resume(null);
+    final expectError = fixture['expectError'] as bool? ?? false;
+    final errorContains = fixture['errorContains'] as String?;
+
+    if (asyncResumeMap != null) {
+      // Async/futures path: loop pending -> future -> resolve until done.
+      try {
+        while (progress is! MontyComplete) {
+          if (progress is MontyPending) {
+            progress = await monty.resumeAsFuture();
+          } else if (progress is MontyResolveFutures) {
+            final pending = progress.pendingCallIds;
+            final results = <int, Object?>{};
+            final errors = <int, String>{};
+            for (final id in pending) {
+              final key = id.toString();
+              if (asyncErrorMap != null && asyncErrorMap.containsKey(key)) {
+                errors[id] = asyncErrorMap[key] as String;
+              } else if (asyncResumeMap.containsKey(key)) {
+                results[id] = asyncResumeMap[key];
+              }
+            }
+            if (errors.isNotEmpty) {
+              progress = await monty.resolveFuturesWithErrors(results, errors);
+            } else {
+              progress = await monty.resolveFutures(results);
+            }
+          }
+        }
+      } on MontyException catch (e) {
+        if (expectError) {
+          if (errorContains != null && !e.message.contains(errorContains)) {
+            result
+              ..status = _TestStatus.fail
+              ..detail = 'expected error containing "$errorContains", '
+                  'got: ${e.message}';
+            _fail++;
+          } else {
+            result
+              ..status = _TestStatus.pass
+              ..detail = 'error: ${e.message}';
+            _pass++;
+          }
+          return;
+        }
+        rethrow;
       }
-      resumeIdx++;
+
+      // Handle error results returned in MontyComplete (non-throwing path).
+      if (expectError) {
+        final complete = progress as MontyComplete;
+        if (complete.result.error != null) {
+          final errMsg = complete.result.error!.message;
+          if (errorContains != null && !errMsg.contains(errorContains)) {
+            result
+              ..status = _TestStatus.fail
+              ..detail = 'expected error containing "$errorContains", '
+                  'got: $errMsg';
+            _fail++;
+          } else {
+            result
+              ..status = _TestStatus.pass
+              ..detail = 'error: $errMsg';
+            _pass++;
+          }
+        } else {
+          result
+            ..status = _TestStatus.fail
+            ..detail = 'expected error, got value: ${complete.result.value}';
+          _fail++;
+        }
+        return;
+      }
+    } else {
+      var resumeIdx = 0;
+      while (progress is MontyPending) {
+        if (resumeErrors != null && resumeIdx < resumeErrors.length) {
+          progress =
+              await monty.resumeWithError(resumeErrors[resumeIdx].toString());
+        } else if (resumeValues != null && resumeIdx < resumeValues.length) {
+          progress = await monty.resume(resumeValues[resumeIdx]);
+        } else {
+          progress = await monty.resume(null);
+        }
+        resumeIdx++;
+      }
     }
 
     final complete = progress as MontyComplete;
@@ -1903,7 +1995,7 @@ final _examples = <_Example>[
   // 1. Expressions & resource usage
   _Example(
     '1. Expressions',
-    '2 ** 100',
+    '2 ** 8',
     (monty, code, limits, log) async {
       final result = await monty.run(code, limits: limits);
       log('Result: ${result.value}');
@@ -2017,9 +2109,108 @@ final _examples = <_Example>[
     },
   ),
 
-  // 7. Stack depth limit — deep recursion gets killed
+  // 7. Async/futures — Python awaits, Dart resolves futures
   _Example(
-    '7. Stack overflow',
+    '7. Async gather',
+    'import asyncio\n'
+        '\n'
+        'async def main():\n'
+        '  a, b = await asyncio.gather(fetch_x(), fetch_y())\n'
+        '  return f"{a} + {b} = {a + b}"\n'
+        '\n'
+        'await main()',
+    (monty, code, limits, log) async {
+      var progress = await monty.start(
+        code,
+        externalFunctions: ['fetch_x', 'fetch_y'],
+        limits: limits,
+      );
+
+      // Each pending external call becomes a future.
+      final futureValues = <int, Object?>{};
+      while (progress is! MontyComplete) {
+        if (progress is MontyPending) {
+          log('Python awaits ${progress.functionName}() — converting to future');
+          progress = await monty.resumeAsFuture();
+        } else if (progress is MontyResolveFutures) {
+          log('Resolving ${progress.pendingCallIds.length} futures...');
+          for (final id in progress.pendingCallIds) {
+            // Simulate async work — in real code this would be HTTP, DB, etc.
+            futureValues[id] = (id + 1) * 10; // 10, 20
+          }
+          log('Values: $futureValues');
+          progress = await monty.resolveFutures(futureValues);
+        }
+      }
+
+      final complete = progress as MontyComplete;
+      log('Result: ${complete.result.value}');
+    },
+  ),
+
+  // 8. Function parameter permutations
+  _Example(
+    '8. Function params',
+    '# Default arguments\n'
+        'def greet(name="world"): return f"hello {name}"\n'
+        '\n'
+        '# *args (variadic positional)\n'
+        'def total(*args):\n'
+        '  s = 0\n'
+        '  for a in args: s += a\n'
+        '  return s\n'
+        '\n'
+        '# **kwargs (variadic keyword)\n'
+        'def config(**kw): return kw\n'
+        '\n'
+        '# Mixed: positional + default + *args + **kwargs\n'
+        'def mixed(a, b=10, *args, **kwargs):\n'
+        '  return [a, b, list(args), kwargs]\n'
+        '\n'
+        '# Keyword-only (after *)\n'
+        'def kw_only(*, sep="-"):\n'
+        '  return sep.join(["a", "b", "c"])\n'
+        '\n'
+        '# *args with keyword-only after\n'
+        'def flexible(*args, sep="/"):\n'
+        '  return sep.join(str(a) for a in args)\n'
+        '\n'
+        '# Args/kwargs forwarding\n'
+        'def inner(a, b, c=0): return a + b + c\n'
+        'def outer(*args, **kwargs): return inner(*args, **kwargs)\n'
+        '\n'
+        '[\n'
+        '  greet(),\n'
+        '  greet("Dart"),\n'
+        '  total(1, 2, 3, 4),\n'
+        '  config(x=1, y=2),\n'
+        '  mixed(1, 2, 3, 4, z=5),\n'
+        '  kw_only(sep="."),\n'
+        '  flexible(1, 2, 3, sep="-"),\n'
+        '  outer(1, 2, c=10),\n'
+        ']',
+    (monty, code, limits, log) async {
+      final result = await monty.run(code, limits: limits);
+      final values = result.value as List;
+      final labels = [
+        'Default:',
+        'Override:',
+        '*args:',
+        '**kwargs:',
+        'Mixed:',
+        'Keyword-only:',
+        '*args+kw-only:',
+        'Forwarding:',
+      ];
+      for (var i = 0; i < values.length; i++) {
+        log('${labels[i]} ${values[i]}');
+      }
+    },
+  ),
+
+  // 9. Stack depth limit — deep recursion gets killed
+  _Example(
+    '9. Stack overflow',
     'def recurse(n):\n'
         '    return recurse(n + 1)\n'
         'recurse(0)',

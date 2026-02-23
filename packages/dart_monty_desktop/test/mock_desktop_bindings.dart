@@ -147,6 +147,67 @@ class MockDesktopBindings extends DesktopBindings {
     );
   }
 
+  /// Queue of results returned by [resumeAsFuture]. Dequeues on each call.
+  final List<DesktopProgressResult> resumeAsFutureResults = [];
+
+  /// Number of times [resumeAsFuture] was called.
+  int resumeAsFutureCalls = 0;
+
+  /// Queue of results returned by [resolveFutures]. Dequeues on each call.
+  final List<DesktopProgressResult> resolveFuturesResults = [];
+
+  /// Records of results passed to [resolveFutures].
+  final List<Map<int, Object?>> resolveFuturesCalls = [];
+
+  /// Queue of results returned by [resolveFuturesWithErrors].
+  final List<DesktopProgressResult> resolveFuturesWithErrorsResults = [];
+
+  /// Records of (results, errors) passed to [resolveFuturesWithErrors].
+  final List<({Map<int, Object?> results, Map<int, String> errors})>
+      resolveFuturesWithErrorsCalls = [];
+
+  @override
+  Future<DesktopProgressResult> resumeAsFuture() async {
+    resumeAsFutureCalls++;
+    if (resumeAsFutureResults.isNotEmpty) {
+      return resumeAsFutureResults.removeAt(0);
+    }
+    return const DesktopProgressResult(
+      progress: MontyResolveFutures(pendingCallIds: [0]),
+    );
+  }
+
+  @override
+  Future<DesktopProgressResult> resolveFutures(
+    Map<int, Object?> results,
+  ) async {
+    resolveFuturesCalls.add(results);
+    if (resolveFuturesResults.isNotEmpty) {
+      return resolveFuturesResults.removeAt(0);
+    }
+    return const DesktopProgressResult(
+      progress: MontyComplete(
+        result: MontyResult(usage: _zeroUsage),
+      ),
+    );
+  }
+
+  @override
+  Future<DesktopProgressResult> resolveFuturesWithErrors(
+    Map<int, Object?> results,
+    Map<int, String> errors,
+  ) async {
+    resolveFuturesWithErrorsCalls.add((results: results, errors: errors));
+    if (resolveFuturesWithErrorsResults.isNotEmpty) {
+      return resolveFuturesWithErrorsResults.removeAt(0);
+    }
+    return const DesktopProgressResult(
+      progress: MontyComplete(
+        result: MontyResult(usage: _zeroUsage),
+      ),
+    );
+  }
+
   @override
   Future<Uint8List> snapshot() async {
     snapshotCalls++;

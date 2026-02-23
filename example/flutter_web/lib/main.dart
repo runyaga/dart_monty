@@ -1082,6 +1082,11 @@ class _LadderPageState extends State<_LadderPage> {
       'tier_04_functions.json',
       'tier_05_errors.json',
       'tier_06_external_fns.json',
+      'tier_07_advanced.json',
+      'tier_08_kwargs.json',
+      'tier_09_exceptions.json',
+      'tier_13_async.json',
+      'tier_15_script_name.json',
     ];
 
     // Create a single Monty instance for all fixtures.
@@ -1145,6 +1150,15 @@ class _LadderPageState extends State<_LadderPage> {
     Map<String, dynamic> fixture,
     _TestResult result,
   ) async {
+    final nativeOnly = fixture['nativeOnly'] as bool? ?? false;
+    if (nativeOnly) {
+      result
+        ..status = _TestStatus.skip
+        ..detail = 'nativeOnly';
+      _skip++;
+      return;
+    }
+
     final code = fixture['code'] as String;
     final expected = fixture['expected'];
     final expectedContains = fixture['expectedContains'] as String?;
@@ -1924,7 +1938,7 @@ final _examples = <_Example>[
   // 1. Expressions & resource usage
   _Example(
     '1. Expressions',
-    '2 ** 100',
+    '2 ** 8',
     (monty, code, limits, log) async {
       final result = await monty.run(code, limits: limits);
       log('Result: ${result.value}');
@@ -2038,9 +2052,69 @@ final _examples = <_Example>[
     },
   ),
 
-  // 7. Stack depth limit — deep recursion gets killed
+  // 7. Function parameter permutations
   _Example(
-    '7. Stack overflow',
+    '7. Function params',
+    '# Default arguments\n'
+        'def greet(name="world"): return f"hello {name}"\n'
+        '\n'
+        '# *args (variadic positional)\n'
+        'def total(*args):\n'
+        '  s = 0\n'
+        '  for a in args: s += a\n'
+        '  return s\n'
+        '\n'
+        '# **kwargs (variadic keyword)\n'
+        'def config(**kw): return kw\n'
+        '\n'
+        '# Mixed: positional + default + *args + **kwargs\n'
+        'def mixed(a, b=10, *args, **kwargs):\n'
+        '  return [a, b, list(args), kwargs]\n'
+        '\n'
+        '# Keyword-only (after *)\n'
+        'def kw_only(*, sep="-"):\n'
+        '  return sep.join(["a", "b", "c"])\n'
+        '\n'
+        '# *args with keyword-only after\n'
+        'def flexible(*args, sep="/"):\n'
+        '  return sep.join(str(a) for a in args)\n'
+        '\n'
+        '# Args/kwargs forwarding\n'
+        'def inner(a, b, c=0): return a + b + c\n'
+        'def outer(*args, **kwargs): return inner(*args, **kwargs)\n'
+        '\n'
+        '[\n'
+        '  greet(),\n'
+        '  greet("Dart"),\n'
+        '  total(1, 2, 3, 4),\n'
+        '  config(x=1, y=2),\n'
+        '  mixed(1, 2, 3, 4, z=5),\n'
+        '  kw_only(sep="."),\n'
+        '  flexible(1, 2, 3, sep="-"),\n'
+        '  outer(1, 2, c=10),\n'
+        ']',
+    (monty, code, limits, log) async {
+      final result = await monty.run(code, limits: limits);
+      final values = result.value as List;
+      final labels = [
+        'Default:',
+        'Override:',
+        '*args:',
+        '**kwargs:',
+        'Mixed:',
+        'Keyword-only:',
+        '*args+kw-only:',
+        'Forwarding:',
+      ];
+      for (var i = 0; i < values.length; i++) {
+        log('${labels[i]} ${values[i]}');
+      }
+    },
+  ),
+
+  // 8. Stack depth limit — deep recursion gets killed
+  _Example(
+    '8. Stack overflow',
     'def recurse(n):\n'
         '    return recurse(n + 1)\n'
         'recurse(0)',
