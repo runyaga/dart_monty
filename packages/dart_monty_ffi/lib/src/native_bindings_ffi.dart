@@ -238,8 +238,15 @@ class NativeBindingsFfi extends NativeBindings {
 
       case MontyProgressTag.MONTY_PROGRESS_ERROR:
         final errorMsg = _readAndFreeString(errorPtr);
+        // handle_exception sets state to Complete with full error JSON
+        final resultJsonPtr = _lib.monty_complete_result_json(ptr);
+        final resultJson = _readAndFreeString(resultJsonPtr);
 
-        return ProgressResult(tag: 2, errorMessage: errorMsg);
+        return ProgressResult(
+          tag: 2,
+          errorMessage: errorMsg,
+          resultJson: resultJson,
+        );
     }
   }
 

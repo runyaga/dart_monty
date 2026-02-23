@@ -901,5 +901,87 @@ void main() {
         ),
       );
     });
+
+    test('run error tag=1 parses excType and traceback from resultJson',
+        () async {
+      const errorJson = '{"value": null, "error": {'
+          ' "message": "division by zero",'
+          ' "exc_type": "ZeroDivisionError",'
+          ' "filename": "test.py",'
+          ' "line_number": 1,'
+          ' "traceback": [{"filename": "test.py", "start_line": 1,'
+          ' "start_column": 0, "end_line": 1, "end_column": 3}]'
+          ' }, "usage": $_usageJson}';
+      mock.nextRunResult =
+          const RunResult(tag: 1, resultJson: errorJson, errorMessage: 'err');
+
+      try {
+        await monty.run('1/0');
+        fail('Expected MontyException');
+      } on MontyException catch (e) {
+        expect(e.excType, 'ZeroDivisionError');
+        expect(e.message, 'division by zero');
+        expect(e.filename, 'test.py');
+        expect(e.traceback, hasLength(1));
+        expect(e.traceback.first.filename, 'test.py');
+      }
+    });
+
+    test('run error tag=1 falls back to errorMessage when no resultJson',
+        () async {
+      mock.nextRunResult =
+          const RunResult(tag: 1, errorMessage: 'fallback msg');
+
+      expect(
+        () => monty.run('x'),
+        throwsA(
+          isA<MontyException>().having(
+            (e) => e.message,
+            'message',
+            'fallback msg',
+          ),
+        ),
+      );
+    });
+
+    test('progress error parses excType from resultJson', () async {
+      const errorJson = '{"value": null, "error": {'
+          ' "message": "name error",'
+          ' "exc_type": "NameError",'
+          ' "traceback": [{"filename": "<module>", "start_line": 1,'
+          ' "start_column": 0, "end_line": 1, "end_column": 5}]'
+          ' }, "usage": $_usageJson}';
+      mock.nextStartResult = const ProgressResult(
+        tag: 2,
+        errorMessage: 'name error',
+        resultJson: errorJson,
+      );
+
+      try {
+        await monty.start('x', externalFunctions: ['f']);
+        fail('Expected MontyException');
+      } on MontyException catch (e) {
+        expect(e.excType, 'NameError');
+        expect(e.message, 'name error');
+        expect(e.traceback, hasLength(1));
+      }
+    });
+
+    test('pending with empty kwargs decoded as null', () async {
+      mock.nextStartResult = const ProgressResult(
+        tag: 1,
+        functionName: 'ext_fn',
+        argumentsJson: '[42]',
+        kwargsJson: '{}',
+        callId: 0,
+        methodCall: false,
+      );
+
+      final progress = await monty.start('x', externalFunctions: ['ext_fn']);
+      expect(progress, isA<MontyPending>());
+      final pending = progress as MontyPending;
+      expect(pending.kwargs, isNull);
+      expect(pending.arguments, [42]);
+    });
   });
 }

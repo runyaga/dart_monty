@@ -8,7 +8,7 @@ import 'package:dart_monty_ffi/dart_monty_ffi.dart';
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 import 'package:test/test.dart';
 
-/// Python Compatibility Ladder — integration tests across 6 tiers.
+/// Python Compatibility Ladder — integration tests across all tiers.
 ///
 /// Loads JSON fixtures from `test/fixtures/python_ladder/` and runs each
 /// fixture through MontyFfi, asserting expected results.
@@ -97,7 +97,8 @@ Future<void> _runSimpleFixture(
   String code,
   Map<String, dynamic> fixture,
 ) async {
-  final result = await monty.run(code);
+  final scriptName = fixture['scriptName'] as String?;
+  final result = await monty.run(code, scriptName: scriptName);
   _assertResult(result.value, fixture);
 }
 
@@ -106,8 +107,9 @@ Future<void> _runErrorFixture(
   String code,
   Map<String, dynamic> fixture,
 ) async {
+  final scriptName = fixture['scriptName'] as String?;
   try {
-    await monty.run(code);
+    await monty.run(code, scriptName: scriptName);
     fail('Expected MontyException but run() succeeded');
   } on MontyException catch (e) {
     final errorContains = fixture['errorContains'] as String?;
@@ -120,6 +122,8 @@ Future<void> _runErrorFixture(
             'got: "$fullError"',
       );
     }
+
+    _assertExceptionFields(e, fixture);
   }
 }
 
@@ -131,24 +135,166 @@ Future<void> _runIterativeFixture(
   final extFns = (fixture['externalFunctions'] as List).cast<String>();
   final resumeValues = (fixture['resumeValues'] as List?)?.cast<Object>();
   final resumeErrors = (fixture['resumeErrors'] as List?)?.cast<String>();
+  final scriptName = fixture['scriptName'] as String?;
 
-  var progress = await monty.start(code, externalFunctions: extFns);
+  var progress = await monty.start(
+    code,
+    externalFunctions: extFns,
+    scriptName: scriptName,
+  );
+
+  final callIds = <int>[];
 
   if (resumeErrors != null) {
-    for (final errorMsg in resumeErrors) {
+    for (var i = 0; i < resumeErrors.length; i++) {
       expect(progress, isA<MontyPending>());
-      progress = await monty.resumeWithError(errorMsg);
+      if (i == 0) _assertPendingFields(progress as MontyPending, fixture);
+      callIds.add((progress as MontyPending).callId);
+      progress = await monty.resumeWithError(resumeErrors[i]);
     }
   } else if (resumeValues != null) {
-    for (final value in resumeValues) {
+    for (var i = 0; i < resumeValues.length; i++) {
       expect(progress, isA<MontyPending>());
-      progress = await monty.resume(value);
+      if (i == 0) _assertPendingFields(progress as MontyPending, fixture);
+      callIds.add((progress as MontyPending).callId);
+      progress = await monty.resume(resumeValues[i]);
     }
+  }
+
+  if (fixture['expectedDistinctCallIds'] == true && callIds.length > 1) {
+    expect(
+      callIds.toSet().length,
+      callIds.length,
+      reason: 'Fixture #${fixture['id']}: expected distinct call_ids, '
+          'got: $callIds',
+    );
   }
 
   expect(progress, isA<MontyComplete>());
   final complete = progress as MontyComplete;
   _assertResult(complete.result.value, fixture);
+}
+
+void _assertPendingFields(MontyPending pending, Map<String, dynamic> fixture) {
+  final expectedFnName = fixture['expectedFnName'] as String?;
+  if (expectedFnName != null) {
+    expect(
+      pending.functionName,
+      expectedFnName,
+      reason: 'Fixture #${fixture['id']}: expected functionName '
+          '"$expectedFnName", got: "${pending.functionName}"',
+    );
+  }
+
+  final expectedArgs = fixture['expectedArgs'] as List?;
+  if (expectedArgs != null) {
+    expect(
+      jsonEncode(pending.arguments),
+      jsonEncode(expectedArgs),
+      reason: 'Fixture #${fixture['id']}: expected args '
+          '${jsonEncode(expectedArgs)}, got: ${jsonEncode(pending.arguments)}',
+    );
+  }
+
+  final expectedKwargs = fixture['expectedKwargs'];
+  if (fixture.containsKey('expectedKwargs')) {
+    if (expectedKwargs == null) {
+      expect(
+        pending.kwargs,
+        isNull,
+        reason: 'Fixture #${fixture['id']}: expected null kwargs, '
+            'got: ${pending.kwargs}',
+      );
+    } else {
+      final expectedMap = Map<String, Object?>.from(
+        expectedKwargs as Map<String, dynamic>,
+      );
+      expect(
+        pending.kwargs,
+        expectedMap,
+        reason: 'Fixture #${fixture['id']}: expected kwargs '
+            '$expectedMap, got: ${pending.kwargs}',
+      );
+    }
+  }
+
+  if (fixture['expectedCallIdNonZero'] == true) {
+    expect(
+      pending.callId,
+      isNot(0),
+      reason: 'Fixture #${fixture['id']}: expected nonzero callId, '
+          'got: ${pending.callId}',
+    );
+  }
+
+  final expectedMethodCall = fixture['expectedMethodCall'] as bool?;
+  if (expectedMethodCall != null) {
+    expect(
+      pending.methodCall,
+      expectedMethodCall,
+      reason: 'Fixture #${fixture['id']}: expected methodCall '
+          '$expectedMethodCall, got: ${pending.methodCall}',
+    );
+  }
+}
+
+void _assertExceptionFields(
+  MontyException e,
+  Map<String, dynamic> fixture,
+) {
+  final expectedExcType = fixture['expectedExcType'] as String?;
+  if (expectedExcType != null) {
+    expect(
+      e.excType,
+      expectedExcType,
+      reason: 'Fixture #${fixture['id']}: expected excType '
+          '"$expectedExcType", got: "${e.excType}"',
+    );
+  }
+
+  final expectedMinFrames = fixture['expectedTracebackMinFrames'] as int?;
+  if (expectedMinFrames != null) {
+    expect(
+      e.traceback.length,
+      greaterThanOrEqualTo(expectedMinFrames),
+      reason: 'Fixture #${fixture['id']}: expected >= $expectedMinFrames '
+          'traceback frames, got: ${e.traceback.length}',
+    );
+  }
+
+  if (fixture['expectedTracebackFrameHasFilename'] == true &&
+      e.traceback.isNotEmpty) {
+    expect(
+      e.traceback.first.filename,
+      isNotEmpty,
+      reason: 'Fixture #${fixture['id']}: expected traceback frame '
+          'to have non-empty filename',
+    );
+  }
+
+  final expectedErrorFilename = fixture['expectedErrorFilename'] as String?;
+  if (expectedErrorFilename != null) {
+    expect(
+      e.filename,
+      expectedErrorFilename,
+      reason: 'Fixture #${fixture['id']}: expected error filename '
+          '"$expectedErrorFilename", got: "${e.filename}"',
+    );
+  }
+
+  final expectedTracebackFilename =
+      fixture['expectedTracebackFilename'] as String?;
+  if (expectedTracebackFilename != null && e.traceback.isNotEmpty) {
+    final hasFilename = e.traceback.any(
+      (f) => f.filename == expectedTracebackFilename,
+    );
+    expect(
+      hasFilename,
+      isTrue,
+      reason: 'Fixture #${fixture['id']}: expected traceback to contain '
+          'frame with filename "$expectedTracebackFilename"',
+    );
+  }
 }
 
 void _assertResult(Object? actual, Map<String, dynamic> fixture) {

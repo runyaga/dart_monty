@@ -42,7 +42,8 @@
     "externalFunctions": ["fetch"],
     "resumeValues": null,
     "resumeErrors": ["network failure"],
-    "nativeOnly": false
+    "nativeOnly": false,
+    "xfail": "monty does not propagate last expression from try-except blocks"
   },
   {
     "id": 46,
