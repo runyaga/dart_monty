@@ -121,7 +121,12 @@ Each package has a dedicated publish workflow triggered by a tag push:
 
 | Package | Tag pattern | Workflow |
 |---------|-------------|----------|
+| `dart_monty` | `dart_monty-v<version>` | `publish_dart_monty.yaml` |
 | `dart_monty_platform_interface` | `platform_interface-v<version>` | `publish_platform_interface.yaml` |
+| `dart_monty_ffi` | `ffi-v<version>` | `publish_ffi.yaml` |
+| `dart_monty_wasm` | `wasm-v<version>` | `publish_wasm.yaml` |
+| `dart_monty_web` | `web-v<version>` | `publish_web.yaml` |
+| `dart_monty_desktop` | `desktop-v<version>` | `publish_desktop.yaml` |
 
 The workflow runs: install deps → analyze → test → verify tag matches
 pubspec version → dry-run → publish.
@@ -131,11 +136,17 @@ pubspec version → dry-run → publish.
 ```bash
 # 1. Ensure CHANGELOG.md has an entry for the version (no "Unreleased" heading)
 # 2. Ensure pubspec.yaml version matches the tag you're about to push
-# 3. Tag and push
+# 3. Tag and push (example for platform_interface)
 git tag platform_interface-v0.3.5
 git push origin platform_interface-v0.3.5
 # 4. Watch the Actions tab for the publish workflow
 ```
+
+### Publish order
+
+Publish in dependency order to ensure each package's deps are on pub.dev:
+
+`platform_interface` → `ffi` / `wasm` → `web` / `desktop` → `dart_monty`
 
 ### pub.dev admin setup (one-time per package)
 
