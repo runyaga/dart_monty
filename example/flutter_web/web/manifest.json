@@ -1,0 +1,9 @@
+{
+  "name": "Monty Flutter Web",
+  "short_name": "MontyWeb",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#1e1e1e",
+  "theme_color": "#569cd6",
+  "description": "Run sandboxed Python from Flutter — powered by Monty WASM"
+}

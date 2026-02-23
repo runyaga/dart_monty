@@ -1,0 +1,39 @@
+name: flutter_web_example
+description: Flutter web example — run Python from Dart via browser WASM.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.5.0 <4.0.0'
+  flutter: '>=3.24.0'
+
+dependencies:
+  dart_monty:
+    path: ../..
+  dart_monty_platform_interface:
+    path: ../../packages/dart_monty_platform_interface
+  dart_monty_web:
+    path: ../../packages/dart_monty_web
+  flutter:
+    sdk: flutter
+  http: ^1.3.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  very_good_analysis: ^10.0.0
+
+dependency_overrides:
+  dart_monty_desktop:
+    path: ../../packages/dart_monty_desktop
+  dart_monty_ffi:
+    path: ../../packages/dart_monty_ffi
+  dart_monty_platform_interface:
+    path: ../../packages/dart_monty_platform_interface
+  dart_monty_wasm:
+    path: ../../packages/dart_monty_wasm
+  dart_monty_web:
+    path: ../../packages/dart_monty_web
+
+flutter:
+  uses-material-design: true

@@ -71,6 +71,33 @@ jobs:
           mkdir -p example/web/web/fixtures
           cp test/fixtures/python_ladder/tier_*.json example/web/web/fixtures/
 
+      # ── Build Flutter web example ──────────────────────────────────
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Install Flutter web dependencies
+        working-directory: example/flutter_web
+        run: flutter pub get
+      - name: Build Flutter web app
+        working-directory: example/flutter_web
+        run: flutter build web --base-href /dart_monty/flutter/ --pwa-strategy none
+      - name: Copy WASM assets to Flutter build
+        run: |
+          cp packages/dart_monty_wasm/assets/dart_monty_bridge.js example/flutter_web/build/web/
+          cp packages/dart_monty_wasm/assets/dart_monty_worker.js example/flutter_web/build/web/
+          cp packages/dart_monty_wasm/assets/wasi-worker-browser.mjs example/flutter_web/build/web/
+          cp packages/dart_monty_wasm/assets/*.wasm example/flutter_web/build/web/
+          cp example/flutter_web/web/coi-serviceworker.js example/flutter_web/build/web/
+      - name: Copy fixture files to Flutter build
+        run: |
+          mkdir -p example/flutter_web/build/web/fixtures
+          cp test/fixtures/python_ladder/tier_*.json example/flutter_web/build/web/fixtures/
+      - name: Assemble Flutter web into site
+        run: |
+          mkdir -p example/web/web/flutter
+          cp -r example/flutter_web/build/web/* example/web/web/flutter/
+
       # ── Deploy ───────────────────────────────────────────────────────
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
