@@ -1,5 +1,5 @@
 name: dart_monty_wasm
-description: WASM backend for dart_monty — Dart/Flutter bindings for Monty, a Rust-built embeddable sandbox running a restricted subset of Python.
+description: WASM backend for dart_monty, pure Dart bindings for Monty — a restricted sandboxed Python interpreter built in Rust.
 version: 0.3.4
 homepage: https://github.com/runyaga/dart_monty
 repository: https://github.com/runyaga/dart_monty

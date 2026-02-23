@@ -4,13 +4,11 @@
 [![Pages](https://github.com/runyaga/dart_monty/actions/workflows/pages.yaml/badge.svg)](https://runyaga.github.io/dart_monty/)
 [![codecov](https://codecov.io/gh/runyaga/dart_monty/graph/badge.svg)](https://codecov.io/gh/runyaga/dart_monty)
 
-**[Live Demo](https://runyaga.github.io/dart_monty/)** — try it in your browser
+[Live Demo](https://runyaga.github.io/dart_monty/) | [GitHub](https://github.com/runyaga/dart_monty) | [Monty](https://github.com/pydantic/monty)
 
-Flutter plugin that exposes the [Monty](https://github.com/pydantic/monty)
-sandboxed Python interpreter to Dart and Flutter apps.
+[Monty](https://github.com/pydantic/monty) is a restricted, sandboxed Python interpreter built in Rust by the [Pydantic](https://github.com/pydantic) team. It runs a safe subset of Python designed for embedding.
 
-Run Python code from Dart — on desktop, mobile, and web — with resource
-limits, iterative execution, and snapshot/restore support.
+**dart_monty** provides pure Dart bindings for the Monty interpreter, bringing sandboxed Python execution to Dart and Flutter apps — on desktop, web, and mobile — with resource limits, iterative execution, and snapshot/restore support.
 
 ## Platform Support
 
