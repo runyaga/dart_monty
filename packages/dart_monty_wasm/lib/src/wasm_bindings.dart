@@ -48,6 +48,7 @@ final class WasmProgressResult {
     this.kwargs,
     this.callId,
     this.methodCall,
+    this.pendingCallIds,
     this.error,
     this.errorType,
     this.excType,
@@ -57,7 +58,7 @@ final class WasmProgressResult {
   /// Whether the operation succeeded.
   final bool ok;
 
-  /// `'complete'` or `'pending'` (when [ok] is true).
+  /// `'complete'`, `'pending'`, or `'resolve_futures'` (when [ok] is true).
   final String? state;
 
   /// The return value (when state is `'complete'`).
@@ -77,6 +78,9 @@ final class WasmProgressResult {
 
   /// Whether this is a method call (when state is `'pending'`).
   final bool? methodCall;
+
+  /// Pending future call IDs (when state is `'resolve_futures'`).
+  final List<int>? pendingCallIds;
 
   /// The error message (when [ok] is false).
   final String? error;
@@ -154,6 +158,19 @@ abstract class WasmBindings {
 
   /// Resumes a paused execution with an [errorMessage].
   Future<WasmProgressResult> resumeWithError(String errorMessage);
+
+  /// Resumes by creating a future for the pending call.
+  ///
+  /// Not yet supported in the WASM backend.
+  Future<WasmProgressResult> resumeAsFuture();
+
+  /// Resolves pending futures with [resultsJson] and [errorsJson].
+  ///
+  /// Not yet supported in the WASM backend.
+  Future<WasmProgressResult> resolveFutures(
+    String resultsJson,
+    String errorsJson,
+  );
 
   /// Captures the current interpreter state as a binary snapshot.
   Future<Uint8List> snapshot();

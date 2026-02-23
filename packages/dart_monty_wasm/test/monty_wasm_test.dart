@@ -1053,4 +1053,75 @@ void main() {
       }
     });
   });
+
+  // ===========================================================================
+  // Async/Futures (M13) — stubs
+  // ===========================================================================
+  group('async/futures (M13)', () {
+    test('resumeAsFuture() throws UnsupportedError', () {
+      expect(
+        () => monty.resumeAsFuture(),
+        throwsA(isA<UnsupportedError>()),
+      );
+    });
+
+    test('resolveFutures() throws UnsupportedError', () {
+      expect(
+        () => monty.resolveFutures({0: 'value'}),
+        throwsA(isA<UnsupportedError>()),
+      );
+    });
+
+    test('resolveFuturesWithErrors() throws UnsupportedError', () {
+      expect(
+        () => monty.resolveFuturesWithErrors({0: 'value'}, {1: 'err'}),
+        throwsA(isA<UnsupportedError>()),
+      );
+    });
+
+    test('start() returns MontyResolveFutures for resolve_futures state',
+        () async {
+      mock.nextStartResult = const WasmProgressResult(
+        ok: true,
+        state: 'resolve_futures',
+        pendingCallIds: [0, 1, 2],
+      );
+
+      final progress = await monty.start(
+        'await asyncio.gather(a(), b(), c())',
+        externalFunctions: ['a', 'b', 'c'],
+      );
+
+      expect(progress, isA<MontyResolveFutures>());
+      final rf = progress as MontyResolveFutures;
+      expect(rf.pendingCallIds, [0, 1, 2]);
+    });
+
+    test('resolve_futures state defaults to empty pendingCallIds', () async {
+      mock.nextStartResult = const WasmProgressResult(
+        ok: true,
+        state: 'resolve_futures',
+      );
+
+      final progress = await monty.start('x');
+
+      expect(progress, isA<MontyResolveFutures>());
+      final rf = progress as MontyResolveFutures;
+      expect(rf.pendingCallIds, isEmpty);
+    });
+
+    test('resolve_futures sets state to active', () async {
+      mock.nextStartResult = const WasmProgressResult(
+        ok: true,
+        state: 'resolve_futures',
+        pendingCallIds: [0],
+      );
+
+      await monty.start('x', externalFunctions: ['a']);
+
+      // Active state — cannot run() or start().
+      expect(() => monty.run('y'), throwsStateError);
+      expect(() => monty.start('y'), throwsStateError);
+    });
+  });
 }

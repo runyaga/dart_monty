@@ -103,6 +103,38 @@ abstract class MontyPlatform extends PlatformInterface {
     throw UnimplementedError('resumeWithError() has not been implemented.');
   }
 
+  /// Resumes a paused execution by creating a future for the pending call.
+  ///
+  /// Instead of providing an immediate return value, this tells the VM
+  /// that the external function call will return a future. The VM continues
+  /// executing until it encounters an `await`, then yields
+  /// [MontyResolveFutures].
+  Future<MontyProgress> resumeAsFuture() {
+    throw UnimplementedError('resumeAsFuture() has not been implemented.');
+  }
+
+  /// Resolves pending futures with their results.
+  ///
+  /// [results] maps call IDs to their resolved values. All pending call IDs
+  /// from [MontyResolveFutures.pendingCallIds] should be present.
+  Future<MontyProgress> resolveFutures(Map<int, Object?> results) {
+    throw UnimplementedError('resolveFutures() has not been implemented.');
+  }
+
+  /// Resolves pending futures with a mix of results and errors.
+  ///
+  /// [results] maps call IDs to their resolved values.
+  /// [errors] maps call IDs to error message strings (raises RuntimeError
+  /// in Python).
+  Future<MontyProgress> resolveFuturesWithErrors(
+    Map<int, Object?> results,
+    Map<int, String> errors,
+  ) {
+    throw UnimplementedError(
+      'resolveFuturesWithErrors() has not been implemented.',
+    );
+  }
+
   /// Captures the current interpreter state as a binary snapshot.
   Future<Uint8List> snapshot() {
     throw UnimplementedError('snapshot() has not been implemented.');

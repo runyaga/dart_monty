@@ -64,6 +64,31 @@ print(complete.result.value);
 // Error injection
 progress = await monty.resumeWithError('network timeout');
 
+// Async/futures — concurrent external calls via asyncio.gather
+progress = await monty.start('''
+import asyncio
+
+async def main():
+  a, b = await asyncio.gather(fetch("url1"), fetch("url2"))
+  return a + b
+
+await main()
+''', externalFunctions: ['fetch']);
+
+// Return Future for each pending call (native only)
+while (progress is MontyPending) {
+  progress = await monty.resumeAsFuture();
+}
+
+// Resolve all pending futures at once
+if (progress is MontyResolveFutures) {
+  final results = await Future.wait([fetchUrl("url1"), fetchUrl("url2")]);
+  progress = await monty.resolveFutures({
+    0: results[0],
+    1: results[1],
+  });
+}
+
 // Cleanup
 await monty.dispose();
 ```

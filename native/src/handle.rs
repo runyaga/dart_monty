@@ -1,8 +1,8 @@
 use std::time::Duration;
 
 use monty::{
-    ExternalResult, LimitedTracker, MontyException, MontyRun, NoLimitTracker, PrintWriter,
-    ResourceLimits, RunProgress, Snapshot,
+    ExternalResult, FutureSnapshot, LimitedTracker, MontyException, MontyRun, NoLimitTracker,
+    PrintWriter, ResourceLimits, RunProgress, Snapshot,
 };
 use serde_json::Value;
 
@@ -25,6 +25,7 @@ pub enum MontyProgressTag {
     Complete = 0,
     Pending = 1,
     Error = 2,
+    ResolveFutures = 3,
 }
 
 /// Metadata captured when paused at a `FunctionCall`.
@@ -46,6 +47,14 @@ enum HandleState {
     PausedNoLimit {
         snapshot: Snapshot<NoLimitTracker>,
         meta: PendingMeta,
+    },
+    FuturesLimited {
+        snapshot: FutureSnapshot<LimitedTracker>,
+        call_ids_json: String,
+    },
+    FuturesNoLimit {
+        snapshot: FutureSnapshot<NoLimitTracker>,
+        call_ids_json: String,
     },
     Complete {
         result_json: String,
@@ -208,6 +217,176 @@ impl MontyHandle {
         );
         let result = ExternalResult::Error(exc);
         self.resume_with_result(result)
+    }
+
+    /// Resume by creating a future (tells the VM this call returns a future).
+    ///
+    /// The VM continues executing until all coroutines are blocked, then
+    /// yields `ResolveFutures`. Only valid in Paused state.
+    pub fn resume_as_future(&mut self) -> (MontyProgressTag, Option<String>) {
+        let state = std::mem::replace(&mut self.state, HandleState::Consumed);
+
+        match state {
+            HandleState::PausedLimited { snapshot, .. } => {
+                let mut print = PrintWriter::Collect(String::new());
+                match snapshot.run_pending(&mut print) {
+                    Ok(progress) => {
+                        if let PrintWriter::Collect(collected) = print {
+                            self.print_output.push_str(&collected);
+                        }
+                        self.process_progress_limited(progress)
+                    }
+                    Err(exc) => {
+                        if let PrintWriter::Collect(collected) = print {
+                            self.print_output.push_str(&collected);
+                        }
+                        self.handle_exception(exc)
+                    }
+                }
+            }
+            HandleState::PausedNoLimit { snapshot, .. } => {
+                let mut print = PrintWriter::Collect(String::new());
+                match snapshot.run_pending(&mut print) {
+                    Ok(progress) => {
+                        if let PrintWriter::Collect(collected) = print {
+                            self.print_output.push_str(&collected);
+                        }
+                        self.process_progress_no_limit(progress)
+                    }
+                    Err(exc) => {
+                        if let PrintWriter::Collect(collected) = print {
+                            self.print_output.push_str(&collected);
+                        }
+                        self.handle_exception(exc)
+                    }
+                }
+            }
+            other => {
+                self.state = other;
+                (
+                    MontyProgressTag::Error,
+                    Some("handle not in Paused state".into()),
+                )
+            }
+        }
+    }
+
+    /// Get the pending future call IDs as a JSON array string.
+    ///
+    /// Only valid in FuturesLimited/FuturesNoLimit state. Returns
+    /// a JSON array like `"[0, 1, 2]"`.
+    pub fn pending_future_call_ids(&self) -> Option<&str> {
+        match &self.state {
+            HandleState::FuturesLimited { call_ids_json, .. }
+            | HandleState::FuturesNoLimit { call_ids_json, .. } => Some(call_ids_json.as_str()),
+            _ => None,
+        }
+    }
+
+    /// Resume futures with results and errors.
+    ///
+    /// - `results_json`: JSON object `{"call_id": value, ...}` (string keys)
+    /// - `errors_json`: JSON object `{"call_id": "error_message", ...}` (string keys), or empty
+    pub fn resume_futures(
+        &mut self,
+        results_json: &str,
+        errors_json: &str,
+    ) -> (MontyProgressTag, Option<String>) {
+        let results_map: serde_json::Map<String, Value> = match serde_json::from_str(results_json) {
+            Ok(v) => v,
+            Err(e) => {
+                return (
+                    MontyProgressTag::Error,
+                    Some(format!("invalid results JSON: {e}")),
+                );
+            }
+        };
+        let errors_map: serde_json::Map<String, Value> = match serde_json::from_str(errors_json) {
+            Ok(v) => v,
+            Err(e) => {
+                return (
+                    MontyProgressTag::Error,
+                    Some(format!("invalid errors JSON: {e}")),
+                );
+            }
+        };
+
+        let mut ext_results: Vec<(u32, ExternalResult)> = Vec::new();
+
+        for (key, val) in &results_map {
+            let call_id: u32 = match key.parse() {
+                Ok(id) => id,
+                Err(_) => {
+                    return (
+                        MontyProgressTag::Error,
+                        Some(format!("invalid call_id: {key}")),
+                    );
+                }
+            };
+            let obj = json_to_monty_object(val);
+            ext_results.push((call_id, ExternalResult::Return(obj)));
+        }
+
+        for (key, val) in &errors_map {
+            let call_id: u32 = match key.parse() {
+                Ok(id) => id,
+                Err(_) => {
+                    return (
+                        MontyProgressTag::Error,
+                        Some(format!("invalid call_id: {key}")),
+                    );
+                }
+            };
+            let msg = val.as_str().unwrap_or("unknown error").to_string();
+            let exc = MontyException::new(monty::ExcType::RuntimeError, Some(msg));
+            ext_results.push((call_id, ExternalResult::Error(exc)));
+        }
+
+        let state = std::mem::replace(&mut self.state, HandleState::Consumed);
+
+        match state {
+            HandleState::FuturesLimited { snapshot, .. } => {
+                let mut print = PrintWriter::Collect(String::new());
+                match snapshot.resume(ext_results, &mut print) {
+                    Ok(progress) => {
+                        if let PrintWriter::Collect(collected) = print {
+                            self.print_output.push_str(&collected);
+                        }
+                        self.process_progress_limited(progress)
+                    }
+                    Err(exc) => {
+                        if let PrintWriter::Collect(collected) = print {
+                            self.print_output.push_str(&collected);
+                        }
+                        self.handle_exception(exc)
+                    }
+                }
+            }
+            HandleState::FuturesNoLimit { snapshot, .. } => {
+                let mut print = PrintWriter::Collect(String::new());
+                match snapshot.resume(ext_results, &mut print) {
+                    Ok(progress) => {
+                        if let PrintWriter::Collect(collected) = print {
+                            self.print_output.push_str(&collected);
+                        }
+                        self.process_progress_no_limit(progress)
+                    }
+                    Err(exc) => {
+                        if let PrintWriter::Collect(collected) = print {
+                            self.print_output.push_str(&collected);
+                        }
+                        self.handle_exception(exc)
+                    }
+                }
+            }
+            other => {
+                self.state = other;
+                (
+                    MontyProgressTag::Error,
+                    Some("handle not in Futures state".into()),
+                )
+            }
+        }
     }
 
     /// Get the pending function name (only valid in Paused state).
@@ -400,12 +579,20 @@ impl MontyHandle {
                 self.state = HandleState::PausedLimited { snapshot, meta };
                 (MontyProgressTag::Pending, None)
             }
-            _ => {
-                // OsCall / ResolveFutures — not supported in this layer yet
+            RunProgress::ResolveFutures(snapshot) => {
+                let call_ids_json = serde_json::to_string(snapshot.pending_call_ids())
+                    .unwrap_or_else(|_| "[]".into());
+                self.state = HandleState::FuturesLimited {
+                    snapshot,
+                    call_ids_json,
+                };
+                (MontyProgressTag::ResolveFutures, None)
+            }
+            RunProgress::OsCall { .. } => {
                 self.state = HandleState::Complete {
                     result_json: build_result_json(
                         Value::Null,
-                        Some(serde_json::json!({"message": "unsupported progress type"})),
+                        Some(serde_json::json!({"message": "unsupported progress type: OsCall"})),
                         &self.usage_json,
                         &self.print_output,
                     ),
@@ -413,7 +600,7 @@ impl MontyHandle {
                 };
                 (
                     MontyProgressTag::Error,
-                    Some("unsupported progress type (OsCall/ResolveFutures)".into()),
+                    Some("unsupported progress type: OsCall".into()),
                 )
             }
         }
@@ -446,11 +633,20 @@ impl MontyHandle {
                 self.state = HandleState::PausedNoLimit { snapshot, meta };
                 (MontyProgressTag::Pending, None)
             }
-            _ => {
+            RunProgress::ResolveFutures(snapshot) => {
+                let call_ids_json = serde_json::to_string(snapshot.pending_call_ids())
+                    .unwrap_or_else(|_| "[]".into());
+                self.state = HandleState::FuturesNoLimit {
+                    snapshot,
+                    call_ids_json,
+                };
+                (MontyProgressTag::ResolveFutures, None)
+            }
+            RunProgress::OsCall { .. } => {
                 self.state = HandleState::Complete {
                     result_json: build_result_json(
                         Value::Null,
-                        Some(serde_json::json!({"message": "unsupported progress type"})),
+                        Some(serde_json::json!({"message": "unsupported progress type: OsCall"})),
                         &self.usage_json,
                         &self.print_output,
                     ),
@@ -458,7 +654,7 @@ impl MontyHandle {
                 };
                 (
                     MontyProgressTag::Error,
-                    Some("unsupported progress type (OsCall/ResolveFutures)".into()),
+                    Some("unsupported progress type: OsCall".into()),
                 )
             }
         }
@@ -1141,5 +1337,151 @@ outer()
         let parsed: Value = serde_json::from_str(&result_json).unwrap();
         let traceback = parsed["error"]["traceback"].as_array().unwrap();
         assert_eq!(traceback[0]["filename"], "test.py");
+    }
+
+    // --- M13: Async/Futures tests ---
+
+    fn async_code_single() -> &'static str {
+        "async def main():\n  result = await fetch('x')\n  return result\n\nawait main()"
+    }
+
+    fn async_code_gather() -> &'static str {
+        "import asyncio\n\nasync def main():\n  a, b = await asyncio.gather(foo(), bar())\n  return a + b\n\nawait main()"
+    }
+
+    #[test]
+    fn test_async_single_await_via_handle() {
+        let mut handle =
+            MontyHandle::new(async_code_single().into(), vec!["fetch".into()], None).unwrap();
+        let (tag, _) = handle.start();
+        assert_eq!(tag, MontyProgressTag::Pending);
+        assert_eq!(handle.pending_fn_name(), Some("fetch"));
+
+        let (tag, _) = handle.resume_as_future();
+        assert_eq!(tag, MontyProgressTag::ResolveFutures);
+
+        let call_ids = handle.pending_future_call_ids().unwrap();
+        let ids: Vec<u32> = serde_json::from_str(call_ids).unwrap();
+        assert_eq!(ids.len(), 1);
+
+        let results = format!("{{\"{}\":\"response_x\"}}", ids[0]);
+        let (tag, _) = handle.resume_futures(&results, "{}");
+        assert_eq!(tag, MontyProgressTag::Complete);
+
+        let result: Value = serde_json::from_str(handle.complete_result_json().unwrap()).unwrap();
+        assert_eq!(result["value"], "response_x");
+    }
+
+    #[test]
+    fn test_async_gather_via_handle() {
+        let mut handle = MontyHandle::new(
+            async_code_gather().into(),
+            vec!["foo".into(), "bar".into()],
+            None,
+        )
+        .unwrap();
+
+        let (tag, _) = handle.start();
+        assert_eq!(tag, MontyProgressTag::Pending);
+        let id0 = handle.pending_call_id().unwrap();
+        let (tag, _) = handle.resume_as_future();
+        assert_eq!(tag, MontyProgressTag::Pending);
+        let id1 = handle.pending_call_id().unwrap();
+        let (tag, _) = handle.resume_as_future();
+        assert_eq!(tag, MontyProgressTag::ResolveFutures);
+
+        let call_ids = handle.pending_future_call_ids().unwrap();
+        let ids: Vec<u32> = serde_json::from_str(call_ids).unwrap();
+        assert_eq!(ids.len(), 2);
+
+        let results = format!("{{\"{}\":10,\"{}\":32}}", id0, id1);
+        let (tag, _) = handle.resume_futures(&results, "{}");
+        assert_eq!(tag, MontyProgressTag::Complete);
+
+        let result: Value = serde_json::from_str(handle.complete_result_json().unwrap()).unwrap();
+        assert_eq!(result["value"], 42);
+    }
+
+    #[test]
+    fn test_async_gather_with_error_via_handle() {
+        let mut handle = MontyHandle::new(
+            async_code_gather().into(),
+            vec!["foo".into(), "bar".into()],
+            None,
+        )
+        .unwrap();
+
+        let (tag, _) = handle.start();
+        assert_eq!(tag, MontyProgressTag::Pending);
+        let id0 = handle.pending_call_id().unwrap();
+        let (tag, _) = handle.resume_as_future();
+        assert_eq!(tag, MontyProgressTag::Pending);
+        let id1 = handle.pending_call_id().unwrap();
+        let (tag, _) = handle.resume_as_future();
+        assert_eq!(tag, MontyProgressTag::ResolveFutures);
+
+        let results = format!("{{\"{}\":10}}", id0);
+        let errors = format!("{{\"{}\":\"bar failed\"}}", id1);
+        let (tag, _) = handle.resume_futures(&results, &errors);
+        assert_eq!(tag, MontyProgressTag::Error);
+        assert_eq!(handle.complete_is_error(), Some(true));
+    }
+
+    #[test]
+    fn test_async_future_call_ids_wrong_state() {
+        let handle = MontyHandle::new("2 + 2".into(), vec![], None).unwrap();
+        assert!(handle.pending_future_call_ids().is_none());
+    }
+
+    #[test]
+    fn test_resume_futures_wrong_state() {
+        let mut handle = MontyHandle::new("2 + 2".into(), vec![], None).unwrap();
+        let (tag, err) = handle.resume_futures("{}", "{}");
+        assert_eq!(tag, MontyProgressTag::Error);
+        assert!(err.unwrap().contains("not in Futures state"));
+    }
+
+    #[test]
+    fn test_resume_as_future_wrong_state() {
+        let mut handle = MontyHandle::new("2 + 2".into(), vec![], None).unwrap();
+        let (tag, err) = handle.resume_as_future();
+        assert_eq!(tag, MontyProgressTag::Error);
+        assert!(err.unwrap().contains("not in Paused state"));
+    }
+
+    #[test]
+    fn test_resume_futures_invalid_json() {
+        let mut handle =
+            MontyHandle::new(async_code_single().into(), vec!["fetch".into()], None).unwrap();
+        let (tag, _) = handle.start();
+        assert_eq!(tag, MontyProgressTag::Pending);
+        let (tag, _) = handle.resume_as_future();
+        assert_eq!(tag, MontyProgressTag::ResolveFutures);
+
+        let (tag, err) = handle.resume_futures("not json", "{}");
+        assert_eq!(tag, MontyProgressTag::Error);
+        assert!(err.unwrap().contains("invalid results JSON"));
+    }
+
+    #[test]
+    fn test_async_with_limits() {
+        let mut handle =
+            MontyHandle::new(async_code_single().into(), vec!["fetch".into()], None).unwrap();
+        handle.set_memory_limit(10 * 1024 * 1024);
+        handle.set_time_limit_ms(5000);
+
+        let (tag, _) = handle.start();
+        assert_eq!(tag, MontyProgressTag::Pending);
+        let id = handle.pending_call_id().unwrap();
+
+        let (tag, _) = handle.resume_as_future();
+        assert_eq!(tag, MontyProgressTag::ResolveFutures);
+
+        let results = format!("{{\"{id}\":\"limited_response\"}}");
+        let (tag, _) = handle.resume_futures(&results, "{}");
+        assert_eq!(tag, MontyProgressTag::Complete);
+
+        let result: Value = serde_json::from_str(handle.complete_result_json().unwrap()).unwrap();
+        assert_eq!(result["value"], "limited_response");
     }
 }

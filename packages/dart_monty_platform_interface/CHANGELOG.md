@@ -1,3 +1,9 @@
+## 0.4.0
+
+- Add `MontyResolveFutures` sealed variant with `pendingCallIds`
+- Add `resumeAsFuture()`, `resolveFutures()`, `resolveFuturesWithErrors()` to `MontyPlatform`
+- Update `MockMontyPlatform` with invocation tracking for new async methods
+
 ## 0.3.5
 
 - Add `scriptName` parameter to `run()` and `start()`

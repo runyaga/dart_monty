@@ -7,17 +7,21 @@ const _deepEquality = DeepCollectionEquality();
 
 /// The progress of a multi-step Monty Python execution.
 ///
-/// A sealed class with two subtypes:
+/// A sealed class with three subtypes:
 /// - [MontyComplete] — execution finished with a [MontyResult].
 /// - [MontyPending] — execution paused, awaiting an external function call.
+/// - [MontyResolveFutures] — execution paused, awaiting resolution of one
+///   or more futures created by prior `resumeAsFuture()` calls.
 ///
-/// Use pattern matching to handle both cases:
+/// Use pattern matching to handle all cases:
 /// ```dart
 /// switch (progress) {
 ///   case MontyComplete(:final result):
 ///     print(result.value);
 ///   case MontyPending(:final functionName, :final arguments):
 ///     print('Call $functionName with $arguments');
+///   case MontyResolveFutures(:final pendingCallIds):
+///     print('Resolve futures: $pendingCallIds');
 /// }
 /// ```
 sealed class MontyProgress {
@@ -35,6 +39,7 @@ sealed class MontyProgress {
     return switch (type) {
       'complete' => MontyComplete.fromJson(json),
       'pending' => MontyPending.fromJson(json),
+      'resolve_futures' => MontyResolveFutures.fromJson(json),
       _ => throw ArgumentError.value(type, 'type', 'Unknown progress type'),
     };
   }
@@ -184,4 +189,62 @@ final class MontyPending extends MontyProgress {
 
   @override
   String toString() => 'MontyPending($functionName, $arguments)';
+}
+
+/// Execution paused, awaiting resolution of pending futures.
+///
+/// Returned after one or more external function calls were resumed with
+/// `resumeAsFuture()`. The VM continues executing until it reaches an
+/// `await` expression, then yields this progress with the list of
+/// [pendingCallIds] that need resolution.
+///
+/// Resolve futures using `resolveFutures()` or `resolveFuturesWithErrors()`:
+/// ```dart
+/// case MontyResolveFutures(:final pendingCallIds):
+///   final results = await Future.wait(
+///     pendingCallIds.map((id) => fetchResult(id)),
+///   );
+///   progress = await platform.resolveFutures(
+///     Map.fromIterables(pendingCallIds, results),
+///   );
+/// ```
+@immutable
+final class MontyResolveFutures extends MontyProgress {
+  /// Creates a [MontyResolveFutures] with the given [pendingCallIds].
+  const MontyResolveFutures({required this.pendingCallIds});
+
+  /// Creates a [MontyResolveFutures] from a JSON map.
+  ///
+  /// Expected keys: `type` (must be `'resolve_futures'`),
+  /// `pending_call_ids` (list of ints).
+  factory MontyResolveFutures.fromJson(Map<String, dynamic> json) {
+    final rawIds = json['pending_call_ids'] as List<dynamic>;
+    return MontyResolveFutures(
+      pendingCallIds: List<int>.from(rawIds),
+    );
+  }
+
+  /// The call IDs of futures that need resolution.
+  final List<int> pendingCallIds;
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {
+      'type': 'resolve_futures',
+      'pending_call_ids': pendingCallIds,
+    };
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other is MontyResolveFutures &&
+            _deepEquality.equals(other.pendingCallIds, pendingCallIds));
+  }
+
+  @override
+  int get hashCode => _deepEquality.hash(pendingCallIds);
+
+  @override
+  String toString() => 'MontyResolveFutures($pendingCallIds)';
 }

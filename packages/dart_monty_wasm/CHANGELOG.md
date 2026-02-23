@@ -1,3 +1,9 @@
+## 0.4.0
+
+- Handle `resolve_futures` progress state in `MontyWasm`
+- Add `pendingCallIds` field to `WasmProgressResult`
+- Stub `resumeAsFuture()`, `resolveFutures()`, `resolveFuturesWithErrors()` with `UnsupportedError` (NAPI-RS does not expose FutureSnapshot API)
+
 ## 0.3.5
 
 - Wire WASM JS bridge: kwargs, callId, scriptName, excType, and traceback in worker responses

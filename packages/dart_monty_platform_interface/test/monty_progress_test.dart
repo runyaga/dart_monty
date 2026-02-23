@@ -507,6 +507,88 @@ void main() {
       });
     });
 
+    group('MontyResolveFutures', () {
+      test('constructs with pendingCallIds', () {
+        const futures = MontyResolveFutures(pendingCallIds: [0, 1, 2]);
+        expect(futures.pendingCallIds, [0, 1, 2]);
+      });
+
+      test('is a MontyProgress', () {
+        const futures = MontyResolveFutures(pendingCallIds: [0]);
+        expect(futures, isA<MontyProgress>());
+      });
+
+      group('fromJson', () {
+        test('parses resolve_futures JSON', () {
+          final futures = MontyResolveFutures.fromJson(const {
+            'type': 'resolve_futures',
+            'pending_call_ids': <dynamic>[0, 1, 2],
+          });
+          expect(futures.pendingCallIds, [0, 1, 2]);
+        });
+
+        test('parses empty call IDs', () {
+          final futures = MontyResolveFutures.fromJson(const {
+            'type': 'resolve_futures',
+            'pending_call_ids': <dynamic>[],
+          });
+          expect(futures.pendingCallIds, isEmpty);
+        });
+      });
+
+      group('toJson', () {
+        test('serializes to JSON', () {
+          const futures = MontyResolveFutures(pendingCallIds: [0, 1]);
+          expect(futures.toJson(), {
+            'type': 'resolve_futures',
+            'pending_call_ids': [0, 1],
+          });
+        });
+      });
+
+      test('JSON round-trip', () {
+        const original = MontyResolveFutures(pendingCallIds: [3, 7, 12]);
+        final restored = MontyResolveFutures.fromJson(original.toJson());
+        expect(restored, original);
+      });
+
+      group('equality', () {
+        test('equal instances', () {
+          const a = MontyResolveFutures(pendingCallIds: [0, 1]);
+          const b = MontyResolveFutures(pendingCallIds: [0, 1]);
+          expect(a, b);
+          expect(a.hashCode, b.hashCode);
+        });
+
+        test('different call IDs', () {
+          const a = MontyResolveFutures(pendingCallIds: [0, 1]);
+          const b = MontyResolveFutures(pendingCallIds: [0, 2]);
+          expect(a, isNot(b));
+        });
+
+        test('different lengths', () {
+          const a = MontyResolveFutures(pendingCallIds: [0]);
+          const b = MontyResolveFutures(pendingCallIds: [0, 1]);
+          expect(a, isNot(b));
+        });
+
+        test('not equal to other types', () {
+          const futures = MontyResolveFutures(pendingCallIds: [0]);
+          expect(futures, isNot('foo'));
+        });
+
+        test('identical instances are equal', () {
+          const futures = MontyResolveFutures(pendingCallIds: [0, 1]);
+          expect(futures == futures, isTrue);
+        });
+      });
+
+      test('toString', () {
+        const futures = MontyResolveFutures(pendingCallIds: [0, 1, 2]);
+        expect(futures.toString(), 'MontyResolveFutures([0, 1, 2])');
+      });
+    });
+
     group('fromJson discriminator', () {
       test('dispatches to MontyComplete', () {
         final progress = MontyProgress.fromJson(const {
@@ -532,6 +614,14 @@ void main() {
         expect(progress, isA<MontyPending>());
       });
 
+      test('dispatches to MontyResolveFutures', () {
+        final progress = MontyProgress.fromJson(const {
+          'type': 'resolve_futures',
+          'pending_call_ids': <dynamic>[0, 1],
+        });
+        expect(progress, isA<MontyResolveFutures>());
+      });
+
       test('throws on unknown type', () {
         expect(
           () => MontyProgress.fromJson(const {
@@ -550,6 +640,8 @@ void main() {
       final description = switch (progress) {
         MontyComplete(:final result) => 'complete: ${result.value}',
         MontyPending(:final functionName) => 'pending: $functionName',
+        MontyResolveFutures(:final pendingCallIds) =>
+          'futures: $pendingCallIds',
       };
 
       expect(description, 'complete: matched');
@@ -565,6 +657,8 @@ void main() {
         MontyComplete(:final result) => 'complete: ${result.value}',
         MontyPending(:final functionName, :final arguments) =>
           'pending: $functionName(${arguments.length} args)',
+        MontyResolveFutures(:final pendingCallIds) =>
+          'futures: $pendingCallIds',
       };
 
       expect(description, 'pending: doWork(2 args)');
@@ -583,12 +677,29 @@ void main() {
         MontyComplete(:final result) => 'complete: ${result.value}',
         MontyPending(:final functionName, :final kwargs, :final callId) =>
           'pending: $functionName(kwargs=$kwargs, callId=$callId)',
+        MontyResolveFutures(:final pendingCallIds) =>
+          'futures: $pendingCallIds',
       };
 
       expect(
         description,
         'pending: fetch(kwargs={timeout: 30}, callId=5)',
       );
+    });
+
+    test('pattern matching on resolve_futures', () {
+      const MontyProgress progress = MontyResolveFutures(
+        pendingCallIds: [0, 1, 2],
+      );
+
+      final description = switch (progress) {
+        MontyComplete(:final result) => 'complete: ${result.value}',
+        MontyPending(:final functionName) => 'pending: $functionName',
+        MontyResolveFutures(:final pendingCallIds) =>
+          'futures: $pendingCallIds',
+      };
+
+      expect(description, 'futures: [0, 1, 2]');
     });
 
     group('deep equality', () {
@@ -698,6 +809,15 @@ void main() {
             'type': 'pending',
             'arguments': <dynamic>[],
           }),
+          throwsA(isA<TypeError>()),
+        );
+      });
+
+      test('MontyResolveFutures.fromJson throws on missing call_ids', () {
+        expect(
+          () => MontyResolveFutures.fromJson(
+            const {'type': 'resolve_futures'},
+          ),
           throwsA(isA<TypeError>()),
         );
       });

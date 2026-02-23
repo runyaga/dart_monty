@@ -33,9 +33,10 @@ final class ProgressResult {
     this.resultJson,
     this.isError,
     this.errorMessage,
+    this.futureCallIdsJson,
   });
 
-  /// `0` = complete, `1` = pending, `2` = error.
+  /// `0` = complete, `1` = pending, `2` = error, `3` = resolve_futures.
   final int tag;
 
   /// Pending external function name (when tag == 1).
@@ -62,6 +63,9 @@ final class ProgressResult {
 
   /// Error message from the C API (when tag == 2).
   final String? errorMessage;
+
+  /// JSON array of pending future call IDs (when tag == 3).
+  final String? futureCallIdsJson;
 }
 
 /// Abstract interface over the 17 native C functions.
@@ -101,6 +105,19 @@ abstract class NativeBindings {
 
   /// Resumes with an [errorMessage] (raises RuntimeError in Python).
   ProgressResult resumeWithError(int handle, String errorMessage);
+
+  /// Resumes by creating a future for the pending call.
+  ProgressResult resumeAsFuture(int handle);
+
+  /// Resolves pending futures with [resultsJson] and [errorsJson].
+  ///
+  /// [resultsJson] is a JSON object mapping call_id (string) to value.
+  /// [errorsJson] is a JSON object mapping call_id (string) to error message.
+  ProgressResult resolveFutures(
+    int handle,
+    String resultsJson,
+    String errorsJson,
+  );
 
   /// Sets the memory limit in bytes.
   void setMemoryLimit(int handle, int bytes);

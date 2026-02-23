@@ -1,3 +1,9 @@
+## 0.4.0
+
+- Handle `MONTY_PROGRESS_RESOLVE_FUTURES` tag (3) in progress dispatch
+- Add `resumeAsFuture()` and `resolveFutures()` to `NativeBindings` and FFI implementation
+- Implement `resolveFuturesWithErrors()` in `MontyFfi`
+
 ## 0.3.5
 
 - Wire `kwargs`, `callId`, `methodCall` native accessors into pending progress results

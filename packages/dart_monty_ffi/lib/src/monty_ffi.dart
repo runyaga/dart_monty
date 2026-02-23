@@ -118,6 +118,60 @@ class MontyFfi extends MontyPlatform {
   }
 
   @override
+  Future<MontyProgress> resumeAsFuture() async {
+    _assertNotDisposed('resumeAsFuture');
+    _assertActive('resumeAsFuture');
+    final handle = _handle;
+    if (handle == null) {
+      throw StateError('Cannot resumeAsFuture: no active handle');
+    }
+
+    final progress = _bindings.resumeAsFuture(handle);
+
+    return _handleProgress(handle, progress);
+  }
+
+  @override
+  Future<MontyProgress> resolveFutures(Map<int, Object?> results) async {
+    _assertNotDisposed('resolveFutures');
+    _assertActive('resolveFutures');
+    final handle = _handle;
+    if (handle == null) {
+      throw StateError('Cannot resolveFutures: no active handle');
+    }
+
+    final resultsJson = json.encode(
+      results.map((k, v) => MapEntry(k.toString(), v)),
+    );
+    final progress = _bindings.resolveFutures(handle, resultsJson, '{}');
+
+    return _handleProgress(handle, progress);
+  }
+
+  @override
+  Future<MontyProgress> resolveFuturesWithErrors(
+    Map<int, Object?> results,
+    Map<int, String> errors,
+  ) async {
+    _assertNotDisposed('resolveFuturesWithErrors');
+    _assertActive('resolveFuturesWithErrors');
+    final handle = _handle;
+    if (handle == null) {
+      throw StateError('Cannot resolveFuturesWithErrors: no active handle');
+    }
+
+    final resultsJson = json.encode(
+      results.map((k, v) => MapEntry(k.toString(), v)),
+    );
+    final errorsJson = json.encode(
+      errors.map((k, v) => MapEntry(k.toString(), v)),
+    );
+    final progress = _bindings.resolveFutures(handle, resultsJson, errorsJson);
+
+    return _handleProgress(handle, progress);
+  }
+
+  @override
   Future<Uint8List> snapshot() async {
     _assertNotDisposed('snapshot');
     _assertActive('snapshot');
@@ -210,6 +264,19 @@ class MontyFfi extends MontyPlatform {
           }
         }
         throw MontyException(message: progress.errorMessage ?? 'Unknown error');
+
+      case 3: // MONTY_PROGRESS_RESOLVE_FUTURES
+        _handle = handle;
+        _state = _State.active;
+        final idsJson = progress.futureCallIdsJson;
+        if (idsJson == null) {
+          throw StateError('Future call IDs JSON is null');
+        }
+        final ids = List<int>.from(
+          json.decode(idsJson) as List<Object?>,
+        );
+
+        return MontyResolveFutures(pendingCallIds: ids);
 
       default:
         _freeHandle(handle);

@@ -85,6 +85,18 @@ class MockMontyPlatform extends MontyPlatform {
   /// Error messages passed to [resumeWithError], in call order.
   final List<String> resumeErrorMessages = [];
 
+  /// Call count for [resumeAsFuture], in call order.
+  int resumeAsFutureCount = 0;
+
+  /// Results passed to [resolveFutures], in call order.
+  final List<Map<int, Object?>> resolveFuturesResultsList = [];
+
+  /// Results passed to [resolveFuturesWithErrors], in call order.
+  final List<Map<int, Object?>> resolveFuturesWithErrorsResultsList = [];
+
+  /// Errors passed to [resolveFuturesWithErrors], in call order.
+  final List<Map<int, String>> resolveFuturesWithErrorsErrorsList = [];
+
   /// Snapshot data passed to [restore], in call order.
   final List<Uint8List> restoreDataList = [];
 
@@ -138,12 +150,29 @@ class MockMontyPlatform extends MontyPlatform {
   String? get lastResumeErrorMessage =>
       resumeErrorMessages.isEmpty ? null : resumeErrorMessages.last;
 
+  /// The results passed to the most recent [resolveFutures] call.
+  Map<int, Object?>? get lastResolveFuturesResults =>
+      resolveFuturesResultsList.isEmpty ? null : resolveFuturesResultsList.last;
+
+  /// The results passed to the most recent [resolveFuturesWithErrors] call.
+  Map<int, Object?>? get lastResolveFuturesWithErrorsResults =>
+      resolveFuturesWithErrorsResultsList.isEmpty
+          ? null
+          : resolveFuturesWithErrorsResultsList.last;
+
+  /// The errors passed to the most recent [resolveFuturesWithErrors] call.
+  Map<int, String>? get lastResolveFuturesWithErrorsErrors =>
+      resolveFuturesWithErrorsErrorsList.isEmpty
+          ? null
+          : resolveFuturesWithErrorsErrorsList.last;
+
   /// The snapshot data passed to the most recent [restore] call.
   Uint8List? get lastRestoreData =>
       restoreDataList.isEmpty ? null : restoreDataList.last;
 
   /// Adds a [MontyProgress] to the FIFO queue consumed by [start],
-  /// [resume], and [resumeWithError].
+  /// [resume], [resumeWithError], [resumeAsFuture], [resolveFutures],
+  /// and [resolveFuturesWithErrors].
   void enqueueProgress(MontyProgress progress) {
     _progressQueue.add(progress);
   }
@@ -201,6 +230,31 @@ class MockMontyPlatform extends MontyPlatform {
   }
 
   @override
+  Future<MontyProgress> resumeAsFuture() async {
+    resumeAsFutureCount++;
+
+    return _dequeueProgress();
+  }
+
+  @override
+  Future<MontyProgress> resolveFutures(Map<int, Object?> results) async {
+    resolveFuturesResultsList.add(results);
+
+    return _dequeueProgress();
+  }
+
+  @override
+  Future<MontyProgress> resolveFuturesWithErrors(
+    Map<int, Object?> results,
+    Map<int, String> errors,
+  ) async {
+    resolveFuturesWithErrorsResultsList.add(results);
+    resolveFuturesWithErrorsErrorsList.add(errors);
+
+    return _dequeueProgress();
+  }
+
+  @override
   Future<Uint8List> snapshot() async {
     final data = snapshotData;
     if (data == null) {
@@ -235,7 +289,8 @@ class MockMontyPlatform extends MontyPlatform {
     if (_progressQueue.isEmpty) {
       throw StateError(
         'No progress enqueued. Call enqueueProgress() before '
-        'start(), resume(), or resumeWithError().',
+        'start(), resume(), resumeWithError(), resumeAsFuture(), '
+        'resolveFutures(), or resolveFuturesWithErrors().',
       );
     }
 
