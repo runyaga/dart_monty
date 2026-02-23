@@ -110,7 +110,14 @@ for pkg in "${PACKAGES[@]}"; do
   pkg_name=$(grep '^name:' "$pkg_dir/pubspec.yaml" | awk '{print $2}')
   echo "--- $pkg_name ---"
   cd "$pkg_dir"
-  dart pub publish --dry-run
+  # Exit code 65 = warnings only (expected: pubspecs modified by path-dep swap).
+  # Fail on any other non-zero exit (actual errors).
+  rc=0
+  dart pub publish --dry-run || rc=$?
+  if [ "$rc" -ne 0 ] && [ "$rc" -ne 65 ]; then
+    echo "ERROR: dart pub publish --dry-run failed with exit code $rc"
+    exit "$rc"
+  fi
   echo ""
 done
 
