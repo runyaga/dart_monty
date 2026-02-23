@@ -107,7 +107,7 @@ The table below shows current coverage and what's planned.
 | **Snapshot / restore** (`MontyRun::dump/load`) | Covered | Compile-once, run-many pattern |
 | **Exception model** (excType, traceback, stack frames) | Covered | Full `MontyException` with `StackFrame` list |
 | **Call metadata** (kwargs, callId, methodCall, scriptName) | Covered | Structured external call context |
-| Async / futures (`asyncio.gather`, concurrent calls) | Planned | Native only — WASM upstream lacks `FutureSnapshot` API |
+| Async / futures (`asyncio.gather`, concurrent calls) | Covered | Native only — WASM upstream lacks `FutureSnapshot` API |
 | Rich types (tuple, set, bytes, dataclass, namedtuple) | Planned | Currently collapsed to `List`/`Map` |
 | REPL (stateful sessions, `feed()`, persistence) | Planned | `MontyRepl` multi-step sessions |
 | OS calls (`os.getenv`, `os.environ`, `os.stat`) | Planned | `OsCall` progress variant |

@@ -391,6 +391,144 @@ void main() {
   });
 
   // ===========================================================================
+  // resumeAsFuture()
+  // ===========================================================================
+  group('resumeAsFuture()', () {
+    setUp(() async {
+      mock.nextStartResult = const DesktopProgressResult(
+        progress: MontyPending(functionName: 'fetch', arguments: []),
+      );
+      await monty.start('x', externalFunctions: ['fetch']);
+    });
+
+    test('returns MontyResolveFutures', () async {
+      mock.resumeAsFutureResults.add(
+        const DesktopProgressResult(
+          progress: MontyResolveFutures(pendingCallIds: [0]),
+        ),
+      );
+
+      final progress = await monty.resumeAsFuture();
+
+      expect(progress, isA<MontyResolveFutures>());
+      final resolve = progress as MontyResolveFutures;
+      expect(resolve.pendingCallIds, [0]);
+      expect(mock.resumeAsFutureCalls, 1);
+    });
+
+    test('throws StateError when idle', () {
+      final freshMonty = MontyDesktop(bindings: mock);
+      expect(freshMonty.resumeAsFuture, throwsStateError);
+    });
+
+    test('throws StateError when disposed', () async {
+      await monty.dispose();
+      expect(monty.resumeAsFuture, throwsStateError);
+    });
+  });
+
+  // ===========================================================================
+  // resolveFutures()
+  // ===========================================================================
+  group('resolveFutures()', () {
+    setUp(() async {
+      mock.nextStartResult = const DesktopProgressResult(
+        progress: MontyPending(functionName: 'fetch', arguments: []),
+      );
+      await monty.start('x', externalFunctions: ['fetch']);
+      mock.resumeAsFutureResults.add(
+        const DesktopProgressResult(
+          progress: MontyResolveFutures(pendingCallIds: [0]),
+        ),
+      );
+      await monty.resumeAsFuture();
+    });
+
+    test('returns MontyComplete after resolving', () async {
+      mock.resolveFuturesResults.add(
+        const DesktopProgressResult(
+          progress: MontyComplete(
+            result: MontyResult(value: 'done', usage: _zeroUsage),
+          ),
+        ),
+      );
+
+      final progress = await monty.resolveFutures({0: 'result'});
+
+      expect(progress, isA<MontyComplete>());
+      expect(mock.resolveFuturesCalls, hasLength(1));
+      expect(mock.resolveFuturesCalls.first, {0: 'result'});
+    });
+
+    test('throws StateError when idle', () {
+      final freshMonty = MontyDesktop(bindings: mock);
+      expect(() => freshMonty.resolveFutures({0: 'x'}), throwsStateError);
+    });
+
+    test('throws StateError when disposed', () async {
+      await monty.dispose();
+      expect(() => monty.resolveFutures({0: 'x'}), throwsStateError);
+    });
+  });
+
+  // ===========================================================================
+  // resolveFuturesWithErrors()
+  // ===========================================================================
+  group('resolveFuturesWithErrors()', () {
+    setUp(() async {
+      mock.nextStartResult = const DesktopProgressResult(
+        progress: MontyPending(functionName: 'fetch', arguments: []),
+      );
+      await monty.start('x', externalFunctions: ['fetch']);
+      mock.resumeAsFutureResults.add(
+        const DesktopProgressResult(
+          progress: MontyResolveFutures(pendingCallIds: [0, 1]),
+        ),
+      );
+      await monty.resumeAsFuture();
+    });
+
+    test('returns MontyComplete after resolving with errors', () async {
+      mock.resolveFuturesWithErrorsResults.add(
+        const DesktopProgressResult(
+          progress: MontyComplete(
+            result: MontyResult(value: 'partial', usage: _zeroUsage),
+          ),
+        ),
+      );
+
+      final progress = await monty.resolveFuturesWithErrors(
+        {0: 'ok'},
+        {1: 'network error'},
+      );
+
+      expect(progress, isA<MontyComplete>());
+      expect(mock.resolveFuturesWithErrorsCalls, hasLength(1));
+      expect(mock.resolveFuturesWithErrorsCalls.first.results, {0: 'ok'});
+      expect(
+        mock.resolveFuturesWithErrorsCalls.first.errors,
+        {1: 'network error'},
+      );
+    });
+
+    test('throws StateError when idle', () {
+      final freshMonty = MontyDesktop(bindings: mock);
+      expect(
+        () => freshMonty.resolveFuturesWithErrors({}, {}),
+        throwsStateError,
+      );
+    });
+
+    test('throws StateError when disposed', () async {
+      await monty.dispose();
+      expect(
+        () => monty.resolveFuturesWithErrors({}, {}),
+        throwsStateError,
+      );
+    });
+  });
+
+  // ===========================================================================
   // snapshot()
   // ===========================================================================
   group('snapshot()', () {
@@ -506,6 +644,9 @@ void main() {
       expect(() => monty.start('x'), throwsStateError);
       expect(() => monty.resume(null), throwsStateError);
       expect(() => monty.resumeWithError('e'), throwsStateError);
+      expect(() => monty.resumeAsFuture(), throwsStateError);
+      expect(() => monty.resolveFutures({0: 'x'}), throwsStateError);
+      expect(() => monty.resolveFuturesWithErrors({}, {}), throwsStateError);
       expect(() => monty.snapshot(), throwsStateError);
       expect(() => monty.restore(Uint8List(0)), throwsStateError);
     });

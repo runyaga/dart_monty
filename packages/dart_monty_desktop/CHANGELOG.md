@@ -1,4 +1,8 @@
-## Unreleased
+## 0.4.2
+
+- Add `resumeAsFuture()`, `resolveFutures()`, `resolveFuturesWithErrors()` to `DesktopBindings`, `DesktopBindingsIsolate`, and `MontyDesktop`
+- Add mock desktop bindings for async/futures methods
+- Add async/futures integration tests for tier 13 ladder fixtures
 
 ## 0.4.1
 

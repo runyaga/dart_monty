@@ -1,4 +1,6 @@
-## Unreleased
+## 0.4.2
+
+- Add async resume path with error handling in tier 13 ladder integration tests
 
 ## 0.4.1
 
