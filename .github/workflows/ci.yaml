@@ -33,7 +33,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ffi-bindings
-          path: packages/dart_monty_ffi/lib/src/dart_monty_bindings.dart
+          path: packages/dart_monty_ffi/lib/src/generated/dart_monty_bindings.dart
           retention-days: 1
 
   lint:
@@ -51,7 +51,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: ffi-bindings
-          path: packages/dart_monty_ffi/lib/src
+          path: packages/dart_monty_ffi/lib/src/generated
       - run: flutter pub get
       - run: dart format --set-exit-if-changed .
       - name: Analyze sub-packages
@@ -96,7 +96,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: ffi-bindings
-          path: packages/dart_monty_ffi/lib/src
+          path: packages/dart_monty_ffi/lib/src/generated
       - name: Install dependencies
         run: cd packages/${{ matrix.target }} && dart pub get
       - name: Run tests
@@ -180,7 +180,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: ffi-bindings
-          path: packages/dart_monty_ffi/lib/src
+          path: packages/dart_monty_ffi/lib/src/generated
       - name: Install dependencies
         run: cd packages/dart_monty_desktop && flutter pub get
       - name: Run tests
@@ -384,7 +384,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: ffi-bindings
-          path: packages/dart_monty_ffi/lib/src
+          path: packages/dart_monty_ffi/lib/src/generated
       - name: Build native library and copy to plugin
         run: bash tool/build_native.sh
       - name: Install dependencies
