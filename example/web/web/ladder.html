@@ -86,6 +86,8 @@
     .legend-dot.warn { background: #dcdcaa; }
     .legend-dot.fail { background: #f44747; }
     .legend-dot.skip { background: #808080; }
+    .legend-dot.xfail { background: #9b59b6; }
+    .legend-dot.xpass { background: #8e44ad; }
 
     /* Tier sections */
     .tier { margin-bottom: 1.5rem; }
@@ -115,6 +117,8 @@
     .test-card.warn { border-left: 3px solid #dcdcaa; }
     .test-card.fail { border-left: 3px solid #f44747; }
     .test-card.skip { border-left: 3px solid #808080; }
+    .test-card.xfail { border-left: 3px solid #9b59b6; }
+    .test-card.xpass { border-left: 3px solid #8e44ad; }
 
     .card-header {
       display: flex;
@@ -137,6 +141,8 @@
     .badge.warn { background: #dcdcaa; color: #1e1e1e; }
     .badge.fail { background: #f44747; color: #1e1e1e; }
     .badge.skip { background: #808080; color: #1e1e1e; }
+    .badge.xfail { background: #9b59b6; color: #1e1e1e; }
+    .badge.xpass { background: #8e44ad; color: #1e1e1e; }
 
     .card-body {
       display: none;
@@ -252,6 +258,12 @@
       if (status === 'pass' || status === 'skip') {
         resultLabel.textContent = 'Result';
         resultPre.className = 'result-block';
+      } else if (status === 'xfail') {
+        resultLabel.textContent = 'Expected failure (known issue)';
+        resultPre.className = 'result-block';
+      } else if (status === 'xpass') {
+        resultLabel.textContent = 'Unexpected pass (expected failure did not occur)';
+        resultPre.className = 'result-block';
       } else if (status === 'warn') {
         resultLabel.textContent = 'Result (WASM behavioral difference)';
         resultPre.className = 'warn-block';
@@ -274,7 +286,7 @@
       if (currentTierBody) currentTierBody.appendChild(card);
     }
 
-    function reportDone(passed, warned, failed, total, skipped) {
+    function reportDone(passed, warned, failed, total, skipped, xfailed, xpassed) {
       const pct = total > 0 ? Math.round((passed / total) * 100) : 0;
 
       statusEl.className = failed > 0 ? 'error' : 'done';
@@ -291,7 +303,9 @@
         '<span class="legend-item"><span class="legend-dot pass"></span> Pass — value matches expected</span>' +
         '<span class="legend-item"><span class="legend-dot warn"></span> Warn — bridge OK, value differs (WASM behavioral difference)</span>' +
         '<span class="legend-item"><span class="legend-dot fail"></span> Fail — bridge error or crash</span>' +
-        '<span class="legend-item"><span class="legend-dot skip"></span> Skip — native only</span>';
+        '<span class="legend-item"><span class="legend-dot skip"></span> Skip — native only</span>' +
+        '<span class="legend-item"><span class="legend-dot xfail"></span> Xfail — expected failure (known issue)</span>' +
+        '<span class="legend-item"><span class="legend-dot xpass"></span> Xpass — unexpected pass</span>';
 
       totalsEl.style.display = 'block';
       totalsEl.innerHTML =
@@ -299,6 +313,8 @@
         (warned > 0 ? ' &middot; <span style="color:#dcdcaa">' + warned + ' warnings</span>' : '') +
         (failed > 0 ? ' &middot; <span style="color:#f44747">' + failed + ' failed</span>' : '') +
         (skipped > 0 ? ' &middot; <span style="color:#808080">' + skipped + ' skipped</span>' : '') +
+        (xfailed > 0 ? ' &middot; <span style="color:#9b59b6">' + xfailed + ' xfail</span>' : '') +
+        (xpassed > 0 ? ' &middot; <span style="color:#8e44ad">' + xpassed + ' xpass</span>' : '') +
         ' &middot; ' + total + ' total' +
         '<div class="progress-bar"><div class="progress-fill" style="width:' + pct + '%"></div></div>';
     }
