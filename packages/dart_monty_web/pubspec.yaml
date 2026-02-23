@@ -2,14 +2,24 @@ name: dart_monty_web
 description: Web implementation of dart_monty using @pydantic/monty JS package via dart:js_interop.
 publish_to: 'none'
 version: 0.1.0+1
+homepage: https://github.com/runyaga/dart_monty
+repository: https://github.com/runyaga/dart_monty
+issue_tracker: https://github.com/runyaga/dart_monty/issues
+topics:
+  - python
+  - sandbox
+  - wasm
+  - flutter
 
 environment:
-  sdk: '>=3.5.0 <4.0.0'
-  flutter: '>=3.24.0'
+  sdk: '>=3.3.0 <4.0.0'
+  flutter: '>=3.19.0'
 
 dependencies:
   dart_monty_platform_interface:
     path: ../dart_monty_platform_interface
+  dart_monty_wasm:
+    path: ../dart_monty_wasm
   flutter:
     sdk: flutter
   flutter_web_plugins:
@@ -21,3 +31,11 @@ dev_dependencies:
     sdk: flutter
   mocktail: ^1.0.4
   very_good_analysis: ^10.0.0
+
+flutter:
+  plugin:
+    implements: dart_monty
+    platforms:
+      web:
+        pluginClass: DartMontyWeb
+        fileName: dart_monty_web.dart

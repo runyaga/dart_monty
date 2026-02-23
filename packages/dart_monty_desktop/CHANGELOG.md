@@ -1,0 +1,5 @@
+## 0.1.0+1
+
+- Initial release.
+- macOS and Linux desktop plugin with Isolate-based execution.
+- Crash handling for pending futures when Isolate exits unexpectedly.

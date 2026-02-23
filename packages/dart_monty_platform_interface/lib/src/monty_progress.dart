@@ -21,6 +21,7 @@ const _deepEquality = DeepCollectionEquality();
 /// }
 /// ```
 sealed class MontyProgress {
+  /// Creates a [MontyProgress].
   const MontyProgress();
 
   /// Creates a [MontyProgress] from a JSON map.

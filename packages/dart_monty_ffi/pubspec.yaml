@@ -2,9 +2,17 @@ name: dart_monty_ffi
 description: Native FFI implementation of dart_monty for desktop and mobile platforms (macOS, Linux, Windows, iOS, Android).
 publish_to: 'none'
 version: 0.1.0+1
+homepage: https://github.com/runyaga/dart_monty
+repository: https://github.com/runyaga/dart_monty
+issue_tracker: https://github.com/runyaga/dart_monty/issues
+topics:
+  - python
+  - sandbox
+  - ffi
+  - interpreter
 
 environment:
-  sdk: '>=3.5.0 <4.0.0'
+  sdk: '>=3.0.0 <4.0.0'
 
 dependencies:
   dart_monty_platform_interface:

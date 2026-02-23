@@ -329,14 +329,3 @@ No manual testing steps.
 | Xcode | M7 | iOS builds |
 | `pydantic-monty` (Python) | M8 | Cross-platform snapshot tests |
 
----
-
-## When You Resume
-
-M1-M5 are complete. To start the next milestone, type:
-
-```text
-Start M6. Implement the Flutter web plugin wrapping dart_monty_wasm
-with federated registration, script injection, COOP/COEP docs, and
-Python ladder in browser. Gate: tool/test_m6.sh passes with 90%+ coverage.
-```

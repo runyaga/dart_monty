@@ -1,0 +1,62 @@
+[
+  {
+    "id": 32,
+    "tier": 6,
+    "name": "external function pending and resume",
+    "code": "result = fetch(\"https://example.com\")\nresult",
+    "expected": "response body",
+    "expectedContains": null,
+    "expectedSorted": false,
+    "expectError": false,
+    "errorContains": null,
+    "externalFunctions": ["fetch"],
+    "resumeValues": ["response body"],
+    "resumeErrors": null,
+    "nativeOnly": false
+  },
+  {
+    "id": 33,
+    "tier": 6,
+    "name": "external function value passthrough",
+    "code": "data = load_data(\"key\")\nlen(data)",
+    "expected": 5,
+    "expectedContains": null,
+    "expectedSorted": false,
+    "expectError": false,
+    "errorContains": null,
+    "externalFunctions": ["load_data"],
+    "resumeValues": ["hello"],
+    "resumeErrors": null,
+    "nativeOnly": false
+  },
+  {
+    "id": 34,
+    "tier": 6,
+    "name": "resume with error",
+    "code": "try:\n  result = fetch(\"url\")\nexcept Exception as e:\n  str(e)",
+    "expected": null,
+    "expectedContains": "network failure",
+    "expectedSorted": false,
+    "expectError": false,
+    "errorContains": null,
+    "externalFunctions": ["fetch"],
+    "resumeValues": null,
+    "resumeErrors": ["network failure"],
+    "nativeOnly": false
+  },
+  {
+    "id": 46,
+    "tier": 6,
+    "name": "sequential external calls",
+    "code": "x = get_val(1)\ny = get_val(2)\nx + y",
+    "expected": 30,
+    "expectedContains": null,
+    "expectedSorted": false,
+    "expectError": false,
+    "errorContains": null,
+    "externalFunctions": ["get_val"],
+    "resumeValues": [10, 20],
+    "resumeErrors": null,
+    "nativeOnly": false
+  }
+]

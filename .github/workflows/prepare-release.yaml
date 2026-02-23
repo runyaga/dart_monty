@@ -1,0 +1,155 @@
+name: Prepare release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g. 0.2.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-native:
+    name: Build native (${{ matrix.label }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            label: linux-x64
+            src: native/target/release/libdart_monty_native.so
+            dst: packages/dart_monty_desktop/linux/libdart_monty_native.so
+          - os: macos-latest
+            label: macos-x64
+            src: native/target/release/libdart_monty_native.dylib
+            dst: packages/dart_monty_desktop/macos/libdart_monty_native.dylib
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: native
+
+      - name: Build and test Rust
+        working-directory: native
+        run: |
+          cargo build --release
+          cargo test
+          cargo fmt --check
+          cargo clippy -- -D warnings
+
+      - name: Copy binary to desktop package
+        run: |
+          mkdir -p "$(dirname "${{ matrix.dst }}")"
+          cp "${{ matrix.src }}" "${{ matrix.dst }}"
+          ls -lh "${{ matrix.dst }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-${{ matrix.label }}
+          path: ${{ matrix.dst }}
+
+  prepare:
+    name: Validate and tag
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [build-native]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Download vendored binaries
+        uses: actions/download-artifact@v4
+        with:
+          path: vendored
+
+      - name: Place binaries in desktop package
+        run: |
+          cp vendored/native-linux-x64/libdart_monty_native.so \
+             packages/dart_monty_desktop/linux/libdart_monty_native.so
+          cp vendored/native-macos-x64/libdart_monty_native.dylib \
+             packages/dart_monty_desktop/macos/libdart_monty_native.dylib
+          ls -lh packages/dart_monty_desktop/linux/
+          ls -lh packages/dart_monty_desktop/macos/
+
+      - name: Bump version in all pubspecs
+        run: |
+          VERSION="${{ inputs.version }}"
+          for pubspec in pubspec.yaml packages/*/pubspec.yaml; do
+            sed -i "s/^version: .*/version: ${VERSION}/" "$pubspec"
+          done
+
+      - name: Verify CHANGELOG entries
+        run: |
+          VERSION="${{ inputs.version }}"
+          for dir in . packages/dart_monty_platform_interface packages/dart_monty_ffi packages/dart_monty_wasm packages/dart_monty_web packages/dart_monty_desktop; do
+            if ! grep -q "## ${VERSION}" "${dir}/CHANGELOG.md"; then
+              echo "ERROR: ${dir}/CHANGELOG.md missing entry for ${VERSION}"
+              exit 1
+            fi
+          done
+
+      - name: Check dartdoc
+        run: |
+          for dir in packages/dart_monty_platform_interface packages/dart_monty_ffi packages/dart_monty_wasm; do
+            echo "--- ${dir} ---"
+            cd "$dir"
+            dart pub get
+            dart doc --dry-run
+            cd "$GITHUB_WORKSPACE"
+          done
+
+      - name: Analyze all packages
+        run: python3 tool/analyze_packages.py
+
+      - name: Run tests
+        run: |
+          for dir in packages/dart_monty_platform_interface packages/dart_monty_ffi packages/dart_monty_wasm; do
+            echo "--- ${dir} ---"
+            cd "$dir"
+            dart pub get
+            dart test
+            cd "$GITHUB_WORKSPACE"
+          done
+
+      - name: Dry-run publish
+        run: bash tool/publish.sh
+
+      - name: Create git tag
+        if: success()
+        run: |
+          VERSION="${{ inputs.version }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "chore: bump version to ${VERSION}"
+          git tag "v${VERSION}"
+          git push origin HEAD --tags
+
+      - name: Publish to pub.dev
+        if: success()
+        env:
+          PUB_TOKEN: ${{ secrets.PUB_TOKEN }}
+        run: |
+          mkdir -p "$HOME/.config/dart"
+          cat <<TOKEN_EOF > "$HOME/.config/dart/pub-credentials.json"
+          {
+            "accessToken": "${PUB_TOKEN}",
+            "refreshToken": "",
+            "tokenEndpoint": "https://accounts.google.com/o/oauth2/token",
+            "scopes": ["openid", "https://www.googleapis.com/auth/userinfo.email"],
+            "expiration": 4102444800000
+          }
+          TOKEN_EOF
+          bash tool/publish.sh --publish

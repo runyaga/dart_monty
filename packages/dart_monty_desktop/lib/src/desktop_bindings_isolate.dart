@@ -211,7 +211,15 @@ class DesktopBindingsIsolate extends DesktopBindings {
       if (message is _Response) {
         final pending = _pending.remove(message.id);
         pending?.complete(message);
+        return;
       }
+      // Isolate exit (null) or error (List<String>) — fail pending futures.
+      if (!completer.isCompleted) {
+        completer.completeError(
+          StateError('Isolate failed to start: $message'),
+        );
+      }
+      _failAllPending('Isolate exited unexpectedly: $message');
     });
 
     _isolate = await Isolate.spawn(

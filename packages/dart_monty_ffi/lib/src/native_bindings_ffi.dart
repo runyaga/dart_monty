@@ -21,11 +21,6 @@ class NativeBindingsFfi extends NativeBindings {
           ),
         );
 
-  /// Creates [NativeBindingsFfi] from existing [DartMontyBindings].
-  ///
-  /// Useful for testing or when the library is already loaded.
-  NativeBindingsFfi.fromBindings(DartMontyBindings lib) : _lib = lib;
-
   final DartMontyBindings _lib;
 
   @override

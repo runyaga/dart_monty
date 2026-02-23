@@ -44,6 +44,9 @@ external JSPromise<JSString> _jsDispose();
 /// Calls into `window.DartMontyBridge` which communicates with a Web Worker
 /// hosting the @pydantic/monty WASM runtime.
 class WasmBindingsJs extends WasmBindings {
+  /// Creates a [WasmBindingsJs].
+  WasmBindingsJs();
+
   @override
   Future<bool> init() async {
     final result = await _jsInit().toDart;

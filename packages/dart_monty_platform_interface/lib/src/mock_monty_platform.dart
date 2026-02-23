@@ -23,6 +23,9 @@ import 'package:dart_monty_platform_interface/src/monty_result.dart';
 /// mock.enqueueProgress(MontyComplete(result: result));
 /// ```
 class MockMontyPlatform extends MontyPlatform {
+  /// Creates a [MockMontyPlatform].
+  MockMontyPlatform();
+
   // ---------------------------------------------------------------------------
   // Config (what to return)
   // ---------------------------------------------------------------------------
