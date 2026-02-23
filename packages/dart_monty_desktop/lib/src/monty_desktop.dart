@@ -109,6 +109,36 @@ class MontyDesktop extends MontyPlatform {
   }
 
   @override
+  Future<MontyProgress> resumeAsFuture() async {
+    _assertNotDisposed('resumeAsFuture');
+    _assertActive('resumeAsFuture');
+
+    final progress = await _bindings.resumeAsFuture();
+    return _handleProgress(progress.progress);
+  }
+
+  @override
+  Future<MontyProgress> resolveFutures(Map<int, Object?> results) async {
+    _assertNotDisposed('resolveFutures');
+    _assertActive('resolveFutures');
+
+    final progress = await _bindings.resolveFutures(results);
+    return _handleProgress(progress.progress);
+  }
+
+  @override
+  Future<MontyProgress> resolveFuturesWithErrors(
+    Map<int, Object?> results,
+    Map<int, String> errors,
+  ) async {
+    _assertNotDisposed('resolveFuturesWithErrors');
+    _assertActive('resolveFuturesWithErrors');
+
+    final progress = await _bindings.resolveFuturesWithErrors(results, errors);
+    return _handleProgress(progress.progress);
+  }
+
+  @override
   Future<Uint8List> snapshot() async {
     _assertNotDisposed('snapshot');
     _assertActive('snapshot');

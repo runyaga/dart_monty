@@ -1924,7 +1924,7 @@ final _examples = <_Example>[
   // 1. Expressions & resource usage
   _Example(
     '1. Expressions',
-    '2 ** 100',
+    '2 ** 8',
     (monty, code, limits, log) async {
       final result = await monty.run(code, limits: limits);
       log('Result: ${result.value}');
