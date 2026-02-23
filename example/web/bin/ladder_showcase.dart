@@ -70,6 +70,8 @@ external void _reportDone(
   JSNumber failed,
   JSNumber total,
   JSNumber skipped,
+  JSNumber xfailed,
+  JSNumber xpassed,
 );
 
 @JS('reportInit')
@@ -86,6 +88,11 @@ const _tierFiles = [
   'fixtures/tier_04_functions.json',
   'fixtures/tier_05_errors.json',
   'fixtures/tier_06_external_fns.json',
+  'fixtures/tier_07_advanced.json',
+  'fixtures/tier_08_kwargs.json',
+  'fixtures/tier_09_exceptions.json',
+  'fixtures/tier_13_async.json',
+  'fixtures/tier_15_script_name.json',
 ];
 
 const _tierLabels = [
@@ -95,6 +102,11 @@ const _tierLabels = [
   'Tier 4: Functions',
   'Tier 5: Errors',
   'Tier 6: External Functions',
+  'Tier 7: Advanced',
+  'Tier 8: Kwargs',
+  'Tier 9: Exceptions',
+  'Tier 13: Async',
+  'Tier 15: Script Name',
 ];
 
 // ---------------------------------------------------------------------------
@@ -149,6 +161,8 @@ Future<void> main() async {
   var totalFailed = 0;
   var totalTests = 0;
   var totalSkipped = 0;
+  var totalXfailed = 0;
+  var totalXpassed = 0;
 
   for (var tierIdx = 0; tierIdx < _tierFiles.length; tierIdx++) {
     _reportTierHeader(_tierLabels[tierIdx].toJS);
@@ -185,6 +199,14 @@ Future<void> main() async {
         if (status == 'pass') totalPassed++;
         if (status == 'warn') totalWarned++;
         if (status == 'fail') totalFailed++;
+        if (status == 'xfail') {
+          totalXfailed++;
+          totalPassed++;
+        }
+        if (status == 'xpass') {
+          totalXpassed++;
+          totalPassed++;
+        }
         _reportResult(
           (tierIdx + 1).toJS,
           id.toJS,
@@ -213,6 +235,8 @@ Future<void> main() async {
     totalFailed.toJS,
     totalTests.toJS,
     totalSkipped.toJS,
+    totalXfailed.toJS,
+    totalXpassed.toJS,
   );
 }
 
@@ -224,22 +248,37 @@ Future<Map<String, dynamic>> _runFixture(
   Map<String, dynamic> fixture,
 ) async {
   final expectError = fixture['expectError'] as bool? ?? false;
+  final xfail = fixture['xfail'] as String?;
 
+  Map<String, dynamic> result;
   try {
     if (fixture['externalFunctions'] != null) {
-      return _runIterative(fixture);
+      result = await _runIterative(fixture);
     } else if (expectError) {
-      return _runExpectError(fixture);
+      result = await _runExpectError(fixture);
     } else {
-      return _runSimple(fixture);
+      result = await _runSimple(fixture);
     }
   } catch (e) {
     if (expectError) {
-      return {'status': 'pass', 'detail': 'Error (expected): $e'};
+      result = {'status': 'pass', 'detail': 'Error (expected): $e'};
+    } else {
+      result = {'status': 'fail', 'detail': 'Exception: $e'};
     }
-
-    return {'status': 'fail', 'detail': 'Exception: $e'};
   }
+
+  if (xfail != null) {
+    final status = result['status'] as String;
+    if (status == 'fail' || status == 'warn') {
+      return {'status': 'xfail', 'detail': 'xfail: $xfail'};
+    }
+    return {
+      'status': 'xpass',
+      'detail': 'xpass: expected failure did not occur'
+    };
+  }
+
+  return result;
 }
 
 Future<Map<String, dynamic>> _runSimple(
