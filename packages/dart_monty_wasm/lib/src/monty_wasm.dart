@@ -122,6 +122,36 @@ class MontyWasm extends MontyPlatform {
   }
 
   @override
+  Future<MontyProgress> resumeAsFuture() async {
+    throw UnsupportedError(
+      'resumeAsFuture() is not yet supported in the WASM backend. '
+      'The @pydantic/monty NAPI-RS WASM module does not expose the '
+      'FutureSnapshot API.',
+    );
+  }
+
+  @override
+  Future<MontyProgress> resolveFutures(Map<int, Object?> results) async {
+    throw UnsupportedError(
+      'resolveFutures() is not yet supported in the WASM backend. '
+      'The @pydantic/monty NAPI-RS WASM module does not expose the '
+      'FutureSnapshot API.',
+    );
+  }
+
+  @override
+  Future<MontyProgress> resolveFuturesWithErrors(
+    Map<int, Object?> results,
+    Map<int, String> errors,
+  ) async {
+    throw UnsupportedError(
+      'resolveFuturesWithErrors() is not yet supported in the WASM backend. '
+      'The @pydantic/monty NAPI-RS WASM module does not expose the '
+      'FutureSnapshot API.',
+    );
+  }
+
+  @override
   Future<Uint8List> snapshot() {
     _assertNotDisposed('snapshot');
     _assertActive('snapshot');
@@ -205,6 +235,13 @@ class MontyWasm extends MontyPlatform {
           kwargs: progress.kwargs,
           callId: progress.callId ?? 0,
           methodCall: progress.methodCall ?? false,
+        );
+
+      case 'resolve_futures':
+        _state = _State.active;
+
+        return MontyResolveFutures(
+          pendingCallIds: progress.pendingCallIds ?? const [],
         );
 
       default:

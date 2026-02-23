@@ -13,7 +13,7 @@
     "resumeValues": null,
     "resumeErrors": null,
     "asyncResumeMap": {"0": "response_x"},
-    "nativeOnly": false,
+    "nativeOnly": true,
     "xfail": "M13: async/futures not yet implemented"
   },
   {
@@ -30,7 +30,7 @@
     "resumeValues": null,
     "resumeErrors": null,
     "asyncResumeMap": {"0": 10, "1": 32},
-    "nativeOnly": false,
+    "nativeOnly": true,
     "xfail": "M13: async/futures not yet implemented"
   },
   {
@@ -48,7 +48,7 @@
     "resumeErrors": null,
     "asyncResumeMap": {},
     "asyncErrorMap": {"0": "network timeout"},
-    "nativeOnly": false,
+    "nativeOnly": true,
     "xfail": "M13: async/futures not yet implemented"
   },
   {
@@ -65,7 +65,7 @@
     "resumeValues": null,
     "resumeErrors": null,
     "asyncResumeMap": {"0": 10, "1": 32},
-    "nativeOnly": false,
+    "nativeOnly": true,
     "xfail": "M13: async/futures not yet implemented"
   },
   {
@@ -83,7 +83,7 @@
     "resumeErrors": null,
     "asyncResumeMap": {"0": 10},
     "asyncErrorMap": {"1": "bar failed"},
-    "nativeOnly": false,
+    "nativeOnly": true,
     "xfail": "M13: async/futures not yet implemented"
   },
   {
@@ -100,7 +100,7 @@
     "resumeValues": null,
     "resumeErrors": null,
     "asyncResumeMap": {"0": "x", "1": "y", "2": "z"},
-    "nativeOnly": false,
+    "nativeOnly": true,
     "xfail": "M13: async/futures not yet implemented"
   }
 ]

@@ -116,6 +116,23 @@ class WasmBindingsJs extends WasmBindings {
   }
 
   @override
+  Future<WasmProgressResult> resumeAsFuture() async {
+    throw UnsupportedError(
+      'resumeAsFuture() is not supported in the WASM backend.',
+    );
+  }
+
+  @override
+  Future<WasmProgressResult> resolveFutures(
+    String resultsJson,
+    String errorsJson,
+  ) async {
+    throw UnsupportedError(
+      'resolveFutures() is not supported in the WASM backend.',
+    );
+  }
+
+  @override
   Future<Uint8List> snapshot() async {
     final resultJson = await _jsSnapshot().toDart;
     final map = json.decode(resultJson.toDart) as Map<String, dynamic>;
@@ -172,6 +189,7 @@ class WasmBindingsJs extends WasmBindings {
     final args = map['args'] as List<Object?>?;
     final rawKwargs = map['kwargs'] as Map<String, dynamic>?;
     final rawTraceback = map['traceback'] as List<dynamic>?;
+    final rawCallIds = map['pendingCallIds'] as List<dynamic>?;
 
     return WasmProgressResult(
       ok: map['ok'] as bool,
@@ -182,6 +200,7 @@ class WasmBindingsJs extends WasmBindings {
       kwargs: rawKwargs != null ? Map<String, Object?>.from(rawKwargs) : null,
       callId: map['callId'] as int?,
       methodCall: map['methodCall'] as bool?,
+      pendingCallIds: rawCallIds != null ? List<int>.from(rawCallIds) : null,
       error: map['error'] as String?,
       errorType: map['errorType'] as String?,
       excType: map['excType'] as String?,
