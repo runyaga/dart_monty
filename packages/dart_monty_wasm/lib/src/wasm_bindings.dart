@@ -10,6 +10,8 @@ final class WasmRunResult {
     this.value,
     this.error,
     this.errorType,
+    this.excType,
+    this.traceback,
   });
 
   /// Whether the execution succeeded.
@@ -23,6 +25,12 @@ final class WasmRunResult {
 
   /// The error type name (when [ok] is false).
   final String? errorType;
+
+  /// The Python exception class name (when error occurred).
+  final String? excType;
+
+  /// The traceback frames as raw JSON list (when error occurred).
+  final List<dynamic>? traceback;
 }
 
 /// Result of [WasmBindings.start], [WasmBindings.resume], and

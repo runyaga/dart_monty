@@ -212,3 +212,8 @@ Items to investigate or address in future milestones:
   upstream monty emits `method_call: true` for `obj.ext_fn()` syntax on
   external functions. If supported, add a test; otherwise document as a
   known limitation.
+
+- **Snapshot serialization performance:** The worker's base64 encoding
+  uses `String.fromCharCode` in a loop + `btoa`, which works but may
+  hit V8 string length limits for multi-MB snapshots. Consider chunked
+  `fromCharCode` or a `FileReaderSync` Blob approach if perf degrades.
