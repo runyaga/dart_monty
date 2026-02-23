@@ -1,3 +1,5 @@
+## Unreleased
+
 ## 0.4.2
 
 - Plumb async/futures API through desktop Isolate bridge (`resumeAsFuture()`, `resolveFutures()`, `resolveFuturesWithErrors()`)

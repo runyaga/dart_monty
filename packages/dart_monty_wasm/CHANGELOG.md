@@ -1,3 +1,5 @@
+## Unreleased
+
 ## 0.4.2
 
 - Version bump (no package code changes)
