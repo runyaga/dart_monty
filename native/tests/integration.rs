@@ -1578,3 +1578,140 @@ await main()
     assert_eq!(exc.exc_type(), monty::ExcType::RuntimeError);
     assert_eq!(exc.message(), Some("network failure"));
 }
+
+// ---------------------------------------------------------------------------
+// M13: Async/Futures — C FFI tests
+// ---------------------------------------------------------------------------
+
+#[test]
+fn async_single_await_via_ffi() {
+    let code = c("async def main():\n  result = await fetch('x')\n  return result\n\nawait main()");
+    let ext_fns = c("fetch");
+    let mut out_error: *mut c_char = ptr::null_mut();
+
+    let handle =
+        unsafe { monty_create(code.as_ptr(), ext_fns.as_ptr(), ptr::null(), &mut out_error) };
+    assert!(!handle.is_null());
+
+    let tag = unsafe { monty_start(handle, &mut out_error) };
+    assert_eq!(tag, MontyProgressTag::Pending);
+
+    let call_id = unsafe { monty_pending_call_id(handle) };
+    assert_ne!(call_id, u32::MAX);
+
+    let tag = unsafe { monty_resume_as_future(handle, &mut out_error) };
+    assert_eq!(tag, MontyProgressTag::ResolveFutures);
+
+    let ids_ptr = unsafe { monty_pending_future_call_ids(handle) };
+    assert!(!ids_ptr.is_null());
+    let ids_str = unsafe { read_c_string(ids_ptr) };
+    let ids: Vec<u32> = serde_json::from_str(&ids_str).unwrap();
+    assert_eq!(ids.len(), 1);
+
+    let results = CString::new(format!("{{\"{}\":\"response_x\"}}", ids[0])).unwrap();
+    let errors = c("{}");
+    let tag =
+        unsafe { monty_resume_futures(handle, results.as_ptr(), errors.as_ptr(), &mut out_error) };
+    assert_eq!(tag, MontyProgressTag::Complete);
+    assert_eq!(unsafe { monty_complete_is_error(handle) }, 0);
+
+    let result_ptr = unsafe { monty_complete_result_json(handle) };
+    let result_str = unsafe { read_c_string(result_ptr) };
+    let result: serde_json::Value = serde_json::from_str(&result_str).unwrap();
+    assert_eq!(result["value"], "response_x");
+
+    if !out_error.is_null() {
+        unsafe { monty_string_free(out_error) };
+    }
+    unsafe { monty_free(handle) };
+}
+
+#[test]
+fn async_gather_via_ffi() {
+    let code = c(
+        "import asyncio\n\nasync def main():\n  a, b = await asyncio.gather(foo(), bar())\n  return a + b\n\nawait main()",
+    );
+    let ext_fns = c("foo,bar");
+    let mut out_error: *mut c_char = ptr::null_mut();
+
+    let handle =
+        unsafe { monty_create(code.as_ptr(), ext_fns.as_ptr(), ptr::null(), &mut out_error) };
+    assert!(!handle.is_null());
+
+    // Start -> Pending (foo)
+    let tag = unsafe { monty_start(handle, &mut out_error) };
+    assert_eq!(tag, MontyProgressTag::Pending);
+    let id0 = unsafe { monty_pending_call_id(handle) };
+
+    // Resume as future -> Pending (bar)
+    let tag = unsafe { monty_resume_as_future(handle, &mut out_error) };
+    assert_eq!(tag, MontyProgressTag::Pending);
+    let id1 = unsafe { monty_pending_call_id(handle) };
+
+    // Resume as future -> ResolveFutures
+    let tag = unsafe { monty_resume_as_future(handle, &mut out_error) };
+    assert_eq!(tag, MontyProgressTag::ResolveFutures);
+
+    // Get pending call IDs
+    let ids_ptr = unsafe { monty_pending_future_call_ids(handle) };
+    assert!(!ids_ptr.is_null());
+    let ids_str = unsafe { read_c_string(ids_ptr) };
+    let ids: Vec<u32> = serde_json::from_str(&ids_str).unwrap();
+    assert_eq!(ids.len(), 2);
+
+    // Resume with results
+    let results = CString::new(format!("{{\"{}\":10,\"{}\":32}}", id0, id1)).unwrap();
+    let errors = c("{}");
+    let tag =
+        unsafe { monty_resume_futures(handle, results.as_ptr(), errors.as_ptr(), &mut out_error) };
+    assert_eq!(tag, MontyProgressTag::Complete);
+
+    let result_ptr = unsafe { monty_complete_result_json(handle) };
+    let result_str = unsafe { read_c_string(result_ptr) };
+    let result: serde_json::Value = serde_json::from_str(&result_str).unwrap();
+    assert_eq!(result["value"], 42);
+
+    if !out_error.is_null() {
+        unsafe { monty_string_free(out_error) };
+    }
+    unsafe { monty_free(handle) };
+}
+
+#[test]
+fn async_null_safety_via_ffi() {
+    // monty_resume_as_future with NULL handle
+    let mut out: *mut c_char = ptr::null_mut();
+    let tag = unsafe { monty_resume_as_future(ptr::null_mut(), &mut out) };
+    assert_eq!(tag, MontyProgressTag::Error);
+    if !out.is_null() {
+        unsafe { monty_string_free(out) };
+    }
+
+    // monty_pending_future_call_ids with NULL handle
+    let p = unsafe { monty_pending_future_call_ids(ptr::null()) };
+    assert!(p.is_null());
+
+    // monty_resume_futures with NULL handle
+    let mut out2: *mut c_char = ptr::null_mut();
+    let r = c("{}");
+    let e = c("{}");
+    let tag = unsafe { monty_resume_futures(ptr::null_mut(), r.as_ptr(), e.as_ptr(), &mut out2) };
+    assert_eq!(tag, MontyProgressTag::Error);
+    if !out2.is_null() {
+        unsafe { monty_string_free(out2) };
+    }
+
+    // monty_resume_futures with NULL results_json
+    let code = c("2+2");
+    let mut ce: *mut c_char = ptr::null_mut();
+    let h = unsafe { monty_create(code.as_ptr(), ptr::null(), ptr::null(), &mut ce) };
+    if !h.is_null() {
+        let mut out3: *mut c_char = ptr::null_mut();
+        let tag = unsafe { monty_resume_futures(h, ptr::null(), e.as_ptr(), &mut out3) };
+        assert_eq!(tag, MontyProgressTag::Error);
+        if !out3.is_null() {
+            unsafe { monty_string_free(out3) };
+        }
+        unsafe { monty_free(h) };
+    }
+}

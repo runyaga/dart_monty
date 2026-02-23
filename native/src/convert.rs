@@ -176,7 +176,10 @@ mod tests {
 
     #[test]
     fn test_float() {
-        assert_eq!(monty_object_to_json(&MontyObject::Float(3.14)), json!(3.14));
+        assert_eq!(
+            monty_object_to_json(&MontyObject::Float(3.125)),
+            json!(3.125)
+        );
     }
 
     #[test]
@@ -387,10 +390,10 @@ mod tests {
 
     #[test]
     fn test_json_to_monty_float() {
-        let val = json!(3.14);
+        let val = json!(3.125);
         let obj = json_to_monty_object(&val);
         match obj {
-            MontyObject::Float(f) => assert!((f - 3.14).abs() < f64::EPSILON),
+            MontyObject::Float(f) => assert!((f - 3.125).abs() < f64::EPSILON),
             _ => panic!("expected Float"),
         }
     }

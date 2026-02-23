@@ -298,6 +298,134 @@ pub unsafe extern "C" fn monty_resume_with_error(
 }
 
 // ---------------------------------------------------------------------------
+// Async / Futures
+// ---------------------------------------------------------------------------
+
+/// Resume by creating a future (the VM registers a future for this call_id).
+///
+/// - `out_error`: receives an error message on failure (caller frees).
+///
+/// Returns `MONTY_PROGRESS_COMPLETE`, `MONTY_PROGRESS_PENDING`,
+/// `MONTY_PROGRESS_RESOLVE_FUTURES`, or `MONTY_PROGRESS_ERROR`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn monty_resume_as_future(
+    handle: *mut MontyHandle,
+    out_error: *mut *mut c_char,
+) -> MontyProgressTag {
+    if handle.is_null() {
+        if !out_error.is_null() {
+            unsafe { *out_error = to_c_string("handle is NULL") };
+        }
+        return MontyProgressTag::Error;
+    }
+
+    let h = unsafe { &mut *handle };
+
+    match catch_ffi_panic(|| h.resume_as_future()) {
+        Ok((tag, err)) => {
+            if !out_error.is_null() {
+                match err {
+                    Some(ref msg) => unsafe { *out_error = to_c_string(msg) },
+                    None => unsafe { *out_error = ptr::null_mut() },
+                }
+            }
+            tag
+        }
+        Err(panic_msg) => {
+            if !out_error.is_null() {
+                unsafe { *out_error = to_c_string(&panic_msg) };
+            }
+            MontyProgressTag::Error
+        }
+    }
+}
+
+/// Get the pending future call IDs as a JSON array.
+/// Only valid when handle is in RESOLVE_FUTURES state.
+/// Caller frees with `monty_string_free`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn monty_pending_future_call_ids(handle: *const MontyHandle) -> *mut c_char {
+    if handle.is_null() {
+        return ptr::null_mut();
+    }
+    let h = unsafe { &*handle };
+    match h.pending_future_call_ids() {
+        Some(json) => to_c_string(json),
+        None => ptr::null_mut(),
+    }
+}
+
+/// Resume futures with results and errors.
+///
+/// - `results_json`: JSON object `{"call_id": value, ...}` (string keys)
+/// - `errors_json`: JSON object `{"call_id": "error_msg", ...}` (string keys)
+/// - `out_error`: receives an error message on failure (caller frees).
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn monty_resume_futures(
+    handle: *mut MontyHandle,
+    results_json: *const c_char,
+    errors_json: *const c_char,
+    out_error: *mut *mut c_char,
+) -> MontyProgressTag {
+    if handle.is_null() {
+        if !out_error.is_null() {
+            unsafe { *out_error = to_c_string("handle is NULL") };
+        }
+        return MontyProgressTag::Error;
+    }
+    if results_json.is_null() {
+        if !out_error.is_null() {
+            unsafe { *out_error = to_c_string("results_json is NULL") };
+        }
+        return MontyProgressTag::Error;
+    }
+    if errors_json.is_null() {
+        if !out_error.is_null() {
+            unsafe { *out_error = to_c_string("errors_json is NULL") };
+        }
+        return MontyProgressTag::Error;
+    }
+
+    let h = unsafe { &mut *handle };
+    let results_str = match unsafe { CStr::from_ptr(results_json) }.to_str() {
+        Ok(s) => s,
+        Err(_) => {
+            if !out_error.is_null() {
+                unsafe { *out_error = to_c_string("results_json is not valid UTF-8") };
+            }
+            return MontyProgressTag::Error;
+        }
+    };
+    let errors_str = match unsafe { CStr::from_ptr(errors_json) }.to_str() {
+        Ok(s) => s,
+        Err(_) => {
+            if !out_error.is_null() {
+                unsafe { *out_error = to_c_string("errors_json is not valid UTF-8") };
+            }
+            return MontyProgressTag::Error;
+        }
+    };
+
+    match catch_ffi_panic(|| h.resume_futures(results_str, errors_str)) {
+        Ok((tag, err)) => {
+            if !out_error.is_null() {
+                match err {
+                    Some(ref msg) => unsafe { *out_error = to_c_string(msg) },
+                    None => unsafe { *out_error = ptr::null_mut() },
+                }
+            }
+            tag
+        }
+        Err(panic_msg) => {
+            if !out_error.is_null() {
+                unsafe { *out_error = to_c_string(&panic_msg) };
+            }
+            MontyProgressTag::Error
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // State accessors
 // ---------------------------------------------------------------------------
 

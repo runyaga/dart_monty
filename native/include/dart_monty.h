@@ -35,9 +35,10 @@ typedef enum {
 
 /** Progress tag for monty_start() / monty_resume(). */
 typedef enum {
-    MONTY_PROGRESS_COMPLETE = 0,
-    MONTY_PROGRESS_PENDING  = 1,
-    MONTY_PROGRESS_ERROR    = 2,
+    MONTY_PROGRESS_COMPLETE        = 0,
+    MONTY_PROGRESS_PENDING         = 1,
+    MONTY_PROGRESS_ERROR           = 2,
+    MONTY_PROGRESS_RESOLVE_FUTURES = 3,
 } MontyProgressTag;
 
 /* ------------------------------------------------------------------ */
@@ -120,6 +121,49 @@ MontyProgressTag monty_resume(MontyHandle *handle,
 MontyProgressTag monty_resume_with_error(MontyHandle *handle,
                                           const char *error_message,
                                           char **out_error);
+
+/* ------------------------------------------------------------------ */
+/* Async / Futures                                                    */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Resume by creating a future (tells the VM this call returns a future).
+ * Only valid when handle is in PENDING state.
+ *
+ * @param handle     Handle in PENDING state.
+ * @param out_error  Receives error message on failure. Caller frees.
+ * @return           MONTY_PROGRESS_COMPLETE, _PENDING, _RESOLVE_FUTURES,
+ *                   or _ERROR.
+ */
+MontyProgressTag monty_resume_as_future(MontyHandle *handle,
+                                         char **out_error);
+
+/**
+ * Get the pending future call IDs as a JSON array.
+ * Only valid after progress returned MONTY_PROGRESS_RESOLVE_FUTURES.
+ *
+ * @return  Heap-allocated JSON array string (e.g. "[0,1,2]"), or NULL.
+ *          Caller frees with monty_string_free().
+ */
+char *monty_pending_future_call_ids(const MontyHandle *handle);
+
+/**
+ * Resume futures with results and errors.
+ * Only valid when handle is in RESOLVE_FUTURES state.
+ *
+ * @param handle        Handle in RESOLVE_FUTURES state.
+ * @param results_json  JSON object mapping call_id (string) to value,
+ *                      e.g. {"0": "value0", "1": 42}.
+ * @param errors_json   JSON object mapping call_id (string) to error message,
+ *                      e.g. {"2": "timeout"}. Use "{}" for no errors.
+ * @param out_error     Receives error message on failure. Caller frees.
+ * @return              MONTY_PROGRESS_COMPLETE, _RESOLVE_FUTURES, _PENDING,
+ *                      or _ERROR.
+ */
+MontyProgressTag monty_resume_futures(MontyHandle *handle,
+                                       const char *results_json,
+                                       const char *errors_json,
+                                       char **out_error);
 
 /* ------------------------------------------------------------------ */
 /* State accessors                                                    */
