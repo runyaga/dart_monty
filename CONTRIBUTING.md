@@ -109,81 +109,54 @@ GitHub Actions run on every push and PR to `main`:
 - **Markdown** — pymarkdown scan
 - **Security** — gitleaks secret scanning
 
-## Release Process
+## Publishing to pub.dev
 
-All 6 packages are released together at the same version.
+Packages are published individually using **OIDC automated publishing**.
+No tokens or secrets needed — GitHub Actions generates a short-lived OIDC
+token that pub.dev verifies directly.
+
+### How it works
+
+Each package has a dedicated publish workflow triggered by a tag push:
+
+| Package | Tag pattern | Workflow |
+|---------|-------------|----------|
+| `dart_monty_platform_interface` | `platform_interface-v<version>` | `publish_platform_interface.yaml` |
+
+The workflow runs: install deps → analyze → test → verify tag matches
+pubspec version → dry-run → publish.
+
+### Publishing a package
+
+```bash
+# 1. Ensure CHANGELOG.md has an entry for the version (no "Unreleased" heading)
+# 2. Ensure pubspec.yaml version matches the tag you're about to push
+# 3. Tag and push
+git tag platform_interface-v0.3.5
+git push origin platform_interface-v0.3.5
+# 4. Watch the Actions tab for the publish workflow
+```
+
+### pub.dev admin setup (one-time per package)
+
+1. Go to `https://pub.dev/packages/<package_name>/admin`
+2. Enable **Automated publishing** from GitHub Actions
+3. Set **Repository:** `runyaga/dart_monty`
+4. Set **Tag pattern:** `<prefix>-v{{version}}` (e.g. `platform_interface-v{{version}}`)
+5. Save
+
+### If a publish fails
+
+- Check the Actions log for the exact error
+- Fix the issue, bump the version (a published version can never be re-published)
+- Update CHANGELOG.md with the new version entry
+- Tag and push the new version
 
 ### CHANGELOGs
 
-Each package has a `CHANGELOG.md` with an `## Unreleased` section at the
-top. During development, add entries under `## Unreleased`. At release
-time the stamp script replaces it with the version heading.
-
-### Steps
-
-```bash
-# 1. Review ## Unreleased sections, add any missing entries
-
-# 2. Trigger dry-run (validates, builds, stamps, but does NOT publish or tag)
-gh workflow run "Prepare release" -f version=X.Y.Z
-
-# 3. If green, trigger real publish
-gh workflow run "Prepare release" -f version=X.Y.Z -f publish=true
-
-# 4. release.yaml auto-triggers from the tag → builds GitHub Release
-
-# 5. Verify all 6 packages are live on pub.dev
-bash tool/verify_publish.sh X.Y.Z
-```
-
-Do NOT manually stamp changelogs or bump pubspecs — the workflow handles
-all of that automatically.
-
-### What the workflow does
-
-| Step | Always | Publish only |
-|------|--------|--------------|
-| Generate FFI bindings | x | |
-| Analyze all packages | x | |
-| Run tests (dart + flutter) | x | |
-| Build native binaries (Linux + macOS) | x | |
-| Bump versions in all pubspecs | x | |
-| Stamp CHANGELOGs | x | |
-| Verify CHANGELOG entries | x | |
-| dartdoc dry-run (all 5 sub-packages) | x | |
-| Commit version bumps | x | |
-| `dart pub publish --dry-run` | x | |
-| Tag and push (commit + tag to main) | | x |
-| Publish to pub.dev (leaf-first order) | | x |
-| Verify pub.dev versions | | x |
-
-### Known Gotchas
-
-- **FFI bindings are generated, not committed.** The release workflow runs
-  `generate_bindings.sh` before analyze and dartdoc. If you add a new
-  package that depends on FFI bindings, ensure the release workflow
-  generates them too.
-- **Dry-run publish warnings are expected.** `publish.sh` swaps path deps
-  to version constraints, which makes `dart pub publish --dry-run` warn
-  about modified files (exit 65). For first-time publishes, sibling
-  packages are not yet on pub.dev, causing dep resolution failures
-  (exit 69). Both are handled gracefully.
-- **Publish order matters.** `publish.sh` publishes in dependency order:
-  `platform_interface` → `ffi` → `wasm` → `web` → `desktop` → root.
-  This ensures each package's dependencies are on pub.dev before it
-  publishes.
-- **dart_monty_web has no tests.** It is a thin Flutter registration shim
-  that delegates to `dart_monty_wasm`. The release workflow skips
-  `flutter test` for it.
-- **pub.dev auth:** The workflow uses `PUB_TOKEN` secret. Set up
-  automated publishing via OIDC for a more robust approach (see
-  [pub.dev automated publishing](https://dart.dev/tools/pub/automated-publishing)).
-
-### Scripts
-
-- `tool/stamp_changelogs.sh <version>` — stamps all 6 CHANGELOGs
-- `tool/publish.sh` — dry-run by default, `--publish` to publish for real
-- `tool/verify_publish.sh <version>` — checks pub.dev API with retries
+Each package has a `CHANGELOG.md`. During development, add entries under
+`## Unreleased`. Before publishing, rename `## Unreleased` to the version
+heading (e.g. `## 0.3.5`).
 
 ## Cross-Platform Parity
 
