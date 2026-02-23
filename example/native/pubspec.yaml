@@ -10,3 +10,7 @@ dependencies:
     path: ../../packages/dart_monty_platform_interface
   dart_monty_ffi:
     path: ../../packages/dart_monty_ffi
+
+dependency_overrides:
+  dart_monty_platform_interface:
+    path: ../../packages/dart_monty_platform_interface
