@@ -283,10 +283,16 @@ All 6 packages are already configured. For new packages:
 3. Enable **Automated publishing** from GitHub Actions
 4. Set **Repository:** `runyaga/dart_monty`
 5. Set **Tag pattern:** `<prefix>-v{{version}}`
-6. Save
+6. Set **Environment:** `pub-dev`
+7. Save
 
 ### Publishing gotchas
 
+- **OIDC requires `environment: pub-dev`.** All packages on pub.dev are
+  configured with the `pub-dev` environment restriction. The reusable
+  publish workflow (`_publish-dart-package.yaml`) must have
+  `environment: pub-dev` on its job — without it, `dart pub publish`
+  fails with `Authentication failed!`.
 - **Tag filters use glob, not regex.** GitHub Actions `on.push.tags` uses
   glob matching — `[0-9]+` is literal (matches `1+`), use `[0-9]*` for
   "one or more digits".

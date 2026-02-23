@@ -1,3 +1,5 @@
+## Unreleased
+
 ## 0.4.1
 
 - CI improvements (no package code changes)
