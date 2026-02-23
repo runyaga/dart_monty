@@ -1,6 +1,5 @@
 name: dart_monty_platform_interface
 description: Platform interface for dart_monty. Defines the shared API contract implemented by native and web backends.
-publish_to: https://pub.dev
 version: 0.3.3
 homepage: https://github.com/runyaga/dart_monty
 repository: https://github.com/runyaga/dart_monty
