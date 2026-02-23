@@ -1,7 +1,7 @@
 name: dart_monty
 description: Flutter plugin exposing the Monty sandboxed Python interpreter to Dart/Flutter via FFI (native) and JS interop (web).
 publish_to: 'none'
-version: 0.3.0
+version: 0.3.1
 homepage: https://github.com/runyaga/dart_monty
 repository: https://github.com/runyaga/dart_monty
 issue_tracker: https://github.com/runyaga/dart_monty/issues
