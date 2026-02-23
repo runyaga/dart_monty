@@ -1,6 +1,6 @@
 name: dart_monty
 description: Dart and Flutter bindings for Monty, a Rust-built embeddable sandbox that runs a restricted subset of Python. Native FFI and browser WASM.
-version: 0.3.3
+version: 0.3.4
 homepage: https://github.com/runyaga/dart_monty
 repository: https://github.com/runyaga/dart_monty
 issue_tracker: https://github.com/runyaga/dart_monty/issues
