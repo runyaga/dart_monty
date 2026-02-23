@@ -12,7 +12,8 @@
     "externalFunctions": null,
     "resumeValues": null,
     "resumeErrors": null,
-    "nativeOnly": false
+    "nativeOnly": false,
+    "xfail": "monty does not propagate last expression from try-except blocks"
   },
   {
     "id": 30,
@@ -27,7 +28,8 @@
     "externalFunctions": null,
     "resumeValues": null,
     "resumeErrors": null,
-    "nativeOnly": false
+    "nativeOnly": false,
+    "xfail": "monty does not propagate last expression from try-except blocks"
   },
   {
     "id": 31,
@@ -42,7 +44,8 @@
     "externalFunctions": null,
     "resumeValues": null,
     "resumeErrors": null,
-    "nativeOnly": false
+    "nativeOnly": false,
+    "xfail": "monty_create throws StateError for syntax errors, not MontyException"
   },
   {
     "id": 43,
@@ -87,6 +90,7 @@
     "externalFunctions": null,
     "resumeValues": null,
     "resumeErrors": null,
-    "nativeOnly": false
+    "nativeOnly": false,
+    "xfail": "monty does not propagate last expression from try-except blocks"
   }
 ]

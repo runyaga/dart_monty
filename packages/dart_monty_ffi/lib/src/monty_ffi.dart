@@ -182,11 +182,13 @@ class MontyFfi extends MontyPlatform {
             : const <Object?>[];
 
         final kwargsJson = progress.kwargsJson;
-        final kwargs = kwargsJson != null
-            ? Map<String, Object?>.from(
-                json.decode(kwargsJson) as Map<String, dynamic>,
-              )
-            : null;
+        Map<String, Object?>? kwargs;
+        if (kwargsJson != null) {
+          final decoded = Map<String, Object?>.from(
+            json.decode(kwargsJson) as Map<String, dynamic>,
+          );
+          kwargs = decoded.isNotEmpty ? decoded : null;
+        }
 
         return MontyPending(
           functionName: fnName,
@@ -198,6 +200,15 @@ class MontyFfi extends MontyPlatform {
 
       case 2: // MONTY_PROGRESS_ERROR
         _freeHandle(handle);
+        // Parse full result JSON for exc_type, traceback, etc.
+        final errorResultJson = progress.resultJson;
+        if (errorResultJson != null) {
+          final jsonMap = json.decode(errorResultJson) as Map<String, dynamic>;
+          final errorMap = jsonMap['error'] as Map<String, dynamic>?;
+          if (errorMap != null) {
+            throw MontyException.fromJson(errorMap);
+          }
+        }
         throw MontyException(message: progress.errorMessage ?? 'Unknown error');
 
       default:
@@ -221,7 +232,15 @@ class MontyFfi extends MontyPlatform {
 
       return MontyResult.fromJson(jsonMap);
     }
-    // MONTY_RESULT_ERROR
+    // MONTY_RESULT_ERROR — parse full result JSON for exc_type, traceback, etc.
+    final resultJson = result.resultJson;
+    if (resultJson != null) {
+      final jsonMap = json.decode(resultJson) as Map<String, dynamic>;
+      final errorMap = jsonMap['error'] as Map<String, dynamic>?;
+      if (errorMap != null) {
+        throw MontyException.fromJson(errorMap);
+      }
+    }
     throw MontyException(message: result.errorMessage ?? 'Unknown error');
   }
 

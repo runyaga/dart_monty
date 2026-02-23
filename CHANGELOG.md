@@ -7,6 +7,9 @@
 - Wire WASM JS bridge: kwargs, callId, scriptName, excType, and traceback in worker responses
 - Fix worker onerror to reject pending promises on crash
 - Fix `restore()` state machine to return active instance
+- Fix FFI error paths to parse full error JSON (excType, traceback, filename)
+- Add ladder test fixtures for tiers 8 (kwargs/callId), 9 (exceptions/traceback), 15 (scriptName)
+- Xfail pre-existing try-except and syntax error ladder fixtures
 
 ## 0.3.5
 

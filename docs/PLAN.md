@@ -12,8 +12,9 @@
 | M4 | Pure Dart WASM Package | Complete |
 | M5 | Flutter Desktop Plugin (macOS + Linux) | Complete |
 | M6 | Flutter Web Plugin | Complete |
+| M7A | Run API Data Model Fidelity | Complete |
 
-Current API coverage: ~25-35% of upstream monty surface.
+Current API coverage: ~40% of upstream monty surface.
 
 ---
 
@@ -28,7 +29,7 @@ from numbering.
 
 | Priority | Milestone | Description | Fixtures | Key Unlock |
 |----------|-----------|-------------|----------|------------|
-| **1** | **M7A** | Run API Data Model Fidelity | 25 (tiers 8, 9, 15) | kwargs, excType, tracebacks, callId, scriptName |
+| **1** | **M7A** | Run API Data Model Fidelity | 26 (tiers 8, 9, 15) | kwargs, excType, tracebacks, callId, scriptName — **COMPLETE** |
 | **2** | **M13** | Async / Futures | 6 (tier 13) | asyncio.gather, concurrent tool calls |
 | **3** | **M8** | Rich Type Bridge | 15 (tier 10) | $tuple, $set, $bytes, dataclass preservation |
 
