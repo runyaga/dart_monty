@@ -2,6 +2,9 @@ use std::ffi::{CStr, CString, c_char};
 use std::ptr;
 
 use dart_monty_native::*;
+use monty::{
+    ExternalResult, FutureSnapshot, MontyObject, MontyRun, NoLimitTracker, PrintWriter, RunProgress,
+};
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -1345,4 +1348,233 @@ fn error_json_exc_type_and_traceback_via_ffi() {
         unsafe { monty_string_free(error_msg) };
     }
     unsafe { monty_free(handle) };
+}
+
+// ---------------------------------------------------------------------------
+// M13: Async/Futures — Upstream API surface validation
+// ---------------------------------------------------------------------------
+// These tests validate that monty rev 87f8f31 supports async/await via
+// ExternalResult::Future → ResolveFutures → FutureSnapshot.resume().
+// They operate at the Rust monty crate level (not through C FFI).
+
+/// Drive execution through FunctionCalls, returning Future for each,
+/// until we reach ResolveFutures. Returns the FutureSnapshot and
+/// collected (call_id, function_name) pairs.
+fn drive_to_resolve_futures<T: monty::ResourceTracker>(
+    mut progress: RunProgress<T>,
+) -> (FutureSnapshot<T>, Vec<(u32, String)>) {
+    let mut collected = Vec::new();
+
+    loop {
+        match progress {
+            RunProgress::FunctionCall {
+                call_id,
+                function_name,
+                state,
+                ..
+            } => {
+                collected.push((call_id, function_name));
+                progress = state.run_pending(&mut PrintWriter::Stdout).unwrap();
+            }
+            RunProgress::ResolveFutures(state) => {
+                return (state, collected);
+            }
+            RunProgress::Complete(_) => {
+                panic!("unexpected Complete before ResolveFutures");
+            }
+            RunProgress::OsCall { function, .. } => {
+                panic!("unexpected OsCall: {function:?}");
+            }
+        }
+    }
+}
+
+#[test]
+fn async_single_await_resolve() {
+    let code = r"
+async def main():
+    result = await fetch('x')
+    return result
+
+await main()
+";
+    let runner =
+        MontyRun::new(code.to_owned(), "test.py", vec![], vec!["fetch".to_owned()]).unwrap();
+
+    let progress = runner
+        .start(vec![], NoLimitTracker, &mut PrintWriter::Stdout)
+        .unwrap();
+
+    let (state, call_ids) = drive_to_resolve_futures(progress);
+    assert_eq!(state.pending_call_ids().len(), 1);
+    assert_eq!(call_ids.len(), 1);
+    assert_eq!(call_ids[0].1, "fetch");
+
+    let results = vec![(
+        call_ids[0].0,
+        ExternalResult::Return(MontyObject::String("response_x".into())),
+    )];
+    let progress = state.resume(results, &mut PrintWriter::Stdout).unwrap();
+
+    let result = progress.into_complete().expect("should complete");
+    assert_eq!(result, MontyObject::String("response_x".into()));
+}
+
+#[test]
+fn async_gather_two_resolve_all() {
+    let code = r"
+import asyncio
+
+async def main():
+    a, b = await asyncio.gather(foo(), bar())
+    return a + b
+
+await main()
+";
+    let runner = MontyRun::new(
+        code.to_owned(),
+        "test.py",
+        vec![],
+        vec!["foo".to_owned(), "bar".to_owned()],
+    )
+    .unwrap();
+
+    let progress = runner
+        .start(vec![], NoLimitTracker, &mut PrintWriter::Stdout)
+        .unwrap();
+
+    let (state, call_ids) = drive_to_resolve_futures(progress);
+    assert_eq!(state.pending_call_ids().len(), 2);
+    assert_eq!(call_ids.len(), 2);
+
+    let results = vec![
+        (call_ids[0].0, ExternalResult::Return(MontyObject::Int(10))),
+        (call_ids[1].0, ExternalResult::Return(MontyObject::Int(32))),
+    ];
+    let progress = state.resume(results, &mut PrintWriter::Stdout).unwrap();
+
+    let result = progress.into_complete().expect("should complete");
+    assert_eq!(result, MontyObject::Int(42));
+}
+
+#[test]
+fn async_gather_incremental_resolution() {
+    let code = r"
+import asyncio
+
+async def main():
+    a, b = await asyncio.gather(foo(), bar())
+    return a + b
+
+await main()
+";
+    let runner = MontyRun::new(
+        code.to_owned(),
+        "test.py",
+        vec![],
+        vec!["foo".to_owned(), "bar".to_owned()],
+    )
+    .unwrap();
+
+    let progress = runner
+        .start(vec![], NoLimitTracker, &mut PrintWriter::Stdout)
+        .unwrap();
+
+    let (state, call_ids) = drive_to_resolve_futures(progress);
+    assert_eq!(state.pending_call_ids().len(), 2);
+
+    // Resolve only first
+    let results = vec![(call_ids[0].0, ExternalResult::Return(MontyObject::Int(10)))];
+    let progress = state.resume(results, &mut PrintWriter::Stdout).unwrap();
+
+    // Should need more futures
+    let state = progress
+        .into_resolve_futures()
+        .expect("should need more futures");
+    assert_eq!(state.pending_call_ids().len(), 1);
+
+    // Resolve second
+    let results = vec![(call_ids[1].0, ExternalResult::Return(MontyObject::Int(32)))];
+    let progress = state.resume(results, &mut PrintWriter::Stdout).unwrap();
+
+    let result = progress.into_complete().expect("should complete");
+    assert_eq!(result, MontyObject::Int(42));
+}
+
+#[test]
+fn async_gather_with_error() {
+    let code = r"
+import asyncio
+
+async def main():
+    a, b = await asyncio.gather(foo(), bar())
+    return a + b
+
+await main()
+";
+    let runner = MontyRun::new(
+        code.to_owned(),
+        "test.py",
+        vec![],
+        vec!["foo".to_owned(), "bar".to_owned()],
+    )
+    .unwrap();
+
+    let progress = runner
+        .start(vec![], NoLimitTracker, &mut PrintWriter::Stdout)
+        .unwrap();
+
+    let (state, call_ids) = drive_to_resolve_futures(progress);
+
+    let results = vec![
+        (call_ids[0].0, ExternalResult::Return(MontyObject::Int(10))),
+        (
+            call_ids[1].0,
+            ExternalResult::Error(monty::MontyException::new(
+                monty::ExcType::RuntimeError,
+                Some("network timeout".into()),
+            )),
+        ),
+    ];
+    let result = state.resume(results, &mut PrintWriter::Stdout);
+
+    assert!(result.is_err(), "should propagate the error");
+    let exc = result.unwrap_err();
+    assert_eq!(exc.exc_type(), monty::ExcType::RuntimeError);
+    assert_eq!(exc.message(), Some("network timeout"));
+}
+
+#[test]
+fn async_error_propagates_from_future() {
+    let code = r"
+async def main():
+    result = await fetch('x')
+    return result
+
+await main()
+";
+    let runner =
+        MontyRun::new(code.to_owned(), "test.py", vec![], vec!["fetch".to_owned()]).unwrap();
+
+    let progress = runner
+        .start(vec![], NoLimitTracker, &mut PrintWriter::Stdout)
+        .unwrap();
+
+    let (state, call_ids) = drive_to_resolve_futures(progress);
+    assert_eq!(call_ids.len(), 1);
+
+    // Error in future resolution propagates as MontyException
+    let results = vec![(
+        call_ids[0].0,
+        ExternalResult::Error(monty::MontyException::new(
+            monty::ExcType::RuntimeError,
+            Some("network failure".into()),
+        )),
+    )];
+    let result = state.resume(results, &mut PrintWriter::Stdout);
+
+    assert!(result.is_err(), "error should propagate from future");
+    let exc = result.unwrap_err();
+    assert_eq!(exc.exc_type(), monty::ExcType::RuntimeError);
+    assert_eq!(exc.message(), Some("network failure"));
 }
