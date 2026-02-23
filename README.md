@@ -70,14 +70,17 @@ await monty.dispose();
 
 Federated plugin with six packages:
 
-```text
-dart_monty                           # App-facing API (Flutter plugin)
-  dart_monty_platform_interface      # Abstract contract (pure Dart)
-  dart_monty_ffi                     # Native FFI bindings (dart:ffi -> Rust)
-  dart_monty_wasm                    # WASM bindings (dart:js_interop -> Web Worker)
-  dart_monty_desktop                 # Desktop plugin (macOS/Linux, Isolate)
-  dart_monty_web                     # Web plugin (browser, script injection)
-```
+| Package | Type | Description |
+|---------|------|-------------|
+| `dart_monty` | Flutter plugin | App-facing API |
+| `dart_monty_platform_interface` | **Pure Dart** | Abstract contract — no Flutter dependency |
+| `dart_monty_ffi` | **Pure Dart** | Native FFI bindings (`dart:ffi` -> Rust) |
+| `dart_monty_wasm` | **Pure Dart** | WASM bindings (`dart:js_interop` -> Web Worker) |
+| `dart_monty_desktop` | Flutter plugin | Desktop platform (macOS/Linux, Isolate) |
+| `dart_monty_web` | Flutter plugin | Web platform (browser, script injection) |
+
+The three pure-Dart packages can be used without Flutter (e.g. in CLI tools
+or server-side Dart).
 
 ### Native Path (desktop)
 

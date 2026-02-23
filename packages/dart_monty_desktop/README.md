@@ -1,8 +1,8 @@
 # dart_monty_desktop
 
-macOS and Linux desktop implementation of dart_monty using native FFI. Runs the Monty Python interpreter in a background Isolate for non-blocking execution from Flutter desktop apps.
+**Flutter plugin** — macOS and Linux desktop implementation of dart_monty using native FFI. Runs the Monty Python interpreter in a background Isolate for non-blocking execution from Flutter desktop apps.
 
-This package is not intended for direct use. Import `dart_monty` instead — the federated plugin system selects this package automatically on macOS and Linux.
+Requires Flutter. This package is not intended for direct use. Import `dart_monty` instead — the federated plugin system selects this package automatically on macOS and Linux.
 
 ## How It Works
 

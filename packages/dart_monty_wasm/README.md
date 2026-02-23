@@ -1,8 +1,8 @@
 # dart_monty_wasm
 
-Web WASM implementation of dart_monty using `dart:js_interop` and `@pydantic/monty`. Runs the Monty Python interpreter in a Web Worker to avoid Chrome's synchronous WASM compile-size limit.
+**Pure Dart** web WASM implementation of dart_monty using `dart:js_interop` and `@pydantic/monty`. Runs the Monty Python interpreter in a Web Worker to avoid Chrome's synchronous WASM compile-size limit.
 
-This package is not intended for direct use. Import `dart_monty` instead.
+This package has no Flutter dependency and can be used in any Dart web project. Most apps should import `dart_monty` instead.
 
 ## Architecture
 

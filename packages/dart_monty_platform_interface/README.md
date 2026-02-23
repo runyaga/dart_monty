@@ -1,8 +1,8 @@
 # dart_monty_platform_interface
 
-Platform interface for dart_monty. Defines the shared API contract (`MontyPlatform`) implemented by native and web backends, along with common types like `MontyResult`, `MontyException`, and `MontyResourceUsage`.
+**Pure Dart** platform interface for dart_monty. Defines the shared API contract (`MontyPlatform`) implemented by native and web backends, along with common types like `MontyResult`, `MontyException`, and `MontyResourceUsage`.
 
-This package is not intended for direct use. Import `dart_monty` instead.
+This package has no Flutter dependency and can be used in CLI tools, server-side Dart, or any Dart project. Most apps should import `dart_monty` instead.
 
 ## Key Types
 

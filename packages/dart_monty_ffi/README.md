@@ -1,8 +1,8 @@
 # dart_monty_ffi
 
-Native FFI implementation of dart_monty for desktop and mobile platforms. Wraps the Rust `libdart_monty_native` shared library via `dart:ffi`, providing synchronous bindings to the Monty sandboxed Python interpreter.
+**Pure Dart** native FFI implementation of dart_monty. Wraps the Rust `libdart_monty_native` shared library via `dart:ffi`, providing synchronous bindings to the Monty sandboxed Python interpreter.
 
-This package is not intended for direct use. Import `dart_monty` instead.
+This package has no Flutter dependency and can be used in CLI tools, server-side Dart, or any Dart project. Most apps should import `dart_monty` instead.
 
 ## Architecture
 
