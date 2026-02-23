@@ -97,17 +97,24 @@ Run these checks after every code change:
 
 ## CI
 
-GitHub Actions run on every push and PR to `main`:
+GitHub Actions run on every push and PR to `main`. All jobs run in
+parallel except where noted:
 
-- **Lint** — format + ffigen + analyze all sub-packages
-- **Test** — per-package with 90% coverage gate (platform_interface, ffi, wasm)
-- **Rust** — fmt + clippy + test + tarpaulin coverage (90% gate)
-- **Build WASM** — `cargo build --target wasm32-wasip1-threads`
+- **FFI bindings** — generates `dart_monty_bindings.dart` once, uploads
+  as artifact for downstream jobs (~2 min)
+- **Lint** — format + analyze all sub-packages (needs: ffigen)
+- **Test** — per-package matrix with 90% coverage gate:
+  platform_interface, ffi, wasm (needs: ffigen for ffi variant)
+- **Test desktop** — Flutter test + 90% coverage on macOS (needs: ffigen)
+- **Test web** — Flutter test on Chrome
+- **Rust** — fmt + clippy + tarpaulin test/coverage (90% gate)
+- **Build WASM** — `cargo build --target wasm32-wasip1-threads` (needs: rust)
 - **Build JS wrapper** — npm install + esbuild bridge/worker
-- **Build native** — Ubuntu + macOS matrix
-- **DCM** — Dart Code Metrics
+- **Build smoke** — full Flutter desktop build on Ubuntu + macOS (needs: ffigen)
+- **WASM ladder** — headless Chrome integration tests
+- **DCM** — Dart Code Metrics (weekly + push to main)
 - **Markdown** — pymarkdown scan
-- **Security** — gitleaks secret scanning
+- **TruffleHog** — verified secret scanning (separate workflow, all pushes)
 
 ## Release Process
 
@@ -185,10 +192,17 @@ git push origin web-v<version> desktop-v<version>
 # 4. dart_monty root (depends on web + desktop)
 git tag dart_monty-v<version>
 git push origin dart_monty-v<version>
+# Wait for workflow to complete
+
+# 5. GitHub Release (builds native + web artifacts)
+git tag v<version>
+git push origin v<version>
 ```
 
-Each workflow runs: install deps → generate bindings (ffi only) → analyze →
-test → verify tag matches pubspec → dry-run → publish.
+Steps 1–4 publish to **pub.dev** via per-package OIDC workflows.
+Step 5 triggers `release.yaml` which builds native binaries (Linux + macOS),
+a web bundle, and creates a **GitHub Release** at
+`https://github.com/runyaga/dart_monty/releases` with all artifacts attached.
 
 ### Post-release verification
 
@@ -200,8 +214,12 @@ test → verify tag matches pubspec → dry-run → publish.
        "import sys,json; print(json.load(sys.stdin)['latest']['version'])")"
    done
    ```
-2. **Check GitHub Actions** — all 6 publish workflows should show green
-3. **Test downstream** — create a fresh project and add `dart_monty` as a
+2. **Check GitHub Actions** — all 6 publish workflows + release workflow should
+   show green
+3. **Check GitHub Release** — verify
+   `https://github.com/runyaga/dart_monty/releases` shows the new version with
+   native (linux-x64, macos-x64) and web artifacts attached
+4. **Test downstream** — create a fresh project and add `dart_monty` as a
    dependency to verify the published packages resolve correctly:
    ```bash
    dart create test_install && cd test_install
