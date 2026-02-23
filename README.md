@@ -68,6 +68,30 @@ progress = await monty.resumeWithError('network timeout');
 await monty.dispose();
 ```
 
+## Monty API Coverage (~35%)
+
+dart_monty wraps the upstream [Monty Rust API](https://github.com/pydantic/monty).
+The table below shows current coverage and what's planned.
+
+| API Area | Status | Notes |
+|----------|--------|-------|
+| **Core execution** (`run`, `start`, `resume`, `dispose`) | Covered | Full iterative execution loop |
+| **External functions** (host-provided callables) | Covered | `start()` / `resume()` / `resumeWithError()` |
+| **Resource limits** (time, memory, recursion depth) | Covered | `MontyLimits` on `run()` and `start()` |
+| **Print capture** (`print()` output collection) | Covered | `MontyResult.printOutput` |
+| **Snapshot / restore** (`MontyRun::dump/load`) | Covered | Compile-once, run-many pattern |
+| **Exception model** (excType, traceback, stack frames) | Covered | Full `MontyException` with `StackFrame` list |
+| **Call metadata** (kwargs, callId, methodCall, scriptName) | Covered | Structured external call context |
+| Async / futures (`asyncio.gather`, concurrent calls) | Planned | Native only — WASM upstream lacks `FutureSnapshot` API |
+| Rich types (tuple, set, bytes, dataclass, namedtuple) | Planned | Currently collapsed to `List`/`Map` |
+| REPL (stateful sessions, `feed()`, persistence) | Planned | `MontyRepl` multi-step sessions |
+| OS calls (`os.getenv`, `os.environ`, `os.stat`) | Planned | `OsCall` progress variant |
+| Print streaming (real-time callback) | Planned | Currently batch-only after execution |
+| Advanced limits (allocations, GC interval, `runNoLimits`) | Planned | Extended `ResourceTracker` surface |
+| Type checking (static analysis before execution) | Planned | ty / Red Knot integration |
+| Progress serialization (suspend/resume across restarts) | Planned | `RunProgress::dump/load` |
+| Platform expansion (Windows, iOS, Android) | Planned | macOS + Linux + Web today |
+
 ## Architecture
 
 Federated plugin with six packages:
@@ -118,8 +142,6 @@ Cross-Origin-Embedder-Policy: require-corp
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, gate scripts,
 and CI details.
-
-See [PLAN.md](PLAN.md) for engineering milestones and quality gates.
 
 ## License
 
