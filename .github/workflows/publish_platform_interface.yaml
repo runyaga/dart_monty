@@ -7,41 +7,10 @@ on:
 
 jobs:
   publish:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
+    uses: ./.github/workflows/_publish-dart-package.yaml
     permissions:
-      id-token: write # Required for OIDC
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: dart-lang/setup-dart@v1
-        with:
-          sdk: stable
-
-      - name: Install dependencies
-        working-directory: packages/dart_monty_platform_interface
-        run: dart pub get
-
-      - name: Analyze
-        working-directory: packages/dart_monty_platform_interface
-        run: dart analyze --fatal-infos
-
-      - name: Run tests
-        working-directory: packages/dart_monty_platform_interface
-        run: dart test
-
-      - name: Verify version matches tag
-        working-directory: packages/dart_monty_platform_interface
-        run: |
-          TAG_VERSION="${GITHUB_REF_NAME#platform_interface-v}"
-          PUBSPEC_VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //' | tr -d ' \r')
-          echo "Tag: $TAG_VERSION | Pubspec: $PUBSPEC_VERSION"
-          [ "$TAG_VERSION" = "$PUBSPEC_VERSION" ] || { echo "MISMATCH"; exit 1; }
-
-      - name: Dry run
-        working-directory: packages/dart_monty_platform_interface
-        run: dart pub publish --dry-run
-
-      - name: Publish
-        working-directory: packages/dart_monty_platform_interface
-        run: dart pub publish --force
+      id-token: write
+    with:
+      package-name: dart_monty_platform_interface
+      tag-prefix: platform_interface-v
+      package-path: packages/dart_monty_platform_interface
