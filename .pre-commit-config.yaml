@@ -43,6 +43,16 @@ repos:
         entry: bash -c 'cd packages/dart_monty_desktop && flutter analyze --fatal-infos'
         language: system
         pass_filenames: false
+      - id: flutter-test-web
+        name: flutter test (web)
+        entry: bash -c 'cd packages/dart_monty_web && flutter test --platform chrome'
+        language: system
+        pass_filenames: false
+      - id: flutter-analyze-web
+        name: flutter analyze (web)
+        entry: bash -c 'cd packages/dart_monty_web && flutter analyze --no-fatal-warnings --fatal-infos'
+        language: system
+        pass_filenames: false
       - id: cargo-fmt
         name: cargo fmt
         entry: bash -c 'cd native && cargo fmt --check'

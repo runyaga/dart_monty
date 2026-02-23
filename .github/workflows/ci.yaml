@@ -184,6 +184,22 @@ jobs:
           files: packages/dart_monty_desktop/coverage/lcov.info
           flags: dart_monty_desktop
 
+  test-web:
+    name: Test (dart_monty_web)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [lint]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Install dependencies
+        run: cd packages/dart_monty_web && flutter pub get
+      - name: Run tests (Chrome)
+        run: cd packages/dart_monty_web && flutter test --platform chrome
+
   build-js-wrapper:
     name: Build JS wrapper
     runs-on: ubuntu-latest
