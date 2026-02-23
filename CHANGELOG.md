@@ -1,4 +1,4 @@
-## Unreleased
+## 0.3.5
 
 - Add `scriptName`, `excType`, `traceback`, `kwargs`, `callId`, `methodCall` to data models
 - Add Rust C FFI accessors and `script_name` parameter for richer run/start metadata
@@ -10,9 +10,6 @@
 - Fix FFI error paths to parse full error JSON (excType, traceback, filename)
 - Add ladder test fixtures for tiers 8 (kwargs/callId), 9 (exceptions/traceback), 15 (scriptName)
 - Xfail pre-existing try-except and syntax error ladder fixtures
-
-## 0.3.5
-
 - Add Flutter web plugin (dart_monty_web) with 52 unit tests
 - Add Flutter web example app with sorting visualizer, TSP, and ladder runner
 - Deploy Flutter web app to GitHub Pages at /flutter/
