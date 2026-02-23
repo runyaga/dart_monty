@@ -1,5 +1,5 @@
 name: dart_monty_desktop
-description: macOS and Linux implementation of dart_monty using native FFI.
+description: Desktop plugin for dart_monty, a sandboxed Python interpreter subset for Dart and Flutter. Supports macOS and Linux via native FFI.
 version: 0.3.3
 homepage: https://github.com/runyaga/dart_monty
 repository: https://github.com/runyaga/dart_monty
@@ -15,10 +15,8 @@ environment:
   flutter: '>=3.10.0'
 
 dependencies:
-  dart_monty_ffi:
-    path: ../dart_monty_ffi
-  dart_monty_platform_interface:
-    path: ../dart_monty_platform_interface
+  dart_monty_ffi: ^0.3.3
+  dart_monty_platform_interface: ^0.3.3
   flutter:
     sdk: flutter
 
