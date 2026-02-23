@@ -1,4 +1,4 @@
-## Unreleased
+## 0.4.0
 
 - Handle `resolve_futures` progress state in `MontyWasm`
 - Add `pendingCallIds` field to `WasmProgressResult`

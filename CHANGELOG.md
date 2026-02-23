@@ -1,4 +1,4 @@
-## Unreleased
+## 0.4.0
 
 - Add `MontyResolveFutures` progress variant for async/futures support (M13)
 - Add `resumeAsFuture()`, `resolveFutures()`, `resolveFuturesWithErrors()` to platform API
