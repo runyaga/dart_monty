@@ -73,6 +73,33 @@ class DartMontyWeb extends MontyPlatform {
       _delegate.resumeWithError(errorMessage);
 
   @override
+  Future<MontyProgress> resumeAsFuture() {
+    throw UnsupportedError(
+      'resumeAsFuture() is not supported on web. '
+      'The @pydantic/monty WASM runtime does not expose the FutureSnapshot API.',
+    );
+  }
+
+  @override
+  Future<MontyProgress> resolveFutures(Map<int, Object?> results) {
+    throw UnsupportedError(
+      'resolveFutures() is not supported on web. '
+      'The @pydantic/monty WASM runtime does not expose the FutureSnapshot API.',
+    );
+  }
+
+  @override
+  Future<MontyProgress> resolveFuturesWithErrors(
+    Map<int, Object?> results,
+    Map<int, String> errors,
+  ) {
+    throw UnsupportedError(
+      'resolveFuturesWithErrors() is not supported on web. '
+      'The @pydantic/monty WASM runtime does not expose the FutureSnapshot API.',
+    );
+  }
+
+  @override
   Future<Uint8List> snapshot() => _delegate.snapshot();
 
   @override

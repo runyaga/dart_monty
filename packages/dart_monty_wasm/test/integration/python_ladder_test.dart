@@ -61,6 +61,7 @@ const _tierFiles = [
   'fixtures/tier_07_advanced.json',
   'fixtures/tier_08_kwargs.json',
   'fixtures/tier_09_exceptions.json',
+  'fixtures/tier_13_async.json',
   'fixtures/tier_15_script_name.json',
 ];
 
