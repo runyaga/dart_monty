@@ -341,6 +341,105 @@ void main() {
       test('lastRestoreData', () {
         expect(mock.lastRestoreData, isNull);
       });
+
+      test('lastResolveFuturesResults', () {
+        expect(mock.lastResolveFuturesResults, isNull);
+      });
+
+      test('lastResolveFuturesWithErrorsResults', () {
+        expect(mock.lastResolveFuturesWithErrorsResults, isNull);
+      });
+
+      test('lastResolveFuturesWithErrorsErrors', () {
+        expect(mock.lastResolveFuturesWithErrorsErrors, isNull);
+      });
+    });
+
+    group('resumeAsFuture', () {
+      test('returns enqueued progress', () async {
+        const futures = MontyResolveFutures(pendingCallIds: [0]);
+        mock.enqueueProgress(futures);
+        final progress = await mock.resumeAsFuture();
+        expect(progress, futures);
+      });
+
+      test('increments call count', () async {
+        mock.enqueueProgress(
+          const MontyResolveFutures(pendingCallIds: [0]),
+        );
+        expect(mock.resumeAsFutureCount, 0);
+        await mock.resumeAsFuture();
+        expect(mock.resumeAsFutureCount, 1);
+      });
+
+      test('throws StateError when queue empty', () {
+        expect(
+          () => mock.resumeAsFuture(),
+          throwsA(isA<StateError>()),
+        );
+      });
+    });
+
+    group('resolveFutures', () {
+      test('returns enqueued progress', () async {
+        const complete = MontyComplete(
+          result: MontyResult(value: 'done', usage: usage),
+        );
+        mock.enqueueProgress(complete);
+        final progress = await mock.resolveFutures({0: 'value'});
+        expect(progress, complete);
+      });
+
+      test('captures results', () async {
+        mock.enqueueProgress(
+          const MontyComplete(result: MontyResult(usage: usage)),
+        );
+        await mock.resolveFutures({0: 'a', 1: 42});
+        expect(mock.lastResolveFuturesResults, {0: 'a', 1: 42});
+        expect(mock.resolveFuturesResultsList, [
+          {0: 'a', 1: 42},
+        ]);
+      });
+
+      test('throws StateError when queue empty', () {
+        expect(
+          () => mock.resolveFutures({0: 'x'}),
+          throwsA(isA<StateError>()),
+        );
+      });
+    });
+
+    group('resolveFuturesWithErrors', () {
+      test('returns enqueued progress', () async {
+        const complete = MontyComplete(
+          result: MontyResult(
+            error: MontyException(message: 'fail'),
+            usage: usage,
+          ),
+        );
+        mock.enqueueProgress(complete);
+        final progress = await mock.resolveFuturesWithErrors(
+          {0: 'ok'},
+          {1: 'fail'},
+        );
+        expect(progress, complete);
+      });
+
+      test('captures results and errors', () async {
+        mock.enqueueProgress(
+          const MontyComplete(result: MontyResult(usage: usage)),
+        );
+        await mock.resolveFuturesWithErrors({0: 10}, {1: 'timeout'});
+        expect(mock.lastResolveFuturesWithErrorsResults, {0: 10});
+        expect(mock.lastResolveFuturesWithErrorsErrors, {1: 'timeout'});
+      });
+
+      test('throws StateError when queue empty', () {
+        expect(
+          () => mock.resolveFuturesWithErrors({}, {}),
+          throwsA(isA<StateError>()),
+        );
+      });
     });
 
     group('queue workflow', () {

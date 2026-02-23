@@ -97,6 +97,27 @@ void main() {
         );
       });
 
+      test('resumeAsFuture() throws', () {
+        expect(
+          () => platform.resumeAsFuture(),
+          throwsUnimplementedError,
+        );
+      });
+
+      test('resolveFutures() throws', () {
+        expect(
+          () => platform.resolveFutures({0: 'x'}),
+          throwsUnimplementedError,
+        );
+      });
+
+      test('resolveFuturesWithErrors() throws', () {
+        expect(
+          () => platform.resolveFuturesWithErrors({0: 'x'}, {1: 'err'}),
+          throwsUnimplementedError,
+        );
+      });
+
       test('snapshot() throws', () {
         expect(
           () => platform.snapshot(),
