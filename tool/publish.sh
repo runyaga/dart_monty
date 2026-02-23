@@ -36,6 +36,15 @@ PACKAGES=(
 # Helpers
 # ---------------------------------------------------------------------------
 
+# Portable sed -i (GNU vs BSD)
+sedi() {
+  if sed --version 2>/dev/null | grep -q GNU; then
+    sed -i "$@"
+  else
+    sed -i '' "$@"
+  fi
+}
+
 restore() {
   echo ""
   echo "==> Restoring pubspec.yaml files..."
@@ -70,7 +79,7 @@ echo "==> Swapping path deps to ^${VERSION}..."
 
 for pubspec in pubspec.yaml packages/*/pubspec.yaml; do
   # Remove publish_to: 'none'
-  sed -i '' "/^publish_to:/d" "$pubspec"
+  sedi "/^publish_to:/d" "$pubspec"
 
   # Replace path deps with version constraints
   # Matches patterns like:
@@ -78,12 +87,12 @@ for pubspec in pubspec.yaml packages/*/pubspec.yaml; do
   #     path: ../dart_monty_platform_interface
   # And replaces with:
   #   dart_monty_platform_interface: ^0.1.0+1
-  sed -i '' -E '/^  (dart_monty[a-z_]*):/,/^    path:/{
+  sedi -E '/^  (dart_monty[a-z_]*):/,/^    path:/{
     /^    path:/d
   }' "$pubspec"
 
   # Now fix the remaining "dart_monty_*:\n" (no value) to "dart_monty_*: ^VERSION"
-  sed -i '' -E "s/^  (dart_monty[a-z_]*):\$/  \1: ^${VERSION}/" "$pubspec"
+  sedi -E "s/^  (dart_monty[a-z_]*):\$/  \1: ^${VERSION}/" "$pubspec"
 done
 
 echo "    Done."
