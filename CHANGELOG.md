@@ -1,4 +1,8 @@
-## Unreleased
+## 0.4.1
+
+- Extract reusable publish workflow for all 6 packages
+- Add path filters to skip CI on docs-only changes
+- Extract enforce-coverage composite action (DRY)
 
 ## 0.4.0
 

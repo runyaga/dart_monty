@@ -97,23 +97,30 @@ Run these checks after every code change:
 
 ## CI
 
-GitHub Actions run on every push and PR to `main`. All jobs run in
-parallel except where noted:
+GitHub Actions run on every push and PR to `main`. Docs-only changes
+(markdown, `docs/`, LICENSE) skip all code jobs — only the **Markdown
+lint** job runs. This is handled by a `changes` detection job using
+`dorny/paths-filter@v3`.
 
+All code jobs run in parallel except where noted:
+
+- **Changes** — detects code vs docs-only changes (~2s, always runs)
 - **FFI bindings** — generates `dart_monty_bindings.dart` once, uploads
   as artifact for downstream jobs (~2 min)
 - **Lint** — format + analyze all sub-packages (needs: ffigen)
 - **Test** — per-package matrix with 90% coverage gate:
-  platform_interface, ffi, wasm (needs: ffigen for ffi variant)
+  platform_interface, ffi, wasm (needs: ffigen for ffi variant).
+  Coverage is enforced by the `.github/actions/enforce-coverage`
+  composite action.
 - **Test desktop** — Flutter test + 90% coverage on macOS (needs: ffigen)
 - **Test web** — Flutter test on Chrome
-- **Rust** — fmt + clippy + tarpaulin test/coverage (90% gate)
+- **Rust** — fmt + clippy + tarpaulin test/coverage (85% gate)
 - **Build WASM** — `cargo build --target wasm32-wasip1-threads` (needs: rust)
 - **Build JS wrapper** — npm install + esbuild bridge/worker
 - **Build smoke** — full Flutter desktop build on Ubuntu + macOS (needs: ffigen)
 - **WASM ladder** — headless Chrome integration tests
 - **DCM** — Dart Code Metrics (weekly + push to main)
-- **Markdown** — pymarkdown scan
+- **Markdown** — pymarkdown scan (always runs, even on docs-only changes)
 - **TruffleHog** — verified secret scanning (separate workflow, all pushes)
 
 ## Release Process
@@ -122,7 +129,10 @@ Packages are published individually to pub.dev using **OIDC automated
 publishing**. No tokens or secrets needed — GitHub Actions generates a
 short-lived OIDC token that pub.dev verifies directly.
 
-Each package has a dedicated publish workflow triggered by a tag push:
+Each package has a thin publish workflow triggered by a tag push. All six
+call the shared `_publish-dart-package.yaml` reusable workflow via
+`workflow_call`, passing package-specific inputs (`uses-flutter`,
+`needs-ffigen`, `has-tests`, `analyze-scope`):
 
 | Package | Tag pattern | Workflow |
 |---------|-------------|----------|
