@@ -109,65 +109,113 @@ GitHub Actions run on every push and PR to `main`:
 - **Markdown** — pymarkdown scan
 - **Security** — gitleaks secret scanning
 
-## Publishing to pub.dev
+## Release Process
 
-Packages are published individually using **OIDC automated publishing**.
-No tokens or secrets needed — GitHub Actions generates a short-lived OIDC
-token that pub.dev verifies directly.
-
-### How it works
+Packages are published individually to pub.dev using **OIDC automated
+publishing**. No tokens or secrets needed — GitHub Actions generates a
+short-lived OIDC token that pub.dev verifies directly.
 
 Each package has a dedicated publish workflow triggered by a tag push:
 
 | Package | Tag pattern | Workflow |
 |---------|-------------|----------|
-| `dart_monty` | `dart_monty-v<version>` | `publish_dart_monty.yaml` |
 | `dart_monty_platform_interface` | `platform_interface-v<version>` | `publish_platform_interface.yaml` |
 | `dart_monty_ffi` | `ffi-v<version>` | `publish_ffi.yaml` |
 | `dart_monty_wasm` | `wasm-v<version>` | `publish_wasm.yaml` |
 | `dart_monty_web` | `web-v<version>` | `publish_web.yaml` |
 | `dart_monty_desktop` | `desktop-v<version>` | `publish_desktop.yaml` |
+| `dart_monty` | `dart_monty-v<version>` | `publish_dart_monty.yaml` |
 
-The workflow runs: install deps → analyze → test → verify tag matches
-pubspec version → dry-run → publish.
+### Pre-release checklist
 
-### Publishing a package
+1. **Verify CI is green** on `main` — all tests, analyze, and lint must pass
+2. **Update version** in each package's `pubspec.yaml` that you intend to release
+3. **Consolidate CHANGELOGs** — rename `## Unreleased` to the version heading
+   (e.g. `## 0.4.0`) in each package being released
+4. **Check dependency constraints** — if `platform_interface` has breaking
+   changes, update version constraints in downstream packages (`ffi`, `wasm`,
+   `web`, `desktop`, `dart_monty`)
+5. **Commit and push** the version bumps and CHANGELOG updates to `main`
+6. **Run local dry-run** for each package being published:
+   ```bash
+   cd packages/<package> && dart pub publish --dry-run
+   ```
+
+### Release (tagging and publishing)
+
+Tag and push in **dependency order** — each package's deps must be live on
+pub.dev before it publishes:
 
 ```bash
-# 1. Ensure CHANGELOG.md has an entry for the version (no "Unreleased" heading)
-# 2. Ensure pubspec.yaml version matches the tag you're about to push
-# 3. Tag and push (example for platform_interface)
-git tag platform_interface-v0.3.5
-git push origin platform_interface-v0.3.5
-# 4. Watch the Actions tab for the publish workflow
+# 1. platform_interface (no monty deps)
+git tag platform_interface-v<version>
+git push origin platform_interface-v<version>
+# Wait for workflow to complete successfully
+
+# 2. ffi and wasm (depend on platform_interface)
+git tag ffi-v<version>
+git tag wasm-v<version>
+git push origin ffi-v<version> wasm-v<version>
+# Wait for both workflows to complete
+
+# 3. web and desktop (depend on platform_interface + ffi/wasm)
+git tag web-v<version>
+git tag desktop-v<version>
+git push origin web-v<version> desktop-v<version>
+# Wait for both workflows to complete
+
+# 4. dart_monty root (depends on web + desktop)
+git tag dart_monty-v<version>
+git push origin dart_monty-v<version>
 ```
 
-### Publish order
+Each workflow runs: install deps → generate bindings (ffi only) → analyze →
+test → verify tag matches pubspec → dry-run → publish.
 
-Publish in dependency order to ensure each package's deps are on pub.dev:
+### Post-release verification
 
-`platform_interface` → `ffi` / `wasm` → `web` / `desktop` → `dart_monty`
-
-### pub.dev admin setup (one-time per package)
-
-1. Go to `https://pub.dev/packages/<package_name>/admin`
-2. Enable **Automated publishing** from GitHub Actions
-3. Set **Repository:** `runyaga/dart_monty`
-4. Set **Tag pattern:** `<prefix>-v{{version}}` (e.g. `platform_interface-v{{version}}`)
-5. Save
+1. **Check pub.dev** — verify each package shows the new version:
+   ```bash
+   for pkg in dart_monty_platform_interface dart_monty_ffi dart_monty_wasm \
+              dart_monty_web dart_monty_desktop dart_monty; do
+     echo "$pkg: $(curl -s https://pub.dev/api/packages/$pkg | python3 -c \
+       "import sys,json; print(json.load(sys.stdin)['latest']['version'])")"
+   done
+   ```
+2. **Check GitHub Actions** — all 6 publish workflows should show green
+3. **Test downstream** — create a fresh project and add `dart_monty` as a
+   dependency to verify the published packages resolve correctly:
+   ```bash
+   dart create test_install && cd test_install
+   dart pub add dart_monty
+   ```
 
 ### If a publish fails
 
 - Check the Actions log for the exact error
-- Fix the issue, bump the version (a published version can never be re-published)
+- Fix the issue on `main`
+- **Bump the version** — a published version can never be re-published, but
+  an unpublished version can be re-tagged (delete old tag, re-tag on new commit)
 - Update CHANGELOG.md with the new version entry
-- Tag and push the new version
+- Re-tag and push
 
 ### CHANGELOGs
 
 Each package has a `CHANGELOG.md`. During development, add entries under
 `## Unreleased`. Before publishing, rename `## Unreleased` to the version
-heading (e.g. `## 0.3.5`).
+heading. pub.dev displays the CHANGELOG entry matching the published version
+as the release notes.
+
+### pub.dev admin setup (one-time per package)
+
+All 6 packages are already configured. For new packages:
+
+1. Publish the first version manually with `dart pub publish`
+2. Go to `https://pub.dev/packages/<package_name>/admin`
+3. Enable **Automated publishing** from GitHub Actions
+4. Set **Repository:** `runyaga/dart_monty`
+5. Set **Tag pattern:** `<prefix>-v{{version}}`
+6. Save
 
 ## Cross-Platform Parity
 
