@@ -155,7 +155,7 @@ jobs:
           channel: stable
           cache: true
       - name: Install libclang (for ffigen)
-        run: brew install llvm
+        run: HOMEBREW_NO_AUTO_UPDATE=1 brew install llvm
       - name: Generate FFI bindings
         run: bash tool/generate_bindings.sh
       - name: Install dependencies
@@ -364,7 +364,7 @@ jobs:
           clang cmake ninja-build pkg-config libgtk-3-dev libclang-dev
       - name: Install libclang (macOS)
         if: matrix.os == 'macos-latest'
-        run: brew install llvm
+        run: HOMEBREW_NO_AUTO_UPDATE=1 brew install llvm
       - name: Generate FFI bindings
         run: bash tool/generate_bindings.sh
       - name: Build native library and copy to plugin
@@ -408,7 +408,7 @@ jobs:
         with:
           workspaces: native
       - name: Install cargo-tarpaulin
-        run: cargo install cargo-tarpaulin
+        uses: taiki-e/install-action@cargo-tarpaulin
       - name: Run tarpaulin
         working-directory: native
         run: |

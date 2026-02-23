@@ -31,6 +31,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          cache: true
 
       - name: Generate FFI bindings
         run: bash tool/generate_bindings.sh
@@ -111,6 +112,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          cache: true
 
       - name: Download vendored binaries
         uses: actions/download-artifact@v4
