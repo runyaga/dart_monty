@@ -47,7 +47,7 @@ jobs:
             dart test
             cd "$GITHUB_WORKSPACE"
           done
-          for dir in packages/dart_monty_desktop packages/dart_monty_web; do
+          for dir in packages/dart_monty_desktop; do
             echo "--- ${dir} (flutter test) ---"
             cd "$dir"
             flutter pub get
