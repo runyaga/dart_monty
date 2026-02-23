@@ -16,22 +16,44 @@ permissions:
   pull-requests: write
 
 jobs:
+  ffigen:
+    name: Generate FFI bindings
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+      - name: Install libclang
+        run: sudo apt-get update && sudo apt-get install -y libclang-dev
+      - name: Generate bindings
+        run: bash tool/generate_bindings.sh
+      - name: Upload bindings
+        uses: actions/upload-artifact@v4
+        with:
+          name: ffi-bindings
+          path: packages/dart_monty_ffi/lib/src/dart_monty_bindings.dart
+          retention-days: 1
+
   lint:
     name: Lint
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    needs: [ffigen]
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
+      - name: Download FFI bindings
+        uses: actions/download-artifact@v4
+        with:
+          name: ffi-bindings
+          path: packages/dart_monty_ffi/lib/src
       - run: flutter pub get
       - run: dart format --set-exit-if-changed .
-      - name: Install libclang (for ffigen)
-        run: sudo apt-get update && sudo apt-get install -y libclang-dev
-      - name: Generate FFI bindings
-        run: bash tool/generate_bindings.sh
       - name: Analyze sub-packages
         run: python3 tool/analyze_packages.py
 
@@ -56,6 +78,7 @@ jobs:
     name: Test (${{ matrix.target }})
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    needs: [ffigen]
     strategy:
       matrix:
         target:
@@ -68,12 +91,12 @@ jobs:
         with:
           channel: stable
           cache: true
-      - name: Install libclang (for ffigen)
+      - name: Download FFI bindings
         if: matrix.target == 'dart_monty_ffi'
-        run: sudo apt-get update && sudo apt-get install -y libclang-dev
-      - name: Generate FFI bindings
-        if: matrix.target == 'dart_monty_ffi'
-        run: bash tool/generate_bindings.sh
+        uses: actions/download-artifact@v4
+        with:
+          name: ffi-bindings
+          path: packages/dart_monty_ffi/lib/src
       - name: Install dependencies
         run: cd packages/${{ matrix.target }} && dart pub get
       - name: Run tests
@@ -146,16 +169,18 @@ jobs:
     name: Test (dart_monty_desktop)
     runs-on: macos-latest
     timeout-minutes: 15
+    needs: [ffigen]
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
-      - name: Install libclang (for ffigen)
-        run: HOMEBREW_NO_AUTO_UPDATE=1 brew install llvm
-      - name: Generate FFI bindings
-        run: bash tool/generate_bindings.sh
+      - name: Download FFI bindings
+        uses: actions/download-artifact@v4
+        with:
+          name: ffi-bindings
+          path: packages/dart_monty_ffi/lib/src
       - name: Install dependencies
         run: cd packages/dart_monty_desktop && flutter pub get
       - name: Run tests
@@ -328,27 +353,11 @@ jobs:
           INTEG_WEB: packages/dart_monty_wasm/test/integration/web
           SERVE_PORT: "8099"
 
-  build-native:
-    name: Build native (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: native
-      - name: Build Rust native library
-        working-directory: native
-        run: cargo build --release
-
   build-smoke:
     name: Build smoke (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
+    needs: [ffigen]
     strategy:
       matrix:
         include:
@@ -370,12 +379,12 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: >-
           sudo apt-get update && sudo apt-get install -y
-          clang cmake ninja-build pkg-config libgtk-3-dev libclang-dev
-      - name: Install libclang (macOS)
-        if: matrix.os == 'macos-latest'
-        run: HOMEBREW_NO_AUTO_UPDATE=1 brew install llvm
-      - name: Generate FFI bindings
-        run: bash tool/generate_bindings.sh
+          clang cmake ninja-build pkg-config libgtk-3-dev
+      - name: Download FFI bindings
+        uses: actions/download-artifact@v4
+        with:
+          name: ffi-bindings
+          path: packages/dart_monty_ffi/lib/src
       - name: Build native library and copy to plugin
         run: bash tool/build_native.sh
       - name: Install dependencies

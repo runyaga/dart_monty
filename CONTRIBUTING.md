@@ -97,17 +97,24 @@ Run these checks after every code change:
 
 ## CI
 
-GitHub Actions run on every push and PR to `main`:
+GitHub Actions run on every push and PR to `main`. All jobs run in
+parallel except where noted:
 
-- **Lint** — format + ffigen + analyze all sub-packages
-- **Test** — per-package with 90% coverage gate (platform_interface, ffi, wasm)
-- **Rust** — fmt + clippy + test + tarpaulin coverage (90% gate)
-- **Build WASM** — `cargo build --target wasm32-wasip1-threads`
+- **FFI bindings** — generates `dart_monty_bindings.dart` once, uploads
+  as artifact for downstream jobs (~2 min)
+- **Lint** — format + analyze all sub-packages (needs: ffigen)
+- **Test** — per-package matrix with 90% coverage gate:
+  platform_interface, ffi, wasm (needs: ffigen for ffi variant)
+- **Test desktop** — Flutter test + 90% coverage on macOS (needs: ffigen)
+- **Test web** — Flutter test on Chrome
+- **Rust** — fmt + clippy + tarpaulin test/coverage (90% gate)
+- **Build WASM** — `cargo build --target wasm32-wasip1-threads` (needs: rust)
 - **Build JS wrapper** — npm install + esbuild bridge/worker
-- **Build native** — Ubuntu + macOS matrix
-- **DCM** — Dart Code Metrics
+- **Build smoke** — full Flutter desktop build on Ubuntu + macOS (needs: ffigen)
+- **WASM ladder** — headless Chrome integration tests
+- **DCM** — Dart Code Metrics (weekly + push to main)
 - **Markdown** — pymarkdown scan
-- **Security** — gitleaks secret scanning
+- **TruffleHog** — verified secret scanning (separate workflow, all pushes)
 
 ## Release Process
 
