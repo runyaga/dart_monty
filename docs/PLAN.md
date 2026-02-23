@@ -199,3 +199,16 @@ See `docs/demo-vision.md` for full specification.
 | Phase 1 | M7A, M13, M8 | 8, 9, 10, 13, 15 | 46 | 92 |
 | Phase 2 | M12, M7B, M11 | 11, 12, 14, 16 | 27 | 119 |
 | Phase 3 | M14, M15 | 17 | 6 | 125 |
+
+---
+
+## Backlog
+
+Items to investigate or address in future milestones:
+
+- **method_call == true test gap (M7A.2):** No integration test verifies
+  `monty_pending_method_call` returns `1` (true). Current tests only
+  cover `0` (function call) and `-1` (wrong state). Investigate whether
+  upstream monty emits `method_call: true` for `obj.ext_fn()` syntax on
+  external functions. If supported, add a test; otherwise document as a
+  known limitation.

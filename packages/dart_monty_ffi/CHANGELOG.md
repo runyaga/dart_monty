@@ -1,6 +1,7 @@
 ## 0.3.5
 
-- Version bump for M6 milestone alignment
+- Thread `scriptName` parameter through `run()` and `start()`
+- Update `NativeBindings` to accept `scriptName`
 
 ## 0.3.4
 

@@ -27,13 +27,19 @@ where
 
 /// Convert a `MontyException` to a snake_case JSON value matching Dart's
 /// `MontyException.fromJson`.
+///
+/// Includes `exc_type` (e.g. `"ValueError"`) and full `traceback` array
+/// with all frames from the upstream exception.
 pub fn monty_exception_to_json(e: &MontyException) -> Value {
     let mut obj = json!({
         "message": e.summary(),
+        "exc_type": e.exc_type().to_string(),
     });
     let map = obj.as_object_mut().unwrap();
 
     let traceback = e.traceback();
+
+    // Legacy single-frame fields (last frame) for backward compatibility
     if let Some(frame) = traceback.last() {
         map.insert("filename".into(), json!(frame.filename));
         map.insert("line_number".into(), json!(frame.start.line));
@@ -41,6 +47,37 @@ pub fn monty_exception_to_json(e: &MontyException) -> Value {
         if let Some(ref preview) = frame.preview_line {
             map.insert("source_code".into(), json!(preview));
         }
+    }
+
+    // Full traceback array
+    if !traceback.is_empty() {
+        let frames: Vec<Value> = traceback
+            .iter()
+            .map(|frame| {
+                let mut f = json!({
+                    "filename": frame.filename,
+                    "start_line": frame.start.line,
+                    "start_column": frame.start.column,
+                    "end_line": frame.end.line,
+                    "end_column": frame.end.column,
+                });
+                let fm = f.as_object_mut().unwrap();
+                if let Some(ref name) = frame.frame_name {
+                    fm.insert("frame_name".into(), json!(name));
+                }
+                if let Some(ref preview) = frame.preview_line {
+                    fm.insert("preview_line".into(), json!(preview));
+                }
+                if frame.hide_caret {
+                    fm.insert("hide_caret".into(), json!(true));
+                }
+                if frame.hide_frame_name {
+                    fm.insert("hide_frame_name".into(), json!(true));
+                }
+                f
+            })
+            .collect();
+        map.insert("traceback".into(), json!(frames));
     }
 
     obj
@@ -104,6 +141,55 @@ mod tests {
         let json = monty_exception_to_json(&exc);
         let obj = json.as_object().unwrap();
         assert!(obj["message"].as_str().unwrap().contains("bad value"));
+        assert_eq!(obj["exc_type"].as_str().unwrap(), "ValueError");
+    }
+
+    #[test]
+    fn test_monty_exception_to_json_with_traceback() {
+        // Run code that produces a multi-frame traceback through monty
+        use monty::{MontyRun, NoLimitTracker, PrintWriter};
+
+        let code = "def inner():\n    1/0\n\ndef outer():\n    inner()\n\nouter()";
+        let compiled = MontyRun::new(code.into(), "<test>", vec![], vec![]).unwrap();
+        let mut print = PrintWriter::Disabled;
+        let err = compiled
+            .run(vec![], NoLimitTracker, &mut print)
+            .unwrap_err();
+
+        let json = monty_exception_to_json(&err);
+        let obj = json.as_object().unwrap();
+
+        // Should have exc_type
+        assert_eq!(obj["exc_type"].as_str().unwrap(), "ZeroDivisionError");
+
+        // Should have traceback array with multiple frames
+        let tb = obj["traceback"].as_array().unwrap();
+        assert!(
+            tb.len() >= 3,
+            "expected 3+ frames (module, outer, inner), got {}",
+            tb.len()
+        );
+
+        // Each frame should have required fields
+        for frame in tb {
+            assert!(frame["filename"].is_string());
+            assert!(frame["start_line"].is_number());
+            assert!(frame["start_column"].is_number());
+            assert!(frame["end_line"].is_number());
+            assert!(frame["end_column"].is_number());
+        }
+
+        // Inner frames should have frame_name
+        let has_frame_name = tb.iter().any(|f| f.get("frame_name").is_some());
+        assert!(
+            has_frame_name,
+            "expected at least one frame with frame_name"
+        );
+
+        // Legacy single-frame fields should match last frame
+        assert!(obj.get("filename").is_some());
+        assert!(obj.get("line_number").is_some());
+        assert!(obj.get("column_number").is_some());
     }
 
     #[test]
