@@ -2,8 +2,6 @@
 
 ## 0.4.0
 
-## 0.4.0
-
 - Add `scriptName`, `excType`, `traceback`, `kwargs`, `callId`, `methodCall` to data models
 - Add Rust C FFI accessors and `script_name` parameter for richer run/start metadata
 - Reject invalid UTF-8 in native FFI external function names and script names

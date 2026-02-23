@@ -2,8 +2,6 @@
 
 ## 0.4.0
 
-## 0.4.0
-
 - Wire `kwargs`, `callId`, `methodCall` native accessors into pending progress results
 - Forward `scriptName` through `run()` and `start()` to the native layer
 - Parse `excType` and `traceback` from error JSON into `MontyException`
