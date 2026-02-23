@@ -218,3 +218,14 @@ Items to investigate or address in future milestones:
   uses `String.fromCharCode` in a loop + `btoa`, which works but may
   hit V8 string length limits for multi-MB snapshots. Consider chunked
   `fromCharCode` or a `FileReaderSync` Blob approach if perf degrades.
+
+- **WASM async/futures unsupported — fail fast on web (M13):** The
+  `@pydantic/monty` NAPI-RS WASM module does not expose the low-level
+  `FutureSnapshot` API or `ExternalResult::Future` variant. The WASM
+  package stubs `resumeAsFuture()`, `resolveFutures()`, and
+  `resolveFuturesWithErrors()` with `UnsupportedError`. If Python code
+  using `asyncio.gather` is executed on web, the WASM package should
+  raise a clear `UnsupportedError` explaining that async/futures
+  requires the native (FFI) backend. Native should attempt resolution
+  normally. Consider opening an upstream feature request on
+  `pydantic/monty` for exposing `FutureSnapshot` to JS consumers.
