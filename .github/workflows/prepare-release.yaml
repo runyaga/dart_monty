@@ -136,3 +136,20 @@ jobs:
           git commit -m "chore: bump version to ${VERSION}"
           git tag "v${VERSION}"
           git push origin HEAD --tags
+
+      - name: Publish to pub.dev
+        if: success()
+        env:
+          PUB_TOKEN: ${{ secrets.PUB_TOKEN }}
+        run: |
+          mkdir -p "$HOME/.config/dart"
+          cat <<TOKEN_EOF > "$HOME/.config/dart/pub-credentials.json"
+          {
+            "accessToken": "${PUB_TOKEN}",
+            "refreshToken": "",
+            "tokenEndpoint": "https://accounts.google.com/o/oauth2/token",
+            "scopes": ["openid", "https://www.googleapis.com/auth/userinfo.email"],
+            "expiration": 4102444800000
+          }
+          TOKEN_EOF
+          bash tool/publish.sh --publish
