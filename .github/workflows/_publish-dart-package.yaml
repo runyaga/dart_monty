@@ -1,0 +1,100 @@
+name: Publish Dart package
+
+on:
+  workflow_call:
+    inputs:
+      package-name:
+        description: Human-readable package name (for logs)
+        type: string
+        required: true
+      tag-prefix:
+        description: Tag prefix to strip for version verification (e.g. "ffi-v")
+        type: string
+        required: true
+      package-path:
+        description: Working directory for the package
+        type: string
+        default: '.'
+      uses-flutter:
+        description: Whether to set up Flutter SDK (for Flutter plugins/packages)
+        type: boolean
+        default: false
+      needs-ffigen:
+        description: Whether to install libclang and generate FFI bindings
+        type: boolean
+        default: false
+      has-tests:
+        description: Whether to run tests before publishing
+        type: boolean
+        default: true
+      analyze-scope:
+        description: Optional path argument for analyze (e.g. "lib" for root package)
+        type: string
+        default: ''
+
+jobs:
+  publish:
+    name: Publish ${{ inputs.package-name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        if: inputs.uses-flutter
+        with:
+          channel: stable
+
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+
+      - name: Install libclang
+        if: inputs.needs-ffigen
+        run: sudo apt-get update && sudo apt-get install -y libclang-dev
+
+      - name: Install dependencies
+        working-directory: ${{ inputs.package-path }}
+        run: ${{ inputs.uses-flutter && 'flutter' || 'dart' }} pub get
+
+      - name: Generate FFI bindings
+        if: inputs.needs-ffigen
+        working-directory: ${{ inputs.package-path }}
+        run: dart run ffigen --config ffigen.yaml
+
+      - name: Analyze
+        working-directory: ${{ inputs.package-path }}
+        run: |
+          if [ "${{ inputs.uses-flutter }}" = "true" ]; then
+            flutter analyze ${{ inputs.analyze-scope }}
+          else
+            dart analyze --fatal-infos ${{ inputs.analyze-scope }}
+          fi
+
+      - name: Run tests
+        if: inputs.has-tests
+        working-directory: ${{ inputs.package-path }}
+        run: |
+          if [ "${{ inputs.uses-flutter }}" = "true" ]; then
+            flutter test
+          else
+            dart test
+          fi
+
+      - name: Verify version matches tag
+        working-directory: ${{ inputs.package-path }}
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#${{ inputs.tag-prefix }}}"
+          PUBSPEC_VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //' | tr -d ' \r')
+          echo "Tag: $TAG_VERSION | Pubspec: $PUBSPEC_VERSION"
+          [ "$TAG_VERSION" = "$PUBSPEC_VERSION" ] || { echo "MISMATCH"; exit 1; }
+
+      - name: Dry run
+        working-directory: ${{ inputs.package-path }}
+        run: dart pub publish --dry-run
+
+      - name: Publish
+        working-directory: ${{ inputs.package-path }}
+        run: dart pub publish --force

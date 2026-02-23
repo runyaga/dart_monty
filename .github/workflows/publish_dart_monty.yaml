@@ -7,36 +7,12 @@ on:
 
 jobs:
   publish:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
+    uses: ./.github/workflows/_publish-dart-package.yaml
     permissions:
-      id-token: write # Required for OIDC
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-
-      - uses: dart-lang/setup-dart@v1
-        with:
-          sdk: stable
-
-      - name: Install dependencies
-        run: flutter pub get
-
-      - name: Analyze
-        run: flutter analyze lib
-
-      - name: Verify version matches tag
-        run: |
-          TAG_VERSION="${GITHUB_REF_NAME#dart_monty-v}"
-          PUBSPEC_VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //' | tr -d ' \r')
-          echo "Tag: $TAG_VERSION | Pubspec: $PUBSPEC_VERSION"
-          [ "$TAG_VERSION" = "$PUBSPEC_VERSION" ] || { echo "MISMATCH"; exit 1; }
-
-      - name: Dry run
-        run: dart pub publish --dry-run
-
-      - name: Publish
-        run: dart pub publish --force
+      id-token: write
+    with:
+      package-name: dart_monty
+      tag-prefix: dart_monty-v
+      uses-flutter: true
+      has-tests: false
+      analyze-scope: lib
