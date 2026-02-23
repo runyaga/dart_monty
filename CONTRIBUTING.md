@@ -128,15 +128,33 @@ Each package has a dedicated publish workflow triggered by a tag push:
 
 ### Pre-release checklist
 
-1. **Verify CI is green** on `main` — all tests, analyze, and lint must pass
-2. **Update version** in each package's `pubspec.yaml` that you intend to release
-3. **Consolidate CHANGELOGs** — rename `## Unreleased` to the version heading
-   (e.g. `## 0.4.0`) in each package being released
-4. **Check dependency constraints** — if `platform_interface` has breaking
+1. **Verify CI is green** on `main` — every job must pass before tagging:
+   - **Dart analyze** — zero issues across all packages
+     (`python3 tool/analyze_packages.py`)
+   - **Dart tests** — platform_interface, ffi, wasm must pass
+   - **Dart coverage** — 90%+ line coverage per package (enforced by CI)
+   - **Rust** — `cargo fmt`, `cargo clippy`, `cargo test`, and tarpaulin
+     coverage at 90%+ must all pass
+   - **Build WASM** — `cargo build --target wasm32-wasip1-threads`
+   - **Build JS wrapper** — esbuild bridge/worker
+   - **Build native** — Ubuntu + macOS matrix
+   - **DCM, Markdown, Security** — all must be green
+2. **Verify mock and sealed-class completeness** — if new abstract methods
+   or sealed variants were added to `platform_interface` or `wasm_bindings`:
+   - Update `MockMontyPlatform` in platform_interface tests
+   - Update `MockWasmBindings` in dart_monty_web tests
+   - Ensure all `switch` statements on sealed types (e.g. `MontyProgress`)
+     are exhaustive in every package (especially desktop)
+3. **Update version** in each package's `pubspec.yaml` that you intend to
+   release
+4. **Consolidate CHANGELOGs** — rename `## Unreleased` to the version
+   heading (e.g. `## 0.4.0`) in each package being released
+5. **Check dependency constraints** — if `platform_interface` has breaking
    changes, update version constraints in downstream packages (`ffi`, `wasm`,
-   `web`, `desktop`, `dart_monty`)
-5. **Commit and push** the version bumps and CHANGELOG updates to `main`
-6. **Run local dry-run** for each package being published:
+   `web`, `desktop`, `dart_monty`). Remember `^0.3.3` means `>=0.3.3 <0.4.0`,
+   so a 0.4.0 release requires bumping constraints to `^0.4.0`.
+6. **Commit and push** the version bumps and CHANGELOG updates to `main`
+7. **Run local dry-run** for each package being published:
    ```bash
    cd packages/<package> && dart pub publish --dry-run
    ```
@@ -190,14 +208,36 @@ test → verify tag matches pubspec → dry-run → publish.
    dart pub add dart_monty
    ```
 
+### Post-release cleanup
+
+After all packages are published:
+
+1. **Reset CHANGELOGs** — add `## Unreleased` heading above the just-released
+   version in every package's `CHANGELOG.md`
+2. **Commit and push** the reset to `main`:
+   ```bash
+   git add */CHANGELOG.md packages/*/CHANGELOG.md
+   git commit -m "chore: reset CHANGELOGs to Unreleased"
+   git push origin main
+   ```
+
 ### If a publish fails
 
 - Check the Actions log for the exact error
 - Fix the issue on `main`
-- **Bump the version** — a published version can never be re-published, but
-  an unpublished version can be re-tagged (delete old tag, re-tag on new commit)
-- Update CHANGELOG.md with the new version entry
-- Re-tag and push
+- **If the version was NOT yet published** — delete the old tag, fix, re-tag
+  on the new commit, and push:
+  ```bash
+  git tag -d <tag> && git push origin :refs/tags/<tag>
+  # fix and push to main
+  git tag <tag> && git push origin <tag>
+  ```
+- **If the version WAS already published** — bump to the next patch version,
+  update CHANGELOG, commit, and tag the new version. A published version can
+  never be re-published.
+- **Root package `dart_monty`** depends on all sub-packages from pub.dev (not
+  path refs). If it fails with "doesn't match any versions", wait 1–2 minutes
+  for pub.dev propagation after the dependency packages publish, then re-tag.
 
 ### CHANGELOGs
 
@@ -216,6 +256,24 @@ All 6 packages are already configured. For new packages:
 4. Set **Repository:** `runyaga/dart_monty`
 5. Set **Tag pattern:** `<prefix>-v{{version}}`
 6. Save
+
+### Publishing gotchas
+
+- **Tag filters use glob, not regex.** GitHub Actions `on.push.tags` uses
+  glob matching — `[0-9]+` is literal (matches `1+`), use `[0-9]*` for
+  "one or more digits".
+- **Flutter packages need both actions for OIDC.** `subosito/flutter-action`
+  does not configure OIDC credentials. Flutter publish workflows must also
+  include `dart-lang/setup-dart@v1` to enable `dart pub publish` with OIDC.
+- **FFI bindings are generated, not committed.** The `publish_ffi.yaml`
+  workflow includes `apt-get install libclang-dev` and `dart run ffigen`
+  steps because `dart_monty_bindings.dart` is gitignored.
+- **Root package resolves from pub.dev.** `dart_monty` uses hosted
+  dependencies (`^x.y.z`), not path refs. After publishing sub-packages,
+  wait 1–2 minutes for pub.dev to propagate before tagging the root.
+- **Sealed-class exhaustiveness.** Adding a variant to `MontyProgress` (or
+  any sealed class) requires updating every `switch` on that type across all
+  packages and all mock implementations.
 
 ## Cross-Platform Parity
 

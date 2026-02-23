@@ -1,3 +1,5 @@
+## Unreleased
+
 ## 0.4.0
 
 - Add `MontyResolveFutures` sealed variant with `pendingCallIds`
