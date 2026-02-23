@@ -7,6 +7,16 @@ import 'package:dart_monty_web/dart_monty_web.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
+// VS Code dark palette — matches the plain-Dart JS demo site.
+const _kBg = Color(0xFF1E1E1E);
+const _kSurface = Color(0xFF252526);
+const _kBorder = Color(0xFF404040);
+const _kText = Color(0xFFD4D4D4);
+const _kMuted = Color(0xFF808080);
+const _kBlue = Color(0xFF569CD6);
+const _kYellow = Color(0xFFDCDCAA);
+const _kCodeBg = Color(0xFF2D2D2D);
+
 void main() {
   runApp(const MontyFlutterWebApp());
 }
@@ -21,7 +31,36 @@ class MontyFlutterWebApp extends StatelessWidget {
     return MaterialApp(
       title: 'Monty Flutter Web',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
+        brightness: Brightness.dark,
+        scaffoldBackgroundColor: _kBg,
+        colorScheme: const ColorScheme.dark(
+          primary: _kBlue,
+          secondary: _kYellow,
+          surface: _kSurface,
+          onSurface: _kText,
+        ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: _kSurface,
+          foregroundColor: _kText,
+          elevation: 0,
+        ),
+        cardTheme: CardThemeData(
+          color: _kSurface,
+          shape: RoundedRectangleBorder(
+            side: const BorderSide(color: _kBorder),
+            borderRadius: BorderRadius.circular(6),
+          ),
+        ),
+        bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+          backgroundColor: _kSurface,
+          selectedItemColor: _kBlue,
+          unselectedItemColor: _kMuted,
+        ),
+        dividerColor: _kBorder,
+        textTheme: const TextTheme(
+          bodyMedium: TextStyle(color: _kText),
+          bodySmall: TextStyle(color: _kMuted),
+        ),
       ),
       home: const MontyPage(),
     );
@@ -45,7 +84,6 @@ class _MontyPageState extends State<MontyPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Monty Flutter Web Example'),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
       body: IndexedStack(
         index: _tabIndex,
@@ -290,7 +328,7 @@ class _ExamplesPageState extends State<_ExamplesPage> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.grey.shade100,
+                color: _kCodeBg,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: SelectableText.rich(
@@ -301,7 +339,7 @@ class _ExamplesPageState extends State<_ExamplesPage> {
                       style: TextStyle(
                         fontFamily: 'monospace',
                         fontSize: 13,
-                        color: line.isError ? Colors.red.shade800 : null,
+                        color: line.isError ? Colors.red.shade300 : _kText,
                       ),
                     );
                   }).toList(),
@@ -492,10 +530,10 @@ class _VisualizerPageState extends State<_VisualizerPage> {
       return switch (_currentAction) {
         _BarAction.comparing => Colors.amber,
         _BarAction.swapped => Colors.red,
-        _ => Colors.indigo,
+        _ => _kBlue,
       };
     }
-    return Colors.indigo;
+    return _kBlue;
   }
 
   @override
@@ -576,8 +614,9 @@ class _VisualizerPageState extends State<_VisualizerPage> {
           ElevatedButton(
             onPressed: _sorting ? _stopSort : _startSort,
             style: ElevatedButton.styleFrom(
-              backgroundColor: _sorting ? Colors.red : Colors.green,
-              foregroundColor: Colors.white,
+              backgroundColor:
+                  _sorting ? Colors.red.shade700 : Colors.green.shade700,
+              foregroundColor: _kText,
             ),
             child: Text(_sorting ? 'Stop' : 'Start'),
           ),
@@ -860,8 +899,9 @@ class _TspPageState extends State<_TspPage> {
           ElevatedButton(
             onPressed: _running ? _stopTsp : _startTsp,
             style: ElevatedButton.styleFrom(
-              backgroundColor: _running ? Colors.red : Colors.green,
-              foregroundColor: Colors.white,
+              backgroundColor:
+                  _running ? Colors.red.shade700 : Colors.green.shade700,
+              foregroundColor: _kText,
             ),
             child: Text(_running ? 'Stop' : 'Start'),
           ),
@@ -937,7 +977,7 @@ class _TspPainter extends CustomPainter {
     // Draw route lines.
     if (route.length > 1) {
       paint
-        ..color = done ? Colors.green : Colors.indigo
+        ..color = done ? Colors.green : _kBlue
         ..strokeWidth = 2
         ..style = PaintingStyle.stroke;
 
@@ -957,7 +997,7 @@ class _TspPainter extends CustomPainter {
     // Draw city dots.
     paint
       ..style = PaintingStyle.fill
-      ..color = Colors.indigo.shade800;
+      ..color = _kBlue;
     for (final city in cities) {
       canvas.drawCircle(toCanvas(city), 5, paint);
     }
@@ -1390,8 +1430,8 @@ class _LadderPageState extends State<_LadderPage> {
       _TestStatus.pass => Colors.green,
       _TestStatus.fail => Colors.red,
       _TestStatus.skip => Colors.grey,
-      _TestStatus.running => Colors.blue,
-      _TestStatus.pending => Colors.grey.shade400,
+      _TestStatus.running => _kBlue,
+      _TestStatus.pending => _kMuted,
     };
     final statusLabel = switch (result.status) {
       _TestStatus.pass => 'PASS',
@@ -1435,7 +1475,7 @@ class _LadderPageState extends State<_LadderPage> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
+                    color: _kCodeBg,
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
@@ -1454,8 +1494,8 @@ class _LadderPageState extends State<_LadderPage> {
                       fontFamily: 'monospace',
                       fontSize: 12,
                       color: result.status == _TestStatus.fail
-                          ? Colors.red.shade800
-                          : Colors.green.shade800,
+                          ? Colors.red.shade300
+                          : Colors.green.shade300,
                     ),
                   ),
                 ],

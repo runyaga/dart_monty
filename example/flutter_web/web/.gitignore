@@ -1,0 +1,5 @@
+# WASM bridge assets — copied from packages/dart_monty_wasm/assets/ at dev/deploy time
+dart_monty_bridge.js
+dart_monty_worker.js
+monty.wasm32-wasi.wasm
+wasi-worker-browser.mjs
