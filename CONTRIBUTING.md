@@ -109,6 +109,64 @@ GitHub Actions run on every push and PR to `main`:
 - **Markdown** — pymarkdown scan
 - **Security** — gitleaks secret scanning
 
+## Release Process
+
+All 6 packages are released together at the same version.
+
+### CHANGELOGs
+
+Each package has a `CHANGELOG.md` with an `## Unreleased` section at the
+top. During development, add entries under `## Unreleased`. At release
+time the stamp script replaces it with the version heading.
+
+### Steps
+
+```bash
+# 1. Review ## Unreleased sections, add any missing entries
+
+# 2. Stamp CHANGELOGs with the new version
+bash tool/stamp_changelogs.sh 0.2.0
+
+# 3. Commit and push to main
+git add -A && git commit -m "chore: stamp changelogs for 0.2.0"
+git push origin main
+
+# 4. Trigger CI validation (dry-run, no publish)
+gh workflow run prepare-release.yaml -f version=0.2.0
+
+# 5. If green, re-trigger with publish
+gh workflow run prepare-release.yaml -f version=0.2.0 -f publish=true
+
+# 6. release.yaml auto-triggers from the tag → builds GitHub Release
+
+# 7. Verify all 6 packages are live on pub.dev
+bash tool/verify_publish.sh 0.2.0
+```
+
+### What the workflow does
+
+| Step | Always | Publish only |
+|------|--------|--------------|
+| Build native binaries (Linux + macOS) | x | |
+| `dart format --set-exit-if-changed .` | x | |
+| Bump versions in all pubspecs | x | |
+| Stamp CHANGELOGs | x | |
+| Verify CHANGELOG entries | x | |
+| dartdoc dry-run (all 5 sub-packages) | x | |
+| Analyze all packages | x | |
+| Run tests | x | |
+| Commit version bumps | x | |
+| `dart pub publish --dry-run` | x | |
+| Tag and push | | x |
+| Publish to pub.dev | | x |
+| Verify pub.dev versions | | x |
+
+### Scripts
+
+- `tool/stamp_changelogs.sh <version>` — stamps all 6 CHANGELOGs
+- `tool/publish.sh` — dry-run by default, `--publish` to publish for real
+- `tool/verify_publish.sh <version>` — checks pub.dev API with retries
+
 ## Cross-Platform Parity
 
 Both execution paths produce identical results, verified via the

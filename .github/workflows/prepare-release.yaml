@@ -7,6 +7,11 @@ on:
         description: 'Version to release (e.g. 0.2.0)'
         required: true
         type: string
+      publish:
+        description: 'Publish to pub.dev and create tag'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -83,12 +88,18 @@ jobs:
           ls -lh packages/dart_monty_desktop/linux/
           ls -lh packages/dart_monty_desktop/macos/
 
+      - name: Verify formatting
+        run: dart format --set-exit-if-changed .
+
       - name: Bump version in all pubspecs
         run: |
           VERSION="${{ inputs.version }}"
           for pubspec in pubspec.yaml packages/*/pubspec.yaml; do
             sed -i "s/^version: .*/version: ${VERSION}/" "$pubspec"
           done
+
+      - name: Stamp CHANGELOGs
+        run: bash tool/stamp_changelogs.sh "${{ inputs.version }}"
 
       - name: Verify CHANGELOG entries
         run: |
@@ -102,7 +113,7 @@ jobs:
 
       - name: Check dartdoc
         run: |
-          for dir in packages/dart_monty_platform_interface packages/dart_monty_ffi packages/dart_monty_wasm; do
+          for dir in packages/dart_monty_platform_interface packages/dart_monty_ffi packages/dart_monty_wasm packages/dart_monty_web packages/dart_monty_desktop; do
             echo "--- ${dir} ---"
             cd "$dir"
             dart pub get
@@ -123,22 +134,26 @@ jobs:
             cd "$GITHUB_WORKSPACE"
           done
 
-      - name: Dry-run publish
-        run: bash tool/publish.sh
-
-      - name: Create git tag
-        if: success()
+      - name: Commit version bumps
         run: |
           VERSION="${{ inputs.version }}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -A
           git commit -m "chore: bump version to ${VERSION}"
+
+      - name: Dry-run publish
+        run: bash tool/publish.sh
+
+      - name: Tag and push
+        if: inputs.publish
+        run: |
+          VERSION="${{ inputs.version }}"
           git tag "v${VERSION}"
           git push origin HEAD --tags
 
       - name: Publish to pub.dev
-        if: success()
+        if: inputs.publish
         env:
           PUB_TOKEN: ${{ secrets.PUB_TOKEN }}
         run: |
@@ -153,3 +168,10 @@ jobs:
           }
           TOKEN_EOF
           bash tool/publish.sh --publish
+
+      - name: Verify pub.dev publication
+        if: inputs.publish
+        run: |
+          echo "Waiting 60s for pub.dev indexing..."
+          sleep 60
+          bash tool/verify_publish.sh "${{ inputs.version }}"
