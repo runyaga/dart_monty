@@ -183,9 +183,10 @@ jobs:
       - name: Publish to pub.dev
         if: inputs.publish
         env:
-          PUB_TOKEN: ${{ secrets.PUB_TOKEN }}
+          PUB_TOKEN_JSON: ${{ secrets.PUB_TOKEN_JSON }}
         run: |
-          dart pub token add https://pub.dev --env-var PUB_TOKEN
+          mkdir -p "$HOME/.config/dart"
+          echo "$PUB_TOKEN_JSON" > "$HOME/.config/dart/pub-tokens.json"
           bash tool/publish.sh --publish
 
       - name: Verify pub.dev publication
