@@ -55,7 +55,12 @@ class WasmBindingsJs extends WasmBindings {
   }
 
   @override
-  Future<WasmRunResult> run(String code, {String? limitsJson}) async {
+  Future<WasmRunResult> run(
+    String code, {
+    String? limitsJson,
+    String? scriptName,
+  }) async {
+    // TODO(m7a): Pass scriptName to JS bridge once worker supports it.
     final resultJson = await _jsRun(
       code.toJS,
       limitsJson?.toJS,
@@ -75,7 +80,9 @@ class WasmBindingsJs extends WasmBindings {
     String code, {
     String? extFnsJson,
     String? limitsJson,
+    String? scriptName,
   }) async {
+    // TODO(m7a): Pass scriptName to JS bridge once worker supports it.
     final resultJson = await _jsStart(
       code.toJS,
       extFnsJson?.toJS,
@@ -155,6 +162,8 @@ class WasmBindingsJs extends WasmBindings {
   WasmProgressResult _decodeProgress(String jsonStr) {
     final map = json.decode(jsonStr) as Map<String, dynamic>;
     final args = map['args'] as List<Object?>?;
+    final rawKwargs = map['kwargs'] as Map<String, dynamic>?;
+    final rawTraceback = map['traceback'] as List<dynamic>?;
 
     return WasmProgressResult(
       ok: map['ok'] as bool,
@@ -162,8 +171,13 @@ class WasmBindingsJs extends WasmBindings {
       value: map['value'],
       functionName: map['functionName'] as String?,
       arguments: args != null ? List<Object?>.from(args) : null,
+      kwargs: rawKwargs != null ? Map<String, Object?>.from(rawKwargs) : null,
+      callId: map['callId'] as int?,
+      methodCall: map['methodCall'] as bool?,
       error: map['error'] as String?,
       errorType: map['errorType'] as String?,
+      excType: map['excType'] as String?,
+      traceback: rawTraceback,
     );
   }
 }

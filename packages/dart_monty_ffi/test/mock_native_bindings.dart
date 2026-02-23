@@ -51,8 +51,9 @@ class MockNativeBindings extends NativeBindings {
   // Call tracking
   // ---------------------------------------------------------------------------
 
-  /// Records of `(code, externalFunctions)` passed to [create].
-  final List<({String code, String? externalFunctions})> createCalls = [];
+  /// Records of `(code, externalFunctions, scriptName)` passed to [create].
+  final List<({String code, String? externalFunctions, String? scriptName})>
+      createCalls = [];
 
   /// Handle addresses passed to [free].
   final List<int> freeCalls = [];
@@ -89,8 +90,14 @@ class MockNativeBindings extends NativeBindings {
   // ---------------------------------------------------------------------------
 
   @override
-  int create(String code, {String? externalFunctions}) {
-    createCalls.add((code: code, externalFunctions: externalFunctions));
+  int create(String code, {String? externalFunctions, String? scriptName}) {
+    createCalls.add(
+      (
+        code: code,
+        externalFunctions: externalFunctions,
+        scriptName: scriptName
+      ),
+    );
     final createError = nextCreateError;
     if (createError != null) {
       throw StateError(createError);

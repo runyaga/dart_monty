@@ -53,6 +53,20 @@ void main() {
         expect(mock.lastRunLimits, limits);
       });
 
+      test('captures scriptName', () async {
+        mock.runResult = const MontyResult(usage: usage);
+        await mock.run('x', scriptName: 'helper.py');
+        expect(mock.lastRunScriptName, 'helper.py');
+        expect(mock.runScriptNamesList, ['helper.py']);
+      });
+
+      test('captures null scriptName', () async {
+        mock.runResult = const MontyResult(usage: usage);
+        await mock.run('x');
+        expect(mock.lastRunScriptName, isNull);
+        expect(mock.runScriptNamesList, [null]);
+      });
+
       test('throws StateError when runResult not set', () {
         expect(
           () => mock.run('code'),
@@ -125,6 +139,24 @@ void main() {
         );
         await mock.start('code', limits: limits);
         expect(mock.lastStartLimits, limits);
+      });
+
+      test('captures scriptName', () async {
+        mock.enqueueProgress(
+          const MontyComplete(result: MontyResult(usage: usage)),
+        );
+        await mock.start('code', scriptName: 'pipeline_step1.py');
+        expect(mock.lastStartScriptName, 'pipeline_step1.py');
+        expect(mock.startScriptNamesList, ['pipeline_step1.py']);
+      });
+
+      test('captures null scriptName', () async {
+        mock.enqueueProgress(
+          const MontyComplete(result: MontyResult(usage: usage)),
+        );
+        await mock.start('code');
+        expect(mock.lastStartScriptName, isNull);
+        expect(mock.startScriptNamesList, [null]);
       });
 
       test('throws StateError when queue empty', () {
@@ -274,6 +306,10 @@ void main() {
         expect(mock.lastRunLimits, isNull);
       });
 
+      test('lastRunScriptName', () {
+        expect(mock.lastRunScriptName, isNull);
+      });
+
       test('lastStartCode', () {
         expect(mock.lastStartCode, isNull);
       });
@@ -288,6 +324,10 @@ void main() {
 
       test('lastStartLimits', () {
         expect(mock.lastStartLimits, isNull);
+      });
+
+      test('lastStartScriptName', () {
+        expect(mock.lastStartScriptName, isNull);
       });
 
       test('lastResumeReturnValue', () {

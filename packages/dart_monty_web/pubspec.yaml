@@ -30,6 +30,12 @@ dev_dependencies:
   mocktail: ^1.0.4
   very_good_analysis: ^10.0.0
 
+dependency_overrides:
+  dart_monty_platform_interface:
+    path: ../dart_monty_platform_interface
+  dart_monty_wasm:
+    path: ../dart_monty_wasm
+
 flutter:
   plugin:
     implements: dart_monty

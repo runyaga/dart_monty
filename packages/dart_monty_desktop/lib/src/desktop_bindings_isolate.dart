@@ -30,9 +30,10 @@ sealed class _Request {
 }
 
 final class _RunRequest extends _Request {
-  const _RunRequest(super.id, this.code, {this.limits});
+  const _RunRequest(super.id, this.code, {this.limits, this.scriptName});
   final String code;
   final MontyLimits? limits;
+  final String? scriptName;
 }
 
 final class _StartRequest extends _Request {
@@ -41,10 +42,12 @@ final class _StartRequest extends _Request {
     this.code, {
     this.externalFunctions,
     this.limits,
+    this.scriptName,
   });
   final String code;
   final List<String>? externalFunctions;
   final MontyLimits? limits;
+  final String? scriptName;
 }
 
 final class _ResumeRequest extends _Request {
@@ -121,8 +124,17 @@ Future<void> _isolateEntryPoint(_InitMessage init) async {
 
     try {
       switch (message) {
-        case _RunRequest(:final id, :final code, :final limits):
-          final result = await monty.run(code, limits: limits);
+        case _RunRequest(
+            :final id,
+            :final code,
+            :final limits,
+            :final scriptName,
+          ):
+          final result = await monty.run(
+            code,
+            limits: limits,
+            scriptName: scriptName,
+          );
           init.mainSendPort.send(_RunResponse(id, result));
 
         case _StartRequest(
@@ -130,11 +142,13 @@ Future<void> _isolateEntryPoint(_InitMessage init) async {
             :final code,
             :final externalFunctions,
             :final limits,
+            :final scriptName,
           ):
           final progress = await monty.start(
             code,
             externalFunctions: externalFunctions,
             limits: limits,
+            scriptName: scriptName,
           );
           init.mainSendPort.send(_ProgressResponse(id, progress));
 
@@ -264,9 +278,13 @@ class DesktopBindingsIsolate extends DesktopBindings {
   }
 
   @override
-  Future<DesktopRunResult> run(String code, {MontyLimits? limits}) async {
+  Future<DesktopRunResult> run(
+    String code, {
+    MontyLimits? limits,
+    String? scriptName,
+  }) async {
     final response = await _send<_RunResponse>(
-      _RunRequest(_nextId++, code, limits: limits),
+      _RunRequest(_nextId++, code, limits: limits, scriptName: scriptName),
     );
     return DesktopRunResult(result: response.result);
   }
@@ -276,6 +294,7 @@ class DesktopBindingsIsolate extends DesktopBindings {
     String code, {
     List<String>? externalFunctions,
     MontyLimits? limits,
+    String? scriptName,
   }) async {
     final response = await _send<_ProgressResponse>(
       _StartRequest(
@@ -283,6 +302,7 @@ class DesktopBindingsIsolate extends DesktopBindings {
         code,
         externalFunctions: externalFunctions,
         limits: limits,
+        scriptName: scriptName,
       ),
     );
     return DesktopProgressResult(progress: response.progress);

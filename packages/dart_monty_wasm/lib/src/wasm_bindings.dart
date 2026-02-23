@@ -37,8 +37,13 @@ final class WasmProgressResult {
     this.value,
     this.functionName,
     this.arguments,
+    this.kwargs,
+    this.callId,
+    this.methodCall,
     this.error,
     this.errorType,
+    this.excType,
+    this.traceback,
   });
 
   /// Whether the operation succeeded.
@@ -56,11 +61,26 @@ final class WasmProgressResult {
   /// The function arguments (when state is `'pending'`).
   final List<Object?>? arguments;
 
+  /// Keyword arguments from the Python call site (when state is `'pending'`).
+  final Map<String, Object?>? kwargs;
+
+  /// Unique call identifier (when state is `'pending'`).
+  final int? callId;
+
+  /// Whether this is a method call (when state is `'pending'`).
+  final bool? methodCall;
+
   /// The error message (when [ok] is false).
   final String? error;
 
   /// The error type name (when [ok] is false).
   final String? errorType;
+
+  /// The Python exception class name (when error occurred).
+  final String? excType;
+
+  /// The traceback frames as raw JSON list (when error occurred).
+  final List<dynamic>? traceback;
 }
 
 /// Result of [WasmBindings.discover].
@@ -101,16 +121,24 @@ abstract class WasmBindings {
   /// Runs Python [code] to completion.
   ///
   /// If [limitsJson] is non-null, it is a JSON-encoded map of limits.
-  Future<WasmRunResult> run(String code, {String? limitsJson});
+  /// If [scriptName] is non-null, it overrides the default filename in
+  /// tracebacks and error messages.
+  Future<WasmRunResult> run(
+    String code, {
+    String? limitsJson,
+    String? scriptName,
+  });
 
   /// Starts iterative execution of [code].
   ///
   /// If [extFnsJson] is non-null, it is a JSON array of external function
   /// names. If [limitsJson] is non-null, it is a JSON-encoded map of limits.
+  /// If [scriptName] is non-null, it overrides the default filename.
   Future<WasmProgressResult> start(
     String code, {
     String? extFnsJson,
     String? limitsJson,
+    String? scriptName,
   });
 
   /// Resumes a paused execution with a JSON-encoded return [valueJson].

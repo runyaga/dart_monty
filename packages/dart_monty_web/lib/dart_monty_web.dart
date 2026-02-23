@@ -39,8 +39,14 @@ class DartMontyWeb extends MontyPlatform {
     String code, {
     Map<String, Object?>? inputs,
     MontyLimits? limits,
+    String? scriptName,
   }) =>
-      _delegate.run(code, inputs: inputs, limits: limits);
+      _delegate.run(
+        code,
+        inputs: inputs,
+        limits: limits,
+        scriptName: scriptName,
+      );
 
   @override
   Future<MontyProgress> start(
@@ -48,12 +54,14 @@ class DartMontyWeb extends MontyPlatform {
     Map<String, Object?>? inputs,
     List<String>? externalFunctions,
     MontyLimits? limits,
+    String? scriptName,
   }) =>
       _delegate.start(
         code,
         inputs: inputs,
         externalFunctions: externalFunctions,
         limits: limits,
+        scriptName: scriptName,
       );
 
   @override

@@ -39,13 +39,23 @@ abstract class DesktopBindings {
   Future<bool> init();
 
   /// Runs Python [code] to completion in the background Isolate.
-  Future<DesktopRunResult> run(String code, {MontyLimits? limits});
+  ///
+  /// If [scriptName] is non-null, it overrides the default filename in
+  /// tracebacks and error messages.
+  Future<DesktopRunResult> run(
+    String code, {
+    MontyLimits? limits,
+    String? scriptName,
+  });
 
   /// Starts iterative execution of [code] in the background Isolate.
+  ///
+  /// If [scriptName] is non-null, it overrides the default filename.
   Future<DesktopProgressResult> start(
     String code, {
     List<String>? externalFunctions,
     MontyLimits? limits,
+    String? scriptName,
   });
 
   /// Resumes a paused execution with [returnValue].

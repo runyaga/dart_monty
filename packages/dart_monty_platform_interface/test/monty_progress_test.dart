@@ -132,6 +132,36 @@ void main() {
         expect(pending.arguments, isEmpty);
       });
 
+      test('defaults for new M7A fields', () {
+        const pending = MontyPending(
+          functionName: 'fn',
+          arguments: [],
+        );
+        expect(pending.kwargs, isNull);
+        expect(pending.callId, 0);
+        expect(pending.methodCall, isFalse);
+      });
+
+      test('constructs with kwargs', () {
+        const pending = MontyPending(
+          functionName: 'fetch',
+          arguments: ['url'],
+          kwargs: {'timeout': 30, 'retries': 3},
+        );
+        expect(pending.kwargs, {'timeout': 30, 'retries': 3});
+      });
+
+      test('constructs with callId and methodCall', () {
+        const pending = MontyPending(
+          functionName: 'obj.method',
+          arguments: [1],
+          callId: 42,
+          methodCall: true,
+        );
+        expect(pending.callId, 42);
+        expect(pending.methodCall, isTrue);
+      });
+
       group('fromJson', () {
         test('parses pending JSON', () {
           final pending = MontyPending.fromJson(const {
@@ -160,6 +190,84 @@ void main() {
           });
           expect(pending.arguments, [null, 1, null]);
         });
+
+        test('parses kwargs', () {
+          final pending = MontyPending.fromJson(const {
+            'type': 'pending',
+            'function_name': 'fetch',
+            'arguments': ['url'],
+            'kwargs': {'timeout': 30},
+          });
+          expect(pending.kwargs, {'timeout': 30});
+        });
+
+        test('parses null kwargs as null', () {
+          final pending = MontyPending.fromJson(const {
+            'type': 'pending',
+            'function_name': 'fn',
+          });
+          expect(pending.kwargs, isNull);
+        });
+
+        test('parses empty kwargs as empty map', () {
+          final pending = MontyPending.fromJson(const {
+            'type': 'pending',
+            'function_name': 'fn',
+            'kwargs': <String, dynamic>{},
+          });
+          expect(pending.kwargs, isNotNull);
+          expect(pending.kwargs, isEmpty);
+        });
+
+        test('parses call_id', () {
+          final pending = MontyPending.fromJson(const {
+            'type': 'pending',
+            'function_name': 'fn',
+            'call_id': 7,
+          });
+          expect(pending.callId, 7);
+        });
+
+        test('defaults call_id to 0', () {
+          final pending = MontyPending.fromJson(const {
+            'type': 'pending',
+            'function_name': 'fn',
+          });
+          expect(pending.callId, 0);
+        });
+
+        test('parses method_call', () {
+          final pending = MontyPending.fromJson(const {
+            'type': 'pending',
+            'function_name': 'obj.method',
+            'method_call': true,
+          });
+          expect(pending.methodCall, isTrue);
+        });
+
+        test('defaults method_call to false', () {
+          final pending = MontyPending.fromJson(const {
+            'type': 'pending',
+            'function_name': 'fn',
+          });
+          expect(pending.methodCall, isFalse);
+        });
+
+        test('parses all M7A fields together', () {
+          final pending = MontyPending.fromJson(const {
+            'type': 'pending',
+            'function_name': 'db.query',
+            'arguments': ['SELECT * FROM users'],
+            'kwargs': {'limit': 10, 'offset': 0},
+            'call_id': 42,
+            'method_call': true,
+          });
+          expect(pending.functionName, 'db.query');
+          expect(pending.arguments, ['SELECT * FROM users']);
+          expect(pending.kwargs, {'limit': 10, 'offset': 0});
+          expect(pending.callId, 42);
+          expect(pending.methodCall, isTrue);
+        });
       });
 
       test('toJson', () {
@@ -172,6 +280,63 @@ void main() {
           'function_name': 'send',
           'arguments': ['data', 42],
         });
+      });
+
+      test('toJson includes kwargs when non-null', () {
+        const pending = MontyPending(
+          functionName: 'fetch',
+          arguments: [],
+          kwargs: {'timeout': 5},
+        );
+        final json = pending.toJson();
+        expect(json['kwargs'], {'timeout': 5});
+      });
+
+      test('toJson omits kwargs when null', () {
+        const pending = MontyPending(
+          functionName: 'fn',
+          arguments: [],
+        );
+        final json = pending.toJson();
+        expect(json.containsKey('kwargs'), isFalse);
+      });
+
+      test('toJson includes callId when non-zero', () {
+        const pending = MontyPending(
+          functionName: 'fn',
+          arguments: [],
+          callId: 7,
+        );
+        final json = pending.toJson();
+        expect(json['call_id'], 7);
+      });
+
+      test('toJson omits callId when zero', () {
+        const pending = MontyPending(
+          functionName: 'fn',
+          arguments: [],
+        );
+        final json = pending.toJson();
+        expect(json.containsKey('call_id'), isFalse);
+      });
+
+      test('toJson includes methodCall when true', () {
+        const pending = MontyPending(
+          functionName: 'fn',
+          arguments: [],
+          methodCall: true,
+        );
+        final json = pending.toJson();
+        expect(json['method_call'], isTrue);
+      });
+
+      test('toJson omits methodCall when false', () {
+        const pending = MontyPending(
+          functionName: 'fn',
+          arguments: [],
+        );
+        final json = pending.toJson();
+        expect(json.containsKey('method_call'), isFalse);
       });
 
       test('JSON round-trip', () {
@@ -187,6 +352,28 @@ void main() {
         const original = MontyPending(
           functionName: 'noop',
           arguments: [],
+        );
+        final restored = MontyPending.fromJson(original.toJson());
+        expect(restored, original);
+      });
+
+      test('JSON round-trip with all M7A fields', () {
+        const original = MontyPending(
+          functionName: 'db.query',
+          arguments: ['SELECT 1'],
+          kwargs: {'limit': 10},
+          callId: 42,
+          methodCall: true,
+        );
+        final restored = MontyPending.fromJson(original.toJson());
+        expect(restored, original);
+      });
+
+      test('JSON round-trip with empty kwargs', () {
+        const original = MontyPending(
+          functionName: 'fn',
+          arguments: [],
+          kwargs: {},
         );
         final restored = MontyPending.fromJson(original.toJson());
         expect(restored, original);
@@ -228,6 +415,75 @@ void main() {
         test('not equal when argument count differs', () {
           const a = MontyPending(functionName: 'fn', arguments: [1]);
           const b = MontyPending(functionName: 'fn', arguments: [1, 2]);
+          expect(a, isNot(b));
+        });
+
+        test('not equal when kwargs differs', () {
+          const a = MontyPending(
+            functionName: 'fn',
+            arguments: [],
+            kwargs: {'a': 1},
+          );
+          const b = MontyPending(
+            functionName: 'fn',
+            arguments: [],
+            kwargs: {'a': 2},
+          );
+          expect(a, isNot(b));
+        });
+
+        test('not equal when one has kwargs and other does not', () {
+          const a = MontyPending(
+            functionName: 'fn',
+            arguments: [],
+            kwargs: {'a': 1},
+          );
+          const b = MontyPending(
+            functionName: 'fn',
+            arguments: [],
+          );
+          expect(a, isNot(b));
+        });
+
+        test('equal with same kwargs', () {
+          const a = MontyPending(
+            functionName: 'fn',
+            arguments: [],
+            kwargs: {'key': 'val'},
+          );
+          const b = MontyPending(
+            functionName: 'fn',
+            arguments: [],
+            kwargs: {'key': 'val'},
+          );
+          expect(a, b);
+          expect(a.hashCode, b.hashCode);
+        });
+
+        test('not equal when callId differs', () {
+          const a = MontyPending(
+            functionName: 'fn',
+            arguments: [],
+            callId: 1,
+          );
+          const b = MontyPending(
+            functionName: 'fn',
+            arguments: [],
+            callId: 2,
+          );
+          expect(a, isNot(b));
+        });
+
+        test('not equal when methodCall differs', () {
+          const a = MontyPending(
+            functionName: 'fn',
+            arguments: [],
+          );
+          const b = MontyPending(
+            functionName: 'fn',
+            arguments: [],
+            methodCall: true,
+          );
           expect(a, isNot(b));
         });
 
@@ -312,6 +568,27 @@ void main() {
       };
 
       expect(description, 'pending: doWork(2 args)');
+    });
+
+    test('pattern matching with kwargs', () {
+      const MontyProgress progress = MontyPending(
+        functionName: 'fetch',
+        arguments: ['url'],
+        kwargs: {'timeout': 30},
+        callId: 5,
+        methodCall: true,
+      );
+
+      final description = switch (progress) {
+        MontyComplete(:final result) => 'complete: ${result.value}',
+        MontyPending(:final functionName, :final kwargs, :final callId) =>
+          'pending: $functionName(kwargs=$kwargs, callId=$callId)',
+      };
+
+      expect(
+        description,
+        'pending: fetch(kwargs={timeout: 30}, callId=5)',
+      );
     });
 
     group('deep equality', () {

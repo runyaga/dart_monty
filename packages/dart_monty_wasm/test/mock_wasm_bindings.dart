@@ -55,12 +55,19 @@ class MockWasmBindings extends WasmBindings {
   /// Number of times [init] was called.
   int initCalls = 0;
 
-  /// Records of `(code, limitsJson)` passed to [run].
-  final List<({String code, String? limitsJson})> runCalls = [];
+  /// Records of `(code, limitsJson, scriptName)` passed to [run].
+  final List<({String code, String? limitsJson, String? scriptName})> runCalls =
+      [];
 
-  /// Records of `(code, extFnsJson, limitsJson)` passed to [start].
-  final List<({String code, String? extFnsJson, String? limitsJson})>
-      startCalls = [];
+  /// Records of `(code, extFnsJson, limitsJson, scriptName)` passed to
+  /// [start].
+  final List<
+      ({
+        String code,
+        String? extFnsJson,
+        String? limitsJson,
+        String? scriptName,
+      })> startCalls = [];
 
   /// Records of `valueJson` passed to [resume].
   final List<String> resumeCalls = [];
@@ -92,8 +99,12 @@ class MockWasmBindings extends WasmBindings {
   }
 
   @override
-  Future<WasmRunResult> run(String code, {String? limitsJson}) async {
-    runCalls.add((code: code, limitsJson: limitsJson));
+  Future<WasmRunResult> run(
+    String code, {
+    String? limitsJson,
+    String? scriptName,
+  }) async {
+    runCalls.add((code: code, limitsJson: limitsJson, scriptName: scriptName));
 
     return nextRunResult;
   }
@@ -103,9 +114,15 @@ class MockWasmBindings extends WasmBindings {
     String code, {
     String? extFnsJson,
     String? limitsJson,
+    String? scriptName,
   }) async {
     startCalls.add(
-      (code: code, extFnsJson: extFnsJson, limitsJson: limitsJson),
+      (
+        code: code,
+        extFnsJson: extFnsJson,
+        limitsJson: limitsJson,
+        scriptName: scriptName,
+      ),
     );
 
     return nextStartResult;

@@ -27,6 +27,9 @@ final class ProgressResult {
     required this.tag,
     this.functionName,
     this.argumentsJson,
+    this.kwargsJson,
+    this.callId,
+    this.methodCall,
     this.resultJson,
     this.isError,
     this.errorMessage,
@@ -40,6 +43,15 @@ final class ProgressResult {
 
   /// Pending function arguments as JSON array (when tag == 1).
   final String? argumentsJson;
+
+  /// Pending keyword arguments as JSON object (when tag == 1).
+  final String? kwargsJson;
+
+  /// Unique call identifier for this pending call (when tag == 1).
+  final int? callId;
+
+  /// Whether this is a method call (when tag == 1).
+  final bool? methodCall;
 
   /// Completed result as JSON string (when tag == 0).
   final String? resultJson;
@@ -68,8 +80,11 @@ abstract class NativeBindings {
   /// If [externalFunctions] is non-null, it is a comma-separated list of
   /// external function names.
   ///
+  /// If [scriptName] is non-null, it overrides the default filename used
+  /// in tracebacks and error messages.
+  ///
   /// Returns the handle address as an `int`, or throws on error.
-  int create(String code, {String? externalFunctions});
+  int create(String code, {String? externalFunctions, String? scriptName});
 
   /// Frees the handle at [handle]. Safe to call with `0`.
   void free(int handle);

@@ -40,12 +40,16 @@ class MontyFfi extends MontyPlatform {
     String code, {
     Map<String, Object?>? inputs,
     MontyLimits? limits,
+    String? scriptName,
   }) async {
     _assertNotDisposed('run');
     _assertIdle('run');
     _rejectInputs(inputs);
 
-    final handle = _bindings.create(code);
+    final handle = _bindings.create(
+      code,
+      scriptName: scriptName,
+    );
     try {
       _applyLimits(handle, limits);
       final result = _bindings.run(handle);
@@ -62,6 +66,7 @@ class MontyFfi extends MontyPlatform {
     Map<String, Object?>? inputs,
     List<String>? externalFunctions,
     MontyLimits? limits,
+    String? scriptName,
   }) async {
     _assertNotDisposed('start');
     _assertIdle('start');
@@ -71,7 +76,11 @@ class MontyFfi extends MontyPlatform {
         ? externalFunctions.join(',')
         : null;
 
-    final handle = _bindings.create(code, externalFunctions: extFns);
+    final handle = _bindings.create(
+      code,
+      externalFunctions: extFns,
+      scriptName: scriptName,
+    );
     _applyLimits(handle, limits);
 
     final progress = _bindings.start(handle);
@@ -172,7 +181,20 @@ class MontyFfi extends MontyPlatform {
               )
             : const <Object?>[];
 
-        return MontyPending(functionName: fnName, arguments: args);
+        final kwargsJson = progress.kwargsJson;
+        final kwargs = kwargsJson != null
+            ? Map<String, Object?>.from(
+                json.decode(kwargsJson) as Map<String, dynamic>,
+              )
+            : null;
+
+        return MontyPending(
+          functionName: fnName,
+          arguments: args,
+          kwargs: kwargs,
+          callId: progress.callId ?? 0,
+          methodCall: progress.methodCall ?? false,
+        );
 
       case 2: // MONTY_PROGRESS_ERROR
         _freeHandle(handle);

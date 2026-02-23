@@ -56,15 +56,18 @@ class MockDesktopBindings extends DesktopBindings {
   /// Number of times [init] was called.
   int initCalls = 0;
 
-  /// Records of `(code, limits)` passed to [run].
-  final List<({String code, MontyLimits? limits})> runCalls = [];
+  /// Records of `(code, limits, scriptName)` passed to [run].
+  final List<({String code, MontyLimits? limits, String? scriptName})>
+      runCalls = [];
 
-  /// Records of `(code, externalFunctions, limits)` passed to [start].
+  /// Records of `(code, externalFunctions, limits, scriptName)` passed to
+  /// [start].
   final List<
       ({
         String code,
         List<String>? externalFunctions,
         MontyLimits? limits,
+        String? scriptName,
       })> startCalls = [];
 
   /// Records of `returnValue` passed to [resume].
@@ -93,8 +96,12 @@ class MockDesktopBindings extends DesktopBindings {
   }
 
   @override
-  Future<DesktopRunResult> run(String code, {MontyLimits? limits}) async {
-    runCalls.add((code: code, limits: limits));
+  Future<DesktopRunResult> run(
+    String code, {
+    MontyLimits? limits,
+    String? scriptName,
+  }) async {
+    runCalls.add((code: code, limits: limits, scriptName: scriptName));
     return nextRunResult;
   }
 
@@ -103,9 +110,15 @@ class MockDesktopBindings extends DesktopBindings {
     String code, {
     List<String>? externalFunctions,
     MontyLimits? limits,
+    String? scriptName,
   }) async {
     startCalls.add(
-      (code: code, externalFunctions: externalFunctions, limits: limits),
+      (
+        code: code,
+        externalFunctions: externalFunctions,
+        limits: limits,
+        scriptName: scriptName,
+      ),
     );
     return nextStartResult;
   }
