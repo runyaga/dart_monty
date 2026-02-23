@@ -1,3 +1,4 @@
 build/
+coverage/
 tool/
 test/fixtures/
