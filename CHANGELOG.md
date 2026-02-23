@@ -1,3 +1,11 @@
+## Unreleased
+
+- Add `MontyResolveFutures` progress variant for async/futures support (M13)
+- Add `resumeAsFuture()`, `resolveFutures()`, `resolveFuturesWithErrors()` to platform API
+- Add `MONTY_PROGRESS_RESOLVE_FUTURES` tag and `FutureSnapshot` handling in Rust C FFI
+- Implement futures support in FFI and WASM packages (WASM stubs with `UnsupportedError`)
+- Add tier 13 async/futures ladder fixtures (IDs 170-175)
+
 ## 0.3.5
 
 - Add `scriptName`, `excType`, `traceback`, `kwargs`, `callId`, `methodCall` to data models

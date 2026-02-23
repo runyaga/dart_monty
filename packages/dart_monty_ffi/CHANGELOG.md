@@ -7,6 +7,9 @@
 - Treat empty kwargs `{}` from native layer as null (no kwargs)
 - Read complete result JSON on progress error for rich exception details
 - Add ladder integration tests for tiers 8 (kwargs), 9 (exceptions), 15 (scriptName)
+- Handle `MONTY_PROGRESS_RESOLVE_FUTURES` tag (3) in progress dispatch
+- Add `resumeAsFuture()` and `resolveFutures()` to `NativeBindings` and FFI implementation
+- Implement `resolveFuturesWithErrors()` in `MontyFfi`
 
 ## 0.3.4
 
