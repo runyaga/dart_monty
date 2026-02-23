@@ -141,6 +141,55 @@ mod tests {
         let json = monty_exception_to_json(&exc);
         let obj = json.as_object().unwrap();
         assert!(obj["message"].as_str().unwrap().contains("bad value"));
+        assert_eq!(obj["exc_type"].as_str().unwrap(), "ValueError");
+    }
+
+    #[test]
+    fn test_monty_exception_to_json_with_traceback() {
+        // Run code that produces a multi-frame traceback through monty
+        use monty::{MontyRun, NoLimitTracker, PrintWriter};
+
+        let code = "def inner():\n    1/0\n\ndef outer():\n    inner()\n\nouter()";
+        let compiled = MontyRun::new(code.into(), "<test>", vec![], vec![]).unwrap();
+        let mut print = PrintWriter::Disabled;
+        let err = compiled
+            .run(vec![], NoLimitTracker, &mut print)
+            .unwrap_err();
+
+        let json = monty_exception_to_json(&err);
+        let obj = json.as_object().unwrap();
+
+        // Should have exc_type
+        assert_eq!(obj["exc_type"].as_str().unwrap(), "ZeroDivisionError");
+
+        // Should have traceback array with multiple frames
+        let tb = obj["traceback"].as_array().unwrap();
+        assert!(
+            tb.len() >= 3,
+            "expected 3+ frames (module, outer, inner), got {}",
+            tb.len()
+        );
+
+        // Each frame should have required fields
+        for frame in tb {
+            assert!(frame["filename"].is_string());
+            assert!(frame["start_line"].is_number());
+            assert!(frame["start_column"].is_number());
+            assert!(frame["end_line"].is_number());
+            assert!(frame["end_column"].is_number());
+        }
+
+        // Inner frames should have frame_name
+        let has_frame_name = tb.iter().any(|f| f.get("frame_name").is_some());
+        assert!(
+            has_frame_name,
+            "expected at least one frame with frame_name"
+        );
+
+        // Legacy single-frame fields should match last frame
+        assert!(obj.get("filename").is_some());
+        assert!(obj.get("line_number").is_some());
+        assert!(obj.get("column_number").is_some());
     }
 
     #[test]

@@ -1252,7 +1252,55 @@ fn new_accessors_wrong_state_via_ffi() {
 }
 
 // ---------------------------------------------------------------------------
-// 38. Error JSON includes exc_type and traceback via run
+// 38. Non-UTF8 script_name → covers lib.rs lines 70-74
+// ---------------------------------------------------------------------------
+
+#[test]
+fn create_with_non_utf8_script_name() {
+    let code = c("2 + 2");
+    let bad_name: &[u8] = &[0xFF, 0xFE, 0x00]; // invalid UTF-8, null-terminated
+    let mut out_error: *mut c_char = ptr::null_mut();
+
+    let handle = unsafe {
+        monty_create(
+            code.as_ptr(),
+            ptr::null(),
+            bad_name.as_ptr().cast(),
+            &mut out_error,
+        )
+    };
+    assert!(handle.is_null());
+    assert!(!out_error.is_null());
+
+    let err = unsafe { read_c_string(out_error) };
+    assert!(
+        err.contains("not valid UTF-8"),
+        "expected UTF-8 error, got: {err}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// 39. Non-UTF8 script_name with NULL out_error → no crash
+// ---------------------------------------------------------------------------
+
+#[test]
+fn create_with_non_utf8_script_name_null_out_error() {
+    let code = c("2 + 2");
+    let bad_name: &[u8] = &[0xFF, 0xFE, 0x00];
+
+    let handle = unsafe {
+        monty_create(
+            code.as_ptr(),
+            ptr::null(),
+            bad_name.as_ptr().cast(),
+            ptr::null_mut(),
+        )
+    };
+    assert!(handle.is_null());
+}
+
+// ---------------------------------------------------------------------------
+// 40. Error JSON includes exc_type and traceback via run
 // ---------------------------------------------------------------------------
 
 #[test]
