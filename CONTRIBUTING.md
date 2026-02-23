@@ -124,42 +124,60 @@ time the stamp script replaces it with the version heading.
 ```bash
 # 1. Review ## Unreleased sections, add any missing entries
 
-# 2. Stamp CHANGELOGs with the new version
-bash tool/stamp_changelogs.sh X.Y.Z
+# 2. Trigger dry-run (validates, builds, stamps, but does NOT publish or tag)
+gh workflow run "Prepare release" -f version=X.Y.Z
 
-# 3. Commit and push to main
-git add -A && git commit -m "chore: stamp changelogs for X.Y.Z"
-git push origin main
+# 3. If green, trigger real publish
+gh workflow run "Prepare release" -f version=X.Y.Z -f publish=true
 
-# 4. Trigger CI validation (dry-run, no publish)
-gh workflow run prepare-release.yaml -f version=X.Y.Z
+# 4. release.yaml auto-triggers from the tag → builds GitHub Release
 
-# 5. If green, re-trigger with publish
-gh workflow run prepare-release.yaml -f version=X.Y.Z -f publish=true
-
-# 6. release.yaml auto-triggers from the tag → builds GitHub Release
-
-# 7. Verify all 6 packages are live on pub.dev
+# 5. Verify all 6 packages are live on pub.dev
 bash tool/verify_publish.sh X.Y.Z
 ```
+
+Do NOT manually stamp changelogs or bump pubspecs — the workflow handles
+all of that automatically.
 
 ### What the workflow does
 
 | Step | Always | Publish only |
 |------|--------|--------------|
-| Build native binaries (Linux + macOS) | x | |
-| `dart format --set-exit-if-changed .` | x | |
+| Generate FFI bindings | x | |
 | Analyze all packages | x | |
-| Run tests | x | |
+| Run tests (dart + flutter) | x | |
+| Build native binaries (Linux + macOS) | x | |
 | Bump versions in all pubspecs | x | |
 | Stamp CHANGELOGs | x | |
 | Verify CHANGELOG entries | x | |
 | dartdoc dry-run (all 5 sub-packages) | x | |
 | Commit version bumps | x | |
 | `dart pub publish --dry-run` | x | |
-| Tag and push | | x |
-| Publish to pub.dev | | x |
+| Tag and push (commit + tag to main) | | x |
+| Publish to pub.dev (leaf-first order) | | x |
 | Verify pub.dev versions | | x |
+
+### Known Gotchas
+
+- **FFI bindings are generated, not committed.** The release workflow runs
+  `generate_bindings.sh` before analyze and dartdoc. If you add a new
+  package that depends on FFI bindings, ensure the release workflow
+  generates them too.
+- **Dry-run publish warnings are expected.** `publish.sh` swaps path deps
+  to version constraints, which makes `dart pub publish --dry-run` warn
+  about modified files (exit 65). For first-time publishes, sibling
+  packages are not yet on pub.dev, causing dep resolution failures
+  (exit 69). Both are handled gracefully.
+- **Publish order matters.** `publish.sh` publishes in dependency order:
+  `platform_interface` → `ffi` → `wasm` → `web` → `desktop` → root.
+  This ensures each package's dependencies are on pub.dev before it
+  publishes.
+- **dart_monty_web has no tests.** It is a thin Flutter registration shim
+  that delegates to `dart_monty_wasm`. The release workflow skips
+  `flutter test` for it.
+- **pub.dev auth:** The workflow uses `PUB_TOKEN` secret. Set up
+  automated publishing via OIDC for a more robust approach (see
+  [pub.dev automated publishing](https://dart.dev/tools/pub/automated-publishing)).
 
 ### Scripts
 
