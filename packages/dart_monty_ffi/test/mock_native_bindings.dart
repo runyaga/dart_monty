@@ -38,6 +38,12 @@ class MockNativeBindings extends NativeBindings {
   /// Queue of results returned by [resumeWithError]. Dequeues on each call.
   final List<ProgressResult> resumeWithErrorResults = [];
 
+  /// Queue of results returned by [resumeAsFuture]. Dequeues on each call.
+  final List<ProgressResult> resumeAsFutureResults = [];
+
+  /// Queue of results returned by [resolveFutures]. Dequeues on each call.
+  final List<ProgressResult> resolveFuturesResults = [];
+
   /// Data returned by [snapshot].
   Uint8List nextSnapshotData = Uint8List.fromList([1, 2, 3]);
 
@@ -69,6 +75,14 @@ class MockNativeBindings extends NativeBindings {
 
   /// Records of `(handle, errorMessage)` passed to [resumeWithError].
   final List<({int handle, String errorMessage})> resumeWithErrorCalls = [];
+
+  /// Handle addresses passed to [resumeAsFuture].
+  final List<int> resumeAsFutureCalls = [];
+
+  /// Records of `(handle, resultsJson, errorsJson)` passed to
+  /// [resolveFutures].
+  final List<({int handle, String resultsJson, String errorsJson})>
+      resolveFuturesCalls = [];
 
   /// Records of `(handle, bytes)` passed to [setMemoryLimit].
   final List<({int handle, int bytes})> setMemoryLimitCalls = [];
@@ -144,6 +158,39 @@ class MockNativeBindings extends NativeBindings {
     );
     if (resumeWithErrorResults.isNotEmpty) {
       return resumeWithErrorResults.removeAt(0);
+    }
+
+    return const ProgressResult(
+      tag: 0,
+      resultJson: '{"value": null, "usage": {"memory_bytes_used": 0, '
+          '"time_elapsed_ms": 0, "stack_depth_used": 0}}',
+    );
+  }
+
+  @override
+  ProgressResult resumeAsFuture(int handle) {
+    resumeAsFutureCalls.add(handle);
+    if (resumeAsFutureResults.isNotEmpty) {
+      return resumeAsFutureResults.removeAt(0);
+    }
+
+    return const ProgressResult(
+      tag: 3,
+      futureCallIdsJson: '[0]',
+    );
+  }
+
+  @override
+  ProgressResult resolveFutures(
+    int handle,
+    String resultsJson,
+    String errorsJson,
+  ) {
+    resolveFuturesCalls.add(
+      (handle: handle, resultsJson: resultsJson, errorsJson: errorsJson),
+    );
+    if (resolveFuturesResults.isNotEmpty) {
+      return resolveFuturesResults.removeAt(0);
     }
 
     return const ProgressResult(

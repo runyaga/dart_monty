@@ -612,6 +612,12 @@ void main() {
       expect(() => monty.start('x'), throwsStateError);
       expect(() => monty.resume(null), throwsStateError);
       expect(() => monty.resumeWithError('e'), throwsStateError);
+      expect(() => monty.resumeAsFuture(), throwsStateError);
+      expect(() => monty.resolveFutures({0: 'x'}), throwsStateError);
+      expect(
+        () => monty.resolveFuturesWithErrors({}, {}),
+        throwsStateError,
+      );
       expect(() => monty.snapshot(), throwsStateError);
       expect(() => monty.restore(Uint8List(0)), throwsStateError);
     });
@@ -982,6 +988,212 @@ void main() {
       final pending = progress as MontyPending;
       expect(pending.kwargs, isNull);
       expect(pending.arguments, [42]);
+    });
+  });
+
+  // ===========================================================================
+  // Async / Futures
+  // ===========================================================================
+  group('resumeAsFuture()', () {
+    test('returns MontyResolveFutures', () async {
+      mock.nextStartResult = const ProgressResult(
+        tag: 1,
+        functionName: 'fetch',
+        argumentsJson: '["x"]',
+        callId: 0,
+      );
+      await monty.start('code', externalFunctions: ['fetch']);
+
+      mock.resumeAsFutureResults.add(
+        const ProgressResult(tag: 3, futureCallIdsJson: '[0]'),
+      );
+      final progress = await monty.resumeAsFuture();
+
+      expect(progress, isA<MontyResolveFutures>());
+      final futures = progress as MontyResolveFutures;
+      expect(futures.pendingCallIds, [0]);
+    });
+
+    test('returns MontyPending for another call', () async {
+      mock.nextStartResult = const ProgressResult(
+        tag: 1,
+        functionName: 'foo',
+        argumentsJson: '[]',
+        callId: 0,
+      );
+      await monty.start('code', externalFunctions: ['foo', 'bar']);
+
+      mock.resumeAsFutureResults.add(
+        const ProgressResult(
+          tag: 1,
+          functionName: 'bar',
+          argumentsJson: '[]',
+          callId: 1,
+        ),
+      );
+      final progress = await monty.resumeAsFuture();
+
+      expect(progress, isA<MontyPending>());
+      expect((progress as MontyPending).functionName, 'bar');
+    });
+
+    test('throws StateError when idle', () {
+      expect(() => monty.resumeAsFuture(), throwsStateError);
+    });
+
+    test('throws StateError when disposed', () async {
+      await monty.dispose();
+      expect(() => monty.resumeAsFuture(), throwsStateError);
+    });
+
+    test('calls bindings with correct handle', () async {
+      mock.nextStartResult = const ProgressResult(
+        tag: 1,
+        functionName: 'f',
+        argumentsJson: '[]',
+      );
+      await monty.start('code', externalFunctions: ['f']);
+
+      mock.resumeAsFutureResults.add(
+        const ProgressResult(tag: 3, futureCallIdsJson: '[0]'),
+      );
+      await monty.resumeAsFuture();
+
+      expect(mock.resumeAsFutureCalls, [mock.nextCreateHandle]);
+    });
+  });
+
+  group('resolveFutures()', () {
+    test('returns MontyComplete after resolving', () async {
+      mock.nextStartResult = const ProgressResult(
+        tag: 1,
+        functionName: 'f',
+        argumentsJson: '[]',
+        callId: 0,
+      );
+      await monty.start('code', externalFunctions: ['f']);
+
+      mock.resumeAsFutureResults.add(
+        const ProgressResult(tag: 3, futureCallIdsJson: '[0]'),
+      );
+      await monty.resumeAsFuture();
+
+      mock.resolveFuturesResults.add(
+        ProgressResult(tag: 0, resultJson: _okResultJson('"done"'), isError: 0),
+      );
+      final progress = await monty.resolveFutures({0: 'done'});
+
+      expect(progress, isA<MontyComplete>());
+      expect((progress as MontyComplete).result.value, 'done');
+    });
+
+    test('passes correct JSON to bindings', () async {
+      mock.nextStartResult = const ProgressResult(
+        tag: 1,
+        functionName: 'f',
+        argumentsJson: '[]',
+      );
+      await monty.start('code', externalFunctions: ['f']);
+
+      mock.resumeAsFutureResults.add(
+        const ProgressResult(tag: 3, futureCallIdsJson: '[0,1]'),
+      );
+      await monty.resumeAsFuture();
+
+      await monty.resolveFutures({0: 'a', 1: 42});
+
+      expect(mock.resolveFuturesCalls, hasLength(1));
+      final call = mock.resolveFuturesCalls.first;
+      expect(call.resultsJson, '{"0":"a","1":42}');
+      expect(call.errorsJson, '{}');
+    });
+
+    test('throws StateError when idle', () {
+      expect(() => monty.resolveFutures({0: 'x'}), throwsStateError);
+    });
+
+    test('throws StateError when disposed', () async {
+      await monty.dispose();
+      expect(() => monty.resolveFutures({0: 'x'}), throwsStateError);
+    });
+  });
+
+  group('resolveFuturesWithErrors()', () {
+    test('passes results and errors to bindings', () async {
+      mock.nextStartResult = const ProgressResult(
+        tag: 1,
+        functionName: 'f',
+        argumentsJson: '[]',
+      );
+      await monty.start('code', externalFunctions: ['f']);
+
+      mock.resumeAsFutureResults.add(
+        const ProgressResult(tag: 3, futureCallIdsJson: '[0,1]'),
+      );
+      await monty.resumeAsFuture();
+
+      await monty.resolveFuturesWithErrors({0: 'ok'}, {1: 'timeout'});
+
+      expect(mock.resolveFuturesCalls, hasLength(1));
+      final call = mock.resolveFuturesCalls.first;
+      expect(call.resultsJson, '{"0":"ok"}');
+      expect(call.errorsJson, '{"1":"timeout"}');
+    });
+
+    test('throws StateError when idle', () {
+      expect(
+        () => monty.resolveFuturesWithErrors({}, {}),
+        throwsStateError,
+      );
+    });
+  });
+
+  group('async state machine', () {
+    test('idle -> start(pending) -> resumeAsFuture -> resolveFutures -> idle',
+        () async {
+      mock.nextStartResult = const ProgressResult(
+        tag: 1,
+        functionName: 'fetch',
+        argumentsJson: '["url"]',
+        callId: 0,
+      );
+      await monty.start('code', externalFunctions: ['fetch']);
+
+      mock.resumeAsFutureResults.add(
+        const ProgressResult(tag: 3, futureCallIdsJson: '[0]'),
+      );
+      final futures = await monty.resumeAsFuture();
+      expect(futures, isA<MontyResolveFutures>());
+
+      mock.resolveFuturesResults.add(
+        ProgressResult(
+          tag: 0,
+          resultJson: _okResultJson('"response"'),
+          isError: 0,
+        ),
+      );
+      final complete = await monty.resolveFutures({0: 'response'});
+      expect(complete, isA<MontyComplete>());
+
+      // Back to idle — can run again.
+      mock.nextRunResult = RunResult(tag: 0, resultJson: _okResultJson(1));
+      final result = await monty.run('1');
+      expect(result.value, 1);
+    });
+
+    test('resolve_futures with null futureCallIdsJson throws', () async {
+      mock.nextStartResult = const ProgressResult(
+        tag: 1,
+        functionName: 'f',
+        argumentsJson: '[]',
+      );
+      await monty.start('code', externalFunctions: ['f']);
+
+      mock.resumeAsFutureResults.add(
+        const ProgressResult(tag: 3),
+      );
+
+      expect(() => monty.resumeAsFuture(), throwsStateError);
     });
   });
 }

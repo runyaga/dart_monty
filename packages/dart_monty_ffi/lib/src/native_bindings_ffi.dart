@@ -132,6 +132,43 @@ class NativeBindingsFfi extends NativeBindings {
   }
 
   @override
+  ProgressResult resumeAsFuture(int handle) {
+    final ptr = Pointer<MontyHandle>.fromAddress(handle);
+    final outError = calloc<Pointer<Char>>();
+
+    try {
+      final tag = _lib.monty_resume_as_future(ptr, outError);
+
+      return _buildProgressResult(ptr, tag, outError.value);
+    } finally {
+      calloc.free(outError);
+    }
+  }
+
+  @override
+  ProgressResult resolveFutures(
+    int handle,
+    String resultsJson,
+    String errorsJson,
+  ) {
+    final ptr = Pointer<MontyHandle>.fromAddress(handle);
+    final cResults = resultsJson.toNativeUtf8().cast<Char>();
+    final cErrors = errorsJson.toNativeUtf8().cast<Char>();
+    final outError = calloc<Pointer<Char>>();
+
+    try {
+      final tag = _lib.monty_resume_futures(ptr, cResults, cErrors, outError);
+
+      return _buildProgressResult(ptr, tag, outError.value);
+    } finally {
+      calloc
+        ..free(cResults)
+        ..free(cErrors)
+        ..free(outError);
+    }
+  }
+
+  @override
   void setMemoryLimit(int handle, int bytes) {
     _lib.monty_set_memory_limit(
       Pointer<MontyHandle>.fromAddress(handle),
@@ -247,6 +284,12 @@ class NativeBindingsFfi extends NativeBindings {
           errorMessage: errorMsg,
           resultJson: resultJson,
         );
+
+      case MontyProgressTag.MONTY_PROGRESS_RESOLVE_FUTURES:
+        final callIdsPtr = _lib.monty_pending_future_call_ids(ptr);
+        final callIdsJson = _readAndFreeString(callIdsPtr);
+
+        return ProgressResult(tag: 3, futureCallIdsJson: callIdsJson);
     }
   }
 
