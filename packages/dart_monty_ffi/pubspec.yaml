@@ -1,6 +1,6 @@
 name: dart_monty_ffi
 description: Native FFI implementation of dart_monty for desktop and mobile platforms (macOS, Linux, Windows, iOS, Android).
-publish_to: 'none'
+publish_to: https://pub.dev
 version: 0.3.2
 homepage: https://github.com/runyaga/dart_monty
 repository: https://github.com/runyaga/dart_monty

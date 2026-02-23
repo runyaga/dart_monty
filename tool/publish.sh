@@ -78,9 +78,6 @@ echo ""
 echo "==> Swapping path deps to ^${VERSION}..."
 
 for pubspec in pubspec.yaml packages/*/pubspec.yaml; do
-  # Remove publish_to: 'none'
-  sedi "/^publish_to:/d" "$pubspec"
-
   # Replace path deps with version constraints
   # Matches patterns like:
   #   dart_monty_platform_interface:
