@@ -219,13 +219,18 @@ Items to investigate or address in future milestones:
   hit V8 string length limits for multi-MB snapshots. Consider chunked
   `fromCharCode` or a `FileReaderSync` Blob approach if perf degrades.
 
-- **WASM async/futures unsupported — fail fast on web (M13):** The
+- **WASM async/futures blocked on upstream API (M13):** The
   `@pydantic/monty` NAPI-RS WASM module does not expose the low-level
-  `FutureSnapshot` API or `ExternalResult::Future` variant. The WASM
-  package stubs `resumeAsFuture()`, `resolveFutures()`, and
-  `resolveFuturesWithErrors()` with `UnsupportedError`. If Python code
-  using `asyncio.gather` is executed on web, the WASM package should
-  raise a clear `UnsupportedError` explaining that async/futures
-  requires the native (FFI) backend. Native should attempt resolution
-  normally. Consider opening an upstream feature request on
-  `pydantic/monty` for exposing `FutureSnapshot` to JS consumers.
+  `FutureSnapshot` API or `ExternalResult::Future` variant to JS
+  consumers. It wraps async internally via `runCodeAsync(code,
+  awaitHandler)`, hiding the `ResolveFutures` state machine entirely.
+  Gemini research confirmed this is an **API design choice, not a
+  WASM/WASI limitation** — NAPI-RS can expose complex Rust types
+  across the WASM boundary, and WASI 0.3 adds native async primitives.
+  Our WASM package stubs `resumeAsFuture()`, `resolveFutures()`, and
+  `resolveFuturesWithErrors()` with `UnsupportedError` and has
+  forward-compat `resolve_futures` state handling for when upstream
+  adds support. Consider opening a feature request on
+  `pydantic/monty` explaining our use case: Dart host needs low-level
+  control over the futures state machine for iterative execution, not
+  just a single callback-based API.
