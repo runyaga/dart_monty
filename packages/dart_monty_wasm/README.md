@@ -2,7 +2,7 @@
 
 Part of [dart_monty](https://github.com/runyaga/dart_monty) — Dart and Flutter bindings for [Monty](https://github.com/pydantic/monty), a Rust-built embeddable sandbox that runs a restricted subset of Python.
 
-[Documentation](https://runyaga.github.io/dart_monty/) | [GitHub](https://github.com/runyaga/dart_monty) | [Monty (upstream)](https://github.com/pydantic/monty)
+[Live Demo](https://runyaga.github.io/dart_monty/) | [GitHub](https://github.com/runyaga/dart_monty) | [Monty (upstream)](https://github.com/pydantic/monty)
 
 **Pure Dart** web WASM implementation of dart_monty using `dart:js_interop` and `@pydantic/monty`. Runs the Monty Python interpreter in a Web Worker to avoid Chrome's synchronous WASM compile-size limit.
 
