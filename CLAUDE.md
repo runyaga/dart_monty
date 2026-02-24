@@ -130,6 +130,14 @@ toolchains (e.g. `cargo` not installed, WASM cpu mismatch) are acceptable
 skips — but Dart gates (M1, M3A) must pass. Do not commit or push if any
 Dart gate fails.
 
+## Releasing
+
+See `CONTRIBUTING.md` for the complete release process, including:
+- Pre-release checklist
+- Tagging and publishing in dependency order
+- Post-release verification and cleanup
+- Troubleshooting failed publishes
+
 ## PR Labels for Changelogs
 
 When creating PRs, add a label matching the conventional commit type so
