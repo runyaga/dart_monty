@@ -1,0 +1,201 @@
+name: Prepare release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g. 0.2.0)'
+        required: true
+        type: string
+      publish:
+        description: 'Publish to pub.dev and create tag'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  validate:
+    name: Analyze and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Generate FFI bindings
+        run: bash tool/generate_bindings.sh
+
+      - name: Analyze all packages
+        run: python3 tool/analyze_packages.py
+
+      - name: Run tests
+        run: |
+          for dir in packages/dart_monty_platform_interface packages/dart_monty_ffi packages/dart_monty_wasm; do
+            echo "--- ${dir} (dart test) ---"
+            cd "$dir"
+            dart pub get
+            dart test
+            cd "$GITHUB_WORKSPACE"
+          done
+          for dir in packages/dart_monty_desktop; do
+            echo "--- ${dir} (flutter test) ---"
+            cd "$dir"
+            flutter pub get
+            flutter test
+            cd "$GITHUB_WORKSPACE"
+          done
+
+  build-native:
+    name: Build native (${{ matrix.label }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            label: linux-x64
+            src: native/target/release/libdart_monty_native.so
+            dst: packages/dart_monty_desktop/linux/libdart_monty_native.so
+          - os: macos-latest
+            label: macos-x64
+            src: native/target/release/libdart_monty_native.dylib
+            dst: packages/dart_monty_desktop/macos/libdart_monty_native.dylib
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: native
+
+      - name: Build and test Rust
+        working-directory: native
+        run: |
+          cargo build --release
+          cargo test
+          cargo fmt --check
+          cargo clippy -- -D warnings
+
+      - name: Fix macOS install_name
+        if: runner.os == 'macOS'
+        run: |
+          install_name_tool -id @rpath/libdart_monty_native.dylib "${{ matrix.src }}"
+          echo "install_name after fix:"
+          otool -D "${{ matrix.src }}"
+
+      - name: Copy binary to desktop package
+        run: |
+          mkdir -p "$(dirname "${{ matrix.dst }}")"
+          cp "${{ matrix.src }}" "${{ matrix.dst }}"
+          ls -lh "${{ matrix.dst }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-${{ matrix.label }}
+          path: ${{ matrix.dst }}
+
+  release:
+    name: Stamp, publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [validate, build-native]
+    environment: pub-dev
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Download vendored binaries
+        uses: actions/download-artifact@v4
+        with:
+          path: vendored
+
+      - name: Place binaries in desktop package
+        run: |
+          cp vendored/native-linux-x64/libdart_monty_native.so \
+             packages/dart_monty_desktop/linux/libdart_monty_native.so
+          cp vendored/native-macos-x64/libdart_monty_native.dylib \
+             packages/dart_monty_desktop/macos/libdart_monty_native.dylib
+          ls -lh packages/dart_monty_desktop/linux/
+          ls -lh packages/dart_monty_desktop/macos/
+
+      - name: Bump version in all pubspecs
+        run: |
+          VERSION="${{ inputs.version }}"
+          for pubspec in pubspec.yaml packages/*/pubspec.yaml; do
+            sed -i "s/^version: .*/version: ${VERSION}/" "$pubspec"
+          done
+
+      - name: Stamp CHANGELOGs
+        run: bash tool/stamp_changelogs.sh "${{ inputs.version }}"
+
+      - name: Verify CHANGELOG entries
+        run: |
+          VERSION="${{ inputs.version }}"
+          for dir in . packages/dart_monty_platform_interface packages/dart_monty_ffi packages/dart_monty_wasm packages/dart_monty_web packages/dart_monty_desktop; do
+            if ! grep -q "## ${VERSION}" "${dir}/CHANGELOG.md"; then
+              echo "ERROR: ${dir}/CHANGELOG.md missing entry for ${VERSION}"
+              exit 1
+            fi
+          done
+
+      - name: Generate FFI bindings
+        run: bash tool/generate_bindings.sh
+
+      - name: Check dartdoc
+        run: |
+          for dir in packages/dart_monty_platform_interface packages/dart_monty_ffi packages/dart_monty_wasm packages/dart_monty_web packages/dart_monty_desktop; do
+            echo "--- ${dir} ---"
+            cd "$dir"
+            dart pub get
+            dart doc --dry-run
+            cd "$GITHUB_WORKSPACE"
+          done
+
+      - name: Commit version bumps
+        run: |
+          VERSION="${{ inputs.version }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "chore: bump version to ${VERSION}"
+
+      - name: Dry-run publish
+        run: bash tool/publish.sh
+
+      - name: Tag and push
+        if: inputs.publish
+        run: |
+          VERSION="${{ inputs.version }}"
+          git tag "v${VERSION}"
+          git push origin HEAD:main
+          git push origin "v${VERSION}"
+
+      - name: Publish to pub.dev
+        if: inputs.publish
+        run: bash tool/publish.sh --publish
+
+      - name: Verify pub.dev publication
+        if: inputs.publish
+        run: |
+          echo "Waiting 60s for pub.dev indexing..."
+          sleep 60
+          bash tool/verify_publish.sh "${{ inputs.version }}"

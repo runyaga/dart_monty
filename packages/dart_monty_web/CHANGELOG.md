@@ -1,5 +1,9 @@
 ## Unreleased
 
+## 0.4.3
+
+- Version bump (no package code changes)
+
 ## 0.4.2
 
 - Override `resumeAsFuture()`, `resolveFutures()`, `resolveFuturesWithErrors()` in `DartMontyWeb` with `UnsupportedError`

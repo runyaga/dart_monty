@@ -1,5 +1,10 @@
 ## Unreleased
 
+## 0.4.3
+
+- Fix vendored macOS dylib `install_name` pointing to CI runner path instead of `@rpath` (#47)
+- Rebuild native library with correct `@rpath` install_name
+
 ## 0.4.2
 
 - Add `resumeAsFuture()`, `resolveFutures()`, `resolveFuturesWithErrors()` to `DesktopBindings`, `DesktopBindingsIsolate`, and `MontyDesktop`
