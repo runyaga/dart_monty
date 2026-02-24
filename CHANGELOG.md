@@ -1,5 +1,11 @@
 ## Unreleased
 
+## 0.4.3
+
+- Fix vendored macOS dylib `install_name` pointing to CI runner path instead of `@rpath` (#47)
+- Add `build.rs` to set `@rpath` install_name at compile time on macOS
+- Add `install_name_tool` safety net in release CI workflow
+
 ## 0.4.2
 
 - Plumb async/futures API through desktop Isolate bridge (`resumeAsFuture()`, `resolveFutures()`, `resolveFuturesWithErrors()`)
