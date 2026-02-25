@@ -32,7 +32,7 @@ See `docs/refactoring-plan.md` for the full plan.
 | 1 | Test Pruning + Trivial Cleanup (~1,394 lines) | Medium | **Done** |
 | 2 | Fix `restore()` State Divergence | Low | **Done** |
 | 3 | Mock & API Surface Cleanup | Low-Medium | **Done** |
-| 4 | State Machine Consolidation (mixin extraction) | Medium | Pending |
+| 4 | State Machine Consolidation (mixin extraction) | Medium | **Done** |
 | 5 | Shared Test Harness (contract tests) | Medium | Pending |
 | 6 | Web Package Simplification | **High** | Pending |
 | 7 | Desktop & WASM Refinement + iOS Prep | Low-Medium | Pending |

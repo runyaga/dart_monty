@@ -144,12 +144,12 @@ echo "=== Phase 2: Capturing metrics ==="
 bash tool/metrics.sh > "$METRICS_AFTER"
 
 # -------------------------------------------------------
-# Phase 3: Run gate.sh --dart-only (unless --skip-gate)
+# Phase 3: Run gate.sh (unless --skip-gate)
 # -------------------------------------------------------
 if [[ "$SKIP_GATE" == false ]]; then
   echo "=== Phase 3: Running gate ==="
   set +e
-  bash tool/gate.sh --dart-only > "$GATE_OUTPUT" 2>&1
+  bash tool/gate.sh > "$GATE_OUTPUT" 2>&1
   GATE_EXIT=$?
   set -e
   if [[ $GATE_EXIT -eq 0 ]]; then
