@@ -145,12 +145,32 @@ The mixin handles only state tracking. Backends remain responsible for:
 
 ## Cross-Backend Parity Guarantees
 
-> *Filled by Slice 5: Shared Test Harness*
+**Definition:** For any given Python code string, all backends (FFI, Desktop,
+WASM) must produce identical `MontyResult` values and identical
+`MontyProgress` state machine transitions. Exceptions must carry the same
+`message`, `excType`, and structural `traceback` information.
 
-<!-- Document what "parity" means: identical MontyResult/MontyProgress for
-     the same Python code across FFI, WASM, and Desktop backends. How it's
-     verified (ladder fixtures, JSONL diff). Known divergences (synthetic
-     resource usage on WASM, timeElapsedMs precision). -->
+**Verification mechanisms:**
+
+- **Ladder fixtures** (`test/fixtures/python_ladder/`) — JSON test cases
+  covering expressions, variables, control flow, functions, errors, external
+  functions, kwargs, exception fields, async/futures, and scriptName. Each
+  backend runs the full fixture set via `registerLadderTests()` from the
+  shared test harness (`dart_monty_testing.dart`).
+- **JSONL diff** (M3C) — Native and web ladder runners emit JSONL output
+  for the same fixtures; `tool/test_cross_path_parity.sh` diffs the output
+  to detect divergences.
+
+**Known divergences:**
+
+- **Resource usage on WASM:** `MontyResourceUsage` fields are synthetic
+  zeros (`memoryBytesUsed: 0`, `timeElapsedMs: 0`, `stackDepthUsed: 0`)
+  because the NAPI-RS layer does not expose the Rust `ResourceTracker`.
+- **`timeElapsedMs` precision:** Native backends report wall-clock
+  microsecond precision; WASM reports millisecond precision from
+  `performance.now()`.
+- **Snapshot portability:** Snapshots are not portable across architectures
+  (ARM64, x86_64, WASM). Same-platform restore only.
 
 ---
 
@@ -177,12 +197,37 @@ The mixin handles only state tracking. Backends remain responsible for:
 
 ## Testing Strategy
 
-> *Filled by Slice 5: Shared Test Harness*
+**Contract test pattern:** Each backend validates the `MontyPlatform`
+behavioral contract via shared ladder helpers from
+`dart_monty_platform_interface/dart_monty_testing.dart`. Backend-specific
+tests cover transport and bindings concerns (Isolate messaging, JS interop,
+FFI memory management).
 
-<!-- Document the contract test pattern: each backend validates MontyPlatform
-     behavioral contract via shared helpers, plus backend-specific tests for
-     transport concerns. Test categorization: unit (mock bindings), integration
-     (real library), ladder (fixture-driven parity). -->
+**Shared test harness** (Slice 5):
+
+- `assertLadderResult()` — verifies `expected`, `expectedContains`, and
+  `expectedSorted` fixture fields against actual result values.
+- `assertPendingFields()` — verifies M7A `MontyPending` fields:
+  `expectedFnName`, `expectedArgs`, `expectedKwargs`,
+  `expectedCallIdNonZero`, `expectedMethodCall`.
+- `assertExceptionFields()` — verifies M7A `MontyException` fields:
+  `expectedExcType`, `expectedTracebackMinFrames`,
+  `expectedTracebackFrameHasFilename`, `expectedErrorFilename`,
+  `expectedTracebackFilename`.
+- `registerLadderTests()` — loads fixtures, creates `group()`/`test()` per
+  tier, handles `xfail`, dispatches to simple/error/iterative runners.
+
+**Test categorization:**
+
+| Category | Scope | Example |
+|----------|-------|---------|
+| **Unit** | Mock bindings, no native library | `monty_ffi_test.dart` with `MockNativeBindings` |
+| **Integration** | Real native library, single operations | `smoke_test.dart` — `run("1+1")` |
+| **Ladder** | Fixture-driven parity across all tiers | `python_ladder_test.dart` via `registerLadderTests` |
+
+Backend ladder tests are ~15-20 lines each: create a platform instance,
+call `registerLadderTests()`, done. All assertion logic lives in the shared
+harness.
 
 ---
 

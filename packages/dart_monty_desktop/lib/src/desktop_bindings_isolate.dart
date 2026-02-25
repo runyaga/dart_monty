@@ -118,7 +118,12 @@ final class _DisposeResponse extends _Response {
 }
 
 final class _ErrorResponse extends _Response {
-  const _ErrorResponse(super.id, this.message);
+  const _ErrorResponse(super.id, this.exception);
+  final MontyException exception;
+}
+
+final class _GenericErrorResponse extends _Response {
+  const _GenericErrorResponse(super.id, this.message);
   final String message;
 }
 
@@ -208,9 +213,9 @@ Future<void> _isolateEntryPoint(_InitMessage init) async {
           return;
       }
     } on MontyException catch (e) {
-      init.mainSendPort.send(_ErrorResponse(message.id, e.message));
+      init.mainSendPort.send(_ErrorResponse(message.id, e));
     } on Object catch (e) {
-      init.mainSendPort.send(_ErrorResponse(message.id, e.toString()));
+      init.mainSendPort.send(_GenericErrorResponse(message.id, e.toString()));
     }
   }
 }
@@ -293,7 +298,10 @@ class DesktopBindingsIsolate extends DesktopBindings {
 
     return completer.future.then((response) {
       if (response is _ErrorResponse) {
-        throw MontyException(message: response.message);
+        throw response.exception;
+      }
+      if (response is _GenericErrorResponse) {
+        throw StateError(response.message);
       }
       return response as T;
     });
