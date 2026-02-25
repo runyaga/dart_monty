@@ -67,11 +67,59 @@ not from a single JSON blob.
 
 ## State Machine Contract
 
-> *Filled by Slice 4: State Machine Consolidation*
+Every `MontyPlatform` backend mixes in `MontyStateMixin` (from
+`dart_monty_platform_interface`) which owns a three-state lifecycle:
 
-<!-- Document the lifecycle (idle -> active <-> pending -> idle | disposed),
-     the invariants each guard enforces, the initialize() contract, and
-     the MontyStateMixin interface. -->
+```text
+         start(pending)        resume(complete)
+  ┌─────────────────────┐   ┌──────────────────┐
+  │                     ▼   │                  ▼
+IDLE ──── run() ──────► IDLE    ACTIVE ──────► IDLE
+  │                             ▲    │
+  │  start(pending/resolve)     │    │  resume(pending/resolve)
+  └────────────────────────────►┘    └──► ACTIVE
+  │                                       │
+  │            dispose()                  │  dispose()
+  └──────────────────────► DISPOSED ◄─────┘
+```
+
+### State Table
+
+| State | Allowed operations | Forbidden |
+|-------|--------------------|-----------|
+| **idle** | `run()`, `start()`, `restore()`, `dispose()` | `resume*()`, `resolveFutures*()`, `snapshot()` |
+| **active** | `resume()`, `resumeWithError()`, `resumeAsFuture()`, `resolveFutures()`, `resolveFuturesWithErrors()`, `snapshot()`, `dispose()` | `run()`, `start()`, `restore()` |
+| **disposed** | `dispose()` (idempotent no-op) | Everything else |
+
+### Guard Methods
+
+| Method | Throws when | Message |
+|--------|------------|---------|
+| `assertNotDisposed(method)` | disposed | `Cannot call $method() on a disposed $backendName` |
+| `assertIdle(method)` | active | `Cannot call $method() while execution is active...` |
+| `assertActive(method)` | not active | `Cannot call $method() when not in active state...` |
+
+### Transition Methods
+
+| Method | Effect |
+|--------|--------|
+| `markActive()` | Set state to active (after start/resume returns pending or resolve\_futures) |
+| `markIdle()` | Set state to idle (after completion, error, or handle free) |
+| `markDisposed()` | Set state to disposed (terminal) |
+
+### `rejectInputs(inputs)`
+
+Throws `UnsupportedError` if `inputs` is non-null and non-empty. All current
+backends reject the `inputs` parameter — it exists for future variable
+injection support.
+
+### Backend-Specific Concerns
+
+The mixin handles only state tracking. Backends remain responsible for:
+
+- **Handle management** (FFI: `_handle` int, freed on complete/error/dispose)
+- **Initialization** (WASM/Desktop: `initialize()` + `_ensureInitialized()`)
+- **Bindings cleanup** (each backend calls its own `_bindings.dispose()`/`free()`)
 
 ---
 

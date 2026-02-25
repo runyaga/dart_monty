@@ -3,9 +3,6 @@ import 'dart:typed_data';
 import 'package:dart_monty_desktop/src/desktop_bindings.dart';
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 
-/// Interpreter lifecycle state.
-enum _State { idle, active, disposed }
-
 /// Desktop Isolate implementation of [MontyPlatform].
 ///
 /// Uses a [DesktopBindings] abstraction to call into a background Isolate
@@ -19,12 +16,14 @@ enum _State { idle, active, disposed }
 /// print(result.value); // 4
 /// await monty.dispose();
 /// ```
-class MontyDesktop extends MontyPlatform {
+class MontyDesktop extends MontyPlatform with MontyStateMixin {
   /// Creates a [MontyDesktop] with the given [bindings].
   MontyDesktop({required DesktopBindings bindings}) : _bindings = bindings;
 
+  @override
+  String get backendName => 'MontyDesktop';
+
   final DesktopBindings _bindings;
-  _State _state = _State.idle;
   bool _initialized = false;
 
   /// Initializes the background Isolate.
@@ -55,9 +54,9 @@ class MontyDesktop extends MontyPlatform {
     MontyLimits? limits,
     String? scriptName,
   }) async {
-    _assertNotDisposed('run');
-    _assertIdle('run');
-    _rejectInputs(inputs);
+    assertNotDisposed('run');
+    assertIdle('run');
+    rejectInputs(inputs);
     await _ensureInitialized();
 
     final result = await _bindings.run(
@@ -76,9 +75,9 @@ class MontyDesktop extends MontyPlatform {
     MontyLimits? limits,
     String? scriptName,
   }) async {
-    _assertNotDisposed('start');
-    _assertIdle('start');
-    _rejectInputs(inputs);
+    assertNotDisposed('start');
+    assertIdle('start');
+    rejectInputs(inputs);
     await _ensureInitialized();
 
     final progress = await _bindings.start(
@@ -92,8 +91,8 @@ class MontyDesktop extends MontyPlatform {
 
   @override
   Future<MontyProgress> resume(Object? returnValue) async {
-    _assertNotDisposed('resume');
-    _assertActive('resume');
+    assertNotDisposed('resume');
+    assertActive('resume');
 
     final progress = await _bindings.resume(returnValue);
     return _handleProgress(progress.progress);
@@ -101,8 +100,8 @@ class MontyDesktop extends MontyPlatform {
 
   @override
   Future<MontyProgress> resumeWithError(String errorMessage) async {
-    _assertNotDisposed('resumeWithError');
-    _assertActive('resumeWithError');
+    assertNotDisposed('resumeWithError');
+    assertActive('resumeWithError');
 
     final progress = await _bindings.resumeWithError(errorMessage);
     return _handleProgress(progress.progress);
@@ -110,8 +109,8 @@ class MontyDesktop extends MontyPlatform {
 
   @override
   Future<MontyProgress> resumeAsFuture() async {
-    _assertNotDisposed('resumeAsFuture');
-    _assertActive('resumeAsFuture');
+    assertNotDisposed('resumeAsFuture');
+    assertActive('resumeAsFuture');
 
     final progress = await _bindings.resumeAsFuture();
     return _handleProgress(progress.progress);
@@ -119,8 +118,8 @@ class MontyDesktop extends MontyPlatform {
 
   @override
   Future<MontyProgress> resolveFutures(Map<int, Object?> results) async {
-    _assertNotDisposed('resolveFutures');
-    _assertActive('resolveFutures');
+    assertNotDisposed('resolveFutures');
+    assertActive('resolveFutures');
 
     final progress = await _bindings.resolveFutures(results);
     return _handleProgress(progress.progress);
@@ -131,8 +130,8 @@ class MontyDesktop extends MontyPlatform {
     Map<int, Object?> results,
     Map<int, String> errors,
   ) async {
-    _assertNotDisposed('resolveFuturesWithErrors');
-    _assertActive('resolveFuturesWithErrors');
+    assertNotDisposed('resolveFuturesWithErrors');
+    assertActive('resolveFuturesWithErrors');
 
     final progress = await _bindings.resolveFuturesWithErrors(results, errors);
     return _handleProgress(progress.progress);
@@ -140,32 +139,32 @@ class MontyDesktop extends MontyPlatform {
 
   @override
   Future<Uint8List> snapshot() async {
-    _assertNotDisposed('snapshot');
-    _assertActive('snapshot');
+    assertNotDisposed('snapshot');
+    assertActive('snapshot');
 
     return _bindings.snapshot();
   }
 
   @override
   Future<MontyPlatform> restore(Uint8List data) async {
-    _assertNotDisposed('restore');
-    _assertIdle('restore');
+    assertNotDisposed('restore');
+    assertIdle('restore');
 
     await _bindings.restore(data);
     final restored = MontyDesktop(bindings: _bindings)
       .._initialized = _initialized
-      .._state = _State.active;
+      ..markActive();
     return restored;
   }
 
   @override
   Future<void> dispose() async {
-    if (_state == _State.disposed) return;
+    if (isDisposed) return;
 
     if (_initialized) {
       await _bindings.dispose();
     }
-    _state = _State.disposed;
+    markDisposed();
   }
 
   // ---------------------------------------------------------------------------
@@ -175,54 +174,13 @@ class MontyDesktop extends MontyPlatform {
   MontyProgress _handleProgress(MontyProgress progress) {
     switch (progress) {
       case MontyComplete():
-        _state = _State.idle;
+        markIdle();
         return progress;
 
       case MontyPending():
       case MontyResolveFutures():
-        _state = _State.active;
+        markActive();
         return progress;
-    }
-  }
-
-  // ---------------------------------------------------------------------------
-  // State assertions
-  // ---------------------------------------------------------------------------
-
-  void _assertNotDisposed(String method) {
-    if (_state == _State.disposed) {
-      throw StateError('Cannot call $method() on a disposed MontyDesktop');
-    }
-  }
-
-  void _assertIdle(String method) {
-    if (_state == _State.active) {
-      throw StateError(
-        'Cannot call $method() while execution is active. '
-        'Call resume(), resumeWithError(), or dispose() first.',
-      );
-    }
-  }
-
-  void _assertActive(String method) {
-    if (_state != _State.active) {
-      throw StateError(
-        'Cannot call $method() when not in active state. '
-        'Call start() first.',
-      );
-    }
-  }
-
-  // ---------------------------------------------------------------------------
-  // Helpers
-  // ---------------------------------------------------------------------------
-
-  void _rejectInputs(Map<String, Object?>? inputs) {
-    if (inputs != null && inputs.isNotEmpty) {
-      throw UnsupportedError(
-        'The desktop backend does not support the inputs parameter. '
-        'Use externalFunctions with start()/resume() instead.',
-      );
     }
   }
 }
