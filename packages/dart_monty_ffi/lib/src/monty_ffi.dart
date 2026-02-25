@@ -190,7 +190,8 @@ class MontyFfi extends MontyPlatform {
 
     final handle = _bindings.restore(data);
 
-    return MontyFfi._withHandle(bindings: _bindings, handle: handle);
+    return MontyFfi._withHandle(bindings: _bindings, handle: handle)
+      .._state = _State.active;
   }
 
   @override

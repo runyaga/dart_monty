@@ -153,7 +153,8 @@ class MontyDesktop extends MontyPlatform {
 
     await _bindings.restore(data);
     final restored = MontyDesktop(bindings: _bindings)
-      .._initialized = _initialized;
+      .._initialized = _initialized
+      .._state = _State.active;
     return restored;
   }
 

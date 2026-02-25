@@ -573,15 +573,24 @@ void main() {
       expect(mock.restoreCalls.first, data);
     });
 
-    test('restored instance can run code', () async {
-      mock.nextRunResult = const DesktopRunResult(
-        result: MontyResult(value: 10, usage: _zeroUsage),
-      );
-
+    test('restored instance is in active state', () async {
       final restored = await monty.restore(Uint8List.fromList([1, 2, 3]));
-      final result = await (restored as MontyDesktop).run('5 + 5');
+      final restoredDesktop = restored as MontyDesktop;
 
-      expect(result.value, 10);
+      // Restored snapshot is paused — run() should be rejected.
+      expect(() => restoredDesktop.run('x'), throwsStateError);
+
+      // resume() should be allowed (active state).
+      mock.resumeResults.add(
+        const DesktopProgressResult(
+          progress: MontyComplete(
+            result: MontyResult(value: 10, usage: _zeroUsage),
+          ),
+        ),
+      );
+      final progress = await restoredDesktop.resume('val');
+      expect(progress, isA<MontyComplete>());
+      expect((progress as MontyComplete).result.value, 10);
     });
 
     test('throws MontyException when restore fails', () {
