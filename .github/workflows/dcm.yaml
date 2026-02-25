@@ -1,10 +1,7 @@
 name: DCM
 
 on:
-  push:
-    branches: [main]
-  schedule:
-    - cron: "0 9 * * 1" # Monday 9am UTC
+  workflow_dispatch: # manual only — DCM is used locally
 
 concurrency:
   group: dcm-${{ github.ref }}
