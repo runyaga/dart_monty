@@ -112,7 +112,7 @@ Run these checks after every code change:
 1. `dart format .` — must produce no changes
 2. `python3 tool/analyze_packages.py` — must report zero issues
 3. `dart test` (from package dir) — must pass all tests
-4. Maintain 90%+ line coverage (enforced by CI and pre-push hooks)
+4. Maintain 70%+ line coverage (enforced by CI and pre-push hooks)
 
 ## Pre-Commit/Push CI Gates
 

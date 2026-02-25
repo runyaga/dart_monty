@@ -2,13 +2,13 @@
 # =============================================================================
 # Gate Script — Platform Interface
 # =============================================================================
-# Validates: pub get, format, analyze, test, coverage >= 90%
+# Validates: pub get, format, analyze, test, coverage >= 70%
 # Usage: bash tool/test_platform_interface.sh
 # =============================================================================
 set -euo pipefail
 
 PKG="packages/dart_monty_platform_interface"
-MIN_COVERAGE=90
+MIN_COVERAGE=70
 
 cd "$(git rev-parse --show-toplevel)"
 

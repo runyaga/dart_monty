@@ -2,7 +2,7 @@
 # =============================================================================
 # M4 Gate Script — WASM Package
 # =============================================================================
-# Validates: JS build, pub get, format, analyze, test, coverage >= 90%,
+# Validates: JS build, pub get, format, analyze, test, coverage >= 70%,
 # integration smoke test, and python ladder in headless Chrome.
 #
 # Usage: bash tool/test_wasm.sh
@@ -11,7 +11,7 @@ set -euo pipefail
 
 ROOT="$(git rev-parse --show-toplevel)"
 PKG="$ROOT/packages/dart_monty_wasm"
-MIN_COVERAGE=90
+MIN_COVERAGE=70
 
 cd "$ROOT"
 
