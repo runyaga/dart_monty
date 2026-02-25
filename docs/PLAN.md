@@ -33,16 +33,17 @@ See `docs/refactoring-plan.md` for the full plan.
 | 2 | Fix `restore()` State Divergence | Low | **Done** |
 | 3 | Mock & API Surface Cleanup | Low-Medium | **Done** |
 | 4 | State Machine Consolidation (mixin extraction) | Medium | **Done** |
-| 5 | Shared Test Harness (contract tests) | Medium | Pending |
+| 5 | Shared Test Harness (contract tests) | Medium | **Done** |
 | 6 | Web Package Simplification | **High** | Pending |
 | 7 | Desktop & WASM Refinement + iOS Prep | Low-Medium | Pending |
 | 8 | Rust Crate Consolidation | **Highest** | Pending |
+| 9 | DCM Lint Cleanup | Low | Pending |
 
 **Release:** All slices ship together as **0.5.0** (includes demo
 consolidation, dartdoc enforcement, and optional package rename
 `dart_monty_desktop` → `dart_monty_native`).
 
-Recommended order: `0 → 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8`
+Recommended order: `0 → 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9`
 
 ### Slice Review Process
 
