@@ -140,10 +140,27 @@ not from a single JSON blob.
 
 ## Testing Utilities
 
-> *Filled by Slice 3: Mock & API Surface Cleanup*
+**Test barrel:** `dart_monty_testing.dart` exports `MockMontyPlatform` — the
+platform-level mock for consumer packages. It is intentionally excluded from
+the main `dart_monty_platform_interface.dart` barrel so production code never
+depends on test infrastructure.
 
-<!-- Document what dart_monty_testing.dart exports, the mock strategy decision
-     (hand-rolled vs mocktail), and how to write tests for new backends. -->
+**Mock strategy:** All mocks are hand-rolled (no mocktail/mockito). Each mock
+extends the real abstract class it replaces and follows a consistent pattern:
+
+- **Configurable returns** — set fields like `runResult`, `snapshotData`,
+  or `enqueueProgress()` before calling the method under test.
+- **Invocation tracking** — lists such as `runCodes`, `startInputsList`,
+  `resumeReturnValues` record every call in order.
+- **Convenience getters** — `lastRunCode`, `lastStartInputs`, etc. for
+  single-call assertions.
+
+**Per-backend mocks** (`MockNativeBindings`, `MockWasmBindings`,
+`MockDesktopBindings`) follow the same pattern at the bindings layer. Each
+extends its package's abstract `*Bindings` class, providing configurable
+return values (`next*` fields) and call-count tracking (`*Calls` lists).
+Multi-step flows use a FIFO queue (`enqueueProgress`) so tests can script
+`start → resume → complete` sequences.
 
 ---
 

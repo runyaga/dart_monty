@@ -1,8 +1,4 @@
-import 'package:collection/collection.dart';
 import 'package:meta/meta.dart';
-
-/// Deep equality instance shared across [MontyStackFrame] operations.
-const _deepEquality = DeepCollectionEquality();
 
 /// A single frame in a Python traceback.
 ///
@@ -129,16 +125,4 @@ final class MontyStackFrame {
         .map(MontyStackFrame.fromJson)
         .toList();
   }
-}
-
-/// Extension for deep comparison of [MontyStackFrame] lists.
-///
-/// Used internally by `MontyException` equality checks.
-extension MontyStackFrameListEquality on List<MontyStackFrame> {
-  /// Whether this list is structurally equal to [other].
-  bool deepEquals(List<MontyStackFrame> other) =>
-      _deepEquality.equals(this, other);
-
-  /// A hash code consistent with [deepEquals].
-  int get deepHashCode => _deepEquality.hash(this);
 }

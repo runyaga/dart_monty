@@ -31,7 +31,7 @@ See `docs/refactoring-plan.md` for the full plan.
 | 0 | Quality Gate Baseline (`gate.sh`, `metrics.sh`, arch.md skeleton) | None | **Done** |
 | 1 | Test Pruning + Trivial Cleanup (~1,394 lines) | Medium | **Done** |
 | 2 | Fix `restore()` State Divergence | Low | **Done** |
-| 3 | Mock & API Surface Cleanup | Low-Medium | Pending |
+| 3 | Mock & API Surface Cleanup | Low-Medium | **Done** |
 | 4 | State Machine Consolidation (mixin extraction) | Medium | Pending |
 | 5 | Shared Test Harness (contract tests) | Medium | Pending |
 | 6 | Web Package Simplification | **High** | Pending |
@@ -43,6 +43,26 @@ consolidation, dartdoc enforcement, and optional package rename
 `dart_monty_desktop` → `dart_monty_native`).
 
 Recommended order: `0 → 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8`
+
+### Slice Review Process
+
+Each slice goes through this pipeline (full process in `docs/refactoring-plan.md`):
+
+0. **Audit & update spec** — run the prerequisite audit, then update the
+   slice spec in `refactoring-plan.md` with findings. Gemini reviews against
+   the spec, so stale specs cause false positives.
+1. **Run `bash tool/slice_review.sh <N>`** — executes tests, gate checks,
+   captures metrics delta vs baseline, generates a unified diff, and
+   assembles a review prompt at `ci-review/slice-reviews/slice-N-prompt.md`.
+2. **Pass review artifacts to Gemini** — use `mcp__gemini__read_files` with
+   the prompt `.md`, changed source files, and the `.diff`, model
+   `gemini-3.1-pro-preview`. Use `--context <file>` for unchanged files
+   Gemini needs to verify claims about pre-existing code.
+3. **Address review findings** — fix any issues Gemini flags, re-run the
+   review script if needed, then commit.
+
+Flags: `--skip-tests`, `--skip-gate`, `--skip-all`, `--context <file>`.
+Output lands in `ci-review/slice-reviews/`.
 
 ---
 
