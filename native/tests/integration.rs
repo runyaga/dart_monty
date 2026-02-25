@@ -1065,3 +1065,269 @@ fn async_null_safety_via_ffi() {
         unsafe { monty_free(h) };
     }
 }
+
+// ---------------------------------------------------------------------------
+// FFI Boundary: Iterative happy path (start → pending → resume → complete)
+// Validates C string marshaling for fn_name, fn_args, resume value, result.
+// ---------------------------------------------------------------------------
+
+#[test]
+fn iterative_execution_via_ffi() {
+    let code = c("result = ext_fn(42)\nresult + 1");
+    let ext_fns = c("ext_fn");
+    let mut out_error: *mut c_char = ptr::null_mut();
+
+    let handle =
+        unsafe { monty_create(code.as_ptr(), ext_fns.as_ptr(), ptr::null(), &mut out_error) };
+    assert!(!handle.is_null());
+
+    let tag = unsafe { monty_start(handle, &mut out_error) };
+    assert_eq!(tag, MontyProgressTag::Pending);
+
+    let fn_name_ptr = unsafe { monty_pending_fn_name(handle) };
+    let fn_name = unsafe { read_c_string(fn_name_ptr) };
+    assert_eq!(fn_name, "ext_fn");
+
+    let args_ptr = unsafe { monty_pending_fn_args_json(handle) };
+    let args_str = unsafe { read_c_string(args_ptr) };
+    let args: serde_json::Value = serde_json::from_str(&args_str).unwrap();
+    assert_eq!(args, serde_json::json!([42]));
+
+    let value = c("100");
+    let tag = unsafe { monty_resume(handle, value.as_ptr(), &mut out_error) };
+    assert_eq!(tag, MontyProgressTag::Complete);
+
+    let result_ptr = unsafe { monty_complete_result_json(handle) };
+    let result_str = unsafe { read_c_string(result_ptr) };
+    let result: serde_json::Value = serde_json::from_str(&result_str).unwrap();
+    assert_eq!(result["value"], 101);
+    assert_eq!(unsafe { monty_complete_is_error(handle) }, 0);
+
+    unsafe { monty_free(handle) };
+}
+
+// ---------------------------------------------------------------------------
+// FFI Boundary: Resume-with-error propagation
+// Validates error string crosses C boundary into Python except clause.
+// ---------------------------------------------------------------------------
+
+#[test]
+fn resume_with_error_via_ffi() {
+    let code =
+        c("try:\n    result = ext_fn(1)\nexcept RuntimeError as e:\n    result = str(e)\nresult");
+    let ext_fns = c("ext_fn");
+    let mut out_error: *mut c_char = ptr::null_mut();
+
+    let handle =
+        unsafe { monty_create(code.as_ptr(), ext_fns.as_ptr(), ptr::null(), &mut out_error) };
+    assert!(!handle.is_null());
+
+    let tag = unsafe { monty_start(handle, &mut out_error) };
+    assert_eq!(tag, MontyProgressTag::Pending);
+
+    let err_msg = c("something went wrong");
+    let tag = unsafe { monty_resume_with_error(handle, err_msg.as_ptr(), &mut out_error) };
+    assert_eq!(tag, MontyProgressTag::Complete);
+    assert_eq!(unsafe { monty_complete_is_error(handle) }, 0);
+
+    let result_ptr = unsafe { monty_complete_result_json(handle) };
+    let result_str = unsafe { read_c_string(result_ptr) };
+    assert!(result_str.contains("something went wrong"));
+
+    unsafe { monty_free(handle) };
+}
+
+// ---------------------------------------------------------------------------
+// FFI Boundary: Snapshot round-trip via raw byte pointers
+// Validates monty_snapshot → monty_bytes_free → monty_restore → monty_run.
+// ---------------------------------------------------------------------------
+
+#[test]
+fn snapshot_round_trip_via_ffi() {
+    let code = c("2 + 2");
+    let mut create_error: *mut c_char = ptr::null_mut();
+
+    let handle =
+        unsafe { monty_create(code.as_ptr(), ptr::null(), ptr::null(), &mut create_error) };
+    assert!(!handle.is_null());
+
+    let mut snap_len: usize = 0;
+    let snap_ptr = unsafe { monty_snapshot(handle, &mut snap_len) };
+    assert!(!snap_ptr.is_null());
+    assert!(snap_len > 0);
+
+    unsafe { monty_free(handle) };
+
+    let mut restore_error: *mut c_char = ptr::null_mut();
+    let restored = unsafe { monty_restore(snap_ptr, snap_len, &mut restore_error) };
+    assert!(!restored.is_null());
+
+    unsafe { monty_bytes_free(snap_ptr, snap_len) };
+
+    let mut result_json: *mut c_char = ptr::null_mut();
+    let mut error_msg: *mut c_char = ptr::null_mut();
+    let tag = unsafe { monty_run(restored, &mut result_json, &mut error_msg) };
+    assert_eq!(tag, MontyResultTag::Ok);
+
+    let json_str = unsafe { read_c_string(result_json) };
+    let parsed: serde_json::Value = serde_json::from_str(&json_str).unwrap();
+    assert_eq!(parsed["value"], 4);
+
+    if !error_msg.is_null() {
+        unsafe { monty_string_free(error_msg) };
+    }
+    unsafe { monty_free(restored) };
+}
+
+// ---------------------------------------------------------------------------
+// FFI Boundary: Resource limit enforcement (memory + time)
+// Only way to verify limits trigger errors through C FFI wrappers.
+// ---------------------------------------------------------------------------
+
+#[test]
+fn memory_limit_exceeded_via_ffi() {
+    let code = c("x = [0] * 100000\nlen(x)");
+    let mut create_error: *mut c_char = ptr::null_mut();
+
+    let handle =
+        unsafe { monty_create(code.as_ptr(), ptr::null(), ptr::null(), &mut create_error) };
+    assert!(!handle.is_null());
+
+    unsafe { monty_set_memory_limit(handle, 1024) };
+
+    let mut result_json: *mut c_char = ptr::null_mut();
+    let mut error_msg: *mut c_char = ptr::null_mut();
+    let tag = unsafe { monty_run(handle, &mut result_json, &mut error_msg) };
+    assert_eq!(tag, MontyResultTag::Error);
+
+    if !result_json.is_null() {
+        unsafe { monty_string_free(result_json) };
+    }
+    if !error_msg.is_null() {
+        unsafe { monty_string_free(error_msg) };
+    }
+    unsafe { monty_free(handle) };
+}
+
+#[test]
+fn time_limit_exceeded_via_ffi() {
+    let code = c("i = 0\nwhile True:\n    i += 1\ni");
+    let mut create_error: *mut c_char = ptr::null_mut();
+
+    let handle =
+        unsafe { monty_create(code.as_ptr(), ptr::null(), ptr::null(), &mut create_error) };
+    assert!(!handle.is_null());
+
+    unsafe { monty_set_time_limit_ms(handle, 1) };
+
+    let mut result_json: *mut c_char = ptr::null_mut();
+    let mut error_msg: *mut c_char = ptr::null_mut();
+    let tag = unsafe { monty_run(handle, &mut result_json, &mut error_msg) };
+    assert_eq!(tag, MontyResultTag::Error);
+
+    if !result_json.is_null() {
+        unsafe { monty_string_free(result_json) };
+    }
+    if !error_msg.is_null() {
+        unsafe { monty_string_free(error_msg) };
+    }
+    unsafe { monty_free(handle) };
+}
+
+// ---------------------------------------------------------------------------
+// FFI Boundary: Async full flow via C pointers
+// start → resume_as_future → pending_future_call_ids → resume_futures
+// ---------------------------------------------------------------------------
+
+#[test]
+fn async_single_await_via_ffi() {
+    let code = c("async def main():\n  result = await fetch('x')\n  return result\n\nawait main()");
+    let ext_fns = c("fetch");
+    let mut out_error: *mut c_char = ptr::null_mut();
+
+    let handle =
+        unsafe { monty_create(code.as_ptr(), ext_fns.as_ptr(), ptr::null(), &mut out_error) };
+    assert!(!handle.is_null());
+
+    let tag = unsafe { monty_start(handle, &mut out_error) };
+    assert_eq!(tag, MontyProgressTag::Pending);
+
+    let call_id = unsafe { monty_pending_call_id(handle) };
+    assert_ne!(call_id, u32::MAX);
+
+    let tag = unsafe { monty_resume_as_future(handle, &mut out_error) };
+    assert_eq!(tag, MontyProgressTag::ResolveFutures);
+
+    let ids_ptr = unsafe { monty_pending_future_call_ids(handle) };
+    assert!(!ids_ptr.is_null());
+    let ids_str = unsafe { read_c_string(ids_ptr) };
+    let ids: Vec<u32> = serde_json::from_str(&ids_str).unwrap();
+    assert_eq!(ids.len(), 1);
+
+    let results = CString::new(format!("{{\"{}\":\"response_x\"}}", ids[0])).unwrap();
+    let errors = c("{}");
+    let tag =
+        unsafe { monty_resume_futures(handle, results.as_ptr(), errors.as_ptr(), &mut out_error) };
+    assert_eq!(tag, MontyProgressTag::Complete);
+    assert_eq!(unsafe { monty_complete_is_error(handle) }, 0);
+
+    let result_ptr = unsafe { monty_complete_result_json(handle) };
+    let result_str = unsafe { read_c_string(result_ptr) };
+    let result: serde_json::Value = serde_json::from_str(&result_str).unwrap();
+    assert_eq!(result["value"], "response_x");
+
+    if !out_error.is_null() {
+        unsafe { monty_string_free(out_error) };
+    }
+    unsafe { monty_free(handle) };
+}
+
+// ---------------------------------------------------------------------------
+// FFI Boundary: Async gather (multiple ext_fn → batch resolve)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn async_gather_via_ffi() {
+    let code = c(
+        "import asyncio\n\nasync def main():\n  a, b = await asyncio.gather(foo(), bar())\n  return a + b\n\nawait main()",
+    );
+    let ext_fns = c("foo,bar");
+    let mut out_error: *mut c_char = ptr::null_mut();
+
+    let handle =
+        unsafe { monty_create(code.as_ptr(), ext_fns.as_ptr(), ptr::null(), &mut out_error) };
+    assert!(!handle.is_null());
+
+    let tag = unsafe { monty_start(handle, &mut out_error) };
+    assert_eq!(tag, MontyProgressTag::Pending);
+    let id0 = unsafe { monty_pending_call_id(handle) };
+
+    let tag = unsafe { monty_resume_as_future(handle, &mut out_error) };
+    assert_eq!(tag, MontyProgressTag::Pending);
+    let id1 = unsafe { monty_pending_call_id(handle) };
+
+    let tag = unsafe { monty_resume_as_future(handle, &mut out_error) };
+    assert_eq!(tag, MontyProgressTag::ResolveFutures);
+
+    let ids_ptr = unsafe { monty_pending_future_call_ids(handle) };
+    assert!(!ids_ptr.is_null());
+    let ids_str = unsafe { read_c_string(ids_ptr) };
+    let ids: Vec<u32> = serde_json::from_str(&ids_str).unwrap();
+    assert_eq!(ids.len(), 2);
+
+    let results = CString::new(format!("{{\"{}\":10,\"{}\":32}}", id0, id1)).unwrap();
+    let errors = c("{}");
+    let tag =
+        unsafe { monty_resume_futures(handle, results.as_ptr(), errors.as_ptr(), &mut out_error) };
+    assert_eq!(tag, MontyProgressTag::Complete);
+
+    let result_ptr = unsafe { monty_complete_result_json(handle) };
+    let result_str = unsafe { read_c_string(result_ptr) };
+    let result: serde_json::Value = serde_json::from_str(&result_str).unwrap();
+    assert_eq!(result["value"], 42);
+
+    if !out_error.is_null() {
+        unsafe { monty_string_free(out_error) };
+    }
+    unsafe { monty_free(handle) };
+}

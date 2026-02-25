@@ -123,21 +123,52 @@ no separate manual checks needed.
 
 ### Step 3: AI Review (before merge)
 
-Each slice PR gets a structured review from Gemini (`read_files` with the
-changed files + architecture.md changes + `tool/gate.sh` output + ladder/parity
-test logs).
+Each slice PR gets a structured review from Gemini. Run `tool/slice_review.sh`
+to assemble a self-contained prompt with metrics, gate output, changed file
+contents, and the review rubric:
 
-**Review questions (answer each with PASS / FAIL + 1-sentence evidence):**
+```bash
+bash tool/slice_review.sh N                # full: tests + gate + metrics + assemble
+bash tool/slice_review.sh N --skip-tests   # reuse existing lcov data
+bash tool/slice_review.sh N --skip-gate    # skip gate.sh
+bash tool/slice_review.sh N --skip-all     # skip both, assemble from existing data
+```
 
-1. **Behavioral parity:** Do all backends still behave identically? Cite
-   specific test outputs or ladder results as evidence.
-2. **API surface:** Did the public API change? Is it intentional? Check
-   `dart doc` output for unexpected exports.
-3. **Test quality:** Are remaining tests meaningful? Any new tautological tests?
-4. **Design doc accuracy:** Does the architecture.md section accurately
-   describe the design intent? Is anything misleading or missing?
-5. **Cross-platform impact:** Does this change affect iOS/Android/Windows
-   expansion readiness? (Especially relevant for Slices 4, 3, 7)
+Output:
+
+- `ci-review/slice-reviews/slice-N-prompt.md` — review instructions + metrics
+- `ci-review/slice-reviews/slice-N.diff` — unified diff (what actually changed)
+
+Pass the prompt, the diff, and the changed source files to
+`mcp__gemini__read_files` with model `gemini-3.1-pro-preview`. Save the
+response to `ci-review/slice-reviews/slice-N-review.md`.
+
+**Review process — for each question below, you MUST provide:**
+
+1. **Analysis** (3-5 sentences): Deep technical analysis. Quote specific
+   lines from the unified diff as evidence. Do NOT use metrics tables as
+   proof of behavioral correctness — metrics measure quantity, not behavior.
+2. **Verdict**: PASS or FAIL.
+
+**Review questions:**
+
+1. **Behavioral parity:** Read the unified diff. Did any production code
+   in `lib/` or `src/` change? For deleted tests, read the exact lines
+   removed — were they truly tautological (testing language semantics, not
+   business logic) or did they cover real FFI/serialization boundaries?
+2. **API surface:** Check the diff for changes to files in `lib/`. Were
+   any public classes, methods, or parameters added, removed, or renamed?
+   Is it intentional per the slice spec?
+3. **Test quality:** Look at remaining tests in the diff. Are assertions
+   meaningful? Do they test production behavior or just mirror the
+   implementation? Any new tests that are tautological?
+4. **Design doc accuracy:** Does the architecture.md diff (if any)
+   accurately describe the design intent? Is anything misleading or
+   missing? If the slice spec says "no design change," confirm no
+   architecture.md changes exist in the diff.
+5. **Cross-platform impact:** Do the diff changes touch platform-specific
+   APIs (`dart:ffi`, `dart:js_interop`, podspec, CMakeLists) in a way
+   that affects iOS/Android/Windows expansion readiness?
 
 **Scope guardrails — the reviewer MUST NOT:**
 

@@ -6,6 +6,10 @@ validated in M2-M3 before any Flutter investment).
 
 Detailed specs: [`docs/milestones/`](docs/milestones/)
 
+**Refactoring plan & guardrail prompt:** [`docs/refactoring-plan.md`](docs/refactoring-plan.md)
+— see "Slice Review Process → Step 3: AI Review" for the structured review
+questions and scope guardrails used to validate each slice PR.
+
 ---
 
 ## Quality Gates (every milestone)
@@ -314,6 +318,7 @@ No manual testing steps.
 | `tool/test_python_ladder.sh` | runs ladder fixtures on native + web paths |
 | `tool/test_cross_path_parity.sh` | JSONL output diff: native vs web must be identical |
 | `tool/test_snapshot_portability.sh` | snapshot round-trip probe (native <-> WASM) |
+| `tool/slice_review.sh` | assemble AI review prompt (metrics delta, gate, changed files, rubric) |
 
 ### Test Dependencies (installed once)
 
