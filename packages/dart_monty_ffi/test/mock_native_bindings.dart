@@ -2,6 +2,10 @@ import 'dart:typed_data';
 
 import 'package:dart_monty_ffi/src/native_bindings.dart';
 
+const _defaultCompleteJson =
+    '{"value": null, "usage": {"memory_bytes_used": 0, '
+    '"time_elapsed_ms": 0, "stack_depth_used": 0}}';
+
 /// A hand-written mock of [NativeBindings] with configurable returns
 /// and call tracking.
 ///
@@ -28,8 +32,7 @@ class MockNativeBindings extends NativeBindings {
   /// Result returned by [start].
   ProgressResult nextStartResult = const ProgressResult(
     tag: 0,
-    resultJson: '{"value": null, "usage": {"memory_bytes_used": 0, '
-        '"time_elapsed_ms": 0, "stack_depth_used": 0}}',
+    resultJson: _defaultCompleteJson,
   );
 
   /// Queue of results returned by [resume]. Dequeues on each call.
@@ -146,8 +149,7 @@ class MockNativeBindings extends NativeBindings {
 
     return const ProgressResult(
       tag: 0,
-      resultJson: '{"value": null, "usage": {"memory_bytes_used": 0, '
-          '"time_elapsed_ms": 0, "stack_depth_used": 0}}',
+      resultJson: _defaultCompleteJson,
     );
   }
 
@@ -162,8 +164,7 @@ class MockNativeBindings extends NativeBindings {
 
     return const ProgressResult(
       tag: 0,
-      resultJson: '{"value": null, "usage": {"memory_bytes_used": 0, '
-          '"time_elapsed_ms": 0, "stack_depth_used": 0}}',
+      resultJson: _defaultCompleteJson,
     );
   }
 
@@ -195,8 +196,7 @@ class MockNativeBindings extends NativeBindings {
 
     return const ProgressResult(
       tag: 0,
-      resultJson: '{"value": null, "usage": {"memory_bytes_used": 0, '
-          '"time_elapsed_ms": 0, "stack_depth_used": 0}}',
+      resultJson: _defaultCompleteJson,
     );
   }
 

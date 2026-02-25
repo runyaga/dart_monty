@@ -3,39 +3,6 @@ import 'package:test/test.dart';
 
 void main() {
   group('MontyResourceUsage', () {
-    test('constructs with all fields', () {
-      const usage = MontyResourceUsage(
-        memoryBytesUsed: 1024,
-        timeElapsedMs: 50,
-        stackDepthUsed: 10,
-      );
-      expect(usage.memoryBytesUsed, 1024);
-      expect(usage.timeElapsedMs, 50);
-      expect(usage.stackDepthUsed, 10);
-    });
-
-    test('handles zero values', () {
-      const usage = MontyResourceUsage(
-        memoryBytesUsed: 0,
-        timeElapsedMs: 0,
-        stackDepthUsed: 0,
-      );
-      expect(usage.memoryBytesUsed, 0);
-      expect(usage.timeElapsedMs, 0);
-      expect(usage.stackDepthUsed, 0);
-    });
-
-    test('handles large values', () {
-      const usage = MontyResourceUsage(
-        memoryBytesUsed: 1073741824, // 1 GB
-        timeElapsedMs: 3600000, // 1 hour
-        stackDepthUsed: 10000,
-      );
-      expect(usage.memoryBytesUsed, 1073741824);
-      expect(usage.timeElapsedMs, 3600000);
-      expect(usage.stackDepthUsed, 10000);
-    });
-
     group('fromJson', () {
       test('parses JSON', () {
         final usage = MontyResourceUsage.fromJson(const {

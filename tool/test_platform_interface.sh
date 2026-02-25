@@ -45,6 +45,10 @@ dart pub global run coverage:format_coverage \
   --out=coverage/lcov.info \
   --report-on=lib
 
+# Exclude test-infrastructure files from coverage
+lcov --remove coverage/lcov.info '*/mock_monty_platform.dart' \
+  --output-file coverage/lcov.info --quiet 2>/dev/null || true
+
 # Extract line coverage percentage
 TOTAL=$(grep -c '^DA:' coverage/lcov.info || true)
 HIT=$(grep '^DA:' coverage/lcov.info | grep -cv ',0$' || true)
