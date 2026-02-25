@@ -28,7 +28,7 @@ See `docs/refactoring-plan.md` for the full plan.
 
 | Slice | Description | Risk | Status |
 |-------|-------------|------|--------|
-| 0 | Quality Gate Baseline (`gate.sh`, `metrics.sh`, arch.md skeleton) | None | **In Progress** |
+| 0 | Quality Gate Baseline (`gate.sh`, `metrics.sh`, arch.md skeleton) | None | **Done** |
 | 1 | Test Pruning + Trivial Cleanup (~1,394 lines) | Medium | Pending |
 | 2 | Fix `restore()` State Divergence | Low | Pending |
 | 3 | Mock & API Surface Cleanup | Low-Medium | Pending |
