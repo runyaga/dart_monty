@@ -4,9 +4,6 @@ import 'dart:typed_data';
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 import 'package:dart_monty_wasm/src/wasm_bindings.dart';
 
-/// Interpreter lifecycle state.
-enum _State { idle, active, disposed }
-
 /// Web WASM implementation of [MontyPlatform].
 ///
 /// Uses a [WasmBindings] abstraction to call into the WASM Worker bridge.
@@ -19,12 +16,14 @@ enum _State { idle, active, disposed }
 /// print(result.value); // 4
 /// await monty.dispose();
 /// ```
-class MontyWasm extends MontyPlatform {
+class MontyWasm extends MontyPlatform with MontyStateMixin {
   /// Creates a [MontyWasm] with the given [bindings].
   MontyWasm({required WasmBindings bindings}) : _bindings = bindings;
 
+  @override
+  String get backendName => 'MontyWasm';
+
   final WasmBindings _bindings;
-  _State _state = _State.idle;
   bool _initialized = false;
 
   /// Synthetic resource usage — the WASM bridge does not expose
@@ -57,9 +56,9 @@ class MontyWasm extends MontyPlatform {
     MontyLimits? limits,
     String? scriptName,
   }) async {
-    _assertNotDisposed('run');
-    _assertIdle('run');
-    _rejectInputs(inputs);
+    assertNotDisposed('run');
+    assertIdle('run');
+    rejectInputs(inputs);
     await _ensureInitialized();
 
     final limitsJson = _encodeLimits(limits);
@@ -80,9 +79,9 @@ class MontyWasm extends MontyPlatform {
     MontyLimits? limits,
     String? scriptName,
   }) async {
-    _assertNotDisposed('start');
-    _assertIdle('start');
-    _rejectInputs(inputs);
+    assertNotDisposed('start');
+    assertIdle('start');
+    rejectInputs(inputs);
     await _ensureInitialized();
 
     final extFnsJson = externalFunctions != null && externalFunctions.isNotEmpty
@@ -102,8 +101,8 @@ class MontyWasm extends MontyPlatform {
 
   @override
   Future<MontyProgress> resume(Object? returnValue) async {
-    _assertNotDisposed('resume');
-    _assertActive('resume');
+    assertNotDisposed('resume');
+    assertActive('resume');
 
     final valueJson = json.encode(returnValue);
     final progress = await _bindings.resume(valueJson);
@@ -113,8 +112,8 @@ class MontyWasm extends MontyPlatform {
 
   @override
   Future<MontyProgress> resumeWithError(String errorMessage) async {
-    _assertNotDisposed('resumeWithError');
-    _assertActive('resumeWithError');
+    assertNotDisposed('resumeWithError');
+    assertActive('resumeWithError');
 
     final progress = await _bindings.resumeWithError(errorMessage);
 
@@ -153,32 +152,32 @@ class MontyWasm extends MontyPlatform {
 
   @override
   Future<Uint8List> snapshot() {
-    _assertNotDisposed('snapshot');
-    _assertActive('snapshot');
+    assertNotDisposed('snapshot');
+    assertActive('snapshot');
 
     return _bindings.snapshot();
   }
 
   @override
   Future<MontyPlatform> restore(Uint8List data) async {
-    _assertNotDisposed('restore');
-    _assertIdle('restore');
+    assertNotDisposed('restore');
+    assertIdle('restore');
 
     await _bindings.restore(data);
 
     return MontyWasm(bindings: _bindings)
       .._initialized = _initialized
-      .._state = _State.active;
+      ..markActive();
   }
 
   @override
   Future<void> dispose() async {
-    if (_state == _State.disposed) return;
+    if (isDisposed) return;
 
     if (_initialized) {
       await _bindings.dispose();
     }
-    _state = _State.disposed;
+    markDisposed();
   }
 
   // ---------------------------------------------------------------------------
@@ -207,7 +206,7 @@ class MontyWasm extends MontyPlatform {
 
   MontyProgress _translateProgress(WasmProgressResult progress) {
     if (!progress.ok) {
-      _state = _State.idle;
+      markIdle();
       throw MontyException(
         message: progress.error ?? 'Unknown error',
         excType: progress.excType,
@@ -217,7 +216,7 @@ class MontyWasm extends MontyPlatform {
 
     switch (progress.state) {
       case 'complete':
-        _state = _State.idle;
+        markIdle();
 
         return MontyComplete(
           result: MontyResult(
@@ -227,7 +226,7 @@ class MontyWasm extends MontyPlatform {
         );
 
       case 'pending':
-        _state = _State.active;
+        markActive();
 
         return MontyPending(
           functionName: progress.functionName ?? '',
@@ -238,48 +237,15 @@ class MontyWasm extends MontyPlatform {
         );
 
       case 'resolve_futures':
-        _state = _State.active;
+        markActive();
 
         return MontyResolveFutures(
           pendingCallIds: progress.pendingCallIds ?? const [],
         );
 
       default:
-        _state = _State.idle;
+        markIdle();
         throw StateError('Unknown progress state: ${progress.state}');
-    }
-  }
-
-  void _assertNotDisposed(String method) {
-    if (_state == _State.disposed) {
-      throw StateError('Cannot call $method() on a disposed MontyWasm');
-    }
-  }
-
-  void _assertIdle(String method) {
-    if (_state == _State.active) {
-      throw StateError(
-        'Cannot call $method() while execution is active. '
-        'Call resume(), resumeWithError(), or dispose() first.',
-      );
-    }
-  }
-
-  void _assertActive(String method) {
-    if (_state != _State.active) {
-      throw StateError(
-        'Cannot call $method() when not in active state. '
-        'Call start() first.',
-      );
-    }
-  }
-
-  void _rejectInputs(Map<String, Object?>? inputs) {
-    if (inputs != null && inputs.isNotEmpty) {
-      throw UnsupportedError(
-        'The WASM backend does not support the inputs parameter. '
-        'Use externalFunctions with start()/resume() instead.',
-      );
     }
   }
 

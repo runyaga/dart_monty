@@ -4,9 +4,6 @@ import 'dart:typed_data';
 import 'package:dart_monty_ffi/src/native_bindings.dart';
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 
-/// Interpreter lifecycle state.
-enum _State { idle, active, disposed }
-
 /// Native FFI implementation of [MontyPlatform].
 ///
 /// Uses a [NativeBindings] abstraction to call into the Rust C API.
@@ -18,7 +15,7 @@ enum _State { idle, active, disposed }
 /// print(result.value); // 4
 /// await monty.dispose();
 /// ```
-class MontyFfi extends MontyPlatform {
+class MontyFfi extends MontyPlatform with MontyStateMixin {
   /// Creates a [MontyFfi] with the given [bindings].
   MontyFfi({required NativeBindings bindings}) : _bindings = bindings;
 
@@ -31,8 +28,10 @@ class MontyFfi extends MontyPlatform {
   })  : _bindings = bindings,
         _handle = handle;
 
+  @override
+  String get backendName => 'MontyFfi';
+
   final NativeBindings _bindings;
-  _State _state = _State.idle;
   int? _handle;
 
   @override
@@ -42,9 +41,9 @@ class MontyFfi extends MontyPlatform {
     MontyLimits? limits,
     String? scriptName,
   }) async {
-    _assertNotDisposed('run');
-    _assertIdle('run');
-    _rejectInputs(inputs);
+    assertNotDisposed('run');
+    assertIdle('run');
+    rejectInputs(inputs);
 
     final handle = _bindings.create(
       code,
@@ -68,9 +67,9 @@ class MontyFfi extends MontyPlatform {
     MontyLimits? limits,
     String? scriptName,
   }) async {
-    _assertNotDisposed('start');
-    _assertIdle('start');
-    _rejectInputs(inputs);
+    assertNotDisposed('start');
+    assertIdle('start');
+    rejectInputs(inputs);
 
     final extFns = externalFunctions != null && externalFunctions.isNotEmpty
         ? externalFunctions.join(',')
@@ -90,8 +89,8 @@ class MontyFfi extends MontyPlatform {
 
   @override
   Future<MontyProgress> resume(Object? returnValue) async {
-    _assertNotDisposed('resume');
-    _assertActive('resume');
+    assertNotDisposed('resume');
+    assertActive('resume');
     final handle = _handle;
     if (handle == null) {
       throw StateError('Cannot resume: no active handle');
@@ -105,8 +104,8 @@ class MontyFfi extends MontyPlatform {
 
   @override
   Future<MontyProgress> resumeWithError(String errorMessage) async {
-    _assertNotDisposed('resumeWithError');
-    _assertActive('resumeWithError');
+    assertNotDisposed('resumeWithError');
+    assertActive('resumeWithError');
     final handle = _handle;
     if (handle == null) {
       throw StateError('Cannot resumeWithError: no active handle');
@@ -119,8 +118,8 @@ class MontyFfi extends MontyPlatform {
 
   @override
   Future<MontyProgress> resumeAsFuture() async {
-    _assertNotDisposed('resumeAsFuture');
-    _assertActive('resumeAsFuture');
+    assertNotDisposed('resumeAsFuture');
+    assertActive('resumeAsFuture');
     final handle = _handle;
     if (handle == null) {
       throw StateError('Cannot resumeAsFuture: no active handle');
@@ -133,8 +132,8 @@ class MontyFfi extends MontyPlatform {
 
   @override
   Future<MontyProgress> resolveFutures(Map<int, Object?> results) async {
-    _assertNotDisposed('resolveFutures');
-    _assertActive('resolveFutures');
+    assertNotDisposed('resolveFutures');
+    assertActive('resolveFutures');
     final handle = _handle;
     if (handle == null) {
       throw StateError('Cannot resolveFutures: no active handle');
@@ -153,8 +152,8 @@ class MontyFfi extends MontyPlatform {
     Map<int, Object?> results,
     Map<int, String> errors,
   ) async {
-    _assertNotDisposed('resolveFuturesWithErrors');
-    _assertActive('resolveFuturesWithErrors');
+    assertNotDisposed('resolveFuturesWithErrors');
+    assertActive('resolveFuturesWithErrors');
     final handle = _handle;
     if (handle == null) {
       throw StateError('Cannot resolveFuturesWithErrors: no active handle');
@@ -173,8 +172,8 @@ class MontyFfi extends MontyPlatform {
 
   @override
   Future<Uint8List> snapshot() async {
-    _assertNotDisposed('snapshot');
-    _assertActive('snapshot');
+    assertNotDisposed('snapshot');
+    assertActive('snapshot');
     final handle = _handle;
     if (handle == null) {
       throw StateError('Cannot snapshot: no active handle');
@@ -185,25 +184,25 @@ class MontyFfi extends MontyPlatform {
 
   @override
   Future<MontyPlatform> restore(Uint8List data) async {
-    _assertNotDisposed('restore');
-    _assertIdle('restore');
+    assertNotDisposed('restore');
+    assertIdle('restore');
 
     final handle = _bindings.restore(data);
 
     return MontyFfi._withHandle(bindings: _bindings, handle: handle)
-      .._state = _State.active;
+      ..markActive();
   }
 
   @override
   Future<void> dispose() async {
-    if (_state == _State.disposed) return;
+    if (isDisposed) return;
 
     final handle = _handle;
     if (handle != null) {
       _bindings.free(handle);
       _handle = null;
     }
-    _state = _State.disposed;
+    markDisposed();
   }
 
   // ---------------------------------------------------------------------------
@@ -224,7 +223,7 @@ class MontyFfi extends MontyPlatform {
 
       case 1: // MONTY_PROGRESS_PENDING
         _handle = handle;
-        _state = _State.active;
+        markActive();
         final fnName = progress.functionName;
         if (fnName == null) {
           throw StateError('Pending function name is null');
@@ -268,7 +267,7 @@ class MontyFfi extends MontyPlatform {
 
       case 3: // MONTY_PROGRESS_RESOLVE_FUTURES
         _handle = handle;
-        _state = _State.active;
+        markActive();
         final idsJson = progress.futureCallIdsJson;
         if (idsJson == null) {
           throw StateError('Future call IDs JSON is null');
@@ -313,45 +312,8 @@ class MontyFfi extends MontyPlatform {
   }
 
   // ---------------------------------------------------------------------------
-  // State assertions
-  // ---------------------------------------------------------------------------
-
-  void _assertNotDisposed(String method) {
-    if (_state == _State.disposed) {
-      throw StateError('Cannot call $method() on a disposed MontyFfi');
-    }
-  }
-
-  void _assertIdle(String method) {
-    if (_state == _State.active) {
-      throw StateError(
-        'Cannot call $method() while execution is active. '
-        'Call resume(), resumeWithError(), or dispose() first.',
-      );
-    }
-  }
-
-  void _assertActive(String method) {
-    if (_state != _State.active) {
-      throw StateError(
-        'Cannot call $method() when not in active state. '
-        'Call start() first.',
-      );
-    }
-  }
-
-  // ---------------------------------------------------------------------------
   // Helpers
   // ---------------------------------------------------------------------------
-
-  void _rejectInputs(Map<String, Object?>? inputs) {
-    if (inputs != null && inputs.isNotEmpty) {
-      throw UnsupportedError(
-        'The native FFI backend does not support the inputs parameter. '
-        'Use externalFunctions with start()/resume() instead.',
-      );
-    }
-  }
 
   void _applyLimits(int handle, MontyLimits? limits) {
     if (limits == null) return;
@@ -371,8 +333,8 @@ class MontyFfi extends MontyPlatform {
       _handle = null;
     }
     _bindings.free(handle);
-    if (_state == _State.active) {
-      _state = _State.idle;
+    if (isActive) {
+      markIdle();
     }
   }
 }
