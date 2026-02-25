@@ -40,3 +40,4 @@ test.py
 .env
 .env.*
 .venv/
+ci-review/slice-reviews/
