@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:dart_monty_platform_interface/src/monty_limits.dart';
 import 'package:dart_monty_platform_interface/src/monty_progress.dart';
 import 'package:dart_monty_platform_interface/src/monty_result.dart';
+import 'package:meta/meta.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
 /// The platform interface for the Monty sandboxed Python interpreter.
@@ -48,6 +49,7 @@ abstract class MontyPlatform extends PlatformInterface {
   }
 
   /// Resets the instance to `null`. Visible only for testing.
+  @visibleForTesting
   static void resetInstance() {
     _instance = null;
   }

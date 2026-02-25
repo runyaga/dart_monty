@@ -222,38 +222,6 @@ void main() {
       });
     });
 
-    group('deepEquals extension', () {
-      test('equal lists', () {
-        const list1 = [
-          MontyStackFrame(filename: 'a.py', startLine: 1, startColumn: 0),
-        ];
-        const list2 = [
-          MontyStackFrame(filename: 'a.py', startLine: 1, startColumn: 0),
-        ];
-        expect(list1.deepEquals(list2), isTrue);
-      });
-
-      test('unequal lists', () {
-        const list1 = [
-          MontyStackFrame(filename: 'a.py', startLine: 1, startColumn: 0),
-        ];
-        const list2 = [
-          MontyStackFrame(filename: 'b.py', startLine: 1, startColumn: 0),
-        ];
-        expect(list1.deepEquals(list2), isFalse);
-      });
-
-      test('deepHashCode consistent with deepEquals', () {
-        const list1 = [
-          MontyStackFrame(filename: 'a.py', startLine: 1, startColumn: 0),
-        ];
-        const list2 = [
-          MontyStackFrame(filename: 'a.py', startLine: 1, startColumn: 0),
-        ];
-        expect(list1.deepHashCode, list2.deepHashCode);
-      });
-    });
-
     group('malformed JSON', () {
       test('throws on missing filename', () {
         expect(

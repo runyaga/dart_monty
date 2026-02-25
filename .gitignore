@@ -40,6 +40,5 @@ test.py
 .env
 .env.*
 .venv/
-# CI review artifacts (keep only baseline.json)
-ci-review/*
-!ci-review/baseline.json
+# CI review artifacts (all generated — regenerate with tool/metrics.sh)
+ci-review/

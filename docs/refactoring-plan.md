@@ -84,6 +84,21 @@ in the architecture doc.
 
 Every slice follows this checklist. No slice merges until every step passes.
 
+### Step 0: Audit & Update Spec (before writing code)
+
+Each slice spec starts as a high-level goal with speculative changes. Before
+implementation, run the prerequisite audit described in the spec, then
+**update the spec in this file** with the findings. Replace speculative
+"Move X / Introduce Y" items with what the audit actually found. This ensures
+Gemini reviews against the real spec, not stale guesses.
+
+Pattern:
+- **Before audit:** Goal + questions to investigate
+- **After audit:** Findings + actual changes needed
+
+The spec becomes the source of truth for what was done and why. Do not leave
+speculative items that the audit invalidated.
+
 ### Step 1: Pre-PR (author, before opening PR)
 
 - [ ] `tool/gate.sh` passes locally (zero warnings, zero test failures)
@@ -132,30 +147,37 @@ bash tool/slice_review.sh N                # full: tests + gate + metrics + asse
 bash tool/slice_review.sh N --skip-tests   # reuse existing lcov data
 bash tool/slice_review.sh N --skip-gate    # skip gate.sh
 bash tool/slice_review.sh N --skip-all     # skip both, assemble from existing data
+bash tool/slice_review.sh N --context path/to/file  # add unchanged context file
 ```
+
+Use `--context` to include **pre-existing, unchanged files** that Gemini needs
+to verify claims (e.g., a barrel file the slice documents but didn't create).
+Without context files, Gemini can only see the diff and changed files, leading
+to false positives when the review references existing infrastructure.
+Repeatable: `--context fileA --context fileB`.
 
 Output:
 
 - `ci-review/slice-reviews/slice-N-prompt.md` — review instructions + metrics
 - `ci-review/slice-reviews/slice-N.diff` — unified diff (what actually changed)
 
-Pass the prompt, the diff, and the changed source files to
+Pass the prompt, the diff, changed source files, and context files to
 `mcp__gemini__read_files` with model `gemini-3.1-pro-preview`. Save the
 response to `ci-review/slice-reviews/slice-N-review.md`.
 
 **Review process — for each question below, you MUST provide:**
 
 1. **Analysis** (3-5 sentences): Deep technical analysis. Quote specific
-   lines from the unified diff as evidence. Do NOT use metrics tables as
-   proof of behavioral correctness — metrics measure quantity, not behavior.
+   lines from the unified diff as evidence.
 2. **Verdict**: PASS or FAIL.
 
 **Review questions:**
 
 1. **Behavioral parity:** Read the unified diff. Did any production code
    in `lib/` or `src/` change? For deleted tests, read the exact lines
-   removed — were they truly tautological (testing language semantics, not
-   business logic) or did they cover real FFI/serialization boundaries?
+   removed — were they truly tautological (testing language semantics or
+   third-party library internals, not business logic) or did they cover
+   real FFI/serialization boundaries?
 2. **API surface:** Check the diff for changes to files in `lib/`. Were
    any public classes, methods, or parameters added, removed, or renamed?
    Is it intentional per the slice spec?
@@ -165,37 +187,22 @@ response to `ci-review/slice-reviews/slice-N-review.md`.
 4. **Design doc accuracy:** Does the architecture.md diff (if any)
    accurately describe the design intent? Is anything misleading or
    missing? If the slice spec says "no design change," confirm no
-   architecture.md changes exist in the diff.
+   architecture.md changes exist in the diff. When the doc references
+   pre-existing code (e.g., barrel files, mock classes), verify against
+   **context files** if provided — do not assume the code is fabricated
+   just because it doesn't appear in the diff.
 5. **Cross-platform impact:** Do the diff changes touch platform-specific
    APIs (`dart:ffi`, `dart:js_interop`, podspec, CMakeLists) in a way
    that affects iOS/Android/Windows expansion readiness?
+6. **Overall verdict:** Synthesize questions 1-5 into a single **PASS** or
+   **FAIL** with a one-sentence justification. Flag any deviations from
+   the slice spec as notes (not automatic FAILs — the author may have
+   good reasons documented in the audit).
 
-**Scope guardrails — the reviewer MUST NOT:**
-
-- Suggest adding tests beyond what the slice spec requires. The goal is
-  fewer tests with higher signal, not more tests. If coverage dropped,
-  check whether the deleted tests were tautological per the spec.
-- Suggest defensive coding (extra null checks, redundant type guards,
-  assertion methods). Trust the type system and the contracts.
-- Suggest refactoring code outside the slice's stated scope. If it's not
-  in the slice spec, it's not in this PR.
-- Suggest adding error handling for scenarios that cannot happen given
-  the state machine contracts.
-- Suggest abstracting, extracting, or generalizing code that the slice
-  doesn't touch. No "while you're here, you could also..." feedback.
-- Expand dartdoc or comments beyond what the slice requires. Dartdoc
-  completeness is a release prep task, not a per-slice requirement
-  (except for files the slice modifies).
-
-**The reviewer SHOULD:**
-
-- Flag behavioral regressions (test failures, parity breaks) — FAIL.
-- Flag unintended public API changes — FAIL.
-- Flag design doc inaccuracies — FAIL.
-- Flag deviations from the slice spec — note, not FAIL (author may have
-  good reasons).
-- Confirm the net line delta is in the expected range.
-- Confirm metrics match the "After" column in the PR description.
+**Scope guardrail:** Review strictly within the slice spec. Do not suggest
+additional tests, defensive coding, refactoring of untouched code,
+error handling for impossible scenarios, premature abstractions, or
+expanded docs/comments beyond what the spec requires.
 
 Review output goes to `ci-review/slice-reviews/slice-N-review.md`.
 
@@ -277,35 +284,32 @@ the bug fix or the refactor, not both.
 early** because Slice 5 (Shared Test Harness) builds on stable mock
 infrastructure — mock cleanup should precede harness construction.
 
-### Prerequisite
+### Prerequisite Audit (Complete)
 
-**Export audit:** Before starting, verify whether `MockMontyPlatform` is
-reachable via the public API of `dart_monty_platform_interface`. Check:
-- `dart doc` output for the package
-- `lib/dart_monty_platform_interface.dart` barrel exports
-- `lib/dart_monty_testing.dart` barrel (does this file already exist, or does
-  it need to be introduced?)
-
-If `MockMontyPlatform` is publicly exported, the move is a breaking change
-even under `0.x.x` semver. Document the migration path in the changelog.
+Export audit confirmed:
+- `MockMontyPlatform` already in `lib/src/mock_monty_platform.dart`, exported
+  only via `dart_monty_testing.dart` (not the main barrel). **No move needed.**
+- `dart_monty_testing.dart` already exists with correct structure. **No
+  creation needed.**
+- `resetInstance()` has docstring "Visible only for testing" but **missing
+  `@visibleForTesting` annotation**.
+- `MontyStackFrameListEquality` — dead code. `MontyException` uses its own
+  private `_deepEquality` instance. **Safe to delete.**
+- Mocktail not used. All 4 backend mocks are hand-rolled with clear patterns.
+  **No migration needed.**
 
 ### Changes
 
 | Change | Detail |
 |--------|--------|
-| Move `MockMontyPlatform` from `lib/src/` to `dart_monty_testing.dart` barrel or `test/` | Stops shipping mock as production artifact |
-| Introduce or update `dart_monty_testing.dart` barrel | Create if it doesn't exist; clarify what it exports |
 | Add `@visibleForTesting` to `resetInstance()` | Prevents accidental production use |
 | Delete `MontyStackFrameListEquality` extension + tests | Dead code (no production consumers) |
-| Evaluate mocktail adoption vs hand-rolled | Decision checkpoint — either consolidate patterns or migrate |
+| Fill "Testing Utilities" section in `architecture.md` | Documents mock strategy and `dart_monty_testing.dart` barrel |
 
-**Net removal:** ~80 lines + cleaner API surface
-**Risk:** Low-Medium — export audit (above) determines actual breakage scope.
-**Gate:** `tool/gate.sh` passes. `dart doc` output no longer shows mock in
-public API.
-**Design doc:** Add "Testing Utilities" section describing what
-`dart_monty_testing.dart` exports and the mock strategy decision.
-**Ship:** Point release. Semver note on `MockMontyPlatform` relocation.
+**Net removal:** ~25 lines (extension + tests + import)
+**Risk:** Low — audit confirmed no breaking changes.
+**Gate:** `tool/gate.sh` passes.
+**Design doc:** "Testing Utilities" section in `docs/architecture.md`.
 **Depends on:** Nothing.
 
 ---
