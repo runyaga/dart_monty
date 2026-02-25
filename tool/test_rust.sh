@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 # =============================================================================
-# M2 Gate Script — Rust C FFI Layer + WASM Build
+# Gate Script — Rust Native Crate
 # =============================================================================
 # Validates: fmt, clippy, test, release build, symbol export, WASM build
-# Usage: bash tool/test_m2.sh
+# Usage: bash tool/test_rust.sh
 # =============================================================================
 set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)/native"
 
-echo "=== M2 Gate: native/ ==="
+echo "=== Rust Gate: native/ ==="
 
 echo "--- cargo fmt --check ---"
 cargo fmt --check
@@ -62,4 +62,4 @@ fi
 WASM_SIZE=$(wc -c < "$WASM" | tr -d ' ')
 echo "WASM binary: $WASM_SIZE bytes"
 
-echo "=== M2 Gate PASSED ==="
+echo "=== Rust Gate PASSED ==="

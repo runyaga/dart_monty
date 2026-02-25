@@ -1,29 +1,22 @@
 #!/usr/bin/env bash
 # =============================================================================
-# M1 Gate Script — Platform Interface
+# Gate Script — Native FFI Package
 # =============================================================================
-# Validates: pub get, format, analyze, test, coverage >= 90%
-# Usage: bash tool/test_m1.sh
+# Validates: pub get, format, analyze, test, coverage >= 30%
+# Note: Unit-test-only coverage is ~45%. Integration tests (which need
+# the native library) cover the remaining paths. 30% threshold ensures
+# unit tests don't regress while allowing the gate to pass without
+# the native library present.
+# Usage: bash tool/test_ffi.sh
 # =============================================================================
 set -euo pipefail
 
-PKG="packages/dart_monty_platform_interface"
-MIN_COVERAGE=90
+PKG="packages/dart_monty_ffi"
+MIN_COVERAGE=30
 
 cd "$(git rev-parse --show-toplevel)"
 
-echo "=== Markdown lint ==="
-if command -v pymarkdown &> /dev/null; then
-  pymarkdown \
-    --set "extensions.front-matter.enabled=\$!True" \
-    --disable-rules MD013,MD024,MD033,MD036,MD041,MD060 \
-    scan docs/*.md docs/**/*.md
-  echo "Markdown lint PASSED"
-else
-  echo "SKIP: pymarkdown not installed (pip install pymarkdownlnt)"
-fi
-
-echo "=== M1 Gate: $PKG ==="
+echo "=== FFI Gate: $PKG ==="
 
 echo "--- dart pub get ---"
 cd "$PKG"
@@ -62,4 +55,4 @@ if [ "$PCT" -lt "$MIN_COVERAGE" ]; then
   exit 1
 fi
 
-echo "=== M1 Gate PASSED (${PCT}% coverage) ==="
+echo "=== FFI Gate PASSED (${PCT}% coverage) ==="

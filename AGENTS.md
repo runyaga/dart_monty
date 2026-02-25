@@ -37,9 +37,10 @@ Prefer using the milestone gate scripts — they run all checks for that
 milestone in one shot:
 
 ```bash
-bash tool/test_m1.sh                     # Dart format + analyze + test + coverage
-bash tool/test_m2.sh                     # Rust fmt + clippy + test + tarpaulin + WASM build
-bash tool/test_m3a.sh                    # FFI package (unit + integration)
+bash tool/gate.sh                        # Run ALL quality checks (preferred)
+bash tool/test_platform_interface.sh     # Platform interface: format + analyze + test + coverage
+bash tool/test_rust.sh                   # Rust: fmt + clippy + test + tarpaulin + WASM build
+bash tool/test_ffi.sh                    # FFI package (unit + integration)
 bash tool/test_wasm.sh                   # WASM package (unit + Chrome integration)
 bash tool/test_python_ladder.sh          # Python ladder (all backends)
 bash tool/test_cross_path_parity.sh      # JSONL parity diff (native vs web)

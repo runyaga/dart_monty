@@ -198,7 +198,7 @@ cargo clippy -- -D warnings
 cargo fmt --check
 
 # FFI:
-bash tool/test_m3a.sh
+bash tool/test_ffi.sh
 
 # WASM:
 bash tool/test_wasm.sh

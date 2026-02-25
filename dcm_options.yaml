@@ -22,6 +22,12 @@ dcm:
     maximum-nesting-level:
       threshold: 4
 
+    number-of-methods:
+      threshold: 15
+
+    weight-of-a-class:
+      threshold: 15.0
+
   # ---------------------------------------------------------------------------
   # Exclusions
   # ---------------------------------------------------------------------------
@@ -42,6 +48,9 @@ dcm:
   # ---------------------------------------------------------------------------
 
   rules:
+    # --- Bug Prevention ---
+    - avoid-throw-in-finally-block
+
     # --- Common Anti-Patterns ---
     - avoid-unused-parameters
     - avoid-nested-conditional-expressions
@@ -73,6 +82,9 @@ dcm:
     - prefer-last
     - binary-expression-operand-order
     - double-literal-format
+
+    # --- Immutability ---
+    - prefer-final-fields
 
     # --- Null Safety & Types ---
     - avoid-late-keyword:

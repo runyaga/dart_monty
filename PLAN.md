@@ -66,7 +66,7 @@ the test runner picks it up automatically.
 **Gate:**
 
 ```bash
-tool/test_m1.sh
+tool/test_platform_interface.sh
 # Runs: dart pub get, dart format, dart analyze, dart test --coverage
 # Asserts: coverage >= 90%, zero warnings
 ```
@@ -90,7 +90,7 @@ tool/test_m1.sh
 **Gate:**
 
 ```bash
-tool/test_m2.sh
+tool/test_rust.sh
 # Runs: cargo fmt, cargo clippy, cargo test, cargo tarpaulin
 # Runs: cargo build --release (native + WASM)
 # Runs: node test/wasm_smoke.js (WASM integration)
@@ -118,7 +118,7 @@ tool/test_m2.sh
 **Gate:**
 
 ```bash
-tool/test_m3a.sh                    # FFI package: format + analyze + unit + integration
+tool/test_ffi.sh                    # FFI package: format + analyze + unit + integration
 tool/test_web_spike.sh              # Web spike: compile, serve with COOP/COEP, headless Chrome
 tool/test_python_ladder.sh          # Ladder tiers 1-6 on native + web
 tool/test_cross_path_parity.sh      # JSONL parity diff (native vs web)
@@ -306,9 +306,9 @@ No manual testing steps.
 
 | Script | What it automates |
 |--------|-------------------|
-| `tool/test_m1.sh` | format + analyze + dart test + coverage (platform\_interface) |
-| `tool/test_m2.sh` | cargo fmt/clippy/test/tarpaulin + native + WASM build |
-| `tool/test_m3a.sh` | format + analyze + unit + integration tests (dart\_monty\_ffi) |
+| `tool/test_platform_interface.sh` | format + analyze + dart test + coverage (platform\_interface) |
+| `tool/test_rust.sh` | cargo fmt/clippy/test/tarpaulin + native + WASM build |
+| `tool/test_ffi.sh` | format + analyze + unit + integration tests (dart\_monty\_ffi) |
 | `tool/test_web_spike.sh` | web spike: compile Dart to JS, serve with COOP/COEP, headless Chrome |
 | `tool/test_wasm.sh` | npm build + format + analyze + unit + Chrome integration (dart\_monty\_wasm) |
 | `tool/test_python_ladder.sh` | runs ladder fixtures on native + web paths |

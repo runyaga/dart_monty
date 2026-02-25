@@ -78,13 +78,12 @@ http.server.HTTPServer(('127.0.0.1', 8088), handler).serve_forever()
 ## Gate Scripts
 
 ```bash
-bash tool/gate.sh                        # Run ALL quality checks
-bash tool/test_platform_interface.sh     # Platform interface
-bash tool/test_rust.sh                   # Rust native crate + WASM
-bash tool/test_ffi.sh                    # FFI package
-bash tool/test_wasm.sh                   # WASM package (unit + Chrome integration)
-bash tool/test_python_ladder.sh          # Python ladder (all backends)
-bash tool/test_cross_path_parity.sh      # JSONL parity diff
+bash tool/test_platform_interface.sh          # M1: platform interface
+bash tool/test_rust.sh          # M2: Rust + WASM
+bash tool/test_ffi.sh         # M3A: FFI package
+bash tool/test_wasm.sh        # M4: WASM package (unit + Chrome integration)
+bash tool/test_python_ladder.sh       # Python ladder (all backends)
+bash tool/test_cross_path_parity.sh   # JSONL parity diff
 ```
 
 ## Code Quality
@@ -98,30 +97,23 @@ Run these checks after every code change:
 
 ## CI
 
-GitHub Actions run on every push and PR to `main`. Docs-only changes
-(markdown, `docs/`, LICENSE) skip all code jobs — only the **Markdown
-lint** job runs. This is handled by a `changes` detection job using
-`dorny/paths-filter@v3`.
+GitHub Actions run on every push and PR to `main`. All jobs run in
+parallel except where noted:
 
-All code jobs run in parallel except where noted:
-
-- **Changes** — detects code vs docs-only changes (~2s, always runs)
 - **FFI bindings** — generates `dart_monty_bindings.dart` once, uploads
   as artifact for downstream jobs (~2 min)
 - **Lint** — format + analyze all sub-packages (needs: ffigen)
 - **Test** — per-package matrix with 90% coverage gate:
-  platform_interface, ffi, wasm (needs: ffigen for ffi variant).
-  Coverage is enforced by the `.github/actions/enforce-coverage`
-  composite action.
+  platform_interface, ffi, wasm (needs: ffigen for ffi variant)
 - **Test desktop** — Flutter test + 90% coverage on macOS (needs: ffigen)
 - **Test web** — Flutter test on Chrome
-- **Rust** — fmt + clippy + tarpaulin test/coverage (85% gate)
+- **Rust** — fmt + clippy + tarpaulin test/coverage (90% gate)
 - **Build WASM** — `cargo build --target wasm32-wasip1-threads` (needs: rust)
 - **Build JS wrapper** — npm install + esbuild bridge/worker
 - **Build smoke** — full Flutter desktop build on Ubuntu + macOS (needs: ffigen)
 - **WASM ladder** — headless Chrome integration tests
 - **DCM** — Dart Code Metrics (weekly + push to main)
-- **Markdown** — pymarkdown scan (always runs, even on docs-only changes)
+- **Markdown** — pymarkdown scan
 - **TruffleHog** — verified secret scanning (separate workflow, all pushes)
 
 ## Release Process
@@ -130,10 +122,7 @@ Packages are published individually to pub.dev using **OIDC automated
 publishing**. No tokens or secrets needed — GitHub Actions generates a
 short-lived OIDC token that pub.dev verifies directly.
 
-Each package has a thin publish workflow triggered by a tag push. All six
-call the shared `_publish-dart-package.yaml` reusable workflow via
-`workflow_call`, passing package-specific inputs (`uses-flutter`,
-`needs-ffigen`, `has-tests`, `analyze-scope`):
+Each package has a dedicated publish workflow triggered by a tag push:
 
 | Package | Tag pattern | Workflow |
 |---------|-------------|----------|
@@ -284,16 +273,10 @@ All 6 packages are already configured. For new packages:
 3. Enable **Automated publishing** from GitHub Actions
 4. Set **Repository:** `runyaga/dart_monty`
 5. Set **Tag pattern:** `<prefix>-v{{version}}`
-6. Set **Environment:** `pub-dev`
-7. Save
+6. Save
 
 ### Publishing gotchas
 
-- **OIDC requires `environment: pub-dev`.** All packages on pub.dev are
-  configured with the `pub-dev` environment restriction. The reusable
-  publish workflow (`_publish-dart-package.yaml`) must have
-  `environment: pub-dev` on its job — without it, `dart pub publish`
-  fails with `Authentication failed!`.
 - **Tag filters use glob, not regex.** GitHub Actions `on.push.tags` uses
   glob matching — `[0-9]+` is literal (matches `1+`), use `[0-9]*` for
   "one or more digits".

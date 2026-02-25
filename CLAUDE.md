@@ -14,9 +14,9 @@ cd native && cargo build --release        # Build Rust native library
 cd native && cargo test                   # Run Rust unit + integration tests
 cd native && cargo fmt --check            # Check Rust formatting
 cd native && cargo clippy -- -D warnings  # Run Rust linter (zero warnings)
-bash tool/test_m1.sh                      # Full M1 validation gate
-bash tool/test_m2.sh                      # Full M2 validation gate (Rust + WASM)
-bash tool/test_m3a.sh                     # Full M3A validation gate (FFI package)
+bash tool/test_platform_interface.sh       # Platform interface gate
+bash tool/test_rust.sh                    # Rust native crate gate (+ WASM)
+bash tool/test_ffi.sh                     # FFI package gate
 bash tool/test_python_ladder.sh           # M3C: Python ladder on native + web
 bash tool/test_cross_path_parity.sh       # M3C: JSONL parity diff (native vs web)
 bash tool/test_snapshot_portability.sh    # M3C: Snapshot portability probe
@@ -119,16 +119,18 @@ Run these checks after every code change:
 **Before every commit and push**, run the full local CI pipeline:
 
 ```bash
-bash tool/test_m1.sh       # M1: format + analyze + unit tests (platform_interface)
-bash tool/test_m2.sh       # M2: Rust build + test + clippy (skip if no cargo)
-bash tool/test_m3a.sh      # M3A: FFI package tests
-bash tool/test_python_ladder.sh  # M3C: Python ladder parity
+bash tool/gate.sh                              # Run ALL quality checks
+bash tool/gate.sh --dart-only                  # Skip Rust, WASM, web integration
+bash tool/test_platform_interface.sh           # Platform interface only
+bash tool/test_rust.sh                         # Rust crate only (skip if no cargo)
+bash tool/test_ffi.sh                          # FFI package only
+bash tool/test_python_ladder.sh                # Python ladder parity
 ```
 
-Run all gates in parallel when possible. Gates that fail due to missing
+Run `tool/gate.sh` for the full pipeline. Gates that fail due to missing
 toolchains (e.g. `cargo` not installed, WASM cpu mismatch) are acceptable
-skips — but Dart gates (M1, M3A) must pass. Do not commit or push if any
-Dart gate fails.
+skips — but Dart gates must pass. Do not commit or push if any Dart gate
+fails.
 
 ## Releasing
 

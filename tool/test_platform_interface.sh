@@ -1,18 +1,29 @@
 #!/usr/bin/env bash
 # =============================================================================
-# M3A Gate Script — Native FFI Package
+# Gate Script — Platform Interface
 # =============================================================================
 # Validates: pub get, format, analyze, test, coverage >= 90%
-# Usage: bash tool/test_m3a.sh
+# Usage: bash tool/test_platform_interface.sh
 # =============================================================================
 set -euo pipefail
 
-PKG="packages/dart_monty_ffi"
+PKG="packages/dart_monty_platform_interface"
 MIN_COVERAGE=90
 
 cd "$(git rev-parse --show-toplevel)"
 
-echo "=== M3A Gate: $PKG ==="
+echo "=== Markdown lint ==="
+if command -v pymarkdown &> /dev/null; then
+  pymarkdown \
+    --set "extensions.front-matter.enabled=\$!True" \
+    --disable-rules MD013,MD024,MD033,MD036,MD041,MD060 \
+    scan docs/*.md docs/**/*.md
+  echo "Markdown lint PASSED"
+else
+  echo "SKIP: pymarkdown not installed (pip install pymarkdownlnt)"
+fi
+
+echo "=== Platform Interface Gate: $PKG ==="
 
 echo "--- dart pub get ---"
 cd "$PKG"
@@ -51,4 +62,4 @@ if [ "$PCT" -lt "$MIN_COVERAGE" ]; then
   exit 1
 fi
 
-echo "=== M3A Gate PASSED (${PCT}% coverage) ==="
+echo "=== Platform Interface Gate PASSED (${PCT}% coverage) ==="
