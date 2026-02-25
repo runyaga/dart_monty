@@ -6,6 +6,7 @@ import 'dart:math';
 import 'package:dart_monty_ffi/dart_monty_ffi.dart';
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 void main() {
   runApp(const MontyDesktopApp());
@@ -1494,6 +1495,50 @@ class _LadderPageState extends State<_LadderPage> {
     );
   }
 
+  Widget _copyableCodeBlock(String text, {Color? color}) {
+    return Stack(
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: SelectableText(
+            text,
+            style: TextStyle(
+              fontFamily: 'monospace',
+              fontSize: 12,
+              color: color,
+            ),
+          ),
+        ),
+        Positioned(
+          top: 4,
+          right: 4,
+          child: IconButton(
+            icon: const Icon(Icons.copy, size: 14),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+            tooltip: 'Copy to clipboard',
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: text));
+              ScaffoldMessenger.of(context)
+                ..clearSnackBars()
+                ..showSnackBar(
+                  const SnackBar(
+                    content: Text('Copied to clipboard'),
+                    duration: Duration(seconds: 1),
+                  ),
+                );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _testCard(_TestResult result) {
     final statusColor = switch (result.status) {
       _TestStatus.pass => Colors.green,
@@ -1541,31 +1586,14 @@ class _LadderPageState extends State<_LadderPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    result.code,
-                    style: const TextStyle(
-                      fontFamily: 'monospace',
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
+                _copyableCodeBlock(result.code),
                 if (result.detail != null) ...[
                   const SizedBox(height: 8),
-                  Text(
+                  _copyableCodeBlock(
                     result.detail!,
-                    style: TextStyle(
-                      fontFamily: 'monospace',
-                      fontSize: 12,
-                      color: result.status == _TestStatus.fail
-                          ? Colors.red.shade800
-                          : Colors.green.shade800,
-                    ),
+                    color: result.status == _TestStatus.fail
+                        ? Colors.red.shade800
+                        : Colors.green.shade800,
                   ),
                 ],
               ],
