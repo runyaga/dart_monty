@@ -524,7 +524,7 @@ void main() {
   // restore()
   // ===========================================================================
   group('restore()', () {
-    test('returns new MontyFfi in idle state', () async {
+    test('returns new MontyFfi in active state', () async {
       mock.nextRestoreHandle = 77;
       final data = Uint8List.fromList([1, 2, 3]);
 
@@ -535,15 +535,26 @@ void main() {
       expect(mock.restoreCalls.first, data);
     });
 
-    test('restored instance can run code', () async {
-      mock
-        ..nextRestoreHandle = 77
-        ..nextRunResult = RunResult(tag: 0, resultJson: _okResultJson(10));
+    test('restored instance is in active state', () async {
+      mock.nextRestoreHandle = 77;
 
       final restored = await monty.restore(Uint8List.fromList([1, 2, 3]));
-      final result = await (restored as MontyFfi).run('5 + 5');
+      final restoredFfi = restored as MontyFfi;
 
-      expect(result.value, 10);
+      // Restored snapshot is paused — run() should be rejected.
+      expect(() => restoredFfi.run('x'), throwsStateError);
+
+      // resume() should be allowed (active state).
+      mock.resumeResults.add(
+        ProgressResult(
+          tag: 0,
+          resultJson: _okResultJson(10),
+          isError: 0,
+        ),
+      );
+      final progress = await restoredFfi.resume('val');
+      expect(progress, isA<MontyComplete>());
+      expect((progress as MontyComplete).result.value, 10);
     });
 
     test('throws StateError when restore fails', () {

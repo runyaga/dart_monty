@@ -142,8 +142,9 @@ abstract class MontyPlatform extends PlatformInterface {
 
   /// Restores interpreter state from a binary snapshot [data].
   ///
-  /// Returns a new [MontyPlatform] instance representing the restored
-  /// session.
+  /// Returns a new [MontyPlatform] instance in the active state,
+  /// representing a paused execution. Call [resume] or
+  /// [resumeWithError] to continue execution.
   Future<MontyPlatform> restore(Uint8List data) {
     throw UnimplementedError('restore() has not been implemented.');
   }

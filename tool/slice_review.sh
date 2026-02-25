@@ -58,6 +58,27 @@ mkdir -p "$OUTPUT_DIR"
 # -------------------------------------------------------
 # Validate prerequisites
 # -------------------------------------------------------
+# Auto-refresh baseline from merge-base with main if stale.
+# "Stale" means the baseline was captured on a different commit than
+# the current merge-base (i.e., main has moved since last snapshot).
+MERGE_BASE=$(git merge-base main HEAD 2>/dev/null || echo "")
+if [[ -n "$MERGE_BASE" ]]; then
+  BASELINE_SHA=""
+  if [[ -f "$BASELINE_FILE" ]]; then
+    BASELINE_SHA=$(jq -r '.git_sha // ""' "$BASELINE_FILE" 2>/dev/null || echo "")
+  fi
+  MERGE_BASE_SHORT=$(git rev-parse --short "$MERGE_BASE")
+  if [[ "$BASELINE_SHA" != "$MERGE_BASE_SHORT" ]]; then
+    echo "=== Baseline stale (was $BASELINE_SHA, need $MERGE_BASE_SHORT) — refreshing ==="
+    git stash -q --include-untracked 2>/dev/null || true
+    git checkout -q "$MERGE_BASE" 2>/dev/null
+    bash tool/metrics.sh > "$BASELINE_FILE"
+    git checkout -q - 2>/dev/null
+    git stash pop -q 2>/dev/null || true
+    echo "  Baseline updated to $MERGE_BASE_SHORT"
+  fi
+fi
+
 if [[ ! -f "$BASELINE_FILE" ]]; then
   echo "ERROR: Baseline not found: $BASELINE_FILE"
   echo "Run: bash tool/metrics.sh > ci-review/baseline.json"
