@@ -3,62 +3,6 @@ import 'package:test/test.dart';
 
 void main() {
   group('MontyException', () {
-    test('constructs with all fields', () {
-      const exception = MontyException(
-        message: 'SyntaxError',
-        filename: 'main.py',
-        lineNumber: 10,
-        columnNumber: 5,
-        sourceCode: 'x = 1 +',
-      );
-      expect(exception.message, 'SyntaxError');
-      expect(exception.filename, 'main.py');
-      expect(exception.lineNumber, 10);
-      expect(exception.columnNumber, 5);
-      expect(exception.sourceCode, 'x = 1 +');
-    });
-
-    test('constructs with message only', () {
-      const exception = MontyException(message: 'error');
-      expect(exception.message, 'error');
-      expect(exception.filename, isNull);
-      expect(exception.lineNumber, isNull);
-      expect(exception.columnNumber, isNull);
-      expect(exception.sourceCode, isNull);
-      expect(exception.excType, isNull);
-      expect(exception.traceback, isEmpty);
-    });
-
-    test('constructs with excType and traceback', () {
-      const exception = MontyException(
-        message: 'invalid literal',
-        excType: 'ValueError',
-        traceback: [
-          MontyStackFrame(
-            filename: 'main.py',
-            startLine: 5,
-            startColumn: 0,
-            frameName: '<module>',
-          ),
-          MontyStackFrame(
-            filename: 'main.py',
-            startLine: 2,
-            startColumn: 4,
-            frameName: 'parse',
-          ),
-        ],
-      );
-      expect(exception.excType, 'ValueError');
-      expect(exception.traceback, hasLength(2));
-      expect(exception.traceback[0].frameName, '<module>');
-      expect(exception.traceback[1].frameName, 'parse');
-    });
-
-    test('implements Exception', () {
-      const exception = MontyException(message: 'boom');
-      expect(exception, isA<Exception>());
-    });
-
     group('fromJson', () {
       test('parses full JSON', () {
         final exception = MontyException.fromJson(const {

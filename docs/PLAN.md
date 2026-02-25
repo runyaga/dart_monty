@@ -14,7 +14,35 @@
 | M6 | Flutter Web Plugin | Complete |
 | M7A | Run API Data Model Fidelity | Complete |
 
-Current API coverage: ~40% of upstream monty surface.
+Current version: **0.4.3**. Current API coverage: ~40% of upstream monty surface.
+
+---
+
+## Architecture Refactoring (Active)
+
+**Before continuing to M13**, the codebase undergoes a 9-slice refactoring
+to reduce ~5,500 lines of duplication, establish quality gates, consolidate
+tests, and prepare for platform expansion.
+
+See `docs/refactoring-plan.md` for the full plan.
+
+| Slice | Description | Risk | Status |
+|-------|-------------|------|--------|
+| 0 | Quality Gate Baseline (`gate.sh`, `metrics.sh`, arch.md skeleton) | None | **Done** |
+| 1 | Test Pruning + Trivial Cleanup (~1,394 lines) | Medium | Pending |
+| 2 | Fix `restore()` State Divergence | Low | Pending |
+| 3 | Mock & API Surface Cleanup | Low-Medium | Pending |
+| 4 | State Machine Consolidation (mixin extraction) | Medium | Pending |
+| 5 | Shared Test Harness (contract tests) | Medium | Pending |
+| 6 | Web Package Simplification | **High** | Pending |
+| 7 | Desktop & WASM Refinement + iOS Prep | Low-Medium | Pending |
+| 8 | Rust Crate Consolidation | **Highest** | Pending |
+
+**Release:** All slices ship together as **0.5.0** (includes demo
+consolidation, dartdoc enforcement, and optional package rename
+`dart_monty_desktop` → `dart_monty_native`).
+
+Recommended order: `0 → 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8`
 
 ---
 

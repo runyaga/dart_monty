@@ -19,7 +19,7 @@ exposes the full `MontyPlatform` interface via `dart:ffi`.
 - `MontyFfi` implementing `MontyPlatform` with state machine
 - Mock-based unit tests (>= 90 % line coverage, no native lib required)
 - Tagged integration tests (require native lib + `DYLD_LIBRARY_PATH`)
-- `tool/test_m3a.sh` gate script
+- `tool/test_ffi.sh` gate script
 
 ## Architecture
 
@@ -109,13 +109,13 @@ MontyFfi (implements MontyPlatform)
 
 ### 3A.8 Gate Script
 
-- [x] `tool/test_m3a.sh`: format, analyze, test, coverage >= 90 %
+- [x] `tool/test_ffi.sh`: format, analyze, test, coverage >= 90 %
 
 ## Quality Gate
 
 ```bash
 # Unit tests (no native lib):
-bash tool/test_m3a.sh
+bash tool/test_ffi.sh
 
 # Integration tests (requires M2 native lib built):
 cd native && cargo build --release && cd ..

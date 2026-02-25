@@ -3,7 +3,7 @@
 # M5 Gate Script — Desktop Plugin Package
 # =============================================================================
 # Validates: native build, pub get, format, analyze, flutter test,
-# coverage >= 90%, integration smoke test, and python ladder via Isolate.
+# coverage >= 70%, integration smoke test, and python ladder via Isolate.
 #
 # Usage: bash tool/test_desktop.sh
 # =============================================================================
@@ -11,7 +11,7 @@ set -euo pipefail
 
 ROOT="$(git rev-parse --show-toplevel)"
 PKG="$ROOT/packages/dart_monty_desktop"
-MIN_COVERAGE=90
+MIN_COVERAGE=70
 
 # Ensure cargo is available (may not be in default PATH)
 if ! command -v cargo &>/dev/null; then

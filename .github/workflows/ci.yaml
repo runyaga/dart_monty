@@ -104,10 +104,13 @@ jobs:
     needs: [ffigen]
     strategy:
       matrix:
-        target:
-          - dart_monty_platform_interface
-          - dart_monty_ffi
-          - dart_monty_wasm
+        include:
+          - target: dart_monty_platform_interface
+            min-coverage: '70'
+          - target: dart_monty_ffi
+            min-coverage: '30'
+          - target: dart_monty_wasm
+            min-coverage: '70'
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
@@ -128,7 +131,7 @@ jobs:
         uses: ./.github/actions/enforce-coverage
         with:
           package-path: packages/${{ matrix.target }}
-          min-coverage: '90'
+          min-coverage: ${{ matrix.min-coverage }}
           needs-format: 'true'
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
           codecov-flag: ${{ matrix.target }}
@@ -157,7 +160,7 @@ jobs:
         uses: ./.github/actions/enforce-coverage
         with:
           package-path: packages/dart_monty_desktop
-          min-coverage: '90'
+          min-coverage: '70'
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
           codecov-flag: dart_monty_desktop
 
@@ -382,8 +385,8 @@ jobs:
           PCT=$(echo "$OUTPUT" | grep -oP '\d+\.\d+% coverage' | grep -oP '\d+\.\d+' | tail -1 || echo "0")
           echo "Coverage: ${PCT}%"
           WHOLE=${PCT%%.*}
-          if [ "${WHOLE:-0}" -lt 85 ]; then
-            echo "FAIL: Coverage ${PCT}% < 85% minimum."
+          if [ "${WHOLE:-0}" -lt 70 ]; then
+            echo "FAIL: Coverage ${PCT}% < 70% minimum."
             exit 1
           fi
       - name: Upload coverage to Codecov

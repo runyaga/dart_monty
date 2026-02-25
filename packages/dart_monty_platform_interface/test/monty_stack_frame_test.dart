@@ -3,46 +3,6 @@ import 'package:test/test.dart';
 
 void main() {
   group('MontyStackFrame', () {
-    test('constructs with all fields', () {
-      const frame = MontyStackFrame(
-        filename: 'main.py',
-        startLine: 10,
-        startColumn: 4,
-        endLine: 12,
-        endColumn: 20,
-        frameName: 'calculate',
-        previewLine: '    return x + y',
-        hideCaret: true,
-        hideFrameName: true,
-      );
-      expect(frame.filename, 'main.py');
-      expect(frame.startLine, 10);
-      expect(frame.startColumn, 4);
-      expect(frame.endLine, 12);
-      expect(frame.endColumn, 20);
-      expect(frame.frameName, 'calculate');
-      expect(frame.previewLine, '    return x + y');
-      expect(frame.hideCaret, isTrue);
-      expect(frame.hideFrameName, isTrue);
-    });
-
-    test('constructs with required fields only', () {
-      const frame = MontyStackFrame(
-        filename: 'test.py',
-        startLine: 1,
-        startColumn: 0,
-      );
-      expect(frame.filename, 'test.py');
-      expect(frame.startLine, 1);
-      expect(frame.startColumn, 0);
-      expect(frame.endLine, isNull);
-      expect(frame.endColumn, isNull);
-      expect(frame.frameName, isNull);
-      expect(frame.previewLine, isNull);
-      expect(frame.hideCaret, isFalse);
-      expect(frame.hideFrameName, isFalse);
-    });
-
     group('fromJson', () {
       test('parses full JSON', () {
         final frame = MontyStackFrame.fromJson(const {

@@ -78,12 +78,13 @@ http.server.HTTPServer(('127.0.0.1', 8088), handler).serve_forever()
 ## Gate Scripts
 
 ```bash
-bash tool/test_m1.sh          # M1: platform interface
-bash tool/test_m2.sh          # M2: Rust + WASM
-bash tool/test_m3a.sh         # M3A: FFI package
-bash tool/test_wasm.sh        # M4: WASM package (unit + Chrome integration)
-bash tool/test_python_ladder.sh       # Python ladder (all backends)
-bash tool/test_cross_path_parity.sh   # JSONL parity diff
+bash tool/gate.sh                        # Run ALL quality checks
+bash tool/test_platform_interface.sh     # Platform interface
+bash tool/test_rust.sh                   # Rust native crate + WASM
+bash tool/test_ffi.sh                    # FFI package
+bash tool/test_wasm.sh                   # WASM package (unit + Chrome integration)
+bash tool/test_python_ladder.sh          # Python ladder (all backends)
+bash tool/test_cross_path_parity.sh      # JSONL parity diff
 ```
 
 ## Code Quality

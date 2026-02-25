@@ -10,19 +10,6 @@ void main() {
 
   group('MontyProgress', () {
     group('MontyComplete', () {
-      test('constructs with result', () {
-        const result = MontyResult(value: 42, usage: usage);
-        const complete = MontyComplete(result: result);
-        expect(complete.result, result);
-      });
-
-      test('is a MontyProgress', () {
-        const complete = MontyComplete(
-          result: MontyResult(value: 1, usage: usage),
-        );
-        expect(complete, isA<MontyProgress>());
-      });
-
       group('fromJson', () {
         test('parses complete JSON', () {
           final complete = MontyComplete.fromJson(const {
@@ -107,61 +94,6 @@ void main() {
     });
 
     group('MontyPending', () {
-      test('constructs with function name and arguments', () {
-        const pending = MontyPending(
-          functionName: 'fetch',
-          arguments: ['url', 42],
-        );
-        expect(pending.functionName, 'fetch');
-        expect(pending.arguments, ['url', 42]);
-      });
-
-      test('is a MontyProgress', () {
-        const pending = MontyPending(
-          functionName: 'fn',
-          arguments: [],
-        );
-        expect(pending, isA<MontyProgress>());
-      });
-
-      test('constructs with empty arguments', () {
-        const pending = MontyPending(
-          functionName: 'noop',
-          arguments: [],
-        );
-        expect(pending.arguments, isEmpty);
-      });
-
-      test('defaults for new M7A fields', () {
-        const pending = MontyPending(
-          functionName: 'fn',
-          arguments: [],
-        );
-        expect(pending.kwargs, isNull);
-        expect(pending.callId, 0);
-        expect(pending.methodCall, isFalse);
-      });
-
-      test('constructs with kwargs', () {
-        const pending = MontyPending(
-          functionName: 'fetch',
-          arguments: ['url'],
-          kwargs: {'timeout': 30, 'retries': 3},
-        );
-        expect(pending.kwargs, {'timeout': 30, 'retries': 3});
-      });
-
-      test('constructs with callId and methodCall', () {
-        const pending = MontyPending(
-          functionName: 'obj.method',
-          arguments: [1],
-          callId: 42,
-          methodCall: true,
-        );
-        expect(pending.callId, 42);
-        expect(pending.methodCall, isTrue);
-      });
-
       group('fromJson', () {
         test('parses pending JSON', () {
           final pending = MontyPending.fromJson(const {
@@ -508,16 +440,6 @@ void main() {
     });
 
     group('MontyResolveFutures', () {
-      test('constructs with pendingCallIds', () {
-        const futures = MontyResolveFutures(pendingCallIds: [0, 1, 2]);
-        expect(futures.pendingCallIds, [0, 1, 2]);
-      });
-
-      test('is a MontyProgress', () {
-        const futures = MontyResolveFutures(pendingCallIds: [0]);
-        expect(futures, isA<MontyProgress>());
-      });
-
       group('fromJson', () {
         test('parses resolve_futures JSON', () {
           final futures = MontyResolveFutures.fromJson(const {

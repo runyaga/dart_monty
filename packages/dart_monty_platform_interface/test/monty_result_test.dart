@@ -9,62 +9,6 @@ void main() {
   );
 
   group('MontyResult', () {
-    test('constructs value result', () {
-      const result = MontyResult(value: 42, usage: usage);
-      expect(result.value, 42);
-      expect(result.error, isNull);
-      expect(result.usage, usage);
-      expect(result.isError, isFalse);
-    });
-
-    test('constructs error result', () {
-      const error = MontyException(message: 'boom');
-      const result = MontyResult(error: error, usage: usage);
-      expect(result.value, isNull);
-      expect(result.error, error);
-      expect(result.usage, usage);
-      expect(result.isError, isTrue);
-    });
-
-    test('constructs with null value', () {
-      const result = MontyResult(usage: usage);
-      expect(result.value, isNull);
-      expect(result.error, isNull);
-      expect(result.printOutput, isNull);
-      expect(result.isError, isFalse);
-    });
-
-    test('constructs with printOutput', () {
-      const result = MontyResult(
-        value: 42,
-        usage: usage,
-        printOutput: 'hello\n',
-      );
-      expect(result.value, 42);
-      expect(result.printOutput, 'hello\n');
-    });
-
-    test('value can be a string', () {
-      const result = MontyResult(value: 'hello', usage: usage);
-      expect(result.value, 'hello');
-    });
-
-    test('value can be a list', () {
-      const result = MontyResult(
-        value: [1, 2, 3],
-        usage: usage,
-      );
-      expect(result.value, [1, 2, 3]);
-    });
-
-    test('value can be a map', () {
-      const result = MontyResult(
-        value: {'key': 'val'},
-        usage: usage,
-      );
-      expect(result.value, {'key': 'val'});
-    });
-
     group('fromJson', () {
       test('parses value result', () {
         final result = MontyResult.fromJson(const {

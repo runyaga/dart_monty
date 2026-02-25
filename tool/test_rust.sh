@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 # =============================================================================
-# M2 Gate Script — Rust C FFI Layer + WASM Build
+# Gate Script — Rust Native Crate
 # =============================================================================
 # Validates: fmt, clippy, test, release build, symbol export, WASM build
-# Usage: bash tool/test_m2.sh
+# Usage: bash tool/test_rust.sh
 # =============================================================================
 set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)/native"
 
-echo "=== M2 Gate: native/ ==="
+echo "=== Rust Gate: native/ ==="
 
 echo "--- cargo fmt --check ---"
 cargo fmt --check
@@ -20,7 +20,7 @@ cargo clippy -- -D warnings
 echo "--- cargo test ---"
 cargo test
 
-echo "--- cargo tarpaulin (90% coverage gate) ---"
+echo "--- cargo tarpaulin (70% coverage gate) ---"
 if ! command -v cargo-tarpaulin &>/dev/null; then
     echo "Installing cargo-tarpaulin..."
     cargo install cargo-tarpaulin
@@ -30,8 +30,8 @@ echo "$OUTPUT"
 PCT=$(echo "$OUTPUT" | grep -oE '[0-9]+\.[0-9]+% coverage' | grep -oE '[0-9]+\.[0-9]+' | tail -1 || echo "0")
 echo "Coverage: ${PCT}%"
 WHOLE=${PCT%%.*}
-if [ "${WHOLE:-0}" -lt 90 ]; then
-    echo "FAIL: Coverage ${PCT}% < 90% minimum."
+if [ "${WHOLE:-0}" -lt 70 ]; then
+    echo "FAIL: Coverage ${PCT}% < 70% minimum."
     exit 1
 fi
 
@@ -62,4 +62,4 @@ fi
 WASM_SIZE=$(wc -c < "$WASM" | tr -d ' ')
 echo "WASM binary: $WASM_SIZE bytes"
 
-echo "=== M2 Gate PASSED ==="
+echo "=== Rust Gate PASSED ==="

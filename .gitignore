@@ -40,3 +40,6 @@ test.py
 .env
 .env.*
 .venv/
+# CI review artifacts (keep only baseline.json)
+ci-review/*
+!ci-review/baseline.json
