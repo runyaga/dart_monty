@@ -113,7 +113,7 @@ All code jobs run in parallel except where noted:
   platform_interface, ffi, wasm (needs: ffigen for ffi variant).
   Coverage is enforced by the `.github/actions/enforce-coverage`
   composite action.
-- **Test desktop** — Flutter test + 90% coverage on macOS (needs: ffigen)
+- **Test native** — Flutter test + 90% coverage on macOS (needs: ffigen)
 - **Test web** — Flutter test on Chrome
 - **Rust** — fmt + clippy + tarpaulin test/coverage (85% gate)
 - **Build WASM** — `cargo build --target wasm32-wasip1-threads` (needs: rust)
@@ -162,14 +162,14 @@ call the shared `_publish-dart-package.yaml` reusable workflow via
    - Update `MockMontyPlatform` in platform_interface tests
    - Update `MockWasmBindings` in dart_monty_web tests
    - Ensure all `switch` statements on sealed types (e.g. `MontyProgress`)
-     are exhaustive in every package (especially desktop)
+     are exhaustive in every package (especially native)
 3. **Update version** in each package's `pubspec.yaml` that you intend to
    release
 4. **Consolidate CHANGELOGs** — rename `## Unreleased` to the version
    heading (e.g. `## 0.4.0`) in each package being released
 5. **Check dependency constraints** — if `platform_interface` has breaking
    changes, update version constraints in downstream packages (`ffi`, `wasm`,
-   `web`, `desktop`, `dart_monty`). Remember `^0.3.3` means `>=0.3.3 <0.4.0`,
+   `web`, `native`, `dart_monty`). Remember `^0.3.3` means `>=0.3.3 <0.4.0`,
    so a 0.4.0 release requires bumping constraints to `^0.4.0`.
 6. **Commit and push** the version bumps and CHANGELOG updates to `main`
 7. **Run local dry-run** for each package being published:
@@ -194,13 +194,13 @@ git tag wasm-v<version>
 git push origin ffi-v<version> wasm-v<version>
 # Wait for both workflows to complete
 
-# 3. web and desktop (depend on platform_interface + ffi/wasm)
+# 3. web and native (depend on platform_interface + ffi/wasm)
 git tag web-v<version>
 git tag native-v<version>
 git push origin web-v<version> native-v<version>
 # Wait for both workflows to complete
 
-# 4. dart_monty root (depends on web + desktop)
+# 4. dart_monty root (depends on web + native)
 git tag dart_monty-v<version>
 git push origin dart_monty-v<version>
 # Wait for workflow to complete
@@ -230,7 +230,11 @@ a web bundle, and creates a **GitHub Release** at
 3. **Check GitHub Release** — verify
    `https://github.com/runyaga/dart_monty/releases` shows the new version with
    native (linux-x64, macos-x64) and web artifacts attached
-4. **Test downstream** — create a fresh project and add `dart_monty` as a
+4. **Review pub.dev descriptions** — verify each package's description is
+   accurate and up to date. Descriptions come from `pubspec.yaml` and are
+   updated on each publish. Check for stale references to renamed packages
+   or outdated scope descriptions.
+5. **Test downstream** — create a fresh project and add `dart_monty` as a
    dependency to verify the published packages resolve correctly:
    ```bash
    dart create test_install && cd test_install
@@ -304,8 +308,14 @@ All 6 packages are already configured. For new packages:
   workflow includes `apt-get install libclang-dev` and `dart run ffigen`
   steps because `dart_monty_bindings.dart` is gitignored.
 - **Root package resolves from pub.dev.** `dart_monty` uses hosted
-  dependencies (`^x.y.z`), not path refs. After publishing sub-packages,
+  dependencies (`^x.y.z`) with `dependency_overrides` pointing to local
+  paths for CI and local development. After publishing sub-packages,
   wait 1–2 minutes for pub.dev to propagate before tagging the root.
+- **New packages require manual first publish.** If a package is renamed
+  or newly created (e.g. `dart_monty_desktop` → `dart_monty_native`),
+  pub.dev treats it as a brand new package. The first version must be
+  published manually with `dart pub publish`, then configure OIDC on
+  the pub.dev admin page before automated publishing will work.
 - **Sealed-class exhaustiveness.** Adding a variant to `MontyProgress` (or
   any sealed class) requires updating every `switch` on that type across all
   packages and all mock implementations.
