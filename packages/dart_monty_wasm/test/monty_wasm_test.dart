@@ -581,12 +581,12 @@ void main() {
       expect((progress as MontyComplete).result.value, 10);
     });
 
-    test('throws StateError when restore fails', () {
+    test('throws MontyException when restore fails', () {
       mock.nextRestoreError = 'invalid snapshot';
 
       expect(
         () => monty.restore(Uint8List.fromList([0xFF])),
-        throwsStateError,
+        throwsA(isA<MontyException>()),
       );
     });
 
@@ -832,11 +832,13 @@ void main() {
         fail('Expected MontyException');
       } on MontyException catch (e) {
         expect(e.excType, 'ZeroDivisionError');
-        expect(e.traceback, hasLength(1));
-        expect(e.traceback.first.filename, '<input>');
-        expect(e.traceback.first.startLine, 1);
-        expect(e.traceback.first.frameName, '<module>');
-        expect(e.traceback.first.previewLine, '1/0');
+        final traceback = e.traceback;
+        expect(traceback, hasLength(1));
+        final frame = traceback.first;
+        expect(frame.filename, '<input>');
+        expect(frame.startLine, 1);
+        expect(frame.frameName, '<module>');
+        expect(frame.previewLine, '1/0');
       }
     });
 
@@ -860,9 +862,10 @@ void main() {
         fail('Expected MontyException');
       } on MontyException catch (e) {
         expect(e.excType, 'NameError');
-        expect(e.traceback, hasLength(1));
-        expect(e.traceback.first.filename, 'test.py');
-        expect(e.traceback.first.startLine, 5);
+        final startTraceback = e.traceback;
+        expect(startTraceback, hasLength(1));
+        expect(startTraceback.first.filename, 'test.py');
+        expect(startTraceback.first.startLine, 5);
       }
     });
 

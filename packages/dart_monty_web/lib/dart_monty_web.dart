@@ -17,7 +17,7 @@ import 'package:flutter_web_plugins/flutter_web_plugins.dart';
 /// This class contains no logic — all execution is handled by [MontyWasm].
 class DartMontyWeb {
   /// Registers [MontyWasm] as the default [MontyPlatform] instance.
-  static void registerWith(Registrar registrar) {
+  static void registerWith(Registrar _) {
     MontyPlatform.instance = MontyWasm(bindings: WasmBindingsJs());
   }
 }

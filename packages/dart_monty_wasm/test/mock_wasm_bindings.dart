@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 import 'package:dart_monty_wasm/src/wasm_bindings.dart';
 
 /// A hand-written mock of [WasmBindings] with configurable returns
@@ -181,7 +182,7 @@ class MockWasmBindings extends WasmBindings {
     restoreCalls.add(data);
     final restoreError = nextRestoreError;
     if (restoreError != null) {
-      throw StateError(restoreError);
+      throw MontyException(message: restoreError);
     }
   }
 

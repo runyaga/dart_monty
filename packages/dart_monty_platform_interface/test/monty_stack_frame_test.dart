@@ -212,7 +212,7 @@ void main() {
           },
         ]);
         expect(frames, hasLength(2));
-        expect(frames[0].filename, 'a.py');
+        expect(frames.first.filename, 'a.py');
         expect(frames[1].frameName, 'fn');
       });
 

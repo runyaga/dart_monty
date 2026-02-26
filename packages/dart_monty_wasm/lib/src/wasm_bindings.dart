@@ -30,7 +30,7 @@ final class WasmRunResult {
   final String? excType;
 
   /// The traceback frames as raw JSON list (when error occurred).
-  final List<dynamic>? traceback;
+  final List<Object?>? traceback;
 }
 
 /// Result of [WasmBindings.start], [WasmBindings.resume], and
@@ -92,7 +92,7 @@ final class WasmProgressResult {
   final String? excType;
 
   /// The traceback frames as raw JSON list (when error occurred).
-  final List<dynamic>? traceback;
+  final List<Object?>? traceback;
 }
 
 /// Result of [WasmBindings.discover].

@@ -557,12 +557,12 @@ void main() {
       expect((progress as MontyComplete).result.value, 10);
     });
 
-    test('throws StateError when restore fails', () {
+    test('throws MontyException when restore fails', () {
       mock.nextRestoreError = 'invalid snapshot';
 
       expect(
         () => monty.restore(Uint8List.fromList([0xFF])),
-        throwsStateError,
+        throwsA(isA<MontyException>()),
       );
     });
 
@@ -681,10 +681,10 @@ void main() {
       expect(pending.arguments, isEmpty);
     });
 
-    test('create error propagates', () async {
+    test('create error propagates as MontyException', () async {
       mock.nextCreateError = 'compilation failed';
 
-      expect(() => monty.run('bad'), throwsStateError);
+      expect(() => monty.run('bad'), throwsA(isA<MontyException>()));
     });
 
     test('run with null resultJson throws', () async {
@@ -731,11 +731,13 @@ void main() {
 
       final result = await monty.run('1/0');
       expect(result.isError, isTrue);
-      final error = result.error!;
-      expect(error.excType, 'ZeroDivisionError');
-      expect(error.traceback, hasLength(1));
-      expect(error.traceback.first.filename, 'test.py');
-      expect(error.traceback.first.startLine, 1);
+      final error = result.error;
+      expect(error, isNotNull);
+      expect(error!.excType, 'ZeroDivisionError');
+      final errorTraceback = error.traceback;
+      expect(errorTraceback, hasLength(1));
+      expect(errorTraceback.first.filename, 'test.py');
+      expect(errorTraceback.first.startLine, 1);
     });
 
     test('run error with null message uses default', () async {

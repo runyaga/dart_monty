@@ -37,7 +37,7 @@ See `docs/refactoring-plan.md` for the full plan.
 | 6 | Web Package Simplification | **High** | **Done** |
 | 7 | Desktop & WASM Refinement + iOS Prep | Low-Medium | **Done** |
 | 8 | Rust Crate Consolidation | **Highest** | **Done** |
-| 9 | DCM Lint Cleanup | Low | **In Progress** |
+| 9 | DCM Lint Cleanup | Low | **Done** |
 
 Shipped incrementally across **0.4.x** releases.
 
