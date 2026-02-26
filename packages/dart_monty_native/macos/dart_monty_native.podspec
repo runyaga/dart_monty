@@ -1,5 +1,5 @@
 Pod::Spec.new do |s|
-  s.name             = 'dart_monty_desktop'
+  s.name             = 'dart_monty_native'
   s.version          = '0.1.0'
   s.summary          = 'macOS native library for dart_monty.'
   s.homepage         = 'https://github.com/runyaga/dart-monty'

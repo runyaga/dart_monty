@@ -15,7 +15,7 @@ environment:
   flutter: '>=3.19.0'
 
 dependencies:
-  dart_monty_desktop: ^0.4.0
+  dart_monty_native: ^0.6.0
   dart_monty_platform_interface: ^0.4.0
   dart_monty_web: ^0.4.0
   flutter:
@@ -30,8 +30,8 @@ flutter:
   plugin:
     platforms:
       linux:
-        default_package: dart_monty_desktop
+        default_package: dart_monty_native
       macos:
-        default_package: dart_monty_desktop
+        default_package: dart_monty_native
       web:
         default_package: dart_monty_web

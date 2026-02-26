@@ -154,7 +154,7 @@ visioning/planning process after milestone reorganization.
 **Pure Dart** — no Flutter SDK dependency. Changes touch
 `dart_monty_platform_interface`, `native/`, `dart_monty_ffi`, and
 `dart_monty_wasm`. Validated by the ladder runner (CLI + web), not a
-Flutter app. Flutter plugin wrappers (`dart_monty_desktop`,
+Flutter app. Flutter plugin wrappers (`dart_monty_native`,
 `dart_monty_web`) inherit changes automatically.
 
 ## Platform Support

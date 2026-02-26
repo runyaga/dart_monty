@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 # =============================================================================
-# M5 Gate Script — Desktop Plugin Package
+# M5 Gate Script — Native Plugin Package
 # =============================================================================
 # Validates: native build, pub get, format, analyze, flutter test,
 # coverage >= 70%, integration smoke test, and python ladder via Isolate.
 #
-# Usage: bash tool/test_desktop.sh
+# Usage: bash tool/test_native.sh
 # =============================================================================
 set -euo pipefail
 
 ROOT="$(git rev-parse --show-toplevel)"
-PKG="$ROOT/packages/dart_monty_desktop"
+PKG="$ROOT/packages/dart_monty_native"
 MIN_COVERAGE=70
 
 # Ensure cargo is available (may not be in default PATH)
@@ -21,7 +21,7 @@ fi
 
 cd "$ROOT"
 
-echo "=== M5 Gate: dart_monty_desktop ==="
+echo "=== M5 Gate: dart_monty_native ==="
 
 # -------------------------------------------------------
 # Step 1: Build native library
@@ -131,4 +131,4 @@ fi
 # Done
 # -------------------------------------------------------
 echo ""
-echo "=== M5 Gate: PASSED (${PCT}% coverage, smoke OK, ladder done) ==="
+echo "=== M5 Gate: dart_monty_native PASSED (${PCT}% coverage, smoke OK, ladder done) ==="

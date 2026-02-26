@@ -1,0 +1,17 @@
+name: Publish native
+
+on:
+  push:
+    tags:
+      - 'native-v[0-9]*.[0-9]*.[0-9]*'
+
+jobs:
+  publish:
+    uses: ./.github/workflows/_publish-dart-package.yaml
+    permissions:
+      id-token: write
+    with:
+      package-name: dart_monty_native
+      tag-prefix: native-v
+      package-path: packages/dart_monty_native
+      uses-flutter: true

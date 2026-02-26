@@ -33,14 +33,14 @@ repos:
         entry: bash -c 'cd packages/dart_monty_platform_interface && dart test'
         language: system
         pass_filenames: false
-      - id: flutter-test-desktop
-        name: flutter test (desktop)
-        entry: bash -c 'cd packages/dart_monty_desktop && flutter test'
+      - id: flutter-test-native
+        name: flutter test (native)
+        entry: bash -c 'cd packages/dart_monty_native && flutter test'
         language: system
         pass_filenames: false
-      - id: flutter-analyze-desktop
-        name: flutter analyze (desktop)
-        entry: bash -c 'cd packages/dart_monty_desktop && flutter analyze --fatal-infos'
+      - id: flutter-analyze-native
+        name: flutter analyze (native)
+        entry: bash -c 'cd packages/dart_monty_native && flutter analyze --fatal-infos'
         language: system
         pass_filenames: false
       - id: flutter-test-web

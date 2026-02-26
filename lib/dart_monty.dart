@@ -6,7 +6,7 @@
 /// ```
 ///
 /// Platform implementations are selected automatically via the federated
-/// plugin system (`dart_monty_desktop` for macOS/Linux,
+/// plugin system (`dart_monty_native` for native platforms,
 /// `dart_monty_web` for browsers).
 library;
 

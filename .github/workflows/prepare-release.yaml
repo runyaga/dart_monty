@@ -49,7 +49,7 @@ jobs:
             dart test
             cd "$GITHUB_WORKSPACE"
           done
-          for dir in packages/dart_monty_desktop; do
+          for dir in packages/dart_monty_native; do
             echo "--- ${dir} (flutter test) ---"
             cd "$dir"
             flutter pub get
@@ -67,11 +67,11 @@ jobs:
           - os: ubuntu-latest
             label: linux-x64
             src: native/target/release/libdart_monty_native.so
-            dst: packages/dart_monty_desktop/linux/libdart_monty_native.so
+            dst: packages/dart_monty_native/linux/libdart_monty_native.so
           - os: macos-latest
             label: macos-x64
             src: native/target/release/libdart_monty_native.dylib
-            dst: packages/dart_monty_desktop/macos/libdart_monty_native.dylib
+            dst: packages/dart_monty_native/macos/libdart_monty_native.dylib
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -94,7 +94,7 @@ jobs:
           echo "install_name after fix:"
           otool -D "${{ matrix.src }}"
 
-      - name: Copy binary to desktop package
+      - name: Copy binary to native package
         run: |
           mkdir -p "$(dirname "${{ matrix.dst }}")"
           cp "${{ matrix.src }}" "${{ matrix.dst }}"
@@ -128,14 +128,14 @@ jobs:
         with:
           path: vendored
 
-      - name: Place binaries in desktop package
+      - name: Place binaries in native package
         run: |
           cp vendored/native-linux-x64/libdart_monty_native.so \
-             packages/dart_monty_desktop/linux/libdart_monty_native.so
+             packages/dart_monty_native/linux/libdart_monty_native.so
           cp vendored/native-macos-x64/libdart_monty_native.dylib \
-             packages/dart_monty_desktop/macos/libdart_monty_native.dylib
-          ls -lh packages/dart_monty_desktop/linux/
-          ls -lh packages/dart_monty_desktop/macos/
+             packages/dart_monty_native/macos/libdart_monty_native.dylib
+          ls -lh packages/dart_monty_native/linux/
+          ls -lh packages/dart_monty_native/macos/
 
       - name: Bump version in all pubspecs
         run: |
@@ -150,7 +150,7 @@ jobs:
       - name: Verify CHANGELOG entries
         run: |
           VERSION="${{ inputs.version }}"
-          for dir in . packages/dart_monty_platform_interface packages/dart_monty_ffi packages/dart_monty_wasm packages/dart_monty_web packages/dart_monty_desktop; do
+          for dir in . packages/dart_monty_platform_interface packages/dart_monty_ffi packages/dart_monty_wasm packages/dart_monty_web packages/dart_monty_native; do
             if ! grep -q "## ${VERSION}" "${dir}/CHANGELOG.md"; then
               echo "ERROR: ${dir}/CHANGELOG.md missing entry for ${VERSION}"
               exit 1
@@ -162,7 +162,7 @@ jobs:
 
       - name: Check dartdoc
         run: |
-          for dir in packages/dart_monty_platform_interface packages/dart_monty_ffi packages/dart_monty_wasm packages/dart_monty_web packages/dart_monty_desktop; do
+          for dir in packages/dart_monty_platform_interface packages/dart_monty_ffi packages/dart_monty_wasm packages/dart_monty_web packages/dart_monty_native; do
             echo "--- ${dir} ---"
             cd "$dir"
             dart pub get

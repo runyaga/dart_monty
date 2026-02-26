@@ -1,18 +1,18 @@
 import 'dart:typed_data';
 
-import 'package:dart_monty_desktop/src/monty_desktop.dart';
+import 'package:dart_monty_native/src/monty_native.dart';
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'mock_desktop_bindings.dart';
+import 'mock_native_isolate_bindings.dart';
 
 void main() {
-  late MockDesktopBindings mock;
-  late MontyDesktop monty;
+  late MockNativeIsolateBindings mock;
+  late MontyNative monty;
 
   setUp(() {
-    mock = MockDesktopBindings();
-    monty = MontyDesktop(bindings: mock);
+    mock = MockNativeIsolateBindings();
+    monty = MontyNative(bindings: mock);
   });
 
   tearDown(() async {
@@ -340,7 +340,7 @@ void main() {
     });
 
     test('throws StateError when idle', () {
-      final freshMonty = MontyDesktop(bindings: mock);
+      final freshMonty = MontyNative(bindings: mock);
       expect(
         () => freshMonty.resumeWithError('err'),
         throwsStateError,
@@ -380,7 +380,7 @@ void main() {
     });
 
     test('throws StateError when idle', () {
-      final freshMonty = MontyDesktop(bindings: mock);
+      final freshMonty = MontyNative(bindings: mock);
       expect(freshMonty.resumeAsFuture, throwsStateError);
     });
 
@@ -419,7 +419,7 @@ void main() {
     });
 
     test('throws StateError when idle', () {
-      final freshMonty = MontyDesktop(bindings: mock);
+      final freshMonty = MontyNative(bindings: mock);
       expect(() => freshMonty.resolveFutures({0: 'x'}), throwsStateError);
     });
 
@@ -466,7 +466,7 @@ void main() {
     });
 
     test('throws StateError when idle', () {
-      final freshMonty = MontyDesktop(bindings: mock);
+      final freshMonty = MontyNative(bindings: mock);
       expect(
         () => freshMonty.resolveFutures({}, errors: {}),
         throwsStateError,
@@ -502,7 +502,7 @@ void main() {
     });
 
     test('throws StateError when idle', () {
-      final freshMonty = MontyDesktop(bindings: mock);
+      final freshMonty = MontyNative(bindings: mock);
       expect(freshMonty.snapshot, throwsStateError);
     });
 
@@ -516,22 +516,22 @@ void main() {
   // restore()
   // ===========================================================================
   group('restore()', () {
-    test('returns new MontyDesktop instance', () async {
+    test('returns new MontyNative instance', () async {
       final data = Uint8List.fromList([1, 2, 3]);
 
       final restored = await monty.restore(data);
 
-      expect(restored, isA<MontyDesktop>());
+      expect(restored, isA<MontyNative>());
       expect(mock.restoreCalls, hasLength(1));
       expect(mock.restoreCalls.first, data);
     });
 
     test('restored instance is in active state', () async {
       final restored = await monty.restore(Uint8List.fromList([1, 2, 3]));
-      final restoredDesktop = restored as MontyDesktop;
+      final restoredNative = restored as MontyNative;
 
       // Restored snapshot is paused — run() should be rejected.
-      expect(() => restoredDesktop.run('x'), throwsStateError);
+      expect(() => restoredNative.run('x'), throwsStateError);
 
       // resume() should be allowed (active state).
       mock.resumeResults.add(
@@ -539,7 +539,7 @@ void main() {
           result: MontyResult(value: 10, usage: _zeroUsage),
         ),
       );
-      final progress = await restoredDesktop.resume('val');
+      final progress = await restoredNative.resume('val');
       expect(progress, isA<MontyComplete>());
       expect((progress as MontyComplete).result.value, 10);
     });

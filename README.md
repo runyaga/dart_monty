@@ -127,7 +127,7 @@ Federated plugin with six packages:
 | `dart_monty_platform_interface` | **Pure Dart** | Abstract contract — no Flutter dependency |
 | `dart_monty_ffi` | **Pure Dart** | Native FFI bindings (`dart:ffi` -> Rust) |
 | `dart_monty_wasm` | **Pure Dart** | WASM bindings (`dart:js_interop` -> Web Worker) |
-| `dart_monty_desktop` | Flutter plugin | Desktop platform (macOS/Linux, Isolate) |
+| `dart_monty_native` | Flutter plugin | Native platform (desktop + mobile, Isolate) |
 | `dart_monty_web` | Flutter plugin | Web platform (browser, script injection) |
 
 The three pure-Dart packages can be used without Flutter (e.g. in CLI tools
@@ -136,7 +136,7 @@ or server-side Dart).
 ### Native Path (desktop)
 
 ```text
-Dart app -> MontyDesktop (Isolate)
+Dart app -> MontyNative (Isolate)
   -> MontyFfi (dart:ffi)
     -> libdart_monty_native.{dylib,so}
       -> Monty Rust interpreter

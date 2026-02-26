@@ -266,7 +266,7 @@ the bug fix or the refactor, not both.
 
 | Change | Detail |
 |--------|--------|
-| Fix: `MontyDesktop.restore()` state handling | Should match WASM behavior (set state to active) |
+| Fix: `MontyNative.restore()` state handling | Should match WASM behavior (set state to active) |
 | Add: Regression test for `restore()` state | Verify all backends agree on post-restore state |
 
 **Net removal:** 0 (small addition)
@@ -325,7 +325,7 @@ changes (the `restore()` bug is already fixed in Slice 2).
 | Change | Detail |
 |--------|--------|
 | New: `monty_state_mixin.dart` in `platform_interface/lib/src/` | `_State` enum, guard methods, `rejectInputs`, `dispose()` idempotency |
-| Modify: `MontyFfi`, `MontyWasm`, `MontyDesktop` | `with MontyStateMixin` — delete local copies |
+| Modify: `MontyFfi`, `MontyWasm`, `MontyNative` | `with MontyStateMixin` — delete local copies |
 | New: State machine unit tests in `platform_interface/test/` | One canonical set (currently triplicated) |
 | Delete: Per-backend state machine test groups | ~265 lines across 3 test files |
 
@@ -412,7 +412,7 @@ prepares `dart_monty_ffi` for iOS platform expansion (M9).
 
 | Change | Detail |
 |--------|--------|
-| Remove `DesktopRunResult`/`DesktopProgressResult` wrappers | Return domain types directly from `DesktopBindings` |
+| Remove `NativeRunResult`/`NativeProgressResult` wrappers | Return domain types directly from `NativeIsolateBindings` |
 | Extract worker progress dispatch helper in `worker_src.js` | `postProgress(progress, id)` replaces 3x copy-paste |
 | Add `_failAllPending` test coverage in Desktop | Currently zero tests for isolate error recovery path |
 | Measure `timeElapsedMs` with `Stopwatch` in WASM | Replace synthetic zeros with actual elapsed time |
@@ -518,19 +518,19 @@ is atomic and reviewable.
 ### Sync-over-async in MontyFfi
 
 `MontyFfi` wraps synchronous FFI calls in `async`/`Future` without offloading
-to an Isolate. `MontyDesktop` already solves this with the Isolate pattern.
+to an Isolate. `MontyNative` already solves this with the Isolate pattern.
 Making `MontyFfi` use `Isolate.run()` would be correct but changes observable
 behavior (microtask scheduling).
 
 **Why deferred (not a slice):** `MontyFfi` is not used directly in Flutter
-apps — `MontyDesktop` wraps it in an Isolate before it reaches the UI thread.
+apps — `MontyNative` wraps it in an Isolate before it reaches the UI thread.
 The sync-over-async issue only affects bare `MontyFfi` consumers (tests, CLI
 tools) where main-thread jank is not observable. If a future milestone adds a
 non-Isolate path that exposes `MontyFfi` to Flutter UI, this must be promoted
 to a dedicated slice immediately.
 
-**Note:** `MontyDesktop` cannot be eliminated or collapsed into `MontyFfi`
-because `dart_monty_desktop` owns Flutter plugin registration, native library
+**Note:** `MontyNative` cannot be eliminated or collapsed into `MontyFfi`
+because `dart_monty_native` owns Flutter plugin registration, native library
 bundling (podspec, CMakeLists), and the `ffiPlugin: true` declaration. The
 FFI package must remain pure Dart with no Flutter dependency. The current
 layering (FFI = pure Dart bindings, Desktop = Flutter glue + Isolate) is
@@ -551,7 +551,7 @@ drive a Worker in headless Chrome, which does not fit `package:test` well.
 This is an intentional platform constraint, not a bug. Document it rather than
 trying to unify it.
 
-### Package rename: `dart_monty_desktop` → `dart_monty_native`
+### Package rename: `dart_monty_native` → `dart_monty_native`
 
 When iOS, Android, and Windows are added (M9), "desktop" becomes misleading.
 The Dart code (Isolate, state machine, registration) is identical across all
@@ -573,8 +573,8 @@ support is coming. Key compatibility notes:
 
 - `NativeLibraryLoader` handles iOS/Android/Windows in `_platformDefault()`
 - Rust `Cargo.toml` produces `staticlib` (needed for iOS `.a`)
-- `DesktopBindingsIsolate` uses `Isolate.spawn` (works on all 5 native platforms)
-- `MontyDesktop` has no platform-specific Dart code
+- `NativeIsolateBindingsImpl` uses `Isolate.spawn` (works on all 5 native platforms)
+- `MontyNative` has no platform-specific Dart code
 
 ### Needs work (addressed in Slice 7 or M9)
 
@@ -606,7 +606,7 @@ per-platform analysis.
 - After Slice 8 completes: bump all packages to `0.5.0` in a release prep commit
 - Publish all packages in dependency order per `CONTRIBUTING.md`
 - If the package rename happens, publish `dart_monty_native` as a new package
-  and mark `dart_monty_desktop` as discontinued on pub.dev
+  and mark `dart_monty_native` as discontinued on pub.dev
 
 ### The "each slice is shippable" guarantee
 
@@ -842,7 +842,7 @@ They remain minimal pointers to the main example app.
 
 - [ ] Bump all packages to `0.5.0` in a single commit
 - [ ] If package rename decided: create `dart_monty_native`, mark
-      `dart_monty_desktop` as discontinued
+      `dart_monty_native` as discontinued
 - [ ] Update all cross-package dependency constraints to `^0.5.0`
 - [ ] Publish in dependency order per `CONTRIBUTING.md`
 - [ ] Tag release: `v0.5.0`

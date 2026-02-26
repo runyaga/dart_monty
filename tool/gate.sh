@@ -160,12 +160,12 @@ else
 fi
 
 # -------------------------------------------------------
-# 10. Desktop plugin tests (M5) — skip if no flutter
+# 10. Native plugin tests (M5) — skip if no flutter
 # -------------------------------------------------------
 if command -v flutter &>/dev/null; then
-  run_check "test: dart_monty_desktop" bash tool/test_desktop.sh
+  run_check "test: dart_monty_native" bash tool/test_native.sh
 else
-  skip_check "test: dart_monty_desktop" "flutter not installed"
+  skip_check "test: dart_monty_native" "flutter not installed"
 fi
 
 # -------------------------------------------------------

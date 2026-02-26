@@ -49,7 +49,7 @@ cd packages/dart_monty_platform_interface && dart analyze --fatal-infos
 
 Atomic slice that removes 5 methods from `MontyPlatform` and adds
 capability interface implementations on all 4 downstream classes
-(`MontyFfi`, `MontyWasm`, `MontyDesktop`, `DartMontyWeb`). Also deletes
+(`MontyFfi`, `MontyWasm`, `MontyNative`, `DartMontyWeb`). Also deletes
 the `UnsupportedError`-throwing stubs from web/wasm packages. This must
 be a single atomic slice because removing methods from `MontyPlatform`
 breaks all downstream packages until they add `implements` for the
@@ -62,7 +62,7 @@ capability interfaces.
 - `packages/dart_monty_ffi/lib/src/monty_ffi.dart` — add `implements MontySnapshotCapable, MontyFutureCapable` to class declaration. No method body changes; all 5 methods already exist.
 - `packages/dart_monty_wasm/lib/src/monty_wasm.dart` — add `implements MontySnapshotCapable` to class declaration. Delete `resumeAsFuture()`, `resolveFutures()`, `resolveFuturesWithErrors()` override methods (the 3 that threw `UnsupportedError`). `MontyWasm` does NOT implement `MontyFutureCapable`.
 - `packages/dart_monty_wasm/test/monty_wasm_test.dart` — replace 3 `throws UnsupportedError` tests with a single `MontyWasm() is! MontyFutureCapable` type-check test. Add `MontyWasm() is MontySnapshotCapable` assertion.
-- `packages/dart_monty_desktop/lib/src/monty_desktop.dart` — add `implements MontySnapshotCapable, MontyFutureCapable` to class declaration. No method body changes.
+- `packages/dart_monty_native/lib/src/monty_native.dart` — add `implements MontySnapshotCapable, MontyFutureCapable` to class declaration. No method body changes.
 - `packages/dart_monty_web/lib/dart_monty_web.dart` — add `implements MontySnapshotCapable` to class declaration. Delete `resumeAsFuture()`, `resolveFutures()`, `resolveFuturesWithErrors()` override methods. `DartMontyWeb` does NOT implement `MontyFutureCapable`.
 - `packages/dart_monty_web/test/dart_monty_web_test.dart` — replace `UnsupportedError` tests with capability type-check tests.
 
@@ -71,7 +71,7 @@ capability interfaces.
 - [ ] `MontyPlatform` has exactly 5 methods: `run`, `start`, `resume`, `resumeWithError`, `dispose`
 - [ ] `MontyFfi` implements `MontySnapshotCapable` and `MontyFutureCapable`
 - [ ] `MontyWasm` implements `MontySnapshotCapable` only (not `MontyFutureCapable`)
-- [ ] `MontyDesktop` implements both `MontySnapshotCapable` and `MontyFutureCapable`
+- [ ] `MontyNative` implements both `MontySnapshotCapable` and `MontyFutureCapable`
 - [ ] `DartMontyWeb` implements `MontySnapshotCapable` only
 - [ ] 3 `UnsupportedError`-throwing method overrides deleted from `MontyWasm`
 - [ ] 3 `UnsupportedError`-throwing method overrides deleted from `DartMontyWeb`
@@ -382,44 +382,44 @@ cd packages/dart_monty_wasm && dart analyze --fatal-infos && dart test
 
 ---
 
-## Slice 10: Delete DesktopRunResult and DesktopProgressResult Wrappers
+## Slice 10: Delete NativeRunResult and NativeProgressResult Wrapper Types
 
 **Commit:** 4
 **Depends on:** Slice 8, Slice 9
 
 ### Goal
 
-Remove the unnecessary `DesktopRunResult` and `DesktopProgressResult`
-wrapper types. `DesktopBindings` returns `MontyResult` and `MontyProgress`
+Remove the unnecessary `NativeRunResult` and `NativeProgressResult`
+wrapper types. `NativeIsolateBindings` returns `MontyResult` and `MontyProgress`
 directly.
 
 ### Files Changed
 
-- `packages/dart_monty_desktop/lib/src/desktop_bindings.dart` — delete `DesktopRunResult` and `DesktopProgressResult` classes. Change method return types:
-  - `run()` returns `Future<MontyResult>` (was `Future<DesktopRunResult>`)
-  - `start()`, `resume()`, `resumeWithError()`, `resumeAsFuture()`, `resolveFutures()`, `resolveFuturesWithErrors()` return `Future<MontyProgress>` (was `Future<DesktopProgressResult>`)
-- `packages/dart_monty_desktop/lib/src/desktop_bindings_isolate.dart` — update `DesktopBindingsIsolate` to match new return types. Remove `.result` / `.progress` wrapping:
+- `packages/dart_monty_native/lib/src/native_isolate_bindings.dart` — delete `NativeRunResult` and `NativeProgressResult` classes. Change method return types:
+  - `run()` returns `Future<MontyResult>` (was `Future<NativeRunResult>`)
+  - `start()`, `resume()`, `resumeWithError()`, `resumeAsFuture()`, `resolveFutures()`, `resolveFuturesWithErrors()` return `Future<MontyProgress>` (was `Future<NativeProgressResult>`)
+- `packages/dart_monty_native/lib/src/native_isolate_bindings_impl.dart` — update `NativeIsolateBindingsImpl` to match new return types. Remove `.result` / `.progress` wrapping:
   - `run()` returns `MontyResult` directly from `_RunResponse.result`
   - `start()` etc. return `MontyProgress` directly from `_ProgressResponse.progress`
-- `packages/dart_monty_desktop/lib/src/monty_desktop.dart` — remove `.result` / `.progress` unwrapping in `run()`, `start()`, `resume()`, `resumeWithError()`, etc.
-- `packages/dart_monty_desktop/test/monty_desktop_test.dart` — update `MockDesktopBindings` (or the test mock file) to return `MontyResult`/`MontyProgress` directly instead of wrappers. Update test setup accordingly.
-- `packages/dart_monty_desktop/test/mock_desktop_bindings.dart` — update mock to match new `DesktopBindings` signatures.
+- `packages/dart_monty_native/lib/src/monty_native.dart` — remove `.result` / `.progress` unwrapping in `run()`, `start()`, `resume()`, `resumeWithError()`, etc.
+- `packages/dart_monty_native/test/monty_native_test.dart` — update `MockNativeIsolateBindings` (or the test mock file) to return `MontyResult`/`MontyProgress` directly instead of wrappers. Update test setup accordingly.
+- `packages/dart_monty_native/test/mock_native_isolate_bindings.dart` — update mock to match new `NativeIsolateBindings` signatures.
 
 ### Acceptance Criteria
 
-- [ ] `DesktopRunResult` class is deleted
-- [ ] `DesktopProgressResult` class is deleted
-- [ ] `DesktopBindings` abstract methods return domain types directly
-- [ ] `DesktopBindingsIsolate` returns domain types directly (no wrapper construction)
-- [ ] `MontyDesktop` does not unwrap `.result` / `.progress`
+- [ ] `NativeRunResult` class is deleted
+- [ ] `NativeProgressResult` class is deleted
+- [ ] `NativeIsolateBindings` abstract methods return domain types directly
+- [ ] `NativeIsolateBindingsImpl` returns domain types directly (no wrapper construction)
+- [ ] `MontyNative` does not unwrap `.result` / `.progress`
 - [ ] All desktop tests pass (behavioral parity)
 - [ ] Verify `MontyResult` and `MontyProgress` pass safely across the `SendPort`/`ReceivePort` boundary without serialization errors
-- [ ] `dart analyze --fatal-infos` and `dart test` pass for `dart_monty_desktop`
+- [ ] `dart analyze --fatal-infos` and `dart test` pass for `dart_monty_native`
 
 ### Gate
 
 ```bash
-cd packages/dart_monty_desktop && dart analyze --fatal-infos && dart test
+cd packages/dart_monty_native && dart analyze --fatal-infos && dart test
 ```
 
 ---

@@ -19,9 +19,9 @@ shared test ladder.
 ┌─────────────────────────────────────────────────────┐
 │  Flutter App / Agent Framework (consumer)            │
 ├─────────────────────────────────────────────────────┤
-│  dart_monty_desktop          dart_monty_web          │  ← Flutter plugins (register)
+│  dart_monty_native          dart_monty_web          │  ← Flutter plugins (register)
 │    ├─ Isolate RPC              ├─ Delegate to WASM   │
-│    └─ DesktopBindings          └─ WasmBindings       │
+│    └─ NativeIsolateBindings          └─ WasmBindings       │
 ├─────────────────────────────────────────────────────┤
 │  dart_monty_ffi              dart_monty_wasm          │  ← Pure Dart impl packages
 │    ├─ MontyFfi                 ├─ MontyWasm           │
@@ -92,13 +92,13 @@ shared test ladder.
 | Shared Contract with FFI | **None** | Ad-hoc duplication. Same conceptual API, different signatures (sync vs async, handles vs implicit). |
 | State tracking | **Implicit** | Worker holds session state. No handle/ID system. Single session per Worker. |
 
-### 2.4 Desktop Plugin (`dart_monty_desktop`)
+### 2.4 Native Plugin (`dart_monty_native`)
 
 | Aspect | Rating | Detail |
 |--------|--------|--------|
-| Composition | **Clean** | Flutter registration → `MontyDesktop` → `DesktopBindingsIsolate` → `MontyFfi`. |
+| Composition | **Clean** | Flutter registration → `MontyNative` → `NativeIsolateBindingsImpl` → `MontyFfi`. |
 | Isolate Strategy | **Sound** | Same-group isolate with correlation-ID RPC. Domain objects pass directly (no JSON). |
-| Unnecessary Wrapping | **Yes** | `DesktopRunResult`/`DesktopProgressResult` wrap `MontyResult`/`MontyProgress` with zero added value. Should return domain types directly. |
+| Unnecessary Wrapping | **Yes** | `NativeRunResult`/`NativeProgressResult` wrap `MontyResult`/`MontyProgress` with zero added value. Should return domain types directly. |
 | Flutter Coupling | **Minimal** | No `package:flutter` imports in core files. Only `registerWith` ties to Flutter's plugin system. |
 
 ### 2.5 Rust C FFI (`native/`)
@@ -232,9 +232,9 @@ RunResult run(int handle, {String? limitsJson}) {
 
 ### 3.5 Remove Desktop Wrapper Types (Quick Win)
 
-**Problem:** `DesktopRunResult` and `DesktopProgressResult` wrap domain types with zero added value.
+**Problem:** `NativeRunResult` and `NativeProgressResult` wrap domain types with zero added value.
 
-**Fix:** `DesktopBindings` returns `Future<MontyResult>` and `Future<MontyProgress>` directly. Delete the wrapper classes.
+**Fix:** `NativeIsolateBindings` returns `Future<MontyResult>` and `Future<MontyProgress>` directly. Delete the wrapper classes.
 
 ### 3.6 Type Codec Abstraction (Future-Facing)
 
@@ -293,7 +293,7 @@ Taking the refactoring opportunities together, here's the evolved architecture:
 2. **Duplicated platform logic → `BaseMontyPlatform`** — state, errors, JSON decoded once
 3. **Ad-hoc bindings → `MontyCoreBindings` contract** — FFI and WASM implement the same interface
 4. **Untyped `Object?` → `MontyTypeCodec`** — pluggable type bridge for M8+
-5. **Wrapper types eliminated** — `DesktopRunResult` etc. deleted
+5. **Wrapper types eliminated** — `NativeRunResult` etc. deleted
 6. **Arena-based FFI** — no leak risks from sequential allocations
 7. **Future capabilities slot in cleanly** — REPL (M12), type checking (M14), OS calls (M11) each get their own capability interface
 
@@ -346,9 +346,9 @@ User builds pipeline in UI
 **How it fits the architecture:**
 
 ```text
-Agent 1 ──→ MontyDesktop(Isolate 1) ──→ FFI Handle 1 ──→ Rust Sandbox 1
-Agent 2 ──→ MontyDesktop(Isolate 2) ──→ FFI Handle 2 ──→ Rust Sandbox 2
-Agent 3 ──→ MontyDesktop(Isolate 3) ──→ FFI Handle 3 ──→ Rust Sandbox 3
+Agent 1 ──→ MontyNative(Isolate 1) ──→ FFI Handle 1 ──→ Rust Sandbox 1
+Agent 2 ──→ MontyNative(Isolate 2) ──→ FFI Handle 2 ──→ Rust Sandbox 2
+Agent 3 ──→ MontyNative(Isolate 3) ──→ FFI Handle 3 ──→ Rust Sandbox 3
                                            │
                                     BaseMontyPlatform (shared logic)
                                     MontyCoreBindings (shared contract)
@@ -379,7 +379,7 @@ Agent 3 ──→ MontyDesktop(Isolate 3) ──→ FFI Handle 3 ──→ Rust 
 | **P0** | Extract `BaseMontyPlatform` with shared logic | ~400 lines deduplication, single point for error/state/JSON | Slice 6-8 |
 | **P1** | Introduce `MontyCoreBindings` contract | Unifies FFI and WASM behind same interface | Slice 8 |
 | **P1** | Arena-based FFI memory | Eliminates leak risks | Slice 8 |
-| **P2** | Delete `DesktopRunResult`/`DesktopProgressResult` | Remove unnecessary wrapping | Slice 7 |
+| **P2** | Delete `NativeRunResult`/`NativeProgressResult` | Remove unnecessary wrapping | Slice 7 |
 | **P2** | Extract `MontyTypeCodec` | Pluggable type bridge for M8 | M8 |
 | **P3** | Decouple from singleton pattern | Enable multi-instance (CLI, server, multi-agent) | M9, novel use cases |
 
@@ -414,7 +414,7 @@ Agent 3 ──→ MontyDesktop(Isolate 3) ──→ FFI Handle 3 ──→ Rust 
             ┌──────────────────┤          ├───────────────────┐
             │                  │          │                    │
    ┌────────┴────────┐  ┌─────┴──────┐  ┌┴────────────┐  ┌───┴──────────┐
-   │   MontyFfi      │  │ MontyWasm  │  │MontyDesktop  │  │ DartMontyWeb │
+   │   MontyFfi      │  │ MontyWasm  │  │MontyNative  │  │ DartMontyWeb │
    │ with StateMixin │  │ w/ Mixin   │  │ w/ Mixin     │  │ (delegate)   │
    │                 │  │            │  │              │  │              │
    │ 340 lines       │  │ 274 lines  │  │ 186 lines    │  │ 110 lines    │
@@ -692,19 +692,19 @@ The following logic is implemented **independently** in both `MontyFfi` and `Mon
   ┌────────────────────────────────────────────────────────────┐
   │  MAIN ISOLATE                                              │
   │                                                            │
-  │  MontyDesktop                                              │
+  │  MontyNative                                              │
   │  ├─ 10 methods (all MontyPlatform)                         │
   │  ├─ state guards (assertIdle, assertActive, etc.)          │
   │  ├─ _handleProgress() — state transitions                  │
-  │  └─ calls DesktopBindingsIsolate                           │
+  │  └─ calls NativeIsolateBindingsImpl                           │
   │       │                                                    │
   │       │ SendPort/ReceivePort RPC                           │
   │       │ sends: _RunRequest, _StartRequest, etc.            │
-  │       │ receives: _RunResponse(DesktopRunResult), etc.     │
+  │       │ receives: _RunResponse(NativeRunResult), etc.     │
   │       │            ─────────────┬──────                    │
   │       │                         │                          │
-  │       │            DesktopRunResult ◄── UNNECESSARY WRAPPER│
-  │       │            DesktopProgressResult ◄── DITTO         │
+  │       │            NativeRunResult ◄── UNNECESSARY WRAPPER│
+  │       │            NativeProgressResult ◄── DITTO         │
   └───────┼─────────────────────────┼──────────────────────────┘
           │                         │
   ┌───────┼─────────────────────────┼──────────────────────────┐
@@ -717,7 +717,7 @@ The following logic is implemented **independently** in both `MontyFfi` and `Mon
   │  └─ all translation logic       │                          │
   │                                 │                          │
   │  Returns MontyResult/MontyProgress ─────────►              │
-  │  (wrapped in DesktopRunResult/DesktopProgressResult)       │
+  │  (wrapped in NativeRunResult/NativeProgressResult)       │
   └────────────────────────────────────────────────────────────┘
 ```
 
@@ -727,10 +727,10 @@ The following logic is implemented **independently** in both `MontyFfi` and `Mon
   ┌────────────────────────────────────────────────────────────┐
   │  MAIN ISOLATE                                              │
   │                                                            │
-  │  MontyDesktop                                              │
+  │  MontyNative                                              │
   │  ├─ implements MontySnapshotCapable, MontyFutureCapable    │
   │  ├─ state guards + _handleProgress()                       │
-  │  └─ calls DesktopBindings (returns domain types directly)  │
+  │  └─ calls NativeIsolateBindings (returns domain types directly)  │
   │       │                                                    │
   │       │ SendPort/ReceivePort RPC                           │
   │       │ NO wrapper types                                   │
@@ -764,7 +764,7 @@ The following logic is implemented **independently** in both `MontyFfi` and `Mon
                    │                    │                    │
     MontyFfi ──────┤────────────────────┤  (implements both)
     MontyWasm ─────┤                    │  (implements snapshot only)
-    MontyDesktop ──┤────────────────────┤  (implements both)
+    MontyNative ──┤────────────────────┤  (implements both)
     DartMontyWeb ──┤                       (implements snapshot only,
                                             deletes 3 UnsupportedError methods)
 
@@ -810,10 +810,10 @@ The following logic is implemented **independently** in both `MontyFfi` and `Mon
   COMMIT 4: Desktop Wrapper Removal
   ══════════════════════════════════
 
-  DELETED: DesktopRunResult, DesktopProgressResult (26 lines)
+  DELETED: NativeRunResult, NativeProgressResult (26 lines)
 
-  DesktopBindings: returns MontyResult/MontyProgress directly
-  MontyDesktop: removes .result/.progress unwrapping
+  NativeIsolateBindings: returns MontyResult/MontyProgress directly
+  MontyNative: removes .result/.progress unwrapping
 
   Status: Clean. All gates pass.
 ```
@@ -857,7 +857,7 @@ The following logic is implemented **independently** in both `MontyFfi` and `Mon
        ┌──────────────────────────┼───────────────────────────┐
        │                          │                           │
   ┌────┴──────────┐    ┌──────────┴──────────┐    ┌───────────┴───────┐
-  │  MontyFfi     │    │    MontyDesktop      │    │  MontyWasm        │
+  │  MontyFfi     │    │    MontyNative      │    │  MontyWasm        │
   │  ~60 lines    │    │    186 lines         │    │  ~40 lines        │
   │               │    │                      │    │                   │
   │  Snapshot ✓   │    │  Snapshot ✓          │    │  Snapshot ✓       │
@@ -865,7 +865,7 @@ The following logic is implemented **independently** in both `MontyFfi` and `Mon
   └───────┬───────┘    └──────────┬───────────┘    └────────┬──────────┘
           │                       │                         │
   ┌───────┴───────┐    ┌──────────┴───────────┐    ┌────────┴──────────┐
-  │FfiCoreBindings│    │DesktopBindings       │    │WasmCoreBindings   │
+  │FfiCoreBindings│    │NativeIsolateBindings       │    │WasmCoreBindings   │
   │  (adapter)    │    │  (Isolate RPC)       │    │  (adapter)        │
   │  ~80 lines    │    │  returns domain types │    │  ~60 lines        │
   └───────┬───────┘    │  directly (no wrappers)│   └────────┬──────────┘
@@ -921,7 +921,7 @@ The following logic is implemented **independently** in both `MontyFfi` and `Mon
   ├────────────────────────┼───────────┼──────────┼─────────────┼──────────┤
   │ MontyFfi (native)      │    ✓      │    ✓     │   future    │  future  │
   │ MontyWasm (web)        │    ✓      │    ✗     │   future    │  future  │
-  │ MontyDesktop (isolate) │    ✓      │    ✓     │   future    │  future  │
+  │ MontyNative (isolate) │    ✓      │    ✓     │   future    │  future  │
   │ MockMontyPlatform      │    ✓      │    ✓     │   future    │  future  │
   └────────────────────────┴───────────┴──────────┴─────────────┴──────────┘
 ```

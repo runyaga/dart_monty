@@ -1,32 +1,32 @@
 import 'dart:typed_data';
 
-import 'package:dart_monty_desktop/src/desktop_bindings.dart';
+import 'package:dart_monty_native/src/native_isolate_bindings.dart';
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 
-/// Desktop Isolate implementation of [MontyPlatform].
+/// Native Isolate implementation of [MontyPlatform].
 ///
-/// Uses a [DesktopBindings] abstraction to call into a background Isolate
+/// Uses a [NativeIsolateBindings] abstraction to call into a background Isolate
 /// that runs the native FFI. Manages a state machine: idle -> active ->
 /// disposed.
 ///
 /// ```dart
-/// final monty = MontyDesktop(bindings: DesktopBindingsIsolate());
+/// final monty = MontyNative(bindings: NativeIsolateBindingsImpl());
 /// await monty.initialize();
 /// final result = await monty.run('2 + 2');
 /// print(result.value); // 4
 /// await monty.dispose();
 /// ```
-class MontyDesktop extends MontyPlatform
+class MontyNative extends MontyPlatform
     with MontyStateMixin
     implements MontySnapshotCapable, MontyFutureCapable {
-  /// Creates a [MontyDesktop] with the given [bindings].
-  MontyDesktop({required DesktopBindings bindings}) : _bindings = bindings;
+  /// Creates a [MontyNative] with the given [bindings].
+  MontyNative({required NativeIsolateBindings bindings}) : _bindings = bindings;
 
-  final DesktopBindings _bindings;
+  final NativeIsolateBindings _bindings;
   bool _initialized = false;
 
   @override
-  String get backendName => 'MontyDesktop';
+  String get backendName => 'MontyNative';
 
   /// Initializes the background Isolate.
   ///
@@ -38,7 +38,7 @@ class MontyDesktop extends MontyPlatform
     if (_initialized) return;
     final ok = await _bindings.init();
     if (!ok) {
-      throw StateError('Failed to initialize desktop Isolate');
+      throw StateError('Failed to initialize native Isolate');
     }
     _initialized = true;
   }
@@ -143,7 +143,7 @@ class MontyDesktop extends MontyPlatform
 
     await _bindings.restore(data);
 
-    return MontyDesktop(bindings: _bindings)
+    return MontyNative(bindings: _bindings)
       .._initialized = _initialized
       ..markActive();
   }

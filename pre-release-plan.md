@@ -15,7 +15,7 @@ Every package scored by pub.dev needs its own LICENSE file.
 | `packages/dart_monty_ffi/LICENSE` | Copy from root |
 | `packages/dart_monty_wasm/LICENSE` | Copy from root |
 | `packages/dart_monty_web/LICENSE` | Copy from root |
-| `packages/dart_monty_desktop/LICENSE` | Copy from root |
+| `packages/dart_monty_native/LICENSE` | Copy from root |
 
 Template (year and holder filled at publish time):
 
@@ -56,7 +56,7 @@ Create a brief `README.md` in each sub-package linking back to the main repo.
 | `dart_monty_ffi` | `packages/dart_monty_ffi/README.md` |
 | `dart_monty_wasm` | `packages/dart_monty_wasm/README.md` |
 | `dart_monty_web` | `packages/dart_monty_web/README.md` |
-| `dart_monty_desktop` | `packages/dart_monty_desktop/README.md` |
+| `dart_monty_native` | `packages/dart_monty_native/README.md` |
 
 Each should contain a one-paragraph description plus a link:
 
@@ -73,13 +73,13 @@ for full documentation.
 
 ## 3. Merge Desktop Branch
 
-The `dart_monty_desktop` package lives on `feat/m5-desktop-plugin`. It
+The `dart_monty_native` package lives on `feat/m5-desktop-plugin`. It
 **must be merged to main** before starting the publish process. Publishing
 uses the local file tree — switching branches mid-publish would break
 path dependency resolution and git tag consistency.
 
 - [ ] Merge `feat/m5-desktop-plugin` into `main`
-- [ ] Verify `packages/dart_monty_desktop/pubspec.yaml` is present after merge
+- [ ] Verify `packages/dart_monty_native/pubspec.yaml` is present after merge
 
 ---
 
@@ -94,7 +94,7 @@ path dependency resolution and git tag consistency.
 | `dart_monty_ffi` | **Dart** (pure) | Native FFI bindings via `dart:ffi` |
 | `dart_monty_wasm` | **Dart** (pure) | WASM bindings via `dart:js_interop` |
 | `dart_monty_web` | **Flutter** | Web plugin registration (`flutter_web_plugins`) |
-| `dart_monty_desktop` | **Flutter** | macOS/Linux desktop plugin (`dartPluginClass`) |
+| `dart_monty_native` | **Flutter** | macOS/Linux desktop plugin (`dartPluginClass`) |
 
 ### Fields to add/change in every package
 
@@ -118,10 +118,10 @@ Topic pool: `python`, `sandbox`, `interpreter`, `ffi`, `wasm`, `flutter`
   - `dart_monty_platform_interface: path: packages/dart_monty_platform_interface` -> `^<current-version>`
 - **New deps to add:**
   - `dart_monty_web: ^<current-version>` (currently missing — needed for federated web registration)
-  - `dart_monty_desktop: ^<current-version>` (currently missing — needed for federated desktop registration)
+  - `dart_monty_native: ^<current-version>` (currently missing — needed for federated desktop registration)
 - **Fix `flutter: plugin: platforms:` block:**
   - **Remove** `android`, `ios`, `windows` (not yet implemented — M7 planned)
-  - **Change** `macos` and `linux` from `ffiPlugin: true` to `default_package: dart_monty_desktop`
+  - **Change** `macos` and `linux` from `ffiPlugin: true` to `default_package: dart_monty_native`
   - **Change** `web` from `pluginClass`/`fileName` to `default_package: dart_monty_web`
 
 Current (broken for federation):
@@ -152,9 +152,9 @@ flutter:
   plugin:
     platforms:
       linux:
-        default_package: dart_monty_desktop
+        default_package: dart_monty_native
       macos:
-        default_package: dart_monty_desktop
+        default_package: dart_monty_native
       web:
         default_package: dart_monty_web
 ```
@@ -203,7 +203,7 @@ flutter:
         fileName: dart_monty_web.dart
 ```
 
-#### dart\_monty\_desktop — Flutter (`packages/dart_monty_desktop/pubspec.yaml`, on feat/m5-desktop-plugin)
+#### dart\_monty\_native — Flutter (`packages/dart_monty_native/pubspec.yaml`, on feat/m5-desktop-plugin)
 
 - **Current description** (62 chars — OK):
   `macOS and Linux implementation of dart_monty using native FFI.`
@@ -220,10 +220,10 @@ flutter:
     implements: dart_monty
     platforms:
       macos:
-        dartPluginClass: DartMontyDesktop
+        dartPluginClass: DartMontyNative
         ffiPlugin: true
       linux:
-        dartPluginClass: DartMontyDesktop
+        dartPluginClass: DartMontyNative
         ffiPlugin: true
 ```
 
@@ -238,12 +238,12 @@ before `dart pub publish`. The table below lists every conversion.
 |---------|-----------|---------|--------|
 | `dart_monty` | `dart_monty_platform_interface` | `path: packages/dart_monty_platform_interface` | `^<current-version>` |
 | `dart_monty` | `dart_monty_web` | **new dep** (currently missing) | `^<current-version>` |
-| `dart_monty` | `dart_monty_desktop` | **new dep** (currently missing) | `^<current-version>` |
+| `dart_monty` | `dart_monty_native` | **new dep** (currently missing) | `^<current-version>` |
 | `dart_monty_ffi` | `dart_monty_platform_interface` | `path: ../dart_monty_platform_interface` | `^<current-version>` |
 | `dart_monty_wasm` | `dart_monty_platform_interface` | `path: ../dart_monty_platform_interface` | `^<current-version>` |
 | `dart_monty_web` | `dart_monty_platform_interface` | `path: ../dart_monty_platform_interface` | `^<current-version>` |
-| `dart_monty_desktop` | `dart_monty_platform_interface` | `path: ../dart_monty_platform_interface` | `^<current-version>` |
-| `dart_monty_desktop` | `dart_monty_ffi` | `path: ../dart_monty_ffi` | `^<current-version>` |
+| `dart_monty_native` | `dart_monty_platform_interface` | `path: ../dart_monty_platform_interface` | `^<current-version>` |
+| `dart_monty_native` | `dart_monty_ffi` | `path: ../dart_monty_ffi` | `^<current-version>` |
 
 ### Publish order
 
@@ -253,7 +253,7 @@ Packages must be published in dependency order (leaf-first):
 2. **dart\_monty\_ffi** — deps: platform\_interface
 3. **dart\_monty\_wasm** — deps: platform\_interface
 4. **dart\_monty\_web** — deps: platform\_interface
-5. **dart\_monty\_desktop** — deps: platform\_interface, ffi
+5. **dart\_monty\_native** — deps: platform\_interface, ffi
 6. **dart\_monty** — deps: platform\_interface, web, desktop
 
 Steps 2-4 can be published in parallel once step 1 is live.
@@ -274,7 +274,7 @@ package page.
 | `dart_monty_ffi` | `packages/dart_monty_ffi/CHANGELOG.md` |
 | `dart_monty_wasm` | `packages/dart_monty_wasm/CHANGELOG.md` |
 | `dart_monty_web` | `packages/dart_monty_web/CHANGELOG.md` |
-| `dart_monty_desktop` | `packages/dart_monty_desktop/CHANGELOG.md` |
+| `dart_monty_native` | `packages/dart_monty_native/CHANGELOG.md` |
 
 ### Suggested content per package
 
@@ -328,7 +328,7 @@ package page.
 - Delegates to dart_monty_wasm for WASM execution.
 ```
 
-**dart\_monty\_desktop:**
+**dart\_monty\_native:**
 
 ```markdown
 ## <version>
@@ -407,7 +407,7 @@ Current state and required actions:
 | `dart_monty_ffi` | No | Create `packages/dart_monty_ffi/example/example.dart` |
 | `dart_monty_wasm` | No | Create `packages/dart_monty_wasm/example/example.dart` |
 | `dart_monty_web` | No | Create `packages/dart_monty_web/example/example.dart` |
-| `dart_monty_desktop` | No | Create `packages/dart_monty_desktop/example/example.dart` |
+| `dart_monty_native` | No | Create `packages/dart_monty_native/example/example.dart` |
 
 Each `example/example.dart` should be a minimal, self-contained snippet
 showing basic usage. pub.dev renders this file on the "Example" tab.
@@ -423,7 +423,7 @@ showing basic usage. pub.dev renders this file on the "Example" tab.
 - `.github/workflows/release.yaml` builds for **linux-x64** and
   **macos-x64**, compiles the Dart AOT example, packages tarballs, and
   attaches them to **GitHub Releases** on tag push (`v*`).
-- `dart_monty_desktop`'s macOS podspec and Linux CMakeLists.txt expect
+- `dart_monty_native`'s macOS podspec and Linux CMakeLists.txt expect
   vendored binaries in the plugin's platform directory.
 
 ### Problem
@@ -438,7 +438,7 @@ is feasible.
 ### Options (pick one before publishing)
 
 **Option A — Vendor binaries in the pub.dev upload (recommended).**
-Un-gitignore the built `.dylib`/`.so` inside `dart_monty_desktop`'s
+Un-gitignore the built `.dylib`/`.so` inside `dart_monty_native`'s
 platform directories (`macos/`, `linux/`). CI builds them, copies them
 in, and `dart pub publish` includes them. This is what `realm` and
 `sqlite3_flutter_libs` do.
@@ -498,7 +498,7 @@ Create `tool/publish.sh` with this algorithm:
    2. `packages/dart_monty_ffi`
    3. `packages/dart_monty_wasm`
    4. `packages/dart_monty_web`
-   5. `packages/dart_monty_desktop`
+   5. `packages/dart_monty_native`
    6. `.` (root)
 5. **Publish** each package with `dart pub publish --force` in the same
    order. Sleep 15s between each to allow pub.dev indexing.
@@ -529,7 +529,7 @@ this as a gate before `dart pub publish`.
 2. Verify every package has a `CHANGELOG.md` entry matching the version
 3. Run `dart doc --dry-run` in each package — fail on warnings
 4. Build native binaries (linux-x64, macos-x64) via `cargo build --release`
-5. Copy binaries into `dart_monty_desktop` platform dirs (if vendoring)
+5. Copy binaries into `dart_monty_native` platform dirs (if vendoring)
 6. Run full test suite (`tool/analyze_packages.py`, `dart test`, `cargo test`)
 7. Run `dart pub publish --dry-run` in publish order — fail on errors
 8. If all pass, create a git tag and GitHub Release with binaries attached
@@ -670,7 +670,7 @@ dart_monty                           # App-facing API (Flutter plugin)
   dart_monty_platform_interface      # Abstract contract (pure Dart)
   dart_monty_ffi                     # Native FFI bindings (dart:ffi -> Rust)
   dart_monty_wasm                    # WASM bindings (dart:js_interop -> Web Worker)
-  dart_monty_desktop                 # Desktop plugin (macOS/Linux, Isolate)
+  dart_monty_native                 # Native plugin (desktop + mobile, Isolate)
   dart_monty_web                     # Web plugin (browser, script injection)
 ```
 

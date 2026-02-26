@@ -1,6 +1,6 @@
-name: dart_monty_desktop
-description: Desktop plugin for dart_monty, pure Dart bindings for Monty — a restricted sandboxed Python interpreter built in Rust.
-version: 0.4.3
+name: dart_monty_native
+description: Native plugin for dart_monty, pure Dart bindings for Monty — a restricted sandboxed Python interpreter built in Rust.
+version: 0.6.0
 homepage: https://github.com/runyaga/dart_monty
 repository: https://github.com/runyaga/dart_monty
 issue_tracker: https://github.com/runyaga/dart_monty/issues
@@ -37,8 +37,8 @@ flutter:
     implements: dart_monty
     platforms:
       macos:
-        dartPluginClass: DartMontyDesktop
+        dartPluginClass: DartMontyNative
         ffiPlugin: true
       linux:
-        dartPluginClass: DartMontyDesktop
+        dartPluginClass: DartMontyNative
         ffiPlugin: true

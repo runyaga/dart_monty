@@ -1,14 +1,14 @@
 import 'dart:typed_data';
 
-import 'package:dart_monty_desktop/src/desktop_bindings.dart';
+import 'package:dart_monty_native/src/native_isolate_bindings.dart';
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 
-/// A hand-written mock of [DesktopBindings] with configurable returns
+/// A hand-written mock of [NativeIsolateBindings] with configurable returns
 /// and call tracking.
 ///
 /// Configure return values via the `next*` fields, then call the methods.
 /// After each call, the invocation is recorded in the `*Calls` lists.
-class MockDesktopBindings extends DesktopBindings {
+class MockNativeIsolateBindings extends NativeIsolateBindings {
   // ---------------------------------------------------------------------------
   // Next return values (configure before calling)
   // ---------------------------------------------------------------------------

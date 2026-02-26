@@ -141,7 +141,7 @@ call the shared `_publish-dart-package.yaml` reusable workflow via
 | `dart_monty_ffi` | `ffi-v<version>` | `publish_ffi.yaml` |
 | `dart_monty_wasm` | `wasm-v<version>` | `publish_wasm.yaml` |
 | `dart_monty_web` | `web-v<version>` | `publish_web.yaml` |
-| `dart_monty_desktop` | `desktop-v<version>` | `publish_desktop.yaml` |
+| `dart_monty_native` | `native-v<version>` | `publish_native.yaml` |
 | `dart_monty` | `dart_monty-v<version>` | `publish_dart_monty.yaml` |
 
 ### Pre-release checklist
@@ -196,8 +196,8 @@ git push origin ffi-v<version> wasm-v<version>
 
 # 3. web and desktop (depend on platform_interface + ffi/wasm)
 git tag web-v<version>
-git tag desktop-v<version>
-git push origin web-v<version> desktop-v<version>
+git tag native-v<version>
+git push origin web-v<version> native-v<version>
 # Wait for both workflows to complete
 
 # 4. dart_monty root (depends on web + desktop)
@@ -220,7 +220,7 @@ a web bundle, and creates a **GitHub Release** at
 1. **Check pub.dev** — verify each package shows the new version:
    ```bash
    for pkg in dart_monty_platform_interface dart_monty_ffi dart_monty_wasm \
-              dart_monty_web dart_monty_desktop dart_monty; do
+              dart_monty_web dart_monty_native dart_monty; do
      echo "$pkg: $(curl -s https://pub.dev/api/packages/$pkg | python3 -c \
        "import sys,json; print(json.load(sys.stdin)['latest']['version'])")"
    done

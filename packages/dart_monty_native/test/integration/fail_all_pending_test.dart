@@ -3,12 +3,12 @@ library;
 
 import 'dart:io';
 
-import 'package:dart_monty_desktop/dart_monty_desktop.dart';
+import 'package:dart_monty_native/dart_monty_native.dart';
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 import 'package:test/test.dart';
 
 /// Integration tests for `_failAllPending` semantics in
-/// [DesktopBindingsIsolate].
+/// [NativeIsolateBindingsImpl].
 ///
 /// When `dispose()` is called while an iterative execution is in-flight
 /// (state = active, a MontyPending has been returned but not yet resumed),
@@ -22,14 +22,14 @@ import 'package:test/test.dart';
 /// Run with:
 /// ```bash
 /// cd native && cargo build --release && cd ..
-/// cd packages/dart_monty_desktop
+/// cd packages/dart_monty_native
 /// dart test --tags=integration test/integration/fail_all_pending_test.dart
 /// ```
 void main() {
   final libPath = _resolveLibraryPath();
 
-  MontyDesktop createMonty() =>
-      MontyDesktop(bindings: DesktopBindingsIsolate(libraryPath: libPath));
+  MontyNative createMonty() =>
+      MontyNative(bindings: NativeIsolateBindingsImpl(libraryPath: libPath));
 
   test('dispose while pending does not hang', () async {
     final monty = createMonty();
@@ -42,7 +42,7 @@ void main() {
     expect(progress, isA<MontyPending>());
 
     // Dispose without resuming — this triggers _failAllPending inside
-    // DesktopBindingsIsolate.dispose().
+    // NativeIsolateBindingsImpl.dispose().
     await monty.dispose();
 
     // If _failAllPending works correctly, dispose() returned normally
