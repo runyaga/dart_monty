@@ -14,7 +14,7 @@
 | M6 | Flutter Web Plugin | Complete |
 | M7A | Run API Data Model Fidelity | Complete |
 
-Current version: **0.6.0**. Current API coverage: ~40% of upstream monty surface.
+Current version: **0.6.0**. Current API coverage: ~68% of upstream monty surface.
 
 ---
 

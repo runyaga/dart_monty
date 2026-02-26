@@ -121,7 +121,7 @@ await session.clearState();
 await session.dispose();
 ```
 
-## Monty API Coverage (~40%)
+## Monty API Coverage (~68%)
 
 dart_monty wraps the upstream [Monty Rust API](https://github.com/pydantic/monty).
 The table below shows current coverage and what's planned.
