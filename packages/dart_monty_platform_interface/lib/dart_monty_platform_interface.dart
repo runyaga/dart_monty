@@ -4,6 +4,7 @@
 /// This package is not intended for direct use — import `dart_monty` instead.
 library;
 
+export 'src/base_monty_platform.dart';
 export 'src/core_bindings.dart';
 export 'src/monty_exception.dart';
 export 'src/monty_future_capable.dart';
