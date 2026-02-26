@@ -89,23 +89,63 @@ function translateLimits(limits) {
   return opts;
 }
 
+/**
+ * Post a progress result (pending or complete) back to the main thread.
+ * Handles MontySnapshot (pending) vs MontyComplete dispatch.
+ */
+function postProgress(id, progress) {
+  if (progress instanceof MontySnapshot) {
+    callIdCounter++;
+    activeSnapshot = progress;
+    self.postMessage({
+      type: 'result',
+      id,
+      ok: true,
+      state: 'pending',
+      functionName: progress.functionName,
+      args: progress.args,
+      kwargs: progress.kwargs,
+      callId: callIdCounter,
+    });
+  } else {
+    activeSnapshot = null;
+    activeMonty = null;
+    self.postMessage({
+      type: 'result',
+      id,
+      ok: true,
+      state: 'complete',
+      value: progress.output,
+    });
+  }
+}
+
+/**
+ * Post an error result, clearing active state.
+ */
+function postError(id, error) {
+  activeSnapshot = null;
+  activeMonty = null;
+  self.postMessage({ type: 'result', id, ok: false, ...formatError(error) });
+}
+
 function handleRun(id, code, limits, scriptName) {
   try {
     const opts = translateLimits(limits);
     if (scriptName) opts.scriptName = scriptName;
     const m = Monty.create(code, opts);
     if (m instanceof MontyException || m instanceof MontyTypingError) {
-      self.postMessage({ type: 'result', id, ok: false, ...formatError(m) });
+      postError(id, m);
       return;
     }
     const result = m.run();
     if (result instanceof MontyException) {
-      self.postMessage({ type: 'result', id, ok: false, ...formatError(result) });
+      postError(id, result);
       return;
     }
     self.postMessage({ type: 'result', id, ok: true, value: result });
   } catch (e) {
-    self.postMessage({ type: 'result', id, ok: false, ...formatError(e) });
+    postError(id, e);
   }
 }
 
@@ -119,45 +159,18 @@ function handleStart(id, code, extFns, limits, scriptName) {
     }
     const m = Monty.create(code, opts);
     if (m instanceof MontyException || m instanceof MontyTypingError) {
-      self.postMessage({ type: 'result', id, ok: false, ...formatError(m) });
+      postError(id, m);
       return;
     }
     activeMonty = m;
     const progress = m.start();
     if (progress instanceof MontyException) {
-      activeMonty = null;
-      self.postMessage({ type: 'result', id, ok: false, ...formatError(progress) });
+      postError(id, progress);
       return;
     }
-
-    if (progress instanceof MontySnapshot) {
-      callIdCounter++;
-      activeSnapshot = progress;
-      self.postMessage({
-        type: 'result',
-        id,
-        ok: true,
-        state: 'pending',
-        functionName: progress.functionName,
-        args: progress.args,
-        kwargs: progress.kwargs,
-        callId: callIdCounter,
-      });
-    } else {
-      activeSnapshot = null;
-      activeMonty = null;
-      self.postMessage({
-        type: 'result',
-        id,
-        ok: true,
-        state: 'complete',
-        value: progress.output,
-      });
-    }
+    postProgress(id, progress);
   } catch (e) {
-    activeSnapshot = null;
-    activeMonty = null;
-    self.postMessage({ type: 'result', id, ok: false, ...formatError(e) });
+    postError(id, e);
   }
 }
 
@@ -175,40 +188,12 @@ function handleResume(id, value) {
   try {
     const progress = activeSnapshot.resume({ returnValue: value });
     if (progress instanceof MontyException) {
-      activeSnapshot = null;
-      activeMonty = null;
-      self.postMessage({ type: 'result', id, ok: false, ...formatError(progress) });
+      postError(id, progress);
       return;
     }
-
-    if (progress instanceof MontySnapshot) {
-      callIdCounter++;
-      activeSnapshot = progress;
-      self.postMessage({
-        type: 'result',
-        id,
-        ok: true,
-        state: 'pending',
-        functionName: progress.functionName,
-        args: progress.args,
-        kwargs: progress.kwargs,
-        callId: callIdCounter,
-      });
-    } else {
-      activeSnapshot = null;
-      activeMonty = null;
-      self.postMessage({
-        type: 'result',
-        id,
-        ok: true,
-        state: 'complete',
-        value: progress.output,
-      });
-    }
+    postProgress(id, progress);
   } catch (e) {
-    activeSnapshot = null;
-    activeMonty = null;
-    self.postMessage({ type: 'result', id, ok: false, ...formatError(e) });
+    postError(id, e);
   }
 }
 
@@ -228,40 +213,12 @@ function handleResumeWithError(id, errorMessage) {
       exception: { type: 'Exception', message: errorMessage },
     });
     if (progress instanceof MontyException) {
-      activeSnapshot = null;
-      activeMonty = null;
-      self.postMessage({ type: 'result', id, ok: false, ...formatError(progress) });
+      postError(id, progress);
       return;
     }
-
-    if (progress instanceof MontySnapshot) {
-      callIdCounter++;
-      activeSnapshot = progress;
-      self.postMessage({
-        type: 'result',
-        id,
-        ok: true,
-        state: 'pending',
-        functionName: progress.functionName,
-        args: progress.args,
-        kwargs: progress.kwargs,
-        callId: callIdCounter,
-      });
-    } else {
-      activeSnapshot = null;
-      activeMonty = null;
-      self.postMessage({
-        type: 'result',
-        id,
-        ok: true,
-        state: 'complete',
-        value: progress.output,
-      });
-    }
+    postProgress(id, progress);
   } catch (e) {
-    activeSnapshot = null;
-    activeMonty = null;
-    self.postMessage({ type: 'result', id, ok: false, ...formatError(e) });
+    postError(id, e);
   }
 }
 
@@ -286,7 +243,7 @@ function handleSnapshot(id) {
     const data = btoa(binary);
     self.postMessage({ type: 'result', id, ok: true, data });
   } catch (e) {
-    self.postMessage({ type: 'result', id, ok: false, ...formatError(e) });
+    postError(id, e);
   }
 }
 
@@ -300,13 +257,13 @@ function handleRestore(id, dataBase64) {
     }
     const snapshot = MontySnapshot.load(bytes);
     if (snapshot instanceof MontyException) {
-      self.postMessage({ type: 'result', id, ok: false, ...formatError(snapshot) });
+      postError(id, snapshot);
       return;
     }
     activeSnapshot = snapshot;
     self.postMessage({ type: 'result', id, ok: true });
   } catch (e) {
-    self.postMessage({ type: 'result', id, ok: false, ...formatError(e) });
+    postError(id, e);
   }
 }
 

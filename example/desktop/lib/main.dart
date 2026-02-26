@@ -1275,11 +1275,10 @@ class _LadderPageState extends State<_LadderPage> {
                 results[id] = asyncResumeMap[key];
               }
             }
-            if (errors.isNotEmpty) {
-              progress = await monty.resolveFuturesWithErrors(results, errors);
-            } else {
-              progress = await monty.resolveFutures(results);
-            }
+            progress = await monty.resolveFutures(
+              results,
+              errors: errors.isNotEmpty ? errors : null,
+            );
           }
         }
       } on MontyException catch (e) {

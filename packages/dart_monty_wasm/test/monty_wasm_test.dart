@@ -55,7 +55,7 @@ void main() {
       expect(result.value, 4);
       expect(result.isError, isFalse);
       expect(result.usage.memoryBytesUsed, 0);
-      expect(result.usage.timeElapsedMs, 0);
+      expect(result.usage.timeElapsedMs, greaterThanOrEqualTo(0));
       expect(result.usage.stackDepthUsed, 0);
       expect(mock.runCalls, hasLength(1));
       expect(mock.runCalls.first.code, '2 + 2');
@@ -702,13 +702,13 @@ void main() {
       expect(complete.result.value, isNull);
     });
 
-    test('synthetic resource usage is all zeros', () async {
+    test('resource usage has Dart-side wall-clock timing', () async {
       mock.nextRunResult = const WasmRunResult(ok: true, value: 1);
 
       final result = await monty.run('1');
 
       expect(result.usage.memoryBytesUsed, 0);
-      expect(result.usage.timeElapsedMs, 0);
+      expect(result.usage.timeElapsedMs, greaterThanOrEqualTo(0));
       expect(result.usage.stackDepthUsed, 0);
     });
 
@@ -901,9 +901,9 @@ void main() {
       );
     });
 
-    test('resolveFuturesWithErrors() throws UnsupportedError', () {
+    test('resolveFutures() with errors throws UnsupportedError', () {
       expect(
-        () => monty.resolveFuturesWithErrors({0: 'value'}, {1: 'err'}),
+        () => monty.resolveFutures({0: 'value'}, errors: {1: 'err'}),
         throwsA(isA<UnsupportedError>()),
       );
     });

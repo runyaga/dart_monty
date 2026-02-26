@@ -17,25 +17,21 @@ class MockDesktopBindings extends DesktopBindings {
   bool nextInitResult = true;
 
   /// Result returned by [run].
-  DesktopRunResult nextRunResult = const DesktopRunResult(
-    result: MontyResult(
-      value: 4,
-      usage: _zeroUsage,
-    ),
+  MontyResult nextRunResult = const MontyResult(
+    value: 4,
+    usage: _zeroUsage,
   );
 
   /// Result returned by [start].
-  DesktopProgressResult nextStartResult = const DesktopProgressResult(
-    progress: MontyComplete(
-      result: MontyResult(usage: _zeroUsage),
-    ),
+  MontyProgress nextStartResult = const MontyComplete(
+    result: MontyResult(usage: _zeroUsage),
   );
 
   /// Queue of results returned by [resume]. Dequeues on each call.
-  final List<DesktopProgressResult> resumeResults = [];
+  final List<MontyProgress> resumeResults = [];
 
   /// Queue of results returned by [resumeWithError]. Dequeues on each call.
-  final List<DesktopProgressResult> resumeWithErrorResults = [];
+  final List<MontyProgress> resumeWithErrorResults = [];
 
   /// Data returned by [snapshot].
   Uint8List nextSnapshotData = Uint8List.fromList([1, 2, 3]);
@@ -96,7 +92,7 @@ class MockDesktopBindings extends DesktopBindings {
   }
 
   @override
-  Future<DesktopRunResult> run(
+  Future<MontyResult> run(
     String code, {
     MontyLimits? limits,
     String? scriptName,
@@ -106,7 +102,7 @@ class MockDesktopBindings extends DesktopBindings {
   }
 
   @override
-  Future<DesktopProgressResult> start(
+  Future<MontyProgress> start(
     String code, {
     List<String>? externalFunctions,
     MontyLimits? limits,
@@ -124,87 +120,61 @@ class MockDesktopBindings extends DesktopBindings {
   }
 
   @override
-  Future<DesktopProgressResult> resume(Object? returnValue) async {
+  Future<MontyProgress> resume(Object? returnValue) async {
     resumeCalls.add(returnValue);
     if (resumeResults.isNotEmpty) return resumeResults.removeAt(0);
-    return const DesktopProgressResult(
-      progress: MontyComplete(
-        result: MontyResult(usage: _zeroUsage),
-      ),
+    return const MontyComplete(
+      result: MontyResult(usage: _zeroUsage),
     );
   }
 
   @override
-  Future<DesktopProgressResult> resumeWithError(String errorMessage) async {
+  Future<MontyProgress> resumeWithError(String errorMessage) async {
     resumeWithErrorCalls.add(errorMessage);
     if (resumeWithErrorResults.isNotEmpty) {
       return resumeWithErrorResults.removeAt(0);
     }
-    return const DesktopProgressResult(
-      progress: MontyComplete(
-        result: MontyResult(usage: _zeroUsage),
-      ),
+    return const MontyComplete(
+      result: MontyResult(usage: _zeroUsage),
     );
   }
 
   /// Queue of results returned by [resumeAsFuture]. Dequeues on each call.
-  final List<DesktopProgressResult> resumeAsFutureResults = [];
+  final List<MontyProgress> resumeAsFutureResults = [];
 
   /// Number of times [resumeAsFuture] was called.
   int resumeAsFutureCalls = 0;
 
   /// Queue of results returned by [resolveFutures]. Dequeues on each call.
-  final List<DesktopProgressResult> resolveFuturesResults = [];
+  final List<MontyProgress> resolveFuturesResults = [];
 
   /// Records of results passed to [resolveFutures].
   final List<Map<int, Object?>> resolveFuturesCalls = [];
 
-  /// Queue of results returned by [resolveFuturesWithErrors].
-  final List<DesktopProgressResult> resolveFuturesWithErrorsResults = [];
-
-  /// Records of (results, errors) passed to [resolveFuturesWithErrors].
-  final List<({Map<int, Object?> results, Map<int, String> errors})>
-      resolveFuturesWithErrorsCalls = [];
+  /// Records of errors passed to [resolveFutures], in call order.
+  final List<Map<int, String>?> resolveFuturesErrorsCalls = [];
 
   @override
-  Future<DesktopProgressResult> resumeAsFuture() async {
+  Future<MontyProgress> resumeAsFuture() async {
     resumeAsFutureCalls++;
     if (resumeAsFutureResults.isNotEmpty) {
       return resumeAsFutureResults.removeAt(0);
     }
-    return const DesktopProgressResult(
-      progress: MontyResolveFutures(pendingCallIds: [0]),
-    );
+    return const MontyResolveFutures(pendingCallIds: [0]);
   }
 
   @override
-  Future<DesktopProgressResult> resolveFutures(
-    Map<int, Object?> results,
-  ) async {
+  Future<MontyProgress> resolveFutures(
+    Map<int, Object?> results, {
+    Map<int, String>? errors,
+  }) async {
     resolveFuturesCalls.add(results);
+    resolveFuturesErrorsCalls.add(errors);
     if (resolveFuturesResults.isNotEmpty) {
       return resolveFuturesResults.removeAt(0);
     }
-    return const DesktopProgressResult(
-      progress: MontyComplete(
-        result: MontyResult(usage: _zeroUsage),
-      ),
-    );
-  }
-
-  @override
-  Future<DesktopProgressResult> resolveFuturesWithErrors(
-    Map<int, Object?> results,
-    Map<int, String> errors,
-  ) async {
-    resolveFuturesWithErrorsCalls.add((results: results, errors: errors));
-    if (resolveFuturesWithErrorsResults.isNotEmpty) {
-      return resolveFuturesWithErrorsResults.removeAt(0);
-    }
-    return const DesktopProgressResult(
-      progress: MontyComplete(
-        result: MontyResult(usage: _zeroUsage),
-      ),
+    return const MontyComplete(
+      result: MontyResult(usage: _zeroUsage),
     );
   }
 

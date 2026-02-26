@@ -65,14 +65,9 @@ final class _ResumeAsFutureRequest extends _Request {
 }
 
 final class _ResolveFuturesRequest extends _Request {
-  const _ResolveFuturesRequest(super.id, this.results);
+  const _ResolveFuturesRequest(super.id, this.results, {this.errors});
   final Map<int, Object?> results;
-}
-
-final class _ResolveFuturesWithErrorsRequest extends _Request {
-  const _ResolveFuturesWithErrorsRequest(super.id, this.results, this.errors);
-  final Map<int, Object?> results;
-  final Map<int, String> errors;
+  final Map<int, String>? errors;
 }
 
 final class _SnapshotRequest extends _Request {
@@ -184,17 +179,8 @@ Future<void> _isolateEntryPoint(_InitMessage init) async {
           final progress = await monty.resumeAsFuture();
           init.mainSendPort.send(_ProgressResponse(id, progress));
 
-        case _ResolveFuturesRequest(:final id, :final results):
-          final progress = await monty.resolveFutures(results);
-          init.mainSendPort.send(_ProgressResponse(id, progress));
-
-        case _ResolveFuturesWithErrorsRequest(
-            :final id,
-            :final results,
-            :final errors,
-          ):
-          final progress =
-              await monty.resolveFuturesWithErrors(results, errors);
+        case _ResolveFuturesRequest(:final id, :final results, :final errors):
+          final progress = await monty.resolveFutures(results, errors: errors);
           init.mainSendPort.send(_ProgressResponse(id, progress));
 
         case _SnapshotRequest(:final id):
@@ -318,7 +304,7 @@ class DesktopBindingsIsolate extends DesktopBindings {
   }
 
   @override
-  Future<DesktopRunResult> run(
+  Future<MontyResult> run(
     String code, {
     MontyLimits? limits,
     String? scriptName,
@@ -326,11 +312,11 @@ class DesktopBindingsIsolate extends DesktopBindings {
     final response = await _send<_RunResponse>(
       _RunRequest(_nextId++, code, limits: limits, scriptName: scriptName),
     );
-    return DesktopRunResult(result: response.result);
+    return response.result;
   }
 
   @override
-  Future<DesktopProgressResult> start(
+  Future<MontyProgress> start(
     String code, {
     List<String>? externalFunctions,
     MontyLimits? limits,
@@ -345,52 +331,42 @@ class DesktopBindingsIsolate extends DesktopBindings {
         scriptName: scriptName,
       ),
     );
-    return DesktopProgressResult(progress: response.progress);
+    return response.progress;
   }
 
   @override
-  Future<DesktopProgressResult> resume(Object? returnValue) async {
+  Future<MontyProgress> resume(Object? returnValue) async {
     final response = await _send<_ProgressResponse>(
       _ResumeRequest(_nextId++, returnValue),
     );
-    return DesktopProgressResult(progress: response.progress);
+    return response.progress;
   }
 
   @override
-  Future<DesktopProgressResult> resumeWithError(String errorMessage) async {
+  Future<MontyProgress> resumeWithError(String errorMessage) async {
     final response = await _send<_ProgressResponse>(
       _ResumeWithErrorRequest(_nextId++, errorMessage),
     );
-    return DesktopProgressResult(progress: response.progress);
+    return response.progress;
   }
 
   @override
-  Future<DesktopProgressResult> resumeAsFuture() async {
+  Future<MontyProgress> resumeAsFuture() async {
     final response = await _send<_ProgressResponse>(
       _ResumeAsFutureRequest(_nextId++),
     );
-    return DesktopProgressResult(progress: response.progress);
+    return response.progress;
   }
 
   @override
-  Future<DesktopProgressResult> resolveFutures(
-    Map<int, Object?> results,
-  ) async {
+  Future<MontyProgress> resolveFutures(
+    Map<int, Object?> results, {
+    Map<int, String>? errors,
+  }) async {
     final response = await _send<_ProgressResponse>(
-      _ResolveFuturesRequest(_nextId++, results),
+      _ResolveFuturesRequest(_nextId++, results, errors: errors),
     );
-    return DesktopProgressResult(progress: response.progress);
-  }
-
-  @override
-  Future<DesktopProgressResult> resolveFuturesWithErrors(
-    Map<int, Object?> results,
-    Map<int, String> errors,
-  ) async {
-    final response = await _send<_ProgressResponse>(
-      _ResolveFuturesWithErrorsRequest(_nextId++, results, errors),
-    );
-    return DesktopProgressResult(progress: response.progress);
+    return response.progress;
   }
 
   @override

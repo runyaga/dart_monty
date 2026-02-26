@@ -108,11 +108,10 @@ Future<void> runIterativeFixture(
               results[id] = asyncResumeMap[key];
             }
           }
-          if (errors.isNotEmpty) {
-            progress = await platform.resolveFuturesWithErrors(results, errors);
-          } else {
-            progress = await platform.resolveFutures(results);
-          }
+          progress = await platform.resolveFutures(
+            results,
+            errors: errors.isNotEmpty ? errors : null,
+          );
         } else {
           fail('Unexpected progress type: $progress');
         }
