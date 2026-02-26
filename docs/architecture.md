@@ -28,10 +28,10 @@ dart_monty                         (app-facing API — thin re-export)
   │     ├── MontyWasm                (implements MontyPlatform)
   │     └── js/                      (bridge.js + worker_src.js)
   │
-  ├── dart_monty_desktop             (Flutter plugin — macOS, Linux, future: iOS/Android/Windows)
-  │     ├── DartMontyDesktop         (registration + ffiPlugin: true)
-  │     ├── DesktopBindings          (abstract) → DesktopBindingsIsolate
-  │     └── MontyDesktop             (implements MontyPlatform, Isolate offload)
+  ├── dart_monty_native             (Flutter plugin — native platforms: macOS, Linux, iOS, Android, Windows)
+  │     ├── DartMontyNative         (registration + ffiPlugin: true)
+  │     ├── NativeIsolateBindings          (abstract) → NativeIsolateBindingsImpl
+  │     └── MontyNative             (implements MontyPlatform, Isolate offload)
   │
   └── dart_monty_web                 (Flutter plugin — web)
         └── DartMontyWeb             (registration shim, delegates to MontyWasm)
@@ -41,12 +41,12 @@ dart_monty                         (app-facing API — thin re-export)
 
 | Platform | Package | Status | Library |
 |----------|---------|--------|---------|
-| macOS | dart_monty_desktop | Supported | `.dylib` |
-| Linux | dart_monty_desktop | Supported | `.so` |
+| macOS | dart_monty_native | Supported | `.dylib` |
+| Linux | dart_monty_native | Supported | `.so` |
 | Web | dart_monty_web | Supported | WASM via Worker |
-| iOS | dart_monty_desktop | Planned (M9) | `.a` static |
-| Android | dart_monty_desktop | Planned (M9) | `.so` via NDK |
-| Windows | dart_monty_desktop | Planned (M9) | `.dll` via MSVC |
+| iOS | dart_monty_native | Planned (M9) | `.a` static |
+| Android | dart_monty_native | Planned (M9) | `.so` via NDK |
+| Windows | dart_monty_native | Planned (M9) | `.dll` via MSVC |
 
 ## JSON Contract Reference
 
@@ -182,7 +182,7 @@ The mixin handles only state tracking. Backends remain responsible for:
   `{ ok: false, error, errorType, excType?, traceback? }` message posted
   back to the main thread.
 
-**`_failAllPending` semantics:** When `DesktopBindingsIsolate.dispose()`
+**`_failAllPending` semantics:** When `NativeIsolateBindingsImpl.dispose()`
 is called or the Isolate exits unexpectedly, `_failAllPending()` copies
 the pending completer map, clears it, and completes every outstanding
 future with a `MontyException`. This prevents callers from hanging on
@@ -260,9 +260,9 @@ within a single `MontyWasm` instance.
 
 ```text
 Flutter app
-  → DartMontyDesktop.registerWith()    # Flutter plugin registration
-    → MontyDesktop                     # MontyPlatform impl + MontyStateMixin
-      → DesktopBindingsIsolate         # Isolate bridge
+  → DartMontyNative.registerWith()    # Flutter plugin registration
+    → MontyNative                     # MontyPlatform impl + MontyStateMixin
+      → NativeIsolateBindingsImpl         # Isolate bridge
         → Isolate (same-group)         # Background thread
           → MontyFfi                   # MontyPlatform impl (pure Dart, no Flutter)
             → NativeBindingsFfi        # dart:ffi calls
@@ -275,7 +275,7 @@ and can block for hundreds of milliseconds (compilation, execution with
 limits). Running them on a background Isolate keeps the Flutter UI thread
 responsive.
 
-**Isolate protocol:** `DesktopBindingsIsolate` spawns a same-group Isolate
+**Isolate protocol:** `NativeIsolateBindingsImpl` spawns a same-group Isolate
 via `Isolate.spawn()`. Communication uses sealed `_Request`/`_Response`
 classes sent directly through `SendPort` — no JSON encoding needed for
 same-group isolates. Each request carries a unique `id`; the main thread
@@ -344,7 +344,7 @@ extends the real abstract class it replaces and follows a consistent pattern:
   single-call assertions.
 
 **Per-backend mocks** (`MockNativeBindings`, `MockWasmBindings`,
-`MockDesktopBindings`) follow the same pattern at the bindings layer. Each
+`MockNativeIsolateBindings`) follow the same pattern at the bindings layer. Each
 extends its package's abstract `*Bindings` class, providing configurable
 return values (`next*` fields) and call-count tracking (`*Calls` lists).
 Multi-step flows use a FIFO queue (`enqueueProgress`) so tests can script

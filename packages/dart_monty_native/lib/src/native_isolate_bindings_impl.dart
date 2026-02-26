@@ -2,15 +2,15 @@ import 'dart:async';
 import 'dart:isolate';
 import 'dart:typed_data';
 
-import 'package:dart_monty_desktop/src/desktop_bindings.dart';
 import 'package:dart_monty_ffi/dart_monty_ffi.dart';
+import 'package:dart_monty_native/src/native_isolate_bindings.dart';
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 
 // =============================================================================
 // Message types (private sealed classes)
 // =============================================================================
 
-/// Initial configuration sent from main → Isolate at spawn time.
+/// Initial configuration sent from main -> Isolate at spawn time.
 final class _InitMessage {
   const _InitMessage(this.mainSendPort, {this.libraryPath});
   final SendPort mainSendPort;
@@ -23,7 +23,7 @@ final class _ReadyMessage {
   final SendPort sendPort;
 }
 
-/// Base request type sent from main → Isolate.
+/// Base request type sent from main -> Isolate.
 sealed class _Request {
   const _Request(this.id);
   final int id;
@@ -83,7 +83,7 @@ final class _DisposeRequest extends _Request {
   const _DisposeRequest(super.id);
 }
 
-/// Base response type sent from Isolate → main.
+/// Base response type sent from Isolate -> main.
 sealed class _Response {
   const _Response(this.id);
   final int id;
@@ -213,10 +213,10 @@ Future<void> _isolateMain(_InitMessage init) async {
 }
 
 // =============================================================================
-// DesktopBindingsIsolate
+// NativeIsolateBindingsImpl
 // =============================================================================
 
-/// Real [DesktopBindings] implementation backed by a background Isolate.
+/// Real [NativeIsolateBindings] implementation backed by a background Isolate.
 ///
 /// Spawns a same-group Isolate that creates a [MontyFfi] with
 /// [NativeBindingsFfi]. Communication uses sealed `_Request`/`_Response`
@@ -225,12 +225,12 @@ Future<void> _isolateMain(_InitMessage init) async {
 /// Pass [libraryPath] to override the default native library resolution.
 /// This is useful for integration tests where `DYLD_LIBRARY_PATH` may not
 /// propagate to the spawned Isolate.
-class DesktopBindingsIsolate extends DesktopBindings {
-  /// Creates a [DesktopBindingsIsolate].
+class NativeIsolateBindingsImpl extends NativeIsolateBindings {
+  /// Creates a [NativeIsolateBindingsImpl].
   ///
   /// If [libraryPath] is provided, it is forwarded to [NativeBindingsFfi]
   /// inside the Isolate to override the default library lookup.
-  DesktopBindingsIsolate({this.libraryPath});
+  NativeIsolateBindingsImpl({this.libraryPath});
 
   /// Optional path to the native shared library.
   final String? libraryPath;

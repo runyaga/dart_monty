@@ -23,7 +23,7 @@ DIRS=(
   "packages/dart_monty_ffi"
   "packages/dart_monty_wasm"
   "packages/dart_monty_web"
-  "packages/dart_monty_desktop"
+  "packages/dart_monty_native"
 )
 
 for dir in "${DIRS[@]}"; do

@@ -108,7 +108,7 @@ data model fields.
 
 ### 7B.5 Flutter Plugin Updates
 
-- [ ] `dart_monty_desktop`: plumb `onPrint` through Isolate message channel
+- [ ] `dart_monty_native`: plumb `onPrint` through Isolate message channel
 - [ ] `dart_monty_web`: plumb `onPrint` through Worker messages
 - [ ] Integration tests for print streaming in both plugins
 

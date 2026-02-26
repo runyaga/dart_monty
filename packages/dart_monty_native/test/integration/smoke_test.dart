@@ -3,7 +3,7 @@ library;
 
 import 'dart:io';
 
-import 'package:dart_monty_desktop/dart_monty_desktop.dart';
+import 'package:dart_monty_native/dart_monty_native.dart';
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 import 'package:test/test.dart';
 
@@ -12,14 +12,14 @@ import 'package:test/test.dart';
 /// Run with:
 /// ```bash
 /// cd native && cargo build --release && cd ..
-/// cd packages/dart_monty_desktop
+/// cd packages/dart_monty_native
 /// dart test --tags=integration
 /// ```
 void main() {
   final libPath = _resolveLibraryPath();
 
-  MontyDesktop createMonty() =>
-      MontyDesktop(bindings: DesktopBindingsIsolate(libraryPath: libPath));
+  MontyNative createMonty() =>
+      MontyNative(bindings: NativeIsolateBindingsImpl(libraryPath: libPath));
 
   test('smoke: run("2+2") returns 4', () async {
     final monty = createMonty();

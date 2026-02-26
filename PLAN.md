@@ -178,7 +178,7 @@ tool/test_python_ladder.sh          # Ladder tiers 1-6 on WASM path
 tool/test_m5.sh
 # Runs: tool/build_native.sh (build + copy to platform dirs)
 # Runs: dart format, flutter analyze
-# Runs: flutter test packages/dart_monty_desktop --coverage
+# Runs: flutter test packages/dart_monty_native --coverage
 # Runs: flutter test example/
 # Runs: tool/test_python_ladder.sh --paths=flutter-isolate --tiers=1-6
 # Runs: flutter build macos (build smoke)

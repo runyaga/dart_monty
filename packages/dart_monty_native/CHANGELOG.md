@@ -1,4 +1,8 @@
-## Unreleased
+## 0.6.0
+
+- **BREAKING**: Rename package from `dart_monty_desktop` to `dart_monty_native`
+- Rename `MontyDesktop` -> `MontyNative`, `DesktopBindings` -> `NativeIsolateBindings`, `DesktopBindingsIsolate` -> `NativeIsolateBindingsImpl`
+- Prepares for platform expansion (Windows, iOS, Android)
 
 ## 0.4.3
 

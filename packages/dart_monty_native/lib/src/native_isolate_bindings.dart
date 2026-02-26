@@ -2,14 +2,14 @@ import 'dart:typed_data';
 
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 
-/// Abstract interface over the desktop Isolate bridge.
+/// Abstract interface over the native Isolate bridge.
 ///
 /// All methods are `Future`-based because the Isolate round-trip is
 /// inherently asynchronous. Unlike `WasmBindings` which returns raw JSON,
-/// `DesktopBindings` returns already-decoded domain types because
+/// `NativeIsolateBindings` returns already-decoded domain types because
 /// `Isolate.spawn` creates same-group isolates that can send arbitrary
 /// `@immutable` objects directly.
-abstract class DesktopBindings {
+abstract class NativeIsolateBindings {
   /// Initializes the background Isolate.
   ///
   /// Returns `true` if the Isolate spawned successfully.

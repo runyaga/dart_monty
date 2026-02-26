@@ -23,7 +23,7 @@ PACKAGES=(
   "dart_monty_ffi"
   "dart_monty_wasm"
   "dart_monty_web"
-  "dart_monty_desktop"
+  "dart_monty_native"
   "dart_monty"
 )
 
