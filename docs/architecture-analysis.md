@@ -63,6 +63,7 @@ shared test ladder.
 | **D** — Dependency Inversion | **Strong** | Textbook DIP. Both high-level (app) and low-level (ffi, wasm) depend on this abstraction. Arrows point inward. |
 
 **Abstraction Leaks:**
+
 - JSON serialization baked into every data class (`fromJson`/`toJson`) — assumes message-passing transport
 - Python-specific semantics in `MontyException.excType` and `MontyStackFrame` docs referencing "monty TracebackFrame"
 
@@ -190,6 +191,7 @@ abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
 **Problem:** `MontyFfi` repeats handle-assertion + state-check across 5+ methods. `NativeBindingsFfi` repeats `outError` alloc + `_buildProgressResult` identically.
 
 **Fix:**
+
 ```dart
 // In MontyFfi:
 Future<MontyProgress> _withActiveHandle(String caller, Future<MontyProgress> Function(int) action) async {
