@@ -1,4 +1,7 @@
-## Unreleased
+## 0.6.1
+
+- Update README with usage example and human/AI attribution
+- Enrich `example/example.dart` with limits, external function dispatch, and error handling demos
 
 ## 0.6.0
 

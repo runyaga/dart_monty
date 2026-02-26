@@ -1,4 +1,9 @@
-## Unreleased
+## 0.6.1
+
+- Update all package READMEs with usage examples and human/AI attribution
+- Enrich `example/example.dart` across all packages
+- Add README and example doctest coverage (20 integration tests)
+- Remove 8 obsolete planning docs
 
 ## 0.6.0
 

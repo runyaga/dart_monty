@@ -1,8 +1,11 @@
 /// Web plugin registration example.
 ///
 /// `dart_monty_web` registers itself automatically via Flutter's federated
-/// plugin system. Import `dart_monty` in your app — no direct usage of
-/// this package is needed.
+/// plugin system (`flutter_web_plugins`). Import `dart_monty` in your app —
+/// no direct usage of this package is needed.
+///
+/// On web, the backend delegates to `MontyWasm` which runs Python in a
+/// Web Worker via `@pydantic/monty` compiled to WASM.
 ///
 /// ```dart
 /// import 'package:dart_monty/dart_monty.dart';

@@ -1,4 +1,8 @@
-## Unreleased
+## 0.6.1
+
+- Update README with usage example and human/AI attribution
+- Enrich `example/example.dart` with run, limits, external function dispatch, error handling, print capture, and snapshot/restore demos
+- Extend `readme_doctest.dart` integration tests (6 → 20 tests)
 
 ## 0.6.0
 

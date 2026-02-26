@@ -4,6 +4,8 @@ Part of [dart_monty](https://github.com/runyaga/dart_monty) — pure Dart bindin
 
 [Live Demo](https://runyaga.github.io/dart_monty/) | [GitHub](https://github.com/runyaga/dart_monty) | [Monty](https://github.com/pydantic/monty)
 
+<img src="https://raw.githubusercontent.com/runyaga/dart_monty/main/docs/bob.png" alt="Bob" height="18"> This package is co-designed by human and AI — nearly all code is AI-generated.
+
 **Flutter plugin** — web platform registration for dart_monty. Delegates to `dart_monty_wasm` for WASM-based Python execution in the browser.
 
 Requires Flutter. This package is not intended for direct use. Import `dart_monty` instead — the federated plugin system selects this package automatically when building for web.
@@ -11,5 +13,23 @@ Requires Flutter. This package is not intended for direct use. Import `dart_mont
 ## How It Works
 
 `DartMontyWeb` registers itself as the `MontyPlatform` instance via Flutter's `flutter_web_plugins` system. All execution is delegated to `MontyWasm` from the `dart_monty_wasm` package.
+
+## Usage
+
+This package registers itself automatically. In your Flutter app, use the public API:
+
+```dart
+import 'package:dart_monty/dart_monty.dart';
+import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
+
+Future<void> main() async {
+  // MontyPlatform.instance is set to MontyWasm on web automatically.
+  final monty = MontyPlatform.instance;
+  final result = await monty.run('2 + 2');
+  print(result.value); // 4
+
+  await monty.dispose();
+}
+```
 
 See the [main dart_monty repository](https://github.com/runyaga/dart_monty) for full documentation.
