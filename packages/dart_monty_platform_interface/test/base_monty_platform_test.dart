@@ -135,7 +135,7 @@ void main() {
     });
 
     test('error throws MontyException', () async {
-      fake.runResult = CoreRunResult(
+      fake.runResult = const CoreRunResult(
         ok: false,
         error: 'division by zero',
         excType: 'ZeroDivisionError',
@@ -181,7 +181,6 @@ void main() {
     test('printOutput is preserved', () async {
       fake.runResult = const CoreRunResult(
         ok: true,
-        value: null,
         usage: usage,
         printOutput: 'hello world\n',
       );
@@ -194,7 +193,6 @@ void main() {
     test('passes scriptName to bindings', () async {
       fake.runResult = const CoreRunResult(
         ok: true,
-        value: null,
         usage: usage,
       );
 
@@ -202,9 +200,41 @@ void main() {
 
       expect(fake.lastScriptName, 'math.py');
     });
+
+    test('ok with embedded error preserves error in result', () async {
+      fake.runResult = const CoreRunResult(
+        ok: true,
+        usage: usage,
+        error: 'NameError',
+        excType: 'NameError',
+      );
+
+      final result = await platform.run('code');
+
+      expect(result.isError, isTrue);
+      expect(result.error?.message, 'NameError');
+      expect(result.error?.excType, 'NameError');
+      expect(result.value, isNull);
+    });
   });
 
   group('start()', () {
+    test('complete with embedded error preserves error', () async {
+      fake.progressResult = const CoreProgressResult(
+        state: 'complete',
+        usage: usage,
+        error: 'caught',
+        excType: 'RuntimeError',
+      );
+
+      final progress = await platform.start('code');
+
+      final complete = progress as MontyComplete;
+      expect(complete.result.isError, isTrue);
+      expect(complete.result.error?.message, 'caught');
+      expect(complete.result.error?.excType, 'RuntimeError');
+    });
+
     test('complete returns MontyComplete and marks idle', () async {
       fake.progressResult = const CoreProgressResult(
         state: 'complete',
@@ -355,7 +385,6 @@ void main() {
         // Resume with error -> complete.
         fake.progressResult = const CoreProgressResult(
           state: 'complete',
-          value: null,
           usage: usage,
         );
         final progress = await platform.resumeWithError(
@@ -471,7 +500,6 @@ void main() {
     test('null limits passes null to bindings', () async {
       fake.runResult = const CoreRunResult(
         ok: true,
-        value: null,
         usage: usage,
       );
 
@@ -483,7 +511,6 @@ void main() {
     test('partial limits encodes JSON subset', () async {
       fake.runResult = const CoreRunResult(
         ok: true,
-        value: null,
         usage: usage,
       );
 
@@ -499,7 +526,6 @@ void main() {
     test('full limits encodes all fields', () async {
       fake.runResult = const CoreRunResult(
         ok: true,
-        value: null,
         usage: usage,
       );
 
@@ -525,7 +551,6 @@ void main() {
     test('null passes null to bindings', () async {
       fake.progressResult = const CoreProgressResult(
         state: 'complete',
-        value: null,
         usage: usage,
       );
 
@@ -537,7 +562,6 @@ void main() {
     test('empty list passes null to bindings', () async {
       fake.progressResult = const CoreProgressResult(
         state: 'complete',
-        value: null,
         usage: usage,
       );
 
@@ -549,7 +573,6 @@ void main() {
     test('non-empty list encodes JSON array', () async {
       fake.progressResult = const CoreProgressResult(
         state: 'complete',
-        value: null,
         usage: usage,
       );
 
@@ -567,7 +590,6 @@ void main() {
     test('first call triggers init', () async {
       fake.runResult = const CoreRunResult(
         ok: true,
-        value: null,
         usage: usage,
       );
 
@@ -579,7 +601,6 @@ void main() {
     test('subsequent calls skip init', () async {
       fake.runResult = const CoreRunResult(
         ok: true,
-        value: null,
         usage: usage,
       );
 

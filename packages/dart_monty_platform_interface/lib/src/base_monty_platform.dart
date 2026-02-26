@@ -121,6 +121,7 @@ abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
     if (r.ok) {
       return MontyResult(
         value: r.value,
+        error: _buildError(r.error, r.excType, r.traceback),
         usage: r.usage ?? _zeroUsage,
         printOutput: r.printOutput,
       );
@@ -139,6 +140,7 @@ abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
         return MontyComplete(
           result: MontyResult(
             value: p.value,
+            error: _buildError(p.error, p.excType, p.traceback),
             usage: p.usage ?? _zeroUsage,
           ),
         );
@@ -179,6 +181,19 @@ abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
   String? _encodeExternalFunctions(List<String>? fns) {
     if (fns == null || fns.isEmpty) return null;
     return json.encode(fns);
+  }
+
+  MontyException? _buildError(
+    String? error,
+    String? excType,
+    List<dynamic>? traceback,
+  ) {
+    if (error == null) return null;
+    return MontyException(
+      message: error,
+      excType: excType,
+      traceback: _parseTraceback(traceback),
+    );
   }
 
   List<MontyStackFrame> _parseTraceback(
