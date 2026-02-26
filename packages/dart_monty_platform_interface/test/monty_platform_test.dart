@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 import 'package:test/test.dart';
 
@@ -93,41 +91,6 @@ void main() {
       test('resumeWithError() throws', () {
         expect(
           () => platform.resumeWithError('error'),
-          throwsUnimplementedError,
-        );
-      });
-
-      test('resumeAsFuture() throws', () {
-        expect(
-          () => platform.resumeAsFuture(),
-          throwsUnimplementedError,
-        );
-      });
-
-      test('resolveFutures() throws', () {
-        expect(
-          () => platform.resolveFutures({0: 'x'}),
-          throwsUnimplementedError,
-        );
-      });
-
-      test('resolveFutures() with errors throws', () {
-        expect(
-          () => platform.resolveFutures({0: 'x'}, errors: {1: 'err'}),
-          throwsUnimplementedError,
-        );
-      });
-
-      test('snapshot() throws', () {
-        expect(
-          () => platform.snapshot(),
-          throwsUnimplementedError,
-        );
-      });
-
-      test('restore() throws', () {
-        expect(
-          () => platform.restore(Uint8List(0)),
           throwsUnimplementedError,
         );
       });

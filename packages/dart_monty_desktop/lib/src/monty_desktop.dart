@@ -16,7 +16,9 @@ import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart
 /// print(result.value); // 4
 /// await monty.dispose();
 /// ```
-class MontyDesktop extends MontyPlatform with MontyStateMixin {
+class MontyDesktop extends MontyPlatform
+    with MontyStateMixin
+    implements MontySnapshotCapable, MontyFutureCapable {
   /// Creates a [MontyDesktop] with the given [bindings].
   MontyDesktop({required DesktopBindings bindings}) : _bindings = bindings;
 

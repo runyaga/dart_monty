@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:dart_monty_platform_interface/src/monty_exception.dart';
+import 'package:dart_monty_platform_interface/src/monty_future_capable.dart';
 import 'package:dart_monty_platform_interface/src/monty_platform.dart';
 import 'package:dart_monty_platform_interface/src/monty_progress.dart';
 import 'package:dart_monty_platform_interface/src/testing/ladder_assertions.dart';
@@ -91,11 +92,17 @@ Future<void> runIterativeFixture(
   final callIds = <int>[];
 
   if (asyncResumeMap != null) {
+    if (platform is! MontyFutureCapable) {
+      markTestSkipped('Platform does not support MontyFutureCapable');
+
+      return;
+    }
+    final futurePlatform = platform as MontyFutureCapable;
     try {
       while (progress is! MontyComplete) {
         if (progress is MontyPending) {
           callIds.add(progress.callId);
-          progress = await platform.resumeAsFuture();
+          progress = await futurePlatform.resumeAsFuture();
         } else if (progress is MontyResolveFutures) {
           final pending = progress.pendingCallIds;
           final results = <int, Object?>{};
@@ -108,7 +115,7 @@ Future<void> runIterativeFixture(
               results[id] = asyncResumeMap[key];
             }
           }
-          progress = await platform.resolveFutures(
+          progress = await futurePlatform.resolveFutures(
             results,
             errors: errors.isNotEmpty ? errors : null,
           );

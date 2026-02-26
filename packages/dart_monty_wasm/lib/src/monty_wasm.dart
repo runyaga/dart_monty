@@ -16,7 +16,9 @@ import 'package:dart_monty_wasm/src/wasm_bindings.dart';
 /// print(result.value); // 4
 /// await monty.dispose();
 /// ```
-class MontyWasm extends MontyPlatform with MontyStateMixin {
+class MontyWasm extends MontyPlatform
+    with MontyStateMixin
+    implements MontySnapshotCapable {
   /// Creates a [MontyWasm] with the given [bindings].
   MontyWasm({required WasmBindings bindings}) : _bindings = bindings;
 
@@ -129,27 +131,6 @@ class MontyWasm extends MontyPlatform with MontyStateMixin {
     sw.stop();
 
     return _translateProgress(progress, sw.elapsedMilliseconds);
-  }
-
-  @override
-  Future<MontyProgress> resumeAsFuture() async {
-    throw UnsupportedError(
-      'resumeAsFuture() is not yet supported in the WASM backend. '
-      'The @pydantic/monty NAPI-RS WASM module does not expose the '
-      'FutureSnapshot API.',
-    );
-  }
-
-  @override
-  Future<MontyProgress> resolveFutures(
-    Map<int, Object?> results, {
-    Map<int, String>? errors,
-  }) async {
-    throw UnsupportedError(
-      'resolveFutures() is not yet supported in the WASM backend. '
-      'The @pydantic/monty NAPI-RS WASM module does not expose the '
-      'FutureSnapshot API.',
-    );
   }
 
   @override

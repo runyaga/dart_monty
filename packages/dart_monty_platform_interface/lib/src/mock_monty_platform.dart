@@ -1,10 +1,12 @@
 import 'dart:collection';
 import 'dart:typed_data';
 
+import 'package:dart_monty_platform_interface/src/monty_future_capable.dart';
 import 'package:dart_monty_platform_interface/src/monty_limits.dart';
 import 'package:dart_monty_platform_interface/src/monty_platform.dart';
 import 'package:dart_monty_platform_interface/src/monty_progress.dart';
 import 'package:dart_monty_platform_interface/src/monty_result.dart';
+import 'package:dart_monty_platform_interface/src/monty_snapshot_capable.dart';
 
 /// A mock implementation of [MontyPlatform] for testing.
 ///
@@ -22,7 +24,8 @@ import 'package:dart_monty_platform_interface/src/monty_result.dart';
 /// mock.enqueueProgress(MontyPending(functionName: 'fetch', arguments: []));
 /// mock.enqueueProgress(MontyComplete(result: result));
 /// ```
-class MockMontyPlatform extends MontyPlatform {
+class MockMontyPlatform extends MontyPlatform
+    implements MontySnapshotCapable, MontyFutureCapable {
   /// Creates a [MockMontyPlatform].
   MockMontyPlatform();
 
