@@ -1290,10 +1290,11 @@ class _LadderPageState extends State<_LadderPage> {
 
     if (asyncResumeMap != null) {
       // Async/futures path: loop pending -> future -> resolve until done.
+      final futurePlatform = monty as MontyFutureCapable;
       try {
         while (progress is! MontyComplete) {
           if (progress is MontyPending) {
-            progress = await monty.resumeAsFuture();
+            progress = await futurePlatform.resumeAsFuture();
           } else if (progress is MontyResolveFutures) {
             final pending = progress.pendingCallIds;
             final results = <int, Object?>{};
@@ -1306,7 +1307,7 @@ class _LadderPageState extends State<_LadderPage> {
                 results[id] = asyncResumeMap[key];
               }
             }
-            progress = await monty.resolveFutures(
+            progress = await futurePlatform.resolveFutures(
               results,
               errors: errors.isNotEmpty ? errors : null,
             );
@@ -2178,6 +2179,7 @@ final _examples = <_Example>[
         '\n'
         'await main()',
     (monty, code, limits, log) async {
+      final futurePlatform = monty as MontyFutureCapable;
       var progress = await monty.start(
         code,
         externalFunctions: ['fetch_x', 'fetch_y'],
@@ -2189,7 +2191,7 @@ final _examples = <_Example>[
       while (progress is! MontyComplete) {
         if (progress is MontyPending) {
           log('Python awaits ${progress.functionName}() — converting to future');
-          progress = await monty.resumeAsFuture();
+          progress = await futurePlatform.resumeAsFuture();
         } else if (progress is MontyResolveFutures) {
           log('Resolving ${progress.pendingCallIds.length} futures...');
           for (final id in progress.pendingCallIds) {
@@ -2197,7 +2199,7 @@ final _examples = <_Example>[
             futureValues[id] = (id + 1) * 10; // 10, 20
           }
           log('Values: $futureValues');
-          progress = await monty.resolveFutures(futureValues);
+          progress = await futurePlatform.resolveFutures(futureValues);
         }
       }
 
