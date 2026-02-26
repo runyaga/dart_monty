@@ -19,6 +19,7 @@ variable in one tool call and references it in the next.
 ## Spike Evidence
 
 A spike (`test/integration/multi_instance_spike_test.dart`) confirmed:
+
 - Multiple `MontyNative` instances run concurrently without GIL/FFI crashes
 - `run()` does NOT persist state across calls (by design)
 - State isolation between instances works correctly
@@ -49,7 +50,7 @@ mechanism.
 
 ### Location
 
-```
+```text
 packages/dart_monty_platform_interface/
   lib/src/monty_session.dart          ← NEW
   test/monty_session_test.dart        ← NEW
@@ -117,7 +118,7 @@ Two internal host functions (`__restore_state__` and `__persist_state__`)
 shuttle serialized state in/out of each execution, using the same
 external-function mechanism as `__console_write__` in DefaultMontyBridge.
 
-```
+```text
 ┌─────────────────────────────────────────────────────┐
 │  Python execution (single start/resume cycle)       │
 │                                                     │
@@ -139,6 +140,7 @@ MontySession prepends a **restore preamble** and appends a **persist postamble**
 to user code before passing it to `platform.start()`:
 
 **Restore preamble** (runs before user code):
+
 ```python
 __s = __restore_state__()
 if __s and __s != '{}':
@@ -150,6 +152,7 @@ del __s
 ```
 
 **Persist postamble** (runs after user code):
+
 ```python
 import json as __j2
 __state = {}
@@ -174,7 +177,9 @@ MontySession handles the start/resume loop, intercepting the two internal
 functions while passing through all others:
 
 ```dart
-Future<MontyResult> run(String code, {MontyLimits? limits, String? scriptName}) async {
+Future<MontyResult> run(
+  String code, {MontyLimits? limits, String? scriptName},
+) async {
   final wrappedCode = '$_restorePreamble\n$code\n$_persistPostamble';
   final allExtFns = [_restoreStateFn, _persistStateFn];
 
@@ -259,7 +264,7 @@ platform-specific code. It wraps any `MontyPlatform` implementation.
 
 Use `MockMontyPlatform` that enqueues `MontyPending`/`MontyComplete` responses:
 
-```
+```text
 1. "set and read variable"
    - run('x = 42') → completes
    - run('x + 1') → verify restore preamble sent stored state
@@ -310,7 +315,7 @@ Use `MockMontyPlatform` that enqueues `MontyPending`/`MontyComplete` responses:
 
 New file: `packages/dart_monty_native/test/integration/session_test.dart`
 
-```
+```text
 1. "real state persistence across calls"
    - session.run('x = 42')
    - result = session.run('x + 1')
@@ -338,6 +343,7 @@ New file: `packages/dart_monty_native/test/integration/session_test.dart`
 ```
 
 Run with:
+
 ```bash
 # Native
 cd packages/dart_monty_native
@@ -371,7 +377,7 @@ across all 5 packages + the Rust C FFI.
 
 | File | Action |
 |------|--------|
-| `packages/dart_monty_platform_interface/lib/src/monty_session.dart` | NEW |
-| `packages/dart_monty_platform_interface/lib/dart_monty_platform_interface.dart` | MODIFY (add export) |
-| `packages/dart_monty_platform_interface/test/monty_session_test.dart` | NEW |
-| `packages/dart_monty_native/test/integration/session_test.dart` | NEW |
+| `.../lib/src/monty_session.dart` | NEW |
+| `.../lib/dart_monty_platform_interface.dart` | MODIFY |
+| `.../test/monty_session_test.dart` | NEW |
+| `.../test/integration/session_test.dart` | NEW |

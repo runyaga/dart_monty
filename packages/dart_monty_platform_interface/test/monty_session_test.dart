@@ -1,6 +1,5 @@
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 import 'package:dart_monty_platform_interface/dart_monty_testing.dart';
-import 'package:dart_monty_platform_interface/src/monty_session.dart';
 import 'package:test/test.dart';
 
 /// Shared zero-cost usage for test results.
