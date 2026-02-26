@@ -190,7 +190,9 @@ abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
 
   String? _encodeLimits(MontyLimits? limits) {
     if (limits == null) return null;
-    return json.encode(limits.toJson());
+    final map = limits.toJson();
+    if (map.isEmpty) return null;
+    return json.encode(map);
   }
 
   String? _encodeExternalFunctions(List<String>? fns) {
