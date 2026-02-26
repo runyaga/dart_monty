@@ -9,6 +9,7 @@ import 'package:dart_monty_platform_interface/src/monty_resource_usage.dart';
 import 'package:dart_monty_platform_interface/src/monty_result.dart';
 import 'package:dart_monty_platform_interface/src/monty_stack_frame.dart';
 import 'package:dart_monty_platform_interface/src/monty_state_mixin.dart';
+import 'package:meta/meta.dart';
 
 /// Abstract base that implements [MontyPlatform] by delegating to a
 /// [MontyCoreBindings] and translating intermediate results into
@@ -30,6 +31,10 @@ abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
       : _bindings = bindings;
 
   final MontyCoreBindings _bindings;
+
+  /// The underlying bindings adapter for subclass use.
+  @protected
+  MontyCoreBindings get coreBindings => _bindings;
 
   static const _zeroUsage = MontyResourceUsage(
     memoryBytesUsed: 0,
@@ -76,7 +81,7 @@ abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
       limitsJson: _encodeLimits(limits),
       scriptName: scriptName,
     );
-    return _translateProgress(progress);
+    return translateProgress(progress);
   }
 
   @override
@@ -86,7 +91,7 @@ abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
     final progress = await _bindings.resume(
       json.encode(returnValue),
     );
-    return _translateProgress(progress);
+    return translateProgress(progress);
   }
 
   @override
@@ -98,7 +103,7 @@ abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
     final progress = await _bindings.resumeWithError(
       errorMessage,
     );
-    return _translateProgress(progress);
+    return translateProgress(progress);
   }
 
   @override
@@ -130,10 +135,16 @@ abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
       message: r.error ?? 'Unknown error',
       excType: r.excType,
       traceback: _parseTraceback(r.traceback),
+      filename: r.filename,
+      lineNumber: r.lineNumber,
+      columnNumber: r.columnNumber,
+      sourceCode: r.sourceCode,
     );
   }
 
-  MontyProgress _translateProgress(CoreProgressResult p) {
+  /// Translates a [CoreProgressResult] into a [MontyProgress] domain type.
+  @protected
+  MontyProgress translateProgress(CoreProgressResult p) {
     switch (p.state) {
       case 'complete':
         markIdle();
@@ -164,6 +175,10 @@ abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
           message: p.error ?? 'Unknown error',
           excType: p.excType,
           traceback: _parseTraceback(p.traceback),
+          filename: p.filename,
+          lineNumber: p.lineNumber,
+          columnNumber: p.columnNumber,
+          sourceCode: p.sourceCode,
         );
       default:
         markIdle();

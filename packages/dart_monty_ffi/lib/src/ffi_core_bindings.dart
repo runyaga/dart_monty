@@ -155,6 +155,10 @@ class FfiCoreBindings implements MontyCoreBindings {
           error: errorMap['message'] as String?,
           excType: errorMap['exc_type'] as String?,
           traceback: errorMap['traceback'] as List<Object?>?,
+          filename: errorMap['filename'] as String?,
+          lineNumber: errorMap['line_number'] as int?,
+          columnNumber: errorMap['column_number'] as int?,
+          sourceCode: errorMap['source_code'] as String?,
         );
       }
     }
@@ -229,6 +233,10 @@ class FfiCoreBindings implements MontyCoreBindings {
               error: errorMap['message'] as String?,
               excType: errorMap['exc_type'] as String?,
               traceback: errorMap['traceback'] as List<Object?>?,
+              filename: errorMap['filename'] as String?,
+              lineNumber: errorMap['line_number'] as int?,
+              columnNumber: errorMap['column_number'] as int?,
+              sourceCode: errorMap['source_code'] as String?,
             );
           }
         }

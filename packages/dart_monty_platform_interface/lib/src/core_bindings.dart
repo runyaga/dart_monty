@@ -21,6 +21,10 @@ final class CoreRunResult {
     this.error,
     this.excType,
     this.traceback,
+    this.filename,
+    this.lineNumber,
+    this.columnNumber,
+    this.sourceCode,
   });
 
   /// Whether the execution succeeded.
@@ -43,6 +47,18 @@ final class CoreRunResult {
 
   /// Raw traceback frames (when [ok] is `false`).
   final List<dynamic>? traceback;
+
+  /// Source filename (when [ok] is `false`).
+  final String? filename;
+
+  /// Error line number (when [ok] is `false`).
+  final int? lineNumber;
+
+  /// Error column number (when [ok] is `false`).
+  final int? columnNumber;
+
+  /// Source code snippet (when [ok] is `false`).
+  final String? sourceCode;
 }
 
 /// Intermediate result from [MontyCoreBindings] progress methods.
@@ -74,6 +90,10 @@ final class CoreProgressResult {
     this.error,
     this.excType,
     this.traceback,
+    this.filename,
+    this.lineNumber,
+    this.columnNumber,
+    this.sourceCode,
   });
 
   /// Progress state: `'complete'`, `'pending'`, or `'resolve_futures'`.
@@ -111,6 +131,18 @@ final class CoreProgressResult {
 
   /// Raw traceback frames (when execution failed).
   final List<dynamic>? traceback;
+
+  /// Source filename (when execution failed).
+  final String? filename;
+
+  /// Error line number (when execution failed).
+  final int? lineNumber;
+
+  /// Error column number (when execution failed).
+  final int? columnNumber;
+
+  /// Source code snippet (when execution failed).
+  final String? sourceCode;
 }
 
 /// Unified bindings contract for Monty backends.
