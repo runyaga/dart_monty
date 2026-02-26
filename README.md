@@ -99,26 +99,42 @@ await monty.dispose();
 snapshot/restore under the hood:
 
 ```dart
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 
-final session = MontySession(MontyPlatform.instance);
+Future<void> main() async {
+  final session = MontySession(MontyPlatform.instance);
 
-await session.run('x = 42');
-final result = await session.run('x + 8');
-print(result.value); // 50
+  // Globals persist across run() calls
+  await session.run('x = 42');
+  final result = await session.run('x + 8');
+  print(result.value); // 50
 
-// Iterative execution within a session
-var progress = await session.start(
-  'fetch("https://example.com")',
-  externalFunctions: ['fetch'],
-);
-if (progress is MontyPending) {
-  progress = await session.resume('response data');
+  // Iterative execution with a host-provided function
+  var progress = await session.start(
+    'fetch("https://api.example.com/data")',
+    externalFunctions: ['fetch'],
+  );
+
+  while (progress is MontyPending) {
+    final pending = progress as MontyPending;
+    final url = pending.arguments.first as String;
+
+    // Call the real HTTP endpoint from Dart
+    final response = await http.get(Uri.parse(url));
+    final body = jsonDecode(response.body);
+
+    progress = await session.resume(body);
+  }
+
+  final complete = progress as MontyComplete;
+  print(complete.result.value);
+
+  // Reset session state
+  await session.clearState();
+  await session.dispose();
 }
-
-// Reset session state
-await session.clearState();
-await session.dispose();
 ```
 
 ## Monty API Coverage (~68%)
