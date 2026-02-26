@@ -39,4 +39,19 @@ Cross-Origin-Opener-Policy: same-origin
 Cross-Origin-Embedder-Policy: require-corp
 ```
 
+## Usage
+
+```dart
+import 'package:dart_monty_wasm/dart_monty_wasm.dart';
+
+Future<void> main() async {
+  final monty = MontyWasm(bindings: WasmBindingsJs());
+
+  final result = await monty.run('2 + 2');
+  print(result.value); // 4
+
+  await monty.dispose();
+}
+```
+
 See the [main dart_monty repository](https://github.com/runyaga/dart_monty) for full documentation.

@@ -1,7 +1,11 @@
 /// Native plugin registration example.
 ///
 /// `dart_monty_native` registers itself automatically via Flutter's
-/// federated plugin system. Import `dart_monty` in your app:
+/// `dartPluginClass` mechanism. Import `dart_monty` in your app — no direct
+/// usage of this package is needed.
+///
+/// On native platforms, the backend runs the Monty interpreter in a
+/// background Isolate to keep the UI thread responsive.
 ///
 /// ```dart
 /// import 'package:dart_monty/dart_monty.dart';

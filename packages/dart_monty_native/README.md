@@ -21,4 +21,23 @@ This package vendors pre-built native libraries for supported platforms:
 - `macos/libdart_monty_native.dylib`
 - `linux/libdart_monty_native.so`
 
+## Usage
+
+This package registers itself automatically. In your Flutter app, use the public API:
+
+```dart
+import 'package:dart_monty/dart_monty.dart';
+import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
+
+Future<void> main() async {
+  // MontyPlatform.instance is set to MontyNative on desktop automatically.
+  // MontyNative runs the interpreter in a background Isolate.
+  final monty = MontyPlatform.instance;
+  final result = await monty.run('2 + 2');
+  print(result.value); // 4
+
+  await monty.dispose();
+}
+```
+
 See the [main dart_monty repository](https://github.com/runyaga/dart_monty) for full documentation.

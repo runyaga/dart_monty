@@ -14,4 +14,22 @@ Requires Flutter. This package is not intended for direct use. Import `dart_mont
 
 `DartMontyWeb` registers itself as the `MontyPlatform` instance via Flutter's `flutter_web_plugins` system. All execution is delegated to `MontyWasm` from the `dart_monty_wasm` package.
 
+## Usage
+
+This package registers itself automatically. In your Flutter app, use the public API:
+
+```dart
+import 'package:dart_monty/dart_monty.dart';
+import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
+
+Future<void> main() async {
+  // MontyPlatform.instance is set to MontyWasm on web automatically.
+  final monty = MontyPlatform.instance;
+  final result = await monty.run('2 + 2');
+  print(result.value); // 4
+
+  await monty.dispose();
+}
+```
+
 See the [main dart_monty repository](https://github.com/runyaga/dart_monty) for full documentation.

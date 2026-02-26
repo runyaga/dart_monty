@@ -30,4 +30,32 @@ Dart -> NativeBindingsFfi (dart:ffi)
 | `MontyFfi` | `MontyPlatform` implementation using `NativeBindings` |
 | `NativeLibraryLoader` | Platform-aware library path resolution |
 
+## Usage
+
+```dart
+import 'package:dart_monty_ffi/dart_monty_ffi.dart';
+import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
+
+Future<void> main() async {
+  final monty = MontyFfi(bindings: NativeBindingsFfi());
+
+  // Simple execution
+  final result = await monty.run('2 + 2');
+  print(result.value); // 4
+
+  // External function dispatch
+  var progress = await monty.start(
+    'fetch("https://example.com")',
+    externalFunctions: ['fetch'],
+  );
+  if (progress is MontyPending) {
+    progress = await monty.resume({'status': 'ok'});
+  }
+  final complete = progress as MontyComplete;
+  print(complete.result.value); // {status: ok}
+
+  await monty.dispose();
+}
+```
+
 See the [main dart_monty repository](https://github.com/runyaga/dart_monty) for full documentation.
