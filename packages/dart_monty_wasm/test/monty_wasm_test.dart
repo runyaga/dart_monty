@@ -23,27 +23,6 @@ void main() {
   });
 
   // ===========================================================================
-  // initialize()
-  // ===========================================================================
-  group('initialize()', () {
-    test('calls bindings.init()', () async {
-      await monty.initialize();
-      expect(mock.initCalls, 1);
-    });
-
-    test('is idempotent', () async {
-      await monty.initialize();
-      await monty.initialize();
-      expect(mock.initCalls, 1);
-    });
-
-    test('throws StateError on init failure', () async {
-      mock.nextInitResult = false;
-      expect(monty.initialize, throwsStateError);
-    });
-  });
-
-  // ===========================================================================
   // run()
   // ===========================================================================
   group('run()', () {
@@ -619,7 +598,8 @@ void main() {
   // ===========================================================================
   group('dispose()', () {
     test('calls bindings dispose when initialized', () async {
-      await monty.initialize();
+      mock.nextRunResult = const WasmRunResult(ok: true, value: 1);
+      await monty.run('1'); // triggers auto-init
       await monty.dispose();
       expect(mock.disposeCalls, 1);
     });
@@ -630,7 +610,8 @@ void main() {
     });
 
     test('double dispose is safe', () async {
-      await monty.initialize();
+      mock.nextRunResult = const WasmRunResult(ok: true, value: 1);
+      await monty.run('1'); // triggers auto-init
       await monty.dispose();
       await monty.dispose(); // should not throw
 
