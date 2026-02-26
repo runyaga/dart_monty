@@ -3,3 +3,6 @@ dart_monty_bridge.js
 dart_monty_worker.js
 monty.wasm32-wasi.wasm
 wasi-worker-browser.mjs
+
+# Ladder fixtures — symlink or copy from test/fixtures/python_ladder/ at dev time
+fixtures
