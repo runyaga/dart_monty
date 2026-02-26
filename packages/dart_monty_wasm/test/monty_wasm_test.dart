@@ -581,12 +581,12 @@ void main() {
       expect((progress as MontyComplete).result.value, 10);
     });
 
-    test('throws StateError when restore fails', () {
+    test('throws MontyException when restore fails', () {
       mock.nextRestoreError = 'invalid snapshot';
 
       expect(
         () => monty.restore(Uint8List.fromList([0xFF])),
-        throwsStateError,
+        throwsA(isA<MontyException>()),
       );
     });
 

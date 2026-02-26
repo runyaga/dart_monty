@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:dart_monty_ffi/src/native_bindings.dart';
+import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 
 const _defaultCompleteJson =
     '{"value": null, "usage": {"memory_bytes_used": 0, '
@@ -117,7 +118,7 @@ class MockNativeBindings extends NativeBindings {
     );
     final createError = nextCreateError;
     if (createError != null) {
-      throw StateError(createError);
+      throw MontyException(message: createError);
     }
 
     return nextCreateHandle;
@@ -227,7 +228,7 @@ class MockNativeBindings extends NativeBindings {
     restoreCalls.add(data);
     final restoreError = nextRestoreError;
     if (restoreError != null) {
-      throw StateError(restoreError);
+      throw MontyException(message: restoreError);
     }
 
     return nextRestoreHandle;

@@ -557,12 +557,12 @@ void main() {
       expect((progress as MontyComplete).result.value, 10);
     });
 
-    test('throws StateError when restore fails', () {
+    test('throws MontyException when restore fails', () {
       mock.nextRestoreError = 'invalid snapshot';
 
       expect(
         () => monty.restore(Uint8List.fromList([0xFF])),
-        throwsStateError,
+        throwsA(isA<MontyException>()),
       );
     });
 
@@ -681,10 +681,10 @@ void main() {
       expect(pending.arguments, isEmpty);
     });
 
-    test('create error propagates', () async {
+    test('create error propagates as MontyException', () async {
       mock.nextCreateError = 'compilation failed';
 
-      expect(() => monty.run('bad'), throwsStateError);
+      expect(() => monty.run('bad'), throwsA(isA<MontyException>()));
     });
 
     test('run with null resultJson throws', () async {
