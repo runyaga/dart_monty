@@ -88,7 +88,7 @@ IDLE ──── run() ──────► IDLE    ACTIVE ──────�
 | State | Allowed operations | Forbidden |
 |-------|--------------------|-----------|
 | **idle** | `run()`, `start()`, `restore()`, `dispose()` | `resume*()`, `resolveFutures*()`, `snapshot()` |
-| **active** | `resume()`, `resumeWithError()`, `resumeAsFuture()`, `resolveFutures()`, `resolveFuturesWithErrors()`, `snapshot()`, `dispose()` | `run()`, `start()`, `restore()` |
+| **active** | `resume()`, `resumeWithError()`, `resumeAsFuture()`, `resolveFutures()`, `snapshot()`, `dispose()` | `run()`, `start()`, `restore()` |
 | **disposed** | `dispose()` (idempotent no-op) | Everything else |
 
 ### Guard Methods
@@ -125,21 +125,68 @@ The mixin handles only state tracking. Backends remain responsible for:
 
 ## Cross-Language Memory Contracts
 
-> *Filled by Slice 7: Desktop & WASM Refinement*
+**FFI (native path):**
 
-<!-- Document the FFI/WASM memory lifecycle: who allocates, who frees,
-     what happens on a panic/exception, _readAndFreeString semantics,
-     snapshot memory ownership. -->
+- **Dart → Rust strings:** Dart allocates via `toNativeUtf8()`, passes the
+  pointer to the C function, and frees in a `finally` block via
+  `calloc.free()`. Rust reads (does not free) the pointer.
+- **Rust → Dart strings:** Rust allocates via `CString::into_raw()`. Dart
+  reads the pointer with `_readAndFreeString()`, which converts to a Dart
+  `String` and then calls `monty_string_free()` to let Rust reclaim it.
+- **Snapshots:** `monty_snapshot()` returns a Rust-allocated buffer and
+  length. Dart copies into a `Uint8List` immediately, then calls
+  `monty_bytes_free()` to release the Rust buffer. For restore, Dart
+  allocates a native buffer via `calloc`, copies the `Uint8List` in, and
+  frees after the call returns.
+- **Handles:** `monty_create()` returns an opaque `Pointer<MontyHandle>`.
+  Dart stores the `.address` as an `int`. `monty_free()` must be called
+  exactly once per handle (called on complete, error, or dispose).
+
+**Web (WASM path):**
+
+- No shared memory. All data crosses via structured clone through
+  `postMessage()` between main thread and Worker.
+- Snapshots use base64 encoding: Worker converts `Uint8Array` → base64
+  string via `btoa()`; Dart decodes base64 → `Uint8List`.
+- The Worker holds the only reference to `MontySnapshot` and `Monty`
+  objects; dispose clears them to `null`.
 
 ---
 
 ## Error Surface and Recovery Semantics
 
-> *Filled by Slice 7: Desktop & WASM Refinement*
+**Error categories:**
 
-<!-- Document error categories (Python exception, Rust panic, Dart StateError,
-     Isolate failure), how each propagates through the stack, and the
-     _failAllPending recovery path in Desktop. -->
+| Category | Source | Dart type |
+|----------|--------|-----------|
+| Python exception | User code (`raise`, syntax error, runtime error) | `MontyException` |
+| Rust panic | Bug in monty crate (should not occur) | `StateError` (via null return or out-param) |
+| FFI null return | `monty_create`/`monty_snapshot` returns null | `StateError` |
+| State violation | Calling `run()` while active, `resume()` while idle | `StateError` |
+| Isolate death | Background Isolate crashes or exits unexpectedly | `MontyException` (via `_failAllPending`) |
+| Worker error | WASM Worker postMessage error or exception | `MontyException` (via `formatError`) |
+
+**Propagation paths:**
+
+- **Native (FFI):** The C API uses an `out_error` parameter for error
+  strings. `NativeBindingsFfi` reads it with `_readAndFreeString()` and
+  throws `StateError`. For progress errors (`MONTY_PROGRESS_ERROR` tag),
+  the result JSON is read from `monty_complete_result_json()` and decoded
+  into a `MontyException` with traceback frames.
+- **Desktop (Isolate):** The background Isolate catches `MontyException`
+  and wraps it in `_ErrorResponse`; other exceptions become
+  `_GenericErrorResponse`. The main Isolate's `_send()` method rethrows
+  accordingly.
+- **Web (Worker):** `formatError()` in `worker_src.js` normalizes
+  `MontyException`, `MontyTypingError`, and unknown errors into a
+  `{ ok: false, error, errorType, excType?, traceback? }` message posted
+  back to the main thread.
+
+**`_failAllPending` semantics:** When `DesktopBindingsIsolate.dispose()`
+is called or the Isolate exits unexpectedly, `_failAllPending()` copies
+the pending completer map, clears it, and completes every outstanding
+future with a `MontyException`. This prevents callers from hanging on
+futures that will never receive a response.
 
 ---
 
@@ -163,12 +210,14 @@ WASM) must produce identical `MontyResult` values and identical
 
 **Known divergences:**
 
-- **Resource usage on WASM:** `MontyResourceUsage` fields are synthetic
-  zeros (`memoryBytesUsed: 0`, `timeElapsedMs: 0`, `stackDepthUsed: 0`)
-  because the NAPI-RS layer does not expose the Rust `ResourceTracker`.
-- **`timeElapsedMs` precision:** Native backends report wall-clock
-  microsecond precision; WASM reports millisecond precision from
-  `performance.now()`.
+- **Resource usage on WASM:** `memoryBytesUsed` and `stackDepthUsed` are
+  zero because the NAPI-RS layer does not expose the Rust `ResourceTracker`.
+  `timeElapsedMs` is measured on the Dart side via `Stopwatch` wrapping
+  each bindings call — it reflects wall-clock time including Worker
+  round-trip overhead.
+- **`timeElapsedMs` precision:** Native backends report Rust-side wall-clock
+  time; WASM reports Dart-side wall-clock time. Browser timing mitigations
+  may clamp precision.
 - **Snapshot portability:** Snapshots are not portable across architectures
   (ARM64, x86_64, WASM). Same-platform restore only.
 
@@ -209,12 +258,35 @@ within a single `MontyWasm` instance.
 
 ## Execution Paths — Native
 
-> *Filled by Slice 7: Desktop & WASM Refinement*
+```text
+Flutter app
+  → DartMontyDesktop.registerWith()    # Flutter plugin registration
+    → MontyDesktop                     # MontyPlatform impl + MontyStateMixin
+      → DesktopBindingsIsolate         # Isolate bridge
+        → Isolate (same-group)         # Background thread
+          → MontyFfi                   # MontyPlatform impl (pure Dart, no Flutter)
+            → NativeBindingsFfi        # dart:ffi calls
+              → libdart_monty_native   # Rust shared library (.dylib/.so/.dll)
+                → monty (Rust crate)   # Sandboxed Python interpreter
+```
 
-<!-- Document the native execution path: DartMontyDesktop -> Isolate ->
-     MontyFfi -> dart:ffi -> libdart_monty_native -> Monty Rust. Library
-     loading (DynamicLibrary.open vs .process for iOS). Isolate message
-     passing protocol. -->
+**Why an Isolate:** FFI calls into the Monty Rust crate are synchronous
+and can block for hundreds of milliseconds (compilation, execution with
+limits). Running them on a background Isolate keeps the Flutter UI thread
+responsive.
+
+**Isolate protocol:** `DesktopBindingsIsolate` spawns a same-group Isolate
+via `Isolate.spawn()`. Communication uses sealed `_Request`/`_Response`
+classes sent directly through `SendPort` — no JSON encoding needed for
+same-group isolates. Each request carries a unique `id`; the main thread
+keeps a `Map<int, Completer<_Response>>` to match responses to callers.
+
+**Library loading:** `NativeBindingsFfi` loads the native library via
+`DynamicLibrary.open()` on desktop platforms (macOS, Linux, Windows). On
+iOS, symbols are statically linked into the main executable and loaded
+via `DynamicLibrary.process()` instead. An optional `libraryPath`
+parameter overrides the default resolution for integration tests where
+`DYLD_LIBRARY_PATH` may not propagate to spawned Isolates.
 
 ---
 

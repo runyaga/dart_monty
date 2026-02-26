@@ -963,7 +963,7 @@ void main() {
     });
   });
 
-  group('resolveFuturesWithErrors()', () {
+  group('resolveFutures() with errors', () {
     test('passes results and errors to bindings', () async {
       mock.nextStartResult = const ProgressResult(
         tag: 1,
@@ -977,7 +977,7 @@ void main() {
       );
       await monty.resumeAsFuture();
 
-      await monty.resolveFuturesWithErrors({0: 'ok'}, {1: 'timeout'});
+      await monty.resolveFutures({0: 'ok'}, errors: {1: 'timeout'});
 
       expect(mock.resolveFuturesCalls, hasLength(1));
       final call = mock.resolveFuturesCalls.first;
@@ -987,7 +987,7 @@ void main() {
 
     test('throws StateError when idle', () {
       expect(
-        () => monty.resolveFuturesWithErrors({}, {}),
+        () => monty.resolveFutures({}, errors: {}),
         throwsStateError,
       );
     });

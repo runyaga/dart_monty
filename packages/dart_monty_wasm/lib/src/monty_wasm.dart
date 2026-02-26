@@ -26,13 +26,16 @@ class MontyWasm extends MontyPlatform with MontyStateMixin {
   final WasmBindings _bindings;
   bool _initialized = false;
 
-  /// Synthetic resource usage — the WASM bridge does not expose
-  /// `ResourceTracker` data yet.
-  static const _syntheticUsage = MontyResourceUsage(
-    memoryBytesUsed: 0,
-    timeElapsedMs: 0,
-    stackDepthUsed: 0,
-  );
+  /// Creates a [MontyResourceUsage] with Dart-side wall-clock timing.
+  ///
+  /// The WASM bridge does not expose `ResourceTracker`, so memory and stack
+  /// depth remain zero. Elapsed time is measured on the Dart side using
+  /// [Stopwatch] around each bindings call.
+  static MontyResourceUsage _makeUsage(int elapsedMs) => MontyResourceUsage(
+        memoryBytesUsed: 0,
+        timeElapsedMs: elapsedMs,
+        stackDepthUsed: 0,
+      );
 
   /// Initializes the WASM Worker.
   ///
@@ -62,13 +65,15 @@ class MontyWasm extends MontyPlatform with MontyStateMixin {
     await _ensureInitialized();
 
     final limitsJson = _encodeLimits(limits);
+    final sw = Stopwatch()..start();
     final result = await _bindings.run(
       code,
       limitsJson: limitsJson,
       scriptName: scriptName,
     );
+    sw.stop();
 
-    return _translateRunResult(result);
+    return _translateRunResult(result, sw.elapsedMilliseconds);
   }
 
   @override
@@ -89,14 +94,16 @@ class MontyWasm extends MontyPlatform with MontyStateMixin {
         : null;
     final limitsJson = _encodeLimits(limits);
 
+    final sw = Stopwatch()..start();
     final progress = await _bindings.start(
       code,
       extFnsJson: extFnsJson,
       limitsJson: limitsJson,
       scriptName: scriptName,
     );
+    sw.stop();
 
-    return _translateProgress(progress);
+    return _translateProgress(progress, sw.elapsedMilliseconds);
   }
 
   @override
@@ -105,9 +112,11 @@ class MontyWasm extends MontyPlatform with MontyStateMixin {
     assertActive('resume');
 
     final valueJson = json.encode(returnValue);
+    final sw = Stopwatch()..start();
     final progress = await _bindings.resume(valueJson);
+    sw.stop();
 
-    return _translateProgress(progress);
+    return _translateProgress(progress, sw.elapsedMilliseconds);
   }
 
   @override
@@ -115,9 +124,11 @@ class MontyWasm extends MontyPlatform with MontyStateMixin {
     assertNotDisposed('resumeWithError');
     assertActive('resumeWithError');
 
+    final sw = Stopwatch()..start();
     final progress = await _bindings.resumeWithError(errorMessage);
+    sw.stop();
 
-    return _translateProgress(progress);
+    return _translateProgress(progress, sw.elapsedMilliseconds);
   }
 
   @override
@@ -130,21 +141,12 @@ class MontyWasm extends MontyPlatform with MontyStateMixin {
   }
 
   @override
-  Future<MontyProgress> resolveFutures(Map<int, Object?> results) async {
+  Future<MontyProgress> resolveFutures(
+    Map<int, Object?> results, {
+    Map<int, String>? errors,
+  }) async {
     throw UnsupportedError(
       'resolveFutures() is not yet supported in the WASM backend. '
-      'The @pydantic/monty NAPI-RS WASM module does not expose the '
-      'FutureSnapshot API.',
-    );
-  }
-
-  @override
-  Future<MontyProgress> resolveFuturesWithErrors(
-    Map<int, Object?> results,
-    Map<int, String> errors,
-  ) async {
-    throw UnsupportedError(
-      'resolveFuturesWithErrors() is not yet supported in the WASM backend. '
       'The @pydantic/monty NAPI-RS WASM module does not expose the '
       'FutureSnapshot API.',
     );
@@ -190,11 +192,11 @@ class MontyWasm extends MontyPlatform with MontyStateMixin {
     }
   }
 
-  MontyResult _translateRunResult(WasmRunResult result) {
+  MontyResult _translateRunResult(WasmRunResult result, int elapsedMs) {
     if (result.ok) {
       return MontyResult(
         value: result.value,
-        usage: _syntheticUsage,
+        usage: _makeUsage(elapsedMs),
       );
     }
     throw MontyException(
@@ -204,7 +206,7 @@ class MontyWasm extends MontyPlatform with MontyStateMixin {
     );
   }
 
-  MontyProgress _translateProgress(WasmProgressResult progress) {
+  MontyProgress _translateProgress(WasmProgressResult progress, int elapsedMs) {
     if (!progress.ok) {
       markIdle();
       throw MontyException(
@@ -221,7 +223,7 @@ class MontyWasm extends MontyPlatform with MontyStateMixin {
         return MontyComplete(
           result: MontyResult(
             value: progress.value,
-            usage: _syntheticUsage,
+            usage: _makeUsage(elapsedMs),
           ),
         );
 

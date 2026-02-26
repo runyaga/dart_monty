@@ -1,6 +1,5 @@
 import 'dart:typed_data';
 
-import 'package:dart_monty_desktop/src/desktop_bindings.dart';
 import 'package:dart_monty_desktop/src/monty_desktop.dart';
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -46,11 +45,9 @@ void main() {
   // ===========================================================================
   group('run()', () {
     test('returns result', () async {
-      mock.nextRunResult = DesktopRunResult(
-        result: MontyResult(
-          value: 4,
-          usage: _usage(memory: 100, time: 5, stack: 2),
-        ),
+      mock.nextRunResult = MontyResult(
+        value: 4,
+        usage: _usage(memory: 100, time: 5, stack: 2),
       );
 
       final result = await monty.run('2 + 2');
@@ -118,18 +115,15 @@ void main() {
     });
 
     test('throws StateError when active', () async {
-      mock.nextStartResult = const DesktopProgressResult(
-        progress: MontyPending(functionName: 'fetch', arguments: []),
-      );
+      mock.nextStartResult =
+          const MontyPending(functionName: 'fetch', arguments: []);
       await monty.start('x', externalFunctions: ['fetch']);
 
       expect(() => monty.run('y'), throwsStateError);
     });
 
     test('returns null value', () async {
-      mock.nextRunResult = const DesktopRunResult(
-        result: MontyResult(usage: _zeroUsage),
-      );
+      mock.nextRunResult = const MontyResult(usage: _zeroUsage);
 
       final result = await monty.run('None');
       expect(result.value, isNull);
@@ -137,9 +131,7 @@ void main() {
     });
 
     test('returns string value', () async {
-      mock.nextRunResult = const DesktopRunResult(
-        result: MontyResult(value: 'hello', usage: _zeroUsage),
-      );
+      mock.nextRunResult = const MontyResult(value: 'hello', usage: _zeroUsage);
 
       final result = await monty.run('"hello"');
       expect(result.value, 'hello');
@@ -151,10 +143,8 @@ void main() {
   // ===========================================================================
   group('start()', () {
     test('returns MontyComplete when code completes immediately', () async {
-      mock.nextStartResult = const DesktopProgressResult(
-        progress: MontyComplete(
-          result: MontyResult(value: 42, usage: _zeroUsage),
-        ),
+      mock.nextStartResult = const MontyComplete(
+        result: MontyResult(value: 42, usage: _zeroUsage),
       );
 
       final progress = await monty.start('42');
@@ -165,11 +155,9 @@ void main() {
     });
 
     test('returns MontyPending for external function call', () async {
-      mock.nextStartResult = const DesktopProgressResult(
-        progress: MontyPending(
-          functionName: 'fetch',
-          arguments: ['https://example.com'],
-        ),
+      mock.nextStartResult = const MontyPending(
+        functionName: 'fetch',
+        arguments: ['https://example.com'],
       );
 
       final progress = await monty.start(
@@ -185,9 +173,8 @@ void main() {
     });
 
     test('passes multiple external functions', () async {
-      mock.nextStartResult = const DesktopProgressResult(
-        progress: MontyPending(functionName: 'a', arguments: []),
-      );
+      mock.nextStartResult =
+          const MontyPending(functionName: 'a', arguments: []);
 
       await monty.start('a()', externalFunctions: ['a', 'b', 'c']);
 
@@ -195,10 +182,8 @@ void main() {
     });
 
     test('passes null externalFunctions when empty list', () async {
-      mock.nextStartResult = const DesktopProgressResult(
-        progress: MontyComplete(
-          result: MontyResult(usage: _zeroUsage),
-        ),
+      mock.nextStartResult = const MontyComplete(
+        result: MontyResult(usage: _zeroUsage),
       );
 
       await monty.start('x', externalFunctions: []);
@@ -207,10 +192,8 @@ void main() {
     });
 
     test('passes null externalFunctions when null', () async {
-      mock.nextStartResult = const DesktopProgressResult(
-        progress: MontyComplete(
-          result: MontyResult(usage: _zeroUsage),
-        ),
+      mock.nextStartResult = const MontyComplete(
+        result: MontyResult(usage: _zeroUsage),
       );
 
       await monty.start('x');
@@ -231,19 +214,16 @@ void main() {
     });
 
     test('throws StateError when active', () async {
-      mock.nextStartResult = const DesktopProgressResult(
-        progress: MontyPending(functionName: 'f', arguments: []),
-      );
+      mock.nextStartResult =
+          const MontyPending(functionName: 'f', arguments: []);
       await monty.start('x', externalFunctions: ['f']);
 
       expect(() => monty.start('y'), throwsStateError);
     });
 
     test('applies limits', () async {
-      mock.nextStartResult = const DesktopProgressResult(
-        progress: MontyComplete(
-          result: MontyResult(usage: _zeroUsage),
-        ),
+      mock.nextStartResult = const MontyComplete(
+        result: MontyResult(usage: _zeroUsage),
       );
       const limits = MontyLimits(memoryBytes: 512);
 
@@ -258,18 +238,15 @@ void main() {
   // ===========================================================================
   group('resume()', () {
     setUp(() async {
-      mock.nextStartResult = const DesktopProgressResult(
-        progress: MontyPending(functionName: 'fetch', arguments: []),
-      );
+      mock.nextStartResult =
+          const MontyPending(functionName: 'fetch', arguments: []);
       await monty.start('x', externalFunctions: ['fetch']);
     });
 
     test('returns MontyComplete when execution finishes', () async {
       mock.resumeResults.add(
-        const DesktopProgressResult(
-          progress: MontyComplete(
-            result: MontyResult(value: 'hello', usage: _zeroUsage),
-          ),
+        const MontyComplete(
+          result: MontyResult(value: 'hello', usage: _zeroUsage),
         ),
       );
 
@@ -282,9 +259,7 @@ void main() {
 
     test('returns MontyPending for another external call', () async {
       mock.resumeResults.add(
-        const DesktopProgressResult(
-          progress: MontyPending(functionName: 'save', arguments: ['data']),
-        ),
+        const MontyPending(functionName: 'save', arguments: ['data']),
       );
 
       final progress = await monty.resume('response');
@@ -297,10 +272,8 @@ void main() {
 
     test('throws StateError when idle', () async {
       mock.resumeResults.add(
-        const DesktopProgressResult(
-          progress: MontyComplete(
-            result: MontyResult(usage: _zeroUsage),
-          ),
+        const MontyComplete(
+          result: MontyResult(usage: _zeroUsage),
         ),
       );
       await monty.resume(null);
@@ -315,10 +288,8 @@ void main() {
 
     test('passes complex return values', () async {
       mock.resumeResults.add(
-        const DesktopProgressResult(
-          progress: MontyComplete(
-            result: MontyResult(usage: _zeroUsage),
-          ),
+        const MontyComplete(
+          result: MontyResult(usage: _zeroUsage),
         ),
       );
 
@@ -337,18 +308,15 @@ void main() {
   // ===========================================================================
   group('resumeWithError()', () {
     setUp(() async {
-      mock.nextStartResult = const DesktopProgressResult(
-        progress: MontyPending(functionName: 'fetch', arguments: []),
-      );
+      mock.nextStartResult =
+          const MontyPending(functionName: 'fetch', arguments: []);
       await monty.start('x', externalFunctions: ['fetch']);
     });
 
     test('returns MontyComplete after error injection', () async {
       mock.resumeWithErrorResults.add(
-        const DesktopProgressResult(
-          progress: MontyComplete(
-            result: MontyResult(usage: _zeroUsage),
-          ),
+        const MontyComplete(
+          result: MontyResult(usage: _zeroUsage),
         ),
       );
 
@@ -361,9 +329,7 @@ void main() {
 
     test('returns MontyPending for continuation', () async {
       mock.resumeWithErrorResults.add(
-        const DesktopProgressResult(
-          progress: MontyPending(functionName: 'retry', arguments: []),
-        ),
+        const MontyPending(functionName: 'retry', arguments: []),
       );
 
       final progress = await monty.resumeWithError('timeout');
@@ -395,17 +361,14 @@ void main() {
   // ===========================================================================
   group('resumeAsFuture()', () {
     setUp(() async {
-      mock.nextStartResult = const DesktopProgressResult(
-        progress: MontyPending(functionName: 'fetch', arguments: []),
-      );
+      mock.nextStartResult =
+          const MontyPending(functionName: 'fetch', arguments: []);
       await monty.start('x', externalFunctions: ['fetch']);
     });
 
     test('returns MontyResolveFutures', () async {
       mock.resumeAsFutureResults.add(
-        const DesktopProgressResult(
-          progress: MontyResolveFutures(pendingCallIds: [0]),
-        ),
+        const MontyResolveFutures(pendingCallIds: [0]),
       );
 
       final progress = await monty.resumeAsFuture();
@@ -432,24 +395,19 @@ void main() {
   // ===========================================================================
   group('resolveFutures()', () {
     setUp(() async {
-      mock.nextStartResult = const DesktopProgressResult(
-        progress: MontyPending(functionName: 'fetch', arguments: []),
-      );
+      mock.nextStartResult =
+          const MontyPending(functionName: 'fetch', arguments: []);
       await monty.start('x', externalFunctions: ['fetch']);
       mock.resumeAsFutureResults.add(
-        const DesktopProgressResult(
-          progress: MontyResolveFutures(pendingCallIds: [0]),
-        ),
+        const MontyResolveFutures(pendingCallIds: [0]),
       );
       await monty.resumeAsFuture();
     });
 
     test('returns MontyComplete after resolving', () async {
       mock.resolveFuturesResults.add(
-        const DesktopProgressResult(
-          progress: MontyComplete(
-            result: MontyResult(value: 'done', usage: _zeroUsage),
-          ),
+        const MontyComplete(
+          result: MontyResult(value: 'done', usage: _zeroUsage),
         ),
       );
 
@@ -472,49 +430,42 @@ void main() {
   });
 
   // ===========================================================================
-  // resolveFuturesWithErrors()
+  // resolveFutures() with errors
   // ===========================================================================
-  group('resolveFuturesWithErrors()', () {
+  group('resolveFutures() with errors', () {
     setUp(() async {
-      mock.nextStartResult = const DesktopProgressResult(
-        progress: MontyPending(functionName: 'fetch', arguments: []),
-      );
+      mock.nextStartResult =
+          const MontyPending(functionName: 'fetch', arguments: []);
       await monty.start('x', externalFunctions: ['fetch']);
       mock.resumeAsFutureResults.add(
-        const DesktopProgressResult(
-          progress: MontyResolveFutures(pendingCallIds: [0, 1]),
-        ),
+        const MontyResolveFutures(pendingCallIds: [0, 1]),
       );
       await monty.resumeAsFuture();
     });
 
     test('returns MontyComplete after resolving with errors', () async {
-      mock.resolveFuturesWithErrorsResults.add(
-        const DesktopProgressResult(
-          progress: MontyComplete(
-            result: MontyResult(value: 'partial', usage: _zeroUsage),
-          ),
+      mock.resolveFuturesResults.add(
+        const MontyComplete(
+          result: MontyResult(value: 'partial', usage: _zeroUsage),
         ),
       );
 
-      final progress = await monty.resolveFuturesWithErrors(
+      final progress = await monty.resolveFutures(
         {0: 'ok'},
-        {1: 'network error'},
+        errors: {1: 'network error'},
       );
 
       expect(progress, isA<MontyComplete>());
-      expect(mock.resolveFuturesWithErrorsCalls, hasLength(1));
-      expect(mock.resolveFuturesWithErrorsCalls.first.results, {0: 'ok'});
-      expect(
-        mock.resolveFuturesWithErrorsCalls.first.errors,
-        {1: 'network error'},
-      );
+      expect(mock.resolveFuturesCalls, hasLength(1));
+      expect(mock.resolveFuturesCalls.first, {0: 'ok'});
+      expect(mock.resolveFuturesErrorsCalls, hasLength(1));
+      expect(mock.resolveFuturesErrorsCalls.first, {1: 'network error'});
     });
 
     test('throws StateError when idle', () {
       final freshMonty = MontyDesktop(bindings: mock);
       expect(
-        () => freshMonty.resolveFuturesWithErrors({}, {}),
+        () => freshMonty.resolveFutures({}, errors: {}),
         throwsStateError,
       );
     });
@@ -522,7 +473,7 @@ void main() {
     test('throws StateError when disposed', () async {
       await monty.dispose();
       expect(
-        () => monty.resolveFuturesWithErrors({}, {}),
+        () => monty.resolveFutures({}, errors: {}),
         throwsStateError,
       );
     });
@@ -533,9 +484,8 @@ void main() {
   // ===========================================================================
   group('snapshot()', () {
     setUp(() async {
-      mock.nextStartResult = const DesktopProgressResult(
-        progress: MontyPending(functionName: 'f', arguments: []),
-      );
+      mock.nextStartResult =
+          const MontyPending(functionName: 'f', arguments: []);
       await monty.start('x', externalFunctions: ['f']);
     });
 
@@ -582,10 +532,8 @@ void main() {
 
       // resume() should be allowed (active state).
       mock.resumeResults.add(
-        const DesktopProgressResult(
-          progress: MontyComplete(
-            result: MontyResult(value: 10, usage: _zeroUsage),
-          ),
+        const MontyComplete(
+          result: MontyResult(value: 10, usage: _zeroUsage),
         ),
       );
       final progress = await restoredDesktop.resume('val');
@@ -611,9 +559,8 @@ void main() {
     });
 
     test('throws StateError when active', () async {
-      mock.nextStartResult = const DesktopProgressResult(
-        progress: MontyPending(functionName: 'f', arguments: []),
-      );
+      mock.nextStartResult =
+          const MontyPending(functionName: 'f', arguments: []);
       await monty.start('x', externalFunctions: ['f']);
 
       expect(
@@ -652,9 +599,8 @@ void main() {
   // ===========================================================================
   group('edge cases', () {
     test('pending with empty arguments', () async {
-      mock.nextStartResult = const DesktopProgressResult(
-        progress: MontyPending(functionName: 'noop', arguments: []),
-      );
+      mock.nextStartResult =
+          const MontyPending(functionName: 'noop', arguments: []);
 
       final progress = await monty.start(
         'noop()',
@@ -666,10 +612,8 @@ void main() {
     });
 
     test('complete with null value', () async {
-      mock.nextStartResult = const DesktopProgressResult(
-        progress: MontyComplete(
-          result: MontyResult(usage: _zeroUsage),
-        ),
+      mock.nextStartResult = const MontyComplete(
+        result: MontyResult(usage: _zeroUsage),
       );
 
       final progress = await monty.start('None');
@@ -679,11 +623,9 @@ void main() {
     });
 
     test('resource usage is preserved from bindings', () async {
-      mock.nextRunResult = DesktopRunResult(
-        result: MontyResult(
-          value: 1,
-          usage: _usage(memory: 256, time: 10, stack: 3),
-        ),
+      mock.nextRunResult = MontyResult(
+        value: 1,
+        usage: _usage(memory: 256, time: 10, stack: 3),
       );
 
       final result = await monty.run('1');

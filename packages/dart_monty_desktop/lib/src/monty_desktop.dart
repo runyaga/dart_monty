@@ -64,7 +64,7 @@ class MontyDesktop extends MontyPlatform with MontyStateMixin {
       limits: limits,
       scriptName: scriptName,
     );
-    return result.result;
+    return result;
   }
 
   @override
@@ -86,7 +86,7 @@ class MontyDesktop extends MontyPlatform with MontyStateMixin {
       limits: limits,
       scriptName: scriptName,
     );
-    return _handleProgress(progress.progress);
+    return _handleProgress(progress);
   }
 
   @override
@@ -95,7 +95,7 @@ class MontyDesktop extends MontyPlatform with MontyStateMixin {
     assertActive('resume');
 
     final progress = await _bindings.resume(returnValue);
-    return _handleProgress(progress.progress);
+    return _handleProgress(progress);
   }
 
   @override
@@ -104,7 +104,7 @@ class MontyDesktop extends MontyPlatform with MontyStateMixin {
     assertActive('resumeWithError');
 
     final progress = await _bindings.resumeWithError(errorMessage);
-    return _handleProgress(progress.progress);
+    return _handleProgress(progress);
   }
 
   @override
@@ -113,28 +113,19 @@ class MontyDesktop extends MontyPlatform with MontyStateMixin {
     assertActive('resumeAsFuture');
 
     final progress = await _bindings.resumeAsFuture();
-    return _handleProgress(progress.progress);
+    return _handleProgress(progress);
   }
 
   @override
-  Future<MontyProgress> resolveFutures(Map<int, Object?> results) async {
+  Future<MontyProgress> resolveFutures(
+    Map<int, Object?> results, {
+    Map<int, String>? errors,
+  }) async {
     assertNotDisposed('resolveFutures');
     assertActive('resolveFutures');
 
-    final progress = await _bindings.resolveFutures(results);
-    return _handleProgress(progress.progress);
-  }
-
-  @override
-  Future<MontyProgress> resolveFuturesWithErrors(
-    Map<int, Object?> results,
-    Map<int, String> errors,
-  ) async {
-    assertNotDisposed('resolveFuturesWithErrors');
-    assertActive('resolveFuturesWithErrors');
-
-    final progress = await _bindings.resolveFuturesWithErrors(results, errors);
-    return _handleProgress(progress.progress);
+    final progress = await _bindings.resolveFutures(results, errors: errors);
+    return _handleProgress(progress);
   }
 
   @override

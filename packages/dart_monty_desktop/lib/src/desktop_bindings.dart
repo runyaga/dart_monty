@@ -2,29 +2,6 @@ import 'dart:typed_data';
 
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 
-/// Result of [DesktopBindings.run].
-///
-/// Wraps a [MontyResult] from the background Isolate.
-final class DesktopRunResult {
-  /// Creates a [DesktopRunResult].
-  const DesktopRunResult({required this.result});
-
-  /// The result from the Python execution.
-  final MontyResult result;
-}
-
-/// Result of [DesktopBindings.start], [DesktopBindings.resume], and
-/// [DesktopBindings.resumeWithError].
-///
-/// Wraps a [MontyProgress] from the background Isolate.
-final class DesktopProgressResult {
-  /// Creates a [DesktopProgressResult].
-  const DesktopProgressResult({required this.progress});
-
-  /// The progress state from the Isolate.
-  final MontyProgress progress;
-}
-
 /// Abstract interface over the desktop Isolate bridge.
 ///
 /// All methods are `Future`-based because the Isolate round-trip is
@@ -42,7 +19,7 @@ abstract class DesktopBindings {
   ///
   /// If [scriptName] is non-null, it overrides the default filename in
   /// tracebacks and error messages.
-  Future<DesktopRunResult> run(
+  Future<MontyResult> run(
     String code, {
     MontyLimits? limits,
     String? scriptName,
@@ -51,7 +28,7 @@ abstract class DesktopBindings {
   /// Starts iterative execution of [code] in the background Isolate.
   ///
   /// If [scriptName] is non-null, it overrides the default filename.
-  Future<DesktopProgressResult> start(
+  Future<MontyProgress> start(
     String code, {
     List<String>? externalFunctions,
     MontyLimits? limits,
@@ -59,22 +36,20 @@ abstract class DesktopBindings {
   });
 
   /// Resumes a paused execution with [returnValue].
-  Future<DesktopProgressResult> resume(Object? returnValue);
+  Future<MontyProgress> resume(Object? returnValue);
 
   /// Resumes a paused execution by raising an error with [errorMessage].
-  Future<DesktopProgressResult> resumeWithError(String errorMessage);
+  Future<MontyProgress> resumeWithError(String errorMessage);
 
   /// Converts the current pending call into a future and continues execution.
-  Future<DesktopProgressResult> resumeAsFuture();
+  Future<MontyProgress> resumeAsFuture();
 
-  /// Resolves one or more pending futures with their [results].
-  Future<DesktopProgressResult> resolveFutures(Map<int, Object?> results);
-
-  /// Resolves pending futures with [results] and [errors].
-  Future<DesktopProgressResult> resolveFuturesWithErrors(
-    Map<int, Object?> results,
-    Map<int, String> errors,
-  );
+  /// Resolves one or more pending futures with their [results], and
+  /// optionally [errors].
+  Future<MontyProgress> resolveFutures(
+    Map<int, Object?> results, {
+    Map<int, String>? errors,
+  });
 
   /// Captures the current interpreter state as a binary snapshot.
   Future<Uint8List> snapshot();

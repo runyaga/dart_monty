@@ -111,9 +111,9 @@ void main() {
         );
       });
 
-      test('resolveFuturesWithErrors() throws', () {
+      test('resolveFutures() with errors throws', () {
         expect(
-          () => platform.resolveFuturesWithErrors({0: 'x'}, {1: 'err'}),
+          () => platform.resolveFutures({0: 'x'}, errors: {1: 'err'}),
           throwsUnimplementedError,
         );
       });

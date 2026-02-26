@@ -131,7 +131,10 @@ class MontyFfi extends MontyPlatform with MontyStateMixin {
   }
 
   @override
-  Future<MontyProgress> resolveFutures(Map<int, Object?> results) async {
+  Future<MontyProgress> resolveFutures(
+    Map<int, Object?> results, {
+    Map<int, String>? errors,
+  }) async {
     assertNotDisposed('resolveFutures');
     assertActive('resolveFutures');
     final handle = _handle;
@@ -142,29 +145,11 @@ class MontyFfi extends MontyPlatform with MontyStateMixin {
     final resultsJson = json.encode(
       results.map((k, v) => MapEntry(k.toString(), v)),
     );
-    final progress = _bindings.resolveFutures(handle, resultsJson, '{}');
-
-    return _handleProgress(handle, progress);
-  }
-
-  @override
-  Future<MontyProgress> resolveFuturesWithErrors(
-    Map<int, Object?> results,
-    Map<int, String> errors,
-  ) async {
-    assertNotDisposed('resolveFuturesWithErrors');
-    assertActive('resolveFuturesWithErrors');
-    final handle = _handle;
-    if (handle == null) {
-      throw StateError('Cannot resolveFuturesWithErrors: no active handle');
-    }
-
-    final resultsJson = json.encode(
-      results.map((k, v) => MapEntry(k.toString(), v)),
-    );
-    final errorsJson = json.encode(
-      errors.map((k, v) => MapEntry(k.toString(), v)),
-    );
+    final errorsJson = errors != null
+        ? json.encode(
+            errors.map((k, v) => MapEntry(k.toString(), v)),
+          )
+        : '{}';
     final progress = _bindings.resolveFutures(handle, resultsJson, errorsJson);
 
     return _handleProgress(handle, progress);

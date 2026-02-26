@@ -1,4 +1,5 @@
 import 'dart:ffi';
+import 'dart:io' show Platform;
 import 'dart:typed_data';
 
 import 'package:dart_monty_ffi/src/generated/dart_monty_bindings.dart';
@@ -14,11 +15,15 @@ class NativeBindingsFfi extends NativeBindings {
   /// Creates [NativeBindingsFfi] by opening the native library.
   ///
   /// Pass [libraryPath] to override the default platform resolution.
+  /// On iOS, symbols are statically linked into the main executable, so
+  /// [DynamicLibrary.process] is used instead of [DynamicLibrary.open].
   NativeBindingsFfi({String? libraryPath})
       : _lib = DartMontyBindings(
-          DynamicLibrary.open(
-            NativeLibraryLoader.resolve(overridePath: libraryPath),
-          ),
+          Platform.isIOS
+              ? DynamicLibrary.process()
+              : DynamicLibrary.open(
+                  NativeLibraryLoader.resolve(overridePath: libraryPath),
+                ),
         );
 
   final DartMontyBindings _lib;

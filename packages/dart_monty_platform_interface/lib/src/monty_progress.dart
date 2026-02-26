@@ -198,7 +198,7 @@ final class MontyPending extends MontyProgress {
 /// `await` expression, then yields this progress with the list of
 /// [pendingCallIds] that need resolution.
 ///
-/// Resolve futures using `resolveFutures()` or `resolveFuturesWithErrors()`:
+/// Resolve futures using `resolveFutures()`:
 /// ```dart
 /// case MontyResolveFutures(:final pendingCallIds):
 ///   final results = await Future.wait(
