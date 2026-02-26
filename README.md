@@ -34,10 +34,13 @@ flutter pub add dart_monty
 ## Usage
 
 ```dart
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:dart_monty/dart_monty.dart';
 
-// Simple execution
 final monty = MontyPlatform.instance;
+
+// Simple execution
 final result = await monty.run('2 + 2');
 print(result.value); // 4
 
@@ -46,50 +49,44 @@ final limited = await monty.run(
   'fib(30)',
   limits: MontyLimits(timeoutMs: 5000, memoryBytes: 10 * 1024 * 1024),
 );
+```
 
-// Iterative execution (external functions)
+### External Functions
+
+When Python calls a function listed in `externalFunctions`, execution
+pauses and Dart handles the call. The function name in Python maps 1:1
+to the name you provide — when Python calls `fetch(...)`, Dart receives
+a `MontyPending` with `functionName == 'fetch'` and the arguments Python
+passed.
+
+```dart
+// Python calls fetch() → execution pauses → Dart handles it → resumes
 var progress = await monty.start(
-  'fetch("https://example.com")',
+  'fetch("https://api.example.com/users")',
   externalFunctions: ['fetch'],
 );
 
-if (progress is MontyPending) {
-  print('Python called: ${progress.functionName}');
-  progress = await monty.resume(myResult);
+// Dispatch loop: match functionName to your Dart implementation
+while (progress is MontyPending) {
+  final pending = progress as MontyPending;
+  final name = pending.functionName; // 'fetch'
+  final args = pending.arguments;    // ['https://api.example.com/users']
+
+  switch (name) {
+    case 'fetch':
+      final url = args.first as String;
+      final response = await http.get(Uri.parse(url));
+      progress = await monty.resume(jsonDecode(response.body));
+    default:
+      progress = await monty.resumeWithError(
+        'Unknown function: $name',
+      );
+  }
 }
 
 final complete = progress as MontyComplete;
 print(complete.result.value);
 
-// Error injection
-progress = await monty.resumeWithError('network timeout');
-
-// Async/futures — concurrent external calls via asyncio.gather
-progress = await monty.start('''
-import asyncio
-
-async def main():
-  a, b = await asyncio.gather(fetch("url1"), fetch("url2"))
-  return a + b
-
-await main()
-''', externalFunctions: ['fetch']);
-
-// Return Future for each pending call (native only)
-while (progress is MontyPending) {
-  progress = await monty.resumeAsFuture();
-}
-
-// Resolve all pending futures at once
-if (progress is MontyResolveFutures) {
-  final results = await Future.wait([fetchUrl("url1"), fetchUrl("url2")]);
-  progress = await monty.resolveFutures({
-    0: results[0],
-    1: results[1],
-  });
-}
-
-// Cleanup
 await monty.dispose();
 ```
 
@@ -99,42 +96,19 @@ await monty.dispose();
 snapshot/restore under the hood:
 
 ```dart
-import 'dart:convert';
-import 'package:http/http.dart' as http;
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 
-Future<void> main() async {
-  final session = MontySession(MontyPlatform.instance);
+final session = MontySession(MontyPlatform.instance);
 
-  // Globals persist across run() calls
-  await session.run('x = 42');
-  final result = await session.run('x + 8');
-  print(result.value); // 50
+// Globals persist across run() calls via snapshot/restore
+await session.run('x = 42');
+await session.run('y = x * 2');
+final result = await session.run('x + y');
+print(result.value); // 126
 
-  // Iterative execution with a host-provided function
-  var progress = await session.start(
-    'fetch("https://api.example.com/data")',
-    externalFunctions: ['fetch'],
-  );
-
-  while (progress is MontyPending) {
-    final pending = progress as MontyPending;
-    final url = pending.arguments.first as String;
-
-    // Call the real HTTP endpoint from Dart
-    final response = await http.get(Uri.parse(url));
-    final body = jsonDecode(response.body);
-
-    progress = await session.resume(body);
-  }
-
-  final complete = progress as MontyComplete;
-  print(complete.result.value);
-
-  // Reset session state
-  await session.clearState();
-  await session.dispose();
-}
+// Session also supports start/resume (same dispatch pattern)
+await session.clearState();
+await session.dispose();
 ```
 
 ## Monty API Coverage (~68%)
