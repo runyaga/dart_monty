@@ -887,30 +887,22 @@ void main() {
   });
 
   // ===========================================================================
-  // Async/Futures (M13) — stubs
+  // Capability interfaces
+  // ===========================================================================
+  group('capability interfaces', () {
+    test('is MontySnapshotCapable', () {
+      expect(monty, isA<MontySnapshotCapable>());
+    });
+
+    test('is not MontyFutureCapable', () {
+      expect(monty, isNot(isA<MontyFutureCapable>()));
+    });
+  });
+
+  // ===========================================================================
+  // Async/Futures (M13) — forward-compat state handling
   // ===========================================================================
   group('async/futures (M13)', () {
-    test('resumeAsFuture() throws UnsupportedError', () {
-      expect(
-        () => monty.resumeAsFuture(),
-        throwsA(isA<UnsupportedError>()),
-      );
-    });
-
-    test('resolveFutures() throws UnsupportedError', () {
-      expect(
-        () => monty.resolveFutures({0: 'value'}),
-        throwsA(isA<UnsupportedError>()),
-      );
-    });
-
-    test('resolveFutures() with errors throws UnsupportedError', () {
-      expect(
-        () => monty.resolveFutures({0: 'value'}, errors: {1: 'err'}),
-        throwsA(isA<UnsupportedError>()),
-      );
-    });
-
     test('start() returns MontyResolveFutures for resolve_futures state',
         () async {
       mock.nextStartResult = const WasmProgressResult(

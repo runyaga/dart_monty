@@ -332,12 +332,14 @@ enum _Algorithm {
 }
 
 /// Speed presets mapping labels to delay in milliseconds.
+/// Zero means "no delay" — steps are batched for maximum throughput.
 const _speedPresets = <String, int>{
   'Slow': 500,
   'Moderate': 200,
   'Medium': 100,
   'Fast': 40,
   'Fastest': 10,
+  'No Delay': 0,
 };
 
 /// Bar action types used for coloring.
@@ -370,6 +372,7 @@ class _VisualizerPageState extends State<_VisualizerPage> {
   int _swaps = 0;
   int _steps = 0;
   String _status = 'Ready';
+  Stopwatch? _stopwatch;
 
   String get _codePreview {
     final arr = List.generate(_size.toInt(), (i) => i + 1)..shuffle();
@@ -388,6 +391,7 @@ class _VisualizerPageState extends State<_VisualizerPage> {
       _highlightJ = -1;
       _currentAction = _BarAction.none;
       _status = 'Sorting...';
+      _stopwatch = Stopwatch()..start();
     });
     unawaited(_runSort());
   }
@@ -396,10 +400,16 @@ class _VisualizerPageState extends State<_VisualizerPage> {
     _stopRequested = true;
   }
 
+  String _elapsed() {
+    final ms = _stopwatch?.elapsedMilliseconds ?? 0;
+    if (ms < 1000) return '${ms}ms';
+    return '${(ms / 1000).toStringAsFixed(2)}s';
+  }
+
   Future<void> _runSort() async {
     final size = _size.toInt();
     final rng = Random();
-    final arr = List.generate(size, (_) => rng.nextInt(100) + 1);
+    final arr = List.generate(size, (_) => rng.nextInt(size) + 1);
     setState(() => _bars = List.of(arr));
 
     final template = _templateFor(_algorithm);
@@ -409,6 +419,10 @@ class _VisualizerPageState extends State<_VisualizerPage> {
     await _monty?.dispose();
     final monty = _createMonty();
     _monty = monty;
+
+    final delayMs = _speedPresets[_speedLabel]!;
+    // When no delay, batch UI updates — render every Nth step.
+    final batchSize = delayMs == 0 ? max(1, size ~/ 100) : 1;
 
     try {
       var progress = await monty.start(
@@ -429,35 +443,49 @@ class _VisualizerPageState extends State<_VisualizerPage> {
         if (action == 'swap') _swaps++;
 
         if (action == 'done') {
+          _stopwatch?.stop();
           setState(() {
             _bars = stepArr;
             _done = true;
             _highlightI = -1;
             _highlightJ = -1;
             _currentAction = _BarAction.sorted;
-            _status = 'Done';
+            _status = 'Done in ${_elapsed()} — $_steps steps '
+                '($_comparisons cmp, $_swaps swaps)';
             _sorting = false;
           });
           return;
         }
 
-        setState(() {
-          _bars = stepArr;
-          _highlightI = i;
-          _highlightJ = j;
-          _currentAction =
-              action == 'swap' ? _BarAction.swapped : _BarAction.comparing;
-        });
+        final shouldRender = delayMs > 0 || _steps % batchSize == 0;
 
-        await Future<void>.delayed(
-          Duration(milliseconds: _speedPresets[_speedLabel]!),
-        );
+        if (shouldRender) {
+          setState(() {
+            _bars = stepArr;
+            _highlightI = i;
+            _highlightJ = j;
+            _currentAction =
+                action == 'swap' ? _BarAction.swapped : _BarAction.comparing;
+            if (delayMs == 0) {
+              _status = 'Sorting... ${_elapsed()} — $_steps steps';
+            }
+          });
+        }
+
+        if (delayMs > 0) {
+          await Future<void>.delayed(Duration(milliseconds: delayMs));
+        } else if (_steps % batchSize == 0) {
+          // Yield to the event loop periodically so UI can repaint and
+          // the stop button remains responsive.
+          await Future<void>.delayed(Duration.zero);
+        }
 
         if (_stopRequested) {
+          _stopwatch?.stop();
           unawaited(monty.dispose());
           _monty = null;
           setState(() {
-            _status = 'Stopped';
+            _status = 'Stopped at ${_elapsed()} — $_steps steps';
             _sorting = false;
             _highlightI = -1;
             _highlightJ = -1;
@@ -470,18 +498,21 @@ class _VisualizerPageState extends State<_VisualizerPage> {
       }
 
       // MontyComplete — sorting finished without a "done" yield
+      _stopwatch?.stop();
       setState(() {
         _done = true;
         _currentAction = _BarAction.sorted;
-        _status = 'Done';
+        _status = 'Done in ${_elapsed()} — $_steps steps';
         _sorting = false;
       });
     } on MontyException catch (e) {
+      _stopwatch?.stop();
       setState(() {
         _status = 'Error: ${e.message}';
         _sorting = false;
       });
     } on Object catch (e) {
+      _stopwatch?.stop();
       setState(() {
         _status = 'Error: $e';
         _sorting = false;
@@ -545,8 +576,8 @@ class _VisualizerPageState extends State<_VisualizerPage> {
                 child: Slider(
                   value: _size,
                   min: 10,
-                  max: 100,
-                  divisions: 18,
+                  max: 5000,
+                  divisions: 499,
                   label: _size.toInt().toString(),
                   onChanged: _sorting ? null : (v) => setState(() => _size = v),
                 ),
@@ -1259,10 +1290,11 @@ class _LadderPageState extends State<_LadderPage> {
 
     if (asyncResumeMap != null) {
       // Async/futures path: loop pending -> future -> resolve until done.
+      final futurePlatform = monty as MontyFutureCapable;
       try {
         while (progress is! MontyComplete) {
           if (progress is MontyPending) {
-            progress = await monty.resumeAsFuture();
+            progress = await futurePlatform.resumeAsFuture();
           } else if (progress is MontyResolveFutures) {
             final pending = progress.pendingCallIds;
             final results = <int, Object?>{};
@@ -1275,7 +1307,7 @@ class _LadderPageState extends State<_LadderPage> {
                 results[id] = asyncResumeMap[key];
               }
             }
-            progress = await monty.resolveFutures(
+            progress = await futurePlatform.resolveFutures(
               results,
               errors: errors.isNotEmpty ? errors : null,
             );
@@ -2022,7 +2054,7 @@ final _examples = <_Example>[
   // 1. Expressions & resource usage
   _Example(
     '1. Expressions',
-    '2 ** 8',
+    'sum(range(100_000))',
     (monty, code, limits, log) async {
       final result = await monty.run(code, limits: limits);
       log('Result: ${result.value}');
@@ -2042,7 +2074,7 @@ final _examples = <_Example>[
         '    for _ in range(n):\n'
         '        a, b = b, a + b\n'
         '    return a\n'
-        'fib(30)',
+        'fib(100_000)',
     (monty, code, limits, log) async {
       final result = await monty.run(code, limits: limits);
       log('Result: ${result.value}');
@@ -2147,6 +2179,7 @@ final _examples = <_Example>[
         '\n'
         'await main()',
     (monty, code, limits, log) async {
+      final futurePlatform = monty as MontyFutureCapable;
       var progress = await monty.start(
         code,
         externalFunctions: ['fetch_x', 'fetch_y'],
@@ -2158,7 +2191,7 @@ final _examples = <_Example>[
       while (progress is! MontyComplete) {
         if (progress is MontyPending) {
           log('Python awaits ${progress.functionName}() — converting to future');
-          progress = await monty.resumeAsFuture();
+          progress = await futurePlatform.resumeAsFuture();
         } else if (progress is MontyResolveFutures) {
           log('Resolving ${progress.pendingCallIds.length} futures...');
           for (final id in progress.pendingCallIds) {
@@ -2166,7 +2199,7 @@ final _examples = <_Example>[
             futureValues[id] = (id + 1) * 10; // 10, 20
           }
           log('Values: $futureValues');
-          progress = await monty.resolveFutures(futureValues);
+          progress = await futurePlatform.resolveFutures(futureValues);
         }
       }
 

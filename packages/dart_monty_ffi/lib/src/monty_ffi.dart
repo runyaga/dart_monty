@@ -15,7 +15,9 @@ import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart
 /// print(result.value); // 4
 /// await monty.dispose();
 /// ```
-class MontyFfi extends MontyPlatform with MontyStateMixin {
+class MontyFfi extends MontyPlatform
+    with MontyStateMixin
+    implements MontySnapshotCapable, MontyFutureCapable {
   /// Creates a [MontyFfi] with the given [bindings].
   MontyFfi({required NativeBindings bindings}) : _bindings = bindings;
 

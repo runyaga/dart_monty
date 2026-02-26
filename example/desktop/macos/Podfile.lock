@@ -1,5 +1,6 @@
 PODS:
-  - dart_monty_desktop (0.1.0)
+  - dart_monty_desktop (0.1.0):
+    - FlutterMacOS
   - FlutterMacOS (1.0.0)
 
 DEPENDENCIES:
@@ -13,7 +14,7 @@ EXTERNAL SOURCES:
     :path: Flutter/ephemeral
 
 SPEC CHECKSUMS:
-  dart_monty_desktop: 66aa35067b245b15680a5e6aa54c7019bc34eb5e
+  dart_monty_desktop: 0cb6768ef9f62856495073e8fade6ef0e7bdf16b
   FlutterMacOS: d0db08ddef1a9af05a5ec4b724367152bb0500b1
 
 PODFILE CHECKSUM: 54d867c82ac51cbd61b565781b9fada492027009

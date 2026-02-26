@@ -12,6 +12,19 @@
 #   bash tool/slice_review.sh 1 --skip-gate    # skip gate.sh
 #   bash tool/slice_review.sh 1 --skip-all     # skip both tests and gate
 #   bash tool/slice_review.sh 1 --context path/to/file  # add unchanged context file
+#   bash tool/slice_review.sh 1 --plan docs/refactoring-slices.md  # explicit plan file
+#   bash tool/slice_review.sh 1 --range abc123..def456  # explicit commit range
+#
+# Diff scoping:
+#   By default, the script auto-detects the commit range for the given slice
+#   by searching commit messages for "(Slice N)". It diffs between the previous
+#   slice's last commit and this slice's last commit. Use --range to override.
+#   Use --full to diff the entire branch against main (legacy behavior).
+#
+# Plan auto-detection:
+#   The script checks docs/refactoring-slices.md first, then falls back to
+#   docs/refactoring-plan.md. Use --plan to override. The review rubric is
+#   always extracted from docs/refactoring-plan.md (universal process).
 #
 # Output:
 #   ci-review/slice-reviews/slice-N-prompt.md   (review instructions)
@@ -26,7 +39,7 @@ cd "$ROOT"
 # Argument parsing
 # -------------------------------------------------------
 if [[ $# -lt 1 ]]; then
-  echo "Usage: bash tool/slice_review.sh <slice-number> [--skip-tests|--skip-gate|--skip-all] [--context <file>]..."
+  echo "Usage: bash tool/slice_review.sh <slice-number> [--skip-tests|--skip-gate|--skip-all] [--context <file>] [--plan <file>] [--range BASE..HEAD] [--full]"
   exit 1
 fi
 
@@ -36,6 +49,9 @@ shift
 SKIP_TESTS=false
 SKIP_GATE=false
 CONTEXT_FILES=()
+PLAN_OVERRIDE=""
+DIFF_RANGE=""
+FULL_BRANCH=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -54,6 +70,25 @@ while [[ $# -gt 0 ]]; do
       fi
       CONTEXT_FILES+=("$1")
       ;;
+    --plan)
+      shift
+      if [[ $# -eq 0 ]]; then
+        echo "ERROR: --plan requires a file path argument"
+        exit 1
+      fi
+      PLAN_OVERRIDE="$1"
+      ;;
+    --range)
+      shift
+      if [[ $# -eq 0 ]]; then
+        echo "ERROR: --range requires BASE..HEAD argument"
+        exit 1
+      fi
+      DIFF_RANGE="$1"
+      ;;
+    --full)
+      FULL_BRANCH=true
+      ;;
     *)
       echo "Unknown flag: $1"
       exit 1
@@ -66,7 +101,23 @@ OUTPUT_DIR="$ROOT/ci-review/slice-reviews"
 OUTPUT_FILE="$OUTPUT_DIR/slice-${SLICE_NUM}-prompt.md"
 DIFF_FILE="$OUTPUT_DIR/slice-${SLICE_NUM}.diff"
 BASELINE_FILE="$ROOT/ci-review/baseline.json"
-REFACTORING_PLAN="$ROOT/docs/refactoring-plan.md"
+
+# Plan file resolution: --plan override > auto-detect > fallback
+PHASE1_PLAN="$ROOT/docs/refactoring-plan.md"
+PHASE2_PLAN="$ROOT/docs/refactoring-slices.md"
+RUBRIC_FILE="$PHASE1_PLAN"  # Review rubric is always in Phase 1 plan
+
+if [[ -n "$PLAN_OVERRIDE" ]]; then
+  if [[ "$PLAN_OVERRIDE" = /* ]]; then
+    REFACTORING_PLAN="$PLAN_OVERRIDE"
+  else
+    REFACTORING_PLAN="$ROOT/$PLAN_OVERRIDE"
+  fi
+elif [[ -f "$PHASE2_PLAN" ]] && grep -q "^## Slice ${SLICE_NUM}:" "$PHASE2_PLAN"; then
+  REFACTORING_PLAN="$PHASE2_PLAN"
+else
+  REFACTORING_PLAN="$PHASE1_PLAN"
+fi
 
 mkdir -p "$OUTPUT_DIR"
 
@@ -106,6 +157,8 @@ if [[ ! -f "$REFACTORING_PLAN" ]]; then
   echo "ERROR: Refactoring plan not found: $REFACTORING_PLAN"
   exit 1
 fi
+
+echo "  Plan file: $REFACTORING_PLAN"
 
 if ! command -v jq &>/dev/null; then
   echo "ERROR: jq is required but not installed"
@@ -173,16 +226,57 @@ else
 fi
 
 # -------------------------------------------------------
-# Phase 4: Collect git data + unified diff
+# Phase 4: Determine diff range + collect git data
 # -------------------------------------------------------
 echo "=== Phase 4: Collecting git data ==="
 GIT_SHA=$(git rev-parse --short HEAD)
 GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
 GIT_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-DIFF_STAT=$(git diff main --stat 2>/dev/null || echo "(could not diff against main)")
+
+# --- Diff range resolution ---
+DIFF_BASE="main"
+DIFF_HEAD="HEAD"
+
+if [[ -n "$DIFF_RANGE" ]]; then
+  # Explicit --range BASE..HEAD
+  DIFF_BASE="${DIFF_RANGE%%..*}"
+  DIFF_HEAD="${DIFF_RANGE##*..}"
+  echo "  Using explicit range: ${DIFF_BASE}..${DIFF_HEAD}"
+elif [[ "$FULL_BRANCH" == true ]]; then
+  echo "  Using full branch diff against main"
+else
+  # Auto-detect: find commits tagged with "(Slice N)" in commit messages
+  SLICE_COMMIT=$(git log --format='%H %s' main..HEAD 2>/dev/null \
+    | grep -i "(Slice ${SLICE_NUM})" | head -1 | awk '{print $1}')
+  if [[ -n "$SLICE_COMMIT" ]]; then
+    DIFF_HEAD="$SLICE_COMMIT"
+    # Walk backwards to find the previous slice's commit as the base
+    PREV=$((SLICE_NUM - 1))
+    FOUND_PREV=false
+    while [[ $PREV -ge 1 ]]; do
+      PREV_COMMIT=$(git log --format='%H %s' main..HEAD 2>/dev/null \
+        | grep -iE "\(Slices? [^)]*${PREV}" | head -1 | awk '{print $1}')
+      if [[ -n "$PREV_COMMIT" ]]; then
+        DIFF_BASE="$PREV_COMMIT"
+        FOUND_PREV=true
+        break
+      fi
+      PREV=$((PREV - 1))
+    done
+    if [[ "$FOUND_PREV" == false ]]; then
+      # No previous slice found — use merge-base with main
+      DIFF_BASE="${MERGE_BASE:-main}"
+    fi
+    echo "  Auto-detected range: $(git rev-parse --short "$DIFF_BASE")..$(git rev-parse --short "$DIFF_HEAD")"
+  else
+    echo "  WARNING: No commit matching '(Slice ${SLICE_NUM})' — falling back to full branch diff"
+  fi
+fi
+
+DIFF_STAT=$(git diff "$DIFF_BASE" "$DIFF_HEAD" --stat 2>/dev/null || echo "(could not compute diff stat)")
 
 # Generate unified diff — exclude lockfiles and generated code
-git diff main -- . ':(exclude)*.lock' ':(exclude)*.g.dart' > "$DIFF_FILE" 2>/dev/null
+git diff "$DIFF_BASE" "$DIFF_HEAD" -- . ':(exclude)*.lock' ':(exclude)*.g.dart' > "$DIFF_FILE" 2>/dev/null
 DIFF_SIZE=$(wc -c < "$DIFF_FILE" | tr -d ' ')
 
 # Collect changed source/test files (skip docs, config, deleted files)
@@ -194,7 +288,7 @@ while IFS= read -r file; do
     *.md|*.yaml|*.yml|*.toml|*.json|*.lock) continue ;;
   esac
   CHANGED_FILES+=("$file")
-done < <(git diff main --name-only 2>/dev/null)
+done < <(git diff "$DIFF_BASE" "$DIFF_HEAD" --name-only 2>/dev/null)
 
 # -------------------------------------------------------
 # Phase 5: Extract slice spec from refactoring-plan.md
@@ -219,10 +313,10 @@ REVIEW_RUBRIC=$(awk '
   /^\*\*Review process/ { found=1; print; next }
   found && /^Review output goes to/ { exit }
   found { print }
-' "$REFACTORING_PLAN")
+' "$RUBRIC_FILE")
 
 if [[ -z "$REVIEW_RUBRIC" ]]; then
-  REVIEW_RUBRIC="(Review rubric not found in $REFACTORING_PLAN)"
+  REVIEW_RUBRIC="(Review rubric not found in $RUBRIC_FILE)"
 fi
 
 # -------------------------------------------------------
