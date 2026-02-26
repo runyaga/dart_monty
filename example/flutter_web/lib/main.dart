@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
-import 'package:dart_monty_web/dart_monty_web.dart';
+import 'package:dart_monty_wasm/dart_monty_wasm.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
@@ -442,7 +442,7 @@ class _VisualizerPageState extends State<_VisualizerPage> {
 
     // Dispose previous instance (if any) and create a fresh one.
     await _monty?.dispose();
-    final monty = DartMontyWeb();
+    final monty = MontyWasm(bindings: WasmBindingsJs());
     _monty = monty;
 
     try {
@@ -764,7 +764,7 @@ class _TspPageState extends State<_TspPage> {
     final code = template.replaceAll('INPUT_CITIES', cities.toString());
 
     await _monty?.dispose();
-    final monty = DartMontyWeb();
+    final monty = MontyWasm(bindings: WasmBindingsJs());
     _monty = monty;
 
     try {
@@ -1090,7 +1090,7 @@ class _LadderPageState extends State<_LadderPage> {
     ];
 
     // Create a single Monty instance for all fixtures.
-    final monty = DartMontyWeb();
+    final monty = MontyWasm(bindings: WasmBindingsJs());
 
     for (final file in tierFiles) {
       try {
