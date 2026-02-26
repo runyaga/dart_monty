@@ -178,6 +178,219 @@ void main() {
       });
     });
 
+    group('start()', () {
+      test('intercepts restore and returns user pending', () async {
+        // restore (internal) → user ext fn (fetch) returned to caller
+        mock
+          ..enqueueProgress(
+            const MontyPending(
+              functionName: '__restore_state__',
+              arguments: [],
+            ),
+          )
+          ..enqueueProgress(
+            const MontyPending(
+              functionName: 'fetch',
+              arguments: ['https://example.com'],
+            ),
+          );
+
+        final progress = await session.start(
+          'result = fetch("https://example.com")',
+          externalFunctions: ['fetch'],
+        );
+
+        expect(progress, isA<MontyPending>());
+        final pending = progress as MontyPending;
+        expect(pending.functionName, 'fetch');
+        expect(pending.arguments, ['https://example.com']);
+
+        // Verify restore was handled internally
+        expect(mock.resumeReturnValues.first, '{}');
+      });
+
+      test('registers both internal and user external functions', () async {
+        mock
+          ..enqueueProgress(
+            const MontyPending(
+              functionName: '__restore_state__',
+              arguments: [],
+            ),
+          )
+          ..enqueueProgress(
+            const MontyPending(
+              functionName: 'fetch',
+              arguments: [],
+            ),
+          );
+
+        await session.start(
+          'fetch()',
+          externalFunctions: ['fetch'],
+        );
+
+        expect(
+          mock.lastStartExternalFunctions,
+          containsAll([
+            '__restore_state__',
+            '__persist_state__',
+            'fetch',
+          ]),
+        );
+      });
+
+      test('wraps code with preamble and postamble', () async {
+        mock
+          ..enqueueProgress(
+            const MontyPending(
+              functionName: '__restore_state__',
+              arguments: [],
+            ),
+          )
+          ..enqueueProgress(
+            const MontyPending(
+              functionName: 'fetch',
+              arguments: [],
+            ),
+          );
+
+        await session.start(
+          'result = fetch()',
+          externalFunctions: ['fetch'],
+        );
+
+        final code = mock.lastStartCode!;
+        expect(code, contains('__restore_state__()'));
+        expect(code, contains('result = fetch()'));
+        expect(code, contains('__persist_state__'));
+      });
+    });
+
+    group('resume()', () {
+      test('intercepts persist on completion', () async {
+        // start: restore → user pending
+        mock
+          ..enqueueProgress(
+            const MontyPending(
+              functionName: '__restore_state__',
+              arguments: [],
+            ),
+          )
+          ..enqueueProgress(
+            const MontyPending(
+              functionName: 'fetch',
+              arguments: ['url'],
+            ),
+          );
+
+        final p1 = await session.start(
+          'result = fetch("url")\nresult',
+          externalFunctions: ['fetch'],
+        );
+        expect(p1, isA<MontyPending>());
+
+        // resume: persist (internal) → complete
+        mock
+          ..enqueueProgress(
+            const MontyPending(
+              functionName: '__persist_state__',
+              arguments: ['{"result": "data"}'],
+            ),
+          )
+          ..enqueueProgress(
+            const MontyComplete(
+              result: MontyResult(value: 'data', usage: _usage),
+            ),
+          );
+
+        final p2 = await session.resume('data');
+        expect(p2, isA<MontyComplete>());
+        final complete = p2 as MontyComplete;
+        expect(complete.result.value, 'data');
+
+        // State was persisted
+        expect(session.state, {'result': 'data'});
+      });
+
+      test('passes through user pending after resume', () async {
+        // start: restore → first user pending
+        mock
+          ..enqueueProgress(
+            const MontyPending(
+              functionName: '__restore_state__',
+              arguments: [],
+            ),
+          )
+          ..enqueueProgress(
+            const MontyPending(
+              functionName: 'step1',
+              arguments: [],
+            ),
+          );
+
+        await session.start(
+          'a = step1()\nb = step2()',
+          externalFunctions: ['step1', 'step2'],
+        );
+
+        // resume step1 → second user pending (step2)
+        mock.enqueueProgress(
+          const MontyPending(
+            functionName: 'step2',
+            arguments: [],
+          ),
+        );
+
+        final p2 = await session.resume('result1');
+        expect(p2, isA<MontyPending>());
+        expect((p2 as MontyPending).functionName, 'step2');
+      });
+    });
+
+    group('resumeWithError()', () {
+      test('intercepts persist after error resume completes', () async {
+        // start: restore → user pending
+        mock
+          ..enqueueProgress(
+            const MontyPending(
+              functionName: '__restore_state__',
+              arguments: [],
+            ),
+          )
+          ..enqueueProgress(
+            const MontyPending(
+              functionName: 'fetch',
+              arguments: ['url'],
+            ),
+          );
+
+        await session.start(
+          'try:\n  result = fetch("url")\nexcept: pass',
+          externalFunctions: ['fetch'],
+        );
+
+        // resumeWithError: persist → complete
+        mock
+          ..enqueueProgress(
+            const MontyPending(
+              functionName: '__persist_state__',
+              arguments: ['{}'],
+            ),
+          )
+          ..enqueueProgress(
+            const MontyComplete(
+              result: MontyResult(usage: _usage),
+            ),
+          );
+
+        final p2 = await session.resumeWithError('network failure');
+        expect(p2, isA<MontyComplete>());
+
+        // Verify platform got the error message
+        expect(mock.resumeErrorMessages.first, 'network failure');
+      });
+    });
+
     group('clearState()', () {
       test('resets persisted state', () async {
         _enqueueRunCycle(

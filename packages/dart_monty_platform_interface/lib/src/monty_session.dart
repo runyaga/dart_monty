@@ -125,6 +125,88 @@ class MontySession {
     }
   }
 
+  /// Starts iterative execution of [code] with state restore/persist.
+  ///
+  /// Same as [MontyPlatform.start] but with state management injected.
+  /// Internal functions (`__restore_state__`, `__persist_state__`) are
+  /// handled transparently — only user external functions are returned
+  /// as [MontyPending] to the caller.
+  ///
+  /// The caller must resume through [resume] or [resumeWithError] on
+  /// this session (not on the underlying platform) so that internal
+  /// state functions are intercepted on completion.
+  Future<MontyProgress> start(
+    String code, {
+    List<String>? externalFunctions,
+    MontyLimits? limits,
+    String? scriptName,
+  }) async {
+    _checkNotDisposed();
+    final wrappedCode = '$_restorePreamble\n$code\n$_persistPostamble';
+    final allExtFns = [
+      _restoreStateFn,
+      _persistStateFn,
+      ...?externalFunctions,
+    ];
+
+    final progress = await _platform.start(
+      wrappedCode,
+      externalFunctions: allExtFns,
+      limits: limits,
+      scriptName: scriptName,
+    );
+
+    return _interceptProgress(progress);
+  }
+
+  /// Resumes a paused execution with [returnValue].
+  ///
+  /// Must be used instead of [MontyPlatform.resume] so that internal
+  /// state functions are intercepted transparently.
+  Future<MontyProgress> resume(Object? returnValue) async {
+    _checkNotDisposed();
+    final progress = await _platform.resume(returnValue);
+
+    return _interceptProgress(progress);
+  }
+
+  /// Resumes a paused execution by raising an error with [errorMessage].
+  ///
+  /// Must be used instead of [MontyPlatform.resumeWithError] so that
+  /// internal state functions are intercepted transparently.
+  Future<MontyProgress> resumeWithError(String errorMessage) async {
+    _checkNotDisposed();
+    final progress = await _platform.resumeWithError(errorMessage);
+
+    return _interceptProgress(progress);
+  }
+
+  /// Intercepts internal state functions, passing through user progress.
+  ///
+  /// Handles `__restore_state__` and `__persist_state__` in a loop,
+  /// returning only when a user-visible [MontyProgress] is encountered.
+  Future<MontyProgress> _interceptProgress(MontyProgress progress) async {
+    var current = progress;
+    while (true) {
+      switch (current) {
+        case MontyPending(functionName: _restoreStateFn):
+          current = await _platform.resume(_stateJson);
+
+        case MontyPending(functionName: _persistStateFn):
+          final args = current.arguments;
+          if (args.isNotEmpty) {
+            _stateJson = args.first.toString();
+          }
+          current = await _platform.resume(null);
+
+        case MontyComplete():
+        case MontyPending():
+        case MontyResolveFutures():
+          return current;
+      }
+    }
+  }
+
   /// Clears all persisted state.
   ///
   /// After calling this, the next `run()` or `start()` call begins with
