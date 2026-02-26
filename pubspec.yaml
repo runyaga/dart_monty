@@ -26,6 +26,14 @@ dev_dependencies:
     sdk: flutter
   very_good_analysis: ^10.0.0
 
+dependency_overrides:
+  dart_monty_native:
+    path: packages/dart_monty_native
+  dart_monty_platform_interface:
+    path: packages/dart_monty_platform_interface
+  dart_monty_web:
+    path: packages/dart_monty_web
+
 flutter:
   plugin:
     platforms:
