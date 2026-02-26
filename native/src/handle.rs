@@ -9,6 +9,36 @@ use serde_json::Value;
 use crate::convert::{json_to_monty_object, monty_object_to_json};
 use crate::error::monty_exception_to_json;
 
+/// Maps a `ResourceTracker` type to its `HandleState` variants.
+trait TrackerExt: monty::ResourceTracker + Sized {
+    fn into_paused(snapshot: Snapshot<Self>, meta: PendingMeta) -> HandleState;
+    fn into_futures(snapshot: FutureSnapshot<Self>, call_ids_json: String) -> HandleState;
+}
+
+impl TrackerExt for LimitedTracker {
+    fn into_paused(snapshot: Snapshot<Self>, meta: PendingMeta) -> HandleState {
+        HandleState::PausedLimited { snapshot, meta }
+    }
+    fn into_futures(snapshot: FutureSnapshot<Self>, call_ids_json: String) -> HandleState {
+        HandleState::FuturesLimited {
+            snapshot,
+            call_ids_json,
+        }
+    }
+}
+
+impl TrackerExt for NoLimitTracker {
+    fn into_paused(snapshot: Snapshot<Self>, meta: PendingMeta) -> HandleState {
+        HandleState::PausedNoLimit { snapshot, meta }
+    }
+    fn into_futures(snapshot: FutureSnapshot<Self>, call_ids_json: String) -> HandleState {
+        HandleState::FuturesNoLimit {
+            snapshot,
+            call_ids_json,
+        }
+    }
+}
+
 /// Result tag for `monty_run` — matches `MontyResultTag` in the C header.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -115,9 +145,7 @@ impl MontyHandle {
             compiled.run(vec![], NoLimitTracker, &mut print)
         };
 
-        if let PrintWriter::Collect(collected) = print {
-            self.print_output.push_str(&collected);
-        }
+        self.drain_print(print);
 
         match result {
             Ok(obj) => {
@@ -162,39 +190,11 @@ impl MontyHandle {
             }
         };
 
-        let mut print = PrintWriter::Collect(String::new());
-
         if let Some(limits) = self.limits.clone() {
             let tracker = LimitedTracker::new(limits);
-            match compiled.start(vec![], tracker, &mut print) {
-                Ok(progress) => {
-                    if let PrintWriter::Collect(collected) = print {
-                        self.print_output.push_str(&collected);
-                    }
-                    self.process_progress_limited(progress)
-                }
-                Err(exc) => {
-                    if let PrintWriter::Collect(collected) = print {
-                        self.print_output.push_str(&collected);
-                    }
-                    self.handle_exception(exc)
-                }
-            }
+            self.run_snapshot_op(|print| compiled.start(vec![], tracker, print))
         } else {
-            match compiled.start(vec![], NoLimitTracker, &mut print) {
-                Ok(progress) => {
-                    if let PrintWriter::Collect(collected) = print {
-                        self.print_output.push_str(&collected);
-                    }
-                    self.process_progress_no_limit(progress)
-                }
-                Err(exc) => {
-                    if let PrintWriter::Collect(collected) = print {
-                        self.print_output.push_str(&collected);
-                    }
-                    self.handle_exception(exc)
-                }
-            }
+            self.run_snapshot_op(|print| compiled.start(vec![], NoLimitTracker, print))
         }
     }
 
@@ -228,38 +228,10 @@ impl MontyHandle {
 
         match state {
             HandleState::PausedLimited { snapshot, .. } => {
-                let mut print = PrintWriter::Collect(String::new());
-                match snapshot.run_pending(&mut print) {
-                    Ok(progress) => {
-                        if let PrintWriter::Collect(collected) = print {
-                            self.print_output.push_str(&collected);
-                        }
-                        self.process_progress_limited(progress)
-                    }
-                    Err(exc) => {
-                        if let PrintWriter::Collect(collected) = print {
-                            self.print_output.push_str(&collected);
-                        }
-                        self.handle_exception(exc)
-                    }
-                }
+                self.run_snapshot_op(|print| snapshot.run_pending(print))
             }
             HandleState::PausedNoLimit { snapshot, .. } => {
-                let mut print = PrintWriter::Collect(String::new());
-                match snapshot.run_pending(&mut print) {
-                    Ok(progress) => {
-                        if let PrintWriter::Collect(collected) = print {
-                            self.print_output.push_str(&collected);
-                        }
-                        self.process_progress_no_limit(progress)
-                    }
-                    Err(exc) => {
-                        if let PrintWriter::Collect(collected) = print {
-                            self.print_output.push_str(&collected);
-                        }
-                        self.handle_exception(exc)
-                    }
-                }
+                self.run_snapshot_op(|print| snapshot.run_pending(print))
             }
             other => {
                 self.state = other;
@@ -346,38 +318,10 @@ impl MontyHandle {
 
         match state {
             HandleState::FuturesLimited { snapshot, .. } => {
-                let mut print = PrintWriter::Collect(String::new());
-                match snapshot.resume(ext_results, &mut print) {
-                    Ok(progress) => {
-                        if let PrintWriter::Collect(collected) = print {
-                            self.print_output.push_str(&collected);
-                        }
-                        self.process_progress_limited(progress)
-                    }
-                    Err(exc) => {
-                        if let PrintWriter::Collect(collected) = print {
-                            self.print_output.push_str(&collected);
-                        }
-                        self.handle_exception(exc)
-                    }
-                }
+                self.run_snapshot_op(|print| snapshot.resume(ext_results, print))
             }
             HandleState::FuturesNoLimit { snapshot, .. } => {
-                let mut print = PrintWriter::Collect(String::new());
-                match snapshot.resume(ext_results, &mut print) {
-                    Ok(progress) => {
-                        if let PrintWriter::Collect(collected) = print {
-                            self.print_output.push_str(&collected);
-                        }
-                        self.process_progress_no_limit(progress)
-                    }
-                    Err(exc) => {
-                        if let PrintWriter::Collect(collected) = print {
-                            self.print_output.push_str(&collected);
-                        }
-                        self.handle_exception(exc)
-                    }
-                }
+                self.run_snapshot_op(|print| snapshot.resume(ext_results, print))
             }
             other => {
                 self.state = other;
@@ -504,43 +448,34 @@ impl MontyHandle {
 
     // --- private helpers ---
 
+    fn drain_print(&mut self, print: PrintWriter) {
+        if let PrintWriter::Collect(collected) = print {
+            self.print_output.push_str(&collected);
+        }
+    }
+
+    fn run_snapshot_op<T: TrackerExt>(
+        &mut self,
+        f: impl FnOnce(&mut PrintWriter) -> Result<RunProgress<T>, MontyException>,
+    ) -> (MontyProgressTag, Option<String>) {
+        let mut print = PrintWriter::Collect(String::new());
+        let result = f(&mut print);
+        self.drain_print(print);
+        match result {
+            Ok(progress) => self.process_progress(progress),
+            Err(exc) => self.handle_exception(exc),
+        }
+    }
+
     fn resume_with_result(&mut self, result: ExternalResult) -> (MontyProgressTag, Option<String>) {
         let state = std::mem::replace(&mut self.state, HandleState::Consumed);
 
         match state {
             HandleState::PausedLimited { snapshot, .. } => {
-                let mut print = PrintWriter::Collect(String::new());
-                match snapshot.run(result, &mut print) {
-                    Ok(progress) => {
-                        if let PrintWriter::Collect(collected) = print {
-                            self.print_output.push_str(&collected);
-                        }
-                        self.process_progress_limited(progress)
-                    }
-                    Err(exc) => {
-                        if let PrintWriter::Collect(collected) = print {
-                            self.print_output.push_str(&collected);
-                        }
-                        self.handle_exception(exc)
-                    }
-                }
+                self.run_snapshot_op(|print| snapshot.run(result, print))
             }
             HandleState::PausedNoLimit { snapshot, .. } => {
-                let mut print = PrintWriter::Collect(String::new());
-                match snapshot.run(result, &mut print) {
-                    Ok(progress) => {
-                        if let PrintWriter::Collect(collected) = print {
-                            self.print_output.push_str(&collected);
-                        }
-                        self.process_progress_no_limit(progress)
-                    }
-                    Err(exc) => {
-                        if let PrintWriter::Collect(collected) = print {
-                            self.print_output.push_str(&collected);
-                        }
-                        self.handle_exception(exc)
-                    }
-                }
+                self.run_snapshot_op(|print| snapshot.run(result, print))
             }
             other => {
                 self.state = other;
@@ -552,9 +487,9 @@ impl MontyHandle {
         }
     }
 
-    fn process_progress_limited(
+    fn process_progress<T: TrackerExt>(
         &mut self,
-        progress: RunProgress<LimitedTracker>,
+        progress: RunProgress<T>,
     ) -> (MontyProgressTag, Option<String>) {
         match progress {
             RunProgress::Complete(obj) => {
@@ -576,70 +511,13 @@ impl MontyHandle {
                 state: snapshot,
             } => {
                 let meta = build_pending_meta(function_name, &args, &kwargs, call_id, method_call);
-                self.state = HandleState::PausedLimited { snapshot, meta };
+                self.state = T::into_paused(snapshot, meta);
                 (MontyProgressTag::Pending, None)
             }
             RunProgress::ResolveFutures(snapshot) => {
                 let call_ids_json = serde_json::to_string(snapshot.pending_call_ids())
                     .unwrap_or_else(|_| "[]".into());
-                self.state = HandleState::FuturesLimited {
-                    snapshot,
-                    call_ids_json,
-                };
-                (MontyProgressTag::ResolveFutures, None)
-            }
-            RunProgress::OsCall { .. } => {
-                self.state = HandleState::Complete {
-                    result_json: build_result_json(
-                        Value::Null,
-                        Some(serde_json::json!({"message": "unsupported progress type: OsCall"})),
-                        &self.usage_json,
-                        &self.print_output,
-                    ),
-                    is_error: true,
-                };
-                (
-                    MontyProgressTag::Error,
-                    Some("unsupported progress type: OsCall".into()),
-                )
-            }
-        }
-    }
-
-    fn process_progress_no_limit(
-        &mut self,
-        progress: RunProgress<NoLimitTracker>,
-    ) -> (MontyProgressTag, Option<String>) {
-        match progress {
-            RunProgress::Complete(obj) => {
-                let val = monty_object_to_json(&obj);
-                let result_json =
-                    build_result_json(val, None, &self.usage_json, &self.print_output);
-                self.state = HandleState::Complete {
-                    result_json,
-                    is_error: false,
-                };
-                (MontyProgressTag::Complete, None)
-            }
-            RunProgress::FunctionCall {
-                function_name,
-                args,
-                kwargs,
-                call_id,
-                method_call,
-                state: snapshot,
-            } => {
-                let meta = build_pending_meta(function_name, &args, &kwargs, call_id, method_call);
-                self.state = HandleState::PausedNoLimit { snapshot, meta };
-                (MontyProgressTag::Pending, None)
-            }
-            RunProgress::ResolveFutures(snapshot) => {
-                let call_ids_json = serde_json::to_string(snapshot.pending_call_ids())
-                    .unwrap_or_else(|_| "[]".into());
-                self.state = HandleState::FuturesNoLimit {
-                    snapshot,
-                    call_ids_json,
-                };
+                self.state = T::into_futures(snapshot, call_ids_json);
                 (MontyProgressTag::ResolveFutures, None)
             }
             RunProgress::OsCall { .. } => {

@@ -6,10 +6,41 @@ mod handle;
 
 pub use handle::{MontyHandle, MontyProgressTag, MontyResultTag};
 
-use std::ffi::{CStr, c_char, c_int};
+use std::ffi::{c_char, c_int};
 use std::ptr;
 
-use error::{catch_ffi_panic, to_c_string};
+use error::{catch_ffi_panic, parse_c_str, to_c_string};
+
+/// Common FFI wrapper for functions returning `MontyProgressTag`.
+/// Handles: handle null check, panic boundary, error out-parameter.
+macro_rules! ffi_progress {
+    ($handle:expr, $out_error:expr, |$h:ident| $body:expr) => {{
+        if $handle.is_null() {
+            if !$out_error.is_null() {
+                unsafe { *$out_error = to_c_string("handle is NULL") };
+            }
+            return MontyProgressTag::Error;
+        }
+        let $h = unsafe { &mut *$handle };
+        match catch_ffi_panic(|| $body) {
+            Ok((tag, err)) => {
+                if !$out_error.is_null() {
+                    match err {
+                        Some(ref msg) => unsafe { *$out_error = to_c_string(msg) },
+                        None => unsafe { *$out_error = ptr::null_mut() },
+                    }
+                }
+                tag
+            }
+            Err(panic_msg) => {
+                if !$out_error.is_null() {
+                    unsafe { *$out_error = to_c_string(&panic_msg) };
+                }
+                MontyProgressTag::Error
+            }
+        }
+    }};
+}
 
 // ---------------------------------------------------------------------------
 // Lifecycle
@@ -30,49 +61,27 @@ pub unsafe extern "C" fn monty_create(
     script_name: *const c_char,
     out_error: *mut *mut c_char,
 ) -> *mut MontyHandle {
-    if code.is_null() {
-        if !out_error.is_null() {
-            unsafe { *out_error = to_c_string("code is NULL") };
-        }
-        return ptr::null_mut();
-    }
-
-    let code_str = match unsafe { CStr::from_ptr(code) }.to_str() {
+    let code_str = match unsafe { parse_c_str(code, "code", out_error) } {
         Ok(s) => s.to_string(),
-        Err(_) => {
-            if !out_error.is_null() {
-                unsafe { *out_error = to_c_string("code is not valid UTF-8") };
-            }
-            return ptr::null_mut();
-        }
+        Err(()) => return ptr::null_mut(),
     };
 
     let ext_fn_list = if ext_fns.is_null() {
         vec![]
     } else {
-        match unsafe { CStr::from_ptr(ext_fns) }.to_str() {
+        match unsafe { parse_c_str(ext_fns, "ext_fns", out_error) } {
             Ok("") => vec![],
             Ok(s) => s.split(',').map(|f| f.trim().to_string()).collect(),
-            Err(_) => {
-                if !out_error.is_null() {
-                    unsafe { *out_error = to_c_string("ext_fns is not valid UTF-8") };
-                }
-                return ptr::null_mut();
-            }
+            Err(()) => return ptr::null_mut(),
         }
     };
 
     let name = if script_name.is_null() {
         None
     } else {
-        match unsafe { CStr::from_ptr(script_name) }.to_str() {
+        match unsafe { parse_c_str(script_name, "script_name", out_error) } {
             Ok(s) => Some(s.to_string()),
-            Err(_) => {
-                if !out_error.is_null() {
-                    unsafe { *out_error = to_c_string("script_name is not valid UTF-8") };
-                }
-                return ptr::null_mut();
-            }
+            Err(()) => return ptr::null_mut(),
         }
     };
 
@@ -163,32 +172,7 @@ pub unsafe extern "C" fn monty_start(
     handle: *mut MontyHandle,
     out_error: *mut *mut c_char,
 ) -> MontyProgressTag {
-    if handle.is_null() {
-        if !out_error.is_null() {
-            unsafe { *out_error = to_c_string("handle is NULL") };
-        }
-        return MontyProgressTag::Error;
-    }
-
-    let h = unsafe { &mut *handle };
-
-    match catch_ffi_panic(|| h.start()) {
-        Ok((tag, err)) => {
-            if !out_error.is_null() {
-                match err {
-                    Some(ref msg) => unsafe { *out_error = to_c_string(msg) },
-                    None => unsafe { *out_error = ptr::null_mut() },
-                }
-            }
-            tag
-        }
-        Err(panic_msg) => {
-            if !out_error.is_null() {
-                unsafe { *out_error = to_c_string(&panic_msg) };
-            }
-            MontyProgressTag::Error
-        }
-    }
+    ffi_progress!(handle, out_error, |h| h.start())
 }
 
 /// Resume execution with a return value (JSON string).
@@ -201,47 +185,11 @@ pub unsafe extern "C" fn monty_resume(
     value_json: *const c_char,
     out_error: *mut *mut c_char,
 ) -> MontyProgressTag {
-    if handle.is_null() {
-        if !out_error.is_null() {
-            unsafe { *out_error = to_c_string("handle is NULL") };
-        }
-        return MontyProgressTag::Error;
-    }
-    if value_json.is_null() {
-        if !out_error.is_null() {
-            unsafe { *out_error = to_c_string("value_json is NULL") };
-        }
-        return MontyProgressTag::Error;
-    }
-
-    let h = unsafe { &mut *handle };
-    let json_str = match unsafe { CStr::from_ptr(value_json) }.to_str() {
+    let json_str = match unsafe { parse_c_str(value_json, "value_json", out_error) } {
         Ok(s) => s,
-        Err(_) => {
-            if !out_error.is_null() {
-                unsafe { *out_error = to_c_string("value_json is not valid UTF-8") };
-            }
-            return MontyProgressTag::Error;
-        }
+        Err(()) => return MontyProgressTag::Error,
     };
-
-    match catch_ffi_panic(|| h.resume(json_str)) {
-        Ok((tag, err)) => {
-            if !out_error.is_null() {
-                match err {
-                    Some(ref msg) => unsafe { *out_error = to_c_string(msg) },
-                    None => unsafe { *out_error = ptr::null_mut() },
-                }
-            }
-            tag
-        }
-        Err(panic_msg) => {
-            if !out_error.is_null() {
-                unsafe { *out_error = to_c_string(&panic_msg) };
-            }
-            MontyProgressTag::Error
-        }
-    }
+    ffi_progress!(handle, out_error, |h| h.resume(json_str))
 }
 
 /// Resume execution with an error (raises RuntimeError in Python).
@@ -254,47 +202,11 @@ pub unsafe extern "C" fn monty_resume_with_error(
     error_message: *const c_char,
     out_error: *mut *mut c_char,
 ) -> MontyProgressTag {
-    if handle.is_null() {
-        if !out_error.is_null() {
-            unsafe { *out_error = to_c_string("handle is NULL") };
-        }
-        return MontyProgressTag::Error;
-    }
-    if error_message.is_null() {
-        if !out_error.is_null() {
-            unsafe { *out_error = to_c_string("error_message is NULL") };
-        }
-        return MontyProgressTag::Error;
-    }
-
-    let h = unsafe { &mut *handle };
-    let msg = match unsafe { CStr::from_ptr(error_message) }.to_str() {
+    let msg = match unsafe { parse_c_str(error_message, "error_message", out_error) } {
         Ok(s) => s,
-        Err(_) => {
-            if !out_error.is_null() {
-                unsafe { *out_error = to_c_string("error_message is not valid UTF-8") };
-            }
-            return MontyProgressTag::Error;
-        }
+        Err(()) => return MontyProgressTag::Error,
     };
-
-    match catch_ffi_panic(|| h.resume_with_error(msg)) {
-        Ok((tag, err)) => {
-            if !out_error.is_null() {
-                match err {
-                    Some(ref msg) => unsafe { *out_error = to_c_string(msg) },
-                    None => unsafe { *out_error = ptr::null_mut() },
-                }
-            }
-            tag
-        }
-        Err(panic_msg) => {
-            if !out_error.is_null() {
-                unsafe { *out_error = to_c_string(&panic_msg) };
-            }
-            MontyProgressTag::Error
-        }
-    }
+    ffi_progress!(handle, out_error, |h| h.resume_with_error(msg))
 }
 
 // ---------------------------------------------------------------------------
@@ -312,32 +224,7 @@ pub unsafe extern "C" fn monty_resume_as_future(
     handle: *mut MontyHandle,
     out_error: *mut *mut c_char,
 ) -> MontyProgressTag {
-    if handle.is_null() {
-        if !out_error.is_null() {
-            unsafe { *out_error = to_c_string("handle is NULL") };
-        }
-        return MontyProgressTag::Error;
-    }
-
-    let h = unsafe { &mut *handle };
-
-    match catch_ffi_panic(|| h.resume_as_future()) {
-        Ok((tag, err)) => {
-            if !out_error.is_null() {
-                match err {
-                    Some(ref msg) => unsafe { *out_error = to_c_string(msg) },
-                    None => unsafe { *out_error = ptr::null_mut() },
-                }
-            }
-            tag
-        }
-        Err(panic_msg) => {
-            if !out_error.is_null() {
-                unsafe { *out_error = to_c_string(&panic_msg) };
-            }
-            MontyProgressTag::Error
-        }
-    }
+    ffi_progress!(handle, out_error, |h| h.resume_as_future())
 }
 
 /// Get the pending future call IDs as a JSON array.
@@ -367,62 +254,16 @@ pub unsafe extern "C" fn monty_resume_futures(
     errors_json: *const c_char,
     out_error: *mut *mut c_char,
 ) -> MontyProgressTag {
-    if handle.is_null() {
-        if !out_error.is_null() {
-            unsafe { *out_error = to_c_string("handle is NULL") };
-        }
-        return MontyProgressTag::Error;
-    }
-    if results_json.is_null() {
-        if !out_error.is_null() {
-            unsafe { *out_error = to_c_string("results_json is NULL") };
-        }
-        return MontyProgressTag::Error;
-    }
-    if errors_json.is_null() {
-        if !out_error.is_null() {
-            unsafe { *out_error = to_c_string("errors_json is NULL") };
-        }
-        return MontyProgressTag::Error;
-    }
-
-    let h = unsafe { &mut *handle };
-    let results_str = match unsafe { CStr::from_ptr(results_json) }.to_str() {
+    let results_str = match unsafe { parse_c_str(results_json, "results_json", out_error) } {
         Ok(s) => s,
-        Err(_) => {
-            if !out_error.is_null() {
-                unsafe { *out_error = to_c_string("results_json is not valid UTF-8") };
-            }
-            return MontyProgressTag::Error;
-        }
+        Err(()) => return MontyProgressTag::Error,
     };
-    let errors_str = match unsafe { CStr::from_ptr(errors_json) }.to_str() {
+    let errors_str = match unsafe { parse_c_str(errors_json, "errors_json", out_error) } {
         Ok(s) => s,
-        Err(_) => {
-            if !out_error.is_null() {
-                unsafe { *out_error = to_c_string("errors_json is not valid UTF-8") };
-            }
-            return MontyProgressTag::Error;
-        }
+        Err(()) => return MontyProgressTag::Error,
     };
-
-    match catch_ffi_panic(|| h.resume_futures(results_str, errors_str)) {
-        Ok((tag, err)) => {
-            if !out_error.is_null() {
-                match err {
-                    Some(ref msg) => unsafe { *out_error = to_c_string(msg) },
-                    None => unsafe { *out_error = ptr::null_mut() },
-                }
-            }
-            tag
-        }
-        Err(panic_msg) => {
-            if !out_error.is_null() {
-                unsafe { *out_error = to_c_string(&panic_msg) };
-            }
-            MontyProgressTag::Error
-        }
-    }
+    ffi_progress!(handle, out_error, |h| h
+        .resume_futures(results_str, errors_str))
 }
 
 // ---------------------------------------------------------------------------

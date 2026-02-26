@@ -1,4 +1,4 @@
-use std::ffi::{CString, c_char};
+use std::ffi::{CStr, CString, c_char};
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use monty::MontyException;
@@ -23,6 +23,33 @@ where
             "unknown panic".to_string()
         }
     })
+}
+
+/// Parse a C string pointer, writing to `out_error` on failure.
+/// Returns `Ok(&str)` or `Err(())` if null or invalid UTF-8.
+///
+/// # Safety
+/// `ptr` must be a valid NUL-terminated C string if non-null.
+pub unsafe fn parse_c_str<'a>(
+    ptr: *const c_char,
+    name: &str,
+    out_error: *mut *mut c_char,
+) -> Result<&'a str, ()> {
+    if ptr.is_null() {
+        if !out_error.is_null() {
+            unsafe { *out_error = to_c_string(&format!("{name} is NULL")) };
+        }
+        return Err(());
+    }
+    match unsafe { CStr::from_ptr(ptr) }.to_str() {
+        Ok(s) => Ok(s),
+        Err(_) => {
+            if !out_error.is_null() {
+                unsafe { *out_error = to_c_string(&format!("{name} is not valid UTF-8")) };
+            }
+            Err(())
+        }
+    }
 }
 
 /// Convert a `MontyException` to a snake_case JSON value matching Dart's
@@ -88,6 +115,7 @@ mod tests {
     use super::*;
     use monty::ExcType;
     use std::ffi::CStr;
+    use std::ptr;
 
     #[test]
     fn test_to_c_string_basic() {
@@ -199,5 +227,25 @@ mod tests {
             std::panic::resume_unwind(Box::new(42i32));
         });
         assert_eq!(result, Err("unknown panic".to_string()));
+    }
+
+    #[test]
+    fn test_parse_c_str_valid() {
+        let c = CString::new("hello").unwrap();
+        let mut err: *mut c_char = ptr::null_mut();
+        let result = unsafe { parse_c_str(c.as_ptr(), "arg", &mut err) };
+        assert_eq!(result, Ok("hello"));
+        assert!(err.is_null());
+    }
+
+    #[test]
+    fn test_parse_c_str_null() {
+        let mut err: *mut c_char = ptr::null_mut();
+        let result = unsafe { parse_c_str(ptr::null(), "arg", &mut err) };
+        assert!(result.is_err());
+        assert!(!err.is_null());
+        let msg = unsafe { CStr::from_ptr(err) }.to_str().unwrap();
+        assert_eq!(msg, "arg is NULL");
+        unsafe { drop(CString::from_raw(err)) };
     }
 }
