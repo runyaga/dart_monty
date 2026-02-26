@@ -1,5 +1,16 @@
 ## Unreleased
 
+## 0.6.0
+
+- **BREAKING**: Extract state machine into `MontyStateMixin` (reduces per-platform duplication)
+- **BREAKING**: Add `BaseMontyPlatform` with shared translation logic
+- **BREAKING**: Add `MontyCoreBindings`, `CoreRunResult`, `CoreProgressResult` architecture
+- **BREAKING**: Add capability interfaces (`MontyFutureCapable`, `MontySnapshotCapable`)
+- Add `MontySession` API for session management (`run()`, `start()`, `resume()`)
+- Extract shared test harness (`LadderRunner`, `LadderAssertions`) into `dart_monty_testing` barrel
+- Mock & API surface cleanup
+- Prune tautological tests and unused dependencies
+
 ## 0.4.3
 
 - Version bump (no package code changes)

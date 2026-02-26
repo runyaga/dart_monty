@@ -14,7 +14,7 @@
 | M6 | Flutter Web Plugin | Complete |
 | M7A | Run API Data Model Fidelity | Complete |
 
-Current version: **0.4.3**. Current API coverage: ~40% of upstream monty surface.
+Current version: **0.6.0**. Current API coverage: ~40% of upstream monty surface.
 
 ---
 
@@ -105,7 +105,7 @@ from numbering.
 |----------|-----------|-------------|------------|--------|
 | 1 | M7A | Run API Data Model Fidelity | kwargs, excType, tracebacks, callId, scriptName | **Complete** |
 | 2 | Arch Phase 2 | Capability interfaces + BaseMontyPlatform | Clean extension points, ~400 lines removed | **Active** |
-| 3 | M13 | Async / Futures | asyncio.gather, concurrent tool calls | Pending |
+| 3 | M13 | Async / Futures | asyncio.gather, concurrent tool calls | **Complete** (native only; WASM stubbed) |
 | 4 | M8 | Rich Type Bridge | $tuple, $set, $bytes, dataclass preservation | Pending |
 
 After arch refactoring completes, M13 and M8 ship. API coverage jumps

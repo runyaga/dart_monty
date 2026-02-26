@@ -1,5 +1,11 @@
 ## Unreleased
 
+## 0.6.0
+
+- **BREAKING**: Migrate `MontyFfi` to `BaseMontyPlatform` (uses `MontyCoreBindings` architecture)
+- Add `FfiCoreBindings` adapter
+- Fix `restore()` to set restored instance to active state
+
 ## 0.4.3
 
 - Version bump (no package code changes)

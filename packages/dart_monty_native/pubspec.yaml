@@ -15,8 +15,8 @@ environment:
   flutter: '>=3.10.0'
 
 dependencies:
-  dart_monty_ffi: ^0.4.0
-  dart_monty_platform_interface: ^0.4.0
+  dart_monty_ffi: ^0.6.0
+  dart_monty_platform_interface: ^0.6.0
   flutter:
     sdk: flutter
 

@@ -11,30 +11,40 @@ Flutter app automatically selects the correct backend at registration time.
 ## Package Dependency Graph
 
 ```text
-dart_monty                         (app-facing API — thin re-export)
-  ├── dart_monty_platform_interface  (abstract contract, pure Dart)
-  │     ├── MontyPlatform            (abstract class, singleton)
-  │     ├── MontyProgress            (sealed: Pending | Complete)
-  │     ├── MontyResult, MontyException, MontyStackFrame, ...
-  │     └── MontyStateMixin          (shared lifecycle — Slice 4)
+dart_monty                           (app-facing API — thin re-export)
+  ├── dart_monty_platform_interface    (abstract contract, pure Dart)
+  │     ├── MontyPlatform              (abstract class, singleton)
+  │     ├── BaseMontyPlatform          (shared logic: run/start/resume/dispose)
+  │     ├── MontyCoreBindings          (unified bindings contract)
+  │     ├── MontyStateMixin            (shared state machine lifecycle)
+  │     ├── MontySnapshotCapable       (capability: snapshot/restore)
+  │     ├── MontyFutureCapable         (capability: resumeAsFuture/resolveFutures)
+  │     ├── MontySession               (stateful sessions — persists globals)
+  │     ├── MontyProgress              (sealed: Pending | Complete | ResolveFutures)
+  │     └── MontyResult, MontyException, MontyStackFrame, ...
   │
-  ├── dart_monty_ffi                 (pure Dart, no Flutter)
-  │     ├── NativeBindings           (abstract) → NativeBindingsFfi (dart:ffi)
-  │     ├── MontyFfi                 (implements MontyPlatform)
+  ├── dart_monty_ffi                   (pure Dart, no Flutter)
+  │     ├── NativeBindings             (abstract) → NativeBindingsFfi (dart:ffi)
+  │     ├── FfiCoreBindings            (implements MontyCoreBindings)
+  │     ├── MontyFfi                   (extends BaseMontyPlatform)
+  │     │     implements MontySnapshotCapable, MontyFutureCapable
   │     └── NativeLibraryLoader
   │
-  ├── dart_monty_wasm                (pure Dart, dart:js_interop)
-  │     ├── WasmBindings             (abstract) → WasmBindingsJs (JS bridge)
-  │     ├── MontyWasm                (implements MontyPlatform)
-  │     └── js/                      (bridge.js + worker_src.js)
+  ├── dart_monty_wasm                  (pure Dart, dart:js_interop)
+  │     ├── WasmBindings               (abstract) → WasmBindingsJs (JS bridge)
+  │     ├── WasmCoreBindings           (implements MontyCoreBindings)
+  │     ├── MontyWasm                  (extends BaseMontyPlatform)
+  │     │     implements MontySnapshotCapable
+  │     └── js/                        (bridge.js + worker_src.js)
   │
-  ├── dart_monty_native             (Flutter plugin — native platforms: macOS, Linux, iOS, Android, Windows)
-  │     ├── DartMontyNative         (registration + ffiPlugin: true)
-  │     ├── NativeIsolateBindings          (abstract) → NativeIsolateBindingsImpl
-  │     └── MontyNative             (implements MontyPlatform, Isolate offload)
+  ├── dart_monty_native               (Flutter plugin — native platforms)
+  │     ├── DartMontyNative           (registration + ffiPlugin: true)
+  │     ├── NativeIsolateBindings     (abstract) → NativeIsolateBindingsImpl
+  │     └── MontyNative               (extends MontyPlatform with MontyStateMixin)
+  │           implements MontySnapshotCapable, MontyFutureCapable
   │
-  └── dart_monty_web                 (Flutter plugin — web)
-        └── DartMontyWeb             (registration shim, delegates to MontyWasm)
+  └── dart_monty_web                   (Flutter plugin — web)
+        └── DartMontyWeb               (registration shim, delegates to MontyWasm)
 ```
 
 ## Platform Support Matrix
@@ -47,6 +57,57 @@ dart_monty                         (app-facing API — thin re-export)
 | iOS | dart_monty_native | Planned (M9) | `.a` static |
 | Android | dart_monty_native | Planned (M9) | `.so` via NDK |
 | Windows | dart_monty_native | Planned (M9) | `.dll` via MSVC |
+
+## BaseMontyPlatform and MontyCoreBindings
+
+`BaseMontyPlatform` is the shared base class for `MontyFfi` and `MontyWasm`.
+It extends `MontyPlatform`, mixes in `MontyStateMixin`, and implements the
+common `run()`, `start()`, `resume()`, `resumeWithError()`, and `dispose()`
+logic. All state guards, limits encoding, and result translation happen
+once in `BaseMontyPlatform`.
+
+`MontyCoreBindings` is the unified bindings contract that both backends
+implement via adapter classes:
+
+- `FfiCoreBindings` adapts `NativeBindings` (sync FFI) to `MontyCoreBindings`
+- `WasmCoreBindings` adapts `WasmBindings` (async JS) to `MontyCoreBindings`
+
+Intermediate result types (`CoreRunResult`, `CoreProgressResult`) carry
+raw data from bindings. `BaseMontyPlatform` translates these into domain
+types (`MontyResult`, `MontyProgress`).
+
+`MontyNative` does not extend `BaseMontyPlatform` — it extends
+`MontyPlatform` directly with `MontyStateMixin`, wrapping
+`NativeIsolateBindings` for Isolate-based execution.
+
+---
+
+## Capability Interfaces
+
+Optional capabilities are exposed as separate interfaces rather than
+`UnsupportedError` stubs on `MontyPlatform`:
+
+| Interface | Methods | Implemented by |
+|-----------|---------|----------------|
+| `MontySnapshotCapable` | `snapshot()`, `restore()` | MontyFfi, MontyWasm, MontyNative |
+| `MontyFutureCapable` | `resumeAsFuture()`, `resolveFutures()` | MontyFfi, MontyNative |
+
+Consumers use `is` checks: `if (platform is MontyFutureCapable) { ... }`
+
+---
+
+## MontySession
+
+`MontySession` wraps any `MontyPlatform` and persists Python globals across
+multiple `run()` calls using snapshot/restore under the hood. It registers
+internal external functions (`__restore_state__`, `__persist_state__`) to
+transparently save and reload interpreter state between executions.
+
+Key methods: `run()`, `start()`, `resume()`, `resumeWithError()`,
+`clearState()`, `dispose()`. State is tracked via `MontySessionState`
+(idle, active, disposed).
+
+---
 
 ## JSON Contract Reference
 
@@ -118,7 +179,7 @@ injection support.
 The mixin handles only state tracking. Backends remain responsible for:
 
 - **Handle management** (FFI: `_handle` int, freed on complete/error/dispose)
-- **Initialization** (WASM/Desktop: `initialize()` + `_ensureInitialized()`)
+- **Initialization** (WASM/Native: `initialize()` + `_ensureInitialized()`)
 - **Bindings cleanup** (each backend calls its own `_bindings.dispose()`/`free()`)
 
 ---
@@ -173,7 +234,7 @@ The mixin handles only state tracking. Backends remain responsible for:
   throws `StateError`. For progress errors (`MONTY_PROGRESS_ERROR` tag),
   the result JSON is read from `monty_complete_result_json()` and decoded
   into a `MontyException` with traceback frames.
-- **Desktop (Isolate):** The background Isolate catches `MontyException`
+- **Native (Isolate):** The background Isolate catches `MontyException`
   and wraps it in `_ErrorResponse`; other exceptions become
   `_GenericErrorResponse`. The main Isolate's `_send()` method rethrows
   accordingly.
@@ -192,7 +253,7 @@ futures that will never receive a response.
 
 ## Cross-Backend Parity Guarantees
 
-**Definition:** For any given Python code string, all backends (FFI, Desktop,
+**Definition:** For any given Python code string, all backends (FFI, Native,
 WASM) must produce identical `MontyResult` values and identical
 `MontyProgress` state machine transitions. Exceptions must carry the same
 `message`, `excType`, and structural `traceback` information.

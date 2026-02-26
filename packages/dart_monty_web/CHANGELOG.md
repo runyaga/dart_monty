@@ -1,6 +1,6 @@
 ## Unreleased
 
-## 0.5.0
+## 0.6.0
 
 - **BREAKING:** Collapse `DartMontyWeb` from a full `MontyPlatform` pass-through to a registration-only shim
 - Remove `extends MontyPlatform`, all delegating methods, and `withBindings()` test constructor

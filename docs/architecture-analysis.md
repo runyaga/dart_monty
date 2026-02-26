@@ -371,23 +371,9 @@ Agent 3 ──→ MontyNative(Isolate 3) ──→ FFI Handle 3 ──→ Rust S
 
 ---
 
-## 6. Summary of Recommendations
+## 6. Architecture Diagrams
 
-| Priority | Recommendation | Impact | Aligns With |
-|----------|---------------|--------|-------------|
-| **P0** | Split `MontyPlatform` into capability interfaces | Eliminates `UnsupportedError`, enables clean multi-tenant | M12, M14, M11 |
-| **P0** | Extract `BaseMontyPlatform` with shared logic | ~400 lines deduplication, single point for error/state/JSON | Slice 6-8 |
-| **P1** | Introduce `MontyCoreBindings` contract | Unifies FFI and WASM behind same interface | Slice 8 |
-| **P1** | Arena-based FFI memory | Eliminates leak risks | Slice 8 |
-| **P2** | Delete `NativeRunResult`/`NativeProgressResult` | Remove unnecessary wrapping | Slice 7 |
-| **P2** | Extract `MontyTypeCodec` | Pluggable type bridge for M8 | M8 |
-| **P3** | Decouple from singleton pattern | Enable multi-instance (CLI, server, multi-agent) | M9, novel use cases |
-
----
-
-## 7. Architecture Diagrams
-
-### 7.1 BEFORE: Current Class Hierarchy
+### 6.1 BEFORE: Current Class Hierarchy
 
 ```text
                         ┌──────────────────────────────┐
@@ -448,7 +434,7 @@ Agent 3 ──→ MontyNative(Isolate 3) ──→ FFI Handle 3 ──→ Rust S
                                         └──────────┘
 ```
 
-### 7.2 Duplicated Logic Heatmap
+### 6.2 Duplicated Logic Heatmap
 
 The following logic is implemented **independently** in both `MontyFfi` and `MontyWasm`:
 
@@ -495,7 +481,7 @@ The following logic is implemented **independently** in both `MontyFfi` and `Mon
   Estimated shared logic: ~150 lines duplicated across the two files
 ```
 
-### 7.3 AFTER: Refactored Class Hierarchy
+### 6.3 AFTER: Refactored Class Hierarchy
 
 ```text
                       ┌──────────────────────────────┐
@@ -563,7 +549,7 @@ The following logic is implemented **independently** in both `MontyFfi` and `Mon
   └─────────────────────────────────────────────────────────┘
 ```
 
-### 7.4 MontyCoreBindings + Adapter Pattern
+### 6.4 MontyCoreBindings + Adapter Pattern
 
 ```text
   ┌─────────────────────────────────────────────────────────────────────┐
@@ -608,7 +594,7 @@ The following logic is implemented **independently** in both `MontyFfi` and `Mon
            └─────────────────────┘   └─────────────────────────┘
 ```
 
-### 7.5 Call Flow: `run()` — Before vs After
+### 6.5 Call Flow: `run()` — Before vs After
 
 **BEFORE** — duplicated translation logic in each platform:
 
@@ -684,7 +670,7 @@ The following logic is implemented **independently** in both `MontyFfi` and `Mon
           MontyResult returned
 ```
 
-### 7.6 Desktop Isolate Integration — Before vs After
+### 6.6 Desktop Isolate Integration — Before vs After
 
 **BEFORE:**
 
@@ -747,7 +733,7 @@ The following logic is implemented **independently** in both `MontyFfi` and `Mon
   └────────────────────────────────────────────────────────────┘
 ```
 
-### 7.7 Commit Progression
+### 6.7 Commit Progression
 
 ```text
   COMMIT 1: Capability Interfaces + Slim MontyPlatform
@@ -818,7 +804,7 @@ The following logic is implemented **independently** in both `MontyFfi` and `Mon
   Status: Clean. All gates pass.
 ```
 
-### 7.8 Full Stack — After All 4 Commits
+### 6.8 Full Stack — After All 4 Commits
 
 ```text
   ┌─────────────────────────────────────────────────────────────────────┐
@@ -888,7 +874,7 @@ The following logic is implemented **independently** in both `MontyFfi` and `Mon
   └───────────────┘                          └───────────────────┘
 ```
 
-### 7.9 Capability Check Pattern
+### 6.9 Capability Check Pattern
 
 ```text
   // How consumers use capability interfaces:

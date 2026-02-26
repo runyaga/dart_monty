@@ -93,7 +93,35 @@ if (progress is MontyResolveFutures) {
 await monty.dispose();
 ```
 
-## Monty API Coverage (~35%)
+### Stateful Sessions
+
+`MontySession` persists Python globals across multiple `run()` calls using
+snapshot/restore under the hood:
+
+```dart
+import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
+
+final session = MontySession(MontyPlatform.instance);
+
+await session.run('x = 42');
+final result = await session.run('x + 8');
+print(result.value); // 50
+
+// Iterative execution within a session
+var progress = await session.start(
+  'fetch("https://example.com")',
+  externalFunctions: ['fetch'],
+);
+if (progress is MontyPending) {
+  progress = await session.resume('response data');
+}
+
+// Reset session state
+await session.clearState();
+await session.dispose();
+```
+
+## Monty API Coverage (~40%)
 
 dart_monty wraps the upstream [Monty Rust API](https://github.com/pydantic/monty).
 The table below shows current coverage and what's planned.
@@ -118,6 +146,10 @@ The table below shows current coverage and what's planned.
 | Platform expansion (Windows, iOS, Android) | Planned | macOS + Linux + Web today |
 
 ## Architecture
+
+See [docs/architecture.md](docs/architecture.md) for detailed architecture
+documentation including state machine contracts, memory management, error
+handling, and cross-backend parity guarantees.
 
 Federated plugin with six packages:
 

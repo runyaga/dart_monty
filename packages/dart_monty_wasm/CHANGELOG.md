@@ -1,5 +1,10 @@
 ## Unreleased
 
+## 0.6.0
+
+- **BREAKING**: Migrate `MontyWasm` to `BaseMontyPlatform` (uses `MontyCoreBindings` architecture)
+- Add `WasmCoreBindings` adapter
+
 ## 0.4.3
 
 - Version bump (no package code changes)

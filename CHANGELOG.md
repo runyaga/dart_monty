@@ -1,5 +1,16 @@
 ## Unreleased
 
+## 0.6.0
+
+- **BREAKING**: Rename `dart_monty_desktop` to `dart_monty_native`
+- **BREAKING**: Collapse `DartMontyWeb` to registration-only shim
+- **BREAKING**: Add `BaseMontyPlatform` + `MontyCoreBindings` architecture
+- Add `MontySession` API for state persistence (`run()`, `start()`, `resume()`)
+- Add `MontyStateMixin` for shared state management across platforms
+- Add capability interfaces (`MontyFutureCapable`, `MontySnapshotCapable`)
+- Extract shared contract test harness (`LadderRunner`, `LadderAssertions`)
+- Fix `restore()` to set restored instance to active state
+
 ## 0.4.3
 
 - Fix vendored macOS dylib `install_name` pointing to CI runner path instead of `@rpath` (#47)
