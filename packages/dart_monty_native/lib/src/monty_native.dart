@@ -90,9 +90,7 @@ class MontyNative extends MontyPlatform
     assertNotDisposed('resume');
     assertActive('resume');
 
-    final progress = await _bindings.resume(returnValue);
-
-    return _handleProgress(progress);
+    return _safeBindingsCall(() => _bindings.resume(returnValue));
   }
 
   @override
@@ -100,9 +98,7 @@ class MontyNative extends MontyPlatform
     assertNotDisposed('resumeWithError');
     assertActive('resumeWithError');
 
-    final progress = await _bindings.resumeWithError(errorMessage);
-
-    return _handleProgress(progress);
+    return _safeBindingsCall(() => _bindings.resumeWithError(errorMessage));
   }
 
   @override
@@ -110,9 +106,7 @@ class MontyNative extends MontyPlatform
     assertNotDisposed('resumeAsFuture');
     assertActive('resumeAsFuture');
 
-    final progress = await _bindings.resumeAsFuture();
-
-    return _handleProgress(progress);
+    return _safeBindingsCall(_bindings.resumeAsFuture);
   }
 
   @override
@@ -123,9 +117,9 @@ class MontyNative extends MontyPlatform
     assertNotDisposed('resolveFutures');
     assertActive('resolveFutures');
 
-    final progress = await _bindings.resolveFutures(results, errors: errors);
-
-    return _handleProgress(progress);
+    return _safeBindingsCall(
+      () => _bindings.resolveFutures(results, errors: errors),
+    );
   }
 
   @override
@@ -165,6 +159,21 @@ class MontyNative extends MontyPlatform
   Future<void> _ensureInitialized() async {
     if (!_initialized) {
       await initialize();
+    }
+  }
+
+  /// Calls [fn] and handles progress. If [fn] throws, marks idle
+  /// (execution is over) and rethrows.
+  Future<MontyProgress> _safeBindingsCall(
+    Future<MontyProgress> Function() fn,
+  ) async {
+    try {
+      final progress = await fn();
+
+      return _handleProgress(progress);
+    } on MontyException {
+      markIdle();
+      rethrow;
     }
   }
 

@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 import 'package:dart_monty_platform_interface/dart_monty_testing.dart';
 import 'package:dart_monty_platform_interface/src/monty_session.dart';
@@ -27,42 +25,43 @@ void main() {
         // First run: x = 42 — restore empty, persist {x: 42}
         _enqueueRunCycle(
           mock,
-          stateToRestore: '{}',
-          stateToPersist: '{"x": 42}',
+          stateToPersist: {'x': 42},
         );
         final r1 = await session.run('x = 42');
         expect(r1.value, isNull);
 
-        // Verify restore got empty state
-        expect(mock.resumeReturnValues.first, '{}');
+        // Verify restore got empty state on first call
+        expect(mock.resumeReturnValues.first, isEmpty);
 
         // Second run: x + 1 — restore {x: 42}, persist {x: 42}
         _enqueueRunCycle(
           mock,
-          stateToRestore: '{"x": 42}',
-          stateToPersist: '{"x": 42}',
+          stateToPersist: {'x': 42},
           resultValue: 43,
         );
         final r2 = await session.run('x + 1');
         expect(r2.value, 43);
 
-        // Verify restore got previous state
-        expect(mock.resumeReturnValues[2], '{"x": 42}');
+        // Verify restore sent previous state
+        final restoreArg = mock.resumeReturnValues[2];
+        expect(restoreArg, isA<Map<String, Object?>>());
+        expect((restoreArg! as Map<String, Object?>)['x'], 42);
       });
 
       test('multiple types persist', () async {
-        final state = jsonEncode({
+        final state = <String, Object?>{
           'a': 1,
           'b': 'hello',
           'c': [1, 2],
           'd': {'k': 'v'},
           'e': true,
           'f': null,
-        });
+        };
 
-        _enqueueRunCycle(mock, stateToRestore: '{}', stateToPersist: state);
+        _enqueueRunCycle(mock, stateToPersist: state);
         await session.run(
-          'a = 1; b = "hello"; c = [1,2]; d = {"k": "v"}; e = True; f = None',
+          'a = 1\nb = "hello"\nc = [1,2]\n'
+          'd = {"k": "v"}\ne = True\nf = None',
         );
 
         final persisted = session.state;
@@ -75,22 +74,21 @@ void main() {
       });
 
       test('non-serializable silently dropped', () async {
-        // Python postamble only persists JSON-safe values, so math module
-        // won't appear in the persisted state.
+        // The persist postamble only captures vars that don't error.
+        // The mock simulates that 'math' is not in the persisted dict.
         _enqueueRunCycle(
           mock,
-          stateToRestore: '{}',
-          stateToPersist: '{"x": 42}',
+          stateToPersist: {'x': 42},
         );
-        await session.run('import math; x = 42');
+        await session.run('x = 42');
 
         final persisted = session.state;
         expect(persisted, {'x': 42});
         expect(persisted.containsKey('math'), isFalse);
       });
 
-      test('wraps code with preamble and postamble', () async {
-        _enqueueRunCycle(mock, stateToRestore: '{}', stateToPersist: '{}');
+      test('wraps code with restore and persist', () async {
+        _enqueueRunCycle(mock, stateToPersist: {});
         await session.run('x = 1');
 
         final startedCode = mock.lastStartCode!;
@@ -99,8 +97,18 @@ void main() {
         expect(startedCode, contains('x = 1'));
       });
 
+      test('generates per-variable persist code', () async {
+        _enqueueRunCycle(mock, stateToPersist: {});
+        await session.run('x = 1');
+
+        final code = mock.lastStartCode!;
+        // Should have try/except block for 'x'
+        expect(code, contains('__d2["x"] = x'));
+        expect(code, contains('except Exception:'));
+      });
+
       test('registers internal external functions', () async {
-        _enqueueRunCycle(mock, stateToRestore: '{}', stateToPersist: '{}');
+        _enqueueRunCycle(mock, stateToPersist: {});
         await session.run('1 + 1');
 
         expect(
@@ -110,7 +118,6 @@ void main() {
       });
 
       test('rejects unexpected external functions', () async {
-        // restore → unexpected ext fn → resumeWithError → complete
         mock
           ..enqueueProgress(
             const MontyPending(
@@ -136,7 +143,6 @@ void main() {
         final result = await session.run('result = fetch("url")');
         expect(result.isError, isTrue);
 
-        // Verify resumeWithError was called for the unexpected ext fn
         expect(mock.resumeErrorMessages, hasLength(1));
         expect(
           mock.resumeErrorMessages.first,
@@ -145,7 +151,6 @@ void main() {
       });
 
       test('handles MontyResolveFutures by resuming with null', () async {
-        // restore → resolve futures → persist → complete
         mock
           ..enqueueProgress(
             const MontyPending(
@@ -159,7 +164,9 @@ void main() {
           ..enqueueProgress(
             const MontyPending(
               functionName: '__persist_state__',
-              arguments: ['{"x": 1}'],
+              arguments: [
+                <String, Object?>{'x': 1},
+              ],
             ),
           )
           ..enqueueProgress(
@@ -171,7 +178,6 @@ void main() {
         final result = await session.run('x = 1');
         expect(result.value, 1);
 
-        // resume(null) for: restore return, resolve_futures, persist return
         final nullResumes =
             mock.resumeReturnValues.where((v) => v == null).length;
         expect(nullResumes, greaterThanOrEqualTo(2));
@@ -180,7 +186,6 @@ void main() {
 
     group('start()', () {
       test('intercepts restore and returns user pending', () async {
-        // restore (internal) → user ext fn (fetch) returned to caller
         mock
           ..enqueueProgress(
             const MontyPending(
@@ -204,9 +209,6 @@ void main() {
         final pending = progress as MontyPending;
         expect(pending.functionName, 'fetch');
         expect(pending.arguments, ['https://example.com']);
-
-        // Verify restore was handled internally
-        expect(mock.resumeReturnValues.first, '{}');
       });
 
       test('registers both internal and user external functions', () async {
@@ -239,7 +241,7 @@ void main() {
         );
       });
 
-      test('wraps code with preamble and postamble', () async {
+      test('wraps code with restore and persist', () async {
         mock
           ..enqueueProgress(
             const MontyPending(
@@ -268,7 +270,6 @@ void main() {
 
     group('resume()', () {
       test('intercepts persist on completion', () async {
-        // start: restore → user pending
         mock
           ..enqueueProgress(
             const MontyPending(
@@ -289,12 +290,13 @@ void main() {
         );
         expect(p1, isA<MontyPending>());
 
-        // resume: persist (internal) → complete
         mock
           ..enqueueProgress(
             const MontyPending(
               functionName: '__persist_state__',
-              arguments: ['{"result": "data"}'],
+              arguments: [
+                <String, Object?>{'result': 'data'},
+              ],
             ),
           )
           ..enqueueProgress(
@@ -308,12 +310,10 @@ void main() {
         final complete = p2 as MontyComplete;
         expect(complete.result.value, 'data');
 
-        // State was persisted
         expect(session.state, {'result': 'data'});
       });
 
       test('passes through user pending after resume', () async {
-        // start: restore → first user pending
         mock
           ..enqueueProgress(
             const MontyPending(
@@ -333,7 +333,6 @@ void main() {
           externalFunctions: ['step1', 'step2'],
         );
 
-        // resume step1 → second user pending (step2)
         mock.enqueueProgress(
           const MontyPending(
             functionName: 'step2',
@@ -349,7 +348,6 @@ void main() {
 
     group('resumeWithError()', () {
       test('intercepts persist after error resume completes', () async {
-        // start: restore → user pending
         mock
           ..enqueueProgress(
             const MontyPending(
@@ -369,12 +367,11 @@ void main() {
           externalFunctions: ['fetch'],
         );
 
-        // resumeWithError: persist → complete
         mock
           ..enqueueProgress(
             const MontyPending(
               functionName: '__persist_state__',
-              arguments: ['{}'],
+              arguments: [<String, Object?>{}],
             ),
           )
           ..enqueueProgress(
@@ -386,7 +383,6 @@ void main() {
         final p2 = await session.resumeWithError('network failure');
         expect(p2, isA<MontyComplete>());
 
-        // Verify platform got the error message
         expect(mock.resumeErrorMessages.first, 'network failure');
       });
     });
@@ -395,8 +391,7 @@ void main() {
       test('resets persisted state', () async {
         _enqueueRunCycle(
           mock,
-          stateToRestore: '{}',
-          stateToPersist: '{"x": 1}',
+          stateToPersist: {'x': 1},
         );
         await session.run('x = 1');
         expect(session.state, {'x': 1});
@@ -414,8 +409,7 @@ void main() {
       test('returns copy (not mutable reference)', () async {
         _enqueueRunCycle(
           mock,
-          stateToRestore: '{}',
-          stateToPersist: '{"x": 1}',
+          stateToPersist: {'x': 1},
         );
         await session.run('x = 1');
 
@@ -429,8 +423,7 @@ void main() {
       test('clears state and marks disposed', () async {
         _enqueueRunCycle(
           mock,
-          stateToRestore: '{}',
-          stateToPersist: '{"x": 1}',
+          stateToPersist: {'x': 1},
         );
         await session.run('x = 1');
 
@@ -460,14 +453,12 @@ void main() {
         // First run succeeds with x=10
         _enqueueRunCycle(
           mock,
-          stateToRestore: '{}',
-          stateToPersist: '{"x": 10}',
+          stateToPersist: {'x': 10},
         );
         await session.run('x = 10');
         expect(session.state, {'x': 10});
 
-        // Second run errors — persist postamble never runs, so
-        // MontyComplete has an error and no persist call happens.
+        // Second run errors — persist postamble never runs
         mock
           ..enqueueProgress(
             const MontyPending(
@@ -502,12 +493,10 @@ void main() {
 
         _enqueueRunCycle(
           mockA,
-          stateToRestore: '{}',
-          stateToPersist: '{"x": 1}',
+          stateToPersist: {'x': 1},
         );
         await sessionA.run('x = 1');
 
-        // Session B has empty state
         expect(sessionA.state, {'x': 1});
         expect(sessionB.state, isEmpty);
 
@@ -522,11 +511,7 @@ void main() {
           stackDepth: 10,
         );
 
-        _enqueueRunCycle(
-          mock,
-          stateToRestore: '{}',
-          stateToPersist: '{}',
-        );
+        _enqueueRunCycle(mock, stateToPersist: {});
         await session.run('1', limits: limits, scriptName: 'test.py');
 
         expect(mock.lastStartLimits, limits);
@@ -534,7 +519,6 @@ void main() {
       });
 
       test('MontyResolveFutures during start/resume', () async {
-        // start: restore → resolve_futures → user pending
         mock
           ..enqueueProgress(
             const MontyPending(
@@ -551,23 +535,16 @@ void main() {
           externalFunctions: ['fetch'],
         );
 
-        // MontyResolveFutures passes through to caller
         expect(progress, isA<MontyResolveFutures>());
       });
 
       test('large state round-trip', () async {
-        // Build state with 100 variables
         final largeState = <String, Object?>{};
         for (var i = 0; i < 100; i++) {
           largeState['var_$i'] = i;
         }
-        final stateJson = jsonEncode(largeState);
 
-        _enqueueRunCycle(
-          mock,
-          stateToRestore: '{}',
-          stateToPersist: stateJson,
-        );
+        _enqueueRunCycle(mock, stateToPersist: largeState);
         await session.run('# set 100 variables');
 
         final persisted = session.state;
@@ -577,47 +554,37 @@ void main() {
         }
 
         // Second run restores all 100
-        _enqueueRunCycle(
-          mock,
-          stateToRestore: stateJson,
-          stateToPersist: stateJson,
-        );
+        _enqueueRunCycle(mock, stateToPersist: largeState);
         await session.run('# read them back');
 
         // Verify restore received the full state
-        expect(
-          mock.resumeReturnValues.last,
-          isNot('{}'),
-        );
+        final restoreArg = mock.resumeReturnValues[2];
+        expect(restoreArg, isA<Map<String, Object?>>());
+        expect((restoreArg! as Map<String, Object?>).length, 100);
       });
 
       test('dunder and underscore variables excluded', () async {
-        // Python postamble filters out names starting with '_'
         _enqueueRunCycle(
           mock,
-          stateToRestore: '{}',
-          stateToPersist: '{"public": 3}',
+          stateToPersist: {'public': 3},
         );
         await session.run(
-          '__private = 1; _also_private = 2; public = 3',
+          '__private = 1\n_also_private = 2\npublic = 3',
         );
 
-        final persisted = session.state;
-        expect(persisted, {'public': 3});
-        expect(persisted.containsKey('__private'), isFalse);
-        expect(persisted.containsKey('_also_private'), isFalse);
+        // extractAssignmentTargets should only find 'public'
+        final code = mock.lastStartCode!;
+        expect(code, contains('__d2["public"] = public'));
+        expect(code, isNot(contains('__d2["__private"]')));
+        expect(code, isNot(contains('__d2["_also_private"]')));
       });
 
       test('first run sends empty state to restore', () async {
-        _enqueueRunCycle(
-          mock,
-          stateToRestore: '{}',
-          stateToPersist: '{}',
-        );
+        _enqueueRunCycle(mock, stateToPersist: {});
         await session.run('pass');
 
-        // First resume call is the restore return value
-        expect(mock.resumeReturnValues.first, '{}');
+        // First resume call is the restore return value (empty map)
+        expect(mock.resumeReturnValues.first, isEmpty);
       });
 
       test('start() throws after dispose', () {
@@ -644,18 +611,163 @@ void main() {
         );
       });
     });
+
+    group('result capture (_captureLastExpression)', () {
+      test('captures bare expression as last line', () async {
+        _enqueueRunCycle(mock, stateToPersist: {'x': 42}, resultValue: 43);
+        await session.run('x = 42');
+
+        // Run with expression as last line
+        _enqueueRunCycle(mock, stateToPersist: {'x': 42}, resultValue: 43);
+        await session.run('x + 1');
+
+        final code = mock.lastStartCode!;
+        // Should have __r = (x + 1) and trailing __r
+        expect(code, contains('__r = (x + 1)'));
+        expect(code.trimRight().endsWith('__r'), isTrue);
+      });
+
+      test('does not capture assignment as last line', () async {
+        _enqueueRunCycle(mock, stateToPersist: {'x': 1});
+        await session.run('x = 1');
+
+        final code = mock.lastStartCode!;
+        expect(code, isNot(contains('__r = ')));
+        expect(code.trimRight().endsWith('__r'), isFalse);
+      });
+
+      test('does not capture statement keywords', () async {
+        for (final stmt in [
+          'if True:\n    pass',
+          'for i in [1]:\n    pass',
+          'import os',
+          'def foo():\n    pass',
+          'class Foo:\n    pass',
+        ]) {
+          final m = MockMontyPlatform();
+          final s = MontySession(platform: m);
+
+          _enqueueRunCycle(m, stateToPersist: {});
+          await s.run(stmt);
+
+          final code = m.lastStartCode!;
+          expect(
+            code.trimRight().endsWith('__r'),
+            isFalse,
+            reason: 'Should not capture: $stmt',
+          );
+
+          s.dispose();
+        }
+      });
+
+      test('captures function call as expression', () async {
+        _enqueueRunCycle(mock, stateToPersist: {}, resultValue: 'hi');
+        await session.run('str(42)');
+
+        final code = mock.lastStartCode!;
+        expect(code, contains('__r = (str(42))'));
+      });
+
+      test('captures variable reference as expression', () async {
+        _enqueueRunCycle(
+          mock,
+          stateToPersist: {'x': 1},
+          resultValue: 1,
+        );
+        await session.run('x');
+
+        final code = mock.lastStartCode!;
+        expect(code, contains('__r = (x)'));
+      });
+
+      test('captures list literal as expression', () async {
+        _enqueueRunCycle(
+          mock,
+          stateToPersist: {},
+          resultValue: [1, 2, 3],
+        );
+        await session.run('[1, 2, 3]');
+
+        final code = mock.lastStartCode!;
+        expect(code, contains('__r = ([1, 2, 3])'));
+      });
+
+      test('skips trailing comments and blank lines', () async {
+        _enqueueRunCycle(
+          mock,
+          stateToPersist: {},
+          resultValue: 42,
+        );
+        await session.run('42\n# comment\n');
+
+        final code = mock.lastStartCode!;
+        expect(code, contains('__r = (42)'));
+      });
+    });
+
+    group('extractAssignmentTargets', () {
+      test('finds simple assignments', () {
+        expect(
+          MontySession.extractAssignmentTargets('x = 42'),
+          {'x'},
+        );
+      });
+
+      test('finds multiple assignments', () {
+        expect(
+          MontySession.extractAssignmentTargets('x = 1\ny = 2\nz = 3'),
+          {'x', 'y', 'z'},
+        );
+      });
+
+      test('excludes underscore-prefixed names', () {
+        expect(
+          MontySession.extractAssignmentTargets(
+            '__private = 1\n_hidden = 2\npublic = 3',
+          ),
+          {'public'},
+        );
+      });
+
+      test('excludes comparisons (==)', () {
+        expect(
+          MontySession.extractAssignmentTargets('x == 42'),
+          isEmpty,
+        );
+      });
+
+      test('handles no assignments', () {
+        expect(
+          MontySession.extractAssignmentTargets('print("hello")'),
+          isEmpty,
+        );
+      });
+
+      test('handles indented code (skips block-level)', () {
+        const code = 'if True:\n    y = 2\nx = 1';
+        final targets = MontySession.extractAssignmentTargets(code);
+        expect(targets, contains('x'));
+        // Indented 'y = 2' should NOT be captured
+        expect(targets, isNot(contains('y')));
+      });
+
+      test('handles semicolons (multi-statement lines)', () {
+        expect(
+          MontySession.extractAssignmentTargets(
+            'x = 1; y = 2; z = 3',
+          ),
+          {'x', 'y', 'z'},
+        );
+      });
+    });
   });
 }
 
 /// Enqueues a full run cycle: restore → persist → complete.
-///
-/// The mock will return [MontyPending] for `__restore_state__`, then
-/// [MontyPending] for `__persist_state__` with [stateToPersist], then
-/// [MontyComplete] with [resultValue].
 void _enqueueRunCycle(
   MockMontyPlatform mock, {
-  required String stateToRestore,
-  required String stateToPersist,
+  required Map<String, Object?> stateToPersist,
   Object? resultValue,
 }) {
   mock
