@@ -17,6 +17,7 @@ final class CoreRunResult {
     required this.ok,
     this.value,
     this.usage,
+    this.printOutput,
     this.error,
     this.excType,
     this.traceback,
@@ -30,6 +31,9 @@ final class CoreRunResult {
 
   /// Resource usage statistics (when available).
   final MontyResourceUsage? usage;
+
+  /// Captured Python `print()` output (when available).
+  final String? printOutput;
 
   /// Error message (when [ok] is `false`).
   final String? error;
@@ -60,6 +64,7 @@ final class CoreProgressResult {
   const CoreProgressResult({
     required this.state,
     this.value,
+    this.usage,
     this.functionName,
     this.arguments,
     this.kwargs,
@@ -76,6 +81,9 @@ final class CoreProgressResult {
 
   /// Python return value (when [state] is `'complete'`).
   final Object? value;
+
+  /// Resource usage statistics (when [state] is `'complete'`).
+  final MontyResourceUsage? usage;
 
   /// External function name (when [state] is `'pending'`).
   final String? functionName;
