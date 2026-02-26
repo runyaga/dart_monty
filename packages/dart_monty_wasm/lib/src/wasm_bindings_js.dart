@@ -71,7 +71,7 @@ class WasmBindingsJs extends WasmBindings {
       scriptName?.toJS,
     ).toDart;
     final map = json.decode(resultJson.toDart) as Map<String, dynamic>;
-    final rawTraceback = map['traceback'] as List<dynamic>?;
+    final rawTraceback = map['traceback'] as List<Object?>?;
 
     return WasmRunResult(
       ok: map['ok'] as bool,
@@ -188,8 +188,8 @@ class WasmBindingsJs extends WasmBindings {
     final map = json.decode(jsonStr) as Map<String, dynamic>;
     final args = map['args'] as List<Object?>?;
     final rawKwargs = map['kwargs'] as Map<String, dynamic>?;
-    final rawTraceback = map['traceback'] as List<dynamic>?;
-    final rawCallIds = map['pendingCallIds'] as List<dynamic>?;
+    final rawTraceback = map['traceback'] as List<Object?>?;
+    final rawCallIds = map['pendingCallIds'] as List<Object?>?;
 
     return WasmProgressResult(
       ok: map['ok'] as bool,

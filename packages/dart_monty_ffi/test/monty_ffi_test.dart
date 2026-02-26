@@ -731,11 +731,13 @@ void main() {
 
       final result = await monty.run('1/0');
       expect(result.isError, isTrue);
-      final error = result.error!;
-      expect(error.excType, 'ZeroDivisionError');
-      expect(error.traceback, hasLength(1));
-      expect(error.traceback.first.filename, 'test.py');
-      expect(error.traceback.first.startLine, 1);
+      final error = result.error;
+      expect(error, isNotNull);
+      expect(error!.excType, 'ZeroDivisionError');
+      final errorTraceback = error.traceback;
+      expect(errorTraceback, hasLength(1));
+      expect(errorTraceback.first.filename, 'test.py');
+      expect(errorTraceback.first.startLine, 1);
     });
 
     test('run error with null message uses default', () async {

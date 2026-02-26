@@ -32,10 +32,10 @@ void main() {
     test('loads and sorts tier files', () {
       final tiers = loadLadderFixtures(tempDir);
       expect(tiers.length, 2);
-      expect(tiers[0].$1, 'tier_01_basics');
+      expect(tiers.first.$1, 'tier_01_basics');
       expect(tiers[1].$1, 'tier_02_vars');
-      expect(tiers[0].$2.length, 1);
-      expect(tiers[0].$2.first['id'], 1);
+      expect(tiers.first.$2.length, 1);
+      expect(tiers.first.$2.first['id'], 1);
     });
 
     test('ignores non-JSON files', () {

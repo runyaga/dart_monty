@@ -13,6 +13,7 @@
 library;
 
 void main() {
-  // This package registers itself automatically.
-  // See the dart_monty package for usage examples.
+  // This package registers itself automatically via Flutter's federated
+  // plugin system. See the dart_monty package for usage examples.
+  assert(true, 'dart_monty_desktop registered');
 }

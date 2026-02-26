@@ -35,9 +35,9 @@ See `docs/refactoring-plan.md` for the full plan.
 | 4 | State Machine Consolidation (mixin extraction) | Medium | **Done** |
 | 5 | Shared Test Harness (contract tests) | Medium | **Done** |
 | 6 | Web Package Simplification | **High** | **Done** |
-| 7 | Desktop & WASM Refinement + iOS Prep | Low-Medium | Pending |
-| 8 | Rust Crate Consolidation | **Highest** | Pending |
-| 9 | DCM Lint Cleanup | Low | Pending |
+| 7 | Desktop & WASM Refinement + iOS Prep | Low-Medium | **Done** |
+| 8 | Rust Crate Consolidation | **Highest** | **Done** |
+| 9 | DCM Lint Cleanup | Low | **Done** |
 
 **Release:** All slices ship together as **0.5.0** (includes demo
 consolidation, dartdoc enforcement, and optional package rename

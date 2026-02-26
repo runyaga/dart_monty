@@ -126,7 +126,12 @@ final class _GenericErrorResponse extends _Response {
 // Isolate entry point
 // =============================================================================
 
-Future<void> _isolateEntryPoint(_InitMessage init) async {
+/// Sync wrapper for [Isolate.spawn] which expects `void Function(T)`.
+void _isolateEntryPoint(_InitMessage init) {
+  unawaited(_isolateMain(init));
+}
+
+Future<void> _isolateMain(_InitMessage init) async {
   final receivePort = ReceivePort();
   init.mainSendPort.send(_ReadyMessage(receivePort.sendPort));
 
@@ -196,6 +201,7 @@ Future<void> _isolateEntryPoint(_InitMessage init) async {
           await monty.dispose();
           init.mainSendPort.send(_DisposeResponse(id));
           receivePort.close();
+
           return;
       }
     } on MontyException catch (e) {
@@ -237,17 +243,20 @@ class DesktopBindingsIsolate extends DesktopBindings {
 
   @override
   Future<bool> init() async {
-    _receivePort = ReceivePort();
+    final receivePort = ReceivePort();
+    _receivePort = receivePort;
     final completer = Completer<SendPort>();
 
-    _receivePort!.listen((message) {
+    receivePort.listen((message) {
       if (message is _ReadyMessage) {
         completer.complete(message.sendPort);
+
         return;
       }
       if (message is _Response) {
         final pending = _pending.remove(message.id);
         pending?.complete(message);
+
         return;
       }
       // Isolate exit (null) or error (List<String>) — fail pending futures.
@@ -259,48 +268,19 @@ class DesktopBindingsIsolate extends DesktopBindings {
       _failAllPending('Isolate exited unexpectedly: $message');
     });
 
-    _isolate = await Isolate.spawn(
+    final isolate = await Isolate.spawn(
       _isolateEntryPoint,
-      _InitMessage(_receivePort!.sendPort, libraryPath: libraryPath),
+      _InitMessage(receivePort.sendPort, libraryPath: libraryPath),
     );
+    _isolate = isolate;
 
-    _isolate!.addOnExitListener(
-      _receivePort!.sendPort,
-    );
-
-    _isolate!.addErrorListener(_receivePort!.sendPort);
+    isolate
+      ..addOnExitListener(receivePort.sendPort)
+      ..addErrorListener(receivePort.sendPort);
 
     _sendPort = await completer.future;
+
     return true;
-  }
-
-  Future<T> _send<T extends _Response>(_Request request) {
-    if (_sendPort == null) {
-      throw StateError('Isolate not initialized. Call init() first.');
-    }
-    final completer = Completer<_Response>();
-    _pending[request.id] = completer;
-    _sendPort!.send(request);
-
-    return completer.future.then((response) {
-      if (response is _ErrorResponse) {
-        throw response.exception;
-      }
-      if (response is _GenericErrorResponse) {
-        throw StateError(response.message);
-      }
-      return response as T;
-    });
-  }
-
-  void _failAllPending(String message) {
-    final pending = Map<int, Completer<_Response>>.of(_pending);
-    _pending.clear();
-    for (final completer in pending.values) {
-      if (!completer.isCompleted) {
-        completer.completeError(MontyException(message: message));
-      }
-    }
   }
 
   @override
@@ -312,6 +292,7 @@ class DesktopBindingsIsolate extends DesktopBindings {
     final response = await _send<_RunResponse>(
       _RunRequest(_nextId++, code, limits: limits, scriptName: scriptName),
     );
+
     return response.result;
   }
 
@@ -331,6 +312,7 @@ class DesktopBindingsIsolate extends DesktopBindings {
         scriptName: scriptName,
       ),
     );
+
     return response.progress;
   }
 
@@ -339,6 +321,7 @@ class DesktopBindingsIsolate extends DesktopBindings {
     final response = await _send<_ProgressResponse>(
       _ResumeRequest(_nextId++, returnValue),
     );
+
     return response.progress;
   }
 
@@ -347,6 +330,7 @@ class DesktopBindingsIsolate extends DesktopBindings {
     final response = await _send<_ProgressResponse>(
       _ResumeWithErrorRequest(_nextId++, errorMessage),
     );
+
     return response.progress;
   }
 
@@ -355,6 +339,7 @@ class DesktopBindingsIsolate extends DesktopBindings {
     final response = await _send<_ProgressResponse>(
       _ResumeAsFutureRequest(_nextId++),
     );
+
     return response.progress;
   }
 
@@ -366,6 +351,7 @@ class DesktopBindingsIsolate extends DesktopBindings {
     final response = await _send<_ProgressResponse>(
       _ResolveFuturesRequest(_nextId++, results, errors: errors),
     );
+
     return response.progress;
   }
 
@@ -374,6 +360,7 @@ class DesktopBindingsIsolate extends DesktopBindings {
     final response = await _send<_SnapshotResponse>(
       _SnapshotRequest(_nextId++),
     );
+
     return response.data;
   }
 
@@ -397,6 +384,40 @@ class DesktopBindingsIsolate extends DesktopBindings {
       _isolate = null;
       _sendPort = null;
       _receivePort = null;
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Private helpers
+  // ---------------------------------------------------------------------------
+
+  Future<T> _send<T extends _Response>(_Request request) {
+    if (_sendPort == null) {
+      throw StateError('Isolate not initialized. Call init() first.');
+    }
+    final completer = Completer<_Response>();
+    _pending[request.id] = completer;
+    _sendPort?.send(request);
+
+    return completer.future.then((response) {
+      if (response is _ErrorResponse) {
+        throw response.exception;
+      }
+      if (response is _GenericErrorResponse) {
+        throw StateError(response.message);
+      }
+
+      return response as T;
+    });
+  }
+
+  void _failAllPending(String message) {
+    final pending = Map<int, Completer<_Response>>.of(_pending);
+    _pending.clear();
+    for (final completer in pending.values) {
+      if (!completer.isCompleted) {
+        completer.completeError(MontyException(message: message));
+      }
     }
   }
 }

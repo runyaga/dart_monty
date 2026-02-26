@@ -35,12 +35,12 @@ class NativeBindingsFfi extends NativeBindings {
     String? scriptName,
   }) {
     final cCode = code.toNativeUtf8().cast<Char>();
+    final nullChar = nullptr.cast<Char>();
     final cExtFns = externalFunctions != null
         ? externalFunctions.toNativeUtf8().cast<Char>()
-        : nullptr.cast<Char>();
-    final cScriptName = scriptName != null
-        ? scriptName.toNativeUtf8().cast<Char>()
-        : nullptr.cast<Char>();
+        : nullChar;
+    final cScriptName =
+        scriptName != null ? scriptName.toNativeUtf8().cast<Char>() : nullChar;
     final outError = calloc<Pointer<Char>>();
 
     try {

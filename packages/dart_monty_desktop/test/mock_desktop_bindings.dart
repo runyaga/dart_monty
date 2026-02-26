@@ -45,6 +45,12 @@ class MockDesktopBindings extends DesktopBindings {
   /// If non-null, [dispose] throws this as a [MontyException].
   String? nextDisposeError;
 
+  /// Queue of results returned by [resumeAsFuture]. Dequeues on each call.
+  final List<MontyProgress> resumeAsFutureResults = [];
+
+  /// Queue of results returned by [resolveFutures]. Dequeues on each call.
+  final List<MontyProgress> resolveFuturesResults = [];
+
   // ---------------------------------------------------------------------------
   // Call tracking
   // ---------------------------------------------------------------------------
@@ -81,6 +87,25 @@ class MockDesktopBindings extends DesktopBindings {
   /// Number of times [dispose] was called.
   int disposeCalls = 0;
 
+  /// Number of times [resumeAsFuture] was called.
+  int resumeAsFutureCalls = 0;
+
+  /// Records of results passed to [resolveFutures].
+  final List<Map<int, Object?>> resolveFuturesCalls = [];
+
+  /// Records of errors passed to [resolveFutures], in call order.
+  final List<Map<int, String>?> resolveFuturesErrorsCalls = [];
+
+  // ---------------------------------------------------------------------------
+  // Private
+  // ---------------------------------------------------------------------------
+
+  static const _zeroUsage = MontyResourceUsage(
+    memoryBytesUsed: 0,
+    timeElapsedMs: 0,
+    stackDepthUsed: 0,
+  );
+
   // ---------------------------------------------------------------------------
   // Implementation
   // ---------------------------------------------------------------------------
@@ -88,6 +113,7 @@ class MockDesktopBindings extends DesktopBindings {
   @override
   Future<bool> init() async {
     initCalls++;
+
     return nextInitResult;
   }
 
@@ -98,6 +124,7 @@ class MockDesktopBindings extends DesktopBindings {
     String? scriptName,
   }) async {
     runCalls.add((code: code, limits: limits, scriptName: scriptName));
+
     return nextRunResult;
   }
 
@@ -116,6 +143,7 @@ class MockDesktopBindings extends DesktopBindings {
         scriptName: scriptName,
       ),
     );
+
     return nextStartResult;
   }
 
@@ -123,6 +151,7 @@ class MockDesktopBindings extends DesktopBindings {
   Future<MontyProgress> resume(Object? returnValue) async {
     resumeCalls.add(returnValue);
     if (resumeResults.isNotEmpty) return resumeResults.removeAt(0);
+
     return const MontyComplete(
       result: MontyResult(usage: _zeroUsage),
     );
@@ -134,25 +163,11 @@ class MockDesktopBindings extends DesktopBindings {
     if (resumeWithErrorResults.isNotEmpty) {
       return resumeWithErrorResults.removeAt(0);
     }
+
     return const MontyComplete(
       result: MontyResult(usage: _zeroUsage),
     );
   }
-
-  /// Queue of results returned by [resumeAsFuture]. Dequeues on each call.
-  final List<MontyProgress> resumeAsFutureResults = [];
-
-  /// Number of times [resumeAsFuture] was called.
-  int resumeAsFutureCalls = 0;
-
-  /// Queue of results returned by [resolveFutures]. Dequeues on each call.
-  final List<MontyProgress> resolveFuturesResults = [];
-
-  /// Records of results passed to [resolveFutures].
-  final List<Map<int, Object?>> resolveFuturesCalls = [];
-
-  /// Records of errors passed to [resolveFutures], in call order.
-  final List<Map<int, String>?> resolveFuturesErrorsCalls = [];
 
   @override
   Future<MontyProgress> resumeAsFuture() async {
@@ -160,6 +175,7 @@ class MockDesktopBindings extends DesktopBindings {
     if (resumeAsFutureResults.isNotEmpty) {
       return resumeAsFutureResults.removeAt(0);
     }
+
     return const MontyResolveFutures(pendingCallIds: [0]);
   }
 
@@ -173,6 +189,7 @@ class MockDesktopBindings extends DesktopBindings {
     if (resolveFuturesResults.isNotEmpty) {
       return resolveFuturesResults.removeAt(0);
     }
+
     return const MontyComplete(
       result: MontyResult(usage: _zeroUsage),
     );
@@ -181,31 +198,29 @@ class MockDesktopBindings extends DesktopBindings {
   @override
   Future<Uint8List> snapshot() async {
     snapshotCalls++;
-    if (nextSnapshotError != null) {
-      throw MontyException(message: nextSnapshotError!);
+    final error = nextSnapshotError;
+    if (error != null) {
+      throw MontyException(message: error);
     }
+
     return nextSnapshotData;
   }
 
   @override
   Future<void> restore(Uint8List data) async {
     restoreCalls.add(data);
-    if (nextRestoreError != null) {
-      throw MontyException(message: nextRestoreError!);
+    final error = nextRestoreError;
+    if (error != null) {
+      throw MontyException(message: error);
     }
   }
 
   @override
   Future<void> dispose() async {
     disposeCalls++;
-    if (nextDisposeError != null) {
-      throw MontyException(message: nextDisposeError!);
+    final error = nextDisposeError;
+    if (error != null) {
+      throw MontyException(message: error);
     }
   }
-
-  static const _zeroUsage = MontyResourceUsage(
-    memoryBytesUsed: 0,
-    timeElapsedMs: 0,
-    stackDepthUsed: 0,
-  );
 }

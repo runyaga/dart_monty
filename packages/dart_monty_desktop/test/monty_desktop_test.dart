@@ -456,10 +456,13 @@ void main() {
       );
 
       expect(progress, isA<MontyComplete>());
-      expect(mock.resolveFuturesCalls, hasLength(1));
-      expect(mock.resolveFuturesCalls.first, {0: 'ok'});
-      expect(mock.resolveFuturesErrorsCalls, hasLength(1));
-      expect(mock.resolveFuturesErrorsCalls.first, {1: 'network error'});
+      final singleElement = hasLength(1);
+      final futuresCalls = mock.resolveFuturesCalls;
+      expect(futuresCalls, singleElement);
+      expect(futuresCalls.first, {0: 'ok'});
+      final futuresErrorsCalls = mock.resolveFuturesErrorsCalls;
+      expect(futuresErrorsCalls, singleElement);
+      expect(futuresErrorsCalls.first, {1: 'network error'});
     });
 
     test('throws StateError when idle', () {
