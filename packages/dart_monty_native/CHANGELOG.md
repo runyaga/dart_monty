@@ -1,4 +1,7 @@
-## Unreleased
+## 0.6.1
+
+- Update README with usage section and human/AI attribution
+- Update `example/example.dart` doc comments
 
 ## 0.6.0
 

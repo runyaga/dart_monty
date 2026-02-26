@@ -1,4 +1,7 @@
-## Unreleased
+## 0.6.1
+
+- Update README with human/AI attribution
+- Enrich `example/example.dart` with all model types, error variants, traceback frames, and sealed-type pattern matching
 
 ## 0.6.0
 

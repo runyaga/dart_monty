@@ -1,6 +1,6 @@
 name: dart_monty_native
 description: Native plugin for dart_monty (replaces dart_monty_desktop). Pure Dart bindings for Monty — a restricted sandboxed Python interpreter built in Rust.
-version: 0.6.0
+version: 0.6.1
 homepage: https://github.com/runyaga/dart_monty
 repository: https://github.com/runyaga/dart_monty
 issue_tracker: https://github.com/runyaga/dart_monty/issues
