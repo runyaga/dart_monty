@@ -1,5 +1,13 @@
 ## Unreleased
 
+## 0.5.0
+
+- **BREAKING:** Collapse `DartMontyWeb` from a full `MontyPlatform` pass-through to a registration-only shim
+- Remove `extends MontyPlatform`, all delegating methods, and `withBindings()` test constructor
+- All execution now handled directly by `MontyWasm` from `dart_monty_wasm`
+- Remove `meta` and `web` dependencies (no longer imported)
+- Replace 846 lines of delegation tests with a single registration test
+
 ## 0.4.3
 
 - Version bump (no package code changes)

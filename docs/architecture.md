@@ -176,11 +176,34 @@ WASM) must produce identical `MontyResult` values and identical
 
 ## Execution Paths — Web
 
-> *Filled by Slice 6: Web Package Simplification*
+`DartMontyWeb` exists solely to satisfy Flutter's federated plugin convention.
+It contains no logic — `registerWith()` sets `MontyPlatform.instance` to a
+`MontyWasm` instance, and all subsequent calls go through `MontyWasm` directly:
 
-<!-- Document the web execution path: DartMontyWeb -> MontyWasm -> JS bridge ->
-     Worker -> @pydantic/monty WASM. Why DartMontyWeb exists (Flutter convention)
-     and what it does NOT do. COOP/COEP requirements. Worker lifecycle. -->
+```text
+Flutter app
+  → DartMontyWeb.registerWith()     (one-time, sets MontyPlatform.instance)
+  → MontyWasm                       (extends MontyPlatform, owns state machine)
+    → WasmBindingsJs                (dart:js_interop bridge to monty_glue.js)
+      → monty_glue.js               (main-thread ↔ Worker postMessage relay)
+        → Web Worker                (imports @pydantic/monty-wasm32-wasi)
+          → @pydantic/monty WASM    (sandboxed Python interpreter)
+```
+
+**Why a Worker?** Chrome's synchronous `WebAssembly.compile()` limit is 8 MB.
+The monty WASM module exceeds this, so it must be compiled inside a Worker
+where the limit does not apply (async compile via `WebAssembly.compileStreaming`).
+
+**COOP/COEP requirements:** The web server must set `Cross-Origin-Opener-Policy:
+same-origin` and `Cross-Origin-Embedder-Policy: require-corp` headers. These
+are required for `SharedArrayBuffer`, which the Worker uses for synchronous
+communication with the main thread.
+
+**Worker lifecycle:** The Worker is created lazily on the first `MontyWasm`
+method call (`init()`). It persists for the lifetime of the `MontyWasm`
+instance and is terminated on `dispose()`. All method calls are serialized
+through the Worker's `postMessage` channel — there is no concurrent execution
+within a single `MontyWasm` instance.
 
 ---
 
