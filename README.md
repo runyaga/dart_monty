@@ -98,7 +98,7 @@ snapshot/restore under the hood:
 ```dart
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 
-final session = MontySession(MontyPlatform.instance);
+final session = MontySession(platform: MontyPlatform.instance);
 
 // Globals persist across run() calls via snapshot/restore
 await session.run('x = 42');
