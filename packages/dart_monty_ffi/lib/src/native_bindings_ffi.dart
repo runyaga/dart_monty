@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:dart_monty_ffi/src/generated/dart_monty_bindings.dart';
 import 'package:dart_monty_ffi/src/native_bindings.dart';
 import 'package:dart_monty_ffi/src/native_library_loader.dart';
+import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 import 'package:ffi/ffi.dart';
 
 /// Real FFI implementation of [NativeBindings].
@@ -35,19 +36,19 @@ class NativeBindingsFfi extends NativeBindings {
     String? scriptName,
   }) {
     final cCode = code.toNativeUtf8().cast<Char>();
+    final nullChar = nullptr.cast<Char>();
     final cExtFns = externalFunctions != null
         ? externalFunctions.toNativeUtf8().cast<Char>()
-        : nullptr.cast<Char>();
-    final cScriptName = scriptName != null
-        ? scriptName.toNativeUtf8().cast<Char>()
-        : nullptr.cast<Char>();
+        : nullChar;
+    final cScriptName =
+        scriptName != null ? scriptName.toNativeUtf8().cast<Char>() : nullChar;
     final outError = calloc<Pointer<Char>>();
 
     try {
       final handle = _lib.monty_create(cCode, cExtFns, cScriptName, outError);
       if (handle == nullptr) {
         final errorMsg = _readAndFreeString(outError.value);
-        throw StateError(errorMsg ?? 'monty_create returned null');
+        throw MontyException(message: errorMsg ?? 'monty_create returned null');
       }
 
       return handle.address;
@@ -227,7 +228,9 @@ class NativeBindingsFfi extends NativeBindings {
       final handle = _lib.monty_restore(cData, data.length, outError);
       if (handle == nullptr) {
         final errorMsg = _readAndFreeString(outError.value);
-        throw StateError(errorMsg ?? 'monty_restore returned null');
+        throw MontyException(
+          message: errorMsg ?? 'monty_restore returned null',
+        );
       }
 
       return handle.address;

@@ -55,9 +55,10 @@ void main() {
           ],
         });
         expect(exception.excType, 'NameError');
-        expect(exception.traceback, hasLength(1));
-        expect(exception.traceback[0].filename, 'script.py');
-        expect(exception.traceback[0].frameName, '<module>');
+        final traceback = exception.traceback;
+        expect(traceback, hasLength(1));
+        expect(traceback.first.filename, 'script.py');
+        expect(traceback.first.frameName, '<module>');
       });
 
       test('parses JSON with empty traceback', () {

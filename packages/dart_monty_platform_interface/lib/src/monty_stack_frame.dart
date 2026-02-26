@@ -119,7 +119,7 @@ final class MontyStackFrame {
   String toString() => 'MontyStackFrame($filename:$startLine:$startColumn)';
 
   /// Parses a JSON list of frame objects into a list of [MontyStackFrame].
-  static List<MontyStackFrame> listFromJson(List<dynamic> jsonList) {
+  static List<MontyStackFrame> listFromJson(List<Object?> jsonList) {
     return jsonList
         .cast<Map<String, dynamic>>()
         .map(MontyStackFrame.fromJson)

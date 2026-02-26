@@ -219,6 +219,7 @@ final class MontyResolveFutures extends MontyProgress {
   /// `pending_call_ids` (list of ints).
   factory MontyResolveFutures.fromJson(Map<String, dynamic> json) {
     final rawIds = json['pending_call_ids'] as List<dynamic>;
+
     return MontyResolveFutures(
       pendingCallIds: List<int>.from(rawIds),
     );

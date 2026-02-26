@@ -141,11 +141,12 @@ void assertExceptionFields(
 
   final expectedMinFrames = fixture['expectedTracebackMinFrames'] as int?;
   if (expectedMinFrames != null) {
+    final traceback = exception.traceback;
     expect(
-      exception.traceback.length,
+      traceback.length,
       greaterThanOrEqualTo(expectedMinFrames),
       reason: 'Fixture #${fixture['id']}: expected >= $expectedMinFrames '
-          'traceback frames, got: ${exception.traceback.length}',
+          'traceback frames, got: ${traceback.length}',
     );
   }
 
@@ -171,8 +172,9 @@ void assertExceptionFields(
 
   final expectedTracebackFilename =
       fixture['expectedTracebackFilename'] as String?;
-  if (expectedTracebackFilename != null && exception.traceback.isNotEmpty) {
-    final hasFilename = exception.traceback.any(
+  final tracebackFrames = exception.traceback;
+  if (expectedTracebackFilename != null && tracebackFrames.isNotEmpty) {
+    final hasFilename = tracebackFrames.any(
       (f) => f.filename == expectedTracebackFilename,
     );
     expect(

@@ -26,5 +26,6 @@ void main() {
 
 String _resolveLibraryPath() {
   final ext = Platform.isMacOS ? 'dylib' : 'so';
+
   return '../../native/target/release/libdart_monty_native.$ext';
 }

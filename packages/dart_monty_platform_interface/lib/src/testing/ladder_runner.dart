@@ -127,6 +127,7 @@ Future<void> runIterativeFixture(
                 'got: "${e.message}"',
           );
         }
+
         return;
       }
       rethrow;
@@ -134,19 +135,22 @@ Future<void> runIterativeFixture(
 
     if (expectError) {
       final errorContains = fixture['errorContains'] as String?;
+      final completeResult = progress.result;
       expect(
-        progress.result.error,
+        completeResult.error,
         isNotNull,
         reason: 'Fixture #${fixture['id']}: expected error result',
       );
       if (errorContains != null) {
+        final errorMessage = completeResult.error?.message ?? '';
         expect(
-          progress.result.error!.message.contains(errorContains),
+          errorMessage.contains(errorContains),
           isTrue,
           reason: 'Expected error containing "$errorContains", '
-              'got: "${progress.result.error!.message}"',
+              'got: "$errorMessage"',
         );
       }
+
       return;
     }
   } else if (resumeErrors != null) {

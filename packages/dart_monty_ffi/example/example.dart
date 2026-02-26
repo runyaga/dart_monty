@@ -16,8 +16,9 @@ void main() {
   // Run a simple expression.
   final handle = bindings.create('2 + 2');
   final runResult = bindings.run(handle);
-  if (runResult.resultJson != null) {
-    final json = jsonDecode(runResult.resultJson!) as Map<String, dynamic>;
+  final resultJson = runResult.resultJson;
+  if (resultJson != null) {
+    final json = jsonDecode(resultJson) as Map<String, dynamic>;
     final result = MontyResult.fromJson(json);
     print('Result: ${result.value}'); // 4
   }

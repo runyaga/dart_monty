@@ -20,22 +20,11 @@ class MontyWasm extends MontyPlatform with MontyStateMixin {
   /// Creates a [MontyWasm] with the given [bindings].
   MontyWasm({required WasmBindings bindings}) : _bindings = bindings;
 
-  @override
-  String get backendName => 'MontyWasm';
-
   final WasmBindings _bindings;
   bool _initialized = false;
 
-  /// Creates a [MontyResourceUsage] with Dart-side wall-clock timing.
-  ///
-  /// The WASM bridge does not expose `ResourceTracker`, so memory and stack
-  /// depth remain zero. Elapsed time is measured on the Dart side using
-  /// [Stopwatch] around each bindings call.
-  static MontyResourceUsage _makeUsage(int elapsedMs) => MontyResourceUsage(
-        memoryBytesUsed: 0,
-        timeElapsedMs: elapsedMs,
-        stackDepthUsed: 0,
-      );
+  @override
+  String get backendName => 'MontyWasm';
 
   /// Initializes the WASM Worker.
   ///
@@ -186,6 +175,17 @@ class MontyWasm extends MontyPlatform with MontyStateMixin {
   // Private methods
   // ---------------------------------------------------------------------------
 
+  /// Creates a [MontyResourceUsage] with Dart-side wall-clock timing.
+  ///
+  /// The WASM bridge does not expose `ResourceTracker`, so memory and stack
+  /// depth remain zero. Elapsed time is measured on the Dart side using
+  /// [Stopwatch] around each bindings call.
+  static MontyResourceUsage _makeUsage(int elapsedMs) => MontyResourceUsage(
+        memoryBytesUsed: 0,
+        timeElapsedMs: elapsedMs,
+        stackDepthUsed: 0,
+      );
+
   Future<void> _ensureInitialized() async {
     if (!_initialized) {
       await initialize();
@@ -253,7 +253,7 @@ class MontyWasm extends MontyPlatform with MontyStateMixin {
 
   String? _encodeLimits(MontyLimits? limits) {
     if (limits == null) return null;
-    final map = <String, dynamic>{};
+    final map = <String, Object>{};
     if (limits.memoryBytes case final bytes?) {
       map['memory_bytes'] = bytes;
     }
@@ -268,7 +268,7 @@ class MontyWasm extends MontyPlatform with MontyStateMixin {
     return json.encode(map);
   }
 
-  List<MontyStackFrame> _parseTraceback(List<dynamic>? raw) {
+  List<MontyStackFrame> _parseTraceback(List<Object?>? raw) {
     if (raw == null || raw.isEmpty) return const [];
 
     return MontyStackFrame.listFromJson(raw);

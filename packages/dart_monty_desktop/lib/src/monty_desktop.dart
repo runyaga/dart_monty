@@ -20,11 +20,11 @@ class MontyDesktop extends MontyPlatform with MontyStateMixin {
   /// Creates a [MontyDesktop] with the given [bindings].
   MontyDesktop({required DesktopBindings bindings}) : _bindings = bindings;
 
-  @override
-  String get backendName => 'MontyDesktop';
-
   final DesktopBindings _bindings;
   bool _initialized = false;
+
+  @override
+  String get backendName => 'MontyDesktop';
 
   /// Initializes the background Isolate.
   ///
@@ -41,12 +41,6 @@ class MontyDesktop extends MontyPlatform with MontyStateMixin {
     _initialized = true;
   }
 
-  Future<void> _ensureInitialized() async {
-    if (!_initialized) {
-      await initialize();
-    }
-  }
-
   @override
   Future<MontyResult> run(
     String code, {
@@ -59,12 +53,11 @@ class MontyDesktop extends MontyPlatform with MontyStateMixin {
     rejectInputs(inputs);
     await _ensureInitialized();
 
-    final result = await _bindings.run(
+    return _bindings.run(
       code,
       limits: limits,
       scriptName: scriptName,
     );
-    return result;
   }
 
   @override
@@ -86,6 +79,7 @@ class MontyDesktop extends MontyPlatform with MontyStateMixin {
       limits: limits,
       scriptName: scriptName,
     );
+
     return _handleProgress(progress);
   }
 
@@ -95,6 +89,7 @@ class MontyDesktop extends MontyPlatform with MontyStateMixin {
     assertActive('resume');
 
     final progress = await _bindings.resume(returnValue);
+
     return _handleProgress(progress);
   }
 
@@ -104,6 +99,7 @@ class MontyDesktop extends MontyPlatform with MontyStateMixin {
     assertActive('resumeWithError');
 
     final progress = await _bindings.resumeWithError(errorMessage);
+
     return _handleProgress(progress);
   }
 
@@ -113,6 +109,7 @@ class MontyDesktop extends MontyPlatform with MontyStateMixin {
     assertActive('resumeAsFuture');
 
     final progress = await _bindings.resumeAsFuture();
+
     return _handleProgress(progress);
   }
 
@@ -125,11 +122,12 @@ class MontyDesktop extends MontyPlatform with MontyStateMixin {
     assertActive('resolveFutures');
 
     final progress = await _bindings.resolveFutures(results, errors: errors);
+
     return _handleProgress(progress);
   }
 
   @override
-  Future<Uint8List> snapshot() async {
+  Future<Uint8List> snapshot() {
     assertNotDisposed('snapshot');
     assertActive('snapshot');
 
@@ -142,10 +140,10 @@ class MontyDesktop extends MontyPlatform with MontyStateMixin {
     assertIdle('restore');
 
     await _bindings.restore(data);
-    final restored = MontyDesktop(bindings: _bindings)
+
+    return MontyDesktop(bindings: _bindings)
       .._initialized = _initialized
       ..markActive();
-    return restored;
   }
 
   @override
@@ -159,18 +157,26 @@ class MontyDesktop extends MontyPlatform with MontyStateMixin {
   }
 
   // ---------------------------------------------------------------------------
-  // Progress handling
+  // Private helpers
   // ---------------------------------------------------------------------------
+
+  Future<void> _ensureInitialized() async {
+    if (!_initialized) {
+      await initialize();
+    }
+  }
 
   MontyProgress _handleProgress(MontyProgress progress) {
     switch (progress) {
       case MontyComplete():
         markIdle();
+
         return progress;
 
       case MontyPending():
       case MontyResolveFutures():
         markActive();
+
         return progress;
     }
   }

@@ -27,9 +27,11 @@ void main() {
 
     expect(result.value, 4);
     expect(result.isError, isFalse);
-    expect(result.usage.memoryBytesUsed, greaterThanOrEqualTo(0));
-    expect(result.usage.timeElapsedMs, greaterThanOrEqualTo(0));
-    expect(result.usage.stackDepthUsed, greaterThanOrEqualTo(0));
+    final usage = result.usage;
+    final nonNegative = greaterThanOrEqualTo(0);
+    expect(usage.memoryBytesUsed, nonNegative);
+    expect(usage.timeElapsedMs, nonNegative);
+    expect(usage.stackDepthUsed, nonNegative);
 
     await monty.dispose();
   });
@@ -126,5 +128,6 @@ void main() {
 
 String _resolveLibraryPath() {
   final ext = Platform.isMacOS ? 'dylib' : 'so';
+
   return '../../native/target/release/libdart_monty_native.$ext';
 }

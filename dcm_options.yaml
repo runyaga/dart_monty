@@ -103,6 +103,8 @@ dcm:
     - avoid-non-null-assertion:
         exclude:
           - "lib/src/monty_platform.dart"
+          - "test/**"
+          - "**/example/**"
 
     # --- Architecture Safety ---
     - avoid-banned-imports:
