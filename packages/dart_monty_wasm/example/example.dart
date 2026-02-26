@@ -49,6 +49,7 @@ Future<void> _externalFunctionDispatch(MontyWasm monty) async {
 
   while (progress is MontyPending) {
     print('Python called: ${progress.functionName}(${progress.arguments})');
+    // Your app fulfills the call and feeds the result back to Python.
     progress = await monty.resume({'status': 'ok'});
   }
 

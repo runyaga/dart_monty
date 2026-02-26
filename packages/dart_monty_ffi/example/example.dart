@@ -55,7 +55,8 @@ Future<void> _externalFunctionDispatch(MontyFfi monty) async {
   while (progress is MontyPending) {
     print('Python called: ${progress.functionName}(${progress.arguments})');
 
-    // Provide the return value back to Python.
+    // Your app fulfills the call (HTTP, DB, etc.) and feeds the result
+    // back to Python. Here we return a mock value.
     progress = await monty.resume({
       'users': ['alice', 'bob'],
     });

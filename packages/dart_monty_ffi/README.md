@@ -43,12 +43,14 @@ Future<void> main() async {
   final result = await monty.run('2 + 2');
   print(result.value); // 4
 
-  // External function dispatch
+  // External function dispatch — Python pauses when it calls fetch().
   var progress = await monty.start(
     'fetch("https://example.com")',
     externalFunctions: ['fetch'],
   );
   if (progress is MontyPending) {
+    // Your app handles the call (HTTP, DB, etc.) and feeds the
+    // return value back to Python. Here we just return a mock result.
     progress = await monty.resume({'status': 'ok'});
   }
   final complete = progress as MontyComplete;
