@@ -1,0 +1,43 @@
+name: charting_playground
+description: >-
+  Charting playground — expose Cristalyse charts and DataFrame ops
+  to Python via Monty WASM.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.5.0 <4.0.0'
+  flutter: '>=3.24.0'
+
+dependencies:
+  cristalyse: ^1.17.5
+  dart_monty:
+    path: ../..
+  dart_monty_platform_interface:
+    path: ../../packages/dart_monty_platform_interface
+  dart_monty_wasm:
+    path: ../../packages/dart_monty_wasm
+  dart_monty_web:
+    path: ../../packages/dart_monty_web
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  very_good_analysis: ^10.0.0
+
+dependency_overrides:
+  dart_monty_native:
+    path: ../../packages/dart_monty_native
+  dart_monty_ffi:
+    path: ../../packages/dart_monty_ffi
+  dart_monty_platform_interface:
+    path: ../../packages/dart_monty_platform_interface
+  dart_monty_wasm:
+    path: ../../packages/dart_monty_wasm
+  dart_monty_web:
+    path: ../../packages/dart_monty_web
+
+flutter:
+  uses-material-design: true

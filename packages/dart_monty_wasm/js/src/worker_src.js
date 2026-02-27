@@ -90,6 +90,32 @@ function translateLimits(limits) {
 }
 
 /**
+ * Recursively convert JS Map objects to plain objects so that
+ * JSON.stringify() can serialize them.  Monty's WASM runtime may
+ * represent Python dicts as JS Maps which JSON.stringify ignores.
+ */
+function toSerializable(val) {
+  if (val instanceof Map) {
+    const obj = {};
+    for (const [k, v] of val) {
+      obj[String(k)] = toSerializable(v);
+    }
+    return obj;
+  }
+  if (Array.isArray(val)) {
+    return val.map(toSerializable);
+  }
+  if (val !== null && typeof val === 'object' && !(val instanceof Date)) {
+    const obj = {};
+    for (const k of Object.keys(val)) {
+      obj[k] = toSerializable(val[k]);
+    }
+    return obj;
+  }
+  return val;
+}
+
+/**
  * Post a progress result (pending or complete) back to the main thread.
  * Handles MontySnapshot (pending) vs MontyComplete dispatch.
  */
@@ -103,8 +129,8 @@ function postProgress(id, progress) {
       ok: true,
       state: 'pending',
       functionName: progress.functionName,
-      args: progress.args,
-      kwargs: progress.kwargs,
+      args: toSerializable(progress.args),
+      kwargs: toSerializable(progress.kwargs),
       callId: callIdCounter,
     });
   } else {
@@ -115,7 +141,7 @@ function postProgress(id, progress) {
       id,
       ok: true,
       state: 'complete',
-      value: progress.output,
+      value: toSerializable(progress.output),
     });
   }
 }
@@ -143,7 +169,7 @@ function handleRun(id, code, limits, scriptName) {
       postError(id, result);
       return;
     }
-    self.postMessage({ type: 'result', id, ok: true, value: result });
+    self.postMessage({ type: 'result', id, ok: true, value: toSerializable(result) });
   } catch (e) {
     postError(id, e);
   }
