@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>dart_monty — Interpreter Playground</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+      background: #1e1e1e;
+      color: #d4d4d4;
+      padding: 2rem;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    a { color: #569cd6; }
+    h1 { color: #569cd6; margin-bottom: 0.3rem; font-size: 1.4rem; }
+    .subtitle { color: #808080; margin-bottom: 1rem; font-size: 0.9rem; }
+    .nav { margin-bottom: 1.5rem; }
+    .nav a { margin-right: 1rem; font-size: 0.85rem; }
+
+    /* Status bar */
+    #status {
+      background: #2d2d2d;
+      border: 1px solid #404040;
+      border-radius: 4px;
+      padding: 0.6rem 1rem;
+      margin-bottom: 1rem;
+      font-size: 0.9rem;
+    }
+    #status.init { border-left: 3px solid #569cd6; }
+    #status.ready { border-left: 3px solid #6a9955; }
+    #status.running { border-left: 3px solid #dcdcaa; }
+    #status.pending { border-left: 3px solid #ce9178; }
+    #status.error { border-left: 3px solid #f44747; }
+
+    /* Main layout: two columns */
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    /* Panels */
+    .panel {
+      background: #252526;
+      border: 1px solid #404040;
+      border-radius: 6px;
+      padding: 1rem;
+    }
+    .panel-label {
+      color: #808080;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.5rem;
+    }
+
+    /* Code editor */
+    #code-editor {
+      width: 100%;
+      min-height: 260px;
+      background: #1e1e1e;
+      color: #d4d4d4;
+      border: 1px solid #404040;
+      border-radius: 4px;
+      padding: 0.75rem;
+      font-family: inherit;
+      font-size: 0.8rem;
+      line-height: 1.5;
+      resize: vertical;
+      tab-size: 4;
+    }
+    #code-editor:focus { outline: none; border-color: #569cd6; }
+
+    /* Buttons row */
+    .btn-row { display: flex; gap: 0.5rem; margin-top: 0.75rem; }
+    .btn {
+      border: none;
+      padding: 0.45rem 1.2rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.85rem;
+      font-weight: bold;
+      transition: background 0.2s;
+    }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-run { background: #6a9955; color: #1e1e1e; }
+    .btn-run:hover:not(:disabled) { background: #7ec068; }
+    .btn-start { background: #569cd6; color: #1e1e1e; }
+    .btn-start:hover:not(:disabled) { background: #6ab0e8; }
+    .btn-clear { background: #404040; color: #d4d4d4; }
+    .btn-clear:hover:not(:disabled) { background: #555; }
+
+    /* Config panel */
+    .config-section { margin-bottom: 0.75rem; }
+    .config-section:last-child { margin-bottom: 0; }
+    .config-label {
+      color: #dcdcaa;
+      font-size: 0.8rem;
+      margin-bottom: 0.3rem;
+    }
+    .config-input {
+      width: 100%;
+      background: #1e1e1e;
+      color: #d4d4d4;
+      border: 1px solid #404040;
+      border-radius: 3px;
+      padding: 0.35rem 0.5rem;
+      font-family: inherit;
+      font-size: 0.8rem;
+    }
+    .config-input:focus { outline: none; border-color: #569cd6; }
+    .config-input::placeholder { color: #555; }
+
+    .limits-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 0.4rem;
+    }
+    .limit-group label {
+      display: block;
+      color: #808080;
+      font-size: 0.7rem;
+      margin-bottom: 0.15rem;
+    }
+    .limit-group input {
+      width: 100%;
+      background: #1e1e1e;
+      color: #d4d4d4;
+      border: 1px solid #404040;
+      border-radius: 3px;
+      padding: 0.3rem 0.4rem;
+      font-family: inherit;
+      font-size: 0.75rem;
+    }
+    .limit-group input:focus { outline: none; border-color: #569cd6; }
+
+    textarea.config-input {
+      min-height: 50px;
+      resize: vertical;
+      line-height: 1.4;
+    }
+
+    /* Results panel */
+    .results-panel { margin-bottom: 1rem; }
+    #results-output {
+      background: #1e1e1e;
+      border: 1px solid #404040;
+      border-radius: 4px;
+      padding: 0.75rem;
+      min-height: 80px;
+      max-height: 300px;
+      overflow-y: auto;
+      font-size: 0.8rem;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .result-label { color: #569cd6; }
+    .result-value { color: #ce9178; }
+    .result-error { color: #f44747; }
+    .result-usage { color: #808080; }
+    .result-print { color: #6a9955; }
+
+    /* Pending interaction panel */
+    #pending-panel {
+      display: none;
+      margin-bottom: 1rem;
+    }
+    #pending-panel.visible { display: block; }
+    .pending-info {
+      background: #2d2d2d;
+      border: 1px solid #ce9178;
+      border-radius: 4px;
+      padding: 0.75rem;
+      margin-bottom: 0.5rem;
+      font-size: 0.85rem;
+    }
+    .pending-fn { color: #dcdcaa; }
+    .pending-args { color: #ce9178; }
+    .pending-actions { display: flex; gap: 0.5rem; align-items: flex-end; }
+    .pending-actions .config-input { flex: 1; }
+    .btn-resume { background: #6a9955; color: #1e1e1e; }
+    .btn-resume:hover { background: #7ec068; }
+    .btn-inject-error { background: #f44747; color: #1e1e1e; }
+    .btn-inject-error:hover { background: #d73a3a; }
+
+    /* Progress log */
+    #progress-log {
+      background: #1e1e1e;
+      border: 1px solid #404040;
+      border-radius: 4px;
+      padding: 0.75rem;
+      min-height: 60px;
+      max-height: 200px;
+      overflow-y: auto;
+      font-size: 0.75rem;
+      line-height: 1.5;
+    }
+    .log-entry { border-bottom: 1px solid #333; padding: 0.2rem 0; }
+    .log-entry:last-child { border-bottom: none; }
+    .log-pending { color: #ce9178; }
+    .log-resume { color: #6a9955; }
+    .log-complete { color: #569cd6; }
+    .log-error { color: #f44747; }
+  </style>
+</head>
+<body>
+  <h1>Interpreter Playground</h1>
+  <p class="subtitle">Test all Monty interpreter customization points interactively</p>
+  <div class="nav">
+    <a href="index.html">&larr; Home</a>
+    <a href="demo.html">Demo</a>
+    <a href="ladder.html">Ladder</a>
+    <a href="visualizer.html">Visualizer</a>
+  </div>
+
+  <div id="status" class="init">Initializing WASM Worker...</div>
+
+  <div class="main-grid">
+    <!-- Left column: code editor -->
+    <div>
+      <div class="panel">
+        <div class="panel-label">Python Code</div>
+        <textarea id="code-editor" spellcheck="false" placeholder="Enter Python code here...">2 + 2</textarea>
+        <div class="btn-row">
+          <button class="btn btn-run" id="btn-run" disabled>Run</button>
+          <button class="btn btn-start" id="btn-start" disabled>Start (iterative)</button>
+          <button class="btn btn-clear" id="btn-clear">Clear Log</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right column: configuration -->
+    <div>
+      <div class="panel">
+        <div class="panel-label">Configuration</div>
+
+        <div class="config-section">
+          <div class="config-label">Script Name</div>
+          <input class="config-input" id="cfg-script-name" type="text" placeholder="e.g. my_script.py">
+        </div>
+
+        <div class="config-section">
+          <div class="config-label">Resource Limits</div>
+          <div class="limits-row">
+            <div class="limit-group">
+              <label>Memory (bytes)</label>
+              <input id="cfg-memory" type="number" placeholder="unlimited" min="0">
+            </div>
+            <div class="limit-group">
+              <label>Timeout (ms)</label>
+              <input id="cfg-timeout" type="number" placeholder="unlimited" min="0">
+            </div>
+            <div class="limit-group">
+              <label>Stack depth</label>
+              <input id="cfg-stack" type="number" placeholder="unlimited" min="0">
+            </div>
+          </div>
+        </div>
+
+        <div class="config-section">
+          <div class="config-label">External Functions</div>
+          <input class="config-input" id="cfg-ext-fns" type="text" placeholder="e.g. fetch, get_data">
+        </div>
+
+        <div class="config-section">
+          <div class="config-label">Input Variables</div>
+          <textarea class="config-input" id="cfg-inputs" placeholder="key=value (one per line)&#10;e.g.&#10;x=42&#10;name=&quot;hello&quot;"></textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pending interaction (shown during iterative execution) -->
+  <div id="pending-panel" class="panel">
+    <div class="panel-label">External Function Call — Awaiting Response</div>
+    <div class="pending-info">
+      <span class="pending-fn" id="pending-fn-name">function_name</span>(<span class="pending-args" id="pending-fn-args"></span>)
+      <span id="pending-kwargs" style="color:#808080"></span>
+    </div>
+    <div class="pending-actions">
+      <input class="config-input" id="pending-response" type="text" placeholder='Return value (JSON: 42, "hello", {"key": "val"}, null)'>
+      <button class="btn btn-resume" id="btn-resume">Resume</button>
+      <button class="btn btn-inject-error" id="btn-inject-err">Inject Error</button>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div class="panel results-panel">
+    <div class="panel-label">Result</div>
+    <div id="results-output">No results yet.</div>
+  </div>
+
+  <!-- Progress log -->
+  <div class="panel">
+    <div class="panel-label">Progress Log</div>
+    <div id="progress-log"></div>
+  </div>
+
+  <script>
+    // ── State ──────────────────────────────────────────────────────────────
+    let running = false;
+    let pendingResolve = null; // resolve function for pending promise
+
+    // ── DOM refs ───────────────────────────────────────────────────────────
+    const statusEl = document.getElementById('status');
+    const codeEditor = document.getElementById('code-editor');
+    const btnRun = document.getElementById('btn-run');
+    const btnStart = document.getElementById('btn-start');
+    const btnClear = document.getElementById('btn-clear');
+    const resultsOutput = document.getElementById('results-output');
+    const progressLog = document.getElementById('progress-log');
+    const pendingPanel = document.getElementById('pending-panel');
+    const pendingFnName = document.getElementById('pending-fn-name');
+    const pendingFnArgs = document.getElementById('pending-fn-args');
+    const pendingKwargs = document.getElementById('pending-kwargs');
+    const pendingResponse = document.getElementById('pending-response');
+    const btnResume = document.getElementById('btn-resume');
+    const btnInjectErr = document.getElementById('btn-inject-err');
+
+    // Config inputs
+    const cfgScriptName = document.getElementById('cfg-script-name');
+    const cfgMemory = document.getElementById('cfg-memory');
+    const cfgTimeout = document.getElementById('cfg-timeout');
+    const cfgStack = document.getElementById('cfg-stack');
+    const cfgExtFns = document.getElementById('cfg-ext-fns');
+    const cfgInputs = document.getElementById('cfg-inputs');
+
+    // ── Helpers ─────────────────────────────────────────────────────────────
+    function setRunning(state) {
+      running = state;
+      btnRun.disabled = state;
+      btnStart.disabled = state;
+      codeEditor.readOnly = state;
+    }
+
+    function addLogEntry(cls, text) {
+      const div = document.createElement('div');
+      div.className = 'log-entry ' + cls;
+      div.textContent = text;
+      progressLog.appendChild(div);
+      progressLog.scrollTop = progressLog.scrollHeight;
+    }
+
+    function getConfig() {
+      const limits = {};
+      const mem = cfgMemory.value.trim();
+      const timeout = cfgTimeout.value.trim();
+      const stack = cfgStack.value.trim();
+      if (mem) limits.memory_bytes = parseInt(mem);
+      if (timeout) limits.timeout_ms = parseInt(timeout);
+      if (stack) limits.stack_depth = parseInt(stack);
+
+      const extFnsRaw = cfgExtFns.value.trim();
+      const extFns = extFnsRaw
+        ? extFnsRaw.split(',').map(s => s.trim()).filter(Boolean)
+        : [];
+
+      const scriptName = cfgScriptName.value.trim() || null;
+
+      return {
+        code: codeEditor.value,
+        limits: Object.keys(limits).length > 0 ? limits : null,
+        extFns: extFns,
+        scriptName: scriptName,
+      };
+    }
+
+    function formatResult(r) {
+      let out = '';
+      if (r.error) {
+        out += '<span class="result-error">error: ' + escHtml(r.error.message || JSON.stringify(r.error)) + '</span>\n';
+        if (r.error.filename) out += '<span class="result-usage">  file: ' + escHtml(r.error.filename) + '</span>\n';
+        if (r.error.line_number != null) out += '<span class="result-usage">  line: ' + r.error.line_number + '</span>\n';
+      } else {
+        out += '<span class="result-label">value: </span><span class="result-value">' + escHtml(JSON.stringify(r.value)) + '</span>\n';
+      }
+      if (r.print_output) {
+        out += '<span class="result-print">print: ' + escHtml(JSON.stringify(r.print_output)) + '</span>\n';
+      }
+      if (r.usage) {
+        out += '<span class="result-usage">usage: memory=' + (r.usage.memory_bytes_used || 0) +
+          'B, time=' + (r.usage.time_elapsed_ms || 0) +
+          'ms, stack=' + (r.usage.stack_depth_used || 0) + '</span>\n';
+      }
+      return out;
+    }
+
+    function escHtml(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    // ── Callbacks for Dart ────────────────────────────────────────────────
+    function onPlaygroundReady() {
+      statusEl.className = 'ready';
+      statusEl.textContent = 'Ready';
+      btnRun.disabled = false;
+      btnStart.disabled = false;
+    }
+
+    function onPlaygroundResult(resultJson) {
+      const r = JSON.parse(resultJson);
+      resultsOutput.innerHTML = formatResult(r);
+      addLogEntry('log-complete', 'complete: ' + (r.error ? 'error — ' + (r.error.message || '') : 'value=' + JSON.stringify(r.value)));
+      statusEl.className = 'ready';
+      statusEl.textContent = 'Ready';
+      setRunning(false);
+      pendingPanel.classList.remove('visible');
+    }
+
+    function onPlaygroundPending(pendingJson) {
+      const p = JSON.parse(pendingJson);
+      statusEl.className = 'pending';
+      statusEl.textContent = 'Awaiting response for: ' + p.function_name + '()';
+
+      pendingFnName.textContent = p.function_name;
+      pendingFnArgs.textContent = (p.arguments || []).map(a => JSON.stringify(a)).join(', ');
+      if (p.kwargs && Object.keys(p.kwargs).length > 0) {
+        pendingKwargs.textContent = ', kwargs=' + JSON.stringify(p.kwargs);
+      } else {
+        pendingKwargs.textContent = '';
+      }
+      pendingResponse.value = '';
+      pendingPanel.classList.add('visible');
+
+      addLogEntry('log-pending', 'pending: ' + p.function_name + '(' + (p.arguments || []).map(a => JSON.stringify(a)).join(', ') + ')');
+    }
+
+    function onPlaygroundError(msg) {
+      statusEl.className = 'error';
+      statusEl.textContent = 'Error: ' + msg;
+      resultsOutput.innerHTML = '<span class="result-error">' + escHtml(msg) + '</span>';
+      addLogEntry('log-error', 'error: ' + msg);
+      setRunning(false);
+      pendingPanel.classList.remove('visible');
+    }
+
+    // ── Action dispatchers (called by Dart via promises) ──────────────────
+    let runResolve = null;
+    let startResolve = null;
+
+    function waitForRun() {
+      return new Promise(resolve => { runResolve = resolve; });
+    }
+
+    function waitForStart() {
+      return new Promise(resolve => { startResolve = resolve; });
+    }
+
+    function waitForPendingResponse() {
+      return new Promise(resolve => { pendingResolve = resolve; });
+    }
+
+    // ── UI event handlers ────────────────────────────────────────────────
+    btnRun.addEventListener('click', () => {
+      if (running) return;
+      setRunning(true);
+      statusEl.className = 'running';
+      statusEl.textContent = 'Running...';
+      addLogEntry('log-resume', 'run: executing code');
+      const cfg = getConfig();
+      if (runResolve) {
+        runResolve(JSON.stringify(cfg));
+        runResolve = null;
+      }
+    });
+
+    btnStart.addEventListener('click', () => {
+      if (running) return;
+      setRunning(true);
+      statusEl.className = 'running';
+      statusEl.textContent = 'Starting iterative execution...';
+      addLogEntry('log-resume', 'start: beginning iterative execution');
+      const cfg = getConfig();
+      if (startResolve) {
+        startResolve(JSON.stringify(cfg));
+        startResolve = null;
+      }
+    });
+
+    btnResume.addEventListener('click', () => {
+      if (!pendingResolve) return;
+      const val = pendingResponse.value.trim() || 'null';
+      addLogEntry('log-resume', 'resume: ' + val);
+      pendingPanel.classList.remove('visible');
+      statusEl.className = 'running';
+      statusEl.textContent = 'Resuming...';
+      pendingResolve(JSON.stringify({ type: 'resume', value: val }));
+      pendingResolve = null;
+    });
+
+    btnInjectErr.addEventListener('click', () => {
+      if (!pendingResolve) return;
+      const msg = pendingResponse.value.trim() || 'injected error';
+      addLogEntry('log-error', 'inject error: ' + msg);
+      pendingPanel.classList.remove('visible');
+      statusEl.className = 'running';
+      statusEl.textContent = 'Resuming with error...';
+      pendingResolve(JSON.stringify({ type: 'error', message: msg }));
+      pendingResolve = null;
+    });
+
+    btnClear.addEventListener('click', () => {
+      progressLog.innerHTML = '';
+      resultsOutput.innerHTML = 'No results yet.';
+    });
+  </script>
+  <script src="coi-serviceworker.js"></script>
+  <script src="dart_monty_bridge.js"></script>
+  <script src="playground.dart.js"></script>
+</body>
+</html>
