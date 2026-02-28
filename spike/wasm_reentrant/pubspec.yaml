@@ -1,0 +1,19 @@
+name: wasm_reentrant_spike
+description: >-
+  Spike: prove WASM re-entrancy guard, resumeWithError, and timeout
+  work end-to-end on the Monty WASM bridge.
+publish_to: none
+version: 0.0.1
+
+environment:
+  sdk: '>=3.5.0 <4.0.0'
+
+dependencies:
+  dart_monty_platform_interface:
+    path: ../../packages/dart_monty_platform_interface
+  dart_monty_wasm:
+    path: ../../packages/dart_monty_wasm
+
+dependency_overrides:
+  dart_monty_platform_interface:
+    path: ../../packages/dart_monty_platform_interface

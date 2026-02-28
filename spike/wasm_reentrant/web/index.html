@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>WASM Re-Entrancy Spike</title>
+  <style>
+    body {
+      background: #1e1e1e;
+      color: #d4d4d4;
+      font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+      font-size: 13px;
+      padding: 16px;
+      margin: 0;
+    }
+    h1 { color: #569cd6; font-size: 16px; margin: 0 0 12px; }
+    #output {
+      white-space: pre-wrap;
+      word-break: break-word;
+      line-height: 1.5;
+    }
+    .pass { color: #4ec9b0; }
+    .fail { color: #f44747; }
+    .info { color: #dcdcaa; }
+  </style>
+</head>
+<body>
+  <h1>WASM Re-Entrancy Spike</h1>
+  <pre id="output"></pre>
+
+  <!-- Load the Monty WASM bridge (sets window.DartMontyBridge) -->
+  <script src="dart_monty_bridge.js"></script>
+
+  <!-- Compiled Dart spike code -->
+  <script src="main.dart.js" defer></script>
+
+  <script>
+    // Mirror console output to the page
+    const out = document.getElementById('output');
+    function append(text, cls) {
+      const span = document.createElement('span');
+      if (cls) span.className = cls;
+      span.textContent = text + '\n';
+      out.appendChild(span);
+      window.scrollTo(0, document.body.scrollHeight);
+    }
+
+    const origLog = console.log;
+    const origErr = console.error;
+
+    console.log = function(...args) {
+      origLog.apply(console, args);
+      const text = args.join(' ');
+      let cls = '';
+      if (text.includes('PASS')) cls = 'pass';
+      else if (text.includes('FAIL')) cls = 'fail';
+      else if (text.includes('===') || text.includes('---')) cls = 'info';
+      append(text, cls);
+    };
+
+    console.error = function(...args) {
+      origErr.apply(console, args);
+      append('[ERROR] ' + args.join(' '), 'fail');
+    };
+  </script>
+</body>
+</html>
