@@ -1,5 +1,12 @@
 ## 0.6.1
 
+- **dart_monty_wasm**: Fix `toSerializable()` in worker bridge for robust dict/set/bigint handling
+  - Add circular reference guard (WeakSet) to prevent stack overflow
+  - Add cross-realm Map/Set duck-typing via `.get` presence/absence
+  - Convert Set → Array (Python frozenset/set from NAPI-RS)
+  - Convert BigInt → Number/String (prevents JSON.stringify crash)
+  - Convert TypedArray → Array (Python bytes from NAPI-RS)
+- Add charting playground example app
 - Update all package READMEs with usage examples and human/AI attribution
 - Enrich `example/example.dart` across all packages
 - Add README and example doctest coverage (20 integration tests)
