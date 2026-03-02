@@ -90,6 +90,66 @@ function translateLimits(limits) {
 }
 
 /**
+ * Recursively convert JS Map objects to plain objects so that
+ * JSON.stringify() can serialize them.  Monty's WASM runtime may
+ * represent Python dicts as JS Maps which JSON.stringify ignores.
+ */
+function toSerializable(val, seen) {
+  // Primitives and null pass through
+  if (val === null || val === undefined || typeof val !== 'object') {
+    if (typeof val === 'bigint') {
+      return Number.isSafeInteger(Number(val)) ? Number(val) : String(val);
+    }
+    return val;
+  }
+
+  // Circular reference guard
+  if (!seen) seen = new WeakSet();
+  if (seen.has(val)) return null;
+  seen.add(val);
+
+  // Date — pass through for JSON.stringify
+  if (val instanceof Date) return val;
+
+  // TypedArrays — convert to plain Array for JSON safety
+  if (ArrayBuffer.isView(val)) return Array.from(val);
+
+  // Array
+  if (Array.isArray(val)) {
+    return val.map((v) => toSerializable(v, seen));
+  }
+
+  // Map or duck-typed Map (Maps have .get, Sets do not)
+  if (val instanceof Map ||
+      (typeof val.entries === 'function' && typeof val.size === 'number' &&
+       typeof val.get === 'function')) {
+    const obj = {};
+    for (const [k, v] of val.entries()) {
+      obj[String(k)] = toSerializable(v, seen);
+    }
+    return obj;
+  }
+
+  // Set or duck-typed Set (Sets have .has but lack .get)
+  if (val instanceof Set ||
+      (typeof val.has === 'function' && typeof val.size === 'number' &&
+       typeof val.get === 'undefined')) {
+    const arr = [];
+    for (const v of val) {
+      arr.push(toSerializable(v, seen));
+    }
+    return arr;
+  }
+
+  // Plain object fallback
+  const obj = {};
+  for (const k of Object.keys(val)) {
+    obj[k] = toSerializable(val[k], seen);
+  }
+  return obj;
+}
+
+/**
  * Post a progress result (pending or complete) back to the main thread.
  * Handles MontySnapshot (pending) vs MontyComplete dispatch.
  */
@@ -103,8 +163,8 @@ function postProgress(id, progress) {
       ok: true,
       state: 'pending',
       functionName: progress.functionName,
-      args: progress.args,
-      kwargs: progress.kwargs,
+      args: toSerializable(progress.args),
+      kwargs: toSerializable(progress.kwargs),
       callId: callIdCounter,
     });
   } else {
@@ -115,7 +175,7 @@ function postProgress(id, progress) {
       id,
       ok: true,
       state: 'complete',
-      value: progress.output,
+      value: toSerializable(progress.output),
     });
   }
 }
@@ -143,7 +203,7 @@ function handleRun(id, code, limits, scriptName) {
       postError(id, result);
       return;
     }
-    self.postMessage({ type: 'result', id, ok: true, value: result });
+    self.postMessage({ type: 'result', id, ok: true, value: toSerializable(result) });
   } catch (e) {
     postError(id, e);
   }
