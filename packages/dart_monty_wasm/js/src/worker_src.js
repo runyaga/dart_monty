@@ -94,25 +94,59 @@ function translateLimits(limits) {
  * JSON.stringify() can serialize them.  Monty's WASM runtime may
  * represent Python dicts as JS Maps which JSON.stringify ignores.
  */
-function toSerializable(val) {
-  if (val instanceof Map) {
-    const obj = {};
-    for (const [k, v] of val) {
-      obj[String(k)] = toSerializable(v);
+function toSerializable(val, seen) {
+  // Primitives and null pass through
+  if (val === null || val === undefined || typeof val !== 'object') {
+    if (typeof val === 'bigint') {
+      return Number.isSafeInteger(Number(val)) ? Number(val) : String(val);
     }
-    return obj;
+    return val;
   }
+
+  // Circular reference guard
+  if (!seen) seen = new WeakSet();
+  if (seen.has(val)) return null;
+  seen.add(val);
+
+  // Date — pass through for JSON.stringify
+  if (val instanceof Date) return val;
+
+  // TypedArrays — convert to plain Array for JSON safety
+  if (ArrayBuffer.isView(val)) return Array.from(val);
+
+  // Array
   if (Array.isArray(val)) {
-    return val.map(toSerializable);
+    return val.map((v) => toSerializable(v, seen));
   }
-  if (val !== null && typeof val === 'object' && !(val instanceof Date)) {
+
+  // Map or duck-typed Map (Maps have .get, Sets do not)
+  if (val instanceof Map ||
+      (typeof val.entries === 'function' && typeof val.size === 'number' &&
+       typeof val.get === 'function')) {
     const obj = {};
-    for (const k of Object.keys(val)) {
-      obj[k] = toSerializable(val[k]);
+    for (const [k, v] of val.entries()) {
+      obj[String(k)] = toSerializable(v, seen);
     }
     return obj;
   }
-  return val;
+
+  // Set or duck-typed Set (Sets have .has but lack .get)
+  if (val instanceof Set ||
+      (typeof val.has === 'function' && typeof val.size === 'number' &&
+       typeof val.get === 'undefined')) {
+    const arr = [];
+    for (const v of val) {
+      arr.push(toSerializable(v, seen));
+    }
+    return arr;
+  }
+
+  // Plain object fallback
+  const obj = {};
+  for (const k of Object.keys(val)) {
+    obj[k] = toSerializable(val[k], seen);
+  }
+  return obj;
 }
 
 /**
