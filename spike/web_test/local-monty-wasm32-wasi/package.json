@@ -1,0 +1,7 @@
+{
+  "name": "@pydantic/monty-wasm32-wasi",
+  "version": "0.0.7-local",
+  "description": "Local shim pointing at feat/future-snapshot-napi build",
+  "main": "monty.wasi.cjs",
+  "browser": "monty.wasi-browser.js"
+}

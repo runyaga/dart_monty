@@ -10,6 +10,7 @@
 ///     -o test/integration/web/ladder_runner.dart.js
 library;
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:js_interop';
 
@@ -35,6 +36,15 @@ external JSPromise<JSString> _montyResume(JSString valueJson);
 
 @JS('DartMontyBridge.resumeWithError')
 external JSPromise<JSString> _montyResumeWithError(JSString errorJson);
+
+@JS('DartMontyBridge.resumeAsFuture')
+external JSPromise<JSString> _montyResumeAsFuture();
+
+@JS('DartMontyBridge.resolveFutures')
+external JSPromise<JSString> _montyResolveFutures(
+  JSString resultsJson,
+  JSString errorsJson,
+);
 
 // ---------------------------------------------------------------------------
 // JS fetch interop
@@ -62,6 +72,7 @@ const _tierFiles = [
   'fixtures/tier_08_kwargs.json',
   'fixtures/tier_09_exceptions.json',
   'fixtures/tier_13_async.json',
+  'fixtures/tier_14_async_stress.json',
   'fixtures/tier_15_script_name.json',
 ];
 
@@ -69,8 +80,22 @@ const _tierFiles = [
 // Helpers
 // ---------------------------------------------------------------------------
 
+const _fixtureTimeout = Duration(seconds: 30);
+
 Map<String, dynamic> _parseResult(String json) =>
     jsonDecode(json) as Map<String, dynamic>;
+
+/// Call a bridge function with a wall-clock timeout.
+/// Prevents indefinite hangs if the Worker deadlocks.
+Future<String> _withTimeout(JSPromise<JSString> Function() fn) async {
+  final result = await fn().toDart.timeout(
+        _fixtureTimeout,
+        onTimeout: () => throw TimeoutException(
+          'Worker did not respond within ${_fixtureTimeout.inSeconds}s',
+        ),
+      );
+  return result.toDart;
+}
 
 Future<String> _fetchText(String url) async {
   final response = await _jsFetch(url.toJS).toDart;
@@ -79,6 +104,39 @@ Future<String> _fetchText(String url) async {
 
 void _output(Map<String, dynamic> result) {
   print('LADDER_RESULT:${jsonEncode(result)}');
+}
+
+/// Validate actual value against fixture expectations.
+/// Returns null if valid, or an error string if mismatched.
+String? _validateValue(Object? actual, Map<String, dynamic> fixture) {
+  final expectedContains = fixture['expectedContains'] as String?;
+  if (expectedContains != null) {
+    if (!actual.toString().contains(expectedContains)) {
+      return 'expected value containing "$expectedContains", '
+          'got: "$actual"';
+    }
+    return null;
+  }
+
+  var expected = fixture['expected'];
+  final expectedSorted = fixture['expectedSorted'] as bool? ?? false;
+
+  var sortedActual = actual;
+  if (expectedSorted) {
+    if (actual is List) {
+      sortedActual = [...actual]..sort((a, b) => '$a'.compareTo('$b'));
+    }
+    if (expected is List) {
+      expected = [...expected]..sort((a, b) => '$a'.compareTo('$b'));
+    }
+  }
+
+  final actualJson = jsonEncode(sortedActual);
+  final expectedJson = jsonEncode(expected);
+  if (actualJson != expectedJson) {
+    return 'expected $expectedJson, got $actualJson';
+  }
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -138,7 +196,7 @@ Future<Map<String, dynamic>> _runFixture(
     } else if (expectError) {
       result = await _runExpectError(id, code);
     } else {
-      result = await _runSimple(id, code);
+      result = await _runSimple(id, code, fixture);
     }
   } catch (e) {
     result = {'id': id, 'ok': false, 'error': '$e'};
@@ -154,9 +212,17 @@ Future<Map<String, dynamic>> _runFixture(
   return result;
 }
 
-Future<Map<String, dynamic>> _runSimple(int id, String code) async {
+Future<Map<String, dynamic>> _runSimple(
+  int id,
+  String code,
+  Map<String, dynamic> fixture,
+) async {
   final result = _parseResult((await _montyRun(code.toJS).toDart).toDart);
   if (result['ok'] == true) {
+    final mismatch = _validateValue(result['value'], fixture);
+    if (mismatch != null) {
+      return {'id': id, 'ok': false, 'error': 'VALUE_MISMATCH: $mismatch'};
+    }
     return {'id': id, 'ok': true, 'value': result['value']};
   }
   return {'id': id, 'ok': false, 'error': result['error']};
@@ -178,6 +244,9 @@ Future<Map<String, dynamic>> _runIterative(
   final extFns = (fixture['externalFunctions'] as List).cast<String>();
   final resumeValues = (fixture['resumeValues'] as List?)?.cast<Object>();
   final resumeErrors = (fixture['resumeErrors'] as List?)?.cast<String>();
+  final asyncResumeMap = fixture['asyncResumeMap'] as Map<String, dynamic>?;
+  final asyncErrorMap = fixture['asyncErrorMap'] as Map<String, dynamic>?;
+  final expectError = fixture['expectError'] as bool? ?? false;
 
   var resultJson = _parseResult(
     (await _montyStart(code.toJS, jsonEncode(extFns).toJS).toDart).toDart,
@@ -187,6 +256,67 @@ Future<Map<String, dynamic>> _runIterative(
     return {'id': id, 'ok': false, 'error': resultJson['error']};
   }
 
+  // Async/futures path: resumeAsFuture + resolveFutures loop
+  if (asyncResumeMap != null) {
+    const maxIterations = 500;
+    var iterations = 0;
+    while (resultJson['state'] != 'complete') {
+      if (++iterations > maxIterations) {
+        return {'id': id, 'ok': false, 'error': 'Exceeded max iterations'};
+      }
+
+      if (resultJson['state'] == 'pending') {
+        resultJson = _parseResult(
+          await _withTimeout(() => _montyResumeAsFuture()),
+        );
+      } else if (resultJson['state'] == 'resolve_futures') {
+        final pendingIds = (resultJson['pendingCallIds'] as List).cast<int>();
+        final results = <String, Object?>{};
+        final errors = <String, String>{};
+        for (final callId in pendingIds) {
+          final key = callId.toString();
+          if (asyncErrorMap != null && asyncErrorMap.containsKey(key)) {
+            errors[key] = asyncErrorMap[key] as String;
+          } else if (asyncResumeMap.containsKey(key)) {
+            results[key] = asyncResumeMap[key];
+          }
+        }
+        final rJson = jsonEncode(results).toJS;
+        final eJson = jsonEncode(errors).toJS;
+        resultJson = _parseResult(
+          await _withTimeout(() => _montyResolveFutures(rJson, eJson)),
+        );
+      } else {
+        return {
+          'id': id,
+          'ok': false,
+          'error': 'Unexpected state: ${resultJson['state']}',
+        };
+      }
+
+      if (resultJson['ok'] != true) {
+        if (expectError) {
+          return {'id': id, 'ok': true, 'error': resultJson['error']};
+        }
+        return {'id': id, 'ok': false, 'error': resultJson['error']};
+      }
+    }
+
+    if (expectError) {
+      return {
+        'id': id,
+        'ok': false,
+        'error': 'Expected error but completed successfully',
+      };
+    }
+    final mismatch = _validateValue(resultJson['value'], fixture);
+    if (mismatch != null) {
+      return {'id': id, 'ok': false, 'error': 'VALUE_MISMATCH: $mismatch'};
+    }
+    return {'id': id, 'ok': true, 'value': resultJson['value']};
+  }
+
+  // Synchronous resume paths
   if (resumeErrors != null) {
     for (final errorMsg in resumeErrors) {
       if (resultJson['state'] != 'pending') {
@@ -211,7 +341,30 @@ Future<Map<String, dynamic>> _runIterative(
   }
 
   if (resultJson['ok'] != true) {
+    if (expectError) {
+      final errorContains = fixture['errorContains'] as String?;
+      final error = resultJson['error'] as String? ?? '';
+      if (errorContains != null && !error.contains(errorContains)) {
+        return {
+          'id': id,
+          'ok': false,
+          'error': 'ERROR_MISMATCH: expected "$errorContains" in "$error"',
+        };
+      }
+      return {'id': id, 'ok': true, 'error': resultJson['error']};
+    }
     return {'id': id, 'ok': false, 'error': resultJson['error']};
+  }
+  if (expectError) {
+    return {
+      'id': id,
+      'ok': false,
+      'error': 'Expected error but completed successfully',
+    };
+  }
+  final syncMismatch = _validateValue(resultJson['value'], fixture);
+  if (syncMismatch != null) {
+    return {'id': id, 'ok': false, 'error': 'VALUE_MISMATCH: $syncMismatch'};
   }
   return {'id': id, 'ok': true, 'value': resultJson['value']};
 }

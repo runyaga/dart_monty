@@ -277,16 +277,72 @@ void main() {
   // ===========================================================================
   // resumeAsFuture() / resolveFutures()
   // ===========================================================================
-  group('unsupported methods', () {
-    test('resumeAsFuture throws UnsupportedError', () {
-      expect(bindings.resumeAsFuture, throwsUnsupportedError);
+  group('resumeAsFuture()', () {
+    test('delegates and translates result', () async {
+      mock.resumeAsFutureResults.add(
+        const WasmProgressResult(
+          ok: true,
+          state: 'resolve_futures',
+          pendingCallIds: [0, 1],
+        ),
+      );
+
+      final result = await bindings.resumeAsFuture();
+
+      expect(result.state, 'resolve_futures');
+      expect(result.pendingCallIds, [0, 1]);
+      expect(mock.resumeAsFutureCalls, 1);
     });
 
-    test('resolveFutures throws UnsupportedError', () {
-      expect(
-        () => bindings.resolveFutures('{}', '{}'),
-        throwsUnsupportedError,
+    test('error translates to error state', () async {
+      mock.resumeAsFutureResults.add(
+        const WasmProgressResult(
+          ok: false,
+          error: 'no active snapshot',
+        ),
       );
+
+      final result = await bindings.resumeAsFuture();
+
+      expect(result.state, 'error');
+      expect(result.error, 'no active snapshot');
+    });
+  });
+
+  group('resolveFutures()', () {
+    test('delegates and translates result', () async {
+      mock.resolveFuturesResults.add(
+        const WasmProgressResult(
+          ok: true,
+          state: 'complete',
+          value: 42,
+        ),
+      );
+
+      final result = await bindings.resolveFutures(
+        '{"0": 10}',
+        '{}',
+      );
+
+      expect(result.state, 'complete');
+      expect(result.value, 42);
+      expect(mock.resolveFuturesCalls, hasLength(1));
+      expect(mock.resolveFuturesCalls.first.resultsJson, '{"0": 10}');
+      expect(mock.resolveFuturesCalls.first.errorsJson, '{}');
+    });
+
+    test('error translates to error state', () async {
+      mock.resolveFuturesResults.add(
+        const WasmProgressResult(
+          ok: false,
+          error: 'no active future snapshot',
+        ),
+      );
+
+      final result = await bindings.resolveFutures('{}', '{}');
+
+      expect(result.state, 'error');
+      expect(result.error, 'no active future snapshot');
     });
   });
 
@@ -328,6 +384,302 @@ void main() {
     test('does not call bindings dispose when not initialized', () async {
       await bindings.dispose();
       expect(mock.disposeCalls, 0);
+    });
+  });
+
+  // ===========================================================================
+  // Async/Futures Stress Tests (Tier 14)
+  // ===========================================================================
+  group('async/futures stress', () {
+    // -----------------------------------------------------------------------
+    // Multi-round resolution
+    // -----------------------------------------------------------------------
+    test('resumeAsFuture → resolveFutures full cycle', () async {
+      // pending
+      mock.nextStartResult = const WasmProgressResult(
+        ok: true,
+        state: 'pending',
+        functionName: 'fetch',
+        arguments: ['url'],
+        callId: 0,
+      );
+      final start = await bindings.start('x');
+      expect(start.state, 'pending');
+      expect(start.functionName, 'fetch');
+      expect(start.callId, 0);
+
+      // resumeAsFuture → resolve_futures
+      mock.resumeAsFutureResults.add(
+        const WasmProgressResult(
+          ok: true,
+          state: 'resolve_futures',
+          pendingCallIds: [0],
+        ),
+      );
+      final rf = await bindings.resumeAsFuture();
+      expect(rf.state, 'resolve_futures');
+      expect(rf.pendingCallIds, [0]);
+
+      // resolveFutures → complete
+      mock.resolveFuturesResults.add(
+        const WasmProgressResult(
+          ok: true,
+          state: 'complete',
+          value: 'response_data',
+        ),
+      );
+      final complete = await bindings.resolveFutures(
+        '{"0": "response_data"}',
+        '{}',
+      );
+      expect(complete.state, 'complete');
+      expect(complete.value, 'response_data');
+      expect(complete.usage, isNotNull);
+    });
+
+    test('multiple rounds: resolve yields new pending then new resolve',
+        () async {
+      mock.nextStartResult = const WasmProgressResult(
+        ok: true,
+        state: 'pending',
+        functionName: 'f',
+        callId: 0,
+      );
+      await bindings.start('x');
+
+      // Round 1: resumeAsFuture → resolve_futures
+      mock.resumeAsFutureResults.add(
+        const WasmProgressResult(
+          ok: true,
+          state: 'resolve_futures',
+          pendingCallIds: [0],
+        ),
+      );
+      await bindings.resumeAsFuture();
+
+      // Round 1: resolve → new pending
+      mock.resolveFuturesResults.add(
+        const WasmProgressResult(
+          ok: true,
+          state: 'pending',
+          functionName: 'g',
+          arguments: [2],
+          callId: 1,
+        ),
+      );
+      final p2 = await bindings.resolveFutures('{"0": 10}', '{}');
+      expect(p2.state, 'pending');
+      expect(p2.functionName, 'g');
+
+      // Round 2: resumeAsFuture → resolve_futures
+      mock.resumeAsFutureResults.add(
+        const WasmProgressResult(
+          ok: true,
+          state: 'resolve_futures',
+          pendingCallIds: [1],
+        ),
+      );
+      await bindings.resumeAsFuture();
+
+      // Round 2: resolve → complete
+      mock.resolveFuturesResults.add(
+        const WasmProgressResult(
+          ok: true,
+          state: 'complete',
+          value: 42,
+        ),
+      );
+      final complete = await bindings.resolveFutures('{"1": 20}', '{}');
+      expect(complete.state, 'complete');
+      expect(complete.value, 42);
+    });
+
+    // -----------------------------------------------------------------------
+    // Scale: many pending IDs
+    // -----------------------------------------------------------------------
+    test('resolve with 20 pending call IDs', () async {
+      final ids = List.generate(20, (i) => i);
+      mock.nextStartResult = WasmProgressResult(
+        ok: true,
+        state: 'resolve_futures',
+        pendingCallIds: ids,
+      );
+      final start = await bindings.start('x');
+      expect(start.pendingCallIds, ids);
+
+      mock.resolveFuturesResults.add(
+        const WasmProgressResult(
+          ok: true,
+          state: 'complete',
+          value: 190,
+        ),
+      );
+      final complete = await bindings.resolveFutures(
+        '{${ids.map((i) => '"$i": $i').join(', ')}}',
+        '{}',
+      );
+      expect(complete.state, 'complete');
+      expect(complete.value, 190);
+    });
+
+    // -----------------------------------------------------------------------
+    // Error propagation
+    // -----------------------------------------------------------------------
+    test('resumeAsFuture error translates to error state', () async {
+      mock.nextStartResult = const WasmProgressResult(
+        ok: true,
+        state: 'pending',
+        functionName: 'f',
+        callId: 0,
+      );
+      await bindings.start('x');
+
+      mock.resumeAsFutureResults.add(
+        const WasmProgressResult(
+          ok: false,
+          error: 'no active snapshot',
+          excType: 'StateError',
+        ),
+      );
+
+      final result = await bindings.resumeAsFuture();
+      expect(result.state, 'error');
+      expect(result.error, 'no active snapshot');
+    });
+
+    test('resolveFutures error with traceback', () async {
+      mock.nextStartResult = const WasmProgressResult(
+        ok: true,
+        state: 'resolve_futures',
+        pendingCallIds: [0],
+      );
+      await bindings.start('x');
+
+      mock.resolveFuturesResults.add(
+        const WasmProgressResult(
+          ok: false,
+          error: 'division by zero',
+          excType: 'ZeroDivisionError',
+          traceback: [
+            {'filename': 'main.py', 'start_line': 3},
+          ],
+        ),
+      );
+
+      final result = await bindings.resolveFutures('{"0": 0}', '{}');
+      expect(result.state, 'error');
+      expect(result.error, 'division by zero');
+      expect(result.excType, 'ZeroDivisionError');
+    });
+
+    // -----------------------------------------------------------------------
+    // Timing: wall-clock timing is captured
+    // -----------------------------------------------------------------------
+    test('resumeAsFuture captures wall-clock timing', () async {
+      mock.nextStartResult = const WasmProgressResult(
+        ok: true,
+        state: 'pending',
+        functionName: 'f',
+        callId: 0,
+      );
+      await bindings.start('x');
+
+      mock.resumeAsFutureResults.add(
+        const WasmProgressResult(
+          ok: true,
+          state: 'complete',
+          value: 42,
+        ),
+      );
+
+      final result = await bindings.resumeAsFuture();
+      expect(result.state, 'complete');
+      expect(result.usage, isNotNull);
+      expect(result.usage!.timeElapsedMs, greaterThanOrEqualTo(0));
+    });
+
+    test('resolveFutures captures wall-clock timing', () async {
+      mock.nextStartResult = const WasmProgressResult(
+        ok: true,
+        state: 'resolve_futures',
+        pendingCallIds: [0],
+      );
+      await bindings.start('x');
+
+      mock.resolveFuturesResults.add(
+        const WasmProgressResult(
+          ok: true,
+          state: 'complete',
+          value: 42,
+        ),
+      );
+
+      final result = await bindings.resolveFutures('{"0": 42}', '{}');
+      expect(result.state, 'complete');
+      expect(result.usage, isNotNull);
+      expect(result.usage!.timeElapsedMs, greaterThanOrEqualTo(0));
+    });
+
+    // -----------------------------------------------------------------------
+    // Call tracking fidelity
+    // -----------------------------------------------------------------------
+    test('resumeAsFuture increments call counter', () async {
+      mock.nextStartResult = const WasmProgressResult(
+        ok: true,
+        state: 'pending',
+        functionName: 'f',
+        callId: 0,
+      );
+      await bindings.start('x');
+
+      mock.resumeAsFutureResults.addAll([
+        const WasmProgressResult(
+          ok: true,
+          state: 'pending',
+          functionName: 'g',
+          callId: 1,
+        ),
+        const WasmProgressResult(
+          ok: true,
+          state: 'resolve_futures',
+          pendingCallIds: [0, 1],
+        ),
+      ]);
+
+      await bindings.resumeAsFuture();
+      await bindings.resumeAsFuture();
+      expect(mock.resumeAsFutureCalls, 2);
+    });
+
+    test('resolveFutures records all call arguments', () async {
+      mock.nextStartResult = const WasmProgressResult(
+        ok: true,
+        state: 'resolve_futures',
+        pendingCallIds: [0, 1],
+      );
+      await bindings.start('x');
+
+      mock.resolveFuturesResults.addAll([
+        const WasmProgressResult(
+          ok: true,
+          state: 'resolve_futures',
+          pendingCallIds: [2],
+        ),
+        const WasmProgressResult(
+          ok: true,
+          state: 'complete',
+          value: 'done',
+        ),
+      ]);
+
+      await bindings.resolveFutures('{"0":"a","1":"b"}', '{}');
+      await bindings.resolveFutures('{"2":"c"}', '{"3":"err"}');
+
+      expect(mock.resolveFuturesCalls, hasLength(2));
+      expect(mock.resolveFuturesCalls[0].resultsJson, '{"0":"a","1":"b"}');
+      expect(mock.resolveFuturesCalls[0].errorsJson, '{}');
+      expect(mock.resolveFuturesCalls[1].resultsJson, '{"2":"c"}');
+      expect(mock.resolveFuturesCalls[1].errorsJson, '{"3":"err"}');
     });
   });
 }

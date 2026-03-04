@@ -19,9 +19,10 @@ import {
   MontyComplete,
   MontyException,
   MontyTypingError,
+  MontyFutureSnapshot,
 } from '@pydantic/monty-wasm32-wasi/monty.wasi-browser.js';
 
-let activeSnapshot = null;
+let activeProgress = null; // MontySnapshot | MontyFutureSnapshot | null
 
 // Signal ready
 self.postMessage({
@@ -81,33 +82,57 @@ function handleStart(id, code, extFns) {
       return;
     }
 
-    if (progress instanceof MontySnapshot) {
-      activeSnapshot = progress;
-      self.postMessage({
-        type: 'result',
-        id,
-        ok: true,
-        state: 'pending',
-        functionName: progress.functionName,
-        args: progress.args,
-      });
-    } else {
-      activeSnapshot = null;
-      self.postMessage({
-        type: 'result',
-        id,
-        ok: true,
-        state: 'complete',
-        value: progress.output,
-      });
-    }
+    postProgress(id, progress);
   } catch (e) {
     self.postMessage({ type: 'result', id, ok: false, ...formatError(e) });
   }
 }
 
+function postProgress(id, progress) {
+  if (progress instanceof MontySnapshot) {
+    if (progress.callId === undefined) {
+      throw new Error('WASM version mismatch: callId missing on MontySnapshot');
+    }
+    activeProgress = progress;
+    self.postMessage({
+      type: 'result',
+      id,
+      ok: true,
+      state: 'pending',
+      functionName: progress.functionName,
+      args: progress.args,
+      kwargs: progress.kwargs,
+      callId: progress.callId,
+    });
+  } else if (progress instanceof MontyFutureSnapshot) {
+    activeProgress = progress;
+    self.postMessage({
+      type: 'result',
+      id,
+      ok: true,
+      state: 'resolve_futures',
+      pendingCallIds: Array.from(progress.pendingCallIds),
+    });
+  } else {
+    // MontyComplete
+    activeProgress = null;
+    self.postMessage({
+      type: 'result',
+      id,
+      ok: true,
+      state: 'complete',
+      value: progress.output,
+    });
+  }
+}
+
+function postError(id, error) {
+  activeProgress = null;
+  self.postMessage({ type: 'result', id, ok: false, ...formatError(error) });
+}
+
 function handleResume(id, value) {
-  if (!activeSnapshot) {
+  if (!(activeProgress instanceof MontySnapshot)) {
     self.postMessage({
       type: 'result',
       id,
@@ -118,41 +143,19 @@ function handleResume(id, value) {
     return;
   }
   try {
-    const progress = activeSnapshot.resume({ returnValue: value });
+    const progress = activeProgress.resume({ returnValue: value });
     if (progress instanceof MontyException) {
-      activeSnapshot = null;
-      self.postMessage({ type: 'result', id, ok: false, ...formatError(progress) });
+      postError(id, progress);
       return;
     }
-
-    if (progress instanceof MontySnapshot) {
-      activeSnapshot = progress;
-      self.postMessage({
-        type: 'result',
-        id,
-        ok: true,
-        state: 'pending',
-        functionName: progress.functionName,
-        args: progress.args,
-      });
-    } else {
-      activeSnapshot = null;
-      self.postMessage({
-        type: 'result',
-        id,
-        ok: true,
-        state: 'complete',
-        value: progress.output,
-      });
-    }
+    postProgress(id, progress);
   } catch (e) {
-    activeSnapshot = null;
-    self.postMessage({ type: 'result', id, ok: false, ...formatError(e) });
+    postError(id, e);
   }
 }
 
 function handleResumeWithError(id, errorMessage) {
-  if (!activeSnapshot) {
+  if (!(activeProgress instanceof MontySnapshot)) {
     self.postMessage({
       type: 'result',
       id,
@@ -163,43 +166,67 @@ function handleResumeWithError(id, errorMessage) {
     return;
   }
   try {
-    const progress = activeSnapshot.resume({
+    const progress = activeProgress.resume({
       exception: { type: 'Exception', message: errorMessage },
     });
     if (progress instanceof MontyException) {
-      activeSnapshot = null;
-      self.postMessage({ type: 'result', id, ok: false, ...formatError(progress) });
+      postError(id, progress);
       return;
     }
-
-    if (progress instanceof MontySnapshot) {
-      activeSnapshot = progress;
-      self.postMessage({
-        type: 'result',
-        id,
-        ok: true,
-        state: 'pending',
-        functionName: progress.functionName,
-        args: progress.args,
-      });
-    } else {
-      activeSnapshot = null;
-      self.postMessage({
-        type: 'result',
-        id,
-        ok: true,
-        state: 'complete',
-        value: progress.output,
-      });
-    }
+    postProgress(id, progress);
   } catch (e) {
-    activeSnapshot = null;
-    self.postMessage({ type: 'result', id, ok: false, ...formatError(e) });
+    postError(id, e);
+  }
+}
+
+function handleResumeAsFuture(id) {
+  if (!(activeProgress instanceof MontySnapshot)) {
+    self.postMessage({
+      type: 'result',
+      id,
+      ok: false,
+      error: 'No active snapshot to resume as future.',
+      errorType: 'StateError',
+    });
+    return;
+  }
+  try {
+    const progress = activeProgress.resumeAsFuture();
+    if (progress instanceof MontyException) {
+      postError(id, progress);
+      return;
+    }
+    postProgress(id, progress);
+  } catch (e) {
+    postError(id, e);
+  }
+}
+
+function handleResolveFutures(id, items) {
+  if (!(activeProgress instanceof MontyFutureSnapshot)) {
+    self.postMessage({
+      type: 'result',
+      id,
+      ok: false,
+      error: 'No active future snapshot to resolve.',
+      errorType: 'StateError',
+    });
+    return;
+  }
+  try {
+    const progress = activeProgress.resume(items);
+    if (progress instanceof MontyException) {
+      postError(id, progress);
+      return;
+    }
+    postProgress(id, progress);
+  } catch (e) {
+    postError(id, e);
   }
 }
 
 self.onmessage = (e) => {
-  const { type, id, code, extFns, value, errorMessage } = e.data;
+  const { type, id, code, extFns, value, errorMessage, items } = e.data;
   switch (type) {
     case 'run':
       handleRun(id, code);
@@ -212,6 +239,12 @@ self.onmessage = (e) => {
       break;
     case 'resumeWithError':
       handleResumeWithError(id, errorMessage);
+      break;
+    case 'resumeAsFuture':
+      handleResumeAsFuture(id);
+      break;
+    case 'resolveFutures':
+      handleResolveFutures(id, items);
       break;
     default:
       self.postMessage({ type: 'error', message: `Unknown message type: ${type}` });

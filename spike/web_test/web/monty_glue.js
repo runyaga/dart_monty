@@ -138,6 +138,49 @@ async function resumeWithError(errorJson) {
   return JSON.stringify(result);
 }
 
+/**
+ * Resume the pending call as a future.
+ *
+ * @returns {string} JSON result.
+ */
+async function resumeAsFuture() {
+  if (!worker) {
+    return JSON.stringify({ ok: false, error: 'Not initialized', errorType: 'InitError' });
+  }
+  const result = await callWorker({ type: 'resumeAsFuture' });
+  return JSON.stringify(result);
+}
+
+/**
+ * Resolve pending futures with results and/or errors.
+ *
+ * @param {string} resultsJson JSON map of {callId: value}.
+ * @param {string} errorsJson  JSON map of {callId: errorMessage}.
+ * @returns {string} JSON result.
+ */
+async function resolveFutures(resultsJson, errorsJson) {
+  if (!worker) {
+    return JSON.stringify({ ok: false, error: 'Not initialized', errorType: 'InitError' });
+  }
+  const resultsMap = JSON.parse(resultsJson || '{}');
+  const errorsMap = JSON.parse(errorsJson || '{}');
+  const items = [];
+  const errorIds = new Set();
+  for (const [key, msg] of Object.entries(errorsMap)) {
+    const callId = parseInt(key, 10);
+    errorIds.add(callId);
+    items.push({ callId, exception: { type: 'RuntimeError', message: msg } });
+  }
+  for (const [key, val] of Object.entries(resultsMap)) {
+    const callId = parseInt(key, 10);
+    if (!errorIds.has(callId)) {
+      items.push({ callId, returnValue: val });
+    }
+  }
+  const result = await callWorker({ type: 'resolveFutures', items });
+  return JSON.stringify(result);
+}
+
 // Expose bridge on window for Dart JS interop
 window.montyBridge = {
   init,
@@ -145,6 +188,8 @@ window.montyBridge = {
   start,
   resume,
   resumeWithError,
+  resumeAsFuture,
+  resolveFutures,
   discover,
 };
 

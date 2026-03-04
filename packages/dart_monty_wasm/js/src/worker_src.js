@@ -13,11 +13,11 @@ import {
   MontyComplete,
   MontyException,
   MontyTypingError,
+  MontyFutureSnapshot,
 } from '@pydantic/monty-wasm32-wasi/monty.wasi-browser.js';
 
-let activeSnapshot = null;
+let activeProgress = null; // MontySnapshot | MontyFutureSnapshot | null
 let activeMonty = null;
-let callIdCounter = 0;
 
 // Signal ready
 self.postMessage({
@@ -150,13 +150,16 @@ function toSerializable(val, seen) {
 }
 
 /**
- * Post a progress result (pending or complete) back to the main thread.
- * Handles MontySnapshot (pending) vs MontyComplete dispatch.
+ * Post a progress result back to the main thread.
+ * Handles MontySnapshot (pending), MontyFutureSnapshot (resolve_futures),
+ * and MontyComplete dispatch.
  */
 function postProgress(id, progress) {
   if (progress instanceof MontySnapshot) {
-    callIdCounter++;
-    activeSnapshot = progress;
+    if (progress.callId === undefined) {
+      throw new Error('WASM version mismatch: callId missing on MontySnapshot');
+    }
+    activeProgress = progress;
     self.postMessage({
       type: 'result',
       id,
@@ -165,10 +168,20 @@ function postProgress(id, progress) {
       functionName: progress.functionName,
       args: toSerializable(progress.args),
       kwargs: toSerializable(progress.kwargs),
-      callId: callIdCounter,
+      callId: progress.callId,
+    });
+  } else if (progress instanceof MontyFutureSnapshot) {
+    activeProgress = progress;
+    self.postMessage({
+      type: 'result',
+      id,
+      ok: true,
+      state: 'resolve_futures',
+      pendingCallIds: Array.from(progress.pendingCallIds),
     });
   } else {
-    activeSnapshot = null;
+    // MontyComplete
+    activeProgress = null;
     activeMonty = null;
     self.postMessage({
       type: 'result',
@@ -184,7 +197,7 @@ function postProgress(id, progress) {
  * Post an error result, clearing active state.
  */
 function postError(id, error) {
-  activeSnapshot = null;
+  activeProgress = null;
   activeMonty = null;
   self.postMessage({ type: 'result', id, ok: false, ...formatError(error) });
 }
@@ -211,7 +224,7 @@ function handleRun(id, code, limits, scriptName) {
 
 function handleStart(id, code, extFns, limits, scriptName) {
   try {
-    callIdCounter = 0;
+    activeProgress = null;
     const opts = translateLimits(limits);
     if (scriptName) opts.scriptName = scriptName;
     if (extFns && extFns.length > 0) {
@@ -235,7 +248,7 @@ function handleStart(id, code, extFns, limits, scriptName) {
 }
 
 function handleResume(id, value) {
-  if (!activeSnapshot) {
+  if (!(activeProgress instanceof MontySnapshot)) {
     self.postMessage({
       type: 'result',
       id,
@@ -246,7 +259,7 @@ function handleResume(id, value) {
     return;
   }
   try {
-    const progress = activeSnapshot.resume({ returnValue: value });
+    const progress = activeProgress.resume({ returnValue: value });
     if (progress instanceof MontyException) {
       postError(id, progress);
       return;
@@ -258,7 +271,7 @@ function handleResume(id, value) {
 }
 
 function handleResumeWithError(id, errorMessage) {
-  if (!activeSnapshot) {
+  if (!(activeProgress instanceof MontySnapshot)) {
     self.postMessage({
       type: 'result',
       id,
@@ -269,7 +282,7 @@ function handleResumeWithError(id, errorMessage) {
     return;
   }
   try {
-    const progress = activeSnapshot.resume({
+    const progress = activeProgress.resume({
       exception: { type: 'Exception', message: errorMessage },
     });
     if (progress instanceof MontyException) {
@@ -283,7 +296,7 @@ function handleResumeWithError(id, errorMessage) {
 }
 
 function handleSnapshot(id) {
-  if (!activeSnapshot) {
+  if (!activeProgress) {
     self.postMessage({
       type: 'result',
       id,
@@ -294,7 +307,7 @@ function handleSnapshot(id) {
     return;
   }
   try {
-    const bytes = activeSnapshot.dump();
+    const bytes = activeProgress.dump();
     // Convert Uint8Array to base64
     let binary = '';
     for (let i = 0; i < bytes.length; i++) {
@@ -320,21 +333,67 @@ function handleRestore(id, dataBase64) {
       postError(id, snapshot);
       return;
     }
-    activeSnapshot = snapshot;
+    activeProgress = snapshot;
     self.postMessage({ type: 'result', id, ok: true });
   } catch (e) {
     postError(id, e);
   }
 }
 
+function handleResumeAsFuture(id) {
+  if (!(activeProgress instanceof MontySnapshot)) {
+    self.postMessage({
+      type: 'result',
+      id,
+      ok: false,
+      error: 'No active snapshot to resume as future.',
+      errorType: 'StateError',
+    });
+    return;
+  }
+  try {
+    const progress = activeProgress.resumeAsFuture();
+    if (progress instanceof MontyException) {
+      postError(id, progress);
+      return;
+    }
+    postProgress(id, progress);
+  } catch (e) {
+    postError(id, e);
+  }
+}
+
+function handleResolveFutures(id, items) {
+  if (!(activeProgress instanceof MontyFutureSnapshot)) {
+    self.postMessage({
+      type: 'result',
+      id,
+      ok: false,
+      error: 'No active future snapshot to resolve.',
+      errorType: 'StateError',
+    });
+    return;
+  }
+  try {
+    const progress = activeProgress.resume(items);
+    if (progress instanceof MontyException) {
+      postError(id, progress);
+      return;
+    }
+    postProgress(id, progress);
+  } catch (e) {
+    postError(id, e);
+  }
+}
+
 function handleDispose(id) {
-  activeSnapshot = null;
+  activeProgress = null;
   activeMonty = null;
   self.postMessage({ type: 'result', id, ok: true });
 }
 
 self.onmessage = (e) => {
-  const { type, id, code, extFns, value, errorMessage, limits, dataBase64, scriptName } = e.data;
+  const { type, id, code, extFns, value, errorMessage, limits, dataBase64, scriptName, items } = e.data;
   switch (type) {
     case 'run':
       handleRun(id, code, limits, scriptName);
@@ -347,6 +406,12 @@ self.onmessage = (e) => {
       break;
     case 'resumeWithError':
       handleResumeWithError(id, errorMessage);
+      break;
+    case 'resumeAsFuture':
+      handleResumeAsFuture(id);
+      break;
+    case 'resolveFutures':
+      handleResolveFutures(id, items);
       break;
     case 'snapshot':
       handleSnapshot(id);

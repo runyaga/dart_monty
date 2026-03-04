@@ -161,12 +161,15 @@ abstract class WasmBindings {
 
   /// Resumes by creating a future for the pending call.
   ///
-  /// Not yet supported in the WASM backend.
+  /// Instead of providing an immediate value, tells the VM to treat the
+  /// pending external call as a future. The VM continues until blocked
+  /// on future resolution.
   Future<WasmProgressResult> resumeAsFuture();
 
   /// Resolves pending futures with [resultsJson] and [errorsJson].
   ///
-  /// Not yet supported in the WASM backend.
+  /// [resultsJson] is a JSON map of `{callId: value}`.
+  /// [errorsJson] is a JSON map of `{callId: errorMessage}`.
   Future<WasmProgressResult> resolveFutures(
     String resultsJson,
     String errorsJson,

@@ -41,6 +41,15 @@ external JSPromise<JSString> _jsRestore(JSString dataBase64);
 @JS('DartMontyBridge.discover')
 external JSString _jsDiscover();
 
+@JS('DartMontyBridge.resumeAsFuture')
+external JSPromise<JSString> _jsResumeAsFuture();
+
+@JS('DartMontyBridge.resolveFutures')
+external JSPromise<JSString> _jsResolveFutures(
+  JSString resultsJson,
+  JSString errorsJson,
+);
+
 @JS('DartMontyBridge.dispose')
 external JSPromise<JSString> _jsDispose();
 
@@ -117,9 +126,8 @@ class WasmBindingsJs extends WasmBindings {
 
   @override
   Future<WasmProgressResult> resumeAsFuture() async {
-    throw UnsupportedError(
-      'resumeAsFuture() is not supported in the WASM backend.',
-    );
+    final resultJson = await _jsResumeAsFuture().toDart;
+    return _decodeProgress(resultJson.toDart);
   }
 
   @override
@@ -127,9 +135,11 @@ class WasmBindingsJs extends WasmBindings {
     String resultsJson,
     String errorsJson,
   ) async {
-    throw UnsupportedError(
-      'resolveFutures() is not supported in the WASM backend.',
-    );
+    final resultJson = await _jsResolveFutures(
+      resultsJson.toJS,
+      errorsJson.toJS,
+    ).toDart;
+    return _decodeProgress(resultJson.toDart);
   }
 
   @override

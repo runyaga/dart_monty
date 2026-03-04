@@ -875,13 +875,13 @@ void main() {
       expect(monty, isA<MontySnapshotCapable>());
     });
 
-    test('is not MontyFutureCapable', () {
-      expect(monty, isNot(isA<MontyFutureCapable>()));
+    test('is MontyFutureCapable', () {
+      expect(monty, isA<MontyFutureCapable>());
     });
   });
 
   // ===========================================================================
-  // Async/Futures (M13) — forward-compat state handling
+  // Async/Futures (M13)
   // ===========================================================================
   group('async/futures (M13)', () {
     test('start() returns MontyResolveFutures for resolve_futures state',
@@ -927,6 +927,567 @@ void main() {
       // Active state — cannot run() or start().
       expect(() => monty.run('y'), throwsStateError);
       expect(() => monty.start('y'), throwsStateError);
+    });
+
+    test('resumeAsFuture() returns MontyResolveFutures', () async {
+      // First start with a pending call.
+      mock.nextStartResult = const WasmProgressResult(
+        ok: true,
+        state: 'pending',
+        functionName: 'fetch',
+        arguments: ['x'],
+        callId: 0,
+      );
+      await monty.start('x', externalFunctions: ['fetch']);
+
+      // Then resume as future — should yield resolve_futures.
+      mock.resumeAsFutureResults.add(
+        const WasmProgressResult(
+          ok: true,
+          state: 'resolve_futures',
+          pendingCallIds: [0],
+        ),
+      );
+
+      final progress = await monty.resumeAsFuture();
+
+      expect(progress, isA<MontyResolveFutures>());
+      final rf = progress as MontyResolveFutures;
+      expect(rf.pendingCallIds, [0]);
+    });
+
+    test('resumeAsFuture() throws StateError when idle', () {
+      expect(() => monty.resumeAsFuture(), throwsStateError);
+    });
+
+    test('resumeAsFuture() throws StateError when disposed', () async {
+      await monty.dispose();
+      expect(() => monty.resumeAsFuture(), throwsStateError);
+    });
+
+    test('resolveFutures() returns MontyComplete', () async {
+      // Start in resolve_futures state.
+      mock.nextStartResult = const WasmProgressResult(
+        ok: true,
+        state: 'resolve_futures',
+        pendingCallIds: [0, 1],
+      );
+      await monty.start('x', externalFunctions: ['a', 'b']);
+
+      // Resolve futures.
+      mock.resolveFuturesResults.add(
+        const WasmProgressResult(
+          ok: true,
+          state: 'complete',
+          value: 42,
+        ),
+      );
+
+      final progress = await monty.resolveFutures(
+        {0: 10, 1: 32},
+      );
+
+      expect(progress, isA<MontyComplete>());
+      final complete = progress as MontyComplete;
+      expect(complete.result.value, 42);
+      expect(mock.resolveFuturesCalls, hasLength(1));
+      expect(mock.resolveFuturesCalls.first.resultsJson, '{"0":10,"1":32}');
+      expect(mock.resolveFuturesCalls.first.errorsJson, '{}');
+    });
+
+    test('resolveFutures() encodes errors as JSON', () async {
+      mock.nextStartResult = const WasmProgressResult(
+        ok: true,
+        state: 'resolve_futures',
+        pendingCallIds: [0, 1],
+      );
+      await monty.start('x', externalFunctions: ['a', 'b']);
+
+      mock.resolveFuturesResults.add(
+        const WasmProgressResult(
+          ok: true,
+          state: 'complete',
+        ),
+      );
+
+      await monty.resolveFutures(
+        {0: 10},
+        errors: {1: 'bar failed'},
+      );
+
+      expect(
+        mock.resolveFuturesCalls.first.errorsJson,
+        '{"1":"bar failed"}',
+      );
+    });
+
+    test('resolveFutures() throws StateError when idle', () {
+      expect(
+        () => monty.resolveFutures({0: 'val'}),
+        throwsStateError,
+      );
+    });
+
+    test('resolveFutures() throws StateError when disposed', () async {
+      await monty.dispose();
+      expect(
+        () => monty.resolveFutures({0: 'val'}),
+        throwsStateError,
+      );
+    });
+  });
+
+  // ===========================================================================
+  // Async/Futures Stress Tests (Tier 14)
+  // ===========================================================================
+  group('async/futures stress', () {
+    // -------------------------------------------------------------------------
+    // A. State Machine Integrity
+    // -------------------------------------------------------------------------
+    group('state machine integrity', () {
+      test('resumeAsFuture → resolveFutures → complete full cycle', () async {
+        // Start with pending.
+        mock.nextStartResult = const WasmProgressResult(
+          ok: true,
+          state: 'pending',
+          functionName: 'fetch',
+          arguments: ['url'],
+          callId: 0,
+        );
+        await monty.start('x', externalFunctions: ['fetch']);
+
+        // resumeAsFuture yields resolve_futures.
+        mock.resumeAsFutureResults.add(
+          const WasmProgressResult(
+            ok: true,
+            state: 'resolve_futures',
+            pendingCallIds: [0],
+          ),
+        );
+        final rf = await monty.resumeAsFuture();
+        expect(rf, isA<MontyResolveFutures>());
+
+        // resolveFutures yields complete.
+        mock.resolveFuturesResults.add(
+          const WasmProgressResult(
+            ok: true,
+            state: 'complete',
+            value: 'done',
+          ),
+        );
+        final complete = await monty.resolveFutures({0: 'response'});
+        expect(complete, isA<MontyComplete>());
+        expect((complete as MontyComplete).result.value, 'done');
+      });
+
+      test('multi-round: pending → future → resolve → pending → complete',
+          () async {
+        // Round 1: start → pending.
+        mock.nextStartResult = const WasmProgressResult(
+          ok: true,
+          state: 'pending',
+          functionName: 'f',
+          arguments: [1],
+          callId: 0,
+        );
+        await monty.start('x', externalFunctions: ['f', 'g']);
+
+        // Round 1: resumeAsFuture → resolve_futures.
+        mock.resumeAsFutureResults.add(
+          const WasmProgressResult(
+            ok: true,
+            state: 'resolve_futures',
+            pendingCallIds: [0],
+          ),
+        );
+        await monty.resumeAsFuture();
+
+        // Round 1: resolveFutures → new pending (second call).
+        mock.resolveFuturesResults.add(
+          const WasmProgressResult(
+            ok: true,
+            state: 'pending',
+            functionName: 'g',
+            arguments: [2],
+            callId: 1,
+          ),
+        );
+        final pending2 = await monty.resolveFutures({0: 10});
+        expect(pending2, isA<MontyPending>());
+        expect((pending2 as MontyPending).functionName, 'g');
+
+        // Round 2: resumeAsFuture → resolve_futures.
+        mock.resumeAsFutureResults.add(
+          const WasmProgressResult(
+            ok: true,
+            state: 'resolve_futures',
+            pendingCallIds: [1],
+          ),
+        );
+        await monty.resumeAsFuture();
+
+        // Round 2: resolveFutures → complete.
+        mock.resolveFuturesResults.add(
+          const WasmProgressResult(
+            ok: true,
+            state: 'complete',
+            value: 42,
+          ),
+        );
+        final complete = await monty.resolveFutures({1: 20});
+        expect(complete, isA<MontyComplete>());
+        expect((complete as MontyComplete).result.value, 42);
+      });
+
+      test('resolveFutures can yield another resolve_futures (nested gather)',
+          () async {
+        mock.nextStartResult = const WasmProgressResult(
+          ok: true,
+          state: 'resolve_futures',
+          pendingCallIds: [0, 1],
+        );
+        await monty.start('x', externalFunctions: ['f']);
+
+        // First resolve yields another resolve_futures.
+        mock.resolveFuturesResults.add(
+          const WasmProgressResult(
+            ok: true,
+            state: 'resolve_futures',
+            pendingCallIds: [2, 3],
+          ),
+        );
+        final rf2 = await monty.resolveFutures({0: 'a', 1: 'b'});
+        expect(rf2, isA<MontyResolveFutures>());
+        expect((rf2 as MontyResolveFutures).pendingCallIds, [2, 3]);
+
+        // Second resolve yields complete.
+        mock.resolveFuturesResults.add(
+          const WasmProgressResult(
+            ok: true,
+            state: 'complete',
+            value: 'final',
+          ),
+        );
+        final complete = await monty.resolveFutures({2: 'c', 3: 'd'});
+        expect(complete, isA<MontyComplete>());
+      });
+    });
+
+    // -------------------------------------------------------------------------
+    // B. Scale
+    // -------------------------------------------------------------------------
+    group('scale', () {
+      test('resolveFutures with 20 pending call IDs', () async {
+        final ids = List.generate(20, (i) => i);
+        mock.nextStartResult = WasmProgressResult(
+          ok: true,
+          state: 'resolve_futures',
+          pendingCallIds: ids,
+        );
+        await monty.start('x', externalFunctions: ['f']);
+
+        mock.resolveFuturesResults.add(
+          const WasmProgressResult(
+            ok: true,
+            state: 'complete',
+            value: 190,
+          ),
+        );
+        final results = {for (final id in ids) id: id};
+        final complete = await monty.resolveFutures(results);
+        expect(complete, isA<MontyComplete>());
+
+        // Verify JSON encoding of 20 entries.
+        final json = mock.resolveFuturesCalls.first.resultsJson;
+        expect(json, contains('"19":19'));
+      });
+
+      test('resolveFutures JSON encodes many error entries', () async {
+        mock.nextStartResult = const WasmProgressResult(
+          ok: true,
+          state: 'resolve_futures',
+          pendingCallIds: [0, 1, 2, 3, 4],
+        );
+        await monty.start('x', externalFunctions: ['f']);
+
+        mock.resolveFuturesResults.add(
+          const WasmProgressResult(
+            ok: true,
+            state: 'complete',
+          ),
+        );
+        await monty.resolveFutures(
+          {0: 'ok', 2: 'ok', 4: 'ok'},
+          errors: {1: 'err_1', 3: 'err_3'},
+        );
+
+        final errJson = mock.resolveFuturesCalls.first.errorsJson;
+        expect(errJson, '{"1":"err_1","3":"err_3"}');
+        final resJson = mock.resolveFuturesCalls.first.resultsJson;
+        expect(resJson, contains('"0":"ok"'));
+        expect(resJson, contains('"4":"ok"'));
+      });
+    });
+
+    // -------------------------------------------------------------------------
+    // C. Error Boundaries
+    // -------------------------------------------------------------------------
+    group('error boundaries', () {
+      test('resumeAsFuture returns error state throws MontyException',
+          () async {
+        mock.nextStartResult = const WasmProgressResult(
+          ok: true,
+          state: 'pending',
+          functionName: 'f',
+          callId: 0,
+        );
+        await monty.start('x', externalFunctions: ['f']);
+
+        mock.resumeAsFutureResults.add(
+          const WasmProgressResult(
+            ok: false,
+            error: 'VM internal error',
+            excType: 'RuntimeError',
+          ),
+        );
+
+        try {
+          await monty.resumeAsFuture();
+          fail('Expected MontyException');
+        } on MontyException catch (e) {
+          expect(e.message, contains('VM internal error'));
+        }
+      });
+
+      test('resolveFutures returns error state throws MontyException',
+          () async {
+        mock.nextStartResult = const WasmProgressResult(
+          ok: true,
+          state: 'resolve_futures',
+          pendingCallIds: [0],
+        );
+        await monty.start('x', externalFunctions: ['f']);
+
+        mock.resolveFuturesResults.add(
+          const WasmProgressResult(
+            ok: false,
+            error: 'division by zero',
+            excType: 'ZeroDivisionError',
+            traceback: [
+              {'filename': 'main.py', 'start_line': 3, 'start_column': 0},
+            ],
+          ),
+        );
+
+        try {
+          await monty.resolveFutures({0: 0});
+          fail('Expected MontyException');
+        } on MontyException catch (e) {
+          expect(e.message, contains('division by zero'));
+          expect(e.excType, 'ZeroDivisionError');
+          expect(e.traceback, hasLength(1));
+        }
+      });
+    });
+
+    // -------------------------------------------------------------------------
+    // D. Data Fidelity
+    // -------------------------------------------------------------------------
+    group('data fidelity', () {
+      test('resolveFutures encodes complex nested values as JSON', () async {
+        mock.nextStartResult = const WasmProgressResult(
+          ok: true,
+          state: 'resolve_futures',
+          pendingCallIds: [0],
+        );
+        await monty.start('x', externalFunctions: ['f']);
+
+        mock.resolveFuturesResults.add(
+          const WasmProgressResult(ok: true, state: 'complete'),
+        );
+
+        await monty.resolveFutures({
+          0: {
+            'name': 'test',
+            'items': [1, null, true],
+            'nested': {'a': 'b'},
+          },
+        });
+
+        final json = mock.resolveFuturesCalls.first.resultsJson;
+        expect(json, contains('"name":"test"'));
+        expect(json, contains('null'));
+        expect(json, contains('"a":"b"'));
+      });
+
+      test('resolveFutures encodes unicode strings', () async {
+        mock.nextStartResult = const WasmProgressResult(
+          ok: true,
+          state: 'resolve_futures',
+          pendingCallIds: [0],
+        );
+        await monty.start('x', externalFunctions: ['f']);
+
+        mock.resolveFuturesResults.add(
+          const WasmProgressResult(ok: true, state: 'complete'),
+        );
+
+        await monty.resolveFutures({0: 'hello 你好 🌍'});
+
+        final json = mock.resolveFuturesCalls.first.resultsJson;
+        expect(json, contains('hello'));
+        expect(json, contains('🌍'));
+      });
+
+      test('resolveFutures encodes empty collections', () async {
+        mock.nextStartResult = const WasmProgressResult(
+          ok: true,
+          state: 'resolve_futures',
+          pendingCallIds: [0, 1],
+        );
+        await monty.start('x', externalFunctions: ['f']);
+
+        mock.resolveFuturesResults.add(
+          const WasmProgressResult(ok: true, state: 'complete'),
+        );
+
+        await monty.resolveFutures({0: <dynamic>[], 1: <String, dynamic>{}});
+
+        final json = mock.resolveFuturesCalls.first.resultsJson;
+        expect(json, contains('[]'));
+        expect(json, contains('{}'));
+      });
+
+      test('resolveFutures with null errors omits errorsJson', () async {
+        mock.nextStartResult = const WasmProgressResult(
+          ok: true,
+          state: 'resolve_futures',
+          pendingCallIds: [0],
+        );
+        await monty.start('x', externalFunctions: ['f']);
+
+        mock.resolveFuturesResults.add(
+          const WasmProgressResult(ok: true, state: 'complete'),
+        );
+
+        await monty.resolveFutures({0: 'val'});
+
+        expect(mock.resolveFuturesCalls.first.errorsJson, '{}');
+      });
+    });
+
+    // -------------------------------------------------------------------------
+    // E. NaN / Special float handling
+    // -------------------------------------------------------------------------
+    group('special values', () {
+      test('resolveFutures with NaN throws synchronously', () async {
+        mock.nextStartResult = const WasmProgressResult(
+          ok: true,
+          state: 'resolve_futures',
+          pendingCallIds: [0],
+        );
+        await monty.start('x', externalFunctions: ['f']);
+
+        // json.encode(double.nan) throws JsonUnsupportedObjectError.
+        expect(
+          () => monty.resolveFutures({0: double.nan}),
+          throwsA(isA<JsonUnsupportedObjectError>()),
+        );
+      });
+
+      test('resolveFutures with Infinity throws synchronously', () async {
+        mock.nextStartResult = const WasmProgressResult(
+          ok: true,
+          state: 'resolve_futures',
+          pendingCallIds: [0],
+        );
+        await monty.start('x', externalFunctions: ['f']);
+
+        expect(
+          () => monty.resolveFutures({0: double.infinity}),
+          throwsA(isA<JsonUnsupportedObjectError>()),
+        );
+      });
+    });
+
+    group('state misuse', () {
+      test('resumeAsFuture while idle throws StateError', () async {
+        // monty is idle (never started), calling resumeAsFuture should fail
+        mock.nextInitResult = true;
+        await monty.run('init'); // force init, then idle
+        expect(
+          () => monty.resumeAsFuture(),
+          throwsStateError,
+        );
+      });
+
+      test('resolveFutures while idle throws StateError', () async {
+        mock.nextInitResult = true;
+        await monty.run('init');
+        expect(
+          () => monty.resolveFutures({0: 'val'}),
+          throwsStateError,
+        );
+      });
+
+      test('dispose while in resolve_futures state', () async {
+        mock.nextStartResult = const WasmProgressResult(
+          ok: true,
+          state: 'resolve_futures',
+          pendingCallIds: [0, 1],
+        );
+        await monty.start('code', externalFunctions: ['f']);
+
+        // Should dispose cleanly even though VM is mid-execution
+        await monty.dispose();
+        expect(monty.isDisposed, isTrue);
+      });
+
+      test('dispose while in pending state', () async {
+        mock.nextStartResult = const WasmProgressResult(
+          ok: true,
+          state: 'pending',
+          functionName: 'f',
+          arguments: [],
+          callId: 0,
+        );
+        await monty.start('code', externalFunctions: ['f']);
+
+        await monty.dispose();
+        expect(monty.isDisposed, isTrue);
+      });
+
+      test('resumeAsFuture after dispose throws StateError', () async {
+        mock.nextStartResult = const WasmProgressResult(
+          ok: true,
+          state: 'pending',
+          functionName: 'f',
+          arguments: [],
+          callId: 0,
+        );
+        await monty.start('code', externalFunctions: ['f']);
+        await monty.dispose();
+
+        expect(
+          () => monty.resumeAsFuture(),
+          throwsStateError,
+        );
+      });
+
+      test('resolveFutures after dispose throws StateError', () async {
+        mock.nextStartResult = const WasmProgressResult(
+          ok: true,
+          state: 'resolve_futures',
+          pendingCallIds: [0],
+        );
+        await monty.start('code', externalFunctions: ['f']);
+        await monty.dispose();
+
+        expect(
+          () => monty.resolveFutures({0: 'val'}),
+          throwsStateError,
+        );
+      });
     });
   });
 }

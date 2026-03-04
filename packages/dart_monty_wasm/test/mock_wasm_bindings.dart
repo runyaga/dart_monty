@@ -31,6 +31,12 @@ class MockWasmBindings extends WasmBindings {
   /// Queue of results returned by [resumeWithError]. Dequeues on each call.
   final List<WasmProgressResult> resumeWithErrorResults = [];
 
+  /// Queue of results returned by [resumeAsFuture]. Dequeues on each call.
+  final List<WasmProgressResult> resumeAsFutureResults = [];
+
+  /// Queue of results returned by [resolveFutures]. Dequeues on each call.
+  final List<WasmProgressResult> resolveFuturesResults = [];
+
   /// Data returned by [snapshot].
   Uint8List nextSnapshotData = Uint8List.fromList([1, 2, 3]);
 
@@ -75,6 +81,13 @@ class MockWasmBindings extends WasmBindings {
 
   /// Records of `errorMessage` passed to [resumeWithError].
   final List<String> resumeWithErrorCalls = [];
+
+  /// Number of times [resumeAsFuture] was called.
+  int resumeAsFutureCalls = 0;
+
+  /// Records of `(resultsJson, errorsJson)` passed to [resolveFutures].
+  final List<({String resultsJson, String errorsJson})> resolveFuturesCalls =
+      [];
 
   /// Number of times [snapshot] was called.
   int snapshotCalls = 0;
@@ -155,7 +168,15 @@ class MockWasmBindings extends WasmBindings {
 
   @override
   Future<WasmProgressResult> resumeAsFuture() async {
-    throw UnsupportedError('resumeAsFuture() not supported in WASM');
+    resumeAsFutureCalls++;
+    if (resumeAsFutureResults.isNotEmpty) {
+      return resumeAsFutureResults.removeAt(0);
+    }
+
+    return const WasmProgressResult(
+      ok: true,
+      state: 'complete',
+    );
   }
 
   @override
@@ -163,7 +184,15 @@ class MockWasmBindings extends WasmBindings {
     String resultsJson,
     String errorsJson,
   ) async {
-    throw UnsupportedError('resolveFutures() not supported in WASM');
+    resolveFuturesCalls.add((resultsJson: resultsJson, errorsJson: errorsJson));
+    if (resolveFuturesResults.isNotEmpty) {
+      return resolveFuturesResults.removeAt(0);
+    }
+
+    return const WasmProgressResult(
+      ok: true,
+      state: 'complete',
+    );
   }
 
   @override

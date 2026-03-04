@@ -84,7 +84,10 @@ class WasmCoreBindings implements MontyCoreBindings {
 
   @override
   Future<CoreProgressResult> resumeAsFuture() async {
-    throw UnsupportedError('resumeAsFuture() not supported in WASM');
+    final sw = Stopwatch()..start();
+    final progress = await _bindings.resumeAsFuture();
+    sw.stop();
+    return _translateProgressResult(progress, sw.elapsedMilliseconds);
   }
 
   @override
@@ -92,7 +95,10 @@ class WasmCoreBindings implements MontyCoreBindings {
     String resultsJson,
     String errorsJson,
   ) async {
-    throw UnsupportedError('resolveFutures() not supported in WASM');
+    final sw = Stopwatch()..start();
+    final progress = await _bindings.resolveFutures(resultsJson, errorsJson);
+    sw.stop();
+    return _translateProgressResult(progress, sw.elapsedMilliseconds);
   }
 
   @override
