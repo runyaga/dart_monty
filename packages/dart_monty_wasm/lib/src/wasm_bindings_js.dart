@@ -76,6 +76,7 @@ class WasmBindingsJs extends WasmBindings {
     return WasmRunResult(
       ok: map['ok'] as bool,
       value: map['value'],
+      printOutput: map['print_output'] as String?,
       error: map['error'] as String?,
       errorType: map['errorType'] as String?,
       excType: map['excType'] as String?,
@@ -195,6 +196,7 @@ class WasmBindingsJs extends WasmBindings {
       ok: map['ok'] as bool,
       state: map['state'] as String?,
       value: map['value'],
+      printOutput: map['print_output'] as String?,
       functionName: map['functionName'] as String?,
       arguments: args != null ? List<Object?>.from(args) : null,
       kwargs: rawKwargs != null ? Map<String, Object?>.from(rawKwargs) : null,

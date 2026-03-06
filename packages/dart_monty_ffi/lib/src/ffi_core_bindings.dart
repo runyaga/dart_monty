@@ -189,6 +189,7 @@ class FfiCoreBindings implements MontyCoreBindings {
           value: jsonMap['value'] as Object?,
           usage:
               usageMap != null ? MontyResourceUsage.fromJson(usageMap) : null,
+          printOutput: jsonMap['print_output'] as String?,
           error: errorMap?['message'] as String?,
           excType: errorMap?['exc_type'] as String?,
           traceback: errorMap?['traceback'] as List<Object?>?,
