@@ -1,0 +1,115 @@
+import 'dart:convert';
+
+import 'package:dart_monty_bridge/src/bridge/host_function.dart';
+import 'package:dart_monty_bridge/src/bridge/host_function_schema.dart';
+import 'package:dart_monty_bridge/src/bridge/host_param.dart';
+import 'package:dart_monty_bridge/src/bridge/host_param_type.dart';
+
+/// Category name for introspection builtins.
+const introspectionCategory = 'introspection';
+
+/// Schema for the `list_functions` introspection function.
+const listFunctionsSchema = HostFunctionSchema(
+  name: 'list_functions',
+  description: 'List all available host functions grouped by category.',
+);
+
+/// Schema for the `help` introspection function.
+const helpSchema = HostFunctionSchema(
+  name: 'help',
+  description: 'Show detailed information about a host function by name.',
+  params: [
+    HostParam(
+      name: 'name',
+      type: HostParamType.string,
+      description: 'Name of the function to look up.',
+    ),
+  ],
+);
+
+/// Builds the introspection host functions (`list_functions` and `help`).
+///
+/// Takes [schemasByCategory] from the registry so introspection can enumerate
+/// all registered functions without a circular dependency on the registry.
+List<HostFunction> buildIntrospectionFunctions(
+  Map<String, List<HostFunctionSchema>> schemasByCategory,
+) {
+  return [
+    HostFunction(
+      schema: listFunctionsSchema,
+      handler: (args) async => _handleListFunctions(schemasByCategory),
+    ),
+    HostFunction(
+      schema: helpSchema,
+      handler: (args) async =>
+          _handleHelp(schemasByCategory, args['name']! as String),
+    ),
+  ];
+}
+
+/// Serializes a single [HostParam] to a JSON-compatible map.
+Map<String, Object?> _serializeParam(HostParam param) {
+  return {
+    'name': param.name,
+    'type': param.type.jsonSchemaType,
+    'required': param.isRequired,
+    if (param.description != null) 'description': param.description,
+  };
+}
+
+/// Serializes a [HostFunctionSchema] to a summary map.
+Map<String, Object?> _serializeSchema(HostFunctionSchema schema) {
+  return {
+    'name': schema.name,
+    'description': schema.description,
+    'params': [for (final p in schema.params) _serializeParam(p)],
+  };
+}
+
+/// Handler for `list_functions`.
+///
+/// Returns JSON with all categories including introspection's own entries.
+String _handleListFunctions(
+  Map<String, List<HostFunctionSchema>> schemasByCategory,
+) {
+  final tools = <String, Object?>{};
+
+  for (final entry in schemasByCategory.entries) {
+    tools[entry.key] = [for (final s in entry.value) _serializeSchema(s)];
+  }
+
+  // Include introspection's own schemas.
+  tools[introspectionCategory] = [
+    _serializeSchema(listFunctionsSchema),
+    _serializeSchema(helpSchema),
+  ];
+
+  return jsonEncode({'tools': tools});
+}
+
+/// Handler for `help`.
+///
+/// Looks up [name] across all categories and the introspection schemas.
+/// Returns JSON detail or an error string.
+String _handleHelp(
+  Map<String, List<HostFunctionSchema>> schemasByCategory,
+  String name,
+) {
+  // Search registered categories.
+  for (final schemas in schemasByCategory.values) {
+    for (final schema in schemas) {
+      if (schema.name == name) {
+        return jsonEncode(_serializeSchema(schema));
+      }
+    }
+  }
+
+  // Search introspection schemas.
+  for (final schema in [listFunctionsSchema, helpSchema]) {
+    if (schema.name == name) {
+      return jsonEncode(_serializeSchema(schema));
+    }
+  }
+
+  return 'Unknown function: $name';
+}
