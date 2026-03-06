@@ -100,7 +100,14 @@ class EventLoopBridge extends DefaultMontyBridge {
   @override
   Stream<BridgeEvent> execute(String code) {
     _loopState = EventLoopState.executing;
-    return super.execute(code).map((event) {
+    final Stream<BridgeEvent> upstream;
+    try {
+      upstream = super.execute(code);
+    } on Object {
+      _loopState = EventLoopState.idle;
+      rethrow;
+    }
+    return upstream.map((event) {
       // Track completion when the run finishes or errors.
       if (event is BridgeRunFinished || event is BridgeRunError) {
         if (_loopState != EventLoopState.disposed) {

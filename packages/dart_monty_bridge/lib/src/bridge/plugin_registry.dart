@@ -127,12 +127,19 @@ class PluginRegistry {
 
   void _checkFunctionCollisions(MontyPlugin plugin) {
     final prefix = '${plugin.namespace}_';
+    final seen = <String>{};
     for (final fn in plugin.functions) {
       final name = fn.schema.name;
       if (!name.startsWith(prefix)) {
         throw ArgumentError(
           'Function "$name" in plugin "${plugin.namespace}" must be '
           'prefixed with "$prefix".',
+        );
+      }
+      if (!seen.add(name)) {
+        throw ArgumentError(
+          'Plugin "${plugin.namespace}" declares duplicate '
+          'function "$name".',
         );
       }
       if (_functionNames.contains(name)) {
