@@ -182,7 +182,7 @@ compilation limit.
 The web backend requires COOP/COEP HTTP headers for SharedArrayBuffer
 support:
 
-```
+```text
 Cross-Origin-Opener-Policy: same-origin
 Cross-Origin-Embedder-Policy: require-corp
 ```

@@ -333,4 +333,3 @@ No manual testing steps.
 | `cargo-ndk` | M7 | Android cross-compilation |
 | Xcode | M7 | iOS builds |
 | `pydantic-monty` (Python) | M8 | Cross-platform snapshot tests |
-
