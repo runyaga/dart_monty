@@ -155,6 +155,14 @@ class DefaultMontyBridge implements MontyBridge {
           case MontyComplete(:final result):
             _flushPrintBuffer(printBuffer, controller);
 
+            // Prefer the bridge-captured print output (from __console_write__
+            // intercepts) over the platform's result.printOutput, because the
+            // print preamble overrides Python's print() to route through the
+            // bridge.
+            final capturedOutput = printBuffer.isNotEmpty
+                ? printBuffer.toString()
+                : result.printOutput;
+
             if (result.isError) {
               controller.add(BridgeRunError(message: result.error!.message));
             } else {
@@ -163,7 +171,7 @@ class DefaultMontyBridge implements MontyBridge {
                   threadId: threadId,
                   runId: runId,
                   value: result.value,
-                  printOutput: result.printOutput,
+                  printOutput: capturedOutput,
                 ),
               );
             }
