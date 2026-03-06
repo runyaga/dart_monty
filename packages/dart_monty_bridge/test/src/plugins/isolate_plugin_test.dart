@@ -22,27 +22,29 @@ MockMontyPlatform _completingMockWithResult({
   Object? value,
   String? printOutput,
 }) {
-  return MockMontyPlatform()..enqueueProgress(
-    MontyComplete(
-      result: MontyResult(
-        value: value,
-        usage: _usage,
-        printOutput: printOutput,
+  return MockMontyPlatform()
+    ..enqueueProgress(
+      MontyComplete(
+        result: MontyResult(
+          value: value,
+          usage: _usage,
+          printOutput: printOutput,
+        ),
       ),
-    ),
-  );
+    );
 }
 
 /// Creates a [MockMontyPlatform] that fails with [message].
 MockMontyPlatform _failingMock(String message) {
-  return MockMontyPlatform()..enqueueProgress(
-    MontyComplete(
-      result: MontyResult(
-        error: MontyException(message: message),
-        usage: _usage,
+  return MockMontyPlatform()
+    ..enqueueProgress(
+      MontyComplete(
+        result: MontyResult(
+          error: MontyException(message: message),
+          usage: _usage,
+        ),
       ),
-    ),
-  );
+    );
 }
 
 void main() {
@@ -660,7 +662,8 @@ class _SlowMockPlatform extends MontyPlatform {
     List<String>? externalFunctions,
     MontyLimits? limits,
     String? scriptName,
-  }) => _startFuture;
+  }) =>
+      _startFuture;
 
   @override
   Future<MontyProgress> resume(Object? returnValue) async =>

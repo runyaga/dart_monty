@@ -31,14 +31,14 @@ class HostFunctionRegistry {
 
   /// Flat list of all registered functions across all categories.
   List<HostFunction> get allFunctions => [
-    for (final fns in _categories.values) ...fns,
-  ];
+        for (final fns in _categories.values) ...fns,
+      ];
 
   /// Schemas grouped by category name — used by introspection functions.
   Map<String, List<HostFunctionSchema>> get schemasByCategory => {
-    for (final entry in _categories.entries)
-      entry.key: [for (final fn in entry.value) fn.schema],
-  };
+        for (final entry in _categories.entries)
+          entry.key: [for (final fn in entry.value) fn.schema],
+      };
 
   /// Registers all category functions plus introspection builtins onto
   /// [bridge].

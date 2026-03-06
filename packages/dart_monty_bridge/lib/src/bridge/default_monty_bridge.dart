@@ -48,10 +48,10 @@ class DefaultMontyBridge implements MontyBridge {
     MontyLimits? limits,
     bool useFutures = true,
     Logger? logger,
-  }) : _explicitPlatform = platform,
-       _limits = limits,
-       _useFutures = useFutures,
-       log = logger ?? LogManager.instance.getLogger('MontyBridge');
+  })  : _explicitPlatform = platform,
+        _limits = limits,
+        _useFutures = useFutures,
+        log = logger ?? LogManager.instance.getLogger('MontyBridge');
 
   final MontyPlatform? _explicitPlatform;
   final MontyLimits? _limits;
