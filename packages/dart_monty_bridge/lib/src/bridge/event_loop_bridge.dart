@@ -42,12 +42,8 @@ class EventLoopBridge extends DefaultMontyBridge {
   ///
   /// Pass [onRenderUi] to receive schema updates when Python calls
   /// `render_ui`. Pass [platform] and [limits] as with [DefaultMontyBridge].
-  EventLoopBridge({
-    super.platform,
-    super.limits,
-    super.logger,
-    this.onRenderUi,
-  }) : super(useFutures: true) {
+  EventLoopBridge({super.platform, super.limits, super.logger, this.onRenderUi})
+    : super(useFutures: true) {
     _registerEventLoopFunctions();
   }
 

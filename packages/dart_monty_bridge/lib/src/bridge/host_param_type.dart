@@ -25,12 +25,12 @@ enum HostParamType {
 
   /// JSON Schema type name for tool protocol export.
   String get jsonSchemaType => switch (this) {
-        string => 'string',
-        integer => 'integer',
-        number => 'number',
-        boolean => 'boolean',
-        list => 'array',
-        map => 'object',
-        any => 'string',
-      };
+    string => 'string',
+    integer => 'integer',
+    number => 'number',
+    boolean => 'boolean',
+    list => 'array',
+    map => 'object',
+    any => 'string',
+  };
 }

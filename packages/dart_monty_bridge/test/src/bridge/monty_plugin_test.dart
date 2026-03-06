@@ -82,10 +82,7 @@ void main() {
     });
 
     test('systemPromptContext defaults to null', () {
-      final plugin = _TestPlugin(
-        namespace: 'ns',
-        functions: [],
-      );
+      final plugin = _TestPlugin(namespace: 'ns', functions: []);
 
       expect(plugin.systemPromptContext, isNull);
     });

@@ -122,7 +122,8 @@ class PluginRegistry {
       for (final fn in plugin.functions) {
         final params = fn.schema.params
             .map(
-              (p) => '${p.name}'
+              (p) =>
+                  '${p.name}'
                   '${p.isRequired ? '' : '?'}'
                   ': ${p.type.jsonSchemaType}',
             )

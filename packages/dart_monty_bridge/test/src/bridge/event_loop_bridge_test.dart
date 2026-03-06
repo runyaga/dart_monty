@@ -28,99 +28,97 @@ void main() {
   });
 
   group('wait_for_event and dispatchUiEvent', () {
-    test('wait_for_event pauses, dispatchUiEvent resumes with correct data',
-        () async {
-      // Python calls wait_for_event(), bridge handler creates Completer.
-      // We use the sync (non-futures) path for simplicity: the bridge awaits
-      // the handler inline, so we dispatch during that await.
+    test(
+      'wait_for_event pauses, dispatchUiEvent resumes with correct data',
+      () async {
+        // Python calls wait_for_event(), bridge handler creates Completer.
+        // We use the sync (non-futures) path for simplicity: the bridge awaits
+        // the handler inline, so we dispatch during that await.
 
-      // Sequence: start -> Pending(wait_for_event) -> resume -> Complete
-      mock
-        ..enqueueProgress(
-          const MontyPending(
-            functionName: 'wait_for_event',
-            arguments: [],
-            callId: 1,
-          ),
-        )
-        ..enqueueProgress(
-          const MontyResolveFutures(pendingCallIds: [1]),
-        )
-        ..enqueueProgress(
-          const MontyComplete(result: MontyResult(usage: _usage)),
-        );
+        // Sequence: start -> Pending(wait_for_event) -> resume -> Complete
+        mock
+          ..enqueueProgress(
+            const MontyPending(
+              functionName: 'wait_for_event',
+              arguments: [],
+              callId: 1,
+            ),
+          )
+          ..enqueueProgress(const MontyResolveFutures(pendingCallIds: [1]))
+          ..enqueueProgress(
+            const MontyComplete(result: MontyResult(usage: _usage)),
+          );
 
-      final events = <BridgeEvent>[];
-      final stream = bridge.execute('wait_for_event()');
-      final sub = stream.listen(events.add);
+        final events = <BridgeEvent>[];
+        final stream = bridge.execute('wait_for_event()');
+        final sub = stream.listen(events.add);
 
-      // Give the bridge time to reach the wait_for_event handler.
-      await Future<void>.delayed(Duration.zero);
+        // Give the bridge time to reach the wait_for_event handler.
+        await Future<void>.delayed(Duration.zero);
 
-      expect(bridge.loopState, EventLoopState.waitingForEvent);
+        expect(bridge.loopState, EventLoopState.waitingForEvent);
 
-      // Dispatch a UI event.
-      bridge.dispatchUiEvent({'type': 'button_press', 'id': 'ok'});
+        // Dispatch a UI event.
+        bridge.dispatchUiEvent({'type': 'button_press', 'id': 'ok'});
 
-      await sub.asFuture<void>();
-      await sub.cancel();
+        await sub.asFuture<void>();
+        await sub.cancel();
 
-      expect(bridge.loopState, EventLoopState.completed);
+        expect(bridge.loopState, EventLoopState.completed);
 
-      // Verify the result was passed through resolveFutures.
-      final resolvedResults = mock.lastResolveFuturesResults;
-      expect(resolvedResults, isNotNull);
-      expect(resolvedResults![1], isA<Map<String, dynamic>>());
-      final resultMap = resolvedResults[1]! as Map<String, dynamic>;
-      expect(resultMap['type'], 'button_press');
-      expect(resultMap['id'], 'ok');
-    });
+        // Verify the result was passed through resolveFutures.
+        final resolvedResults = mock.lastResolveFuturesResults;
+        expect(resolvedResults, isNotNull);
+        expect(resolvedResults![1], isA<Map<String, dynamic>>());
+        final resultMap = resolvedResults[1]! as Map<String, dynamic>;
+        expect(resultMap['type'], 'button_press');
+        expect(resultMap['id'], 'ok');
+      },
+    );
 
-    test('events queued while Python busy are delivered on next wait_for_event',
-        () async {
-      // First wait_for_event returns queued event, second waits for dispatch.
-      mock
-        // First call: render_ui
-        ..enqueueProgress(
-          const MontyPending(
-            functionName: 'render_ui',
-            arguments: [
-              <String, dynamic>{'type': 'form'},
-            ],
-            callId: 1,
-          ),
-        )
-        ..enqueueProgress(
-          const MontyResolveFutures(pendingCallIds: [1]),
-        )
-        // Second call: wait_for_event (will get queued event)
-        ..enqueueProgress(
-          const MontyPending(
-            functionName: 'wait_for_event',
-            arguments: [],
-            callId: 2,
-          ),
-        )
-        ..enqueueProgress(
-          const MontyResolveFutures(pendingCallIds: [2]),
-        )
-        ..enqueueProgress(
-          const MontyComplete(result: MontyResult(usage: _usage)),
-        );
+    test(
+      'events queued while Python busy are delivered on next wait_for_event',
+      () async {
+        // First wait_for_event returns queued event, second waits for dispatch.
+        mock
+          // First call: render_ui
+          ..enqueueProgress(
+            const MontyPending(
+              functionName: 'render_ui',
+              arguments: [
+                <String, dynamic>{'type': 'form'},
+              ],
+              callId: 1,
+            ),
+          )
+          ..enqueueProgress(const MontyResolveFutures(pendingCallIds: [1]))
+          // Second call: wait_for_event (will get queued event)
+          ..enqueueProgress(
+            const MontyPending(
+              functionName: 'wait_for_event',
+              arguments: [],
+              callId: 2,
+            ),
+          )
+          ..enqueueProgress(const MontyResolveFutures(pendingCallIds: [2]))
+          ..enqueueProgress(
+            const MontyComplete(result: MontyResult(usage: _usage)),
+          );
 
-      // Queue an event BEFORE execution starts.
-      bridge.dispatchUiEvent({'type': 'early_click'});
+        // Queue an event BEFORE execution starts.
+        bridge.dispatchUiEvent({'type': 'early_click'});
 
-      await bridge.execute('code').toList();
+        await bridge.execute('code').toList();
 
-      // The queued event should have been returned immediately by
-      // wait_for_event, no waiting needed.
-      final resolvedResults = mock.resolveFuturesResultsList;
-      expect(resolvedResults, hasLength(2));
-      // Second resolve (wait_for_event) should contain the queued event.
-      final waitResult = resolvedResults[1][2]! as Map<String, dynamic>;
-      expect(waitResult['type'], 'early_click');
-    });
+        // The queued event should have been returned immediately by
+        // wait_for_event, no waiting needed.
+        final resolvedResults = mock.resolveFuturesResultsList;
+        expect(resolvedResults, hasLength(2));
+        // Second resolve (wait_for_event) should contain the queued event.
+        final waitResult = resolvedResults[1][2]! as Map<String, dynamic>;
+        expect(waitResult['type'], 'early_click');
+      },
+    );
 
     test('multiple queued events delivered in FIFO order', () async {
       mock
@@ -132,9 +130,7 @@ void main() {
             callId: 1,
           ),
         )
-        ..enqueueProgress(
-          const MontyResolveFutures(pendingCallIds: [1]),
-        )
+        ..enqueueProgress(const MontyResolveFutures(pendingCallIds: [1]))
         // Second wait_for_event — will consume second queued event.
         ..enqueueProgress(
           const MontyPending(
@@ -143,9 +139,7 @@ void main() {
             callId: 2,
           ),
         )
-        ..enqueueProgress(
-          const MontyResolveFutures(pendingCallIds: [2]),
-        )
+        ..enqueueProgress(const MontyResolveFutures(pendingCallIds: [2]))
         // Third wait_for_event — will consume third queued event.
         ..enqueueProgress(
           const MontyPending(
@@ -154,9 +148,7 @@ void main() {
             callId: 3,
           ),
         )
-        ..enqueueProgress(
-          const MontyResolveFutures(pendingCallIds: [3]),
-        )
+        ..enqueueProgress(const MontyResolveFutures(pendingCallIds: [3]))
         ..enqueueProgress(
           const MontyComplete(result: MontyResult(usage: _usage)),
         );
@@ -187,9 +179,7 @@ void main() {
             callId: 1,
           ),
         )
-        ..enqueueProgress(
-          const MontyResolveFutures(pendingCallIds: [1]),
-        )
+        ..enqueueProgress(const MontyResolveFutures(pendingCallIds: [1]))
         // Second wait_for_event
         ..enqueueProgress(
           const MontyPending(
@@ -198,9 +188,7 @@ void main() {
             callId: 2,
           ),
         )
-        ..enqueueProgress(
-          const MontyResolveFutures(pendingCallIds: [2]),
-        )
+        ..enqueueProgress(const MontyResolveFutures(pendingCallIds: [2]))
         ..enqueueProgress(
           const MontyComplete(result: MontyResult(usage: _usage)),
         );
@@ -236,10 +224,7 @@ void main() {
   group('render_ui', () {
     test('stores schema and invokes callback', () async {
       final renderedSchemas = <Map<String, dynamic>>[];
-      bridge = EventLoopBridge(
-        platform: mock,
-        onRenderUi: renderedSchemas.add,
-      );
+      bridge = EventLoopBridge(platform: mock, onRenderUi: renderedSchemas.add);
 
       mock
         ..enqueueProgress(
@@ -251,9 +236,7 @@ void main() {
             callId: 1,
           ),
         )
-        ..enqueueProgress(
-          const MontyResolveFutures(pendingCallIds: [1]),
-        )
+        ..enqueueProgress(const MontyResolveFutures(pendingCallIds: [1]))
         ..enqueueProgress(
           const MontyComplete(result: MontyResult(usage: _usage)),
         );
@@ -276,9 +259,7 @@ void main() {
             callId: 1,
           ),
         )
-        ..enqueueProgress(
-          const MontyResolveFutures(pendingCallIds: [1]),
-        )
+        ..enqueueProgress(const MontyResolveFutures(pendingCallIds: [1]))
         ..enqueueProgress(
           const MontyPending(
             functionName: 'render_ui',
@@ -288,9 +269,7 @@ void main() {
             callId: 2,
           ),
         )
-        ..enqueueProgress(
-          const MontyResolveFutures(pendingCallIds: [2]),
-        )
+        ..enqueueProgress(const MontyResolveFutures(pendingCallIds: [2]))
         ..enqueueProgress(
           const MontyComplete(result: MontyResult(usage: _usage)),
         );
@@ -305,10 +284,7 @@ void main() {
     test('dispatchUiEvent after dispose throws StateError', () {
       bridge.dispose();
 
-      expect(
-        () => bridge.dispatchUiEvent({'type': 'click'}),
-        throwsStateError,
-      );
+      expect(() => bridge.dispatchUiEvent({'type': 'click'}), throwsStateError);
     });
 
     test('script error while waiting cleans up orphaned Completer', () async {
@@ -320,9 +296,7 @@ void main() {
             callId: 1,
           ),
         )
-        ..enqueueProgress(
-          const MontyResolveFutures(pendingCallIds: [1]),
-        )
+        ..enqueueProgress(const MontyResolveFutures(pendingCallIds: [1]))
         ..enqueueProgress(
           const MontyComplete(
             result: MontyResult(
@@ -364,9 +338,7 @@ void main() {
             callId: 1,
           ),
         )
-        ..enqueueProgress(
-          const MontyResolveFutures(pendingCallIds: [1]),
-        )
+        ..enqueueProgress(const MontyResolveFutures(pendingCallIds: [1]))
         ..enqueueProgress(
           const MontyComplete(
             result: MontyResult(
@@ -414,39 +386,39 @@ void main() {
       expect(bridge.loopState, EventLoopState.completed);
     });
 
-    test('idle -> executing -> waitingForEvent -> executing -> completed',
-        () async {
-      expect(bridge.loopState, EventLoopState.idle);
+    test(
+      'idle -> executing -> waitingForEvent -> executing -> completed',
+      () async {
+        expect(bridge.loopState, EventLoopState.idle);
 
-      mock
-        ..enqueueProgress(
-          const MontyPending(
-            functionName: 'wait_for_event',
-            arguments: [],
-            callId: 1,
-          ),
-        )
-        ..enqueueProgress(
-          const MontyResolveFutures(pendingCallIds: [1]),
-        )
-        ..enqueueProgress(
-          const MontyComplete(result: MontyResult(usage: _usage)),
-        );
+        mock
+          ..enqueueProgress(
+            const MontyPending(
+              functionName: 'wait_for_event',
+              arguments: [],
+              callId: 1,
+            ),
+          )
+          ..enqueueProgress(const MontyResolveFutures(pendingCallIds: [1]))
+          ..enqueueProgress(
+            const MontyComplete(result: MontyResult(usage: _usage)),
+          );
 
-      final stream = bridge.execute('wait_for_event()');
-      final sub = stream.listen((_) {});
+        final stream = bridge.execute('wait_for_event()');
+        final sub = stream.listen((_) {});
 
-      // Let it reach wait_for_event.
-      await Future<void>.delayed(Duration.zero);
-      expect(bridge.loopState, EventLoopState.waitingForEvent);
+        // Let it reach wait_for_event.
+        await Future<void>.delayed(Duration.zero);
+        expect(bridge.loopState, EventLoopState.waitingForEvent);
 
-      bridge.dispatchUiEvent({'type': 'click'});
-      expect(bridge.loopState, EventLoopState.executing);
+        bridge.dispatchUiEvent({'type': 'click'});
+        expect(bridge.loopState, EventLoopState.executing);
 
-      await sub.asFuture<void>();
-      await sub.cancel();
-      expect(bridge.loopState, EventLoopState.completed);
-    });
+        await sub.asFuture<void>();
+        await sub.cancel();
+        expect(bridge.loopState, EventLoopState.completed);
+      },
+    );
 
     test('disposed state after dispose()', () {
       bridge.dispose();
@@ -464,9 +436,7 @@ void main() {
             callId: 1,
           ),
         )
-        ..enqueueProgress(
-          const MontyResolveFutures(pendingCallIds: [1]),
-        )
+        ..enqueueProgress(const MontyResolveFutures(pendingCallIds: [1]))
         ..enqueueProgress(
           const MontyComplete(result: MontyResult(usage: _usage)),
         );
@@ -485,14 +455,8 @@ void main() {
       await sub.cancel();
       await loopSub.cancel();
 
-      expect(
-        loopEvents.whereType<BridgeEventLoopWaiting>().length,
-        1,
-      );
-      expect(
-        loopEvents.whereType<BridgeEventLoopResumed>().length,
-        1,
-      );
+      expect(loopEvents.whereType<BridgeEventLoopWaiting>().length, 1);
+      expect(loopEvents.whereType<BridgeEventLoopResumed>().length, 1);
       final resumed = loopEvents.whereType<BridgeEventLoopResumed>().first;
       expect(resumed.event['type'], 'tap');
     });
@@ -508,9 +472,7 @@ void main() {
             callId: 1,
           ),
         )
-        ..enqueueProgress(
-          const MontyResolveFutures(pendingCallIds: [1]),
-        )
+        ..enqueueProgress(const MontyResolveFutures(pendingCallIds: [1]))
         ..enqueueProgress(
           const MontyComplete(result: MontyResult(usage: _usage)),
         );
@@ -598,8 +560,7 @@ class _SyncOnlyMockPlatform extends MontyPlatform {
     List<String>? externalFunctions,
     MontyLimits? limits,
     String? scriptName,
-  }) async =>
-      _dequeueProgress();
+  }) async => _dequeueProgress();
 
   @override
   Future<MontyProgress> resume(Object? returnValue) async {
@@ -619,8 +580,7 @@ class _SyncOnlyMockPlatform extends MontyPlatform {
     Map<String, Object?>? inputs,
     MontyLimits? limits,
     String? scriptName,
-  }) async =>
-      throw UnimplementedError();
+  }) async => throw UnimplementedError();
 
   @override
   Future<void> dispose() async {}
