@@ -2,7 +2,7 @@ import 'dart:typed_data';
 
 import 'package:dart_monty_ffi/src/monty_native.dart';
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 
 import 'mock_native_isolate_bindings.dart';
 
