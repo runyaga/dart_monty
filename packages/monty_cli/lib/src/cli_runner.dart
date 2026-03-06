@@ -18,6 +18,7 @@ CommandRunner<int> buildRunner() {
     ..argParser.addMultiOption(
       'prompt',
       abbr: 'p',
+      splitCommas: false,
       help: 'Execute Python expression(s) in a single session.\n'
           'Can be repeated: -p "x=1" -p "x+1"',
       valueHelp: 'expression',
