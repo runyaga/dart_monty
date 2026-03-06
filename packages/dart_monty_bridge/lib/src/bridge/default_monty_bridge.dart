@@ -93,10 +93,7 @@ class DefaultMontyBridge implements MontyBridge {
     if (_isExecuting) {
       throw StateError('Bridge is already executing');
     }
-    log.debug(
-      'Executing code',
-      attributes: {'codeLength': code.length},
-    );
+    log.debug('Executing code', attributes: {'codeLength': code.length});
 
     final controller = StreamController<BridgeEvent>();
     _isExecuting = true;
@@ -158,11 +155,24 @@ class DefaultMontyBridge implements MontyBridge {
           case MontyComplete(:final result):
             _flushPrintBuffer(printBuffer, controller);
 
+            // Prefer the bridge-captured print output (from __console_write__
+            // intercepts) over the platform's result.printOutput, because the
+            // print preamble overrides Python's print() to route through the
+            // bridge.
+            final capturedOutput = printBuffer.isNotEmpty
+                ? printBuffer.toString()
+                : result.printOutput;
+
             if (result.isError) {
               controller.add(BridgeRunError(message: result.error!.message));
             } else {
               controller.add(
-                BridgeRunFinished(threadId: threadId, runId: runId),
+                BridgeRunFinished(
+                  threadId: threadId,
+                  runId: runId,
+                  value: result.value,
+                  printOutput: capturedOutput,
+                ),
               );
             }
             return;
@@ -369,9 +379,7 @@ class DefaultMontyBridge implements MontyBridge {
     final messageId = _nextId;
     controller
       ..add(BridgeTextStart(messageId: messageId))
-      ..add(
-        BridgeTextContent(messageId: messageId, delta: buffer.toString()),
-      )
+      ..add(BridgeTextContent(messageId: messageId, delta: buffer.toString()))
       ..add(BridgeTextEnd(messageId: messageId));
   }
 }

@@ -23,13 +23,24 @@ class BridgeRunStarted extends BridgeEvent {
 /// Execution completed successfully.
 class BridgeRunFinished extends BridgeEvent {
   /// Creates a [BridgeRunFinished].
-  const BridgeRunFinished({required this.threadId, required this.runId});
+  const BridgeRunFinished({
+    required this.threadId,
+    required this.runId,
+    this.value,
+    this.printOutput,
+  });
 
   /// Thread identifier.
   final String threadId;
 
   /// Run identifier.
   final String runId;
+
+  /// The Python return value (when execution completed successfully).
+  final Object? value;
+
+  /// Captured print output (when available).
+  final String? printOutput;
 }
 
 /// Execution failed with an error.

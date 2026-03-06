@@ -30,8 +30,9 @@ class HostFunctionRegistry {
   }
 
   /// Flat list of all registered functions across all categories.
-  List<HostFunction> get allFunctions =>
-      [for (final fns in _categories.values) ...fns];
+  List<HostFunction> get allFunctions => [
+        for (final fns in _categories.values) ...fns,
+      ];
 
   /// Schemas grouped by category name — used by introspection functions.
   Map<String, List<HostFunctionSchema>> get schemasByCategory => {

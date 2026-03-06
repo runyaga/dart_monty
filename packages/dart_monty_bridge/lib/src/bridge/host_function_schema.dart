@@ -57,9 +57,7 @@ class HostFunctionSchema {
       final paramNames = params.map((p) => p.name).toSet();
       for (final key in kwargs.keys) {
         if (!paramNames.contains(key)) {
-          throw FormatException(
-            '$name: unknown keyword argument "$key"',
-          );
+          throw FormatException('$name: unknown keyword argument "$key"');
         }
       }
       for (final entry in kwargs.entries) {

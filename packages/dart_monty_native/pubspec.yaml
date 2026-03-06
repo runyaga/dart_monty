@@ -21,6 +21,8 @@ dependencies:
     sdk: flutter
 
 dev_dependencies:
+  dart_monty_bridge:
+    path: ../dart_monty_bridge
   flutter_test:
     sdk: flutter
   test: ^1.25.0

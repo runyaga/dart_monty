@@ -102,6 +102,27 @@ void main() {
       expect(result.ok, isTrue);
       expect(result.value, isNull);
     });
+
+    test('success forwards printOutput', () async {
+      mock.nextRunResult = const WasmRunResult(
+        ok: true,
+        value: 42,
+        printOutput: 'hello\n',
+      );
+
+      final result = await bindings.run('print("hello")');
+
+      expect(result.ok, isTrue);
+      expect(result.printOutput, 'hello\n');
+    });
+
+    test('success with null printOutput', () async {
+      mock.nextRunResult = const WasmRunResult(ok: true, value: 1);
+
+      final result = await bindings.run('1');
+
+      expect(result.printOutput, isNull);
+    });
   });
 
   // ===========================================================================
@@ -121,6 +142,32 @@ void main() {
       expect(result.value, 42);
       expect(result.usage, isNotNull);
       expect(result.usage!.timeElapsedMs, greaterThanOrEqualTo(0));
+    });
+
+    test('complete forwards printOutput', () async {
+      mock.nextStartResult = const WasmProgressResult(
+        ok: true,
+        state: 'complete',
+        value: 42,
+        printOutput: 'hello\n',
+      );
+
+      final result = await bindings.start('print("hello")');
+
+      expect(result.state, 'complete');
+      expect(result.printOutput, 'hello\n');
+    });
+
+    test('complete with null printOutput', () async {
+      mock.nextStartResult = const WasmProgressResult(
+        ok: true,
+        state: 'complete',
+        value: 1,
+      );
+
+      final result = await bindings.start('1');
+
+      expect(result.printOutput, isNull);
     });
 
     test('pending translates with all fields', () async {
