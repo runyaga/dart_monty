@@ -110,6 +110,9 @@ const List<String> _hostFunctions = [
   'interpreter_restore',
   'download_file',
   'upload_file',
+  'json_dumps',
+  'json_loads',
+  'dom_await_click_any',
 ];
 
 // ── Host function dispatch ─────────────────────────────────────────────────
@@ -267,10 +270,13 @@ Future<Object?> _dispatch(String fnName, List<dynamic> args) async {
       final filename = args[0] as String;
       final content = args[1] as String;
       final anchor = document.createElement('a') as HTMLAnchorElement;
-      anchor.href =
-          'data:application/octet-stream;base64,${Uri.encodeComponent(content)}';
+      final encoded = Uri.encodeComponent(content);
+      anchor.href = 'data:text/plain;charset=utf-8,$encoded';
       anchor.download = filename;
+      anchor.style.display = 'none';
+      document.body!.appendChild(anchor);
       anchor.click();
+      anchor.remove();
       return null;
 
     case 'upload_file':
@@ -290,18 +296,38 @@ Future<Object?> _dispatch(String fnName, List<dynamic> args) async {
           reader.addEventListener(
             'load',
             (Event ev) {
-              final dataUrl = (reader.result as JSString?)?.toDart ?? '';
-              // Strip data URL prefix to get base64
-              final b64 = dataUrl.contains(',')
-                  ? dataUrl.substring(dataUrl.indexOf(',') + 1)
-                  : dataUrl;
-              completer.complete(b64);
+              final text = (reader.result as JSString?)?.toDart ?? '';
+              completer.complete(text);
             }.toJS,
           );
-          reader.readAsDataURL(file);
+          reader.readAsText(file);
         }.toJS,
       );
       input.click();
+      return await completer.future;
+
+    case 'json_dumps':
+      return jsonEncode(args[0]);
+
+    case 'json_loads':
+      final s = args[0] as String;
+      if (s.isEmpty) return <String, dynamic>{};
+      return jsonDecode(s);
+
+    case 'dom_await_click_any':
+      final handles = (args[0] as List<dynamic>).cast<int>();
+      final completer = Completer<int>();
+      for (final h in handles) {
+        final el = _get(h);
+        if (el != null) {
+          el.addEventListener(
+            'click',
+            (Event e) {
+              if (!completer.isCompleted) completer.complete(h);
+            }.toJS,
+          );
+        }
+      }
       return await completer.future;
 
     default:
@@ -746,23 +772,27 @@ log(f"Done. {saved_count} fields persisted.")
 app = dom_query("#sandbox")
 
 title = dom_create("h2")
-dom_text(title, "Interpreter Snapshot Demo")
+dom_text(title, "Save / Load State Demo")
 dom_style(title, "color", "#dcdcaa")
 dom_style(title, "margin-bottom", "8px")
 dom_append(app, title)
 
 desc = dom_create("p")
-dom_text(desc, "This demo defines variables, snapshots the interpreter state, downloads it as a file, then lets you upload a snapshot to restore it.")
+dom_text(desc, "Builds state in memory, saves to localStorage via json_dumps + storage_set. Persists across page refresh.")
 dom_style(desc, "color", "#666")
 dom_style(desc, "font-size", "12px")
 dom_style(desc, "margin-bottom", "16px")
 dom_append(app, desc)
 
-# Step 1: Define some state
-x = 42
-y = "hello from the snapshot"
-nums = [1, 2, 3, 4, 5]
-total = sum(nums)
+# Load or init
+raw = storage_get("snapshot_demo")
+if raw:
+    db = json_loads(raw)
+else:
+    db = {"visits": 0, "notes": []}
+db["visits"] = db["visits"] + 1
+db["last_seen"] = now()
+storage_set("snapshot_demo", json_dumps(db))
 
 status = dom_create("pre")
 dom_style(status, "background", "#141420")
@@ -773,167 +803,341 @@ dom_style(status, "font-size", "12px")
 dom_style(status, "white-space", "pre-wrap")
 dom_append(app, status)
 
-dom_text(status, f"Variables defined:\\n  x = {x}\\n  y = \\"{y}\\"\\n  nums = {nums}\\n  total = {total}")
-log(f"Defined: x={x}, y={y}, nums={nums}, total={total}")
+def render():
+    lines = [
+        f"visits: {db['visits']}",
+        f"last_seen: {db['last_seen']}",
+        f"notes ({len(db['notes'])}):",
+    ]
+    for n in db["notes"]:
+        lines.append(f"  - {n}")
+    dom_text(status, "\\n".join(lines))
 
-# Step 2: Snapshot button
-snap_btn = dom_create("button")
-dom_text(snap_btn, "SNAPSHOT + DOWNLOAD")
-dom_style(snap_btn, "display", "inline-block")
-dom_style(snap_btn, "margin-top", "16px")
-dom_style(snap_btn, "margin-right", "8px")
-dom_style(snap_btn, "padding", "10px 20px")
-dom_style(snap_btn, "background", "#00d4ff")
-dom_style(snap_btn, "color", "#0a0a0f")
-dom_style(snap_btn, "border", "none")
-dom_style(snap_btn, "border-radius", "4px")
-dom_style(snap_btn, "font-family", "monospace")
-dom_style(snap_btn, "font-size", "13px")
-dom_style(snap_btn, "font-weight", "bold")
-dom_style(snap_btn, "cursor", "pointer")
-dom_append(app, snap_btn)
+render()
 
-# Step 3: Upload + Restore button
-restore_btn = dom_create("button")
-dom_text(restore_btn, "UPLOAD + RESTORE")
-dom_style(restore_btn, "display", "inline-block")
-dom_style(restore_btn, "margin-top", "16px")
-dom_style(restore_btn, "padding", "10px 20px")
-dom_style(restore_btn, "background", "#dcdcaa")
-dom_style(restore_btn, "color", "#0a0a0f")
-dom_style(restore_btn, "border", "none")
-dom_style(restore_btn, "border-radius", "4px")
-dom_style(restore_btn, "font-family", "monospace")
-dom_style(restore_btn, "font-size", "13px")
-dom_style(restore_btn, "font-weight", "bold")
-dom_style(restore_btn, "cursor", "pointer")
-dom_append(app, restore_btn)
+# Add note input
+input_h = dom_create("input")
+dom_attr(input_h, "placeholder", "Add a note...")
+dom_style(input_h, "display", "block")
+dom_style(input_h, "width", "300px")
+dom_style(input_h, "margin-top", "12px")
+dom_style(input_h, "padding", "8px")
+dom_style(input_h, "background", "#1e1e2e")
+dom_style(input_h, "color", "#d4d4d4")
+dom_style(input_h, "border", "1px solid #333")
+dom_style(input_h, "border-radius", "4px")
+dom_style(input_h, "font-family", "monospace")
+dom_append(app, input_h)
 
-result_div = dom_create("pre")
-dom_style(result_div, "background", "#141420")
-dom_style(result_div, "padding", "12px")
-dom_style(result_div, "border-radius", "4px")
-dom_style(result_div, "color", "#888")
-dom_style(result_div, "font-size", "12px")
-dom_style(result_div, "margin-top", "12px")
-dom_style(result_div, "white-space", "pre-wrap")
-dom_text(result_div, "Click Snapshot to capture state, or Upload to restore from file.")
-dom_append(app, result_div)
+add_btn = dom_create("button")
+dom_text(add_btn, "ADD NOTE")
+dom_style(add_btn, "margin-top", "8px")
+dom_style(add_btn, "margin-right", "8px")
+dom_style(add_btn, "padding", "8px 16px")
+dom_style(add_btn, "background", "#00d4ff")
+dom_style(add_btn, "color", "#0a0a0f")
+dom_style(add_btn, "border", "none")
+dom_style(add_btn, "border-radius", "4px")
+dom_style(add_btn, "font-family", "monospace")
+dom_style(add_btn, "font-weight", "bold")
+dom_style(add_btn, "cursor", "pointer")
+dom_append(app, add_btn)
 
-log("Ready. Click Snapshot or Upload.")
+dl_btn = dom_create("button")
+dom_text(dl_btn, "DOWNLOAD JSON")
+dom_style(dl_btn, "margin-top", "8px")
+dom_style(dl_btn, "margin-right", "8px")
+dom_style(dl_btn, "padding", "8px 16px")
+dom_style(dl_btn, "background", "#dcdcaa")
+dom_style(dl_btn, "color", "#0a0a0f")
+dom_style(dl_btn, "border", "none")
+dom_style(dl_btn, "border-radius", "4px")
+dom_style(dl_btn, "font-family", "monospace")
+dom_style(dl_btn, "font-weight", "bold")
+dom_style(dl_btn, "cursor", "pointer")
+dom_append(app, dl_btn)
 
-# Wait for snapshot button
-dom_on_click(snap_btn)
+ul_btn = dom_create("button")
+dom_text(ul_btn, "UPLOAD JSON")
+dom_style(ul_btn, "margin-top", "8px")
+dom_style(ul_btn, "margin-right", "8px")
+dom_style(ul_btn, "padding", "8px 16px")
+dom_style(ul_btn, "background", "#4ec9b0")
+dom_style(ul_btn, "color", "#0a0a0f")
+dom_style(ul_btn, "border", "none")
+dom_style(ul_btn, "border-radius", "4px")
+dom_style(ul_btn, "font-family", "monospace")
+dom_style(ul_btn, "font-weight", "bold")
+dom_style(ul_btn, "cursor", "pointer")
+dom_append(app, ul_btn)
 
-# Take snapshot
-log("Taking snapshot...")
-snapshot_data = interpreter_snapshot()
+clear_btn = dom_create("button")
+dom_text(clear_btn, "CLEAR STATE")
+dom_style(clear_btn, "margin-top", "8px")
+dom_style(clear_btn, "padding", "8px 16px")
+dom_style(clear_btn, "background", "#f44747")
+dom_style(clear_btn, "color", "#fff")
+dom_style(clear_btn, "border", "none")
+dom_style(clear_btn, "border-radius", "4px")
+dom_style(clear_btn, "font-family", "monospace")
+dom_style(clear_btn, "font-weight", "bold")
+dom_style(clear_btn, "cursor", "pointer")
+dom_append(app, clear_btn)
 
-if snapshot_data and not snapshot_data.startswith("Error"):
-    size = len(snapshot_data)
-    dom_text(result_div, f"Snapshot captured!\\n  Size: {size} bytes (base64)\\n  Downloading as monty_snapshot.b64...\\nYou can upload this file later to restore the interpreter state.")
-    log(f"Snapshot: {size} bytes base64")
+log(f"State loaded. Visit #{db['visits']}. {len(db['notes'])} notes.")
 
-    # Store in localStorage too
-    storage_set("monty_snapshot", snapshot_data)
-    log("Snapshot also saved to localStorage.")
+while True:
+    clicked = dom_await_click_any([add_btn, dl_btn, ul_btn, clear_btn])
 
-    # Download it
-    download_file("monty_snapshot.b64", snapshot_data)
-    log("Download triggered.")
+    if clicked == add_btn:
+        text = dom_get_value(input_h)
+        if text:
+            db["notes"].append(text)
+            storage_set("snapshot_demo", json_dumps(db))
+            dom_set_value(input_h, "")
+            render()
+            log(f"Added note: {text}")
 
-    dom_style(result_div, "color", "#00d4ff")
-else:
-    dom_text(result_div, f"Snapshot failed: {snapshot_data}")
-    dom_style(result_div, "color", "#f44747")
-    log(f"Snapshot error: {snapshot_data}")
+    elif clicked == dl_btn:
+        data = json_dumps(db)
+        download_file("snapshot_demo.json", data)
+        log("Downloaded state as JSON.")
+
+    elif clicked == ul_btn:
+        file_data = upload_file()
+        if file_data:
+            loaded = json_loads(file_data)
+            if "notes" in loaded:
+                db = loaded
+                storage_set("snapshot_demo", json_dumps(db))
+                render()
+                log(f"Uploaded state: {len(db['notes'])} notes restored.")
+            else:
+                log("Invalid JSON file - missing 'notes' key.")
+        else:
+            log("Upload cancelled.")
+
+    elif clicked == clear_btn:
+        db["notes"] = []
+        db["visits"] = 0
+        storage_set("snapshot_demo", json_dumps(db))
+        render()
+        log("State cleared.")
 ''',
-  'restore': '''
+  'todo_app': '''
 app = dom_query("#sandbox")
 
-title = dom_create("h2")
-dom_text(title, "Restore Interpreter State")
-dom_style(title, "color", "#dcdcaa")
-dom_style(title, "margin-bottom", "8px")
-dom_append(app, title)
-
-desc = dom_create("p")
-dom_text(desc, "Upload a .b64 snapshot file, or restore from localStorage if a snapshot was saved.")
-dom_style(desc, "color", "#666")
-dom_style(desc, "font-size", "12px")
-dom_style(desc, "margin-bottom", "16px")
-dom_append(app, desc)
-
-result_div = dom_create("pre")
-dom_style(result_div, "background", "#141420")
-dom_style(result_div, "padding", "12px")
-dom_style(result_div, "border-radius", "4px")
-dom_style(result_div, "color", "#888")
-dom_style(result_div, "font-size", "12px")
-dom_style(result_div, "white-space", "pre-wrap")
-dom_append(app, result_div)
-
-# Try localStorage first
-saved = storage_get("monty_snapshot")
-if saved:
-    dom_text(result_div, f"Found snapshot in localStorage ({len(saved)} bytes base64).\\nRestoring...")
-    log(f"Found snapshot in localStorage: {len(saved)} bytes")
-
-    result = interpreter_restore(saved)
-    if result == "restored":
-        dom_text(result_div, f"Interpreter restored from localStorage!\\n\\nThe interpreter is now in the state it was when snapshot was taken.\\nVariables, stack, everything -- restored from binary data.")
-        dom_style(result_div, "color", "#00d4ff")
-        log("Restore successful!")
-    else:
-        dom_text(result_div, f"Restore failed: {result}")
-        dom_style(result_div, "color", "#f44747")
-        log(f"Restore error: {result}")
+# ── Load persisted state ──
+raw = storage_get("todo_app")
+if raw:
+    db = json_loads(raw)
 else:
-    # Upload flow
-    upload_btn = dom_create("button")
-    dom_text(upload_btn, "UPLOAD SNAPSHOT FILE")
-    dom_style(upload_btn, "display", "block")
-    dom_style(upload_btn, "margin-bottom", "12px")
-    dom_style(upload_btn, "padding", "10px 20px")
-    dom_style(upload_btn, "background", "#dcdcaa")
-    dom_style(upload_btn, "color", "#0a0a0f")
-    dom_style(upload_btn, "border", "none")
-    dom_style(upload_btn, "border-radius", "4px")
-    dom_style(upload_btn, "font-family", "monospace")
-    dom_style(upload_btn, "font-size", "13px")
-    dom_style(upload_btn, "font-weight", "bold")
-    dom_style(upload_btn, "cursor", "pointer")
-    dom_append(app, upload_btn)
+    db = {}
+if "todos" not in db:
+    db["todos"] = []
+    db["next_id"] = 1
 
-    dom_text(result_div, "No snapshot in localStorage. Click to upload a .b64 file.")
-    log("No snapshot in localStorage. Upload one.")
+def render_app():
+    dom_html(app, "")
 
-    dom_on_click(upload_btn)
+    title = dom_create("h2")
+    dom_text(title, "Persistent Todo")
+    dom_style(title, "color", "#dcdcaa")
+    dom_style(title, "margin-bottom", "8px")
+    dom_append(app, title)
 
-    file_data = upload_file()
-    if file_data:
-        dom_text(result_div, f"File loaded ({len(file_data)} bytes). Restoring...")
-        log(f"Uploaded: {len(file_data)} bytes")
+    sub = dom_create("p")
+    dom_text(sub, "Add items, toggle, delete. Refresh page + INVOKE -- your data survives.")
+    dom_style(sub, "color", "#555")
+    dom_style(sub, "font-size", "11px")
+    dom_style(sub, "margin-bottom", "12px")
+    dom_append(app, sub)
 
-        result = interpreter_restore(file_data)
-        if result == "restored":
-            dom_text(result_div, "Interpreter restored from uploaded file!\\n\\nThe interpreter is now in the state when the snapshot was taken.")
-            dom_style(result_div, "color", "#00d4ff")
-            log("Restore successful!")
+    # Input row
+    row = dom_create("div")
+    dom_style(row, "display", "flex")
+    dom_style(row, "gap", "8px")
+    dom_style(row, "margin-bottom", "12px")
+
+    input_el = dom_create("input")
+    dom_attr(input_el, "placeholder", "What needs doing?")
+    dom_style(input_el, "flex", "1")
+    dom_style(input_el, "padding", "6px 8px")
+    dom_style(input_el, "background", "#1e1e2e")
+    dom_style(input_el, "color", "#d4d4d4")
+    dom_style(input_el, "border", "1px solid #333")
+    dom_style(input_el, "border-radius", "3px")
+    dom_style(input_el, "font-family", "monospace")
+    dom_append(row, input_el)
+
+    add_btn = dom_create("button")
+    dom_text(add_btn, "ADD")
+    dom_style(add_btn, "padding", "6px 14px")
+    dom_style(add_btn, "background", "#00d4ff")
+    dom_style(add_btn, "color", "#0a0a0f")
+    dom_style(add_btn, "border", "none")
+    dom_style(add_btn, "border-radius", "3px")
+    dom_style(add_btn, "font-family", "monospace")
+    dom_style(add_btn, "font-weight", "bold")
+    dom_style(add_btn, "cursor", "pointer")
+    dom_append(row, add_btn)
+    dom_append(app, row)
+
+    # Actions map: handle -> {"action": ..., "id": ...}
+    actions = {}
+    actions[add_btn] = {"action": "add"}
+    all_handles = [add_btn]
+
+    # Render todos
+    for todo in db["todos"]:
+        item = dom_create("div")
+        dom_style(item, "display", "flex")
+        dom_style(item, "align-items", "center")
+        dom_style(item, "padding", "6px 8px")
+        dom_style(item, "margin-bottom", "4px")
+        dom_style(item, "background", "#141420")
+        dom_style(item, "border-radius", "3px")
+
+        text_el = dom_create("span")
+        dom_text(text_el, todo["text"])
+        dom_style(text_el, "flex", "1")
+        if todo["done"]:
+            dom_style(text_el, "text-decoration", "line-through")
+            dom_style(text_el, "color", "#555")
         else:
-            dom_text(result_div, f"Restore failed: {result}")
-            dom_style(result_div, "color", "#f44747")
-    else:
-        dom_text(result_div, "No file selected.")
-        log("Upload cancelled.")
+            dom_style(text_el, "color", "#d4d4d4")
+        dom_append(item, text_el)
+
+        tog_btn = dom_create("button")
+        tog_label = "UNDO" if todo["done"] else "DONE"
+        dom_text(tog_btn, tog_label)
+        dom_style(tog_btn, "padding", "3px 10px")
+        dom_style(tog_btn, "margin-left", "6px")
+        dom_style(tog_btn, "background", "#1e1e2e")
+        dom_style(tog_btn, "color", "#888")
+        dom_style(tog_btn, "border", "1px solid #333")
+        dom_style(tog_btn, "border-radius", "3px")
+        dom_style(tog_btn, "font-family", "monospace")
+        dom_style(tog_btn, "font-size", "11px")
+        dom_style(tog_btn, "cursor", "pointer")
+        dom_append(item, tog_btn)
+        actions[tog_btn] = {"action": "toggle", "id": todo["id"]}
+        all_handles.append(tog_btn)
+
+        del_btn = dom_create("button")
+        dom_text(del_btn, "X")
+        dom_style(del_btn, "padding", "3px 8px")
+        dom_style(del_btn, "margin-left", "4px")
+        dom_style(del_btn, "background", "#1e1e2e")
+        dom_style(del_btn, "color", "#f44747")
+        dom_style(del_btn, "border", "1px solid #333")
+        dom_style(del_btn, "border-radius", "3px")
+        dom_style(del_btn, "font-family", "monospace")
+        dom_style(del_btn, "font-size", "11px")
+        dom_style(del_btn, "cursor", "pointer")
+        dom_append(item, del_btn)
+        actions[del_btn] = {"action": "delete", "id": todo["id"]}
+        all_handles.append(del_btn)
+
+        dom_append(app, item)
+
+    # Bottom toolbar
+    bar = dom_create("div")
+    dom_style(bar, "display", "flex")
+    dom_style(bar, "gap", "6px")
+    dom_style(bar, "margin-top", "12px")
+    dom_style(bar, "align-items", "center")
+
+    dl_btn = dom_create("button")
+    dom_text(dl_btn, "EXPORT")
+    dom_style(dl_btn, "padding", "5px 12px")
+    dom_style(dl_btn, "background", "#dcdcaa")
+    dom_style(dl_btn, "color", "#0a0a0f")
+    dom_style(dl_btn, "border", "none")
+    dom_style(dl_btn, "border-radius", "3px")
+    dom_style(dl_btn, "font-family", "monospace")
+    dom_style(dl_btn, "font-size", "11px")
+    dom_style(dl_btn, "font-weight", "bold")
+    dom_style(dl_btn, "cursor", "pointer")
+    dom_append(bar, dl_btn)
+    actions[dl_btn] = {"action": "export"}
+    all_handles.append(dl_btn)
+
+    ul_btn = dom_create("button")
+    dom_text(ul_btn, "IMPORT")
+    dom_style(ul_btn, "padding", "5px 12px")
+    dom_style(ul_btn, "background", "#4ec9b0")
+    dom_style(ul_btn, "color", "#0a0a0f")
+    dom_style(ul_btn, "border", "none")
+    dom_style(ul_btn, "border-radius", "3px")
+    dom_style(ul_btn, "font-family", "monospace")
+    dom_style(ul_btn, "font-size", "11px")
+    dom_style(ul_btn, "font-weight", "bold")
+    dom_style(ul_btn, "cursor", "pointer")
+    dom_append(bar, ul_btn)
+    actions[ul_btn] = {"action": "import"}
+    all_handles.append(ul_btn)
+
+    count = len(db["todos"])
+    done = len([t for t in db["todos"] if t["done"]])
+    status = dom_create("span")
+    dom_text(status, f"{count} items, {done} done")
+    dom_style(status, "color", "#555")
+    dom_style(status, "font-size", "11px")
+    dom_style(status, "margin-left", "auto")
+    dom_append(bar, status)
+
+    dom_append(app, bar)
+
+    return {"actions": actions, "handles": all_handles, "input": input_el}
+
+# ── Event loop ──
+log(f"Loaded {len(db['todos'])} todos from localStorage")
+
+while True:
+    ui = render_app()
+    clicked = dom_await_click_any(ui["handles"])
+    info = ui["actions"][clicked]
+
+    if info["action"] == "add":
+        text = dom_get_value(ui["input"])
+        if text:
+            db["todos"].append({"id": db["next_id"], "text": text, "done": False})
+            db["next_id"] = db["next_id"] + 1
+            log(f"Added: {text}")
+
+    elif info["action"] == "toggle":
+        for t in db["todos"]:
+            if t["id"] == info["id"]:
+                t["done"] = not t["done"]
+                break
+
+    elif info["action"] == "delete":
+        db["todos"] = [t for t in db["todos"] if t["id"] != info["id"]]
+        log("Deleted item")
+
+    elif info["action"] == "export":
+        download_file("todos.json", json_dumps(db))
+        log("Exported todos.json")
+
+    elif info["action"] == "import":
+        file_data = upload_file()
+        if file_data:
+            loaded = json_loads(file_data)
+            if "todos" in loaded:
+                db = loaded
+                log(f"Imported {len(db['todos'])} todos")
+            else:
+                log("Invalid file - no 'todos' key")
+
+    storage_set("todo_app", json_dumps(db))
 ''',
 };
 
 // ── UI wiring ──────────────────────────────────────────────────────────────
 
 void _populateDemoSelector() {
-  final select =
-      document.getElementById('demo-select')! as HTMLSelectElement;
+  final select = document.getElementById('demo-select')! as HTMLSelectElement;
   select.innerHTML = '<option value="">-- Select a Demo --</option>'.toJS;
 
   final labels = {
@@ -943,8 +1147,8 @@ void _populateDemoSelector() {
     'counter': 'Persistent Pilgrimage Counter',
     'dashboard': 'Dart Evangelism Dashboard',
     'form': 'Stateful Form (localStorage)',
-    'snapshot': 'Snapshot + Download State',
-    'restore': 'Upload + Restore State',
+    'snapshot': 'Save / Load / Download State',
+    'todo_app': 'Persistent Todo App',
   };
 
   for (final entry in _demos.entries) {
@@ -975,8 +1179,7 @@ Future<void> _runCode() async {
   _clearOutput();
   _clearSandbox();
 
-  final statusEl =
-      document.getElementById('status')! as HTMLElement;
+  final statusEl = document.getElementById('status')! as HTMLElement;
   statusEl.textContent = 'Running...';
   statusEl.style.color = '#dcdcaa';
 
@@ -1015,8 +1218,7 @@ Future<void> _runCode() async {
 // ── Main ───────────────────────────────────────────────────────────────────
 
 Future<void> main() async {
-  final statusEl =
-      document.getElementById('status')! as HTMLElement;
+  final statusEl = document.getElementById('status')! as HTMLElement;
   statusEl.textContent = 'Initializing Monty WASM...';
 
   final ok = (await _bridgeInit().toDart).toDart;
@@ -1033,34 +1235,34 @@ Future<void> main() async {
 
   // Run button
   document.getElementById('run-btn')!.addEventListener(
-    'click',
-    (Event e) {
-      _runCode();
-    }.toJS,
-  );
+        'click',
+        (Event e) {
+          _runCode();
+        }.toJS,
+      );
 
   // Clear button
   document.getElementById('clear-btn')!.addEventListener(
-    'click',
-    (Event e) {
-      _clearOutput();
-      _clearSandbox();
-      (document.getElementById('status')! as HTMLElement)
-        ..textContent = 'Cleared. The altar awaits.'
-        ..style.color = '#569cd6';
-    }.toJS,
-  );
+        'click',
+        (Event e) {
+          _clearOutput();
+          _clearSandbox();
+          (document.getElementById('status')! as HTMLElement)
+            ..textContent = 'Cleared. The altar awaits.'
+            ..style.color = '#569cd6';
+        }.toJS,
+      );
 
   // Ctrl+Enter to run
   document.getElementById('editor')!.addEventListener(
-    'keydown',
-    (KeyboardEvent e) {
-      if (e.key == 'Enter' && (e.ctrlKey || e.metaKey)) {
-        e.preventDefault();
-        _runCode();
-      }
-    }.toJS,
-  );
+        'keydown',
+        (KeyboardEvent e) {
+          if (e.key == 'Enter' && (e.ctrlKey || e.metaKey)) {
+            e.preventDefault();
+            _runCode();
+          }
+        }.toJS,
+      );
 
   // Auto-load the altar demo
   final editor = document.getElementById('editor')! as HTMLTextAreaElement;
