@@ -485,7 +485,7 @@ void main() {
         // Handle is now unknown.
         final getOutput = _findHandler(plugin, 'isolate_get_output');
         expect(
-          () => getOutput({'handle': handle as int}),
+          () => getOutput({'handle': handle}),
           throwsA(isA<ArgumentError>()),
         );
       });
@@ -537,7 +537,7 @@ void main() {
         await free({'handle': handle as int});
 
         expect(
-          () => free({'handle': handle as int}),
+          () => free({'handle': handle}),
           throwsA(isA<ArgumentError>()),
         );
       });
@@ -549,9 +549,9 @@ void main() {
         // returning an error result with printOutput set.
         final mock = MockMontyPlatform()
           ..enqueueProgress(
-            MontyComplete(
+            const MontyComplete(
               result: MontyResult(
-                error: const MontyException(message: 'NameError: x'),
+                error: MontyException(message: 'NameError: x'),
                 usage: _usage,
                 printOutput: 'debug line\n',
               ),
@@ -564,11 +564,10 @@ void main() {
         final handle = await spawn({'code': 'print("debug line"); x'});
 
         // Await will throw because the child failed.
-        try {
-          await await_({'handle': handle! as int});
-        } on StateError {
-          // Expected.
-        }
+        await expectLater(
+          () => await_({'handle': handle! as int}),
+          throwsA(isA<StateError>()),
+        );
 
         final output = await getOutput({'handle': handle! as int});
         expect(output, contains('debug'));

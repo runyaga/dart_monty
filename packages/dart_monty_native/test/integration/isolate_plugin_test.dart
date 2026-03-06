@@ -5,7 +5,6 @@ import 'dart:io';
 
 import 'package:dart_monty_bridge/dart_monty_bridge.dart';
 import 'package:dart_monty_native/dart_monty_native.dart';
-import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 import 'package:test/test.dart';
 
 /// Integration tests for [IsolatePlugin] with a real [MontyNative] backend.
@@ -131,17 +130,15 @@ void main() {
 
       final handle = await spawn({'code': 'undefined_var'});
 
-      Object? caughtError;
-      try {
-        await await_({'handle': handle! as int});
-      } on StateError catch (e) {
-        caughtError = e;
-      }
-
-      expect(caughtError, isA<StateError>());
-      expect(
-        (caughtError! as StateError).message,
-        contains('failed'),
+      await expectLater(
+        () => await_({'handle': handle! as int}),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            contains('failed'),
+          ),
+        ),
       );
 
       await plugin.onDispose();

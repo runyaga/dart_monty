@@ -279,8 +279,9 @@ class IsolatePlugin extends MontyPlugin {
       onDone: () async {
         final child = _children[id];
         if (child == null) return;
-        child.isAlive = false;
-        child.printOutput = childPrintOutput;
+        child
+          ..isAlive = false
+          ..printOutput = childPrintOutput;
 
         // Clean up child resources.
         try {
