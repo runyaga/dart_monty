@@ -4,6 +4,7 @@ import 'package:dart_monty_bridge/src/bridge/host_function_schema.dart';
 import 'package:dart_monty_bridge/src/bridge/introspection_functions.dart';
 import 'package:dart_monty_bridge/src/bridge/monty_bridge.dart';
 import 'package:dart_monty_bridge/src/bridge/monty_plugin.dart';
+import 'package:struct_log/struct_log.dart';
 
 /// Collects [MontyPlugin]s with namespace validation and function name
 /// collision detection.
@@ -15,6 +16,7 @@ class PluginRegistry {
   final List<MontyPlugin> _plugins = [];
   final Set<String> _namespaces = {};
   final Set<String> _functionNames = {};
+  final Logger _log = LogManager.instance.getLogger('PluginRegistry');
 
   static final RegExp _validNamespace = RegExp(r'^[a-z][a-z0-9_]*$');
   static const int _maxNamespaceLength = 32;
@@ -38,6 +40,13 @@ class PluginRegistry {
       _functionNames.add(fn.schema.name);
     }
     _plugins.add(plugin);
+    _log.debug(
+      'Registered plugin',
+      attributes: {
+        'namespace': plugin.namespace,
+        'functions': plugin.functions.length,
+      },
+    );
   }
 
   void _validateNamespace(String namespace) {
@@ -81,6 +90,10 @@ class PluginRegistry {
 
     // Register introspection builtins.
     buildIntrospectionFunctions(schemasByCategory).forEach(bridge.register);
+    _log.info(
+      'Attached plugins to bridge',
+      attributes: {'pluginCount': _plugins.length},
+    );
   }
 
   /// Disposes all plugins in reverse registration order.

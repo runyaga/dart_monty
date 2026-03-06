@@ -6,6 +6,8 @@ import 'package:dart_monty_bridge/src/bridge/host_function.dart';
 import 'package:dart_monty_bridge/src/bridge/host_function_schema.dart';
 import 'package:dart_monty_bridge/src/bridge/monty_bridge.dart';
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
+import 'package:meta/meta.dart';
+import 'package:struct_log/struct_log.dart';
 
 /// Print-override preamble injected before user code.
 ///
@@ -38,17 +40,27 @@ class _PendingFuture {
 /// calls to registered [HostFunction] handlers and emitting [BridgeEvent]s.
 class DefaultMontyBridge implements MontyBridge {
   /// Creates a [DefaultMontyBridge].
+  ///
+  /// Pass [logger] to inject a custom logger for this bridge instance.
+  /// If omitted, uses the global [LogManager] singleton.
   DefaultMontyBridge({
     MontyPlatform? platform,
     MontyLimits? limits,
     bool useFutures = true,
+    Logger? logger,
   })  : _explicitPlatform = platform,
         _limits = limits,
-        _useFutures = useFutures;
+        _useFutures = useFutures,
+        log = logger ?? LogManager.instance.getLogger('MontyBridge');
 
   final MontyPlatform? _explicitPlatform;
   final MontyLimits? _limits;
   final bool _useFutures;
+
+  /// Logger for this bridge instance.
+  @protected
+  final Logger log;
+
   final Map<String, HostFunction> _functions = {};
   final Map<int, _PendingFuture> _pendingFutures = {};
   int _idCounter = 0;
@@ -81,6 +93,10 @@ class DefaultMontyBridge implements MontyBridge {
     if (_isExecuting) {
       throw StateError('Bridge is already executing');
     }
+    log.debug(
+      'Executing code',
+      attributes: {'codeLength': code.length},
+    );
 
     final controller = StreamController<BridgeEvent>();
     _isExecuting = true;
@@ -153,9 +169,11 @@ class DefaultMontyBridge implements MontyBridge {
         }
       }
     } on MontyException catch (e) {
+      log.warning('Python error', attributes: {'error': e.message});
       _flushPrintBuffer(printBuffer, controller);
       controller.add(BridgeRunError(message: e.message));
-    } on Object catch (e) {
+    } on Object catch (e, st) {
+      log.error('Bridge infrastructure error', error: e, stackTrace: st);
       _flushPrintBuffer(printBuffer, controller);
       controller.add(BridgeRunError(message: '$e'));
     } finally {
@@ -183,6 +201,7 @@ class DefaultMontyBridge implements MontyBridge {
     // Registered host function — emit tool call events.
     final fn = _functions[name];
     if (fn != null) {
+      log.trace('Host function call', attributes: {'name': name});
       if (futuresCapable) {
         return _dispatchToolCallAsFuture(fn, pending, controller);
       }
@@ -190,6 +209,7 @@ class DefaultMontyBridge implements MontyBridge {
     }
 
     // Unknown function — raise error in Python.
+    log.warning('Unknown function', attributes: {'name': name});
     return _platform.resumeWithError('Unknown function: $name');
   }
 
@@ -210,6 +230,10 @@ class DefaultMontyBridge implements MontyBridge {
     try {
       args = fn.schema.mapAndValidate(pending);
     } on FormatException catch (e) {
+      log.warning(
+        'Argument validation failed',
+        attributes: {'function': stepName, 'error': e.message},
+      );
       controller
         ..add(BridgeToolCallResult(callId: callId, result: 'Error: $e'))
         ..add(BridgeStepFinished(stepId: stepName));
@@ -233,7 +257,13 @@ class DefaultMontyBridge implements MontyBridge {
         ..add(BridgeStepFinished(stepId: stepName));
 
       return _platform.resume(result);
-    } on Object catch (e) {
+    } on Object catch (e, st) {
+      log.error(
+        'Host handler error',
+        error: e,
+        stackTrace: st,
+        attributes: {'function': stepName},
+      );
       controller
         ..add(BridgeToolCallResult(callId: callId, result: 'Error: $e'))
         ..add(BridgeStepFinished(stepId: stepName));
