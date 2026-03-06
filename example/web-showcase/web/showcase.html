@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>The Altar of Dart — Python in the Browser</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+      background: #0a0a0f;
+      color: #d4d4d4;
+      min-height: 100vh;
+    }
+
+    /* ── Header / Altar Banner ── */
+    .altar-banner {
+      display: flex;
+      align-items: center;
+      padding: 12px 16px;
+      background: linear-gradient(180deg, #0d1117 0%, #0a0a0f 100%);
+      border-bottom: 1px solid #1a1a2e;
+    }
+    .altar-text {
+      flex: 1;
+    }
+    .altar-title {
+      color: #00d4ff;
+      font-size: 1.4rem;
+      text-shadow: 0 0 20px rgba(0, 212, 255, 0.5);
+      letter-spacing: 4px;
+    }
+    .altar-subtitle {
+      color: #569cd6;
+      font-size: 0.75rem;
+      margin-top: 4px;
+      letter-spacing: 2px;
+    }
+    .altar-verse {
+      color: #555;
+      font-size: 0.7rem;
+      margin-top: 4px;
+      font-style: italic;
+    }
+    .altar-links {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      align-items: flex-end;
+    }
+    .altar-links a {
+      color: #569cd6;
+      text-decoration: none;
+      font-size: 0.75rem;
+    }
+    .altar-links a:hover { text-decoration: underline; }
+
+    /* ── Layout ── */
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+      height: calc(100vh - 200px);
+      min-height: 400px;
+    }
+
+    /* ── Left Panel: Editor ── */
+    .editor-panel {
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid #1a1a2e;
+    }
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: #141420;
+      border-bottom: 1px solid #1a1a2e;
+      flex-wrap: wrap;
+    }
+    .toolbar select {
+      background: #1e1e2e;
+      color: #d4d4d4;
+      border: 1px solid #333;
+      padding: 4px 8px;
+      font-family: inherit;
+      font-size: 0.8rem;
+      border-radius: 3px;
+    }
+    .toolbar button {
+      padding: 5px 14px;
+      border: 1px solid #333;
+      border-radius: 3px;
+      font-family: inherit;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    #run-btn {
+      background: #00d4ff;
+      color: #0a0a0f;
+      border-color: #00d4ff;
+      font-weight: bold;
+    }
+    #run-btn:hover { background: #33ddff; }
+    #clear-btn {
+      background: #1e1e2e;
+      color: #888;
+    }
+    #clear-btn:hover { background: #252535; color: #aaa; }
+    .toolbar .hint {
+      color: #444;
+      font-size: 0.7rem;
+      margin-left: auto;
+    }
+    textarea#editor {
+      flex: 1;
+      background: #0d0d18;
+      color: #d4d4d4;
+      border: none;
+      padding: 12px;
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+      font-size: 13px;
+      line-height: 1.5;
+      resize: none;
+      outline: none;
+      tab-size: 4;
+    }
+    textarea#editor::selection { background: #264f78; }
+
+    /* ── Right Panel: Output ── */
+    .output-panel {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .output-header {
+      padding: 8px 12px;
+      background: #141420;
+      border-bottom: 1px solid #1a1a2e;
+      font-size: 0.8rem;
+      color: #569cd6;
+      display: flex;
+      justify-content: space-between;
+    }
+    #sandbox {
+      flex: 1;
+      padding: 12px;
+      overflow: auto;
+      background: #0d0d18;
+      border-bottom: 1px solid #1a1a2e;
+    }
+    #output {
+      height: 120px;
+      padding: 8px 12px;
+      overflow: auto;
+      background: #0a0a12;
+      font-size: 12px;
+      color: #888;
+      white-space: pre-wrap;
+      line-height: 1.5;
+    }
+
+    /* ── Status Bar ── */
+    .status-bar {
+      padding: 6px 12px;
+      background: #141420;
+      border-top: 1px solid #1a1a2e;
+      font-size: 0.75rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    #status { color: #555; }
+    .status-bar .creed {
+      color: #333;
+      font-style: italic;
+    }
+
+  </style>
+</head>
+<body>
+
+  <!-- ═══ HEADER ═══ -->
+  <div class="altar-banner">
+    <div class="altar-text">
+      <div class="altar-title">THE ALTAR OF DART</div>
+      <div class="altar-subtitle">PYTHON IN THE BROWSER &mdash; NO SERVER, NO BINARY, JUST DART</div>
+      <div class="altar-verse">"And 'Bob' spake from within the WASM, and Dart carried the word unto the DOM." &mdash; Book of Monty 3:14</div>
+    </div>
+    <div class="altar-links">
+      <a href="https://github.com/pydantic/monty">pydantic/monty</a>
+      <a href="https://pub.dev/packages/dart_monty">pub.dev/dart_monty</a>
+      <a href="https://github.com/runyaga/dart_monty">runyaga/dart_monty</a>
+    </div>
+  </div>
+
+  <!-- ═══ MAIN CONTENT ═══ -->
+  <div class="main-grid">
+    <!-- Left: Python Editor -->
+    <div class="editor-panel">
+      <div class="toolbar">
+        <select id="demo-select"></select>
+        <button id="run-btn">INVOKE</button>
+        <button id="clear-btn">PURGE</button>
+        <span class="hint">Ctrl+Enter to invoke</span>
+      </div>
+      <textarea id="editor" spellcheck="false" placeholder="# Write Python here. It runs in your browser.&#10;# Dart bridges every call to the DOM.&#10;# There is no server. Only Dart."></textarea>
+    </div>
+
+    <!-- Right: DOM Sandbox + Log -->
+    <div class="output-panel">
+      <div class="output-header">
+        <span>DOM Sandbox</span>
+        <span>Python &rarr; Dart &rarr; Browser</span>
+      </div>
+      <div id="sandbox"></div>
+      <div id="output"></div>
+    </div>
+  </div>
+
+  <!-- ═══ STATUS BAR ═══ -->
+  <div class="status-bar">
+    <span id="status">Loading the sacred interpreter...</span>
+    <span class="creed">Dart is the way. Slack off.</span>
+  </div>
+
+  <!-- ═══ SCRIPTS ═══ -->
+  <script src="coi-serviceworker.js"></script>
+  <script src="dart_monty_bridge.js"></script>
+  <script src="showcase.dart.js"></script>
+</body>
+</html>
