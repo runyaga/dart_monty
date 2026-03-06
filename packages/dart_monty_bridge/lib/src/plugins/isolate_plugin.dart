@@ -18,12 +18,14 @@ class _ChildHandle {
     required this.platform,
     required this.completer,
     required this.subscription,
+    this.registry,
   });
 
   final DefaultMontyBridge bridge;
   final MontyPlatform platform;
   final Completer<Object?> completer;
   final StreamSubscription<BridgeEvent> subscription;
+  final PluginRegistry? registry;
   bool isAlive = true;
 
   /// Captured print output from the child (set on completion).
@@ -34,6 +36,7 @@ class _ChildHandle {
     await subscription.cancel();
     bridge.dispose();
     await platform.dispose();
+    if (registry != null) await registry!.disposeAll();
   }
 }
 
@@ -183,6 +186,22 @@ class IsolatePlugin extends MontyPlugin {
         ),
         HostFunction(
           schema: const HostFunctionSchema(
+            name: 'isolate_free',
+            description:
+                'Release a completed child handle and free its resources. '
+                'Raises an error if the child is still running.',
+            params: [
+              HostParam(
+                name: 'handle',
+                type: HostParamType.integer,
+                description: 'Handle returned by isolate_spawn.',
+              ),
+            ],
+          ),
+          handler: _handleFree,
+        ),
+        HostFunction(
+          schema: const HostFunctionSchema(
             name: 'isolate_get_output',
             description:
                 'Get captured Python print() output from a completed child. '
@@ -251,6 +270,7 @@ class IsolatePlugin extends MontyPlugin {
       (event) {
         if (event is BridgeRunError) {
           errorMessage = event.message;
+          childPrintOutput ??= event.printOutput;
         } else if (event is BridgeRunFinished) {
           childValue = event.value;
           childPrintOutput = event.printOutput;
@@ -294,6 +314,7 @@ class IsolatePlugin extends MontyPlugin {
       platform: platform,
       completer: completer,
       subscription: subscription,
+      registry: childRegistry,
     );
 
     return id;
@@ -348,6 +369,21 @@ class IsolatePlugin extends MontyPlugin {
       child.completer.future.ignore();
     }
 
+    return null;
+  }
+
+  Future<Object?> _handleFree(Map<String, Object?> args) async {
+    final handle = args['handle']! as int;
+    final child = _children[handle];
+    if (child == null) {
+      throw ArgumentError.value(handle, 'handle', 'Unknown child handle.');
+    }
+    if (child.isAlive) {
+      throw StateError(
+        'Child $handle is still running. Await it before freeing.',
+      );
+    }
+    _children.remove(handle);
     return null;
   }
 

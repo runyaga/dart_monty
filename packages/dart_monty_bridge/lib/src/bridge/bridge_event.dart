@@ -46,10 +46,13 @@ class BridgeRunFinished extends BridgeEvent {
 /// Execution failed with an error.
 class BridgeRunError extends BridgeEvent {
   /// Creates a [BridgeRunError].
-  const BridgeRunError({required this.message});
+  const BridgeRunError({required this.message, this.printOutput});
 
   /// Error message.
   final String message;
+
+  /// Captured print output before the error (when available).
+  final String? printOutput;
 }
 
 /// A host function call step started.

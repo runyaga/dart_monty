@@ -164,7 +164,12 @@ class DefaultMontyBridge implements MontyBridge {
                 : result.printOutput;
 
             if (result.isError) {
-              controller.add(BridgeRunError(message: result.error!.message));
+              controller.add(
+                BridgeRunError(
+                  message: result.error!.message,
+                  printOutput: capturedOutput,
+                ),
+              );
             } else {
               controller.add(
                 BridgeRunFinished(
@@ -181,11 +186,17 @@ class DefaultMontyBridge implements MontyBridge {
     } on MontyException catch (e) {
       log.warning('Python error', attributes: {'error': e.message});
       _flushPrintBuffer(printBuffer, controller);
-      controller.add(BridgeRunError(message: e.message));
+      final output = printBuffer.isNotEmpty ? printBuffer.toString() : null;
+      controller.add(
+        BridgeRunError(message: e.message, printOutput: output),
+      );
     } on Object catch (e, st) {
       log.error('Bridge infrastructure error', error: e, stackTrace: st);
       _flushPrintBuffer(printBuffer, controller);
-      controller.add(BridgeRunError(message: '$e'));
+      final output = printBuffer.isNotEmpty ? printBuffer.toString() : null;
+      controller.add(
+        BridgeRunError(message: '$e', printOutput: output),
+      );
     } finally {
       _pendingFutures.clear();
     }
