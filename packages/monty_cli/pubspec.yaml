@@ -1,0 +1,25 @@
+name: monty_cli
+description: Standalone CLI for dart_monty — run, eval, and REPL for the Monty sandboxed Python interpreter.
+version: 0.1.0
+publish_to: none
+repository: https://github.com/runyaga/dart_monty
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  args: ^2.4.0
+  dart_monty_ffi:
+    path: ../dart_monty_ffi
+  dart_monty_platform_interface:
+    path: ../dart_monty_platform_interface
+
+dev_dependencies:
+  test: ^1.25.0
+  very_good_analysis: ^10.0.0
+
+dependency_overrides:
+  dart_monty_ffi:
+    path: ../dart_monty_ffi
+  dart_monty_platform_interface:
+    path: ../dart_monty_platform_interface
