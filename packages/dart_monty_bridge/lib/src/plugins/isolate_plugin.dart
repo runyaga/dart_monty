@@ -26,6 +26,9 @@ class _ChildHandle {
   final StreamSubscription<BridgeEvent> subscription;
   bool isAlive = true;
 
+  /// Captured print output from the child (set on completion).
+  String? printOutput;
+
   Future<void> cancel() async {
     isAlive = false;
     await subscription.cancel();
@@ -93,104 +96,121 @@ class IsolatePlugin extends MontyPlugin {
 
   @override
   List<HostFunction> get functions => [
-        HostFunction(
-          schema: const HostFunctionSchema(
-            name: 'isolate_spawn',
-            description: 'Spawn a Python script in a new isolated interpreter. '
-                'Returns an integer handle.',
-            params: [
-              HostParam(
-                name: 'code',
-                type: HostParamType.string,
-                description: 'Python code to execute.',
-              ),
-              HostParam(
-                name: 'timeout_ms',
-                type: HostParamType.integer,
-                isRequired: false,
-                description: 'Execution timeout in milliseconds.',
-              ),
-              HostParam(
-                name: 'memory_bytes',
-                type: HostParamType.integer,
-                isRequired: false,
-                description: 'Memory limit in bytes.',
-              ),
-            ],
+    HostFunction(
+      schema: const HostFunctionSchema(
+        name: 'isolate_spawn',
+        description:
+            'Spawn a Python script in a new isolated interpreter. '
+            'Returns an integer handle.',
+        params: [
+          HostParam(
+            name: 'code',
+            type: HostParamType.string,
+            description: 'Python code to execute.',
           ),
-          handler: _handleSpawn,
-        ),
-        HostFunction(
-          schema: const HostFunctionSchema(
-            name: 'isolate_await',
-            description: 'Wait for a spawned child to complete and return '
-                'its result. Raises an error if the child failed.',
-            params: [
-              HostParam(
-                name: 'handle',
-                type: HostParamType.integer,
-                description: 'Handle returned by isolate_spawn.',
-              ),
-            ],
+          HostParam(
+            name: 'timeout_ms',
+            type: HostParamType.integer,
+            isRequired: false,
+            description: 'Execution timeout in milliseconds.',
           ),
-          handler: _handleAwait,
-        ),
-        HostFunction(
-          schema: const HostFunctionSchema(
-            name: 'isolate_await_all',
-            description: 'Wait for multiple children to complete. '
-                'Returns a list of results in handle order.',
-            params: [
-              HostParam(
-                name: 'handles',
-                type: HostParamType.list,
-                description: 'List of handles from isolate_spawn.',
-              ),
-            ],
+          HostParam(
+            name: 'memory_bytes',
+            type: HostParamType.integer,
+            isRequired: false,
+            description: 'Memory limit in bytes.',
           ),
-          handler: _handleAwaitAll,
-        ),
-        HostFunction(
-          schema: const HostFunctionSchema(
-            name: 'isolate_is_alive',
-            description: 'Check whether a child is still running.',
-            params: [
-              HostParam(
-                name: 'handle',
-                type: HostParamType.integer,
-                description: 'Handle returned by isolate_spawn.',
-              ),
-            ],
+        ],
+      ),
+      handler: _handleSpawn,
+    ),
+    HostFunction(
+      schema: const HostFunctionSchema(
+        name: 'isolate_await',
+        description:
+            'Wait for a spawned child to complete and return '
+            'its result. Raises an error if the child failed.',
+        params: [
+          HostParam(
+            name: 'handle',
+            type: HostParamType.integer,
+            description: 'Handle returned by isolate_spawn.',
           ),
-          handler: _handleIsAlive,
-        ),
-        HostFunction(
-          schema: const HostFunctionSchema(
-            name: 'isolate_cancel',
-            description: 'Cancel a running child. No-op if already finished.',
-            params: [
-              HostParam(
-                name: 'handle',
-                type: HostParamType.integer,
-                description: 'Handle returned by isolate_spawn.',
-              ),
-            ],
+        ],
+      ),
+      handler: _handleAwait,
+    ),
+    HostFunction(
+      schema: const HostFunctionSchema(
+        name: 'isolate_await_all',
+        description:
+            'Wait for multiple children to complete. '
+            'Returns a list of results in handle order.',
+        params: [
+          HostParam(
+            name: 'handles',
+            type: HostParamType.list,
+            description: 'List of handles from isolate_spawn.',
           ),
-          handler: _handleCancel,
-        ),
-      ];
+        ],
+      ),
+      handler: _handleAwaitAll,
+    ),
+    HostFunction(
+      schema: const HostFunctionSchema(
+        name: 'isolate_is_alive',
+        description: 'Check whether a child is still running.',
+        params: [
+          HostParam(
+            name: 'handle',
+            type: HostParamType.integer,
+            description: 'Handle returned by isolate_spawn.',
+          ),
+        ],
+      ),
+      handler: _handleIsAlive,
+    ),
+    HostFunction(
+      schema: const HostFunctionSchema(
+        name: 'isolate_cancel',
+        description: 'Cancel a running child. No-op if already finished.',
+        params: [
+          HostParam(
+            name: 'handle',
+            type: HostParamType.integer,
+            description: 'Handle returned by isolate_spawn.',
+          ),
+        ],
+      ),
+      handler: _handleCancel,
+    ),
+    HostFunction(
+      schema: const HostFunctionSchema(
+        name: 'isolate_get_output',
+        description:
+            'Get captured Python print() output from a completed child. '
+            'Raises an error if the child is still running. '
+            'Returns a string of all print() output, or null if the child '
+            'produced no print() output.',
+        params: [
+          HostParam(
+            name: 'handle',
+            type: HostParamType.integer,
+            description: 'Handle returned by isolate_spawn.',
+          ),
+        ],
+      ),
+      handler: _handleGetOutput,
+    ),
+  ];
 
   Future<Object?> _handleSpawn(Map<String, Object?> args) async {
     if (_disposed) throw StateError('IsolatePlugin is disposed.');
     if (currentDepth >= maxDepth) {
-      throw StateError(
-        'Maximum isolate recursion depth ($maxDepth) exceeded.',
-      );
+      throw StateError('Maximum isolate recursion depth ($maxDepth) exceeded.');
     }
     if (_children.values.where((c) => c.isAlive).length >= maxChildren) {
-      throw StateError(
-        'Maximum concurrent children ($maxChildren) reached.',
-      );
+      throw StateError('Maximum concurrent children ($maxChildren) reached.');
     }
 
     final code = args['code']! as String;
@@ -227,17 +247,23 @@ class IsolatePlugin extends MontyPlugin {
     // Execute child and listen for completion.
     final stream = bridge.execute(code);
     String? errorMessage;
+    Object? childValue;
+    String? childPrintOutput;
 
     final subscription = stream.listen(
       (event) {
         if (event is BridgeRunError) {
           errorMessage = event.message;
+        } else if (event is BridgeRunFinished) {
+          childValue = event.value;
+          childPrintOutput = event.printOutput;
         }
       },
       onDone: () async {
         final child = _children[id];
         if (child == null) return;
         child.isAlive = false;
+        child.printOutput = childPrintOutput;
 
         // Clean up child resources.
         try {
@@ -254,7 +280,7 @@ class IsolatePlugin extends MontyPlugin {
             StateError('Child $id failed: $errorMessage'),
           );
         } else {
-          completer.complete(null);
+          completer.complete(childValue);
         }
       },
       onError: (Object error) {
@@ -320,14 +346,26 @@ class IsolatePlugin extends MontyPlugin {
 
     await child.cancel();
     if (!child.completer.isCompleted) {
-      child.completer.completeError(
-        StateError('Child $handle was cancelled.'),
-      );
+      child.completer.completeError(StateError('Child $handle was cancelled.'));
       // Suppress unhandled async error if nobody awaits this child.
       child.completer.future.ignore();
     }
 
     return null;
+  }
+
+  Future<Object?> _handleGetOutput(Map<String, Object?> args) async {
+    final handle = args['handle']! as int;
+    final child = _children[handle];
+    if (child == null) {
+      throw ArgumentError.value(handle, 'handle', 'Unknown child handle.');
+    }
+    if (child.isAlive) {
+      throw StateError(
+        'Child $handle is still running. Await it before reading output.',
+      );
+    }
+    return child.printOutput;
   }
 
   @override

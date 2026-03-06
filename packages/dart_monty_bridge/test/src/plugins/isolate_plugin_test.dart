@@ -14,22 +14,35 @@ const _usage = MontyResourceUsage(
 /// Creates a [MockMontyPlatform] that runs code to completion immediately.
 MockMontyPlatform _completingMock() {
   return MockMontyPlatform()
-    ..enqueueProgress(
-      const MontyComplete(result: MontyResult(usage: _usage)),
-    );
+    ..enqueueProgress(const MontyComplete(result: MontyResult(usage: _usage)));
+}
+
+/// Creates a [MockMontyPlatform] that completes with [value] and [printOutput].
+MockMontyPlatform _completingMockWithResult({
+  Object? value,
+  String? printOutput,
+}) {
+  return MockMontyPlatform()..enqueueProgress(
+    MontyComplete(
+      result: MontyResult(
+        value: value,
+        usage: _usage,
+        printOutput: printOutput,
+      ),
+    ),
+  );
 }
 
 /// Creates a [MockMontyPlatform] that fails with [message].
 MockMontyPlatform _failingMock(String message) {
-  return MockMontyPlatform()
-    ..enqueueProgress(
-      MontyComplete(
-        result: MontyResult(
-          error: MontyException(message: message),
-          usage: _usage,
-        ),
+  return MockMontyPlatform()..enqueueProgress(
+    MontyComplete(
+      result: MontyResult(
+        error: MontyException(message: message),
+        usage: _usage,
       ),
-    );
+    ),
+  );
 }
 
 void main() {
@@ -50,11 +63,11 @@ void main() {
         expect(plugin.systemPromptContext, contains('isolated'));
       });
 
-      test('provides 5 host functions', () {
+      test('provides 6 host functions', () {
         final plugin = IsolatePlugin(
           platformFactory: () async => MockMontyPlatform(),
         );
-        expect(plugin.functions, hasLength(5));
+        expect(plugin.functions, hasLength(6));
       });
 
       test('all function names start with isolate_', () {
@@ -69,9 +82,7 @@ void main() {
       test('registers on PluginRegistry without collision', () {
         final registry = PluginRegistry()
           ..register(
-            IsolatePlugin(
-              platformFactory: () async => MockMontyPlatform(),
-            ),
+            IsolatePlugin(platformFactory: () async => MockMontyPlatform()),
           );
         expect(registry.plugins, hasLength(1));
       });
@@ -107,9 +118,7 @@ void main() {
 
       test('passes code to child platform start()', () async {
         final mock = _completingMock();
-        final plugin = IsolatePlugin(
-          platformFactory: () async => mock,
-        );
+        final plugin = IsolatePlugin(platformFactory: () async => mock);
         final spawn = _findHandler(plugin, 'isolate_spawn');
 
         await spawn({'code': 'print("hello")'});
@@ -121,9 +130,7 @@ void main() {
 
       test('child platform is disposed after completion', () async {
         final mock = _completingMock();
-        final plugin = IsolatePlugin(
-          platformFactory: () async => mock,
-        );
+        final plugin = IsolatePlugin(platformFactory: () async => mock);
         final spawn = _findHandler(plugin, 'isolate_spawn');
         final await_ = _findHandler(plugin, 'isolate_await');
         final handle = await spawn({'code': '42'});
@@ -135,16 +142,10 @@ void main() {
 
       test('applies timeout_ms and memory_bytes to child limits', () async {
         final mock = _completingMock();
-        final plugin = IsolatePlugin(
-          platformFactory: () async => mock,
-        );
+        final plugin = IsolatePlugin(platformFactory: () async => mock);
         final spawn = _findHandler(plugin, 'isolate_spawn');
 
-        await spawn({
-          'code': '1',
-          'timeout_ms': 5000,
-          'memory_bytes': 1048576,
-        });
+        await spawn({'code': '1', 'timeout_ms': 5000, 'memory_bytes': 1048576});
 
         // Give the bridge time to call start().
         await Future<void>.delayed(Duration.zero);
@@ -175,7 +176,7 @@ void main() {
     });
 
     group('isolate_await', () {
-      test('returns null for successful child', () async {
+      test('returns null for child with no return value', () async {
         final plugin = IsolatePlugin(
           platformFactory: () async => _completingMock(),
         );
@@ -185,6 +186,18 @@ void main() {
         final result = await await_({'handle': handle! as int});
 
         expect(result, isNull);
+      });
+
+      test('returns child return value', () async {
+        final plugin = IsolatePlugin(
+          platformFactory: () async => _completingMockWithResult(value: 42),
+        );
+        final spawn = _findHandler(plugin, 'isolate_spawn');
+        final await_ = _findHandler(plugin, 'isolate_await');
+        final handle = await spawn({'code': '42'});
+        final result = await await_({'handle': handle! as int});
+
+        expect(result, 42);
       });
 
       test('throws for failed child', () async {
@@ -213,10 +226,7 @@ void main() {
         );
         final await_ = _findHandler(plugin, 'isolate_await');
 
-        expect(
-          () => await_({'handle': 999}),
-          throwsA(isA<ArgumentError>()),
-        );
+        expect(() => await_({'handle': 999}), throwsA(isA<ArgumentError>()));
       });
     });
 
@@ -281,9 +291,7 @@ void main() {
         final startCompleter = Completer<MontyProgress>();
         final mock = _SlowMockPlatform(startCompleter.future);
 
-        final plugin = IsolatePlugin(
-          platformFactory: () async => mock,
-        );
+        final plugin = IsolatePlugin(platformFactory: () async => mock);
         final spawn = _findHandler(plugin, 'isolate_spawn');
         final isAlive = _findHandler(plugin, 'isolate_is_alive');
         final handle = await spawn({'code': '1'});
@@ -320,10 +328,7 @@ void main() {
         );
         final isAlive = _findHandler(plugin, 'isolate_is_alive');
 
-        expect(
-          () => isAlive({'handle': 999}),
-          throwsA(isA<ArgumentError>()),
-        );
+        expect(() => isAlive({'handle': 999}), throwsA(isA<ArgumentError>()));
       });
     });
 
@@ -331,9 +336,7 @@ void main() {
       test('cancels a running child', () async {
         final startCompleter = Completer<MontyProgress>();
         final mock = _SlowMockPlatform(startCompleter.future);
-        final plugin = IsolatePlugin(
-          platformFactory: () async => mock,
-        );
+        final plugin = IsolatePlugin(platformFactory: () async => mock);
         final spawn = _findHandler(plugin, 'isolate_spawn');
         final cancel = _findHandler(plugin, 'isolate_cancel');
         final isAlive = _findHandler(plugin, 'isolate_is_alive');
@@ -393,6 +396,74 @@ void main() {
         startCompleter.complete(
           const MontyComplete(result: MontyResult(usage: _usage)),
         );
+      });
+    });
+
+    group('isolate_get_output', () {
+      test('returns print output from completed child', () async {
+        final plugin = IsolatePlugin(
+          platformFactory: () async =>
+              _completingMockWithResult(printOutput: 'hello world\n'),
+        );
+        final spawn = _findHandler(plugin, 'isolate_spawn');
+        final await_ = _findHandler(plugin, 'isolate_await');
+        final getOutput = _findHandler(plugin, 'isolate_get_output');
+        final handle = await spawn({'code': 'print("hello world")'});
+
+        await await_({'handle': handle! as int});
+
+        final output = await getOutput({'handle': handle as int});
+        expect(output, 'hello world\n');
+      });
+
+      test('returns null when child had no print output', () async {
+        final plugin = IsolatePlugin(
+          platformFactory: () async => _completingMock(),
+        );
+        final spawn = _findHandler(plugin, 'isolate_spawn');
+        final await_ = _findHandler(plugin, 'isolate_await');
+        final getOutput = _findHandler(plugin, 'isolate_get_output');
+        final handle = await spawn({'code': '42'});
+
+        await await_({'handle': handle! as int});
+
+        final output = await getOutput({'handle': handle as int});
+        expect(output, isNull);
+      });
+
+      test('throws StateError when child is still running', () async {
+        final startCompleter = Completer<MontyProgress>();
+        final mock = _SlowMockPlatform(startCompleter.future);
+        final plugin = IsolatePlugin(platformFactory: () async => mock);
+        final spawn = _findHandler(plugin, 'isolate_spawn');
+        final getOutput = _findHandler(plugin, 'isolate_get_output');
+        final handle = await spawn({'code': 'print("hi")'});
+
+        expect(
+          () => getOutput({'handle': handle! as int}),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              contains('still running'),
+            ),
+          ),
+        );
+
+        // Unblock and clean up.
+        startCompleter.complete(
+          const MontyComplete(result: MontyResult(usage: _usage)),
+        );
+        await plugin.onDispose();
+      });
+
+      test('throws ArgumentError for unknown handle', () async {
+        final plugin = IsolatePlugin(
+          platformFactory: () async => _completingMock(),
+        );
+        final getOutput = _findHandler(plugin, 'isolate_get_output');
+
+        expect(() => getOutput({'handle': 999}), throwsA(isA<ArgumentError>()));
       });
     });
 
@@ -458,9 +529,7 @@ void main() {
 
         // Unblock all children and dispose.
         for (final c in completers) {
-          c.complete(
-            const MontyComplete(result: MontyResult(usage: _usage)),
-          );
+          c.complete(const MontyComplete(result: MontyResult(usage: _usage)));
         }
         await plugin.onDispose();
       });
@@ -492,9 +561,7 @@ void main() {
 
         // Unblock so _run() finishes.
         for (final c in completers) {
-          c.complete(
-            const MontyComplete(result: MontyResult(usage: _usage)),
-          );
+          c.complete(const MontyComplete(result: MontyResult(usage: _usage)));
         }
       });
 
@@ -509,9 +576,7 @@ void main() {
 
       test('completed children are not cancelled again', () async {
         final mock = _completingMock();
-        final plugin = IsolatePlugin(
-          platformFactory: () async => mock,
-        );
+        final plugin = IsolatePlugin(platformFactory: () async => mock);
         final spawn = _findHandler(plugin, 'isolate_spawn');
         final await_ = _findHandler(plugin, 'isolate_await');
         final handle = await spawn({'code': '1'});
@@ -595,8 +660,7 @@ class _SlowMockPlatform extends MontyPlatform {
     List<String>? externalFunctions,
     MontyLimits? limits,
     String? scriptName,
-  }) =>
-      _startFuture;
+  }) => _startFuture;
 
   @override
   Future<MontyProgress> resume(Object? returnValue) async =>

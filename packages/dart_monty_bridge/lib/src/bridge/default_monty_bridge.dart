@@ -48,10 +48,10 @@ class DefaultMontyBridge implements MontyBridge {
     MontyLimits? limits,
     bool useFutures = true,
     Logger? logger,
-  })  : _explicitPlatform = platform,
-        _limits = limits,
-        _useFutures = useFutures,
-        log = logger ?? LogManager.instance.getLogger('MontyBridge');
+  }) : _explicitPlatform = platform,
+       _limits = limits,
+       _useFutures = useFutures,
+       log = logger ?? LogManager.instance.getLogger('MontyBridge');
 
   final MontyPlatform? _explicitPlatform;
   final MontyLimits? _limits;
@@ -93,10 +93,7 @@ class DefaultMontyBridge implements MontyBridge {
     if (_isExecuting) {
       throw StateError('Bridge is already executing');
     }
-    log.debug(
-      'Executing code',
-      attributes: {'codeLength': code.length},
-    );
+    log.debug('Executing code', attributes: {'codeLength': code.length});
 
     final controller = StreamController<BridgeEvent>();
     _isExecuting = true;
@@ -162,7 +159,12 @@ class DefaultMontyBridge implements MontyBridge {
               controller.add(BridgeRunError(message: result.error!.message));
             } else {
               controller.add(
-                BridgeRunFinished(threadId: threadId, runId: runId),
+                BridgeRunFinished(
+                  threadId: threadId,
+                  runId: runId,
+                  value: result.value,
+                  printOutput: result.printOutput,
+                ),
               );
             }
             return;
@@ -369,9 +371,7 @@ class DefaultMontyBridge implements MontyBridge {
     final messageId = _nextId;
     controller
       ..add(BridgeTextStart(messageId: messageId))
-      ..add(
-        BridgeTextContent(messageId: messageId, delta: buffer.toString()),
-      )
+      ..add(BridgeTextContent(messageId: messageId, delta: buffer.toString()))
       ..add(BridgeTextEnd(messageId: messageId));
   }
 }
