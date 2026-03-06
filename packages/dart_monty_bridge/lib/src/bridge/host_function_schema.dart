@@ -38,14 +38,30 @@ class HostFunctionSchema {
   Map<String, Object?> mapAndValidate(MontyPending pending) {
     final raw = <String, Object?>{};
 
+    // Reject extra positional args.
+    if (pending.arguments.length > params.length) {
+      throw FormatException(
+        '$name: expected at most ${params.length} positional argument(s), '
+        'got ${pending.arguments.length}',
+      );
+    }
+
     // Positional args → named params by schema order
     for (var i = 0; i < params.length && i < pending.arguments.length; i++) {
       raw[params[i].name] = pending.arguments[i];
     }
 
-    // Kwargs overlay
+    // Kwargs overlay — reject unknown keys.
     final kwargs = pending.kwargs;
     if (kwargs != null) {
+      final paramNames = params.map((p) => p.name).toSet();
+      for (final key in kwargs.keys) {
+        if (!paramNames.contains(key)) {
+          throw FormatException(
+            '$name: unknown keyword argument "$key"',
+          );
+        }
+      }
       for (final entry in kwargs.entries) {
         raw[entry.key] = entry.value;
       }
