@@ -7,7 +7,7 @@ import 'package:monty_cli/src/commands/run_command.dart';
 /// The top-level command runner for the monty CLI.
 CommandRunner<int> buildRunner() {
   return CommandRunner<int>(
-    'monty-cli',
+    'dmonty',
     'Standalone CLI for the Monty sandboxed Python interpreter.',
   )
     ..argParser.addOption(

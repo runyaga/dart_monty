@@ -65,6 +65,9 @@ abstract class MontyCommand extends Command<int> {
   }
 
   /// Creates and initializes a [MontyNative] with the resolved library path.
+  ///
+  /// If the native library cannot be loaded, prints a helpful error message
+  /// and exits with code 1.
   Future<MontyNative> createMonty({VerboseLogger? logger}) async {
     final libraryPath = resolveLibraryPath(
       override: globalResults?.option('library-path'),
@@ -77,6 +80,24 @@ abstract class MontyCommand extends Command<int> {
     await monty.initialize();
 
     return monty;
+  }
+
+  /// Returns `true` if [e] is a native library loading failure.
+  static bool isLibraryLoadError(MontyException e) {
+    return e.message.contains('Failed to load dynamic library') ||
+        e.message.contains('Isolate exited unexpectedly');
+  }
+
+  /// Prints a user-friendly message for missing native library and exits.
+  static Never exitWithLibraryError() {
+    stderr.writeln(
+      'Error: Could not load native library.\n\n'
+      'Make sure libdart_monty_native.dylib is either:\n'
+      '  1. Next to the dmonty executable\n'
+      '  2. Set via MONTY_LIBRARY_PATH environment variable\n'
+      '  3. Passed with --library-path <path>',
+    );
+    exit(1);
   }
 
   /// Writes [result] to stdout/stderr based on the output mode flags.

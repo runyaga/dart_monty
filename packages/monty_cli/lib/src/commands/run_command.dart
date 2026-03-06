@@ -6,8 +6,8 @@ import 'package:monty_cli/src/commands/monty_command.dart';
 /// Executes a Python file and prints the result.
 ///
 /// ```bash
-/// monty-cli run script.py
-/// monty-cli run script.py --timeout 5000
+/// dmonty run script.py
+/// dmonty run script.py --timeout 5000
 /// ```
 class RunCommand extends MontyCommand {
   @override
@@ -17,7 +17,7 @@ class RunCommand extends MontyCommand {
   String get description => 'Execute a Python file.';
 
   @override
-  String get invocation => 'monty-cli run <file.py>';
+  String get invocation => 'dmonty run <file.py>';
 
   @override
   Future<int> run() async {
@@ -52,6 +52,9 @@ class RunCommand extends MontyCommand {
 
       return result.isError ? 1 : 0;
     } on MontyException catch (e) {
+      if (MontyCommand.isLibraryLoadError(e)) {
+        MontyCommand.exitWithLibraryError();
+      }
       stderr.writeln('Error: ${e.message}');
 
       return 1;

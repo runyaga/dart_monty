@@ -18,6 +18,10 @@ dev_dependencies:
   test: ^1.25.0
   very_good_analysis: ^10.0.0
 
+executables:
+  dmonty:
+    path: dmonty
+
 dependency_overrides:
   dart_monty_ffi:
     path: ../dart_monty_ffi
