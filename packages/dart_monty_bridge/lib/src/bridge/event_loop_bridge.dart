@@ -45,6 +45,7 @@ class EventLoopBridge extends DefaultMontyBridge {
   EventLoopBridge({
     super.platform,
     super.limits,
+    super.logger,
     this.onRenderUi,
   }) : super(useFutures: true) {
     _registerEventLoopFunctions();
@@ -85,6 +86,10 @@ class EventLoopBridge extends DefaultMontyBridge {
     if (_loopState == EventLoopState.disposed) {
       throw StateError('Cannot dispatch events on a disposed bridge');
     }
+    log.trace(
+      'Dispatching UI event',
+      attributes: {'eventKeys': '${event.keys.toList()}'},
+    );
 
     final completer = _pendingCompleter;
     if (completer != null && !completer.isCompleted) {
@@ -182,6 +187,7 @@ class EventLoopBridge extends DefaultMontyBridge {
 
     // No events queued — create a completer and wait.
     _loopState = EventLoopState.waitingForEvent;
+    log.trace('Waiting for event');
     _eventLoopController.add(const BridgeEventLoopWaiting());
 
     final completer = Completer<Map<String, dynamic>>();
