@@ -1,4 +1,5 @@
 import 'package:args/command_runner.dart';
+import 'package:monty_cli/src/commands/demo_command.dart';
 import 'package:monty_cli/src/commands/eval_command.dart';
 import 'package:monty_cli/src/commands/repl_command.dart';
 import 'package:monty_cli/src/commands/run_command.dart';
@@ -34,6 +35,7 @@ CommandRunner<int> buildRunner() {
       help: 'Show resource usage stats on stderr (with --prompt).',
       negatable: false,
     )
+    ..addCommand(DemoCommand())
     ..addCommand(EvalCommand())
     ..addCommand(RunCommand())
     ..addCommand(ReplCommand());

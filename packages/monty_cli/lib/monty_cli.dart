@@ -2,6 +2,7 @@
 library;
 
 export 'src/cli_runner.dart';
+export 'src/commands/demo_command.dart';
 export 'src/commands/eval_command.dart';
 export 'src/commands/monty_command.dart';
 export 'src/commands/prompt_command.dart';
