@@ -48,11 +48,15 @@ abstract class MontyCommand extends Command<int> {
 
     if (timeout == null && memory == null && stackDepth == null) return null;
 
-    return MontyLimits(
-      timeoutMs: timeout != null ? int.parse(timeout) : null,
-      memoryBytes: memory != null ? int.parse(memory) : null,
-      stackDepth: stackDepth != null ? int.parse(stackDepth) : null,
-    );
+    try {
+      return MontyLimits(
+        timeoutMs: timeout != null ? int.parse(timeout) : null,
+        memoryBytes: memory != null ? int.parse(memory) : null,
+        stackDepth: stackDepth != null ? int.parse(stackDepth) : null,
+      );
+    } on FormatException catch (e) {
+      usageException('Invalid integer for resource limit: ${e.message}');
+    }
   }
 
   /// Creates a [VerboseLogger] based on the `--verbose` flag.
