@@ -5,3 +5,6 @@ include:
 linter:
   rules:
     public_member_api_docs: true
+    # False positive: subscriptions stored in _ChildHandle are cancelled
+    # in onDispose/cancel but the analyzer can't track across indirection.
+    cancel_subscriptions: false
