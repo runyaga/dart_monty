@@ -25,6 +25,12 @@ external JSPromise<JSString> _bridgeStart(
   JSString? extFnsJson,
 ]);
 
+@JS('DartMontyBridge.snapshot')
+external JSPromise<JSString> _bridgeSnapshot();
+
+@JS('DartMontyBridge.restore')
+external JSPromise<JSString> _bridgeRestore(JSString dataBase64);
+
 @JS('DartMontyBridge.resume')
 external JSPromise<JSString> _bridgeResume(JSString valueJson);
 
@@ -100,6 +106,10 @@ const List<String> _hostFunctions = [
   'log',
   'alert',
   'now',
+  'interpreter_snapshot',
+  'interpreter_restore',
+  'download_file',
+  'upload_file',
 ];
 
 // ── Host function dispatch ─────────────────────────────────────────────────
@@ -235,6 +245,64 @@ Future<Object?> _dispatch(String fnName, List<dynamic> args) async {
 
     case 'now':
       return DateTime.now().toIso8601String();
+
+    case 'interpreter_snapshot':
+      final result = _parse(
+        (await _bridgeSnapshot().toDart).toDart,
+      );
+      if (result['ok'] == true) {
+        return result['data'] as String;
+      }
+      return 'Error: ${result['error']}';
+
+    case 'interpreter_restore':
+      final data = args[0] as String;
+      final result = _parse(
+        (await _bridgeRestore(data.toJS).toDart).toDart,
+      );
+      if (result['ok'] == true) return 'restored';
+      return 'Error: ${result['error']}';
+
+    case 'download_file':
+      final filename = args[0] as String;
+      final content = args[1] as String;
+      final anchor = document.createElement('a') as HTMLAnchorElement;
+      anchor.href =
+          'data:application/octet-stream;base64,${Uri.encodeComponent(content)}';
+      anchor.download = filename;
+      anchor.click();
+      return null;
+
+    case 'upload_file':
+      final input = document.createElement('input') as HTMLInputElement;
+      input.type = 'file';
+      final completer = Completer<String?>();
+      input.addEventListener(
+        'change',
+        (Event e) {
+          final files = input.files;
+          if (files == null || files.length == 0) {
+            completer.complete(null);
+            return;
+          }
+          final file = files.item(0)!;
+          final reader = FileReader();
+          reader.addEventListener(
+            'load',
+            (Event ev) {
+              final dataUrl = (reader.result as JSString?)?.toDart ?? '';
+              // Strip data URL prefix to get base64
+              final b64 = dataUrl.contains(',')
+                  ? dataUrl.substring(dataUrl.indexOf(',') + 1)
+                  : dataUrl;
+              completer.complete(b64);
+            }.toJS,
+          );
+          reader.readAsDataURL(file);
+        }.toJS,
+      );
+      input.click();
+      return await completer.future;
 
     default:
       return 'Unknown host function: $fnName';
@@ -674,6 +742,191 @@ dom_text(status, f"Saved {saved_count} fields to localStorage! Refresh and INVOK
 dom_style(status, "color", "#00d4ff")
 log(f"Done. {saved_count} fields persisted.")
 ''',
+  'snapshot': '''
+app = dom_query("#sandbox")
+
+title = dom_create("h2")
+dom_text(title, "Interpreter Snapshot Demo")
+dom_style(title, "color", "#dcdcaa")
+dom_style(title, "margin-bottom", "8px")
+dom_append(app, title)
+
+desc = dom_create("p")
+dom_text(desc, "This demo defines variables, snapshots the interpreter state, downloads it as a file, then lets you upload a snapshot to restore it.")
+dom_style(desc, "color", "#666")
+dom_style(desc, "font-size", "12px")
+dom_style(desc, "margin-bottom", "16px")
+dom_append(app, desc)
+
+# Step 1: Define some state
+x = 42
+y = "hello from the snapshot"
+nums = [1, 2, 3, 4, 5]
+total = sum(nums)
+
+status = dom_create("pre")
+dom_style(status, "background", "#141420")
+dom_style(status, "padding", "12px")
+dom_style(status, "border-radius", "4px")
+dom_style(status, "color", "#569cd6")
+dom_style(status, "font-size", "12px")
+dom_style(status, "white-space", "pre-wrap")
+dom_append(app, status)
+
+dom_text(status, f"Variables defined:\\n  x = {x}\\n  y = \\"{y}\\"\\n  nums = {nums}\\n  total = {total}")
+log(f"Defined: x={x}, y={y}, nums={nums}, total={total}")
+
+# Step 2: Snapshot button
+snap_btn = dom_create("button")
+dom_text(snap_btn, "SNAPSHOT + DOWNLOAD")
+dom_style(snap_btn, "display", "inline-block")
+dom_style(snap_btn, "margin-top", "16px")
+dom_style(snap_btn, "margin-right", "8px")
+dom_style(snap_btn, "padding", "10px 20px")
+dom_style(snap_btn, "background", "#00d4ff")
+dom_style(snap_btn, "color", "#0a0a0f")
+dom_style(snap_btn, "border", "none")
+dom_style(snap_btn, "border-radius", "4px")
+dom_style(snap_btn, "font-family", "monospace")
+dom_style(snap_btn, "font-size", "13px")
+dom_style(snap_btn, "font-weight", "bold")
+dom_style(snap_btn, "cursor", "pointer")
+dom_append(app, snap_btn)
+
+# Step 3: Upload + Restore button
+restore_btn = dom_create("button")
+dom_text(restore_btn, "UPLOAD + RESTORE")
+dom_style(restore_btn, "display", "inline-block")
+dom_style(restore_btn, "margin-top", "16px")
+dom_style(restore_btn, "padding", "10px 20px")
+dom_style(restore_btn, "background", "#dcdcaa")
+dom_style(restore_btn, "color", "#0a0a0f")
+dom_style(restore_btn, "border", "none")
+dom_style(restore_btn, "border-radius", "4px")
+dom_style(restore_btn, "font-family", "monospace")
+dom_style(restore_btn, "font-size", "13px")
+dom_style(restore_btn, "font-weight", "bold")
+dom_style(restore_btn, "cursor", "pointer")
+dom_append(app, restore_btn)
+
+result_div = dom_create("pre")
+dom_style(result_div, "background", "#141420")
+dom_style(result_div, "padding", "12px")
+dom_style(result_div, "border-radius", "4px")
+dom_style(result_div, "color", "#888")
+dom_style(result_div, "font-size", "12px")
+dom_style(result_div, "margin-top", "12px")
+dom_style(result_div, "white-space", "pre-wrap")
+dom_text(result_div, "Click Snapshot to capture state, or Upload to restore from file.")
+dom_append(app, result_div)
+
+log("Ready. Click Snapshot or Upload.")
+
+# Wait for snapshot button
+dom_on_click(snap_btn)
+
+# Take snapshot
+log("Taking snapshot...")
+snapshot_data = interpreter_snapshot()
+
+if snapshot_data and not snapshot_data.startswith("Error"):
+    size = len(snapshot_data)
+    dom_text(result_div, f"Snapshot captured!\\n  Size: {size} bytes (base64)\\n  Downloading as monty_snapshot.b64...\\nYou can upload this file later to restore the interpreter state.")
+    log(f"Snapshot: {size} bytes base64")
+
+    # Store in localStorage too
+    storage_set("monty_snapshot", snapshot_data)
+    log("Snapshot also saved to localStorage.")
+
+    # Download it
+    download_file("monty_snapshot.b64", snapshot_data)
+    log("Download triggered.")
+
+    dom_style(result_div, "color", "#00d4ff")
+else:
+    dom_text(result_div, f"Snapshot failed: {snapshot_data}")
+    dom_style(result_div, "color", "#f44747")
+    log(f"Snapshot error: {snapshot_data}")
+''',
+  'restore': '''
+app = dom_query("#sandbox")
+
+title = dom_create("h2")
+dom_text(title, "Restore Interpreter State")
+dom_style(title, "color", "#dcdcaa")
+dom_style(title, "margin-bottom", "8px")
+dom_append(app, title)
+
+desc = dom_create("p")
+dom_text(desc, "Upload a .b64 snapshot file, or restore from localStorage if a snapshot was saved.")
+dom_style(desc, "color", "#666")
+dom_style(desc, "font-size", "12px")
+dom_style(desc, "margin-bottom", "16px")
+dom_append(app, desc)
+
+result_div = dom_create("pre")
+dom_style(result_div, "background", "#141420")
+dom_style(result_div, "padding", "12px")
+dom_style(result_div, "border-radius", "4px")
+dom_style(result_div, "color", "#888")
+dom_style(result_div, "font-size", "12px")
+dom_style(result_div, "white-space", "pre-wrap")
+dom_append(app, result_div)
+
+# Try localStorage first
+saved = storage_get("monty_snapshot")
+if saved:
+    dom_text(result_div, f"Found snapshot in localStorage ({len(saved)} bytes base64).\\nRestoring...")
+    log(f"Found snapshot in localStorage: {len(saved)} bytes")
+
+    result = interpreter_restore(saved)
+    if result == "restored":
+        dom_text(result_div, f"Interpreter restored from localStorage!\\n\\nThe interpreter is now in the state it was when snapshot was taken.\\nVariables, stack, everything -- restored from binary data.")
+        dom_style(result_div, "color", "#00d4ff")
+        log("Restore successful!")
+    else:
+        dom_text(result_div, f"Restore failed: {result}")
+        dom_style(result_div, "color", "#f44747")
+        log(f"Restore error: {result}")
+else:
+    # Upload flow
+    upload_btn = dom_create("button")
+    dom_text(upload_btn, "UPLOAD SNAPSHOT FILE")
+    dom_style(upload_btn, "display", "block")
+    dom_style(upload_btn, "margin-bottom", "12px")
+    dom_style(upload_btn, "padding", "10px 20px")
+    dom_style(upload_btn, "background", "#dcdcaa")
+    dom_style(upload_btn, "color", "#0a0a0f")
+    dom_style(upload_btn, "border", "none")
+    dom_style(upload_btn, "border-radius", "4px")
+    dom_style(upload_btn, "font-family", "monospace")
+    dom_style(upload_btn, "font-size", "13px")
+    dom_style(upload_btn, "font-weight", "bold")
+    dom_style(upload_btn, "cursor", "pointer")
+    dom_append(app, upload_btn)
+
+    dom_text(result_div, "No snapshot in localStorage. Click to upload a .b64 file.")
+    log("No snapshot in localStorage. Upload one.")
+
+    dom_on_click(upload_btn)
+
+    file_data = upload_file()
+    if file_data:
+        dom_text(result_div, f"File loaded ({len(file_data)} bytes). Restoring...")
+        log(f"Uploaded: {len(file_data)} bytes")
+
+        result = interpreter_restore(file_data)
+        if result == "restored":
+            dom_text(result_div, "Interpreter restored from uploaded file!\\n\\nThe interpreter is now in the state when the snapshot was taken.")
+            dom_style(result_div, "color", "#00d4ff")
+            log("Restore successful!")
+        else:
+            dom_text(result_div, f"Restore failed: {result}")
+            dom_style(result_div, "color", "#f44747")
+    else:
+        dom_text(result_div, "No file selected.")
+        log("Upload cancelled.")
+''',
 };
 
 // ── UI wiring ──────────────────────────────────────────────────────────────
@@ -690,6 +943,8 @@ void _populateDemoSelector() {
     'counter': 'Persistent Pilgrimage Counter',
     'dashboard': 'Dart Evangelism Dashboard',
     'form': 'Stateful Form (localStorage)',
+    'snapshot': 'Snapshot + Download State',
+    'restore': 'Upload + Restore State',
   };
 
   for (final entry in _demos.entries) {
