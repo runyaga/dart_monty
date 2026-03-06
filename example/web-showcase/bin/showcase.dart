@@ -8,6 +8,7 @@
 ///   storage_get, storage_set, log, alert, now
 library;
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:js_interop';
 
@@ -91,6 +92,7 @@ const List<String> _hostFunctions = [
   'dom_remove',
   'dom_set_value',
   'dom_get_value',
+  'dom_on_click',
   'fetch_text',
   'fetch_json',
   'storage_get',
@@ -186,6 +188,19 @@ Future<Object?> _dispatch(String fnName, List<dynamic> args) async {
         return (gvEl as HTMLSelectElement).value;
       }
       return null;
+
+    case 'dom_on_click':
+      final h = args[0] as int;
+      final el = _get(h);
+      if (el == null) return null;
+      final completer = Completer<String>();
+      el.addEventListener(
+        'click',
+        (Event e) {
+          if (!completer.isCompleted) completer.complete('clicked');
+        }.toJS,
+      );
+      return await completer.future;
 
     case 'fetch_text':
       final url = args[0] as String;
@@ -573,7 +588,7 @@ dom_style(title, "margin-bottom", "12px")
 dom_append(app, title)
 
 subtitle = dom_create("p")
-dom_text(subtitle, "Your answers are saved to localStorage. Refresh the page and run again -- they persist.")
+dom_text(subtitle, "Fill in the form, click Save. Refresh the page and INVOKE again -- your answers persist.")
 dom_style(subtitle, "color", "#666")
 dom_style(subtitle, "font-size", "12px")
 dom_style(subtitle, "margin-bottom", "16px")
@@ -587,7 +602,6 @@ fields = [
 ]
 
 for key, label_text, field_type in fields:
-    # Label
     lbl = dom_create("label")
     dom_text(lbl, label_text)
     dom_style(lbl, "display", "block")
@@ -597,7 +611,6 @@ for key, label_text, field_type in fields:
     dom_style(lbl, "margin-top", "12px")
     dom_append(app, lbl)
 
-    # Field
     field = dom_create(field_type)
     dom_style(field, "width", "100%")
     dom_style(field, "padding", "8px")
@@ -611,93 +624,55 @@ for key, label_text, field_type in fields:
         dom_attr(field, "rows", "3")
     dom_append(app, field)
 
-    # Restore saved value
     saved = storage_get(key)
     if saved:
         dom_set_value(field, saved)
         log(f"Restored {key}: {saved}")
 
-    # Store handle for save button
     dom_attr(field, "data-key", key)
 
-# Summary section
-summary_title = dom_create("h3")
-dom_text(summary_title, "Saved State:")
-dom_style(summary_title, "color", "#dcdcaa")
-dom_style(summary_title, "margin-top", "20px")
-dom_style(summary_title, "margin-bottom", "8px")
-dom_append(app, summary_title)
+# Save button
+btn = dom_create("button")
+dom_text(btn, "SAVE TO LOCALSTORAGE")
+dom_style(btn, "display", "block")
+dom_style(btn, "margin-top", "20px")
+dom_style(btn, "padding", "10px 24px")
+dom_style(btn, "background", "#00d4ff")
+dom_style(btn, "color", "#0a0a0f")
+dom_style(btn, "border", "none")
+dom_style(btn, "border-radius", "4px")
+dom_style(btn, "font-family", "monospace")
+dom_style(btn, "font-size", "14px")
+dom_style(btn, "font-weight", "bold")
+dom_style(btn, "cursor", "pointer")
+dom_append(app, btn)
 
-summary = dom_create("pre")
-dom_style(summary, "background", "#141420")
-dom_style(summary, "padding", "12px")
-dom_style(summary, "border-radius", "4px")
-dom_style(summary, "color", "#888")
-dom_style(summary, "font-size", "12px")
-dom_append(app, summary)
+status = dom_create("p")
+dom_style(status, "color", "#888")
+dom_style(status, "font-size", "12px")
+dom_style(status, "margin-top", "8px")
+dom_text(status, "Fill in the form, then click Save.")
+dom_append(app, status)
 
-# Show all saved state
-lines = []
+log("Form ready. Fill in fields and click Save.")
+
+# Wait for click
+dom_on_click(btn)
+
+# Save all fields
+saved_count = 0
 for key, label_text, field_type in fields:
-    val = storage_get(key)
-    if val:
-        lines.append(f"  {key} = {val}")
-    else:
-        lines.append(f"  {key} = (empty)")
-
-if lines:
-    dom_text(summary, "localStorage contents:\\n" + "\\n".join(lines))
-else:
-    dom_text(summary, "No saved state yet. Fill in the form and run the Save demo.")
-
-note = dom_create("p")
-dom_text(note, "Edit the fields above, then run the Save demo to persist.")
-dom_style(note, "color", "#555")
-dom_style(note, "font-size", "11px")
-dom_style(note, "margin-top", "8px")
-dom_append(app, note)
-
-log("Form rendered. Existing state restored from localStorage.")
-''',
-  'form_save': '''
-app = dom_query("#sandbox")
-
-# Read all input/textarea values by querying them
-fields = [
-    "dart_form_name",
-    "dart_form_language",
-    "dart_form_testimony",
-    "dart_form_slack_level",
-]
-
-saved = 0
-for key in fields:
-    # Find the element with data-key attribute
     el = dom_query(f"[data-key=\\"{key}\\"]")
     if el:
         val = dom_get_value(el)
         if val:
             storage_set(key, val)
             log(f"Saved {key} = {val}")
-            saved += 1
-        else:
-            log(f"Skipped {key} (empty)")
-    else:
-        log(f"Field not found: {key}")
+            saved_count += 1
 
-title = dom_create("h2")
-dom_style(title, "color", "#00d4ff")
-dom_style(title, "text-align", "center")
-dom_style(title, "margin-top", "20px")
-
-if saved > 0:
-    dom_text(title, f"Saved {saved} fields to localStorage!")
-    log(f"\\nDone. {saved} fields persisted. Refresh the page and run Form again to see them restored.")
-else:
-    dom_text(title, "Nothing to save. Run the Form demo first.")
-    log("No fields found. Run the Form demo first to create the form.")
-
-dom_append(app, title)
+dom_text(status, f"Saved {saved_count} fields to localStorage! Refresh and INVOKE to see them restored.")
+dom_style(status, "color", "#00d4ff")
+log(f"Done. {saved_count} fields persisted.")
 ''',
 };
 
@@ -715,7 +690,6 @@ void _populateDemoSelector() {
     'counter': 'Persistent Pilgrimage Counter',
     'dashboard': 'Dart Evangelism Dashboard',
     'form': 'Stateful Form (localStorage)',
-    'form_save': 'Save Form State',
   };
 
   for (final entry in _demos.entries) {
