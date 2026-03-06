@@ -81,6 +81,7 @@ final class CoreProgressResult {
     required this.state,
     this.value,
     this.usage,
+    this.printOutput,
     this.functionName,
     this.arguments,
     this.kwargs,
@@ -104,6 +105,9 @@ final class CoreProgressResult {
 
   /// Resource usage statistics (when [state] is `'complete'`).
   final MontyResourceUsage? usage;
+
+  /// Captured Python `print()` output (when [state] is `'complete'`).
+  final String? printOutput;
 
   /// External function name (when [state] is `'pending'`).
   final String? functionName;

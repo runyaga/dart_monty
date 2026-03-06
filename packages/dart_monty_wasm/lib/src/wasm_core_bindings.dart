@@ -124,6 +124,7 @@ class WasmCoreBindings implements MontyCoreBindings {
         ok: true,
         value: result.value,
         usage: _makeUsage(elapsedMs),
+        printOutput: result.printOutput,
       );
     }
     return CoreRunResult(
@@ -153,6 +154,7 @@ class WasmCoreBindings implements MontyCoreBindings {
           state: 'complete',
           value: progress.value,
           usage: _makeUsage(elapsedMs),
+          printOutput: progress.printOutput,
         );
 
       case 'pending':

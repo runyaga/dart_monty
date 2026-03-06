@@ -10,6 +10,7 @@ final class WasmRunResult {
     this.value,
     this.error,
     this.errorType,
+    this.printOutput,
     this.excType,
     this.traceback,
   });
@@ -19,6 +20,9 @@ final class WasmRunResult {
 
   /// The return value from the Python execution (when [ok] is true).
   final Object? value;
+
+  /// Captured Python `print()` output (when [ok] is true).
+  final String? printOutput;
 
   /// The error message (when [ok] is false).
   final String? error;
@@ -48,6 +52,7 @@ final class WasmProgressResult {
     this.kwargs,
     this.callId,
     this.methodCall,
+    this.printOutput,
     this.pendingCallIds,
     this.error,
     this.errorType,
@@ -63,6 +68,9 @@ final class WasmProgressResult {
 
   /// The return value (when state is `'complete'`).
   final Object? value;
+
+  /// Captured Python `print()` output (when state is `'complete'`).
+  final String? printOutput;
 
   /// The external function name (when state is `'pending'`).
   final String? functionName;

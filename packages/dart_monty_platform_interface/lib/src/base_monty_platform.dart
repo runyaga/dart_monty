@@ -153,6 +153,7 @@ abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
             value: p.value,
             error: _buildError(p.error, p.excType, p.traceback),
             usage: p.usage ?? _zeroUsage,
+            printOutput: p.printOutput,
           ),
         );
       case 'pending':
