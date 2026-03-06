@@ -6,8 +6,8 @@ import 'package:monty_cli/src/commands/monty_command.dart';
 /// Evaluates a single Python expression and prints the result.
 ///
 /// ```bash
-/// monty-cli eval "2 + 2"
-/// monty-cli eval "sum(range(100))" --json
+/// dmonty eval "2 + 2"
+/// dmonty eval "sum(range(100))" --json
 /// ```
 class EvalCommand extends MontyCommand {
   @override
@@ -17,7 +17,7 @@ class EvalCommand extends MontyCommand {
   String get description => 'Evaluate a Python expression.';
 
   @override
-  String get invocation => 'monty-cli eval "<expression>"';
+  String get invocation => 'dmonty eval "<expression>"';
 
   @override
   Future<int> run() async {
@@ -40,6 +40,9 @@ class EvalCommand extends MontyCommand {
 
       return result.isError ? 1 : 0;
     } on MontyException catch (e) {
+      if (MontyCommand.isLibraryLoadError(e)) {
+        MontyCommand.exitWithLibraryError();
+      }
       stderr.writeln('Error: ${e.message}');
 
       return 1;

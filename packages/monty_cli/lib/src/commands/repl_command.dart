@@ -11,7 +11,7 @@ import 'package:monty_cli/src/verbose_logger.dart';
 /// [MontySession]. Supports slash-commands for session management.
 ///
 /// ```bash
-/// monty-cli repl
+/// dmonty repl
 /// monty> x = 42
 /// monty> x * 2
 /// 84
@@ -147,6 +147,9 @@ class ReplCommand extends MontyCommand {
       final output = OutputFormatter.format(result);
       if (output.isNotEmpty) stdout.writeln(output);
     } on MontyException catch (e) {
+      if (MontyCommand.isLibraryLoadError(e)) {
+        MontyCommand.exitWithLibraryError();
+      }
       stderr.writeln('Error: ${e.message}');
     } on Exception catch (e) {
       stderr.writeln('Error: $e');

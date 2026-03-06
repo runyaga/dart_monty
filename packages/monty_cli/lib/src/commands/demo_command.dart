@@ -21,9 +21,9 @@ typedef HostHandler = Object? Function(
 /// resumes execution until complete.
 ///
 /// ```bash
-/// monty-cli demo
-/// monty-cli demo --script 'greet("world")'
-/// monty-cli demo --list
+/// dmonty demo
+/// dmonty demo --script 'greet("world")'
+/// dmonty demo --list
 /// ```
 class DemoCommand extends MontyCommand {
   /// Creates a [DemoCommand] and registers demo-specific flags.
