@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>The Altar of Dart — Python in the Browser</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+      background: #0a0a0f;
+      color: #d4d4d4;
+      min-height: 100vh;
+    }
+
+    /* ── Header / Altar Banner ── */
+    .altar-banner {
+      display: flex;
+      align-items: center;
+      padding: 12px 16px;
+      background: linear-gradient(180deg, #0d1117 0%, #0a0a0f 100%);
+      border-bottom: 1px solid #1a1a2e;
+    }
+    .altar-text {
+      flex: 1;
+    }
+    .altar-title {
+      color: #00d4ff;
+      font-size: 1.4rem;
+      text-shadow: 0 0 20px rgba(0, 212, 255, 0.5);
+      letter-spacing: 4px;
+    }
+    .altar-subtitle {
+      color: #569cd6;
+      font-size: 0.75rem;
+      margin-top: 4px;
+      letter-spacing: 2px;
+    }
+    .altar-verse {
+      color: #555;
+      font-size: 0.7rem;
+      margin-top: 4px;
+      font-style: italic;
+    }
+    .altar-links {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      align-items: flex-end;
+    }
+    .altar-links a {
+      color: #569cd6;
+      text-decoration: none;
+      font-size: 0.75rem;
+    }
+    .altar-links a:hover { text-decoration: underline; }
+
+    /* ── Layout ── */
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+      height: calc(100vh - 200px);
+      min-height: 400px;
+    }
+
+    /* ── Left Panel: Editor ── */
+    .editor-panel {
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid #1a1a2e;
+    }
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: #141420;
+      border-bottom: 1px solid #1a1a2e;
+      flex-wrap: wrap;
+    }
+    .toolbar select {
+      background: #1e1e2e;
+      color: #d4d4d4;
+      border: 1px solid #333;
+      padding: 4px 8px;
+      font-family: inherit;
+      font-size: 0.8rem;
+      border-radius: 3px;
+    }
+    .toolbar button {
+      padding: 5px 14px;
+      border: 1px solid #333;
+      border-radius: 3px;
+      font-family: inherit;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    #run-btn {
+      background: #00d4ff;
+      color: #0a0a0f;
+      border-color: #00d4ff;
+      font-weight: bold;
+    }
+    #run-btn:hover { background: #33ddff; }
+    #clear-btn {
+      background: #1e1e2e;
+      color: #888;
+    }
+    #clear-btn:hover { background: #252535; color: #aaa; }
+    .toolbar .hint {
+      color: #444;
+      font-size: 0.7rem;
+      margin-left: auto;
+    }
+    textarea#editor {
+      flex: 1;
+      background: #0d0d18;
+      color: #d4d4d4;
+      border: none;
+      padding: 12px;
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+      font-size: 13px;
+      line-height: 1.5;
+      resize: none;
+      outline: none;
+      tab-size: 4;
+    }
+    textarea#editor::selection { background: #264f78; }
+
+    /* ── Right Panel: Output ── */
+    .output-panel {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .output-header {
+      padding: 8px 12px;
+      background: #141420;
+      border-bottom: 1px solid #1a1a2e;
+      font-size: 0.8rem;
+      color: #569cd6;
+      display: flex;
+      justify-content: space-between;
+    }
+    #sandbox {
+      flex: 1;
+      padding: 12px;
+      overflow: auto;
+      background: #0d0d18;
+      border-bottom: 1px solid #1a1a2e;
+    }
+    #output {
+      height: 120px;
+      padding: 8px 12px;
+      overflow: auto;
+      background: #0a0a12;
+      font-size: 12px;
+      color: #888;
+      white-space: pre-wrap;
+      line-height: 1.5;
+    }
+
+    /* ── Status Bar ── */
+    .status-bar {
+      padding: 6px 12px;
+      background: #141420;
+      border-top: 1px solid #1a1a2e;
+      font-size: 0.75rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    #status { color: #555; }
+    .status-bar .creed {
+      color: #333;
+      font-style: italic;
+    }
+
+    /* ── API Panel (collapsible) ── */
+    #api-toggle {
+      color: #00d4ff;
+      cursor: pointer;
+      font-size: 0.75rem;
+      letter-spacing: 1px;
+      transition: text-shadow 0.2s;
+    }
+    #api-toggle:hover {
+      text-shadow: 0 0 8px rgba(0, 212, 255, 0.6);
+    }
+    .api-panel {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.4s ease;
+      background: linear-gradient(180deg, #0d1117, #0a0a0f);
+      border-bottom: 1px solid #1a1a2e;
+    }
+    .api-panel.open {
+      max-height: 520px;
+      overflow-y: auto;
+    }
+    .api-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 10px;
+      padding: 14px 16px;
+    }
+    .api-card {
+      background: #111118;
+      border: 1px solid #1a1a2e;
+      border-radius: 4px;
+      padding: 10px 12px;
+    }
+    .api-card h3 {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      margin-bottom: 8px;
+      padding-bottom: 5px;
+      border-bottom: 1px solid #1a1a2e;
+    }
+    .api-card .fn {
+      font-size: 11px;
+      line-height: 1.7;
+      white-space: nowrap;
+    }
+    .api-card .fn .name { color: #dcdcaa; }
+    .api-card .fn .args { color: #666; }
+    .api-card .fn .ret { color: #569cd6; font-size: 10px; }
+    .api-card .fn .blk { color: #f44747; font-size: 9px; letter-spacing: 1px; }
+    .api-note {
+      grid-column: 1 / -1;
+      color: #444;
+      font-size: 0.65rem;
+      font-style: italic;
+      text-align: center;
+      padding: 4px 0 2px;
+    }
+
+  </style>
+</head>
+<body>
+
+  <!-- ═══ HEADER ═══ -->
+  <div class="altar-banner">
+    <div class="altar-text">
+      <div class="altar-title">THE ALTAR OF DART</div>
+      <div class="altar-subtitle">PYTHON IN THE BROWSER &mdash; NO SERVER, NO BINARY, JUST DART</div>
+      <div class="altar-verse">"And 'Bob' spake from within the WASM, and Dart carried the word unto the DOM." &mdash; Book of Monty 3:14</div>
+    </div>
+    <div class="altar-links">
+      <a href="https://github.com/pydantic/monty">pydantic/monty</a>
+      <a href="https://pub.dev/packages/dart_monty">pub.dev/dart_monty</a>
+      <a href="https://github.com/runyaga/dart_monty">runyaga/dart_monty</a>
+      <a href="#" id="api-toggle">HOST API ▸</a>
+    </div>
+  </div>
+
+  <!-- ═══ API REFERENCE PANEL ═══ -->
+  <div class="api-panel" id="api-panel">
+    <div class="api-grid">
+
+      <div class="api-card">
+        <h3 style="color:#00d4ff;">DOM Elements</h3>
+        <div class="fn"><span class="name">dom_create</span><span class="args">(tag)</span> <span class="ret">&rarr; handle</span></div>
+        <div class="fn"><span class="name">dom_text</span><span class="args">(h, text)</span></div>
+        <div class="fn"><span class="name">dom_get_text</span><span class="args">(h)</span> <span class="ret">&rarr; str</span></div>
+        <div class="fn"><span class="name">dom_append</span><span class="args">(parent, child)</span></div>
+        <div class="fn"><span class="name">dom_query</span><span class="args">(selector)</span> <span class="ret">&rarr; handle</span></div>
+        <div class="fn"><span class="name">dom_style</span><span class="args">(h, prop, val)</span></div>
+        <div class="fn"><span class="name">dom_attr</span><span class="args">(h, attr, val)</span></div>
+        <div class="fn"><span class="name">dom_html</span><span class="args">(h, html)</span></div>
+        <div class="fn"><span class="name">dom_remove</span><span class="args">(h)</span></div>
+      </div>
+
+      <div class="api-card">
+        <h3 style="color:#00d4ff;">DOM Input &amp; Events</h3>
+        <div class="fn"><span class="name">dom_set_value</span><span class="args">(h, val)</span></div>
+        <div class="fn"><span class="name">dom_get_value</span><span class="args">(h)</span> <span class="ret">&rarr; str</span></div>
+        <div class="fn"><span class="name">dom_on_click</span><span class="args">(h)</span> <span class="blk">BLOCKS</span></div>
+        <div class="fn"><span class="name">dom_await_click_any</span><span class="args">([h, ...])</span> <span class="ret">&rarr; handle</span> <span class="blk">BLOCKS</span></div>
+      </div>
+
+      <div class="api-card">
+        <h3 style="color:#dcdcaa;">Storage &amp; JSON</h3>
+        <div class="fn"><span class="name">storage_get</span><span class="args">(key)</span> <span class="ret">&rarr; str</span></div>
+        <div class="fn"><span class="name">storage_set</span><span class="args">(key, val)</span></div>
+        <div class="fn"><span class="name">json_dumps</span><span class="args">(obj)</span> <span class="ret">&rarr; str</span></div>
+        <div class="fn"><span class="name">json_loads</span><span class="args">(s)</span> <span class="ret">&rarr; obj</span></div>
+      </div>
+
+      <div class="api-card">
+        <h3 style="color:#c586c0;">Network &amp; I/O</h3>
+        <div class="fn"><span class="name">fetch_text</span><span class="args">(url)</span> <span class="ret">&rarr; str</span></div>
+        <div class="fn"><span class="name">fetch_json</span><span class="args">(url)</span> <span class="ret">&rarr; obj</span></div>
+        <div class="fn"><span class="name">download_file</span><span class="args">(name, b64)</span></div>
+        <div class="fn"><span class="name">upload_file</span><span class="args">()</span> <span class="ret">&rarr; b64</span> <span class="blk">BLOCKS</span></div>
+      </div>
+
+      <div class="api-card">
+        <h3 style="color:#4ec9b0;">Interpreter</h3>
+        <div class="fn"><span class="name">interpreter_snapshot</span><span class="args">()</span> <span class="ret">&rarr; b64</span></div>
+        <div class="fn"><span class="name">interpreter_restore</span><span class="args">(b64)</span> <span class="ret">&rarr; str</span></div>
+      </div>
+
+      <div class="api-card">
+        <h3 style="color:#888;">Utility</h3>
+        <div class="fn"><span class="name">log</span><span class="args">(msg)</span></div>
+        <div class="fn"><span class="name">alert</span><span class="args">(msg)</span></div>
+        <div class="fn"><span class="name">now</span><span class="args">()</span> <span class="ret">&rarr; iso8601</span></div>
+      </div>
+
+      <div class="api-note">All functions are globals &mdash; no import needed. Handles are ints. <span style="color:#f44747;">BLOCKS</span> = Python suspends until event fires.</div>
+    </div>
+  </div>
+
+  <!-- ═══ MAIN CONTENT ═══ -->
+  <div class="main-grid">
+    <!-- Left: Python Editor -->
+    <div class="editor-panel">
+      <div class="toolbar">
+        <select id="demo-select"></select>
+        <button id="run-btn">INVOKE</button>
+        <button id="clear-btn">PURGE</button>
+        <span class="hint">Ctrl+Enter to invoke</span>
+      </div>
+      <textarea id="editor" spellcheck="false" placeholder="# Write Python here. It runs in your browser.&#10;# Dart bridges every call to the DOM.&#10;# There is no server. Only Dart."></textarea>
+    </div>
+
+    <!-- Right: DOM Sandbox + Log -->
+    <div class="output-panel">
+      <div class="output-header">
+        <span>DOM Sandbox</span>
+        <span>Python &rarr; Dart &rarr; Browser</span>
+      </div>
+      <div id="sandbox"></div>
+      <div id="output"></div>
+    </div>
+  </div>
+
+  <!-- ═══ STATUS BAR ═══ -->
+  <div class="status-bar">
+    <span id="status">Loading the sacred interpreter...</span>
+    <span class="creed">Dart is the way. Slack off.</span>
+  </div>
+
+  <!-- ═══ SCRIPTS ═══ -->
+  <script>
+    document.getElementById('api-toggle').addEventListener('click', function(e) {
+      e.preventDefault();
+      var p = document.getElementById('api-panel');
+      p.classList.toggle('open');
+      this.textContent = p.classList.contains('open') ? 'HOST API \u25BE' : 'HOST API \u25B8';
+    });
+  </script>
+  <script src="coi-serviceworker.js"></script>
+  <script src="dart_monty_bridge.js"></script>
+  <script src="showcase.dart.js"></script>
+</body>
+</html>
