@@ -19,6 +19,10 @@ String _okResultJson(Object? value) =>
 String _errorResultJson(String message) =>
     '{"value": null, "error": {"message": "$message"}, "usage": $_usageJson}';
 
+/// Builds a complete result JSON string with print_output.
+String _okResultWithPrintJson(Object? value, String printOutput) =>
+    '{"value": $value, "usage": $_usageJson, "print_output": "$printOutput"}';
+
 void main() {
   late MockNativeBindings mock;
   late MontyFfi monty;
@@ -172,6 +176,19 @@ void main() {
       final complete = progress as MontyComplete;
       expect(complete.result.value, 42);
       expect(mock.freeCalls, hasLength(1));
+    });
+
+    test('complete preserves printOutput from JSON', () async {
+      mock.nextStartResult = ProgressResult(
+        tag: 0,
+        resultJson: _okResultWithPrintJson(42, 'hello\\n'),
+        isError: 0,
+      );
+
+      final progress = await monty.start('print("hello")');
+
+      final complete = progress as MontyComplete;
+      expect(complete.result.printOutput, 'hello\n');
     });
 
     test('returns MontyPending for external function call', () async {
@@ -373,6 +390,21 @@ void main() {
       expect(progress, isA<MontyComplete>());
       expect(mock.resumeCalls, hasLength(1));
       expect(mock.resumeCalls.first.valueJson, '"response"');
+    });
+
+    test('resume complete preserves printOutput', () async {
+      mock.resumeResults.add(
+        ProgressResult(
+          tag: 0,
+          resultJson: _okResultWithPrintJson(null, 'output\\n'),
+          isError: 0,
+        ),
+      );
+
+      final progress = await monty.resume('response');
+
+      final complete = progress as MontyComplete;
+      expect(complete.result.printOutput, 'output\n');
     });
 
     test('returns MontyPending for another external call', () async {

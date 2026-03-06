@@ -251,6 +251,33 @@ void main() {
       expect(platform.isIdle, isTrue);
     });
 
+    test('complete preserves printOutput', () async {
+      fake.progressResult = const CoreProgressResult(
+        state: 'complete',
+        value: 42,
+        usage: usage,
+        printOutput: 'hello world\n',
+      );
+
+      final progress = await platform.start('code');
+
+      final complete = progress as MontyComplete;
+      expect(complete.result.printOutput, 'hello world\n');
+    });
+
+    test('complete with null printOutput', () async {
+      fake.progressResult = const CoreProgressResult(
+        state: 'complete',
+        value: 42,
+        usage: usage,
+      );
+
+      final progress = await platform.start('code');
+
+      final complete = progress as MontyComplete;
+      expect(complete.result.printOutput, isNull);
+    });
+
     test('pending returns MontyPending and marks active', () async {
       fake.progressResult = const CoreProgressResult(
         state: 'pending',

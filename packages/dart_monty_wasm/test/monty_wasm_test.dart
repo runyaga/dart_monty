@@ -40,6 +40,18 @@ void main() {
       expect(mock.runCalls.first.code, '2 + 2');
     });
 
+    test('run preserves printOutput', () async {
+      mock.nextRunResult = const WasmRunResult(
+        ok: true,
+        value: 42,
+        printOutput: 'hello\n',
+      );
+
+      final result = await monty.run('print("hello")');
+
+      expect(result.printOutput, 'hello\n');
+    });
+
     test('auto-initializes on first call', () async {
       mock.nextRunResult = const WasmRunResult(ok: true, value: 1);
       await monty.run('1');
@@ -190,6 +202,20 @@ void main() {
       expect(progress, isA<MontyComplete>());
       final complete = progress as MontyComplete;
       expect(complete.result.value, 42);
+    });
+
+    test('start complete preserves printOutput', () async {
+      mock.nextStartResult = const WasmProgressResult(
+        ok: true,
+        state: 'complete',
+        value: 42,
+        printOutput: 'hello\n',
+      );
+
+      final progress = await monty.start('print("hello")');
+
+      final complete = progress as MontyComplete;
+      expect(complete.result.printOutput, 'hello\n');
     });
 
     test('returns MontyPending for external function call', () async {
