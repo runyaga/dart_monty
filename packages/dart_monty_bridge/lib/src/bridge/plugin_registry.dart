@@ -1,5 +1,8 @@
 import 'dart:collection';
 
+import 'package:dart_monty_bridge/src/bridge/host_function_schema.dart';
+import 'package:dart_monty_bridge/src/bridge/introspection_functions.dart';
+import 'package:dart_monty_bridge/src/bridge/monty_bridge.dart';
 import 'package:dart_monty_bridge/src/bridge/monty_plugin.dart';
 
 /// Collects [MontyPlugin]s with namespace validation and function name
@@ -59,6 +62,67 @@ class PluginRegistry {
     if (_namespaces.contains(namespace)) {
       throw StateError('Namespace "$namespace" already registered.');
     }
+  }
+
+  /// Wires all plugins to [bridge], calls [MontyPlugin.onRegister] for each,
+  /// and registers introspection builtins.
+  Future<void> attachTo(MontyBridge bridge) async {
+    final schemasByCategory = <String, List<HostFunctionSchema>>{};
+
+    for (final plugin in _plugins) {
+      final schemas = <HostFunctionSchema>[];
+      for (final fn in plugin.functions) {
+        bridge.register(fn);
+        schemas.add(fn.schema);
+      }
+      schemasByCategory[plugin.namespace] = schemas;
+      await plugin.onRegister(bridge);
+    }
+
+    // Register introspection builtins.
+    buildIntrospectionFunctions(schemasByCategory).forEach(bridge.register);
+  }
+
+  /// Disposes all plugins in reverse registration order.
+  ///
+  /// Safe to call multiple times — each plugin's [MontyPlugin.onDispose]
+  /// must be idempotent.
+  Future<void> disposeAll() async {
+    for (final plugin in _plugins.reversed) {
+      await plugin.onDispose();
+    }
+  }
+
+  /// Auto-generates an LLM system prompt from plugin schemas.
+  ///
+  /// Each plugin produces a markdown section with its namespace as heading,
+  /// optional [MontyPlugin.systemPromptContext], and a list of functions.
+  String generateSystemPrompt() {
+    final buffer = StringBuffer();
+
+    for (final plugin in _plugins) {
+      buffer.writeln('### ${plugin.namespace}');
+      final context = plugin.systemPromptContext;
+      if (context != null && context.isNotEmpty) {
+        buffer.writeln(context);
+      }
+      for (final fn in plugin.functions) {
+        final params = fn.schema.params
+            .map(
+              (p) => '${p.name}'
+                  '${p.isRequired ? '' : '?'}'
+                  ': ${p.type.jsonSchemaType}',
+            )
+            .join(', ');
+        buffer.writeln(
+          '- `${fn.schema.name}($params)`:'
+          ' ${fn.schema.description}',
+        );
+      }
+      buffer.writeln();
+    }
+
+    return buffer.toString().trimRight();
   }
 
   void _checkFunctionCollisions(MontyPlugin plugin) {

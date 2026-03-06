@@ -284,5 +284,241 @@ void main() {
         expect(registry.plugins.first.namespace, 'alpha');
       });
     });
+
+    group('attachTo', () {
+      test('registers all functions onto bridge and calls onRegister',
+          () async {
+        final registered = <String>[];
+        final bridge = _MockBridge();
+
+        final plugin = _LifecyclePlugin(
+          namespace: 'lc',
+          functions: [_fn('lc_do')],
+          onRegisterCallback: () => registered.add('lc'),
+        );
+        registry.register(plugin);
+
+        await registry.attachTo(bridge);
+
+        // Plugin function + introspection builtins should be registered.
+        expect(bridge.registeredNames, contains('lc_do'));
+        expect(bridge.registeredNames, contains('list_functions'));
+        expect(bridge.registeredNames, contains('help'));
+        expect(registered, ['lc']);
+      });
+
+      test('calls onRegister in registration order', () async {
+        final order = <String>[];
+        final bridge = _MockBridge();
+
+        registry
+          ..register(
+            _LifecyclePlugin(
+              namespace: 'first',
+              functions: [_fn('first_a')],
+              onRegisterCallback: () => order.add('first'),
+            ),
+          )
+          ..register(
+            _LifecyclePlugin(
+              namespace: 'second',
+              functions: [_fn('second_a')],
+              onRegisterCallback: () => order.add('second'),
+            ),
+          );
+
+        await registry.attachTo(bridge);
+
+        expect(order, ['first', 'second']);
+      });
+    });
+
+    group('disposeAll', () {
+      test('calls onDispose in reverse registration order', () async {
+        final order = <String>[];
+
+        registry
+          ..register(
+            _LifecyclePlugin(
+              namespace: 'aaa',
+              functions: [_fn('aaa_x')],
+              onDisposeCallback: () => order.add('aaa'),
+            ),
+          )
+          ..register(
+            _LifecyclePlugin(
+              namespace: 'bbb',
+              functions: [_fn('bbb_x')],
+              onDisposeCallback: () => order.add('bbb'),
+            ),
+          );
+
+        await registry.disposeAll();
+
+        expect(order, ['bbb', 'aaa']);
+      });
+
+      test('is idempotent', () async {
+        var count = 0;
+        registry.register(
+          _LifecyclePlugin(
+            namespace: 'idem',
+            functions: [_fn('idem_x')],
+            onDisposeCallback: () => count++,
+          ),
+        );
+
+        await registry.disposeAll();
+        await registry.disposeAll();
+
+        expect(count, 2); // Called twice — plugin must be idempotent.
+      });
+    });
+
+    group('generateSystemPrompt', () {
+      test('empty registry returns empty string', () {
+        expect(registry.generateSystemPrompt(), isEmpty);
+      });
+
+      test('single plugin with functions produces expected markdown', () {
+        registry.register(
+          _TestPlugin(
+            namespace: 'sqlite',
+            systemPromptContext: 'SQLite operations.',
+            functions: [
+              HostFunction(
+                schema: const HostFunctionSchema(
+                  name: 'sqlite_query',
+                  description: 'Run a query.',
+                  params: [
+                    HostParam(
+                      name: 'sql',
+                      type: HostParamType.string,
+                      description: 'SQL string.',
+                    ),
+                  ],
+                ),
+                handler: (args) async => null,
+              ),
+            ],
+          ),
+        );
+
+        final prompt = registry.generateSystemPrompt();
+
+        expect(prompt, contains('### sqlite'));
+        expect(prompt, contains('SQLite operations.'));
+        expect(prompt, contains('`sqlite_query(sql: string)`'));
+        expect(prompt, contains('Run a query.'));
+      });
+
+      test('optional params show ? suffix', () {
+        registry.register(
+          _TestPlugin(
+            namespace: 'demo',
+            functions: [
+              HostFunction(
+                schema: const HostFunctionSchema(
+                  name: 'demo_opt',
+                  description: 'Has optional.',
+                  params: [
+                    HostParam(
+                      name: 'limit',
+                      type: HostParamType.integer,
+                      isRequired: false,
+                    ),
+                  ],
+                ),
+                handler: (args) async => null,
+              ),
+            ],
+          ),
+        );
+
+        final prompt = registry.generateSystemPrompt();
+
+        expect(prompt, contains('limit?: integer'));
+      });
+
+      test('multiple plugins produce sections in registration order', () {
+        registry
+          ..register(
+            _TestPlugin(
+              namespace: 'alpha',
+              systemPromptContext: 'Alpha stuff.',
+              functions: [_fn('alpha_one')],
+            ),
+          )
+          ..register(
+            _TestPlugin(
+              namespace: 'beta',
+              systemPromptContext: 'Beta stuff.',
+              functions: [_fn('beta_one')],
+            ),
+          );
+
+        final prompt = registry.generateSystemPrompt();
+        final alphaIdx = prompt.indexOf('### alpha');
+        final betaIdx = prompt.indexOf('### beta');
+
+        expect(alphaIdx, lessThan(betaIdx));
+      });
+    });
   });
+}
+
+/// Plugin with configurable lifecycle callbacks for testing.
+class _LifecyclePlugin extends MontyPlugin {
+  _LifecyclePlugin({
+    required this.namespace,
+    required this.functions,
+    this.onRegisterCallback,
+    this.onDisposeCallback,
+  });
+
+  @override
+  final String namespace;
+
+  @override
+  final String? systemPromptContext = null;
+
+  @override
+  final List<HostFunction> functions;
+
+  final void Function()? onRegisterCallback;
+  final void Function()? onDisposeCallback;
+
+  @override
+  Future<void> onRegister(MontyBridge bridge) async {
+    await super.onRegister(bridge);
+    onRegisterCallback?.call();
+  }
+
+  @override
+  Future<void> onDispose() async {
+    await super.onDispose();
+    onDisposeCallback?.call();
+  }
+}
+
+/// Minimal bridge mock that tracks registered function names.
+class _MockBridge implements MontyBridge {
+  final registeredNames = <String>[];
+
+  @override
+  List<HostFunctionSchema> get schemas => [];
+
+  @override
+  void register(HostFunction function) {
+    registeredNames.add(function.schema.name);
+  }
+
+  @override
+  void unregister(String name) {}
+
+  @override
+  Stream<BridgeEvent> execute(String code) => const Stream.empty();
+
+  @override
+  void dispose() {}
 }
