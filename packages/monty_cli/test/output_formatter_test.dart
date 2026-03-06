@@ -59,13 +59,14 @@ void main() {
     });
   });
 
-  group('formatVerbose()', () {
-    test('includes usage stats', () {
+  group('formatUsageStats()', () {
+    test('includes tagged stats for stderr', () {
       const result = MontyResult(value: 42, usage: usage);
-      final output = OutputFormatter.formatVerbose(result);
-      expect(output, contains('memory: 1024 bytes'));
-      expect(output, contains('time:   5 ms'));
-      expect(output, contains('stack:  2'));
+      final output = OutputFormatter.formatUsageStats(result);
+      expect(output, startsWith('[MONTY]'));
+      expect(output, contains('memory=1024B'));
+      expect(output, contains('time=5ms'));
+      expect(output, contains('stack=2'));
     });
   });
 }

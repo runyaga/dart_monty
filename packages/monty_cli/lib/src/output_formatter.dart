@@ -28,20 +28,12 @@ abstract final class OutputFormatter {
     return const JsonEncoder.withIndent('  ').convert(result.toJson());
   }
 
-  /// Formats [result] with verbose resource usage stats.
-  static String formatVerbose(MontyResult result) {
-    final buffer = StringBuffer(format(result));
+  /// Formats resource usage stats for stderr output.
+  static String formatUsageStats(MontyResult result) {
     final usage = result.usage;
 
-    if (buffer.isNotEmpty && !buffer.toString().endsWith('\n')) {
-      buffer.writeln();
-    }
-    buffer
-      ..writeln('--- usage ---')
-      ..writeln('memory: ${usage.memoryBytesUsed} bytes')
-      ..writeln('time:   ${usage.timeElapsedMs} ms')
-      ..write('stack:  ${usage.stackDepthUsed}');
-
-    return buffer.toString();
+    return '[MONTY] memory=${usage.memoryBytesUsed}B '
+        'time=${usage.timeElapsedMs}ms '
+        'stack=${usage.stackDepthUsed}';
   }
 }
