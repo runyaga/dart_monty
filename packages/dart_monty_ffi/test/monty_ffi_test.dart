@@ -181,7 +181,7 @@ void main() {
     test('complete preserves printOutput from JSON', () async {
       mock.nextStartResult = ProgressResult(
         tag: 0,
-        resultJson: _okResultWithPrintJson(42, 'hello\\n'),
+        resultJson: _okResultWithPrintJson(42, r'hello\n'),
         isError: 0,
       );
 
@@ -396,7 +396,7 @@ void main() {
       mock.resumeResults.add(
         ProgressResult(
           tag: 0,
-          resultJson: _okResultWithPrintJson(null, 'output\\n'),
+          resultJson: _okResultWithPrintJson(null, r'output\n'),
           isError: 0,
         ),
       );
