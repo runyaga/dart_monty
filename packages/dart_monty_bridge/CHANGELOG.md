@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.2.0
+
+- `IsolatePlugin` — spawn Python scripts in isolated interpreter instances.
+  - `isolate_spawn(code)` — start a child with optional timeout/memory limits.
+  - `isolate_await(handle)` / `isolate_await_all(handles)` — wait for results.
+  - `isolate_is_alive(handle)` — poll child status.
+  - `isolate_cancel(handle)` — cancel a running child.
+- Depth limiting (`maxDepth`) prevents unbounded recursion.
+- Concurrency limiting (`maxChildren`) caps concurrent children (default 16).
+- `childPluginRegistryFactory` optionally wires plugins into child bridges.
+- `childLimits` applies resource limits to all child interpreters.
+
 ## 0.1.0
 
 - Initial release of `dart_monty_bridge`.

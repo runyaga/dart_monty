@@ -173,6 +173,7 @@ call the shared `_publish-dart-package.yaml` reusable workflow via
    so a 0.4.0 release requires bumping constraints to `^0.4.0`.
 6. **Commit and push** the version bumps and CHANGELOG updates to `main`
 7. **Run local dry-run** for each package being published:
+
    ```bash
    cd packages/<package> && dart pub publish --dry-run
    ```
@@ -218,6 +219,7 @@ a web bundle, and creates a **GitHub Release** at
 ### Post-release verification
 
 1. **Check pub.dev** — verify each package shows the new version:
+
    ```bash
    for pkg in dart_monty_platform_interface dart_monty_ffi dart_monty_wasm \
               dart_monty_web dart_monty_native dart_monty; do
@@ -225,6 +227,7 @@ a web bundle, and creates a **GitHub Release** at
        "import sys,json; print(json.load(sys.stdin)['latest']['version'])")"
    done
    ```
+
 2. **Check GitHub Actions** — all 6 publish workflows + release workflow should
    show green
 3. **Check GitHub Release** — verify
@@ -236,6 +239,7 @@ a web bundle, and creates a **GitHub Release** at
    or outdated scope descriptions.
 5. **Test downstream** — create a fresh project and add `dart_monty` as a
    dependency to verify the published packages resolve correctly:
+
    ```bash
    dart create test_install && cd test_install
    dart pub add dart_monty
@@ -248,6 +252,7 @@ After all packages are published:
 1. **Reset CHANGELOGs** — add `## Unreleased` heading above the just-released
    version in every package's `CHANGELOG.md`
 2. **Commit and push** the reset to `main`:
+
    ```bash
    git add */CHANGELOG.md packages/*/CHANGELOG.md
    git commit -m "chore: reset CHANGELOGs to Unreleased"
@@ -260,11 +265,13 @@ After all packages are published:
 - Fix the issue on `main`
 - **If the version was NOT yet published** — delete the old tag, fix, re-tag
   on the new commit, and push:
+
   ```bash
   git tag -d <tag> && git push origin :refs/tags/<tag>
   # fix and push to main
   git tag <tag> && git push origin <tag>
   ```
+
 - **If the version WAS already published** — bump to the next patch version,
   update CHANGELOG, commit, and tag the new version. A published version can
   never be re-published.

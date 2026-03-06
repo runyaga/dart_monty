@@ -43,7 +43,7 @@ dmonty repl
 Multi-turn REPL with persistent Python state. Variables defined in one
 line carry over to subsequent lines.
 
-```
+```text
 monty> x = 42
 monty> x * 2
 84

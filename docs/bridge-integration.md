@@ -77,6 +77,7 @@ function callWorker(msg) {
 ```
 
 Every bridge method follows the same pattern:
+
 1. Guard: if `!worker`, return an error JSON string
 2. Call `callWorker(msg)` with a typed message
 3. Serialize the response as JSON string
@@ -309,21 +310,25 @@ dom_on_click(btn)            # blocks on handle 1
 All data between layers is JSON. Key message shapes:
 
 **Start request** (bridge -> worker):
+
 ```json
 { "type": "start", "code": "...", "extFns": ["dom_create", "log"], "id": 1 }
 ```
 
 **Pending response** (worker -> bridge -> Dart):
+
 ```json
 { "state": "pending", "functionName": "dom_create", "args": ["button"], "id": 1 }
 ```
 
 **Resume request** (bridge -> worker):
+
 ```json
 { "type": "resume", "value": 42, "id": 2 }
 ```
 
 **Complete response** (worker -> bridge -> Dart):
+
 ```json
 { "state": "complete", "ok": true, "value": "done", "id": 3 }
 ```
@@ -332,7 +337,7 @@ All data between layers is JSON. Key message shapes:
 
 The web server must set these headers for `SharedArrayBuffer` support:
 
-```
+```text
 Cross-Origin-Opener-Policy: same-origin
 Cross-Origin-Embedder-Policy: require-corp
 ```

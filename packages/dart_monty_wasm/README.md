@@ -34,7 +34,7 @@ Dart (compiled to JS) -> MontyWasm (dart:js_interop)
 
 The web server must send COOP/COEP headers for SharedArrayBuffer support:
 
-```
+```text
 Cross-Origin-Opener-Policy: same-origin
 Cross-Origin-Embedder-Policy: require-corp
 ```
