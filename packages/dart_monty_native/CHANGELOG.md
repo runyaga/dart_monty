@@ -1,3 +1,9 @@
+## 0.7.0
+
+- Extract `MontyNative`, `NativeIsolateBindings`, and `NativeIsolateBindingsImpl` to `dart_monty_ffi`
+- Re-export moved classes for backward compatibility
+- `dart_monty_native` now serves only as the Flutter plugin registration shim
+
 ## 0.6.1
 
 - Update README with usage section and human/AI attribution

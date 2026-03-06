@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import 'package:dart_monty_native/src/native_isolate_bindings.dart';
+import 'package:dart_monty_ffi/src/native_isolate_bindings.dart';
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 
 /// A hand-written mock of [NativeIsolateBindings] with configurable returns

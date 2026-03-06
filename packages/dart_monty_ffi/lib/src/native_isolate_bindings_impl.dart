@@ -3,7 +3,6 @@ import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:dart_monty_ffi/dart_monty_ffi.dart';
-import 'package:dart_monty_native/src/native_isolate_bindings.dart';
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 
 // =============================================================================

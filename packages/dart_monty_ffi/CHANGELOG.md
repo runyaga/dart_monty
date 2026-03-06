@@ -1,3 +1,9 @@
+## 0.7.0
+
+- Add `MontyNative`, `NativeIsolateBindings`, and `NativeIsolateBindingsImpl` (moved from `dart_monty_native`)
+- The Isolate bridge is now usable without Flutter, enabling CLI tools and non-Flutter Dart applications
+- Add unit tests for `MontyNative` (previously in `dart_monty_native`)
+
 ## 0.6.1
 
 - Update README with usage example and human/AI attribution
