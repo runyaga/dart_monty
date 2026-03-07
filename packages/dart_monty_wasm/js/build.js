@@ -42,15 +42,16 @@ workerSrc = workerSrc.replace(
   'new URL("./wasi-worker-browser.mjs"',
 );
 
-// 2b: Strip NAPI-RS overhead — reduce initial memory from 256MB to 16MB,
-// disable SharedArrayBuffer (removes COOP/COEP requirement), and disable
-// the async worker pool (Monty uses synchronous C-ABI only, no tokio).
+// 2b: Reduce NAPI-RS overhead — shrink initial memory from 256MB to 64MB
+// and disable the async worker pool (Monty uses synchronous C-ABI only).
 // See: https://github.com/runyaga/dart_monty/issues/92
 //
+// Note: shared: true MUST stay — the WASM binary was compiled with
+// --shared-memory. Setting shared: false causes LinkError.
 // Note: esbuild may rewrite `4000` as `4e3` — match both forms.
 workerSrc = workerSrc.replace(
-  /new WebAssembly\.Memory\(\{[\s\n\r]*initial:\s*(?:4000|4e3),[\s\n\r]*maximum:\s*65536,[\s\n\r]*shared:\s*true,?[\s\n\r]*\}\)/g,
-  'new WebAssembly.Memory({ initial: 1024, maximum: 65536, shared: false })',
+  /new WebAssembly\.Memory\(\{[\s\n\r]*initial:\s*(?:4000|4e3),/g,
+  'new WebAssembly.Memory({ initial: 1024,',
 );
 workerSrc = workerSrc.replace(
   /asyncWorkPoolSize:\s*4\b/g,
