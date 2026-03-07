@@ -50,7 +50,7 @@ workerSrc = workerSrc.replace(
 // Note: esbuild may rewrite `4000` as `4e3` — match both forms.
 workerSrc = workerSrc.replace(
   /new WebAssembly\.Memory\(\{[\s\n\r]*initial:\s*(?:4000|4e3),[\s\n\r]*maximum:\s*65536,[\s\n\r]*shared:\s*true,?[\s\n\r]*\}\)/g,
-  'new WebAssembly.Memory({ initial: 256, maximum: 65536, shared: false })',
+  'new WebAssembly.Memory({ initial: 1024, maximum: 65536, shared: false })',
 );
 workerSrc = workerSrc.replace(
   /asyncWorkPoolSize:\s*4\b/g,
