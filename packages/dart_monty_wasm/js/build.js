@@ -31,14 +31,32 @@ execSync(
   { cwd: __dirname, stdio: 'inherit' },
 );
 
-// Step 2: Patch bare specifier for sub-worker
-console.log('[build] Patching worker bare specifier...');
+// Step 2: Post-bundle patches on worker output
+console.log('[build] Patching worker output...');
 const workerPath = path.join(ASSETS, 'dart_monty_worker.js');
 let workerSrc = fs.readFileSync(workerPath, 'utf8');
+
+// 2a: Patch bare specifier for sub-worker URL
 workerSrc = workerSrc.replace(
   /new URL\("@pydantic\/monty-wasm32-wasi\/wasi-worker-browser\.mjs"/g,
   'new URL("./wasi-worker-browser.mjs"',
 );
+
+// 2b: Strip NAPI-RS overhead — reduce initial memory from 256MB to 16MB,
+// disable SharedArrayBuffer (removes COOP/COEP requirement), and disable
+// the async worker pool (Monty uses synchronous C-ABI only, no tokio).
+// See: https://github.com/runyaga/dart_monty/issues/92
+//
+// Note: esbuild may rewrite `4000` as `4e3` — match both forms.
+workerSrc = workerSrc.replace(
+  /new WebAssembly\.Memory\(\{[\s\n\r]*initial:\s*(?:4000|4e3),[\s\n\r]*maximum:\s*65536,[\s\n\r]*shared:\s*true,?[\s\n\r]*\}\)/g,
+  'new WebAssembly.Memory({ initial: 256, maximum: 65536, shared: false })',
+);
+workerSrc = workerSrc.replace(
+  /asyncWorkPoolSize:\s*4\b/g,
+  'asyncWorkPoolSize: 0',
+);
+
 fs.writeFileSync(workerPath, workerSrc);
 
 // Step 3: Bundle bridge (IIFE)
