@@ -65,11 +65,11 @@ void main() {
         expect(plugin.systemPromptContext, contains('isolated'));
       });
 
-      test('provides 6 host functions', () {
+      test('provides 7 host functions', () {
         final plugin = IsolatePlugin(
           platformFactory: () async => MockMontyPlatform(),
         );
-        expect(plugin.functions, hasLength(6));
+        expect(plugin.functions, hasLength(7));
       });
 
       test('all function names start with isolate_', () {
@@ -466,6 +466,111 @@ void main() {
         final getOutput = _findHandler(plugin, 'isolate_get_output');
 
         expect(() => getOutput({'handle': 999}), throwsA(isA<ArgumentError>()));
+      });
+    });
+
+    group('isolate_free', () {
+      test('removes completed child from map', () async {
+        final plugin = IsolatePlugin(
+          platformFactory: () async => _completingMock(),
+        );
+        final spawn = _findHandler(plugin, 'isolate_spawn');
+        final await_ = _findHandler(plugin, 'isolate_await');
+        final free = _findHandler(plugin, 'isolate_free');
+        final handle = await spawn({'code': '1'});
+
+        await await_({'handle': handle! as int});
+        await free({'handle': handle as int});
+
+        // Handle is now unknown.
+        final getOutput = _findHandler(plugin, 'isolate_get_output');
+        expect(
+          () => getOutput({'handle': handle}),
+          throwsA(isA<ArgumentError>()),
+        );
+      });
+
+      test('throws StateError when child is still running', () async {
+        final startCompleter = Completer<MontyProgress>();
+        final mock = _SlowMockPlatform(startCompleter.future);
+        final plugin = IsolatePlugin(platformFactory: () async => mock);
+        final spawn = _findHandler(plugin, 'isolate_spawn');
+        final free = _findHandler(plugin, 'isolate_free');
+        final handle = await spawn({'code': '1'});
+
+        expect(
+          () => free({'handle': handle! as int}),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              contains('still running'),
+            ),
+          ),
+        );
+
+        startCompleter.complete(
+          const MontyComplete(result: MontyResult(usage: _usage)),
+        );
+        await plugin.onDispose();
+      });
+
+      test('throws ArgumentError for unknown handle', () async {
+        final plugin = IsolatePlugin(
+          platformFactory: () async => _completingMock(),
+        );
+        final free = _findHandler(plugin, 'isolate_free');
+
+        expect(() => free({'handle': 999}), throwsA(isA<ArgumentError>()));
+      });
+
+      test('double free throws ArgumentError', () async {
+        final plugin = IsolatePlugin(
+          platformFactory: () async => _completingMock(),
+        );
+        final spawn = _findHandler(plugin, 'isolate_spawn');
+        final await_ = _findHandler(plugin, 'isolate_await');
+        final free = _findHandler(plugin, 'isolate_free');
+        final handle = await spawn({'code': '1'});
+
+        await await_({'handle': handle! as int});
+        await free({'handle': handle as int});
+
+        expect(
+          () => free({'handle': handle}),
+          throwsA(isA<ArgumentError>()),
+        );
+      });
+    });
+
+    group('failed child print output', () {
+      test('get_output returns print output from failed child', () async {
+        // A child that prints then fails — the mock simulates this by
+        // returning an error result with printOutput set.
+        final mock = MockMontyPlatform()
+          ..enqueueProgress(
+            const MontyComplete(
+              result: MontyResult(
+                error: MontyException(message: 'NameError: x'),
+                usage: _usage,
+                printOutput: 'debug line\n',
+              ),
+            ),
+          );
+        final plugin = IsolatePlugin(platformFactory: () async => mock);
+        final spawn = _findHandler(plugin, 'isolate_spawn');
+        final await_ = _findHandler(plugin, 'isolate_await');
+        final getOutput = _findHandler(plugin, 'isolate_get_output');
+        final handle = await spawn({'code': 'print("debug line"); x'});
+
+        // Await will throw because the child failed.
+        await expectLater(
+          () => await_({'handle': handle! as int}),
+          throwsA(isA<StateError>()),
+        );
+
+        final output = await getOutput({'handle': handle! as int});
+        expect(output, contains('debug'));
       });
     });
 
