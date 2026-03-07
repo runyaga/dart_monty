@@ -63,6 +63,7 @@ const _tierFiles = [
   'fixtures/tier_09_exceptions.json',
   'fixtures/tier_13_async.json',
   'fixtures/tier_15_script_name.json',
+  'fixtures/tier_16_memory_growth.json',
 ];
 
 // ---------------------------------------------------------------------------

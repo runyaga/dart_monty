@@ -58,6 +58,19 @@ workerSrc = workerSrc.replace(
   'asyncWorkPoolSize: 0',
 );
 
+// 2c: Assert patches applied — fail the build if regex didn't match.
+// A silent no-op is the worst failure mode (256MB + 5 workers return undetected).
+if (
+  !workerSrc.includes('initial: 1024') ||
+  !workerSrc.includes('asyncWorkPoolSize: 0')
+) {
+  throw new Error(
+    'FATAL: NAPI-RS patch failed — regex did not match esbuild output.\n' +
+      'The upstream esbuild output format may have changed. ' +
+      'Check the WebAssembly.Memory and asyncWorkPoolSize patterns in build.js.',
+  );
+}
+
 fs.writeFileSync(workerPath, workerSrc);
 
 // Step 3: Bundle bridge (IIFE)
