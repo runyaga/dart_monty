@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.1
+
+- Add `printOutput` field to `BridgeRunError` so failed children preserve print output for debugging.
+- Add `isolate_free` host function to release completed child handles (prevents memory leak).
+- Fix `cancel()` to dispose child plugin registry (prevents resource leak).
+
 ## 0.2.0
 
 - `IsolatePlugin` — spawn Python scripts in isolated interpreter instances.
