@@ -683,10 +683,10 @@ void main() {
       fake
         ..throwOnStart = null
         ..progressResult = const CoreProgressResult(
-        state: 'complete',
-        value: 42,
-        usage: usage,
-      );
+          state: 'complete',
+          value: 42,
+          usage: usage,
+        );
       final progress = await platform.start('code');
       expect(progress, isA<MontyComplete>());
     });
