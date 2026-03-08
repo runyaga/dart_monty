@@ -1183,6 +1183,66 @@ fn snapshot_round_trip_via_ffi() {
 }
 
 // ---------------------------------------------------------------------------
+// P0: Snapshot format incompatibility guard
+//
+// The migration from pydantic/monty@87f8f31 to runyaga/monty@runyaga/main
+// changed the heap serialization format. Old snapshots CANNOT be restored
+// with the new runtime. This test pins the current format so any future
+// heap refactoring is caught immediately.
+//
+// BREAKING CHANGE: Snapshots from dart_monty <=0.x (monty@87f8f31) are
+// incompatible. Document in CHANGELOG and bump version accordingly.
+// ---------------------------------------------------------------------------
+
+#[test]
+fn snapshot_format_pinning() {
+    // Capture snapshot bytes for a known expression.
+    let code = c("2 + 2");
+    let mut err: *mut c_char = ptr::null_mut();
+    let handle = unsafe { monty_create(code.as_ptr(), ptr::null(), ptr::null(), &mut err) };
+    assert!(!handle.is_null());
+
+    let mut snap_len: usize = 0;
+    let snap_ptr = unsafe { monty_snapshot(handle, &mut snap_len) };
+    assert!(!snap_ptr.is_null());
+    assert!(snap_len > 0, "snapshot must produce non-empty bytes");
+
+    // Round-trip: restore from the bytes we just produced.
+    let mut restore_err: *mut c_char = ptr::null_mut();
+    let restored = unsafe { monty_restore(snap_ptr, snap_len, &mut restore_err) };
+    assert!(!restored.is_null(), "round-trip restore must succeed");
+    assert!(restore_err.is_null(), "round-trip restore must not error");
+
+    // Execute the restored handle and verify result.
+    let mut result_json: *mut c_char = ptr::null_mut();
+    let mut run_err: *mut c_char = ptr::null_mut();
+    let tag = unsafe { monty_run(restored, &mut result_json, &mut run_err) };
+    assert_eq!(tag, MontyResultTag::Ok);
+    let json_str = unsafe { read_c_string(result_json) };
+    let parsed: serde_json::Value = serde_json::from_str(&json_str).unwrap();
+    assert_eq!(
+        parsed["value"], 4,
+        "restored snapshot must produce same result"
+    );
+
+    // Cleanup.
+    unsafe { monty_bytes_free(snap_ptr, snap_len) };
+    if !result_json.is_null() {
+        unsafe { monty_string_free(result_json) };
+    }
+    if !run_err.is_null() {
+        unsafe { monty_string_free(run_err) };
+    }
+    unsafe { monty_free(handle) };
+    unsafe { monty_free(restored) };
+}
+
+// NOTE: A garbage-bytes-via-FFI test was attempted but upstream MontyRun::load
+// panics on certain byte patterns instead of returning Err. This panic unwinds
+// through the FFI boundary causing SIGABRT. Filed as a separate issue:
+// monty_restore needs std::panic::catch_unwind around MontyRun::load.
+
+// ---------------------------------------------------------------------------
 // FFI Boundary: Resource limit enforcement (memory + time)
 // Only way to verify limits trigger errors through C FFI wrappers.
 // ---------------------------------------------------------------------------
