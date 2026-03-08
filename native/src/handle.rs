@@ -161,7 +161,28 @@ impl MontyHandle {
     }
 
     /// Run code to completion. Returns `(result_tag, result_json, error_msg)`.
+    ///
+    /// If the cancel flag is set, returns an error immediately without consuming
+    /// the Ready state — the handle remains reusable after `reset_cancel()`.
     pub fn run(&mut self) -> (MontyResultTag, String, Option<String>) {
+        if self.is_cancelled() {
+            let err_json = serde_json::json!({
+                "message": "KeyboardInterrupt",
+                "exc_type": "KeyboardInterrupt"
+            });
+            let result_json = build_result_json(
+                Value::Null,
+                Some(err_json),
+                &self.usage_json,
+                &self.print_output,
+            );
+            return (
+                MontyResultTag::Error,
+                result_json,
+                Some("KeyboardInterrupt".into()),
+            );
+        }
+
         let state = std::mem::replace(&mut self.state, HandleState::Consumed);
         let compiled = match state {
             HandleState::Ready(c) => c,
@@ -220,7 +241,14 @@ impl MontyHandle {
     }
 
     /// Start iterative execution. Returns progress tag and sets internal state.
+    ///
+    /// If the cancel flag is set, returns an error immediately without consuming
+    /// the Ready state — the handle remains reusable after `reset_cancel()`.
     pub fn start(&mut self) -> (MontyProgressTag, Option<String>) {
+        if self.is_cancelled() {
+            return (MontyProgressTag::Error, Some("KeyboardInterrupt".into()));
+        }
+
         let state = std::mem::replace(&mut self.state, HandleState::Consumed);
         let compiled = match state {
             HandleState::Ready(c) => c,
@@ -1527,23 +1555,56 @@ outer()
     // --- Cancel tests ---
 
     #[test]
-    fn test_cancel_before_run_panics_in_heap() {
-        // Cancelling before the first bytecode triggers a panic inside
-        // Monty's heap singleton allocation. At the FFI level this is
-        // caught by catch_ffi_panic and returned as an error.
+    fn test_cancel_before_run_returns_error() {
+        // Cancel flag set before run() — returns clean error without
+        // consuming Ready state. Handle remains reusable after reset.
         let mut handle = MontyHandle::new("2 + 2".into(), vec![], None).unwrap();
         handle.cancel();
         assert!(handle.is_cancelled());
-        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| handle.run()));
-        assert!(result.is_err(), "cancel before run panics in heap setup");
+        let (tag, result_json, err) = handle.run();
+        assert_eq!(tag, MontyResultTag::Error);
+        assert!(err.unwrap().contains("KeyboardInterrupt"));
+        let parsed: Value = serde_json::from_str(&result_json).unwrap();
+        assert_eq!(parsed["error"]["exc_type"], "KeyboardInterrupt");
     }
 
     #[test]
-    fn test_cancel_before_start_panics_in_heap() {
+    fn test_cancel_before_start_returns_error() {
         let mut handle = MontyHandle::new("2 + 2".into(), vec![], None).unwrap();
         handle.cancel();
-        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| handle.start()));
-        assert!(result.is_err(), "cancel before start panics in heap setup");
+        let (tag, err) = handle.start();
+        assert_eq!(tag, MontyProgressTag::Error);
+        assert!(err.unwrap().contains("KeyboardInterrupt"));
+    }
+
+    #[test]
+    fn test_cancel_before_run_reusable_after_reset() {
+        // Cancel-before-run should NOT brick the handle. After reset,
+        // the handle must still be in Ready state and execute normally.
+        let mut handle = MontyHandle::new("2 + 2".into(), vec![], None).unwrap();
+        handle.cancel();
+        let (tag, _, _) = handle.run();
+        assert_eq!(tag, MontyResultTag::Error);
+        // Handle is still Ready — reset and run again
+        handle.reset_cancel();
+        let (tag, result_json, err) = handle.run();
+        assert_eq!(tag, MontyResultTag::Ok);
+        assert!(err.is_none());
+        let parsed: Value = serde_json::from_str(&result_json).unwrap();
+        assert_eq!(parsed["value"], json!(4));
+    }
+
+    #[test]
+    fn test_cancel_before_start_reusable_after_reset() {
+        let mut handle = MontyHandle::new("2 + 2".into(), vec![], None).unwrap();
+        handle.cancel();
+        let (tag, _) = handle.start();
+        assert_eq!(tag, MontyProgressTag::Error);
+        // Still Ready — reset and start again
+        handle.reset_cancel();
+        let (tag, err) = handle.start();
+        assert_eq!(tag, MontyProgressTag::Complete);
+        assert!(err.is_none());
     }
 
     #[test]
@@ -1647,13 +1708,19 @@ outer()
 
     #[test]
     fn test_cancel_with_limits() {
-        // Both cancel flag and time limit active — cancel should fire first.
-        // Pre-cancel triggers heap panic (same as test_cancel_before_run).
+        // Both cancel flag and time limit active — cancel guard fires first,
+        // returns clean error without entering heap setup.
         let mut handle = MontyHandle::new("2 + 2".into(), vec![], None).unwrap();
         handle.set_time_limit_ms(60_000);
         handle.cancel();
-        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| handle.run()));
-        assert!(result.is_err());
+        let (tag, _, err) = handle.run();
+        assert_eq!(tag, MontyResultTag::Error);
+        assert!(err.unwrap().contains("KeyboardInterrupt"));
+        // Still reusable after reset
+        handle.reset_cancel();
+        let (tag, _, err) = handle.run();
+        assert_eq!(tag, MontyResultTag::Ok);
+        assert!(err.is_none());
     }
 
     #[test]
@@ -1672,7 +1739,6 @@ outer()
     fn test_cancel_during_long_running_script() {
         // A long-running script that would take forever without cancel.
         // We cancel via the registry from another thread.
-        use std::sync::Arc;
         use std::thread;
 
         let code = "i = 0\nwhile True:\n  i += 1\ni";
@@ -1699,7 +1765,38 @@ outer()
         let code = "result = ext_fn(1)\nresult";
         let mut handle = MontyHandle::new(code.into(), vec!["ext_fn".into()], None).unwrap();
         handle.cancel();
-        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| handle.start()));
-        assert!(result.is_err());
+        let (tag, err) = handle.start();
+        assert_eq!(tag, MontyProgressTag::Error);
+        assert!(err.unwrap().contains("KeyboardInterrupt"));
+    }
+
+    #[test]
+    fn test_registry_lock_poisoning_recovery() {
+        // Design doc §5: poison the RwLock via panic in a test thread,
+        // then verify cancel_by_id still works via into_inner() recovery.
+        use std::thread;
+
+        let handle = MontyHandle::new("2 + 2".into(), vec![], None).unwrap();
+        let id = handle.handle_id();
+
+        // Poison the write lock by panicking while holding it
+        let poison_result = thread::spawn(|| {
+            let mut guard = CANCEL_REGISTRY.write().unwrap();
+            guard.insert(0, Weak::new()); // do something with the guard
+            panic!("intentional poison");
+        })
+        .join();
+        assert!(poison_result.is_err(), "thread should have panicked");
+
+        // RwLock is now poisoned — verify our recovery works
+        assert!(CANCEL_REGISTRY.read().is_err(), "lock should be poisoned");
+
+        // cancel_by_id must still work (uses unwrap_or_else into_inner)
+        let result = cancel_by_id(id);
+        assert_eq!(result, 0, "cancel_by_id must recover from poisoned lock");
+        assert!(handle.is_cancelled());
+
+        // is_cancelled_by_id must also recover
+        assert_eq!(is_cancelled_by_id(id), 1);
     }
 }

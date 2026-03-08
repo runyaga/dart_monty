@@ -7,7 +7,6 @@ mod handle;
 pub use handle::{MontyHandle, MontyProgressTag, MontyResultTag};
 
 use std::ffi::{c_char, c_int};
-use std::os::raw::c_ulonglong;
 use std::ptr;
 
 use error::{catch_ffi_panic, parse_c_str, to_c_string};
@@ -155,7 +154,7 @@ pub unsafe extern "C" fn monty_reset_cancel(handle: *const MontyHandle) {
 /// Get the monotonic handle ID for cross-isolate cancel.
 /// Returns 0 if handle is NULL.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn monty_get_handle_id(handle: *const MontyHandle) -> c_ulonglong {
+pub unsafe extern "C" fn monty_get_handle_id(handle: *const MontyHandle) -> u64 {
     if handle.is_null() {
         return 0;
     }
@@ -166,14 +165,14 @@ pub unsafe extern "C" fn monty_get_handle_id(handle: *const MontyHandle) -> c_ul
 /// Returns 0 on success, -1 if handle not found (already freed),
 /// -2 if the cancel flag was dropped.
 #[unsafe(no_mangle)]
-pub extern "C" fn monty_cancel_by_id(handle_id: c_ulonglong) -> c_int {
+pub extern "C" fn monty_cancel_by_id(handle_id: u64) -> c_int {
     handle::cancel_by_id(handle_id) as c_int
 }
 
 /// Query cancellation by handle ID.
 /// Returns 1 if cancelled, 0 if not, -1 if handle not found.
 #[unsafe(no_mangle)]
-pub extern "C" fn monty_is_cancelled_by_id(handle_id: c_ulonglong) -> c_int {
+pub extern "C" fn monty_is_cancelled_by_id(handle_id: u64) -> c_int {
     handle::is_cancelled_by_id(handle_id) as c_int
 }
 
