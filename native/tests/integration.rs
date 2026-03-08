@@ -1194,9 +1194,23 @@ fn snapshot_round_trip_via_ffi() {
 // incompatible. Document in CHANGELOG and bump version accordingly.
 // ---------------------------------------------------------------------------
 
+/// Hardcoded snapshot bytes for `"2 + 2"` compiled with `<input>` script name.
+/// Captured from runyaga/monty@runyaga/main (rev 24804d8).
+/// If this test fails, the upstream postcard format has changed — update the
+/// pinned bytes and document the breaking change in CHANGELOG.
+#[rustfmt::skip]
+const PINNED_SNAPSHOT_2_PLUS_2: &[u8] = &[
+    0x00, 0x08, 0x08, 0x02, 0x08, 0x02, 0x19, 0x68, 0x05, 0x68, 0x00, 0x06, 0x00, 0x90, 0x4E, 0x01,
+    0x00, 0x01, 0x01, 0x01, 0x02, 0x00, 0x02, 0x90, 0x4E, 0x01, 0x00, 0x01, 0x05, 0x01, 0x06, 0x00,
+    0x04, 0x90, 0x4E, 0x01, 0x00, 0x01, 0x01, 0x01, 0x06, 0x00, 0x05, 0x90, 0x4E, 0x01, 0x00, 0x01,
+    0x01, 0x01, 0x06, 0x00, 0x06, 0x90, 0x4E, 0x01, 0x00, 0x01, 0x01, 0x01, 0x06, 0x00, 0x07, 0x90,
+    0x4E, 0x01, 0x00, 0x01, 0x01, 0x01, 0x06, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x01, 0x07, 0x3C,
+    0x69, 0x6E, 0x70, 0x75, 0x74, 0x3E, 0x00, 0x00, 0x00, 0x05, 0x32, 0x20, 0x2B, 0x20, 0x32, 0x00,
+];
+
 #[test]
 fn snapshot_format_pinning() {
-    // Capture snapshot bytes for a known expression.
+    // 1. Verify current dump matches the hardcoded pinned bytes.
     let code = c("2 + 2");
     let mut err: *mut c_char = ptr::null_mut();
     let handle = unsafe { monty_create(code.as_ptr(), ptr::null(), ptr::null(), &mut err) };
@@ -1205,15 +1219,31 @@ fn snapshot_format_pinning() {
     let mut snap_len: usize = 0;
     let snap_ptr = unsafe { monty_snapshot(handle, &mut snap_len) };
     assert!(!snap_ptr.is_null());
-    assert!(snap_len > 0, "snapshot must produce non-empty bytes");
+    let live_bytes = unsafe { std::slice::from_raw_parts(snap_ptr, snap_len) };
+    assert_eq!(
+        live_bytes, PINNED_SNAPSHOT_2_PLUS_2,
+        "snapshot format has changed — update PINNED_SNAPSHOT_2_PLUS_2 and document in CHANGELOG"
+    );
 
-    // Round-trip: restore from the bytes we just produced.
+    // 2. Restore from the hardcoded pinned bytes (not from fresh dump).
     let mut restore_err: *mut c_char = ptr::null_mut();
-    let restored = unsafe { monty_restore(snap_ptr, snap_len, &mut restore_err) };
-    assert!(!restored.is_null(), "round-trip restore must succeed");
-    assert!(restore_err.is_null(), "round-trip restore must not error");
+    let restored = unsafe {
+        monty_restore(
+            PINNED_SNAPSHOT_2_PLUS_2.as_ptr(),
+            PINNED_SNAPSHOT_2_PLUS_2.len(),
+            &mut restore_err,
+        )
+    };
+    assert!(
+        !restored.is_null(),
+        "pinned snapshot must restore successfully"
+    );
+    assert!(
+        restore_err.is_null(),
+        "pinned snapshot restore must not error"
+    );
 
-    // Execute the restored handle and verify result.
+    // 3. Execute the restored handle and verify result.
     let mut result_json: *mut c_char = ptr::null_mut();
     let mut run_err: *mut c_char = ptr::null_mut();
     let tag = unsafe { monty_run(restored, &mut result_json, &mut run_err) };
@@ -1222,11 +1252,10 @@ fn snapshot_format_pinning() {
     let parsed: serde_json::Value = serde_json::from_str(&json_str).unwrap();
     assert_eq!(
         parsed["value"], 4,
-        "restored snapshot must produce same result"
+        "restored pinned snapshot must produce same result"
     );
 
     // Cleanup.
-    // NOTE: result_json was already freed by read_c_string above.
     unsafe { monty_bytes_free(snap_ptr, snap_len) };
     if !run_err.is_null() {
         unsafe { monty_string_free(run_err) };
