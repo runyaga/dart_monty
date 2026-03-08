@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:dart_monty_ffi/src/native_isolate_bindings.dart';
@@ -44,6 +45,9 @@ class MockNativeIsolateBindings extends NativeIsolateBindings {
 
   /// If non-null, [dispose] throws this as a [MontyException].
   String? nextDisposeError;
+
+  /// When set, [run] awaits this completer before returning.
+  Completer<void>? runGate;
 
   /// Queue of results returned by [resumeAsFuture]. Dequeues on each call.
   final List<MontyProgress> resumeAsFutureResults = [];
@@ -124,6 +128,7 @@ class MockNativeIsolateBindings extends NativeIsolateBindings {
     String? scriptName,
   }) async {
     runCalls.add((code: code, limits: limits, scriptName: scriptName));
+    if (runGate != null) await runGate!.future;
 
     return nextRunResult;
   }
