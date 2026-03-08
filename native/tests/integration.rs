@@ -3,7 +3,8 @@ use std::ptr;
 
 use dart_monty_native::*;
 use monty::{
-    ExternalResult, FutureSnapshot, MontyObject, MontyRun, NoLimitTracker, PrintWriter, RunProgress,
+    ExtFunctionResult, MontyObject, MontyRun, NameLookupResult, NoLimitTracker, PrintWriter,
+    ResolveFutures, RunProgress,
 };
 
 // ---------------------------------------------------------------------------
@@ -810,19 +811,26 @@ fn create_with_non_utf8_script_name_null_out_error() {
 /// collected (call_id, function_name) pairs.
 fn drive_to_resolve_futures<T: monty::ResourceTracker>(
     mut progress: RunProgress<T>,
-) -> (FutureSnapshot<T>, Vec<(u32, String)>) {
+) -> (ResolveFutures<T>, Vec<(u32, String)>) {
     let mut collected = Vec::new();
 
     loop {
         match progress {
-            RunProgress::FunctionCall {
-                call_id,
-                function_name,
-                state,
-                ..
-            } => {
-                collected.push((call_id, function_name));
-                progress = state.run_pending(&mut PrintWriter::Stdout).unwrap();
+            RunProgress::NameLookup(lookup) => {
+                let name = lookup.name.clone();
+                progress = lookup
+                    .resume(
+                        NameLookupResult::Value(MontyObject::Function {
+                            name,
+                            docstring: None,
+                        }),
+                        &mut PrintWriter::Stdout,
+                    )
+                    .unwrap();
+            }
+            RunProgress::FunctionCall(call) => {
+                collected.push((call.call_id, call.function_name.clone()));
+                progress = call.resume_pending(&mut PrintWriter::Stdout).unwrap();
             }
             RunProgress::ResolveFutures(state) => {
                 return (state, collected);
@@ -830,8 +838,8 @@ fn drive_to_resolve_futures<T: monty::ResourceTracker>(
             RunProgress::Complete(_) => {
                 panic!("unexpected Complete before ResolveFutures");
             }
-            RunProgress::OsCall { function, .. } => {
-                panic!("unexpected OsCall: {function:?}");
+            RunProgress::OsCall(call) => {
+                panic!("unexpected OsCall: {:?}", call.function);
             }
         }
     }
@@ -846,8 +854,7 @@ async def main():
 
 await main()
 ";
-    let runner =
-        MontyRun::new(code.to_owned(), "test.py", vec![], vec!["fetch".to_owned()]).unwrap();
+    let runner = MontyRun::new(code.to_owned(), "test.py", vec![]).unwrap();
 
     let progress = runner
         .start(vec![], NoLimitTracker, &mut PrintWriter::Stdout)
@@ -860,7 +867,7 @@ await main()
 
     let results = vec![(
         call_ids[0].0,
-        ExternalResult::Return(MontyObject::String("response_x".into())),
+        ExtFunctionResult::Return(MontyObject::String("response_x".into())),
     )];
     let progress = state.resume(results, &mut PrintWriter::Stdout).unwrap();
 
@@ -879,13 +886,7 @@ async def main():
 
 await main()
 ";
-    let runner = MontyRun::new(
-        code.to_owned(),
-        "test.py",
-        vec![],
-        vec!["foo".to_owned(), "bar".to_owned()],
-    )
-    .unwrap();
+    let runner = MontyRun::new(code.to_owned(), "test.py", vec![]).unwrap();
 
     let progress = runner
         .start(vec![], NoLimitTracker, &mut PrintWriter::Stdout)
@@ -896,8 +897,14 @@ await main()
     assert_eq!(call_ids.len(), 2);
 
     let results = vec![
-        (call_ids[0].0, ExternalResult::Return(MontyObject::Int(10))),
-        (call_ids[1].0, ExternalResult::Return(MontyObject::Int(32))),
+        (
+            call_ids[0].0,
+            ExtFunctionResult::Return(MontyObject::Int(10)),
+        ),
+        (
+            call_ids[1].0,
+            ExtFunctionResult::Return(MontyObject::Int(32)),
+        ),
     ];
     let progress = state.resume(results, &mut PrintWriter::Stdout).unwrap();
 
@@ -916,13 +923,7 @@ async def main():
 
 await main()
 ";
-    let runner = MontyRun::new(
-        code.to_owned(),
-        "test.py",
-        vec![],
-        vec!["foo".to_owned(), "bar".to_owned()],
-    )
-    .unwrap();
+    let runner = MontyRun::new(code.to_owned(), "test.py", vec![]).unwrap();
 
     let progress = runner
         .start(vec![], NoLimitTracker, &mut PrintWriter::Stdout)
@@ -932,7 +933,10 @@ await main()
     assert_eq!(state.pending_call_ids().len(), 2);
 
     // Resolve only first
-    let results = vec![(call_ids[0].0, ExternalResult::Return(MontyObject::Int(10)))];
+    let results = vec![(
+        call_ids[0].0,
+        ExtFunctionResult::Return(MontyObject::Int(10)),
+    )];
     let progress = state.resume(results, &mut PrintWriter::Stdout).unwrap();
 
     // Should need more futures
@@ -942,7 +946,10 @@ await main()
     assert_eq!(state.pending_call_ids().len(), 1);
 
     // Resolve second
-    let results = vec![(call_ids[1].0, ExternalResult::Return(MontyObject::Int(32)))];
+    let results = vec![(
+        call_ids[1].0,
+        ExtFunctionResult::Return(MontyObject::Int(32)),
+    )];
     let progress = state.resume(results, &mut PrintWriter::Stdout).unwrap();
 
     let result = progress.into_complete().expect("should complete");
@@ -960,13 +967,7 @@ async def main():
 
 await main()
 ";
-    let runner = MontyRun::new(
-        code.to_owned(),
-        "test.py",
-        vec![],
-        vec!["foo".to_owned(), "bar".to_owned()],
-    )
-    .unwrap();
+    let runner = MontyRun::new(code.to_owned(), "test.py", vec![]).unwrap();
 
     let progress = runner
         .start(vec![], NoLimitTracker, &mut PrintWriter::Stdout)
@@ -975,10 +976,13 @@ await main()
     let (state, call_ids) = drive_to_resolve_futures(progress);
 
     let results = vec![
-        (call_ids[0].0, ExternalResult::Return(MontyObject::Int(10))),
+        (
+            call_ids[0].0,
+            ExtFunctionResult::Return(MontyObject::Int(10)),
+        ),
         (
             call_ids[1].0,
-            ExternalResult::Error(monty::MontyException::new(
+            ExtFunctionResult::Error(monty::MontyException::new(
                 monty::ExcType::RuntimeError,
                 Some("network timeout".into()),
             )),
@@ -1001,8 +1005,7 @@ async def main():
 
 await main()
 ";
-    let runner =
-        MontyRun::new(code.to_owned(), "test.py", vec![], vec!["fetch".to_owned()]).unwrap();
+    let runner = MontyRun::new(code.to_owned(), "test.py", vec![]).unwrap();
 
     let progress = runner
         .start(vec![], NoLimitTracker, &mut PrintWriter::Stdout)
@@ -1014,7 +1017,7 @@ await main()
     // Error in future resolution propagates as MontyException
     let results = vec![(
         call_ids[0].0,
-        ExternalResult::Error(monty::MontyException::new(
+        ExtFunctionResult::Error(monty::MontyException::new(
             monty::ExcType::RuntimeError,
             Some("network failure".into()),
         )),

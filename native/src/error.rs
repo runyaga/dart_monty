@@ -178,7 +178,7 @@ mod tests {
         use monty::{MontyRun, NoLimitTracker, PrintWriter};
 
         let code = "def inner():\n    1/0\n\ndef outer():\n    inner()\n\nouter()";
-        let compiled = MontyRun::new(code.into(), "<test>", vec![], vec![]).unwrap();
+        let compiled = MontyRun::new(code.into(), "<test>", vec![]).unwrap();
         let mut print = PrintWriter::Disabled;
         let err = compiled
             .run(vec![], NoLimitTracker, &mut print)
