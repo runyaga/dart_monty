@@ -44,6 +44,12 @@ external JSString _jsDiscover();
 @JS('DartMontyBridge.dispose')
 external JSPromise<JSString> _jsDispose();
 
+@JS('DartMontyBridge.createSession')
+external JSPromise<JSNumber> _jsCreateSession();
+
+@JS('DartMontyBridge.disposeSession')
+external void _jsDisposeSession(JSNumber sessionId);
+
 /// Concrete [WasmBindings] implementation using `dart:js_interop`.
 ///
 /// Calls into `window.DartMontyBridge` which communicates with a Web Worker
@@ -57,6 +63,18 @@ class WasmBindingsJs extends WasmBindings {
     final result = await _jsInit().toDart;
 
     return result.toDart;
+  }
+
+  @override
+  Future<int> createSession() async {
+    final sessionId = await _jsCreateSession().toDart;
+
+    return sessionId.toDartInt;
+  }
+
+  @override
+  Future<void> disposeSession(int sessionId) async {
+    _jsDisposeSession(sessionId.toJS);
   }
 
   @override

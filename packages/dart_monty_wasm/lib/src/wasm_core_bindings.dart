@@ -19,16 +19,12 @@ class WasmCoreBindings implements MontyCoreBindings {
   WasmCoreBindings({required WasmBindings bindings}) : _bindings = bindings;
 
   final WasmBindings _bindings;
-  bool _initialized = false;
+  int? _sessionId;
 
   @override
   Future<bool> init() async {
-    if (_initialized) return true;
-    final ok = await _bindings.init();
-    if (!ok) {
-      throw StateError('Failed to initialize WASM Worker');
-    }
-    _initialized = true;
+    if (_sessionId != null) return true;
+    _sessionId = await _bindings.createSession();
     return true;
   }
 
@@ -99,12 +95,18 @@ class WasmCoreBindings implements MontyCoreBindings {
   Future<Uint8List> snapshot() => _bindings.snapshot();
 
   @override
-  Future<void> restoreSnapshot(Uint8List data) => _bindings.restore(data);
+  Future<void> restoreSnapshot(Uint8List data) async {
+    // Ensure a session exists before restoring — _sessionId would be null
+    // if restore is called on a fresh WasmCoreBindings instance.
+    await init();
+    await _bindings.restore(data);
+  }
 
   @override
   Future<void> dispose() async {
-    if (_initialized) {
-      await _bindings.dispose();
+    if (_sessionId != null) {
+      await _bindings.disposeSession(_sessionId!);
+      _sessionId = null;
     }
   }
 

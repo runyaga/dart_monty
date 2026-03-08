@@ -55,14 +55,14 @@ void main() {
     test('auto-initializes on first call', () async {
       mock.nextRunResult = const WasmRunResult(ok: true, value: 1);
       await monty.run('1');
-      expect(mock.initCalls, 1);
+      expect(mock.createSessionCalls, 1);
     });
 
     test('does not re-initialize after first call', () async {
       mock.nextRunResult = const WasmRunResult(ok: true, value: 1);
       await monty.run('1');
       await monty.run('2');
-      expect(mock.initCalls, 1);
+      expect(mock.createSessionCalls, 1);
     });
 
     test('throws MontyException on error result', () async {
@@ -623,25 +623,25 @@ void main() {
   // dispose()
   // ===========================================================================
   group('dispose()', () {
-    test('calls bindings dispose when initialized', () async {
+    test('calls bindings disposeSession when initialized', () async {
       mock.nextRunResult = const WasmRunResult(ok: true, value: 1);
-      await monty.run('1'); // triggers auto-init
+      await monty.run('1'); // triggers auto-init via createSession
       await monty.dispose();
-      expect(mock.disposeCalls, 1);
+      expect(mock.disposeSessionCalls.length, 1);
     });
 
     test('does not call bindings dispose when not initialized', () async {
       await monty.dispose();
-      expect(mock.disposeCalls, 0);
+      expect(mock.disposeSessionCalls.length, 0);
     });
 
     test('double dispose is safe', () async {
       mock.nextRunResult = const WasmRunResult(ok: true, value: 1);
-      await monty.run('1'); // triggers auto-init
+      await monty.run('1'); // triggers auto-init via createSession
       await monty.dispose();
       await monty.dispose(); // should not throw
 
-      expect(mock.disposeCalls, 1);
+      expect(mock.disposeSessionCalls.length, 1);
     });
   });
 

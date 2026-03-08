@@ -21,18 +21,13 @@ void main() {
   group('init()', () {
     test('returns true on success', () async {
       expect(await bindings.init(), isTrue);
-      expect(mock.initCalls, 1);
+      expect(mock.createSessionCalls, 1);
     });
 
     test('is idempotent', () async {
       await bindings.init();
       await bindings.init();
-      expect(mock.initCalls, 1);
-    });
-
-    test('throws StateError on failure', () async {
-      mock.nextInitResult = false;
-      expect(bindings.init, throwsStateError);
+      expect(mock.createSessionCalls, 1);
     });
   });
 
@@ -366,15 +361,15 @@ void main() {
   // dispose()
   // ===========================================================================
   group('dispose()', () {
-    test('calls bindings dispose when initialized', () async {
+    test('calls bindings disposeSession when initialized', () async {
       await bindings.init();
       await bindings.dispose();
-      expect(mock.disposeCalls, 1);
+      expect(mock.disposeSessionCalls.length, 1);
     });
 
     test('does not call bindings dispose when not initialized', () async {
       await bindings.dispose();
-      expect(mock.disposeCalls, 0);
+      expect(mock.disposeSessionCalls.length, 0);
     });
   });
 }
