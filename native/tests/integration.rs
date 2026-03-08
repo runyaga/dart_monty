@@ -1226,10 +1226,8 @@ fn snapshot_format_pinning() {
     );
 
     // Cleanup.
+    // NOTE: result_json was already freed by read_c_string above.
     unsafe { monty_bytes_free(snap_ptr, snap_len) };
-    if !result_json.is_null() {
-        unsafe { monty_string_free(result_json) };
-    }
     if !run_err.is_null() {
         unsafe { monty_string_free(run_err) };
     }
@@ -1237,10 +1235,16 @@ fn snapshot_format_pinning() {
     unsafe { monty_free(restored) };
 }
 
-// NOTE: A garbage-bytes-via-FFI test was attempted but upstream MontyRun::load
-// panics on certain byte patterns instead of returning Err. This panic unwinds
-// through the FFI boundary causing SIGABRT. Filed as a separate issue:
-// monty_restore needs std::panic::catch_unwind around MontyRun::load.
+#[test]
+fn restore_garbage_bytes_returns_null() {
+    let garbage = [0xDE, 0xAD, 0xBE, 0xEF, 0x00, 0xFF, 0x01, 0x02];
+    let mut err: *mut c_char = ptr::null_mut();
+    let handle = unsafe { monty_restore(garbage.as_ptr(), garbage.len(), &mut err) };
+    assert!(handle.is_null(), "garbage bytes must not produce a handle");
+    if !err.is_null() {
+        unsafe { monty_string_free(err) };
+    }
+}
 
 // ---------------------------------------------------------------------------
 // FFI Boundary: Resource limit enforcement (memory + time)
