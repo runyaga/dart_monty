@@ -44,8 +44,7 @@
     "externalFunctions": null,
     "resumeValues": null,
     "resumeErrors": null,
-    "nativeOnly": false,
-    "xfail": "monty_create throws StateError for syntax errors, not MontyException"
+    "nativeOnly": false
   },
   {
     "id": 43,
