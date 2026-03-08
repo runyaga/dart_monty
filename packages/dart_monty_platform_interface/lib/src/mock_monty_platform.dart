@@ -58,9 +58,6 @@ class MockMontyPlatform extends MontyPlatform
   /// Codes passed to [run], in call order.
   final List<String> runCodes = [];
 
-  /// Inputs passed to [run], in call order.
-  final List<Map<String, Object?>?> runInputsList = [];
-
   /// Limits passed to [run], in call order.
   final List<MontyLimits?> runLimitsList = [];
 
@@ -69,9 +66,6 @@ class MockMontyPlatform extends MontyPlatform
 
   /// Codes passed to [start], in call order.
   final List<String> startCodes = [];
-
-  /// Inputs passed to [start], in call order.
-  final List<Map<String, Object?>?> startInputsList = [];
 
   /// External functions passed to [start], in call order.
   final List<List<String>?> startExternalFunctionsList = [];
@@ -109,10 +103,6 @@ class MockMontyPlatform extends MontyPlatform
   /// The code passed to the most recent [run] call.
   String? get lastRunCode => runCodes.isEmpty ? null : runCodes.last;
 
-  /// The inputs passed to the most recent [run] call.
-  Map<String, Object?>? get lastRunInputs =>
-      runInputsList.isEmpty ? null : runInputsList.last;
-
   /// The limits passed to the most recent [run] call.
   MontyLimits? get lastRunLimits =>
       runLimitsList.isEmpty ? null : runLimitsList.last;
@@ -123,10 +113,6 @@ class MockMontyPlatform extends MontyPlatform
 
   /// The code passed to the most recent [start] call.
   String? get lastStartCode => startCodes.isEmpty ? null : startCodes.last;
-
-  /// The inputs passed to the most recent [start] call.
-  Map<String, Object?>? get lastStartInputs =>
-      startInputsList.isEmpty ? null : startInputsList.last;
 
   /// The external functions passed to the most recent [start] call.
   List<String>? get lastStartExternalFunctions =>
@@ -172,7 +158,6 @@ class MockMontyPlatform extends MontyPlatform
   @override
   Future<MontyResult> run(
     String code, {
-    Map<String, Object?>? inputs,
     MontyLimits? limits,
     String? scriptName,
   }) async {
@@ -183,7 +168,6 @@ class MockMontyPlatform extends MontyPlatform
       );
     }
     runCodes.add(code);
-    runInputsList.add(inputs);
     runLimitsList.add(limits);
     runScriptNamesList.add(scriptName);
 
@@ -193,13 +177,11 @@ class MockMontyPlatform extends MontyPlatform
   @override
   Future<MontyProgress> start(
     String code, {
-    Map<String, Object?>? inputs,
     List<String>? externalFunctions,
     MontyLimits? limits,
     String? scriptName,
   }) async {
     startCodes.add(code);
-    startInputsList.add(inputs);
     startExternalFunctionsList.add(externalFunctions);
     startLimitsList.add(limits);
     startScriptNamesList.add(scriptName);

@@ -46,13 +46,11 @@ class MontyNative extends MontyPlatform
   @override
   Future<MontyResult> run(
     String code, {
-    Map<String, Object?>? inputs,
     MontyLimits? limits,
     String? scriptName,
   }) async {
     assertNotDisposed('run');
     assertIdle('run');
-    rejectInputs(inputs);
     await _ensureInitialized();
 
     return _bindings.run(
@@ -65,14 +63,12 @@ class MontyNative extends MontyPlatform
   @override
   Future<MontyProgress> start(
     String code, {
-    Map<String, Object?>? inputs,
     List<String>? externalFunctions,
     MontyLimits? limits,
     String? scriptName,
   }) async {
     assertNotDisposed('start');
     assertIdle('start');
-    rejectInputs(inputs);
     await _ensureInitialized();
 
     final progress = await _bindings.start(

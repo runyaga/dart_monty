@@ -556,7 +556,6 @@ class _SyncOnlyMockPlatform extends MontyPlatform {
   @override
   Future<MontyProgress> start(
     String code, {
-    Map<String, Object?>? inputs,
     List<String>? externalFunctions,
     MontyLimits? limits,
     String? scriptName,
@@ -578,7 +577,6 @@ class _SyncOnlyMockPlatform extends MontyPlatform {
   @override
   Future<MontyResult> run(
     String code, {
-    Map<String, Object?>? inputs,
     MontyLimits? limits,
     String? scriptName,
   }) async =>

@@ -178,7 +178,6 @@ class _ThrowingMock extends MockMontyPlatform {
   @override
   Future<MontyResult> run(
     String code, {
-    Map<String, Object?>? inputs,
     MontyLimits? limits,
     String? scriptName,
   }) async {

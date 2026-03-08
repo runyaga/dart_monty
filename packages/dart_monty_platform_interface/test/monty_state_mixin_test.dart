@@ -12,7 +12,6 @@ class _TestStateMachine with MontyStateMixin {
   void doMarkActive() => markActive();
   void doMarkIdle() => markIdle();
   void doMarkDisposed() => markDisposed();
-  void doRejectInputs(Map<String, Object?>? inputs) => rejectInputs(inputs);
 }
 
 void main() {
@@ -128,29 +127,6 @@ void main() {
     });
   });
 
-  group('rejectInputs', () {
-    test('accepts null inputs', () {
-      expect(() => sm.doRejectInputs(null), returnsNormally);
-    });
-
-    test('accepts empty map', () {
-      expect(() => sm.doRejectInputs({}), returnsNormally);
-    });
-
-    test('throws for non-empty map', () {
-      expect(
-        () => sm.doRejectInputs({'a': 1}),
-        throwsA(
-          isA<UnsupportedError>().having(
-            (e) => e.message,
-            'message',
-            contains('TestBackend'),
-          ),
-        ),
-      );
-    });
-  });
-
   group('full lifecycle', () {
     test('idle -> active -> idle -> active -> disposed', () {
       expect(sm.isIdle, isTrue);
@@ -182,19 +158,6 @@ void main() {
             (e) => e.message,
             'message',
             'Cannot call run() on a disposed TestBackend',
-          ),
-        ),
-      );
-    });
-
-    test('rejectInputs message', () {
-      expect(
-        () => sm.doRejectInputs({'key': 'value'}),
-        throwsA(
-          isA<UnsupportedError>().having(
-            (e) => e.message,
-            'message',
-            startsWith('The TestBackend backend'),
           ),
         ),
       );
