@@ -305,8 +305,10 @@ async function snapshot() {
   const sid = resolveSessionId(null);
   if (sid == null || !sessions.has(sid)) return notInitializedError();
 
-  const result = await callWorker(sid, { type: 'snapshot' }, null);
-  return JSON.stringify(result);
+  const session = sessions.get(sid);
+  const result = await callWorker(sid, { type: 'snapshot' }, session.timeoutMs);
+  // Return raw JS object — snapshotBuffer is an ArrayBuffer, not JSON-safe.
+  return result;
 }
 
 /**
@@ -319,7 +321,8 @@ async function restore(dataBase64) {
   const sid = resolveSessionId(null);
   if (sid == null || !sessions.has(sid)) return notInitializedError();
 
-  const result = await callWorker(sid, { type: 'restore', dataBase64 }, null);
+  const session = sessions.get(sid);
+  const result = await callWorker(sid, { type: 'restore', dataBase64 }, session.timeoutMs);
   return JSON.stringify(result);
 }
 
