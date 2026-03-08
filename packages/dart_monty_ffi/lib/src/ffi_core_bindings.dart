@@ -57,9 +57,16 @@ class FfiCoreBindings implements MontyCoreBindings {
       externalFunctions: extFns,
       scriptName: scriptName,
     );
-    _applyLimits(handle, limitsJson);
-    final progress = _bindings.start(handle);
-
+    final ProgressResult progress;
+    try {
+      _applyLimits(handle, limitsJson);
+      progress = _bindings.start(handle);
+    } catch (e) {
+      _bindings.free(handle);
+      rethrow;
+    }
+    // Translation assumes ownership of handle lifecycle
+    // (_freeHandle on complete/error, _handle assignment on pending).
     return _translateProgressResult(handle, progress);
   }
 
