@@ -51,13 +51,18 @@ class MontyNative extends MontyPlatform
   }) async {
     assertNotDisposed('run');
     assertIdle('run');
-    await _ensureInitialized();
+    markActive();
+    try {
+      await _ensureInitialized();
 
-    return _bindings.run(
-      code,
-      limits: limits,
-      scriptName: scriptName,
-    );
+      return await _bindings.run(
+        code,
+        limits: limits,
+        scriptName: scriptName,
+      );
+    } finally {
+      markIdle();
+    }
   }
 
   @override
@@ -69,16 +74,22 @@ class MontyNative extends MontyPlatform
   }) async {
     assertNotDisposed('start');
     assertIdle('start');
-    await _ensureInitialized();
+    markActive();
+    try {
+      await _ensureInitialized();
 
-    final progress = await _bindings.start(
-      code,
-      externalFunctions: externalFunctions,
-      limits: limits,
-      scriptName: scriptName,
-    );
+      final progress = await _bindings.start(
+        code,
+        externalFunctions: externalFunctions,
+        limits: limits,
+        scriptName: scriptName,
+      );
 
-    return _handleProgress(progress);
+      return _handleProgress(progress);
+    } catch (e) {
+      markIdle();
+      rethrow;
+    }
   }
 
   @override
@@ -167,7 +178,7 @@ class MontyNative extends MontyPlatform
       final progress = await fn();
 
       return _handleProgress(progress);
-    } on MontyException {
+    } catch (e) {
       markIdle();
       rethrow;
     }
