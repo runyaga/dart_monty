@@ -123,8 +123,8 @@ final class WasmDiscoverResult {
 /// Abstract interface over the WASM bridge.
 ///
 /// All methods are `Future`-based because the Worker round-trip is
-/// inherently asynchronous. Unlike native bindings, there are no integer
-/// handles — the Worker holds the session state internally.
+/// inherently asynchronous. Each session maps to its own Worker hosting
+/// an independent Monty WASM runtime.
 ///
 /// Resource limits are passed inline with `run()` / `start()` calls
 /// rather than via separate `setLimit` calls, avoiding extra Worker
@@ -133,10 +133,18 @@ abstract class WasmBindings {
   /// Creates a [WasmBindings].
   WasmBindings();
 
-  /// Initializes the WASM Worker.
+  /// Initializes the WASM bridge (backward-compatible default session).
   ///
   /// Returns `true` if the Worker loaded successfully.
   Future<bool> init();
+
+  /// Creates a new session with its own Worker.
+  ///
+  /// Returns the session ID for routing subsequent calls.
+  Future<int> createSession();
+
+  /// Disposes a session, terminating its Worker.
+  Future<void> disposeSession(int sessionId);
 
   /// Runs Python [code] to completion.
   ///

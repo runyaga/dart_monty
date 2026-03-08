@@ -88,6 +88,15 @@ class MockWasmBindings extends WasmBindings {
   /// Number of times [dispose] was called.
   int disposeCalls = 0;
 
+  /// Next session ID returned by [createSession].
+  int _nextSessionId = 1;
+
+  /// Number of times [createSession] was called.
+  int createSessionCalls = 0;
+
+  /// Session IDs passed to [disposeSession].
+  final List<int> disposeSessionCalls = [];
+
   // ---------------------------------------------------------------------------
   // Implementation
   // ---------------------------------------------------------------------------
@@ -97,6 +106,22 @@ class MockWasmBindings extends WasmBindings {
     initCalls++;
 
     return nextInitResult;
+  }
+
+  @override
+  Future<int> createSession() async {
+    createSessionCalls++;
+
+    return _nextSessionId++;
+  }
+
+  @override
+  Future<void> disposeSession(int sessionId) async {
+    disposeSessionCalls.add(sessionId);
+    final disposeError = nextDisposeError;
+    if (disposeError != null) {
+      throw StateError(disposeError);
+    }
   }
 
   @override
