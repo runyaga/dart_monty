@@ -136,7 +136,10 @@ echo "  Native ladder: PASSED"
 echo ""
 echo "--- Building web bundle ---"
 cd "$SPIKE"
-npm install
+# --force: @pydantic/monty-wasm32-wasi declares cpu:wasm32 but the WASM binary
+# is architecture-independent. Without --force, npm refuses on ARM64 hosts.
+# See: https://github.com/runyaga/monty/issues/4
+npm install --force
 
 echo "  esbuild: bundle worker"
 npx esbuild web/monty_worker_src.js \
@@ -291,7 +294,7 @@ echo ""
 echo "--- Building WASM package bridge ---"
 if [ -d "$WASM_PKG/js" ]; then
   cd "$WASM_PKG/js"
-  npm install
+  npm install --force
   npm run build
 
   # -------------------------------------------------------
