@@ -408,13 +408,12 @@ Worker → JS Bridge: { type, id, ...result } (unchanged, routed by session)
    - sessionId parameter threading
    - `restoreSnapshot` must call `init()` first
 5. **Phase 2c** — Update MontyWasm + tests + mocks
-6. ~~**Phase 2d** — Hard timeout + supervision~~ MERGED (PR #97)
+6. **Phase 2d** — Hard timeout + supervision
    - Cache timeoutMs on session from first run/start call
-   - snapshot() and restore() now use cached session.timeoutMs
-7. ~~**Phase 2e** — Snapshot binary transfer (replace Base64)~~ MERGED (PR #97)
+7. **Phase 2e** — Snapshot binary transfer (replace Base64)
    - Worker: `bytes.slice()` + Transferable ArrayBuffer
    - Bridge: bypass JSON, return raw JS object
-   - Dart: `JSAny` interop with `_SnapshotResult` extension type
+   - Dart: `JSAny` interop instead of `JSString`
 
 ---
 
