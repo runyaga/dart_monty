@@ -386,15 +386,15 @@ pub unsafe extern "C" fn monty_snapshot(
         return ptr::null_mut();
     }
     let h = unsafe { &*handle };
-    match h.snapshot() {
-        Ok(bytes) => {
+    match catch_ffi_panic(|| h.snapshot()) {
+        Ok(Ok(bytes)) => {
             let len = bytes.len();
             let boxed = bytes.into_boxed_slice();
             let ptr = Box::into_raw(boxed) as *mut u8;
             unsafe { *out_len = len };
             ptr
         }
-        Err(_) => ptr::null_mut(),
+        Ok(Err(_)) | Err(_) => ptr::null_mut(),
     }
 }
 
@@ -419,11 +419,17 @@ pub unsafe extern "C" fn monty_restore(
     }
 
     let bytes = unsafe { std::slice::from_raw_parts(data, len) };
-    match MontyHandle::restore(bytes) {
-        Ok(handle) => Box::into_raw(Box::new(handle)),
-        Err(msg) => {
+    match catch_ffi_panic(|| MontyHandle::restore(bytes)) {
+        Ok(Ok(handle)) => Box::into_raw(Box::new(handle)),
+        Ok(Err(msg)) => {
             if !out_error.is_null() {
                 unsafe { *out_error = to_c_string(&msg) };
+            }
+            ptr::null_mut()
+        }
+        Err(panic_msg) => {
+            if !out_error.is_null() {
+                unsafe { *out_error = to_c_string(&panic_msg) };
             }
             ptr::null_mut()
         }
