@@ -1026,4 +1026,38 @@ void main() {
       );
     });
   });
+
+  // P0 safety fix: handle leak in start() when _applyLimits throws.
+  group('handle leak safety (#101)', () {
+    test('start() frees handle when _applyLimits throws', () async {
+      mock.throwOnSetMemoryLimit = const FormatException('bad limit');
+
+      await expectLater(
+        () => monty.start(
+          'code',
+          externalFunctions: ['fn'],
+          limits: const MontyLimits(memoryBytes: -1),
+        ),
+        throwsA(isA<FormatException>()),
+      );
+
+      // Handle must be freed despite the throw.
+      expect(mock.freeCalls, hasLength(1));
+      expect(mock.freeCalls.first, mock.nextCreateHandle);
+      // Platform returns to idle — can be reused.
+      expect(monty.isIdle, isTrue);
+    });
+
+    test('start() success does not double-free', () async {
+      mock.nextStartResult = ProgressResult(
+        tag: 0,
+        resultJson: _okResultJson(null),
+      );
+
+      await monty.start('code', externalFunctions: ['fn']);
+
+      // Exactly one free (from translateProgressResult on complete).
+      expect(mock.freeCalls, hasLength(1));
+    });
+  });
 }

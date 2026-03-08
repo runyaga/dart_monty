@@ -323,7 +323,25 @@ class DefaultMontyBridge implements MontyBridge {
     // Launch handler and store future for later resolution.
     // Errors are caught during resolution in _resolveFutures; suppress
     // unhandled async error reporting in the meantime.
-    final handlerFuture = fn.handler(args);
+    //
+    // If the handler throws synchronously (before returning a Future),
+    // we must catch it here to avoid deadlocking the platform in active
+    // state with a leaked FFI handle.
+    final Future<Object?> handlerFuture;
+    try {
+      handlerFuture = fn.handler(args);
+    } on Object catch (e, st) {
+      log.error(
+        'Host handler threw synchronously',
+        error: e,
+        stackTrace: st,
+        attributes: {'function': stepName},
+      );
+      controller
+        ..add(BridgeToolCallResult(callId: callId, result: 'Error: $e'))
+        ..add(BridgeStepFinished(stepId: stepName));
+      return _platform.resumeWithError(e.toString());
+    }
     unawaited(handlerFuture.then<void>((_) {}, onError: (_, __) {}));
     _pendingFutures[pending.callId] = _PendingFuture(
       future: handlerFuture,

@@ -54,13 +54,18 @@ abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
     assertNotDisposed('run');
     assertIdle('run');
     rejectInputs(inputs);
-    await _ensureInitialized();
-    final result = await _bindings.run(
-      code,
-      limitsJson: _encodeLimits(limits),
-      scriptName: scriptName,
-    );
-    return _translateRunResult(result);
+    markActive();
+    try {
+      await _ensureInitialized();
+      final result = await _bindings.run(
+        code,
+        limitsJson: _encodeLimits(limits),
+        scriptName: scriptName,
+      );
+      return _translateRunResult(result);
+    } finally {
+      markIdle();
+    }
   }
 
   @override
@@ -74,8 +79,9 @@ abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
     assertNotDisposed('start');
     assertIdle('start');
     rejectInputs(inputs);
-    await _ensureInitialized();
+    markActive();
     try {
+      await _ensureInitialized();
       final progress = await _bindings.start(
         code,
         extFnsJson: _encodeExternalFunctions(externalFunctions),
