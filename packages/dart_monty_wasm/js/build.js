@@ -49,6 +49,7 @@ workerSrc = workerSrc.replace(
 // Note: shared: true MUST stay — the WASM binary was compiled with
 // --shared-memory. Setting shared: false causes LinkError.
 // Note: esbuild may rewrite `4000` as `4e3` — match both forms.
+const workerSrcBeforePatch = workerSrc;
 workerSrc = workerSrc.replace(
   /new WebAssembly\.Memory\(\{[\s\n\r]*initial:\s*(?:4000|4e3),/g,
   'new WebAssembly.Memory({ initial: 1024,',
@@ -60,7 +61,9 @@ workerSrc = workerSrc.replace(
 
 // 2c: Assert patches applied — fail the build if regex didn't match.
 // A silent no-op is the worst failure mode (256MB + 5 workers return undetected).
+// Check both that the source was actually modified AND that the target strings exist.
 if (
+  workerSrc === workerSrcBeforePatch ||
   !workerSrc.includes('initial: 1024') ||
   !workerSrc.includes('asyncWorkPoolSize: 0')
 ) {
