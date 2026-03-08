@@ -88,6 +88,9 @@ class MockNativeBindings extends NativeBindings {
   final List<({int handle, String resultsJson, String errorsJson})>
       resolveFuturesCalls = [];
 
+  /// If non-null, [setMemoryLimit] throws this.
+  Object? throwOnSetMemoryLimit;
+
   /// Records of `(handle, bytes)` passed to [setMemoryLimit].
   final List<({int handle, int bytes})> setMemoryLimitCalls = [];
 
@@ -204,6 +207,7 @@ class MockNativeBindings extends NativeBindings {
   @override
   void setMemoryLimit(int handle, int bytes) {
     setMemoryLimitCalls.add((handle: handle, bytes: bytes));
+    if (throwOnSetMemoryLimit != null) throw throwOnSetMemoryLimit!;
   }
 
   @override
