@@ -420,7 +420,7 @@ checksum = "f8ca58f447f06ed17d5fc4043ce1b10dd205e060fb3ce5b979b8ed8e59ff3f79"
 [[package]]
 name = "monty"
 version = "0.0.7"
-source = "git+https://github.com/runyaga/monty.git?branch=runyaga%2Fmain#24804d8868792a337355d5dff5af68e2cdf4df4b"
+source = "git+https://github.com/runyaga/monty.git?branch=runyaga%2Fmain#ece4f642f58eafa9d9d2ad6382095bb8986e75de"
 dependencies = [
  "ahash",
  "fancy-regex",

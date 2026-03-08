@@ -111,6 +111,72 @@ pub unsafe extern "C" fn monty_free(handle: *mut MontyHandle) {
 }
 
 // ---------------------------------------------------------------------------
+// Cancellation: direct handle API (same-isolate only)
+// ---------------------------------------------------------------------------
+
+/// Request cancellation of the current or next execution.
+/// Safe to call from any thread. No-op if handle is NULL.
+/// Takes `*const` (not `*mut`) because it only writes to `Arc<AtomicBool>`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn monty_cancel(handle: *const MontyHandle) {
+    if !handle.is_null() {
+        unsafe { &*handle }.cancel();
+    }
+}
+
+/// Query whether cancellation has been requested.
+/// Returns 1 if cancelled, 0 if not, -1 if handle is NULL.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn monty_is_cancelled(handle: *const MontyHandle) -> c_int {
+    if handle.is_null() {
+        return -1;
+    }
+    if unsafe { &*handle }.is_cancelled() {
+        1
+    } else {
+        0
+    }
+}
+
+/// Reset the cancellation flag. Call before reusing a handle after cancel.
+/// No-op if handle is NULL.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn monty_reset_cancel(handle: *const MontyHandle) {
+    if !handle.is_null() {
+        unsafe { &*handle }.reset_cancel();
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Cancellation: registry API (cross-isolate safe, UAF-immune)
+// ---------------------------------------------------------------------------
+
+/// Get the monotonic handle ID for cross-isolate cancel.
+/// Returns 0 if handle is NULL.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn monty_get_handle_id(handle: *const MontyHandle) -> u64 {
+    if handle.is_null() {
+        return 0;
+    }
+    unsafe { &*handle }.handle_id()
+}
+
+/// Request cancellation by handle ID.
+/// Returns 0 on success, -1 if handle not found (already freed),
+/// -2 if the cancel flag was dropped.
+#[unsafe(no_mangle)]
+pub extern "C" fn monty_cancel_by_id(handle_id: u64) -> c_int {
+    handle::cancel_by_id(handle_id) as c_int
+}
+
+/// Query cancellation by handle ID.
+/// Returns 1 if cancelled, 0 if not, -1 if handle not found.
+#[unsafe(no_mangle)]
+pub extern "C" fn monty_is_cancelled_by_id(handle_id: u64) -> c_int {
+    handle::is_cancelled_by_id(handle_id) as c_int
+}
+
+// ---------------------------------------------------------------------------
 // Execution: run to completion
 // ---------------------------------------------------------------------------
 
