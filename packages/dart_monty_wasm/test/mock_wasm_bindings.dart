@@ -67,7 +67,7 @@ class MockWasmBindings extends WasmBindings {
         String code,
         String? extFnsJson,
         String? limitsJson,
-        String? scriptName,
+        String? scriptName
       })> startCalls = [];
 
   /// Records of `valueJson` passed to [resume].
@@ -159,10 +159,7 @@ class MockWasmBindings extends WasmBindings {
     resumeCalls.add(valueJson);
     if (resumeResults.isNotEmpty) return resumeResults.removeAt(0);
 
-    return const WasmProgressResult(
-      ok: true,
-      state: 'complete',
-    );
+    return const WasmProgressResult(ok: true, state: 'complete');
   }
 
   @override
@@ -172,10 +169,7 @@ class MockWasmBindings extends WasmBindings {
       return resumeWithErrorResults.removeAt(0);
     }
 
-    return const WasmProgressResult(
-      ok: true,
-      state: 'complete',
-    );
+    return const WasmProgressResult(ok: true, state: 'complete');
   }
 
   @override

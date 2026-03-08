@@ -7,7 +7,7 @@ import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 /// The platform interface for the Monty sandboxed Python interpreter.
 ///
 /// Platform implementations (FFI, Web) extend this class to provide
-/// concrete behavior. The app-facing `DartMonty` class delegates to
+/// concrete behavior. The app-facing API delegates to
 /// [instance].
 ///
 /// See also:
@@ -54,20 +54,17 @@ abstract class MontyPlatform extends PlatformInterface {
 
   /// Executes [code] and returns the result.
   ///
-  /// Optionally pass [inputs] as a map of variable bindings, [limits]
-  /// to constrain resource usage, and [scriptName] to identify the
-  /// script in error messages and tracebacks.
+  /// Optionally pass [limits] to constrain resource usage, and
+  /// [scriptName] to identify the script in error messages and tracebacks.
   ///
   /// ```dart
   /// final result = await platform.run(
   ///   'x + 1',
-  ///   inputs: {'x': 41},
   ///   scriptName: 'math_helper.py',
   /// );
   /// ```
   Future<MontyResult> run(
     String code, {
-    Map<String, Object?>? inputs,
     MontyLimits? limits,
     String? scriptName,
   }) {
@@ -85,7 +82,6 @@ abstract class MontyPlatform extends PlatformInterface {
   /// where each script needs distinct error attribution.
   Future<MontyProgress> start(
     String code, {
-    Map<String, Object?>? inputs,
     List<String>? externalFunctions,
     MontyLimits? limits,
     String? scriptName,

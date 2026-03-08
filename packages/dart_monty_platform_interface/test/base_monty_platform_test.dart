@@ -522,16 +522,6 @@ void main() {
         );
       },
     );
-
-    test(
-      'run() rejects non-empty inputs',
-      () async {
-        expect(
-          () => platform.run('code', inputs: {'x': 1}),
-          throwsA(isA<UnsupportedError>()),
-        );
-      },
-    );
   });
 
   group('limits encoding', () {

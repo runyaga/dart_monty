@@ -82,15 +82,4 @@ mixin MontyStateMixin {
   void markDisposed() {
     _state = _MontyState.disposed;
   }
-
-  /// Throws [UnsupportedError] if [inputs] is non-null and non-empty.
-  @protected
-  void rejectInputs(Map<String, Object?>? inputs) {
-    if (inputs != null && inputs.isNotEmpty) {
-      throw UnsupportedError(
-        'The $backendName backend does not support the inputs parameter. '
-        'Use externalFunctions with start()/resume() instead.',
-      );
-    }
-  }
 }

@@ -46,43 +46,50 @@ class MontyNative extends MontyPlatform
   @override
   Future<MontyResult> run(
     String code, {
-    Map<String, Object?>? inputs,
     MontyLimits? limits,
     String? scriptName,
   }) async {
     assertNotDisposed('run');
     assertIdle('run');
-    rejectInputs(inputs);
-    await _ensureInitialized();
+    markActive();
+    try {
+      await _ensureInitialized();
 
-    return _bindings.run(
-      code,
-      limits: limits,
-      scriptName: scriptName,
-    );
+      return await _bindings.run(
+        code,
+        limits: limits,
+        scriptName: scriptName,
+      );
+    } finally {
+      markIdle();
+    }
   }
 
   @override
   Future<MontyProgress> start(
     String code, {
-    Map<String, Object?>? inputs,
     List<String>? externalFunctions,
     MontyLimits? limits,
     String? scriptName,
   }) async {
     assertNotDisposed('start');
     assertIdle('start');
-    rejectInputs(inputs);
-    await _ensureInitialized();
+    markActive();
+    try {
+      await _ensureInitialized();
 
-    final progress = await _bindings.start(
-      code,
-      externalFunctions: externalFunctions,
-      limits: limits,
-      scriptName: scriptName,
-    );
+      final progress = await _bindings.start(
+        code,
+        externalFunctions: externalFunctions,
+        limits: limits,
+        scriptName: scriptName,
+      );
 
-    return _handleProgress(progress);
+      return _handleProgress(progress);
+    } catch (e) {
+      markIdle();
+      rethrow;
+    }
   }
 
   @override
@@ -171,7 +178,7 @@ class MontyNative extends MontyPlatform
       final progress = await fn();
 
       return _handleProgress(progress);
-    } on MontyException {
+    } catch (e) {
       markIdle();
       rethrow;
     }

@@ -47,13 +47,11 @@ abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
   @override
   Future<MontyResult> run(
     String code, {
-    Map<String, Object?>? inputs,
     MontyLimits? limits,
     String? scriptName,
   }) async {
     assertNotDisposed('run');
     assertIdle('run');
-    rejectInputs(inputs);
     markActive();
     try {
       await _ensureInitialized();
@@ -71,14 +69,12 @@ abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
   @override
   Future<MontyProgress> start(
     String code, {
-    Map<String, Object?>? inputs,
     List<String>? externalFunctions,
     MontyLimits? limits,
     String? scriptName,
   }) async {
     assertNotDisposed('start');
     assertIdle('start');
-    rejectInputs(inputs);
     markActive();
     try {
       await _ensureInitialized();

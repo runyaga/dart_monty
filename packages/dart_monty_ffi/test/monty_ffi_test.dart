@@ -106,27 +106,6 @@ void main() {
       expect(mock.createCalls.first.scriptName, 'test.py');
     });
 
-    test('throws UnsupportedError for non-empty inputs', () {
-      expect(
-        () => monty.run('x', inputs: {'a': 1}),
-        throwsA(isA<UnsupportedError>()),
-      );
-    });
-
-    test('allows null inputs', () async {
-      mock.nextRunResult = RunResult(tag: 0, resultJson: _okResultJson(1));
-      // Verifying null inputs are accepted without error.
-      // ignore: avoid_redundant_argument_values
-      final result = await monty.run('1', inputs: null);
-      expect(result.value, 1);
-    });
-
-    test('allows empty inputs', () async {
-      mock.nextRunResult = RunResult(tag: 0, resultJson: _okResultJson(1));
-      final result = await monty.run('1', inputs: {});
-      expect(result.value, 1);
-    });
-
     test('throws StateError when disposed', () async {
       await monty.dispose();
       expect(() => monty.run('x'), throwsStateError);
@@ -319,13 +298,6 @@ void main() {
             'compilation failed',
           ),
         ),
-      );
-    });
-
-    test('throws UnsupportedError for non-empty inputs', () {
-      expect(
-        () => monty.start('x', inputs: {'a': 1}),
-        throwsA(isA<UnsupportedError>()),
       );
     });
 

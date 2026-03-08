@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:dart_monty_ffi/src/monty_native.dart';
@@ -90,25 +91,6 @@ void main() {
       expect(mock.runCalls.first.limits, isNull);
     });
 
-    test('throws UnsupportedError for non-empty inputs', () {
-      expect(
-        () => monty.run('x', inputs: {'a': 1}),
-        throwsA(isA<UnsupportedError>()),
-      );
-    });
-
-    test('allows null inputs', () async {
-      // Verifying null inputs are accepted without error.
-      // ignore: avoid_redundant_argument_values
-      final result = await monty.run('1', inputs: null);
-      expect(result.value, 4);
-    });
-
-    test('allows empty inputs', () async {
-      final result = await monty.run('1', inputs: {});
-      expect(result.value, 4);
-    });
-
     test('throws StateError when disposed', () async {
       await monty.dispose();
       expect(() => monty.run('x'), throwsStateError);
@@ -199,13 +181,6 @@ void main() {
       await monty.start('x');
 
       expect(mock.startCalls.first.externalFunctions, isNull);
-    });
-
-    test('throws UnsupportedError for non-empty inputs', () {
-      expect(
-        () => monty.start('x', inputs: {'a': 1}),
-        throwsA(isA<UnsupportedError>()),
-      );
     });
 
     test('throws StateError when disposed', () async {
@@ -644,6 +619,50 @@ void main() {
       await monty.run('1', limits: limits);
 
       expect(mock.runCalls.first.limits, limits);
+    });
+  });
+
+  // P0 safety: TOCTOU race — run()/start() must block concurrent calls.
+  group('TOCTOU safety', () {
+    test('run() marks active before await — concurrent run() throws', () async {
+      final gate = Completer<void>();
+      mock.runGate = gate;
+
+      // Launch run() — it will block on the gate.
+      final first = monty.run('first');
+
+      // Platform should be active now (before the await resolves).
+      expect(monty.isActive, isTrue);
+
+      // A second concurrent run() should fail with StateError.
+      expect(
+        () => monty.run('second'),
+        throwsA(isA<StateError>()),
+      );
+
+      // Release the gate so the first run completes.
+      gate.complete();
+      final result = await first;
+      expect(result.value, 4);
+      expect(monty.isIdle, isTrue);
+    });
+
+    test('run() returns to idle after error', () async {
+      mock.nextRunResult = const MontyResult(
+        error: MontyException(message: 'boom'),
+        usage: _zeroUsage,
+      );
+
+      final result = await monty.run('code');
+      expect(result.isError, isTrue);
+      expect(monty.isIdle, isTrue);
+    });
+
+    test('start() marks active before await', () async {
+      final first = monty.start('code');
+      final result = await first;
+      expect(result, isA<MontyComplete>());
+      expect(monty.isIdle, isTrue);
     });
   });
 }

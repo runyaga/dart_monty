@@ -763,7 +763,6 @@ class _SlowMockPlatform extends MontyPlatform {
   @override
   Future<MontyProgress> start(
     String code, {
-    Map<String, Object?>? inputs,
     List<String>? externalFunctions,
     MontyLimits? limits,
     String? scriptName,
