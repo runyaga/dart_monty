@@ -1030,7 +1030,7 @@ void main() {
   // P0 safety fix: handle leak in start() when _applyLimits throws.
   group('handle leak safety (#101)', () {
     test('start() frees handle when _applyLimits throws', () async {
-      mock.throwOnSetMemoryLimit = StateError('bad limit');
+      mock.throwOnSetMemoryLimit = const FormatException('bad limit');
 
       await expectLater(
         () => monty.start(
@@ -1038,7 +1038,7 @@ void main() {
           externalFunctions: ['fn'],
           limits: const MontyLimits(memoryBytes: -1),
         ),
-        throwsA(isA<StateError>()),
+        throwsA(isA<FormatException>()),
       );
 
       // Handle must be freed despite the throw.

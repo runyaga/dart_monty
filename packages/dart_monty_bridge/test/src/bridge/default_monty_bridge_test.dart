@@ -15,7 +15,7 @@ void main() {
 
   setUp(() {
     mock = MockMontyPlatform();
-    bridge = DefaultMontyBridge(platform: mock, useFutures: true);
+    bridge = DefaultMontyBridge(platform: mock);
   });
 
   tearDown(() {

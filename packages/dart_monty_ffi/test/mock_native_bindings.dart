@@ -89,7 +89,7 @@ class MockNativeBindings extends NativeBindings {
       resolveFuturesCalls = [];
 
   /// If non-null, [setMemoryLimit] throws this.
-  Object? throwOnSetMemoryLimit;
+  Exception? throwOnSetMemoryLimit;
 
   /// Records of `(handle, bytes)` passed to [setMemoryLimit].
   final List<({int handle, int bytes})> setMemoryLimitCalls = [];
