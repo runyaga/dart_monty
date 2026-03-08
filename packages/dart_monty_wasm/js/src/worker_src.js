@@ -295,13 +295,14 @@ function handleSnapshot(id) {
   }
   try {
     const bytes = activeSnapshot.dump();
-    // Convert Uint8Array to base64
-    let binary = '';
-    for (let i = 0; i < bytes.length; i++) {
-      binary += String.fromCharCode(bytes[i]);
-    }
-    const data = btoa(binary);
-    self.postMessage({ type: 'result', id, ok: true, data });
+    // Copy out of WASM memory — bytes may be a view into linear memory.
+    // Transferring the underlying buffer would detach WASM memory.
+    const copy = bytes.slice();
+    // Transfer the ArrayBuffer to the main thread (zero-copy move).
+    self.postMessage(
+      { type: 'result', id, ok: true, snapshotBuffer: copy.buffer },
+      [copy.buffer],
+    );
   } catch (e) {
     postError(id, e);
   }

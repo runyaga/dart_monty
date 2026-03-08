@@ -4,6 +4,17 @@ import 'dart:typed_data';
 
 import 'package:dart_monty_wasm/src/wasm_bindings.dart';
 
+/// JS interop extension type for the raw snapshot result object.
+///
+/// The bridge returns a plain JS object `{ ok, snapshotBuffer?, error? }`
+/// instead of a JSON string, because `JSON.stringify(ArrayBuffer)` returns
+/// `{}` — binary data would be silently lost.
+extension type _SnapshotResult._(JSObject _) implements JSObject {
+  external JSBoolean get ok;
+  external JSString? get error;
+  external JSArrayBuffer? get snapshotBuffer;
+}
+
 // ---------------------------------------------------------------------------
 // JS interop declarations for window.DartMontyBridge
 // ---------------------------------------------------------------------------
@@ -33,7 +44,7 @@ external JSPromise<JSString> _jsResume(JSString valueJson);
 external JSPromise<JSString> _jsResumeWithError(JSString errorJson);
 
 @JS('DartMontyBridge.snapshot')
-external JSPromise<JSString> _jsSnapshot();
+external JSPromise<JSAny> _jsSnapshot();
 
 @JS('DartMontyBridge.restore')
 external JSPromise<JSString> _jsRestore(JSString dataBase64);
@@ -153,16 +164,12 @@ class WasmBindingsJs extends WasmBindings {
 
   @override
   Future<Uint8List> snapshot() async {
-    final resultJson = await _jsSnapshot().toDart;
-    final map = json.decode(resultJson.toDart) as Map<String, dynamic>;
-    if (map['ok'] != true) {
-      throw StateError(
-        map['error'] as String? ?? 'Snapshot failed',
-      );
+    final jsAny = await _jsSnapshot().toDart;
+    final result = jsAny as _SnapshotResult;
+    if (!result.ok.toDart) {
+      throw StateError(result.error?.toDart ?? 'Snapshot failed');
     }
-    final dataBase64 = map['data'] as String;
-
-    return base64Decode(dataBase64);
+    return result.snapshotBuffer!.toDart.asUint8List();
   }
 
   @override
