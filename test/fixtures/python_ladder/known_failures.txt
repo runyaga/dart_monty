@@ -1,0 +1,15 @@
+# Known Python Ladder Failures
+# ============================================================
+# List fixture failures that are pre-existing upstream Monty issues.
+# Format: tier_file:test_name
+# Example: tier_07_advanced.json:class_inheritance_basic
+#
+# The ladder gate script compares actual failures against this list:
+# - NEW failure (not in list) → FAIL the gate
+# - KNOWN failure (in list) → PASS with notice
+# - KNOWN failure starts passing → PASS with notice to remove from list
+#
+# When adding entries, file an upstream pydantic/monty issue and
+# reference it in a comment:
+# tier_07_advanced.json:class_inheritance_basic  # pydantic/monty#123
+# ============================================================

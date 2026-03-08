@@ -13,6 +13,92 @@ ROOT="$(git rev-parse --show-toplevel)"
 SPIKE="$ROOT/spike/web_test"
 FFI_PKG="$ROOT/packages/dart_monty_ffi"
 WASM_PKG="$ROOT/packages/dart_monty_wasm"
+KNOWN_FAILURES="$ROOT/test/fixtures/python_ladder/known_failures.txt"
+
+# Load known failures (strip comments and blank lines)
+KNOWN_FAILURE_LIST=""
+if [ -f "$KNOWN_FAILURES" ]; then
+  KNOWN_FAILURE_LIST=$(grep -v '^\s*#' "$KNOWN_FAILURES" | grep -v '^\s*$' | sed 's/\s*#.*//' || true)
+fi
+
+# Check if a failure key is in the known list.
+# Usage: is_known_failure "tier_07_advanced.json:test_name"
+is_known_failure() {
+  echo "$KNOWN_FAILURE_LIST" | grep -qxF "$1" 2>/dev/null
+}
+
+# Track new vs known failures for final reporting
+NEW_FAILURES=()
+KNOWN_HITS=()
+KNOWN_NOW_PASSING=()
+
+# Check web LADDER_RESULT lines against known failures.
+# Sets NEW_FAILURES array with any unknown failures.
+# Args: $1 = variable containing LADDER_RESULT lines
+check_ladder_results() {
+  local results="$1"
+  local label="$2"
+
+  # Parse each failure line: LADDER_RESULT:{"tier":"tier_07_advanced.json","test":"name","ok":false,...}
+  while IFS= read -r line; do
+    local tier test ok
+    tier=$(echo "$line" | grep -o '"tier":"[^"]*"' | head -1 | sed 's/"tier":"//;s/"//')
+    test=$(echo "$line" | grep -o '"test":"[^"]*"' | head -1 | sed 's/"test":"//;s/"//')
+    ok=$(echo "$line" | grep -o '"ok":\(true\|false\)' | head -1 | sed 's/"ok"://')
+
+    if [ -z "$tier" ] || [ -z "$test" ]; then
+      continue
+    fi
+
+    local key="${tier}:${test}"
+
+    if [ "$ok" = "false" ]; then
+      if is_known_failure "$key"; then
+        KNOWN_HITS+=("$label:$key")
+      else
+        NEW_FAILURES+=("$label:$key")
+      fi
+    else
+      # Check if a known failure is now passing
+      if is_known_failure "$key"; then
+        KNOWN_NOW_PASSING+=("$label:$key")
+      fi
+    fi
+  done <<< "$results"
+}
+
+# Print final failure report
+report_failures() {
+  if [ ${#KNOWN_NOW_PASSING[@]} -gt 0 ]; then
+    echo ""
+    echo "  NOTICE: Known failures now PASSING (remove from known_failures.txt):"
+    for item in "${KNOWN_NOW_PASSING[@]}"; do
+      echo "    ✓ $item"
+    done
+  fi
+
+  if [ ${#KNOWN_HITS[@]} -gt 0 ]; then
+    echo ""
+    echo "  Known failures (pre-existing, not blocking):"
+    for item in "${KNOWN_HITS[@]}"; do
+      echo "    ~ $item"
+    done
+  fi
+
+  if [ ${#NEW_FAILURES[@]} -gt 0 ]; then
+    echo ""
+    echo "  NEW FAILURES (not in known_failures.txt — these block the gate):"
+    for item in "${NEW_FAILURES[@]}"; do
+      echo "    ✗ $item"
+    done
+    echo ""
+    echo "  To acknowledge a pre-existing upstream issue, add to:"
+    echo "    $KNOWN_FAILURES"
+    return 1
+  fi
+
+  return 0
+}
 
 echo "=== M3C Gate: Python Compatibility Ladder ==="
 echo ""
@@ -190,17 +276,13 @@ echo "$WEB_RESULTS" | while IFS= read -r line; do
 done
 
 LADDER_DONE=$(grep -c 'LADDER_DONE' "$CONSOLE_LOG" 2>/dev/null || echo "0")
-WEB_FAILURES=$(echo "$WEB_RESULTS" | grep -c '"ok":false' 2>/dev/null || echo "0")
 
 rm -f "$CONSOLE_LOG"
 
-echo ""
-if [ "$WEB_FAILURES" -gt 0 ]; then
-  echo "=== M3C Ladder: Native PASSED, Web spike had $WEB_FAILURES failures ==="
-  exit 1
-fi
+check_ladder_results "$WEB_RESULTS" "web-spike"
 
-echo "  Web spike ladder: PASSED"
+echo ""
+echo "  Web spike ladder: checked"
 
 # -------------------------------------------------------
 # Step 7: Build WASM package bridge
@@ -290,9 +372,9 @@ http.server.HTTPServer(('127.0.0.1', $SERVE_PORT), handler).serve_forever()
     echo "  $line"
   done
 
-  WASM_FAILURES=$(echo "$WASM_RESULTS" | grep -c '"ok":false' 2>/dev/null || echo "0")
-
   rm -f "$WASM_CONSOLE_LOG"
+
+  check_ladder_results "$WASM_RESULTS" "wasm-pkg"
 
   # Clean up copied assets
   rm -f "$WASM_INTEG/dart_monty_bridge.js" \
@@ -304,16 +386,18 @@ http.server.HTTPServer(('127.0.0.1', $SERVE_PORT), handler).serve_forever()
         "$WASM_INTEG/ladder_runner.dart.js.map"
   rm -rf "$WASM_INTEG/fixtures"
 
-  if [ "$WASM_FAILURES" -gt 0 ]; then
-    echo ""
-    echo "=== Ladder: Native PASSED, Web spike PASSED, WASM package had $WASM_FAILURES failures ==="
-    exit 1
-  fi
-
-  echo "  WASM package ladder: PASSED"
+  echo "  WASM package ladder: checked"
 else
   echo "  WASM package not found, skipping."
 fi
 
 echo ""
-echo "=== Ladder: PASSED (native, web spike, and WASM package) ==="
+echo "--- Ladder failure report ---"
+if report_failures; then
+  echo ""
+  echo "=== Ladder: PASSED (native, web spike, and WASM package) ==="
+else
+  echo ""
+  echo "=== Ladder: FAILED (new regressions detected) ==="
+  exit 1
+fi
