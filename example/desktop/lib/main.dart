@@ -1126,6 +1126,7 @@ class _LadderPageState extends State<_LadderPage> {
       'tier_09_exceptions.json',
       'tier_13_async.json',
       'tier_15_script_name.json',
+      'tier_16_memory_growth.json',
     ];
 
     for (final file in tierFiles) {

@@ -93,6 +93,7 @@ const _tierFiles = [
   'fixtures/tier_09_exceptions.json',
   'fixtures/tier_13_async.json',
   'fixtures/tier_15_script_name.json',
+  'fixtures/tier_16_memory_growth.json',
 ];
 
 const _tierLabels = [
@@ -107,6 +108,7 @@ const _tierLabels = [
   'Tier 9: Exceptions',
   'Tier 13: Async',
   'Tier 15: Script Name',
+  'Tier 16: Memory Growth',
 ];
 
 // ---------------------------------------------------------------------------

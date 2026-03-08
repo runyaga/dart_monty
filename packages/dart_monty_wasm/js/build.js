@@ -31,14 +31,46 @@ execSync(
   { cwd: __dirname, stdio: 'inherit' },
 );
 
-// Step 2: Patch bare specifier for sub-worker
-console.log('[build] Patching worker bare specifier...');
+// Step 2: Post-bundle patches on worker output
+console.log('[build] Patching worker output...');
 const workerPath = path.join(ASSETS, 'dart_monty_worker.js');
 let workerSrc = fs.readFileSync(workerPath, 'utf8');
+
+// 2a: Patch bare specifier for sub-worker URL
 workerSrc = workerSrc.replace(
   /new URL\("@pydantic\/monty-wasm32-wasi\/wasi-worker-browser\.mjs"/g,
   'new URL("./wasi-worker-browser.mjs"',
 );
+
+// 2b: Reduce NAPI-RS overhead — shrink initial memory from 256MB to 64MB
+// and disable the async worker pool (Monty uses synchronous C-ABI only).
+// See: https://github.com/runyaga/dart_monty/issues/92
+//
+// Note: shared: true MUST stay — the WASM binary was compiled with
+// --shared-memory. Setting shared: false causes LinkError.
+// Note: esbuild may rewrite `4000` as `4e3` — match both forms.
+workerSrc = workerSrc.replace(
+  /new WebAssembly\.Memory\(\{[\s\n\r]*initial:\s*(?:4000|4e3),/g,
+  'new WebAssembly.Memory({ initial: 1024,',
+);
+workerSrc = workerSrc.replace(
+  /asyncWorkPoolSize:\s*4\b/g,
+  'asyncWorkPoolSize: 0',
+);
+
+// 2c: Assert patches applied — fail the build if regex didn't match.
+// A silent no-op is the worst failure mode (256MB + 5 workers return undetected).
+if (
+  !workerSrc.includes('initial: 1024') ||
+  !workerSrc.includes('asyncWorkPoolSize: 0')
+) {
+  throw new Error(
+    'FATAL: NAPI-RS patch failed — regex did not match esbuild output.\n' +
+      'The upstream esbuild output format may have changed. ' +
+      'Check the WebAssembly.Memory and asyncWorkPoolSize patterns in build.js.',
+  );
+}
+
 fs.writeFileSync(workerPath, workerSrc);
 
 // Step 3: Bundle bridge (IIFE)
