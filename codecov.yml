@@ -1,0 +1,47 @@
+codecov:
+  require_ci_to_pass: true
+
+coverage:
+  precision: 2
+  round: down
+  range: "70...100"
+
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 1%
+    patch:
+      default:
+        target: 90%
+        threshold: 0%
+
+flags:
+  dart_monty_platform_interface:
+    paths:
+      - packages/dart_monty_platform_interface/
+    carryforward: true
+  dart_monty_ffi:
+    paths:
+      - packages/dart_monty_ffi/
+    carryforward: true
+  dart_monty_wasm:
+    paths:
+      - packages/dart_monty_wasm/
+    carryforward: true
+  dart_monty_native:
+    paths:
+      - packages/dart_monty_native/
+    carryforward: true
+  native:
+    paths:
+      - native/
+    carryforward: true
+
+comment:
+  layout: "reach,diff,flags,components"
+  behavior: default
+  require_changes: false
+  require_base: false
+  require_head: true
+  after_n_builds: 5
