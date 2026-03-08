@@ -1256,6 +1256,7 @@ fn snapshot_format_pinning() {
     );
 
     // Cleanup.
+    // NOTE: result_json was already freed by read_c_string above.
     unsafe { monty_bytes_free(snap_ptr, snap_len) };
     if !run_err.is_null() {
         unsafe { monty_string_free(run_err) };
