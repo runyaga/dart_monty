@@ -1,8 +1,10 @@
 use std::time::Duration;
 
+use std::collections::HashSet;
+
 use monty::{
-    ExternalResult, FutureSnapshot, LimitedTracker, MontyException, MontyRun, NoLimitTracker,
-    PrintWriter, ResourceLimits, RunProgress, Snapshot,
+    ExtFunctionResult, FunctionCall, LimitedTracker, MontyException, MontyObject, MontyRun,
+    NameLookupResult, NoLimitTracker, PrintWriter, ResolveFutures, ResourceLimits, RunProgress,
 };
 use serde_json::Value;
 
@@ -11,29 +13,29 @@ use crate::error::monty_exception_to_json;
 
 /// Maps a `ResourceTracker` type to its `HandleState` variants.
 trait TrackerExt: monty::ResourceTracker + Sized {
-    fn into_paused(snapshot: Snapshot<Self>, meta: PendingMeta) -> HandleState;
-    fn into_futures(snapshot: FutureSnapshot<Self>, call_ids_json: String) -> HandleState;
+    fn into_paused(call: FunctionCall<Self>, meta: PendingMeta) -> HandleState;
+    fn into_futures(futures: ResolveFutures<Self>, call_ids_json: String) -> HandleState;
 }
 
 impl TrackerExt for LimitedTracker {
-    fn into_paused(snapshot: Snapshot<Self>, meta: PendingMeta) -> HandleState {
-        HandleState::PausedLimited { snapshot, meta }
+    fn into_paused(call: FunctionCall<Self>, meta: PendingMeta) -> HandleState {
+        HandleState::PausedLimited { call, meta }
     }
-    fn into_futures(snapshot: FutureSnapshot<Self>, call_ids_json: String) -> HandleState {
+    fn into_futures(futures: ResolveFutures<Self>, call_ids_json: String) -> HandleState {
         HandleState::FuturesLimited {
-            snapshot,
+            futures,
             call_ids_json,
         }
     }
 }
 
 impl TrackerExt for NoLimitTracker {
-    fn into_paused(snapshot: Snapshot<Self>, meta: PendingMeta) -> HandleState {
-        HandleState::PausedNoLimit { snapshot, meta }
+    fn into_paused(call: FunctionCall<Self>, meta: PendingMeta) -> HandleState {
+        HandleState::PausedNoLimit { call, meta }
     }
-    fn into_futures(snapshot: FutureSnapshot<Self>, call_ids_json: String) -> HandleState {
+    fn into_futures(futures: ResolveFutures<Self>, call_ids_json: String) -> HandleState {
         HandleState::FuturesNoLimit {
-            snapshot,
+            futures,
             call_ids_json,
         }
     }
@@ -71,19 +73,19 @@ struct PendingMeta {
 enum HandleState {
     Ready(MontyRun),
     PausedLimited {
-        snapshot: Snapshot<LimitedTracker>,
+        call: FunctionCall<LimitedTracker>,
         meta: PendingMeta,
     },
     PausedNoLimit {
-        snapshot: Snapshot<NoLimitTracker>,
+        call: FunctionCall<NoLimitTracker>,
         meta: PendingMeta,
     },
     FuturesLimited {
-        snapshot: FutureSnapshot<LimitedTracker>,
+        futures: ResolveFutures<LimitedTracker>,
         call_ids_json: String,
     },
     FuturesNoLimit {
-        snapshot: FutureSnapshot<NoLimitTracker>,
+        futures: ResolveFutures<NoLimitTracker>,
         call_ids_json: String,
     },
     Complete {
@@ -97,6 +99,7 @@ enum HandleState {
 pub struct MontyHandle {
     state: HandleState,
     limits: Option<ResourceLimits>,
+    ext_fn_names: HashSet<String>,
     usage_json: String,
     print_output: String,
 }
@@ -112,10 +115,11 @@ impl MontyHandle {
         script_name: Option<String>,
     ) -> Result<Self, MontyException> {
         let name = script_name.unwrap_or_else(|| "<input>".into());
-        let compiled = MontyRun::new(code, &name, vec![], external_functions)?;
+        let compiled = MontyRun::new(code, &name, vec![])?;
         Ok(Self {
             state: HandleState::Ready(compiled),
             limits: None,
+            ext_fn_names: external_functions.into_iter().collect(),
             usage_json: default_usage_json(),
             print_output: String::new(),
         })
@@ -205,7 +209,7 @@ impl MontyHandle {
             Err(e) => return (MontyProgressTag::Error, Some(format!("invalid JSON: {e}"))),
         };
         let obj = json_to_monty_object(&val);
-        let result = ExternalResult::Return(obj);
+        let result = ExtFunctionResult::Return(obj);
         self.resume_with_result(result)
     }
 
@@ -215,7 +219,7 @@ impl MontyHandle {
             monty::ExcType::RuntimeError,
             Some(error_message.to_string()),
         );
-        let result = ExternalResult::Error(exc);
+        let result = ExtFunctionResult::Error(exc);
         self.resume_with_result(result)
     }
 
@@ -227,11 +231,11 @@ impl MontyHandle {
         let state = std::mem::replace(&mut self.state, HandleState::Consumed);
 
         match state {
-            HandleState::PausedLimited { snapshot, .. } => {
-                self.run_snapshot_op(|print| snapshot.run_pending(print))
+            HandleState::PausedLimited { call, .. } => {
+                self.run_snapshot_op(|print| call.resume_pending(print))
             }
-            HandleState::PausedNoLimit { snapshot, .. } => {
-                self.run_snapshot_op(|print| snapshot.run_pending(print))
+            HandleState::PausedNoLimit { call, .. } => {
+                self.run_snapshot_op(|print| call.resume_pending(print))
             }
             other => {
                 self.state = other;
@@ -283,7 +287,7 @@ impl MontyHandle {
             }
         };
 
-        let mut ext_results: Vec<(u32, ExternalResult)> = Vec::new();
+        let mut ext_results: Vec<(u32, ExtFunctionResult)> = Vec::new();
 
         for (key, val) in &results_map {
             let call_id: u32 = match key.parse() {
@@ -296,7 +300,7 @@ impl MontyHandle {
                 }
             };
             let obj = json_to_monty_object(val);
-            ext_results.push((call_id, ExternalResult::Return(obj)));
+            ext_results.push((call_id, ExtFunctionResult::Return(obj)));
         }
 
         for (key, val) in &errors_map {
@@ -311,17 +315,17 @@ impl MontyHandle {
             };
             let msg = val.as_str().unwrap_or("unknown error").to_string();
             let exc = MontyException::new(monty::ExcType::RuntimeError, Some(msg));
-            ext_results.push((call_id, ExternalResult::Error(exc)));
+            ext_results.push((call_id, ExtFunctionResult::Error(exc)));
         }
 
         let state = std::mem::replace(&mut self.state, HandleState::Consumed);
 
         match state {
-            HandleState::FuturesLimited { snapshot, .. } => {
-                self.run_snapshot_op(|print| snapshot.resume(ext_results, print))
+            HandleState::FuturesLimited { futures, .. } => {
+                self.run_snapshot_op(|print| futures.resume(ext_results, print))
             }
-            HandleState::FuturesNoLimit { snapshot, .. } => {
-                self.run_snapshot_op(|print| snapshot.resume(ext_results, print))
+            HandleState::FuturesNoLimit { futures, .. } => {
+                self.run_snapshot_op(|print| futures.resume(ext_results, print))
             }
             other => {
                 self.state = other;
@@ -423,6 +427,7 @@ impl MontyHandle {
         Ok(Self {
             state: HandleState::Ready(compiled),
             limits: None,
+            ext_fn_names: HashSet::new(),
             usage_json: default_usage_json(),
             print_output: String::new(),
         })
@@ -460,22 +465,27 @@ impl MontyHandle {
     ) -> (MontyProgressTag, Option<String>) {
         let mut print = PrintWriter::Collect(String::new());
         let result = f(&mut print);
-        self.drain_print(print);
         match result {
-            Ok(progress) => self.process_progress(progress),
-            Err(exc) => self.handle_exception(exc),
+            Ok(progress) => self.process_progress(progress, print),
+            Err(exc) => {
+                self.drain_print(print);
+                self.handle_exception(exc)
+            }
         }
     }
 
-    fn resume_with_result(&mut self, result: ExternalResult) -> (MontyProgressTag, Option<String>) {
+    fn resume_with_result(
+        &mut self,
+        result: ExtFunctionResult,
+    ) -> (MontyProgressTag, Option<String>) {
         let state = std::mem::replace(&mut self.state, HandleState::Consumed);
 
         match state {
-            HandleState::PausedLimited { snapshot, .. } => {
-                self.run_snapshot_op(|print| snapshot.run(result, print))
+            HandleState::PausedLimited { call, .. } => {
+                self.run_snapshot_op(|print| call.resume(result, print))
             }
-            HandleState::PausedNoLimit { snapshot, .. } => {
-                self.run_snapshot_op(|print| snapshot.run(result, print))
+            HandleState::PausedNoLimit { call, .. } => {
+                self.run_snapshot_op(|print| call.resume(result, print))
             }
             other => {
                 self.state = other;
@@ -489,51 +499,80 @@ impl MontyHandle {
 
     fn process_progress<T: TrackerExt>(
         &mut self,
-        progress: RunProgress<T>,
+        mut progress: RunProgress<T>,
+        mut print: PrintWriter,
     ) -> (MontyProgressTag, Option<String>) {
-        match progress {
-            RunProgress::Complete(obj) => {
-                let val = monty_object_to_json(&obj);
-                let result_json =
-                    build_result_json(val, None, &self.usage_json, &self.print_output);
-                self.state = HandleState::Complete {
-                    result_json,
-                    is_error: false,
-                };
-                (MontyProgressTag::Complete, None)
-            }
-            RunProgress::FunctionCall {
-                function_name,
-                args,
-                kwargs,
-                call_id,
-                method_call,
-                state: snapshot,
-            } => {
-                let meta = build_pending_meta(function_name, &args, &kwargs, call_id, method_call);
-                self.state = T::into_paused(snapshot, meta);
-                (MontyProgressTag::Pending, None)
-            }
-            RunProgress::ResolveFutures(snapshot) => {
-                let call_ids_json = serde_json::to_string(snapshot.pending_call_ids())
-                    .unwrap_or_else(|_| "[]".into());
-                self.state = T::into_futures(snapshot, call_ids_json);
-                (MontyProgressTag::ResolveFutures, None)
-            }
-            RunProgress::OsCall { .. } => {
-                self.state = HandleState::Complete {
-                    result_json: build_result_json(
-                        Value::Null,
-                        Some(serde_json::json!({"message": "unsupported progress type: OsCall"})),
-                        &self.usage_json,
-                        &self.print_output,
-                    ),
-                    is_error: true,
-                };
-                (
-                    MontyProgressTag::Error,
-                    Some("unsupported progress type: OsCall".into()),
-                )
+        loop {
+            match progress {
+                RunProgress::Complete(obj) => {
+                    self.drain_print(print);
+                    let val = monty_object_to_json(&obj);
+                    let result_json =
+                        build_result_json(val, None, &self.usage_json, &self.print_output);
+                    self.state = HandleState::Complete {
+                        result_json,
+                        is_error: false,
+                    };
+                    return (MontyProgressTag::Complete, None);
+                }
+                RunProgress::FunctionCall(call) => {
+                    self.drain_print(print);
+                    let meta = build_pending_meta(
+                        call.function_name.clone(),
+                        &call.args,
+                        &call.kwargs,
+                        call.call_id,
+                        call.method_call,
+                    );
+                    self.state = T::into_paused(call, meta);
+                    return (MontyProgressTag::Pending, None);
+                }
+                RunProgress::ResolveFutures(futures) => {
+                    self.drain_print(print);
+                    let call_ids_json = serde_json::to_string(futures.pending_call_ids())
+                        .unwrap_or_else(|_| "[]".into());
+                    self.state = T::into_futures(futures, call_ids_json);
+                    return (MontyProgressTag::ResolveFutures, None);
+                }
+                RunProgress::NameLookup(lookup) => {
+                    let name = lookup.name.clone();
+                    let result = if self.ext_fn_names.contains(&name) {
+                        lookup.resume(
+                            NameLookupResult::Value(MontyObject::Function {
+                                name,
+                                docstring: None,
+                            }),
+                            &mut print,
+                        )
+                    } else {
+                        lookup.resume(NameLookupResult::Undefined, &mut print)
+                    };
+                    match result {
+                        Ok(next) => progress = next,
+                        Err(exc) => {
+                            self.drain_print(print);
+                            return self.handle_exception(exc);
+                        }
+                    }
+                }
+                RunProgress::OsCall(_) => {
+                    self.drain_print(print);
+                    self.state = HandleState::Complete {
+                        result_json: build_result_json(
+                            Value::Null,
+                            Some(
+                                serde_json::json!({"message": "unsupported progress type: OsCall"}),
+                            ),
+                            &self.usage_json,
+                            &self.print_output,
+                        ),
+                        is_error: true,
+                    };
+                    return (
+                        MontyProgressTag::Error,
+                        Some("unsupported progress type: OsCall".into()),
+                    );
+                }
             }
         }
     }

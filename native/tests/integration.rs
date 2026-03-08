@@ -3,7 +3,8 @@ use std::ptr;
 
 use dart_monty_native::*;
 use monty::{
-    ExternalResult, FutureSnapshot, MontyObject, MontyRun, NoLimitTracker, PrintWriter, RunProgress,
+    ExtFunctionResult, MontyObject, MontyRun, NameLookupResult, NoLimitTracker, PrintWriter,
+    ResolveFutures, RunProgress,
 };
 
 // ---------------------------------------------------------------------------
@@ -810,19 +811,26 @@ fn create_with_non_utf8_script_name_null_out_error() {
 /// collected (call_id, function_name) pairs.
 fn drive_to_resolve_futures<T: monty::ResourceTracker>(
     mut progress: RunProgress<T>,
-) -> (FutureSnapshot<T>, Vec<(u32, String)>) {
+) -> (ResolveFutures<T>, Vec<(u32, String)>) {
     let mut collected = Vec::new();
 
     loop {
         match progress {
-            RunProgress::FunctionCall {
-                call_id,
-                function_name,
-                state,
-                ..
-            } => {
-                collected.push((call_id, function_name));
-                progress = state.run_pending(&mut PrintWriter::Stdout).unwrap();
+            RunProgress::NameLookup(lookup) => {
+                let name = lookup.name.clone();
+                progress = lookup
+                    .resume(
+                        NameLookupResult::Value(MontyObject::Function {
+                            name,
+                            docstring: None,
+                        }),
+                        &mut PrintWriter::Stdout,
+                    )
+                    .unwrap();
+            }
+            RunProgress::FunctionCall(call) => {
+                collected.push((call.call_id, call.function_name.clone()));
+                progress = call.resume_pending(&mut PrintWriter::Stdout).unwrap();
             }
             RunProgress::ResolveFutures(state) => {
                 return (state, collected);
@@ -830,8 +838,8 @@ fn drive_to_resolve_futures<T: monty::ResourceTracker>(
             RunProgress::Complete(_) => {
                 panic!("unexpected Complete before ResolveFutures");
             }
-            RunProgress::OsCall { function, .. } => {
-                panic!("unexpected OsCall: {function:?}");
+            RunProgress::OsCall(call) => {
+                panic!("unexpected OsCall: {:?}", call.function);
             }
         }
     }
@@ -846,8 +854,7 @@ async def main():
 
 await main()
 ";
-    let runner =
-        MontyRun::new(code.to_owned(), "test.py", vec![], vec!["fetch".to_owned()]).unwrap();
+    let runner = MontyRun::new(code.to_owned(), "test.py", vec![]).unwrap();
 
     let progress = runner
         .start(vec![], NoLimitTracker, &mut PrintWriter::Stdout)
@@ -860,7 +867,7 @@ await main()
 
     let results = vec![(
         call_ids[0].0,
-        ExternalResult::Return(MontyObject::String("response_x".into())),
+        ExtFunctionResult::Return(MontyObject::String("response_x".into())),
     )];
     let progress = state.resume(results, &mut PrintWriter::Stdout).unwrap();
 
@@ -879,13 +886,7 @@ async def main():
 
 await main()
 ";
-    let runner = MontyRun::new(
-        code.to_owned(),
-        "test.py",
-        vec![],
-        vec!["foo".to_owned(), "bar".to_owned()],
-    )
-    .unwrap();
+    let runner = MontyRun::new(code.to_owned(), "test.py", vec![]).unwrap();
 
     let progress = runner
         .start(vec![], NoLimitTracker, &mut PrintWriter::Stdout)
@@ -896,8 +897,14 @@ await main()
     assert_eq!(call_ids.len(), 2);
 
     let results = vec![
-        (call_ids[0].0, ExternalResult::Return(MontyObject::Int(10))),
-        (call_ids[1].0, ExternalResult::Return(MontyObject::Int(32))),
+        (
+            call_ids[0].0,
+            ExtFunctionResult::Return(MontyObject::Int(10)),
+        ),
+        (
+            call_ids[1].0,
+            ExtFunctionResult::Return(MontyObject::Int(32)),
+        ),
     ];
     let progress = state.resume(results, &mut PrintWriter::Stdout).unwrap();
 
@@ -916,13 +923,7 @@ async def main():
 
 await main()
 ";
-    let runner = MontyRun::new(
-        code.to_owned(),
-        "test.py",
-        vec![],
-        vec!["foo".to_owned(), "bar".to_owned()],
-    )
-    .unwrap();
+    let runner = MontyRun::new(code.to_owned(), "test.py", vec![]).unwrap();
 
     let progress = runner
         .start(vec![], NoLimitTracker, &mut PrintWriter::Stdout)
@@ -932,7 +933,10 @@ await main()
     assert_eq!(state.pending_call_ids().len(), 2);
 
     // Resolve only first
-    let results = vec![(call_ids[0].0, ExternalResult::Return(MontyObject::Int(10)))];
+    let results = vec![(
+        call_ids[0].0,
+        ExtFunctionResult::Return(MontyObject::Int(10)),
+    )];
     let progress = state.resume(results, &mut PrintWriter::Stdout).unwrap();
 
     // Should need more futures
@@ -942,7 +946,10 @@ await main()
     assert_eq!(state.pending_call_ids().len(), 1);
 
     // Resolve second
-    let results = vec![(call_ids[1].0, ExternalResult::Return(MontyObject::Int(32)))];
+    let results = vec![(
+        call_ids[1].0,
+        ExtFunctionResult::Return(MontyObject::Int(32)),
+    )];
     let progress = state.resume(results, &mut PrintWriter::Stdout).unwrap();
 
     let result = progress.into_complete().expect("should complete");
@@ -960,13 +967,7 @@ async def main():
 
 await main()
 ";
-    let runner = MontyRun::new(
-        code.to_owned(),
-        "test.py",
-        vec![],
-        vec!["foo".to_owned(), "bar".to_owned()],
-    )
-    .unwrap();
+    let runner = MontyRun::new(code.to_owned(), "test.py", vec![]).unwrap();
 
     let progress = runner
         .start(vec![], NoLimitTracker, &mut PrintWriter::Stdout)
@@ -975,10 +976,13 @@ await main()
     let (state, call_ids) = drive_to_resolve_futures(progress);
 
     let results = vec![
-        (call_ids[0].0, ExternalResult::Return(MontyObject::Int(10))),
+        (
+            call_ids[0].0,
+            ExtFunctionResult::Return(MontyObject::Int(10)),
+        ),
         (
             call_ids[1].0,
-            ExternalResult::Error(monty::MontyException::new(
+            ExtFunctionResult::Error(monty::MontyException::new(
                 monty::ExcType::RuntimeError,
                 Some("network timeout".into()),
             )),
@@ -1001,8 +1005,7 @@ async def main():
 
 await main()
 ";
-    let runner =
-        MontyRun::new(code.to_owned(), "test.py", vec![], vec!["fetch".to_owned()]).unwrap();
+    let runner = MontyRun::new(code.to_owned(), "test.py", vec![]).unwrap();
 
     let progress = runner
         .start(vec![], NoLimitTracker, &mut PrintWriter::Stdout)
@@ -1014,7 +1017,7 @@ await main()
     // Error in future resolution propagates as MontyException
     let results = vec![(
         call_ids[0].0,
-        ExternalResult::Error(monty::MontyException::new(
+        ExtFunctionResult::Error(monty::MontyException::new(
             monty::ExcType::RuntimeError,
             Some("network failure".into()),
         )),
@@ -1177,6 +1180,99 @@ fn snapshot_round_trip_via_ffi() {
         unsafe { monty_string_free(error_msg) };
     }
     unsafe { monty_free(restored) };
+}
+
+// ---------------------------------------------------------------------------
+// P0: Snapshot format incompatibility guard
+//
+// The migration from pydantic/monty@87f8f31 to runyaga/monty@runyaga/main
+// changed the heap serialization format. Old snapshots CANNOT be restored
+// with the new runtime. This test pins the current format so any future
+// heap refactoring is caught immediately.
+//
+// BREAKING CHANGE: Snapshots from dart_monty <=0.x (monty@87f8f31) are
+// incompatible. Document in CHANGELOG and bump version accordingly.
+// ---------------------------------------------------------------------------
+
+/// Hardcoded snapshot bytes for `"2 + 2"` compiled with `<input>` script name.
+/// Captured from runyaga/monty@runyaga/main (rev 24804d8).
+/// If this test fails, the upstream postcard format has changed — update the
+/// pinned bytes and document the breaking change in CHANGELOG.
+#[rustfmt::skip]
+const PINNED_SNAPSHOT_2_PLUS_2: &[u8] = &[
+    0x00, 0x08, 0x08, 0x02, 0x08, 0x02, 0x19, 0x68, 0x05, 0x68, 0x00, 0x06, 0x00, 0x90, 0x4E, 0x01,
+    0x00, 0x01, 0x01, 0x01, 0x02, 0x00, 0x02, 0x90, 0x4E, 0x01, 0x00, 0x01, 0x05, 0x01, 0x06, 0x00,
+    0x04, 0x90, 0x4E, 0x01, 0x00, 0x01, 0x01, 0x01, 0x06, 0x00, 0x05, 0x90, 0x4E, 0x01, 0x00, 0x01,
+    0x01, 0x01, 0x06, 0x00, 0x06, 0x90, 0x4E, 0x01, 0x00, 0x01, 0x01, 0x01, 0x06, 0x00, 0x07, 0x90,
+    0x4E, 0x01, 0x00, 0x01, 0x01, 0x01, 0x06, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x01, 0x07, 0x3C,
+    0x69, 0x6E, 0x70, 0x75, 0x74, 0x3E, 0x00, 0x00, 0x00, 0x05, 0x32, 0x20, 0x2B, 0x20, 0x32, 0x00,
+];
+
+#[test]
+fn snapshot_format_pinning() {
+    // 1. Verify current dump matches the hardcoded pinned bytes.
+    let code = c("2 + 2");
+    let mut err: *mut c_char = ptr::null_mut();
+    let handle = unsafe { monty_create(code.as_ptr(), ptr::null(), ptr::null(), &mut err) };
+    assert!(!handle.is_null());
+
+    let mut snap_len: usize = 0;
+    let snap_ptr = unsafe { monty_snapshot(handle, &mut snap_len) };
+    assert!(!snap_ptr.is_null());
+    let live_bytes = unsafe { std::slice::from_raw_parts(snap_ptr, snap_len) };
+    assert_eq!(
+        live_bytes, PINNED_SNAPSHOT_2_PLUS_2,
+        "snapshot format has changed — update PINNED_SNAPSHOT_2_PLUS_2 and document in CHANGELOG"
+    );
+
+    // 2. Restore from the hardcoded pinned bytes (not from fresh dump).
+    let mut restore_err: *mut c_char = ptr::null_mut();
+    let restored = unsafe {
+        monty_restore(
+            PINNED_SNAPSHOT_2_PLUS_2.as_ptr(),
+            PINNED_SNAPSHOT_2_PLUS_2.len(),
+            &mut restore_err,
+        )
+    };
+    assert!(
+        !restored.is_null(),
+        "pinned snapshot must restore successfully"
+    );
+    assert!(
+        restore_err.is_null(),
+        "pinned snapshot restore must not error"
+    );
+
+    // 3. Execute the restored handle and verify result.
+    let mut result_json: *mut c_char = ptr::null_mut();
+    let mut run_err: *mut c_char = ptr::null_mut();
+    let tag = unsafe { monty_run(restored, &mut result_json, &mut run_err) };
+    assert_eq!(tag, MontyResultTag::Ok);
+    let json_str = unsafe { read_c_string(result_json) };
+    let parsed: serde_json::Value = serde_json::from_str(&json_str).unwrap();
+    assert_eq!(
+        parsed["value"], 4,
+        "restored pinned snapshot must produce same result"
+    );
+
+    // Cleanup.
+    unsafe { monty_bytes_free(snap_ptr, snap_len) };
+    if !run_err.is_null() {
+        unsafe { monty_string_free(run_err) };
+    }
+    unsafe { monty_free(handle) };
+    unsafe { monty_free(restored) };
+}
+
+#[test]
+fn restore_garbage_bytes_returns_null() {
+    let garbage = [0xDE, 0xAD, 0xBE, 0xEF, 0x00, 0xFF, 0x01, 0x02];
+    let mut err: *mut c_char = ptr::null_mut();
+    let handle = unsafe { monty_restore(garbage.as_ptr(), garbage.len(), &mut err) };
+    assert!(handle.is_null(), "garbage bytes must not produce a handle");
+    if !err.is_null() {
+        unsafe { monty_string_free(err) };
+    }
 }
 
 // ---------------------------------------------------------------------------

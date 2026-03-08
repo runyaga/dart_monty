@@ -75,23 +75,33 @@ abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
     assertIdle('start');
     rejectInputs(inputs);
     await _ensureInitialized();
-    final progress = await _bindings.start(
-      code,
-      extFnsJson: _encodeExternalFunctions(externalFunctions),
-      limitsJson: _encodeLimits(limits),
-      scriptName: scriptName,
-    );
-    return translateProgress(progress);
+    try {
+      final progress = await _bindings.start(
+        code,
+        extFnsJson: _encodeExternalFunctions(externalFunctions),
+        limitsJson: _encodeLimits(limits),
+        scriptName: scriptName,
+      );
+      return translateProgress(progress);
+    } catch (e) {
+      markIdle();
+      rethrow;
+    }
   }
 
   @override
   Future<MontyProgress> resume(Object? returnValue) async {
     assertNotDisposed('resume');
     assertActive('resume');
-    final progress = await _bindings.resume(
-      json.encode(returnValue),
-    );
-    return translateProgress(progress);
+    try {
+      final progress = await _bindings.resume(
+        json.encode(returnValue),
+      );
+      return translateProgress(progress);
+    } catch (e) {
+      markIdle();
+      rethrow;
+    }
   }
 
   @override
@@ -100,10 +110,15 @@ abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
   ) async {
     assertNotDisposed('resumeWithError');
     assertActive('resumeWithError');
-    final progress = await _bindings.resumeWithError(
-      errorMessage,
-    );
-    return translateProgress(progress);
+    try {
+      final progress = await _bindings.resumeWithError(
+        errorMessage,
+      );
+      return translateProgress(progress);
+    } catch (e) {
+      markIdle();
+      rethrow;
+    }
   }
 
   @override

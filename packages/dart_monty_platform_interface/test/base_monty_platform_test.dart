@@ -15,6 +15,9 @@ class _FakeCoreBindings implements MontyCoreBindings {
   String? lastScriptName;
   String? lastValueJson;
   String? lastErrorMessage;
+  Exception? throwOnStart;
+  Exception? throwOnResume;
+  Exception? throwOnResumeWithError;
 
   @override
   Future<bool> init() async {
@@ -45,12 +48,14 @@ class _FakeCoreBindings implements MontyCoreBindings {
     lastExtFnsJson = extFnsJson;
     lastLimitsJson = limitsJson;
     lastScriptName = scriptName;
+    if (throwOnStart != null) throw throwOnStart!;
     return progressResult!;
   }
 
   @override
   Future<CoreProgressResult> resume(String valueJson) async {
     lastValueJson = valueJson;
+    if (throwOnResume != null) throw throwOnResume!;
     return progressResult!;
   }
 
@@ -59,6 +64,7 @@ class _FakeCoreBindings implements MontyCoreBindings {
     String errorMessage,
   ) async {
     lastErrorMessage = errorMessage;
+    if (throwOnResumeWithError != null) throw throwOnResumeWithError!;
     return progressResult!;
   }
 
@@ -655,6 +661,80 @@ void main() {
         ),
       );
       expect(platform.isIdle, isTrue);
+    });
+  });
+
+  // Regression tests for issue #74: bridge stays active after error.
+  group('state recovery on bindings exception (#74)', () {
+    test('start() resets to idle when bindings throw', () async {
+      fake.throwOnStart = Exception('FFI panic');
+
+      await expectLater(
+        () => platform.start('code'),
+        throwsA(isA<Exception>()),
+      );
+      expect(
+        platform.isIdle,
+        isTrue,
+        reason: 'state must reset to idle after bindings error',
+      );
+
+      // Verify the platform is reusable after the error.
+      fake
+        ..throwOnStart = null
+        ..progressResult = const CoreProgressResult(
+          state: 'complete',
+          value: 42,
+          usage: usage,
+        );
+      final progress = await platform.start('code');
+      expect(progress, isA<MontyComplete>());
+    });
+
+    test('resume() resets to idle when bindings throw', () async {
+      // Enter active state via start().
+      fake.progressResult = const CoreProgressResult(
+        state: 'pending',
+        functionName: 'fn',
+      );
+      await platform.start('code', externalFunctions: ['fn']);
+      expect(platform.isActive, isTrue);
+
+      // Now make resume() throw.
+      fake.throwOnResume = Exception('FFI crash');
+
+      await expectLater(
+        () => platform.resume(42),
+        throwsA(isA<Exception>()),
+      );
+      expect(
+        platform.isIdle,
+        isTrue,
+        reason: 'state must reset to idle after resume error',
+      );
+    });
+
+    test('resumeWithError() resets to idle when bindings throw', () async {
+      // Enter active state via start().
+      fake.progressResult = const CoreProgressResult(
+        state: 'pending',
+        functionName: 'fn',
+      );
+      await platform.start('code', externalFunctions: ['fn']);
+      expect(platform.isActive, isTrue);
+
+      // Now make resumeWithError() throw.
+      fake.throwOnResumeWithError = Exception('FFI crash');
+
+      await expectLater(
+        () => platform.resumeWithError('oops'),
+        throwsA(isA<Exception>()),
+      );
+      expect(
+        platform.isIdle,
+        isTrue,
+        reason: 'state must reset to idle after resumeWithError error',
+      );
     });
   });
 }
