@@ -161,6 +161,9 @@ function handleRun(id, code, limits, scriptName) {
     cCode = allocCString(code);
     cName = scriptName ? allocCString(scriptName) : null;
     handle = wasm.monty_create(cCode.ptr, 0, cName ? cName.ptr : 0, outError.ptr);
+  } catch (e) {
+    if (outError) outError.free();
+    throw e;
   } finally {
     if (cCode) wasm.monty_dealloc(cCode.ptr, cCode.size);
     if (cName) wasm.monty_dealloc(cName.ptr, cName.size);
@@ -186,16 +189,18 @@ function handleRun(id, code, limits, scriptName) {
     if (limits.stack_depth != null) wasm.monty_set_stack_limit(handle, limits.stack_depth);
   }
 
-  const outResult = allocOutPtr();
-  const outErrMsg = allocOutPtr();
+  let outResult = null;
+  let outErrMsg = null;
 
   let resultTag;
   try {
+    outResult = allocOutPtr();
+    outErrMsg = allocOutPtr();
     resultTag = wasm.monty_run(handle, outResult.ptr, outErrMsg.ptr);
   } catch (e) {
     // WebAssembly.RuntimeError = panic trap (panic=abort on wasm32-wasip1)
-    outResult.free();
-    outErrMsg.free();
+    if (outResult) outResult.free();
+    if (outErrMsg) outErrMsg.free();
     wasm.monty_free(handle);
     self.postMessage({
       type: 'result', id, ok: false,
@@ -243,6 +248,9 @@ function handleStart(id, code, extFns, limits, scriptName) {
     handle = wasm.monty_create(
       cCode.ptr, cExtFns ? cExtFns.ptr : 0, cName ? cName.ptr : 0, outError.ptr,
     );
+  } catch (e) {
+    if (outError) outError.free();
+    throw e;
   } finally {
     if (cCode) wasm.monty_dealloc(cCode.ptr, cCode.size);
     if (cExtFns) wasm.monty_dealloc(cExtFns.ptr, cExtFns.size);

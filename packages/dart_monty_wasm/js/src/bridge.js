@@ -380,6 +380,35 @@ function discover() {
 }
 
 /**
+ * Cancel the current execution by terminating the Worker.
+ *
+ * Terminates the Worker immediately (preemptive kill), rejects all
+ * pending promises with 'MontyCancelled:' prefix so Dart maps them
+ * to [MontyCancelledError], and removes the session.
+ *
+ * Idempotent — safe to call if no session exists.
+ *
+ * @returns {Promise<string>} JSON result.
+ */
+async function cancel() {
+  const sid = resolveSessionId(null);
+  if (sid == null || !sessions.has(sid)) {
+    return JSON.stringify({ ok: true });
+  }
+  const session = sessions.get(sid);
+  // Reject all pending promises with cancel prefix
+  for (const req of session.pending.values()) {
+    if (req.timer) clearTimeout(req.timer);
+    req.reject(new Error('MontyCancelled: execution cancelled'));
+  }
+  session.pending.clear();
+  session.worker.terminate();
+  sessions.delete(sid);
+  if (defaultSessionId === sid) defaultSessionId = null;
+  return JSON.stringify({ ok: true });
+}
+
+/**
  * Dispose the default Worker session.
  *
  * @returns {Promise<string>} JSON result.
@@ -411,6 +440,7 @@ window.DartMontyBridge = {
   snapshot,
   restore,
   discover,
+  cancel,
   dispose,
   // Phase 2 multi-session API
   createSession,

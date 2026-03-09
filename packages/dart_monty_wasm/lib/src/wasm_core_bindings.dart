@@ -182,6 +182,11 @@ class WasmCoreBindings implements MontyCoreBindings {
         printOutput: result.printOutput,
       );
     }
+    // WASM trap (panic=abort) surfaces as errorType 'Panic' from the Worker.
+    // Route to MontyPanicError so supervisors can pattern-match.
+    if (result.errorType == 'Panic') {
+      throw MontyPanicError(result.error ?? 'WASM trap');
+    }
     return CoreRunResult(
       ok: false,
       error: result.error ?? 'Unknown error',
@@ -195,6 +200,10 @@ class WasmCoreBindings implements MontyCoreBindings {
     int elapsedMs,
   ) {
     if (!progress.ok) {
+      // WASM trap (panic=abort) surfaces as errorType 'Panic' from the Worker.
+      if (progress.errorType == 'Panic') {
+        throw MontyPanicError(progress.error ?? 'WASM trap');
+      }
       return CoreProgressResult(
         state: 'error',
         error: progress.error ?? 'Unknown error',
