@@ -305,6 +305,11 @@ All 6 packages are already configured. For new packages:
   publish workflow (`_publish-dart-package.yaml`) must have
   `environment: pub-dev` on its job — without it, `dart pub publish`
   fails with `Authentication failed!`.
+- **`pub-dev` environment needs a tag deployment policy.** The GitHub
+  `pub-dev` environment must have a deployment branch policy allowing
+  tags matching `*-v*`. Without this, tag pushes silently fail to
+  trigger publish workflows. Check via Settings > Environments >
+  pub-dev > Deployment branches and tags.
 - **Tag filters use glob, not regex.** GitHub Actions `on.push.tags` uses
   glob matching — `[0-9]+` is literal (matches `1+`), use `[0-9]*` for
   "one or more digits".
