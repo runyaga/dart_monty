@@ -155,6 +155,7 @@ sed -i.bak 's|new URL("@pydantic/monty-wasm32-wasi/wasi-worker-browser.mjs"|new 
   web/monty_worker.js && rm -f web/monty_worker.js.bak
 
 cp node_modules/@pydantic/monty-wasm32-wasi/wasi-worker-browser.mjs web/ 2>/dev/null || true
+cp node_modules/@pydantic/monty-wasm32-wasi/monty.wasm32-wasi.wasm web/ 2>/dev/null || true
 
 echo "  esbuild: bundle glue"
 npx esbuild web/monty_glue.js \
