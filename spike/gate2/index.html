@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>GATE 2-4: dart_monty_native.wasm Direct C-ABI</title>
+  <style>
+    body { font-family: monospace; background: #1a1a2e; color: #e0e0e0; padding: 20px; max-width: 1200px; }
+    h1 { color: #00d4aa; margin-bottom: 4px; }
+    h2 { color: #8888ff; margin-top: 20px; }
+    .subtitle { color: #888; margin-bottom: 20px; }
+    .pass { color: #00ff88; }
+    .fail { color: #ff4444; font-weight: bold; }
+    .xfail { color: #ffaa00; }
+    .skip { color: #666; }
+    .summary { font-size: 1.2em; margin: 10px 0; padding: 10px; border-radius: 4px; }
+    .summary.green { background: #002200; border: 1px solid #00ff88; }
+    .summary.red { background: #220000; border: 1px solid #ff4444; }
+    .detail { color: #666; font-size: 0.9em; margin-left: 20px; }
+    pre { background: #0d0d1a; padding: 10px; border-radius: 4px; overflow-x: auto; }
+    #status { color: #888; }
+    table { border-collapse: collapse; width: 100%; }
+    th { text-align: left; padding: 4px 8px; border-bottom: 1px solid #333; color: #8888ff; }
+    td { padding: 2px 8px; border-bottom: 1px solid #1a1a3e; }
+    td.time { text-align: right; color: #666; }
+  </style>
+</head>
+<body>
+  <h1>GATE 2-4: Direct C-ABI WASM</h1>
+  <p class="subtitle">dart_monty_native.wasm — no NAPI-RS, no npm, just WASI shim + 28 C-ABI exports</p>
+
+  <div id="status">Loading...</div>
+
+  <h2>Ladder Results</h2>
+  <div id="ladder-summary"></div>
+  <table id="ladder-table">
+    <thead><tr><th>ID</th><th>Tier</th><th>Name</th><th>Result</th><th>Time</th><th>Detail</th></tr></thead>
+    <tbody id="ladder-body"></tbody>
+  </table>
+
+  <h2>Pressure Tests</h2>
+  <div id="pressure-summary"></div>
+  <table id="pressure-table">
+    <thead><tr><th>Test</th><th>Result</th><th>Time</th><th>Detail</th></tr></thead>
+    <tbody id="pressure-body"></tbody>
+  </table>
+
+  <script>
+    const statusEl = document.getElementById('status');
+    const ladderBody = document.getElementById('ladder-body');
+    const ladderSummary = document.getElementById('ladder-summary');
+    const pressureBody = document.getElementById('pressure-body');
+    const pressureSummary = document.getElementById('pressure-summary');
+
+    function addFixtureRow(r) {
+      const tr = document.createElement('tr');
+      const cls = r.pass === true ? 'pass' : r.pass === 'xfail' ? 'xfail' : 'fail';
+      const label = r.pass === true ? 'PASS' : r.pass === 'xfail' ? 'XFAIL' : 'FAIL';
+      tr.innerHTML = `
+        <td>${r.id}</td>
+        <td>${r.tier}</td>
+        <td>${r.name}</td>
+        <td class="${cls}">${label}</td>
+        <td class="time">${r.elapsed.toFixed(1)}ms</td>
+        <td class="detail">${r.detail || ''}</td>
+      `;
+      ladderBody.appendChild(tr);
+    }
+
+    function addPressureRow(r) {
+      const tr = document.createElement('tr');
+      const cls = r.pass ? 'pass' : 'fail';
+      tr.innerHTML = `
+        <td>${r.name}</td>
+        <td class="${cls}">${r.pass ? 'PASS' : 'FAIL'}</td>
+        <td class="time">${r.elapsed.toFixed(1)}ms</td>
+        <td class="detail">${r.detail || ''}</td>
+      `;
+      pressureBody.appendChild(tr);
+    }
+
+    const worker = new Worker('./ladder_worker.js', { type: 'module' });
+    worker.onmessage = (e) => {
+      const msg = e.data;
+      switch (msg.type) {
+        case 'status':
+          statusEl.textContent = msg.message;
+          break;
+        case 'fixture':
+          addFixtureRow(msg.result);
+          break;
+        case 'ladder_summary': {
+          const cls = msg.fail === 0 ? 'green' : 'red';
+          ladderSummary.innerHTML = `<div class="summary ${cls}">
+            Ladder: ${msg.pass} pass, ${msg.fail} fail, ${msg.xfail} xfail / ${msg.total} total
+          </div>`;
+          if (msg.fail > 0) {
+            ladderSummary.innerHTML += `<pre class="fail">${msg.failures.map(f =>
+              `  [${f.id}] T${f.tier} ${f.name}: ${f.detail}`).join('\n')}</pre>`;
+          }
+          statusEl.textContent = 'Ladder done. Running pressure tests...';
+          break;
+        }
+        case 'pressure':
+          addPressureRow(msg.result);
+          break;
+        case 'pressure_summary': {
+          const cls = msg.fail === 0 ? 'green' : 'red';
+          pressureSummary.innerHTML = `<div class="summary ${cls}">
+            Pressure: ${msg.pass} pass, ${msg.fail} fail / ${msg.total} total
+          </div>`;
+          break;
+        }
+        case 'done':
+          statusEl.textContent = 'All tests complete.';
+          break;
+        case 'error':
+          statusEl.innerHTML = `<span class="fail">ERROR: ${msg.message}</span>`;
+          break;
+      }
+    };
+    worker.onerror = (e) => {
+      statusEl.innerHTML = `<span class="fail">Worker error: ${e.message}</span>`;
+    };
+  </script>
+</body>
+</html>

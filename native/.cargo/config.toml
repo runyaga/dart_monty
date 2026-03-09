@@ -1,0 +1,3 @@
+# wasm32-wasip1 cdylib already links with --no-entry (reactor mode).
+# No extra rustflags needed — the linker exports _initialize automatically.
+[target.wasm32-wasip1]
