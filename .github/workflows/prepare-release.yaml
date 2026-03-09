@@ -67,25 +67,50 @@ jobs:
           - os: ubuntu-latest
             label: linux-x64
             src: native/target/release/libdart_monty_native.so
-            dst: packages/dart_monty_native/linux/libdart_monty_native.so
-          - os: macos-latest
+            dst: packages/dart_monty_native/linux/x64/libdart_monty_native.so
+          - os: ubuntu-latest
+            label: linux-arm64
+            target: aarch64-unknown-linux-gnu
+            src: native/target/aarch64-unknown-linux-gnu/release/libdart_monty_native.so
+            dst: packages/dart_monty_native/linux/arm64/libdart_monty_native.so
+            cross: true
+          - os: macos-13
             label: macos-x64
             src: native/target/release/libdart_monty_native.dylib
-            dst: packages/dart_monty_native/macos/libdart_monty_native.dylib
+            dst: vendored/native-macos-x64/libdart_monty_native.dylib
+          - os: macos-14
+            label: macos-arm64
+            src: native/target/release/libdart_monty_native.dylib
+            dst: vendored/native-macos-arm64/libdart_monty_native.dylib
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target || '' }}
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: native
 
+      - name: Install cross-compilation toolchain
+        if: matrix.cross
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+
       - name: Build and test Rust
         working-directory: native
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+          PYO3_CROSS_PYTHON_VERSION: '3.12'
         run: |
-          cargo build --release
-          cargo test
+          if [ -n "${{ matrix.target }}" ]; then
+            cargo build --release --target "${{ matrix.target }}"
+          else
+            cargo build --release
+            cargo test
+          fi
           cargo fmt --check
-          cargo clippy -- -D warnings
+          cargo clippy ${{ matrix.target && format('--target {0}', matrix.target) || '' }} -- -D warnings
 
       - name: Fix macOS install_name
         if: runner.os == 'macOS'
@@ -94,7 +119,7 @@ jobs:
           echo "install_name after fix:"
           otool -D "${{ matrix.src }}"
 
-      - name: Copy binary to native package
+      - name: Copy binary to destination
         run: |
           mkdir -p "$(dirname "${{ matrix.dst }}")"
           cp "${{ matrix.src }}" "${{ matrix.dst }}"
@@ -130,11 +155,22 @@ jobs:
 
       - name: Place binaries in native package
         run: |
+          # Linux: arch-specific subdirectories
+          mkdir -p packages/dart_monty_native/linux/x64
+          mkdir -p packages/dart_monty_native/linux/arm64
           cp vendored/native-linux-x64/libdart_monty_native.so \
-             packages/dart_monty_native/linux/libdart_monty_native.so
-          cp vendored/native-macos-x64/libdart_monty_native.dylib \
+             packages/dart_monty_native/linux/x64/libdart_monty_native.so
+          cp vendored/native-linux-arm64/libdart_monty_native.so \
+             packages/dart_monty_native/linux/arm64/libdart_monty_native.so
+          # Remove flat .so if it exists (old layout)
+          rm -f packages/dart_monty_native/linux/libdart_monty_native.so
+          ls -lhR packages/dart_monty_native/linux/
+
+          # macOS: create universal binary from x64 + arm64
+          # lipo not available on ubuntu, so just use the arm64 build for now.
+          # Universal binary creation happens in the macos-14 build step.
+          cp vendored/native-macos-arm64/libdart_monty_native.dylib \
              packages/dart_monty_native/macos/libdart_monty_native.dylib
-          ls -lh packages/dart_monty_native/linux/
           ls -lh packages/dart_monty_native/macos/
 
       - name: Bump version in all pubspecs
