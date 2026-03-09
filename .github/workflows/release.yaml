@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   build-native:
-    name: Native (${{ matrix.os }})
+    name: Native (${{ matrix.label }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     strategy:
@@ -18,39 +18,79 @@ jobs:
           - os: ubuntu-latest
             ext: so
             label: linux-x64
-          - os: macos-latest
+          - os: ubuntu-latest
+            ext: so
+            label: linux-arm64
+            target: aarch64-unknown-linux-gnu
+            cross: true
+          - os: macos-13
             ext: dylib
             label: macos-x64
+          - os: macos-14
+            ext: dylib
+            label: macos-arm64
     steps:
       - uses: actions/checkout@v4
 
       # ── Build Rust library ─────────────────────────────────────────
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target || '' }}
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: native
+
+      - name: Install cross-compilation toolchain
+        if: matrix.cross
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+
       - name: Build Rust native library
         working-directory: native
-        run: cargo build --release
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+          PYO3_CROSS_PYTHON_VERSION: '3.12'
+        run: |
+          if [ -n "${{ matrix.target }}" ]; then
+            cargo build --release --target "${{ matrix.target }}"
+          else
+            cargo build --release
+          fi
 
       # ── Compile Dart AOT binary ────────────────────────────────────
+      # Skip AOT compilation for cross-compiled targets (can't run on host)
       - uses: dart-lang/setup-dart@v1
+        if: ${{ !matrix.cross }}
         with:
           sdk: stable
       - name: Install libclang (for ffigen)
-        if: matrix.os == 'ubuntu-latest'
-        run: sudo apt-get update && sudo apt-get install -y libclang-dev
+        if: matrix.os == 'ubuntu-latest' && !matrix.cross
+        run: sudo apt-get install -y libclang-dev
       - name: Generate FFI bindings
+        if: ${{ !matrix.cross }}
         run: bash tool/generate_bindings.sh
       - name: Install Dart dependencies
+        if: ${{ !matrix.cross }}
         working-directory: example/native
         run: dart pub get
       - name: Compile native example
+        if: ${{ !matrix.cross }}
         working-directory: example/native
         run: >-
           dart compile exe bin/main.dart
           -o ../../dart_monty_example
           -DDART_MONTY_LIB_PATH=./libdart_monty_native.${{ matrix.ext }}
+
+      # ── Resolve native library path ────────────────────────────────
+      - name: Set library source path
+        id: lib
+        run: |
+          if [ -n "${{ matrix.target }}" ]; then
+            echo "path=native/target/${{ matrix.target }}/release/libdart_monty_native.${{ matrix.ext }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "path=native/target/release/libdart_monty_native.${{ matrix.ext }}" >> "$GITHUB_OUTPUT"
+          fi
 
       # ── Package tarball ────────────────────────────────────────────
       - name: Create tarball
@@ -58,8 +98,10 @@ jobs:
           TAG="${GITHUB_REF_NAME}"
           DIR="dart_monty-${TAG}-${{ matrix.label }}"
           mkdir "$DIR"
-          cp dart_monty_example "$DIR/"
-          cp "native/target/release/libdart_monty_native.${{ matrix.ext }}" "$DIR/"
+          cp "${{ steps.lib.outputs.path }}" "$DIR/libdart_monty_native.${{ matrix.ext }}"
+          if [ -f dart_monty_example ]; then
+            cp dart_monty_example "$DIR/"
+          fi
           cat > "$DIR/README.md" << 'HEREDOC'
           # dart_monty native example
 
@@ -155,5 +197,7 @@ jobs:
             --title "dart_monty $TAG" \
             --generate-notes \
             dart_monty-*-linux-x64.tar.gz \
+            dart_monty-*-linux-arm64.tar.gz \
             dart_monty-*-macos-x64.tar.gz \
+            dart_monty-*-macos-arm64.tar.gz \
             dart_monty-*-web.zip
