@@ -16,6 +16,14 @@
 
 **dart_monty** provides pure Dart bindings for the Monty interpreter, bringing sandboxed Python execution to Dart and Flutter apps — on desktop, web, and mobile — with resource limits, iterative execution, and snapshot/restore support.
 
+> **Fork notice:** dart_monty currently builds against [`runyaga/monty`](https://github.com/runyaga/monty) (branch `runyaga/main`), a fork of [`pydantic/monty`](https://github.com/pydantic/monty). The fork carries patches required for embedding that are not yet upstream. We intend to upstream all changes and return to `pydantic/monty` once accepted.
+>
+> | Patch | Fork PR | Upstream PR | Status | Why needed |
+> |-------|---------|-------------|--------|------------|
+> | Fix partial future resolution panics in mixed `asyncio.gather()` | — | [pydantic/monty#251](https://github.com/pydantic/monty/pull/251) | Submitted, awaiting review | Two panics in `async_exec.rs` when a gather mixes coroutine tasks with direct external calls — blocks any async host function use |
+> | CancellableTracker (preemptive script cancellation) | [runyaga/monty#3](https://github.com/runyaga/monty/pull/3) | Not yet submitted | Merged in fork | Cooperative cancel via `Arc<AtomicBool>` checked in bytecode loop — required for `dispose()` to not hang on stuck FFI calls |
+> | `cpu: wasm32` restriction in `monty-wasm32-wasi` npm package | — | [runyaga/monty#4](https://github.com/runyaga/monty/issues/4) | Open issue | npm refuses install on non-wasm hosts, blocking CI and local dev |
+
 ## Platform Support
 
 | Platform | Status |
