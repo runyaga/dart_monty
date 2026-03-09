@@ -2,7 +2,11 @@
 
 - Add `MontyNative`, `NativeIsolateBindings`, and `NativeIsolateBindingsImpl` (moved from `dart_monty_native`)
 - The Isolate bridge is now usable without Flutter, enabling CLI tools and non-Flutter Dart applications
-- Add unit tests for `MontyNative` (previously in `dart_monty_native`)
+- Wire CancellableTracker: `cancel()` sets atomic flag via FFI, `terminate()` with 5s timeout + zombie tracking
+- Fix `dispose()` hang on stuck FFI — now calls `cancel()` first to unblock interpreter (#113)
+- Fix TOCTOU race in handle lifecycle, handle leak on error paths
+- Add cancel experiment suite (9 experiments, JIT + AOT benchmark harness)
+- Commit generated FFI bindings for git-based dependency resolution
 
 ## 0.6.1
 

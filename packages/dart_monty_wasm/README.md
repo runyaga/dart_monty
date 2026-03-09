@@ -30,6 +30,14 @@ Dart (compiled to JS) -> MontyWasm (dart:js_interop)
 | `WasmBindingsJs` | Concrete JS interop implementation via Web Worker |
 | `MontyWasm` | `MontyPlatform` implementation using `WasmBindings` |
 
+### Multi-Session Worker Pool (0.7.0)
+
+Each session runs in its own Worker with isolated memory. NAPI-RS overhead
+has been stripped (`asyncWorkPoolSize: 0`, `shared: false`), reducing memory
+from 256 MB to 16 MB per session. Snapshots transfer as `Uint8Array` (binary,
+no JSON serialization). Cancellation calls `Worker.terminate()` for preemptive
+kill with full crash isolation.
+
 ## Requirements
 
 The web server must send COOP/COEP headers for SharedArrayBuffer support:

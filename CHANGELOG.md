@@ -1,3 +1,13 @@
+## 0.7.0
+
+- **CancellableTracker** — sealed `MontyError` hierarchy (6 subtypes), `MontyCancelToken` for cross-isolate cancel, FFI cancel via atomic flag in Monty bytecode loop
+- **WASM multi-session** — Worker pool with `createSession`/`disposeSession`, timeout caching, binary snapshot transfer, strip NAPI-RS overhead (256MB → 16MB per session)
+- **Monty fork migration** — switch from `pydantic/monty` to `runyaga/monty` fork with NameLookup handled internally in Rust
+- **P0 safety fixes** — TOCTOU race in handle lifecycle, handle leak on error paths, sync throw deadlock in iterative execution
+- **dispose() hang fix** — `dispose()` now calls `cancel()` first to unblock stuck FFI calls (#113)
+- **Web ladder runner** — Dart-side `DartMontyBridge` construction, `getDefaultSessionId` API
+- **Cancel experiment suite** — 9 experiments across JIT/AOT/WASM, all passing (evidence in `docs/cancel-experiments-evidence.md`)
+
 ## 0.6.2
 
 - **dart_monty_bridge** (0.2.1): Add `printOutput` to `BridgeRunError`, `isolate_free` host function, fix `cancel()` resource leak.

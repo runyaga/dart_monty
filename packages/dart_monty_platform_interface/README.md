@@ -18,10 +18,14 @@ This package has no Flutter dependency and can be used in CLI tools, server-side
 | Type | Description |
 |------|-------------|
 | `MontyPlatform` | Abstract contract for running Python code |
+| `BaseMontyPlatform` | Shared translation logic with `MontyCoreBindings` adapter |
 | `MontyResult` | Execution result with value, error, and resource usage |
 | `MontyProgress` | Sealed type: `MontyPending` (awaiting external call) or `MontyComplete` |
+| `MontyError` | Sealed error hierarchy: `MontyCancelledError`, `MontyScriptError`, `MontyPanicError`, `MontyCrashError`, `MontyDisposedError`, `MontyResourceError` |
+| `MontyCancelToken` | Extension type for cross-isolate cancellation via `cancelById`/`isHandleAlive` |
+| `MontySession` | Stateful session with snapshot/restore under the hood |
 | `MontyLimits` | Resource constraints (timeout, memory, stack depth) |
-| `MontyException` | Python error with message, filename, line/column |
+| `MontyException` | Python error with message, filename, line/column, traceback |
 | `MontyResourceUsage` | Memory, time, and stack depth statistics |
 
 ## Usage

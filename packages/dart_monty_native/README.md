@@ -12,7 +12,9 @@ Requires Flutter. This package is not intended for direct use. Import `dart_mont
 
 ## How It Works
 
-`DartMontyNative` registers itself as the `MontyPlatform` instance via Flutter's `dartPluginClass` mechanism. Execution runs in a background `Isolate` to keep the UI thread responsive, delegating to `dart_monty_ffi` for the actual FFI calls.
+`DartMontyNative` registers itself as the `MontyPlatform` instance via Flutter's `dartPluginClass` mechanism. It delegates to `dart_monty_ffi` for Isolate-based FFI execution.
+
+As of 0.7.0, `MontyNative`, `NativeIsolateBindings`, and `NativeIsolateBindingsImpl` have moved to `dart_monty_ffi` (making the Isolate bridge usable without Flutter). This package re-exports them for backward compatibility and serves as the Flutter plugin registration shim.
 
 ## Bundled Binaries
 

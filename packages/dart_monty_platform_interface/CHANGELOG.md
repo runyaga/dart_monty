@@ -1,3 +1,12 @@
+## 0.7.0
+
+- Add sealed `MontyError` hierarchy: `MontyCancelledError`, `MontyDisposedError`, `MontyScriptError`, `MontyPanicError`, `MontyCrashError`, `MontyResourceError`
+- Add `MontyCancelToken` extension type for cross-isolate cancellation via `cancelById`/`isHandleAlive`
+- Add `BaseMontyPlatform.cancelById` and `isHandleAlive` static methods
+- Fix TOCTOU race in handle lifecycle and sync throw deadlock in iterative execution
+- Remove dead `inputs` parameter from platform interface
+- Plumb `printOutput` through iterative and WASM execution paths
+
 ## 0.6.1
 
 - Update README with human/AI attribution
