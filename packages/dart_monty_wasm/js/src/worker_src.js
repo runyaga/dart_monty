@@ -153,10 +153,11 @@ let activeHandle = null;
 function handleRun(id, code, limits, scriptName) {
   let cCode = null;
   let cName = null;
-  const outError = allocOutPtr();
+  let outError = null;
 
   let handle;
   try {
+    outError = allocOutPtr();
     cCode = allocCString(code);
     cName = scriptName ? allocCString(scriptName) : null;
     handle = wasm.monty_create(cCode.ptr, 0, cName ? cName.ptr : 0, outError.ptr);
@@ -231,10 +232,11 @@ function handleStart(id, code, extFns, limits, scriptName) {
   let cCode = null;
   let cExtFns = null;
   let cName = null;
-  const outError = allocOutPtr();
+  let outError = null;
 
   let handle;
   try {
+    outError = allocOutPtr();
     cCode = allocCString(code);
     cExtFns = extFns && extFns.length > 0 ? allocCString(extFns.join(',')) : null;
     cName = scriptName ? allocCString(scriptName) : null;
@@ -307,15 +309,17 @@ function handleResume(id, value) {
     return;
   }
 
-  const cVal = allocCString(JSON.stringify(value));
-  const outErr = allocOutPtr();
+  let cVal = null;
+  let outErr = null;
 
   let tag;
   try {
+    cVal = allocCString(JSON.stringify(value));
+    outErr = allocOutPtr();
     tag = wasm.monty_resume(activeHandle, cVal.ptr, outErr.ptr);
   } catch (e) {
-    wasm.monty_dealloc(cVal.ptr, cVal.size);
-    outErr.free();
+    if (cVal) wasm.monty_dealloc(cVal.ptr, cVal.size);
+    if (outErr) outErr.free();
     wasm.monty_free(activeHandle);
     activeHandle = null;
     self.postMessage({
@@ -349,15 +353,17 @@ function handleResumeWithError(id, errorMessage) {
     return;
   }
 
-  const cErr = allocCString(errorMessage);
-  const outErr = allocOutPtr();
+  let cErr = null;
+  let outErr = null;
 
   let tag;
   try {
+    cErr = allocCString(errorMessage);
+    outErr = allocOutPtr();
     tag = wasm.monty_resume_with_error(activeHandle, cErr.ptr, outErr.ptr);
   } catch (e) {
-    wasm.monty_dealloc(cErr.ptr, cErr.size);
-    outErr.free();
+    if (cErr) wasm.monty_dealloc(cErr.ptr, cErr.size);
+    if (outErr) outErr.free();
     wasm.monty_free(activeHandle);
     activeHandle = null;
     self.postMessage({
@@ -429,17 +435,20 @@ function handleResolveFutures(id, resultsJson, errorsJson) {
     return;
   }
 
-  const cResults = allocCString(resultsJson);
-  const cErrors = allocCString(errorsJson);
-  const outErr = allocOutPtr();
+  let cResults = null;
+  let cErrors = null;
+  let outErr = null;
 
   let tag;
   try {
+    cResults = allocCString(resultsJson);
+    cErrors = allocCString(errorsJson);
+    outErr = allocOutPtr();
     tag = wasm.monty_resume_futures(activeHandle, cResults.ptr, cErrors.ptr, outErr.ptr);
   } catch (e) {
-    wasm.monty_dealloc(cResults.ptr, cResults.size);
-    wasm.monty_dealloc(cErrors.ptr, cErrors.size);
-    outErr.free();
+    if (cResults) wasm.monty_dealloc(cResults.ptr, cResults.size);
+    if (cErrors) wasm.monty_dealloc(cErrors.ptr, cErrors.size);
+    if (outErr) outErr.free();
     wasm.monty_free(activeHandle);
     activeHandle = null;
     self.postMessage({

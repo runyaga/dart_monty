@@ -340,7 +340,10 @@ async function resolveFutures(resultsJson, errorsJson) {
  */
 async function snapshot() {
   const sid = resolveSessionId(null);
-  if (sid == null || !sessions.has(sid)) return notInitializedError();
+  if (sid == null || !sessions.has(sid)) {
+    // Return a raw JS object (not JSON string) — Dart casts to _SnapshotResult.
+    return { ok: false, error: 'Not initialized' };
+  }
 
   const session = sessions.get(sid);
   const result = await callWorker(sid, { type: 'snapshot' }, session.timeoutMs);

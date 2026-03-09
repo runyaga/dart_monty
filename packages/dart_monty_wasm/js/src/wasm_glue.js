@@ -24,9 +24,17 @@ function createWasiImports(getMemory) {
       return 0;
     },
 
-    clock_time_get(_id, _precision, out) {
+    // CLOCK_REALTIME = 0, CLOCK_MONOTONIC = 1
+    clock_time_get(id, _precision, out) {
       const mem = new DataView(getMemory().buffer);
-      const nowNs = BigInt(Math.round(performance.now() * 1e6));
+      let nowNs;
+      if (id === 0) {
+        // CLOCK_REALTIME — Unix epoch nanoseconds (for Python time.time())
+        nowNs = BigInt(Date.now()) * 1000000n;
+      } else {
+        // CLOCK_MONOTONIC — page-relative nanoseconds
+        nowNs = BigInt(Math.round(performance.now() * 1e6));
+      }
       mem.setBigUint64(out, nowNs, true);
       return 0;
     },

@@ -24,12 +24,19 @@ export function createWasiImports(getMemory) {
       return 0; // ESUCCESS
     },
 
-    // Get clock time (CLOCK_MONOTONIC = 1, CLOCK_REALTIME = 0).
+    // CLOCK_REALTIME = 0, CLOCK_MONOTONIC = 1.
     // (id: i32, precision: i64, out: i32) -> errno: i32
     clock_time_get(id, _precision, out) {
       const mem = new DataView(getMemory().buffer);
-      const nowNs = BigInt(Math.round(performance.now() * 1e6));
-      mem.setBigUint64(out, nowNs, true); // little-endian
+      let nowNs;
+      if (id === 0) {
+        // CLOCK_REALTIME — Unix epoch nanoseconds (for Python time.time())
+        nowNs = BigInt(Date.now()) * 1000000n;
+      } else {
+        // CLOCK_MONOTONIC — page-relative nanoseconds
+        nowNs = BigInt(Math.round(performance.now() * 1e6));
+      }
+      mem.setBigUint64(out, nowNs, true);
       return 0;
     },
 
