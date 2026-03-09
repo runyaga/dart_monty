@@ -104,6 +104,117 @@ Future<void> runT1_1W({int n = 50}) async {
 }
 
 // ---------------------------------------------------------------------------
+// T1-4W: Sealed Error Routing (Web/WASM)
+// ---------------------------------------------------------------------------
+
+Future<void> runT1_4W({int n = 50}) async {
+  _log('BENCH_START:T1-4W Sealed Error Routing (N=$n)');
+
+  var subACorrect = 0; // Python exception
+  var subCCorrect = 0; // Cancel → Session disposed
+  var subAWrong = 0;
+  var subCWrong = 0;
+
+  // Sub-A: Python exception → error in JSON result
+  for (var trial = 1; trial <= n; trial++) {
+    final ok = (await _init().toDart).toDart;
+    if (!ok) continue;
+
+    final resultJson = (await _run('1/0'.toJS).toDart).toDart;
+    if (resultJson.contains('ZeroDivisionError') ||
+        resultJson.contains('division by zero')) {
+      subACorrect++;
+    } else {
+      subAWrong++;
+    }
+    // Dispose session for next trial.
+    final sid = _getDefaultSessionId();
+    if (sid != null) _fastCancel(sid);
+  }
+
+  // Sub-C: Cancel → Session disposed error
+  for (var trial = 1; trial <= n; trial++) {
+    final ok = (await _init().toDart).toDart;
+    if (!ok) continue;
+    final sid = _getDefaultSessionId();
+    if (sid == null) continue;
+
+    final startCompleter = Completer<String>();
+    _start('while True: pass'.toJS).toDart.then(
+          (result) => startCompleter.complete('OK:${result.toDart}'),
+          onError: (Object e) => startCompleter.complete('ERR:$e'),
+        );
+
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+    _fastCancel(sid);
+
+    final result = await startCompleter.future.timeout(
+      const Duration(seconds: 5),
+      onTimeout: () => 'TIMEOUT',
+    );
+
+    if (result.contains('disposed') || result.contains('crashed')) {
+      subCCorrect++;
+    } else {
+      subCWrong++;
+    }
+  }
+
+  _log('BENCH_RESULT:T1-4W');
+  _log('BENCH_DATA:  Sub-A (Python exc): $subACorrect / $n');
+  _log('BENCH_DATA:  Sub-C (Cancel): $subCCorrect / $n');
+  final pass = subACorrect == n && subCCorrect == n;
+  _log('BENCH_VERDICT:T1-4W ${pass ? "PASS" : "FAIL"}');
+}
+
+// ---------------------------------------------------------------------------
+// T2-2W: Dispose Future Resolution (Web/WASM)
+// ---------------------------------------------------------------------------
+
+Future<void> runT2_2W({int n = 20}) async {
+  _log('BENCH_START:T2-2W Dispose Future Resolution (N=$n)');
+
+  var resolvedCount = 0;
+  var timeoutCount = 0;
+
+  for (var trial = 1; trial <= n; trial++) {
+    final ok = (await _init().toDart).toDart;
+    if (!ok) continue;
+    final sid = _getDefaultSessionId();
+    if (sid == null) continue;
+
+    final startCompleter = Completer<String>();
+    _start('while True: pass'.toJS).toDart.then(
+          (result) => startCompleter.complete('OK:${result.toDart}'),
+          onError: (Object e) => startCompleter.complete('ERR:$e'),
+        );
+
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+
+    // Use disposeSession (via _fastCancel) — should reject all pending
+    // promises and resolve the start() Future.
+    _fastCancel(sid);
+
+    final result = await startCompleter.future.timeout(
+      const Duration(seconds: 5),
+      onTimeout: () => 'TIMEOUT',
+    );
+
+    if (result == 'TIMEOUT') {
+      timeoutCount++;
+    } else {
+      resolvedCount++;
+    }
+  }
+
+  _log('BENCH_RESULT:T2-2W');
+  _log('BENCH_DATA:  Resolved: $resolvedCount / $n');
+  _log('BENCH_DATA:  Timeout: $timeoutCount');
+  final pass = resolvedCount == n && timeoutCount == 0;
+  _log('BENCH_VERDICT:T2-2W ${pass ? "PASS" : "FAIL"}');
+}
+
+// ---------------------------------------------------------------------------
 // T3-1W: Cancel Latency
 // ---------------------------------------------------------------------------
 
@@ -184,7 +295,21 @@ Future<void> main() async {
   _log('BENCH_HEADER:=== WASM Cancel Benchmark ===');
 
   await runT1_1W();
+  await runT1_4W();
+  await runT2_2W();
   await runT3_1W();
+
+  // N/A experiments (documented):
+  // T1-2W: N/A — no handleId/MontyCancelToken in WASM (no out-of-band cancel API)
+  // T1-3W: N/A — cannot probe Rust registry from browser (no isCancelledById)
+  // T2-3W: N/A — browser memory API (performance.memory) is deprecated/unreliable
+  // T3-2W: N/A — Worker.terminate() IS the cancel mechanism (no separate terminate path)
+  // T3-4W: N/A — no MontyCancelToken/liveness probe API in WASM
+  _log('BENCH_NA:T1-2W No handleId/MontyCancelToken in WASM');
+  _log('BENCH_NA:T1-3W Cannot probe Rust registry from browser');
+  _log('BENCH_NA:T2-3W Browser memory API unreliable');
+  _log('BENCH_NA:T3-2W Worker.terminate() IS the cancel mechanism');
+  _log('BENCH_NA:T3-4W No liveness probe API in WASM');
 
   _log('BENCH_DONE');
 }

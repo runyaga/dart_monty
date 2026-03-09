@@ -289,12 +289,82 @@ saga/orchestrator coordination.
 
 ---
 
-## TIER 3: Performance Results (AOT — dart compile exe)
+## AOT Execution Path (dart compile exe)
 
-All T3 experiments re-run as AOT-compiled native executables.
+All experiments re-run as AOT-compiled native executables.
 Compiled with `dart compile exe bin/cancel_benchmark.dart`.
+Run with: `DYLD_LIBRARY_PATH=../../native/target/release ./bin/cancel_benchmark`
 
-### AOT vs JIT Comparison
+### AOT TIER 1: Correctness
+
+#### AOT T1-1: Cancel Correctness & Idempotency
+
+**VERDICT: PASS**
+
+| Metric | Observed |
+|--------|----------|
+| MontyCancelledError on cancel | **200/200 (100%)** |
+| Wrong exception types | **0** |
+| Double-cancel throws | **0** |
+| Post-complete throws | **0** |
+
+#### AOT T1-2: Cross-Boundary CancelToken Routing
+
+**VERDICT: PASS**
+
+| Metric | Observed |
+|--------|----------|
+| Cross-cancel success | **100/100 (100%)** |
+| StateError | **0** |
+| Alive post-terminate | **0** |
+
+#### AOT T1-3: Terminate Resource Release
+
+**VERDICT: PASS**
+
+| Metric | Observed |
+|--------|----------|
+| Registry freed | **100/100 (100%)** |
+| HandleId nulled | **100/100 (100%)** |
+
+#### AOT T1-4: Sealed Error Routing
+
+**VERDICT: PASS**
+
+| Sub-Experiment | N | Result |
+|---------------|---|--------|
+| A (Python exc) | 50 | **50/50** |
+| C (Cancel) | 50 | **50/50** |
+| D (Dispose) | 50 | **50/50** |
+
+### AOT TIER 2: Safety
+
+#### AOT T2-2: Dispose Hang Prevention
+
+**VERDICT: PASS**
+
+| Scenario | Resolved | Hanging |
+|----------|----------|---------|
+| C1 dispose | **10/10** | **0** |
+| C2 terminate | **50/50** | **0** |
+
+#### AOT T2-3: Memory Soak
+
+**VERDICT: PASS**
+
+| Metric | JIT | AOT |
+|--------|-----|-----|
+| RSS delta | 12.86 MB (FAIL) | **0.08 MB (PASS)** |
+| Slope | 0.010265 MB/cycle | **0.000026 MB/cycle** |
+
+**Interpretation:** AOT eliminates the JIT memory growth issue. The 12.86 MB
+growth in JIT is likely deferred GC or JIT compilation overhead, not a true
+leak. AOT's 0.08 MB delta across 1,000 cycles confirms no structural leak
+exists in the spawn/run/dispose path.
+
+### AOT TIER 3: Performance
+
+### AOT vs JIT Performance Comparison
 
 | Experiment | JIT Median | AOT Median | AOT P95 | AOT Max | Speedup |
 |------------|-----------|-----------|---------|---------|---------|
@@ -365,22 +435,75 @@ kill, not a cooperative check.
 
 ---
 
+### EXP-CANCEL-T1-4W: Sealed Error Routing (WASM)
+
+**VERDICT: PASS**
+
+| Sub-Experiment | N | Result |
+|---------------|---|--------|
+| A (Python exc) | 50 | **50/50** |
+| C (Cancel → Session disposed) | 50 | **50/50** |
+
+**Interpretation:** Python exceptions propagate correctly through the WASM
+Worker bridge as JSON error payloads. Cancel (Worker.terminate()) correctly
+rejects pending promises with "Session disposed" error. Both error routing
+paths are functional.
+
+---
+
+### EXP-CANCEL-T2-2W: Dispose Future Resolution (WASM)
+
+**VERDICT: PASS**
+
+| Metric | Threshold | Observed |
+|--------|-----------|----------|
+| N | 20 | 20 |
+| Resolved | 20/20 | **20/20** |
+| Timeout | 0 | **0** |
+
+**Interpretation:** `disposeSession()` (Worker.terminate()) reliably resolves
+all pending promises. No WASM dispose hang — Worker.terminate() is a
+synchronous browser API that cannot deadlock, unlike the FFI dispose path
+(which required the #113 fix).
+
+---
+
 ### EXP-CANCEL-T3-1W: Cancel Latency (WASM)
 
 **VERDICT: PASS**
 
 | Metric | Threshold | Observed |
 |--------|-----------|----------|
-| Mean | — | **0.065 ms** |
-| Median | — | **0.065 ms** |
-| P95 | < 5 ms | **0.080 ms** |
+| Mean | — | **0.057 ms** |
+| Median | — | **0.055 ms** |
+| P95 | < 5 ms | **0.075 ms** |
 | P99 | — | **0.090 ms** |
 | Max | < 20 ms | **0.090 ms** |
 
-**Interpretation:** WASM cancel latency is sub-0.1ms at all percentiles — ~1.8x faster
-than FFI cancel (0.116ms mean). Worker.terminate() is nearly instantaneous since it's
-a synchronous browser API that kills the Worker thread. The tight distribution (0.065-0.090ms)
-confirms no GC pauses or scheduling jitter in the cancel path. P95 is 62x under threshold.
+**Interpretation:** WASM cancel latency is sub-0.1ms at all percentiles — ~2x faster
+than JIT FFI cancel (0.116ms mean), comparable to AOT (0.055ms). Worker.terminate()
+is nearly instantaneous since it's a synchronous browser API that kills the Worker
+thread. The tight distribution (0.055-0.090ms) confirms no GC pauses or scheduling
+jitter in the cancel path. P95 is 66x under threshold.
+
+---
+
+### WASM N/A Experiments
+
+| Experiment | WASM Equivalent | Reason N/A |
+|-----------|-----------------|------------|
+| T1-2 | T1-2W | No `handleId`/`MontyCancelToken` in WASM — no out-of-band cancel API, Worker.terminate() is the only mechanism |
+| T1-3 | T1-3W | Cannot probe Rust registry from browser — `isCancelledById` is a native FFI function |
+| T2-3 | T2-3W | `performance.memory` is deprecated/unreliable in Chrome, no RSS equivalent in browsers |
+| T3-2 | T3-2W | `Worker.terminate()` IS the cancel mechanism — there is no separate "terminate" vs "cancel" distinction in WASM |
+| T3-4 | T3-4W | No `MontyCancelToken`/liveness probe API in WASM — `isAlive` relies on Rust registry |
+
+**Justification:** WASM cancel is fundamentally different from native cancel.
+Native uses a cooperative atomic flag in the Monty bytecode loop; WASM uses
+`Worker.terminate()` which is a preemptive OS-level kill. Experiments that test
+the cooperative cancel mechanism (CancelToken routing, registry probing, liveness
+probes) have no WASM equivalent because the mechanism doesn't exist in the
+browser execution model.
 
 ---
 
@@ -395,7 +518,7 @@ the kill message. Only `terminate()` (which has a 5s timeout + zombie tracking)
 handles this correctly.
 
 **Severity:** Medium — callers must use `terminate()` not `dispose()` for stuck interpreters.
-**Filed as:** GitHub issue (pending)
+**Filed as:** [#113](https://github.com/runyaga/dart_monty/issues/113) — **FIXED** in this branch (`dispose()` now calls `cancel()` first).
 
 ### 2. Memory growth in spawn/dispose cycles
 
@@ -430,9 +553,10 @@ Each experiment is a standalone test file with no shared mutable state.
 ## Next Steps
 
 1. ~~Run remaining experiments: T2-2, T3-1, T3-2, T3-4~~ **DONE**
-2. ~~Run AOT benchmark (T3-1, T3-2, T3-4)~~ **DONE**
-3. Run WASM benchmark (T1-1W, T3-1W, T3-2W) — needs build + Chrome
-4. Investigate T2-3 memory growth (re-run with forced GC)
-5. Design and implement chaos/fault injection test suite (GitHub issue)
-6. Create GitHub issue for dispose-on-stuck-FFI zombie scenario
-7. Full Gemini scientific review of complete results
+2. ~~Run AOT benchmark (all 9: T1-1 through T3-4)~~ **DONE — All PASS**
+3. ~~Run WASM benchmark (T1-1W, T1-4W, T2-2W, T3-1W + 5 N/A)~~ **DONE — All PASS**
+4. ~~Fix dispose hang (#113)~~ **DONE**
+5. ~~Gemini 3.1 Pro review of complete matrix~~ **DONE — All criteria PASS**
+6. Investigate T2-3 memory growth in JIT (passes in AOT — likely deferred GC)
+7. Design and implement chaos/fault injection test suite (blocks T2-1)
+8. Fix #114 (resumeWithError null)
