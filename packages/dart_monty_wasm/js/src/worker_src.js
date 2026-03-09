@@ -48,10 +48,10 @@ async function initWasm() {
  */
 function adaptResultForDart(cabiResultJson, isError) {
   const parsed = JSON.parse(cabiResultJson);
-  if (isError && parsed.error) {
-    const err = typeof parsed.error === 'object'
+  if (isError) {
+    const err = (parsed.error && typeof parsed.error === 'object')
       ? parsed.error
-      : { message: String(parsed.error) };
+      : { message: parsed.error ? String(parsed.error) : 'Unknown error' };
     return {
       ok: false,
       error: err.message || String(err),
@@ -84,6 +84,13 @@ function readProgress(id, handle, tag, errMsg) {
       if (json) {
         const adapted = adaptResultForDart(json, isErr === 1);
         return { type: 'result', id, ...adapted, state: adapted.ok ? 'complete' : undefined };
+      }
+      if (isErr === 1) {
+        return {
+          type: 'result', id, ok: false,
+          error: 'Execution failed (no error context)',
+          errorType: 'MontyException',
+        };
       }
       return { type: 'result', id, ok: true, state: 'complete', value: null };
     }
@@ -279,12 +286,13 @@ function handleStart(id, code, extFns, limits, scriptName) {
 
   activeHandle = handle;
 
-  const outErr = allocOutPtr();
+  let outErr;
   let tag;
   try {
+    outErr = allocOutPtr();
     tag = wasm.monty_start(handle, outErr.ptr);
   } catch (e) {
-    outErr.free();
+    if (outErr) outErr.free();
     activeHandle = null;
     wasm.monty_free(handle);
     self.postMessage({
@@ -592,6 +600,9 @@ function handleRestore(id, dataBase64) {
   let handle;
   try {
     handle = wasm.monty_restore(ptr, bytes.length, outError.ptr);
+  } catch (e) {
+    outError.free();
+    throw e;
   } finally {
     wasm.monty_dealloc(ptr, bytes.length);
   }
