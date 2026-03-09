@@ -139,27 +139,31 @@ is empirically validated:
 
 ### EXP-CANCEL-T2-2: Future Hang Prevention
 
-**VERDICT: FAIL (C1) / PASS (C2)**
+**VERDICT: PASS (after fix)**
+
+*Original result: FAIL (C1) / PASS (C2). Fixed by adding `cancel()` call
+to `dispose()` — see [#113](https://github.com/runyaga/dart_monty/issues/113).*
 
 Two sub-scenarios tested:
 
-- **C1:** `dispose()` without `cancel()` on a stuck FFI interpreter
+- **C1:** `dispose()` on a stuck FFI interpreter
 - **C2:** `terminate()` on a stuck FFI interpreter (control group)
 
-#### Scenario C1: dispose() without cancel()
+#### Scenario C1: dispose()
 
-| Metric | Expected | Observed |
-|--------|----------|----------|
-| dispose() hangs | — | **10/10 (100%)** |
-| startFuture resolves | 10/10 | **0/10 (0%)** |
-| startFuture hangs | 0/10 | **10/10 (100%)** |
+| Metric | Expected | Observed (before fix) | Observed (after fix) |
+|--------|----------|-----------------------|----------------------|
+| dispose() hangs | 0 | **10/10 (100%)** | **0/10 (0%)** |
+| startFuture resolves | 10/10 | **0/10 (0%)** | **10/10 (100%)** |
+| Resolution type | MontyCancelledError | — | **MontyCancelledError: 10/10** |
 
-**Root cause:** `dispose()` calls `await _send<_DisposeResponse>(...)` which
-waits for the worker isolate to respond. But the worker is blocked in a
+**Root cause (before fix):** `dispose()` called `await _send<_DisposeResponse>(...)`
+which waits for the worker isolate to respond. But the worker is blocked in a
 synchronous FFI call (`while True: pass`) and cannot process the
-`_DisposeRequest`. The `_failAllPending()` in the `finally` block never
-executes because `_send()` never returns. Both `dispose()` and the
-`start()` Future hang indefinitely.
+`_DisposeRequest`. Both `dispose()` and the `start()` Future hung indefinitely.
+
+**Fix:** `dispose()` now calls `cancel()` first (sets the atomic flag via FFI),
+which unblocks the interpreter before sending the dispose command.
 
 #### Scenario C2: terminate() (control group)
 
@@ -169,24 +173,12 @@ executes because `_send()` never returns. Both `dispose()` and the
 | startFuture hangs | 0/50 | **0/50** |
 | Resolution type | MontyCancelledError | **MontyCancelledError: 50/50** |
 | Resolution time median | — | **0.14 ms** |
-| Resolution time P95 | — | **0.18 ms** |
-| Resolution time max | — | **0.32 ms** |
+| Resolution time P95 | — | **0.24 ms** |
+| Resolution time max | — | **0.47 ms** |
 
-**Interpretation:** `terminate()` correctly handles the stuck-FFI scenario.
-It calls `cancel()` (setting the atomic flag via FFI), which unblocks the
-interpreter. The worker then processes the queued `_DisposeRequest` and exits
-cleanly. All 50 futures resolved with `MontyCancelledError` in under 1ms.
-
-**Conclusion:** `dispose()` alone is NOT safe for stuck FFI interpreters.
-Callers MUST use `terminate()` (which calls `cancel()` first) to guarantee
-Future resolution. This is a design-level limitation of the `dispose()` path
-— it assumes the worker can respond to messages, which is false when the
-worker is blocked in synchronous FFI.
-
-**Recommendation:** Either:
-1. Document `dispose()` as unsafe for stuck interpreters (current approach)
-2. Modify `dispose()` to call `cancel()` before sending `_DisposeRequest`
-3. Add a timeout to `dispose()` that falls back to `terminate()`
+**Interpretation:** Both `dispose()` and `terminate()` now handle stuck-FFI
+scenarios correctly. The one-line fix (adding `await cancel()` to `dispose()`)
+eliminates the hang without changing the API contract.
 
 ---
 
