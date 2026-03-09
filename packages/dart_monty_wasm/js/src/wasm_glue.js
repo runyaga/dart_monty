@@ -20,7 +20,11 @@ function createWasiImports(getMemory) {
   return {
     random_get(buf, bufLen) {
       const mem = new Uint8Array(getMemory().buffer);
-      crypto.getRandomValues(mem.subarray(buf, buf + bufLen));
+      // Web Crypto throws QuotaExceededError for buffers > 65536 bytes.
+      for (let i = 0; i < bufLen; i += 65536) {
+        const chunk = Math.min(65536, bufLen - i);
+        crypto.getRandomValues(mem.subarray(buf + i, buf + i + chunk));
+      }
       return 0;
     },
 
@@ -156,7 +160,7 @@ export function readCString(ptr) {
   if (ptr === 0) return null;
   const mem = new Uint8Array(wasm.memory.buffer);
   let end = ptr;
-  while (mem[end] !== 0) end++;
+  while (end < mem.length && mem[end] !== 0) end++;
   return decoder.decode(mem.subarray(ptr, end));
 }
 

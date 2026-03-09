@@ -299,7 +299,14 @@ function handleStart(id, code, extFns, limits, scriptName) {
   const errMsg = readAndFreeCString(errPtr);
   outErr.free();
 
-  const msg = readProgress(id, handle, tag, errMsg);
+  let msg;
+  try {
+    msg = readProgress(id, handle, tag, errMsg);
+  } catch (e) {
+    activeHandle = null;
+    wasm.monty_free(handle);
+    throw e;
+  }
   if (tag === PROGRESS_COMPLETE || tag === PROGRESS_ERROR) {
     activeHandle = null;
     wasm.monty_free(handle);
@@ -343,7 +350,14 @@ function handleResume(id, value) {
   const errMsg = readAndFreeCString(errPtr);
   outErr.free();
 
-  const msg = readProgress(id, activeHandle, tag, errMsg);
+  let msg;
+  try {
+    msg = readProgress(id, activeHandle, tag, errMsg);
+  } catch (e) {
+    wasm.monty_free(activeHandle);
+    activeHandle = null;
+    throw e;
+  }
   if (tag === PROGRESS_COMPLETE || tag === PROGRESS_ERROR) {
     wasm.monty_free(activeHandle);
     activeHandle = null;
@@ -387,7 +401,14 @@ function handleResumeWithError(id, errorMessage) {
   const errMsg = readAndFreeCString(errPtr);
   outErr.free();
 
-  const msg = readProgress(id, activeHandle, tag, errMsg);
+  let msg;
+  try {
+    msg = readProgress(id, activeHandle, tag, errMsg);
+  } catch (e) {
+    wasm.monty_free(activeHandle);
+    activeHandle = null;
+    throw e;
+  }
   if (tag === PROGRESS_COMPLETE || tag === PROGRESS_ERROR) {
     wasm.monty_free(activeHandle);
     activeHandle = null;
@@ -425,7 +446,14 @@ function handleResumeAsFuture(id) {
   const errMsg = readAndFreeCString(errPtr);
   outErr.free();
 
-  const msg = readProgress(id, activeHandle, tag, errMsg);
+  let msg;
+  try {
+    msg = readProgress(id, activeHandle, tag, errMsg);
+  } catch (e) {
+    wasm.monty_free(activeHandle);
+    activeHandle = null;
+    throw e;
+  }
   if (tag === PROGRESS_COMPLETE || tag === PROGRESS_ERROR) {
     wasm.monty_free(activeHandle);
     activeHandle = null;
@@ -473,7 +501,14 @@ function handleResolveFutures(id, resultsJson, errorsJson) {
   const errMsg = readAndFreeCString(errPtr);
   outErr.free();
 
-  const msg = readProgress(id, activeHandle, tag, errMsg);
+  let msg;
+  try {
+    msg = readProgress(id, activeHandle, tag, errMsg);
+  } catch (e) {
+    wasm.monty_free(activeHandle);
+    activeHandle = null;
+    throw e;
+  }
   if (tag === PROGRESS_COMPLETE || tag === PROGRESS_ERROR) {
     wasm.monty_free(activeHandle);
     activeHandle = null;
@@ -538,9 +573,13 @@ function handleRestore(id, dataBase64) {
     bytes[i] = binary.charCodeAt(i);
   }
 
-  // Allocate WASM memory and copy bytes in
+  // Allocate out-pointer first (small, likely to succeed) so that a
+  // subsequent OOM on the large buffer doesn't leak it.
+  const outError = allocOutPtr();
+
   const ptr = wasm.monty_alloc(bytes.length);
   if (ptr === 0) {
+    outError.free();
     self.postMessage({
       type: 'result', id, ok: false,
       error: `monty_alloc(${bytes.length}) returned null — OOM`,
@@ -550,7 +589,6 @@ function handleRestore(id, dataBase64) {
   }
   new Uint8Array(wasm.memory.buffer).set(bytes, ptr);
 
-  const outError = allocOutPtr();
   let handle;
   try {
     handle = wasm.monty_restore(ptr, bytes.length, outError.ptr);

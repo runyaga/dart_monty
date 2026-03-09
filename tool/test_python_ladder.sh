@@ -305,7 +305,6 @@ if [ -d "$WASM_PKG/js" ]; then
   WASM_INTEG="$WASM_PKG/test/integration/web"
   cp "$WASM_PKG/assets/dart_monty_bridge.js" "$WASM_INTEG/"
   cp "$WASM_PKG/assets/dart_monty_worker.js" "$WASM_INTEG/"
-  cp "$WASM_PKG/assets/wasi-worker-browser.mjs" "$WASM_INTEG/"
   cp "$WASM_PKG/assets/"*.wasm "$WASM_INTEG/"
 
   cd "$WASM_PKG"
@@ -383,7 +382,6 @@ http.server.HTTPServer(('127.0.0.1', $SERVE_PORT), handler).serve_forever()
   # Clean up copied assets
   rm -f "$WASM_INTEG/dart_monty_bridge.js" \
         "$WASM_INTEG/dart_monty_worker.js" \
-        "$WASM_INTEG/wasi-worker-browser.mjs" \
         "$WASM_INTEG/"*.wasm \
         "$WASM_INTEG/ladder_runner.dart.js" \
         "$WASM_INTEG/ladder_runner.dart.js.deps" \

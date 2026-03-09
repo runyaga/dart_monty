@@ -149,6 +149,8 @@ class WasmCoreBindings implements MontyCoreBindings {
   @override
   Future<void> cancel() async {
     await _bindings.cancel();
+    // Worker is terminated — clear session so init() can spawn a new one.
+    _sessionId = null;
   }
 
   @override
