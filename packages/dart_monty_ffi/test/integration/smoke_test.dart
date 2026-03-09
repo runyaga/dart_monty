@@ -58,7 +58,8 @@ void main() {
   test('resumeWithError: error propagation', () async {
     final monty = MontyFfi(bindings: bindings);
     final progress = await monty.start(
-      'try:\n  result = fetch("url")\nexcept Exception as e:\n  result = str(e)\nresult',
+      'try:\n  result = fetch("url")\n'
+      'except Exception as e:\n  result = str(e)\nresult',
       externalFunctions: ['fetch'],
     );
 
