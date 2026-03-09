@@ -1,6 +1,9 @@
 @Tags(['integration'])
 library;
 
+// Experiment tests intentionally print results to stdout.
+// ignore_for_file: avoid_print, lines_longer_than_80_chars
+
 import 'dart:async';
 import 'dart:io' show Platform;
 
@@ -50,13 +53,11 @@ void main() {
 
         // Token cancel from supervisor context (same isolate in test, but
         // exercises the FFI cancelById path).
-        bool cancelled;
-        try {
-          cancelled = token.cancel();
+        final cancelled = token.cancel();
+        if (cancelled) {
           autoInitSuccess++;
-        } on StateError {
+        } else {
           stateErrorCount++;
-          cancelled = false;
         }
 
         if (cancelled) {

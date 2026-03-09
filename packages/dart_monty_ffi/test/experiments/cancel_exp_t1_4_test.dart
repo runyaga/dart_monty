@@ -1,6 +1,9 @@
 @Tags(['integration'])
 library;
 
+// Experiment tests intentionally print results to stdout.
+// ignore_for_file: avoid_print, lines_longer_than_80_chars
+
 import 'dart:async';
 import 'dart:io' show Platform;
 
@@ -22,11 +25,8 @@ void main() {
 
   // --- Metrics ---
   var subACorrect = 0;
-  var subAWrong = 0;
   var subCCorrect = 0;
-  var subCWrong = 0;
   var subDCorrect = 0;
-  var subDWrong = 0;
   final subAWrongTypes = <String>[];
   final subCWrongTypes = <String>[];
   final subDWrongTypes = <String>[];
@@ -40,17 +40,14 @@ void main() {
 
         try {
           await isolate.run('1/0');
-          subAWrong++;
           subAWrongTypes.add('no exception');
         } on MontyException catch (e) {
           if (e.excType == 'ZeroDivisionError') {
             subACorrect++;
           } else {
-            subAWrong++;
             subAWrongTypes.add('MontyException(${e.excType})');
           }
         } on Object catch (e) {
-          subAWrong++;
           subAWrongTypes.add(e.runtimeType.toString());
         }
 
@@ -75,12 +72,10 @@ void main() {
 
         try {
           await startFuture;
-          subCWrong++;
           subCWrongTypes.add('no exception');
         } on MontyCancelledError {
           subCCorrect++;
         } on Object catch (e) {
-          subCWrong++;
           subCWrongTypes.add(e.runtimeType.toString());
         }
 
@@ -91,46 +86,49 @@ void main() {
 
   group('T1-4D: Dispose during run → error resolution (N=$n)', () {
     for (var trial = 1; trial <= n; trial++) {
-      test('trial $trial', () async {
-        final isolate = NativeIsolateBindingsImpl(libraryPath: libPath);
-        await isolate.init();
+      test(
+        'trial $trial',
+        () async {
+          final isolate = NativeIsolateBindingsImpl(libraryPath: libPath);
+          await isolate.init();
 
-        final startFuture = isolate.start(
-          'while True: pass',
-          externalFunctions: ['__never_called__'],
-        );
-
-        await Future<void>.delayed(const Duration(milliseconds: 100));
-
-        // dispose() without cancel — should still resolve the Future.
-        // Use terminate() which has a built-in 5s timeout for stuck isolates.
-        Object? caughtError;
-        unawaited(
-          startFuture.then<void>(
-            (_) {},
-            onError: (Object e) {
-              caughtError = e;
-            },
-          ),
-        );
-
-        await isolate.terminate();
-
-        // Give async error propagation a moment.
-        await Future<void>.delayed(const Duration(milliseconds: 100));
-
-        if (caughtError is MontyDisposedError ||
-            caughtError is MontyCancelledError ||
-            caughtError is MontyCrashError) {
-          subDCorrect++;
-        } else {
-          subDWrong++;
-          subDWrongTypes.add(
-            caughtError?.runtimeType.toString() ??
-                'null (Future still pending)',
+          final startFuture = isolate.start(
+            'while True: pass',
+            externalFunctions: ['__never_called__'],
           );
-        }
-      }, timeout: const Timeout(Duration(seconds: 10)));
+
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+
+          // dispose() without cancel — should still resolve the Future.
+          // Use terminate() which has a built-in 5s timeout for stuck isolates.
+          Object? caughtError;
+          unawaited(
+            startFuture.then<void>(
+              (_) {},
+              onError: (Object e) {
+                caughtError = e;
+              },
+            ),
+          );
+
+          await isolate.terminate();
+
+          // Give async error propagation a moment.
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+
+          if (caughtError is MontyDisposedError ||
+              caughtError is MontyCancelledError ||
+              caughtError is MontyCrashError) {
+            subDCorrect++;
+          } else {
+            subDWrongTypes.add(
+              caughtError?.runtimeType.toString() ??
+                  'null (Future still pending)',
+            );
+          }
+        },
+        timeout: const Timeout(Duration(seconds: 10)),
+      );
     }
   });
 

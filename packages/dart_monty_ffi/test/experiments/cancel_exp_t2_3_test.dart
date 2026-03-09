@@ -1,6 +1,9 @@
 @Tags(['integration'])
 library;
 
+// Experiment tests intentionally print results to stdout.
+// ignore_for_file: avoid_print
+
 import 'dart:io' show Platform, ProcessInfo;
 
 import 'package:dart_monty_ffi/dart_monty_ffi.dart';
@@ -24,28 +27,32 @@ void main() {
   final rssAtCheckpoint = <int, int>{};
 
   group('T2-3: memory leak soak ($totalCycles cycles)', () {
-    test('soak run', () async {
-      // Warm-up: 5 cycles.
-      for (var i = 0; i < 5; i++) {
-        final isolate = NativeIsolateBindingsImpl(libraryPath: libPath);
-        await isolate.init();
-        await isolate.run('2 + 2');
-        await isolate.dispose();
-      }
-
-      rssAtCheckpoint[0] = ProcessInfo.currentRss;
-
-      for (var cycle = 1; cycle <= totalCycles; cycle++) {
-        final isolate = NativeIsolateBindingsImpl(libraryPath: libPath);
-        await isolate.init();
-        await isolate.run('2 + 2');
-        await isolate.dispose();
-
-        if (checkpoints.contains(cycle)) {
-          rssAtCheckpoint[cycle] = ProcessInfo.currentRss;
+    test(
+      'soak run',
+      () async {
+        // Warm-up: 5 cycles.
+        for (var i = 0; i < 5; i++) {
+          final isolate = NativeIsolateBindingsImpl(libraryPath: libPath);
+          await isolate.init();
+          await isolate.run('2 + 2');
+          await isolate.dispose();
         }
-      }
-    }, timeout: const Timeout(Duration(minutes: 10)));
+
+        rssAtCheckpoint[0] = ProcessInfo.currentRss;
+
+        for (var cycle = 1; cycle <= totalCycles; cycle++) {
+          final isolate = NativeIsolateBindingsImpl(libraryPath: libPath);
+          await isolate.init();
+          await isolate.run('2 + 2');
+          await isolate.dispose();
+
+          if (checkpoints.contains(cycle)) {
+            rssAtCheckpoint[cycle] = ProcessInfo.currentRss;
+          }
+        }
+      },
+      timeout: const Timeout(Duration(minutes: 10)),
+    );
   });
 
   tearDownAll(() {
@@ -86,7 +93,8 @@ void main() {
       }
     }
     print(
-        'RSS delta (cycle 0 → $totalCycles): ${deltaMb.toStringAsFixed(2)} MB');
+      'RSS delta (cycle 0 → $totalCycles): ${deltaMb.toStringAsFixed(2)} MB',
+    );
     print('Regression slope: ${slopeMbPerCycle.toStringAsFixed(6)} MB/cycle');
     print('R²: ${r2.toStringAsFixed(4)}');
     print('');

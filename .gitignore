@@ -42,3 +42,4 @@ test.py
 .venv/
 # CI review artifacts (all generated — regenerate with tool/metrics.sh)
 ci-review/
+packages/dart_monty_ffi/bin/cancel_benchmark

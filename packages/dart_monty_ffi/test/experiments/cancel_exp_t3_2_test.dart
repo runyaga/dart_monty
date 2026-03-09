@@ -1,12 +1,14 @@
 @Tags(['integration'])
 library;
 
+// Experiment tests intentionally print results to stdout.
+// ignore_for_file: avoid_print, lines_longer_than_80_chars, cascade_invocations
+
 import 'dart:async';
 import 'dart:io' show Platform;
 import 'dart:math';
 
 import 'package:dart_monty_ffi/dart_monty_ffi.dart';
-import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 import 'package:test/test.dart';
 
 String _resolveLibraryPath() {
@@ -99,7 +101,8 @@ void main() {
     print('Terminate latency (ms):');
     print('  Mean: ${mean.toStringAsFixed(3)}');
     print(
-        '  Median: ${median.toStringAsFixed(3)} [95% CI: ${ciLow.toStringAsFixed(3)} - ${ciHigh.toStringAsFixed(3)}]');
+      '  Median: ${median.toStringAsFixed(3)} [95% CI: ${ciLow.toStringAsFixed(3)} - ${ciHigh.toStringAsFixed(3)}]',
+    );
     print('  P95: ${p95.toStringAsFixed(3)}');
     print('  P99: ${p99.toStringAsFixed(3)}');
     print('  Max: ${maxVal.toStringAsFixed(3)}');

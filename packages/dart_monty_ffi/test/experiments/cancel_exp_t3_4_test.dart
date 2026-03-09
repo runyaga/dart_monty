@@ -1,6 +1,9 @@
 @Tags(['integration'])
 library;
 
+// Experiment tests intentionally print results to stdout.
+// ignore_for_file: avoid_print
+
 import 'dart:async';
 import 'dart:io' show Platform;
 

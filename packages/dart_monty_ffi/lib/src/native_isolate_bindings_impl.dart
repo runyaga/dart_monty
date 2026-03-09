@@ -456,7 +456,9 @@ class NativeIsolateBindingsImpl extends NativeIsolateBindings {
     // we send the dispose command.  Without this, dispose() hangs forever
     // waiting for a port reply that the blocked isolate can never send.
     // See: https://github.com/runyaga/dart_monty/issues/113
-    await cancel(); // coverage:ignore-line — exercised by integration tests (T2-2)
+    // coverage:ignore-start — exercised by integration tests (T2-2)
+    await cancel();
+    // coverage:ignore-end
 
     try {
       await _send<_DisposeResponse>(_DisposeRequest(_nextId++));
