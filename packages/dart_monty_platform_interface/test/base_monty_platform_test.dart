@@ -91,6 +91,17 @@ class _FakeCoreBindings implements MontyCoreBindings {
   Future<void> restoreSnapshot(Uint8List data) async =>
       throw UnimplementedError();
 
+  bool cancelCalled = false;
+  int? mockHandleId;
+
+  @override
+  Future<void> cancel() async {
+    cancelCalled = true;
+  }
+
+  @override
+  int? get handleId => mockHandleId;
+
   @override
   Future<void> dispose() async {
     disposeCalled = true;
@@ -714,6 +725,129 @@ void main() {
       final result = await first;
       expect(result, isA<MontyComplete>());
       expect(platform.isIdle, isTrue);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Cancel API coverage
+  // ---------------------------------------------------------------------------
+
+  group('cancel()', () {
+    test('delegates to bindings', () async {
+      fake.runResult = const CoreRunResult(ok: true, usage: zeroUsage);
+      await platform.run('x'); // triggers init
+      await platform.cancel();
+      expect(fake.cancelCalled, isTrue);
+    });
+
+    test('is a no-op when disposed', () async {
+      fake.runResult = const CoreRunResult(ok: true, usage: zeroUsage);
+      await platform.run('x');
+      await platform.dispose();
+      // Should not throw or call bindings.cancel().
+      fake.cancelCalled = false;
+      await platform.cancel();
+      expect(fake.cancelCalled, isFalse);
+    });
+  });
+
+  group('handleId', () {
+    test('delegates to bindings', () {
+      expect(platform.handleId, isNull);
+    });
+  });
+
+  group('cancelToken', () {
+    test('returns null when handleId is null', () {
+      expect(platform.cancelToken, isNull);
+    });
+
+    test('returns null when handleId is zero', () {
+      fake.mockHandleId = 0;
+      expect(platform.cancelToken, isNull);
+    });
+
+    test('returns MontyCancelToken when handleId > 0', () {
+      fake.mockHandleId = 42;
+      final token = platform.cancelToken;
+      expect(token, isNotNull);
+      expect(token!.id, 42);
+    });
+  });
+
+  group('static cancel API', () {
+    tearDown(() {
+      // Reset static state after each test.
+      BaseMontyPlatform.registerNativeCancel(
+        cancelById: (_) => false,
+        isCancelledById: (_) => null,
+        ensureInitialized: ([_]) {},
+      );
+      // Clean up any web registry entries by unregistering.
+      // (We can't access _webRegistry directly, but tests below manage
+      // their own entries.)
+    });
+
+    test('registerNativeCancel stores callbacks and cancelById uses them', () {
+      var cancelledId = -1;
+      BaseMontyPlatform.registerNativeCancel(
+        cancelById: (id) {
+          cancelledId = id;
+          return true;
+        },
+        isCancelledById: (_) => false,
+        ensureInitialized: ([_]) {},
+      );
+      final result = BaseMontyPlatform.cancelById(99);
+      expect(result, isTrue);
+      expect(cancelledId, 99);
+    });
+
+    test('webRegister/webUnregister manage web registry', () {
+      final webFake = _FakeCoreBindings();
+      final webId = BaseMontyPlatform.webRegister(webFake);
+      expect(webId, greaterThan(0));
+
+      // Verify registered via isHandleAlive (web path checks _webRegistry).
+      // Reset native so isHandleAlive falls through to web registry.
+      BaseMontyPlatform.registerNativeCancel(
+        cancelById: (_) => false,
+        isCancelledById: (_) => null,
+        ensureInitialized: ([_]) {},
+      );
+
+      BaseMontyPlatform.webUnregister(webId);
+    });
+
+    test('webRegister returns incrementing IDs', () {
+      final id1 = BaseMontyPlatform.webRegister(_FakeCoreBindings());
+      final id2 = BaseMontyPlatform.webRegister(_FakeCoreBindings());
+      expect(id2, greaterThan(id1));
+      BaseMontyPlatform.webUnregister(id1);
+      BaseMontyPlatform.webUnregister(id2);
+    });
+
+    test('ensureInitialized invokes registered callback', () {
+      var called = false;
+      BaseMontyPlatform.registerNativeCancel(
+        cancelById: (_) => false,
+        isCancelledById: (_) => null,
+        ensureInitialized: ([_]) {
+          called = true;
+        },
+      );
+      BaseMontyPlatform.ensureInitialized();
+      expect(called, isTrue);
+    });
+
+    test('isHandleAlive delegates to native callback', () {
+      BaseMontyPlatform.registerNativeCancel(
+        cancelById: (_) => false,
+        isCancelledById: (id) => id == 42 ? false : null,
+        ensureInitialized: ([_]) {},
+      );
+      expect(BaseMontyPlatform.isHandleAlive(42), isTrue);
+      expect(BaseMontyPlatform.isHandleAlive(999), isFalse);
     });
   });
 

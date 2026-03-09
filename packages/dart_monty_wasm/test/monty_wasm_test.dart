@@ -225,10 +225,7 @@ void main() {
         arguments: [],
       );
 
-      await monty.start(
-        'a()',
-        externalFunctions: ['a', 'b', 'c'],
-      );
+      await monty.start('a()', externalFunctions: ['a', 'b', 'c']);
 
       expect(mock.startCalls.first.extFnsJson, '["a","b","c"]');
     });
@@ -297,10 +294,7 @@ void main() {
         state: 'complete',
       );
 
-      await monty.start(
-        'x',
-        limits: const MontyLimits(memoryBytes: 512),
-      );
+      await monty.start('x', limits: const MontyLimits(memoryBytes: 512));
 
       final limitsJson = mock.startCalls.first.limitsJson;
       expect(limitsJson, isNotNull);
@@ -350,11 +344,7 @@ void main() {
 
     test('returns MontyComplete when execution finishes', () async {
       mock.resumeResults.add(
-        const WasmProgressResult(
-          ok: true,
-          state: 'complete',
-          value: 'hello',
-        ),
+        const WasmProgressResult(ok: true, state: 'complete', value: 'hello'),
       );
 
       final progress = await monty.resume('response');
@@ -391,19 +381,13 @@ void main() {
         ),
       );
 
-      expect(
-        () => monty.resume(null),
-        throwsA(isA<MontyException>()),
-      );
+      expect(() => monty.resume(null), throwsA(isA<MontyException>()));
     });
 
     test('throws StateError when idle', () async {
       // Complete the execution first to go back to idle.
       mock.resumeResults.add(
-        const WasmProgressResult(
-          ok: true,
-          state: 'complete',
-        ),
+        const WasmProgressResult(ok: true, state: 'complete'),
       );
       await monty.resume(null);
 
@@ -417,10 +401,7 @@ void main() {
 
     test('encodes complex return values as JSON', () async {
       mock.resumeResults.add(
-        const WasmProgressResult(
-          ok: true,
-          state: 'complete',
-        ),
+        const WasmProgressResult(ok: true, state: 'complete'),
       );
 
       await monty.resume({
@@ -447,10 +428,7 @@ void main() {
 
     test('returns MontyComplete after error injection', () async {
       mock.resumeWithErrorResults.add(
-        const WasmProgressResult(
-          ok: true,
-          state: 'complete',
-        ),
+        const WasmProgressResult(ok: true, state: 'complete'),
       );
 
       final progress = await monty.resumeWithError('network failure');
@@ -479,18 +457,12 @@ void main() {
 
     test('throws StateError when idle', () {
       final freshMonty = MontyWasm(bindings: mock);
-      expect(
-        () => freshMonty.resumeWithError('err'),
-        throwsStateError,
-      );
+      expect(() => freshMonty.resumeWithError('err'), throwsStateError);
     });
 
     test('throws StateError when disposed', () async {
       await monty.dispose();
-      expect(
-        () => monty.resumeWithError('err'),
-        throwsStateError,
-      );
+      expect(() => monty.resumeWithError('err'), throwsStateError);
     });
   });
 
@@ -569,10 +541,7 @@ void main() {
 
     test('throws StateError when disposed', () async {
       await monty.dispose();
-      expect(
-        () => monty.restore(Uint8List.fromList([1])),
-        throwsStateError,
-      );
+      expect(() => monty.restore(Uint8List.fromList([1])), throwsStateError);
     });
 
     test('throws StateError when active', () async {
@@ -584,10 +553,7 @@ void main() {
       );
       await monty.start('x', externalFunctions: ['f']);
 
-      expect(
-        () => monty.restore(Uint8List.fromList([1])),
-        throwsStateError,
-      );
+      expect(() => monty.restore(Uint8List.fromList([1])), throwsStateError);
     });
   });
 
@@ -628,10 +594,7 @@ void main() {
         functionName: 'noop',
       );
 
-      final progress = await monty.start(
-        'noop()',
-        externalFunctions: ['noop'],
-      );
+      final progress = await monty.start('noop()', externalFunctions: ['noop']);
 
       final pending = progress as MontyPending;
       expect(pending.arguments, isEmpty);
@@ -645,10 +608,7 @@ void main() {
         arguments: [],
       );
 
-      final progress = await monty.start(
-        'noop()',
-        externalFunctions: ['noop'],
-      );
+      final progress = await monty.start('noop()', externalFunctions: ['noop']);
 
       final pending = progress as MontyPending;
       expect(pending.arguments, isEmpty);
@@ -660,10 +620,7 @@ void main() {
         state: 'pending',
       );
 
-      final progress = await monty.start(
-        'x()',
-        externalFunctions: ['x'],
-      );
+      final progress = await monty.start('x()', externalFunctions: ['x']);
 
       final pending = progress as MontyPending;
       expect(pending.functionName, '');
@@ -694,10 +651,7 @@ void main() {
     test('partial limits encode only present fields', () async {
       mock.nextRunResult = const WasmRunResult(ok: true, value: 1);
 
-      await monty.run(
-        '1',
-        limits: const MontyLimits(timeoutMs: 300),
-      );
+      await monty.run('1', limits: const MontyLimits(timeoutMs: 300));
 
       final limitsJson = mock.runCalls.first.limitsJson;
       expect(limitsJson, isNotNull);
@@ -740,10 +694,7 @@ void main() {
         methodCall: true,
       );
 
-      final progress = await monty.start(
-        'x',
-        externalFunctions: ['fetch'],
-      );
+      final progress = await monty.start('x', externalFunctions: ['fetch']);
 
       final pending = progress as MontyPending;
       expect(pending.callId, 42);
@@ -757,10 +708,7 @@ void main() {
         functionName: 'f',
       );
 
-      final progress = await monty.start(
-        'x',
-        externalFunctions: ['f'],
-      );
+      final progress = await monty.start('x', externalFunctions: ['f']);
 
       final pending = progress as MontyPending;
       expect(pending.kwargs, isNull);
@@ -828,11 +776,7 @@ void main() {
         errorType: 'NameError',
         excType: 'NameError',
         traceback: [
-          {
-            'filename': 'test.py',
-            'start_line': 5,
-            'start_column': 2,
-          },
+          {'filename': 'test.py', 'start_line': 5, 'start_column': 2},
         ],
       );
 
@@ -882,23 +826,25 @@ void main() {
   // Async/Futures (M13) — forward-compat state handling
   // ===========================================================================
   group('async/futures (M13)', () {
-    test('start() returns MontyResolveFutures for resolve_futures state',
-        () async {
-      mock.nextStartResult = const WasmProgressResult(
-        ok: true,
-        state: 'resolve_futures',
-        pendingCallIds: [0, 1, 2],
-      );
+    test(
+      'start() returns MontyResolveFutures for resolve_futures state',
+      () async {
+        mock.nextStartResult = const WasmProgressResult(
+          ok: true,
+          state: 'resolve_futures',
+          pendingCallIds: [0, 1, 2],
+        );
 
-      final progress = await monty.start(
-        'await asyncio.gather(a(), b(), c())',
-        externalFunctions: ['a', 'b', 'c'],
-      );
+        final progress = await monty.start(
+          'await asyncio.gather(a(), b(), c())',
+          externalFunctions: ['a', 'b', 'c'],
+        );
 
-      expect(progress, isA<MontyResolveFutures>());
-      final rf = progress as MontyResolveFutures;
-      expect(rf.pendingCallIds, [0, 1, 2]);
-    });
+        expect(progress, isA<MontyResolveFutures>());
+        final rf = progress as MontyResolveFutures;
+        expect(rf.pendingCallIds, [0, 1, 2]);
+      },
+    );
 
     test('resolve_futures state defaults to empty pendingCallIds', () async {
       mock.nextStartResult = const WasmProgressResult(

@@ -201,6 +201,13 @@ abstract class MontyCoreBindings {
   /// Restores execution state from [data].
   Future<void> restoreSnapshot(Uint8List data);
 
+  /// Cancel the current execution. Idempotent.
+  Future<void> cancel();
+
+  /// The monotonic handle ID for cross-isolate cancel.
+  /// Returns `null` before init or after dispose.
+  int? get handleId;
+
   /// Releases all resources held by this bindings instance.
   Future<void> dispose();
 }

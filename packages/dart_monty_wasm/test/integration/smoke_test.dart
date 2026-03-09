@@ -83,11 +83,7 @@ Future<void> _testErrorHandling() async {
 
 Future<void> _testIterative() async {
   final startResult = _parse(
-    (await _bridgeStart(
-      'fetch("url")'.toJS,
-      '["fetch"]'.toJS,
-    ).toDart)
-        .toDart,
+    (await _bridgeStart('fetch("url")'.toJS, '["fetch"]'.toJS).toDart).toDart,
   );
 
   if (startResult['ok'] != true || startResult['state'] != 'pending') {
@@ -148,11 +144,7 @@ result
 Future<void> _testSnapshot() async {
   // Start an iterative execution
   final startResult = _parse(
-    (await _bridgeStart(
-      'fetch("url")'.toJS,
-      '["fetch"]'.toJS,
-    ).toDart)
-        .toDart,
+    (await _bridgeStart('fetch("url")'.toJS, '["fetch"]'.toJS).toDart).toDart,
   );
 
   if (startResult['ok'] != true || startResult['state'] != 'pending') {

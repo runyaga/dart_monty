@@ -135,4 +135,34 @@ abstract class NativeBindings {
   ///
   /// Returns the new handle address as an `int`, or throws on error.
   int restore(Uint8List data);
+
+  // ---------------------------------------------------------------------------
+  // Cancellation (CancellableTracker)
+  // ---------------------------------------------------------------------------
+
+  /// Cancel the interpreter. Sets atomic cancel flag. Idempotent.
+  /// No-op if handle is 0.
+  void cancel(int handle);
+
+  /// Check if the cancel flag is set.
+  /// Returns `true` if cancelled, `false` if not, or throws if handle invalid.
+  bool isCancelled(int handle);
+
+  /// Reset the cancel flag. Only valid after cancel (v2 — rarely needed).
+  /// No-op if handle is 0.
+  void resetCancel(int handle);
+
+  /// Get the monotonic handle ID for cross-isolate cancel.
+  /// Returns 0 if handle is invalid.
+  int getHandleId(int handle);
+
+  /// Cancel by registry ID. Returns `true` if found and cancelled.
+  bool cancelById(int handleId);
+
+  /// Check if cancelled by registry ID.
+  /// Returns `null` if handle not found, `true` if cancelled, `false` if not.
+  bool? isCancelledById(int handleId);
+
+  /// Free a handle by its registry ID. Returns `true` if found and freed.
+  bool freeById(int handleId);
 }

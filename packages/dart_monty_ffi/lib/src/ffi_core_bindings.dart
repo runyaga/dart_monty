@@ -19,10 +19,29 @@ import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart
 /// ```
 class FfiCoreBindings implements MontyCoreBindings {
   /// Creates an [FfiCoreBindings] backed by [bindings].
-  FfiCoreBindings({required NativeBindings bindings}) : _bindings = bindings;
+  ///
+  /// If [onHandleCreated] is provided, it is called synchronously after a
+  /// handle is created (in [run] and [start]) with the monotonic handle ID.
+  /// Used by the isolate worker to send the handle ID to the supervisor
+  /// before entering a potentially blocking FFI call.
+  FfiCoreBindings({
+    required NativeBindings bindings,
+    this.onHandleCreated,
+  }) : _bindings = bindings;
 
   final NativeBindings _bindings;
   int? _handle;
+
+  /// Monotonic handle ID for cross-isolate cancel.
+  int? _handleId;
+
+  /// The handle ID, available after [run] or [start] calls `create()`.
+  @override
+  int? get handleId => _handleId;
+
+  /// Optional callback invoked after a handle is created, before blocking
+  /// execution begins.
+  final void Function(int handleId)? onHandleCreated;
 
   @override
   Future<bool> init() async => true;
@@ -34,6 +53,11 @@ class FfiCoreBindings implements MontyCoreBindings {
     String? scriptName,
   }) async {
     final handle = _bindings.create(code, scriptName: scriptName);
+    final hid = _bindings.getHandleId(handle);
+    _handleId = hid;
+    if (hid > 0) {
+      onHandleCreated?.call(hid);
+    }
     try {
       _applyLimits(handle, limitsJson);
       final result = _bindings.run(handle);
@@ -41,6 +65,7 @@ class FfiCoreBindings implements MontyCoreBindings {
       return _translateRunResult(result);
     } finally {
       _bindings.free(handle);
+      _handleId = null;
     }
   }
 
@@ -57,12 +82,18 @@ class FfiCoreBindings implements MontyCoreBindings {
       externalFunctions: extFns,
       scriptName: scriptName,
     );
+    final hid = _bindings.getHandleId(handle);
+    _handleId = hid;
+    if (hid > 0) {
+      onHandleCreated?.call(hid);
+    }
     final ProgressResult progress;
     try {
       _applyLimits(handle, limitsJson);
       progress = _bindings.start(handle);
     } catch (e) {
       _bindings.free(handle);
+      _handleId = null;
       rethrow;
     }
     // Translation assumes ownership of handle lifecycle
@@ -115,6 +146,15 @@ class FfiCoreBindings implements MontyCoreBindings {
   @override
   Future<void> restoreSnapshot(Uint8List data) async {
     _handle = _bindings.restore(data);
+    _handleId = _bindings.getHandleId(_handle!);
+  }
+
+  @override
+  Future<void> cancel() async {
+    final handle = _handle;
+    if (handle != null) {
+      _bindings.cancel(handle);
+    }
   }
 
   @override
@@ -123,6 +163,7 @@ class FfiCoreBindings implements MontyCoreBindings {
     if (handle != null) {
       _bindings.free(handle);
       _handle = null;
+      _handleId = null;
     }
   }
 
@@ -152,6 +193,7 @@ class FfiCoreBindings implements MontyCoreBindings {
     }
 
     // tag == 1: error
+
     final resultJson = result.resultJson;
     if (resultJson != null) {
       final jsonMap = json.decode(resultJson) as Map<String, dynamic>;
@@ -230,6 +272,10 @@ class FfiCoreBindings implements MontyCoreBindings {
         );
 
       case 2: // error
+        // TODO(WU-5): Map excType to sealed MontyError hierarchy:
+        //   KeyboardInterrupt → MontyCancelledError
+        //   MemoryLimitExceeded/timeout → MontyResourceError
+        //   Other excTypes → MontyScriptError(message, excType: excType)
         _freeHandle(handle);
         final errorResultJson = progress.resultJson;
         if (errorResultJson != null) {
@@ -291,6 +337,7 @@ class FfiCoreBindings implements MontyCoreBindings {
   void _freeHandle(int handle) {
     if (_handle == handle) {
       _handle = null;
+      _handleId = null;
     }
     _bindings.free(handle);
   }

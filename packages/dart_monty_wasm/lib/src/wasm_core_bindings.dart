@@ -10,6 +10,9 @@ import 'package:dart_monty_wasm/src/wasm_bindings.dart';
 /// Provides synthetic [MontyResourceUsage] with Dart-side wall-clock
 /// timing since the WASM bridge does not expose `ResourceTracker`.
 ///
+/// Registers in [BaseMontyPlatform.webRegister] at init for cross-session
+/// `cancelById` support on web.
+///
 /// ```dart
 /// final core = WasmCoreBindings(bindings: WasmBindingsJs());
 /// final monty = MontyWasm(bindings: core);
@@ -20,11 +23,16 @@ class WasmCoreBindings implements MontyCoreBindings {
 
   final WasmBindings _bindings;
   int? _sessionId;
+  int? _handleId;
+
+  @override
+  int? get handleId => _handleId;
 
   @override
   Future<bool> init() async {
     if (_sessionId != null) return true;
     _sessionId = await _bindings.createSession();
+    _handleId = BaseMontyPlatform.webRegister(this);
     return true;
   }
 
@@ -35,13 +43,18 @@ class WasmCoreBindings implements MontyCoreBindings {
     String? scriptName,
   }) async {
     final sw = Stopwatch()..start();
-    final result = await _bindings.run(
-      code,
-      limitsJson: limitsJson,
-      scriptName: scriptName,
-    );
-    sw.stop();
-    return _translateRunResult(result, sw.elapsedMilliseconds);
+    try {
+      final result = await _bindings.run(
+        code,
+        limitsJson: limitsJson,
+        scriptName: scriptName,
+      );
+      sw.stop();
+      return _translateRunResult(result, sw.elapsedMilliseconds);
+    } on Object catch (e) {
+      _throwIfWebCancelError(e);
+      rethrow;
+    }
   }
 
   @override
@@ -52,30 +65,45 @@ class WasmCoreBindings implements MontyCoreBindings {
     String? scriptName,
   }) async {
     final sw = Stopwatch()..start();
-    final progress = await _bindings.start(
-      code,
-      extFnsJson: extFnsJson,
-      limitsJson: limitsJson,
-      scriptName: scriptName,
-    );
-    sw.stop();
-    return _translateProgressResult(progress, sw.elapsedMilliseconds);
+    try {
+      final progress = await _bindings.start(
+        code,
+        extFnsJson: extFnsJson,
+        limitsJson: limitsJson,
+        scriptName: scriptName,
+      );
+      sw.stop();
+      return _translateProgressResult(progress, sw.elapsedMilliseconds);
+    } on Object catch (e) {
+      _throwIfWebCancelError(e);
+      rethrow;
+    }
   }
 
   @override
   Future<CoreProgressResult> resume(String valueJson) async {
     final sw = Stopwatch()..start();
-    final progress = await _bindings.resume(valueJson);
-    sw.stop();
-    return _translateProgressResult(progress, sw.elapsedMilliseconds);
+    try {
+      final progress = await _bindings.resume(valueJson);
+      sw.stop();
+      return _translateProgressResult(progress, sw.elapsedMilliseconds);
+    } on Object catch (e) {
+      _throwIfWebCancelError(e);
+      rethrow;
+    }
   }
 
   @override
   Future<CoreProgressResult> resumeWithError(String errorMessage) async {
     final sw = Stopwatch()..start();
-    final progress = await _bindings.resumeWithError(errorMessage);
-    sw.stop();
-    return _translateProgressResult(progress, sw.elapsedMilliseconds);
+    try {
+      final progress = await _bindings.resumeWithError(errorMessage);
+      sw.stop();
+      return _translateProgressResult(progress, sw.elapsedMilliseconds);
+    } on Object catch (e) {
+      _throwIfWebCancelError(e);
+      rethrow;
+    }
   }
 
   @override
@@ -103,7 +131,16 @@ class WasmCoreBindings implements MontyCoreBindings {
   }
 
   @override
+  Future<void> cancel() async {
+    await _bindings.cancel();
+  }
+
+  @override
   Future<void> dispose() async {
+    if (_handleId != null) {
+      BaseMontyPlatform.webUnregister(_handleId!);
+      _handleId = null;
+    }
     if (_sessionId != null) {
       await _bindings.disposeSession(_sessionId!);
       _sessionId = null;
@@ -177,6 +214,28 @@ class WasmCoreBindings implements MontyCoreBindings {
 
       default:
         throw StateError('Unknown progress state: ${progress.state}');
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Web error prefix mapping
+  // ---------------------------------------------------------------------------
+
+  /// Maps JS rejection error messages to sealed [MontyError] subtypes.
+  ///
+  /// When cancel() terminates the Worker, pending Promises reject with
+  /// prefixed error messages. This method recognizes those prefixes and
+  /// throws the appropriate sealed type so supervisors can pattern-match.
+  void _throwIfWebCancelError(Object error) {
+    final msg = error.toString();
+    if (msg.contains('MontyCancelled:')) {
+      throw MontyCancelledError(msg);
+    }
+    if (msg.contains('MontyDisposed:')) {
+      throw MontyDisposedError(msg);
+    }
+    if (msg.contains('MontyWorkerError:')) {
+      throw MontyResourceError(msg);
     }
   }
 }

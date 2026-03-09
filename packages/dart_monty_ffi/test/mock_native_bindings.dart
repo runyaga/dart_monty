@@ -237,4 +237,84 @@ class MockNativeBindings extends NativeBindings {
 
     return nextRestoreHandle;
   }
+
+  // ---------------------------------------------------------------------------
+  // Cancellation (CancellableTracker)
+  // ---------------------------------------------------------------------------
+
+  /// Whether cancel has been called and on which handles.
+  final List<int> cancelCalls = [];
+
+  /// Whether isCancelled has been called.
+  final List<int> isCancelledCalls = [];
+
+  /// Return value for [isCancelled]. Defaults to false.
+  bool nextIsCancelled = false;
+
+  /// Calls to resetCancel.
+  final List<int> resetCancelCalls = [];
+
+  /// Calls to getHandleId.
+  final List<int> getHandleIdCalls = [];
+
+  /// Return value for [getHandleId]. Defaults to 1.
+  int nextGetHandleId = 1;
+
+  /// Calls to cancelById.
+  final List<int> cancelByIdCalls = [];
+
+  /// Return value for [cancelById]. Defaults to true.
+  bool nextCancelById = true;
+
+  /// Calls to isCancelledById.
+  final List<int> isCancelledByIdCalls = [];
+
+  /// Return value for [isCancelledById]. Defaults to false.
+  bool? nextIsCancelledById = false;
+
+  /// Calls to freeById.
+  final List<int> freeByIdCalls = [];
+
+  /// Return value for [freeById]. Defaults to true.
+  bool nextFreeById = true;
+
+  @override
+  void cancel(int handle) {
+    cancelCalls.add(handle);
+  }
+
+  @override
+  bool isCancelled(int handle) {
+    isCancelledCalls.add(handle);
+    return nextIsCancelled;
+  }
+
+  @override
+  void resetCancel(int handle) {
+    resetCancelCalls.add(handle);
+  }
+
+  @override
+  int getHandleId(int handle) {
+    getHandleIdCalls.add(handle);
+    return nextGetHandleId;
+  }
+
+  @override
+  bool cancelById(int handleId) {
+    cancelByIdCalls.add(handleId);
+    return nextCancelById;
+  }
+
+  @override
+  bool? isCancelledById(int handleId) {
+    isCancelledByIdCalls.add(handleId);
+    return nextIsCancelledById;
+  }
+
+  @override
+  bool freeById(int handleId) {
+    freeByIdCalls.add(handleId);
+    return nextFreeById;
+  }
 }

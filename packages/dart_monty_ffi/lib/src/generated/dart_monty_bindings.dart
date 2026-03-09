@@ -499,6 +499,122 @@ class DartMontyBindings {
   late final _monty_set_stack_limit = _monty_set_stack_limitPtr
       .asFunction<void Function(ffi.Pointer<MontyHandle>, int)>();
 
+  /// Request cancellation. Sets the atomic cancel flag.
+  /// The next bytecode boundary check raises KeyboardInterrupt.
+  /// Idempotent — safe to call multiple times. Thread-safe.
+  /// No-op if handle is NULL.
+  void monty_cancel(
+    ffi.Pointer<MontyHandle> handle,
+  ) {
+    return _monty_cancel(
+      handle,
+    );
+  }
+
+  late final _monty_cancelPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<MontyHandle>)>>(
+          'monty_cancel');
+  late final _monty_cancel =
+      _monty_cancelPtr.asFunction<void Function(ffi.Pointer<MontyHandle>)>();
+
+  /// Check whether the cancel flag is set.
+  /// Returns 1 if cancelled, 0 if not, -1 if handle is NULL.
+  int monty_is_cancelled(
+    ffi.Pointer<MontyHandle> handle,
+  ) {
+    return _monty_is_cancelled(
+      handle,
+    );
+  }
+
+  late final _monty_is_cancelledPtr =
+      _lookup<ffi.NativeFunction<ffi.Int Function(ffi.Pointer<MontyHandle>)>>(
+          'monty_is_cancelled');
+  late final _monty_is_cancelled = _monty_is_cancelledPtr
+      .asFunction<int Function(ffi.Pointer<MontyHandle>)>();
+
+  /// Reset the cancel flag. Call before reusing a handle after cancel.
+  /// No-op if handle is NULL.
+  void monty_reset_cancel(
+    ffi.Pointer<MontyHandle> handle,
+  ) {
+    return _monty_reset_cancel(
+      handle,
+    );
+  }
+
+  late final _monty_reset_cancelPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<MontyHandle>)>>(
+          'monty_reset_cancel');
+  late final _monty_reset_cancel = _monty_reset_cancelPtr
+      .asFunction<void Function(ffi.Pointer<MontyHandle>)>();
+
+  /// Get the monotonic handle ID for cross-isolate cancel.
+  /// Returns 0 if handle is NULL or not registered.
+  int monty_get_handle_id(
+    ffi.Pointer<MontyHandle> handle,
+  ) {
+    return _monty_get_handle_id(
+      handle,
+    );
+  }
+
+  late final _monty_get_handle_idPtr = _lookup<
+          ffi.NativeFunction<ffi.Uint64 Function(ffi.Pointer<MontyHandle>)>>(
+      'monty_get_handle_id');
+  late final _monty_get_handle_id = _monty_get_handle_idPtr
+      .asFunction<int Function(ffi.Pointer<MontyHandle>)>();
+
+  /// Cancel a handle by its registry ID. Works from any thread/isolate.
+  /// Returns 0 on success, -1 if not found, -2 if cancel flag was dropped.
+  int monty_cancel_by_id(
+    int handle_id,
+  ) {
+    return _monty_cancel_by_id(
+      handle_id,
+    );
+  }
+
+  late final _monty_cancel_by_idPtr =
+      _lookup<ffi.NativeFunction<ffi.Int Function(ffi.Uint64)>>(
+          'monty_cancel_by_id');
+  late final _monty_cancel_by_id =
+      _monty_cancel_by_idPtr.asFunction<int Function(int)>();
+
+  /// Check whether a handle is cancelled by registry ID.
+  /// Returns 1 if cancelled, 0 if not cancelled, -1 if not found.
+  int monty_is_cancelled_by_id(
+    int handle_id,
+  ) {
+    return _monty_is_cancelled_by_id(
+      handle_id,
+    );
+  }
+
+  late final _monty_is_cancelled_by_idPtr =
+      _lookup<ffi.NativeFunction<ffi.Int Function(ffi.Uint64)>>(
+          'monty_is_cancelled_by_id');
+  late final _monty_is_cancelled_by_id =
+      _monty_is_cancelled_by_idPtr.asFunction<int Function(int)>();
+
+  /// Free a MontyHandle by its registry ID. Safe from any thread.
+  /// Returns 1 if the handle was found and freed, 0 if not found.
+  /// Used by supervisor to clean up after crash-only disposal when the
+  /// worker isolate was killed before it could call monty_free().
+  int monty_free_by_id(
+    int handle_id,
+  ) {
+    return _monty_free_by_id(
+      handle_id,
+    );
+  }
+
+  late final _monty_free_by_idPtr =
+      _lookup<ffi.NativeFunction<ffi.Int Function(ffi.Uint64)>>(
+          'monty_free_by_id');
+  late final _monty_free_by_id =
+      _monty_free_by_idPtr.asFunction<int Function(int)>();
+
   /// Free a string returned by any monty_* function. Safe with NULL.
   void monty_string_free(
     ffi.Pointer<ffi.Char> ptr,

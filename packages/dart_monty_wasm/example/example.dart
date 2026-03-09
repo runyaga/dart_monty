@@ -32,10 +32,7 @@ Future<void> _simpleRun(MontyWasm monty) async {
 Future<void> _runWithLimits(MontyWasm monty) async {
   final result = await monty.run(
     'sum(range(100))',
-    limits: const MontyLimits(
-      timeoutMs: 5000,
-      memoryBytes: 10 * 1024 * 1024,
-    ),
+    limits: const MontyLimits(timeoutMs: 5000, memoryBytes: 10 * 1024 * 1024),
   );
   print('With limits: ${result.value}'); // 4950
 }

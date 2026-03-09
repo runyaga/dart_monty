@@ -25,9 +25,32 @@ class NativeBindingsFfi extends NativeBindings {
               : DynamicLibrary.open(
                   NativeLibraryLoader.resolve(overridePath: libraryPath),
                 ),
-        );
+        ) {
+    _instance ??= this;
+    BaseMontyPlatform.registerNativeCancel(
+      cancelById: (id) => instanceOrNull?.cancelById(id) ?? false,
+      isCancelledById: (id) => instanceOrNull?.isCancelledById(id),
+      ensureInitialized: NativeBindingsFfi.ensureInitialized,
+    );
+  }
 
   final DartMontyBindings _lib;
+
+  // ---------------------------------------------------------------------------
+  // Singleton for cross-isolate cancelById access
+  // ---------------------------------------------------------------------------
+
+  static NativeBindingsFfi? _instance;
+
+  /// Nullable accessor for cancelById callers that check initialization.
+  static NativeBindingsFfi? get instanceOrNull => _instance;
+
+  /// Ensure the FFI library is loaded in the current isolate.
+  /// Must be called before static cancel operations.
+  /// Safe to call multiple times (idempotent, first-write-wins).
+  static void ensureInitialized([String? libraryPath]) {
+    _instance ??= NativeBindingsFfi(libraryPath: libraryPath);
+  }
 
   @override
   int create(
@@ -239,6 +262,58 @@ class NativeBindingsFfi extends NativeBindings {
         ..free(cData)
         ..free(outError);
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Cancellation (CancellableTracker)
+  // ---------------------------------------------------------------------------
+
+  @override
+  void cancel(int handle) {
+    if (handle == 0) return;
+    _lib.monty_cancel(Pointer<MontyHandle>.fromAddress(handle));
+  }
+
+  @override
+  bool isCancelled(int handle) {
+    if (handle == 0) return false;
+    final result = _lib.monty_is_cancelled(
+      Pointer<MontyHandle>.fromAddress(handle),
+    );
+    return result == 1;
+  }
+
+  @override
+  void resetCancel(int handle) {
+    if (handle == 0) return;
+    _lib.monty_reset_cancel(Pointer<MontyHandle>.fromAddress(handle));
+  }
+
+  @override
+  int getHandleId(int handle) {
+    if (handle == 0) return 0;
+    return _lib.monty_get_handle_id(
+      Pointer<MontyHandle>.fromAddress(handle),
+    );
+  }
+
+  @override
+  bool cancelById(int handleId) {
+    final result = _lib.monty_cancel_by_id(handleId);
+    return result == 0;
+  }
+
+  @override
+  bool? isCancelledById(int handleId) {
+    final result = _lib.monty_is_cancelled_by_id(handleId);
+    if (result == -1) return null; // not found
+    return result == 1;
+  }
+
+  @override
+  bool freeById(int handleId) {
+    final result = _lib.monty_free_by_id(handleId);
+    return result == 1;
   }
 
   // ---------------------------------------------------------------------------
