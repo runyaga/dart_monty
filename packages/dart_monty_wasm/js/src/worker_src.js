@@ -241,6 +241,12 @@ function handleRun(id, code, limits, scriptName) {
 }
 
 function handleStart(id, code, extFns, limits, scriptName) {
+  // Free any abandoned execution before starting a new one.
+  if (activeHandle) {
+    wasm.monty_free(activeHandle);
+    activeHandle = null;
+  }
+
   let cCode = null;
   let cExtFns = null;
   let cName = null;
@@ -561,10 +567,15 @@ function handleSnapshot(id) {
   const len = outLen.read();
   outLen.free();
 
-  // Copy bytes out of WASM memory before freeing
+  // Copy bytes out of WASM memory before freeing.
+  // try/finally ensures WASM buffer is freed even if slice() OOMs.
   const wasmBytes = new Uint8Array(wasm.memory.buffer, ptr, len);
-  const copy = wasmBytes.slice();
-  wasm.monty_bytes_free(ptr, len);
+  let copy;
+  try {
+    copy = wasmBytes.slice();
+  } finally {
+    wasm.monty_bytes_free(ptr, len);
+  }
 
   // Transfer ArrayBuffer to main thread (zero-copy move)
   self.postMessage(
@@ -574,6 +585,12 @@ function handleSnapshot(id) {
 }
 
 function handleRestore(id, dataBase64) {
+  // Free any abandoned execution before restoring.
+  if (activeHandle) {
+    wasm.monty_free(activeHandle);
+    activeHandle = null;
+  }
+
   // Decode base64 to Uint8Array
   const binary = atob(dataBase64);
   const bytes = new Uint8Array(binary.length);

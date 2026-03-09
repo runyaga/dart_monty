@@ -45,7 +45,8 @@ function createSession() {
         [`import "${workerUrl}";`],
         { type: 'application/javascript' },
       );
-      const worker = new Worker(URL.createObjectURL(blob), { type: 'module' });
+      const blobUrl = URL.createObjectURL(blob);
+      const worker = new Worker(blobUrl, { type: 'module' });
 
       worker.onerror = (event) => {
         const session = sessions.get(sessionId);
@@ -67,6 +68,7 @@ function createSession() {
         const msg = e.data;
 
         if (msg.type === 'ready') {
+          URL.revokeObjectURL(blobUrl);
           sessions.set(sessionId, {
             worker,
             nextMsgId: 1,

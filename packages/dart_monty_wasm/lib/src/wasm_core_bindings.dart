@@ -136,20 +136,37 @@ class WasmCoreBindings implements MontyCoreBindings {
   }
 
   @override
-  Future<Uint8List> snapshot() => _bindings.snapshot();
+  Future<Uint8List> snapshot() async {
+    try {
+      return await _bindings.snapshot();
+    } on Object catch (e) {
+      _throwIfWebCancelError(e);
+      rethrow;
+    }
+  }
 
   @override
   Future<void> restoreSnapshot(Uint8List data) async {
     // Ensure a session exists before restoring — _sessionId would be null
     // if restore is called on a fresh WasmCoreBindings instance.
     await init();
-    await _bindings.restore(data);
+    try {
+      await _bindings.restore(data);
+    } on Object catch (e) {
+      _throwIfWebCancelError(e);
+      rethrow;
+    }
   }
 
   @override
   Future<void> cancel() async {
     await _bindings.cancel();
-    // Worker is terminated — clear session so init() can spawn a new one.
+    // Worker is terminated — unregister and clear state so init() can
+    // spawn a new one without leaking the handle ID in the platform registry.
+    if (_handleId != null) {
+      BaseMontyPlatform.webUnregister(_handleId!);
+      _handleId = null;
+    }
     _sessionId = null;
   }
 
