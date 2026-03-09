@@ -126,7 +126,8 @@ void main() {
         } else {
           subDWrong++;
           subDWrongTypes.add(
-            caughtError?.runtimeType.toString() ?? 'null (Future still pending)',
+            caughtError?.runtimeType.toString() ??
+                'null (Future still pending)',
           );
         }
       }, timeout: const Timeout(Duration(seconds: 10)));

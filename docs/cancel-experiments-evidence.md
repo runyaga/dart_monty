@@ -128,6 +128,7 @@ is expected behavior and filed as a separate issue.
 
 All four T1 experiments pass at full N counts. The core cancellation API contract
 is empirically validated:
+
 - `cancel()` → `MontyCancelledError` (100%)
 - `CancelToken` cross-boundary routing (100%)
 - `terminate()` resource release (100%)

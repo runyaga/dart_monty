@@ -108,7 +108,8 @@ void main() {
     print('Trials: $n (+ $warmup warmup)');
     print('Cancel-to-catch latency (ms):');
     print('  Mean: ${mean.toStringAsFixed(3)}');
-    print('  Median: ${median.toStringAsFixed(3)} [95% CI: ${ciLow.toStringAsFixed(3)} - ${ciHigh.toStringAsFixed(3)}]');
+    print(
+        '  Median: ${median.toStringAsFixed(3)} [95% CI: ${ciLow.toStringAsFixed(3)} - ${ciHigh.toStringAsFixed(3)}]');
     print('  P95: ${p95.toStringAsFixed(3)}');
     print('  P99: ${p99.toStringAsFixed(3)}');
     print('  Max: ${maxVal.toStringAsFixed(3)}');

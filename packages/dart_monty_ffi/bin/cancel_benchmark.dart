@@ -54,7 +54,11 @@ Future<Map<String, dynamic>> runT1_1({
     } on Object {
       wrongTypeCount++;
     }
-    try { await isolate.cancel(); } on Object { doubleThrowCount++; }
+    try {
+      await isolate.cancel();
+    } on Object {
+      doubleThrowCount++;
+    }
     await isolate.terminate();
     if (trial % 50 == 0) stderr.write('\r  T1-1: $trial/$cancelN');
   }
@@ -63,7 +67,11 @@ Future<Map<String, dynamic>> runT1_1({
     final isolate = NativeIsolateBindingsImpl(libraryPath: libPath);
     await isolate.init();
     await isolate.run('2 + 2');
-    try { await isolate.cancel(); } on Object { postCompleteThrowCount++; }
+    try {
+      await isolate.cancel();
+    } on Object {
+      postCompleteThrowCount++;
+    }
     await isolate.dispose();
   }
   stderr.writeln();
@@ -142,7 +150,9 @@ Future<Map<String, dynamic>> runT1_2({
     'cross_cancel_success': crossCancelSuccess,
     'state_error': stateErrorCount,
     'alive_post_terminate': isAlivePostTerminate,
-    'pass': crossCancelSuccess == n && stateErrorCount == 0 && isAlivePostTerminate == 0,
+    'pass': crossCancelSuccess == n &&
+        stateErrorCount == 0 &&
+        isAlivePostTerminate == 0,
   };
 }
 
@@ -248,7 +258,9 @@ Future<Map<String, dynamic>> runT1_4({
     await Future<void>.delayed(const Duration(milliseconds: 100));
 
     Object? caughtError;
-    unawaited(f.then<void>((_) {}, onError: (Object e) { caughtError = e; }));
+    unawaited(f.then<void>((_) {}, onError: (Object e) {
+      caughtError = e;
+    }));
     await isolate.terminate();
     await Future<void>.delayed(const Duration(milliseconds: 50));
 
@@ -310,7 +322,11 @@ Future<Map<String, dynamic>> runT2_2({
       const Duration(seconds: 5),
       onTimeout: () => 'HANGING',
     );
-    if (result == 'HANGING') { c1Hanging++; } else { c1Resolved++; }
+    if (result == 'HANGING') {
+      c1Hanging++;
+    } else {
+      c1Resolved++;
+    }
     stderr.write('\r  T2-2 C1: $trial/$nC1');
   }
   stderr.writeln();
@@ -337,7 +353,11 @@ Future<Map<String, dynamic>> runT2_2({
       const Duration(seconds: 5),
       onTimeout: () => 'HANGING',
     );
-    if (result == 'HANGING') { c2Hanging++; } else { c2Resolved++; }
+    if (result == 'HANGING') {
+      c2Hanging++;
+    } else {
+      c2Resolved++;
+    }
     if (trial % 10 == 0) stderr.write('\r  T2-2 C2: $trial/$nC2');
   }
   stderr.writeln();
@@ -409,7 +429,8 @@ Future<Map<String, dynamic>> runT2_3({
     'cycles': totalCycles,
     'delta_mb': deltaMb,
     'slope_mb_per_cycle': slope,
-    'rss_checkpoints': rssAt.map((k, v) => MapEntry(k, (v / (1024 * 1024)).toStringAsFixed(1))),
+    'rss_checkpoints': rssAt
+        .map((k, v) => MapEntry(k, (v / (1024 * 1024)).toStringAsFixed(1))),
     'pass': deltaMb.abs() < 5.0 && slope.abs() < 0.005,
   };
 }
@@ -616,9 +637,8 @@ Map<String, dynamic> _computeStats(
   final ciLow = bootstrapMedians[(10000 * 0.025).floor()];
   final ciHigh = bootstrapMedians[(10000 * 0.975).floor()];
 
-  final pass = name == 'T3-1'
-      ? (p95 < 5.0 && maxVal < 20.0)
-      : (p95 < 20.0); // T3-2
+  final pass =
+      name == 'T3-1' ? (p95 < 5.0 && maxVal < 20.0) : (p95 < 20.0); // T3-2
 
   return {
     'experiment': name,
@@ -642,13 +662,15 @@ void _printResult(Map<String, dynamic> r) {
   switch (name) {
     case 'T1-1':
       stdout.writeln('  Cancel trials: ${r['cancel_n']}');
-      stdout.writeln('  MontyCancelledError: ${r['cancelled']} / ${r['cancel_n']}');
+      stdout.writeln(
+          '  MontyCancelledError: ${r['cancelled']} / ${r['cancel_n']}');
       stdout.writeln('  Wrong type: ${r['wrong_type']}');
       stdout.writeln('  Double-cancel throws: ${r['double_throw']}');
       stdout.writeln('  Post-complete throws: ${r['post_complete_throw']}');
     case 'T1-2':
       stdout.writeln('  Trials: ${r['n']}');
-      stdout.writeln('  Cross-cancel success: ${r['cross_cancel_success']} / ${r['n']}');
+      stdout.writeln(
+          '  Cross-cancel success: ${r['cross_cancel_success']} / ${r['n']}');
       stdout.writeln('  StateError: ${r['state_error']}');
       stdout.writeln('  Alive post-terminate: ${r['alive_post_terminate']}');
     case 'T1-3':
@@ -661,12 +683,16 @@ void _printResult(Map<String, dynamic> r) {
       stdout.writeln('  Sub-C (Cancel): ${r['sub_c']} / ${r['n']}');
       stdout.writeln('  Sub-D (Dispose): ${r['sub_d']} / ${r['n']}');
     case 'T2-2':
-      stdout.writeln('  C1 dispose: ${r['c1_resolved']}/${r['c1_n']} resolved, ${r['c1_hanging']} hanging');
-      stdout.writeln('  C2 terminate: ${r['c2_resolved']}/${r['c2_n']} resolved, ${r['c2_hanging']} hanging');
+      stdout.writeln(
+          '  C1 dispose: ${r['c1_resolved']}/${r['c1_n']} resolved, ${r['c1_hanging']} hanging');
+      stdout.writeln(
+          '  C2 terminate: ${r['c2_resolved']}/${r['c2_n']} resolved, ${r['c2_hanging']} hanging');
     case 'T2-3':
       stdout.writeln('  Cycles: ${r['cycles']}');
-      stdout.writeln('  RSS delta: ${(r['delta_mb'] as double).toStringAsFixed(2)} MB');
-      stdout.writeln('  Slope: ${(r['slope_mb_per_cycle'] as double).toStringAsFixed(6)} MB/cycle');
+      stdout.writeln(
+          '  RSS delta: ${(r['delta_mb'] as double).toStringAsFixed(2)} MB');
+      stdout.writeln(
+          '  Slope: ${(r['slope_mb_per_cycle'] as double).toStringAsFixed(6)} MB/cycle');
     case 'T3-4':
       stdout.writeln('  Trials: ${r['n']}');
       stdout.writeln('  False positives: ${r['false_positives']}');
@@ -702,12 +728,14 @@ void _printResult(Map<String, dynamic> r) {
 // ---------------------------------------------------------------------------
 Future<void> main(List<String> args) async {
   final libPath = _resolveLibraryPath();
-  final isAot = const bool.fromEnvironment('dart.vm.product', defaultValue: false) ||
-      !Platform.resolvedExecutable.endsWith('dart');
+  final isAot =
+      const bool.fromEnvironment('dart.vm.product', defaultValue: false) ||
+          !Platform.resolvedExecutable.endsWith('dart');
   final mode = isAot ? 'AOT' : 'JIT';
 
   stdout.writeln('=== Cancel Benchmark ($mode) ===');
-  stdout.writeln('Platform: ${Platform.operatingSystem} ${Platform.operatingSystemVersion}');
+  stdout.writeln(
+      'Platform: ${Platform.operatingSystem} ${Platform.operatingSystemVersion}');
   stdout.writeln('Dart: ${Platform.version}');
   stdout.writeln('Library: $libPath');
   stdout.writeln();

@@ -71,8 +71,7 @@ void main() {
     if (terminateLatenciesUs.isEmpty) return;
 
     terminateLatenciesUs.sort();
-    final latenciesMs =
-        terminateLatenciesUs.map((u) => u / 1000.0).toList();
+    final latenciesMs = terminateLatenciesUs.map((u) => u / 1000.0).toList();
 
     final median = latenciesMs[latenciesMs.length ~/ 2];
     final p95 = latenciesMs[(latenciesMs.length * 0.95).floor()];
@@ -99,7 +98,8 @@ void main() {
     print('Trials: $n (+ $warmup warmup)');
     print('Terminate latency (ms):');
     print('  Mean: ${mean.toStringAsFixed(3)}');
-    print('  Median: ${median.toStringAsFixed(3)} [95% CI: ${ciLow.toStringAsFixed(3)} - ${ciHigh.toStringAsFixed(3)}]');
+    print(
+        '  Median: ${median.toStringAsFixed(3)} [95% CI: ${ciLow.toStringAsFixed(3)} - ${ciHigh.toStringAsFixed(3)}]');
     print('  P95: ${p95.toStringAsFixed(3)}');
     print('  P99: ${p99.toStringAsFixed(3)}');
     print('  Max: ${maxVal.toStringAsFixed(3)}');

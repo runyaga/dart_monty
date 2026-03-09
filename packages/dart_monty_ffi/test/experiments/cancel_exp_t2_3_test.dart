@@ -54,9 +54,7 @@ void main() {
     final deltaMb = (finalRss - baseRss) / (1024 * 1024);
 
     // Linear regression: slope = (sum xy - n*mx*my) / (sum x^2 - n*mx^2)
-    final entries = rssAtCheckpoint.entries
-        .where((e) => e.key > 0)
-        .toList();
+    final entries = rssAtCheckpoint.entries.where((e) => e.key > 0).toList();
     var slopeMbPerCycle = 0.0;
     var r2 = 0.0;
     if (entries.length >= 2) {
@@ -87,12 +85,12 @@ void main() {
         print('  cycle $cp: ${(rss / (1024 * 1024)).toStringAsFixed(1)} MB');
       }
     }
-    print('RSS delta (cycle 0 → $totalCycles): ${deltaMb.toStringAsFixed(2)} MB');
+    print(
+        'RSS delta (cycle 0 → $totalCycles): ${deltaMb.toStringAsFixed(2)} MB');
     print('Regression slope: ${slopeMbPerCycle.toStringAsFixed(6)} MB/cycle');
     print('R²: ${r2.toStringAsFixed(4)}');
     print('');
-    final pass =
-        deltaMb.abs() < 5.0 && slopeMbPerCycle.abs() < 0.005;
+    final pass = deltaMb.abs() < 5.0 && slopeMbPerCycle.abs() < 0.005;
     print('VERDICT: ${pass ? "PASS" : "FAIL"}');
     print('  Delta < 5MB: ${deltaMb.abs() < 5.0}');
     print('  Slope < 0.005: ${slopeMbPerCycle.abs() < 0.005}');
