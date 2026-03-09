@@ -33,6 +33,8 @@ dependency_overrides:
     path: packages/dart_monty_native
   dart_monty_platform_interface:
     path: packages/dart_monty_platform_interface
+  dart_monty_wasm:
+    path: packages/dart_monty_wasm
   dart_monty_web:
     path: packages/dart_monty_web
 
