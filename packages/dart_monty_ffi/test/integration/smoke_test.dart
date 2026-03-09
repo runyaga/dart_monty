@@ -72,33 +72,33 @@ void main() {
     await monty.dispose();
   });
 
-  test('snapshot round-trip', skip: 'monty_snapshot returns null in current build',
-      () async {
-    final monty = MontyFfi(bindings: bindings);
-    final progress = await monty.start(
-      'x = 42\nfetch("url")',
-      externalFunctions: ['fetch'],
-    );
-    expect(progress, isA<MontyPending>());
+  test(
+    'snapshot round-trip',
+    skip: 'monty_snapshot returns null in current build',
+    () async {
+      final monty = MontyFfi(bindings: bindings);
+      final progress = await monty.start(
+        'x = 42\nfetch("url")',
+        externalFunctions: ['fetch'],
+      );
+      expect(progress, isA<MontyPending>());
 
-    final data = await monty.snapshot();
-    expect(data, isNotEmpty);
+      final data = await monty.snapshot();
+      expect(data, isNotEmpty);
 
-    final restored = await monty.restore(data) as MontyFfi;
-    final done = await restored.resume('ok');
-    expect(done, isA<MontyComplete>());
+      final restored = await monty.restore(data) as MontyFfi;
+      final done = await restored.resume('ok');
+      expect(done, isA<MontyComplete>());
 
-    await monty.dispose();
-    await restored.dispose();
-  });
+      await monty.dispose();
+      await restored.dispose();
+    },
+  );
 
   test('error handling: invalid syntax', () async {
     final monty = MontyFfi(bindings: bindings);
 
-    expect(
-      () => monty.run('def'),
-      throwsA(isA<MontyException>()),
-    );
+    expect(() => monty.run('def'), throwsA(isA<MontyException>()));
 
     await monty.dispose();
   });
