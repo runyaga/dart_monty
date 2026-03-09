@@ -37,10 +37,15 @@ function createSession() {
   return new Promise((resolve, reject) => {
     const sessionId = nextSessionId++;
     try {
-      const worker = new Worker(
-        new URL('./dart_monty_worker.js', _bridgeBase),
-        { type: 'module' },
+      // Blob URL trampoline: allows Worker creation when bridge.js is
+      // served from a different origin (e.g. CDN). Direct cross-origin
+      // Worker URLs throw SecurityError; a same-origin Blob proxy avoids it.
+      const workerUrl = new URL('./dart_monty_worker.js', _bridgeBase).href;
+      const blob = new Blob(
+        [`import "${workerUrl}";`],
+        { type: 'application/javascript' },
       );
+      const worker = new Worker(URL.createObjectURL(blob), { type: 'module' });
 
       worker.onerror = (event) => {
         const session = sessions.get(sessionId);

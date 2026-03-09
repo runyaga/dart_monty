@@ -151,15 +151,17 @@ let activeHandle = null;
 // ---------------------------------------------------------------------------
 
 function handleRun(id, code, limits, scriptName) {
-  const cCode = allocCString(code);
-  const cName = scriptName ? allocCString(scriptName) : null;
+  let cCode = null;
+  let cName = null;
   const outError = allocOutPtr();
 
   let handle;
   try {
+    cCode = allocCString(code);
+    cName = scriptName ? allocCString(scriptName) : null;
     handle = wasm.monty_create(cCode.ptr, 0, cName ? cName.ptr : 0, outError.ptr);
   } finally {
-    wasm.monty_dealloc(cCode.ptr, cCode.size);
+    if (cCode) wasm.monty_dealloc(cCode.ptr, cCode.size);
     if (cName) wasm.monty_dealloc(cName.ptr, cName.size);
   }
 
@@ -226,18 +228,21 @@ function handleRun(id, code, limits, scriptName) {
 }
 
 function handleStart(id, code, extFns, limits, scriptName) {
-  const cCode = allocCString(code);
-  const cExtFns = extFns && extFns.length > 0 ? allocCString(extFns.join(',')) : null;
-  const cName = scriptName ? allocCString(scriptName) : null;
+  let cCode = null;
+  let cExtFns = null;
+  let cName = null;
   const outError = allocOutPtr();
 
   let handle;
   try {
+    cCode = allocCString(code);
+    cExtFns = extFns && extFns.length > 0 ? allocCString(extFns.join(',')) : null;
+    cName = scriptName ? allocCString(scriptName) : null;
     handle = wasm.monty_create(
       cCode.ptr, cExtFns ? cExtFns.ptr : 0, cName ? cName.ptr : 0, outError.ptr,
     );
   } finally {
-    wasm.monty_dealloc(cCode.ptr, cCode.size);
+    if (cCode) wasm.monty_dealloc(cCode.ptr, cCode.size);
     if (cExtFns) wasm.monty_dealloc(cExtFns.ptr, cExtFns.size);
     if (cName) wasm.monty_dealloc(cName.ptr, cName.size);
   }
