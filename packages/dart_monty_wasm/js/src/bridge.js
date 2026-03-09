@@ -54,7 +54,7 @@ function createSession() {
           // Worker crashed — reject all pending promises
           for (const req of session.pending.values()) {
             if (req.timer) clearTimeout(req.timer);
-            req.reject(new Error(`Worker crashed: ${event.message || event}`));
+            req.reject(new Error(`Panic: Worker crashed: ${event.message || event}`));
           }
           session.pending.clear();
           sessions.delete(sessionId);
@@ -112,7 +112,7 @@ function disposeSession(sessionId) {
   if (!session) return;
   for (const req of session.pending.values()) {
     if (req.timer) clearTimeout(req.timer);
-    req.reject(new Error('Session disposed'));
+    req.reject(new Error('MontyDisposed: Session disposed'));
   }
   session.pending.clear();
   session.worker.terminate();
@@ -147,7 +147,7 @@ function callWorker(sessionId, msg, timeoutMs) {
         // Timeout — reject ALL pending promises for this session
         for (const req of session.pending.values()) {
           if (req.timer) clearTimeout(req.timer);
-          req.reject(new Error('Execution timed out'));
+          req.reject(new Error('MontyWorkerError: Execution timed out'));
         }
         session.pending.clear();
         session.worker.terminate();
