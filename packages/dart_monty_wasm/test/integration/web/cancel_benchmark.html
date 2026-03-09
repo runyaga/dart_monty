@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>WASM Cancel Benchmark</title>
+</head>
+<body>
+  <h1>WASM Cancel Benchmark</h1>
+  <pre id="output"></pre>
+  <script src="dart_monty_bridge.js"></script>
+  <script>
+    // Fast cancel: immediately terminate Worker, reject pending.
+    // Session ID is read via DartMontyBridge.getDefaultSessionId()
+    // (injected by run_wasm_cancel_benchmark.sh build-time patch).
+    window._benchFastCancel = function(sessionId) {
+      DartMontyBridge.disposeSession(sessionId);
+    };
+  </script>
+  <script src="cancel_benchmark.dart.js"></script>
+</body>
+</html>

@@ -373,6 +373,7 @@ window.DartMontyBridge = {
   // Phase 2 multi-session API
   createSession,
   disposeSession,
+  getDefaultSessionId: () => defaultSessionId,
 };
 
 console.log('[DartMontyBridge] Registered on window (Worker pool architecture)');

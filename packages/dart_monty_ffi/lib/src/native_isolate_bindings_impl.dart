@@ -452,6 +452,14 @@ class NativeIsolateBindingsImpl extends NativeIsolateBindings {
   Future<void> dispose() async {
     if (_sendPort == null) return;
 
+    // Cancel first so a stuck FFI call (e.g. infinite loop) unblocks before
+    // we send the dispose command.  Without this, dispose() hangs forever
+    // waiting for a port reply that the blocked isolate can never send.
+    // See: https://github.com/runyaga/dart_monty/issues/113
+    // coverage:ignore-start — exercised by integration tests (T2-2)
+    await cancel();
+    // coverage:ignore-end
+
     try {
       await _send<_DisposeResponse>(_DisposeRequest(_nextId++));
     } on MontyException {
