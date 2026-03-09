@@ -108,7 +108,15 @@ class WasmCoreBindings implements MontyCoreBindings {
 
   @override
   Future<CoreProgressResult> resumeAsFuture() async {
-    throw UnsupportedError('resumeAsFuture() not supported in WASM');
+    final sw = Stopwatch()..start();
+    try {
+      final progress = await _bindings.resumeAsFuture();
+      sw.stop();
+      return _translateProgressResult(progress, sw.elapsedMilliseconds);
+    } on Object catch (e) {
+      _throwIfWebCancelError(e);
+      rethrow;
+    }
   }
 
   @override
@@ -116,7 +124,15 @@ class WasmCoreBindings implements MontyCoreBindings {
     String resultsJson,
     String errorsJson,
   ) async {
-    throw UnsupportedError('resolveFutures() not supported in WASM');
+    final sw = Stopwatch()..start();
+    try {
+      final progress = await _bindings.resolveFutures(resultsJson, errorsJson);
+      sw.stop();
+      return _translateProgressResult(progress, sw.elapsedMilliseconds);
+    } on Object catch (e) {
+      _throwIfWebCancelError(e);
+      rethrow;
+    }
   }
 
   @override
@@ -226,6 +242,9 @@ class WasmCoreBindings implements MontyCoreBindings {
   /// When cancel() terminates the Worker, pending Promises reject with
   /// prefixed error messages. This method recognizes those prefixes and
   /// throws the appropriate sealed type so supervisors can pattern-match.
+  ///
+  /// Also catches WASM trap errors (panic=abort on wasm32-wasip1), which
+  /// surface as `WebAssembly.RuntimeError` wrapped in the JS error string.
   void _throwIfWebCancelError(Object error) {
     final msg = error.toString();
     if (msg.contains('MontyCancelled:')) {
@@ -236,6 +255,9 @@ class WasmCoreBindings implements MontyCoreBindings {
     }
     if (msg.contains('MontyWorkerError:')) {
       throw MontyResourceError(msg);
+    }
+    if (msg.contains('Panic') || msg.contains('RuntimeError')) {
+      throw MontyPanicError(msg);
     }
   }
 }

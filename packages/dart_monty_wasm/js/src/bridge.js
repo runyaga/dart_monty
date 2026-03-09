@@ -297,6 +297,38 @@ async function resumeWithError(errorJson) {
 }
 
 /**
+ * Resume by creating a future for the pending external function call.
+ *
+ * @returns {Promise<string>} JSON result with state: pending, resolve_futures, or complete.
+ */
+async function resumeAsFuture() {
+  const sid = resolveSessionId(null);
+  if (sid == null || !sessions.has(sid)) return notInitializedError();
+
+  const session = sessions.get(sid);
+  const result = await callWorker(sid, { type: 'resumeAsFuture' }, session.timeoutMs);
+  return JSON.stringify(result);
+}
+
+/**
+ * Resolve pending futures with results and errors.
+ *
+ * @param {string} resultsJson JSON object {"callId": value, ...}.
+ * @param {string} errorsJson  JSON object {"callId": "errorMsg", ...}.
+ * @returns {Promise<string>} JSON result.
+ */
+async function resolveFutures(resultsJson, errorsJson) {
+  const sid = resolveSessionId(null);
+  if (sid == null || !sessions.has(sid)) return notInitializedError();
+
+  const session = sessions.get(sid);
+  const result = await callWorker(
+    sid, { type: 'resolveFutures', resultsJson, errorsJson }, session.timeoutMs,
+  );
+  return JSON.stringify(result);
+}
+
+/**
  * Capture the current interpreter state as a snapshot.
  *
  * @returns {Promise<string>} JSON result with base64-encoded data.
@@ -366,6 +398,8 @@ window.DartMontyBridge = {
   start,
   resume,
   resumeWithError,
+  resumeAsFuture,
+  resolveFutures,
   snapshot,
   restore,
   discover,

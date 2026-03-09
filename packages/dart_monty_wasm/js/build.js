@@ -2,11 +2,12 @@
 /**
  * build.js — Bundles dart_monty_wasm JS bridge and Worker.
  *
- * 1. esbuild worker_src.js → ../assets/dart_monty_worker.js (ESM)
- * 2. Patch bare specifier for sub-worker URL
- * 3. esbuild bridge.js → ../assets/dart_monty_bridge.js (IIFE)
- * 4. Copy wasi-worker-browser.mjs → ../assets/
- * 5. Copy .wasm binary → ../assets/
+ * Phase 3 (v0.8.0): Direct C-ABI — zero npm runtime dependencies.
+ *
+ * 1. esbuild worker_src.js + wasm_glue.js → ../assets/dart_monty_worker.js (ESM)
+ * 2. esbuild bridge.js → ../assets/dart_monty_bridge.js (IIFE)
+ * 3. Copy dart_monty_native.wasm from native/target/ → ../assets/
+ * 4. Run wasm-opt -Oz (if available)
  */
 
 const { execSync } = require('child_process');
@@ -14,13 +15,17 @@ const fs = require('fs');
 const path = require('path');
 
 const ASSETS = path.resolve(__dirname, '..', 'assets');
-const NODE_MODULES = path.resolve(__dirname, 'node_modules');
+const NATIVE_TARGET = path.resolve(
+  __dirname, '..', '..', '..', 'native', 'target',
+  'wasm32-wasip1', 'release',
+);
+const WASM_NAME = 'dart_monty_native.wasm';
 
 // Ensure assets directory exists
 fs.mkdirSync(ASSETS, { recursive: true });
 
-// Step 1: Bundle Worker (ESM, external *.wasm)
-console.log('[build] Bundling worker...');
+// Step 1: Bundle Worker (ESM) — includes wasm_glue.js via import
+console.log('[build] Bundling worker (C-ABI)...');
 execSync(
   `npx esbuild src/worker_src.js ` +
     `--bundle --format=esm ` +
@@ -31,52 +36,7 @@ execSync(
   { cwd: __dirname, stdio: 'inherit' },
 );
 
-// Step 2: Post-bundle patches on worker output
-console.log('[build] Patching worker output...');
-const workerPath = path.join(ASSETS, 'dart_monty_worker.js');
-let workerSrc = fs.readFileSync(workerPath, 'utf8');
-
-// 2a: Patch bare specifier for sub-worker URL
-workerSrc = workerSrc.replace(
-  /new URL\("@pydantic\/monty-wasm32-wasi\/wasi-worker-browser\.mjs"/g,
-  'new URL("./wasi-worker-browser.mjs"',
-);
-
-// 2b: Reduce NAPI-RS overhead — shrink initial memory from 256MB to 64MB
-// and disable the async worker pool (Monty uses synchronous C-ABI only).
-// See: https://github.com/runyaga/dart_monty/issues/92
-//
-// Note: shared: true MUST stay — the WASM binary was compiled with
-// --shared-memory. Setting shared: false causes LinkError.
-// Note: esbuild may rewrite `4000` as `4e3` — match both forms.
-const workerSrcBeforePatch = workerSrc;
-workerSrc = workerSrc.replace(
-  /new WebAssembly\.Memory\(\{[\s\n\r]*initial:\s*(?:4000|4e3),/g,
-  'new WebAssembly.Memory({ initial: 1024,',
-);
-workerSrc = workerSrc.replace(
-  /asyncWorkPoolSize:\s*4\b/g,
-  'asyncWorkPoolSize: 0',
-);
-
-// 2c: Assert patches applied — fail the build if regex didn't match.
-// A silent no-op is the worst failure mode (256MB + 5 workers return undetected).
-// Check both that the source was actually modified AND that the target strings exist.
-if (
-  workerSrc === workerSrcBeforePatch ||
-  !workerSrc.includes('initial: 1024') ||
-  !workerSrc.includes('asyncWorkPoolSize: 0')
-) {
-  throw new Error(
-    'FATAL: NAPI-RS patch failed — regex did not match esbuild output.\n' +
-      'The upstream esbuild output format may have changed. ' +
-      'Check the WebAssembly.Memory and asyncWorkPoolSize patterns in build.js.',
-  );
-}
-
-fs.writeFileSync(workerPath, workerSrc);
-
-// Step 3: Bundle bridge (IIFE)
+// Step 2: Bundle bridge (IIFE)
 console.log('[build] Bundling bridge...');
 execSync(
   `npx esbuild src/bridge.js ` +
@@ -87,27 +47,40 @@ execSync(
   { cwd: __dirname, stdio: 'inherit' },
 );
 
-// Step 4: Copy wasi-worker-browser.mjs
-console.log('[build] Copying wasi-worker-browser.mjs...');
-const wasiWorkerSrc = path.join(
-  NODE_MODULES,
-  '@pydantic',
-  'monty-wasm32-wasi',
-  'wasi-worker-browser.mjs',
-);
-if (fs.existsSync(wasiWorkerSrc)) {
-  fs.copyFileSync(wasiWorkerSrc, path.join(ASSETS, 'wasi-worker-browser.mjs'));
-} else {
-  console.warn('[build] WARN: wasi-worker-browser.mjs not found, skipping.');
+// Step 3: Copy WASM binary from native build
+console.log('[build] Copying WASM binary...');
+const wasmSrc = path.join(NATIVE_TARGET, WASM_NAME);
+const wasmDst = path.join(ASSETS, WASM_NAME);
+
+if (!fs.existsSync(wasmSrc)) {
+  console.error(
+    `[build] FATAL: ${wasmSrc} not found.\n` +
+      `  Run: cd native && cargo build --release --target wasm32-wasip1`,
+  );
+  process.exit(1);
 }
 
-// Step 5: Copy .wasm binary
-console.log('[build] Copying WASM binary...');
-const wasmDir = path.join(NODE_MODULES, '@pydantic', 'monty-wasm32-wasi');
-const wasmFiles = fs.readdirSync(wasmDir).filter((f) => f.endsWith('.wasm'));
-for (const wasmFile of wasmFiles) {
-  fs.copyFileSync(path.join(wasmDir, wasmFile), path.join(ASSETS, wasmFile));
-  console.log(`  Copied ${wasmFile}`);
+fs.copyFileSync(wasmSrc, wasmDst);
+const sizeMB = (fs.statSync(wasmDst).size / 1024 / 1024).toFixed(1);
+console.log(`  Copied ${WASM_NAME} (${sizeMB} MB)`);
+
+// Step 4: Optimize with wasm-opt (optional — skip if not installed)
+try {
+  const wasmOptDst = wasmDst + '.opt';
+  execSync(
+    `wasm-opt -Oz ` +
+      `--enable-bulk-memory --enable-nontrapping-float-to-int ` +
+      `--enable-sign-ext --enable-mutable-globals ` +
+      `${wasmDst} -o ${wasmOptDst}`,
+    { stdio: 'pipe' },
+  );
+  // Replace with optimized version
+  fs.renameSync(wasmOptDst, wasmDst);
+  const optSizeMB = (fs.statSync(wasmDst).size / 1024 / 1024).toFixed(1);
+  console.log(`  Optimized with wasm-opt: ${sizeMB} MB → ${optSizeMB} MB`);
+} catch (_) {
+  console.log('  wasm-opt not found — skipping optimization');
 }
 
 console.log('[build] Done. Assets in ../assets/');
+console.log('[build] Zero npm runtime dependencies.');
