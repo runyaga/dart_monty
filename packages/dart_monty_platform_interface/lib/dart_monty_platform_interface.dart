@@ -6,6 +6,8 @@ library;
 
 export 'src/base_monty_platform.dart';
 export 'src/core_bindings.dart';
+export 'src/monty_cancel_token.dart';
+export 'src/monty_error.dart';
 export 'src/monty_exception.dart';
 export 'src/monty_future_capable.dart';
 export 'src/monty_limits.dart';

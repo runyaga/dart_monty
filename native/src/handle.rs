@@ -24,6 +24,13 @@ use crate::error::monty_exception_to_json;
 static CANCEL_REGISTRY: LazyLock<RwLock<HashMap<u64, Weak<AtomicBool>>>> =
     LazyLock::new(|| RwLock::new(HashMap::new()));
 
+/// Global registry mapping handle IDs to raw pointers (as `usize` for Send+Sync).
+/// Used by `free_by_id` to free a handle when the owning isolate is dead.
+/// Entries are added by `register_handle_ptr` (called from `monty_create`)
+/// and removed by `MontyHandle::Drop` or `free_by_id`.
+static HANDLE_REGISTRY: LazyLock<RwLock<HashMap<u64, usize>>> =
+    LazyLock::new(|| RwLock::new(HashMap::new()));
+
 /// Monotonic handle ID counter. Eliminates ABA problem from address reuse.
 static NEXT_HANDLE_ID: AtomicU64 = AtomicU64::new(1);
 
@@ -735,9 +742,47 @@ pub fn is_cancelled_by_id(handle_id: u64) -> i32 {
     }
 }
 
+/// Register a raw handle pointer in the handle registry.
+/// Called from `monty_create` after `Box::into_raw`.
+pub fn register_handle_ptr(handle_id: u64, ptr: *mut MontyHandle) {
+    HANDLE_REGISTRY
+        .write()
+        .unwrap_or_else(|e| e.into_inner())
+        .insert(handle_id, ptr as usize);
+}
+
+/// Free a handle by its registry ID. Returns `true` if found and freed.
+/// Used by the supervisor to clean up after crash-only disposal when the
+/// worker isolate was killed before it could call `monty_free`.
+///
+/// # Safety
+/// The caller MUST ensure that no other thread is using the handle.
+/// In the crash-only model, this means the worker isolate must have exited
+/// (or timed out) before calling this.
+pub fn free_by_id(handle_id: u64) -> bool {
+    let ptr = HANDLE_REGISTRY
+        .write()
+        .unwrap_or_else(|e| e.into_inner())
+        .remove(&handle_id);
+
+    match ptr {
+        Some(addr) => {
+            // SAFETY: The pointer was created by Box::into_raw in monty_create,
+            // and the caller guarantees no other thread is using it.
+            drop(unsafe { Box::from_raw(addr as *mut MontyHandle) });
+            true
+        }
+        None => false,
+    }
+}
+
 impl Drop for MontyHandle {
     fn drop(&mut self) {
         CANCEL_REGISTRY
+            .write()
+            .unwrap_or_else(|e| e.into_inner())
+            .remove(&self.handle_id);
+        HANDLE_REGISTRY
             .write()
             .unwrap_or_else(|e| e.into_inner())
             .remove(&self.handle_id);

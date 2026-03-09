@@ -124,9 +124,7 @@ Future<void> main() async {
   print('LADDER_DONE');
 }
 
-Future<Map<String, dynamic>> _runFixture(
-  Map<String, dynamic> fixture,
-) async {
+Future<Map<String, dynamic>> _runFixture(Map<String, dynamic> fixture) async {
   final id = fixture['id'] as int;
   final code = fixture['code'] as String;
   final expectError = fixture['expectError'] as bool? ?? false;
@@ -171,9 +169,7 @@ Future<Map<String, dynamic>> _runExpectError(int id, String code) async {
   return {'id': id, 'ok': false, 'error': 'Expected error but succeeded'};
 }
 
-Future<Map<String, dynamic>> _runIterative(
-  Map<String, dynamic> fixture,
-) async {
+Future<Map<String, dynamic>> _runIterative(Map<String, dynamic> fixture) async {
   final id = fixture['id'] as int;
   final code = fixture['code'] as String;
   final extFns = (fixture['externalFunctions'] as List).cast<String>();
@@ -194,10 +190,7 @@ Future<Map<String, dynamic>> _runIterative(
         return {'id': id, 'ok': false, 'error': 'Expected pending state'};
       }
       resultJson = _parseResult(
-        (await _montyResumeWithError(
-          jsonEncode(errorMsg).toJS,
-        ).toDart)
-            .toDart,
+        (await _montyResumeWithError(jsonEncode(errorMsg).toJS).toDart).toDart,
       );
     }
   } else if (resumeValues != null) {

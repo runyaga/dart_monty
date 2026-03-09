@@ -49,6 +49,18 @@ class MockWasmBindings extends WasmBindings {
   /// If non-null, [dispose] throws this message as a [StateError].
   String? nextDisposeError;
 
+  /// If non-null, [run] throws this message as a [StateError].
+  String? throwOnRun;
+
+  /// If non-null, [start] throws this message as a [StateError].
+  String? throwOnStart;
+
+  /// If non-null, [resume] throws this message as a [StateError].
+  String? throwOnResume;
+
+  /// If non-null, [resumeWithError] throws this message as a [StateError].
+  String? throwOnResumeWithError;
+
   // ---------------------------------------------------------------------------
   // Call tracking
   // ---------------------------------------------------------------------------
@@ -84,6 +96,9 @@ class MockWasmBindings extends WasmBindings {
 
   /// Number of times [discover] was called.
   int discoverCalls = 0;
+
+  /// Number of times [cancel] was called.
+  int cancelCalls = 0;
 
   /// Number of times [dispose] was called.
   int disposeCalls = 0;
@@ -131,6 +146,7 @@ class MockWasmBindings extends WasmBindings {
     String? scriptName,
   }) async {
     runCalls.add((code: code, limitsJson: limitsJson, scriptName: scriptName));
+    if (throwOnRun != null) throw StateError(throwOnRun!);
 
     return nextRunResult;
   }
@@ -150,6 +166,7 @@ class MockWasmBindings extends WasmBindings {
         scriptName: scriptName,
       ),
     );
+    if (throwOnStart != null) throw StateError(throwOnStart!);
 
     return nextStartResult;
   }
@@ -157,6 +174,7 @@ class MockWasmBindings extends WasmBindings {
   @override
   Future<WasmProgressResult> resume(String valueJson) async {
     resumeCalls.add(valueJson);
+    if (throwOnResume != null) throw StateError(throwOnResume!);
     if (resumeResults.isNotEmpty) return resumeResults.removeAt(0);
 
     return const WasmProgressResult(ok: true, state: 'complete');
@@ -165,6 +183,9 @@ class MockWasmBindings extends WasmBindings {
   @override
   Future<WasmProgressResult> resumeWithError(String errorMessage) async {
     resumeWithErrorCalls.add(errorMessage);
+    if (throwOnResumeWithError != null) {
+      throw StateError(throwOnResumeWithError!);
+    }
     if (resumeWithErrorResults.isNotEmpty) {
       return resumeWithErrorResults.removeAt(0);
     }
@@ -203,6 +224,11 @@ class MockWasmBindings extends WasmBindings {
     if (restoreError != null) {
       throw MontyException(message: restoreError);
     }
+  }
+
+  @override
+  Future<void> cancel() async {
+    cancelCalls++;
   }
 
   @override

@@ -86,7 +86,12 @@ pub unsafe extern "C" fn monty_create(
     };
 
     match catch_ffi_panic(|| MontyHandle::new(code_str, ext_fn_list, name)) {
-        Ok(Ok(handle)) => Box::into_raw(Box::new(handle)),
+        Ok(Ok(handle)) => {
+            let id = handle.handle_id();
+            let ptr = Box::into_raw(Box::new(handle));
+            handle::register_handle_ptr(id, ptr);
+            ptr
+        }
         Ok(Err(exc)) => {
             if !out_error.is_null() {
                 unsafe { *out_error = to_c_string(&exc.summary()) };
@@ -174,6 +179,19 @@ pub extern "C" fn monty_cancel_by_id(handle_id: u64) -> c_int {
 #[unsafe(no_mangle)]
 pub extern "C" fn monty_is_cancelled_by_id(handle_id: u64) -> c_int {
     handle::is_cancelled_by_id(handle_id) as c_int
+}
+
+/// Free a handle by its registry ID. Safe from any thread.
+/// Returns 1 if found and freed, 0 if not found.
+///
+/// Used by the supervisor to clean up after crash-only disposal when the
+/// worker isolate was killed before it could call `monty_free`.
+///
+/// # Safety
+/// The caller MUST ensure that the worker isolate has exited before calling.
+#[unsafe(no_mangle)]
+pub extern "C" fn monty_free_by_id(handle_id: u64) -> c_int {
+    if handle::free_by_id(handle_id) { 1 } else { 0 }
 }
 
 // ---------------------------------------------------------------------------
@@ -486,7 +504,12 @@ pub unsafe extern "C" fn monty_restore(
 
     let bytes = unsafe { std::slice::from_raw_parts(data, len) };
     match catch_ffi_panic(|| MontyHandle::restore(bytes)) {
-        Ok(Ok(handle)) => Box::into_raw(Box::new(handle)),
+        Ok(Ok(handle)) => {
+            let id = handle.handle_id();
+            let ptr = Box::into_raw(Box::new(handle));
+            handle::register_handle_ptr(id, ptr);
+            ptr
+        }
         Ok(Err(msg)) => {
             if !out_error.is_null() {
                 unsafe { *out_error = to_c_string(&msg) };

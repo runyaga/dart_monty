@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 import 'package:dart_monty_wasm/src/wasm_bindings.dart';
 import 'package:dart_monty_wasm/src/wasm_core_bindings.dart';
 import 'package:test/test.dart';
@@ -176,10 +177,7 @@ void main() {
         methodCall: true,
       );
 
-      final result = await bindings.start(
-        'x',
-        extFnsJson: '["fetch"]',
-      );
+      final result = await bindings.start('x', extFnsJson: '["fetch"]');
 
       expect(result.state, 'pending');
       expect(result.functionName, 'fetch');
@@ -268,11 +266,7 @@ void main() {
   group('resume()', () {
     test('delegates valueJson and translates result', () async {
       mock.resumeResults.add(
-        const WasmProgressResult(
-          ok: true,
-          state: 'complete',
-          value: 'done',
-        ),
+        const WasmProgressResult(ok: true, state: 'complete', value: 'done'),
       );
 
       final result = await bindings.resume('"hello"');
@@ -284,10 +278,7 @@ void main() {
 
     test('error translates to error state', () async {
       mock.resumeResults.add(
-        const WasmProgressResult(
-          ok: false,
-          error: 'runtime error',
-        ),
+        const WasmProgressResult(ok: false, error: 'runtime error'),
       );
 
       final result = await bindings.resume('null');
@@ -303,10 +294,7 @@ void main() {
   group('resumeWithError()', () {
     test('delegates errorMessage and translates result', () async {
       mock.resumeWithErrorResults.add(
-        const WasmProgressResult(
-          ok: true,
-          state: 'complete',
-        ),
+        const WasmProgressResult(ok: true, state: 'complete'),
       );
 
       final result = await bindings.resumeWithError('network failure');
@@ -325,10 +313,7 @@ void main() {
     });
 
     test('resolveFutures throws UnsupportedError', () {
-      expect(
-        () => bindings.resolveFutures('{}', '{}'),
-        throwsUnsupportedError,
-      );
+      expect(() => bindings.resolveFutures('{}', '{}'), throwsUnsupportedError);
     });
   });
 
@@ -354,6 +339,102 @@ void main() {
 
       expect(mock.restoreCalls, hasLength(1));
       expect(mock.restoreCalls.first, data);
+    });
+  });
+
+  // ===========================================================================
+  // cancel()
+  // ===========================================================================
+  group('cancel()', () {
+    test('delegates to bindings', () async {
+      await bindings.cancel();
+      expect(mock.cancelCalls, 1);
+    });
+  });
+
+  // ===========================================================================
+  // handleId
+  // ===========================================================================
+  group('handleId', () {
+    test('is null before init', () {
+      expect(bindings.handleId, isNull);
+    });
+
+    test('is set after init via webRegister', () async {
+      await bindings.init();
+      expect(bindings.handleId, isNotNull);
+      expect(bindings.handleId, greaterThan(0));
+    });
+  });
+
+  // ===========================================================================
+  // web cancel error mapping
+  // ===========================================================================
+  group('_throwIfWebCancelError', () {
+    test('run: MontyCancelled prefix throws MontyCancelledError', () async {
+      mock
+        ..nextRunResult = const WasmRunResult(ok: true, value: 1)
+        ..throwOnRun = 'MontyCancelled: Worker terminated';
+
+      await expectLater(
+        () => bindings.run('x'),
+        throwsA(isA<MontyCancelledError>()),
+      );
+    });
+
+    test('run: MontyDisposed prefix throws MontyDisposedError', () async {
+      mock.throwOnRun = 'MontyDisposed: Session disposed';
+
+      await expectLater(
+        () => bindings.run('x'),
+        throwsA(isA<MontyDisposedError>()),
+      );
+    });
+
+    test('run: MontyWorkerError prefix throws MontyResourceError', () async {
+      mock.throwOnRun = 'MontyWorkerError: WASM OOM';
+
+      await expectLater(
+        () => bindings.run('x'),
+        throwsA(isA<MontyResourceError>()),
+      );
+    });
+
+    test('run: unrecognized error rethrows as-is', () async {
+      mock.throwOnRun = 'SomeOtherError';
+
+      await expectLater(
+        () => bindings.run('x'),
+        throwsA(isA<StateError>()),
+      );
+    });
+
+    test('start: MontyCancelled prefix throws MontyCancelledError', () async {
+      mock.throwOnStart = 'MontyCancelled: Worker terminated';
+
+      await expectLater(
+        () => bindings.start('x'),
+        throwsA(isA<MontyCancelledError>()),
+      );
+    });
+
+    test('resume: MontyCancelled prefix throws MontyCancelledError', () async {
+      mock.throwOnResume = 'MontyCancelled: Worker terminated';
+
+      await expectLater(
+        () => bindings.resume('"x"'),
+        throwsA(isA<MontyCancelledError>()),
+      );
+    });
+
+    test('resumeWithError: MontyCancelled prefix throws MontyCancelledError',
+        () async {
+      mock.throwOnResumeWithError = 'MontyCancelled: Worker terminated';
+
+      await expectLater(
+        () => bindings.resumeWithError('err'),
+        throwsA(isA<MontyCancelledError>()),
+      );
     });
   });
 
