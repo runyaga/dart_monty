@@ -1,3 +1,7 @@
+## 0.7.0
+
+- Bump dependency constraints for 0.7.0 release (no package code changes)
+
 ## 0.6.1
 
 - Update README with usage section and human/AI attribution

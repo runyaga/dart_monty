@@ -28,7 +28,16 @@ Dart -> NativeBindingsFfi (dart:ffi)
 | `NativeBindings` | Abstract interface over the 17 native C functions |
 | `NativeBindingsFfi` | Concrete FFI implementation with pointer lifecycle management |
 | `MontyFfi` | `MontyPlatform` implementation using `NativeBindings` |
+| `MontyNative` | Isolate-based wrapper — runs FFI calls off the main thread |
+| `NativeIsolateBindings` | Abstract interface for the Isolate bridge |
+| `NativeIsolateBindingsImpl` | Concrete Isolate bridge implementation |
 | `NativeLibraryLoader` | Platform-aware library path resolution |
+
+`MontyNative` and the Isolate bridge classes were moved here from `dart_monty_native` in 0.7.0, making the Isolate bridge usable without Flutter (CLI tools, server-side Dart).
+
+### Cancellation
+
+`cancel()` sets an atomic flag in the Monty bytecode loop via FFI, causing the interpreter to abort cooperatively. `terminate()` adds a 5-second timeout with zombie tracking for stuck FFI calls.
 
 ## Usage
 

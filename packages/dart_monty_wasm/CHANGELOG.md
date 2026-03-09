@@ -1,3 +1,13 @@
+## 0.7.0
+
+- Multi-session Worker pool: `createSession`, `disposeSession`, `getDefaultSessionId`
+- Strip NAPI-RS overhead: `asyncWorkPoolSize: 0`, `shared: false`, 16MB per session (was 256MB)
+- Binary snapshot transfer via `Uint8Array` (avoid JSON serialization for snapshots)
+- Timeout caching for repeated executions
+- Wire cancel path: `disposeSession()` calls `Worker.terminate()` for preemptive kill
+- Add WASM cancel benchmark (T1-1W, T1-4W, T2-2W, T3-1W + 5 N/A documented)
+- Add `getDefaultSessionId` to production bridge.js export
+
 ## 0.6.1
 
 - Fix `toSerializable()` in worker bridge for robust dict/set/bigint handling

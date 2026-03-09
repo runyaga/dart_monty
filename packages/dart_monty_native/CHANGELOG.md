@@ -3,6 +3,8 @@
 - Extract `MontyNative`, `NativeIsolateBindings`, and `NativeIsolateBindingsImpl` to `dart_monty_ffi`
 - Re-export moved classes for backward compatibility
 - `dart_monty_native` now serves only as the Flutter plugin registration shim
+- Wire CancellableTracker into native FFI cancel API (atomic flag in Monty bytecode loop)
+- Migrate to `runyaga/monty` fork with NameLookup handled internally in Rust
 
 ## 0.6.1
 

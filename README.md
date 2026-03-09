@@ -92,6 +92,46 @@ print(complete.result.value);
 await monty.dispose();
 ```
 
+### Error Handling
+
+dart_monty uses a sealed `MontyError` hierarchy for structured error handling:
+
+```dart
+import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
+
+try {
+  final result = await monty.run('1 / 0');
+} on MontyError catch (e) {
+  switch (e) {
+    case MontyScriptError(:final exception):
+      print('Python error: ${exception.message}');
+      print('Type: ${exception.excType}');
+      for (final frame in exception.traceback) {
+        print('  ${frame.filename}:${frame.lineNumber} in ${frame.name}');
+      }
+    case MontyCancelledError():
+      print('Execution was cancelled');
+    case MontyResourceError(:final exception):
+      print('Resource limit exceeded: ${exception.message}');
+    case MontyPanicError(:final message):
+      print('Interpreter panic: $message');
+    case MontyCrashError(:final message):
+      print('Interpreter crash: $message');
+    case MontyDisposedError():
+      print('Interpreter was disposed');
+  }
+}
+```
+
+### Cancellation
+
+Cancel a running interpreter from any isolate using `MontyCancelToken`:
+
+```dart
+final token = MontyCancelToken(handleId);
+token.cancel(); // sets atomic flag in bytecode loop
+```
+
 ### Stateful Sessions
 
 `MontySession` persists Python globals across multiple `run()` calls using
@@ -113,9 +153,9 @@ await session.clearState();
 await session.dispose();
 ```
 
-## Monty API Coverage (~68%)
+## Monty API Coverage (~75%)
 
-dart_monty wraps the upstream [Monty Rust API](https://github.com/pydantic/monty).
+dart_monty wraps the [Monty Rust API](https://github.com/runyaga/monty) (fork of [pydantic/monty](https://github.com/pydantic/monty)).
 The table below shows current coverage and what's planned.
 
 | API Area | Status | Notes |
@@ -127,6 +167,9 @@ The table below shows current coverage and what's planned.
 | **Snapshot / restore** (`MontyRun::dump/load`) | Covered | Compile-once, run-many pattern |
 | **Exception model** (excType, traceback, stack frames) | Covered | Full `MontyException` with `StackFrame` list |
 | **Call metadata** (kwargs, callId, methodCall, scriptName) | Covered | Structured external call context |
+| **Cancellation** (cooperative abort via atomic flag) | Covered | `MontyCancelToken`, `cancel()`, `terminate()` with zombie tracking |
+| **Error hierarchy** (sealed `MontyError` with 6 subtypes) | Covered | Script, Cancel, Panic, Crash, Disposed, Resource |
+| **Multi-session** (WASM Worker pool) | Covered | `createSession`/`disposeSession`, 16 MB per session |
 | Async / futures (`asyncio.gather`, concurrent calls) | Covered | Native only — WASM upstream lacks `FutureSnapshot` API |
 | Rich types (tuple, set, bytes, dataclass, namedtuple) | Planned | Currently collapsed to `List`/`Map` |
 | REPL (stateful sessions, `feed()`, persistence) | Planned | `MontyRepl` multi-step sessions |
@@ -151,7 +194,7 @@ Federated plugin with six packages:
 | `dart_monty_platform_interface` | **Pure Dart** | Abstract contract — no Flutter dependency |
 | `dart_monty_ffi` | **Pure Dart** | Native FFI bindings (`dart:ffi` -> Rust) |
 | `dart_monty_wasm` | **Pure Dart** | WASM bindings (`dart:js_interop` -> Web Worker) |
-| `dart_monty_native` | Flutter plugin | Native platform (desktop + mobile, Isolate) |
+| `dart_monty_native` | Flutter plugin | Native platform registration shim (delegates to `dart_monty_ffi`) |
 | `dart_monty_web` | Flutter plugin | Web platform (browser, script injection) |
 
 The three pure-Dart packages can be used without Flutter (e.g. in CLI tools
