@@ -197,7 +197,7 @@ jobs:
 
   build-js-wrapper:
     name: Build JS wrapper
-    needs: [changes]
+    needs: [changes, build-wasm]
     if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -208,6 +208,11 @@ jobs:
           node-version: '20'
           cache: 'npm'
           cache-dependency-path: packages/dart_monty_wasm/js/package-lock.json
+      - name: Download WASM binary
+        uses: actions/download-artifact@v4
+        with:
+          name: wasm-binary
+          path: native/target/wasm32-wasip1/release
       - name: Install dependencies
         working-directory: packages/dart_monty_wasm/js
         run: npm install
@@ -223,7 +228,7 @@ jobs:
 
   wasm-ladder:
     name: WASM ladder integration
-    needs: [changes]
+    needs: [changes, build-wasm]
     if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -238,6 +243,11 @@ jobs:
         with:
           channel: stable
           cache: true
+      - name: Download WASM binary
+        uses: actions/download-artifact@v4
+        with:
+          name: wasm-binary
+          path: native/target/wasm32-wasip1/release
       - name: Build JS bridge
         working-directory: packages/dart_monty_wasm/js
         run: npm install && npm run build
@@ -425,6 +435,12 @@ jobs:
       - name: Build WASM
         working-directory: native
         run: cargo build --release --target wasm32-wasip1
+      - name: Upload WASM binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: wasm-binary
+          path: native/target/wasm32-wasip1/release/dart_monty_native.wasm
+          retention-days: 1
 
   patch-coverage:
     name: Patch coverage gate (90%)
