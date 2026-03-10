@@ -12,8 +12,13 @@ between calls to `monty_session_exec`.
 
 - Function definitions (must redefine in each exec call)
 - Class instances
-- In-place mutations (`data['key'] = val` across calls)
-- Augmented assignments (`x += 5` -- use `x = x + 5` instead)
+
+> **Warning:** State is persisted by serializing variables to JSON after each
+> call. In-place mutations and augmented assignments do **not** work across
+> separate `monty_session_exec` calls.
+>
+> - **Don't:** `my_list.append(1)` or `x += 5`
+> - **Do:** `my_list = my_list + [1]` or `x = x + 5`
 
 ## Stateless execution
 

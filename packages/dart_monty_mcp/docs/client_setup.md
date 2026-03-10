@@ -2,6 +2,22 @@
 
 Configure MCP clients to connect to the dart_monty_mcp server.
 
+## Building the native library
+
+The server requires a compiled native library. Build it with the Rust
+toolchain:
+
+```bash
+# from the root of the dart_monty repository
+cd native
+cargo build --release
+cd ..
+```
+
+The library will be at `native/target/release/libdart_monty_native.dylib`
+on macOS or `native/target/release/libdart_monty_native.so` on Linux. Use
+this path when configuring clients below.
+
 ## Claude Desktop
 
 Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
@@ -34,23 +50,31 @@ same MCP client protocol as Claude Desktop.
 ## soliplex_tui
 
 ```bash
-DART_MONTY_LIB_PATH=/path/to/libdart_monty_native.dylib \
+MONTY_LIBRARY_PATH=/path/to/libdart_monty_native.dylib \
   soliplex_tui \
   --llm-provider ollama --llm-model qwen3-coder \
   --mcp monty="/path/to/dart_monty_mcp_server.sh" \
   --verbose --json
 ```
 
-## Environment Variables
+The `dart_monty_mcp_server.sh` is a wrapper script you create. For example:
 
-| Variable | Used by | Purpose |
-|----------|---------|---------|
-| `MONTY_LIBRARY_PATH` | `bin/dart_monty_mcp.dart` | Native library path for the standalone entry point |
-| `DART_MONTY_LIB_PATH` | `dart_monty_ffi` / test harness | Native library path used by the FFI package and integration tests |
+```bash
+#!/bin/bash
+# dart_monty_mcp_server.sh
+REPO_ROOT="/path/to/dart_monty"
+dart run "${REPO_ROOT}/packages/dart_monty_mcp/bin/dart_monty_mcp.dart" \
+  --library-path "${MONTY_LIBRARY_PATH}"
+```
 
-Both resolve to the same shared library (`libdart_monty_native.dylib` on
-macOS, `libdart_monty_native.so` on Linux). Two separate variables exist to
-keep the standalone server binary configuration distinct from the FFI
-package's default path used during development and testing. The integration
-tests check `DART_MONTY_LIB_PATH` first, then fall back to
-`MONTY_LIBRARY_PATH`.
+## Environment variables
+
+You can provide the native library path via the `--library-path` argument
+or an environment variable.
+
+| Variable | Purpose |
+|----------|---------|
+| `MONTY_LIBRARY_PATH` | **Recommended.** Sets the native library path for the standalone server. Replaces the `--library-path` command-line argument. |
+| `DART_MONTY_LIB_PATH` | For development and testing. Used by the test harness and the underlying `dart_monty_ffi` package. |
+
+For most use cases, setting `MONTY_LIBRARY_PATH` is all you need.

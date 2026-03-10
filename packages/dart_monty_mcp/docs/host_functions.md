@@ -152,8 +152,8 @@ validation still uses `type`, so ensure consistency between the two.
 ## Name restrictions
 
 Function names **must not** start with `monty_`. This prefix is reserved for
-the five built-in tools. Attempting to register a function with this prefix
-throws `ArgumentError`.
+the five [built-in tools](../README.md#tools). Attempting to register a
+function with this prefix throws `ArgumentError`.
 
 ## Thread safety
 

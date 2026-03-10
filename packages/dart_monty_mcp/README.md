@@ -27,6 +27,7 @@ Add to your Claude Desktop config
 }
 ```
 
+`cwd` should be the root of your cloned `dart_monty` repository.
 That's it. Your LLM now has five Python tools.
 
 ## What your LLM can do
