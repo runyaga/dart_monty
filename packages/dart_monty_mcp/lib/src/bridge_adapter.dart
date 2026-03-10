@@ -1,4 +1,5 @@
 import 'package:dart_monty_bridge/dart_monty_bridge.dart';
+import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 import 'package:mcp_dart/mcp_dart.dart';
 
 /// Collects [BridgeEvent]s from a bridge execution stream and produces
@@ -57,4 +58,29 @@ void _appendCapturedOutput(
 ) {
   final output = stdout.isNotEmpty ? stdout.toString() : printOutput;
   if (output != null && output.isNotEmpty) parts.add(output.trimRight());
+}
+
+/// Converts a [MontyResult] from a session execution to a [CallToolResult].
+CallToolResult montyResultToCallToolResult(MontyResult result) {
+  if (result.error != null) {
+    final parts = <String>[];
+    if (result.printOutput != null && result.printOutput!.isNotEmpty) {
+      parts.add(result.printOutput!.trimRight());
+    }
+    parts.add(result.error!.message);
+    return CallToolResult(
+      isError: true,
+      content: [TextContent(text: parts.join('\n'))],
+    );
+  }
+
+  final parts = <String>[];
+  if (result.printOutput != null && result.printOutput!.isNotEmpty) {
+    parts.add(result.printOutput!.trimRight());
+  }
+  if (result.value != null) {
+    parts.add('${result.value}');
+  }
+  final text = parts.isEmpty ? '(no output)' : parts.join('\n');
+  return CallToolResult(content: [TextContent(text: text)]);
 }

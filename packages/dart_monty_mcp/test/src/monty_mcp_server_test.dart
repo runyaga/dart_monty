@@ -11,7 +11,7 @@ const _usage = MontyResourceUsage(
 );
 
 /// Creates a [MontyMcpServer] whose platform factory returns mocks
-/// that complete with [value].
+/// that complete with [value] (stateless execution via bridge).
 MontyMcpServer _serverWithResult(Object? value) {
   return MontyMcpServer(
     platformFactory: () => MockMontyPlatform()
@@ -19,6 +19,25 @@ MontyMcpServer _serverWithResult(Object? value) {
         MontyComplete(result: MontyResult(value: value, usage: _usage)),
       ),
   );
+}
+
+/// Creates a mock platform with the restore→persist→complete sequence
+/// that [MontySession.run] (used by [McpMontySession]) expects.
+MockMontyPlatform _mockForSessionExec({
+  required MontyResult result,
+  Map<String, Object?> persistedState = const {},
+}) {
+  return MockMontyPlatform()
+    ..enqueueProgress(
+      const MontyPending(functionName: '__restore_state__', arguments: []),
+    )
+    ..enqueueProgress(
+      MontyPending(
+        functionName: '__persist_state__',
+        arguments: [persistedState],
+      ),
+    )
+    ..enqueueProgress(MontyComplete(result: result));
 }
 
 void main() {
@@ -36,12 +55,9 @@ void main() {
 
     test('session create → exec → destroy lifecycle', () async {
       final server = MontyMcpServer(
-        platformFactory: () => MockMontyPlatform()
-          ..enqueueProgress(
-            const MontyComplete(
-              result: MontyResult(value: 'hello', usage: _usage),
-            ),
-          ),
+        platformFactory: () => _mockForSessionExec(
+          result: const MontyResult(value: 'hello', usage: _usage),
+        ),
       );
       final manager = server.sessionManager;
 
