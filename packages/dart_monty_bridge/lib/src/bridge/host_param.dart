@@ -11,6 +11,7 @@ class HostParam {
     this.isRequired = true,
     this.description,
     this.defaultValue,
+    this.jsonSchemaOverride,
   });
 
   /// Parameter name (used as the key in the validated args map).
@@ -27,6 +28,39 @@ class HostParam {
 
   /// Default value when the argument is absent and not required.
   final Object? defaultValue;
+
+  /// Optional full JSON Schema override for this parameter.
+  ///
+  /// When set, [toJsonSchema] returns this map directly instead of
+  /// generating from [type] and [description]. Use this for complex
+  /// schemas (nested objects, enums, arrays with item types) that
+  /// [HostParamType] cannot express.
+  ///
+  /// **Important:** The override controls only the schema advertised to
+  /// external consumers (e.g. LLMs via MCP). Runtime validation in
+  /// [validate] still uses [type]. Ensure the override is consistent
+  /// with [type] to avoid mismatches where an LLM sends valid-per-schema
+  /// arguments that fail runtime validation.
+  final Map<String, Object?>? jsonSchemaOverride;
+
+  /// Returns a JSON Schema property definition for this parameter.
+  ///
+  /// If [jsonSchemaOverride] is set, returns it directly. Otherwise
+  /// generates a schema from [type] and [description].
+  Map<String, Object?> toJsonSchema() {
+    if (jsonSchemaOverride != null) return jsonSchemaOverride!;
+
+    // HostParamType.any accepts any value at runtime, so we emit an
+    // unconstrained schema (no "type" key) rather than pinning to
+    // "string" which would mislead LLMs into only sending strings.
+    final schema = <String, Object?>{};
+    if (type != HostParamType.any) {
+      schema['type'] = type.jsonSchemaType;
+    }
+    if (description != null) schema['description'] = description;
+
+    return schema;
+  }
 
   /// Validates and optionally coerces [value].
   ///
