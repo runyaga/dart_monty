@@ -5,23 +5,34 @@
 /// Useful for testing, embedding in CLI tools, or running Python
 /// computations from Dart without an MCP client.
 /// See docs/startup_modes.md for transport-based usage.
+///
+/// Run with:
+/// ```bash
+/// DART_MONTY_LIB_PATH=../../native/target/release/libdart_monty_native.dylib \
+///   dart run example/programmatic.dart
+/// ```
 library;
+
+import 'dart:io';
 
 import 'package:dart_monty_ffi/dart_monty_ffi.dart';
 import 'package:dart_monty_mcp/dart_monty_mcp.dart';
+import 'package:mcp_dart/mcp_dart.dart';
 
 Future<void> main() async {
+  final libraryPath = Platform.environment['DART_MONTY_LIB_PATH'] ??
+      Platform.environment['MONTY_LIBRARY_PATH'];
+
   final server = MontyMcpServer(
     platformFactory: () => MontyFfi(
-      bindings: NativeBindingsFfi(
-        libraryPath: '/path/to/libdart_monty_native.dylib',
-      ),
+      bindings: NativeBindingsFfi(libraryPath: libraryPath),
     ),
   );
 
   // --- Stateless one-shot execution ---
   final result = await server.sessionManager.executeStateless('2 + 2');
-  print(result.content.first); // TextContent(text: '4')
+  final text = (result.content.first as TextContent).text;
+  print('Stateless: $text'); // Stateless: 4
 
   // --- Persistent session ---
   server.sessionManager.createSession(id: 'calc');
@@ -29,7 +40,8 @@ Future<void> main() async {
 
   await session.execute('x = 42');
   final r = await session.execute('x * 2');
-  print(r.content.first); // TextContent(text: '84')
+  final rText = (r.content.first as TextContent).text;
+  print('Session: $rText'); // Session: 84
 
   await server.sessionManager.destroySession('calc');
   await server.dispose();
