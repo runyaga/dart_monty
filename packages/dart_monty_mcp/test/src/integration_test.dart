@@ -1,4 +1,6 @@
 @Tags(['integration'])
+library;
+
 import 'dart:io';
 
 import 'package:dart_monty_ffi/dart_monty_ffi.dart';
@@ -96,7 +98,7 @@ void main() {
 
     test('string with special chars', () async {
       final r = await server.sessionManager
-          .executeStateless("print('hello\\nworld\\ttab')");
+          .executeStateless(r"print('hello\nworld\ttab')");
       expect(r.isError, isFalse);
       expect(_text(r), contains('hello'));
       expect(_text(r), contains('world'));
@@ -121,7 +123,7 @@ void main() {
       // Monty dict comprehension returns list-of-pairs, not dict.
       // Use explicit dict() construction instead.
       final r = await server.sessionManager
-          .executeStateless("d = {}\nfor i in range(3):\n    d[i] = i*2\nd");
+          .executeStateless('d = {}\nfor i in range(3):\n    d[i] = i*2\nd');
       expect(r.isError, isFalse);
       expect(_text(r), contains('0'));
     });
@@ -389,7 +391,7 @@ void main() {
       server.sessionManager.createSession(id: 'dict-mut');
       final session = server.sessionManager.getSession('dict-mut')!;
 
-      await session.execute("data = {}");
+      await session.execute('data = {}');
       await session.execute("data['key'] = 'value'");
 
       final r = await session.execute('data');
@@ -492,8 +494,8 @@ void main() {
     });
 
     test('S-04: large code input (100 lines)', () async {
-      final code = StringBuffer();
-      code.writeln('total = 0');
+      final code = StringBuffer()
+        ..writeln('total = 0');
       for (var i = 1; i <= 100; i++) {
         code.writeln('total = total + $i');
       }

@@ -17,19 +17,20 @@ void _enqueueSessionRun(
   required MontyResult result,
   Map<String, Object?> persistedState = const {},
 }) {
-  // 1. MontySession sends __restore_state__() → platform returns pending
-  mock.enqueueProgress(
-    const MontyPending(functionName: '__restore_state__', arguments: []),
-  );
-  // 2. After restore resumes, code runs, then __persist_state__(dict)
-  mock.enqueueProgress(
-    MontyPending(
-      functionName: '__persist_state__',
-      arguments: [persistedState],
-    ),
-  );
-  // 3. After persist resumes, execution completes
-  mock.enqueueProgress(MontyComplete(result: result));
+  mock
+    // 1. MontySession sends __restore_state__() → platform returns pending
+    ..enqueueProgress(
+      const MontyPending(functionName: '__restore_state__', arguments: []),
+    )
+    // 2. After restore resumes, code runs, then __persist_state__(dict)
+    ..enqueueProgress(
+      MontyPending(
+        functionName: '__persist_state__',
+        arguments: [persistedState],
+      ),
+    )
+    // 3. After persist resumes, execution completes
+    ..enqueueProgress(MontyComplete(result: result));
 }
 
 void main() {
@@ -127,10 +128,9 @@ void main() {
 
   group('McpMontySession host functions', () {
     test('dispatches host function call and returns result', () async {
-      final mock = MockMontyPlatform();
       // MontySession.start() intercepts restore/persist transparently.
       // Sequence: restore → user fn pending → persist → complete
-      mock
+      final mock = MockMontyPlatform()
         ..enqueueProgress(
           const MontyPending(
             functionName: '__restore_state__',
@@ -144,9 +144,9 @@ void main() {
           ),
         )
         ..enqueueProgress(
-          MontyPending(
+          const MontyPending(
             functionName: '__persist_state__',
-            arguments: [const <String, Object?>{}],
+            arguments: [<String, Object?>{}],
           ),
         )
         ..enqueueProgress(
@@ -155,20 +155,21 @@ void main() {
           ),
         );
 
-      final session = McpMontySession(id: 'hf', platform: mock);
-      session.register(
-        HostFunction(
-          schema: const HostFunctionSchema(
-            name: 'add',
-            description: 'Add two numbers',
-            params: [
-              HostParam(name: 'a', type: HostParamType.number),
-              HostParam(name: 'b', type: HostParamType.number),
-            ],
+      final session = McpMontySession(id: 'hf', platform: mock)
+        ..register(
+          HostFunction(
+            schema: const HostFunctionSchema(
+              name: 'add',
+              description: 'Add two numbers',
+              params: [
+                HostParam(name: 'a', type: HostParamType.number),
+                HostParam(name: 'b', type: HostParamType.number),
+              ],
+            ),
+            handler: (args) async =>
+                (args['a']! as num) + (args['b']! as num),
           ),
-          handler: (args) async => (args['a']! as num) + (args['b']! as num),
-        ),
-      );
+        );
 
       final result = await session.execute('add(a=3, b=4)');
 
@@ -182,8 +183,7 @@ void main() {
     });
 
     test('handler exception resumes with error', () async {
-      final mock = MockMontyPlatform();
-      mock
+      final mock = MockMontyPlatform()
         ..enqueueProgress(
           const MontyPending(
             functionName: '__restore_state__',
@@ -195,9 +195,9 @@ void main() {
         )
         // After resumeWithError, MontySession intercepts persist
         ..enqueueProgress(
-          MontyPending(
+          const MontyPending(
             functionName: '__persist_state__',
-            arguments: [const <String, Object?>{}],
+            arguments: [<String, Object?>{}],
           ),
         )
         ..enqueueProgress(
@@ -209,16 +209,16 @@ void main() {
           ),
         );
 
-      final session = McpMontySession(id: 'hf-err', platform: mock);
-      session.register(
-        HostFunction(
-          schema: const HostFunctionSchema(
-            name: 'fail_fn',
-            description: 'Always throws',
+      final session = McpMontySession(id: 'hf-err', platform: mock)
+        ..register(
+          HostFunction(
+            schema: const HostFunctionSchema(
+              name: 'fail_fn',
+              description: 'Always throws',
+            ),
+            handler: (args) async => throw Exception('intentional error'),
           ),
-          handler: (args) async => throw Exception('intentional error'),
-        ),
-      );
+        );
 
       final result = await session.execute('fail_fn()');
 
@@ -229,8 +229,7 @@ void main() {
     });
 
     test('unknown function name resumes with error', () async {
-      final mock = MockMontyPlatform();
-      mock
+      final mock = MockMontyPlatform()
         ..enqueueProgress(
           const MontyPending(
             functionName: '__restore_state__',
@@ -242,9 +241,9 @@ void main() {
         )
         // After resumeWithError for unknown fn, persist + complete
         ..enqueueProgress(
-          MontyPending(
+          const MontyPending(
             functionName: '__persist_state__',
-            arguments: [const <String, Object?>{}],
+            arguments: [<String, Object?>{}],
           ),
         )
         ..enqueueProgress(
@@ -256,19 +255,19 @@ void main() {
           ),
         );
 
-      final session = McpMontySession(id: 'hf-unk', platform: mock);
       // Register a different function — 'unknown_fn' is NOT registered.
-      session.register(
-        HostFunction(
-          schema: const HostFunctionSchema(
-            name: 'known_fn',
-            description: 'A known function',
+      final session = McpMontySession(id: 'hf-unk', platform: mock)
+        ..register(
+          HostFunction(
+            schema: const HostFunctionSchema(
+              name: 'known_fn',
+              description: 'A known function',
+            ),
+            handler: (args) async => 42,
           ),
-          handler: (args) async => 42,
-        ),
-      );
+        );
 
-      final result = await session.execute('unknown_fn()');
+      await session.execute('unknown_fn()');
 
       // Should have resumed with error about unknown function
       expect(
@@ -280,9 +279,8 @@ void main() {
     });
 
     test('multiple host functions dispatch correctly', () async {
-      final mock = MockMontyPlatform();
       // Two host function calls in sequence
-      mock
+      final mock = MockMontyPlatform()
         ..enqueueProgress(
           const MontyPending(
             functionName: '__restore_state__',
@@ -300,9 +298,9 @@ void main() {
           ),
         )
         ..enqueueProgress(
-          MontyPending(
+          const MontyPending(
             functionName: '__persist_state__',
-            arguments: [const <String, Object?>{}],
+            arguments: [<String, Object?>{}],
           ),
         )
         ..enqueueProgress(
@@ -311,8 +309,7 @@ void main() {
           ),
         );
 
-      final session = McpMontySession(id: 'hf-multi', platform: mock);
-      session
+      final session = McpMontySession(id: 'hf-multi', platform: mock)
         ..register(
           HostFunction(
             schema: const HostFunctionSchema(

@@ -102,7 +102,7 @@ class McpMontySession {
             final args = fn.schema.mapAndValidate(progress);
             final result = await fn.handler(args);
             progress = await _session.resume(result);
-          } catch (e) {
+          } on Object catch (e) {
             progress = await _session.resumeWithError(e.toString());
           }
 

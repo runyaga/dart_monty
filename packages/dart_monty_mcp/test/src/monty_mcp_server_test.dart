@@ -191,24 +191,23 @@ void main() {
     });
 
     test('registerHostFunction accepts valid name', () async {
+      // Should not throw
       final server = MontyMcpServer(
         platformFactory: MockMontyPlatform.new,
-      );
-
-      // Should not throw
-      server.registerHostFunction(
-        HostFunction(
-          schema: const HostFunctionSchema(
-            name: 'add',
-            description: 'Add two numbers',
-            params: [
-              HostParam(name: 'a', type: HostParamType.number),
-              HostParam(name: 'b', type: HostParamType.number),
-            ],
+      )..registerHostFunction(
+          HostFunction(
+            schema: const HostFunctionSchema(
+              name: 'add',
+              description: 'Add two numbers',
+              params: [
+                HostParam(name: 'a', type: HostParamType.number),
+                HostParam(name: 'b', type: HostParamType.number),
+              ],
+            ),
+            handler: (args) async =>
+                (args['a']! as num) + (args['b']! as num),
           ),
-          handler: (args) async => (args['a']! as num) + (args['b']! as num),
-        ),
-      );
+        );
 
       await server.dispose();
     });
@@ -216,9 +215,7 @@ void main() {
     test('registerPlugin registers all functions', () async {
       final server = MontyMcpServer(
         platformFactory: MockMontyPlatform.new,
-      );
-
-      server.registerPlugin(_TestPlugin());
+      )..registerPlugin(_TestPlugin());
 
       // Plugin has 2 functions — both should be on the manager.
       // Verify by creating a session and checking it has the functions.
@@ -252,9 +249,9 @@ void main() {
           const MontyPending(functionName: 'add', arguments: [5, 3]),
         )
         ..enqueueProgress(
-          MontyPending(
+          const MontyPending(
             functionName: '__persist_state__',
-            arguments: [const <String, Object?>{}],
+            arguments: [<String, Object?>{}],
           ),
         )
         ..enqueueProgress(
@@ -263,8 +260,8 @@ void main() {
           ),
         );
 
-      final server = MontyMcpServer(platformFactory: () => mock);
-      server.registerHostFunction(addFn);
+      final server = MontyMcpServer(platformFactory: () => mock)
+        ..registerHostFunction(addFn);
 
       final id = server.sessionManager.createSession(id: 'test');
       expect(id, 'test');

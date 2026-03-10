@@ -59,9 +59,7 @@ class MontyMcpServer {
   /// 1. A host function on all future sessions (callable from Python)
   /// 2. An MCP tool (callable directly by the LLM)
   void registerPlugin(MontyPlugin plugin) {
-    for (final fn in plugin.functions) {
-      registerHostFunction(fn);
-    }
+    plugin.functions.forEach(registerHostFunction);
   }
 
   /// Registers a single [HostFunction] as both a Python-callable host
@@ -108,7 +106,7 @@ class MontyMcpServer {
           return CallToolResult(
             content: [TextContent(text: '$result')],
           );
-        } catch (e) {
+        } on Object catch (e) {
           return CallToolResult(
             isError: true,
             content: [TextContent(text: e.toString())],
