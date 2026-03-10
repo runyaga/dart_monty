@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dart_monty_mcp/dart_monty_mcp.dart';
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 import 'package:dart_monty_platform_interface/dart_monty_testing.dart';
@@ -305,6 +307,116 @@ void main() {
       await server.dispose();
     });
   });
+
+  group('Host function MCP tool callback', () {
+    test('successful tool call validates params and returns result', () async {
+      final server = MontyMcpServer(
+        platformFactory: MockMontyPlatform.new,
+      )..registerHostFunction(
+          HostFunction(
+            schema: const HostFunctionSchema(
+              name: 'add',
+              description: 'Add two numbers',
+              params: [
+                HostParam(name: 'a', type: HostParamType.number),
+                HostParam(name: 'b', type: HostParamType.number),
+              ],
+            ),
+            handler: (args) async => (args['a']! as num) + (args['b']! as num),
+          ),
+        );
+
+      final transport = _TestTransport();
+      await server.serve(transport);
+
+      // Send initialize request first (MCP protocol requires it).
+      transport.receiveMessage(
+        const JsonRpcRequest(
+          id: 0,
+          method: 'initialize',
+          params: {
+            'protocolVersion': '2025-03-26',
+            'capabilities': <String, dynamic>{},
+            'clientInfo': {'name': 'test', 'version': '1.0.0'},
+          },
+        ),
+      );
+      await _drain();
+
+      // Call the host function tool via JSON-RPC.
+      transport.receiveMessage(
+        const JsonRpcCallToolRequest(
+          id: 1,
+          params: {
+            'name': 'add',
+            'arguments': {'a': 3, 'b': 4},
+          },
+        ),
+      );
+      await _drain();
+
+      final response = transport.sentMessages
+          .whereType<JsonRpcResponse>()
+          .lastWhere((r) => r.id == 1);
+      final content = response.result['content'] as List;
+      final text = (content.first as Map)['text'] as String;
+      expect(text, contains('7'));
+
+      await server.dispose();
+    });
+
+    test('handler exception returns error via MCP tool callback', () async {
+      final server = MontyMcpServer(
+        platformFactory: MockMontyPlatform.new,
+      )..registerHostFunction(
+          HostFunction(
+            schema: const HostFunctionSchema(
+              name: 'fail_fn',
+              description: 'Always throws',
+            ),
+            handler: (args) async => throw const FormatException('bad input'),
+          ),
+        );
+
+      final transport = _TestTransport();
+      await server.serve(transport);
+
+      transport.receiveMessage(
+        const JsonRpcRequest(
+          id: 0,
+          method: 'initialize',
+          params: {
+            'protocolVersion': '2025-03-26',
+            'capabilities': <String, dynamic>{},
+            'clientInfo': {'name': 'test', 'version': '1.0.0'},
+          },
+        ),
+      );
+      await _drain();
+
+      transport.receiveMessage(
+        const JsonRpcCallToolRequest(
+          id: 2,
+          params: {
+            'name': 'fail_fn',
+            'arguments': <String, dynamic>{},
+          },
+        ),
+      );
+      await _drain();
+
+      final response = transport.sentMessages
+          .whereType<JsonRpcResponse>()
+          .lastWhere((r) => r.id == 2);
+      final result = response.result;
+      expect(result['isError'], isTrue);
+      final content = result['content'] as List;
+      final text = (content.first as Map)['text'] as String;
+      expect(text, contains('bad input'));
+
+      await server.dispose();
+    });
+  });
 }
 
 class _TestPlugin extends MontyPlugin {
@@ -339,3 +451,36 @@ class _TestPlugin extends MontyPlugin {
 
 String _text(CallToolResult result) =>
     (result.content.first as TextContent).text;
+
+/// Minimal test transport for invoking MCP tools via JSON-RPC.
+class _TestTransport implements Transport {
+  final List<JsonRpcMessage> sentMessages = [];
+
+  @override
+  String? get sessionId => 'test';
+
+  @override
+  void Function()? onclose;
+
+  @override
+  void Function(Error error)? onerror;
+
+  @override
+  void Function(JsonRpcMessage message)? onmessage;
+
+  void receiveMessage(JsonRpcMessage message) => onmessage?.call(message);
+
+  @override
+  Future<void> close() async => onclose?.call();
+
+  @override
+  Future<void> send(JsonRpcMessage message, {int? relatedRequestId}) async {
+    sentMessages.add(message);
+  }
+
+  @override
+  Future<void> start() async {}
+}
+
+/// Give the event loop a chance to process pending microtasks.
+Future<void> _drain() => Future<void>.delayed(const Duration(milliseconds: 50));

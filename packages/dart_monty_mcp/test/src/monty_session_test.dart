@@ -348,6 +348,52 @@ void main() {
       await session.dispose();
     });
 
+    test('MontyResolveFutures resumes with null', () async {
+      // Simulate a dispatch loop that encounters MontyResolveFutures.
+      // Sequence: restore → resolve_futures → persist → complete
+      final mock = MockMontyPlatform()
+        ..enqueueProgress(
+          const MontyPending(
+            functionName: '__restore_state__',
+            arguments: [],
+          ),
+        )
+        ..enqueueProgress(
+          const MontyResolveFutures(pendingCallIds: [1, 2]),
+        )
+        ..enqueueProgress(
+          const MontyPending(
+            functionName: '__persist_state__',
+            arguments: [<String, Object?>{}],
+          ),
+        )
+        ..enqueueProgress(
+          const MontyComplete(
+            result: MontyResult(value: 'done', usage: _usage),
+          ),
+        );
+
+      final session = McpMontySession(id: 'hf-rf', platform: mock)
+        ..register(
+          HostFunction(
+            schema: const HostFunctionSchema(
+              name: 'dummy',
+              description: 'Unused — just to trigger start() path',
+            ),
+            handler: (args) async => null,
+          ),
+        );
+
+      final result = await session.execute('some_code()');
+
+      expect(result.isError, isFalse);
+      expect(_text(result), contains('done'));
+      // resume was called with null for the resolve_futures step
+      expect(mock.resumeReturnValues, contains(isNull));
+
+      await session.dispose();
+    });
+
     test('no host functions uses run() path', () async {
       final mock = MockMontyPlatform();
       _enqueueSessionRun(
