@@ -10,15 +10,36 @@ const _usage = MontyResourceUsage(
   stackDepthUsed: 0,
 );
 
+/// Enqueue the MontySession restore→persist→complete sequence that
+/// [MontySession.run] expects for a simple execution.
+void _enqueueSessionRun(
+  MockMontyPlatform mock, {
+  required MontyResult result,
+  Map<String, Object?> persistedState = const {},
+}) {
+  // 1. MontySession sends __restore_state__() → platform returns pending
+  mock.enqueueProgress(
+    const MontyPending(functionName: '__restore_state__', arguments: []),
+  );
+  // 2. After restore resumes, code runs, then __persist_state__(dict)
+  mock.enqueueProgress(
+    MontyPending(
+      functionName: '__persist_state__',
+      arguments: [persistedState],
+    ),
+  );
+  // 3. After persist resumes, execution completes
+  mock.enqueueProgress(MontyComplete(result: result));
+}
+
 void main() {
   group('McpMontySession', () {
-    test('execute returns result from bridge', () async {
-      final mock = MockMontyPlatform()
-        ..enqueueProgress(
-          const MontyComplete(
-            result: MontyResult(value: 'hello', usage: _usage),
-          ),
-        );
+    test('execute returns result from session', () async {
+      final mock = MockMontyPlatform();
+      _enqueueSessionRun(
+        mock,
+        result: const MontyResult(value: 'hello', usage: _usage),
+      );
 
       final session = McpMontySession(id: 'test', platform: mock);
       final result = await session.execute("'hello'");
@@ -42,17 +63,15 @@ void main() {
 
     test('serializes concurrent requests', () async {
       // Two rapid calls should not throw StateError('already executing').
-      final mock = MockMontyPlatform()
-        ..enqueueProgress(
-          const MontyComplete(
-            result: MontyResult(value: 1, usage: _usage),
-          ),
-        )
-        ..enqueueProgress(
-          const MontyComplete(
-            result: MontyResult(value: 2, usage: _usage),
-          ),
-        );
+      final mock = MockMontyPlatform();
+      _enqueueSessionRun(
+        mock,
+        result: const MontyResult(value: 1, usage: _usage),
+      );
+      _enqueueSessionRun(
+        mock,
+        result: const MontyResult(value: 2, usage: _usage),
+      );
 
       final session = McpMontySession(id: 'serial', platform: mock);
 
@@ -65,6 +84,25 @@ void main() {
       // Both should succeed (not throw).
       expect(results[0].isError, isFalse);
       expect(results[1].isError, isFalse);
+
+      await session.dispose();
+    });
+
+    test('execute surfaces Python errors', () async {
+      final mock = MockMontyPlatform();
+      _enqueueSessionRun(
+        mock,
+        result: const MontyResult(
+          error: MontyException(message: 'ZeroDivisionError: division by zero'),
+          usage: _usage,
+        ),
+      );
+
+      final session = McpMontySession(id: 'err', platform: mock);
+      final result = await session.execute('1/0');
+
+      expect(result.isError, isTrue);
+      expect(_text(result), contains('ZeroDivisionError'));
 
       await session.dispose();
     });
