@@ -13,8 +13,6 @@ export 'package:dart_monty_ffi/src/native_isolate_bindings_impl.dart';
 class DartMontyNative {
   /// Registers this plugin as the platform implementation.
   static void registerWith() {
-    MontyPlatform.instance = MontyNative(
-      bindings: NativeIsolateBindingsImpl(),
-    );
+    MontyPlatform.instance = MontyNative(bindings: NativeIsolateBindingsImpl());
   }
 }

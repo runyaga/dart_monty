@@ -26,7 +26,8 @@ void main() {
     test('success translates to CoreRunResult(ok: true)', () async {
       mock.nextRunResult = const RunResult(
         tag: 0,
-        resultJson: '{"value": 42, "usage": {"memory_bytes_used": 100, '
+        resultJson:
+            '{"value": 42, "usage": {"memory_bytes_used": 100, '
             '"time_elapsed_ms": 5, "stack_depth_used": 3}}',
       );
 
@@ -52,7 +53,8 @@ void main() {
     test('success with print_output preserves it', () async {
       mock.nextRunResult = const RunResult(
         tag: 0,
-        resultJson: '{"value": null, "usage": {"memory_bytes_used": 0, '
+        resultJson:
+            '{"value": null, "usage": {"memory_bytes_used": 0, '
             '"time_elapsed_ms": 0, "stack_depth_used": 0}, '
             r'"print_output": "hello\n"}',
       );
@@ -65,7 +67,8 @@ void main() {
     test('success with embedded error preserves error fields', () async {
       mock.nextRunResult = const RunResult(
         tag: 0,
-        resultJson: '{"value": null, "usage": {"memory_bytes_used": 0, '
+        resultJson:
+            '{"value": null, "usage": {"memory_bytes_used": 0, '
             '"time_elapsed_ms": 0, "stack_depth_used": 0}, '
             '"error": {"message": "NameError", "exc_type": "NameError"}}',
       );
@@ -80,7 +83,8 @@ void main() {
     test('error with result JSON extracts error details', () async {
       mock.nextRunResult = const RunResult(
         tag: 1,
-        resultJson: '{"error": {"message": "division by zero", '
+        resultJson:
+            '{"error": {"message": "division by zero", '
             '"exc_type": "ZeroDivisionError", '
             '"traceback": [{"filename": "<test>", "start_line": 1}]}}',
       );
@@ -94,10 +98,7 @@ void main() {
     });
 
     test('error falls back to errorMessage', () async {
-      mock.nextRunResult = const RunResult(
-        tag: 1,
-        errorMessage: 'C API error',
-      );
+      mock.nextRunResult = const RunResult(tag: 1, errorMessage: 'C API error');
 
       final result = await bindings.run('bad');
 
@@ -117,7 +118,8 @@ void main() {
     test('passes scriptName to create()', () async {
       mock.nextRunResult = const RunResult(
         tag: 0,
-        resultJson: '{"value": null, "usage": {"memory_bytes_used": 0, '
+        resultJson:
+            '{"value": null, "usage": {"memory_bytes_used": 0, '
             '"time_elapsed_ms": 0, "stack_depth_used": 0}}',
       );
 
@@ -129,13 +131,15 @@ void main() {
     test('applies limits from JSON', () async {
       mock.nextRunResult = const RunResult(
         tag: 0,
-        resultJson: '{"value": null, "usage": {"memory_bytes_used": 0, '
+        resultJson:
+            '{"value": null, "usage": {"memory_bytes_used": 0, '
             '"time_elapsed_ms": 0, "stack_depth_used": 0}}',
       );
 
       await bindings.run(
         'code',
-        limitsJson: '{"memory_bytes": 1024, "timeout_ms": 5000, '
+        limitsJson:
+            '{"memory_bytes": 1024, "timeout_ms": 5000, '
             '"stack_depth": 100}',
       );
 
@@ -150,7 +154,8 @@ void main() {
     test('null limits skips limit calls', () async {
       mock.nextRunResult = const RunResult(
         tag: 0,
-        resultJson: '{"value": null, "usage": {"memory_bytes_used": 0, '
+        resultJson:
+            '{"value": null, "usage": {"memory_bytes_used": 0, '
             '"time_elapsed_ms": 0, "stack_depth_used": 0}}',
       );
 
@@ -162,10 +167,7 @@ void main() {
     });
 
     test('frees handle even on error', () async {
-      mock.nextRunResult = const RunResult(
-        tag: 1,
-        errorMessage: 'error',
-      );
+      mock.nextRunResult = const RunResult(tag: 1, errorMessage: 'error');
 
       await bindings.run('bad');
 
@@ -175,10 +177,7 @@ void main() {
     test('null result JSON on tag 0 throws StateError', () async {
       mock.nextRunResult = const RunResult(tag: 0);
 
-      await expectLater(
-        () => bindings.run('code'),
-        throwsA(isA<StateError>()),
-      );
+      await expectLater(() => bindings.run('code'), throwsA(isA<StateError>()));
     });
   });
 
@@ -186,7 +185,8 @@ void main() {
     test('complete translates to CoreProgressResult', () async {
       mock.nextStartResult = const ProgressResult(
         tag: 0,
-        resultJson: '{"value": 99, "usage": {"memory_bytes_used": 50, '
+        resultJson:
+            '{"value": 99, "usage": {"memory_bytes_used": 50, '
             '"time_elapsed_ms": 2, "stack_depth_used": 1}}',
       );
 
@@ -208,7 +208,8 @@ void main() {
     test('complete with embedded error preserves error', () async {
       mock.nextStartResult = const ProgressResult(
         tag: 0,
-        resultJson: '{"value": null, "usage": {"memory_bytes_used": 0, '
+        resultJson:
+            '{"value": null, "usage": {"memory_bytes_used": 0, '
             '"time_elapsed_ms": 0, "stack_depth_used": 0}, '
             '"error": {"message": "caught", "exc_type": "RuntimeError"}}',
       );
@@ -230,10 +231,7 @@ void main() {
         methodCall: true,
       );
 
-      final result = await bindings.start(
-        'code',
-        extFnsJson: '["get_data"]',
-      );
+      final result = await bindings.start('code', extFnsJson: '["get_data"]');
 
       expect(result.state, 'pending');
       expect(result.functionName, 'get_data');
@@ -252,24 +250,15 @@ void main() {
         kwargsJson: '{}',
       );
 
-      final result = await bindings.start(
-        'code',
-        extFnsJson: '["fn"]',
-      );
+      final result = await bindings.start('code', extFnsJson: '["fn"]');
 
       expect(result.kwargs, isNull);
     });
 
     test('pending with null args defaults to empty list', () async {
-      mock.nextStartResult = const ProgressResult(
-        tag: 1,
-        functionName: 'fn',
-      );
+      mock.nextStartResult = const ProgressResult(tag: 1, functionName: 'fn');
 
-      final result = await bindings.start(
-        'code',
-        extFnsJson: '["fn"]',
-      );
+      final result = await bindings.start('code', extFnsJson: '["fn"]');
 
       expect(result.arguments, isEmpty);
     });
@@ -277,7 +266,8 @@ void main() {
     test('error with result JSON extracts details', () async {
       mock.nextStartResult = const ProgressResult(
         tag: 2,
-        resultJson: '{"error": {"message": "not defined", '
+        resultJson:
+            '{"error": {"message": "not defined", '
             '"exc_type": "NameError"}}',
       );
 
@@ -306,10 +296,7 @@ void main() {
         futureCallIdsJson: '[1, 2, 3]',
       );
 
-      final result = await bindings.start(
-        'code',
-        extFnsJson: '["fn"]',
-      );
+      final result = await bindings.start('code', extFnsJson: '["fn"]');
 
       expect(result.state, 'resolve_futures');
       expect(result.pendingCallIds, [1, 2, 3]);
@@ -321,11 +308,7 @@ void main() {
       await expectLater(
         () => bindings.start('code'),
         throwsA(
-          isA<StateError>().having(
-            (e) => e.message,
-            'message',
-            contains('99'),
-          ),
+          isA<StateError>().having((e) => e.message, 'message', contains('99')),
         ),
       );
     });
@@ -333,14 +316,12 @@ void main() {
     test('external functions joined as comma-separated', () async {
       mock.nextStartResult = const ProgressResult(
         tag: 0,
-        resultJson: '{"value": null, "usage": {"memory_bytes_used": 0, '
+        resultJson:
+            '{"value": null, "usage": {"memory_bytes_used": 0, '
             '"time_elapsed_ms": 0, "stack_depth_used": 0}}',
       );
 
-      await bindings.start(
-        'code',
-        extFnsJson: '["fn_a", "fn_b"]',
-      );
+      await bindings.start('code', extFnsJson: '["fn_a", "fn_b"]');
 
       expect(mock.createCalls.first.externalFunctions, 'fn_a,fn_b');
     });
@@ -348,7 +329,8 @@ void main() {
     test('null extFnsJson passes null to create', () async {
       mock.nextStartResult = const ProgressResult(
         tag: 0,
-        resultJson: '{"value": null, "usage": {"memory_bytes_used": 0, '
+        resultJson:
+            '{"value": null, "usage": {"memory_bytes_used": 0, '
             '"time_elapsed_ms": 0, "stack_depth_used": 0}}',
       );
 
@@ -361,17 +343,15 @@ void main() {
   group('resume()', () {
     test('delegates valueJson and translates result', () async {
       // Enter active state via start → pending.
-      mock.nextStartResult = const ProgressResult(
-        tag: 1,
-        functionName: 'fn',
-      );
+      mock.nextStartResult = const ProgressResult(tag: 1, functionName: 'fn');
       await bindings.start('code', extFnsJson: '["fn"]');
 
       // Now resume.
       mock.resumeResults.add(
         const ProgressResult(
           tag: 0,
-          resultJson: '{"value": "done", "usage": {"memory_bytes_used": 0, '
+          resultJson:
+              '{"value": "done", "usage": {"memory_bytes_used": 0, '
               '"time_elapsed_ms": 0, "stack_depth_used": 0}}',
         ),
       );
@@ -400,16 +380,14 @@ void main() {
 
   group('resumeWithError()', () {
     test('delegates errorMessage and translates result', () async {
-      mock.nextStartResult = const ProgressResult(
-        tag: 1,
-        functionName: 'fn',
-      );
+      mock.nextStartResult = const ProgressResult(tag: 1, functionName: 'fn');
       await bindings.start('code', extFnsJson: '["fn"]');
 
       mock.resumeWithErrorResults.add(
         const ProgressResult(
           tag: 0,
-          resultJson: '{"value": null, "usage": {"memory_bytes_used": 0, '
+          resultJson:
+              '{"value": null, "usage": {"memory_bytes_used": 0, '
               '"time_elapsed_ms": 0, "stack_depth_used": 0}}',
         ),
       );
@@ -431,17 +409,11 @@ void main() {
 
   group('resumeAsFuture()', () {
     test('delegates and translates result', () async {
-      mock.nextStartResult = const ProgressResult(
-        tag: 1,
-        functionName: 'fn',
-      );
+      mock.nextStartResult = const ProgressResult(tag: 1, functionName: 'fn');
       await bindings.start('code', extFnsJson: '["fn"]');
 
       mock.resumeAsFutureResults.add(
-        const ProgressResult(
-          tag: 3,
-          futureCallIdsJson: '[0]',
-        ),
+        const ProgressResult(tag: 3, futureCallIdsJson: '[0]'),
       );
 
       final result = await bindings.resumeAsFuture();
@@ -470,16 +442,14 @@ void main() {
       mock.resolveFuturesResults.add(
         const ProgressResult(
           tag: 0,
-          resultJson: '{"value": "resolved", "usage": '
+          resultJson:
+              '{"value": "resolved", "usage": '
               '{"memory_bytes_used": 0, "time_elapsed_ms": 0, '
               '"stack_depth_used": 0}}',
         ),
       );
 
-      final result = await bindings.resolveFutures(
-        '{"1": "value"}',
-        '{}',
-      );
+      final result = await bindings.resolveFutures('{"1": "value"}', '{}');
 
       expect(mock.resolveFuturesCalls, hasLength(1));
       expect(result.state, 'complete');
@@ -496,10 +466,7 @@ void main() {
 
   group('snapshot()', () {
     test('delegates to bindings', () async {
-      mock.nextStartResult = const ProgressResult(
-        tag: 1,
-        functionName: 'fn',
-      );
+      mock.nextStartResult = const ProgressResult(tag: 1, functionName: 'fn');
       await bindings.start('code', extFnsJson: '["fn"]');
 
       mock.nextSnapshotData = Uint8List.fromList([10, 20, 30]);
@@ -510,10 +477,7 @@ void main() {
     });
 
     test('throws StateError when no handle', () async {
-      await expectLater(
-        () => bindings.snapshot(),
-        throwsA(isA<StateError>()),
-      );
+      await expectLater(() => bindings.snapshot(), throwsA(isA<StateError>()));
     });
   });
 
@@ -534,10 +498,7 @@ void main() {
 
   group('dispose()', () {
     test('frees active handle', () async {
-      mock.nextStartResult = const ProgressResult(
-        tag: 1,
-        functionName: 'fn',
-      );
+      mock.nextStartResult = const ProgressResult(tag: 1, functionName: 'fn');
       await bindings.start('code', extFnsJson: '["fn"]');
 
       await bindings.dispose();
@@ -552,10 +513,7 @@ void main() {
     });
 
     test('second dispose is no-op', () async {
-      mock.nextStartResult = const ProgressResult(
-        tag: 1,
-        functionName: 'fn',
-      );
+      mock.nextStartResult = const ProgressResult(tag: 1, functionName: 'fn');
       await bindings.start('code', extFnsJson: '["fn"]');
 
       await bindings.dispose();
@@ -570,7 +528,8 @@ void main() {
     test('run creates and frees handle each call', () async {
       mock.nextRunResult = const RunResult(
         tag: 0,
-        resultJson: '{"value": 1, "usage": {"memory_bytes_used": 0, '
+        resultJson:
+            '{"value": 1, "usage": {"memory_bytes_used": 0, '
             '"time_elapsed_ms": 0, "stack_depth_used": 0}}',
       );
 
@@ -582,10 +541,7 @@ void main() {
     });
 
     test('start stores handle on pending, frees on complete', () async {
-      mock.nextStartResult = const ProgressResult(
-        tag: 1,
-        functionName: 'fn',
-      );
+      mock.nextStartResult = const ProgressResult(tag: 1, functionName: 'fn');
       await bindings.start('code', extFnsJson: '["fn"]');
 
       // Handle stored, not freed yet.
@@ -595,7 +551,8 @@ void main() {
       mock.resumeResults.add(
         const ProgressResult(
           tag: 0,
-          resultJson: '{"value": null, "usage": {"memory_bytes_used": 0, '
+          resultJson:
+              '{"value": null, "usage": {"memory_bytes_used": 0, '
               '"time_elapsed_ms": 0, "stack_depth_used": 0}}',
         ),
       );

@@ -55,11 +55,7 @@ class MontyNative extends MontyPlatform
     try {
       await _ensureInitialized();
 
-      return await _bindings.run(
-        code,
-        limits: limits,
-        scriptName: scriptName,
-      );
+      return await _bindings.run(code, limits: limits, scriptName: scriptName);
     } finally {
       markIdle();
     }

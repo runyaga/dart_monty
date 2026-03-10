@@ -47,23 +47,15 @@ void main() {
 
       group('equality', () {
         test('equal when result matches', () {
-          const a = MontyComplete(
-            result: MontyResult(value: 42, usage: usage),
-          );
-          const b = MontyComplete(
-            result: MontyResult(value: 42, usage: usage),
-          );
+          const a = MontyComplete(result: MontyResult(value: 42, usage: usage));
+          const b = MontyComplete(result: MontyResult(value: 42, usage: usage));
           expect(a, b);
           expect(a.hashCode, b.hashCode);
         });
 
         test('not equal when result differs', () {
-          const a = MontyComplete(
-            result: MontyResult(value: 1, usage: usage),
-          );
-          const b = MontyComplete(
-            result: MontyResult(value: 2, usage: usage),
-          );
+          const a = MontyComplete(result: MontyResult(value: 1, usage: usage));
+          const b = MontyComplete(result: MontyResult(value: 2, usage: usage));
           expect(a, isNot(b));
         });
 
@@ -86,10 +78,7 @@ void main() {
         const complete = MontyComplete(
           result: MontyResult(value: 42, usage: usage),
         );
-        expect(
-          complete.toString(),
-          'MontyComplete(MontyResult.value(42))',
-        );
+        expect(complete.toString(), 'MontyComplete(MontyResult.value(42))');
       });
     });
 
@@ -225,10 +214,7 @@ void main() {
       });
 
       test('toJson omits kwargs when null', () {
-        const pending = MontyPending(
-          functionName: 'fn',
-          arguments: [],
-        );
+        const pending = MontyPending(functionName: 'fn', arguments: []);
         final json = pending.toJson();
         expect(json.containsKey('kwargs'), isFalse);
       });
@@ -244,10 +230,7 @@ void main() {
       });
 
       test('toJson omits callId when zero', () {
-        const pending = MontyPending(
-          functionName: 'fn',
-          arguments: [],
-        );
+        const pending = MontyPending(functionName: 'fn', arguments: []);
         final json = pending.toJson();
         expect(json.containsKey('call_id'), isFalse);
       });
@@ -263,10 +246,7 @@ void main() {
       });
 
       test('toJson omits methodCall when false', () {
-        const pending = MontyPending(
-          functionName: 'fn',
-          arguments: [],
-        );
+        const pending = MontyPending(functionName: 'fn', arguments: []);
         final json = pending.toJson();
         expect(json.containsKey('method_call'), isFalse);
       });
@@ -281,10 +261,7 @@ void main() {
       });
 
       test('JSON round-trip with empty arguments', () {
-        const original = MontyPending(
-          functionName: 'noop',
-          arguments: [],
-        );
+        const original = MontyPending(functionName: 'noop', arguments: []);
         final restored = MontyPending.fromJson(original.toJson());
         expect(restored, original);
       });
@@ -313,14 +290,8 @@ void main() {
 
       group('equality', () {
         test('equal when all fields match', () {
-          const a = MontyPending(
-            functionName: 'fn',
-            arguments: [1, 'a'],
-          );
-          const b = MontyPending(
-            functionName: 'fn',
-            arguments: [1, 'a'],
-          );
+          const a = MontyPending(functionName: 'fn', arguments: [1, 'a']);
+          const b = MontyPending(functionName: 'fn', arguments: [1, 'a']);
           expect(a, b);
           expect(a.hashCode, b.hashCode);
         });
@@ -370,10 +341,7 @@ void main() {
             arguments: [],
             kwargs: {'a': 1},
           );
-          const b = MontyPending(
-            functionName: 'fn',
-            arguments: [],
-          );
+          const b = MontyPending(functionName: 'fn', arguments: []);
           expect(a, isNot(b));
         });
 
@@ -393,24 +361,13 @@ void main() {
         });
 
         test('not equal when callId differs', () {
-          const a = MontyPending(
-            functionName: 'fn',
-            arguments: [],
-            callId: 1,
-          );
-          const b = MontyPending(
-            functionName: 'fn',
-            arguments: [],
-            callId: 2,
-          );
+          const a = MontyPending(functionName: 'fn', arguments: [], callId: 1);
+          const b = MontyPending(functionName: 'fn', arguments: [], callId: 2);
           expect(a, isNot(b));
         });
 
         test('not equal when methodCall differs', () {
-          const a = MontyPending(
-            functionName: 'fn',
-            arguments: [],
-          );
+          const a = MontyPending(functionName: 'fn', arguments: []);
           const b = MontyPending(
             functionName: 'fn',
             arguments: [],
@@ -431,10 +388,7 @@ void main() {
       });
 
       test('toString', () {
-        const pending = MontyPending(
-          functionName: 'fetch',
-          arguments: [42],
-        );
+        const pending = MontyPending(functionName: 'fetch', arguments: [42]);
         expect(pending.toString(), 'MontyPending(fetch, [42])');
       });
     });
@@ -546,9 +500,7 @@ void main() {
 
       test('throws on unknown type', () {
         expect(
-          () => MontyProgress.fromJson(const {
-            'type': 'unknown',
-          }),
+          () => MontyProgress.fromJson(const {'type': 'unknown'}),
           throwsA(isA<ArgumentError>()),
         );
       });
@@ -603,10 +555,7 @@ void main() {
           'futures: $pendingCallIds',
       };
 
-      expect(
-        description,
-        'pending: fetch(kwargs={timeout: 30}, callId=5)',
-      );
+      expect(description, 'pending: fetch(kwargs={timeout: 30}, callId=5)');
     });
 
     test('pattern matching on resolve_futures', () {
@@ -737,9 +686,7 @@ void main() {
 
       test('MontyResolveFutures.fromJson throws on missing call_ids', () {
         expect(
-          () => MontyResolveFutures.fromJson(
-            const {'type': 'resolve_futures'},
-          ),
+          () => MontyResolveFutures.fromJson(const {'type': 'resolve_futures'}),
           throwsA(isA<TypeError>()),
         );
       });

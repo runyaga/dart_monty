@@ -65,10 +65,7 @@ void main() {
       '  result = str(e)',
       'result',
     ].join('\n');
-    final progress = await monty.start(
-      code,
-      externalFunctions: ['fetch'],
-    );
+    final progress = await monty.start(code, externalFunctions: ['fetch']);
 
     expect(progress, isA<MontyPending>());
 
@@ -87,10 +84,7 @@ void main() {
   test('error handling: invalid syntax', () async {
     final monty = createMonty();
 
-    expect(
-      () => monty.run('def'),
-      throwsA(isA<MontyException>()),
-    );
+    expect(() => monty.run('def'), throwsA(isA<MontyException>()));
 
     await monty.dispose();
   });

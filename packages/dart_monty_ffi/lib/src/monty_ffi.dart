@@ -32,14 +32,14 @@ class MontyFfi extends BaseMontyPlatform
   MontyFfi.withCore({
     required FfiCoreBindings coreBindings,
     required NativeBindings nativeBindings,
-  })  : _nativeBindings = nativeBindings,
-        super(bindings: coreBindings);
+  }) : _nativeBindings = nativeBindings,
+       super(bindings: coreBindings);
 
   MontyFfi._({
     required FfiCoreBindings coreBindings,
     required NativeBindings nativeBindings,
-  })  : _nativeBindings = nativeBindings,
-        super(bindings: coreBindings);
+  }) : _nativeBindings = nativeBindings,
+       super(bindings: coreBindings);
 
   final NativeBindings _nativeBindings;
 
@@ -65,14 +65,9 @@ class MontyFfi extends BaseMontyPlatform
       results.map((k, v) => MapEntry(k.toString(), v)),
     );
     final errorsJson = errors != null
-        ? json.encode(
-            errors.map((k, v) => MapEntry(k.toString(), v)),
-          )
+        ? json.encode(errors.map((k, v) => MapEntry(k.toString(), v)))
         : '{}';
-    final progress = await coreBindings.resolveFutures(
-      resultsJson,
-      errorsJson,
-    );
+    final progress = await coreBindings.resolveFutures(resultsJson, errorsJson);
     return translateProgress(progress);
   }
 

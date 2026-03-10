@@ -48,8 +48,9 @@ void main() {
         expect(hid, isNotNull);
 
         // Verify handle exists pre-terminate.
-        final preState =
-            NativeBindingsFfi.instanceOrNull?.isCancelledById(hid!);
+        final preState = NativeBindingsFfi.instanceOrNull?.isCancelledById(
+          hid!,
+        );
         expect(preState, isNotNull, reason: 'handle should be in registry');
 
         // Guard startFuture.
@@ -78,8 +79,9 @@ void main() {
         }
 
         // Check Rust registry cleanup.
-        final postState =
-            NativeBindingsFfi.instanceOrNull?.isCancelledById(hid!);
+        final postState = NativeBindingsFfi.instanceOrNull?.isCancelledById(
+          hid!,
+        );
         if (postState == null) {
           registryFreedCount++;
         } else {
@@ -97,8 +99,10 @@ void main() {
     print('handleId nulled: $handleIdNulledCount / $n');
     print('handleId NOT nulled: $handleIdNotNulledCount');
     print('');
-    print('VERDICT: '
-        '${registryFreedCount == n && handleIdNulledCount == n ? "PASS" : "FAIL"}');
+    print(
+      'VERDICT: '
+      '${registryFreedCount == n && handleIdNulledCount == n ? "PASS" : "FAIL"}',
+    );
     print('=== END T1-3 ===\n');
   });
 }

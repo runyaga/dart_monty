@@ -48,9 +48,7 @@ void main() {
       });
 
       test('parses partial JSON', () {
-        final limits = MontyLimits.fromJson(const {
-          'timeout_ms': 1000,
-        });
+        final limits = MontyLimits.fromJson(const {'timeout_ms': 1000});
         expect(limits.memoryBytes, isNull);
         expect(limits.timeoutMs, 1000);
         expect(limits.stackDepth, isNull);
@@ -171,9 +169,7 @@ void main() {
     group('malformed JSON', () {
       test('throws on wrong field type', () {
         expect(
-          () => MontyLimits.fromJson(const {
-            'memory_bytes': 'not_a_number',
-          }),
+          () => MontyLimits.fromJson(const {'memory_bytes': 'not_a_number'}),
           throwsA(isA<TypeError>()),
         );
       });

@@ -24,10 +24,8 @@ class FfiCoreBindings implements MontyCoreBindings {
   /// handle is created (in [run] and [start]) with the monotonic handle ID.
   /// Used by the isolate worker to send the handle ID to the supervisor
   /// before entering a potentially blocking FFI call.
-  FfiCoreBindings({
-    required NativeBindings bindings,
-    this.onHandleCreated,
-  }) : _bindings = bindings;
+  FfiCoreBindings({required NativeBindings bindings, this.onHandleCreated})
+    : _bindings = bindings;
 
   final NativeBindings _bindings;
   int? _handle;
@@ -236,8 +234,9 @@ class FfiCoreBindings implements MontyCoreBindings {
         return CoreProgressResult(
           state: 'complete',
           value: jsonMap['value'] as Object?,
-          usage:
-              usageMap != null ? MontyResourceUsage.fromJson(usageMap) : null,
+          usage: usageMap != null
+              ? MontyResourceUsage.fromJson(usageMap)
+              : null,
           printOutput: jsonMap['print_output'] as String?,
           error: errorMap?['message'] as String?,
           excType: errorMap?['exc_type'] as String?,
@@ -248,9 +247,7 @@ class FfiCoreBindings implements MontyCoreBindings {
         _handle = handle;
         final argsJson = progress.argumentsJson;
         final args = argsJson != null
-            ? List<Object?>.from(
-                json.decode(argsJson) as List<Object?>,
-              )
+            ? List<Object?>.from(json.decode(argsJson) as List<Object?>)
             : const <Object?>[];
 
         final kwargsJson = progress.kwargsJson;
@@ -306,9 +303,7 @@ class FfiCoreBindings implements MontyCoreBindings {
         if (idsJson == null) {
           throw StateError('Future call IDs JSON is null');
         }
-        final ids = List<int>.from(
-          json.decode(idsJson) as List<Object?>,
-        );
+        final ids = List<int>.from(json.decode(idsJson) as List<Object?>);
 
         return CoreProgressResult(
           state: 'resolve_futures',
@@ -360,9 +355,7 @@ class FfiCoreBindings implements MontyCoreBindings {
   /// expected by [NativeBindings.create].
   String? _parseExtFns(String? extFnsJson) {
     if (extFnsJson == null) return null;
-    final list = List<String>.from(
-      json.decode(extFnsJson) as List<Object?>,
-    );
+    final list = List<String>.from(json.decode(extFnsJson) as List<Object?>);
 
     return list.isNotEmpty ? list.join(',') : null;
   }

@@ -3,8 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('app renders with bottom navigation and Examples tab',
-      (tester) async {
+  testWidgets('app renders with bottom navigation and Examples tab', (
+    tester,
+  ) async {
     await tester.pumpWidget(const MontyDesktopApp());
 
     expect(find.text('Monty Desktop Example'), findsOneWidget);

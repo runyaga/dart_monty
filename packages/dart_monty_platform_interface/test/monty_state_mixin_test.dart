@@ -96,10 +96,7 @@ void main() {
 
     test('assertActive throws when disposed', () {
       sm.doMarkDisposed();
-      expect(
-        () => sm.doAssertActive('resume'),
-        throwsA(isA<StateError>()),
-      );
+      expect(() => sm.doAssertActive('resume'), throwsA(isA<StateError>()));
     });
   });
 

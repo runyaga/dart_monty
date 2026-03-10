@@ -31,7 +31,7 @@ import 'package:meta/meta.dart';
 abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
   /// Creates a [BaseMontyPlatform] backed by [bindings].
   BaseMontyPlatform({required MontyCoreBindings bindings})
-      : _bindings = bindings;
+    : _bindings = bindings;
 
   final MontyCoreBindings _bindings;
 
@@ -175,9 +175,7 @@ abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
     assertNotDisposed('resume');
     assertActive('resume');
     try {
-      final progress = await _bindings.resume(
-        json.encode(returnValue),
-      );
+      final progress = await _bindings.resume(json.encode(returnValue));
       return translateProgress(progress);
     } catch (e) {
       markIdle();
@@ -186,15 +184,11 @@ abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
   }
 
   @override
-  Future<MontyProgress> resumeWithError(
-    String errorMessage,
-  ) async {
+  Future<MontyProgress> resumeWithError(String errorMessage) async {
     assertNotDisposed('resumeWithError');
     assertActive('resumeWithError');
     try {
-      final progress = await _bindings.resumeWithError(
-        errorMessage,
-      );
+      final progress = await _bindings.resumeWithError(errorMessage);
       return translateProgress(progress);
     } catch (e) {
       markIdle();
@@ -298,9 +292,7 @@ abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
         );
       default:
         markIdle();
-        throw StateError(
-          'Unknown progress state: ${p.state}',
-        );
+        throw StateError('Unknown progress state: ${p.state}');
     }
   }
 
@@ -329,9 +321,7 @@ abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
     );
   }
 
-  List<MontyStackFrame> _parseTraceback(
-    List<dynamic>? traceback,
-  ) {
+  List<MontyStackFrame> _parseTraceback(List<dynamic>? traceback) {
     if (traceback == null) return const [];
     return MontyStackFrame.listFromJson(traceback);
   }

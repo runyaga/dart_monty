@@ -24,10 +24,7 @@ external JSPromise<JSBoolean> _montyInit();
 external JSPromise<JSString> _montyRun(JSString code);
 
 @JS('DartMontyBridge.start')
-external JSPromise<JSString> _montyStart(
-  JSString code, [
-  JSString? extFnsJson,
-]);
+external JSPromise<JSString> _montyStart(JSString code, [JSString? extFnsJson]);
 
 @JS('DartMontyBridge.resume')
 external JSPromise<JSString> _montyResume(JSString valueJson);
@@ -246,9 +243,7 @@ Future<void> main() async {
 // Fixture execution
 // ---------------------------------------------------------------------------
 
-Future<Map<String, dynamic>> _runFixture(
-  Map<String, dynamic> fixture,
-) async {
+Future<Map<String, dynamic>> _runFixture(Map<String, dynamic> fixture) async {
   final expectError = fixture['expectError'] as bool? ?? false;
   final xfail = fixture['xfail'] as String?;
 
@@ -276,24 +271,19 @@ Future<Map<String, dynamic>> _runFixture(
     }
     return {
       'status': 'xpass',
-      'detail': 'xpass: expected failure did not occur'
+      'detail': 'xpass: expected failure did not occur',
     };
   }
 
   return result;
 }
 
-Future<Map<String, dynamic>> _runSimple(
-  Map<String, dynamic> fixture,
-) async {
+Future<Map<String, dynamic>> _runSimple(Map<String, dynamic> fixture) async {
   final code = fixture['code'] as String;
   final result = _parse((await _montyRun(code.toJS).toDart).toDart);
 
   if (result['ok'] != true) {
-    return {
-      'status': 'fail',
-      'detail': 'Bridge error: ${result['error']}',
-    };
+    return {'status': 'fail', 'detail': 'Bridge error: ${result['error']}'};
   }
 
   final actual = result['value'];
@@ -313,14 +303,13 @@ Future<Map<String, dynamic>> _runExpectError(
 
   return {
     'status': 'warn',
-    'detail': 'Expected error but got value: ${result['value']}'
+    'detail':
+        'Expected error but got value: ${result['value']}'
         ' — WASM Monty may handle this differently than CPython',
   };
 }
 
-Future<Map<String, dynamic>> _runIterative(
-  Map<String, dynamic> fixture,
-) async {
+Future<Map<String, dynamic>> _runIterative(Map<String, dynamic> fixture) async {
   final code = fixture['code'] as String;
   final expectError = fixture['expectError'] as bool? ?? false;
   final extFns = (fixture['externalFunctions'] as List).cast<String>();
@@ -398,7 +387,8 @@ Map<String, dynamic> _compareResult(
 
     return {
       'status': 'warn',
-      'detail': 'Value: $str'
+      'detail':
+          'Value: $str'
           ' — expected to contain "$expectedContains"'
           ' (WASM Monty behavioral difference)',
     };
@@ -413,7 +403,8 @@ Map<String, dynamic> _compareResult(
 
     return {
       'status': 'warn',
-      'detail': 'Value: $actual'
+      'detail':
+          'Value: $actual'
           ' — expected (sorted): $expected'
           ' (WASM Monty behavioral difference)',
     };
@@ -425,7 +416,8 @@ Map<String, dynamic> _compareResult(
 
   return {
     'status': 'warn',
-    'detail': 'Value: $actual'
+    'detail':
+        'Value: $actual'
         ' — expected: $expected'
         ' (WASM Monty behavioral difference)',
   };

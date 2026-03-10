@@ -27,9 +27,7 @@ final class MontyResult {
       error: json['error'] != null
           ? MontyException.fromJson(json['error'] as Map<String, dynamic>)
           : null,
-      usage: MontyResourceUsage.fromJson(
-        json['usage'] as Map<String, dynamic>,
-      ),
+      usage: MontyResourceUsage.fromJson(json['usage'] as Map<String, dynamic>),
       printOutput: json['print_output'] as String?,
     );
   }

@@ -111,9 +111,7 @@ void main() {
       final await_ = _findHandler(plugin, 'isolate_await');
       final getOutput = _findHandler(plugin, 'isolate_get_output');
 
-      final handle = await spawn({
-        'code': 'print("side effect")\n42',
-      });
+      final handle = await spawn({'code': 'print("side effect")\n42'});
       final result = await await_({'handle': handle! as int});
       final output = await getOutput({'handle': handle as int});
 

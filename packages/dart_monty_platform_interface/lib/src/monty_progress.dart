@@ -68,10 +68,7 @@ final class MontyComplete extends MontyProgress {
 
   @override
   Map<String, dynamic> toJson() {
-    return {
-      'type': 'complete',
-      'result': result.toJson(),
-    };
+    return {'type': 'complete', 'result': result.toJson()};
   }
 
   @override
@@ -180,12 +177,12 @@ final class MontyPending extends MontyProgress {
 
   @override
   int get hashCode => Object.hash(
-        functionName,
-        _deepEquality.hash(arguments),
-        _deepEquality.hash(kwargs),
-        callId,
-        methodCall,
-      );
+    functionName,
+    _deepEquality.hash(arguments),
+    _deepEquality.hash(kwargs),
+    callId,
+    methodCall,
+  );
 
   @override
   String toString() => 'MontyPending($functionName, $arguments)';
@@ -220,9 +217,7 @@ final class MontyResolveFutures extends MontyProgress {
   factory MontyResolveFutures.fromJson(Map<String, dynamic> json) {
     final rawIds = json['pending_call_ids'] as List<dynamic>;
 
-    return MontyResolveFutures(
-      pendingCallIds: List<int>.from(rawIds),
-    );
+    return MontyResolveFutures(pendingCallIds: List<int>.from(rawIds));
   }
 
   /// The call IDs of futures that need resolution.
@@ -230,10 +225,7 @@ final class MontyResolveFutures extends MontyProgress {
 
   @override
   Map<String, dynamic> toJson() {
-    return {
-      'type': 'resolve_futures',
-      'pending_call_ids': pendingCallIds,
-    };
+    return {'type': 'resolve_futures', 'pending_call_ids': pendingCallIds};
   }
 
   @override

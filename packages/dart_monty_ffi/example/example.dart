@@ -87,10 +87,7 @@ Future<void> _printCapture(MontyFfi monty) async {
 /// Snapshots capture state mid-execution (during a start/resume loop).
 Future<void> _snapshotRestore(MontyFfi monty) async {
   // Start execution that pauses on an external function call.
-  await monty.start(
-    'x = 42\nget_value()',
-    externalFunctions: ['get_value'],
-  );
+  await monty.start('x = 42\nget_value()', externalFunctions: ['get_value']);
   // Interpreter is now paused — snapshot the in-progress state.
   final bytes = await monty.snapshot();
   print('Snapshot size: ${bytes.length} bytes');

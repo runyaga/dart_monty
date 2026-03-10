@@ -104,8 +104,9 @@ class WasmBindingsJs extends WasmBindings {
     String? limitsJson,
     String? scriptName,
   }) async {
-    final resultJson =
-        await _bridge.run(code.toJS, limitsJson?.toJS, scriptName?.toJS).toDart;
+    final resultJson = await _bridge
+        .run(code.toJS, limitsJson?.toJS, scriptName?.toJS)
+        .toDart;
     final map = json.decode(resultJson.toDart) as Map<String, dynamic>;
     final rawTraceback = map['traceback'] as List<Object?>?;
 

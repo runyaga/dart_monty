@@ -403,10 +403,7 @@ void main() {
     test('run: unrecognized error rethrows as-is', () async {
       mock.throwOnRun = 'SomeOtherError';
 
-      await expectLater(
-        () => bindings.run('x'),
-        throwsA(isA<StateError>()),
-      );
+      await expectLater(() => bindings.run('x'), throwsA(isA<StateError>()));
     });
 
     test('start: MontyCancelled prefix throws MontyCancelledError', () async {
@@ -427,15 +424,17 @@ void main() {
       );
     });
 
-    test('resumeWithError: MontyCancelled prefix throws MontyCancelledError',
-        () async {
-      mock.throwOnResumeWithError = 'MontyCancelled: Worker terminated';
+    test(
+      'resumeWithError: MontyCancelled prefix throws MontyCancelledError',
+      () async {
+        mock.throwOnResumeWithError = 'MontyCancelled: Worker terminated';
 
-      await expectLater(
-        () => bindings.resumeWithError('err'),
-        throwsA(isA<MontyCancelledError>()),
-      );
-    });
+        await expectLater(
+          () => bindings.resumeWithError('err'),
+          throwsA(isA<MontyCancelledError>()),
+        );
+      },
+    );
   });
 
   // ===========================================================================

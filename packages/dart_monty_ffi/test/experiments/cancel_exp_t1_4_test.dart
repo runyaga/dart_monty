@@ -86,49 +86,45 @@ void main() {
 
   group('T1-4D: Dispose during run → error resolution (N=$n)', () {
     for (var trial = 1; trial <= n; trial++) {
-      test(
-        'trial $trial',
-        () async {
-          final isolate = NativeIsolateBindingsImpl(libraryPath: libPath);
-          await isolate.init();
+      test('trial $trial', () async {
+        final isolate = NativeIsolateBindingsImpl(libraryPath: libPath);
+        await isolate.init();
 
-          final startFuture = isolate.start(
-            'while True: pass',
-            externalFunctions: ['__never_called__'],
+        final startFuture = isolate.start(
+          'while True: pass',
+          externalFunctions: ['__never_called__'],
+        );
+
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+
+        // dispose() without cancel — should still resolve the Future.
+        // Use terminate() which has a built-in 5s timeout for stuck isolates.
+        Object? caughtError;
+        unawaited(
+          startFuture.then<void>(
+            (_) {},
+            onError: (Object e) {
+              caughtError = e;
+            },
+          ),
+        );
+
+        await isolate.terminate();
+
+        // Give async error propagation a moment.
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+
+        if (caughtError is MontyDisposedError ||
+            caughtError is MontyCancelledError ||
+            caughtError is MontyCrashError) {
+          subDCorrect++;
+        } else {
+          subDWrongTypes.add(
+            caughtError?.runtimeType.toString() ??
+                'null (Future still pending)',
           );
-
-          await Future<void>.delayed(const Duration(milliseconds: 100));
-
-          // dispose() without cancel — should still resolve the Future.
-          // Use terminate() which has a built-in 5s timeout for stuck isolates.
-          Object? caughtError;
-          unawaited(
-            startFuture.then<void>(
-              (_) {},
-              onError: (Object e) {
-                caughtError = e;
-              },
-            ),
-          );
-
-          await isolate.terminate();
-
-          // Give async error propagation a moment.
-          await Future<void>.delayed(const Duration(milliseconds: 100));
-
-          if (caughtError is MontyDisposedError ||
-              caughtError is MontyCancelledError ||
-              caughtError is MontyCrashError) {
-            subDCorrect++;
-          } else {
-            subDWrongTypes.add(
-              caughtError?.runtimeType.toString() ??
-                  'null (Future still pending)',
-            );
-          }
-        },
-        timeout: const Timeout(Duration(seconds: 10)),
-      );
+        }
+      }, timeout: const Timeout(Duration(seconds: 10)));
     }
   });
 
@@ -143,8 +139,10 @@ void main() {
     print('Sub-B (OOM): SKIPPED (needs MontyLimits.memoryBytes integration)');
     print('Sub-E (Rust panic): SKIPPED (needs test-only FFI path)');
     print('');
-    print('VERDICT: '
-        '${subACorrect == n && subCCorrect == n && subDCorrect == n ? "PASS" : "FAIL (with caveats for skipped sub-experiments)"}');
+    print(
+      'VERDICT: '
+      '${subACorrect == n && subCCorrect == n && subDCorrect == n ? "PASS" : "FAIL (with caveats for skipped sub-experiments)"}',
+    );
     print('=== END T1-4 ===\n');
   });
 }

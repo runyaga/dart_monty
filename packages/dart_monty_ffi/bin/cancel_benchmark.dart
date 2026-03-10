@@ -79,7 +79,8 @@ Future<Map<String, dynamic>> runT1_1({
   }
   stderr.writeln();
 
-  final pass = cancelledCount == cancelN &&
+  final pass =
+      cancelledCount == cancelN &&
       wrongTypeCount == 0 &&
       doubleThrowCount == 0 &&
       postCompleteThrowCount == 0;
@@ -148,7 +149,8 @@ Future<Map<String, dynamic>> runT1_2({
     'cross_cancel_success': crossCancelSuccess,
     'state_error': stateErrorCount,
     'alive_post_terminate': isAlivePostTerminate,
-    'pass': crossCancelSuccess == n &&
+    'pass':
+        crossCancelSuccess == n &&
         stateErrorCount == 0 &&
         isAlivePostTerminate == 0,
   };
@@ -437,8 +439,9 @@ Future<Map<String, dynamic>> runT2_3({
     'cycles': totalCycles,
     'delta_mb': deltaMb,
     'slope_mb_per_cycle': slope,
-    'rss_checkpoints': rssAt
-        .map((k, v) => MapEntry(k, (v / (1024 * 1024)).toStringAsFixed(1))),
+    'rss_checkpoints': rssAt.map(
+      (k, v) => MapEntry(k, (v / (1024 * 1024)).toStringAsFixed(1)),
+    ),
     'pass': deltaMb.abs() < 5.0 && slope.abs() < 0.005,
   };
 }
@@ -645,8 +648,9 @@ Map<String, dynamic> _computeStats(
   final ciLow = bootstrapMedians[(10000 * 0.025).floor()];
   final ciHigh = bootstrapMedians[(10000 * 0.975).floor()];
 
-  final pass =
-      name == 'T3-1' ? (p95 < 5.0 && maxVal < 20.0) : (p95 < 20.0); // T3-2
+  final pass = name == 'T3-1'
+      ? (p95 < 5.0 && maxVal < 20.0)
+      : (p95 < 20.0); // T3-2
 
   return {
     'experiment': name,
@@ -723,15 +727,9 @@ void _printResult(Map<String, dynamic> r) {
         '[95% CI: ${(r['ci_low_ms'] as double).toStringAsFixed(3)} '
         '- ${(r['ci_high_ms'] as double).toStringAsFixed(3)}]',
       );
-      stdout.writeln(
-        '  P95: ${(r['p95_ms'] as double).toStringAsFixed(3)} ms',
-      );
-      stdout.writeln(
-        '  P99: ${(r['p99_ms'] as double).toStringAsFixed(3)} ms',
-      );
-      stdout.writeln(
-        '  Max: ${(r['max_ms'] as double).toStringAsFixed(3)} ms',
-      );
+      stdout.writeln('  P95: ${(r['p95_ms'] as double).toStringAsFixed(3)} ms');
+      stdout.writeln('  P99: ${(r['p99_ms'] as double).toStringAsFixed(3)} ms');
+      stdout.writeln('  Max: ${(r['max_ms'] as double).toStringAsFixed(3)} ms');
   }
   stdout.writeln('  VERDICT: ${r['pass'] == true ? "PASS" : "FAIL"}');
   stdout.writeln();
@@ -742,7 +740,8 @@ void _printResult(Map<String, dynamic> r) {
 // ---------------------------------------------------------------------------
 Future<void> main(List<String> args) async {
   final libPath = _resolveLibraryPath();
-  final isAot = const bool.fromEnvironment('dart.vm.product') ||
+  final isAot =
+      const bool.fromEnvironment('dart.vm.product') ||
       !Platform.resolvedExecutable.endsWith('dart');
   final mode = isAot ? 'AOT' : 'JIT';
 

@@ -140,11 +140,7 @@ class MontySession {
   }) async {
     _checkNotDisposed();
     final wrappedCode = _wrapCode(code);
-    final allExtFns = [
-      _restoreStateFn,
-      _persistStateFn,
-      ...?externalFunctions,
-    ];
+    final allExtFns = [_restoreStateFn, _persistStateFn, ...?externalFunctions];
 
     final progress = await _safeStart(
       wrappedCode,
@@ -405,7 +401,9 @@ class MontySession {
         scriptName: scriptName,
       );
     } on MontyException catch (e) {
-      return MontyComplete(result: MontyResult(error: e, usage: _zeroUsage));
+      return MontyComplete(
+        result: MontyResult(error: e, usage: _zeroUsage),
+      );
     }
   }
 
@@ -414,7 +412,9 @@ class MontySession {
     try {
       return await _platform.resume(returnValue);
     } on MontyException catch (e) {
-      return MontyComplete(result: MontyResult(error: e, usage: _zeroUsage));
+      return MontyComplete(
+        result: MontyResult(error: e, usage: _zeroUsage),
+      );
     }
   }
 
@@ -423,7 +423,9 @@ class MontySession {
     try {
       return await _platform.resumeWithError(errorMessage);
     } on MontyException catch (e) {
-      return MontyComplete(result: MontyResult(error: e, usage: _zeroUsage));
+      return MontyComplete(
+        result: MontyResult(error: e, usage: _zeroUsage),
+      );
     }
   }
 

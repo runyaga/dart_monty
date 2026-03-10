@@ -56,9 +56,7 @@ void main() {
         await Future<void>.delayed(const Duration(milliseconds: 100));
 
         // Guard the Future so its error doesn't escape the zone.
-        unawaited(
-          startFuture.then<void>((_) {}, onError: (_) {}),
-        );
+        unawaited(startFuture.then<void>((_) {}, onError: (_) {}));
 
         final sw = Stopwatch()..start();
         await isolate.terminate();

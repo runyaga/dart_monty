@@ -51,69 +51,65 @@ void main() {
   // =========================================================================
   group('T2-2-C1: dispose() during run (N=$nC1)', () {
     for (var trial = 1; trial <= nC1; trial++) {
-      test(
-        'trial $trial',
-        () async {
-          final isolate = NativeIsolateBindingsImpl(libraryPath: libPath);
-          await isolate.init();
+      test('trial $trial', () async {
+        final isolate = NativeIsolateBindingsImpl(libraryPath: libPath);
+        await isolate.init();
 
-          final startFuture = isolate.start(
-            'while True: pass',
-            externalFunctions: ['__never_called__'],
+        final startFuture = isolate.start(
+          'while True: pass',
+          externalFunctions: ['__never_called__'],
+        );
+
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+
+        final sw = Stopwatch()..start();
+
+        // Track whether startFuture resolves.
+        final futureCompleter = Completer<String>();
+        unawaited(
+          startFuture.then<void>(
+            (_) {
+              sw.stop();
+              futureCompleter.complete('completed_normally');
+            },
+            onError: (Object e) {
+              sw.stop();
+              futureCompleter.complete(e.runtimeType.toString());
+            },
+          ),
+        );
+
+        // Try dispose() with a timeout — it may hang because worker
+        // is stuck in FFI and can't process the _DisposeRequest.
+        var disposeHung = false;
+        try {
+          await isolate.dispose().timeout(
+            const Duration(milliseconds: disposeTimeoutMs),
           );
+        } on TimeoutException {
+          disposeHung = true;
+          c1DisposeHangCount++;
+        }
 
-          await Future<void>.delayed(const Duration(milliseconds: 100));
+        // Check if startFuture resolved (give it a short window).
+        final result = await futureCompleter.future.timeout(
+          const Duration(milliseconds: futureHangTimeoutMs),
+          onTimeout: () => 'HANGING',
+        );
 
-          final sw = Stopwatch()..start();
+        if (result == 'HANGING') {
+          c1HangingCount++;
+        } else {
+          c1ResolvedCount++;
+          c1ResolutionTimesMs.add(sw.elapsedMicroseconds / 1000.0);
+          c1ResolvedTypes[result] = (c1ResolvedTypes[result] ?? 0) + 1;
+        }
 
-          // Track whether startFuture resolves.
-          final futureCompleter = Completer<String>();
-          unawaited(
-            startFuture.then<void>(
-              (_) {
-                sw.stop();
-                futureCompleter.complete('completed_normally');
-              },
-              onError: (Object e) {
-                sw.stop();
-                futureCompleter.complete(e.runtimeType.toString());
-              },
-            ),
-          );
-
-          // Try dispose() with a timeout — it may hang because worker
-          // is stuck in FFI and can't process the _DisposeRequest.
-          var disposeHung = false;
-          try {
-            await isolate.dispose().timeout(
-                  const Duration(milliseconds: disposeTimeoutMs),
-                );
-          } on TimeoutException {
-            disposeHung = true;
-            c1DisposeHangCount++;
-          }
-
-          // Check if startFuture resolved (give it a short window).
-          final result = await futureCompleter.future.timeout(
-            const Duration(milliseconds: futureHangTimeoutMs),
-            onTimeout: () => 'HANGING',
-          );
-
-          if (result == 'HANGING') {
-            c1HangingCount++;
-          } else {
-            c1ResolvedCount++;
-            c1ResolutionTimesMs.add(sw.elapsedMicroseconds / 1000.0);
-            c1ResolvedTypes[result] = (c1ResolvedTypes[result] ?? 0) + 1;
-          }
-
-          // Force-clean with terminate() so we don't leak zombies between trials.
-          if (disposeHung) {
-            await isolate.terminate();
-          }
-        },
-        timeout: const Timeout(Duration(seconds: 30)),
-      );
+        // Force-clean with terminate() so we don't leak zombies between trials.
+        if (disposeHung) {
+          await isolate.terminate();
+        }
+      }, timeout: const Timeout(Duration(seconds: 30)));
     }
   });
 
@@ -122,52 +118,48 @@ void main() {
   // =========================================================================
   group('T2-2-C2: terminate() during run (N=$nC2)', () {
     for (var trial = 1; trial <= nC2; trial++) {
-      test(
-        'trial $trial',
-        () async {
-          final isolate = NativeIsolateBindingsImpl(libraryPath: libPath);
-          await isolate.init();
+      test('trial $trial', () async {
+        final isolate = NativeIsolateBindingsImpl(libraryPath: libPath);
+        await isolate.init();
 
-          final startFuture = isolate.start(
-            'while True: pass',
-            externalFunctions: ['__never_called__'],
-          );
+        final startFuture = isolate.start(
+          'while True: pass',
+          externalFunctions: ['__never_called__'],
+        );
 
-          await Future<void>.delayed(const Duration(milliseconds: 100));
+        await Future<void>.delayed(const Duration(milliseconds: 100));
 
-          final sw = Stopwatch()..start();
+        final sw = Stopwatch()..start();
 
-          final futureCompleter = Completer<String>();
-          unawaited(
-            startFuture.then<void>(
-              (_) {
-                sw.stop();
-                futureCompleter.complete('completed_normally');
-              },
-              onError: (Object e) {
-                sw.stop();
-                futureCompleter.complete(e.runtimeType.toString());
-              },
-            ),
-          );
+        final futureCompleter = Completer<String>();
+        unawaited(
+          startFuture.then<void>(
+            (_) {
+              sw.stop();
+              futureCompleter.complete('completed_normally');
+            },
+            onError: (Object e) {
+              sw.stop();
+              futureCompleter.complete(e.runtimeType.toString());
+            },
+          ),
+        );
 
-          await isolate.terminate();
+        await isolate.terminate();
 
-          final result = await futureCompleter.future.timeout(
-            const Duration(milliseconds: futureHangTimeoutMs),
-            onTimeout: () => 'HANGING',
-          );
+        final result = await futureCompleter.future.timeout(
+          const Duration(milliseconds: futureHangTimeoutMs),
+          onTimeout: () => 'HANGING',
+        );
 
-          if (result == 'HANGING') {
-            c2HangingCount++;
-          } else {
-            c2ResolvedCount++;
-            c2ResolutionTimesMs.add(sw.elapsedMicroseconds / 1000.0);
-            c2ResolvedTypes[result] = (c2ResolvedTypes[result] ?? 0) + 1;
-          }
-        },
-        timeout: const Timeout(Duration(seconds: 30)),
-      );
+        if (result == 'HANGING') {
+          c2HangingCount++;
+        } else {
+          c2ResolvedCount++;
+          c2ResolutionTimesMs.add(sw.elapsedMicroseconds / 1000.0);
+          c2ResolvedTypes[result] = (c2ResolvedTypes[result] ?? 0) + 1;
+        }
+      }, timeout: const Timeout(Duration(seconds: 30)));
     }
   });
 
@@ -204,10 +196,14 @@ void main() {
 
     final c1Pass = c1HangingCount == 0;
     final c2Pass = c2HangingCount == 0;
-    print('VERDICT C1 (dispose): ${c1Pass ? "PASS" : "FAIL"}'
-        '${!c1Pass ? " — $c1HangingCount/$nC1 futures hung, $c1DisposeHangCount/$nC1 dispose() calls hung" : ""}');
-    print('VERDICT C2 (terminate): ${c2Pass ? "PASS" : "FAIL"}'
-        '${!c2Pass ? " — $c2HangingCount/$nC2 futures hung" : ""}');
+    print(
+      'VERDICT C1 (dispose): ${c1Pass ? "PASS" : "FAIL"}'
+      '${!c1Pass ? " — $c1HangingCount/$nC1 futures hung, $c1DisposeHangCount/$nC1 dispose() calls hung" : ""}',
+    );
+    print(
+      'VERDICT C2 (terminate): ${c2Pass ? "PASS" : "FAIL"}'
+      '${!c2Pass ? " — $c2HangingCount/$nC2 futures hung" : ""}',
+    );
     print('');
     print('OVERALL: ${c1Pass && c2Pass ? "PASS" : "FAIL"}');
     print('=== END T2-2 ===\n');

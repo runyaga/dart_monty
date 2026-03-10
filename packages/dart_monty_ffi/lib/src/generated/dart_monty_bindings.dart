@@ -11,17 +11,16 @@ import 'dart:ffi' as ffi;
 class DartMontyBindings {
   /// Holds the symbol lookup function.
   final ffi.Pointer<T> Function<T extends ffi.NativeType>(String symbolName)
-      _lookup;
+  _lookup;
 
   /// The symbols are looked up in [dynamicLibrary].
   DartMontyBindings(ffi.DynamicLibrary dynamicLibrary)
-      : _lookup = dynamicLibrary.lookup;
+    : _lookup = dynamicLibrary.lookup;
 
   /// The symbols are looked up with [lookup].
   DartMontyBindings.fromLookup(
-      ffi.Pointer<T> Function<T extends ffi.NativeType>(String symbolName)
-          lookup)
-      : _lookup = lookup;
+    ffi.Pointer<T> Function<T extends ffi.NativeType>(String symbolName) lookup,
+  ) : _lookup = lookup;
 
   /// Create a new handle from Python source code.
   ///
@@ -38,42 +37,41 @@ class DartMontyBindings {
     ffi.Pointer<ffi.Char> script_name,
     ffi.Pointer<ffi.Pointer<ffi.Char>> out_error,
   ) {
-    return _monty_create(
-      code,
-      ext_fns,
-      script_name,
-      out_error,
-    );
+    return _monty_create(code, ext_fns, script_name, out_error);
   }
 
-  late final _monty_createPtr = _lookup<
-      ffi.NativeFunction<
+  late final _monty_createPtr =
+      _lookup<
+        ffi.NativeFunction<
           ffi.Pointer<MontyHandle> Function(
-              ffi.Pointer<ffi.Char>,
-              ffi.Pointer<ffi.Char>,
-              ffi.Pointer<ffi.Char>,
-              ffi.Pointer<ffi.Pointer<ffi.Char>>)>>('monty_create');
-  late final _monty_create = _monty_createPtr.asFunction<
-      ffi.Pointer<MontyHandle> Function(
+            ffi.Pointer<ffi.Char>,
+            ffi.Pointer<ffi.Char>,
+            ffi.Pointer<ffi.Char>,
+            ffi.Pointer<ffi.Pointer<ffi.Char>>,
+          )
+        >
+      >('monty_create');
+  late final _monty_create = _monty_createPtr
+      .asFunction<
+        ffi.Pointer<MontyHandle> Function(
           ffi.Pointer<ffi.Char>,
           ffi.Pointer<ffi.Char>,
           ffi.Pointer<ffi.Char>,
-          ffi.Pointer<ffi.Pointer<ffi.Char>>)>();
+          ffi.Pointer<ffi.Pointer<ffi.Char>>,
+        )
+      >();
 
   /// Free a handle. Safe to call with NULL.
-  void monty_free(
-    ffi.Pointer<MontyHandle> handle,
-  ) {
-    return _monty_free(
-      handle,
-    );
+  void monty_free(ffi.Pointer<MontyHandle> handle) {
+    return _monty_free(handle);
   }
 
   late final _monty_freePtr =
       _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<MontyHandle>)>>(
-          'monty_free');
-  late final _monty_free =
-      _monty_freePtr.asFunction<void Function(ffi.Pointer<MontyHandle>)>();
+        'monty_free',
+      );
+  late final _monty_free = _monty_freePtr
+      .asFunction<void Function(ffi.Pointer<MontyHandle>)>();
 
   /// Run Python code to completion.
   ///
@@ -88,22 +86,27 @@ class DartMontyBindings {
     ffi.Pointer<ffi.Pointer<ffi.Char>> result_json,
     ffi.Pointer<ffi.Pointer<ffi.Char>> error_msg,
   ) {
-    return MontyResultTag.fromValue(_monty_run(
-      handle,
-      result_json,
-      error_msg,
-    ));
+    return MontyResultTag.fromValue(_monty_run(handle, result_json, error_msg));
   }
 
-  late final _monty_runPtr = _lookup<
-      ffi.NativeFunction<
+  late final _monty_runPtr =
+      _lookup<
+        ffi.NativeFunction<
           ffi.UnsignedInt Function(
-              ffi.Pointer<MontyHandle>,
-              ffi.Pointer<ffi.Pointer<ffi.Char>>,
-              ffi.Pointer<ffi.Pointer<ffi.Char>>)>>('monty_run');
-  late final _monty_run = _monty_runPtr.asFunction<
-      int Function(ffi.Pointer<MontyHandle>, ffi.Pointer<ffi.Pointer<ffi.Char>>,
-          ffi.Pointer<ffi.Pointer<ffi.Char>>)>();
+            ffi.Pointer<MontyHandle>,
+            ffi.Pointer<ffi.Pointer<ffi.Char>>,
+            ffi.Pointer<ffi.Pointer<ffi.Char>>,
+          )
+        >
+      >('monty_run');
+  late final _monty_run = _monty_runPtr
+      .asFunction<
+        int Function(
+          ffi.Pointer<MontyHandle>,
+          ffi.Pointer<ffi.Pointer<ffi.Char>>,
+          ffi.Pointer<ffi.Pointer<ffi.Char>>,
+        )
+      >();
 
   /// Start iterative execution. Pauses at external function calls.
   ///
@@ -114,19 +117,25 @@ class DartMontyBindings {
     ffi.Pointer<MontyHandle> handle,
     ffi.Pointer<ffi.Pointer<ffi.Char>> out_error,
   ) {
-    return MontyProgressTag.fromValue(_monty_start(
-      handle,
-      out_error,
-    ));
+    return MontyProgressTag.fromValue(_monty_start(handle, out_error));
   }
 
-  late final _monty_startPtr = _lookup<
-      ffi.NativeFunction<
-          ffi.UnsignedInt Function(ffi.Pointer<MontyHandle>,
-              ffi.Pointer<ffi.Pointer<ffi.Char>>)>>('monty_start');
-  late final _monty_start = _monty_startPtr.asFunction<
-      int Function(
-          ffi.Pointer<MontyHandle>, ffi.Pointer<ffi.Pointer<ffi.Char>>)>();
+  late final _monty_startPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.UnsignedInt Function(
+            ffi.Pointer<MontyHandle>,
+            ffi.Pointer<ffi.Pointer<ffi.Char>>,
+          )
+        >
+      >('monty_start');
+  late final _monty_start = _monty_startPtr
+      .asFunction<
+        int Function(
+          ffi.Pointer<MontyHandle>,
+          ffi.Pointer<ffi.Pointer<ffi.Char>>,
+        )
+      >();
 
   /// Resume execution with a return value.
   ///
@@ -139,22 +148,29 @@ class DartMontyBindings {
     ffi.Pointer<ffi.Char> value_json,
     ffi.Pointer<ffi.Pointer<ffi.Char>> out_error,
   ) {
-    return MontyProgressTag.fromValue(_monty_resume(
-      handle,
-      value_json,
-      out_error,
-    ));
+    return MontyProgressTag.fromValue(
+      _monty_resume(handle, value_json, out_error),
+    );
   }
 
-  late final _monty_resumePtr = _lookup<
-      ffi.NativeFunction<
+  late final _monty_resumePtr =
+      _lookup<
+        ffi.NativeFunction<
           ffi.UnsignedInt Function(
-              ffi.Pointer<MontyHandle>,
-              ffi.Pointer<ffi.Char>,
-              ffi.Pointer<ffi.Pointer<ffi.Char>>)>>('monty_resume');
-  late final _monty_resume = _monty_resumePtr.asFunction<
-      int Function(ffi.Pointer<MontyHandle>, ffi.Pointer<ffi.Char>,
-          ffi.Pointer<ffi.Pointer<ffi.Char>>)>();
+            ffi.Pointer<MontyHandle>,
+            ffi.Pointer<ffi.Char>,
+            ffi.Pointer<ffi.Pointer<ffi.Char>>,
+          )
+        >
+      >('monty_resume');
+  late final _monty_resume = _monty_resumePtr
+      .asFunction<
+        int Function(
+          ffi.Pointer<MontyHandle>,
+          ffi.Pointer<ffi.Char>,
+          ffi.Pointer<ffi.Pointer<ffi.Char>>,
+        )
+      >();
 
   /// Resume execution with an error (raises RuntimeError in Python).
   ///
@@ -167,22 +183,29 @@ class DartMontyBindings {
     ffi.Pointer<ffi.Char> error_message,
     ffi.Pointer<ffi.Pointer<ffi.Char>> out_error,
   ) {
-    return MontyProgressTag.fromValue(_monty_resume_with_error(
-      handle,
-      error_message,
-      out_error,
-    ));
+    return MontyProgressTag.fromValue(
+      _monty_resume_with_error(handle, error_message, out_error),
+    );
   }
 
-  late final _monty_resume_with_errorPtr = _lookup<
-      ffi.NativeFunction<
+  late final _monty_resume_with_errorPtr =
+      _lookup<
+        ffi.NativeFunction<
           ffi.UnsignedInt Function(
-              ffi.Pointer<MontyHandle>,
-              ffi.Pointer<ffi.Char>,
-              ffi.Pointer<ffi.Pointer<ffi.Char>>)>>('monty_resume_with_error');
-  late final _monty_resume_with_error = _monty_resume_with_errorPtr.asFunction<
-      int Function(ffi.Pointer<MontyHandle>, ffi.Pointer<ffi.Char>,
-          ffi.Pointer<ffi.Pointer<ffi.Char>>)>();
+            ffi.Pointer<MontyHandle>,
+            ffi.Pointer<ffi.Char>,
+            ffi.Pointer<ffi.Pointer<ffi.Char>>,
+          )
+        >
+      >('monty_resume_with_error');
+  late final _monty_resume_with_error = _monty_resume_with_errorPtr
+      .asFunction<
+        int Function(
+          ffi.Pointer<MontyHandle>,
+          ffi.Pointer<ffi.Char>,
+          ffi.Pointer<ffi.Pointer<ffi.Char>>,
+        )
+      >();
 
   /// Resume by creating a future (tells the VM this call returns a future).
   /// Only valid when handle is in PENDING state.
@@ -195,19 +218,27 @@ class DartMontyBindings {
     ffi.Pointer<MontyHandle> handle,
     ffi.Pointer<ffi.Pointer<ffi.Char>> out_error,
   ) {
-    return MontyProgressTag.fromValue(_monty_resume_as_future(
-      handle,
-      out_error,
-    ));
+    return MontyProgressTag.fromValue(
+      _monty_resume_as_future(handle, out_error),
+    );
   }
 
-  late final _monty_resume_as_futurePtr = _lookup<
-      ffi.NativeFunction<
-          ffi.UnsignedInt Function(ffi.Pointer<MontyHandle>,
-              ffi.Pointer<ffi.Pointer<ffi.Char>>)>>('monty_resume_as_future');
-  late final _monty_resume_as_future = _monty_resume_as_futurePtr.asFunction<
-      int Function(
-          ffi.Pointer<MontyHandle>, ffi.Pointer<ffi.Pointer<ffi.Char>>)>();
+  late final _monty_resume_as_futurePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.UnsignedInt Function(
+            ffi.Pointer<MontyHandle>,
+            ffi.Pointer<ffi.Pointer<ffi.Char>>,
+          )
+        >
+      >('monty_resume_as_future');
+  late final _monty_resume_as_future = _monty_resume_as_futurePtr
+      .asFunction<
+        int Function(
+          ffi.Pointer<MontyHandle>,
+          ffi.Pointer<ffi.Pointer<ffi.Char>>,
+        )
+      >();
 
   /// Get the pending future call IDs as a JSON array.
   /// Only valid after progress returned MONTY_PROGRESS_RESOLVE_FUTURES.
@@ -217,15 +248,15 @@ class DartMontyBindings {
   ffi.Pointer<ffi.Char> monty_pending_future_call_ids(
     ffi.Pointer<MontyHandle> handle,
   ) {
-    return _monty_pending_future_call_ids(
-      handle,
-    );
+    return _monty_pending_future_call_ids(handle);
   }
 
-  late final _monty_pending_future_call_idsPtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Pointer<ffi.Char> Function(
-              ffi.Pointer<MontyHandle>)>>('monty_pending_future_call_ids');
+  late final _monty_pending_future_call_idsPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<ffi.Char> Function(ffi.Pointer<MontyHandle>)
+        >
+      >('monty_pending_future_call_ids');
   late final _monty_pending_future_call_ids = _monty_pending_future_call_idsPtr
       .asFunction<ffi.Pointer<ffi.Char> Function(ffi.Pointer<MontyHandle>)>();
 
@@ -246,41 +277,46 @@ class DartMontyBindings {
     ffi.Pointer<ffi.Char> errors_json,
     ffi.Pointer<ffi.Pointer<ffi.Char>> out_error,
   ) {
-    return MontyProgressTag.fromValue(_monty_resume_futures(
-      handle,
-      results_json,
-      errors_json,
-      out_error,
-    ));
+    return MontyProgressTag.fromValue(
+      _monty_resume_futures(handle, results_json, errors_json, out_error),
+    );
   }
 
-  late final _monty_resume_futuresPtr = _lookup<
-      ffi.NativeFunction<
+  late final _monty_resume_futuresPtr =
+      _lookup<
+        ffi.NativeFunction<
           ffi.UnsignedInt Function(
-              ffi.Pointer<MontyHandle>,
-              ffi.Pointer<ffi.Char>,
-              ffi.Pointer<ffi.Char>,
-              ffi.Pointer<ffi.Pointer<ffi.Char>>)>>('monty_resume_futures');
-  late final _monty_resume_futures = _monty_resume_futuresPtr.asFunction<
-      int Function(ffi.Pointer<MontyHandle>, ffi.Pointer<ffi.Char>,
-          ffi.Pointer<ffi.Char>, ffi.Pointer<ffi.Pointer<ffi.Char>>)>();
+            ffi.Pointer<MontyHandle>,
+            ffi.Pointer<ffi.Char>,
+            ffi.Pointer<ffi.Char>,
+            ffi.Pointer<ffi.Pointer<ffi.Char>>,
+          )
+        >
+      >('monty_resume_futures');
+  late final _monty_resume_futures = _monty_resume_futuresPtr
+      .asFunction<
+        int Function(
+          ffi.Pointer<MontyHandle>,
+          ffi.Pointer<ffi.Char>,
+          ffi.Pointer<ffi.Char>,
+          ffi.Pointer<ffi.Pointer<ffi.Char>>,
+        )
+      >();
 
   /// Get the pending external function name.
   /// Only valid after monty_start/monty_resume returned MONTY_PROGRESS_PENDING.
   ///
   /// @return  Heap-allocated string, or NULL. Caller frees with monty_string_free().
-  ffi.Pointer<ffi.Char> monty_pending_fn_name(
-    ffi.Pointer<MontyHandle> handle,
-  ) {
-    return _monty_pending_fn_name(
-      handle,
-    );
+  ffi.Pointer<ffi.Char> monty_pending_fn_name(ffi.Pointer<MontyHandle> handle) {
+    return _monty_pending_fn_name(handle);
   }
 
-  late final _monty_pending_fn_namePtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Pointer<ffi.Char> Function(
-              ffi.Pointer<MontyHandle>)>>('monty_pending_fn_name');
+  late final _monty_pending_fn_namePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<ffi.Char> Function(ffi.Pointer<MontyHandle>)
+        >
+      >('monty_pending_fn_name');
   late final _monty_pending_fn_name = _monty_pending_fn_namePtr
       .asFunction<ffi.Pointer<ffi.Char> Function(ffi.Pointer<MontyHandle>)>();
 
@@ -291,15 +327,15 @@ class DartMontyBindings {
   ffi.Pointer<ffi.Char> monty_pending_fn_args_json(
     ffi.Pointer<MontyHandle> handle,
   ) {
-    return _monty_pending_fn_args_json(
-      handle,
-    );
+    return _monty_pending_fn_args_json(handle);
   }
 
-  late final _monty_pending_fn_args_jsonPtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Pointer<ffi.Char> Function(
-              ffi.Pointer<MontyHandle>)>>('monty_pending_fn_args_json');
+  late final _monty_pending_fn_args_jsonPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<ffi.Char> Function(ffi.Pointer<MontyHandle>)
+        >
+      >('monty_pending_fn_args_json');
   late final _monty_pending_fn_args_json = _monty_pending_fn_args_jsonPtr
       .asFunction<ffi.Pointer<ffi.Char> Function(ffi.Pointer<MontyHandle>)>();
 
@@ -311,15 +347,15 @@ class DartMontyBindings {
   ffi.Pointer<ffi.Char> monty_pending_fn_kwargs_json(
     ffi.Pointer<MontyHandle> handle,
   ) {
-    return _monty_pending_fn_kwargs_json(
-      handle,
-    );
+    return _monty_pending_fn_kwargs_json(handle);
   }
 
-  late final _monty_pending_fn_kwargs_jsonPtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Pointer<ffi.Char> Function(
-              ffi.Pointer<MontyHandle>)>>('monty_pending_fn_kwargs_json');
+  late final _monty_pending_fn_kwargs_jsonPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<ffi.Char> Function(ffi.Pointer<MontyHandle>)
+        >
+      >('monty_pending_fn_kwargs_json');
   late final _monty_pending_fn_kwargs_json = _monty_pending_fn_kwargs_jsonPtr
       .asFunction<ffi.Pointer<ffi.Char> Function(ffi.Pointer<MontyHandle>)>();
 
@@ -327,17 +363,14 @@ class DartMontyBindings {
   /// Only valid after monty_start/monty_resume returned MONTY_PROGRESS_PENDING.
   ///
   /// @return  Call ID, or UINT32_MAX if not in Paused state.
-  int monty_pending_call_id(
-    ffi.Pointer<MontyHandle> handle,
-  ) {
-    return _monty_pending_call_id(
-      handle,
-    );
+  int monty_pending_call_id(ffi.Pointer<MontyHandle> handle) {
+    return _monty_pending_call_id(handle);
   }
 
-  late final _monty_pending_call_idPtr = _lookup<
-          ffi.NativeFunction<ffi.Uint32 Function(ffi.Pointer<MontyHandle>)>>(
-      'monty_pending_call_id');
+  late final _monty_pending_call_idPtr =
+      _lookup<
+        ffi.NativeFunction<ffi.Uint32 Function(ffi.Pointer<MontyHandle>)>
+      >('monty_pending_call_id');
   late final _monty_pending_call_id = _monty_pending_call_idPtr
       .asFunction<int Function(ffi.Pointer<MontyHandle>)>();
 
@@ -345,17 +378,14 @@ class DartMontyBindings {
   /// Only valid after monty_start/monty_resume returned MONTY_PROGRESS_PENDING.
   ///
   /// @return  1 for method call, 0 for function call, -1 if not in Paused state.
-  int monty_pending_method_call(
-    ffi.Pointer<MontyHandle> handle,
-  ) {
-    return _monty_pending_method_call(
-      handle,
-    );
+  int monty_pending_method_call(ffi.Pointer<MontyHandle> handle) {
+    return _monty_pending_method_call(handle);
   }
 
   late final _monty_pending_method_callPtr =
       _lookup<ffi.NativeFunction<ffi.Int Function(ffi.Pointer<MontyHandle>)>>(
-          'monty_pending_method_call');
+        'monty_pending_method_call',
+      );
   late final _monty_pending_method_call = _monty_pending_method_callPtr
       .asFunction<int Function(ffi.Pointer<MontyHandle>)>();
 
@@ -366,32 +396,29 @@ class DartMontyBindings {
   ffi.Pointer<ffi.Char> monty_complete_result_json(
     ffi.Pointer<MontyHandle> handle,
   ) {
-    return _monty_complete_result_json(
-      handle,
-    );
+    return _monty_complete_result_json(handle);
   }
 
-  late final _monty_complete_result_jsonPtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Pointer<ffi.Char> Function(
-              ffi.Pointer<MontyHandle>)>>('monty_complete_result_json');
+  late final _monty_complete_result_jsonPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<ffi.Char> Function(ffi.Pointer<MontyHandle>)
+        >
+      >('monty_complete_result_json');
   late final _monty_complete_result_json = _monty_complete_result_jsonPtr
       .asFunction<ffi.Pointer<ffi.Char> Function(ffi.Pointer<MontyHandle>)>();
 
   /// Check whether the completed result is an error.
   ///
   /// @return  1 = error, 0 = success, -1 = not in Complete state.
-  int monty_complete_is_error(
-    ffi.Pointer<MontyHandle> handle,
-  ) {
-    return _monty_complete_is_error(
-      handle,
-    );
+  int monty_complete_is_error(ffi.Pointer<MontyHandle> handle) {
+    return _monty_complete_is_error(handle);
   }
 
   late final _monty_complete_is_errorPtr =
       _lookup<ffi.NativeFunction<ffi.Int Function(ffi.Pointer<MontyHandle>)>>(
-          'monty_complete_is_error');
+        'monty_complete_is_error',
+      );
   late final _monty_complete_is_error = _monty_complete_is_errorPtr
       .asFunction<int Function(ffi.Pointer<MontyHandle>)>();
 
@@ -405,19 +432,25 @@ class DartMontyBindings {
     ffi.Pointer<MontyHandle> handle,
     ffi.Pointer<ffi.Size> out_len,
   ) {
-    return _monty_snapshot(
-      handle,
-      out_len,
-    );
+    return _monty_snapshot(handle, out_len);
   }
 
-  late final _monty_snapshotPtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Pointer<ffi.Uint8> Function(ffi.Pointer<MontyHandle>,
-              ffi.Pointer<ffi.Size>)>>('monty_snapshot');
-  late final _monty_snapshot = _monty_snapshotPtr.asFunction<
-      ffi.Pointer<ffi.Uint8> Function(
-          ffi.Pointer<MontyHandle>, ffi.Pointer<ffi.Size>)>();
+  late final _monty_snapshotPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<ffi.Uint8> Function(
+            ffi.Pointer<MontyHandle>,
+            ffi.Pointer<ffi.Size>,
+          )
+        >
+      >('monty_snapshot');
+  late final _monty_snapshot = _monty_snapshotPtr
+      .asFunction<
+        ffi.Pointer<ffi.Uint8> Function(
+          ffi.Pointer<MontyHandle>,
+          ffi.Pointer<ffi.Size>,
+        )
+      >();
 
   /// Restore a handle from a snapshot byte buffer.
   ///
@@ -430,72 +463,67 @@ class DartMontyBindings {
     int len,
     ffi.Pointer<ffi.Pointer<ffi.Char>> out_error,
   ) {
-    return _monty_restore(
-      data,
-      len,
-      out_error,
-    );
+    return _monty_restore(data, len, out_error);
   }
 
-  late final _monty_restorePtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Pointer<MontyHandle> Function(ffi.Pointer<ffi.Uint8>, ffi.Size,
-              ffi.Pointer<ffi.Pointer<ffi.Char>>)>>('monty_restore');
-  late final _monty_restore = _monty_restorePtr.asFunction<
-      ffi.Pointer<MontyHandle> Function(
-          ffi.Pointer<ffi.Uint8>, int, ffi.Pointer<ffi.Pointer<ffi.Char>>)>();
+  late final _monty_restorePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<MontyHandle> Function(
+            ffi.Pointer<ffi.Uint8>,
+            ffi.Size,
+            ffi.Pointer<ffi.Pointer<ffi.Char>>,
+          )
+        >
+      >('monty_restore');
+  late final _monty_restore = _monty_restorePtr
+      .asFunction<
+        ffi.Pointer<MontyHandle> Function(
+          ffi.Pointer<ffi.Uint8>,
+          int,
+          ffi.Pointer<ffi.Pointer<ffi.Char>>,
+        )
+      >();
 
   /// Set memory limit in bytes. Call before monty_run/monty_start.
-  void monty_set_memory_limit(
-    ffi.Pointer<MontyHandle> handle,
-    int bytes,
-  ) {
-    return _monty_set_memory_limit(
-      handle,
-      bytes,
-    );
+  void monty_set_memory_limit(ffi.Pointer<MontyHandle> handle, int bytes) {
+    return _monty_set_memory_limit(handle, bytes);
   }
 
-  late final _monty_set_memory_limitPtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Void Function(
-              ffi.Pointer<MontyHandle>, ffi.Size)>>('monty_set_memory_limit');
+  late final _monty_set_memory_limitPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(ffi.Pointer<MontyHandle>, ffi.Size)
+        >
+      >('monty_set_memory_limit');
   late final _monty_set_memory_limit = _monty_set_memory_limitPtr
       .asFunction<void Function(ffi.Pointer<MontyHandle>, int)>();
 
   /// Set execution time limit in milliseconds.
-  void monty_set_time_limit_ms(
-    ffi.Pointer<MontyHandle> handle,
-    int ms,
-  ) {
-    return _monty_set_time_limit_ms(
-      handle,
-      ms,
-    );
+  void monty_set_time_limit_ms(ffi.Pointer<MontyHandle> handle, int ms) {
+    return _monty_set_time_limit_ms(handle, ms);
   }
 
-  late final _monty_set_time_limit_msPtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Void Function(ffi.Pointer<MontyHandle>,
-              ffi.Uint64)>>('monty_set_time_limit_ms');
+  late final _monty_set_time_limit_msPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(ffi.Pointer<MontyHandle>, ffi.Uint64)
+        >
+      >('monty_set_time_limit_ms');
   late final _monty_set_time_limit_ms = _monty_set_time_limit_msPtr
       .asFunction<void Function(ffi.Pointer<MontyHandle>, int)>();
 
   /// Set stack depth limit.
-  void monty_set_stack_limit(
-    ffi.Pointer<MontyHandle> handle,
-    int depth,
-  ) {
-    return _monty_set_stack_limit(
-      handle,
-      depth,
-    );
+  void monty_set_stack_limit(ffi.Pointer<MontyHandle> handle, int depth) {
+    return _monty_set_stack_limit(handle, depth);
   }
 
-  late final _monty_set_stack_limitPtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Void Function(
-              ffi.Pointer<MontyHandle>, ffi.Size)>>('monty_set_stack_limit');
+  late final _monty_set_stack_limitPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(ffi.Pointer<MontyHandle>, ffi.Size)
+        >
+      >('monty_set_stack_limit');
   late final _monty_set_stack_limit = _monty_set_stack_limitPtr
       .asFunction<void Function(ffi.Pointer<MontyHandle>, int)>();
 
@@ -503,148 +531,118 @@ class DartMontyBindings {
   /// The next bytecode boundary check raises KeyboardInterrupt.
   /// Idempotent — safe to call multiple times. Thread-safe.
   /// No-op if handle is NULL.
-  void monty_cancel(
-    ffi.Pointer<MontyHandle> handle,
-  ) {
-    return _monty_cancel(
-      handle,
-    );
+  void monty_cancel(ffi.Pointer<MontyHandle> handle) {
+    return _monty_cancel(handle);
   }
 
   late final _monty_cancelPtr =
       _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<MontyHandle>)>>(
-          'monty_cancel');
-  late final _monty_cancel =
-      _monty_cancelPtr.asFunction<void Function(ffi.Pointer<MontyHandle>)>();
+        'monty_cancel',
+      );
+  late final _monty_cancel = _monty_cancelPtr
+      .asFunction<void Function(ffi.Pointer<MontyHandle>)>();
 
   /// Check whether the cancel flag is set.
   /// Returns 1 if cancelled, 0 if not, -1 if handle is NULL.
-  int monty_is_cancelled(
-    ffi.Pointer<MontyHandle> handle,
-  ) {
-    return _monty_is_cancelled(
-      handle,
-    );
+  int monty_is_cancelled(ffi.Pointer<MontyHandle> handle) {
+    return _monty_is_cancelled(handle);
   }
 
   late final _monty_is_cancelledPtr =
       _lookup<ffi.NativeFunction<ffi.Int Function(ffi.Pointer<MontyHandle>)>>(
-          'monty_is_cancelled');
+        'monty_is_cancelled',
+      );
   late final _monty_is_cancelled = _monty_is_cancelledPtr
       .asFunction<int Function(ffi.Pointer<MontyHandle>)>();
 
   /// Reset the cancel flag. Call before reusing a handle after cancel.
   /// No-op if handle is NULL.
-  void monty_reset_cancel(
-    ffi.Pointer<MontyHandle> handle,
-  ) {
-    return _monty_reset_cancel(
-      handle,
-    );
+  void monty_reset_cancel(ffi.Pointer<MontyHandle> handle) {
+    return _monty_reset_cancel(handle);
   }
 
   late final _monty_reset_cancelPtr =
       _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<MontyHandle>)>>(
-          'monty_reset_cancel');
+        'monty_reset_cancel',
+      );
   late final _monty_reset_cancel = _monty_reset_cancelPtr
       .asFunction<void Function(ffi.Pointer<MontyHandle>)>();
 
   /// Get the monotonic handle ID for cross-isolate cancel.
   /// Returns 0 if handle is NULL or not registered.
-  int monty_get_handle_id(
-    ffi.Pointer<MontyHandle> handle,
-  ) {
-    return _monty_get_handle_id(
-      handle,
-    );
+  int monty_get_handle_id(ffi.Pointer<MontyHandle> handle) {
+    return _monty_get_handle_id(handle);
   }
 
-  late final _monty_get_handle_idPtr = _lookup<
-          ffi.NativeFunction<ffi.Uint64 Function(ffi.Pointer<MontyHandle>)>>(
-      'monty_get_handle_id');
+  late final _monty_get_handle_idPtr =
+      _lookup<
+        ffi.NativeFunction<ffi.Uint64 Function(ffi.Pointer<MontyHandle>)>
+      >('monty_get_handle_id');
   late final _monty_get_handle_id = _monty_get_handle_idPtr
       .asFunction<int Function(ffi.Pointer<MontyHandle>)>();
 
   /// Cancel a handle by its registry ID. Works from any thread/isolate.
   /// Returns 0 on success, -1 if not found, -2 if cancel flag was dropped.
-  int monty_cancel_by_id(
-    int handle_id,
-  ) {
-    return _monty_cancel_by_id(
-      handle_id,
-    );
+  int monty_cancel_by_id(int handle_id) {
+    return _monty_cancel_by_id(handle_id);
   }
 
   late final _monty_cancel_by_idPtr =
       _lookup<ffi.NativeFunction<ffi.Int Function(ffi.Uint64)>>(
-          'monty_cancel_by_id');
-  late final _monty_cancel_by_id =
-      _monty_cancel_by_idPtr.asFunction<int Function(int)>();
+        'monty_cancel_by_id',
+      );
+  late final _monty_cancel_by_id = _monty_cancel_by_idPtr
+      .asFunction<int Function(int)>();
 
   /// Check whether a handle is cancelled by registry ID.
   /// Returns 1 if cancelled, 0 if not cancelled, -1 if not found.
-  int monty_is_cancelled_by_id(
-    int handle_id,
-  ) {
-    return _monty_is_cancelled_by_id(
-      handle_id,
-    );
+  int monty_is_cancelled_by_id(int handle_id) {
+    return _monty_is_cancelled_by_id(handle_id);
   }
 
   late final _monty_is_cancelled_by_idPtr =
       _lookup<ffi.NativeFunction<ffi.Int Function(ffi.Uint64)>>(
-          'monty_is_cancelled_by_id');
-  late final _monty_is_cancelled_by_id =
-      _monty_is_cancelled_by_idPtr.asFunction<int Function(int)>();
+        'monty_is_cancelled_by_id',
+      );
+  late final _monty_is_cancelled_by_id = _monty_is_cancelled_by_idPtr
+      .asFunction<int Function(int)>();
 
   /// Free a MontyHandle by its registry ID. Safe from any thread.
   /// Returns 1 if the handle was found and freed, 0 if not found.
   /// Used by supervisor to clean up after crash-only disposal when the
   /// worker isolate was killed before it could call monty_free().
-  int monty_free_by_id(
-    int handle_id,
-  ) {
-    return _monty_free_by_id(
-      handle_id,
-    );
+  int monty_free_by_id(int handle_id) {
+    return _monty_free_by_id(handle_id);
   }
 
   late final _monty_free_by_idPtr =
       _lookup<ffi.NativeFunction<ffi.Int Function(ffi.Uint64)>>(
-          'monty_free_by_id');
-  late final _monty_free_by_id =
-      _monty_free_by_idPtr.asFunction<int Function(int)>();
+        'monty_free_by_id',
+      );
+  late final _monty_free_by_id = _monty_free_by_idPtr
+      .asFunction<int Function(int)>();
 
   /// Free a string returned by any monty_* function. Safe with NULL.
-  void monty_string_free(
-    ffi.Pointer<ffi.Char> ptr,
-  ) {
-    return _monty_string_free(
-      ptr,
-    );
+  void monty_string_free(ffi.Pointer<ffi.Char> ptr) {
+    return _monty_string_free(ptr);
   }
 
   late final _monty_string_freePtr =
       _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Char>)>>(
-          'monty_string_free');
-  late final _monty_string_free =
-      _monty_string_freePtr.asFunction<void Function(ffi.Pointer<ffi.Char>)>();
+        'monty_string_free',
+      );
+  late final _monty_string_free = _monty_string_freePtr
+      .asFunction<void Function(ffi.Pointer<ffi.Char>)>();
 
   /// Free a byte buffer returned by monty_snapshot(). Safe with NULL.
-  void monty_bytes_free(
-    ffi.Pointer<ffi.Uint8> ptr,
-    int len,
-  ) {
-    return _monty_bytes_free(
-      ptr,
-      len,
-    );
+  void monty_bytes_free(ffi.Pointer<ffi.Uint8> ptr, int len) {
+    return _monty_bytes_free(ptr, len);
   }
 
-  late final _monty_bytes_freePtr = _lookup<
-          ffi
-          .NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Uint8>, ffi.Size)>>(
-      'monty_bytes_free');
+  late final _monty_bytes_freePtr =
+      _lookup<
+        ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Uint8>, ffi.Size)>
+      >('monty_bytes_free');
   late final _monty_bytes_free = _monty_bytes_freePtr
       .asFunction<void Function(ffi.Pointer<ffi.Uint8>, int)>();
 }
@@ -660,10 +658,10 @@ enum MontyResultTag {
   const MontyResultTag(this.value);
 
   static MontyResultTag fromValue(int value) => switch (value) {
-        0 => MONTY_RESULT_OK,
-        1 => MONTY_RESULT_ERROR,
-        _ => throw ArgumentError('Unknown value for MontyResultTag: $value'),
-      };
+    0 => MONTY_RESULT_OK,
+    1 => MONTY_RESULT_ERROR,
+    _ => throw ArgumentError('Unknown value for MontyResultTag: $value'),
+  };
 }
 
 /// Progress tag for monty_start() / monty_resume().
@@ -677,10 +675,10 @@ enum MontyProgressTag {
   const MontyProgressTag(this.value);
 
   static MontyProgressTag fromValue(int value) => switch (value) {
-        0 => MONTY_PROGRESS_COMPLETE,
-        1 => MONTY_PROGRESS_PENDING,
-        2 => MONTY_PROGRESS_ERROR,
-        3 => MONTY_PROGRESS_RESOLVE_FUTURES,
-        _ => throw ArgumentError('Unknown value for MontyProgressTag: $value'),
-      };
+    0 => MONTY_PROGRESS_COMPLETE,
+    1 => MONTY_PROGRESS_PENDING,
+    2 => MONTY_PROGRESS_ERROR,
+    3 => MONTY_PROGRESS_RESOLVE_FUTURES,
+    _ => throw ArgumentError('Unknown value for MontyProgressTag: $value'),
+  };
 }

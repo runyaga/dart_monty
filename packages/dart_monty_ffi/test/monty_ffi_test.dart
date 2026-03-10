@@ -124,10 +124,7 @@ void main() {
     });
 
     test('frees handle even when run throws', () async {
-      mock.nextRunResult = const RunResult(
-        tag: 1,
-        errorMessage: 'boom',
-      );
+      mock.nextRunResult = const RunResult(tag: 1, errorMessage: 'boom');
 
       try {
         await monty.run('x');
@@ -197,10 +194,7 @@ void main() {
         argumentsJson: '[]',
       );
 
-      await monty.start(
-        'a()',
-        externalFunctions: ['a', 'b', 'c'],
-      );
+      await monty.start('a()', externalFunctions: ['a', 'b', 'c']);
 
       expect(mock.createCalls.first.externalFunctions, 'a,b,c');
     });
@@ -325,10 +319,7 @@ void main() {
         isError: 0,
       );
 
-      await monty.start(
-        'x',
-        limits: const MontyLimits(memoryBytes: 512),
-      );
+      await monty.start('x', limits: const MontyLimits(memoryBytes: 512));
 
       expect(mock.setMemoryLimitCalls, hasLength(1));
       expect(mock.setMemoryLimitCalls.first.bytes, 512);
@@ -402,20 +393,13 @@ void main() {
         const ProgressResult(tag: 2, errorMessage: 'runtime error'),
       );
 
-      expect(
-        () => monty.resume(null),
-        throwsA(isA<MontyException>()),
-      );
+      expect(() => monty.resume(null), throwsA(isA<MontyException>()));
     });
 
     test('throws StateError when idle', () async {
       // Complete the execution first to go back to idle.
       mock.resumeResults.add(
-        ProgressResult(
-          tag: 0,
-          resultJson: _okResultJson(null),
-          isError: 0,
-        ),
+        ProgressResult(tag: 0, resultJson: _okResultJson(null), isError: 0),
       );
       await monty.resume(null);
 
@@ -429,11 +413,7 @@ void main() {
 
     test('encodes complex return values as JSON', () async {
       mock.resumeResults.add(
-        ProgressResult(
-          tag: 0,
-          resultJson: _okResultJson(null),
-          isError: 0,
-        ),
+        ProgressResult(tag: 0, resultJson: _okResultJson(null), isError: 0),
       );
 
       await monty.resume({
@@ -477,18 +457,12 @@ void main() {
 
     test('throws StateError when idle', () {
       final freshMonty = MontyFfi(bindings: mock);
-      expect(
-        () => freshMonty.resumeWithError('err'),
-        throwsStateError,
-      );
+      expect(() => freshMonty.resumeWithError('err'), throwsStateError);
     });
 
     test('throws StateError when disposed', () async {
       await monty.dispose();
-      expect(
-        () => monty.resumeWithError('err'),
-        throwsStateError,
-      );
+      expect(() => monty.resumeWithError('err'), throwsStateError);
     });
   });
 
@@ -551,11 +525,7 @@ void main() {
 
       // resume() should be allowed (active state).
       mock.resumeResults.add(
-        ProgressResult(
-          tag: 0,
-          resultJson: _okResultJson(10),
-          isError: 0,
-        ),
+        ProgressResult(tag: 0, resultJson: _okResultJson(10), isError: 0),
       );
       final progress = await restoredFfi.resume('val');
       expect(progress, isA<MontyComplete>());
@@ -573,10 +543,7 @@ void main() {
 
     test('throws StateError when disposed', () async {
       await monty.dispose();
-      expect(
-        () => monty.restore(Uint8List.fromList([1])),
-        throwsStateError,
-      );
+      expect(() => monty.restore(Uint8List.fromList([1])), throwsStateError);
     });
 
     test('throws StateError when active', () async {
@@ -587,10 +554,7 @@ void main() {
       );
       await monty.start('x', externalFunctions: ['f']);
 
-      expect(
-        () => monty.restore(Uint8List.fromList([1])),
-        throwsStateError,
-      );
+      expect(() => monty.restore(Uint8List.fromList([1])), throwsStateError);
     });
   });
 
@@ -635,8 +599,10 @@ void main() {
     });
 
     test('run with string value in result', () async {
-      mock.nextRunResult =
-          RunResult(tag: 0, resultJson: _okResultJson('"hello"'));
+      mock.nextRunResult = RunResult(
+        tag: 0,
+        resultJson: _okResultJson('"hello"'),
+      );
 
       final result = await monty.run('"hello"');
       expect(result.value, 'hello');
@@ -662,25 +628,16 @@ void main() {
         argumentsJson: '[]',
       );
 
-      final progress = await monty.start(
-        'noop()',
-        externalFunctions: ['noop'],
-      );
+      final progress = await monty.start('noop()', externalFunctions: ['noop']);
 
       final pending = progress as MontyPending;
       expect(pending.arguments, isEmpty);
     });
 
     test('pending with null argumentsJson defaults to empty', () async {
-      mock.nextStartResult = const ProgressResult(
-        tag: 1,
-        functionName: 'noop',
-      );
+      mock.nextStartResult = const ProgressResult(tag: 1, functionName: 'noop');
 
-      final progress = await monty.start(
-        'noop()',
-        externalFunctions: ['noop'],
-      );
+      final progress = await monty.start('noop()', externalFunctions: ['noop']);
 
       final pending = progress as MontyPending;
       expect(pending.arguments, isEmpty);
@@ -726,7 +683,8 @@ void main() {
     });
 
     test('run error result includes excType and traceback', () async {
-      const errorJson = '{"value": null, "error": {'
+      const errorJson =
+          '{"value": null, "error": {'
           ' "message": "division by zero",'
           ' "exc_type": "ZeroDivisionError",'
           ' "traceback": [{"filename": "test.py", "start_line": 1,'
@@ -760,50 +718,61 @@ void main() {
       );
     });
 
-    test('run error tag=1 parses excType and traceback from resultJson',
-        () async {
-      const errorJson = '{"value": null, "error": {'
-          ' "message": "division by zero",'
-          ' "exc_type": "ZeroDivisionError",'
-          ' "filename": "test.py",'
-          ' "line_number": 1,'
-          ' "traceback": [{"filename": "test.py", "start_line": 1,'
-          ' "start_column": 0, "end_line": 1, "end_column": 3}]'
-          ' }, "usage": $_usageJson}';
-      mock.nextRunResult =
-          const RunResult(tag: 1, resultJson: errorJson, errorMessage: 'err');
+    test(
+      'run error tag=1 parses excType and traceback from resultJson',
+      () async {
+        const errorJson =
+            '{"value": null, "error": {'
+            ' "message": "division by zero",'
+            ' "exc_type": "ZeroDivisionError",'
+            ' "filename": "test.py",'
+            ' "line_number": 1,'
+            ' "traceback": [{"filename": "test.py", "start_line": 1,'
+            ' "start_column": 0, "end_line": 1, "end_column": 3}]'
+            ' }, "usage": $_usageJson}';
+        mock.nextRunResult = const RunResult(
+          tag: 1,
+          resultJson: errorJson,
+          errorMessage: 'err',
+        );
 
-      try {
-        await monty.run('1/0');
-        fail('Expected MontyException');
-      } on MontyException catch (e) {
-        expect(e.excType, 'ZeroDivisionError');
-        expect(e.message, 'division by zero');
-        expect(e.filename, 'test.py');
-        expect(e.traceback, hasLength(1));
-        expect(e.traceback.first.filename, 'test.py');
-      }
-    });
+        try {
+          await monty.run('1/0');
+          fail('Expected MontyException');
+        } on MontyException catch (e) {
+          expect(e.excType, 'ZeroDivisionError');
+          expect(e.message, 'division by zero');
+          expect(e.filename, 'test.py');
+          expect(e.traceback, hasLength(1));
+          expect(e.traceback.first.filename, 'test.py');
+        }
+      },
+    );
 
-    test('run error tag=1 falls back to errorMessage when no resultJson',
-        () async {
-      mock.nextRunResult =
-          const RunResult(tag: 1, errorMessage: 'fallback msg');
+    test(
+      'run error tag=1 falls back to errorMessage when no resultJson',
+      () async {
+        mock.nextRunResult = const RunResult(
+          tag: 1,
+          errorMessage: 'fallback msg',
+        );
 
-      expect(
-        () => monty.run('x'),
-        throwsA(
-          isA<MontyException>().having(
-            (e) => e.message,
-            'message',
-            'fallback msg',
+        expect(
+          () => monty.run('x'),
+          throwsA(
+            isA<MontyException>().having(
+              (e) => e.message,
+              'message',
+              'fallback msg',
+            ),
           ),
-        ),
-      );
-    });
+        );
+      },
+    );
 
     test('progress error parses excType from resultJson', () async {
-      const errorJson = '{"value": null, "error": {'
+      const errorJson =
+          '{"value": null, "error": {'
           ' "message": "name error",'
           ' "exc_type": "NameError",'
           ' "traceback": [{"filename": "<module>", "start_line": 1,'
@@ -993,10 +962,7 @@ void main() {
     });
 
     test('throws StateError when idle', () {
-      expect(
-        () => monty.resolveFutures({}, errors: {}),
-        throwsStateError,
-      );
+      expect(() => monty.resolveFutures({}, errors: {}), throwsStateError);
     });
   });
 
@@ -1046,10 +1012,7 @@ void main() {
   group('MontyFfi.withCore', () {
     test('constructs with pre-built core bindings', () {
       final core = FfiCoreBindings(bindings: mock);
-      final ffi = MontyFfi.withCore(
-        coreBindings: core,
-        nativeBindings: mock,
-      );
+      final ffi = MontyFfi.withCore(coreBindings: core, nativeBindings: mock);
       expect(ffi, isA<MontyFfi>());
       expect(ffi.isIdle, isTrue);
     });

@@ -27,9 +27,7 @@ void main() {
 
     test('override path takes precedence over env var', () {
       // Even if DART_MONTY_LIB_PATH is set, overridePath wins.
-      final path = NativeLibraryLoader.resolve(
-        overridePath: '/my/lib.dylib',
-      );
+      final path = NativeLibraryLoader.resolve(overridePath: '/my/lib.dylib');
 
       expect(path, '/my/lib.dylib');
     });

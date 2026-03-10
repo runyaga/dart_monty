@@ -43,62 +43,68 @@ void main() {
       );
     });
 
-    test('Python ZeroDivisionError maps to MontyException (not sealed)',
-        () async {
-      final bindings = _FakeCoreBindings();
-      final platform = _TestPlatform(bindings: bindings);
+    test(
+      'Python ZeroDivisionError maps to MontyException (not sealed)',
+      () async {
+        final bindings = _FakeCoreBindings();
+        final platform = _TestPlatform(bindings: bindings);
 
-      bindings.nextRunResult = const CoreRunResult(
-        ok: false,
-        error: 'division by zero',
-        excType: 'ZeroDivisionError',
-      );
+        bindings.nextRunResult = const CoreRunResult(
+          ok: false,
+          error: 'division by zero',
+          excType: 'ZeroDivisionError',
+        );
 
-      await expectLater(
-        platform.run('code'),
-        throwsA(
-          isA<MontyException>().having(
-            (e) => e.excType,
-            'excType',
-            'ZeroDivisionError',
+        await expectLater(
+          platform.run('code'),
+          throwsA(
+            isA<MontyException>().having(
+              (e) => e.excType,
+              'excType',
+              'ZeroDivisionError',
+            ),
           ),
-        ),
-      );
-    });
+        );
+      },
+    );
 
-    test('progress error with KeyboardInterrupt maps to MontyCancelledError',
-        () async {
-      final bindings = _FakeCoreBindings();
-      final platform = _TestPlatform(bindings: bindings);
+    test(
+      'progress error with KeyboardInterrupt maps to MontyCancelledError',
+      () async {
+        final bindings = _FakeCoreBindings();
+        final platform = _TestPlatform(bindings: bindings);
 
-      bindings.nextStartResult = const CoreProgressResult(
-        state: 'error',
-        error: 'Execution cancelled',
-        excType: 'KeyboardInterrupt',
-      );
+        bindings.nextStartResult = const CoreProgressResult(
+          state: 'error',
+          error: 'Execution cancelled',
+          excType: 'KeyboardInterrupt',
+        );
 
-      await expectLater(
-        platform.start('code'),
-        throwsA(isA<MontyCancelledError>()),
-      );
-    });
+        await expectLater(
+          platform.start('code'),
+          throwsA(isA<MontyCancelledError>()),
+        );
+      },
+    );
 
-    test('progress error with MemoryLimitExceeded maps to MontyResourceError',
-        () async {
-      final bindings = _FakeCoreBindings();
-      final platform = _TestPlatform(bindings: bindings);
+    test(
+      'progress error with MemoryLimitExceeded maps to MontyResourceError',
+      () async {
+        final bindings = _FakeCoreBindings();
+        final platform = _TestPlatform(bindings: bindings);
 
-      bindings.nextStartResult = const CoreProgressResult(
-        state: 'error',
-        error: 'Memory limit exceeded',
-        excType: 'MemoryLimitExceeded',
-      );
+        bindings.nextStartResult = const CoreProgressResult(
+          state: 'error',
+          error: 'Memory limit exceeded',
+          excType: 'MemoryLimitExceeded',
+        );
 
-      await expectLater(
-        platform.start('code'),
-        throwsA(isA<MontyResourceError>()),
-      );
-    });
+        await expectLater(
+          platform.start('code'),
+          throwsA(isA<MontyResourceError>()),
+        );
+      },
+    );
   });
 
   group('exhaustive switch compiles', () {
@@ -128,8 +134,10 @@ void main() {
     });
 
     test('MontyScriptError preserves excType', () {
-      const error =
-          MontyScriptError('division by zero', excType: 'ZeroDivisionError');
+      const error = MontyScriptError(
+        'division by zero',
+        excType: 'ZeroDivisionError',
+      );
       expect(error.excType, 'ZeroDivisionError');
       expect(error.message, 'division by zero');
     });
@@ -158,10 +166,7 @@ void main() {
 
     test('MontyCrashError default message', () {
       const e = MontyCrashError();
-      expect(
-        e.toString(),
-        'MontyCrashError: Interpreter crashed unexpectedly',
-      );
+      expect(e.toString(), 'MontyCrashError: Interpreter crashed unexpectedly');
     });
 
     test('MontyDisposedError default message', () {
@@ -258,8 +263,7 @@ class _FakeCoreBindings implements MontyCoreBindings {
     String code, {
     String? limitsJson,
     String? scriptName,
-  }) async =>
-      nextRunResult;
+  }) async => nextRunResult;
 
   @override
   Future<CoreProgressResult> start(
@@ -267,8 +271,7 @@ class _FakeCoreBindings implements MontyCoreBindings {
     String? extFnsJson,
     String? limitsJson,
     String? scriptName,
-  }) async =>
-      nextStartResult;
+  }) async => nextStartResult;
 
   @override
   Future<CoreProgressResult> resume(String valueJson) async =>
@@ -286,8 +289,7 @@ class _FakeCoreBindings implements MontyCoreBindings {
   Future<CoreProgressResult> resolveFutures(
     String resultsJson,
     String errorsJson,
-  ) async =>
-      throw UnsupportedError('not supported');
+  ) async => throw UnsupportedError('not supported');
 
   @override
   Future<Uint8List> snapshot() async => Uint8List(0);
