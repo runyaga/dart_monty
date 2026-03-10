@@ -11,6 +11,7 @@ class HostParam {
     this.isRequired = true,
     this.description,
     this.defaultValue,
+    this.jsonSchemaOverride,
   });
 
   /// Parameter name (used as the key in the validated args map).
@@ -27,6 +28,29 @@ class HostParam {
 
   /// Default value when the argument is absent and not required.
   final Object? defaultValue;
+
+  /// Optional full JSON Schema override for this parameter.
+  ///
+  /// When set, [toJsonSchema] returns this map directly instead of
+  /// generating from [type] and [description]. Use this for complex
+  /// schemas (nested objects, enums, arrays with item types) that
+  /// [HostParamType] cannot express.
+  final Map<String, Object?>? jsonSchemaOverride;
+
+  /// Returns a JSON Schema property definition for this parameter.
+  ///
+  /// If [jsonSchemaOverride] is set, returns it directly. Otherwise
+  /// generates a schema from [type] and [description].
+  Map<String, Object?> toJsonSchema() {
+    if (jsonSchemaOverride != null) return jsonSchemaOverride!;
+
+    final schema = <String, Object?>{
+      'type': type.jsonSchemaType,
+    };
+    if (description != null) schema['description'] = description;
+
+    return schema;
+  }
 
   /// Validates and optionally coerces [value].
   ///

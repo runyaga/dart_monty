@@ -28,6 +28,32 @@ class HostFunctionSchema {
   /// Keyword args overlay by name.
   final List<HostParam> params;
 
+  /// Returns a JSON Schema object describing this function's input.
+  ///
+  /// Produces a schema compatible with MCP tool `inputSchema`:
+  /// ```json
+  /// {
+  ///   "type": "object",
+  ///   "properties": { ... },
+  ///   "required": ["param1"]
+  /// }
+  /// ```
+  Map<String, Object?> toJsonSchema() {
+    final properties = <String, Object?>{};
+    final required = <String>[];
+
+    for (final param in params) {
+      properties[param.name] = param.toJsonSchema();
+      if (param.isRequired) required.add(param.name);
+    }
+
+    return {
+      'type': 'object',
+      'properties': properties,
+      if (required.isNotEmpty) 'required': required,
+    };
+  }
+
   /// Maps positional + keyword args from [pending] to a named parameter map.
   ///
   /// 1. Positional args are matched to [params] by order.
