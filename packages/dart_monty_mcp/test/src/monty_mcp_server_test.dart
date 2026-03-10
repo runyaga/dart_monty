@@ -308,6 +308,216 @@ void main() {
     });
   });
 
+  group('Built-in MCP tools via JSON-RPC', () {
+    late MontyMcpServer server;
+    late _TestTransport transport;
+
+    Future<void> init(MontyMcpServer s) async {
+      server = s;
+      transport = _TestTransport();
+      await server.serve(transport);
+      transport.receiveMessage(
+        const JsonRpcRequest(
+          id: 0,
+          method: 'initialize',
+          params: {
+            'protocolVersion': '2025-03-26',
+            'capabilities': <String, dynamic>{},
+            'clientInfo': {'name': 'test', 'version': '1.0.0'},
+          },
+        ),
+      );
+      await _drain();
+    }
+
+    JsonRpcResponse responseForId(int id) => transport.sentMessages
+        .whereType<JsonRpcResponse>()
+        .lastWhere((r) => r.id == id);
+
+    String textFromResponse(int id) {
+      final response = responseForId(id);
+      final content = response.result['content'] as List;
+      return (content.first as Map)['text'] as String;
+    }
+
+    tearDown(() async => server.dispose());
+
+    test('monty_run executes code statelessly', () async {
+      await init(_serverWithResult(42));
+
+      transport.receiveMessage(
+        const JsonRpcCallToolRequest(
+          id: 10,
+          params: {
+            'name': 'monty_run',
+            'arguments': {'code': '2 + 2'},
+          },
+        ),
+      );
+      await _drain();
+
+      expect(textFromResponse(10), contains('42'));
+    });
+
+    test('monty_session_create creates a session', () async {
+      await init(MontyMcpServer(platformFactory: MockMontyPlatform.new));
+
+      transport.receiveMessage(
+        const JsonRpcCallToolRequest(
+          id: 11,
+          params: {
+            'name': 'monty_session_create',
+            'arguments': {'session_id': 'rpc-s1'},
+          },
+        ),
+      );
+      await _drain();
+
+      expect(textFromResponse(11), contains('Session created: rpc-s1'));
+      expect(server.sessionManager.sessionCount, 1);
+    });
+
+    test('monty_session_create duplicate returns error', () async {
+      await init(MontyMcpServer(platformFactory: MockMontyPlatform.new));
+      server.sessionManager.createSession(id: 'dup');
+
+      transport.receiveMessage(
+        const JsonRpcCallToolRequest(
+          id: 12,
+          params: {
+            'name': 'monty_session_create',
+            'arguments': {'session_id': 'dup'},
+          },
+        ),
+      );
+      await _drain();
+
+      final response = responseForId(12);
+      expect(response.result['isError'], isTrue);
+      expect(textFromResponse(12), contains('already exists'));
+    });
+
+    test('monty_session_exec executes in session', () async {
+      await init(
+        MontyMcpServer(
+          platformFactory: () => _mockForSessionExec(
+            result: const MontyResult(value: 99, usage: _usage),
+          ),
+        ),
+      );
+      server.sessionManager.createSession(id: 'exec-s');
+
+      transport.receiveMessage(
+        const JsonRpcCallToolRequest(
+          id: 13,
+          params: {
+            'name': 'monty_session_exec',
+            'arguments': {'session_id': 'exec-s', 'code': '99'},
+          },
+        ),
+      );
+      await _drain();
+
+      expect(textFromResponse(13), contains('99'));
+    });
+
+    test('monty_session_exec with unknown session returns error', () async {
+      await init(MontyMcpServer(platformFactory: MockMontyPlatform.new));
+
+      transport.receiveMessage(
+        const JsonRpcCallToolRequest(
+          id: 14,
+          params: {
+            'name': 'monty_session_exec',
+            'arguments': {'session_id': 'ghost', 'code': '1'},
+          },
+        ),
+      );
+      await _drain();
+
+      final response = responseForId(14);
+      expect(response.result['isError'], isTrue);
+      expect(textFromResponse(14), contains('Session not found'));
+    });
+
+    test('monty_session_list returns active sessions', () async {
+      await init(MontyMcpServer(platformFactory: MockMontyPlatform.new));
+      server.sessionManager
+        ..createSession(id: 'x')
+        ..createSession(id: 'y');
+
+      transport.receiveMessage(
+        const JsonRpcCallToolRequest(
+          id: 15,
+          params: {
+            'name': 'monty_session_list',
+            'arguments': <String, dynamic>{},
+          },
+        ),
+      );
+      await _drain();
+
+      final text = textFromResponse(15);
+      expect(text, contains('x'));
+      expect(text, contains('y'));
+    });
+
+    test('monty_session_list empty', () async {
+      await init(MontyMcpServer(platformFactory: MockMontyPlatform.new));
+
+      transport.receiveMessage(
+        const JsonRpcCallToolRequest(
+          id: 16,
+          params: {
+            'name': 'monty_session_list',
+            'arguments': <String, dynamic>{},
+          },
+        ),
+      );
+      await _drain();
+
+      expect(textFromResponse(16), contains('No active sessions'));
+    });
+
+    test('monty_session_destroy destroys session', () async {
+      await init(MontyMcpServer(platformFactory: MockMontyPlatform.new));
+      server.sessionManager.createSession(id: 'doomed');
+
+      transport.receiveMessage(
+        const JsonRpcCallToolRequest(
+          id: 17,
+          params: {
+            'name': 'monty_session_destroy',
+            'arguments': {'session_id': 'doomed'},
+          },
+        ),
+      );
+      await _drain();
+
+      expect(textFromResponse(17), contains('Session destroyed: doomed'));
+      expect(server.sessionManager.sessionCount, 0);
+    });
+
+    test('monty_session_destroy nonexistent returns error', () async {
+      await init(MontyMcpServer(platformFactory: MockMontyPlatform.new));
+
+      transport.receiveMessage(
+        const JsonRpcCallToolRequest(
+          id: 18,
+          params: {
+            'name': 'monty_session_destroy',
+            'arguments': {'session_id': 'nope'},
+          },
+        ),
+      );
+      await _drain();
+
+      final response = responseForId(18);
+      expect(response.result['isError'], isTrue);
+      expect(textFromResponse(18), contains('Session not found'));
+    });
+  });
+
   group('Host function MCP tool callback', () {
     test('successful tool call validates params and returns result', () async {
       final server = MontyMcpServer(

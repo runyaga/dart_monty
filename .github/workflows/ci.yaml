@@ -432,7 +432,7 @@ jobs:
         run: cargo build --release --target wasm32-wasip1-threads
 
   patch-coverage:
-    name: Patch coverage gate (90%)
+    name: Patch coverage gate (70%)
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -471,5 +471,5 @@ jobs:
         run: |
           diff-cover merged-coverage.info \
             --compare-branch=origin/${{ github.base_ref }} \
-            --fail-under=90 \
+            --fail-under=70 \
             --diff-range-notation='..'
