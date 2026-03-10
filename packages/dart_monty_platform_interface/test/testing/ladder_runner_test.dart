@@ -105,10 +105,7 @@ void main() {
     test('handles resumeValues path', () async {
       final mock = MockMontyPlatform()
         ..enqueueProgress(
-          const MontyPending(
-            functionName: 'fetch',
-            arguments: ['url'],
-          ),
+          const MontyPending(functionName: 'fetch', arguments: ['url']),
         )
         ..enqueueProgress(
           const MontyComplete(
@@ -139,10 +136,7 @@ void main() {
     test('handles resumeErrors path', () async {
       final mock = MockMontyPlatform()
         ..enqueueProgress(
-          const MontyPending(
-            functionName: 'fetch',
-            arguments: [],
-          ),
+          const MontyPending(functionName: 'fetch', arguments: []),
         )
         ..enqueueProgress(
           const MontyComplete(

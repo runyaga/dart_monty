@@ -39,8 +39,9 @@ void main() {
         expect(hid, greaterThan(0));
 
         // Before terminate: handle exists in Rust registry.
-        final preState =
-            NativeBindingsFfi.instanceOrNull?.isCancelledById(hid!);
+        final preState = NativeBindingsFfi.instanceOrNull?.isCancelledById(
+          hid!,
+        );
         expect(preState, isNotNull, reason: 'handle should be in registry');
 
         // Guard startFuture so its error does not escape the test zone
@@ -66,8 +67,9 @@ void main() {
         expect(isolate.handleId, isNull);
 
         // After terminate: Rust registry should not contain the handle.
-        final postState =
-            NativeBindingsFfi.instanceOrNull?.isCancelledById(hid!);
+        final postState = NativeBindingsFfi.instanceOrNull?.isCancelledById(
+          hid!,
+        );
         expect(
           postState,
           isNull,

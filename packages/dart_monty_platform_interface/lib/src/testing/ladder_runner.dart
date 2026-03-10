@@ -13,12 +13,13 @@ import 'package:test/test.dart';
 /// Each entry is a record of `(tierName, fixtures)` where fixtures is the
 /// decoded JSON list from that tier file.
 List<(String, List<Map<String, dynamic>>)> loadLadderFixtures(Directory dir) {
-  final tierFiles = dir
-      .listSync()
-      .whereType<File>()
-      .where((f) => f.path.endsWith('.json'))
-      .toList()
-    ..sort((a, b) => a.path.compareTo(b.path));
+  final tierFiles =
+      dir
+          .listSync()
+          .whereType<File>()
+          .where((f) => f.path.endsWith('.json'))
+          .toList()
+        ..sort((a, b) => a.path.compareTo(b.path));
 
   return [
     for (final file in tierFiles)
@@ -58,7 +59,8 @@ Future<void> runErrorFixture(
       expect(
         fullError.contains(errorContains),
         isTrue,
-        reason: 'Expected error to contain "$errorContains", '
+        reason:
+            'Expected error to contain "$errorContains", '
             'got: "$fullError"',
       );
     }
@@ -130,7 +132,8 @@ Future<void> runIterativeFixture(
           expect(
             e.message.contains(errorContains),
             isTrue,
-            reason: 'Expected error containing "$errorContains", '
+            reason:
+                'Expected error containing "$errorContains", '
                 'got: "${e.message}"',
           );
         }
@@ -153,7 +156,8 @@ Future<void> runIterativeFixture(
         expect(
           errorMessage.contains(errorContains),
           isTrue,
-          reason: 'Expected error containing "$errorContains", '
+          reason:
+              'Expected error containing "$errorContains", '
               'got: "$errorMessage"',
         );
       }
@@ -180,7 +184,8 @@ Future<void> runIterativeFixture(
     expect(
       callIds.toSet().length,
       callIds.length,
-      reason: 'Fixture #${fixture['id']}: expected distinct call_ids, '
+      reason:
+          'Fixture #${fixture['id']}: expected distinct call_ids, '
           'got: $callIds',
     );
   }

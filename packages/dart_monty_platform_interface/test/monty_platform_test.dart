@@ -47,10 +47,7 @@ void main() {
     test('resetInstance clears the instance', () {
       MontyPlatform.instance = _TestMontyPlatform();
       MontyPlatform.resetInstance();
-      expect(
-        () => MontyPlatform.instance,
-        throwsA(isA<StateError>()),
-      );
+      expect(() => MontyPlatform.instance, throwsA(isA<StateError>()));
     });
 
     test('rejects implements without extends', () {
@@ -68,24 +65,15 @@ void main() {
       });
 
       test('run() throws', () {
-        expect(
-          () => platform.run('code'),
-          throwsUnimplementedError,
-        );
+        expect(() => platform.run('code'), throwsUnimplementedError);
       });
 
       test('start() throws', () {
-        expect(
-          () => platform.start('code'),
-          throwsUnimplementedError,
-        );
+        expect(() => platform.start('code'), throwsUnimplementedError);
       });
 
       test('resume() throws', () {
-        expect(
-          () => platform.resume(null),
-          throwsUnimplementedError,
-        );
+        expect(() => platform.resume(null), throwsUnimplementedError);
       });
 
       test('resumeWithError() throws', () {
@@ -96,10 +84,7 @@ void main() {
       });
 
       test('dispose() throws', () {
-        expect(
-          () => platform.dispose(),
-          throwsUnimplementedError,
-        );
+        expect(() => platform.dispose(), throwsUnimplementedError);
       });
     });
   });

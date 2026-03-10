@@ -62,22 +62,13 @@ class _MontyPageState extends State<MontyPage> {
         onTap: (i) => setState(() => _tabIndex = i),
         type: BottomNavigationBarType.fixed,
         items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.code),
-            label: 'Examples',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.code), label: 'Examples'),
           BottomNavigationBarItem(
             icon: Icon(Icons.bar_chart),
             label: 'Sorting',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.route),
-            label: 'TSP',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.checklist),
-            label: 'Ladder',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.route), label: 'TSP'),
+          BottomNavigationBarItem(icon: Icon(Icons.checklist), label: 'Ladder'),
         ],
       ),
     );
@@ -217,8 +208,9 @@ class _ExamplesPageState extends State<_ExamplesPage> {
                     min: 10,
                     max: 10000,
                     divisions: 100,
-                    onChanged:
-                        _running ? null : (v) => setState(() => _timeoutMs = v),
+                    onChanged: _running
+                        ? null
+                        : (v) => setState(() => _timeoutMs = v),
                   ),
                 ),
               ],
@@ -235,8 +227,9 @@ class _ExamplesPageState extends State<_ExamplesPage> {
                     min: 1,
                     max: 64,
                     divisions: 63,
-                    onChanged:
-                        _running ? null : (v) => setState(() => _memoryMb = v),
+                    onChanged: _running
+                        ? null
+                        : (v) => setState(() => _memoryMb = v),
                   ),
                 ),
               ],
@@ -328,7 +321,7 @@ enum _Algorithm {
   tim,
   shell,
   cocktail,
-  sleep
+  sleep,
 }
 
 /// Speed presets mapping labels to delay in milliseconds.
@@ -450,7 +443,8 @@ class _VisualizerPageState extends State<_VisualizerPage> {
             _highlightI = -1;
             _highlightJ = -1;
             _currentAction = _BarAction.sorted;
-            _status = 'Done in ${_elapsed()} — $_steps steps '
+            _status =
+                'Done in ${_elapsed()} — $_steps steps '
                 '($_comparisons cmp, $_swaps swaps)';
             _sorting = false;
           });
@@ -464,8 +458,9 @@ class _VisualizerPageState extends State<_VisualizerPage> {
             _bars = stepArr;
             _highlightI = i;
             _highlightJ = j;
-            _currentAction =
-                action == 'swap' ? _BarAction.swapped : _BarAction.comparing;
+            _currentAction = action == 'swap'
+                ? _BarAction.swapped
+                : _BarAction.comparing;
             if (delayMs == 0) {
               _status = 'Sorting... ${_elapsed()} — $_steps steps';
             }
@@ -563,8 +558,9 @@ class _VisualizerPageState extends State<_VisualizerPage> {
               ButtonSegment(value: _Algorithm.sleep, label: Text('Sleep')),
             ],
             selected: {_algorithm},
-            onSelectionChanged:
-                _sorting ? null : (v) => setState(() => _algorithm = v.first),
+            onSelectionChanged: _sorting
+                ? null
+                : (v) => setState(() => _algorithm = v.first),
           ),
           const SizedBox(height: 12),
 
@@ -624,17 +620,20 @@ class _VisualizerPageState extends State<_VisualizerPage> {
                 ? const Center(child: Text('Press Start to begin'))
                 : LayoutBuilder(
                     builder: (context, constraints) {
-                      final maxVal =
-                          _bars.reduce((a, b) => a > b ? a : b).toDouble();
+                      final maxVal = _bars
+                          .reduce((a, b) => a > b ? a : b)
+                          .toDouble();
                       return Row(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: List.generate(_bars.length, (i) {
-                          final height =
-                              maxVal > 0 ? (_bars[i] / maxVal) * 270 : 0.0;
+                          final height = maxVal > 0
+                              ? (_bars[i] / maxVal) * 270
+                              : 0.0;
                           return Expanded(
                             child: Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 0.5),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 0.5,
+                              ),
                               child: Container(
                                 height: height,
                                 decoration: BoxDecoration(
@@ -724,8 +723,9 @@ class _TspPageState extends State<_TspPage> {
       _cityCount.toInt(),
       (_) => [rng.nextInt(100), rng.nextInt(100)],
     );
-    return _tspTemplateFor(_algorithm)
-        .replaceAll('INPUT_CITIES', cities.toString());
+    return _tspTemplateFor(
+      _algorithm,
+    ).replaceAll('INPUT_CITIES', cities.toString());
   }
 
   void _startTsp() {
@@ -845,14 +845,12 @@ class _TspPageState extends State<_TspPage> {
                 value: _TspAlgorithm.nearestNeighbor,
                 label: Text('Nearest Neighbor'),
               ),
-              ButtonSegment(
-                value: _TspAlgorithm.twoOpt,
-                label: Text('2-opt'),
-              ),
+              ButtonSegment(value: _TspAlgorithm.twoOpt, label: Text('2-opt')),
             ],
             selected: {_algorithm},
-            onSelectionChanged:
-                _running ? null : (v) => setState(() => _algorithm = v.first),
+            onSelectionChanged: _running
+                ? null
+                : (v) => setState(() => _algorithm = v.first),
           ),
           const SizedBox(height: 12),
           Row(
@@ -865,14 +863,12 @@ class _TspPageState extends State<_TspPage> {
                   max: 40,
                   divisions: 7,
                   label: _cityCount.toInt().toString(),
-                  onChanged:
-                      _running ? null : (v) => setState(() => _cityCount = v),
+                  onChanged: _running
+                      ? null
+                      : (v) => setState(() => _cityCount = v),
                 ),
               ),
-              SizedBox(
-                width: 32,
-                child: Text(_cityCount.toInt().toString()),
-              ),
+              SizedBox(width: 32, child: Text(_cityCount.toInt().toString())),
             ],
           ),
           Row(
@@ -948,11 +944,7 @@ class _TspPageState extends State<_TspPage> {
 }
 
 class _TspPainter extends CustomPainter {
-  _TspPainter({
-    required this.cities,
-    required this.route,
-    required this.done,
-  });
+  _TspPainter({required this.cities, required this.route, required this.done});
 
   final List<List<int>> cities;
   final List<int> route;
@@ -1161,8 +1153,8 @@ class _LadderPageState extends State<_LadderPage> {
     final expected = fixture['expected'];
     final expectedContains = fixture['expectedContains'] as String?;
     final expectError = fixture['expectError'] as bool? ?? false;
-    final externalFunctions =
-        (fixture['externalFunctions'] as List?)?.cast<String>();
+    final externalFunctions = (fixture['externalFunctions'] as List?)
+        ?.cast<String>();
     final resumeValues = fixture['resumeValues'] as List?;
     final resumeErrors = fixture['resumeErrors'] as List?;
 
@@ -1255,7 +1247,8 @@ class _LadderPageState extends State<_LadderPage> {
       if (errorContains != null && !e.message.contains(errorContains)) {
         result
           ..status = _TestStatus.fail
-          ..detail = 'expected error containing "$errorContains", '
+          ..detail =
+              'expected error containing "$errorContains", '
               'got: ${e.message}';
         _fail++;
       } else {
@@ -1319,7 +1312,8 @@ class _LadderPageState extends State<_LadderPage> {
           if (errorContains != null && !e.message.contains(errorContains)) {
             result
               ..status = _TestStatus.fail
-              ..detail = 'expected error containing "$errorContains", '
+              ..detail =
+                  'expected error containing "$errorContains", '
                   'got: ${e.message}';
             _fail++;
           } else {
@@ -1341,7 +1335,8 @@ class _LadderPageState extends State<_LadderPage> {
           if (errorContains != null && !errMsg.contains(errorContains)) {
             result
               ..status = _TestStatus.fail
-              ..detail = 'expected error containing "$errorContains", '
+              ..detail =
+                  'expected error containing "$errorContains", '
                   'got: $errMsg';
             _fail++;
           } else {
@@ -1362,8 +1357,9 @@ class _LadderPageState extends State<_LadderPage> {
       var resumeIdx = 0;
       while (progress is MontyPending) {
         if (resumeErrors != null && resumeIdx < resumeErrors.length) {
-          progress =
-              await monty.resumeWithError(resumeErrors[resumeIdx].toString());
+          progress = await monty.resumeWithError(
+            resumeErrors[resumeIdx].toString(),
+          );
         } else if (resumeValues != null && resumeIdx < resumeValues.length) {
           progress = await monty.resume(resumeValues[resumeIdx]);
         } else {
@@ -1487,8 +1483,9 @@ class _LadderPageState extends State<_LadderPage> {
   Widget _tierHeader(int tier) {
     final expanded = _expandedTiers.contains(tier);
     final tierResults = _results.where((r) => r.tier == tier);
-    final tierPass =
-        tierResults.where((r) => r.status == _TestStatus.pass).length;
+    final tierPass = tierResults
+        .where((r) => r.status == _TestStatus.pass)
+        .length;
     final tierTotal = tierResults.length;
 
     return InkWell(
@@ -1509,10 +1506,7 @@ class _LadderPageState extends State<_LadderPage> {
             const SizedBox(width: 8),
             Text(
               'Tier $tier',
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
             const Spacer(),
             Text(
@@ -1643,7 +1637,8 @@ class _LadderPageState extends State<_LadderPage> {
 
 String _templateFor(_Algorithm algo) {
   return switch (algo) {
-    _Algorithm.bubble => '''
+    _Algorithm.bubble =>
+      '''
 arr = INPUT_ARRAY[:]
 n = len(arr)
 i = 0
@@ -1660,7 +1655,8 @@ while i < n:
     i = i + 1
 yield_state(arr, -1, -1, "done")
 arr''',
-    _Algorithm.selection => '''
+    _Algorithm.selection =>
+      '''
 arr = INPUT_ARRAY[:]
 n = len(arr)
 i = 0
@@ -1680,7 +1676,8 @@ while i < n:
     i = i + 1
 yield_state(arr, -1, -1, "done")
 arr''',
-    _Algorithm.insertion => '''
+    _Algorithm.insertion =>
+      '''
 arr = INPUT_ARRAY[:]
 n = len(arr)
 i = 1
@@ -1701,7 +1698,8 @@ while i < n:
     i = i + 1
 yield_state(arr, -1, -1, "done")
 arr''',
-    _Algorithm.quick => '''
+    _Algorithm.quick =>
+      '''
 arr = INPUT_ARRAY[:]
 n = len(arr)
 stack = [[0, n - 1]]
@@ -1733,7 +1731,8 @@ while len(stack) > 0:
         stack.append([p + 1, high])
 yield_state(arr, -1, -1, "done")
 arr''',
-    _Algorithm.tim => '''
+    _Algorithm.tim =>
+      '''
 arr = INPUT_ARRAY[:]
 n = len(arr)
 RUN = 8
@@ -1800,7 +1799,8 @@ while size < n:
     size = size * 2
 yield_state(arr, -1, -1, "done")
 arr''',
-    _Algorithm.shell => '''
+    _Algorithm.shell =>
+      '''
 arr = INPUT_ARRAY[:]
 n = len(arr)
 gap = n // 2
@@ -1824,7 +1824,8 @@ while gap > 0:
     gap = gap // 2
 yield_state(arr, -1, -1, "done")
 arr''',
-    _Algorithm.cocktail => '''
+    _Algorithm.cocktail =>
+      '''
 arr = INPUT_ARRAY[:]
 n = len(arr)
 swapped = True
@@ -1859,7 +1860,8 @@ while swapped:
     start = start + 1
 yield_state(arr, -1, -1, "done")
 arr''',
-    _Algorithm.sleep => '''
+    _Algorithm.sleep =>
+      '''
 arr = INPUT_ARRAY[:]
 n = len(arr)
 result = []
@@ -1894,7 +1896,8 @@ arr''',
 
 String _tspTemplateFor(_TspAlgorithm algo) {
   return switch (algo) {
-    _TspAlgorithm.nearestNeighbor => '''
+    _TspAlgorithm.nearestNeighbor =>
+      '''
 cities = INPUT_CITIES
 n = len(cities)
 visited = []
@@ -1932,7 +1935,8 @@ dy = cities[route[n - 1]][1] - cities[route[0]][1]
 total = total + (dx * dx + dy * dy) ** 0.5
 yield_state(route, total, step, "done")
 route''',
-    _TspAlgorithm.twoOpt => '''
+    _TspAlgorithm.twoOpt =>
+      '''
 cities = INPUT_CITIES
 n = len(cities)
 route = []
@@ -2018,7 +2022,8 @@ class _Example {
     String code,
     MontyLimits? limits,
     void Function(String text, {bool isError}) log,
-  ) runner;
+  )
+  runner;
 }
 
 /// Performs a real HTTP GET, returning the response body or injecting an error
@@ -2053,19 +2058,20 @@ Future<MontyProgress> _httpFetch(
 
 final _examples = <_Example>[
   // 1. Expressions & resource usage
-  _Example(
-    '1. Expressions',
-    'sum(range(100_000))',
-    (monty, code, limits, log) async {
-      final result = await monty.run(code, limits: limits);
-      log('Result: ${result.value}');
-      log(
-        'Memory: ${result.usage.memoryBytesUsed} bytes  '
-        'Time: ${result.usage.timeElapsedMs} ms  '
-        'Stack: ${result.usage.stackDepthUsed}',
-      );
-    },
-  ),
+  _Example('1. Expressions', 'sum(range(100_000))', (
+    monty,
+    code,
+    limits,
+    log,
+  ) async {
+    final result = await monty.run(code, limits: limits);
+    log('Result: ${result.value}');
+    log(
+      'Memory: ${result.usage.memoryBytesUsed} bytes  '
+      'Time: ${result.usage.timeElapsedMs} ms  '
+      'Stack: ${result.usage.stackDepthUsed}',
+    );
+  }),
 
   // 2. Multi-line code (Fibonacci)
   _Example(
@@ -2191,7 +2197,9 @@ final _examples = <_Example>[
       final futureValues = <int, Object?>{};
       while (progress is! MontyComplete) {
         if (progress is MontyPending) {
-          log('Python awaits ${progress.functionName}() — converting to future');
+          log(
+            'Python awaits ${progress.functionName}() — converting to future',
+          );
           progress = await futurePlatform.resumeAsFuture();
         } else if (progress is MontyResolveFutures) {
           log('Resolving ${progress.pendingCallIds.length} futures...');

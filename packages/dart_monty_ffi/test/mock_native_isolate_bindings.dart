@@ -18,10 +18,7 @@ class MockNativeIsolateBindings extends NativeIsolateBindings {
   bool nextInitResult = true;
 
   /// Result returned by [run].
-  MontyResult nextRunResult = const MontyResult(
-    value: 4,
-    usage: _zeroUsage,
-  );
+  MontyResult nextRunResult = const MontyResult(value: 4, usage: _zeroUsage);
 
   /// Result returned by [start].
   MontyProgress nextStartResult = const MontyComplete(
@@ -64,17 +61,19 @@ class MockNativeIsolateBindings extends NativeIsolateBindings {
 
   /// Records of `(code, limits, scriptName)` passed to [run].
   final List<({String code, MontyLimits? limits, String? scriptName})>
-      runCalls = [];
+  runCalls = [];
 
   /// Records of `(code, externalFunctions, limits, scriptName)` passed to
   /// [start].
   final List<
-      ({
-        String code,
-        List<String>? externalFunctions,
-        MontyLimits? limits,
-        String? scriptName,
-      })> startCalls = [];
+    ({
+      String code,
+      List<String>? externalFunctions,
+      MontyLimits? limits,
+      String? scriptName,
+    })
+  >
+  startCalls = [];
 
   /// Records of `returnValue` passed to [resume].
   final List<Object?> resumeCalls = [];
@@ -140,14 +139,12 @@ class MockNativeIsolateBindings extends NativeIsolateBindings {
     MontyLimits? limits,
     String? scriptName,
   }) async {
-    startCalls.add(
-      (
-        code: code,
-        externalFunctions: externalFunctions,
-        limits: limits,
-        scriptName: scriptName,
-      ),
-    );
+    startCalls.add((
+      code: code,
+      externalFunctions: externalFunctions,
+      limits: limits,
+      scriptName: scriptName,
+    ));
 
     return nextStartResult;
   }
@@ -157,9 +154,7 @@ class MockNativeIsolateBindings extends NativeIsolateBindings {
     resumeCalls.add(returnValue);
     if (resumeResults.isNotEmpty) return resumeResults.removeAt(0);
 
-    return const MontyComplete(
-      result: MontyResult(usage: _zeroUsage),
-    );
+    return const MontyComplete(result: MontyResult(usage: _zeroUsage));
   }
 
   @override
@@ -169,9 +164,7 @@ class MockNativeIsolateBindings extends NativeIsolateBindings {
       return resumeWithErrorResults.removeAt(0);
     }
 
-    return const MontyComplete(
-      result: MontyResult(usage: _zeroUsage),
-    );
+    return const MontyComplete(result: MontyResult(usage: _zeroUsage));
   }
 
   @override
@@ -195,9 +188,7 @@ class MockNativeIsolateBindings extends NativeIsolateBindings {
       return resolveFuturesResults.removeAt(0);
     }
 
-    return const MontyComplete(
-      result: MontyResult(usage: _zeroUsage),
-    );
+    return const MontyComplete(result: MontyResult(usage: _zeroUsage));
   }
 
   @override

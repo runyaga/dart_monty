@@ -19,13 +19,13 @@ class NativeBindingsFfi extends NativeBindings {
   /// On iOS, symbols are statically linked into the main executable, so
   /// [DynamicLibrary.process] is used instead of [DynamicLibrary.open].
   NativeBindingsFfi({String? libraryPath})
-      : _lib = DartMontyBindings(
-          Platform.isIOS
-              ? DynamicLibrary.process()
-              : DynamicLibrary.open(
-                  NativeLibraryLoader.resolve(overridePath: libraryPath),
-                ),
-        ) {
+    : _lib = DartMontyBindings(
+        Platform.isIOS
+            ? DynamicLibrary.process()
+            : DynamicLibrary.open(
+                NativeLibraryLoader.resolve(overridePath: libraryPath),
+              ),
+      ) {
     _instance ??= this;
     BaseMontyPlatform.registerNativeCancel(
       cancelById: (id) => instanceOrNull?.cancelById(id) ?? false,
@@ -53,18 +53,15 @@ class NativeBindingsFfi extends NativeBindings {
   }
 
   @override
-  int create(
-    String code, {
-    String? externalFunctions,
-    String? scriptName,
-  }) {
+  int create(String code, {String? externalFunctions, String? scriptName}) {
     final cCode = code.toNativeUtf8().cast<Char>();
     final nullChar = nullptr.cast<Char>();
     final cExtFns = externalFunctions != null
         ? externalFunctions.toNativeUtf8().cast<Char>()
         : nullChar;
-    final cScriptName =
-        scriptName != null ? scriptName.toNativeUtf8().cast<Char>() : nullChar;
+    final cScriptName = scriptName != null
+        ? scriptName.toNativeUtf8().cast<Char>()
+        : nullChar;
     final outError = calloc<Pointer<Char>>();
 
     try {
@@ -207,18 +204,12 @@ class NativeBindingsFfi extends NativeBindings {
 
   @override
   void setTimeLimitMs(int handle, int ms) {
-    _lib.monty_set_time_limit_ms(
-      Pointer<MontyHandle>.fromAddress(handle),
-      ms,
-    );
+    _lib.monty_set_time_limit_ms(Pointer<MontyHandle>.fromAddress(handle), ms);
   }
 
   @override
   void setStackLimit(int handle, int depth) {
-    _lib.monty_set_stack_limit(
-      Pointer<MontyHandle>.fromAddress(handle),
-      depth,
-    );
+    _lib.monty_set_stack_limit(Pointer<MontyHandle>.fromAddress(handle), depth);
   }
 
   @override
@@ -292,9 +283,7 @@ class NativeBindingsFfi extends NativeBindings {
   @override
   int getHandleId(int handle) {
     if (handle == 0) return 0;
-    return _lib.monty_get_handle_id(
-      Pointer<MontyHandle>.fromAddress(handle),
-    );
+    return _lib.monty_get_handle_id(Pointer<MontyHandle>.fromAddress(handle));
   }
 
   @override
@@ -331,11 +320,7 @@ class NativeBindingsFfi extends NativeBindings {
         final resultJson = _readAndFreeString(resultJsonPtr);
         final isError = _lib.monty_complete_is_error(ptr);
 
-        return ProgressResult(
-          tag: 0,
-          resultJson: resultJson,
-          isError: isError,
-        );
+        return ProgressResult(tag: 0, resultJson: resultJson, isError: isError);
 
       case MontyProgressTag.MONTY_PROGRESS_PENDING:
         final fnNamePtr = _lib.monty_pending_fn_name(ptr);

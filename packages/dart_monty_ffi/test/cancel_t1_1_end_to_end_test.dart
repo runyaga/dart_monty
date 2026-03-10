@@ -24,28 +24,27 @@ void main() {
 
   group('cancel during execution', () {
     for (var trial = 1; trial <= 5; trial++) {
-      test('trial $trial: cancel halts infinite loop with MontyCancelledError',
-          () async {
-        final isolate = NativeIsolateBindingsImpl(libraryPath: libPath);
-        await isolate.init();
+      test(
+        'trial $trial: cancel halts infinite loop with MontyCancelledError',
+        () async {
+          final isolate = NativeIsolateBindingsImpl(libraryPath: libPath);
+          await isolate.init();
 
-        final startFuture = isolate.start(
-          infiniteLoop,
-          externalFunctions: ['__never_called__'],
-        );
+          final startFuture = isolate.start(
+            infiniteLoop,
+            externalFunctions: ['__never_called__'],
+          );
 
-        // Give the interpreter time to enter the infinite loop.
-        await Future<void>.delayed(const Duration(milliseconds: 100));
+          // Give the interpreter time to enter the infinite loop.
+          await Future<void>.delayed(const Duration(milliseconds: 100));
 
-        await isolate.cancel();
+          await isolate.cancel();
 
-        await expectLater(
-          startFuture,
-          throwsA(isA<MontyCancelledError>()),
-        );
+          await expectLater(startFuture, throwsA(isA<MontyCancelledError>()));
 
-        await isolate.terminate();
-      });
+          await isolate.terminate();
+        },
+      );
     }
   });
 

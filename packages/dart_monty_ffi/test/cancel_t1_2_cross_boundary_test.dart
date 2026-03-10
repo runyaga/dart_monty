@@ -47,10 +47,7 @@ void main() {
         final cancelled = token.cancel();
         expect(cancelled, isTrue, reason: 'cancel should find the handle');
 
-        await expectLater(
-          startFuture,
-          throwsA(isA<MontyCancelledError>()),
-        );
+        await expectLater(startFuture, throwsA(isA<MontyCancelledError>()));
 
         await isolate.terminate();
       });

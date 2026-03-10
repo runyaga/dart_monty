@@ -93,12 +93,9 @@ class MockWasmBindings extends WasmBindings {
   /// Records of `(code, extFnsJson, limitsJson, scriptName)` passed to
   /// [start].
   final List<
-      ({
-        String code,
-        String? extFnsJson,
-        String? limitsJson,
-        String? scriptName
-      })> startCalls = [];
+    ({String code, String? extFnsJson, String? limitsJson, String? scriptName})
+  >
+  startCalls = [];
 
   /// Records of `valueJson` passed to [resume].
   final List<String> resumeCalls = [];
@@ -183,14 +180,12 @@ class MockWasmBindings extends WasmBindings {
     String? limitsJson,
     String? scriptName,
   }) async {
-    startCalls.add(
-      (
-        code: code,
-        extFnsJson: extFnsJson,
-        limitsJson: limitsJson,
-        scriptName: scriptName,
-      ),
-    );
+    startCalls.add((
+      code: code,
+      extFnsJson: extFnsJson,
+      limitsJson: limitsJson,
+      scriptName: scriptName,
+    ));
     if (throwOnStart != null) throw StateError(throwOnStart!);
 
     return nextStartResult;

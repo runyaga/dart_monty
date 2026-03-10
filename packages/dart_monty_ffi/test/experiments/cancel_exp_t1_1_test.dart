@@ -114,8 +114,10 @@ void main() {
       'Post-completion throw count: $postCompleteThrowCount / $postCompleteN',
     );
     print('');
-    print('VERDICT: '
-        '${cancelledCount == cancelN && wrongTypeCount == 0 && doubleThrowCount == 0 && tripleThrowCount == 0 && postCompleteThrowCount == 0 ? "PASS" : "FAIL"}');
+    print(
+      'VERDICT: '
+      '${cancelledCount == cancelN && wrongTypeCount == 0 && doubleThrowCount == 0 && tripleThrowCount == 0 && postCompleteThrowCount == 0 ? "PASS" : "FAIL"}',
+    );
     print('=== END T1-1 ===\n');
   });
 }

@@ -27,32 +27,28 @@ void main() {
   final rssAtCheckpoint = <int, int>{};
 
   group('T2-3: memory leak soak ($totalCycles cycles)', () {
-    test(
-      'soak run',
-      () async {
-        // Warm-up: 5 cycles.
-        for (var i = 0; i < 5; i++) {
-          final isolate = NativeIsolateBindingsImpl(libraryPath: libPath);
-          await isolate.init();
-          await isolate.run('2 + 2');
-          await isolate.dispose();
+    test('soak run', () async {
+      // Warm-up: 5 cycles.
+      for (var i = 0; i < 5; i++) {
+        final isolate = NativeIsolateBindingsImpl(libraryPath: libPath);
+        await isolate.init();
+        await isolate.run('2 + 2');
+        await isolate.dispose();
+      }
+
+      rssAtCheckpoint[0] = ProcessInfo.currentRss;
+
+      for (var cycle = 1; cycle <= totalCycles; cycle++) {
+        final isolate = NativeIsolateBindingsImpl(libraryPath: libPath);
+        await isolate.init();
+        await isolate.run('2 + 2');
+        await isolate.dispose();
+
+        if (checkpoints.contains(cycle)) {
+          rssAtCheckpoint[cycle] = ProcessInfo.currentRss;
         }
-
-        rssAtCheckpoint[0] = ProcessInfo.currentRss;
-
-        for (var cycle = 1; cycle <= totalCycles; cycle++) {
-          final isolate = NativeIsolateBindingsImpl(libraryPath: libPath);
-          await isolate.init();
-          await isolate.run('2 + 2');
-          await isolate.dispose();
-
-          if (checkpoints.contains(cycle)) {
-            rssAtCheckpoint[cycle] = ProcessInfo.currentRss;
-          }
-        }
-      },
-      timeout: const Timeout(Duration(minutes: 10)),
-    );
+      }
+    }, timeout: const Timeout(Duration(minutes: 10)));
   });
 
   tearDownAll(() {
@@ -66,8 +62,9 @@ void main() {
     var r2 = 0.0;
     if (entries.length >= 2) {
       final xs = entries.map((e) => e.key.toDouble()).toList();
-      final ys =
-          entries.map((e) => (e.value - baseRss) / (1024 * 1024)).toList();
+      final ys = entries
+          .map((e) => (e.value - baseRss) / (1024 * 1024))
+          .toList();
       final n = xs.length;
       final mx = xs.reduce((a, b) => a + b) / n;
       final my = ys.reduce((a, b) => a + b) / n;

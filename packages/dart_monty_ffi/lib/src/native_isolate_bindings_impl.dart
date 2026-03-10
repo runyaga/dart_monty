@@ -167,11 +167,11 @@ Future<void> _isolateMain(_InitMessage init) async {
     try {
       switch (message) {
         case _RunRequest(
-            :final id,
-            :final code,
-            :final limits,
-            :final scriptName,
-          ):
+          :final id,
+          :final code,
+          :final limits,
+          :final scriptName,
+        ):
           final result = await monty.run(
             code,
             limits: limits,
@@ -180,12 +180,12 @@ Future<void> _isolateMain(_InitMessage init) async {
           init.mainSendPort.send(_RunResponse(id, result));
 
         case _StartRequest(
-            :final id,
-            :final code,
-            :final externalFunctions,
-            :final limits,
-            :final scriptName,
-          ):
+          :final id,
+          :final code,
+          :final externalFunctions,
+          :final limits,
+          :final scriptName,
+        ):
           final progress = await monty.start(
             code,
             externalFunctions: externalFunctions,

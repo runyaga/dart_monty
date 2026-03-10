@@ -87,8 +87,10 @@ void main() {
     print('isAlive==true post-terminate: $isAlivePostTerminate / $n');
     print('Auto-init success: $autoInitSuccess / $n');
     print('');
-    print('VERDICT: '
-        '${crossCancelSuccess == n && stateErrorCount == 0 && isAlivePostTerminate == 0 ? "PASS" : "FAIL"}');
+    print(
+      'VERDICT: '
+      '${crossCancelSuccess == n && stateErrorCount == 0 && isAlivePostTerminate == 0 ? "PASS" : "FAIL"}',
+    );
     print('=== END T1-2 ===\n');
   });
 }

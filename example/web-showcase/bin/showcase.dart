@@ -250,9 +250,7 @@ Future<Object?> _dispatch(String fnName, List<dynamic> args) async {
       return DateTime.now().toIso8601String();
 
     case 'interpreter_snapshot':
-      final result = _parse(
-        (await _bridgeSnapshot().toDart).toDart,
-      );
+      final result = _parse((await _bridgeSnapshot().toDart).toDart);
       if (result['ok'] == true) {
         return result['data'] as String;
       }
@@ -260,9 +258,7 @@ Future<Object?> _dispatch(String fnName, List<dynamic> args) async {
 
     case 'interpreter_restore':
       final data = args[0] as String;
-      final result = _parse(
-        (await _bridgeRestore(data.toJS).toDart).toDart,
-      );
+      final result = _parse((await _bridgeRestore(data.toJS).toDart).toDart);
       if (result['ok'] == true) return 'restored';
       return 'Error: ${result['error']}';
 
@@ -354,8 +350,9 @@ Future<Map<String, dynamic>> _runWithHostFunctions(String code) async {
       );
     } on Exception catch (e) {
       result = _parse(
-        (await _bridgeResumeWithError(jsonEncode(e.toString()).toJS).toDart)
-            .toDart,
+        (await _bridgeResumeWithError(
+          jsonEncode(e.toString()).toJS,
+        ).toDart).toDart,
       );
     }
   }
@@ -1234,7 +1231,9 @@ Future<void> main() async {
   _populateDemoSelector();
 
   // Run button
-  document.getElementById('run-btn')!.addEventListener(
+  document
+      .getElementById('run-btn')!
+      .addEventListener(
         'click',
         (Event e) {
           _runCode();
@@ -1242,7 +1241,9 @@ Future<void> main() async {
       );
 
   // Clear button
-  document.getElementById('clear-btn')!.addEventListener(
+  document
+      .getElementById('clear-btn')!
+      .addEventListener(
         'click',
         (Event e) {
           _clearOutput();
@@ -1254,7 +1255,9 @@ Future<void> main() async {
       );
 
   // Ctrl+Enter to run
-  document.getElementById('editor')!.addEventListener(
+  document
+      .getElementById('editor')!
+      .addEventListener(
         'keydown',
         (KeyboardEvent e) {
           if (e.key == 'Enter' && (e.ctrlKey || e.metaKey)) {

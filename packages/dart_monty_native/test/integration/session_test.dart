@@ -39,9 +39,7 @@ void main() {
     final monty = createMonty();
     final session = MontySession(platform: monty);
 
-    await session.run(
-      'nums = [1,2,3]; name = "test"; flag = True',
-    );
+    await session.run('nums = [1,2,3]; name = "test"; flag = True');
     final result = await session.run('[nums, name, flag]');
 
     expect(result.value, [
@@ -94,10 +92,7 @@ void main() {
     final sessionA = MontySession(platform: montyA);
     final sessionB = MontySession(platform: montyB);
 
-    await Future.wait([
-      sessionA.run('x = 1'),
-      sessionB.run('x = 2'),
-    ]);
+    await Future.wait([sessionA.run('x = 1'), sessionB.run('x = 2')]);
 
     final resultA = await sessionA.run('x');
     final resultB = await sessionB.run('x');

@@ -37,8 +37,6 @@ abstract final class NativeLibraryLoader {
     if (Platform.isWindows) {
       return '$_baseName.dll';
     }
-    throw UnsupportedError(
-      'Unsupported platform: ${Platform.operatingSystem}',
-    );
+    throw UnsupportedError('Unsupported platform: ${Platform.operatingSystem}');
   }
 }

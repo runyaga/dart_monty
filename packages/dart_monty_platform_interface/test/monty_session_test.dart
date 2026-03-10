@@ -22,10 +22,7 @@ void main() {
     group('run()', () {
       test('set and read variable', () async {
         // First run: x = 42 — restore empty, persist {x: 42}
-        _enqueueRunCycle(
-          mock,
-          stateToPersist: {'x': 42},
-        );
+        _enqueueRunCycle(mock, stateToPersist: {'x': 42});
         final r1 = await session.run('x = 42');
         expect(r1.value, isNull);
 
@@ -33,11 +30,7 @@ void main() {
         expect(mock.resumeReturnValues.first, isEmpty);
 
         // Second run: x + 1 — restore {x: 42}, persist {x: 42}
-        _enqueueRunCycle(
-          mock,
-          stateToPersist: {'x': 42},
-          resultValue: 43,
-        );
+        _enqueueRunCycle(mock, stateToPersist: {'x': 42}, resultValue: 43);
         final r2 = await session.run('x + 1');
         expect(r2.value, 43);
 
@@ -75,10 +68,7 @@ void main() {
       test('non-serializable silently dropped', () async {
         // The persist postamble only captures vars that don't error.
         // The mock simulates that 'math' is not in the persisted dict.
-        _enqueueRunCycle(
-          mock,
-          stateToPersist: {'x': 42},
-        );
+        _enqueueRunCycle(mock, stateToPersist: {'x': 42});
         await session.run('x = 42');
 
         final persisted = session.state;
@@ -125,10 +115,7 @@ void main() {
             ),
           )
           ..enqueueProgress(
-            const MontyPending(
-              functionName: 'fetch',
-              arguments: ['url'],
-            ),
+            const MontyPending(functionName: 'fetch', arguments: ['url']),
           )
           ..enqueueProgress(
             const MontyComplete(
@@ -157,9 +144,7 @@ void main() {
               arguments: [],
             ),
           )
-          ..enqueueProgress(
-            const MontyResolveFutures(pendingCallIds: [1, 2]),
-          )
+          ..enqueueProgress(const MontyResolveFutures(pendingCallIds: [1, 2]))
           ..enqueueProgress(
             const MontyPending(
               functionName: '__persist_state__',
@@ -169,16 +154,15 @@ void main() {
             ),
           )
           ..enqueueProgress(
-            const MontyComplete(
-              result: MontyResult(value: 1, usage: _usage),
-            ),
+            const MontyComplete(result: MontyResult(value: 1, usage: _usage)),
           );
 
         final result = await session.run('x = 1');
         expect(result.value, 1);
 
-        final nullResumes =
-            mock.resumeReturnValues.where((v) => v == null).length;
+        final nullResumes = mock.resumeReturnValues
+            .where((v) => v == null)
+            .length;
         expect(nullResumes, greaterThanOrEqualTo(2));
       });
     });
@@ -219,24 +203,14 @@ void main() {
             ),
           )
           ..enqueueProgress(
-            const MontyPending(
-              functionName: 'fetch',
-              arguments: [],
-            ),
+            const MontyPending(functionName: 'fetch', arguments: []),
           );
 
-        await session.start(
-          'fetch()',
-          externalFunctions: ['fetch'],
-        );
+        await session.start('fetch()', externalFunctions: ['fetch']);
 
         expect(
           mock.lastStartExternalFunctions,
-          containsAll([
-            '__restore_state__',
-            '__persist_state__',
-            'fetch',
-          ]),
+          containsAll(['__restore_state__', '__persist_state__', 'fetch']),
         );
       });
 
@@ -249,16 +223,10 @@ void main() {
             ),
           )
           ..enqueueProgress(
-            const MontyPending(
-              functionName: 'fetch',
-              arguments: [],
-            ),
+            const MontyPending(functionName: 'fetch', arguments: []),
           );
 
-        await session.start(
-          'result = fetch()',
-          externalFunctions: ['fetch'],
-        );
+        await session.start('result = fetch()', externalFunctions: ['fetch']);
 
         final code = mock.lastStartCode!;
         expect(code, contains('__restore_state__()'));
@@ -277,10 +245,7 @@ void main() {
             ),
           )
           ..enqueueProgress(
-            const MontyPending(
-              functionName: 'fetch',
-              arguments: ['url'],
-            ),
+            const MontyPending(functionName: 'fetch', arguments: ['url']),
           );
 
         final p1 = await session.start(
@@ -321,10 +286,7 @@ void main() {
             ),
           )
           ..enqueueProgress(
-            const MontyPending(
-              functionName: 'step1',
-              arguments: [],
-            ),
+            const MontyPending(functionName: 'step1', arguments: []),
           );
 
         await session.start(
@@ -333,10 +295,7 @@ void main() {
         );
 
         mock.enqueueProgress(
-          const MontyPending(
-            functionName: 'step2',
-            arguments: [],
-          ),
+          const MontyPending(functionName: 'step2', arguments: []),
         );
 
         final p2 = await session.resume('result1');
@@ -355,10 +314,7 @@ void main() {
             ),
           )
           ..enqueueProgress(
-            const MontyPending(
-              functionName: 'fetch',
-              arguments: ['url'],
-            ),
+            const MontyPending(functionName: 'fetch', arguments: ['url']),
           );
 
         await session.start(
@@ -374,9 +330,7 @@ void main() {
             ),
           )
           ..enqueueProgress(
-            const MontyComplete(
-              result: MontyResult(usage: _usage),
-            ),
+            const MontyComplete(result: MontyResult(usage: _usage)),
           );
 
         final p2 = await session.resumeWithError('network failure');
@@ -388,10 +342,7 @@ void main() {
 
     group('clearState()', () {
       test('resets persisted state', () async {
-        _enqueueRunCycle(
-          mock,
-          stateToPersist: {'x': 1},
-        );
+        _enqueueRunCycle(mock, stateToPersist: {'x': 1});
         await session.run('x = 1');
         expect(session.state, {'x': 1});
 
@@ -406,10 +357,7 @@ void main() {
       });
 
       test('returns copy (not mutable reference)', () async {
-        _enqueueRunCycle(
-          mock,
-          stateToPersist: {'x': 1},
-        );
+        _enqueueRunCycle(mock, stateToPersist: {'x': 1});
         await session.run('x = 1');
 
         final s1 = session.state;
@@ -420,10 +368,7 @@ void main() {
 
     group('dispose()', () {
       test('clears state and marks disposed', () async {
-        _enqueueRunCycle(
-          mock,
-          stateToPersist: {'x': 1},
-        );
+        _enqueueRunCycle(mock, stateToPersist: {'x': 1});
         await session.run('x = 1');
 
         session.dispose();
@@ -432,28 +377,19 @@ void main() {
 
       test('run() throws after dispose', () {
         session.dispose();
-        expect(
-          () => session.run('1'),
-          throwsA(isA<StateError>()),
-        );
+        expect(() => session.run('1'), throwsA(isA<StateError>()));
       });
 
       test('clearState() throws after dispose', () {
         session.dispose();
-        expect(
-          () => session.clearState(),
-          throwsA(isA<StateError>()),
-        );
+        expect(() => session.clearState(), throwsA(isA<StateError>()));
       });
     });
 
     group('edge cases', () {
       test('error preserves previous state', () async {
         // First run succeeds with x=10
-        _enqueueRunCycle(
-          mock,
-          stateToPersist: {'x': 10},
-        );
+        _enqueueRunCycle(mock, stateToPersist: {'x': 10});
         await session.run('x = 10');
         expect(session.state, {'x': 10});
 
@@ -490,10 +426,7 @@ void main() {
         final sessionA = MontySession(platform: mockA);
         final sessionB = MontySession(platform: mockB);
 
-        _enqueueRunCycle(
-          mockA,
-          stateToPersist: {'x': 1},
-        );
+        _enqueueRunCycle(mockA, stateToPersist: {'x': 1});
         await sessionA.run('x = 1');
 
         expect(sessionA.state, {'x': 1});
@@ -525,9 +458,7 @@ void main() {
               arguments: [],
             ),
           )
-          ..enqueueProgress(
-            const MontyResolveFutures(pendingCallIds: [1]),
-          );
+          ..enqueueProgress(const MontyResolveFutures(pendingCallIds: [1]));
 
         final progress = await session.start(
           'x = fetch()',
@@ -563,13 +494,8 @@ void main() {
       });
 
       test('dunder and underscore variables excluded', () async {
-        _enqueueRunCycle(
-          mock,
-          stateToPersist: {'public': 3},
-        );
-        await session.run(
-          '__private = 1\n_also_private = 2\npublic = 3',
-        );
+        _enqueueRunCycle(mock, stateToPersist: {'public': 3});
+        await session.run('__private = 1\n_also_private = 2\npublic = 3');
 
         // extractAssignmentTargets should only find 'public'
         final code = mock.lastStartCode!;
@@ -596,10 +522,7 @@ void main() {
 
       test('resume() throws after dispose', () {
         session.dispose();
-        expect(
-          () => session.resume('val'),
-          throwsA(isA<StateError>()),
-        );
+        expect(() => session.resume('val'), throwsA(isA<StateError>()));
       });
 
       test('resumeWithError() throws after dispose', () {
@@ -669,11 +592,7 @@ void main() {
       });
 
       test('captures variable reference as expression', () async {
-        _enqueueRunCycle(
-          mock,
-          stateToPersist: {'x': 1},
-          resultValue: 1,
-        );
+        _enqueueRunCycle(mock, stateToPersist: {'x': 1}, resultValue: 1);
         await session.run('x');
 
         final code = mock.lastStartCode!;
@@ -681,11 +600,7 @@ void main() {
       });
 
       test('captures list literal as expression', () async {
-        _enqueueRunCycle(
-          mock,
-          stateToPersist: {},
-          resultValue: [1, 2, 3],
-        );
+        _enqueueRunCycle(mock, stateToPersist: {}, resultValue: [1, 2, 3]);
         await session.run('[1, 2, 3]');
 
         final code = mock.lastStartCode!;
@@ -693,11 +608,7 @@ void main() {
       });
 
       test('skips trailing comments and blank lines', () async {
-        _enqueueRunCycle(
-          mock,
-          stateToPersist: {},
-          resultValue: 42,
-        );
+        _enqueueRunCycle(mock, stateToPersist: {}, resultValue: 42);
         await session.run('42\n# comment\n');
 
         final code = mock.lastStartCode!;
@@ -707,17 +618,15 @@ void main() {
 
     group('extractAssignmentTargets', () {
       test('finds simple assignments', () {
-        expect(
-          MontySession.extractAssignmentTargets('x = 42'),
-          {'x'},
-        );
+        expect(MontySession.extractAssignmentTargets('x = 42'), {'x'});
       });
 
       test('finds multiple assignments', () {
-        expect(
-          MontySession.extractAssignmentTargets('x = 1\ny = 2\nz = 3'),
-          {'x', 'y', 'z'},
-        );
+        expect(MontySession.extractAssignmentTargets('x = 1\ny = 2\nz = 3'), {
+          'x',
+          'y',
+          'z',
+        });
       });
 
       test('excludes underscore-prefixed names', () {
@@ -730,10 +639,7 @@ void main() {
       });
 
       test('excludes comparisons (==)', () {
-        expect(
-          MontySession.extractAssignmentTargets('x == 42'),
-          isEmpty,
-        );
+        expect(MontySession.extractAssignmentTargets('x == 42'), isEmpty);
       });
 
       test('handles no assignments', () {
@@ -752,12 +658,11 @@ void main() {
       });
 
       test('handles semicolons (multi-statement lines)', () {
-        expect(
-          MontySession.extractAssignmentTargets(
-            'x = 1; y = 2; z = 3',
-          ),
-          {'x', 'y', 'z'},
-        );
+        expect(MontySession.extractAssignmentTargets('x = 1; y = 2; z = 3'), {
+          'x',
+          'y',
+          'z',
+        });
       });
     });
   });
@@ -772,10 +677,7 @@ void _enqueueRunCycle(
   mock
     // 1. restore
     ..enqueueProgress(
-      const MontyPending(
-        functionName: '__restore_state__',
-        arguments: [],
-      ),
+      const MontyPending(functionName: '__restore_state__', arguments: []),
     )
     // 2. persist
     ..enqueueProgress(

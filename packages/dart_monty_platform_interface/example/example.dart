@@ -133,9 +133,7 @@ void _progressPatternMatching() {
   );
 
   // Simulate a futures resolution request.
-  const MontyProgress futures = MontyResolveFutures(
-    pendingCallIds: [1, 2, 3],
-  );
+  const MontyProgress futures = MontyResolveFutures(pendingCallIds: [1, 2, 3]);
 
   // Exhaustive pattern matching on the sealed type.
   for (final progress in [pending, complete, futures]) {

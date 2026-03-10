@@ -26,7 +26,8 @@ class MockNativeBindings extends NativeBindings {
   /// Result returned by [run].
   RunResult nextRunResult = const RunResult(
     tag: 0,
-    resultJson: '{"value": 4, "usage": {"memory_bytes_used": 0, '
+    resultJson:
+        '{"value": 4, "usage": {"memory_bytes_used": 0, '
         '"time_elapsed_ms": 0, "stack_depth_used": 0}}',
   );
 
@@ -63,7 +64,7 @@ class MockNativeBindings extends NativeBindings {
 
   /// Records of `(code, externalFunctions, scriptName)` passed to [create].
   final List<({String code, String? externalFunctions, String? scriptName})>
-      createCalls = [];
+  createCalls = [];
 
   /// Handle addresses passed to [free].
   final List<int> freeCalls = [];
@@ -86,7 +87,7 @@ class MockNativeBindings extends NativeBindings {
   /// Records of `(handle, resultsJson, errorsJson)` passed to
   /// [resolveFutures].
   final List<({int handle, String resultsJson, String errorsJson})>
-      resolveFuturesCalls = [];
+  resolveFuturesCalls = [];
 
   /// If non-null, [setMemoryLimit] throws this.
   Exception? throwOnSetMemoryLimit;
@@ -112,13 +113,11 @@ class MockNativeBindings extends NativeBindings {
 
   @override
   int create(String code, {String? externalFunctions, String? scriptName}) {
-    createCalls.add(
-      (
-        code: code,
-        externalFunctions: externalFunctions,
-        scriptName: scriptName
-      ),
-    );
+    createCalls.add((
+      code: code,
+      externalFunctions: externalFunctions,
+      scriptName: scriptName,
+    ));
     final createError = nextCreateError;
     if (createError != null) {
       throw MontyException(message: createError);
@@ -151,25 +150,17 @@ class MockNativeBindings extends NativeBindings {
     resumeCalls.add((handle: handle, valueJson: valueJson));
     if (resumeResults.isNotEmpty) return resumeResults.removeAt(0);
 
-    return const ProgressResult(
-      tag: 0,
-      resultJson: _defaultCompleteJson,
-    );
+    return const ProgressResult(tag: 0, resultJson: _defaultCompleteJson);
   }
 
   @override
   ProgressResult resumeWithError(int handle, String errorMessage) {
-    resumeWithErrorCalls.add(
-      (handle: handle, errorMessage: errorMessage),
-    );
+    resumeWithErrorCalls.add((handle: handle, errorMessage: errorMessage));
     if (resumeWithErrorResults.isNotEmpty) {
       return resumeWithErrorResults.removeAt(0);
     }
 
-    return const ProgressResult(
-      tag: 0,
-      resultJson: _defaultCompleteJson,
-    );
+    return const ProgressResult(tag: 0, resultJson: _defaultCompleteJson);
   }
 
   @override
@@ -179,10 +170,7 @@ class MockNativeBindings extends NativeBindings {
       return resumeAsFutureResults.removeAt(0);
     }
 
-    return const ProgressResult(
-      tag: 3,
-      futureCallIdsJson: '[0]',
-    );
+    return const ProgressResult(tag: 3, futureCallIdsJson: '[0]');
   }
 
   @override
@@ -191,17 +179,16 @@ class MockNativeBindings extends NativeBindings {
     String resultsJson,
     String errorsJson,
   ) {
-    resolveFuturesCalls.add(
-      (handle: handle, resultsJson: resultsJson, errorsJson: errorsJson),
-    );
+    resolveFuturesCalls.add((
+      handle: handle,
+      resultsJson: resultsJson,
+      errorsJson: errorsJson,
+    ));
     if (resolveFuturesResults.isNotEmpty) {
       return resolveFuturesResults.removeAt(0);
     }
 
-    return const ProgressResult(
-      tag: 0,
-      resultJson: _defaultCompleteJson,
-    );
+    return const ProgressResult(tag: 0, resultJson: _defaultCompleteJson);
   }
 
   @override
