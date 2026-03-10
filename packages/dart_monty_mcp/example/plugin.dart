@@ -2,7 +2,15 @@
 ///
 /// See docs/host_functions.md for the full plugin API including lifecycle
 /// hooks (onRegister, onDispose).
+///
+/// Run with:
+/// ```bash
+/// DART_MONTY_LIB_PATH=../../native/target/release/libdart_monty_native.dylib \
+///   dart run example/plugin.dart
+/// ```
 library;
+
+import 'dart:io';
 
 import 'package:dart_monty_ffi/dart_monty_ffi.dart';
 import 'package:dart_monty_mcp/dart_monty_mcp.dart';
@@ -45,11 +53,12 @@ class MathPlugin extends MontyPlugin {
 }
 
 Future<void> main() async {
+  final libraryPath = Platform.environment['DART_MONTY_LIB_PATH'] ??
+      Platform.environment['MONTY_LIBRARY_PATH'];
+
   final server = MontyMcpServer(
     platformFactory: () => MontyFfi(
-      bindings: NativeBindingsFfi(
-        libraryPath: '/path/to/libdart_monty_native.dylib',
-      ),
+      bindings: NativeBindingsFfi(libraryPath: libraryPath),
     ),
   )..registerPlugin(MathPlugin());
 

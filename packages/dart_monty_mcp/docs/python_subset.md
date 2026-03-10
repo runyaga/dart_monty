@@ -29,5 +29,28 @@ include the Python standard library -- modules like `math`, `json`, `os`,
 - File I/O
 - Network access
 
-The host function system is the intended escape hatch: implement
-capabilities in Dart and expose them to Python.
+## print() output capture
+
+Python's `print()` function is intercepted by the interpreter. Output is
+captured and included in the result returned to the caller, alongside any
+expression result. See [Handling Results and Errors](results_and_errors.md)
+for the exact output format.
+
+```python
+print("hello")
+2 + 2
+```
+
+Returns:
+
+```text
+hello
+4
+```
+
+## The host function escape hatch
+
+The host function system is the intended way to add capabilities beyond
+what the Python subset provides. Implement functionality in Dart and expose
+it to Python as a callable function. See
+[Host Functions](host_functions.md) for the full API.

@@ -56,12 +56,56 @@ final server = MontyMcpServer(
 
 // Stateless execution
 final result = await server.sessionManager.executeStateless('2 + 2');
-print(result.content.first); // TextContent(text: '4')
+final text = (result.content.first as TextContent).text;
+print(text); // '4'
 
 // Persistent session
 server.sessionManager.createSession(id: 'calc');
 final session = server.sessionManager.getSession('calc')!;
 await session.execute('x = 42');
-final r = await session.execute('x * 2'); // 84
-await server.sessionManager.destroySession('calc');
+final r = await session.execute('x * 2');
+final rText = (r.content.first as TextContent).text;
+print(rText); // '84'
+
+await server.dispose();
 ```
+
+## Key concepts
+
+### The PlatformFactory
+
+The `platformFactory` parameter is a function that returns a new
+`MontyPlatform` instance. The server calls this factory every time it
+needs a fresh, isolated Python interpreter -- once for each new session
+and once for every stateless `monty_run` call. This ensures sessions
+cannot interfere with each other.
+
+```dart
+// Each call creates an independent interpreter:
+MontyMcpServer(
+  platformFactory: () => MontyFfi(
+    bindings: NativeBindingsFfi(libraryPath: libraryPath),
+  ),
+);
+```
+
+### Handling results
+
+All execution methods return `Future<CallToolResult>`. See
+[Handling Results and Errors](results_and_errors.md) for the full guide
+on extracting text output, handling errors, and understanding how
+`print()` output is captured.
+
+### Disposing resources
+
+The `MontyPlatform` allocates native resources for the Rust interpreter.
+It is important to release them when done:
+
+| Method | Scope |
+|--------|-------|
+| `McpMontySession.dispose()` | Frees a single session's resources |
+| `MontySessionManager.destroySession(id)` | Finds a session by ID and disposes it |
+| `MontyMcpServer.dispose()` | Disposes **all** active sessions |
+
+Always call `server.dispose()` when your application shuts down. Failure
+to dispose sessions will leak native memory.

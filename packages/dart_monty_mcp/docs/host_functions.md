@@ -8,6 +8,9 @@ capabilities. Each registration creates **two** call paths simultaneously:
 2. **MCP tool path** -- callable directly by the LLM as a standalone MCP tool,
    bypassing Python entirely
 
+Understanding the difference between these paths is key to handling return
+values and errors correctly.
+
 > **Runnable examples:** See
 > [`example/host_function.dart`](../example/host_function.dart) and
 > [`example/plugin.dart`](../example/plugin.dart). These are tested in CI
@@ -148,6 +151,40 @@ HostParam(
 
 The override controls only the schema advertised to LLMs via MCP. Runtime
 validation still uses `type`, so ensure consistency between the two.
+
+## Return values and error handling
+
+Your `handler`'s return value and exceptions are treated differently
+depending on how the function was called.
+
+### MCP tool path (LLM calls directly)
+
+When an LLM calls the function as a direct MCP tool:
+
+- **Success**: The return value is **always stringified** via
+  `'$result'` and wrapped in `TextContent`. A handler returning
+  `[1, 2]` becomes the literal string `"[1, 2]"`.
+- **Error**: If the handler throws, the exception is caught and returned
+  as `CallToolResult(isError: true)` with `e.toString()` as the message.
+
+### Python path (called from interpreter)
+
+When the function is called from Python code:
+
+- **Success**: The Dart return value is passed back to the Python
+  interpreter. Complex types like `List` and `Map` become Python `list`
+  and `dict` objects that Python code can interact with.
+- **Error**: If the handler throws, the exception is converted to a
+  Python-level error via `MontySession.resumeWithError()`. Python code
+  can catch it with `try`/`except`.
+
+### Positional-to-keyword mapping
+
+When Python calls a host function with positional arguments (e.g.
+`my_func(10, 'abc')`), the bridge maps them to keyword arguments based
+on the order defined in the `HostFunctionSchema`'s `params` list. The
+`mapAndValidate` method handles this, merging positional args with any
+explicit keyword args from the Python call.
 
 ## Name restrictions
 
