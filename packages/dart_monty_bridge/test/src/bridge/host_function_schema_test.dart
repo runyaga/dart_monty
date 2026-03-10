@@ -198,8 +198,7 @@ void main() {
       );
 
       final jsonSchema = schema.toJsonSchema();
-      final properties =
-          jsonSchema['properties']! as Map<String, Object?>;
+      final properties = jsonSchema['properties']! as Map<String, Object?>;
       final shapeSchema = properties['shape']! as Map<String, Object?>;
       expect(shapeSchema['enum'], ['circle', 'square', 'triangle']);
 
