@@ -77,5 +77,6 @@ Plus any host functions you register.
 | [What Python supports](docs/python_subset.md) | Language features and limitations |
 | [Session Persistence](docs/session_persistence.md) | What state survives across calls |
 | [Host Functions](docs/host_functions.md) | Extending the interpreter with Dart plugins |
+| [Results and Errors](docs/results_and_errors.md) | Extracting output, handling errors, print() capture |
 | [Startup Modes](docs/startup_modes.md) | Embedding in your own Dart app, custom transports |
 | [Architecture](docs/architecture.md) | Internals, call flows, test suites |

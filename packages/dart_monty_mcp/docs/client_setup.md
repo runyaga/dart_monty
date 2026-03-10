@@ -39,8 +39,9 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 }
 ```
 
-Omit `--library-path` if you set the `MONTY_LIBRARY_PATH` environment
-variable instead.
+You can omit `--library-path` if you set the `MONTY_LIBRARY_PATH`
+environment variable instead. The command-line argument takes precedence
+if both are present.
 
 ## Cursor
 
@@ -67,6 +68,8 @@ dart run "${REPO_ROOT}/packages/dart_monty_mcp/bin/dart_monty_mcp.dart" \
   --library-path "${MONTY_LIBRARY_PATH}"
 ```
 
+Make the script executable: `chmod +x dart_monty_mcp_server.sh`.
+
 ## Environment variables
 
 You can provide the native library path via the `--library-path` argument
@@ -74,7 +77,7 @@ or an environment variable.
 
 | Variable | Purpose |
 |----------|---------|
-| `MONTY_LIBRARY_PATH` | **Recommended.** Sets the native library path for the standalone server. Replaces the `--library-path` command-line argument. |
-| `DART_MONTY_LIB_PATH` | For development and testing. Used by the test harness and the underlying `dart_monty_ffi` package. |
+| `MONTY_LIBRARY_PATH` | **For standalone server.** Sets a default native library path. The `--library-path` argument takes precedence if both are set. |
+| `DART_MONTY_LIB_PATH` | **For development/testing.** Used by `dart test` and the underlying `dart_monty_ffi` package to find the library without command-line args. |
 
 For most use cases, setting `MONTY_LIBRARY_PATH` is all you need.

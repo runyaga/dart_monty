@@ -80,21 +80,36 @@ McpMontySession.execute("result = add(a=3, b=4)")
   |-- returns CallToolResult(content: [TextContent(text: "7")])
 ```
 
+## Key classes
+
+- **`MontyMcpServer`**: Top-level entry point. Registers built-in tools,
+  host functions, and connects to a transport.
+- **`MontySessionManager`**: Manages session lifecycle and stateless
+  execution. Owns the `PlatformFactory` and host function list.
+- **`McpMontySession`**: A persistent session wrapping `MontySession` with
+  B3 concurrency lock and host function dispatch loop. Returns
+  `CallToolResult` directly.
+- **`MontySession`** (from `dart_monty_bridge`): Lower-level session that
+  handles state persist/restore preamble. Used internally by
+  `McpMontySession`.
+- **`bridgeEventsToResult`** / **`montyResultToCallToolResult`**: Adapter
+  functions that convert interpreter output to MCP `CallToolResult`. See
+  [Handling Results and Errors](results_and_errors.md).
+
 ## Exported API surface
 
 The barrel file (`lib/dart_monty_mcp.dart`) re-exports:
 
-| Symbol | Source |
+| Symbol | Origin |
 |--------|--------|
-| `HostFunction`, `HostFunctionHandler` | `dart_monty_bridge` |
-| `HostFunctionSchema` | `dart_monty_bridge` |
-| `HostParam` | `dart_monty_bridge` |
-| `HostParamType` | `dart_monty_bridge` |
-| `MontyPlugin` | `dart_monty_bridge` |
-| `bridgeEventsToResult`, `montyResultToCallToolResult` | `bridge_adapter.dart` |
-| `MontyMcpServer` | `monty_mcp_server.dart` |
-| `McpMontySession` | `monty_session.dart` |
-| `MontySessionManager`, `PlatformFactory` | `monty_session_manager.dart` |
+| `HostFunction`, `HostFunctionHandler` | Re-exported from `package:dart_monty_bridge` |
+| `HostFunctionSchema` | Re-exported from `package:dart_monty_bridge` |
+| `HostParam`, `HostParamType` | Re-exported from `package:dart_monty_bridge` |
+| `MontyPlugin` | Re-exported from `package:dart_monty_bridge` |
+| `bridgeEventsToResult`, `montyResultToCallToolResult` | Defined in `src/bridge_adapter.dart` |
+| `MontyMcpServer` | Defined in `src/monty_mcp_server.dart` |
+| `McpMontySession` | Defined in `src/monty_session.dart` |
+| `MontySessionManager`, `PlatformFactory` | Defined in `src/monty_session_manager.dart` |
 
 ## Tests
 
@@ -108,10 +123,11 @@ DART_MONTY_LIB_PATH=../../native/target/release/libdart_monty_native.dylib \
   dart test --tags=integration --run-skipped
 ```
 
-126 total tests: 49 unit + 77 integration (60 core + 17 host function).
+76 unit tests, plus integration tests requiring the native library.
 
 | File | Scope |
 |------|-------|
+| `examples_test.dart` | **CI validation for doc/example code patterns** |
 | `monty_mcp_server_test.dart` | MCP tool registration and routing |
 | `monty_session_manager_test.dart` | Session lifecycle, stateless exec |
 | `monty_session_test.dart` | Session state persistence, B3 lock |
