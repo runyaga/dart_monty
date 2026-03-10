@@ -1,4 +1,6 @@
 @Tags(['integration'])
+library;
+
 import 'dart:io';
 
 import 'package:dart_monty_ffi/dart_monty_ffi.dart';
@@ -51,8 +53,7 @@ void main() {
     });
 
     test('D-03: multi-statement with expression', () async {
-      final r =
-          await server.sessionManager.executeStateless('x = 42\nx * 2');
+      final r = await server.sessionManager.executeStateless('x = 42\nx * 2');
       expect(r.isError, isFalse);
       expect(_text(r), '84');
     });
@@ -76,15 +77,14 @@ void main() {
     });
 
     test('D-07: unicode output', () async {
-      final r =
-          await server.sessionManager.executeStateless("print('α β γ')");
+      final r = await server.sessionManager.executeStateless("print('α β γ')");
       expect(r.isError, isFalse);
       expect(_text(r), 'α β γ');
     });
 
     test('D-08: large output (10K chars)', () async {
-      final r = await server.sessionManager
-          .executeStateless("print('x' * 10000)");
+      final r =
+          await server.sessionManager.executeStateless("print('x' * 10000)");
       expect(r.isError, isFalse);
       expect(_text(r).length, 10000);
     });
@@ -98,7 +98,7 @@ void main() {
 
     test('string with special chars', () async {
       final r = await server.sessionManager
-          .executeStateless("print('hello\\nworld\\ttab')");
+          .executeStateless(r"print('hello\nworld\ttab')");
       expect(r.isError, isFalse);
       expect(_text(r), contains('hello'));
       expect(_text(r), contains('world'));
@@ -123,7 +123,7 @@ void main() {
       // Monty dict comprehension returns list-of-pairs, not dict.
       // Use explicit dict() construction instead.
       final r = await server.sessionManager
-          .executeStateless("d = {}\nfor i in range(3):\n    d[i] = i*2\nd");
+          .executeStateless('d = {}\nfor i in range(3):\n    d[i] = i*2\nd');
       expect(r.isError, isFalse);
       expect(_text(r), contains('0'));
     });
@@ -175,15 +175,13 @@ void main() {
     });
 
     test('NameError for undefined variable', () async {
-      final r =
-          await server.sessionManager.executeStateless('undefined_var');
+      final r = await server.sessionManager.executeStateless('undefined_var');
       expect(r.isError, isTrue);
       expect(_text(r), contains('NameError'));
     });
 
     test('SyntaxError for invalid code', () async {
-      final r =
-          await server.sessionManager.executeStateless('def incomplete(');
+      final r = await server.sessionManager.executeStateless('def incomplete(');
       expect(r.isError, isTrue);
       expect(_text(r), contains('SyntaxError'));
     });
@@ -393,7 +391,7 @@ void main() {
       server.sessionManager.createSession(id: 'dict-mut');
       final session = server.sessionManager.getSession('dict-mut')!;
 
-      await session.execute("data = {}");
+      await session.execute('data = {}');
       await session.execute("data['key'] = 'value'");
 
       final r = await session.execute('data');
@@ -496,8 +494,7 @@ void main() {
     });
 
     test('S-04: large code input (100 lines)', () async {
-      final code = StringBuffer();
-      code.writeln('total = 0');
+      final code = StringBuffer()..writeln('total = 0');
       for (var i = 1; i <= 100; i++) {
         code.writeln('total = total + $i');
       }
@@ -509,8 +506,7 @@ void main() {
     });
 
     test('S-05: large output (10KB+)', () async {
-      final r = await server.sessionManager
-          .executeStateless("'A' * 15000");
+      final r = await server.sessionManager.executeStateless("'A' * 15000");
       expect(r.isError, isFalse);
       expect(_text(r).length, greaterThan(10000));
     });
@@ -670,5 +666,4 @@ void main() {
   });
 }
 
-String _text(CallToolResult r) =>
-    (r.content.first as TextContent).text;
+String _text(CallToolResult r) => (r.content.first as TextContent).text;

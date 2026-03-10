@@ -11,6 +11,9 @@ typedef PlatformFactory = MontyPlatform Function();
 ///
 /// Tracks named sessions, handles creation/destruction, and provides
 /// stateless execution (creates a temporary platform per call).
+///
+/// Host functions registered via [registerHostFunction] are propagated
+/// to all newly created sessions and used in stateless execution.
 class MontySessionManager {
   /// Creates a [MontySessionManager].
   MontySessionManager({required this.platformFactory});
@@ -19,7 +22,16 @@ class MontySessionManager {
   final PlatformFactory platformFactory;
 
   final Map<String, McpMontySession> _sessions = {};
+  final List<HostFunction> _hostFunctions = [];
   int _nextId = 0;
+
+  /// Registers a [HostFunction] at the server level.
+  ///
+  /// The function is propagated to all sessions created after this call.
+  /// Existing sessions are not affected.
+  void registerHostFunction(HostFunction function) {
+    _hostFunctions.add(function);
+  }
 
   /// IDs of all active sessions.
   List<String> get sessionIds => _sessions.keys.toList(growable: false);
@@ -34,10 +46,12 @@ class MontySessionManager {
   String? createSession({String? id}) {
     final sessionId = id ?? 'session_${_nextId++}';
     if (_sessions.containsKey(sessionId)) return null;
-    _sessions[sessionId] = McpMontySession(
+    final session = McpMontySession(
       id: sessionId,
       platform: platformFactory(),
     );
+    _hostFunctions.forEach(session.register);
+    _sessions[sessionId] = session;
     return sessionId;
   }
 
@@ -59,7 +73,13 @@ class MontySessionManager {
   /// Creates a fresh platform + bridge, runs the code, and disposes.
   Future<CallToolResult> executeStateless(String code) async {
     final platform = platformFactory();
-    final bridge = DefaultMontyBridge(platform: platform);
+    // Use useFutures: false so host function calls resolve synchronously
+    // in Python (otherwise Python gets coroutine objects instead of values).
+    final bridge = DefaultMontyBridge(
+      platform: platform,
+      useFutures: false,
+    );
+    _hostFunctions.forEach(bridge.register);
     try {
       final events = bridge.execute(code);
       return await bridgeEventsToResult(events);

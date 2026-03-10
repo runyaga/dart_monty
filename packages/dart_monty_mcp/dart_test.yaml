@@ -1,0 +1,3 @@
+tags:
+  integration:
+    skip: "Requires native library. Run with --tags=integration and DART_MONTY_LIB_PATH set."

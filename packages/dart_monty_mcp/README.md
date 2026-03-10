@@ -1,23 +1,14 @@
 # dart_monty_mcp
 
-MCP (Model Context Protocol) server exposing the Monty sandboxed Python
-interpreter as callable tools.
+Give your LLM a Python interpreter. This MCP server lets Claude, Cursor, or
+any MCP-compatible client execute Python code, maintain persistent sessions,
+and call custom functions you define -- all sandboxed, no `pip install`, no
+filesystem access, no network.
 
-## Tools
+## Setup
 
-| Tool | Description |
-|------|-------------|
-| `monty_run` | Execute Python in a fresh interpreter (stateless) |
-| `monty_session_create` | Create a persistent Python session |
-| `monty_session_exec` | Execute code in a persistent session |
-| `monty_session_list` | List active sessions |
-| `monty_session_destroy` | Destroy a session and free resources |
-
-## Quick Start
-
-### Claude Desktop / MCP Client
-
-Add to your MCP client config:
+Add to your Claude Desktop config
+(`~/Library/Application Support/Claude/claude_desktop_config.json`):
 
 ```json
 {
@@ -36,81 +27,55 @@ Add to your MCP client config:
 }
 ```
 
-Or set `MONTY_LIBRARY_PATH` environment variable instead of `--library-path`.
+`cwd` should be the root of your cloned `dart_monty` repository.
+That's it. Your LLM now has five Python tools.
 
-### soliplex_tui
+## What your LLM can do
 
-```bash
-DART_MONTY_LIB_PATH=/path/to/libdart_monty_native.dylib \
-  soliplex_tui \
-  --llm-provider ollama --llm-model qwen3-coder \
-  --mcp monty="/path/to/dart_monty_mcp_server.sh" \
-  --verbose --json
-```
+**Run Python instantly** -- ask it to calculate, transform data, or test
+logic. Each `monty_run` call gets a fresh interpreter:
 
-### Programmatic
+> "What's 2\*\*128?" → LLM calls `monty_run(code: "2**128")`
 
-```dart
-import 'package:dart_monty_ffi/dart_monty_ffi.dart';
-import 'package:dart_monty_mcp/dart_monty_mcp.dart';
-import 'package:mcp_dart/mcp_dart.dart';
+**Keep state across calls** -- create a session and build up variables:
 
-final server = MontyMcpServer(
-  platformFactory: () => MontyFfi(
-    bindings: NativeBindingsFfi(libraryPath: '/path/to/lib'),
-  ),
-);
+> "Create a session, set `prices = [10, 20, 30]`, then compute the average"
+>
+> The LLM creates a session, executes two calls, and the second one sees
+> `prices` from the first.
 
-// Stateless execution
-final result = await server.sessionManager.executeStateless('2 + 2');
-print(result.content.first); // TextContent(text: '4')
+**Call your custom functions from Python** -- register Dart functions as host
+functions and they become callable from inside Python *and* as standalone
+MCP tools:
 
-// Persistent session
-server.sessionManager.createSession(id: 'calc');
-final session = server.sessionManager.getSession('calc')!;
-await session.execute('x = 42');
-final r = await session.execute('x * 2'); // 84
-await server.sessionManager.destroySession('calc');
-```
+> You register `lookup_price(symbol)` in Dart. The LLM can now write
+> `price = lookup_price(symbol="AAPL")` inside `monty_session_exec`, or
+> call `lookup_price` directly as an MCP tool.
 
-## Session Limitations
+This is where it gets powerful. The interpreter is restricted (no stdlib, no
+I/O), but host functions let you give it exactly the capabilities you choose.
+See [What Python supports](docs/python_subset.md) for the full language
+subset.
 
-Persistent sessions use JSON serialization to save/restore Python state.
+## Tools
 
-**What persists:** int, float, str, bool, None, list, dict (simple values).
+| Tool | Description |
+|------|-------------|
+| `monty_run` | Execute Python (stateless, one-shot) |
+| `monty_session_create` | Create a persistent session |
+| `monty_session_exec` | Execute in a session (variables persist) |
+| `monty_session_list` | List active sessions |
+| `monty_session_destroy` | Destroy a session |
 
-**What doesn't persist:**
-- Functions (must redefine in each exec call)
-- Class instances
-- In-place mutations (`data['key'] = val` across execs)
-- Augmented assignments (`x += 5` — use `x = x + 5` instead)
+Plus any host functions you register.
 
-## Monty Python Subset
+## Going deeper
 
-Monty is a restricted Python interpreter. No standard library (`math`,
-`json`, `os`, etc.) is available. Supported: variables, arithmetic,
-f-strings, control flow, functions, list comprehensions, try/except,
-`range()`, `len()`, `print()`, `str()`.
-
-## Tests
-
-```bash
-# Unit tests (mock-based, no FFI needed)
-dart test --exclude-tags=integration
-
-# Integration tests (requires native library)
-DART_MONTY_LIB_PATH=../../native/target/release/libdart_monty_native.dylib \
-  dart test --tags=integration --run-skipped
-```
-
-96 total tests: 36 unit + 60 integration.
-
-## Architecture
-
-```
-MontyMcpServer         — registers 5 MCP tools, routes to manager
-  MontySessionManager  — session create/list/destroy + stateless exec
-    McpMontySession    — wraps MontySession + concurrency lock (B3)
-      MontySession     — state persistence via restore/persist preamble
-        MontyPlatform  — FFI or WASM interpreter instance
-```
+| Guide | For |
+|-------|-----|
+| [Client Setup](docs/client_setup.md) | Configuring Claude Desktop, Cursor, soliplex_tui |
+| [What Python supports](docs/python_subset.md) | Language features and limitations |
+| [Session Persistence](docs/session_persistence.md) | What state survives across calls |
+| [Host Functions](docs/host_functions.md) | Extending the interpreter with Dart plugins |
+| [Startup Modes](docs/startup_modes.md) | Embedding in your own Dart app, custom transports |
+| [Architecture](docs/architecture.md) | Internals, call flows, test suites |
