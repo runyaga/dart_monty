@@ -166,8 +166,7 @@ void main() {
                 HostParam(name: 'b', type: HostParamType.number),
               ],
             ),
-            handler: (args) async =>
-                (args['a']! as num) + (args['b']! as num),
+            handler: (args) async => (args['a']! as num) + (args['b']! as num),
           ),
         );
 

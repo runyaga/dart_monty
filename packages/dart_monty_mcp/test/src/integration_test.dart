@@ -494,8 +494,7 @@ void main() {
     });
 
     test('S-04: large code input (100 lines)', () async {
-      final code = StringBuffer()
-        ..writeln('total = 0');
+      final code = StringBuffer()..writeln('total = 0');
       for (var i = 1; i <= 100; i++) {
         code.writeln('total = total + $i');
       }
