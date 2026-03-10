@@ -1,2 +1,3 @@
 paths:
   - test/monty_wasm_test.dart
+  - test/wasm_core_bindings_test.dart

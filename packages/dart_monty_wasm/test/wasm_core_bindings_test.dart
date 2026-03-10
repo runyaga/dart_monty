@@ -81,6 +81,19 @@ void main() {
       expect(result.traceback, hasLength(1));
     });
 
+    test('Panic errorType throws MontyPanicError', () async {
+      mock.nextRunResult = const WasmRunResult(
+        ok: false,
+        error: 'WASM trap',
+        errorType: 'Panic',
+      );
+
+      await expectLater(
+        () => bindings.run('x'),
+        throwsA(isA<MontyPanicError>()),
+      );
+    });
+
     test('error with null message defaults to Unknown error', () async {
       mock.nextRunResult = const WasmRunResult(ok: false);
 
@@ -221,6 +234,19 @@ void main() {
       expect(result.traceback, hasLength(1));
     });
 
+    test('Panic errorType throws MontyPanicError', () async {
+      mock.nextStartResult = const WasmProgressResult(
+        ok: false,
+        error: 'WASM trap',
+        errorType: 'Panic',
+      );
+
+      await expectLater(
+        () => bindings.start('x'),
+        throwsA(isA<MontyPanicError>()),
+      );
+    });
+
     test('resolve_futures translates pending call IDs', () async {
       mock.nextStartResult = const WasmProgressResult(
         ok: true,
@@ -305,15 +331,58 @@ void main() {
   });
 
   // ===========================================================================
-  // resumeAsFuture() / resolveFutures()
+  // resumeAsFuture()
   // ===========================================================================
-  group('unsupported methods', () {
-    test('resumeAsFuture throws UnsupportedError', () {
-      expect(bindings.resumeAsFuture, throwsUnsupportedError);
+  group('resumeAsFuture()', () {
+    test('delegates and translates complete result', () async {
+      mock.nextResumeAsFutureResult = const WasmProgressResult(
+        ok: true,
+        state: 'complete',
+        value: 'done',
+      );
+
+      final result = await bindings.resumeAsFuture();
+
+      expect(result.state, 'complete');
+      expect(result.value, 'done');
+      expect(mock.resumeAsFutureCalls, 1);
     });
 
-    test('resolveFutures throws UnsupportedError', () {
-      expect(() => bindings.resolveFutures('{}', '{}'), throwsUnsupportedError);
+    test('cancel error throws MontyCancelledError', () async {
+      mock.throwOnResumeAsFuture = 'MontyCancelled: Worker terminated';
+
+      await expectLater(
+        () => bindings.resumeAsFuture(),
+        throwsA(isA<MontyCancelledError>()),
+      );
+    });
+  });
+
+  // ===========================================================================
+  // resolveFutures()
+  // ===========================================================================
+  group('resolveFutures()', () {
+    test('delegates and translates result', () async {
+      mock.nextResolveFuturesResult = const WasmProgressResult(
+        ok: true,
+        state: 'resolve_futures',
+        pendingCallIds: [1, 2],
+      );
+
+      final result = await bindings.resolveFutures('{"1":"a"}', '{}');
+
+      expect(result.state, 'resolve_futures');
+      expect(result.pendingCallIds, [1, 2]);
+      expect(mock.resolveFuturesCalls, hasLength(1));
+    });
+
+    test('cancel error throws MontyCancelledError', () async {
+      mock.throwOnResolveFutures = 'MontyCancelled: Worker terminated';
+
+      await expectLater(
+        () => bindings.resolveFutures('{}', '{}'),
+        throwsA(isA<MontyCancelledError>()),
+      );
     });
   });
 
@@ -328,6 +397,15 @@ void main() {
 
       expect(data, Uint8List.fromList([10, 20, 30]));
       expect(mock.snapshotCalls, 1);
+    });
+
+    test('cancel error throws MontyCancelledError', () async {
+      mock.nextSnapshotError = 'MontyCancelled: snapshot cancelled';
+
+      await expectLater(
+        () => bindings.snapshot(),
+        throwsA(isA<MontyCancelledError>()),
+      );
     });
   });
 
@@ -349,6 +427,20 @@ void main() {
     test('delegates to bindings', () async {
       await bindings.cancel();
       expect(mock.cancelCalls, 1);
+    });
+
+    test('unregisters handleId and clears sessionId after init', () async {
+      await bindings.init();
+      expect(bindings.handleId, isNotNull);
+
+      await bindings.cancel();
+
+      expect(mock.cancelCalls, 1);
+      expect(bindings.handleId, isNull);
+      // After cancel, init() should be able to respawn
+      await bindings.init();
+      expect(bindings.handleId, isNotNull);
+      expect(mock.createSessionCalls, 2);
     });
   });
 
@@ -397,6 +489,24 @@ void main() {
       await expectLater(
         () => bindings.run('x'),
         throwsA(isA<MontyResourceError>()),
+      );
+    });
+
+    test('run: Panic prefix throws MontyPanicError', () async {
+      mock.throwOnRun = 'Panic: WASM trap';
+
+      await expectLater(
+        () => bindings.run('x'),
+        throwsA(isA<MontyPanicError>()),
+      );
+    });
+
+    test('run: RuntimeError prefix throws MontyPanicError', () async {
+      mock.throwOnRun = 'WebAssembly.RuntimeError: unreachable';
+
+      await expectLater(
+        () => bindings.run('x'),
+        throwsA(isA<MontyPanicError>()),
       );
     });
 

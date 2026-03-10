@@ -13,7 +13,7 @@
     "resumeValues": null,
     "resumeErrors": null,
     "asyncResumeMap": {"0": "response_x"},
-    "nativeOnly": true,
+    "nativeOnly": false,
     "xfail": null
   },
   {
@@ -30,7 +30,7 @@
     "resumeValues": null,
     "resumeErrors": null,
     "asyncResumeMap": {"0": 10, "1": 32},
-    "nativeOnly": true,
+    "nativeOnly": false,
     "xfail": null
   },
   {
@@ -48,7 +48,7 @@
     "resumeErrors": null,
     "asyncResumeMap": {},
     "asyncErrorMap": {"0": "network timeout"},
-    "nativeOnly": true,
+    "nativeOnly": false,
     "xfail": null
   },
   {
@@ -65,7 +65,7 @@
     "resumeValues": null,
     "resumeErrors": null,
     "asyncResumeMap": {"0": 10, "1": 32},
-    "nativeOnly": true,
+    "nativeOnly": false,
     "xfail": null
   },
   {
@@ -83,7 +83,7 @@
     "resumeErrors": null,
     "asyncResumeMap": {"0": 10},
     "asyncErrorMap": {"1": "bar failed"},
-    "nativeOnly": true,
+    "nativeOnly": false,
     "xfail": null
   },
   {
@@ -100,7 +100,7 @@
     "resumeValues": null,
     "resumeErrors": null,
     "asyncResumeMap": {"0": "x", "1": "y", "2": "z"},
-    "nativeOnly": true,
+    "nativeOnly": false,
     "xfail": null
   }
 ]

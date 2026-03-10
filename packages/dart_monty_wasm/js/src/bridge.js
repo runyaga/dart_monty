@@ -37,10 +37,16 @@ function createSession() {
   return new Promise((resolve, reject) => {
     const sessionId = nextSessionId++;
     try {
-      const worker = new Worker(
-        new URL('./dart_monty_worker.js', _bridgeBase),
-        { type: 'module' },
+      // Blob URL trampoline: allows Worker creation when bridge.js is
+      // served from a different origin (e.g. CDN). Direct cross-origin
+      // Worker URLs throw SecurityError; a same-origin Blob proxy avoids it.
+      const workerUrl = new URL('./dart_monty_worker.js', _bridgeBase).href;
+      const blob = new Blob(
+        [`import "${workerUrl}";`],
+        { type: 'application/javascript' },
       );
+      const blobUrl = URL.createObjectURL(blob);
+      const worker = new Worker(blobUrl, { type: 'module' });
 
       worker.onerror = (event) => {
         const session = sessions.get(sessionId);
@@ -48,7 +54,7 @@ function createSession() {
           // Worker crashed — reject all pending promises
           for (const req of session.pending.values()) {
             if (req.timer) clearTimeout(req.timer);
-            req.reject(new Error(`Worker crashed: ${event.message || event}`));
+            req.reject(new Error(`Panic: Worker crashed: ${event.message || event}`));
           }
           session.pending.clear();
           sessions.delete(sessionId);
@@ -62,6 +68,7 @@ function createSession() {
         const msg = e.data;
 
         if (msg.type === 'ready') {
+          URL.revokeObjectURL(blobUrl);
           sessions.set(sessionId, {
             worker,
             nextMsgId: 1,
@@ -105,7 +112,7 @@ function disposeSession(sessionId) {
   if (!session) return;
   for (const req of session.pending.values()) {
     if (req.timer) clearTimeout(req.timer);
-    req.reject(new Error('Session disposed'));
+    req.reject(new Error('MontyDisposed: Session disposed'));
   }
   session.pending.clear();
   session.worker.terminate();
@@ -140,7 +147,7 @@ function callWorker(sessionId, msg, timeoutMs) {
         // Timeout — reject ALL pending promises for this session
         for (const req of session.pending.values()) {
           if (req.timer) clearTimeout(req.timer);
-          req.reject(new Error('Execution timed out'));
+          req.reject(new Error('MontyWorkerError: Execution timed out'));
         }
         session.pending.clear();
         session.worker.terminate();
@@ -297,13 +304,48 @@ async function resumeWithError(errorJson) {
 }
 
 /**
+ * Resume by creating a future for the pending external function call.
+ *
+ * @returns {Promise<string>} JSON result with state: pending, resolve_futures, or complete.
+ */
+async function resumeAsFuture() {
+  const sid = resolveSessionId(null);
+  if (sid == null || !sessions.has(sid)) return notInitializedError();
+
+  const session = sessions.get(sid);
+  const result = await callWorker(sid, { type: 'resumeAsFuture' }, session.timeoutMs);
+  return JSON.stringify(result);
+}
+
+/**
+ * Resolve pending futures with results and errors.
+ *
+ * @param {string} resultsJson JSON object {"callId": value, ...}.
+ * @param {string} errorsJson  JSON object {"callId": "errorMsg", ...}.
+ * @returns {Promise<string>} JSON result.
+ */
+async function resolveFutures(resultsJson, errorsJson) {
+  const sid = resolveSessionId(null);
+  if (sid == null || !sessions.has(sid)) return notInitializedError();
+
+  const session = sessions.get(sid);
+  const result = await callWorker(
+    sid, { type: 'resolveFutures', resultsJson, errorsJson }, session.timeoutMs,
+  );
+  return JSON.stringify(result);
+}
+
+/**
  * Capture the current interpreter state as a snapshot.
  *
  * @returns {Promise<string>} JSON result with base64-encoded data.
  */
 async function snapshot() {
   const sid = resolveSessionId(null);
-  if (sid == null || !sessions.has(sid)) return notInitializedError();
+  if (sid == null || !sessions.has(sid)) {
+    // Return a raw JS object (not JSON string) — Dart casts to _SnapshotResult.
+    return { ok: false, error: 'Not initialized' };
+  }
 
   const session = sessions.get(sid);
   const result = await callWorker(sid, { type: 'snapshot' }, session.timeoutMs);
@@ -340,6 +382,35 @@ function discover() {
 }
 
 /**
+ * Cancel the current execution by terminating the Worker.
+ *
+ * Terminates the Worker immediately (preemptive kill), rejects all
+ * pending promises with 'MontyCancelled:' prefix so Dart maps them
+ * to [MontyCancelledError], and removes the session.
+ *
+ * Idempotent — safe to call if no session exists.
+ *
+ * @returns {Promise<string>} JSON result.
+ */
+async function cancel() {
+  const sid = resolveSessionId(null);
+  if (sid == null || !sessions.has(sid)) {
+    return JSON.stringify({ ok: true });
+  }
+  const session = sessions.get(sid);
+  // Reject all pending promises with cancel prefix
+  for (const req of session.pending.values()) {
+    if (req.timer) clearTimeout(req.timer);
+    req.reject(new Error('MontyCancelled: execution cancelled'));
+  }
+  session.pending.clear();
+  session.worker.terminate();
+  sessions.delete(sid);
+  if (defaultSessionId === sid) defaultSessionId = null;
+  return JSON.stringify({ ok: true });
+}
+
+/**
  * Dispose the default Worker session.
  *
  * @returns {Promise<string>} JSON result.
@@ -366,9 +437,12 @@ window.DartMontyBridge = {
   start,
   resume,
   resumeWithError,
+  resumeAsFuture,
+  resolveFutures,
   snapshot,
   restore,
   discover,
+  cancel,
   dispose,
   // Phase 2 multi-session API
   createSession,

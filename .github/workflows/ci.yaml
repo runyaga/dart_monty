@@ -197,7 +197,7 @@ jobs:
 
   build-js-wrapper:
     name: Build JS wrapper
-    needs: [changes]
+    needs: [changes, build-wasm]
     if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -208,6 +208,11 @@ jobs:
           node-version: '20'
           cache: 'npm'
           cache-dependency-path: packages/dart_monty_wasm/js/package-lock.json
+      - name: Download WASM binary
+        uses: actions/download-artifact@v4
+        with:
+          name: wasm-binary
+          path: native/target/wasm32-wasip1/release
       - name: Install dependencies
         working-directory: packages/dart_monty_wasm/js
         run: npm install
@@ -219,11 +224,11 @@ jobs:
           ls -la packages/dart_monty_wasm/assets/
           test -f packages/dart_monty_wasm/assets/dart_monty_bridge.js
           test -f packages/dart_monty_wasm/assets/dart_monty_worker.js
-          test -f packages/dart_monty_wasm/assets/wasi-worker-browser.mjs
+          test -f packages/dart_monty_wasm/assets/dart_monty_native.wasm
 
   wasm-ladder:
     name: WASM ladder integration
-    needs: [changes]
+    needs: [changes, build-wasm]
     if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -238,6 +243,11 @@ jobs:
         with:
           channel: stable
           cache: true
+      - name: Download WASM binary
+        uses: actions/download-artifact@v4
+        with:
+          name: wasm-binary
+          path: native/target/wasm32-wasip1/release
       - name: Build JS bridge
         working-directory: packages/dart_monty_wasm/js
         run: npm install && npm run build
@@ -247,7 +257,6 @@ jobs:
           INTEG_WEB="$PKG/test/integration/web"
           cp "$PKG/assets/dart_monty_bridge.js" "$INTEG_WEB/"
           cp "$PKG/assets/dart_monty_worker.js" "$INTEG_WEB/"
-          cp "$PKG/assets/wasi-worker-browser.mjs" "$INTEG_WEB/"
           cp "$PKG/assets/"*.wasm "$INTEG_WEB/"
           cd "$PKG"
           dart pub get
@@ -419,13 +428,19 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: wasm32-wasip1-threads
+          targets: wasm32-wasip1
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: native
       - name: Build WASM
         working-directory: native
-        run: cargo build --release --target wasm32-wasip1-threads
+        run: cargo build --release --target wasm32-wasip1
+      - name: Upload WASM binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: wasm-binary
+          path: native/target/wasm32-wasip1/release/dart_monty_native.wasm
+          retention-days: 1
 
   patch-coverage:
     name: Patch coverage gate (90%)

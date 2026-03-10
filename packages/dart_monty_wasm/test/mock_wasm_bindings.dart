@@ -61,6 +61,24 @@ class MockWasmBindings extends WasmBindings {
   /// If non-null, [resumeWithError] throws this message as a [StateError].
   String? throwOnResumeWithError;
 
+  /// If non-null, [resumeAsFuture] throws this message as a [StateError].
+  String? throwOnResumeAsFuture;
+
+  /// Result returned by [resumeAsFuture].
+  WasmProgressResult nextResumeAsFutureResult = const WasmProgressResult(
+    ok: true,
+    state: 'complete',
+  );
+
+  /// If non-null, [resolveFutures] throws this message as a [StateError].
+  String? throwOnResolveFutures;
+
+  /// Result returned by [resolveFutures].
+  WasmProgressResult nextResolveFuturesResult = const WasmProgressResult(
+    ok: true,
+    state: 'complete',
+  );
+
   // ---------------------------------------------------------------------------
   // Call tracking
   // ---------------------------------------------------------------------------
@@ -96,6 +114,13 @@ class MockWasmBindings extends WasmBindings {
 
   /// Number of times [discover] was called.
   int discoverCalls = 0;
+
+  /// Number of times [resumeAsFuture] was called.
+  int resumeAsFutureCalls = 0;
+
+  /// Records of `(resultsJson, errorsJson)` passed to [resolveFutures].
+  final List<({String resultsJson, String errorsJson})> resolveFuturesCalls =
+      [];
 
   /// Number of times [cancel] was called.
   int cancelCalls = 0;
@@ -195,7 +220,11 @@ class MockWasmBindings extends WasmBindings {
 
   @override
   Future<WasmProgressResult> resumeAsFuture() async {
-    throw UnsupportedError('resumeAsFuture() not supported in WASM');
+    resumeAsFutureCalls++;
+    if (throwOnResumeAsFuture != null) {
+      throw StateError(throwOnResumeAsFuture!);
+    }
+    return nextResumeAsFutureResult;
   }
 
   @override
@@ -203,7 +232,11 @@ class MockWasmBindings extends WasmBindings {
     String resultsJson,
     String errorsJson,
   ) async {
-    throw UnsupportedError('resolveFutures() not supported in WASM');
+    resolveFuturesCalls.add((resultsJson: resultsJson, errorsJson: errorsJson));
+    if (throwOnResolveFutures != null) {
+      throw StateError(throwOnResolveFutures!);
+    }
+    return nextResolveFuturesResult;
   }
 
   @override

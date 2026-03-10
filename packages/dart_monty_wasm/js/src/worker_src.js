@@ -1,370 +1,710 @@
 /**
- * worker_src.js — Runs @pydantic/monty WASM inside a Web Worker.
+ * worker_src.js — Runs dart_monty_native.wasm inside a Web Worker via C-ABI.
  *
- * Chrome's 8MB synchronous WASM compile limit does NOT apply in Workers.
- * We directly use the stock NAPI-RS browser loader here.
+ * Replaces the NAPI-RS class-based approach with direct calls to the 28
+ * exported C functions. String marshalling via monty_alloc/monty_dealloc.
  *
  * Bundled by esbuild into dart_monty_worker.js for the browser.
  */
 
 import {
-  Monty,
-  MontySnapshot,
-  MontyComplete,
-  MontyException,
-  MontyTypingError,
-} from '@pydantic/monty-wasm32-wasi/monty.wasi-browser.js';
+  instantiateMonty,
+  getExports,
+  allocCString,
+  readCString,
+  readAndFreeCString,
+  allocOutPtr,
+  PROGRESS_COMPLETE,
+  PROGRESS_PENDING,
+  PROGRESS_ERROR,
+  PROGRESS_RESOLVE_FUTURES,
+  RESULT_OK,
+} from './wasm_glue.js';
 
-let activeSnapshot = null;
-let activeMonty = null;
-let callIdCounter = 0;
+let wasm = null;
 
-// Signal ready
-self.postMessage({
-  type: 'ready',
-  exports: ['Monty', 'MontySnapshot', 'MontyComplete'],
-});
+// ---------------------------------------------------------------------------
+// Initialization
+// ---------------------------------------------------------------------------
 
-/**
- * Convert a JS Frame object to the snake_case JSON that Dart expects.
- */
-function frameToJson(f) {
-  const obj = {
-    filename: f.filename,
-    start_line: f.line,
-    start_column: f.column,
-    end_line: f.endLine,
-    end_column: f.endColumn,
-  };
-  if (f.functionName != null) obj.frame_name = f.functionName;
-  if (f.sourceLine != null) obj.preview_line = f.sourceLine;
-  return obj;
+async function initWasm() {
+  const wasmUrl = new URL('./dart_monty_native.wasm', import.meta.url);
+  wasm = await instantiateMonty(wasmUrl);
+  self.postMessage({
+    type: 'ready',
+    exports: Object.keys(wasm).filter((k) => k.startsWith('monty_')),
+  });
 }
 
-function formatError(e) {
-  if (e instanceof MontyException) {
-    const ex = e.exception || e;
-    const result = {
-      error: ex.message || String(e),
-      errorType: ex.typeName || 'MontyException',
-      excType: ex.typeName || null,
+// ---------------------------------------------------------------------------
+// Error schema adapter (C-ABI → Dart-expected format)
+// ---------------------------------------------------------------------------
+
+/**
+ * Flatten C-ABI result JSON for Dart consumption.
+ *
+ * C-ABI: { value, error: { message, exc_type, traceback }, usage, print_output }
+ * Dart:  { ok, value?, print_output?, error?, errorType?, excType?, traceback? }
+ */
+function adaptResultForDart(cabiResultJson, isError) {
+  const parsed = JSON.parse(cabiResultJson);
+  if (isError) {
+    const err = (parsed.error && typeof parsed.error === 'object')
+      ? parsed.error
+      : { message: parsed.error ? String(parsed.error) : 'Unknown error' };
+    return {
+      ok: false,
+      error: err.message || String(err),
+      errorType: err.exc_type || 'MontyException',
+      excType: err.exc_type || null,
+      traceback: err.traceback || null,
     };
-    try {
-      const frames = e.traceback();
-      if (frames && frames.length > 0) {
-        result.traceback = frames.map(frameToJson);
-      }
-    } catch (_) {
-      // traceback() may fail for some error types
-    }
-    return result;
-  }
-  if (e instanceof MontyTypingError) {
-    return { error: e.message || String(e), errorType: 'MontyTypingError' };
   }
   return {
-    error: e.message || String(e),
-    errorType: e.constructor?.name || 'UnknownError',
+    ok: true,
+    value: parsed.value,
+    print_output: parsed.print_output || null,
   };
 }
 
-/**
- * Translate Dart-side limits to Monty NAPI-RS options.
- *
- * Dart sends: { memory_bytes, timeout_ms, stack_depth }
- * Monty expects: { maxMemory, maxDurationSecs, maxRecursionDepth }
- */
-function translateLimits(limits) {
-  if (!limits) return {};
-  const opts = {};
-  if (limits.memory_bytes != null) {
-    opts.maxMemory = limits.memory_bytes;
-  }
-  if (limits.timeout_ms != null) {
-    opts.maxDurationSecs = limits.timeout_ms / 1000;
-  }
-  if (limits.stack_depth != null) {
-    opts.maxRecursionDepth = limits.stack_depth;
-  }
-  return opts;
-}
+// ---------------------------------------------------------------------------
+// Progress reading (shared by start, resume, resumeAsFuture, resumeFutures)
+// ---------------------------------------------------------------------------
 
 /**
- * Recursively convert JS Map objects to plain objects so that
- * JSON.stringify() can serialize them.  Monty's WASM runtime may
- * represent Python dicts as JS Maps which JSON.stringify ignores.
+ * Read progress state from a handle after a C-ABI progress call.
+ * @returns {Object} message payload to send back to main thread.
  */
-function toSerializable(val, seen) {
-  // Primitives and null pass through
-  if (val === null || val === undefined || typeof val !== 'object') {
-    if (typeof val === 'bigint') {
-      return Number.isSafeInteger(Number(val)) ? Number(val) : String(val);
+function readProgress(id, handle, tag, errMsg) {
+  switch (tag) {
+    case PROGRESS_COMPLETE: {
+      const isErr = wasm.monty_complete_is_error(handle);
+      const ptr = wasm.monty_complete_result_json(handle);
+      const json = readAndFreeCString(ptr);
+      if (json) {
+        const adapted = adaptResultForDart(json, isErr === 1);
+        return { type: 'result', id, ...adapted, state: adapted.ok ? 'complete' : undefined };
+      }
+      if (isErr === 1) {
+        return {
+          type: 'result', id, ok: false,
+          error: 'Execution failed (no error context)',
+          errorType: 'MontyException',
+        };
+      }
+      return { type: 'result', id, ok: true, state: 'complete', value: null };
     }
-    return val;
-  }
 
-  // Circular reference guard
-  if (!seen) seen = new WeakSet();
-  if (seen.has(val)) return null;
-  seen.add(val);
+    case PROGRESS_PENDING: {
+      const fnName = readAndFreeCString(wasm.monty_pending_fn_name(handle));
+      const argsJson = readAndFreeCString(wasm.monty_pending_fn_args_json(handle));
+      const kwargsJson = readAndFreeCString(wasm.monty_pending_fn_kwargs_json(handle));
+      const callId = wasm.monty_pending_call_id(handle);
+      const methodCall = wasm.monty_pending_method_call(handle);
 
-  // Date — pass through for JSON.stringify
-  if (val instanceof Date) return val;
-
-  // TypedArrays — convert to plain Array for JSON safety
-  if (ArrayBuffer.isView(val)) return Array.from(val);
-
-  // Array
-  if (Array.isArray(val)) {
-    return val.map((v) => toSerializable(v, seen));
-  }
-
-  // Map or duck-typed Map (Maps have .get, Sets do not)
-  if (val instanceof Map ||
-      (typeof val.entries === 'function' && typeof val.size === 'number' &&
-       typeof val.get === 'function')) {
-    const obj = {};
-    for (const [k, v] of val.entries()) {
-      obj[String(k)] = toSerializable(v, seen);
+      return {
+        type: 'result',
+        id,
+        ok: true,
+        state: 'pending',
+        functionName: fnName,
+        args: argsJson ? JSON.parse(argsJson) : [],
+        kwargs: kwargsJson ? JSON.parse(kwargsJson) : {},
+        callId,
+        methodCall: methodCall === 1,
+      };
     }
-    return obj;
-  }
 
-  // Set or duck-typed Set (Sets have .has but lack .get)
-  if (val instanceof Set ||
-      (typeof val.has === 'function' && typeof val.size === 'number' &&
-       typeof val.get === 'undefined')) {
-    const arr = [];
-    for (const v of val) {
-      arr.push(toSerializable(v, seen));
+    case PROGRESS_RESOLVE_FUTURES: {
+      const idsPtr = wasm.monty_pending_future_call_ids(handle);
+      const idsJson = readAndFreeCString(idsPtr);
+      return {
+        type: 'result',
+        id,
+        ok: true,
+        state: 'resolve_futures',
+        pendingCallIds: idsJson ? JSON.parse(idsJson) : [],
+      };
     }
-    return arr;
-  }
 
-  // Plain object fallback
-  const obj = {};
-  for (const k of Object.keys(val)) {
-    obj[k] = toSerializable(val[k], seen);
-  }
-  return obj;
-}
+    case PROGRESS_ERROR:
+      return {
+        type: 'result',
+        id,
+        ok: false,
+        error: errMsg || 'Unknown error',
+        errorType: 'MontyException',
+      };
 
-/**
- * Post a progress result (pending or complete) back to the main thread.
- * Handles MontySnapshot (pending) vs MontyComplete dispatch.
- */
-function postProgress(id, progress) {
-  if (progress instanceof MontySnapshot) {
-    callIdCounter++;
-    activeSnapshot = progress;
-    self.postMessage({
-      type: 'result',
-      id,
-      ok: true,
-      state: 'pending',
-      functionName: progress.functionName,
-      args: toSerializable(progress.args),
-      kwargs: toSerializable(progress.kwargs),
-      callId: callIdCounter,
-    });
-  } else {
-    activeSnapshot = null;
-    activeMonty = null;
-    self.postMessage({
-      type: 'result',
-      id,
-      ok: true,
-      state: 'complete',
-      value: toSerializable(progress.output),
-    });
+    default:
+      return {
+        type: 'result',
+        id,
+        ok: false,
+        error: `Unknown progress tag: ${tag}`,
+        errorType: 'InternalError',
+      };
   }
 }
 
-/**
- * Post an error result, clearing active state.
- */
-function postError(id, error) {
-  activeSnapshot = null;
-  activeMonty = null;
-  self.postMessage({ type: 'result', id, ok: false, ...formatError(error) });
-}
+// ---------------------------------------------------------------------------
+// Per-session handle state
+// ---------------------------------------------------------------------------
+
+let activeHandle = null;
+
+// ---------------------------------------------------------------------------
+// Handlers
+// ---------------------------------------------------------------------------
 
 function handleRun(id, code, limits, scriptName) {
+  let cCode = null;
+  let cName = null;
+  let outError = null;
+
+  let handle;
   try {
-    const opts = translateLimits(limits);
-    if (scriptName) opts.scriptName = scriptName;
-    const m = Monty.create(code, opts);
-    if (m instanceof MontyException || m instanceof MontyTypingError) {
-      postError(id, m);
-      return;
-    }
-    const result = m.run();
-    if (result instanceof MontyException) {
-      postError(id, result);
-      return;
-    }
-    self.postMessage({ type: 'result', id, ok: true, value: toSerializable(result) });
+    outError = allocOutPtr();
+    cCode = allocCString(code);
+    cName = scriptName ? allocCString(scriptName) : null;
+    handle = wasm.monty_create(cCode.ptr, 0, cName ? cName.ptr : 0, outError.ptr);
   } catch (e) {
-    postError(id, e);
+    if (outError) outError.free();
+    throw e;
+  } finally {
+    if (cCode) wasm.monty_dealloc(cCode.ptr, cCode.size);
+    if (cName) wasm.monty_dealloc(cName.ptr, cName.size);
+  }
+
+  if (handle === 0) {
+    const errPtr = outError.read();
+    const errMsg = readAndFreeCString(errPtr);
+    outError.free();
+    self.postMessage({
+      type: 'result', id, ok: false,
+      error: errMsg || 'monty_create failed',
+      errorType: 'CompileError',
+    });
+    return;
+  }
+  outError.free();
+
+  // Apply limits
+  if (limits) {
+    if (limits.memory_bytes != null) wasm.monty_set_memory_limit(handle, limits.memory_bytes);
+    if (limits.timeout_ms != null) wasm.monty_set_time_limit_ms(handle, BigInt(limits.timeout_ms));
+    if (limits.stack_depth != null) wasm.monty_set_stack_limit(handle, limits.stack_depth);
+  }
+
+  let outResult = null;
+  let outErrMsg = null;
+
+  let resultTag;
+  try {
+    outResult = allocOutPtr();
+    outErrMsg = allocOutPtr();
+    resultTag = wasm.monty_run(handle, outResult.ptr, outErrMsg.ptr);
+  } catch (e) {
+    // WebAssembly.RuntimeError = panic trap (panic=abort on wasm32-wasip1)
+    if (outResult) outResult.free();
+    if (outErrMsg) outErrMsg.free();
+    wasm.monty_free(handle);
+    self.postMessage({
+      type: 'result', id, ok: false,
+      error: e.message || String(e),
+      errorType: 'Panic',
+    });
+    return;
+  }
+
+  const resultPtr = outResult.read();
+  const errorPtr = outErrMsg.read();
+  const resultJson = readAndFreeCString(resultPtr);
+  const errorMsg = readAndFreeCString(errorPtr);
+  outResult.free();
+  outErrMsg.free();
+  wasm.monty_free(handle);
+
+  if (resultTag === RESULT_OK && resultJson) {
+    const adapted = adaptResultForDart(resultJson, false);
+    self.postMessage({ type: 'result', id, ...adapted });
+  } else if (resultJson) {
+    const adapted = adaptResultForDart(resultJson, true);
+    self.postMessage({ type: 'result', id, ...adapted });
+  } else {
+    self.postMessage({
+      type: 'result', id, ok: false,
+      error: errorMsg || 'monty_run failed',
+      errorType: 'MontyException',
+    });
   }
 }
 
 function handleStart(id, code, extFns, limits, scriptName) {
-  try {
-    callIdCounter = 0;
-    const opts = translateLimits(limits);
-    if (scriptName) opts.scriptName = scriptName;
-    if (extFns && extFns.length > 0) {
-      opts.externalFunctions = extFns;
-    }
-    const m = Monty.create(code, opts);
-    if (m instanceof MontyException || m instanceof MontyTypingError) {
-      postError(id, m);
-      return;
-    }
-    activeMonty = m;
-    const progress = m.start();
-    if (progress instanceof MontyException) {
-      postError(id, progress);
-      return;
-    }
-    postProgress(id, progress);
-  } catch (e) {
-    postError(id, e);
+  // Free any abandoned execution before starting a new one.
+  if (activeHandle) {
+    wasm.monty_free(activeHandle);
+    activeHandle = null;
   }
+
+  let cCode = null;
+  let cExtFns = null;
+  let cName = null;
+  let outError = null;
+
+  let handle;
+  try {
+    outError = allocOutPtr();
+    cCode = allocCString(code);
+    cExtFns = extFns && extFns.length > 0 ? allocCString(extFns.join(',')) : null;
+    cName = scriptName ? allocCString(scriptName) : null;
+    handle = wasm.monty_create(
+      cCode.ptr, cExtFns ? cExtFns.ptr : 0, cName ? cName.ptr : 0, outError.ptr,
+    );
+  } catch (e) {
+    if (outError) outError.free();
+    throw e;
+  } finally {
+    if (cCode) wasm.monty_dealloc(cCode.ptr, cCode.size);
+    if (cExtFns) wasm.monty_dealloc(cExtFns.ptr, cExtFns.size);
+    if (cName) wasm.monty_dealloc(cName.ptr, cName.size);
+  }
+
+  if (handle === 0) {
+    const errPtr = outError.read();
+    const errMsg = readAndFreeCString(errPtr);
+    outError.free();
+    self.postMessage({
+      type: 'result', id, ok: false,
+      error: errMsg || 'monty_create failed',
+      errorType: 'CompileError',
+    });
+    return;
+  }
+  outError.free();
+
+  // Apply limits
+  if (limits) {
+    if (limits.memory_bytes != null) wasm.monty_set_memory_limit(handle, limits.memory_bytes);
+    if (limits.timeout_ms != null) wasm.monty_set_time_limit_ms(handle, BigInt(limits.timeout_ms));
+    if (limits.stack_depth != null) wasm.monty_set_stack_limit(handle, limits.stack_depth);
+  }
+
+  activeHandle = handle;
+
+  let outErr;
+  let tag;
+  try {
+    outErr = allocOutPtr();
+    tag = wasm.monty_start(handle, outErr.ptr);
+  } catch (e) {
+    if (outErr) outErr.free();
+    activeHandle = null;
+    wasm.monty_free(handle);
+    self.postMessage({
+      type: 'result', id, ok: false,
+      error: e.message || String(e),
+      errorType: 'Panic',
+    });
+    return;
+  }
+
+  const errPtr = outErr.read();
+  const errMsg = readAndFreeCString(errPtr);
+  outErr.free();
+
+  let msg;
+  try {
+    msg = readProgress(id, handle, tag, errMsg);
+  } catch (e) {
+    activeHandle = null;
+    wasm.monty_free(handle);
+    throw e;
+  }
+  if (tag === PROGRESS_COMPLETE || tag === PROGRESS_ERROR) {
+    activeHandle = null;
+    wasm.monty_free(handle);
+  }
+  self.postMessage(msg);
 }
 
 function handleResume(id, value) {
-  if (!activeSnapshot) {
+  if (!activeHandle) {
     self.postMessage({
-      type: 'result',
-      id,
-      ok: false,
-      error: 'No active snapshot to resume.',
+      type: 'result', id, ok: false,
+      error: 'No active handle to resume.',
       errorType: 'StateError',
     });
     return;
   }
+
+  let cVal = null;
+  let outErr = null;
+
+  let tag;
   try {
-    const progress = activeSnapshot.resume({ returnValue: value });
-    if (progress instanceof MontyException) {
-      postError(id, progress);
-      return;
-    }
-    postProgress(id, progress);
+    cVal = allocCString(JSON.stringify(value));
+    outErr = allocOutPtr();
+    tag = wasm.monty_resume(activeHandle, cVal.ptr, outErr.ptr);
   } catch (e) {
-    postError(id, e);
+    if (cVal) wasm.monty_dealloc(cVal.ptr, cVal.size);
+    if (outErr) outErr.free();
+    wasm.monty_free(activeHandle);
+    activeHandle = null;
+    self.postMessage({
+      type: 'result', id, ok: false,
+      error: e.message || String(e),
+      errorType: 'Panic',
+    });
+    return;
   }
+  wasm.monty_dealloc(cVal.ptr, cVal.size);
+
+  const errPtr = outErr.read();
+  const errMsg = readAndFreeCString(errPtr);
+  outErr.free();
+
+  let msg;
+  try {
+    msg = readProgress(id, activeHandle, tag, errMsg);
+  } catch (e) {
+    wasm.monty_free(activeHandle);
+    activeHandle = null;
+    throw e;
+  }
+  if (tag === PROGRESS_COMPLETE || tag === PROGRESS_ERROR) {
+    wasm.monty_free(activeHandle);
+    activeHandle = null;
+  }
+  self.postMessage(msg);
 }
 
 function handleResumeWithError(id, errorMessage) {
-  if (!activeSnapshot) {
+  if (!activeHandle) {
     self.postMessage({
-      type: 'result',
-      id,
-      ok: false,
-      error: 'No active snapshot to resume.',
+      type: 'result', id, ok: false,
+      error: 'No active handle to resume.',
       errorType: 'StateError',
     });
     return;
   }
+
+  let cErr = null;
+  let outErr = null;
+
+  let tag;
   try {
-    const progress = activeSnapshot.resume({
-      exception: { type: 'Exception', message: errorMessage },
-    });
-    if (progress instanceof MontyException) {
-      postError(id, progress);
-      return;
-    }
-    postProgress(id, progress);
+    cErr = allocCString(errorMessage);
+    outErr = allocOutPtr();
+    tag = wasm.monty_resume_with_error(activeHandle, cErr.ptr, outErr.ptr);
   } catch (e) {
-    postError(id, e);
+    if (cErr) wasm.monty_dealloc(cErr.ptr, cErr.size);
+    if (outErr) outErr.free();
+    wasm.monty_free(activeHandle);
+    activeHandle = null;
+    self.postMessage({
+      type: 'result', id, ok: false,
+      error: e.message || String(e),
+      errorType: 'Panic',
+    });
+    return;
   }
+  wasm.monty_dealloc(cErr.ptr, cErr.size);
+
+  const errPtr = outErr.read();
+  const errMsg = readAndFreeCString(errPtr);
+  outErr.free();
+
+  let msg;
+  try {
+    msg = readProgress(id, activeHandle, tag, errMsg);
+  } catch (e) {
+    wasm.monty_free(activeHandle);
+    activeHandle = null;
+    throw e;
+  }
+  if (tag === PROGRESS_COMPLETE || tag === PROGRESS_ERROR) {
+    wasm.monty_free(activeHandle);
+    activeHandle = null;
+  }
+  self.postMessage(msg);
+}
+
+function handleResumeAsFuture(id) {
+  if (!activeHandle) {
+    self.postMessage({
+      type: 'result', id, ok: false,
+      error: 'No active handle for resumeAsFuture.',
+      errorType: 'StateError',
+    });
+    return;
+  }
+
+  const outErr = allocOutPtr();
+  let tag;
+  try {
+    tag = wasm.monty_resume_as_future(activeHandle, outErr.ptr);
+  } catch (e) {
+    outErr.free();
+    wasm.monty_free(activeHandle);
+    activeHandle = null;
+    self.postMessage({
+      type: 'result', id, ok: false,
+      error: e.message || String(e),
+      errorType: 'Panic',
+    });
+    return;
+  }
+
+  const errPtr = outErr.read();
+  const errMsg = readAndFreeCString(errPtr);
+  outErr.free();
+
+  let msg;
+  try {
+    msg = readProgress(id, activeHandle, tag, errMsg);
+  } catch (e) {
+    wasm.monty_free(activeHandle);
+    activeHandle = null;
+    throw e;
+  }
+  if (tag === PROGRESS_COMPLETE || tag === PROGRESS_ERROR) {
+    wasm.monty_free(activeHandle);
+    activeHandle = null;
+  }
+  self.postMessage(msg);
+}
+
+function handleResolveFutures(id, resultsJson, errorsJson) {
+  if (!activeHandle) {
+    self.postMessage({
+      type: 'result', id, ok: false,
+      error: 'No active handle for resolveFutures.',
+      errorType: 'StateError',
+    });
+    return;
+  }
+
+  let cResults = null;
+  let cErrors = null;
+  let outErr = null;
+
+  let tag;
+  try {
+    cResults = allocCString(resultsJson);
+    cErrors = allocCString(errorsJson);
+    outErr = allocOutPtr();
+    tag = wasm.monty_resume_futures(activeHandle, cResults.ptr, cErrors.ptr, outErr.ptr);
+  } catch (e) {
+    if (cResults) wasm.monty_dealloc(cResults.ptr, cResults.size);
+    if (cErrors) wasm.monty_dealloc(cErrors.ptr, cErrors.size);
+    if (outErr) outErr.free();
+    wasm.monty_free(activeHandle);
+    activeHandle = null;
+    self.postMessage({
+      type: 'result', id, ok: false,
+      error: e.message || String(e),
+      errorType: 'Panic',
+    });
+    return;
+  }
+  wasm.monty_dealloc(cResults.ptr, cResults.size);
+  wasm.monty_dealloc(cErrors.ptr, cErrors.size);
+
+  const errPtr = outErr.read();
+  const errMsg = readAndFreeCString(errPtr);
+  outErr.free();
+
+  let msg;
+  try {
+    msg = readProgress(id, activeHandle, tag, errMsg);
+  } catch (e) {
+    wasm.monty_free(activeHandle);
+    activeHandle = null;
+    throw e;
+  }
+  if (tag === PROGRESS_COMPLETE || tag === PROGRESS_ERROR) {
+    wasm.monty_free(activeHandle);
+    activeHandle = null;
+  }
+  self.postMessage(msg);
 }
 
 function handleSnapshot(id) {
-  if (!activeSnapshot) {
+  if (!activeHandle) {
     self.postMessage({
-      type: 'result',
-      id,
-      ok: false,
-      error: 'No active snapshot to dump.',
+      type: 'result', id, ok: false,
+      error: 'No active handle to snapshot.',
       errorType: 'StateError',
     });
     return;
   }
+
+  const outLen = allocOutPtr();
+  let ptr;
   try {
-    const bytes = activeSnapshot.dump();
-    // Copy out of WASM memory — bytes may be a view into linear memory.
-    // Transferring the underlying buffer would detach WASM memory.
-    const copy = bytes.slice();
-    // Transfer the ArrayBuffer to the main thread (zero-copy move).
-    self.postMessage(
-      { type: 'result', id, ok: true, snapshotBuffer: copy.buffer },
-      [copy.buffer],
-    );
+    ptr = wasm.monty_snapshot(activeHandle, outLen.ptr);
   } catch (e) {
-    postError(id, e);
+    outLen.free();
+    self.postMessage({
+      type: 'result', id, ok: false,
+      error: e.message || String(e),
+      errorType: 'Panic',
+    });
+    return;
   }
+
+  if (ptr === 0) {
+    outLen.free();
+    self.postMessage({
+      type: 'result', id, ok: false,
+      error: 'monty_snapshot returned null',
+      errorType: 'StateError',
+    });
+    return;
+  }
+
+  const len = outLen.read();
+  outLen.free();
+
+  // Copy bytes out of WASM memory before freeing.
+  // try/finally ensures WASM buffer is freed even if slice() OOMs.
+  const wasmBytes = new Uint8Array(wasm.memory.buffer, ptr, len);
+  let copy;
+  try {
+    copy = wasmBytes.slice();
+  } finally {
+    wasm.monty_bytes_free(ptr, len);
+  }
+
+  // Transfer ArrayBuffer to main thread (zero-copy move)
+  self.postMessage(
+    { type: 'result', id, ok: true, snapshotBuffer: copy.buffer },
+    [copy.buffer],
+  );
 }
 
 function handleRestore(id, dataBase64) {
-  try {
-    // Decode base64 to Uint8Array
-    const binary = atob(dataBase64);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) {
-      bytes[i] = binary.charCodeAt(i);
-    }
-    const snapshot = MontySnapshot.load(bytes);
-    if (snapshot instanceof MontyException) {
-      postError(id, snapshot);
-      return;
-    }
-    activeSnapshot = snapshot;
-    self.postMessage({ type: 'result', id, ok: true });
-  } catch (e) {
-    postError(id, e);
+  // Free any abandoned execution before restoring.
+  if (activeHandle) {
+    wasm.monty_free(activeHandle);
+    activeHandle = null;
   }
-}
 
-function handleDispose(id) {
-  activeSnapshot = null;
-  activeMonty = null;
+  // Decode base64 to Uint8Array
+  const binary = atob(dataBase64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+
+  // Allocate out-pointer first (small, likely to succeed) so that a
+  // subsequent OOM on the large buffer doesn't leak it.
+  const outError = allocOutPtr();
+
+  const ptr = wasm.monty_alloc(bytes.length);
+  if (ptr === 0) {
+    outError.free();
+    self.postMessage({
+      type: 'result', id, ok: false,
+      error: `monty_alloc(${bytes.length}) returned null — OOM`,
+      errorType: 'MemoryError',
+    });
+    return;
+  }
+  new Uint8Array(wasm.memory.buffer).set(bytes, ptr);
+
+  let handle;
+  try {
+    handle = wasm.monty_restore(ptr, bytes.length, outError.ptr);
+  } catch (e) {
+    outError.free();
+    throw e;
+  } finally {
+    wasm.monty_dealloc(ptr, bytes.length);
+  }
+
+  if (handle === 0) {
+    const errPtr = outError.read();
+    const errMsg = readAndFreeCString(errPtr);
+    outError.free();
+    self.postMessage({
+      type: 'result', id, ok: false,
+      error: errMsg || 'monty_restore failed',
+      errorType: 'RestoreError',
+    });
+    return;
+  }
+  outError.free();
+  activeHandle = handle;
   self.postMessage({ type: 'result', id, ok: true });
 }
 
+function handleDispose(id) {
+  if (activeHandle) {
+    wasm.monty_free(activeHandle);
+    activeHandle = null;
+  }
+  self.postMessage({ type: 'result', id, ok: true });
+}
+
+// ---------------------------------------------------------------------------
+// Message dispatch
+// ---------------------------------------------------------------------------
+
 self.onmessage = (e) => {
-  const { type, id, code, extFns, value, errorMessage, limits, dataBase64, scriptName } = e.data;
-  switch (type) {
-    case 'run':
-      handleRun(id, code, limits, scriptName);
-      break;
-    case 'start':
-      handleStart(id, code, extFns, limits, scriptName);
-      break;
-    case 'resume':
-      handleResume(id, value);
-      break;
-    case 'resumeWithError':
-      handleResumeWithError(id, errorMessage);
-      break;
-    case 'snapshot':
-      handleSnapshot(id);
-      break;
-    case 'restore':
-      handleRestore(id, dataBase64);
-      break;
-    case 'dispose':
-      handleDispose(id);
-      break;
-    default:
-      self.postMessage({
-        type: 'error',
-        id,
-        ok: false,
-        error: `Unknown message type: ${type}`,
-        errorType: 'UnknownType',
-      });
+  const { type, id, code, extFns, value, errorMessage, limits,
+    dataBase64, scriptName, resultsJson, errorsJson } = e.data;
+  try {
+    switch (type) {
+      case 'run':
+        handleRun(id, code, limits, scriptName);
+        break;
+      case 'start':
+        handleStart(id, code, extFns, limits, scriptName);
+        break;
+      case 'resume':
+        handleResume(id, value);
+        break;
+      case 'resumeWithError':
+        handleResumeWithError(id, errorMessage);
+        break;
+      case 'resumeAsFuture':
+        handleResumeAsFuture(id);
+        break;
+      case 'resolveFutures':
+        handleResolveFutures(id, resultsJson, errorsJson);
+        break;
+      case 'snapshot':
+        handleSnapshot(id);
+        break;
+      case 'restore':
+        handleRestore(id, dataBase64);
+        break;
+      case 'dispose':
+        handleDispose(id);
+        break;
+      default:
+        self.postMessage({
+          type: 'result', id, ok: false,
+          error: `Unknown message type: ${type}`,
+          errorType: 'UnknownType',
+        });
+    }
+  } catch (e) {
+    // Catch-all for WebAssembly.RuntimeError (panic trap) or other crashes
+    self.postMessage({
+      type: 'result', id, ok: false,
+      error: e.message || String(e),
+      errorType: e instanceof WebAssembly.RuntimeError ? 'Panic' : 'InternalError',
+    });
   }
 };
+
+// Boot
+initWasm().catch((e) => {
+  self.postMessage({
+    type: 'error',
+    message: `WASM init failed: ${e.message}`,
+  });
+});

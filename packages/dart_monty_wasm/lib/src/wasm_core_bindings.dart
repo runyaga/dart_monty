@@ -108,7 +108,15 @@ class WasmCoreBindings implements MontyCoreBindings {
 
   @override
   Future<CoreProgressResult> resumeAsFuture() async {
-    throw UnsupportedError('resumeAsFuture() not supported in WASM');
+    final sw = Stopwatch()..start();
+    try {
+      final progress = await _bindings.resumeAsFuture();
+      sw.stop();
+      return _translateProgressResult(progress, sw.elapsedMilliseconds);
+    } on Object catch (e) {
+      _throwIfWebCancelError(e);
+      rethrow;
+    }
   }
 
   @override
@@ -116,23 +124,50 @@ class WasmCoreBindings implements MontyCoreBindings {
     String resultsJson,
     String errorsJson,
   ) async {
-    throw UnsupportedError('resolveFutures() not supported in WASM');
+    final sw = Stopwatch()..start();
+    try {
+      final progress = await _bindings.resolveFutures(resultsJson, errorsJson);
+      sw.stop();
+      return _translateProgressResult(progress, sw.elapsedMilliseconds);
+    } on Object catch (e) {
+      _throwIfWebCancelError(e);
+      rethrow;
+    }
   }
 
   @override
-  Future<Uint8List> snapshot() => _bindings.snapshot();
+  Future<Uint8List> snapshot() async {
+    try {
+      return await _bindings.snapshot();
+    } on Object catch (e) {
+      _throwIfWebCancelError(e);
+      rethrow;
+    }
+  }
 
   @override
   Future<void> restoreSnapshot(Uint8List data) async {
     // Ensure a session exists before restoring — _sessionId would be null
     // if restore is called on a fresh WasmCoreBindings instance.
     await init();
-    await _bindings.restore(data);
+    try {
+      await _bindings.restore(data);
+    } on Object catch (e) {
+      _throwIfWebCancelError(e);
+      rethrow;
+    }
   }
 
   @override
   Future<void> cancel() async {
     await _bindings.cancel();
+    // Worker is terminated — unregister and clear state so init() can
+    // spawn a new one without leaking the handle ID in the platform registry.
+    if (_handleId != null) {
+      BaseMontyPlatform.webUnregister(_handleId!);
+      _handleId = null;
+    }
+    _sessionId = null;
   }
 
   @override
@@ -166,6 +201,11 @@ class WasmCoreBindings implements MontyCoreBindings {
         printOutput: result.printOutput,
       );
     }
+    // WASM trap (panic=abort) surfaces as errorType 'Panic' from the Worker.
+    // Route to MontyPanicError so supervisors can pattern-match.
+    if (result.errorType == 'Panic') {
+      throw MontyPanicError(result.error ?? 'WASM trap');
+    }
     return CoreRunResult(
       ok: false,
       error: result.error ?? 'Unknown error',
@@ -179,6 +219,10 @@ class WasmCoreBindings implements MontyCoreBindings {
     int elapsedMs,
   ) {
     if (!progress.ok) {
+      // WASM trap (panic=abort) surfaces as errorType 'Panic' from the Worker.
+      if (progress.errorType == 'Panic') {
+        throw MontyPanicError(progress.error ?? 'WASM trap');
+      }
       return CoreProgressResult(
         state: 'error',
         error: progress.error ?? 'Unknown error',
@@ -226,6 +270,9 @@ class WasmCoreBindings implements MontyCoreBindings {
   /// When cancel() terminates the Worker, pending Promises reject with
   /// prefixed error messages. This method recognizes those prefixes and
   /// throws the appropriate sealed type so supervisors can pattern-match.
+  ///
+  /// Also catches WASM trap errors (panic=abort on wasm32-wasip1), which
+  /// surface as `WebAssembly.RuntimeError` wrapped in the JS error string.
   void _throwIfWebCancelError(Object error) {
     final msg = error.toString();
     if (msg.contains('MontyCancelled:')) {
@@ -236,6 +283,9 @@ class WasmCoreBindings implements MontyCoreBindings {
     }
     if (msg.contains('MontyWorkerError:')) {
       throw MontyResourceError(msg);
+    }
+    if (msg.contains('Panic') || msg.contains('RuntimeError')) {
+      throw MontyPanicError(msg);
     }
   }
 }

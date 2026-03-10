@@ -53,6 +53,15 @@ extension type JsDartMontyBridge._(JSObject _) implements JSObject {
   /// Resumes paused execution by injecting an error.
   external JSPromise<JSString> resumeWithError(JSString errorJson);
 
+  /// Resumes by creating a future for the pending call.
+  external JSPromise<JSString> resumeAsFuture();
+
+  /// Resolves pending futures with results and errors.
+  external JSPromise<JSString> resolveFutures(
+    JSString resultsJson,
+    JSString errorsJson,
+  );
+
   /// Captures the current interpreter state as a binary snapshot.
   external JSPromise<JSAny> snapshot();
 
@@ -151,9 +160,9 @@ class WasmBindingsJs extends WasmBindings {
 
   @override
   Future<WasmProgressResult> resumeAsFuture() async {
-    throw UnsupportedError(
-      'resumeAsFuture() is not supported in the WASM backend.',
-    );
+    final resultJson = await _bridge.resumeAsFuture().toDart;
+
+    return _decodeProgress(resultJson.toDart);
   }
 
   @override
@@ -161,9 +170,10 @@ class WasmBindingsJs extends WasmBindings {
     String resultsJson,
     String errorsJson,
   ) async {
-    throw UnsupportedError(
-      'resolveFutures() is not supported in the WASM backend.',
-    );
+    final resultJson =
+        await _bridge.resolveFutures(resultsJson.toJS, errorsJson.toJS).toDart;
+
+    return _decodeProgress(resultJson.toDart);
   }
 
   @override

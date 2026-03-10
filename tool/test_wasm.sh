@@ -95,7 +95,6 @@ echo "--- Integration tests (headless Chrome) ---"
 INTEG_WEB="$PKG/test/integration/web"
 cp "$PKG/assets/dart_monty_bridge.js" "$INTEG_WEB/"
 cp "$PKG/assets/dart_monty_worker.js" "$INTEG_WEB/"
-cp "$PKG/assets/wasi-worker-browser.mjs" "$INTEG_WEB/"
 cp "$PKG/assets/"*.wasm "$INTEG_WEB/"
 
 # Compile smoke test to JS
@@ -125,7 +124,6 @@ cleanup() {
   # Clean up copied assets
   rm -f "$INTEG_WEB/dart_monty_bridge.js" \
         "$INTEG_WEB/dart_monty_worker.js" \
-        "$INTEG_WEB/wasi-worker-browser.mjs" \
         "$INTEG_WEB/"*.wasm \
         "$INTEG_WEB/smoke_test.dart.js" \
         "$INTEG_WEB/smoke_test.dart.js.deps" \

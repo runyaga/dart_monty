@@ -572,3 +572,39 @@ pub unsafe extern "C" fn monty_bytes_free(ptr: *mut u8, len: usize) {
         drop(unsafe { Box::from_raw(std::ptr::slice_from_raw_parts_mut(ptr, len)) });
     }
 }
+
+// ---------------------------------------------------------------------------
+// WASM allocator exports (needed for wasm32-wasip1 — no default malloc/free)
+// ---------------------------------------------------------------------------
+
+/// Allocate `size` bytes of zeroed memory. Returns null on failure or size==0.
+/// Caller must pair with `monty_dealloc(ptr, size)`.
+#[unsafe(no_mangle)]
+pub extern "C" fn monty_alloc(size: usize) -> *mut u8 {
+    if size == 0 {
+        return ptr::null_mut();
+    }
+    let layout = match std::alloc::Layout::from_size_align(size, 1) {
+        Ok(l) => l,
+        Err(_) => return ptr::null_mut(),
+    };
+    let ptr = unsafe { std::alloc::alloc(layout) };
+    if ptr.is_null() {
+        return ptr::null_mut();
+    }
+    unsafe { std::ptr::write_bytes(ptr, 0, size) };
+    ptr
+}
+
+/// Free memory previously allocated by `monty_alloc`. No-op if ptr is null or size is 0.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn monty_dealloc(ptr: *mut u8, size: usize) {
+    if ptr.is_null() || size == 0 {
+        return;
+    }
+    let layout = match std::alloc::Layout::from_size_align(size, 1) {
+        Ok(l) => l,
+        Err(_) => return,
+    };
+    unsafe { std::alloc::dealloc(ptr, layout) };
+}
