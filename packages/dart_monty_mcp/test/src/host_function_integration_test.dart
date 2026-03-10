@@ -1,4 +1,6 @@
 @Tags(['integration'])
+library;
+
 import 'dart:io';
 
 import 'package:dart_monty_ffi/dart_monty_ffi.dart';
@@ -26,8 +28,8 @@ void main() {
   }
 
   setUp(() {
-    server = MontyMcpServer(platformFactory: createPlatform);
-    server.registerPlugin(_TestPlugin());
+    server = MontyMcpServer(platformFactory: createPlatform)
+      ..registerPlugin(_TestPlugin());
   });
 
   tearDown(() async {

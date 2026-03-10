@@ -50,9 +50,7 @@ class MontySessionManager {
       id: sessionId,
       platform: platformFactory(),
     );
-    for (final fn in _hostFunctions) {
-      session.register(fn);
-    }
+    _hostFunctions.forEach(session.register);
     _sessions[sessionId] = session;
     return sessionId;
   }
@@ -81,9 +79,7 @@ class MontySessionManager {
       platform: platform,
       useFutures: false,
     );
-    for (final fn in _hostFunctions) {
-      bridge.register(fn);
-    }
+    _hostFunctions.forEach(bridge.register);
     try {
       final events = bridge.execute(code);
       return await bridgeEventsToResult(events);
