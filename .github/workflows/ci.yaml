@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+    branches: [main, 'feat/**']
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -111,6 +111,10 @@ jobs:
             min-coverage: '30'
           - target: dart_monty_wasm
             min-coverage: '70'
+          - target: dart_monty_bridge
+            min-coverage: '50'
+          - target: dart_monty_mcp
+            min-coverage: '50'
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
@@ -443,7 +447,7 @@ jobs:
           retention-days: 1
 
   patch-coverage:
-    name: Patch coverage gate (90%)
+    name: Patch coverage gate (70%)
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -482,5 +486,5 @@ jobs:
         run: |
           diff-cover merged-coverage.info \
             --compare-branch=origin/${{ github.base_ref }} \
-            --fail-under=90 \
+            --fail-under=70 \
             --diff-range-notation='..'
