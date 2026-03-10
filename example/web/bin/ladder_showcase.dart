@@ -24,16 +24,22 @@ external JSPromise<JSBoolean> _montyInit();
 external JSPromise<JSString> _montyRun(JSString code);
 
 @JS('DartMontyBridge.start')
-external JSPromise<JSString> _montyStart(
-  JSString code, [
-  JSString? extFnsJson,
-]);
+external JSPromise<JSString> _montyStart(JSString code, [JSString? extFnsJson]);
 
 @JS('DartMontyBridge.resume')
 external JSPromise<JSString> _montyResume(JSString valueJson);
 
 @JS('DartMontyBridge.resumeWithError')
 external JSPromise<JSString> _montyResumeWithError(JSString errorJson);
+
+@JS('DartMontyBridge.resumeAsFuture')
+external JSPromise<JSString> _montyResumeAsFuture();
+
+@JS('DartMontyBridge.resolveFutures')
+external JSPromise<JSString> _montyResolveFutures(
+  JSString resultsJson,
+  JSString errorsJson,
+);
 
 // ---------------------------------------------------------------------------
 // JS fetch interop
@@ -246,15 +252,15 @@ Future<void> main() async {
 // Fixture execution
 // ---------------------------------------------------------------------------
 
-Future<Map<String, dynamic>> _runFixture(
-  Map<String, dynamic> fixture,
-) async {
+Future<Map<String, dynamic>> _runFixture(Map<String, dynamic> fixture) async {
   final expectError = fixture['expectError'] as bool? ?? false;
   final xfail = fixture['xfail'] as String?;
 
   Map<String, dynamic> result;
   try {
-    if (fixture['externalFunctions'] != null) {
+    if (fixture['asyncResumeMap'] != null) {
+      result = await _runAsync(fixture);
+    } else if (fixture['externalFunctions'] != null) {
       result = await _runIterative(fixture);
     } else if (expectError) {
       result = await _runExpectError(fixture);
@@ -276,24 +282,19 @@ Future<Map<String, dynamic>> _runFixture(
     }
     return {
       'status': 'xpass',
-      'detail': 'xpass: expected failure did not occur'
+      'detail': 'xpass: expected failure did not occur',
     };
   }
 
   return result;
 }
 
-Future<Map<String, dynamic>> _runSimple(
-  Map<String, dynamic> fixture,
-) async {
+Future<Map<String, dynamic>> _runSimple(Map<String, dynamic> fixture) async {
   final code = fixture['code'] as String;
   final result = _parse((await _montyRun(code.toJS).toDart).toDart);
 
   if (result['ok'] != true) {
-    return {
-      'status': 'fail',
-      'detail': 'Bridge error: ${result['error']}',
-    };
+    return {'status': 'fail', 'detail': 'Bridge error: ${result['error']}'};
   }
 
   final actual = result['value'];
@@ -313,14 +314,13 @@ Future<Map<String, dynamic>> _runExpectError(
 
   return {
     'status': 'warn',
-    'detail': 'Expected error but got value: ${result['value']}'
+    'detail':
+        'Expected error but got value: ${result['value']}'
         ' — WASM Monty may handle this differently than CPython',
   };
 }
 
-Future<Map<String, dynamic>> _runIterative(
-  Map<String, dynamic> fixture,
-) async {
+Future<Map<String, dynamic>> _runIterative(Map<String, dynamic> fixture) async {
   final code = fixture['code'] as String;
   final expectError = fixture['expectError'] as bool? ?? false;
   final extFns = (fixture['externalFunctions'] as List).cast<String>();
@@ -378,6 +378,116 @@ Future<Map<String, dynamic>> _runIterative(
   return _compareResult(actual, fixture);
 }
 
+Future<Map<String, dynamic>> _runAsync(Map<String, dynamic> fixture) async {
+  final code = fixture['code'] as String;
+  final expectError = fixture['expectError'] as bool? ?? false;
+  final extFns = (fixture['externalFunctions'] as List).cast<String>();
+  final asyncResumeMap =
+      (fixture['asyncResumeMap'] as Map<String, dynamic>?) ?? {};
+  final asyncErrorMap =
+      (fixture['asyncErrorMap'] as Map<String, dynamic>?) ?? {};
+
+  var result = _parse(
+    (await _montyStart(code.toJS, jsonEncode(extFns).toJS).toDart).toDart,
+  );
+
+  if (result['ok'] != true) {
+    if (expectError) {
+      return {
+        'status': 'pass',
+        'detail': 'Error (expected): ${result['error']}',
+      };
+    }
+
+    return {'status': 'fail', 'detail': 'Start failed: ${result['error']}'};
+  }
+
+  // Collect pending calls, converting each to a future.
+  // Track call order so we can map fixture indices to actual callIds.
+  final callIdByIndex = <int, int>{};
+  var callIndex = 0;
+
+  while (result['state'] == 'pending') {
+    final callId = result['callId'] as int;
+    callIdByIndex[callIndex] = callId;
+    callIndex++;
+
+    result = _parse((await _montyResumeAsFuture().toDart).toDart);
+
+    if (result['ok'] != true) {
+      if (expectError) {
+        return {
+          'status': 'pass',
+          'detail': 'Error (expected): ${result['error']}',
+        };
+      }
+
+      return {
+        'status': 'fail',
+        'detail': 'resumeAsFuture failed: ${result['error']}',
+      };
+    }
+  }
+
+  if (result['state'] != 'resolve_futures') {
+    if (result['state'] == 'complete') {
+      final actual = result['value'];
+
+      return _compareResult(actual, fixture);
+    }
+
+    return {
+      'status': 'fail',
+      'detail': 'Expected resolve_futures state, got: ${result['state']}',
+    };
+  }
+
+  // Build results/errors maps keyed by actual callId.
+  final results = <String, dynamic>{};
+  final errors = <String, dynamic>{};
+
+  for (final entry in asyncResumeMap.entries) {
+    final fixtureIndex = int.parse(entry.key);
+    final callId = callIdByIndex[fixtureIndex];
+    if (callId != null) {
+      results['$callId'] = entry.value;
+    }
+  }
+
+  for (final entry in asyncErrorMap.entries) {
+    final fixtureIndex = int.parse(entry.key);
+    final callId = callIdByIndex[fixtureIndex];
+    if (callId != null) {
+      errors['$callId'] = entry.value;
+    }
+  }
+
+  result = _parse(
+    (await _montyResolveFutures(
+      jsonEncode(results).toJS,
+      jsonEncode(errors).toJS,
+    ).toDart).toDart,
+  );
+
+  if (result['ok'] != true) {
+    if (expectError) {
+      return {
+        'status': 'pass',
+        'detail': 'Error (expected): ${result['error']}',
+      };
+    }
+
+    return {
+      'status': 'fail',
+      'detail': 'resolveFutures failed: ${result['error']}',
+    };
+  }
+
+  final actual = result['value'];
+
+  return _compareResult(actual, fixture);
+}
+
 // ---------------------------------------------------------------------------
 // Value comparison — pass / warn / fail
 // ---------------------------------------------------------------------------
@@ -398,7 +508,8 @@ Map<String, dynamic> _compareResult(
 
     return {
       'status': 'warn',
-      'detail': 'Value: $str'
+      'detail':
+          'Value: $str'
           ' — expected to contain "$expectedContains"'
           ' (WASM Monty behavioral difference)',
     };
@@ -413,7 +524,8 @@ Map<String, dynamic> _compareResult(
 
     return {
       'status': 'warn',
-      'detail': 'Value: $actual'
+      'detail':
+          'Value: $actual'
           ' — expected (sorted): $expected'
           ' (WASM Monty behavioral difference)',
     };
@@ -425,7 +537,8 @@ Map<String, dynamic> _compareResult(
 
   return {
     'status': 'warn',
-    'detail': 'Value: $actual'
+    'detail':
+        'Value: $actual'
         ' — expected: $expected'
         ' (WASM Monty behavioral difference)',
   };
