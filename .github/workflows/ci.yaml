@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+    branches: [main, 'feat/**']
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -111,6 +111,10 @@ jobs:
             min-coverage: '30'
           - target: dart_monty_wasm
             min-coverage: '70'
+          - target: dart_monty_bridge
+            min-coverage: '50'
+          - target: dart_monty_mcp
+            min-coverage: '50'
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
