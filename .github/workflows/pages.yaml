@@ -113,6 +113,13 @@ jobs:
           mkdir -p example/web/web/flutter
           cp -r example/flutter_web/build/web/* example/web/web/flutter/
 
+      # ── Stamp build date ─────────────────────────────────────────────
+      - name: Stamp build date into HTML
+        run: |
+          stamp="$(date -u +'%Y-%m-%d %H:%M UTC')"
+          sed -i "s/__BUILD_DATE__/$stamp/g" example/web/web/index.html
+          sed -i "s/__BUILD_DATE__/$stamp/g" example/web/web/mcp-docs.html
+
       # ── Deploy ───────────────────────────────────────────────────────
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
