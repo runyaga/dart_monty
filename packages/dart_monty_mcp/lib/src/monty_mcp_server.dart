@@ -1,5 +1,9 @@
+import 'package:dart_monty_bridge/dart_monty_bridge.dart';
 import 'package:dart_monty_mcp/src/monty_session_manager.dart';
 import 'package:mcp_dart/mcp_dart.dart';
+
+/// Reserved tool name prefix. Host functions must not start with this.
+const _reservedPrefix = 'monty_';
 
 /// MCP server that exposes the Monty Python interpreter as tools.
 ///
@@ -46,6 +50,72 @@ class MontyMcpServer {
   /// Disposes all sessions and cleans up.
   Future<void> dispose() async {
     await _sessionManager.disposeAll();
+  }
+
+  /// Registers all host functions from [plugin] as both Python-callable
+  /// host functions (on sessions) and direct MCP tools.
+  ///
+  /// Must be called before [serve]. Each function becomes:
+  /// 1. A host function on all future sessions (callable from Python)
+  /// 2. An MCP tool (callable directly by the LLM)
+  void registerPlugin(MontyPlugin plugin) {
+    for (final fn in plugin.functions) {
+      registerHostFunction(fn);
+    }
+  }
+
+  /// Registers a single [HostFunction] as both a Python-callable host
+  /// function and a direct MCP tool.
+  ///
+  /// Throws [ArgumentError] if the function name starts with the reserved
+  /// `monty_` prefix.
+  void registerHostFunction(HostFunction function) {
+    final name = function.schema.name;
+    if (name.startsWith(_reservedPrefix)) {
+      throw ArgumentError(
+        'Host function name "$name" cannot start with '
+        'reserved prefix "$_reservedPrefix"',
+      );
+    }
+    _sessionManager.registerHostFunction(function);
+    _registerHostFunctionAsTool(function);
+  }
+
+  void _registerHostFunctionAsTool(HostFunction fn) {
+    final schema = fn.schema;
+    _server.registerTool(
+      schema.name,
+      description: schema.description,
+      inputSchema: ToolInputSchema(
+        properties: {
+          for (final param in schema.params)
+            param.name: JsonSchema.fromJson(
+              Map<String, dynamic>.from(param.toJsonSchema()),
+            ),
+        },
+        required: [
+          for (final param in schema.params)
+            if (param.isRequired) param.name,
+        ],
+      ),
+      callback: (args, extra) async {
+        try {
+          final validated = <String, Object?>{};
+          for (final param in schema.params) {
+            validated[param.name] = param.validate(args[param.name]);
+          }
+          final result = await fn.handler(validated);
+          return CallToolResult(
+            content: [TextContent(text: '$result')],
+          );
+        } catch (e) {
+          return CallToolResult(
+            isError: true,
+            content: [TextContent(text: e.toString())],
+          );
+        }
+      },
+    );
   }
 
   void _registerTools() {

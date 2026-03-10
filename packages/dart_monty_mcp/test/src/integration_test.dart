@@ -51,8 +51,7 @@ void main() {
     });
 
     test('D-03: multi-statement with expression', () async {
-      final r =
-          await server.sessionManager.executeStateless('x = 42\nx * 2');
+      final r = await server.sessionManager.executeStateless('x = 42\nx * 2');
       expect(r.isError, isFalse);
       expect(_text(r), '84');
     });
@@ -76,15 +75,14 @@ void main() {
     });
 
     test('D-07: unicode output', () async {
-      final r =
-          await server.sessionManager.executeStateless("print('α β γ')");
+      final r = await server.sessionManager.executeStateless("print('α β γ')");
       expect(r.isError, isFalse);
       expect(_text(r), 'α β γ');
     });
 
     test('D-08: large output (10K chars)', () async {
-      final r = await server.sessionManager
-          .executeStateless("print('x' * 10000)");
+      final r =
+          await server.sessionManager.executeStateless("print('x' * 10000)");
       expect(r.isError, isFalse);
       expect(_text(r).length, 10000);
     });
@@ -175,15 +173,13 @@ void main() {
     });
 
     test('NameError for undefined variable', () async {
-      final r =
-          await server.sessionManager.executeStateless('undefined_var');
+      final r = await server.sessionManager.executeStateless('undefined_var');
       expect(r.isError, isTrue);
       expect(_text(r), contains('NameError'));
     });
 
     test('SyntaxError for invalid code', () async {
-      final r =
-          await server.sessionManager.executeStateless('def incomplete(');
+      final r = await server.sessionManager.executeStateless('def incomplete(');
       expect(r.isError, isTrue);
       expect(_text(r), contains('SyntaxError'));
     });
@@ -509,8 +505,7 @@ void main() {
     });
 
     test('S-05: large output (10KB+)', () async {
-      final r = await server.sessionManager
-          .executeStateless("'A' * 15000");
+      final r = await server.sessionManager.executeStateless("'A' * 15000");
       expect(r.isError, isFalse);
       expect(_text(r).length, greaterThan(10000));
     });
@@ -670,5 +665,4 @@ void main() {
   });
 }
 
-String _text(CallToolResult r) =>
-    (r.content.first as TextContent).text;
+String _text(CallToolResult r) => (r.content.first as TextContent).text;

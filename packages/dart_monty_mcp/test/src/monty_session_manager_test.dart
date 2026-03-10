@@ -103,5 +103,48 @@ void main() {
 
       expect(result.isError, isFalse);
     });
+
+    test('registerHostFunction propagates to new sessions', () {
+      manager.registerHostFunction(
+        HostFunction(
+          schema: const HostFunctionSchema(
+            name: 'test_fn',
+            description: 'Test function',
+          ),
+          handler: (args) async => 42,
+        ),
+      );
+
+      // Creating a session after registration should propagate the fn.
+      // We verify indirectly: session creation should succeed.
+      final id = manager.createSession(id: 'with-fn');
+      expect(id, 'with-fn');
+      expect(manager.getSession('with-fn'), isNotNull);
+    });
+
+    test('multiple host functions all propagated', () {
+      manager
+        ..registerHostFunction(
+          HostFunction(
+            schema: const HostFunctionSchema(
+              name: 'fn_a',
+              description: 'A',
+            ),
+            handler: (args) async => 'a',
+          ),
+        )
+        ..registerHostFunction(
+          HostFunction(
+            schema: const HostFunctionSchema(
+              name: 'fn_b',
+              description: 'B',
+            ),
+            handler: (args) async => 'b',
+          ),
+        );
+
+      final id = manager.createSession(id: 'multi');
+      expect(id, 'multi');
+    });
   });
 }

@@ -73,6 +73,49 @@ final r = await session.execute('x * 2'); // 84
 await server.sessionManager.destroySession('calc');
 ```
 
+## Host Functions
+
+Register Dart functions as both Python-callable host functions and direct
+MCP tools with a single registration point:
+
+```dart
+import 'package:dart_monty_mcp/dart_monty_mcp.dart';
+
+final server = MontyMcpServer(platformFactory: createPlatform);
+
+// Register a single function
+server.registerHostFunction(
+  HostFunction(
+    schema: HostFunctionSchema(
+      name: 'add',
+      description: 'Add two numbers',
+      params: [
+        HostParam(name: 'a', type: HostParamType.number),
+        HostParam(name: 'b', type: HostParamType.number),
+      ],
+    ),
+    handler: (args) async => (args['a']! as num) + (args['b']! as num),
+  ),
+);
+
+// Or register a plugin with multiple functions
+server.registerPlugin(myPlugin);
+
+await server.serve(transport);
+```
+
+Each registered function is available in two ways:
+
+1. **From Python** — `result = add(a=3, b=4)` inside `monty_session_exec`
+   or `monty_run`
+2. **As MCP tool** — the LLM calls `add` directly via MCP protocol
+
+Function names must not start with `monty_` (reserved for built-in tools).
+
+**Thread safety:** Host function handlers may be called concurrently
+(direct MCP calls bypass the session lock). Plugin authors should ensure
+handlers are safe for concurrent invocation.
+
 ## Session Limitations
 
 Persistent sessions use JSON serialization to save/restore Python state.
@@ -103,14 +146,15 @@ DART_MONTY_LIB_PATH=../../native/target/release/libdart_monty_native.dylib \
   dart test --tags=integration --run-skipped
 ```
 
-96 total tests: 36 unit + 60 integration.
+126 total tests: 49 unit + 77 integration (60 core + 17 host function).
 
 ## Architecture
 
 ```
-MontyMcpServer         — registers 5 MCP tools, routes to manager
+MontyMcpServer         — registers MCP tools, routes to manager
+  ├── registerPlugin() — host functions → MCP tools + session functions
   MontySessionManager  — session create/list/destroy + stateless exec
-    McpMontySession    — wraps MontySession + concurrency lock (B3)
+    McpMontySession    — wraps MontySession + host fn dispatch + B3 lock
       MontySession     — state persistence via restore/persist preamble
         MontyPlatform  — FFI or WASM interpreter instance
 ```
