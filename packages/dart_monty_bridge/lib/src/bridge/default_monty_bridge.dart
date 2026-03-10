@@ -183,6 +183,15 @@ class DefaultMontyBridge implements MontyBridge {
             return;
         }
       }
+    } on MontyCancelledError {
+      controller.add(const BridgeRunError(message: 'Execution cancelled'));
+    } on MontyError catch (e) {
+      log.warning('Monty error', attributes: {'error': e.message});
+      _flushPrintBuffer(printBuffer, controller);
+      final output = printBuffer.isNotEmpty ? printBuffer.toString() : null;
+      controller.add(
+        BridgeRunError(message: e.message, printOutput: output),
+      );
     } on MontyException catch (e) {
       log.warning('Python error', attributes: {'error': e.message});
       _flushPrintBuffer(printBuffer, controller);
