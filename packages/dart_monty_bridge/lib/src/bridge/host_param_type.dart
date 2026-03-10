@@ -23,7 +23,10 @@ enum HostParamType {
   /// Used for parameters like filter values that accept str, int, float, etc.
   any;
 
-  /// JSON Schema type name for tool protocol export.
+  /// JSON Schema type name for display and serialization.
+  ///
+  /// For JSON Schema generation, prefer `HostParam.toJsonSchema()` which
+  /// handles `any` by omitting the `type` key entirely (unconstrained).
   String get jsonSchemaType => switch (this) {
         string => 'string',
         integer => 'integer',
@@ -31,6 +34,6 @@ enum HostParamType {
         boolean => 'boolean',
         list => 'array',
         map => 'object',
-        any => 'string',
+        any => 'any',
       };
 }
