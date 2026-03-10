@@ -18,12 +18,23 @@ jobs:
   deploy:
     name: Deploy
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     environment:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+
+      # ── Build WASM binary (Rust → wasm32-wasip1) ─────────────────────
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-wasip1
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: native
+      - name: Build WASM
+        working-directory: native
+        run: cargo build --release --target wasm32-wasip1
 
       # ── Build JS bridge ──────────────────────────────────────────────
       - uses: actions/setup-node@v4
@@ -34,6 +45,11 @@ jobs:
       - name: Build JS bridge
         working-directory: packages/dart_monty_wasm/js
         run: npm install && npm run build
+      - name: Verify WASM assets
+        run: |
+          test -f packages/dart_monty_wasm/assets/dart_monty_bridge.js
+          test -f packages/dart_monty_wasm/assets/dart_monty_worker.js
+          test -f packages/dart_monty_wasm/assets/dart_monty_native.wasm
 
       # ── Compile Dart to JS ───────────────────────────────────────────
       - uses: dart-lang/setup-dart@v1
@@ -64,8 +80,7 @@ jobs:
         run: |
           cp packages/dart_monty_wasm/assets/dart_monty_bridge.js example/web/web/
           cp packages/dart_monty_wasm/assets/dart_monty_worker.js example/web/web/
-          cp packages/dart_monty_wasm/assets/wasi-worker-browser.mjs example/web/web/
-          cp packages/dart_monty_wasm/assets/*.wasm example/web/web/
+          cp packages/dart_monty_wasm/assets/dart_monty_native.wasm example/web/web/
       - name: Copy fixture files
         run: |
           mkdir -p example/web/web/fixtures
@@ -74,6 +89,7 @@ jobs:
       # ── Build Flutter web example ──────────────────────────────────
       - uses: subosito/flutter-action@v2
         with:
+          flutter-version: '3.41.4'
           channel: stable
           cache: true
       - name: Install Flutter web dependencies
@@ -86,8 +102,7 @@ jobs:
         run: |
           cp packages/dart_monty_wasm/assets/dart_monty_bridge.js example/flutter_web/build/web/
           cp packages/dart_monty_wasm/assets/dart_monty_worker.js example/flutter_web/build/web/
-          cp packages/dart_monty_wasm/assets/wasi-worker-browser.mjs example/flutter_web/build/web/
-          cp packages/dart_monty_wasm/assets/*.wasm example/flutter_web/build/web/
+          cp packages/dart_monty_wasm/assets/dart_monty_native.wasm example/flutter_web/build/web/
           cp example/flutter_web/web/coi-serviceworker.js example/flutter_web/build/web/
       - name: Copy fixture files to Flutter build
         run: |
