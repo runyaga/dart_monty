@@ -35,6 +35,12 @@ class HostParam {
   /// generating from [type] and [description]. Use this for complex
   /// schemas (nested objects, enums, arrays with item types) that
   /// [HostParamType] cannot express.
+  ///
+  /// **Important:** The override controls only the schema advertised to
+  /// external consumers (e.g. LLMs via MCP). Runtime validation in
+  /// [validate] still uses [type]. Ensure the override is consistent
+  /// with [type] to avoid mismatches where an LLM sends valid-per-schema
+  /// arguments that fail runtime validation.
   final Map<String, Object?>? jsonSchemaOverride;
 
   /// Returns a JSON Schema property definition for this parameter.
@@ -44,9 +50,13 @@ class HostParam {
   Map<String, Object?> toJsonSchema() {
     if (jsonSchemaOverride != null) return jsonSchemaOverride!;
 
-    final schema = <String, Object?>{
-      'type': type.jsonSchemaType,
-    };
+    // HostParamType.any accepts any value at runtime, so we emit an
+    // unconstrained schema (no "type" key) rather than pinning to
+    // "string" which would mislead LLMs into only sending strings.
+    final schema = <String, Object?>{};
+    if (type != HostParamType.any) {
+      schema['type'] = type.jsonSchemaType;
+    }
     if (description != null) schema['description'] = description;
 
     return schema;

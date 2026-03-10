@@ -33,7 +33,6 @@ void main() {
         HostParamType.boolean: 'boolean',
         HostParamType.list: 'array',
         HostParamType.map: 'object',
-        HostParamType.any: 'string',
       };
 
       for (final entry in cases.entries) {
@@ -44,6 +43,18 @@ void main() {
           reason: '${entry.key} should map to ${entry.value}',
         );
       }
+    });
+
+    test('any type produces unconstrained schema (no type key)', () {
+      const param = HostParam(
+        name: 'value',
+        type: HostParamType.any,
+        description: 'Accepts anything',
+      );
+
+      final schema = param.toJsonSchema();
+      expect(schema.containsKey('type'), isFalse);
+      expect(schema['description'], 'Accepts anything');
     });
 
     test('uses jsonSchemaOverride when set', () {
