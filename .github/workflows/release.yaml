@@ -166,8 +166,7 @@ jobs:
           # Bridge assets
           cp packages/dart_monty_wasm/assets/dart_monty_bridge.js "$DIR/"
           cp packages/dart_monty_wasm/assets/dart_monty_worker.js "$DIR/"
-          cp packages/dart_monty_wasm/assets/wasi-worker-browser.mjs "$DIR/"
-          cp packages/dart_monty_wasm/assets/*.wasm "$DIR/"
+          cp packages/dart_monty_wasm/assets/dart_monty_native.wasm "$DIR/"
           # Fixtures
           mkdir -p "$DIR/fixtures"
           cp test/fixtures/python_ladder/tier_*.json "$DIR/fixtures/"
