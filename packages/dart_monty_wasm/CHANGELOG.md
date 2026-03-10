@@ -1,3 +1,11 @@
+## 0.8.0
+
+- **BREAKING**: Replace NAPI-RS runtime with direct C-ABI calls to 28 exported Rust functions via `wasm32-wasip1`
+- Eliminate SharedArrayBuffer/COOP/COEP requirement
+- WASM binary drops from 256MB overhead to 4.5 MB
+- Minimal WASI shim (6 imports), zero npm runtime dependencies
+- New `wasm_glue.js` bridges main thread to Worker via direct C-ABI
+
 ## 0.7.0
 
 - Multi-session Worker pool: `createSession`, `disposeSession`, `getDefaultSessionId`
