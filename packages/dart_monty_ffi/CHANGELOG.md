@@ -1,3 +1,15 @@
+## 0.8.0
+
+- **BREAKING**: Migrate from `DynamicLibrary.open()` to `@Native` annotations with Dart native build hooks
+- Add `hook/build.dart` — automatic native library resolution via contributor/consumer dual-path strategy
+- Contributors: `cargo build --release` runs automatically when `native/Cargo.toml` exists
+- Consumers: pre-built binaries download from GitHub Releases (atomic `.tmp` downloads with content-length validation)
+- Remove `NativeLibraryLoader` and `libraryPath` parameter from all constructors
+- `dart test` and `dart run` now work with zero environment variables or manual configuration
+- Graceful fallback for iOS/Android targets (no crash, deferred to future PR)
+- Add `-headerpad_max_install_names` to `build.rs` for macOS dylib rewriting
+- Add `docs/native_build.md` documenting the build architecture
+
 ## 0.7.0
 
 - Add `MontyNative`, `NativeIsolateBindings`, and `NativeIsolateBindingsImpl` (moved from `dart_monty_native`)

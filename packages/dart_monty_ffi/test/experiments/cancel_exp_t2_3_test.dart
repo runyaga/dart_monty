@@ -4,15 +4,10 @@ library;
 // Experiment tests intentionally print results to stdout.
 // ignore_for_file: avoid_print
 
-import 'dart:io' show Platform, ProcessInfo;
+import 'dart:io' show ProcessInfo;
 
 import 'package:dart_monty_ffi/dart_monty_ffi.dart';
 import 'package:test/test.dart';
-
-String _resolveLibraryPath() {
-  final ext = Platform.isMacOS ? 'dylib' : 'so';
-  return '../../native/target/release/libdart_monty_native.$ext';
-}
 
 /// EXP-CANCEL-T2-3: Memory Leak Soak Test
 ///
@@ -20,8 +15,6 @@ String _resolveLibraryPath() {
 /// Success: RSS delta < 5MB, regression slope < 0.005 MB/cycle.
 /// N=1 full soak run (plan says 3, but single run is sufficient for gate).
 void main() {
-  final libPath = _resolveLibraryPath();
-
   const totalCycles = 1000;
   const checkpoints = [0, 100, 250, 500, 750, 1000];
   final rssAtCheckpoint = <int, int>{};
@@ -32,7 +25,7 @@ void main() {
       () async {
         // Warm-up: 5 cycles.
         for (var i = 0; i < 5; i++) {
-          final isolate = NativeIsolateBindingsImpl(libraryPath: libPath);
+          final isolate = NativeIsolateBindingsImpl();
           await isolate.init();
           await isolate.run('2 + 2');
           await isolate.dispose();
@@ -41,7 +34,7 @@ void main() {
         rssAtCheckpoint[0] = ProcessInfo.currentRss;
 
         for (var cycle = 1; cycle <= totalCycles; cycle++) {
-          final isolate = NativeIsolateBindingsImpl(libraryPath: libPath);
+          final isolate = NativeIsolateBindingsImpl();
           await isolate.init();
           await isolate.run('2 + 2');
           await isolate.dispose();
@@ -66,8 +59,9 @@ void main() {
     var r2 = 0.0;
     if (entries.length >= 2) {
       final xs = entries.map((e) => e.key.toDouble()).toList();
-      final ys =
-          entries.map((e) => (e.value - baseRss) / (1024 * 1024)).toList();
+      final ys = entries
+          .map((e) => (e.value - baseRss) / (1024 * 1024))
+          .toList();
       final n = xs.length;
       final mx = xs.reduce((a, b) => a + b) / n;
       final my = ys.reduce((a, b) => a + b) / n;

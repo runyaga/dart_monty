@@ -5,16 +5,9 @@ library;
 // ignore_for_file: avoid_print, lines_longer_than_80_chars
 
 import 'dart:async';
-import 'dart:io' show Platform;
-
 import 'package:dart_monty_ffi/dart_monty_ffi.dart';
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 import 'package:test/test.dart';
-
-String _resolveLibraryPath() {
-  final ext = Platform.isMacOS ? 'dylib' : 'so';
-  return '../../native/target/release/libdart_monty_native.$ext';
-}
 
 /// EXP-CANCEL-T1-1: End-to-End Cancellation & Idempotency
 ///
@@ -23,7 +16,6 @@ String _resolveLibraryPath() {
 void main() {
   const infiniteLoop = 'while True: pass';
   const trivial = '2 + 2';
-  final libPath = _resolveLibraryPath();
 
   // --- Metrics accumulators ---
   var cancelledCount = 0;
@@ -39,7 +31,7 @@ void main() {
   group('T1-1A: cancel during execution (N=$cancelN)', () {
     for (var trial = 1; trial <= cancelN; trial++) {
       test('trial $trial', () async {
-        final isolate = NativeIsolateBindingsImpl(libraryPath: libPath);
+        final isolate = NativeIsolateBindingsImpl();
         await isolate.init();
 
         final startFuture = isolate.start(
@@ -84,7 +76,7 @@ void main() {
   group('T1-1B: cancel after completion (N=$postCompleteN)', () {
     for (var trial = 1; trial <= postCompleteN; trial++) {
       test('trial $trial', () async {
-        final isolate = NativeIsolateBindingsImpl(libraryPath: libPath);
+        final isolate = NativeIsolateBindingsImpl();
         await isolate.init();
 
         final result = await isolate.run(trivial);
@@ -114,8 +106,10 @@ void main() {
       'Post-completion throw count: $postCompleteThrowCount / $postCompleteN',
     );
     print('');
-    print('VERDICT: '
-        '${cancelledCount == cancelN && wrongTypeCount == 0 && doubleThrowCount == 0 && tripleThrowCount == 0 && postCompleteThrowCount == 0 ? "PASS" : "FAIL"}');
+    print(
+      'VERDICT: '
+      '${cancelledCount == cancelN && wrongTypeCount == 0 && doubleThrowCount == 0 && tripleThrowCount == 0 && postCompleteThrowCount == 0 ? "PASS" : "FAIL"}',
+    );
     print('=== END T1-1 ===\n');
   });
 }

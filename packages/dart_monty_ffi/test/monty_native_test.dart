@@ -97,8 +97,10 @@ void main() {
     });
 
     test('throws StateError when active', () async {
-      mock.nextStartResult =
-          const MontyPending(functionName: 'fetch', arguments: []);
+      mock.nextStartResult = const MontyPending(
+        functionName: 'fetch',
+        arguments: [],
+      );
       await monty.start('x', externalFunctions: ['fetch']);
 
       expect(() => monty.run('y'), throwsStateError);
@@ -155,8 +157,10 @@ void main() {
     });
 
     test('passes multiple external functions', () async {
-      mock.nextStartResult =
-          const MontyPending(functionName: 'a', arguments: []);
+      mock.nextStartResult = const MontyPending(
+        functionName: 'a',
+        arguments: [],
+      );
 
       await monty.start('a()', externalFunctions: ['a', 'b', 'c']);
 
@@ -189,8 +193,10 @@ void main() {
     });
 
     test('throws StateError when active', () async {
-      mock.nextStartResult =
-          const MontyPending(functionName: 'f', arguments: []);
+      mock.nextStartResult = const MontyPending(
+        functionName: 'f',
+        arguments: [],
+      );
       await monty.start('x', externalFunctions: ['f']);
 
       expect(() => monty.start('y'), throwsStateError);
@@ -213,8 +219,10 @@ void main() {
   // ===========================================================================
   group('resume()', () {
     setUp(() async {
-      mock.nextStartResult =
-          const MontyPending(functionName: 'fetch', arguments: []);
+      mock.nextStartResult = const MontyPending(
+        functionName: 'fetch',
+        arguments: [],
+      );
       await monty.start('x', externalFunctions: ['fetch']);
     });
 
@@ -283,8 +291,10 @@ void main() {
   // ===========================================================================
   group('resumeWithError()', () {
     setUp(() async {
-      mock.nextStartResult =
-          const MontyPending(functionName: 'fetch', arguments: []);
+      mock.nextStartResult = const MontyPending(
+        functionName: 'fetch',
+        arguments: [],
+      );
       await monty.start('x', externalFunctions: ['fetch']);
     });
 
@@ -336,8 +346,10 @@ void main() {
   // ===========================================================================
   group('resumeAsFuture()', () {
     setUp(() async {
-      mock.nextStartResult =
-          const MontyPending(functionName: 'fetch', arguments: []);
+      mock.nextStartResult = const MontyPending(
+        functionName: 'fetch',
+        arguments: [],
+      );
       await monty.start('x', externalFunctions: ['fetch']);
     });
 
@@ -370,8 +382,10 @@ void main() {
   // ===========================================================================
   group('resolveFutures()', () {
     setUp(() async {
-      mock.nextStartResult =
-          const MontyPending(functionName: 'fetch', arguments: []);
+      mock.nextStartResult = const MontyPending(
+        functionName: 'fetch',
+        arguments: [],
+      );
       await monty.start('x', externalFunctions: ['fetch']);
       mock.resumeAsFutureResults.add(
         const MontyResolveFutures(pendingCallIds: [0]),
@@ -409,8 +423,10 @@ void main() {
   // ===========================================================================
   group('resolveFutures() with errors', () {
     setUp(() async {
-      mock.nextStartResult =
-          const MontyPending(functionName: 'fetch', arguments: []);
+      mock.nextStartResult = const MontyPending(
+        functionName: 'fetch',
+        arguments: [],
+      );
       await monty.start('x', externalFunctions: ['fetch']);
       mock.resumeAsFutureResults.add(
         const MontyResolveFutures(pendingCallIds: [0, 1]),
@@ -462,8 +478,10 @@ void main() {
   // ===========================================================================
   group('snapshot()', () {
     setUp(() async {
-      mock.nextStartResult =
-          const MontyPending(functionName: 'f', arguments: []);
+      mock.nextStartResult = const MontyPending(
+        functionName: 'f',
+        arguments: [],
+      );
       await monty.start('x', externalFunctions: ['f']);
     });
 
@@ -537,8 +555,10 @@ void main() {
     });
 
     test('throws StateError when active', () async {
-      mock.nextStartResult =
-          const MontyPending(functionName: 'f', arguments: []);
+      mock.nextStartResult = const MontyPending(
+        functionName: 'f',
+        arguments: [],
+      );
       await monty.start('x', externalFunctions: ['f']);
 
       expect(
@@ -577,8 +597,10 @@ void main() {
   // ===========================================================================
   group('edge cases', () {
     test('pending with empty arguments', () async {
-      mock.nextStartResult =
-          const MontyPending(functionName: 'noop', arguments: []);
+      mock.nextStartResult = const MontyPending(
+        functionName: 'noop',
+        arguments: [],
+      );
 
       final progress = await monty.start(
         'noop()',
@@ -677,9 +699,8 @@ MontyResourceUsage _usage({
   required int memory,
   required int time,
   required int stack,
-}) =>
-    MontyResourceUsage(
-      memoryBytesUsed: memory,
-      timeElapsedMs: time,
-      stackDepthUsed: stack,
-    );
+}) => MontyResourceUsage(
+  memoryBytesUsed: memory,
+  timeElapsedMs: time,
+  stackDepthUsed: stack,
+);

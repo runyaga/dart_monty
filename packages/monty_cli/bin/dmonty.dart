@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:monty_cli/src/cli_runner.dart';
 import 'package:monty_cli/src/commands/prompt_command.dart';
-import 'package:monty_cli/src/library_resolver.dart';
 
 Future<void> main(List<String> args) async {
   final runner = buildRunner();
@@ -18,9 +17,6 @@ Future<void> main(List<String> args) async {
         prompts: prompts,
         json: parsed.flag('json'),
         verbose: parsed.flag('verbose'),
-        libraryPath: resolveLibraryPath(
-          override: parsed.option('library-path'),
-        ),
       );
       exit(exitCode);
     }

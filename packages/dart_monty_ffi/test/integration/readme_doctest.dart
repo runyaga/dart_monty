@@ -39,10 +39,11 @@ List<String> _extractDartBlocks(String markdown) =>
 // Registry: (relative path from repo root) -> handler per block index
 // ---------------------------------------------------------------------------
 
-typedef BlockHandler = Future<void> Function(
-  String block,
-  NativeBindingsFfi bindings,
-);
+typedef BlockHandler =
+    Future<void> Function(
+      String block,
+      NativeBindingsFfi bindings,
+    );
 
 /// Hand-written handlers keyed by `(readmePath, blockIndex)`.
 final Map<(String, int), BlockHandler> _handlers = {
@@ -286,9 +287,10 @@ void main() {
               !d.path.contains('spike'),
         )
         .map((d) {
-      final name = d.uri.pathSegments.where((s) => s.isNotEmpty).last;
-      return 'packages/$name/README.md';
-    }).where((p) => File('$repoRoot/$p').existsSync()),
+          final name = d.uri.pathSegments.where((s) => s.isNotEmpty).last;
+          return 'packages/$name/README.md';
+        })
+        .where((p) => File('$repoRoot/$p').existsSync()),
   ];
 
   for (final readmePath in readmePaths) {
@@ -301,7 +303,8 @@ void main() {
         expect(
           _handlers.containsKey((readmePath, i)),
           isTrue,
-          reason: '$readmePath block $i has no handler — add one to '
+          reason:
+              '$readmePath block $i has no handler — add one to '
               'readme_doctest.dart',
         );
       }
@@ -391,112 +394,114 @@ void main() {
     });
 
     // -- platform_interface: construct all types, verify fields --
-    test('platform_interface/example/example.dart: type construction',
-        () async {
-      final source = _readExample(
-        repoRoot,
-        'packages/dart_monty_platform_interface/example/example.dart',
-      );
-      expect(source, contains('MontyResult.fromJson'));
-      expect(source, contains('MontyException'));
-      expect(source, contains('MontyStackFrame'));
-      expect(source, contains('MontyResourceUsage'));
-      expect(source, contains('MontyLimits'));
-      expect(source, contains('MontyPending'));
-      expect(source, contains('MontyComplete'));
-      expect(source, contains('MontyResolveFutures'));
+    test(
+      'platform_interface/example/example.dart: type construction',
+      () async {
+        final source = _readExample(
+          repoRoot,
+          'packages/dart_monty_platform_interface/example/example.dart',
+        );
+        expect(source, contains('MontyResult.fromJson'));
+        expect(source, contains('MontyException'));
+        expect(source, contains('MontyStackFrame'));
+        expect(source, contains('MontyResourceUsage'));
+        expect(source, contains('MontyLimits'));
+        expect(source, contains('MontyPending'));
+        expect(source, contains('MontyComplete'));
+        expect(source, contains('MontyResolveFutures'));
 
-      // Exercise the same type constructions.
-      final result = MontyResult.fromJson(const {
-        'value': 42,
-        'usage': {
-          'memory_bytes_used': 1024,
-          'time_elapsed_ms': 5,
-          'stack_depth_used': 2,
-        },
-      });
-      expect(result.value, 42);
-      expect(result.isError, isFalse);
+        // Exercise the same type constructions.
+        final result = MontyResult.fromJson(const {
+          'value': 42,
+          'usage': {
+            'memory_bytes_used': 1024,
+            'time_elapsed_ms': 5,
+            'stack_depth_used': 2,
+          },
+        });
+        expect(result.value, 42);
+        expect(result.isError, isFalse);
 
-      final errorResult = MontyResult.fromJson(const {
-        'error': {
-          'message': 'division by zero',
-          'exc_type': 'ZeroDivisionError',
-          'filename': '<expr>',
-          'line_number': 1,
-          'column_number': 2,
-        },
-        'usage': {
-          'memory_bytes_used': 512,
-          'time_elapsed_ms': 1,
-          'stack_depth_used': 1,
-        },
-      });
-      expect(errorResult.isError, isTrue);
-      expect(errorResult.error!.excType, 'ZeroDivisionError');
+        final errorResult = MontyResult.fromJson(const {
+          'error': {
+            'message': 'division by zero',
+            'exc_type': 'ZeroDivisionError',
+            'filename': '<expr>',
+            'line_number': 1,
+            'column_number': 2,
+          },
+          'usage': {
+            'memory_bytes_used': 512,
+            'time_elapsed_ms': 1,
+            'stack_depth_used': 1,
+          },
+        });
+        expect(errorResult.isError, isTrue);
+        expect(errorResult.error!.excType, 'ZeroDivisionError');
 
-      const frame = MontyStackFrame(
-        filename: 'script.py',
-        startLine: 5,
-        startColumn: 10,
-        frameName: '<module>',
-        previewLine: '    return x + 1',
-      );
-      expect(frame.filename, 'script.py');
-      expect(frame.startLine, 5);
-      expect(frame.frameName, '<module>');
+        const frame = MontyStackFrame(
+          filename: 'script.py',
+          startLine: 5,
+          startColumn: 10,
+          frameName: '<module>',
+          previewLine: '    return x + 1',
+        );
+        expect(frame.filename, 'script.py');
+        expect(frame.startLine, 5);
+        expect(frame.frameName, '<module>');
 
-      const usage = MontyResourceUsage(
-        memoryBytesUsed: 2048,
-        timeElapsedMs: 10,
-        stackDepthUsed: 3,
-      );
-      expect(usage.memoryBytesUsed, 2048);
+        const usage = MontyResourceUsage(
+          memoryBytesUsed: 2048,
+          timeElapsedMs: 10,
+          stackDepthUsed: 3,
+        );
+        expect(usage.memoryBytesUsed, 2048);
 
-      const limits = MontyLimits(
-        timeoutMs: 5000,
-        memoryBytes: 10 * 1024 * 1024,
-        stackDepth: 100,
-      );
-      expect(limits.timeoutMs, 5000);
+        const limits = MontyLimits(
+          timeoutMs: 5000,
+          memoryBytes: 10 * 1024 * 1024,
+          stackDepth: 100,
+        );
+        expect(limits.timeoutMs, 5000);
 
-      // Pattern matching on sealed type.
-      const pending = MontyPending(
-        functionName: 'fetch',
-        arguments: ['https://api.example.com/data'],
-        kwargs: {'timeout': 30},
-        callId: 1,
-      );
-      expect(pending.functionName, 'fetch');
-      expect(pending.kwargs, {'timeout': 30});
+        // Pattern matching on sealed type.
+        const pending = MontyPending(
+          functionName: 'fetch',
+          arguments: ['https://api.example.com/data'],
+          kwargs: {'timeout': 30},
+          callId: 1,
+        );
+        expect(pending.functionName, 'fetch');
+        expect(pending.kwargs, {'timeout': 30});
 
-      const complete = MontyComplete(
-        result: MontyResult(
-          value: 42,
-          usage: MontyResourceUsage(
-            memoryBytesUsed: 1024,
-            timeElapsedMs: 5,
-            stackDepthUsed: 2,
+        const complete = MontyComplete(
+          result: MontyResult(
+            value: 42,
+            usage: MontyResourceUsage(
+              memoryBytesUsed: 1024,
+              timeElapsedMs: 5,
+              stackDepthUsed: 2,
+            ),
           ),
-        ),
-      );
-      expect(complete.result.value, 42);
+        );
+        expect(complete.result.value, 42);
 
-      const futures = MontyResolveFutures(pendingCallIds: [1, 2, 3]);
-      expect(futures.pendingCallIds, [1, 2, 3]);
+        const futures = MontyResolveFutures(pendingCallIds: [1, 2, 3]);
+        expect(futures.pendingCallIds, [1, 2, 3]);
 
-      // Exhaustive switch (compile-time guarantee).
-      for (final progress in [pending, complete, futures]) {
-        switch (progress) {
-          case MontyPending(:final functionName):
-            expect(functionName, 'fetch');
-          case MontyComplete(:final result):
-            expect(result.value, 42);
-          case MontyResolveFutures(:final pendingCallIds):
-            expect(pendingCallIds, hasLength(3));
+        // Exhaustive switch (compile-time guarantee).
+        for (final progress in [pending, complete, futures]) {
+          switch (progress) {
+            case MontyPending(:final functionName):
+              expect(functionName, 'fetch');
+            case MontyComplete(:final result):
+              expect(result.value, 42);
+            case MontyResolveFutures(:final pendingCallIds):
+              expect(pendingCallIds, hasLength(3));
+          }
         }
-      }
-    });
+      },
+    );
 
     // -- WASM: structure-only --
     test('wasm/example/example.dart: structure', () {

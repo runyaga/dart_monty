@@ -5,24 +5,15 @@ library;
 // ignore_for_file: avoid_print, lines_longer_than_80_chars
 
 import 'dart:async';
-import 'dart:io' show Platform;
-
 import 'package:dart_monty_ffi/dart_monty_ffi.dart';
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 import 'package:test/test.dart';
-
-String _resolveLibraryPath() {
-  final ext = Platform.isMacOS ? 'dylib' : 'so';
-  return '../../native/target/release/libdart_monty_native.$ext';
-}
 
 /// EXP-CANCEL-T1-4: Sealed Error Routing — Integration Tests
 ///
 /// N=50 per sub-experiment (A: Python exception, C: Cancel, D: Dispose during run).
 /// Sub-B (OOM) and Sub-E (Rust panic) require test-only FFI paths; skipped if unavailable.
 void main() {
-  final libPath = _resolveLibraryPath();
-
   // --- Metrics ---
   var subACorrect = 0;
   var subCCorrect = 0;
@@ -35,7 +26,7 @@ void main() {
   group('T1-4A: Python exception → MontyException (N=$n)', () {
     for (var trial = 1; trial <= n; trial++) {
       test('trial $trial: ZeroDivisionError', () async {
-        final isolate = NativeIsolateBindingsImpl(libraryPath: libPath);
+        final isolate = NativeIsolateBindingsImpl();
         await isolate.init();
 
         try {
@@ -59,7 +50,7 @@ void main() {
   group('T1-4C: Cancel → MontyCancelledError (N=$n)', () {
     for (var trial = 1; trial <= n; trial++) {
       test('trial $trial', () async {
-        final isolate = NativeIsolateBindingsImpl(libraryPath: libPath);
+        final isolate = NativeIsolateBindingsImpl();
         await isolate.init();
 
         final startFuture = isolate.start(
@@ -89,7 +80,7 @@ void main() {
       test(
         'trial $trial',
         () async {
-          final isolate = NativeIsolateBindingsImpl(libraryPath: libPath);
+          final isolate = NativeIsolateBindingsImpl();
           await isolate.init();
 
           final startFuture = isolate.start(
@@ -143,8 +134,10 @@ void main() {
     print('Sub-B (OOM): SKIPPED (needs MontyLimits.memoryBytes integration)');
     print('Sub-E (Rust panic): SKIPPED (needs test-only FFI path)');
     print('');
-    print('VERDICT: '
-        '${subACorrect == n && subCCorrect == n && subDCorrect == n ? "PASS" : "FAIL (with caveats for skipped sub-experiments)"}');
+    print(
+      'VERDICT: '
+      '${subACorrect == n && subCCorrect == n && subDCorrect == n ? "PASS" : "FAIL (with caveats for skipped sub-experiments)"}',
+    );
     print('=== END T1-4 ===\n');
   });
 }

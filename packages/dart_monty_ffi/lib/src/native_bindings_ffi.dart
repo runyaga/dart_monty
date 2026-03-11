@@ -1,31 +1,23 @@
+// coverage:ignore-file — FFI glue; only testable via integration tests.
 import 'dart:ffi';
-import 'dart:io' show Platform;
 import 'dart:typed_data';
 
-import 'package:dart_monty_ffi/src/generated/dart_monty_bindings.dart';
+import 'package:dart_monty_ffi/src/generated/dart_monty_bindings.dart'
+    as ffi_native;
 import 'package:dart_monty_ffi/src/native_bindings.dart';
-import 'package:dart_monty_ffi/src/native_library_loader.dart';
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 import 'package:ffi/ffi.dart';
 
 /// Real FFI implementation of [NativeBindings].
 ///
-/// Manages all pointer lifecycle internally: allocates out-params, reads
-/// C strings, and calls `monty_string_free`/`monty_bytes_free`.
+/// Uses `@Native` annotations via the generated bindings — symbol resolution
+/// is handled automatically by the Dart native assets system.
 class NativeBindingsFfi extends NativeBindings {
-  /// Creates [NativeBindingsFfi] by opening the native library.
+  /// Creates [NativeBindingsFfi].
   ///
-  /// Pass [libraryPath] to override the default platform resolution.
-  /// On iOS, symbols are statically linked into the main executable, so
-  /// [DynamicLibrary.process] is used instead of [DynamicLibrary.open].
-  NativeBindingsFfi({String? libraryPath})
-      : _lib = DartMontyBindings(
-          Platform.isIOS
-              ? DynamicLibrary.process()
-              : DynamicLibrary.open(
-                  NativeLibraryLoader.resolve(overridePath: libraryPath),
-                ),
-        ) {
+  /// With native asset hooks, the library is resolved automatically by the
+  /// Dart runtime. No manual path resolution is needed.
+  NativeBindingsFfi() {
     _instance ??= this;
     BaseMontyPlatform.registerNativeCancel(
       cancelById: (id) => instanceOrNull?.cancelById(id) ?? false,
@@ -33,8 +25,6 @@ class NativeBindingsFfi extends NativeBindings {
       ensureInitialized: NativeBindingsFfi.ensureInitialized,
     );
   }
-
-  final DartMontyBindings _lib;
 
   // ---------------------------------------------------------------------------
   // Singleton for cross-isolate cancelById access
@@ -48,8 +38,12 @@ class NativeBindingsFfi extends NativeBindings {
   /// Ensure the FFI library is loaded in the current isolate.
   /// Must be called before static cancel operations.
   /// Safe to call multiple times (idempotent, first-write-wins).
+  ///
+  /// The [libraryPath] parameter is ignored — with native asset hooks, the
+  /// library is resolved automatically by the Dart runtime. It is retained
+  /// for API compatibility with [BaseMontyPlatform.registerNativeCancel].
   static void ensureInitialized([String? libraryPath]) {
-    _instance ??= NativeBindingsFfi(libraryPath: libraryPath);
+    _instance ??= NativeBindingsFfi();
   }
 
   @override
@@ -63,12 +57,18 @@ class NativeBindingsFfi extends NativeBindings {
     final cExtFns = externalFunctions != null
         ? externalFunctions.toNativeUtf8().cast<Char>()
         : nullChar;
-    final cScriptName =
-        scriptName != null ? scriptName.toNativeUtf8().cast<Char>() : nullChar;
+    final cScriptName = scriptName != null
+        ? scriptName.toNativeUtf8().cast<Char>()
+        : nullChar;
     final outError = calloc<Pointer<Char>>();
 
     try {
-      final handle = _lib.monty_create(cCode, cExtFns, cScriptName, outError);
+      final handle = ffi_native.monty_create(
+        cCode,
+        cExtFns,
+        cScriptName,
+        outError,
+      );
       if (handle == nullptr) {
         final errorMsg = _readAndFreeString(outError.value);
         throw MontyException(message: errorMsg ?? 'monty_create returned null');
@@ -86,17 +86,17 @@ class NativeBindingsFfi extends NativeBindings {
   @override
   void free(int handle) {
     if (handle == 0) return;
-    _lib.monty_free(Pointer<MontyHandle>.fromAddress(handle));
+    ffi_native.monty_free(Pointer<ffi_native.MontyHandle>.fromAddress(handle));
   }
 
   @override
   RunResult run(int handle) {
-    final ptr = Pointer<MontyHandle>.fromAddress(handle);
+    final ptr = Pointer<ffi_native.MontyHandle>.fromAddress(handle);
     final outResult = calloc<Pointer<Char>>();
     final outError = calloc<Pointer<Char>>();
 
     try {
-      final tag = _lib.monty_run(ptr, outResult, outError);
+      final tag = ffi_native.monty_run(ptr, outResult, outError);
       final resultJson = _readAndFreeString(outResult.value);
       final errorMsg = _readAndFreeString(outError.value);
 
@@ -114,11 +114,11 @@ class NativeBindingsFfi extends NativeBindings {
 
   @override
   ProgressResult start(int handle) {
-    final ptr = Pointer<MontyHandle>.fromAddress(handle);
+    final ptr = Pointer<ffi_native.MontyHandle>.fromAddress(handle);
     final outError = calloc<Pointer<Char>>();
 
     try {
-      final tag = _lib.monty_start(ptr, outError);
+      final tag = ffi_native.monty_start(ptr, outError);
 
       return _buildProgressResult(ptr, tag, outError.value);
     } finally {
@@ -128,12 +128,12 @@ class NativeBindingsFfi extends NativeBindings {
 
   @override
   ProgressResult resume(int handle, String valueJson) {
-    final ptr = Pointer<MontyHandle>.fromAddress(handle);
+    final ptr = Pointer<ffi_native.MontyHandle>.fromAddress(handle);
     final cValue = valueJson.toNativeUtf8().cast<Char>();
     final outError = calloc<Pointer<Char>>();
 
     try {
-      final tag = _lib.monty_resume(ptr, cValue, outError);
+      final tag = ffi_native.monty_resume(ptr, cValue, outError);
 
       return _buildProgressResult(ptr, tag, outError.value);
     } finally {
@@ -145,12 +145,12 @@ class NativeBindingsFfi extends NativeBindings {
 
   @override
   ProgressResult resumeWithError(int handle, String errorMessage) {
-    final ptr = Pointer<MontyHandle>.fromAddress(handle);
+    final ptr = Pointer<ffi_native.MontyHandle>.fromAddress(handle);
     final cError = errorMessage.toNativeUtf8().cast<Char>();
     final outError = calloc<Pointer<Char>>();
 
     try {
-      final tag = _lib.monty_resume_with_error(ptr, cError, outError);
+      final tag = ffi_native.monty_resume_with_error(ptr, cError, outError);
 
       return _buildProgressResult(ptr, tag, outError.value);
     } finally {
@@ -162,11 +162,11 @@ class NativeBindingsFfi extends NativeBindings {
 
   @override
   ProgressResult resumeAsFuture(int handle) {
-    final ptr = Pointer<MontyHandle>.fromAddress(handle);
+    final ptr = Pointer<ffi_native.MontyHandle>.fromAddress(handle);
     final outError = calloc<Pointer<Char>>();
 
     try {
-      final tag = _lib.monty_resume_as_future(ptr, outError);
+      final tag = ffi_native.monty_resume_as_future(ptr, outError);
 
       return _buildProgressResult(ptr, tag, outError.value);
     } finally {
@@ -180,13 +180,18 @@ class NativeBindingsFfi extends NativeBindings {
     String resultsJson,
     String errorsJson,
   ) {
-    final ptr = Pointer<MontyHandle>.fromAddress(handle);
+    final ptr = Pointer<ffi_native.MontyHandle>.fromAddress(handle);
     final cResults = resultsJson.toNativeUtf8().cast<Char>();
     final cErrors = errorsJson.toNativeUtf8().cast<Char>();
     final outError = calloc<Pointer<Char>>();
 
     try {
-      final tag = _lib.monty_resume_futures(ptr, cResults, cErrors, outError);
+      final tag = ffi_native.monty_resume_futures(
+        ptr,
+        cResults,
+        cErrors,
+        outError,
+      );
 
       return _buildProgressResult(ptr, tag, outError.value);
     } finally {
@@ -199,41 +204,41 @@ class NativeBindingsFfi extends NativeBindings {
 
   @override
   void setMemoryLimit(int handle, int bytes) {
-    _lib.monty_set_memory_limit(
-      Pointer<MontyHandle>.fromAddress(handle),
+    ffi_native.monty_set_memory_limit(
+      Pointer<ffi_native.MontyHandle>.fromAddress(handle),
       bytes,
     );
   }
 
   @override
   void setTimeLimitMs(int handle, int ms) {
-    _lib.monty_set_time_limit_ms(
-      Pointer<MontyHandle>.fromAddress(handle),
+    ffi_native.monty_set_time_limit_ms(
+      Pointer<ffi_native.MontyHandle>.fromAddress(handle),
       ms,
     );
   }
 
   @override
   void setStackLimit(int handle, int depth) {
-    _lib.monty_set_stack_limit(
-      Pointer<MontyHandle>.fromAddress(handle),
+    ffi_native.monty_set_stack_limit(
+      Pointer<ffi_native.MontyHandle>.fromAddress(handle),
       depth,
     );
   }
 
   @override
   Uint8List snapshot(int handle) {
-    final ptr = Pointer<MontyHandle>.fromAddress(handle);
+    final ptr = Pointer<ffi_native.MontyHandle>.fromAddress(handle);
     final outLen = calloc<Size>();
 
     try {
-      final buf = _lib.monty_snapshot(ptr, outLen);
+      final buf = ffi_native.monty_snapshot(ptr, outLen);
       if (buf == nullptr) {
         throw StateError('monty_snapshot returned null');
       }
       final len = outLen.value;
       final bytes = Uint8List.fromList(buf.cast<Uint8>().asTypedList(len));
-      _lib.monty_bytes_free(buf, len);
+      ffi_native.monty_bytes_free(buf, len);
 
       return bytes;
     } finally {
@@ -248,7 +253,7 @@ class NativeBindingsFfi extends NativeBindings {
 
     try {
       cData.asTypedList(data.length).setAll(0, data);
-      final handle = _lib.monty_restore(cData, data.length, outError);
+      final handle = ffi_native.monty_restore(cData, data.length, outError);
       if (handle == nullptr) {
         final errorMsg = _readAndFreeString(outError.value);
         throw MontyException(
@@ -271,14 +276,16 @@ class NativeBindingsFfi extends NativeBindings {
   @override
   void cancel(int handle) {
     if (handle == 0) return;
-    _lib.monty_cancel(Pointer<MontyHandle>.fromAddress(handle));
+    ffi_native.monty_cancel(
+      Pointer<ffi_native.MontyHandle>.fromAddress(handle),
+    );
   }
 
   @override
   bool isCancelled(int handle) {
     if (handle == 0) return false;
-    final result = _lib.monty_is_cancelled(
-      Pointer<MontyHandle>.fromAddress(handle),
+    final result = ffi_native.monty_is_cancelled(
+      Pointer<ffi_native.MontyHandle>.fromAddress(handle),
     );
     return result == 1;
   }
@@ -286,33 +293,35 @@ class NativeBindingsFfi extends NativeBindings {
   @override
   void resetCancel(int handle) {
     if (handle == 0) return;
-    _lib.monty_reset_cancel(Pointer<MontyHandle>.fromAddress(handle));
+    ffi_native.monty_reset_cancel(
+      Pointer<ffi_native.MontyHandle>.fromAddress(handle),
+    );
   }
 
   @override
   int getHandleId(int handle) {
     if (handle == 0) return 0;
-    return _lib.monty_get_handle_id(
-      Pointer<MontyHandle>.fromAddress(handle),
+    return ffi_native.monty_get_handle_id(
+      Pointer<ffi_native.MontyHandle>.fromAddress(handle),
     );
   }
 
   @override
   bool cancelById(int handleId) {
-    final result = _lib.monty_cancel_by_id(handleId);
+    final result = ffi_native.monty_cancel_by_id(handleId);
     return result == 0;
   }
 
   @override
   bool? isCancelledById(int handleId) {
-    final result = _lib.monty_is_cancelled_by_id(handleId);
+    final result = ffi_native.monty_is_cancelled_by_id(handleId);
     if (result == -1) return null; // not found
     return result == 1;
   }
 
   @override
   bool freeById(int handleId) {
-    final result = _lib.monty_free_by_id(handleId);
+    final result = ffi_native.monty_free_by_id(handleId);
     return result == 1;
   }
 
@@ -321,15 +330,15 @@ class NativeBindingsFfi extends NativeBindings {
   // ---------------------------------------------------------------------------
 
   ProgressResult _buildProgressResult(
-    Pointer<MontyHandle> ptr,
-    MontyProgressTag tag,
+    Pointer<ffi_native.MontyHandle> ptr,
+    ffi_native.MontyProgressTag tag,
     Pointer<Char> errorPtr,
   ) {
     switch (tag) {
-      case MontyProgressTag.MONTY_PROGRESS_COMPLETE:
-        final resultJsonPtr = _lib.monty_complete_result_json(ptr);
+      case ffi_native.MontyProgressTag.MONTY_PROGRESS_COMPLETE:
+        final resultJsonPtr = ffi_native.monty_complete_result_json(ptr);
         final resultJson = _readAndFreeString(resultJsonPtr);
-        final isError = _lib.monty_complete_is_error(ptr);
+        final isError = ffi_native.monty_complete_is_error(ptr);
 
         return ProgressResult(
           tag: 0,
@@ -337,15 +346,15 @@ class NativeBindingsFfi extends NativeBindings {
           isError: isError,
         );
 
-      case MontyProgressTag.MONTY_PROGRESS_PENDING:
-        final fnNamePtr = _lib.monty_pending_fn_name(ptr);
+      case ffi_native.MontyProgressTag.MONTY_PROGRESS_PENDING:
+        final fnNamePtr = ffi_native.monty_pending_fn_name(ptr);
         final fnName = _readAndFreeString(fnNamePtr);
-        final argsPtr = _lib.monty_pending_fn_args_json(ptr);
+        final argsPtr = ffi_native.monty_pending_fn_args_json(ptr);
         final argsJson = _readAndFreeString(argsPtr);
-        final kwargsPtr = _lib.monty_pending_fn_kwargs_json(ptr);
+        final kwargsPtr = ffi_native.monty_pending_fn_kwargs_json(ptr);
         final kwargsJson = _readAndFreeString(kwargsPtr);
-        final callId = _lib.monty_pending_call_id(ptr);
-        final methodCall = _lib.monty_pending_method_call(ptr);
+        final callId = ffi_native.monty_pending_call_id(ptr);
+        final methodCall = ffi_native.monty_pending_method_call(ptr);
 
         return ProgressResult(
           tag: 1,
@@ -356,10 +365,10 @@ class NativeBindingsFfi extends NativeBindings {
           methodCall: methodCall == 1,
         );
 
-      case MontyProgressTag.MONTY_PROGRESS_ERROR:
+      case ffi_native.MontyProgressTag.MONTY_PROGRESS_ERROR:
         final errorMsg = _readAndFreeString(errorPtr);
         // handle_exception sets state to Complete with full error JSON
-        final resultJsonPtr = _lib.monty_complete_result_json(ptr);
+        final resultJsonPtr = ffi_native.monty_complete_result_json(ptr);
         final resultJson = _readAndFreeString(resultJsonPtr);
 
         return ProgressResult(
@@ -368,8 +377,8 @@ class NativeBindingsFfi extends NativeBindings {
           resultJson: resultJson,
         );
 
-      case MontyProgressTag.MONTY_PROGRESS_RESOLVE_FUTURES:
-        final callIdsPtr = _lib.monty_pending_future_call_ids(ptr);
+      case ffi_native.MontyProgressTag.MONTY_PROGRESS_RESOLVE_FUTURES:
+        final callIdsPtr = ffi_native.monty_pending_future_call_ids(ptr);
         final callIdsJson = _readAndFreeString(callIdsPtr);
 
         return ProgressResult(tag: 3, futureCallIdsJson: callIdsJson);
@@ -381,7 +390,7 @@ class NativeBindingsFfi extends NativeBindings {
   String? _readAndFreeString(Pointer<Char> ptr) {
     if (ptr == nullptr) return null;
     final str = ptr.cast<Utf8>().toDartString();
-    _lib.monty_string_free(ptr);
+    ffi_native.monty_string_free(ptr);
 
     return str;
   }

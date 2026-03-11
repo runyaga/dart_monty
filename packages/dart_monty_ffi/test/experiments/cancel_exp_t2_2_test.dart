@@ -6,15 +6,8 @@ library;
 // ignore_for_file: avoid_print, lines_longer_than_80_chars
 
 import 'dart:async';
-import 'dart:io' show Platform;
-
 import 'package:dart_monty_ffi/dart_monty_ffi.dart';
 import 'package:test/test.dart';
-
-String _resolveLibraryPath() {
-  final ext = Platform.isMacOS ? 'dylib' : 'so';
-  return '../../native/target/release/libdart_monty_native.$ext';
-}
 
 /// EXP-CANCEL-T2-2: Future Hang Prevention
 ///
@@ -26,8 +19,6 @@ String _resolveLibraryPath() {
 ///
 /// N=50 per scenario.
 void main() {
-  final libPath = _resolveLibraryPath();
-
   // --- Scenario C1 metrics: dispose() without cancel ---
   var c1ResolvedCount = 0;
   var c1HangingCount = 0;
@@ -54,7 +45,7 @@ void main() {
       test(
         'trial $trial',
         () async {
-          final isolate = NativeIsolateBindingsImpl(libraryPath: libPath);
+          final isolate = NativeIsolateBindingsImpl();
           await isolate.init();
 
           final startFuture = isolate.start(
@@ -86,8 +77,8 @@ void main() {
           var disposeHung = false;
           try {
             await isolate.dispose().timeout(
-                  const Duration(milliseconds: disposeTimeoutMs),
-                );
+              const Duration(milliseconds: disposeTimeoutMs),
+            );
           } on TimeoutException {
             disposeHung = true;
             c1DisposeHangCount++;
@@ -125,7 +116,7 @@ void main() {
       test(
         'trial $trial',
         () async {
-          final isolate = NativeIsolateBindingsImpl(libraryPath: libPath);
+          final isolate = NativeIsolateBindingsImpl();
           await isolate.init();
 
           final startFuture = isolate.start(
@@ -204,10 +195,14 @@ void main() {
 
     final c1Pass = c1HangingCount == 0;
     final c2Pass = c2HangingCount == 0;
-    print('VERDICT C1 (dispose): ${c1Pass ? "PASS" : "FAIL"}'
-        '${!c1Pass ? " — $c1HangingCount/$nC1 futures hung, $c1DisposeHangCount/$nC1 dispose() calls hung" : ""}');
-    print('VERDICT C2 (terminate): ${c2Pass ? "PASS" : "FAIL"}'
-        '${!c2Pass ? " — $c2HangingCount/$nC2 futures hung" : ""}');
+    print(
+      'VERDICT C1 (dispose): ${c1Pass ? "PASS" : "FAIL"}'
+      '${!c1Pass ? " — $c1HangingCount/$nC1 futures hung, $c1DisposeHangCount/$nC1 dispose() calls hung" : ""}',
+    );
+    print(
+      'VERDICT C2 (terminate): ${c2Pass ? "PASS" : "FAIL"}'
+      '${!c2Pass ? " — $c2HangingCount/$nC2 futures hung" : ""}',
+    );
     print('');
     print('OVERALL: ${c1Pass && c2Pass ? "PASS" : "FAIL"}');
     print('=== END T2-2 ===\n');

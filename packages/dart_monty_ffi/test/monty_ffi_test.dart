@@ -635,8 +635,10 @@ void main() {
     });
 
     test('run with string value in result', () async {
-      mock.nextRunResult =
-          RunResult(tag: 0, resultJson: _okResultJson('"hello"'));
+      mock.nextRunResult = RunResult(
+        tag: 0,
+        resultJson: _okResultJson('"hello"'),
+      );
 
       final result = await monty.run('"hello"');
       expect(result.value, 'hello');
@@ -726,7 +728,8 @@ void main() {
     });
 
     test('run error result includes excType and traceback', () async {
-      const errorJson = '{"value": null, "error": {'
+      const errorJson =
+          '{"value": null, "error": {'
           ' "message": "division by zero",'
           ' "exc_type": "ZeroDivisionError",'
           ' "traceback": [{"filename": "test.py", "start_line": 1,'
@@ -760,50 +763,61 @@ void main() {
       );
     });
 
-    test('run error tag=1 parses excType and traceback from resultJson',
-        () async {
-      const errorJson = '{"value": null, "error": {'
-          ' "message": "division by zero",'
-          ' "exc_type": "ZeroDivisionError",'
-          ' "filename": "test.py",'
-          ' "line_number": 1,'
-          ' "traceback": [{"filename": "test.py", "start_line": 1,'
-          ' "start_column": 0, "end_line": 1, "end_column": 3}]'
-          ' }, "usage": $_usageJson}';
-      mock.nextRunResult =
-          const RunResult(tag: 1, resultJson: errorJson, errorMessage: 'err');
+    test(
+      'run error tag=1 parses excType and traceback from resultJson',
+      () async {
+        const errorJson =
+            '{"value": null, "error": {'
+            ' "message": "division by zero",'
+            ' "exc_type": "ZeroDivisionError",'
+            ' "filename": "test.py",'
+            ' "line_number": 1,'
+            ' "traceback": [{"filename": "test.py", "start_line": 1,'
+            ' "start_column": 0, "end_line": 1, "end_column": 3}]'
+            ' }, "usage": $_usageJson}';
+        mock.nextRunResult = const RunResult(
+          tag: 1,
+          resultJson: errorJson,
+          errorMessage: 'err',
+        );
 
-      try {
-        await monty.run('1/0');
-        fail('Expected MontyException');
-      } on MontyException catch (e) {
-        expect(e.excType, 'ZeroDivisionError');
-        expect(e.message, 'division by zero');
-        expect(e.filename, 'test.py');
-        expect(e.traceback, hasLength(1));
-        expect(e.traceback.first.filename, 'test.py');
-      }
-    });
+        try {
+          await monty.run('1/0');
+          fail('Expected MontyException');
+        } on MontyException catch (e) {
+          expect(e.excType, 'ZeroDivisionError');
+          expect(e.message, 'division by zero');
+          expect(e.filename, 'test.py');
+          expect(e.traceback, hasLength(1));
+          expect(e.traceback.first.filename, 'test.py');
+        }
+      },
+    );
 
-    test('run error tag=1 falls back to errorMessage when no resultJson',
-        () async {
-      mock.nextRunResult =
-          const RunResult(tag: 1, errorMessage: 'fallback msg');
+    test(
+      'run error tag=1 falls back to errorMessage when no resultJson',
+      () async {
+        mock.nextRunResult = const RunResult(
+          tag: 1,
+          errorMessage: 'fallback msg',
+        );
 
-      expect(
-        () => monty.run('x'),
-        throwsA(
-          isA<MontyException>().having(
-            (e) => e.message,
-            'message',
-            'fallback msg',
+        expect(
+          () => monty.run('x'),
+          throwsA(
+            isA<MontyException>().having(
+              (e) => e.message,
+              'message',
+              'fallback msg',
+            ),
           ),
-        ),
-      );
-    });
+        );
+      },
+    );
 
     test('progress error parses excType from resultJson', () async {
-      const errorJson = '{"value": null, "error": {'
+      const errorJson =
+          '{"value": null, "error": {'
           ' "message": "name error",'
           ' "exc_type": "NameError",'
           ' "traceback": [{"filename": "<module>", "start_line": 1,'

@@ -5,24 +5,16 @@ library;
 // ignore_for_file: avoid_print, lines_longer_than_80_chars, cascade_invocations
 
 import 'dart:async';
-import 'dart:io' show Platform;
 import 'dart:math';
 
 import 'package:dart_monty_ffi/dart_monty_ffi.dart';
 import 'package:test/test.dart';
-
-String _resolveLibraryPath() {
-  final ext = Platform.isMacOS ? 'dylib' : 'so';
-  return '../../native/target/release/libdart_monty_native.$ext';
-}
 
 /// EXP-CANCEL-T3-2: Terminate Cycle Latency (Native)
 ///
 /// N=500 full terminate() latency measurements.
 /// Success: P95 < 20ms.
 void main() {
-  final libPath = _resolveLibraryPath();
-
   final terminateLatenciesUs = <int>[];
   const n = 500;
   const warmup = 5;
@@ -30,7 +22,7 @@ void main() {
   group('T3-2: terminate cycle latency (N=$n)', () {
     for (var i = 0; i < warmup; i++) {
       test('warmup $i', () async {
-        final isolate = NativeIsolateBindingsImpl(libraryPath: libPath);
+        final isolate = NativeIsolateBindingsImpl();
         await isolate.init();
         final f = isolate.start(
           'while True: pass',
@@ -45,7 +37,7 @@ void main() {
 
     for (var trial = 1; trial <= n; trial++) {
       test('trial $trial', () async {
-        final isolate = NativeIsolateBindingsImpl(libraryPath: libPath);
+        final isolate = NativeIsolateBindingsImpl();
         await isolate.init();
 
         final startFuture = isolate.start(

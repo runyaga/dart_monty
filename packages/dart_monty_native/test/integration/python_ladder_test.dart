@@ -17,15 +17,7 @@ import 'package:test/test.dart';
 /// ```
 void main() {
   registerLadderTests(
-    createPlatform: () => MontyNative(
-      bindings: NativeIsolateBindingsImpl(libraryPath: _resolveLibraryPath()),
-    ),
+    createPlatform: () => MontyNative(bindings: NativeIsolateBindingsImpl()),
     fixtureDir: Directory('../../test/fixtures/python_ladder'),
   );
-}
-
-String _resolveLibraryPath() {
-  final ext = Platform.isMacOS ? 'dylib' : 'so';
-
-  return '../../native/target/release/libdart_monty_native.$ext';
 }

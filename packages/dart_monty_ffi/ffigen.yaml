@@ -6,7 +6,9 @@ headers:
     - '../../native/include/dart_monty.h'
   include-directives:
     - '../../native/include/dart_monty.h'
+ffi-native:
+  asset-id: 'package:dart_monty_ffi/dart_monty_ffi.dart'
 silence-enum-warning: true
 preamble: |
   // AUTO-GENERATED — do not edit by hand.
-  // Regenerate with: bash tool/generate_bindings.sh
+  // Regenerate with: dart run ffigen

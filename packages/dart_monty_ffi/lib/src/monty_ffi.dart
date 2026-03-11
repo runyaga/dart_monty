@@ -32,14 +32,14 @@ class MontyFfi extends BaseMontyPlatform
   MontyFfi.withCore({
     required FfiCoreBindings coreBindings,
     required NativeBindings nativeBindings,
-  })  : _nativeBindings = nativeBindings,
-        super(bindings: coreBindings);
+  }) : _nativeBindings = nativeBindings,
+       super(bindings: coreBindings);
 
   MontyFfi._({
     required FfiCoreBindings coreBindings,
     required NativeBindings nativeBindings,
-  })  : _nativeBindings = nativeBindings,
-        super(bindings: coreBindings);
+  }) : _nativeBindings = nativeBindings,
+       super(bindings: coreBindings);
 
   final NativeBindings _nativeBindings;
 

@@ -1,8 +1,6 @@
 @Tags(['integration'])
 library;
 
-import 'dart:io';
-
 import 'package:dart_monty_ffi/dart_monty_ffi.dart';
 import 'package:dart_monty_mcp/dart_monty_mcp.dart';
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
@@ -13,17 +11,14 @@ import 'package:test/test.dart';
 ///
 /// Run with:
 /// ```bash
-/// DART_MONTY_LIB_PATH=../../native/target/release/libdart_monty_native.dylib \
-///   dart test --tags=integration --run-skipped test/src/host_function_integration_test.dart
+/// dart test --tags=integration --run-skipped test/src/host_function_integration_test.dart
 /// ```
 void main() {
   late MontyMcpServer server;
 
   MontyPlatform createPlatform() {
-    final libPath = Platform.environment['DART_MONTY_LIB_PATH'] ??
-        Platform.environment['MONTY_LIBRARY_PATH'];
     return MontyFfi(
-      bindings: NativeBindingsFfi(libraryPath: libPath),
+      bindings: NativeBindingsFfi(),
     );
   }
 

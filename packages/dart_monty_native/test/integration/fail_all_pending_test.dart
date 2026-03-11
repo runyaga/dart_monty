@@ -1,8 +1,6 @@
 @Tags(['integration'])
 library;
 
-import 'dart:io';
-
 import 'package:dart_monty_native/dart_monty_native.dart';
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 import 'package:test/test.dart';
@@ -26,10 +24,8 @@ import 'package:test/test.dart';
 /// dart test --tags=integration test/integration/fail_all_pending_test.dart
 /// ```
 void main() {
-  final libPath = _resolveLibraryPath();
-
   MontyNative createMonty() =>
-      MontyNative(bindings: NativeIsolateBindingsImpl(libraryPath: libPath));
+      MontyNative(bindings: NativeIsolateBindingsImpl());
 
   test('dispose while pending does not hang', () async {
     final monty = createMonty();
@@ -64,10 +60,4 @@ void main() {
     // After dispose, resume must throw StateError (disposed state).
     expect(() => monty.resume('value'), throwsStateError);
   });
-}
-
-String _resolveLibraryPath() {
-  final ext = Platform.isMacOS ? 'dylib' : 'so';
-
-  return '../../native/target/release/libdart_monty_native.$ext';
 }
