@@ -1,3 +1,7 @@
+## 0.7.1
+
+- Suppress `MontyPlatform.instance` deprecation in `registerWith()` (federated plugin registration requires the singleton)
+
 ## 0.7.0
 
 - Extract `MontyNative`, `NativeIsolateBindings`, and `NativeIsolateBindingsImpl` to `dart_monty_ffi`

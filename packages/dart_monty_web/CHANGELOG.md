@@ -1,3 +1,7 @@
+## 0.7.1
+
+- Suppress `MontyPlatform.instance` deprecation in `registerWith()` (federated plugin registration requires the singleton)
+
 ## 0.7.0
 
 - Bump dependency constraints for 0.7.0 release (no package code changes)
