@@ -45,7 +45,7 @@ No Rust toolchain required for consumers.
 
 ## GitHub Releases Binary Naming
 
-Pre-built binaries are hosted on GitHub Releases with tag `native-v<version>`.
+Pre-built binaries are hosted on GitHub Releases with tag `native-lib-v<version>`.
 The naming convention is:
 
 ```text
@@ -57,8 +57,8 @@ dart_monty_native-windows-arm64.dll
 dart_monty_native-windows-x64.dll
 ```
 
-The version in `hook/build.dart` (`_version = '0.7.0'`) must match the
-GitHub Release tag (`native-v0.7.0`).
+The version in `hook/build.dart` (`_version = '0.8.0'`) must match the
+GitHub Release tag (`native-lib-v0.8.0`).
 
 ## Contributor Setup
 
@@ -92,7 +92,7 @@ The build hook now prints both `stdout` and `stderr` from cargo. Check:
 ### Download fails (consumer)
 
 - Check your network connection and firewall/proxy settings
-- Verify the release exists: `https://github.com/runyaga/dart_monty/releases/tag/native-v0.7.0`
+- Verify the release exists: `https://github.com/runyaga/dart_monty/releases/tag/native-lib-v0.8.0`
 - Corrupt `.tmp` files are automatically cleaned up; re-run the build
 
 ### Stale hook cache

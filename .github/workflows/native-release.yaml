@@ -2,7 +2,7 @@ name: Native Release
 
 on:
   push:
-    tags: ['native-v*']
+    tags: ['native-lib-v*']
 
 permissions:
   contents: write

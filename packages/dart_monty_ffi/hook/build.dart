@@ -116,7 +116,7 @@ Future<bool> _download(
   if (filename == null) return false;
 
   final url = Uri.parse(
-    'https://github.com/$_repo/releases/download/native-v$_version/$filename',
+    'https://github.com/$_repo/releases/download/native-lib-v$_version/$filename',
   );
 
   final tmpFile = File('${outFile.path}.tmp');
