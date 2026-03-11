@@ -26,7 +26,11 @@ void main(List<String> args) async {
     // Graceful fallback for iOS/Android — no native assets for now.
     if (libName == null) return;
 
-    final outFile = File.fromUri(input.outputDirectoryShared.resolve(libName));
+    // Include arch in the output path to avoid collisions when Flutter
+    // invokes the hook for multiple architectures (e.g. macOS universal).
+    final outFile = File.fromUri(
+      input.outputDirectoryShared.resolve('$arch/$libName'),
+    );
     outFile.parent.createSync(recursive: true);
 
     final nativeDir = input.packageRoot.resolve('../../native/');

@@ -48,7 +48,7 @@ No Rust toolchain required for consumers.
 Pre-built binaries are hosted on GitHub Releases with tag `native-v<version>`.
 The naming convention is:
 
-```
+```text
 libdart_monty_native-macos-arm64.dylib
 libdart_monty_native-macos-x64.dylib
 libdart_monty_native-linux-arm64.so
