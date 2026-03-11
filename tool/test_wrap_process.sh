@@ -365,6 +365,7 @@ analyzer:
 linter:
   rules:
     lines_longer_than_80_chars: false
+    require_trailing_commas: false
 YAML
 
 log_event "SCAFFOLD" "INFO" "Clean room scaffolded"
@@ -612,7 +613,128 @@ FIXEOF
   break
 done
 
-# ─── Phase 5: Generate reports ─────────────────────────────────────────────
+# ─── Phase 5: Add-on pipeline (runs only if WRAP succeeded) ───────────────
+
+PRELUDE_LINT_PASSED="skip"
+MONTY_SMOKE_PASSED="skip"
+
+if [[ "$FINAL_STATUS" == "SUCCESS" ]]; then
+  PRELUDE_LINTER="$SCRIPT_DIR/lint_prelude.py"
+  SMOKE_GENERATOR="$SCRIPT_DIR/generate_smoke_test.py"
+  NATIVE_LIB_DIR="$PROJECT_ROOT/native/target/release"
+
+  # ── 5a. Prelude lint ──
+  echo ""
+  echo "=== Add-on: Prelude Lint ==="
+  PRELUDE_LINT_FILE="$ARTIFACTS/prelude_lint.txt"
+
+  if python3 "$PRELUDE_LINTER" "$PLUGIN_FILE" > "$PRELUDE_LINT_FILE" 2>&1; then
+    PRELUDE_LINT_PASSED="true"
+    echo "    PASS: $(head -1 "$PRELUDE_LINT_FILE")"
+    log_event "PRELUDE_LINT" "INFO" "Prelude lint passed"
+  else
+    PRELUDE_LINT_PASSED="false"
+    echo "    FAIL: Monty-unsafe patterns found"
+    cat "$PRELUDE_LINT_FILE"
+    log_event_file "PRELUDE_LINT" "ERROR" "Prelude lint failed" "$PRELUDE_LINT_FILE"
+    FINAL_STATUS="PARTIAL"
+  fi
+
+  # ── 5b. Monty smoke test ──
+  # Only attempt if native library is available.
+  if [[ -f "$NATIVE_LIB_DIR/libdart_monty_native.dylib" ]] || \
+     [[ -f "$NATIVE_LIB_DIR/libdart_monty_native.so" ]]; then
+
+    echo ""
+    echo "=== Add-on: Monty Smoke Test ==="
+
+    # Add FFI deps to clean room.
+    FFI_PATH="$PROJECT_ROOT/packages/dart_monty_ffi"
+    PI_PATH="$PROJECT_ROOT/packages/dart_monty_platform_interface"
+
+    if [[ -d "$FFI_PATH" && -d "$PI_PATH" ]]; then
+      # Append FFI deps to pubspec using dependency_overrides to avoid
+      # version conflicts between local path deps and hosted constraints.
+      cat >> "$WORKSPACE/pubspec.yaml" << DEPS
+
+dependency_overrides:
+  dart_monty_ffi:
+    path: $FFI_PATH
+  dart_monty_platform_interface:
+    path: $PI_PATH
+  dart_monty_bridge:
+    path: $BRIDGE_PATH
+DEPS
+
+      echo "    Adding FFI dependencies..."
+      PUB_GET_EXIT=0
+      (cd "$WORKSPACE" && dart pub get) > "$ARTIFACTS/smoke_pub_get.txt" 2>&1 || PUB_GET_EXIT=$?
+
+      if [[ $PUB_GET_EXIT -ne 0 ]]; then
+        echo "    SKIP: dart pub get failed for FFI deps"
+        log_event "MONTY_SMOKE" "WARN" "pub get failed for FFI deps"
+        MONTY_SMOKE_PASSED="skip"
+      else
+        # Generate smoke test.
+        SMOKE_TEST_FILE="$WORKSPACE/test/src/plugins/${PACKAGE_NAME}_smoke_test.dart"
+        SMOKE_TEST_ARTIFACT="$ARTIFACTS/smoke_test.dart"
+
+        # Find native library (dylib on macOS, so on Linux).
+        NATIVE_LIB=""
+        if [[ -f "$NATIVE_LIB_DIR/libdart_monty_native.dylib" ]]; then
+          NATIVE_LIB="$NATIVE_LIB_DIR/libdart_monty_native.dylib"
+        elif [[ -f "$NATIVE_LIB_DIR/libdart_monty_native.so" ]]; then
+          NATIVE_LIB="$NATIVE_LIB_DIR/libdart_monty_native.so"
+        fi
+
+        if python3 "$SMOKE_GENERATOR" "$PLUGIN_FILE" "$PACKAGE_NAME" "$SMOKE_TEST_FILE" "$NATIVE_LIB" \
+            > "$ARTIFACTS/smoke_generate.txt" 2>&1; then
+          cp "$SMOKE_TEST_FILE" "$SMOKE_TEST_ARTIFACT"
+          echo "    $(head -1 "$ARTIFACTS/smoke_generate.txt")"
+
+          # Run smoke test with native library.
+          echo "    Running Monty smoke test..."
+          SMOKE_OUTPUT="$ARTIFACTS/smoke_test_output.txt"
+          SMOKE_EXIT=0
+          (cd "$WORKSPACE" && \
+            DYLD_LIBRARY_PATH="$NATIVE_LIB_DIR" \
+            LD_LIBRARY_PATH="$NATIVE_LIB_DIR" \
+            dart test --tags=integration "$SMOKE_TEST_FILE") \
+            > "$SMOKE_OUTPUT" 2>&1 || SMOKE_EXIT=$?
+
+          if [[ $SMOKE_EXIT -eq 0 ]]; then
+            SMOKE_PASS_COUNT=$(grep -oE '\+[0-9]+' "$SMOKE_OUTPUT" 2>/dev/null | tail -1 | tr -d '+' || echo "0")
+            MONTY_SMOKE_PASSED="true"
+            echo "    PASS: Monty smoke ($SMOKE_PASS_COUNT tests)"
+            log_event "MONTY_SMOKE" "INFO" "Monty smoke passed ($SMOKE_PASS_COUNT tests)"
+          else
+            MONTY_SMOKE_PASSED="false"
+            echo "    FAIL: Monty smoke test"
+            tail -20 "$SMOKE_OUTPUT"
+            log_event_file "MONTY_SMOKE" "ERROR" "Monty smoke failed" "$SMOKE_OUTPUT"
+            FINAL_STATUS="PARTIAL"
+          fi
+        else
+          echo "    SKIP: Could not generate smoke test"
+          cat "$ARTIFACTS/smoke_generate.txt"
+          MONTY_SMOKE_PASSED="skip"
+        fi
+      fi
+    else
+      echo ""
+      echo "=== Add-on: Monty Smoke Test ==="
+      echo "    SKIP: dart_monty_ffi or platform_interface not found"
+      MONTY_SMOKE_PASSED="skip"
+    fi
+  else
+    echo ""
+    echo "=== Add-on: Monty Smoke Test ==="
+    echo "    SKIP: Native library not found at $NATIVE_LIB_DIR"
+    MONTY_SMOKE_PASSED="skip"
+  fi
+fi
+
+# ─── Phase 6: Generate reports ─────────────────────────────────────────────
 
 END_TIME=$(date +%s)
 TOTAL_DURATION=$((END_TIME - START_TIME))
@@ -642,6 +764,10 @@ python3 "$REPORTER" \
   echo "Duration:    ${TOTAL_DURATION}s"
   echo "Iterations:  $ITERATIONS_USED / $MAX_ITERATIONS"
   echo "Status:      $FINAL_STATUS"
+  echo ""
+  echo "Add-on pipeline:"
+  echo "  Prelude lint:  $PRELUDE_LINT_PASSED"
+  echo "  Monty smoke:   $MONTY_SMOKE_PASSED"
   echo ""
 } > "$REPORT_TXT"
 

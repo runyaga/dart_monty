@@ -40,6 +40,9 @@ test.py
 .env
 .env.*
 .venv/
+# Wrap process test runs (regenerate with tool/test_wrap_process.sh)
+wrap-runs/
+
 # CI review artifacts (all generated — regenerate with tool/metrics.sh)
 ci-review/
 packages/dart_monty_ffi/bin/cancel_benchmark
