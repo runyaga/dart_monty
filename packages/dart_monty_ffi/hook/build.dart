@@ -4,7 +4,7 @@ import 'package:code_assets/code_assets.dart';
 import 'package:hooks/hooks.dart';
 
 /// dart_monty native library version. Must match a GitHub Release tag.
-const _version = '0.7.0';
+const _version = '0.8.0';
 
 /// GitHub repository for pre-built binary downloads.
 const _repo = 'runyaga/dart_monty';
@@ -40,11 +40,11 @@ void main(List<String> args) async {
       // Contributor path: always run cargo (handles incremental builds).
       final triple = _rustTriple(os, arch);
       final targetArgs = triple != null ? ['--target', triple] : <String>[];
-      final result = await Process.run(
-        'cargo',
-        ['build', '--release', ...targetArgs],
-        workingDirectory: Directory.fromUri(nativeDir).path,
-      );
+      final result = await Process.run('cargo', [
+        'build',
+        '--release',
+        ...targetArgs,
+      ], workingDirectory: Directory.fromUri(nativeDir).path);
       if (result.exitCode != 0) {
         throw StateError(
           'cargo build failed.\n'
