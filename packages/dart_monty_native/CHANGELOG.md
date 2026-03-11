@@ -1,3 +1,7 @@
+## 0.7.2
+
+- Update `dart_monty_ffi` dependency constraint to `^0.8.0`
+
 ## 0.7.1
 
 - Suppress `MontyPlatform.instance` deprecation in `registerWith()` (federated plugin registration requires the singleton)
