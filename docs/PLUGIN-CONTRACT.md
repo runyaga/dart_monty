@@ -268,6 +268,34 @@ help(cat)    # → "Read a UTF-8 text file. Usage: cat(path)"
 
 ## Testing Pattern
 
+### Handler test args must be JSON-safe primitives
+
+When testing `handler(args)`, the `args` map simulates a JSON payload coming
+from Python. It MUST contain **only** JSON-safe primitives (`String`, `int`,
+`double`, `bool`, `List`, `Map`).
+
+- **NEVER** pass Dart Enums, classes, or complex objects into the `args` map.
+- If the underlying Dart package uses Enums (e.g. `Namespace.url`), pass the
+  primitive string representation in the test, just as a Python caller would.
+- Use `final` (not `const`) when extracting values from library objects for
+  test args, to avoid Dart's strict constant evaluation errors with property
+  accessors.
+
+```dart
+// WRONG — passes an Enum into args:
+const ns = Namespace.url;
+await handler({'namespace': ns, 'name': 'test'});
+
+// WRONG — const can't evaluate .value:
+const ns = Namespace.url.value;
+
+// CORRECT — use final or a string literal:
+final ns = Namespace.url.value;
+await handler({'namespace': ns, 'name': 'test'});
+// or:
+await handler({'namespace': '6ba7b811-9dad-11d1-80b4-00c04fd430c8', 'name': 'test'});
+```
+
 ### Unit tests
 
 Test each handler in isolation with a temp directory (for I/O plugins) or mock dependencies:
