@@ -1,0 +1,98 @@
+name: Native Release
+
+on:
+  push:
+    tags: ['native-v*']
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build (${{ matrix.label }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            label: linux-x64
+            lib: libdart_monty_native.so
+            asset: libdart_monty_native-linux-x64.so
+          - runner: ubuntu-24.04-arm
+            label: linux-arm64
+            lib: libdart_monty_native.so
+            asset: libdart_monty_native-linux-arm64.so
+          - runner: macos-13
+            label: macos-x64
+            lib: libdart_monty_native.dylib
+            asset: libdart_monty_native-macos-x64.dylib
+          - runner: macos-14
+            label: macos-arm64
+            lib: libdart_monty_native.dylib
+            asset: libdart_monty_native-macos-arm64.dylib
+          - runner: windows-latest
+            label: windows-x64
+            lib: dart_monty_native.dll
+            asset: dart_monty_native-windows-x64.dll
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: native
+
+      - name: Build native library
+        working-directory: native
+        run: cargo build --release
+
+      - name: Verify binary exists
+        shell: bash
+        run: |
+          LIB="native/target/release/${{ matrix.lib }}"
+          if [ ! -f "$LIB" ]; then
+            echo "ERROR: $LIB not found"
+            ls -la native/target/release/ || true
+            exit 1
+          fi
+          echo "Built: $LIB ($(wc -c < "$LIB") bytes)"
+
+      - name: Rename to release asset name
+        shell: bash
+        run: cp "native/target/release/${{ matrix.lib }}" "${{ matrix.asset }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.label }}
+          path: ${{ matrix.asset }}
+
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [build]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+
+      - name: List assets
+        run: ls -la *.{so,dylib,dll} 2>/dev/null || ls -la
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          gh release create "$TAG" \
+            --title "dart_monty native $TAG" \
+            --generate-notes \
+            libdart_monty_native-linux-x64.so \
+            libdart_monty_native-linux-arm64.so \
+            libdart_monty_native-macos-x64.dylib \
+            libdart_monty_native-macos-arm64.dylib \
+            dart_monty_native-windows-x64.dll
