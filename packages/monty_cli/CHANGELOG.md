@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.1
+
+- Remove `--library-path` flag and `MONTY_LIBRARY_PATH` env var (native library now resolved automatically via `@Native` annotations)
+
 ## 0.1.0
 
 - Initial release of `dmonty` CLI.

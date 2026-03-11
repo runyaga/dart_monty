@@ -1,4 +1,10 @@
-# 0.1.0
+# Changelog
+
+## 0.1.1
+
+- Remove `libraryPath` parameter from `NativeBindingsFfi` calls (native library now resolved automatically via `@Native` annotations)
+
+## 0.1.0
 
 - Initial implementation: MCP server with `monty_run`, session management tools
 - Bridge event adapter (`Stream<BridgeEvent>` to `CallToolResult`)
