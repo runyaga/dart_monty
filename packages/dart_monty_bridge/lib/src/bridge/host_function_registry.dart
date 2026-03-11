@@ -5,6 +5,11 @@ import 'package:dart_monty_bridge/src/bridge/monty_bridge.dart';
 
 /// Groups [HostFunction]s by category and registers them (plus introspection
 /// builtins) onto a [MontyBridge].
+///
+/// Deprecated: Use `PluginRegistry` with `MontyPlugin` instead. Plugins
+/// provide namespace validation, lifecycle hooks, and system prompt
+/// generation that this class lacks.
+@Deprecated('Use PluginRegistry with MontyPlugin instead')
 class HostFunctionRegistry {
   final Map<String, List<HostFunction>> _categories = {};
 
