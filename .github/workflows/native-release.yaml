@@ -24,7 +24,7 @@ jobs:
             label: linux-arm64
             lib: libdart_monty_native.so
             asset: libdart_monty_native-linux-arm64.so
-          - runner: macos-13
+          - runner: macos-15-intel
             label: macos-x64
             lib: libdart_monty_native.dylib
             asset: libdart_monty_native-macos-x64.dylib
