@@ -36,6 +36,10 @@ jobs:
             label: windows-x64
             lib: dart_monty_native.dll
             asset: dart_monty_native-windows-x64.dll
+          - runner: windows-11-arm
+            label: windows-arm64
+            lib: dart_monty_native.dll
+            asset: dart_monty_native-windows-arm64.dll
     steps:
       - uses: actions/checkout@v4
 
@@ -95,4 +99,5 @@ jobs:
             libdart_monty_native-linux-arm64.so \
             libdart_monty_native-macos-x64.dylib \
             libdart_monty_native-macos-arm64.dylib \
-            dart_monty_native-windows-x64.dll
+            dart_monty_native-windows-x64.dll \
+            dart_monty_native-windows-arm64.dll
