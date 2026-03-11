@@ -139,6 +139,7 @@ final class _HandleIdNotification {
 // Isolate entry point
 // =============================================================================
 
+// coverage:ignore-start — isolate entry point; only testable via integration.
 /// Sync wrapper for [Isolate.spawn] which expects `void Function(T)`.
 void _isolateEntryPoint(_InitMessage init) {
   unawaited(_isolateMain(init));
@@ -234,6 +235,7 @@ Future<void> _isolateMain(_InitMessage init) async {
     }
   }
 }
+// coverage:ignore-end
 
 // =============================================================================
 // NativeIsolateBindingsImpl

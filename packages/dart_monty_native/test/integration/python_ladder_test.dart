@@ -5,6 +5,7 @@ import 'dart:io';
 
 import 'package:dart_monty_native/dart_monty_native.dart';
 import 'package:dart_monty_platform_interface/dart_monty_testing.dart';
+import 'package:test/test.dart';
 
 /// Python Compatibility Ladder — integration tests across all tiers.
 ///

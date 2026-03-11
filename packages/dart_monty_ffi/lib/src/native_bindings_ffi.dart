@@ -1,3 +1,4 @@
+// coverage:ignore-file — FFI glue; only testable via integration tests.
 import 'dart:ffi';
 import 'dart:typed_data';
 

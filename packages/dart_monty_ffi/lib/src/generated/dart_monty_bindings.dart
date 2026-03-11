@@ -1,5 +1,6 @@
 // AUTO-GENERATED — do not edit by hand.
 // Regenerate with: dart run ffigen
+// coverage:ignore-file
 
 // AUTO GENERATED FILE, DO NOT EDIT.
 //
