@@ -19,6 +19,17 @@ def _cw(*a, sep=' ', end='\n', **k):
 print = _cw
 ''';
 
+/// Number of lines the preamble + separator add before user code.
+///
+/// The raw string literal opens with a newline after `r'''`, producing:
+///   line 1: (empty)
+///   line 2: def _cw(...)
+///   line 3:     __console_write__(...)
+///   line 4: print = _cw
+///   line 5: (empty, closing `'''`)
+/// Plus the `\n` in `'$_printPreamble\n$code'` = user code starts at line 6.
+const _preambleLineCount = 5;
+
 const _consoleWriteFn = '__console_write__';
 
 /// Tracks an in-flight host function future awaiting resolution.
@@ -164,9 +175,10 @@ class DefaultMontyBridge implements MontyBridge {
                 : result.printOutput;
 
             if (result.isError) {
+              final adjusted = _adjustException(result.error!);
               controller.add(
                 BridgeRunError(
-                  message: result.error!.message,
+                  message: adjusted.message,
                   printOutput: capturedOutput,
                 ),
               );
@@ -189,23 +201,20 @@ class DefaultMontyBridge implements MontyBridge {
       log.warning('Monty error', attributes: {'error': e.message});
       _flushPrintBuffer(printBuffer, controller);
       final output = printBuffer.isNotEmpty ? printBuffer.toString() : null;
-      controller.add(
-        BridgeRunError(message: e.message, printOutput: output),
-      );
+      controller.add(BridgeRunError(message: e.message, printOutput: output));
     } on MontyException catch (e) {
-      log.warning('Python error', attributes: {'error': e.message});
+      final adjusted = _adjustException(e);
+      log.warning('Python error', attributes: {'error': adjusted.message});
       _flushPrintBuffer(printBuffer, controller);
       final output = printBuffer.isNotEmpty ? printBuffer.toString() : null;
       controller.add(
-        BridgeRunError(message: e.message, printOutput: output),
+        BridgeRunError(message: adjusted.message, printOutput: output),
       );
     } on Object catch (e, st) {
       log.error('Bridge infrastructure error', error: e, stackTrace: st);
       _flushPrintBuffer(printBuffer, controller);
       final output = printBuffer.isNotEmpty ? printBuffer.toString() : null;
-      controller.add(
-        BridgeRunError(message: '$e', printOutput: output),
-      );
+      controller.add(BridgeRunError(message: '$e', printOutput: output));
     } finally {
       _pendingFutures.clear();
     }
@@ -351,7 +360,19 @@ class DefaultMontyBridge implements MontyBridge {
         ..add(BridgeStepFinished(stepId: stepName));
       return _platform.resumeWithError(e.toString());
     }
-    unawaited(handlerFuture.then<void>((_) {}, onError: (_, __) {}));
+    unawaited(
+      handlerFuture.then<void>(
+        (_) {},
+        onError: (Object e, StackTrace st) {
+          log.warning(
+            'Deferred host handler error',
+            error: e,
+            stackTrace: st,
+            attributes: {'function': stepName},
+          );
+        },
+      ),
+    );
     _pendingFutures[pending.callId] = _PendingFuture(
       future: handlerFuture,
       bridgeCallId: callId,
@@ -406,6 +427,37 @@ class DefaultMontyBridge implements MontyBridge {
     return (_platform as MontyFutureCapable).resolveFutures(
       results,
       errors: errors.isEmpty ? null : errors,
+    );
+  }
+
+  /// Adjusts [MontyException] line numbers to account for the print preamble
+  /// injected by [_run]. Filters out traceback frames from the preamble.
+  MontyException _adjustException(MontyException e) {
+    return MontyException(
+      message: e.message,
+      filename: e.filename,
+      lineNumber:
+          e.lineNumber != null ? e.lineNumber! - _preambleLineCount : null,
+      columnNumber: e.columnNumber,
+      sourceCode: e.sourceCode,
+      excType: e.excType,
+      traceback: e.traceback
+          .where((f) => f.startLine > _preambleLineCount)
+          .map(
+            (f) => MontyStackFrame(
+              filename: f.filename,
+              startLine: f.startLine - _preambleLineCount,
+              startColumn: f.startColumn,
+              endLine:
+                  f.endLine != null ? f.endLine! - _preambleLineCount : null,
+              endColumn: f.endColumn,
+              frameName: f.frameName,
+              previewLine: f.previewLine,
+              hideCaret: f.hideCaret,
+              hideFrameName: f.hideFrameName,
+            ),
+          )
+          .toList(),
     );
   }
 
