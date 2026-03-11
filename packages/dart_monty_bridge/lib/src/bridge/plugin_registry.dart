@@ -106,6 +106,20 @@ class PluginRegistry {
     }
   }
 
+  /// Concatenates non-empty [MontyPlugin.pythonPrelude]s in registration order.
+  ///
+  /// Returns an empty string when no plugin provides a prelude.
+  String combinedPythonPrelude() {
+    final buf = StringBuffer();
+    for (final plugin in _plugins) {
+      final prelude = plugin.pythonPrelude;
+      if (prelude.isNotEmpty) {
+        buf.writeln(prelude);
+      }
+    }
+    return buf.toString().trimRight();
+  }
+
   /// Auto-generates an LLM system prompt from plugin schemas.
   ///
   /// Each plugin produces a markdown section with its namespace as heading,

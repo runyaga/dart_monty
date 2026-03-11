@@ -16,6 +16,16 @@ abstract class MontyPlugin {
   /// its function schemas.
   String? get systemPromptContext => null;
 
+  /// Python code to prepend to every session using this plugin.
+  ///
+  /// Use this to provide convenience wrapper functions that call the
+  /// plugin's host functions. The prelude is evaluated once on session
+  /// creation, before any user code runs.
+  ///
+  /// Must be valid Monty Python (no for-in, no f-strings, no imports).
+  /// Returns empty string by default (no prelude).
+  String get pythonPrelude => '';
+
   /// Host functions this plugin provides.
   List<HostFunction> get functions;
 

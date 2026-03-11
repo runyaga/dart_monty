@@ -451,7 +451,104 @@ void main() {
         expect(alphaIdx, lessThan(betaIdx));
       });
     });
+
+    group('combinedPythonPrelude', () {
+      test('empty registry returns empty string', () {
+        expect(registry.combinedPythonPrelude(), isEmpty);
+      });
+
+      test('plugin with empty prelude returns empty string', () {
+        registry.register(_TestPlugin(namespace: 'ns'));
+
+        expect(registry.combinedPythonPrelude(), isEmpty);
+      });
+
+      test('single plugin prelude returned as-is', () {
+        registry.register(
+          _PreludePlugin(
+            namespace: 'math',
+            functions: [_fn('math_add')],
+            pythonPrelude: 'def add(a, b):\n    return a + b',
+          ),
+        );
+
+        expect(
+          registry.combinedPythonPrelude(),
+          'def add(a, b):\n    return a + b',
+        );
+      });
+
+      test('multiple plugins concatenated in registration order', () {
+        registry
+          ..register(
+            _PreludePlugin(
+              namespace: 'alpha',
+              functions: [_fn('alpha_x')],
+              pythonPrelude: 'x = 1',
+            ),
+          )
+          ..register(
+            _PreludePlugin(
+              namespace: 'beta',
+              functions: [_fn('beta_x')],
+              pythonPrelude: 'y = 2',
+            ),
+          );
+
+        final prelude = registry.combinedPythonPrelude();
+
+        expect(prelude, contains('x = 1'));
+        expect(prelude, contains('y = 2'));
+        expect(prelude.indexOf('x = 1'), lessThan(prelude.indexOf('y = 2')));
+      });
+
+      test('skips plugins with empty prelude', () {
+        registry
+          ..register(
+            _PreludePlugin(
+              namespace: 'alpha',
+              functions: [_fn('alpha_x')],
+              pythonPrelude: 'x = 1',
+            ),
+          )
+          ..register(_TestPlugin(namespace: 'beta', functions: [_fn('beta_x')]))
+          ..register(
+            _PreludePlugin(
+              namespace: 'gamma',
+              functions: [_fn('gamma_x')],
+              pythonPrelude: 'z = 3',
+            ),
+          );
+
+        final prelude = registry.combinedPythonPrelude();
+
+        expect(prelude, contains('x = 1'));
+        expect(prelude, contains('z = 3'));
+        expect(prelude, isNot(contains('beta')));
+      });
+    });
   });
+}
+
+/// Plugin with a configurable [pythonPrelude] for testing.
+class _PreludePlugin extends MontyPlugin {
+  _PreludePlugin({
+    required this.namespace,
+    required this.functions,
+    required this.pythonPrelude,
+  });
+
+  @override
+  final String namespace;
+
+  @override
+  final String? systemPromptContext = null;
+
+  @override
+  final List<HostFunction> functions;
+
+  @override
+  final String pythonPrelude;
 }
 
 /// Plugin with configurable lifecycle callbacks for testing.

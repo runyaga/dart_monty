@@ -97,7 +97,44 @@ void main() {
       // Should complete without error.
       await plugin.onDispose();
     });
+
+    test('pythonPrelude defaults to empty string', () {
+      final plugin = _TestPlugin(namespace: 'ns', functions: []);
+
+      expect(plugin.pythonPrelude, isEmpty);
+    });
+
+    test('pythonPrelude can be overridden', () {
+      final plugin = _PreludePlugin(
+        namespace: 'math',
+        functions: [],
+        pythonPrelude: 'def add(a, b):\n    return a + b',
+      );
+
+      expect(plugin.pythonPrelude, 'def add(a, b):\n    return a + b');
+    });
   });
+}
+
+/// Plugin with a custom [pythonPrelude] for testing.
+class _PreludePlugin extends MontyPlugin {
+  _PreludePlugin({
+    required this.namespace,
+    required this.functions,
+    required this.pythonPrelude,
+  });
+
+  @override
+  final String namespace;
+
+  @override
+  final String? systemPromptContext = null;
+
+  @override
+  final List<HostFunction> functions;
+
+  @override
+  final String pythonPrelude;
 }
 
 /// Minimal [MontyBridge] for lifecycle tests — not exercised.
