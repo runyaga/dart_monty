@@ -4,9 +4,6 @@
 /// event loop support, and a plugin system for modular host function bundles.
 library;
 
-// Re-export struct_log for consumers that want to configure logging.
-export 'package:struct_log/struct_log.dart';
-
 export 'src/bridge/bridge_event.dart';
 export 'src/bridge/default_monty_bridge.dart';
 export 'src/bridge/event_loop_bridge.dart';

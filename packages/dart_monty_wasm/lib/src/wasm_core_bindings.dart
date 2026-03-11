@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
+import 'package:dart_monty_platform_interface/monty_backend_spi.dart';
 import 'package:dart_monty_wasm/src/wasm_bindings.dart';
 
 /// Adapts [WasmBindings] (async, [WasmRunResult]/[WasmProgressResult])
@@ -187,10 +188,10 @@ class WasmCoreBindings implements MontyCoreBindings {
   // ---------------------------------------------------------------------------
 
   static MontyResourceUsage _makeUsage(int elapsedMs) => MontyResourceUsage(
-    memoryBytesUsed: 0,
-    timeElapsedMs: elapsedMs,
-    stackDepthUsed: 0,
-  );
+        memoryBytesUsed: 0,
+        timeElapsedMs: elapsedMs,
+        stackDepthUsed: 0,
+      );
 
   CoreRunResult _translateRunResult(WasmRunResult result, int elapsedMs) {
     if (result.ok) {

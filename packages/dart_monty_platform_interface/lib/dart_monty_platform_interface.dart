@@ -4,8 +4,6 @@
 /// This package is not intended for direct use — import `dart_monty` instead.
 library;
 
-export 'src/base_monty_platform.dart';
-export 'src/core_bindings.dart';
 export 'src/monty_cancel_registry.dart';
 export 'src/monty_cancel_token.dart';
 export 'src/monty_error.dart';
@@ -19,4 +17,3 @@ export 'src/monty_result.dart';
 export 'src/monty_session.dart';
 export 'src/monty_snapshot_capable.dart';
 export 'src/monty_stack_frame.dart';
-export 'src/monty_state_mixin.dart';

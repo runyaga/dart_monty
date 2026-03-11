@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.2
+
+- **DEPRECATION**: `HostFunctionRegistry` is deprecated. Use `PluginRegistry`
+  with `MontyPlugin` instead for namespace-validated function grouping.
+- **BREAKING**: Remove `struct_log` re-export from barrel. If you use `Logger`
+  or `LogManager` from `dart_monty_bridge`, import
+  `package:struct_log/struct_log.dart` directly instead.
+
 ## 0.2.1
 
 - Add `printOutput` field to `BridgeRunError` so failed children preserve print output for debugging.

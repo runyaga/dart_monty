@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
+import 'package:dart_monty_platform_interface/monty_backend_spi.dart';
 import 'package:test/test.dart';
 
 class _FakeCoreBindings implements MontyCoreBindings {
