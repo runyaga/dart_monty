@@ -94,7 +94,12 @@ jobs:
 
       - name: Dry run
         working-directory: ${{ inputs.package-path }}
-        run: dart pub publish --dry-run
+        run: |
+          if [ "${{ inputs.needs-ffigen }}" = "true" ]; then
+            echo "Skipping dry-run (ffigen modifies checked-in bindings)"
+          else
+            dart pub publish --dry-run
+          fi
 
       - name: Publish
         working-directory: ${{ inputs.package-path }}
