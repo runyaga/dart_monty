@@ -1,4 +1,4 @@
-import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
+import 'package:dart_monty_platform_interface/monty_backend_spi.dart';
 import 'package:test/test.dart';
 
 /// Test harness that exposes protected [MontyStateMixin] members publicly.

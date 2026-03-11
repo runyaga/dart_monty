@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:dart_monty_ffi/src/native_bindings.dart';
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
+import 'package:dart_monty_platform_interface/monty_backend_spi.dart';
 
 /// Adapts [NativeBindings] (sync, int handles, [RunResult]/[ProgressResult])
 /// to the [MontyCoreBindings] interface (async, [CoreRunResult]/

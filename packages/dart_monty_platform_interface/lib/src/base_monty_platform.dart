@@ -184,7 +184,7 @@ abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
   Future<void> dispose() async {
     if (isDisposed) return;
     final id = _bindings.handleId;
-    if (id != null) webUnregister(id);
+    if (id != null) MontyCancelRegistry.webUnregister(id);
     await _bindings.dispose();
     markDisposed();
   }

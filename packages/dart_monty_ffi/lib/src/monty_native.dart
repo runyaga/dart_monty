@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:dart_monty_ffi/src/native_isolate_bindings.dart';
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
+import 'package:dart_monty_platform_interface/monty_backend_spi.dart';
 
 /// Native Isolate implementation of [MontyPlatform].
 ///
