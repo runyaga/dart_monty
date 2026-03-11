@@ -78,6 +78,8 @@ class DefaultMontyBridge implements MontyBridge {
   bool _isExecuting = false;
   bool _isDisposed = false;
 
+  // Fallback to deprecated singleton when no explicit platform is provided.
+  // ignore: deprecated_member_use
   MontyPlatform get _platform => _explicitPlatform ?? MontyPlatform.instance;
 
   String get _nextId => '${_idCounter++}';
