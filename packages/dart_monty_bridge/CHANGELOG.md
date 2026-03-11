@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.1
+
+- Remove `dependency_overrides` for clean pub.dev publishing
+- Switch `struct_log` from git dependency to `^0.1.0` hosted
+
 ## 0.3.0
 
 - **BREAKING**: Remove deprecated `HostFunctionRegistry` class and barrel export.

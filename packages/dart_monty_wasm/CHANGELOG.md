@@ -1,3 +1,7 @@
+## 0.8.1
+
+- Align version and dependency constraints for clean pub.dev release
+
 ## 0.8.0
 
 - **BREAKING**: Replace NAPI-RS runtime with direct C-ABI calls to 28 exported Rust functions via `wasm32-wasip1`

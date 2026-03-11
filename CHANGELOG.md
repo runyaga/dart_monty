@@ -1,3 +1,10 @@
+## 0.8.1
+
+- Fix CI release workflow: add WASM build step, remove broken AOT compilation
+- Align all package versions and dependency constraints for clean pub.dev release
+- Add `dart_monty_bridge` publish workflow
+- Update release documentation in CLAUDE.md and CONTRIBUTING.md
+
 ## 0.8.0
 
 - **dart_monty_mcp** (0.1.0) — new MCP server package: 5 built-in tools, host function/plugin system, session persistence, 68 unit tests, docs

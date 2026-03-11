@@ -1,3 +1,8 @@
+## 0.8.1
+
+- Align version with pub.dev (0.8.0 was not successfully published)
+- Update platform_interface dependency constraint to `^0.7.0`
+
 ## 0.8.0
 
 - **BREAKING**: Migrate from `DynamicLibrary.open()` to `@Native` annotations with Dart native build hooks

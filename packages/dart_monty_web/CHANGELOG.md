@@ -1,3 +1,7 @@
+## 0.7.3
+
+- Update `dart_monty_wasm` dependency constraint to `^0.8.1`
+
 ## 0.7.2
 
 - Update `dart_monty_wasm` dependency constraint to `^0.8.0`
