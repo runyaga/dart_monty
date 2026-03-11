@@ -75,8 +75,13 @@ class PluginRegistry {
 
   /// Wires all plugins to [bridge], calls [MontyPlugin.onRegister] for each,
   /// and registers introspection builtins.
+  ///
+  /// All plugins are wired even if some [MontyPlugin.onRegister] calls throw —
+  /// errors are collected and thrown as a single [StateError] after all plugins
+  /// have been attached.
   Future<void> attachTo(MontyBridge bridge) async {
     final schemasByCategory = <String, List<HostFunctionSchema>>{};
+    final errors = <(String, Object)>[];
 
     for (final plugin in _plugins) {
       final schemas = <HostFunctionSchema>[];
@@ -85,7 +90,15 @@ class PluginRegistry {
         schemas.add(fn.schema);
       }
       schemasByCategory[plugin.namespace] = schemas;
-      await plugin.onRegister(bridge);
+      try {
+        await plugin.onRegister(bridge);
+      } on Object catch (e) {
+        _log.warning(
+          'Plugin onRegister failed',
+          attributes: {'namespace': plugin.namespace, 'error': '$e'},
+        );
+        errors.add((plugin.namespace, e));
+      }
     }
 
     // Register introspection builtins.
@@ -94,15 +107,39 @@ class PluginRegistry {
       'Attached plugins to bridge',
       attributes: {'pluginCount': _plugins.length},
     );
+
+    if (errors.isNotEmpty) {
+      final summary = errors.map((e) => '${e.$1}: ${e.$2}').join('; ');
+      throw StateError(
+        '${errors.length} plugin(s) failed to attach: $summary',
+      );
+    }
   }
 
   /// Disposes all plugins in reverse registration order.
   ///
+  /// All plugins are disposed even if some throw — errors are collected and
+  /// thrown as a single [StateError] after all plugins have been disposed.
   /// Safe to call multiple times — each plugin's [MontyPlugin.onDispose]
   /// must be idempotent.
   Future<void> disposeAll() async {
+    final errors = <(String, Object)>[];
     for (final plugin in _plugins.reversed) {
-      await plugin.onDispose();
+      try {
+        await plugin.onDispose();
+      } on Object catch (e) {
+        _log.warning(
+          'Plugin dispose failed',
+          attributes: {'namespace': plugin.namespace, 'error': '$e'},
+        );
+        errors.add((plugin.namespace, e));
+      }
+    }
+    if (errors.isNotEmpty) {
+      final summary = errors.map((e) => '${e.$1}: ${e.$2}').join('; ');
+      throw StateError(
+        '${errors.length} plugin(s) failed to dispose: $summary',
+      );
     }
   }
 

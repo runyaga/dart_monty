@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.0
+
+- **BREAKING**: Remove deprecated `HostFunctionRegistry` class and barrel export.
+  Use `PluginRegistry` with `MontyPlugin` instead.
+- Fix `PluginRegistry.disposeAll()` to dispose all plugins even if one throws,
+  collecting errors into a single `StateError`.
+- Fix `PluginRegistry.attachTo()` to attach all plugins even if `onRegister()`
+  throws, collecting errors into a single `StateError`.
+
 ## 0.2.2
 
 - **DEPRECATION**: `HostFunctionRegistry` is deprecated. Use `PluginRegistry`
