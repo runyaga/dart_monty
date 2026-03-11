@@ -137,12 +137,20 @@ call the shared `_publish-dart-package.yaml` reusable workflow via
 
 | Package | Tag pattern | Workflow |
 |---------|-------------|----------|
+| `struct_log` | `struct_log-v<version>` | (manual publish) |
 | `dart_monty_platform_interface` | `platform_interface-v<version>` | `publish_platform_interface.yaml` |
 | `dart_monty_ffi` | `ffi-v<version>` | `publish_ffi.yaml` |
 | `dart_monty_wasm` | `wasm-v<version>` | `publish_wasm.yaml` |
+| `dart_monty_bridge` | `bridge-v<version>` | `publish_bridge.yaml` |
 | `dart_monty_web` | `web-v<version>` | `publish_web.yaml` |
 | `dart_monty_native` | `native-v<version>` | `publish_native.yaml` |
-| `dart_monty` | `dart_monty-v<version>` | `publish_dart_monty.yaml` |
+| `dart_monty` | `v<version>` | `publish_dart_monty.yaml` |
+
+The `v<version>` tag for `dart_monty` also triggers `release.yaml`, which
+builds native binaries and a web bundle and creates a GitHub Release.
+
+**Not published to pub.dev:** `monty_cli` and `dart_monty_mcp` are internal
+tools and are not published.
 
 ### Pre-release checklist
 
@@ -184,51 +192,51 @@ Tag and push in **dependency order** — each package's deps must be live on
 pub.dev before it publishes:
 
 ```bash
-# 1. platform_interface (no monty deps)
+# 1. struct_log (no monty deps — only if changed)
+# Published manually: cd packages/struct_log && dart pub publish
+
+# 2. platform_interface (no monty deps)
 git tag platform_interface-v<version>
 git push origin platform_interface-v<version>
 # Wait for workflow to complete successfully
 
-# 2. ffi and wasm (depend on platform_interface)
+# 3. ffi, wasm, bridge (depend on platform_interface)
 git tag ffi-v<version>
 git tag wasm-v<version>
-git push origin ffi-v<version> wasm-v<version>
-# Wait for both workflows to complete
+git tag bridge-v<version>
+git push origin ffi-v<version> wasm-v<version> bridge-v<version>
+# Wait for all workflows to complete
 
-# 3. web and native (depend on platform_interface + ffi/wasm)
+# 4. web and native (depend on platform_interface + ffi/wasm)
 git tag web-v<version>
 git tag native-v<version>
 git push origin web-v<version> native-v<version>
 # Wait for both workflows to complete
 
-# 4. dart_monty root (depends on web + native)
-git tag dart_monty-v<version>
-git push origin dart_monty-v<version>
-# Wait for workflow to complete
-
-# 5. GitHub Release (builds native + web artifacts)
+# 5. dart_monty root — pub.dev publish + GitHub Release (native + web binaries)
 git tag v<version>
 git push origin v<version>
 ```
 
 Steps 1–4 publish to **pub.dev** via per-package OIDC workflows.
-Step 5 triggers `release.yaml` which builds native binaries (Linux + macOS),
-a web bundle, and creates a **GitHub Release** at
-`https://github.com/runyaga/dart_monty/releases` with all artifacts attached.
+Step 5 triggers **both** `publish_dart_monty.yaml` (pub.dev) and
+`release.yaml` (native binaries for Linux + macOS, web bundle, GitHub
+Release at `https://github.com/runyaga/dart_monty/releases`).
 
 ### Post-release verification
 
 1. **Check pub.dev** — verify each package shows the new version:
 
    ```bash
-   for pkg in dart_monty_platform_interface dart_monty_ffi dart_monty_wasm \
-              dart_monty_web dart_monty_native dart_monty; do
+   for pkg in struct_log dart_monty_platform_interface dart_monty_ffi \
+              dart_monty_wasm dart_monty_bridge dart_monty_web \
+              dart_monty_native dart_monty; do
      echo "$pkg: $(curl -s https://pub.dev/api/packages/$pkg | python3 -c \
        "import sys,json; print(json.load(sys.stdin)['latest']['version'])")"
    done
    ```
 
-2. **Check GitHub Actions** — all 6 publish workflows + release workflow should
+2. **Check GitHub Actions** — all publish workflows + release workflow should
    show green
 3. **Check GitHub Release** — verify
    `https://github.com/runyaga/dart_monty/releases` shows the new version with
@@ -288,7 +296,7 @@ as the release notes.
 
 ### pub.dev admin setup (one-time per package)
 
-All 6 packages are already configured. For new packages:
+All 8 published packages are already configured. For new packages:
 
 1. Publish the first version manually with `dart pub publish`
 2. Go to `https://pub.dev/packages/<package_name>/admin`

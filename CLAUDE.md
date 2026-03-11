@@ -146,6 +146,17 @@ fails.
 
 ## Releasing
 
+Packages publish to pub.dev via OIDC trusted publishers (tag-triggered CI).
+The `v<version>` tag triggers both pub.dev publish AND native/web binary release.
+
+**Publish order** (dependency chain):
+`struct_log` → `platform_interface` → `ffi` / `wasm` / `bridge` → `web` / `native` → `dart_monty`
+
+**Tag patterns:**
+- `platform_interface-v<ver>`, `ffi-v<ver>`, `wasm-v<ver>`, `bridge-v<ver>`, `web-v<ver>`, `native-v<ver>` → pub.dev only
+- `v<ver>` → pub.dev + GitHub Release (native binaries + web bundle)
+- `monty_cli` and `dart_monty_mcp` are NOT published to pub.dev
+
 See `CONTRIBUTING.md` for the complete release process, including:
 - Pre-release checklist
 - Tagging and publishing in dependency order
