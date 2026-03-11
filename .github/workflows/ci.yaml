@@ -490,10 +490,12 @@ jobs:
           echo "Merged coverage written to merged-coverage.info"
       - name: Check patch coverage
         run: |
-          diff-cover merged-coverage.info \
+          lcov --remove merged-coverage.info \
+            '*/generated/*' \
+            '*/native_bindings_ffi.dart' \
+            '*/native_isolate_bindings_impl.dart' \
+            -o filtered-coverage.info
+          diff-cover filtered-coverage.info \
             --compare-branch=origin/${{ github.base_ref }} \
             --fail-under=70 \
-            --diff-range-notation='..' \
-            --exclude 'packages/dart_monty_ffi/lib/src/generated/*' \
-            --exclude 'packages/dart_monty_ffi/lib/src/native_bindings_ffi.dart' \
-            --exclude 'packages/dart_monty_ffi/lib/src/native_isolate_bindings_impl.dart'
+            --diff-range-notation='..'
