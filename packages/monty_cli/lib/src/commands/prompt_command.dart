@@ -19,15 +19,13 @@ Future<int> runPrompts({
   required List<String> prompts,
   required bool json,
   required bool verbose,
-  String? libraryPath,
 }) async {
-  final logger = VerboseLogger(enabled: verbose)
-    ..logInit(libraryPath: libraryPath);
+  final logger = VerboseLogger(enabled: verbose)..logInit();
 
   final MontyNative monty;
   try {
     monty = MontyNative(
-      bindings: NativeIsolateBindingsImpl(libraryPath: libraryPath),
+      bindings: NativeIsolateBindingsImpl(),
     );
     await monty.initialize();
   } on MontyException catch (e) {

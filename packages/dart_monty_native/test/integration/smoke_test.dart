@@ -1,8 +1,6 @@
 @Tags(['integration'])
 library;
 
-import 'dart:io';
-
 import 'package:dart_monty_native/dart_monty_native.dart';
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 import 'package:test/test.dart';
@@ -16,10 +14,8 @@ import 'package:test/test.dart';
 /// dart test --tags=integration
 /// ```
 void main() {
-  final libPath = _resolveLibraryPath();
-
   MontyNative createMonty() =>
-      MontyNative(bindings: NativeIsolateBindingsImpl(libraryPath: libPath));
+      MontyNative(bindings: NativeIsolateBindingsImpl());
 
   test('smoke: run("2+2") returns 4', () async {
     final monty = createMonty();
@@ -65,10 +61,7 @@ void main() {
       '  result = str(e)',
       'result',
     ].join('\n');
-    final progress = await monty.start(
-      code,
-      externalFunctions: ['fetch'],
-    );
+    final progress = await monty.start(code, externalFunctions: ['fetch']);
 
     expect(progress, isA<MontyPending>());
 
@@ -87,10 +80,7 @@ void main() {
   test('error handling: invalid syntax', () async {
     final monty = createMonty();
 
-    expect(
-      () => monty.run('def'),
-      throwsA(isA<MontyException>()),
-    );
+    expect(() => monty.run('def'), throwsA(isA<MontyException>()));
 
     await monty.dispose();
   });
@@ -124,10 +114,4 @@ void main() {
     await a.dispose();
     await b.dispose();
   });
-}
-
-String _resolveLibraryPath() {
-  final ext = Platform.isMacOS ? 'dylib' : 'so';
-
-  return '../../native/target/release/libdart_monty_native.$ext';
 }

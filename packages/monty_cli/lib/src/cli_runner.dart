@@ -10,12 +10,6 @@ CommandRunner<int> buildRunner() {
     'dmonty',
     'Standalone CLI for the Monty sandboxed Python interpreter.',
   )
-    ..argParser.addOption(
-      'library-path',
-      help: 'Path to the native Monty shared library.\n'
-          r'Defaults to $MONTY_LIBRARY_PATH if set.',
-      valueHelp: 'path',
-    )
     ..argParser.addMultiOption(
       'prompt',
       abbr: 'p',

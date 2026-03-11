@@ -19,13 +19,7 @@ import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart
 import 'package:mcp_dart/mcp_dart.dart';
 import 'package:test/test.dart';
 
-/// Resolve library path from env (same logic as examples).
-String? get _libraryPath =>
-    Platform.environment['DART_MONTY_LIB_PATH'] ??
-    Platform.environment['MONTY_LIBRARY_PATH'];
-
-MontyPlatform _createPlatform() =>
-    MontyFfi(bindings: NativeBindingsFfi(libraryPath: _libraryPath));
+MontyPlatform _createPlatform() => MontyFfi(bindings: NativeBindingsFfi());
 
 String _text(CallToolResult r) => (r.content.first as TextContent).text;
 
@@ -35,9 +29,6 @@ void main() {
       final result = await Process.run(
         'dart',
         ['run', 'example/programmatic.dart'],
-        environment: {
-          if (_libraryPath != null) 'DART_MONTY_LIB_PATH': _libraryPath!,
-        },
       );
 
       expect(

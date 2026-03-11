@@ -4,7 +4,6 @@ import 'package:args/args.dart';
 import 'package:args/command_runner.dart';
 import 'package:dart_monty_ffi/dart_monty_ffi.dart';
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
-import 'package:monty_cli/src/library_resolver.dart';
 import 'package:monty_cli/src/output_formatter.dart';
 import 'package:monty_cli/src/verbose_logger.dart';
 
@@ -64,18 +63,16 @@ abstract class MontyCommand extends Command<int> {
     return VerboseLogger(enabled: args.flag('verbose'));
   }
 
-  /// Creates and initializes a [MontyNative] with the resolved library path.
+  /// Creates and initializes a [MontyNative].
   ///
+  /// The native library is resolved automatically via @Native annotations.
   /// If the native library cannot be loaded, prints a helpful error message
   /// and exits with code 1.
   Future<MontyNative> createMonty({VerboseLogger? logger}) async {
-    final libraryPath = resolveLibraryPath(
-      override: globalResults?.option('library-path'),
-    );
-    logger?.logInit(libraryPath: libraryPath);
+    logger?.logInit();
 
     final monty = MontyNative(
-      bindings: NativeIsolateBindingsImpl(libraryPath: libraryPath),
+      bindings: NativeIsolateBindingsImpl(),
     );
     await monty.initialize();
 

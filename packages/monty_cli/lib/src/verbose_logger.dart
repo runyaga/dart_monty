@@ -16,10 +16,9 @@ class VerboseLogger {
   final bool enabled;
 
   /// Logs isolate initialization.
-  void logInit({String? libraryPath}) {
+  void logInit() {
     if (!enabled) return;
-    final lib = libraryPath ?? '(default search path)';
-    _log('init isolate library=$lib');
+    _log('init isolate');
   }
 
   /// Logs the start of a session run.

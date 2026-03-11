@@ -10,8 +10,6 @@
 /// ```
 library;
 
-import 'dart:io';
-
 import 'package:dart_monty_ffi/dart_monty_ffi.dart';
 import 'package:dart_monty_mcp/dart_monty_mcp.dart';
 import 'package:mcp_dart/mcp_dart.dart';
@@ -53,12 +51,9 @@ class MathPlugin extends MontyPlugin {
 }
 
 Future<void> main() async {
-  final libraryPath = Platform.environment['DART_MONTY_LIB_PATH'] ??
-      Platform.environment['MONTY_LIBRARY_PATH'];
-
   final server = MontyMcpServer(
     platformFactory: () => MontyFfi(
-      bindings: NativeBindingsFfi(libraryPath: libraryPath),
+      bindings: NativeBindingsFfi(),
     ),
   )..registerPlugin(MathPlugin());
 

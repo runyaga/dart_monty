@@ -5,7 +5,6 @@ import 'dart:io';
 
 import 'package:dart_monty_native/dart_monty_native.dart';
 import 'package:dart_monty_platform_interface/dart_monty_testing.dart';
-import 'package:test/test.dart';
 
 /// Python Compatibility Ladder — integration tests across all tiers.
 ///
@@ -17,15 +16,7 @@ import 'package:test/test.dart';
 /// ```
 void main() {
   registerLadderTests(
-    createPlatform: () => MontyNative(
-      bindings: NativeIsolateBindingsImpl(libraryPath: _resolveLibraryPath()),
-    ),
+    createPlatform: () => MontyNative(bindings: NativeIsolateBindingsImpl()),
     fixtureDir: Directory('../../test/fixtures/python_ladder'),
   );
-}
-
-String _resolveLibraryPath() {
-  final ext = Platform.isMacOS ? 'dylib' : 'so';
-
-  return '../../native/target/release/libdart_monty_native.$ext';
 }

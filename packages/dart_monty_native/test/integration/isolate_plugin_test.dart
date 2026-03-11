@@ -1,8 +1,6 @@
 @Tags(['integration'])
 library;
 
-import 'dart:io';
-
 import 'package:dart_monty_bridge/dart_monty_bridge.dart';
 import 'package:dart_monty_native/dart_monty_native.dart';
 import 'package:test/test.dart';
@@ -16,10 +14,8 @@ import 'package:test/test.dart';
 /// dart test --tags=integration test/integration/isolate_plugin_test.dart
 /// ```
 void main() {
-  final libPath = _resolveLibraryPath();
-
   MontyNative createMonty() =>
-      MontyNative(bindings: NativeIsolateBindingsImpl(libraryPath: libPath));
+      MontyNative(bindings: NativeIsolateBindingsImpl());
 
   group('IsolatePlugin integration', () {
     test('child return value round-trip', () async {
@@ -111,9 +107,7 @@ void main() {
       final await_ = _findHandler(plugin, 'isolate_await');
       final getOutput = _findHandler(plugin, 'isolate_get_output');
 
-      final handle = await spawn({
-        'code': 'print("side effect")\n42',
-      });
+      final handle = await spawn({'code': 'print("side effect")\n42'});
       final result = await await_({'handle': handle! as int});
       final output = await getOutput({'handle': handle as int});
 
@@ -148,10 +142,4 @@ void main() {
 
 HostFunctionHandler _findHandler(IsolatePlugin plugin, String name) {
   return plugin.functions.firstWhere((f) => f.schema.name == name).handler;
-}
-
-String _resolveLibraryPath() {
-  final ext = Platform.isMacOS ? 'dylib' : 'so';
-
-  return '../../native/target/release/libdart_monty_native.$ext';
 }
