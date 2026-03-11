@@ -1,3 +1,9 @@
+## 0.7.2
+
+- Extract `monty_backend_spi.dart` SPI sub-library for backend implementers
+- Deprecate `MontyPlatform.instance` singleton (kept as fallback, removal in 1.0)
+- Align version with dependency constraints across all packages
+
 ## 0.7.1
 
 - Deprecate `MontyPlatform.instance` singleton getter/setter (kept as fallback; will be removed in 1.0)
