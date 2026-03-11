@@ -65,9 +65,7 @@ class _FakeCoreBindings implements MontyCoreBindings {
   }
 
   @override
-  Future<CoreProgressResult> resumeWithError(
-    String errorMessage,
-  ) async {
+  Future<CoreProgressResult> resumeWithError(String errorMessage) async {
     lastErrorMessage = errorMessage;
     if (throwOnResumeWithError != null) throw throwOnResumeWithError!;
     return progressResult!;
@@ -141,11 +139,7 @@ void main() {
 
   group('run()', () {
     test('success returns MontyResult with value and usage', () async {
-      fake.runResult = const CoreRunResult(
-        ok: true,
-        value: 42,
-        usage: usage,
-      );
+      fake.runResult = const CoreRunResult(ok: true, value: 42, usage: usage);
 
       final result = await platform.run('1 + 1');
 
@@ -162,11 +156,7 @@ void main() {
         error: 'division by zero',
         excType: 'ZeroDivisionError',
         traceback: [
-          {
-            'filename': '<test>',
-            'start_line': 1,
-            'start_column': 0,
-          },
+          {'filename': '<test>', 'start_line': 1, 'start_column': 0},
         ],
       );
 
@@ -175,25 +165,14 @@ void main() {
         throwsA(
           isA<MontyException>()
               .having((e) => e.message, 'message', 'division by zero')
-              .having(
-                (e) => e.excType,
-                'excType',
-                'ZeroDivisionError',
-              )
-              .having(
-                (e) => e.traceback,
-                'traceback',
-                hasLength(1),
-              ),
+              .having((e) => e.excType, 'excType', 'ZeroDivisionError')
+              .having((e) => e.traceback, 'traceback', hasLength(1)),
         ),
       );
     });
 
     test('null usage falls back to zero usage', () async {
-      fake.runResult = const CoreRunResult(
-        ok: true,
-        value: 'hello',
-      );
+      fake.runResult = const CoreRunResult(ok: true, value: 'hello');
 
       final result = await platform.run('code');
 
@@ -213,10 +192,7 @@ void main() {
     });
 
     test('passes scriptName to bindings', () async {
-      fake.runResult = const CoreRunResult(
-        ok: true,
-        usage: usage,
-      );
+      fake.runResult = const CoreRunResult(ok: true, usage: usage);
 
       await platform.run('code', scriptName: 'math.py');
 
@@ -343,25 +319,20 @@ void main() {
     });
 
     test(
-      'resolve_futures returns MontyResolveFutures '
-      'and marks active',
-      () async {
-        fake.progressResult = const CoreProgressResult(
-          state: 'resolve_futures',
-          pendingCallIds: [1, 2, 3],
-        );
+        'resolve_futures returns MontyResolveFutures '
+        'and marks active', () async {
+      fake.progressResult = const CoreProgressResult(
+        state: 'resolve_futures',
+        pendingCallIds: [1, 2, 3],
+      );
 
-        final progress = await platform.start(
-          'code',
-          externalFunctions: ['fn'],
-        );
+      final progress = await platform.start('code', externalFunctions: ['fn']);
 
-        expect(progress, isA<MontyResolveFutures>());
-        final rf = progress as MontyResolveFutures;
-        expect(rf.pendingCallIds, [1, 2, 3]);
-        expect(platform.isActive, isTrue);
-      },
-    );
+      expect(progress, isA<MontyResolveFutures>());
+      final rf = progress as MontyResolveFutures;
+      expect(rf.pendingCallIds, [1, 2, 3]);
+      expect(platform.isActive, isTrue);
+    });
 
     test('error throws MontyException and marks idle', () async {
       fake.progressResult = const CoreProgressResult(
@@ -374,16 +345,8 @@ void main() {
         () => platform.start('code'),
         throwsA(
           isA<MontyException>()
-              .having(
-                (e) => e.message,
-                'message',
-                'name not defined',
-              )
-              .having(
-                (e) => e.excType,
-                'excType',
-                'NameError',
-              ),
+              .having((e) => e.message, 'message', 'name not defined')
+              .having((e) => e.excType, 'excType', 'NameError'),
         ),
       );
       expect(platform.isIdle, isTrue);
@@ -397,10 +360,7 @@ void main() {
         state: 'pending',
         functionName: 'fn',
       );
-      await platform.start(
-        'code',
-        externalFunctions: ['fn'],
-      );
+      await platform.start('code', externalFunctions: ['fn']);
 
       // Now resume.
       fake.progressResult = const CoreProgressResult(
@@ -418,32 +378,24 @@ void main() {
   });
 
   group('resumeWithError()', () {
-    test(
-      'delegates errorMessage and translates progress',
-      () async {
-        // Enter active state.
-        fake.progressResult = const CoreProgressResult(
-          state: 'pending',
-          functionName: 'fn',
-        );
-        await platform.start(
-          'code',
-          externalFunctions: ['fn'],
-        );
+    test('delegates errorMessage and translates progress', () async {
+      // Enter active state.
+      fake.progressResult = const CoreProgressResult(
+        state: 'pending',
+        functionName: 'fn',
+      );
+      await platform.start('code', externalFunctions: ['fn']);
 
-        // Resume with error -> complete.
-        fake.progressResult = const CoreProgressResult(
-          state: 'complete',
-          usage: usage,
-        );
-        final progress = await platform.resumeWithError(
-          'not found',
-        );
+      // Resume with error -> complete.
+      fake.progressResult = const CoreProgressResult(
+        state: 'complete',
+        usage: usage,
+      );
+      final progress = await platform.resumeWithError('not found');
 
-        expect(fake.lastErrorMessage, 'not found');
-        expect(progress, isA<MontyComplete>());
-      },
-    );
+      expect(fake.lastErrorMessage, 'not found');
+      expect(progress, isA<MontyComplete>());
+    });
   });
 
   group('dispose()', () {
@@ -470,77 +422,50 @@ void main() {
         state: 'pending',
         functionName: 'fn',
       );
-      await platform.start(
-        'code',
-        externalFunctions: ['fn'],
-      );
+      await platform.start('code', externalFunctions: ['fn']);
 
-      expect(
-        () => platform.run('code'),
-        throwsA(isA<StateError>()),
-      );
+      expect(() => platform.run('code'), throwsA(isA<StateError>()));
     });
 
     test('resume() while idle throws StateError', () {
-      expect(
-        () => platform.resume(null),
-        throwsA(isA<StateError>()),
-      );
+      expect(() => platform.resume(null), throwsA(isA<StateError>()));
     });
 
     test('resumeWithError() while idle throws StateError', () {
-      expect(
-        () => platform.resumeWithError('err'),
-        throwsA(isA<StateError>()),
-      );
+      expect(() => platform.resumeWithError('err'), throwsA(isA<StateError>()));
     });
 
     test('run() after disposed throws StateError', () async {
       await platform.dispose();
 
-      expect(
-        () => platform.run('code'),
-        throwsA(isA<StateError>()),
-      );
+      expect(() => platform.run('code'), throwsA(isA<StateError>()));
     });
 
-    test(
-      'start() after disposed throws StateError',
-      () async {
-        await platform.dispose();
+    test('start() after disposed throws StateError', () async {
+      await platform.dispose();
 
-        expect(
-          () => platform.start('code'),
-          throwsA(isA<StateError>()),
-        );
-      },
-    );
+      expect(() => platform.start('code'), throwsA(isA<StateError>()));
+    });
 
-    test(
-      'resume() after disposed throws StateError',
-      () async {
-        await platform.dispose();
-        // Also not active, but disposed check comes first.
-        expect(
-          () => platform.resume(null),
-          throwsA(
-            isA<StateError>().having(
-              (e) => e.message,
-              'message',
-              contains('disposed'),
-            ),
+    test('resume() after disposed throws StateError', () async {
+      await platform.dispose();
+      // Also not active, but disposed check comes first.
+      expect(
+        () => platform.resume(null),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            contains('disposed'),
           ),
-        );
-      },
-    );
+        ),
+      );
+    });
   });
 
   group('limits encoding', () {
     test('null limits passes null to bindings', () async {
-      fake.runResult = const CoreRunResult(
-        ok: true,
-        usage: usage,
-      );
+      fake.runResult = const CoreRunResult(ok: true, usage: usage);
 
       await platform.run('code');
 
@@ -548,25 +473,16 @@ void main() {
     });
 
     test('partial limits encodes JSON subset', () async {
-      fake.runResult = const CoreRunResult(
-        ok: true,
-        usage: usage,
-      );
+      fake.runResult = const CoreRunResult(ok: true, usage: usage);
 
-      await platform.run(
-        'code',
-        limits: const MontyLimits(memoryBytes: 1024),
-      );
+      await platform.run('code', limits: const MontyLimits(memoryBytes: 1024));
 
       final decoded = json.decode(fake.lastLimitsJson!) as Map<String, dynamic>;
       expect(decoded, {'memory_bytes': 1024});
     });
 
     test('full limits encodes all fields', () async {
-      fake.runResult = const CoreRunResult(
-        ok: true,
-        usage: usage,
-      );
+      fake.runResult = const CoreRunResult(ok: true, usage: usage);
 
       await platform.run(
         'code',
@@ -615,10 +531,7 @@ void main() {
         usage: usage,
       );
 
-      await platform.start(
-        'code',
-        externalFunctions: ['fn_a', 'fn_b'],
-      );
+      await platform.start('code', externalFunctions: ['fn_a', 'fn_b']);
 
       final decoded = json.decode(fake.lastExtFnsJson!) as List<dynamic>;
       expect(decoded, ['fn_a', 'fn_b']);
@@ -627,10 +540,7 @@ void main() {
 
   group('lazy initialization', () {
     test('first call triggers init', () async {
-      fake.runResult = const CoreRunResult(
-        ok: true,
-        usage: usage,
-      );
+      fake.runResult = const CoreRunResult(ok: true, usage: usage);
 
       await platform.run('code');
 
@@ -638,10 +548,7 @@ void main() {
     });
 
     test('subsequent calls skip init', () async {
-      fake.runResult = const CoreRunResult(
-        ok: true,
-        usage: usage,
-      );
+      fake.runResult = const CoreRunResult(ok: true, usage: usage);
 
       await platform.run('first');
       await platform.run('second');
@@ -652,9 +559,7 @@ void main() {
 
   group('unknown progress state', () {
     test('throws StateError', () async {
-      fake.progressResult = const CoreProgressResult(
-        state: 'bogus',
-      );
+      fake.progressResult = const CoreProgressResult(state: 'bogus');
 
       await expectLater(
         () => platform.start('code'),
@@ -685,10 +590,7 @@ void main() {
       expect(platform.isActive, isTrue);
 
       // A second concurrent run() should fail with StateError.
-      expect(
-        () => platform.run('second'),
-        throwsA(isA<StateError>()),
-      );
+      expect(() => platform.run('second'), throwsA(isA<StateError>()));
 
       // Release the gate so the first run completes.
       gate.complete();
@@ -698,10 +600,7 @@ void main() {
     });
 
     test('run() returns to idle after error', () async {
-      fake.runResult = const CoreRunResult(
-        ok: false,
-        error: 'boom',
-      );
+      fake.runResult = const CoreRunResult(ok: false, error: 'boom');
 
       await expectLater(
         () => platform.run('code'),
@@ -710,22 +609,24 @@ void main() {
       expect(platform.isIdle, isTrue);
     });
 
-    test('start() marks active before await — concurrent start() throws',
-        () async {
-      fake.progressResult = const CoreProgressResult(
-        state: 'complete',
-        usage: zeroUsage,
-      );
+    test(
+      'start() marks active before await — concurrent start() throws',
+      () async {
+        fake.progressResult = const CoreProgressResult(
+          state: 'complete',
+          usage: zeroUsage,
+        );
 
-      // start() should mark active synchronously.
-      final first = platform.start('first');
-      // Can't easily test concurrency here since fake is synchronous,
-      // but we verify the state IS active before start returns.
-      // The real proof is the run() test above with the gate.
-      final result = await first;
-      expect(result, isA<MontyComplete>());
-      expect(platform.isIdle, isTrue);
-    });
+        // start() should mark active synchronously.
+        final first = platform.start('first');
+        // Can't easily test concurrency here since fake is synchronous,
+        // but we verify the state IS active before start returns.
+        // The real proof is the run() test above with the gate.
+        final result = await first;
+        expect(result, isA<MontyComplete>());
+        expect(platform.isIdle, isTrue);
+      },
+    );
   });
 
   // ---------------------------------------------------------------------------
@@ -775,22 +676,19 @@ void main() {
     });
   });
 
-  group('static cancel API', () {
+  group('static cancel API (MontyCancelRegistry)', () {
     tearDown(() {
       // Reset static state after each test.
-      BaseMontyPlatform.registerNativeCancel(
+      MontyCancelRegistry.registerNativeCancel(
         cancelById: (_) => false,
         isCancelledById: (_) => null,
         ensureInitialized: ([_]) {},
       );
-      // Clean up any web registry entries by unregistering.
-      // (We can't access _webRegistry directly, but tests below manage
-      // their own entries.)
     });
 
     test('registerNativeCancel stores callbacks and cancelById uses them', () {
       var cancelledId = -1;
-      BaseMontyPlatform.registerNativeCancel(
+      MontyCancelRegistry.registerNativeCancel(
         cancelById: (id) {
           cancelledId = id;
           return true;
@@ -798,56 +696,55 @@ void main() {
         isCancelledById: (_) => false,
         ensureInitialized: ([_]) {},
       );
-      final result = BaseMontyPlatform.cancelById(99);
+      final result = MontyCancelRegistry.cancelById(99);
       expect(result, isTrue);
       expect(cancelledId, 99);
     });
 
     test('webRegister/webUnregister manage web registry', () {
       final webFake = _FakeCoreBindings();
-      final webId = BaseMontyPlatform.webRegister(webFake);
+      final webId = MontyCancelRegistry.webRegister(webFake);
       expect(webId, greaterThan(0));
 
-      // Verify registered via isHandleAlive (web path checks _webRegistry).
       // Reset native so isHandleAlive falls through to web registry.
-      BaseMontyPlatform.registerNativeCancel(
+      MontyCancelRegistry.registerNativeCancel(
         cancelById: (_) => false,
         isCancelledById: (_) => null,
         ensureInitialized: ([_]) {},
       );
 
-      BaseMontyPlatform.webUnregister(webId);
+      MontyCancelRegistry.webUnregister(webId);
     });
 
     test('webRegister returns incrementing IDs', () {
-      final id1 = BaseMontyPlatform.webRegister(_FakeCoreBindings());
-      final id2 = BaseMontyPlatform.webRegister(_FakeCoreBindings());
+      final id1 = MontyCancelRegistry.webRegister(_FakeCoreBindings());
+      final id2 = MontyCancelRegistry.webRegister(_FakeCoreBindings());
       expect(id2, greaterThan(id1));
-      BaseMontyPlatform.webUnregister(id1);
-      BaseMontyPlatform.webUnregister(id2);
+      MontyCancelRegistry.webUnregister(id1);
+      MontyCancelRegistry.webUnregister(id2);
     });
 
     test('ensureInitialized invokes registered callback', () {
       var called = false;
-      BaseMontyPlatform.registerNativeCancel(
+      MontyCancelRegistry.registerNativeCancel(
         cancelById: (_) => false,
         isCancelledById: (_) => null,
         ensureInitialized: ([_]) {
           called = true;
         },
       );
-      BaseMontyPlatform.ensureInitialized();
+      MontyCancelRegistry.ensureInitialized();
       expect(called, isTrue);
     });
 
     test('isHandleAlive delegates to native callback', () {
-      BaseMontyPlatform.registerNativeCancel(
+      MontyCancelRegistry.registerNativeCancel(
         cancelById: (_) => false,
         isCancelledById: (id) => id == 42 ? false : null,
         ensureInitialized: ([_]) {},
       );
-      expect(BaseMontyPlatform.isHandleAlive(42), isTrue);
-      expect(BaseMontyPlatform.isHandleAlive(999), isFalse);
+      expect(MontyCancelRegistry.isHandleAlive(42), isTrue);
+      expect(MontyCancelRegistry.isHandleAlive(999), isFalse);
     });
   });
 
@@ -890,10 +787,7 @@ void main() {
       // Now make resume() throw.
       fake.throwOnResume = Exception('FFI crash');
 
-      await expectLater(
-        () => platform.resume(42),
-        throwsA(isA<Exception>()),
-      );
+      await expectLater(() => platform.resume(42), throwsA(isA<Exception>()));
       expect(
         platform.isIdle,
         isTrue,

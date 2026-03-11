@@ -10,7 +10,7 @@ import 'package:dart_monty_wasm/src/wasm_bindings.dart';
 /// Provides synthetic [MontyResourceUsage] with Dart-side wall-clock
 /// timing since the WASM bridge does not expose `ResourceTracker`.
 ///
-/// Registers in [BaseMontyPlatform.webRegister] at init for cross-session
+/// Registers in [MontyCancelRegistry.webRegister] at init for cross-session
 /// `cancelById` support on web.
 ///
 /// ```dart
@@ -32,7 +32,7 @@ class WasmCoreBindings implements MontyCoreBindings {
   Future<bool> init() async {
     if (_sessionId != null) return true;
     _sessionId = await _bindings.createSession();
-    _handleId = BaseMontyPlatform.webRegister(this);
+    _handleId = MontyCancelRegistry.webRegister(this);
     return true;
   }
 
@@ -164,7 +164,7 @@ class WasmCoreBindings implements MontyCoreBindings {
     // Worker is terminated — unregister and clear state so init() can
     // spawn a new one without leaking the handle ID in the platform registry.
     if (_handleId != null) {
-      BaseMontyPlatform.webUnregister(_handleId!);
+      MontyCancelRegistry.webUnregister(_handleId!);
       _handleId = null;
     }
     _sessionId = null;
@@ -173,7 +173,7 @@ class WasmCoreBindings implements MontyCoreBindings {
   @override
   Future<void> dispose() async {
     if (_handleId != null) {
-      BaseMontyPlatform.webUnregister(_handleId!);
+      MontyCancelRegistry.webUnregister(_handleId!);
       _handleId = null;
     }
     if (_sessionId != null) {
@@ -187,10 +187,10 @@ class WasmCoreBindings implements MontyCoreBindings {
   // ---------------------------------------------------------------------------
 
   static MontyResourceUsage _makeUsage(int elapsedMs) => MontyResourceUsage(
-        memoryBytesUsed: 0,
-        timeElapsedMs: elapsedMs,
-        stackDepthUsed: 0,
-      );
+    memoryBytesUsed: 0,
+    timeElapsedMs: elapsedMs,
+    stackDepthUsed: 0,
+  );
 
   CoreRunResult _translateRunResult(WasmRunResult result, int elapsedMs) {
     if (result.ok) {

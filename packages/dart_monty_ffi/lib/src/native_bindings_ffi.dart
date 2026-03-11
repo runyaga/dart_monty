@@ -19,7 +19,7 @@ class NativeBindingsFfi extends NativeBindings {
   /// Dart runtime. No manual path resolution is needed.
   NativeBindingsFfi() {
     _instance ??= this;
-    BaseMontyPlatform.registerNativeCancel(
+    MontyCancelRegistry.registerNativeCancel(
       cancelById: (id) => instanceOrNull?.cancelById(id) ?? false,
       isCancelledById: (id) => instanceOrNull?.isCancelledById(id),
       ensureInitialized: NativeBindingsFfi.ensureInitialized,
@@ -41,17 +41,13 @@ class NativeBindingsFfi extends NativeBindings {
   ///
   /// The [libraryPath] parameter is ignored — with native asset hooks, the
   /// library is resolved automatically by the Dart runtime. It is retained
-  /// for API compatibility with [BaseMontyPlatform.registerNativeCancel].
+  /// for API compatibility with [MontyCancelRegistry.registerNativeCancel].
   static void ensureInitialized([String? libraryPath]) {
     _instance ??= NativeBindingsFfi();
   }
 
   @override
-  int create(
-    String code, {
-    String? externalFunctions,
-    String? scriptName,
-  }) {
+  int create(String code, {String? externalFunctions, String? scriptName}) {
     final cCode = code.toNativeUtf8().cast<Char>();
     final nullChar = nullptr.cast<Char>();
     final cExtFns = externalFunctions != null
@@ -340,11 +336,7 @@ class NativeBindingsFfi extends NativeBindings {
         final resultJson = _readAndFreeString(resultJsonPtr);
         final isError = ffi_native.monty_complete_is_error(ptr);
 
-        return ProgressResult(
-          tag: 0,
-          resultJson: resultJson,
-          isError: isError,
-        );
+        return ProgressResult(tag: 0, resultJson: resultJson, isError: isError);
 
       case ffi_native.MontyProgressTag.MONTY_PROGRESS_PENDING:
         final fnNamePtr = ffi_native.monty_pending_fn_name(ptr);
