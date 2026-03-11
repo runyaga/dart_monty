@@ -18,6 +18,8 @@ import 'package:flutter_web_plugins/flutter_web_plugins.dart';
 class DartMontyWeb {
   /// Registers [MontyWasm] as the default [MontyPlatform] instance.
   static void registerWith(Registrar _) {
+    // Flutter's federated plugin registration requires the global singleton.
+    // ignore: deprecated_member_use
     MontyPlatform.instance = MontyWasm(bindings: WasmBindingsJs());
   }
 }

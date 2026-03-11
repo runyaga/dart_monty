@@ -1,3 +1,8 @@
+## 0.7.1
+
+- Deprecate `MontyPlatform.instance` singleton getter/setter (kept as fallback; will be removed in 1.0)
+- Add `monty_backend_spi.dart` sub-library for backend implementers
+
 ## 0.7.0
 
 - Add sealed `MontyError` hierarchy: `MontyCancelledError`, `MontyDisposedError`, `MontyScriptError`, `MontyPanicError`, `MontyCrashError`, `MontyResourceError`

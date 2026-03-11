@@ -1,3 +1,5 @@
+// Tests exercise the deprecated singleton API intentionally.
+// ignore_for_file: deprecated_member_use
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 import 'package:dart_monty_wasm/dart_monty_wasm.dart';
 import 'package:dart_monty_web/dart_monty_web.dart';

@@ -53,6 +53,18 @@ Federated plugin using four packages:
 - `dart_monty_ffi` — calls into Rust shared library via `dart:ffi`
 - `dart_monty_web` — calls into `@pydantic/monty` npm package via `dart:js_interop`
 
+### SPI Contract
+
+`dart_monty_platform_interface` has two barrel exports:
+
+- **`dart_monty_platform_interface.dart`** — public API for application code (`MontyPlatform`, `MontyResult`, `MontyError`, etc.)
+- **`monty_backend_spi.dart`** — SPI for backend implementers only (`BaseMontyPlatform`, `MontyCoreBindings`, `MontyStateMixin`)
+
+**Rules:**
+- Backend packages (`dart_monty_ffi`, `dart_monty_wasm`) MUST import `monty_backend_spi.dart` for implementation types
+- Application code and `dart_monty_bridge` MUST NOT import `monty_backend_spi.dart`
+- Never re-export SPI types through the main `dart_monty_platform_interface.dart` barrel
+
 ### Execution Paths
 
 **Native (desktop/mobile):**

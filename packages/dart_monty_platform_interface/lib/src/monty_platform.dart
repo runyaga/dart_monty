@@ -7,8 +7,7 @@ import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 /// The platform interface for the Monty sandboxed Python interpreter.
 ///
 /// Platform implementations (FFI, Web) extend this class to provide
-/// concrete behavior. The app-facing API delegates to
-/// [instance].
+/// concrete behavior.
 ///
 /// See also:
 /// - `dart_monty_ffi` — native FFI implementation
@@ -26,6 +25,14 @@ abstract class MontyPlatform extends PlatformInterface {
   ///
   /// Defaults to `null` until set by a platform implementation.
   /// Throws [StateError] if accessed before being set.
+  ///
+  /// Deprecated: Instantiate platform implementations directly instead
+  /// of relying on a global singleton. Pass the platform explicitly to
+  /// consumers (e.g. `DefaultMontyBridge(platform: myPlatform)`).
+  @Deprecated(
+    'Instantiate MontyFfi/MontyWasm/MontyNative directly instead of '
+    'using the global singleton. Will be removed in 1.0.',
+  )
   static MontyPlatform get instance {
     if (_instance == null) {
       throw StateError(
@@ -41,6 +48,12 @@ abstract class MontyPlatform extends PlatformInterface {
   ///
   /// The [instance] must extend [MontyPlatform] (not merely implement it)
   /// to satisfy the platform interface verification.
+  ///
+  /// Deprecated: See getter deprecation. Will be removed in 1.0.
+  @Deprecated(
+    'Instantiate MontyFfi/MontyWasm/MontyNative directly instead of '
+    'using the global singleton. Will be removed in 1.0.',
+  )
   static set instance(MontyPlatform instance) {
     PlatformInterface.verify(instance, _token);
     _instance = instance;
