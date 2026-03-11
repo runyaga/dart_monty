@@ -26,7 +26,8 @@ void main() {
     test('success translates to CoreRunResult(ok: true)', () async {
       mock.nextRunResult = const RunResult(
         tag: 0,
-        resultJson: '{"value": 42, "usage": {"memory_bytes_used": 100, '
+        resultJson:
+            '{"value": 42, "usage": {"memory_bytes_used": 100, '
             '"time_elapsed_ms": 5, "stack_depth_used": 3}}',
       );
 
@@ -52,7 +53,8 @@ void main() {
     test('success with print_output preserves it', () async {
       mock.nextRunResult = const RunResult(
         tag: 0,
-        resultJson: '{"value": null, "usage": {"memory_bytes_used": 0, '
+        resultJson:
+            '{"value": null, "usage": {"memory_bytes_used": 0, '
             '"time_elapsed_ms": 0, "stack_depth_used": 0}, '
             r'"print_output": "hello\n"}',
       );
@@ -65,7 +67,8 @@ void main() {
     test('success with embedded error preserves error fields', () async {
       mock.nextRunResult = const RunResult(
         tag: 0,
-        resultJson: '{"value": null, "usage": {"memory_bytes_used": 0, '
+        resultJson:
+            '{"value": null, "usage": {"memory_bytes_used": 0, '
             '"time_elapsed_ms": 0, "stack_depth_used": 0}, '
             '"error": {"message": "NameError", "exc_type": "NameError"}}',
       );
@@ -80,7 +83,8 @@ void main() {
     test('error with result JSON extracts error details', () async {
       mock.nextRunResult = const RunResult(
         tag: 1,
-        resultJson: '{"error": {"message": "division by zero", '
+        resultJson:
+            '{"error": {"message": "division by zero", '
             '"exc_type": "ZeroDivisionError", '
             '"traceback": [{"filename": "<test>", "start_line": 1}]}}',
       );
@@ -117,7 +121,8 @@ void main() {
     test('passes scriptName to create()', () async {
       mock.nextRunResult = const RunResult(
         tag: 0,
-        resultJson: '{"value": null, "usage": {"memory_bytes_used": 0, '
+        resultJson:
+            '{"value": null, "usage": {"memory_bytes_used": 0, '
             '"time_elapsed_ms": 0, "stack_depth_used": 0}}',
       );
 
@@ -129,13 +134,15 @@ void main() {
     test('applies limits from JSON', () async {
       mock.nextRunResult = const RunResult(
         tag: 0,
-        resultJson: '{"value": null, "usage": {"memory_bytes_used": 0, '
+        resultJson:
+            '{"value": null, "usage": {"memory_bytes_used": 0, '
             '"time_elapsed_ms": 0, "stack_depth_used": 0}}',
       );
 
       await bindings.run(
         'code',
-        limitsJson: '{"memory_bytes": 1024, "timeout_ms": 5000, '
+        limitsJson:
+            '{"memory_bytes": 1024, "timeout_ms": 5000, '
             '"stack_depth": 100}',
       );
 
@@ -150,7 +157,8 @@ void main() {
     test('null limits skips limit calls', () async {
       mock.nextRunResult = const RunResult(
         tag: 0,
-        resultJson: '{"value": null, "usage": {"memory_bytes_used": 0, '
+        resultJson:
+            '{"value": null, "usage": {"memory_bytes_used": 0, '
             '"time_elapsed_ms": 0, "stack_depth_used": 0}}',
       );
 
@@ -186,7 +194,8 @@ void main() {
     test('complete translates to CoreProgressResult', () async {
       mock.nextStartResult = const ProgressResult(
         tag: 0,
-        resultJson: '{"value": 99, "usage": {"memory_bytes_used": 50, '
+        resultJson:
+            '{"value": 99, "usage": {"memory_bytes_used": 50, '
             '"time_elapsed_ms": 2, "stack_depth_used": 1}}',
       );
 
@@ -208,7 +217,8 @@ void main() {
     test('complete with embedded error preserves error', () async {
       mock.nextStartResult = const ProgressResult(
         tag: 0,
-        resultJson: '{"value": null, "usage": {"memory_bytes_used": 0, '
+        resultJson:
+            '{"value": null, "usage": {"memory_bytes_used": 0, '
             '"time_elapsed_ms": 0, "stack_depth_used": 0}, '
             '"error": {"message": "caught", "exc_type": "RuntimeError"}}',
       );
@@ -277,7 +287,8 @@ void main() {
     test('error with result JSON extracts details', () async {
       mock.nextStartResult = const ProgressResult(
         tag: 2,
-        resultJson: '{"error": {"message": "not defined", '
+        resultJson:
+            '{"error": {"message": "not defined", '
             '"exc_type": "NameError"}}',
       );
 
@@ -333,7 +344,8 @@ void main() {
     test('external functions joined as comma-separated', () async {
       mock.nextStartResult = const ProgressResult(
         tag: 0,
-        resultJson: '{"value": null, "usage": {"memory_bytes_used": 0, '
+        resultJson:
+            '{"value": null, "usage": {"memory_bytes_used": 0, '
             '"time_elapsed_ms": 0, "stack_depth_used": 0}}',
       );
 
@@ -348,7 +360,8 @@ void main() {
     test('null extFnsJson passes null to create', () async {
       mock.nextStartResult = const ProgressResult(
         tag: 0,
-        resultJson: '{"value": null, "usage": {"memory_bytes_used": 0, '
+        resultJson:
+            '{"value": null, "usage": {"memory_bytes_used": 0, '
             '"time_elapsed_ms": 0, "stack_depth_used": 0}}',
       );
 
@@ -371,7 +384,8 @@ void main() {
       mock.resumeResults.add(
         const ProgressResult(
           tag: 0,
-          resultJson: '{"value": "done", "usage": {"memory_bytes_used": 0, '
+          resultJson:
+              '{"value": "done", "usage": {"memory_bytes_used": 0, '
               '"time_elapsed_ms": 0, "stack_depth_used": 0}}',
         ),
       );
@@ -409,7 +423,8 @@ void main() {
       mock.resumeWithErrorResults.add(
         const ProgressResult(
           tag: 0,
-          resultJson: '{"value": null, "usage": {"memory_bytes_used": 0, '
+          resultJson:
+              '{"value": null, "usage": {"memory_bytes_used": 0, '
               '"time_elapsed_ms": 0, "stack_depth_used": 0}}',
         ),
       );
@@ -470,7 +485,8 @@ void main() {
       mock.resolveFuturesResults.add(
         const ProgressResult(
           tag: 0,
-          resultJson: '{"value": "resolved", "usage": '
+          resultJson:
+              '{"value": "resolved", "usage": '
               '{"memory_bytes_used": 0, "time_elapsed_ms": 0, '
               '"stack_depth_used": 0}}',
         ),
@@ -570,7 +586,8 @@ void main() {
     test('run creates and frees handle each call', () async {
       mock.nextRunResult = const RunResult(
         tag: 0,
-        resultJson: '{"value": 1, "usage": {"memory_bytes_used": 0, '
+        resultJson:
+            '{"value": 1, "usage": {"memory_bytes_used": 0, '
             '"time_elapsed_ms": 0, "stack_depth_used": 0}}',
       );
 
@@ -595,7 +612,8 @@ void main() {
       mock.resumeResults.add(
         const ProgressResult(
           tag: 0,
-          resultJson: '{"value": null, "usage": {"memory_bytes_used": 0, '
+          resultJson:
+              '{"value": null, "usage": {"memory_bytes_used": 0, '
               '"time_elapsed_ms": 0, "stack_depth_used": 0}}',
         ),
       );

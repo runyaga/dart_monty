@@ -5,16 +5,9 @@ library;
 // ignore_for_file: avoid_print, lines_longer_than_80_chars
 
 import 'dart:async';
-import 'dart:io' show Platform;
-
 import 'package:dart_monty_ffi/dart_monty_ffi.dart';
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 import 'package:test/test.dart';
-
-String _resolveLibraryPath() {
-  final ext = Platform.isMacOS ? 'dylib' : 'so';
-  return '../../native/target/release/libdart_monty_native.$ext';
-}
 
 /// EXP-CANCEL-T1-2: Cross-Boundary CancelToken Routing
 ///
@@ -22,7 +15,6 @@ String _resolveLibraryPath() {
 /// Verifies 100% cross-isolate cancel success, 0% StateError, 100% isAlive==false post-terminate.
 void main() {
   const infiniteLoop = 'while True: pass';
-  final libPath = _resolveLibraryPath();
 
   // --- Metrics ---
   var crossCancelSuccess = 0;
@@ -34,7 +26,7 @@ void main() {
   group('T1-2: cross-isolate token cancel (N=$n)', () {
     for (var trial = 1; trial <= n; trial++) {
       test('trial $trial', () async {
-        final isolate = NativeIsolateBindingsImpl(libraryPath: libPath);
+        final isolate = NativeIsolateBindingsImpl();
         await isolate.init();
 
         final startFuture = isolate.start(
@@ -87,8 +79,10 @@ void main() {
     print('isAlive==true post-terminate: $isAlivePostTerminate / $n');
     print('Auto-init success: $autoInitSuccess / $n');
     print('');
-    print('VERDICT: '
-        '${crossCancelSuccess == n && stateErrorCount == 0 && isAlivePostTerminate == 0 ? "PASS" : "FAIL"}');
+    print(
+      'VERDICT: '
+      '${crossCancelSuccess == n && stateErrorCount == 0 && isAlivePostTerminate == 0 ? "PASS" : "FAIL"}',
+    );
     print('=== END T1-2 ===\n');
   });
 }

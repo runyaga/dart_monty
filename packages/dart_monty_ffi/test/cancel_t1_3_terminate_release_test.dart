@@ -2,16 +2,9 @@
 library;
 
 import 'dart:async';
-import 'dart:io' show Platform;
-
 import 'package:dart_monty_ffi/dart_monty_ffi.dart';
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 import 'package:test/test.dart';
-
-String _resolveLibraryPath() {
-  final ext = Platform.isMacOS ? 'dylib' : 'so';
-  return '../../native/target/release/libdart_monty_native.$ext';
-}
 
 /// T1-3: Terminate Resource Release
 ///
@@ -19,12 +12,11 @@ String _resolveLibraryPath() {
 /// (via freeById), the handleId reference, and the isolate.
 void main() {
   const infiniteLoop = 'while True: pass';
-  final libPath = _resolveLibraryPath();
 
   group('terminate resource cleanup', () {
     for (var trial = 1; trial <= 5; trial++) {
       test('trial $trial: terminate frees Rust registry entry', () async {
-        final isolate = NativeIsolateBindingsImpl(libraryPath: libPath);
+        final isolate = NativeIsolateBindingsImpl();
         await isolate.init();
 
         final startFuture = isolate.start(
@@ -39,8 +31,9 @@ void main() {
         expect(hid, greaterThan(0));
 
         // Before terminate: handle exists in Rust registry.
-        final preState =
-            NativeBindingsFfi.instanceOrNull?.isCancelledById(hid!);
+        final preState = NativeBindingsFfi.instanceOrNull?.isCancelledById(
+          hid!,
+        );
         expect(preState, isNotNull, reason: 'handle should be in registry');
 
         // Guard startFuture so its error does not escape the test zone
@@ -66,8 +59,9 @@ void main() {
         expect(isolate.handleId, isNull);
 
         // After terminate: Rust registry should not contain the handle.
-        final postState =
-            NativeBindingsFfi.instanceOrNull?.isCancelledById(hid!);
+        final postState = NativeBindingsFfi.instanceOrNull?.isCancelledById(
+          hid!,
+        );
         expect(
           postState,
           isNull,

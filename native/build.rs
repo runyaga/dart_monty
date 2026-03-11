@@ -5,5 +5,7 @@ fn main() {
     let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
     if target_os == "macos" {
         println!("cargo:rustc-cdylib-link-arg=-Wl,-install_name,@rpath/libdart_monty_native.dylib");
+        // Ensure enough header space for Dart's install_name_tool to rewrite paths.
+        println!("cargo:rustc-cdylib-link-arg=-Wl,-headerpad_max_install_names");
     }
 }

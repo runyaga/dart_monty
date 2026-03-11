@@ -2,16 +2,9 @@
 library;
 
 import 'dart:async';
-import 'dart:io' show Platform;
-
 import 'package:dart_monty_ffi/dart_monty_ffi.dart';
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 import 'package:test/test.dart';
-
-String _resolveLibraryPath() {
-  final ext = Platform.isMacOS ? 'dylib' : 'so';
-  return '../../native/target/release/libdart_monty_native.$ext';
-}
 
 /// T1-2: Cross-Boundary CancelToken Routing
 ///
@@ -20,12 +13,11 @@ String _resolveLibraryPath() {
 /// handleId and used to cancel from the supervisor (test) context.
 void main() {
   const infiniteLoop = 'while True: pass';
-  final libPath = _resolveLibraryPath();
 
   group('cross-isolate token cancel', () {
     for (var trial = 1; trial <= 5; trial++) {
       test('trial $trial: token.cancel() halts worker', () async {
-        final isolate = NativeIsolateBindingsImpl(libraryPath: libPath);
+        final isolate = NativeIsolateBindingsImpl();
         await isolate.init();
 
         final startFuture = isolate.start(
@@ -59,7 +51,7 @@ void main() {
 
   group('token.isAlive', () {
     test('isAlive is false after terminate', () async {
-      final isolate = NativeIsolateBindingsImpl(libraryPath: libPath);
+      final isolate = NativeIsolateBindingsImpl();
       await isolate.init();
 
       final startFuture = isolate.start(
@@ -88,7 +80,7 @@ void main() {
 
   group('auto-initialization', () {
     test('token.cancel() auto-initializes FFI without StateError', () async {
-      final isolate = NativeIsolateBindingsImpl(libraryPath: libPath);
+      final isolate = NativeIsolateBindingsImpl();
       await isolate.init();
 
       final startFuture = isolate.start(

@@ -20,14 +20,15 @@ import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart
 Future<void> main() async {
   final bindings = NativeBindingsFfi();
   final fixtureDir = Directory('../../test/fixtures/python_ladder');
-  final tierFiles = fixtureDir
-      .listSync()
-      .whereType<File>()
-      .where(
-        (f) => f.path.endsWith('.json'),
-      )
-      .toList()
-    ..sort((a, b) => a.path.compareTo(b.path));
+  final tierFiles =
+      fixtureDir
+          .listSync()
+          .whereType<File>()
+          .where(
+            (f) => f.path.endsWith('.json'),
+          )
+          .toList()
+        ..sort((a, b) => a.path.compareTo(b.path));
 
   for (final file in tierFiles) {
     final fixtures = (jsonDecode(file.readAsStringSync()) as List)

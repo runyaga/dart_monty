@@ -11,9 +11,8 @@ import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart
 
 /// Initial configuration sent from main -> Isolate at spawn time.
 final class _InitMessage {
-  const _InitMessage(this.mainSendPort, {this.libraryPath});
+  const _InitMessage(this.mainSendPort);
   final SendPort mainSendPort;
-  final String? libraryPath;
 }
 
 /// Message sent from the Isolate once it's ready.
@@ -149,7 +148,7 @@ Future<void> _isolateMain(_InitMessage init) async {
   final receivePort = ReceivePort();
   init.mainSendPort.send(_ReadyMessage(receivePort.sendPort));
 
-  final nativeBindings = NativeBindingsFfi(libraryPath: init.libraryPath);
+  final nativeBindings = NativeBindingsFfi();
   final ffiCoreBindings = FfiCoreBindings(
     bindings: nativeBindings,
     onHandleCreated: (handleId) {
@@ -167,11 +166,11 @@ Future<void> _isolateMain(_InitMessage init) async {
     try {
       switch (message) {
         case _RunRequest(
-            :final id,
-            :final code,
-            :final limits,
-            :final scriptName,
-          ):
+          :final id,
+          :final code,
+          :final limits,
+          :final scriptName,
+        ):
           final result = await monty.run(
             code,
             limits: limits,
@@ -180,12 +179,12 @@ Future<void> _isolateMain(_InitMessage init) async {
           init.mainSendPort.send(_RunResponse(id, result));
 
         case _StartRequest(
-            :final id,
-            :final code,
-            :final externalFunctions,
-            :final limits,
-            :final scriptName,
-          ):
+          :final id,
+          :final code,
+          :final externalFunctions,
+          :final limits,
+          :final scriptName,
+        ):
           final progress = await monty.start(
             code,
             externalFunctions: externalFunctions,
@@ -246,21 +245,14 @@ Future<void> _isolateMain(_InitMessage init) async {
 /// [NativeBindingsFfi]. Communication uses sealed `_Request`/`_Response`
 /// classes sent directly (no JSON encoding needed for same-group isolates).
 ///
-/// Pass [libraryPath] to override the default native library resolution.
-/// This is useful for integration tests where `DYLD_LIBRARY_PATH` may not
-/// propagate to the spawned Isolate.
+/// The native library is resolved automatically by the Dart native assets
+/// system via `@Native` annotations — no manual path is needed.
 class NativeIsolateBindingsImpl extends NativeIsolateBindings {
   /// Creates a [NativeIsolateBindingsImpl].
   ///
-  /// If [libraryPath] is provided, it is forwarded to [NativeBindingsFfi]
-  /// inside the Isolate to override the default library lookup.
-  ///
   /// If [initTimeout] is provided, the isolate must send [_ReadyMessage]
   /// within this duration or [init] throws a [StateError].
-  NativeIsolateBindingsImpl({this.libraryPath, this.initTimeout});
-
-  /// Optional path to the native shared library.
-  final String? libraryPath;
+  NativeIsolateBindingsImpl({this.initTimeout});
 
   /// Timeout for the worker isolate to send [_ReadyMessage] during [init].
   /// Defaults to 30 seconds if not provided.
@@ -337,7 +329,7 @@ class NativeIsolateBindingsImpl extends NativeIsolateBindings {
 
     final isolate = await Isolate.spawn(
       _isolateEntryPoint,
-      _InitMessage(receivePort.sendPort, libraryPath: libraryPath),
+      _InitMessage(receivePort.sendPort),
     );
     _isolate = isolate;
 
@@ -357,7 +349,7 @@ class NativeIsolateBindingsImpl extends NativeIsolateBindings {
     // direct NativeBindingsFfi access work cross-isolate.  Dart static
     // state is per-isolate, so the worker's NativeBindingsFfi registration
     // does not propagate here.
-    NativeBindingsFfi.ensureInitialized(libraryPath);
+    NativeBindingsFfi.ensureInitialized();
 
     return true;
   }
@@ -481,7 +473,7 @@ class NativeIsolateBindingsImpl extends NativeIsolateBindings {
   Future<void> cancel() async {
     final hid = _handleId;
     if (hid != null) {
-      NativeBindingsFfi.ensureInitialized(libraryPath);
+      NativeBindingsFfi.ensureInitialized();
       NativeBindingsFfi.instanceOrNull?.cancelById(hid);
     }
   }
@@ -502,7 +494,7 @@ class NativeIsolateBindingsImpl extends NativeIsolateBindings {
       final exited = await _exitCompleter!.future
           .timeout(const Duration(seconds: 5))
           .then((_) => true)
-          .onError((_, __) => false);
+          .onError((_, _) => false);
       if (!exited) {
         _zombieCount++;
         _cleanupAfterCrashDisposal(skipFreeById: true);

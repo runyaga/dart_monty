@@ -64,17 +64,19 @@ class MockNativeIsolateBindings extends NativeIsolateBindings {
 
   /// Records of `(code, limits, scriptName)` passed to [run].
   final List<({String code, MontyLimits? limits, String? scriptName})>
-      runCalls = [];
+  runCalls = [];
 
   /// Records of `(code, externalFunctions, limits, scriptName)` passed to
   /// [start].
   final List<
-      ({
-        String code,
-        List<String>? externalFunctions,
-        MontyLimits? limits,
-        String? scriptName,
-      })> startCalls = [];
+    ({
+      String code,
+      List<String>? externalFunctions,
+      MontyLimits? limits,
+      String? scriptName,
+    })
+  >
+  startCalls = [];
 
   /// Records of `returnValue` passed to [resume].
   final List<Object?> resumeCalls = [];

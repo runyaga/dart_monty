@@ -5,16 +5,9 @@ library;
 // ignore_for_file: avoid_print, lines_longer_than_80_chars
 
 import 'dart:async';
-import 'dart:io' show Platform;
-
 import 'package:dart_monty_ffi/dart_monty_ffi.dart';
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 import 'package:test/test.dart';
-
-String _resolveLibraryPath() {
-  final ext = Platform.isMacOS ? 'dylib' : 'so';
-  return '../../native/target/release/libdart_monty_native.$ext';
-}
 
 /// EXP-CANCEL-T1-3: Terminate Resource Release
 ///
@@ -22,7 +15,6 @@ String _resolveLibraryPath() {
 /// Verifies 100% Rust registry freed, 100% Dart references nulled.
 void main() {
   const infiniteLoop = 'while True: pass';
-  final libPath = _resolveLibraryPath();
 
   // --- Metrics ---
   var registryFreedCount = 0;
@@ -34,7 +26,7 @@ void main() {
   group('T1-3: terminate resource release (N=$n)', () {
     for (var trial = 1; trial <= n; trial++) {
       test('trial $trial', () async {
-        final isolate = NativeIsolateBindingsImpl(libraryPath: libPath);
+        final isolate = NativeIsolateBindingsImpl();
         await isolate.init();
 
         final startFuture = isolate.start(
@@ -48,8 +40,9 @@ void main() {
         expect(hid, isNotNull);
 
         // Verify handle exists pre-terminate.
-        final preState =
-            NativeBindingsFfi.instanceOrNull?.isCancelledById(hid!);
+        final preState = NativeBindingsFfi.instanceOrNull?.isCancelledById(
+          hid!,
+        );
         expect(preState, isNotNull, reason: 'handle should be in registry');
 
         // Guard startFuture.
@@ -78,8 +71,9 @@ void main() {
         }
 
         // Check Rust registry cleanup.
-        final postState =
-            NativeBindingsFfi.instanceOrNull?.isCancelledById(hid!);
+        final postState = NativeBindingsFfi.instanceOrNull?.isCancelledById(
+          hid!,
+        );
         if (postState == null) {
           registryFreedCount++;
         } else {
@@ -97,8 +91,10 @@ void main() {
     print('handleId nulled: $handleIdNulledCount / $n');
     print('handleId NOT nulled: $handleIdNotNulledCount');
     print('');
-    print('VERDICT: '
-        '${registryFreedCount == n && handleIdNulledCount == n ? "PASS" : "FAIL"}');
+    print(
+      'VERDICT: '
+      '${registryFreedCount == n && handleIdNulledCount == n ? "PASS" : "FAIL"}',
+    );
     print('=== END T1-3 ===\n');
   });
 }

@@ -5,16 +5,9 @@ library;
 // ignore_for_file: avoid_print
 
 import 'dart:async';
-import 'dart:io' show Platform;
-
 import 'package:dart_monty_ffi/dart_monty_ffi.dart';
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 import 'package:test/test.dart';
-
-String _resolveLibraryPath() {
-  final ext = Platform.isMacOS ? 'dylib' : 'so';
-  return '../../native/target/release/libdart_monty_native.$ext';
-}
 
 /// EXP-CANCEL-T3-4: Liveness Probe Accuracy (Native)
 ///
@@ -22,8 +15,6 @@ String _resolveLibraryPath() {
 /// Verifies isAlive returns true while running, false after terminate.
 /// Success: 0 false positives, 0 false negatives, probe P95 < 500us.
 void main() {
-  final libPath = _resolveLibraryPath();
-
   var falsePositives = 0; // isAlive == true post-terminate
   var falseNegatives = 0; // isAlive == false while running
   final probeLatenciesUs = <int>[];
@@ -32,7 +23,7 @@ void main() {
   group('T3-4: liveness probe accuracy (N=$n)', () {
     for (var trial = 1; trial <= n; trial++) {
       test('trial $trial', () async {
-        final isolate = NativeIsolateBindingsImpl(libraryPath: libPath);
+        final isolate = NativeIsolateBindingsImpl();
         await isolate.init();
 
         // Start an ACTIVE workload so the handle stays alive.

@@ -26,7 +26,8 @@ class MockNativeBindings extends NativeBindings {
   /// Result returned by [run].
   RunResult nextRunResult = const RunResult(
     tag: 0,
-    resultJson: '{"value": 4, "usage": {"memory_bytes_used": 0, '
+    resultJson:
+        '{"value": 4, "usage": {"memory_bytes_used": 0, '
         '"time_elapsed_ms": 0, "stack_depth_used": 0}}',
   );
 
@@ -63,7 +64,7 @@ class MockNativeBindings extends NativeBindings {
 
   /// Records of `(code, externalFunctions, scriptName)` passed to [create].
   final List<({String code, String? externalFunctions, String? scriptName})>
-      createCalls = [];
+  createCalls = [];
 
   /// Handle addresses passed to [free].
   final List<int> freeCalls = [];
@@ -86,7 +87,7 @@ class MockNativeBindings extends NativeBindings {
   /// Records of `(handle, resultsJson, errorsJson)` passed to
   /// [resolveFutures].
   final List<({int handle, String resultsJson, String errorsJson})>
-      resolveFuturesCalls = [];
+  resolveFuturesCalls = [];
 
   /// If non-null, [setMemoryLimit] throws this.
   Exception? throwOnSetMemoryLimit;
@@ -116,7 +117,7 @@ class MockNativeBindings extends NativeBindings {
       (
         code: code,
         externalFunctions: externalFunctions,
-        scriptName: scriptName
+        scriptName: scriptName,
       ),
     );
     final createError = nextCreateError;

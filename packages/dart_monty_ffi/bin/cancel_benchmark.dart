@@ -22,16 +22,10 @@ import 'dart:math';
 import 'package:dart_monty_ffi/dart_monty_ffi.dart';
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 
-String _resolveLibraryPath() {
-  final ext = Platform.isMacOS ? 'dylib' : 'so';
-  return '../../native/target/release/libdart_monty_native.$ext';
-}
-
 // ---------------------------------------------------------------------------
 // T1-1: Cancel Correctness & Idempotency
 // ---------------------------------------------------------------------------
 Future<Map<String, dynamic>> runT1_1({
-  required String libPath,
   int cancelN = 200,
   int postCompleteN = 50,
 }) async {
@@ -41,7 +35,7 @@ Future<Map<String, dynamic>> runT1_1({
   var postCompleteThrowCount = 0;
 
   for (var trial = 1; trial <= cancelN; trial++) {
-    final isolate = NativeIsolateBindingsImpl(libraryPath: libPath);
+    final isolate = NativeIsolateBindingsImpl();
     await isolate.init();
     final f = isolate.start(
       'while True: pass',
@@ -67,7 +61,7 @@ Future<Map<String, dynamic>> runT1_1({
   }
 
   for (var trial = 1; trial <= postCompleteN; trial++) {
-    final isolate = NativeIsolateBindingsImpl(libraryPath: libPath);
+    final isolate = NativeIsolateBindingsImpl();
     await isolate.init();
     await isolate.run('2 + 2');
     try {
@@ -79,7 +73,8 @@ Future<Map<String, dynamic>> runT1_1({
   }
   stderr.writeln();
 
-  final pass = cancelledCount == cancelN &&
+  final pass =
+      cancelledCount == cancelN &&
       wrongTypeCount == 0 &&
       doubleThrowCount == 0 &&
       postCompleteThrowCount == 0;
@@ -99,7 +94,6 @@ Future<Map<String, dynamic>> runT1_1({
 // T1-2: Cross-Boundary CancelToken Routing
 // ---------------------------------------------------------------------------
 Future<Map<String, dynamic>> runT1_2({
-  required String libPath,
   int n = 100,
 }) async {
   var crossCancelSuccess = 0;
@@ -107,7 +101,7 @@ Future<Map<String, dynamic>> runT1_2({
   var isAlivePostTerminate = 0;
 
   for (var trial = 1; trial <= n; trial++) {
-    final isolate = NativeIsolateBindingsImpl(libraryPath: libPath);
+    final isolate = NativeIsolateBindingsImpl();
     await isolate.init();
     final f = isolate.start(
       'while True: pass',
@@ -148,7 +142,8 @@ Future<Map<String, dynamic>> runT1_2({
     'cross_cancel_success': crossCancelSuccess,
     'state_error': stateErrorCount,
     'alive_post_terminate': isAlivePostTerminate,
-    'pass': crossCancelSuccess == n &&
+    'pass':
+        crossCancelSuccess == n &&
         stateErrorCount == 0 &&
         isAlivePostTerminate == 0,
   };
@@ -158,14 +153,13 @@ Future<Map<String, dynamic>> runT1_2({
 // T1-3: Terminate Resource Release
 // ---------------------------------------------------------------------------
 Future<Map<String, dynamic>> runT1_3({
-  required String libPath,
   int n = 100,
 }) async {
   var registryFreed = 0;
   var handleIdNulled = 0;
 
   for (var trial = 1; trial <= n; trial++) {
-    final isolate = NativeIsolateBindingsImpl(libraryPath: libPath);
+    final isolate = NativeIsolateBindingsImpl();
     await isolate.init();
     final f = isolate.start(
       'while True: pass',
@@ -204,7 +198,6 @@ Future<Map<String, dynamic>> runT1_3({
 // T1-4: Sealed Error Routing
 // ---------------------------------------------------------------------------
 Future<Map<String, dynamic>> runT1_4({
-  required String libPath,
   int n = 50,
 }) async {
   var subACorrect = 0;
@@ -213,7 +206,7 @@ Future<Map<String, dynamic>> runT1_4({
 
   // Sub-A: Python exception → MontyException
   for (var trial = 1; trial <= n; trial++) {
-    final isolate = NativeIsolateBindingsImpl(libraryPath: libPath);
+    final isolate = NativeIsolateBindingsImpl();
     await isolate.init();
     try {
       await isolate.run('1/0');
@@ -227,7 +220,7 @@ Future<Map<String, dynamic>> runT1_4({
 
   // Sub-C: Cancel → MontyCancelledError
   for (var trial = 1; trial <= n; trial++) {
-    final isolate = NativeIsolateBindingsImpl(libraryPath: libPath);
+    final isolate = NativeIsolateBindingsImpl();
     await isolate.init();
     final f = isolate.start(
       'while True: pass',
@@ -247,7 +240,7 @@ Future<Map<String, dynamic>> runT1_4({
 
   // Sub-D: Terminate → error resolution
   for (var trial = 1; trial <= n; trial++) {
-    final isolate = NativeIsolateBindingsImpl(libraryPath: libPath);
+    final isolate = NativeIsolateBindingsImpl();
     await isolate.init();
     final f = isolate.start(
       'while True: pass',
@@ -290,7 +283,6 @@ Future<Map<String, dynamic>> runT1_4({
 // T2-2: Dispose Hang Prevention
 // ---------------------------------------------------------------------------
 Future<Map<String, dynamic>> runT2_2({
-  required String libPath,
   int nC1 = 10,
   int nC2 = 50,
 }) async {
@@ -301,7 +293,7 @@ Future<Map<String, dynamic>> runT2_2({
 
   // C1: dispose() on stuck FFI (should work after #113 fix)
   for (var trial = 1; trial <= nC1; trial++) {
-    final isolate = NativeIsolateBindingsImpl(libraryPath: libPath);
+    final isolate = NativeIsolateBindingsImpl();
     await isolate.init();
     final f = isolate.start(
       'while True: pass',
@@ -338,7 +330,7 @@ Future<Map<String, dynamic>> runT2_2({
 
   // C2: terminate() (control)
   for (var trial = 1; trial <= nC2; trial++) {
-    final isolate = NativeIsolateBindingsImpl(libraryPath: libPath);
+    final isolate = NativeIsolateBindingsImpl();
     await isolate.init();
     final f = isolate.start(
       'while True: pass',
@@ -385,7 +377,6 @@ Future<Map<String, dynamic>> runT2_2({
 // T2-3: Memory Soak
 // ---------------------------------------------------------------------------
 Future<Map<String, dynamic>> runT2_3({
-  required String libPath,
   int totalCycles = 1000,
 }) async {
   final checkpoints = [0, 100, 250, 500, 750, 1000];
@@ -393,7 +384,7 @@ Future<Map<String, dynamic>> runT2_3({
 
   // Warmup
   for (var i = 0; i < 5; i++) {
-    final isolate = NativeIsolateBindingsImpl(libraryPath: libPath);
+    final isolate = NativeIsolateBindingsImpl();
     await isolate.init();
     await isolate.run('2 + 2');
     await isolate.dispose();
@@ -401,7 +392,7 @@ Future<Map<String, dynamic>> runT2_3({
   rssAt[0] = ProcessInfo.currentRss;
 
   for (var cycle = 1; cycle <= totalCycles; cycle++) {
-    final isolate = NativeIsolateBindingsImpl(libraryPath: libPath);
+    final isolate = NativeIsolateBindingsImpl();
     await isolate.init();
     await isolate.run('2 + 2');
     await isolate.dispose();
@@ -437,8 +428,9 @@ Future<Map<String, dynamic>> runT2_3({
     'cycles': totalCycles,
     'delta_mb': deltaMb,
     'slope_mb_per_cycle': slope,
-    'rss_checkpoints': rssAt
-        .map((k, v) => MapEntry(k, (v / (1024 * 1024)).toStringAsFixed(1))),
+    'rss_checkpoints': rssAt.map(
+      (k, v) => MapEntry(k, (v / (1024 * 1024)).toStringAsFixed(1)),
+    ),
     'pass': deltaMb.abs() < 5.0 && slope.abs() < 0.005,
   };
 }
@@ -447,7 +439,6 @@ Future<Map<String, dynamic>> runT2_3({
 // T3-1: Cancel Latency
 // ---------------------------------------------------------------------------
 Future<Map<String, dynamic>> runT3_1({
-  required String libPath,
   int n = 500,
   int warmup = 5,
 }) async {
@@ -455,7 +446,7 @@ Future<Map<String, dynamic>> runT3_1({
 
   // Warmup
   for (var i = 0; i < warmup; i++) {
-    final isolate = NativeIsolateBindingsImpl(libraryPath: libPath);
+    final isolate = NativeIsolateBindingsImpl();
     await isolate.init();
     final f = isolate.start(
       'while True: pass',
@@ -473,7 +464,7 @@ Future<Map<String, dynamic>> runT3_1({
 
   // Measured trials
   for (var trial = 1; trial <= n; trial++) {
-    final isolate = NativeIsolateBindingsImpl(libraryPath: libPath);
+    final isolate = NativeIsolateBindingsImpl();
     await isolate.init();
     final startFuture = isolate.start(
       'while True: pass',
@@ -504,14 +495,13 @@ Future<Map<String, dynamic>> runT3_1({
 // T3-2: Terminate Latency
 // ---------------------------------------------------------------------------
 Future<Map<String, dynamic>> runT3_2({
-  required String libPath,
   int n = 500,
   int warmup = 5,
 }) async {
   final latenciesUs = <int>[];
 
   for (var i = 0; i < warmup; i++) {
-    final isolate = NativeIsolateBindingsImpl(libraryPath: libPath);
+    final isolate = NativeIsolateBindingsImpl();
     await isolate.init();
     final f = isolate.start(
       'while True: pass',
@@ -523,7 +513,7 @@ Future<Map<String, dynamic>> runT3_2({
   }
 
   for (var trial = 1; trial <= n; trial++) {
-    final isolate = NativeIsolateBindingsImpl(libraryPath: libPath);
+    final isolate = NativeIsolateBindingsImpl();
     await isolate.init();
     final startFuture = isolate.start(
       'while True: pass',
@@ -550,7 +540,6 @@ Future<Map<String, dynamic>> runT3_2({
 // T3-4: Liveness Probe Accuracy
 // ---------------------------------------------------------------------------
 Future<Map<String, dynamic>> runT3_4({
-  required String libPath,
   int n = 1000,
 }) async {
   var falsePositives = 0;
@@ -558,7 +547,7 @@ Future<Map<String, dynamic>> runT3_4({
   final probeLatenciesUs = <int>[];
 
   for (var trial = 1; trial <= n; trial++) {
-    final isolate = NativeIsolateBindingsImpl(libraryPath: libPath);
+    final isolate = NativeIsolateBindingsImpl();
     await isolate.init();
     final startFuture = isolate.start(
       'while True: pass',
@@ -645,8 +634,9 @@ Map<String, dynamic> _computeStats(
   final ciLow = bootstrapMedians[(10000 * 0.025).floor()];
   final ciHigh = bootstrapMedians[(10000 * 0.975).floor()];
 
-  final pass =
-      name == 'T3-1' ? (p95 < 5.0 && maxVal < 20.0) : (p95 < 20.0); // T3-2
+  final pass = name == 'T3-1'
+      ? (p95 < 5.0 && maxVal < 20.0)
+      : (p95 < 20.0); // T3-2
 
   return {
     'experiment': name,
@@ -741,8 +731,8 @@ void _printResult(Map<String, dynamic> r) {
 // Main
 // ---------------------------------------------------------------------------
 Future<void> main(List<String> args) async {
-  final libPath = _resolveLibraryPath();
-  final isAot = const bool.fromEnvironment('dart.vm.product') ||
+  final isAot =
+      const bool.fromEnvironment('dart.vm.product') ||
       !Platform.resolvedExecutable.endsWith('dart');
   final mode = isAot ? 'AOT' : 'JIT';
 
@@ -753,37 +743,36 @@ Future<void> main(List<String> args) async {
       '${Platform.operatingSystemVersion}',
     )
     ..writeln('Dart: ${Platform.version}')
-    ..writeln('Library: $libPath')
     ..writeln();
 
   final results = <Map<String, dynamic>>[];
 
   stdout.writeln('Running T1-1: Cancel Correctness (N=200+50)...');
-  results.add(await runT1_1(libPath: libPath));
+  results.add(await runT1_1());
 
   stdout.writeln('Running T1-2: CancelToken Routing (N=100)...');
-  results.add(await runT1_2(libPath: libPath));
+  results.add(await runT1_2());
 
   stdout.writeln('Running T1-3: Terminate Resource Release (N=100)...');
-  results.add(await runT1_3(libPath: libPath));
+  results.add(await runT1_3());
 
   stdout.writeln('Running T1-4: Sealed Error Routing (N=50x3)...');
-  results.add(await runT1_4(libPath: libPath));
+  results.add(await runT1_4());
 
   stdout.writeln('Running T2-2: Dispose Hang Prevention (N=10+50)...');
-  results.add(await runT2_2(libPath: libPath));
+  results.add(await runT2_2());
 
   stdout.writeln('Running T2-3: Memory Soak (N=1000)...');
-  results.add(await runT2_3(libPath: libPath));
+  results.add(await runT2_3());
 
   stdout.writeln('Running T3-1: Cancel Latency (N=500)...');
-  results.add(await runT3_1(libPath: libPath));
+  results.add(await runT3_1());
 
   stdout.writeln('Running T3-2: Terminate Latency (N=500)...');
-  results.add(await runT3_2(libPath: libPath));
+  results.add(await runT3_2());
 
   stdout.writeln('Running T3-4: Liveness Probe (N=1000)...');
-  results.add(await runT3_4(libPath: libPath));
+  results.add(await runT3_4());
 
   stdout
     ..writeln()
