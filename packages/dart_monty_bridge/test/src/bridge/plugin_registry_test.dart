@@ -318,6 +318,41 @@ void main() {
 
         expect(order, ['first', 'second']);
       });
+
+      test('attaches all plugins even if onRegister throws', () async {
+        final bridge = _MockBridge();
+
+        registry
+          ..register(
+            _LifecyclePlugin(
+              namespace: 'aaa',
+              functions: [_fn('aaa_x')],
+              onRegisterCallback: () => throw Exception('aaa boom'),
+            ),
+          )
+          ..register(
+            _LifecyclePlugin(
+              namespace: 'bbb',
+              functions: [_fn('bbb_x')],
+            ),
+          );
+
+        await expectLater(
+          registry.attachTo(bridge),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              allOf(contains('1 plugin(s)'), contains('aaa')),
+            ),
+          ),
+        );
+
+        // Both plugins' functions were registered onto the bridge.
+        expect(bridge.registeredNames, contains('aaa_x'));
+        expect(bridge.registeredNames, contains('bbb_x'));
+        expect(bridge.registeredNames, contains('list_functions'));
+      });
     });
 
     group('disposeAll', () {
@@ -359,6 +394,76 @@ void main() {
         await registry.disposeAll();
 
         expect(count, 2); // Called twice — plugin must be idempotent.
+      });
+
+      test('disposes all plugins even if one throws', () async {
+        final disposed = <String>[];
+
+        registry
+          ..register(
+            _LifecyclePlugin(
+              namespace: 'aaa',
+              functions: [_fn('aaa_x')],
+              onDisposeCallback: () => disposed.add('aaa'),
+            ),
+          )
+          ..register(
+            _LifecyclePlugin(
+              namespace: 'bbb',
+              functions: [_fn('bbb_x')],
+              onDisposeCallback: () => throw Exception('bbb boom'),
+            ),
+          )
+          ..register(
+            _LifecyclePlugin(
+              namespace: 'ccc',
+              functions: [_fn('ccc_x')],
+              onDisposeCallback: () => disposed.add('ccc'),
+            ),
+          );
+
+        await expectLater(
+          registry.disposeAll(),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              allOf(contains('1 plugin(s)'), contains('bbb')),
+            ),
+          ),
+        );
+
+        // All three were attempted (reverse order: ccc, bbb, aaa).
+        expect(disposed, ['ccc', 'aaa']);
+      });
+
+      test('collects multiple dispose errors', () async {
+        registry
+          ..register(
+            _LifecyclePlugin(
+              namespace: 'aaa',
+              functions: [_fn('aaa_x')],
+              onDisposeCallback: () => throw Exception('aaa fail'),
+            ),
+          )
+          ..register(
+            _LifecyclePlugin(
+              namespace: 'bbb',
+              functions: [_fn('bbb_x')],
+              onDisposeCallback: () => throw Exception('bbb fail'),
+            ),
+          );
+
+        await expectLater(
+          registry.disposeAll(),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              allOf(contains('2 plugin(s)'), contains('aaa'), contains('bbb')),
+            ),
+          ),
+        );
       });
     });
 
