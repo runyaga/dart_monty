@@ -1,3 +1,5 @@
+import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
+
 /// Protocol-agnostic lifecycle events emitted by a bridge.
 ///
 /// These events describe what happened during Python execution without
@@ -46,13 +48,24 @@ class BridgeRunFinished extends BridgeEvent {
 /// Execution failed with an error.
 class BridgeRunError extends BridgeEvent {
   /// Creates a [BridgeRunError].
-  const BridgeRunError({required this.message, this.printOutput});
+  const BridgeRunError({
+    required this.message,
+    this.printOutput,
+    this.exception,
+  });
 
   /// Error message.
   final String message;
 
   /// Captured print output before the error (when available).
   final String? printOutput;
+
+  /// The original [MontyException] when the error originated from Python.
+  ///
+  /// Preserves structured fields (filename, lineNumber, excType, traceback)
+  /// that are lost in the [message] string. Null when the error is not a
+  /// Python exception (e.g. infrastructure errors, cancellation).
+  final MontyException? exception;
 }
 
 /// A host function call step started.

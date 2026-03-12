@@ -3,6 +3,34 @@ import 'dart:async';
 import 'package:dart_monty_bridge/dart_monty_bridge.dart';
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 
+/// Exception thrown when a child isolate fails, is cancelled, or is disposed.
+///
+/// Preserves the [childId] and, when the failure originated from a Python
+/// exception, the full [exception] with structured fields (filename,
+/// lineNumber, excType, traceback).
+class ChildIsolateException implements Exception {
+  /// Creates a [ChildIsolateException].
+  const ChildIsolateException({
+    required this.childId,
+    required this.message,
+    this.exception,
+  });
+
+  /// The child handle that failed.
+  final int childId;
+
+  /// Human-readable error message.
+  final String message;
+
+  /// The original [MontyException] when the error originated from Python.
+  ///
+  /// Null for cancellation, disposal, and non-Python errors.
+  final MontyException? exception;
+
+  @override
+  String toString() => 'ChildIsolateException(child $childId): $message';
+}
+
 /// Factory that creates a fresh [MontyPlatform] for each child isolate.
 typedef MontyPlatformFactory = Future<MontyPlatform> Function();
 
@@ -292,6 +320,7 @@ class IsolatePlugin extends MontyPlugin {
     // Execute child and listen for completion.
     final stream = bridge.execute(code);
     String? errorMessage;
+    MontyException? errorException;
     Object? childValue;
     String? childPrintOutput;
 
@@ -299,6 +328,7 @@ class IsolatePlugin extends MontyPlugin {
       (event) {
         if (event is BridgeRunError) {
           errorMessage = event.message;
+          errorException = event.exception;
           childPrintOutput ??= event.printOutput;
         } else if (event is BridgeRunFinished) {
           childValue = event.value;
@@ -325,7 +355,11 @@ class IsolatePlugin extends MontyPlugin {
         if (!completer.isCompleted) {
           if (errorMessage != null) {
             completer.completeError(
-              Exception('Child $id failed: $errorMessage'),
+              ChildIsolateException(
+                childId: id,
+                message: errorMessage!,
+                exception: errorException,
+              ),
             );
           } else {
             completer.complete(childValue);
@@ -425,7 +459,7 @@ class IsolatePlugin extends MontyPlugin {
     await child.cancel();
     if (!child.completer.isCompleted) {
       child.completer.completeError(
-        Exception('Child $handle was cancelled.'),
+        ChildIsolateException(childId: handle, message: 'cancelled'),
       );
     }
 
@@ -475,7 +509,10 @@ class IsolatePlugin extends MontyPlugin {
       await child.cancel();
       if (!child.completer.isCompleted) {
         child.completer.completeError(
-          Exception('Child ${entry.key} disposed with parent.'),
+          ChildIsolateException(
+            childId: entry.key,
+            message: 'disposed with parent',
+          ),
         );
       }
     }

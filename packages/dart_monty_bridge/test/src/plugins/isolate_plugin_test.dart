@@ -45,6 +45,30 @@ MockMontyPlatform _failingMock(String message) {
   );
 }
 
+/// Creates a [MockMontyPlatform] that fails with a structured [MontyException].
+MockMontyPlatform _failingMockStructured({
+  required String message,
+  String? filename,
+  int? lineNumber,
+  int? columnNumber,
+  String? excType,
+}) {
+  return MockMontyPlatform()..enqueueProgress(
+    MontyComplete(
+      result: MontyResult(
+        error: MontyException(
+          message: message,
+          filename: filename,
+          lineNumber: lineNumber,
+          columnNumber: columnNumber,
+          excType: excType,
+        ),
+        usage: _usage,
+      ),
+    ),
+  );
+}
+
 void main() {
   group('IsolatePlugin', () {
     group('metadata', () {
@@ -200,7 +224,7 @@ void main() {
         expect(result, 42);
       });
 
-      test('throws for failed child', () async {
+      test('throws ChildIsolateException for failed child', () async {
         final plugin = IsolatePlugin(
           platformFactory: () async => _failingMock('NameError: x'),
         );
@@ -211,14 +235,44 @@ void main() {
         expect(
           () => await_({'handle': handle! as int}),
           throwsA(
-            isA<Exception>().having(
-              (e) => e.toString(),
-              'toString()',
-              contains('NameError'),
-            ),
+            isA<ChildIsolateException>()
+                .having((e) => e.childId, 'childId', handle)
+                .having((e) => e.message, 'message', contains('NameError')),
           ),
         );
       });
+
+      test(
+        'preserves MontyException fields through ChildIsolateException',
+        () async {
+          final plugin = IsolatePlugin(
+            platformFactory: () async => _failingMockStructured(
+              message: 'NameError: undefined_var',
+              filename: '<code>',
+              lineNumber: 7,
+              columnNumber: 4,
+              excType: 'NameError',
+            ),
+          );
+          final spawn = _findHandler(plugin, 'isolate_spawn');
+          final await_ = _findHandler(plugin, 'isolate_await');
+          final handle = await spawn({'code': 'undefined_var'});
+
+          try {
+            await await_({'handle': handle! as int});
+            fail('Expected ChildIsolateException');
+          } on ChildIsolateException catch (e) {
+            expect(e.childId, handle);
+            expect(e.message, contains('NameError'));
+            expect(e.exception, isNotNull);
+            expect(e.exception!.excType, 'NameError');
+            expect(e.exception!.filename, '<code>');
+            // Line number is adjusted by bridge preamble offset (5 lines).
+            expect(e.exception!.lineNumber, 7 - 5);
+            expect(e.exception!.columnNumber, 4);
+          }
+        },
+      );
 
       test('throws ArgumentError for unknown handle', () async {
         final plugin = IsolatePlugin(
@@ -266,7 +320,7 @@ void main() {
           () => awaitAll({
             'handles': <Object?>[h0, h1],
           }),
-          throwsA(isA<Exception>()),
+          throwsA(isA<ChildIsolateException>()),
         );
       });
 
@@ -384,11 +438,10 @@ void main() {
         expect(
           () => await_({'handle': handle as int}),
           throwsA(
-            isA<Exception>().having(
-              (e) => e.toString(),
-              'toString()',
-              contains('cancelled'),
-            ),
+            isA<ChildIsolateException>()
+                .having((e) => e.childId, 'childId', handle)
+                .having((e) => e.message, 'message', 'cancelled')
+                .having((e) => e.exception, 'exception', isNull),
           ),
         );
 
@@ -564,7 +617,7 @@ void main() {
         // Await will throw because the child failed.
         await expectLater(
           () => await_({'handle': handle! as int}),
-          throwsA(isA<Exception>()),
+          throwsA(isA<ChildIsolateException>()),
         );
 
         final output = await getOutput({'handle': handle! as int});
@@ -637,6 +690,18 @@ void main() {
           c.complete(const MontyComplete(result: MontyResult(usage: _usage)));
         }
         await plugin.onDispose();
+      });
+    });
+
+    group('ChildIsolateException', () {
+      test('toString includes childId and message', () {
+        const e = ChildIsolateException(childId: 3, message: 'boom');
+        expect(e.toString(), 'ChildIsolateException(child 3): boom');
+      });
+
+      test('exception field is null for non-Python errors', () {
+        const e = ChildIsolateException(childId: 0, message: 'cancelled');
+        expect(e.exception, isNull);
       });
     });
 
