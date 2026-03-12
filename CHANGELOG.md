@@ -4,6 +4,7 @@
 - **`Monty()` convenience class** — auto-selects native (FFI) or web (WASM) backend via `dart.library.ffi` / `dart.library.js_interop`
 - **Zero-arg constructors** — `MontyFfi()`, `MontyNative()`, `MontyWasm()` now default to production bindings
 - **`Monty.withPlatform()`** — explicit backend injection for testing or custom bindings
+- **Fix**: WASM bindings use static method API matching JS bridge (was broken since Worker pool refactor)
 - SDK constraint raised to `^3.10.0`
 
 ## 0.8.1
