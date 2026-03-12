@@ -65,6 +65,65 @@ Result: 4
 
 No Flutter. No bindings. No registration. It just works.
 
+### Web Quick Start
+
+The same Dart code runs in the browser — `Monty()` selects the WASM backend
+at compile time. You need three asset files and COOP/COEP headers.
+
+**1. Build the WASM binary and JS bridge**
+
+```bash
+# Build the Rust WASM binary
+cd native && cargo build --release --target wasm32-wasip1
+
+# Build the JS bridge and worker
+cd packages/dart_monty_wasm/js && npm install && npm run build
+```
+
+**2. Copy assets into your web directory**
+
+```bash
+cp packages/dart_monty_wasm/assets/dart_monty_bridge.js web/
+cp packages/dart_monty_wasm/assets/dart_monty_worker.js web/
+cp packages/dart_monty_wasm/assets/dart_monty_native.wasm web/
+```
+
+**3. Write your Dart code** (same API as native)
+
+```dart
+import 'package:dart_monty/dart_monty.dart';
+
+void main() async {
+  final monty = Monty();
+  final result = await monty.run('2 + 2');
+  print(result.value); // 4
+  await monty.dispose();
+}
+```
+
+**4. Compile and serve**
+
+```bash
+dart compile js bin/main.dart -o web/main.dart.js
+```
+
+Your HTML loads the bridge before the compiled Dart:
+
+```html
+<script src="dart_monty_bridge.js"></script>
+<script src="main.dart.js"></script>
+```
+
+Serve with COOP/COEP headers (required for SharedArrayBuffer):
+
+```text
+Cross-Origin-Opener-Policy: same-origin
+Cross-Origin-Embedder-Policy: require-corp
+```
+
+Each WASM session uses ~16 MB of memory. `Worker.terminate()` provides
+preemptive cancellation — no stuck scripts.
+
 ## Usage
 
 ```dart
@@ -323,16 +382,6 @@ Dart app (compiled to JS) -> Monty() -> MontyWasm (dart:js_interop)
 
 The Web Worker architecture bypasses Chrome's 8 MB synchronous WASM
 compilation limit.
-
-### Web Setup
-
-The web backend requires COOP/COEP HTTP headers for SharedArrayBuffer
-support:
-
-```text
-Cross-Origin-Opener-Policy: same-origin
-Cross-Origin-Embedder-Policy: require-corp
-```
 
 ## Contributing
 
