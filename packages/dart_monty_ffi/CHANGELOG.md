@@ -1,3 +1,8 @@
+## 0.9.0
+
+- Make `bindings` parameter optional on `MontyFfi()` and `MontyNative()` — defaults to production implementations
+- No API changes for existing callers using explicit bindings
+
 ## 0.8.1
 
 - Align version with pub.dev (0.8.0 was not successfully published)

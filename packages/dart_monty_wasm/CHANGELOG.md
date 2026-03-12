@@ -1,3 +1,8 @@
+## 0.9.0
+
+- Make `bindings` parameter optional on `MontyWasm()` — defaults to `WasmBindingsJs()`
+- No API changes for existing callers using explicit bindings
+
 ## 0.8.1
 
 - Align version and dependency constraints for clean pub.dev release

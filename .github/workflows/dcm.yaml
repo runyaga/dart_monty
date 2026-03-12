@@ -27,11 +27,10 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
+      - uses: dart-lang/setup-dart@v1
         with:
-          channel: stable
-          cache: true
-      - run: flutter pub get
+          sdk: stable
+      - run: dart pub get
       - uses: CQLabs/setup-dcm@v2
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
