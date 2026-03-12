@@ -1,7 +1,17 @@
 name: DCM
 
 on:
-  workflow_dispatch: # manual only — DCM is used locally
+  push:
+    branches: [main]
+    paths:
+      - 'packages/**/*.dart'
+      - 'example/**/*.dart'
+  pull_request:
+    branches: [main, 'feat/**']
+    paths:
+      - 'packages/**/*.dart'
+      - 'example/**/*.dart'
+  workflow_dispatch:
 
 concurrency:
   group: dcm-${{ github.ref }}
@@ -15,7 +25,6 @@ jobs:
     name: DCM
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
@@ -28,10 +37,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: DCM analyze
         run: >-
-          dcm run packages
+          dcm analyze packages
           --ci-key=${{ secrets.DCM_CI_KEY }}
           --email=${{ secrets.DCM_EMAIL }}
-          --project=${{ secrets.DCM_PROJECT_KEY }}
-          --analyze
           --fatal-found
-          --upload
