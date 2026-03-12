@@ -182,6 +182,7 @@ class DefaultMontyBridge implements MontyBridge {
                 BridgeRunError(
                   message: adjusted.message,
                   printOutput: capturedOutput,
+                  exception: adjusted,
                 ),
               );
             } else {
@@ -210,7 +211,11 @@ class DefaultMontyBridge implements MontyBridge {
       _flushPrintBuffer(printBuffer, controller);
       final output = printBuffer.isNotEmpty ? printBuffer.toString() : null;
       controller.add(
-        BridgeRunError(message: adjusted.message, printOutput: output),
+        BridgeRunError(
+          message: adjusted.message,
+          printOutput: output,
+          exception: adjusted,
+        ),
       );
     } on Object catch (e, st) {
       log.error('Bridge infrastructure error', error: e, stackTrace: st);
