@@ -176,7 +176,7 @@ The table below shows current coverage and what's planned.
 | **Cancellation** (cooperative abort via atomic flag) | Covered | `MontyCancelToken`, `cancel()`, `terminate()` with zombie tracking |
 | **Error hierarchy** (sealed `MontyError` with 6 subtypes) | Covered | Script, Cancel, Panic, Crash, Disposed, Resource |
 | **Multi-session** (WASM Worker pool) | Covered | `createSession`/`disposeSession`, 16 MB per session |
-| Async / futures (`asyncio.gather`, concurrent calls) | Covered | Native only — WASM upstream lacks `FutureSnapshot` API |
+| **Async / futures** (`asyncio.gather`, concurrent calls) | Covered | `resumeAsFuture()`, `resolveFutures()` on both FFI and WASM |
 | Rich types (tuple, set, bytes, dataclass, namedtuple) | Planned | Currently collapsed to `List`/`Map` |
 | REPL (stateful sessions, `feed()`, persistence) | Planned | `MontyRepl` multi-step sessions |
 | OS calls (`os.getenv`, `os.environ`, `os.stat`) | Planned | `OsCall` progress variant |
