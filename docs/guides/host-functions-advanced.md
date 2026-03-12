@@ -1,10 +1,137 @@
 # Host Functions -- Advanced
 
-This guide covers the `IsolatePlugin` for spawning child Python
-interpreters, depth and concurrency limits, resource limits per child,
-handle lifecycle management, and production patterns.
+This guide covers composite plugins for inter-plugin dependencies,
+the `IsolatePlugin` for spawning child Python interpreters, depth and
+concurrency limits, resource limits per child, handle lifecycle
+management, and production patterns.
 
 **Prerequisites:** Read the [Intermediate guide](host-functions-intermediate.md) first.
+
+## Composite Plugins
+
+Plugins are normally isolated -- they can't call each other. The
+`CompositePlugin` mixin changes this by letting a plugin declare typed
+dependencies on sibling plugins in the same registry.
+
+### Why?
+
+Without composition, an LLM must orchestrate multi-tool workflows:
+"call `storage_set`, then call `budget_update`". With a composite
+plugin, the LLM sees a single `budget_set(category, amount)` tool.
+The delegation to `StoragePlugin` happens in Dart, invisibly.
+
+### PluginRef and CompositePlugin
+
+```dart
+import 'package:dart_monty_bridge/dart_monty_bridge.dart';
+
+class BudgetPlugin extends MontyPlugin with CompositePlugin {
+  // Typed, lazy reference to a sibling plugin.
+  final storageRef = PluginRef<StoragePlugin>();
+
+  @override
+  String get namespace => 'budget';
+
+  // Declare dependencies. The registry resolves these during attachTo().
+  @override
+  List<PluginRef<MontyPlugin>> get dependencies => [storageRef];
+
+  @override
+  List<HostFunction> get functions => [
+    HostFunction(
+      schema: const HostFunctionSchema(
+        name: 'budget_set',
+        description: 'Set a budget category with amount.',
+        params: [
+          HostParam(name: 'category', type: HostParamType.string),
+          HostParam(name: 'amount', type: HostParamType.number),
+        ],
+      ),
+      handler: (args) async {
+        final category = args['category']! as String;
+        final amount = args['amount']! as num;
+        // Delegate to StoragePlugin's Dart API directly.
+        final storage = storageRef.plugin;
+        await storage.set('budget_$category', amount);
+        return 'Budget set: $category = $amount';
+      },
+    ),
+  ];
+}
+```
+
+Register both plugins -- order doesn't matter:
+
+```dart
+final registry = PluginRegistry()
+  ..register(BudgetPlugin())
+  ..register(StoragePlugin());
+
+await registry.attachTo(bridge);
+```
+
+### How Resolution Works
+
+During `attachTo()`, the registry:
+
+1. Wires all plugin functions onto the bridge.
+2. Resolves `PluginRef`s using **polymorphic matching** (`is T`).
+   A `PluginRef<StoragePlugin>` matches `StoragePlugin` and any subclass.
+3. Calls `onRegister()` in **topological order** -- dependencies first.
+
+If multiple registered plugins satisfy a `PluginRef<T>`, the first match
+(by registration order) wins.
+
+### Optional Dependencies
+
+Use `required: false` for dependencies the plugin can work without:
+
+```dart
+final analyticsRef = PluginRef<AnalyticsPlugin>(required: false);
+
+// In your handler:
+if (analyticsRef.isResolved) {
+  analyticsRef.plugin.track('budget_set', category);
+}
+```
+
+An unresolved optional ref's `isResolved` returns `false`. Calling
+`.plugin` on an unresolved ref throws `StateError`.
+
+### Lifecycle Order
+
+The registry topologically sorts plugins before calling lifecycle hooks:
+
+- **`onRegister()`**: Dependencies init first, then dependents.
+- **`onDispose()`**: Reverse topological order -- dependents dispose
+  before their dependencies.
+
+This means a composite plugin can safely use its dependencies in both
+`onRegister()` and `onDispose()`.
+
+### Error Handling
+
+| Condition | Behavior |
+|-----------|----------|
+| Required dependency not registered | `StateError` during `attachTo()` |
+| Circular dependency (A -> B -> A) | `StateError` during `attachTo()` |
+| Optional dependency not registered | Ref stays unresolved; plugin adapts |
+
+### Multi-Level Composition
+
+Dependencies can be transitive. If `C` depends on `B` and `B` depends
+on `A`, the registry resolves the full chain and initializes `A -> B -> C`:
+
+```dart
+class LayerC extends MontyPlugin with CompositePlugin {
+  final bRef = PluginRef<LayerB>();
+
+  @override
+  List<PluginRef<MontyPlugin>> get dependencies => [bRef];
+
+  // Transitive access: bRef.plugin.aRef.plugin
+}
+```
 
 ## IsolatePlugin
 

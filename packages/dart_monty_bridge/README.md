@@ -26,4 +26,6 @@ dependencies:
 | `MontyPlugin` | Extension point for modular host function bundles with lifecycle hooks. |
 | `HostFunction` | A single callable host function with schema and handler. |
 | `HostFunctionSchema` | Metadata (name, description, params) for a host function. |
+| `CompositePlugin` | Mixin for plugins that depend on other plugins in the same registry. |
+| `PluginRef` | Typed, lazy reference to a sibling plugin, resolved during `attachTo()`. |
 | `BridgeEvent` | Sealed event hierarchy emitted during execution. |
