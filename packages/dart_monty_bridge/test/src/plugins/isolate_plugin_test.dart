@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:dart_monty_bridge/dart_monty_bridge.dart';
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 import 'package:dart_monty_platform_interface/dart_monty_testing.dart';
+import 'package:struct_log/struct_log.dart';
 import 'package:test/test.dart';
 
 const _usage = MontyResourceUsage(
@@ -957,6 +958,298 @@ void main() {
         },
       );
     });
+
+    group('structured logging', () {
+      late MemorySink sink;
+      late Logger logger;
+      late LogLevel previousLevel;
+
+      setUp(() {
+        sink = MemorySink();
+        previousLevel = LogManager.instance.minimumLevel;
+        LogManager.instance
+          ..addSink(sink)
+          ..minimumLevel = LogLevel.trace;
+        logger = LogManager.instance.getLogger('IsolatePlugin.test');
+      });
+
+      tearDown(() {
+        LogManager.instance
+          ..removeSink(sink)
+          ..minimumLevel = previousLevel;
+      });
+
+      test('spawn logs info with childId and depth', () async {
+        final plugin = IsolatePlugin(
+          platformFactory: () async => _completingMock(),
+          logger: logger,
+        );
+        final spawn = _findHandler(plugin, 'isolate_spawn');
+        final await_ = _findHandler(plugin, 'isolate_await');
+
+        final handle = await spawn({'code': '42'});
+        await await_({'handle': handle! as int});
+
+        final spawnRecord = sink.records.firstWhere(
+          (r) => r.message == 'Child spawned',
+        );
+        expect(spawnRecord.level, LogLevel.info);
+        expect(spawnRecord.attributes['childId'], 0);
+        expect(spawnRecord.attributes['depth'], 0);
+      });
+
+      test('spawn logs debug for bridge creation with codeLength', () async {
+        final plugin = IsolatePlugin(
+          platformFactory: () async => _completingMock(),
+          logger: logger,
+        );
+        final spawn = _findHandler(plugin, 'isolate_spawn');
+
+        await spawn({'code': 'x = 42'});
+
+        final bridgeRecord = sink.records.firstWhere(
+          (r) => r.message == 'Child bridge created',
+        );
+        expect(bridgeRecord.level, LogLevel.debug);
+        expect(bridgeRecord.attributes['codeLength'], 6);
+      });
+
+      test('completion logs debug with childId', () async {
+        final plugin = IsolatePlugin(
+          platformFactory: () async => _completingMock(),
+          logger: logger,
+        );
+        final spawn = _findHandler(plugin, 'isolate_spawn');
+        final await_ = _findHandler(plugin, 'isolate_await');
+
+        final handle = await spawn({'code': '42'});
+        await await_({'handle': handle! as int});
+
+        final completedRecord = sink.records.firstWhere(
+          (r) => r.message == 'Child completed',
+        );
+        expect(completedRecord.level, LogLevel.debug);
+        expect(completedRecord.attributes['childId'], 0);
+      });
+
+      test('failure logs debug with childId and error', () async {
+        final plugin = IsolatePlugin(
+          platformFactory: () async => _failingMock('NameError: x'),
+          logger: logger,
+        );
+        final spawn = _findHandler(plugin, 'isolate_spawn');
+        final await_ = _findHandler(plugin, 'isolate_await');
+
+        final handle = await spawn({'code': 'x'});
+        try {
+          await await_({'handle': handle! as int});
+        } on Exception {
+          // Expected.
+        }
+
+        final failRecord = sink.records.firstWhere(
+          (r) => r.message == 'Child failed',
+        );
+        expect(failRecord.level, LogLevel.debug);
+        expect(failRecord.attributes['childId'], 0);
+        expect(failRecord.attributes['error'], contains('NameError'));
+      });
+
+      test('cancel logs info with childId', () async {
+        final startCompleter = Completer<MontyProgress>();
+        final plugin = IsolatePlugin(
+          platformFactory: () async => _SlowMockPlatform(startCompleter.future),
+          logger: logger,
+        );
+        final spawn = _findHandler(plugin, 'isolate_spawn');
+        final cancel = _findHandler(plugin, 'isolate_cancel');
+
+        final handle = await spawn({'code': 'wait()'});
+        await cancel({'handle': handle! as int});
+
+        final cancelRecord = sink.records.firstWhere(
+          (r) => r.message == 'Cancelling child',
+        );
+        expect(cancelRecord.level, LogLevel.info);
+        expect(cancelRecord.attributes['childId'], 0);
+
+        startCompleter.complete(
+          const MontyComplete(result: MontyResult(usage: _usage)),
+        );
+      });
+
+      test('free logs debug with childId', () async {
+        final plugin = IsolatePlugin(
+          platformFactory: () async => _completingMock(),
+          logger: logger,
+        );
+        final spawn = _findHandler(plugin, 'isolate_spawn');
+        final await_ = _findHandler(plugin, 'isolate_await');
+        final free = _findHandler(plugin, 'isolate_free');
+
+        final handle = await spawn({'code': '1'});
+        await await_({'handle': handle! as int});
+        await free({'handle': handle as int});
+
+        final freeRecord = sink.records.firstWhere(
+          (r) => r.message == 'Child freed',
+        );
+        expect(freeRecord.level, LogLevel.debug);
+        expect(freeRecord.attributes['childId'], 0);
+      });
+
+      test('dispose logs info with child counts', () async {
+        final plugin = IsolatePlugin(
+          platformFactory: () async => _completingMock(),
+          logger: logger,
+        );
+        final spawn = _findHandler(plugin, 'isolate_spawn');
+        final await_ = _findHandler(plugin, 'isolate_await');
+
+        final handle = await spawn({'code': '1'});
+        await await_({'handle': handle! as int});
+        await plugin.onDispose();
+
+        final disposeRecord = sink.records.firstWhere(
+          (r) => r.message == 'Disposing IsolatePlugin',
+        );
+        expect(disposeRecord.level, LogLevel.info);
+        expect(disposeRecord.attributes['totalChildren'], 1);
+        expect(disposeRecord.attributes['aliveChildren'], 0);
+      });
+
+      test('depth limit rejection logs warning', () async {
+        final plugin = IsolatePlugin(
+          platformFactory: () async => _completingMock(),
+          maxDepth: 2,
+          currentDepth: 2,
+          logger: logger,
+        );
+        final spawn = _findHandler(plugin, 'isolate_spawn');
+
+        await expectLater(spawn({'code': '1'}), throwsStateError);
+
+        final warnRecord = sink.records.firstWhere(
+          (r) => r.message == 'Spawn rejected: depth limit',
+        );
+        expect(warnRecord.level, LogLevel.warning);
+        expect(warnRecord.attributes['currentDepth'], 2);
+        expect(warnRecord.attributes['maxDepth'], 2);
+      });
+
+      test('concurrency limit rejection logs warning', () async {
+        final completers = <Completer<MontyProgress>>[];
+        final plugin = IsolatePlugin(
+          platformFactory: () async {
+            final c = Completer<MontyProgress>();
+            completers.add(c);
+            return _SlowMockPlatform(c.future);
+          },
+          maxChildren: 1,
+          logger: logger,
+        );
+        final spawn = _findHandler(plugin, 'isolate_spawn');
+
+        await spawn({'code': 'a'});
+
+        await expectLater(spawn({'code': 'b'}), throwsStateError);
+
+        final warnRecord = sink.records.firstWhere(
+          (r) => r.message == 'Spawn rejected: concurrency limit',
+        );
+        expect(warnRecord.level, LogLevel.warning);
+        expect(warnRecord.attributes['alive'], 1);
+        expect(warnRecord.attributes['maxChildren'], 1);
+
+        for (final c in completers) {
+          c.complete(const MontyComplete(result: MontyResult(usage: _usage)));
+        }
+        await plugin.onDispose();
+      });
+
+      test('plugin wiring failure logs error', () async {
+        final plugin = IsolatePlugin(
+          platformFactory: () async => _completingMock(),
+          childPluginRegistryFactory: () async {
+            throw StateError('factory boom');
+          },
+          logger: logger,
+        );
+        final spawn = _findHandler(plugin, 'isolate_spawn');
+
+        await expectLater(spawn({'code': '1'}), throwsStateError);
+
+        final errorRecord = sink.records.firstWhere(
+          (r) => r.message == 'Child plugin wiring failed',
+        );
+        expect(errorRecord.level, LogLevel.error);
+        expect(errorRecord.error, isA<StateError>());
+        expect(errorRecord.stackTrace, isNotNull);
+      });
+
+      test('child cleanup error is logged as warning', () async {
+        // Use a platform whose dispose throws.
+        final plugin = IsolatePlugin(
+          platformFactory: () async => _DisposeBoomMock(),
+          logger: logger,
+        );
+        final spawn = _findHandler(plugin, 'isolate_spawn');
+        final await_ = _findHandler(plugin, 'isolate_await');
+
+        final handle = await spawn({'code': '1'});
+        await await_({'handle': handle! as int});
+
+        final cleanupWarnings = sink.records.where(
+          (r) => r.message == 'Child cleanup error (swallowed)',
+        );
+        expect(cleanupWarnings, isNotEmpty);
+        expect(cleanupWarnings.first.level, LogLevel.warning);
+        expect(cleanupWarnings.first.attributes['childId'], 0);
+      });
+
+      test('plugin attachment logs debug with plugin count', () async {
+        final plugin = IsolatePlugin(
+          platformFactory: () async => _completingMock(),
+          childPluginRegistryFactory: () async {
+            final registry = PluginRegistry()
+              ..register(
+                _TestPlugin(
+                  namespace: 'helper',
+                  functions: [
+                    HostFunction(
+                      schema: const HostFunctionSchema(
+                        name: 'helper_ping',
+                        description: 'Ping.',
+                      ),
+                      handler: (args) async => 'pong',
+                    ),
+                  ],
+                ),
+              );
+            return registry;
+          },
+          logger: logger,
+        );
+        final spawn = _findHandler(plugin, 'isolate_spawn');
+        final await_ = _findHandler(plugin, 'isolate_await');
+
+        final handle = await spawn({'code': '1'});
+        await await_({'handle': handle! as int});
+
+        final attachRecord = sink.records.firstWhere(
+          (r) => r.message == 'Child plugins attached',
+        );
+        expect(attachRecord.level, LogLevel.debug);
+        expect(attachRecord.attributes['pluginCount'], 1);
+      });
+
+      test('default logger name is IsolatePlugin', () {
+        final defaultPlugin = IsolatePlugin(
+          platformFactory: () async => _completingMock(),
+        );
+        expect(defaultPlugin.log.name, 'IsolatePlugin');
+      });
+    });
   });
 }
 
@@ -1021,6 +1314,45 @@ class _TestPlugin extends MontyPlugin {
 
   @override
   final List<HostFunction> functions;
+}
+
+/// A [MontyPlatform] that completes normally but throws on [dispose].
+///
+/// Used to test that cleanup errors in onDone are logged rather than swallowed
+/// silently.
+class _DisposeBoomMock extends MontyPlatform {
+  bool _disposeCallCount = false;
+
+  @override
+  Future<MontyProgress> start(
+    String code, {
+    List<String>? externalFunctions,
+    MontyLimits? limits,
+    String? scriptName,
+  }) async => const MontyComplete(
+    result: MontyResult(
+      usage: MontyResourceUsage(
+        memoryBytesUsed: 1024,
+        timeElapsedMs: 10,
+        stackDepthUsed: 5,
+      ),
+    ),
+  );
+
+  @override
+  Future<MontyProgress> resume(Object? returnValue) async =>
+      throw StateError('Unexpected resume');
+
+  @override
+  Future<MontyProgress> resumeWithError(String errorMessage) async =>
+      throw StateError('Unexpected resumeWithError');
+
+  @override
+  Future<void> dispose() async {
+    if (_disposeCallCount) return;
+    _disposeCallCount = true;
+    throw StateError('dispose boom');
+  }
 }
 
 /// A [MontyPlatform] whose [start] hangs until a [Completer] is completed.
