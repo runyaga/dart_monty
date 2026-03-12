@@ -261,6 +261,7 @@ class IsolatePlugin extends MontyPlugin {
 
     final id = _nextId++;
     final completer = Completer<Object?>();
+    completer.future.ignore();
 
     // Execute child and listen for completion.
     final stream = bridge.execute(code);
@@ -295,12 +296,14 @@ class IsolatePlugin extends MontyPlugin {
           // child result.
         }
 
-        if (errorMessage != null) {
-          completer.completeError(
-            StateError('Child $id failed: $errorMessage'),
-          );
-        } else {
-          completer.complete(childValue);
+        if (!completer.isCompleted) {
+          if (errorMessage != null) {
+            completer.completeError(
+              Exception('Child $id failed: $errorMessage'),
+            );
+          } else {
+            completer.complete(childValue);
+          }
         }
       },
       onError: (Object error) {
@@ -367,9 +370,9 @@ class IsolatePlugin extends MontyPlugin {
 
     await child.cancel();
     if (!child.completer.isCompleted) {
-      child.completer.completeError(StateError('Child $handle was cancelled.'));
-      // Suppress unhandled async error if nobody awaits this child.
-      child.completer.future.ignore();
+      child.completer.completeError(
+        Exception('Child $handle was cancelled.'),
+      );
     }
 
     return null;
@@ -418,10 +421,8 @@ class IsolatePlugin extends MontyPlugin {
       await child.cancel();
       if (!child.completer.isCompleted) {
         child.completer.completeError(
-          StateError('Child ${entry.key} disposed with parent.'),
+          Exception('Child ${entry.key} disposed with parent.'),
         );
-        // Suppress unhandled async error if nobody awaits this child.
-        child.completer.future.ignore();
       }
     }
     _children.clear();
