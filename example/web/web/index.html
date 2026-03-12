@@ -635,10 +635,34 @@
       color: var(--text-secondary);
     }
 
-    /* ── Responsive nav toggle (simple) ───────────────────────────── */
+    /* ── Mobile nav ────────────────────────────────────────────────── */
+    nav .menu-toggle {
+      display: none;
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 1.4rem;
+      cursor: pointer;
+      padding: 0.25rem;
+      line-height: 1;
+    }
     @media (max-width: 700px) {
-      nav .links { gap: 0.75rem; }
-      nav .links a { font-size: 0.72rem; }
+      nav .menu-toggle { display: block; }
+      nav .links {
+        display: none;
+        position: absolute;
+        top: 56px;
+        left: 0;
+        right: 0;
+        flex-direction: column;
+        background: rgba(6, 6, 10, 0.95);
+        backdrop-filter: blur(20px);
+        border-bottom: 1px solid var(--border);
+        padding: 1rem 2rem;
+        gap: 0.75rem;
+      }
+      nav .links.open { display: flex; }
+      nav .links a { font-size: 0.85rem; }
       section { padding: 3rem 1.25rem; }
       .hero h1 { letter-spacing: -1px; }
       .stats-bar { gap: 1.5rem; }
@@ -797,6 +821,7 @@
 <nav>
   <div class="inner">
     <div class="logo">dart<span>_monty</span></div>
+    <button class="menu-toggle" onclick="document.querySelector('nav .links').classList.toggle('open')" aria-label="Menu">&#9776;</button>
     <div class="links">
       <a href="#why">Why</a>
       <a href="#architecture">Architecture</a>
@@ -1798,6 +1823,13 @@ timeline
   }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
 
   document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+
+  // Close mobile menu on link click
+  document.querySelectorAll('nav .links a').forEach(a => {
+    a.addEventListener('click', () => {
+      document.querySelector('nav .links').classList.remove('open');
+    });
+  });
 
   // Smooth nav active state
   const sections = document.querySelectorAll('section[id]');
