@@ -662,6 +662,131 @@
       50% { border-color: var(--border-bright); }
     }
     .evolving { animation: pulse-border 4s ease-in-out infinite; }
+
+    /* ── Street Art / Culture Jamming ────────────────────────────── */
+
+    /* Torn paper epigraphs */
+    .epigraph {
+      background: var(--bg-surface);
+      padding: 1rem 1.25rem 1.5rem 1.25rem;
+      border-left: none;
+      clip-path: polygon(
+        0% 0%, 100% 0%, 100% 85%,
+        95% 100%, 88% 90%, 80% 98%, 70% 88%,
+        60% 95%, 50% 87%, 40% 94%, 30% 88%,
+        20% 98%, 10% 90%, 0% 95%
+      );
+      box-shadow: 2px 3px 10px rgba(0, 0, 0, 0.25);
+      position: relative;
+    }
+
+    /* "OBEY" style stickers */
+    #architecture, #ladder, #ffi {
+      position: relative;
+      overflow: visible;
+    }
+    #architecture::after {
+      content: 'FNORD';
+      position: absolute;
+      top: 5rem;
+      right: 1.5rem;
+      transform: rotate(7deg);
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 700;
+      font-size: 0.75rem;
+      letter-spacing: 0.5px;
+      padding: 0.4rem 0.8rem;
+      background: var(--accent-red);
+      color: var(--bg-deep);
+      border-radius: 3px;
+      box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+      z-index: 10;
+      opacity: 0.85;
+    }
+    #ladder::before {
+      content: 'SLACK!';
+      position: absolute;
+      top: 4.5rem;
+      left: 1rem;
+      transform: rotate(-5deg);
+      font-family: 'IBM Plex Mono', monospace;
+      font-weight: 700;
+      font-size: 0.8rem;
+      padding: 0.3rem 1rem;
+      background: var(--accent-yellow);
+      color: var(--bg-deep);
+      border: 2px solid var(--bg-deep);
+      outline: 1px solid var(--accent-yellow);
+      border-radius: 2px;
+      box-shadow: -2px 2px 6px rgba(0,0,0,0.4);
+      z-index: 10;
+      opacity: 0.85;
+    }
+
+    /* Hand-drawn underline */
+    .title-tagged {
+      position: relative;
+      display: inline-block;
+    }
+    .title-tagged::after {
+      content: '';
+      position: absolute;
+      bottom: -10px;
+      left: 0;
+      right: 0;
+      height: 8px;
+      background-image: url("data:image/svg+xml,%3Csvg width='100' height='8' viewBox='0 0 100 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1.5 4.5C10.5 2.5 22.5 5.5 30.5 5.5C42.5 5.5 55 -1.5 67.5 2.5C79.5 6.5 89.5 4.5 98.5 4.5' stroke='%23c586c0' stroke-width='2.5' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-size: 100% 100%;
+    }
+
+    /* Spray-paint texture on FFI section */
+    #ffi { z-index: 1; }
+    #ffi::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300' viewBox='0 0 300 300'%3E%3Cdefs%3E%3Cfilter id='a'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.1' numOctaves='3' result='t'/%3E%3CfeDisplacementMap in2='t' in='SourceGraphic' scale='20' xChannelSelector='R' yChannelSelector='G'/%3E%3C/filter%3E%3C/defs%3E%3Ccircle cx='150' cy='150' r='100' fill='%23569cd6' filter='url(%23a)' opacity='.5'/%3E%3Ccircle cx='50' cy='250' r='50' fill='%23c586c0' filter='url(%23a)' opacity='.4'/%3E%3Ccircle cx='250' cy='50' r='70' fill='%23569cd6' filter='url(%23a)' opacity='.6'/%3E%3C/svg%3E");
+      background-size: 300px 300px;
+      opacity: 0.04;
+      background-blend-mode: overlay;
+      pointer-events: none;
+      z-index: -1;
+    }
+
+    /* The Foot — Monty Python stomp */
+    .hero-foot {
+      margin-top: 2rem;
+      position: relative;
+      display: inline-block;
+    }
+    .hero-foot img {
+      width: 200px;
+      border-radius: 10px;
+      opacity: 0.8;
+      transition: opacity 0.3s, transform 0.3s;
+      filter: drop-shadow(0 4px 20px rgba(86, 156, 214, 0.2));
+    }
+    .hero-foot img:hover {
+      opacity: 1;
+      transform: scale(1.03);
+    }
+    .hero-foot .foot-caption {
+      display: block;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.65rem;
+      color: var(--text-dim);
+      margin-top: 0.4rem;
+      text-align: center;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    /* Hide stickers on small screens */
+    @media (max-width: 700px) {
+      #architecture::after, #ladder::before { display: none; }
+      .hero-foot img { width: 140px; }
+    }
   </style>
 </head>
 <body>
@@ -703,6 +828,10 @@
     </div>
     <div class="hero-install">
       <code>dart pub add dart_monty</code>
+    </div>
+    <div class="hero-foot">
+      <img src="dart_monty.jpg" alt="The Holy Stomping — Monty Python foot with Dart, Python, Rust, WASM, and JS logos">
+      <span class="foot-caption">holy stompin'</span>
     </div>
     <div class="epigraph epigraph-center" style="margin-top: 3rem;">
       "And you may ask yourself&mdash;well, how did I get here?"
@@ -1117,7 +1246,7 @@ graph TD
      ═══════════════════════════════════════════════════════════════ -->
 <section id="features" class="fade-in">
   <div class="section-label">Deep Dive</div>
-  <div class="section-title">Features that actually matter.</div>
+  <div class="section-title title-tagged">Features that actually matter.</div>
 
   <!-- Feature 1: Panic Safety -->
   <div class="feature-row">
