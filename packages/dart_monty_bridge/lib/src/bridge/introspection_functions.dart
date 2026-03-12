@@ -20,7 +20,8 @@ const helpSchema = HostFunctionSchema(
   description:
       'Show detailed information about a host function by name. '
       'Accepts both fully-qualified names (e.g. "storage_get") and bare names '
-      '(e.g. "get"). Bare names disambiguate when multiple matches exist.',
+      '(e.g. "get"). If a bare name matches multiple functions, a '
+      'disambiguation list is returned.',
   params: [
     HostParam(
       name: 'name',

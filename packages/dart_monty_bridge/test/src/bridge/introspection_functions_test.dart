@@ -124,6 +124,23 @@ void main() {
 
         expect(decoded['name'], 'help');
       });
+
+      test('bare name resolves with underscore namespace', () async {
+        final underscoreSchemas = {
+          'db_utils': [
+            const HostFunctionSchema(
+              name: 'db_utils_query',
+              description: 'Run a DB query.',
+            ),
+          ],
+        };
+        final fns = buildIntrospectionFunctions(underscoreSchemas);
+        final helpFn = fns.firstWhere((f) => f.schema.name == 'help');
+        final result = await helpFn.handler({'name': 'query'});
+        final decoded = jsonDecode(result! as String) as Map<String, Object?>;
+
+        expect(decoded['name'], 'db_utils_query');
+      });
     });
 
     group('list_functions', () {
