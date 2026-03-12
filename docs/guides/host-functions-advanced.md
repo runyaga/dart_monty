@@ -103,10 +103,17 @@ spawn  ->  alive  ->  completed  ->  freed
   output as a string (or `null` if no output). Throws `StateError` if
   the child is still running.
 - `isolate_cancel(handle)` stops a running child. No-op if already
-  finished. The child's completer receives a `StateError`.
+  finished. The child's completer receives a `StateError`. Do not
+  cancel an already-freed handle -- it throws `ArgumentError`.
 - `isolate_is_alive(handle)` returns `true` if the child is still
   executing.
 - Unknown handles throw `ArgumentError`.
+
+**Warning:** You must call `isolate_free()` on every completed or
+cancelled handle. Handles are never garbage collected automatically.
+Failing to free handles causes a silent memory leak (the `_ChildHandle`
+and its captured output remain in memory) and will eventually exhaust
+`maxChildren`, preventing new children from being spawned.
 
 ### Per-Child Resource Limits
 
