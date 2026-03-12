@@ -1,7 +1,8 @@
-## 0.9.0
+## 0.8.2
 
+- **Fix**: `WasmBindingsJs` now uses static method bindings matching the JS bridge API (was broken: tried to call `new DartMontyBridge()` which doesn't exist)
 - Make `bindings` parameter optional on `MontyWasm()` — defaults to `WasmBindingsJs()`
-- No API changes for existing callers using explicit bindings
+- Add `_ensureInit()` to guarantee default Worker session exists before any operation
 
 ## 0.8.1
 

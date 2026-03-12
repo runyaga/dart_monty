@@ -16,7 +16,7 @@ environment:
 dependencies:
   dart_monty_ffi: ^0.8.1
   dart_monty_platform_interface: ^0.7.2
-  dart_monty_wasm: ^0.7.1
+  dart_monty_wasm: ^0.8.2
 
 dev_dependencies:
   test: ^1.25.0
