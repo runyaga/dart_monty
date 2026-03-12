@@ -754,7 +754,7 @@
       <p>
         When an LLM writes code to answer a question, transform data, or call a tool&mdash;it writes Python.
         dart_monty lets your Dart app execute that code directly, in-process, without a server round-trip.
-        The LLM writes 35 lines of glue. Monty runs it. Your host functions provide the domain logic.
+        The LLM writes 35 lines of glue. <a href="https://github.com/pydantic/monty">Monty</a> runs it. Your host functions provide the domain logic.
         The agent loop closes locally.
       </p>
     </div>
@@ -763,7 +763,7 @@
       <h3>User-submitted code without the terror.</h3>
       <p>
         You want users to write scripts, formulas, automations&mdash;but you can't let arbitrary code
-        touch the filesystem, the network, or memory you don't control. Monty's Python subset has
+        touch the filesystem, the network, or memory you don't control. <a href="https://github.com/pydantic/monty">Monty</a>'s Python subset has
         no <code>import</code>, no <code>eval()</code>, no I/O. The sandbox isn't a policy layer bolted on top.
         It's the interpreter itself. There is no escape because there is nothing to escape to.
       </p>
@@ -773,7 +773,7 @@
       <h3>Apple says no to downloaded code. We say yes to intent translation.</h3>
       <p>
         App Store rule 2.5.2 prohibits downloading and executing code. But if an on-device model
-        <em>generates</em> Python from a goal intent, and Monty executes it locally&mdash;no code was
+        <em>generates</em> Python from a goal intent, and <a href="https://github.com/pydantic/monty">Monty</a> executes it locally&mdash;no code was
         downloaded. The computation stays on-device. The user's data never leaves. This is the
         architecture that makes mobile AI agents possible without a server dependency.
       </p>
@@ -805,9 +805,14 @@
   <div class="section-label">The What</div>
   <div class="section-title">A Rust Python interpreter. In your Dart app. Everywhere.</div>
   <p class="section-subtitle">
-    dart_monty wraps <strong>Monty</strong>&mdash;Pydantic's tree-walking Python interpreter written in Rust&mdash;in
-    pure Dart bindings. Native desktop uses FFI. Web uses WASM in a Worker. Mobile gets Isolate-based
+    dart_monty wraps <a href="https://github.com/pydantic/monty"><strong>Monty</strong></a>&mdash;Pydantic's
+    tree-walking Python interpreter written in Rust&mdash;in pure Dart bindings.
+    Native desktop uses FFI. Web uses WASM in a Worker. Mobile gets Isolate-based
     execution. Your code doesn't change. The platform does.
+    <small style="display: block; margin-top: 0.5rem; color: var(--text-dim);">
+      We maintain a <a href="https://github.com/runyaga/monty" style="color: var(--text-dim); text-decoration: underline;">fork</a>
+      with patches for cancellation and FFI safety until they land upstream.
+    </small>
   </p>
 
   <div class="pitch-grid">
