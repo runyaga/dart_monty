@@ -300,23 +300,36 @@ class IsolatePlugin extends MontyPlugin {
       );
     }
 
-    // Create child platform and bridge.
-    final platform = await platformFactory();
-    final bridge = DefaultMontyBridge(platform: platform, limits: limits);
-    log.debug(
-      'Child bridge created',
-      attributes: {
-        'codeLength': code.length,
-        if (limits != null) 'limits': limits.toString(),
-      },
-    );
-
-    // Wire plugins onto child bridge.
-    // Each phase is wrapped separately so we can log which stage failed
-    // and still clean up resources on any error.
+    // Create child platform, bridge, and wire plugins.
+    // All phases are inside a single cleanup scope so that any failure
+    // disposes resources created in earlier phases.
+    MontyPlatform? platform;
+    DefaultMontyBridge? bridge;
     final registryFactory = childPluginRegistryFactory;
     PluginRegistry? childRegistry;
     try {
+      try {
+        platform = await platformFactory();
+      } on Object catch (e, st) {
+        log.error(
+          'Child platform creation failed',
+          error: e,
+          stackTrace: st,
+          attributes: {'phase': 'platform'},
+        );
+        rethrow;
+      }
+      bridge = DefaultMontyBridge(platform: platform, limits: limits);
+      log.debug(
+        'Child bridge created',
+        attributes: {
+          'codeLength': code.length,
+          if (limits != null) 'limits': limits.toString(),
+        },
+      );
+
+      // Wire plugins onto child bridge.
+      // Each phase is wrapped separately so we can log which stage failed.
       if (registryFactory != null) {
         // Explicit factory takes precedence.
         try {
@@ -345,6 +358,9 @@ class IsolatePlugin extends MontyPlugin {
         }
       }
       if (childRegistry != null) {
+        // Capture plugin count before attachTo in case the registry is in a
+        // broken state after the error.
+        final pluginCount = childRegistry.plugins.length;
         try {
           await childRegistry.attachTo(bridge);
           log.debug(
@@ -358,16 +374,15 @@ class IsolatePlugin extends MontyPlugin {
             stackTrace: st,
             attributes: {
               'phase': 'attachTo',
-              'pluginCount': childRegistry.plugins.length,
+              'pluginCount': pluginCount,
             },
           );
           rethrow;
         }
       }
-    } on Object catch (e, st) {
-      log.error('Child plugin wiring failed', error: e, stackTrace: st);
-      bridge.dispose();
-      await platform.dispose();
+    } on Object {
+      if (bridge != null) bridge.dispose();
+      if (platform != null) await platform.dispose();
       if (childRegistry != null) await childRegistry.disposeAll();
       rethrow;
     }
@@ -382,7 +397,7 @@ class IsolatePlugin extends MontyPlugin {
     );
 
     // Execute child and listen for completion.
-    final stream = bridge.execute(code);
+    final stream = bridge!.execute(code);
     String? errorMessage;
     MontyException? errorException;
     Object? childValue;
@@ -407,9 +422,11 @@ class IsolatePlugin extends MontyPlugin {
           ..printOutput = childPrintOutput;
 
         // Clean up child resources.
+        // bridge and platform are guaranteed non-null here — the try block
+        // succeeded before the stream listener was created.
         try {
-          bridge.dispose();
-          await platform.dispose();
+          bridge!.dispose();
+          await platform!.dispose();
           if (childRegistry != null) await childRegistry.disposeAll();
         } on Object catch (e, st) {
           log.warning(
@@ -457,8 +474,8 @@ class IsolatePlugin extends MontyPlugin {
     );
 
     _children[id] = _ChildHandle(
-      bridge: bridge,
-      platform: platform,
+      bridge: bridge!,
+      platform: platform!,
       completer: completer,
       subscription: subscription,
       registry: childRegistry,

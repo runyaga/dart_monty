@@ -1332,6 +1332,25 @@ void main() {
         expect(logged, endsWith('…'));
       });
 
+      test('platformFactory failure logs error with phase=platform', () async {
+        final plugin = IsolatePlugin(
+          platformFactory: () async {
+            throw StateError('platform creation boom');
+          },
+          logger: logger,
+        );
+        final spawn = _findHandler(plugin, 'isolate_spawn');
+
+        await expectLater(spawn({'code': '1'}), throwsStateError);
+
+        final errorRecord = sink.records.firstWhere(
+          (r) => r.message == 'Child platform creation failed',
+        );
+        expect(errorRecord.level, LogLevel.error);
+        expect(errorRecord.attributes['phase'], 'platform');
+        expect(errorRecord.error, isA<StateError>());
+      });
+
       test('default logger name is IsolatePlugin', () {
         final defaultPlugin = IsolatePlugin(
           platformFactory: () async => _completingMock(),
