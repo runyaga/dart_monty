@@ -312,24 +312,57 @@ class IsolatePlugin extends MontyPlugin {
     );
 
     // Wire plugins onto child bridge.
-    // Wrapped in try/catch so platform and bridge are cleaned up if wiring
-    // fails (e.g. factory throws, plugin onRegister fails).
+    // Each phase is wrapped separately so we can log which stage failed
+    // and still clean up resources on any error.
     final registryFactory = childPluginRegistryFactory;
     PluginRegistry? childRegistry;
     try {
       if (registryFactory != null) {
         // Explicit factory takes precedence.
-        childRegistry = await registryFactory();
+        try {
+          childRegistry = await registryFactory();
+        } on Object catch (e, st) {
+          log.error(
+            'Child plugin factory failed',
+            error: e,
+            stackTrace: st,
+            attributes: {'phase': 'factory'},
+          );
+          rethrow;
+        }
       } else if (parentPlugins.isNotEmpty) {
         // Auto-inherit from parent plugins via createChildInstance().
-        childRegistry = _buildInheritedRegistry();
+        try {
+          childRegistry = _buildInheritedRegistry();
+        } on Object catch (e, st) {
+          log.error(
+            'Child plugin inheritance failed',
+            error: e,
+            stackTrace: st,
+            attributes: {'phase': 'inheritance'},
+          );
+          rethrow;
+        }
       }
       if (childRegistry != null) {
-        await childRegistry.attachTo(bridge);
-        log.debug(
-          'Child plugins attached',
-          attributes: {'pluginCount': childRegistry.plugins.length},
-        );
+        try {
+          await childRegistry.attachTo(bridge);
+          log.debug(
+            'Child plugins attached',
+            attributes: {'pluginCount': childRegistry.plugins.length},
+          );
+        } on Object catch (e, st) {
+          log.error(
+            'Child plugin attachment failed',
+            error: e,
+            stackTrace: st,
+            attributes: {
+              'phase': 'attachTo',
+              'pluginCount': childRegistry.plugins.length,
+            },
+          );
+          rethrow;
+        }
       }
     } on Object catch (e, st) {
       log.error('Child plugin wiring failed', error: e, stackTrace: st);
