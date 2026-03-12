@@ -122,6 +122,246 @@ if (handler == null) {
 }
 ```
 
+## The Bridge Layer (`dart_monty_bridge`)
+
+The dispatch loop above is the low-level platform interface. In practice,
+you don't write it by hand — `DefaultMontyBridge` handles the loop,
+argument coercion, and event streaming automatically.
+
+### `DefaultMontyBridge`
+
+Wraps a `MontyPlatform` and emits a `Stream<BridgeEvent>` for each
+execution — tool calls, text output, and lifecycle events:
+
+```dart
+import 'package:dart_monty/dart_monty.dart';
+import 'package:dart_monty_bridge/dart_monty_bridge.dart';
+
+final bridge = DefaultMontyBridge(platform: Monty());
+
+bridge.register(HostFunction(
+  schema: const HostFunctionSchema(
+    name: 'get_price',
+    description: 'Get stock price by ticker symbol.',
+    params: [HostParam(name: 'symbol', type: HostParamType.string)],
+  ),
+  handler: (args) async => 42.50,
+));
+
+await for (final event in bridge.execute('price = get_price("AAPL")')) {
+  switch (event) {
+    case BridgeToolCallResult(:final name, :final result):
+      print('$name returned: $result');
+    case BridgeTextContent(:final delta):
+      print('Output: $delta');
+    case BridgeRunFinished():
+      print('Done');
+    default:
+      break;
+  }
+}
+
+await bridge.dispose();
+```
+
+The bridge handles the `start()` → `MontyPending` → `resume()` loop
+internally. You register `HostFunction`s with typed schemas and async
+handlers — the bridge dispatches by name, coerces arguments, and feeds
+results back.
+
+### `HostFunction` and `HostFunctionSchema`
+
+Each host function has a schema (name, description, typed params) and
+an async handler:
+
+```dart
+HostFunction(
+  schema: const HostFunctionSchema(
+    name: 'fetch_data',
+    description: 'Fetch JSON data from a URL.',
+    params: [
+      HostParam(name: 'url', type: HostParamType.string),
+      HostParam(name: 'timeout', type: HostParamType.integer, isRequired: false),
+    ],
+  ),
+  handler: (args) async {
+    final url = args['url'] as String;
+    final timeout = args['timeout'] as int? ?? 30;
+    return await httpGet(url, timeout: timeout);
+  },
+)
+```
+
+Parameter types: `string`, `integer`, `float`, `boolean`, `list`, `map`.
+The bridge validates and coerces arguments before calling the handler.
+
+### `BridgeEvent` (sealed hierarchy)
+
+The event stream covers the full execution lifecycle:
+
+| Event | When |
+|-------|------|
+| `BridgeRunStarted` | Execution begins |
+| `BridgeStepStarted` / `BridgeStepFinished` | Each start/resume cycle |
+| `BridgeToolCallStart` | Python calls a host function |
+| `BridgeToolCallArgs` | Arguments (streamed as JSON delta) |
+| `BridgeToolCallResult` | Handler returned a value |
+| `BridgeToolCallEnd` | Tool call complete |
+| `BridgeTextStart` / `BridgeTextContent` / `BridgeTextEnd` | Print output |
+| `BridgeUiRendered` | EventLoopBridge UI update |
+| `BridgeRunFinished` | Execution complete (includes result) |
+| `BridgeRunError` | Execution failed |
+| `BridgeEventLoopWaiting` / `BridgeEventLoopResumed` | Event loop lifecycle |
+
+## The Plugin System
+
+For anything beyond a handful of functions, use `MontyPlugin` and
+`PluginRegistry` to organize host functions into namespaced, lifecycle-
+managed groups.
+
+### `MontyPlugin`
+
+Abstract class — each plugin declares a namespace, a list of functions,
+and optional lifecycle hooks:
+
+```dart
+import 'package:dart_monty_bridge/dart_monty_bridge.dart';
+
+class WeatherPlugin extends MontyPlugin {
+  @override
+  String get namespace => 'weather';
+
+  @override
+  String? get systemPromptContext =>
+      'Weather functions query a live forecast API.';
+
+  @override
+  List<HostFunction> get functions => [
+    HostFunction(
+      schema: const HostFunctionSchema(
+        name: 'weather_forecast',
+        description: 'Get weather forecast for a city.',
+        params: [HostParam(name: 'city', type: HostParamType.string)],
+      ),
+      handler: (args) async => {'temp': 72, 'condition': 'sunny'},
+    ),
+    HostFunction(
+      schema: const HostFunctionSchema(
+        name: 'weather_alerts',
+        description: 'Get active weather alerts for a region.',
+        params: [HostParam(name: 'region', type: HostParamType.string)],
+      ),
+      handler: (args) async => [],
+    ),
+  ];
+
+  @override
+  Future<void> onRegister(MontyBridge bridge) async {
+    // Called when attached to a bridge — initialize resources
+  }
+
+  @override
+  Future<void> onDispose() async {
+    // Called when session ends — clean up resources
+  }
+}
+```
+
+**Naming rule:** all function names must be prefixed with `{namespace}_`.
+A plugin with namespace `weather` must name its functions `weather_forecast`,
+`weather_alerts`, etc. This prevents collisions across plugins.
+
+### `PluginRegistry`
+
+Collects plugins with validation and wires them onto a bridge:
+
+```dart
+final registry = PluginRegistry()
+  ..register(WeatherPlugin())
+  ..register(StoragePlugin())
+  ..register(MathPlugin());
+
+final bridge = DefaultMontyBridge(platform: Monty());
+await registry.attachTo(bridge);
+```
+
+`attachTo()` does three things:
+
+1. Registers every plugin's `HostFunction`s onto the bridge
+2. Calls `onRegister()` on each plugin (lifecycle hook)
+3. Registers **introspection builtins** (`list_functions`, `help`) so
+   Python code can discover available tools at runtime
+
+**Validation on `register()`:**
+
+- Namespace must be lowercase alphanumeric (`[a-z][a-z0-9_]*`), max 32 chars
+- Namespace `introspection` is reserved (used by builtins)
+- No duplicate namespaces across plugins
+- No duplicate function names across plugins
+- All function names must start with `{namespace}_`
+
+**Disposal:**
+
+```dart
+await registry.disposeAll(); // calls onDispose() on each plugin in reverse order
+```
+
+### Introspection Builtins
+
+When a `PluginRegistry` is attached, Python gets two free functions:
+
+```python
+# List all available functions grouped by namespace
+tools = list_functions()
+# {'weather': [{'name': 'weather_forecast', ...}],
+#  'storage': [{'name': 'storage_get', ...}],
+#  'introspection': [{'name': 'list_functions', ...}, {'name': 'help', ...}]}
+
+# Get detailed schema for a specific function
+info = help("weather_forecast")
+# {'name': 'weather_forecast', 'description': '...', 'params': [...]}
+```
+
+This lets LLM-generated Python discover and use tools dynamically without
+hardcoded knowledge of the available API.
+
+### System Prompt Generation
+
+`PluginRegistry` can auto-generate an LLM system prompt from plugin schemas:
+
+```dart
+final prompt = registry.generateSystemPrompt();
+// ### weather
+// Weather functions query a live forecast API.
+// - `weather_forecast(city: string)`: Get weather forecast for a city.
+// - `weather_alerts(region: string)`: Get active weather alerts for a region.
+//
+// ### storage
+// ...
+```
+
+### Layers Summary
+
+```text
+┌──────────────────────────────────────────────────┐
+│  PluginRegistry + MontyPlugin                    │  ← namespace validation,
+│  (dart_monty_bridge)                             │    lifecycle, introspection
+├──────────────────────────────────────────────────┤
+│  DefaultMontyBridge + HostFunction               │  ← dispatch loop, event
+│  (dart_monty_bridge)                             │    streaming, arg coercion
+├──────────────────────────────────────────────────┤
+│  MontyPlatform (start/resume/run)                │  ← raw platform interface
+│  (dart_monty_platform_interface)                 │
+├──────────────────────────────────────────────────┤
+│  MontyFfi / MontyWasm                            │  ← FFI or WASM backend
+│  (dart_monty_ffi / dart_monty_wasm)              │
+└──────────────────────────────────────────────────┘
+```
+
+Most applications work at the top two layers. The raw platform interface
+is useful for custom dispatch logic or when you need direct control over
+the start/resume cycle.
+
 ## Example: Building a Dart "Library" for Python
 
 Here's a complete example of a small math library exposed to Python
@@ -329,7 +569,7 @@ if (monty is MontySnapshotCapable) {
   final restored = await monty.restore(snapshot);
 }
 
-// Futures (FFI only, not WASM)
+// Futures (FFI + WASM)
 if (monty is MontyFutureCapable) {
   progress = await monty.resumeAsFuture();
 }
