@@ -1,13 +1,17 @@
-/// Flutter plugin exposing the Monty sandboxed Python interpreter.
+/// Pure Dart bindings for the Monty sandboxed Python interpreter.
 ///
-/// This is the app-facing package. Import this to use dart_monty:
+/// Backend is selected at compile time via conditional imports:
+/// native FFI on desktop/server, WASM in browsers. No Flutter required.
+///
 /// ```dart
 /// import 'package:dart_monty/dart_monty.dart';
-/// ```
 ///
-/// Platform implementations are selected automatically via the federated
-/// plugin system (`dart_monty_native` for native platforms,
-/// `dart_monty_web` for browsers).
+/// final monty = Monty();
+/// final result = await monty.run('2 + 2');
+/// print(result.value); // 4
+/// await monty.dispose();
+/// ```
 library;
 
 export 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
+export 'src/monty.dart';
