@@ -31,8 +31,8 @@ class MontyWasm extends BaseMontyPlatform implements MontySnapshotCapable {
   MontyWasm._({
     required WasmCoreBindings coreBindings,
     required WasmBindings wasmBindings,
-  })  : _wasmBindings = wasmBindings,
-        super(bindings: coreBindings);
+  }) : _wasmBindings = wasmBindings,
+       super(bindings: coreBindings);
 
   final WasmBindings _wasmBindings;
 

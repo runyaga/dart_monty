@@ -78,8 +78,9 @@ void main() {
     });
 
     test('D-08: large output (10K chars)', () async {
-      final r =
-          await server.sessionManager.executeStateless("print('x' * 10000)");
+      final r = await server.sessionManager.executeStateless(
+        "print('x' * 10000)",
+      );
       expect(r.isError, isFalse);
       expect(_text(r).length, 10000);
     });
@@ -92,8 +93,9 @@ void main() {
     });
 
     test('string with special chars', () async {
-      final r = await server.sessionManager
-          .executeStateless(r"print('hello\nworld\ttab')");
+      final r = await server.sessionManager.executeStateless(
+        r"print('hello\nworld\ttab')",
+      );
       expect(r.isError, isFalse);
       expect(_text(r), contains('hello'));
       expect(_text(r), contains('world'));
@@ -108,8 +110,9 @@ void main() {
     });
 
     test('list comprehension', () async {
-      final r = await server.sessionManager
-          .executeStateless('[x**2 for x in range(6)]');
+      final r = await server.sessionManager.executeStateless(
+        '[x**2 for x in range(6)]',
+      );
       expect(r.isError, isFalse);
       expect(_text(r), '[0, 1, 4, 9, 16, 25]');
     });
@@ -117,15 +120,17 @@ void main() {
     test('dict construction', () async {
       // Monty dict comprehension returns list-of-pairs, not dict.
       // Use explicit dict() construction instead.
-      final r = await server.sessionManager
-          .executeStateless('d = {}\nfor i in range(3):\n    d[i] = i*2\nd');
+      final r = await server.sessionManager.executeStateless(
+        'd = {}\nfor i in range(3):\n    d[i] = i*2\nd',
+      );
       expect(r.isError, isFalse);
       expect(_text(r), contains('0'));
     });
 
     test('string formatting', () async {
-      final r = await server.sessionManager
-          .executeStateless("name = 'Monty'\nf'Hello {name}!'");
+      final r = await server.sessionManager.executeStateless(
+        "name = 'Monty'\nf'Hello {name}!'",
+      );
       expect(r.isError, isFalse);
       expect(_text(r), 'Hello Monty!');
     });
@@ -429,7 +434,8 @@ void main() {
         expect(
           _text(r2),
           contains('Unexpected external function'),
-          reason: 'Known limitation: user-defined functions called across '
+          reason:
+              'Known limitation: user-defined functions called across '
               'session executions are treated as external functions by '
               'MontySession.run()',
         );
@@ -549,8 +555,9 @@ void main() {
 
   group('edge cases', () {
     test('code with only comments', () async {
-      final r =
-          await server.sessionManager.executeStateless('# just a comment');
+      final r = await server.sessionManager.executeStateless(
+        '# just a comment',
+      );
       expect(r.isError, isFalse);
     });
 

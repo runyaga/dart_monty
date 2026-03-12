@@ -74,13 +74,15 @@ Future<void> main() async {
   _printResult('2 + 2', r1);
 
   print('--- Test Case 2: run(\'"hello " + "world"\') ---');
-  final r2 =
-      _parseResult((await _montyRun('"hello " + "world"'.toJS).toDart).toDart);
+  final r2 = _parseResult(
+    (await _montyRun('"hello " + "world"'.toJS).toDart).toDart,
+  );
   _printResult('string concat', r2);
 
   print('--- Test Case 3: run("invalid syntax def") ---');
-  final r3 =
-      _parseResult((await _montyRun('invalid syntax def'.toJS).toDart).toDart);
+  final r3 = _parseResult(
+    (await _montyRun('invalid syntax def'.toJS).toDart).toDart,
+  );
   _printResult('syntax error', r3);
 
   // Step 4: Iterative execution (if API available)
@@ -90,8 +92,7 @@ Future<void> main() async {
       (await _montyStart(
         'result = fetch("https://example.com")'.toJS,
         '["fetch"]'.toJS,
-      ).toDart)
-          .toDart,
+      ).toDart).toDart,
     );
     print('  start() => ${s1['state']}');
 

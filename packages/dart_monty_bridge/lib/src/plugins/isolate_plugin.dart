@@ -99,126 +99,129 @@ class IsolatePlugin extends MontyPlugin {
 
   @override
   List<HostFunction> get functions => [
-        HostFunction(
-          schema: const HostFunctionSchema(
-            name: 'isolate_spawn',
-            description: 'Spawn a Python script in a new isolated interpreter. '
-                'Returns an integer handle.',
-            params: [
-              HostParam(
-                name: 'code',
-                type: HostParamType.string,
-                description: 'Python code to execute.',
-              ),
-              HostParam(
-                name: 'timeout_ms',
-                type: HostParamType.integer,
-                isRequired: false,
-                description: 'Execution timeout in milliseconds.',
-              ),
-              HostParam(
-                name: 'memory_bytes',
-                type: HostParamType.integer,
-                isRequired: false,
-                description: 'Memory limit in bytes.',
-              ),
-            ],
+    HostFunction(
+      schema: const HostFunctionSchema(
+        name: 'isolate_spawn',
+        description:
+            'Spawn a Python script in a new isolated interpreter. '
+            'Returns an integer handle.',
+        params: [
+          HostParam(
+            name: 'code',
+            type: HostParamType.string,
+            description: 'Python code to execute.',
           ),
-          handler: _handleSpawn,
-        ),
-        HostFunction(
-          schema: const HostFunctionSchema(
-            name: 'isolate_await',
-            description: 'Wait for a spawned child to complete and return '
-                'its result. Raises an error if the child failed.',
-            params: [
-              HostParam(
-                name: 'handle',
-                type: HostParamType.integer,
-                description: 'Handle returned by isolate_spawn.',
-              ),
-            ],
+          HostParam(
+            name: 'timeout_ms',
+            type: HostParamType.integer,
+            isRequired: false,
+            description: 'Execution timeout in milliseconds.',
           ),
-          handler: _handleAwait,
-        ),
-        HostFunction(
-          schema: const HostFunctionSchema(
-            name: 'isolate_await_all',
-            description: 'Wait for multiple children to complete. '
-                'Returns a list of results in handle order.',
-            params: [
-              HostParam(
-                name: 'handles',
-                type: HostParamType.list,
-                description: 'List of handles from isolate_spawn.',
-              ),
-            ],
+          HostParam(
+            name: 'memory_bytes',
+            type: HostParamType.integer,
+            isRequired: false,
+            description: 'Memory limit in bytes.',
           ),
-          handler: _handleAwaitAll,
-        ),
-        HostFunction(
-          schema: const HostFunctionSchema(
-            name: 'isolate_is_alive',
-            description: 'Check whether a child is still running.',
-            params: [
-              HostParam(
-                name: 'handle',
-                type: HostParamType.integer,
-                description: 'Handle returned by isolate_spawn.',
-              ),
-            ],
+        ],
+      ),
+      handler: _handleSpawn,
+    ),
+    HostFunction(
+      schema: const HostFunctionSchema(
+        name: 'isolate_await',
+        description:
+            'Wait for a spawned child to complete and return '
+            'its result. Raises an error if the child failed.',
+        params: [
+          HostParam(
+            name: 'handle',
+            type: HostParamType.integer,
+            description: 'Handle returned by isolate_spawn.',
           ),
-          handler: _handleIsAlive,
-        ),
-        HostFunction(
-          schema: const HostFunctionSchema(
-            name: 'isolate_cancel',
-            description: 'Cancel a running child. No-op if already finished.',
-            params: [
-              HostParam(
-                name: 'handle',
-                type: HostParamType.integer,
-                description: 'Handle returned by isolate_spawn.',
-              ),
-            ],
+        ],
+      ),
+      handler: _handleAwait,
+    ),
+    HostFunction(
+      schema: const HostFunctionSchema(
+        name: 'isolate_await_all',
+        description:
+            'Wait for multiple children to complete. '
+            'Returns a list of results in handle order.',
+        params: [
+          HostParam(
+            name: 'handles',
+            type: HostParamType.list,
+            description: 'List of handles from isolate_spawn.',
           ),
-          handler: _handleCancel,
-        ),
-        HostFunction(
-          schema: const HostFunctionSchema(
-            name: 'isolate_free',
-            description:
-                'Release a completed child handle and free its resources. '
-                'Raises an error if the child is still running.',
-            params: [
-              HostParam(
-                name: 'handle',
-                type: HostParamType.integer,
-                description: 'Handle returned by isolate_spawn.',
-              ),
-            ],
+        ],
+      ),
+      handler: _handleAwaitAll,
+    ),
+    HostFunction(
+      schema: const HostFunctionSchema(
+        name: 'isolate_is_alive',
+        description: 'Check whether a child is still running.',
+        params: [
+          HostParam(
+            name: 'handle',
+            type: HostParamType.integer,
+            description: 'Handle returned by isolate_spawn.',
           ),
-          handler: _handleFree,
-        ),
-        HostFunction(
-          schema: const HostFunctionSchema(
-            name: 'isolate_get_output',
-            description:
-                'Get captured Python print() output from a completed child. '
-                'Raises an error if the child is still running. '
-                'Returns a string of all print() output, or null if the child '
-                'produced no print() output.',
-            params: [
-              HostParam(
-                name: 'handle',
-                type: HostParamType.integer,
-                description: 'Handle returned by isolate_spawn.',
-              ),
-            ],
+        ],
+      ),
+      handler: _handleIsAlive,
+    ),
+    HostFunction(
+      schema: const HostFunctionSchema(
+        name: 'isolate_cancel',
+        description: 'Cancel a running child. No-op if already finished.',
+        params: [
+          HostParam(
+            name: 'handle',
+            type: HostParamType.integer,
+            description: 'Handle returned by isolate_spawn.',
           ),
-          handler: _handleGetOutput,
-        ),
-      ];
+        ],
+      ),
+      handler: _handleCancel,
+    ),
+    HostFunction(
+      schema: const HostFunctionSchema(
+        name: 'isolate_free',
+        description:
+            'Release a completed child handle and free its resources. '
+            'Raises an error if the child is still running.',
+        params: [
+          HostParam(
+            name: 'handle',
+            type: HostParamType.integer,
+            description: 'Handle returned by isolate_spawn.',
+          ),
+        ],
+      ),
+      handler: _handleFree,
+    ),
+    HostFunction(
+      schema: const HostFunctionSchema(
+        name: 'isolate_get_output',
+        description:
+            'Get captured Python print() output from a completed child. '
+            'Raises an error if the child is still running. '
+            'Returns a string of all print() output, or null if the child '
+            'produced no print() output.',
+        params: [
+          HostParam(
+            name: 'handle',
+            type: HostParamType.integer,
+            description: 'Handle returned by isolate_spawn.',
+          ),
+        ],
+      ),
+      handler: _handleGetOutput,
+    ),
+  ];
 
   Future<Object?> _handleSpawn(Map<String, Object?> args) async {
     if (_disposed) throw StateError('IsolatePlugin is disposed.');

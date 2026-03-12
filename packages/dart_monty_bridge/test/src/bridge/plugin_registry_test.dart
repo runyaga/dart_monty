@@ -20,9 +20,9 @@ class _TestPlugin extends MontyPlugin {
 }
 
 HostFunction _fn(String name) => HostFunction(
-      schema: HostFunctionSchema(name: name, description: ''),
-      handler: (args) async => null,
-    );
+  schema: HostFunctionSchema(name: name, description: ''),
+  handler: (args) async => null,
+);
 
 void main() {
   late PluginRegistry registry;

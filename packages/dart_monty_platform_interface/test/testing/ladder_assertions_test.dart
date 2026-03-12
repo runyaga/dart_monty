@@ -9,14 +9,17 @@ void main() {
     });
 
     test('exact match with list', () {
-      assertLadderResult([
-        1,
-        2,
-        3,
-      ], {
-        'id': 2,
-        'expected': [1, 2, 3],
-      });
+      assertLadderResult(
+        [
+          1,
+          2,
+          3,
+        ],
+        {
+          'id': 2,
+          'expected': [1, 2, 3],
+        },
+      );
     });
 
     test('null value matches null expected', () {

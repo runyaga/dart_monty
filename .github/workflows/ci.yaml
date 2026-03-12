@@ -75,7 +75,7 @@ jobs:
           name: ffi-bindings
           path: packages/dart_monty_ffi/lib/src/generated
       - run: dart pub get
-      - run: dart format --set-exit-if-changed .
+      - run: dart format --language-version=3.10 --set-exit-if-changed .
       - name: Analyze sub-packages
         run: python3 tool/analyze_packages.py
 
@@ -110,6 +110,7 @@ jobs:
             min-coverage: '30'
           - target: dart_monty_wasm
             min-coverage: '70'
+            test-args: '--exclude-tags=browser'
           - target: dart_monty_bridge
             min-coverage: '50'
           - target: dart_monty_mcp
@@ -128,7 +129,7 @@ jobs:
       - name: Install dependencies
         run: cd packages/${{ matrix.target }} && dart pub get
       - name: Run tests
-        run: cd packages/${{ matrix.target }} && dart test --coverage=coverage
+        run: cd packages/${{ matrix.target }} && dart test ${{ matrix.test-args }} --coverage=coverage
       - name: Enforce coverage
         uses: ./.github/actions/enforce-coverage
         with:

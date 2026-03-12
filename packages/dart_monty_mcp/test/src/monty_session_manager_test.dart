@@ -90,12 +90,11 @@ void main() {
         platformFactory: () {
           // The bridge calls start() with external functions, then
           // receives a complete progress.
-          return MockMontyPlatform()
-            ..enqueueProgress(
-              const MontyComplete(
-                result: MontyResult(value: 42, usage: usage),
-              ),
-            );
+          return MockMontyPlatform()..enqueueProgress(
+            const MontyComplete(
+              result: MontyResult(value: 42, usage: usage),
+            ),
+          );
         },
       );
 

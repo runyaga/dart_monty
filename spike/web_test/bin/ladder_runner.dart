@@ -210,12 +210,7 @@ Future<Map<String, dynamic>> _runIterative(
         return {'id': id, 'ok': false, 'error': 'Expected pending state'};
       }
       resultJson = _parseResult(
-        (await bridge
-                .resumeWithError(
-                  jsonEncode(errorMsg).toJS,
-                )
-                .toDart)
-            .toDart,
+        (await bridge.resumeWithError(jsonEncode(errorMsg).toJS).toDart).toDart,
       );
     }
   } else if (resumeValues != null) {
