@@ -98,6 +98,79 @@ print(complete.result.value);
 await monty.dispose();
 ```
 
+### Bridge and Plugin System
+
+The `start()`/`resume()` loop above is the low-level platform interface.
+For real applications, `dart_monty_bridge` provides a higher-level API
+that handles the dispatch loop, argument coercion, and event streaming
+automatically.
+
+**`DefaultMontyBridge`** wraps the dispatch loop and emits a
+`Stream<BridgeEvent>` — tool calls, text output, and lifecycle events:
+
+```dart
+import 'package:dart_monty_bridge/dart_monty_bridge.dart';
+
+final bridge = DefaultMontyBridge(platform: Monty());
+
+// Register host functions directly on the bridge
+bridge.register(HostFunction(
+  schema: const HostFunctionSchema(
+    name: 'get_price',
+    description: 'Get stock price by ticker symbol.',
+    params: [HostParam(name: 'symbol', type: HostParamType.string)],
+  ),
+  handler: (args) async => 42.50,
+));
+
+// Execute — bridge handles the dispatch loop for you
+await for (final event in bridge.execute('price = get_price("AAPL")')) {
+  switch (event) {
+    case BridgeToolCallResult(:final name, :final result):
+      print('$name returned: $result');
+    case BridgeTextContent(:final delta):
+      print('Output: $delta');
+    case BridgeRunFinished():
+      print('Done');
+    default:
+      break;
+  }
+}
+
+await bridge.dispose();
+```
+
+**`MontyPlugin`** groups related host functions under a validated namespace.
+**`PluginRegistry`** collects plugins with collision detection and wires
+them onto a bridge:
+
+```dart
+class WeatherPlugin extends MontyPlugin {
+  @override
+  String get namespace => 'weather';
+
+  @override
+  List<HostFunction> get functions => [
+    HostFunction(
+      schema: const HostFunctionSchema(
+        name: 'weather_forecast',
+        description: 'Get weather forecast for a city.',
+        params: [HostParam(name: 'city', type: HostParamType.string)],
+      ),
+      handler: (args) async => {'temp': 72, 'condition': 'sunny'},
+    ),
+  ];
+}
+
+final registry = PluginRegistry()..register(WeatherPlugin());
+await registry.attachTo(bridge); // registers functions + introspection builtins
+```
+
+Plugins enforce `namespace_` prefixes on function names (e.g., `weather_forecast`),
+provide lifecycle hooks (`onRegister`, `onDispose`), and auto-generate
+`list_functions` / `help` introspection builtins so Python code can discover
+available tools at runtime.
+
 ### Error Handling
 
 dart_monty uses a sealed `MontyError` hierarchy for structured error handling:
@@ -176,10 +249,10 @@ The table below shows current coverage and what's planned.
 | **Cancellation** (cooperative abort via atomic flag) | Covered | `MontyCancelToken`, `cancel()`, `terminate()` with zombie tracking |
 | **Error hierarchy** (sealed `MontyError` with 6 subtypes) | Covered | Script, Cancel, Panic, Crash, Disposed, Resource |
 | **Multi-session** (WASM Worker pool) | Covered | `createSession`/`disposeSession`, 16 MB per session |
-| Async / futures (`asyncio.gather`, concurrent calls) | Covered | Native only — WASM upstream lacks `FutureSnapshot` API |
+| **Async / futures** (`asyncio.gather`, concurrent calls) | Covered | `resumeAsFuture()`, `resolveFutures()` on both FFI and WASM |
 | Rich types (tuple, set, bytes, dataclass, namedtuple) | Planned | Currently collapsed to `List`/`Map` |
 | REPL (stateful sessions, `feed()`, persistence) | Planned | `MontyRepl` multi-step sessions |
-| OS calls (`os.getenv`, `os.environ`, `os.stat`) | Planned | `OsCall` progress variant |
+| OS calls (`os.getenv`, `os.environ`, `os.stat`) | Planned | `MontyPlugin` host functions |
 | Print streaming (real-time callback) | Planned | Currently batch-only after execution |
 | Advanced limits (allocations, GC interval, `runNoLimits`) | Planned | Extended `ResourceTracker` surface |
 | Type checking (static analysis before execution) | Planned | ty / Red Knot integration |
@@ -198,6 +271,7 @@ imports — no Flutter required. Four pure-Dart packages:
 | Package | Description |
 |---------|-------------|
 | `dart_monty` | App-facing API — `Monty()` convenience class with compile-time backend selection |
+| `dart_monty_bridge` | High-level bridge — `DefaultMontyBridge`, `BridgeEvent` streams, `MontyPlugin` / `PluginRegistry` |
 | `dart_monty_platform_interface` | Abstract contract (`MontyPlatform`), shared types, SPI for backend authors |
 | `dart_monty_ffi` | Native FFI bindings (`dart:ffi` -> Rust shared library) |
 | `dart_monty_wasm` | WASM bindings (`dart:js_interop` -> Web Worker) |

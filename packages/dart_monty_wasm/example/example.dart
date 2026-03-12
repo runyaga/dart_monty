@@ -5,14 +5,11 @@ import 'package:dart_monty_wasm/dart_monty_wasm.dart';
 
 /// Demonstrates the WASM-based API for running sandboxed Python in a browser.
 ///
-/// Most apps should import `dart_monty` instead — the federated plugin
-/// selects the correct backend automatically. Use this package directly
-/// when building pure Dart web apps without Flutter.
-///
-/// Note: Futures support (resumeAsFuture/resolveFutures) is not available
-/// on the WASM backend due to Web Worker limitations.
+/// Most apps should import `dart_monty` instead — it selects the native
+/// or web backend at compile time via conditional imports. Use this package
+/// directly when you need explicit control over the WASM backend.
 Future<void> main() async {
-  final monty = MontyWasm(bindings: WasmBindingsJs());
+  final monty = MontyWasm();
 
   await _simpleRun(monty);
   await _runWithLimits(monty);
