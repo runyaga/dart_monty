@@ -62,22 +62,13 @@ class _MontyPageState extends State<MontyPage> {
         onTap: (i) => setState(() => _tabIndex = i),
         type: BottomNavigationBarType.fixed,
         items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.code),
-            label: 'Examples',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.code), label: 'Examples'),
           BottomNavigationBarItem(
             icon: Icon(Icons.bar_chart),
             label: 'Sorting',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.route),
-            label: 'TSP',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.checklist),
-            label: 'Ladder',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.route), label: 'TSP'),
+          BottomNavigationBarItem(icon: Icon(Icons.checklist), label: 'Ladder'),
         ],
       ),
     );
@@ -854,10 +845,7 @@ class _TspPageState extends State<_TspPage> {
                 value: _TspAlgorithm.nearestNeighbor,
                 label: Text('Nearest Neighbor'),
               ),
-              ButtonSegment(
-                value: _TspAlgorithm.twoOpt,
-                label: Text('2-opt'),
-              ),
+              ButtonSegment(value: _TspAlgorithm.twoOpt, label: Text('2-opt')),
             ],
             selected: {_algorithm},
             onSelectionChanged: _running
@@ -880,10 +868,7 @@ class _TspPageState extends State<_TspPage> {
                       : (v) => setState(() => _cityCount = v),
                 ),
               ),
-              SizedBox(
-                width: 32,
-                child: Text(_cityCount.toInt().toString()),
-              ),
+              SizedBox(width: 32, child: Text(_cityCount.toInt().toString())),
             ],
           ),
           Row(
@@ -959,11 +944,7 @@ class _TspPageState extends State<_TspPage> {
 }
 
 class _TspPainter extends CustomPainter {
-  _TspPainter({
-    required this.cities,
-    required this.route,
-    required this.done,
-  });
+  _TspPainter({required this.cities, required this.route, required this.done});
 
   final List<List<int>> cities;
   final List<int> route;
@@ -1525,10 +1506,7 @@ class _LadderPageState extends State<_LadderPage> {
             const SizedBox(width: 8),
             Text(
               'Tier $tier',
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
             const Spacer(),
             Text(
@@ -2080,19 +2058,20 @@ Future<MontyProgress> _httpFetch(
 
 final _examples = <_Example>[
   // 1. Expressions & resource usage
-  _Example(
-    '1. Expressions',
-    'sum(range(100_000))',
-    (monty, code, limits, log) async {
-      final result = await monty.run(code, limits: limits);
-      log('Result: ${result.value}');
-      log(
-        'Memory: ${result.usage.memoryBytesUsed} bytes  '
-        'Time: ${result.usage.timeElapsedMs} ms  '
-        'Stack: ${result.usage.stackDepthUsed}',
-      );
-    },
-  ),
+  _Example('1. Expressions', 'sum(range(100_000))', (
+    monty,
+    code,
+    limits,
+    log,
+  ) async {
+    final result = await monty.run(code, limits: limits);
+    log('Result: ${result.value}');
+    log(
+      'Memory: ${result.usage.memoryBytesUsed} bytes  '
+      'Time: ${result.usage.timeElapsedMs} ms  '
+      'Stack: ${result.usage.stackDepthUsed}',
+    );
+  }),
 
   // 2. Multi-line code (Fibonacci)
   _Example(

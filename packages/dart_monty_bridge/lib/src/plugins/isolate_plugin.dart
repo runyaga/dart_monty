@@ -263,17 +263,26 @@ class IsolatePlugin extends MontyPlugin {
     final bridge = DefaultMontyBridge(platform: platform, limits: limits);
 
     // Wire plugins onto child bridge.
+    // Wrapped in try/catch so platform and bridge are cleaned up if wiring
+    // fails (e.g. factory throws, plugin onRegister fails).
     final registryFactory = childPluginRegistryFactory;
     PluginRegistry? childRegistry;
-    if (registryFactory != null) {
-      // Explicit factory takes precedence.
-      childRegistry = await registryFactory();
-    } else if (parentPlugins.isNotEmpty) {
-      // Auto-inherit from parent plugins via createChildInstance().
-      childRegistry = _buildInheritedRegistry();
-    }
-    if (childRegistry != null) {
-      await childRegistry.attachTo(bridge);
+    try {
+      if (registryFactory != null) {
+        // Explicit factory takes precedence.
+        childRegistry = await registryFactory();
+      } else if (parentPlugins.isNotEmpty) {
+        // Auto-inherit from parent plugins via createChildInstance().
+        childRegistry = _buildInheritedRegistry();
+      }
+      if (childRegistry != null) {
+        await childRegistry.attachTo(bridge);
+      }
+    } on Object {
+      bridge.dispose();
+      await platform.dispose();
+      if (childRegistry != null) await childRegistry.disposeAll();
+      rethrow;
     }
 
     final id = _nextId++;
@@ -350,7 +359,20 @@ class IsolatePlugin extends MontyPlugin {
       // Skip IsolatePlugin itself — children get their own via depth control.
       if (plugin is IsolatePlugin) continue;
       final child = plugin.createChildInstance();
-      if (child != null) childPlugins.add(child);
+      if (child == null) continue;
+      // Guard: returning `this` would cause the parent plugin to be disposed
+      // when the child finishes, and returning an IsolatePlugin would bypass
+      // depth limiting.
+      assert(
+        !identical(child, plugin),
+        'createChildInstance() must return a new instance, not `this`.',
+      );
+      if (child is IsolatePlugin) {
+        throw StateError(
+          'createChildInstance() must not return an IsolatePlugin.',
+        );
+      }
+      childPlugins.add(child);
     }
     if (childPlugins.isEmpty) return null;
     final registry = PluginRegistry();

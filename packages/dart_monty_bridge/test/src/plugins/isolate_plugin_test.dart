@@ -827,6 +827,45 @@ void main() {
           await await_({'handle': handle! as int});
         },
       );
+
+      test(
+        'createChildInstance returning IsolatePlugin throws StateError',
+        () async {
+          final badPlugin = _ReturnsIsolatePlugin();
+          final plugin = IsolatePlugin(
+            platformFactory: () async => _completingMock(),
+            parentPlugins: [badPlugin],
+          );
+          final spawn = _findHandler(plugin, 'isolate_spawn');
+
+          await expectLater(
+            spawn({'code': '42'}),
+            throwsStateError,
+          );
+        },
+      );
+
+      test(
+        'spawn cleans up platform on factory failure',
+        () async {
+          late MockMontyPlatform createdMock;
+          final plugin = IsolatePlugin(
+            platformFactory: () async {
+              return createdMock = _completingMock();
+            },
+            childPluginRegistryFactory: () async {
+              throw StateError('factory boom');
+            },
+          );
+          final spawn = _findHandler(plugin, 'isolate_spawn');
+
+          await expectLater(
+            spawn({'code': '42'}),
+            throwsStateError,
+          );
+          expect(createdMock.isDisposed, isTrue);
+        },
+      );
     });
   });
 }
@@ -860,6 +899,24 @@ class _InheritablePlugin extends MontyPlugin {
   @override
   MontyPlugin? createChildInstance() =>
       _InheritablePlugin(namespace: namespace);
+}
+
+/// Plugin whose [createChildInstance] returns an [IsolatePlugin].
+///
+/// Used to verify that the inheritance guard rejects such plugins.
+class _ReturnsIsolatePlugin extends MontyPlugin {
+  @override
+  String get namespace => 'bad';
+
+  @override
+  final String? systemPromptContext = null;
+
+  @override
+  List<HostFunction> get functions => [];
+
+  @override
+  MontyPlugin? createChildInstance() =>
+      IsolatePlugin(platformFactory: () async => MockMontyPlatform());
 }
 
 /// Simple test plugin for child wiring tests.
