@@ -1,0 +1,132 @@
+@Tags(['integration'])
+library;
+
+import 'package:dart_monty_bridge/dart_monty_bridge.dart';
+import 'package:dart_monty_ffi/dart_monty_ffi.dart';
+import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
+import 'package:struct_log/struct_log.dart';
+import 'package:test/test.dart';
+
+/// Integration tests for plugin registration failure logging with real FFI.
+///
+/// Run with:
+/// ```bash
+/// cd native && cargo build --release && cd ..
+/// cd packages/dart_monty_bridge
+/// DYLD_LIBRARY_PATH=../../native/target/release \
+///   dart test --tags=integration --run-skipped \
+///   test/integration/isolate_plugin_reg_failure_test.dart
+/// ```
+void main() {
+  late NativeBindingsFfi bindings;
+  late MemorySink sink;
+  late Logger logger;
+  late LogLevel previousLevel;
+
+  setUpAll(() {
+    bindings = NativeBindingsFfi();
+  });
+
+  setUp(() {
+    sink = MemorySink();
+    previousLevel = LogManager.instance.minimumLevel;
+    LogManager.instance
+      ..addSink(sink)
+      ..minimumLevel = LogLevel.trace;
+    logger = LogManager.instance.getLogger('IsolatePlugin.integration');
+  });
+
+  tearDown(() {
+    LogManager.instance
+      ..removeSink(sink)
+      ..minimumLevel = previousLevel;
+  });
+
+  MontyPlatform createPlatform() => MontyFfi(bindings: bindings);
+
+  DefaultMontyBridge createBridge() =>
+      DefaultMontyBridge(platform: createPlatform(), useFutures: false);
+
+  group('plugin registration failure with real FFI', () {
+    test('factory failure logs phase=factory and cleans up', () async {
+      final bridge = createBridge();
+      final registry = PluginRegistry()
+        ..register(
+          IsolatePlugin(
+            platformFactory: () async => createPlatform(),
+            childPluginRegistryFactory: () async {
+              throw StateError('factory boom');
+            },
+            logger: logger,
+          ),
+        );
+      await registry.attachTo(bridge);
+
+      final plugin = registry.plugins.whereType<IsolatePlugin>().first;
+      final spawn = plugin.functions
+          .firstWhere((f) => f.schema.name == 'isolate_spawn')
+          .handler;
+
+      await expectLater(spawn({'code': '42'}), throwsStateError);
+
+      final errorRecord = sink.records.firstWhere(
+        (r) => r.message == 'Child plugin factory failed',
+      );
+      expect(errorRecord.level, LogLevel.error);
+      expect(errorRecord.attributes['phase'], 'factory');
+
+      bridge.dispose();
+    });
+
+    test('attachTo failure logs phase=attachTo with pluginCount', () async {
+      final bridge = createBridge();
+      final registry = PluginRegistry()
+        ..register(
+          IsolatePlugin(
+            platformFactory: () async => createPlatform(),
+            childPluginRegistryFactory: () async {
+              final childRegistry = PluginRegistry()
+                ..register(_IntegrationBoomPlugin());
+              return childRegistry;
+            },
+            logger: logger,
+          ),
+        );
+      await registry.attachTo(bridge);
+
+      final plugin = registry.plugins.whereType<IsolatePlugin>().first;
+      final spawn = plugin.functions
+          .firstWhere((f) => f.schema.name == 'isolate_spawn')
+          .handler;
+
+      await expectLater(spawn({'code': '42'}), throwsStateError);
+
+      final errorRecord = sink.records.firstWhere(
+        (r) => r.message == 'Child plugin attachment failed',
+      );
+      expect(errorRecord.level, LogLevel.error);
+      expect(errorRecord.attributes['phase'], 'attachTo');
+      expect(errorRecord.attributes['pluginCount'], 1);
+
+      bridge.dispose();
+    });
+  });
+}
+
+/// Plugin whose [onRegister] throws for integration testing.
+class _IntegrationBoomPlugin extends MontyPlugin {
+  @override
+  String get namespace => 'boom';
+
+  @override
+  final String? systemPromptContext = null;
+
+  @override
+  List<HostFunction> get functions => [];
+
+  @override
+  Future<void> onRegister(MontyBridge bridge) async {
+    await super.onRegister(bridge);
+    throw StateError('integration attachTo boom');
+  }
+}

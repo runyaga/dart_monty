@@ -1169,7 +1169,7 @@ void main() {
         await plugin.onDispose();
       });
 
-      test('plugin wiring failure logs error', () async {
+      test('factory failure logs error with phase=factory', () async {
         final plugin = IsolatePlugin(
           platformFactory: () async => _completingMock(),
           childPluginRegistryFactory: () async {
@@ -1182,9 +1182,10 @@ void main() {
         await expectLater(spawn({'code': '1'}), throwsStateError);
 
         final errorRecord = sink.records.firstWhere(
-          (r) => r.message == 'Child plugin wiring failed',
+          (r) => r.message == 'Child plugin factory failed',
         );
         expect(errorRecord.level, LogLevel.error);
+        expect(errorRecord.attributes['phase'], 'factory');
         expect(errorRecord.error, isA<StateError>());
         expect(errorRecord.stackTrace, isNotNull);
       });
@@ -1245,6 +1246,68 @@ void main() {
         expect(attachRecord.attributes['pluginCount'], 1);
       });
 
+      test('inheritance failure logs error with phase=inheritance', () async {
+        final badPlugin = _ReturnsIsolatePlugin();
+        final plugin = IsolatePlugin(
+          platformFactory: () async => _completingMock(),
+          parentPlugins: [badPlugin],
+          logger: logger,
+        );
+        final spawn = _findHandler(plugin, 'isolate_spawn');
+
+        await expectLater(spawn({'code': '1'}), throwsStateError);
+
+        final errorRecord = sink.records.firstWhere(
+          (r) => r.message == 'Child plugin inheritance failed',
+        );
+        expect(errorRecord.level, LogLevel.error);
+        expect(errorRecord.attributes['phase'], 'inheritance');
+        expect(errorRecord.error, isA<StateError>());
+      });
+
+      test(
+        'attachTo failure logs error with phase=attachTo and pluginCount',
+        () async {
+          final plugin = IsolatePlugin(
+            platformFactory: () async => _completingMock(),
+            childPluginRegistryFactory: () async {
+              final registry = PluginRegistry()..register(_AttachBoomPlugin());
+              return registry;
+            },
+            logger: logger,
+          );
+          final spawn = _findHandler(plugin, 'isolate_spawn');
+
+          await expectLater(spawn({'code': '1'}), throwsStateError);
+
+          final errorRecord = sink.records.firstWhere(
+            (r) => r.message == 'Child plugin attachment failed',
+          );
+          expect(errorRecord.level, LogLevel.error);
+          expect(errorRecord.attributes['phase'], 'attachTo');
+          expect(errorRecord.attributes['pluginCount'], 1);
+          expect(errorRecord.error, isA<StateError>());
+        },
+      );
+
+      test('factory failure still cleans up platform and bridge', () async {
+        late MockMontyPlatform createdMock;
+        final plugin = IsolatePlugin(
+          platformFactory: () async {
+            return createdMock = _completingMock();
+          },
+          childPluginRegistryFactory: () async {
+            throw StateError('factory boom');
+          },
+          logger: logger,
+        );
+        final spawn = _findHandler(plugin, 'isolate_spawn');
+
+        await expectLater(spawn({'code': '1'}), throwsStateError);
+
+        expect(createdMock.isDisposed, isTrue);
+      });
+
       test('error message is truncated in log attributes', () async {
         final longError = 'E' * 300;
         final plugin = IsolatePlugin(
@@ -1267,6 +1330,25 @@ void main() {
         final logged = failRecord.attributes['error']! as String;
         expect(logged.length, lessThanOrEqualTo(201)); // 200 + ellipsis
         expect(logged, endsWith('…'));
+      });
+
+      test('platformFactory failure logs error with phase=platform', () async {
+        final plugin = IsolatePlugin(
+          platformFactory: () async {
+            throw StateError('platform creation boom');
+          },
+          logger: logger,
+        );
+        final spawn = _findHandler(plugin, 'isolate_spawn');
+
+        await expectLater(spawn({'code': '1'}), throwsStateError);
+
+        final errorRecord = sink.records.firstWhere(
+          (r) => r.message == 'Child platform creation failed',
+        );
+        expect(errorRecord.level, LogLevel.error);
+        expect(errorRecord.attributes['phase'], 'platform');
+        expect(errorRecord.error, isA<StateError>());
       });
 
       test('default logger name is IsolatePlugin', () {
@@ -1378,6 +1460,24 @@ class _DisposeBoomMock extends MontyPlatform {
     if (_disposeCallCount) return;
     _disposeCallCount = true;
     throw StateError('dispose boom');
+  }
+}
+
+/// Plugin whose [onRegister] throws, simulating an attachTo failure.
+class _AttachBoomPlugin extends MontyPlugin {
+  @override
+  String get namespace => 'boom';
+
+  @override
+  final String? systemPromptContext = null;
+
+  @override
+  List<HostFunction> get functions => [];
+
+  @override
+  Future<void> onRegister(MontyBridge bridge) async {
+    await super.onRegister(bridge);
+    throw StateError('attachTo boom');
   }
 }
 

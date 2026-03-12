@@ -300,41 +300,89 @@ class IsolatePlugin extends MontyPlugin {
       );
     }
 
-    // Create child platform and bridge.
-    final platform = await platformFactory();
-    final bridge = DefaultMontyBridge(platform: platform, limits: limits);
-    log.debug(
-      'Child bridge created',
-      attributes: {
-        'codeLength': code.length,
-        if (limits != null) 'limits': limits.toString(),
-      },
-    );
-
-    // Wire plugins onto child bridge.
-    // Wrapped in try/catch so platform and bridge are cleaned up if wiring
-    // fails (e.g. factory throws, plugin onRegister fails).
+    // Create child platform, bridge, and wire plugins.
+    // All phases are inside a single cleanup scope so that any failure
+    // disposes resources created in earlier phases.
+    MontyPlatform? platform;
+    DefaultMontyBridge? bridge;
     final registryFactory = childPluginRegistryFactory;
     PluginRegistry? childRegistry;
     try {
+      try {
+        platform = await platformFactory();
+      } on Object catch (e, st) {
+        log.error(
+          'Child platform creation failed',
+          error: e,
+          stackTrace: st,
+          attributes: {'phase': 'platform'},
+        );
+        rethrow;
+      }
+      bridge = DefaultMontyBridge(platform: platform, limits: limits);
+      log.debug(
+        'Child bridge created',
+        attributes: {
+          'codeLength': code.length,
+          if (limits != null) 'limits': limits.toString(),
+        },
+      );
+
+      // Wire plugins onto child bridge.
+      // Each phase is wrapped separately so we can log which stage failed.
       if (registryFactory != null) {
         // Explicit factory takes precedence.
-        childRegistry = await registryFactory();
+        try {
+          childRegistry = await registryFactory();
+        } on Object catch (e, st) {
+          log.error(
+            'Child plugin factory failed',
+            error: e,
+            stackTrace: st,
+            attributes: {'phase': 'factory'},
+          );
+          rethrow;
+        }
       } else if (parentPlugins.isNotEmpty) {
         // Auto-inherit from parent plugins via createChildInstance().
-        childRegistry = _buildInheritedRegistry();
+        try {
+          childRegistry = _buildInheritedRegistry();
+        } on Object catch (e, st) {
+          log.error(
+            'Child plugin inheritance failed',
+            error: e,
+            stackTrace: st,
+            attributes: {'phase': 'inheritance'},
+          );
+          rethrow;
+        }
       }
       if (childRegistry != null) {
-        await childRegistry.attachTo(bridge);
-        log.debug(
-          'Child plugins attached',
-          attributes: {'pluginCount': childRegistry.plugins.length},
-        );
+        // Capture plugin count before attachTo in case the registry is in a
+        // broken state after the error.
+        final pluginCount = childRegistry.plugins.length;
+        try {
+          await childRegistry.attachTo(bridge);
+          log.debug(
+            'Child plugins attached',
+            attributes: {'pluginCount': childRegistry.plugins.length},
+          );
+        } on Object catch (e, st) {
+          log.error(
+            'Child plugin attachment failed',
+            error: e,
+            stackTrace: st,
+            attributes: {
+              'phase': 'attachTo',
+              'pluginCount': pluginCount,
+            },
+          );
+          rethrow;
+        }
       }
-    } on Object catch (e, st) {
-      log.error('Child plugin wiring failed', error: e, stackTrace: st);
-      bridge.dispose();
-      await platform.dispose();
+    } on Object {
+      if (bridge != null) bridge.dispose();
+      if (platform != null) await platform.dispose();
       if (childRegistry != null) await childRegistry.disposeAll();
       rethrow;
     }
@@ -374,9 +422,11 @@ class IsolatePlugin extends MontyPlugin {
           ..printOutput = childPrintOutput;
 
         // Clean up child resources.
+        // bridge and platform are guaranteed non-null here — the try block
+        // succeeded before the stream listener was created.
         try {
-          bridge.dispose();
-          await platform.dispose();
+          bridge!.dispose();
+          await platform!.dispose();
           if (childRegistry != null) await childRegistry.disposeAll();
         } on Object catch (e, st) {
           log.warning(
