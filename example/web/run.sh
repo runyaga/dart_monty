@@ -32,7 +32,6 @@ echo ""
 echo "--- Copying assets ---"
 cp "$WASM_PKG/assets/dart_monty_bridge.js" "$WEB_DIR/"
 cp "$WASM_PKG/assets/dart_monty_worker.js" "$WEB_DIR/"
-cp "$WASM_PKG/assets/wasi-worker-browser.mjs" "$WEB_DIR/"
 cp "$WASM_PKG/assets/"*.wasm "$WEB_DIR/"
 echo "  Assets copied."
 
@@ -65,7 +64,6 @@ cleanup() {
   # Clean up copied files
   rm -f "$WEB_DIR/dart_monty_bridge.js" \
         "$WEB_DIR/dart_monty_worker.js" \
-        "$WEB_DIR/wasi-worker-browser.mjs" \
         "$WEB_DIR/"*.wasm \
         "$WEB_DIR/main.dart.js" \
         "$WEB_DIR/main.dart.js.deps" \

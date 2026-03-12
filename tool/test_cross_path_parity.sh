@@ -50,11 +50,6 @@ npx esbuild web/monty_worker_src.js \
   --platform=browser --external:'*.wasm' \
   --log-level=warning
 
-sed -i.bak 's|new URL("@pydantic/monty-wasm32-wasi/wasi-worker-browser.mjs"|new URL("./wasi-worker-browser.mjs"|g' \
-  web/monty_worker.js && rm -f web/monty_worker.js.bak
-
-cp node_modules/@pydantic/monty-wasm32-wasi/wasi-worker-browser.mjs web/ 2>/dev/null || true
-
 npx esbuild web/monty_glue.js \
   --bundle --format=iife \
   --outfile=web/monty_bundle.js \
@@ -252,7 +247,6 @@ if [ -d "$WASM_PKG/js" ]; then
   WASM_INTEG="$WASM_PKG/test/integration/web"
   cp "$WASM_PKG/assets/dart_monty_bridge.js" "$WASM_INTEG/"
   cp "$WASM_PKG/assets/dart_monty_worker.js" "$WASM_INTEG/"
-  cp "$WASM_PKG/assets/wasi-worker-browser.mjs" "$WASM_INTEG/"
   cp "$WASM_PKG/assets/"*.wasm "$WASM_INTEG/"
 
   cd "$WASM_PKG"
@@ -314,7 +308,6 @@ http.server.HTTPServer(('127.0.0.1', $SERVE_PORT), handler).serve_forever()
   # Clean up copied assets
   rm -f "$WASM_INTEG/dart_monty_bridge.js" \
         "$WASM_INTEG/dart_monty_worker.js" \
-        "$WASM_INTEG/wasi-worker-browser.mjs" \
         "$WASM_INTEG/"*.wasm \
         "$WASM_INTEG/ladder_runner.dart.js" \
         "$WASM_INTEG/ladder_runner.dart.js.deps" \

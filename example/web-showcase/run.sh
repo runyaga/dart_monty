@@ -31,7 +31,6 @@ echo ""
 echo "--- Copying WASM assets ---"
 cp "$WASM_PKG/assets/dart_monty_bridge.js" "$WEB_DIR/"
 cp "$WASM_PKG/assets/dart_monty_worker.js" "$WEB_DIR/"
-cp "$WASM_PKG/assets/wasi-worker-browser.mjs" "$WEB_DIR/"
 cp "$WASM_PKG/assets/"*.wasm "$WEB_DIR/"
 
 # Copy coi-serviceworker from the existing web example
@@ -58,7 +57,6 @@ cleanup() {
   # Clean up copied files
   rm -f "$WEB_DIR/dart_monty_bridge.js" \
         "$WEB_DIR/dart_monty_worker.js" \
-        "$WEB_DIR/wasi-worker-browser.mjs" \
         "$WEB_DIR/"*.wasm \
         "$WEB_DIR/showcase.dart.js" \
         "$WEB_DIR/showcase.dart.js.deps" \

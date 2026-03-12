@@ -22,7 +22,6 @@ fi
 echo "Copying assets to $INTEG_WEB..."
 cp "$PKG/assets/dart_monty_bridge.js" "$INTEG_WEB/"
 cp "$PKG/assets/dart_monty_worker.js" "$INTEG_WEB/"
-cp "$PKG/assets/wasi-worker-browser.mjs" "$INTEG_WEB/"
 cp "$PKG/assets/"*.wasm "$INTEG_WEB/"
 
 # --- Compile benchmark to JS ---
@@ -40,7 +39,6 @@ cleanup() {
   fi
   rm -f "$INTEG_WEB/dart_monty_bridge.js" \
         "$INTEG_WEB/dart_monty_worker.js" \
-        "$INTEG_WEB/wasi-worker-browser.mjs" \
         "$INTEG_WEB/"*.wasm \
         "$INTEG_WEB/cancel_benchmark.dart.js" \
         "$INTEG_WEB/cancel_benchmark.dart.js.deps" \

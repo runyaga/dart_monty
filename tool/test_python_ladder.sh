@@ -150,11 +150,6 @@ npx esbuild web/monty_worker_src.js \
   --external:'*.wasm' \
   --log-level=warning
 
-# Patch bare specifier for sub-worker URL
-sed -i.bak 's|new URL("@pydantic/monty-wasm32-wasi/wasi-worker-browser.mjs"|new URL("./wasi-worker-browser.mjs"|g' \
-  web/monty_worker.js && rm -f web/monty_worker.js.bak
-
-cp node_modules/@pydantic/monty-wasm32-wasi/wasi-worker-browser.mjs web/ 2>/dev/null || true
 cp node_modules/@pydantic/monty-wasm32-wasi/monty.wasm32-wasi.wasm web/ 2>/dev/null || true
 
 echo "  esbuild: bundle glue"

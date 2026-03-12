@@ -56,10 +56,9 @@ cd example/web && dart pub get
 dart compile js bin/main.dart -o web/main.dart.js
 cp ../../packages/dart_monty_wasm/assets/dart_monty_bridge.js web/
 cp ../../packages/dart_monty_wasm/assets/dart_monty_worker.js web/
-cp ../../packages/dart_monty_wasm/assets/wasi-worker-browser.mjs web/
 cp ../../packages/dart_monty_wasm/assets/*.wasm web/
 
-# Serve with COOP/COEP headers (required for SharedArrayBuffer)
+# Serve with COOP/COEP headers
 python3 -c "
 import http.server, functools
 class H(http.server.SimpleHTTPRequestHandler):

@@ -33,13 +33,6 @@ npx esbuild web/monty_worker_src.js \
   --external:'*.wasm' \
   --log-level=info
 
-# Patch bare specifier for sub-worker URL (esbuild can't resolve new URL() imports)
-sed -i.bak 's|new URL("@pydantic/monty-wasm32-wasi/wasi-worker-browser.mjs"|new URL("./wasi-worker-browser.mjs"|g' \
-  web/monty_worker.js && rm -f web/monty_worker.js.bak
-
-# Copy WASI sub-worker to web/ (needed at runtime by the Worker)
-cp node_modules/@pydantic/monty-wasm32-wasi/wasi-worker-browser.mjs web/ 2>/dev/null || true
-
 echo "--- esbuild: bundle glue (IIFE for main thread) ---"
 npx esbuild web/monty_glue.js \
   --bundle \
