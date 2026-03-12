@@ -66,18 +66,16 @@ jobs:
     needs: [ffigen]
     steps:
       - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
+      - uses: dart-lang/setup-dart@v1
         with:
-          flutter-version: '3.41.4'
-          channel: stable
-          cache: true
+          sdk: stable
       - name: Download FFI bindings
         uses: actions/download-artifact@v4
         with:
           name: ffi-bindings
           path: packages/dart_monty_ffi/lib/src/generated
-      - run: flutter pub get
-      - run: dart format --set-exit-if-changed .
+      - run: dart pub get
+      - run: dart format --language-version=3.10 --set-exit-if-changed .
       - name: Analyze sub-packages
         run: python3 tool/analyze_packages.py
 
@@ -112,17 +110,16 @@ jobs:
             min-coverage: '30'
           - target: dart_monty_wasm
             min-coverage: '70'
+            test-args: '--exclude-tags=browser'
           - target: dart_monty_bridge
             min-coverage: '50'
           - target: dart_monty_mcp
             min-coverage: '50'
     steps:
       - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
+      - uses: dart-lang/setup-dart@v1
         with:
-          flutter-version: '3.41.4'
-          channel: stable
-          cache: true
+          sdk: stable
       - name: Download FFI bindings
         if: matrix.target == 'dart_monty_ffi'
         uses: actions/download-artifact@v4
@@ -132,7 +129,7 @@ jobs:
       - name: Install dependencies
         run: cd packages/${{ matrix.target }} && dart pub get
       - name: Run tests
-        run: cd packages/${{ matrix.target }} && dart test --coverage=coverage
+        run: cd packages/${{ matrix.target }} && dart test ${{ matrix.test-args }} --coverage=coverage
       - name: Enforce coverage
         uses: ./.github/actions/enforce-coverage
         with:
@@ -148,60 +145,6 @@ jobs:
           name: lcov-${{ matrix.target }}
           path: packages/${{ matrix.target }}/coverage/lcov.info
           retention-days: 1
-
-  test-native:
-    name: Test (dart_monty_native)
-    runs-on: macos-latest
-    timeout-minutes: 15
-    needs: [ffigen]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.41.4'
-          channel: stable
-          cache: true
-      - name: Download FFI bindings
-        uses: actions/download-artifact@v4
-        with:
-          name: ffi-bindings
-          path: packages/dart_monty_ffi/lib/src/generated
-      - name: Install dependencies
-        run: cd packages/dart_monty_native && flutter pub get
-      - name: Run tests
-        run: cd packages/dart_monty_native && flutter test --coverage
-      - name: Enforce coverage
-        uses: ./.github/actions/enforce-coverage
-        with:
-          package-path: packages/dart_monty_native
-          min-coverage: '70'
-          codecov-token: ${{ secrets.CODECOV_TOKEN }}
-          codecov-flag: dart_monty_native
-      - name: Upload lcov artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: lcov-dart_monty_native
-          path: packages/dart_monty_native/coverage/lcov.info
-          retention-days: 1
-
-  test-web:
-    name: Test (dart_monty_web)
-    needs: [changes]
-    if: needs.changes.outputs.code == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.41.4'
-          channel: stable
-          cache: true
-      - name: Install dependencies
-        run: cd packages/dart_monty_web && flutter pub get
-      - name: Run tests (Chrome)
-        run: cd packages/dart_monty_web && flutter test --platform chrome
 
   build-js-wrapper:
     name: Build JS wrapper
@@ -247,11 +190,9 @@ jobs:
           node-version: '20'
           cache: 'npm'
           cache-dependency-path: packages/dart_monty_wasm/js/package-lock.json
-      - uses: subosito/flutter-action@v2
+      - uses: dart-lang/setup-dart@v1
         with:
-          flutter-version: '3.41.4'
-          channel: stable
-          cache: true
+          sdk: stable
       - name: Download WASM binary
         uses: actions/download-artifact@v4
         with:
@@ -457,7 +398,7 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [test, test-native]
+    needs: [test]
     steps:
       - uses: actions/checkout@v4
         with:

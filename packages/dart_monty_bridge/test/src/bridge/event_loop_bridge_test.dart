@@ -559,8 +559,7 @@ class _SyncOnlyMockPlatform extends MontyPlatform {
     List<String>? externalFunctions,
     MontyLimits? limits,
     String? scriptName,
-  }) async =>
-      _dequeueProgress();
+  }) async => _dequeueProgress();
 
   @override
   Future<MontyProgress> resume(Object? returnValue) async {
@@ -579,8 +578,7 @@ class _SyncOnlyMockPlatform extends MontyPlatform {
     String code, {
     MontyLimits? limits,
     String? scriptName,
-  }) async =>
-      throw UnimplementedError();
+  }) async => throw UnimplementedError();
 
   @override
   Future<void> dispose() async {}

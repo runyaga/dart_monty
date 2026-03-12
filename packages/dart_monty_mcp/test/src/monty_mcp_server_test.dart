@@ -18,7 +18,9 @@ MontyMcpServer _serverWithResult(Object? value) {
   return MontyMcpServer(
     platformFactory: () => MockMontyPlatform()
       ..enqueueProgress(
-        MontyComplete(result: MontyResult(value: value, usage: _usage)),
+        MontyComplete(
+          result: MontyResult(value: value, usage: _usage),
+        ),
       ),
   );
 }
@@ -194,21 +196,23 @@ void main() {
 
     test('registerHostFunction accepts valid name', () async {
       // Should not throw
-      final server = MontyMcpServer(
-        platformFactory: MockMontyPlatform.new,
-      )..registerHostFunction(
-          HostFunction(
-            schema: const HostFunctionSchema(
-              name: 'add',
-              description: 'Add two numbers',
-              params: [
-                HostParam(name: 'a', type: HostParamType.number),
-                HostParam(name: 'b', type: HostParamType.number),
-              ],
+      final server =
+          MontyMcpServer(
+            platformFactory: MockMontyPlatform.new,
+          )..registerHostFunction(
+            HostFunction(
+              schema: const HostFunctionSchema(
+                name: 'add',
+                description: 'Add two numbers',
+                params: [
+                  HostParam(name: 'a', type: HostParamType.number),
+                  HostParam(name: 'b', type: HostParamType.number),
+                ],
+              ),
+              handler: (args) async =>
+                  (args['a']! as num) + (args['b']! as num),
             ),
-            handler: (args) async => (args['a']! as num) + (args['b']! as num),
-          ),
-        );
+          );
 
       await server.dispose();
     });
@@ -278,34 +282,36 @@ void main() {
       await server.dispose();
     });
 
-    test('session created before registerHostFunction has no functions',
-        () async {
-      final server = MontyMcpServer(
-        platformFactory: () => _mockForSessionExec(
-          result: const MontyResult(value: 42, usage: _usage),
-        ),
-      );
-
-      // Create session BEFORE registering host function
-      server.sessionManager.createSession(id: 'early');
-
-      server.registerHostFunction(
-        HostFunction(
-          schema: const HostFunctionSchema(
-            name: 'late_fn',
-            description: 'Registered after session',
+    test(
+      'session created before registerHostFunction has no functions',
+      () async {
+        final server = MontyMcpServer(
+          platformFactory: () => _mockForSessionExec(
+            result: const MontyResult(value: 42, usage: _usage),
           ),
-          handler: (args) async => 'late',
-        ),
-      );
+        );
 
-      // Session should use run() path (no host functions on it)
-      final session = server.sessionManager.getSession('early')!;
-      final result = await session.execute('42');
-      expect(result.isError, isFalse);
+        // Create session BEFORE registering host function
+        server.sessionManager.createSession(id: 'early');
 
-      await server.dispose();
-    });
+        server.registerHostFunction(
+          HostFunction(
+            schema: const HostFunctionSchema(
+              name: 'late_fn',
+              description: 'Registered after session',
+            ),
+            handler: (args) async => 'late',
+          ),
+        );
+
+        // Session should use run() path (no host functions on it)
+        final session = server.sessionManager.getSession('early')!;
+        final result = await session.execute('42');
+        expect(result.isError, isFalse);
+
+        await server.dispose();
+      },
+    );
   });
 
   group('Built-in MCP tools via JSON-RPC', () {
@@ -520,21 +526,23 @@ void main() {
 
   group('Host function MCP tool callback', () {
     test('successful tool call validates params and returns result', () async {
-      final server = MontyMcpServer(
-        platformFactory: MockMontyPlatform.new,
-      )..registerHostFunction(
-          HostFunction(
-            schema: const HostFunctionSchema(
-              name: 'add',
-              description: 'Add two numbers',
-              params: [
-                HostParam(name: 'a', type: HostParamType.number),
-                HostParam(name: 'b', type: HostParamType.number),
-              ],
+      final server =
+          MontyMcpServer(
+            platformFactory: MockMontyPlatform.new,
+          )..registerHostFunction(
+            HostFunction(
+              schema: const HostFunctionSchema(
+                name: 'add',
+                description: 'Add two numbers',
+                params: [
+                  HostParam(name: 'a', type: HostParamType.number),
+                  HostParam(name: 'b', type: HostParamType.number),
+                ],
+              ),
+              handler: (args) async =>
+                  (args['a']! as num) + (args['b']! as num),
             ),
-            handler: (args) async => (args['a']! as num) + (args['b']! as num),
-          ),
-        );
+          );
 
       final transport = _TestTransport();
       await server.serve(transport);
@@ -576,17 +584,18 @@ void main() {
     });
 
     test('handler exception returns error via MCP tool callback', () async {
-      final server = MontyMcpServer(
-        platformFactory: MockMontyPlatform.new,
-      )..registerHostFunction(
-          HostFunction(
-            schema: const HostFunctionSchema(
-              name: 'fail_fn',
-              description: 'Always throws',
+      final server =
+          MontyMcpServer(
+            platformFactory: MockMontyPlatform.new,
+          )..registerHostFunction(
+            HostFunction(
+              schema: const HostFunctionSchema(
+                name: 'fail_fn',
+                description: 'Always throws',
+              ),
+              handler: (args) async => throw const FormatException('bad input'),
             ),
-            handler: (args) async => throw const FormatException('bad input'),
-          ),
-        );
+          );
 
       final transport = _TestTransport();
       await server.serve(transport);
@@ -635,28 +644,28 @@ class _TestPlugin extends MontyPlugin {
 
   @override
   List<HostFunction> get functions => [
-        HostFunction(
-          schema: const HostFunctionSchema(
-            name: 'add',
-            description: 'Add two numbers',
-            params: [
-              HostParam(name: 'a', type: HostParamType.number),
-              HostParam(name: 'b', type: HostParamType.number),
-            ],
-          ),
-          handler: (args) async => (args['a']! as num) + (args['b']! as num),
-        ),
-        HostFunction(
-          schema: const HostFunctionSchema(
-            name: 'greet',
-            description: 'Return greeting',
-            params: [
-              HostParam(name: 'name', type: HostParamType.string),
-            ],
-          ),
-          handler: (args) async => 'Hello, ${args['name']}!',
-        ),
-      ];
+    HostFunction(
+      schema: const HostFunctionSchema(
+        name: 'add',
+        description: 'Add two numbers',
+        params: [
+          HostParam(name: 'a', type: HostParamType.number),
+          HostParam(name: 'b', type: HostParamType.number),
+        ],
+      ),
+      handler: (args) async => (args['a']! as num) + (args['b']! as num),
+    ),
+    HostFunction(
+      schema: const HostFunctionSchema(
+        name: 'greet',
+        description: 'Return greeting',
+        params: [
+          HostParam(name: 'name', type: HostParamType.string),
+        ],
+      ),
+      handler: (args) async => 'Hello, ${args['name']}!',
+    ),
+  ];
 }
 
 String _text(CallToolResult result) =>

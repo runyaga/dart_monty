@@ -9,10 +9,11 @@ import 'package:monty_cli/src/verbose_logger.dart';
 ///
 /// Each handler receives positional [args] and optional [kwargs],
 /// returning the value that Python sees as the function's return value.
-typedef HostHandler = Object? Function(
-  List<Object?> args,
-  Map<String, Object?>? kwargs,
-);
+typedef HostHandler =
+    Object? Function(
+      List<Object?> args,
+      Map<String, Object?>? kwargs,
+    );
 
 /// Demonstrates the external function dispatch loop (start/resume).
 ///

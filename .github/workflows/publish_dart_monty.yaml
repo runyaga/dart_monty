@@ -13,6 +13,6 @@ jobs:
     with:
       package-name: dart_monty
       tag-prefix: v
-      uses-flutter: true
+      uses-flutter: false
       has-tests: false
       analyze-scope: lib

@@ -210,8 +210,7 @@ class _ThrowingMontyPlatform extends MontyPlatform {
     String code, {
     MontyLimits? limits,
     String? scriptName,
-  }) async =>
-      throw UnimplementedError();
+  }) async => throw UnimplementedError();
 
   @override
   Future<MontyProgress> start(
@@ -219,8 +218,7 @@ class _ThrowingMontyPlatform extends MontyPlatform {
     List<String>? externalFunctions,
     MontyLimits? limits,
     String? scriptName,
-  }) async =>
-      throw _exception;
+  }) async => throw _exception;
 
   @override
   Future<MontyProgress> resume(Object? returnValue) async =>

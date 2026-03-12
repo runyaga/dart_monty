@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:dart_monty_ffi/src/native_isolate_bindings.dart';
+import 'package:dart_monty_ffi/src/native_isolate_bindings_impl.dart';
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 import 'package:dart_monty_platform_interface/monty_backend_spi.dart';
 
@@ -11,7 +12,7 @@ import 'package:dart_monty_platform_interface/monty_backend_spi.dart';
 /// disposed.
 ///
 /// ```dart
-/// final monty = MontyNative(bindings: NativeIsolateBindingsImpl());
+/// final monty = MontyNative();
 /// await monty.initialize();
 /// final result = await monty.run('2 + 2');
 /// print(result.value); // 4
@@ -20,8 +21,11 @@ import 'package:dart_monty_platform_interface/monty_backend_spi.dart';
 class MontyNative extends MontyPlatform
     with MontyStateMixin
     implements MontySnapshotCapable, MontyFutureCapable {
-  /// Creates a [MontyNative] with the given [bindings].
-  MontyNative({required NativeIsolateBindings bindings}) : _bindings = bindings;
+  /// Creates a [MontyNative] with optional [bindings].
+  ///
+  /// Defaults to [NativeIsolateBindingsImpl] when omitted.
+  MontyNative({NativeIsolateBindings? bindings})
+    : _bindings = bindings ?? NativeIsolateBindingsImpl();
 
   final NativeIsolateBindings _bindings;
   bool _initialized = false;
@@ -94,7 +98,7 @@ class MontyNative extends MontyPlatform
   }
 
   @override
-  Future<MontyProgress> resume(Object? returnValue) async {
+  Future<MontyProgress> resume(Object? returnValue) {
     assertNotDisposed('resume');
     assertActive('resume');
 
@@ -102,7 +106,7 @@ class MontyNative extends MontyPlatform
   }
 
   @override
-  Future<MontyProgress> resumeWithError(String errorMessage) async {
+  Future<MontyProgress> resumeWithError(String errorMessage) {
     assertNotDisposed('resumeWithError');
     assertActive('resumeWithError');
 
@@ -110,7 +114,7 @@ class MontyNative extends MontyPlatform
   }
 
   @override
-  Future<MontyProgress> resumeAsFuture() async {
+  Future<MontyProgress> resumeAsFuture() {
     assertNotDisposed('resumeAsFuture');
     assertActive('resumeAsFuture');
 
@@ -121,7 +125,7 @@ class MontyNative extends MontyPlatform
   Future<MontyProgress> resolveFutures(
     Map<int, Object?> results, {
     Map<int, String>? errors,
-  }) async {
+  }) {
     assertNotDisposed('resolveFutures');
     assertActive('resolveFutures');
 

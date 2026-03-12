@@ -1,3 +1,7 @@
+## 0.8.0
+
+- Extract `MontyCancelRegistry` from `BaseMontyPlatform` for cleaner separation of concerns
+
 ## 0.7.2
 
 - Extract `monty_backend_spi.dart` SPI sub-library for backend implementers

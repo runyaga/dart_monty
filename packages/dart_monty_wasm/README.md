@@ -10,8 +10,8 @@ Part of [dart_monty](https://github.com/runyaga/dart_monty) — pure Dart bindin
 
 This package has no Flutter dependency and can be used in any Dart web project.
 
-- **Flutter apps** should import `dart_monty` instead — the federated plugin selects the correct backend automatically.
-- **Pure Dart web projects** can depend on this package directly to run Python via WASM in the browser.
+- **Most users** should import `dart_monty` instead — it selects the native or web backend at compile time via conditional imports.
+- **Direct usage** is for projects that need explicit control over the web backend (e.g. custom bindings, testing).
 
 ## Architecture
 
@@ -53,7 +53,7 @@ Cross-Origin-Embedder-Policy: require-corp
 import 'package:dart_monty_wasm/dart_monty_wasm.dart';
 
 Future<void> main() async {
-  final monty = MontyWasm(bindings: WasmBindingsJs());
+  final monty = MontyWasm();
 
   final result = await monty.run('2 + 2');
   print(result.value); // 4

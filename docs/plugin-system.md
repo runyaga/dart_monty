@@ -1,18 +1,19 @@
-# Plugin System — Federated Monty Platform
+# Plugin System — Monty Platform
 
 How the dart_monty packages fit together, how to use the platform API,
 and how host functions turn Dart code into a Python-callable library.
 
-## Federated Plugin Overview
+## Package Overview
 
-dart_monty follows Flutter's federated plugin pattern with pure-Dart
-packages (no Flutter dependency in the core):
+dart_monty is a pure Dart package. The `Monty()` convenience class
+selects the native or web backend at compile time via conditional imports
+— no Flutter required:
 
 ```text
 Your app / CLI
      │
      ▼
-MontyPlatform (abstract)        ← dart_monty_platform_interface
+Monty()                         ← dart_monty (conditional import factory)
      │
      ├── MontyFfi               ← dart_monty_ffi (desktop, native)
      │     └── NativeBindingsFfi    → dart:ffi → libdart_monty_native.dylib
@@ -20,15 +21,15 @@ MontyPlatform (abstract)        ← dart_monty_platform_interface
      ├── MontyWasm              ← dart_monty_wasm (browser)
      │     └── WasmBindingsJs       → dart:js_interop → Worker → WASM
      │
-     └── MontyNative            ← dart_monty_native (Flutter wrapper)
+     └── MontyNative            ← dart_monty_ffi (Isolate wrapper)
            └── NativeIsolateBindings → Isolate → MontyFfi
 ```
 
 **`MontyPlatform`** is the abstract contract. `MontyFfi` and `MontyWasm`
 are the two concrete backends. `MontyNative` wraps `MontyFfi` in a
-background Isolate for Flutter apps (keeps the UI thread free).
+background Isolate for long-running executions (keeps the UI thread free).
 
-All three backends produce identical `MontyResult`, `MontyProgress`, and
+All backends produce identical `MontyResult`, `MontyProgress`, and
 `MontyException` types for the same Python input.
 
 ## Quick Start
@@ -36,10 +37,10 @@ All three backends produce identical `MontyResult`, `MontyProgress`, and
 ### One-shot execution
 
 ```dart
-import 'package:dart_monty_ffi/dart_monty_ffi.dart';
+import 'package:dart_monty/dart_monty.dart';
 
 Future<void> main() async {
-  final monty = MontyFfi(bindings: NativeBindingsFfi());
+  final monty = Monty();
 
   final result = await monty.run('2 ** 10');
   print(result.value); // 1024
@@ -54,11 +55,10 @@ Future<void> main() async {
 across calls using snapshot/restore internally:
 
 ```dart
-import 'package:dart_monty_ffi/dart_monty_ffi.dart';
-import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
+import 'package:dart_monty/dart_monty.dart';
 
 Future<void> main() async {
-  final monty = MontyFfi(bindings: NativeBindingsFfi());
+  final monty = Monty();
   final session = MontySession(platform: monty);
 
   await session.run('x = 42');
@@ -131,8 +131,7 @@ functions are globals.
 ### Dart Side — Define and Dispatch
 
 ```dart
-import 'package:dart_monty_ffi/dart_monty_ffi.dart';
-import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
+import 'package:dart_monty/dart_monty.dart';
 
 /// Host function handlers — each takes (args, kwargs) and returns a value.
 typedef HostHandler = Object? Function(
@@ -184,7 +183,7 @@ double _babylonianSqrt(double n) {
 }
 
 Future<void> main() async {
-  final monty = MontyFfi(bindings: NativeBindingsFfi());
+  final monty = Monty();
 
   const code = '''
 a = sqrt(144)
@@ -342,7 +341,7 @@ if (monty is MontyFutureCapable) {
 |----------|---------|---------|
 | macOS, Linux | `dart_monty_ffi` | `MontyFfi` via `dart:ffi` |
 | Web (browser) | `dart_monty_wasm` | `MontyWasm` via JS bridge + Worker |
-| Flutter (all) | `dart_monty_native` | `MontyNative` (Isolate wrapper) |
+| Flutter (any) | `dart_monty_ffi` | `MontyNative` (Isolate wrapper around `MontyFfi`) |
 
 All backends implement the same `MontyPlatform` interface. Code written
 against the interface works on any platform without changes.

@@ -193,7 +193,6 @@ Future<void> _handleFfiBlock0(
   NativeBindingsFfi bindings,
 ) async {
   expect(block, contains('MontyFfi'));
-  expect(block, contains('NativeBindingsFfi'));
   expect(block, contains("run('2 + 2')"));
 
   final monty = MontyFfi(bindings: bindings);
@@ -223,7 +222,6 @@ Future<void> _handleFfiBlock0(
 /// wasm/README.md block 0: verify structure contains expected API calls.
 Future<void> _handleWasmBlock0(String block, NativeBindingsFfi _) async {
   expect(block, contains('MontyWasm'));
-  expect(block, contains('WasmBindingsJs'));
   expect(block, contains('run'));
 }
 
@@ -540,7 +538,7 @@ void main() {
     // -- root example: structure-only --
     test('example/example.dart: structure', () {
       final source = _readExample(repoRoot, 'example/example.dart');
-      expect(source, contains('MontyPlatform.instance'));
+      expect(source, contains('Monty()'));
       expect(source, contains('MontyLimits'));
       expect(source, contains('isError'));
     });

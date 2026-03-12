@@ -80,8 +80,7 @@ class _FakeCoreBindings implements MontyCoreBindings {
   Future<CoreProgressResult> resolveFutures(
     String resultsJson,
     String errorsJson,
-  ) async =>
-      throw UnimplementedError();
+  ) async => throw UnimplementedError();
 
   @override
   Future<Uint8List> snapshot() async => throw UnimplementedError();
@@ -319,8 +318,7 @@ void main() {
       expect(pending.kwargs, {'timeout': 30, 'retry': true});
     });
 
-    test(
-        'resolve_futures returns MontyResolveFutures '
+    test('resolve_futures returns MontyResolveFutures '
         'and marks active', () async {
       fake.progressResult = const CoreProgressResult(
         state: 'resolve_futures',

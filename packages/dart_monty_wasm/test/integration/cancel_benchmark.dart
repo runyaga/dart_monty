@@ -65,9 +65,9 @@ Future<void> runT1_1W({int n = 50}) async {
     // Start infinite loop on default session.
     final startCompleter = Completer<String>();
     _start('while True: pass'.toJS).toDart.then(
-          (result) => startCompleter.complete('OK:${result.toDart}'),
-          onError: (Object e) => startCompleter.complete('ERR:$e'),
-        );
+      (result) => startCompleter.complete('OK:${result.toDart}'),
+      onError: (Object e) => startCompleter.complete('ERR:$e'),
+    );
 
     await Future<void>.delayed(const Duration(milliseconds: 100));
 
@@ -86,10 +86,10 @@ Future<void> runT1_1W({int n = 50}) async {
       final key = result.contains('disposed')
           ? 'Session disposed'
           : result.contains('crashed')
-              ? 'Worker crashed'
-              : result.length > 50
-                  ? '${result.substring(0, 50)}...'
-                  : result;
+          ? 'Worker crashed'
+          : result.length > 50
+          ? '${result.substring(0, 50)}...'
+          : result;
       resolvedTypes[key] = (resolvedTypes[key] ?? 0) + 1;
     }
   }
@@ -141,9 +141,9 @@ Future<void> runT1_4W({int n = 50}) async {
 
     final startCompleter = Completer<String>();
     _start('while True: pass'.toJS).toDart.then(
-          (result) => startCompleter.complete('OK:${result.toDart}'),
-          onError: (Object e) => startCompleter.complete('ERR:$e'),
-        );
+      (result) => startCompleter.complete('OK:${result.toDart}'),
+      onError: (Object e) => startCompleter.complete('ERR:$e'),
+    );
 
     await Future<void>.delayed(const Duration(milliseconds: 100));
     _fastCancel(sid);
@@ -185,9 +185,9 @@ Future<void> runT2_2W({int n = 20}) async {
 
     final startCompleter = Completer<String>();
     _start('while True: pass'.toJS).toDart.then(
-          (result) => startCompleter.complete('OK:${result.toDart}'),
-          onError: (Object e) => startCompleter.complete('ERR:$e'),
-        );
+      (result) => startCompleter.complete('OK:${result.toDart}'),
+      onError: (Object e) => startCompleter.complete('ERR:$e'),
+    );
 
     await Future<void>.delayed(const Duration(milliseconds: 100));
 
@@ -231,9 +231,9 @@ Future<void> runT3_1W({int n = 100, int warmup = 5}) async {
 
     final startCompleter = Completer<void>();
     _start('while True: pass'.toJS).toDart.then(
-          (_) => startCompleter.complete(),
-          onError: (_) => startCompleter.complete(),
-        );
+      (_) => startCompleter.complete(),
+      onError: (_) => startCompleter.complete(),
+    );
 
     await Future<void>.delayed(const Duration(milliseconds: 100));
 

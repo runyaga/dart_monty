@@ -180,12 +180,12 @@ final class MontyPending extends MontyProgress {
 
   @override
   int get hashCode => Object.hash(
-        functionName,
-        _deepEquality.hash(arguments),
-        _deepEquality.hash(kwargs),
-        callId,
-        methodCall,
-      );
+    functionName,
+    _deepEquality.hash(arguments),
+    _deepEquality.hash(kwargs),
+    callId,
+    methodCall,
+  );
 
   @override
   String toString() => 'MontyPending($functionName, $arguments)';

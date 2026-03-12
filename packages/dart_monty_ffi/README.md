@@ -10,8 +10,8 @@ Part of [dart_monty](https://github.com/runyaga/dart_monty) — pure Dart bindin
 
 This package has no Flutter dependency and can be used in CLI tools, server-side Dart, or any Dart project.
 
-- **Flutter apps** should import `dart_monty` instead — the federated plugin selects the correct backend automatically.
-- **Pure Dart projects** (CLI, server) can depend on this package directly to run Python via the native Rust library.
+- **Most users** should import `dart_monty` instead — it selects the native or web backend at compile time via conditional imports.
+- **Direct usage** is for projects that need explicit control over the backend (e.g. custom bindings, testing).
 
 ## Architecture
 
@@ -46,7 +46,7 @@ import 'package:dart_monty_ffi/dart_monty_ffi.dart';
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 
 Future<void> main() async {
-  final monty = MontyFfi(bindings: NativeBindingsFfi());
+  final monty = MontyFfi();
 
   // Simple execution
   final result = await monty.run('2 + 2');

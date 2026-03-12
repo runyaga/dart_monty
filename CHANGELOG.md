@@ -1,3 +1,11 @@
+## 0.9.0
+
+- **Pure Dart** — remove Flutter SDK dependency; all packages are pure Dart with compile-time conditional imports
+- **`Monty()` convenience class** — auto-selects native (FFI) or web (WASM) backend via `dart.library.ffi` / `dart.library.js_interop`
+- **Zero-arg constructors** — `MontyFfi()`, `MontyNative()`, `MontyWasm()` now default to production bindings
+- **`Monty.withPlatform()`** — explicit backend injection for testing or custom bindings
+- SDK constraint raised to `^3.10.0`
+
 ## 0.8.1
 
 - Fix CI release workflow: add WASM build step, remove broken AOT compilation

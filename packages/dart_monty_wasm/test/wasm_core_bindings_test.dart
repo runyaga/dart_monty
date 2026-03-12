@@ -537,15 +537,17 @@ void main() {
       );
     });
 
-    test('resumeWithError: MontyCancelled prefix throws MontyCancelledError',
-        () async {
-      mock.throwOnResumeWithError = 'MontyCancelled: Worker terminated';
+    test(
+      'resumeWithError: MontyCancelled prefix throws MontyCancelledError',
+      () async {
+        mock.throwOnResumeWithError = 'MontyCancelled: Worker terminated';
 
-      await expectLater(
-        () => bindings.resumeWithError('err'),
-        throwsA(isA<MontyCancelledError>()),
-      );
-    });
+        await expectLater(
+          () => bindings.resumeWithError('err'),
+          throwsA(isA<MontyCancelledError>()),
+        );
+      },
+    );
   });
 
   // ===========================================================================

@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:dart_monty_ffi/src/ffi_core_bindings.dart';
 import 'package:dart_monty_ffi/src/native_bindings.dart';
+import 'package:dart_monty_ffi/src/native_bindings_ffi.dart';
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 import 'package:dart_monty_platform_interface/monty_backend_spi.dart';
 
@@ -13,17 +14,21 @@ import 'package:dart_monty_platform_interface/monty_backend_spi.dart';
 /// by delegating to [FfiCoreBindings].
 ///
 /// ```dart
-/// final monty = MontyFfi(bindings: NativeBindingsFfi());
+/// final monty = MontyFfi();
 /// final result = await monty.run('2 + 2');
 /// print(result.value); // 4
 /// await monty.dispose();
 /// ```
 class MontyFfi extends BaseMontyPlatform
     implements MontySnapshotCapable, MontyFutureCapable {
-  /// Creates a [MontyFfi] with the given [bindings].
-  factory MontyFfi({required NativeBindings bindings}) {
-    final core = FfiCoreBindings(bindings: bindings);
-    return MontyFfi._(coreBindings: core, nativeBindings: bindings);
+  /// Creates a [MontyFfi] with optional [bindings].
+  ///
+  /// Defaults to [NativeBindingsFfi] when omitted.
+  factory MontyFfi({NativeBindings? bindings}) {
+    final b = bindings ?? NativeBindingsFfi();
+    final core = FfiCoreBindings(bindings: b);
+
+    return MontyFfi._(coreBindings: core, nativeBindings: b);
   }
 
   /// Creates a [MontyFfi] with pre-built [FfiCoreBindings].
@@ -52,6 +57,7 @@ class MontyFfi extends BaseMontyPlatform
     assertNotDisposed('resumeAsFuture');
     assertActive('resumeAsFuture');
     final progress = await coreBindings.resumeAsFuture();
+
     return translateProgress(progress);
   }
 
@@ -74,13 +80,15 @@ class MontyFfi extends BaseMontyPlatform
       resultsJson,
       errorsJson,
     );
+
     return translateProgress(progress);
   }
 
   @override
-  Future<Uint8List> snapshot() async {
+  Future<Uint8List> snapshot() {
     assertNotDisposed('snapshot');
     assertActive('snapshot');
+
     return coreBindings.snapshot();
   }
 
@@ -90,6 +98,7 @@ class MontyFfi extends BaseMontyPlatform
     assertIdle('restore');
     final core = FfiCoreBindings(bindings: _nativeBindings);
     await core.restoreSnapshot(data);
+
     return MontyFfi._(coreBindings: core, nativeBindings: _nativeBindings)
       ..markActive();
   }

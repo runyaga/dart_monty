@@ -7,14 +7,15 @@ import 'package:monty_cli/src/commands/run_command.dart';
 /// The top-level command runner for the monty CLI.
 CommandRunner<int> buildRunner() {
   return CommandRunner<int>(
-    'dmonty',
-    'Standalone CLI for the Monty sandboxed Python interpreter.',
-  )
+      'dmonty',
+      'Standalone CLI for the Monty sandboxed Python interpreter.',
+    )
     ..argParser.addMultiOption(
       'prompt',
       abbr: 'p',
       splitCommas: false,
-      help: 'Execute Python expression(s) in a single session.\n'
+      help:
+          'Execute Python expression(s) in a single session.\n'
           'Can be repeated: -p "x=1" -p "x+1"',
       valueHelp: 'expression',
     )

@@ -6,7 +6,7 @@ Everything needed to build, test, and contribute to dart\_monty.
 
 ### Dart SDK
 
-Used for the platform interface and FFI packages (M1-M4, pure Dart).
+Required for all packages (pure Dart).
 
 ```bash
 # macOS
@@ -15,11 +15,12 @@ brew install dart-sdk
 brew install --cask flutter
 ```
 
-Verify: `dart --version` (>= 3.5)
+Verify: `dart --version` (>= 3.10)
 
-### Flutter SDK
+### Flutter SDK (optional)
 
-Required from M5 onward (Flutter plugin packages). Optional for M1-M4.
+Only needed for Flutter-specific integration tests. All dart_monty packages
+are pure Dart and do not require Flutter.
 
 ```bash
 brew install --cask flutter
@@ -187,8 +188,8 @@ bash tool/test_rust.sh
 
 | Tool | Version | Purpose | Required From |
 |------|---------|---------|---------------|
-| Dart SDK | >= 3.5 | Dart compilation, analysis, testing | M1 |
-| Flutter SDK | >= 3.24 | Flutter plugin testing | M5 |
+| Dart SDK | >= 3.10 | Dart compilation, analysis, testing | M1 |
+| Flutter SDK | (optional) | Flutter-specific integration tests | — |
 | Rust (rustup) | >= 1.91 | Native + WASM compilation | M2 |
 | Python 3 | >= 3.10 | Developer scripts, linting | M1 |
 | pre-commit | any | Git hook automation | M1 |

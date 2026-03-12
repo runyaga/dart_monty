@@ -3,7 +3,7 @@
 import 'package:dart_monty/dart_monty.dart';
 
 Future<void> main() async {
-  final monty = MontyPlatform.instance;
+  final monty = Monty();
 
   // Run a simple Python expression.
   final result = await monty.run('2 + 2');
@@ -12,7 +12,7 @@ Future<void> main() async {
   // Run with resource limits.
   final limited = await monty.run(
     'sum(range(100))',
-    limits: MontyLimits(timeoutMs: 5000, memoryBytes: 10 * 1024 * 1024),
+    limits: const MontyLimits(timeoutMs: 5000, memoryBytes: 10 * 1024 * 1024),
   );
   print('Sum: ${limited.value}'); // 4950
 
