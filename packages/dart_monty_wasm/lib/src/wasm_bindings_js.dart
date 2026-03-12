@@ -16,95 +16,104 @@ extension type _SnapshotResult._(JSObject _) implements JSObject {
 }
 
 // ---------------------------------------------------------------------------
-// JS interop for instance-based DartMontyBridge
+// JS interop for window.DartMontyBridge (static method API)
 // ---------------------------------------------------------------------------
+//
+// The JS bridge exposes `window.DartMontyBridge` as a plain object with
+// static methods — NOT a constructor. Each method operates on an internal
+// Worker session pool managed by sessionId.
 
-/// Binds to the JS `DartMontyBridge` class exposed on `window`.
-///
-/// Each instance manages its own Worker for session isolation.
-/// Instance fields (not static) prevent cross-session promise routing bugs
-/// when multiple WASM sessions exist concurrently.
-@JS('DartMontyBridge')
-extension type JsDartMontyBridge._(JSObject _) implements JSObject {
-  /// Creates a new JS `DartMontyBridge` instance with its own Worker.
-  external JsDartMontyBridge();
+@JS('DartMontyBridge.init')
+external JSPromise<JSBoolean> _jsInit();
 
-  /// Initializes the Worker and loads the WASM module.
-  external JSPromise<JSBoolean> init();
+@JS('DartMontyBridge.run')
+external JSPromise<JSString> _jsRun(
+  JSString code, [
+  JSString? limitsJson,
+  JSString? scriptName,
+]);
 
-  /// Runs Python [code] to completion.
-  external JSPromise<JSString> run(
-    JSString code, [
-    JSString? limitsJson,
-    JSString? scriptName,
-  ]);
+@JS('DartMontyBridge.start')
+external JSPromise<JSString> _jsStart(
+  JSString code, [
+  JSString? extFnsJson,
+  JSString? limitsJson,
+  JSString? scriptName,
+]);
 
-  /// Starts iterative execution of [code] with optional external functions.
-  external JSPromise<JSString> start(
-    JSString code, [
-    JSString? extFnsJson,
-    JSString? limitsJson,
-    JSString? scriptName,
-  ]);
+@JS('DartMontyBridge.resume')
+external JSPromise<JSString> _jsResume(JSString valueJson);
 
-  /// Resumes paused execution with [valueJson].
-  external JSPromise<JSString> resume(JSString valueJson);
+@JS('DartMontyBridge.resumeWithError')
+external JSPromise<JSString> _jsResumeWithError(JSString errorJson);
 
-  /// Resumes paused execution by injecting an error.
-  external JSPromise<JSString> resumeWithError(JSString errorJson);
+@JS('DartMontyBridge.resumeAsFuture')
+external JSPromise<JSString> _jsResumeAsFuture();
 
-  /// Resumes by creating a future for the pending call.
-  external JSPromise<JSString> resumeAsFuture();
+@JS('DartMontyBridge.resolveFutures')
+external JSPromise<JSString> _jsResolveFutures(
+  JSString resultsJson,
+  JSString errorsJson,
+);
 
-  /// Resolves pending futures with results and errors.
-  external JSPromise<JSString> resolveFutures(
-    JSString resultsJson,
-    JSString errorsJson,
-  );
+@JS('DartMontyBridge.snapshot')
+external JSPromise<JSAny> _jsSnapshot();
 
-  /// Captures the current interpreter state as a binary snapshot.
-  external JSPromise<JSAny> snapshot();
+@JS('DartMontyBridge.restore')
+external JSPromise<JSString> _jsRestore(JSString dataBase64);
 
-  /// Restores interpreter state from a base64-encoded snapshot.
-  external JSPromise<JSString> restore(JSString dataBase64);
+@JS('DartMontyBridge.discover')
+external JSString _jsDiscover();
 
-  /// Returns JSON describing the bridge state.
-  external JSString discover();
+@JS('DartMontyBridge.cancel')
+external JSPromise<JSString> _jsCancel();
 
-  /// Terminates the Worker and rejects pending promises.
-  external JSPromise<JSString> cancel();
+@JS('DartMontyBridge.dispose')
+external JSPromise<JSString> _jsDispose();
 
-  /// Disposes the Worker session, rejecting pending promises first.
-  external JSPromise<JSString> dispose();
-}
+@JS('DartMontyBridge.disposeSession')
+external void _jsDisposeSession(JSNumber sessionId);
 
 /// Concrete [WasmBindings] implementation using `dart:js_interop`.
 ///
-/// Each instance holds its own [JsDartMontyBridge] JS object, which in turn
-/// manages its own Web Worker hosting the @pydantic/monty WASM runtime.
+/// Calls static methods on `window.DartMontyBridge`, which manages a
+/// Worker session pool internally. The default session (created by `init()`)
+/// is used for all operations.
 class WasmBindingsJs extends WasmBindings {
   /// Creates a [WasmBindingsJs].
   WasmBindingsJs();
 
-  late final JsDartMontyBridge _bridge = JsDartMontyBridge();
+  bool _initialized = false;
+
+  /// Ensures the default JS bridge session is initialized.
+  ///
+  /// The static `DartMontyBridge.init()` creates a default Worker session.
+  /// All subsequent static calls (`run`, `start`, etc.) route to this
+  /// default session automatically.
+  Future<void> _ensureInit() async {
+    if (_initialized) return;
+    await _jsInit().toDart;
+    _initialized = true;
+  }
 
   @override
   Future<bool> init() async {
-    final result = await _bridge.init().toDart;
-
-    return result.toDart;
+    await _ensureInit();
+    return true;
   }
 
   @override
   Future<int> createSession() async {
-    // Instance-based bridge: each WasmBindingsJs IS a session.
-    // Return a synthetic ID; real session routing is per-bridge-instance.
+    // WasmCoreBindings calls createSession() during its init().
+    // Ensure the JS bridge default session exists first, then return
+    // a synthetic ID. All static method calls route to the default session.
+    await _ensureInit();
     return 1;
   }
 
   @override
   Future<void> disposeSession(int sessionId) async {
-    // No-op: instance-based bridge handles cleanup in dispose().
+    _jsDisposeSession(sessionId.toJS);
   }
 
   @override
@@ -113,9 +122,11 @@ class WasmBindingsJs extends WasmBindings {
     String? limitsJson,
     String? scriptName,
   }) async {
-    final resultJson = await _bridge
-        .run(code.toJS, limitsJson?.toJS, scriptName?.toJS)
-        .toDart;
+    final resultJson = await _jsRun(
+      code.toJS,
+      limitsJson?.toJS,
+      scriptName?.toJS,
+    ).toDart;
     final map = json.decode(resultJson.toDart) as Map<String, dynamic>;
     final rawTraceback = map['traceback'] as List<Object?>?;
 
@@ -137,16 +148,19 @@ class WasmBindingsJs extends WasmBindings {
     String? limitsJson,
     String? scriptName,
   }) async {
-    final resultJson = await _bridge
-        .start(code.toJS, extFnsJson?.toJS, limitsJson?.toJS, scriptName?.toJS)
-        .toDart;
+    final resultJson = await _jsStart(
+      code.toJS,
+      extFnsJson?.toJS,
+      limitsJson?.toJS,
+      scriptName?.toJS,
+    ).toDart;
 
     return _decodeProgress(resultJson.toDart);
   }
 
   @override
   Future<WasmProgressResult> resume(String valueJson) async {
-    final resultJson = await _bridge.resume(valueJson.toJS).toDart;
+    final resultJson = await _jsResume(valueJson.toJS).toDart;
 
     return _decodeProgress(resultJson.toDart);
   }
@@ -154,14 +168,14 @@ class WasmBindingsJs extends WasmBindings {
   @override
   Future<WasmProgressResult> resumeWithError(String errorMessage) async {
     final errorJson = json.encode(errorMessage);
-    final resultJson = await _bridge.resumeWithError(errorJson.toJS).toDart;
+    final resultJson = await _jsResumeWithError(errorJson.toJS).toDart;
 
     return _decodeProgress(resultJson.toDart);
   }
 
   @override
   Future<WasmProgressResult> resumeAsFuture() async {
-    final resultJson = await _bridge.resumeAsFuture().toDart;
+    final resultJson = await _jsResumeAsFuture().toDart;
 
     return _decodeProgress(resultJson.toDart);
   }
@@ -171,16 +185,17 @@ class WasmBindingsJs extends WasmBindings {
     String resultsJson,
     String errorsJson,
   ) async {
-    final resultJson = await _bridge
-        .resolveFutures(resultsJson.toJS, errorsJson.toJS)
-        .toDart;
+    final resultJson = await _jsResolveFutures(
+      resultsJson.toJS,
+      errorsJson.toJS,
+    ).toDart;
 
     return _decodeProgress(resultJson.toDart);
   }
 
   @override
   Future<Uint8List> snapshot() async {
-    final jsAny = await _bridge.snapshot().toDart;
+    final jsAny = await _jsSnapshot().toDart;
     final result = jsAny as _SnapshotResult;
     if (!result.ok.toDart) {
       throw StateError(result.error?.toDart ?? 'Snapshot failed');
@@ -191,7 +206,7 @@ class WasmBindingsJs extends WasmBindings {
   @override
   Future<void> restore(Uint8List data) async {
     final dataBase64 = base64Encode(data);
-    final resultJson = await _bridge.restore(dataBase64.toJS).toDart;
+    final resultJson = await _jsRestore(dataBase64.toJS).toDart;
     final map = json.decode(resultJson.toDart) as Map<String, dynamic>;
     if (map['ok'] != true) {
       throw StateError(map['error'] as String? ?? 'Restore failed');
@@ -200,7 +215,7 @@ class WasmBindingsJs extends WasmBindings {
 
   @override
   Future<WasmDiscoverResult> discover() async {
-    final jsonStr = _bridge.discover().toDart;
+    final jsonStr = _jsDiscover().toDart;
     final map = json.decode(jsonStr) as Map<String, dynamic>;
 
     return WasmDiscoverResult(
@@ -211,14 +226,12 @@ class WasmBindingsJs extends WasmBindings {
 
   @override
   Future<void> cancel() async {
-    await _bridge.cancel().toDart;
-    // Always succeeds (idempotent). No error parsing needed.
+    await _jsCancel().toDart;
   }
 
   @override
   Future<void> dispose() async {
-    await _bridge.dispose().toDart;
-    // Always succeeds — Worker terminated.
+    await _jsDispose().toDart;
   }
 
   // ---------------------------------------------------------------------------
