@@ -2,18 +2,23 @@
 
 ## Quick Orientation
 
-dart_monty is a Flutter federated plugin that exposes the Monty sandboxed
-Python interpreter to Dart and Flutter applications. It wraps pydantic's
-`monty` Rust crate via two execution paths: native (FFI to a shared library)
-and web (JS interop to a WASM module running in a Web Worker). A single
-Flutter app automatically selects the correct backend at registration time.
+dart_monty is a pure Dart package that exposes the Monty sandboxed Python
+interpreter to Dart and Flutter applications. It wraps pydantic's `monty`
+Rust crate via two execution paths: native (FFI to a shared library) and
+web (JS interop to a WASM module running in a Web Worker). The `Monty()`
+convenience class selects the correct backend at compile time via Dart
+conditional imports — no Flutter required.
 
 ## Package Dependency Graph
 
 ```text
-dart_monty                           (app-facing API — thin re-export)
+dart_monty                           (app-facing API — Monty() + conditional imports)
+  │  Monty class delegates to createPlatformMonty():
+  │    if (dart.library.ffi)           → MontyFfi()
+  │    if (dart.library.js_interop)    → MontyWasm()
+  │
   ├── dart_monty_platform_interface    (abstract contract, pure Dart)
-  │     ├── MontyPlatform              (abstract class, singleton)
+  │     ├── MontyPlatform              (abstract class)
   │     ├── BaseMontyPlatform          (shared logic: run/start/resume/dispose)
   │     ├── MontyCoreBindings          (unified bindings contract)
   │     ├── MontyStateMixin            (shared state machine lifecycle)
@@ -28,35 +33,28 @@ dart_monty                           (app-facing API — thin re-export)
   │     ├── FfiCoreBindings            (implements MontyCoreBindings)
   │     ├── MontyFfi                   (extends BaseMontyPlatform)
   │     │     implements MontySnapshotCapable, MontyFutureCapable
+  │     ├── MontyNative                (Isolate-based wrapper around MontyFfi)
+  │     │     implements MontySnapshotCapable, MontyFutureCapable
   │     └── NativeLibraryLoader
   │
-  ├── dart_monty_wasm                  (pure Dart, dart:js_interop)
-  │     ├── WasmBindings               (abstract) → WasmBindingsJs (JS bridge)
-  │     ├── WasmCoreBindings           (implements MontyCoreBindings)
-  │     ├── MontyWasm                  (extends BaseMontyPlatform)
-  │     │     implements MontySnapshotCapable
-  │     └── js/                        (bridge.js + worker_src.js)
-  │
-  ├── dart_monty_native               (Flutter plugin — native platforms)
-  │     ├── DartMontyNative           (registration + ffiPlugin: true)
-  │     ├── NativeIsolateBindings     (abstract) → NativeIsolateBindingsImpl
-  │     └── MontyNative               (extends MontyPlatform with MontyStateMixin)
-  │           implements MontySnapshotCapable, MontyFutureCapable
-  │
-  └── dart_monty_web                   (Flutter plugin — web)
-        └── DartMontyWeb               (registration shim, delegates to MontyWasm)
+  └── dart_monty_wasm                  (pure Dart, dart:js_interop)
+        ├── WasmBindings               (abstract) → WasmBindingsJs (JS bridge)
+        ├── WasmCoreBindings           (implements MontyCoreBindings)
+        ├── MontyWasm                  (extends BaseMontyPlatform)
+        │     implements MontySnapshotCapable
+        └── js/                        (bridge.js + worker_src.js)
 ```
 
 ## Platform Support Matrix
 
 | Platform | Package | Status | Library |
 |----------|---------|--------|---------|
-| macOS | dart_monty_native | Supported | `.dylib` |
-| Linux | dart_monty_native | Supported | `.so` |
-| Web | dart_monty_web | Supported | WASM via Worker |
-| iOS | dart_monty_native | Planned (M9) | `.a` static |
-| Android | dart_monty_native | Planned (M9) | `.so` via NDK |
-| Windows | dart_monty_native | Planned (M9) | `.dll` via MSVC |
+| macOS | dart_monty_ffi | Supported | `.dylib` |
+| Linux | dart_monty_ffi | Supported | `.so` |
+| Web | dart_monty_wasm | Supported | WASM via Worker |
+| iOS | dart_monty_ffi | Planned (M9) | `.a` static |
+| Android | dart_monty_ffi | Planned (M9) | `.so` via NDK |
+| Windows | dart_monty_ffi | Planned (M9) | `.dll` via MSVC |
 
 ## BaseMontyPlatform and MontyCoreBindings
 
@@ -286,14 +284,9 @@ WASM) must produce identical `MontyResult` values and identical
 
 ## Execution Paths — Web
 
-`DartMontyWeb` exists solely to satisfy Flutter's federated plugin convention.
-It contains no logic — `registerWith()` sets `MontyPlatform.instance` to a
-`MontyWasm` instance, and all subsequent calls go through `MontyWasm` directly:
-
 ```text
-Flutter app
-  → DartMontyWeb.registerWith()     (one-time, sets MontyPlatform.instance)
-  → MontyWasm                       (extends MontyPlatform, owns state machine)
+Dart app (compiled to JS)
+  → Monty() → MontyWasm             (via conditional import, extends MontyPlatform)
     → WasmBindingsJs                (dart:js_interop bridge to monty_glue.js)
       → monty_glue.js               (main-thread ↔ Worker postMessage relay)
         → Web Worker                (imports @pydantic/monty-wasm32-wasi)
@@ -320,20 +313,28 @@ within a single `MontyWasm` instance.
 ## Execution Paths — Native
 
 ```text
-Flutter app
-  → DartMontyNative.registerWith()    # Flutter plugin registration
-    → MontyNative                     # MontyPlatform impl + MontyStateMixin
-      → NativeIsolateBindingsImpl         # Isolate bridge
-        → Isolate (same-group)         # Background thread
-          → MontyFfi                   # MontyPlatform impl (pure Dart, no Flutter)
-            → NativeBindingsFfi        # dart:ffi calls
-              → libdart_monty_native   # Rust shared library (.dylib/.so/.dll)
-                → monty (Rust crate)   # Sandboxed Python interpreter
+Dart app
+  → Monty() → MontyFfi               # via conditional import (dart.library.ffi)
+    → NativeBindingsFfi              # dart:ffi calls
+      → libdart_monty_native         # Rust shared library (.dylib/.so/.dll)
+        → monty (Rust crate)         # Sandboxed Python interpreter
+```
+
+For Flutter apps or long-running executions, use `MontyNative` (from
+`dart_monty_ffi`) which wraps `MontyFfi` in a background Isolate:
+
+```text
+Dart app
+  → MontyNative                      # Isolate-based wrapper
+    → NativeIsolateBindingsImpl      # Isolate bridge
+      → Isolate (same-group)         # Background thread
+        → MontyFfi                   # dart:ffi bindings
+          → libdart_monty_native     # Rust shared library
 ```
 
 **Why an Isolate:** FFI calls into the Monty Rust crate are synchronous
 and can block for hundreds of milliseconds (compilation, execution with
-limits). Running them on a background Isolate keeps the Flutter UI thread
+limits). Running them on a background Isolate keeps the UI thread
 responsive.
 
 **Isolate protocol:** `NativeIsolateBindingsImpl` spawns a same-group Isolate

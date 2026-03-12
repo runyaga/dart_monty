@@ -2,16 +2,16 @@
 
 ## Prerequisites
 
-- Dart SDK >= 3.5.0
-- Flutter SDK >= 3.24.0
+- Dart SDK >= 3.10.0
 - Rust stable (for native builds)
 - Node.js >= 20 (for WASM JS bridge)
 - Python 3.12+ (for tooling scripts)
+- Flutter SDK (optional — only needed for Flutter-specific integration tests)
 
 ## Quick Start
 
 ```bash
-flutter pub get
+dart pub get
 dart format .
 python3 tool/analyze_packages.py
 cd packages/dart_monty_platform_interface && dart test
@@ -130,7 +130,7 @@ Packages are published individually to pub.dev using **OIDC automated
 publishing**. No tokens or secrets needed — GitHub Actions generates a
 short-lived OIDC token that pub.dev verifies directly.
 
-Each package has a thin publish workflow triggered by a tag push. All six
+Each package has a thin publish workflow triggered by a tag push. They
 call the shared `_publish-dart-package.yaml` reusable workflow via
 `workflow_call`, passing package-specific inputs (`uses-flutter`,
 `needs-ffigen`, `has-tests`, `analyze-scope`):

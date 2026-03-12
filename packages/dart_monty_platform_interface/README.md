@@ -10,8 +10,8 @@ Part of [dart_monty](https://github.com/runyaga/dart_monty) — pure Dart bindin
 
 This package has no Flutter dependency and can be used in CLI tools, server-side Dart, or any Dart project.
 
-- **Flutter apps** should import `dart_monty` instead — the federated plugin selects the correct backend automatically.
-- **Pure Dart projects** (CLI, server) can depend on this package directly alongside `dart_monty_ffi` or `dart_monty_wasm`.
+- **Most users** should import `dart_monty` instead — it selects the native or web backend at compile time via conditional imports.
+- **Direct usage** is for backend implementers or projects that need fine-grained type access.
 
 ## Key Types
 

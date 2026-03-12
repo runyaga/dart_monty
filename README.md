@@ -38,17 +38,15 @@
 ## Installation
 
 ```bash
-flutter pub add dart_monty
+dart pub add dart_monty
 ```
 
 ## Usage
 
 ```dart
-import 'dart:convert';
-import 'package:http/http.dart' as http;
 import 'package:dart_monty/dart_monty.dart';
 
-final monty = MontyPlatform.instance;
+final monty = Monty();
 
 // Simple execution
 final result = await monty.run('2 + 2');
@@ -57,7 +55,7 @@ print(result.value); // 4
 // With resource limits
 final limited = await monty.run(
   'fib(30)',
-  limits: MontyLimits(timeoutMs: 5000, memoryBytes: 10 * 1024 * 1024),
+  limits: const MontyLimits(timeoutMs: 5000, memoryBytes: 10 * 1024 * 1024),
 );
 ```
 
@@ -148,7 +146,7 @@ snapshot/restore under the hood:
 ```dart
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 
-final session = MontySession(platform: MontyPlatform.instance);
+final session = MontySession(platform: Monty());
 
 // Globals persist across run() calls via snapshot/restore
 await session.run('x = 42');
@@ -194,35 +192,32 @@ See [docs/architecture.md](docs/architecture.md) for detailed architecture
 documentation including state machine contracts, memory management, error
 handling, and cross-backend parity guarantees.
 
-Federated plugin with six packages:
+dart_monty selects the native or web backend at compile time via conditional
+imports — no Flutter required. Four pure-Dart packages:
 
-| Package | Type | Description |
-|---------|------|-------------|
-| `dart_monty` | Flutter plugin | App-facing API |
-| `dart_monty_platform_interface` | **Pure Dart** | Abstract contract — no Flutter dependency |
-| `dart_monty_ffi` | **Pure Dart** | Native FFI bindings (`dart:ffi` -> Rust) |
-| `dart_monty_wasm` | **Pure Dart** | WASM bindings (`dart:js_interop` -> Web Worker) |
-| `dart_monty_native` | Flutter plugin | Native platform registration shim (delegates to `dart_monty_ffi`) |
-| `dart_monty_web` | Flutter plugin | Web platform (browser, script injection) |
+| Package | Description |
+|---------|-------------|
+| `dart_monty` | App-facing API — `Monty()` convenience class with compile-time backend selection |
+| `dart_monty_platform_interface` | Abstract contract (`MontyPlatform`), shared types, SPI for backend authors |
+| `dart_monty_ffi` | Native FFI bindings (`dart:ffi` -> Rust shared library) |
+| `dart_monty_wasm` | WASM bindings (`dart:js_interop` -> Web Worker) |
 
-The three pure-Dart packages can be used without Flutter (e.g. in CLI tools
-or server-side Dart).
+All packages are pure Dart and work in CLI tools, server-side Dart, and
+Flutter apps alike.
 
 ### Native Path (desktop)
 
 ```text
-Dart app -> MontyNative (Isolate)
-  -> MontyFfi (dart:ffi)
-    -> libdart_monty_native.{dylib,so}
-      -> Monty Rust interpreter
+Dart app -> Monty() -> MontyFfi (dart:ffi)
+  -> libdart_monty_native.{dylib,so}
+    -> Monty Rust interpreter
 ```
 
 ### Web Path (browser)
 
 ```text
-Dart app (compiled to JS) -> DartMontyWeb
-  -> MontyWasm (dart:js_interop)
-    -> Web Worker -> @pydantic/monty WASM
+Dart app (compiled to JS) -> Monty() -> MontyWasm (dart:js_interop)
+  -> Web Worker -> @pydantic/monty WASM
 ```
 
 The Web Worker architecture bypasses Chrome's 8 MB synchronous WASM

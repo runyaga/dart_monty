@@ -1,6 +1,6 @@
 # Monty API — Dart
 
-Sandboxed Python interpreter for Dart/Flutter (federated plugin).
+Sandboxed Python interpreter for Dart/Flutter (pure Dart, no Flutter required).
 
 ## Types
 
@@ -17,10 +17,9 @@ Sandboxed Python interpreter for Dart/Flutter (federated plugin).
 ## Run
 
 ```dart
-import 'package:dart_monty_ffi/dart_monty_ffi.dart';
-import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
+import 'package:dart_monty/dart_monty.dart';
 
-final monty = MontyFfi(bindings: NativeBindingsFfi());
+final monty = Monty();
 final result = await monty.run('2 ** 100');
 // result.value  -> 1267650600228229401496703205376
 // result.usage.memoryBytesUsed, .timeElapsedMs, .stackDepthUsed
@@ -67,7 +66,7 @@ try {
 one, returning `MontyPending`. `resume(returnValue)` continues.
 
 ```dart
-final monty = MontyFfi(bindings: NativeBindingsFfi());
+final monty = Monty();
 var progress = await monty.start(
   '''
 url = "https://example.com"
@@ -105,7 +104,7 @@ switch (progress) {
 paused interpreter.
 
 ```dart
-final monty = MontyFfi(bindings: NativeBindingsFfi());
+final monty = Monty();
 var progress = await monty.start(
   '''
 try:
@@ -133,7 +132,7 @@ Any external function name works. Convention: `yield_state`.
 Python pauses on each call; Dart reads args, updates UI, resumes.
 
 ```dart
-final monty = MontyFfi(bindings: NativeBindingsFfi());
+final monty = Monty();
 var progress = await monty.start(
   '''
 arr = [5, 3, 1, 4, 2]
@@ -175,7 +174,7 @@ Python errors throw `MontyException`. They never return silently
 inside `MontyResult`.
 
 ```dart
-final monty = MontyFfi(bindings: NativeBindingsFfi());
+final monty = Monty();
 try {
   await monty.run('items = [1, 2, 3]\nitems[10]');
 } on MontyException catch (e) {
@@ -204,28 +203,21 @@ try {
 
 ## Platform Backends
 
-### Native — `MontyFfi`
+### Auto-detected backend
 
 ```dart
+import 'package:dart_monty/dart_monty.dart';
+
+final monty = Monty(); // selects MontyFfi or MontyWasm at compile time
+```
+
+### Explicit backend
+
+```dart
+import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty_ffi/dart_monty_ffi.dart';
 
-final monty = MontyFfi(bindings: NativeBindingsFfi());
-// ready to use immediately
-```
-
-### Web — `MontyWasm`
-
-```dart
-import 'package:dart_monty_wasm/dart_monty_wasm.dart';
-
-final monty = MontyWasm(bindings: WasmBindingsJs());
-await monty.initialize(); // optional, auto-called on first use
-```
-
-### Register globally
-
-```dart
-MontyPlatform.instance = monty; // then use MontyPlatform.instance
+final monty = Monty.withPlatform(MontyFfi()); // explicit native backend
 ```
 
 ## Constraints

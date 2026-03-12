@@ -5,9 +5,8 @@ Instructions for AI coding agents working on this repository.
 ## Before Writing Code
 
 1. Read `CLAUDE.md` for project conventions and commands.
-2. Read `PLAN.md` for the current milestone and implementation status.
-3. Check `docs/milestones/` for detailed requirements of each milestone.
-4. Read `docs/monty-rust-api.md` for the upstream Monty Rust API and the
+2. Read `docs/architecture.md` for the package structure and execution paths.
+3. Read `docs/monty-rust-api.md` for the upstream Monty Rust API and the
    C FFI JSON contract (required for any FFI or bindings work).
 
 ## Validation Workflow

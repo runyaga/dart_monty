@@ -265,8 +265,8 @@ Type constructors: `bool`, `bytearray`, `bytes`, `complex`, `dict`,
 |---------|---------|----------|
 | `dart_monty_ffi` | `dart:ffi` -> C FFI -> Rust `MontyRun` | Desktop (macOS, Linux) |
 | `dart_monty_wasm` | `dart:js_interop` -> monty-js NAPI -> WASM | Web (Chrome) |
-| `dart_monty_native` | Flutter plugin wrapping `dart_monty_ffi` via Isolate | Flutter desktop |
-| `dart_monty_web` | Flutter plugin wrapping `dart_monty_wasm` | Flutter web |
+| `dart_monty_native` | Legacy Flutter plugin shim (delegates to `dart_monty_ffi`) | Flutter desktop (deprecated) |
+| `dart_monty_web` | Legacy Flutter plugin shim (delegates to `dart_monty_wasm`) | Flutter web (deprecated) |
 
 ### 2.4 Native C FFI Functions (17 functions)
 

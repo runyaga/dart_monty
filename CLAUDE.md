@@ -1,11 +1,11 @@
 # dart_monty
 
-Flutter plugin exposing the Monty sandboxed Python interpreter to Dart/Flutter.
+Pure Dart bindings for the Monty sandboxed Python interpreter.
 
 ## Quick Reference
 
 ```bash
-flutter pub get                           # Install root dependencies
+dart pub get                              # Install root dependencies
 dart format .                             # Format all Dart files
 python3 tool/analyze_packages.py          # Analyze all sub-packages
 dart test                                 # Run tests (from package dir)
@@ -40,18 +40,18 @@ test/
     python_ladder/                # Cross-platform parity fixtures (M3C)
 docs/                             # Documentation, ADRs, and API references
   monty-rust-api.md               # Upstream Monty Rust API + C FFI JSON contract
-  milestones/                     # Detailed milestone specs (M1-M9)
+  architecture.md                 # Detailed architecture documentation
 tool/                             # Developer scripts and gate runners
 ```
 
 ## Architecture
 
-Federated plugin using four packages:
+Pure Dart with compile-time conditional imports (no Flutter required). Four packages:
 
-- `dart_monty` — app-facing API
-- `dart_monty_platform_interface` — abstract contract (pure Dart, no Flutter)
-- `dart_monty_ffi` — calls into Rust shared library via `dart:ffi`
-- `dart_monty_web` — calls into `@pydantic/monty` npm package via `dart:js_interop`
+- `dart_monty` — app-facing API (`Monty()` convenience class, conditional imports)
+- `dart_monty_platform_interface` — abstract contract (pure Dart)
+- `dart_monty_ffi` — native FFI bindings via `dart:ffi`
+- `dart_monty_wasm` — web WASM bindings via `dart:js_interop`
 
 ### SPI Contract
 
