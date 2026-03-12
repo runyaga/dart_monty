@@ -17,12 +17,15 @@ const listFunctionsSchema = HostFunctionSchema(
 /// Schema for the `help` introspection function.
 const helpSchema = HostFunctionSchema(
   name: 'help',
-  description: 'Show detailed information about a host function by name.',
+  description:
+      'Show detailed information about a host function by name. '
+      'Accepts both fully-qualified names (e.g. "storage_get") and bare names '
+      '(e.g. "get"). Bare names disambiguate when multiple matches exist.',
   params: [
     HostParam(
       name: 'name',
       type: HostParamType.string,
-      description: 'Name of the function to look up.',
+      description: 'Fully-qualified or bare function name to look up.',
     ),
   ],
 );
@@ -90,12 +93,15 @@ String _handleListFunctions(
 /// Handler for `help`.
 ///
 /// Looks up [name] across all categories and the introspection schemas.
-/// Returns JSON detail or an error string.
+/// Supports both fully-qualified names (`storage_get`) and bare names (`get`).
+/// When a bare name matches exactly one function, returns its detail.
+/// When multiple functions share the same bare name, returns a disambiguation
+/// list.
 String _handleHelp(
   Map<String, List<HostFunctionSchema>> schemasByCategory,
   String name,
 ) {
-  // Search registered categories.
+  // 1. Exact match on fully-qualified name (backwards compatible).
   for (final schemas in schemasByCategory.values) {
     for (final schema in schemas) {
       if (schema.name == name) {
@@ -103,12 +109,36 @@ String _handleHelp(
       }
     }
   }
-
-  // Search introspection schemas.
   for (final schema in [listFunctionsSchema, helpSchema]) {
     if (schema.name == name) {
       return jsonEncode(_serializeSchema(schema));
     }
+  }
+
+  // 2. Bare-name fuzzy match: strip namespace prefix and compare suffix.
+  final bareMatches = <HostFunctionSchema>[];
+  for (final entry in schemasByCategory.entries) {
+    final prefix = '${entry.key}_';
+    for (final schema in entry.value) {
+      if (schema.name.startsWith(prefix) &&
+          schema.name.substring(prefix.length) == name) {
+        bareMatches.add(schema);
+      }
+    }
+  }
+
+  if (bareMatches.length == 1) {
+    return jsonEncode(_serializeSchema(bareMatches.first));
+  }
+  if (bareMatches.length > 1) {
+    final candidates = bareMatches.map((s) => s.name).toList()..sort();
+    return jsonEncode({
+      'error': 'ambiguous',
+      'message':
+          'Multiple functions match "$name". '
+          'Use the fully-qualified name.',
+      'candidates': candidates,
+    });
   }
 
   return 'Unknown function: $name';
