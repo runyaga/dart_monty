@@ -85,6 +85,9 @@ jobs:
         run: |
           mkdir -p example/web/web/fixtures
           cp test/fixtures/python_ladder/tier_*.json example/web/web/fixtures/
+      - name: Copy site images
+        run: |
+          cp docs/dart_monty.jpg example/web/web/
 
       # ── Build Flutter web example (optional — site deploys without it) ──
       - uses: subosito/flutter-action@v2
