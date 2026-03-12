@@ -39,4 +39,5 @@ jobs:
           dcm analyze packages
           --ci-key=${{ secrets.DCM_CI_KEY }}
           --email=${{ secrets.DCM_EMAIL }}
-          --fatal-found
+          --fatal-style
+          --fatal-warnings
