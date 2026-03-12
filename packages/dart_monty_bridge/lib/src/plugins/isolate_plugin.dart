@@ -53,6 +53,10 @@ class IsolatePlugin extends MontyPlugin {
   ///
   /// [platformFactory] creates a fresh [MontyPlatform] for each child.
   /// [childPluginRegistryFactory] optionally provides plugins to children.
+  /// When null, children automatically inherit plugins from [parentPlugins]
+  /// that return non-null from [MontyPlugin.createChildInstance].
+  /// [parentPlugins] the parent registry's plugin list — used for automatic
+  /// child inheritance when [childPluginRegistryFactory] is null.
   /// [maxChildren] limits concurrent children (default: 16).
   /// [maxDepth] limits recursion depth if children also have IsolatePlugin
   /// (default: 3). Set [currentDepth] when creating nested plugins.
@@ -60,6 +64,7 @@ class IsolatePlugin extends MontyPlugin {
   IsolatePlugin({
     required this.platformFactory,
     this.childPluginRegistryFactory,
+    this.parentPlugins = const [],
     this.maxChildren = 16,
     this.maxDepth = 3,
     this.currentDepth = 0,
@@ -70,7 +75,15 @@ class IsolatePlugin extends MontyPlugin {
   final MontyPlatformFactory platformFactory;
 
   /// Optional factory for child plugin registries.
+  ///
+  /// When null, children inherit plugins from [parentPlugins] via
+  /// [MontyPlugin.createChildInstance].
   final ChildPluginRegistryFactory? childPluginRegistryFactory;
+
+  /// Parent registry's plugins, used for automatic child inheritance.
+  ///
+  /// Only consulted when [childPluginRegistryFactory] is null.
+  final List<MontyPlugin> parentPlugins;
 
   /// Maximum number of concurrent children.
   final int maxChildren;
@@ -249,14 +262,18 @@ class IsolatePlugin extends MontyPlugin {
     final platform = await platformFactory();
     final bridge = DefaultMontyBridge(platform: platform, limits: limits);
 
-    // Wire plugins onto child bridge if factory provided.
+    // Wire plugins onto child bridge.
     final registryFactory = childPluginRegistryFactory;
     PluginRegistry? childRegistry;
     if (registryFactory != null) {
+      // Explicit factory takes precedence.
       childRegistry = await registryFactory();
-      if (childRegistry != null) {
-        await childRegistry.attachTo(bridge);
-      }
+    } else if (parentPlugins.isNotEmpty) {
+      // Auto-inherit from parent plugins via createChildInstance().
+      childRegistry = _buildInheritedRegistry();
+    }
+    if (childRegistry != null) {
+      await childRegistry.attachTo(bridge);
     }
 
     final id = _nextId++;
@@ -324,6 +341,21 @@ class IsolatePlugin extends MontyPlugin {
     );
 
     return id;
+  }
+
+  /// Builds a child registry from parent plugins that opt into inheritance.
+  PluginRegistry? _buildInheritedRegistry() {
+    final childPlugins = <MontyPlugin>[];
+    for (final plugin in parentPlugins) {
+      // Skip IsolatePlugin itself — children get their own via depth control.
+      if (plugin is IsolatePlugin) continue;
+      final child = plugin.createChildInstance();
+      if (child != null) childPlugins.add(child);
+    }
+    if (childPlugins.isEmpty) return null;
+    final registry = PluginRegistry();
+    childPlugins.forEach(registry.register);
+    return registry;
   }
 
   Future<Object?> _handleAwait(Map<String, Object?> args) async {

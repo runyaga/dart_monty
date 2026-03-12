@@ -26,4 +26,13 @@ abstract class MontyPlugin {
   /// Called when session ends. Must be idempotent.
   @mustCallSuper
   Future<void> onDispose() async {}
+
+  /// Creates a fresh instance of this plugin for a child isolate.
+  ///
+  /// Override to opt into automatic child inheritance via `IsolatePlugin`.
+  /// Return `null` (the default) to exclude this plugin from children.
+  ///
+  /// The returned instance must be independent — it will be registered on a
+  /// separate [MontyBridge] and disposed with the child.
+  MontyPlugin? createChildInstance() => null;
 }
