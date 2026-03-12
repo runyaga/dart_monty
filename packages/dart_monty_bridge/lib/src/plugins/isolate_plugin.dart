@@ -366,11 +366,11 @@ class IsolatePlugin extends MontyPlugin {
           }
         }
       },
-      onError: (Object error) {
+      onError: (Object error, StackTrace stackTrace) {
         final child = _children[id];
         if (child != null) child.isAlive = false;
         if (!completer.isCompleted) {
-          completer.completeError(error);
+          completer.completeError(error, stackTrace);
         }
       },
     );
@@ -456,11 +456,14 @@ class IsolatePlugin extends MontyPlugin {
     }
     if (!child.isAlive) return null;
 
-    await child.cancel();
-    if (!child.completer.isCompleted) {
-      child.completer.completeError(
-        ChildIsolateException(childId: handle, message: 'cancelled'),
-      );
+    try {
+      await child.cancel();
+    } finally {
+      if (!child.completer.isCompleted) {
+        child.completer.completeError(
+          ChildIsolateException(childId: handle, message: 'cancelled'),
+        );
+      }
     }
 
     return null;
@@ -506,7 +509,12 @@ class IsolatePlugin extends MontyPlugin {
       final child = entry.value;
       if (!child.isAlive) continue;
 
-      await child.cancel();
+      try {
+        await child.cancel();
+      } on Object {
+        // Best-effort cancel — don't let one child's cleanup failure
+        // prevent disposing the remaining children.
+      }
       if (!child.completer.isCompleted) {
         child.completer.completeError(
           ChildIsolateException(

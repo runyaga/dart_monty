@@ -703,6 +703,31 @@ void main() {
         const e = ChildIsolateException(childId: 0, message: 'cancelled');
         expect(e.exception, isNull);
       });
+
+      test('infrastructure error produces null exception field', () async {
+        // A platform whose start() throws a non-MontyException error.
+        // The bridge catches it via `on Object` and emits BridgeRunError
+        // without a MontyException.
+        final plugin = IsolatePlugin(
+          platformFactory: () async => _InfraErrorMock(),
+        );
+        final spawn = _findHandler(plugin, 'isolate_spawn');
+        final await_ = _findHandler(plugin, 'isolate_await');
+        final handle = await spawn({'code': '1'});
+
+        expect(
+          () => await_({'handle': handle! as int}),
+          throwsA(
+            isA<ChildIsolateException>()
+                .having((e) => e.exception, 'exception', isNull)
+                .having(
+                  (e) => e.message,
+                  'message',
+                  contains('infra boom'),
+                ),
+          ),
+        );
+      });
     });
 
     group('onDispose', () {
@@ -1030,4 +1055,29 @@ class _SlowMockPlatform extends MontyPlatform {
   Future<void> dispose() async {
     isDisposed = true;
   }
+}
+
+/// A [MontyPlatform] whose [start] throws a non-Python infrastructure error.
+///
+/// Used to verify that infrastructure errors produce [ChildIsolateException]
+/// with `exception == null`.
+class _InfraErrorMock extends MontyPlatform {
+  @override
+  Future<MontyProgress> start(
+    String code, {
+    List<String>? externalFunctions,
+    MontyLimits? limits,
+    String? scriptName,
+  }) async => throw StateError('infra boom');
+
+  @override
+  Future<MontyProgress> resume(Object? returnValue) async =>
+      throw StateError('Unexpected resume on _InfraErrorMock');
+
+  @override
+  Future<MontyProgress> resumeWithError(String errorMessage) async =>
+      throw StateError('Unexpected resumeWithError on _InfraErrorMock');
+
+  @override
+  Future<void> dispose() async {}
 }
