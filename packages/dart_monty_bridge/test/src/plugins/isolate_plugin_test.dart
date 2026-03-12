@@ -211,9 +211,9 @@ void main() {
         expect(
           () => await_({'handle': handle! as int}),
           throwsA(
-            isA<StateError>().having(
-              (e) => e.message,
-              'message',
+            isA<Exception>().having(
+              (e) => e.toString(),
+              'toString()',
               contains('NameError'),
             ),
           ),
@@ -266,7 +266,7 @@ void main() {
           () => awaitAll({
             'handles': <Object?>[h0, h1],
           }),
-          throwsA(isA<StateError>()),
+          throwsA(isA<Exception>()),
         );
       });
 
@@ -384,9 +384,9 @@ void main() {
         expect(
           () => await_({'handle': handle as int}),
           throwsA(
-            isA<StateError>().having(
-              (e) => e.message,
-              'message',
+            isA<Exception>().having(
+              (e) => e.toString(),
+              'toString()',
               contains('cancelled'),
             ),
           ),
@@ -564,7 +564,7 @@ void main() {
         // Await will throw because the child failed.
         await expectLater(
           () => await_({'handle': handle! as int}),
-          throwsA(isA<StateError>()),
+          throwsA(isA<Exception>()),
         );
 
         final output = await getOutput({'handle': handle! as int});
