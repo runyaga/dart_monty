@@ -1076,6 +1076,8 @@ void main() {
         startCompleter.complete(
           const MontyComplete(result: MontyResult(usage: _usage)),
         );
+        // Let microtasks settle so onDone fires before tearDown removes sink.
+        await Future<void>.delayed(Duration.zero);
       });
 
       test('free logs debug with childId', () async {
@@ -1241,6 +1243,30 @@ void main() {
         );
         expect(attachRecord.level, LogLevel.debug);
         expect(attachRecord.attributes['pluginCount'], 1);
+      });
+
+      test('error message is truncated in log attributes', () async {
+        final longError = 'E' * 300;
+        final plugin = IsolatePlugin(
+          platformFactory: () async => _failingMock(longError),
+          logger: logger,
+        );
+        final spawn = _findHandler(plugin, 'isolate_spawn');
+        final await_ = _findHandler(plugin, 'isolate_await');
+
+        final handle = await spawn({'code': 'x'});
+        try {
+          await await_({'handle': handle! as int});
+        } on Exception {
+          // Expected.
+        }
+
+        final failRecord = sink.records.firstWhere(
+          (r) => r.message == 'Child failed',
+        );
+        final logged = failRecord.attributes['error']! as String;
+        expect(logged.length, lessThanOrEqualTo(201)); // 200 + ellipsis
+        expect(logged, endsWith('…'));
       });
 
       test('default logger name is IsolatePlugin', () {

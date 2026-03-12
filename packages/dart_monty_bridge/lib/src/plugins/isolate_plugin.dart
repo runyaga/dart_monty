@@ -389,9 +389,12 @@ class IsolatePlugin extends MontyPlugin {
 
         if (!completer.isCompleted) {
           if (errorMessage != null) {
+            final truncated = errorMessage!.length > 200
+                ? '${errorMessage!.substring(0, 200)}…'
+                : errorMessage!;
             log.debug(
               'Child failed',
-              attributes: {'childId': id, 'error': errorMessage!},
+              attributes: {'childId': id, 'error': truncated},
             );
             completer.completeError(
               ChildIsolateException(
