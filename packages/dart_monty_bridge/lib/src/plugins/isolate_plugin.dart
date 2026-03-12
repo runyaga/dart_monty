@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:dart_monty_bridge/dart_monty_bridge.dart';
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
+import 'package:struct_log/struct_log.dart';
 
 /// Exception thrown when a child isolate fails, is cancelled, or is disposed.
 ///
@@ -97,7 +98,8 @@ class IsolatePlugin extends MontyPlugin {
     this.maxDepth = 3,
     this.currentDepth = 0,
     this.childLimits,
-  });
+    Logger? logger,
+  }) : log = logger ?? LogManager.instance.getLogger('IsolatePlugin');
 
   /// Creates a fresh [MontyPlatform] for each child.
   final MontyPlatformFactory platformFactory;
@@ -124,6 +126,9 @@ class IsolatePlugin extends MontyPlugin {
 
   /// Resource limits applied to child interpreters.
   final MontyLimits? childLimits;
+
+  /// Logger for this plugin instance.
+  final Logger log;
 
   final Map<int, _ChildHandle> _children = {};
   int _nextId = 0;
@@ -266,9 +271,18 @@ class IsolatePlugin extends MontyPlugin {
   Future<Object?> _handleSpawn(Map<String, Object?> args) async {
     if (_disposed) throw StateError('IsolatePlugin is disposed.');
     if (currentDepth >= maxDepth) {
+      log.warning(
+        'Spawn rejected: depth limit',
+        attributes: {'currentDepth': currentDepth, 'maxDepth': maxDepth},
+      );
       throw StateError('Maximum isolate recursion depth ($maxDepth) exceeded.');
     }
-    if (_children.values.where((c) => c.isAlive).length >= maxChildren) {
+    final aliveCount = _children.values.where((c) => c.isAlive).length;
+    if (aliveCount >= maxChildren) {
+      log.warning(
+        'Spawn rejected: concurrency limit',
+        attributes: {'alive': aliveCount, 'maxChildren': maxChildren},
+      );
       throw StateError('Maximum concurrent children ($maxChildren) reached.');
     }
 
@@ -289,6 +303,13 @@ class IsolatePlugin extends MontyPlugin {
     // Create child platform and bridge.
     final platform = await platformFactory();
     final bridge = DefaultMontyBridge(platform: platform, limits: limits);
+    log.debug(
+      'Child bridge created',
+      attributes: {
+        'codeLength': code.length,
+        if (limits != null) 'limits': limits.toString(),
+      },
+    );
 
     // Wire plugins onto child bridge.
     // Wrapped in try/catch so platform and bridge are cleaned up if wiring
@@ -305,8 +326,13 @@ class IsolatePlugin extends MontyPlugin {
       }
       if (childRegistry != null) {
         await childRegistry.attachTo(bridge);
+        log.debug(
+          'Child plugins attached',
+          attributes: {'pluginCount': childRegistry.plugins.length},
+        );
       }
-    } on Object {
+    } on Object catch (e, st) {
+      log.error('Child plugin wiring failed', error: e, stackTrace: st);
       bridge.dispose();
       await platform.dispose();
       if (childRegistry != null) await childRegistry.disposeAll();
@@ -316,6 +342,11 @@ class IsolatePlugin extends MontyPlugin {
     final id = _nextId++;
     final completer = Completer<Object?>();
     completer.future.ignore();
+
+    log.info(
+      'Child spawned',
+      attributes: {'childId': id, 'depth': currentDepth},
+    );
 
     // Execute child and listen for completion.
     final stream = bridge.execute(code);
@@ -347,13 +378,24 @@ class IsolatePlugin extends MontyPlugin {
           bridge.dispose();
           await platform.dispose();
           if (childRegistry != null) await childRegistry.disposeAll();
-        } on Object {
-          // Best-effort cleanup — don't let disposal errors mask the
-          // child result.
+        } on Object catch (e, st) {
+          log.warning(
+            'Child cleanup error (swallowed)',
+            error: e,
+            stackTrace: st,
+            attributes: {'childId': id},
+          );
         }
 
         if (!completer.isCompleted) {
           if (errorMessage != null) {
+            final truncated = errorMessage!.length > 200
+                ? '${errorMessage!.substring(0, 200)}…'
+                : errorMessage!;
+            log.debug(
+              'Child failed',
+              attributes: {'childId': id, 'error': truncated},
+            );
             completer.completeError(
               ChildIsolateException(
                 childId: id,
@@ -362,6 +404,7 @@ class IsolatePlugin extends MontyPlugin {
               ),
             );
           } else {
+            log.debug('Child completed', attributes: {'childId': id});
             completer.complete(childValue);
           }
         }
@@ -369,6 +412,11 @@ class IsolatePlugin extends MontyPlugin {
       onError: (Object error, StackTrace stackTrace) {
         final child = _children[id];
         if (child != null) child.isAlive = false;
+        log.error(
+          'Child stream error',
+          error: error,
+          attributes: {'childId': id},
+        );
         if (!completer.isCompleted) {
           completer.completeError(error, stackTrace);
         }
@@ -456,6 +504,7 @@ class IsolatePlugin extends MontyPlugin {
     }
     if (!child.isAlive) return null;
 
+    log.info('Cancelling child', attributes: {'childId': handle});
     try {
       await child.cancel();
     } finally {
@@ -481,6 +530,7 @@ class IsolatePlugin extends MontyPlugin {
       );
     }
     _children.remove(handle);
+    log.debug('Child freed', attributes: {'childId': handle});
     return null;
   }
 
@@ -504,6 +554,15 @@ class IsolatePlugin extends MontyPlugin {
     if (_disposed) return;
     _disposed = true;
 
+    final aliveCount = _children.values.where((c) => c.isAlive).length;
+    log.info(
+      'Disposing IsolatePlugin',
+      attributes: {
+        'totalChildren': _children.length,
+        'aliveChildren': aliveCount,
+      },
+    );
+
     // Cancel all living children.
     for (final entry in _children.entries) {
       final child = entry.value;
@@ -511,9 +570,18 @@ class IsolatePlugin extends MontyPlugin {
 
       try {
         await child.cancel();
-      } on Object {
-        // Best-effort cancel — don't let one child's cleanup failure
-        // prevent disposing the remaining children.
+      } on Object catch (e, st) {
+        // Best-effort logging — don't let a sink failure break the loop.
+        try {
+          log.warning(
+            'Error cancelling child during dispose',
+            error: e,
+            stackTrace: st,
+            attributes: {'childId': entry.key},
+          );
+        } on Object {
+          // Sink failure — nothing we can do.
+        }
       }
       if (!child.completer.isCompleted) {
         child.completer.completeError(
