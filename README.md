@@ -35,11 +35,35 @@
 | iOS | Planned |
 | Android | Planned |
 
-## Installation
+## Quick Start
+
+**1. Add the dependency**
 
 ```bash
 dart pub add dart_monty
 ```
+
+**2. Write three lines**
+
+```dart
+import 'package:dart_monty/dart_monty.dart';
+
+void main() async {
+  final monty = Monty();
+  final result = await monty.run('2 + 2');
+  print(result.value); // 4
+  await monty.dispose();
+}
+```
+
+**3. Run it**
+
+```bash
+$ dart run
+Result: 4
+```
+
+No Flutter. No bindings. No registration. It just works.
 
 ## Usage
 
@@ -54,9 +78,12 @@ print(result.value); // 4
 
 // With resource limits
 final limited = await monty.run(
-  'fib(30)',
+  'sum(range(100))',
   limits: const MontyLimits(timeoutMs: 5000, memoryBytes: 10 * 1024 * 1024),
 );
+print(limited.value); // 4950
+
+await monty.dispose();
 ```
 
 ### External Functions
