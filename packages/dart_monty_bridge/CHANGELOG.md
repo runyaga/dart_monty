@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.4.0
+
+- `CompositePlugin` mixin and `PluginRef<T>` for intra-registry plugin
+  dependencies. Plugins can declare typed, lazy references to sibling plugins
+  that are automatically resolved during `attachTo()`.
+- `PluginRegistry.attachTo()` now resolves composite dependencies with
+  polymorphic matching (`is T`), detects circular dependencies, and calls
+  `onRegister()` in **topological order** (dependencies before dependents).
+- `PluginRegistry.disposeAll()` now calls `onDispose()` in **reverse
+  topological order** (dependents before dependencies).
+- Optional dependencies via `PluginRef(required: false)` for graceful
+  degradation when a dependency is not registered.
+
 ## 0.3.1
 
 - Remove `dependency_overrides` for clean pub.dev publishing
