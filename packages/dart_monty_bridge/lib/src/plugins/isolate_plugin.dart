@@ -46,8 +46,7 @@ class _ChildHandle {
 /// [DefaultMontyBridge]. The parent Python script can spawn children with
 /// `isolate_spawn(code)` and await their results with `isolate_await(handle)`.
 ///
-/// Children are isolated: each has its own interpreter state. On native
-/// platforms, each child runs in a separate Dart Isolate via
+/// Children are isolated: each has its own interpreter state.
 /// All living children are killed when this plugin is disposed.
 class IsolatePlugin extends MontyPlugin {
   /// Creates an [IsolatePlugin].
