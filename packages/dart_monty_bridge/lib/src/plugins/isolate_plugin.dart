@@ -397,7 +397,7 @@ class IsolatePlugin extends MontyPlugin {
     );
 
     // Execute child and listen for completion.
-    final stream = bridge!.execute(code);
+    final stream = bridge.execute(code);
     String? errorMessage;
     MontyException? errorException;
     Object? childValue;
@@ -474,8 +474,8 @@ class IsolatePlugin extends MontyPlugin {
     );
 
     _children[id] = _ChildHandle(
-      bridge: bridge!,
-      platform: platform!,
+      bridge: bridge,
+      platform: platform,
       completer: completer,
       subscription: subscription,
       registry: childRegistry,
