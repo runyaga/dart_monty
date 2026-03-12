@@ -18,5 +18,7 @@ dependencies:
   struct_log: ^0.1.0
 
 dev_dependencies:
+  dart_monty_ffi:
+    path: ../dart_monty_ffi
   test: ^1.25.0
   very_good_analysis: ^10.0.0

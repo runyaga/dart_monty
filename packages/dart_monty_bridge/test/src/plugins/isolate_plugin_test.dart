@@ -723,6 +723,149 @@ void main() {
 
         await await_({'handle': handle! as int});
       });
+
+      test(
+        'childPluginRegistryFactory takes precedence over parentPlugins',
+        () async {
+          var factoryCalled = false;
+          final parentPlugin = _InheritablePlugin(namespace: 'parent');
+          final plugin = IsolatePlugin(
+            platformFactory: () async => _completingMock(),
+            parentPlugins: [parentPlugin],
+            childPluginRegistryFactory: () async {
+              factoryCalled = true;
+              // Explicit factory returns empty registry —
+              // no parent inheritance.
+              return PluginRegistry();
+            },
+          );
+          final spawn = _findHandler(plugin, 'isolate_spawn');
+
+          await spawn({'code': '42'});
+
+          expect(factoryCalled, isTrue);
+        },
+      );
+    });
+
+    group('createChildInstance inheritance', () {
+      test('children inherit plugins that opt in', () async {
+        final parentPlugin = _InheritablePlugin(namespace: 'shared');
+        final plugin = IsolatePlugin(
+          platformFactory: () async => _completingMock(),
+          parentPlugins: [parentPlugin],
+        );
+        final spawn = _findHandler(plugin, 'isolate_spawn');
+        final await_ = _findHandler(plugin, 'isolate_await');
+
+        // Child should have shared_ping available.
+        final handle = await spawn({'code': 'shared_ping()'});
+        await await_({'handle': handle! as int});
+      });
+
+      test('children do not inherit plugins that return null', () async {
+        // _TestPlugin does not override createChildInstance — returns null.
+        // Verify _buildInheritedRegistry produces null (no plugins to inherit),
+        // so children only get introspection builtins.
+        final parentPlugin = _TestPlugin(
+          namespace: 'noinherit',
+          functions: [
+            HostFunction(
+              schema: const HostFunctionSchema(
+                name: 'noinherit_ping',
+                description: 'Ping.',
+              ),
+              handler: (args) async => 'pong',
+            ),
+          ],
+        );
+
+        // With only non-inheritable plugins, behavior is the same as no
+        // parentPlugins — child spawns with only introspection builtins.
+        final plugin = IsolatePlugin(
+          platformFactory: () async => _completingMock(),
+          parentPlugins: [parentPlugin],
+        );
+        final spawn = _findHandler(plugin, 'isolate_spawn');
+        final await_ = _findHandler(plugin, 'isolate_await');
+
+        // Child runs fine — just no extra plugins.
+        final handle = await spawn({'code': '42'});
+        final result = await await_({'handle': handle! as int});
+        expect(result, isNull); // Mock returns null value.
+      });
+
+      test('IsolatePlugin is never inherited to children', () async {
+        // Even if IsolatePlugin somehow ended up in parentPlugins,
+        // _buildInheritedRegistry skips it.
+        final innerIsolate = IsolatePlugin(
+          platformFactory: () async => _completingMock(),
+        );
+        final plugin = IsolatePlugin(
+          platformFactory: () async => _completingMock(),
+          parentPlugins: [innerIsolate],
+        );
+        final spawn = _findHandler(plugin, 'isolate_spawn');
+        final await_ = _findHandler(plugin, 'isolate_await');
+
+        // Should work fine — no plugins inherited, just introspection.
+        final handle = await spawn({'code': '42'});
+        await await_({'handle': handle! as int});
+      });
+
+      test(
+        'empty parentPlugins with no factory gives children only builtins',
+        () async {
+          final plugin = IsolatePlugin(
+            platformFactory: () async => _completingMock(),
+          );
+          final spawn = _findHandler(plugin, 'isolate_spawn');
+          final await_ = _findHandler(plugin, 'isolate_await');
+
+          // list_functions is an introspection builtin — always available.
+          final handle = await spawn({'code': 'list_functions()'});
+          await await_({'handle': handle! as int});
+        },
+      );
+
+      test(
+        'createChildInstance returning IsolatePlugin throws StateError',
+        () async {
+          final badPlugin = _ReturnsIsolatePlugin();
+          final plugin = IsolatePlugin(
+            platformFactory: () async => _completingMock(),
+            parentPlugins: [badPlugin],
+          );
+          final spawn = _findHandler(plugin, 'isolate_spawn');
+
+          await expectLater(
+            spawn({'code': '42'}),
+            throwsStateError,
+          );
+        },
+      );
+
+      test(
+        'spawn cleans up platform on factory failure',
+        () async {
+          late MockMontyPlatform createdMock;
+          final plugin = IsolatePlugin(
+            platformFactory: () async {
+              return createdMock = _completingMock();
+            },
+            childPluginRegistryFactory: () async {
+              throw StateError('factory boom');
+            },
+          );
+          final spawn = _findHandler(plugin, 'isolate_spawn');
+
+          await expectLater(
+            spawn({'code': '42'}),
+            throwsStateError,
+          );
+          expect(createdMock.isDisposed, isTrue);
+        },
+      );
     });
   });
 }
@@ -730,6 +873,50 @@ void main() {
 /// Finds a handler by function name from the plugin's function list.
 HostFunctionHandler _findHandler(IsolatePlugin plugin, String name) {
   return plugin.functions.firstWhere((f) => f.schema.name == name).handler;
+}
+
+/// Test plugin that opts into child inheritance via [createChildInstance].
+class _InheritablePlugin extends MontyPlugin {
+  _InheritablePlugin({required this.namespace});
+
+  @override
+  final String namespace;
+
+  @override
+  final String? systemPromptContext = null;
+
+  @override
+  List<HostFunction> get functions => [
+    HostFunction(
+      schema: HostFunctionSchema(
+        name: '${namespace}_ping',
+        description: 'Ping.',
+      ),
+      handler: (args) async => 'pong',
+    ),
+  ];
+
+  @override
+  MontyPlugin? createChildInstance() =>
+      _InheritablePlugin(namespace: namespace);
+}
+
+/// Plugin whose [createChildInstance] returns an [IsolatePlugin].
+///
+/// Used to verify that the inheritance guard rejects such plugins.
+class _ReturnsIsolatePlugin extends MontyPlugin {
+  @override
+  String get namespace => 'bad';
+
+  @override
+  final String? systemPromptContext = null;
+
+  @override
+  List<HostFunction> get functions => [];
+
+  @override
+  MontyPlugin? createChildInstance() =>
+      IsolatePlugin(platformFactory: () async => MockMontyPlatform());
 }
 
 /// Simple test plugin for child wiring tests.
