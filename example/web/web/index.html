@@ -247,6 +247,38 @@
       border: 1px solid var(--border);
     }
 
+    /* ── Why Section ──────────────────────────────────────────────── */
+    .why-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2.5rem;
+      margin-top: 2.5rem;
+    }
+    @media (max-width: 800px) { .why-grid { grid-template-columns: 1fr; } }
+    .why-item h3 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      color: var(--text-primary);
+    }
+    .why-item p {
+      font-size: 0.92rem;
+      color: var(--text-secondary);
+      line-height: 1.7;
+    }
+    .why-item .why-icon {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 0.5rem;
+    }
+    .why-icon-agent { color: var(--accent-purple); }
+    .why-icon-sandbox { color: var(--accent-green); }
+    .why-icon-mobile { color: var(--accent-cyan); }
+    .why-icon-parity { color: var(--accent-yellow); }
+
     /* ── Epigraph (cultural references) ──────────────────────────── */
     .epigraph {
       font-family: 'IBM Plex Mono', monospace;
@@ -641,6 +673,7 @@
   <div class="inner">
     <div class="logo">dart<span>_monty</span></div>
     <div class="links">
+      <a href="#why">Why</a>
       <a href="#architecture">Architecture</a>
       <a href="#ladder">Python Ladder</a>
       <a href="#features">Features</a>
@@ -703,10 +736,73 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════
+     WHY
+     ═══════════════════════════════════════════════════════════════ -->
+<section id="why" class="fade-in">
+  <div class="section-label">The Why</div>
+  <div class="section-title">You may ask yourself: well, how did I get here?</div>
+  <p class="section-subtitle">
+    LLMs write Python. Your app runs on Dart. That gap kills you.
+    Every agent framework, every code-generating model, every automation pipeline
+    produces Python&mdash;and your Flutter app can't run it. Until now.
+  </p>
+
+  <div class="why-grid">
+    <div class="why-item">
+      <div class="why-icon why-icon-agent">AI Agents</div>
+      <h3>LLMs generate Python. Your app should execute it.</h3>
+      <p>
+        When an LLM writes code to answer a question, transform data, or call a tool&mdash;it writes Python.
+        dart_monty lets your Dart app execute that code directly, in-process, without a server round-trip.
+        The LLM writes 35 lines of glue. Monty runs it. Your host functions provide the domain logic.
+        The agent loop closes locally.
+      </p>
+    </div>
+    <div class="why-item">
+      <div class="why-icon why-icon-sandbox">Sandboxing</div>
+      <h3>User-submitted code without the terror.</h3>
+      <p>
+        You want users to write scripts, formulas, automations&mdash;but you can't let arbitrary code
+        touch the filesystem, the network, or memory you don't control. Monty's Python subset has
+        no <code>import</code>, no <code>eval()</code>, no I/O. The sandbox isn't a policy layer bolted on top.
+        It's the interpreter itself. There is no escape because there is nothing to escape to.
+      </p>
+    </div>
+    <div class="why-item">
+      <div class="why-icon why-icon-mobile">Mobile Sovereignty</div>
+      <h3>Apple says no to downloaded code. We say yes to intent translation.</h3>
+      <p>
+        App Store rule 2.5.2 prohibits downloading and executing code. But if an on-device model
+        <em>generates</em> Python from a goal intent, and Monty executes it locally&mdash;no code was
+        downloaded. The computation stays on-device. The user's data never leaves. This is the
+        architecture that makes mobile AI agents possible without a server dependency.
+      </p>
+    </div>
+    <div class="why-item">
+      <div class="why-icon why-icon-parity">One Codebase, Proven Parity</div>
+      <h3>Write it once. Know it works the same everywhere.</h3>
+      <p>
+        Most cross-platform stories are "write once, hope for the best." dart_monty has an
+        11-tier test suite that runs the <em>same</em> JSON fixtures on native FFI and browser WASM,
+        diffs the JSONL output, and fails CI on any divergence. Parity isn't a goal. It's a gate.
+        You don't ship if native and web disagree.
+      </p>
+    </div>
+  </div>
+
+  <div class="epigraph" style="margin-top: 2.5rem;">
+    "The SubGenius must have Slack, or the whole world will be destroyed."
+    <span class="attribution">&mdash; J.R. "Bob" Dobbs, The Book of the SubGenius</span>
+  </div>
+</section>
+
+<div class="section-divider"><hr></div>
+
+<!-- ═══════════════════════════════════════════════════════════════
      WHAT IS THIS
      ═══════════════════════════════════════════════════════════════ -->
 <section id="about" class="fade-in">
-  <div class="section-label">The Pitch</div>
+  <div class="section-label">The What</div>
   <div class="section-title">A Rust Python interpreter. In your Dart app. Everywhere.</div>
   <p class="section-subtitle">
     dart_monty wraps <strong>Monty</strong>&mdash;Pydantic's tree-walking Python interpreter written in Rust&mdash;in
