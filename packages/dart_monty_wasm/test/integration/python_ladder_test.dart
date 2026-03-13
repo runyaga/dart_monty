@@ -36,6 +36,15 @@ external JSPromise<JSString> _montyResume(JSString valueJson);
 @JS('DartMontyBridge.resumeWithError')
 external JSPromise<JSString> _montyResumeWithError(JSString errorJson);
 
+@JS('DartMontyBridge.resumeAsFuture')
+external JSPromise<JSString> _montyResumeAsFuture();
+
+@JS('DartMontyBridge.resolveFutures')
+external JSPromise<JSString> _montyResolveFutures(
+  JSString resultsJson,
+  JSString errorsJson,
+);
+
 // ---------------------------------------------------------------------------
 // JS fetch interop
 // ---------------------------------------------------------------------------
@@ -175,6 +184,8 @@ Future<Map<String, dynamic>> _runIterative(Map<String, dynamic> fixture) async {
   final extFns = (fixture['externalFunctions'] as List).cast<String>();
   final resumeValues = (fixture['resumeValues'] as List?)?.cast<Object>();
   final resumeErrors = (fixture['resumeErrors'] as List?)?.cast<String>();
+  final asyncResumeMap = fixture['asyncResumeMap'] as Map<String, dynamic>?;
+  final asyncErrorMap = fixture['asyncErrorMap'] as Map<String, dynamic>?;
 
   var resultJson = _parseResult(
     (await _montyStart(code.toJS, jsonEncode(extFns).toJS).toDart).toDart,
@@ -182,6 +193,11 @@ Future<Map<String, dynamic>> _runIterative(Map<String, dynamic> fixture) async {
 
   if (resultJson['ok'] != true) {
     return {'id': id, 'ok': false, 'error': resultJson['error']};
+  }
+
+  // Async futures path: resumeAsFuture + resolveFutures loop.
+  if (asyncResumeMap != null) {
+    return _runAsyncFutures(id, resultJson, asyncResumeMap, asyncErrorMap);
   }
 
   if (resumeErrors != null) {
@@ -208,4 +224,59 @@ Future<Map<String, dynamic>> _runIterative(Map<String, dynamic> fixture) async {
     return {'id': id, 'ok': false, 'error': resultJson['error']};
   }
   return {'id': id, 'ok': true, 'value': resultJson['value']};
+}
+
+/// Drives the resumeAsFuture / resolveFutures state machine for async
+/// fixtures, mirroring the ladder_runner.dart logic in platform_interface.
+Future<Map<String, dynamic>> _runAsyncFutures(
+  int id,
+  Map<String, dynamic> resultJson,
+  Map<String, dynamic> asyncResumeMap,
+  Map<String, dynamic>? asyncErrorMap,
+) async {
+  var state = resultJson;
+
+  while (state['state'] != 'complete') {
+    if (state['ok'] != true) {
+      return {'id': id, 'ok': false, 'error': state['error']};
+    }
+
+    if (state['state'] == 'pending') {
+      // External function call — tell runtime to treat it as a future.
+      state = _parseResult(
+        (await _montyResumeAsFuture().toDart).toDart,
+      );
+    } else if (state['state'] == 'resolve_futures') {
+      // Resolve pending futures with values/errors from the fixture maps.
+      final pendingIds =
+          (state['pendingCallIds'] as List?)?.cast<num>() ?? <num>[];
+      final results = <String, Object?>{};
+      final errors = <String, String>{};
+      for (final callId in pendingIds) {
+        final key = callId.toInt().toString();
+        if (asyncErrorMap != null && asyncErrorMap.containsKey(key)) {
+          errors[key] = asyncErrorMap[key] as String;
+        } else if (asyncResumeMap.containsKey(key)) {
+          results[key] = asyncResumeMap[key];
+        }
+      }
+      state = _parseResult(
+        (await _montyResolveFutures(
+          jsonEncode(results).toJS,
+          jsonEncode(errors).toJS,
+        ).toDart).toDart,
+      );
+    } else {
+      return {
+        'id': id,
+        'ok': false,
+        'error': 'Unexpected state: ${state['state']}',
+      };
+    }
+  }
+
+  if (state['ok'] != true) {
+    return {'id': id, 'ok': false, 'error': state['error']};
+  }
+  return {'id': id, 'ok': true, 'value': state['value']};
 }
