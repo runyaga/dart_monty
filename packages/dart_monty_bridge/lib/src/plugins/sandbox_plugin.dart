@@ -140,7 +140,8 @@ class SandboxPlugin extends MontyPlugin {
   @override
   String? get systemPromptContext =>
       'Spawn Python scripts in sandboxed interpreter instances. '
-      'Each child has its own state. Use for parallel computation.';
+      'Each child has its own state. Use for parallel computation. '
+      'Use sandbox_gather for attributed results with handle and output.';
 
   @override
   List<HostFunction> get functions => [
@@ -265,6 +266,22 @@ class SandboxPlugin extends MontyPlugin {
         ],
       ),
       handler: _handleGetOutput,
+    ),
+    HostFunction(
+      schema: const HostFunctionSchema(
+        name: 'sandbox_gather',
+        description:
+            'Wait for multiple children and return attributed results. '
+            'Each element is a dict with handle, value, and output keys.',
+        params: [
+          HostParam(
+            name: 'handles',
+            type: HostParamType.list,
+            description: 'List of handles from sandbox_spawn.',
+          ),
+        ],
+      ),
+      handler: _handleGather,
     ),
   ];
 
@@ -598,6 +615,33 @@ class SandboxPlugin extends MontyPlugin {
       );
     }
     return child.printOutput;
+  }
+
+  Future<Object?> _handleGather(Map<String, Object?> args) async {
+    final raw = args['handles']! as List<Object?>;
+    final handles = raw.cast<num>().map((n) => n.toInt()).toList();
+
+    final futures = <Future<Object?>>[];
+    for (final handle in handles) {
+      final child = _children[handle];
+      if (child == null) {
+        throw ArgumentError.value(handle, 'handle', 'Unknown child handle.');
+      }
+      futures.add(child.completer.future);
+    }
+
+    final values = await Future.wait(futures);
+
+    final results = <Map<String, Object?>>[];
+    for (var i = 0; i < handles.length; i++) {
+      results.add({
+        'handle': handles[i],
+        'value': values[i],
+        'output': _children[handles[i]]!.printOutput,
+      });
+    }
+
+    return results;
   }
 
   @override
