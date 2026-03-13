@@ -71,54 +71,54 @@ MockMontyPlatform _failingMockStructured({
 }
 
 void main() {
-  group('IsolatePlugin', () {
+  group('SandboxPlugin', () {
     group('metadata', () {
-      test('namespace is "isolate"', () {
-        final plugin = IsolatePlugin(
+      test('namespace is "sandbox"', () {
+        final plugin = SandboxPlugin(
           platformFactory: () async => MockMontyPlatform(),
         );
-        expect(plugin.namespace, 'isolate');
+        expect(plugin.namespace, 'sandbox');
       });
 
       test('has system prompt context', () {
-        final plugin = IsolatePlugin(
+        final plugin = SandboxPlugin(
           platformFactory: () async => MockMontyPlatform(),
         );
         expect(plugin.systemPromptContext, isNotNull);
-        expect(plugin.systemPromptContext, contains('isolated'));
+        expect(plugin.systemPromptContext, contains('sandboxed'));
       });
 
       test('provides 7 host functions', () {
-        final plugin = IsolatePlugin(
+        final plugin = SandboxPlugin(
           platformFactory: () async => MockMontyPlatform(),
         );
         expect(plugin.functions, hasLength(7));
       });
 
-      test('all function names start with isolate_', () {
-        final plugin = IsolatePlugin(
+      test('all function names start with sandbox_', () {
+        final plugin = SandboxPlugin(
           platformFactory: () async => MockMontyPlatform(),
         );
         for (final fn in plugin.functions) {
-          expect(fn.schema.name, startsWith('isolate_'));
+          expect(fn.schema.name, startsWith('sandbox_'));
         }
       });
 
       test('registers on PluginRegistry without collision', () {
         final registry = PluginRegistry()
           ..register(
-            IsolatePlugin(platformFactory: () async => MockMontyPlatform()),
+            SandboxPlugin(platformFactory: () async => MockMontyPlatform()),
           );
         expect(registry.plugins, hasLength(1));
       });
     });
 
-    group('isolate_spawn', () {
+    group('sandbox_spawn', () {
       test('returns an integer handle', () async {
-        final plugin = IsolatePlugin(
+        final plugin = SandboxPlugin(
           platformFactory: () async => _completingMock(),
         );
-        final spawn = _findHandler(plugin, 'isolate_spawn');
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
 
         final handle = await spawn({'code': 'x = 1'});
 
@@ -127,10 +127,10 @@ void main() {
       });
 
       test('sequential spawns return incrementing handles', () async {
-        final plugin = IsolatePlugin(
+        final plugin = SandboxPlugin(
           platformFactory: () async => _completingMock(),
         );
-        final spawn = _findHandler(plugin, 'isolate_spawn');
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
 
         final h0 = await spawn({'code': 'a'});
         final h1 = await spawn({'code': 'b'});
@@ -143,8 +143,8 @@ void main() {
 
       test('passes code to child platform start()', () async {
         final mock = _completingMock();
-        final plugin = IsolatePlugin(platformFactory: () async => mock);
-        final spawn = _findHandler(plugin, 'isolate_spawn');
+        final plugin = SandboxPlugin(platformFactory: () async => mock);
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
 
         await spawn({'code': 'print("hello")'});
 
@@ -155,9 +155,9 @@ void main() {
 
       test('child platform is disposed after completion', () async {
         final mock = _completingMock();
-        final plugin = IsolatePlugin(platformFactory: () async => mock);
-        final spawn = _findHandler(plugin, 'isolate_spawn');
-        final await_ = _findHandler(plugin, 'isolate_await');
+        final plugin = SandboxPlugin(platformFactory: () async => mock);
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
+        final await_ = _findHandler(plugin, 'sandbox_await');
         final handle = await spawn({'code': '42'});
 
         await await_({'handle': handle! as int});
@@ -167,8 +167,8 @@ void main() {
 
       test('applies timeout_ms and memory_bytes to child limits', () async {
         final mock = _completingMock();
-        final plugin = IsolatePlugin(platformFactory: () async => mock);
-        final spawn = _findHandler(plugin, 'isolate_spawn');
+        final plugin = SandboxPlugin(platformFactory: () async => mock);
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
 
         await spawn({'code': '1', 'timeout_ms': 5000, 'memory_bytes': 1048576});
 
@@ -181,11 +181,11 @@ void main() {
       });
 
       test('throws StateError when disposed', () async {
-        final plugin = IsolatePlugin(
+        final plugin = SandboxPlugin(
           platformFactory: () async => _completingMock(),
         );
         await plugin.onDispose();
-        final spawn = _findHandler(plugin, 'isolate_spawn');
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
 
         expect(
           () => spawn({'code': '1'}),
@@ -200,13 +200,13 @@ void main() {
       });
     });
 
-    group('isolate_await', () {
+    group('sandbox_await', () {
       test('returns null for child with no return value', () async {
-        final plugin = IsolatePlugin(
+        final plugin = SandboxPlugin(
           platformFactory: () async => _completingMock(),
         );
-        final spawn = _findHandler(plugin, 'isolate_spawn');
-        final await_ = _findHandler(plugin, 'isolate_await');
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
+        final await_ = _findHandler(plugin, 'sandbox_await');
         final handle = await spawn({'code': 'x = 1'});
         final result = await await_({'handle': handle! as int});
 
@@ -214,29 +214,29 @@ void main() {
       });
 
       test('returns child return value', () async {
-        final plugin = IsolatePlugin(
+        final plugin = SandboxPlugin(
           platformFactory: () async => _completingMockWithResult(value: 42),
         );
-        final spawn = _findHandler(plugin, 'isolate_spawn');
-        final await_ = _findHandler(plugin, 'isolate_await');
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
+        final await_ = _findHandler(plugin, 'sandbox_await');
         final handle = await spawn({'code': '42'});
         final result = await await_({'handle': handle! as int});
 
         expect(result, 42);
       });
 
-      test('throws ChildIsolateException for failed child', () async {
-        final plugin = IsolatePlugin(
+      test('throws ChildSandboxException for failed child', () async {
+        final plugin = SandboxPlugin(
           platformFactory: () async => _failingMock('NameError: x'),
         );
-        final spawn = _findHandler(plugin, 'isolate_spawn');
-        final await_ = _findHandler(plugin, 'isolate_await');
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
+        final await_ = _findHandler(plugin, 'sandbox_await');
         final handle = await spawn({'code': 'x'});
 
         expect(
           () => await_({'handle': handle! as int}),
           throwsA(
-            isA<ChildIsolateException>()
+            isA<ChildSandboxException>()
                 .having((e) => e.childId, 'childId', handle)
                 .having((e) => e.message, 'message', contains('NameError')),
           ),
@@ -244,9 +244,9 @@ void main() {
       });
 
       test(
-        'preserves MontyException fields through ChildIsolateException',
+        'preserves MontyException fields through ChildSandboxException',
         () async {
-          final plugin = IsolatePlugin(
+          final plugin = SandboxPlugin(
             platformFactory: () async => _failingMockStructured(
               message: 'NameError: undefined_var',
               filename: '<code>',
@@ -255,14 +255,14 @@ void main() {
               excType: 'NameError',
             ),
           );
-          final spawn = _findHandler(plugin, 'isolate_spawn');
-          final await_ = _findHandler(plugin, 'isolate_await');
+          final spawn = _findHandler(plugin, 'sandbox_spawn');
+          final await_ = _findHandler(plugin, 'sandbox_await');
           final handle = await spawn({'code': 'undefined_var'});
 
           try {
             await await_({'handle': handle! as int});
-            fail('Expected ChildIsolateException');
-          } on ChildIsolateException catch (e) {
+            fail('Expected ChildSandboxException');
+          } on ChildSandboxException catch (e) {
             expect(e.childId, handle);
             expect(e.message, contains('NameError'));
             expect(e.exception, isNotNull);
@@ -276,22 +276,22 @@ void main() {
       );
 
       test('throws ArgumentError for unknown handle', () async {
-        final plugin = IsolatePlugin(
+        final plugin = SandboxPlugin(
           platformFactory: () async => _completingMock(),
         );
-        final await_ = _findHandler(plugin, 'isolate_await');
+        final await_ = _findHandler(plugin, 'sandbox_await');
 
         expect(() => await_({'handle': 999}), throwsA(isA<ArgumentError>()));
       });
     });
 
-    group('isolate_await_all', () {
+    group('sandbox_await_all', () {
       test('returns results for all children', () async {
-        final plugin = IsolatePlugin(
+        final plugin = SandboxPlugin(
           platformFactory: () async => _completingMock(),
         );
-        final spawn = _findHandler(plugin, 'isolate_spawn');
-        final awaitAll = _findHandler(plugin, 'isolate_await_all');
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
+        final awaitAll = _findHandler(plugin, 'sandbox_await_all');
         final h0 = await spawn({'code': 'a'});
         final h1 = await spawn({'code': 'b'});
 
@@ -305,15 +305,15 @@ void main() {
 
       test('throws if any child fails', () async {
         var callCount = 0;
-        final plugin = IsolatePlugin(
+        final plugin = SandboxPlugin(
           platformFactory: () async {
             callCount++;
             if (callCount == 2) return _failingMock('boom');
             return _completingMock();
           },
         );
-        final spawn = _findHandler(plugin, 'isolate_spawn');
-        final awaitAll = _findHandler(plugin, 'isolate_await_all');
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
+        final awaitAll = _findHandler(plugin, 'sandbox_await_all');
         final h0 = await spawn({'code': 'ok'});
         final h1 = await spawn({'code': 'fail'});
 
@@ -321,15 +321,15 @@ void main() {
           () => awaitAll({
             'handles': <Object?>[h0, h1],
           }),
-          throwsA(isA<ChildIsolateException>()),
+          throwsA(isA<ChildSandboxException>()),
         );
       });
 
       test('throws ArgumentError for unknown handle in list', () async {
-        final plugin = IsolatePlugin(
+        final plugin = SandboxPlugin(
           platformFactory: () async => _completingMock(),
         );
-        final awaitAll = _findHandler(plugin, 'isolate_await_all');
+        final awaitAll = _findHandler(plugin, 'sandbox_await_all');
 
         expect(
           () => awaitAll({
@@ -340,15 +340,15 @@ void main() {
       });
     });
 
-    group('isolate_is_alive', () {
+    group('sandbox_is_alive', () {
       test('returns true while child is running', () async {
         // Use a slow platform that doesn't resolve start() immediately.
         final startCompleter = Completer<MontyProgress>();
         final mock = _SlowMockPlatform(startCompleter.future);
 
-        final plugin = IsolatePlugin(platformFactory: () async => mock);
-        final spawn = _findHandler(plugin, 'isolate_spawn');
-        final isAlive = _findHandler(plugin, 'isolate_is_alive');
+        final plugin = SandboxPlugin(platformFactory: () async => mock);
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
+        final isAlive = _findHandler(plugin, 'sandbox_is_alive');
         final handle = await spawn({'code': '1'});
 
         // Bridge is waiting for start() to complete — child is alive.
@@ -363,12 +363,12 @@ void main() {
       });
 
       test('returns false after child completes', () async {
-        final plugin = IsolatePlugin(
+        final plugin = SandboxPlugin(
           platformFactory: () async => _completingMock(),
         );
-        final spawn = _findHandler(plugin, 'isolate_spawn');
-        final await_ = _findHandler(plugin, 'isolate_await');
-        final isAlive = _findHandler(plugin, 'isolate_is_alive');
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
+        final await_ = _findHandler(plugin, 'sandbox_await');
+        final isAlive = _findHandler(plugin, 'sandbox_is_alive');
         final handle = await spawn({'code': '1'});
 
         await await_({'handle': handle! as int});
@@ -378,23 +378,23 @@ void main() {
       });
 
       test('throws ArgumentError for unknown handle', () async {
-        final plugin = IsolatePlugin(
+        final plugin = SandboxPlugin(
           platformFactory: () async => _completingMock(),
         );
-        final isAlive = _findHandler(plugin, 'isolate_is_alive');
+        final isAlive = _findHandler(plugin, 'sandbox_is_alive');
 
         expect(() => isAlive({'handle': 999}), throwsA(isA<ArgumentError>()));
       });
     });
 
-    group('isolate_cancel', () {
+    group('sandbox_cancel', () {
       test('cancels a running child', () async {
         final startCompleter = Completer<MontyProgress>();
         final mock = _SlowMockPlatform(startCompleter.future);
-        final plugin = IsolatePlugin(platformFactory: () async => mock);
-        final spawn = _findHandler(plugin, 'isolate_spawn');
-        final cancel = _findHandler(plugin, 'isolate_cancel');
-        final isAlive = _findHandler(plugin, 'isolate_is_alive');
+        final plugin = SandboxPlugin(platformFactory: () async => mock);
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
+        final cancel = _findHandler(plugin, 'sandbox_cancel');
+        final isAlive = _findHandler(plugin, 'sandbox_is_alive');
         final handle = await spawn({'code': 'wait_forever()'});
 
         await cancel({'handle': handle! as int});
@@ -410,12 +410,12 @@ void main() {
       });
 
       test('no-op for already finished child', () async {
-        final plugin = IsolatePlugin(
+        final plugin = SandboxPlugin(
           platformFactory: () async => _completingMock(),
         );
-        final spawn = _findHandler(plugin, 'isolate_spawn');
-        final await_ = _findHandler(plugin, 'isolate_await');
-        final cancel = _findHandler(plugin, 'isolate_cancel');
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
+        final await_ = _findHandler(plugin, 'sandbox_await');
+        final cancel = _findHandler(plugin, 'sandbox_cancel');
         final handle = await spawn({'code': '1'});
 
         await await_({'handle': handle! as int});
@@ -426,12 +426,12 @@ void main() {
 
       test('await on cancelled child throws', () async {
         final startCompleter = Completer<MontyProgress>();
-        final plugin = IsolatePlugin(
+        final plugin = SandboxPlugin(
           platformFactory: () async => _SlowMockPlatform(startCompleter.future),
         );
-        final spawn = _findHandler(plugin, 'isolate_spawn');
-        final cancel = _findHandler(plugin, 'isolate_cancel');
-        final await_ = _findHandler(plugin, 'isolate_await');
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
+        final cancel = _findHandler(plugin, 'sandbox_cancel');
+        final await_ = _findHandler(plugin, 'sandbox_await');
         final handle = await spawn({'code': 'wait_forever()'});
 
         await cancel({'handle': handle! as int});
@@ -439,7 +439,7 @@ void main() {
         expect(
           () => await_({'handle': handle as int}),
           throwsA(
-            isA<ChildIsolateException>()
+            isA<ChildSandboxException>()
                 .having((e) => e.childId, 'childId', handle)
                 .having((e) => e.message, 'message', 'cancelled')
                 .having((e) => e.exception, 'exception', isNull),
@@ -453,15 +453,15 @@ void main() {
       });
     });
 
-    group('isolate_get_output', () {
+    group('sandbox_get_output', () {
       test('returns print output from completed child', () async {
-        final plugin = IsolatePlugin(
+        final plugin = SandboxPlugin(
           platformFactory: () async =>
               _completingMockWithResult(printOutput: 'hello world\n'),
         );
-        final spawn = _findHandler(plugin, 'isolate_spawn');
-        final await_ = _findHandler(plugin, 'isolate_await');
-        final getOutput = _findHandler(plugin, 'isolate_get_output');
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
+        final await_ = _findHandler(plugin, 'sandbox_await');
+        final getOutput = _findHandler(plugin, 'sandbox_get_output');
         final handle = await spawn({'code': 'print("hello world")'});
 
         await await_({'handle': handle! as int});
@@ -471,12 +471,12 @@ void main() {
       });
 
       test('returns null when child had no print output', () async {
-        final plugin = IsolatePlugin(
+        final plugin = SandboxPlugin(
           platformFactory: () async => _completingMock(),
         );
-        final spawn = _findHandler(plugin, 'isolate_spawn');
-        final await_ = _findHandler(plugin, 'isolate_await');
-        final getOutput = _findHandler(plugin, 'isolate_get_output');
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
+        final await_ = _findHandler(plugin, 'sandbox_await');
+        final getOutput = _findHandler(plugin, 'sandbox_get_output');
         final handle = await spawn({'code': '42'});
 
         await await_({'handle': handle! as int});
@@ -488,9 +488,9 @@ void main() {
       test('throws StateError when child is still running', () async {
         final startCompleter = Completer<MontyProgress>();
         final mock = _SlowMockPlatform(startCompleter.future);
-        final plugin = IsolatePlugin(platformFactory: () async => mock);
-        final spawn = _findHandler(plugin, 'isolate_spawn');
-        final getOutput = _findHandler(plugin, 'isolate_get_output');
+        final plugin = SandboxPlugin(platformFactory: () async => mock);
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
+        final getOutput = _findHandler(plugin, 'sandbox_get_output');
         final handle = await spawn({'code': 'print("hi")'});
 
         expect(
@@ -512,30 +512,30 @@ void main() {
       });
 
       test('throws ArgumentError for unknown handle', () async {
-        final plugin = IsolatePlugin(
+        final plugin = SandboxPlugin(
           platformFactory: () async => _completingMock(),
         );
-        final getOutput = _findHandler(plugin, 'isolate_get_output');
+        final getOutput = _findHandler(plugin, 'sandbox_get_output');
 
         expect(() => getOutput({'handle': 999}), throwsA(isA<ArgumentError>()));
       });
     });
 
-    group('isolate_free', () {
+    group('sandbox_free', () {
       test('removes completed child from map', () async {
-        final plugin = IsolatePlugin(
+        final plugin = SandboxPlugin(
           platformFactory: () async => _completingMock(),
         );
-        final spawn = _findHandler(plugin, 'isolate_spawn');
-        final await_ = _findHandler(plugin, 'isolate_await');
-        final free = _findHandler(plugin, 'isolate_free');
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
+        final await_ = _findHandler(plugin, 'sandbox_await');
+        final free = _findHandler(plugin, 'sandbox_free');
         final handle = await spawn({'code': '1'});
 
         await await_({'handle': handle! as int});
         await free({'handle': handle as int});
 
         // Handle is now unknown.
-        final getOutput = _findHandler(plugin, 'isolate_get_output');
+        final getOutput = _findHandler(plugin, 'sandbox_get_output');
         expect(
           () => getOutput({'handle': handle}),
           throwsA(isA<ArgumentError>()),
@@ -545,9 +545,9 @@ void main() {
       test('throws StateError when child is still running', () async {
         final startCompleter = Completer<MontyProgress>();
         final mock = _SlowMockPlatform(startCompleter.future);
-        final plugin = IsolatePlugin(platformFactory: () async => mock);
-        final spawn = _findHandler(plugin, 'isolate_spawn');
-        final free = _findHandler(plugin, 'isolate_free');
+        final plugin = SandboxPlugin(platformFactory: () async => mock);
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
+        final free = _findHandler(plugin, 'sandbox_free');
         final handle = await spawn({'code': '1'});
 
         expect(
@@ -568,21 +568,21 @@ void main() {
       });
 
       test('throws ArgumentError for unknown handle', () async {
-        final plugin = IsolatePlugin(
+        final plugin = SandboxPlugin(
           platformFactory: () async => _completingMock(),
         );
-        final free = _findHandler(plugin, 'isolate_free');
+        final free = _findHandler(plugin, 'sandbox_free');
 
         expect(() => free({'handle': 999}), throwsA(isA<ArgumentError>()));
       });
 
       test('double free throws ArgumentError', () async {
-        final plugin = IsolatePlugin(
+        final plugin = SandboxPlugin(
           platformFactory: () async => _completingMock(),
         );
-        final spawn = _findHandler(plugin, 'isolate_spawn');
-        final await_ = _findHandler(plugin, 'isolate_await');
-        final free = _findHandler(plugin, 'isolate_free');
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
+        final await_ = _findHandler(plugin, 'sandbox_await');
+        final free = _findHandler(plugin, 'sandbox_free');
         final handle = await spawn({'code': '1'});
 
         await await_({'handle': handle! as int});
@@ -609,16 +609,16 @@ void main() {
               ),
             ),
           );
-        final plugin = IsolatePlugin(platformFactory: () async => mock);
-        final spawn = _findHandler(plugin, 'isolate_spawn');
-        final await_ = _findHandler(plugin, 'isolate_await');
-        final getOutput = _findHandler(plugin, 'isolate_get_output');
+        final plugin = SandboxPlugin(platformFactory: () async => mock);
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
+        final await_ = _findHandler(plugin, 'sandbox_await');
+        final getOutput = _findHandler(plugin, 'sandbox_get_output');
         final handle = await spawn({'code': 'print("debug line"); x'});
 
         // Await will throw because the child failed.
         await expectLater(
           () => await_({'handle': handle! as int}),
-          throwsA(isA<ChildIsolateException>()),
+          throwsA(isA<ChildSandboxException>()),
         );
 
         final output = await getOutput({'handle': handle! as int});
@@ -628,12 +628,12 @@ void main() {
 
     group('depth limiting', () {
       test('rejects spawn when currentDepth >= maxDepth', () async {
-        final plugin = IsolatePlugin(
+        final plugin = SandboxPlugin(
           platformFactory: () async => _completingMock(),
           maxDepth: 2,
           currentDepth: 2,
         );
-        final spawn = _findHandler(plugin, 'isolate_spawn');
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
 
         expect(
           () => spawn({'code': '1'}),
@@ -648,11 +648,11 @@ void main() {
       });
 
       test('allows spawn when currentDepth < maxDepth', () async {
-        final plugin = IsolatePlugin(
+        final plugin = SandboxPlugin(
           platformFactory: () async => _completingMock(),
           currentDepth: 1,
         );
-        final spawn = _findHandler(plugin, 'isolate_spawn');
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
 
         final handle = await spawn({'code': '1'});
         expect(handle, isA<int>());
@@ -662,7 +662,7 @@ void main() {
     group('concurrency limiting', () {
       test('rejects spawn when maxChildren reached', () async {
         final completers = <Completer<MontyProgress>>[];
-        final plugin = IsolatePlugin(
+        final plugin = SandboxPlugin(
           platformFactory: () async {
             final c = Completer<MontyProgress>();
             completers.add(c);
@@ -670,7 +670,7 @@ void main() {
           },
           maxChildren: 2,
         );
-        final spawn = _findHandler(plugin, 'isolate_spawn');
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
 
         await spawn({'code': 'a'});
         await spawn({'code': 'b'});
@@ -694,14 +694,14 @@ void main() {
       });
     });
 
-    group('ChildIsolateException', () {
+    group('ChildSandboxException', () {
       test('toString includes childId and message', () {
-        const e = ChildIsolateException(childId: 3, message: 'boom');
-        expect(e.toString(), 'ChildIsolateException(child 3): boom');
+        const e = ChildSandboxException(childId: 3, message: 'boom');
+        expect(e.toString(), 'ChildSandboxException(child 3): boom');
       });
 
       test('exception field is null for non-Python errors', () {
-        const e = ChildIsolateException(childId: 0, message: 'cancelled');
+        const e = ChildSandboxException(childId: 0, message: 'cancelled');
         expect(e.exception, isNull);
       });
 
@@ -709,17 +709,17 @@ void main() {
         // A platform whose start() throws a non-MontyException error.
         // The bridge catches it via `on Object` and emits BridgeRunError
         // without a MontyException.
-        final plugin = IsolatePlugin(
+        final plugin = SandboxPlugin(
           platformFactory: () async => _InfraErrorMock(),
         );
-        final spawn = _findHandler(plugin, 'isolate_spawn');
-        final await_ = _findHandler(plugin, 'isolate_await');
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
+        final await_ = _findHandler(plugin, 'sandbox_await');
         final handle = await spawn({'code': '1'});
 
         expect(
           () => await_({'handle': handle! as int}),
           throwsA(
-            isA<ChildIsolateException>()
+            isA<ChildSandboxException>()
                 .having((e) => e.exception, 'exception', isNull)
                 .having(
                   (e) => e.message,
@@ -735,7 +735,7 @@ void main() {
       test('cancels all living children', () async {
         final completers = <Completer<MontyProgress>>[];
         final mocks = <_SlowMockPlatform>[];
-        final plugin = IsolatePlugin(
+        final plugin = SandboxPlugin(
           platformFactory: () async {
             final c = Completer<MontyProgress>();
             completers.add(c);
@@ -744,7 +744,7 @@ void main() {
             return m;
           },
         );
-        final spawn = _findHandler(plugin, 'isolate_spawn');
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
 
         await spawn({'code': 'a'});
         await spawn({'code': 'b'});
@@ -762,7 +762,7 @@ void main() {
       });
 
       test('is idempotent', () async {
-        final plugin = IsolatePlugin(
+        final plugin = SandboxPlugin(
           platformFactory: () async => _completingMock(),
         );
 
@@ -772,9 +772,9 @@ void main() {
 
       test('completed children are not cancelled again', () async {
         final mock = _completingMock();
-        final plugin = IsolatePlugin(platformFactory: () async => mock);
-        final spawn = _findHandler(plugin, 'isolate_spawn');
-        final await_ = _findHandler(plugin, 'isolate_await');
+        final plugin = SandboxPlugin(platformFactory: () async => mock);
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
+        final await_ = _findHandler(plugin, 'sandbox_await');
         final handle = await spawn({'code': '1'});
 
         await await_({'handle': handle! as int});
@@ -787,7 +787,7 @@ void main() {
 
     group('child plugin wiring', () {
       test('child gets plugins from factory', () async {
-        final plugin = IsolatePlugin(
+        final plugin = SandboxPlugin(
           platformFactory: () async => _completingMock(),
           childPluginRegistryFactory: () async {
             final registry = PluginRegistry()
@@ -808,8 +808,8 @@ void main() {
             return registry;
           },
         );
-        final spawn = _findHandler(plugin, 'isolate_spawn');
-        final await_ = _findHandler(plugin, 'isolate_await');
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
+        final await_ = _findHandler(plugin, 'sandbox_await');
         final handle = await spawn({'code': 'helper_ping()'});
 
         await await_({'handle': handle! as int});
@@ -820,7 +820,7 @@ void main() {
         () async {
           var factoryCalled = false;
           final parentPlugin = _InheritablePlugin(namespace: 'parent');
-          final plugin = IsolatePlugin(
+          final plugin = SandboxPlugin(
             platformFactory: () async => _completingMock(),
             parentPlugins: [parentPlugin],
             childPluginRegistryFactory: () async {
@@ -830,7 +830,7 @@ void main() {
               return PluginRegistry();
             },
           );
-          final spawn = _findHandler(plugin, 'isolate_spawn');
+          final spawn = _findHandler(plugin, 'sandbox_spawn');
 
           await spawn({'code': '42'});
 
@@ -842,12 +842,12 @@ void main() {
     group('createChildInstance inheritance', () {
       test('children inherit plugins that opt in', () async {
         final parentPlugin = _InheritablePlugin(namespace: 'shared');
-        final plugin = IsolatePlugin(
+        final plugin = SandboxPlugin(
           platformFactory: () async => _completingMock(),
           parentPlugins: [parentPlugin],
         );
-        final spawn = _findHandler(plugin, 'isolate_spawn');
-        final await_ = _findHandler(plugin, 'isolate_await');
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
+        final await_ = _findHandler(plugin, 'sandbox_await');
 
         // Child should have shared_ping available.
         final handle = await spawn({'code': 'shared_ping()'});
@@ -873,12 +873,12 @@ void main() {
 
         // With only non-inheritable plugins, behavior is the same as no
         // parentPlugins — child spawns with only introspection builtins.
-        final plugin = IsolatePlugin(
+        final plugin = SandboxPlugin(
           platformFactory: () async => _completingMock(),
           parentPlugins: [parentPlugin],
         );
-        final spawn = _findHandler(plugin, 'isolate_spawn');
-        final await_ = _findHandler(plugin, 'isolate_await');
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
+        final await_ = _findHandler(plugin, 'sandbox_await');
 
         // Child runs fine — just no extra plugins.
         final handle = await spawn({'code': '42'});
@@ -886,18 +886,18 @@ void main() {
         expect(result, isNull); // Mock returns null value.
       });
 
-      test('IsolatePlugin is never inherited to children', () async {
-        // Even if IsolatePlugin somehow ended up in parentPlugins,
+      test('SandboxPlugin is never inherited to children', () async {
+        // Even if SandboxPlugin somehow ended up in parentPlugins,
         // _buildInheritedRegistry skips it.
-        final innerIsolate = IsolatePlugin(
+        final innerSandbox = SandboxPlugin(
           platformFactory: () async => _completingMock(),
         );
-        final plugin = IsolatePlugin(
+        final plugin = SandboxPlugin(
           platformFactory: () async => _completingMock(),
-          parentPlugins: [innerIsolate],
+          parentPlugins: [innerSandbox],
         );
-        final spawn = _findHandler(plugin, 'isolate_spawn');
-        final await_ = _findHandler(plugin, 'isolate_await');
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
+        final await_ = _findHandler(plugin, 'sandbox_await');
 
         // Should work fine — no plugins inherited, just introspection.
         final handle = await spawn({'code': '42'});
@@ -907,11 +907,11 @@ void main() {
       test(
         'empty parentPlugins with no factory gives children only builtins',
         () async {
-          final plugin = IsolatePlugin(
+          final plugin = SandboxPlugin(
             platformFactory: () async => _completingMock(),
           );
-          final spawn = _findHandler(plugin, 'isolate_spawn');
-          final await_ = _findHandler(plugin, 'isolate_await');
+          final spawn = _findHandler(plugin, 'sandbox_spawn');
+          final await_ = _findHandler(plugin, 'sandbox_await');
 
           // list_functions is an introspection builtin — always available.
           final handle = await spawn({'code': 'list_functions()'});
@@ -920,14 +920,14 @@ void main() {
       );
 
       test(
-        'createChildInstance returning IsolatePlugin throws StateError',
+        'createChildInstance returning SandboxPlugin throws StateError',
         () async {
-          final badPlugin = _ReturnsIsolatePlugin();
-          final plugin = IsolatePlugin(
+          final badPlugin = _ReturnsSandboxPlugin();
+          final plugin = SandboxPlugin(
             platformFactory: () async => _completingMock(),
             parentPlugins: [badPlugin],
           );
-          final spawn = _findHandler(plugin, 'isolate_spawn');
+          final spawn = _findHandler(plugin, 'sandbox_spawn');
 
           await expectLater(
             spawn({'code': '42'}),
@@ -940,7 +940,7 @@ void main() {
         'spawn cleans up platform on factory failure',
         () async {
           late MockMontyPlatform createdMock;
-          final plugin = IsolatePlugin(
+          final plugin = SandboxPlugin(
             platformFactory: () async {
               return createdMock = _completingMock();
             },
@@ -948,7 +948,7 @@ void main() {
               throw StateError('factory boom');
             },
           );
-          final spawn = _findHandler(plugin, 'isolate_spawn');
+          final spawn = _findHandler(plugin, 'sandbox_spawn');
 
           await expectLater(
             spawn({'code': '42'}),
@@ -970,7 +970,7 @@ void main() {
         LogManager.instance
           ..addSink(sink)
           ..minimumLevel = LogLevel.trace;
-        logger = LogManager.instance.getLogger('IsolatePlugin.test');
+        logger = LogManager.instance.getLogger('SandboxPlugin.test');
       });
 
       tearDown(() {
@@ -980,12 +980,12 @@ void main() {
       });
 
       test('spawn logs info with childId and depth', () async {
-        final plugin = IsolatePlugin(
+        final plugin = SandboxPlugin(
           platformFactory: () async => _completingMock(),
           logger: logger,
         );
-        final spawn = _findHandler(plugin, 'isolate_spawn');
-        final await_ = _findHandler(plugin, 'isolate_await');
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
+        final await_ = _findHandler(plugin, 'sandbox_await');
 
         final handle = await spawn({'code': '42'});
         await await_({'handle': handle! as int});
@@ -999,11 +999,11 @@ void main() {
       });
 
       test('spawn logs debug for bridge creation with codeLength', () async {
-        final plugin = IsolatePlugin(
+        final plugin = SandboxPlugin(
           platformFactory: () async => _completingMock(),
           logger: logger,
         );
-        final spawn = _findHandler(plugin, 'isolate_spawn');
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
 
         await spawn({'code': 'x = 42'});
 
@@ -1015,12 +1015,12 @@ void main() {
       });
 
       test('completion logs debug with childId', () async {
-        final plugin = IsolatePlugin(
+        final plugin = SandboxPlugin(
           platformFactory: () async => _completingMock(),
           logger: logger,
         );
-        final spawn = _findHandler(plugin, 'isolate_spawn');
-        final await_ = _findHandler(plugin, 'isolate_await');
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
+        final await_ = _findHandler(plugin, 'sandbox_await');
 
         final handle = await spawn({'code': '42'});
         await await_({'handle': handle! as int});
@@ -1033,12 +1033,12 @@ void main() {
       });
 
       test('failure logs debug with childId and error', () async {
-        final plugin = IsolatePlugin(
+        final plugin = SandboxPlugin(
           platformFactory: () async => _failingMock('NameError: x'),
           logger: logger,
         );
-        final spawn = _findHandler(plugin, 'isolate_spawn');
-        final await_ = _findHandler(plugin, 'isolate_await');
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
+        final await_ = _findHandler(plugin, 'sandbox_await');
 
         final handle = await spawn({'code': 'x'});
         try {
@@ -1057,12 +1057,12 @@ void main() {
 
       test('cancel logs info with childId', () async {
         final startCompleter = Completer<MontyProgress>();
-        final plugin = IsolatePlugin(
+        final plugin = SandboxPlugin(
           platformFactory: () async => _SlowMockPlatform(startCompleter.future),
           logger: logger,
         );
-        final spawn = _findHandler(plugin, 'isolate_spawn');
-        final cancel = _findHandler(plugin, 'isolate_cancel');
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
+        final cancel = _findHandler(plugin, 'sandbox_cancel');
 
         final handle = await spawn({'code': 'wait()'});
         await cancel({'handle': handle! as int});
@@ -1081,13 +1081,13 @@ void main() {
       });
 
       test('free logs debug with childId', () async {
-        final plugin = IsolatePlugin(
+        final plugin = SandboxPlugin(
           platformFactory: () async => _completingMock(),
           logger: logger,
         );
-        final spawn = _findHandler(plugin, 'isolate_spawn');
-        final await_ = _findHandler(plugin, 'isolate_await');
-        final free = _findHandler(plugin, 'isolate_free');
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
+        final await_ = _findHandler(plugin, 'sandbox_await');
+        final free = _findHandler(plugin, 'sandbox_free');
 
         final handle = await spawn({'code': '1'});
         await await_({'handle': handle! as int});
@@ -1101,19 +1101,19 @@ void main() {
       });
 
       test('dispose logs info with child counts', () async {
-        final plugin = IsolatePlugin(
+        final plugin = SandboxPlugin(
           platformFactory: () async => _completingMock(),
           logger: logger,
         );
-        final spawn = _findHandler(plugin, 'isolate_spawn');
-        final await_ = _findHandler(plugin, 'isolate_await');
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
+        final await_ = _findHandler(plugin, 'sandbox_await');
 
         final handle = await spawn({'code': '1'});
         await await_({'handle': handle! as int});
         await plugin.onDispose();
 
         final disposeRecord = sink.records.firstWhere(
-          (r) => r.message == 'Disposing IsolatePlugin',
+          (r) => r.message == 'Disposing SandboxPlugin',
         );
         expect(disposeRecord.level, LogLevel.info);
         expect(disposeRecord.attributes['totalChildren'], 1);
@@ -1121,13 +1121,13 @@ void main() {
       });
 
       test('depth limit rejection logs warning', () async {
-        final plugin = IsolatePlugin(
+        final plugin = SandboxPlugin(
           platformFactory: () async => _completingMock(),
           maxDepth: 2,
           currentDepth: 2,
           logger: logger,
         );
-        final spawn = _findHandler(plugin, 'isolate_spawn');
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
 
         await expectLater(spawn({'code': '1'}), throwsStateError);
 
@@ -1141,7 +1141,7 @@ void main() {
 
       test('concurrency limit rejection logs warning', () async {
         final completers = <Completer<MontyProgress>>[];
-        final plugin = IsolatePlugin(
+        final plugin = SandboxPlugin(
           platformFactory: () async {
             final c = Completer<MontyProgress>();
             completers.add(c);
@@ -1150,7 +1150,7 @@ void main() {
           maxChildren: 1,
           logger: logger,
         );
-        final spawn = _findHandler(plugin, 'isolate_spawn');
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
 
         await spawn({'code': 'a'});
 
@@ -1170,14 +1170,14 @@ void main() {
       });
 
       test('factory failure logs error with phase=factory', () async {
-        final plugin = IsolatePlugin(
+        final plugin = SandboxPlugin(
           platformFactory: () async => _completingMock(),
           childPluginRegistryFactory: () async {
             throw StateError('factory boom');
           },
           logger: logger,
         );
-        final spawn = _findHandler(plugin, 'isolate_spawn');
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
 
         await expectLater(spawn({'code': '1'}), throwsStateError);
 
@@ -1192,12 +1192,12 @@ void main() {
 
       test('child cleanup error is logged as warning', () async {
         // Use a platform whose dispose throws.
-        final plugin = IsolatePlugin(
+        final plugin = SandboxPlugin(
           platformFactory: () async => _DisposeBoomMock(),
           logger: logger,
         );
-        final spawn = _findHandler(plugin, 'isolate_spawn');
-        final await_ = _findHandler(plugin, 'isolate_await');
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
+        final await_ = _findHandler(plugin, 'sandbox_await');
 
         final handle = await spawn({'code': '1'});
         await await_({'handle': handle! as int});
@@ -1211,7 +1211,7 @@ void main() {
       });
 
       test('plugin attachment logs debug with plugin count', () async {
-        final plugin = IsolatePlugin(
+        final plugin = SandboxPlugin(
           platformFactory: () async => _completingMock(),
           childPluginRegistryFactory: () async {
             final registry = PluginRegistry()
@@ -1233,8 +1233,8 @@ void main() {
           },
           logger: logger,
         );
-        final spawn = _findHandler(plugin, 'isolate_spawn');
-        final await_ = _findHandler(plugin, 'isolate_await');
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
+        final await_ = _findHandler(plugin, 'sandbox_await');
 
         final handle = await spawn({'code': '1'});
         await await_({'handle': handle! as int});
@@ -1247,13 +1247,13 @@ void main() {
       });
 
       test('inheritance failure logs error with phase=inheritance', () async {
-        final badPlugin = _ReturnsIsolatePlugin();
-        final plugin = IsolatePlugin(
+        final badPlugin = _ReturnsSandboxPlugin();
+        final plugin = SandboxPlugin(
           platformFactory: () async => _completingMock(),
           parentPlugins: [badPlugin],
           logger: logger,
         );
-        final spawn = _findHandler(plugin, 'isolate_spawn');
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
 
         await expectLater(spawn({'code': '1'}), throwsStateError);
 
@@ -1268,7 +1268,7 @@ void main() {
       test(
         'attachTo failure logs error with phase=attachTo and pluginCount',
         () async {
-          final plugin = IsolatePlugin(
+          final plugin = SandboxPlugin(
             platformFactory: () async => _completingMock(),
             childPluginRegistryFactory: () async {
               final registry = PluginRegistry()..register(_AttachBoomPlugin());
@@ -1276,7 +1276,7 @@ void main() {
             },
             logger: logger,
           );
-          final spawn = _findHandler(plugin, 'isolate_spawn');
+          final spawn = _findHandler(plugin, 'sandbox_spawn');
 
           await expectLater(spawn({'code': '1'}), throwsStateError);
 
@@ -1292,7 +1292,7 @@ void main() {
 
       test('factory failure still cleans up platform and bridge', () async {
         late MockMontyPlatform createdMock;
-        final plugin = IsolatePlugin(
+        final plugin = SandboxPlugin(
           platformFactory: () async {
             return createdMock = _completingMock();
           },
@@ -1301,7 +1301,7 @@ void main() {
           },
           logger: logger,
         );
-        final spawn = _findHandler(plugin, 'isolate_spawn');
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
 
         await expectLater(spawn({'code': '1'}), throwsStateError);
 
@@ -1310,12 +1310,12 @@ void main() {
 
       test('error message is truncated in log attributes', () async {
         final longError = 'E' * 300;
-        final plugin = IsolatePlugin(
+        final plugin = SandboxPlugin(
           platformFactory: () async => _failingMock(longError),
           logger: logger,
         );
-        final spawn = _findHandler(plugin, 'isolate_spawn');
-        final await_ = _findHandler(plugin, 'isolate_await');
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
+        final await_ = _findHandler(plugin, 'sandbox_await');
 
         final handle = await spawn({'code': 'x'});
         try {
@@ -1333,13 +1333,13 @@ void main() {
       });
 
       test('platformFactory failure logs error with phase=platform', () async {
-        final plugin = IsolatePlugin(
+        final plugin = SandboxPlugin(
           platformFactory: () async {
             throw StateError('platform creation boom');
           },
           logger: logger,
         );
-        final spawn = _findHandler(plugin, 'isolate_spawn');
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
 
         await expectLater(spawn({'code': '1'}), throwsStateError);
 
@@ -1351,18 +1351,18 @@ void main() {
         expect(errorRecord.error, isA<StateError>());
       });
 
-      test('default logger name is IsolatePlugin', () {
-        final defaultPlugin = IsolatePlugin(
+      test('default logger name is SandboxPlugin', () {
+        final defaultPlugin = SandboxPlugin(
           platformFactory: () async => _completingMock(),
         );
-        expect(defaultPlugin.log.name, 'IsolatePlugin');
+        expect(defaultPlugin.log.name, 'SandboxPlugin');
       });
     });
   });
 }
 
 /// Finds a handler by function name from the plugin's function list.
-HostFunctionHandler _findHandler(IsolatePlugin plugin, String name) {
+HostFunctionHandler _findHandler(SandboxPlugin plugin, String name) {
   return plugin.functions.firstWhere((f) => f.schema.name == name).handler;
 }
 
@@ -1392,10 +1392,10 @@ class _InheritablePlugin extends MontyPlugin {
       _InheritablePlugin(namespace: namespace);
 }
 
-/// Plugin whose [createChildInstance] returns an [IsolatePlugin].
+/// Plugin whose [createChildInstance] returns an [SandboxPlugin].
 ///
 /// Used to verify that the inheritance guard rejects such plugins.
-class _ReturnsIsolatePlugin extends MontyPlugin {
+class _ReturnsSandboxPlugin extends MontyPlugin {
   @override
   String get namespace => 'bad';
 
@@ -1407,7 +1407,7 @@ class _ReturnsIsolatePlugin extends MontyPlugin {
 
   @override
   MontyPlugin? createChildInstance() =>
-      IsolatePlugin(platformFactory: () async => MockMontyPlatform());
+      SandboxPlugin(platformFactory: () async => MockMontyPlatform());
 }
 
 /// Simple test plugin for child wiring tests.
@@ -1517,7 +1517,7 @@ class _SlowMockPlatform extends MontyPlatform {
 
 /// A [MontyPlatform] whose [start] throws a non-Python infrastructure error.
 ///
-/// Used to verify that infrastructure errors produce [ChildIsolateException]
+/// Used to verify that infrastructure errors produce [ChildSandboxException]
 /// with `exception == null`.
 class _InfraErrorMock extends MontyPlatform {
   @override

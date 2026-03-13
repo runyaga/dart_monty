@@ -4,7 +4,6 @@ import 'package:dart_monty_bridge/src/bridge/host_function_schema.dart';
 import 'package:dart_monty_bridge/src/bridge/introspection_functions.dart';
 import 'package:dart_monty_bridge/src/bridge/monty_bridge.dart';
 import 'package:dart_monty_bridge/src/bridge/monty_plugin.dart';
-import 'package:dart_monty_bridge/src/bridge/plugin_ref.dart';
 import 'package:struct_log/struct_log.dart';
 
 /// Collects [MontyPlugin]s with namespace validation and function name
@@ -94,12 +93,10 @@ class PluginRegistry {
       schemasByCategory[plugin.namespace] = schemas;
     }
 
-    // Resolve dependencies and get topologically sorted order
-    // (dependencies before dependents). Stored for reverse disposal.
-    final sorted = _resolveDependencies();
-    _attachOrder = sorted;
+    // Store registration order for reverse-order disposal.
+    _attachOrder = List.of(_plugins);
 
-    for (final plugin in sorted) {
+    for (final plugin in _plugins) {
       try {
         await plugin.onRegister(bridge);
       } on Object catch (e) {
@@ -134,8 +131,7 @@ class PluginRegistry {
   /// must be idempotent.
   Future<void> disposeAll() async {
     final errors = <(String, Object)>[];
-    // Use reverse topological order (dependents before dependencies).
-    // Falls back to reverse insertion order if attachTo was never called.
+    // Reverse registration order so later-registered plugins dispose first.
     final disposeOrder = (_attachOrder ?? _plugins).reversed;
     for (final plugin in disposeOrder) {
       try {
@@ -187,68 +183,6 @@ class PluginRegistry {
     }
 
     return buffer.toString().trimRight();
-  }
-
-  /// Resolves [PluginRef]s, detects cycles, and returns a topologically
-  /// sorted plugin list (dependencies before dependents).
-  List<MontyPlugin> _resolveDependencies() {
-    // Resolve each ref using polymorphic `is T` matching.
-    for (final plugin in _plugins) {
-      if (plugin is! CompositePlugin) continue;
-      for (final ref in plugin.dependencies) {
-        MontyPlugin? target;
-        for (final candidate in _plugins) {
-          if (ref.accepts(candidate)) {
-            target = candidate;
-            break;
-          }
-        }
-        if (target == null) {
-          if (ref.required) {
-            throw StateError(
-              'Plugin "${plugin.namespace}" has an unresolvable '
-              'required dependency. No registered plugin matches.',
-            );
-          }
-          continue;
-        }
-        ref.bind(target);
-      }
-    }
-
-    // Topological sort via DFS — also detects cycles.
-    return _topologicalSort();
-  }
-
-  /// Returns plugins in topological order (dependencies first).
-  ///
-  /// Throws [StateError] if a cycle is detected.
-  List<MontyPlugin> _topologicalSort() {
-    final visiting = <String>{};
-    final visited = <String>{};
-    final sorted = <MontyPlugin>[];
-
-    void dfs(MontyPlugin plugin) {
-      final ns = plugin.namespace;
-      if (visited.contains(ns)) return;
-      if (visiting.contains(ns)) {
-        throw StateError(
-          'Circular dependency detected involving "$ns".',
-        );
-      }
-      visiting.add(ns);
-      if (plugin case final CompositePlugin composite) {
-        for (final ref in composite.dependencies) {
-          if (ref.isResolved) dfs(ref.plugin);
-        }
-      }
-      visiting.remove(ns);
-      visited.add(ns);
-      sorted.add(plugin);
-    }
-
-    _plugins.forEach(dfs);
-    return sorted;
   }
 
   void _checkFunctionCollisions(MontyPlugin plugin) {

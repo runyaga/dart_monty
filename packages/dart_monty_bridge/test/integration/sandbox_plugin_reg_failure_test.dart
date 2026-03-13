@@ -15,7 +15,7 @@ import 'package:test/test.dart';
 /// cd packages/dart_monty_bridge
 /// DYLD_LIBRARY_PATH=../../native/target/release \
 ///   dart test --tags=integration --run-skipped \
-///   test/integration/isolate_plugin_reg_failure_test.dart
+///   test/integration/sandbox_plugin_reg_failure_test.dart
 /// ```
 void main() {
   late NativeBindingsFfi bindings;
@@ -33,7 +33,7 @@ void main() {
     LogManager.instance
       ..addSink(sink)
       ..minimumLevel = LogLevel.trace;
-    logger = LogManager.instance.getLogger('IsolatePlugin.integration');
+    logger = LogManager.instance.getLogger('SandboxPlugin.integration');
   });
 
   tearDown(() {
@@ -52,7 +52,7 @@ void main() {
       final bridge = createBridge();
       final registry = PluginRegistry()
         ..register(
-          IsolatePlugin(
+          SandboxPlugin(
             platformFactory: () async => createPlatform(),
             childPluginRegistryFactory: () async {
               throw StateError('factory boom');
@@ -62,9 +62,9 @@ void main() {
         );
       await registry.attachTo(bridge);
 
-      final plugin = registry.plugins.whereType<IsolatePlugin>().first;
+      final plugin = registry.plugins.whereType<SandboxPlugin>().first;
       final spawn = plugin.functions
-          .firstWhere((f) => f.schema.name == 'isolate_spawn')
+          .firstWhere((f) => f.schema.name == 'sandbox_spawn')
           .handler;
 
       await expectLater(spawn({'code': '42'}), throwsStateError);
@@ -82,7 +82,7 @@ void main() {
       final bridge = createBridge();
       final registry = PluginRegistry()
         ..register(
-          IsolatePlugin(
+          SandboxPlugin(
             platformFactory: () async => createPlatform(),
             childPluginRegistryFactory: () async {
               final childRegistry = PluginRegistry()
@@ -94,9 +94,9 @@ void main() {
         );
       await registry.attachTo(bridge);
 
-      final plugin = registry.plugins.whereType<IsolatePlugin>().first;
+      final plugin = registry.plugins.whereType<SandboxPlugin>().first;
       final spawn = plugin.functions
-          .firstWhere((f) => f.schema.name == 'isolate_spawn')
+          .firstWhere((f) => f.schema.name == 'sandbox_spawn')
           .handler;
 
       await expectLater(spawn({'code': '42'}), throwsStateError);

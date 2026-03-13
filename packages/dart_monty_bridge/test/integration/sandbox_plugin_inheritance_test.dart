@@ -16,7 +16,7 @@ String _asyncChild(String expr) {
   ].join(r'\n');
 }
 
-/// Integration tests for IsolatePlugin child inheritance with real FFI.
+/// Integration tests for SandboxPlugin child inheritance with real FFI.
 ///
 /// Run with:
 /// ```bash
@@ -24,7 +24,7 @@ String _asyncChild(String expr) {
 /// cd packages/dart_monty_bridge
 /// DYLD_LIBRARY_PATH=../../native/target/release \
 ///   dart test --tags=integration --run-skipped \
-///   test/integration/isolate_plugin_inheritance_test.dart
+///   test/integration/sandbox_plugin_inheritance_test.dart
 /// ```
 void main() {
   late NativeBindingsFfi bindings;
@@ -53,25 +53,25 @@ void main() {
     return result;
   }
 
-  /// Python expression: `isolate_spawn(code="[childCode]")`.
-  String spawn(String childCode) => 'isolate_spawn(code="$childCode")';
+  /// Python expression: `sandbox_spawn(code="[childCode]")`.
+  String spawn(String childCode) => 'sandbox_spawn(code="$childCode")';
 
   // Parent bridge uses useFutures: false for simpler test code.
-  // Child bridges (created by IsolatePlugin) use useFutures: true by default,
+  // Child bridges (created by SandboxPlugin) use useFutures: true by default,
   // so child code calling host functions must use async def + await.
   DefaultMontyBridge createBridge() =>
       DefaultMontyBridge(platform: createPlatform(), useFutures: false);
 
   // ---------------------------------------------------------------------------
-  // Baseline: child isolates work without plugins
+  // Baseline: child sandboxs work without plugins
   // ---------------------------------------------------------------------------
 
   group('baseline (no plugins)', () {
-    test('child isolate computes and returns value', () async {
+    test('child sandbox computes and returns value', () async {
       final bridge = createBridge();
       final registry = PluginRegistry()
         ..register(
-          IsolatePlugin(platformFactory: () async => createPlatform()),
+          SandboxPlugin(platformFactory: () async => createPlatform()),
         );
       await registry.attachTo(bridge);
 
@@ -80,26 +80,26 @@ void main() {
       final result = await run(
         bridge,
         'h = ${spawn("2 + 3")}\n'
-        'isolate_await(handle=h)',
+        'sandbox_await(handle=h)',
       );
 
       expect(result, 5);
       bridge.dispose();
     });
 
-    test('child isolate captures print output', () async {
+    test('child sandbox captures print output', () async {
       final bridge = createBridge();
       final registry = PluginRegistry()
         ..register(
-          IsolatePlugin(platformFactory: () async => createPlatform()),
+          SandboxPlugin(platformFactory: () async => createPlatform()),
         );
       await registry.attachTo(bridge);
 
       final result = await run(
         bridge,
         'h = ${spawn("print(42)")}\n'
-        'isolate_await(handle=h)\n'
-        'isolate_get_output(handle=h)',
+        'sandbox_await(handle=h)\n'
+        'sandbox_get_output(handle=h)',
       );
 
       expect(result, contains('42'));
@@ -118,7 +118,7 @@ void main() {
       final registry = PluginRegistry()
         ..register(greeter)
         ..register(
-          IsolatePlugin(
+          SandboxPlugin(
             platformFactory: () async => createPlatform(),
             parentPlugins: [greeter],
           ),
@@ -140,7 +140,7 @@ void main() {
       final registry = PluginRegistry()
         ..register(greeter)
         ..register(
-          IsolatePlugin(
+          SandboxPlugin(
             platformFactory: () async => createPlatform(),
             parentPlugins: [greeter],
           ),
@@ -153,7 +153,7 @@ void main() {
       final result = await run(
         bridge,
         'h = ${spawn(cc)}\n'
-        'isolate_await(handle=h)',
+        'sandbox_await(handle=h)',
       );
 
       expect(result, 'Hello, child!');
@@ -164,7 +164,7 @@ void main() {
       final bridge = createBridge();
       final registry = PluginRegistry()
         ..register(
-          IsolatePlugin(
+          SandboxPlugin(
             platformFactory: () async => createPlatform(),
           ),
         );
@@ -176,7 +176,7 @@ void main() {
         bridge,
         'h = ${spawn(cc)}\n'
         'try:\n'
-        '    isolate_await(handle=h)\n'
+        '    sandbox_await(handle=h)\n'
         '    result = "should_not_reach"\n'
         'except:\n'
         '    result = "error_caught"\n'
@@ -193,7 +193,7 @@ void main() {
       final registry = PluginRegistry()
         ..register(counter)
         ..register(
-          IsolatePlugin(
+          SandboxPlugin(
             platformFactory: () async => createPlatform(),
             parentPlugins: [counter],
           ),
@@ -211,8 +211,8 @@ void main() {
         bridge,
         'h1 = ${spawn(cc)}\n'
         'h2 = ${spawn(cc)}\n'
-        'r1 = isolate_await(handle=h1)\n'
-        'r2 = isolate_await(handle=h2)\n'
+        'r1 = sandbox_await(handle=h1)\n'
+        'r2 = sandbox_await(handle=h2)\n'
         '[r1, r2]',
       );
 
@@ -238,7 +238,7 @@ void main() {
       final registry = PluginRegistry()
         ..register(greeter)
         ..register(
-          IsolatePlugin(
+          SandboxPlugin(
             platformFactory: () async => createPlatform(),
             parentPlugins: [greeter],
             childPluginRegistryFactory: () async {
@@ -255,7 +255,7 @@ void main() {
         bridge,
         'h = ${spawn(cc)}\n'
         'try:\n'
-        '    isolate_await(handle=h)\n'
+        '    sandbox_await(handle=h)\n'
         '    result = "should_not_reach"\n'
         'except:\n'
         '    result = "error_caught"\n'

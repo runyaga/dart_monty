@@ -1579,38 +1579,32 @@ graph TB
     <div class="diagram-caption">Plugin registry &rarr; bridge dispatch &rarr; event stream</div>
   </div>
 
-  <!-- Composite Plugins -->
+  <!-- Bridge Middleware -->
   <div class="feature-row" style="margin-top: 3rem;">
     <div class="feature-text">
-      <div class="feature-tag tag-arch">Composite Plugins</div>
-      <h3>Plugins that depend on plugins.</h3>
+      <div class="feature-tag tag-arch">Bridge Middleware</div>
+      <h3>Cross-cutting concerns at the chokepoint.</h3>
       <p>
-        <code>PluginRef&lt;T&gt;</code> lets a plugin declare typed dependencies on siblings.
-        The registry resolves refs during <code>attachTo()</code> with polymorphic matching,
-        topological init order, and cycle detection. Domain plugins compose infrastructure
-        plugins without LLM multi-tool orchestration&mdash;your <code>ReportPlugin</code> just
-        declares it needs a <code>DataPlugin</code>, and the registry wires it up.
+        <code>BridgeMiddleware</code> intercepts every tool call through the bridge&mdash;grounding,
+        telemetry, rate limiting, access control&mdash;without wrapping individual plugins.
+        A sealed <code>CallRole</code> hierarchy distinguishes orchestration infrastructure
+        from agent-initiated tool calls, so middleware can enforce policy selectively.
       </p>
     </div>
     <div class="diagram-container" style="border: none; padding: 1rem; margin: 0;">
       <pre class="mermaid">
-graph TB
-    RP["ReportPlugin<br/><small>CompositePlugin</small>"]
-    DP["DataPlugin"]
-    CP["ChartPlugin<br/><small>CompositePlugin</small>"]
+graph LR
+    PY["Python seed"] -->|"__role__=infra"| MW1["Grounding"]
+    PY -->|"__role__=tool"| MW1
+    MW1 --> MW2["Telemetry"]
+    MW2 --> MW3["Rate Limit"]
+    MW3 --> H["Plugin Handler"]
 
-    RP -->|"PluginRef&lt;DataPlugin&gt;"| DP
-    CP -->|"PluginRef&lt;DataPlugin&gt;"| DP
-
-    REG["PluginRegistry<br/><small>topological sort &bull; cycle detection</small>"]
-    REG -.->|"resolve + init order"| DP
-    REG -.->|"then"| RP
-    REG -.->|"then"| CP
-
-    style RP fill:#1a1a2e,stroke:#c586c0,stroke-width:2px
-    style CP fill:#1a1a2e,stroke:#c586c0,stroke-width:2px
-    style DP fill:#1a1a2e,stroke:#6a9955,stroke-width:2px
-    style REG fill:#1a1a2e,stroke:#dcdcaa,stroke-width:1px
+    style PY fill:#1a1a2e,stroke:#569cd6,stroke-width:2px
+    style MW1 fill:#1a1a2e,stroke:#c586c0,stroke-width:2px
+    style MW2 fill:#1a1a2e,stroke:#c586c0,stroke-width:2px
+    style MW3 fill:#1a1a2e,stroke:#c586c0,stroke-width:2px
+    style H fill:#1a1a2e,stroke:#6a9955,stroke-width:2px
       </pre>
     </div>
   </div>
@@ -1767,8 +1761,8 @@ timeline
     section Orchestration
         Plugin Registry : Namespaced host functions
         Bridge Events : Streaming execution
+        Bridge Middleware : Sealed CallRole + onion chain
         MCP Server : LLM integration
-        Composite Plugins : PluginRef + topological init
     section Horizon
         Supervision Trees : Fault tolerance
         WASM Optimization : 16MB per session target

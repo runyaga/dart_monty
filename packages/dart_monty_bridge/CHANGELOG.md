@@ -2,16 +2,11 @@
 
 ## 0.4.0
 
-- `CompositePlugin` mixin and `PluginRef<T>` for intra-registry plugin
-  dependencies. Plugins can declare typed, lazy references to sibling plugins
-  that are automatically resolved during `attachTo()`.
-- `PluginRegistry.attachTo()` now resolves composite dependencies with
-  polymorphic matching (`is T`), detects circular dependencies, and calls
-  `onRegister()` in **topological order** (dependencies before dependents).
-- `PluginRegistry.disposeAll()` now calls `onDispose()` in **reverse
-  topological order** (dependents before dependencies).
-- Optional dependencies via `PluginRef(required: false)` for graceful
-  degradation when a dependency is not registered.
+- **BREAKING**: Remove `CompositePlugin` mixin and `PluginRef<T>`. Use
+  constructor injection instead for inter-plugin dependencies.
+- `PluginRegistry.attachTo()` calls `onRegister()` in registration order.
+- `PluginRegistry.disposeAll()` calls `onDispose()` in reverse registration
+  order.
 
 ## 0.3.1
 
@@ -38,16 +33,16 @@
 ## 0.2.1
 
 - Add `printOutput` field to `BridgeRunError` so failed children preserve print output for debugging.
-- Add `isolate_free` host function to release completed child handles (prevents memory leak).
+- Add `sandbox_free` host function to release completed child handles (prevents memory leak).
 - Fix `cancel()` to dispose child plugin registry (prevents resource leak).
 
 ## 0.2.0
 
-- `IsolatePlugin` — spawn Python scripts in isolated interpreter instances.
-  - `isolate_spawn(code)` — start a child with optional timeout/memory limits.
-  - `isolate_await(handle)` / `isolate_await_all(handles)` — wait for results.
-  - `isolate_is_alive(handle)` — poll child status.
-  - `isolate_cancel(handle)` — cancel a running child.
+- `SandboxPlugin` — spawn Python scripts in isolated interpreter instances.
+  - `sandbox_spawn(code)` — start a child with optional timeout/memory limits.
+  - `sandbox_await(handle)` / `sandbox_await_all(handles)` — wait for results.
+  - `sandbox_is_alive(handle)` — poll child status.
+  - `sandbox_cancel(handle)` — cancel a running child.
 - Depth limiting (`maxDepth`) prevents unbounded recursion.
 - Concurrency limiting (`maxChildren`) caps concurrent children (default 16).
 - `childPluginRegistryFactory` optionally wires plugins into child bridges.

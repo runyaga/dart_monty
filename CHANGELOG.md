@@ -32,7 +32,7 @@
 
 ## 0.6.2
 
-- **dart_monty_bridge** (0.2.1): Add `printOutput` to `BridgeRunError`, `isolate_free` host function, fix `cancel()` resource leak.
+- **dart_monty_bridge** (0.2.1): Add `printOutput` to `BridgeRunError`, `sandbox_free` host function, fix `cancel()` resource leak.
 
 ## 0.6.1
 
