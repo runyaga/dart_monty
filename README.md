@@ -253,8 +253,7 @@ await registry.attachTo(bridge); // registers functions + introspection builtins
 ```
 
 Plugins enforce `namespace_` prefixes on function names (e.g., `weather_forecast`),
-provide lifecycle hooks (`onRegister`, `onDispose`), support inter-plugin
-dependencies via `CompositePlugin` + `PluginRef`, and auto-generate
+provide lifecycle hooks (`onRegister`, `onDispose`), and auto-generate
 `list_functions` / `help` introspection builtins so Python code can discover
 available tools at runtime.
 

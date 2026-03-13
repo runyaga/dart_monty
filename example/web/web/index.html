@@ -1579,6 +1579,36 @@ graph TB
     <div class="diagram-caption">Plugin registry &rarr; bridge dispatch &rarr; event stream</div>
   </div>
 
+  <!-- Bridge Middleware -->
+  <div class="feature-row" style="margin-top: 3rem;">
+    <div class="feature-text">
+      <div class="feature-tag tag-arch">Bridge Middleware</div>
+      <h3>Cross-cutting concerns at the chokepoint.</h3>
+      <p>
+        <code>BridgeMiddleware</code> intercepts every tool call through the bridge&mdash;grounding,
+        telemetry, rate limiting, access control&mdash;without wrapping individual plugins.
+        A sealed <code>CallRole</code> hierarchy distinguishes orchestration infrastructure
+        from agent-initiated tool calls, so middleware can enforce policy selectively.
+      </p>
+    </div>
+    <div class="diagram-container" style="border: none; padding: 1rem; margin: 0;">
+      <pre class="mermaid">
+graph LR
+    PY["Python seed"] -->|"__role__=infra"| MW1["Grounding"]
+    PY -->|"__role__=tool"| MW1
+    MW1 --> MW2["Telemetry"]
+    MW2 --> MW3["Rate Limit"]
+    MW3 --> H["Plugin Handler"]
+
+    style PY fill:#1a1a2e,stroke:#569cd6,stroke-width:2px
+    style MW1 fill:#1a1a2e,stroke:#c586c0,stroke-width:2px
+    style MW2 fill:#1a1a2e,stroke:#c586c0,stroke-width:2px
+    style MW3 fill:#1a1a2e,stroke:#c586c0,stroke-width:2px
+    style H fill:#1a1a2e,stroke:#6a9955,stroke-width:2px
+      </pre>
+    </div>
+  </div>
+
   <div class="epigraph" style="margin-top: 2.5rem;">
     "Freedom of choice is what you got. Freedom from choice is what you want."
     <span class="attribution">&mdash; Devo, "Freedom of Choice"</span>
@@ -1731,6 +1761,7 @@ timeline
     section Orchestration
         Plugin Registry : Namespaced host functions
         Bridge Events : Streaming execution
+        Bridge Middleware : Sealed CallRole + onion chain
         MCP Server : LLM integration
     section Horizon
         Supervision Trees : Fault tolerance
