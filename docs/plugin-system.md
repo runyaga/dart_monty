@@ -12,6 +12,7 @@ first principles through production patterns.
 | Beginner | [Host Functions Beginner](guides/host-functions-beginner.md) | `HostFunctionSchema`, typed params, validation, error handling, `BridgeEvent` stream |
 | Intermediate | [Host Functions Intermediate](guides/host-functions-intermediate.md) | `MontyPlugin`, `PluginRegistry`, namespaces, lifecycle hooks, introspection, `EventLoopBridge` |
 | Advanced | [Host Functions Advanced](guides/host-functions-advanced.md) | `SandboxPlugin`, child spawning, depth/concurrency limits, production patterns |
+| Middleware | [Bridge Middleware](guides/bridge-middleware.md) | `BridgeMiddleware`, sealed `CallRole`, onion chain, grounding, rate limiting, why `CompositePlugin` was removed |
 
 ## Architecture at a Glance
 
@@ -19,6 +20,9 @@ first principles through production patterns.
 +--------------------------------------------------+
 |  PluginRegistry + MontyPlugin                    |  namespace validation,
 |  (dart_monty_bridge)                             |  lifecycle, introspection
++--------------------------------------------------+
+|  BridgeMiddleware + CallRole                     |  onion-style policy chain
+|  (dart_monty_bridge)                             |  (grounding, telemetry, ACL)
 +--------------------------------------------------+
 |  DefaultMontyBridge + HostFunction               |  dispatch loop, event
 |  (dart_monty_bridge)                             |  streaming, arg coercion
