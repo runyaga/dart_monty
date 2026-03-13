@@ -69,7 +69,9 @@ class ToolCall extends CallRole {
 }
 ```
 
-Python signals the role via a reserved `__role__` kwarg:
+Python signals the role via a reserved `__role__` kwarg. Typically, a
+Python orchestration harness (seed code, prelude) injects `__role__`
+during planning or routing calls. LLM-generated tool calls omit it:
 
 ```python
 # Infrastructure call -- middleware observes only
@@ -80,13 +82,27 @@ data = df_create(data=rows)
 ```
 
 The bridge strips `__role__` before dispatching to the handler -- plugins
-never see it. When omitted, the default is `ToolCall`.
+never see it. When omitted or set to an unrecognized value, the default
+is `ToolCall`.
 
 ### Why sealed?
 
 Adding a new `CallRole` subtype is a **compile-time breaking change**.
 Every `switch (role)` in every middleware must handle the new case. Policy
 gaps are caught at build time, not in production.
+
+### Security: `__role__` is caller-asserted
+
+**`__role__` is set by Python code, not by the bridge.** If your Python
+code is LLM-generated or otherwise untrusted, the agent can send
+`__role__="infra"` to bypass middleware policy. Mitigations:
+
+- **Do not rely solely on `CallRole` for security.** Use it for
+  observability and soft policy, not hard security boundaries.
+- **Strip `__role__` in your seed/prelude code** before the LLM sees the
+  function signatures, so the LLM never learns the kwarg exists.
+- **Use a separate bridge** for infrastructure calls if hard isolation
+  between infra and agent tool calls is required.
 
 ## Writing Middleware
 
@@ -112,7 +128,8 @@ Three rules:
 
 1. **Call `next(name, args)` to proceed.** Omitting it short-circuits the
    chain and returns your value directly to Python.
-2. **Throw to reject.** The exception surfaces as a Python `RuntimeError`.
+2. **Throw to reject.** The exception surfaces as a Python `RuntimeError`
+   via the bridge's `resumeWithError()` path.
 3. **Inspect `role` for selective enforcement.** Infra calls should
    generally pass through; tool calls are where you enforce policy.
 
@@ -214,8 +231,8 @@ Usage:
 
 ```dart
 bridge.use(GroundingMiddleware(validators: {
-  'df_filter': (r) => r is int,               // Must return a handle
-  'fetch': (r) => (r as Map)['status'] == 200, // Must succeed
+  'df_filter': (r) => r is int,                      // Must return a handle
+  'fetch': (r) => r is Map && r['status'] == 200,    // Must succeed
 }));
 ```
 
@@ -240,6 +257,36 @@ class AccessControlMiddleware extends BridgeMiddleware {
       throw StateError('Access denied: "$name" is not permitted');
     }
     return next(name, args);
+  }
+}
+```
+
+### Example: Argument Normalization
+
+Middleware can mutate arguments before dispatch and transform results
+on the way back -- the full bidirectional power of the onion model:
+
+```dart
+class NormalizerMiddleware extends BridgeMiddleware {
+  @override
+  Future<Object?> handle(
+    String name,
+    Map<String, Object?> args,
+    CallRole role,
+    ToolHandler next,
+  ) async {
+    // Normalize args: trim all string values before dispatch.
+    final cleaned = {
+      for (final e in args.entries)
+        e.key: e.value is String ? (e.value as String).trim() : e.value,
+    };
+    final result = await next(name, cleaned);
+
+    // Redact PII from string results on the way back.
+    if (result is String) {
+      return result.replaceAll(RegExp(r'\b\d{3}-\d{2}-\d{4}\b'), '[REDACTED]');
+    }
+    return result;
   }
 }
 ```
@@ -272,9 +319,21 @@ Order matters. In this configuration:
 
 Results flow back outward: handler -> rate limiter -> telemetry -> grounding.
 
-`use()` throws `StateError` if the bridge has been disposed. You can
-register middleware at any point before or after `execute()`, but
-registration during execution is undefined behaviour.
+`use()` throws `StateError` if the bridge has been disposed. Middleware
+registered after an `execute()` call takes effect on subsequent tool
+calls within the same or later executions.
+
+## Middleware State and Lifecycle
+
+Middleware instances share the lifecycle of the bridge. State in a
+middleware object (like `TelemetryMiddleware.durations` or
+`RateLimitMiddleware._timestamps`) persists across multiple `execute()`
+calls on the same bridge.
+
+If you need per-execution state, reset it manually before each
+`execute()` call, or create a new bridge per execution. In practice,
+most applications create one bridge per session, so middleware state
+is naturally scoped to the session.
 
 ## Middleware and Futures Batching
 
@@ -290,39 +349,17 @@ Dart is single-threaded (event loop) -- but if your middleware accesses
 external resources (files, network, databases), ensure those resources
 handle concurrent access.
 
-## Why CompositePlugin Was Removed
+For details on how futures batching works at the platform level, see
+[Futures Batching](host-functions-advanced.md#futures-batching) in the
+Advanced guide.
 
-Prior to the middleware addition, `CompositePlugin` and `PluginRef<T>`
-provided inter-plugin dependency resolution with topological sort and
-cycle detection. They were removed in #197 for three reasons:
+## Inter-Plugin Dependencies
 
-### 1. Zero consumers
-
-No plugin outside the test file used `CompositePlugin`. The established
-pattern is constructor injection -- pass dependencies when you create
-the plugin, before registration:
+Plugins sometimes need to call into each other. The recommended pattern
+is **constructor injection** -- pass dependencies when you create the
+plugin, before registration:
 
 ```dart
-// CompositePlugin (removed) -- implicit, resolved at attachTo()
-class BudgetPlugin extends MontyPlugin with CompositePlugin {
-  final memoryRef = PluginRef<MemoryPlugin>();
-
-  @override
-  List<PluginRef<MontyPlugin>> get dependencies => [memoryRef];
-
-  @override
-  List<HostFunction> get functions => [
-    HostFunction(
-      schema: HostFunctionSchema(name: 'budget_check', description: '...'),
-      handler: (args) async {
-        final mem = memoryRef.plugin; // resolved at attachTo()
-        return mem.recall(args['key'] as String);
-      },
-    ),
-  ];
-}
-
-// Constructor injection (current) -- explicit, resolved at creation
 class BudgetPlugin extends MontyPlugin {
   BudgetPlugin({required this.memory});
   final MemoryPlugin memory;
@@ -335,7 +372,7 @@ class BudgetPlugin extends MontyPlugin {
     HostFunction(
       schema: const HostFunctionSchema(
         name: 'budget_check',
-        description: '...',
+        description: 'Check budget against stored limits.',
       ),
       handler: (args) async {
         return memory.recall(args['key'] as String);
@@ -343,33 +380,46 @@ class BudgetPlugin extends MontyPlugin {
     ),
   ];
 }
+
+// Wire at creation time:
+final memory = MemoryPlugin();
+final budget = BudgetPlugin(memory: memory);
+registry.register(memory);
+registry.register(budget);
 ```
 
-Constructor injection is explicit about dependencies, type-safe at
-compile time, and trivially testable with mocks.
+Constructor injection is:
 
-### 2. Type-identity conflicts
+- **Explicit** -- dependencies are visible in the constructor signature
+- **Type-safe** -- no runtime resolution failures
+- **Testable** -- pass mocks directly, no registry needed
+- **Proxy-friendly** -- works with any object satisfying the interface
 
-`PluginRef<T>` resolves via `candidate is T` at runtime. This fails when:
+For **cross-cutting concerns** that would otherwise require many plugins
+to know about each other (telemetry, grounding, rate limiting), use
+`BridgeMiddleware` instead -- it operates at the dispatch chokepoint
+without any plugin coupling.
 
-- The same plugin type exists in multiple packages (different type
-  identity despite identical source).
-- A plugin is wrapped in a proxy or adapter (the proxy is not `T`).
-- The incoming `MontyPluginProxy` pattern (dart_claw#3) wraps remote
-  plugins for cross-process bridging -- `PluginRef` would never match.
+### Historical note: CompositePlugin
 
-### 3. Unnecessary complexity
+An earlier version of `dart_monty_bridge` provided `CompositePlugin` and
+`PluginRef<T>` for declaring inter-plugin dependencies with automatic
+topological sort and cycle detection. This was removed in #197 because:
 
-Topological sort, cycle detection, and lazy resolution added ~180 lines
-of code for a problem constructor injection solves in zero lines.
-Removing it simplified `PluginRegistry.attachTo()` from a multi-phase
-dependency resolver to a straightforward registration-order loop.
+1. **Zero consumers** outside the test file used it. Constructor
+   injection was already the established pattern.
+2. **Type-identity conflicts.** `PluginRef<T>` uses runtime `is T`
+   matching, which fails with proxied or cross-package plugin types.
+3. **Unnecessary complexity.** ~180 lines of topological sort for a
+   problem constructor injection solves in zero lines.
 
-### What replaces inter-plugin communication?
+## Registry Error Handling
 
-**Constructor injection** for compile-time dependencies (the common case).
-**BridgeMiddleware** for cross-cutting concerns that would otherwise
-require plugins to know about each other (the middleware case).
+`PluginRegistry.attachTo()` and `disposeAll()` are resilient: they
+process **all** plugins even if individual `onRegister` or `onDispose`
+hooks throw. Errors are collected and thrown as a single `StateError`
+after all plugins have been processed. This prevents one failing plugin
+from blocking the rest.
 
 ## Complete Lifecycle
 
@@ -383,11 +433,10 @@ require plugins to know about each other (the middleware case).
                     bridge.dispose()
 ```
 
-## Integration with Soliplex
+## Example: Per-Session Integration
 
-In Soliplex, the bridge is created per-session inside
-`MontyScriptEnvironment`. Middleware slots into the setup path before
-plugins are attached:
+A typical application creates one bridge per session. Middleware slots
+into the setup path before plugins are attached:
 
 ```dart
 final bridge = DefaultMontyBridge(platform: platform, log: logger);
@@ -400,5 +449,6 @@ registry.register(AgentPlugin(runtime: runtime));
 await registry.attachTo(bridge);
 ```
 
-Each session gets its own middleware instances, so per-session policy
-(rate limits, access control, telemetry) is isolated without shared state.
+Each session gets its own bridge and middleware instances, so per-session
+policy (rate limits, access control, telemetry) is naturally isolated
+without shared state.
