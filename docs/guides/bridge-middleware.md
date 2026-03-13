@@ -91,18 +91,34 @@ Adding a new `CallRole` subtype is a **compile-time breaking change**.
 Every `switch (role)` in every middleware must handle the new case. Policy
 gaps are caught at build time, not in production.
 
-### Security: `__role__` is caller-asserted
+### Security: host-declared roles prevent spoofing
 
-**`__role__` is set by Python code, not by the bridge.** If your Python
-code is LLM-generated or otherwise untrusted, the agent can send
-`__role__="infra"` to bypass middleware policy. Mitigations:
+The `__role__` kwarg is set by Python code, which may be LLM-generated
+and untrusted. To prevent role escalation, `HostFunction` accepts an
+optional `role` parameter that is **authoritative** — the bridge uses
+it regardless of any `__role__` kwarg from Python:
 
-- **Do not rely solely on `CallRole` for security.** Use it for
-  observability and soft policy, not hard security boundaries.
-- **Strip `__role__` in your seed/prelude code** before the LLM sees the
-  function signatures, so the LLM never learns the kwarg exists.
-- **Use a separate bridge** for infrastructure calls if hard isolation
-  between infra and agent tool calls is required.
+```dart
+HostFunction(
+  schema: const HostFunctionSchema(name: 'fn', description: '...'),
+  handler: (args) async => ...,
+  role: const ToolCall(),  // Python cannot escalate to InfraCall
+)
+```
+
+Resolution order:
+
+1. `HostFunction.role` (host-declared) — authoritative, cannot be overridden
+2. `__role__` kwarg from Python — advisory, used only when no host role
+3. `ToolCall` — default when neither is present
+
+Introspection builtins (`list_functions`, `help`) are registered with
+`role: const InfraCall()` so they bypass policy middleware by design.
+
+For functions where the role should be fixed, always declare it on the
+host side. Reserve the `__role__` kwarg fallback for cases where trusted
+Python orchestration code (seed/prelude) legitimately needs to signal
+role at call time.
 
 ## Writing Middleware
 
