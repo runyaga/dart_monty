@@ -601,6 +601,9 @@ class _MockBridge implements MontyBridge {
   List<HostFunctionSchema> get schemas => [];
 
   @override
+  void use(BridgeMiddleware middleware) {}
+
+  @override
   void register(HostFunction function) {
     registeredNames.add(function.schema.name);
   }

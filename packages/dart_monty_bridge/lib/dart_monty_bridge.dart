@@ -5,6 +5,7 @@
 library;
 
 export 'src/bridge/bridge_event.dart';
+export 'src/bridge/bridge_middleware.dart';
 export 'src/bridge/default_monty_bridge.dart';
 export 'src/bridge/event_loop_bridge.dart';
 export 'src/bridge/host_function.dart';
