@@ -276,7 +276,11 @@ jobs:
           echo "Results: $TOTAL fixtures, $FAILURES failures"
 
           if [ "$FAILURES" -gt 0 ]; then
-            echo "FAIL: WASM ladder had $FAILURES bridge failures"
+            echo "FAIL: WASM ladder had $FAILURES bridge failures:"
+            echo "$WEB_RESULTS" | grep '"ok":false' | while IFS= read -r fail_line; do
+              json="${fail_line#*LADDER_RESULT:}"
+              echo "  $json"
+            done
             exit 1
           fi
 

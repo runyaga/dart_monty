@@ -143,6 +143,18 @@ Future<Map<String, dynamic>> _runFixture(Map<String, dynamic> fixture) async {
   try {
     if (fixture['externalFunctions'] != null) {
       result = await _runIterative(fixture);
+      // Iterative path returns ok/error directly — flip for expectError.
+      if (expectError) {
+        if (result['ok'] == false) {
+          result = {'id': id, 'ok': true, 'error': result['error']};
+        } else {
+          result = {
+            'id': id,
+            'ok': false,
+            'error': 'Expected error but succeeded',
+          };
+        }
+      }
     } else if (expectError) {
       result = await _runExpectError(id, code);
     } else {
