@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:dart_monty_bridge/src/bridge/bridge_event.dart';
+import 'package:dart_monty_bridge/src/bridge/bridge_middleware.dart';
 import 'package:dart_monty_bridge/src/bridge/host_function.dart';
 import 'package:dart_monty_bridge/src/bridge/host_function_schema.dart';
 import 'package:dart_monty_bridge/src/bridge/monty_bridge.dart';
@@ -31,6 +32,7 @@ print = _cw
 const _preambleLineCount = 5;
 
 const _consoleWriteFn = '__console_write__';
+const _roleKwarg = '__role__';
 
 /// Tracks an in-flight host function future awaiting resolution.
 class _PendingFuture {
@@ -73,6 +75,7 @@ class DefaultMontyBridge implements MontyBridge {
   final Logger log;
 
   final Map<String, HostFunction> _functions = {};
+  final List<BridgeMiddleware> _middleware = [];
   final Map<int, _PendingFuture> _pendingFutures = {};
   int _idCounter = 0;
   bool _isExecuting = false;
@@ -87,6 +90,12 @@ class DefaultMontyBridge implements MontyBridge {
   @override
   List<HostFunctionSchema> get schemas =>
       _functions.values.map((f) => f.schema).toList(growable: false);
+
+  @override
+  void use(BridgeMiddleware middleware) {
+    if (_isDisposed) throw StateError('Bridge has been disposed');
+    _middleware.add(middleware);
+  }
 
   @override
   void register(HostFunction function) {
@@ -244,14 +253,20 @@ class DefaultMontyBridge implements MontyBridge {
       return _platform.resume(null);
     }
 
-    // Registered host function — emit tool call events.
+    // Registered host function — extract role, strip reserved kwargs, dispatch.
     final fn = _functions[name];
     if (fn != null) {
+      final (cleanedPending, role) = _extractRole(pending);
       log.trace('Host function call', attributes: {'name': name});
       if (futuresCapable) {
-        return _dispatchToolCallAsFuture(fn, pending, controller);
+        return _dispatchToolCallAsFuture(
+          fn,
+          cleanedPending,
+          controller,
+          role: role,
+        );
       }
-      return _dispatchToolCall(fn, pending, controller);
+      return _dispatchToolCall(fn, cleanedPending, controller, role: role);
     }
 
     // Unknown function — raise error in Python.
@@ -259,11 +274,62 @@ class DefaultMontyBridge implements MontyBridge {
     return _platform.resumeWithError('Unknown function: $name');
   }
 
+  /// Extracts `__role__` from [pending] kwargs and returns a cleaned
+  /// [MontyPending] (without the reserved kwarg) plus the [CallRole].
+  ///
+  /// Defaults to [ToolCall] when no `__role__` kwarg is present.
+  (MontyPending, CallRole) _extractRole(MontyPending pending) {
+    final kwargs = pending.kwargs;
+    if (kwargs == null || !kwargs.containsKey(_roleKwarg)) {
+      return (pending, const ToolCall());
+    }
+
+    final roleValue = kwargs[_roleKwarg];
+    final role = switch (roleValue) {
+      'infra' => const InfraCall(),
+      _ => const ToolCall(),
+    };
+
+    // Reconstruct pending without the reserved kwarg.
+    final cleaned = Map<String, Object?>.of(kwargs)..remove(_roleKwarg);
+    final cleanedPending = MontyPending(
+      functionName: pending.functionName,
+      arguments: pending.arguments,
+      kwargs: cleaned.isEmpty ? null : cleaned,
+      callId: pending.callId,
+      methodCall: pending.methodCall,
+    );
+
+    return (cleanedPending, role);
+  }
+
+  /// Invokes [fn] through the middleware chain with the given [role].
+  ///
+  /// Fast path: when no middleware is registered, calls the handler directly.
+  Future<Object?> _invokeWithMiddleware(
+    HostFunction fn,
+    String name,
+    Map<String, Object?> args,
+    CallRole role,
+  ) {
+    if (_middleware.isEmpty) return fn.handler(args);
+
+    // Build onion chain: first registered = outermost.
+    var handler = (String _, Map<String, Object?> a) => fn.handler(a);
+    for (final mw in _middleware.reversed) {
+      final next = handler;
+      handler = (n, a) => mw.handle(n, a, role, next);
+    }
+
+    return handler(name, args);
+  }
+
   Future<MontyProgress> _dispatchToolCall(
     HostFunction fn,
     MontyPending pending,
-    StreamController<BridgeEvent> controller,
-  ) async {
+    StreamController<BridgeEvent> controller, {
+    required CallRole role,
+  }) async {
     final callId = _nextId;
     final stepName = pending.functionName;
 
@@ -290,9 +356,9 @@ class DefaultMontyBridge implements MontyBridge {
       ..add(BridgeToolCallArgs(callId: callId, delta: jsonEncode(args)))
       ..add(BridgeToolCallEnd(callId: callId));
 
-    // Execute handler.
+    // Execute handler through middleware chain.
     try {
-      final result = await fn.handler(args);
+      final result = await _invokeWithMiddleware(fn, stepName, args, role);
       controller
         ..add(
           BridgeToolCallResult(
@@ -321,8 +387,9 @@ class DefaultMontyBridge implements MontyBridge {
   Future<MontyProgress> _dispatchToolCallAsFuture(
     HostFunction fn,
     MontyPending pending,
-    StreamController<BridgeEvent> controller,
-  ) async {
+    StreamController<BridgeEvent> controller, {
+    required CallRole role,
+  }) async {
     final callId = _nextId;
     final stepName = pending.functionName;
 
@@ -354,7 +421,7 @@ class DefaultMontyBridge implements MontyBridge {
     // state with a leaked FFI handle.
     final Future<Object?> handlerFuture;
     try {
-      handlerFuture = fn.handler(args);
+      handlerFuture = _invokeWithMiddleware(fn, stepName, args, role);
     } on Object catch (e, st) {
       log.error(
         'Host handler threw synchronously',

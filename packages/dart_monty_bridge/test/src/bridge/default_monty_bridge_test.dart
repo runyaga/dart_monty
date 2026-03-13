@@ -194,6 +194,368 @@ void main() {
       },
     );
   });
+
+  group('BridgeMiddleware', () {
+    test('use() registers middleware called on tool dispatch', () async {
+      final log = <String>[];
+
+      bridge
+        ..use(_LoggingMiddleware('mw1', log))
+        ..register(
+          HostFunction(
+            schema: const HostFunctionSchema(name: 'greet', description: ''),
+            handler: (_) async => 'hello',
+          ),
+        );
+
+      mock
+        ..enqueueProgress(
+          const MontyPending(functionName: 'greet', arguments: []),
+        )
+        ..enqueueProgress(
+          const MontyComplete(result: MontyResult(usage: _usage)),
+        );
+
+      await bridge.execute('greet()').toList();
+      expect(log, ['mw1:before:greet', 'mw1:after:greet']);
+    });
+
+    test('onion chain order: first registered = outermost', () async {
+      final log = <String>[];
+
+      bridge
+        ..use(_LoggingMiddleware('outer', log))
+        ..use(_LoggingMiddleware('inner', log))
+        ..register(
+          HostFunction(
+            schema: const HostFunctionSchema(name: 'fn', description: ''),
+            handler: (_) async {
+              log.add('handler');
+              return null;
+            },
+          ),
+        );
+
+      mock
+        ..enqueueProgress(
+          const MontyPending(functionName: 'fn', arguments: []),
+        )
+        ..enqueueProgress(
+          const MontyComplete(result: MontyResult(usage: _usage)),
+        );
+
+      await bridge.execute('fn()').toList();
+      expect(log, [
+        'outer:before:fn',
+        'inner:before:fn',
+        'handler',
+        'inner:after:fn',
+        'outer:after:fn',
+      ]);
+    });
+
+    test('middleware receives ToolCall role by default', () async {
+      CallRole? captured;
+
+      bridge
+        ..use(_RoleCapturingMiddleware((role) => captured = role))
+        ..register(
+          HostFunction(
+            schema: const HostFunctionSchema(name: 'fn', description: ''),
+            handler: (_) async => null,
+          ),
+        );
+
+      mock
+        ..enqueueProgress(
+          const MontyPending(functionName: 'fn', arguments: []),
+        )
+        ..enqueueProgress(
+          const MontyComplete(result: MontyResult(usage: _usage)),
+        );
+
+      await bridge.execute('fn()').toList();
+      expect(captured, isA<ToolCall>());
+    });
+
+    test('__role__=infra kwarg sets InfraCall role', () async {
+      CallRole? captured;
+
+      bridge
+        ..use(_RoleCapturingMiddleware((role) => captured = role))
+        ..register(
+          HostFunction(
+            schema: const HostFunctionSchema(name: 'fn', description: ''),
+            handler: (_) async => null,
+          ),
+        );
+
+      mock
+        ..enqueueProgress(
+          const MontyPending(
+            functionName: 'fn',
+            arguments: [],
+            kwargs: {'__role__': 'infra'},
+          ),
+        )
+        ..enqueueProgress(
+          const MontyComplete(result: MontyResult(usage: _usage)),
+        );
+
+      await bridge.execute('fn(__role__="infra")').toList();
+      expect(captured, isA<InfraCall>());
+    });
+
+    test('__role__ kwarg is stripped before mapAndValidate', () async {
+      Map<String, Object?>? capturedArgs;
+
+      bridge.register(
+        HostFunction(
+          schema: const HostFunctionSchema(
+            name: 'fn',
+            description: '',
+            params: [HostParam(name: 'x', type: HostParamType.integer)],
+          ),
+          handler: (args) async {
+            capturedArgs = args;
+            return null;
+          },
+        ),
+      );
+
+      mock
+        ..enqueueProgress(
+          const MontyPending(
+            functionName: 'fn',
+            arguments: [],
+            kwargs: {'x': 42, '__role__': 'infra'},
+          ),
+        )
+        ..enqueueProgress(
+          const MontyComplete(result: MontyResult(usage: _usage)),
+        );
+
+      await bridge.execute('fn(x=42, __role__="infra")').toList();
+      expect(capturedArgs, {'x': 42});
+    });
+
+    test('middleware can short-circuit by not calling next', () async {
+      // Use sync dispatch (useFutures: false) so BridgeToolCallResult is
+      // emitted immediately in _dispatchToolCall, not deferred.
+      final syncMock = MockMontyPlatform();
+      final syncBridge = DefaultMontyBridge(
+        platform: syncMock,
+        useFutures: false,
+      );
+      addTearDown(syncBridge.dispose);
+
+      syncBridge
+        ..use(_BlockingMiddleware('blocked'))
+        ..register(
+          HostFunction(
+            schema: const HostFunctionSchema(name: 'fn', description: ''),
+            handler: (_) async => fail('should not be called'),
+          ),
+        );
+
+      syncMock
+        ..enqueueProgress(
+          const MontyPending(functionName: 'fn', arguments: []),
+        )
+        ..enqueueProgress(
+          const MontyComplete(result: MontyResult(usage: _usage)),
+        );
+
+      final events = await syncBridge.execute('fn()').toList();
+      final result = events.whereType<BridgeToolCallResult>().first;
+      expect(result.result, 'blocked');
+    });
+
+    test('middleware can throw to reject a call', () async {
+      final syncMock = MockMontyPlatform();
+      final syncBridge = DefaultMontyBridge(
+        platform: syncMock,
+        useFutures: false,
+      );
+      addTearDown(syncBridge.dispose);
+
+      syncBridge
+        ..use(_ThrowingMiddleware())
+        ..register(
+          HostFunction(
+            schema: const HostFunctionSchema(name: 'fn', description: ''),
+            handler: (_) async => fail('should not be called'),
+          ),
+        );
+
+      syncMock
+        ..enqueueProgress(
+          const MontyPending(functionName: 'fn', arguments: []),
+        )
+        ..enqueueProgress(
+          const MontyComplete(result: MontyResult(usage: _usage)),
+        );
+
+      final events = await syncBridge.execute('fn()').toList();
+      final result = events.whereType<BridgeToolCallResult>().first;
+      expect(result.result, contains('Access denied'));
+    });
+
+    test('no middleware = fast path (handler called directly)', () async {
+      var called = false;
+      bridge.register(
+        HostFunction(
+          schema: const HostFunctionSchema(name: 'fn', description: ''),
+          handler: (_) async {
+            called = true;
+            return 'ok';
+          },
+        ),
+      );
+
+      mock
+        ..enqueueProgress(
+          const MontyPending(functionName: 'fn', arguments: []),
+        )
+        ..enqueueProgress(
+          const MontyComplete(result: MontyResult(usage: _usage)),
+        );
+
+      await bridge.execute('fn()').toList();
+      expect(called, isTrue);
+    });
+
+    test('use() after dispose throws StateError', () {
+      bridge.dispose();
+      expect(
+        () => bridge.use(_LoggingMiddleware('x', [])),
+        throwsStateError,
+      );
+    });
+
+    test('middleware works on futures path', () async {
+      final log = <String>[];
+
+      bridge
+        ..use(_LoggingMiddleware('mw', log))
+        ..register(
+          HostFunction(
+            schema: const HostFunctionSchema(name: 'async_fn', description: ''),
+            handler: (_) async => 'result',
+          ),
+        );
+
+      // Futures path: Pending -> resumeAsFuture -> ResolveFutures -> Complete
+      mock
+        ..enqueueProgress(
+          const MontyPending(
+            functionName: 'async_fn',
+            arguments: [],
+            callId: 1,
+          ),
+        )
+        ..enqueueProgress(const MontyResolveFutures(pendingCallIds: [1]))
+        ..enqueueProgress(
+          const MontyComplete(result: MontyResult(usage: _usage)),
+        );
+
+      await bridge.execute('await async_fn()').toList();
+      expect(log, ['mw:before:async_fn', 'mw:after:async_fn']);
+    });
+
+    test('unknown __role__ value defaults to ToolCall', () async {
+      CallRole? captured;
+
+      bridge
+        ..use(_RoleCapturingMiddleware((role) => captured = role))
+        ..register(
+          HostFunction(
+            schema: const HostFunctionSchema(name: 'fn', description: ''),
+            handler: (_) async => null,
+          ),
+        );
+
+      mock
+        ..enqueueProgress(
+          const MontyPending(
+            functionName: 'fn',
+            arguments: [],
+            kwargs: {'__role__': 'unknown_value'},
+          ),
+        )
+        ..enqueueProgress(
+          const MontyComplete(result: MontyResult(usage: _usage)),
+        );
+
+      await bridge.execute('fn()').toList();
+      expect(captured, isA<ToolCall>());
+    });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Test middleware implementations
+// ---------------------------------------------------------------------------
+
+class _LoggingMiddleware extends BridgeMiddleware {
+  _LoggingMiddleware(this.tag, this.log);
+
+  final String tag;
+  final List<String> log;
+
+  @override
+  Future<Object?> handle(
+    String name,
+    Map<String, Object?> args,
+    CallRole role,
+    ToolHandler next,
+  ) async {
+    log.add('$tag:before:$name');
+    final result = await next(name, args);
+    log.add('$tag:after:$name');
+    return result;
+  }
+}
+
+class _RoleCapturingMiddleware extends BridgeMiddleware {
+  _RoleCapturingMiddleware(this.onRole);
+
+  final void Function(CallRole) onRole;
+
+  @override
+  Future<Object?> handle(
+    String name,
+    Map<String, Object?> args,
+    CallRole role,
+    ToolHandler next,
+  ) {
+    onRole(role);
+    return next(name, args);
+  }
+}
+
+class _BlockingMiddleware extends BridgeMiddleware {
+  _BlockingMiddleware(this.returnValue);
+
+  final Object? returnValue;
+
+  @override
+  Future<Object?> handle(
+    String name,
+    Map<String, Object?> args,
+    CallRole role,
+    ToolHandler next,
+  ) async => returnValue;
+}
+
+class _ThrowingMiddleware extends BridgeMiddleware {
+  @override
+  Future<Object?> handle(
+    String name,
+    Map<String, Object?> args,
+    CallRole role,
+    ToolHandler next,
+  ) => throw StateError('Access denied');
 }
 
 /// A minimal [MontyPlatform] that throws a [MontyException] from [start].

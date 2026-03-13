@@ -8,3 +8,6 @@ linter:
     # False positive: subscriptions stored in _ChildHandle are cancelled
     # in onDispose/cancel but the analyzer can't track across indirection.
     cancel_subscriptions: false
+    # BridgeMiddleware is intentionally a single-method abstract class —
+    # it's an interface for subclassing, not a standalone function.
+    one_member_abstracts: false

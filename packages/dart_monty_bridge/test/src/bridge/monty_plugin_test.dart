@@ -112,6 +112,9 @@ class _NoOpBridge implements MontyBridge {
   List<HostFunctionSchema> get schemas => [];
 
   @override
+  void use(BridgeMiddleware middleware) {}
+
+  @override
   void register(HostFunction function) {}
 
   @override

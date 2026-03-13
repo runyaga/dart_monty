@@ -1,4 +1,5 @@
 import 'package:dart_monty_bridge/src/bridge/bridge_event.dart';
+import 'package:dart_monty_bridge/src/bridge/bridge_middleware.dart';
 import 'package:dart_monty_bridge/src/bridge/host_function.dart';
 import 'package:dart_monty_bridge/src/bridge/host_function_schema.dart';
 
@@ -15,6 +16,12 @@ abstract class MontyBridge {
 
   /// Unregisters a host function by name.
   void unregister(String name);
+
+  /// Registers a [BridgeMiddleware] to intercept tool calls.
+  ///
+  /// First registered = outermost in the onion chain. No-op by default;
+  /// override in implementations that support middleware.
+  void use(BridgeMiddleware middleware) {}
 
   /// Executes [code] and returns a stream of lifecycle events.
   ///
