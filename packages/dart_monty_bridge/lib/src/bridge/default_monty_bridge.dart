@@ -256,7 +256,7 @@ class DefaultMontyBridge implements MontyBridge {
     // Registered host function — extract role, strip reserved kwargs, dispatch.
     final fn = _functions[name];
     if (fn != null) {
-      final (cleanedPending, role) = _extractRole(pending);
+      final (cleanedPending, role) = _extractRole(pending, fn.role);
       log.trace('Host function call', attributes: {'name': name});
       if (futuresCapable) {
         return _dispatchToolCallAsFuture(
@@ -274,31 +274,46 @@ class DefaultMontyBridge implements MontyBridge {
     return _platform.resumeWithError('Unknown function: $name');
   }
 
-  /// Extracts `__role__` from [pending] kwargs and returns a cleaned
-  /// [MontyPending] (without the reserved kwarg) plus the [CallRole].
+  /// Resolves the [CallRole] for a tool call and strips the reserved
+  /// `__role__` kwarg from [pending].
   ///
-  /// Defaults to [ToolCall] when no `__role__` kwarg is present.
-  (MontyPending, CallRole) _extractRole(MontyPending pending) {
+  /// Resolution order:
+  /// 1. If [hostRole] is non-null (declared on [HostFunction]), it is
+  ///    authoritative — Python cannot override it.
+  /// 2. Otherwise, the `__role__` kwarg from Python is used.
+  /// 3. If neither is present, defaults to [ToolCall].
+  (MontyPending, CallRole) _extractRole(
+    MontyPending pending,
+    CallRole? hostRole,
+  ) {
     final kwargs = pending.kwargs;
-    if (kwargs == null || !kwargs.containsKey(_roleKwarg)) {
-      return (pending, const ToolCall());
+
+    // Always strip __role__ from kwargs regardless of how role is resolved.
+    final MontyPending cleanedPending;
+    if (kwargs != null && kwargs.containsKey(_roleKwarg)) {
+      final cleaned = Map<String, Object?>.of(kwargs)..remove(_roleKwarg);
+      cleanedPending = MontyPending(
+        functionName: pending.functionName,
+        arguments: pending.arguments,
+        kwargs: cleaned.isEmpty ? null : cleaned,
+        callId: pending.callId,
+        methodCall: pending.methodCall,
+      );
+    } else {
+      cleanedPending = pending;
     }
 
-    final roleValue = kwargs[_roleKwarg];
+    // Host-declared role is authoritative — Python cannot escalate.
+    if (hostRole != null) {
+      return (cleanedPending, hostRole);
+    }
+
+    // Fall back to Python kwarg, defaulting to ToolCall.
+    final roleValue = kwargs?[_roleKwarg];
     final role = switch (roleValue) {
       'infra' => const InfraCall(),
       _ => const ToolCall(),
     };
-
-    // Reconstruct pending without the reserved kwarg.
-    final cleaned = Map<String, Object?>.of(kwargs)..remove(_roleKwarg);
-    final cleanedPending = MontyPending(
-      functionName: pending.functionName,
-      arguments: pending.arguments,
-      kwargs: cleaned.isEmpty ? null : cleaned,
-      callId: pending.callId,
-      methodCall: pending.methodCall,
-    );
 
     return (cleanedPending, role);
   }

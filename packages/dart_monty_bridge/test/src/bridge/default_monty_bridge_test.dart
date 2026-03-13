@@ -278,7 +278,7 @@ void main() {
       expect(captured, isA<ToolCall>());
     });
 
-    test('__role__=infra kwarg sets InfraCall role', () async {
+    test('__role__=infra kwarg sets InfraCall role (no host role)', () async {
       CallRole? captured;
 
       bridge
@@ -304,6 +304,96 @@ void main() {
 
       await bridge.execute('fn(__role__="infra")').toList();
       expect(captured, isA<InfraCall>());
+    });
+
+    test('host-declared role overrides __role__ kwarg', () async {
+      CallRole? captured;
+
+      bridge
+        ..use(_RoleCapturingMiddleware((role) => captured = role))
+        ..register(
+          HostFunction(
+            schema: const HostFunctionSchema(name: 'fn', description: ''),
+            handler: (_) async => null,
+            role: const ToolCall(),
+          ),
+        );
+
+      // Python sends __role__=infra but host declares ToolCall.
+      mock
+        ..enqueueProgress(
+          const MontyPending(
+            functionName: 'fn',
+            arguments: [],
+            kwargs: {'__role__': 'infra'},
+          ),
+        )
+        ..enqueueProgress(
+          const MontyComplete(result: MontyResult(usage: _usage)),
+        );
+
+      await bridge.execute('fn(__role__="infra")').toList();
+      // Host role wins — Python cannot escalate to InfraCall.
+      expect(captured, isA<ToolCall>());
+    });
+
+    test('host-declared InfraCall role used even without kwarg', () async {
+      CallRole? captured;
+
+      bridge
+        ..use(_RoleCapturingMiddleware((role) => captured = role))
+        ..register(
+          HostFunction(
+            schema: const HostFunctionSchema(name: 'fn', description: ''),
+            handler: (_) async => null,
+            role: const InfraCall(),
+          ),
+        );
+
+      mock
+        ..enqueueProgress(
+          const MontyPending(functionName: 'fn', arguments: []),
+        )
+        ..enqueueProgress(
+          const MontyComplete(result: MontyResult(usage: _usage)),
+        );
+
+      await bridge.execute('fn()').toList();
+      expect(captured, isA<InfraCall>());
+    });
+
+    test('__role__ kwarg stripped even when host role overrides', () async {
+      Map<String, Object?>? capturedArgs;
+
+      bridge.register(
+        HostFunction(
+          schema: const HostFunctionSchema(
+            name: 'fn',
+            description: '',
+            params: [HostParam(name: 'x', type: HostParamType.integer)],
+          ),
+          handler: (args) async {
+            capturedArgs = args;
+            return null;
+          },
+          role: const ToolCall(),
+        ),
+      );
+
+      mock
+        ..enqueueProgress(
+          const MontyPending(
+            functionName: 'fn',
+            arguments: [],
+            kwargs: {'x': 42, '__role__': 'infra'},
+          ),
+        )
+        ..enqueueProgress(
+          const MontyComplete(result: MontyResult(usage: _usage)),
+        );
+
+      await bridge.execute('fn(x=42, __role__="infra")').toList();
+      expect(capturedArgs, {'x': 42});
     });
 
     test('__role__ kwarg is stripped before mapAndValidate', () async {

@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:dart_monty_bridge/src/bridge/bridge_middleware.dart';
 import 'package:dart_monty_bridge/src/bridge/host_function.dart';
 import 'package:dart_monty_bridge/src/bridge/host_function_schema.dart';
 import 'package:dart_monty_bridge/src/bridge/host_param.dart';
@@ -42,11 +43,13 @@ List<HostFunction> buildIntrospectionFunctions(
     HostFunction(
       schema: listFunctionsSchema,
       handler: (args) async => _handleListFunctions(schemasByCategory),
+      role: const InfraCall(),
     ),
     HostFunction(
       schema: helpSchema,
       handler: (args) async =>
           _handleHelp(schemasByCategory, args['name']! as String),
+      role: const InfraCall(),
     ),
   ];
 }

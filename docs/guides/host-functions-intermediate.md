@@ -197,17 +197,34 @@ and `help`).
 
 ### `help(name)`
 
-Returns JSON detail for a single function:
+Returns JSON detail for a single function. Accepts both fully-qualified
+names and bare names (without the namespace prefix):
 
 ```python
 import json
+
+# Fully-qualified name -- exact match
 info = json.loads(help("storage_get"))
 # {"name": "storage_get", "description": "Get a value by key...",
 #  "params": [{"name": "key", "type": "string", "required": true}]}
+
+# Bare name -- resolves when unambiguous
+info = json.loads(help("get"))
+# Same result if only one plugin has a function ending in "_get"
 ```
 
-If the function name is unknown, returns the string
-`"Unknown function: <name>"`.
+When a bare name matches multiple functions across different namespaces,
+`help()` returns a disambiguation list:
+
+```python
+info = json.loads(help("create"))
+# {"error": "ambiguous",
+#  "message": "Multiple functions match \"create\". Use the fully-qualified name.",
+#  "candidates": ["df_create", "form_create", "storage_create"]}
+```
+
+If the function name is unknown (neither exact nor bare match), returns
+the string `"Unknown function: <name>"`.
 
 These builtins enable LLM-generated Python to discover and use tools
 dynamically without hardcoded knowledge of the available API.
