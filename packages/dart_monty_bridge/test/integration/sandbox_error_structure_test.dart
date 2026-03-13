@@ -6,7 +6,7 @@ import 'package:dart_monty_ffi/dart_monty_ffi.dart';
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 import 'package:test/test.dart';
 
-/// Integration tests for child isolate error structure preservation.
+/// Integration tests for child sandbox error structure preservation.
 ///
 /// Run with:
 /// ```bash
@@ -14,7 +14,7 @@ import 'package:test/test.dart';
 /// cd packages/dart_monty_bridge
 /// DYLD_LIBRARY_PATH=../../native/target/release \
 ///   dart test --tags=integration --run-skipped \
-///   test/integration/isolate_error_structure_test.dart
+///   test/integration/sandbox_error_structure_test.dart
 /// ```
 void main() {
   late NativeBindingsFfi bindings;
@@ -29,40 +29,40 @@ void main() {
       DefaultMontyBridge(platform: createPlatform(), useFutures: false);
 
   /// Spawns a child via plugin handler and awaits it, expecting a
-  /// [ChildIsolateException]. Returns the caught exception.
-  Future<ChildIsolateException> spawnAndExpectFailure(
-    IsolatePlugin plugin,
+  /// [ChildSandboxException]. Returns the caught exception.
+  Future<ChildSandboxException> spawnAndExpectFailure(
+    SandboxPlugin plugin,
     String code,
   ) async {
     final spawnHandler = plugin.functions
-        .firstWhere((f) => f.schema.name == 'isolate_spawn')
+        .firstWhere((f) => f.schema.name == 'sandbox_spawn')
         .handler;
     final awaitHandler = plugin.functions
-        .firstWhere((f) => f.schema.name == 'isolate_await')
+        .firstWhere((f) => f.schema.name == 'sandbox_await')
         .handler;
 
     final handle = (await spawnHandler({'code': code}))! as int;
 
     try {
       await awaitHandler({'handle': handle});
-      fail('Expected ChildIsolateException');
-    } on ChildIsolateException catch (e) {
+      fail('Expected ChildSandboxException');
+    } on ChildSandboxException catch (e) {
       return e;
     }
   }
 
   group('child error structure preservation', () {
     test(
-      'ChildIsolateException preserves excType from child NameError',
+      'ChildSandboxException preserves excType from child NameError',
       () async {
         final bridge = createBridge();
         final registry = PluginRegistry()
           ..register(
-            IsolatePlugin(platformFactory: () async => createPlatform()),
+            SandboxPlugin(platformFactory: () async => createPlatform()),
           );
         await registry.attachTo(bridge);
 
-        final plugin = registry.plugins.whereType<IsolatePlugin>().first;
+        final plugin = registry.plugins.whereType<SandboxPlugin>().first;
         final caught = await spawnAndExpectFailure(
           plugin,
           'undefined_variable_xyz',
@@ -77,16 +77,16 @@ void main() {
     );
 
     test(
-      'ChildIsolateException preserves info from child SyntaxError',
+      'ChildSandboxException preserves info from child SyntaxError',
       () async {
         final bridge = createBridge();
         final registry = PluginRegistry()
           ..register(
-            IsolatePlugin(platformFactory: () async => createPlatform()),
+            SandboxPlugin(platformFactory: () async => createPlatform()),
           );
         await registry.attachTo(bridge);
 
-        final plugin = registry.plugins.whereType<IsolatePlugin>().first;
+        final plugin = registry.plugins.whereType<SandboxPlugin>().first;
         final caught = await spawnAndExpectFailure(plugin, 'def (');
 
         expect(caught.exception, isNotNull);
@@ -97,24 +97,24 @@ void main() {
     );
 
     test(
-      'cancelled child throws ChildIsolateException without exception field',
+      'cancelled child throws ChildSandboxException without exception field',
       () async {
         final bridge = createBridge();
         final registry = PluginRegistry()
           ..register(
-            IsolatePlugin(platformFactory: () async => createPlatform()),
+            SandboxPlugin(platformFactory: () async => createPlatform()),
           );
         await registry.attachTo(bridge);
 
-        final plugin = registry.plugins.whereType<IsolatePlugin>().first;
+        final plugin = registry.plugins.whereType<SandboxPlugin>().first;
         final spawnHandler = plugin.functions
-            .firstWhere((f) => f.schema.name == 'isolate_spawn')
+            .firstWhere((f) => f.schema.name == 'sandbox_spawn')
             .handler;
         final cancelHandler = plugin.functions
-            .firstWhere((f) => f.schema.name == 'isolate_cancel')
+            .firstWhere((f) => f.schema.name == 'sandbox_cancel')
             .handler;
         final awaitHandler = plugin.functions
-            .firstWhere((f) => f.schema.name == 'isolate_await')
+            .firstWhere((f) => f.schema.name == 'sandbox_await')
             .handler;
 
         // Spawn a long-running child.
@@ -128,8 +128,8 @@ void main() {
 
         try {
           await awaitHandler({'handle': handle});
-          fail('Expected ChildIsolateException');
-        } on ChildIsolateException catch (e) {
+          fail('Expected ChildSandboxException');
+        } on ChildSandboxException catch (e) {
           expect(e.message, 'cancelled');
           expect(e.exception, isNull);
         }

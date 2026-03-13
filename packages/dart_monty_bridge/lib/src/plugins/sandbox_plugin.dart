@@ -4,14 +4,14 @@ import 'package:dart_monty_bridge/dart_monty_bridge.dart';
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 import 'package:struct_log/struct_log.dart';
 
-/// Exception thrown when a child isolate fails, is cancelled, or is disposed.
+/// Exception thrown when a child sandbox fails, is cancelled, or is disposed.
 ///
 /// Preserves the [childId] and, when the failure originated from a Python
 /// exception, the full [exception] with structured fields (filename,
 /// lineNumber, excType, traceback).
-class ChildIsolateException implements Exception {
-  /// Creates a [ChildIsolateException].
-  const ChildIsolateException({
+class ChildSandboxException implements Exception {
+  /// Creates a [ChildSandboxException].
+  const ChildSandboxException({
     required this.childId,
     required this.message,
     this.exception,
@@ -29,10 +29,10 @@ class ChildIsolateException implements Exception {
   final MontyException? exception;
 
   @override
-  String toString() => 'ChildIsolateException(child $childId): $message';
+  String toString() => 'ChildSandboxException(child $childId): $message';
 }
 
-/// Factory that creates a fresh [MontyPlatform] for each child isolate.
+/// Factory that creates a fresh [MontyPlatform] for each child sandbox.
 typedef MontyPlatformFactory = Future<MontyPlatform> Function();
 
 /// Factory that creates and configures a [PluginRegistry] for child bridges.
@@ -73,24 +73,24 @@ class _ChildHandle {
 ///
 /// Each child gets its own [MontyPlatform] (via [platformFactory]) and
 /// [DefaultMontyBridge]. The parent Python script can spawn children with
-/// `isolate_spawn(code)` and await their results with `isolate_await(handle)`.
+/// `sandbox_spawn(code)` and await their results with `sandbox_await(handle)`.
 ///
-/// Children are isolated: each has its own interpreter state.
+/// Children are sandboxed: each has its own interpreter state.
 /// All living children are killed when this plugin is disposed.
-class IsolatePlugin extends MontyPlugin {
-  /// Creates an [IsolatePlugin].
+class SandboxPlugin extends MontyPlugin {
+  /// Creates a [SandboxPlugin].
   ///
   /// [platformFactory] creates a fresh [MontyPlatform] for each child.
   /// [childPluginRegistryFactory] optionally provides plugins to children.
   /// When null, children automatically inherit plugins from [parentPlugins]
   /// that return non-null from [MontyPlugin.createChildInstance].
-  /// [parentPlugins] the parent registry's plugin list — used for automatic
+  /// [parentPlugins] the parent registry's plugin list -- used for automatic
   /// child inheritance when [childPluginRegistryFactory] is null.
   /// [maxChildren] limits concurrent children (default: 16).
-  /// [maxDepth] limits recursion depth if children also have IsolatePlugin
+  /// [maxDepth] limits recursion depth if children also have SandboxPlugin
   /// (default: 3). Set [currentDepth] when creating nested plugins.
   /// [childLimits] sets resource limits for child interpreters.
-  IsolatePlugin({
+  SandboxPlugin({
     required this.platformFactory,
     this.childPluginRegistryFactory,
     this.parentPlugins = const [],
@@ -99,7 +99,7 @@ class IsolatePlugin extends MontyPlugin {
     this.currentDepth = 0,
     this.childLimits,
     Logger? logger,
-  }) : log = logger ?? LogManager.instance.getLogger('IsolatePlugin');
+  }) : log = logger ?? LogManager.instance.getLogger('SandboxPlugin');
 
   /// Creates a fresh [MontyPlatform] for each child.
   final MontyPlatformFactory platformFactory;
@@ -118,7 +118,7 @@ class IsolatePlugin extends MontyPlugin {
   /// Maximum number of concurrent children.
   final int maxChildren;
 
-  /// Maximum recursion depth for nested isolate plugins.
+  /// Maximum recursion depth for nested sandbox plugins.
   final int maxDepth;
 
   /// Current recursion depth.
@@ -135,20 +135,20 @@ class IsolatePlugin extends MontyPlugin {
   bool _disposed = false;
 
   @override
-  String get namespace => 'isolate';
+  String get namespace => 'sandbox';
 
   @override
   String? get systemPromptContext =>
-      'Spawn Python scripts in isolated interpreter instances. '
+      'Spawn Python scripts in sandboxed interpreter instances. '
       'Each child has its own state. Use for parallel computation.';
 
   @override
   List<HostFunction> get functions => [
     HostFunction(
       schema: const HostFunctionSchema(
-        name: 'isolate_spawn',
+        name: 'sandbox_spawn',
         description:
-            'Spawn a Python script in a new isolated interpreter. '
+            'Spawn a Python script in a new sandboxed interpreter. '
             'Returns an integer handle.',
         params: [
           HostParam(
@@ -174,7 +174,7 @@ class IsolatePlugin extends MontyPlugin {
     ),
     HostFunction(
       schema: const HostFunctionSchema(
-        name: 'isolate_await',
+        name: 'sandbox_await',
         description:
             'Wait for a spawned child to complete and return '
             'its result. Raises an error if the child failed.',
@@ -182,7 +182,7 @@ class IsolatePlugin extends MontyPlugin {
           HostParam(
             name: 'handle',
             type: HostParamType.integer,
-            description: 'Handle returned by isolate_spawn.',
+            description: 'Handle returned by sandbox_spawn.',
           ),
         ],
       ),
@@ -190,7 +190,7 @@ class IsolatePlugin extends MontyPlugin {
     ),
     HostFunction(
       schema: const HostFunctionSchema(
-        name: 'isolate_await_all',
+        name: 'sandbox_await_all',
         description:
             'Wait for multiple children to complete. '
             'Returns a list of results in handle order.',
@@ -198,7 +198,7 @@ class IsolatePlugin extends MontyPlugin {
           HostParam(
             name: 'handles',
             type: HostParamType.list,
-            description: 'List of handles from isolate_spawn.',
+            description: 'List of handles from sandbox_spawn.',
           ),
         ],
       ),
@@ -206,13 +206,13 @@ class IsolatePlugin extends MontyPlugin {
     ),
     HostFunction(
       schema: const HostFunctionSchema(
-        name: 'isolate_is_alive',
+        name: 'sandbox_is_alive',
         description: 'Check whether a child is still running.',
         params: [
           HostParam(
             name: 'handle',
             type: HostParamType.integer,
-            description: 'Handle returned by isolate_spawn.',
+            description: 'Handle returned by sandbox_spawn.',
           ),
         ],
       ),
@@ -220,13 +220,13 @@ class IsolatePlugin extends MontyPlugin {
     ),
     HostFunction(
       schema: const HostFunctionSchema(
-        name: 'isolate_cancel',
+        name: 'sandbox_cancel',
         description: 'Cancel a running child. No-op if already finished.',
         params: [
           HostParam(
             name: 'handle',
             type: HostParamType.integer,
-            description: 'Handle returned by isolate_spawn.',
+            description: 'Handle returned by sandbox_spawn.',
           ),
         ],
       ),
@@ -234,7 +234,7 @@ class IsolatePlugin extends MontyPlugin {
     ),
     HostFunction(
       schema: const HostFunctionSchema(
-        name: 'isolate_free',
+        name: 'sandbox_free',
         description:
             'Release a completed child handle and free its resources. '
             'Raises an error if the child is still running.',
@@ -242,7 +242,7 @@ class IsolatePlugin extends MontyPlugin {
           HostParam(
             name: 'handle',
             type: HostParamType.integer,
-            description: 'Handle returned by isolate_spawn.',
+            description: 'Handle returned by sandbox_spawn.',
           ),
         ],
       ),
@@ -250,7 +250,7 @@ class IsolatePlugin extends MontyPlugin {
     ),
     HostFunction(
       schema: const HostFunctionSchema(
-        name: 'isolate_get_output',
+        name: 'sandbox_get_output',
         description:
             'Get captured Python print() output from a completed child. '
             'Raises an error if the child is still running. '
@@ -260,7 +260,7 @@ class IsolatePlugin extends MontyPlugin {
           HostParam(
             name: 'handle',
             type: HostParamType.integer,
-            description: 'Handle returned by isolate_spawn.',
+            description: 'Handle returned by sandbox_spawn.',
           ),
         ],
       ),
@@ -269,13 +269,15 @@ class IsolatePlugin extends MontyPlugin {
   ];
 
   Future<Object?> _handleSpawn(Map<String, Object?> args) async {
-    if (_disposed) throw StateError('IsolatePlugin is disposed.');
+    if (_disposed) throw StateError('SandboxPlugin is disposed.');
     if (currentDepth >= maxDepth) {
       log.warning(
         'Spawn rejected: depth limit',
         attributes: {'currentDepth': currentDepth, 'maxDepth': maxDepth},
       );
-      throw StateError('Maximum isolate recursion depth ($maxDepth) exceeded.');
+      throw StateError(
+        'Maximum sandbox recursion depth ($maxDepth) exceeded.',
+      );
     }
     final aliveCount = _children.values.where((c) => c.isAlive).length;
     if (aliveCount >= maxChildren) {
@@ -422,7 +424,7 @@ class IsolatePlugin extends MontyPlugin {
           ..printOutput = childPrintOutput;
 
         // Clean up child resources.
-        // bridge and platform are guaranteed non-null here — the try block
+        // bridge and platform are guaranteed non-null here -- the try block
         // succeeded before the stream listener was created.
         try {
           bridge!.dispose();
@@ -440,14 +442,14 @@ class IsolatePlugin extends MontyPlugin {
         if (!completer.isCompleted) {
           if (errorMessage != null) {
             final truncated = errorMessage!.length > 200
-                ? '${errorMessage!.substring(0, 200)}…'
+                ? '${errorMessage!.substring(0, 200)}\u2026'
                 : errorMessage!;
             log.debug(
               'Child failed',
               attributes: {'childId': id, 'error': truncated},
             );
             completer.completeError(
-              ChildIsolateException(
+              ChildSandboxException(
                 childId: id,
                 message: errorMessage!,
                 exception: errorException,
@@ -488,20 +490,20 @@ class IsolatePlugin extends MontyPlugin {
   PluginRegistry? _buildInheritedRegistry() {
     final childPlugins = <MontyPlugin>[];
     for (final plugin in parentPlugins) {
-      // Skip IsolatePlugin itself — children get their own via depth control.
-      if (plugin is IsolatePlugin) continue;
+      // Skip SandboxPlugin itself -- children get their own via depth control.
+      if (plugin is SandboxPlugin) continue;
       final child = plugin.createChildInstance();
       if (child == null) continue;
       // Guard: returning `this` would cause the parent plugin to be disposed
-      // when the child finishes, and returning an IsolatePlugin would bypass
+      // when the child finishes, and returning a SandboxPlugin would bypass
       // depth limiting.
       assert(
         !identical(child, plugin),
         'createChildInstance() must return a new instance, not `this`.',
       );
-      if (child is IsolatePlugin) {
+      if (child is SandboxPlugin) {
         throw StateError(
-          'createChildInstance() must not return an IsolatePlugin.',
+          'createChildInstance() must not return a SandboxPlugin.',
         );
       }
       childPlugins.add(child);
@@ -560,7 +562,7 @@ class IsolatePlugin extends MontyPlugin {
     } finally {
       if (!child.completer.isCompleted) {
         child.completer.completeError(
-          ChildIsolateException(childId: handle, message: 'cancelled'),
+          ChildSandboxException(childId: handle, message: 'cancelled'),
         );
       }
     }
@@ -606,7 +608,7 @@ class IsolatePlugin extends MontyPlugin {
 
     final aliveCount = _children.values.where((c) => c.isAlive).length;
     log.info(
-      'Disposing IsolatePlugin',
+      'Disposing SandboxPlugin',
       attributes: {
         'totalChildren': _children.length,
         'aliveChildren': aliveCount,
@@ -621,7 +623,7 @@ class IsolatePlugin extends MontyPlugin {
       try {
         await child.cancel();
       } on Object catch (e, st) {
-        // Best-effort logging — don't let a sink failure break the loop.
+        // Best-effort logging -- don't let a sink failure break the loop.
         try {
           log.warning(
             'Error cancelling child during dispose',
@@ -630,12 +632,12 @@ class IsolatePlugin extends MontyPlugin {
             attributes: {'childId': entry.key},
           );
         } on Object {
-          // Sink failure — nothing we can do.
+          // Sink failure -- nothing we can do.
         }
       }
       if (!child.completer.isCompleted) {
         child.completer.completeError(
-          ChildIsolateException(
+          ChildSandboxException(
             childId: entry.key,
             message: 'disposed with parent',
           ),

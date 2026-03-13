@@ -5,7 +5,7 @@ import 'package:dart_monty_bridge/dart_monty_bridge.dart';
 import 'package:dart_monty_native/dart_monty_native.dart';
 import 'package:test/test.dart';
 
-/// Integration tests for [IsolatePlugin] with a real [MontyNative] backend.
+/// Integration tests for [SandboxPlugin] with a real [MontyNative] backend.
 ///
 /// Run with:
 /// ```bash
@@ -17,11 +17,11 @@ void main() {
   MontyNative createMonty() =>
       MontyNative(bindings: NativeIsolateBindingsImpl());
 
-  group('IsolatePlugin integration', () {
+  group('SandboxPlugin integration', () {
     test('child return value round-trip', () async {
-      final plugin = IsolatePlugin(platformFactory: () async => createMonty());
-      final spawn = _findHandler(plugin, 'isolate_spawn');
-      final await_ = _findHandler(plugin, 'isolate_await');
+      final plugin = SandboxPlugin(platformFactory: () async => createMonty());
+      final spawn = _findHandler(plugin, 'sandbox_spawn');
+      final await_ = _findHandler(plugin, 'sandbox_await');
 
       final handle = await spawn({'code': '40 + 2'});
       final result = await await_({'handle': handle! as int});
@@ -32,10 +32,10 @@ void main() {
     });
 
     test('child print output round-trip', () async {
-      final plugin = IsolatePlugin(platformFactory: () async => createMonty());
-      final spawn = _findHandler(plugin, 'isolate_spawn');
-      final await_ = _findHandler(plugin, 'isolate_await');
-      final getOutput = _findHandler(plugin, 'isolate_get_output');
+      final plugin = SandboxPlugin(platformFactory: () async => createMonty());
+      final spawn = _findHandler(plugin, 'sandbox_spawn');
+      final await_ = _findHandler(plugin, 'sandbox_await');
+      final getOutput = _findHandler(plugin, 'sandbox_get_output');
 
       final handle = await spawn({'code': 'print("hello from child")'});
       await await_({'handle': handle! as int});
@@ -47,10 +47,10 @@ void main() {
     });
 
     test('child with no print output returns null', () async {
-      final plugin = IsolatePlugin(platformFactory: () async => createMonty());
-      final spawn = _findHandler(plugin, 'isolate_spawn');
-      final await_ = _findHandler(plugin, 'isolate_await');
-      final getOutput = _findHandler(plugin, 'isolate_get_output');
+      final plugin = SandboxPlugin(platformFactory: () async => createMonty());
+      final spawn = _findHandler(plugin, 'sandbox_spawn');
+      final await_ = _findHandler(plugin, 'sandbox_await');
+      final getOutput = _findHandler(plugin, 'sandbox_get_output');
 
       final handle = await spawn({'code': '1 + 1'});
       await await_({'handle': handle! as int});
@@ -62,10 +62,10 @@ void main() {
     });
 
     test('multi-child output isolation', () async {
-      final plugin = IsolatePlugin(platformFactory: () async => createMonty());
-      final spawn = _findHandler(plugin, 'isolate_spawn');
-      final await_ = _findHandler(plugin, 'isolate_await');
-      final getOutput = _findHandler(plugin, 'isolate_get_output');
+      final plugin = SandboxPlugin(platformFactory: () async => createMonty());
+      final spawn = _findHandler(plugin, 'sandbox_spawn');
+      final await_ = _findHandler(plugin, 'sandbox_await');
+      final getOutput = _findHandler(plugin, 'sandbox_get_output');
 
       final h0 = await spawn({'code': 'print("alpha")'});
       final h1 = await spawn({'code': 'print("bravo")'});
@@ -85,9 +85,9 @@ void main() {
     });
 
     test('multi-child return value isolation', () async {
-      final plugin = IsolatePlugin(platformFactory: () async => createMonty());
-      final spawn = _findHandler(plugin, 'isolate_spawn');
-      final await_ = _findHandler(plugin, 'isolate_await');
+      final plugin = SandboxPlugin(platformFactory: () async => createMonty());
+      final spawn = _findHandler(plugin, 'sandbox_spawn');
+      final await_ = _findHandler(plugin, 'sandbox_await');
 
       final h0 = await spawn({'code': '100'});
       final h1 = await spawn({'code': '"hello"'});
@@ -102,10 +102,10 @@ void main() {
     });
 
     test('child with both return value and print output', () async {
-      final plugin = IsolatePlugin(platformFactory: () async => createMonty());
-      final spawn = _findHandler(plugin, 'isolate_spawn');
-      final await_ = _findHandler(plugin, 'isolate_await');
-      final getOutput = _findHandler(plugin, 'isolate_get_output');
+      final plugin = SandboxPlugin(platformFactory: () async => createMonty());
+      final spawn = _findHandler(plugin, 'sandbox_spawn');
+      final await_ = _findHandler(plugin, 'sandbox_await');
+      final getOutput = _findHandler(plugin, 'sandbox_get_output');
 
       final handle = await spawn({'code': 'print("side effect")\n42'});
       final result = await await_({'handle': handle! as int});
@@ -118,9 +118,9 @@ void main() {
     });
 
     test('failed child propagates error', () async {
-      final plugin = IsolatePlugin(platformFactory: () async => createMonty());
-      final spawn = _findHandler(plugin, 'isolate_spawn');
-      final await_ = _findHandler(plugin, 'isolate_await');
+      final plugin = SandboxPlugin(platformFactory: () async => createMonty());
+      final spawn = _findHandler(plugin, 'sandbox_spawn');
+      final await_ = _findHandler(plugin, 'sandbox_await');
 
       final handle = await spawn({'code': 'undefined_var'});
 
@@ -140,6 +140,6 @@ void main() {
   });
 }
 
-HostFunctionHandler _findHandler(IsolatePlugin plugin, String name) {
+HostFunctionHandler _findHandler(SandboxPlugin plugin, String name) {
   return plugin.functions.firstWhere((f) => f.schema.name == name).handler;
 }

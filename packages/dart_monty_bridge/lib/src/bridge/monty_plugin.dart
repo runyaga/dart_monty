@@ -27,9 +27,9 @@ abstract class MontyPlugin {
   @mustCallSuper
   Future<void> onDispose() async {}
 
-  /// Creates a fresh instance of this plugin for a child isolate.
+  /// Creates a fresh instance of this plugin for a child sandbox.
   ///
-  /// Override to opt into automatic child inheritance via `IsolatePlugin`.
+  /// Override to opt into automatic child inheritance via `SandboxPlugin`.
   /// Return `null` (the default) to exclude this plugin from children.
   ///
   /// The returned instance must be independent — it will be registered on a

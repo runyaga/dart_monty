@@ -16,4 +16,4 @@ export 'src/bridge/monty_bridge.dart';
 export 'src/bridge/monty_plugin.dart';
 export 'src/bridge/plugin_ref.dart';
 export 'src/bridge/plugin_registry.dart';
-export 'src/plugins/isolate_plugin.dart';
+export 'src/plugins/sandbox_plugin.dart';

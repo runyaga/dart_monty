@@ -341,6 +341,6 @@ bridge is disposed, the pending completer is completed with a
 ## Next Steps
 
 The [Advanced guide](host-functions-advanced.md) covers composite plugins
-for inter-plugin dependencies, `IsolatePlugin` for spawning child
+for inter-plugin dependencies, `SandboxPlugin` for spawning child
 interpreters, depth and concurrency limits, resource limits per child,
 and production patterns for multi-session architectures.

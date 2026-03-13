@@ -7,7 +7,7 @@ import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart
 import 'package:struct_log/struct_log.dart';
 import 'package:test/test.dart';
 
-/// Integration tests for IsolatePlugin structured logging with real FFI.
+/// Integration tests for SandboxPlugin structured logging with real FFI.
 ///
 /// Run with:
 /// ```bash
@@ -15,7 +15,7 @@ import 'package:test/test.dart';
 /// cd packages/dart_monty_bridge
 /// DYLD_LIBRARY_PATH=../../native/target/release \
 ///   dart test --tags=integration --run-skipped \
-///   test/integration/isolate_logging_test.dart
+///   test/integration/sandbox_logging_test.dart
 /// ```
 void main() {
   late NativeBindingsFfi bindings;
@@ -33,7 +33,7 @@ void main() {
     LogManager.instance
       ..addSink(sink)
       ..minimumLevel = LogLevel.trace;
-    logger = LogManager.instance.getLogger('IsolatePlugin.integration');
+    logger = LogManager.instance.getLogger('SandboxPlugin.integration');
   });
 
   tearDown(() {
@@ -47,24 +47,24 @@ void main() {
   DefaultMontyBridge createBridge() =>
       DefaultMontyBridge(platform: createPlatform(), useFutures: false);
 
-  group('isolate logging with real FFI', () {
+  group('sandbox logging with real FFI', () {
     test('spawn + await logs full lifecycle', () async {
       final bridge = createBridge();
       final registry = PluginRegistry()
         ..register(
-          IsolatePlugin(
+          SandboxPlugin(
             platformFactory: () async => createPlatform(),
             logger: logger,
           ),
         );
       await registry.attachTo(bridge);
 
-      final plugin = registry.plugins.whereType<IsolatePlugin>().first;
+      final plugin = registry.plugins.whereType<SandboxPlugin>().first;
       final spawn = plugin.functions
-          .firstWhere((f) => f.schema.name == 'isolate_spawn')
+          .firstWhere((f) => f.schema.name == 'sandbox_spawn')
           .handler;
       final await_ = plugin.functions
-          .firstWhere((f) => f.schema.name == 'isolate_await')
+          .firstWhere((f) => f.schema.name == 'sandbox_await')
           .handler;
 
       final handle = (await spawn({'code': '2 + 3'}))! as int;
@@ -92,19 +92,19 @@ void main() {
       final bridge = createBridge();
       final registry = PluginRegistry()
         ..register(
-          IsolatePlugin(
+          SandboxPlugin(
             platformFactory: () async => createPlatform(),
             logger: logger,
           ),
         );
       await registry.attachTo(bridge);
 
-      final plugin = registry.plugins.whereType<IsolatePlugin>().first;
+      final plugin = registry.plugins.whereType<SandboxPlugin>().first;
       final spawn = plugin.functions
-          .firstWhere((f) => f.schema.name == 'isolate_spawn')
+          .firstWhere((f) => f.schema.name == 'sandbox_spawn')
           .handler;
       final await_ = plugin.functions
-          .firstWhere((f) => f.schema.name == 'isolate_await')
+          .firstWhere((f) => f.schema.name == 'sandbox_await')
           .handler;
 
       final handle = (await spawn({'code': 'undefined_variable_xyz'}))! as int;
@@ -129,19 +129,19 @@ void main() {
       final bridge = createBridge();
       final registry = PluginRegistry()
         ..register(
-          IsolatePlugin(
+          SandboxPlugin(
             platformFactory: () async => createPlatform(),
             logger: logger,
           ),
         );
       await registry.attachTo(bridge);
 
-      final plugin = registry.plugins.whereType<IsolatePlugin>().first;
+      final plugin = registry.plugins.whereType<SandboxPlugin>().first;
       final spawn = plugin.functions
-          .firstWhere((f) => f.schema.name == 'isolate_spawn')
+          .firstWhere((f) => f.schema.name == 'sandbox_spawn')
           .handler;
       final await_ = plugin.functions
-          .firstWhere((f) => f.schema.name == 'isolate_await')
+          .firstWhere((f) => f.schema.name == 'sandbox_await')
           .handler;
 
       final handle = (await spawn({'code': '42'}))! as int;
@@ -150,7 +150,7 @@ void main() {
       await plugin.onDispose();
 
       final disposeRecord = sink.records.firstWhere(
-        (r) => r.message == 'Disposing IsolatePlugin',
+        (r) => r.message == 'Disposing SandboxPlugin',
       );
       expect(disposeRecord.level, LogLevel.info);
       expect(disposeRecord.attributes['totalChildren'], 1);
