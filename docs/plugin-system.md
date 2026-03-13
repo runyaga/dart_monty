@@ -11,7 +11,7 @@ first principles through production patterns.
 | Intro | [Host Functions Intro](guides/host-functions-intro.md) | What host functions are, why they exist, and a 3-line "hello world" |
 | Beginner | [Host Functions Beginner](guides/host-functions-beginner.md) | `HostFunctionSchema`, typed params, validation, error handling, `BridgeEvent` stream |
 | Intermediate | [Host Functions Intermediate](guides/host-functions-intermediate.md) | `MontyPlugin`, `PluginRegistry`, namespaces, lifecycle hooks, introspection, `EventLoopBridge` |
-| Advanced | [Host Functions Advanced](guides/host-functions-advanced.md) | Composite plugins, `PluginRef`, `SandboxPlugin`, child spawning, depth/concurrency limits, production patterns |
+| Advanced | [Host Functions Advanced](guides/host-functions-advanced.md) | `SandboxPlugin`, child spawning, depth/concurrency limits, production patterns |
 
 ## Architecture at a Glance
 

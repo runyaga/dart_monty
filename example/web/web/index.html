@@ -1579,42 +1579,6 @@ graph TB
     <div class="diagram-caption">Plugin registry &rarr; bridge dispatch &rarr; event stream</div>
   </div>
 
-  <!-- Composite Plugins -->
-  <div class="feature-row" style="margin-top: 3rem;">
-    <div class="feature-text">
-      <div class="feature-tag tag-arch">Composite Plugins</div>
-      <h3>Plugins that depend on plugins.</h3>
-      <p>
-        <code>PluginRef&lt;T&gt;</code> lets a plugin declare typed dependencies on siblings.
-        The registry resolves refs during <code>attachTo()</code> with polymorphic matching,
-        topological init order, and cycle detection. Domain plugins compose infrastructure
-        plugins without LLM multi-tool orchestration&mdash;your <code>ReportPlugin</code> just
-        declares it needs a <code>DataPlugin</code>, and the registry wires it up.
-      </p>
-    </div>
-    <div class="diagram-container" style="border: none; padding: 1rem; margin: 0;">
-      <pre class="mermaid">
-graph TB
-    RP["ReportPlugin<br/><small>CompositePlugin</small>"]
-    DP["DataPlugin"]
-    CP["ChartPlugin<br/><small>CompositePlugin</small>"]
-
-    RP -->|"PluginRef&lt;DataPlugin&gt;"| DP
-    CP -->|"PluginRef&lt;DataPlugin&gt;"| DP
-
-    REG["PluginRegistry<br/><small>topological sort &bull; cycle detection</small>"]
-    REG -.->|"resolve + init order"| DP
-    REG -.->|"then"| RP
-    REG -.->|"then"| CP
-
-    style RP fill:#1a1a2e,stroke:#c586c0,stroke-width:2px
-    style CP fill:#1a1a2e,stroke:#c586c0,stroke-width:2px
-    style DP fill:#1a1a2e,stroke:#6a9955,stroke-width:2px
-    style REG fill:#1a1a2e,stroke:#dcdcaa,stroke-width:1px
-      </pre>
-    </div>
-  </div>
-
   <div class="epigraph" style="margin-top: 2.5rem;">
     "Freedom of choice is what you got. Freedom from choice is what you want."
     <span class="attribution">&mdash; Devo, "Freedom of Choice"</span>
@@ -1768,7 +1732,6 @@ timeline
         Plugin Registry : Namespaced host functions
         Bridge Events : Streaming execution
         MCP Server : LLM integration
-        Composite Plugins : PluginRef + topological init
     section Horizon
         Supervision Trees : Fault tolerance
         WASM Optimization : 16MB per session target

@@ -135,16 +135,12 @@ Violations throw `ArgumentError` (format issues) or `StateError`
 
 ### What `attachTo()` Does
 
-`attachTo(bridge)` performs four actions:
+`attachTo(bridge)` performs three actions:
 
 1. Registers every plugin's `HostFunction`s onto the bridge via
    `bridge.register()`.
-2. Resolves `CompositePlugin` dependencies (see
-   [Advanced guide](host-functions-advanced.md#composite-plugins)).
-3. Calls `onRegister(bridge)` on each plugin in **topological order**
-   (dependencies before dependents; insertion order when no
-   dependencies exist).
-4. Registers **introspection builtins** (`list_functions` and `help`)
+2. Calls `onRegister(bridge)` on each plugin in **registration order**.
+3. Registers **introspection builtins** (`list_functions` and `help`)
    so Python code can discover available tools at runtime.
 
 If any `onRegister()` call throws, the error is collected but does not
@@ -157,8 +153,8 @@ a single `StateError` is thrown containing all collected errors.
 await registry.disposeAll();
 ```
 
-Calls `onDispose()` on each plugin in **reverse topological order**
-(dependents before dependencies). Like `attachTo()`, errors are
+Calls `onDispose()` on each plugin in **reverse registration order**.
+Like `attachTo()`, errors are
 collected and thrown as a single `StateError` after all plugins have
 been disposed. Safe to call multiple times -- each plugin's
 `onDispose()` must be idempotent.
@@ -340,7 +336,7 @@ bridge is disposed, the pending completer is completed with a
 
 ## Next Steps
 
-The [Advanced guide](host-functions-advanced.md) covers composite plugins
-for inter-plugin dependencies, `SandboxPlugin` for spawning child
-interpreters, depth and concurrency limits, resource limits per child,
-and production patterns for multi-session architectures.
+The [Advanced guide](host-functions-advanced.md) covers `SandboxPlugin`
+for spawning child interpreters, depth and concurrency limits, resource
+limits per child, and production patterns for multi-session
+architectures.
