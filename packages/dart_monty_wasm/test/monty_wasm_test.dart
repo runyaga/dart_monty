@@ -820,8 +820,113 @@ void main() {
       expect(monty, isA<MontySnapshotCapable>());
     });
 
-    test('is not MontyFutureCapable', () {
-      expect(monty, isNot(isA<MontyFutureCapable>()));
+    test('is MontyFutureCapable', () {
+      expect(monty, isA<MontyFutureCapable>());
+    });
+  });
+
+  // ===========================================================================
+  // MontyFutureCapable — resumeAsFuture / resolveFutures
+  // ===========================================================================
+  group('MontyFutureCapable', () {
+    test(
+      'resumeAsFuture delegates to coreBindings and returns progress',
+      () async {
+        // Put monty into active state via start().
+        mock.nextStartResult = const WasmProgressResult(
+          ok: true,
+          state: 'pending',
+          functionName: 'fetch',
+        );
+        await monty.start('await fetch()', externalFunctions: ['fetch']);
+
+        mock.nextResumeAsFutureResult = const WasmProgressResult(
+          ok: true,
+          state: 'resolve_futures',
+          pendingCallIds: [0],
+        );
+
+        final progress = await monty.resumeAsFuture();
+
+        expect(progress, isA<MontyResolveFutures>());
+        expect((progress as MontyResolveFutures).pendingCallIds, [0]);
+        expect(mock.resumeAsFutureCalls, 1);
+      },
+    );
+
+    test(
+      'resolveFutures delegates results and errors to coreBindings',
+      () async {
+        // Put monty into active state via start().
+        mock.nextStartResult = const WasmProgressResult(
+          ok: true,
+          state: 'resolve_futures',
+          pendingCallIds: [0, 1],
+        );
+        await monty.start(
+          'await a(); await b()',
+          externalFunctions: ['a', 'b'],
+        );
+
+        mock.nextResolveFuturesResult = const WasmProgressResult(
+          ok: true,
+          state: 'complete',
+          value: 42,
+        );
+
+        final progress = await monty.resolveFutures(
+          {0: 'hello', 1: 'world'},
+          errors: {2: 'boom'},
+        );
+
+        expect(progress, isA<MontyComplete>());
+        expect(mock.resolveFuturesCalls, hasLength(1));
+        final call = mock.resolveFuturesCalls.first;
+        expect(call.resultsJson, contains('"0"'));
+        expect(call.resultsJson, contains('hello'));
+        expect(call.errorsJson, contains('"2"'));
+        expect(call.errorsJson, contains('boom'));
+      },
+    );
+
+    test('resolveFutures defaults errors to empty JSON object', () async {
+      mock.nextStartResult = const WasmProgressResult(
+        ok: true,
+        state: 'resolve_futures',
+        pendingCallIds: [0],
+      );
+      await monty.start('await a()', externalFunctions: ['a']);
+
+      mock.nextResolveFuturesResult = const WasmProgressResult(
+        ok: true,
+        state: 'complete',
+        value: 99,
+      );
+
+      await monty.resolveFutures({0: 42});
+
+      expect(mock.resolveFuturesCalls.first.errorsJson, '{}');
+    });
+
+    test('resumeAsFuture throws when disposed', () async {
+      await monty.dispose();
+
+      expect(() => monty.resumeAsFuture(), throwsStateError);
+    });
+
+    test('resolveFutures throws when disposed', () async {
+      await monty.dispose();
+
+      expect(() => monty.resolveFutures({0: 1}), throwsStateError);
+    });
+
+    test('resumeAsFuture throws when idle', () {
+      // Monty starts idle — not active.
+      expect(() => monty.resumeAsFuture(), throwsStateError);
+    });
+
+    test('resolveFutures throws when idle', () {
+      expect(() => monty.resolveFutures({0: 1}), throwsStateError);
     });
   });
 

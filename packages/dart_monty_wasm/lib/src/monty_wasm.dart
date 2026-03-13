@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
@@ -10,7 +11,8 @@ import 'package:dart_monty_wasm/src/wasm_core_bindings.dart';
 /// Web WASM implementation of [MontyPlatform].
 ///
 /// Extends [BaseMontyPlatform] to inherit run/start/resume/dispose logic
-/// and adds [MontySnapshotCapable] for snapshot/restore support.
+/// and adds [MontySnapshotCapable] for snapshot/restore and
+/// [MontyFutureCapable] for async Python future resolution.
 ///
 /// ```dart
 /// final monty = MontyWasm();
@@ -18,7 +20,8 @@ import 'package:dart_monty_wasm/src/wasm_core_bindings.dart';
 /// print(result.value); // 4
 /// await monty.dispose();
 /// ```
-class MontyWasm extends BaseMontyPlatform implements MontySnapshotCapable {
+class MontyWasm extends BaseMontyPlatform
+    implements MontySnapshotCapable, MontyFutureCapable {
   /// Creates a [MontyWasm] with optional [bindings].
   ///
   /// Defaults to [WasmBindingsJs] when omitted.
@@ -57,5 +60,32 @@ class MontyWasm extends BaseMontyPlatform implements MontySnapshotCapable {
 
     return MontyWasm._(coreBindings: core, wasmBindings: _wasmBindings)
       ..markActive();
+  }
+
+  @override
+  Future<MontyProgress> resumeAsFuture() async {
+    assertNotDisposed('resumeAsFuture');
+    assertActive('resumeAsFuture');
+    final progress = await coreBindings.resumeAsFuture();
+
+    return translateProgress(progress);
+  }
+
+  @override
+  Future<MontyProgress> resolveFutures(
+    Map<int, Object?> results, {
+    Map<int, String>? errors,
+  }) async {
+    assertNotDisposed('resolveFutures');
+    assertActive('resolveFutures');
+    final resultsJson = json.encode(
+      results.map((k, v) => MapEntry(k.toString(), v)),
+    );
+    final errorsJson = errors != null
+        ? json.encode(errors.map((k, v) => MapEntry(k.toString(), v)))
+        : '{}';
+    final progress = await coreBindings.resolveFutures(resultsJson, errorsJson);
+
+    return translateProgress(progress);
   }
 }

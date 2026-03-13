@@ -264,6 +264,11 @@ rm -f "$LADDER_LOG"
 
 echo ""
 if [ "$LADDER_FAILURES" -gt 0 ]; then
+  echo "Failed fixtures:"
+  echo "$WEB_RESULTS" | grep '"ok":false' | while IFS= read -r fail_line; do
+    json="${fail_line#*LADDER_RESULT:}"
+    echo "  $json"
+  done
   echo "=== M4 Gate: FAILED (ladder had $LADDER_FAILURES failures) ==="
   exit 1
 fi
