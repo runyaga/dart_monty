@@ -88,11 +88,11 @@ void main() {
         expect(plugin.systemPromptContext, contains('sandboxed'));
       });
 
-      test('provides 7 host functions', () {
+      test('provides 8 host functions', () {
         final plugin = SandboxPlugin(
           platformFactory: () async => MockMontyPlatform(),
         );
-        expect(plugin.functions, hasLength(7));
+        expect(plugin.functions, hasLength(8));
       });
 
       test('all function names start with sandbox_', () {
@@ -518,6 +518,156 @@ void main() {
         final getOutput = _findHandler(plugin, 'sandbox_get_output');
 
         expect(() => getOutput({'handle': 999}), throwsA(isA<ArgumentError>()));
+      });
+    });
+
+    group('sandbox_gather', () {
+      test(
+        'returns attributed results with handle, value, and output',
+        () async {
+          var callCount = 0;
+          final plugin = SandboxPlugin(
+            platformFactory: () async {
+              callCount++;
+              return _completingMockWithResult(
+                value: callCount,
+                printOutput: 'output_$callCount\n',
+              );
+            },
+          );
+          final spawn = _findHandler(plugin, 'sandbox_spawn');
+          final gather = _findHandler(plugin, 'sandbox_gather');
+
+          final h0 = (await spawn({'code': 'a'}))! as int;
+          final h1 = (await spawn({'code': 'b'}))! as int;
+
+          final result =
+              (await gather({
+                    'handles': [h0, h1],
+                  }))!
+                  as List<Object?>;
+
+          expect(result, hasLength(2));
+          final r0 = result[0]! as Map<String, Object?>;
+          final r1 = result[1]! as Map<String, Object?>;
+
+          expect(r0['handle'], h0);
+          expect(r0['value'], isNotNull);
+          expect(r0['output'], isNotNull);
+          expect(r1['handle'], h1);
+          expect(r1['value'], isNotNull);
+          expect(r1['output'], isNotNull);
+        },
+      );
+
+      test('preserves handle order', () async {
+        var callCount = 0;
+        final plugin = SandboxPlugin(
+          platformFactory: () async {
+            callCount++;
+            return _completingMockWithResult(value: callCount * 10);
+          },
+        );
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
+        final gather = _findHandler(plugin, 'sandbox_gather');
+
+        final h0 = (await spawn({'code': 'a'}))! as int;
+        final h1 = (await spawn({'code': 'b'}))! as int;
+        final h2 = (await spawn({'code': 'c'}))! as int;
+
+        // Request in reverse order.
+        final result =
+            (await gather({
+                  'handles': [h2, h0, h1],
+                }))!
+                as List<Object?>;
+
+        expect(result, hasLength(3));
+        expect((result[0]! as Map)['handle'], h2);
+        expect((result[1]! as Map)['handle'], h0);
+        expect((result[2]! as Map)['handle'], h1);
+      });
+
+      test('handles null printOutput (child with no print)', () async {
+        final plugin = SandboxPlugin(
+          platformFactory: () async => _completingMockWithResult(value: 42),
+        );
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
+        final gather = _findHandler(plugin, 'sandbox_gather');
+
+        final h0 = (await spawn({'code': 'a'}))! as int;
+
+        final result =
+            (await gather({
+                  'handles': [h0],
+                }))!
+                as List<Object?>;
+
+        expect(result, hasLength(1));
+        final r0 = result[0]! as Map<String, Object?>;
+        expect(r0['handle'], h0);
+        expect(r0['value'], 42);
+        expect(r0['output'], isNull);
+      });
+
+      test('throws ChildSandboxException if any child fails', () async {
+        var callCount = 0;
+        final plugin = SandboxPlugin(
+          platformFactory: () async {
+            callCount++;
+            if (callCount == 2) return _failingMock('child failed');
+            return _completingMockWithResult(value: callCount);
+          },
+        );
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
+        final gather = _findHandler(plugin, 'sandbox_gather');
+
+        final h0 = (await spawn({'code': 'a'}))! as int;
+        final h1 = (await spawn({'code': 'b'}))! as int;
+
+        expect(
+          () => gather({
+            'handles': [h0, h1],
+          }),
+          throwsA(isA<ChildSandboxException>()),
+        );
+      });
+
+      test('throws ArgumentError for unknown handle', () async {
+        final plugin = SandboxPlugin(
+          platformFactory: () async => _completingMock(),
+        );
+        final gather = _findHandler(plugin, 'sandbox_gather');
+
+        expect(
+          () => gather({
+            'handles': [999],
+          }),
+          throwsA(isA<ArgumentError>()),
+        );
+      });
+
+      test('works with single handle', () async {
+        final plugin = SandboxPlugin(
+          platformFactory: () async =>
+              _completingMockWithResult(value: 'solo', printOutput: 'hi\n'),
+        );
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
+        final gather = _findHandler(plugin, 'sandbox_gather');
+
+        final h0 = (await spawn({'code': 'a'}))! as int;
+
+        final result =
+            (await gather({
+                  'handles': [h0],
+                }))!
+                as List<Object?>;
+
+        expect(result, hasLength(1));
+        final r0 = result[0]! as Map<String, Object?>;
+        expect(r0['handle'], h0);
+        expect(r0['value'], 'solo');
+        expect(r0['output'], 'hi\n');
       });
     });
 
