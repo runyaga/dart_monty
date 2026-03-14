@@ -2,10 +2,10 @@ import 'package:dart_monty_bridge/dart_monty_bridge.dart';
 import 'package:test/test.dart';
 
 void main() {
-  late TemplatePlugin plugin;
+  late DinjaTemplatePlugin plugin;
 
   setUp(() {
-    plugin = TemplatePlugin();
+    plugin = DinjaTemplatePlugin();
   });
 
   HostFunctionHandler findHandler(String name) {
@@ -25,9 +25,9 @@ void main() {
       expect(plugin.systemPromptContext, isNotNull);
     });
 
-    test('createChildInstance returns new TemplatePlugin', () {
+    test('createChildInstance returns new DinjaTemplatePlugin', () {
       final child = plugin.createChildInstance();
-      expect(child, isA<TemplatePlugin>());
+      expect(child, isA<DinjaTemplatePlugin>());
       expect(child, isNot(same(plugin)));
     });
   });
@@ -116,7 +116,7 @@ void main() {
     });
 
     test('respects custom maxInputSize', () async {
-      final small = TemplatePlugin(maxInputSize: 10);
+      final small = DinjaTemplatePlugin(maxInputSize: 10);
       final handler = small.functions.firstWhere(
         (f) => f.schema.name == 'tmpl_render',
       );

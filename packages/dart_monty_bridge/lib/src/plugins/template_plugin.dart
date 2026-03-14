@@ -12,13 +12,13 @@ const int defaultMaxTemplateInputSize = 512 * 1024;
 /// `{% for item in items %}` loops, and `{% if condition %}` conditionals.
 ///
 /// All functions are prefixed with `tmpl_`.
-class TemplatePlugin extends MontyPlugin {
-  /// Creates a [TemplatePlugin].
+class DinjaTemplatePlugin extends MontyPlugin {
+  /// Creates a [DinjaTemplatePlugin].
   ///
   /// [maxInputSize] controls the maximum allowed character count for
   /// template strings. Defaults to 512 KB.
-  TemplatePlugin({Logger? logger, int? maxInputSize})
-    : log = logger ?? LogManager.instance.getLogger('TemplatePlugin'),
+  DinjaTemplatePlugin({Logger? logger, int? maxInputSize})
+    : log = logger ?? LogManager.instance.getLogger('DinjaTemplatePlugin'),
       _maxInputSize = maxInputSize ?? defaultMaxTemplateInputSize;
 
   /// Logger for this plugin instance.
@@ -62,8 +62,8 @@ class TemplatePlugin extends MontyPlugin {
   ];
 
   @override
-  MontyPlugin? createChildInstance() => TemplatePlugin(
-    logger: LogManager.instance.getLogger('TemplatePlugin.child'),
+  MontyPlugin? createChildInstance() => DinjaTemplatePlugin(
+    logger: LogManager.instance.getLogger('DinjaTemplatePlugin.child'),
     maxInputSize: _maxInputSize,
   );
 
