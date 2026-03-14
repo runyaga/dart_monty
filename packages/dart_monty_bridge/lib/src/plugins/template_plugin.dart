@@ -88,8 +88,8 @@ class DinjaTemplatePlugin extends MontyPlugin {
   void _guardInputSize(String template) {
     if (template.length > _maxInputSize) {
       throw FormatException(
-        'Template exceeds ${_maxInputSize ~/ 1024} KB limit '
-        '(got ${template.length} characters)',
+        'Template exceeds $_maxInputSize character limit '
+        '(got ${template.length})',
       );
     }
   }

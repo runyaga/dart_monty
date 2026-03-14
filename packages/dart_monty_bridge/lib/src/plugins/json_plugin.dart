@@ -172,8 +172,8 @@ class JsonPlugin extends MontyPlugin {
   void _guardInputSize(String text, String caller) {
     if (text.length > _maxInputSize) {
       throw FormatException(
-        '$caller: input exceeds ${_maxInputSize ~/ 1024} KB limit '
-        '(got ${text.length} characters)',
+        '$caller: input exceeds $_maxInputSize character limit '
+        '(got ${text.length})',
       );
     }
   }
