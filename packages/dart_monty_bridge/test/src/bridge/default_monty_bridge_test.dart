@@ -237,9 +237,7 @@ void main() {
         );
 
       mock
-        ..enqueueProgress(
-          const MontyPending(functionName: 'fn', arguments: []),
-        )
+        ..enqueueProgress(const MontyPending(functionName: 'fn', arguments: []))
         ..enqueueProgress(
           const MontyComplete(result: MontyResult(usage: _usage)),
         );
@@ -267,9 +265,7 @@ void main() {
         );
 
       mock
-        ..enqueueProgress(
-          const MontyPending(functionName: 'fn', arguments: []),
-        )
+        ..enqueueProgress(const MontyPending(functionName: 'fn', arguments: []))
         ..enqueueProgress(
           const MontyComplete(result: MontyResult(usage: _usage)),
         );
@@ -351,9 +347,7 @@ void main() {
         );
 
       mock
-        ..enqueueProgress(
-          const MontyPending(functionName: 'fn', arguments: []),
-        )
+        ..enqueueProgress(const MontyPending(functionName: 'fn', arguments: []))
         ..enqueueProgress(
           const MontyComplete(result: MontyResult(usage: _usage)),
         );
@@ -449,9 +443,7 @@ void main() {
         );
 
       syncMock
-        ..enqueueProgress(
-          const MontyPending(functionName: 'fn', arguments: []),
-        )
+        ..enqueueProgress(const MontyPending(functionName: 'fn', arguments: []))
         ..enqueueProgress(
           const MontyComplete(result: MontyResult(usage: _usage)),
         );
@@ -479,9 +471,7 @@ void main() {
         );
 
       syncMock
-        ..enqueueProgress(
-          const MontyPending(functionName: 'fn', arguments: []),
-        )
+        ..enqueueProgress(const MontyPending(functionName: 'fn', arguments: []))
         ..enqueueProgress(
           const MontyComplete(result: MontyResult(usage: _usage)),
         );
@@ -504,9 +494,7 @@ void main() {
       );
 
       mock
-        ..enqueueProgress(
-          const MontyPending(functionName: 'fn', arguments: []),
-        )
+        ..enqueueProgress(const MontyPending(functionName: 'fn', arguments: []))
         ..enqueueProgress(
           const MontyComplete(result: MontyResult(usage: _usage)),
         );
@@ -517,10 +505,7 @@ void main() {
 
     test('use() after dispose throws StateError', () {
       bridge.dispose();
-      expect(
-        () => bridge.use(_LoggingMiddleware('x', [])),
-        throwsStateError,
-      );
+      expect(() => bridge.use(_LoggingMiddleware('x', [])), throwsStateError);
     });
 
     test('middleware works on futures path', () async {
@@ -579,6 +564,116 @@ void main() {
 
       await bridge.execute('fn()').toList();
       expect(captured, isA<ToolCall>());
+    });
+  });
+
+  group('invokeHostFunction', () {
+    test(
+      'routes through middleware with correct name, args, and role',
+      () async {
+        String? capturedName;
+        Map<String, Object?>? capturedArgs;
+        CallRole? capturedRole;
+
+        bridge
+          ..use(
+            _CapturingMiddleware(
+              onCall: (name, args, role) {
+                capturedName = name;
+                capturedArgs = args;
+                capturedRole = role;
+              },
+            ),
+          )
+          ..register(
+            HostFunction(
+              schema: const HostFunctionSchema(
+                name: 'greet',
+                description: '',
+                params: [HostParam(name: 'who', type: HostParamType.string)],
+              ),
+              handler: (args) async => 'hello ${args['who']}',
+            ),
+          );
+
+        final result = await bridge.invokeHostFunction('greet', {
+          'who': 'world',
+        });
+
+        expect(result, 'hello world');
+        expect(capturedName, 'greet');
+        expect(capturedArgs, {'who': 'world'});
+        expect(capturedRole, isA<ToolCall>());
+      },
+    );
+
+    test('unknown function throws ArgumentError', () {
+      expect(() => bridge.invokeHostFunction('nope', {}), throwsArgumentError);
+    });
+
+    test('propagates InfraCall role to middleware', () async {
+      CallRole? capturedRole;
+
+      bridge
+        ..use(_RoleCapturingMiddleware((role) => capturedRole = role))
+        ..register(
+          HostFunction(
+            schema: const HostFunctionSchema(name: 'fn', description: ''),
+            handler: (_) async => null,
+          ),
+        );
+
+      await bridge.invokeHostFunction('fn', {}, role: const InfraCall());
+
+      expect(capturedRole, isA<InfraCall>());
+    });
+
+    test('validates arguments via mapAndValidate', () {
+      bridge.register(
+        HostFunction(
+          schema: const HostFunctionSchema(
+            name: 'need_name',
+            description: '',
+            params: [HostParam(name: 'name', type: HostParamType.string)],
+          ),
+          handler: (_) async => null,
+        ),
+      );
+
+      expect(
+        () => bridge.invokeHostFunction('need_name', {}),
+        throwsFormatException,
+      );
+    });
+
+    test('coerces string to int for integer param', () async {
+      Map<String, Object?>? capturedArgs;
+
+      bridge.register(
+        HostFunction(
+          schema: const HostFunctionSchema(
+            name: 'add',
+            description: '',
+            params: [HostParam(name: 'n', type: HostParamType.integer)],
+          ),
+          handler: (args) async {
+            capturedArgs = args;
+            return args['n'];
+          },
+        ),
+      );
+
+      final result = await bridge.invokeHostFunction('add', {'n': '42'});
+
+      expect(result, 42);
+      expect(capturedArgs!['n'], isA<int>());
+      expect(capturedArgs!['n'], 42);
+    });
+
+    test('disposed bridge throws StateError', () {
+      bridge.dispose();
+
+      expect(() => bridge.invokeHostFunction('fn', {}), throwsStateError);
     });
   });
 }
@@ -646,6 +741,24 @@ class _ThrowingMiddleware extends BridgeMiddleware {
     CallRole role,
     ToolHandler next,
   ) => throw StateError('Access denied');
+}
+
+class _CapturingMiddleware extends BridgeMiddleware {
+  _CapturingMiddleware({required this.onCall});
+
+  final void Function(String name, Map<String, Object?> args, CallRole role)
+  onCall;
+
+  @override
+  Future<Object?> handle(
+    String name,
+    Map<String, Object?> args,
+    CallRole role,
+    ToolHandler next,
+  ) {
+    onCall(name, args, role);
+    return next(name, args);
+  }
 }
 
 /// A minimal [MontyPlatform] that throws a [MontyException] from [start].

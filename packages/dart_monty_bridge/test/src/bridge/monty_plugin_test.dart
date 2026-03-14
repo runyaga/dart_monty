@@ -124,5 +124,12 @@ class _NoOpBridge implements MontyBridge {
   Stream<BridgeEvent> execute(String code) => const Stream.empty();
 
   @override
+  Future<Object?> invokeHostFunction(
+    String name,
+    Map<String, Object?> args, {
+    CallRole role = const ToolCall(),
+  }) => throw UnimplementedError();
+
+  @override
   void dispose() {}
 }

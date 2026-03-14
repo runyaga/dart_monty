@@ -23,6 +23,19 @@ abstract class MontyBridge {
   /// override in implementations that support middleware.
   void use(BridgeMiddleware middleware) {}
 
+  /// Invokes a registered host function by name, routing through middleware.
+  ///
+  /// Use this to call host functions from Dart infrastructure code
+  /// (e.g., orchestration loops) rather than from Python. Arguments are
+  /// validated through [HostFunctionSchema.mapAndValidate] before dispatch.
+  ///
+  /// Throws [ArgumentError] if [name] is not registered.
+  Future<Object?> invokeHostFunction(
+    String name,
+    Map<String, Object?> args, {
+    CallRole role = const ToolCall(),
+  });
+
   /// Executes [code] and returns a stream of lifecycle events.
   ///
   /// Events follow the bridge lifecycle:
