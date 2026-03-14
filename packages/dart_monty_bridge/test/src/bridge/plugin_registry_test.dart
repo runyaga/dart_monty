@@ -331,10 +331,7 @@ void main() {
             ),
           )
           ..register(
-            _LifecyclePlugin(
-              namespace: 'bbb',
-              functions: [_fn('bbb_x')],
-            ),
+            _LifecyclePlugin(namespace: 'bbb', functions: [_fn('bbb_x')]),
           );
 
         await expectLater(
@@ -613,6 +610,13 @@ class _MockBridge implements MontyBridge {
 
   @override
   Stream<BridgeEvent> execute(String code) => const Stream.empty();
+
+  @override
+  Future<Object?> invokeHostFunction(
+    String name,
+    Map<String, Object?> args, {
+    CallRole role = const ToolCall(),
+  }) => throw UnimplementedError();
 
   @override
   void dispose() {}

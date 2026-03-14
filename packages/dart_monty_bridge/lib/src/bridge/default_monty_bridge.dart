@@ -134,6 +134,30 @@ class DefaultMontyBridge implements MontyBridge {
     _isDisposed = true;
   }
 
+  @override
+  Future<Object?> invokeHostFunction(
+    String name,
+    Map<String, Object?> args, {
+    CallRole role = const ToolCall(),
+  }) {
+    if (_isDisposed) throw StateError('Bridge has been disposed');
+    final fn = _functions[name];
+    if (fn == null) {
+      throw ArgumentError('Unknown host function: $name');
+    }
+
+    // Route through mapAndValidate for type coercion (e.g., string→int).
+    // Construct a MontyPending with kwargs only (Dart callers use named args).
+    final pending = MontyPending(
+      functionName: name,
+      arguments: const [],
+      kwargs: args,
+    );
+    final validatedArgs = fn.schema.mapAndValidate(pending);
+
+    return _invokeWithMiddleware(fn, name, validatedArgs, role);
+  }
+
   Future<void> _run(
     String code,
     StreamController<BridgeEvent> controller,
