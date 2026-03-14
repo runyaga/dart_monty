@@ -84,6 +84,17 @@ void main() {
         throwsFormatException,
       );
     });
+
+    test('respects custom maxInputSize', () async {
+      final small = JsonPlugin(maxInputSize: 10);
+      final handler = small.functions.firstWhere(
+        (f) => f.schema.name == 'json_loads',
+      );
+      expect(
+        () => handler.handler({'text': 'x' * 11}),
+        throwsFormatException,
+      );
+    });
   });
 
   group('json_dumps', () {

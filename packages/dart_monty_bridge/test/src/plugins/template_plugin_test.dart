@@ -115,6 +115,20 @@ void main() {
       );
     });
 
+    test('respects custom maxInputSize', () async {
+      final small = TemplatePlugin(maxInputSize: 10);
+      final handler = small.functions.firstWhere(
+        (f) => f.schema.name == 'tmpl_render',
+      );
+      expect(
+        () => handler.handler({
+          'template': 'x' * 11,
+          'context': <String, Object?>{},
+        }),
+        throwsFormatException,
+      );
+    });
+
     test('renders loop over list of maps', () async {
       final handler = findHandler('tmpl_render');
       final result = await handler({

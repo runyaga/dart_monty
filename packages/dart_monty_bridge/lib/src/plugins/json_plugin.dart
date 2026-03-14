@@ -3,10 +3,8 @@ import 'dart:convert';
 import 'package:dart_monty_bridge/dart_monty_bridge.dart';
 import 'package:struct_log/struct_log.dart';
 
-/// Maximum input size for JSON text (1 MB).
-///
-/// Guards against JSON bombs that could block the main isolate/thread.
-const int _maxJsonInputBytes = 1024 * 1024;
+/// Default maximum input size for JSON text (1 MB).
+const int defaultMaxJsonInputSize = 1024 * 1024;
 
 /// Plugin that provides JSON parsing and serialization to Python scripts.
 ///
@@ -14,11 +12,17 @@ const int _maxJsonInputBytes = 1024 * 1024;
 /// All functions are prefixed with `json_`.
 class JsonPlugin extends MontyPlugin {
   /// Creates a [JsonPlugin].
-  JsonPlugin({Logger? logger})
-    : log = logger ?? LogManager.instance.getLogger('JsonPlugin');
+  ///
+  /// [maxInputSize] controls the maximum allowed character count for
+  /// `json_loads` and `json_get` inputs. Defaults to 1 MB.
+  JsonPlugin({Logger? logger, int? maxInputSize})
+    : log = logger ?? LogManager.instance.getLogger('JsonPlugin'),
+      _maxInputSize = maxInputSize ?? defaultMaxJsonInputSize;
 
   /// Logger for this plugin instance.
   final Logger log;
+
+  final int _maxInputSize;
 
   @override
   String get namespace => 'json';
@@ -97,8 +101,10 @@ class JsonPlugin extends MontyPlugin {
   ];
 
   @override
-  MontyPlugin? createChildInstance() =>
-      JsonPlugin(logger: LogManager.instance.getLogger('JsonPlugin.child'));
+  MontyPlugin? createChildInstance() => JsonPlugin(
+    logger: LogManager.instance.getLogger('JsonPlugin.child'),
+    maxInputSize: _maxInputSize,
+  );
 
   Future<Object?> _handleLoads(Map<String, Object?> args) async {
     final text = args['text']! as String;
@@ -164,9 +170,9 @@ class JsonPlugin extends MontyPlugin {
   }
 
   void _guardInputSize(String text, String caller) {
-    if (text.length > _maxJsonInputBytes) {
+    if (text.length > _maxInputSize) {
       throw FormatException(
-        '$caller: input exceeds ${_maxJsonInputBytes ~/ 1024} KB limit '
+        '$caller: input exceeds ${_maxInputSize ~/ 1024} KB limit '
         '(got ${text.length} characters)',
       );
     }

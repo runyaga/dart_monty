@@ -2,10 +2,8 @@ import 'package:dart_monty_bridge/dart_monty_bridge.dart';
 import 'package:dinja/dinja.dart';
 import 'package:struct_log/struct_log.dart';
 
-/// Maximum input size for template strings (512 KB).
-///
-/// Guards against template expansion bombs that could block the main thread.
-const int _maxTemplateInputBytes = 512 * 1024;
+/// Default maximum input size for template strings (512 KB).
+const int defaultMaxTemplateInputSize = 512 * 1024;
 
 /// Plugin that provides Jinja2 template rendering to Python scripts.
 ///
@@ -16,11 +14,17 @@ const int _maxTemplateInputBytes = 512 * 1024;
 /// All functions are prefixed with `tmpl_`.
 class TemplatePlugin extends MontyPlugin {
   /// Creates a [TemplatePlugin].
-  TemplatePlugin({Logger? logger})
-    : log = logger ?? LogManager.instance.getLogger('TemplatePlugin');
+  ///
+  /// [maxInputSize] controls the maximum allowed character count for
+  /// template strings. Defaults to 512 KB.
+  TemplatePlugin({Logger? logger, int? maxInputSize})
+    : log = logger ?? LogManager.instance.getLogger('TemplatePlugin'),
+      _maxInputSize = maxInputSize ?? defaultMaxTemplateInputSize;
 
   /// Logger for this plugin instance.
   final Logger log;
+
+  final int _maxInputSize;
 
   @override
   String get namespace => 'tmpl';
@@ -60,6 +64,7 @@ class TemplatePlugin extends MontyPlugin {
   @override
   MontyPlugin? createChildInstance() => TemplatePlugin(
     logger: LogManager.instance.getLogger('TemplatePlugin.child'),
+    maxInputSize: _maxInputSize,
   );
 
   Future<Object?> _handleRender(Map<String, Object?> args) async {
@@ -81,9 +86,9 @@ class TemplatePlugin extends MontyPlugin {
   }
 
   void _guardInputSize(String template) {
-    if (template.length > _maxTemplateInputBytes) {
+    if (template.length > _maxInputSize) {
       throw FormatException(
-        'Template exceeds ${_maxTemplateInputBytes ~/ 1024} KB limit '
+        'Template exceeds ${_maxInputSize ~/ 1024} KB limit '
         '(got ${template.length} characters)',
       );
     }
