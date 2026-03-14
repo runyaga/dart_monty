@@ -167,7 +167,7 @@ class JsonPlugin extends MontyPlugin {
     if (text.length > _maxJsonInputBytes) {
       throw FormatException(
         '$caller: input exceeds ${_maxJsonInputBytes ~/ 1024} KB limit '
-        '(got ${text.length} bytes)',
+        '(got ${text.length} characters)',
       );
     }
   }

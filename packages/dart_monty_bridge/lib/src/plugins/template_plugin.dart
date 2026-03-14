@@ -84,7 +84,7 @@ class TemplatePlugin extends MontyPlugin {
     if (template.length > _maxTemplateInputBytes) {
       throw FormatException(
         'Template exceeds ${_maxTemplateInputBytes ~/ 1024} KB limit '
-        '(got ${template.length} bytes)',
+        '(got ${template.length} characters)',
       );
     }
   }
