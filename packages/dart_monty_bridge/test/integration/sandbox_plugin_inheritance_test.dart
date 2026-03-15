@@ -6,11 +6,9 @@ import 'package:dart_monty_ffi/dart_monty_ffi.dart';
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 import 'package:test/test.dart';
 
-/// Wraps a single Python expression in async-def/await for futures-mode
-/// child bridges. Backslash-n are literal (for embedding in spawn code=).
-String _asyncChild(String expr) {
-  return ['async def w():', '    return await $expr', 'await w()'].join(r'\n');
-}
+/// Child bridges use useFutures: false (#212), so host function calls
+/// return resolved values directly — no async def/await needed.
+String _syncChild(String expr) => expr;
 
 /// Integration tests for SandboxPlugin child inheritance with real FFI.
 ///
@@ -50,8 +48,8 @@ void main() {
   String spawn(String childCode) => 'sandbox_spawn(code="$childCode")';
 
   // Parent bridge uses useFutures: false for simpler test code.
-  // Child bridges (created by SandboxPlugin) use useFutures: true by default,
-  // so child code calling host functions must use async def + await.
+  // Child bridges (created by SandboxPlugin) also use useFutures: false
+  // (see #212 — prevents unawaited Future leaking as Python coroutine).
   DefaultMontyBridge createBridge() =>
       DefaultMontyBridge(platform: createPlatform(), useFutures: false);
 
@@ -137,9 +135,8 @@ void main() {
         );
       await registry.attachTo(bridge);
 
-      // Child bridge uses futures by default — child code must use
-      // async def + await for host function calls.
-      final cc = _asyncChild(r'greeter_hello(name=\"child\")');
+      // Child bridge uses useFutures: false (#212) — direct calls.
+      final cc = _syncChild(r'greeter_hello(name=\"child\")');
       final result = await run(
         bridge,
         'h = ${spawn(cc)}\n'
@@ -159,7 +156,7 @@ void main() {
       await registry.attachTo(bridge);
 
       // Child calls greeter_hello — not available (no inheritance).
-      final cc = _asyncChild(r'greeter_hello(name=\"test\")');
+      final cc = _syncChild(r'greeter_hello(name=\"test\")');
       final result = await run(
         bridge,
         'h = ${spawn(cc)}\n'
@@ -189,11 +186,10 @@ void main() {
       await registry.attachTo(bridge);
 
       // Each child increments its own counter independently.
+      // useFutures: false — direct calls, no async/await needed.
       final cc = [
-        'async def w():',
-        '    await counter_increment()',
-        '    return await counter_get()',
-        'await w()',
+        'counter_increment()',
+        'counter_get()',
       ].join(r'\n');
       final result = await run(
         bridge,
@@ -238,7 +234,7 @@ void main() {
       await registry.attachTo(bridge);
 
       // Child should NOT have greeter_hello (factory overrides).
-      final cc = _asyncChild(r'greeter_hello(name=\"test\")');
+      final cc = _syncChild(r'greeter_hello(name=\"test\")');
       final result = await run(
         bridge,
         'h = ${spawn(cc)}\n'

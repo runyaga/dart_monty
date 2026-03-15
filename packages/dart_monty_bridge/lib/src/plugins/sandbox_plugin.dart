@@ -69,10 +69,13 @@ class _ChildHandle {
 
   Future<void> cancel() async {
     isAlive = false;
+    // Dispose plugins FIRST — this unblocks pending handler Futures
+    // (e.g., MessageBusPlugin completes waiters with StateError).
+    // The bridge/stream must still be alive to deliver the resulting errors.
+    if (registry != null) await registry!.disposeAll();
     await subscription.cancel();
     bridge.dispose();
     await platform.dispose();
-    if (registry != null) await registry!.disposeAll();
   }
 }
 
@@ -361,7 +364,11 @@ class SandboxPlugin extends MontyPlugin {
         );
         rethrow;
       }
-      bridge = DefaultMontyBridge(platform: platform, limits: limits);
+      bridge = DefaultMontyBridge(
+        platform: platform,
+        limits: limits,
+        useFutures: false,
+      );
       log.debug(
         'Child bridge created',
         attributes: {
@@ -462,10 +469,11 @@ class SandboxPlugin extends MontyPlugin {
         // Clean up child resources.
         // bridge and platform are guaranteed non-null here -- the try block
         // succeeded before the stream listener was created.
+        // Dispose plugins first to unblock any pending handler Futures.
         try {
+          if (childRegistry != null) await childRegistry.disposeAll();
           bridge!.dispose();
           await platform!.dispose();
-          if (childRegistry != null) await childRegistry.disposeAll();
         } on Object catch (e, st) {
           log.warning(
             'Child cleanup error (swallowed)',

@@ -71,11 +71,8 @@ void main() {
     final bridge = await createBridgeWithMessageBus();
 
     // Child blocks on msg_recv until the parent sends, then returns the value.
-    final childCode = [
-      'async def w():',
-      r'    return await msg_recv(name=\"inbox\")',
-      'await w()',
-    ].join(r'\n');
+    // useFutures: false on child bridges (#212) — direct call, no await.
+    const childCode = r'msg_recv(name=\"inbox\")';
 
     final result = await run(
       bridge,
@@ -99,15 +96,12 @@ void main() {
     // and replies with a rich result — demonstrating first-class Dart
     // objects (maps, lists, ints, strings, bools) flowing both directions,
     // unlike print() which only returns flat strings.
-    const sendLine =
-        r'    await msg_send(name=\"result\", message={\"total\": total, \"count\": len(items), \"source\": task[\"meta\"][\"origin\"], \"passed\": total > 10})';
+    // useFutures: false on child bridges (#212) — direct calls, no await.
     final childCode = [
-      'async def w():',
-      r'    task = await msg_recv(name=\"work\")',
-      r'    items = task[\"items\"]',
-      '    total = items[0] + items[1] + items[2]',
-      sendLine,
-      'await w()',
+      r'task = msg_recv(name=\"work\")',
+      r'items = task[\"items\"]',
+      'total = items[0] + items[1] + items[2]',
+      r'msg_send(name=\"result\", message={\"total\": total, \"count\": len(items), \"source\": task[\"meta\"][\"origin\"], \"passed\": total > 10})',
     ].join(r'\n');
 
     final result = await run(
@@ -137,18 +131,13 @@ void main() {
 
     // Each worker receives a value on its input channel, doubles it, and
     // sends the result on its output channel.
+    // useFutures: false on child bridges (#212) — direct calls, no await.
     String workerCode(String inCh, String outCh) {
-      final recvLine = '    task = await msg_recv(name=\\"$inCh\\")';
-      const doubleLine = r'    doubled = task[\"value\"] * 2';
+      final recvLine = 'task = msg_recv(name=\\"$inCh\\")';
+      const doubleLine = r'doubled = task[\"value\"] * 2';
       final sendLine =
-          '    await msg_send(name=\\"$outCh\\", message={\\"doubled\\": doubled})';
-      return [
-        'async def w():',
-        recvLine,
-        doubleLine,
-        sendLine,
-        'await w()',
-      ].join(r'\n');
+          'msg_send(name=\\"$outCh\\", message={\\"doubled\\": doubled})';
+      return [recvLine, doubleLine, sendLine].join(r'\n');
     }
 
     final result = await run(
