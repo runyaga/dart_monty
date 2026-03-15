@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:dart_monty_bridge/dart_monty_bridge.dart';
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
+import 'package:path/path.dart' as p;
 import 'package:struct_log/struct_log.dart';
 
 /// Exception thrown when a child sandbox fails, is cancelled, or is disposed.
@@ -37,8 +38,14 @@ typedef MontyPlatformFactory = Future<MontyPlatform> Function();
 
 /// Factory that creates and configures a [PluginRegistry] for child bridges.
 ///
+/// Receives the [ChildSpawnContext] for the child being spawned, allowing
+/// the factory to configure per-child resources (e.g., filesystem roots).
+///
 /// Return `null` to give children only introspection builtins (no plugins).
-typedef ChildPluginRegistryFactory = Future<PluginRegistry?> Function();
+typedef ChildPluginRegistryFactory =
+    Future<PluginRegistry?> Function(
+      ChildSpawnContext context,
+    );
 
 /// Tracks a spawned child interpreter.
 class _ChildHandle {
@@ -98,6 +105,7 @@ class SandboxPlugin extends MontyPlugin {
     this.maxDepth = 3,
     this.currentDepth = 0,
     this.childLimits,
+    this.sandboxBaseDir,
     Logger? logger,
   }) : log = logger ?? LogManager.instance.getLogger('SandboxPlugin');
 
@@ -126,6 +134,14 @@ class SandboxPlugin extends MontyPlugin {
 
   /// Resource limits applied to child interpreters.
   final MontyLimits? childLimits;
+
+  /// Base directory for per-child sandbox working directories.
+  ///
+  /// When non-null, each child receives a [ChildSpawnContext] with
+  /// `workingDirectory` set to `$sandboxBaseDir/.sandboxes/child_$id`.
+  /// The directory is **not** created by this plugin — consumers (e.g.,
+  /// `FsPlugin.createChildInstance`) are responsible for creation.
+  final String? sandboxBaseDir;
 
   /// Logger for this plugin instance.
   final Logger log;
@@ -292,9 +308,7 @@ class SandboxPlugin extends MontyPlugin {
         'Spawn rejected: depth limit',
         attributes: {'currentDepth': currentDepth, 'maxDepth': maxDepth},
       );
-      throw StateError(
-        'Maximum sandbox recursion depth ($maxDepth) exceeded.',
-      );
+      throw StateError('Maximum sandbox recursion depth ($maxDepth) exceeded.');
     }
     final aliveCount = _children.values.where((c) => c.isAlive).length;
     if (aliveCount >= maxChildren) {
@@ -318,6 +332,15 @@ class SandboxPlugin extends MontyPlugin {
         stackDepth: childLimits?.stackDepth,
       );
     }
+
+    // Allocate ID early so ChildSpawnContext is available for plugin wiring.
+    final id = _nextId++;
+    final spawnContext = ChildSpawnContext(
+      childId: id,
+      workingDirectory: sandboxBaseDir != null
+          ? p.join(sandboxBaseDir!, '.sandboxes', 'child_$id')
+          : null,
+    );
 
     // Create child platform, bridge, and wire plugins.
     // All phases are inside a single cleanup scope so that any failure
@@ -352,7 +375,7 @@ class SandboxPlugin extends MontyPlugin {
       if (registryFactory != null) {
         // Explicit factory takes precedence.
         try {
-          childRegistry = await registryFactory();
+          childRegistry = await registryFactory(spawnContext);
         } on Object catch (e, st) {
           log.error(
             'Child plugin factory failed',
@@ -365,7 +388,7 @@ class SandboxPlugin extends MontyPlugin {
       } else if (parentPlugins.isNotEmpty) {
         // Auto-inherit from parent plugins via createChildInstance().
         try {
-          childRegistry = _buildInheritedRegistry();
+          childRegistry = _buildInheritedRegistry(spawnContext);
         } on Object catch (e, st) {
           log.error(
             'Child plugin inheritance failed',
@@ -391,10 +414,7 @@ class SandboxPlugin extends MontyPlugin {
             'Child plugin attachment failed',
             error: e,
             stackTrace: st,
-            attributes: {
-              'phase': 'attachTo',
-              'pluginCount': pluginCount,
-            },
+            attributes: {'phase': 'attachTo', 'pluginCount': pluginCount},
           );
           rethrow;
         }
@@ -406,7 +426,6 @@ class SandboxPlugin extends MontyPlugin {
       rethrow;
     }
 
-    final id = _nextId++;
     final completer = Completer<Object?>();
     completer.future.ignore();
 
@@ -504,12 +523,12 @@ class SandboxPlugin extends MontyPlugin {
   }
 
   /// Builds a child registry from parent plugins that opt into inheritance.
-  PluginRegistry? _buildInheritedRegistry() {
+  PluginRegistry? _buildInheritedRegistry(ChildSpawnContext context) {
     final childPlugins = <MontyPlugin>[];
     for (final plugin in parentPlugins) {
       // Skip SandboxPlugin itself -- children get their own via depth control.
       if (plugin is SandboxPlugin) continue;
-      final child = plugin.createChildInstance();
+      final child = plugin.createChildInstance(context: context);
       if (child == null) continue;
       // Guard: returning `this` would cause the parent plugin to be disposed
       // when the child finishes, and returning a SandboxPlugin would bypass

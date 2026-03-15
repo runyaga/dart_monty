@@ -93,6 +93,16 @@ void main() {
       expect(plugin.createChildInstance(), isNull);
     });
 
+    test('createChildInstance accepts optional context', () {
+      final plugin = _TestPlugin(namespace: 'ns', functions: []);
+      const context = ChildSpawnContext(
+        childId: 42,
+        workingDirectory: '/tmp/child_42',
+      );
+
+      expect(plugin.createChildInstance(context: context), isNull);
+    });
+
     test('onDispose default implementation is a no-op', () async {
       final plugin = _TestPlugin(
         namespace: 'ns',

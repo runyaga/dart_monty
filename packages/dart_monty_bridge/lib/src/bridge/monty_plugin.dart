@@ -2,6 +2,26 @@ import 'package:dart_monty_bridge/src/bridge/host_function.dart';
 import 'package:dart_monty_bridge/src/bridge/monty_bridge.dart';
 import 'package:meta/meta.dart';
 
+/// Context passed to [MontyPlugin.createChildInstance] when a child sandbox
+/// is spawned.
+///
+/// Carries the child's unique [childId] and an optional [workingDirectory]
+/// that the consumer can use for per-child filesystem isolation.
+class ChildSpawnContext {
+  /// Creates a [ChildSpawnContext].
+  const ChildSpawnContext({required this.childId, this.workingDirectory});
+
+  /// Unique identifier for this child within the parent `SandboxPlugin`.
+  final int childId;
+
+  /// Per-child working directory path, or `null` if the parent did not
+  /// configure `SandboxPlugin.sandboxBaseDir`.
+  ///
+  /// This is a computed path string only — actual directory creation is the
+  /// consumer's responsibility (e.g., in `FsPlugin.createChildInstance`).
+  final String? workingDirectory;
+}
+
 /// Extension point for providing host functions to a [MontyBridge].
 ///
 /// Each plugin declares a unique [namespace], a set of [functions], and
@@ -34,5 +54,10 @@ abstract class MontyPlugin {
   ///
   /// The returned instance must be independent — it will be registered on a
   /// separate [MontyBridge] and disposed with the child.
-  MontyPlugin? createChildInstance() => null;
+  ///
+  /// [context] carries the child's ID and optional per-child working
+  /// directory. Plugins that need filesystem isolation (e.g., `FsPlugin`)
+  /// can use [ChildSpawnContext.workingDirectory] to create a private
+  /// directory for the child.
+  MontyPlugin? createChildInstance({ChildSpawnContext? context}) => null;
 }

@@ -9,11 +9,7 @@ import 'package:test/test.dart';
 /// Wraps a single Python expression in async-def/await for futures-mode
 /// child bridges. Backslash-n are literal (for embedding in spawn code=).
 String _asyncChild(String expr) {
-  return [
-    'async def w():',
-    '    return await $expr',
-    'await w()',
-  ].join(r'\n');
+  return ['async def w():', '    return await $expr', 'await w()'].join(r'\n');
 }
 
 /// Integration tests for SandboxPlugin child inheritance with real FFI.
@@ -36,10 +32,7 @@ void main() {
   MontyPlatform createPlatform() => MontyFfi(bindings: bindings);
 
   /// Executes [code] on a bridge and returns the final value or throws.
-  Future<Object?> run(
-    DefaultMontyBridge bridge,
-    String code,
-  ) async {
+  Future<Object?> run(DefaultMontyBridge bridge, String code) async {
     Object? result;
     String? error;
     await for (final event in bridge.execute(code)) {
@@ -125,10 +118,7 @@ void main() {
         );
       await registry.attachTo(bridge);
 
-      final result = await run(
-        bridge,
-        'greeter_hello(name="parent")',
-      );
+      final result = await run(bridge, 'greeter_hello(name="parent")');
 
       expect(result, 'Hello, parent!');
       bridge.dispose();
@@ -164,9 +154,7 @@ void main() {
       final bridge = createBridge();
       final registry = PluginRegistry()
         ..register(
-          SandboxPlugin(
-            platformFactory: () async => createPlatform(),
-          ),
+          SandboxPlugin(platformFactory: () async => createPlatform()),
         );
       await registry.attachTo(bridge);
 
@@ -241,7 +229,7 @@ void main() {
           SandboxPlugin(
             platformFactory: () async => createPlatform(),
             parentPlugins: [greeter],
-            childPluginRegistryFactory: () async {
+            childPluginRegistryFactory: (_) async {
               // Empty registry — no parent inheritance.
               return PluginRegistry();
             },
@@ -265,6 +253,79 @@ void main() {
       expect(result, 'error_caught');
       bridge.dispose();
     });
+  });
+  // ---------------------------------------------------------------------------
+  // ChildSpawnContext threading
+  // ---------------------------------------------------------------------------
+
+  group('ChildSpawnContext threading', () {
+    test(
+      'child receives context with working directory via real FFI',
+      () async {
+        ChildSpawnContext? capturedContext;
+        final contextPlugin = _ContextCapturingPlugin(
+          onContext: (ctx) => capturedContext = ctx,
+        );
+        final bridge = createBridge();
+        final registry = PluginRegistry()
+          ..register(contextPlugin)
+          ..register(
+            SandboxPlugin(
+              platformFactory: () async => createPlatform(),
+              sandboxBaseDir: '/tmp/sandbox_test',
+              parentPlugins: [contextPlugin],
+            ),
+          );
+        await registry.attachTo(bridge);
+
+        final result = await run(
+          bridge,
+          'h = ${spawn("2 + 2")}\n'
+          'sandbox_await(handle=h)',
+        );
+
+        expect(result, 4);
+        expect(capturedContext, isNotNull);
+        expect(capturedContext!.childId, 0);
+        expect(
+          capturedContext!.workingDirectory,
+          contains('.sandboxes/child_0'),
+        );
+        bridge.dispose();
+      },
+    );
+
+    test(
+      'context has null workingDirectory when sandboxBaseDir unset',
+      () async {
+        ChildSpawnContext? capturedContext;
+        final contextPlugin = _ContextCapturingPlugin(
+          onContext: (ctx) => capturedContext = ctx,
+        );
+        final bridge = createBridge();
+        final registry = PluginRegistry()
+          ..register(contextPlugin)
+          ..register(
+            SandboxPlugin(
+              platformFactory: () async => createPlatform(),
+              parentPlugins: [contextPlugin],
+            ),
+          );
+        await registry.attachTo(bridge);
+
+        final result = await run(
+          bridge,
+          'h = ${spawn("1 + 1")}\n'
+          'sandbox_await(handle=h)',
+        );
+
+        expect(result, 2);
+        expect(capturedContext, isNotNull);
+        expect(capturedContext!.childId, 0);
+        expect(capturedContext!.workingDirectory, isNull);
+        bridge.dispose();
+      },
+    );
   });
 }
 
@@ -299,7 +360,8 @@ class _GreeterPlugin extends MontyPlugin {
   ];
 
   @override
-  MontyPlugin? createChildInstance() => _GreeterPlugin();
+  MontyPlugin? createChildInstance({ChildSpawnContext? context}) =>
+      _GreeterPlugin();
 }
 
 /// Plugin that provides a counter. Each instance has its own count.
@@ -331,5 +393,28 @@ class _CounterPlugin extends MontyPlugin {
   ];
 
   @override
-  MontyPlugin? createChildInstance() => _CounterPlugin();
+  MontyPlugin? createChildInstance({ChildSpawnContext? context}) =>
+      _CounterPlugin();
+}
+
+/// Plugin that captures the [ChildSpawnContext] for test assertions.
+class _ContextCapturingPlugin extends MontyPlugin {
+  _ContextCapturingPlugin({required this.onContext});
+
+  final void Function(ChildSpawnContext) onContext;
+
+  @override
+  String get namespace => 'ctx_capture';
+
+  @override
+  String? get systemPromptContext => null;
+
+  @override
+  List<HostFunction> get functions => [];
+
+  @override
+  MontyPlugin? createChildInstance({ChildSpawnContext? context}) {
+    if (context != null) onContext(context);
+    return null;
+  }
 }

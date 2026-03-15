@@ -101,7 +101,7 @@ class JsonPlugin extends MontyPlugin {
   ];
 
   @override
-  MontyPlugin? createChildInstance() => JsonPlugin(
+  MontyPlugin? createChildInstance({ChildSpawnContext? context}) => JsonPlugin(
     logger: LogManager.instance.getLogger('JsonPlugin.child'),
     maxInputSize: _maxInputSize,
   );
