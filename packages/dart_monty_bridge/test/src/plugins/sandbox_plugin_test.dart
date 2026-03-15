@@ -738,10 +738,7 @@ void main() {
         await await_({'handle': handle! as int});
         await free({'handle': handle as int});
 
-        expect(
-          () => free({'handle': handle}),
-          throwsA(isA<ArgumentError>()),
-        );
+        expect(() => free({'handle': handle}), throwsA(isA<ArgumentError>()));
       });
     });
 
@@ -871,11 +868,7 @@ void main() {
           throwsA(
             isA<ChildSandboxException>()
                 .having((e) => e.exception, 'exception', isNull)
-                .having(
-                  (e) => e.message,
-                  'message',
-                  contains('infra boom'),
-                ),
+                .having((e) => e.message, 'message', contains('infra boom')),
           ),
         );
       });
@@ -939,7 +932,7 @@ void main() {
       test('child gets plugins from factory', () async {
         final plugin = SandboxPlugin(
           platformFactory: () async => _completingMock(),
-          childPluginRegistryFactory: () async {
+          childPluginRegistryFactory: (_) async {
             final registry = PluginRegistry()
               ..register(
                 _TestPlugin(
@@ -973,7 +966,7 @@ void main() {
           final plugin = SandboxPlugin(
             platformFactory: () async => _completingMock(),
             parentPlugins: [parentPlugin],
-            childPluginRegistryFactory: () async {
+            childPluginRegistryFactory: (_) async {
               factoryCalled = true;
               // Explicit factory returns empty registry —
               // no parent inheritance.
@@ -1079,34 +1072,133 @@ void main() {
           );
           final spawn = _findHandler(plugin, 'sandbox_spawn');
 
-          await expectLater(
-            spawn({'code': '42'}),
-            throwsStateError,
-          );
+          await expectLater(spawn({'code': '42'}), throwsStateError);
         },
       );
 
+      test('spawn cleans up platform on factory failure', () async {
+        late MockMontyPlatform createdMock;
+        final plugin = SandboxPlugin(
+          platformFactory: () async {
+            return createdMock = _completingMock();
+          },
+          childPluginRegistryFactory: (_) async {
+            throw StateError('factory boom');
+          },
+        );
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
+
+        await expectLater(spawn({'code': '42'}), throwsStateError);
+        expect(createdMock.isDisposed, isTrue);
+      });
+    });
+
+    group('ChildSpawnContext threading', () {
       test(
-        'spawn cleans up platform on factory failure',
+        'context flows to createChildInstance with correct childId',
         () async {
-          late MockMontyPlatform createdMock;
+          ChildSpawnContext? capturedContext;
           final plugin = SandboxPlugin(
-            platformFactory: () async {
-              return createdMock = _completingMock();
-            },
-            childPluginRegistryFactory: () async {
-              throw StateError('factory boom');
-            },
+            platformFactory: () async => _completingMock(),
+            parentPlugins: [
+              _ContextCapturingPlugin(
+                onContext: (ctx) => capturedContext = ctx,
+              ),
+            ],
           );
           final spawn = _findHandler(plugin, 'sandbox_spawn');
+          final await_ = _findHandler(plugin, 'sandbox_await');
 
-          await expectLater(
-            spawn({'code': '42'}),
-            throwsStateError,
-          );
-          expect(createdMock.isDisposed, isTrue);
+          final handle = await spawn({'code': '42'});
+          await await_({'handle': handle! as int});
+
+          expect(capturedContext, isNotNull);
+          expect(capturedContext!.childId, 0);
         },
       );
+
+      test('null sandboxBaseDir gives null workingDirectory', () async {
+        ChildSpawnContext? capturedContext;
+        final plugin = SandboxPlugin(
+          platformFactory: () async => _completingMock(),
+          parentPlugins: [
+            _ContextCapturingPlugin(onContext: (ctx) => capturedContext = ctx),
+          ],
+        );
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
+        final await_ = _findHandler(plugin, 'sandbox_await');
+
+        final handle = await spawn({'code': '42'});
+        await await_({'handle': handle! as int});
+
+        expect(capturedContext, isNotNull);
+        expect(capturedContext!.workingDirectory, isNull);
+      });
+
+      test('sandboxBaseDir produces correct workingDirectory', () async {
+        ChildSpawnContext? capturedContext;
+        final plugin = SandboxPlugin(
+          platformFactory: () async => _completingMock(),
+          sandboxBaseDir: '/tmp/test',
+          parentPlugins: [
+            _ContextCapturingPlugin(onContext: (ctx) => capturedContext = ctx),
+          ],
+        );
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
+        final await_ = _findHandler(plugin, 'sandbox_await');
+
+        final handle = await spawn({'code': '42'});
+        await await_({'handle': handle! as int});
+
+        expect(capturedContext, isNotNull);
+        expect(
+          capturedContext!.workingDirectory,
+          '/tmp/test/.sandboxes/child_0',
+        );
+      });
+
+      test('sequential spawns get incrementing paths', () async {
+        final contexts = <ChildSpawnContext>[];
+        final plugin = SandboxPlugin(
+          platformFactory: () async => _completingMock(),
+          sandboxBaseDir: '/data',
+          parentPlugins: [_ContextCapturingPlugin(onContext: contexts.add)],
+        );
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
+        final await_ = _findHandler(plugin, 'sandbox_await');
+
+        final h0 = (await spawn({'code': '1'}))! as int;
+        final h1 = (await spawn({'code': '2'}))! as int;
+        await await_({'handle': h0});
+        await await_({'handle': h1});
+
+        expect(contexts, hasLength(2));
+        expect(contexts[0].childId, 0);
+        expect(contexts[0].workingDirectory, '/data/.sandboxes/child_0');
+        expect(contexts[1].childId, 1);
+        expect(contexts[1].workingDirectory, '/data/.sandboxes/child_1');
+      });
+
+      test('factory receives ChildSpawnContext', () async {
+        ChildSpawnContext? factoryContext;
+        final plugin = SandboxPlugin(
+          platformFactory: () async => _completingMock(),
+          sandboxBaseDir: '/base',
+          childPluginRegistryFactory: (ctx) async {
+            factoryContext = ctx;
+            return null;
+          },
+        );
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
+        final await_ = _findHandler(plugin, 'sandbox_await');
+
+        final handle = await spawn({'code': '42'});
+        await await_({'handle': handle! as int});
+
+        expect(factoryContext, isNotNull);
+        expect(factoryContext!.childId, 0);
+        expect(factoryContext!.workingDirectory, '/base/.sandboxes/child_0');
+      });
     });
 
     group('structured logging', () {
@@ -1322,7 +1414,7 @@ void main() {
       test('factory failure logs error with phase=factory', () async {
         final plugin = SandboxPlugin(
           platformFactory: () async => _completingMock(),
-          childPluginRegistryFactory: () async {
+          childPluginRegistryFactory: (_) async {
             throw StateError('factory boom');
           },
           logger: logger,
@@ -1363,7 +1455,7 @@ void main() {
       test('plugin attachment logs debug with plugin count', () async {
         final plugin = SandboxPlugin(
           platformFactory: () async => _completingMock(),
-          childPluginRegistryFactory: () async {
+          childPluginRegistryFactory: (_) async {
             final registry = PluginRegistry()
               ..register(
                 _TestPlugin(
@@ -1420,7 +1512,7 @@ void main() {
         () async {
           final plugin = SandboxPlugin(
             platformFactory: () async => _completingMock(),
-            childPluginRegistryFactory: () async {
+            childPluginRegistryFactory: (_) async {
               final registry = PluginRegistry()..register(_AttachBoomPlugin());
               return registry;
             },
@@ -1446,7 +1538,7 @@ void main() {
           platformFactory: () async {
             return createdMock = _completingMock();
           },
-          childPluginRegistryFactory: () async {
+          childPluginRegistryFactory: (_) async {
             throw StateError('factory boom');
           },
           logger: logger,
@@ -1538,7 +1630,7 @@ class _InheritablePlugin extends MontyPlugin {
   ];
 
   @override
-  MontyPlugin? createChildInstance() =>
+  MontyPlugin? createChildInstance({ChildSpawnContext? context}) =>
       _InheritablePlugin(namespace: namespace);
 }
 
@@ -1556,7 +1648,7 @@ class _ReturnsSandboxPlugin extends MontyPlugin {
   List<HostFunction> get functions => [];
 
   @override
-  MontyPlugin? createChildInstance() =>
+  MontyPlugin? createChildInstance({ChildSpawnContext? context}) =>
       SandboxPlugin(platformFactory: () async => MockMontyPlatform());
 }
 
@@ -1572,6 +1664,29 @@ class _TestPlugin extends MontyPlugin {
 
   @override
   final List<HostFunction> functions;
+}
+
+/// Plugin that captures the [ChildSpawnContext] passed to
+/// [MontyPlugin.createChildInstance].
+class _ContextCapturingPlugin extends MontyPlugin {
+  _ContextCapturingPlugin({required this.onContext});
+
+  final void Function(ChildSpawnContext) onContext;
+
+  @override
+  String get namespace => 'ctx_capture';
+
+  @override
+  final String? systemPromptContext = null;
+
+  @override
+  List<HostFunction> get functions => [];
+
+  @override
+  MontyPlugin? createChildInstance({ChildSpawnContext? context}) {
+    if (context != null) onContext(context);
+    return _TestPlugin(namespace: 'ctx_child', functions: []);
+  }
 }
 
 /// A [MontyPlatform] that completes normally but throws on [dispose].

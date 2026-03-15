@@ -238,10 +238,11 @@ class MessageBusPlugin extends MontyPlugin {
   ];
 
   @override
-  MontyPlugin? createChildInstance() => MessageBusPlugin(
-    bus: _bus,
-    logger: LogManager.instance.getLogger('MessageBusPlugin.child'),
-  );
+  MontyPlugin? createChildInstance({ChildSpawnContext? context}) =>
+      MessageBusPlugin(
+        bus: _bus,
+        logger: LogManager.instance.getLogger('MessageBusPlugin.child'),
+      );
 
   @override
   Future<void> onDispose() async {

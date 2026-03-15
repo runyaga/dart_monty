@@ -54,7 +54,7 @@ void main() {
         ..register(
           SandboxPlugin(
             platformFactory: () async => createPlatform(),
-            childPluginRegistryFactory: () async {
+            childPluginRegistryFactory: (_) async {
               throw StateError('factory boom');
             },
             logger: logger,
@@ -84,7 +84,7 @@ void main() {
         ..register(
           SandboxPlugin(
             platformFactory: () async => createPlatform(),
-            childPluginRegistryFactory: () async {
+            childPluginRegistryFactory: (_) async {
               final childRegistry = PluginRegistry()
                 ..register(_IntegrationBoomPlugin());
               return childRegistry;

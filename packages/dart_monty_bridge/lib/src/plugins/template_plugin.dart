@@ -62,10 +62,11 @@ class DinjaTemplatePlugin extends MontyPlugin {
   ];
 
   @override
-  MontyPlugin? createChildInstance() => DinjaTemplatePlugin(
-    logger: LogManager.instance.getLogger('DinjaTemplatePlugin.child'),
-    maxInputSize: _maxInputSize,
-  );
+  MontyPlugin? createChildInstance({ChildSpawnContext? context}) =>
+      DinjaTemplatePlugin(
+        logger: LogManager.instance.getLogger('DinjaTemplatePlugin.child'),
+        maxInputSize: _maxInputSize,
+      );
 
   Future<Object?> _handleRender(Map<String, Object?> args) async {
     final templateStr = args['template']! as String;
