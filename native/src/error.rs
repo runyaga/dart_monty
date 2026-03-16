@@ -179,9 +179,8 @@ mod tests {
 
         let code = "def inner():\n    1/0\n\ndef outer():\n    inner()\n\nouter()";
         let compiled = MontyRun::new(code.into(), "<test>", vec![]).unwrap();
-        let mut print = PrintWriter::Disabled;
         let err = compiled
-            .run(vec![], NoLimitTracker, &mut print)
+            .run(vec![], NoLimitTracker, PrintWriter::Disabled)
             .unwrap_err();
 
         let json = monty_exception_to_json(&err);

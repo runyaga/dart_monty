@@ -203,20 +203,20 @@ impl MontyHandle {
             }
         };
 
-        let mut print = PrintWriter::Collect(String::new());
+        let mut buf = String::new();
 
         let result = if let Some(limits) = self.limits.clone() {
             let tracker = CancellableTracker::with_flag(
                 LimitedTracker::new(limits),
                 self.cancel_flag.clone(),
             );
-            compiled.run(vec![], tracker, &mut print)
+            compiled.run(vec![], tracker, PrintWriter::Collect(&mut buf))
         } else {
             let tracker = CancellableTracker::with_flag(NoLimitTracker, self.cancel_flag.clone());
-            compiled.run(vec![], tracker, &mut print)
+            compiled.run(vec![], tracker, PrintWriter::Collect(&mut buf))
         };
 
-        self.drain_print(print);
+        self.print_output.push_str(&buf);
 
         match result {
             Ok(obj) => {
@@ -561,24 +561,16 @@ impl MontyHandle {
 
     // --- private helpers ---
 
-    fn drain_print(&mut self, print: PrintWriter) {
-        if let PrintWriter::Collect(collected) = print {
-            self.print_output.push_str(&collected);
-        }
-    }
-
     fn run_snapshot_op<T: TrackerExt>(
         &mut self,
-        f: impl FnOnce(&mut PrintWriter) -> Result<RunProgress<T>, MontyException>,
+        f: impl FnOnce(PrintWriter) -> Result<RunProgress<T>, MontyException>,
     ) -> (MontyProgressTag, Option<String>) {
-        let mut print = PrintWriter::Collect(String::new());
-        let result = f(&mut print);
+        let mut buf = String::new();
+        let result = f(PrintWriter::Collect(&mut buf));
+        self.print_output.push_str(&buf);
         match result {
-            Ok(progress) => self.process_progress(progress, print),
-            Err(exc) => {
-                self.drain_print(print);
-                self.handle_exception(exc)
-            }
+            Ok(progress) => self.process_progress(progress),
+            Err(exc) => self.handle_exception(exc),
         }
     }
 
@@ -590,6 +582,7 @@ impl MontyHandle {
 
         match state {
             HandleState::PausedLimited { call, .. } => {
+                // Clone result for the second branch if needed — but only one branch executes
                 self.run_snapshot_op(|print| call.resume(result, print))
             }
             HandleState::PausedNoLimit { call, .. } => {
@@ -608,12 +601,10 @@ impl MontyHandle {
     fn process_progress<T: TrackerExt>(
         &mut self,
         mut progress: RunProgress<T>,
-        mut print: PrintWriter,
     ) -> (MontyProgressTag, Option<String>) {
         loop {
             match progress {
                 RunProgress::Complete(obj) => {
-                    self.drain_print(print);
                     let val = monty_object_to_json(&obj);
                     let result_json =
                         build_result_json(val, None, &self.usage_json, &self.print_output);
@@ -624,7 +615,6 @@ impl MontyHandle {
                     return (MontyProgressTag::Complete, None);
                 }
                 RunProgress::FunctionCall(call) => {
-                    self.drain_print(print);
                     let meta = build_pending_meta(
                         call.function_name.clone(),
                         &call.args,
@@ -636,7 +626,6 @@ impl MontyHandle {
                     return (MontyProgressTag::Pending, None);
                 }
                 RunProgress::ResolveFutures(futures) => {
-                    self.drain_print(print);
                     let call_ids_json = serde_json::to_string(futures.pending_call_ids())
                         .unwrap_or_else(|_| "[]".into());
                     self.state = T::into_futures(futures, call_ids_json);
@@ -644,27 +633,25 @@ impl MontyHandle {
                 }
                 RunProgress::NameLookup(lookup) => {
                     let name = lookup.name.clone();
+                    let mut buf = String::new();
                     let result = if self.ext_fn_names.contains(&name) {
                         lookup.resume(
                             NameLookupResult::Value(MontyObject::Function {
                                 name,
                                 docstring: None,
                             }),
-                            &mut print,
+                            PrintWriter::Collect(&mut buf),
                         )
                     } else {
-                        lookup.resume(NameLookupResult::Undefined, &mut print)
+                        lookup.resume(NameLookupResult::Undefined, PrintWriter::Collect(&mut buf))
                     };
+                    self.print_output.push_str(&buf);
                     match result {
                         Ok(next) => progress = next,
-                        Err(exc) => {
-                            self.drain_print(print);
-                            return self.handle_exception(exc);
-                        }
+                        Err(exc) => return self.handle_exception(exc),
                     }
                 }
                 RunProgress::OsCall(_) => {
-                    self.drain_print(print);
                     self.state = HandleState::Complete {
                         result_json: build_result_json(
                             Value::Null,
