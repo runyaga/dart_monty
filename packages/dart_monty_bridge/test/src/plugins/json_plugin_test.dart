@@ -35,7 +35,7 @@ void main() {
   group('json_loads', () {
     test('parses object to Map', () async {
       final handler = findHandler('json_loads');
-      final result = await handler({'text': '{"a": 1, "b": "two"}'});
+      final result = await handler({'data': '{"a": 1, "b": "two"}'});
       expect(result, isA<Map<String, Object?>>());
       final map = result! as Map<String, Object?>;
       expect(map['a'], 1);
@@ -44,7 +44,7 @@ void main() {
 
     test('parses array to List', () async {
       final handler = findHandler('json_loads');
-      final result = await handler({'text': '[1, 2, 3]'});
+      final result = await handler({'data': '[1, 2, 3]'});
       expect(result, isA<List<Object?>>());
       expect(result, [1, 2, 3]);
     });
@@ -52,7 +52,7 @@ void main() {
     test('parses nested structures', () async {
       final handler = findHandler('json_loads');
       final result = await handler({
-        'text': '{"items": [{"id": 1}, {"id": 2}]}',
+        'data': '{"items": [{"id": 1}, {"id": 2}]}',
       });
       final map = result! as Map<String, Object?>;
       final items = map['items']! as List<Object?>;
@@ -63,24 +63,24 @@ void main() {
     test('throws FormatException on invalid JSON', () async {
       final handler = findHandler('json_loads');
       expect(
-        () => handler({'text': '{not json'}),
+        () => handler({'data': '{not json'}),
         throwsFormatException,
       );
     });
 
     test('parses primitives', () async {
       final handler = findHandler('json_loads');
-      expect(await handler({'text': '"hello"'}), 'hello');
-      expect(await handler({'text': '42'}), 42);
-      expect(await handler({'text': 'true'}), true);
-      expect(await handler({'text': 'null'}), null);
+      expect(await handler({'data': '"hello"'}), 'hello');
+      expect(await handler({'data': '42'}), 42);
+      expect(await handler({'data': 'true'}), true);
+      expect(await handler({'data': 'null'}), null);
     });
 
     test('throws FormatException for oversized input', () async {
       final handler = findHandler('json_loads');
       final huge = 'x' * (1024 * 1024 + 1);
       expect(
-        () => handler({'text': huge}),
+        () => handler({'data': huge}),
         throwsFormatException,
       );
     });
@@ -91,7 +91,7 @@ void main() {
         (f) => f.schema.name == 'json_loads',
       );
       expect(
-        () => handler.handler({'text': 'x' * 11}),
+        () => handler.handler({'data': 'x' * 11}),
         throwsFormatException,
       );
     });
@@ -101,7 +101,7 @@ void main() {
     test('serializes Map to compact JSON', () async {
       final handler = findHandler('json_dumps');
       final result = await handler({
-        'value': {'a': 1, 'b': 'two'},
+        'data': {'a': 1, 'b': 'two'},
         'indent': 0,
       });
       expect(result, '{"a":1,"b":"two"}');
@@ -110,7 +110,7 @@ void main() {
     test('serializes List to compact JSON', () async {
       final handler = findHandler('json_dumps');
       final result = await handler({
-        'value': [1, 2, 3],
+        'data': [1, 2, 3],
         'indent': 0,
       });
       expect(result, '[1,2,3]');
@@ -119,7 +119,7 @@ void main() {
     test('pretty-prints with indent > 0', () async {
       final handler = findHandler('json_dumps');
       final result = await handler({
-        'value': {'a': 1},
+        'data': {'a': 1},
         'indent': 2,
       });
       final pretty = result! as String;
@@ -130,7 +130,7 @@ void main() {
     test('compact output has no newlines with indent 0', () async {
       final handler = findHandler('json_dumps');
       final result = await handler({
-        'value': {
+        'data': {
           'a': 1,
           'b': [2, 3],
         },
@@ -143,7 +143,7 @@ void main() {
     test('handles nested structures', () async {
       final handler = findHandler('json_dumps');
       final result = await handler({
-        'value': {
+        'data': {
           'items': [
             {'id': 1},
           ],
@@ -155,7 +155,7 @@ void main() {
 
     test('serializes null', () async {
       final handler = findHandler('json_dumps');
-      final result = await handler({'value': null, 'indent': 0});
+      final result = await handler({'data': null, 'indent': 0});
       expect(result, 'null');
     });
   });
@@ -164,7 +164,7 @@ void main() {
     test('extracts top-level key', () async {
       final handler = findHandler('json_get');
       final result = await handler({
-        'text': '{"name": "E106", "score": 42}',
+        'data': '{"name": "E106", "score": 42}',
         'path': 'name',
       });
       expect(result, 'E106');
@@ -173,7 +173,7 @@ void main() {
     test('extracts nested dot-path', () async {
       final handler = findHandler('json_get');
       final result = await handler({
-        'text': '{"scores": {"ratio": {"value": 0.149}}}',
+        'data': '{"scores": {"ratio": {"value": 0.149}}}',
         'path': 'scores.ratio.value',
       });
       expect(result, 0.149);
@@ -182,7 +182,7 @@ void main() {
     test('extracts from arrays with integer index', () async {
       final handler = findHandler('json_get');
       final result = await handler({
-        'text': '{"items": [{"id": "a"}, {"id": "b"}]}',
+        'data': '{"items": [{"id": "a"}, {"id": "b"}]}',
         'path': 'items.1.id',
       });
       expect(result, 'b');
@@ -191,7 +191,7 @@ void main() {
     test('returns null for missing path', () async {
       final handler = findHandler('json_get');
       final result = await handler({
-        'text': '{"a": 1}',
+        'data': '{"a": 1}',
         'path': 'b.c.d',
       });
       expect(result, isNull);
@@ -200,7 +200,7 @@ void main() {
     test('returns null for path into non-Map', () async {
       final handler = findHandler('json_get');
       final result = await handler({
-        'text': '{"a": 42}',
+        'data': '{"a": 42}',
         'path': 'a.b',
       });
       expect(result, isNull);
@@ -209,7 +209,7 @@ void main() {
     test('returns null for out-of-bounds array index', () async {
       final handler = findHandler('json_get');
       final result = await handler({
-        'text': '{"items": [1, 2]}',
+        'data': '{"items": [1, 2]}',
         'path': 'items.5',
       });
       expect(result, isNull);
@@ -218,7 +218,7 @@ void main() {
     test('throws FormatException on invalid JSON', () async {
       final handler = findHandler('json_get');
       expect(
-        () => handler({'text': 'bad', 'path': 'x'}),
+        () => handler({'data': 'bad', 'path': 'x'}),
         throwsFormatException,
       );
     });

@@ -36,7 +36,7 @@ class JsonPlugin extends MontyPlugin {
         description: 'Parse a JSON string into a dict or list.',
         params: [
           HostParam(
-            name: 'text',
+            name: 'data',
             type: HostParamType.string,
             description: 'JSON string to parse.',
           ),
@@ -52,7 +52,7 @@ class JsonPlugin extends MontyPlugin {
             'Set indent > 0 for pretty-printing.',
         params: [
           HostParam(
-            name: 'value',
+            name: 'data',
             type: HostParamType.any,
             description:
                 'Value to serialize (dict, list, string, number, '
@@ -78,7 +78,7 @@ class JsonPlugin extends MontyPlugin {
             'Use integer segments for list indexing: "items.0.name".',
         params: [
           HostParam(
-            name: 'text',
+            name: 'data',
             type: HostParamType.string,
             description: 'JSON string to parse.',
           ),
@@ -101,7 +101,7 @@ class JsonPlugin extends MontyPlugin {
   );
 
   Future<Object?> _handleLoads(Map<String, Object?> args) async {
-    final text = args['text']! as String;
+    final text = args['data']! as String;
     _guardInputSize(text, 'json_loads');
     try {
       final result = jsonDecode(text);
@@ -113,7 +113,7 @@ class JsonPlugin extends MontyPlugin {
   }
 
   Future<Object?> _handleDumps(Map<String, Object?> args) async {
-    final value = args['value'];
+    final value = args['data'];
     final indent = args['indent']! as int;
     try {
       final String result;
@@ -130,7 +130,7 @@ class JsonPlugin extends MontyPlugin {
   }
 
   Future<Object?> _handleGet(Map<String, Object?> args) async {
-    final text = args['text']! as String;
+    final text = args['data']! as String;
     final path = args['path']! as String;
     _guardInputSize(text, 'json_get');
 
