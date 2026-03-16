@@ -176,6 +176,19 @@ void main() {
           ),
         );
       });
+
+      test('rejects reserved namespace "extra"', () {
+        expect(
+          () => registry.register(_TestPlugin(namespace: 'extra')),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              contains('reserved'),
+            ),
+          ),
+        );
+      });
     });
 
     group('function prefix enforcement', () {
@@ -318,6 +331,34 @@ void main() {
         await registry.attachTo(bridge);
 
         expect(order, ['first', 'second']);
+      });
+
+      test('registers extraFunctions onto bridge', () async {
+        final bridge = _MockBridge();
+        registry.register(
+          _TestPlugin(namespace: 'ns', functions: [_fn('ns_one')]),
+        );
+
+        await registry.attachTo(
+          bridge,
+          extraFunctions: [_fn('standalone_op')],
+        );
+
+        expect(bridge.registeredNames, contains('ns_one'));
+        expect(bridge.registeredNames, contains('standalone_op'));
+        expect(bridge.registeredNames, contains('list_functions'));
+      });
+
+      test('extraFunctions with null or empty list is a no-op', () async {
+        final bridge = _MockBridge();
+        registry.register(
+          _TestPlugin(namespace: 'ns', functions: [_fn('ns_one')]),
+        );
+
+        await registry.attachTo(bridge, extraFunctions: []);
+
+        expect(bridge.registeredNames, contains('ns_one'));
+        expect(bridge.registeredNames, isNot(contains('standalone_op')));
       });
 
       test('attaches all plugins even if onRegister throws', () async {

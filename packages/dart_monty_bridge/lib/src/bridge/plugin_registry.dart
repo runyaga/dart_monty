@@ -1,5 +1,6 @@
 import 'dart:collection';
 
+import 'package:dart_monty_bridge/src/bridge/host_function.dart';
 import 'package:dart_monty_bridge/src/bridge/host_function_schema.dart';
 import 'package:dart_monty_bridge/src/bridge/introspection_functions.dart';
 import 'package:dart_monty_bridge/src/bridge/monty_bridge.dart';
@@ -21,7 +22,7 @@ class PluginRegistry {
 
   static final RegExp _validNamespace = RegExp(r'^[a-z][a-z0-9_]*$');
   static const int _maxNamespaceLength = 32;
-  static const Set<String> _reservedNamespaces = {'introspection'};
+  static const Set<String> _reservedNamespaces = {'introspection', 'extra'};
 
   /// Registered plugins in insertion order (unmodifiable).
   List<MontyPlugin> get plugins => UnmodifiableListView(_plugins);
@@ -77,10 +78,16 @@ class PluginRegistry {
   /// Wires all plugins to [bridge], calls [MontyPlugin.onRegister] for each,
   /// and registers introspection builtins.
   ///
+  /// [extraFunctions] registers standalone host functions that are not part of
+  /// any plugin. They appear under the `'extra'` introspection category.
+  ///
   /// All plugins are wired even if some [MontyPlugin.onRegister] calls throw —
   /// errors are collected and thrown as a single [StateError] after all plugins
   /// have been attached.
-  Future<void> attachTo(MontyBridge bridge) async {
+  Future<void> attachTo(
+    MontyBridge bridge, {
+    List<HostFunction>? extraFunctions,
+  }) async {
     // Get registry's own logger from the bridge.
     _log = bridge.logger.child('registry');
 
@@ -98,6 +105,20 @@ class PluginRegistry {
         schemas.add(fn.schema);
       }
       schemasByCategory[plugin.namespace] = schemas;
+    }
+
+    // Register standalone functions under the 'extra' category.
+    if (extraFunctions != null && extraFunctions.isNotEmpty) {
+      final extraSchemas = <HostFunctionSchema>[];
+      for (final fn in extraFunctions) {
+        bridge.register(fn);
+        extraSchemas.add(fn.schema);
+      }
+      schemasByCategory['extra'] = extraSchemas;
+      _log.debug(
+        'Registered extra functions',
+        attributes: {'count': extraFunctions.length},
+      );
     }
 
     // Store registration order for reverse-order disposal.
