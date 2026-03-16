@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.1
+
+- Add `example/example.dart` demonstrating plugin creation and registry setup
+
 ## 0.4.0
 
 ### Breaking

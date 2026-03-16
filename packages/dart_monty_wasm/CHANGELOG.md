@@ -1,3 +1,9 @@
+## 0.8.4
+
+- Update `dart_monty_platform_interface` constraint to `^0.8.0` (fixes pub.dev
+  downgrade test — `MontyCancelRegistry` and `monty_backend_spi.dart` require
+  PI 0.8.0+)
+
 ## 0.8.3
 
 - Implement `MontyFutureCapable` on `MontyWasm` — WASM backend now supports
