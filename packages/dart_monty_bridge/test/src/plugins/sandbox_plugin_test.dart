@@ -1254,7 +1254,7 @@ void main() {
         expect(bridgeRecord.attributes['codeLength'], 6);
       });
 
-      test('completion logs debug with childId', () async {
+      test('completion logs info with childId', () async {
         final plugin = SandboxPlugin(
           platformFactory: () async => _completingMock(),
         )..logger = StructLogBridgeLogger(logger, LogManager.instance);
@@ -1271,7 +1271,7 @@ void main() {
         expect(completedRecord.attributes['childId'], 0);
       });
 
-      test('failure logs debug with childId and error', () async {
+      test('failure logs warning with childId and error', () async {
         final plugin = SandboxPlugin(
           platformFactory: () async => _failingMock('NameError: x'),
         )..logger = StructLogBridgeLogger(logger, LogManager.instance);
