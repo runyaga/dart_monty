@@ -7,6 +7,19 @@
 - `PluginRegistry.attachTo()` calls `onRegister()` in registration order.
 - `PluginRegistry.disposeAll()` calls `onDispose()` in reverse registration
   order.
+- **BREAKING**: Plugins no longer accept a `Logger` constructor parameter.
+  Logging is now injected automatically via `MontyPlugin.logger` (a
+  `BridgeLogger` field, default `NullBridgeLogger`) by `PluginRegistry`
+  before `onRegister()`.
+- Add `BridgeLogger get logger` to `MontyBridge` abstract interface.
+- Add `StructLogBridgeLogger` — batteries-included adapter wrapping
+  struct_log's `Logger`/`LogManager` with hierarchical `.child()` scoping
+  and cascading `close()`.
+- `DefaultMontyBridge` defaults to `StructLogBridgeLogger.root(LogManager.instance)`.
+- `PluginRegistry` propagates `bridge.logger.child(plugin.namespace)` to
+  each plugin and uses `bridge.logger.child('registry')` internally.
+- `SandboxPlugin` child bridges receive `logger.child('child.$id')`.
+- Bump `dart_monty_platform_interface` to `^0.8.0`, `struct_log` to `^0.3.0`.
 
 ## 0.3.1
 

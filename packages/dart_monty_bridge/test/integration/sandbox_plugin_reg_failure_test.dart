@@ -20,7 +20,6 @@ import 'package:test/test.dart';
 void main() {
   late NativeBindingsFfi bindings;
   late MemorySink sink;
-  late Logger logger;
   late LogLevel previousLevel;
 
   setUpAll(() {
@@ -33,7 +32,6 @@ void main() {
     LogManager.instance
       ..addSink(sink)
       ..minimumLevel = LogLevel.trace;
-    logger = LogManager.instance.getLogger('SandboxPlugin.integration');
   });
 
   tearDown(() {
@@ -44,8 +42,11 @@ void main() {
 
   MontyPlatform createPlatform() => MontyFfi(bindings: bindings);
 
-  DefaultMontyBridge createBridge() =>
-      DefaultMontyBridge(platform: createPlatform(), useFutures: false);
+  DefaultMontyBridge createBridge() => DefaultMontyBridge(
+    platform: createPlatform(),
+    useFutures: false,
+    logger: StructLogBridgeLogger.root(LogManager.instance),
+  );
 
   group('plugin registration failure with real FFI', () {
     test('factory failure logs phase=factory and cleans up', () async {
@@ -57,7 +58,6 @@ void main() {
             childPluginRegistryFactory: (_) async {
               throw StateError('factory boom');
             },
-            logger: logger,
           ),
         );
       await registry.attachTo(bridge);
@@ -89,7 +89,6 @@ void main() {
                 ..register(_IntegrationBoomPlugin());
               return childRegistry;
             },
-            logger: logger,
           ),
         );
       await registry.attachTo(bridge);

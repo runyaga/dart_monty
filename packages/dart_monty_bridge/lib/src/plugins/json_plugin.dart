@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import 'package:dart_monty_bridge/dart_monty_bridge.dart';
-import 'package:struct_log/struct_log.dart';
 
 /// Default maximum input size for JSON text (1 MB).
 const int defaultMaxJsonInputSize = 1024 * 1024;
@@ -15,12 +14,8 @@ class JsonPlugin extends MontyPlugin {
   ///
   /// [maxInputSize] controls the maximum allowed character count for
   /// `json_loads` and `json_get` inputs. Defaults to 1 MB.
-  JsonPlugin({Logger? logger, int? maxInputSize})
-    : log = logger ?? LogManager.instance.getLogger('JsonPlugin'),
-      _maxInputSize = maxInputSize ?? defaultMaxJsonInputSize;
-
-  /// Logger for this plugin instance.
-  final Logger log;
+  JsonPlugin({int? maxInputSize})
+    : _maxInputSize = maxInputSize ?? defaultMaxJsonInputSize;
 
   final int _maxInputSize;
 
@@ -102,7 +97,6 @@ class JsonPlugin extends MontyPlugin {
 
   @override
   MontyPlugin? createChildInstance({ChildSpawnContext? context}) => JsonPlugin(
-    logger: LogManager.instance.getLogger('JsonPlugin.child'),
     maxInputSize: _maxInputSize,
   );
 
@@ -111,7 +105,7 @@ class JsonPlugin extends MontyPlugin {
     _guardInputSize(text, 'json_loads');
     try {
       final result = jsonDecode(text);
-      log.debug('json_loads ok', attributes: {'length': text.length});
+      logger.debug('json_loads ok', attributes: {'length': text.length});
       return result;
     } on FormatException {
       rethrow;
@@ -128,7 +122,7 @@ class JsonPlugin extends MontyPlugin {
       } else {
         result = jsonEncode(value);
       }
-      log.debug('json_dumps ok', attributes: {'length': result.length});
+      logger.debug('json_dumps ok', attributes: {'length': result.length});
       return result;
     } on Exception catch (e) {
       throw FormatException('Cannot serialize to JSON: $e');
@@ -165,7 +159,7 @@ class JsonPlugin extends MontyPlugin {
       i++;
     }
 
-    log.debug('json_get ok', attributes: {'path': path});
+    logger.debug('json_get ok', attributes: {'path': path});
     return current;
   }
 

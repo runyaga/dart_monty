@@ -1,4 +1,5 @@
 import 'package:dart_monty_bridge/dart_monty_bridge.dart';
+import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 import 'package:test/test.dart';
 
 /// Minimal concrete implementation for testing the abstract class.
@@ -118,6 +119,9 @@ void main() {
 
 /// Minimal [MontyBridge] for lifecycle tests — not exercised.
 class _NoOpBridge implements MontyBridge {
+  @override
+  BridgeLogger get logger => const NullBridgeLogger();
+
   @override
   List<HostFunctionSchema> get schemas => [];
 

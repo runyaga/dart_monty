@@ -4,6 +4,7 @@
 /// This package is not intended for direct use — import `dart_monty` instead.
 library;
 
+export 'src/bridge_logger.dart';
 export 'src/monty_cancel_registry.dart';
 export 'src/monty_cancel_token.dart';
 export 'src/monty_error.dart';

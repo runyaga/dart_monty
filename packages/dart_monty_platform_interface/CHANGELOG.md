@@ -1,6 +1,10 @@
 ## 0.8.0
 
 - Extract `MontyCancelRegistry` from `BaseMontyPlatform` for cleaner separation of concerns
+- Add `BridgeLogger` abstract interface and `NullBridgeLogger` default
+  implementation. Provides a composable logging contract that consumers can
+  implement with any logging framework. `child(String name)` enables
+  hierarchical scoping. `close()` supports ordered shutdown.
 
 ## 0.7.2
 

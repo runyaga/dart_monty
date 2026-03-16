@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:dart_monty_bridge/dart_monty_bridge.dart';
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 import 'package:path/path.dart' as p;
-import 'package:struct_log/struct_log.dart';
 
 /// Exception thrown when a child sandbox fails, is cancelled, or is disposed.
 ///
@@ -109,8 +108,7 @@ class SandboxPlugin extends MontyPlugin {
     this.currentDepth = 0,
     this.childLimits,
     this.sandboxBaseDir,
-    Logger? logger,
-  }) : log = logger ?? LogManager.instance.getLogger('SandboxPlugin');
+  });
 
   /// Creates a fresh [MontyPlatform] for each child.
   final MontyPlatformFactory platformFactory;
@@ -145,9 +143,6 @@ class SandboxPlugin extends MontyPlugin {
   /// The directory is **not** created by this plugin — consumers (e.g.,
   /// `FsPlugin.createChildInstance`) are responsible for creation.
   final String? sandboxBaseDir;
-
-  /// Logger for this plugin instance.
-  final Logger log;
 
   final Map<int, _ChildHandle> _children = {};
   int _nextId = 0;
@@ -307,7 +302,7 @@ class SandboxPlugin extends MontyPlugin {
   Future<Object?> _handleSpawn(Map<String, Object?> args) async {
     if (_disposed) throw StateError('SandboxPlugin is disposed.');
     if (currentDepth >= maxDepth) {
-      log.warning(
+      logger.warning(
         'Spawn rejected: depth limit',
         attributes: {'currentDepth': currentDepth, 'maxDepth': maxDepth},
       );
@@ -315,7 +310,7 @@ class SandboxPlugin extends MontyPlugin {
     }
     final aliveCount = _children.values.where((c) => c.isAlive).length;
     if (aliveCount >= maxChildren) {
-      log.warning(
+      logger.warning(
         'Spawn rejected: concurrency limit',
         attributes: {'alive': aliveCount, 'maxChildren': maxChildren},
       );
@@ -356,7 +351,7 @@ class SandboxPlugin extends MontyPlugin {
       try {
         platform = await platformFactory();
       } on Object catch (e, st) {
-        log.error(
+        logger.error(
           'Child platform creation failed',
           error: e,
           stackTrace: st,
@@ -368,8 +363,9 @@ class SandboxPlugin extends MontyPlugin {
         platform: platform,
         limits: limits,
         useFutures: false,
+        logger: logger.child('child.$id'),
       );
-      log.debug(
+      logger.debug(
         'Child bridge created',
         attributes: {
           'codeLength': code.length,
@@ -384,7 +380,7 @@ class SandboxPlugin extends MontyPlugin {
         try {
           childRegistry = await registryFactory(spawnContext);
         } on Object catch (e, st) {
-          log.error(
+          logger.error(
             'Child plugin factory failed',
             error: e,
             stackTrace: st,
@@ -397,7 +393,7 @@ class SandboxPlugin extends MontyPlugin {
         try {
           childRegistry = _buildInheritedRegistry(spawnContext);
         } on Object catch (e, st) {
-          log.error(
+          logger.error(
             'Child plugin inheritance failed',
             error: e,
             stackTrace: st,
@@ -412,12 +408,12 @@ class SandboxPlugin extends MontyPlugin {
         final pluginCount = childRegistry.plugins.length;
         try {
           await childRegistry.attachTo(bridge);
-          log.debug(
+          logger.debug(
             'Child plugins attached',
             attributes: {'pluginCount': childRegistry.plugins.length},
           );
         } on Object catch (e, st) {
-          log.error(
+          logger.error(
             'Child plugin attachment failed',
             error: e,
             stackTrace: st,
@@ -436,7 +432,7 @@ class SandboxPlugin extends MontyPlugin {
     final completer = Completer<Object?>();
     completer.future.ignore();
 
-    log.info(
+    logger.info(
       'Child spawned',
       attributes: {'childId': id, 'depth': currentDepth},
     );
@@ -475,7 +471,7 @@ class SandboxPlugin extends MontyPlugin {
           bridge!.dispose();
           await platform!.dispose();
         } on Object catch (e, st) {
-          log.warning(
+          logger.warning(
             'Child cleanup error (swallowed)',
             error: e,
             stackTrace: st,
@@ -488,7 +484,7 @@ class SandboxPlugin extends MontyPlugin {
             final truncated = errorMessage!.length > 200
                 ? '${errorMessage!.substring(0, 200)}\u2026'
                 : errorMessage!;
-            log.debug(
+            logger.warning(
               'Child failed',
               attributes: {'childId': id, 'error': truncated},
             );
@@ -500,7 +496,7 @@ class SandboxPlugin extends MontyPlugin {
               ),
             );
           } else {
-            log.debug('Child completed', attributes: {'childId': id});
+            logger.info('Child completed', attributes: {'childId': id});
             completer.complete(childValue);
           }
         }
@@ -508,7 +504,7 @@ class SandboxPlugin extends MontyPlugin {
       onError: (Object error, StackTrace stackTrace) {
         final child = _children[id];
         if (child != null) child.isAlive = false;
-        log.error(
+        logger.error(
           'Child stream error',
           error: error,
           attributes: {'childId': id},
@@ -600,7 +596,7 @@ class SandboxPlugin extends MontyPlugin {
     }
     if (!child.isAlive) return null;
 
-    log.info('Cancelling child', attributes: {'childId': handle});
+    logger.info('Cancelling child', attributes: {'childId': handle});
     try {
       await child.cancel();
     } finally {
@@ -626,7 +622,7 @@ class SandboxPlugin extends MontyPlugin {
       );
     }
     _children.remove(handle);
-    log.debug('Child freed', attributes: {'childId': handle});
+    logger.debug('Child freed', attributes: {'childId': handle});
     return null;
   }
 
@@ -678,7 +674,7 @@ class SandboxPlugin extends MontyPlugin {
     _disposed = true;
 
     final aliveCount = _children.values.where((c) => c.isAlive).length;
-    log.info(
+    logger.info(
       'Disposing SandboxPlugin',
       attributes: {
         'totalChildren': _children.length,
@@ -696,7 +692,7 @@ class SandboxPlugin extends MontyPlugin {
       } on Object catch (e, st) {
         // Best-effort logging -- don't let a sink failure break the loop.
         try {
-          log.warning(
+          logger.warning(
             'Error cancelling child during dispose',
             error: e,
             stackTrace: st,

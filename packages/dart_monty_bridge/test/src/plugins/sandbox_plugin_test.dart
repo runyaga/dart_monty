@@ -1224,8 +1224,7 @@ void main() {
       test('spawn logs info with childId and depth', () async {
         final plugin = SandboxPlugin(
           platformFactory: () async => _completingMock(),
-          logger: logger,
-        );
+        )..logger = StructLogBridgeLogger(logger, LogManager.instance);
         final spawn = _findHandler(plugin, 'sandbox_spawn');
         final await_ = _findHandler(plugin, 'sandbox_await');
 
@@ -1243,8 +1242,7 @@ void main() {
       test('spawn logs debug for bridge creation with codeLength', () async {
         final plugin = SandboxPlugin(
           platformFactory: () async => _completingMock(),
-          logger: logger,
-        );
+        )..logger = StructLogBridgeLogger(logger, LogManager.instance);
         final spawn = _findHandler(plugin, 'sandbox_spawn');
 
         await spawn({'code': 'x = 42'});
@@ -1256,11 +1254,10 @@ void main() {
         expect(bridgeRecord.attributes['codeLength'], 6);
       });
 
-      test('completion logs debug with childId', () async {
+      test('completion logs info with childId', () async {
         final plugin = SandboxPlugin(
           platformFactory: () async => _completingMock(),
-          logger: logger,
-        );
+        )..logger = StructLogBridgeLogger(logger, LogManager.instance);
         final spawn = _findHandler(plugin, 'sandbox_spawn');
         final await_ = _findHandler(plugin, 'sandbox_await');
 
@@ -1270,15 +1267,14 @@ void main() {
         final completedRecord = sink.records.firstWhere(
           (r) => r.message == 'Child completed',
         );
-        expect(completedRecord.level, LogLevel.debug);
+        expect(completedRecord.level, LogLevel.info);
         expect(completedRecord.attributes['childId'], 0);
       });
 
-      test('failure logs debug with childId and error', () async {
+      test('failure logs warning with childId and error', () async {
         final plugin = SandboxPlugin(
           platformFactory: () async => _failingMock('NameError: x'),
-          logger: logger,
-        );
+        )..logger = StructLogBridgeLogger(logger, LogManager.instance);
         final spawn = _findHandler(plugin, 'sandbox_spawn');
         final await_ = _findHandler(plugin, 'sandbox_await');
 
@@ -1292,7 +1288,7 @@ void main() {
         final failRecord = sink.records.firstWhere(
           (r) => r.message == 'Child failed',
         );
-        expect(failRecord.level, LogLevel.debug);
+        expect(failRecord.level, LogLevel.warning);
         expect(failRecord.attributes['childId'], 0);
         expect(failRecord.attributes['error'], contains('NameError'));
       });
@@ -1301,8 +1297,7 @@ void main() {
         final startCompleter = Completer<MontyProgress>();
         final plugin = SandboxPlugin(
           platformFactory: () async => _SlowMockPlatform(startCompleter.future),
-          logger: logger,
-        );
+        )..logger = StructLogBridgeLogger(logger, LogManager.instance);
         final spawn = _findHandler(plugin, 'sandbox_spawn');
         final cancel = _findHandler(plugin, 'sandbox_cancel');
 
@@ -1325,8 +1320,7 @@ void main() {
       test('free logs debug with childId', () async {
         final plugin = SandboxPlugin(
           platformFactory: () async => _completingMock(),
-          logger: logger,
-        );
+        )..logger = StructLogBridgeLogger(logger, LogManager.instance);
         final spawn = _findHandler(plugin, 'sandbox_spawn');
         final await_ = _findHandler(plugin, 'sandbox_await');
         final free = _findHandler(plugin, 'sandbox_free');
@@ -1345,8 +1339,7 @@ void main() {
       test('dispose logs info with child counts', () async {
         final plugin = SandboxPlugin(
           platformFactory: () async => _completingMock(),
-          logger: logger,
-        );
+        )..logger = StructLogBridgeLogger(logger, LogManager.instance);
         final spawn = _findHandler(plugin, 'sandbox_spawn');
         final await_ = _findHandler(plugin, 'sandbox_await');
 
@@ -1367,8 +1360,7 @@ void main() {
           platformFactory: () async => _completingMock(),
           maxDepth: 2,
           currentDepth: 2,
-          logger: logger,
-        );
+        )..logger = StructLogBridgeLogger(logger, LogManager.instance);
         final spawn = _findHandler(plugin, 'sandbox_spawn');
 
         await expectLater(spawn({'code': '1'}), throwsStateError);
@@ -1390,8 +1382,7 @@ void main() {
             return _SlowMockPlatform(c.future);
           },
           maxChildren: 1,
-          logger: logger,
-        );
+        )..logger = StructLogBridgeLogger(logger, LogManager.instance);
         final spawn = _findHandler(plugin, 'sandbox_spawn');
 
         await spawn({'code': 'a'});
@@ -1417,8 +1408,7 @@ void main() {
           childPluginRegistryFactory: (_) async {
             throw StateError('factory boom');
           },
-          logger: logger,
-        );
+        )..logger = StructLogBridgeLogger(logger, LogManager.instance);
         final spawn = _findHandler(plugin, 'sandbox_spawn');
 
         await expectLater(spawn({'code': '1'}), throwsStateError);
@@ -1436,8 +1426,7 @@ void main() {
         // Use a platform whose dispose throws.
         final plugin = SandboxPlugin(
           platformFactory: () async => _DisposeBoomMock(),
-          logger: logger,
-        );
+        )..logger = StructLogBridgeLogger(logger, LogManager.instance);
         final spawn = _findHandler(plugin, 'sandbox_spawn');
         final await_ = _findHandler(plugin, 'sandbox_await');
 
@@ -1473,8 +1462,7 @@ void main() {
               );
             return registry;
           },
-          logger: logger,
-        );
+        )..logger = StructLogBridgeLogger(logger, LogManager.instance);
         final spawn = _findHandler(plugin, 'sandbox_spawn');
         final await_ = _findHandler(plugin, 'sandbox_await');
 
@@ -1493,8 +1481,7 @@ void main() {
         final plugin = SandboxPlugin(
           platformFactory: () async => _completingMock(),
           parentPlugins: [badPlugin],
-          logger: logger,
-        );
+        )..logger = StructLogBridgeLogger(logger, LogManager.instance);
         final spawn = _findHandler(plugin, 'sandbox_spawn');
 
         await expectLater(spawn({'code': '1'}), throwsStateError);
@@ -1516,8 +1503,7 @@ void main() {
               final registry = PluginRegistry()..register(_AttachBoomPlugin());
               return registry;
             },
-            logger: logger,
-          );
+          )..logger = StructLogBridgeLogger(logger, LogManager.instance);
           final spawn = _findHandler(plugin, 'sandbox_spawn');
 
           await expectLater(spawn({'code': '1'}), throwsStateError);
@@ -1541,8 +1527,7 @@ void main() {
           childPluginRegistryFactory: (_) async {
             throw StateError('factory boom');
           },
-          logger: logger,
-        );
+        )..logger = StructLogBridgeLogger(logger, LogManager.instance);
         final spawn = _findHandler(plugin, 'sandbox_spawn');
 
         await expectLater(spawn({'code': '1'}), throwsStateError);
@@ -1554,8 +1539,7 @@ void main() {
         final longError = 'E' * 300;
         final plugin = SandboxPlugin(
           platformFactory: () async => _failingMock(longError),
-          logger: logger,
-        );
+        )..logger = StructLogBridgeLogger(logger, LogManager.instance);
         final spawn = _findHandler(plugin, 'sandbox_spawn');
         final await_ = _findHandler(plugin, 'sandbox_await');
 
@@ -1579,8 +1563,7 @@ void main() {
           platformFactory: () async {
             throw StateError('platform creation boom');
           },
-          logger: logger,
-        );
+        )..logger = StructLogBridgeLogger(logger, LogManager.instance);
         final spawn = _findHandler(plugin, 'sandbox_spawn');
 
         await expectLater(spawn({'code': '1'}), throwsStateError);
@@ -1593,11 +1576,11 @@ void main() {
         expect(errorRecord.error, isA<StateError>());
       });
 
-      test('default logger name is SandboxPlugin', () {
+      test('default logger is NullBridgeLogger', () {
         final defaultPlugin = SandboxPlugin(
           platformFactory: () async => _completingMock(),
         );
-        expect(defaultPlugin.log.name, 'SandboxPlugin');
+        expect(defaultPlugin.logger, isA<NullBridgeLogger>());
       });
     });
   });

@@ -2,12 +2,19 @@ import 'package:dart_monty_bridge/src/bridge/bridge_event.dart';
 import 'package:dart_monty_bridge/src/bridge/bridge_middleware.dart';
 import 'package:dart_monty_bridge/src/bridge/host_function.dart';
 import 'package:dart_monty_bridge/src/bridge/host_function_schema.dart';
+import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 
 /// Bridge for LLM-generated Python calling registered Dart host functions.
 ///
 /// Executes Python code in the Monty sandbox, dispatches external function
 /// calls to registered [HostFunction] handlers, and emits [BridgeEvent]s.
 abstract class MontyBridge {
+  /// Logger for this bridge instance.
+  ///
+  /// Plugins and infrastructure code use this to create scoped child loggers
+  /// via [BridgeLogger.child].
+  BridgeLogger get logger;
+
   /// All registered function schemas.
   List<HostFunctionSchema> get schemas;
 
