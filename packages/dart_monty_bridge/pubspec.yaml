@@ -28,7 +28,3 @@ dev_dependencies:
 dependency_overrides:
   dart_monty_platform_interface:
     path: ../dart_monty_platform_interface
-  struct_log:
-    git:
-      url: https://github.com/runyaga/struct_log.git
-      ref: main
