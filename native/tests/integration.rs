@@ -824,13 +824,13 @@ fn drive_to_resolve_futures<T: monty::ResourceTracker>(
                             name,
                             docstring: None,
                         }),
-                        &mut PrintWriter::Stdout,
+                        PrintWriter::Stdout,
                     )
                     .unwrap();
             }
             RunProgress::FunctionCall(call) => {
                 collected.push((call.call_id, call.function_name.clone()));
-                progress = call.resume_pending(&mut PrintWriter::Stdout).unwrap();
+                progress = call.resume_pending(PrintWriter::Stdout).unwrap();
             }
             RunProgress::ResolveFutures(state) => {
                 return (state, collected);
@@ -857,7 +857,7 @@ await main()
     let runner = MontyRun::new(code.to_owned(), "test.py", vec![]).unwrap();
 
     let progress = runner
-        .start(vec![], NoLimitTracker, &mut PrintWriter::Stdout)
+        .start(vec![], NoLimitTracker, PrintWriter::Stdout)
         .unwrap();
 
     let (state, call_ids) = drive_to_resolve_futures(progress);
@@ -869,7 +869,7 @@ await main()
         call_ids[0].0,
         ExtFunctionResult::Return(MontyObject::String("response_x".into())),
     )];
-    let progress = state.resume(results, &mut PrintWriter::Stdout).unwrap();
+    let progress = state.resume(results, PrintWriter::Stdout).unwrap();
 
     let result = progress.into_complete().expect("should complete");
     assert_eq!(result, MontyObject::String("response_x".into()));
@@ -889,7 +889,7 @@ await main()
     let runner = MontyRun::new(code.to_owned(), "test.py", vec![]).unwrap();
 
     let progress = runner
-        .start(vec![], NoLimitTracker, &mut PrintWriter::Stdout)
+        .start(vec![], NoLimitTracker, PrintWriter::Stdout)
         .unwrap();
 
     let (state, call_ids) = drive_to_resolve_futures(progress);
@@ -906,7 +906,7 @@ await main()
             ExtFunctionResult::Return(MontyObject::Int(32)),
         ),
     ];
-    let progress = state.resume(results, &mut PrintWriter::Stdout).unwrap();
+    let progress = state.resume(results, PrintWriter::Stdout).unwrap();
 
     let result = progress.into_complete().expect("should complete");
     assert_eq!(result, MontyObject::Int(42));
@@ -926,7 +926,7 @@ await main()
     let runner = MontyRun::new(code.to_owned(), "test.py", vec![]).unwrap();
 
     let progress = runner
-        .start(vec![], NoLimitTracker, &mut PrintWriter::Stdout)
+        .start(vec![], NoLimitTracker, PrintWriter::Stdout)
         .unwrap();
 
     let (state, call_ids) = drive_to_resolve_futures(progress);
@@ -937,7 +937,7 @@ await main()
         call_ids[0].0,
         ExtFunctionResult::Return(MontyObject::Int(10)),
     )];
-    let progress = state.resume(results, &mut PrintWriter::Stdout).unwrap();
+    let progress = state.resume(results, PrintWriter::Stdout).unwrap();
 
     // Should need more futures
     let state = progress
@@ -950,7 +950,7 @@ await main()
         call_ids[1].0,
         ExtFunctionResult::Return(MontyObject::Int(32)),
     )];
-    let progress = state.resume(results, &mut PrintWriter::Stdout).unwrap();
+    let progress = state.resume(results, PrintWriter::Stdout).unwrap();
 
     let result = progress.into_complete().expect("should complete");
     assert_eq!(result, MontyObject::Int(42));
@@ -970,7 +970,7 @@ await main()
     let runner = MontyRun::new(code.to_owned(), "test.py", vec![]).unwrap();
 
     let progress = runner
-        .start(vec![], NoLimitTracker, &mut PrintWriter::Stdout)
+        .start(vec![], NoLimitTracker, PrintWriter::Stdout)
         .unwrap();
 
     let (state, call_ids) = drive_to_resolve_futures(progress);
@@ -988,7 +988,7 @@ await main()
             )),
         ),
     ];
-    let result = state.resume(results, &mut PrintWriter::Stdout);
+    let result = state.resume(results, PrintWriter::Stdout);
 
     assert!(result.is_err(), "should propagate the error");
     let exc = result.unwrap_err();
@@ -1008,7 +1008,7 @@ await main()
     let runner = MontyRun::new(code.to_owned(), "test.py", vec![]).unwrap();
 
     let progress = runner
-        .start(vec![], NoLimitTracker, &mut PrintWriter::Stdout)
+        .start(vec![], NoLimitTracker, PrintWriter::Stdout)
         .unwrap();
 
     let (state, call_ids) = drive_to_resolve_futures(progress);
@@ -1022,7 +1022,7 @@ await main()
             Some("network failure".into()),
         )),
     )];
-    let result = state.resume(results, &mut PrintWriter::Stdout);
+    let result = state.resume(results, PrintWriter::Stdout);
 
     assert!(result.is_err(), "error should propagate from future");
     let exc = result.unwrap_err();
