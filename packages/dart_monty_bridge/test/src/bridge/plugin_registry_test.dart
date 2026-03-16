@@ -571,6 +571,62 @@ void main() {
         expect(prompt, contains('limit?: integer'));
       });
 
+      test('systemPromptPrefix prepends before plugin sections', () {
+        registry
+          ..systemPromptPrefix = 'You are child 0. Workspace: /child_0.'
+          ..register(
+            _TestPlugin(
+              namespace: 'alpha',
+              systemPromptContext: 'Alpha operations.',
+              functions: [_fn('alpha_one')],
+            ),
+          );
+
+        final prompt = registry.generateSystemPrompt();
+
+        expect(prompt, startsWith('You are child 0.'));
+        expect(
+          prompt.indexOf('child 0'),
+          lessThan(prompt.indexOf('### alpha')),
+        );
+      });
+
+      test('null systemPromptPrefix produces no prefix', () {
+        registry.register(
+          _TestPlugin(
+            namespace: 'ns',
+            functions: [_fn('ns_one')],
+          ),
+        );
+
+        final prompt = registry.generateSystemPrompt();
+
+        expect(prompt, startsWith('### ns'));
+      });
+
+      test('empty systemPromptPrefix produces no prefix', () {
+        registry
+          ..systemPromptPrefix = ''
+          ..register(
+            _TestPlugin(
+              namespace: 'ns',
+              functions: [_fn('ns_one')],
+            ),
+          );
+
+        final prompt = registry.generateSystemPrompt();
+
+        expect(prompt, startsWith('### ns'));
+      });
+
+      test('systemPromptPrefix alone (no plugins) returns prefix', () {
+        registry.systemPromptPrefix = 'You are the validator.';
+
+        final prompt = registry.generateSystemPrompt();
+
+        expect(prompt, contains('You are the validator.'));
+      });
+
       test('multiple plugins produce sections in registration order', () {
         registry
           ..register(

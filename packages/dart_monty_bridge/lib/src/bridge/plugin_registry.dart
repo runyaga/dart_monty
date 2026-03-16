@@ -27,6 +27,14 @@ class PluginRegistry {
   /// Registered plugins in insertion order (unmodifiable).
   List<MontyPlugin> get plugins => UnmodifiableListView(_plugins);
 
+  /// Optional text prepended before plugin sections in the system prompt.
+  ///
+  /// Set by `SandboxPlugin._handleSpawn` after registry construction to
+  /// inject per-child system prompt content. Using a public field (rather
+  /// than a constructor param) guarantees injection regardless of whether
+  /// the registry was built by inheritance or a custom factory.
+  String? systemPromptPrefix;
+
   /// Validates [plugin] namespace and function names, then registers it.
   ///
   /// Throws [ArgumentError] if the namespace is empty, malformed, or exceeds
@@ -186,6 +194,12 @@ class PluginRegistry {
   /// optional [MontyPlugin.systemPromptContext], and a list of functions.
   String generateSystemPrompt() {
     final buffer = StringBuffer();
+
+    if (systemPromptPrefix != null && systemPromptPrefix!.isNotEmpty) {
+      buffer
+        ..writeln(systemPromptPrefix)
+        ..writeln();
+    }
 
     for (final plugin in _plugins) {
       buffer.writeln('### ${plugin.namespace}');
