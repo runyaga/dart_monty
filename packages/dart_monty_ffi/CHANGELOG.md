@@ -1,7 +1,7 @@
-## 0.9.0
+## 0.8.2
 
-- Make `bindings` parameter optional on `MontyFfi()` and `MontyNative()` — defaults to production implementations
-- No API changes for existing callers using explicit bindings
+- Make `bindings` parameter optional on `MontyFfi()` — defaults to `NativeBindingsFfi()`
+- Enables zero-arg `MontyFfi()` construction for the `dart_monty` convenience API
 
 ## 0.8.1
 
