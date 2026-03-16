@@ -1,6 +1,6 @@
 name: dart_monty_bridge
 description: High-level bridge layer for dart_monty. Host functions, event loop, plugin system.
-version: 0.3.1
+version: 0.4.0
 homepage: https://github.com/runyaga/dart_monty
 repository: https://github.com/runyaga/dart_monty
 issue_tracker: https://github.com/runyaga/dart_monty/issues
@@ -13,14 +13,22 @@ environment:
   sdk: '>=3.0.0 <4.0.0'
 
 dependencies:
-  dart_monty_platform_interface: ^0.7.0
+  dart_monty_platform_interface: ^0.8.0
   dinja: ^1.0.0
   meta: ^1.11.0
   path: ^1.8.0
-  struct_log: ^0.1.0
+  struct_log: ^0.3.0
 
 dev_dependencies:
   dart_monty_ffi:
     path: ../dart_monty_ffi
   test: ^1.25.0
   very_good_analysis: ^10.0.0
+
+dependency_overrides:
+  dart_monty_platform_interface:
+    path: ../dart_monty_platform_interface
+  struct_log:
+    git:
+      url: https://github.com/runyaga/struct_log.git
+      ref: main

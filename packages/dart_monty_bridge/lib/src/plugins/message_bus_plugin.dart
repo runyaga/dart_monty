@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:collection';
 
 import 'package:dart_monty_bridge/dart_monty_bridge.dart';
-import 'package:struct_log/struct_log.dart';
 
 /// A named, FIFO message channel with optional telemetry.
 class _Channel {
@@ -126,12 +125,9 @@ class MessageBusPlugin extends MontyPlugin {
   ///
   /// If [bus] is omitted a new [MessageBus] is created. Child instances
   /// returned by [createChildInstance] share the same bus.
-  MessageBusPlugin({MessageBus? bus, Logger? logger})
-    : _bus = bus ?? MessageBus(),
-      _log = logger ?? LogManager.instance.getLogger('MessageBusPlugin');
+  MessageBusPlugin({MessageBus? bus}) : _bus = bus ?? MessageBus();
 
   final MessageBus _bus;
-  final Logger _log;
   final Set<Completer<Object?>> _pendingRecvs = {};
 
   /// The backing bus, exposed for testing.
@@ -239,10 +235,7 @@ class MessageBusPlugin extends MontyPlugin {
 
   @override
   MontyPlugin? createChildInstance({ChildSpawnContext? context}) =>
-      MessageBusPlugin(
-        bus: _bus,
-        logger: LogManager.instance.getLogger('MessageBusPlugin.child'),
-      );
+      MessageBusPlugin(bus: _bus);
 
   @override
   Future<void> onDispose() async {
@@ -257,7 +250,7 @@ class MessageBusPlugin extends MontyPlugin {
     final name = args['name']! as String;
     final message = args['message'];
     _bus.send(name, message);
-    _log.debug('msg_send', attributes: {'channel': name});
+    logger.debug('msg_send', attributes: {'channel': name});
     return null;
   }
 
@@ -293,7 +286,7 @@ class MessageBusPlugin extends MontyPlugin {
   Future<Object?> _handleClose(Map<String, Object?> args) async {
     final name = args['name']! as String;
     _bus.close(name);
-    _log.debug('msg_close', attributes: {'channel': name});
+    logger.debug('msg_close', attributes: {'channel': name});
     return null;
   }
 

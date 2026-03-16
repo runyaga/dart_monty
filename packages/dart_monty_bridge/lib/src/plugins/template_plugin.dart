@@ -1,6 +1,5 @@
 import 'package:dart_monty_bridge/dart_monty_bridge.dart';
 import 'package:dinja/dinja.dart';
-import 'package:struct_log/struct_log.dart';
 
 /// Default maximum input size for template strings (512 KB).
 const int defaultMaxTemplateInputSize = 512 * 1024;
@@ -17,12 +16,8 @@ class DinjaTemplatePlugin extends MontyPlugin {
   ///
   /// [maxInputSize] controls the maximum allowed character count for
   /// template strings. Defaults to 512 KB.
-  DinjaTemplatePlugin({Logger? logger, int? maxInputSize})
-    : log = logger ?? LogManager.instance.getLogger('DinjaTemplatePlugin'),
-      _maxInputSize = maxInputSize ?? defaultMaxTemplateInputSize;
-
-  /// Logger for this plugin instance.
-  final Logger log;
+  DinjaTemplatePlugin({int? maxInputSize})
+    : _maxInputSize = maxInputSize ?? defaultMaxTemplateInputSize;
 
   final int _maxInputSize;
 
@@ -63,10 +58,7 @@ class DinjaTemplatePlugin extends MontyPlugin {
 
   @override
   MontyPlugin? createChildInstance({ChildSpawnContext? context}) =>
-      DinjaTemplatePlugin(
-        logger: LogManager.instance.getLogger('DinjaTemplatePlugin.child'),
-        maxInputSize: _maxInputSize,
-      );
+      DinjaTemplatePlugin(maxInputSize: _maxInputSize);
 
   Future<Object?> _handleRender(Map<String, Object?> args) async {
     final templateStr = args['template']! as String;
@@ -76,7 +68,7 @@ class DinjaTemplatePlugin extends MontyPlugin {
     try {
       final template = Template(templateStr);
       final result = template.render(context);
-      log.debug(
+      logger.debug(
         'tmpl_render ok',
         attributes: {'templateLength': templateStr.length},
       );

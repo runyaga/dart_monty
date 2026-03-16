@@ -20,7 +20,6 @@ import 'package:test/test.dart';
 void main() {
   late NativeBindingsFfi bindings;
   late MemorySink sink;
-  late Logger logger;
   late LogLevel previousLevel;
 
   setUpAll(() {
@@ -33,7 +32,6 @@ void main() {
     LogManager.instance
       ..addSink(sink)
       ..minimumLevel = LogLevel.trace;
-    logger = LogManager.instance.getLogger('SandboxPlugin.integration');
   });
 
   tearDown(() {
@@ -44,8 +42,11 @@ void main() {
 
   MontyPlatform createPlatform() => MontyFfi(bindings: bindings);
 
-  DefaultMontyBridge createBridge() =>
-      DefaultMontyBridge(platform: createPlatform(), useFutures: false);
+  DefaultMontyBridge createBridge() => DefaultMontyBridge(
+    platform: createPlatform(),
+    useFutures: false,
+    logger: StructLogBridgeLogger.root(LogManager.instance),
+  );
 
   group('sandbox logging with real FFI', () {
     test('spawn + await logs full lifecycle', () async {
@@ -54,7 +55,6 @@ void main() {
         ..register(
           SandboxPlugin(
             platformFactory: () async => createPlatform(),
-            logger: logger,
           ),
         );
       await registry.attachTo(bridge);
@@ -94,7 +94,6 @@ void main() {
         ..register(
           SandboxPlugin(
             platformFactory: () async => createPlatform(),
-            logger: logger,
           ),
         );
       await registry.attachTo(bridge);
@@ -131,7 +130,6 @@ void main() {
         ..register(
           SandboxPlugin(
             platformFactory: () async => createPlatform(),
-            logger: logger,
           ),
         );
       await registry.attachTo(bridge);

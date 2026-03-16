@@ -1,5 +1,6 @@
 import 'package:dart_monty_bridge/src/bridge/host_function.dart';
 import 'package:dart_monty_bridge/src/bridge/monty_bridge.dart';
+import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 import 'package:meta/meta.dart';
 
 /// Context passed to [MontyPlugin.createChildInstance] when a child sandbox
@@ -29,6 +30,14 @@ class ChildSpawnContext {
 abstract class MontyPlugin {
   /// Unique namespace prefix (e.g., "df", "chart", "sqlite").
   String get namespace;
+
+  /// Logger for this plugin, injected by `PluginRegistry` during attachment.
+  ///
+  /// Plugins should use this for all logging — never create loggers
+  /// independently via `LogManager.instance.getLogger()`.
+  ///
+  /// Defaults to [NullBridgeLogger] (silent) until the registry sets it.
+  BridgeLogger logger = const NullBridgeLogger();
 
   /// Human-readable description for LLM system prompt.
   ///

@@ -6,6 +6,7 @@ import 'package:dart_monty_bridge/src/bridge/bridge_middleware.dart';
 import 'package:dart_monty_bridge/src/bridge/host_function.dart';
 import 'package:dart_monty_bridge/src/bridge/host_function_schema.dart';
 import 'package:dart_monty_bridge/src/bridge/monty_bridge.dart';
+import 'package:dart_monty_bridge/src/bridge/struct_log_bridge_logger.dart';
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 import 'package:meta/meta.dart';
 import 'package:struct_log/struct_log.dart';
@@ -54,17 +55,19 @@ class _PendingFuture {
 class DefaultMontyBridge implements MontyBridge {
   /// Creates a [DefaultMontyBridge].
   ///
-  /// Pass [logger] to inject a custom logger for this bridge instance.
-  /// If omitted, uses the global [LogManager] singleton.
+  /// Pass [logger] to inject a custom [BridgeLogger] for this bridge instance.
+  /// If omitted, defaults to struct_log via [StructLogBridgeLogger].
+  ///
+  /// To silence logging entirely, pass `const NullBridgeLogger()`.
   DefaultMontyBridge({
     MontyPlatform? platform,
     MontyLimits? limits,
     bool useFutures = true,
-    Logger? logger,
+    BridgeLogger? logger,
   }) : _explicitPlatform = platform,
        _limits = limits,
        _useFutures = useFutures,
-       log = logger ?? LogManager.instance.getLogger('MontyBridge');
+       log = logger ?? StructLogBridgeLogger.root(LogManager.instance);
 
   final MontyPlatform? _explicitPlatform;
   final MontyLimits? _limits;
@@ -72,7 +75,10 @@ class DefaultMontyBridge implements MontyBridge {
 
   /// Logger for this bridge instance.
   @protected
-  final Logger log;
+  final BridgeLogger log;
+
+  @override
+  BridgeLogger get logger => log;
 
   final Map<String, HostFunction> _functions = {};
   final List<BridgeMiddleware> _middleware = [];
@@ -132,6 +138,7 @@ class DefaultMontyBridge implements MontyBridge {
   @override
   void dispose() {
     _isDisposed = true;
+    log.close();
   }
 
   @override

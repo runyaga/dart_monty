@@ -4,7 +4,7 @@ import 'package:dart_monty_bridge/src/bridge/host_function_schema.dart';
 import 'package:dart_monty_bridge/src/bridge/introspection_functions.dart';
 import 'package:dart_monty_bridge/src/bridge/monty_bridge.dart';
 import 'package:dart_monty_bridge/src/bridge/monty_plugin.dart';
-import 'package:struct_log/struct_log.dart';
+import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 
 /// Collects [MontyPlugin]s with namespace validation and function name
 /// collision detection.
@@ -17,7 +17,7 @@ class PluginRegistry {
   List<MontyPlugin>? _attachOrder;
   final Set<String> _namespaces = {};
   final Set<String> _functionNames = {};
-  final Logger _log = LogManager.instance.getLogger('PluginRegistry');
+  BridgeLogger _log = const NullBridgeLogger();
 
   static final RegExp _validNamespace = RegExp(r'^[a-z][a-z0-9_]*$');
   static const int _maxNamespaceLength = 32;
@@ -81,10 +81,17 @@ class PluginRegistry {
   /// errors are collected and thrown as a single [StateError] after all plugins
   /// have been attached.
   Future<void> attachTo(MontyBridge bridge) async {
+    // Get registry's own logger from the bridge.
+    _log = bridge.logger.child('registry');
+
     final schemasByCategory = <String, List<HostFunctionSchema>>{};
     final errors = <(String, Object)>[];
 
     for (final plugin in _plugins) {
+      // Inject scoped logger BEFORE registration so plugins can log
+      // during onRegister().
+      plugin.logger = bridge.logger.child(plugin.namespace);
+
       final schemas = <HostFunctionSchema>[];
       for (final fn in plugin.functions) {
         bridge.register(fn);

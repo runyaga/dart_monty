@@ -1,4 +1,5 @@
 import 'package:dart_monty_bridge/dart_monty_bridge.dart';
+import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 import 'package:test/test.dart';
 
 /// Minimal test plugin with configurable namespace and functions.
@@ -593,6 +594,9 @@ class _LifecyclePlugin extends MontyPlugin {
 /// Minimal bridge mock that tracks registered function names.
 class _MockBridge implements MontyBridge {
   final registeredNames = <String>[];
+
+  @override
+  BridgeLogger get logger => const NullBridgeLogger();
 
   @override
   List<HostFunctionSchema> get schemas => [];
