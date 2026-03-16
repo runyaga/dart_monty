@@ -35,6 +35,16 @@ class ChildSandboxException implements Exception {
 /// Factory that creates a fresh [MontyPlatform] for each child sandbox.
 typedef MontyPlatformFactory = Future<MontyPlatform> Function();
 
+/// Builds a system prompt fragment from infrastructure context.
+///
+/// Called during [SandboxPlugin._handleSpawn] to produce static,
+/// infrastructure-level prompt content (e.g., child identity, workspace path).
+/// Return `null` to skip the builder layer for a given child.
+typedef ChildSystemPromptBuilder =
+    String? Function(
+      ChildSpawnContext context,
+    );
+
 /// Factory that creates and configures a [PluginRegistry] for child bridges.
 ///
 /// Receives the [ChildSpawnContext] for the child being spawned, allowing
@@ -108,6 +118,7 @@ class SandboxPlugin extends MontyPlugin {
     this.currentDepth = 0,
     this.childLimits,
     this.sandboxBaseDir,
+    this.systemPromptBuilder,
   });
 
   /// Creates a fresh [MontyPlatform] for each child.
@@ -143,6 +154,13 @@ class SandboxPlugin extends MontyPlugin {
   /// The directory is **not** created by this plugin — consumers (e.g.,
   /// `FsPlugin.createChildInstance`) are responsible for creation.
   final String? sandboxBaseDir;
+
+  /// Optional builder for static, infrastructure-level system prompt content.
+  ///
+  /// Called once per child spawn with the [ChildSpawnContext]. The returned
+  /// string (if non-null) is prepended before any runtime `system_prompt`
+  /// argument from `sandbox_spawn`.
+  final ChildSystemPromptBuilder? systemPromptBuilder;
 
   final Map<int, _ChildHandle> _children = {};
   int _nextId = 0;
@@ -182,6 +200,14 @@ class SandboxPlugin extends MontyPlugin {
             type: HostParamType.integer,
             isRequired: false,
             description: 'Memory limit in bytes.',
+          ),
+          HostParam(
+            name: 'system_prompt',
+            type: HostParamType.string,
+            isRequired: false,
+            description:
+                'Custom system prompt fragment for the child. '
+                'Appended after the infrastructure builder prompt.',
           ),
         ],
       ),
@@ -320,6 +346,7 @@ class SandboxPlugin extends MontyPlugin {
     final code = args['code']! as String;
     final timeoutMs = args['timeout_ms'] as int?;
     final memoryBytes = args['memory_bytes'] as int?;
+    final runtimePrompt = args['system_prompt'] as String?;
 
     // Build per-child resource limits.
     var limits = childLimits;
@@ -402,7 +429,22 @@ class SandboxPlugin extends MontyPlugin {
           rethrow;
         }
       }
+      // Build the system prompt (builder + runtime layers).
+      final childPrompt = _buildChildSystemPrompt(
+        spawnContext,
+        runtimePrompt,
+      );
+
+      // Create a registry if we have a prompt but no plugins.
+      if (childRegistry == null && childPrompt != null) {
+        childRegistry = PluginRegistry();
+      }
+
       if (childRegistry != null) {
+        // Inject system prompt BEFORE attachTo so it's available when
+        // plugins call generateSystemPrompt() during onRegister.
+        childRegistry.systemPromptPrefix = childPrompt;
+
         // Capture plugin count before attachTo in case the registry is in a
         // broken state after the error.
         final pluginCount = childRegistry.plugins.length;
@@ -552,6 +594,23 @@ class SandboxPlugin extends MontyPlugin {
     final registry = PluginRegistry();
     childPlugins.forEach(registry.register);
     return registry;
+  }
+
+  /// Concatenates builder + runtime prompt layers.
+  ///
+  /// Returns `null` when both layers are absent.
+  String? _buildChildSystemPrompt(
+    ChildSpawnContext context,
+    String? runtimeFragment,
+  ) {
+    final builderFragment = systemPromptBuilder?.call(context);
+    if (builderFragment == null && runtimeFragment == null) return null;
+
+    final parts = <String>[
+      if (builderFragment != null) builderFragment,
+      if (runtimeFragment != null) runtimeFragment,
+    ];
+    return parts.join('\n\n');
   }
 
   Future<Object?> _handleAwait(Map<String, Object?> args) async {

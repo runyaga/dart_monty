@@ -258,6 +258,33 @@ Each plugin becomes a markdown section with:
 - A bullet list of functions with parameters (optional params suffixed
   with `?`) and descriptions.
 
+### System Prompt Prefix
+
+`PluginRegistry` has a `systemPromptPrefix` field that prepends text
+before all plugin sections in the generated prompt. This is set at
+**runtime** -- typically by `SandboxPlugin._handleSpawn` when
+spawning child sandboxes:
+
+```dart
+// SandboxPlugin sets this automatically at spawn time:
+registry.systemPromptPrefix =
+    'You are child 3. Your workspace is /data/.sandboxes/child_3.';
+
+final prompt = registry.generateSystemPrompt();
+// Output:
+// You are child 3. Your workspace is /data/.sandboxes/child_3.
+//
+// ### storage
+// Key-value storage. Values persist for the session lifetime.
+// - `storage_get(key: string)`: ...
+```
+
+You do not set this manually -- `SandboxPlugin` computes and injects
+it after registry construction using the `systemPromptBuilder` callback
+and the `system_prompt` argument from `sandbox_spawn`. See the
+[Advanced guide](host-functions-advanced.md) for details on the
+dual-layer injection system.
+
 ## EventLoopBridge
 
 `EventLoopBridge` extends `DefaultMontyBridge` for bidirectional

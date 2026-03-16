@@ -1201,6 +1201,185 @@ void main() {
       });
     });
 
+    group('child system prompt injection', () {
+      test('sandbox_spawn schema includes system_prompt param', () {
+        final plugin = SandboxPlugin(
+          platformFactory: () async => MockMontyPlatform(),
+        );
+        final spawnSchema = plugin.functions
+            .firstWhere((f) => f.schema.name == 'sandbox_spawn')
+            .schema;
+        final param = spawnSchema.params.firstWhere(
+          (p) => p.name == 'system_prompt',
+        );
+        expect(param.type, HostParamType.string);
+        expect(param.isRequired, isFalse);
+      });
+
+      test('runtime system_prompt injects into child registry', () async {
+        PluginRegistry? capturedRegistry;
+        final plugin = SandboxPlugin(
+          platformFactory: () async => _completingMock(),
+          childPluginRegistryFactory: (ctx) async =>
+              capturedRegistry = PluginRegistry(),
+        );
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
+        final await_ = _findHandler(plugin, 'sandbox_await');
+
+        final handle = await spawn({
+          'code': '42',
+          'system_prompt': 'You are the validator.',
+        });
+        await await_({'handle': handle! as int});
+
+        expect(capturedRegistry, isNotNull);
+        expect(capturedRegistry!.systemPromptPrefix, 'You are the validator.');
+        expect(
+          capturedRegistry!.generateSystemPrompt(),
+          contains('You are the validator.'),
+        );
+      });
+
+      test('builder prompt injects into child registry', () async {
+        PluginRegistry? capturedRegistry;
+        final plugin = SandboxPlugin(
+          platformFactory: () async => _completingMock(),
+          sandboxBaseDir: '/data',
+          systemPromptBuilder: (ctx) =>
+              'You are child ${ctx.childId}. '
+              'Workspace: ${ctx.workingDirectory}.',
+          childPluginRegistryFactory: (ctx) async =>
+              capturedRegistry = PluginRegistry(),
+        );
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
+        final await_ = _findHandler(plugin, 'sandbox_await');
+
+        final handle = await spawn({'code': '42'});
+        await await_({'handle': handle! as int});
+
+        expect(capturedRegistry, isNotNull);
+        final prompt = capturedRegistry!.generateSystemPrompt();
+        expect(prompt, contains('You are child 0.'));
+        expect(prompt, contains('/data/.sandboxes/child_0'));
+      });
+
+      test('builder + runtime prompts concatenate with blank line', () async {
+        PluginRegistry? capturedRegistry;
+        final plugin = SandboxPlugin(
+          platformFactory: () async => _completingMock(),
+          systemPromptBuilder: (ctx) => 'Infrastructure truth.',
+          childPluginRegistryFactory: (ctx) async =>
+              capturedRegistry = PluginRegistry(),
+        );
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
+        final await_ = _findHandler(plugin, 'sandbox_await');
+
+        final handle = await spawn({
+          'code': '42',
+          'system_prompt': 'Role assignment.',
+        });
+        await await_({'handle': handle! as int});
+
+        expect(
+          capturedRegistry!.systemPromptPrefix,
+          'Infrastructure truth.\n\nRole assignment.',
+        );
+      });
+
+      test('null builder returns only runtime prompt', () async {
+        PluginRegistry? capturedRegistry;
+        final plugin = SandboxPlugin(
+          platformFactory: () async => _completingMock(),
+          childPluginRegistryFactory: (ctx) async =>
+              capturedRegistry = PluginRegistry(),
+        );
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
+        final await_ = _findHandler(plugin, 'sandbox_await');
+
+        final handle = await spawn({
+          'code': '42',
+          'system_prompt': 'Only runtime.',
+        });
+        await await_({'handle': handle! as int});
+
+        expect(capturedRegistry!.systemPromptPrefix, 'Only runtime.');
+      });
+
+      test('builder returning null yields only runtime prompt', () async {
+        PluginRegistry? capturedRegistry;
+        final plugin = SandboxPlugin(
+          platformFactory: () async => _completingMock(),
+          systemPromptBuilder: (ctx) => null,
+          childPluginRegistryFactory: (ctx) async =>
+              capturedRegistry = PluginRegistry(),
+        );
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
+        final await_ = _findHandler(plugin, 'sandbox_await');
+
+        final handle = await spawn({
+          'code': '42',
+          'system_prompt': 'Only runtime.',
+        });
+        await await_({'handle': handle! as int});
+
+        expect(capturedRegistry!.systemPromptPrefix, 'Only runtime.');
+      });
+
+      test('no builder and no runtime yields null prefix', () async {
+        PluginRegistry? capturedRegistry;
+        final plugin = SandboxPlugin(
+          platformFactory: () async => _completingMock(),
+          childPluginRegistryFactory: (ctx) async =>
+              capturedRegistry = PluginRegistry(),
+        );
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
+        final await_ = _findHandler(plugin, 'sandbox_await');
+
+        final handle = await spawn({'code': '42'});
+        await await_({'handle': handle! as int});
+
+        expect(capturedRegistry!.systemPromptPrefix, isNull);
+      });
+
+      test(
+        'prompt creates registry even when no plugins exist',
+        () async {
+          final plugin = SandboxPlugin(
+            platformFactory: () async => _completingMock(),
+            systemPromptBuilder: (ctx) => 'You are child ${ctx.childId}.',
+          );
+          final spawn = _findHandler(plugin, 'sandbox_spawn');
+          final await_ = _findHandler(plugin, 'sandbox_await');
+
+          // Should not throw — a registry is created for the prompt.
+          final handle = await spawn({'code': '42'});
+          await await_({'handle': handle! as int});
+        },
+      );
+
+      test(
+        'prompt injected via inheritance path (not factory)',
+        () async {
+          final plugin = SandboxPlugin(
+            platformFactory: () async => _completingMock(),
+            systemPromptBuilder: (ctx) => 'Builder content.',
+            parentPlugins: [_InheritablePlugin(namespace: 'inh')],
+          );
+          final spawn = _findHandler(plugin, 'sandbox_spawn');
+          final await_ = _findHandler(plugin, 'sandbox_await');
+
+          final handle = await spawn({
+            'code': '42',
+            'system_prompt': 'Runtime content.',
+          });
+          await await_({'handle': handle! as int});
+
+          // The test passes if no error is thrown — the prompt was injected
+          // via the setter after _buildInheritedRegistry returned.
+        },
+      );
+    });
+
     group('structured logging', () {
       late MemorySink sink;
       late Logger logger;

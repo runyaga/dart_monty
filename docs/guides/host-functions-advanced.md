@@ -46,11 +46,14 @@ final plugin = SandboxPlugin(
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `platformFactory` | `Future<MontyPlatform> Function()` | required | Creates a fresh platform for each child |
-| `childPluginRegistryFactory` | `Future<PluginRegistry?> Function()?` | `null` | Optional: provides plugins to children |
+| `childPluginRegistryFactory` | `Future<PluginRegistry?> Function(ChildSpawnContext)?` | `null` | Optional: provides plugins to children |
+| `parentPlugins` | `List<MontyPlugin>` | `const []` | Parent plugins for automatic child inheritance |
 | `maxChildren` | `int` | `16` | Maximum concurrent living children |
 | `maxDepth` | `int` | `3` | Maximum recursion depth for nested SandboxPlugins |
 | `currentDepth` | `int` | `0` | This plugin's current depth in the recursion tree |
 | `childLimits` | `MontyLimits?` | `null` | Default resource limits for all children |
+| `sandboxBaseDir` | `String?` | `null` | Base directory for per-child working directories |
+| `systemPromptBuilder` | `ChildSystemPromptBuilder?` | `null` | Builds static system prompt from child context |
 
 ### Host Functions Provided
 
@@ -58,13 +61,14 @@ The plugin registers these functions under the `sandbox` namespace:
 
 | Function | Description | Parameters |
 |----------|-------------|------------|
-| `sandbox_spawn(code, timeout_ms?, memory_bytes?)` | Spawn a child. Returns an integer handle. | `code`: string (required), `timeout_ms`: integer, `memory_bytes`: integer |
+| `sandbox_spawn(code, timeout_ms?, memory_bytes?, system_prompt?)` | Spawn a child. Returns an integer handle. | `code`: string (required), `timeout_ms`: integer, `memory_bytes`: integer, `system_prompt`: string |
 | `sandbox_await(handle)` | Wait for a child to complete. Returns its result. | `handle`: integer |
 | `sandbox_await_all(handles)` | Wait for multiple children. Returns list of results. | `handles`: list |
 | `sandbox_is_alive(handle)` | Check if a child is still running. Returns boolean. | `handle`: integer |
 | `sandbox_cancel(handle)` | Cancel a running child. No-op if already finished. | `handle`: integer |
 | `sandbox_free(handle)` | Release a completed child's handle. | `handle`: integer |
 | `sandbox_get_output(handle)` | Get a completed child's print output. | `handle`: integer |
+| `sandbox_gather(handles)` | Wait for multiple children. Returns list of dicts with handle, value, and output. | `handles`: list |
 
 ### Basic Usage from Python
 
@@ -164,7 +168,7 @@ SandboxPlugin(
   platformFactory: () async => Monty(),
   maxDepth: 3,
   currentDepth: 0,
-  childPluginRegistryFactory: () async {
+  childPluginRegistryFactory: (context) async {
     final registry = PluginRegistry();
     registry.register(SandboxPlugin(
       platformFactory: () async => Monty(),
@@ -199,7 +203,7 @@ give children access to host functions:
 ```dart
 SandboxPlugin(
   platformFactory: () async => Monty(),
-  childPluginRegistryFactory: () async {
+  childPluginRegistryFactory: (context) async {
     final registry = PluginRegistry();
     registry.register(MathPlugin());
     registry.register(StoragePlugin());
@@ -210,9 +214,114 @@ SandboxPlugin(
 )
 ```
 
+The factory receives a `ChildSpawnContext` with the child's `childId`
+and optional `workingDirectory` -- use these for per-child resource
+configuration.
+
 Return `null` from the factory to give children only introspection
 builtins (no plugins). If the factory itself is `null`, children get
 no plugins at all and no introspection.
+
+### Automatic Plugin Inheritance
+
+When `childPluginRegistryFactory` is `null`, children automatically
+inherit plugins from `parentPlugins` that opt in via
+`createChildInstance()`:
+
+```dart
+SandboxPlugin(
+  platformFactory: () async => Monty(),
+  parentPlugins: registry.plugins,  // Pass parent's plugin list
+)
+```
+
+Each parent plugin's `createChildInstance(context:)` is called with a
+`ChildSpawnContext`. Plugins that return a new instance are registered
+on the child's bridge. Plugins that return `null` are excluded.
+
+### Per-Child Filesystem Isolation
+
+The `sandboxBaseDir` parameter enables per-child working directories:
+
+```dart
+SandboxPlugin(
+  platformFactory: () async => Monty(),
+  sandboxBaseDir: '/data',
+  parentPlugins: registry.plugins,
+)
+```
+
+When set, each child's `ChildSpawnContext.workingDirectory` is computed
+as `$sandboxBaseDir/.sandboxes/child_$id` (e.g.,
+`/data/.sandboxes/child_0`). The directory is **not** created by
+`SandboxPlugin` -- consumers (e.g., an `FsPlugin.createChildInstance`)
+are responsible for creating and managing it.
+
+## Child System Prompts
+
+`SandboxPlugin` supports injecting custom system prompts into child
+sandboxes via two layers:
+
+### Layer 1: Infrastructure Builder (static, from Dart)
+
+The `systemPromptBuilder` callback produces static, infrastructure-level
+prompt content from `ChildSpawnContext`:
+
+```dart
+SandboxPlugin(
+  platformFactory: () async => Monty(),
+  sandboxBaseDir: '/data',
+  systemPromptBuilder: (context) =>
+      'You are child ${context.childId}. '
+      'Your workspace is ${context.workingDirectory}. '
+      'Do not access other children\'s data.',
+)
+```
+
+- Computed from `ChildSpawnContext` (childId, workingDirectory)
+- Infrastructure truths that should never be wrong
+- Cannot be prompt-injected by the parent LLM
+- Return `null` to skip the builder layer for a specific child
+
+### Layer 2: Parent LLM Fragment (dynamic, from Python)
+
+The `system_prompt` parameter on `sandbox_spawn` lets the parent LLM
+inject role-specific instructions at runtime:
+
+```python
+h = sandbox_spawn(
+    "analyze(data)",
+    system_prompt="You are the validator. Check results for correctness."
+)
+```
+
+- Role assignment, task-specific instructions
+- The parent LLM's planning decision at runtime
+- Optional -- omit if the parent doesn't need to customize
+
+### Concatenation Order
+
+When both layers are present, the builder output comes first
+(infrastructure truth), then the runtime fragment (role assignment),
+separated by a blank line:
+
+```text
+You are child 0. Your workspace is /data/.sandboxes/child_0.
+
+You are the validator. Check results for correctness.
+```
+
+### How It Works
+
+The concatenated prompt is injected into the child's
+`PluginRegistry.systemPromptPrefix` **after** registry construction.
+This setter-based approach guarantees prompt injection regardless of
+whether the registry was built by inheritance or a custom factory --
+factories cannot accidentally forget to wire the prompt.
+
+If no plugins exist but a prompt is provided, an empty `PluginRegistry`
+is created automatically so the prompt (and introspection builtins) are
+available to the child.
 
 ## Disposal and Cleanup
 
