@@ -1,3 +1,14 @@
+## 0.9.1
+
+> **Pre-1.0 stability notice**: dart_monty is under active development. APIs may
+> change between minor versions. If you encounter issues, please
+> [open an issue](https://github.com/runyaga/dart_monty/issues).
+
+- Fix pub.dev analysis failure: update `dart_monty_ffi` constraint to `^0.8.2`
+  (0.8.1 had a required `bindings` parameter incompatible with zero-arg `MontyFfi()`)
+- Update `dart_monty_wasm` constraint to `^0.8.3`
+- Update `dart_monty_platform_interface` constraint to `^0.8.0`
+
 ## 0.9.0
 
 - **Pure Dart** — remove Flutter SDK dependency; all packages are pure Dart with compile-time conditional imports

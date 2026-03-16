@@ -2,24 +2,44 @@
 
 ## 0.4.0
 
-- **BREAKING**: Remove `CompositePlugin` mixin and `PluginRef<T>`. Use
-  constructor injection instead for inter-plugin dependencies.
-- `PluginRegistry.attachTo()` calls `onRegister()` in registration order.
-- `PluginRegistry.disposeAll()` calls `onDispose()` in reverse registration
-  order.
-- **BREAKING**: Plugins no longer accept a `Logger` constructor parameter.
-  Logging is now injected automatically via `MontyPlugin.logger` (a
-  `BridgeLogger` field, default `NullBridgeLogger`) by `PluginRegistry`
+### Breaking
+
+- Remove `CompositePlugin` mixin and `PluginRef<T>`. Use constructor injection
+  for inter-plugin dependencies.
+- Rename `IsolatePlugin` to `SandboxPlugin` — the plugin creates isolated Monty
+  interpreter instances, not Dart isolates.
+- Plugins no longer accept a `Logger` constructor parameter. Logging is injected
+  automatically via `MontyPlugin.logger` (`BridgeLogger`) by `PluginRegistry`
   before `onRegister()`.
-- Add `BridgeLogger get logger` to `MontyBridge` abstract interface.
-- Add `StructLogBridgeLogger` — batteries-included adapter wrapping
-  struct_log's `Logger`/`LogManager` with hierarchical `.child()` scoping
-  and cascading `close()`.
-- `DefaultMontyBridge` defaults to `StructLogBridgeLogger.root(LogManager.instance)`.
-- `PluginRegistry` propagates `bridge.logger.child(plugin.namespace)` to
-  each plugin and uses `bridge.logger.child('registry')` internally.
-- `SandboxPlugin` child bridges receive `logger.child('child.$id')`.
 - Bump `dart_monty_platform_interface` to `^0.8.0`, `struct_log` to `^0.3.0`.
+
+### Added
+
+- `BridgeMiddleware` with sealed `CallRole` — intercept, modify, or block host
+  function calls with pre/post hooks and role-based security.
+- `JsonPlugin` — `json_parse`, `json_stringify`, `json_query` host functions.
+- `TemplatePlugin` — `template_render` host function with Mustache-style
+  templates.
+- `MessageBusPlugin` — `bus_send`/`bus_receive` for parent-child communication.
+- `invokeHostFunction()` on `MontyBridge` for Dart-side tool dispatch.
+- `sandbox_gather` host function for output attribution from child sandboxes.
+- `ChildSpawnContext` for per-child filesystem isolation in `SandboxPlugin`.
+- `extraFunctions` parameter on `PluginRegistry.attachTo()` for ad-hoc host
+  functions without a full plugin.
+- `BridgeLogger` abstract interface with `NullBridgeLogger` default.
+- `StructLogBridgeLogger` adapter with hierarchical `.child()` scoping and
+  cascading `close()`.
+- `PluginRegistry` propagates `bridge.logger.child(plugin.namespace)` to each
+  plugin and uses `bridge.logger.child('registry')` internally.
+- `SandboxPlugin` child bridges receive `logger.child('child.$id')`.
+- `help()` resolves bare function names without namespace prefix.
+- `SandboxPlugin.createChildInstance()` for plugin inheritance in child bridges.
+
+### Fixed
+
+- Child bridges use `useFutures: false` to prevent hangs.
+- Child isolate errors surface as tool failures instead of crashing parent.
+- Plugin registration failure logging with structured context.
 
 ## 0.3.1
 

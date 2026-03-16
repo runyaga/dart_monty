@@ -1,3 +1,10 @@
+## 0.8.3
+
+- Implement `MontyFutureCapable` on `MontyWasm` — WASM backend now supports
+  `resumeAsFuture()` and `resolveFutures()`
+- Fix `expectError` handling for iterative fixtures in WASM ladder runner
+- Fix async futures path wiring in WASM ladder runner
+
 ## 0.8.2
 
 - **Fix**: `WasmBindingsJs` now uses static method bindings matching the JS bridge API (was broken: tried to call `new DartMontyBridge()` which doesn't exist)
