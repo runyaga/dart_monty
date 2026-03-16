@@ -1,3 +1,10 @@
+## 0.9.2
+
+- Align all dependency lower bounds with actual API usage (fixes pub.dev
+  downgrade tests across ffi, wasm, native, web)
+- Update `dart_monty_ffi` constraint to `^0.8.3`
+- Update `dart_monty_wasm` constraint to `^0.8.4`
+
 ## 0.9.1
 
 > **Pre-1.0 stability notice**: dart_monty is under active development. APIs may

@@ -1,3 +1,8 @@
+## 0.7.4
+
+- Update `dart_monty_platform_interface` constraint to `^0.8.0`
+- Update `dart_monty_ffi` constraint to `^0.8.3`
+
 ## 0.7.3
 
 - Update `dart_monty_ffi` dependency constraint to `^0.8.1`
