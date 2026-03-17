@@ -70,6 +70,9 @@ const _tierFiles = [
   'fixtures/tier_07_advanced.json',
   'fixtures/tier_08_kwargs.json',
   'fixtures/tier_09_exceptions.json',
+  'fixtures/tier_10_math_module.json',
+  'fixtures/tier_11_re_module.json',
+  'fixtures/tier_12_monty_008_features.json',
   'fixtures/tier_13_async.json',
   'fixtures/tier_15_script_name.json',
   'fixtures/tier_16_memory_growth.json',
@@ -255,9 +258,7 @@ Future<Map<String, dynamic>> _runAsyncFutures(
 
     if (state['state'] == 'pending') {
       // External function call — tell runtime to treat it as a future.
-      state = _parseResult(
-        (await _montyResumeAsFuture().toDart).toDart,
-      );
+      state = _parseResult((await _montyResumeAsFuture().toDart).toDart);
     } else if (state['state'] == 'resolve_futures') {
       // Resolve pending futures with values/errors from the fixture maps.
       final pendingIds =
