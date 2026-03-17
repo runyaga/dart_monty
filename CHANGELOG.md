@@ -6,6 +6,20 @@
 - Upstream monty 0.0.8 adds: full `math` module, PEP 448 unpacking, `re` module,
   dict view/set operators, compiler stack-depth fixes
 
+### Added
+
+- **Tier 10: `math` module** (15 tests) — `factorial`, `sqrt`, `pi`, `e`, `ceil`,
+  `floor`, `gcd`, `pow`, `log`, `isnan`/`isinf`, `fabs`, `copysign`, `sin`/`cos`,
+  `radians`/`degrees`, combined hypotenuse
+- **Tier 11: `re` module** (10 tests) — `match`, `search`, `findall`, `sub`, `split`,
+  no-match `None`, capture groups, `sub` with count limit, multi-group `findall`
+- **Tier 12: monty 0.0.8 features** (16 tests) — `filter()` builtin, PEP 448
+  generalized unpacking (list, dict, function call, `**kwargs` call), augmented
+  subscript assignment (list, dict), tuple/string comparison operators, `dict(zip(…))`,
+  `dict(**kwargs)`, set operators (`|`, `&`, `-`), `getattr` (xfail: no classes)
+- Un-xfail tier 7 test #65 (`import math`) — now passes with monty 0.0.8
+- Register new tiers in web spike, WASM package, and site demo ladder runners
+
 ### Fixed
 
 - ForIter stack corruption (#225) in nested for-loops with try/except — fixed by
