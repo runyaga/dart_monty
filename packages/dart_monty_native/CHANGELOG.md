@@ -1,3 +1,17 @@
+## 0.8.0
+
+### Changed
+
+- Upgrade Monty Rust crate from 0.0.7 to 0.0.8 — includes compiler
+  stack-depth fixes (#246, #268), full math module, PEP 448 unpacking,
+  NameLookup auto-detection, `re` module, dict views, and more
+- Adapt FFI handle layer for PrintWriter by-value API change
+
+### Fixed
+
+- ForIter stack corruption in nested for-loops with try/except
+  (3+ loops, try in 2+, 4+ items in 3rd loop) — dart_monty#225
+
 ## 0.7.4
 
 - Update `dart_monty_platform_interface` constraint to `^0.8.0`

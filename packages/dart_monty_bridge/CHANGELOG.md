@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.5.0
+
+### Added
+
+- `SandboxPlugin`: child system prompt injection via `ChildSystemPromptBuilder`
+  callback — infrastructure can set identity/workspace context per child (#231)
+- `PluginRegistry.attachTo`: accept `extraFunctions` for standalone host
+  functions outside any plugin namespace (#222)
+
+### Fixed
+
+- `JsonPlugin`: standardize parameter names — `text`/`value` → `data` for
+  consistency across `json_loads`, `json_dumps`, `json_get` (#229)
+
 ## 0.4.1
 
 - Add `example/example.dart` demonstrating plugin creation and registry setup
