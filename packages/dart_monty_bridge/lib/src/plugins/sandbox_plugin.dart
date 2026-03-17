@@ -73,10 +73,14 @@ class _ChildHandle {
   final PluginRegistry? registry;
   bool isAlive = true;
 
+  /// Wall-clock watchdog timer that force-cancels stuck children.
+  Timer? watchdog;
+
   /// Captured print output from the child (set on completion).
   String? printOutput;
 
   Future<void> cancel() async {
+    watchdog?.cancel();
     isAlive = false;
     // Dispose plugins FIRST — this unblocks pending handler Futures
     // (e.g., MessageBusPlugin completes waiters with StateError).
@@ -500,6 +504,7 @@ class SandboxPlugin extends MontyPlugin {
       onDone: () async {
         final child = _children[id];
         if (child == null) return;
+        child.watchdog?.cancel();
         child
           ..isAlive = false
           ..printOutput = childPrintOutput;
@@ -545,7 +550,9 @@ class SandboxPlugin extends MontyPlugin {
       },
       onError: (Object error, StackTrace stackTrace) {
         final child = _children[id];
-        if (child != null) child.isAlive = false;
+        if (child == null || !child.isAlive) return;
+        child.watchdog?.cancel();
+        child.isAlive = false;
         logger.error(
           'Child stream error',
           error: error,
@@ -557,13 +564,41 @@ class SandboxPlugin extends MontyPlugin {
       },
     );
 
-    _children[id] = _ChildHandle(
+    final child = _ChildHandle(
       bridge: bridge,
       platform: platform,
       completer: completer,
       subscription: subscription,
       registry: childRegistry,
     );
+    _children[id] = child;
+
+    // Start wall-clock watchdog timer to force-cancel stuck children.
+    // The Rust interpreter enforces CPU-time limits, but host function
+    // deadlocks (where the interpreter is suspended and Dart code blocks)
+    // are invisible to the interpreter timeout. This watchdog covers that gap.
+    final effectiveTimeout = limits?.timeoutMs;
+    if (effectiveTimeout != null) {
+      child.watchdog = Timer(
+        Duration(milliseconds: effectiveTimeout),
+        () async {
+          if (!child.isAlive || completer.isCompleted) return;
+          logger.warning(
+            'Child watchdog timeout — force-cancelling',
+            attributes: {'childId': id, 'timeoutMs': effectiveTimeout},
+          );
+          await child.cancel();
+          if (!completer.isCompleted) {
+            completer.completeError(
+              ChildSandboxException(
+                childId: id,
+                message: 'watchdog timeout after ${effectiveTimeout}ms',
+              ),
+            );
+          }
+        },
+      );
+    }
 
     return id;
   }

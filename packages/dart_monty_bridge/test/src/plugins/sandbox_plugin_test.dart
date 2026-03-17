@@ -841,6 +841,197 @@ void main() {
       });
     });
 
+    group('watchdog timer', () {
+      test('reaps stuck child after timeout', () async {
+        final plugin = SandboxPlugin(
+          platformFactory: () async =>
+              _SlowMockPlatform(Completer<MontyProgress>().future),
+          childLimits: const MontyLimits(timeoutMs: 50),
+        );
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
+        final await_ = _findHandler(plugin, 'sandbox_await');
+        final handle = await spawn({'code': 'stuck'});
+
+        await expectLater(
+          await_({'handle': handle! as int}),
+          throwsA(
+            isA<ChildSandboxException>().having(
+              (e) => e.message,
+              'message',
+              contains('watchdog timeout'),
+            ),
+          ),
+        );
+
+        await plugin.onDispose();
+      });
+
+      test('does not fire on normal completion', () async {
+        final plugin = SandboxPlugin(
+          platformFactory: () async => _completingMockWithResult(value: 42),
+          childLimits: const MontyLimits(timeoutMs: 5000),
+        );
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
+        final await_ = _findHandler(plugin, 'sandbox_await');
+        final handle = await spawn({'code': '42'});
+
+        final result = await await_({'handle': handle! as int});
+        expect(result, 42);
+
+        await plugin.onDispose();
+      });
+
+      test('no watchdog when timeout is null', () async {
+        final completers = <Completer<MontyProgress>>[];
+        final plugin = SandboxPlugin(
+          platformFactory: () async {
+            final c = Completer<MontyProgress>();
+            completers.add(c);
+            return _SlowMockPlatform(c.future);
+          },
+        );
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
+        final isAlive = _findHandler(plugin, 'sandbox_is_alive');
+        final handle = await spawn({'code': 'stuck'});
+
+        // Wait longer than any reasonable default watchdog.
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+
+        final alive = await isAlive({'handle': handle! as int});
+        expect(alive, isTrue);
+
+        for (final c in completers) {
+          c.complete(
+            const MontyComplete(result: MontyResult(usage: _usage)),
+          );
+        }
+        await plugin.onDispose();
+      });
+
+      test(
+        'explicit cancel before watchdog does not double-complete',
+        () async {
+          final plugin = SandboxPlugin(
+            platformFactory: () async =>
+                _SlowMockPlatform(Completer<MontyProgress>().future),
+            childLimits: const MontyLimits(timeoutMs: 5000),
+          );
+          final spawn = _findHandler(plugin, 'sandbox_spawn');
+          final cancel = _findHandler(plugin, 'sandbox_cancel');
+          final await_ = _findHandler(plugin, 'sandbox_await');
+          final handle = await spawn({'code': 'stuck'});
+
+          await cancel({'handle': handle! as int});
+
+          await expectLater(
+            await_({'handle': handle}),
+            throwsA(
+              isA<ChildSandboxException>().having(
+                (e) => e.message,
+                'message',
+                'cancelled',
+              ),
+            ),
+          );
+
+          await plugin.onDispose();
+        },
+      );
+
+      test('slot recovered after watchdog reap', () async {
+        final plugin = SandboxPlugin(
+          platformFactory: () async =>
+              _SlowMockPlatform(Completer<MontyProgress>().future),
+          maxChildren: 1,
+          childLimits: const MontyLimits(timeoutMs: 50),
+        );
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
+        final await_ = _findHandler(plugin, 'sandbox_await');
+        final h0 = await spawn({'code': 'stuck'});
+
+        // Slot is occupied — second spawn must fail.
+        expect(
+          () => spawn({'code': 'b'}),
+          throwsA(isA<StateError>()),
+        );
+
+        // Wait for watchdog to reap the stuck child.
+        try {
+          await await_({'handle': h0! as int});
+        } on ChildSandboxException {
+          // Expected.
+        }
+
+        // Slot is now free.
+        final h1 = await spawn({'code': 'c'});
+        expect(h1, isA<int>());
+
+        await plugin.onDispose();
+      });
+
+      test('child error before timeout cancels watchdog', () async {
+        final plugin = SandboxPlugin(
+          platformFactory: () async => _failingMock('NameError: x'),
+          childLimits: const MontyLimits(timeoutMs: 5000),
+        );
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
+        final await_ = _findHandler(plugin, 'sandbox_await');
+        final handle = await spawn({'code': 'x'});
+
+        await expectLater(
+          await_({'handle': handle! as int}),
+          throwsA(
+            isA<ChildSandboxException>().having(
+              (e) => e.message,
+              'message',
+              contains('NameError'),
+            ),
+          ),
+        );
+
+        await plugin.onDispose();
+      });
+
+      test('warning logged on watchdog reap', () async {
+        final sink = MemorySink();
+        final previousLevel = LogManager.instance.minimumLevel;
+        LogManager.instance
+          ..addSink(sink)
+          ..minimumLevel = LogLevel.trace;
+        final logger = LogManager.instance.getLogger('SandboxPlugin.test');
+
+        try {
+          final plugin = SandboxPlugin(
+            platformFactory: () async =>
+                _SlowMockPlatform(Completer<MontyProgress>().future),
+            childLimits: const MontyLimits(timeoutMs: 50),
+          )..logger = StructLogBridgeLogger(logger, LogManager.instance);
+          final spawn = _findHandler(plugin, 'sandbox_spawn');
+          final await_ = _findHandler(plugin, 'sandbox_await');
+          final handle = await spawn({'code': 'stuck'});
+
+          try {
+            await await_({'handle': handle! as int});
+          } on ChildSandboxException {
+            // Expected.
+          }
+
+          final warnRecord = sink.records.firstWhere(
+            (r) => r.message.contains('watchdog timeout'),
+          );
+          expect(warnRecord.level, LogLevel.warning);
+          expect(warnRecord.attributes['childId'], 0);
+          expect(warnRecord.attributes['timeoutMs'], 50);
+
+          await plugin.onDispose();
+        } finally {
+          LogManager.instance
+            ..removeSink(sink)
+            ..minimumLevel = previousLevel;
+        }
+      });
+    });
+
     group('ChildSandboxException', () {
       test('toString includes childId and message', () {
         const e = ChildSandboxException(childId: 3, message: 'boom');
