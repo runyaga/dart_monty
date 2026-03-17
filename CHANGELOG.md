@@ -1,3 +1,16 @@
+## 0.10.0
+
+### Changed
+
+- Upgrade Monty interpreter from 0.0.7 to 0.0.8 (via `dart_monty_native` 0.8.0)
+- Upstream monty 0.0.8 adds: full `math` module, PEP 448 unpacking, `re` module,
+  dict view/set operators, compiler stack-depth fixes
+
+### Fixed
+
+- ForIter stack corruption (#225) in nested for-loops with try/except — fixed by
+  upstream compiler stack-depth tracking (#246, #268)
+
 ## 0.9.2
 
 - Align all dependency lower bounds with actual API usage (fixes pub.dev
