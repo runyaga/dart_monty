@@ -92,6 +92,10 @@ jobs:
           echo "Tag: $TAG_VERSION | Pubspec: $PUBSPEC_VERSION"
           [ "$TAG_VERSION" = "$PUBSPEC_VERSION" ] || { echo "MISMATCH"; exit 1; }
 
+      - name: Copy NATIVE_LIB_VERSION into ffi package
+        if: inputs.package-name == 'dart_monty_ffi'
+        run: cp native/NATIVE_LIB_VERSION ${{ inputs.package-path }}/NATIVE_LIB_VERSION
+
       - name: Dry run
         working-directory: ${{ inputs.package-path }}
         run: |
