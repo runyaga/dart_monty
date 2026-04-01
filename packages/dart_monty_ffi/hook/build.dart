@@ -3,11 +3,31 @@ import 'dart:io';
 import 'package:code_assets/code_assets.dart';
 import 'package:hooks/hooks.dart';
 
-/// dart_monty native library version. Must match a GitHub Release tag.
-const _version = '0.8.0';
-
 /// GitHub repository for pre-built binary downloads.
 const _repo = 'runyaga/dart_monty';
+
+/// Reads the native library version from `NATIVE_LIB_VERSION`.
+///
+/// Single source of truth for the version used in GitHub Release download
+/// URLs (`native-lib-v<version>`). The file lives at the repo root in
+/// `native/NATIVE_LIB_VERSION` and is copied into the FFI package root
+/// before publishing. Both contributor and consumer paths read from it.
+String _readNativeLibVersion(Uri packageRoot) {
+  // Check package root first (consumer path: file copied at publish time).
+  final pkgFile = File.fromUri(packageRoot.resolve('NATIVE_LIB_VERSION'));
+  if (pkgFile.existsSync()) return pkgFile.readAsStringSync().trim();
+
+  // Fall back to monorepo path (contributor path).
+  final nativeFile = File.fromUri(
+    packageRoot.resolve('../../native/NATIVE_LIB_VERSION'),
+  );
+  if (nativeFile.existsSync()) return nativeFile.readAsStringSync().trim();
+
+  throw StateError(
+    'NATIVE_LIB_VERSION not found. '
+    'Expected at package root or native/ directory.',
+  );
+}
 
 void main(List<String> args) async {
   await build(args, (input, output) async {
@@ -67,7 +87,8 @@ void main(List<String> args) async {
       );
     } else {
       // Consumer path: download pre-built binary from GitHub Releases.
-      if (await _download(os, arch, libName, outFile)) {
+      final version = _readNativeLibVersion(input.packageRoot);
+      if (await _download(os, arch, libName, outFile, version)) {
         _addAsset(output, input.packageName, outFile.uri);
         return;
       }
@@ -105,6 +126,7 @@ Future<bool> _download(
   Architecture? arch,
   String libName,
   File outFile,
+  String version,
 ) async {
   final archStr = arch?.toString() ?? 'x64';
   final filename = switch (os) {
@@ -116,7 +138,7 @@ Future<bool> _download(
   if (filename == null) return false;
 
   final url = Uri.parse(
-    'https://github.com/$_repo/releases/download/native-lib-v$_version/$filename',
+    'https://github.com/$_repo/releases/download/native-lib-v$version/$filename',
   );
 
   final tmpFile = File('${outFile.path}.tmp');
