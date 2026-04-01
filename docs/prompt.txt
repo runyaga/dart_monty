@@ -5,49 +5,88 @@ Your code must stay within the boundaries described below.
 ## What Monty supports
 
 Core language:
-- Arithmetic, comparison, logical, bitwise operators
+- Arithmetic, comparison (including chained: 1 < x < 10), logical, bitwise
 - Variables, assignment, augmented assignment (+=, -=, etc.)
-- Strings (f-strings, slicing, methods: split, join, replace, strip, etc.)
-- Lists, dicts, sets, tuples (construction, indexing, slicing, comprehensions)
-- Control flow: if/elif/else, for, while, break, continue, pass
+- Multiple assignment (a, b = 1, 2), star unpack (a, *b = [1,2,3]),
+  nested unpack ((a, b), c = [1,2], 3)
+- Strings: f-strings, slicing, multiply ("ha" * 3)
+- Lists, dicts, sets, tuples: construction, indexing, slicing
+- Comprehensions: list, dict, set, and generator expressions
+- Control flow: if/elif/else, for, while, break, continue, pass, for-else
 - Functions: def, return, default args, *args, **kwargs, lambda
-- Exception handling: try/except/finally, raise
-- Classes (limited — no inheritance, no metaclasses, no descriptors)
+- Walrus operator (:=)
+- Exception handling: try/except/except as/finally/else, raise
 - Unpacking: PEP 448 generalized unpacking (*list, **dict in calls and literals)
+- assert statement
+- global and nonlocal keywords
+- Ternary expressions (x if cond else y)
+- Bytes literals (b"hello")
+
+String methods:
+  upper, lower, title, capitalize, startswith, endswith, find, count,
+  isdigit, isalpha, zfill, center, ljust, rjust, expandtabs, encode,
+  split, join, replace, strip, lstrip, rstrip
+
+List methods:
+  append, extend, insert, remove, pop, index, count, reverse, sort,
+  copy, clear
+
+Dict methods:
+  get, keys, values, items, pop, update, setdefault
+
+Set methods:
+  add, discard, union, intersection, difference, issubset, issuperset
 
 Built-in functions:
 - print, len, range, type, str, int, float, bool, list, dict, set, tuple
-- sorted, reversed, enumerate, zip, map, filter, sum, min, max, abs, round
-- isinstance, getattr, hasattr, id, hash, repr, ord, chr, hex, bin, oct
-- all, any, callable, dir, divmod, pow, format
+- sorted (with key=), reversed, enumerate, zip, map, filter
+- sum (with start=), min (with default=, key=), max (with key=), abs, round
+- isinstance (including tuple of types), getattr, id, hash
+- repr, ord, chr, hex, bin, oct
+- all, any, divmod, pow (including 3-arg modular), iter, next
 
 Standard library modules (import these by name):
-- math — factorial, sqrt, pi, e, ceil, floor, gcd, pow, log, sin, cos,
+- math -- factorial, sqrt, pi, e, ceil, floor, gcd, pow, log, sin, cos,
   radians, degrees, fabs, copysign, isnan, isinf
-- re — match, search, findall, sub, split (with groups and flags)
-- json — dumps, loads (with indent, sort_keys, separators kwargs);
+- re -- match, search, findall, sub, split (with groups and flags)
+- json -- dumps, loads (with indent, sort_keys, separators kwargs);
   raises json.JSONDecodeError on invalid input
-- datetime — date, datetime, timedelta, timezone classes;
-  supports constructors (date(y,m,d), datetime(y,m,d,h,m,s), timedelta(days=N)),
-  properties (.year, .month, .day, .hour, .minute, .second, .days),
-  methods (.isoformat(), .date(), .total_seconds()),
-  arithmetic (date - date = timedelta, date + timedelta = date),
-  and comparisons (<, ==, >)
-- asyncio — gather (for concurrent external function calls)
+- datetime -- date, datetime, timedelta, timezone classes;
+  constructors: date(y,m,d), datetime(y,m,d,h,m,s), timedelta(days=N);
+  properties: .year, .month, .day, .hour, .minute, .second, .days;
+  methods: .isoformat(), .date(), .total_seconds(), .strftime(),
+  .weekday(), .isoweekday(), .replace(), .fromisoformat();
+  arithmetic: date - date, date + timedelta, datetime - datetime;
+  comparisons: <, ==, >
+- os, sys, typing, pathlib -- importable but limited functionality
+- asyncio -- gather (for concurrent external function calls)
+
+Exception types (catchable with except):
+  TypeError, KeyError, IndexError, AttributeError, NameError,
+  ZeroDivisionError, ValueError, RuntimeError, StopIteration,
+  AssertionError, ModuleNotFoundError
 
 ## What Monty does NOT support
 
-- File I/O (no open(), no os.path, no pathlib operations)
+Do NOT use any of these -- they will fail:
+
+- Classes (class keyword) -- use dicts and functions instead
+- Generators / yield / yield from
+- Pattern matching (match/case)
+- del statement
+- Complex numbers (1+2j)
+- Decorators (@property, @staticmethod, @classmethod)
+- hasattr(), callable(), format() builtins -- not defined
+- str.maketrans(), int.bit_length(), float.is_integer() -- not implemented
+- collections, functools, itertools, string modules -- not available
+- File I/O (no open(), no file operations)
 - Network access (no urllib, no http, no socket)
 - System calls (no subprocess, no os.system, no shutil)
 - Threading / multiprocessing
-- Global/nonlocal keyword (limited support)
-- Decorators (no @property, @staticmethod, @classmethod)
-- Generators / yield (not fully supported)
-- Complex class hierarchies (no inheritance, no super())
 - C extensions or native modules (no numpy, pandas, etc.)
 - exec() / eval() / compile()
 - __import__ or importlib
+- Integer-to-string conversion > 4300 digits (security limit)
 
 If you need to access external resources (HTTP, databases, files), use
 external functions. The host application registers callable names; when
@@ -57,7 +96,7 @@ host provides the return value.
 ## External functions
 
 External functions are the bridge between Python and the host application.
-Treat them like regular Python functions — call them with positional and
+Treat them like regular Python functions -- call them with positional and
 keyword arguments, and they return a value.
 
 ```python
@@ -85,11 +124,13 @@ The host may set time, memory, and stack depth limits. Write efficient code:
 
 ## Best practices
 
-1. Keep code simple and direct — Monty favors straightforward Python
-2. Use list/dict comprehensions over complex loops when readable
-3. Return results as JSON-serializable types (str, int, float, bool,
+1. Keep code simple and direct -- Monty favors straightforward Python
+2. Use dicts instead of classes for structured data
+3. Use list/dict comprehensions over complex loops when readable
+4. Return results as JSON-serializable types (str, int, float, bool,
    list, dict, None) for best interop with the host
-4. Use json.dumps/json.loads for structured data exchange
-5. When the host provides external functions, document what you expect
+5. Use json.dumps/json.loads for structured data exchange
+6. When the host provides external functions, document what you expect
    them to return in comments
-6. Handle errors gracefully — unhandled exceptions terminate execution
+7. Handle errors gracefully -- unhandled exceptions terminate execution
+8. Use for loops instead of generators (yield is not supported)
