@@ -5,6 +5,10 @@ on:
     - cron: '0 8 * * 1'   # Weekly on Monday 08:00 UTC
   workflow_dispatch:
 
+permissions:
+  contents: read
+  issues: write
+
 jobs:
   check-upstream:
     runs-on: ubuntu-latest
@@ -14,13 +18,29 @@ jobs:
       - name: Check for new monty releases
         id: check
         run: |
-          # Rust crate: latest commit on pydantic/monty main
-          LATEST=$(gh api repos/pydantic/monty/commits/main --jq '.sha[:7]')
-          CURRENT=$(grep -oP 'rev = "\K[^"]*' native/Cargo.toml)
-          echo "latest=$LATEST" >> "$GITHUB_OUTPUT"
-          echo "current=$CURRENT" >> "$GITHUB_OUTPUT"
-          if [ "$LATEST" != "$CURRENT" ]; then
+          # Rust crate: latest release tag on pydantic/monty
+          LATEST_TAG=$(gh api repos/pydantic/monty/releases/latest --jq '.tag_name' 2>/dev/null || echo "unknown")
+          # Strip leading 'v' to get version number
+          LATEST_VERSION="${LATEST_TAG#v}"
+
+          # Current version from our Cargo.toml branch name (e.g., "runyaga/0.0.9" -> "0.0.9")
+          CURRENT_BRANCH=$(grep -oP 'branch = "\K[^"]*' native/Cargo.toml || echo "")
+          CURRENT_VERSION="${CURRENT_BRANCH##*/}"
+
+          # Fallback: check for rev-based pinning (legacy)
+          if [ -z "$CURRENT_VERSION" ]; then
+            CURRENT_VERSION=$(grep -oP 'rev = "\K[^"]*' native/Cargo.toml || echo "unknown")
+          fi
+
+          echo "latest_tag=$LATEST_TAG" >> "$GITHUB_OUTPUT"
+          echo "latest_version=$LATEST_VERSION" >> "$GITHUB_OUTPUT"
+          echo "current_version=$CURRENT_VERSION" >> "$GITHUB_OUTPUT"
+
+          if [ "$LATEST_VERSION" != "$CURRENT_VERSION" ] && [ "$LATEST_VERSION" != "unknown" ]; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::New monty release detected: $LATEST_TAG (current: $CURRENT_VERSION)"
+          else
+            echo "::notice::monty is up to date ($CURRENT_VERSION)"
           fi
 
           # NPM: latest version of @pydantic/monty
@@ -28,28 +48,45 @@ jobs:
           NPM_CURRENT=$(jq -r '.dependencies["@pydantic/monty"]' packages/dart_monty_wasm/js/package.json | tr -d '^~')
           echo "npm_latest=$NPM_LATEST" >> "$GITHUB_OUTPUT"
           echo "npm_current=$NPM_CURRENT" >> "$GITHUB_OUTPUT"
-          if [ "$NPM_LATEST" != "$NPM_CURRENT" ]; then
+          if [ "$NPM_LATEST" != "$NPM_CURRENT" ] && [ "$NPM_LATEST" != "unknown" ]; then
             echo "npm_changed=true" >> "$GITHUB_OUTPUT"
           fi
         env:
           GH_TOKEN: ${{ secrets.MONTY_USER_PAT }}
 
-      - name: Create PR for Rust update
+      - name: Open issue for new monty release
         if: steps.check.outputs.changed == 'true'
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          BRANCH="chore/bump-monty-${{ steps.check.outputs.latest }}"
-          git checkout -b "$BRANCH"
-          sed -i "s/rev = \"${{ steps.check.outputs.current }}\"/rev = \"${{ steps.check.outputs.latest }}\"/" native/Cargo.toml
-          git add native/Cargo.toml
-          git commit -m "chore(native): bump monty to ${{ steps.check.outputs.latest }}"
-          git push -u origin "$BRANCH"
-          gh pr create \
-            --title "chore(native): bump monty to ${{ steps.check.outputs.latest }}" \
-            --body "Upstream monty has new commits. CI will verify compatibility."
+          # Don't create duplicate issues
+          EXISTING=$(gh issue list --search "monty ${{ steps.check.outputs.latest_tag }} in:title" --state open --json number --jq '.[0].number' || echo "")
+          if [ -n "$EXISTING" ]; then
+            echo "Issue #$EXISTING already exists, skipping."
+            exit 0
+          fi
+          gh issue create \
+            --title "chore(native): new upstream monty release ${{ steps.check.outputs.latest_tag }}" \
+            --label "chore" \
+            --body "$(cat <<BODY
+          A new upstream monty release has been detected.
+
+          | | Version |
+          |---|---|
+          | **Latest** | ${{ steps.check.outputs.latest_tag }} |
+          | **Current** | ${{ steps.check.outputs.current_version }} |
+
+          **Release notes:** https://github.com/pydantic/monty/releases/tag/${{ steps.check.outputs.latest_tag }}
+
+          ### Upgrade steps
+          1. Update \`runyaga/monty\` fork branch
+          2. Update \`native/Cargo.toml\` branch pin
+          3. Update \`native/NATIVE_LIB_VERSION\`
+          4. Rebuild and run ladder tests
+          5. Check for new \`MontyObject\` variants in \`convert.rs\`
+          6. Un-xfail any ladder tests that now pass
+          BODY
+          )"
         env:
-          GH_TOKEN: ${{ secrets.MONTY_USER_PAT }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create PR for NPM update
         if: steps.check.outputs.npm_changed == 'true'
