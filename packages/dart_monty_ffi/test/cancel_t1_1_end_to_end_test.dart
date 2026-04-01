@@ -14,6 +14,14 @@ void main() {
   const infiniteLoop = 'while True: pass';
   const trivial = '2 + 2';
 
+  // Pre-load native library so trial 1 doesn't timeout on cold start.
+  setUpAll(() async {
+    final warmUp = NativeIsolateBindingsImpl();
+    await warmUp.init();
+    await warmUp.run('1');
+    await warmUp.dispose();
+  });
+
   group('cancel during execution', () {
     for (var trial = 1; trial <= 5; trial++) {
       test(

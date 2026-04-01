@@ -74,7 +74,9 @@ void main() {
 
   test(
     'snapshot round-trip',
-    skip: 'monty_snapshot returns null in current build',
+    skip: 'API mismatch: Dart requires active state for snapshot() but '
+        'Rust FFI only supports Ready state (before start/run). '
+        'Needs a compile-only API to bridge the gap.',
     () async {
       final monty = MontyFfi(bindings: bindings);
       final progress = await monty.start(
