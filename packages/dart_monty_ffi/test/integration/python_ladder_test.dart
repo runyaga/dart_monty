@@ -11,9 +11,8 @@ import 'package:test/test.dart';
 ///
 /// Run with:
 /// ```bash
-/// cd native && cargo build --release && cd ..
 /// cd packages/dart_monty_ffi
-/// DYLD_LIBRARY_PATH=../../native/target/release dart test --tags=ladder
+/// dart test --run-skipped --tags=ladder
 /// ```
 void main() {
   late NativeBindingsFfi bindings;

@@ -8,7 +8,9 @@ Pure Dart bindings for the Monty sandboxed Python interpreter.
 dart pub get                              # Install root dependencies
 dart format .                             # Format all Dart files
 python3 tool/analyze_packages.py          # Analyze all sub-packages
-dart test                                 # Run tests (from package dir)
+dart test                                 # Run unit tests (from package dir)
+dart test --run-skipped --tags=ladder     # Run ladder integration tests (FFI pkg)
+dart test --run-skipped --tags=integration # Run all integration tests (FFI pkg)
 dart test --coverage=coverage             # Run tests with coverage
 cd native && cargo build --release        # Build Rust native library
 cd native && cargo test                   # Run Rust unit + integration tests
@@ -108,6 +110,45 @@ Iterative execution uses C enum return tags (`MontyProgressTag`) plus
 accessor functions (`monty_pending_fn_name`, `monty_pending_fn_args_json`,
 `monty_complete_result_json`) — Dart constructs `MontyPending`/`MontyComplete`
 from these accessors, not from a single JSON blob.
+
+## Upstream Monty Module System
+
+Python stdlib modules are implemented in the upstream monty Rust source at:
+`crates/monty/src/modules/` (in the `pydantic/monty` or `runyaga/monty` repo)
+
+The `StandardLib` enum in `crates/monty/src/modules/mod.rs` registers all
+available modules. As of monty main branch: `sys`, `typing`, `asyncio`,
+`pathlib`, `os`, `math`, `json`, `re`, `datetime`.
+
+**dart\_monty is pinned** to the fork branch (`runyaga/0.0.8`). Not all
+upstream modules may be available in the pinned version. Check the ladder
+test fixtures (`test/fixtures/python_ladder/`) for which modules have
+passing tests vs `xfail` markers.
+
+When updating monty versions, check `crates/monty/src/modules/mod.rs` in
+the new version to see which modules were added or changed, then update
+the ladder fixtures accordingly.
+
+## Testing
+
+The FFI package uses Dart's native assets system (`hook/build.dart`) to
+auto-build or download the native library. `dart run` triggers the hook
+automatically. `dart test` also triggers the hook, but integration and
+ladder tests are **skipped by default** via `dart_test.yaml` to keep
+`dart test` fast.
+
+**Running integration tests** (from `packages/dart_monty_ffi`):
+
+```bash
+dart test --run-skipped --tags=ladder        # Python ladder fixtures only
+dart test --run-skipped --tags=integration   # All integration tests
+dart test --run-skipped                      # Everything including integration
+```
+
+`DYLD_LIBRARY_PATH` is NOT needed — the build hook resolves the native
+library automatically. The `--run-skipped` flag overrides the
+`dart_test.yaml` skip that keeps integration tests out of the default
+`dart test` run.
 
 ## Development Rules
 

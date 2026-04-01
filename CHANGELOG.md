@@ -1,3 +1,48 @@
+## 0.11.0
+
+### Changed
+
+- **Upgrade Monty interpreter from 0.0.8 to 0.0.9** (via `runyaga/0.0.9` fork branch)
+- Upstream monty 0.0.9 adds: `json` module, `datetime` module, nested subscript
+  assignment, `max()` kwargs/default, `str.expandtabs()`, BigInt string conversion
+  limit, memory growth tracking
+- Handle new `MontyObject` datetime variants (`Date`, `DateTime`, `TimeDelta`,
+  `TimeZone`) in FFI `convert.rs` — serialized as debug strings for now
+
+### Added
+
+- **Tier 17: `json` module** (13 tests) — `json.dumps`, `json.loads`, roundtrip
+  nested structures, `indent`/`sort_keys`/`separators` kwargs, None/bool
+  serialization, number types, invalid JSON error handling
+- **Tier 18: `datetime` module** (13 tests) — `date`, `datetime`, `timedelta`
+  constructors, properties (`.year`, `.month`, `.day`, `.hour`, etc.), methods
+  (`.isoformat()`, `.date()`, `.total_seconds()`), date arithmetic
+  (`date - date`, `date + timedelta`), comparisons, both import styles
+- **`docs/prompt.txt`** — recommended system prompt for LLMs generating Python
+  code targeting the Monty sandbox
+- Document upstream Monty module system in CLAUDE.md (`crates/monty/src/modules/`)
+
+### Fixed
+
+- Un-xfail tier 7 test #66 (`nested subscript assignment`) — now passes with
+  monty 0.0.9
+- **Native ladder gate was silently passing** — `tool/test_python_ladder.sh`
+  ran `dart test --tags=ladder` without `--run-skipped`, so all ladder tests
+  were skipped by `dart_test.yaml` and the gate reported PASSED without
+  actually running them
+- Remove obsolete `DYLD_LIBRARY_PATH`/`LD_LIBRARY_PATH` from gate scripts
+  and test doc comments — the `hook/build.dart` native assets hook handles
+  library resolution automatically for both `dart run` and `dart test`
+- Fix `dart_test.yaml` skip messages in `dart_monty_ffi` and `dart_monty_bridge`
+  to show correct invocation (`dart test --run-skipped --tags=...`)
+- Add `--run-skipped` to `test_python_ladder.sh`, `test_snapshot_portability.sh`
+
+### Docs
+
+- Update README: add `json` module usage example, correct stdlib module
+  coverage to "Partial" (only `math`, `re`, `json` — not all stdlib)
+- Add Testing section to CLAUDE.md with `dart test` guidance
+
 ## 0.10.0
 
 ### Changed
