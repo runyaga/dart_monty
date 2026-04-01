@@ -43,10 +43,10 @@ void main() {
   MontyPlatform createPlatform() => MontyFfi(bindings: bindings);
 
   DefaultMontyBridge createBridge() => DefaultMontyBridge(
-    platform: createPlatform(),
-    useFutures: false,
-    logger: StructLogBridgeLogger.root(LogManager.instance),
-  );
+        platform: createPlatform(),
+        useFutures: false,
+        logger: StructLogBridgeLogger.root(LogManager.instance),
+      );
 
   group('sandbox logging with real FFI', () {
     test('spawn + await logs full lifecycle', () async {

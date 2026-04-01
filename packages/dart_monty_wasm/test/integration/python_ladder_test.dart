@@ -277,7 +277,8 @@ Future<Map<String, dynamic>> _runAsyncFutures(
         (await _montyResolveFutures(
           jsonEncode(results).toJS,
           jsonEncode(errors).toJS,
-        ).toDart).toDart,
+        ).toDart)
+            .toDart,
       );
     } else {
       return {

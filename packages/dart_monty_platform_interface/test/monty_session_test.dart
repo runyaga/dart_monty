@@ -177,9 +177,8 @@ void main() {
         final result = await session.run('x = 1');
         expect(result.value, 1);
 
-        final nullResumes = mock.resumeReturnValues
-            .where((v) => v == null)
-            .length;
+        final nullResumes =
+            mock.resumeReturnValues.where((v) => v == null).length;
         expect(nullResumes, greaterThanOrEqualTo(2));
       });
     });

@@ -25,29 +25,29 @@ class MathPlugin extends MontyPlugin {
 
   @override
   List<HostFunction> get functions => [
-    HostFunction(
-      schema: const HostFunctionSchema(
-        name: 'add',
-        description: 'Add two numbers',
-        params: [
-          HostParam(name: 'a', type: HostParamType.number),
-          HostParam(name: 'b', type: HostParamType.number),
-        ],
-      ),
-      handler: (args) async => (args['a']! as num) + (args['b']! as num),
-    ),
-    HostFunction(
-      schema: const HostFunctionSchema(
-        name: 'multiply',
-        description: 'Multiply two numbers',
-        params: [
-          HostParam(name: 'a', type: HostParamType.number),
-          HostParam(name: 'b', type: HostParamType.number),
-        ],
-      ),
-      handler: (args) async => (args['a']! as num) * (args['b']! as num),
-    ),
-  ];
+        HostFunction(
+          schema: const HostFunctionSchema(
+            name: 'add',
+            description: 'Add two numbers',
+            params: [
+              HostParam(name: 'a', type: HostParamType.number),
+              HostParam(name: 'b', type: HostParamType.number),
+            ],
+          ),
+          handler: (args) async => (args['a']! as num) + (args['b']! as num),
+        ),
+        HostFunction(
+          schema: const HostFunctionSchema(
+            name: 'multiply',
+            description: 'Multiply two numbers',
+            params: [
+              HostParam(name: 'a', type: HostParamType.number),
+              HostParam(name: 'b', type: HostParamType.number),
+            ],
+          ),
+          handler: (args) async => (args['a']! as num) * (args['b']! as num),
+        ),
+      ];
 }
 
 Future<void> main() async {

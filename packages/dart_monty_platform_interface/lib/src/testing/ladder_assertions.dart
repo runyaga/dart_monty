@@ -16,8 +16,7 @@ void assertLadderResult(Object? actual, Map<String, dynamic> fixture) {
     expect(
       actual.toString(),
       contains(expectedContains),
-      reason:
-          'Fixture #${fixture['id']}: expected value to contain '
+      reason: 'Fixture #${fixture['id']}: expected value to contain '
           '"$expectedContains", got: "$actual"',
     );
 
@@ -40,8 +39,7 @@ void assertLadderResult(Object? actual, Map<String, dynamic> fixture) {
   expect(
     jsonEncode(sortedActual),
     jsonEncode(expected),
-    reason:
-        'Fixture #${fixture['id']}: '
+    reason: 'Fixture #${fixture['id']}: '
         'expected ${jsonEncode(expected)}, '
         'got ${jsonEncode(sortedActual)}',
   );
@@ -61,8 +59,7 @@ void assertPendingFields(MontyPending pending, Map<String, dynamic> fixture) {
     expect(
       pending.functionName,
       expectedFnName,
-      reason:
-          'Fixture #${fixture['id']}: expected functionName '
+      reason: 'Fixture #${fixture['id']}: expected functionName '
           '"$expectedFnName", got: "${pending.functionName}"',
     );
   }
@@ -72,8 +69,7 @@ void assertPendingFields(MontyPending pending, Map<String, dynamic> fixture) {
     expect(
       jsonEncode(pending.arguments),
       jsonEncode(expectedArgs),
-      reason:
-          'Fixture #${fixture['id']}: expected args '
+      reason: 'Fixture #${fixture['id']}: expected args '
           '${jsonEncode(expectedArgs)}, got: ${jsonEncode(pending.arguments)}',
     );
   }
@@ -84,8 +80,7 @@ void assertPendingFields(MontyPending pending, Map<String, dynamic> fixture) {
       expect(
         pending.kwargs,
         isNull,
-        reason:
-            'Fixture #${fixture['id']}: expected null kwargs, '
+        reason: 'Fixture #${fixture['id']}: expected null kwargs, '
             'got: ${pending.kwargs}',
       );
     } else {
@@ -95,8 +90,7 @@ void assertPendingFields(MontyPending pending, Map<String, dynamic> fixture) {
       expect(
         pending.kwargs,
         expectedMap,
-        reason:
-            'Fixture #${fixture['id']}: expected kwargs '
+        reason: 'Fixture #${fixture['id']}: expected kwargs '
             '$expectedMap, got: ${pending.kwargs}',
       );
     }
@@ -106,8 +100,7 @@ void assertPendingFields(MontyPending pending, Map<String, dynamic> fixture) {
     expect(
       pending.callId,
       isNot(0),
-      reason:
-          'Fixture #${fixture['id']}: expected nonzero callId, '
+      reason: 'Fixture #${fixture['id']}: expected nonzero callId, '
           'got: ${pending.callId}',
     );
   }
@@ -117,8 +110,7 @@ void assertPendingFields(MontyPending pending, Map<String, dynamic> fixture) {
     expect(
       pending.methodCall,
       expectedMethodCall,
-      reason:
-          'Fixture #${fixture['id']}: expected methodCall '
+      reason: 'Fixture #${fixture['id']}: expected methodCall '
           '$expectedMethodCall, got: ${pending.methodCall}',
     );
   }
@@ -142,8 +134,7 @@ void assertExceptionFields(
     expect(
       exception.excType,
       expectedExcType,
-      reason:
-          'Fixture #${fixture['id']}: expected excType '
+      reason: 'Fixture #${fixture['id']}: expected excType '
           '"$expectedExcType", got: "${exception.excType}"',
     );
   }
@@ -154,8 +145,7 @@ void assertExceptionFields(
     expect(
       traceback.length,
       greaterThanOrEqualTo(expectedMinFrames),
-      reason:
-          'Fixture #${fixture['id']}: expected >= $expectedMinFrames '
+      reason: 'Fixture #${fixture['id']}: expected >= $expectedMinFrames '
           'traceback frames, got: ${traceback.length}',
     );
   }
@@ -165,8 +155,7 @@ void assertExceptionFields(
     expect(
       exception.traceback.first.filename,
       isNotEmpty,
-      reason:
-          'Fixture #${fixture['id']}: expected traceback frame '
+      reason: 'Fixture #${fixture['id']}: expected traceback frame '
           'to have non-empty filename',
     );
   }
@@ -176,8 +165,7 @@ void assertExceptionFields(
     expect(
       exception.filename,
       expectedErrorFilename,
-      reason:
-          'Fixture #${fixture['id']}: expected error filename '
+      reason: 'Fixture #${fixture['id']}: expected error filename '
           '"$expectedErrorFilename", got: "${exception.filename}"',
     );
   }
@@ -192,8 +180,7 @@ void assertExceptionFields(
     expect(
       hasFilename,
       isTrue,
-      reason:
-          'Fixture #${fixture['id']}: expected traceback to contain '
+      reason: 'Fixture #${fixture['id']}: expected traceback to contain '
           'frame with filename "$expectedTracebackFilename"',
     );
   }

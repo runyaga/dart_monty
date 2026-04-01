@@ -264,7 +264,8 @@ class _FakeCoreBindings implements MontyCoreBindings {
     String code, {
     String? limitsJson,
     String? scriptName,
-  }) async => nextRunResult;
+  }) async =>
+      nextRunResult;
 
   @override
   Future<CoreProgressResult> start(
@@ -272,7 +273,8 @@ class _FakeCoreBindings implements MontyCoreBindings {
     String? extFnsJson,
     String? limitsJson,
     String? scriptName,
-  }) async => nextStartResult;
+  }) async =>
+      nextStartResult;
 
   @override
   Future<CoreProgressResult> resume(String valueJson) async =>
@@ -290,7 +292,8 @@ class _FakeCoreBindings implements MontyCoreBindings {
   Future<CoreProgressResult> resolveFutures(
     String resultsJson,
     String errorsJson,
-  ) async => throw UnsupportedError('not supported');
+  ) async =>
+      throw UnsupportedError('not supported');
 
   @override
   Future<Uint8List> snapshot() async => Uint8List(0);

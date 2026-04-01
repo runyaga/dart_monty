@@ -117,8 +117,8 @@ class MockMontyPlatform extends MontyPlatform
   /// The external functions passed to the most recent [start] call.
   List<String>? get lastStartExternalFunctions =>
       startExternalFunctionsList.isEmpty
-      ? null
-      : startExternalFunctionsList.last;
+          ? null
+          : startExternalFunctionsList.last;
 
   /// The limits passed to the most recent [start] call.
   MontyLimits? get lastStartLimits =>

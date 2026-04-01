@@ -15,7 +15,7 @@ class JsonPlugin extends MontyPlugin {
   /// [maxInputSize] controls the maximum allowed character count for
   /// `json_loads` and `json_get` inputs. Defaults to 1 MB.
   JsonPlugin({int? maxInputSize})
-    : _maxInputSize = maxInputSize ?? defaultMaxJsonInputSize;
+      : _maxInputSize = maxInputSize ?? defaultMaxJsonInputSize;
 
   final int _maxInputSize;
 
@@ -30,75 +30,72 @@ class JsonPlugin extends MontyPlugin {
 
   @override
   List<HostFunction> get functions => [
-    HostFunction(
-      schema: const HostFunctionSchema(
-        name: 'json_loads',
-        description: 'Parse a JSON string into a dict or list.',
-        params: [
-          HostParam(
-            name: 'data',
-            type: HostParamType.string,
-            description: 'JSON string to parse.',
+        HostFunction(
+          schema: const HostFunctionSchema(
+            name: 'json_loads',
+            description: 'Parse a JSON string into a dict or list.',
+            params: [
+              HostParam(
+                name: 'data',
+                type: HostParamType.string,
+                description: 'JSON string to parse.',
+              ),
+            ],
           ),
-        ],
-      ),
-      handler: _handleLoads,
-    ),
-    HostFunction(
-      schema: const HostFunctionSchema(
-        name: 'json_dumps',
-        description:
-            'Serialize a dict or list to a JSON string. '
-            'Set indent > 0 for pretty-printing.',
-        params: [
-          HostParam(
-            name: 'data',
-            type: HostParamType.any,
+          handler: _handleLoads,
+        ),
+        HostFunction(
+          schema: const HostFunctionSchema(
+            name: 'json_dumps',
+            description: 'Serialize a dict or list to a JSON string. '
+                'Set indent > 0 for pretty-printing.',
+            params: [
+              HostParam(
+                name: 'data',
+                type: HostParamType.any,
+                description: 'Value to serialize (dict, list, string, number, '
+                    'bool, null).',
+              ),
+              HostParam(
+                name: 'indent',
+                type: HostParamType.integer,
+                isRequired: false,
+                defaultValue: 0,
+                description: 'Indentation spaces. 0 = compact.',
+              ),
+            ],
+          ),
+          handler: _handleDumps,
+        ),
+        HostFunction(
+          schema: const HostFunctionSchema(
+            name: 'json_get',
             description:
-                'Value to serialize (dict, list, string, number, '
-                'bool, null).',
+                'Parse JSON text and extract a value by dot-separated path. '
+                'Returns null if path not found. '
+                'Use integer segments for list indexing: "items.0.name".',
+            params: [
+              HostParam(
+                name: 'data',
+                type: HostParamType.string,
+                description: 'JSON string to parse.',
+              ),
+              HostParam(
+                name: 'path',
+                type: HostParamType.string,
+                description: 'Dot-separated path. e.g. "scores.ratio.value" or '
+                    '"items.0.name".',
+              ),
+            ],
           ),
-          HostParam(
-            name: 'indent',
-            type: HostParamType.integer,
-            isRequired: false,
-            defaultValue: 0,
-            description: 'Indentation spaces. 0 = compact.',
-          ),
-        ],
-      ),
-      handler: _handleDumps,
-    ),
-    HostFunction(
-      schema: const HostFunctionSchema(
-        name: 'json_get',
-        description:
-            'Parse JSON text and extract a value by dot-separated path. '
-            'Returns null if path not found. '
-            'Use integer segments for list indexing: "items.0.name".',
-        params: [
-          HostParam(
-            name: 'data',
-            type: HostParamType.string,
-            description: 'JSON string to parse.',
-          ),
-          HostParam(
-            name: 'path',
-            type: HostParamType.string,
-            description:
-                'Dot-separated path. e.g. "scores.ratio.value" or '
-                '"items.0.name".',
-          ),
-        ],
-      ),
-      handler: _handleGet,
-    ),
-  ];
+          handler: _handleGet,
+        ),
+      ];
 
   @override
   MontyPlugin? createChildInstance({ChildSpawnContext? context}) => JsonPlugin(
-    maxInputSize: _maxInputSize,
-  );
+        maxInputSize: _maxInputSize,
+      );
 
   Future<Object?> _handleLoads(Map<String, Object?> args) async {
     final text = args['data']! as String;

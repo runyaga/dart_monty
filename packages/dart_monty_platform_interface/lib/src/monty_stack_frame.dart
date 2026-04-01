@@ -104,16 +104,16 @@ final class MontyStackFrame {
 
   @override
   int get hashCode => Object.hash(
-    filename,
-    startLine,
-    startColumn,
-    endLine,
-    endColumn,
-    frameName,
-    previewLine,
-    hideCaret,
-    hideFrameName,
-  );
+        filename,
+        startLine,
+        startColumn,
+        endLine,
+        endColumn,
+        frameName,
+        previewLine,
+        hideCaret,
+        hideFrameName,
+      );
 
   @override
   String toString() => 'MontyStackFrame($filename:$startLine:$startColumn)';

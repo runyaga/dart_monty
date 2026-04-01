@@ -30,7 +30,8 @@ class WasmBindingsJs extends WasmBindings {
     String code, {
     String? limitsJson,
     String? scriptName,
-  }) => throw UnimplementedError();
+  }) =>
+      throw UnimplementedError();
 
   @override
   Future<WasmProgressResult> start(
@@ -38,7 +39,8 @@ class WasmBindingsJs extends WasmBindings {
     String? extFnsJson,
     String? limitsJson,
     String? scriptName,
-  }) => throw UnimplementedError();
+  }) =>
+      throw UnimplementedError();
 
   @override
   Future<WasmProgressResult> resume(String valueJson) =>
@@ -55,7 +57,8 @@ class WasmBindingsJs extends WasmBindings {
   Future<WasmProgressResult> resolveFutures(
     String resultsJson,
     String errorsJson,
-  ) => throw UnimplementedError();
+  ) =>
+      throw UnimplementedError();
 
   @override
   Future<Uint8List> snapshot() => throw UnimplementedError();
