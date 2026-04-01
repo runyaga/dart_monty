@@ -7,8 +7,16 @@ const int defaultMaxJsonInputSize = 1024 * 1024;
 
 /// Plugin that provides JSON parsing and serialization to Python scripts.
 ///
+/// **Deprecated:** As of monty 0.0.9, the interpreter natively supports
+/// `import json` with `json.loads()` and `json.dumps()`. Prefer the native
+/// module over these host functions. This plugin is retained for backwards
+/// compatibility and for the `json_get` dot-path extraction helper which
+/// has no native equivalent.
+///
 /// Uses Dart's `dart:convert` for reliable, battle-tested JSON handling.
 /// All functions are prefixed with `json_`.
+@Deprecated('Use native `import json` in Python code instead. '
+    'Monty 0.0.9+ supports json.loads() and json.dumps() natively.')
 class JsonPlugin extends MontyPlugin {
   /// Creates a [JsonPlugin].
   ///
@@ -24,16 +32,16 @@ class JsonPlugin extends MontyPlugin {
 
   @override
   String? get systemPromptContext =>
-      'Parse and serialize JSON. Use json_loads to convert JSON text to '
-      'a dict/list. Use json_dumps to convert a dict/list to JSON text. '
-      'Use json_get for dot-path extraction from JSON text.';
+      'JSON is available natively: `import json; json.loads(s); json.dumps(d)`. '
+      'For dot-path extraction from JSON text, use json_get(data, path).';
 
   @override
   List<HostFunction> get functions => [
         HostFunction(
           schema: const HostFunctionSchema(
             name: 'json_loads',
-            description: 'Parse a JSON string into a dict or list.',
+            description: '[Deprecated: use import json; json.loads()] '
+                'Parse a JSON string into a dict or list.',
             params: [
               HostParam(
                 name: 'data',
@@ -47,7 +55,8 @@ class JsonPlugin extends MontyPlugin {
         HostFunction(
           schema: const HostFunctionSchema(
             name: 'json_dumps',
-            description: 'Serialize a dict or list to a JSON string. '
+            description: '[Deprecated: use import json; json.dumps()] '
+                'Serialize a dict or list to a JSON string. '
                 'Set indent > 0 for pretty-printing.',
             params: [
               HostParam(
