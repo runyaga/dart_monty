@@ -1,7 +1,24 @@
 /// Platform interface for dart_monty.
 ///
-/// Defines the shared API contract implemented by native and web backends.
-/// This package is not intended for direct use — import `dart_monty` instead.
+/// Defines the shared API contract and domain types used by all
+/// dart_monty packages. **Most users should import `dart_monty`
+/// instead**, which re-exports everything from this library plus
+/// the `Monty` convenience class.
+///
+/// ## Key Types
+///
+/// | Category | Types |
+/// |----------|-------|
+/// | **Core** | `MontyPlatform`, `MontyResult`, `MontyException` |
+/// | **Execution** | `MontyProgress`, `MontyPending`, `MontyComplete` |
+/// | **Errors** | `MontyError`, `MontyScriptError`, `MontyCancelledError` |
+/// | **Config** | `MontyLimits`, `MontyResourceUsage` |
+/// | **Sessions** | `MontySession`, `MontyCancelToken` |
+///
+/// ## For Backend Implementers
+///
+/// Import `monty_backend_spi.dart` for `BaseMontyPlatform` and
+/// `MontyCoreBindings`.
 library;
 
 export 'src/bridge_logger.dart';

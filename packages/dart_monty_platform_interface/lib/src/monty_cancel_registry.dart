@@ -12,6 +12,8 @@ import 'package:dart_monty_platform_interface/src/core_bindings.dart';
 ///
 /// This class is stateless — all state is held in static fields scoped
 /// to the current isolate.
+///
+/// {@category Sessions}
 abstract final class MontyCancelRegistry {
   // ---------------------------------------------------------------------------
   // Native cancel callbacks (registered by dart_monty_ffi at init time)

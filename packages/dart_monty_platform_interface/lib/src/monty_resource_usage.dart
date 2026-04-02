@@ -4,6 +4,8 @@ import 'package:meta/meta.dart';
 ///
 /// Tracks [memoryBytesUsed], [timeElapsedMs], and [stackDepthUsed] to help
 /// callers monitor and budget sandbox resources.
+///
+/// {@category Configuration}
 @immutable
 final class MontyResourceUsage {
   /// Creates a [MontyResourceUsage] with the given resource metrics.

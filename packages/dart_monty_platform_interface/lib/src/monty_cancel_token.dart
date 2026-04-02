@@ -4,6 +4,8 @@ import 'package:dart_monty_platform_interface/src/monty_cancel_registry.dart';
 ///
 /// Wraps the monotonic handle ID for type safety.
 /// Safe to send via SendPort. Immutable.
+///
+/// {@category Sessions}
 extension type const MontyCancelToken(int id) {
   /// Cancel the interpreter this token refers to.
   ///

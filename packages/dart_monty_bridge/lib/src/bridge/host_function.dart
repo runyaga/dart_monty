@@ -8,6 +8,8 @@ typedef HostFunctionHandler = Future<Object?> Function(
 );
 
 /// A host function: schema + handler + optional role.
+///
+/// {@category Host Functions}
 @immutable
 class HostFunction {
   /// Creates a [HostFunction].

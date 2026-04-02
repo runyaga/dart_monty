@@ -3,6 +3,8 @@ import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart
 
 /// Monty sandboxed Python interpreter.
 ///
+/// {@category Core}
+///
 /// Uses compile-time conditional imports to select the backend:
 /// - Native (macOS, Linux, Windows): Rust FFI via `dart:ffi`
 /// - Web (browser): WASM via `dart:js_interop`

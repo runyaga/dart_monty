@@ -11,6 +11,8 @@ import 'package:meta/meta.dart';
 ///   if (frame.previewLine != null) print('  ${frame.previewLine}');
 /// }
 /// ```
+///
+/// {@category Configuration}
 @immutable
 final class MontyStackFrame {
   /// Creates a [MontyStackFrame] with source location and optional metadata.

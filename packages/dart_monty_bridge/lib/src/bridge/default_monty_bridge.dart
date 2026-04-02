@@ -52,6 +52,8 @@ class _PendingFuture {
 ///
 /// Orchestrates the Monty start/resume loop, dispatching external function
 /// calls to registered [HostFunction] handlers and emitting [BridgeEvent]s.
+///
+/// {@category Bridge}
 class DefaultMontyBridge implements MontyBridge {
   /// Creates a [DefaultMontyBridge].
   ///

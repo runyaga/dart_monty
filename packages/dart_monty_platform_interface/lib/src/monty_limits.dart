@@ -3,6 +3,8 @@ import 'package:meta/meta.dart';
 /// Resource limits to impose on a Monty Python execution.
 ///
 /// All fields are optional — omitted limits are unconstrained.
+///
+/// {@category Configuration}
 @immutable
 final class MontyLimits {
   /// Creates a [MontyLimits] with optional resource constraints.

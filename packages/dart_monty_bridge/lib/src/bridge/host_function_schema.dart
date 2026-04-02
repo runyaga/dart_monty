@@ -7,6 +7,8 @@ import 'package:meta/meta.dart';
 /// Defines the function's name, description, and ordered parameters.
 /// Handles mapping Monty's positional/keyword arguments to named parameters
 /// and validates types before the handler runs.
+///
+/// {@category Host Functions}
 @immutable
 class HostFunctionSchema {
   /// Creates a [HostFunctionSchema].

@@ -16,6 +16,8 @@
 ///   }
 /// }
 /// ```
+///
+/// {@category Errors}
 sealed class MontyError implements Exception {
   /// Creates a [MontyError] with the given [message].
   const MontyError(this.message);
@@ -33,6 +35,8 @@ sealed class MontyError implements Exception {
 /// Thrown when execution is cancelled via cancel() or cancelById().
 ///
 /// **Supervisor action:** Expected — no restart needed.
+///
+/// {@category Errors}
 class MontyCancelledError extends MontyError {
   /// Creates a [MontyCancelledError].
   const MontyCancelledError([super.message = 'Execution cancelled']);
@@ -45,6 +49,8 @@ class MontyCancelledError extends MontyError {
 ///
 /// **Application error** — handled by orchestrator/saga, NOT supervisor.
 /// Do not restart blindly — Python exceptions are deterministic.
+///
+/// {@category Errors}
 class MontyScriptError extends MontyError {
   /// Creates a [MontyScriptError].
   const MontyScriptError(super.message, {this.excType});
@@ -59,6 +65,8 @@ class MontyScriptError extends MontyError {
 /// Thrown when the Rust interpreter panics (caught by catch_unwind).
 ///
 /// **Supervisor action:** Harsh backoff — indicates a native bridge bug.
+///
+/// {@category Errors}
 class MontyPanicError extends MontyError {
   /// Creates a [MontyPanicError].
   const MontyPanicError(super.message);
@@ -70,6 +78,8 @@ class MontyPanicError extends MontyError {
 /// Thrown when the isolate/Worker died unexpectedly.
 ///
 /// **Supervisor action:** Restart immediately (infrastructure failure).
+///
+/// {@category Errors}
 class MontyCrashError extends MontyError {
   /// Creates a [MontyCrashError].
   const MontyCrashError([super.message = 'Interpreter crashed unexpectedly']);
@@ -81,6 +91,8 @@ class MontyCrashError extends MontyError {
 /// Thrown when the interpreter is disposed while execution is in flight.
 ///
 /// **Supervisor action:** Do NOT restart — fix the caller.
+///
+/// {@category Errors}
 class MontyDisposedError extends MontyError {
   /// Creates a [MontyDisposedError].
   const MontyDisposedError([
@@ -94,6 +106,8 @@ class MontyDisposedError extends MontyError {
 /// Thrown on resource exhaustion: OOM, timeout, WASM trap.
 ///
 /// **Supervisor action:** Reduce concurrency, then restart.
+///
+/// {@category Errors}
 class MontyResourceError extends MontyError {
   /// Creates a [MontyResourceError].
   const MontyResourceError(super.message);

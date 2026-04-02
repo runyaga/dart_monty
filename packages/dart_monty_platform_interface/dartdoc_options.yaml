@@ -1,0 +1,20 @@
+dartdoc:
+  categories:
+    "Core":
+      markdown: doc/categories/core.md
+    "Execution":
+      markdown: doc/categories/execution.md
+    "Errors":
+      markdown: doc/categories/errors.md
+    "Configuration":
+      markdown: doc/categories/configuration.md
+    "Sessions":
+      markdown: doc/categories/sessions.md
+  categoryOrder:
+    - "Core"
+    - "Execution"
+    - "Errors"
+    - "Configuration"
+    - "Sessions"
+  exclude:
+    - "monty_backend_spi"

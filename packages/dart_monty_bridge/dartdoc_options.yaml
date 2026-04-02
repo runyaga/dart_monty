@@ -1,0 +1,17 @@
+dartdoc:
+  categories:
+    "Bridge":
+      markdown: doc/categories/bridge.md
+    "Host Functions":
+      markdown: doc/categories/host_functions.md
+    "Plugins":
+      markdown: doc/categories/plugins.md
+    "Events":
+      markdown: doc/categories/events.md
+  categoryOrder:
+    - "Bridge"
+    - "Host Functions"
+    - "Plugins"
+    - "Events"
+  exclude:
+    - "bridge_internals"

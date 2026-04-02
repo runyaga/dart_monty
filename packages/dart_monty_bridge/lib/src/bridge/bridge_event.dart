@@ -5,12 +5,16 @@ import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart
 /// These events describe what happened during Python execution without
 /// coupling to any specific event protocol (e.g. ag-ui). Downstream
 /// consumers map these to their own protocol types.
+///
+/// {@category Events}
 sealed class BridgeEvent {
   /// Creates a [BridgeEvent].
   const BridgeEvent();
 }
 
 /// Execution started.
+///
+/// {@category Events}
 class BridgeRunStarted extends BridgeEvent {
   /// Creates a [BridgeRunStarted].
   const BridgeRunStarted({required this.threadId, required this.runId});
@@ -23,6 +27,8 @@ class BridgeRunStarted extends BridgeEvent {
 }
 
 /// Execution completed successfully.
+///
+/// {@category Events}
 class BridgeRunFinished extends BridgeEvent {
   /// Creates a [BridgeRunFinished].
   const BridgeRunFinished({
@@ -46,6 +52,8 @@ class BridgeRunFinished extends BridgeEvent {
 }
 
 /// Execution failed with an error.
+///
+/// {@category Events}
 class BridgeRunError extends BridgeEvent {
   /// Creates a [BridgeRunError].
   const BridgeRunError({
@@ -69,6 +77,8 @@ class BridgeRunError extends BridgeEvent {
 }
 
 /// A host function call step started.
+///
+/// {@category Events}
 class BridgeStepStarted extends BridgeEvent {
   /// Creates a [BridgeStepStarted].
   const BridgeStepStarted({required this.stepId});
@@ -78,6 +88,8 @@ class BridgeStepStarted extends BridgeEvent {
 }
 
 /// A host function call step finished.
+///
+/// {@category Events}
 class BridgeStepFinished extends BridgeEvent {
   /// Creates a [BridgeStepFinished].
   const BridgeStepFinished({required this.stepId});
@@ -87,6 +99,8 @@ class BridgeStepFinished extends BridgeEvent {
 }
 
 /// A tool call began (function name known).
+///
+/// {@category Events}
 class BridgeToolCallStart extends BridgeEvent {
   /// Creates a [BridgeToolCallStart].
   const BridgeToolCallStart({required this.callId, required this.name});
@@ -99,6 +113,8 @@ class BridgeToolCallStart extends BridgeEvent {
 }
 
 /// Tool call arguments (JSON delta).
+///
+/// {@category Events}
 class BridgeToolCallArgs extends BridgeEvent {
   /// Creates a [BridgeToolCallArgs].
   const BridgeToolCallArgs({required this.callId, required this.delta});
@@ -111,6 +127,8 @@ class BridgeToolCallArgs extends BridgeEvent {
 }
 
 /// Tool call arguments complete.
+///
+/// {@category Events}
 class BridgeToolCallEnd extends BridgeEvent {
   /// Creates a [BridgeToolCallEnd].
   const BridgeToolCallEnd({required this.callId});
@@ -120,6 +138,8 @@ class BridgeToolCallEnd extends BridgeEvent {
 }
 
 /// Tool call result (handler output or error).
+///
+/// {@category Events}
 class BridgeToolCallResult extends BridgeEvent {
   /// Creates a [BridgeToolCallResult].
   const BridgeToolCallResult({required this.callId, required this.result});
@@ -132,6 +152,8 @@ class BridgeToolCallResult extends BridgeEvent {
 }
 
 /// Text output started (print buffer flush).
+///
+/// {@category Events}
 class BridgeTextStart extends BridgeEvent {
   /// Creates a [BridgeTextStart].
   const BridgeTextStart({required this.messageId});
@@ -141,6 +163,8 @@ class BridgeTextStart extends BridgeEvent {
 }
 
 /// Text output content delta.
+///
+/// {@category Events}
 class BridgeTextContent extends BridgeEvent {
   /// Creates a [BridgeTextContent].
   const BridgeTextContent({required this.messageId, required this.delta});
@@ -153,6 +177,8 @@ class BridgeTextContent extends BridgeEvent {
 }
 
 /// Text output ended.
+///
+/// {@category Events}
 class BridgeTextEnd extends BridgeEvent {
   /// Creates a [BridgeTextEnd].
   const BridgeTextEnd({required this.messageId});
@@ -162,12 +188,16 @@ class BridgeTextEnd extends BridgeEvent {
 }
 
 /// Event loop entered wait state (Python called `wait_for_event()`).
+///
+/// {@category Events}
 class BridgeEventLoopWaiting extends BridgeEvent {
   /// Creates a [BridgeEventLoopWaiting].
   const BridgeEventLoopWaiting();
 }
 
 /// Event loop resumed after receiving a UI event.
+///
+/// {@category Events}
 class BridgeEventLoopResumed extends BridgeEvent {
   /// Creates a [BridgeEventLoopResumed].
   const BridgeEventLoopResumed({required this.event});
@@ -177,6 +207,8 @@ class BridgeEventLoopResumed extends BridgeEvent {
 }
 
 /// Python called `render_ui` with a schema.
+///
+/// {@category Events}
 class BridgeUiRendered extends BridgeEvent {
   /// Creates a [BridgeUiRendered].
   const BridgeUiRendered({required this.schema});

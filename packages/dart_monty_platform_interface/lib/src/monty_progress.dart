@@ -24,6 +24,8 @@ const _deepEquality = DeepCollectionEquality();
 ///     print('Resolve futures: $pendingCallIds');
 /// }
 /// ```
+///
+/// {@category Execution}
 sealed class MontyProgress {
   /// Creates a [MontyProgress].
   const MontyProgress();
@@ -49,6 +51,8 @@ sealed class MontyProgress {
 }
 
 /// Execution completed with a [result].
+///
+/// {@category Execution}
 @immutable
 final class MontyComplete extends MontyProgress {
   /// Creates a [MontyComplete] with the given [result].
@@ -103,6 +107,8 @@ final class MontyComplete extends MontyProgress {
 ///     print('$functionName called with kwargs: $kwargs');
 ///   }
 /// ```
+///
+/// {@category Execution}
 @immutable
 final class MontyPending extends MontyProgress {
   /// Creates a [MontyPending] with the given [functionName] and [arguments].
@@ -208,6 +214,8 @@ final class MontyPending extends MontyProgress {
 ///     Map.fromIterables(pendingCallIds, results),
 ///   );
 /// ```
+///
+/// {@category Execution}
 @immutable
 final class MontyResolveFutures extends MontyProgress {
   /// Creates a [MontyResolveFutures] with the given [pendingCallIds].

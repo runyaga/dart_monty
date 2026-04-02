@@ -13,6 +13,8 @@ import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart
 /// All function names must be prefixed with the plugin's namespace followed
 /// by an underscore (e.g., namespace `sqlite` requires functions named
 /// `sqlite_query`, `sqlite_execute`, etc.).
+///
+/// {@category Plugins}
 class PluginRegistry {
   final List<MontyPlugin> _plugins = [];
   List<MontyPlugin>? _attachOrder;

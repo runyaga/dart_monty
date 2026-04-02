@@ -60,6 +60,8 @@ const _statementPrefixes = [
 /// final result = await session.run('x + 1');
 /// print(result.value); // 43
 /// ```
+///
+/// {@category Sessions}
 class MontySession {
   /// Creates a [MontySession] wrapping the given [platform].
   ///

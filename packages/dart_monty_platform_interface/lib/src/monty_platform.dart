@@ -7,11 +7,10 @@ import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 /// The platform interface for the Monty sandboxed Python interpreter.
 ///
 /// Platform implementations (FFI, Web) extend this class to provide
-/// concrete behavior.
+/// concrete behavior. Most users should use `Monty` from `dart_monty`
+/// instead of this class directly.
 ///
-/// See also:
-/// - `dart_monty_ffi` — native FFI implementation
-/// - `dart_monty_web` — web JS interop implementation
+/// {@category Core}
 abstract class MontyPlatform extends PlatformInterface {
   /// Creates a [MontyPlatform] with the platform interface verification
   /// token.

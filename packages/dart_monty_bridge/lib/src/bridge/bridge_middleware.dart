@@ -31,6 +31,8 @@ typedef ToolHandler = Future<Object?> Function(
 ///
 /// Register via `use()` on the bridge. First registered = outermost in the
 /// onion chain. Call `next` to proceed, or throw/return to short-circuit.
+///
+/// {@category Bridge}
 abstract class BridgeMiddleware {
   /// Wraps a tool call. Inspect [role] to decide whether to enforce policy.
   Future<Object?> handle(

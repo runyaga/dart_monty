@@ -37,6 +37,8 @@ typedef RenderUiCallback = void Function(Map<String, dynamic> schema);
 /// Python holds state in a `while True` loop, calling `wait_for_event()` to
 /// pause and `render_ui(schema)` to push UI updates. The host dispatches
 /// user interactions via [dispatchUiEvent].
+///
+/// {@category Bridge}
 class EventLoopBridge extends DefaultMontyBridge {
   /// Creates an [EventLoopBridge].
   ///

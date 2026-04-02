@@ -8,6 +8,8 @@ import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart
 ///
 /// Executes Python code in the Monty sandbox, dispatches external function
 /// calls to registered [HostFunction] handlers, and emits [BridgeEvent]s.
+///
+/// {@category Bridge}
 abstract class MontyBridge {
   /// Logger for this bridge instance.
   ///

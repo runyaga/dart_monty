@@ -28,6 +28,8 @@ const _deepEquality = DeepCollectionEquality();
 ///     handleGenericError(exception);
 /// }
 /// ```
+///
+/// {@category Core}
 @immutable
 final class MontyException implements Exception {
   /// Creates a [MontyException] with the given [message] and optional

@@ -27,6 +27,8 @@ class ChildSpawnContext {
 ///
 /// Each plugin declares a unique [namespace], a set of [functions], and
 /// optional lifecycle hooks ([onRegister], [onDispose]).
+///
+/// {@category Plugins}
 abstract class MontyPlugin {
   /// Unique namespace prefix (e.g., "df", "chart", "sqlite").
   String get namespace;

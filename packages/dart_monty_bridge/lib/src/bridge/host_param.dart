@@ -2,6 +2,8 @@ import 'package:dart_monty_bridge/src/bridge/host_param_type.dart';
 import 'package:meta/meta.dart';
 
 /// Describes a single parameter of a host function.
+///
+/// {@category Host Functions}
 @immutable
 class HostParam {
   /// Creates a [HostParam].

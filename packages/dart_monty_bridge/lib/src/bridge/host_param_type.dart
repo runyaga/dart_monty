@@ -1,4 +1,6 @@
 /// Parameter types for host function arguments.
+///
+/// {@category Host Functions}
 enum HostParamType {
   /// String parameter. Monty Python `str`.
   string,

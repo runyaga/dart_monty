@@ -7,6 +7,8 @@ import 'package:meta/meta.dart';
 /// A result always carries [usage] statistics. It contains either a [value]
 /// (the Python expression result) or an [error] (a [MontyException]), but
 /// never both.
+///
+/// {@category Core}
 @immutable
 final class MontyResult {
   /// Creates a [MontyResult] with the given [value], optional [error], and
