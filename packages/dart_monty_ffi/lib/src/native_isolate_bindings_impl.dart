@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 import 'dart:isolate';
 import 'dart:typed_data';
 
@@ -279,6 +280,9 @@ class NativeIsolateBindingsImpl extends NativeIsolateBindings {
   /// timeout and were force-killed.
   static int _zombieCount = 0;
 
+  /// Emit a diagnostic warning once zombie count reaches this threshold.
+  static const int _zombieWarningThreshold = 3;
+
   /// The number of zombie worker isolates observed so far.
   static int get zombieCount => _zombieCount;
 
@@ -499,6 +503,15 @@ class NativeIsolateBindingsImpl extends NativeIsolateBindings {
           .onError((_, _) => false);
       if (!exited) {
         _zombieCount++;
+        if (_zombieCount >= _zombieWarningThreshold) {
+          developer.log(
+            'dart_monty_ffi: $_zombieCount zombie isolate(s) detected. '
+            'Rust MontyHandle(s) leaked. '
+            'Consider investigating long-running or stuck executions.',
+            name: 'dart_monty_ffi',
+            level: 900, // WARNING
+          );
+        }
         _cleanupAfterCrashDisposal(skipFreeById: true);
 
         return;

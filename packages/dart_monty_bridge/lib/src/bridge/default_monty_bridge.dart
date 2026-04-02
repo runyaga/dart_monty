@@ -137,6 +137,9 @@ class DefaultMontyBridge implements MontyBridge {
 
   @override
   void dispose() {
+    if (_isExecuting) {
+      unawaited(_platform.cancel());
+    }
     _isDisposed = true;
     log.close();
   }

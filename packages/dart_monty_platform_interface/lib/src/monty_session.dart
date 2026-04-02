@@ -1,3 +1,4 @@
+import 'package:dart_monty_platform_interface/src/monty_error.dart';
 import 'package:dart_monty_platform_interface/src/monty_exception.dart';
 import 'package:dart_monty_platform_interface/src/monty_limits.dart';
 import 'package:dart_monty_platform_interface/src/monty_platform.dart';
@@ -388,8 +389,8 @@ class MontySession {
   // Safe platform wrappers
   // ---------------------------------------------------------------------------
 
-  /// Wraps [MontyPlatform.start], catching [MontyException] thrown for
-  /// Python runtime errors during `start()`/`resume()` and converting
+  /// Wraps [MontyPlatform.start], catching [MontyException] (Python errors)
+  /// and [MontyError] (cancel, panic, disposed, resource) and converting
   /// them to [MontyComplete] with an error result.
   Future<MontyProgress> _safeStart(
     String code, {
@@ -408,10 +409,18 @@ class MontySession {
       return MontyComplete(
         result: MontyResult(error: e, usage: _zeroUsage),
       );
+    } on MontyError catch (e) {
+      return MontyComplete(
+        result: MontyResult(
+          error: MontyException(message: e.message),
+          usage: _zeroUsage,
+        ),
+      );
     }
   }
 
-  /// Wraps [MontyPlatform.resume], catching [MontyException].
+  /// Wraps [MontyPlatform.resume], catching [MontyException] and
+  /// [MontyError].
   Future<MontyProgress> _safeResume(Object? returnValue) async {
     try {
       return await _platform.resume(returnValue);
@@ -419,16 +428,31 @@ class MontySession {
       return MontyComplete(
         result: MontyResult(error: e, usage: _zeroUsage),
       );
+    } on MontyError catch (e) {
+      return MontyComplete(
+        result: MontyResult(
+          error: MontyException(message: e.message),
+          usage: _zeroUsage,
+        ),
+      );
     }
   }
 
-  /// Wraps [MontyPlatform.resumeWithError], catching [MontyException].
+  /// Wraps [MontyPlatform.resumeWithError], catching [MontyException] and
+  /// [MontyError].
   Future<MontyProgress> _safeResumeWithError(String errorMessage) async {
     try {
       return await _platform.resumeWithError(errorMessage);
     } on MontyException catch (e) {
       return MontyComplete(
         result: MontyResult(error: e, usage: _zeroUsage),
+      );
+    } on MontyError catch (e) {
+      return MontyComplete(
+        result: MontyResult(
+          error: MontyException(message: e.message),
+          usage: _zeroUsage,
+        ),
       );
     }
   }

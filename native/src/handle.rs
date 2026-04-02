@@ -738,6 +738,22 @@ pub fn register_handle_ptr(handle_id: u64, ptr: *mut MontyHandle) {
         .insert(handle_id, ptr as usize);
 }
 
+/// Atomically remove a handle pointer from the registry.
+/// Returns `true` if the pointer was found and removed, `false` if not
+/// (already freed or unknown). Used by `monty_free` for double-free protection.
+pub fn remove_handle_ptr(handle: *mut MontyHandle) -> bool {
+    let addr = handle as usize;
+    let mut reg = HANDLE_REGISTRY.write().unwrap_or_else(|e| e.into_inner());
+    let found_id = reg.iter().find(|(_, v)| **v == addr).map(|(k, _)| *k);
+    match found_id {
+        Some(id) => {
+            reg.remove(&id);
+            true
+        }
+        None => false,
+    }
+}
+
 /// Free a handle by its registry ID. Returns `true` if found and freed.
 /// Used by the supervisor to clean up after crash-only disposal when the
 /// worker isolate was killed before it could call `monty_free`.
