@@ -16,10 +16,11 @@ Future<void> main() async {
   );
   print('Sum: ${limited.value}'); // 4950
 
-  // Handle errors.
-  final bad = await monty.run('1 / 0');
-  if (bad.isError) {
-    print('Error: ${bad.error!.message}');
+  // Handle errors — run() throws MontyScriptError for Python exceptions.
+  try {
+    await monty.run('1 / 0');
+  } on MontyScriptError catch (e) {
+    print('Python ${e.excType}: ${e.message}');
   }
 
   await monty.dispose();

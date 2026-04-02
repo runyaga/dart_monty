@@ -1,3 +1,5 @@
+import 'package:dart_monty_platform_interface/src/monty_exception.dart';
+
 /// Sealed error hierarchy for Monty interpreter failures.
 ///
 /// Use exhaustive pattern matching to handle all failure modes:
@@ -43,11 +45,19 @@ class MontyCancelledError extends MontyError {
 
 /// Thrown when the interpreter hits a Python-level exception.
 ///
+/// Carries the full [MontyException] for access to traceback, source
+/// location, and the Python exception class name.
+///
 /// **Application error** — handled by orchestrator/saga, NOT supervisor.
 /// Do not restart blindly — Python exceptions are deterministic.
 class MontyScriptError extends MontyError {
-  /// Creates a [MontyScriptError].
-  const MontyScriptError(super.message, {this.excType});
+  /// Creates a [MontyScriptError] from a [MontyException].
+  MontyScriptError(this.exception)
+      : excType = exception.excType,
+        super(exception.message);
+
+  /// The full Python exception with traceback, source location, etc.
+  final MontyException exception;
 
   /// The Python exception class name (e.g. "ZeroDivisionError").
   final String? excType;

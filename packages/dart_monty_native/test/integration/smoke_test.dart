@@ -80,7 +80,7 @@ void main() {
   test('error handling: invalid syntax', () async {
     final monty = createMonty();
 
-    expect(() => monty.run('def'), throwsA(isA<MontyException>()));
+    expect(() => monty.run('def'), throwsA(isA<MontyScriptError>()));
 
     await monty.dispose();
   });

@@ -64,10 +64,10 @@ class DefaultMontyBridge implements MontyBridge {
     MontyLimits? limits,
     bool useFutures = true,
     BridgeLogger? logger,
-  }) : _explicitPlatform = platform,
-       _limits = limits,
-       _useFutures = useFutures,
-       log = logger ?? StructLogBridgeLogger.root(LogManager.instance);
+  })  : _explicitPlatform = platform,
+        _limits = limits,
+        _useFutures = useFutures,
+        log = logger ?? StructLogBridgeLogger.root(LogManager.instance);
 
   final MontyPlatform? _explicitPlatform;
   final MontyLimits? _limits;
@@ -250,13 +250,8 @@ class DefaultMontyBridge implements MontyBridge {
       }
     } on MontyCancelledError {
       controller.add(const BridgeRunError(message: 'Execution cancelled'));
-    } on MontyError catch (e) {
-      log.warning('Monty error', attributes: {'error': e.message});
-      _flushPrintBuffer(printBuffer, controller);
-      final output = printBuffer.isNotEmpty ? printBuffer.toString() : null;
-      controller.add(BridgeRunError(message: e.message, printOutput: output));
-    } on MontyException catch (e) {
-      final adjusted = _adjustException(e);
+    } on MontyScriptError catch (e) {
+      final adjusted = _adjustException(e.exception);
       log.warning('Python error', attributes: {'error': adjusted.message});
       _flushPrintBuffer(printBuffer, controller);
       final output = printBuffer.isNotEmpty ? printBuffer.toString() : null;
@@ -267,6 +262,11 @@ class DefaultMontyBridge implements MontyBridge {
           exception: adjusted,
         ),
       );
+    } on MontyError catch (e) {
+      log.warning('Monty error', attributes: {'error': e.message});
+      _flushPrintBuffer(printBuffer, controller);
+      final output = printBuffer.isNotEmpty ? printBuffer.toString() : null;
+      controller.add(BridgeRunError(message: e.message, printOutput: output));
     } on Object catch (e, st) {
       log.error('Bridge infrastructure error', error: e, stackTrace: st);
       _flushPrintBuffer(printBuffer, controller);
@@ -566,9 +566,8 @@ class DefaultMontyBridge implements MontyBridge {
     return MontyException(
       message: e.message,
       filename: e.filename,
-      lineNumber: e.lineNumber != null
-          ? e.lineNumber! - _preambleLineCount
-          : null,
+      lineNumber:
+          e.lineNumber != null ? e.lineNumber! - _preambleLineCount : null,
       columnNumber: e.columnNumber,
       sourceCode: e.sourceCode,
       excType: e.excType,
@@ -579,9 +578,8 @@ class DefaultMontyBridge implements MontyBridge {
               filename: f.filename,
               startLine: f.startLine - _preambleLineCount,
               startColumn: f.startColumn,
-              endLine: f.endLine != null
-                  ? f.endLine! - _preambleLineCount
-                  : null,
+              endLine:
+                  f.endLine != null ? f.endLine! - _preambleLineCount : null,
               endColumn: f.endColumn,
               frameName: f.frameName,
               previewLine: f.previewLine,

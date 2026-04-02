@@ -54,9 +54,9 @@ void main() {
       },
     );
 
-    test('adjusts thrown MontyException line numbers', () async {
-      // Simulate platform throwing MontyException (the 'error' progress state
-      // path in BaseMontyPlatform.translateProgress).
+    test('adjusts thrown MontyScriptError line numbers', () async {
+      // Simulate platform throwing MontyScriptError (the 'error' progress
+      // state path in BaseMontyPlatform.translateProgress).
       final mock = _ThrowingMontyPlatform(
         const MontyException(
           message: 'SyntaxError: invalid syntax',
@@ -771,7 +771,8 @@ class _BlockingMiddleware extends BridgeMiddleware {
     Map<String, Object?> args,
     CallRole role,
     ToolHandler next,
-  ) async => returnValue;
+  ) async =>
+      returnValue;
 }
 
 class _ThrowingMiddleware extends BridgeMiddleware {
@@ -781,14 +782,15 @@ class _ThrowingMiddleware extends BridgeMiddleware {
     Map<String, Object?> args,
     CallRole role,
     ToolHandler next,
-  ) => throw StateError('Access denied');
+  ) =>
+      throw StateError('Access denied');
 }
 
 class _CapturingMiddleware extends BridgeMiddleware {
   _CapturingMiddleware({required this.onCall});
 
   final void Function(String name, Map<String, Object?> args, CallRole role)
-  onCall;
+      onCall;
 
   @override
   Future<Object?> handle(
@@ -802,9 +804,9 @@ class _CapturingMiddleware extends BridgeMiddleware {
   }
 }
 
-/// A minimal [MontyPlatform] that throws a [MontyException] from [start].
+/// A minimal [MontyPlatform] that throws a [MontyScriptError] from [start].
 ///
-/// Used to test the bridge's `on MontyException` catch path where the
+/// Used to test the bridge's `on MontyScriptError` catch path where the
 /// platform itself throws (rather than returning a MontyComplete with error).
 class _ThrowingMontyPlatform extends MontyPlatform {
   _ThrowingMontyPlatform(this._exception);
@@ -816,7 +818,8 @@ class _ThrowingMontyPlatform extends MontyPlatform {
     String code, {
     MontyLimits? limits,
     String? scriptName,
-  }) async => throw UnimplementedError();
+  }) async =>
+      throw UnimplementedError();
 
   @override
   Future<MontyProgress> start(
@@ -824,7 +827,8 @@ class _ThrowingMontyPlatform extends MontyPlatform {
     List<String>? externalFunctions,
     MontyLimits? limits,
     String? scriptName,
-  }) async => throw _exception;
+  }) async =>
+      throw MontyScriptError(_exception);
 
   @override
   Future<MontyProgress> resume(Object? returnValue) async =>

@@ -60,7 +60,7 @@ void main() {
       expect(mock.freeCalls, hasOne);
     });
 
-    test('throws MontyException on error result', () async {
+    test('throws MontyScriptError on error result', () async {
       mock.nextRunResult = const RunResult(
         tag: 1,
         errorMessage: 'SyntaxError: invalid syntax',
@@ -69,7 +69,7 @@ void main() {
       expect(
         () => monty.run('def'),
         throwsA(
-          isA<MontyException>().having(
+          isA<MontyScriptError>().having(
             (e) => e.message,
             'message',
             'SyntaxError: invalid syntax',
@@ -131,7 +131,7 @@ void main() {
 
       try {
         await monty.run('x');
-      } on MontyException catch (_) {
+      } on MontyScriptError catch (_) {
         // expected
       }
 
@@ -284,7 +284,7 @@ void main() {
       expect(mock.createCalls.first.scriptName, 'my_script.py');
     });
 
-    test('throws MontyException on error progress', () async {
+    test('throws MontyScriptError on error progress', () async {
       mock.nextStartResult = const ProgressResult(
         tag: 2,
         errorMessage: 'compilation failed',
@@ -293,7 +293,7 @@ void main() {
       expect(
         () => monty.start('bad code'),
         throwsA(
-          isA<MontyException>().having(
+          isA<MontyScriptError>().having(
             (e) => e.message,
             'message',
             'compilation failed',
@@ -397,14 +397,14 @@ void main() {
       expect(pending.arguments, ['data']);
     });
 
-    test('throws MontyException on error', () async {
+    test('throws MontyScriptError on error', () async {
       mock.resumeResults.add(
         const ProgressResult(tag: 2, errorMessage: 'runtime error'),
       );
 
       expect(
         () => monty.resume(null),
-        throwsA(isA<MontyException>()),
+        throwsA(isA<MontyScriptError>()),
       );
     });
 
@@ -718,7 +718,7 @@ void main() {
       expect(
         () => monty.start('x'),
         throwsA(
-          isA<MontyException>().having(
+          isA<MontyScriptError>().having(
             (e) => e.message,
             'message',
             'Unknown error',
@@ -754,7 +754,7 @@ void main() {
       expect(
         () => monty.run('x'),
         throwsA(
-          isA<MontyException>().having(
+          isA<MontyScriptError>().having(
             (e) => e.message,
             'message',
             'Unknown error',
@@ -784,12 +784,12 @@ void main() {
         try {
           await monty.run('1/0');
           fail('Expected MontyException');
-        } on MontyException catch (e) {
+        } on MontyScriptError catch (e) {
           expect(e.excType, 'ZeroDivisionError');
           expect(e.message, 'division by zero');
-          expect(e.filename, 'test.py');
-          expect(e.traceback, hasLength(1));
-          expect(e.traceback.first.filename, 'test.py');
+          expect(e.exception.filename, 'test.py');
+          expect(e.exception.traceback, hasLength(1));
+          expect(e.exception.traceback.first.filename, 'test.py');
         }
       },
     );
@@ -805,7 +805,7 @@ void main() {
         expect(
           () => monty.run('x'),
           throwsA(
-            isA<MontyException>().having(
+            isA<MontyScriptError>().having(
               (e) => e.message,
               'message',
               'fallback msg',
@@ -832,10 +832,10 @@ void main() {
       try {
         await monty.start('x', externalFunctions: ['f']);
         fail('Expected MontyException');
-      } on MontyException catch (e) {
+      } on MontyScriptError catch (e) {
         expect(e.excType, 'NameError');
         expect(e.message, 'name error');
-        expect(e.traceback, hasLength(1));
+        expect(e.exception.traceback, hasLength(1));
       }
     });
 

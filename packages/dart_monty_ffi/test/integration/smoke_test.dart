@@ -75,7 +75,8 @@ void main() {
 
   test(
     'snapshot round-trip',
-    skip: 'API mismatch: Dart requires active state for snapshot() but '
+    skip:
+        'API mismatch: Dart requires active state for snapshot() but '
         'Rust FFI only supports Ready state (before start/run). '
         'Needs a compile-only API to bridge the gap.',
     () async {
@@ -101,7 +102,7 @@ void main() {
   test('error handling: invalid syntax', () async {
     final monty = MontyFfi(bindings: bindings);
 
-    expect(() => monty.run('def'), throwsA(isA<MontyException>()));
+    expect(() => monty.run('def'), throwsA(isA<MontyScriptError>()));
 
     await monty.dispose();
   });

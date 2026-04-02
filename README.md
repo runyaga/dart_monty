@@ -60,7 +60,7 @@ void main() async {
 
 ```bash
 $ dart run
-Result: 4
+4
 ```
 
 No Flutter. No bindings. No registration. It just works.
@@ -198,6 +198,12 @@ For real applications, `dart_monty_bridge` provides a higher-level API
 that handles the dispatch loop, argument coercion, and event streaming
 automatically.
 
+> **Note:** The bridge API is a separate package:
+>
+> ```bash
+> dart pub add dart_monty_bridge
+> ```
+
 **`DefaultMontyBridge`** wraps the dispatch loop and emits a
 `Stream<BridgeEvent>` — tool calls, text output, and lifecycle events:
 
@@ -219,8 +225,8 @@ bridge.register(HostFunction(
 // Execute — bridge handles the dispatch loop for you
 await for (final event in bridge.execute('price = get_price("AAPL")')) {
   switch (event) {
-    case BridgeToolCallResult(:final name, :final result):
-      print('$name returned: $result');
+    case BridgeToolCallResult(:final callId, :final result):
+      print('$callId returned: $result');
     case BridgeTextContent(:final delta):
       print('Output: $delta');
     case BridgeRunFinished():
@@ -230,7 +236,7 @@ await for (final event in bridge.execute('price = get_price("AAPL")')) {
   }
 }
 
-await bridge.dispose();
+bridge.dispose();
 ```
 
 **`MontyPlugin`** groups related host functions under a validated namespace.
@@ -266,31 +272,30 @@ available tools at runtime.
 
 ### Error Handling
 
-dart_monty uses a sealed `MontyError` hierarchy for structured error handling:
+dart_monty uses a sealed `MontyError` hierarchy for structured error handling.
+All Python script errors throw `MontyScriptError`, which carries the full
+`MontyException` with traceback and source location:
 
 ```dart
-import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
-
 try {
-  final result = await monty.run('1 / 0');
+  await monty.run('1 / 0');
 } on MontyError catch (e) {
   switch (e) {
     case MontyScriptError(:final exception):
-      print('Python error: ${exception.message}');
-      print('Type: ${exception.excType}');
+      print('Python ${exception.excType}: ${exception.message}');
       for (final frame in exception.traceback) {
-        print('  ${frame.filename}:${frame.lineNumber} in ${frame.name}');
+        print('  ${frame.filename}:${frame.startLine} in ${frame.frameName}');
       }
-    case MontyCancelledError():
-      print('Execution was cancelled');
-    case MontyResourceError(:final exception):
-      print('Resource limit exceeded: ${exception.message}');
+    case MontyCancelledError(:final message):
+      print('Cancelled: $message');
+    case MontyResourceError(:final message):
+      print('Resource limit: $message');
     case MontyPanicError(:final message):
       print('Interpreter panic: $message');
     case MontyCrashError(:final message):
       print('Interpreter crash: $message');
-    case MontyDisposedError():
-      print('Interpreter was disposed');
+    case MontyDisposedError(:final message):
+      print('Disposed: $message');
   }
 }
 ```
@@ -321,8 +326,8 @@ final result = await session.run('x + y');
 print(result.value); // 126
 
 // Session also supports start/resume (same dispatch pattern)
-await session.clearState();
-await session.dispose();
+session.clearState();
+session.dispose();
 ```
 
 ## Monty API Coverage (~75%)

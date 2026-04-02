@@ -48,10 +48,16 @@ typedef BlockHandler =
 
 /// Hand-written handlers keyed by `(readmePath, blockIndex)`.
 final Map<(String, int), BlockHandler> _handlers = {
-  // Root README.md
+  // Root README.md — 9 dart blocks
   ('README.md', 0): _handleRootBlock0,
   ('README.md', 1): _handleRootBlock1,
   ('README.md', 2): _handleRootBlock2,
+  ('README.md', 3): _handleRootBlock3,
+  ('README.md', 4): _handleRootBlock4,
+  ('README.md', 5): _handleRootBlock5,
+  ('README.md', 6): _handleRootBlock6,
+  ('README.md', 7): _handleRootBlock7,
+  ('README.md', 8): _handleRootBlock8,
 
   // platform_interface/README.md
   ('packages/dart_monty_platform_interface/README.md', 0):
@@ -74,15 +80,34 @@ final Map<(String, int), BlockHandler> _handlers = {
 // Handlers — Root README
 // ---------------------------------------------------------------------------
 
-/// README.md block 0: simple execution + resource limits.
-///
-/// The README calls `fib(30)` but Monty has no built-in fib.
-/// We validate the *pattern* — `run()` works with and without limits.
+/// README.md block 0: Quick Start example.
 Future<void> _handleRootBlock0(
   String block,
   NativeBindingsFfi bindings,
 ) async {
-  // Verify the block looks like what we expect.
+  expect(block, contains("run('2 + 2')"));
+  expect(block, contains('result.value'));
+
+  final monty = MontyFfi(bindings: bindings);
+  final result = await monty.run('2 + 2');
+  expect(result.value, 4);
+  await monty.dispose();
+}
+
+/// README.md block 1: Web Quick Start (same API, structure-only).
+Future<void> _handleRootBlock1(
+  String block,
+  NativeBindingsFfi _,
+) async {
+  expect(block, contains("run('2 + 2')"));
+  expect(block, contains('result.value'));
+}
+
+/// README.md block 2: Usage section — simple execution + json + limits.
+Future<void> _handleRootBlock2(
+  String block,
+  NativeBindingsFfi bindings,
+) async {
   expect(block, contains("run('2 + 2')"));
   expect(block, contains('MontyLimits'));
 
@@ -92,22 +117,18 @@ Future<void> _handleRootBlock0(
   final result = await monty.run('2 + 2');
   expect(result.value, 4);
 
-  // With resource limits — define fib so the code actually runs.
+  // With resource limits
   final limited = await monty.run(
-    'def fib(n):\n'
-    '  if n < 2:\n'
-    '    return n\n'
-    '  return fib(n - 1) + fib(n - 2)\n'
-    'fib(10)',
+    'sum(range(100))',
     limits: const MontyLimits(timeoutMs: 5000, memoryBytes: 10 * 1024 * 1024),
   );
-  expect(limited.value, 55);
+  expect(limited.value, 4950);
 
   await monty.dispose();
 }
 
-/// README.md block 1: external function dispatch loop.
-Future<void> _handleRootBlock1(
+/// README.md block 3: External function dispatch loop.
+Future<void> _handleRootBlock3(
   String block,
   NativeBindingsFfi bindings,
 ) async {
@@ -126,7 +147,6 @@ Future<void> _handleRootBlock1(
   expect(pending.functionName, 'fetch');
   expect(pending.arguments, ['https://api.example.com/users']);
 
-  // Resume with mock data (README uses http.get — we just provide a value).
   progress = await monty.resume({'users': <String>[]});
 
   expect(progress, isA<MontyComplete>());
@@ -136,13 +156,67 @@ Future<void> _handleRootBlock1(
   await monty.dispose();
 }
 
-/// README.md block 2: stateful sessions.
-Future<void> _handleRootBlock2(
+/// README.md block 4: Bridge (DefaultMontyBridge) — structure-only.
+/// Requires dart_monty_bridge which is a separate package.
+Future<void> _handleRootBlock4(String block, NativeBindingsFfi _) async {
+  expect(block, contains('DefaultMontyBridge'));
+  expect(block, contains('HostFunction'));
+  expect(block, contains('BridgeToolCallResult'));
+  expect(block, contains('callId'));
+  expect(block, contains('bridge.dispose()'));
+}
+
+/// README.md block 5: MontyPlugin / PluginRegistry — structure-only.
+Future<void> _handleRootBlock5(String block, NativeBindingsFfi _) async {
+  expect(block, contains('MontyPlugin'));
+  expect(block, contains('PluginRegistry'));
+  expect(block, contains('namespace'));
+}
+
+/// README.md block 6: Error handling with sealed MontyError hierarchy.
+Future<void> _handleRootBlock6(
+  String block,
+  NativeBindingsFfi bindings,
+) async {
+  expect(block, contains('MontyScriptError'));
+  expect(block, contains('exception.excType'));
+  expect(block, contains('exception.traceback'));
+  expect(block, contains('frame.startLine'));
+
+  final monty = MontyFfi(bindings: bindings);
+
+  // Verify the pattern actually works.
+  try {
+    await monty.run('1 / 0');
+    fail('Expected MontyScriptError');
+  } on MontyError catch (e) {
+    expect(e, isA<MontyScriptError>());
+    final script = e as MontyScriptError;
+    expect(script.excType, 'ZeroDivisionError');
+    expect(script.exception.excType, 'ZeroDivisionError');
+  }
+
+  await monty.dispose();
+}
+
+/// README.md block 7: Cancellation (MontyCancelToken) — structure-only.
+Future<void> _handleRootBlock7(String block, NativeBindingsFfi _) async {
+  expect(block, contains('MontyCancelToken'));
+  expect(block, contains('cancel()'));
+}
+
+/// README.md block 8: Stateful sessions.
+Future<void> _handleRootBlock8(
   String block,
   NativeBindingsFfi bindings,
 ) async {
   expect(block, contains('MontySession'));
   expect(block, contains('x = 42'));
+  expect(block, contains('session.clearState()'));
+  expect(block, contains('session.dispose()'));
+  // Verify no `await` before session.clearState() or session.dispose().
+  expect(block, isNot(contains('await session.clearState()')));
+  expect(block, isNot(contains('await session.dispose()')));
 
   final monty = MontyFfi(bindings: bindings);
   final session = MontySession(platform: monty);
@@ -371,11 +445,11 @@ void main() {
       });
       expect(progress, isA<MontyComplete>());
 
-      // Error handling — run() throws MontyException on Python errors.
+      // Error handling — run() throws MontyScriptError on Python errors.
       try {
         await monty.run('1 / 0');
-        fail('Expected MontyException');
-      } on MontyException catch (e) {
+        fail('Expected MontyScriptError');
+      } on MontyScriptError catch (e) {
         expect(e.excType, 'ZeroDivisionError');
       }
 
@@ -513,7 +587,7 @@ void main() {
       expect(source, contains('MontyLimits'));
       expect(source, contains('externalFunctions'));
       expect(source, contains('MontyPending'));
-      expect(source, contains('MontyException'));
+      expect(source, contains('MontyScriptError'));
     });
 
     // -- web: structure-only --
@@ -541,7 +615,7 @@ void main() {
       final source = _readExample(repoRoot, 'example/example.dart');
       expect(source, contains('Monty()'));
       expect(source, contains('MontyLimits'));
-      expect(source, contains('isError'));
+      expect(source, contains('MontyScriptError'));
     });
   });
 }

@@ -71,7 +71,7 @@ Future<void> _externalFunctionDispatch(MontyFfi monty) async {
 Future<void> _errorHandling(MontyFfi monty) async {
   try {
     await monty.run('1 / 0');
-  } on MontyException catch (e) {
+  } on MontyScriptError catch (e) {
     print('Exception type: ${e.excType}'); // ZeroDivisionError
     print('Message: ${e.message}');
   }

@@ -22,6 +22,7 @@ jobs:
     timeout-minutes: 2
     outputs:
       code: ${{ steps.filter.outputs.code }}
+      docs: ${{ steps.filter.outputs.docs }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -36,6 +37,9 @@ jobs:
               - 'pubspec.*'
               - '.github/**'
               - '!**.md'
+            docs:
+              - '**.md'
+              - 'example/**'
 
   ffigen:
     name: Generate FFI bindings
@@ -125,6 +129,29 @@ jobs:
           name: lcov-${{ matrix.target }}
           path: packages/${{ matrix.target }}/coverage/lcov.info
           retention-days: 1
+
+  doctest:
+    name: README doctest
+    needs: [changes]
+    if: needs.changes.outputs.docs == 'true' || needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: native
+      - name: Install dependencies
+        run: cd packages/dart_monty_ffi && dart pub get
+      - name: Run README doctest
+        run: >-
+          cd packages/dart_monty_ffi &&
+          dart test --run-skipped --tags=integration
+          test/integration/readme_doctest.dart
 
   build-js-wrapper:
     name: Build JS wrapper

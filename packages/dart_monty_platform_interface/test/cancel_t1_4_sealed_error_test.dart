@@ -45,7 +45,7 @@ void main() {
     });
 
     test(
-      'Python ZeroDivisionError maps to MontyException (not sealed)',
+      'Python ZeroDivisionError maps to MontyScriptError',
       () async {
         final bindings = _FakeCoreBindings();
         final platform = _TestPlatform(bindings: bindings);
@@ -59,11 +59,13 @@ void main() {
         await expectLater(
           platform.run('code'),
           throwsA(
-            isA<MontyException>().having(
-              (e) => e.excType,
-              'excType',
-              'ZeroDivisionError',
-            ),
+            isA<MontyScriptError>()
+                .having((e) => e.excType, 'excType', 'ZeroDivisionError')
+                .having(
+                  (e) => e.exception.excType,
+                  'exception.excType',
+                  'ZeroDivisionError',
+                ),
           ),
         );
       },
@@ -112,13 +114,13 @@ void main() {
     test('all 6 sealed subtypes are matchable', () {
       // This test verifies that the sealed class hierarchy compiles
       // with exhaustive pattern matching.
-      const errors = <MontyError>[
-        MontyCancelledError(),
-        MontyScriptError('test'),
-        MontyPanicError('test'),
-        MontyCrashError(),
-        MontyDisposedError(),
-        MontyResourceError('test'),
+      final errors = <MontyError>[
+        const MontyCancelledError(),
+        MontyScriptError(const MontyException(message: 'test')),
+        const MontyPanicError('test'),
+        const MontyCrashError(),
+        const MontyDisposedError(),
+        const MontyResourceError('test'),
       ];
 
       for (final error in errors) {
@@ -135,12 +137,15 @@ void main() {
     });
 
     test('MontyScriptError preserves excType', () {
-      const error = MontyScriptError(
-        'division by zero',
-        excType: 'ZeroDivisionError',
+      final error = MontyScriptError(
+        const MontyException(
+          message: 'division by zero',
+          excType: 'ZeroDivisionError',
+        ),
       );
       expect(error.excType, 'ZeroDivisionError');
       expect(error.message, 'division by zero');
+      expect(error.exception.excType, 'ZeroDivisionError');
     });
   });
 
@@ -156,7 +161,9 @@ void main() {
     });
 
     test('MontyScriptError toString', () {
-      const e = MontyScriptError('boom', excType: 'ValueError');
+      final e = MontyScriptError(
+        const MontyException(message: 'boom', excType: 'ValueError'),
+      );
       expect(e.toString(), 'MontyScriptError: boom');
     });
 

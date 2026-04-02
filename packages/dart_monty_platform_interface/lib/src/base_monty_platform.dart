@@ -32,7 +32,7 @@ import 'package:meta/meta.dart';
 abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
   /// Creates a [BaseMontyPlatform] backed by [bindings].
   BaseMontyPlatform({required MontyCoreBindings bindings})
-    : _bindings = bindings;
+      : _bindings = bindings;
 
   final MontyCoreBindings _bindings;
 
@@ -165,11 +165,10 @@ abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
         printOutput: r.printOutput,
       );
     }
-    _throwSealedErrorIfApplicable(r.excType, r.error ?? 'Unknown error');
-    throw MontyException(
-      message: r.error ?? 'Unknown error',
+    throw _buildSealedError(
       excType: r.excType,
-      traceback: _parseTraceback(r.traceback),
+      message: r.error ?? 'Unknown error',
+      traceback: r.traceback,
       filename: r.filename,
       lineNumber: r.lineNumber,
       columnNumber: r.columnNumber,
@@ -207,11 +206,10 @@ abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
         );
       case 'error':
         markIdle();
-        _throwSealedErrorIfApplicable(p.excType, p.error ?? 'Unknown error');
-        throw MontyException(
-          message: p.error ?? 'Unknown error',
+        throw _buildSealedError(
           excType: p.excType,
-          traceback: _parseTraceback(p.traceback),
+          message: p.error ?? 'Unknown error',
+          traceback: p.traceback,
           filename: p.filename,
           lineNumber: p.lineNumber,
           columnNumber: p.columnNumber,
@@ -253,19 +251,39 @@ abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
     return MontyStackFrame.listFromJson(traceback);
   }
 
-  /// Maps known Python exception types to the sealed [MontyError] hierarchy.
+  /// Builds a sealed [MontyError] from an error result.
   ///
-  /// Throws the appropriate sealed type for cancel and resource errors.
-  /// Returns without throwing for unmapped types, allowing fallthrough to
-  /// the existing [MontyException] path.
-  void _throwSealedErrorIfApplicable(String? excType, String message) {
+  /// Maps known Python exception types to specific subtypes:
+  /// - `KeyboardInterrupt` → [MontyCancelledError]
+  /// - `MemoryLimitExceeded` → [MontyResourceError]
+  /// - All other Python exceptions → [MontyScriptError] (with full
+  ///   [MontyException] for traceback / source location access)
+  MontyError _buildSealedError({
+    required String message,
+    String? excType,
+    List<dynamic>? traceback,
+    String? filename,
+    int? lineNumber,
+    int? columnNumber,
+    String? sourceCode,
+  }) {
     switch (excType) {
       case 'KeyboardInterrupt':
-        throw MontyCancelledError(message);
+        return MontyCancelledError(message);
       case 'MemoryLimitExceeded':
-        throw MontyResourceError(message);
+        return MontyResourceError(message);
       default:
-        return;
+        return MontyScriptError(
+          MontyException(
+            message: message,
+            excType: excType,
+            traceback: _parseTraceback(traceback),
+            filename: filename,
+            lineNumber: lineNumber,
+            columnNumber: columnNumber,
+            sourceCode: sourceCode,
+          ),
+        );
     }
   }
 }

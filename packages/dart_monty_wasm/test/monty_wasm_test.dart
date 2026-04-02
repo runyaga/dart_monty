@@ -760,9 +760,9 @@ void main() {
       try {
         await monty.run('1/0');
         fail('Expected MontyException');
-      } on MontyException catch (e) {
+      } on MontyScriptError catch (e) {
         expect(e.excType, 'ZeroDivisionError');
-        final traceback = e.traceback;
+        final traceback = e.exception.traceback;
         expect(traceback, hasLength(1));
         final frame = traceback.first;
         expect(frame.filename, '<input>');
@@ -786,9 +786,9 @@ void main() {
       try {
         await monty.start('x');
         fail('Expected MontyException');
-      } on MontyException catch (e) {
+      } on MontyScriptError catch (e) {
         expect(e.excType, 'NameError');
-        final startTraceback = e.traceback;
+        final startTraceback = e.exception.traceback;
         expect(startTraceback, hasLength(1));
         expect(startTraceback.first.filename, 'test.py');
         expect(startTraceback.first.startLine, 5);
@@ -805,9 +805,9 @@ void main() {
       try {
         await monty.run('x');
         fail('Expected MontyException');
-      } on MontyException catch (e) {
+      } on MontyScriptError catch (e) {
         expect(e.excType, 'ValueError');
-        expect(e.traceback, isEmpty);
+        expect(e.exception.traceback, isEmpty);
       }
     });
   });

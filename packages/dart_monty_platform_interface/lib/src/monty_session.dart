@@ -389,9 +389,9 @@ class MontySession {
   // Safe platform wrappers
   // ---------------------------------------------------------------------------
 
-  /// Wraps [MontyPlatform.start], catching [MontyException] (Python errors)
-  /// and [MontyError] (cancel, panic, disposed, resource) and converting
-  /// them to [MontyComplete] with an error result.
+  /// Wraps [MontyPlatform.start], catching [MontyError] (which now includes
+  /// [MontyScriptError] for all Python exceptions) and converting to
+  /// [MontyComplete] with an error result.
   Future<MontyProgress> _safeStart(
     String code, {
     List<String>? externalFunctions,
@@ -405,56 +405,40 @@ class MontySession {
         limits: limits,
         scriptName: scriptName,
       );
-    } on MontyException catch (e) {
-      return MontyComplete(
-        result: MontyResult(error: e, usage: _zeroUsage),
-      );
     } on MontyError catch (e) {
       return MontyComplete(
-        result: MontyResult(
-          error: MontyException(message: e.message),
-          usage: _zeroUsage,
-        ),
+        result: MontyResult(error: _exceptionFromError(e), usage: _zeroUsage),
       );
     }
   }
 
-  /// Wraps [MontyPlatform.resume], catching [MontyException] and
-  /// [MontyError].
+  /// Wraps [MontyPlatform.resume], catching [MontyError].
   Future<MontyProgress> _safeResume(Object? returnValue) async {
     try {
       return await _platform.resume(returnValue);
-    } on MontyException catch (e) {
-      return MontyComplete(
-        result: MontyResult(error: e, usage: _zeroUsage),
-      );
     } on MontyError catch (e) {
       return MontyComplete(
-        result: MontyResult(
-          error: MontyException(message: e.message),
-          usage: _zeroUsage,
-        ),
+        result: MontyResult(error: _exceptionFromError(e), usage: _zeroUsage),
       );
     }
   }
 
-  /// Wraps [MontyPlatform.resumeWithError], catching [MontyException] and
-  /// [MontyError].
+  /// Wraps [MontyPlatform.resumeWithError], catching [MontyError].
   Future<MontyProgress> _safeResumeWithError(String errorMessage) async {
     try {
       return await _platform.resumeWithError(errorMessage);
-    } on MontyException catch (e) {
-      return MontyComplete(
-        result: MontyResult(error: e, usage: _zeroUsage),
-      );
     } on MontyError catch (e) {
       return MontyComplete(
-        result: MontyResult(
-          error: MontyException(message: e.message),
-          usage: _zeroUsage,
-        ),
+        result: MontyResult(error: _exceptionFromError(e), usage: _zeroUsage),
       );
     }
+  }
+
+  /// Extracts a [MontyException] from a [MontyError], preserving full
+  /// details for [MontyScriptError] which carries the original exception.
+  static MontyException _exceptionFromError(MontyError e) {
+    if (e is MontyScriptError) return e.exception;
+    return MontyException(message: e.message);
   }
 
   void _checkNotDisposed() {
