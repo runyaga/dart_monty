@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:args/args.dart';
 import 'package:args/command_runner.dart';
 import 'package:dart_monty_ffi/dart_monty_ffi.dart';
+import 'package:dart_monty_ffi/ffi_backend_spi.dart';
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 import 'package:monty_cli/src/output_formatter.dart';
 import 'package:monty_cli/src/verbose_logger.dart';

@@ -1,3 +1,15 @@
+## 0.9.0
+
+### Breaking
+
+- Remove deprecated `MontyCancelledException` typedef — use `MontyCancelledError`
+- Remove 6 deprecated `BaseMontyPlatform` static methods — use `MontyCancelRegistry` directly
+
+### Fixed
+
+- Catch `MontyError` (sealed parent) in `MontySession._safeStart`/`_safeResume`/
+  `_safeResumeWithError` so session state stays consistent after cancel or panic
+
 ## 0.8.0
 
 - Extract `MontyCancelRegistry` from `BaseMontyPlatform` for cleaner separation of concerns

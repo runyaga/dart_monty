@@ -1,3 +1,16 @@
+## 0.9.0
+
+### Breaking
+
+- Trim public barrel to `MontyFfi` and `MontyNative` only. Internal types
+  (`FfiCoreBindings`, `NativeBindings`, `NativeBindingsFfi`,
+  `NativeIsolateBindings`, `NativeIsolateBindingsImpl`) moved to
+  `package:dart_monty_ffi/ffi_backend_spi.dart`
+
+### Fixed
+
+- Emit `dart:developer` warning when zombie isolate count reaches threshold (3)
+
 ## 0.8.3
 
 - Update `dart_monty_platform_interface` constraint to `^0.8.0` (fixes pub.dev

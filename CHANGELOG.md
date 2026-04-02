@@ -1,5 +1,13 @@
 ## 0.11.0
 
+### Breaking
+
+- **API audit**: Trim public barrels across all packages. Internal
+  implementation types moved to SPI barrels (`ffi_backend_spi.dart`,
+  `wasm_backend_spi.dart`, `bridge_internals.dart`). Remove deprecated
+  `MontyCancelledException` typedef and `BaseMontyPlatform` static methods.
+  Remove `JsonPlugin` from bridge barrel.
+
 ### Changed
 
 - **Upgrade Monty interpreter from 0.0.8 to 0.0.9** (via `runyaga/0.0.9` fork branch)

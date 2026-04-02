@@ -1,3 +1,8 @@
+## 0.8.0
+
+- Use `wasm_backend_spi.dart` barrel for `WasmBindingsJs` import
+- Update constraints: `dart_monty_platform_interface: ^0.9.0`, `dart_monty_wasm: ^0.9.0`
+
 ## 0.7.4
 
 - Update `dart_monty_platform_interface` constraint to `^0.8.0`

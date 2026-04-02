@@ -1,3 +1,16 @@
+## 0.9.0
+
+### Breaking
+
+- Trim public barrel to `MontyWasm` only. Internal types (`WasmBindings`,
+  `WasmBindingsJs`, `WasmCoreBindings`, `WasmRunResult`, `WasmProgressResult`)
+  moved to `package:dart_monty_wasm/wasm_backend_spi.dart`
+
+### Fixed
+
+- Invalidate WASM session after `MontyPanicError` — nulls `_sessionId` so
+  `init()` can respawn a fresh Worker instead of reusing a dead one
+
 ## 0.8.4
 
 - Update `dart_monty_platform_interface` constraint to `^0.8.0` (fixes pub.dev

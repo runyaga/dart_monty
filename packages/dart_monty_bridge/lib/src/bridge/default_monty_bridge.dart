@@ -142,7 +142,7 @@ class DefaultMontyBridge implements MontyBridge {
       // UnimplementedError from the base class; real platforms override it.
       try {
         unawaited(_platform.cancel());
-        // ignore: avoid_catching_errors
+        // ignore: avoid_catching_errors — UnimplementedError from base class
       } on UnimplementedError {
         // Platform does not support cancel.
       }

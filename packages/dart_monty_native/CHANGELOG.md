@@ -1,3 +1,9 @@
+## 0.9.0
+
+- Use `ffi_backend_spi.dart` barrel for cross-package imports
+- Guard `monty_free` against double-free via `HANDLE_REGISTRY` check
+- Upgrade Monty Rust crate to 0.0.9
+
 ## 0.8.0
 
 ### Changed

@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.6.0
+
+### Breaking
+
+- Remove deprecated `JsonPlugin` from public barrel export
+- Move `introspection_functions` to `package:dart_monty_bridge/bridge_internals.dart`
+
+### Fixed
+
+- Cancel the platform in `DefaultMontyBridge.dispose()` when execution is
+  in-flight, preventing orphaned events
+
 ## 0.5.0
 
 ### Added
