@@ -188,9 +188,31 @@ published.
 ### Release (tagging and publishing)
 
 Tag and push in **dependency order** — each package's deps must be live on
-pub.dev before it publishes:
+pub.dev before it publishes.
+
+**Important:** The native library release (step 0) must complete before
+publishing `dart_monty_ffi` to pub.dev. Consumers of `dart_monty_ffi`
+download pre-built binaries from this GitHub Release via the
+`hook/build.dart` native assets hook. Without it, consumers get a 404
+and cannot use the package.
 
 ```bash
+# 0. Native library binaries (MUST complete before step 3)
+#
+# Triggers native-release.yaml which builds for all 6 platforms
+# (linux/macos/windows × x64/arm64) and creates a GitHub Release
+# at native-lib-v<version> with the binaries attached.
+#
+# The version comes from native/NATIVE_LIB_VERSION (also copied to
+# packages/dart_monty_ffi/NATIVE_LIB_VERSION at publish time).
+# The build hook reads this file to construct the download URL:
+#   https://github.com/runyaga/dart_monty/releases/download/native-lib-v<version>/...
+#
+git tag native-lib-v<version>
+git push origin native-lib-v<version>
+# Wait for ALL build matrix jobs to complete and verify the Release
+# has 6 binary assets attached before proceeding.
+
 # 1. struct_log (no monty deps — only if changed)
 # Published manually: cd packages/struct_log && dart pub publish
 
@@ -217,6 +239,8 @@ git tag v<version>
 git push origin v<version>
 ```
 
+Step 0 creates the **native binary GitHub Release** (consumed by
+`hook/build.dart` at install time).
 Steps 1–4 publish to **pub.dev** via per-package OIDC workflows.
 Step 5 triggers **both** `publish_dart_monty.yaml` (pub.dev) and
 `release.yaml` (native binaries for Linux + macOS, web bundle, GitHub
