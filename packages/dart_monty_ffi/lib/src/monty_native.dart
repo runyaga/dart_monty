@@ -25,7 +25,8 @@ class MontyNative extends MontyPlatform
   ///
   /// Defaults to [NativeIsolateBindingsImpl] when omitted.
   MontyNative({NativeIsolateBindings? bindings})
-    : _bindings = bindings ?? NativeIsolateBindingsImpl();
+    : _bindings = bindings ??
+            NativeIsolateBindingsImpl(); // coverage:ignore-line
 
   final NativeIsolateBindings _bindings;
   bool _initialized = false;

@@ -1,3 +1,5 @@
+// coverage:ignore-file
+// Isolate infrastructure; only testable via integration tests.
 import 'dart:async';
 import 'dart:developer' as developer;
 import 'dart:isolate';

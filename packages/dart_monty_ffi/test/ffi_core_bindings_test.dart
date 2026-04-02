@@ -326,6 +326,22 @@ void main() {
       expect(result.pendingCallIds, [1, 2, 3]);
     });
 
+    test('resolve_futures with null futureCallIdsJson throws StateError',
+        () async {
+      mock.nextStartResult = const ProgressResult(tag: 3);
+
+      await expectLater(
+        () => bindings.start('code'),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            contains('Future call IDs JSON is null'),
+          ),
+        ),
+      );
+    });
+
     test('unknown tag throws StateError', () async {
       mock.nextStartResult = const ProgressResult(tag: 99);
 

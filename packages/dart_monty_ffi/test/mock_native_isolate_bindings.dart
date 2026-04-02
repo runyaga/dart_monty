@@ -46,6 +46,13 @@ class MockNativeIsolateBindings extends NativeIsolateBindings {
   /// If non-null, [dispose] throws this as a [MontyException].
   String? nextDisposeError;
 
+  /// If non-null, [start] throws this error (not a MontyException — a
+  /// raw infrastructure error that tests exception recovery paths).
+  Object? throwOnStart;
+
+  /// If non-null, [resume] throws this error.
+  Object? throwOnResume;
+
   /// When set, [run] awaits this completer before returning.
   Completer<void>? runGate;
 
@@ -150,6 +157,8 @@ class MockNativeIsolateBindings extends NativeIsolateBindings {
         scriptName: scriptName,
       ),
     );
+    // Typed as Object? to allow any throwable for testing.
+    if (throwOnStart != null) throw throwOnStart!; // ignore: only_throw_errors
 
     return nextStartResult;
   }
@@ -157,6 +166,8 @@ class MockNativeIsolateBindings extends NativeIsolateBindings {
   @override
   Future<MontyProgress> resume(Object? returnValue) async {
     resumeCalls.add(returnValue);
+    // Typed as Object? to allow any throwable for testing.
+    if (throwOnResume != null) throw throwOnResume!; // ignore: only_throw_errors
     if (resumeResults.isNotEmpty) return resumeResults.removeAt(0);
 
     return const MontyComplete(

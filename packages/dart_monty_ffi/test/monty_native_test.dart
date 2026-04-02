@@ -686,6 +686,36 @@ void main() {
       expect(result, isA<MontyComplete>());
       expect(monty.isIdle, isTrue);
     });
+
+    test('start() returns to idle when bindings throw', () async {
+      mock.throwOnStart = StateError('Bindings crashed');
+
+      await expectLater(
+        () => monty.start('code'),
+        throwsA(isA<StateError>()),
+      );
+
+      expect(monty.isIdle, isTrue);
+    });
+
+    test('resume() returns to idle when bindings throw', () async {
+      // Put into active state via a pending result.
+      mock.nextStartResult = const MontyPending(
+        functionName: 'f',
+        arguments: [],
+      );
+      await monty.start('code', externalFunctions: ['f']);
+      expect(monty.isActive, isTrue);
+
+      mock.throwOnResume = StateError('Bindings crashed');
+
+      await expectLater(
+        () => monty.resume(null),
+        throwsA(isA<StateError>()),
+      );
+
+      expect(monty.isIdle, isTrue);
+    });
   });
 }
 

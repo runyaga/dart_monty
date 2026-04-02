@@ -25,7 +25,7 @@ class MontyFfi extends BaseMontyPlatform
   ///
   /// Defaults to [NativeBindingsFfi] when omitted.
   factory MontyFfi({NativeBindings? bindings}) {
-    final b = bindings ?? NativeBindingsFfi();
+    final b = bindings ?? NativeBindingsFfi(); // coverage:ignore-line
     final core = FfiCoreBindings(bindings: b);
 
     return MontyFfi._(coreBindings: core, nativeBindings: b);
