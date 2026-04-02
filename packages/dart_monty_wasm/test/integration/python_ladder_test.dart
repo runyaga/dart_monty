@@ -78,6 +78,7 @@ const _tierFiles = [
   'fixtures/tier_16_memory_growth.json',
   'fixtures/tier_17_json_module.json',
   'fixtures/tier_18_datetime_module.json',
+  'fixtures/tier_19_lifecycle_errors.json',
 ];
 
 // ---------------------------------------------------------------------------

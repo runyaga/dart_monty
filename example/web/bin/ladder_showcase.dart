@@ -105,6 +105,7 @@ const _tierFiles = [
   'fixtures/tier_16_memory_growth.json',
   'fixtures/tier_17_json_module.json',
   'fixtures/tier_18_datetime_module.json',
+  'fixtures/tier_19_lifecycle_errors.json',
 ];
 
 const _tierLabels = [
@@ -125,6 +126,7 @@ const _tierLabels = [
   'Tier 16: Memory Growth',
   'Tier 17: JSON Module',
   'Tier 18: Datetime Module',
+  'Tier 19: Lifecycle Errors',
 ];
 
 // ---------------------------------------------------------------------------
