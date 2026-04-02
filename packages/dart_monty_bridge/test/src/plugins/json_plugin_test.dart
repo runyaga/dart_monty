@@ -1,4 +1,5 @@
 import 'package:dart_monty_bridge/dart_monty_bridge.dart';
+import 'package:dart_monty_bridge/src/plugins/json_plugin.dart';
 import 'package:test/test.dart';
 
 void main() {

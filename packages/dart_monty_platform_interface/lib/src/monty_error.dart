@@ -101,7 +101,3 @@ class MontyResourceError extends MontyError {
   @override
   String get _typeName => 'MontyResourceError';
 }
-
-/// Deprecated — use [MontyCancelledError] instead.
-@Deprecated('Use MontyCancelledError instead')
-typedef MontyCancelledException = MontyCancelledError;

@@ -1,5 +1,3 @@
-import 'dart:collection';
-
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 import 'package:dart_monty_platform_interface/dart_monty_testing.dart';
 import 'package:test/test.dart';
@@ -727,16 +725,19 @@ void main() {
       );
 
       test('MontyCancelledError during resume is caught', () async {
-        final throwing = _ThrowingMockPlatform(
-          throwOnResume: const MontyCancelledError('cancelled mid-resume'),
-        );
-        // First start succeeds with restore pending, then resume throws.
-        throwing.enqueueProgress(
-          const MontyPending(
-            functionName: '__restore_state__',
-            arguments: [],
-          ),
-        );
+        final throwing =
+            _ThrowingMockPlatform(
+                throwOnResume: const MontyCancelledError(
+                  'cancelled mid-resume',
+                ),
+              )
+              // First start succeeds with restore pending, then resume throws.
+              ..enqueueProgress(
+                const MontyPending(
+                  functionName: '__restore_state__',
+                  arguments: [],
+                ),
+              );
         final s = MontySession(platform: throwing);
 
         final result = await s.run('x = 1');

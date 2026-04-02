@@ -15,6 +15,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:dart_monty_ffi/dart_monty_ffi.dart';
+import 'package:dart_monty_ffi/ffi_backend_spi.dart';
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 
 Future<void> main() async {

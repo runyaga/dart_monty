@@ -32,7 +32,7 @@ import 'package:meta/meta.dart';
 abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
   /// Creates a [BaseMontyPlatform] backed by [bindings].
   BaseMontyPlatform({required MontyCoreBindings bindings})
-      : _bindings = bindings;
+    : _bindings = bindings;
 
   final MontyCoreBindings _bindings;
 
@@ -47,48 +47,6 @@ abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
   );
 
   bool _initialized = false;
-
-  // ---------------------------------------------------------------------------
-  // Deprecated forwards — use MontyCancelRegistry directly.
-  // ---------------------------------------------------------------------------
-
-  /// Use [MontyCancelRegistry.registerNativeCancel] instead.
-  @Deprecated('Use MontyCancelRegistry.registerNativeCancel')
-  static void registerNativeCancel({
-    required bool Function(int handleId) cancelById,
-    required bool? Function(int handleId) isCancelledById,
-    required void Function([String? libraryPath]) ensureInitialized,
-  }) =>
-      MontyCancelRegistry.registerNativeCancel(
-        cancelById: cancelById,
-        isCancelledById: isCancelledById,
-        ensureInitialized: ensureInitialized,
-      );
-
-  /// Use [MontyCancelRegistry.webRegister] instead.
-  @Deprecated('Use MontyCancelRegistry.webRegister')
-  static int webRegister(MontyCoreBindings bindings) =>
-      MontyCancelRegistry.webRegister(bindings);
-
-  /// Use [MontyCancelRegistry.webUnregister] instead.
-  @Deprecated('Use MontyCancelRegistry.webUnregister')
-  static void webUnregister(int handleId) =>
-      MontyCancelRegistry.webUnregister(handleId);
-
-  /// Use [MontyCancelRegistry.cancelById] instead.
-  @Deprecated('Use MontyCancelRegistry.cancelById')
-  static bool cancelById(int handleId) =>
-      MontyCancelRegistry.cancelById(handleId);
-
-  /// Use [MontyCancelRegistry.ensureInitialized] instead.
-  @Deprecated('Use MontyCancelRegistry.ensureInitialized')
-  static void ensureInitialized([String? libraryPath]) =>
-      MontyCancelRegistry.ensureInitialized(libraryPath);
-
-  /// Use [MontyCancelRegistry.isHandleAlive] instead.
-  @Deprecated('Use MontyCancelRegistry.isHandleAlive')
-  static bool isHandleAlive(int handleId) =>
-      MontyCancelRegistry.isHandleAlive(handleId);
 
   @override
   Future<MontyResult> run(

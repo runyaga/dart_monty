@@ -138,10 +138,13 @@ class DefaultMontyBridge implements MontyBridge {
   @override
   void dispose() {
     if (_isExecuting) {
+      // Best-effort cancel. MontyPlatform.cancel() throws
+      // UnimplementedError from the base class; real platforms override it.
       try {
         unawaited(_platform.cancel());
-      } on UnimplementedError catch (_) {
-        // Platform does not support cancel — best-effort.
+        // ignore: avoid_catching_errors — UnimplementedError from base class
+      } on UnimplementedError {
+        // Platform does not support cancel.
       }
     }
     _isDisposed = true;

@@ -14,6 +14,7 @@ library;
 import 'dart:io';
 
 import 'package:dart_monty_ffi/dart_monty_ffi.dart';
+import 'package:dart_monty_ffi/ffi_backend_spi.dart';
 import 'package:dart_monty_mcp/dart_monty_mcp.dart';
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 import 'package:mcp_dart/mcp_dart.dart';
