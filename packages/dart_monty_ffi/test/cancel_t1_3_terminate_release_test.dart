@@ -10,8 +10,31 @@ import 'package:test/test.dart';
 ///
 /// Verifies that terminate() frees ALL resources: the Rust MontyHandle
 /// (via freeById), the handleId reference, and the isolate.
+/// Polls for [isolate.handleId] to become non-null within [timeout].
+Future<int> _waitForHandleId(
+  NativeIsolateBindingsImpl isolate, {
+  Duration timeout = const Duration(seconds: 5),
+}) async {
+  final deadline = DateTime.now().add(timeout);
+  while (isolate.handleId == null) {
+    if (DateTime.now().isAfter(deadline)) {
+      throw StateError('handleId not set within $timeout');
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+  }
+  return isolate.handleId!;
+}
+
 void main() {
   const infiniteLoop = 'while True: pass';
+
+  // Pre-load native library so trial 1 doesn't timeout on cold start.
+  setUpAll(() async {
+    final warmUp = NativeIsolateBindingsImpl();
+    await warmUp.init();
+    await warmUp.run('1');
+    await warmUp.dispose();
+  });
 
   group('terminate resource cleanup', () {
     for (var trial = 1; trial <= 5; trial++) {
@@ -24,10 +47,7 @@ void main() {
           externalFunctions: ['__never_called__'],
         );
 
-        await Future<void>.delayed(const Duration(milliseconds: 100));
-
-        final hid = isolate.handleId;
-        expect(hid, isNotNull);
+        final hid = await _waitForHandleId(isolate);
         expect(hid, greaterThan(0));
 
         // Before terminate: handle exists in Rust registry.

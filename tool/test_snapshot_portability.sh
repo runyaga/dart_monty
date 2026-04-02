@@ -27,9 +27,7 @@ cd "$FFI_PKG"
 dart pub get
 
 # The smoke test already covers snapshot round-trip; re-verify
-DYLD_LIBRARY_PATH="$ROOT/native/target/release" \
-LD_LIBRARY_PATH="$ROOT/native/target/release" \
-  dart test --tags=integration --name="snapshot round-trip" 2>&1 && \
+dart test --run-skipped --tags=integration --name="snapshot round-trip" 2>&1 && \
   echo "  PASS: Native snapshot round-trip works." || \
   echo "  LIMITATION: Native snapshot round-trip failed (see above)."
 

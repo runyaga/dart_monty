@@ -28,6 +28,14 @@ void main() {
   const cancelN = 200;
   const postCompleteN = 50;
 
+  // Pre-load native library so trial 1 doesn't timeout on cold start.
+  setUpAll(() async {
+    final warmUp = NativeIsolateBindingsImpl();
+    await warmUp.init();
+    await warmUp.run('1');
+    await warmUp.dispose();
+  });
+
   group('T1-1A: cancel during execution (N=$cancelN)', () {
     for (var trial = 1; trial <= cancelN; trial++) {
       test('trial $trial', () async {

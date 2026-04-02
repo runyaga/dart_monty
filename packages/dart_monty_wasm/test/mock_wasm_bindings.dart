@@ -93,9 +93,12 @@ class MockWasmBindings extends WasmBindings {
   /// Records of `(code, extFnsJson, limitsJson, scriptName)` passed to
   /// [start].
   final List<
-    ({String code, String? extFnsJson, String? limitsJson, String? scriptName})
-  >
-  startCalls = [];
+      ({
+        String code,
+        String? extFnsJson,
+        String? limitsJson,
+        String? scriptName
+      })> startCalls = [];
 
   /// Records of `valueJson` passed to [resume].
   final List<String> resumeCalls = [];

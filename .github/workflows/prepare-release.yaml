@@ -189,6 +189,9 @@ jobs:
             cd "$GITHUB_WORKSPACE"
           done
 
+      - name: Sync NATIVE_LIB_VERSION into ffi package
+        run: cp native/NATIVE_LIB_VERSION packages/dart_monty_ffi/NATIVE_LIB_VERSION
+
       - name: Commit version bumps
         run: |
           VERSION="${{ inputs.version }}"

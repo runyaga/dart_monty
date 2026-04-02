@@ -76,6 +76,8 @@ const _tierFiles = [
   'fixtures/tier_13_async.json',
   'fixtures/tier_15_script_name.json',
   'fixtures/tier_16_memory_growth.json',
+  'fixtures/tier_17_json_module.json',
+  'fixtures/tier_18_datetime_module.json',
 ];
 
 // ---------------------------------------------------------------------------
@@ -277,7 +279,8 @@ Future<Map<String, dynamic>> _runAsyncFutures(
         (await _montyResolveFutures(
           jsonEncode(results).toJS,
           jsonEncode(errors).toJS,
-        ).toDart).toDart,
+        ).toDart)
+            .toDart,
       );
     } else {
       return {

@@ -119,14 +119,14 @@ final class MontyException implements Exception {
 
   @override
   int get hashCode => Object.hash(
-    message,
-    filename,
-    lineNumber,
-    columnNumber,
-    sourceCode,
-    excType,
-    _deepEquality.hash(traceback),
-  );
+        message,
+        filename,
+        lineNumber,
+        columnNumber,
+        sourceCode,
+        excType,
+        _deepEquality.hash(traceback),
+      );
 
   @override
   String toString() {

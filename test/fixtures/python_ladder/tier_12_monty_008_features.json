@@ -243,8 +243,8 @@
     "id": 265,
     "tier": 12,
     "name": "getattr builtin",
-    "code": "class Foo:\n    x = 42\ngetattr(Foo(), \"x\")",
-    "expected": 42,
+    "code": "getattr([1, 2, 2, 3], \"count\")(2)",
+    "expected": 2,
     "expectedContains": null,
     "expectedSorted": false,
     "expectError": false,
@@ -253,6 +253,6 @@
     "resumeValues": null,
     "resumeErrors": null,
     "nativeOnly": false,
-    "xfail": "no class support"
+    "xfail": "getattr cannot resolve attributes on built-in types"
   }
 ]

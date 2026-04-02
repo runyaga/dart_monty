@@ -32,7 +32,7 @@ import 'package:meta/meta.dart';
 abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
   /// Creates a [BaseMontyPlatform] backed by [bindings].
   BaseMontyPlatform({required MontyCoreBindings bindings})
-    : _bindings = bindings;
+      : _bindings = bindings;
 
   final MontyCoreBindings _bindings;
 
@@ -58,11 +58,12 @@ abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
     required bool Function(int handleId) cancelById,
     required bool? Function(int handleId) isCancelledById,
     required void Function([String? libraryPath]) ensureInitialized,
-  }) => MontyCancelRegistry.registerNativeCancel(
-    cancelById: cancelById,
-    isCancelledById: isCancelledById,
-    ensureInitialized: ensureInitialized,
-  );
+  }) =>
+      MontyCancelRegistry.registerNativeCancel(
+        cancelById: cancelById,
+        isCancelledById: isCancelledById,
+        ensureInitialized: ensureInitialized,
+      );
 
   /// Use [MontyCancelRegistry.webRegister] instead.
   @Deprecated('Use MontyCancelRegistry.webRegister')

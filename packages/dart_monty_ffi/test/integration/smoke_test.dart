@@ -9,9 +9,8 @@ import 'package:test/test.dart';
 ///
 /// Run with:
 /// ```bash
-/// cd native && cargo build --release && cd ..
 /// cd packages/dart_monty_ffi
-/// DYLD_LIBRARY_PATH=../../native/target/release dart test --tags=integration
+/// dart test --run-skipped --tags=integration
 /// ```
 void main() {
   late NativeBindingsFfi bindings;
@@ -75,7 +74,9 @@ void main() {
 
   test(
     'snapshot round-trip',
-    skip: 'monty_snapshot returns null in current build',
+    skip: 'API mismatch: Dart requires active state for snapshot() but '
+        'Rust FFI only supports Ready state (before start/run). '
+        'Needs a compile-only API to bridge the gap.',
     () async {
       final monty = MontyFfi(bindings: bindings);
       final progress = await monty.start(

@@ -51,6 +51,10 @@ pub fn monty_object_to_json(obj: &MontyObject) -> Value {
         MontyObject::Repr(r) => Value::String(r.clone()),
         MontyObject::Cycle(_, desc) => Value::String(desc.clone()),
         MontyObject::Function { name, .. } => Value::String(format!("<function {name}>")),
+        MontyObject::Date(d) => Value::String(format!("{d:?}")),
+        MontyObject::DateTime(dt) => Value::String(format!("{dt:?}")),
+        MontyObject::TimeDelta(td) => Value::String(format!("{td:?}")),
+        MontyObject::TimeZone(tz) => Value::String(format!("{tz:?}")),
     }
 }
 

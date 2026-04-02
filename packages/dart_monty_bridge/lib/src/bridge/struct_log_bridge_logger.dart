@@ -24,7 +24,8 @@ class StructLogBridgeLogger implements BridgeLogger {
   factory StructLogBridgeLogger.root(
     LogManager logManager, [
     String name = 'monty',
-  ]) => StructLogBridgeLogger(logManager.getLogger(name), logManager);
+  ]) =>
+      StructLogBridgeLogger(logManager.getLogger(name), logManager);
 
   final Logger _logger;
   final LogManager _logManager;

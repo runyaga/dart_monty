@@ -135,6 +135,13 @@ final monty = Monty();
 final result = await monty.run('2 + 2');
 print(result.value); // 4
 
+// Supported stdlib modules: math, re, json
+final jsonResult = await monty.run('''
+import json
+json.loads('{"name": "alice", "age": 30}')
+''');
+print(jsonResult.value); // {name: alice, age: 30}
+
 // With resource limits
 final limited = await monty.run(
   'sum(range(100))',
@@ -336,6 +343,7 @@ The table below shows current coverage and what's planned.
 | **Error hierarchy** (sealed `MontyError` with 6 subtypes) | Covered | Script, Cancel, Panic, Crash, Disposed, Resource |
 | **Multi-session** (WASM Worker pool) | Covered | `createSession`/`disposeSession`, 16 MB per session |
 | **Async / futures** (`asyncio.gather`, concurrent calls) | Covered | `resumeAsFuture()`, `resolveFutures()` on both FFI and WASM |
+| **Standard library modules** (`math`, `re`, `json`, `datetime`) | Partial | Only `math`, `re`, `json`, `datetime` — other stdlib modules are not available |
 | Rich types (tuple, set, bytes, dataclass, namedtuple) | Planned | Currently collapsed to `List`/`Map` |
 | REPL (stateful sessions, `feed()`, persistence) | Planned | `MontyRepl` multi-step sessions |
 | OS calls (`os.getenv`, `os.environ`, `os.stat`) | Planned | `MontyPlugin` host functions |

@@ -43,10 +43,10 @@ void main() {
   MontyPlatform createPlatform() => MontyFfi(bindings: bindings);
 
   DefaultMontyBridge createBridge() => DefaultMontyBridge(
-    platform: createPlatform(),
-    useFutures: false,
-    logger: StructLogBridgeLogger.root(LogManager.instance),
-  );
+        platform: createPlatform(),
+        useFutures: false,
+        logger: StructLogBridgeLogger.root(LogManager.instance),
+      );
 
   group('plugin registration failure with real FFI', () {
     test('factory failure logs phase=factory and cleans up', () async {

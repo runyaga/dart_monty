@@ -103,6 +103,8 @@ const _tierFiles = [
   'fixtures/tier_13_async.json',
   'fixtures/tier_15_script_name.json',
   'fixtures/tier_16_memory_growth.json',
+  'fixtures/tier_17_json_module.json',
+  'fixtures/tier_18_datetime_module.json',
 ];
 
 const _tierLabels = [
@@ -121,6 +123,8 @@ const _tierLabels = [
   'Tier 13: Async',
   'Tier 15: Script Name',
   'Tier 16: Memory Growth',
+  'Tier 17: JSON Module',
+  'Tier 18: Datetime Module',
 ];
 
 // ---------------------------------------------------------------------------

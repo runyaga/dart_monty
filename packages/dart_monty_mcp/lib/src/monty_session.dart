@@ -18,8 +18,8 @@ class McpMontySession {
   McpMontySession({
     required this.id,
     required MontyPlatform platform,
-  }) : _platform = platform,
-       _session = MontySession(platform: platform);
+  })  : _platform = platform,
+        _session = MontySession(platform: platform);
 
   /// Session identifier.
   final String id;

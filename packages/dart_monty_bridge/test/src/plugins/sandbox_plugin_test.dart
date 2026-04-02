@@ -23,27 +23,29 @@ MockMontyPlatform _completingMockWithResult({
   Object? value,
   String? printOutput,
 }) {
-  return MockMontyPlatform()..enqueueProgress(
-    MontyComplete(
-      result: MontyResult(
-        value: value,
-        usage: _usage,
-        printOutput: printOutput,
+  return MockMontyPlatform()
+    ..enqueueProgress(
+      MontyComplete(
+        result: MontyResult(
+          value: value,
+          usage: _usage,
+          printOutput: printOutput,
+        ),
       ),
-    ),
-  );
+    );
 }
 
 /// Creates a [MockMontyPlatform] that fails with [message].
 MockMontyPlatform _failingMock(String message) {
-  return MockMontyPlatform()..enqueueProgress(
-    MontyComplete(
-      result: MontyResult(
-        error: MontyException(message: message),
-        usage: _usage,
+  return MockMontyPlatform()
+    ..enqueueProgress(
+      MontyComplete(
+        result: MontyResult(
+          error: MontyException(message: message),
+          usage: _usage,
+        ),
       ),
-    ),
-  );
+    );
 }
 
 /// Creates a [MockMontyPlatform] that fails with a structured [MontyException].
@@ -54,20 +56,21 @@ MockMontyPlatform _failingMockStructured({
   int? columnNumber,
   String? excType,
 }) {
-  return MockMontyPlatform()..enqueueProgress(
-    MontyComplete(
-      result: MontyResult(
-        error: MontyException(
-          message: message,
-          filename: filename,
-          lineNumber: lineNumber,
-          columnNumber: columnNumber,
-          excType: excType,
+  return MockMontyPlatform()
+    ..enqueueProgress(
+      MontyComplete(
+        result: MontyResult(
+          error: MontyException(
+            message: message,
+            filename: filename,
+            lineNumber: lineNumber,
+            columnNumber: columnNumber,
+            excType: excType,
+          ),
+          usage: _usage,
         ),
-        usage: _usage,
       ),
-    ),
-  );
+    );
 }
 
 void main() {
@@ -541,11 +544,9 @@ void main() {
           final h0 = (await spawn({'code': 'a'}))! as int;
           final h1 = (await spawn({'code': 'b'}))! as int;
 
-          final result =
-              (await gather({
-                    'handles': [h0, h1],
-                  }))!
-                  as List<Object?>;
+          final result = (await gather({
+            'handles': [h0, h1],
+          }))! as List<Object?>;
 
           expect(result, hasLength(2));
           final r0 = result[0]! as Map<String, Object?>;
@@ -576,11 +577,9 @@ void main() {
         final h2 = (await spawn({'code': 'c'}))! as int;
 
         // Request in reverse order.
-        final result =
-            (await gather({
-                  'handles': [h2, h0, h1],
-                }))!
-                as List<Object?>;
+        final result = (await gather({
+          'handles': [h2, h0, h1],
+        }))! as List<Object?>;
 
         expect(result, hasLength(3));
         expect((result[0]! as Map)['handle'], h2);
@@ -597,11 +596,9 @@ void main() {
 
         final h0 = (await spawn({'code': 'a'}))! as int;
 
-        final result =
-            (await gather({
-                  'handles': [h0],
-                }))!
-                as List<Object?>;
+        final result = (await gather({
+          'handles': [h0],
+        }))! as List<Object?>;
 
         expect(result, hasLength(1));
         final r0 = result[0]! as Map<String, Object?>;
@@ -657,11 +654,9 @@ void main() {
 
         final h0 = (await spawn({'code': 'a'}))! as int;
 
-        final result =
-            (await gather({
-                  'handles': [h0],
-                }))!
-                as List<Object?>;
+        final result = (await gather({
+          'handles': [h0],
+        }))! as List<Object?>;
 
         expect(result, hasLength(1));
         final r0 = result[0]! as Map<String, Object?>;
@@ -1245,8 +1240,7 @@ void main() {
         final plugin = SandboxPlugin(
           platformFactory: () async => _completingMock(),
           sandboxBaseDir: '/data',
-          systemPromptBuilder: (ctx) =>
-              'You are child ${ctx.childId}. '
+          systemPromptBuilder: (ctx) => 'You are child ${ctx.childId}. '
               'Workspace: ${ctx.workingDirectory}.',
           childPluginRegistryFactory: (ctx) async =>
               capturedRegistry = PluginRegistry(),
@@ -1782,14 +1776,14 @@ class _InheritablePlugin extends MontyPlugin {
 
   @override
   List<HostFunction> get functions => [
-    HostFunction(
-      schema: HostFunctionSchema(
-        name: '${namespace}_ping',
-        description: 'Ping.',
-      ),
-      handler: (args) async => 'pong',
-    ),
-  ];
+        HostFunction(
+          schema: HostFunctionSchema(
+            name: '${namespace}_ping',
+            description: 'Ping.',
+          ),
+          handler: (args) async => 'pong',
+        ),
+      ];
 
   @override
   MontyPlugin? createChildInstance({ChildSpawnContext? context}) =>
@@ -1864,15 +1858,16 @@ class _DisposeBoomMock extends MontyPlatform {
     List<String>? externalFunctions,
     MontyLimits? limits,
     String? scriptName,
-  }) async => const MontyComplete(
-    result: MontyResult(
-      usage: MontyResourceUsage(
-        memoryBytesUsed: 1024,
-        timeElapsedMs: 10,
-        stackDepthUsed: 5,
-      ),
-    ),
-  );
+  }) async =>
+      const MontyComplete(
+        result: MontyResult(
+          usage: MontyResourceUsage(
+            memoryBytesUsed: 1024,
+            timeElapsedMs: 10,
+            stackDepthUsed: 5,
+          ),
+        ),
+      );
 
   @override
   Future<MontyProgress> resume(Object? returnValue) async =>
@@ -1926,7 +1921,8 @@ class _SlowMockPlatform extends MontyPlatform {
     List<String>? externalFunctions,
     MontyLimits? limits,
     String? scriptName,
-  }) => _startFuture;
+  }) =>
+      _startFuture;
 
   @override
   Future<MontyProgress> resume(Object? returnValue) async =>
@@ -1953,7 +1949,8 @@ class _InfraErrorMock extends MontyPlatform {
     List<String>? externalFunctions,
     MontyLimits? limits,
     String? scriptName,
-  }) async => throw StateError('infra boom');
+  }) async =>
+      throw StateError('infra boom');
 
   @override
   Future<MontyProgress> resume(Object? returnValue) async =>

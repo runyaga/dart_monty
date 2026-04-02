@@ -196,23 +196,21 @@ void main() {
 
     test('registerHostFunction accepts valid name', () async {
       // Should not throw
-      final server =
-          MontyMcpServer(
-            platformFactory: MockMontyPlatform.new,
-          )..registerHostFunction(
-            HostFunction(
-              schema: const HostFunctionSchema(
-                name: 'add',
-                description: 'Add two numbers',
-                params: [
-                  HostParam(name: 'a', type: HostParamType.number),
-                  HostParam(name: 'b', type: HostParamType.number),
-                ],
-              ),
-              handler: (args) async =>
-                  (args['a']! as num) + (args['b']! as num),
+      final server = MontyMcpServer(
+        platformFactory: MockMontyPlatform.new,
+      )..registerHostFunction(
+          HostFunction(
+            schema: const HostFunctionSchema(
+              name: 'add',
+              description: 'Add two numbers',
+              params: [
+                HostParam(name: 'a', type: HostParamType.number),
+                HostParam(name: 'b', type: HostParamType.number),
+              ],
             ),
-          );
+            handler: (args) async => (args['a']! as num) + (args['b']! as num),
+          ),
+        );
 
       await server.dispose();
     });
@@ -526,23 +524,21 @@ void main() {
 
   group('Host function MCP tool callback', () {
     test('successful tool call validates params and returns result', () async {
-      final server =
-          MontyMcpServer(
-            platformFactory: MockMontyPlatform.new,
-          )..registerHostFunction(
-            HostFunction(
-              schema: const HostFunctionSchema(
-                name: 'add',
-                description: 'Add two numbers',
-                params: [
-                  HostParam(name: 'a', type: HostParamType.number),
-                  HostParam(name: 'b', type: HostParamType.number),
-                ],
-              ),
-              handler: (args) async =>
-                  (args['a']! as num) + (args['b']! as num),
+      final server = MontyMcpServer(
+        platformFactory: MockMontyPlatform.new,
+      )..registerHostFunction(
+          HostFunction(
+            schema: const HostFunctionSchema(
+              name: 'add',
+              description: 'Add two numbers',
+              params: [
+                HostParam(name: 'a', type: HostParamType.number),
+                HostParam(name: 'b', type: HostParamType.number),
+              ],
             ),
-          );
+            handler: (args) async => (args['a']! as num) + (args['b']! as num),
+          ),
+        );
 
       final transport = _TestTransport();
       await server.serve(transport);
@@ -584,18 +580,17 @@ void main() {
     });
 
     test('handler exception returns error via MCP tool callback', () async {
-      final server =
-          MontyMcpServer(
-            platformFactory: MockMontyPlatform.new,
-          )..registerHostFunction(
-            HostFunction(
-              schema: const HostFunctionSchema(
-                name: 'fail_fn',
-                description: 'Always throws',
-              ),
-              handler: (args) async => throw const FormatException('bad input'),
+      final server = MontyMcpServer(
+        platformFactory: MockMontyPlatform.new,
+      )..registerHostFunction(
+          HostFunction(
+            schema: const HostFunctionSchema(
+              name: 'fail_fn',
+              description: 'Always throws',
             ),
-          );
+            handler: (args) async => throw const FormatException('bad input'),
+          ),
+        );
 
       final transport = _TestTransport();
       await server.serve(transport);
@@ -644,28 +639,28 @@ class _TestPlugin extends MontyPlugin {
 
   @override
   List<HostFunction> get functions => [
-    HostFunction(
-      schema: const HostFunctionSchema(
-        name: 'add',
-        description: 'Add two numbers',
-        params: [
-          HostParam(name: 'a', type: HostParamType.number),
-          HostParam(name: 'b', type: HostParamType.number),
-        ],
-      ),
-      handler: (args) async => (args['a']! as num) + (args['b']! as num),
-    ),
-    HostFunction(
-      schema: const HostFunctionSchema(
-        name: 'greet',
-        description: 'Return greeting',
-        params: [
-          HostParam(name: 'name', type: HostParamType.string),
-        ],
-      ),
-      handler: (args) async => 'Hello, ${args['name']}!',
-    ),
-  ];
+        HostFunction(
+          schema: const HostFunctionSchema(
+            name: 'add',
+            description: 'Add two numbers',
+            params: [
+              HostParam(name: 'a', type: HostParamType.number),
+              HostParam(name: 'b', type: HostParamType.number),
+            ],
+          ),
+          handler: (args) async => (args['a']! as num) + (args['b']! as num),
+        ),
+        HostFunction(
+          schema: const HostFunctionSchema(
+            name: 'greet',
+            description: 'Return greeting',
+            params: [
+              HostParam(name: 'name', type: HostParamType.string),
+            ],
+          ),
+          handler: (args) async => 'Hello, ${args['name']}!',
+        ),
+      ];
 }
 
 String _text(CallToolResult result) =>

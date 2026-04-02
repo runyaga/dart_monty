@@ -64,10 +64,10 @@ class DefaultMontyBridge implements MontyBridge {
     MontyLimits? limits,
     bool useFutures = true,
     BridgeLogger? logger,
-  }) : _explicitPlatform = platform,
-       _limits = limits,
-       _useFutures = useFutures,
-       log = logger ?? StructLogBridgeLogger.root(LogManager.instance);
+  })  : _explicitPlatform = platform,
+        _limits = limits,
+        _useFutures = useFutures,
+        log = logger ?? StructLogBridgeLogger.root(LogManager.instance);
 
   final MontyPlatform? _explicitPlatform;
   final MontyLimits? _limits;
@@ -556,9 +556,8 @@ class DefaultMontyBridge implements MontyBridge {
     return MontyException(
       message: e.message,
       filename: e.filename,
-      lineNumber: e.lineNumber != null
-          ? e.lineNumber! - _preambleLineCount
-          : null,
+      lineNumber:
+          e.lineNumber != null ? e.lineNumber! - _preambleLineCount : null,
       columnNumber: e.columnNumber,
       sourceCode: e.sourceCode,
       excType: e.excType,
@@ -569,9 +568,8 @@ class DefaultMontyBridge implements MontyBridge {
               filename: f.filename,
               startLine: f.startLine - _preambleLineCount,
               startColumn: f.startColumn,
-              endLine: f.endLine != null
-                  ? f.endLine! - _preambleLineCount
-                  : null,
+              endLine:
+                  f.endLine != null ? f.endLine! - _preambleLineCount : null,
               endColumn: f.endColumn,
               frameName: f.frameName,
               previewLine: f.previewLine,

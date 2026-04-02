@@ -52,10 +52,10 @@ final class MontyLimits {
 
   @override
   int get hashCode => Object.hash(
-    memoryBytes,
-    timeoutMs,
-    stackDepth,
-  );
+        memoryBytes,
+        timeoutMs,
+        stackDepth,
+      );
 
   @override
   String toString() {
