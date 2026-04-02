@@ -6,7 +6,7 @@ library;
 // ignore_for_file: avoid_print, lines_longer_than_80_chars
 
 import 'dart:async';
-import 'package:dart_monty_ffi/dart_monty_ffi.dart';
+import 'package:dart_monty_ffi/ffi_backend_spi.dart';
 import 'package:test/test.dart';
 
 /// EXP-CANCEL-T2-2: Future Hang Prevention

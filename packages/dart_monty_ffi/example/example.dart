@@ -2,6 +2,7 @@
 // ignore_for_file: avoid_print
 
 import 'package:dart_monty_ffi/dart_monty_ffi.dart';
+import 'package:dart_monty_ffi/ffi_backend_spi.dart';
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 
 /// Demonstrates the native FFI API for running sandboxed Python.

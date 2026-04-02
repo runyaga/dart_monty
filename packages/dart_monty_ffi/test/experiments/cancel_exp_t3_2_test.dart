@@ -7,7 +7,7 @@ library;
 import 'dart:async';
 import 'dart:math';
 
-import 'package:dart_monty_ffi/dart_monty_ffi.dart';
+import 'package:dart_monty_ffi/ffi_backend_spi.dart';
 import 'package:test/test.dart';
 
 /// EXP-CANCEL-T3-2: Terminate Cycle Latency (Native)

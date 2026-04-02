@@ -9,6 +9,7 @@ library;
 
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 import 'package:dart_monty_wasm/dart_monty_wasm.dart';
+import 'package:dart_monty_wasm/wasm_backend_spi.dart';
 import 'package:flutter_web_plugins/flutter_web_plugins.dart';
 
 /// Web registration shim for the dart_monty federated plugin.
