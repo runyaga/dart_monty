@@ -8,10 +8,10 @@ import 'package:test/test.dart';
 
 /// T1-2: Cross-Boundary CancelToken Routing
 ///
-/// Verifies that MontyCancelToken.cancel() correctly routes cancellation
+/// Verifies that `MontyCancelToken.cancel()` correctly routes cancellation
 /// across isolate boundaries. The token is obtained from the worker isolate's
-/// handleId and used to cancel from the supervisor (test) context.
-/// Polls for [isolate.handleId] to become non-null within [timeout].
+/// `handleId` and used to cancel from the supervisor (test) context.
+/// Polls for `isolate.handleId` to become non-null within [timeout].
 Future<int> _waitForHandleId(
   NativeIsolateBindingsImpl isolate, {
   Duration timeout = const Duration(seconds: 5),
@@ -53,7 +53,7 @@ void main() {
         expect(hid, greaterThan(0));
 
         // Construct a cancel token and cancel from this isolate.
-        final token = MontyCancelToken(hid!);
+        final token = MontyCancelToken(hid);
         expect(token.isAlive, isTrue);
 
         final cancelled = token.cancel();

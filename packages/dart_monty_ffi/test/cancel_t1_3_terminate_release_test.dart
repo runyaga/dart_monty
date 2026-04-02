@@ -8,9 +8,9 @@ import 'package:test/test.dart';
 
 /// T1-3: Terminate Resource Release
 ///
-/// Verifies that terminate() frees ALL resources: the Rust MontyHandle
-/// (via freeById), the handleId reference, and the isolate.
-/// Polls for [isolate.handleId] to become non-null within [timeout].
+/// Verifies that `terminate()` frees ALL resources: the Rust `MontyHandle`
+/// (via `freeById`), the `handleId` reference, and the isolate.
+/// Polls for `isolate.handleId` to become non-null within [timeout].
 Future<int> _waitForHandleId(
   NativeIsolateBindingsImpl isolate, {
   Duration timeout = const Duration(seconds: 5),
@@ -52,7 +52,7 @@ void main() {
 
         // Before terminate: handle exists in Rust registry.
         final preState = NativeBindingsFfi.instanceOrNull?.isCancelledById(
-          hid!,
+          hid,
         );
         expect(preState, isNotNull, reason: 'handle should be in registry');
 
@@ -80,7 +80,7 @@ void main() {
 
         // After terminate: Rust registry should not contain the handle.
         final postState = NativeBindingsFfi.instanceOrNull?.isCancelledById(
-          hid!,
+          hid,
         );
         expect(
           postState,

@@ -22,6 +22,7 @@ class JsonPlugin extends MontyPlugin {
   ///
   /// [maxInputSize] controls the maximum allowed character count for
   /// `json_loads` and `json_get` inputs. Defaults to 1 MB.
+  @Deprecated('Use native `import json` in Python code instead.')
   JsonPlugin({int? maxInputSize})
       : _maxInputSize = maxInputSize ?? defaultMaxJsonInputSize;
 
@@ -32,8 +33,10 @@ class JsonPlugin extends MontyPlugin {
 
   @override
   String? get systemPromptContext =>
-      'JSON is available natively: `import json; json.loads(s); json.dumps(d)`. '
-      'For dot-path extraction from JSON text, use json_get(data, path).';
+      'JSON is available natively: '
+      '`import json; json.loads(s); json.dumps(d)`. '
+      'For dot-path extraction from JSON text, '
+      'use json_get(data, path).';
 
   @override
   List<HostFunction> get functions => [

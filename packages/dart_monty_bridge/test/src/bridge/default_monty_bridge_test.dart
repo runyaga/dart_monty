@@ -690,13 +690,14 @@ void main() {
       );
 
       // Enqueue a pending that will pause execution
-      mock.enqueueProgress(
-        const MontyPending(functionName: 'slow', arguments: []),
-      );
-      // Enqueue a complete for after resume
-      mock.enqueueProgress(
-        const MontyComplete(result: MontyResult(usage: _usage)),
-      );
+      mock
+        ..enqueueProgress(
+          const MontyPending(functionName: 'slow', arguments: []),
+        )
+        // Enqueue a complete for after resume
+        ..enqueueProgress(
+          const MontyComplete(result: MontyResult(usage: _usage)),
+        );
 
       // Start execution — _run is now in flight waiting for host function
       final stream = bridge.execute('slow()');

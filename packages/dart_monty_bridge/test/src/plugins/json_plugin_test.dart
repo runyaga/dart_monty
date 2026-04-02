@@ -1,3 +1,6 @@
+// Tests for the deprecated JsonPlugin — suppressing deprecation warnings.
+// ignore_for_file: deprecated_member_use_from_same_package
+
 import 'package:dart_monty_bridge/dart_monty_bridge.dart';
 import 'package:dart_monty_bridge/src/plugins/json_plugin.dart';
 import 'package:test/test.dart';
