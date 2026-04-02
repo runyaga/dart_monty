@@ -770,8 +770,7 @@ class _BlockingMiddleware extends BridgeMiddleware {
     Map<String, Object?> args,
     CallRole role,
     ToolHandler next,
-  ) async =>
-      returnValue;
+  ) async => returnValue;
 }
 
 class _ThrowingMiddleware extends BridgeMiddleware {
@@ -781,15 +780,14 @@ class _ThrowingMiddleware extends BridgeMiddleware {
     Map<String, Object?> args,
     CallRole role,
     ToolHandler next,
-  ) =>
-      throw StateError('Access denied');
+  ) => throw StateError('Access denied');
 }
 
 class _CapturingMiddleware extends BridgeMiddleware {
   _CapturingMiddleware({required this.onCall});
 
   final void Function(String name, Map<String, Object?> args, CallRole role)
-      onCall;
+  onCall;
 
   @override
   Future<Object?> handle(
@@ -817,8 +815,7 @@ class _ThrowingMontyPlatform extends MontyPlatform {
     String code, {
     MontyLimits? limits,
     String? scriptName,
-  }) async =>
-      throw UnimplementedError();
+  }) async => throw UnimplementedError();
 
   @override
   Future<MontyProgress> start(
@@ -826,8 +823,7 @@ class _ThrowingMontyPlatform extends MontyPlatform {
     List<String>? externalFunctions,
     MontyLimits? limits,
     String? scriptName,
-  }) async =>
-      throw _exception;
+  }) async => throw _exception;
 
   @override
   Future<MontyProgress> resume(Object? returnValue) async =>

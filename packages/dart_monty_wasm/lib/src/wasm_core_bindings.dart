@@ -204,10 +204,10 @@ class WasmCoreBindings implements MontyCoreBindings {
   // ---------------------------------------------------------------------------
 
   static MontyResourceUsage _makeUsage(int elapsedMs) => MontyResourceUsage(
-        memoryBytesUsed: 0,
-        timeElapsedMs: elapsedMs,
-        stackDepthUsed: 0,
-      );
+    memoryBytesUsed: 0,
+    timeElapsedMs: elapsedMs,
+    stackDepthUsed: 0,
+  );
 
   CoreRunResult _translateRunResult(WasmRunResult result, int elapsedMs) {
     if (result.ok) {

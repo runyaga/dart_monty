@@ -179,8 +179,9 @@ void main() {
         final result = await session.run('x = 1');
         expect(result.value, 1);
 
-        final nullResumes =
-            mock.resumeReturnValues.where((v) => v == null).length;
+        final nullResumes = mock.resumeReturnValues
+            .where((v) => v == null)
+            .length;
         expect(nullResumes, greaterThanOrEqualTo(2));
       });
     });
@@ -708,20 +709,22 @@ void main() {
     });
 
     group('C-1: catches MontyError (cancel/panic/disposed)', () {
-      test('MontyCancelledError during start is caught and returns error',
-          () async {
-        final throwing = _ThrowingMockPlatform(
-          throwOnStart: const MontyCancelledError('cancelled mid-start'),
-        );
-        final s = MontySession(platform: throwing);
+      test(
+        'MontyCancelledError during start is caught and returns error',
+        () async {
+          final throwing = _ThrowingMockPlatform(
+            throwOnStart: const MontyCancelledError('cancelled mid-start'),
+          );
+          final s = MontySession(platform: throwing);
 
-        final result = await s.run('x = 1');
+          final result = await s.run('x = 1');
 
-        expect(result.isError, isTrue);
-        expect(result.error!.message, contains('cancelled mid-start'));
+          expect(result.isError, isTrue);
+          expect(result.error!.message, contains('cancelled mid-start'));
 
-        s.dispose();
-      });
+          s.dispose();
+        },
+      );
 
       test('MontyCancelledError during resume is caught', () async {
         final throwing = _ThrowingMockPlatform(
