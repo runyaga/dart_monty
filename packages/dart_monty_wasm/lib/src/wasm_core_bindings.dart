@@ -184,14 +184,30 @@ class WasmCoreBindings implements MontyCoreBindings {
   }
 
   // ---------------------------------------------------------------------------
+  // Session invalidation
+  // ---------------------------------------------------------------------------
+
+  /// Invalidates the session after a WASM panic/trap.
+  ///
+  /// The Worker is likely dead, so we null [_sessionId] so that [init] can
+  /// spawn a fresh one, and unregister from [MontyCancelRegistry].
+  void _invalidateSession() {
+    if (_handleId != null) {
+      MontyCancelRegistry.webUnregister(_handleId!);
+      _handleId = null;
+    }
+    _sessionId = null;
+  }
+
+  // ---------------------------------------------------------------------------
   // Translation helpers
   // ---------------------------------------------------------------------------
 
   static MontyResourceUsage _makeUsage(int elapsedMs) => MontyResourceUsage(
-        memoryBytesUsed: 0,
-        timeElapsedMs: elapsedMs,
-        stackDepthUsed: 0,
-      );
+    memoryBytesUsed: 0,
+    timeElapsedMs: elapsedMs,
+    stackDepthUsed: 0,
+  );
 
   CoreRunResult _translateRunResult(WasmRunResult result, int elapsedMs) {
     if (result.ok) {
@@ -205,6 +221,7 @@ class WasmCoreBindings implements MontyCoreBindings {
     // WASM trap (panic=abort) surfaces as errorType 'Panic' from the Worker.
     // Route to MontyPanicError so supervisors can pattern-match.
     if (result.errorType == 'Panic') {
+      _invalidateSession();
       throw MontyPanicError(result.error ?? 'WASM trap');
     }
     return CoreRunResult(
@@ -222,6 +239,7 @@ class WasmCoreBindings implements MontyCoreBindings {
     if (!progress.ok) {
       // WASM trap (panic=abort) surfaces as errorType 'Panic' from the Worker.
       if (progress.errorType == 'Panic') {
+        _invalidateSession();
         throw MontyPanicError(progress.error ?? 'WASM trap');
       }
       return CoreProgressResult(
@@ -286,6 +304,7 @@ class WasmCoreBindings implements MontyCoreBindings {
       throw MontyResourceError(msg);
     }
     if (msg.contains('Panic') || msg.contains('RuntimeError')) {
+      _invalidateSession();
       throw MontyPanicError(msg);
     }
   }

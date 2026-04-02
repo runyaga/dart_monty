@@ -676,6 +676,46 @@ void main() {
       expect(() => bridge.invokeHostFunction('fn', {}), throwsStateError);
     });
   });
+
+  // ===========================================================================
+  // E-2: dispose cancels in-flight execution
+  // ===========================================================================
+  group('E-2: dispose cancels in-flight execution', () {
+    test('dispose calls platform.cancel() when executing', () async {
+      bridge.register(
+        HostFunction(
+          schema: const HostFunctionSchema(name: 'slow', description: ''),
+          handler: (_) async => 42,
+        ),
+      );
+
+      // Enqueue a pending that will pause execution
+      mock.enqueueProgress(
+        const MontyPending(functionName: 'slow', arguments: []),
+      );
+      // Enqueue a complete for after resume
+      mock.enqueueProgress(
+        const MontyComplete(result: MontyResult(usage: _usage)),
+      );
+
+      // Start execution — _run is now in flight waiting for host function
+      final stream = bridge.execute('slow()');
+      // Consume just the first event (BridgeRunStarted)
+      await stream.first;
+
+      // Dispose while execution is in-flight
+      bridge.dispose();
+
+      // Platform.cancel() should have been called
+      expect(mock.cancelCalled, isTrue);
+    });
+
+    test('dispose without execution does not call cancel', () {
+      bridge.dispose();
+
+      expect(mock.cancelCalled, isFalse);
+    });
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -730,8 +770,7 @@ class _BlockingMiddleware extends BridgeMiddleware {
     Map<String, Object?> args,
     CallRole role,
     ToolHandler next,
-  ) async =>
-      returnValue;
+  ) async => returnValue;
 }
 
 class _ThrowingMiddleware extends BridgeMiddleware {
@@ -741,15 +780,14 @@ class _ThrowingMiddleware extends BridgeMiddleware {
     Map<String, Object?> args,
     CallRole role,
     ToolHandler next,
-  ) =>
-      throw StateError('Access denied');
+  ) => throw StateError('Access denied');
 }
 
 class _CapturingMiddleware extends BridgeMiddleware {
   _CapturingMiddleware({required this.onCall});
 
   final void Function(String name, Map<String, Object?> args, CallRole role)
-      onCall;
+  onCall;
 
   @override
   Future<Object?> handle(
@@ -777,8 +815,7 @@ class _ThrowingMontyPlatform extends MontyPlatform {
     String code, {
     MontyLimits? limits,
     String? scriptName,
-  }) async =>
-      throw UnimplementedError();
+  }) async => throw UnimplementedError();
 
   @override
   Future<MontyProgress> start(
@@ -786,8 +823,7 @@ class _ThrowingMontyPlatform extends MontyPlatform {
     List<String>? externalFunctions,
     MontyLimits? limits,
     String? scriptName,
-  }) async =>
-      throw _exception;
+  }) async => throw _exception;
 
   @override
   Future<MontyProgress> resume(Object? returnValue) async =>

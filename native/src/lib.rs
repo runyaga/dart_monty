@@ -107,12 +107,23 @@ pub unsafe extern "C" fn monty_create(
     }
 }
 
-/// Free a `MontyHandle`. Safe to call with NULL.
+/// Free a `MontyHandle`. Safe to call with NULL or an already-freed handle.
+///
+/// Uses `HANDLE_REGISTRY` to verify the pointer is still live before
+/// reclaiming memory. A second call on the same pointer is a no-op.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn monty_free(handle: *mut MontyHandle) {
-    if !handle.is_null() {
-        drop(unsafe { Box::from_raw(handle) });
+    if handle.is_null() {
+        return;
     }
+    // Atomically verify and remove the pointer from HANDLE_REGISTRY.
+    // If not found, the handle was already freed — return silently.
+    if !handle::remove_handle_ptr(handle) {
+        return;
+    }
+    // SAFETY: pointer was registered by Box::into_raw in monty_create/monty_restore,
+    // and we just confirmed it was still live.
+    drop(unsafe { Box::from_raw(handle) });
 }
 
 // ---------------------------------------------------------------------------

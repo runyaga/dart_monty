@@ -548,6 +548,89 @@ void main() {
   });
 
   // ===========================================================================
+  // D-1: session invalidated after MontyPanicError
+  // ===========================================================================
+  group('session invalidation after panic', () {
+    test(
+      'run: Panic result invalidates session so init() can re-create',
+      () async {
+        await bindings.init();
+        expect(mock.createSessionCalls, 1);
+
+        mock.nextRunResult = const WasmRunResult(
+          ok: false,
+          error: 'WASM trap',
+          errorType: 'Panic',
+        );
+
+        await expectLater(
+          () => bindings.run('x'),
+          throwsA(isA<MontyPanicError>()),
+        );
+
+        // Session should be invalidated — handleId nulled.
+        expect(bindings.handleId, isNull);
+
+        // Re-init should create a new session.
+        await bindings.init();
+        expect(mock.createSessionCalls, 2);
+      },
+    );
+
+    test('start: Panic result invalidates session', () async {
+      await bindings.init();
+
+      mock.nextStartResult = const WasmProgressResult(
+        ok: false,
+        error: 'WASM trap',
+        errorType: 'Panic',
+      );
+
+      await expectLater(
+        () => bindings.start('x'),
+        throwsA(isA<MontyPanicError>()),
+      );
+
+      expect(bindings.handleId, isNull);
+      await bindings.init();
+      expect(mock.createSessionCalls, 2);
+    });
+
+    test('run: Panic in _throwIfWebCancelError invalidates session', () async {
+      await bindings.init();
+
+      mock.throwOnRun = 'Panic: WASM trap';
+
+      await expectLater(
+        () => bindings.run('x'),
+        throwsA(isA<MontyPanicError>()),
+      );
+
+      expect(bindings.handleId, isNull);
+      await bindings.init();
+      expect(mock.createSessionCalls, 2);
+    });
+
+    test(
+      'run: RuntimeError in _throwIfWebCancelError invalidates session',
+      () async {
+        await bindings.init();
+
+        mock.throwOnRun = 'WebAssembly.RuntimeError: unreachable';
+
+        await expectLater(
+          () => bindings.run('x'),
+          throwsA(isA<MontyPanicError>()),
+        );
+
+        expect(bindings.handleId, isNull);
+        await bindings.init();
+        expect(mock.createSessionCalls, 2);
+      },
+    );
+  });
+
+  // ===========================================================================
   // dispose()
   // ===========================================================================
   group('dispose()', () {

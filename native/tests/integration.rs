@@ -1427,3 +1427,28 @@ fn async_gather_via_ffi() {
     }
     unsafe { monty_free(handle) };
 }
+
+// ---------------------------------------------------------------------------
+// A-2: Double-free protection on monty_free
+// ---------------------------------------------------------------------------
+
+#[test]
+fn double_free_is_noop() {
+    let code = c("2 + 2");
+    let mut create_error: *mut c_char = ptr::null_mut();
+    let handle =
+        unsafe { monty_create(code.as_ptr(), ptr::null(), ptr::null(), &mut create_error) };
+    assert!(!handle.is_null());
+
+    // First free is normal.
+    unsafe { monty_free(handle) };
+
+    // Second free must be a safe no-op (not UB).
+    unsafe { monty_free(handle) };
+}
+
+#[test]
+fn free_null_is_noop() {
+    // NULL has always been safe, but verify it still is.
+    unsafe { monty_free(ptr::null_mut()) };
+}
