@@ -148,8 +148,8 @@ call the shared `_publish-dart-package.yaml` reusable workflow via
 The `v<version>` tag for `dart_monty` also triggers `release.yaml`, which
 builds native binaries and a web bundle and creates a GitHub Release.
 
-**Not published to pub.dev:** `monty_cli` and `dart_monty_mcp` are internal
-tools and are not published.
+**Not published to pub.dev:** `monty_cli` is an internal tool and is not
+published.
 
 ### Pre-release checklist
 

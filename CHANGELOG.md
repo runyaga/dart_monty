@@ -106,7 +106,6 @@
 
 ## 0.8.0
 
-- **dart_monty_mcp** (0.1.0) — new MCP server package: 5 built-in tools, host function/plugin system, session persistence, 68 unit tests, docs
 - **WASM direct C-ABI** — bypass NAPI-RS entirely: 28 direct Rust function calls via `wasm32-wasip1`, drops SharedArrayBuffer/COOP/COEP requirement, WASM binary 4.5 MB (was 256 MB overhead)
 - **CI** — lower patch coverage gate to 70% (issue #135 tracks raising to 95%)
 
