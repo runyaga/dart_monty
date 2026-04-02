@@ -11,6 +11,8 @@
 
 ### Added
 
+- **Tier 19: Lifecycle Errors** (8 tests) — external function error recovery,
+  finally cleanup, async error propagation, nested try-except, gather partial errors
 - **Tier 17: `json` module** (13 tests) — `json.dumps`, `json.loads`, roundtrip
   nested structures, `indent`/`sort_keys`/`separators` kwargs, None/bool
   serialization, number types, invalid JSON error handling
@@ -24,6 +26,16 @@
 
 ### Fixed
 
+- **D-1**: Invalidate WASM session after `MontyPanicError` so `init()` can
+  respawn a fresh Worker instead of reusing a dead one
+- **A-2**: Guard `monty_free` against double-free via `HANDLE_REGISTRY` check —
+  second call is a safe no-op (was SIGSEGV)
+- **B-1**: Emit `dart:developer` warning when zombie isolate count reaches
+  threshold (3)
+- **C-1**: Catch `MontyError` in `MontySession._safeStart` so session state
+  stays consistent after cancel or panic
+- **E-2**: Cancel the platform in `DefaultMontyBridge.dispose()` when execution
+  is in-flight
 - Un-xfail tier 7 test #66 (`nested subscript assignment`) — now passes with
   monty 0.0.9
 - **Native ladder gate was silently passing** — `tool/test_python_ladder.sh`

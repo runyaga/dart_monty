@@ -1,3 +1,9 @@
+## 0.8.1
+
+- **A-2**: Guard `monty_free` against double-free via `HANDLE_REGISTRY` check
+  before `Box::from_raw` — second call is a safe no-op (was SIGSEGV)
+- Upgrade Monty Rust crate from 0.0.8 to 0.0.9
+
 ## 0.8.0
 
 ### Changed

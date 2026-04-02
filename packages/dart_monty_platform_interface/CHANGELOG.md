@@ -1,3 +1,9 @@
+## 0.8.1
+
+- **C-1**: Catch `MontyError` (sealed parent of `MontyCancelledError`,
+  `MontyPanicError`, etc.) in `MontySession._safeStart`/`_safeResume`/
+  `_safeResumeWithError` so session state stays consistent after cancel or panic
+
 ## 0.8.0
 
 - Extract `MontyCancelRegistry` from `BaseMontyPlatform` for cleaner separation of concerns

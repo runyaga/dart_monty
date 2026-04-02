@@ -1,3 +1,8 @@
+## 0.8.4
+
+- **B-1**: Emit `dart:developer` warning when zombie isolate count reaches
+  threshold (3), aiding diagnosis of stuck executions
+
 ## 0.8.3
 
 - Update `dart_monty_platform_interface` constraint to `^0.8.0` (fixes pub.dev

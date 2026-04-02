@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.1
+
+- **E-2**: Cancel the platform in `DefaultMontyBridge.dispose()` when execution
+  is in-flight, preventing orphaned events
+
 ## 0.5.0
 
 ### Added

@@ -1,3 +1,8 @@
+## 0.8.5
+
+- **D-1**: Invalidate WASM session after `MontyPanicError` — nulls `_sessionId`
+  so `init()` can respawn a fresh Worker instead of reusing a dead one
+
 ## 0.8.4
 
 - Update `dart_monty_platform_interface` constraint to `^0.8.0` (fixes pub.dev
