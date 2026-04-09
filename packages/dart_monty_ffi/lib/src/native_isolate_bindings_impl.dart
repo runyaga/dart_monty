@@ -274,6 +274,10 @@ class NativeIsolateBindingsImpl extends NativeIsolateBindings {
   /// [_HandleIdNotification]. Available after the first run/start request.
   int? _handleId;
 
+  /// Completes when [_handleId] is first set. Used by [cancel] to wait for
+  /// the handle ID instead of silently no-oping.
+  Completer<int>? _handleIdCompleter;
+
   /// The handle ID for cross-isolate cancel, or `null` if not yet available.
   int? get handleId => _handleId;
 
@@ -304,6 +308,9 @@ class NativeIsolateBindingsImpl extends NativeIsolateBindings {
       }
       if (message is _HandleIdNotification) {
         _handleId = message.handleId;
+        if (_handleIdCompleter != null && !_handleIdCompleter!.isCompleted) {
+          _handleIdCompleter!.complete(message.handleId);
+        }
 
         return;
       }
@@ -383,6 +390,10 @@ class NativeIsolateBindingsImpl extends NativeIsolateBindings {
     MontyLimits? limits,
     String? scriptName,
   }) async {
+    // Set up the handle-ID completer before sending the request so cancel()
+    // can await it if called before the worker responds.
+    _handleIdCompleter ??= Completer<int>();
+
     final response = await _send<_ProgressResponse>(
       _StartRequest(
         _nextId++,
@@ -473,14 +484,27 @@ class NativeIsolateBindingsImpl extends NativeIsolateBindings {
       _sendPort = null;
       _receivePort = null;
       _handleId = null;
+      _handleIdCompleter = null;
     }
   }
 
   /// Cancel the current execution via `cancelById` (cross-isolate safe).
   ///
-  /// No-op if the handle ID has not been received yet.
+  /// If the handle ID has not arrived yet (worker isolate is still compiling),
+  /// waits up to 10 seconds for it. This prevents a silent no-op race where
+  /// cancel is called before the Rust handle is ready.
   Future<void> cancel() async {
-    final hid = _handleId;
+    var hid = _handleId;
+    if (hid == null && _handleIdCompleter != null) {
+      try {
+        hid = await _handleIdCompleter!.future.timeout(
+          const Duration(seconds: 10),
+        );
+      } on TimeoutException {
+        // Worker never sent a handle ID — nothing to cancel.
+        return;
+      }
+    }
     if (hid != null) {
       NativeBindingsFfi.ensureInitialized();
       NativeBindingsFfi.instanceOrNull?.cancelById(hid);
@@ -541,6 +565,7 @@ class NativeIsolateBindingsImpl extends NativeIsolateBindings {
       _handleId = null;
     }
     _sendPort = null;
+    _handleIdCompleter = null;
   }
 
   // ---------------------------------------------------------------------------
