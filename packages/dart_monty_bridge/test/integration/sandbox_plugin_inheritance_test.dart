@@ -340,21 +340,21 @@ class _GreeterPlugin extends MontyPlugin {
 
   @override
   List<HostFunction> get functions => [
-        HostFunction(
-          schema: const HostFunctionSchema(
-            name: 'greeter_hello',
-            description: 'Returns a greeting.',
-            params: [
-              HostParam(
-                name: 'name',
-                type: HostParamType.string,
-                description: 'Name to greet.',
-              ),
-            ],
+    HostFunction(
+      schema: const HostFunctionSchema(
+        name: 'greeter_hello',
+        description: 'Returns a greeting.',
+        params: [
+          HostParam(
+            name: 'name',
+            type: HostParamType.string,
+            description: 'Name to greet.',
           ),
-          handler: (args) async => 'Hello, ${args['name']}!',
-        ),
-      ];
+        ],
+      ),
+      handler: (args) async => 'Hello, ${args['name']}!',
+    ),
+  ];
 
   @override
   MontyPlugin? createChildInstance({ChildSpawnContext? context}) =>
@@ -373,21 +373,21 @@ class _CounterPlugin extends MontyPlugin {
 
   @override
   List<HostFunction> get functions => [
-        HostFunction(
-          schema: const HostFunctionSchema(
-            name: 'counter_increment',
-            description: 'Increment the counter.',
-          ),
-          handler: (args) async => ++count,
-        ),
-        HostFunction(
-          schema: const HostFunctionSchema(
-            name: 'counter_get',
-            description: 'Get the current counter value.',
-          ),
-          handler: (args) async => count,
-        ),
-      ];
+    HostFunction(
+      schema: const HostFunctionSchema(
+        name: 'counter_increment',
+        description: 'Increment the counter.',
+      ),
+      handler: (args) async => ++count,
+    ),
+    HostFunction(
+      schema: const HostFunctionSchema(
+        name: 'counter_get',
+        description: 'Get the current counter value.',
+      ),
+      handler: (args) async => count,
+    ),
+  ];
 
   @override
   MontyPlugin? createChildInstance({ChildSpawnContext? context}) =>

@@ -23,8 +23,8 @@ class MontyMcpServer {
     required PlatformFactory platformFactory,
     String version = '0.1.0',
   }) : _sessionManager = MontySessionManager(
-          platformFactory: platformFactory,
-        ) {
+         platformFactory: platformFactory,
+       ) {
     _server = McpServer(
       Implementation(name: 'dart-monty-mcp', version: version),
       options: const McpServerOptions(
@@ -127,7 +127,8 @@ class MontyMcpServer {
   void _registerMontyRun() {
     _server.registerTool(
       'monty_run',
-      description: 'Execute Python code in a sandboxed Monty interpreter. '
+      description:
+          'Execute Python code in a sandboxed Monty interpreter. '
           'Returns stdout output and the expression result. '
           'Each call runs in a fresh interpreter (no state persists).',
       inputSchema: ToolInputSchema(
@@ -148,7 +149,8 @@ class MontyMcpServer {
   void _registerSessionCreate() {
     _server.registerTool(
       'monty_session_create',
-      description: 'Create a persistent Python session. Variables and imports '
+      description:
+          'Create a persistent Python session. Variables and imports '
           'persist across calls to monty_session_exec.',
       inputSchema: ToolInputSchema(
         properties: {
@@ -178,7 +180,8 @@ class MontyMcpServer {
   void _registerSessionExec() {
     _server.registerTool(
       'monty_session_exec',
-      description: 'Execute Python code in a persistent session. '
+      description:
+          'Execute Python code in a persistent session. '
           'Variables and imports from previous calls are available.',
       inputSchema: ToolInputSchema(
         properties: {

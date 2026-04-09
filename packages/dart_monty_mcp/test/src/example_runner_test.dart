@@ -35,7 +35,8 @@ void main() {
       expect(
         result.exitCode,
         0,
-        reason: 'programmatic.dart failed:\n'
+        reason:
+            'programmatic.dart failed:\n'
             'stdout: ${result.stdout}\n'
             'stderr: ${result.stderr}',
       );
@@ -64,21 +65,23 @@ void main() {
 
   group('example/host_function.dart — host function with real FFI', () {
     test('registers and calls host function from Python', () async {
-      final server = MontyMcpServer(
-        platformFactory: _createPlatform,
-      )..registerHostFunction(
-          HostFunction(
-            schema: const HostFunctionSchema(
-              name: 'add',
-              description: 'Add two numbers',
-              params: [
-                HostParam(name: 'a', type: HostParamType.number),
-                HostParam(name: 'b', type: HostParamType.number),
-              ],
+      final server =
+          MontyMcpServer(
+            platformFactory: _createPlatform,
+          )..registerHostFunction(
+            HostFunction(
+              schema: const HostFunctionSchema(
+                name: 'add',
+                description: 'Add two numbers',
+                params: [
+                  HostParam(name: 'a', type: HostParamType.number),
+                  HostParam(name: 'b', type: HostParamType.number),
+                ],
+              ),
+              handler: (args) async =>
+                  (args['a']! as num) + (args['b']! as num),
             ),
-            handler: (args) async => (args['a']! as num) + (args['b']! as num),
-          ),
-        );
+          );
 
       // Call the host function from Python via a session
       server.sessionManager.createSession(id: 'hf-test');
@@ -127,27 +130,27 @@ class _MathPlugin extends MontyPlugin {
 
   @override
   List<HostFunction> get functions => [
-        HostFunction(
-          schema: const HostFunctionSchema(
-            name: 'add',
-            description: 'Add two numbers',
-            params: [
-              HostParam(name: 'a', type: HostParamType.number),
-              HostParam(name: 'b', type: HostParamType.number),
-            ],
-          ),
-          handler: (args) async => (args['a']! as num) + (args['b']! as num),
-        ),
-        HostFunction(
-          schema: const HostFunctionSchema(
-            name: 'multiply',
-            description: 'Multiply two numbers',
-            params: [
-              HostParam(name: 'a', type: HostParamType.number),
-              HostParam(name: 'b', type: HostParamType.number),
-            ],
-          ),
-          handler: (args) async => (args['a']! as num) * (args['b']! as num),
-        ),
-      ];
+    HostFunction(
+      schema: const HostFunctionSchema(
+        name: 'add',
+        description: 'Add two numbers',
+        params: [
+          HostParam(name: 'a', type: HostParamType.number),
+          HostParam(name: 'b', type: HostParamType.number),
+        ],
+      ),
+      handler: (args) async => (args['a']! as num) + (args['b']! as num),
+    ),
+    HostFunction(
+      schema: const HostFunctionSchema(
+        name: 'multiply',
+        description: 'Multiply two numbers',
+        params: [
+          HostParam(name: 'a', type: HostParamType.number),
+          HostParam(name: 'b', type: HostParamType.number),
+        ],
+      ),
+      handler: (args) async => (args['a']! as num) * (args['b']! as num),
+    ),
+  ];
 }

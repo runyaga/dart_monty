@@ -18,7 +18,8 @@ const listFunctionsSchema = HostFunctionSchema(
 /// Schema for the `help` introspection function.
 const helpSchema = HostFunctionSchema(
   name: 'help',
-  description: 'Show detailed information about a host function by name. '
+  description:
+      'Show detailed information about a host function by name. '
       'Accepts both fully-qualified names (e.g. "storage_get") and bare names '
       '(e.g. "get"). If a bare name matches multiple functions, a '
       'disambiguation list is returned.',
@@ -137,7 +138,8 @@ String _handleHelp(
     final candidates = bareMatches.map((s) => s.name).toList()..sort();
     return jsonEncode({
       'error': 'ambiguous',
-      'message': 'Multiple functions match "$name". '
+      'message':
+          'Multiple functions match "$name". '
           'Use the fully-qualified name.',
       'candidates': candidates,
     });

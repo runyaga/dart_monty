@@ -142,8 +142,7 @@ class _NoOpBridge implements MontyBridge {
     String name,
     Map<String, Object?> args, {
     CallRole role = const ToolCall(),
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 
   @override
   void dispose() {}

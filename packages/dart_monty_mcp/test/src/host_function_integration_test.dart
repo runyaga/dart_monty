@@ -270,39 +270,39 @@ class _TestPlugin extends MontyPlugin {
 
   @override
   List<HostFunction> get functions => [
-        HostFunction(
-          schema: const HostFunctionSchema(
-            name: 'add',
-            description: 'Add two numbers',
-            params: [
-              HostParam(name: 'a', type: HostParamType.number),
-              HostParam(name: 'b', type: HostParamType.number),
-            ],
+    HostFunction(
+      schema: const HostFunctionSchema(
+        name: 'add',
+        description: 'Add two numbers',
+        params: [
+          HostParam(name: 'a', type: HostParamType.number),
+          HostParam(name: 'b', type: HostParamType.number),
+        ],
+      ),
+      handler: (args) async => (args['a']! as num) + (args['b']! as num),
+    ),
+    HostFunction(
+      schema: const HostFunctionSchema(
+        name: 'greet',
+        description: 'Return greeting',
+        params: [
+          HostParam(name: 'name', type: HostParamType.string),
+          HostParam(
+            name: 'title',
+            type: HostParamType.string,
+            isRequired: false,
+            defaultValue: 'friend',
           ),
-          handler: (args) async => (args['a']! as num) + (args['b']! as num),
-        ),
-        HostFunction(
-          schema: const HostFunctionSchema(
-            name: 'greet',
-            description: 'Return greeting',
-            params: [
-              HostParam(name: 'name', type: HostParamType.string),
-              HostParam(
-                name: 'title',
-                type: HostParamType.string,
-                isRequired: false,
-                defaultValue: 'friend',
-              ),
-            ],
-          ),
-          handler: (args) async => 'Hello, ${args['title']} ${args['name']}!',
-        ),
-        HostFunction(
-          schema: const HostFunctionSchema(
-            name: 'failing_fn',
-            description: 'Always throws',
-          ),
-          handler: (args) async => throw Exception('intentional error'),
-        ),
-      ];
+        ],
+      ),
+      handler: (args) async => 'Hello, ${args['title']} ${args['name']}!',
+    ),
+    HostFunction(
+      schema: const HostFunctionSchema(
+        name: 'failing_fn',
+        description: 'Always throws',
+      ),
+      handler: (args) async => throw Exception('intentional error'),
+    ),
+  ];
 }

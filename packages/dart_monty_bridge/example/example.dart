@@ -18,40 +18,40 @@ class CalculatorPlugin extends MontyPlugin {
 
   @override
   List<HostFunction> get functions => [
-        const HostFunction(
-          schema: HostFunctionSchema(
-            name: 'calc_add',
-            description: 'Adds two numbers and returns the result.',
-            params: [
-              HostParam(
-                name: 'a',
-                type: HostParamType.number,
-                description: 'First operand',
-              ),
-              HostParam(
-                name: 'b',
-                type: HostParamType.number,
-                description: 'Second operand',
-              ),
-            ],
+    const HostFunction(
+      schema: HostFunctionSchema(
+        name: 'calc_add',
+        description: 'Adds two numbers and returns the result.',
+        params: [
+          HostParam(
+            name: 'a',
+            type: HostParamType.number,
+            description: 'First operand',
           ),
-          handler: _add,
-        ),
-        const HostFunction(
-          schema: HostFunctionSchema(
-            name: 'calc_factorial',
-            description: 'Computes the factorial of a non-negative integer.',
-            params: [
-              HostParam(
-                name: 'n',
-                type: HostParamType.integer,
-                description: 'Non-negative integer',
-              ),
-            ],
+          HostParam(
+            name: 'b',
+            type: HostParamType.number,
+            description: 'Second operand',
           ),
-          handler: _factorial,
-        ),
-      ];
+        ],
+      ),
+      handler: _add,
+    ),
+    const HostFunction(
+      schema: HostFunctionSchema(
+        name: 'calc_factorial',
+        description: 'Computes the factorial of a non-negative integer.',
+        params: [
+          HostParam(
+            name: 'n',
+            type: HostParamType.integer,
+            description: 'Non-negative integer',
+          ),
+        ],
+      ),
+      handler: _factorial,
+    ),
+  ];
 }
 
 Future<Object?> _add(Map<String, Object?> args) async {

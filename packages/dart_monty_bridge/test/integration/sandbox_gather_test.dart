@@ -53,9 +53,11 @@ void main() {
         final h1 = (await spawn({'code': 'print("worker-B")\n99'}))! as int;
         final h2 = (await spawn({'code': 'print("worker-C")\n7'}))! as int;
 
-        final results = (await gather({
-          'handles': [h0, h1, h2],
-        }))! as List<Object?>;
+        final results =
+            (await gather({
+                  'handles': [h0, h1, h2],
+                }))!
+                as List<Object?>;
 
         expect(results, hasLength(3));
 
@@ -102,9 +104,11 @@ void main() {
       final h1 = (await spawn({'code': '20'}))! as int;
 
       // Request in reverse order.
-      final results = (await gather({
-        'handles': [h1, h0],
-      }))! as List<Object?>;
+      final results =
+          (await gather({
+                'handles': [h1, h0],
+              }))!
+              as List<Object?>;
 
       expect((results[0]! as Map)['handle'], h1);
       expect((results[0]! as Map)['value'], 20);
@@ -134,9 +138,11 @@ void main() {
       final hLoud = (await spawn({'code': 'print("hello")\n1'}))! as int;
       final hSilent = (await spawn({'code': '2'}))! as int;
 
-      final results = (await gather({
-        'handles': [hLoud, hSilent],
-      }))! as List<Object?>;
+      final results =
+          (await gather({
+                'handles': [hLoud, hSilent],
+              }))!
+              as List<Object?>;
 
       final rLoud = results[0]! as Map<String, Object?>;
       final rSilent = results[1]! as Map<String, Object?>;
@@ -205,9 +211,11 @@ void main() {
                 as int;
         final h1 = (await spawn({'code': 'print("only")\n200'}))! as int;
 
-        final results = (await gather({
-          'handles': [h0, h1],
-        }))! as List<Object?>;
+        final results =
+            (await gather({
+                  'handles': [h0, h1],
+                }))!
+                as List<Object?>;
 
         // Verify every result has exactly the expected keys.
         for (final raw in results) {

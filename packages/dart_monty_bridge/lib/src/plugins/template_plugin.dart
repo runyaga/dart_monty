@@ -17,7 +17,7 @@ class DinjaTemplatePlugin extends MontyPlugin {
   /// [maxInputSize] controls the maximum allowed character count for
   /// template strings. Defaults to 512 KB.
   DinjaTemplatePlugin({int? maxInputSize})
-      : _maxInputSize = maxInputSize ?? defaultMaxTemplateInputSize;
+    : _maxInputSize = maxInputSize ?? defaultMaxTemplateInputSize;
 
   final int _maxInputSize;
 
@@ -33,28 +33,28 @@ class DinjaTemplatePlugin extends MontyPlugin {
 
   @override
   List<HostFunction> get functions => [
-        HostFunction(
-          schema: const HostFunctionSchema(
-            name: 'tmpl_render',
-            description:
-                'Render a Jinja2 template string with the given context dict. '
-                'Supports {{ variable }}, {% for %}, {% if %}, and filters.',
-            params: [
-              HostParam(
-                name: 'template',
-                type: HostParamType.string,
-                description: 'Jinja2 template string.',
-              ),
-              HostParam(
-                name: 'context',
-                type: HostParamType.map,
-                description: 'Context dict for template variables.',
-              ),
-            ],
+    HostFunction(
+      schema: const HostFunctionSchema(
+        name: 'tmpl_render',
+        description:
+            'Render a Jinja2 template string with the given context dict. '
+            'Supports {{ variable }}, {% for %}, {% if %}, and filters.',
+        params: [
+          HostParam(
+            name: 'template',
+            type: HostParamType.string,
+            description: 'Jinja2 template string.',
           ),
-          handler: _handleRender,
-        ),
-      ];
+          HostParam(
+            name: 'context',
+            type: HostParamType.map,
+            description: 'Context dict for template variables.',
+          ),
+        ],
+      ),
+      handler: _handleRender,
+    ),
+  ];
 
   @override
   MontyPlugin? createChildInstance({ChildSpawnContext? context}) =>

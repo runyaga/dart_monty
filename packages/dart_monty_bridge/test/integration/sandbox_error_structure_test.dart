@@ -119,9 +119,11 @@ void main() {
             .handler;
 
         // Spawn a long-running child.
-        final handle = (await spawnHandler({
-          'code': 'x = 0\nwhile x < 999999999:\n    x = x + 1\nx',
-        }))! as int;
+        final handle =
+            (await spawnHandler({
+                  'code': 'x = 0\nwhile x < 999999999:\n    x = x + 1\nx',
+                }))!
+                as int;
 
         await cancelHandler({'handle': handle});
 
