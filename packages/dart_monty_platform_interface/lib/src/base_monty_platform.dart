@@ -32,7 +32,7 @@ import 'package:meta/meta.dart';
 abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
   /// Creates a [BaseMontyPlatform] backed by [bindings].
   BaseMontyPlatform({required MontyCoreBindings bindings})
-    : _bindings = bindings;
+      : _bindings = bindings;
 
   final MontyCoreBindings _bindings;
 

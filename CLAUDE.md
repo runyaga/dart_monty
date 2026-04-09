@@ -120,7 +120,7 @@ The `StandardLib` enum in `crates/monty/src/modules/mod.rs` registers all
 available modules. As of monty main branch: `sys`, `typing`, `asyncio`,
 `pathlib`, `os`, `math`, `json`, `re`, `datetime`.
 
-**dart\_monty is pinned** to the fork branch (`runyaga/0.0.8`). Not all
+**dart\_monty is pinned** to the fork branch (`runyaga/0.0.10`). Not all
 upstream modules may be available in the pinned version. Check the ladder
 test fixtures (`test/fixtures/python_ladder/`) for which modules have
 passing tests vs `xfail` markers.

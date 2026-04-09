@@ -1,3 +1,20 @@
+## 0.12.0
+
+### Changed
+
+- **Upgrade Monty interpreter from 0.0.9 to 0.0.10** (via `runyaga/0.0.10` fork branch)
+- Upstream monty 0.0.10 adds: mounting filesystems, async in Rust,
+  executor deduplication, multi-module import statements (`import a, b, c`),
+  JSON performance improvements, CI improvements (zizmor, yamlfmt, PGO fixes)
+- Update snapshot format pinning for v0.0.10 postcard changes
+- Bump `NATIVE_LIB_VERSION` to 0.10.0
+
+### Fixed
+
+- Fix analyzer infos in FFI mock test (`curly_braces_in_flow_control_structures`,
+  `document_ignores`)
+- Apply `dart format` (tall style) across all packages
+
 ## 0.11.0
 
 ### Breaking

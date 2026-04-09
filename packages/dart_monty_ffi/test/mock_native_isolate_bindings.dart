@@ -167,7 +167,10 @@ class MockNativeIsolateBindings extends NativeIsolateBindings {
   Future<MontyProgress> resume(Object? returnValue) async {
     resumeCalls.add(returnValue);
     // Typed as Object? to allow any throwable for testing.
-    if (throwOnResume != null) throw throwOnResume!; // ignore: only_throw_errors
+    if (throwOnResume != null) {
+      // ignore: only_throw_errors - test mock throws arbitrary objects
+      throw throwOnResume!;
+    }
     if (resumeResults.isNotEmpty) return resumeResults.removeAt(0);
 
     return const MontyComplete(

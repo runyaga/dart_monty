@@ -588,8 +588,8 @@ checksum = "f8ca58f447f06ed17d5fc4043ce1b10dd205e060fb3ce5b979b8ed8e59ff3f79"
 
 [[package]]
 name = "monty"
-version = "0.0.9"
-source = "git+https://github.com/runyaga/monty.git?branch=runyaga%2F0.0.9#eb846a96ba2542ad0c0bdb8e57b4daef7ef97577"
+version = "0.0.10"
+source = "git+https://github.com/runyaga/monty.git?branch=runyaga%2F0.0.10#1d335de0f295f05f3b1bb245024268debe382864"
 dependencies = [
  "ahash",
  "bytemuck",

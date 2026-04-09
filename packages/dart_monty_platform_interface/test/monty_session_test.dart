@@ -177,9 +177,8 @@ void main() {
         final result = await session.run('x = 1');
         expect(result.value, 1);
 
-        final nullResumes = mock.resumeReturnValues
-            .where((v) => v == null)
-            .length;
+        final nullResumes =
+            mock.resumeReturnValues.where((v) => v == null).length;
         expect(nullResumes, greaterThanOrEqualTo(2));
       });
     });
@@ -725,19 +724,18 @@ void main() {
       );
 
       test('MontyCancelledError during resume is caught', () async {
-        final throwing =
-            _ThrowingMockPlatform(
-                throwOnResume: const MontyCancelledError(
-                  'cancelled mid-resume',
-                ),
-              )
-              // First start succeeds with restore pending, then resume throws.
-              ..enqueueProgress(
-                const MontyPending(
-                  functionName: '__restore_state__',
-                  arguments: [],
-                ),
-              );
+        final throwing = _ThrowingMockPlatform(
+          throwOnResume: const MontyCancelledError(
+            'cancelled mid-resume',
+          ),
+        )
+          // First start succeeds with restore pending, then resume throws.
+          ..enqueueProgress(
+            const MontyPending(
+              functionName: '__restore_state__',
+              arguments: [],
+            ),
+          );
         final s = MontySession(platform: throwing);
 
         final result = await s.run('x = 1');
