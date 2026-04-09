@@ -213,6 +213,44 @@ The JS bridge is built via npm:
 cd packages/dart_monty_wasm/js && npm install && node build.js
 ```
 
+### Web Spike / Browser Ladder (spike/web_test)
+
+The web spike uses npm + esbuild to bundle the Monty WASM glue for the
+browser. This produces `monty_bundle.js` and `monty_worker.js` which are
+required by the HTML pages.
+
+```bash
+cd spike/web_test
+npm install --force          # --force needed: wasm32 cpu mismatch on host
+npm run bundle               # esbuild: monty_bundle.js + monty_worker.js
+dart pub get
+dart compile js bin/ladder_runner.dart -o web/ladder_runner.dart.js
+```
+
+Serve with COOP/COEP headers (required for SharedArrayBuffer):
+```bash
+bash tool/test_web_spike.sh  # full automated build + headless Chrome verify
+```
+
+Or for interactive browser testing:
+```bash
+# Symlink fixtures into web dir (one-time)
+ln -s ../../test/fixtures/python_ladder spike/web_test/web/fixtures
+
+# Start server with COOP/COEP headers on port 8099
+python3 -c "
+import http.server, functools
+class H(http.server.SimpleHTTPRequestHandler):
+    def end_headers(self):
+        self.send_header('Cross-Origin-Opener-Policy', 'same-origin')
+        self.send_header('Cross-Origin-Embedder-Policy', 'require-corp')
+        super().end_headers()
+handler = functools.partial(H, directory='spike/web_test/web')
+http.server.HTTPServer(('127.0.0.1', 8099), handler).serve_forever()
+"
+# Open http://127.0.0.1:8099/ladder_runner.html
+```
+
 ## Testing
 
 ### FFI Tests (Native)
