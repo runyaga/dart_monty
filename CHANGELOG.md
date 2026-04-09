@@ -11,6 +11,10 @@
 
 ### Fixed
 
+- **Cancel race condition**: `cancel()` was a silent no-op when called before
+  the worker isolate sent back its handle ID (during Rust compilation). Now
+  awaits the handle ID with a 10s timeout instead of dropping the cancel.
+  Reliably reproducible on cold-start cancel at <150ms delay.
 - Fix analyzer infos in FFI mock test (`curly_braces_in_flow_control_structures`,
   `document_ignores`)
 - Apply `dart format` (tall style) across all packages
