@@ -232,24 +232,53 @@ Serve with COOP/COEP headers (required for SharedArrayBuffer):
 bash tool/test_web_spike.sh  # full automated build + headless Chrome verify
 ```
 
-Or for interactive browser testing:
-```bash
-# Symlink fixtures into web dir (one-time)
-ln -s ../../test/fixtures/python_ladder spike/web_test/web/fixtures
+Or for interactive browser testing, first set up symlinks (one-time):
 
-# Start server with COOP/COEP headers on port 8099
+```bash
+cd spike/web_test/web
+
+# Fixtures — the ladder runner fetches from fixtures/ relative to the server
+ln -s ../../../test/fixtures/python_ladder fixtures
+
+# WASM binary — the bundled worker loads monty.wasm32-wasi.wasm via import.meta.url
+ln -sf ../node_modules/@pydantic/monty-wasm32-wasi/monty.wasm32-wasi.wasm monty.wasm32-wasi.wasm
+
+# WASI sub-worker — the worker spawns a sub-worker from this path
+mkdir -p "@pydantic/monty-wasm32-wasi"
+ln -sf ../../../node_modules/@pydantic/monty-wasm32-wasi/wasi-worker-browser.mjs \
+  "@pydantic/monty-wasm32-wasi/wasi-worker-browser.mjs"
+ln -sf ../../../node_modules/@pydantic/monty-wasm32-wasi/monty.wasm32-wasi.wasm \
+  "@pydantic/monty-wasm32-wasi/monty.wasm32-wasi.wasm"
+```
+
+Then start a server with COOP/COEP headers (required for SharedArrayBuffer):
+
+```bash
+cd spike/web_test
 python3 -c "
 import http.server, functools
 class H(http.server.SimpleHTTPRequestHandler):
     def end_headers(self):
         self.send_header('Cross-Origin-Opener-Policy', 'same-origin')
         self.send_header('Cross-Origin-Embedder-Policy', 'require-corp')
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Cache-Control', 'no-store')
         super().end_headers()
-handler = functools.partial(H, directory='spike/web_test/web')
+    def guess_type(self, path):
+        if path.endswith('.mjs'): return 'application/javascript'
+        if path.endswith('.wasm'): return 'application/wasm'
+        return super().guess_type(path)
+handler = functools.partial(H, directory='web')
 http.server.HTTPServer(('127.0.0.1', 8099), handler).serve_forever()
 "
 # Open http://127.0.0.1:8099/ladder_runner.html
 ```
+
+**Why symlinks are needed:** esbuild bundles the JS glue but marks `*.wasm`
+as external. The bundled `monty_worker.js` resolves the WASM binary and
+WASI sub-worker via `new URL(..., import.meta.url)` relative to its own
+server path. Without symlinks the server returns HTML 404 pages, causing
+`WebAssembly.Module(): expected magic word 00 61 73 6d` errors.
 
 ## Testing
 
