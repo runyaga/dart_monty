@@ -139,6 +139,11 @@ jobs:
       - name: cargo clippy
         working-directory: native
         run: cargo clippy -- -D warnings
+      - name: Install cargo-deny
+        uses: taiki-e/install-action@cargo-deny
+      - name: cargo deny check
+        working-directory: native
+        run: cargo deny check
       - name: Install cargo-tarpaulin
         uses: taiki-e/install-action@cargo-tarpaulin
       - name: Run tests with coverage
