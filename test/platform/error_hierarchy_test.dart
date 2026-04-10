@@ -7,10 +7,11 @@
 /// - MontyScriptError wraps MontyException correctly
 /// - BaseMontyPlatform throws the right sealed type for each excType
 /// - Session catches and wraps correctly
+library;
+
 import 'dart:typed_data';
 
 import 'package:dart_monty/dart_monty.dart';
-import 'package:dart_monty/dart_monty_testing.dart';
 import 'package:dart_monty/monty_backend_spi.dart';
 import 'package:test/test.dart';
 
@@ -20,16 +21,15 @@ void main() {
   // ---------------------------------------------------------------------------
   group('Sealed hierarchy structure', () {
     test('MontyScriptError carries MontyException with all fields', () {
-      final exception = MontyException(
+      const exception = MontyException(
         message: 'division by zero',
         excType: 'ZeroDivisionError',
         filename: '<input>',
         lineNumber: 1,
         columnNumber: 5,
         sourceCode: '1/0',
-        traceback: const [],
       );
-      final error = MontyScriptError(
+      const error = MontyScriptError(
         'division by zero',
         excType: 'ZeroDivisionError',
         exception: exception,
@@ -115,7 +115,7 @@ void main() {
     test('MontyScriptError caught before MontyError', () {
       String? caught;
       try {
-        throw MontyScriptError(
+        throw const MontyScriptError(
           'test',
           exception: MontyException(message: 'test'),
         );
@@ -156,7 +156,7 @@ void main() {
       var caughtByException = false;
       var caughtByError = false;
       try {
-        throw MontyScriptError(
+        throw const MontyScriptError(
           'test',
           exception: MontyException(message: 'test'),
         );
@@ -172,7 +172,7 @@ void main() {
     test('MontyException (standalone) IS caught by on MontyException', () {
       var caughtByException = false;
       try {
-        throw MontyException(message: 'standalone');
+        throw const MontyException(message: 'standalone');
       } on MontyException {
         caughtByException = true;
       }
@@ -203,7 +203,7 @@ void main() {
     });
 
     test('ZeroDivisionError → MontyScriptError with exception', () async {
-      bindings.runResult = CoreRunResult(
+      bindings.runResult = const CoreRunResult(
         ok: false,
         error: 'division by zero',
         excType: 'ZeroDivisionError',
@@ -224,7 +224,7 @@ void main() {
     });
 
     test('ValueError → MontyScriptError', () async {
-      bindings.runResult = CoreRunResult(
+      bindings.runResult = const CoreRunResult(
         ok: false,
         error: 'invalid literal',
         excType: 'ValueError',
@@ -245,7 +245,7 @@ void main() {
     test(
       'MemoryLimitExceeded → MontyResourceError (NOT ScriptError)',
       () async {
-        bindings.runResult = CoreRunResult(
+        bindings.runResult = const CoreRunResult(
           ok: false,
           error: 'memory limit exceeded',
           excType: 'MemoryLimitExceeded',
@@ -303,7 +303,7 @@ void main() {
     });
 
     test('progress error → MontyScriptError', () async {
-      bindings.startResult = CoreProgressResult(
+      bindings.startResult = const CoreProgressResult(
         state: 'error',
         error: 'key error',
         excType: 'KeyError',
@@ -316,7 +316,7 @@ void main() {
     });
 
     test('progress MemoryLimitExceeded → MontyResourceError', () async {
-      bindings.startResult = CoreProgressResult(
+      bindings.startResult = const CoreProgressResult(
         state: 'error',
         error: 'oom',
         excType: 'MemoryLimitExceeded',
@@ -342,12 +342,12 @@ void main() {
     });
 
     test('successful run can carry non-fatal MontyException', () async {
-      bindings.runResult = CoreRunResult(
+      bindings.runResult = const CoreRunResult(
         ok: true,
         value: 42,
         error: 'SyntaxWarning',
         excType: 'SyntaxWarning',
-        usage: const MontyResourceUsage(
+        usage: MontyResourceUsage(
           memoryBytesUsed: 100,
           timeElapsedMs: 1,
           stackDepthUsed: 5,
@@ -361,7 +361,7 @@ void main() {
     });
 
     test('failed run throws, does not return MontyResult', () async {
-      bindings.runResult = CoreRunResult(
+      bindings.runResult = const CoreRunResult(
         ok: false,
         error: 'error',
         excType: 'RuntimeError',
@@ -379,11 +379,11 @@ void main() {
   // ---------------------------------------------------------------------------
   group('MontyScriptError field extraction', () {
     test('exception message matches error message', () {
-      final ex = MontyException(
+      const ex = MontyException(
         message: 'test error',
         excType: 'TestError',
       );
-      final error = MontyScriptError(
+      const error = MontyScriptError(
         'test error',
         excType: 'TestError',
         exception: ex,
@@ -395,7 +395,7 @@ void main() {
 
     test('exception carries traceback when platform provides it', () async {
       final bindings = _FakeCoreBindings()
-        ..runResult = CoreRunResult(
+        ..runResult = const CoreRunResult(
           ok: false,
           error: 'name error',
           excType: 'NameError',
@@ -478,8 +478,7 @@ class _FakeCoreBindings implements MontyCoreBindings {
 }
 
 class _TestPlatform extends BaseMontyPlatform {
-  _TestPlatform({required MontyCoreBindings bindings})
-    : super(bindings: bindings);
+  _TestPlatform({required super.bindings});
 
   @override
   String get backendName => 'test';

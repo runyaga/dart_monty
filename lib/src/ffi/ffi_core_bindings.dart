@@ -10,8 +10,8 @@ import 'package:dart_monty/src/ffi/native_bindings.dart';
 
 /// GC safety net for Rust MontyHandle pointers.
 ///
-/// If a [FfiCoreBindings] instance is garbage collected without [dispose]
-/// being called, the [NativeFinalizer] attached to this guard will call
+/// If a [FfiCoreBindings] instance is garbage collected without `dispose`
+/// being called, the [ffi.NativeFinalizer] attached to this guard will call
 /// `monty_free` to release the Rust-side handle, preventing a permanent
 /// native memory leak.
 final class _HandleGuard implements ffi.Finalizable {
@@ -368,7 +368,7 @@ class FfiCoreBindings implements MontyCoreBindings {
     return handle;
   }
 
-  /// Stores [handle] and attaches a [NativeFinalizer] as a GC safety net.
+  /// Stores [handle] and attaches a [ffi.NativeFinalizer] as a GC safety net.
   ///
   /// Idempotent — if a guard already exists for this handle, it is reused.
   void _storeHandle(int handle) {

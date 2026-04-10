@@ -532,6 +532,7 @@ void main() {
       try {
         bridge.execute('2');
         fail('Should have thrown');
+        // ignore: avoid_catching_errors – intentional: test verifies StateError recovery.
       } on StateError {
         // The catch in execute() rethrows. Since there's no loopState
         // visible between the throw and catch, we verify it does not crash.

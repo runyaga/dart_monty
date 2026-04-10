@@ -873,8 +873,8 @@ void main() {
             functionName: '__console_write__',
             arguments: [MontyString(' world')],
           ),
-        );
-      throwingMock.throwAfterResumes = 2;
+        )
+        ..throwAfterResumes = 2;
 
       final events = await b.execute('print("hello world")').toList();
       final errors = events.whereType<BridgeRunError>().toList();
@@ -1271,6 +1271,7 @@ class _ThrowingOnResumePlatform extends MockMontyPlatform {
 
   @override
   Future<MontyProgress> resume(Object? returnValue) async {
+    // ignore: only_throw_errors – test intentionally throws non-Exception objects.
     throw throwOnResume;
   }
 }
