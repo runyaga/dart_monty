@@ -130,6 +130,27 @@ WASM integration tests (`test/wasm/integration/`) are **standalone
 executables** compiled to JS, not `package:test` files. They run in
 headless Chrome with COOP/COEP headers and are NOT included in `dart test`.
 
+**Why this is a multi-step problem:**
+
+1. **Build the WASM binary** -- `cd native && cargo build --release --target wasm32-wasip1`
+2. **Build the JS bridge** -- `cd spike/web_test && npm install --force && npm run bundle`
+   This produces `monty_bundle.js` (the bridge) and `monty_worker.js` (the Worker)
+3. **Copy assets** into `test/wasm/integration/web/`:
+   - `monty_bundle.js` as `dart_monty_bridge.js` (loaded by ladder.html)
+   - `monty_worker.js` (spawned by the bridge)
+   - `monty.wasm32-wasi.wasm` from the npm package (loaded by the Worker)
+   - `@pydantic/monty-wasm32-wasi/` directory with `wasi-worker-browser.mjs`
+     and `monty.wasm32-wasi.wasm` (resolved by Worker via `import.meta.url`)
+4. **Compile the Dart runner to JS** -- `dart compile js test/wasm/integration/python_ladder_runner.dart -o test/wasm/integration/web/ladder_runner.dart.js`
+5. **Copy fixtures** -- tier JSON files from `test/fixtures/python_ladder/`
+6. **Serve with COOP/COEP headers** -- required for SharedArrayBuffer
+7. **Run in headless Chrome** -- Chrome console output is parsed for `LADDER_RESULT:` lines
+
+The Worker resolves the WASM binary via `new URL(..., import.meta.url)` relative
+to its own serve path. This means the npm `@pydantic/monty-wasm32-wasi` directory
+structure must exist at the correct relative path from the served worker JS. Without
+it, Chrome logs `Uncaught` and no ladder results are captured.
+
 The automated gate runs them via:
 
 ```bash
