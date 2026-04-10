@@ -102,7 +102,7 @@ dcm:
           - "lib/**/*progress.dart"
     - avoid-non-null-assertion:
         exclude:
-          - "lib/src/monty_platform.dart"
+          - "lib/src/platform/monty_platform.dart"
           - "test/**"
           - "**/example/**"
 
@@ -110,11 +110,14 @@ dcm:
     - avoid-banned-imports:
         entries:
           - paths: ["lib/"]
-            deny: ["package:flutter/material.dart", "package:flutter/widgets.dart", "package:flutter/cupertino.dart"]
-            message: "This is a pure Dart platform interface. Do not import Flutter widgets."
-    - avoid-global-state:
-        exclude:
-          - "lib/src/monty_platform.dart"
+            deny:
+              - "package:flutter/material.dart"
+              - "package:flutter/widgets.dart"
+              - "package:flutter/cupertino.dart"
+              - "package:dart_monty_native/dart_monty_native.dart"
+              - "package:dart_monty_web/dart_monty_web.dart"
+            message: "This is a pure Dart package. Do not import Flutter or removed shim packages."
+    - avoid-global-state
 
     # --- Member Ordering ---
     - member-ordering:

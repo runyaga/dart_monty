@@ -1,6 +1,0 @@
-build/
-coverage/
-tool/
-test/fixtures/
-packages/
-js/node_modules/

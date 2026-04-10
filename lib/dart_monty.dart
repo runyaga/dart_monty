@@ -13,5 +13,17 @@
 /// ```
 library;
 
-export 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 export 'src/monty.dart';
+export 'src/platform/bridge_logger.dart';
+export 'src/platform/monty_error.dart';
+export 'src/platform/monty_exception.dart';
+export 'src/platform/monty_future_capable.dart';
+export 'src/platform/monty_limits.dart';
+export 'src/platform/monty_platform.dart';
+export 'src/platform/monty_progress.dart';
+export 'src/platform/monty_resource_usage.dart';
+export 'src/platform/monty_result.dart';
+export 'src/platform/monty_session.dart';
+export 'src/platform/monty_snapshot_capable.dart';
+export 'src/platform/monty_stack_frame.dart';
+export 'src/platform/monty_value.dart';

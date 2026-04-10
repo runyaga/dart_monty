@@ -18,9 +18,9 @@ repos:
         entry: dart format --language-version=3.10 --set-exit-if-changed
         language: system
         types: [dart]
-      - id: dart-analyze-packages
-        name: dart analyze packages
-        entry: python3 tool/analyze_packages.py
+      - id: dart-analyze
+        name: dart analyze
+        entry: dart analyze --fatal-infos
         language: system
         pass_filenames: false
       - id: dcm-analyze
@@ -28,9 +28,9 @@ repos:
         entry: bash -c 'command -v dcm >/dev/null 2>&1 && dcm analyze "$@" || echo "dcm not installed — skipping"' --
         language: system
         types: [dart]
-      - id: dart-test-platform-interface
-        name: dart test (platform_interface)
-        entry: bash -c 'cd packages/dart_monty_platform_interface && dart test'
+      - id: dart-test
+        name: dart test
+        entry: dart test
         language: system
         pass_filenames: false
       - id: cargo-fmt

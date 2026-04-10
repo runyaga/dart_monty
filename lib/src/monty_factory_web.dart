@@ -1,5 +1,5 @@
-import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
-import 'package:dart_monty_wasm/dart_monty_wasm.dart';
+import 'package:dart_monty/src/platform/monty_platform.dart';
+import 'package:dart_monty/src/wasm/monty_wasm.dart';
 
 /// Creates a Monty interpreter using the WASM backend.
 ///

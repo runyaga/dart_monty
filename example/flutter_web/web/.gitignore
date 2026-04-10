@@ -1,7 +1,0 @@
-# WASM bridge assets — copied from packages/dart_monty_wasm/assets/ at dev/deploy time
-dart_monty_bridge.js
-dart_monty_worker.js
-monty.wasm32-wasi.wasm
-
-# Ladder fixtures — symlink or copy from test/fixtures/python_ladder/ at dev time
-fixtures

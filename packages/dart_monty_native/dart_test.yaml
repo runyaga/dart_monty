@@ -1,5 +1,0 @@
-tags:
-  integration:
-    skip: "Requires native library. Run with --tags=integration."
-  ladder:
-    skip: "Requires native library. Run with --tags=ladder."

@@ -1,5 +1,5 @@
-import 'package:dart_monty_ffi/dart_monty_ffi.dart';
-import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
+import 'package:dart_monty/src/ffi/monty_ffi.dart';
+import 'package:dart_monty/src/platform/monty_platform.dart';
 
 /// Creates a Monty interpreter using the native FFI backend.
 ///

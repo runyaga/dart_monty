@@ -11,6 +11,10 @@ analyzer:
     - '**/*.freezed.dart'
     - 'build/**'
     - 'native/**'
+    - 'lib/src/ffi/generated/**'
+    - 'main/**'
+    - 'example/**'
+    - 'spike/**'
 
   language:
     strict-casts: true
@@ -22,7 +26,9 @@ analyzer:
 
 linter:
   rules:
-    public_member_api_docs: false
+    public_member_api_docs: true
     avoid_print: true
     prefer_const_constructors: true
     prefer_const_literals_to_create_immutables: true
+    cancel_subscriptions: false
+    one_member_abstracts: false

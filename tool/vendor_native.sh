@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Build native libraries and copy them into dart_monty_native platform dirs.
+# Build native libraries and copy them into platform dirs.
 #
 # Usage:
 #   bash tool/vendor_native.sh              # build for current platform
 #   bash tool/vendor_native.sh --all        # build for all platforms (CI only)
 #
 # After running, the binaries are at:
-#   packages/dart_monty_native/macos/libdart_monty_native.dylib
-#   packages/dart_monty_native/linux/libdart_monty_native.so
+#   macos/libdart_monty_native.dylib
+#   linux/libdart_monty_native.so
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-NATIVE_PKG_DIR="$ROOT_DIR/packages/dart_monty_native"
+NATIVE_PKG_DIR="$ROOT_DIR"
 NATIVE_DIR="$ROOT_DIR/native"
 
 echo "==> Building native library..."
