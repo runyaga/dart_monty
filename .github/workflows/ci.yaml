@@ -214,10 +214,15 @@ jobs:
           # Copy JS bridge assets from spike build
           cp spike/web_test/web/monty_bundle.js "$INTEG_WEB/dart_monty_bridge.js"
           cp spike/web_test/web/monty_worker.js "$INTEG_WEB/"
-          cp native/target/wasm32-wasip1/release/dart_monty_native.wasm "$INTEG_WEB/"
 
-          # Copy WASM npm package assets needed by the worker
-          cp spike/web_test/node_modules/@pydantic/monty-wasm32-wasi/monty.wasm32-wasi.wasm "$INTEG_WEB/" || true
+          # Copy WASM binary and WASI worker from npm package
+          # The worker resolves these via import.meta.url relative paths
+          cp spike/web_test/node_modules/@pydantic/monty-wasm32-wasi/monty.wasm32-wasi.wasm "$INTEG_WEB/"
+          mkdir -p "$INTEG_WEB/@pydantic/monty-wasm32-wasi"
+          cp spike/web_test/node_modules/@pydantic/monty-wasm32-wasi/wasi-worker-browser.mjs \
+            "$INTEG_WEB/@pydantic/monty-wasm32-wasi/"
+          cp spike/web_test/node_modules/@pydantic/monty-wasm32-wasi/monty.wasm32-wasi.wasm \
+            "$INTEG_WEB/@pydantic/monty-wasm32-wasi/"
 
           # Compile Dart ladder runner to JS
           dart pub get
