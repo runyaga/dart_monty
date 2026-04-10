@@ -76,15 +76,15 @@ at compile time. You need three asset files and COOP/COEP headers.
 cd native && cargo build --release --target wasm32-wasip1
 
 # Build the JS bridge and worker
-cd packages/dart_monty_wasm/js && npm install && npm run build
+cd spike/web_test && npm install && npm run build
 ```
 
 **2. Copy assets into your web directory**
 
 ```bash
-cp packages/dart_monty_wasm/assets/dart_monty_bridge.js web/
-cp packages/dart_monty_wasm/assets/dart_monty_worker.js web/
-cp packages/dart_monty_wasm/assets/dart_monty_native.wasm web/
+cp spike/web_test/dist/dart_monty_bridge.js web/
+cp spike/web_test/dist/dart_monty_worker.js web/
+cp dart_monty_native.wasm web/
 ```
 
 **3. Write your Dart code** (same API as native)
@@ -201,7 +201,7 @@ automatically.
 `Stream<BridgeEvent>` — tool calls, text output, and lifecycle events:
 
 ```dart
-import 'package:dart_monty_bridge/dart_monty_bridge.dart';
+import 'package:dart_monty/dart_monty_bridge.dart';
 
 final bridge = DefaultMontyBridge(platform: Monty());
 
@@ -268,7 +268,7 @@ available tools at runtime.
 dart_monty uses a sealed `MontyError` hierarchy for structured error handling:
 
 ```dart
-import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
+import 'package:dart_monty/dart_monty.dart';
 
 try {
   final result = await monty.run('1 / 0');
@@ -298,7 +298,7 @@ try {
 snapshot/restore under the hood:
 
 ```dart
-import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
+import 'package:dart_monty/dart_monty.dart';
 
 final session = MontySession(platform: Monty());
 
@@ -346,18 +346,18 @@ See [docs/architecture.md](docs/architecture.md) for detailed architecture
 documentation including state machine contracts, memory management, error
 handling, and cross-backend parity guarantees.
 
-dart_monty selects the native or web backend at compile time via conditional
-imports — no Flutter required. Four pure-Dart packages:
+Since v0.20.0, dart_monty is a single consolidated package (previously
+eight sub-packages). It selects the native or web backend at compile time
+via conditional imports — no Flutter required. Internal modules:
 
-| Package | Description |
-|---------|-------------|
-| `dart_monty` | App-facing API — `Monty()` convenience class with compile-time backend selection |
-| `dart_monty_bridge` | High-level bridge — `DefaultMontyBridge`, `BridgeEvent` streams, `MontyPlugin` / `PluginRegistry` |
-| `dart_monty_platform_interface` | Abstract contract (`MontyPlatform`), shared types, SPI for backend authors |
-| `dart_monty_ffi` | Native FFI bindings (`dart:ffi` -> Rust shared library) |
-| `dart_monty_wasm` | WASM bindings (`dart:js_interop` -> Web Worker) |
+| Module | Path | Description |
+|--------|------|-------------|
+| Platform interface | `lib/src/platform/` | Abstract contract (`MontyPlatform`), shared types, SPI for backend authors |
+| FFI | `lib/src/ffi/` | Native FFI bindings (`dart:ffi` -> Rust shared library) |
+| WASM | `lib/src/wasm/` | WASM bindings (`dart:js_interop` -> Web Worker) |
+| Bridge | `lib/src/bridge/` | High-level bridge — `DefaultMontyBridge`, `BridgeEvent` streams, `MontyPlugin` / `PluginRegistry` |
 
-All packages are pure Dart and work in CLI tools, server-side Dart, and
+Everything is pure Dart and works in CLI tools, server-side Dart, and
 Flutter apps alike.
 
 ### Native Path (desktop)

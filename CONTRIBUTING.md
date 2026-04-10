@@ -13,8 +13,8 @@
 ```bash
 dart pub get
 dart format .
-python3 tool/analyze_packages.py
-cd packages/dart_monty_platform_interface && dart test
+dart analyze --fatal-infos
+dart test
 ```
 
 ## Running Examples
@@ -51,12 +51,12 @@ DART_MONTY_LIB_PATH=../../native/target/release/libdart_monty_native.dylib \
 **Web:**
 
 ```bash
-cd packages/dart_monty_wasm/js && npm install && npm run build && cd ../../..
+cd wasm/js && npm install && npm run build && cd ../..
 cd example/web && dart pub get
 dart compile js bin/main.dart -o web/main.dart.js
-cp ../../packages/dart_monty_wasm/assets/dart_monty_bridge.js web/
-cp ../../packages/dart_monty_wasm/assets/dart_monty_worker.js web/
-cp ../../packages/dart_monty_wasm/assets/*.wasm web/
+cp ../../wasm/assets/dart_monty_bridge.js web/
+cp ../../wasm/assets/dart_monty_worker.js web/
+cp ../../wasm/assets/*.wasm web/
 
 # Serve with COOP/COEP headers
 python3 -c "
@@ -79,9 +79,7 @@ http.server.HTTPServer(('127.0.0.1', 8088), handler).serve_forever()
 ```bash
 bash tool/gate.sh                        # Run ALL quality checks
 bash tool/test_platform_interface.sh     # Platform interface
-bash tool/test_rust.sh                   # Rust native crate + WASM
-bash tool/test_ffi.sh                    # FFI package
-bash tool/test_wasm.sh                   # WASM package (unit + Chrome integration)
+bash tool/test_ffi.sh                    # FFI tests
 bash tool/test_python_ladder.sh          # Python ladder (all backends)
 bash tool/test_cross_path_parity.sh      # JSONL parity diff
 ```
@@ -91,8 +89,8 @@ bash tool/test_cross_path_parity.sh      # JSONL parity diff
 Run these checks after every code change:
 
 1. `dart format .` — must produce no changes
-2. `python3 tool/analyze_packages.py` — must report zero issues
-3. `dart test` (from package dir) — must pass all tests
+2. `dart analyze --fatal-infos` — must report zero issues
+3. `dart test` — must pass all tests
 4. Maintain 90%+ line coverage (enforced by CI and pre-push hooks)
 
 ## CI
@@ -107,13 +105,10 @@ All code jobs run in parallel except where noted:
 - **Changes** — detects code vs docs-only changes (~2s, always runs)
 - **FFI bindings** — generates `dart_monty_bindings.dart` once, uploads
   as artifact for downstream jobs (~2 min)
-- **Lint** — format + analyze all sub-packages (needs: ffigen)
-- **Test** — per-package matrix with 90% coverage gate:
-  platform_interface, ffi, wasm (needs: ffigen for ffi variant).
+- **Lint** — format + analyze (needs: ffigen)
+- **Test** — single test job with 90% coverage gate (needs: ffigen).
   Coverage is enforced by the `.github/actions/enforce-coverage`
   composite action.
-- **Test native** — Flutter test + 90% coverage on macOS (needs: ffigen)
-- **Test web** — Flutter test on Chrome
 - **Rust** — fmt + clippy + tarpaulin test/coverage (85% gate)
 - **Build WASM** — `cargo build --target wasm32-wasip1-threads` (needs: rust)
 - **Build JS wrapper** — npm install + esbuild bridge/worker
@@ -125,39 +120,21 @@ All code jobs run in parallel except where noted:
 
 ## Release Process
 
-Packages are published individually to pub.dev using **OIDC automated
-publishing**. No tokens or secrets needed — GitHub Actions generates a
-short-lived OIDC token that pub.dev verifies directly.
+The project is published as a single `dart_monty` package to pub.dev
+using **OIDC automated publishing**. No tokens or secrets needed — GitHub
+Actions generates a short-lived OIDC token that pub.dev verifies directly.
 
-Each package has a thin publish workflow triggered by a tag push. They
-call the shared `_publish-dart-package.yaml` reusable workflow via
-`workflow_call`, passing package-specific inputs (`uses-flutter`,
-`needs-ffigen`, `has-tests`, `analyze-scope`):
+A version tag triggers two workflows:
 
-| Package | Tag pattern | Workflow |
-|---------|-------------|----------|
-| `struct_log` | `struct_log-v<version>` | (manual publish) |
-| `dart_monty_platform_interface` | `platform_interface-v<version>` | `publish_platform_interface.yaml` |
-| `dart_monty_ffi` | `ffi-v<version>` | `publish_ffi.yaml` |
-| `dart_monty_wasm` | `wasm-v<version>` | `publish_wasm.yaml` |
-| `dart_monty_bridge` | `bridge-v<version>` | `publish_bridge.yaml` |
-| `dart_monty_web` | `web-v<version>` | `publish_web.yaml` |
-| `dart_monty_native` | `native-v<version>` | `publish_native.yaml` |
-| `dart_monty` | `v<version>` | `publish_dart_monty.yaml` |
-
-The `v<version>` tag for `dart_monty` also triggers `release.yaml`, which
-builds native binaries and a web bundle and creates a GitHub Release.
-
-**Not published to pub.dev:** `monty_cli` is an internal tool and is not
-published.
+- `publish_dart_monty.yaml` — publishes to pub.dev via OIDC
+- `release.yaml` — builds native binaries and a web bundle, creates a
+  GitHub Release
 
 ### Pre-release checklist
 
 1. **Verify CI is green** on `main` — every job must pass before tagging:
-   - **Dart analyze** — zero issues across all packages
-     (`python3 tool/analyze_packages.py`)
-   - **Dart tests** — platform_interface, ffi, wasm must pass
-   - **Dart coverage** — 90%+ line coverage per package (enforced by CI)
+   - **Dart analyze** — zero issues (`dart analyze --fatal-infos`)
+   - **Dart tests** — all tests pass with 90%+ line coverage
    - **Rust** — `cargo fmt`, `cargo clippy`, `cargo test`, and tarpaulin
      coverage at 90%+ must all pass
    - **Build WASM** — `cargo build --target wasm32-wasip1-threads`
@@ -165,111 +142,46 @@ published.
    - **Build native** — Ubuntu + macOS matrix
    - **DCM, Markdown, Security** — all must be green
 2. **Verify mock and sealed-class completeness** — if new abstract methods
-   or sealed variants were added to `platform_interface` or `wasm_bindings`:
-   - Update `MockMontyPlatform` in platform_interface tests
-   - Update `MockWasmBindings` in dart_monty_web tests
+   or sealed variants were added:
+   - Update `MockMontyPlatform` in platform interface tests
    - Ensure all `switch` statements on sealed types (e.g. `MontyProgress`)
-     are exhaustive in every package (especially native)
-3. **Update version** in each package's `pubspec.yaml` that you intend to
-   release
-4. **Consolidate CHANGELOGs** — rename `## Unreleased` to the version
-   heading (e.g. `## 0.4.0`) in each package being released
-5. **Check dependency constraints** — if `platform_interface` has breaking
-   changes, update version constraints in downstream packages (`ffi`, `wasm`,
-   `web`, `native`, `dart_monty`). Remember `^0.3.3` means `>=0.3.3 <0.4.0`,
-   so a 0.4.0 release requires bumping constraints to `^0.4.0`.
-6. **Commit and push** the version bumps and CHANGELOG updates to `main`
-7. **Run local dry-run** for each package being published:
+     are exhaustive
+3. **Update version** in `pubspec.yaml`
+4. **Update CHANGELOG** — rename `## Unreleased` to the version heading
+   (e.g. `## 0.20.0`)
+5. **Commit and push** the version bump and CHANGELOG update to `main`
+6. **Run local dry-run:**
 
    ```bash
-   cd packages/<package> && dart pub publish --dry-run
+   dart pub publish --dry-run
    ```
 
 ### Release (tagging and publishing)
 
-Tag and push in **dependency order** — each package's deps must be live on
-pub.dev before it publishes.
-
-**Important:** The native library release (step 0) must complete before
-publishing `dart_monty_ffi` to pub.dev. Consumers of `dart_monty_ffi`
-download pre-built binaries from this GitHub Release via the
-`hook/build.dart` native assets hook. Without it, consumers get a 404
-and cannot use the package.
-
 ```bash
-# 0. Native library binaries (MUST complete before step 3)
-#
-# Triggers native-release.yaml which builds for all 6 platforms
-# (linux/macos/windows × x64/arm64) and creates a GitHub Release
-# at native-lib-v<version> with the binaries attached.
-#
-# The version comes from native/NATIVE_LIB_VERSION (also copied to
-# packages/dart_monty_ffi/NATIVE_LIB_VERSION at publish time).
-# The build hook reads this file to construct the download URL:
-#   https://github.com/runyaga/dart_monty/releases/download/native-lib-v<version>/...
-#
-git tag native-lib-v<version>
-git push origin native-lib-v<version>
-# Wait for ALL build matrix jobs to complete and verify the Release
-# has 6 binary assets attached before proceeding.
-
-# 1. struct_log (no monty deps — only if changed)
-# Published manually: cd packages/struct_log && dart pub publish
-
-# 2. platform_interface (no monty deps)
-git tag platform_interface-v<version>
-git push origin platform_interface-v<version>
-# Wait for workflow to complete successfully
-
-# 3. ffi, wasm, bridge (depend on platform_interface)
-git tag ffi-v<version>
-git tag wasm-v<version>
-git tag bridge-v<version>
-git push origin ffi-v<version> wasm-v<version> bridge-v<version>
-# Wait for all workflows to complete
-
-# 4. web and native (depend on platform_interface + ffi/wasm)
-git tag web-v<version>
-git tag native-v<version>
-git push origin web-v<version> native-v<version>
-# Wait for both workflows to complete
-
-# 5. dart_monty root — pub.dev publish + GitHub Release (native + web binaries)
 git tag v<version>
 git push origin v<version>
 ```
 
-Step 0 creates the **native binary GitHub Release** (consumed by
-`hook/build.dart` at install time).
-Steps 1–4 publish to **pub.dev** via per-package OIDC workflows.
-Step 5 triggers **both** `publish_dart_monty.yaml` (pub.dev) and
-`release.yaml` (native binaries for Linux + macOS, web bundle, GitHub
-Release at `https://github.com/runyaga/dart_monty/releases`).
+This triggers both `publish_dart_monty.yaml` (pub.dev) and `release.yaml`
+(native binaries for Linux + macOS, web bundle, GitHub Release at
+`https://github.com/runyaga/dart_monty/releases`).
 
 ### Post-release verification
 
-1. **Check pub.dev** — verify each package shows the new version:
+1. **Check pub.dev** — verify the new version is live:
 
    ```bash
-   for pkg in struct_log dart_monty_platform_interface dart_monty_ffi \
-              dart_monty_wasm dart_monty_bridge dart_monty_web \
-              dart_monty_native dart_monty; do
-     echo "$pkg: $(curl -s https://pub.dev/api/packages/$pkg | python3 -c \
-       "import sys,json; print(json.load(sys.stdin)['latest']['version'])")"
-   done
+   curl -s https://pub.dev/api/packages/dart_monty | python3 -c \
+     "import sys,json; print(json.load(sys.stdin)['latest']['version'])"
    ```
 
-2. **Check GitHub Actions** — all publish workflows + release workflow should
-   show green
+2. **Check GitHub Actions** — publish + release workflows should show green
 3. **Check GitHub Release** — verify
    `https://github.com/runyaga/dart_monty/releases` shows the new version with
    native (linux-x64, macos-x64) and web artifacts attached
-4. **Review pub.dev descriptions** — verify each package's description is
-   accurate and up to date. Descriptions come from `pubspec.yaml` and are
-   updated on each publish. Check for stale references to renamed packages
-   or outdated scope descriptions.
-5. **Test downstream** — create a fresh project and add `dart_monty` as a
-   dependency to verify the published packages resolve correctly:
+4. **Test downstream** — create a fresh project and add `dart_monty` as a
+   dependency to verify the published package resolves correctly:
 
    ```bash
    dart create test_install && cd test_install
@@ -278,15 +190,15 @@ Release at `https://github.com/runyaga/dart_monty/releases`).
 
 ### Post-release cleanup
 
-After all packages are published:
+After publishing:
 
-1. **Reset CHANGELOGs** — add `## Unreleased` heading above the just-released
-   version in every package's `CHANGELOG.md`
+1. **Reset CHANGELOG** — add `## Unreleased` heading above the just-released
+   version in `CHANGELOG.md`
 2. **Commit and push** the reset to `main`:
 
    ```bash
-   git add */CHANGELOG.md packages/*/CHANGELOG.md
-   git commit -m "chore: reset CHANGELOGs to Unreleased"
+   git add CHANGELOG.md
+   git commit -m "chore: reset CHANGELOG to Unreleased"
    git push origin main
    ```
 
@@ -306,62 +218,50 @@ After all packages are published:
 - **If the version WAS already published** — bump to the next patch version,
   update CHANGELOG, commit, and tag the new version. A published version can
   never be re-published.
-- **Root package `dart_monty`** depends on all sub-packages from pub.dev (not
-  path refs). If it fails with "doesn't match any versions", wait 1–2 minutes
-  for pub.dev propagation after the dependency packages publish, then re-tag.
 
 ### CHANGELOGs
 
-Each package has a `CHANGELOG.md`. During development, add entries under
-`## Unreleased`. Before publishing, rename `## Unreleased` to the version
-heading. pub.dev displays the CHANGELOG entry matching the published version
-as the release notes.
+The project has a single `CHANGELOG.md` at the root. During development, add
+entries under `## Unreleased`. Before publishing, rename `## Unreleased` to the
+version heading. pub.dev displays the CHANGELOG entry matching the published
+version as the release notes.
 
-### pub.dev admin setup (one-time per package)
+### pub.dev admin setup (one-time)
 
-All 8 published packages are already configured. For new packages:
+The `dart_monty` package is already configured. If reconfiguring:
 
 1. Publish the first version manually with `dart pub publish`
-2. Go to `https://pub.dev/packages/<package_name>/admin`
+2. Go to `https://pub.dev/packages/dart_monty/admin`
 3. Enable **Automated publishing** from GitHub Actions
 4. Set **Repository:** `runyaga/dart_monty`
-5. Set **Tag pattern:** `<prefix>-v{{version}}`
+5. Set **Tag pattern:** `v{{version}}`
 6. Set **Environment:** `pub-dev`
 7. Save
 
 ### Publishing gotchas
 
-- **OIDC requires `environment: pub-dev`.** All packages on pub.dev are
-  configured with the `pub-dev` environment restriction. The reusable
-  publish workflow (`_publish-dart-package.yaml`) must have
-  `environment: pub-dev` on its job — without it, `dart pub publish`
-  fails with `Authentication failed!`.
+- **OIDC requires `environment: pub-dev`.** The package on pub.dev is
+  configured with the `pub-dev` environment restriction. The publish
+  workflow must have `environment: pub-dev` on its job — without it,
+  `dart pub publish` fails with `Authentication failed!`.
 - **`pub-dev` environment needs a tag deployment policy.** The GitHub
   `pub-dev` environment must have a deployment branch policy allowing
-  tags matching `*-v*`. Without this, tag pushes silently fail to
-  trigger publish workflows. Check via Settings > Environments >
+  tags matching `v*`. Without this, tag pushes silently fail to
+  trigger the publish workflow. Check via Settings > Environments >
   pub-dev > Deployment branches and tags.
 - **Tag filters use glob, not regex.** GitHub Actions `on.push.tags` uses
   glob matching — `[0-9]+` is literal (matches `1+`), use `[0-9]*` for
   "one or more digits".
 - **Flutter packages need both actions for OIDC.** `subosito/flutter-action`
-  does not configure OIDC credentials. Flutter publish workflows must also
-  include `dart-lang/setup-dart@v1` to enable `dart pub publish` with OIDC.
-- **FFI bindings are generated, not committed.** The `publish_ffi.yaml`
-  workflow includes `apt-get install libclang-dev` and `dart run ffigen`
-  steps because `dart_monty_bindings.dart` is gitignored.
-- **Root package resolves from pub.dev.** `dart_monty` uses hosted
-  dependencies (`^x.y.z`) with `dependency_overrides` pointing to local
-  paths for CI and local development. After publishing sub-packages,
-  wait 1–2 minutes for pub.dev to propagate before tagging the root.
-- **New packages require manual first publish.** If a package is renamed
-  or newly created (e.g. `dart_monty_desktop` → `dart_monty_native`),
-  pub.dev treats it as a brand new package. The first version must be
-  published manually with `dart pub publish`, then configure OIDC on
-  the pub.dev admin page before automated publishing will work.
+  does not configure OIDC credentials. If the publish workflow uses Flutter,
+  it must also include `dart-lang/setup-dart@v1` to enable `dart pub publish`
+  with OIDC.
+- **FFI bindings are generated, not committed.** The publish workflow
+  includes `apt-get install libclang-dev` and `dart run ffigen` steps
+  because `dart_monty_bindings.dart` is gitignored.
 - **Sealed-class exhaustiveness.** Adding a variant to `MontyProgress` (or
-  any sealed class) requires updating every `switch` on that type across all
-  packages and all mock implementations.
+  any sealed class) requires updating every `switch` on that type and all
+  mock implementations.
 
 ## Cross-Platform Parity
 
