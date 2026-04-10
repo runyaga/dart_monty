@@ -18,6 +18,9 @@ native/*.dll
 # Generated FFI bindings
 lib/src/generated/
 
+# Generated API docs
+**/doc/api/
+
 # Coverage
 coverage/
 lcov.info
