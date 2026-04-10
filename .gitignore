@@ -25,9 +25,18 @@ lib/src/generated/
 coverage/
 lcov.info
 
+# WASM binaries
+*.wasm
+
+# Node
+node_modules/
+
 # OS
 .DS_Store
 Thumbs.db
+
+# Vendored/pre-built binaries (downloaded from GitHub Releases at install time)
+vendored/
 
 # Compiled example binaries
 example/native/bin/dart_monty_example
@@ -45,4 +54,10 @@ test.py
 .venv/
 # CI review artifacts (all generated — regenerate with tool/metrics.sh)
 ci-review/
-packages/dart_monty_ffi/bin/cancel_benchmark
+# Compiled JS artifacts (built by dart compile js or npm run bundle)
+**/*.dart.js
+**/*.dart.js.deps
+**/*.dart.js.map
+spike/web_test/web/monty_bundle.js
+spike/web_test/web/monty_worker.js
+spike/web_test/web/fixtures/
