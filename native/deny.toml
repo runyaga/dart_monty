@@ -1,0 +1,32 @@
+[advisories]
+version = 2
+# atomic-polyfill is unmaintained but comes from monty's transitive deps.
+# We can't fix this until upstream monty updates their deps.
+ignore = ["RUSTSEC-2023-0089"]
+
+[licenses]
+version = 2
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Unicode-3.0",
+    "Unicode-DFS-2016",
+    "Zlib",
+]
+confidence-threshold = 0.8
+# Our own crate doesn't have a license field in Cargo.toml (publish = false)
+exceptions = [
+    { allow = ["MIT"], crate = "dart_monty_native" },
+]
+
+[bans]
+multiple-versions = "warn"
+wildcards = "warn"  # git deps don't specify version
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "allow"  # monty dependency is a git fork
