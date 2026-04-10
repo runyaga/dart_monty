@@ -297,6 +297,7 @@ class NativeIsolateBindingsImpl extends NativeIsolateBindings {
         if (!completer.isCompleted) {
           completer.completeError(
             StateError('Isolate exited before sending _ReadyMessage'),
+            StackTrace.current,
           );
         }
         _failAllPending('Isolate exited');
@@ -307,6 +308,7 @@ class NativeIsolateBindingsImpl extends NativeIsolateBindings {
       if (!completer.isCompleted) {
         completer.completeError(
           StateError('Isolate failed to start: $message'),
+          StackTrace.current,
         );
       }
       _failAllPending('Isolate error: $message');
@@ -509,7 +511,10 @@ class NativeIsolateBindingsImpl extends NativeIsolateBindings {
     _pending.clear();
     for (final completer in pending.values) {
       if (!completer.isCompleted) {
-        completer.completeError(MontyException(message: message));
+        completer.completeError(
+          MontyException(message: message),
+          StackTrace.current,
+        );
       }
     }
   }

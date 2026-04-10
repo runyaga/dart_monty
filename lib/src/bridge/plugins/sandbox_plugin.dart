@@ -352,6 +352,7 @@ class SandboxPlugin extends MontyPlugin {
             childId: entry.key,
             message: 'disposed with parent',
           ),
+          StackTrace.current,
         );
       }
     }
@@ -570,6 +571,7 @@ class SandboxPlugin extends MontyPlugin {
                   message: errorMessage!,
                   exception: errorException,
                 ),
+                StackTrace.current,
               );
             } else {
               logger.info('Child completed', attributes: {'childId': id});

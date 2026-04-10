@@ -24,7 +24,7 @@ List<(String, List<Map<String, dynamic>>)> loadLadderFixtures(Directory dir) {
   return [
     for (final file in tierFiles)
       (
-        file.uri.pathSegments.last.replaceAll('.json', ''),
+        file.uri.pathSegments.lastOrNull?.replaceAll('.json', '') ?? 'unknown',
         (jsonDecode(file.readAsStringSync()) as List)
             .cast<Map<String, dynamic>>(),
       ),

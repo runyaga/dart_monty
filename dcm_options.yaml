@@ -1,12 +1,12 @@
 # =============================================================================
-# DCM Configuration - Stage 2: Aggressive Rules & Tight Metrics
+# DCM Configuration
 # =============================================================================
 # Documentation: https://dcm.dev/docs/configuration
 # =============================================================================
 
 dcm:
   # ---------------------------------------------------------------------------
-  # Metrics Thresholds (tightened from Stage 1 baselines)
+  # Metrics Thresholds
   # ---------------------------------------------------------------------------
 
   metrics:
@@ -29,7 +29,7 @@ dcm:
       threshold: 15.0
 
   # ---------------------------------------------------------------------------
-  # Exclusions
+  # Global Exclusions
   # ---------------------------------------------------------------------------
 
   exclude:
@@ -50,6 +50,32 @@ dcm:
   rules:
     # --- Bug Prevention ---
     - avoid-throw-in-finally-block
+    - avoid-unsafe-collection-methods:
+        exclude:
+          # Python schema enforces arg count
+          - "lib/src/bridge/os_call/default_os_call_handler_native.dart"
+          # Mock tracking lists: only accessed after recording calls
+          - "lib/src/platform/mock_monty_platform.dart"
+          # Guarded by isEmpty/isNotEmpty/length checks before access
+          - "lib/src/platform/monty_session.dart"
+          - "lib/src/platform/testing/ladder_assertions.dart"
+          - "lib/src/bridge/bridge/default_monty_bridge.dart"
+          - "lib/src/bridge/bridge/host_function_schema.dart"
+          - "lib/src/bridge/bridge/introspection_functions.dart"
+          - "lib/src/bridge/plugins/message_bus_plugin.dart"
+          - "lib/src/bridge/plugins/sandbox_plugin.dart"
+    - avoid-missing-completer-stack-trace
+    - avoid-uncaught-future-errors:
+        exclude:
+          # Future is drained via unawaited(future.catchError)
+          - "lib/src/bridge/plugins/message_bus_plugin.dart"
+    - avoid-recursive-calls
+    - avoid-contradictory-expressions
+    - avoid-self-assignment
+    - avoid-unused-assignment
+    - avoid-unassigned-late-fields
+    - no-equal-arguments
+    - no-equal-conditions
 
     # --- Common Anti-Patterns ---
     - avoid-unused-parameters
@@ -67,14 +93,15 @@ dcm:
     - prefer-match-file-name:
         exclude:
           - "test/**"
+          # FFI/WASM binding abstractions
           - "lib/**/native_bindings.dart"
           - "lib/**/wasm_bindings.dart"
-          # Part files — first type is a sealed subclass, not the file name
+          # Part files: first type is a sealed subclass, not the file name
           - "lib/src/platform/monty_value_scalars.dart"
           - "lib/src/platform/monty_value_collections.dart"
           - "lib/src/platform/monty_value_datetime.dart"
           - "lib/src/platform/monty_value_structured.dart"
-          # Files with helper types/enums before the main class
+          # Helper types/enums declared before the main class
           - "lib/src/platform/core_bindings.dart"
           - "lib/src/bridge/bridge/bridge_middleware.dart"
           - "lib/src/bridge/bridge/event_loop_bridge.dart"
@@ -92,10 +119,12 @@ dcm:
     - no-boolean-literal-compare
     - no-empty-block:
         exclude:
-          # Intentionally empty: null-object pattern and default no-ops
+          # NullBridgeLogger: null-object pattern, all methods intentionally empty
           - "lib/src/platform/bridge_logger.dart"
+          # Default no-op lifecycle hooks
           - "lib/src/bridge/bridge/monty_plugin.dart"
           - "lib/src/bridge/bridge/monty_bridge.dart"
+          # Empty .then() callback for unawaited future cleanup
           - "lib/src/bridge/bridge/default_monty_bridge.dart"
     - no-equal-then-else
     - prefer-first
@@ -110,33 +139,35 @@ dcm:
     - avoid-late-keyword:
         exclude:
           - "test/**"
-    # fromJson factories and JSON boundary code use Map<String, dynamic>
-    # per Dart convention. Exclude only the specific files that need it.
     - avoid-dynamic:
         exclude:
           - "test/**"
+          # fromJson factories: Map<String, dynamic> is Dart JSON convention
           - "lib/src/platform/monty_value.dart"
           - "lib/src/platform/monty_value_collections.dart"
           - "lib/src/platform/monty_value_structured.dart"
-          - "lib/src/platform/base_monty_platform.dart"
-          - "lib/src/platform/core_bindings.dart"
           - "lib/src/platform/monty_progress.dart"
           - "lib/src/platform/monty_exception.dart"
-    # FFI/isolate boundary and bridge dispatch code has protocol-guaranteed
-    # non-null values that the type system cannot express.
+          # JSON deserialization in SPI/base platform
+          - "lib/src/platform/base_monty_platform.dart"
+          - "lib/src/platform/core_bindings.dart"
     - avoid-non-null-assertion:
         exclude:
           - "test/**"
           - "**/example/**"
+          # Isolate message protocol: non-null guaranteed by sealed message types
           - "lib/src/ffi/native_isolate_bindings_impl.dart"
+          # JSON deserialization: fields guaranteed by Rust FFI contract
           - "lib/src/platform/base_monty_platform.dart"
           - "lib/src/platform/monty_progress.dart"
           - "lib/src/platform/monty_session.dart"
+          # Bridge dispatch: non-null guaranteed by host function schema validation
           - "lib/src/bridge/bridge/default_monty_bridge.dart"
           - "lib/src/bridge/bridge/host_param.dart"
           - "lib/src/bridge/bridge/plugin_registry.dart"
           - "lib/src/bridge/plugins/sandbox_plugin.dart"
           - "lib/src/bridge/os_call/default_os_call_handler_native.dart"
+          # WASM JS interop: non-null guaranteed by JS bridge contract
           - "lib/src/wasm/wasm_bindings_js.dart"
           - "lib/src/wasm/wasm_core_bindings.dart"
 
@@ -168,4 +199,5 @@ dcm:
     - prefer-test-matcher
     - prefer-correct-test-file-name:
         exclude:
+          # Standalone JS-compiled runner, not a package:test file
           - "**/python_ladder_runner.dart"

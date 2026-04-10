@@ -124,6 +124,7 @@ class EventLoopBridge extends DefaultMontyBridge {
         if (completer != null && !completer.isCompleted) {
           completer.completeError(
             StateError('Script finished while waiting for event'),
+            StackTrace.current,
           );
           _pendingCompleter = null;
         }
@@ -139,6 +140,7 @@ class EventLoopBridge extends DefaultMontyBridge {
     if (completer != null && !completer.isCompleted) {
       completer.completeError(
         StateError('Bridge disposed while waiting for event'),
+        StackTrace.current,
       );
       _pendingCompleter = null;
     }

@@ -246,7 +246,9 @@ class MessageBusPlugin extends MontyPlugin {
   Future<void> onDispose() async {
     await super.onDispose();
     for (final c in _pendingRecvs) {
-      if (!c.isCompleted) c.completeError(StateError('disposed'));
+      if (!c.isCompleted) {
+        c.completeError(StateError('disposed'), StackTrace.current);
+      }
     }
     _pendingRecvs.clear();
   }
@@ -270,6 +272,10 @@ class MessageBusPlugin extends MontyPlugin {
     try {
       final future = _bus.recv(name, waiter: completer);
       if (timeoutMs != null) {
+        // Drain the original future so a later error doesn't go uncaught
+        // if the timeout fires before the recv completes.
+        unawaited(future.catchError((_) => null));
+
         return await future.timeout(
           Duration(milliseconds: timeoutMs),
           onTimeout: () {
@@ -280,6 +286,11 @@ class MessageBusPlugin extends MontyPlugin {
       }
 
       return await future;
+    } on Object {
+      // Drain any lingering error on the completer so it does not surface
+      // as an uncaught async error after we stop listening.
+      unawaited(completer.future.catchError((_) => null));
+      rethrow;
     } finally {
       _pendingRecvs.remove(completer);
     }
