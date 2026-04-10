@@ -15,6 +15,7 @@ analyzer:
     - 'main/**'
     - 'example/**'
     - 'spike/**'
+    - 'struct_log/**'
 
   language:
     strict-casts: true

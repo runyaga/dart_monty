@@ -94,10 +94,10 @@ jobs:
           name: ffi-bindings
           path: lib/src/ffi/generated
       - run: dart pub get
+      - name: Analyze
+        run: dart analyze --fatal-warnings
       - name: Format
         run: dart format --set-exit-if-changed lib/ test/ hook/ bin/ tool/
-      - name: Analyze
-        run: dart analyze --fatal-infos
       - name: Test
         run: dart test --coverage=coverage
       - name: Generate LCOV
