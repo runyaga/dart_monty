@@ -40,8 +40,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: example/web/package-lock.json
       - name: Verify WASM binary
         run: |
           test -f native/target/wasm32-wasip1/release/dart_monty_native.wasm
@@ -81,44 +79,6 @@ jobs:
       - name: Copy site images
         run: |
           cp docs/dart_monty.jpg example/web/web/
-
-      # ── Build Flutter web example (optional — site deploys without it) ──
-      - uses: subosito/flutter-action@v2
-        id: flutter-setup
-        continue-on-error: true
-        with:
-          flutter-version: '3.41.4'
-          channel: stable
-          cache: true
-      - name: Install Flutter web dependencies
-        if: steps.flutter-setup.outcome == 'success'
-        continue-on-error: true
-        working-directory: example/flutter_web
-        run: flutter pub get
-      - name: Build Flutter web app
-        id: flutter-build
-        if: steps.flutter-setup.outcome == 'success'
-        continue-on-error: true
-        working-directory: example/flutter_web
-        run: flutter build web --base-href /dart_monty/flutter/ --pwa-strategy none
-      - name: Copy WASM binary to Flutter build
-        if: steps.flutter-build.outcome == 'success'
-        continue-on-error: true
-        run: |
-          cp native/target/wasm32-wasip1/release/dart_monty_native.wasm example/flutter_web/build/web/
-          cp example/flutter_web/web/coi-serviceworker.js example/flutter_web/build/web/
-      - name: Copy fixture files to Flutter build
-        if: steps.flutter-build.outcome == 'success'
-        continue-on-error: true
-        run: |
-          mkdir -p example/flutter_web/build/web/fixtures
-          cp test/fixtures/python_ladder/tier_*.json example/flutter_web/build/web/fixtures/
-      - name: Assemble Flutter web into site
-        if: steps.flutter-build.outcome == 'success'
-        continue-on-error: true
-        run: |
-          mkdir -p example/web/web/flutter
-          cp -r example/flutter_web/build/web/* example/web/web/flutter/
 
       # ── Stamp build date ─────────────────────────────────────────────
       - name: Stamp build date into HTML
