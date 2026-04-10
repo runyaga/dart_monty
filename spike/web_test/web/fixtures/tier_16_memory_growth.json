@@ -1,0 +1,50 @@
+[
+  {
+    "id": 200,
+    "tier": 16,
+    "name": "memory growth beyond 64MB initial — large list",
+    "code": "data = [0] * 20000000\ndata[19999999] = 42\ndata[19999999]",
+    "expected": 42,
+    "expectedContains": null,
+    "expectedSorted": false,
+    "expectError": false,
+    "errorContains": null,
+    "externalFunctions": null,
+    "resumeValues": null,
+    "resumeErrors": null,
+    "nativeOnly": false,
+    "xfail": null
+  },
+  {
+    "id": 201,
+    "tier": 16,
+    "name": "large string allocation >64MB",
+    "code": "s = \"x\" * 70000000\nlen(s)",
+    "expected": 70000000,
+    "expectedContains": null,
+    "expectedSorted": false,
+    "expectError": false,
+    "errorContains": null,
+    "externalFunctions": null,
+    "resumeValues": null,
+    "resumeErrors": null,
+    "nativeOnly": false,
+    "xfail": null
+  },
+  {
+    "id": 202,
+    "tier": 16,
+    "name": "nested list memory pressure",
+    "code": "data = [[i] * 100 for i in range(50000)]\ndata[49999][99]",
+    "expected": 49999,
+    "expectedContains": null,
+    "expectedSorted": false,
+    "expectError": false,
+    "errorContains": null,
+    "externalFunctions": null,
+    "resumeValues": null,
+    "resumeErrors": null,
+    "nativeOnly": false,
+    "xfail": null
+  }
+]
