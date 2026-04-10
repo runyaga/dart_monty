@@ -25,20 +25,48 @@ pub fn monty_object_to_json(obj: &MontyObject) -> Value {
         MontyObject::BigInt(n) => bigint_to_json(n),
         MontyObject::Float(f) => float_to_json(*f),
         MontyObject::String(s) => Value::String(s.clone()),
-        MontyObject::List(items) | MontyObject::Tuple(items) => {
+        MontyObject::List(items) => {
             Value::Array(items.iter().map(monty_object_to_json).collect())
         }
+        MontyObject::Tuple(items) => json!({
+            "__type": "tuple",
+            "value": items.iter().map(monty_object_to_json).collect::<Vec<_>>(),
+        }),
         MontyObject::Dict(pairs) => dict_to_json(pairs),
-        MontyObject::Set(items) | MontyObject::FrozenSet(items) => {
-            Value::Array(items.iter().map(monty_object_to_json).collect())
-        }
+        MontyObject::Set(items) => json!({
+            "__type": "set",
+            "value": items.iter().map(monty_object_to_json).collect::<Vec<_>>(),
+        }),
+        MontyObject::FrozenSet(items) => json!({
+            "__type": "frozenset",
+            "value": items.iter().map(monty_object_to_json).collect::<Vec<_>>(),
+        }),
         MontyObject::Ellipsis => Value::String("...".into()),
-        MontyObject::Bytes(bytes) => Value::Array(bytes.iter().map(|b| json!(*b)).collect()),
-        MontyObject::NamedTuple { values, .. } => {
-            Value::Array(values.iter().map(monty_object_to_json).collect())
+        MontyObject::Bytes(bytes) => json!({
+            "__type": "bytes",
+            "value": bytes,
+        }),
+        MontyObject::NamedTuple { type_name, field_names, values } => json!({
+            "__type": "namedtuple",
+            "type_name": type_name,
+            "field_names": field_names,
+            "values": values.iter().map(monty_object_to_json).collect::<Vec<_>>(),
+        }),
+        MontyObject::Path(p) => json!({
+            "__type": "path",
+            "value": p,
+        }),
+        MontyObject::Dataclass { name, type_id, field_names, attrs, frozen } => {
+            let attrs_json = dict_to_json(attrs);
+            json!({
+                "__type": "dataclass",
+                "name": name,
+                "type_id": type_id,
+                "field_names": field_names,
+                "attrs": attrs_json,
+                "frozen": frozen,
+            })
         }
-        MontyObject::Path(p) => Value::String(p.clone()),
-        MontyObject::Dataclass { attrs, .. } => dict_to_json(attrs),
         MontyObject::Type(t) => Value::String(format!("{t}")),
         MontyObject::BuiltinFunction(f) => Value::String(format!("{f:?}")),
         MontyObject::Exception { exc_type, arg } => {
@@ -51,10 +79,35 @@ pub fn monty_object_to_json(obj: &MontyObject) -> Value {
         MontyObject::Repr(r) => Value::String(r.clone()),
         MontyObject::Cycle(_, desc) => Value::String(desc.clone()),
         MontyObject::Function { name, .. } => Value::String(format!("<function {name}>")),
-        MontyObject::Date(d) => Value::String(format!("{d:?}")),
-        MontyObject::DateTime(dt) => Value::String(format!("{dt:?}")),
-        MontyObject::TimeDelta(td) => Value::String(format!("{td:?}")),
-        MontyObject::TimeZone(tz) => Value::String(format!("{tz:?}")),
+        MontyObject::Date(d) => json!({
+            "__type": "date",
+            "year": d.year,
+            "month": d.month,
+            "day": d.day,
+        }),
+        MontyObject::DateTime(dt) => json!({
+            "__type": "datetime",
+            "year": dt.year,
+            "month": dt.month,
+            "day": dt.day,
+            "hour": dt.hour,
+            "minute": dt.minute,
+            "second": dt.second,
+            "microsecond": dt.microsecond,
+            "offset_seconds": dt.offset_seconds,
+            "timezone_name": dt.timezone_name,
+        }),
+        MontyObject::TimeDelta(td) => json!({
+            "__type": "timedelta",
+            "days": td.days,
+            "seconds": td.seconds,
+            "microseconds": td.microseconds,
+        }),
+        MontyObject::TimeZone(tz) => json!({
+            "__type": "timezone",
+            "offset_seconds": tz.offset_seconds,
+            "name": tz.name,
+        }),
     }
 }
 
@@ -67,11 +120,100 @@ pub fn json_to_monty_object(val: &Value) -> MontyObject {
         Value::String(s) => MontyObject::String(s.clone()),
         Value::Array(items) => MontyObject::List(items.iter().map(json_to_monty_object).collect()),
         Value::Object(map) => {
-            let pairs: Vec<(MontyObject, MontyObject)> = map
-                .iter()
-                .map(|(k, v)| (MontyObject::String(k.clone()), json_to_monty_object(v)))
-                .collect();
-            MontyObject::dict(pairs)
+            if let Some(type_str) = map.get("__type").and_then(|v| v.as_str()) {
+                match type_str {
+                    "date" => MontyObject::Date(monty::MontyDate {
+                        year: map["year"].as_i64().unwrap_or(0) as i32,
+                        month: map["month"].as_u64().unwrap_or(0) as u8,
+                        day: map["day"].as_u64().unwrap_or(0) as u8,
+                    }),
+                    "datetime" => MontyObject::DateTime(monty::MontyDateTime {
+                        year: map["year"].as_i64().unwrap_or(0) as i32,
+                        month: map["month"].as_u64().unwrap_or(0) as u8,
+                        day: map["day"].as_u64().unwrap_or(0) as u8,
+                        hour: map["hour"].as_u64().unwrap_or(0) as u8,
+                        minute: map["minute"].as_u64().unwrap_or(0) as u8,
+                        second: map["second"].as_u64().unwrap_or(0) as u8,
+                        microsecond: map["microsecond"].as_u64().unwrap_or(0) as u32,
+                        offset_seconds: map.get("offset_seconds")
+                            .and_then(|v| v.as_i64())
+                            .map(|v| v as i32),
+                        timezone_name: map.get("timezone_name")
+                            .and_then(|v| v.as_str())
+                            .map(|s| s.to_string()),
+                    }),
+                    "timedelta" => MontyObject::TimeDelta(monty::MontyTimeDelta {
+                        days: map["days"].as_i64().unwrap_or(0) as i32,
+                        seconds: map["seconds"].as_i64().unwrap_or(0) as i32,
+                        microseconds: map["microseconds"].as_i64().unwrap_or(0) as i32,
+                    }),
+                    "timezone" => MontyObject::TimeZone(monty::MontyTimeZone {
+                        offset_seconds: map["offset_seconds"].as_i64().unwrap_or(0) as i32,
+                        name: map.get("name")
+                            .and_then(|v| v.as_str())
+                            .map(|s| s.to_string()),
+                    }),
+                    "path" => MontyObject::Path(
+                        map["value"].as_str().unwrap_or("").to_string()
+                    ),
+                    "bytes" => MontyObject::Bytes(
+                        map["value"].as_array()
+                            .map(|arr| arr.iter().map(|v| v.as_u64().unwrap_or(0) as u8).collect())
+                            .unwrap_or_default()
+                    ),
+                    "tuple" => MontyObject::Tuple(
+                        map["value"].as_array()
+                            .map(|arr| arr.iter().map(json_to_monty_object).collect())
+                            .unwrap_or_default()
+                    ),
+                    "set" => MontyObject::Set(
+                        map["value"].as_array()
+                            .map(|arr| arr.iter().map(json_to_monty_object).collect())
+                            .unwrap_or_default()
+                    ),
+                    "frozenset" => MontyObject::FrozenSet(
+                        map["value"].as_array()
+                            .map(|arr| arr.iter().map(json_to_monty_object).collect())
+                            .unwrap_or_default()
+                    ),
+                    "namedtuple" => MontyObject::NamedTuple {
+                        type_name: map["type_name"].as_str().unwrap_or("").to_string(),
+                        field_names: map["field_names"].as_array()
+                            .map(|arr| arr.iter().map(|v| v.as_str().unwrap_or("").to_string()).collect())
+                            .unwrap_or_default(),
+                        values: map["values"].as_array()
+                            .map(|arr| arr.iter().map(json_to_monty_object).collect())
+                            .unwrap_or_default(),
+                    },
+                    "dataclass" => MontyObject::Dataclass {
+                        name: map["name"].as_str().unwrap_or("").to_string(),
+                        type_id: map["type_id"].as_u64().unwrap_or(0),
+                        field_names: map["field_names"].as_array()
+                            .map(|arr| arr.iter().map(|v| v.as_str().unwrap_or("").to_string()).collect())
+                            .unwrap_or_default(),
+                        attrs: match json_to_monty_object(&map.get("attrs").cloned().unwrap_or(json!({}))) {
+                            MontyObject::Dict(pairs) => pairs,
+                            _ => vec![].into(),
+                        },
+                        frozen: map.get("frozen").and_then(|v| v.as_bool()).unwrap_or(false),
+                    },
+                    _ => {
+                        // Unknown __type — fall through to dict
+                        let pairs: Vec<(MontyObject, MontyObject)> = map
+                            .iter()
+                            .map(|(k, v)| (MontyObject::String(k.clone()), json_to_monty_object(v)))
+                            .collect();
+                        MontyObject::dict(pairs)
+                    }
+                }
+            } else {
+                // No __type key — treat as dict (existing behavior)
+                let pairs: Vec<(MontyObject, MontyObject)> = map
+                    .iter()
+                    .map(|(k, v)| (MontyObject::String(k.clone()), json_to_monty_object(v)))
+                    .collect();
+                MontyObject::dict(pairs)
+            }
         }
     }
 }
@@ -224,7 +366,10 @@ mod tests {
     #[test]
     fn test_tuple() {
         let tuple = MontyObject::Tuple(vec![MontyObject::Bool(true), MontyObject::None]);
-        assert_eq!(monty_object_to_json(&tuple), json!([true, null]));
+        assert_eq!(
+            monty_object_to_json(&tuple),
+            json!({"__type": "tuple", "value": [true, null]})
+        );
     }
 
     #[test]
@@ -253,7 +398,10 @@ mod tests {
     #[test]
     fn test_set() {
         let set = MontyObject::Set(vec![MontyObject::Int(1), MontyObject::Int(2)]);
-        assert_eq!(monty_object_to_json(&set), json!([1, 2]));
+        assert_eq!(
+            monty_object_to_json(&set),
+            json!({"__type": "set", "value": [1, 2]})
+        );
     }
 
     #[test]
@@ -264,7 +412,10 @@ mod tests {
     #[test]
     fn test_bytes() {
         let bytes = MontyObject::Bytes(vec![72, 105]);
-        assert_eq!(monty_object_to_json(&bytes), json!([72, 105]));
+        assert_eq!(
+            monty_object_to_json(&bytes),
+            json!({"__type": "bytes", "value": [72, 105]})
+        );
     }
 
     // Round-trip tests
@@ -332,13 +483,19 @@ mod tests {
             field_names: vec!["x".into(), "y".into()],
             values: vec![MontyObject::Int(1), MontyObject::Int(2)],
         };
-        assert_eq!(monty_object_to_json(&nt), json!([1, 2]));
+        assert_eq!(
+            monty_object_to_json(&nt),
+            json!({"__type": "namedtuple", "type_name": "Point", "field_names": ["x", "y"], "values": [1, 2]})
+        );
     }
 
     #[test]
     fn test_path() {
         let p = MontyObject::Path("/tmp/foo".into());
-        assert_eq!(monty_object_to_json(&p), json!("/tmp/foo"));
+        assert_eq!(
+            monty_object_to_json(&p),
+            json!({"__type": "path", "value": "/tmp/foo"})
+        );
     }
 
     #[test]
@@ -351,7 +508,9 @@ mod tests {
             frozen: false,
         };
         let val = monty_object_to_json(&dc);
-        assert_eq!(val["a"], json!(42));
+        assert_eq!(val["__type"], json!("dataclass"));
+        assert_eq!(val["name"], json!("MyClass"));
+        assert_eq!(val["attrs"]["a"], json!(42));
     }
 
     #[test]
@@ -390,7 +549,10 @@ mod tests {
     #[test]
     fn test_frozen_set() {
         let fs = MontyObject::FrozenSet(vec![MontyObject::Int(3), MontyObject::Int(4)]);
-        assert_eq!(monty_object_to_json(&fs), json!([3, 4]));
+        assert_eq!(
+            monty_object_to_json(&fs),
+            json!({"__type": "frozenset", "value": [3, 4]})
+        );
     }
 
     #[test]
