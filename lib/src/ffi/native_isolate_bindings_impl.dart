@@ -304,14 +304,18 @@ class NativeIsolateBindingsImpl extends NativeIsolateBindings {
       token.isolate?.kill(priority: Isolate.immediate);
       token.receivePort?.close();
       _zombieCount++;
-      if (_zombieCount >= _zombieWarningThreshold) {
-        developer.log(
-          'dart_monty_ffi: NativeIsolateBindingsImpl was garbage collected '
-          'without dispose(). $_zombieCount zombie isolate(s) detected.',
-          name: 'dart_monty_ffi',
-          level: 900,
-        );
-      }
+      // Always log — this is a fail-safe path that indicates a missing
+      // dispose() call. The Rust MontyHandle inside the worker leaks
+      // because we can't send a graceful dispose command from a finalizer.
+      developer.log(
+        'dart_monty_ffi: NativeIsolateBindingsImpl was garbage collected '
+        'without dispose(). Worker isolate force-killed. '
+        'Rust MontyHandle leaked. '
+        'Total zombies: $_zombieCount. '
+        'Fix: always call dispose() in a finally block.',
+        name: 'dart_monty_ffi',
+        level: 1000, // SEVERE
+      );
     }
   });
 
