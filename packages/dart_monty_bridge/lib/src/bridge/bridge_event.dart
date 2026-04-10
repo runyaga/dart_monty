@@ -184,3 +184,30 @@ class BridgeUiRendered extends BridgeEvent {
   /// The UI schema map that was rendered.
   final Map<String, dynamic> schema;
 }
+
+/// An OS call started (Python accessed pathlib, os, datetime, etc.).
+class BridgeOsCallStart extends BridgeEvent {
+  /// Creates a [BridgeOsCallStart].
+  const BridgeOsCallStart({
+    required this.callId,
+    required this.operationName,
+  });
+
+  /// Call identifier (bridge-assigned).
+  final String callId;
+
+  /// The OS operation name, e.g. `"Path.read_text"`, `"os.getenv"`.
+  final String operationName;
+}
+
+/// An OS call completed with a result (or error string).
+class BridgeOsCallResult extends BridgeEvent {
+  /// Creates a [BridgeOsCallResult].
+  const BridgeOsCallResult({required this.callId, required this.result});
+
+  /// Call identifier (bridge-assigned).
+  final String callId;
+
+  /// Result string (or error description).
+  final String result;
+}

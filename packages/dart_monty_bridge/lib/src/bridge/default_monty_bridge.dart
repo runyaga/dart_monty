@@ -35,6 +35,12 @@ const _preambleLineCount = 5;
 const _consoleWriteFn = '__console_write__';
 const _roleKwarg = '__role__';
 
+/// Handler callback for OS-level calls (pathlib, os.getenv, datetime, etc.).
+///
+/// Receives the [MontyOsCall] and returns the result to resume Python with.
+/// Throw an exception to resume Python with an error.
+typedef OsCallHandler = Future<Object?> Function(MontyOsCall call);
+
 /// Tracks an in-flight host function future awaiting resolution.
 class _PendingFuture {
   _PendingFuture({
@@ -86,6 +92,7 @@ class DefaultMontyBridge implements MontyBridge {
   int _idCounter = 0;
   bool _isExecuting = false;
   bool _isDisposed = false;
+  OsCallHandler? _osCallHandler;
 
   // Fallback to deprecated singleton when no explicit platform is provided.
   // ignore: deprecated_member_use
@@ -113,6 +120,17 @@ class DefaultMontyBridge implements MontyBridge {
   void unregister(String name) {
     if (_isDisposed) throw StateError('Bridge has been disposed');
     _functions.remove(name);
+  }
+
+  /// Registers a handler for OS-level calls (pathlib, os.getenv, datetime,
+  /// etc.).
+  ///
+  /// When Python code triggers an OS call and a handler is registered, the
+  /// bridge invokes it and resumes Python with the result. When no handler is
+  /// registered, the bridge resumes with a `PermissionError`.
+  void registerOsCallHandler(OsCallHandler handler) {
+    if (_isDisposed) throw StateError('Bridge has been disposed');
+    _osCallHandler = handler;
   }
 
   @override
@@ -197,6 +215,9 @@ class DefaultMontyBridge implements MontyBridge {
               controller,
               futuresCapable: futuresCapable,
             );
+
+          case final MontyOsCall osCall:
+            progress = await _handleOsCall(osCall, controller);
 
           case final MontyResolveFutures resolve:
             if (futuresCapable && _pendingFutures.isNotEmpty) {
@@ -301,6 +322,45 @@ class DefaultMontyBridge implements MontyBridge {
     // Unknown function — raise error in Python.
     log.warning('Unknown function', attributes: {'name': name});
     return _platform.resumeWithError('Unknown function: $name');
+  }
+
+  Future<MontyProgress> _handleOsCall(
+    MontyOsCall osCall,
+    StreamController<BridgeEvent> controller,
+  ) async {
+    final callId = _nextId;
+    final opName = osCall.operationName;
+
+    controller.add(BridgeOsCallStart(callId: callId, operationName: opName));
+
+    final handler = _osCallHandler;
+    if (handler == null) {
+      log.warning('OS call denied (no handler)', attributes: {'op': opName});
+      final errorMsg =
+          'PermissionError: $opName not available (no filesystem configured)';
+      controller.add(BridgeOsCallResult(callId: callId, result: errorMsg));
+      return _platform.resumeWithError(errorMsg);
+    }
+
+    try {
+      final result = await handler(osCall);
+      controller.add(
+        BridgeOsCallResult(
+          callId: callId,
+          result: result?.toString() ?? '',
+        ),
+      );
+      return _platform.resume(result);
+    } on Object catch (e, st) {
+      log.error(
+        'OS call handler error',
+        error: e,
+        stackTrace: st,
+        attributes: {'op': opName},
+      );
+      controller.add(BridgeOsCallResult(callId: callId, result: 'Error: $e'));
+      return _platform.resumeWithError(e.toString());
+    }
   }
 
   /// Resolves the [CallRole] for a tool call and strips the reserved

@@ -567,6 +567,123 @@ void main() {
     });
   });
 
+  group('MontyOsCall handling', () {
+    test('resumes with PermissionError when no handler registered', () async {
+      mock
+        ..enqueueProgress(
+          const MontyOsCall(
+            operationName: 'Path.read_text',
+            arguments: ['/etc/passwd'],
+            callId: 1,
+          ),
+        )
+        ..enqueueProgress(
+          const MontyComplete(result: MontyResult(usage: _usage)),
+        );
+
+      final events = await bridge.execute('path.read_text()').toList();
+
+      // Should have completed (not deadlocked).
+      expect(events.whereType<BridgeRunFinished>(), hasLength(1));
+
+      // Should have called resumeWithError with PermissionError.
+      expect(mock.resumeErrorMessages, hasLength(1));
+      expect(
+        mock.resumeErrorMessages.first,
+        contains('PermissionError'),
+      );
+      expect(
+        mock.resumeErrorMessages.first,
+        contains('Path.read_text'),
+      );
+
+      // Should have emitted OsCall events.
+      final starts = events.whereType<BridgeOsCallStart>().toList();
+      expect(starts, hasLength(1));
+      expect(starts.first.operationName, 'Path.read_text');
+      final results = events.whereType<BridgeOsCallResult>().toList();
+      expect(results, hasLength(1));
+      expect(results.first.result, contains('PermissionError'));
+    });
+
+    test('invokes registered handler and resumes with result', () async {
+      bridge.registerOsCallHandler((call) async {
+        if (call.operationName == 'os.getenv') {
+          return 'production';
+        }
+        return null;
+      });
+
+      mock
+        ..enqueueProgress(
+          const MontyOsCall(
+            operationName: 'os.getenv',
+            arguments: ['APP_ENV'],
+            callId: 1,
+          ),
+        )
+        ..enqueueProgress(
+          const MontyComplete(result: MontyResult(usage: _usage)),
+        );
+
+      final events =
+          await bridge.execute('os.getenv("APP_ENV")').toList();
+
+      expect(events.whereType<BridgeRunFinished>(), hasLength(1));
+
+      // Should have called resume with the handler result.
+      expect(mock.resumeReturnValues, hasLength(1));
+      expect(mock.resumeReturnValues.first, 'production');
+
+      // Should have emitted OsCall events.
+      final starts = events.whereType<BridgeOsCallStart>().toList();
+      expect(starts, hasLength(1));
+      expect(starts.first.operationName, 'os.getenv');
+      final results = events.whereType<BridgeOsCallResult>().toList();
+      expect(results, hasLength(1));
+      expect(results.first.result, 'production');
+    });
+
+    test('handler exception resumes with error', () async {
+      bridge.registerOsCallHandler((call) async {
+        throw StateError('disk on fire');
+      });
+
+      mock
+        ..enqueueProgress(
+          const MontyOsCall(
+            operationName: 'Path.write_text',
+            arguments: ['/tmp/out', 'data'],
+            callId: 1,
+          ),
+        )
+        ..enqueueProgress(
+          const MontyComplete(result: MontyResult(usage: _usage)),
+        );
+
+      final events = await bridge.execute('path.write_text()').toList();
+
+      expect(events.whereType<BridgeRunFinished>(), hasLength(1));
+
+      // Should have called resumeWithError.
+      expect(mock.resumeErrorMessages, hasLength(1));
+      expect(mock.resumeErrorMessages.first, contains('disk on fire'));
+
+      // OsCallResult should contain the error.
+      final results = events.whereType<BridgeOsCallResult>().toList();
+      expect(results, hasLength(1));
+      expect(results.first.result, contains('disk on fire'));
+    });
+
+    test('registerOsCallHandler after dispose throws StateError', () {
+      bridge.dispose();
+      expect(
+        () => bridge.registerOsCallHandler((_) async => null),
+        throwsStateError,
+      );
+    });
+  });
+
   group('invokeHostFunction', () {
     test(
       'routes through middleware with correct name, args, and role',
