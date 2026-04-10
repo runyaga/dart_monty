@@ -178,6 +178,14 @@ abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
           callId: p.callId ?? 0,
           methodCall: p.methodCall ?? false,
         );
+      case 'os_call':
+        markActive();
+        return MontyOsCall(
+          operationName: p.functionName ?? '',
+          arguments: p.arguments ?? const [],
+          kwargs: p.kwargs,
+          callId: p.callId ?? 0,
+        );
       case 'resolve_futures':
         markActive();
         return MontyResolveFutures(

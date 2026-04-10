@@ -7,9 +7,10 @@ const _deepEquality = DeepCollectionEquality();
 
 /// The progress of a multi-step Monty Python execution.
 ///
-/// A sealed class with three subtypes:
+/// A sealed class with four subtypes:
 /// - [MontyComplete] — execution finished with a [MontyResult].
 /// - [MontyPending] — execution paused, awaiting an external function call.
+/// - [MontyOsCall] — execution paused, awaiting an OS/filesystem operation.
 /// - [MontyResolveFutures] — execution paused, awaiting resolution of one
 ///   or more futures created by prior `resumeAsFuture()` calls.
 ///
@@ -20,6 +21,8 @@ const _deepEquality = DeepCollectionEquality();
 ///     print(result.value);
 ///   case MontyPending(:final functionName, :final arguments):
 ///     print('Call $functionName with $arguments');
+///   case MontyOsCall(:final operationName, :final arguments):
+///     print('OS call: $operationName with $arguments');
 ///   case MontyResolveFutures(:final pendingCallIds):
 ///     print('Resolve futures: $pendingCallIds');
 /// }
@@ -39,6 +42,7 @@ sealed class MontyProgress {
     return switch (type) {
       'complete' => MontyComplete.fromJson(json),
       'pending' => MontyPending.fromJson(json),
+      'os_call' => MontyOsCall.fromJson(json),
       'resolve_futures' => MontyResolveFutures.fromJson(json),
       _ => throw ArgumentError.value(type, 'type', 'Unknown progress type'),
     };
@@ -189,6 +193,92 @@ final class MontyPending extends MontyProgress {
 
   @override
   String toString() => 'MontyPending($functionName, $arguments)';
+}
+
+/// Execution paused, awaiting an OS/filesystem operation.
+///
+/// Yielded when Python code accesses `pathlib`, `os.getenv`, `os.environ`,
+/// `date.today()`, `datetime.now()`, or similar OS-level operations.
+/// The host (Dart) handles the I/O and resumes with the result.
+///
+/// ```dart
+/// case MontyOsCall(:final operationName, :final arguments):
+///   switch (operationName) {
+///     case 'Path.exists':
+///       final path = arguments.first as String;
+///       progress = await platform.resume(File(path).existsSync());
+///     case 'os.getenv':
+///       final key = arguments.first as String;
+///       progress = await platform.resume(Platform.environment[key]);
+///   }
+/// ```
+@immutable
+final class MontyOsCall extends MontyProgress {
+  /// Creates a [MontyOsCall].
+  const MontyOsCall({
+    required this.operationName,
+    required this.arguments,
+    this.kwargs,
+    this.callId = 0,
+  });
+
+  /// Creates a [MontyOsCall] from a JSON map.
+  factory MontyOsCall.fromJson(Map<String, dynamic> json) {
+    final rawArgs = json['arguments'] as List<dynamic>?;
+    final rawKwargs = json['kwargs'] as Map<String, dynamic>?;
+
+    return MontyOsCall(
+      operationName: json['operation_name'] as String,
+      arguments: rawArgs != null ? List<Object?>.from(rawArgs) : const [],
+      kwargs: rawKwargs != null ? Map<String, Object?>.from(rawKwargs) : null,
+      callId: json['call_id'] as int? ?? 0,
+    );
+  }
+
+  /// The OS operation name, e.g. `"Path.read_text"`, `"os.getenv"`,
+  /// `"date.today"`.
+  final String operationName;
+
+  /// The positional arguments for the operation.
+  final List<Object?> arguments;
+
+  /// Keyword arguments from the Python call site.
+  final Map<String, Object?>? kwargs;
+
+  /// Unique call identifier for async correlation.
+  final int callId;
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {
+      'type': 'os_call',
+      'operation_name': operationName,
+      'arguments': arguments,
+      if (kwargs != null) 'kwargs': kwargs,
+      if (callId != 0) 'call_id': callId,
+    };
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other is MontyOsCall &&
+            other.operationName == operationName &&
+            _deepEquality.equals(other.arguments, arguments) &&
+            _deepEquality.equals(other.kwargs, kwargs) &&
+            other.callId == callId);
+  }
+
+  @override
+  int get hashCode => Object.hash(
+        operationName,
+        _deepEquality.hash(arguments),
+        _deepEquality.hash(kwargs),
+        callId,
+      );
+
+  @override
+  String toString() => 'MontyOsCall($operationName, $arguments)';
 }
 
 /// Execution paused, awaiting resolution of pending futures.

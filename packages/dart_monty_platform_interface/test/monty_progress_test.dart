@@ -562,6 +562,7 @@ void main() {
       final description = switch (progress) {
         MontyComplete(:final result) => 'complete: ${result.value}',
         MontyPending(:final functionName) => 'pending: $functionName',
+        MontyOsCall(:final operationName) => 'os_call: $operationName',
         MontyResolveFutures(:final pendingCallIds) =>
           'futures: $pendingCallIds',
       };
@@ -579,6 +580,7 @@ void main() {
         MontyComplete(:final result) => 'complete: ${result.value}',
         MontyPending(:final functionName, :final arguments) =>
           'pending: $functionName(${arguments.length} args)',
+        MontyOsCall(:final operationName) => 'os_call: $operationName',
         MontyResolveFutures(:final pendingCallIds) =>
           'futures: $pendingCallIds',
       };
@@ -599,6 +601,7 @@ void main() {
         MontyComplete(:final result) => 'complete: ${result.value}',
         MontyPending(:final functionName, :final kwargs, :final callId) =>
           'pending: $functionName(kwargs=$kwargs, callId=$callId)',
+        MontyOsCall(:final operationName) => 'os_call: $operationName',
         MontyResolveFutures(:final pendingCallIds) =>
           'futures: $pendingCallIds',
       };
@@ -617,6 +620,7 @@ void main() {
       final description = switch (progress) {
         MontyComplete(:final result) => 'complete: ${result.value}',
         MontyPending(:final functionName) => 'pending: $functionName',
+        MontyOsCall(:final operationName) => 'os_call: $operationName',
         MontyResolveFutures(:final pendingCallIds) =>
           'futures: $pendingCallIds',
       };

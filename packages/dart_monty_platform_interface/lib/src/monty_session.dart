@@ -119,6 +119,11 @@ class MontySession {
 
         case MontyResolveFutures():
           progress = await _safeResume(null);
+
+        case MontyOsCall():
+          progress = await _safeResumeWithError(
+            'OS operations not available in session run() mode',
+          );
       }
     }
   }
@@ -370,6 +375,7 @@ class MontySession {
 
         case MontyComplete():
         case MontyPending():
+        case MontyOsCall():
         case MontyResolveFutures():
           return current;
       }
