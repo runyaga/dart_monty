@@ -14,6 +14,34 @@ num-bigint = "0.4"
 num-traits = "0.2"
 serde_json = "1"
 
+[lints.rust]
+unsafe_op_in_unsafe_fn = "warn"
+missing_debug_implementations = "warn"
+
+[lints.clippy]
+# Correctness & safety (high value for FFI)
+undocumented_unsafe_blocks = "warn"
+multiple_unsafe_ops_per_block = "warn"
+ptr_as_ptr = "warn"
+cast_possible_truncation = "warn"
+cast_sign_loss = "warn"
+cast_possible_wrap = "warn"
+checked_conversions = "warn"
+
+# Pedantic subset (code quality)
+cloned_instead_of_copied = "warn"
+explicit_iter_loop = "warn"
+implicit_clone = "warn"
+inefficient_to_string = "warn"
+map_unwrap_or = "warn"
+needless_pass_by_value = "warn"
+redundant_closure_for_method_calls = "warn"
+semicolon_if_nothing_returned = "warn"
+unused_self = "warn"
+
+# Nursery (experimental but useful)
+or_fun_call = "warn"
+
 [profile.release]
 lto = "fat"
 codegen-units = 1

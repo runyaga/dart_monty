@@ -98,6 +98,12 @@ pub struct MontyHandle {
     print_output: String,
 }
 
+impl std::fmt::Debug for MontyHandle {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("MontyHandle").finish_non_exhaustive()
+    }
+}
+
 impl MontyHandle {
     /// Create a new handle from Python source code.
     ///
@@ -146,7 +152,7 @@ impl MontyHandle {
             Ok(obj) => {
                 let val = monty_object_to_json(&obj);
                 let result_json =
-                    build_result_json(val, None, &self.usage_json, &self.print_output);
+                    build_result_json(&val, None, &self.usage_json, &self.print_output);
                 self.state = HandleState::Complete {
                     result_json: result_json.clone(),
                     is_error: false,
@@ -156,7 +162,7 @@ impl MontyHandle {
             Err(exc) => {
                 let err_json = monty_exception_to_json(&exc);
                 let result_json = build_result_json(
-                    Value::Null,
+                    &Value::Null,
                     Some(err_json),
                     &self.usage_json,
                     &self.print_output,
@@ -467,7 +473,7 @@ impl MontyHandle {
         self.print_output.push_str(&buf);
         match result {
             Ok(progress) => self.process_progress(progress),
-            Err(exc) => self.handle_exception(exc),
+            Err(exc) => self.handle_exception(&exc),
         }
     }
 
@@ -503,7 +509,7 @@ impl MontyHandle {
                 RunProgress::Complete(obj) => {
                     let val = monty_object_to_json(&obj);
                     let result_json =
-                        build_result_json(val, None, &self.usage_json, &self.print_output);
+                        build_result_json(&val, None, &self.usage_json, &self.print_output);
                     self.state = HandleState::Complete {
                         result_json,
                         is_error: false,
@@ -547,7 +553,7 @@ impl MontyHandle {
                     self.print_output.push_str(&buf);
                     match result {
                         Ok(next) => progress = next,
-                        Err(exc) => return self.handle_exception(exc),
+                        Err(exc) => return self.handle_exception(&exc),
                     }
                 }
                 RunProgress::OsCall(call) => {
@@ -587,10 +593,10 @@ impl MontyHandle {
         }
     }
 
-    fn handle_exception(&mut self, exc: MontyException) -> (MontyProgressTag, Option<String>) {
-        let err_json = monty_exception_to_json(&exc);
+    fn handle_exception(&mut self, exc: &MontyException) -> (MontyProgressTag, Option<String>) {
+        let err_json = monty_exception_to_json(exc);
         let result_json = build_result_json(
-            Value::Null,
+            &Value::Null,
             Some(err_json),
             &self.usage_json,
             &self.print_output,
@@ -647,16 +653,18 @@ fn default_usage_json() -> String {
 }
 
 fn build_result_json(
-    value: Value,
+    value: &Value,
     error: Option<Value>,
     usage_json: &str,
     print_output: &str,
 ) -> String {
-    let usage: Value = serde_json::from_str(usage_json).unwrap_or(serde_json::json!({
-        "memory_bytes_used": 0,
-        "time_elapsed_ms": 0,
-        "stack_depth_used": 0,
-    }));
+    let usage: Value = serde_json::from_str(usage_json).unwrap_or_else(|_| {
+        serde_json::json!({
+            "memory_bytes_used": 0,
+            "time_elapsed_ms": 0,
+            "stack_depth_used": 0,
+        })
+    });
     let mut result = serde_json::json!({
         "value": value,
         "usage": usage,
@@ -944,7 +952,7 @@ result
 
     #[test]
     fn test_build_result_json_ok() {
-        let result = build_result_json(json!(42), None, &default_usage_json(), "");
+        let result = build_result_json(&json!(42), None, &default_usage_json(), "");
         let parsed: Value = serde_json::from_str(&result).unwrap();
         assert_eq!(parsed["value"], 42);
         assert!(parsed.get("error").is_none());
@@ -955,7 +963,7 @@ result
     #[test]
     fn test_build_result_json_error() {
         let err = json!({"message": "boom"});
-        let result = build_result_json(Value::Null, Some(err), &default_usage_json(), "");
+        let result = build_result_json(&Value::Null, Some(err), &default_usage_json(), "");
         let parsed: Value = serde_json::from_str(&result).unwrap();
         assert!(parsed["value"].is_null());
         assert_eq!(parsed["error"]["message"], "boom");
@@ -963,7 +971,7 @@ result
 
     #[test]
     fn test_build_result_json_with_print_output() {
-        let result = build_result_json(json!(42), None, &default_usage_json(), "hello world\n");
+        let result = build_result_json(&json!(42), None, &default_usage_json(), "hello world\n");
         let parsed: Value = serde_json::from_str(&result).unwrap();
         assert_eq!(parsed["value"], 42);
         assert_eq!(parsed["print_output"], "hello world\n");
@@ -971,7 +979,7 @@ result
 
     #[test]
     fn test_build_result_json_empty_print_output_omitted() {
-        let result = build_result_json(json!(42), None, &default_usage_json(), "");
+        let result = build_result_json(&json!(42), None, &default_usage_json(), "");
         let parsed: Value = serde_json::from_str(&result).unwrap();
         assert!(parsed.get("print_output").is_none());
     }

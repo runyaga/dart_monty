@@ -131,44 +131,60 @@ pub fn json_to_monty_object(val: &Value) -> MontyObject {
             if let Some(type_str) = map.get("__type").and_then(|v| v.as_str()) {
                 match type_str {
                     "date" => MontyObject::Date(monty::MontyDate {
-                        year: map["year"].as_i64().unwrap_or(0) as i32,
-                        month: map["month"].as_u64().unwrap_or(0) as u8,
-                        day: map["day"].as_u64().unwrap_or(0) as u8,
+                        year: map["year"].as_i64().unwrap_or(0).try_into().unwrap_or(0),
+                        month: map["month"].as_u64().unwrap_or(0).try_into().unwrap_or(0),
+                        day: map["day"].as_u64().unwrap_or(0).try_into().unwrap_or(0),
                     }),
                     "datetime" => MontyObject::DateTime(monty::MontyDateTime {
-                        year: map["year"].as_i64().unwrap_or(0) as i32,
-                        month: map["month"].as_u64().unwrap_or(0) as u8,
-                        day: map["day"].as_u64().unwrap_or(0) as u8,
-                        hour: map["hour"].as_u64().unwrap_or(0) as u8,
-                        minute: map["minute"].as_u64().unwrap_or(0) as u8,
-                        second: map["second"].as_u64().unwrap_or(0) as u8,
-                        microsecond: map["microsecond"].as_u64().unwrap_or(0) as u32,
+                        year: map["year"].as_i64().unwrap_or(0).try_into().unwrap_or(0),
+                        month: map["month"].as_u64().unwrap_or(0).try_into().unwrap_or(0),
+                        day: map["day"].as_u64().unwrap_or(0).try_into().unwrap_or(0),
+                        hour: map["hour"].as_u64().unwrap_or(0).try_into().unwrap_or(0),
+                        minute: map["minute"].as_u64().unwrap_or(0).try_into().unwrap_or(0),
+                        second: map["second"].as_u64().unwrap_or(0).try_into().unwrap_or(0),
+                        microsecond: map["microsecond"]
+                            .as_u64()
+                            .unwrap_or(0)
+                            .try_into()
+                            .unwrap_or(0),
                         offset_seconds: map
                             .get("offset_seconds")
-                            .and_then(|v| v.as_i64())
-                            .map(|v| v as i32),
+                            .and_then(serde_json::Value::as_i64)
+                            .map(|v| v.try_into().unwrap_or(0)),
                         timezone_name: map
                             .get("timezone_name")
                             .and_then(|v| v.as_str())
-                            .map(|s| s.to_string()),
+                            .map(std::string::ToString::to_string),
                     }),
                     "timedelta" => MontyObject::TimeDelta(monty::MontyTimeDelta {
-                        days: map["days"].as_i64().unwrap_or(0) as i32,
-                        seconds: map["seconds"].as_i64().unwrap_or(0) as i32,
-                        microseconds: map["microseconds"].as_i64().unwrap_or(0) as i32,
+                        days: map["days"].as_i64().unwrap_or(0).try_into().unwrap_or(0),
+                        seconds: map["seconds"].as_i64().unwrap_or(0).try_into().unwrap_or(0),
+                        microseconds: map["microseconds"]
+                            .as_i64()
+                            .unwrap_or(0)
+                            .try_into()
+                            .unwrap_or(0),
                     }),
                     "timezone" => MontyObject::TimeZone(monty::MontyTimeZone {
-                        offset_seconds: map["offset_seconds"].as_i64().unwrap_or(0) as i32,
+                        offset_seconds: map["offset_seconds"]
+                            .as_i64()
+                            .unwrap_or(0)
+                            .try_into()
+                            .unwrap_or(0),
                         name: map
                             .get("name")
                             .and_then(|v| v.as_str())
-                            .map(|s| s.to_string()),
+                            .map(std::string::ToString::to_string),
                     }),
                     "path" => MontyObject::Path(map["value"].as_str().unwrap_or("").to_string()),
                     "bytes" => MontyObject::Bytes(
                         map["value"]
                             .as_array()
-                            .map(|arr| arr.iter().map(|v| v.as_u64().unwrap_or(0) as u8).collect())
+                            .map(|arr| {
+                                arr.iter()
+                                    .map(|v| v.as_u64().unwrap_or(0).try_into().unwrap_or(0))
+                                    .collect()
+                            })
                             .unwrap_or_default(),
                     ),
                     "tuple" => MontyObject::Tuple(
@@ -216,12 +232,15 @@ pub fn json_to_monty_object(val: &Value) -> MontyObject {
                             })
                             .unwrap_or_default(),
                         attrs: match json_to_monty_object(
-                            &map.get("attrs").cloned().unwrap_or(json!({})),
+                            &map.get("attrs").cloned().unwrap_or_else(|| json!({})),
                         ) {
                             MontyObject::Dict(pairs) => pairs,
                             _ => vec![].into(),
                         },
-                        frozen: map.get("frozen").and_then(|v| v.as_bool()).unwrap_or(false),
+                        frozen: map
+                            .get("frozen")
+                            .and_then(serde_json::Value::as_bool)
+                            .unwrap_or(false),
                     },
                     _ => {
                         // Unknown __type — fall through to dict
@@ -254,9 +273,7 @@ fn bigint_to_json(n: &BigInt) -> Value {
 
 fn float_to_json(f: f64) -> Value {
     if f.is_finite() {
-        Number::from_f64(f)
-            .map(Value::Number)
-            .unwrap_or(Value::Null)
+        Number::from_f64(f).map_or(Value::Null, Value::Number)
     } else if f.is_nan() {
         Value::String("NaN".into())
     } else if f.is_sign_positive() {

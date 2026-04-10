@@ -37,14 +37,17 @@ pub unsafe fn parse_c_str<'a>(
 ) -> Result<&'a str, ()> {
     if ptr.is_null() {
         if !out_error.is_null() {
+            // SAFETY: out_error is non-null, caller provides a valid writable out-parameter
             unsafe { *out_error = to_c_string(&format!("{name} is NULL")) };
         }
         return Err(());
     }
+    // SAFETY: ptr is non-null (checked above) and caller guarantees it is a valid NUL-terminated C string
     match unsafe { CStr::from_ptr(ptr) }.to_str() {
         Ok(s) => Ok(s),
         Err(_) => {
             if !out_error.is_null() {
+                // SAFETY: out_error is non-null, caller provides a valid writable out-parameter
                 unsafe { *out_error = to_c_string(&format!("{name} is not valid UTF-8")) };
             }
             Err(())
@@ -121,8 +124,10 @@ mod tests {
     fn test_to_c_string_basic() {
         let ptr = to_c_string("hello");
         assert!(!ptr.is_null());
+        // SAFETY: ptr was just returned by to_c_string and is a valid NUL-terminated C string
         let cs = unsafe { CStr::from_ptr(ptr) };
         assert_eq!(cs.to_str().unwrap(), "hello");
+        // SAFETY: ptr was allocated by CString::into_raw inside to_c_string, reclaiming ownership
         unsafe { drop(CString::from_raw(ptr)) };
     }
 
@@ -130,8 +135,10 @@ mod tests {
     fn test_to_c_string_empty() {
         let ptr = to_c_string("");
         assert!(!ptr.is_null());
+        // SAFETY: ptr was just returned by to_c_string and is a valid NUL-terminated C string
         let cs = unsafe { CStr::from_ptr(ptr) };
         assert_eq!(cs.to_str().unwrap(), "");
+        // SAFETY: ptr was allocated by CString::into_raw inside to_c_string, reclaiming ownership
         unsafe { drop(CString::from_raw(ptr)) };
     }
 
@@ -140,8 +147,10 @@ mod tests {
         // CString::new fails on interior nul — should return empty string
         let ptr = to_c_string("hello\0world");
         assert!(!ptr.is_null());
+        // SAFETY: ptr was just returned by to_c_string and is a valid NUL-terminated C string
         let cs = unsafe { CStr::from_ptr(ptr) };
         assert_eq!(cs.to_str().unwrap(), "");
+        // SAFETY: ptr was allocated by CString::into_raw inside to_c_string, reclaiming ownership
         unsafe { drop(CString::from_raw(ptr)) };
     }
 
@@ -232,6 +241,7 @@ mod tests {
     fn test_parse_c_str_valid() {
         let c = CString::new("hello").unwrap();
         let mut err: *mut c_char = ptr::null_mut();
+        // SAFETY: c.as_ptr() is a valid NUL-terminated C string, err is a valid writable pointer
         let result = unsafe { parse_c_str(c.as_ptr(), "arg", &mut err) };
         assert_eq!(result, Ok("hello"));
         assert!(err.is_null());
@@ -240,11 +250,14 @@ mod tests {
     #[test]
     fn test_parse_c_str_null() {
         let mut err: *mut c_char = ptr::null_mut();
+        // SAFETY: passing null ptr intentionally to test error path, err is a valid writable pointer
         let result = unsafe { parse_c_str(ptr::null(), "arg", &mut err) };
         assert!(result.is_err());
         assert!(!err.is_null());
+        // SAFETY: err was set by parse_c_str to a valid NUL-terminated C string
         let msg = unsafe { CStr::from_ptr(err) }.to_str().unwrap();
         assert_eq!(msg, "arg is NULL");
+        // SAFETY: err was allocated by CString::into_raw inside to_c_string, reclaiming ownership
         unsafe { drop(CString::from_raw(err)) };
     }
 }
