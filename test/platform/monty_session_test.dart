@@ -998,6 +998,114 @@ void main() {
       });
     });
 
+    group('MontyOsCall during start() is passed through to caller', () {
+      test('OsCall is returned after intercepting restore', () async {
+        mock
+          ..enqueueProgress(
+            const MontyPending(
+              functionName: '__restore_state__',
+              arguments: [],
+            ),
+          )
+          ..enqueueProgress(
+            const MontyOsCall(
+              operationName: 'Path.read_text',
+              arguments: [MontyString('/tmp/file')],
+              callId: 42,
+            ),
+          );
+
+        final progress = await session.start(
+          'open("/tmp/file")',
+          externalFunctions: [],
+        );
+
+        expect(progress, isA<MontyOsCall>());
+        final osCall = progress as MontyOsCall;
+        expect(osCall.operationName, 'Path.read_text');
+        expect(osCall.callId, 42);
+      });
+    });
+
+    group('_safeStart catches MontyError from platform.start', () {
+      test('MontyPanicError during start returns error result via run',
+          () async {
+        final throwing = _ThrowingMockPlatform(
+          throwOnStart: const MontyPanicError('engine died'),
+        );
+        final s = MontySession(platform: throwing);
+
+        final result = await s.run('x = 1');
+        expect(result.isError, isTrue);
+        expect(result.error!.message, contains('engine died'));
+        // Session is NOT disposed — can be reused.
+        expect(s.isDisposed, isFalse);
+        s.dispose();
+      });
+    });
+
+    group('_safeResume catches MontyException during persist', () {
+      test('MontyException thrown by resume during persist phase', () async {
+        // Start succeeds, restore succeeds, then persist resume throws.
+        final throwing = _CountedThrowingPlatform(
+          throwOnResumeAfter: 1,
+          throwWith: const MontyException(
+            message: 'RuntimeError: persist failed',
+            excType: 'RuntimeError',
+          ),
+        );
+        // Enqueue restore pending for start:
+        throwing.enqueueProgress(
+          const MontyPending(
+            functionName: '__restore_state__',
+            arguments: [],
+          ),
+        );
+        // After restore resume succeeds, enqueue persist pending:
+        throwing.enqueueProgress(
+          MontyPending(
+            functionName: '__persist_state__',
+            arguments: [_toMontyDict(const {'x': 1})],
+          ),
+        );
+        // The second resume (for persist) will throw MontyException.
+
+        final s = MontySession(platform: throwing);
+        final result = await s.run('x = 1');
+        expect(result.isError, isTrue);
+        expect(result.error!.message, contains('persist failed'));
+        s.dispose();
+      });
+    });
+
+    group('_safeResumeWithError catches MontyError', () {
+      test('MontyPanicError during resumeWithError returns error result',
+          () async {
+        final throwing = _ThrowingMockPlatform(
+          throwOnResumeWithError: const MontyPanicError('panic on error path'),
+        );
+        throwing
+          ..enqueueProgress(
+            const MontyPending(
+              functionName: '__restore_state__',
+              arguments: [],
+            ),
+          )
+          ..enqueueProgress(
+            const MontyPending(
+              functionName: 'unknown_fn',
+              arguments: [],
+            ),
+          );
+
+        final s = MontySession(platform: throwing);
+        final result = await s.run('unknown_fn()');
+        expect(result.isError, isTrue);
+        expect(result.error!.message, contains('panic on error path'));
+        s.dispose();
+      });
+    });
+
     group('extractAssignmentTargets', () {
       test('finds simple assignments', () {
         expect(
@@ -1134,5 +1242,27 @@ class _ThrowingMockPlatform extends MockMontyPlatform {
   Future<MontyProgress> resumeWithError(String errorMessage) async {
     if (throwOnResumeWithError != null) throw throwOnResumeWithError!;
     return super.resumeWithError(errorMessage);
+  }
+}
+
+/// A mock platform that throws after a configurable number of resume calls.
+///
+/// The first [throwOnResumeAfter] resumes succeed normally from the queue.
+/// Subsequent resumes throw [throwWith].
+class _CountedThrowingPlatform extends MockMontyPlatform {
+  _CountedThrowingPlatform({
+    required this.throwOnResumeAfter,
+    required this.throwWith,
+  });
+
+  final int throwOnResumeAfter;
+  final Object throwWith;
+  int _resumeCount = 0;
+
+  @override
+  Future<MontyProgress> resume(Object? returnValue) async {
+    _resumeCount++;
+    if (_resumeCount > throwOnResumeAfter) throw throwWith;
+    return super.resume(returnValue);
   }
 }

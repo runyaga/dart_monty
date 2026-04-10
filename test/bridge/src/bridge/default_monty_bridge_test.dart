@@ -915,6 +915,101 @@ void main() {
     });
   });
 
+  group('unregister', () {
+    test('removes a previously registered function', () {
+      bridge.register(
+        HostFunction(
+          schema: const HostFunctionSchema(name: 'temp', description: ''),
+          handler: (_) async => null,
+        ),
+      );
+      expect(bridge.schemas.map((s) => s.name), contains('temp'));
+
+      bridge.unregister('temp');
+      expect(bridge.schemas.map((s) => s.name), isNot(contains('temp')));
+    });
+
+    test('unregister non-existent function does not throw', () {
+      // Should be a no-op, not an error.
+      expect(() => bridge.unregister('does_not_exist'), returnsNormally);
+    });
+  });
+
+  group('console write edge cases', () {
+    test('console write with empty arguments resumes without buffering',
+        () async {
+      mock
+        ..enqueueProgress(
+          const MontyPending(
+            functionName: '__console_write__',
+            arguments: [],
+          ),
+        )
+        ..enqueueProgress(
+          const MontyComplete(result: MontyResult(usage: _usage)),
+        );
+
+      final events = await bridge.execute('print()').toList();
+      expect(events.whereType<BridgeRunFinished>(), hasLength(1));
+      // No text events should be emitted since nothing was written.
+      expect(events.whereType<BridgeTextStart>(), isEmpty);
+    });
+  });
+
+  group('print output flushing', () {
+    test('print buffer flushed as BridgeText events on successful complete',
+        () async {
+      mock
+        ..enqueueProgress(
+          const MontyPending(
+            functionName: '__console_write__',
+            arguments: [MontyString('hello from python\n')],
+          ),
+        )
+        ..enqueueProgress(
+          const MontyComplete(result: MontyResult(usage: _usage)),
+        );
+
+      final events = await bridge.execute('print("hello from python")').toList();
+
+      // Should have text events from the flush.
+      final textStarts = events.whereType<BridgeTextStart>().toList();
+      expect(textStarts, hasLength(1));
+      final textContents = events.whereType<BridgeTextContent>().toList();
+      expect(textContents, hasLength(1));
+      expect(textContents.first.delta, 'hello from python\n');
+      final textEnds = events.whereType<BridgeTextEnd>().toList();
+      expect(textEnds, hasLength(1));
+    });
+
+    test('print buffer flushed before error event', () async {
+      mock
+        ..enqueueProgress(
+          const MontyPending(
+            functionName: '__console_write__',
+            arguments: [MontyString('debug output\n')],
+          ),
+        )
+        ..enqueueProgress(
+          const MontyComplete(
+            result: MontyResult(
+              error: MontyException(message: 'NameError'),
+              usage: _usage,
+            ),
+          ),
+        );
+
+      final events = await bridge.execute('print("debug output"); foo').toList();
+
+      // Text events from flush should be present.
+      expect(events.whereType<BridgeTextContent>(), hasLength(1));
+      // Error event should include the captured output.
+      final errors = events.whereType<BridgeRunError>().toList();
+      expect(errors, hasLength(1));
+      expect(errors.first.printOutput, 'debug output\n');
+    });
+  });
+
   group('unknown function handling', () {
     test('unknown function in pending resumes with error', () async {
       mock
