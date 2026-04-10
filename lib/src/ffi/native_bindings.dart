@@ -77,7 +77,7 @@ final class ProgressResult {
 /// lifecycle) is the responsibility of the concrete implementation.
 abstract class NativeBindings {
   /// Creates a [NativeBindings].
-  NativeBindings();
+  const NativeBindings();
 
   /// Creates a handle from Python [code].
   ///

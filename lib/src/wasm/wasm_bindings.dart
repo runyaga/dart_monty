@@ -129,7 +129,7 @@ final class WasmDiscoverResult {
 /// round-trips.
 abstract class WasmBindings {
   /// Creates a [WasmBindings].
-  WasmBindings();
+  const WasmBindings();
 
   /// Initializes the WASM bridge (backward-compatible default session).
   ///

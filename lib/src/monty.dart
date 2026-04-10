@@ -32,7 +32,7 @@ class Monty implements MontyPlatform {
   /// ```
   factory Monty.withPlatform(MontyPlatform platform) => Monty._(platform);
 
-  Monty._(this._platform);
+  const Monty._(this._platform);
 
   final MontyPlatform _platform;
 

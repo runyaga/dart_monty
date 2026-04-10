@@ -147,6 +147,24 @@ dcm:
     - binary-expression-operand-order
     - double-literal-format
 
+    # --- Style Consistency ---
+    - prefer-switch-expression
+    - avoid-unnecessary-parentheses
+    - prefer-async-await:
+        exclude:
+          # Fire-and-forget .then() for unawaited error logging
+          - "lib/src/bridge/bridge/default_monty_bridge.dart"
+          # Isolate message dispatch and timeout-or-false chain
+          - "lib/src/ffi/native_isolate_bindings_impl.dart"
+    - avoid-adjacent-strings
+    - prefer-declaring-const-constructor:
+        exclude:
+          # Extension types cannot have const constructors
+          - "lib/src/wasm/wasm_bindings_js.dart"
+          # NativeBindingsFfi has non-final fields (handle state)
+          - "lib/src/ffi/native_bindings_ffi.dart"
+    - format-comment
+
     # --- Immutability ---
     - prefer-final-fields
 

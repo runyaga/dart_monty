@@ -43,7 +43,7 @@ typedef OsCallHandler = Future<Object?> Function(MontyOsCall call);
 
 /// Tracks an in-flight host function future awaiting resolution.
 class _PendingFuture {
-  _PendingFuture({
+  const _PendingFuture({
     required this.future,
     required this.bridgeCallId,
     required this.stepName,
