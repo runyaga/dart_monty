@@ -186,7 +186,6 @@ jobs:
     name: WASM ladder integration
     needs: [changes, build-wasm]
     if: needs.changes.outputs.code == 'true'
-    continue-on-error: true  # TODO: JS bridge assets not yet in single-package CI
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -194,6 +193,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: spike/web_test/package-lock.json
       - uses: dart-lang/setup-dart@v1
         with:
           sdk: stable
@@ -202,12 +203,29 @@ jobs:
         with:
           name: wasm-binary
           path: native/target/wasm32-wasip1/release
+      - name: Build JS bridge
+        working-directory: spike/web_test
+        run: |
+          npm install --force
+          npm run bundle
       - name: Prepare integration test
         run: |
           INTEG_WEB="test/wasm/integration/web"
+
+          # Copy JS bridge assets from spike build
+          cp spike/web_test/web/monty_bundle.js "$INTEG_WEB/dart_monty_bridge.js"
+          cp spike/web_test/web/monty_worker.js "$INTEG_WEB/"
+          cp native/target/wasm32-wasip1/release/dart_monty_native.wasm "$INTEG_WEB/"
+
+          # Copy WASM npm package assets needed by the worker
+          cp spike/web_test/node_modules/@pydantic/monty-wasm32-wasi/monty.wasm32-wasi.wasm "$INTEG_WEB/" || true
+
+          # Compile Dart ladder runner to JS
           dart pub get
           dart compile js test/wasm/integration/python_ladder_runner.dart \
             -o "$INTEG_WEB/ladder_runner.dart.js"
+
+          # Copy fixtures
           mkdir -p "$INTEG_WEB/fixtures"
           cp test/fixtures/python_ladder/tier_*.json "$INTEG_WEB/fixtures/"
       - name: Run WASM ladder in headless Chrome
