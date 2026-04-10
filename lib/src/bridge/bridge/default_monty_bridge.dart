@@ -179,80 +179,121 @@ class DefaultMontyBridge implements MontyBridge {
     return _invokeWithMiddleware(fn, name, validatedArgs, role);
   }
 
-  Future<void> _run(
+  /// Initialises a single execution: builds preamble, starts the platform,
+  /// and emits [BridgeRunStarted].
+  ///
+  /// Returns the initial [MontyProgress], a shared [StringBuffer] for print
+  /// output, the thread/run IDs, and whether the platform supports futures.
+  Future<
+    ({
+      MontyProgress progress,
+      String threadId,
+      String runId,
+      bool futuresCapable,
+    })
+  >
+  _initExecution(
     String code,
     StreamController<BridgeEvent> controller,
   ) async {
     final threadId = _nextId;
     final runId = _nextId;
-
     controller.add(BridgeRunStarted(threadId: threadId, runId: runId));
 
-    final printBuffer = StringBuffer();
     final wrappedCode = '$_printPreamble\n$code';
     final externalFunctions = [_consoleWriteFn, ..._functions.keys];
     final futuresCapable = _useFutures && _platform is MontyFutureCapable;
-
     _pendingFutures.clear();
 
+    final progress = await _platform.start(
+      wrappedCode,
+      externalFunctions: externalFunctions,
+      limits: _limits,
+    );
+
+    return (
+      progress: progress,
+      threadId: threadId,
+      runId: runId,
+      futuresCapable: futuresCapable,
+    );
+  }
+
+  /// Dispatches a single [MontyProgress] step.
+  ///
+  /// Returns the next [MontyProgress] to continue the loop, or `null` when
+  /// execution is complete (i.e. [MontyComplete] was handled).
+  Future<MontyProgress?> _dispatchProgress(
+    MontyProgress progress,
+    StreamController<BridgeEvent> controller,
+    StringBuffer printBuffer,
+    String threadId,
+    String runId, {
+    required bool futuresCapable,
+  }) async {
+    switch (progress) {
+      case final MontyPending pending:
+        return _handlePending(
+          pending,
+          printBuffer,
+          controller,
+          futuresCapable: futuresCapable,
+        );
+      case final MontyOsCall osCall:
+        return _handleOsCall(osCall, controller);
+      case final MontyResolveFutures resolve:
+        return (futuresCapable && _pendingFutures.isNotEmpty)
+            ? _resolveFutures(resolve, controller)
+            : _platform.resume(null);
+      case MontyComplete(:final result):
+        _flushPrintBuffer(printBuffer, controller);
+        final capturedOutput = printBuffer.isNotEmpty
+            ? printBuffer.toString()
+            : result.printOutput;
+        if (result.isError) {
+          final adjusted = _adjustException(result.error!);
+          controller.add(
+            BridgeRunError(
+              message: adjusted.message,
+              printOutput: capturedOutput,
+              exception: adjusted,
+            ),
+          );
+        } else {
+          controller.add(
+            BridgeRunFinished(
+              threadId: threadId,
+              runId: runId,
+              value: result.value?.dartValue,
+              printOutput: capturedOutput,
+            ),
+          );
+        }
+
+        return null;
+    }
+  }
+
+  Future<void> _run(
+    String code,
+    StreamController<BridgeEvent> controller,
+  ) async {
+    final printBuffer = StringBuffer();
     try {
-      var progress = await _platform.start(
-        wrappedCode,
-        externalFunctions: externalFunctions,
-        limits: _limits,
-      );
+      final init = await _initExecution(code, controller);
+      var progress = init.progress;
 
       while (true) {
-        switch (progress) {
-          case final MontyPending pending:
-            progress = await _handlePending(
-              pending,
-              printBuffer,
-              controller,
-              futuresCapable: futuresCapable,
-            );
-
-          case final MontyOsCall osCall:
-            progress = await _handleOsCall(osCall, controller);
-
-          case final MontyResolveFutures resolve:
-            progress = (futuresCapable && _pendingFutures.isNotEmpty)
-                ? await _resolveFutures(resolve, controller)
-                : await _platform.resume(null);
-
-          case MontyComplete(:final result):
-            _flushPrintBuffer(printBuffer, controller);
-
-            // Prefer the bridge-captured print output (from __console_write__
-            // intercepts) over the platform's result.printOutput, because the
-            // print preamble overrides Python's print() to route through the
-            // bridge.
-            final capturedOutput = printBuffer.isNotEmpty
-                ? printBuffer.toString()
-                : result.printOutput;
-
-            if (result.isError) {
-              final adjusted = _adjustException(result.error!);
-              controller.add(
-                BridgeRunError(
-                  message: adjusted.message,
-                  printOutput: capturedOutput,
-                  exception: adjusted,
-                ),
-              );
-            } else {
-              controller.add(
-                BridgeRunFinished(
-                  threadId: threadId,
-                  runId: runId,
-                  value: result.value?.dartValue,
-                  printOutput: capturedOutput,
-                ),
-              );
-            }
-
-            return;
-        }
+        final next = await _dispatchProgress(
+          progress,
+          controller,
+          printBuffer,
+          init.threadId,
+          init.runId,
+          futuresCapable: init.futuresCapable,
+        );
+        if (next == null) return;
+        progress = next;
       }
     } on MontyError catch (e) {
       log.warning('Monty error', attributes: {'error': e.message});

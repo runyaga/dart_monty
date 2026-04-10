@@ -88,6 +88,128 @@ class _ChildHandle {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Schema constants for SandboxPlugin host functions.
+// ---------------------------------------------------------------------------
+
+const _spawnSchema = HostFunctionSchema(
+  name: 'sandbox_spawn',
+  description:
+      'Spawn a Python script in a new sandboxed interpreter. '
+      'Returns an integer handle.',
+  params: [
+    HostParam(
+      name: 'code',
+      type: HostParamType.string,
+      description: 'Python code to execute.',
+    ),
+    HostParam(
+      name: 'timeout_ms',
+      type: HostParamType.integer,
+      isRequired: false,
+      description: 'Execution timeout in milliseconds.',
+    ),
+    HostParam(
+      name: 'memory_bytes',
+      type: HostParamType.integer,
+      isRequired: false,
+      description: 'Memory limit in bytes.',
+    ),
+    HostParam(
+      name: 'system_prompt',
+      type: HostParamType.string,
+      isRequired: false,
+      description:
+          'Custom system prompt fragment for the child. '
+          'Appended after the infrastructure builder prompt.',
+    ),
+  ],
+);
+
+const _awaitSchema = HostFunctionSchema(
+  name: 'sandbox_await',
+  description:
+      'Wait for a spawned child to complete and return '
+      'its result. Raises an error if the child failed.',
+  params: [
+    HostParam(
+      name: 'handle',
+      type: HostParamType.integer,
+      description: 'Handle returned by sandbox_spawn.',
+    ),
+  ],
+);
+
+const _awaitAllSchema = HostFunctionSchema(
+  name: 'sandbox_await_all',
+  description:
+      'Wait for multiple children to complete. '
+      'Returns a list of results in handle order.',
+  params: [
+    HostParam(
+      name: 'handles',
+      type: HostParamType.list,
+      description: 'List of handles from sandbox_spawn.',
+    ),
+  ],
+);
+
+const _isAliveSchema = HostFunctionSchema(
+  name: 'sandbox_is_alive',
+  description: 'Check whether a child is still running.',
+  params: [
+    HostParam(
+      name: 'handle',
+      type: HostParamType.integer,
+      description: 'Handle returned by sandbox_spawn.',
+    ),
+  ],
+);
+
+const _freeSchema = HostFunctionSchema(
+  name: 'sandbox_free',
+  description:
+      'Release a completed child handle and free its resources. '
+      'Raises an error if the child is still running.',
+  params: [
+    HostParam(
+      name: 'handle',
+      type: HostParamType.integer,
+      description: 'Handle returned by sandbox_spawn.',
+    ),
+  ],
+);
+
+const _getOutputSchema = HostFunctionSchema(
+  name: 'sandbox_get_output',
+  description:
+      'Get captured Python print() output from a completed child. '
+      'Raises an error if the child is still running. '
+      'Returns a string of all print() output, or null if the child '
+      'produced no print() output.',
+  params: [
+    HostParam(
+      name: 'handle',
+      type: HostParamType.integer,
+      description: 'Handle returned by sandbox_spawn.',
+    ),
+  ],
+);
+
+const _gatherSchema = HostFunctionSchema(
+  name: 'sandbox_gather',
+  description:
+      'Wait for multiple children and return attributed results. '
+      'Each element is a dict with handle, value, and output keys.',
+  params: [
+    HostParam(
+      name: 'handles',
+      type: HostParamType.list,
+      description: 'List of handles from sandbox_spawn.',
+    ),
+  ],
+);
+
 /// Plugin that spawns Python scripts in separate Monty interpreter instances.
 ///
 /// Each child gets its own [MontyPlatform] (via [platformFactory]) and
@@ -177,138 +299,13 @@ class SandboxPlugin extends MontyPlugin {
 
   @override
   List<HostFunction> get functions => [
-    HostFunction(
-      schema: const HostFunctionSchema(
-        name: 'sandbox_spawn',
-        description:
-            'Spawn a Python script in a new sandboxed interpreter. '
-            'Returns an integer handle.',
-        params: [
-          HostParam(
-            name: 'code',
-            type: HostParamType.string,
-            description: 'Python code to execute.',
-          ),
-          HostParam(
-            name: 'timeout_ms',
-            type: HostParamType.integer,
-            isRequired: false,
-            description: 'Execution timeout in milliseconds.',
-          ),
-          HostParam(
-            name: 'memory_bytes',
-            type: HostParamType.integer,
-            isRequired: false,
-            description: 'Memory limit in bytes.',
-          ),
-          HostParam(
-            name: 'system_prompt',
-            type: HostParamType.string,
-            isRequired: false,
-            description:
-                'Custom system prompt fragment for the child. '
-                'Appended after the infrastructure builder prompt.',
-          ),
-        ],
-      ),
-      handler: _handleSpawn,
-    ),
-    HostFunction(
-      schema: const HostFunctionSchema(
-        name: 'sandbox_await',
-        description:
-            'Wait for a spawned child to complete and return '
-            'its result. Raises an error if the child failed.',
-        params: [
-          HostParam(
-            name: 'handle',
-            type: HostParamType.integer,
-            description: 'Handle returned by sandbox_spawn.',
-          ),
-        ],
-      ),
-      handler: _handleAwait,
-    ),
-    HostFunction(
-      schema: const HostFunctionSchema(
-        name: 'sandbox_await_all',
-        description:
-            'Wait for multiple children to complete. '
-            'Returns a list of results in handle order.',
-        params: [
-          HostParam(
-            name: 'handles',
-            type: HostParamType.list,
-            description: 'List of handles from sandbox_spawn.',
-          ),
-        ],
-      ),
-      handler: _handleAwaitAll,
-    ),
-    HostFunction(
-      schema: const HostFunctionSchema(
-        name: 'sandbox_is_alive',
-        description: 'Check whether a child is still running.',
-        params: [
-          HostParam(
-            name: 'handle',
-            type: HostParamType.integer,
-            description: 'Handle returned by sandbox_spawn.',
-          ),
-        ],
-      ),
-      handler: _handleIsAlive,
-    ),
-    HostFunction(
-      schema: const HostFunctionSchema(
-        name: 'sandbox_free',
-        description:
-            'Release a completed child handle and free its resources. '
-            'Raises an error if the child is still running.',
-        params: [
-          HostParam(
-            name: 'handle',
-            type: HostParamType.integer,
-            description: 'Handle returned by sandbox_spawn.',
-          ),
-        ],
-      ),
-      handler: _handleFree,
-    ),
-    HostFunction(
-      schema: const HostFunctionSchema(
-        name: 'sandbox_get_output',
-        description:
-            'Get captured Python print() output from a completed child. '
-            'Raises an error if the child is still running. '
-            'Returns a string of all print() output, or null if the child '
-            'produced no print() output.',
-        params: [
-          HostParam(
-            name: 'handle',
-            type: HostParamType.integer,
-            description: 'Handle returned by sandbox_spawn.',
-          ),
-        ],
-      ),
-      handler: _handleGetOutput,
-    ),
-    HostFunction(
-      schema: const HostFunctionSchema(
-        name: 'sandbox_gather',
-        description:
-            'Wait for multiple children and return attributed results. '
-            'Each element is a dict with handle, value, and output keys.',
-        params: [
-          HostParam(
-            name: 'handles',
-            type: HostParamType.list,
-            description: 'List of handles from sandbox_spawn.',
-          ),
-        ],
-      ),
-      handler: _handleGather,
-    ),
+    HostFunction(schema: _spawnSchema, handler: _handleSpawn),
+    HostFunction(schema: _awaitSchema, handler: _handleAwait),
+    HostFunction(schema: _awaitAllSchema, handler: _handleAwaitAll),
+    HostFunction(schema: _isAliveSchema, handler: _handleIsAlive),
+    HostFunction(schema: _freeSchema, handler: _handleFree),
+    HostFunction(schema: _getOutputSchema, handler: _handleGetOutput),
+    HostFunction(schema: _gatherSchema, handler: _handleGather),
   ];
 
   @override
@@ -360,6 +357,61 @@ class SandboxPlugin extends MontyPlugin {
   }
 
   Future<Object?> _handleSpawn(Map<String, Object?> args) async {
+    _validateSpawnRequest();
+
+    final code = args['code']! as String;
+    final runtimePrompt = args['system_prompt'] as String?;
+    final limits = _buildChildLimits(args);
+
+    final id = _nextId++;
+    final spawnContext = ChildSpawnContext(
+      childId: id,
+      workingDirectory: sandboxBaseDir != null
+          ? p.join(sandboxBaseDir!, '.sandboxes', 'child_$id')
+          : null,
+    );
+
+    final (
+      platform,
+      bridge,
+      childRegistry,
+    ) = await _createChildPlatformAndBridge(
+      spawnContext,
+      limits,
+      runtimePrompt,
+      code.length,
+    );
+
+    final completer = Completer<Object?>();
+    completer.future.ignore();
+    logger.info(
+      'Child spawned',
+      attributes: {'childId': id, 'depth': currentDepth},
+    );
+
+    final stream = bridge.execute(code);
+    final subscription = _setupChildListener(
+      bridge: bridge,
+      platform: platform,
+      registry: childRegistry,
+      completer: completer,
+      childId: id,
+      stream: stream,
+    );
+
+    _children[id] = _ChildHandle(
+      bridge: bridge,
+      platform: platform,
+      completer: completer,
+      subscription: subscription,
+      registry: childRegistry,
+    );
+
+    return id;
+  }
+
+  /// Throws if the plugin is disposed or resource limits are exceeded.
+  void _validateSpawnRequest() {
     if (_disposed) throw StateError('SandboxPlugin is disposed.');
     if (currentDepth >= maxDepth) {
       logger.warning(
@@ -376,37 +428,35 @@ class SandboxPlugin extends MontyPlugin {
       );
       throw StateError('Maximum concurrent children ($maxChildren) reached.');
     }
+  }
 
-    final code = args['code']! as String;
+  /// Parses optional timeout/memory overrides from [args] and merges with
+  /// [childLimits].
+  MontyLimits? _buildChildLimits(Map<String, Object?> args) {
     final timeoutMs = args['timeout_ms'] as int?;
     final memoryBytes = args['memory_bytes'] as int?;
-    final runtimePrompt = args['system_prompt'] as String?;
+    if (timeoutMs == null && memoryBytes == null) return childLimits;
 
-    // Build per-child resource limits.
-    var limits = childLimits;
-    if (timeoutMs != null || memoryBytes != null) {
-      limits = MontyLimits(
-        timeoutMs: timeoutMs ?? childLimits?.timeoutMs,
-        memoryBytes: memoryBytes ?? childLimits?.memoryBytes,
-        stackDepth: childLimits?.stackDepth,
-      );
-    }
-
-    // Allocate ID early so ChildSpawnContext is available for plugin wiring.
-    final id = _nextId++;
-    final spawnContext = ChildSpawnContext(
-      childId: id,
-      workingDirectory: sandboxBaseDir != null
-          ? p.join(sandboxBaseDir!, '.sandboxes', 'child_$id')
-          : null,
+    return MontyLimits(
+      timeoutMs: timeoutMs ?? childLimits?.timeoutMs,
+      memoryBytes: memoryBytes ?? childLimits?.memoryBytes,
+      stackDepth: childLimits?.stackDepth,
     );
+  }
 
-    // Create child platform, bridge, and wire plugins.
-    // All phases are inside a single cleanup scope so that any failure
-    // disposes resources created in earlier phases.
+  /// Creates the child platform, bridge, wires plugins, and attaches the
+  /// registry.
+  ///
+  /// Disposes all partially-created resources on failure.
+  Future<(MontyPlatform, DefaultMontyBridge, PluginRegistry?)>
+  _createChildPlatformAndBridge(
+    ChildSpawnContext spawnContext,
+    MontyLimits? limits,
+    String? runtimePrompt,
+    int codeLength,
+  ) async {
     MontyPlatform? platform;
     DefaultMontyBridge? bridge;
-    final registryFactory = childPluginRegistryFactory;
     PluginRegistry? childRegistry;
     try {
       try {
@@ -424,80 +474,21 @@ class SandboxPlugin extends MontyPlugin {
         platform: platform,
         limits: limits,
         useFutures: false,
-        logger: logger.child('child.$id'),
+        logger: logger.child('child.${spawnContext.childId}'),
       );
       logger.debug(
         'Child bridge created',
         attributes: {
-          'codeLength': code.length,
+          'codeLength': codeLength,
           if (limits != null) 'limits': limits.toString(),
         },
       );
 
-      // Wire plugins onto child bridge.
-      // Each phase is wrapped separately so we can log which stage failed.
-      if (registryFactory != null) {
-        // Explicit factory takes precedence.
-        try {
-          childRegistry = await registryFactory(spawnContext);
-        } on Object catch (e, st) {
-          logger.error(
-            'Child plugin factory failed',
-            error: e,
-            stackTrace: st,
-            attributes: {'phase': 'factory'},
-          );
-          rethrow;
-        }
-      } else if (parentPlugins.isNotEmpty) {
-        // Auto-inherit from parent plugins via createChildInstance().
-        try {
-          childRegistry = _buildInheritedRegistry(spawnContext);
-        } on Object catch (e, st) {
-          logger.error(
-            'Child plugin inheritance failed',
-            error: e,
-            stackTrace: st,
-            attributes: {'phase': 'inheritance'},
-          );
-          rethrow;
-        }
-      }
-      // Build the system prompt (builder + runtime layers).
-      final childPrompt = _buildChildSystemPrompt(
+      childRegistry = await _wireChildPlugins(
         spawnContext,
+        bridge,
         runtimePrompt,
       );
-
-      // Create a registry if we have a prompt but no plugins.
-      if (childRegistry == null && childPrompt != null) {
-        childRegistry = PluginRegistry();
-      }
-
-      if (childRegistry != null) {
-        // Inject system prompt BEFORE attachTo so it's available when
-        // plugins call generateSystemPrompt() during onRegister.
-        childRegistry.systemPromptPrefix = childPrompt;
-
-        try {
-          await childRegistry.attachTo(bridge);
-          logger.debug(
-            'Child plugins attached',
-            attributes: {'pluginCount': childRegistry.plugins.length},
-          );
-        } on Object catch (e, st) {
-          // Capture plugin count here — registry may be in a broken state
-          // after the error, but plugins.length is still readable.
-          final pluginCount = childRegistry.plugins.length;
-          logger.error(
-            'Child plugin attachment failed',
-            error: e,
-            stackTrace: st,
-            attributes: {'phase': 'attachTo', 'pluginCount': pluginCount},
-          );
-          rethrow;
-        }
-      }
     } on Object {
       if (bridge != null) bridge.dispose();
       if (platform != null) await platform.dispose();
@@ -505,22 +496,86 @@ class SandboxPlugin extends MontyPlugin {
       rethrow;
     }
 
-    final completer = Completer<Object?>();
-    completer.future.ignore();
+    return (platform, bridge, childRegistry);
+  }
 
-    logger.info(
-      'Child spawned',
-      attributes: {'childId': id, 'depth': currentDepth},
-    );
+  /// Creates and attaches a [PluginRegistry] for a child bridge.
+  Future<PluginRegistry?> _wireChildPlugins(
+    ChildSpawnContext spawnContext,
+    DefaultMontyBridge bridge,
+    String? runtimePrompt,
+  ) async {
+    PluginRegistry? childRegistry;
+    final registryFactory = childPluginRegistryFactory;
+    if (registryFactory != null) {
+      try {
+        childRegistry = await registryFactory(spawnContext);
+      } on Object catch (e, st) {
+        logger.error(
+          'Child plugin factory failed',
+          error: e,
+          stackTrace: st,
+          attributes: {'phase': 'factory'},
+        );
+        rethrow;
+      }
+    } else if (parentPlugins.isNotEmpty) {
+      try {
+        childRegistry = _buildInheritedRegistry(spawnContext);
+      } on Object catch (e, st) {
+        logger.error(
+          'Child plugin inheritance failed',
+          error: e,
+          stackTrace: st,
+          attributes: {'phase': 'inheritance'},
+        );
+        rethrow;
+      }
+    }
 
-    // Execute child and listen for completion.
-    final stream = bridge.execute(code);
+    final childPrompt = _buildChildSystemPrompt(spawnContext, runtimePrompt);
+    if (childRegistry == null && childPrompt != null) {
+      childRegistry = PluginRegistry();
+    }
+
+    if (childRegistry != null) {
+      childRegistry.systemPromptPrefix = childPrompt;
+      try {
+        await childRegistry.attachTo(bridge);
+        logger.debug(
+          'Child plugins attached',
+          attributes: {'pluginCount': childRegistry.plugins.length},
+        );
+      } on Object catch (e, st) {
+        final pluginCount = childRegistry.plugins.length;
+        logger.error(
+          'Child plugin attachment failed',
+          error: e,
+          stackTrace: st,
+          attributes: {'phase': 'attachTo', 'pluginCount': pluginCount},
+        );
+        rethrow;
+      }
+    }
+
+    return childRegistry;
+  }
+
+  /// Subscribes to [stream] and wires completion/error handling for a child.
+  StreamSubscription<BridgeEvent> _setupChildListener({
+    required DefaultMontyBridge bridge,
+    required MontyPlatform platform,
+    required PluginRegistry? registry,
+    required Completer<Object?> completer,
+    required int childId,
+    required Stream<BridgeEvent> stream,
+  }) {
     String? errorMessage;
     MontyException? errorException;
     Object? childValue;
     String? childPrintOutput;
 
-    final subscription = stream.listen(
+    return stream.listen(
       (event) {
         if (event is BridgeRunError) {
           errorMessage = event.message;
@@ -533,26 +588,22 @@ class SandboxPlugin extends MontyPlugin {
       },
       onDone: () {
         unawaited(() async {
-          final child = _children[id];
+          final child = _children[childId];
           if (child == null) return;
           child
             ..isAlive = false
             ..printOutput = childPrintOutput;
 
-          // Clean up child resources.
-          // bridge and platform are guaranteed non-null here -- the try block
-          // succeeded before the stream listener was created.
-          // Dispose plugins first to unblock any pending handler Futures.
           try {
-            if (childRegistry != null) await childRegistry.disposeAll();
-            bridge!.dispose();
-            await platform!.dispose();
+            if (registry != null) await registry.disposeAll();
+            bridge.dispose();
+            await platform.dispose();
           } on Object catch (e, st) {
             logger.warning(
               'Child cleanup error (swallowed)',
               error: e,
               stackTrace: st,
-              attributes: {'childId': id},
+              attributes: {'childId': childId},
             );
           }
 
@@ -563,46 +614,39 @@ class SandboxPlugin extends MontyPlugin {
                   : errorMessage!;
               logger.warning(
                 'Child failed',
-                attributes: {'childId': id, 'error': truncated},
+                attributes: {'childId': childId, 'error': truncated},
               );
               completer.completeError(
                 ChildSandboxException(
-                  childId: id,
+                  childId: childId,
                   message: errorMessage!,
                   exception: errorException,
                 ),
                 StackTrace.current,
               );
             } else {
-              logger.info('Child completed', attributes: {'childId': id});
+              logger.info(
+                'Child completed',
+                attributes: {'childId': childId},
+              );
               completer.complete(childValue);
             }
           }
         }());
       },
       onError: (Object error, StackTrace stackTrace) {
-        final child = _children[id];
+        final child = _children[childId];
         if (child != null) child.isAlive = false;
         logger.error(
           'Child stream error',
           error: error,
-          attributes: {'childId': id},
+          attributes: {'childId': childId},
         );
         if (!completer.isCompleted) {
           completer.completeError(error, stackTrace);
         }
       },
     );
-
-    _children[id] = _ChildHandle(
-      bridge: bridge,
-      platform: platform,
-      completer: completer,
-      subscription: subscription,
-      registry: childRegistry,
-    );
-
-    return id;
   }
 
   /// Builds a child registry from parent plugins that opt into inheritance.

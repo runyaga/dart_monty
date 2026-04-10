@@ -140,6 +140,133 @@ Future<void> runErrorFixture(
   }
 }
 
+/// Runs the async/futures resume strategy for iterative fixtures.
+///
+/// Returns `null` if the fixture completed early (e.g. expected error handled
+/// inline), otherwise returns the final [MontyProgress] for validation.
+Future<MontyProgress?> _runAsyncStrategy(
+  MontyPlatform platform,
+  Map<String, dynamic> fixture,
+  MontyProgress initial,
+  List<int> callIds,
+) async {
+  final asyncResumeMap = fixture['asyncResumeMap'] as Map<String, dynamic>;
+  final asyncErrorMap = fixture['asyncErrorMap'] as Map<String, dynamic>?;
+  final expectError = fixture['expectError'] as bool? ?? false;
+
+  if (platform is! MontyFutureCapable) {
+    markTestSkipped('Platform does not support MontyFutureCapable');
+
+    return null;
+  }
+
+  var progress = initial;
+  try {
+    while (progress is! MontyComplete) {
+      if (progress is MontyPending) {
+        callIds.add(progress.callId);
+        progress = await platform.resumeAsFuture();
+      } else if (progress is MontyResolveFutures) {
+        final pending = progress.pendingCallIds;
+        final results = <int, Object?>{};
+        final errors = <int, String>{};
+        for (final id in pending) {
+          final key = id.toString();
+          if (asyncErrorMap != null && asyncErrorMap.containsKey(key)) {
+            errors[id] = asyncErrorMap[key] as String;
+          } else if (asyncResumeMap.containsKey(key)) {
+            results[id] = asyncResumeMap[key];
+          }
+        }
+        progress = await platform.resolveFutures(
+          results,
+          errors: errors.isNotEmpty ? errors : null,
+        );
+      } else {
+        fail('Unexpected progress type: $progress');
+      }
+    }
+  } on MontyException catch (e) {
+    if (expectError) {
+      final errorContains = fixture['errorContains'] as String?;
+      if (errorContains != null) {
+        expect(
+          e.message.contains(errorContains),
+          isTrue,
+          reason:
+              'Expected error containing "$errorContains", '
+              'got: "${e.message}"',
+        );
+      }
+
+      return null;
+    }
+    rethrow;
+  }
+
+  if (expectError) {
+    final errorContains = fixture['errorContains'] as String?;
+    final completeResult = progress.result;
+    expect(
+      completeResult.error,
+      isNotNull,
+      reason: 'Fixture #${fixture['id']}: expected error result',
+    );
+    if (errorContains != null) {
+      final errorMessage = completeResult.error?.message ?? '';
+      expect(
+        errorMessage.contains(errorContains),
+        isTrue,
+        reason:
+            'Expected error containing "$errorContains", '
+            'got: "$errorMessage"',
+      );
+    }
+
+    return null;
+  }
+
+  return progress;
+}
+
+/// Runs the resumeWithError strategy for iterative fixtures.
+Future<MontyProgress> _runErrorStrategy(
+  MontyPlatform platform,
+  List<String> errors,
+  MontyProgress initial,
+  Map<String, dynamic> fixture,
+  List<int> callIds,
+) async {
+  var progress = initial;
+  for (var i = 0; i < errors.length; i++) {
+    expect(progress, isA<MontyPending>());
+    if (i == 0) assertPendingFields(progress as MontyPending, fixture);
+    callIds.add((progress as MontyPending).callId);
+    progress = await platform.resumeWithError(errors[i]);
+  }
+
+  return progress;
+}
+
+/// Runs the resume (value) strategy for iterative fixtures.
+Future<MontyProgress> _runValueStrategy(
+  MontyPlatform platform,
+  List<Object> values,
+  MontyProgress initial,
+  Map<String, dynamic> fixture,
+  List<int> callIds,
+) async {
+  var progress = initial;
+  for (var i = 0; i < values.length; i++) {
+    expect(progress, isA<MontyPending>());
+    if (i == 0) assertPendingFields(progress as MontyPending, fixture);
+    callIds.add((progress as MontyPending).callId);
+    progress = await platform.resume(values[i]);
+  }
+
+  return progress;
+}
+
 /// Runs an iterative (external functions) fixture through [platform].
 ///
 /// Handles resumeValues, resumeErrors, and async/futures paths.
@@ -152,7 +279,6 @@ Future<void> runIterativeFixture(
   final resumeValues = (fixture['resumeValues'] as List?)?.cast<Object>();
   final resumeErrors = (fixture['resumeErrors'] as List?)?.cast<String>();
   final scriptName = fixture['scriptName'] as String?;
-  final expectError = fixture['expectError'] as bool? ?? false;
 
   var progress = await platform.start(
     code,
@@ -164,90 +290,30 @@ Future<void> runIterativeFixture(
 
   final asyncResumeMap = fixture['asyncResumeMap'] as Map<String, dynamic>?;
   if (asyncResumeMap != null) {
-    final asyncErrorMap = fixture['asyncErrorMap'] as Map<String, dynamic>?;
-    if (platform is! MontyFutureCapable) {
-      markTestSkipped('Platform does not support MontyFutureCapable');
-
-      return;
-    }
-    try {
-      while (progress is! MontyComplete) {
-        if (progress is MontyPending) {
-          callIds.add(progress.callId);
-          progress = await platform.resumeAsFuture();
-        } else if (progress is MontyResolveFutures) {
-          final pending = progress.pendingCallIds;
-          final results = <int, Object?>{};
-          final errors = <int, String>{};
-          for (final id in pending) {
-            final key = id.toString();
-            if (asyncErrorMap != null && asyncErrorMap.containsKey(key)) {
-              errors[id] = asyncErrorMap[key] as String;
-            } else if (asyncResumeMap.containsKey(key)) {
-              results[id] = asyncResumeMap[key];
-            }
-          }
-          progress = await platform.resolveFutures(
-            results,
-            errors: errors.isNotEmpty ? errors : null,
-          );
-        } else {
-          fail('Unexpected progress type: $progress');
-        }
-      }
-    } on MontyException catch (e) {
-      if (expectError) {
-        final errorContains = fixture['errorContains'] as String?;
-        if (errorContains != null) {
-          expect(
-            e.message.contains(errorContains),
-            isTrue,
-            reason:
-                'Expected error containing "$errorContains", '
-                'got: "${e.message}"',
-          );
-        }
-
-        return;
-      }
-      rethrow;
-    }
-
-    if (expectError) {
-      final errorContains = fixture['errorContains'] as String?;
-      final completeResult = progress.result;
-      expect(
-        completeResult.error,
-        isNotNull,
-        reason: 'Fixture #${fixture['id']}: expected error result',
-      );
-      if (errorContains != null) {
-        final errorMessage = completeResult.error?.message ?? '';
-        expect(
-          errorMessage.contains(errorContains),
-          isTrue,
-          reason:
-              'Expected error containing "$errorContains", '
-              'got: "$errorMessage"',
-        );
-      }
-
-      return;
-    }
+    final result = await _runAsyncStrategy(
+      platform,
+      fixture,
+      progress,
+      callIds,
+    );
+    if (result == null) return;
+    progress = result;
   } else if (resumeErrors != null) {
-    for (var i = 0; i < resumeErrors.length; i++) {
-      expect(progress, isA<MontyPending>());
-      if (i == 0) assertPendingFields(progress as MontyPending, fixture);
-      callIds.add((progress as MontyPending).callId);
-      progress = await platform.resumeWithError(resumeErrors[i]);
-    }
+    progress = await _runErrorStrategy(
+      platform,
+      resumeErrors,
+      progress,
+      fixture,
+      callIds,
+    );
   } else if (resumeValues != null) {
-    for (var i = 0; i < resumeValues.length; i++) {
-      expect(progress, isA<MontyPending>());
-      if (i == 0) assertPendingFields(progress as MontyPending, fixture);
-      callIds.add((progress as MontyPending).callId);
-      progress = await platform.resume(resumeValues[i]);
-    }
+    progress = await _runValueStrategy(
+      platform,
+      resumeValues,
+      progress,
+      fixture,
+      callIds,
+    );
   }
 
   if (fixture['expectedDistinctCallIds'] == true && callIds.length > 1) {

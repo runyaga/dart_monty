@@ -188,125 +188,141 @@ class FfiCoreBindings implements MontyCoreBindings {
     ProgressResult progress,
   ) {
     switch (progress.tag) {
-      case 0: // complete
-        _freeHandle(handle);
-        final resultJson = progress.resultJson;
-        if (resultJson == null) {
-          throw StateError('Complete result JSON is null');
-        }
-        final jsonMap = json.decode(resultJson) as Map<String, dynamic>;
-        final usageMap = jsonMap['usage'] as Map<String, dynamic>?;
-        final errorMap = jsonMap['error'] as Map<String, dynamic>?;
-
-        return CoreProgressResult(
-          state: 'complete',
-          value: jsonMap['value'] as Object?,
-          usage: usageMap != null
-              ? MontyResourceUsage.fromJson(usageMap)
-              : null,
-          printOutput: jsonMap['print_output'] as String?,
-          error: errorMap?['message'] as String?,
-          excType: errorMap?['exc_type'] as String?,
-          traceback: errorMap?['traceback'] as List<Object?>?,
-        );
-
-      case 1: // pending
-        _handle = handle;
-        final argsJson = progress.argumentsJson;
-        final args = argsJson != null
-            ? List<Object?>.from(
-                json.decode(argsJson) as List<Object?>,
-              )
-            : const <Object?>[];
-
-        final kwargsJson = progress.kwargsJson;
-        Map<String, Object?>? kwargs;
-        if (kwargsJson != null) {
-          final decoded = Map<String, Object?>.from(
-            json.decode(kwargsJson) as Map<String, dynamic>,
-          );
-          kwargs = decoded.isNotEmpty ? decoded : null;
-        }
-
-        return CoreProgressResult(
-          state: 'pending',
-          functionName: progress.functionName ?? '',
-          arguments: args,
-          kwargs: kwargs,
-          callId: progress.callId ?? 0,
-          methodCall: progress.methodCall ?? false,
-        );
-
-      case 2: // error
-        _freeHandle(handle);
-        final errorResultJson = progress.resultJson;
-        if (errorResultJson != null) {
-          final jsonMap = json.decode(errorResultJson) as Map<String, dynamic>;
-          final errorMap = jsonMap['error'] as Map<String, dynamic>?;
-          if (errorMap != null) {
-            return CoreProgressResult(
-              state: 'error',
-              error: errorMap['message'] as String?,
-              excType: errorMap['exc_type'] as String?,
-              traceback: errorMap['traceback'] as List<Object?>?,
-              filename: errorMap['filename'] as String?,
-              lineNumber: errorMap['line_number'] as int?,
-              columnNumber: errorMap['column_number'] as int?,
-              sourceCode: errorMap['source_code'] as String?,
-            );
-          }
-        }
-
-        return CoreProgressResult(
-          state: 'error',
-          error: progress.errorMessage ?? 'Unknown error',
-        );
-
-      case 3: // resolve_futures
-        _handle = handle;
-        final idsJson = progress.futureCallIdsJson;
-        if (idsJson == null) {
-          throw StateError('Future call IDs JSON is null');
-        }
-        final ids = List<int>.from(
-          json.decode(idsJson) as List<Object?>,
-        );
-
-        return CoreProgressResult(
-          state: 'resolve_futures',
-          pendingCallIds: ids,
-        );
-
-      case 4: // os_call
-        _handle = handle;
-        final argsJson = progress.argumentsJson;
-        final args = argsJson != null
-            ? List<Object?>.from(
-                json.decode(argsJson) as List<Object?>,
-              )
-            : const <Object?>[];
-
-        final kwargsJson = progress.kwargsJson;
-        Map<String, Object?>? kwargs;
-        if (kwargsJson != null) {
-          final decoded = Map<String, Object?>.from(
-            json.decode(kwargsJson) as Map<String, dynamic>,
-          );
-          kwargs = decoded.isNotEmpty ? decoded : null;
-        }
-
-        return CoreProgressResult(
-          state: 'os_call',
-          functionName: progress.functionName ?? '',
-          arguments: args,
-          kwargs: kwargs,
-          callId: progress.callId ?? 0,
-        );
-
+      case 0:
+        return _translateComplete(progress, handle);
+      case 1:
+        return _translatePending(progress, handle);
+      case 2:
+        return _translateError(progress, handle);
+      case 3:
+        return _translateResolveFutures(progress, handle);
+      case 4:
+        return _translateOsCall(progress, handle);
       default:
         _freeHandle(handle);
         throw StateError('Unknown progress tag: ${progress.tag}');
     }
+  }
+
+  CoreProgressResult _translateComplete(ProgressResult progress, int handle) {
+    _freeHandle(handle);
+    final resultJson = progress.resultJson;
+    if (resultJson == null) {
+      throw StateError('Complete result JSON is null');
+    }
+    final jsonMap = json.decode(resultJson) as Map<String, dynamic>;
+    final usageMap = jsonMap['usage'] as Map<String, dynamic>?;
+    final errorMap = jsonMap['error'] as Map<String, dynamic>?;
+
+    return CoreProgressResult(
+      state: 'complete',
+      value: jsonMap['value'] as Object?,
+      usage: usageMap != null ? MontyResourceUsage.fromJson(usageMap) : null,
+      printOutput: jsonMap['print_output'] as String?,
+      error: errorMap?['message'] as String?,
+      excType: errorMap?['exc_type'] as String?,
+      traceback: errorMap?['traceback'] as List<Object?>?,
+    );
+  }
+
+  CoreProgressResult _translatePending(ProgressResult progress, int handle) {
+    _handle = handle;
+    final argsJson = progress.argumentsJson;
+    final args = argsJson != null
+        ? List<Object?>.from(
+            json.decode(argsJson) as List<Object?>,
+          )
+        : const <Object?>[];
+
+    final kwargsJson = progress.kwargsJson;
+    Map<String, Object?>? kwargs;
+    if (kwargsJson != null) {
+      final decoded = Map<String, Object?>.from(
+        json.decode(kwargsJson) as Map<String, dynamic>,
+      );
+      kwargs = decoded.isNotEmpty ? decoded : null;
+    }
+
+    return CoreProgressResult(
+      state: 'pending',
+      functionName: progress.functionName ?? '',
+      arguments: args,
+      kwargs: kwargs,
+      callId: progress.callId ?? 0,
+      methodCall: progress.methodCall ?? false,
+    );
+  }
+
+  CoreProgressResult _translateError(ProgressResult progress, int handle) {
+    _freeHandle(handle);
+    final errorResultJson = progress.resultJson;
+    if (errorResultJson != null) {
+      final jsonMap = json.decode(errorResultJson) as Map<String, dynamic>;
+      final errorMap = jsonMap['error'] as Map<String, dynamic>?;
+      if (errorMap != null) {
+        return CoreProgressResult(
+          state: 'error',
+          error: errorMap['message'] as String?,
+          excType: errorMap['exc_type'] as String?,
+          traceback: errorMap['traceback'] as List<Object?>?,
+          filename: errorMap['filename'] as String?,
+          lineNumber: errorMap['line_number'] as int?,
+          columnNumber: errorMap['column_number'] as int?,
+          sourceCode: errorMap['source_code'] as String?,
+        );
+      }
+    }
+
+    return CoreProgressResult(
+      state: 'error',
+      error: progress.errorMessage ?? 'Unknown error',
+    );
+  }
+
+  CoreProgressResult _translateResolveFutures(
+    ProgressResult progress,
+    int handle,
+  ) {
+    _handle = handle;
+    final idsJson = progress.futureCallIdsJson;
+    if (idsJson == null) {
+      throw StateError('Future call IDs JSON is null');
+    }
+    final ids = List<int>.from(
+      json.decode(idsJson) as List<Object?>,
+    );
+
+    return CoreProgressResult(
+      state: 'resolve_futures',
+      pendingCallIds: ids,
+    );
+  }
+
+  CoreProgressResult _translateOsCall(ProgressResult progress, int handle) {
+    _handle = handle;
+    final argsJson = progress.argumentsJson;
+    final args = argsJson != null
+        ? List<Object?>.from(
+            json.decode(argsJson) as List<Object?>,
+          )
+        : const <Object?>[];
+
+    final kwargsJson = progress.kwargsJson;
+    Map<String, Object?>? kwargs;
+    if (kwargsJson != null) {
+      final decoded = Map<String, Object?>.from(
+        json.decode(kwargsJson) as Map<String, dynamic>,
+      );
+      kwargs = decoded.isNotEmpty ? decoded : null;
+    }
+
+    return CoreProgressResult(
+      state: 'os_call',
+      functionName: progress.functionName ?? '',
+      arguments: args,
+      kwargs: kwargs,
+      callId: progress.callId ?? 0,
+    );
   }
 
   // ---------------------------------------------------------------------------
