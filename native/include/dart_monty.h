@@ -39,6 +39,7 @@ typedef enum {
     MONTY_PROGRESS_PENDING         = 1,
     MONTY_PROGRESS_ERROR           = 2,
     MONTY_PROGRESS_RESOLVE_FUTURES = 3,
+    MONTY_PROGRESS_OS_CALL         = 4,
 } MontyProgressTag;
 
 /* ------------------------------------------------------------------ */
@@ -209,6 +210,34 @@ uint32_t monty_pending_call_id(const MontyHandle *handle);
  * @return  1 for method call, 0 for function call, -1 if not in Paused state.
  */
 int monty_pending_method_call(const MontyHandle *handle);
+
+/* ------------------------------------------------------------------ */
+/* OsCall accessors (valid after MONTY_PROGRESS_OS_CALL)              */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Get the OS function name, e.g. "Path.read_text", "os.getenv".
+ * @return  Heap-allocated string, or NULL. Caller frees with monty_string_free().
+ */
+char *monty_os_call_fn_name(const MontyHandle *handle);
+
+/**
+ * Get the OS call positional arguments as a JSON array string.
+ * @return  Heap-allocated JSON string, or NULL. Caller frees with monty_string_free().
+ */
+char *monty_os_call_args_json(const MontyHandle *handle);
+
+/**
+ * Get the OS call keyword arguments as a JSON object string.
+ * @return  Heap-allocated JSON string, or NULL. Caller frees with monty_string_free().
+ */
+char *monty_os_call_kwargs_json(const MontyHandle *handle);
+
+/**
+ * Get the OS call ID.
+ * @return  The call ID, or UINT32_MAX if not in OsCall state.
+ */
+uint32_t monty_os_call_id(const MontyHandle *handle);
 
 /**
  * Get the completed result as a JSON string.

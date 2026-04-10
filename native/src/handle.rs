@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use monty::{
     ExtFunctionResult, FunctionCall, LimitedTracker, MontyException, MontyObject, MontyRun,
-    NameLookupResult, PrintWriter, ResolveFutures, ResourceLimits, RunProgress,
+    NameLookupResult, OsCall, PrintWriter, ResolveFutures, ResourceLimits, RunProgress,
 };
 use serde_json::Value;
 
@@ -45,6 +45,7 @@ pub enum MontyProgressTag {
     Pending = 1,
     Error = 2,
     ResolveFutures = 3,
+    OsCall = 4,
 }
 
 /// Metadata captured when paused at a `FunctionCall`.
@@ -56,6 +57,14 @@ struct PendingMeta {
     method_call: bool,
 }
 
+/// Metadata captured when paused at an `OsCall`.
+struct OsCallMeta {
+    os_fn_name: String,
+    args_json: String,
+    kwargs_json: String,
+    call_id: u32,
+}
+
 /// Internal state of a running handle.
 ///
 /// Single tracker type (`LimitedTracker`) — no variant doubling.
@@ -64,6 +73,10 @@ enum HandleState {
     Paused {
         call: FunctionCall<Tracker>,
         meta: PendingMeta,
+    },
+    OsCall {
+        call: OsCall<Tracker>,
+        meta: OsCallMeta,
     },
     Futures {
         futures: ResolveFutures<Tracker>,
@@ -352,6 +365,40 @@ impl MontyHandle {
         }
     }
 
+    /// Get the OS function name (only valid in OsCall state).
+    ///
+    /// Returns the Python-style name, e.g. `"Path.read_text"`, `"os.getenv"`.
+    pub fn os_call_fn_name(&self) -> Option<&str> {
+        match &self.state {
+            HandleState::OsCall { meta, .. } => Some(meta.os_fn_name.as_str()),
+            _ => None,
+        }
+    }
+
+    /// Get the OS call args as JSON (only valid in OsCall state).
+    pub fn os_call_args_json(&self) -> Option<&str> {
+        match &self.state {
+            HandleState::OsCall { meta, .. } => Some(meta.args_json.as_str()),
+            _ => None,
+        }
+    }
+
+    /// Get the OS call kwargs as JSON (only valid in OsCall state).
+    pub fn os_call_kwargs_json(&self) -> Option<&str> {
+        match &self.state {
+            HandleState::OsCall { meta, .. } => Some(meta.kwargs_json.as_str()),
+            _ => None,
+        }
+    }
+
+    /// Get the OS call ID (only valid in OsCall state).
+    pub fn os_call_id(&self) -> Option<u32> {
+        match &self.state {
+            HandleState::OsCall { meta, .. } => Some(meta.call_id),
+            _ => None,
+        }
+    }
+
     /// Get the complete result as JSON (only valid in Complete state).
     pub fn complete_result_json(&self) -> Option<&str> {
         match &self.state {
@@ -434,11 +481,14 @@ impl MontyHandle {
             HandleState::Paused { call, .. } => {
                 self.run_snapshot_op(|print| call.resume(result, print))
             }
+            HandleState::OsCall { call, .. } => {
+                self.run_snapshot_op(|print| call.resume(result, print))
+            }
             other => {
                 self.state = other;
                 (
                     MontyProgressTag::Error,
-                    Some("handle not in Paused state".into()),
+                    Some("handle not in Paused or OsCall state".into()),
                 )
             }
         }
@@ -500,22 +550,34 @@ impl MontyHandle {
                         Err(exc) => return self.handle_exception(exc),
                     }
                 }
-                RunProgress::OsCall(_) => {
-                    self.state = HandleState::Complete {
-                        result_json: build_result_json(
-                            Value::Null,
-                            Some(
-                                serde_json::json!({"message": "unsupported progress type: OsCall"}),
-                            ),
-                            &self.usage_json,
-                            &self.print_output,
-                        ),
-                        is_error: true,
+                RunProgress::OsCall(call) => {
+                    let meta = OsCallMeta {
+                        os_fn_name: call.function.to_string(),
+                        args_json: serde_json::to_string(
+                            &call.args.iter().map(monty_object_to_json).collect::<Vec<_>>(),
+                        )
+                        .unwrap_or_else(|_| "[]".into()),
+                        kwargs_json: if call.kwargs.is_empty() {
+                            "{}".into()
+                        } else {
+                            let map: serde_json::Map<String, Value> = call
+                                .kwargs
+                                .iter()
+                                .map(|(k, v)| {
+                                    let key = if let MontyObject::String(s) = k {
+                                        s.clone()
+                                    } else {
+                                        format!("{k}")
+                                    };
+                                    (key, monty_object_to_json(v))
+                                })
+                                .collect();
+                            serde_json::to_string(&map).unwrap_or_else(|_| "{}".into())
+                        },
+                        call_id: call.call_id,
                     };
-                    return (
-                        MontyProgressTag::Error,
-                        Some("unsupported progress type: OsCall".into()),
-                    );
+                    self.state = HandleState::OsCall { call, meta };
+                    return (MontyProgressTag::OsCall, None);
                 }
             }
         }

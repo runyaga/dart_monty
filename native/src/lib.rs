@@ -363,6 +363,63 @@ pub unsafe extern "C" fn monty_pending_method_call(handle: *const MontyHandle) -
     }
 }
 
+// ---------------------------------------------------------------------------
+// OsCall accessors
+// ---------------------------------------------------------------------------
+
+/// Get the OS function name (only valid when state is `MONTY_PROGRESS_OS_CALL`).
+/// Returns e.g. `"Path.read_text"`, `"os.getenv"`.
+/// Caller frees with `monty_string_free`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn monty_os_call_fn_name(handle: *const MontyHandle) -> *mut c_char {
+    if handle.is_null() {
+        return ptr::null_mut();
+    }
+    let h = unsafe { &*handle };
+    match h.os_call_fn_name() {
+        Some(name) => to_c_string(name),
+        None => ptr::null_mut(),
+    }
+}
+
+/// Get the OS call positional arguments as a JSON array string.
+/// Caller frees with `monty_string_free`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn monty_os_call_args_json(handle: *const MontyHandle) -> *mut c_char {
+    if handle.is_null() {
+        return ptr::null_mut();
+    }
+    let h = unsafe { &*handle };
+    match h.os_call_args_json() {
+        Some(json) => to_c_string(json),
+        None => ptr::null_mut(),
+    }
+}
+
+/// Get the OS call keyword arguments as a JSON object string.
+/// Caller frees with `monty_string_free`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn monty_os_call_kwargs_json(handle: *const MontyHandle) -> *mut c_char {
+    if handle.is_null() {
+        return ptr::null_mut();
+    }
+    let h = unsafe { &*handle };
+    match h.os_call_kwargs_json() {
+        Some(json) => to_c_string(json),
+        None => ptr::null_mut(),
+    }
+}
+
+/// Get the OS call ID. Returns `u32::MAX` if not in OsCall state.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn monty_os_call_id(handle: *const MontyHandle) -> u32 {
+    if handle.is_null() {
+        return u32::MAX;
+    }
+    let h = unsafe { &*handle };
+    h.os_call_id().unwrap_or(u32::MAX)
+}
+
 /// Get the completed result as a JSON string.
 /// Caller frees with `monty_string_free`.
 #[unsafe(no_mangle)]
