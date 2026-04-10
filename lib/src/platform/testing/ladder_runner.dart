@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:dart_monty/src/platform/monty_error.dart';
 import 'package:dart_monty/src/platform/monty_exception.dart';
 import 'package:dart_monty/src/platform/monty_future_capable.dart';
 import 'package:dart_monty/src/platform/monty_platform.dart';
@@ -86,12 +87,13 @@ Future<void> runOsCallFixture(
         fail('Unexpected progress type: $progress');
       }
     }
-  } on MontyException catch (e) {
+  } on MontyScriptError catch (e) {
     if (expectError) {
       final errorContains = fixture['errorContains'] as String?;
       if (errorContains != null) {
+        final full = e.exception?.toString() ?? e.toString();
         expect(
-          e.toString().contains(errorContains),
+          full.contains(errorContains),
           isTrue,
           reason:
               'Expected error containing "$errorContains", '
@@ -122,11 +124,11 @@ Future<void> runErrorFixture(
   final scriptName = fixture['scriptName'] as String?;
   try {
     await platform.run(code, scriptName: scriptName);
-    fail('Expected MontyException but run() succeeded');
-  } on MontyException catch (e) {
+    fail('Expected MontyScriptError but run() succeeded');
+  } on MontyScriptError catch (e) {
     final errorContains = fixture['errorContains'] as String?;
     if (errorContains != null) {
-      final fullError = e.toString();
+      final fullError = e.exception?.toString() ?? e.toString();
       expect(
         fullError.contains(errorContains),
         isTrue,
@@ -136,7 +138,7 @@ Future<void> runErrorFixture(
       );
     }
 
-    assertExceptionFields(e, fixture);
+    assertExceptionFields(e.exception!, fixture);
   }
 }
 
@@ -186,7 +188,7 @@ Future<MontyProgress?> _runAsyncStrategy(
         fail('Unexpected progress type: $progress');
       }
     }
-  } on MontyException catch (e) {
+  } on MontyScriptError catch (e) {
     if (expectError) {
       final errorContains = fixture['errorContains'] as String?;
       if (errorContains != null) {

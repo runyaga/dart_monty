@@ -117,8 +117,8 @@ final class _DisposeResponse extends _Response {
 }
 
 final class _ErrorResponse extends _Response {
-  const _ErrorResponse(super.id, this.exception);
-  final MontyException exception;
+  const _ErrorResponse(super.id, this.error);
+  final MontyScriptError error;
 }
 
 final class _GenericErrorResponse extends _Response {
@@ -218,10 +218,10 @@ Future<void> _isolateMain(_InitMessage init) async {
 
           return;
       }
+    } on MontyScriptError catch (e) {
+      init.mainSendPort.send(_ErrorResponse(message.id, e));
     } on MontyError catch (e) {
       init.mainSendPort.send(_MontyErrorResponse(message.id, e));
-    } on MontyException catch (e) {
-      init.mainSendPort.send(_ErrorResponse(message.id, e));
     } on Object catch (e) {
       init.mainSendPort.send(_GenericErrorResponse(message.id, e.toString()));
     }
@@ -449,7 +449,7 @@ class NativeIsolateBindingsImpl extends NativeIsolateBindings {
 
     try {
       await _send<_DisposeResponse>(_DisposeRequest(_nextId++));
-    } on MontyException {
+    } on MontyScriptError {
       // Isolate may already be gone.
     } finally {
       _failAllPending('Isolate disposed');
@@ -518,7 +518,7 @@ class NativeIsolateBindingsImpl extends NativeIsolateBindings {
         throw response.error;
       }
       if (response is _ErrorResponse) {
-        throw response.exception;
+        throw response.error;
       }
       if (response is _GenericErrorResponse) {
         throw StateError(response.message);

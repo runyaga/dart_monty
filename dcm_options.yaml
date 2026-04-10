@@ -242,6 +242,8 @@ dcm:
           # WASM JS interop: non-null guaranteed by JS bridge contract
           - "lib/src/wasm/wasm_bindings_js.dart"
           - "lib/src/wasm/wasm_core_bindings.dart"
+          # Test ladder: e.exception! guaranteed non-null in MontyScriptError catch
+          - "lib/src/platform/testing/ladder_runner.dart"
 
     # --- Class Design & Architecture ---
     - avoid-accessing-other-classes-private-members

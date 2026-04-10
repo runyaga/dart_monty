@@ -795,12 +795,17 @@ void main() {
       });
     });
 
-    group('_safeStart catches MontyException', () {
-      test('MontyException during start returns error result', () async {
+    group('_safeStart catches MontyScriptError', () {
+      test('MontyScriptError during start returns error result', () async {
+        final exc = const MontyException(
+          message: 'SyntaxError: invalid syntax',
+          excType: 'SyntaxError',
+        );
         final throwing = _ThrowingMockPlatform(
-          throwOnStart: const MontyException(
-            message: 'SyntaxError: invalid syntax',
-            excType: 'SyntaxError',
+          throwOnStart: MontyScriptError(
+            exc.message,
+            excType: exc.excType,
+            exception: exc,
           ),
         );
         final s = MontySession(platform: throwing);
@@ -814,11 +819,16 @@ void main() {
     });
 
     group('_safeResume catches exceptions', () {
-      test('MontyException during resume returns error result', () async {
+      test('MontyScriptError during resume returns error result', () async {
+        final exc = const MontyException(
+          message: 'RuntimeError: oops',
+          excType: 'RuntimeError',
+        );
         final throwing = _ThrowingMockPlatform(
-          throwOnResume: const MontyException(
-            message: 'RuntimeError: oops',
-            excType: 'RuntimeError',
+          throwOnResume: MontyScriptError(
+            exc.message,
+            excType: exc.excType,
+            exception: exc,
           ),
         );
         // Start succeeds normally — enqueue the initial progress.
@@ -830,7 +840,7 @@ void main() {
         );
 
         final s = MontySession(platform: throwing);
-        // run() calls start (succeeds), then resume (throws MontyException).
+        // run() calls start (succeeds), then resume (throws MontyScriptError).
         final result = await s.run('x = 1');
         expect(result.isError, isTrue);
         expect(result.error!.message, contains('RuntimeError'));
@@ -860,11 +870,15 @@ void main() {
 
     group('_safeResumeWithError catches exceptions', () {
       test(
-        'MontyException during resumeWithError returns error result',
+        'MontyScriptError during resumeWithError returns error result',
         () async {
+          final exc = const MontyException(
+            message: 'internal error',
+          );
           final throwing = _ThrowingMockPlatform(
-            throwOnResumeWithError: const MontyException(
-              message: 'internal error',
+            throwOnResumeWithError: MontyScriptError(
+              exc.message,
+              exception: exc,
             ),
           );
           // Start succeeds, then restore pending, then unknown fn triggers
@@ -1028,30 +1042,37 @@ void main() {
     });
 
     group('_safeStart catches MontyError from platform.start', () {
-      test('MontyPanicError during start returns error result via run',
-          () async {
-        final throwing = _ThrowingMockPlatform(
-          throwOnStart: const MontyPanicError('engine died'),
-        );
-        final s = MontySession(platform: throwing);
+      test(
+        'MontyPanicError during start returns error result via run',
+        () async {
+          final throwing = _ThrowingMockPlatform(
+            throwOnStart: const MontyPanicError('engine died'),
+          );
+          final s = MontySession(platform: throwing);
 
-        final result = await s.run('x = 1');
-        expect(result.isError, isTrue);
-        expect(result.error!.message, contains('engine died'));
-        // Session is NOT disposed — can be reused.
-        expect(s.isDisposed, isFalse);
-        s.dispose();
-      });
+          final result = await s.run('x = 1');
+          expect(result.isError, isTrue);
+          expect(result.error!.message, contains('engine died'));
+          // Session is NOT disposed — can be reused.
+          expect(s.isDisposed, isFalse);
+          s.dispose();
+        },
+      );
     });
 
-    group('_safeResume catches MontyException during persist', () {
-      test('MontyException thrown by resume during persist phase', () async {
+    group('_safeResume catches MontyScriptError during persist', () {
+      test('MontyScriptError thrown by resume during persist phase', () async {
         // Start succeeds, restore succeeds, then persist resume throws.
+        final exc = const MontyException(
+          message: 'RuntimeError: persist failed',
+          excType: 'RuntimeError',
+        );
         final throwing = _CountedThrowingPlatform(
           throwOnResumeAfter: 1,
-          throwWith: const MontyException(
-            message: 'RuntimeError: persist failed',
-            excType: 'RuntimeError',
+          throwWith: MontyScriptError(
+            exc.message,
+            excType: exc.excType,
+            exception: exc,
           ),
         );
         // Enqueue restore pending for start:
@@ -1065,10 +1086,12 @@ void main() {
         throwing.enqueueProgress(
           MontyPending(
             functionName: '__persist_state__',
-            arguments: [_toMontyDict(const {'x': 1})],
+            arguments: [
+              _toMontyDict(const {'x': 1}),
+            ],
           ),
         );
-        // The second resume (for persist) will throw MontyException.
+        // The second resume (for persist) will throw MontyScriptError.
 
         final s = MontySession(platform: throwing);
         final result = await s.run('x = 1');
@@ -1079,31 +1102,35 @@ void main() {
     });
 
     group('_safeResumeWithError catches MontyError', () {
-      test('MontyPanicError during resumeWithError returns error result',
-          () async {
-        final throwing = _ThrowingMockPlatform(
-          throwOnResumeWithError: const MontyPanicError('panic on error path'),
-        );
-        throwing
-          ..enqueueProgress(
-            const MontyPending(
-              functionName: '__restore_state__',
-              arguments: [],
-            ),
-          )
-          ..enqueueProgress(
-            const MontyPending(
-              functionName: 'unknown_fn',
-              arguments: [],
+      test(
+        'MontyPanicError during resumeWithError returns error result',
+        () async {
+          final throwing = _ThrowingMockPlatform(
+            throwOnResumeWithError: const MontyPanicError(
+              'panic on error path',
             ),
           );
+          throwing
+            ..enqueueProgress(
+              const MontyPending(
+                functionName: '__restore_state__',
+                arguments: [],
+              ),
+            )
+            ..enqueueProgress(
+              const MontyPending(
+                functionName: 'unknown_fn',
+                arguments: [],
+              ),
+            );
 
-        final s = MontySession(platform: throwing);
-        final result = await s.run('unknown_fn()');
-        expect(result.isError, isTrue);
-        expect(result.error!.message, contains('panic on error path'));
-        s.dispose();
-      });
+          final s = MontySession(platform: throwing);
+          final result = await s.run('unknown_fn()');
+          expect(result.isError, isTrue);
+          expect(result.error!.message, contains('panic on error path'));
+          s.dispose();
+        },
+      );
     });
 
     group('extractAssignmentTargets', () {

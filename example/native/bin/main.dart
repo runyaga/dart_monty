@@ -44,7 +44,7 @@ fib(10)
   print('\n── Error handling ──');
   try {
     await monty.run('1 / 0');
-  } on MontyException catch (e) {
+  } on MontyScriptError catch (e) {
     print('  Caught: ${e.message}');
   }
 

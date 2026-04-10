@@ -412,9 +412,9 @@ class MontySession {
         limits: limits,
         scriptName: scriptName,
       );
-    } on MontyException catch (e) {
+    } on MontyScriptError catch (e) {
       return MontyComplete(
-        result: MontyResult(error: e, usage: _zeroUsage),
+        result: MontyResult(error: e.exception, usage: _zeroUsage),
       );
     } on MontyError catch (e) {
       return MontyComplete(
@@ -426,14 +426,14 @@ class MontySession {
     }
   }
 
-  /// Wraps [MontyPlatform.resume], catching [MontyException] and
+  /// Wraps [MontyPlatform.resume], catching [MontyScriptError] and
   /// [MontyError].
   Future<MontyProgress> _safeResume(Object? returnValue) async {
     try {
       return await _platform.resume(returnValue);
-    } on MontyException catch (e) {
+    } on MontyScriptError catch (e) {
       return MontyComplete(
-        result: MontyResult(error: e, usage: _zeroUsage),
+        result: MontyResult(error: e.exception, usage: _zeroUsage),
       );
     } on MontyError catch (e) {
       return MontyComplete(
@@ -445,14 +445,14 @@ class MontySession {
     }
   }
 
-  /// Wraps [MontyPlatform.resumeWithError], catching [MontyException] and
+  /// Wraps [MontyPlatform.resumeWithError], catching [MontyScriptError] and
   /// [MontyError].
   Future<MontyProgress> _safeResumeWithError(String errorMessage) async {
     try {
       return await _platform.resumeWithError(errorMessage);
-    } on MontyException catch (e) {
+    } on MontyScriptError catch (e) {
       return MontyComplete(
-        result: MontyResult(error: e, usage: _zeroUsage),
+        result: MontyResult(error: e.exception, usage: _zeroUsage),
       );
     } on MontyError catch (e) {
       return MontyComplete(

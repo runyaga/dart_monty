@@ -94,7 +94,7 @@ Future<Map<String, dynamic>> _runExpectError(
     await monty.run(code);
 
     return {'id': id, 'ok': false, 'error': 'Expected error but succeeded'};
-  } on MontyException catch (e) {
+  } on MontyScriptError catch (e) {
     return {'id': id, 'ok': true, 'error': e.message};
   }
 }

@@ -546,50 +546,52 @@ void main() {
       unawaited(stream.drain<void>());
     });
 
-    test('orphaned completer cleaned up when script finishes with error',
-        () async {
-      // Scenario: Python calls wait_for_event and the handler waits, then
-      // when the event is dispatched the resolveFutures step triggers an
-      // error Complete, which flows through the execute() stream.map where
-      // the orphaned completer should be cleaned up.
-      mock
-        ..enqueueProgress(
-          const MontyPending(
-            functionName: 'wait_for_event',
-            arguments: [],
-            callId: 1,
-          ),
-        )
-        ..enqueueProgress(const MontyResolveFutures(pendingCallIds: [1]))
-        ..enqueueProgress(
-          const MontyComplete(
-            result: MontyResult(
-              error: MontyException(message: 'script died unexpectedly'),
-              usage: _usage,
+    test(
+      'orphaned completer cleaned up when script finishes with error',
+      () async {
+        // Scenario: Python calls wait_for_event and the handler waits, then
+        // when the event is dispatched the resolveFutures step triggers an
+        // error Complete, which flows through the execute() stream.map where
+        // the orphaned completer should be cleaned up.
+        mock
+          ..enqueueProgress(
+            const MontyPending(
+              functionName: 'wait_for_event',
+              arguments: [],
+              callId: 1,
             ),
-          ),
-        );
+          )
+          ..enqueueProgress(const MontyResolveFutures(pendingCallIds: [1]))
+          ..enqueueProgress(
+            const MontyComplete(
+              result: MontyResult(
+                error: MontyException(message: 'script died unexpectedly'),
+                usage: _usage,
+              ),
+            ),
+          );
 
-      final events = <BridgeEvent>[];
-      final stream = bridge.execute('wait_for_event()');
-      final sub = stream.listen(events.add);
+        final events = <BridgeEvent>[];
+        final stream = bridge.execute('wait_for_event()');
+        final sub = stream.listen(events.add);
 
-      // Let bridge reach wait_for_event.
-      await Future<void>.delayed(Duration.zero);
-      expect(bridge.isWaitingForEvent, isTrue);
+        // Let bridge reach wait_for_event.
+        await Future<void>.delayed(Duration.zero);
+        expect(bridge.isWaitingForEvent, isTrue);
 
-      // Dispatch event to unblock the completer and let the error flow.
-      bridge.dispatchUiEvent({'type': 'trigger'});
+        // Dispatch event to unblock the completer and let the error flow.
+        bridge.dispatchUiEvent({'type': 'trigger'});
 
-      await sub.asFuture<void>();
-      await sub.cancel();
+        await sub.asFuture<void>();
+        await sub.cancel();
 
-      // Bridge should be completed (error event was emitted).
-      expect(bridge.loopState, EventLoopState.completed);
-      final errors = events.whereType<BridgeRunError>().toList();
-      expect(errors, hasLength(1));
-      expect(errors.first.message, contains('script died unexpectedly'));
-    });
+        // Bridge should be completed (error event was emitted).
+        expect(bridge.loopState, EventLoopState.completed);
+        final errors = events.whereType<BridgeRunError>().toList();
+        expect(errors, hasLength(1));
+        expect(errors.first.message, contains('script died unexpectedly'));
+      },
+    );
 
     test('run error while waiting cleans up orphaned completer', () async {
       mock

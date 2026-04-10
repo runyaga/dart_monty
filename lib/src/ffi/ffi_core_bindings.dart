@@ -1,9 +1,39 @@
 import 'dart:convert';
+import 'dart:ffi' as ffi;
 import 'dart:typed_data';
 
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/monty_backend_spi.dart';
+import 'package:dart_monty/src/ffi/generated/dart_monty_bindings.dart'
+    as ffi_native;
 import 'package:dart_monty/src/ffi/native_bindings.dart';
+
+/// GC safety net for Rust MontyHandle pointers.
+///
+/// If a [FfiCoreBindings] instance is garbage collected without [dispose]
+/// being called, the [NativeFinalizer] attached to this guard will call
+/// `monty_free` to release the Rust-side handle, preventing a permanent
+/// native memory leak.
+final class _HandleGuard implements ffi.Finalizable {
+  const _HandleGuard(this.address);
+  final int address;
+}
+
+/// NativeFinalizer backed by the C `monty_free` function.
+///
+/// Attached to [_HandleGuard] tokens when a handle is created, and detached
+/// when the handle is explicitly freed via [FfiCoreBindings._freeHandle] or
+/// [FfiCoreBindings.dispose].
+final _handleFinalizer = ffi.NativeFinalizer(
+  ffi.Native.addressOf<
+        ffi.NativeFunction<
+          ffi.Void Function(ffi.Pointer<ffi_native.MontyHandle>)
+        >
+      >(
+        ffi_native.monty_free,
+      )
+      .cast(),
+);
 
 /// Adapts [NativeBindings] (sync, int handles, [RunResult]/[ProgressResult])
 /// to the [MontyCoreBindings] interface (async, [CoreRunResult]/
@@ -26,6 +56,7 @@ class FfiCoreBindings implements MontyCoreBindings {
 
   final NativeBindings _bindings;
   int? _handle;
+  _HandleGuard? _guard;
 
   @override
   Future<bool> init() async => true;
@@ -118,17 +149,16 @@ class FfiCoreBindings implements MontyCoreBindings {
   Future<void> restoreSnapshot(Uint8List data) async {
     final oldHandle = _handle;
     if (oldHandle != null) {
-      _bindings.free(oldHandle);
+      _freeHandle(oldHandle);
     }
-    _handle = _bindings.restore(data);
+    _storeHandle(_bindings.restore(data));
   }
 
   @override
   Future<void> dispose() async {
     final handle = _handle;
     if (handle != null) {
-      _bindings.free(handle);
-      _handle = null;
+      _freeHandle(handle);
     }
   }
 
@@ -226,7 +256,7 @@ class FfiCoreBindings implements MontyCoreBindings {
   }
 
   CoreProgressResult _translatePending(ProgressResult progress, int handle) {
-    _handle = handle;
+    _storeHandle(handle);
     final argsJson = progress.argumentsJson;
     final args = argsJson != null
         ? List<Object?>.from(
@@ -283,7 +313,7 @@ class FfiCoreBindings implements MontyCoreBindings {
     ProgressResult progress,
     int handle,
   ) {
-    _handle = handle;
+    _storeHandle(handle);
     final idsJson = progress.futureCallIdsJson;
     if (idsJson == null) {
       throw StateError('Future call IDs JSON is null');
@@ -299,7 +329,7 @@ class FfiCoreBindings implements MontyCoreBindings {
   }
 
   CoreProgressResult _translateOsCall(ProgressResult progress, int handle) {
-    _handle = handle;
+    _storeHandle(handle);
     final argsJson = progress.argumentsJson;
     final args = argsJson != null
         ? List<Object?>.from(
@@ -338,7 +368,25 @@ class FfiCoreBindings implements MontyCoreBindings {
     return handle;
   }
 
+  /// Stores [handle] and attaches a [NativeFinalizer] as a GC safety net.
+  ///
+  /// Idempotent — if a guard already exists for this handle, it is reused.
+  void _storeHandle(int handle) {
+    _handle = handle;
+    final existing = _guard;
+    if (existing != null && existing.address == handle) return;
+    final guard = _HandleGuard(handle);
+    _guard = guard;
+    _handleFinalizer.attach(guard, ffi.Pointer.fromAddress(handle));
+  }
+
+  /// Frees [handle], detaches the finalizer, and clears state.
   void _freeHandle(int handle) {
+    final guard = _guard;
+    if (guard != null && guard.address == handle) {
+      _handleFinalizer.detach(guard);
+      _guard = null;
+    }
     if (_handle == handle) {
       _handle = null;
     }

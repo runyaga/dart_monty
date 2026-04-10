@@ -170,7 +170,7 @@ void main() {
   });
 }
 
-/// A mock that throws a [MontyException] on [run].
+/// A mock that throws a [MontyScriptError] on [run].
 class _ThrowingMock extends MockMontyPlatform {
   _ThrowingMock(this._exception);
   final MontyException _exception;
@@ -183,6 +183,10 @@ class _ThrowingMock extends MockMontyPlatform {
   }) async {
     runCodes.add(code);
     runScriptNamesList.add(scriptName);
-    throw _exception;
+    throw MontyScriptError(
+      _exception.message,
+      excType: _exception.excType,
+      exception: _exception,
+    );
   }
 }

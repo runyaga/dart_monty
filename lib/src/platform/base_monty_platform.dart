@@ -184,11 +184,10 @@ abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
         );
       case 'error':
         markIdle();
-        _throwSealedErrorIfApplicable(p.excType, p.error ?? 'Unknown error');
-        throw MontyException(
+        _throwError(
           message: p.error ?? 'Unknown error',
           excType: p.excType,
-          traceback: _parseTraceback(p.traceback),
+          traceback: p.traceback,
           filename: p.filename,
           lineNumber: p.lineNumber,
           columnNumber: p.columnNumber,
@@ -218,11 +217,10 @@ abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
         printOutput: r.printOutput,
       );
     }
-    _throwSealedErrorIfApplicable(r.excType, r.error ?? 'Unknown error');
-    throw MontyException(
+    _throwError(
       message: r.error ?? 'Unknown error',
       excType: r.excType,
-      traceback: _parseTraceback(r.traceback),
+      traceback: r.traceback,
       filename: r.filename,
       lineNumber: r.lineNumber,
       columnNumber: r.columnNumber,
@@ -264,17 +262,39 @@ abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
     return MontyStackFrame.listFromJson(traceback);
   }
 
-  /// Maps known Python exception types to the sealed [MontyError] hierarchy.
+  /// Throws the appropriate sealed [MontyError] subtype for a failed run.
   ///
-  /// Throws the appropriate sealed type for cancel and resource errors.
-  /// Returns without throwing for unmapped types, allowing fallthrough to
-  /// the existing [MontyException] path.
-  void _throwSealedErrorIfApplicable(String? excType, String message) {
-    switch (excType) {
-      case 'MemoryLimitExceeded':
-        throw MontyResourceError(message);
-      default:
-        return;
+  /// Resource errors (MemoryLimitExceeded) throw [MontyResourceError].
+  /// All other Python exceptions throw [MontyScriptError] wrapping a full
+  /// [MontyException] with traceback and source location details.
+  Never _throwError({
+    required String message,
+    String? excType,
+    List<dynamic>? traceback,
+    String? filename,
+    int? lineNumber,
+    int? columnNumber,
+    String? sourceCode,
+  }) {
+    // Resource exhaustion — separate sealed type.
+    if (excType == 'MemoryLimitExceeded') {
+      throw MontyResourceError(message);
     }
+
+    // All other Python exceptions go through MontyScriptError.
+    final exception = MontyException(
+      message: message,
+      excType: excType,
+      traceback: _parseTraceback(traceback),
+      filename: filename,
+      lineNumber: lineNumber,
+      columnNumber: columnNumber,
+      sourceCode: sourceCode,
+    );
+    throw MontyScriptError(
+      message,
+      excType: excType,
+      exception: exception,
+    );
   }
 }

@@ -373,8 +373,8 @@ void main() {
       // Error handling — run() throws MontyException on Python errors.
       try {
         await monty.run('1 / 0');
-        fail('Expected MontyException');
-      } on MontyException catch (e) {
+        fail('Expected MontyScriptError');
+      } on MontyScriptError catch (e) {
         expect(e.excType, 'ZeroDivisionError');
       }
 

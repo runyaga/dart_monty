@@ -139,7 +139,7 @@ void main() {
       expect(fake.lastRunCode, '1 + 1');
     });
 
-    test('error throws MontyException', () async {
+    test('error throws MontyScriptError', () async {
       fake.runResult = const CoreRunResult(
         ok: false,
         error: 'division by zero',
@@ -152,10 +152,14 @@ void main() {
       expect(
         () => platform.run('1 / 0'),
         throwsA(
-          isA<MontyException>()
+          isA<MontyScriptError>()
               .having((e) => e.message, 'message', 'division by zero')
               .having((e) => e.excType, 'excType', 'ZeroDivisionError')
-              .having((e) => e.traceback, 'traceback', hasLength(1)),
+              .having(
+                (e) => e.exception!.traceback,
+                'traceback',
+                hasLength(1),
+              ),
         ),
       );
     });
@@ -325,7 +329,7 @@ void main() {
       expect(platform.isActive, isTrue);
     });
 
-    test('error throws MontyException and marks idle', () async {
+    test('error throws MontyScriptError and marks idle', () async {
       fake.progressResult = const CoreProgressResult(
         state: 'error',
         error: 'name not defined',
@@ -335,7 +339,7 @@ void main() {
       await expectLater(
         () => platform.start('code'),
         throwsA(
-          isA<MontyException>()
+          isA<MontyScriptError>()
               .having((e) => e.message, 'message', 'name not defined')
               .having((e) => e.excType, 'excType', 'NameError'),
         ),
@@ -609,7 +613,7 @@ void main() {
 
       await expectLater(
         () => platform.run('code'),
-        throwsA(isA<MontyException>()),
+        throwsA(isA<MontyScriptError>()),
       );
       expect(platform.isIdle, isTrue);
     });
