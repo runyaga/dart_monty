@@ -181,6 +181,10 @@ class WasmCoreBindings implements MontyCoreBindings {
       error: result.error ?? 'Unknown error',
       excType: result.excType,
       traceback: result.traceback,
+      filename: result.filename,
+      lineNumber: result.lineNumber,
+      columnNumber: result.columnNumber,
+      sourceCode: result.sourceCode,
     );
   }
 
@@ -200,6 +204,10 @@ class WasmCoreBindings implements MontyCoreBindings {
         error: progress.error ?? 'Unknown error',
         excType: progress.excType,
         traceback: progress.traceback,
+        filename: progress.filename,
+        lineNumber: progress.lineNumber,
+        columnNumber: progress.columnNumber,
+        sourceCode: progress.sourceCode,
       );
     }
 

@@ -126,6 +126,10 @@ class WasmBindingsJs extends WasmBindings {
       errorType: map['errorType'] as String?,
       excType: map['excType'] as String?,
       traceback: rawTraceback,
+      filename: map['filename'] as String?,
+      lineNumber: map['line_number'] as int?,
+      columnNumber: map['column_number'] as int?,
+      sourceCode: map['source_code'] as String?,
     );
   }
 
@@ -255,6 +259,10 @@ class WasmBindingsJs extends WasmBindings {
       errorType: map['errorType'] as String?,
       excType: map['excType'] as String?,
       traceback: rawTraceback,
+      filename: map['filename'] as String?,
+      lineNumber: map['line_number'] as int?,
+      columnNumber: map['column_number'] as int?,
+      sourceCode: map['source_code'] as String?,
     );
   }
 }

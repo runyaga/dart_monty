@@ -241,6 +241,28 @@ Future<void> _isolateMain(_InitMessage init) async {
 ///
 /// The native library is resolved automatically by the Dart native assets
 /// system via `@Native` annotations — no manual path is needed.
+///
+/// ## Isolate Lifecycle
+///
+/// Callers **must** call [dispose] when the instance is no longer needed.
+/// [dispose] sends a dispose command to the worker isolate, waits for it to
+/// release its Rust `MontyHandle`, then kills the isolate and closes the
+/// receive port. Without this call the background isolate and its Rust
+/// resources remain alive for the lifetime of the process. There is no
+/// `NativeFinalizer` safety net — leaked instances are truly leaked.
+///
+/// If the main isolate's process exits, the OS terminates the worker isolate
+/// along with it, so resources are reclaimed at process exit regardless.
+///
+/// For long-lived applications that create and abandon `MontyNative` instances
+/// without calling `dispose()`, the zombie-detection mechanism built into
+/// `terminate()` will fire: after a 5-second graceful-shutdown timeout the
+/// worker is force-killed and the zombie count is incremented. When the count
+/// reaches the warning threshold (currently 3), a `developer.log` warning is
+/// emitted to help surface the leak during development.
+///
+/// [terminate] provides a force-kill path with zombie tracking and is used
+/// internally by higher-level APIs that need guaranteed cleanup.
 class NativeIsolateBindingsImpl extends NativeIsolateBindings {
   /// Creates a [NativeIsolateBindingsImpl].
   ///

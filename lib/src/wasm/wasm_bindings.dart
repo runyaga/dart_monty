@@ -13,6 +13,10 @@ final class WasmRunResult {
     this.printOutput,
     this.excType,
     this.traceback,
+    this.filename,
+    this.lineNumber,
+    this.columnNumber,
+    this.sourceCode,
   });
 
   /// Whether the execution succeeded.
@@ -35,6 +39,18 @@ final class WasmRunResult {
 
   /// The traceback frames as raw JSON list (when error occurred).
   final List<Object?>? traceback;
+
+  /// Source filename (when [ok] is false).
+  final String? filename;
+
+  /// Source line number (when [ok] is false).
+  final int? lineNumber;
+
+  /// Source column number (when [ok] is false).
+  final int? columnNumber;
+
+  /// Source code at the error location (when [ok] is false).
+  final String? sourceCode;
 }
 
 /// Result of [WasmBindings.start], [WasmBindings.resume], and
@@ -58,6 +74,10 @@ final class WasmProgressResult {
     this.errorType,
     this.excType,
     this.traceback,
+    this.filename,
+    this.lineNumber,
+    this.columnNumber,
+    this.sourceCode,
   });
 
   /// Whether the operation succeeded.
@@ -102,6 +122,18 @@ final class WasmProgressResult {
 
   /// The traceback frames as raw JSON list (when error occurred).
   final List<Object?>? traceback;
+
+  /// Source filename (when [ok] is false).
+  final String? filename;
+
+  /// Source line number (when [ok] is false).
+  final int? lineNumber;
+
+  /// Source column number (when [ok] is false).
+  final int? columnNumber;
+
+  /// Source code at the error location (when [ok] is false).
+  final String? sourceCode;
 }
 
 /// Result of [WasmBindings.discover].
