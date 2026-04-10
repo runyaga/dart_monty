@@ -286,6 +286,34 @@ external int monty_pending_method_call(
   ffi.Pointer<MontyHandle> handle,
 );
 
+/// Get the OS function name (only valid after MONTY_PROGRESS_OS_CALL).
+/// @return  Heap-allocated string, or NULL. Caller frees with monty_string_free().
+@ffi.Native<ffi.Pointer<ffi.Char> Function(ffi.Pointer<MontyHandle>)>()
+external ffi.Pointer<ffi.Char> monty_os_call_fn_name(
+  ffi.Pointer<MontyHandle> handle,
+);
+
+/// Get the OS call positional arguments as a JSON array string.
+/// @return  Heap-allocated JSON string, or NULL. Caller frees with monty_string_free().
+@ffi.Native<ffi.Pointer<ffi.Char> Function(ffi.Pointer<MontyHandle>)>()
+external ffi.Pointer<ffi.Char> monty_os_call_args_json(
+  ffi.Pointer<MontyHandle> handle,
+);
+
+/// Get the OS call keyword arguments as a JSON object string.
+/// @return  Heap-allocated JSON string, or NULL. Caller frees with monty_string_free().
+@ffi.Native<ffi.Pointer<ffi.Char> Function(ffi.Pointer<MontyHandle>)>()
+external ffi.Pointer<ffi.Char> monty_os_call_kwargs_json(
+  ffi.Pointer<MontyHandle> handle,
+);
+
+/// Get the OS call ID.
+/// @return  The call ID, or UINT32_MAX if not in OsCall state.
+@ffi.Native<ffi.Uint32 Function(ffi.Pointer<MontyHandle>)>()
+external int monty_os_call_id(
+  ffi.Pointer<MontyHandle> handle,
+);
+
 /// Get the completed result as a JSON string.
 /// Only valid after execution reached COMPLETE state.
 ///
@@ -396,7 +424,8 @@ enum MontyProgressTag {
   MONTY_PROGRESS_COMPLETE(0),
   MONTY_PROGRESS_PENDING(1),
   MONTY_PROGRESS_ERROR(2),
-  MONTY_PROGRESS_RESOLVE_FUTURES(3)
+  MONTY_PROGRESS_RESOLVE_FUTURES(3),
+  MONTY_PROGRESS_OS_CALL(4)
   ;
 
   final int value;
@@ -407,6 +436,7 @@ enum MontyProgressTag {
     1 => MONTY_PROGRESS_PENDING,
     2 => MONTY_PROGRESS_ERROR,
     3 => MONTY_PROGRESS_RESOLVE_FUTURES,
+    4 => MONTY_PROGRESS_OS_CALL,
     _ => throw ArgumentError('Unknown value for MontyProgressTag: $value'),
   };
 }

@@ -293,6 +293,23 @@ class NativeBindingsFfi extends NativeBindings {
         final callIdsJson = _readAndFreeString(callIdsPtr);
 
         return ProgressResult(tag: 3, futureCallIdsJson: callIdsJson);
+
+      case ffi_native.MontyProgressTag.MONTY_PROGRESS_OS_CALL:
+        final fnNamePtr = ffi_native.monty_os_call_fn_name(ptr);
+        final fnName = _readAndFreeString(fnNamePtr);
+        final argsPtr = ffi_native.monty_os_call_args_json(ptr);
+        final argsJson = _readAndFreeString(argsPtr);
+        final kwargsPtr = ffi_native.monty_os_call_kwargs_json(ptr);
+        final kwargsJson = _readAndFreeString(kwargsPtr);
+        final callId = ffi_native.monty_os_call_id(ptr);
+
+        return ProgressResult(
+          tag: 4,
+          functionName: fnName,
+          argumentsJson: argsJson,
+          kwargsJson: kwargsJson,
+          callId: callId,
+        );
     }
   }
 

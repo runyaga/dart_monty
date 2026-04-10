@@ -272,6 +272,32 @@ class FfiCoreBindings implements MontyCoreBindings {
           pendingCallIds: ids,
         );
 
+      case 4: // os_call
+        _handle = handle;
+        final argsJson = progress.argumentsJson;
+        final args = argsJson != null
+            ? List<Object?>.from(
+                json.decode(argsJson) as List<Object?>,
+              )
+            : const <Object?>[];
+
+        final kwargsJson = progress.kwargsJson;
+        Map<String, Object?>? kwargs;
+        if (kwargsJson != null) {
+          final decoded = Map<String, Object?>.from(
+            json.decode(kwargsJson) as Map<String, dynamic>,
+          );
+          kwargs = decoded.isNotEmpty ? decoded : null;
+        }
+
+        return CoreProgressResult(
+          state: 'os_call',
+          functionName: progress.functionName ?? '',
+          arguments: args,
+          kwargs: kwargs,
+          callId: progress.callId ?? 0,
+        );
+
       default:
         _freeHandle(handle);
         throw StateError('Unknown progress tag: ${progress.tag}');
