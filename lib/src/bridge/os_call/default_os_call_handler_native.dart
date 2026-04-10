@@ -122,7 +122,6 @@ OsCallHandler createDefaultOsCallHandler() {
 ///
 /// Handles [MontyString] and [MontyPath] values.
 String _extractPath(MontyValue arg) => switch (arg) {
-  MontyString(:final value) => value,
-  MontyPath(:final value) => value,
+  MontyString(:final value) || MontyPath(:final value) => value,
   _ => throw ArgumentError('Expected string or path, got: $arg'),
 };

@@ -92,6 +92,18 @@ dcm:
           # expectError extracted early for readability across if/else-if branches
           - "lib/src/platform/testing/ladder_runner.dart"
 
+    # --- Robustness & Correctness ---
+    - avoid-unsafe-reduce
+    - avoid-map-keys-contains
+    - prefer-contains
+    - avoid-duplicate-map-keys
+    - avoid-duplicate-patterns
+    - avoid-equal-expressions
+    - avoid-constant-conditions
+    - no-equal-switch-case
+    - no-equal-switch-expression-cases
+    - no-equal-nested-conditions
+
     # --- Common Anti-Patterns ---
     - avoid-unused-parameters
     - avoid-nested-conditional-expressions
