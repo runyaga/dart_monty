@@ -17,6 +17,13 @@ cargo fmt --check
 echo "--- cargo clippy -- -D warnings ---"
 cargo clippy -- -D warnings
 
+echo "--- cargo deny check ---"
+if command -v cargo-deny &>/dev/null; then
+  cargo deny check
+else
+  echo "SKIP: cargo-deny not installed (cargo install cargo-deny)"
+fi
+
 echo "--- cargo test ---"
 cargo test
 

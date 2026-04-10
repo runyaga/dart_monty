@@ -17,16 +17,20 @@ macro_rules! ffi_progress {
     ($handle:expr, $out_error:expr, |$h:ident| $body:expr) => {{
         if $handle.is_null() {
             if !$out_error.is_null() {
+                // SAFETY: out_error is non-null (just checked), Dart caller provides a valid writable pointer
                 unsafe { *$out_error = to_c_string("handle is NULL") };
             }
             return MontyProgressTag::Error;
         }
+        // SAFETY: handle is non-null (just checked) and was created by monty_create via Box::into_raw
         let $h = unsafe { &mut *$handle };
         match catch_ffi_panic(|| $body) {
             Ok((tag, err)) => {
                 if !$out_error.is_null() {
                     match err {
+                        // SAFETY: out_error is non-null (just checked), writing error message string
                         Some(ref msg) => unsafe { *$out_error = to_c_string(msg) },
+                        // SAFETY: out_error is non-null (just checked), clearing error to indicate success
                         None => unsafe { *$out_error = ptr::null_mut() },
                     }
                 }
@@ -34,6 +38,7 @@ macro_rules! ffi_progress {
             }
             Err(panic_msg) => {
                 if !$out_error.is_null() {
+                    // SAFETY: out_error is non-null (just checked), writing panic message string
                     unsafe { *$out_error = to_c_string(&panic_msg) };
                 }
                 MontyProgressTag::Error
@@ -61,6 +66,7 @@ pub unsafe extern "C" fn monty_create(
     script_name: *const c_char,
     out_error: *mut *mut c_char,
 ) -> *mut MontyHandle {
+    // SAFETY: code is a NUL-terminated C string from Dart FFI; parse_c_str validates non-null
     let code_str = match unsafe { parse_c_str(code, "code", out_error) } {
         Ok(s) => s.to_string(),
         Err(()) => return ptr::null_mut(),
@@ -69,6 +75,7 @@ pub unsafe extern "C" fn monty_create(
     let ext_fn_list = if ext_fns.is_null() {
         vec![]
     } else {
+        // SAFETY: ext_fns is non-null (just checked), NUL-terminated C string from Dart FFI
         match unsafe { parse_c_str(ext_fns, "ext_fns", out_error) } {
             Ok("") => vec![],
             Ok(s) => s.split(',').map(|f| f.trim().to_string()).collect(),
@@ -79,6 +86,7 @@ pub unsafe extern "C" fn monty_create(
     let name = if script_name.is_null() {
         None
     } else {
+        // SAFETY: script_name is non-null (just checked), NUL-terminated C string from Dart FFI
         match unsafe { parse_c_str(script_name, "script_name", out_error) } {
             Ok(s) => Some(s.to_string()),
             Err(()) => return ptr::null_mut(),
@@ -90,18 +98,20 @@ pub unsafe extern "C" fn monty_create(
             let ptr = Box::into_raw(Box::new(handle));
             LIVE_HANDLES
                 .write()
-                .unwrap_or_else(|e| e.into_inner())
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
                 .insert(ptr as usize);
             ptr
         }
         Ok(Err(exc)) => {
             if !out_error.is_null() {
+                // SAFETY: out_error is non-null (just checked), writing compilation error message
                 unsafe { *out_error = to_c_string(&exc.summary()) };
             }
             ptr::null_mut()
         }
         Err(panic_msg) => {
             if !out_error.is_null() {
+                // SAFETY: out_error is non-null (just checked), writing panic error message
                 unsafe { *out_error = to_c_string(&panic_msg) };
             }
             ptr::null_mut()
@@ -126,11 +136,12 @@ pub unsafe extern "C" fn monty_free(handle: *mut MontyHandle) {
     let addr = handle as usize;
     let removed = LIVE_HANDLES
         .write()
-        .unwrap_or_else(|e| e.into_inner())
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
         .remove(&addr);
     if !removed {
         return; // already freed or unknown pointer
     }
+    // SAFETY: handle was created by Box::into_raw in monty_create/monty_restore, LIVE_HANDLES confirms it is still live
     drop(unsafe { Box::from_raw(handle) });
 }
 
@@ -153,21 +164,26 @@ pub unsafe extern "C" fn monty_run(
 ) -> MontyResultTag {
     if handle.is_null() {
         if !error_msg.is_null() {
+            // SAFETY: error_msg is non-null (just checked), Dart caller provides a valid writable pointer
             unsafe { *error_msg = to_c_string("handle is NULL") };
         }
         return MontyResultTag::Error;
     }
 
+    // SAFETY: handle is non-null (just checked) and was created by monty_create via Box::into_raw
     let h = unsafe { &mut *handle };
 
     match catch_ffi_panic(|| h.run()) {
         Ok((tag, json, err)) => {
             if !result_json.is_null() {
+                // SAFETY: result_json is non-null (just checked), writing result JSON string
                 unsafe { *result_json = to_c_string(&json) };
             }
             if !error_msg.is_null() {
                 match err {
+                    // SAFETY: error_msg is non-null (just checked), writing error message
                     Some(ref msg) => unsafe { *error_msg = to_c_string(msg) },
+                    // SAFETY: error_msg is non-null (just checked), clearing error to indicate success
                     None => unsafe { *error_msg = ptr::null_mut() },
                 }
             }
@@ -175,6 +191,7 @@ pub unsafe extern "C" fn monty_run(
         }
         Err(panic_msg) => {
             if !error_msg.is_null() {
+                // SAFETY: error_msg is non-null (just checked), writing panic error message
                 unsafe { *error_msg = to_c_string(&panic_msg) };
             }
             MontyResultTag::Error
@@ -209,9 +226,9 @@ pub unsafe extern "C" fn monty_resume(
     value_json: *const c_char,
     out_error: *mut *mut c_char,
 ) -> MontyProgressTag {
-    let json_str = match unsafe { parse_c_str(value_json, "value_json", out_error) } {
-        Ok(s) => s,
-        Err(()) => return MontyProgressTag::Error,
+    // SAFETY: value_json is a NUL-terminated C string from Dart FFI; parse_c_str validates non-null
+    let Ok(json_str) = (unsafe { parse_c_str(value_json, "value_json", out_error) }) else {
+        return MontyProgressTag::Error;
     };
     ffi_progress!(handle, out_error, |h| h.resume(json_str))
 }
@@ -226,9 +243,9 @@ pub unsafe extern "C" fn monty_resume_with_error(
     error_message: *const c_char,
     out_error: *mut *mut c_char,
 ) -> MontyProgressTag {
-    let msg = match unsafe { parse_c_str(error_message, "error_message", out_error) } {
-        Ok(s) => s,
-        Err(()) => return MontyProgressTag::Error,
+    // SAFETY: error_message is a NUL-terminated C string from Dart FFI; parse_c_str validates non-null
+    let Ok(msg) = (unsafe { parse_c_str(error_message, "error_message", out_error) }) else {
+        return MontyProgressTag::Error;
     };
     ffi_progress!(handle, out_error, |h| h.resume_with_error(msg))
 }
@@ -259,6 +276,7 @@ pub unsafe extern "C" fn monty_pending_future_call_ids(handle: *const MontyHandl
     if handle.is_null() {
         return ptr::null_mut();
     }
+    // SAFETY: handle is non-null (just checked) and was created by monty_create via Box::into_raw
     let h = unsafe { &*handle };
     match h.pending_future_call_ids() {
         Some(json) => to_c_string(json),
@@ -278,13 +296,13 @@ pub unsafe extern "C" fn monty_resume_futures(
     errors_json: *const c_char,
     out_error: *mut *mut c_char,
 ) -> MontyProgressTag {
-    let results_str = match unsafe { parse_c_str(results_json, "results_json", out_error) } {
-        Ok(s) => s,
-        Err(()) => return MontyProgressTag::Error,
+    // SAFETY: results_json is a NUL-terminated C string from Dart FFI; parse_c_str validates non-null
+    let Ok(results_str) = (unsafe { parse_c_str(results_json, "results_json", out_error) }) else {
+        return MontyProgressTag::Error;
     };
-    let errors_str = match unsafe { parse_c_str(errors_json, "errors_json", out_error) } {
-        Ok(s) => s,
-        Err(()) => return MontyProgressTag::Error,
+    // SAFETY: errors_json is a NUL-terminated C string from Dart FFI; parse_c_str validates non-null
+    let Ok(errors_str) = (unsafe { parse_c_str(errors_json, "errors_json", out_error) }) else {
+        return MontyProgressTag::Error;
     };
     ffi_progress!(handle, out_error, |h| h
         .resume_futures(results_str, errors_str))
@@ -301,6 +319,7 @@ pub unsafe extern "C" fn monty_pending_fn_name(handle: *const MontyHandle) -> *m
     if handle.is_null() {
         return ptr::null_mut();
     }
+    // SAFETY: handle is non-null (just checked) and was created by monty_create via Box::into_raw
     let h = unsafe { &*handle };
     match h.pending_fn_name() {
         Some(name) => to_c_string(name),
@@ -315,6 +334,7 @@ pub unsafe extern "C" fn monty_pending_fn_args_json(handle: *const MontyHandle) 
     if handle.is_null() {
         return ptr::null_mut();
     }
+    // SAFETY: handle is non-null (just checked) and was created by monty_create via Box::into_raw
     let h = unsafe { &*handle };
     match h.pending_fn_args_json() {
         Some(json) => to_c_string(json),
@@ -330,6 +350,7 @@ pub unsafe extern "C" fn monty_pending_fn_kwargs_json(handle: *const MontyHandle
     if handle.is_null() {
         return ptr::null_mut();
     }
+    // SAFETY: handle is non-null (just checked) and was created by monty_create via Box::into_raw
     let h = unsafe { &*handle };
     match h.pending_fn_kwargs_json() {
         Some(json) => to_c_string(json),
@@ -344,6 +365,7 @@ pub unsafe extern "C" fn monty_pending_call_id(handle: *const MontyHandle) -> u3
     if handle.is_null() {
         return u32::MAX;
     }
+    // SAFETY: handle is non-null (just checked) and was created by monty_create via Box::into_raw
     let h = unsafe { &*handle };
     h.pending_call_id().unwrap_or(u32::MAX)
 }
@@ -355,6 +377,7 @@ pub unsafe extern "C" fn monty_pending_method_call(handle: *const MontyHandle) -
     if handle.is_null() {
         return -1;
     }
+    // SAFETY: handle is non-null (just checked) and was created by monty_create via Box::into_raw
     let h = unsafe { &*handle };
     match h.pending_method_call() {
         Some(true) => 1,
@@ -375,6 +398,7 @@ pub unsafe extern "C" fn monty_os_call_fn_name(handle: *const MontyHandle) -> *m
     if handle.is_null() {
         return ptr::null_mut();
     }
+    // SAFETY: handle is non-null (just checked) and was created by monty_create via Box::into_raw
     let h = unsafe { &*handle };
     match h.os_call_fn_name() {
         Some(name) => to_c_string(name),
@@ -389,6 +413,7 @@ pub unsafe extern "C" fn monty_os_call_args_json(handle: *const MontyHandle) -> 
     if handle.is_null() {
         return ptr::null_mut();
     }
+    // SAFETY: handle is non-null (just checked) and was created by monty_create via Box::into_raw
     let h = unsafe { &*handle };
     match h.os_call_args_json() {
         Some(json) => to_c_string(json),
@@ -403,6 +428,7 @@ pub unsafe extern "C" fn monty_os_call_kwargs_json(handle: *const MontyHandle) -
     if handle.is_null() {
         return ptr::null_mut();
     }
+    // SAFETY: handle is non-null (just checked) and was created by monty_create via Box::into_raw
     let h = unsafe { &*handle };
     match h.os_call_kwargs_json() {
         Some(json) => to_c_string(json),
@@ -416,6 +442,7 @@ pub unsafe extern "C" fn monty_os_call_id(handle: *const MontyHandle) -> u32 {
     if handle.is_null() {
         return u32::MAX;
     }
+    // SAFETY: handle is non-null (just checked) and was created by monty_create via Box::into_raw
     let h = unsafe { &*handle };
     h.os_call_id().unwrap_or(u32::MAX)
 }
@@ -427,6 +454,7 @@ pub unsafe extern "C" fn monty_complete_result_json(handle: *const MontyHandle) 
     if handle.is_null() {
         return ptr::null_mut();
     }
+    // SAFETY: handle is non-null (just checked) and was created by monty_create via Box::into_raw
     let h = unsafe { &*handle };
     match h.complete_result_json() {
         Some(json) => to_c_string(json),
@@ -441,6 +469,7 @@ pub unsafe extern "C" fn monty_complete_is_error(handle: *const MontyHandle) -> 
     if handle.is_null() {
         return -1;
     }
+    // SAFETY: handle is non-null (just checked) and was created by monty_create via Box::into_raw
     let h = unsafe { &*handle };
     match h.complete_is_error() {
         Some(true) => 1,
@@ -466,12 +495,14 @@ pub unsafe extern "C" fn monty_snapshot(
     if handle.is_null() || out_len.is_null() {
         return ptr::null_mut();
     }
+    // SAFETY: handle is non-null (checked above) and was created by monty_create via Box::into_raw
     let h = unsafe { &*handle };
     match catch_ffi_panic(|| h.snapshot()) {
         Ok(Ok(bytes)) => {
             let len = bytes.len();
             let boxed = bytes.into_boxed_slice();
-            let ptr = Box::into_raw(boxed) as *mut u8;
+            let ptr = Box::into_raw(boxed).cast::<u8>();
+            // SAFETY: out_len is non-null (checked above), writing the byte count of the snapshot
             unsafe { *out_len = len };
             ptr
         }
@@ -494,29 +525,33 @@ pub unsafe extern "C" fn monty_restore(
 ) -> *mut MontyHandle {
     if data.is_null() {
         if !out_error.is_null() {
+            // SAFETY: out_error is non-null (just checked), writing error message
             unsafe { *out_error = to_c_string("data is NULL") };
         }
         return ptr::null_mut();
     }
 
+    // SAFETY: data is non-null (just checked), len is provided by caller matching the snapshot buffer size
     let bytes = unsafe { std::slice::from_raw_parts(data, len) };
     match catch_ffi_panic(|| MontyHandle::restore(bytes)) {
         Ok(Ok(handle)) => {
             let ptr = Box::into_raw(Box::new(handle));
             LIVE_HANDLES
                 .write()
-                .unwrap_or_else(|e| e.into_inner())
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
                 .insert(ptr as usize);
             ptr
         }
         Ok(Err(msg)) => {
             if !out_error.is_null() {
+                // SAFETY: out_error is non-null (just checked), writing restore error message
                 unsafe { *out_error = to_c_string(&msg) };
             }
             ptr::null_mut()
         }
         Err(panic_msg) => {
             if !out_error.is_null() {
+                // SAFETY: out_error is non-null (just checked), writing panic error message
                 unsafe { *out_error = to_c_string(&panic_msg) };
             }
             ptr::null_mut()
@@ -532,6 +567,7 @@ pub unsafe extern "C" fn monty_restore(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn monty_set_memory_limit(handle: *mut MontyHandle, bytes: usize) {
     if !handle.is_null() {
+        // SAFETY: handle is non-null (just checked) and was created by monty_create via Box::into_raw
         unsafe { &mut *handle }.set_memory_limit(bytes);
     }
 }
@@ -540,6 +576,7 @@ pub unsafe extern "C" fn monty_set_memory_limit(handle: *mut MontyHandle, bytes:
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn monty_set_time_limit_ms(handle: *mut MontyHandle, ms: u64) {
     if !handle.is_null() {
+        // SAFETY: handle is non-null (just checked) and was created by monty_create via Box::into_raw
         unsafe { &mut *handle }.set_time_limit_ms(ms);
     }
 }
@@ -548,6 +585,7 @@ pub unsafe extern "C" fn monty_set_time_limit_ms(handle: *mut MontyHandle, ms: u
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn monty_set_stack_limit(handle: *mut MontyHandle, depth: usize) {
     if !handle.is_null() {
+        // SAFETY: handle is non-null (just checked) and was created by monty_create via Box::into_raw
         unsafe { &mut *handle }.set_stack_limit(depth);
     }
 }
@@ -560,6 +598,7 @@ pub unsafe extern "C" fn monty_set_stack_limit(handle: *mut MontyHandle, depth: 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn monty_string_free(ptr: *mut c_char) {
     if !ptr.is_null() {
+        // SAFETY: ptr was allocated by CString::into_raw in to_c_string, reclaiming ownership for deallocation
         drop(unsafe { std::ffi::CString::from_raw(ptr) });
     }
 }
@@ -568,6 +607,7 @@ pub unsafe extern "C" fn monty_string_free(ptr: *mut c_char) {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn monty_bytes_free(ptr: *mut u8, len: usize) {
     if !ptr.is_null() && len > 0 {
+        // SAFETY: ptr+len were returned by monty_snapshot via Box::into_raw, reclaiming the boxed slice
         drop(unsafe { Box::from_raw(std::ptr::slice_from_raw_parts_mut(ptr, len)) });
     }
 }
@@ -583,14 +623,15 @@ pub extern "C" fn monty_alloc(size: usize) -> *mut u8 {
     if size == 0 {
         return ptr::null_mut();
     }
-    let layout = match std::alloc::Layout::from_size_align(size, 1) {
-        Ok(l) => l,
-        Err(_) => return ptr::null_mut(),
+    let Ok(layout) = std::alloc::Layout::from_size_align(size, 1) else {
+        return ptr::null_mut();
     };
+    // SAFETY: layout has valid non-zero size and alignment of 1, which is always valid
     let ptr = unsafe { std::alloc::alloc(layout) };
     if ptr.is_null() {
         return ptr::null_mut();
     }
+    // SAFETY: ptr is non-null (just checked) and points to `size` bytes of allocated memory
     unsafe { std::ptr::write_bytes(ptr, 0, size) };
     ptr
 }
@@ -601,9 +642,9 @@ pub unsafe extern "C" fn monty_dealloc(ptr: *mut u8, size: usize) {
     if ptr.is_null() || size == 0 {
         return;
     }
-    let layout = match std::alloc::Layout::from_size_align(size, 1) {
-        Ok(l) => l,
-        Err(_) => return,
+    let Ok(layout) = std::alloc::Layout::from_size_align(size, 1) else {
+        return;
     };
+    // SAFETY: ptr was allocated by monty_alloc with the same layout (size, align=1)
     unsafe { std::alloc::dealloc(ptr, layout) };
 }
