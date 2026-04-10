@@ -295,23 +295,28 @@ class DefaultMontyBridge implements MontyBridge {
         if (next == null) return;
         progress = next;
       }
+    } on MontyScriptError catch (e) {
+      final adjusted = e.exception != null
+          ? _adjustException(e.exception!)
+          : null;
+      log.warning(
+        'Python error',
+        attributes: {'error': adjusted?.message ?? e.message},
+      );
+      _flushPrintBuffer(printBuffer, controller);
+      final output = printBuffer.isNotEmpty ? printBuffer.toString() : null;
+      controller.add(
+        BridgeRunError(
+          message: adjusted?.message ?? e.message,
+          printOutput: output,
+          exception: adjusted,
+        ),
+      );
     } on MontyError catch (e) {
       log.warning('Monty error', attributes: {'error': e.message});
       _flushPrintBuffer(printBuffer, controller);
       final output = printBuffer.isNotEmpty ? printBuffer.toString() : null;
       controller.add(BridgeRunError(message: e.message, printOutput: output));
-    } on MontyException catch (e) {
-      final adjusted = _adjustException(e);
-      log.warning('Python error', attributes: {'error': adjusted.message});
-      _flushPrintBuffer(printBuffer, controller);
-      final output = printBuffer.isNotEmpty ? printBuffer.toString() : null;
-      controller.add(
-        BridgeRunError(
-          message: adjusted.message,
-          printOutput: output,
-          exception: adjusted,
-        ),
-      );
     } on Object catch (e, st) {
       log.error('Bridge infrastructure error', error: e, stackTrace: st);
       _flushPrintBuffer(printBuffer, controller);

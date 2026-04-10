@@ -117,8 +117,8 @@ final class _DisposeResponse extends _Response {
 }
 
 final class _ErrorResponse extends _Response {
-  const _ErrorResponse(super.id, this.exception);
-  final MontyException exception;
+  const _ErrorResponse(super.id, this.error);
+  final MontyScriptError error;
 }
 
 final class _GenericErrorResponse extends _Response {
@@ -218,10 +218,10 @@ Future<void> _isolateMain(_InitMessage init) async {
 
           return;
       }
+    } on MontyScriptError catch (e) {
+      init.mainSendPort.send(_ErrorResponse(message.id, e));
     } on MontyError catch (e) {
       init.mainSendPort.send(_MontyErrorResponse(message.id, e));
-    } on MontyException catch (e) {
-      init.mainSendPort.send(_ErrorResponse(message.id, e));
     } on Object catch (e) {
       init.mainSendPort.send(_GenericErrorResponse(message.id, e.toString()));
     }
@@ -233,6 +233,17 @@ Future<void> _isolateMain(_InitMessage init) async {
 // NativeIsolateBindingsImpl
 // =============================================================================
 
+/// Token holding isolate references for the GC finalizer.
+///
+/// Stored separately from [NativeIsolateBindingsImpl] so the finalizer
+/// callback can access the isolate/port without preventing the main
+/// object from being collected.
+class _IsolateCleanupToken {
+  Isolate? isolate;
+  ReceivePort? receivePort;
+  bool disposed = false;
+}
+
 /// Real [NativeIsolateBindings] implementation backed by a background Isolate.
 ///
 /// Spawns a same-group Isolate that creates a [MontyFfi] with
@@ -241,6 +252,30 @@ Future<void> _isolateMain(_InitMessage init) async {
 ///
 /// The native library is resolved automatically by the Dart native assets
 /// system via `@Native` annotations — no manual path is needed.
+///
+/// ## Isolate Lifecycle
+///
+/// Callers **must** call [dispose] when the instance is no longer needed.
+/// [dispose] sends a dispose command to the worker isolate, waits for it to
+/// release its Rust `MontyHandle`, then kills the isolate and closes the
+/// receive port. A Dart [Finalizer] is attached as a GC safety net — if
+/// this object is garbage collected without [dispose], the finalizer kills
+/// the isolate and closes the port. However, this is a last resort; the
+/// Rust `MontyHandle` inside the worker will leak since the finalizer
+/// cannot send a graceful dispose command.
+///
+/// If the main isolate's process exits, the OS terminates the worker isolate
+/// along with it, so resources are reclaimed at process exit regardless.
+///
+/// For long-lived applications that create and abandon `MontyNative` instances
+/// without calling `dispose()`, the zombie-detection mechanism built into
+/// `terminate()` will fire: after a 5-second graceful-shutdown timeout the
+/// worker is force-killed and the zombie count is incremented. When the count
+/// reaches the warning threshold (currently 3), a `developer.log` warning is
+/// emitted to help surface the leak during development.
+///
+/// [terminate] provides a force-kill path with zombie tracking and is used
+/// internally by higher-level APIs that need guaranteed cleanup.
 class NativeIsolateBindingsImpl extends NativeIsolateBindings {
   /// Creates a [NativeIsolateBindingsImpl].
   ///
@@ -259,6 +294,33 @@ class NativeIsolateBindingsImpl extends NativeIsolateBindings {
   final Map<int, Completer<_Response>> _pending = {};
 
   Completer<void>? _exitCompleter;
+
+  /// GC safety net: if this object is collected without [dispose], kill the
+  /// worker isolate to prevent a leak.
+  static final Finalizer<_IsolateCleanupToken> _cleanupFinalizer = Finalizer((
+    token,
+  ) {
+    if (!token.disposed) {
+      token.disposed = true;
+      token.isolate?.kill(priority: Isolate.immediate);
+      token.receivePort?.close();
+      _zombieCount++;
+      // Always log — this is a fail-safe path that indicates a missing
+      // dispose() call. The Rust MontyHandle inside the worker leaks
+      // because we can't send a graceful dispose command from a finalizer.
+      developer.log(
+        'dart_monty_ffi: NativeIsolateBindingsImpl was garbage collected '
+        'without dispose(). Worker isolate force-killed. '
+        'Rust MontyHandle leaked. '
+        'Total zombies: $_zombieCount. '
+        'Fix: always call dispose() in a finally block.',
+        name: 'dart_monty_ffi',
+        level: 1000, // SEVERE
+      );
+    }
+  });
+
+  _IsolateCleanupToken? _cleanupToken;
 
   /// Number of worker isolates that failed to exit within the terminate
   /// timeout and were force-killed.
@@ -331,6 +393,14 @@ class NativeIsolateBindingsImpl extends NativeIsolateBindings {
         'Possible silent crash before _ReadyMessage was sent.',
       ),
     );
+
+    // Attach GC safety net: if this object is collected without dispose(),
+    // the finalizer will kill the isolate and close the port.
+    final token = _IsolateCleanupToken()
+      ..isolate = isolate
+      ..receivePort = receivePort;
+    _cleanupToken = token;
+    _cleanupFinalizer.attach(this, token, detach: this);
 
     return true;
   }
@@ -425,9 +495,13 @@ class NativeIsolateBindingsImpl extends NativeIsolateBindings {
   Future<void> dispose() async {
     if (_sendPort == null) return;
 
+    // Detach GC finalizer — explicit cleanup is happening.
+    _cleanupFinalizer.detach(this);
+    _cleanupToken?.disposed = true;
+
     try {
       await _send<_DisposeResponse>(_DisposeRequest(_nextId++));
-    } on MontyException {
+    } on MontyScriptError {
       // Isolate may already be gone.
     } finally {
       _failAllPending('Isolate disposed');
@@ -496,7 +570,7 @@ class NativeIsolateBindingsImpl extends NativeIsolateBindings {
         throw response.error;
       }
       if (response is _ErrorResponse) {
-        throw response.exception;
+        throw response.error;
       }
       if (response is _GenericErrorResponse) {
         throw StateError(response.message);

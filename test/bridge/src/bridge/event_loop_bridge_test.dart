@@ -501,6 +501,140 @@ void main() {
     });
   });
 
+  group('execute error paths', () {
+    test('execute after dispose resets to idle and rethrows', () {
+      bridge.dispose();
+
+      // Calling execute on a disposed bridge throws from super.execute().
+      // The EventLoopBridge.execute() catch block should reset state to idle
+      // and rethrow. But since the bridge is already disposed, loopState
+      // transitions to disposed via dispose(), so we can only test the throw.
+      expect(() => bridge.execute('1'), throwsStateError);
+    });
+
+    test('execute sets state to idle on super.execute() error', () {
+      // Create a bridge, start one execution so it's busy, then try to
+      // execute again — this triggers the catch block.
+      mock.enqueueProgress(
+        const MontyPending(
+          functionName: 'wait_for_event',
+          arguments: [],
+          callId: 1,
+        ),
+      );
+      final stream = bridge.execute('wait_for_event()');
+
+      // Bridge is now executing. A second execute should fail via
+      // super.execute() StateError, and the catch block resets to idle.
+      // However, loopState was already 'executing' from the override, so
+      // the catch block sets it back to idle.
+      expect(bridge.loopState, EventLoopState.executing);
+      try {
+        bridge.execute('2');
+        fail('Should have thrown');
+        // ignore: avoid_catching_errors – intentional: test verifies StateError recovery.
+      } on StateError {
+        // The catch in execute() rethrows. Since there's no loopState
+        // visible between the throw and catch, we verify it does not crash.
+      }
+
+      // After the catch block, loopState should be reset to idle.
+      expect(bridge.loopState, EventLoopState.idle);
+
+      // Clean up: dispatch event and drain the stream.
+      bridge.dispatchUiEvent({'type': 'cleanup'});
+      // Need to consume the stream to prevent hanging.
+      unawaited(stream.drain<void>());
+    });
+
+    test(
+      'orphaned completer cleaned up when script finishes with error',
+      () async {
+        // Scenario: Python calls wait_for_event and the handler waits, then
+        // when the event is dispatched the resolveFutures step triggers an
+        // error Complete, which flows through the execute() stream.map where
+        // the orphaned completer should be cleaned up.
+        mock
+          ..enqueueProgress(
+            const MontyPending(
+              functionName: 'wait_for_event',
+              arguments: [],
+              callId: 1,
+            ),
+          )
+          ..enqueueProgress(const MontyResolveFutures(pendingCallIds: [1]))
+          ..enqueueProgress(
+            const MontyComplete(
+              result: MontyResult(
+                error: MontyException(message: 'script died unexpectedly'),
+                usage: _usage,
+              ),
+            ),
+          );
+
+        final events = <BridgeEvent>[];
+        final stream = bridge.execute('wait_for_event()');
+        final sub = stream.listen(events.add);
+
+        // Let bridge reach wait_for_event.
+        await Future<void>.delayed(Duration.zero);
+        expect(bridge.isWaitingForEvent, isTrue);
+
+        // Dispatch event to unblock the completer and let the error flow.
+        bridge.dispatchUiEvent({'type': 'trigger'});
+
+        await sub.asFuture<void>();
+        await sub.cancel();
+
+        // Bridge should be completed (error event was emitted).
+        expect(bridge.loopState, EventLoopState.completed);
+        final errors = events.whereType<BridgeRunError>().toList();
+        expect(errors, hasLength(1));
+        expect(errors.first.message, contains('script died unexpectedly'));
+      },
+    );
+
+    test('run error while waiting cleans up orphaned completer', () async {
+      mock
+        ..enqueueProgress(
+          const MontyPending(
+            functionName: 'wait_for_event',
+            arguments: [],
+            callId: 1,
+          ),
+        )
+        ..enqueueProgress(const MontyResolveFutures(pendingCallIds: [1]))
+        ..enqueueProgress(
+          const MontyComplete(
+            result: MontyResult(
+              error: MontyException(message: 'script crashed'),
+              usage: _usage,
+            ),
+          ),
+        );
+
+      final events = <BridgeEvent>[];
+      final stream = bridge.execute('wait_for_event()');
+      final sub = stream.listen(events.add);
+
+      await Future<void>.delayed(Duration.zero);
+      expect(bridge.isWaitingForEvent, isTrue);
+
+      // Dispatch to unblock, then the error Complete flows through.
+      bridge.dispatchUiEvent({'type': 'unblock'});
+
+      await sub.asFuture<void>();
+      await sub.cancel();
+
+      // The stream.map handler in execute() should have completed the
+      // orphaned completer with an error and set state to completed.
+      expect(bridge.loopState, EventLoopState.completed);
+      final errors = events.whereType<BridgeRunError>().toList();
+      expect(errors, hasLength(1));
+      expect(errors.first.message, contains('script crashed'));
+    });
+  });
+
   group('WASM fallback (sync-only platform)', () {
     test('wait_for_event works with sync-only platform', () async {
       final syncMock = _SyncOnlyMockPlatform();

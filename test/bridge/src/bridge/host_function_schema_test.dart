@@ -1,3 +1,4 @@
+import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:test/test.dart';
 
@@ -204,6 +205,105 @@ void main() {
 
       final radiusSchema = properties['radius']! as Map<String, Object?>;
       expect(radiusSchema, {'type': 'number', 'description': 'Shape radius'});
+    });
+  });
+
+  group('HostFunctionSchema.mapAndValidate', () {
+    const schema = HostFunctionSchema(
+      name: 'greet',
+      description: 'Say hello',
+      params: [
+        HostParam(name: 'name', type: HostParamType.string),
+        HostParam(
+          name: 'count',
+          type: HostParamType.integer,
+          isRequired: false,
+          defaultValue: 1,
+        ),
+      ],
+    );
+
+    test('maps positional args by schema order', () {
+      const pending = MontyPending(
+        functionName: 'greet',
+        arguments: [MontyString('Alice'), MontyInt(3)],
+      );
+
+      final result = schema.mapAndValidate(pending);
+      expect(result, {'name': 'Alice', 'count': 3});
+    });
+
+    test('applies default for missing optional positional arg', () {
+      const pending = MontyPending(
+        functionName: 'greet',
+        arguments: [MontyString('Bob')],
+      );
+
+      final result = schema.mapAndValidate(pending);
+      expect(result, {'name': 'Bob', 'count': 1});
+    });
+
+    test('throws FormatException for extra positional args', () {
+      const pending = MontyPending(
+        functionName: 'greet',
+        arguments: [MontyString('A'), MontyInt(1), MontyString('extra')],
+      );
+
+      expect(() => schema.mapAndValidate(pending), throwsFormatException);
+    });
+
+    test('kwargs overlay positional args', () {
+      const pending = MontyPending(
+        functionName: 'greet',
+        arguments: [MontyString('Alice')],
+        kwargs: {'count': MontyInt(5)},
+      );
+
+      final result = schema.mapAndValidate(pending);
+      expect(result, {'name': 'Alice', 'count': 5});
+    });
+
+    test('throws FormatException for unknown kwargs', () {
+      const pending = MontyPending(
+        functionName: 'greet',
+        arguments: [MontyString('Alice')],
+        kwargs: {'unknown_key': MontyInt(1)},
+      );
+
+      expect(() => schema.mapAndValidate(pending), throwsFormatException);
+    });
+
+    test('throws FormatException when required param is missing', () {
+      const pending = MontyPending(
+        functionName: 'greet',
+        arguments: [],
+      );
+
+      expect(() => schema.mapAndValidate(pending), throwsFormatException);
+    });
+
+    test('validates type of positional args', () {
+      const pending = MontyPending(
+        functionName: 'greet',
+        arguments: [MontyInt(42)],
+      );
+
+      expect(() => schema.mapAndValidate(pending), throwsFormatException);
+    });
+
+    test('works with no params schema', () {
+      const emptySchema = HostFunctionSchema(
+        name: 'ping',
+        description: 'Ping',
+      );
+
+      const pending = MontyPending(
+        functionName: 'ping',
+        arguments: [],
+      );
+
+      final result = emptySchema.mapAndValidate(pending);
+      expect(result, isEmpty);
     });
   });
 }

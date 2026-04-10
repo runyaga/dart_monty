@@ -359,3 +359,16 @@ The `v<version>` tag triggers both pub.dev publish AND native/web binary release
 - Run `dart format` before committing; the CI enforces `--set-exit-if-changed`.
 - All JSON at the C FFI boundary must use snake\_case keys matching Dart
   `fromJson` factories -- see `docs/monty-rust-api.md` for the contract.
+- `MontyFfi` and `MontyNative` instances **must** be disposed — there is no
+  `NativeFinalizer` safety net (yet), so a leaked instance keeps its
+  background isolate and Rust `MontyHandle` alive until process exit.
+  Always wrap usage in `try`/`finally` or a dispose scope:
+  ```dart
+  final monty = MontyNative();
+  try {
+    await monty.init();
+    // ... use monty ...
+  } finally {
+    await monty.dispose();
+  }
+  ```
