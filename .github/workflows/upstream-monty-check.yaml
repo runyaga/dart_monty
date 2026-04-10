@@ -45,7 +45,7 @@ jobs:
 
           # NPM: latest version of @pydantic/monty
           NPM_LATEST=$(npm view @pydantic/monty version 2>/dev/null || echo "unknown")
-          NPM_CURRENT=$(jq -r '.dependencies["@pydantic/monty"]' packages/dart_monty_wasm/js/package.json | tr -d '^~')
+          NPM_CURRENT=$(jq -r '.dependencies["@pydantic/monty"] // "none"' package.json | tr -d '^~')
           echo "npm_latest=$NPM_LATEST" >> "$GITHUB_OUTPUT"
           echo "npm_current=$NPM_CURRENT" >> "$GITHUB_OUTPUT"
           if [ "$NPM_LATEST" != "$NPM_CURRENT" ] && [ "$NPM_LATEST" != "unknown" ]; then
@@ -95,12 +95,10 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           BRANCH="chore/bump-monty-npm-${{ steps.check.outputs.npm_latest }}"
           git checkout -b "$BRANCH"
-          cd packages/dart_monty_wasm/js
           npm install "@pydantic/monty@${{ steps.check.outputs.npm_latest }}" \
                       "@pydantic/monty-wasm32-wasi@${{ steps.check.outputs.npm_latest }}"
-          cd -
-          git add packages/dart_monty_wasm/js/package.json packages/dart_monty_wasm/js/package-lock.json
-          git commit -m "chore(wasm): bump @pydantic/monty to ${{ steps.check.outputs.npm_latest }}"
+          git add package.json package-lock.json
+          git commit -m "chore: bump @pydantic/monty to ${{ steps.check.outputs.npm_latest }}"
           git push -u origin "$BRANCH"
           gh pr create \
             --title "chore(wasm): bump @pydantic/monty to ${{ steps.check.outputs.npm_latest }}" \

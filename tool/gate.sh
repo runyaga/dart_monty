@@ -112,6 +112,28 @@ if command -v dcm &>/dev/null; then
   run_advisory "dcm check-unused-files" dcm check-unused-files lib
   run_advisory "dcm check-dependencies" dcm check-dependencies .
   run_advisory "dcm check-parameters" dcm check-parameters lib
+
+  # Upload to DCM dashboard (main branch only, requires DCM_PROJECT_KEY)
+  if [[ "${DCM_PROJECT_KEY:-}" != "" ]]; then
+    CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+    if [[ "$CURRENT_BRANCH" == "main" ]]; then
+      echo ""
+      echo "========================================"
+      echo "  DCM dashboard upload"
+      echo "========================================"
+      dcm run lib \
+        --all \
+        --upload \
+        --project="$DCM_PROJECT_KEY" \
+        --email="${DCM_EMAIL:-}" \
+        --ci-key="${DCM_CI_KEY:-}" \
+        && echo "  -> UPLOADED" \
+        || echo "  -> UPLOAD FAILED (non-blocking)"
+    else
+      echo ""
+      echo "  DCM dashboard: skipped (not on main, branch=$CURRENT_BRANCH)"
+    fi
+  fi
 else
   skip_check "dcm" "dcm not installed (commercial license required)"
 fi

@@ -32,18 +32,15 @@ jobs:
       - name: Generate FFI bindings
         run: bash tool/generate_bindings.sh
 
-      - name: Analyze all packages
-        run: python3 tool/analyze_packages.py
+      - name: Analyze package
+        run: |
+          dart pub get
+          dart analyze --fatal-infos
 
       - name: Run tests
         run: |
-          for dir in packages/dart_monty_platform_interface packages/dart_monty_ffi packages/dart_monty_wasm; do
-            echo "--- ${dir} (dart test) ---"
-            cd "$dir"
-            dart pub get
-            dart test
-            cd "$GITHUB_WORKSPACE"
-          done
+          dart pub get
+          dart test
 
   build-native:
     name: Build native (${{ matrix.label }})
@@ -55,12 +52,12 @@ jobs:
           - os: ubuntu-latest
             label: linux-x64
             src: native/target/release/libdart_monty_native.so
-            dst: packages/dart_monty_native/linux/x64/libdart_monty_native.so
+            dst: vendored/native-linux-x64/libdart_monty_native.so
           - os: ubuntu-latest
             label: linux-arm64
             target: aarch64-unknown-linux-gnu
             src: native/target/aarch64-unknown-linux-gnu/release/libdart_monty_native.so
-            dst: packages/dart_monty_native/linux/arm64/libdart_monty_native.so
+            dst: vendored/native-linux-arm64/libdart_monty_native.so
             cross: true
           - os: macos-13
             label: macos-x64
@@ -136,61 +133,34 @@ jobs:
         with:
           path: vendored
 
-      - name: Place binaries in native package
+      - name: Place vendored binaries
         run: |
-          # Linux: arch-specific subdirectories
-          mkdir -p packages/dart_monty_native/linux/x64
-          mkdir -p packages/dart_monty_native/linux/arm64
-          cp vendored/native-linux-x64/libdart_monty_native.so \
-             packages/dart_monty_native/linux/x64/libdart_monty_native.so
-          cp vendored/native-linux-arm64/libdart_monty_native.so \
-             packages/dart_monty_native/linux/arm64/libdart_monty_native.so
-          # Remove flat .so if it exists (old layout)
-          rm -f packages/dart_monty_native/linux/libdart_monty_native.so
-          ls -lhR packages/dart_monty_native/linux/
+          # Binaries are already downloaded into vendored/ by download-artifact
+          ls -lhR vendored/
 
-          # macOS: create universal binary from x64 + arm64
-          # lipo not available on ubuntu, so just use the arm64 build for now.
-          # Universal binary creation happens in the macos-14 build step.
-          cp vendored/native-macos-arm64/libdart_monty_native.dylib \
-             packages/dart_monty_native/macos/libdart_monty_native.dylib
-          ls -lh packages/dart_monty_native/macos/
-
-      - name: Bump version in all pubspecs
+      - name: Bump version in pubspec
         run: |
           VERSION="${{ inputs.version }}"
-          for pubspec in pubspec.yaml packages/*/pubspec.yaml; do
-            sed -i "s/^version: .*/version: ${VERSION}/" "$pubspec"
-          done
+          sed -i "s/^version: .*/version: ${VERSION}/" pubspec.yaml
 
       - name: Stamp CHANGELOGs
         run: bash tool/stamp_changelogs.sh "${{ inputs.version }}"
 
-      - name: Verify CHANGELOG entries
+      - name: Verify CHANGELOG entry
         run: |
           VERSION="${{ inputs.version }}"
-          for dir in . packages/dart_monty_platform_interface packages/dart_monty_ffi packages/dart_monty_wasm; do
-            if ! grep -q "## ${VERSION}" "${dir}/CHANGELOG.md"; then
-              echo "ERROR: ${dir}/CHANGELOG.md missing entry for ${VERSION}"
-              exit 1
-            fi
-          done
+          if ! grep -q "## ${VERSION}" CHANGELOG.md; then
+            echo "ERROR: CHANGELOG.md missing entry for ${VERSION}"
+            exit 1
+          fi
 
       - name: Generate FFI bindings
         run: bash tool/generate_bindings.sh
 
       - name: Check dartdoc
         run: |
-          for dir in packages/dart_monty_platform_interface packages/dart_monty_ffi packages/dart_monty_wasm; do
-            echo "--- ${dir} ---"
-            cd "$dir"
-            dart pub get
-            dart doc --dry-run
-            cd "$GITHUB_WORKSPACE"
-          done
-
-      - name: Sync NATIVE_LIB_VERSION into ffi package
-        run: cp native/NATIVE_LIB_VERSION packages/dart_monty_ffi/NATIVE_LIB_VERSION
+          dart pub get
+          dart doc --dry-run
 
       - name: Commit version bumps
         run: |

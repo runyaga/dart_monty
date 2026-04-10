@@ -3,8 +3,9 @@ description: Check lcov coverage meets minimum threshold and upload to Codecov
 
 inputs:
   package-path:
-    description: Path to the package directory (e.g. packages/dart_monty_ffi)
-    required: true
+    description: Path to the package directory (defaults to repository root)
+    required: false
+    default: '.'
   min-coverage:
     description: Minimum coverage percentage (integer)
     required: false

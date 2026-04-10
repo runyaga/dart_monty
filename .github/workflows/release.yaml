@@ -111,10 +111,7 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: packages/dart_monty_wasm/js/package-lock.json
-      - name: Build JS bridge
-        working-directory: packages/dart_monty_wasm/js
-        run: npm install && npm run build
+          cache-dependency-path: example/web/package-lock.json
 
       # ── Compile Dart to JS ─────────────────────────────────────────
       - uses: dart-lang/setup-dart@v1
@@ -144,10 +141,8 @@ jobs:
           # Compiled JS
           cp example/web/web/main.dart.js "$DIR/"
           cp example/web/web/ladder_showcase.dart.js "$DIR/"
-          # Bridge assets
-          cp packages/dart_monty_wasm/assets/dart_monty_bridge.js "$DIR/"
-          cp packages/dart_monty_wasm/assets/dart_monty_worker.js "$DIR/"
-          cp packages/dart_monty_wasm/assets/dart_monty_native.wasm "$DIR/"
+          # WASM binary
+          cp native/target/wasm32-wasip1/release/dart_monty_native.wasm "$DIR/"
           # Fixtures
           mkdir -p "$DIR/fixtures"
           cp test/fixtures/python_ladder/tier_*.json "$DIR/fixtures/"
