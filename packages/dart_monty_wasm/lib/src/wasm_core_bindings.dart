@@ -4,6 +4,13 @@ import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart
 import 'package:dart_monty_platform_interface/monty_backend_spi.dart';
 import 'package:dart_monty_wasm/src/wasm_bindings.dart';
 
+/// Error type string sent by the Worker when a Rust panic occurs.
+///
+/// The JS Worker sets `errorType: 'Panic'` on the message posted back
+/// to Dart. This constant must match the Worker-side string exactly.
+/// See: `packages/dart_monty_wasm/js/src/worker_src.js`.
+const wasmPanicErrorType = 'Panic';
+
 /// Adapts [WasmBindings] (async, [WasmRunResult]/[WasmProgressResult])
 /// to the [MontyCoreBindings] interface (async, [CoreRunResult]/
 /// [CoreProgressResult]).
@@ -152,7 +159,7 @@ class WasmCoreBindings implements MontyCoreBindings {
     }
     // WASM trap (panic=abort) surfaces as errorType 'Panic' from the Worker.
     // Route to MontyPanicError so supervisors can pattern-match.
-    if (result.errorType == 'Panic') {
+    if (result.errorType == wasmPanicErrorType) {
       _invalidateSession();
       throw MontyPanicError(result.error ?? 'WASM trap');
     }
@@ -170,7 +177,7 @@ class WasmCoreBindings implements MontyCoreBindings {
   ) {
     if (!progress.ok) {
       // WASM trap (panic=abort) surfaces as errorType 'Panic' from the Worker.
-      if (progress.errorType == 'Panic') {
+      if (progress.errorType == wasmPanicErrorType) {
         _invalidateSession();
         throw MontyPanicError(progress.error ?? 'WASM trap');
       }

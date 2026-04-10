@@ -428,6 +428,15 @@ void main() {
   });
 
   // ===========================================================================
+  // D-2: wasmPanicErrorType constant matches Worker protocol
+  // ===========================================================================
+  test('wasmPanicErrorType is "Panic" (D-2 contract test)', () {
+    // This constant must match the Worker-side string in worker_src.js.
+    // If the Worker changes its error type string, this test fails.
+    expect(wasmPanicErrorType, 'Panic');
+  });
+
+  // ===========================================================================
   // D-1: session invalidated after MontyPanicError
   // ===========================================================================
   group('session invalidation after panic', () {

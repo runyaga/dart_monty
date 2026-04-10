@@ -115,6 +115,10 @@ class FfiCoreBindings implements MontyCoreBindings {
 
   @override
   Future<void> restoreSnapshot(Uint8List data) async {
+    final oldHandle = _handle;
+    if (oldHandle != null) {
+      _bindings.free(oldHandle);
+    }
     _handle = _bindings.restore(data);
   }
 

@@ -407,6 +407,20 @@ void main() {
 
       expect(fake.disposeCalled, isFalse);
     });
+
+    test('force-idles when active before disposing (C-3)', () async {
+      fake.progressResult = const CoreProgressResult(
+        state: 'pending',
+        functionName: 'fn',
+      );
+      await platform.start('code', externalFunctions: ['fn']);
+      expect(platform.isActive, isTrue);
+
+      // dispose() should succeed by forcing idle first.
+      await platform.dispose();
+      expect(platform.isDisposed, isTrue);
+      expect(fake.disposeCalled, isTrue);
+    });
   });
 
   group('state guards', () {

@@ -564,6 +564,28 @@ void main() {
       final snapshot = await bindings.snapshot();
       expect(snapshot, Uint8List.fromList([4, 5, 6]));
     });
+
+    test('frees prior handle when restoring over active state', () async {
+      // First: create a handle via start() so _handle is non-null.
+      mock.nextStartResult = const ProgressResult(
+        tag: 1,
+        functionName: 'fn',
+        argumentsJson: '[]',
+      );
+      await bindings.start('code', extFnsJson: '["fn"]');
+      expect(mock.freeCalls, isEmpty, reason: 'no free yet');
+
+      // Now restore over it — the old handle (42) should be freed.
+      mock.nextRestoreHandle = 77;
+      await bindings.restoreSnapshot(Uint8List.fromList([1, 2, 3]));
+
+      expect(
+        mock.freeCalls,
+        hasLength(1),
+        reason: 'prior handle should be freed on restoreSnapshot',
+      );
+      expect(mock.freeCalls.first, 42, reason: 'freed handle is the old one');
+    });
   });
 
   group('dispose()', () {

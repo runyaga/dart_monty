@@ -122,6 +122,10 @@ abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
   @override
   Future<void> dispose() async {
     if (isDisposed) return;
+    // Force idle if active — allows dispose during test teardown and
+    // crash-recovery scenarios. The in-flight operation will fail on
+    // next resume (handle already freed).
+    if (isActive) markIdle();
     await _bindings.dispose();
     markDisposed();
   }

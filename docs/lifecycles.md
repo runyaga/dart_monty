@@ -147,29 +147,29 @@ Last updated: 2026-04-10 (monty 0.0.10, post-OsCall + MontyValue)
 |----|----------|--------|-------------|
 | E-1 | Low | BY DESIGN | `DefaultMontyBridge.dispose()` does not dispose the platform. Bridge doesn't own platform — caller must dispose separately. |
 | E-3 | Low | BY DESIGN | Completed children persist in `SandboxPlugin._children` until `sandbox_free`. Required for output/result access. |
-| E-4 | Moderate | OPEN | No mechanism for stopping in-flight host functions. Host async work continues even after bridge dispose. |
+| E-4 | Moderate | KNOWN | No mechanism for stopping in-flight host functions. Cancel infrastructure removed; host async work runs to completion. |
 
 ---
 
 ## Summary
 
-### Resolved (4)
+### Resolved (7)
 
 | ID | Subsystem | Resolution |
 |----|-----------|-----------|
 | A-1 | Rust FFI | HashSet properly deletes entries |
 | A-2 | Rust FFI | LIVE_HANDLES check prevents double-free |
 | B-1 | Dart FFI | Zombie tracking + diagnostic logging |
-| D-1 | WASM | _invalidateSession() on panic |
+| B-4 | Dart FFI | `restoreSnapshot` now frees prior handle |
+| C-3 | Platform | `dispose()` force-idles active state before disposing |
+| D-1 | WASM | `_invalidateSession()` on panic |
+| D-2 | WASM | `wasmPanicErrorType` constant replaces raw string |
 
-### Open (4)
+### Open (1)
 
 | ID | Severity | Subsystem | Issue |
 |----|----------|-----------|-------|
-| B-4 | Moderate | Dart FFI | `restoreSnapshot` doesn't free prior handle |
-| C-3 | Moderate | Platform | No dispose-while-active race protection |
-| D-2 | Moderate | WASM | String-based error classification |
-| E-4 | Moderate | Bridge | In-flight host functions not stoppable |
+| E-4 | Moderate | Bridge | In-flight host functions not stoppable (known; cancel removed) |
 
 ### By Design (2)
 
@@ -180,16 +180,8 @@ Last updated: 2026-04-10 (monty 0.0.10, post-OsCall + MontyValue)
 
 ---
 
-## Recommended Fixes (Priority Order)
+## Recommended Fixes
 
-1. **B-4**: Guard `restoreSnapshot` — free prior handle if `_handle != null`
-   before assigning the restored handle.
-
-2. **C-3**: Check `isActive` in `dispose()` — either wait for in-flight
-   operation or throw `StateError`.
-
-3. **D-2**: Replace string matching with typed error codes from the Worker
-   message protocol.
-
-4. **E-4**: Accept a `CancellationToken` in host function handlers, or
-   add a timeout wrapper around handler invocation.
+1. **E-4** (if needed in future): Accept a timeout parameter in host
+   function handlers, or add a `Future.timeout()` wrapper around handler
+   invocation in `_dispatchToolCall`.
