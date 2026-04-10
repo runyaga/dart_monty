@@ -347,15 +347,6 @@ void main() {
       expect(result.value, 'done');
       expect(mock.resumeAsFutureCalls, 1);
     });
-
-    test('cancel error throws MontyCancelledError', () async {
-      mock.throwOnResumeAsFuture = 'MontyCancelled: Worker terminated';
-
-      await expectLater(
-        () => bindings.resumeAsFuture(),
-        throwsA(isA<MontyCancelledError>()),
-      );
-    });
   });
 
   // ===========================================================================
@@ -376,14 +367,6 @@ void main() {
       expect(mock.resolveFuturesCalls, hasLength(1));
     });
 
-    test('cancel error throws MontyCancelledError', () async {
-      mock.throwOnResolveFutures = 'MontyCancelled: Worker terminated';
-
-      await expectLater(
-        () => bindings.resolveFutures('{}', '{}'),
-        throwsA(isA<MontyCancelledError>()),
-      );
-    });
   });
 
   // ===========================================================================
@@ -399,14 +382,6 @@ void main() {
       expect(mock.snapshotCalls, 1);
     });
 
-    test('cancel error throws MontyCancelledError', () async {
-      mock.nextSnapshotError = 'MontyCancelled: snapshot cancelled';
-
-      await expectLater(
-        () => bindings.snapshot(),
-        throwsA(isA<MontyCancelledError>()),
-      );
-    });
   });
 
   group('restoreSnapshot()', () {
@@ -418,133 +393,6 @@ void main() {
       expect(mock.restoreCalls, hasLength(1));
       expect(mock.restoreCalls.first, data);
     });
-  });
-
-  // ===========================================================================
-  // cancel()
-  // ===========================================================================
-  group('cancel()', () {
-    test('delegates to bindings', () async {
-      await bindings.cancel();
-      expect(mock.cancelCalls, 1);
-    });
-
-    test('unregisters handleId and clears sessionId after init', () async {
-      await bindings.init();
-      expect(bindings.handleId, isNotNull);
-
-      await bindings.cancel();
-
-      expect(mock.cancelCalls, 1);
-      expect(bindings.handleId, isNull);
-      // After cancel, init() should be able to respawn
-      await bindings.init();
-      expect(bindings.handleId, isNotNull);
-      expect(mock.createSessionCalls, 2);
-    });
-  });
-
-  // ===========================================================================
-  // handleId
-  // ===========================================================================
-  group('handleId', () {
-    test('is null before init', () {
-      expect(bindings.handleId, isNull);
-    });
-
-    test('is set after init via webRegister', () async {
-      await bindings.init();
-      expect(bindings.handleId, isNotNull);
-      expect(bindings.handleId, greaterThan(0));
-    });
-  });
-
-  // ===========================================================================
-  // web cancel error mapping
-  // ===========================================================================
-  group('_throwIfWebCancelError', () {
-    test('run: MontyCancelled prefix throws MontyCancelledError', () async {
-      mock
-        ..nextRunResult = const WasmRunResult(ok: true, value: 1)
-        ..throwOnRun = 'MontyCancelled: Worker terminated';
-
-      await expectLater(
-        () => bindings.run('x'),
-        throwsA(isA<MontyCancelledError>()),
-      );
-    });
-
-    test('run: MontyDisposed prefix throws MontyDisposedError', () async {
-      mock.throwOnRun = 'MontyDisposed: Session disposed';
-
-      await expectLater(
-        () => bindings.run('x'),
-        throwsA(isA<MontyDisposedError>()),
-      );
-    });
-
-    test('run: MontyWorkerError prefix throws MontyResourceError', () async {
-      mock.throwOnRun = 'MontyWorkerError: WASM OOM';
-
-      await expectLater(
-        () => bindings.run('x'),
-        throwsA(isA<MontyResourceError>()),
-      );
-    });
-
-    test('run: Panic prefix throws MontyPanicError', () async {
-      mock.throwOnRun = 'Panic: WASM trap';
-
-      await expectLater(
-        () => bindings.run('x'),
-        throwsA(isA<MontyPanicError>()),
-      );
-    });
-
-    test('run: RuntimeError prefix throws MontyPanicError', () async {
-      mock.throwOnRun = 'WebAssembly.RuntimeError: unreachable';
-
-      await expectLater(
-        () => bindings.run('x'),
-        throwsA(isA<MontyPanicError>()),
-      );
-    });
-
-    test('run: unrecognized error rethrows as-is', () async {
-      mock.throwOnRun = 'SomeOtherError';
-
-      await expectLater(() => bindings.run('x'), throwsA(isA<StateError>()));
-    });
-
-    test('start: MontyCancelled prefix throws MontyCancelledError', () async {
-      mock.throwOnStart = 'MontyCancelled: Worker terminated';
-
-      await expectLater(
-        () => bindings.start('x'),
-        throwsA(isA<MontyCancelledError>()),
-      );
-    });
-
-    test('resume: MontyCancelled prefix throws MontyCancelledError', () async {
-      mock.throwOnResume = 'MontyCancelled: Worker terminated';
-
-      await expectLater(
-        () => bindings.resume('"x"'),
-        throwsA(isA<MontyCancelledError>()),
-      );
-    });
-
-    test(
-      'resumeWithError: MontyCancelled prefix throws MontyCancelledError',
-      () async {
-        mock.throwOnResumeWithError = 'MontyCancelled: Worker terminated';
-
-        await expectLater(
-          () => bindings.resumeWithError('err'),
-          throwsA(isA<MontyCancelledError>()),
-        );
-      },
-    );
   });
 
   // ===========================================================================
@@ -568,9 +416,6 @@ void main() {
           throwsA(isA<MontyPanicError>()),
         );
 
-        // Session should be invalidated — handleId nulled.
-        expect(bindings.handleId, isNull);
-
         // Re-init should create a new session.
         await bindings.init();
         expect(mock.createSessionCalls, 2);
@@ -591,43 +436,9 @@ void main() {
         throwsA(isA<MontyPanicError>()),
       );
 
-      expect(bindings.handleId, isNull);
       await bindings.init();
       expect(mock.createSessionCalls, 2);
     });
-
-    test('run: Panic in _throwIfWebCancelError invalidates session', () async {
-      await bindings.init();
-
-      mock.throwOnRun = 'Panic: WASM trap';
-
-      await expectLater(
-        () => bindings.run('x'),
-        throwsA(isA<MontyPanicError>()),
-      );
-
-      expect(bindings.handleId, isNull);
-      await bindings.init();
-      expect(mock.createSessionCalls, 2);
-    });
-
-    test(
-      'run: RuntimeError in _throwIfWebCancelError invalidates session',
-      () async {
-        await bindings.init();
-
-        mock.throwOnRun = 'WebAssembly.RuntimeError: unreachable';
-
-        await expectLater(
-          () => bindings.run('x'),
-          throwsA(isA<MontyPanicError>()),
-        );
-
-        expect(bindings.handleId, isNull);
-        await bindings.init();
-        expect(mock.createSessionCalls, 2);
-      },
-    );
   });
 
   // ===========================================================================

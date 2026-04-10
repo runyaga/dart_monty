@@ -5,8 +5,6 @@
 library;
 
 export 'src/bridge_logger.dart';
-export 'src/monty_cancel_registry.dart';
-export 'src/monty_cancel_token.dart';
 export 'src/monty_error.dart';
 export 'src/monty_exception.dart';
 export 'src/monty_future_capable.dart';

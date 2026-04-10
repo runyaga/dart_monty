@@ -193,11 +193,6 @@ abstract class WasmBindings {
   /// Restores interpreter state from snapshot [data].
   Future<void> restore(Uint8List data);
 
-  /// Cancels the current execution by terminating the Worker.
-  ///
-  /// Idempotent — safe to call multiple times or after dispose.
-  Future<void> cancel();
-
   /// Discovers the bridge API surface.
   Future<WasmDiscoverResult> discover();
 

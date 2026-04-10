@@ -266,60 +266,6 @@ void monty_set_time_limit_ms(MontyHandle *handle, uint64_t ms);
 void monty_set_stack_limit(MontyHandle *handle, size_t depth);
 
 /* ------------------------------------------------------------------ */
-/* Cancellation (CancellableTracker)                                  */
-/* ------------------------------------------------------------------ */
-
-/* Direct-pointer API — same-isolate only, requires valid handle.     */
-
-/**
- * Request cancellation. Sets the atomic cancel flag.
- * The next bytecode boundary check raises KeyboardInterrupt.
- * Idempotent — safe to call multiple times. Thread-safe.
- * No-op if handle is NULL.
- */
-void monty_cancel(const MontyHandle *handle);
-
-/**
- * Check whether the cancel flag is set.
- * Returns 1 if cancelled, 0 if not, -1 if handle is NULL.
- */
-int monty_is_cancelled(const MontyHandle *handle);
-
-/**
- * Reset the cancel flag. Call before reusing a handle after cancel.
- * No-op if handle is NULL.
- */
-void monty_reset_cancel(const MontyHandle *handle);
-
-/* Registry API — cross-isolate safe, UAF-immune.                     */
-
-/**
- * Get the monotonic handle ID for cross-isolate cancel.
- * Returns 0 if handle is NULL or not registered.
- */
-uint64_t monty_get_handle_id(const MontyHandle *handle);
-
-/**
- * Cancel a handle by its registry ID. Works from any thread/isolate.
- * Returns 0 on success, -1 if not found, -2 if cancel flag was dropped.
- */
-int monty_cancel_by_id(uint64_t handle_id);
-
-/**
- * Check whether a handle is cancelled by registry ID.
- * Returns 1 if cancelled, 0 if not cancelled, -1 if not found.
- */
-int monty_is_cancelled_by_id(uint64_t handle_id);
-
-/**
- * Free a MontyHandle by its registry ID. Safe from any thread.
- * Returns 1 if the handle was found and freed, 0 if not found.
- * Used by supervisor to clean up after crash-only disposal when the
- * worker isolate was killed before it could call monty_free().
- */
-int monty_free_by_id(uint64_t handle_id);
-
-/* ------------------------------------------------------------------ */
 /* Memory management                                                  */
 /* ------------------------------------------------------------------ */
 

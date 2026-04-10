@@ -1,9 +1,6 @@
-import 'dart:async';
 import 'dart:convert';
 
 import 'package:dart_monty_platform_interface/src/core_bindings.dart';
-import 'package:dart_monty_platform_interface/src/monty_cancel_registry.dart';
-import 'package:dart_monty_platform_interface/src/monty_cancel_token.dart';
 import 'package:dart_monty_platform_interface/src/monty_error.dart';
 import 'package:dart_monty_platform_interface/src/monty_exception.dart';
 import 'package:dart_monty_platform_interface/src/monty_limits.dart';
@@ -122,27 +119,8 @@ abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
   }
 
   @override
-  Future<void> cancel() async {
-    if (isDisposed) return;
-    await _bindings.cancel();
-  }
-
-  /// Returns a serializable cancel token for cross-isolate cancel.
-  ///
-  /// `null` before the first [run]/[start] (handle not yet created).
-  MontyCancelToken? get cancelToken {
-    final id = _bindings.handleId;
-    return id != null && id > 0 ? MontyCancelToken(id) : null;
-  }
-
-  @override
-  int? get handleId => _bindings.handleId;
-
-  @override
   Future<void> dispose() async {
     if (isDisposed) return;
-    final id = _bindings.handleId;
-    if (id != null) MontyCancelRegistry.webUnregister(id);
     await _bindings.dispose();
     markDisposed();
   }
@@ -260,8 +238,6 @@ abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
   /// the existing [MontyException] path.
   void _throwSealedErrorIfApplicable(String? excType, String message) {
     switch (excType) {
-      case 'KeyboardInterrupt':
-        throw MontyCancelledError(message);
       case 'MemoryLimitExceeded':
         throw MontyResourceError(message);
       default:

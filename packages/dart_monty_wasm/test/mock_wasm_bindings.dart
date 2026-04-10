@@ -122,9 +122,6 @@ class MockWasmBindings extends WasmBindings {
   final List<({String resultsJson, String errorsJson})> resolveFuturesCalls =
       [];
 
-  /// Number of times [cancel] was called.
-  int cancelCalls = 0;
-
   /// Number of times [dispose] was called.
   int disposeCalls = 0;
 
@@ -257,11 +254,6 @@ class MockWasmBindings extends WasmBindings {
     if (restoreError != null) {
       throw MontyException(message: restoreError);
     }
-  }
-
-  @override
-  Future<void> cancel() async {
-    cancelCalls++;
   }
 
   @override

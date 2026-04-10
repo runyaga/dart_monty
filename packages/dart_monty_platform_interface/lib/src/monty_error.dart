@@ -7,7 +7,6 @@
 ///   await platform.run(code);
 /// } on MontyError catch (e) {
 ///   switch (e) {
-///     case MontyCancelledError():   // Supervisor-initiated cancel
 ///     case MontyScriptError():      // Python exception
 ///     case MontyPanicError():       // Rust panic
 ///     case MontyCrashError():       // Isolate died unexpectedly
@@ -28,17 +27,6 @@ sealed class MontyError implements Exception {
 
   @override
   String toString() => '$_typeName: $message';
-}
-
-/// Thrown when execution is cancelled via cancel() or cancelById().
-///
-/// **Supervisor action:** Expected — no restart needed.
-class MontyCancelledError extends MontyError {
-  /// Creates a [MontyCancelledError].
-  const MontyCancelledError([super.message = 'Execution cancelled']);
-
-  @override
-  String get _typeName => 'MontyCancelledError';
 }
 
 /// Thrown when the interpreter hits a Python-level exception.

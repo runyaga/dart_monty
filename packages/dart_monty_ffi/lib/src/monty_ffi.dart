@@ -33,8 +33,7 @@ class MontyFfi extends BaseMontyPlatform
 
   /// Creates a [MontyFfi] with pre-built [FfiCoreBindings].
   ///
-  /// Used by the isolate worker to inject callback-configured core bindings
-  /// (e.g. with [FfiCoreBindings.onHandleCreated] for cancel support).
+  /// Used by the isolate worker to inject pre-configured core bindings.
   MontyFfi.withCore({
     required FfiCoreBindings coreBindings,
     required NativeBindings nativeBindings,

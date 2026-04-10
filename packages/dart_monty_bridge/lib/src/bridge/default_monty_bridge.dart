@@ -137,16 +137,6 @@ class DefaultMontyBridge implements MontyBridge {
 
   @override
   void dispose() {
-    if (_isExecuting) {
-      // Best-effort cancel. MontyPlatform.cancel() throws
-      // UnimplementedError from the base class; real platforms override it.
-      try {
-        unawaited(_platform.cancel());
-        // ignore: avoid_catching_errors — UnimplementedError from base class
-      } on UnimplementedError {
-        // Platform does not support cancel.
-      }
-    }
     _isDisposed = true;
     log.close();
   }
@@ -248,8 +238,6 @@ class DefaultMontyBridge implements MontyBridge {
             return;
         }
       }
-    } on MontyCancelledError {
-      controller.add(const BridgeRunError(message: 'Execution cancelled'));
     } on MontyError catch (e) {
       log.warning('Monty error', attributes: {'error': e.message});
       _flushPrintBuffer(printBuffer, controller);

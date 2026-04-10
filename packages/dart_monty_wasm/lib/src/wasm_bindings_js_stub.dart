@@ -67,9 +67,6 @@ class WasmBindingsJs extends WasmBindings {
   Future<void> restore(Uint8List data) => throw UnimplementedError();
 
   @override
-  Future<void> cancel() => throw UnimplementedError();
-
-  @override
   Future<WasmDiscoverResult> discover() => throw UnimplementedError();
 
   @override

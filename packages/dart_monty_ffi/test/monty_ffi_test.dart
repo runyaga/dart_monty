@@ -1014,49 +1014,6 @@ void main() {
     });
   });
 
-  // ===========================================================================
-  // Cancel + handleId coverage (CancellableTracker)
-  // ===========================================================================
-  group('cancel()', () {
-    test('delegates to bindings when handle exists', () async {
-      // Use start() with pending result so handle stays alive.
-      mock
-        ..nextStartResult = const ProgressResult(
-          tag: 1,
-          functionName: 'f',
-          argumentsJson: '[]',
-        )
-        ..nextGetHandleId = 5;
-      await monty.start('x', externalFunctions: ['f']);
-
-      await monty.cancel();
-      expect(mock.cancelCalls, hasLength(1));
-    });
-
-    test('is a no-op when no handle exists', () async {
-      await monty.cancel();
-      expect(mock.cancelCalls, isEmpty);
-    });
-  });
-
-  group('handleId', () {
-    test('is null before run', () {
-      expect(monty.handleId, isNull);
-    });
-
-    test('is set after start with pending result', () async {
-      mock
-        ..nextStartResult = const ProgressResult(
-          tag: 1,
-          functionName: 'f',
-          argumentsJson: '[]',
-        )
-        ..nextGetHandleId = 99;
-      await monty.start('x', externalFunctions: ['f']);
-      expect(monty.handleId, 99);
-    });
-  });
-
   group('MontyFfi.withCore', () {
     test('constructs with pre-built core bindings', () {
       final core = FfiCoreBindings(bindings: mock);

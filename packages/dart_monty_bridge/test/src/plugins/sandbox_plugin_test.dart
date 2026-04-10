@@ -88,11 +88,11 @@ void main() {
         expect(plugin.systemPromptContext, contains('sandboxed'));
       });
 
-      test('provides 8 host functions', () {
+      test('provides 7 host functions', () {
         final plugin = SandboxPlugin(
           platformFactory: () async => MockMontyPlatform(),
         );
-        expect(plugin.functions, hasLength(8));
+        expect(plugin.functions, hasLength(7));
       });
 
       test('all function names start with sandbox_', () {
@@ -384,72 +384,6 @@ void main() {
         final isAlive = _findHandler(plugin, 'sandbox_is_alive');
 
         expect(() => isAlive({'handle': 999}), throwsA(isA<ArgumentError>()));
-      });
-    });
-
-    group('sandbox_cancel', () {
-      test('cancels a running child', () async {
-        final startCompleter = Completer<MontyProgress>();
-        final mock = _SlowMockPlatform(startCompleter.future);
-        final plugin = SandboxPlugin(platformFactory: () async => mock);
-        final spawn = _findHandler(plugin, 'sandbox_spawn');
-        final cancel = _findHandler(plugin, 'sandbox_cancel');
-        final isAlive = _findHandler(plugin, 'sandbox_is_alive');
-        final handle = await spawn({'code': 'wait_forever()'});
-
-        await cancel({'handle': handle! as int});
-
-        final alive = await isAlive({'handle': handle as int});
-        expect(alive, isFalse);
-        expect(mock.isDisposed, isTrue);
-
-        // Unblock the suspended bridge.
-        startCompleter.complete(
-          const MontyComplete(result: MontyResult(usage: _usage)),
-        );
-      });
-
-      test('no-op for already finished child', () async {
-        final plugin = SandboxPlugin(
-          platformFactory: () async => _completingMock(),
-        );
-        final spawn = _findHandler(plugin, 'sandbox_spawn');
-        final await_ = _findHandler(plugin, 'sandbox_await');
-        final cancel = _findHandler(plugin, 'sandbox_cancel');
-        final handle = await spawn({'code': '1'});
-
-        await await_({'handle': handle! as int});
-
-        final result = await cancel({'handle': handle as int});
-        expect(result, isNull);
-      });
-
-      test('await on cancelled child throws', () async {
-        final startCompleter = Completer<MontyProgress>();
-        final plugin = SandboxPlugin(
-          platformFactory: () async => _SlowMockPlatform(startCompleter.future),
-        );
-        final spawn = _findHandler(plugin, 'sandbox_spawn');
-        final cancel = _findHandler(plugin, 'sandbox_cancel');
-        final await_ = _findHandler(plugin, 'sandbox_await');
-        final handle = await spawn({'code': 'wait_forever()'});
-
-        await cancel({'handle': handle! as int});
-
-        expect(
-          () => await_({'handle': handle as int}),
-          throwsA(
-            isA<ChildSandboxException>()
-                .having((e) => e.childId, 'childId', handle)
-                .having((e) => e.message, 'message', 'cancelled')
-                .having((e) => e.exception, 'exception', isNull),
-          ),
-        );
-
-        // Unblock the suspended bridge so _run() can finish cleanly.
-        startCompleter.complete(
-          const MontyComplete(result: MontyResult(usage: _usage)),
-        );
       });
     });
 
@@ -848,7 +782,7 @@ void main() {
       });
 
       test('exception field is null for non-Python errors', () {
-        const e = ChildSandboxException(childId: 0, message: 'cancelled');
+        const e = ChildSandboxException(childId: 0, message: 'disposed');
         expect(e.exception, isNull);
       });
 
@@ -875,7 +809,7 @@ void main() {
     });
 
     group('onDispose', () {
-      test('cancels all living children', () async {
+      test('tears down all living children', () async {
         final completers = <Completer<MontyProgress>>[];
         final mocks = <_SlowMockPlatform>[];
         final plugin = SandboxPlugin(
@@ -913,7 +847,7 @@ void main() {
         await plugin.onDispose();
       });
 
-      test('completed children are not cancelled again', () async {
+      test('completed children are not torn down again', () async {
         final mock = _completingMock();
         final plugin = SandboxPlugin(platformFactory: () async => mock);
         final spawn = _findHandler(plugin, 'sandbox_spawn');
@@ -1472,30 +1406,6 @@ void main() {
         expect(failRecord.attributes['error'], contains('NameError'));
       });
 
-      test('cancel logs info with childId', () async {
-        final startCompleter = Completer<MontyProgress>();
-        final plugin = SandboxPlugin(
-          platformFactory: () async => _SlowMockPlatform(startCompleter.future),
-        )..logger = StructLogBridgeLogger(logger, LogManager.instance);
-        final spawn = _findHandler(plugin, 'sandbox_spawn');
-        final cancel = _findHandler(plugin, 'sandbox_cancel');
-
-        final handle = await spawn({'code': 'wait()'});
-        await cancel({'handle': handle! as int});
-
-        final cancelRecord = sink.records.firstWhere(
-          (r) => r.message == 'Cancelling child',
-        );
-        expect(cancelRecord.level, LogLevel.info);
-        expect(cancelRecord.attributes['childId'], 0);
-
-        startCompleter.complete(
-          const MontyComplete(result: MontyResult(usage: _usage)),
-        );
-        // Let microtasks settle so onDone fires before tearDown removes sink.
-        await Future<void>.delayed(Duration.zero);
-      });
-
       test('free logs debug with childId', () async {
         final plugin = SandboxPlugin(
           platformFactory: () async => _completingMock(),
@@ -1911,7 +1821,7 @@ class _AttachBoomPlugin extends MontyPlugin {
 /// A [MontyPlatform] whose [start] hangs until a [Completer] is completed.
 ///
 /// This keeps the child bridge "running" so tests can observe alive state,
-/// cancel behaviour, and concurrency limits before the child finishes.
+/// alive state and concurrency limits before the child finishes.
 class _SlowMockPlatform extends MontyPlatform {
   _SlowMockPlatform(this._startFuture);
 

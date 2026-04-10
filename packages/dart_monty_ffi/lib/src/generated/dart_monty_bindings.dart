@@ -360,59 +360,6 @@ external void monty_set_stack_limit(
   int depth,
 );
 
-/// Request cancellation. Sets the atomic cancel flag.
-/// The next bytecode boundary check raises KeyboardInterrupt.
-/// Idempotent — safe to call multiple times. Thread-safe.
-/// No-op if handle is NULL.
-@ffi.Native<ffi.Void Function(ffi.Pointer<MontyHandle>)>()
-external void monty_cancel(
-  ffi.Pointer<MontyHandle> handle,
-);
-
-/// Check whether the cancel flag is set.
-/// Returns 1 if cancelled, 0 if not, -1 if handle is NULL.
-@ffi.Native<ffi.Int Function(ffi.Pointer<MontyHandle>)>()
-external int monty_is_cancelled(
-  ffi.Pointer<MontyHandle> handle,
-);
-
-/// Reset the cancel flag. Call before reusing a handle after cancel.
-/// No-op if handle is NULL.
-@ffi.Native<ffi.Void Function(ffi.Pointer<MontyHandle>)>()
-external void monty_reset_cancel(
-  ffi.Pointer<MontyHandle> handle,
-);
-
-/// Get the monotonic handle ID for cross-isolate cancel.
-/// Returns 0 if handle is NULL or not registered.
-@ffi.Native<ffi.Uint64 Function(ffi.Pointer<MontyHandle>)>()
-external int monty_get_handle_id(
-  ffi.Pointer<MontyHandle> handle,
-);
-
-/// Cancel a handle by its registry ID. Works from any thread/isolate.
-/// Returns 0 on success, -1 if not found, -2 if cancel flag was dropped.
-@ffi.Native<ffi.Int Function(ffi.Uint64)>()
-external int monty_cancel_by_id(
-  int handle_id,
-);
-
-/// Check whether a handle is cancelled by registry ID.
-/// Returns 1 if cancelled, 0 if not cancelled, -1 if not found.
-@ffi.Native<ffi.Int Function(ffi.Uint64)>()
-external int monty_is_cancelled_by_id(
-  int handle_id,
-);
-
-/// Free a MontyHandle by its registry ID. Safe from any thread.
-/// Returns 1 if the handle was found and freed, 0 if not found.
-/// Used by supervisor to clean up after crash-only disposal when the
-/// worker isolate was killed before it could call monty_free().
-@ffi.Native<ffi.Int Function(ffi.Uint64)>()
-external int monty_free_by_id(
-  int handle_id,
-);
-
 /// Free a string returned by any monty_* function. Safe with NULL.
 @ffi.Native<ffi.Void Function(ffi.Pointer<ffi.Char>)>()
 external void monty_string_free(

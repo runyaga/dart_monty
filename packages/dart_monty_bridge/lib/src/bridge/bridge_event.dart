@@ -64,7 +64,7 @@ class BridgeRunError extends BridgeEvent {
   ///
   /// Preserves structured fields (filename, lineNumber, excType, traceback)
   /// that are lost in the [message] string. Null when the error is not a
-  /// Python exception (e.g. infrastructure errors, cancellation).
+  /// Python exception (e.g. infrastructure errors).
   final MontyException? exception;
 }
 

@@ -65,9 +65,6 @@ external JSPromise<JSString> _jsRestore(JSString dataBase64);
 @JS('DartMontyBridge.discover')
 external JSString _jsDiscover();
 
-@JS('DartMontyBridge.cancel')
-external JSPromise<JSString> _jsCancel();
-
 @JS('DartMontyBridge.dispose')
 external JSPromise<JSString> _jsDispose();
 
@@ -222,11 +219,6 @@ class WasmBindingsJs extends WasmBindings {
       loaded: map['loaded'] as bool,
       architecture: map['architecture'] as String,
     );
-  }
-
-  @override
-  Future<void> cancel() async {
-    await _jsCancel().toDart;
   }
 
   @override
