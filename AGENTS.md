@@ -9,6 +9,11 @@ Instructions for AI coding agents working on this repository.
 3. Read `docs/monty-rust-api.md` for the upstream Monty Rust API and the
    C FFI JSON contract (required for any FFI or bindings work).
 
+**SDK version parity:** Your local Dart SDK MUST match CI (`sdk: stable`).
+Run `dart --version` and compare with the CI logs. Format and analysis
+differences between SDK versions cause CI failures. Upgrade with
+`flutter upgrade` (Dart ships inside Flutter) before committing.
+
 ## Quick Reference
 
 ```bash
