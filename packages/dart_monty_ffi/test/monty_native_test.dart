@@ -47,13 +47,13 @@ void main() {
   group('run()', () {
     test('returns result', () async {
       mock.nextRunResult = MontyResult(
-        value: 4,
+        value: const MontyInt(4),
         usage: _usage(memory: 100, time: 5, stack: 2),
       );
 
       final result = await monty.run('2 + 2');
 
-      expect(result.value, 4);
+      expect(result.value, const MontyInt(4));
       expect(result.isError, isFalse);
       expect(result.usage.memoryBytesUsed, 100);
       expect(result.usage.timeElapsedMs, 5);
@@ -115,10 +115,10 @@ void main() {
     });
 
     test('returns string value', () async {
-      mock.nextRunResult = const MontyResult(value: 'hello', usage: _zeroUsage);
+      mock.nextRunResult = const MontyResult(value: MontyString('hello'), usage: _zeroUsage);
 
       final result = await monty.run('"hello"');
-      expect(result.value, 'hello');
+      expect(result.value, const MontyString('hello'));
     });
   });
 
@@ -128,20 +128,20 @@ void main() {
   group('start()', () {
     test('returns MontyComplete when code completes immediately', () async {
       mock.nextStartResult = const MontyComplete(
-        result: MontyResult(value: 42, usage: _zeroUsage),
+        result: MontyResult(value: MontyInt(42), usage: _zeroUsage),
       );
 
       final progress = await monty.start('42');
 
       expect(progress, isA<MontyComplete>());
       final complete = progress as MontyComplete;
-      expect(complete.result.value, 42);
+      expect(complete.result.value, const MontyInt(42));
     });
 
     test('returns MontyPending for external function call', () async {
       mock.nextStartResult = const MontyPending(
         functionName: 'fetch',
-        arguments: ['https://example.com'],
+        arguments: [MontyString('https://example.com')],
       );
 
       final progress = await monty.start(
@@ -229,7 +229,7 @@ void main() {
     test('returns MontyComplete when execution finishes', () async {
       mock.resumeResults.add(
         const MontyComplete(
-          result: MontyResult(value: 'hello', usage: _zeroUsage),
+          result: MontyResult(value: MontyString('hello'), usage: _zeroUsage),
         ),
       );
 
@@ -242,7 +242,7 @@ void main() {
 
     test('returns MontyPending for another external call', () async {
       mock.resumeResults.add(
-        const MontyPending(functionName: 'save', arguments: ['data']),
+        const MontyPending(functionName: 'save', arguments: [MontyString('data')]),
       );
 
       final progress = await monty.resume('response');
@@ -396,7 +396,7 @@ void main() {
     test('returns MontyComplete after resolving', () async {
       mock.resolveFuturesResults.add(
         const MontyComplete(
-          result: MontyResult(value: 'done', usage: _zeroUsage),
+          result: MontyResult(value: MontyString('done'), usage: _zeroUsage),
         ),
       );
 
@@ -437,7 +437,7 @@ void main() {
     test('returns MontyComplete after resolving with errors', () async {
       mock.resolveFuturesResults.add(
         const MontyComplete(
-          result: MontyResult(value: 'partial', usage: _zeroUsage),
+          result: MontyResult(value: MontyString('partial'), usage: _zeroUsage),
         ),
       );
 
@@ -529,12 +529,12 @@ void main() {
       // resume() should be allowed (active state).
       mock.resumeResults.add(
         const MontyComplete(
-          result: MontyResult(value: 10, usage: _zeroUsage),
+          result: MontyResult(value: const MontyInt(10), usage: _zeroUsage),
         ),
       );
       final progress = await restoredNative.resume('val');
       expect(progress, isA<MontyComplete>());
-      expect((progress as MontyComplete).result.value, 10);
+      expect((progress as MontyComplete).result.value, const MontyInt(10));
     });
 
     test('throws MontyException when restore fails', () {
@@ -624,7 +624,7 @@ void main() {
 
     test('resource usage is preserved from bindings', () async {
       mock.nextRunResult = MontyResult(
-        value: 1,
+        value: const MontyInt(1),
         usage: _usage(memory: 256, time: 10, stack: 3),
       );
 
@@ -665,7 +665,7 @@ void main() {
       // Release the gate so the first run completes.
       gate.complete();
       final result = await first;
-      expect(result.value, 4);
+      expect(result.value, const MontyInt(4));
       expect(monty.isIdle, isTrue);
     });
 

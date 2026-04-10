@@ -49,7 +49,7 @@ void main() {
     test('calls run with scriptName and asserts result', () async {
       final mock = MockMontyPlatform()
         ..runResult = const MontyResult(
-          value: 42,
+          value: MontyInt(42),
           usage: MontyResourceUsage(
             memoryBytesUsed: 0,
             timeElapsedMs: 0,
@@ -107,13 +107,13 @@ void main() {
         ..enqueueProgress(
           const MontyPending(
             functionName: 'fetch',
-            arguments: ['url'],
+            arguments: [MontyString('url')],
           ),
         )
         ..enqueueProgress(
           const MontyComplete(
             result: MontyResult(
-              value: 'done',
+              value: MontyString('done'),
               usage: MontyResourceUsage(
                 memoryBytesUsed: 0,
                 timeElapsedMs: 0,
@@ -147,7 +147,7 @@ void main() {
         ..enqueueProgress(
           const MontyComplete(
             result: MontyResult(
-              value: 'fallback',
+              value: MontyString('fallback'),
               usage: MontyResourceUsage(
                 memoryBytesUsed: 0,
                 timeElapsedMs: 0,

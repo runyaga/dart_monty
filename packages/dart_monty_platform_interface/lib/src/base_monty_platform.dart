@@ -6,6 +6,7 @@ import 'package:dart_monty_platform_interface/src/monty_exception.dart';
 import 'package:dart_monty_platform_interface/src/monty_limits.dart';
 import 'package:dart_monty_platform_interface/src/monty_platform.dart';
 import 'package:dart_monty_platform_interface/src/monty_progress.dart';
+import 'package:dart_monty_platform_interface/src/monty_value.dart';
 import 'package:dart_monty_platform_interface/src/monty_resource_usage.dart';
 import 'package:dart_monty_platform_interface/src/monty_result.dart';
 import 'package:dart_monty_platform_interface/src/monty_stack_frame.dart';
@@ -137,7 +138,7 @@ abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
   MontyResult _translateRunResult(CoreRunResult r) {
     if (r.ok) {
       return MontyResult(
-        value: r.value,
+        value: r.value != null ? MontyValue.fromJson(r.value) : null,
         error: _buildError(r.error, r.excType, r.traceback),
         usage: r.usage ?? _zeroUsage,
         printOutput: r.printOutput,
@@ -163,7 +164,7 @@ abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
         markIdle();
         return MontyComplete(
           result: MontyResult(
-            value: p.value,
+            value: p.value != null ? MontyValue.fromJson(p.value) : null,
             error: _buildError(p.error, p.excType, p.traceback),
             usage: p.usage ?? _zeroUsage,
             printOutput: p.printOutput,
@@ -173,8 +174,14 @@ abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
         markActive();
         return MontyPending(
           functionName: p.functionName ?? '',
-          arguments: p.arguments ?? const [],
-          kwargs: p.kwargs,
+          arguments: p.arguments != null
+              ? p.arguments!.map(MontyValue.fromJson).toList()
+              : const [],
+          kwargs: p.kwargs != null
+              ? p.kwargs!.map(
+                  (k, v) => MapEntry(k, MontyValue.fromJson(v)),
+                )
+              : null,
           callId: p.callId ?? 0,
           methodCall: p.methodCall ?? false,
         );
@@ -182,8 +189,14 @@ abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
         markActive();
         return MontyOsCall(
           operationName: p.functionName ?? '',
-          arguments: p.arguments ?? const [],
-          kwargs: p.kwargs,
+          arguments: p.arguments != null
+              ? p.arguments!.map(MontyValue.fromJson).toList()
+              : const [],
+          kwargs: p.kwargs != null
+              ? p.kwargs!.map(
+                  (k, v) => MapEntry(k, MontyValue.fromJson(v)),
+                )
+              : null,
           callId: p.callId ?? 0,
         );
       case 'resolve_futures':

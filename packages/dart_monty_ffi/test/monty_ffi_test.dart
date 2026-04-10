@@ -47,7 +47,7 @@ void main() {
 
       final result = await monty.run('2 + 2');
 
-      expect(result.value, 4);
+      expect(result.value, const MontyInt(4));
       expect(result.isError, isFalse);
       final usage = result.usage;
       expect(usage.memoryBytesUsed, 100);
@@ -154,7 +154,7 @@ void main() {
 
       expect(progress, isA<MontyComplete>());
       final complete = progress as MontyComplete;
-      expect(complete.result.value, 42);
+      expect(complete.result.value, const MontyInt(42));
       expect(mock.freeCalls, hasLength(1));
     });
 
@@ -186,7 +186,7 @@ void main() {
       expect(progress, isA<MontyPending>());
       final pending = progress as MontyPending;
       expect(pending.functionName, 'fetch');
-      expect(pending.arguments, ['https://example.com']);
+      expect(pending.arguments, [const MontyString('https://example.com')]);
       expect(mock.createCalls.first.externalFunctions, 'fetch');
     });
 
@@ -231,8 +231,11 @@ void main() {
       );
 
       final pending = progress as MontyPending;
-      expect(pending.kwargs, {'timeout': 30});
-      expect(pending.arguments, [1]);
+      expect(
+        pending.kwargs,
+        {'timeout': const MontyInt(30)},
+      );
+      expect(pending.arguments, [const MontyInt(1)]);
     });
 
     test('returns MontyPending with callId and methodCall', () async {
@@ -394,7 +397,7 @@ void main() {
       expect(progress, isA<MontyPending>());
       final pending = progress as MontyPending;
       expect(pending.functionName, 'save');
-      expect(pending.arguments, ['data']);
+      expect(pending.arguments, [const MontyString('data')]);
     });
 
     test('throws MontyException on error', () async {
@@ -559,7 +562,7 @@ void main() {
       );
       final progress = await restoredFfi.resume('val');
       expect(progress, isA<MontyComplete>());
-      expect((progress as MontyComplete).result.value, 10);
+      expect((progress as MontyComplete).result.value, const MontyInt(10));
     });
 
     test('throws MontyException when restore fails', () {
@@ -641,7 +644,7 @@ void main() {
       );
 
       final result = await monty.run('"hello"');
-      expect(result.value, 'hello');
+      expect(result.value, const MontyString('hello'));
     });
 
     test('run with error in result JSON', () async {
@@ -853,7 +856,7 @@ void main() {
       expect(progress, isA<MontyPending>());
       final pending = progress as MontyPending;
       expect(pending.kwargs, isNull);
-      expect(pending.arguments, [42]);
+      expect(pending.arguments, [const MontyInt(42)]);
     });
   });
 
@@ -950,7 +953,7 @@ void main() {
       final progress = await monty.resolveFutures({0: 'done'});
 
       expect(progress, isA<MontyComplete>());
-      expect((progress as MontyComplete).result.value, 'done');
+      expect((progress as MontyComplete).result.value, const MontyString('done'));
     });
 
     test('passes correct JSON to bindings', () async {

@@ -34,7 +34,7 @@ void main() {
 
       final result = await monty.run('2 + 2');
 
-      expect(result.value, 4);
+      expect(result.value, const MontyInt(4));
       expect(result.isError, isFalse);
       expect(result.usage.memoryBytesUsed, 0);
       expect(result.usage.timeElapsedMs, greaterThanOrEqualTo(0));
@@ -149,7 +149,7 @@ void main() {
       mock.nextRunResult = const WasmRunResult(ok: true, value: 'hello');
 
       final result = await monty.run('"hello"');
-      expect(result.value, 'hello');
+      expect(result.value, const MontyString('hello'));
     });
 
     test('error with null message uses default', () async {
@@ -183,7 +183,7 @@ void main() {
 
       expect(progress, isA<MontyComplete>());
       final complete = progress as MontyComplete;
-      expect(complete.result.value, 42);
+      expect(complete.result.value, const MontyInt(42));
     });
 
     test('start complete preserves printOutput', () async {
@@ -216,7 +216,7 @@ void main() {
       expect(progress, isA<MontyPending>());
       final pending = progress as MontyPending;
       expect(pending.functionName, 'fetch');
-      expect(pending.arguments, ['https://example.com']);
+      expect(pending.arguments, [const MontyString('https://example.com')]);
       expect(mock.startCalls.first.extFnsJson, '["fetch"]');
     });
 
@@ -372,7 +372,7 @@ void main() {
       expect(progress, isA<MontyPending>());
       final pending = progress as MontyPending;
       expect(pending.functionName, 'save');
-      expect(pending.arguments, ['data']);
+      expect(pending.arguments, [const MontyString('data')]);
     });
 
     test('throws MontyException on error', () async {
@@ -530,7 +530,7 @@ void main() {
       );
       final progress = await restoredWasm.resume('val');
       expect(progress, isA<MontyComplete>());
-      expect((progress as MontyComplete).result.value, 10);
+      expect((progress as MontyComplete).result.value, const MontyInt(10));
     });
 
     test('throws MontyException when restore fails', () {
@@ -684,7 +684,10 @@ void main() {
       );
 
       final pending = progress as MontyPending;
-      expect(pending.kwargs, {'timeout': 30, 'retries': 3});
+      expect(pending.kwargs, {
+        'timeout': const MontyInt(30),
+        'retries': const MontyInt(3),
+      });
     });
 
     test('start() returns MontyPending with callId and methodCall', () async {
@@ -949,8 +952,8 @@ void main() {
       expect(progress, isA<MontyOsCall>());
       final oc = progress as MontyOsCall;
       expect(oc.operationName, 'Path.exists');
-      expect(oc.arguments, ['/tmp/test.txt']);
-      expect(oc.kwargs, {'follow_symlinks': true});
+      expect(oc.arguments, [const MontyString('/tmp/test.txt')]);
+      expect(oc.kwargs, {'follow_symlinks': const MontyBool(true)});
       expect(oc.callId, 42);
     });
 

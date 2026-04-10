@@ -19,7 +19,7 @@ class MockNativeIsolateBindings extends NativeIsolateBindings {
 
   /// Result returned by [run].
   MontyResult nextRunResult = const MontyResult(
-    value: 4,
+    value: MontyInt(4),
     usage: _zeroUsage,
   );
 

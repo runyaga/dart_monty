@@ -133,7 +133,7 @@ void main() {
 
       final result = await platform.run('1 + 1');
 
-      expect(result.value, 42);
+      expect(result.value, const MontyInt(42));
       expect(result.usage, usage);
       expect(result.printOutput, isNull);
       expect(result.isError, isFalse);
@@ -234,7 +234,7 @@ void main() {
 
       expect(progress, isA<MontyComplete>());
       final complete = progress as MontyComplete;
-      expect(complete.result.value, 99);
+      expect(complete.result.value, const MontyInt(99));
       expect(complete.result.usage, usage);
       expect(platform.isIdle, isTrue);
     });
@@ -283,7 +283,7 @@ void main() {
       expect(progress, isA<MontyPending>());
       final pending = progress as MontyPending;
       expect(pending.functionName, 'get_data');
-      expect(pending.arguments, [1, 'two']);
+      expect(pending.arguments, [const MontyInt(1), const MontyString('two')]);
       expect(pending.kwargs, isNull);
       expect(pending.callId, 7);
       expect(pending.methodCall, isTrue);
@@ -305,7 +305,10 @@ void main() {
       );
 
       final pending = progress as MontyPending;
-      expect(pending.kwargs, {'timeout': 30, 'retry': true});
+      expect(pending.kwargs, {
+        'timeout': const MontyInt(30),
+        'retry': const MontyBool(true),
+      });
     });
 
     test(
@@ -363,7 +366,7 @@ void main() {
       expect(fake.lastValueJson, json.encode(42));
       expect(progress, isA<MontyComplete>());
       final complete = progress as MontyComplete;
-      expect(complete.result.value, 'done');
+      expect(complete.result.value, const MontyString('done'));
     });
   });
 

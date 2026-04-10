@@ -20,7 +20,7 @@ MockMontyPlatform _completingMock() {
 
 /// Creates a [MockMontyPlatform] that completes with [value] and [printOutput].
 MockMontyPlatform _completingMockWithResult({
-  Object? value,
+  MontyValue? value,
   String? printOutput,
 }) {
   return MockMontyPlatform()..enqueueProgress(
@@ -215,7 +215,9 @@ void main() {
 
       test('returns child return value', () async {
         final plugin = SandboxPlugin(
-          platformFactory: () async => _completingMockWithResult(value: 42),
+          platformFactory: () async => _completingMockWithResult(
+              value: const MontyInt(42),
+            ),
         );
         final spawn = _findHandler(plugin, 'sandbox_spawn');
         final await_ = _findHandler(plugin, 'sandbox_await');
@@ -464,7 +466,7 @@ void main() {
             platformFactory: () async {
               callCount++;
               return _completingMockWithResult(
-                value: callCount,
+                value: MontyInt(callCount),
                 printOutput: 'output_$callCount\n',
               );
             },
@@ -499,7 +501,7 @@ void main() {
         final plugin = SandboxPlugin(
           platformFactory: () async {
             callCount++;
-            return _completingMockWithResult(value: callCount * 10);
+            return _completingMockWithResult(value: MontyInt(callCount * 10));
           },
         );
         final spawn = _findHandler(plugin, 'sandbox_spawn');
@@ -524,7 +526,9 @@ void main() {
 
       test('handles null printOutput (child with no print)', () async {
         final plugin = SandboxPlugin(
-          platformFactory: () async => _completingMockWithResult(value: 42),
+          platformFactory: () async => _completingMockWithResult(
+              value: const MontyInt(42),
+            ),
         );
         final spawn = _findHandler(plugin, 'sandbox_spawn');
         final gather = _findHandler(plugin, 'sandbox_gather');
@@ -550,7 +554,7 @@ void main() {
           platformFactory: () async {
             callCount++;
             if (callCount == 2) return _failingMock('child failed');
-            return _completingMockWithResult(value: callCount);
+            return _completingMockWithResult(value: MontyInt(callCount));
           },
         );
         final spawn = _findHandler(plugin, 'sandbox_spawn');
@@ -584,7 +588,10 @@ void main() {
       test('works with single handle', () async {
         final plugin = SandboxPlugin(
           platformFactory: () async =>
-              _completingMockWithResult(value: 'solo', printOutput: 'hi\n'),
+              _completingMockWithResult(
+                value: const MontyString('solo'),
+                printOutput: 'hi\n',
+              ),
         );
         final spawn = _findHandler(plugin, 'sandbox_spawn');
         final gather = _findHandler(plugin, 'sandbox_gather');

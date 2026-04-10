@@ -1,5 +1,6 @@
 import 'package:collection/collection.dart';
 import 'package:dart_monty_platform_interface/src/monty_result.dart';
+import 'package:dart_monty_platform_interface/src/monty_value.dart';
 import 'package:meta/meta.dart';
 
 /// Deep equality instance shared across [MontyPending] operations.
@@ -130,8 +131,12 @@ final class MontyPending extends MontyProgress {
 
     return MontyPending(
       functionName: json['function_name'] as String,
-      arguments: rawArgs != null ? List<Object?>.from(rawArgs) : const [],
-      kwargs: rawKwargs != null ? Map<String, Object?>.from(rawKwargs) : null,
+      arguments: rawArgs != null
+          ? rawArgs.map(MontyValue.fromJson).toList()
+          : const [],
+      kwargs: rawKwargs != null
+          ? rawKwargs.map((k, v) => MapEntry(k, MontyValue.fromJson(v)))
+          : null,
       callId: json['call_id'] as int? ?? 0,
       methodCall: json['method_call'] as bool? ?? false,
     );
@@ -141,13 +146,13 @@ final class MontyPending extends MontyProgress {
   final String functionName;
 
   /// The positional arguments to pass to the external function.
-  final List<Object?> arguments;
+  final List<MontyValue> arguments;
 
   /// Keyword arguments from the Python call site.
   ///
   /// `null` when no keyword arguments were used. An empty map `{}`
   /// means kwargs were explicitly empty (e.g. `fn(**{})`).
-  final Map<String, Object?>? kwargs;
+  final Map<String, MontyValue>? kwargs;
 
   /// A unique identifier for this pending call.
   ///
@@ -164,8 +169,9 @@ final class MontyPending extends MontyProgress {
     return {
       'type': 'pending',
       'function_name': functionName,
-      'arguments': arguments,
-      if (kwargs != null) 'kwargs': kwargs,
+      'arguments': arguments.map((e) => e.toJson()).toList(),
+      if (kwargs != null)
+        'kwargs': kwargs!.map((k, v) => MapEntry(k, v.toJson())),
       if (callId != 0) 'call_id': callId,
       if (methodCall) 'method_call': methodCall,
     };
@@ -229,8 +235,12 @@ final class MontyOsCall extends MontyProgress {
 
     return MontyOsCall(
       operationName: json['operation_name'] as String,
-      arguments: rawArgs != null ? List<Object?>.from(rawArgs) : const [],
-      kwargs: rawKwargs != null ? Map<String, Object?>.from(rawKwargs) : null,
+      arguments: rawArgs != null
+          ? rawArgs.map(MontyValue.fromJson).toList()
+          : const [],
+      kwargs: rawKwargs != null
+          ? rawKwargs.map((k, v) => MapEntry(k, MontyValue.fromJson(v)))
+          : null,
       callId: json['call_id'] as int? ?? 0,
     );
   }
@@ -240,10 +250,10 @@ final class MontyOsCall extends MontyProgress {
   final String operationName;
 
   /// The positional arguments for the operation.
-  final List<Object?> arguments;
+  final List<MontyValue> arguments;
 
   /// Keyword arguments from the Python call site.
-  final Map<String, Object?>? kwargs;
+  final Map<String, MontyValue>? kwargs;
 
   /// Unique call identifier for async correlation.
   final int callId;
@@ -253,8 +263,9 @@ final class MontyOsCall extends MontyProgress {
     return {
       'type': 'os_call',
       'operation_name': operationName,
-      'arguments': arguments,
-      if (kwargs != null) 'kwargs': kwargs,
+      'arguments': arguments.map((e) => e.toJson()).toList(),
+      if (kwargs != null)
+        'kwargs': kwargs!.map((k, v) => MapEntry(k, v.toJson())),
       if (callId != 0) 'call_id': callId,
     };
   }

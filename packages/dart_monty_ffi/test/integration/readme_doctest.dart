@@ -466,16 +466,16 @@ void main() {
         // Pattern matching on sealed type.
         const pending = MontyPending(
           functionName: 'fetch',
-          arguments: ['https://api.example.com/data'],
-          kwargs: {'timeout': 30},
+          arguments: [MontyString('https://api.example.com/data')],
+          kwargs: {'timeout': MontyInt(30)},
           callId: 1,
         );
         expect(pending.functionName, 'fetch');
-        expect(pending.kwargs, {'timeout': 30});
+        expect(pending.kwargs, {'timeout': const MontyInt(30)});
 
         const complete = MontyComplete(
           result: MontyResult(
-            value: 42,
+            value: MontyInt(42),
             usage: MontyResourceUsage(
               memoryBytesUsed: 1024,
               timeElapsedMs: 5,
@@ -483,20 +483,22 @@ void main() {
             ),
           ),
         );
-        expect(complete.result.value, 42);
+        expect(complete.result.value, const MontyInt(42));
 
         const futures = MontyResolveFutures(pendingCallIds: [1, 2, 3]);
         expect(futures.pendingCallIds, [1, 2, 3]);
 
         // Exhaustive switch (compile-time guarantee).
-        for (final progress in [pending, complete, futures]) {
+        for (final progress in <MontyProgress>[pending, complete, futures]) {
           switch (progress) {
             case MontyPending(:final functionName):
               expect(functionName, 'fetch');
             case MontyComplete(:final result):
-              expect(result.value, 42);
+              expect(result.value, const MontyInt(42));
             case MontyResolveFutures(:final pendingCallIds):
               expect(pendingCallIds, hasLength(3));
+            case MontyOsCall():
+              break;
           }
         }
       },

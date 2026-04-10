@@ -23,14 +23,14 @@ void main() {
               },
             },
           });
-          expect(complete.result.value, 'done');
+          expect(complete.result.value, const MontyString('done'));
           expect(complete.result.usage, usage);
         });
       });
 
       test('toJson', () {
         const complete = MontyComplete(
-          result: MontyResult(value: 42, usage: usage),
+          result: MontyResult(value: MontyInt(42), usage: usage),
         );
         final json = complete.toJson();
         expect(json['type'], 'complete');
@@ -39,7 +39,7 @@ void main() {
 
       test('JSON round-trip', () {
         const original = MontyComplete(
-          result: MontyResult(value: 'hello', usage: usage),
+          result: MontyResult(value: MontyString('hello'), usage: usage),
         );
         final restored = MontyComplete.fromJson(original.toJson());
         expect(restored, original);
@@ -48,10 +48,10 @@ void main() {
       group('equality', () {
         test('equal when result matches', () {
           const a = MontyComplete(
-            result: MontyResult(value: 42, usage: usage),
+            result: MontyResult(value: MontyInt(42), usage: usage),
           );
           const b = MontyComplete(
-            result: MontyResult(value: 42, usage: usage),
+            result: MontyResult(value: MontyInt(42), usage: usage),
           );
           expect(a, b);
           expect(a.hashCode, b.hashCode);
@@ -59,24 +59,24 @@ void main() {
 
         test('not equal when result differs', () {
           const a = MontyComplete(
-            result: MontyResult(value: 1, usage: usage),
+            result: MontyResult(value: MontyInt(1), usage: usage),
           );
           const b = MontyComplete(
-            result: MontyResult(value: 2, usage: usage),
+            result: MontyResult(value: MontyInt(2), usage: usage),
           );
           expect(a, isNot(b));
         });
 
         test('not equal to other types', () {
           const complete = MontyComplete(
-            result: MontyResult(value: 42, usage: usage),
+            result: MontyResult(value: MontyInt(42), usage: usage),
           );
           expect(complete, isNot(42));
         });
 
         test('identical instances are equal', () {
           const complete = MontyComplete(
-            result: MontyResult(value: 42, usage: usage),
+            result: MontyResult(value: MontyInt(42), usage: usage),
           );
           expect(complete == complete, isTrue);
         });
@@ -84,11 +84,11 @@ void main() {
 
       test('toString', () {
         const complete = MontyComplete(
-          result: MontyResult(value: 42, usage: usage),
+          result: MontyResult(value: MontyInt(42), usage: usage),
         );
         expect(
           complete.toString(),
-          'MontyComplete(MontyResult.value(42))',
+          'MontyComplete(MontyResult.value(MontyInt(42)))',
         );
       });
     });
@@ -102,7 +102,11 @@ void main() {
             'arguments': [1, 'two', true],
           });
           expect(pending.functionName, 'getData');
-          expect(pending.arguments, [1, 'two', true]);
+          expect(pending.arguments, [
+            const MontyInt(1),
+            const MontyString('two'),
+            const MontyBool(true),
+          ]);
         });
 
         test('parses empty arguments', () {
@@ -120,7 +124,11 @@ void main() {
             'function_name': 'fn',
             'arguments': [null, 1, null],
           });
-          expect(pending.arguments, [null, 1, null]);
+          expect(pending.arguments, [
+            const MontyNull(),
+            const MontyInt(1),
+            const MontyNull(),
+          ]);
         });
 
         test('parses kwargs', () {
@@ -130,7 +138,7 @@ void main() {
             'arguments': ['url'],
             'kwargs': {'timeout': 30},
           });
-          expect(pending.kwargs, {'timeout': 30});
+          expect(pending.kwargs, {'timeout': const MontyInt(30)});
         });
 
         test('parses null kwargs as null', () {
@@ -195,8 +203,11 @@ void main() {
             'method_call': true,
           });
           expect(pending.functionName, 'db.query');
-          expect(pending.arguments, ['SELECT * FROM users']);
-          expect(pending.kwargs, {'limit': 10, 'offset': 0});
+          expect(pending.arguments, [const MontyString('SELECT * FROM users')]);
+          expect(pending.kwargs, {
+            'limit': const MontyInt(10),
+            'offset': const MontyInt(0),
+          });
           expect(pending.callId, 42);
           expect(pending.methodCall, isTrue);
         });
@@ -205,7 +216,7 @@ void main() {
       test('toJson', () {
         const pending = MontyPending(
           functionName: 'send',
-          arguments: ['data', 42],
+          arguments: [MontyString('data'), MontyInt(42)],
         );
         expect(pending.toJson(), {
           'type': 'pending',
@@ -218,7 +229,7 @@ void main() {
         const pending = MontyPending(
           functionName: 'fetch',
           arguments: [],
-          kwargs: {'timeout': 5},
+          kwargs: {'timeout': MontyInt(5)},
         );
         final json = pending.toJson();
         expect(json['kwargs'], {'timeout': 5});
@@ -274,7 +285,7 @@ void main() {
       test('JSON round-trip', () {
         const original = MontyPending(
           functionName: 'compute',
-          arguments: [1, 2, 3],
+          arguments: [MontyInt(1), MontyInt(2), MontyInt(3)],
         );
         final restored = MontyPending.fromJson(original.toJson());
         expect(restored, original);
@@ -292,8 +303,8 @@ void main() {
       test('JSON round-trip with all M7A fields', () {
         const original = MontyPending(
           functionName: 'db.query',
-          arguments: ['SELECT 1'],
-          kwargs: {'limit': 10},
+          arguments: [MontyString('SELECT 1')],
+          kwargs: {'limit': MontyInt(10)},
           callId: 42,
           methodCall: true,
         );
@@ -315,11 +326,11 @@ void main() {
         test('equal when all fields match', () {
           const a = MontyPending(
             functionName: 'fn',
-            arguments: [1, 'a'],
+            arguments: [MontyInt(1), MontyString('a')],
           );
           const b = MontyPending(
             functionName: 'fn',
-            arguments: [1, 'a'],
+            arguments: [MontyInt(1), MontyString('a')],
           );
           expect(a, b);
           expect(a.hashCode, b.hashCode);
@@ -339,14 +350,17 @@ void main() {
         });
 
         test('not equal when arguments differ', () {
-          const a = MontyPending(functionName: 'fn', arguments: [1]);
-          const b = MontyPending(functionName: 'fn', arguments: [2]);
+          const a = MontyPending(functionName: 'fn', arguments: [MontyInt(1)]);
+          const b = MontyPending(functionName: 'fn', arguments: [MontyInt(2)]);
           expect(a, isNot(b));
         });
 
         test('not equal when argument count differs', () {
-          const a = MontyPending(functionName: 'fn', arguments: [1]);
-          const b = MontyPending(functionName: 'fn', arguments: [1, 2]);
+          const a = MontyPending(functionName: 'fn', arguments: [MontyInt(1)]);
+          const b = MontyPending(
+            functionName: 'fn',
+            arguments: [MontyInt(1), MontyInt(2)],
+          );
           expect(a, isNot(b));
         });
 
@@ -354,12 +368,12 @@ void main() {
           const a = MontyPending(
             functionName: 'fn',
             arguments: [],
-            kwargs: {'a': 1},
+            kwargs: {'a': MontyInt(1)},
           );
           const b = MontyPending(
             functionName: 'fn',
             arguments: [],
-            kwargs: {'a': 2},
+            kwargs: {'a': MontyInt(2)},
           );
           expect(a, isNot(b));
         });
@@ -368,7 +382,7 @@ void main() {
           const a = MontyPending(
             functionName: 'fn',
             arguments: [],
-            kwargs: {'a': 1},
+            kwargs: {'a': MontyInt(1)},
           );
           const b = MontyPending(
             functionName: 'fn',
@@ -381,12 +395,12 @@ void main() {
           const a = MontyPending(
             functionName: 'fn',
             arguments: [],
-            kwargs: {'key': 'val'},
+            kwargs: {'key': MontyString('val')},
           );
           const b = MontyPending(
             functionName: 'fn',
             arguments: [],
-            kwargs: {'key': 'val'},
+            kwargs: {'key': MontyString('val')},
           );
           expect(a, b);
           expect(a.hashCode, b.hashCode);
@@ -425,7 +439,7 @@ void main() {
         });
 
         test('identical instances are equal', () {
-          const pending = MontyPending(functionName: 'fn', arguments: [1]);
+          const pending = MontyPending(functionName: 'fn', arguments: [MontyInt(1)]);
           expect(pending == pending, isTrue);
         });
       });
@@ -433,9 +447,9 @@ void main() {
       test('toString', () {
         const pending = MontyPending(
           functionName: 'fetch',
-          arguments: [42],
+          arguments: [MontyInt(42)],
         );
-        expect(pending.toString(), 'MontyPending(fetch, [42])');
+        expect(pending.toString(), 'MontyPending(fetch, [MontyInt(42)])');
       });
     });
 
@@ -556,7 +570,7 @@ void main() {
 
     test('pattern matching works on sealed class', () {
       const MontyProgress progress = MontyComplete(
-        result: MontyResult(value: 'matched', usage: usage),
+        result: MontyResult(value: MontyString('matched'), usage: usage),
       );
 
       final description = switch (progress) {
@@ -567,13 +581,13 @@ void main() {
           'futures: $pendingCallIds',
       };
 
-      expect(description, 'complete: matched');
+      expect(description, 'complete: MontyString(matched)');
     });
 
     test('pattern matching on pending', () {
       const MontyProgress progress = MontyPending(
         functionName: 'doWork',
-        arguments: [1, 2],
+        arguments: [MontyInt(1), MontyInt(2)],
       );
 
       final description = switch (progress) {
@@ -591,8 +605,8 @@ void main() {
     test('pattern matching with kwargs', () {
       const MontyProgress progress = MontyPending(
         functionName: 'fetch',
-        arguments: ['url'],
-        kwargs: {'timeout': 30},
+        arguments: [MontyString('url')],
+        kwargs: {'timeout': MontyInt(30)},
         callId: 5,
         methodCall: true,
       );
@@ -608,7 +622,7 @@ void main() {
 
       expect(
         description,
-        'pending: fetch(kwargs={timeout: 30}, callId=5)',
+        'pending: fetch(kwargs={timeout: MontyInt(30)}, callId=5)',
       );
     });
 
@@ -633,13 +647,19 @@ void main() {
         const a = MontyPending(
           functionName: 'fn',
           arguments: [
-            {'key': 'val', 'nested': true},
+            MontyDict({
+              'key': MontyString('val'),
+              'nested': MontyBool(true),
+            }),
           ],
         );
         const b = MontyPending(
           functionName: 'fn',
           arguments: [
-            {'key': 'val', 'nested': true},
+            MontyDict({
+              'key': MontyString('val'),
+              'nested': MontyBool(true),
+            }),
           ],
         );
         expect(a, b);
@@ -650,15 +670,15 @@ void main() {
         const a = MontyPending(
           functionName: 'fn',
           arguments: [
-            [1, 2, 3],
-            [4, 5],
+            MontyList([MontyInt(1), MontyInt(2), MontyInt(3)]),
+            MontyList([MontyInt(4), MontyInt(5)]),
           ],
         );
         const b = MontyPending(
           functionName: 'fn',
           arguments: [
-            [1, 2, 3],
-            [4, 5],
+            MontyList([MontyInt(1), MontyInt(2), MontyInt(3)]),
+            MontyList([MontyInt(4), MontyInt(5)]),
           ],
         );
         expect(a, b);
@@ -669,13 +689,13 @@ void main() {
         const a = MontyPending(
           functionName: 'fn',
           arguments: [
-            {'key': 'val1'},
+            MontyDict({'key': MontyString('val1')}),
           ],
         );
         const b = MontyPending(
           functionName: 'fn',
           arguments: [
-            {'key': 'val2'},
+            MontyDict({'key': MontyString('val2')}),
           ],
         );
         expect(a, isNot(b));
@@ -685,9 +705,9 @@ void main() {
         const original = MontyPending(
           functionName: 'compute',
           arguments: [
-            {'x': 1},
-            [2, 3],
-            'plain',
+            MontyDict({'x': MontyInt(1)}),
+            MontyList([MontyInt(2), MontyInt(3)]),
+            MontyString('plain'),
           ],
         );
         final restored = MontyPending.fromJson(original.toJson());

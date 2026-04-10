@@ -291,7 +291,7 @@ void main() {
           const MontyPending(
             functionName: 'fn',
             arguments: [],
-            kwargs: {'__role__': 'infra'},
+            kwargs: {'__role__': MontyString('infra')},
           ),
         )
         ..enqueueProgress(
@@ -321,7 +321,7 @@ void main() {
           const MontyPending(
             functionName: 'fn',
             arguments: [],
-            kwargs: {'__role__': 'infra'},
+            kwargs: {'__role__': MontyString('infra')},
           ),
         )
         ..enqueueProgress(
@@ -379,7 +379,7 @@ void main() {
           const MontyPending(
             functionName: 'fn',
             arguments: [],
-            kwargs: {'x': 42, '__role__': 'infra'},
+            kwargs: {'x': MontyInt(42), '__role__': MontyString('infra')},
           ),
         )
         ..enqueueProgress(
@@ -412,7 +412,7 @@ void main() {
           const MontyPending(
             functionName: 'fn',
             arguments: [],
-            kwargs: {'x': 42, '__role__': 'infra'},
+            kwargs: {'x': MontyInt(42), '__role__': MontyString('infra')},
           ),
         )
         ..enqueueProgress(
@@ -555,7 +555,7 @@ void main() {
           const MontyPending(
             functionName: 'fn',
             arguments: [],
-            kwargs: {'__role__': 'unknown_value'},
+            kwargs: {'__role__': MontyString('unknown_value')},
           ),
         )
         ..enqueueProgress(
@@ -573,7 +573,7 @@ void main() {
         ..enqueueProgress(
           const MontyOsCall(
             operationName: 'Path.read_text',
-            arguments: ['/etc/passwd'],
+            arguments: [MontyString('/etc/passwd')],
             callId: 1,
           ),
         )
@@ -618,7 +618,7 @@ void main() {
         ..enqueueProgress(
           const MontyOsCall(
             operationName: 'os.getenv',
-            arguments: ['APP_ENV'],
+            arguments: [MontyString('APP_ENV')],
             callId: 1,
           ),
         )
@@ -653,7 +653,7 @@ void main() {
         ..enqueueProgress(
           const MontyOsCall(
             operationName: 'Path.write_text',
-            arguments: ['/tmp/out', 'data'],
+            arguments: [MontyString('/tmp/out'), MontyString('data')],
             callId: 1,
           ),
         )

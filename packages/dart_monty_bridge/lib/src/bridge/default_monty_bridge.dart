@@ -173,10 +173,11 @@ class DefaultMontyBridge implements MontyBridge {
 
     // Route through mapAndValidate for type coercion (e.g., string→int).
     // Construct a MontyPending with kwargs only (Dart callers use named args).
+    // Wrap raw Dart values as MontyValue so they satisfy the typed constructor.
     final pending = MontyPending(
       functionName: name,
       arguments: const [],
-      kwargs: args,
+      kwargs: args.map((k, v) => MapEntry(k, MontyValue.fromJson(v))),
     );
     final validatedArgs = fn.schema.mapAndValidate(pending);
 
@@ -251,7 +252,7 @@ class DefaultMontyBridge implements MontyBridge {
                 BridgeRunFinished(
                   threadId: threadId,
                   runId: runId,
-                  value: result.value,
+                  value: result.value?.dartValue,
                   printOutput: capturedOutput,
                 ),
               );
@@ -297,7 +298,7 @@ class DefaultMontyBridge implements MontyBridge {
     // Console write — always intercept, buffer for text flush.
     if (name == _consoleWriteFn) {
       if (pending.arguments.isNotEmpty) {
-        printBuffer.write(pending.arguments.first.toString());
+        printBuffer.write(pending.arguments.first.dartValue.toString());
       }
 
       return _platform.resume(null);
@@ -380,7 +381,7 @@ class DefaultMontyBridge implements MontyBridge {
     // Always strip __role__ from kwargs regardless of how role is resolved.
     final MontyPending cleanedPending;
     if (kwargs != null && kwargs.containsKey(_roleKwarg)) {
-      final cleaned = Map<String, Object?>.of(kwargs)..remove(_roleKwarg);
+      final cleaned = Map<String, MontyValue>.of(kwargs)..remove(_roleKwarg);
       cleanedPending = MontyPending(
         functionName: pending.functionName,
         arguments: pending.arguments,
@@ -398,7 +399,7 @@ class DefaultMontyBridge implements MontyBridge {
     }
 
     // Fall back to Python kwarg, defaulting to ToolCall.
-    final roleValue = kwargs?[_roleKwarg];
+    final roleValue = kwargs?[_roleKwarg]?.dartValue;
     final role = switch (roleValue) {
       'infra' => const InfraCall(),
       _ => const ToolCall(),
