@@ -2,7 +2,7 @@
 library;
 
 import 'package:dart_monty_native/dart_monty_native.dart';
-import 'package:dart_monty_platform_interface/src/monty_session.dart';
+import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 import 'package:test/test.dart';
 
 /// Integration tests for [MontySession] with real [MontyNative] backend.
@@ -24,7 +24,7 @@ void main() {
     await session.run('x = 42');
     final result = await session.run('x + 1');
 
-    expect(result.value, 43);
+    expect(result.value, const MontyInt(43));
     expect(result.isError, isFalse);
 
     session.dispose();
@@ -58,7 +58,7 @@ void main() {
     expect(errorResult.isError, isTrue);
 
     final result = await session.run('x');
-    expect(result.value, 10);
+    expect(result.value, const MontyInt(10));
 
     session.dispose();
     await monty.dispose();

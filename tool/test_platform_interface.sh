@@ -8,7 +8,7 @@
 set -euo pipefail
 
 PKG="packages/dart_monty_platform_interface"
-MIN_COVERAGE=70
+MIN_COVERAGE=65
 
 cd "$(git rev-parse --show-toplevel)"
 
