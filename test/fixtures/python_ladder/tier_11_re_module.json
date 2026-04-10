@@ -148,7 +148,7 @@
     "tier": 11,
     "name": "re.findall with groups",
     "code": "import re\nre.findall(r\"(\\d+)-(\\d+)\", \"12-34 56-78\")",
-    "expected": [["12", "34"], ["56", "78"]],
+    "expected": [{"__type": "tuple", "value": ["12", "34"]}, {"__type": "tuple", "value": ["56", "78"]}],
     "expectedContains": null,
     "expectedSorted": false,
     "expectError": false,

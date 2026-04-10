@@ -3,6 +3,7 @@ library;
 
 import 'dart:io';
 
+import 'package:dart_monty_bridge/dart_monty_bridge.dart';
 import 'package:dart_monty_ffi/dart_monty_ffi.dart';
 import 'package:dart_monty_ffi/ffi_backend_spi.dart';
 import 'package:dart_monty_platform_interface/dart_monty_testing.dart';
@@ -25,5 +26,6 @@ void main() {
   registerLadderTests(
     createPlatform: () => MontyFfi(bindings: bindings),
     fixtureDir: Directory('../../test/fixtures/python_ladder'),
+    osCallHandler: createDefaultOsCallHandler(),
   );
 }

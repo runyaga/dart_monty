@@ -28,12 +28,8 @@ void assertLadderResult(Object? actual, Map<String, dynamic> fixture) {
 
   var sortedActual = actual;
   if (expectedSorted) {
-    if (actual is List) {
-      sortedActual = [...actual]..sort((a, b) => '$a'.compareTo('$b'));
-    }
-    if (expected is List) {
-      expected = [...expected]..sort((a, b) => '$a'.compareTo('$b'));
-    }
+    sortedActual = _sortValue(actual);
+    expected = _sortValue(expected);
   }
 
   expect(
@@ -43,6 +39,25 @@ void assertLadderResult(Object? actual, Map<String, dynamic> fixture) {
         'expected ${jsonEncode(expected)}, '
         'got ${jsonEncode(sortedActual)}',
   );
+}
+
+/// Sorts a value for comparison, handling __type wrappers.
+Object? _sortValue(Object? value) {
+  if (value is List) {
+    return [...value]..sort((a, b) => '$a'.compareTo('$b'));
+  }
+  if (value is Map<String, dynamic> &&
+      value.containsKey('__type') &&
+      value.containsKey('value') &&
+      value['value'] is List) {
+    return {
+      ...value,
+      'value': ([...value['value'] as List]
+        ..sort((a, b) => '$a'.compareTo('$b'))),
+    };
+  }
+
+  return value;
 }
 
 /// Asserts M7A fields on a [MontyPending] against fixture expectations.

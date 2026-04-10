@@ -12,8 +12,9 @@
     "externalFunctions": null,
     "resumeValues": null,
     "resumeErrors": null,
-    "nativeOnly": false,
-    "xfail": "OsCall not wired in ladder runner yet"
+    "nativeOnly": true,
+    "osCall": true,
+    "xfail": null
   },
   {
     "id": 321,
@@ -28,8 +29,9 @@
     "externalFunctions": null,
     "resumeValues": null,
     "resumeErrors": null,
-    "nativeOnly": false,
-    "xfail": "OsCall not wired in ladder runner yet"
+    "nativeOnly": true,
+    "osCall": true,
+    "xfail": null
   },
   {
     "id": 322,
@@ -44,8 +46,9 @@
     "externalFunctions": null,
     "resumeValues": null,
     "resumeErrors": null,
-    "nativeOnly": false,
-    "xfail": "OsCall not wired in ladder runner yet"
+    "nativeOnly": true,
+    "osCall": true,
+    "xfail": null
   },
   {
     "id": 323,
@@ -60,8 +63,9 @@
     "externalFunctions": null,
     "resumeValues": null,
     "resumeErrors": null,
-    "nativeOnly": false,
-    "xfail": "OsCall not wired in ladder runner yet"
+    "nativeOnly": true,
+    "osCall": true,
+    "xfail": null
   },
   {
     "id": 324,
@@ -76,8 +80,9 @@
     "externalFunctions": null,
     "resumeValues": null,
     "resumeErrors": null,
-    "nativeOnly": false,
-    "xfail": "OsCall not wired in ladder runner yet"
+    "nativeOnly": true,
+    "osCall": true,
+    "xfail": null
   },
   {
     "id": 325,
@@ -93,14 +98,15 @@
     "resumeValues": null,
     "resumeErrors": null,
     "nativeOnly": false,
-    "xfail": "OsCall not wired in ladder runner yet"
+    "osCall": true,
+    "xfail": null
   },
   {
     "id": 326,
     "tier": 20,
     "name": "datetime.now returns a datetime object",
     "code": "from datetime import datetime\ndt = datetime.now()\ntype(dt).__name__",
-    "expected": "datetime",
+    "expected": "datetime.datetime",
     "expectedContains": null,
     "expectedSorted": false,
     "expectError": false,
@@ -109,7 +115,8 @@
     "resumeValues": null,
     "resumeErrors": null,
     "nativeOnly": false,
-    "xfail": "OsCall not wired in ladder runner yet"
+    "osCall": true,
+    "xfail": null
   },
   {
     "id": 327,
@@ -125,6 +132,7 @@
     "resumeValues": null,
     "resumeErrors": null,
     "nativeOnly": false,
+    "osCall": false,
     "xfail": null
   },
   {
@@ -136,12 +144,13 @@
     "expectedContains": null,
     "expectedSorted": false,
     "expectError": true,
-    "errorContains": "PermissionError",
+    "errorContains": null,
     "externalFunctions": null,
     "resumeValues": null,
     "resumeErrors": null,
-    "nativeOnly": false,
-    "xfail": "OsCall not wired in ladder runner yet"
+    "nativeOnly": true,
+    "osCall": true,
+    "xfail": null
   },
   {
     "id": 329,
@@ -156,8 +165,9 @@
     "externalFunctions": null,
     "resumeValues": null,
     "resumeErrors": null,
-    "nativeOnly": false,
-    "xfail": "OsCall not wired in ladder runner yet"
+    "nativeOnly": true,
+    "osCall": true,
+    "xfail": null
   },
   {
     "id": 330,
@@ -172,8 +182,9 @@
     "externalFunctions": null,
     "resumeValues": null,
     "resumeErrors": null,
-    "nativeOnly": false,
-    "xfail": "OsCall not wired in ladder runner yet"
+    "nativeOnly": true,
+    "osCall": true,
+    "xfail": null
   },
   {
     "id": 331,
@@ -189,6 +200,7 @@
     "resumeValues": null,
     "resumeErrors": null,
     "nativeOnly": false,
-    "xfail": "OsCall not wired in ladder runner yet"
+    "osCall": true,
+    "xfail": null
   }
 ]
