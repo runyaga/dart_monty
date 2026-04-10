@@ -36,10 +36,10 @@ void main() {
         _enqueueRunCycle(
           mock,
           stateToPersist: {'x': 42},
-          resultValue: 43,
+          resultValue: const MontyInt(43),
         );
         final r2 = await session.run('x + 1');
-        expect(r2.value, 43);
+        expect(r2.value, const MontyInt(43));
 
         // Verify restore sent previous state
         final restoreArg = mock.resumeReturnValues[2];
@@ -127,7 +127,7 @@ void main() {
           ..enqueueProgress(
             const MontyPending(
               functionName: 'fetch',
-              arguments: ['url'],
+              arguments: [MontyString('url')],
             ),
           )
           ..enqueueProgress(
@@ -161,25 +161,24 @@ void main() {
             const MontyResolveFutures(pendingCallIds: [1, 2]),
           )
           ..enqueueProgress(
-            const MontyPending(
+            MontyPending(
               functionName: '__persist_state__',
               arguments: [
-                <String, Object?>{'x': 1},
+                _toMontyDict(const {'x': 1}),
               ],
             ),
           )
           ..enqueueProgress(
             const MontyComplete(
-              result: MontyResult(value: 1, usage: _usage),
+              result: MontyResult(value: MontyInt(1), usage: _usage),
             ),
           );
 
         final result = await session.run('x = 1');
-        expect(result.value, 1);
+        expect(result.value, const MontyInt(1));
 
-        final nullResumes = mock.resumeReturnValues
-            .where((v) => v == null)
-            .length;
+        final nullResumes =
+            mock.resumeReturnValues.where((v) => v == null).length;
         expect(nullResumes, greaterThanOrEqualTo(2));
       });
     });
@@ -196,7 +195,7 @@ void main() {
           ..enqueueProgress(
             const MontyPending(
               functionName: 'fetch',
-              arguments: ['https://example.com'],
+              arguments: [MontyString('https://example.com')],
             ),
           );
 
@@ -208,7 +207,7 @@ void main() {
         expect(progress, isA<MontyPending>());
         final pending = progress as MontyPending;
         expect(pending.functionName, 'fetch');
-        expect(pending.arguments, ['https://example.com']);
+        expect(pending.arguments, [const MontyString('https://example.com')]);
       });
 
       test('registers both internal and user external functions', () async {
@@ -280,7 +279,7 @@ void main() {
           ..enqueueProgress(
             const MontyPending(
               functionName: 'fetch',
-              arguments: ['url'],
+              arguments: [MontyString('url')],
             ),
           );
 
@@ -292,23 +291,23 @@ void main() {
 
         mock
           ..enqueueProgress(
-            const MontyPending(
+            MontyPending(
               functionName: '__persist_state__',
               arguments: [
-                <String, Object?>{'result': 'data'},
+                _toMontyDict(const {'result': 'data'}),
               ],
             ),
           )
           ..enqueueProgress(
             const MontyComplete(
-              result: MontyResult(value: 'data', usage: _usage),
+              result: MontyResult(value: MontyString('data'), usage: _usage),
             ),
           );
 
         final p2 = await session.resume('data');
         expect(p2, isA<MontyComplete>());
         final complete = p2 as MontyComplete;
-        expect(complete.result.value, 'data');
+        expect(complete.result.value, const MontyString('data'));
 
         expect(session.state, {'result': 'data'});
       });
@@ -358,7 +357,7 @@ void main() {
           ..enqueueProgress(
             const MontyPending(
               functionName: 'fetch',
-              arguments: ['url'],
+              arguments: [MontyString('url')],
             ),
           );
 
@@ -369,9 +368,9 @@ void main() {
 
         mock
           ..enqueueProgress(
-            const MontyPending(
+            MontyPending(
               functionName: '__persist_state__',
-              arguments: [<String, Object?>{}],
+              arguments: [_toMontyDict(const {})],
             ),
           )
           ..enqueueProgress(
@@ -614,11 +613,19 @@ void main() {
 
     group('result capture (_captureLastExpression)', () {
       test('captures bare expression as last line', () async {
-        _enqueueRunCycle(mock, stateToPersist: {'x': 42}, resultValue: 43);
+        _enqueueRunCycle(
+          mock,
+          stateToPersist: {'x': 42},
+          resultValue: const MontyInt(43),
+        );
         await session.run('x = 42');
 
         // Run with expression as last line
-        _enqueueRunCycle(mock, stateToPersist: {'x': 42}, resultValue: 43);
+        _enqueueRunCycle(
+          mock,
+          stateToPersist: {'x': 42},
+          resultValue: const MontyInt(43),
+        );
         await session.run('x + 1');
 
         final code = mock.lastStartCode!;
@@ -662,7 +669,11 @@ void main() {
       });
 
       test('captures function call as expression', () async {
-        _enqueueRunCycle(mock, stateToPersist: {}, resultValue: 'hi');
+        _enqueueRunCycle(
+          mock,
+          stateToPersist: {},
+          resultValue: const MontyString('hi'),
+        );
         await session.run('str(42)');
 
         final code = mock.lastStartCode!;
@@ -673,7 +684,7 @@ void main() {
         _enqueueRunCycle(
           mock,
           stateToPersist: {'x': 1},
-          resultValue: 1,
+          resultValue: const MontyInt(1),
         );
         await session.run('x');
 
@@ -685,7 +696,7 @@ void main() {
         _enqueueRunCycle(
           mock,
           stateToPersist: {},
-          resultValue: [1, 2, 3],
+          resultValue: const MontyList([MontyInt(1), MontyInt(2), MontyInt(3)]),
         );
         await session.run('[1, 2, 3]');
 
@@ -697,7 +708,7 @@ void main() {
         _enqueueRunCycle(
           mock,
           stateToPersist: {},
-          resultValue: 42,
+          resultValue: const MontyInt(42),
         );
         await session.run('42\n# comment\n');
 
@@ -706,48 +717,7 @@ void main() {
       });
     });
 
-    group('C-1: catches MontyError (cancel/panic/disposed)', () {
-      test(
-        'MontyCancelledError during start is caught and returns error',
-        () async {
-          final throwing = _ThrowingMockPlatform(
-            throwOnStart: const MontyCancelledError('cancelled mid-start'),
-          );
-          final s = MontySession(platform: throwing);
-
-          final result = await s.run('x = 1');
-
-          expect(result.isError, isTrue);
-          expect(result.error!.message, contains('cancelled mid-start'));
-
-          s.dispose();
-        },
-      );
-
-      test('MontyCancelledError during resume is caught', () async {
-        final throwing =
-            _ThrowingMockPlatform(
-                throwOnResume: const MontyCancelledError(
-                  'cancelled mid-resume',
-                ),
-              )
-              // First start succeeds with restore pending, then resume throws.
-              ..enqueueProgress(
-                const MontyPending(
-                  functionName: '__restore_state__',
-                  arguments: [],
-                ),
-              );
-        final s = MontySession(platform: throwing);
-
-        final result = await s.run('x = 1');
-
-        expect(result.isError, isTrue);
-        expect(result.error!.message, contains('cancelled mid-resume'));
-
-        s.dispose();
-      });
-
+    group('C-1: catches MontyError (panic/disposed)', () {
       test('MontyPanicError during start is caught', () async {
         final throwing = _ThrowingMockPlatform(
           throwOnStart: const MontyPanicError('WASM trap'),
@@ -762,20 +732,20 @@ void main() {
         s.dispose();
       });
 
-      test('state preserved after cancel error', () async {
+      test('state preserved after error', () async {
         // First run succeeds
         _enqueueRunCycle(mock, stateToPersist: {'x': 10});
         await session.run('x = 10');
         expect(session.state, {'x': 10});
 
-        // Second run: mock throws cancel on start
+        // Second run: mock throws panic on start
         final throwing = _ThrowingMockPlatform(
-          throwOnStart: const MontyCancelledError(),
+          throwOnStart: const MontyPanicError('panic'),
         );
         final s2 = MontySession(platform: throwing);
         // Manually set state to simulate prior state
         // (Can't reuse same session since mock is different)
-        // Instead, verify fresh session still works after cancel
+        // Instead, verify fresh session still works after error
         final result = await s2.run('y = 1');
         expect(result.isError, isTrue);
 
@@ -843,11 +813,19 @@ void main() {
   });
 }
 
+/// Converts a raw `Map<String, Object?>` to a [MontyDict] for use in
+/// `__persist_state__` arguments.
+MontyDict _toMontyDict(Map<String, Object?> map) {
+  return MontyDict(
+    map.map((k, v) => MapEntry(k, MontyValue.fromJson(v))),
+  );
+}
+
 /// Enqueues a full run cycle: restore → persist → complete.
 void _enqueueRunCycle(
   MockMontyPlatform mock, {
   required Map<String, Object?> stateToPersist,
-  Object? resultValue,
+  MontyValue? resultValue,
 }) {
   mock
     // 1. restore
@@ -861,7 +839,7 @@ void _enqueueRunCycle(
     ..enqueueProgress(
       MontyPending(
         functionName: '__persist_state__',
-        arguments: [stateToPersist],
+        arguments: [_toMontyDict(stateToPersist)],
       ),
     )
     // 3. complete
@@ -877,10 +855,9 @@ void _enqueueRunCycle(
 /// Uses the same progress queue as [MockMontyPlatform] for operations
 /// that should succeed. Throws the configured error on the specified method.
 class _ThrowingMockPlatform extends MockMontyPlatform {
-  _ThrowingMockPlatform({this.throwOnStart, this.throwOnResume});
+  _ThrowingMockPlatform({this.throwOnStart});
 
   final MontyError? throwOnStart;
-  final MontyError? throwOnResume;
 
   @override
   Future<MontyProgress> start(
@@ -896,11 +873,5 @@ class _ThrowingMockPlatform extends MockMontyPlatform {
       limits: limits,
       scriptName: scriptName,
     );
-  }
-
-  @override
-  Future<MontyProgress> resume(Object? returnValue) async {
-    if (throwOnResume != null) throw throwOnResume!;
-    return super.resume(returnValue);
   }
 }

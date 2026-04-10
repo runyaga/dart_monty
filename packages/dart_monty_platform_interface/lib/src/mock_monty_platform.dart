@@ -247,20 +247,6 @@ class MockMontyPlatform extends MontyPlatform
     return platform;
   }
 
-  /// Whether [cancel] has been called.
-  bool cancelCalled = false;
-
-  /// The handle ID returned by [handleId].
-  int? mockHandleId;
-
-  @override
-  Future<void> cancel() async {
-    cancelCalled = true;
-  }
-
-  @override
-  int? get handleId => mockHandleId;
-
   @override
   Future<void> dispose() async {
     isDisposed = true;

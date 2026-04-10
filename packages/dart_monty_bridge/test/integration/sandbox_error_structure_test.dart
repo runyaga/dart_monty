@@ -96,45 +96,5 @@ void main() {
         bridge.dispose();
       },
     );
-
-    test(
-      'cancelled child throws ChildSandboxException without exception field',
-      () async {
-        final bridge = createBridge();
-        final registry = PluginRegistry()
-          ..register(
-            SandboxPlugin(platformFactory: () async => createPlatform()),
-          );
-        await registry.attachTo(bridge);
-
-        final plugin = registry.plugins.whereType<SandboxPlugin>().first;
-        final spawnHandler = plugin.functions
-            .firstWhere((f) => f.schema.name == 'sandbox_spawn')
-            .handler;
-        final cancelHandler = plugin.functions
-            .firstWhere((f) => f.schema.name == 'sandbox_cancel')
-            .handler;
-        final awaitHandler = plugin.functions
-            .firstWhere((f) => f.schema.name == 'sandbox_await')
-            .handler;
-
-        // Spawn a long-running child.
-        final handle = (await spawnHandler({
-          'code': 'x = 0\nwhile x < 999999999:\n    x = x + 1\nx',
-        }))! as int;
-
-        await cancelHandler({'handle': handle});
-
-        try {
-          await awaitHandler({'handle': handle});
-          fail('Expected ChildSandboxException');
-        } on ChildSandboxException catch (e) {
-          expect(e.message, 'cancelled');
-          expect(e.exception, isNull);
-        }
-
-        bridge.dispose();
-      },
-    );
   });
 }

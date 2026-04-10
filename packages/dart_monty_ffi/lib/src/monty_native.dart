@@ -25,8 +25,8 @@ class MontyNative extends MontyPlatform
   ///
   /// Defaults to [NativeIsolateBindingsImpl] when omitted.
   MontyNative({NativeIsolateBindings? bindings})
-    : _bindings = bindings ??
-            NativeIsolateBindingsImpl(); // coverage:ignore-line
+    : _bindings =
+          bindings ?? NativeIsolateBindingsImpl(); // coverage:ignore-line
 
   final NativeIsolateBindings _bindings;
   bool _initialized = false;
@@ -198,6 +198,7 @@ class MontyNative extends MontyPlatform
         return progress;
 
       case MontyPending():
+      case MontyOsCall():
       case MontyResolveFutures():
         markActive();
 

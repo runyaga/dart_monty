@@ -69,11 +69,5 @@ class Monty implements MontyPlatform {
       _platform.resumeWithError(errorMessage);
 
   @override
-  Future<void> cancel() => _platform.cancel();
-
-  @override
   Future<void> dispose() => _platform.dispose();
-
-  @override
-  int? get handleId => _platform.handleId;
 }

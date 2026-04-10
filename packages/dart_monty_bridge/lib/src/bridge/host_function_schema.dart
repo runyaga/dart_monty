@@ -74,7 +74,7 @@ class HostFunctionSchema {
 
     // Positional args → named params by schema order
     for (var i = 0; i < params.length && i < pending.arguments.length; i++) {
-      raw[params[i].name] = pending.arguments[i];
+      raw[params[i].name] = pending.arguments[i].dartValue;
     }
 
     // Kwargs overlay — reject unknown keys.
@@ -87,7 +87,7 @@ class HostFunctionSchema {
         }
       }
       for (final entry in kwargs.entries) {
-        raw[entry.key] = entry.value;
+        raw[entry.key] = entry.value.dartValue;
       }
     }
 

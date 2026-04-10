@@ -109,6 +109,12 @@ class McpMontySession {
         case MontyResolveFutures():
           // No async dispatch yet — resume with null.
           progress = await _session.resume(null);
+
+        case MontyOsCall():
+          // OS calls not supported in MCP sessions — resume with error.
+          progress = await _session.resumeWithError(
+            'OS calls are not supported in MCP sessions',
+          );
       }
     }
   }

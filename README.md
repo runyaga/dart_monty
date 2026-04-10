@@ -21,7 +21,6 @@
 > | Patch | Fork PR | Upstream PR | Status | Why needed |
 > |-------|---------|-------------|--------|------------|
 > | Fix partial future resolution panics in mixed `asyncio.gather()` | — | [pydantic/monty#251](https://github.com/pydantic/monty/pull/251) | Submitted, awaiting review | Two panics in `async_exec.rs` when a gather mixes coroutine tasks with direct external calls — blocks any async host function use |
-> | CancellableTracker (preemptive script cancellation) | [runyaga/monty#3](https://github.com/runyaga/monty/pull/3) | Not yet submitted | Merged in fork | Cooperative cancel via `Arc<AtomicBool>` checked in bytecode loop — required for `dispose()` to not hang on stuck FFI calls |
 > | `cpu: wasm32` restriction in `monty-wasm32-wasi` npm package | — | [runyaga/monty#4](https://github.com/runyaga/monty/issues/4) | Open issue | npm refuses install on non-wasm hosts, blocking CI and local dev |
 
 ## Platform Support
@@ -122,7 +121,7 @@ Cross-Origin-Embedder-Policy: require-corp
 ```
 
 Each WASM session uses ~16 MB of memory. `Worker.terminate()` provides
-preemptive cancellation — no stuck scripts.
+time limits prevent stuck scripts.
 
 ## Usage
 
@@ -281,8 +280,6 @@ try {
       for (final frame in exception.traceback) {
         print('  ${frame.filename}:${frame.lineNumber} in ${frame.name}');
       }
-    case MontyCancelledError():
-      print('Execution was cancelled');
     case MontyResourceError(:final exception):
       print('Resource limit exceeded: ${exception.message}');
     case MontyPanicError(:final message):
@@ -293,15 +290,6 @@ try {
       print('Interpreter was disposed');
   }
 }
-```
-
-### Cancellation
-
-Cancel a running interpreter from any isolate using `MontyCancelToken`:
-
-```dart
-final token = MontyCancelToken(handleId);
-token.cancel(); // sets atomic flag in bytecode loop
 ```
 
 ### Stateful Sessions
@@ -339,8 +327,7 @@ The table below shows current coverage and what's planned.
 | **Snapshot / restore** (`MontyRun::dump/load`) | Covered | Compile-once, run-many pattern |
 | **Exception model** (excType, traceback, stack frames) | Covered | Full `MontyException` with `StackFrame` list |
 | **Call metadata** (kwargs, callId, methodCall, scriptName) | Covered | Structured external call context |
-| **Cancellation** (cooperative abort via atomic flag) | Covered | `MontyCancelToken`, `cancel()`, `terminate()` with zombie tracking |
-| **Error hierarchy** (sealed `MontyError` with 6 subtypes) | Covered | Script, Cancel, Panic, Crash, Disposed, Resource |
+| **Error hierarchy** (sealed `MontyError` with 5 subtypes) | Covered | Script, Panic, Crash, Disposed, Resource |
 | **Multi-session** (WASM Worker pool) | Covered | `createSession`/`disposeSession`, 16 MB per session |
 | **Async / futures** (`asyncio.gather`, concurrent calls) | Covered | `resumeAsFuture()`, `resolveFutures()` on both FFI and WASM |
 | **Standard library modules** (`math`, `re`, `json`, `datetime`) | Partial | Only `math`, `re`, `json`, `datetime` — other stdlib modules are not available |

@@ -112,18 +112,6 @@ abstract class MontyPlatform extends PlatformInterface {
     throw UnimplementedError('resumeWithError() has not been implemented.');
   }
 
-  /// Cancels the current execution. Idempotent — safe to call multiple times.
-  ///
-  /// No-op after [dispose].
-  Future<void> cancel() {
-    throw UnimplementedError('cancel() has not been implemented.');
-  }
-
-  /// The monotonic handle ID for cross-isolate cancel.
-  ///
-  /// Returns `null` before the first [run]/[start] or after [dispose].
-  int? get handleId => null;
-
   /// Releases resources held by this interpreter instance.
   Future<void> dispose() {
     throw UnimplementedError('dispose() has not been implemented.');

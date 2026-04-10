@@ -291,7 +291,7 @@ void main() {
           const MontyPending(
             functionName: 'fn',
             arguments: [],
-            kwargs: {'__role__': 'infra'},
+            kwargs: {'__role__': MontyString('infra')},
           ),
         )
         ..enqueueProgress(
@@ -321,7 +321,7 @@ void main() {
           const MontyPending(
             functionName: 'fn',
             arguments: [],
-            kwargs: {'__role__': 'infra'},
+            kwargs: {'__role__': MontyString('infra')},
           ),
         )
         ..enqueueProgress(
@@ -379,7 +379,7 @@ void main() {
           const MontyPending(
             functionName: 'fn',
             arguments: [],
-            kwargs: {'x': 42, '__role__': 'infra'},
+            kwargs: {'x': MontyInt(42), '__role__': MontyString('infra')},
           ),
         )
         ..enqueueProgress(
@@ -412,7 +412,7 @@ void main() {
           const MontyPending(
             functionName: 'fn',
             arguments: [],
-            kwargs: {'x': 42, '__role__': 'infra'},
+            kwargs: {'x': MontyInt(42), '__role__': MontyString('infra')},
           ),
         )
         ..enqueueProgress(
@@ -555,7 +555,7 @@ void main() {
           const MontyPending(
             functionName: 'fn',
             arguments: [],
-            kwargs: {'__role__': 'unknown_value'},
+            kwargs: {'__role__': MontyString('unknown_value')},
           ),
         )
         ..enqueueProgress(
@@ -564,6 +564,122 @@ void main() {
 
       await bridge.execute('fn()').toList();
       expect(captured, isA<ToolCall>());
+    });
+  });
+
+  group('MontyOsCall handling', () {
+    test('resumes with PermissionError when no handler registered', () async {
+      mock
+        ..enqueueProgress(
+          const MontyOsCall(
+            operationName: 'Path.read_text',
+            arguments: [MontyString('/etc/passwd')],
+            callId: 1,
+          ),
+        )
+        ..enqueueProgress(
+          const MontyComplete(result: MontyResult(usage: _usage)),
+        );
+
+      final events = await bridge.execute('path.read_text()').toList();
+
+      // Should have completed (not deadlocked).
+      expect(events.whereType<BridgeRunFinished>(), hasLength(1));
+
+      // Should have called resumeWithError with PermissionError.
+      expect(mock.resumeErrorMessages, hasLength(1));
+      expect(
+        mock.resumeErrorMessages.first,
+        contains('PermissionError'),
+      );
+      expect(
+        mock.resumeErrorMessages.first,
+        contains('Path.read_text'),
+      );
+
+      // Should have emitted OsCall events.
+      final starts = events.whereType<BridgeOsCallStart>().toList();
+      expect(starts, hasLength(1));
+      expect(starts.first.operationName, 'Path.read_text');
+      final results = events.whereType<BridgeOsCallResult>().toList();
+      expect(results, hasLength(1));
+      expect(results.first.result, contains('PermissionError'));
+    });
+
+    test('invokes registered handler and resumes with result', () async {
+      bridge.registerOsCallHandler((call) async {
+        if (call.operationName == 'os.getenv') {
+          return 'production';
+        }
+        return null;
+      });
+
+      mock
+        ..enqueueProgress(
+          const MontyOsCall(
+            operationName: 'os.getenv',
+            arguments: [MontyString('APP_ENV')],
+            callId: 1,
+          ),
+        )
+        ..enqueueProgress(
+          const MontyComplete(result: MontyResult(usage: _usage)),
+        );
+
+      final events = await bridge.execute('os.getenv("APP_ENV")').toList();
+
+      expect(events.whereType<BridgeRunFinished>(), hasLength(1));
+
+      // Should have called resume with the handler result.
+      expect(mock.resumeReturnValues, hasLength(1));
+      expect(mock.resumeReturnValues.first, 'production');
+
+      // Should have emitted OsCall events.
+      final starts = events.whereType<BridgeOsCallStart>().toList();
+      expect(starts, hasLength(1));
+      expect(starts.first.operationName, 'os.getenv');
+      final results = events.whereType<BridgeOsCallResult>().toList();
+      expect(results, hasLength(1));
+      expect(results.first.result, 'production');
+    });
+
+    test('handler exception resumes with error', () async {
+      bridge.registerOsCallHandler((call) async {
+        throw StateError('disk on fire');
+      });
+
+      mock
+        ..enqueueProgress(
+          const MontyOsCall(
+            operationName: 'Path.write_text',
+            arguments: [MontyString('/tmp/out'), MontyString('data')],
+            callId: 1,
+          ),
+        )
+        ..enqueueProgress(
+          const MontyComplete(result: MontyResult(usage: _usage)),
+        );
+
+      final events = await bridge.execute('path.write_text()').toList();
+
+      expect(events.whereType<BridgeRunFinished>(), hasLength(1));
+
+      // Should have called resumeWithError.
+      expect(mock.resumeErrorMessages, hasLength(1));
+      expect(mock.resumeErrorMessages.first, contains('disk on fire'));
+
+      // OsCallResult should contain the error.
+      final results = events.whereType<BridgeOsCallResult>().toList();
+      expect(results, hasLength(1));
+      expect(results.first.result, contains('disk on fire'));
+    });
+
+    test('registerOsCallHandler after dispose throws StateError', () {
+      bridge.dispose();
+      expect(
+        () => bridge.registerOsCallHandler((_) async => null),
+        throwsStateError,
+      );
     });
   });
 
@@ -676,47 +792,6 @@ void main() {
       expect(() => bridge.invokeHostFunction('fn', {}), throwsStateError);
     });
   });
-
-  // ===========================================================================
-  // E-2: dispose cancels in-flight execution
-  // ===========================================================================
-  group('E-2: dispose cancels in-flight execution', () {
-    test('dispose calls platform.cancel() when executing', () async {
-      bridge.register(
-        HostFunction(
-          schema: const HostFunctionSchema(name: 'slow', description: ''),
-          handler: (_) async => 42,
-        ),
-      );
-
-      // Enqueue a pending that will pause execution
-      mock
-        ..enqueueProgress(
-          const MontyPending(functionName: 'slow', arguments: []),
-        )
-        // Enqueue a complete for after resume
-        ..enqueueProgress(
-          const MontyComplete(result: MontyResult(usage: _usage)),
-        );
-
-      // Start execution — _run is now in flight waiting for host function
-      final stream = bridge.execute('slow()');
-      // Consume just the first event (BridgeRunStarted)
-      await stream.first;
-
-      // Dispose while execution is in-flight
-      bridge.dispose();
-
-      // Platform.cancel() should have been called
-      expect(mock.cancelCalled, isTrue);
-    });
-
-    test('dispose without execution does not call cancel', () {
-      bridge.dispose();
-
-      expect(mock.cancelCalled, isFalse);
-    });
-  });
 }
 
 // ---------------------------------------------------------------------------
@@ -771,7 +846,8 @@ class _BlockingMiddleware extends BridgeMiddleware {
     Map<String, Object?> args,
     CallRole role,
     ToolHandler next,
-  ) async => returnValue;
+  ) async =>
+      returnValue;
 }
 
 class _ThrowingMiddleware extends BridgeMiddleware {
@@ -781,14 +857,15 @@ class _ThrowingMiddleware extends BridgeMiddleware {
     Map<String, Object?> args,
     CallRole role,
     ToolHandler next,
-  ) => throw StateError('Access denied');
+  ) =>
+      throw StateError('Access denied');
 }
 
 class _CapturingMiddleware extends BridgeMiddleware {
   _CapturingMiddleware({required this.onCall});
 
   final void Function(String name, Map<String, Object?> args, CallRole role)
-  onCall;
+      onCall;
 
   @override
   Future<Object?> handle(
@@ -816,7 +893,8 @@ class _ThrowingMontyPlatform extends MontyPlatform {
     String code, {
     MontyLimits? limits,
     String? scriptName,
-  }) async => throw UnimplementedError();
+  }) async =>
+      throw UnimplementedError();
 
   @override
   Future<MontyProgress> start(
@@ -824,7 +902,8 @@ class _ThrowingMontyPlatform extends MontyPlatform {
     List<String>? externalFunctions,
     MontyLimits? limits,
     String? scriptName,
-  }) async => throw _exception;
+  }) async =>
+      throw _exception;
 
   @override
   Future<MontyProgress> resume(Object? returnValue) async =>
@@ -833,12 +912,6 @@ class _ThrowingMontyPlatform extends MontyPlatform {
   @override
   Future<MontyProgress> resumeWithError(String errorMessage) async =>
       throw UnimplementedError();
-
-  @override
-  Future<void> cancel() async {}
-
-  @override
-  int? get handleId => null;
 
   @override
   Future<void> dispose() async {}

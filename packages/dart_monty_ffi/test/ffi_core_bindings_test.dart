@@ -326,21 +326,23 @@ void main() {
       expect(result.pendingCallIds, [1, 2, 3]);
     });
 
-    test('resolve_futures with null futureCallIdsJson throws StateError',
-        () async {
-      mock.nextStartResult = const ProgressResult(tag: 3);
+    test(
+      'resolve_futures with null futureCallIdsJson throws StateError',
+      () async {
+        mock.nextStartResult = const ProgressResult(tag: 3);
 
-      await expectLater(
-        () => bindings.start('code'),
-        throwsA(
-          isA<StateError>().having(
-            (e) => e.message,
-            'message',
-            contains('Future call IDs JSON is null'),
+        await expectLater(
+          () => bindings.start('code'),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              contains('Future call IDs JSON is null'),
+            ),
           ),
-        ),
-      );
-    });
+        );
+      },
+    );
 
     test('unknown tag throws StateError', () async {
       mock.nextStartResult = const ProgressResult(tag: 99);
@@ -561,6 +563,28 @@ void main() {
       mock.nextSnapshotData = Uint8List.fromList([4, 5, 6]);
       final snapshot = await bindings.snapshot();
       expect(snapshot, Uint8List.fromList([4, 5, 6]));
+    });
+
+    test('frees prior handle when restoring over active state', () async {
+      // First: create a handle via start() so _handle is non-null.
+      mock.nextStartResult = const ProgressResult(
+        tag: 1,
+        functionName: 'fn',
+        argumentsJson: '[]',
+      );
+      await bindings.start('code', extFnsJson: '["fn"]');
+      expect(mock.freeCalls, isEmpty, reason: 'no free yet');
+
+      // Now restore over it — the old handle (42) should be freed.
+      mock.nextRestoreHandle = 77;
+      await bindings.restoreSnapshot(Uint8List.fromList([1, 2, 3]));
+
+      expect(
+        mock.freeCalls,
+        hasLength(1),
+        reason: 'prior handle should be freed on restoreSnapshot',
+      );
+      expect(mock.freeCalls.first, 42, reason: 'freed handle is the old one');
     });
   });
 

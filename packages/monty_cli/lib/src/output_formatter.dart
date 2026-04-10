@@ -17,7 +17,7 @@ abstract final class OutputFormatter {
       final error = result.error!;
       buffer.write('Error: ${error.message}');
     } else if (result.value != null) {
-      buffer.write(result.value);
+      buffer.write(result.value!.dartValue);
     }
 
     return buffer.toString();

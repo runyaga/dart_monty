@@ -1,14 +1,9 @@
-use std::collections::HashMap;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::{Arc, LazyLock, RwLock, Weak};
+use std::collections::HashSet;
 use std::time::Duration;
 
-use std::collections::HashSet;
-
 use monty::{
-    CancellableTracker, ExtFunctionResult, FunctionCall, LimitedTracker, MontyException,
-    MontyObject, MontyRun, NameLookupResult, NoLimitTracker, PrintWriter, ResolveFutures,
-    ResourceLimits, RunProgress,
+    ExtFunctionResult, FunctionCall, LimitedTracker, MontyException, MontyObject, MontyRun,
+    NameLookupResult, OsCall, PrintWriter, ResolveFutures, ResourceLimits, RunProgress,
 };
 use serde_json::Value;
 
@@ -16,56 +11,21 @@ use crate::convert::{json_to_monty_object, monty_object_to_json};
 use crate::error::monty_exception_to_json;
 
 // ---------------------------------------------------------------------------
-// Cancel Registry — global, thread-safe, UAF-immune
+// Single tracker type — always LimitedTracker with generous defaults
 // ---------------------------------------------------------------------------
 
-/// Global registry mapping monotonic handle IDs to weak cancel flags.
-/// Uses `Weak<AtomicBool>` so entries become dead when the handle drops.
-static CANCEL_REGISTRY: LazyLock<RwLock<HashMap<u64, Weak<AtomicBool>>>> =
-    LazyLock::new(|| RwLock::new(HashMap::new()));
+/// The concrete tracker type used for all execution. No variant doubling.
+type Tracker = LimitedTracker;
 
-/// Global registry mapping handle IDs to raw pointers (as `usize` for Send+Sync).
-/// Used by `free_by_id` to free a handle when the owning isolate is dead.
-/// Entries are added by `register_handle_ptr` (called from `monty_create`)
-/// and removed by `MontyHandle::Drop` or `free_by_id`.
-static HANDLE_REGISTRY: LazyLock<RwLock<HashMap<u64, usize>>> =
-    LazyLock::new(|| RwLock::new(HashMap::new()));
-
-/// Monotonic handle ID counter. Eliminates ABA problem from address reuse.
-static NEXT_HANDLE_ID: AtomicU64 = AtomicU64::new(1);
-
-/// Type aliases for CancellableTracker-wrapped tracker types.
-type CLimited = CancellableTracker<LimitedTracker>;
-type CUnlimited = CancellableTracker<NoLimitTracker>;
-
-/// Maps a `ResourceTracker` type to its `HandleState` variants.
-trait TrackerExt: monty::ResourceTracker + Sized {
-    fn into_paused(call: FunctionCall<Self>, meta: PendingMeta) -> HandleState;
-    fn into_futures(futures: ResolveFutures<Self>, call_ids_json: String) -> HandleState;
-}
-
-impl TrackerExt for CLimited {
-    fn into_paused(call: FunctionCall<Self>, meta: PendingMeta) -> HandleState {
-        HandleState::PausedLimited { call, meta }
-    }
-    fn into_futures(futures: ResolveFutures<Self>, call_ids_json: String) -> HandleState {
-        HandleState::FuturesLimited {
-            futures,
-            call_ids_json,
-        }
-    }
-}
-
-impl TrackerExt for CUnlimited {
-    fn into_paused(call: FunctionCall<Self>, meta: PendingMeta) -> HandleState {
-        HandleState::PausedNoLimit { call, meta }
-    }
-    fn into_futures(futures: ResolveFutures<Self>, call_ids_json: String) -> HandleState {
-        HandleState::FuturesNoLimit {
-            futures,
-            call_ids_json,
-        }
-    }
+/// Default resource limits when none are explicitly configured.
+/// Generous enough to not interfere with normal execution, but bounded
+/// to prevent runaway scripts.
+fn default_limits() -> ResourceLimits {
+    let mut limits = ResourceLimits::new();
+    limits.max_duration = Some(Duration::from_secs(30));
+    limits.max_memory = Some(256 * 1024 * 1024); // 256 MB
+    limits.max_recursion_depth = Some(1000);
+    limits
 }
 
 /// Result tag for `monty_run` — matches `MontyResultTag` in the C header.
@@ -85,6 +45,7 @@ pub enum MontyProgressTag {
     Pending = 1,
     Error = 2,
     ResolveFutures = 3,
+    OsCall = 4,
 }
 
 /// Metadata captured when paused at a `FunctionCall`.
@@ -96,23 +57,29 @@ struct PendingMeta {
     method_call: bool,
 }
 
+/// Metadata captured when paused at an `OsCall`.
+struct OsCallMeta {
+    os_fn_name: String,
+    args_json: String,
+    kwargs_json: String,
+    call_id: u32,
+}
+
 /// Internal state of a running handle.
+///
+/// Single tracker type (`LimitedTracker`) — no variant doubling.
 enum HandleState {
     Ready(MontyRun),
-    PausedLimited {
-        call: FunctionCall<CLimited>,
+    Paused {
+        call: FunctionCall<Tracker>,
         meta: PendingMeta,
     },
-    PausedNoLimit {
-        call: FunctionCall<CUnlimited>,
-        meta: PendingMeta,
+    OsCall {
+        call: OsCall<Tracker>,
+        meta: OsCallMeta,
     },
-    FuturesLimited {
-        futures: ResolveFutures<CLimited>,
-        call_ids_json: String,
-    },
-    FuturesNoLimit {
-        futures: ResolveFutures<CUnlimited>,
+    Futures {
+        futures: ResolveFutures<Tracker>,
         call_ids_json: String,
     },
     Complete {
@@ -129,11 +96,6 @@ pub struct MontyHandle {
     ext_fn_names: HashSet<String>,
     usage_json: String,
     print_output: String,
-    /// Shared cancel flag — set to `true` to request cancellation.
-    /// Cloned into every `CancellableTracker` created for this handle.
-    cancel_flag: Arc<AtomicBool>,
-    /// Monotonic ID for cross-isolate cancel registry lookup.
-    handle_id: u64,
 }
 
 impl MontyHandle {
@@ -148,13 +110,6 @@ impl MontyHandle {
     ) -> Result<Self, MontyException> {
         let name = script_name.unwrap_or_else(|| "<input>".into());
         let compiled = MontyRun::new(code, &name, vec![])?;
-        let cancel_flag = Arc::new(AtomicBool::new(false));
-        let id = NEXT_HANDLE_ID.fetch_add(1, Ordering::Relaxed);
-
-        CANCEL_REGISTRY
-            .write()
-            .unwrap_or_else(|e| e.into_inner())
-            .insert(id, Arc::downgrade(&cancel_flag));
 
         Ok(Self {
             state: HandleState::Ready(compiled),
@@ -162,34 +117,11 @@ impl MontyHandle {
             ext_fn_names: external_functions.into_iter().collect(),
             usage_json: default_usage_json(),
             print_output: String::new(),
-            cancel_flag,
-            handle_id: id,
         })
     }
 
     /// Run code to completion. Returns `(result_tag, result_json, error_msg)`.
-    ///
-    /// If the cancel flag is set, returns an error immediately without consuming
-    /// the Ready state — the handle remains reusable after `reset_cancel()`.
     pub fn run(&mut self) -> (MontyResultTag, String, Option<String>) {
-        if self.is_cancelled() {
-            let err_json = serde_json::json!({
-                "message": "KeyboardInterrupt",
-                "exc_type": "KeyboardInterrupt"
-            });
-            let result_json = build_result_json(
-                Value::Null,
-                Some(err_json),
-                &self.usage_json,
-                &self.print_output,
-            );
-            return (
-                MontyResultTag::Error,
-                result_json,
-                Some("KeyboardInterrupt".into()),
-            );
-        }
-
         let state = std::mem::replace(&mut self.state, HandleState::Consumed);
         let compiled = match state {
             HandleState::Ready(c) => c,
@@ -204,17 +136,9 @@ impl MontyHandle {
         };
 
         let mut buf = String::new();
-
-        let result = if let Some(limits) = self.limits.clone() {
-            let tracker = CancellableTracker::with_flag(
-                LimitedTracker::new(limits),
-                self.cancel_flag.clone(),
-            );
-            compiled.run(vec![], tracker, PrintWriter::Collect(&mut buf))
-        } else {
-            let tracker = CancellableTracker::with_flag(NoLimitTracker, self.cancel_flag.clone());
-            compiled.run(vec![], tracker, PrintWriter::Collect(&mut buf))
-        };
+        let limits = self.limits.clone().unwrap_or_else(default_limits);
+        let tracker = Tracker::new(limits);
+        let result = compiled.run(vec![], tracker, PrintWriter::Collect(&mut buf));
 
         self.print_output.push_str(&buf);
 
@@ -248,14 +172,7 @@ impl MontyHandle {
     }
 
     /// Start iterative execution. Returns progress tag and sets internal state.
-    ///
-    /// If the cancel flag is set, returns an error immediately without consuming
-    /// the Ready state — the handle remains reusable after `reset_cancel()`.
     pub fn start(&mut self) -> (MontyProgressTag, Option<String>) {
-        if self.is_cancelled() {
-            return (MontyProgressTag::Error, Some("KeyboardInterrupt".into()));
-        }
-
         let state = std::mem::replace(&mut self.state, HandleState::Consumed);
         let compiled = match state {
             HandleState::Ready(c) => c,
@@ -268,16 +185,9 @@ impl MontyHandle {
             }
         };
 
-        if let Some(limits) = self.limits.clone() {
-            let tracker = CancellableTracker::with_flag(
-                LimitedTracker::new(limits),
-                self.cancel_flag.clone(),
-            );
-            self.run_snapshot_op(|print| compiled.start(vec![], tracker, print))
-        } else {
-            let tracker = CancellableTracker::with_flag(NoLimitTracker, self.cancel_flag.clone());
-            self.run_snapshot_op(|print| compiled.start(vec![], tracker, print))
-        }
+        let limits = self.limits.clone().unwrap_or_else(default_limits);
+        let tracker = Tracker::new(limits);
+        self.run_snapshot_op(|print| compiled.start(vec![], tracker, print))
     }
 
     /// Resume with a return value (JSON string).
@@ -309,10 +219,7 @@ impl MontyHandle {
         let state = std::mem::replace(&mut self.state, HandleState::Consumed);
 
         match state {
-            HandleState::PausedLimited { call, .. } => {
-                self.run_snapshot_op(|print| call.resume_pending(print))
-            }
-            HandleState::PausedNoLimit { call, .. } => {
+            HandleState::Paused { call, .. } => {
                 self.run_snapshot_op(|print| call.resume_pending(print))
             }
             other => {
@@ -327,12 +234,10 @@ impl MontyHandle {
 
     /// Get the pending future call IDs as a JSON array string.
     ///
-    /// Only valid in FuturesLimited/FuturesNoLimit state. Returns
-    /// a JSON array like `"[0, 1, 2]"`.
+    /// Only valid in Futures state. Returns a JSON array like `"[0, 1, 2]"`.
     pub fn pending_future_call_ids(&self) -> Option<&str> {
         match &self.state {
-            HandleState::FuturesLimited { call_ids_json, .. }
-            | HandleState::FuturesNoLimit { call_ids_json, .. } => Some(call_ids_json.as_str()),
+            HandleState::Futures { call_ids_json, .. } => Some(call_ids_json.as_str()),
             _ => None,
         }
     }
@@ -399,10 +304,7 @@ impl MontyHandle {
         let state = std::mem::replace(&mut self.state, HandleState::Consumed);
 
         match state {
-            HandleState::FuturesLimited { futures, .. } => {
-                self.run_snapshot_op(|print| futures.resume(ext_results, print))
-            }
-            HandleState::FuturesNoLimit { futures, .. } => {
+            HandleState::Futures { futures, .. } => {
                 self.run_snapshot_op(|print| futures.resume(ext_results, print))
             }
             other => {
@@ -418,9 +320,7 @@ impl MontyHandle {
     /// Get the pending function name (only valid in Paused state).
     pub fn pending_fn_name(&self) -> Option<&str> {
         match &self.state {
-            HandleState::PausedLimited { meta, .. } | HandleState::PausedNoLimit { meta, .. } => {
-                Some(meta.fn_name.as_str())
-            }
+            HandleState::Paused { meta, .. } => Some(meta.fn_name.as_str()),
             _ => None,
         }
     }
@@ -428,9 +328,7 @@ impl MontyHandle {
     /// Get the pending function args as JSON (only valid in Paused state).
     pub fn pending_fn_args_json(&self) -> Option<&str> {
         match &self.state {
-            HandleState::PausedLimited { meta, .. } | HandleState::PausedNoLimit { meta, .. } => {
-                Some(meta.args_json.as_str())
-            }
+            HandleState::Paused { meta, .. } => Some(meta.args_json.as_str()),
             _ => None,
         }
     }
@@ -441,9 +339,7 @@ impl MontyHandle {
     /// keyword arguments were passed.
     pub fn pending_fn_kwargs_json(&self) -> Option<&str> {
         match &self.state {
-            HandleState::PausedLimited { meta, .. } | HandleState::PausedNoLimit { meta, .. } => {
-                Some(meta.kwargs_json.as_str())
-            }
+            HandleState::Paused { meta, .. } => Some(meta.kwargs_json.as_str()),
             _ => None,
         }
     }
@@ -454,9 +350,7 @@ impl MontyHandle {
     /// to each external function call. Used for correlating async futures.
     pub fn pending_call_id(&self) -> Option<u32> {
         match &self.state {
-            HandleState::PausedLimited { meta, .. } | HandleState::PausedNoLimit { meta, .. } => {
-                Some(meta.call_id)
-            }
+            HandleState::Paused { meta, .. } => Some(meta.call_id),
             _ => None,
         }
     }
@@ -466,9 +360,41 @@ impl MontyHandle {
     /// `true` when Python used `obj.method()` syntax, `false` for `func()`.
     pub fn pending_method_call(&self) -> Option<bool> {
         match &self.state {
-            HandleState::PausedLimited { meta, .. } | HandleState::PausedNoLimit { meta, .. } => {
-                Some(meta.method_call)
-            }
+            HandleState::Paused { meta, .. } => Some(meta.method_call),
+            _ => None,
+        }
+    }
+
+    /// Get the OS function name (only valid in OsCall state).
+    ///
+    /// Returns the Python-style name, e.g. `"Path.read_text"`, `"os.getenv"`.
+    pub fn os_call_fn_name(&self) -> Option<&str> {
+        match &self.state {
+            HandleState::OsCall { meta, .. } => Some(meta.os_fn_name.as_str()),
+            _ => None,
+        }
+    }
+
+    /// Get the OS call args as JSON (only valid in OsCall state).
+    pub fn os_call_args_json(&self) -> Option<&str> {
+        match &self.state {
+            HandleState::OsCall { meta, .. } => Some(meta.args_json.as_str()),
+            _ => None,
+        }
+    }
+
+    /// Get the OS call kwargs as JSON (only valid in OsCall state).
+    pub fn os_call_kwargs_json(&self) -> Option<&str> {
+        match &self.state {
+            HandleState::OsCall { meta, .. } => Some(meta.kwargs_json.as_str()),
+            _ => None,
+        }
+    }
+
+    /// Get the OS call ID (only valid in OsCall state).
+    pub fn os_call_id(&self) -> Option<u32> {
+        match &self.state {
+            HandleState::OsCall { meta, .. } => Some(meta.call_id),
             _ => None,
         }
     }
@@ -502,13 +428,6 @@ impl MontyHandle {
     /// Restore a handle from serialized bytes.
     pub fn restore(bytes: &[u8]) -> Result<Self, String> {
         let compiled = MontyRun::load(bytes).map_err(|e| format!("restore failed: {e}"))?;
-        let cancel_flag = Arc::new(AtomicBool::new(false));
-        let id = NEXT_HANDLE_ID.fetch_add(1, Ordering::Relaxed);
-
-        CANCEL_REGISTRY
-            .write()
-            .unwrap_or_else(|e| e.into_inner())
-            .insert(id, Arc::downgrade(&cancel_flag));
 
         Ok(Self {
             state: HandleState::Ready(compiled),
@@ -516,8 +435,6 @@ impl MontyHandle {
             ext_fn_names: HashSet::new(),
             usage_json: default_usage_json(),
             print_output: String::new(),
-            cancel_flag,
-            handle_id: id,
         })
     }
 
@@ -539,31 +456,11 @@ impl MontyHandle {
         limits.max_recursion_depth = Some(depth);
     }
 
-    /// Get the monotonic handle ID for cross-isolate cancel registry lookup.
-    pub fn handle_id(&self) -> u64 {
-        self.handle_id
-    }
-
-    /// Request cancellation. Safe to call from any thread.
-    pub fn cancel(&self) {
-        self.cancel_flag.store(true, Ordering::Relaxed);
-    }
-
-    /// Query whether cancellation has been requested.
-    pub fn is_cancelled(&self) -> bool {
-        self.cancel_flag.load(Ordering::Relaxed)
-    }
-
-    /// Reset the cancellation flag. Call before reusing a handle after cancel.
-    pub fn reset_cancel(&self) {
-        self.cancel_flag.store(false, Ordering::Relaxed);
-    }
-
     // --- private helpers ---
 
-    fn run_snapshot_op<T: TrackerExt>(
+    fn run_snapshot_op(
         &mut self,
-        f: impl FnOnce(PrintWriter) -> Result<RunProgress<T>, MontyException>,
+        f: impl FnOnce(PrintWriter) -> Result<RunProgress<Tracker>, MontyException>,
     ) -> (MontyProgressTag, Option<String>) {
         let mut buf = String::new();
         let result = f(PrintWriter::Collect(&mut buf));
@@ -581,26 +478,25 @@ impl MontyHandle {
         let state = std::mem::replace(&mut self.state, HandleState::Consumed);
 
         match state {
-            HandleState::PausedLimited { call, .. } => {
-                // Clone result for the second branch if needed — but only one branch executes
+            HandleState::Paused { call, .. } => {
                 self.run_snapshot_op(|print| call.resume(result, print))
             }
-            HandleState::PausedNoLimit { call, .. } => {
+            HandleState::OsCall { call, .. } => {
                 self.run_snapshot_op(|print| call.resume(result, print))
             }
             other => {
                 self.state = other;
                 (
                     MontyProgressTag::Error,
-                    Some("handle not in Paused state".into()),
+                    Some("handle not in Paused or OsCall state".into()),
                 )
             }
         }
     }
 
-    fn process_progress<T: TrackerExt>(
+    fn process_progress(
         &mut self,
-        mut progress: RunProgress<T>,
+        mut progress: RunProgress<Tracker>,
     ) -> (MontyProgressTag, Option<String>) {
         loop {
             match progress {
@@ -622,13 +518,16 @@ impl MontyHandle {
                         call.call_id,
                         call.method_call,
                     );
-                    self.state = T::into_paused(call, meta);
+                    self.state = HandleState::Paused { call, meta };
                     return (MontyProgressTag::Pending, None);
                 }
                 RunProgress::ResolveFutures(futures) => {
                     let call_ids_json = serde_json::to_string(futures.pending_call_ids())
                         .unwrap_or_else(|_| "[]".into());
-                    self.state = T::into_futures(futures, call_ids_json);
+                    self.state = HandleState::Futures {
+                        futures,
+                        call_ids_json,
+                    };
                     return (MontyProgressTag::ResolveFutures, None);
                 }
                 RunProgress::NameLookup(lookup) => {
@@ -651,22 +550,34 @@ impl MontyHandle {
                         Err(exc) => return self.handle_exception(exc),
                     }
                 }
-                RunProgress::OsCall(_) => {
-                    self.state = HandleState::Complete {
-                        result_json: build_result_json(
-                            Value::Null,
-                            Some(
-                                serde_json::json!({"message": "unsupported progress type: OsCall"}),
-                            ),
-                            &self.usage_json,
-                            &self.print_output,
-                        ),
-                        is_error: true,
+                RunProgress::OsCall(call) => {
+                    let meta = OsCallMeta {
+                        os_fn_name: call.function.to_string(),
+                        args_json: serde_json::to_string(
+                            &call.args.iter().map(monty_object_to_json).collect::<Vec<_>>(),
+                        )
+                        .unwrap_or_else(|_| "[]".into()),
+                        kwargs_json: if call.kwargs.is_empty() {
+                            "{}".into()
+                        } else {
+                            let map: serde_json::Map<String, Value> = call
+                                .kwargs
+                                .iter()
+                                .map(|(k, v)| {
+                                    let key = if let MontyObject::String(s) = k {
+                                        s.clone()
+                                    } else {
+                                        format!("{k}")
+                                    };
+                                    (key, monty_object_to_json(v))
+                                })
+                                .collect();
+                            serde_json::to_string(&map).unwrap_or_else(|_| "{}".into())
+                        },
+                        call_id: call.call_id,
                     };
-                    return (
-                        MontyProgressTag::Error,
-                        Some("unsupported progress type: OsCall".into()),
-                    );
+                    self.state = HandleState::OsCall { call, meta };
+                    return (MontyProgressTag::OsCall, None);
                 }
             }
         }
@@ -686,109 +597,6 @@ impl MontyHandle {
             is_error: true,
         };
         (MontyProgressTag::Error, Some(msg))
-    }
-}
-
-// ---------------------------------------------------------------------------
-// Registry-level cancel API (cross-isolate safe, UAF-immune)
-// ---------------------------------------------------------------------------
-
-/// Request cancellation by handle ID.
-/// Returns `0` on success, `-1` if handle not found (already freed),
-/// `-2` if the Arc was dropped (shouldn't happen while handle exists).
-pub fn cancel_by_id(handle_id: u64) -> i32 {
-    let registry = CANCEL_REGISTRY.read().unwrap_or_else(|e| e.into_inner());
-    match registry.get(&handle_id) {
-        None => -1,
-        Some(weak) => match weak.upgrade() {
-            None => -2,
-            Some(flag) => {
-                flag.store(true, Ordering::Relaxed);
-                0
-            }
-        },
-    }
-}
-
-/// Query cancellation by handle ID.
-/// Returns `1` if cancelled, `0` if not, `-1` if handle not found.
-pub fn is_cancelled_by_id(handle_id: u64) -> i32 {
-    let registry = CANCEL_REGISTRY.read().unwrap_or_else(|e| e.into_inner());
-    match registry.get(&handle_id) {
-        None => -1,
-        Some(weak) => match weak.upgrade() {
-            None => -1,
-            Some(flag) => {
-                if flag.load(Ordering::Relaxed) {
-                    1
-                } else {
-                    0
-                }
-            }
-        },
-    }
-}
-
-/// Register a raw handle pointer in the handle registry.
-/// Called from `monty_create` after `Box::into_raw`.
-pub fn register_handle_ptr(handle_id: u64, ptr: *mut MontyHandle) {
-    HANDLE_REGISTRY
-        .write()
-        .unwrap_or_else(|e| e.into_inner())
-        .insert(handle_id, ptr as usize);
-}
-
-/// Atomically remove a handle pointer from the registry.
-/// Returns `true` if the pointer was found and removed, `false` if not
-/// (already freed or unknown). Used by `monty_free` for double-free protection.
-pub fn remove_handle_ptr(handle: *mut MontyHandle) -> bool {
-    let addr = handle as usize;
-    let mut reg = HANDLE_REGISTRY.write().unwrap_or_else(|e| e.into_inner());
-    let found_id = reg.iter().find(|(_, v)| **v == addr).map(|(k, _)| *k);
-    match found_id {
-        Some(id) => {
-            reg.remove(&id);
-            true
-        }
-        None => false,
-    }
-}
-
-/// Free a handle by its registry ID. Returns `true` if found and freed.
-/// Used by the supervisor to clean up after crash-only disposal when the
-/// worker isolate was killed before it could call `monty_free`.
-///
-/// # Safety
-/// The caller MUST ensure that no other thread is using the handle.
-/// In the crash-only model, this means the worker isolate must have exited
-/// (or timed out) before calling this.
-pub fn free_by_id(handle_id: u64) -> bool {
-    let ptr = HANDLE_REGISTRY
-        .write()
-        .unwrap_or_else(|e| e.into_inner())
-        .remove(&handle_id);
-
-    match ptr {
-        Some(addr) => {
-            // SAFETY: The pointer was created by Box::into_raw in monty_create,
-            // and the caller guarantees no other thread is using it.
-            drop(unsafe { Box::from_raw(addr as *mut MontyHandle) });
-            true
-        }
-        None => false,
-    }
-}
-
-impl Drop for MontyHandle {
-    fn drop(&mut self) {
-        CANCEL_REGISTRY
-            .write()
-            .unwrap_or_else(|e| e.into_inner())
-            .remove(&self.handle_id);
-        HANDLE_REGISTRY
-            .write()
-            .unwrap_or_else(|e| e.into_inner())
-            .remove(&self.handle_id);
     }
 }
 
@@ -864,6 +672,7 @@ fn build_result_json(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
 
     #[test]
     fn test_create_handle() {
@@ -1037,14 +846,11 @@ result
         assert!(err.unwrap().contains("invalid JSON"));
     }
 
-    use serde_json::json;
-
     #[test]
-    fn test_iterative_no_limits() {
-        // Exercise the NoLimitTracker path through start/resume
+    fn test_iterative_no_explicit_limits() {
+        // No explicit limits set — uses default_limits() internally
         let code = "result = ext_fn(10)\nresult + 5";
         let mut handle = MontyHandle::new(code.into(), vec!["ext_fn".into()], None).unwrap();
-        // No limits set — uses NoLimitTracker
         let (tag, err) = handle.start();
         assert_eq!(tag, MontyProgressTag::Pending);
         assert!(err.is_none());
@@ -1060,7 +866,6 @@ result
 
     #[test]
     fn test_start_runtime_error() {
-        // Exception during start() — covers handle_exception via iterative path
         let mut handle = MontyHandle::new("1/0".into(), vec![], None).unwrap();
         let (tag, err) = handle.start();
         assert_eq!(tag, MontyProgressTag::Error);
@@ -1070,7 +875,6 @@ result
 
     #[test]
     fn test_start_with_limits_complete() {
-        // LimitedTracker start that completes immediately
         let mut handle = MontyHandle::new("2 + 2".into(), vec![], None).unwrap();
         handle.set_memory_limit(10 * 1024 * 1024);
         handle.set_time_limit_ms(5000);
@@ -1082,7 +886,6 @@ result
 
     #[test]
     fn test_iterative_with_limits() {
-        // Exercise the LimitedTracker path through start/resume
         let code = "result = ext_fn(1)\nresult * 2";
         let mut handle = MontyHandle::new(code.into(), vec!["ext_fn".into()], None).unwrap();
         handle.set_memory_limit(10 * 1024 * 1024);
@@ -1101,7 +904,6 @@ result
 
     #[test]
     fn test_run_with_limits_error() {
-        // Run with limits that triggers an exception
         let mut handle = MontyHandle::new("1/0".into(), vec![], None).unwrap();
         handle.set_memory_limit(10 * 1024 * 1024);
         let (tag, _, err) = handle.run();
@@ -1111,7 +913,6 @@ result
 
     #[test]
     fn test_multiple_ext_fn_calls() {
-        // Multiple pauses: Paused→Paused→Complete
         let code = "a = ext_fn(1)\nb = ext_fn(2)\na + b";
         let mut handle = MontyHandle::new(code.into(), vec!["ext_fn".into()], None).unwrap();
         let (tag, _) = handle.start();
@@ -1190,7 +991,7 @@ result
     }
 
     #[test]
-    fn test_start_captures_print_no_limits() {
+    fn test_start_captures_print() {
         let mut handle = MontyHandle::new("print('start')\n42".into(), vec![], None).unwrap();
         let (tag, err) = handle.start();
         assert_eq!(tag, MontyProgressTag::Complete);
@@ -1253,30 +1054,7 @@ result
     }
 
     #[test]
-    fn test_run_with_limits_captures_print() {
-        let mut handle = MontyHandle::new("print('lim')\n7".into(), vec![], None).unwrap();
-        handle.set_memory_limit(10 * 1024 * 1024);
-        let (tag, result_json, _) = handle.run();
-        assert_eq!(tag, MontyResultTag::Ok);
-        let parsed: Value = serde_json::from_str(&result_json).unwrap();
-        assert_eq!(parsed["print_output"], "lim\n");
-    }
-
-    #[test]
-    fn test_start_error_captures_print_with_limits() {
-        let code = "print('boom')\n1/0";
-        let mut handle = MontyHandle::new(code.into(), vec![], None).unwrap();
-        handle.set_memory_limit(10 * 1024 * 1024);
-        let (tag, err) = handle.start();
-        assert_eq!(tag, MontyProgressTag::Error);
-        assert!(err.is_some());
-        let result: Value = serde_json::from_str(handle.complete_result_json().unwrap()).unwrap();
-        assert_eq!(result["print_output"], "boom\n");
-    }
-
-    #[test]
-    fn test_resume_error_captures_print_no_limits() {
-        // After resume, code raises an exception — exercises Err path in PausedNoLimit
+    fn test_resume_error_captures_print() {
         let code = "a = ext_fn(1)\nprint('resumed')\n1/0";
         let mut handle = MontyHandle::new(code.into(), vec!["ext_fn".into()], None).unwrap();
         let (tag, _) = handle.start();
@@ -1291,7 +1069,6 @@ result
 
     #[test]
     fn test_resume_error_captures_print_with_limits() {
-        // After resume, code raises — exercises Err path in PausedLimited
         let code = "a = ext_fn(1)\nprint('lim_resumed')\n1/0";
         let mut handle = MontyHandle::new(code.into(), vec!["ext_fn".into()], None).unwrap();
         handle.set_memory_limit(10 * 1024 * 1024);
@@ -1328,7 +1105,29 @@ result
         assert_eq!(parsed["print_output"], "lim_err\n");
     }
 
-    // --- M7A.2: New accessor tests ---
+    #[test]
+    fn test_run_with_limits_captures_print() {
+        let mut handle = MontyHandle::new("print('lim')\n7".into(), vec![], None).unwrap();
+        handle.set_memory_limit(10 * 1024 * 1024);
+        let (tag, result_json, _) = handle.run();
+        assert_eq!(tag, MontyResultTag::Ok);
+        let parsed: Value = serde_json::from_str(&result_json).unwrap();
+        assert_eq!(parsed["print_output"], "lim\n");
+    }
+
+    #[test]
+    fn test_start_error_captures_print_with_limits() {
+        let code = "print('boom')\n1/0";
+        let mut handle = MontyHandle::new(code.into(), vec![], None).unwrap();
+        handle.set_memory_limit(10 * 1024 * 1024);
+        let (tag, err) = handle.start();
+        assert_eq!(tag, MontyProgressTag::Error);
+        assert!(err.is_some());
+        let result: Value = serde_json::from_str(handle.complete_result_json().unwrap()).unwrap();
+        assert_eq!(result["print_output"], "boom\n");
+    }
+
+    // --- Accessor tests ---
 
     #[test]
     fn test_pending_kwargs_empty() {
@@ -1406,7 +1205,6 @@ result
             !frames.is_empty(),
             "traceback should have at least one frame"
         );
-        // Each frame should have required fields
         let frame = &frames[0];
         assert!(frame["filename"].is_string());
         assert!(frame["start_line"].is_number());
@@ -1454,7 +1252,7 @@ outer()
         assert_eq!(traceback[0]["filename"], "test.py");
     }
 
-    // --- M13: Async/Futures tests ---
+    // --- Async/Futures tests ---
 
     fn async_code_single() -> &'static str {
         "async def main():\n  result = await fetch('x')\n  return result\n\nawait main()"
@@ -1598,253 +1396,5 @@ outer()
 
         let result: Value = serde_json::from_str(handle.complete_result_json().unwrap()).unwrap();
         assert_eq!(result["value"], "limited_response");
-    }
-
-    // --- Cancel tests ---
-
-    #[test]
-    fn test_cancel_before_run_returns_error() {
-        // Cancel flag set before run() — returns clean error without
-        // consuming Ready state. Handle remains reusable after reset.
-        let mut handle = MontyHandle::new("2 + 2".into(), vec![], None).unwrap();
-        handle.cancel();
-        assert!(handle.is_cancelled());
-        let (tag, result_json, err) = handle.run();
-        assert_eq!(tag, MontyResultTag::Error);
-        assert!(err.unwrap().contains("KeyboardInterrupt"));
-        let parsed: Value = serde_json::from_str(&result_json).unwrap();
-        assert_eq!(parsed["error"]["exc_type"], "KeyboardInterrupt");
-    }
-
-    #[test]
-    fn test_cancel_before_start_returns_error() {
-        let mut handle = MontyHandle::new("2 + 2".into(), vec![], None).unwrap();
-        handle.cancel();
-        let (tag, err) = handle.start();
-        assert_eq!(tag, MontyProgressTag::Error);
-        assert!(err.unwrap().contains("KeyboardInterrupt"));
-    }
-
-    #[test]
-    fn test_cancel_before_run_reusable_after_reset() {
-        // Cancel-before-run should NOT brick the handle. After reset,
-        // the handle must still be in Ready state and execute normally.
-        let mut handle = MontyHandle::new("2 + 2".into(), vec![], None).unwrap();
-        handle.cancel();
-        let (tag, _, _) = handle.run();
-        assert_eq!(tag, MontyResultTag::Error);
-        // Handle is still Ready — reset and run again
-        handle.reset_cancel();
-        let (tag, result_json, err) = handle.run();
-        assert_eq!(tag, MontyResultTag::Ok);
-        assert!(err.is_none());
-        let parsed: Value = serde_json::from_str(&result_json).unwrap();
-        assert_eq!(parsed["value"], json!(4));
-    }
-
-    #[test]
-    fn test_cancel_before_start_reusable_after_reset() {
-        let mut handle = MontyHandle::new("2 + 2".into(), vec![], None).unwrap();
-        handle.cancel();
-        let (tag, _) = handle.start();
-        assert_eq!(tag, MontyProgressTag::Error);
-        // Still Ready — reset and start again
-        handle.reset_cancel();
-        let (tag, err) = handle.start();
-        assert_eq!(tag, MontyProgressTag::Complete);
-        assert!(err.is_none());
-    }
-
-    #[test]
-    fn test_cancel_reset_allows_reuse() {
-        let mut handle = MontyHandle::new("2 + 2".into(), vec![], None).unwrap();
-        handle.cancel();
-        assert!(handle.is_cancelled());
-        handle.reset_cancel();
-        assert!(!handle.is_cancelled());
-        let (tag, _, err) = handle.run();
-        assert_eq!(tag, MontyResultTag::Ok);
-        assert!(err.is_none());
-    }
-
-    #[test]
-    fn test_cancel_is_idempotent() {
-        let handle = MontyHandle::new("2 + 2".into(), vec![], None).unwrap();
-        handle.cancel();
-        handle.cancel();
-        assert!(handle.is_cancelled());
-    }
-
-    #[test]
-    fn test_handle_id_is_unique() {
-        let h1 = MontyHandle::new("1".into(), vec![], None).unwrap();
-        let h2 = MontyHandle::new("2".into(), vec![], None).unwrap();
-        assert_ne!(h1.handle_id(), h2.handle_id());
-    }
-
-    #[test]
-    fn test_cancel_by_id_success() {
-        let handle = MontyHandle::new("2 + 2".into(), vec![], None).unwrap();
-        let id = handle.handle_id();
-        assert!(!handle.is_cancelled());
-        let result = cancel_by_id(id);
-        assert_eq!(result, 0);
-        assert!(handle.is_cancelled());
-    }
-
-    #[test]
-    fn test_cancel_by_id_after_free() {
-        let id = {
-            let handle = MontyHandle::new("2 + 2".into(), vec![], None).unwrap();
-            handle.handle_id()
-        };
-        // Handle dropped, registry cleaned up by Drop impl
-        let result = cancel_by_id(id);
-        assert_eq!(result, -1);
-    }
-
-    #[test]
-    fn test_cancel_by_id_not_found() {
-        let result = cancel_by_id(999_999_999);
-        assert_eq!(result, -1);
-    }
-
-    #[test]
-    fn test_is_cancelled_by_id() {
-        let handle = MontyHandle::new("2 + 2".into(), vec![], None).unwrap();
-        let id = handle.handle_id();
-        assert_eq!(is_cancelled_by_id(id), 0);
-        handle.cancel();
-        assert_eq!(is_cancelled_by_id(id), 1);
-    }
-
-    #[test]
-    fn test_is_cancelled_by_id_not_found() {
-        assert_eq!(is_cancelled_by_id(999_999_999), -1);
-    }
-
-    #[test]
-    fn test_cancel_by_id_no_aba() {
-        // Create handle, get its ID, drop it. Create a new handle — its ID
-        // must be different (monotonic counter), proving no ABA.
-        let old_id = {
-            let h = MontyHandle::new("1".into(), vec![], None).unwrap();
-            h.handle_id()
-        };
-        let new_handle = MontyHandle::new("2".into(), vec![], None).unwrap();
-        let new_id = new_handle.handle_id();
-        assert_ne!(old_id, new_id, "handle IDs must not be reused (ABA)");
-        // Old ID should be gone from registry
-        assert_eq!(cancel_by_id(old_id), -1);
-        // New ID should work
-        assert_eq!(cancel_by_id(new_id), 0);
-        assert!(new_handle.is_cancelled());
-    }
-
-    #[test]
-    fn test_cancel_does_not_affect_snapshot() {
-        let handle = MontyHandle::new("2 + 2".into(), vec![], None).unwrap();
-        handle.cancel();
-        // Snapshot should still work (cancel flag is not serialized)
-        let bytes = handle.snapshot().unwrap();
-        let mut restored = MontyHandle::restore(&bytes).unwrap();
-        // Restored handle should NOT be cancelled
-        assert!(!restored.is_cancelled());
-        let (tag, _, _) = restored.run();
-        assert_eq!(tag, MontyResultTag::Ok);
-    }
-
-    #[test]
-    fn test_cancel_with_limits() {
-        // Both cancel flag and time limit active — cancel guard fires first,
-        // returns clean error without entering heap setup.
-        let mut handle = MontyHandle::new("2 + 2".into(), vec![], None).unwrap();
-        handle.set_time_limit_ms(60_000);
-        handle.cancel();
-        let (tag, _, err) = handle.run();
-        assert_eq!(tag, MontyResultTag::Error);
-        assert!(err.unwrap().contains("KeyboardInterrupt"));
-        // Still reusable after reset
-        handle.reset_cancel();
-        let (tag, _, err) = handle.run();
-        assert_eq!(tag, MontyResultTag::Ok);
-        assert!(err.is_none());
-    }
-
-    #[test]
-    fn test_restored_handle_has_unique_id() {
-        let handle = MontyHandle::new("2 + 2".into(), vec![], None).unwrap();
-        let bytes = handle.snapshot().unwrap();
-        let restored = MontyHandle::restore(&bytes).unwrap();
-        assert_ne!(
-            handle.handle_id(),
-            restored.handle_id(),
-            "restored handle must get a new ID"
-        );
-    }
-
-    #[test]
-    fn test_cancel_during_long_running_script() {
-        // A long-running script that would take forever without cancel.
-        // We cancel via the registry from another thread.
-        use std::thread;
-
-        let code = "i = 0\nwhile True:\n  i += 1\ni";
-        let mut handle = MontyHandle::new(code.into(), vec![], None).unwrap();
-        let id = handle.handle_id();
-
-        // Spawn a thread that cancels after a very short time
-        let cancel_thread = thread::spawn(move || {
-            thread::sleep(std::time::Duration::from_millis(5));
-            let result = cancel_by_id(id);
-            assert_eq!(result, 0);
-        });
-
-        let (tag, _, err) = handle.run();
-        cancel_thread.join().unwrap();
-
-        // The script should have been interrupted
-        assert_eq!(tag, MontyResultTag::Error);
-        assert!(err.is_some());
-    }
-
-    #[test]
-    fn test_cancel_before_start_with_ext_fn() {
-        let code = "result = ext_fn(1)\nresult";
-        let mut handle = MontyHandle::new(code.into(), vec!["ext_fn".into()], None).unwrap();
-        handle.cancel();
-        let (tag, err) = handle.start();
-        assert_eq!(tag, MontyProgressTag::Error);
-        assert!(err.unwrap().contains("KeyboardInterrupt"));
-    }
-
-    #[test]
-    fn test_registry_lock_poisoning_recovery() {
-        // Design doc §5: poison the RwLock via panic in a test thread,
-        // then verify cancel_by_id still works via into_inner() recovery.
-        use std::thread;
-
-        let handle = MontyHandle::new("2 + 2".into(), vec![], None).unwrap();
-        let id = handle.handle_id();
-
-        // Poison the write lock by panicking while holding it
-        let poison_result = thread::spawn(|| {
-            let mut guard = CANCEL_REGISTRY.write().unwrap();
-            guard.insert(0, Weak::new()); // do something with the guard
-            panic!("intentional poison");
-        })
-        .join();
-        assert!(poison_result.is_err(), "thread should have panicked");
-
-        // RwLock is now poisoned — verify our recovery works
-        assert!(CANCEL_REGISTRY.read().is_err(), "lock should be poisoned");
-
-        // cancel_by_id must still work (uses unwrap_or_else into_inner)
-        let result = cancel_by_id(id);
-        assert_eq!(result, 0, "cancel_by_id must recover from poisoned lock");
-        assert!(handle.is_cancelled());
-
-        // is_cancelled_by_id must also recover
-        assert_eq!(is_cancelled_by_id(id), 1);
     }
 }

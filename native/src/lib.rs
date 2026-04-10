@@ -87,9 +87,11 @@ pub unsafe extern "C" fn monty_create(
 
     match catch_ffi_panic(|| MontyHandle::new(code_str, ext_fn_list, name)) {
         Ok(Ok(handle)) => {
-            let id = handle.handle_id();
             let ptr = Box::into_raw(Box::new(handle));
-            handle::register_handle_ptr(id, ptr);
+            LIVE_HANDLES
+                .write()
+                .unwrap_or_else(|e| e.into_inner())
+                .insert(ptr as usize);
             ptr
         }
         Ok(Err(exc)) => {
@@ -107,102 +109,29 @@ pub unsafe extern "C" fn monty_create(
     }
 }
 
+/// Set of live handle pointers for double-free protection.
+/// Entries are added by `monty_create`/`monty_restore` and removed by `monty_free`.
+static LIVE_HANDLES: std::sync::LazyLock<std::sync::RwLock<std::collections::HashSet<usize>>> =
+    std::sync::LazyLock::new(|| std::sync::RwLock::new(std::collections::HashSet::new()));
+
 /// Free a `MontyHandle`. Safe to call with NULL or an already-freed handle.
 ///
-/// Uses `HANDLE_REGISTRY` to verify the pointer is still live before
+/// Uses `LIVE_HANDLES` to verify the pointer is still live before
 /// reclaiming memory. A second call on the same pointer is a no-op.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn monty_free(handle: *mut MontyHandle) {
     if handle.is_null() {
         return;
     }
-    // Atomically verify and remove the pointer from HANDLE_REGISTRY.
-    // If not found, the handle was already freed — return silently.
-    if !handle::remove_handle_ptr(handle) {
-        return;
+    let addr = handle as usize;
+    let removed = LIVE_HANDLES
+        .write()
+        .unwrap_or_else(|e| e.into_inner())
+        .remove(&addr);
+    if !removed {
+        return; // already freed or unknown pointer
     }
-    // SAFETY: pointer was registered by Box::into_raw in monty_create/monty_restore,
-    // and we just confirmed it was still live.
     drop(unsafe { Box::from_raw(handle) });
-}
-
-// ---------------------------------------------------------------------------
-// Cancellation: direct handle API (same-isolate only)
-// ---------------------------------------------------------------------------
-
-/// Request cancellation of the current or next execution.
-/// Safe to call from any thread. No-op if handle is NULL.
-/// Takes `*const` (not `*mut`) because it only writes to `Arc<AtomicBool>`.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn monty_cancel(handle: *const MontyHandle) {
-    if !handle.is_null() {
-        unsafe { &*handle }.cancel();
-    }
-}
-
-/// Query whether cancellation has been requested.
-/// Returns 1 if cancelled, 0 if not, -1 if handle is NULL.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn monty_is_cancelled(handle: *const MontyHandle) -> c_int {
-    if handle.is_null() {
-        return -1;
-    }
-    if unsafe { &*handle }.is_cancelled() {
-        1
-    } else {
-        0
-    }
-}
-
-/// Reset the cancellation flag. Call before reusing a handle after cancel.
-/// No-op if handle is NULL.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn monty_reset_cancel(handle: *const MontyHandle) {
-    if !handle.is_null() {
-        unsafe { &*handle }.reset_cancel();
-    }
-}
-
-// ---------------------------------------------------------------------------
-// Cancellation: registry API (cross-isolate safe, UAF-immune)
-// ---------------------------------------------------------------------------
-
-/// Get the monotonic handle ID for cross-isolate cancel.
-/// Returns 0 if handle is NULL.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn monty_get_handle_id(handle: *const MontyHandle) -> u64 {
-    if handle.is_null() {
-        return 0;
-    }
-    unsafe { &*handle }.handle_id()
-}
-
-/// Request cancellation by handle ID.
-/// Returns 0 on success, -1 if handle not found (already freed),
-/// -2 if the cancel flag was dropped.
-#[unsafe(no_mangle)]
-pub extern "C" fn monty_cancel_by_id(handle_id: u64) -> c_int {
-    handle::cancel_by_id(handle_id) as c_int
-}
-
-/// Query cancellation by handle ID.
-/// Returns 1 if cancelled, 0 if not, -1 if handle not found.
-#[unsafe(no_mangle)]
-pub extern "C" fn monty_is_cancelled_by_id(handle_id: u64) -> c_int {
-    handle::is_cancelled_by_id(handle_id) as c_int
-}
-
-/// Free a handle by its registry ID. Safe from any thread.
-/// Returns 1 if found and freed, 0 if not found.
-///
-/// Used by the supervisor to clean up after crash-only disposal when the
-/// worker isolate was killed before it could call `monty_free`.
-///
-/// # Safety
-/// The caller MUST ensure that the worker isolate has exited before calling.
-#[unsafe(no_mangle)]
-pub extern "C" fn monty_free_by_id(handle_id: u64) -> c_int {
-    if handle::free_by_id(handle_id) { 1 } else { 0 }
 }
 
 // ---------------------------------------------------------------------------
@@ -434,6 +363,63 @@ pub unsafe extern "C" fn monty_pending_method_call(handle: *const MontyHandle) -
     }
 }
 
+// ---------------------------------------------------------------------------
+// OsCall accessors
+// ---------------------------------------------------------------------------
+
+/// Get the OS function name (only valid when state is `MONTY_PROGRESS_OS_CALL`).
+/// Returns e.g. `"Path.read_text"`, `"os.getenv"`.
+/// Caller frees with `monty_string_free`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn monty_os_call_fn_name(handle: *const MontyHandle) -> *mut c_char {
+    if handle.is_null() {
+        return ptr::null_mut();
+    }
+    let h = unsafe { &*handle };
+    match h.os_call_fn_name() {
+        Some(name) => to_c_string(name),
+        None => ptr::null_mut(),
+    }
+}
+
+/// Get the OS call positional arguments as a JSON array string.
+/// Caller frees with `monty_string_free`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn monty_os_call_args_json(handle: *const MontyHandle) -> *mut c_char {
+    if handle.is_null() {
+        return ptr::null_mut();
+    }
+    let h = unsafe { &*handle };
+    match h.os_call_args_json() {
+        Some(json) => to_c_string(json),
+        None => ptr::null_mut(),
+    }
+}
+
+/// Get the OS call keyword arguments as a JSON object string.
+/// Caller frees with `monty_string_free`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn monty_os_call_kwargs_json(handle: *const MontyHandle) -> *mut c_char {
+    if handle.is_null() {
+        return ptr::null_mut();
+    }
+    let h = unsafe { &*handle };
+    match h.os_call_kwargs_json() {
+        Some(json) => to_c_string(json),
+        None => ptr::null_mut(),
+    }
+}
+
+/// Get the OS call ID. Returns `u32::MAX` if not in OsCall state.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn monty_os_call_id(handle: *const MontyHandle) -> u32 {
+    if handle.is_null() {
+        return u32::MAX;
+    }
+    let h = unsafe { &*handle };
+    h.os_call_id().unwrap_or(u32::MAX)
+}
+
 /// Get the completed result as a JSON string.
 /// Caller frees with `monty_string_free`.
 #[unsafe(no_mangle)]
@@ -516,9 +502,11 @@ pub unsafe extern "C" fn monty_restore(
     let bytes = unsafe { std::slice::from_raw_parts(data, len) };
     match catch_ffi_panic(|| MontyHandle::restore(bytes)) {
         Ok(Ok(handle)) => {
-            let id = handle.handle_id();
             let ptr = Box::into_raw(Box::new(handle));
-            handle::register_handle_ptr(id, ptr);
+            LIVE_HANDLES
+                .write()
+                .unwrap_or_else(|e| e.into_inner())
+                .insert(ptr as usize);
             ptr
         }
         Ok(Err(msg)) => {

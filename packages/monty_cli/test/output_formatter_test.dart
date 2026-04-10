@@ -13,7 +13,7 @@ void main() {
 
   group('format()', () {
     test('prints value', () {
-      const result = MontyResult(value: 42, usage: usage);
+      const result = MontyResult(value: MontyInt(42), usage: usage);
       expect(OutputFormatter.format(result), '42');
     });
 
@@ -32,7 +32,7 @@ void main() {
 
     test('prints printOutput before value', () {
       const result = MontyResult(
-        value: 'done',
+        value: MontyString('done'),
         printOutput: 'hello world\n',
         usage: usage,
       );
@@ -41,7 +41,7 @@ void main() {
 
     test('adds newline to printOutput if missing', () {
       const result = MontyResult(
-        value: 10,
+        value: MontyInt(10),
         printOutput: 'debug',
         usage: usage,
       );
@@ -51,7 +51,7 @@ void main() {
 
   group('formatJson()', () {
     test('produces valid JSON', () {
-      const result = MontyResult(value: 42, usage: usage);
+      const result = MontyResult(value: MontyInt(42), usage: usage);
       final json = OutputFormatter.formatJson(result);
       final decoded = jsonDecode(json) as Map<String, dynamic>;
       expect(decoded['value'], 42);
@@ -61,7 +61,7 @@ void main() {
 
   group('formatUsageStats()', () {
     test('includes tagged stats for stderr', () {
-      const result = MontyResult(value: 42, usage: usage);
+      const result = MontyResult(value: MontyInt(42), usage: usage);
       final output = OutputFormatter.formatUsageStats(result);
       expect(output, startsWith('[MONTY]'));
       expect(output, contains('memory=1024B'));

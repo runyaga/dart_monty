@@ -86,7 +86,7 @@ void main() {
             const MontyPending(
               functionName: 'render_ui',
               arguments: [
-                <String, dynamic>{'type': 'form'},
+                MontyDict({'type': MontyString('form')}),
               ],
               callId: 1,
             ),
@@ -231,7 +231,10 @@ void main() {
           const MontyPending(
             functionName: 'render_ui',
             arguments: [
-              <String, dynamic>{'type': 'counter', 'value': 0},
+              MontyDict({
+                'type': MontyString('counter'),
+                'value': MontyInt(0),
+              }),
             ],
             callId: 1,
           ),
@@ -254,7 +257,7 @@ void main() {
           const MontyPending(
             functionName: 'render_ui',
             arguments: [
-              <String, dynamic>{'version': 1},
+              MontyDict({'version': MontyInt(1)}),
             ],
             callId: 1,
           ),
@@ -264,7 +267,7 @@ void main() {
           const MontyPending(
             functionName: 'render_ui',
             arguments: [
-              <String, dynamic>{'version': 2},
+              MontyDict({'version': MontyInt(2)}),
             ],
             callId: 2,
           ),
@@ -467,7 +470,7 @@ void main() {
           const MontyPending(
             functionName: 'render_ui',
             arguments: [
-              <String, dynamic>{'type': 'label'},
+              MontyDict({'type': MontyString('label')}),
             ],
             callId: 1,
           ),

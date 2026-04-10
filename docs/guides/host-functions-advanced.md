@@ -65,7 +65,6 @@ The plugin registers these functions under the `sandbox` namespace:
 | `sandbox_await(handle)` | Wait for a child to complete. Returns its result. | `handle`: integer |
 | `sandbox_await_all(handles)` | Wait for multiple children. Returns list of results. | `handles`: list |
 | `sandbox_is_alive(handle)` | Check if a child is still running. Returns boolean. | `handle`: integer |
-| `sandbox_cancel(handle)` | Cancel a running child. No-op if already finished. | `handle`: integer |
 | `sandbox_free(handle)` | Release a completed child's handle. | `handle`: integer |
 | `sandbox_get_output(handle)` | Get a completed child's print output. | `handle`: integer |
 | `sandbox_gather(handles)` | Wait for multiple children. Returns list of dicts with handle, value, and output. | `handles`: list |
@@ -93,7 +92,6 @@ strict lifecycle:
 
 ```text
 spawn  ->  alive  ->  completed  ->  freed
-                 \-> cancelled  ->  freed
 ```
 
 **Rules:**
@@ -101,20 +99,16 @@ spawn  ->  alive  ->  completed  ->  freed
 - `sandbox_await(handle)` blocks until the child completes or fails.
   If the child failed, it raises an error with the child's error message.
 - `sandbox_free(handle)` releases the handle's resources. It throws
-  `StateError` if the child is still alive -- you must await or cancel
-  first.
+  `StateError` if the child is still alive -- you must await first.
 - `sandbox_get_output(handle)` returns the child's captured `print()`
   output as a string (or `null` if no output). Throws `StateError` if
   the child is still running.
-- `sandbox_cancel(handle)` stops a running child. No-op if already
-  finished. The child's completer receives a `StateError`. Do not
-  cancel an already-freed handle -- it throws `ArgumentError`.
 - `sandbox_is_alive(handle)` returns `true` if the child is still
   executing.
 - Unknown handles throw `ArgumentError`.
 
-**Warning:** You must call `sandbox_free()` on every completed or
-cancelled handle. Handles are never garbage collected automatically.
+**Warning:** You must call `sandbox_free()` on every completed
+handle. Handles are never garbage collected automatically.
 Failing to free handles causes a silent memory leak (the `_ChildHandle`
 and its captured output remain in memory) and will eventually exhaust
 `maxChildren`, preventing new children from being spawned.
@@ -191,8 +185,6 @@ the message `"Maximum concurrent children (N) reached."`.
 
 Freed children do not count against the limit. After
 `sandbox_free(handle)`, the slot is available for new children.
-
-Cancelled children are marked as not alive and also do not count.
 
 ## Providing Plugins to Children
 
@@ -327,10 +319,9 @@ available to the child.
 
 When `SandboxPlugin.onDispose()` is called:
 
-1. All living children are cancelled.
-2. Each cancelled child's completer is completed with a `StateError`.
-3. Unhandled async errors from cancelled children are suppressed (via
-   `future.ignore()`).
+1. All living children are torn down (disposed).
+2. Each child's completer is completed with a `StateError`.
+3. Unhandled async errors are suppressed (via `future.ignore()`).
 4. The children map is cleared.
 
 Disposal is idempotent -- calling `onDispose()` multiple times is safe.
@@ -389,29 +380,6 @@ while sandbox_is_alive(h):
 result = sandbox_await(h)
 output = sandbox_get_output(h)
 sandbox_free(h)
-```
-
-### Graceful Cancellation
-
-```python
-handles = []
-i = 0
-while i < 10:
-    handles.append(sandbox_spawn("work_unit(" + str(i) + ")"))
-    i = i + 1
-
-# Cancel all remaining after getting first result
-first = sandbox_await(handles[0])
-i = 1
-while i < len(handles):
-    sandbox_cancel(handles[i])
-    i = i + 1
-
-# Free all
-i = 0
-while i < len(handles):
-    sandbox_free(handles[i])
-    i = i + 1
 ```
 
 ## Writing Custom Plugins for Production

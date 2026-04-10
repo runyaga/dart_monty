@@ -4,7 +4,7 @@ import 'package:dart_monty_bridge/dart_monty_bridge.dart';
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 import 'package:path/path.dart' as p;
 
-/// Exception thrown when a child sandbox fails, is cancelled, or is disposed.
+/// Exception thrown when a child sandbox fails or is disposed.
 ///
 /// Preserves the [childId] and, when the failure originated from a Python
 /// exception, the full [exception] with structured fields (filename,
@@ -25,7 +25,7 @@ class ChildSandboxException implements Exception {
 
   /// The original [MontyException] when the error originated from Python.
   ///
-  /// Null for cancellation, disposal, and non-Python errors.
+  /// Null for disposal and non-Python errors.
   final MontyException? exception;
 
   @override
@@ -253,20 +253,6 @@ class SandboxPlugin extends MontyPlugin {
             ],
           ),
           handler: _handleIsAlive,
-        ),
-        HostFunction(
-          schema: const HostFunctionSchema(
-            name: 'sandbox_cancel',
-            description: 'Cancel a running child. No-op if already finished.',
-            params: [
-              HostParam(
-                name: 'handle',
-                type: HostParamType.integer,
-                description: 'Handle returned by sandbox_spawn.',
-              ),
-            ],
-          ),
-          handler: _handleCancel,
         ),
         HostFunction(
           schema: const HostFunctionSchema(
@@ -642,28 +628,6 @@ class SandboxPlugin extends MontyPlugin {
     return child.isAlive;
   }
 
-  Future<Object?> _handleCancel(Map<String, Object?> args) async {
-    final handle = args['handle']! as int;
-    final child = _children[handle];
-    if (child == null) {
-      throw ArgumentError.value(handle, 'handle', 'Unknown child handle.');
-    }
-    if (!child.isAlive) return null;
-
-    logger.info('Cancelling child', attributes: {'childId': handle});
-    try {
-      await child.cancel();
-    } finally {
-      if (!child.completer.isCompleted) {
-        child.completer.completeError(
-          ChildSandboxException(childId: handle, message: 'cancelled'),
-        );
-      }
-    }
-
-    return null;
-  }
-
   Future<Object?> _handleFree(Map<String, Object?> args) async {
     final handle = args['handle']! as int;
     final child = _children[handle];
@@ -736,7 +700,7 @@ class SandboxPlugin extends MontyPlugin {
       },
     );
 
-    // Cancel all living children.
+    // Tear down all living children.
     for (final entry in _children.entries) {
       final child = entry.value;
       if (!child.isAlive) continue;
@@ -747,7 +711,7 @@ class SandboxPlugin extends MontyPlugin {
         // Best-effort logging -- don't let a sink failure break the loop.
         try {
           logger.warning(
-            'Error cancelling child during dispose',
+            'Error tearing down child during dispose',
             error: e,
             stackTrace: st,
             attributes: {'childId': entry.key},

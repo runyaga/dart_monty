@@ -16,7 +16,7 @@ const _usage = MontyResourceUsage(
   stackDepthUsed: 0,
 );
 
-MockMontyPlatform _mockForStateless(Object? value) {
+MockMontyPlatform _mockForStateless(MontyValue? value) {
   return MockMontyPlatform()
     ..enqueueProgress(
       MontyComplete(
@@ -33,7 +33,7 @@ MockMontyPlatform _mockForSessionExec({required MontyResult result}) {
     ..enqueueProgress(
       const MontyPending(
         functionName: '__persist_state__',
-        arguments: [<String, Object?>{}],
+        arguments: [MontyDict(<String, MontyValue>{})],
       ),
     )
     ..enqueueProgress(MontyComplete(result: result));
@@ -45,7 +45,7 @@ void main() {
   group('Example: programmatic usage (docs/startup_modes.md)', () {
     test('stateless executeStateless returns result', () async {
       final server = MontyMcpServer(
-        platformFactory: () => _mockForStateless(4),
+        platformFactory: () => _mockForStateless(const MontyInt(4)),
       );
 
       final result = await server.sessionManager.executeStateless('2 + 2');
@@ -59,7 +59,7 @@ void main() {
     test('persistent session create → exec → destroy', () async {
       final server = MontyMcpServer(
         platformFactory: () => _mockForSessionExec(
-          result: const MontyResult(value: 84, usage: _usage),
+          result: const MontyResult(value: MontyInt(84), usage: _usage),
         ),
       );
 
@@ -110,17 +110,20 @@ void main() {
           ),
         )
         ..enqueueProgress(
-          const MontyPending(functionName: 'add', arguments: [3, 4]),
+          const MontyPending(
+            functionName: 'add',
+            arguments: [MontyInt(3), MontyInt(4)],
+          ),
         )
         ..enqueueProgress(
           const MontyPending(
             functionName: '__persist_state__',
-            arguments: [<String, Object?>{}],
+            arguments: [MontyDict(<String, MontyValue>{})],
           ),
         )
         ..enqueueProgress(
           const MontyComplete(
-            result: MontyResult(value: 7, usage: _usage),
+            result: MontyResult(value: MontyInt(7), usage: _usage),
           ),
         );
 
@@ -262,7 +265,7 @@ void main() {
   group('Example: results and errors (docs/results_and_errors.md)', () {
     test('extract text from CallToolResult', () async {
       final server = MontyMcpServer(
-        platformFactory: () => _mockForStateless(4),
+        platformFactory: () => _mockForStateless(const MontyInt(4)),
       );
 
       final result = await server.sessionManager.executeStateless('2 + 2');
@@ -298,7 +301,7 @@ void main() {
         ..enqueueProgress(
           const MontyComplete(
             result: MontyResult(
-              value: 4,
+              value: MontyInt(4),
               printOutput: 'hello\n',
               usage: _usage,
             ),
@@ -322,7 +325,7 @@ void main() {
     test('session state persists across exec calls', () async {
       final server = MontyMcpServer(
         platformFactory: () => _mockForSessionExec(
-          result: const MontyResult(value: 84, usage: _usage),
+          result: const MontyResult(value: MontyInt(84), usage: _usage),
         ),
       );
 
@@ -395,7 +398,7 @@ void main() {
             ..enqueueProgress(
               const MontyPending(
                 functionName: '__persist_state__',
-                arguments: [<String, Object?>{}],
+                arguments: [MontyDict(<String, MontyValue>{})],
               ),
             )
             ..enqueueProgress(

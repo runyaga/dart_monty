@@ -16,6 +16,7 @@ export 'src/bridge/monty_bridge.dart';
 export 'src/bridge/monty_plugin.dart';
 export 'src/bridge/plugin_registry.dart';
 export 'src/bridge/struct_log_bridge_logger.dart';
+export 'src/os_call/default_os_call_handler.dart';
 export 'src/plugins/message_bus_plugin.dart';
 export 'src/plugins/sandbox_plugin.dart';
 export 'src/plugins/template_plugin.dart';

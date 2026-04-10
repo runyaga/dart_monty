@@ -1,9 +1,6 @@
-import 'dart:async';
 import 'dart:convert';
 
 import 'package:dart_monty_platform_interface/src/core_bindings.dart';
-import 'package:dart_monty_platform_interface/src/monty_cancel_registry.dart';
-import 'package:dart_monty_platform_interface/src/monty_cancel_token.dart';
 import 'package:dart_monty_platform_interface/src/monty_error.dart';
 import 'package:dart_monty_platform_interface/src/monty_exception.dart';
 import 'package:dart_monty_platform_interface/src/monty_limits.dart';
@@ -13,6 +10,7 @@ import 'package:dart_monty_platform_interface/src/monty_resource_usage.dart';
 import 'package:dart_monty_platform_interface/src/monty_result.dart';
 import 'package:dart_monty_platform_interface/src/monty_stack_frame.dart';
 import 'package:dart_monty_platform_interface/src/monty_state_mixin.dart';
+import 'package:dart_monty_platform_interface/src/monty_value.dart';
 import 'package:meta/meta.dart';
 
 /// Abstract base that implements [MontyPlatform] by delegating to a
@@ -32,7 +30,7 @@ import 'package:meta/meta.dart';
 abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
   /// Creates a [BaseMontyPlatform] backed by [bindings].
   BaseMontyPlatform({required MontyCoreBindings bindings})
-    : _bindings = bindings;
+      : _bindings = bindings;
 
   final MontyCoreBindings _bindings;
 
@@ -122,27 +120,12 @@ abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
   }
 
   @override
-  Future<void> cancel() async {
-    if (isDisposed) return;
-    await _bindings.cancel();
-  }
-
-  /// Returns a serializable cancel token for cross-isolate cancel.
-  ///
-  /// `null` before the first [run]/[start] (handle not yet created).
-  MontyCancelToken? get cancelToken {
-    final id = _bindings.handleId;
-    return id != null && id > 0 ? MontyCancelToken(id) : null;
-  }
-
-  @override
-  int? get handleId => _bindings.handleId;
-
-  @override
   Future<void> dispose() async {
     if (isDisposed) return;
-    final id = _bindings.handleId;
-    if (id != null) MontyCancelRegistry.webUnregister(id);
+    // Force idle if active — allows dispose during test teardown and
+    // crash-recovery scenarios. The in-flight operation will fail on
+    // next resume (handle already freed).
+    if (isActive) markIdle();
     await _bindings.dispose();
     markDisposed();
   }
@@ -159,7 +142,7 @@ abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
   MontyResult _translateRunResult(CoreRunResult r) {
     if (r.ok) {
       return MontyResult(
-        value: r.value,
+        value: r.value != null ? MontyValue.fromJson(r.value) : null,
         error: _buildError(r.error, r.excType, r.traceback),
         usage: r.usage ?? _zeroUsage,
         printOutput: r.printOutput,
@@ -185,7 +168,7 @@ abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
         markIdle();
         return MontyComplete(
           result: MontyResult(
-            value: p.value,
+            value: p.value != null ? MontyValue.fromJson(p.value) : null,
             error: _buildError(p.error, p.excType, p.traceback),
             usage: p.usage ?? _zeroUsage,
             printOutput: p.printOutput,
@@ -195,10 +178,26 @@ abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
         markActive();
         return MontyPending(
           functionName: p.functionName ?? '',
-          arguments: p.arguments ?? const [],
-          kwargs: p.kwargs,
+          arguments: p.arguments != null
+              ? p.arguments!.map(MontyValue.fromJson).toList()
+              : const [],
+          kwargs: p.kwargs?.map(
+            (k, v) => MapEntry(k, MontyValue.fromJson(v)),
+          ),
           callId: p.callId ?? 0,
           methodCall: p.methodCall ?? false,
+        );
+      case 'os_call':
+        markActive();
+        return MontyOsCall(
+          operationName: p.functionName ?? '',
+          arguments: p.arguments != null
+              ? p.arguments!.map(MontyValue.fromJson).toList()
+              : const [],
+          kwargs: p.kwargs?.map(
+            (k, v) => MapEntry(k, MontyValue.fromJson(v)),
+          ),
+          callId: p.callId ?? 0,
         );
       case 'resolve_futures':
         markActive();
@@ -260,8 +259,6 @@ abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
   /// the existing [MontyException] path.
   void _throwSealedErrorIfApplicable(String? excType, String message) {
     switch (excType) {
-      case 'KeyboardInterrupt':
-        throw MontyCancelledError(message);
       case 'MemoryLimitExceeded':
         throw MontyResourceError(message);
       default:

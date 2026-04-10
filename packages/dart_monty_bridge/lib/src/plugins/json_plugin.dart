@@ -15,8 +15,10 @@ const int defaultMaxJsonInputSize = 1024 * 1024;
 ///
 /// Uses Dart's `dart:convert` for reliable, battle-tested JSON handling.
 /// All functions are prefixed with `json_`.
-@Deprecated('Use native `import json` in Python code instead. '
-    'Monty 0.0.9+ supports json.loads() and json.dumps() natively.')
+@Deprecated(
+  'Use native `import json` in Python code instead. '
+  'Monty 0.0.9+ supports json.loads() and json.dumps() natively.',
+)
 class JsonPlugin extends MontyPlugin {
   /// Creates a [JsonPlugin].
   ///
@@ -32,8 +34,7 @@ class JsonPlugin extends MontyPlugin {
   String get namespace => 'json';
 
   @override
-  String? get systemPromptContext =>
-      'JSON is available natively: '
+  String? get systemPromptContext => 'JSON is available natively: '
       '`import json; json.loads(s); json.dumps(d)`. '
       'For dot-path extraction from JSON text, '
       'use json_get(data, path).';

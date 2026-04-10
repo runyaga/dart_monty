@@ -35,6 +35,12 @@ const _preambleLineCount = 5;
 const _consoleWriteFn = '__console_write__';
 const _roleKwarg = '__role__';
 
+/// Handler callback for OS-level calls (pathlib, os.getenv, datetime, etc.).
+///
+/// Receives the [MontyOsCall] and returns the result to resume Python with.
+/// Throw an exception to resume Python with an error.
+typedef OsCallHandler = Future<Object?> Function(MontyOsCall call);
+
 /// Tracks an in-flight host function future awaiting resolution.
 class _PendingFuture {
   _PendingFuture({
@@ -64,10 +70,10 @@ class DefaultMontyBridge implements MontyBridge {
     MontyLimits? limits,
     bool useFutures = true,
     BridgeLogger? logger,
-  }) : _explicitPlatform = platform,
-       _limits = limits,
-       _useFutures = useFutures,
-       log = logger ?? StructLogBridgeLogger.root(LogManager.instance);
+  })  : _explicitPlatform = platform,
+        _limits = limits,
+        _useFutures = useFutures,
+        log = logger ?? StructLogBridgeLogger.root(LogManager.instance);
 
   final MontyPlatform? _explicitPlatform;
   final MontyLimits? _limits;
@@ -86,6 +92,7 @@ class DefaultMontyBridge implements MontyBridge {
   int _idCounter = 0;
   bool _isExecuting = false;
   bool _isDisposed = false;
+  OsCallHandler? _osCallHandler;
 
   // Fallback to deprecated singleton when no explicit platform is provided.
   // ignore: deprecated_member_use
@@ -115,6 +122,17 @@ class DefaultMontyBridge implements MontyBridge {
     _functions.remove(name);
   }
 
+  /// Registers a handler for OS-level calls (pathlib, os.getenv, datetime,
+  /// etc.).
+  ///
+  /// When Python code triggers an OS call and a handler is registered, the
+  /// bridge invokes it and resumes Python with the result. When no handler is
+  /// registered, the bridge resumes with a `PermissionError`.
+  void registerOsCallHandler(OsCallHandler handler) {
+    if (_isDisposed) throw StateError('Bridge has been disposed');
+    _osCallHandler = handler;
+  }
+
   @override
   Stream<BridgeEvent> execute(String code) {
     if (_isDisposed) throw StateError('Bridge has been disposed');
@@ -137,16 +155,6 @@ class DefaultMontyBridge implements MontyBridge {
 
   @override
   void dispose() {
-    if (_isExecuting) {
-      // Best-effort cancel. MontyPlatform.cancel() throws
-      // UnimplementedError from the base class; real platforms override it.
-      try {
-        unawaited(_platform.cancel());
-        // ignore: avoid_catching_errors — UnimplementedError from base class
-      } on UnimplementedError {
-        // Platform does not support cancel.
-      }
-    }
     _isDisposed = true;
     log.close();
   }
@@ -165,10 +173,11 @@ class DefaultMontyBridge implements MontyBridge {
 
     // Route through mapAndValidate for type coercion (e.g., string→int).
     // Construct a MontyPending with kwargs only (Dart callers use named args).
+    // Wrap raw Dart values as MontyValue so they satisfy the typed constructor.
     final pending = MontyPending(
       functionName: name,
       arguments: const [],
-      kwargs: args,
+      kwargs: args.map((k, v) => MapEntry(k, MontyValue.fromJson(v))),
     );
     final validatedArgs = fn.schema.mapAndValidate(pending);
 
@@ -208,6 +217,9 @@ class DefaultMontyBridge implements MontyBridge {
               futuresCapable: futuresCapable,
             );
 
+          case final MontyOsCall osCall:
+            progress = await _handleOsCall(osCall, controller);
+
           case final MontyResolveFutures resolve:
             if (futuresCapable && _pendingFutures.isNotEmpty) {
               progress = await _resolveFutures(resolve, controller);
@@ -240,7 +252,7 @@ class DefaultMontyBridge implements MontyBridge {
                 BridgeRunFinished(
                   threadId: threadId,
                   runId: runId,
-                  value: result.value,
+                  value: result.value?.dartValue,
                   printOutput: capturedOutput,
                 ),
               );
@@ -248,8 +260,6 @@ class DefaultMontyBridge implements MontyBridge {
             return;
         }
       }
-    } on MontyCancelledError {
-      controller.add(const BridgeRunError(message: 'Execution cancelled'));
     } on MontyError catch (e) {
       log.warning('Monty error', attributes: {'error': e.message});
       _flushPrintBuffer(printBuffer, controller);
@@ -288,7 +298,7 @@ class DefaultMontyBridge implements MontyBridge {
     // Console write — always intercept, buffer for text flush.
     if (name == _consoleWriteFn) {
       if (pending.arguments.isNotEmpty) {
-        printBuffer.write(pending.arguments.first.toString());
+        printBuffer.write(pending.arguments.first.dartValue.toString());
       }
 
       return _platform.resume(null);
@@ -315,6 +325,45 @@ class DefaultMontyBridge implements MontyBridge {
     return _platform.resumeWithError('Unknown function: $name');
   }
 
+  Future<MontyProgress> _handleOsCall(
+    MontyOsCall osCall,
+    StreamController<BridgeEvent> controller,
+  ) async {
+    final callId = _nextId;
+    final opName = osCall.operationName;
+
+    controller.add(BridgeOsCallStart(callId: callId, operationName: opName));
+
+    final handler = _osCallHandler;
+    if (handler == null) {
+      log.warning('OS call denied (no handler)', attributes: {'op': opName});
+      final errorMsg =
+          'PermissionError: $opName not available (no filesystem configured)';
+      controller.add(BridgeOsCallResult(callId: callId, result: errorMsg));
+      return _platform.resumeWithError(errorMsg);
+    }
+
+    try {
+      final result = await handler(osCall);
+      controller.add(
+        BridgeOsCallResult(
+          callId: callId,
+          result: result?.toString() ?? '',
+        ),
+      );
+      return _platform.resume(result);
+    } on Object catch (e, st) {
+      log.error(
+        'OS call handler error',
+        error: e,
+        stackTrace: st,
+        attributes: {'op': opName},
+      );
+      controller.add(BridgeOsCallResult(callId: callId, result: 'Error: $e'));
+      return _platform.resumeWithError(e.toString());
+    }
+  }
+
   /// Resolves the [CallRole] for a tool call and strips the reserved
   /// `__role__` kwarg from [pending].
   ///
@@ -332,7 +381,7 @@ class DefaultMontyBridge implements MontyBridge {
     // Always strip __role__ from kwargs regardless of how role is resolved.
     final MontyPending cleanedPending;
     if (kwargs != null && kwargs.containsKey(_roleKwarg)) {
-      final cleaned = Map<String, Object?>.of(kwargs)..remove(_roleKwarg);
+      final cleaned = Map<String, MontyValue>.of(kwargs)..remove(_roleKwarg);
       cleanedPending = MontyPending(
         functionName: pending.functionName,
         arguments: pending.arguments,
@@ -350,7 +399,7 @@ class DefaultMontyBridge implements MontyBridge {
     }
 
     // Fall back to Python kwarg, defaulting to ToolCall.
-    final roleValue = kwargs?[_roleKwarg];
+    final roleValue = kwargs?[_roleKwarg]?.dartValue;
     final role = switch (roleValue) {
       'infra' => const InfraCall(),
       _ => const ToolCall(),
@@ -566,9 +615,8 @@ class DefaultMontyBridge implements MontyBridge {
     return MontyException(
       message: e.message,
       filename: e.filename,
-      lineNumber: e.lineNumber != null
-          ? e.lineNumber! - _preambleLineCount
-          : null,
+      lineNumber:
+          e.lineNumber != null ? e.lineNumber! - _preambleLineCount : null,
       columnNumber: e.columnNumber,
       sourceCode: e.sourceCode,
       excType: e.excType,
@@ -579,9 +627,8 @@ class DefaultMontyBridge implements MontyBridge {
               filename: f.filename,
               startLine: f.startLine - _preambleLineCount,
               startColumn: f.startColumn,
-              endLine: f.endLine != null
-                  ? f.endLine! - _preambleLineCount
-                  : null,
+              endLine:
+                  f.endLine != null ? f.endLine! - _preambleLineCount : null,
               endColumn: f.endColumn,
               frameName: f.frameName,
               previewLine: f.previewLine,

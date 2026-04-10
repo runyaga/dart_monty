@@ -90,17 +90,6 @@ class _FakeCoreBindings implements MontyCoreBindings {
   Future<void> restoreSnapshot(Uint8List data) async =>
       throw UnimplementedError();
 
-  bool cancelCalled = false;
-  int? mockHandleId;
-
-  @override
-  Future<void> cancel() async {
-    cancelCalled = true;
-  }
-
-  @override
-  int? get handleId => mockHandleId;
-
   @override
   Future<void> dispose() async {
     disposeCalled = true;
@@ -144,7 +133,7 @@ void main() {
 
       final result = await platform.run('1 + 1');
 
-      expect(result.value, 42);
+      expect(result.value, const MontyInt(42));
       expect(result.usage, usage);
       expect(result.printOutput, isNull);
       expect(result.isError, isFalse);
@@ -245,7 +234,7 @@ void main() {
 
       expect(progress, isA<MontyComplete>());
       final complete = progress as MontyComplete;
-      expect(complete.result.value, 99);
+      expect(complete.result.value, const MontyInt(99));
       expect(complete.result.usage, usage);
       expect(platform.isIdle, isTrue);
     });
@@ -294,7 +283,7 @@ void main() {
       expect(progress, isA<MontyPending>());
       final pending = progress as MontyPending;
       expect(pending.functionName, 'get_data');
-      expect(pending.arguments, [1, 'two']);
+      expect(pending.arguments, [const MontyInt(1), const MontyString('two')]);
       expect(pending.kwargs, isNull);
       expect(pending.callId, 7);
       expect(pending.methodCall, isTrue);
@@ -316,7 +305,10 @@ void main() {
       );
 
       final pending = progress as MontyPending;
-      expect(pending.kwargs, {'timeout': 30, 'retry': true});
+      expect(pending.kwargs, {
+        'timeout': const MontyInt(30),
+        'retry': const MontyBool(true),
+      });
     });
 
     test(
@@ -374,7 +366,7 @@ void main() {
       expect(fake.lastValueJson, json.encode(42));
       expect(progress, isA<MontyComplete>());
       final complete = progress as MontyComplete;
-      expect(complete.result.value, 'done');
+      expect(complete.result.value, const MontyString('done'));
     });
   });
 
@@ -414,6 +406,20 @@ void main() {
       await platform.dispose();
 
       expect(fake.disposeCalled, isFalse);
+    });
+
+    test('force-idles when active before disposing (C-3)', () async {
+      fake.progressResult = const CoreProgressResult(
+        state: 'pending',
+        functionName: 'fn',
+      );
+      await platform.start('code', externalFunctions: ['fn']);
+      expect(platform.isActive, isTrue);
+
+      // dispose() should succeed by forcing idle first.
+      await platform.dispose();
+      expect(platform.isDisposed, isTrue);
+      expect(fake.disposeCalled, isTrue);
     });
   });
 
@@ -628,125 +634,6 @@ void main() {
         expect(platform.isIdle, isTrue);
       },
     );
-  });
-
-  // ---------------------------------------------------------------------------
-  // Cancel API coverage
-  // ---------------------------------------------------------------------------
-
-  group('cancel()', () {
-    test('delegates to bindings', () async {
-      fake.runResult = const CoreRunResult(ok: true, usage: zeroUsage);
-      await platform.run('x'); // triggers init
-      await platform.cancel();
-      expect(fake.cancelCalled, isTrue);
-    });
-
-    test('is a no-op when disposed', () async {
-      fake.runResult = const CoreRunResult(ok: true, usage: zeroUsage);
-      await platform.run('x');
-      await platform.dispose();
-      // Should not throw or call bindings.cancel().
-      fake.cancelCalled = false;
-      await platform.cancel();
-      expect(fake.cancelCalled, isFalse);
-    });
-  });
-
-  group('handleId', () {
-    test('delegates to bindings', () {
-      expect(platform.handleId, isNull);
-    });
-  });
-
-  group('cancelToken', () {
-    test('returns null when handleId is null', () {
-      expect(platform.cancelToken, isNull);
-    });
-
-    test('returns null when handleId is zero', () {
-      fake.mockHandleId = 0;
-      expect(platform.cancelToken, isNull);
-    });
-
-    test('returns MontyCancelToken when handleId > 0', () {
-      fake.mockHandleId = 42;
-      final token = platform.cancelToken;
-      expect(token, isNotNull);
-      expect(token!.id, 42);
-    });
-  });
-
-  group('static cancel API (MontyCancelRegistry)', () {
-    tearDown(() {
-      // Reset static state after each test.
-      MontyCancelRegistry.registerNativeCancel(
-        cancelById: (_) => false,
-        isCancelledById: (_) => null,
-        ensureInitialized: ([_]) {},
-      );
-    });
-
-    test('registerNativeCancel stores callbacks and cancelById uses them', () {
-      var cancelledId = -1;
-      MontyCancelRegistry.registerNativeCancel(
-        cancelById: (id) {
-          cancelledId = id;
-          return true;
-        },
-        isCancelledById: (_) => false,
-        ensureInitialized: ([_]) {},
-      );
-      final result = MontyCancelRegistry.cancelById(99);
-      expect(result, isTrue);
-      expect(cancelledId, 99);
-    });
-
-    test('webRegister/webUnregister manage web registry', () {
-      final webFake = _FakeCoreBindings();
-      final webId = MontyCancelRegistry.webRegister(webFake);
-      expect(webId, greaterThan(0));
-
-      // Reset native so isHandleAlive falls through to web registry.
-      MontyCancelRegistry.registerNativeCancel(
-        cancelById: (_) => false,
-        isCancelledById: (_) => null,
-        ensureInitialized: ([_]) {},
-      );
-
-      MontyCancelRegistry.webUnregister(webId);
-    });
-
-    test('webRegister returns incrementing IDs', () {
-      final id1 = MontyCancelRegistry.webRegister(_FakeCoreBindings());
-      final id2 = MontyCancelRegistry.webRegister(_FakeCoreBindings());
-      expect(id2, greaterThan(id1));
-      MontyCancelRegistry.webUnregister(id1);
-      MontyCancelRegistry.webUnregister(id2);
-    });
-
-    test('ensureInitialized invokes registered callback', () {
-      var called = false;
-      MontyCancelRegistry.registerNativeCancel(
-        cancelById: (_) => false,
-        isCancelledById: (_) => null,
-        ensureInitialized: ([_]) {
-          called = true;
-        },
-      );
-      MontyCancelRegistry.ensureInitialized();
-      expect(called, isTrue);
-    });
-
-    test('isHandleAlive delegates to native callback', () {
-      MontyCancelRegistry.registerNativeCancel(
-        cancelById: (_) => false,
-        isCancelledById: (id) => id == 42 ? false : null,
-        ensureInitialized: ([_]) {},
-      );
-      expect(MontyCancelRegistry.isHandleAlive(42), isTrue);
-      expect(MontyCancelRegistry.isHandleAlive(999), isFalse);
-    });
   });
 
   // Regression tests for issue #74: bridge stays active after error.

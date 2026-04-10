@@ -19,7 +19,7 @@ void main() {
             'stack_depth_used': 3,
           },
         });
-        expect(result.value, 99);
+        expect(result.value, const MontyInt(99));
         expect(result.error, isNull);
         expect(result.usage, usage);
       });
@@ -63,7 +63,7 @@ void main() {
             'stack_depth_used': 3,
           },
         });
-        expect(result.value, 42);
+        expect(result.value, const MontyInt(42));
         expect(result.printOutput, 'hello world\n');
       });
 
@@ -82,7 +82,7 @@ void main() {
 
     group('toJson', () {
       test('serializes value result', () {
-        const result = MontyResult(value: 'hi', usage: usage);
+        const result = MontyResult(value: MontyString('hi'), usage: usage);
         expect(result.toJson(), {
           'value': 'hi',
           'usage': {
@@ -105,7 +105,7 @@ void main() {
 
       test('serializes print_output when non-null', () {
         const result = MontyResult(
-          value: 42,
+          value: MontyInt(42),
           usage: usage,
           printOutput: 'output\n',
         );
@@ -113,13 +113,13 @@ void main() {
       });
 
       test('omits print_output when null', () {
-        const result = MontyResult(value: 42, usage: usage);
+        const result = MontyResult(value: MontyInt(42), usage: usage);
         expect(result.toJson().containsKey('print_output'), isFalse);
       });
     });
 
     test('JSON round-trip for value result', () {
-      const original = MontyResult(value: 42, usage: usage);
+      const original = MontyResult(value: MontyInt(42), usage: usage);
       final restored = MontyResult.fromJson(original.toJson());
       expect(restored, original);
     });
@@ -139,7 +139,7 @@ void main() {
 
     test('JSON round-trip with printOutput', () {
       const original = MontyResult(
-        value: 42,
+        value: MontyInt(42),
         usage: usage,
         printOutput: 'hello\nworld\n',
       );
@@ -149,15 +149,15 @@ void main() {
 
     group('equality', () {
       test('equal when all fields match', () {
-        const a = MontyResult(value: 42, usage: usage);
-        const b = MontyResult(value: 42, usage: usage);
+        const a = MontyResult(value: MontyInt(42), usage: usage);
+        const b = MontyResult(value: MontyInt(42), usage: usage);
         expect(a, b);
         expect(a.hashCode, b.hashCode);
       });
 
       test('not equal when value differs', () {
-        const a = MontyResult(value: 1, usage: usage);
-        const b = MontyResult(value: 2, usage: usage);
+        const a = MontyResult(value: MontyInt(1), usage: usage);
+        const b = MontyResult(value: MontyInt(2), usage: usage);
         expect(a, isNot(b));
       });
 
@@ -179,38 +179,41 @@ void main() {
           timeElapsedMs: 10,
           stackDepthUsed: 3,
         );
-        const a = MontyResult(value: 42, usage: usage);
-        const b = MontyResult(value: 42, usage: otherUsage);
+        const a = MontyResult(value: MontyInt(42), usage: usage);
+        const b = MontyResult(value: MontyInt(42), usage: otherUsage);
         expect(a, isNot(b));
       });
 
       test('not equal when printOutput differs', () {
-        const a = MontyResult(value: 42, usage: usage, printOutput: 'a\n');
-        const b = MontyResult(value: 42, usage: usage, printOutput: 'b\n');
+        const a =
+            MontyResult(value: MontyInt(42), usage: usage, printOutput: 'a\n');
+        const b =
+            MontyResult(value: MontyInt(42), usage: usage, printOutput: 'b\n');
         expect(a, isNot(b));
       });
 
       test('not equal when one has printOutput and other does not', () {
-        const a = MontyResult(value: 42, usage: usage, printOutput: 'a\n');
-        const b = MontyResult(value: 42, usage: usage);
+        const a =
+            MontyResult(value: MontyInt(42), usage: usage, printOutput: 'a\n');
+        const b = MontyResult(value: MontyInt(42), usage: usage);
         expect(a, isNot(b));
       });
 
       test('not equal to other types', () {
-        const result = MontyResult(value: 42, usage: usage);
+        const result = MontyResult(value: MontyInt(42), usage: usage);
         expect(result, isNot(42));
       });
 
       test('identical instances are equal', () {
-        const result = MontyResult(value: 42, usage: usage);
+        const result = MontyResult(value: MontyInt(42), usage: usage);
         expect(result == result, isTrue);
       });
     });
 
     group('toString', () {
       test('value result', () {
-        const result = MontyResult(value: 42, usage: usage);
-        expect(result.toString(), 'MontyResult.value(42)');
+        const result = MontyResult(value: MontyInt(42), usage: usage);
+        expect(result.toString(), 'MontyResult.value(MontyInt(42))');
       });
 
       test('error result', () {

@@ -115,15 +115,15 @@ void _progressPatternMatching() {
   // Simulate a pending external function call.
   const MontyProgress pending = MontyPending(
     functionName: 'fetch',
-    arguments: ['https://api.example.com/data'],
-    kwargs: {'timeout': 30},
+    arguments: [MontyString('https://api.example.com/data')],
+    kwargs: {'timeout': MontyInt(30)},
     callId: 1,
   );
 
   // Simulate a completed execution.
   const MontyProgress complete = MontyComplete(
     result: MontyResult(
-      value: 42,
+      value: MontyInt(42),
       usage: MontyResourceUsage(
         memoryBytesUsed: 1024,
         timeElapsedMs: 5,
@@ -146,6 +146,8 @@ void _progressPatternMatching() {
         print('Complete: ${result.value}');
       case MontyResolveFutures(:final pendingCallIds):
         print('Resolve futures: $pendingCallIds');
+      case MontyOsCall(:final operationName, :final arguments):
+        print('OS call: $operationName($arguments)');
     }
   }
 }

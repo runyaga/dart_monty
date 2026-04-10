@@ -39,6 +39,7 @@ typedef enum {
     MONTY_PROGRESS_PENDING         = 1,
     MONTY_PROGRESS_ERROR           = 2,
     MONTY_PROGRESS_RESOLVE_FUTURES = 3,
+    MONTY_PROGRESS_OS_CALL         = 4,
 } MontyProgressTag;
 
 /* ------------------------------------------------------------------ */
@@ -210,6 +211,34 @@ uint32_t monty_pending_call_id(const MontyHandle *handle);
  */
 int monty_pending_method_call(const MontyHandle *handle);
 
+/* ------------------------------------------------------------------ */
+/* OsCall accessors (valid after MONTY_PROGRESS_OS_CALL)              */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Get the OS function name, e.g. "Path.read_text", "os.getenv".
+ * @return  Heap-allocated string, or NULL. Caller frees with monty_string_free().
+ */
+char *monty_os_call_fn_name(const MontyHandle *handle);
+
+/**
+ * Get the OS call positional arguments as a JSON array string.
+ * @return  Heap-allocated JSON string, or NULL. Caller frees with monty_string_free().
+ */
+char *monty_os_call_args_json(const MontyHandle *handle);
+
+/**
+ * Get the OS call keyword arguments as a JSON object string.
+ * @return  Heap-allocated JSON string, or NULL. Caller frees with monty_string_free().
+ */
+char *monty_os_call_kwargs_json(const MontyHandle *handle);
+
+/**
+ * Get the OS call ID.
+ * @return  The call ID, or UINT32_MAX if not in OsCall state.
+ */
+uint32_t monty_os_call_id(const MontyHandle *handle);
+
 /**
  * Get the completed result as a JSON string.
  * Only valid after execution reached COMPLETE state.
@@ -264,60 +293,6 @@ void monty_set_time_limit_ms(MontyHandle *handle, uint64_t ms);
 
 /** Set stack depth limit. */
 void monty_set_stack_limit(MontyHandle *handle, size_t depth);
-
-/* ------------------------------------------------------------------ */
-/* Cancellation (CancellableTracker)                                  */
-/* ------------------------------------------------------------------ */
-
-/* Direct-pointer API — same-isolate only, requires valid handle.     */
-
-/**
- * Request cancellation. Sets the atomic cancel flag.
- * The next bytecode boundary check raises KeyboardInterrupt.
- * Idempotent — safe to call multiple times. Thread-safe.
- * No-op if handle is NULL.
- */
-void monty_cancel(const MontyHandle *handle);
-
-/**
- * Check whether the cancel flag is set.
- * Returns 1 if cancelled, 0 if not, -1 if handle is NULL.
- */
-int monty_is_cancelled(const MontyHandle *handle);
-
-/**
- * Reset the cancel flag. Call before reusing a handle after cancel.
- * No-op if handle is NULL.
- */
-void monty_reset_cancel(const MontyHandle *handle);
-
-/* Registry API — cross-isolate safe, UAF-immune.                     */
-
-/**
- * Get the monotonic handle ID for cross-isolate cancel.
- * Returns 0 if handle is NULL or not registered.
- */
-uint64_t monty_get_handle_id(const MontyHandle *handle);
-
-/**
- * Cancel a handle by its registry ID. Works from any thread/isolate.
- * Returns 0 on success, -1 if not found, -2 if cancel flag was dropped.
- */
-int monty_cancel_by_id(uint64_t handle_id);
-
-/**
- * Check whether a handle is cancelled by registry ID.
- * Returns 1 if cancelled, 0 if not cancelled, -1 if not found.
- */
-int monty_is_cancelled_by_id(uint64_t handle_id);
-
-/**
- * Free a MontyHandle by its registry ID. Safe from any thread.
- * Returns 1 if the handle was found and freed, 0 if not found.
- * Used by supervisor to clean up after crash-only disposal when the
- * worker isolate was killed before it could call monty_free().
- */
-int monty_free_by_id(uint64_t handle_id);
 
 /* ------------------------------------------------------------------ */
 /* Memory management                                                  */

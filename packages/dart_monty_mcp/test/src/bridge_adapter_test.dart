@@ -133,7 +133,7 @@ void main() {
   group('montyResultToCallToolResult', () {
     test('returns value from successful result', () {
       final result = montyResultToCallToolResult(
-        const MontyResult(value: 42, usage: _usage),
+        const MontyResult(value: MontyInt(42), usage: _usage),
       );
 
       expect(result.isError, isFalse);
@@ -151,7 +151,11 @@ void main() {
 
     test('combines print output and value', () {
       final result = montyResultToCallToolResult(
-        const MontyResult(value: 99, printOutput: 'out\n', usage: _usage),
+        const MontyResult(
+          value: MontyInt(99),
+          printOutput: 'out\n',
+          usage: _usage,
+        ),
       );
 
       expect(result.isError, isFalse);

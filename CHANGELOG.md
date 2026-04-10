@@ -1,3 +1,76 @@
+## 0.13.0
+
+### Breaking
+
+- **`MontyResult.value` is now `MontyValue?`** (was `Object?`). Use pattern
+  matching or `.dartValue` for migration:
+  ```dart
+  switch (result.value) {
+    case MontyInt(:final value): print(value);
+    case MontyString(:final value): print(value);
+    case MontyDate(:final year, :final month, :final day): ...
+  }
+  ```
+- **`MontyPending.arguments` is now `List<MontyValue>`** (was `List<Object?>`).
+  Same for `kwargs` (`Map<String, MontyValue>?`).
+- **`MontyOsCall.arguments/kwargs`** follow the same typed pattern.
+- **Removed cancel infrastructure**: `MontyCancelledError`,
+  `MontyCancelToken`, `MontyCancelRegistry`, `cancel()`, `handleId`,
+  `sandbox_cancel` host function — all removed. Upstream `LimitedTracker`
+  with `time_limit_ms` provides runaway protection.
+
+### Added
+
+- **`MontyValue` sealed class** with 18 subclasses for type-safe Python
+  values: `MontyNull`, `MontyBool`, `MontyInt`, `MontyFloat`, `MontyString`,
+  `MontyBytes`, `MontyList`, `MontyTuple`, `MontyDict`, `MontySet`,
+  `MontyFrozenSet`, `MontyDate`, `MontyDateTime`, `MontyTimeDelta`,
+  `MontyTimeZone`, `MontyPath`, `MontyNamedTuple`, `MontyDataclass`.
+- **`__type` JSON wrappers** in Rust `convert.rs` for lossless round-trips
+  of all `MontyObject` variants (Date, DateTime, Path, Tuple, Set, etc.).
+- **OsCall support**: Python code using `pathlib`, `os.getenv`, `os.environ`,
+  `date.today()`, `datetime.now()` now yields to Dart instead of erroring.
+  New `MontyOsCall` sealed subclass, `OsCallHandler` callback, and
+  `BridgeOsCallStart`/`BridgeOsCallResult` events.
+- **Platform-aware `OsCallHandler`** via conditional imports: `dart:io` on
+  native (full filesystem + env + datetime), datetime-only on web.
+- **Tier 20 ladder fixtures** for OsCall operations (12 tests, cross-platform).
+
+### Changed
+
+- **Upgrade Monty interpreter from 0.0.9 to 0.0.10** (via `runyaga/0.0.10` fork branch)
+- Cherry-picked upstream JSON perf improvements and mount edge case fixes
+- Fork reduced to 1 meaningful commit (`frames.is_empty()` guard fix)
+- `HandleState` simplified: 6 clean variants (Ready, Paused, OsCall,
+  Futures, Complete, Consumed), no tracker-type doubling
+
+### Fixed
+
+- Lossless JSON round-trips for datetime types (were opaque debug strings)
+- Ladder fixture expected values updated for `__type` wrappers
+- Gate compliance across all packages (format, analyze, test)
+
+## 0.12.0
+
+### Changed
+
+- **Upgrade Monty interpreter from 0.0.9 to 0.0.10** (via `runyaga/0.0.10` fork branch)
+- Upstream monty 0.0.10 adds: mounting filesystems, async in Rust,
+  executor deduplication, multi-module import statements (`import a, b, c`),
+  JSON performance improvements, CI improvements (zizmor, yamlfmt, PGO fixes)
+- Update snapshot format pinning for v0.0.10 postcard changes
+- Bump `NATIVE_LIB_VERSION` to 0.10.0
+
+### Fixed
+
+- **Cancel race condition**: `cancel()` was a silent no-op when called before
+  the worker isolate sent back its handle ID (during Rust compilation). Now
+  awaits the handle ID with a 10s timeout instead of dropping the cancel.
+  Reliably reproducible on cold-start cancel at <150ms delay.
+- Fix analyzer infos in FFI mock test (`curly_braces_in_flow_control_structures`,
+  `document_ignores`)
+- Apply `dart format` (tall style) across all packages
+
 ## 0.11.0
 
 ### Breaking

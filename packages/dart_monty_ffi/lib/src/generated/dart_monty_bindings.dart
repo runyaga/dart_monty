@@ -286,6 +286,34 @@ external int monty_pending_method_call(
   ffi.Pointer<MontyHandle> handle,
 );
 
+/// Get the OS function name (only valid after MONTY_PROGRESS_OS_CALL).
+/// @return  Heap-allocated string, or NULL. Caller frees with monty_string_free().
+@ffi.Native<ffi.Pointer<ffi.Char> Function(ffi.Pointer<MontyHandle>)>()
+external ffi.Pointer<ffi.Char> monty_os_call_fn_name(
+  ffi.Pointer<MontyHandle> handle,
+);
+
+/// Get the OS call positional arguments as a JSON array string.
+/// @return  Heap-allocated JSON string, or NULL. Caller frees with monty_string_free().
+@ffi.Native<ffi.Pointer<ffi.Char> Function(ffi.Pointer<MontyHandle>)>()
+external ffi.Pointer<ffi.Char> monty_os_call_args_json(
+  ffi.Pointer<MontyHandle> handle,
+);
+
+/// Get the OS call keyword arguments as a JSON object string.
+/// @return  Heap-allocated JSON string, or NULL. Caller frees with monty_string_free().
+@ffi.Native<ffi.Pointer<ffi.Char> Function(ffi.Pointer<MontyHandle>)>()
+external ffi.Pointer<ffi.Char> monty_os_call_kwargs_json(
+  ffi.Pointer<MontyHandle> handle,
+);
+
+/// Get the OS call ID.
+/// @return  The call ID, or UINT32_MAX if not in OsCall state.
+@ffi.Native<ffi.Uint32 Function(ffi.Pointer<MontyHandle>)>()
+external int monty_os_call_id(
+  ffi.Pointer<MontyHandle> handle,
+);
+
 /// Get the completed result as a JSON string.
 /// Only valid after execution reached COMPLETE state.
 ///
@@ -360,59 +388,6 @@ external void monty_set_stack_limit(
   int depth,
 );
 
-/// Request cancellation. Sets the atomic cancel flag.
-/// The next bytecode boundary check raises KeyboardInterrupt.
-/// Idempotent — safe to call multiple times. Thread-safe.
-/// No-op if handle is NULL.
-@ffi.Native<ffi.Void Function(ffi.Pointer<MontyHandle>)>()
-external void monty_cancel(
-  ffi.Pointer<MontyHandle> handle,
-);
-
-/// Check whether the cancel flag is set.
-/// Returns 1 if cancelled, 0 if not, -1 if handle is NULL.
-@ffi.Native<ffi.Int Function(ffi.Pointer<MontyHandle>)>()
-external int monty_is_cancelled(
-  ffi.Pointer<MontyHandle> handle,
-);
-
-/// Reset the cancel flag. Call before reusing a handle after cancel.
-/// No-op if handle is NULL.
-@ffi.Native<ffi.Void Function(ffi.Pointer<MontyHandle>)>()
-external void monty_reset_cancel(
-  ffi.Pointer<MontyHandle> handle,
-);
-
-/// Get the monotonic handle ID for cross-isolate cancel.
-/// Returns 0 if handle is NULL or not registered.
-@ffi.Native<ffi.Uint64 Function(ffi.Pointer<MontyHandle>)>()
-external int monty_get_handle_id(
-  ffi.Pointer<MontyHandle> handle,
-);
-
-/// Cancel a handle by its registry ID. Works from any thread/isolate.
-/// Returns 0 on success, -1 if not found, -2 if cancel flag was dropped.
-@ffi.Native<ffi.Int Function(ffi.Uint64)>()
-external int monty_cancel_by_id(
-  int handle_id,
-);
-
-/// Check whether a handle is cancelled by registry ID.
-/// Returns 1 if cancelled, 0 if not cancelled, -1 if not found.
-@ffi.Native<ffi.Int Function(ffi.Uint64)>()
-external int monty_is_cancelled_by_id(
-  int handle_id,
-);
-
-/// Free a MontyHandle by its registry ID. Safe from any thread.
-/// Returns 1 if the handle was found and freed, 0 if not found.
-/// Used by supervisor to clean up after crash-only disposal when the
-/// worker isolate was killed before it could call monty_free().
-@ffi.Native<ffi.Int Function(ffi.Uint64)>()
-external int monty_free_by_id(
-  int handle_id,
-);
-
 /// Free a string returned by any monty_* function. Safe with NULL.
 @ffi.Native<ffi.Void Function(ffi.Pointer<ffi.Char>)>()
 external void monty_string_free(
@@ -449,7 +424,8 @@ enum MontyProgressTag {
   MONTY_PROGRESS_COMPLETE(0),
   MONTY_PROGRESS_PENDING(1),
   MONTY_PROGRESS_ERROR(2),
-  MONTY_PROGRESS_RESOLVE_FUTURES(3)
+  MONTY_PROGRESS_RESOLVE_FUTURES(3),
+  MONTY_PROGRESS_OS_CALL(4)
   ;
 
   final int value;
@@ -460,6 +436,7 @@ enum MontyProgressTag {
     1 => MONTY_PROGRESS_PENDING,
     2 => MONTY_PROGRESS_ERROR,
     3 => MONTY_PROGRESS_RESOLVE_FUTURES,
+    4 => MONTY_PROGRESS_OS_CALL,
     _ => throw ArgumentError('Unknown value for MontyProgressTag: $value'),
   };
 }

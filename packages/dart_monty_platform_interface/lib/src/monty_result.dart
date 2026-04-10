@@ -1,5 +1,6 @@
 import 'package:dart_monty_platform_interface/src/monty_exception.dart';
 import 'package:dart_monty_platform_interface/src/monty_resource_usage.dart';
+import 'package:dart_monty_platform_interface/src/monty_value.dart';
 import 'package:meta/meta.dart';
 
 /// The result of executing Python code in the Monty sandbox.
@@ -23,7 +24,7 @@ final class MontyResult {
   /// Expected keys: `value`, `error` (optional map), `usage` (required map).
   factory MontyResult.fromJson(Map<String, dynamic> json) {
     return MontyResult(
-      value: json['value'] as Object?,
+      value: json['value'] != null ? MontyValue.fromJson(json['value']) : null,
       error: json['error'] != null
           ? MontyException.fromJson(json['error'] as Map<String, dynamic>)
           : null,
@@ -36,7 +37,16 @@ final class MontyResult {
 
   /// The return value from the Python execution, or `null` if an error
   /// occurred or the code returned `None`.
-  final Object? value;
+  ///
+  /// Use pattern matching to access typed values:
+  /// ```dart
+  /// switch (result.value) {
+  ///   case MontyInt(:final value): print(value);
+  ///   case MontyString(:final value): print(value);
+  ///   case MontyDate(:final year, :final month, :final day): ...
+  /// }
+  /// ```
+  final MontyValue? value;
 
   /// The error from the Python execution, or `null` if execution succeeded.
   final MontyException? error;
@@ -54,7 +64,7 @@ final class MontyResult {
   /// Serializes this result to a JSON-compatible map.
   Map<String, dynamic> toJson() {
     return {
-      'value': value,
+      'value': value?.toJson(),
       if (error case final e?) 'error': e.toJson(),
       'usage': usage.toJson(),
       if (printOutput case final p?) 'print_output': p,

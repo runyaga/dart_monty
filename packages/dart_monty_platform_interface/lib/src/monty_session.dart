@@ -5,6 +5,7 @@ import 'package:dart_monty_platform_interface/src/monty_platform.dart';
 import 'package:dart_monty_platform_interface/src/monty_progress.dart';
 import 'package:dart_monty_platform_interface/src/monty_resource_usage.dart';
 import 'package:dart_monty_platform_interface/src/monty_result.dart';
+import 'package:dart_monty_platform_interface/src/monty_value.dart';
 import 'package:meta/meta.dart';
 
 /// The internal function name used to restore state into Python globals.
@@ -119,6 +120,11 @@ class MontySession {
 
         case MontyResolveFutures():
           progress = await _safeResume(null);
+
+        case MontyOsCall():
+          progress = await _safeResumeWithError(
+            'OS operations not available in session run() mode',
+          );
       }
     }
   }
@@ -370,6 +376,7 @@ class MontySession {
 
         case MontyComplete():
         case MontyPending():
+        case MontyOsCall():
         case MontyResolveFutures():
           return current;
       }
@@ -377,11 +384,11 @@ class MontySession {
   }
 
   /// Captures persisted state from `__persist_state__` arguments.
-  void _capturePersistArgs(List<Object?> arguments) {
+  void _capturePersistArgs(List<MontyValue> arguments) {
     if (arguments.isEmpty) return;
     final arg = arguments.first;
-    if (arg is Map) {
-      _state = Map<String, Object?>.from(arg);
+    if (arg is MontyDict) {
+      _state = arg.entries.map((k, v) => MapEntry(k, v.dartValue));
     }
   }
 

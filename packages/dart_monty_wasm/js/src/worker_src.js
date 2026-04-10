@@ -18,6 +18,7 @@ import {
   PROGRESS_PENDING,
   PROGRESS_ERROR,
   PROGRESS_RESOLVE_FUTURES,
+  PROGRESS_OS_CALL,
   RESULT_OK,
 } from './wasm_glue.js';
 
@@ -112,6 +113,24 @@ function readProgress(id, handle, tag, errMsg) {
         kwargs: kwargsJson ? JSON.parse(kwargsJson) : {},
         callId,
         methodCall: methodCall === 1,
+      };
+    }
+
+    case PROGRESS_OS_CALL: {
+      const fnName = readAndFreeCString(wasm.monty_os_call_fn_name(handle));
+      const argsJson = readAndFreeCString(wasm.monty_os_call_args_json(handle));
+      const kwargsJson = readAndFreeCString(wasm.monty_os_call_kwargs_json(handle));
+      const callId = wasm.monty_os_call_id(handle);
+
+      return {
+        type: 'result',
+        id,
+        ok: true,
+        state: 'os_call',
+        functionName: fnName,
+        args: argsJson ? JSON.parse(argsJson) : [],
+        kwargs: kwargsJson ? JSON.parse(kwargsJson) : {},
+        callId,
       };
     }
 

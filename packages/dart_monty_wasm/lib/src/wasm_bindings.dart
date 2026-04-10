@@ -63,7 +63,8 @@ final class WasmProgressResult {
   /// Whether the operation succeeded.
   final bool ok;
 
-  /// `'complete'`, `'pending'`, or `'resolve_futures'` (when [ok] is true).
+  /// `'complete'`, `'pending'`, `'os_call'`,
+  /// or `'resolve_futures'` (when [ok] is true).
   final String? state;
 
   /// The return value (when state is `'complete'`).
@@ -192,11 +193,6 @@ abstract class WasmBindings {
 
   /// Restores interpreter state from snapshot [data].
   Future<void> restore(Uint8List data);
-
-  /// Cancels the current execution by terminating the Worker.
-  ///
-  /// Idempotent — safe to call multiple times or after dispose.
-  Future<void> cancel();
 
   /// Discovers the bridge API surface.
   Future<WasmDiscoverResult> discover();

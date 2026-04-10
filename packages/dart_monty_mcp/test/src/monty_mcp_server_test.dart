@@ -14,7 +14,7 @@ const _usage = MontyResourceUsage(
 
 /// Creates a [MontyMcpServer] whose platform factory returns mocks
 /// that complete with [value] (stateless execution via bridge).
-MontyMcpServer _serverWithResult(Object? value) {
+MontyMcpServer _serverWithResult(MontyValue? value) {
   return MontyMcpServer(
     platformFactory: () => MockMontyPlatform()
       ..enqueueProgress(
@@ -29,7 +29,7 @@ MontyMcpServer _serverWithResult(Object? value) {
 /// that [MontySession.run] (used by [McpMontySession]) expects.
 MockMontyPlatform _mockForSessionExec({
   required MontyResult result,
-  Map<String, Object?> persistedState = const {},
+  MontyDict persistedState = const MontyDict(<String, MontyValue>{}),
 }) {
   return MockMontyPlatform()
     ..enqueueProgress(
@@ -47,7 +47,7 @@ MockMontyPlatform _mockForSessionExec({
 void main() {
   group('MontyMcpServer tool routing', () {
     test('monty_run routes to stateless execution', () async {
-      final server = _serverWithResult(42);
+      final server = _serverWithResult(const MontyInt(42));
 
       final result = await server.sessionManager.executeStateless('2 + 2');
 
@@ -60,7 +60,7 @@ void main() {
     test('session create → exec → destroy lifecycle', () async {
       final server = MontyMcpServer(
         platformFactory: () => _mockForSessionExec(
-          result: const MontyResult(value: 'hello', usage: _usage),
+          result: const MontyResult(value: MontyString('hello'), usage: _usage),
         ),
       );
       final manager = server.sessionManager;
@@ -249,17 +249,20 @@ void main() {
           ),
         )
         ..enqueueProgress(
-          const MontyPending(functionName: 'add', arguments: [5, 3]),
+          const MontyPending(
+            functionName: 'add',
+            arguments: [MontyInt(5), MontyInt(3)],
+          ),
         )
         ..enqueueProgress(
           const MontyPending(
             functionName: '__persist_state__',
-            arguments: [<String, Object?>{}],
+            arguments: [MontyDict(<String, MontyValue>{})],
           ),
         )
         ..enqueueProgress(
           const MontyComplete(
-            result: MontyResult(value: 8, usage: _usage),
+            result: MontyResult(value: MontyInt(8), usage: _usage),
           ),
         );
 
@@ -285,7 +288,7 @@ void main() {
       () async {
         final server = MontyMcpServer(
           platformFactory: () => _mockForSessionExec(
-            result: const MontyResult(value: 42, usage: _usage),
+            result: const MontyResult(value: MontyInt(42), usage: _usage),
           ),
         );
 
@@ -347,7 +350,7 @@ void main() {
     tearDown(() async => server.dispose());
 
     test('monty_run executes code statelessly', () async {
-      await init(_serverWithResult(42));
+      await init(_serverWithResult(const MontyInt(42)));
 
       transport.receiveMessage(
         const JsonRpcCallToolRequest(
@@ -405,7 +408,7 @@ void main() {
       await init(
         MontyMcpServer(
           platformFactory: () => _mockForSessionExec(
-            result: const MontyResult(value: 99, usage: _usage),
+            result: const MontyResult(value: MontyInt(99), usage: _usage),
           ),
         ),
       );

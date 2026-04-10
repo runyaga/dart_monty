@@ -24,7 +24,7 @@ void main() {
     final monty = MontyFfi(bindings: bindings);
     final result = await monty.run('2 + 2');
 
-    expect(result.value, 4);
+    expect(result.value, const MontyInt(4));
     expect(result.isError, isFalse);
     final usage = result.usage;
     final nonNegative = greaterThanOrEqualTo(0);
@@ -45,12 +45,12 @@ void main() {
     expect(progress, isA<MontyPending>());
     final pending = progress as MontyPending;
     expect(pending.functionName, 'fetch');
-    expect(pending.arguments, ['https://example.com']);
+    expect(pending.arguments, [const MontyString('https://example.com')]);
 
     final done = await monty.resume('response body');
     expect(done, isA<MontyComplete>());
     final complete = done as MontyComplete;
-    expect(complete.result.value, 'response body');
+    expect(complete.result.value, const MontyString('response body'));
 
     await monty.dispose();
   });
@@ -68,14 +68,15 @@ void main() {
     final done = await monty.resumeWithError('network failure');
     expect(done, isA<MontyComplete>());
     final complete = done as MontyComplete;
-    expect(complete.result.value, contains('network failure'));
+    expect(complete.result.value?.dartValue, contains('network failure'));
 
     await monty.dispose();
   });
 
   test(
     'snapshot round-trip',
-    skip: 'API mismatch: Dart requires active state for snapshot() but '
+    skip:
+        'API mismatch: Dart requires active state for snapshot() but '
         'Rust FFI only supports Ready state (before start/run). '
         'Needs a compile-only API to bridge the gap.',
     () async {
@@ -118,7 +119,7 @@ void main() {
     final monty = MontyFfi(bindings: bindings);
     final result = await monty.run('"Hello 🌍🎉"');
 
-    expect(result.value, 'Hello 🌍🎉');
+    expect(result.value, const MontyString('Hello 🌍🎉'));
     await monty.dispose();
   });
 
@@ -129,8 +130,8 @@ void main() {
     final resultA = await a.run('10 + 20');
     final resultB = await b.run('"hello"');
 
-    expect(resultA.value, 30);
-    expect(resultB.value, 'hello');
+    expect(resultA.value, const MontyInt(30));
+    expect(resultB.value, const MontyString('hello'));
 
     await a.dispose();
     await b.dispose();
@@ -140,7 +141,7 @@ void main() {
     for (var i = 0; i < 100; i++) {
       final monty = MontyFfi(bindings: bindings);
       final result = await monty.run('$i + 1');
-      expect(result.value, i + 1);
+      expect(result.value, MontyInt(i + 1));
       await monty.dispose();
     }
   });

@@ -5,16 +5,16 @@ import 'package:test/test.dart';
 void main() {
   group('assertLadderResult', () {
     test('exact match via expected', () {
-      assertLadderResult(42, {'id': 1, 'expected': 42});
+      assertLadderResult(const MontyInt(42), {'id': 1, 'expected': 42});
     });
 
     test('exact match with list', () {
       assertLadderResult(
-        [
-          1,
-          2,
-          3,
-        ],
+        const MontyList([
+          MontyInt(1),
+          MontyInt(2),
+          MontyInt(3),
+        ]),
         {
           'id': 2,
           'expected': [1, 2, 3],
@@ -28,14 +28,14 @@ void main() {
 
     test('expectedContains checks substring', () {
       assertLadderResult(
-        'hello world',
+        const MontyString('hello world'),
         {'id': 4, 'expectedContains': 'world'},
       );
     });
 
     test('expectedSorted sorts lists before comparison', () {
       assertLadderResult(
-        [3, 1, 2],
+        const MontyList([MontyInt(3), MontyInt(1), MontyInt(2)]),
         {
           'id': 5,
           'expected': [2, 3, 1],
@@ -46,7 +46,7 @@ void main() {
 
     test('expectedSorted false does not sort', () {
       assertLadderResult(
-        [1, 2, 3],
+        const MontyList([MontyInt(1), MontyInt(2), MontyInt(3)]),
         {
           'id': 6,
           'expected': [1, 2, 3],
@@ -68,7 +68,7 @@ void main() {
     test('checks expectedArgs', () {
       const pending = MontyPending(
         functionName: 'fn',
-        arguments: [1, 'two'],
+        arguments: [MontyInt(1), MontyString('two')],
       );
       assertPendingFields(pending, {
         'id': 2,
@@ -80,7 +80,7 @@ void main() {
       const pending = MontyPending(
         functionName: 'fn',
         arguments: [],
-        kwargs: {'key': 'val'},
+        kwargs: {'key': MontyString('val')},
       );
       assertPendingFields(pending, {
         'id': 3,

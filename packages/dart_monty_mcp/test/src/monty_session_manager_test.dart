@@ -93,7 +93,7 @@ void main() {
           return MockMontyPlatform()
             ..enqueueProgress(
               const MontyComplete(
-                result: MontyResult(value: 42, usage: usage),
+                result: MontyResult(value: MontyInt(42), usage: usage),
               ),
             );
         },

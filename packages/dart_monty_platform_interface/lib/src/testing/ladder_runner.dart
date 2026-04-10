@@ -30,6 +30,11 @@ List<(String, List<Map<String, dynamic>>)> loadLadderFixtures(Directory dir) {
   ];
 }
 
+/// Callback type for handling OsCall progress in the ladder runner.
+///
+/// Receives the [MontyOsCall] and returns the value to resume with.
+typedef LadderOsCallHandler = Future<Object?> Function(MontyOsCall call);
+
 /// Runs a simple (non-error, non-iterative) fixture through [platform].
 Future<void> runSimpleFixture(
   MontyPlatform platform,
@@ -39,6 +44,71 @@ Future<void> runSimpleFixture(
   final scriptName = fixture['scriptName'] as String?;
   final result = await platform.run(code, scriptName: scriptName);
   assertLadderResult(result.value, fixture);
+}
+
+/// Runs an OsCall fixture through [platform] using start/resume.
+///
+/// Python code triggers OsCall implicitly (pathlib, os.getenv, datetime.now).
+/// The [osCallHandler] provides the host-side implementation.
+Future<void> runOsCallFixture(
+  MontyPlatform platform,
+  Map<String, dynamic> fixture,
+  LadderOsCallHandler osCallHandler,
+) async {
+  final code = fixture['code'] as String;
+  final expectError = fixture['expectError'] as bool? ?? false;
+  final scriptName = fixture['scriptName'] as String?;
+
+  var progress = await platform.start(
+    code,
+    scriptName: scriptName,
+  );
+
+  try {
+    while (progress is! MontyComplete) {
+      if (progress is MontyOsCall) {
+        try {
+          final result = await osCallHandler(progress);
+          progress = await platform.resume(result);
+        } on Object catch (e) {
+          progress = await platform.resumeWithError(e.toString());
+        }
+      } else if (progress is MontyPending) {
+        // OsCall fixtures shouldn't hit external function calls,
+        // but handle gracefully.
+        progress = await platform.resumeWithError(
+          'Unexpected external function: ${progress.functionName}',
+        );
+      } else if (progress is MontyResolveFutures) {
+        fail('Unexpected ResolveFutures in OsCall fixture');
+      } else {
+        fail('Unexpected progress type: $progress');
+      }
+    }
+  } on MontyException catch (e) {
+    if (expectError) {
+      final errorContains = fixture['errorContains'] as String?;
+      if (errorContains != null) {
+        expect(
+          e.toString().contains(errorContains),
+          isTrue,
+          reason: 'Expected error containing "$errorContains", '
+              'got: "${e.message}"',
+        );
+      }
+
+      return;
+    }
+    rethrow;
+  }
+
+  final complete = progress;
+  if (expectError) {
+    expect(complete.result.error, isNotNull, reason: 'Expected error result');
+
+    return;
+  }
+  assertLadderResult(complete.result.value, fixture);
 }
 
 /// Runs an error fixture through [platform], expecting [MontyException].
@@ -208,6 +278,8 @@ Future<void> runIterativeFixture(
 void registerLadderTests({
   required MontyPlatform Function() createPlatform,
   required Directory fixtureDir,
+  LadderOsCallHandler? osCallHandler,
+  bool isWeb = false,
 }) {
   final tiers = loadLadderFixtures(fixtureDir);
 
@@ -219,21 +291,30 @@ void registerLadderTests({
         final code = fixture['code'] as String;
         final expectError = fixture['expectError'] as bool? ?? false;
         final xfail = fixture['xfail'] as String?;
+        final nativeOnly = fixture['nativeOnly'] as bool? ?? false;
+        final osCall = fixture['osCall'] as bool? ?? false;
 
         test('#$id: $name', () async {
+          if (nativeOnly && isWeb) {
+            markTestSkipped('nativeOnly — skipped on web');
+
+            return;
+          }
+
           final monty = createPlatform();
 
           try {
             if (xfail != null) {
               var passed = false;
               try {
-                if (fixture['externalFunctions'] != null) {
-                  await runIterativeFixture(monty, fixture);
-                } else if (expectError) {
-                  await runErrorFixture(monty, code, fixture);
-                } else {
-                  await runSimpleFixture(monty, code, fixture);
-                }
+                await _runFixture(
+                  monty,
+                  fixture,
+                  code,
+                  expectError,
+                  osCall,
+                  osCallHandler,
+                );
                 passed = true;
               } on Object catch (_) {
                 // Expected failure — xfail working as intended
@@ -245,13 +326,14 @@ void registerLadderTests({
                 );
               }
             } else {
-              if (fixture['externalFunctions'] != null) {
-                await runIterativeFixture(monty, fixture);
-              } else if (expectError) {
-                await runErrorFixture(monty, code, fixture);
-              } else {
-                await runSimpleFixture(monty, code, fixture);
-              }
+              await _runFixture(
+                monty,
+                fixture,
+                code,
+                expectError,
+                osCall,
+                osCallHandler,
+              );
             }
           } finally {
             await monty.dispose();
@@ -259,5 +341,24 @@ void registerLadderTests({
         });
       }
     });
+  }
+}
+
+Future<void> _runFixture(
+  MontyPlatform monty,
+  Map<String, dynamic> fixture,
+  String code,
+  bool expectError,
+  bool osCall,
+  LadderOsCallHandler? osCallHandler,
+) async {
+  if (osCall && osCallHandler != null) {
+    await runOsCallFixture(monty, fixture, osCallHandler);
+  } else if (fixture['externalFunctions'] != null) {
+    await runIterativeFixture(monty, fixture);
+  } else if (expectError) {
+    await runErrorFixture(monty, code, fixture);
+  } else {
+    await runSimpleFixture(monty, code, fixture);
   }
 }

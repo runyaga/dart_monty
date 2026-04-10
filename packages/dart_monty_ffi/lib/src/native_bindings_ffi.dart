@@ -6,7 +6,8 @@ import 'dart:typed_data';
 import 'package:dart_monty_ffi/src/generated/dart_monty_bindings.dart'
     as ffi_native;
 import 'package:dart_monty_ffi/src/native_bindings.dart';
-import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
+import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart'
+    show MontyException;
 import 'package:ffi/ffi.dart';
 
 /// Real FFI implementation of [NativeBindings].
@@ -18,34 +19,7 @@ class NativeBindingsFfi extends NativeBindings {
   ///
   /// With native asset hooks, the library is resolved automatically by the
   /// Dart runtime. No manual path resolution is needed.
-  NativeBindingsFfi() {
-    _instance ??= this;
-    MontyCancelRegistry.registerNativeCancel(
-      cancelById: (id) => instanceOrNull?.cancelById(id) ?? false,
-      isCancelledById: (id) => instanceOrNull?.isCancelledById(id),
-      ensureInitialized: NativeBindingsFfi.ensureInitialized,
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // Singleton for cross-isolate cancelById access
-  // ---------------------------------------------------------------------------
-
-  static NativeBindingsFfi? _instance;
-
-  /// Nullable accessor for cancelById callers that check initialization.
-  static NativeBindingsFfi? get instanceOrNull => _instance;
-
-  /// Ensure the FFI library is loaded in the current isolate.
-  /// Must be called before static cancel operations.
-  /// Safe to call multiple times (idempotent, first-write-wins).
-  ///
-  /// The [libraryPath] parameter is ignored — with native asset hooks, the
-  /// library is resolved automatically by the Dart runtime. It is retained
-  /// for API compatibility with [MontyCancelRegistry.registerNativeCancel].
-  static void ensureInitialized([String? libraryPath]) {
-    _instance ??= NativeBindingsFfi();
-  }
+  NativeBindingsFfi();
 
   @override
   int create(String code, {String? externalFunctions, String? scriptName}) {
@@ -267,62 +241,6 @@ class NativeBindingsFfi extends NativeBindings {
   }
 
   // ---------------------------------------------------------------------------
-  // Cancellation (CancellableTracker)
-  // ---------------------------------------------------------------------------
-
-  @override
-  void cancel(int handle) {
-    if (handle == 0) return;
-    ffi_native.monty_cancel(
-      Pointer<ffi_native.MontyHandle>.fromAddress(handle),
-    );
-  }
-
-  @override
-  bool isCancelled(int handle) {
-    if (handle == 0) return false;
-    final result = ffi_native.monty_is_cancelled(
-      Pointer<ffi_native.MontyHandle>.fromAddress(handle),
-    );
-    return result == 1;
-  }
-
-  @override
-  void resetCancel(int handle) {
-    if (handle == 0) return;
-    ffi_native.monty_reset_cancel(
-      Pointer<ffi_native.MontyHandle>.fromAddress(handle),
-    );
-  }
-
-  @override
-  int getHandleId(int handle) {
-    if (handle == 0) return 0;
-    return ffi_native.monty_get_handle_id(
-      Pointer<ffi_native.MontyHandle>.fromAddress(handle),
-    );
-  }
-
-  @override
-  bool cancelById(int handleId) {
-    final result = ffi_native.monty_cancel_by_id(handleId);
-    return result == 0;
-  }
-
-  @override
-  bool? isCancelledById(int handleId) {
-    final result = ffi_native.monty_is_cancelled_by_id(handleId);
-    if (result == -1) return null; // not found
-    return result == 1;
-  }
-
-  @override
-  bool freeById(int handleId) {
-    final result = ffi_native.monty_free_by_id(handleId);
-    return result == 1;
-  }
-
-  // ---------------------------------------------------------------------------
   // Helpers
   // ---------------------------------------------------------------------------
 
@@ -375,6 +293,23 @@ class NativeBindingsFfi extends NativeBindings {
         final callIdsJson = _readAndFreeString(callIdsPtr);
 
         return ProgressResult(tag: 3, futureCallIdsJson: callIdsJson);
+
+      case ffi_native.MontyProgressTag.MONTY_PROGRESS_OS_CALL:
+        final fnNamePtr = ffi_native.monty_os_call_fn_name(ptr);
+        final fnName = _readAndFreeString(fnNamePtr);
+        final argsPtr = ffi_native.monty_os_call_args_json(ptr);
+        final argsJson = _readAndFreeString(argsPtr);
+        final kwargsPtr = ffi_native.monty_os_call_kwargs_json(ptr);
+        final kwargsJson = _readAndFreeString(kwargsPtr);
+        final callId = ffi_native.monty_os_call_id(ptr);
+
+        return ProgressResult(
+          tag: 4,
+          functionName: fnName,
+          argumentsJson: argsJson,
+          kwargsJson: kwargsJson,
+          callId: callId,
+        );
     }
   }
 

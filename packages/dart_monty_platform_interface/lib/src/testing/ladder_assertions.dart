@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:dart_monty_platform_interface/src/monty_exception.dart';
 import 'package:dart_monty_platform_interface/src/monty_progress.dart';
+import 'package:dart_monty_platform_interface/src/monty_value.dart';
 import 'package:test/test.dart';
 
 /// Asserts that [actual] matches the expected value in [fixture].
@@ -10,7 +11,7 @@ import 'package:test/test.dart';
 /// - `expectedContains` — asserts `actual.toString()` contains the string.
 /// - `expectedSorted` — sorts both sides before JSON comparison.
 /// - `expected` — exact JSON equality.
-void assertLadderResult(Object? actual, Map<String, dynamic> fixture) {
+void assertLadderResult(MontyValue? actual, Map<String, dynamic> fixture) {
   final expectedContains = fixture['expectedContains'] as String?;
   if (expectedContains != null) {
     expect(
@@ -26,23 +27,38 @@ void assertLadderResult(Object? actual, Map<String, dynamic> fixture) {
   var expected = fixture['expected'];
   final expectedSorted = fixture['expectedSorted'] as bool? ?? false;
 
-  var sortedActual = actual;
+  var actualJson = actual?.toJson();
   if (expectedSorted) {
-    if (actual is List) {
-      sortedActual = [...actual]..sort((a, b) => '$a'.compareTo('$b'));
-    }
-    if (expected is List) {
-      expected = [...expected]..sort((a, b) => '$a'.compareTo('$b'));
-    }
+    actualJson = _sortValue(actualJson);
+    expected = _sortValue(expected);
   }
 
   expect(
-    jsonEncode(sortedActual),
+    jsonEncode(actualJson),
     jsonEncode(expected),
     reason: 'Fixture #${fixture['id']}: '
         'expected ${jsonEncode(expected)}, '
-        'got ${jsonEncode(sortedActual)}',
+        'got ${jsonEncode(actualJson)}',
   );
+}
+
+/// Sorts a value for comparison, handling __type wrappers.
+Object? _sortValue(Object? value) {
+  if (value is List) {
+    return [...value]..sort((a, b) => '$a'.compareTo('$b'));
+  }
+  if (value is Map<String, dynamic> &&
+      value.containsKey('__type') &&
+      value.containsKey('value') &&
+      value['value'] is List) {
+    return {
+      ...value,
+      'value': ([...value['value'] as List]
+        ..sort((a, b) => '$a'.compareTo('$b'))),
+    };
+  }
+
+  return value;
 }
 
 /// Asserts M7A fields on a [MontyPending] against fixture expectations.
@@ -66,11 +82,12 @@ void assertPendingFields(MontyPending pending, Map<String, dynamic> fixture) {
 
   final expectedArgs = fixture['expectedArgs'] as List?;
   if (expectedArgs != null) {
+    final actualArgsJson = pending.arguments.map((e) => e.toJson()).toList();
     expect(
-      jsonEncode(pending.arguments),
+      jsonEncode(actualArgsJson),
       jsonEncode(expectedArgs),
       reason: 'Fixture #${fixture['id']}: expected args '
-          '${jsonEncode(expectedArgs)}, got: ${jsonEncode(pending.arguments)}',
+          '${jsonEncode(expectedArgs)}, got: ${jsonEncode(actualArgsJson)}',
     );
   }
 
@@ -87,11 +104,13 @@ void assertPendingFields(MontyPending pending, Map<String, dynamic> fixture) {
       final expectedMap = Map<String, Object?>.from(
         expectedKwargs as Map<String, dynamic>,
       );
+      final actualKwargsJson =
+          pending.kwargs?.map((k, v) => MapEntry(k, v.toJson()));
       expect(
-        pending.kwargs,
+        actualKwargsJson,
         expectedMap,
         reason: 'Fixture #${fixture['id']}: expected kwargs '
-            '$expectedMap, got: ${pending.kwargs}',
+            '$expectedMap, got: $actualKwargsJson',
       );
     }
   }

@@ -26,7 +26,13 @@ void _enqueueSessionRun(
     ..enqueueProgress(
       MontyPending(
         functionName: '__persist_state__',
-        arguments: [persistedState],
+        arguments: [
+          MontyDict(
+            persistedState.map(
+              (k, v) => MapEntry(k, MontyValue.fromJson(v)),
+            ),
+          ),
+        ],
       ),
     )
     // 3. After persist resumes, execution completes
@@ -39,7 +45,7 @@ void main() {
       final mock = MockMontyPlatform();
       _enqueueSessionRun(
         mock,
-        result: const MontyResult(value: 'hello', usage: _usage),
+        result: const MontyResult(value: MontyString('hello'), usage: _usage),
       );
 
       final session = McpMontySession(id: 'test', platform: mock);
@@ -67,11 +73,11 @@ void main() {
       final mock = MockMontyPlatform();
       _enqueueSessionRun(
         mock,
-        result: const MontyResult(value: 1, usage: _usage),
+        result: const MontyResult(value: MontyInt(1), usage: _usage),
       );
       _enqueueSessionRun(
         mock,
-        result: const MontyResult(value: 2, usage: _usage),
+        result: const MontyResult(value: MontyInt(2), usage: _usage),
       );
 
       final session = McpMontySession(id: 'serial', platform: mock);
@@ -140,18 +146,18 @@ void main() {
         ..enqueueProgress(
           const MontyPending(
             functionName: 'add',
-            arguments: [3, 4],
+            arguments: [MontyInt(3), MontyInt(4)],
           ),
         )
         ..enqueueProgress(
           const MontyPending(
             functionName: '__persist_state__',
-            arguments: [<String, Object?>{}],
+            arguments: [MontyDict(<String, MontyValue>{})],
           ),
         )
         ..enqueueProgress(
           const MontyComplete(
-            result: MontyResult(value: 7, usage: _usage),
+            result: MontyResult(value: MontyInt(7), usage: _usage),
           ),
         );
 
@@ -196,7 +202,7 @@ void main() {
         ..enqueueProgress(
           const MontyPending(
             functionName: '__persist_state__',
-            arguments: [<String, Object?>{}],
+            arguments: [MontyDict(<String, MontyValue>{})],
           ),
         )
         ..enqueueProgress(
@@ -242,7 +248,7 @@ void main() {
         ..enqueueProgress(
           const MontyPending(
             functionName: '__persist_state__',
-            arguments: [<String, Object?>{}],
+            arguments: [MontyDict(<String, MontyValue>{})],
           ),
         )
         ..enqueueProgress(
@@ -287,24 +293,28 @@ void main() {
           ),
         )
         ..enqueueProgress(
-          const MontyPending(functionName: 'add', arguments: [1, 2]),
+          const MontyPending(
+            functionName: 'add',
+            arguments: [MontyInt(1), MontyInt(2)],
+          ),
         )
         // After add returns, greet is called
         ..enqueueProgress(
           const MontyPending(
             functionName: 'greet',
-            arguments: ['World'],
+            arguments: [MontyString('World')],
           ),
         )
         ..enqueueProgress(
           const MontyPending(
             functionName: '__persist_state__',
-            arguments: [<String, Object?>{}],
+            arguments: [MontyDict(<String, MontyValue>{})],
           ),
         )
         ..enqueueProgress(
           const MontyComplete(
-            result: MontyResult(value: 'Hello, World!', usage: _usage),
+            result:
+                MontyResult(value: MontyString('Hello, World!'), usage: _usage),
           ),
         );
 
@@ -364,12 +374,12 @@ void main() {
         ..enqueueProgress(
           const MontyPending(
             functionName: '__persist_state__',
-            arguments: [<String, Object?>{}],
+            arguments: [MontyDict(<String, MontyValue>{})],
           ),
         )
         ..enqueueProgress(
           const MontyComplete(
-            result: MontyResult(value: 'done', usage: _usage),
+            result: MontyResult(value: MontyString('done'), usage: _usage),
           ),
         );
 
@@ -398,7 +408,7 @@ void main() {
       final mock = MockMontyPlatform();
       _enqueueSessionRun(
         mock,
-        result: const MontyResult(value: 42, usage: _usage),
+        result: const MontyResult(value: MontyInt(42), usage: _usage),
       );
 
       final session = McpMontySession(id: 'no-hf', platform: mock);

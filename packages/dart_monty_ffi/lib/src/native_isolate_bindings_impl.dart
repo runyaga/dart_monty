@@ -130,15 +130,6 @@ final class _MontyErrorResponse extends _Response {
   final MontyError error;
 }
 
-/// Notification sent from the worker isolate to the supervisor with the
-/// monotonic handle ID, immediately after create() and before blocking
-/// run()/start(). This prevents the handleId-routing deadlock where an
-/// infinite loop would never send a response containing the handleId.
-final class _HandleIdNotification {
-  const _HandleIdNotification(this.handleId);
-  final int handleId;
-}
-
 // =============================================================================
 // Isolate entry point
 // =============================================================================
@@ -154,12 +145,7 @@ Future<void> _isolateMain(_InitMessage init) async {
   init.mainSendPort.send(_ReadyMessage(receivePort.sendPort));
 
   final nativeBindings = NativeBindingsFfi();
-  final ffiCoreBindings = FfiCoreBindings(
-    bindings: nativeBindings,
-    onHandleCreated: (handleId) {
-      init.mainSendPort.send(_HandleIdNotification(handleId));
-    },
-  );
+  final ffiCoreBindings = FfiCoreBindings(bindings: nativeBindings);
   var monty = MontyFfi.withCore(
     coreBindings: ffiCoreBindings,
     nativeBindings: nativeBindings,
@@ -270,13 +256,6 @@ class NativeIsolateBindingsImpl extends NativeIsolateBindings {
   int _nextId = 0;
   final Map<int, Completer<_Response>> _pending = {};
 
-  /// Monotonic handle ID received from the worker isolate via
-  /// [_HandleIdNotification]. Available after the first run/start request.
-  int? _handleId;
-
-  /// The handle ID for cross-isolate cancel, or `null` if not yet available.
-  int? get handleId => _handleId;
-
   Completer<void>? _exitCompleter;
 
   /// Number of worker isolates that failed to exit within the terminate
@@ -299,11 +278,6 @@ class NativeIsolateBindingsImpl extends NativeIsolateBindings {
     receivePort.listen((message) {
       if (message is _ReadyMessage) {
         completer.complete(message.sendPort);
-
-        return;
-      }
-      if (message is _HandleIdNotification) {
-        _handleId = message.handleId;
 
         return;
       }
@@ -353,12 +327,6 @@ class NativeIsolateBindingsImpl extends NativeIsolateBindings {
         'Possible silent crash before _ReadyMessage was sent.',
       ),
     );
-
-    // Initialize FFI on the main isolate so that MontyCancelToken and
-    // direct NativeBindingsFfi access work cross-isolate.  Dart static
-    // state is per-isolate, so the worker's NativeBindingsFfi registration
-    // does not propagate here.
-    NativeBindingsFfi.ensureInitialized();
 
     return true;
   }
@@ -453,14 +421,6 @@ class NativeIsolateBindingsImpl extends NativeIsolateBindings {
   Future<void> dispose() async {
     if (_sendPort == null) return;
 
-    // Cancel first so a stuck FFI call (e.g. infinite loop) unblocks before
-    // we send the dispose command.  Without this, dispose() hangs forever
-    // waiting for a port reply that the blocked isolate can never send.
-    // See: https://github.com/runyaga/dart_monty/issues/113
-    // coverage:ignore-start — exercised by integration tests (T2-2)
-    await cancel();
-    // coverage:ignore-end
-
     try {
       await _send<_DisposeResponse>(_DisposeRequest(_nextId++));
     } on MontyException {
@@ -472,32 +432,14 @@ class NativeIsolateBindingsImpl extends NativeIsolateBindings {
       _isolate = null;
       _sendPort = null;
       _receivePort = null;
-      _handleId = null;
     }
   }
 
-  /// Cancel the current execution via `cancelById` (cross-isolate safe).
+  /// Force-kill the worker isolate.
   ///
-  /// No-op if the handle ID has not been received yet.
-  Future<void> cancel() async {
-    final hid = _handleId;
-    if (hid != null) {
-      NativeBindingsFfi.ensureInitialized();
-      NativeBindingsFfi.instanceOrNull?.cancelById(hid);
-    }
-  }
-
-  /// Cancel and force-kill the worker isolate.
-  ///
-  /// Waits up to 5 seconds for the isolate to exit gracefully after cancel.
-  /// If the isolate does not exit in time, it is killed and counted as a
-  /// zombie (the Rust handle may leak because `freeById` is skipped to
-  /// avoid use-after-free on the Rust handle).
+  /// Asks the worker to exit cleanly; waits up to 5 seconds. If the isolate
+  /// does not exit in time, it is killed and counted as a zombie.
   Future<void> terminate() async {
-    await cancel();
-    // Ask the worker to exit cleanly.  After cancel halts execution the
-    // worker is idle in its event loop; sending dispose lets it shut down
-    // gracefully so we avoid the zombie/skip-freeById path.
     _sendPort?.send(_DisposeRequest(_nextId++));
     if (_exitCompleter != null && !_exitCompleter!.isCompleted) {
       final exited = await _exitCompleter!.future
@@ -515,31 +457,21 @@ class NativeIsolateBindingsImpl extends NativeIsolateBindings {
             level: 900, // WARNING
           );
         }
-        _cleanupAfterCrashDisposal(skipFreeById: true);
+        _cleanupAfterTermination();
 
         return;
       }
     }
-    _cleanupAfterCrashDisposal();
+    _cleanupAfterTermination();
   }
 
-  /// Crash-only cleanup: kill isolate, close port, free Rust handle.
-  ///
-  /// If [skipFreeById] is `true`, the Rust handle is NOT freed via
-  /// `freeById` — used when the isolate did not exit cleanly and the
-  /// handle may already be invalid (prevents use-after-free).
-  void _cleanupAfterCrashDisposal({bool skipFreeById = false}) {
+  /// Cleanup after terminate: kill isolate, close port.
+  void _cleanupAfterTermination() {
     _isolate?.kill(priority: Isolate.immediate);
     _receivePort?.close();
     _receivePort = null;
     _isolate = null;
     _failAllPending('Isolate crashed or was force-killed');
-    if (_handleId != null) {
-      if (!skipFreeById) {
-        NativeBindingsFfi.instanceOrNull?.freeById(_handleId!);
-      }
-      _handleId = null;
-    }
     _sendPort = null;
   }
 
