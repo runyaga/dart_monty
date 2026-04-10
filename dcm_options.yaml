@@ -92,6 +92,18 @@ dcm:
           # expectError extracted early for readability across if/else-if branches
           - "lib/src/platform/testing/ladder_runner.dart"
 
+    # --- Error Handling & Variables ---
+    - avoid-throw-objects-without-tostring
+    - avoid-non-final-exception-class-fields
+    - prefer-correct-error-name
+    - avoid-unnecessary-local-variable
+    - avoid-unnecessary-reassignment
+    - avoid-mutating-parameters
+    - avoid-unused-local-variable
+    - avoid-nested-try-statements
+    - avoid-missing-interpolation
+    - prefer-correct-identifier-length
+
     # --- Robustness & Correctness ---
     - avoid-unsafe-reduce
     - avoid-map-keys-contains
