@@ -15,7 +15,7 @@ void assertLadderResult(MontyValue? actual, Map<String, dynamic> fixture) {
   final expectedContains = fixture['expectedContains'] as String?;
   if (expectedContains != null) {
     expect(
-      actual.toString(),
+      actual?.toString(),
       contains(expectedContains),
       reason:
           'Fixture #${fixture['id']}: expected value to contain '

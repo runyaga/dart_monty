@@ -253,13 +253,13 @@ class MessageBusPlugin extends MontyPlugin {
     _pendingRecvs.clear();
   }
 
-  Future<Object?> _handleSend(Map<String, Object?> args) async {
+  Future<Object?> _handleSend(Map<String, Object?> args) {
     final name = args['name']! as String;
     final message = args['message'];
     _bus.send(name, message);
     logger.debug('msg_send', attributes: {'channel': name});
 
-    return null;
+    return Future.value();
   }
 
   Future<Object?> _handleRecv(Map<String, Object?> args) async {
@@ -296,23 +296,23 @@ class MessageBusPlugin extends MontyPlugin {
     }
   }
 
-  Future<Object?> _handlePeek(Map<String, Object?> args) async {
+  Future<Object?> _handlePeek(Map<String, Object?> args) {
     final name = args['name']! as String;
 
-    return _bus.peek(name);
+    return Future.value(_bus.peek(name));
   }
 
-  Future<Object?> _handleClose(Map<String, Object?> args) async {
+  Future<Object?> _handleClose(Map<String, Object?> args) {
     final name = args['name']! as String;
     _bus.close(name);
     logger.debug('msg_close', attributes: {'channel': name});
 
-    return null;
+    return Future.value();
   }
 
-  Future<Object?> _handleStats(Map<String, Object?> args) async {
+  Future<Object?> _handleStats(Map<String, Object?> args) {
     final name = args['name']! as String;
 
-    return _bus.stats(name);
+    return Future.value(_bus.stats(name));
   }
 }

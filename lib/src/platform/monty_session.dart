@@ -75,7 +75,7 @@ class MontySession {
   /// The current persisted state as a JSON-decoded map.
   ///
   /// Read-only snapshot. Returns an empty map if no state has been persisted.
-  Map<String, Object?> get state => Map<String, Object?>.from(_state);
+  Map<String, Object?> get state => Map.from(_state);
 
   /// Executes [code] with state restored from previous calls.
   ///

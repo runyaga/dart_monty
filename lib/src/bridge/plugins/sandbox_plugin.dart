@@ -678,17 +678,17 @@ class SandboxPlugin extends MontyPlugin {
     return Future.wait(futures);
   }
 
-  Future<Object?> _handleIsAlive(Map<String, Object?> args) async {
+  Future<Object?> _handleIsAlive(Map<String, Object?> args) {
     final handle = args['handle']! as int;
     final child = _children[handle];
     if (child == null) {
       throw ArgumentError.value(handle, 'handle', 'Unknown child handle.');
     }
 
-    return child.isAlive;
+    return Future.value(child.isAlive);
   }
 
-  Future<Object?> _handleFree(Map<String, Object?> args) async {
+  Future<Object?> _handleFree(Map<String, Object?> args) {
     final handle = args['handle']! as int;
     final child = _children[handle];
     if (child == null) {
@@ -702,10 +702,10 @@ class SandboxPlugin extends MontyPlugin {
     _children.remove(handle);
     logger.debug('Child freed', attributes: {'childId': handle});
 
-    return null;
+    return Future.value();
   }
 
-  Future<Object?> _handleGetOutput(Map<String, Object?> args) async {
+  Future<Object?> _handleGetOutput(Map<String, Object?> args) {
     final handle = args['handle']! as int;
     final child = _children[handle];
     if (child == null) {
@@ -717,7 +717,7 @@ class SandboxPlugin extends MontyPlugin {
       );
     }
 
-    return child.printOutput;
+    return Future.value(child.printOutput);
   }
 
   Future<Object?> _handleGather(Map<String, Object?> args) async {

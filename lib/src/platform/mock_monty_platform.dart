@@ -249,6 +249,7 @@ class MockMontyPlatform extends MontyPlatform
 
   @override
   Future<void> dispose() async {
+    await restoreResult?.dispose();
     isDisposed = true;
   }
 

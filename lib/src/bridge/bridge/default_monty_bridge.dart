@@ -292,7 +292,7 @@ class DefaultMontyBridge implements MontyBridge {
     // Console write — always intercept, buffer for text flush.
     if (name == _consoleWriteFn) {
       if (pending.arguments.isNotEmpty) {
-        printBuffer.write(pending.arguments.first.dartValue.toString());
+        printBuffer.write(pending.arguments.first.dartValue?.toString());
       }
 
       return _platform.resume(null);
@@ -349,7 +349,7 @@ class DefaultMontyBridge implements MontyBridge {
         ),
       );
 
-      return _platform.resume(result);
+      return await _platform.resume(result);
     } on Object catch (e, st) {
       log.error(
         'OS call handler error',
@@ -472,7 +472,7 @@ class DefaultMontyBridge implements MontyBridge {
         )
         ..add(BridgeStepFinished(stepId: stepName));
 
-      return _platform.resume(result);
+      return await _platform.resume(result);
     } on Object catch (e, st) {
       log.error(
         'Host handler error',

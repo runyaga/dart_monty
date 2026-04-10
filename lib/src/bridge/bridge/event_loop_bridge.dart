@@ -201,12 +201,12 @@ class EventLoopBridge extends DefaultMontyBridge {
     return completer.future;
   }
 
-  Future<Object?> _handleRenderUi(Map<String, Object?> args) async {
+  Future<Object?> _handleRenderUi(Map<String, Object?> args) {
     final schema = args['schema']! as Map<String, dynamic>;
     _lastRenderedUi = schema;
     _eventLoopController.add(BridgeUiRendered(schema: schema));
     onRenderUi?.call(schema);
 
-    return null;
+    return Future.value();
   }
 }

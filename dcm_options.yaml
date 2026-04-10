@@ -180,6 +180,21 @@ dcm:
     # --- Immutability ---
     - prefer-final-fields
 
+    # --- Async & Type Safety ---
+    - avoid-nested-futures
+    - avoid-nested-streams-and-futures
+    - prefer-return-await:
+        exclude:
+          # Future.value() return in try/catch — already resolved, no async gap
+          - "lib/src/bridge/plugins/template_plugin.dart"
+    - avoid-type-casts
+    - avoid-inferrable-type-arguments
+    - avoid-unnecessary-futures
+    - prefer-correct-future-return-type
+    - avoid-future-tostring
+    - avoid-nullable-tostring
+    - dispose-class-fields
+
     # --- Null Safety & Types ---
     - avoid-late-keyword:
         exclude:

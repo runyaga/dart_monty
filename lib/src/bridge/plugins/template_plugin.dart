@@ -60,7 +60,7 @@ class DinjaTemplatePlugin extends MontyPlugin {
   MontyPlugin? createChildInstance({ChildSpawnContext? context}) =>
       DinjaTemplatePlugin(maxInputSize: _maxInputSize);
 
-  Future<Object?> _handleRender(Map<String, Object?> args) async {
+  Future<Object?> _handleRender(Map<String, Object?> args) {
     final templateStr = args['template']! as String;
     final context = args['context']! as Map<String, Object?>;
     _guardInputSize(templateStr);
@@ -73,7 +73,7 @@ class DinjaTemplatePlugin extends MontyPlugin {
         attributes: {'templateLength': templateStr.length},
       );
 
-      return result;
+      return Future.value(result);
     } on Exception catch (e) {
       throw FormatException('Template error: $e');
     }

@@ -56,7 +56,7 @@ class NativeBindingsFfi extends NativeBindings {
   @override
   void free(int handle) {
     if (handle == 0) return;
-    ffi_native.monty_free(Pointer<ffi_native.MontyHandle>.fromAddress(handle));
+    ffi_native.monty_free(Pointer.fromAddress(handle));
   }
 
   @override
@@ -175,7 +175,7 @@ class NativeBindingsFfi extends NativeBindings {
   @override
   void setMemoryLimit(int handle, int bytes) {
     ffi_native.monty_set_memory_limit(
-      Pointer<ffi_native.MontyHandle>.fromAddress(handle),
+      Pointer.fromAddress(handle),
       bytes,
     );
   }
@@ -183,7 +183,7 @@ class NativeBindingsFfi extends NativeBindings {
   @override
   void setTimeLimitMs(int handle, int ms) {
     ffi_native.monty_set_time_limit_ms(
-      Pointer<ffi_native.MontyHandle>.fromAddress(handle),
+      Pointer.fromAddress(handle),
       ms,
     );
   }
@@ -191,7 +191,7 @@ class NativeBindingsFfi extends NativeBindings {
   @override
   void setStackLimit(int handle, int depth) {
     ffi_native.monty_set_stack_limit(
-      Pointer<ffi_native.MontyHandle>.fromAddress(handle),
+      Pointer.fromAddress(handle),
       depth,
     );
   }

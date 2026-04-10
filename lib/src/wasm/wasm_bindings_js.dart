@@ -247,7 +247,7 @@ class WasmBindingsJs extends WasmBindings {
       printOutput: map['print_output'] as String?,
       functionName: map['functionName'] as String?,
       arguments: args != null ? List<Object?>.from(args) : null,
-      kwargs: rawKwargs != null ? Map<String, Object?>.from(rawKwargs) : null,
+      kwargs: rawKwargs != null ? Map.from(rawKwargs) : null,
       callId: map['callId'] as int?,
       methodCall: map['methodCall'] as bool?,
       pendingCallIds: rawCallIds != null ? List<int>.from(rawCallIds) : null,

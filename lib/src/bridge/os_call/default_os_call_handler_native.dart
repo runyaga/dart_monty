@@ -8,114 +8,116 @@ import 'package:dart_monty/src/bridge/bridge/default_monty_bridge.dart';
 /// Handles filesystem (pathlib), environment (os.getenv/os.environ),
 /// and datetime (date.today/datetime.now) operations.
 OsCallHandler createDefaultOsCallHandler() {
-  return (MontyOsCall call) async {
-    final args = call.arguments;
-    switch (call.operationName) {
-      // -- Path operations --
-      case 'Path.exists':
-        return FileSystemEntity.typeSync(_extractPath(args.first)) !=
-            FileSystemEntityType.notFound;
-      case 'Path.is_file':
-        return FileSystemEntity.typeSync(_extractPath(args.first)) ==
-            FileSystemEntityType.file;
-      case 'Path.is_dir':
-        return FileSystemEntity.typeSync(_extractPath(args.first)) ==
-            FileSystemEntityType.directory;
-      case 'Path.is_symlink':
-        return FileSystemEntity.typeSync(
-              _extractPath(args.first),
-              followLinks: false,
-            ) ==
-            FileSystemEntityType.link;
-      case 'Path.read_text':
-        return File(_extractPath(args.first)).readAsStringSync();
-      case 'Path.read_bytes':
-        return File(_extractPath(args.first)).readAsBytesSync().toList();
-      case 'Path.write_text':
-        final path = _extractPath(args.first);
-        final content = _extractPath(args[1]);
-        File(path).writeAsStringSync(content);
+  return (MontyOsCall call) => Future.value(_handleCall(call));
+}
 
-        return content.length;
-      case 'Path.write_bytes':
-        final path = _extractPath(args.first);
-        final bytes = (args[1].dartValue! as List).cast<int>();
-        File(path).writeAsBytesSync(bytes);
+Object? _handleCall(MontyOsCall call) {
+  final args = call.arguments;
+  switch (call.operationName) {
+    // -- Path operations --
+    case 'Path.exists':
+      return FileSystemEntity.typeSync(_extractPath(args.first)) !=
+          FileSystemEntityType.notFound;
+    case 'Path.is_file':
+      return FileSystemEntity.typeSync(_extractPath(args.first)) ==
+          FileSystemEntityType.file;
+    case 'Path.is_dir':
+      return FileSystemEntity.typeSync(_extractPath(args.first)) ==
+          FileSystemEntityType.directory;
+    case 'Path.is_symlink':
+      return FileSystemEntity.typeSync(
+            _extractPath(args.first),
+            followLinks: false,
+          ) ==
+          FileSystemEntityType.link;
+    case 'Path.read_text':
+      return File(_extractPath(args.first)).readAsStringSync();
+    case 'Path.read_bytes':
+      return File(_extractPath(args.first)).readAsBytesSync().toList();
+    case 'Path.write_text':
+      final path = _extractPath(args.first);
+      final content = _extractPath(args[1]);
+      File(path).writeAsStringSync(content);
 
-        return bytes.length;
-      case 'Path.mkdir':
-        final path = _extractPath(args.first);
-        final parents = call.kwargs?['parents']?.dartValue as bool? ?? false;
-        final existOk = call.kwargs?['exist_ok']?.dartValue as bool? ?? false;
-        final dir = Directory(path);
-        if (existOk && dir.existsSync()) return null;
-        dir.createSync(recursive: parents);
+      return content.length;
+    case 'Path.write_bytes':
+      final path = _extractPath(args.first);
+      final bytes = (args[1].dartValue! as List).cast<int>();
+      File(path).writeAsBytesSync(bytes);
 
-        return null;
-      case 'Path.unlink':
-        File(_extractPath(args.first)).deleteSync();
+      return bytes.length;
+    case 'Path.mkdir':
+      final path = _extractPath(args.first);
+      final parents = call.kwargs?['parents']?.dartValue as bool? ?? false;
+      final existOk = call.kwargs?['exist_ok']?.dartValue as bool? ?? false;
+      final dir = Directory(path);
+      if (existOk && dir.existsSync()) return null;
+      dir.createSync(recursive: parents);
 
-        return null;
-      case 'Path.rmdir':
-        Directory(_extractPath(args.first)).deleteSync();
+      return null;
+    case 'Path.unlink':
+      File(_extractPath(args.first)).deleteSync();
 
-        return null;
-      case 'Path.rename':
-        final oldPath = _extractPath(args.first);
-        final newPath = _extractPath(args[1]);
-        File(oldPath).renameSync(newPath);
+      return null;
+    case 'Path.rmdir':
+      Directory(_extractPath(args.first)).deleteSync();
 
-        return newPath;
-      case 'Path.iterdir':
-        return Directory(
-          _extractPath(args.first),
-        ).listSync().map((e) => e.path).toList();
-      case 'Path.resolve':
-        return File(_extractPath(args.first)).resolveSymbolicLinksSync();
-      case 'Path.absolute':
-        return File(_extractPath(args.first)).absolute.path;
+      return null;
+    case 'Path.rename':
+      final oldPath = _extractPath(args.first);
+      final newPath = _extractPath(args[1]);
+      File(oldPath).renameSync(newPath);
 
-      // -- Environment --
-      case 'os.getenv':
-        final key = _extractPath(args.first);
-        final defaultValue = args.length > 1 ? args[1].dartValue : null;
+      return newPath;
+    case 'Path.iterdir':
+      return Directory(
+        _extractPath(args.first),
+      ).listSync().map((e) => e.path).toList();
+    case 'Path.resolve':
+      return File(_extractPath(args.first)).resolveSymbolicLinksSync();
+    case 'Path.absolute':
+      return File(_extractPath(args.first)).absolute.path;
 
-        return Platform.environment[key] ?? defaultValue;
-      case 'os.environ':
-        return Platform.environment;
+    // -- Environment --
+    case 'os.getenv':
+      final key = _extractPath(args.first);
+      final defaultValue = args.length > 1 ? args[1].dartValue : null;
 
-      // -- DateTime --
-      case 'date.today':
-        final now = DateTime.now();
+      return Platform.environment[key] ?? defaultValue;
+    case 'os.environ':
+      return Platform.environment;
 
-        return {
-          '__type': 'date',
-          'year': now.year,
-          'month': now.month,
-          'day': now.day,
-        };
-      case 'datetime.now':
-        final now = DateTime.now();
+    // -- DateTime --
+    case 'date.today':
+      final now = DateTime.now();
 
-        return {
-          '__type': 'datetime',
-          'year': now.year,
-          'month': now.month,
-          'day': now.day,
-          'hour': now.hour,
-          'minute': now.minute,
-          'second': now.second,
-          'microsecond': now.microsecond,
-          'offset_seconds': now.timeZoneOffset.inSeconds,
-          'timezone_name': now.timeZoneName,
-        };
+      return {
+        '__type': 'date',
+        'year': now.year,
+        'month': now.month,
+        'day': now.day,
+      };
+    case 'datetime.now':
+      final now = DateTime.now();
 
-      default:
-        throw UnsupportedError(
-          'Unsupported OS operation: ${call.operationName}',
-        );
-    }
-  };
+      return {
+        '__type': 'datetime',
+        'year': now.year,
+        'month': now.month,
+        'day': now.day,
+        'hour': now.hour,
+        'minute': now.minute,
+        'second': now.second,
+        'microsecond': now.microsecond,
+        'offset_seconds': now.timeZoneOffset.inSeconds,
+        'timezone_name': now.timeZoneName,
+      };
+
+    default:
+      throw UnsupportedError(
+        'Unsupported OS operation: ${call.operationName}',
+      );
+  }
 }
 
 /// Extracts a string path from a [MontyValue] argument.
