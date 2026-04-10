@@ -19,7 +19,7 @@ import 'package:dart_monty/dart_monty_ffi.dart';
 
 Future<void> main() async {
   final bindings = NativeBindingsFfi();
-  final fixtureDir = Directory('../../test/fixtures/python_ladder');
+  final fixtureDir = Directory('test/fixtures/python_ladder');
   final tierFiles =
       fixtureDir
           .listSync()

@@ -24,7 +24,7 @@ void main() {
 
   registerLadderTests(
     createPlatform: () => MontyFfi(bindings: bindings),
-    fixtureDir: Directory('../../test/fixtures/python_ladder'),
+    fixtureDir: Directory('test/fixtures/python_ladder'),
     osCallHandler: createDefaultOsCallHandler(),
   );
 }

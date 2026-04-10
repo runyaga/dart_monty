@@ -95,8 +95,8 @@ void assertPendingFields(MontyPending pending, Map<String, dynamic> fixture) {
     );
   }
 
-  final expectedKwargs = fixture['expectedKwargs'];
   if (fixture.containsKey('expectedKwargs')) {
+    final expectedKwargs = fixture['expectedKwargs'];
     if (expectedKwargs == null) {
       expect(
         pending.kwargs,

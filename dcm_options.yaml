@@ -77,6 +77,21 @@ dcm:
     - no-equal-arguments
     - no-equal-conditions
 
+    # --- Code Quality ---
+    - avoid-collapsible-if
+    - avoid-redundant-else
+    - avoid-unnecessary-conditionals
+    - avoid-unnecessary-overrides
+    - avoid-shadowing
+    - avoid-only-rethrow
+    - avoid-identical-exception-handling-blocks
+    - prefer-early-return
+    - prefer-returning-condition
+    - move-variable-closer-to-its-usage:
+        exclude:
+          # expectError extracted early for readability across if/else-if branches
+          - "lib/src/platform/testing/ladder_runner.dart"
+
     # --- Common Anti-Patterns ---
     - avoid-unused-parameters
     - avoid-nested-conditional-expressions

@@ -479,9 +479,6 @@ class SandboxPlugin extends MontyPlugin {
         // plugins call generateSystemPrompt() during onRegister.
         childRegistry.systemPromptPrefix = childPrompt;
 
-        // Capture plugin count before attachTo in case the registry is in a
-        // broken state after the error.
-        final pluginCount = childRegistry.plugins.length;
         try {
           await childRegistry.attachTo(bridge);
           logger.debug(
@@ -489,6 +486,9 @@ class SandboxPlugin extends MontyPlugin {
             attributes: {'pluginCount': childRegistry.plugins.length},
           );
         } on Object catch (e, st) {
+          // Capture plugin count here — registry may be in a broken state
+          // after the error, but plugins.length is still readable.
+          final pluginCount = childRegistry.plugins.length;
           logger.error(
             'Child plugin attachment failed',
             error: e,

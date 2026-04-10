@@ -151,8 +151,6 @@ Future<void> runIterativeFixture(
   final extFns = (fixture['externalFunctions'] as List).cast<String>();
   final resumeValues = (fixture['resumeValues'] as List?)?.cast<Object>();
   final resumeErrors = (fixture['resumeErrors'] as List?)?.cast<String>();
-  final asyncResumeMap = fixture['asyncResumeMap'] as Map<String, dynamic>?;
-  final asyncErrorMap = fixture['asyncErrorMap'] as Map<String, dynamic>?;
   final scriptName = fixture['scriptName'] as String?;
   final expectError = fixture['expectError'] as bool? ?? false;
 
@@ -164,7 +162,9 @@ Future<void> runIterativeFixture(
 
   final callIds = <int>[];
 
+  final asyncResumeMap = fixture['asyncResumeMap'] as Map<String, dynamic>?;
   if (asyncResumeMap != null) {
+    final asyncErrorMap = fixture['asyncErrorMap'] as Map<String, dynamic>?;
     if (platform is! MontyFutureCapable) {
       markTestSkipped('Platform does not support MontyFutureCapable');
 
