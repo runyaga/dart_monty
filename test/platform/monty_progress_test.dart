@@ -528,6 +528,229 @@ void main() {
       });
     });
 
+    group('MontyOsCall', () {
+      group('fromJson', () {
+        test('parses os_call JSON with full fields', () {
+          final osCall = MontyOsCall.fromJson(const {
+            'type': 'os_call',
+            'operation_name': 'Path.read_text',
+            'arguments': ['/tmp/file.txt'],
+            'kwargs': {'encoding': 'utf-8'},
+            'call_id': 99,
+          });
+          expect(osCall.operationName, 'Path.read_text');
+          expect(osCall.arguments, [const MontyString('/tmp/file.txt')]);
+          expect(osCall.kwargs, {'encoding': const MontyString('utf-8')});
+          expect(osCall.callId, 99);
+        });
+
+        test('parses os_call with empty arguments', () {
+          final osCall = MontyOsCall.fromJson(const {
+            'type': 'os_call',
+            'operation_name': 'date.today',
+            'arguments': <dynamic>[],
+          });
+          expect(osCall.operationName, 'date.today');
+          expect(osCall.arguments, isEmpty);
+        });
+
+        test('parses os_call with null arguments defaults to empty', () {
+          final osCall = MontyOsCall.fromJson(const {
+            'type': 'os_call',
+            'operation_name': 'os.getcwd',
+          });
+          expect(osCall.arguments, isEmpty);
+        });
+
+        test('defaults call_id to 0', () {
+          final osCall = MontyOsCall.fromJson(const {
+            'type': 'os_call',
+            'operation_name': 'os.getenv',
+            'arguments': ['HOME'],
+          });
+          expect(osCall.callId, 0);
+        });
+
+        test('parses null kwargs as null', () {
+          final osCall = MontyOsCall.fromJson(const {
+            'type': 'os_call',
+            'operation_name': 'os.getenv',
+            'arguments': ['PATH'],
+          });
+          expect(osCall.kwargs, isNull);
+        });
+
+        test('parses empty kwargs as empty map', () {
+          final osCall = MontyOsCall.fromJson(const {
+            'type': 'os_call',
+            'operation_name': 'fn',
+            'kwargs': <String, dynamic>{},
+          });
+          expect(osCall.kwargs, isNotNull);
+          expect(osCall.kwargs, isEmpty);
+        });
+      });
+
+      test('toJson', () {
+        const osCall = MontyOsCall(
+          operationName: 'Path.exists',
+          arguments: [MontyString('/tmp')],
+        );
+        expect(osCall.toJson(), {
+          'type': 'os_call',
+          'operation_name': 'Path.exists',
+          'arguments': ['/tmp'],
+        });
+      });
+
+      test('toJson includes kwargs when non-null', () {
+        const osCall = MontyOsCall(
+          operationName: 'Path.read_text',
+          arguments: [MontyString('/f')],
+          kwargs: {'encoding': MontyString('utf-8')},
+        );
+        final json = osCall.toJson();
+        expect(json['kwargs'], {'encoding': 'utf-8'});
+      });
+
+      test('toJson omits kwargs when null', () {
+        const osCall = MontyOsCall(
+          operationName: 'os.getcwd',
+          arguments: [],
+        );
+        final json = osCall.toJson();
+        expect(json.containsKey('kwargs'), isFalse);
+      });
+
+      test('toJson includes callId when non-zero', () {
+        const osCall = MontyOsCall(
+          operationName: 'fn',
+          arguments: [],
+          callId: 5,
+        );
+        expect(osCall.toJson()['call_id'], 5);
+      });
+
+      test('toJson omits callId when zero', () {
+        const osCall = MontyOsCall(
+          operationName: 'fn',
+          arguments: [],
+        );
+        expect(osCall.toJson().containsKey('call_id'), isFalse);
+      });
+
+      test('JSON round-trip', () {
+        const original = MontyOsCall(
+          operationName: 'Path.read_text',
+          arguments: [MontyString('/tmp/f.txt')],
+          kwargs: {'encoding': MontyString('utf-8')},
+          callId: 42,
+        );
+        final restored = MontyOsCall.fromJson(original.toJson());
+        expect(restored, original);
+      });
+
+      group('equality', () {
+        test('equal when all fields match', () {
+          const a = MontyOsCall(
+            operationName: 'os.getenv',
+            arguments: [MontyString('HOME')],
+            callId: 1,
+          );
+          const b = MontyOsCall(
+            operationName: 'os.getenv',
+            arguments: [MontyString('HOME')],
+            callId: 1,
+          );
+          expect(a, b);
+          expect(a.hashCode, b.hashCode);
+        });
+
+        test('not equal when operationName differs', () {
+          const a = MontyOsCall(operationName: 'a', arguments: []);
+          const b = MontyOsCall(operationName: 'b', arguments: []);
+          expect(a, isNot(b));
+        });
+
+        test('not equal when arguments differ', () {
+          const a = MontyOsCall(
+            operationName: 'fn',
+            arguments: [MontyInt(1)],
+          );
+          const b = MontyOsCall(
+            operationName: 'fn',
+            arguments: [MontyInt(2)],
+          );
+          expect(a, isNot(b));
+        });
+
+        test('not equal when kwargs differs', () {
+          const a = MontyOsCall(
+            operationName: 'fn',
+            arguments: [],
+            kwargs: {'a': MontyInt(1)},
+          );
+          const b = MontyOsCall(
+            operationName: 'fn',
+            arguments: [],
+            kwargs: {'a': MontyInt(2)},
+          );
+          expect(a, isNot(b));
+        });
+
+        test('not equal when callId differs', () {
+          const a = MontyOsCall(operationName: 'fn', arguments: [], callId: 1);
+          const b = MontyOsCall(operationName: 'fn', arguments: [], callId: 2);
+          expect(a, isNot(b));
+        });
+
+        test('not equal to other types', () {
+          const osCall = MontyOsCall(operationName: 'fn', arguments: []);
+          expect(osCall, isNot('fn'));
+        });
+
+        test('identical instances are equal', () {
+          const osCall = MontyOsCall(operationName: 'fn', arguments: []);
+          expect(osCall == osCall, isTrue);
+        });
+      });
+
+      test('toString', () {
+        const osCall = MontyOsCall(
+          operationName: 'os.getenv',
+          arguments: [MontyString('HOME')],
+        );
+        expect(
+          osCall.toString(),
+          'MontyOsCall(os.getenv, [MontyString(HOME)])',
+        );
+      });
+    });
+
+    group('MontyComplete edge cases', () {
+      test('fromJson with null value (error-only result)', () {
+        final complete = MontyComplete.fromJson(const {
+          'type': 'complete',
+          'result': {
+            'value': null,
+            'error': {
+              'message': 'division by zero',
+              'exc_type': 'ZeroDivisionError',
+            },
+            'usage': {
+              'memory_bytes_used': 100,
+              'time_elapsed_ms': 1,
+              'stack_depth_used': 1,
+            },
+          },
+        });
+        expect(complete.result.value, isNull);
+        expect(complete.result.error, isNotNull);
+        expect(complete.result.error!.message, 'division by zero');
+        expect(complete.result.isError, isTrue);
+      });
+    });
+
     group('fromJson discriminator', () {
       test('dispatches to MontyComplete', () {
         final progress = MontyProgress.fromJson(const {
@@ -551,6 +774,15 @@ void main() {
           'arguments': <dynamic>[],
         });
         expect(progress, isA<MontyPending>());
+      });
+
+      test('dispatches to MontyOsCall', () {
+        final progress = MontyProgress.fromJson(const {
+          'type': 'os_call',
+          'operation_name': 'os.getcwd',
+          'arguments': <dynamic>[],
+        });
+        expect(progress, isA<MontyOsCall>());
       });
 
       test('dispatches to MontyResolveFutures', () {

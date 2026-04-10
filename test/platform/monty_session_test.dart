@@ -756,6 +756,248 @@ void main() {
       });
     });
 
+    group('MontyOsCall in run() mode', () {
+      test('resumes with error for OsCall during run()', () async {
+        mock
+          ..enqueueProgress(
+            const MontyPending(
+              functionName: '__restore_state__',
+              arguments: [],
+            ),
+          )
+          ..enqueueProgress(
+            const MontyOsCall(
+              operationName: 'Path.read_text',
+              arguments: [MontyString('/etc/passwd')],
+              callId: 1,
+            ),
+          )
+          ..enqueueProgress(
+            MontyPending(
+              functionName: '__persist_state__',
+              arguments: [_toMontyDict(const {})],
+            ),
+          )
+          ..enqueueProgress(
+            const MontyComplete(
+              result: MontyResult(usage: _usage),
+            ),
+          );
+
+        final result = await session.run('import os');
+        // The OsCall was rejected — resumeWithError was called.
+        expect(mock.resumeErrorMessages, hasLength(1));
+        expect(
+          mock.resumeErrorMessages.first,
+          contains('OS operations not available'),
+        );
+        expect(result.isError, isFalse);
+      });
+    });
+
+    group('_safeStart catches MontyException', () {
+      test('MontyException during start returns error result', () async {
+        final throwing = _ThrowingMockPlatform(
+          throwOnStart: const MontyException(
+            message: 'SyntaxError: invalid syntax',
+            excType: 'SyntaxError',
+          ),
+        );
+        final s = MontySession(platform: throwing);
+
+        final result = await s.run('x === 1');
+        expect(result.isError, isTrue);
+        expect(result.error!.message, contains('SyntaxError'));
+
+        s.dispose();
+      });
+    });
+
+    group('_safeResume catches exceptions', () {
+      test('MontyException during resume returns error result', () async {
+        final throwing = _ThrowingMockPlatform(
+          throwOnResume: const MontyException(
+            message: 'RuntimeError: oops',
+            excType: 'RuntimeError',
+          ),
+        );
+        // Start succeeds normally — enqueue the initial progress.
+        throwing.enqueueProgress(
+          const MontyPending(
+            functionName: '__restore_state__',
+            arguments: [],
+          ),
+        );
+
+        final s = MontySession(platform: throwing);
+        // run() calls start (succeeds), then resume (throws MontyException).
+        final result = await s.run('x = 1');
+        expect(result.isError, isTrue);
+        expect(result.error!.message, contains('RuntimeError'));
+
+        s.dispose();
+      });
+
+      test('MontyError during resume returns error result', () async {
+        final throwing = _ThrowingMockPlatform(
+          throwOnResume: const MontyPanicError('WASM trap during resume'),
+        );
+        throwing.enqueueProgress(
+          const MontyPending(
+            functionName: '__restore_state__',
+            arguments: [],
+          ),
+        );
+
+        final s = MontySession(platform: throwing);
+        final result = await s.run('x = 1');
+        expect(result.isError, isTrue);
+        expect(result.error!.message, contains('WASM trap during resume'));
+
+        s.dispose();
+      });
+    });
+
+    group('_safeResumeWithError catches exceptions', () {
+      test(
+        'MontyException during resumeWithError returns error result',
+        () async {
+          final throwing = _ThrowingMockPlatform(
+            throwOnResumeWithError: const MontyException(
+              message: 'internal error',
+            ),
+          );
+          // Start succeeds, then restore pending, then unknown fn triggers
+          // resumeWithError which throws.
+          throwing
+            ..enqueueProgress(
+              const MontyPending(
+                functionName: '__restore_state__',
+                arguments: [],
+              ),
+            )
+            ..enqueueProgress(
+              const MontyPending(
+                functionName: 'unknown_fn',
+                arguments: [],
+              ),
+            );
+
+          final s = MontySession(platform: throwing);
+          // run() -> restore (resume OK via start path) -> unknown_fn ->
+          // resumeWithError (throws)
+          // But _safeResume is used for restore. We need the resume to succeed
+          // for restore, then fail for resumeWithError on the unknown fn.
+          // The _ThrowingMockPlatform throws on ALL resumes though.
+          // Let's use a different approach: make resume succeed but
+          // resumeWithError throw.
+          // Actually _ThrowingMockPlatform.resume is not overridden to throw
+          // here — only throwOnResumeWithError is set. So resume works fine.
+
+          // Wait — _ThrowingMockPlatform.resume will call super if
+          // throwOnResume is null. So the restore resume works from the queue.
+          // Then the unknown_fn triggers _safeResumeWithError which throws.
+          final result = await s.run('unknown_fn()');
+          expect(result.isError, isTrue);
+          expect(result.error!.message, contains('internal error'));
+
+          s.dispose();
+        },
+      );
+
+      test('MontyError during resumeWithError returns error result', () async {
+        final throwing = _ThrowingMockPlatform(
+          throwOnResumeWithError: const MontyPanicError('panic on error path'),
+        );
+        throwing
+          ..enqueueProgress(
+            const MontyPending(
+              functionName: '__restore_state__',
+              arguments: [],
+            ),
+          )
+          ..enqueueProgress(
+            const MontyPending(
+              functionName: 'unknown_fn',
+              arguments: [],
+            ),
+          );
+
+        final s = MontySession(platform: throwing);
+        final result = await s.run('unknown_fn()');
+        expect(result.isError, isTrue);
+        expect(result.error!.message, contains('panic on error path'));
+
+        s.dispose();
+      });
+    });
+
+    group('_capturePersistArgs edge cases', () {
+      test('empty arguments list is handled gracefully', () async {
+        mock
+          ..enqueueProgress(
+            const MontyPending(
+              functionName: '__restore_state__',
+              arguments: [],
+            ),
+          )
+          ..enqueueProgress(
+            const MontyPending(
+              functionName: '__persist_state__',
+              arguments: [], // Empty arguments — no state captured.
+            ),
+          )
+          ..enqueueProgress(
+            const MontyComplete(
+              result: MontyResult(usage: _usage),
+            ),
+          );
+
+        await session.run('pass');
+        // State should remain empty when persist args are empty.
+        expect(session.state, isEmpty);
+      });
+    });
+
+    group('_interceptProgress passes through OsCall', () {
+      test('OsCall during start() is returned to caller', () async {
+        mock
+          ..enqueueProgress(
+            const MontyPending(
+              functionName: '__restore_state__',
+              arguments: [],
+            ),
+          )
+          ..enqueueProgress(
+            const MontyOsCall(
+              operationName: 'os.getenv',
+              arguments: [MontyString('HOME')],
+              callId: 1,
+            ),
+          );
+
+        final progress = await session.start(
+          'import os; os.getenv("HOME")',
+          externalFunctions: ['os.getenv'],
+        );
+
+        expect(progress, isA<MontyOsCall>());
+        final osCall = progress as MontyOsCall;
+        expect(osCall.operationName, 'os.getenv');
+      });
+    });
+
+    group('_generatePersist with empty names', () {
+      test('generates simple empty dict persist when no names', () async {
+        _enqueueRunCycle(mock, stateToPersist: {});
+        // Code with no assignments and only a comment.
+        await session.run('# nothing here');
+
+        final code = mock.lastStartCode!;
+        expect(code, contains('__persist_state__({})'));
+      });
+    });
+
     group('extractAssignmentTargets', () {
       test('finds simple assignments', () {
         expect(
@@ -856,9 +1098,15 @@ void _enqueueRunCycle(
 /// Uses the same progress queue as [MockMontyPlatform] for operations
 /// that should succeed. Throws the configured error on the specified method.
 class _ThrowingMockPlatform extends MockMontyPlatform {
-  _ThrowingMockPlatform({this.throwOnStart});
+  _ThrowingMockPlatform({
+    this.throwOnStart,
+    this.throwOnResume,
+    this.throwOnResumeWithError,
+  });
 
-  final MontyError? throwOnStart;
+  final Object? throwOnStart;
+  final Object? throwOnResume;
+  final Object? throwOnResumeWithError;
 
   @override
   Future<MontyProgress> start(
@@ -874,5 +1122,17 @@ class _ThrowingMockPlatform extends MockMontyPlatform {
       limits: limits,
       scriptName: scriptName,
     );
+  }
+
+  @override
+  Future<MontyProgress> resume(Object? returnValue) async {
+    if (throwOnResume != null) throw throwOnResume!;
+    return super.resume(returnValue);
+  }
+
+  @override
+  Future<MontyProgress> resumeWithError(String errorMessage) async {
+    if (throwOnResumeWithError != null) throw throwOnResumeWithError!;
+    return super.resumeWithError(errorMessage);
   }
 }
