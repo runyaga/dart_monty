@@ -260,6 +260,40 @@ void main() {
       expect(result.pendingCallIds, [0, 1, 2]);
     });
 
+    test('os_call translates with all fields', () async {
+      mock.nextStartResult = const WasmProgressResult(
+        ok: true,
+        state: 'os_call',
+        functionName: 'Path.exists',
+        arguments: ['/tmp/test.txt'],
+        kwargs: {'follow_symlinks': true},
+        callId: 42,
+      );
+
+      final result = await bindings.start('x');
+
+      expect(result.state, 'os_call');
+      expect(result.functionName, 'Path.exists');
+      expect(result.arguments, ['/tmp/test.txt']);
+      expect(result.kwargs, {'follow_symlinks': true});
+      expect(result.callId, 42);
+    });
+
+    test('os_call with null fields uses defaults', () async {
+      mock.nextStartResult = const WasmProgressResult(
+        ok: true,
+        state: 'os_call',
+      );
+
+      final result = await bindings.start('x');
+
+      expect(result.state, 'os_call');
+      expect(result.functionName, '');
+      expect(result.arguments, isEmpty);
+      expect(result.kwargs, isNull);
+      expect(result.callId, 0);
+    });
+
     test('unknown state throws StateError', () async {
       mock.nextStartResult = const WasmProgressResult(
         ok: true,

@@ -201,6 +201,15 @@ class WasmCoreBindings implements MontyCoreBindings {
           methodCall: progress.methodCall ?? false,
         );
 
+      case 'os_call':
+        return CoreProgressResult(
+          state: 'os_call',
+          functionName: progress.functionName ?? '',
+          arguments: progress.arguments ?? const [],
+          kwargs: progress.kwargs,
+          callId: progress.callId ?? 0,
+        );
+
       case 'resolve_futures':
         return CoreProgressResult(
           state: 'resolve_futures',

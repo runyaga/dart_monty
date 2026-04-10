@@ -931,6 +931,62 @@ void main() {
   });
 
   // ===========================================================================
+  // OsCall — OS/filesystem operations
+  // ===========================================================================
+  group('os_call', () {
+    test('start() returns MontyOsCall for os_call state', () async {
+      mock.nextStartResult = const WasmProgressResult(
+        ok: true,
+        state: 'os_call',
+        functionName: 'Path.exists',
+        arguments: ['/tmp/test.txt'],
+        kwargs: {'follow_symlinks': true},
+        callId: 42,
+      );
+
+      final progress = await monty.start('from pathlib import Path');
+
+      expect(progress, isA<MontyOsCall>());
+      final oc = progress as MontyOsCall;
+      expect(oc.operationName, 'Path.exists');
+      expect(oc.arguments, ['/tmp/test.txt']);
+      expect(oc.kwargs, {'follow_symlinks': true});
+      expect(oc.callId, 42);
+    });
+
+    test('os_call defaults to empty arguments', () async {
+      mock.nextStartResult = const WasmProgressResult(
+        ok: true,
+        state: 'os_call',
+        functionName: 'os.getenv',
+      );
+
+      final progress = await monty.start('import os');
+
+      expect(progress, isA<MontyOsCall>());
+      final oc = progress as MontyOsCall;
+      expect(oc.operationName, 'os.getenv');
+      expect(oc.arguments, isEmpty);
+    });
+
+    test('os_call sets state to active', () async {
+      mock.nextStartResult = const WasmProgressResult(
+        ok: true,
+        state: 'os_call',
+        functionName: 'Path.exists',
+        arguments: ['/tmp'],
+        callId: 1,
+      );
+
+      await monty.start('x');
+
+      // Active state — cannot run() or start().
+      expect(() => monty.run('y'), throwsStateError);
+      expect(() => monty.start('y'), throwsStateError);
+    });
+  });
+
+  // ===========================================================================
   // Async/Futures (M13) — forward-compat state handling
   // ===========================================================================
   group('async/futures (M13)', () {
