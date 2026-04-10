@@ -233,6 +233,17 @@ Future<void> _isolateMain(_InitMessage init) async {
 // NativeIsolateBindingsImpl
 // =============================================================================
 
+/// Token holding isolate references for the GC finalizer.
+///
+/// Stored separately from [NativeIsolateBindingsImpl] so the finalizer
+/// callback can access the isolate/port without preventing the main
+/// object from being collected.
+class _IsolateCleanupToken {
+  Isolate? isolate;
+  ReceivePort? receivePort;
+  bool disposed = false;
+}
+
 /// Real [NativeIsolateBindings] implementation backed by a background Isolate.
 ///
 /// Spawns a same-group Isolate that creates a [MontyFfi] with
@@ -247,9 +258,11 @@ Future<void> _isolateMain(_InitMessage init) async {
 /// Callers **must** call [dispose] when the instance is no longer needed.
 /// [dispose] sends a dispose command to the worker isolate, waits for it to
 /// release its Rust `MontyHandle`, then kills the isolate and closes the
-/// receive port. Without this call the background isolate and its Rust
-/// resources remain alive for the lifetime of the process. There is no
-/// `NativeFinalizer` safety net — leaked instances are truly leaked.
+/// receive port. A Dart [Finalizer] is attached as a GC safety net — if
+/// this object is garbage collected without [dispose], the finalizer kills
+/// the isolate and closes the port. However, this is a last resort; the
+/// Rust `MontyHandle` inside the worker will leak since the finalizer
+/// cannot send a graceful dispose command.
 ///
 /// If the main isolate's process exits, the OS terminates the worker isolate
 /// along with it, so resources are reclaimed at process exit regardless.
@@ -281,6 +294,28 @@ class NativeIsolateBindingsImpl extends NativeIsolateBindings {
   final Map<int, Completer<_Response>> _pending = {};
 
   Completer<void>? _exitCompleter;
+
+  /// GC safety net: if this object is collected without [dispose], kill the
+  /// worker isolate to prevent a leak.
+  static final Finalizer<_IsolateCleanupToken> _cleanupFinalizer =
+      Finalizer((token) {
+    if (!token.disposed) {
+      token.disposed = true;
+      token.isolate?.kill(priority: Isolate.immediate);
+      token.receivePort?.close();
+      _zombieCount++;
+      if (_zombieCount >= _zombieWarningThreshold) {
+        developer.log(
+          'dart_monty_ffi: NativeIsolateBindingsImpl was garbage collected '
+          'without dispose(). $_zombieCount zombie isolate(s) detected.',
+          name: 'dart_monty_ffi',
+          level: 900,
+        );
+      }
+    }
+  });
+
+  _IsolateCleanupToken? _cleanupToken;
 
   /// Number of worker isolates that failed to exit within the terminate
   /// timeout and were force-killed.
@@ -353,6 +388,14 @@ class NativeIsolateBindingsImpl extends NativeIsolateBindings {
         'Possible silent crash before _ReadyMessage was sent.',
       ),
     );
+
+    // Attach GC safety net: if this object is collected without dispose(),
+    // the finalizer will kill the isolate and close the port.
+    final token = _IsolateCleanupToken()
+      ..isolate = isolate
+      ..receivePort = receivePort;
+    _cleanupToken = token;
+    _cleanupFinalizer.attach(this, token, detach: this);
 
     return true;
   }
@@ -446,6 +489,10 @@ class NativeIsolateBindingsImpl extends NativeIsolateBindings {
   @override
   Future<void> dispose() async {
     if (_sendPort == null) return;
+
+    // Detach GC finalizer — explicit cleanup is happening.
+    _cleanupFinalizer.detach(this);
+    _cleanupToken?.disposed = true;
 
     try {
       await _send<_DisposeResponse>(_DisposeRequest(_nextId++));
