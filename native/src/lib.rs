@@ -227,9 +227,8 @@ pub unsafe extern "C" fn monty_resume(
     out_error: *mut *mut c_char,
 ) -> MontyProgressTag {
     // SAFETY: value_json is a NUL-terminated C string from Dart FFI; parse_c_str validates non-null
-    let json_str = match unsafe { parse_c_str(value_json, "value_json", out_error) } {
-        Ok(s) => s,
-        Err(()) => return MontyProgressTag::Error,
+    let Ok(json_str) = (unsafe { parse_c_str(value_json, "value_json", out_error) }) else {
+        return MontyProgressTag::Error;
     };
     ffi_progress!(handle, out_error, |h| h.resume(json_str))
 }
@@ -245,9 +244,8 @@ pub unsafe extern "C" fn monty_resume_with_error(
     out_error: *mut *mut c_char,
 ) -> MontyProgressTag {
     // SAFETY: error_message is a NUL-terminated C string from Dart FFI; parse_c_str validates non-null
-    let msg = match unsafe { parse_c_str(error_message, "error_message", out_error) } {
-        Ok(s) => s,
-        Err(()) => return MontyProgressTag::Error,
+    let Ok(msg) = (unsafe { parse_c_str(error_message, "error_message", out_error) }) else {
+        return MontyProgressTag::Error;
     };
     ffi_progress!(handle, out_error, |h| h.resume_with_error(msg))
 }
@@ -299,14 +297,12 @@ pub unsafe extern "C" fn monty_resume_futures(
     out_error: *mut *mut c_char,
 ) -> MontyProgressTag {
     // SAFETY: results_json is a NUL-terminated C string from Dart FFI; parse_c_str validates non-null
-    let results_str = match unsafe { parse_c_str(results_json, "results_json", out_error) } {
-        Ok(s) => s,
-        Err(()) => return MontyProgressTag::Error,
+    let Ok(results_str) = (unsafe { parse_c_str(results_json, "results_json", out_error) }) else {
+        return MontyProgressTag::Error;
     };
     // SAFETY: errors_json is a NUL-terminated C string from Dart FFI; parse_c_str validates non-null
-    let errors_str = match unsafe { parse_c_str(errors_json, "errors_json", out_error) } {
-        Ok(s) => s,
-        Err(()) => return MontyProgressTag::Error,
+    let Ok(errors_str) = (unsafe { parse_c_str(errors_json, "errors_json", out_error) }) else {
+        return MontyProgressTag::Error;
     };
     ffi_progress!(handle, out_error, |h| h
         .resume_futures(results_str, errors_str))
@@ -627,9 +623,8 @@ pub extern "C" fn monty_alloc(size: usize) -> *mut u8 {
     if size == 0 {
         return ptr::null_mut();
     }
-    let layout = match std::alloc::Layout::from_size_align(size, 1) {
-        Ok(l) => l,
-        Err(_) => return ptr::null_mut(),
+    let Ok(layout) = std::alloc::Layout::from_size_align(size, 1) else {
+        return ptr::null_mut();
     };
     // SAFETY: layout has valid non-zero size and alignment of 1, which is always valid
     let ptr = unsafe { std::alloc::alloc(layout) };
@@ -647,9 +642,8 @@ pub unsafe extern "C" fn monty_dealloc(ptr: *mut u8, size: usize) {
     if ptr.is_null() || size == 0 {
         return;
     }
-    let layout = match std::alloc::Layout::from_size_align(size, 1) {
-        Ok(l) => l,
-        Err(_) => return,
+    let Ok(layout) = std::alloc::Layout::from_size_align(size, 1) else {
+        return;
     };
     // SAFETY: ptr was allocated by monty_alloc with the same layout (size, align=1)
     unsafe { std::alloc::dealloc(ptr, layout) };

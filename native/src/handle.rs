@@ -129,16 +129,13 @@ impl MontyHandle {
     /// Run code to completion. Returns `(result_tag, result_json, error_msg)`.
     pub fn run(&mut self) -> (MontyResultTag, String, Option<String>) {
         let state = std::mem::replace(&mut self.state, HandleState::Consumed);
-        let compiled = match state {
-            HandleState::Ready(c) => c,
-            _ => {
-                self.state = state;
-                return (
-                    MontyResultTag::Error,
-                    String::new(),
-                    Some("handle not in Ready state".into()),
-                );
-            }
+        let HandleState::Ready(compiled) = state else {
+            self.state = state;
+            return (
+                MontyResultTag::Error,
+                String::new(),
+                Some("handle not in Ready state".into()),
+            );
         };
 
         let mut buf = String::new();
@@ -180,15 +177,12 @@ impl MontyHandle {
     /// Start iterative execution. Returns progress tag and sets internal state.
     pub fn start(&mut self) -> (MontyProgressTag, Option<String>) {
         let state = std::mem::replace(&mut self.state, HandleState::Consumed);
-        let compiled = match state {
-            HandleState::Ready(c) => c,
-            _ => {
-                self.state = state;
-                return (
-                    MontyProgressTag::Error,
-                    Some("handle not in Ready state".into()),
-                );
-            }
+        let HandleState::Ready(compiled) = state else {
+            self.state = state;
+            return (
+                MontyProgressTag::Error,
+                Some("handle not in Ready state".into()),
+            );
         };
 
         let limits = self.limits.clone().unwrap_or_else(default_limits);

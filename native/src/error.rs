@@ -43,15 +43,14 @@ pub unsafe fn parse_c_str<'a>(
         return Err(());
     }
     // SAFETY: ptr is non-null (checked above) and caller guarantees it is a valid NUL-terminated C string
-    match unsafe { CStr::from_ptr(ptr) }.to_str() {
-        Ok(s) => Ok(s),
-        Err(_) => {
-            if !out_error.is_null() {
-                // SAFETY: out_error is non-null, caller provides a valid writable out-parameter
-                unsafe { *out_error = to_c_string(&format!("{name} is not valid UTF-8")) };
-            }
-            Err(())
+    if let Ok(s) = unsafe { CStr::from_ptr(ptr) }.to_str() {
+        Ok(s)
+    } else {
+        if !out_error.is_null() {
+            // SAFETY: out_error is non-null, caller provides a valid writable out-parameter
+            unsafe { *out_error = to_c_string(&format!("{name} is not valid UTF-8")) };
         }
+        Err(())
     }
 }
 
