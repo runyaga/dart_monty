@@ -41,15 +41,10 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: packages/dart_monty_wasm/js/package-lock.json
-      - name: Build JS bridge
-        working-directory: packages/dart_monty_wasm/js
-        run: npm install && npm run build
-      - name: Verify WASM assets
+          cache-dependency-path: example/web/package-lock.json
+      - name: Verify WASM binary
         run: |
-          test -f packages/dart_monty_wasm/assets/dart_monty_bridge.js
-          test -f packages/dart_monty_wasm/assets/dart_monty_worker.js
-          test -f packages/dart_monty_wasm/assets/dart_monty_native.wasm
+          test -f native/target/wasm32-wasip1/release/dart_monty_native.wasm
 
       # ── Compile Dart to JS ───────────────────────────────────────────
       - uses: dart-lang/setup-dart@v1
@@ -76,11 +71,9 @@ jobs:
         run: dart compile js bin/visualizer.dart -o web/visualizer.dart.js
 
       # ── Assemble site ────────────────────────────────────────────────
-      - name: Copy JS/WASM assets
+      - name: Copy WASM binary
         run: |
-          cp packages/dart_monty_wasm/assets/dart_monty_bridge.js example/web/web/
-          cp packages/dart_monty_wasm/assets/dart_monty_worker.js example/web/web/
-          cp packages/dart_monty_wasm/assets/dart_monty_native.wasm example/web/web/
+          cp native/target/wasm32-wasip1/release/dart_monty_native.wasm example/web/web/
       - name: Copy fixture files
         run: |
           mkdir -p example/web/web/fixtures
@@ -108,13 +101,11 @@ jobs:
         continue-on-error: true
         working-directory: example/flutter_web
         run: flutter build web --base-href /dart_monty/flutter/ --pwa-strategy none
-      - name: Copy WASM assets to Flutter build
+      - name: Copy WASM binary to Flutter build
         if: steps.flutter-build.outcome == 'success'
         continue-on-error: true
         run: |
-          cp packages/dart_monty_wasm/assets/dart_monty_bridge.js example/flutter_web/build/web/
-          cp packages/dart_monty_wasm/assets/dart_monty_worker.js example/flutter_web/build/web/
-          cp packages/dart_monty_wasm/assets/dart_monty_native.wasm example/flutter_web/build/web/
+          cp native/target/wasm32-wasip1/release/dart_monty_native.wasm example/flutter_web/build/web/
           cp example/flutter_web/web/coi-serviceworker.js example/flutter_web/build/web/
       - name: Copy fixture files to Flutter build
         if: steps.flutter-build.outcome == 'success'

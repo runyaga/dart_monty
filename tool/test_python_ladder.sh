@@ -11,8 +11,6 @@ set -euo pipefail
 
 ROOT="$(git rev-parse --show-toplevel)"
 SPIKE="$ROOT/spike/web_test"
-FFI_PKG="$ROOT/packages/dart_monty_ffi"
-WASM_PKG="$ROOT/packages/dart_monty_wasm"
 KNOWN_FAILURES="$ROOT/test/fixtures/python_ladder/known_failures.txt"
 
 # Load known failures (strip comments and blank lines)
@@ -120,9 +118,8 @@ fi
 # -------------------------------------------------------
 echo ""
 echo "--- Native ladder tests (dart test --tags=ladder) ---"
-cd "$FFI_PKG"
-dart pub get
-dart test --run-skipped --tags=ladder
+cd "$ROOT"
+dart test --run-skipped --tags=ladder test/ffi/integration/
 
 echo ""
 echo "  Native ladder: PASSED"
@@ -280,116 +277,11 @@ check_ladder_results "$WEB_RESULTS" "web-spike"
 echo ""
 echo "  Web spike ladder: checked"
 
-# -------------------------------------------------------
-# Step 7: Build WASM package bridge
-# -------------------------------------------------------
-echo ""
-echo "--- Building WASM package bridge ---"
-if [ -d "$WASM_PKG/js" ]; then
-  cd "$WASM_PKG/js"
-  npm install --force
-  npm run build
-
-  # -------------------------------------------------------
-  # Step 8: Compile WASM package ladder runner
-  # -------------------------------------------------------
-  echo "  Compiling WASM package ladder runner..."
-  WASM_INTEG="$WASM_PKG/test/integration/web"
-  cp "$WASM_PKG/assets/dart_monty_bridge.js" "$WASM_INTEG/"
-  cp "$WASM_PKG/assets/dart_monty_worker.js" "$WASM_INTEG/"
-  cp "$WASM_PKG/assets/"*.wasm "$WASM_INTEG/"
-
-  cd "$WASM_PKG"
-  dart pub get
-  dart compile js test/integration/python_ladder_test.dart \
-    -o "$WASM_INTEG/ladder_runner.dart.js"
-
-  mkdir -p "$WASM_INTEG/fixtures"
-  cp "$ROOT"/test/fixtures/python_ladder/tier_*.json "$WASM_INTEG/fixtures/"
-
-  # -------------------------------------------------------
-  # Step 9: Run WASM package ladder in headless Chrome
-  # -------------------------------------------------------
-  echo ""
-  echo "--- WASM package ladder tests (headless Chrome) ---"
-
-  # Reuse the server cleanup trap
-  kill "$SERVE_PID" 2>/dev/null || true
-  wait "$SERVE_PID" 2>/dev/null || true
-
-  SERVE_PORT=8096
-  python3 -c "
-import http.server, functools
-class H(http.server.SimpleHTTPRequestHandler):
-    def end_headers(self):
-        self.send_header('Cross-Origin-Opener-Policy', 'same-origin')
-        self.send_header('Cross-Origin-Embedder-Policy', 'require-corp')
-        self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Cache-Control', 'no-store')
-        super().end_headers()
-    def guess_type(self, path):
-        if path.endswith('.mjs'): return 'application/javascript'
-        if path.endswith('.wasm'): return 'application/wasm'
-        return super().guess_type(path)
-    def log_message(self, fmt, *args): pass
-handler = functools.partial(H, directory='$WASM_INTEG')
-http.server.HTTPServer(('127.0.0.1', $SERVE_PORT), handler).serve_forever()
-" &
-  SERVE_PID=$!
-  sleep 1
-
-  echo "  Server running on http://127.0.0.1:$SERVE_PORT (PID $SERVE_PID)"
-
-  WASM_CONSOLE_LOG=$(mktemp)
-
-  timeout 60 "$CHROME" \
-    --headless=new \
-    --disable-gpu \
-    --no-sandbox \
-    --disable-dev-shm-usage \
-    --enable-logging=stderr \
-    --v=0 \
-    "http://127.0.0.1:$SERVE_PORT/ladder.html" \
-    2>"$WASM_CONSOLE_LOG" || true
-
-  WASM_RESULTS=$(grep -o 'LADDER_RESULT:{.*}' "$WASM_CONSOLE_LOG" 2>/dev/null || true)
-
-  if [ -z "$WASM_RESULTS" ]; then
-    echo "  WARN: No LADDER_RESULT lines from WASM package."
-    grep -i "CONSOLE" "$WASM_CONSOLE_LOG" | head -20 || echo "  (no output)"
-    rm -f "$WASM_CONSOLE_LOG"
-    echo ""
-    echo "=== Ladder: Native PASSED, Web spike PASSED, WASM package INCONCLUSIVE ==="
-    exit 0
-  fi
-
-  echo "$WASM_RESULTS" | while IFS= read -r line; do
-    echo "  $line"
-  done
-
-  rm -f "$WASM_CONSOLE_LOG"
-
-  check_ladder_results "$WASM_RESULTS" "wasm-pkg"
-
-  # Clean up copied assets
-  rm -f "$WASM_INTEG/dart_monty_bridge.js" \
-        "$WASM_INTEG/dart_monty_worker.js" \
-        "$WASM_INTEG/"*.wasm \
-        "$WASM_INTEG/ladder_runner.dart.js" \
-        "$WASM_INTEG/ladder_runner.dart.js.deps" \
-        "$WASM_INTEG/ladder_runner.dart.js.map"
-  rm -rf "$WASM_INTEG/fixtures"
-
-  echo "  WASM package ladder: checked"
-else
-  echo "  WASM package not found, skipping."
-fi
-
 echo ""
 echo "--- Ladder failure report ---"
 if report_failures; then
   echo ""
-  echo "=== Ladder: PASSED (native, web spike, and WASM package) ==="
+  echo "=== Ladder: PASSED (native and web spike) ==="
 else
   echo ""
   echo "=== Ladder: FAILED (new regressions detected) ==="

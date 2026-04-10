@@ -9,15 +9,15 @@ web (JS interop to a WASM module running in a Web Worker). The `Monty()`
 convenience class selects the correct backend at compile time via Dart
 conditional imports — no Flutter required.
 
-## Package Dependency Graph
+## Internal Module Structure
 
 ```text
-dart_monty                           (app-facing API — Monty() + conditional imports)
+dart_monty                           (single package — Monty() + conditional imports)
   │  Monty class delegates to createPlatformMonty():
   │    if (dart.library.ffi)           → MontyFfi()
   │    if (dart.library.js_interop)    → MontyWasm()
   │
-  ├── dart_monty_platform_interface    (abstract contract, pure Dart)
+  ├── lib/src/platform/               (abstract contract, pure Dart)
   │     ├── MontyPlatform              (abstract class)
   │     ├── BaseMontyPlatform          (shared logic: run/start/resume/dispose)
   │     ├── MontyCoreBindings          (unified bindings contract)
@@ -28,7 +28,7 @@ dart_monty                           (app-facing API — Monty() + conditional i
   │     ├── MontyProgress              (sealed: Pending | Complete | ResolveFutures)
   │     └── MontyResult, MontyException, MontyStackFrame, ...
   │
-  ├── dart_monty_ffi                   (pure Dart, no Flutter)
+  ├── lib/src/ffi/                     (pure Dart, no Flutter)
   │     ├── NativeBindings             (abstract) → NativeBindingsFfi (dart:ffi)
   │     ├── FfiCoreBindings            (implements MontyCoreBindings)
   │     ├── MontyFfi                   (extends BaseMontyPlatform)
@@ -37,7 +37,7 @@ dart_monty                           (app-facing API — Monty() + conditional i
   │     │     implements MontySnapshotCapable, MontyFutureCapable
   │     └── NativeLibraryLoader
   │
-  └── dart_monty_wasm                  (pure Dart, dart:js_interop)
+  └── lib/src/wasm/                    (pure Dart, dart:js_interop)
         ├── WasmBindings               (abstract) → WasmBindingsJs (JS bridge)
         ├── WasmCoreBindings           (implements MontyCoreBindings)
         ├── MontyWasm                  (extends BaseMontyPlatform)
@@ -47,14 +47,14 @@ dart_monty                           (app-facing API — Monty() + conditional i
 
 ## Platform Support Matrix
 
-| Platform | Package | Status | Library |
-|----------|---------|--------|---------|
-| macOS | dart_monty_ffi | Supported | `.dylib` |
-| Linux | dart_monty_ffi | Supported | `.so` |
-| Web | dart_monty_wasm | Supported | WASM via Worker |
-| iOS | dart_monty_ffi | Planned (M9) | `.a` static |
-| Android | dart_monty_ffi | Planned (M9) | `.so` via NDK |
-| Windows | dart_monty_ffi | Planned (M9) | `.dll` via MSVC |
+| Platform | Module | Status | Library |
+|----------|--------|--------|---------|
+| macOS | lib/src/ffi/ | Supported | `.dylib` |
+| Linux | lib/src/ffi/ | Supported | `.so` |
+| Web | lib/src/wasm/ | Supported | WASM via Worker |
+| iOS | lib/src/ffi/ | Planned (M9) | `.a` static |
+| Android | lib/src/ffi/ | Planned (M9) | `.so` via NDK |
+| Windows | lib/src/ffi/ | Planned (M9) | `.dll` via MSVC |
 
 ## BaseMontyPlatform and MontyCoreBindings
 
@@ -127,7 +127,7 @@ not from a single JSON blob.
 ## State Machine Contract
 
 Every `MontyPlatform` backend mixes in `MontyStateMixin` (from
-`dart_monty_platform_interface`) which owns a three-state lifecycle:
+`lib/src/platform/`) which owns a three-state lifecycle:
 
 ```text
          start(pending)        resume(complete)
@@ -321,7 +321,7 @@ Dart app
 ```
 
 For Flutter apps or long-running executions, use `MontyNative` (from
-`dart_monty_ffi`) which wraps `MontyFfi` in a background Isolate:
+`lib/src/ffi/`) which wraps `MontyFfi` in a background Isolate:
 
 ```text
 Dart app
@@ -356,9 +356,9 @@ parameter overrides the default resolution for integration tests where
 
 **Contract test pattern:** Each backend validates the `MontyPlatform`
 behavioral contract via shared ladder helpers from
-`dart_monty_platform_interface/dart_monty_testing.dart`. Backend-specific
-tests cover transport and bindings concerns (Isolate messaging, JS interop,
-FFI memory management).
+`package:dart_monty/dart_monty_testing.dart`. Backend-specific tests cover
+transport and bindings concerns (Isolate messaging, JS interop, FFI memory
+management).
 
 **Shared test harness** (Slice 5):
 
@@ -391,8 +391,8 @@ harness.
 ## Testing Utilities
 
 **Test barrel:** `dart_monty_testing.dart` exports `MockMontyPlatform` — the
-platform-level mock for consumer packages. It is intentionally excluded from
-the main `dart_monty_platform_interface.dart` barrel so production code never
+platform-level mock for consumers. It is intentionally excluded from the
+main `package:dart_monty/dart_monty.dart` barrel so production code never
 depends on test infrastructure.
 
 **Mock strategy:** All mocks are hand-rolled (no mocktail/mockito). Each mock

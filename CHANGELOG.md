@@ -1,3 +1,28 @@
+## 0.20.0
+
+### Breaking Changes
+
+- Consolidated 8 sub-packages into single `dart_monty` package
+- `DefaultMontyBridge` now requires explicit `platform:` parameter
+- `MontyPlatform.instance` singleton removed (was deprecated)
+- All imports changed from `package:dart_monty_<sub>/...` to `package:dart_monty/...`
+- Removed `dart_monty_native` and `dart_monty_web` Flutter shims
+- Removed `dart_monty_mcp` and `monty_cli` (unpublished)
+- Removed deprecated `JsonPlugin` (use native `import json` in Python)
+
+### Added
+
+- 66 new DCM lint rules (98 total), all passing at zero issues
+- DCM dashboard upload on merge to main
+- `very_good_analysis` bumped to 10.2.0 ruleset
+
+### Improved
+
+- All 6 VERY HIGH metric violations eliminated via decomposition
+- File-specific DCM excludes replace broad glob patterns
+- Completer.completeError calls now include stack traces
+- Unsafe collection access guarded in ladder runner
+
 ## 0.13.0
 
 ### Breaking

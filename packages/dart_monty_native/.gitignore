@@ -1,4 +1,0 @@
-# Native binaries are vendored for pub.dev distribution.
-# They are built by CI (prepare-release workflow) and committed before publish.
-# To build locally: cd native && cargo build --release
-# Then copy to macos/ and linux/ directories.

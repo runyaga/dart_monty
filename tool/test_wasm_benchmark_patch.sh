@@ -11,8 +11,8 @@
 set -euo pipefail
 
 ROOT="$(git rev-parse --show-toplevel)"
-BRIDGE="$ROOT/packages/dart_monty_wasm/assets/dart_monty_bridge.js"
-BRIDGE_SRC="$ROOT/packages/dart_monty_wasm/js/src/bridge.js"
+BRIDGE="$ROOT/assets/dart_monty_bridge.js"
+BRIDGE_SRC="$ROOT/js/src/bridge.js"
 PASS=0
 FAIL=0
 
@@ -123,7 +123,7 @@ fi
 # --- T7: Benchmark HTML references _benchFastCancel ---
 echo ""
 echo "T7: Benchmark HTML has _benchFastCancel helper"
-HTML="$ROOT/packages/dart_monty_wasm/test/integration/web/cancel_benchmark.html"
+HTML="$ROOT/test/wasm/integration/web/cancel_benchmark.html"
 if [ -f "$HTML" ]; then
   assert_contains "HTML has _benchFastCancel" "_benchFastCancel" "$HTML"
   assert_contains "HTML calls disposeSession" "disposeSession" "$HTML"
@@ -134,7 +134,7 @@ fi
 # --- T8: Benchmark Dart uses getDefaultSessionId ---
 echo ""
 echo "T8: Benchmark Dart uses getDefaultSessionId"
-DART="$ROOT/packages/dart_monty_wasm/test/integration/cancel_benchmark.dart"
+DART="$ROOT/test/wasm/integration/cancel_benchmark.dart"
 if [ -f "$DART" ]; then
   assert_contains "Dart declares getDefaultSessionId interop" "getDefaultSessionId" "$DART"
   assert_contains "Dart calls _getDefaultSessionId()" "_getDefaultSessionId()" "$DART"

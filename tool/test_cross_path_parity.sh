@@ -11,8 +11,6 @@ set -euo pipefail
 
 ROOT="$(git rev-parse --show-toplevel)"
 SPIKE="$ROOT/spike/web_test"
-FFI_PKG="$ROOT/packages/dart_monty_ffi"
-WASM_PKG="$ROOT/packages/dart_monty_wasm"
 
 NATIVE_JSONL="/tmp/parity_native.jsonl"
 WEB_JSONL="/tmp/parity_web.jsonl"
@@ -25,10 +23,10 @@ echo ""
 # Step 1: Run native JSONL runner
 # -------------------------------------------------------
 echo "--- Running native ladder runner ---"
-cd "$FFI_PKG"
+cd "$ROOT"
 dart pub get
 
-dart run test/integration/python_ladder_runner.dart > "$NATIVE_JSONL"
+dart run test/ffi/integration/python_ladder_runner.dart > "$NATIVE_JSONL"
 
 echo "  Native results: $NATIVE_JSONL"
 echo "  Lines: $(wc -l < "$NATIVE_JSONL" | tr -d ' ')"
@@ -234,21 +232,22 @@ echo "  Native vs Web spike: PASSED"
 # -------------------------------------------------------
 # Step 4: Build and run WASM package ladder runner
 # -------------------------------------------------------
-if [ -d "$WASM_PKG/js" ]; then
+WASM_JS="$ROOT/js"
+WASM_INTEG="$ROOT/test/wasm/integration/web"
+if [ -d "$WASM_JS" ]; then
   echo ""
   echo "--- Building WASM package ladder runner ---"
-  cd "$WASM_PKG/js"
+  cd "$WASM_JS"
   npm install --silent
   npm run build 2>&1 | tail -1
 
-  WASM_INTEG="$WASM_PKG/test/integration/web"
-  cp "$WASM_PKG/assets/dart_monty_bridge.js" "$WASM_INTEG/"
-  cp "$WASM_PKG/assets/dart_monty_worker.js" "$WASM_INTEG/"
-  cp "$WASM_PKG/assets/"*.wasm "$WASM_INTEG/"
+  cp "$ROOT/assets/dart_monty_bridge.js" "$WASM_INTEG/"
+  cp "$ROOT/assets/dart_monty_worker.js" "$WASM_INTEG/"
+  cp "$ROOT/assets/"*.wasm "$WASM_INTEG/"
 
-  cd "$WASM_PKG"
+  cd "$ROOT"
   dart pub get
-  dart compile js test/integration/python_ladder_test.dart \
+  dart compile js test/wasm/integration/python_ladder_test.dart \
     -o "$WASM_INTEG/ladder_runner.dart.js"
 
   mkdir -p "$WASM_INTEG/fixtures"

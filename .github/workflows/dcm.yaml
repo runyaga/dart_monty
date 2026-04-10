@@ -4,13 +4,17 @@ on:
   push:
     branches: [main]
     paths:
-      - 'packages/**/*.dart'
-      - 'example/**/*.dart'
+      - 'lib/**/*.dart'
+      - 'test/**/*.dart'
+      - 'dcm_options.yaml'
+      - 'analysis_options.yaml'
   pull_request:
     branches: [main, 'feat/**']
     paths:
-      - 'packages/**/*.dart'
-      - 'example/**/*.dart'
+      - 'lib/**/*.dart'
+      - 'test/**/*.dart'
+      - 'dcm_options.yaml'
+      - 'analysis_options.yaml'
   workflow_dispatch:
 
 concurrency:
@@ -22,7 +26,7 @@ permissions:
 
 jobs:
   dcm:
-    name: DCM
+    name: DCM Analysis
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -34,10 +38,44 @@ jobs:
       - uses: CQLabs/setup-dcm@v2
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: DCM analyze
+
+      - name: DCM analyze (blocking)
         run: >-
-          dcm analyze packages
+          dcm analyze lib
           --ci-key=${{ secrets.DCM_CI_KEY }}
           --email=${{ secrets.DCM_EMAIL }}
-          --no-fatal-style
-          --no-fatal-warnings
+
+      - name: DCM metrics (advisory)
+        if: always()
+        continue-on-error: true
+        run: >-
+          dcm calculate-metrics lib
+          --ci-key=${{ secrets.DCM_CI_KEY }}
+          --email=${{ secrets.DCM_EMAIL }}
+
+      - name: DCM check-unused-code (advisory)
+        if: always()
+        continue-on-error: true
+        run: >-
+          dcm check-unused-code lib
+          --ci-key=${{ secrets.DCM_CI_KEY }}
+          --email=${{ secrets.DCM_EMAIL }}
+
+      - name: DCM check-parameters (advisory)
+        if: always()
+        continue-on-error: true
+        run: >-
+          dcm check-parameters lib
+          --ci-key=${{ secrets.DCM_CI_KEY }}
+          --email=${{ secrets.DCM_EMAIL }}
+
+      - name: Upload to DCM dashboard
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        continue-on-error: true
+        run: >-
+          dcm run lib
+          --all
+          --upload
+          --project=${{ secrets.DCM_PROJECT_KEY }}
+          --ci-key=${{ secrets.DCM_CI_KEY }}
+          --email=${{ secrets.DCM_EMAIL }}

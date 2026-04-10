@@ -13,35 +13,30 @@ set -euo pipefail
 ROOT="$(git rev-parse --show-toplevel)"
 cd "$ROOT"
 
-# Helper: count lines in lib/ and test/ for a package
+# Helper: count Dart lines in a directory
 count_lines() {
-  local pkg="$1"
-  local dir="$2"
-  local path="$ROOT/packages/$pkg/$dir"
-  if [ -d "$path" ]; then
-    find "$path" -name '*.dart' -type f -exec cat {} + 2>/dev/null | wc -l | tr -d ' '
+  local dir="$1"
+  if [ -d "$dir" ]; then
+    find "$dir" -name '*.dart' -type f -exec cat {} + 2>/dev/null | wc -l | tr -d ' '
   else
     echo "0"
   fi
 }
 
-# Helper: count test files for a package
+# Helper: count test() calls in test files
 count_tests() {
-  local pkg="$1"
-  local pkg_path="$ROOT/packages/$pkg"
-  if [ -d "$pkg_path/test" ]; then
-    # Count test() and group() calls as a proxy for test count
-    find "$pkg_path/test" -name '*_test.dart' -type f -exec grep -c "test(" {} + 2>/dev/null \
+  local dir="$1"
+  if [ -d "$dir" ]; then
+    find "$dir" -name '*_test.dart' -type f -exec grep -c "test(" {} + 2>/dev/null \
       | awk -F: '{s+=$NF} END {print s+0}'
   else
     echo "0"
   fi
 }
 
-# Helper: get coverage for a Dart package (if lcov.info exists)
+# Helper: get coverage (if lcov.info exists)
 get_coverage() {
-  local pkg="$1"
-  local lcov="$ROOT/packages/$pkg/coverage/lcov.info"
+  local lcov="$ROOT/coverage/lcov.info"
   if [ -f "$lcov" ]; then
     local total hit pct
     total=$(grep -c '^DA:' "$lcov" 2>/dev/null || echo "0")
@@ -57,14 +52,8 @@ get_coverage() {
   fi
 }
 
-# Collect Dart package metrics
-DART_PACKAGES=(
-  dart_monty_platform_interface
-  dart_monty_ffi
-  dart_monty_wasm
-  dart_monty_web
-  dart_monty_native
-)
+# Dart source areas
+AREAS=(ffi wasm platform bridge)
 
 # Start JSON output
 echo "{"
@@ -72,25 +61,19 @@ echo "  \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\","
 echo "  \"git_sha\": \"$(git rev-parse --short HEAD)\","
 echo "  \"git_branch\": \"$(git rev-parse --abbrev-ref HEAD)\","
 
-# Dart packages
-echo "  \"packages\": {"
-for i in "${!DART_PACKAGES[@]}"; do
-  pkg="${DART_PACKAGES[$i]}"
-  src_lines=$(count_lines "$pkg" "lib")
-  test_lines=$(count_lines "$pkg" "test")
-  test_count=$(count_tests "$pkg")
-  coverage=$(get_coverage "$pkg")
+# Per-area metrics
+echo "  \"areas\": {"
+for i in "${!AREAS[@]}"; do
+  area="${AREAS[$i]}"
+  src_lines=$(count_lines "$ROOT/lib/src/$area")
+  test_lines=$(count_lines "$ROOT/test/$area")
+  test_count=$(count_tests "$ROOT/test/$area")
 
-  echo "    \"$pkg\": {"
+  echo "    \"$area\": {"
   echo "      \"source_lines\": $src_lines,"
   echo "      \"test_lines\": $test_lines,"
-  echo "      \"test_count\": $test_count,"
-  if [ "$coverage" == "null" ]; then
-    echo "      \"coverage_pct\": null"
-  else
-    echo "      \"coverage_pct\": $coverage"
-  fi
-  if [ $i -lt $(( ${#DART_PACKAGES[@]} - 1 )) ]; then
+  echo "      \"test_count\": $test_count"
+  if [ $i -lt $(( ${#AREAS[@]} - 1 )) ]; then
     echo "    },"
   else
     echo "    }"
@@ -99,22 +82,20 @@ done
 echo "  },"
 
 # Totals
-total_src=0
-total_test=0
-total_tests=0
-for pkg in "${DART_PACKAGES[@]}"; do
-  s=$(count_lines "$pkg" "lib")
-  t=$(count_lines "$pkg" "test")
-  tc=$(count_tests "$pkg")
-  total_src=$((total_src + s))
-  total_test=$((total_test + t))
-  total_tests=$((total_tests + tc))
-done
+total_src=$(count_lines "$ROOT/lib")
+total_test=$(count_lines "$ROOT/test")
+total_tests=$(count_tests "$ROOT/test")
+coverage=$(get_coverage)
 
 echo "  \"totals\": {"
 echo "    \"dart_source_lines\": $total_src,"
 echo "    \"dart_test_lines\": $total_test,"
 echo "    \"dart_test_count\": $total_tests,"
+if [ "$coverage" == "null" ]; then
+  echo "    \"coverage_pct\": null,"
+else
+  echo "    \"coverage_pct\": $coverage,"
+fi
 echo "    \"test_to_source_ratio\": \"$(echo "scale=1; $total_test * 10 / $total_src / 10" | bc 2>/dev/null || echo "N/A")\""
 echo "  },"
 

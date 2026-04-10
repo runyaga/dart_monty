@@ -13,7 +13,6 @@
 set -euo pipefail
 
 ROOT="$(git rev-parse --show-toplevel)"
-FFI_PKG="$ROOT/packages/dart_monty_ffi"
 SPIKE="$ROOT/spike/web_test"
 
 echo "=== M3C Gate: Snapshot Portability (Exploratory) ==="
@@ -23,7 +22,7 @@ echo ""
 # Test 1: Native-to-native round-trip
 # -------------------------------------------------------
 echo "--- Test 1: Native-to-native snapshot round-trip ---"
-cd "$FFI_PKG"
+cd "$ROOT"
 dart pub get
 
 # The smoke test already covers snapshot round-trip; re-verify

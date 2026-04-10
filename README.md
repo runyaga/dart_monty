@@ -1,7 +1,7 @@
 # dart_monty
 
 <p align="center">
-  <img src="docs/dart_monty.jpg" alt="dart_monty" width="400">
+  <img src="docs/dart_monty.jpg" alt="dart_monty" width="280">
 </p>
 
 [![CI](https://github.com/runyaga/dart_monty/actions/workflows/ci.yaml/badge.svg)](https://github.com/runyaga/dart_monty/actions/workflows/ci.yaml)
@@ -11,8 +11,6 @@
 [Live Demo](https://runyaga.github.io/dart_monty/) | [GitHub](https://github.com/runyaga/dart_monty) | [Monty](https://github.com/pydantic/monty)
 
 [Monty](https://github.com/pydantic/monty) is a restricted, sandboxed Python interpreter built in Rust by the [Pydantic](https://github.com/pydantic) team. It runs a safe subset of Python designed for embedding.
-
-<img src="https://raw.githubusercontent.com/runyaga/dart_monty/main/docs/bob.png" alt="Bob" height="18"> This package is co-designed by human and AI — nearly all code is AI-generated.
 
 **dart_monty** provides pure Dart bindings for the Monty interpreter, bringing sandboxed Python execution to Dart and Flutter apps — on desktop, web, and mobile — with resource limits, iterative execution, and snapshot/restore support.
 
@@ -76,15 +74,15 @@ at compile time. You need three asset files and COOP/COEP headers.
 cd native && cargo build --release --target wasm32-wasip1
 
 # Build the JS bridge and worker
-cd packages/dart_monty_wasm/js && npm install && npm run build
+cd spike/web_test && npm install --force && npm run bundle
 ```
 
 **2. Copy assets into your web directory**
 
 ```bash
-cp packages/dart_monty_wasm/assets/dart_monty_bridge.js web/
-cp packages/dart_monty_wasm/assets/dart_monty_worker.js web/
-cp packages/dart_monty_wasm/assets/dart_monty_native.wasm web/
+cp spike/web_test/web/monty_bundle.js web/dart_monty_bridge.js
+cp spike/web_test/web/monty_worker.js web/
+cp native/target/wasm32-wasip1/release/dart_monty_native.wasm web/
 ```
 
 **3. Write your Dart code** (same API as native)
@@ -120,8 +118,8 @@ Cross-Origin-Opener-Policy: same-origin
 Cross-Origin-Embedder-Policy: require-corp
 ```
 
-Each WASM session uses ~16 MB of memory. `Worker.terminate()` provides
-time limits prevent stuck scripts.
+Each WASM session uses ~16 MB of memory. Resource limits and
+`Worker.terminate()` prevent stuck scripts.
 
 ## Usage
 
@@ -134,7 +132,7 @@ final monty = Monty();
 final result = await monty.run('2 + 2');
 print(result.value); // 4
 
-// Supported stdlib modules: math, re, json
+// Supported stdlib modules: math, re, json, datetime
 final jsonResult = await monty.run('''
 import json
 json.loads('{"name": "alice", "age": 30}')
@@ -193,7 +191,7 @@ await monty.dispose();
 ### Bridge and Plugin System
 
 The `start()`/`resume()` loop above is the low-level platform interface.
-For real applications, `dart_monty_bridge` provides a higher-level API
+For real applications, the bridge module provides a higher-level API
 that handles the dispatch loop, argument coercion, and event streaming
 automatically.
 
@@ -201,7 +199,7 @@ automatically.
 `Stream<BridgeEvent>` — tool calls, text output, and lifecycle events:
 
 ```dart
-import 'package:dart_monty_bridge/dart_monty_bridge.dart';
+import 'package:dart_monty/dart_monty_bridge.dart';
 
 final bridge = DefaultMontyBridge(platform: Monty());
 
@@ -268,7 +266,7 @@ available tools at runtime.
 dart_monty uses a sealed `MontyError` hierarchy for structured error handling:
 
 ```dart
-import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
+import 'package:dart_monty/dart_monty.dart';
 
 try {
   final result = await monty.run('1 / 0');
@@ -298,7 +296,7 @@ try {
 snapshot/restore under the hood:
 
 ```dart
-import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
+import 'package:dart_monty/dart_monty.dart';
 
 final session = MontySession(platform: Monty());
 
@@ -331,9 +329,9 @@ The table below shows current coverage and what's planned.
 | **Multi-session** (WASM Worker pool) | Covered | `createSession`/`disposeSession`, 16 MB per session |
 | **Async / futures** (`asyncio.gather`, concurrent calls) | Covered | `resumeAsFuture()`, `resolveFutures()` on both FFI and WASM |
 | **Standard library modules** (`math`, `re`, `json`, `datetime`) | Partial | Only `math`, `re`, `json`, `datetime` — other stdlib modules are not available |
-| Rich types (tuple, set, bytes, dataclass, namedtuple) | Planned | Currently collapsed to `List`/`Map` |
+| **Rich types** (tuple, set, bytes, dataclass, namedtuple, path, date, datetime, timedelta, timezone) | Covered | Full `MontyValue` sealed hierarchy with typed subclasses |
+| **OS calls** (`os.getenv`, `os.environ`, `pathlib`, `datetime.now`) | Covered | `OsCallHandler` via bridge with platform-conditional implementations |
 | REPL (stateful sessions, `feed()`, persistence) | Planned | `MontyRepl` multi-step sessions |
-| OS calls (`os.getenv`, `os.environ`, `os.stat`) | Planned | `MontyPlugin` host functions |
 | Print streaming (real-time callback) | Planned | Currently batch-only after execution |
 | Advanced limits (allocations, GC interval, `runNoLimits`) | Planned | Extended `ResourceTracker` surface |
 | Type checking (static analysis before execution) | Planned | ty / Red Knot integration |
@@ -346,18 +344,18 @@ See [docs/architecture.md](docs/architecture.md) for detailed architecture
 documentation including state machine contracts, memory management, error
 handling, and cross-backend parity guarantees.
 
-dart_monty selects the native or web backend at compile time via conditional
-imports — no Flutter required. Four pure-Dart packages:
+Since v0.20.0, dart_monty is a single consolidated package (previously
+eight sub-packages). It selects the native or web backend at compile time
+via conditional imports — no Flutter required. Internal modules:
 
-| Package | Description |
-|---------|-------------|
-| `dart_monty` | App-facing API — `Monty()` convenience class with compile-time backend selection |
-| `dart_monty_bridge` | High-level bridge — `DefaultMontyBridge`, `BridgeEvent` streams, `MontyPlugin` / `PluginRegistry` |
-| `dart_monty_platform_interface` | Abstract contract (`MontyPlatform`), shared types, SPI for backend authors |
-| `dart_monty_ffi` | Native FFI bindings (`dart:ffi` -> Rust shared library) |
-| `dart_monty_wasm` | WASM bindings (`dart:js_interop` -> Web Worker) |
+| Module | Path | Description |
+|--------|------|-------------|
+| Platform interface | `lib/src/platform/` | Abstract contract (`MontyPlatform`), shared types, SPI for backend authors |
+| FFI | `lib/src/ffi/` | Native FFI bindings (`dart:ffi` -> Rust shared library) |
+| WASM | `lib/src/wasm/` | WASM bindings (`dart:js_interop` -> Web Worker) |
+| Bridge | `lib/src/bridge/` | High-level bridge — `DefaultMontyBridge`, `BridgeEvent` streams, `MontyPlugin` / `PluginRegistry` |
 
-All packages are pure Dart and work in CLI tools, server-side Dart, and
+Everything is pure Dart and works in CLI tools, server-side Dart, and
 Flutter apps alike.
 
 ### Native Path (desktop)

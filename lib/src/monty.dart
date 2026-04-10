@@ -1,5 +1,8 @@
 import 'package:dart_monty/src/monty_factory.dart';
-import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
+import 'package:dart_monty/src/platform/monty_limits.dart';
+import 'package:dart_monty/src/platform/monty_platform.dart';
+import 'package:dart_monty/src/platform/monty_progress.dart';
+import 'package:dart_monty/src/platform/monty_result.dart';
 
 /// Monty sandboxed Python interpreter.
 ///
@@ -29,7 +32,7 @@ class Monty implements MontyPlatform {
   /// ```
   factory Monty.withPlatform(MontyPlatform platform) => Monty._(platform);
 
-  Monty._(this._platform);
+  const Monty._(this._platform);
 
   final MontyPlatform _platform;
 

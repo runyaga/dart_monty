@@ -8,8 +8,8 @@
 ///     dart run bin/main.dart
 library;
 
-import 'package:dart_monty_ffi/dart_monty_ffi.dart';
-import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
+import 'package:dart_monty/dart_monty.dart';
+import 'package:dart_monty/dart_monty_ffi.dart';
 
 Future<void> main() async {
   final monty = MontyFfi(bindings: NativeBindingsFfi());

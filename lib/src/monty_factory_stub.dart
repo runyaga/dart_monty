@@ -1,4 +1,4 @@
-import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
+import 'package:dart_monty/src/platform/monty_platform.dart';
 
 /// Stub factory for unsupported platforms.
 ///

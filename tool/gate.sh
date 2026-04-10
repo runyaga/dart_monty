@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Unified Quality Gate — dart_monty
+# Unified Quality Gate — dart_monty (single-package)
 # =============================================================================
-# Single script that runs EVERY quality check. Must pass before any slice PR
-# merges. Gracefully skips checks when toolchains are missing (cargo, Chrome,
-# dcm) but Dart gates always run.
+# Single script that runs EVERY quality check. Must pass before any PR merges.
+# Gracefully skips checks when toolchains are missing (cargo, Chrome, dcm)
+# but Dart gates always run.
 #
 # Usage: bash tool/gate.sh
 #        bash tool/gate.sh --dart-only    # Skip Rust, WASM, web integration
@@ -50,43 +50,19 @@ skip_check() {
 }
 
 # -------------------------------------------------------
-# 1. Dart Format (all packages)
+# 1. Dart Format
 # -------------------------------------------------------
 run_check "dart format" dart format --set-exit-if-changed .
 
 # -------------------------------------------------------
-# 2. Dart Analyze (all packages via analyze_packages.py)
+# 2. Dart Analyze
 # -------------------------------------------------------
-run_check "dart analyze (all packages)" python3 tool/analyze_packages.py
+run_check "dart analyze" dart analyze --fatal-infos
 
 # -------------------------------------------------------
-# 3. Dart Doc Validate Links (per sub-package)
+# 3. Dart Doc Validate Links
 # -------------------------------------------------------
-check_dart_doc() {
-  local exit_code=0
-  for pkg in packages/*/; do
-    local name
-    name=$(basename "$pkg")
-    local pubspec="$pkg/pubspec.yaml"
-    [ -f "$pubspec" ] || continue
-
-    echo "  --- dart doc: $name ---"
-    if grep -q 'sdk: flutter' "$pubspec"; then
-      # Flutter packages need flutter pub get first
-      (cd "$pkg" && flutter pub get --suppress-analytics >/dev/null 2>&1 && dart doc --validate-links .) || {
-        echo "  dart doc FAILED for $name"
-        exit_code=1
-      }
-    else
-      (cd "$pkg" && dart pub get >/dev/null 2>&1 && dart doc --validate-links .) || {
-        echo "  dart doc FAILED for $name"
-        exit_code=1
-      }
-    fi
-  done
-  return $exit_code
-}
-run_check "dart doc --validate-links" check_dart_doc
+run_check "dart doc --validate-links" dart doc --validate-links .
 
 # -------------------------------------------------------
 # 4. Pymarkdown (all markdown files)
@@ -110,11 +86,9 @@ else
 fi
 
 # -------------------------------------------------------
-# 6. DCM (Dart Code Metrics) — advisory, does not fail gate
+# 6. DCM (Dart Code Metrics) — requires dcm installed
 # -------------------------------------------------------
-# DCM has ~115 pre-existing issues that will be fixed incrementally
-# across slices 1-8. Once the baseline reaches zero, switch run_advisory
-# to run_check to make DCM blocking.
+# Helper: advisory check (reports but does not fail gate)
 run_advisory() {
   local name="$1"
   shift
@@ -130,26 +104,47 @@ run_advisory() {
 }
 
 if command -v dcm &>/dev/null; then
-  run_advisory "dcm analyze" dcm analyze packages
-  run_advisory "dcm check-unused-code" dcm check-unused-code packages
-  run_advisory "dcm check-unused-files" dcm check-unused-files packages
-  run_advisory "dcm check-dependencies" dcm check-dependencies packages
+  # Blocking: 98 lint rules, must be zero issues
+  run_check "dcm analyze" dcm analyze lib
+  # Advisory: report but don't fail gate (known false positives / pre-existing)
+  run_advisory "dcm calculate-metrics" dcm calculate-metrics lib
+  run_advisory "dcm check-unused-code" dcm check-unused-code lib
+  run_advisory "dcm check-unused-files" dcm check-unused-files lib
+  run_advisory "dcm check-dependencies" dcm check-dependencies .
+  run_advisory "dcm check-parameters" dcm check-parameters lib
+
+  # Upload to DCM dashboard (main branch only, requires DCM_PROJECT_KEY)
+  if [[ "${DCM_PROJECT_KEY:-}" != "" ]]; then
+    CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+    if [[ "$CURRENT_BRANCH" == "main" ]]; then
+      echo ""
+      echo "========================================"
+      echo "  DCM dashboard upload"
+      echo "========================================"
+      dcm run lib \
+        --all \
+        --upload \
+        --project="$DCM_PROJECT_KEY" \
+        --email="${DCM_EMAIL:-}" \
+        --ci-key="${DCM_CI_KEY:-}" \
+        && echo "  -> UPLOADED" \
+        || echo "  -> UPLOAD FAILED (non-blocking)"
+    else
+      echo ""
+      echo "  DCM dashboard: skipped (not on main, branch=$CURRENT_BRANCH)"
+    fi
+  fi
 else
   skip_check "dcm" "dcm not installed (commercial license required)"
 fi
 
 # -------------------------------------------------------
-# 7. Dart Tests: platform_interface
+# 7. Dart Tests (unit)
 # -------------------------------------------------------
-run_check "test: platform_interface" bash tool/test_platform_interface.sh
+run_check "dart test" dart test
 
 # -------------------------------------------------------
-# 8. Dart Tests: dart_monty_ffi
-# -------------------------------------------------------
-run_check "test: dart_monty_ffi" bash tool/test_ffi.sh
-
-# -------------------------------------------------------
-# 9. Rust Gate — skip if no cargo
+# 8. Rust Gate — skip if no cargo
 # -------------------------------------------------------
 if [[ "$DART_ONLY" == true ]]; then
   skip_check "Rust gate" "--dart-only flag"
@@ -160,34 +155,7 @@ else
 fi
 
 # -------------------------------------------------------
-# 10. Native plugin tests (M5) — skip if no flutter
-# -------------------------------------------------------
-if command -v flutter &>/dev/null; then
-  run_check "test: dart_monty_native" bash tool/test_native.sh
-else
-  skip_check "test: dart_monty_native" "flutter not installed"
-fi
-
-# -------------------------------------------------------
-# 11. WASM package tests (M4) — skip if --dart-only
-# -------------------------------------------------------
-if [[ "$DART_ONLY" == true ]]; then
-  skip_check "test: dart_monty_wasm" "--dart-only flag"
-else
-  run_check "test: dart_monty_wasm" bash tool/test_wasm.sh
-fi
-
-# -------------------------------------------------------
-# 12. Web plugin tests (M6)
-# -------------------------------------------------------
-if command -v flutter &>/dev/null; then
-  run_check "test: dart_monty_web" bash tool/test_web.sh
-else
-  skip_check "test: dart_monty_web" "flutter not installed"
-fi
-
-# -------------------------------------------------------
-# 13. Python Ladder Parity (M3C) — skip if --dart-only
+# 9. Python Ladder Parity — skip if --dart-only
 # -------------------------------------------------------
 if [[ "$DART_ONLY" == true ]]; then
   skip_check "Python ladder parity" "--dart-only flag"

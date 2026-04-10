@@ -25,9 +25,7 @@ pub fn monty_object_to_json(obj: &MontyObject) -> Value {
         MontyObject::BigInt(n) => bigint_to_json(n),
         MontyObject::Float(f) => float_to_json(*f),
         MontyObject::String(s) => Value::String(s.clone()),
-        MontyObject::List(items) => {
-            Value::Array(items.iter().map(monty_object_to_json).collect())
-        }
+        MontyObject::List(items) => Value::Array(items.iter().map(monty_object_to_json).collect()),
         MontyObject::Tuple(items) => json!({
             "__type": "tuple",
             "value": items.iter().map(monty_object_to_json).collect::<Vec<_>>(),
@@ -46,7 +44,11 @@ pub fn monty_object_to_json(obj: &MontyObject) -> Value {
             "__type": "bytes",
             "value": bytes,
         }),
-        MontyObject::NamedTuple { type_name, field_names, values } => json!({
+        MontyObject::NamedTuple {
+            type_name,
+            field_names,
+            values,
+        } => json!({
             "__type": "namedtuple",
             "type_name": type_name,
             "field_names": field_names,
@@ -56,7 +58,13 @@ pub fn monty_object_to_json(obj: &MontyObject) -> Value {
             "__type": "path",
             "value": p,
         }),
-        MontyObject::Dataclass { name, type_id, field_names, attrs, frozen } => {
+        MontyObject::Dataclass {
+            name,
+            type_id,
+            field_names,
+            attrs,
+            frozen,
+        } => {
             let attrs_json = dict_to_json(attrs);
             json!({
                 "__type": "dataclass",
@@ -135,10 +143,12 @@ pub fn json_to_monty_object(val: &Value) -> MontyObject {
                         minute: map["minute"].as_u64().unwrap_or(0) as u8,
                         second: map["second"].as_u64().unwrap_or(0) as u8,
                         microsecond: map["microsecond"].as_u64().unwrap_or(0) as u32,
-                        offset_seconds: map.get("offset_seconds")
+                        offset_seconds: map
+                            .get("offset_seconds")
                             .and_then(|v| v.as_i64())
                             .map(|v| v as i32),
-                        timezone_name: map.get("timezone_name")
+                        timezone_name: map
+                            .get("timezone_name")
                             .and_then(|v| v.as_str())
                             .map(|s| s.to_string()),
                     }),
@@ -149,49 +159,65 @@ pub fn json_to_monty_object(val: &Value) -> MontyObject {
                     }),
                     "timezone" => MontyObject::TimeZone(monty::MontyTimeZone {
                         offset_seconds: map["offset_seconds"].as_i64().unwrap_or(0) as i32,
-                        name: map.get("name")
+                        name: map
+                            .get("name")
                             .and_then(|v| v.as_str())
                             .map(|s| s.to_string()),
                     }),
-                    "path" => MontyObject::Path(
-                        map["value"].as_str().unwrap_or("").to_string()
-                    ),
+                    "path" => MontyObject::Path(map["value"].as_str().unwrap_or("").to_string()),
                     "bytes" => MontyObject::Bytes(
-                        map["value"].as_array()
+                        map["value"]
+                            .as_array()
                             .map(|arr| arr.iter().map(|v| v.as_u64().unwrap_or(0) as u8).collect())
-                            .unwrap_or_default()
+                            .unwrap_or_default(),
                     ),
                     "tuple" => MontyObject::Tuple(
-                        map["value"].as_array()
+                        map["value"]
+                            .as_array()
                             .map(|arr| arr.iter().map(json_to_monty_object).collect())
-                            .unwrap_or_default()
+                            .unwrap_or_default(),
                     ),
                     "set" => MontyObject::Set(
-                        map["value"].as_array()
+                        map["value"]
+                            .as_array()
                             .map(|arr| arr.iter().map(json_to_monty_object).collect())
-                            .unwrap_or_default()
+                            .unwrap_or_default(),
                     ),
                     "frozenset" => MontyObject::FrozenSet(
-                        map["value"].as_array()
+                        map["value"]
+                            .as_array()
                             .map(|arr| arr.iter().map(json_to_monty_object).collect())
-                            .unwrap_or_default()
+                            .unwrap_or_default(),
                     ),
                     "namedtuple" => MontyObject::NamedTuple {
                         type_name: map["type_name"].as_str().unwrap_or("").to_string(),
-                        field_names: map["field_names"].as_array()
-                            .map(|arr| arr.iter().map(|v| v.as_str().unwrap_or("").to_string()).collect())
+                        field_names: map["field_names"]
+                            .as_array()
+                            .map(|arr| {
+                                arr.iter()
+                                    .map(|v| v.as_str().unwrap_or("").to_string())
+                                    .collect()
+                            })
                             .unwrap_or_default(),
-                        values: map["values"].as_array()
+                        values: map["values"]
+                            .as_array()
                             .map(|arr| arr.iter().map(json_to_monty_object).collect())
                             .unwrap_or_default(),
                     },
                     "dataclass" => MontyObject::Dataclass {
                         name: map["name"].as_str().unwrap_or("").to_string(),
                         type_id: map["type_id"].as_u64().unwrap_or(0),
-                        field_names: map["field_names"].as_array()
-                            .map(|arr| arr.iter().map(|v| v.as_str().unwrap_or("").to_string()).collect())
+                        field_names: map["field_names"]
+                            .as_array()
+                            .map(|arr| {
+                                arr.iter()
+                                    .map(|v| v.as_str().unwrap_or("").to_string())
+                                    .collect()
+                            })
                             .unwrap_or_default(),
-                        attrs: match json_to_monty_object(&map.get("attrs").cloned().unwrap_or(json!({}))) {
+                        attrs: match json_to_monty_object(
+                            &map.get("attrs").cloned().unwrap_or(json!({})),
+                        ) {
                             MontyObject::Dict(pairs) => pairs,
                             _ => vec![].into(),
                         },
@@ -673,7 +699,11 @@ mod tests {
 
     #[test]
     fn rt_date() {
-        let obj = MontyObject::Date(monty::MontyDate { year: 2026, month: 4, day: 9 });
+        let obj = MontyObject::Date(monty::MontyDate {
+            year: 2026,
+            month: 4,
+            day: 9,
+        });
         match round_trip(&obj) {
             MontyObject::Date(d) => {
                 assert_eq!(d.year, 2026);
@@ -686,7 +716,11 @@ mod tests {
 
     #[test]
     fn rt_date_min() {
-        let obj = MontyObject::Date(monty::MontyDate { year: 1, month: 1, day: 1 });
+        let obj = MontyObject::Date(monty::MontyDate {
+            year: 1,
+            month: 1,
+            day: 1,
+        });
         match round_trip(&obj) {
             MontyObject::Date(d) => {
                 assert_eq!(d.year, 1);
@@ -699,7 +733,11 @@ mod tests {
 
     #[test]
     fn rt_date_max() {
-        let obj = MontyObject::Date(monty::MontyDate { year: 9999, month: 12, day: 31 });
+        let obj = MontyObject::Date(monty::MontyDate {
+            year: 9999,
+            month: 12,
+            day: 31,
+        });
         match round_trip(&obj) {
             MontyObject::Date(d) => {
                 assert_eq!(d.year, 9999);
@@ -712,7 +750,11 @@ mod tests {
 
     #[test]
     fn rt_date_leap_day() {
-        let obj = MontyObject::Date(monty::MontyDate { year: 2024, month: 2, day: 29 });
+        let obj = MontyObject::Date(monty::MontyDate {
+            year: 2024,
+            month: 2,
+            day: 29,
+        });
         match round_trip(&obj) {
             MontyObject::Date(d) => {
                 assert_eq!(d.year, 2024);
@@ -728,8 +770,12 @@ mod tests {
     #[test]
     fn rt_datetime_naive() {
         let obj = MontyObject::DateTime(monty::MontyDateTime {
-            year: 2026, month: 4, day: 9,
-            hour: 14, minute: 30, second: 45,
+            year: 2026,
+            month: 4,
+            day: 9,
+            hour: 14,
+            minute: 30,
+            second: 45,
             microsecond: 0,
             offset_seconds: None,
             timezone_name: None,
@@ -753,8 +799,12 @@ mod tests {
     #[test]
     fn rt_datetime_utc() {
         let obj = MontyObject::DateTime(monty::MontyDateTime {
-            year: 2026, month: 1, day: 1,
-            hour: 0, minute: 0, second: 0,
+            year: 2026,
+            month: 1,
+            day: 1,
+            hour: 0,
+            minute: 0,
+            second: 0,
             microsecond: 0,
             offset_seconds: Some(0),
             timezone_name: None,
@@ -771,8 +821,12 @@ mod tests {
     #[test]
     fn rt_datetime_positive_offset() {
         let obj = MontyObject::DateTime(monty::MontyDateTime {
-            year: 2026, month: 6, day: 15,
-            hour: 10, minute: 0, second: 0,
+            year: 2026,
+            month: 6,
+            day: 15,
+            hour: 10,
+            minute: 0,
+            second: 0,
             microsecond: 0,
             offset_seconds: Some(19800), // +05:30
             timezone_name: Some("IST".into()),
@@ -789,8 +843,12 @@ mod tests {
     #[test]
     fn rt_datetime_negative_offset() {
         let obj = MontyObject::DateTime(monty::MontyDateTime {
-            year: 2026, month: 12, day: 25,
-            hour: 18, minute: 30, second: 0,
+            year: 2026,
+            month: 12,
+            day: 25,
+            hour: 18,
+            minute: 30,
+            second: 0,
             microsecond: 0,
             offset_seconds: Some(-18000), // -05:00
             timezone_name: Some("EST".into()),
@@ -807,8 +865,12 @@ mod tests {
     #[test]
     fn rt_datetime_microseconds() {
         let obj = MontyObject::DateTime(monty::MontyDateTime {
-            year: 2026, month: 4, day: 9,
-            hour: 14, minute: 30, second: 0,
+            year: 2026,
+            month: 4,
+            day: 9,
+            hour: 14,
+            minute: 30,
+            second: 0,
             microsecond: 123456,
             offset_seconds: None,
             timezone_name: None,
@@ -822,8 +884,12 @@ mod tests {
     #[test]
     fn rt_datetime_max_microseconds() {
         let obj = MontyObject::DateTime(monty::MontyDateTime {
-            year: 2026, month: 4, day: 9,
-            hour: 23, minute: 59, second: 59,
+            year: 2026,
+            month: 4,
+            day: 9,
+            hour: 23,
+            minute: 59,
+            second: 59,
             microsecond: 999999,
             offset_seconds: None,
             timezone_name: None,
@@ -842,8 +908,12 @@ mod tests {
     #[test]
     fn rt_datetime_midnight() {
         let obj = MontyObject::DateTime(monty::MontyDateTime {
-            year: 2026, month: 1, day: 1,
-            hour: 0, minute: 0, second: 0,
+            year: 2026,
+            month: 1,
+            day: 1,
+            hour: 0,
+            minute: 0,
+            second: 0,
             microsecond: 0,
             offset_seconds: None,
             timezone_name: None,
@@ -863,7 +933,9 @@ mod tests {
     #[test]
     fn rt_timedelta() {
         let obj = MontyObject::TimeDelta(monty::MontyTimeDelta {
-            days: 1, seconds: 3600, microseconds: 500,
+            days: 1,
+            seconds: 3600,
+            microseconds: 500,
         });
         match round_trip(&obj) {
             MontyObject::TimeDelta(td) => {
@@ -878,7 +950,9 @@ mod tests {
     #[test]
     fn rt_timedelta_zero() {
         let obj = MontyObject::TimeDelta(monty::MontyTimeDelta {
-            days: 0, seconds: 0, microseconds: 0,
+            days: 0,
+            seconds: 0,
+            microseconds: 0,
         });
         match round_trip(&obj) {
             MontyObject::TimeDelta(td) => {
@@ -893,7 +967,9 @@ mod tests {
     #[test]
     fn rt_timedelta_negative() {
         let obj = MontyObject::TimeDelta(monty::MontyTimeDelta {
-            days: -5, seconds: 43200, microseconds: 0,
+            days: -5,
+            seconds: 43200,
+            microseconds: 0,
         });
         match round_trip(&obj) {
             MontyObject::TimeDelta(td) => {
@@ -1151,7 +1227,11 @@ mod tests {
             values: vec![MontyObject::Int(10), MontyObject::Int(20)],
         };
         match round_trip(&obj) {
-            MontyObject::NamedTuple { type_name, field_names, values } => {
+            MontyObject::NamedTuple {
+                type_name,
+                field_names,
+                values,
+            } => {
                 assert_eq!(type_name, "Point");
                 assert_eq!(field_names, vec!["x", "y"]);
                 assert_eq!(values.len(), 2);
@@ -1170,7 +1250,11 @@ mod tests {
             values: vec![],
         };
         match round_trip(&obj) {
-            MontyObject::NamedTuple { type_name, field_names, values } => {
+            MontyObject::NamedTuple {
+                type_name,
+                field_names,
+                values,
+            } => {
                 assert_eq!(type_name, "Empty");
                 assert!(field_names.is_empty());
                 assert!(values.is_empty());
@@ -1189,12 +1273,22 @@ mod tests {
             field_names: vec!["x".into(), "y".into()],
             attrs: vec![
                 (MontyObject::String("x".into()), MontyObject::Int(42)),
-                (MontyObject::String("y".into()), MontyObject::String("hello".into())),
-            ].into(),
+                (
+                    MontyObject::String("y".into()),
+                    MontyObject::String("hello".into()),
+                ),
+            ]
+            .into(),
             frozen: false,
         };
         match round_trip(&obj) {
-            MontyObject::Dataclass { name, type_id, field_names, frozen, .. } => {
+            MontyObject::Dataclass {
+                name,
+                type_id,
+                field_names,
+                frozen,
+                ..
+            } => {
                 assert_eq!(name, "MyClass");
                 assert_eq!(type_id, 1);
                 assert_eq!(field_names, vec!["x", "y"]);
@@ -1291,8 +1385,14 @@ mod tests {
         // A plain Python dict that happens to contain "__type" must NOT be
         // misinterpreted as a typed wrapper. It should round-trip as a dict.
         let obj = MontyObject::dict(vec![
-            (MontyObject::String("__type".into()), MontyObject::String("date".into())),
-            (MontyObject::String("value".into()), MontyObject::String("not-a-date".into())),
+            (
+                MontyObject::String("__type".into()),
+                MontyObject::String("date".into()),
+            ),
+            (
+                MontyObject::String("value".into()),
+                MontyObject::String("not-a-date".into()),
+            ),
         ]);
         // After the refactor, json_to_monty_object will see __type:"date" and
         // try to parse it as a MontyDate. This is the correct behavior —

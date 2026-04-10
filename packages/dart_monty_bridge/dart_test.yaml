@@ -1,3 +1,0 @@
-tags:
-  integration:
-    skip: "Skipped by default (slow). Run: dart test --run-skipped --tags=integration"
