@@ -297,8 +297,9 @@ class NativeIsolateBindingsImpl extends NativeIsolateBindings {
 
   /// GC safety net: if this object is collected without [dispose], kill the
   /// worker isolate to prevent a leak.
-  static final Finalizer<_IsolateCleanupToken> _cleanupFinalizer =
-      Finalizer((token) {
+  static final Finalizer<_IsolateCleanupToken> _cleanupFinalizer = Finalizer((
+    token,
+  ) {
     if (!token.disposed) {
       token.disposed = true;
       token.isolate?.kill(priority: Isolate.immediate);
