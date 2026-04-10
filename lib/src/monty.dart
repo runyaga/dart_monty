@@ -26,9 +26,9 @@ class Monty implements MontyPlatform {
 
   /// Creates a Monty interpreter with an explicit backend.
   ///
-  /// Use this when you need a specific backend or custom bindings:
+  /// Use this when you need a specific backend or custom configuration:
   /// ```dart
-  /// final monty = Monty.withPlatform(MontyFfi(bindings: custom));
+  /// final monty = Monty.withPlatform(myCustomPlatform);
   /// ```
   factory Monty.withPlatform(MontyPlatform platform) => Monty._(platform);
 

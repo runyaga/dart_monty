@@ -27,6 +27,7 @@ class PluginRegistry {
   final Set<String> _namespaces = {};
   final Set<String> _functionNames = {};
   BridgeLogger _log = const NullBridgeLogger();
+  bool _attached = false;
 
   static final RegExp _validNamespace = RegExp(r'^[a-z][a-z0-9_]*$');
   static const int _maxNamespaceLength = 32;
@@ -71,7 +72,15 @@ class PluginRegistry {
   Future<void> attachTo(
     MontyBridge bridge, {
     List<HostFunction>? extraFunctions,
+    bool enableIntrospection = true,
   }) async {
+    if (_attached) {
+      throw StateError(
+        'PluginRegistry.attachTo() has already been called. '
+        'Create a new PluginRegistry for a different bridge.',
+      );
+    }
+
     // Get registry's own logger from the bridge.
     _log = bridge.logger.child('registry');
 
@@ -120,19 +129,24 @@ class PluginRegistry {
       }
     }
 
-    // Register introspection builtins.
-    buildIntrospectionFunctions(schemasByCategory).forEach(bridge.register);
-    _log.info(
-      'Attached plugins to bridge',
-      attributes: {'pluginCount': _plugins.length},
-    );
+    if (enableIntrospection) {
+      buildIntrospectionFunctions(schemasByCategory).forEach(bridge.register);
+    }
 
     if (errors.isNotEmpty) {
+      // Clean up partially-attached plugins before throwing.
+      await disposeAll();
       final summary = errors.map((e) => '${e.$1}: ${e.$2}').join('; ');
       throw StateError(
         '${errors.length} plugin(s) failed to attach: $summary',
       );
     }
+
+    _attached = true;
+    _log.info(
+      'Attached plugins to bridge',
+      attributes: {'pluginCount': _plugins.length},
+    );
   }
 
   /// Disposes all plugins in reverse registration order.

@@ -149,6 +149,11 @@ class WasmCoreBindings implements MontyCoreBindings {
   // Translation helpers
   // ---------------------------------------------------------------------------
 
+  /// Creates resource usage with only wall-clock time.
+  ///
+  /// The WASM sandbox does not expose memory or stack depth metrics to JS.
+  /// Only `timeElapsedMs` is accurate (Dart-side Stopwatch).
+  /// `memoryBytesUsed` and `stackDepthUsed` are always 0.
   static MontyResourceUsage _makeUsage(int elapsedMs) => MontyResourceUsage(
     memoryBytesUsed: 0,
     timeElapsedMs: elapsedMs,

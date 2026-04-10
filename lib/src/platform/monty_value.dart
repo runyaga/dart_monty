@@ -43,6 +43,37 @@ sealed class MontyValue {
     _ => MontyString(json.toString()),
   };
 
+  /// Converts a native Dart value into the appropriate [MontyValue] subclass.
+  ///
+  /// Handles:
+  /// - `MontyValue` instances (passed through)
+  /// - `null`, `bool`, `int`, `double`, `String`
+  /// - `DateTime` (→ [MontyDateTime] in UTC)
+  /// - `List` (elements recursively converted)
+  /// - `Map` (values recursively converted, keys coerced to String)
+  factory MontyValue.fromDart(Object? value) => switch (value) {
+    final MontyValue mv => mv,
+    null => const MontyNull(),
+    final bool b => MontyBool(b),
+    final int n => MontyInt(n),
+    final double d => MontyFloat(d),
+    final String s => MontyString(s),
+    final DateTime dt => MontyDateTime(
+      year: dt.toUtc().year,
+      month: dt.toUtc().month,
+      day: dt.toUtc().day,
+      hour: dt.toUtc().hour,
+      minute: dt.toUtc().minute,
+      second: dt.toUtc().second,
+      microsecond: dt.toUtc().microsecond,
+    ),
+    final List<dynamic> l => MontyList(l.map(MontyValue.fromDart).toList()),
+    final Map<dynamic, dynamic> m => MontyDict(
+      m.map((k, v) => MapEntry(k.toString(), MontyValue.fromDart(v))),
+    ),
+    _ => MontyString(value.toString()),
+  };
+
   /// Serializes this value back to JSON compatible with the Rust side.
   Object? toJson();
 
