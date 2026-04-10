@@ -134,9 +134,7 @@ final class MontyPending extends MontyProgress {
       arguments: rawArgs != null
           ? rawArgs.map(MontyValue.fromJson).toList()
           : const [],
-      kwargs: rawKwargs != null
-          ? rawKwargs.map((k, v) => MapEntry(k, MontyValue.fromJson(v)))
-          : null,
+      kwargs: rawKwargs?.map((k, v) => MapEntry(k, MontyValue.fromJson(v))),
       callId: json['call_id'] as int? ?? 0,
       methodCall: json['method_call'] as bool? ?? false,
     );
@@ -238,9 +236,7 @@ final class MontyOsCall extends MontyProgress {
       arguments: rawArgs != null
           ? rawArgs.map(MontyValue.fromJson).toList()
           : const [],
-      kwargs: rawKwargs != null
-          ? rawKwargs.map((k, v) => MapEntry(k, MontyValue.fromJson(v)))
-          : null,
+      kwargs: rawKwargs?.map((k, v) => MapEntry(k, MontyValue.fromJson(v))),
       callId: json['call_id'] as int? ?? 0,
     );
   }

@@ -953,7 +953,10 @@ void main() {
       final progress = await monty.resolveFutures({0: 'done'});
 
       expect(progress, isA<MontyComplete>());
-      expect((progress as MontyComplete).result.value, const MontyString('done'));
+      expect(
+        (progress as MontyComplete).result.value,
+        const MontyString('done'),
+      );
     });
 
     test('passes correct JSON to bindings', () async {

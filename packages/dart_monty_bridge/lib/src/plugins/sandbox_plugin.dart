@@ -40,10 +40,9 @@ typedef MontyPlatformFactory = Future<MontyPlatform> Function();
 /// Called during [SandboxPlugin._handleSpawn] to produce static,
 /// infrastructure-level prompt content (e.g., child identity, workspace path).
 /// Return `null` to skip the builder layer for a given child.
-typedef ChildSystemPromptBuilder =
-    String? Function(
-      ChildSpawnContext context,
-    );
+typedef ChildSystemPromptBuilder = String? Function(
+  ChildSpawnContext context,
+);
 
 /// Factory that creates and configures a [PluginRegistry] for child bridges.
 ///
@@ -51,10 +50,9 @@ typedef ChildSystemPromptBuilder =
 /// the factory to configure per-child resources (e.g., filesystem roots).
 ///
 /// Return `null` to give children only introspection builtins (no plugins).
-typedef ChildPluginRegistryFactory =
-    Future<PluginRegistry?> Function(
-      ChildSpawnContext context,
-    );
+typedef ChildPluginRegistryFactory = Future<PluginRegistry?> Function(
+  ChildSpawnContext context,
+);
 
 /// Tracks a spawned child interpreter.
 class _ChildHandle {
@@ -177,139 +175,136 @@ class SandboxPlugin extends MontyPlugin {
 
   @override
   List<HostFunction> get functions => [
-    HostFunction(
-      schema: const HostFunctionSchema(
-        name: 'sandbox_spawn',
-        description:
-            'Spawn a Python script in a new sandboxed interpreter. '
-            'Returns an integer handle.',
-        params: [
-          HostParam(
-            name: 'code',
-            type: HostParamType.string,
-            description: 'Python code to execute.',
-          ),
-          HostParam(
-            name: 'timeout_ms',
-            type: HostParamType.integer,
-            isRequired: false,
-            description: 'Execution timeout in milliseconds.',
-          ),
-          HostParam(
-            name: 'memory_bytes',
-            type: HostParamType.integer,
-            isRequired: false,
-            description: 'Memory limit in bytes.',
-          ),
-          HostParam(
-            name: 'system_prompt',
-            type: HostParamType.string,
-            isRequired: false,
+        HostFunction(
+          schema: const HostFunctionSchema(
+            name: 'sandbox_spawn',
             description:
-                'Custom system prompt fragment for the child. '
-                'Appended after the infrastructure builder prompt.',
+                'Spawn a Python script in a new sandboxed interpreter. '
+                'Returns an integer handle.',
+            params: [
+              HostParam(
+                name: 'code',
+                type: HostParamType.string,
+                description: 'Python code to execute.',
+              ),
+              HostParam(
+                name: 'timeout_ms',
+                type: HostParamType.integer,
+                isRequired: false,
+                description: 'Execution timeout in milliseconds.',
+              ),
+              HostParam(
+                name: 'memory_bytes',
+                type: HostParamType.integer,
+                isRequired: false,
+                description: 'Memory limit in bytes.',
+              ),
+              HostParam(
+                name: 'system_prompt',
+                type: HostParamType.string,
+                isRequired: false,
+                description: 'Custom system prompt fragment for the child. '
+                    'Appended after the infrastructure builder prompt.',
+              ),
+            ],
           ),
-        ],
-      ),
-      handler: _handleSpawn,
-    ),
-    HostFunction(
-      schema: const HostFunctionSchema(
-        name: 'sandbox_await',
-        description:
-            'Wait for a spawned child to complete and return '
-            'its result. Raises an error if the child failed.',
-        params: [
-          HostParam(
-            name: 'handle',
-            type: HostParamType.integer,
-            description: 'Handle returned by sandbox_spawn.',
+          handler: _handleSpawn,
+        ),
+        HostFunction(
+          schema: const HostFunctionSchema(
+            name: 'sandbox_await',
+            description: 'Wait for a spawned child to complete and return '
+                'its result. Raises an error if the child failed.',
+            params: [
+              HostParam(
+                name: 'handle',
+                type: HostParamType.integer,
+                description: 'Handle returned by sandbox_spawn.',
+              ),
+            ],
           ),
-        ],
-      ),
-      handler: _handleAwait,
-    ),
-    HostFunction(
-      schema: const HostFunctionSchema(
-        name: 'sandbox_await_all',
-        description:
-            'Wait for multiple children to complete. '
-            'Returns a list of results in handle order.',
-        params: [
-          HostParam(
-            name: 'handles',
-            type: HostParamType.list,
-            description: 'List of handles from sandbox_spawn.',
+          handler: _handleAwait,
+        ),
+        HostFunction(
+          schema: const HostFunctionSchema(
+            name: 'sandbox_await_all',
+            description: 'Wait for multiple children to complete. '
+                'Returns a list of results in handle order.',
+            params: [
+              HostParam(
+                name: 'handles',
+                type: HostParamType.list,
+                description: 'List of handles from sandbox_spawn.',
+              ),
+            ],
           ),
-        ],
-      ),
-      handler: _handleAwaitAll,
-    ),
-    HostFunction(
-      schema: const HostFunctionSchema(
-        name: 'sandbox_is_alive',
-        description: 'Check whether a child is still running.',
-        params: [
-          HostParam(
-            name: 'handle',
-            type: HostParamType.integer,
-            description: 'Handle returned by sandbox_spawn.',
+          handler: _handleAwaitAll,
+        ),
+        HostFunction(
+          schema: const HostFunctionSchema(
+            name: 'sandbox_is_alive',
+            description: 'Check whether a child is still running.',
+            params: [
+              HostParam(
+                name: 'handle',
+                type: HostParamType.integer,
+                description: 'Handle returned by sandbox_spawn.',
+              ),
+            ],
           ),
-        ],
-      ),
-      handler: _handleIsAlive,
-    ),
-    HostFunction(
-      schema: const HostFunctionSchema(
-        name: 'sandbox_free',
-        description:
-            'Release a completed child handle and free its resources. '
-            'Raises an error if the child is still running.',
-        params: [
-          HostParam(
-            name: 'handle',
-            type: HostParamType.integer,
-            description: 'Handle returned by sandbox_spawn.',
+          handler: _handleIsAlive,
+        ),
+        HostFunction(
+          schema: const HostFunctionSchema(
+            name: 'sandbox_free',
+            description:
+                'Release a completed child handle and free its resources. '
+                'Raises an error if the child is still running.',
+            params: [
+              HostParam(
+                name: 'handle',
+                type: HostParamType.integer,
+                description: 'Handle returned by sandbox_spawn.',
+              ),
+            ],
           ),
-        ],
-      ),
-      handler: _handleFree,
-    ),
-    HostFunction(
-      schema: const HostFunctionSchema(
-        name: 'sandbox_get_output',
-        description:
-            'Get captured Python print() output from a completed child. '
-            'Raises an error if the child is still running. '
-            'Returns a string of all print() output, or null if the child '
-            'produced no print() output.',
-        params: [
-          HostParam(
-            name: 'handle',
-            type: HostParamType.integer,
-            description: 'Handle returned by sandbox_spawn.',
+          handler: _handleFree,
+        ),
+        HostFunction(
+          schema: const HostFunctionSchema(
+            name: 'sandbox_get_output',
+            description:
+                'Get captured Python print() output from a completed child. '
+                'Raises an error if the child is still running. '
+                'Returns a string of all print() output, or null if the child '
+                'produced no print() output.',
+            params: [
+              HostParam(
+                name: 'handle',
+                type: HostParamType.integer,
+                description: 'Handle returned by sandbox_spawn.',
+              ),
+            ],
           ),
-        ],
-      ),
-      handler: _handleGetOutput,
-    ),
-    HostFunction(
-      schema: const HostFunctionSchema(
-        name: 'sandbox_gather',
-        description:
-            'Wait for multiple children and return attributed results. '
-            'Each element is a dict with handle, value, and output keys.',
-        params: [
-          HostParam(
-            name: 'handles',
-            type: HostParamType.list,
-            description: 'List of handles from sandbox_spawn.',
+          handler: _handleGetOutput,
+        ),
+        HostFunction(
+          schema: const HostFunctionSchema(
+            name: 'sandbox_gather',
+            description:
+                'Wait for multiple children and return attributed results. '
+                'Each element is a dict with handle, value, and output keys.',
+            params: [
+              HostParam(
+                name: 'handles',
+                type: HostParamType.list,
+                description: 'List of handles from sandbox_spawn.',
+              ),
+            ],
           ),
-        ],
-      ),
-      handler: _handleGather,
-    ),
-  ];
+          handler: _handleGather,
+        ),
+      ];
 
   Future<Object?> _handleSpawn(Map<String, Object?> args) async {
     if (_disposed) throw StateError('SandboxPlugin is disposed.');

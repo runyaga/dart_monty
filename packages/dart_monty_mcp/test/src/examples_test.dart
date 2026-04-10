@@ -16,12 +16,13 @@ const _usage = MontyResourceUsage(
   stackDepthUsed: 0,
 );
 
-MockMontyPlatform _mockForStateless(Object? value) {
-  return MockMontyPlatform()..enqueueProgress(
-    MontyComplete(
-      result: MontyResult(value: value, usage: _usage),
-    ),
-  );
+MockMontyPlatform _mockForStateless(MontyValue? value) {
+  return MockMontyPlatform()
+    ..enqueueProgress(
+      MontyComplete(
+        result: MontyResult(value: value, usage: _usage),
+      ),
+    );
 }
 
 MockMontyPlatform _mockForSessionExec({required MontyResult result}) {
@@ -32,7 +33,7 @@ MockMontyPlatform _mockForSessionExec({required MontyResult result}) {
     ..enqueueProgress(
       const MontyPending(
         functionName: '__persist_state__',
-        arguments: [<String, Object?>{}],
+        arguments: [MontyDict(<String, MontyValue>{})],
       ),
     )
     ..enqueueProgress(MontyComplete(result: result));
@@ -44,7 +45,7 @@ void main() {
   group('Example: programmatic usage (docs/startup_modes.md)', () {
     test('stateless executeStateless returns result', () async {
       final server = MontyMcpServer(
-        platformFactory: () => _mockForStateless(4),
+        platformFactory: () => _mockForStateless(const MontyInt(4)),
       );
 
       final result = await server.sessionManager.executeStateless('2 + 2');
@@ -58,7 +59,7 @@ void main() {
     test('persistent session create → exec → destroy', () async {
       final server = MontyMcpServer(
         platformFactory: () => _mockForSessionExec(
-          result: const MontyResult(value: 84, usage: _usage),
+          result: const MontyResult(value: MontyInt(84), usage: _usage),
         ),
       );
 
@@ -78,23 +79,21 @@ void main() {
 
   group('Example: host function (docs/host_functions.md)', () {
     test('registerHostFunction with typed params', () async {
-      final server =
-          MontyMcpServer(
-            platformFactory: MockMontyPlatform.new,
-          )..registerHostFunction(
-            HostFunction(
-              schema: const HostFunctionSchema(
-                name: 'add',
-                description: 'Add two numbers',
-                params: [
-                  HostParam(name: 'a', type: HostParamType.number),
-                  HostParam(name: 'b', type: HostParamType.number),
-                ],
-              ),
-              handler: (args) async =>
-                  (args['a']! as num) + (args['b']! as num),
+      final server = MontyMcpServer(
+        platformFactory: MockMontyPlatform.new,
+      )..registerHostFunction(
+          HostFunction(
+            schema: const HostFunctionSchema(
+              name: 'add',
+              description: 'Add two numbers',
+              params: [
+                HostParam(name: 'a', type: HostParamType.number),
+                HostParam(name: 'b', type: HostParamType.number),
+              ],
             ),
-          );
+            handler: (args) async => (args['a']! as num) + (args['b']! as num),
+          ),
+        );
 
       // Verify the function is propagated to new sessions
       expect(server.sessionManager.createSession(id: 'test'), 'test');
@@ -111,17 +110,20 @@ void main() {
           ),
         )
         ..enqueueProgress(
-          const MontyPending(functionName: 'add', arguments: [3, 4]),
+          const MontyPending(
+            functionName: 'add',
+            arguments: [MontyInt(3), MontyInt(4)],
+          ),
         )
         ..enqueueProgress(
           const MontyPending(
             functionName: '__persist_state__',
-            arguments: [<String, Object?>{}],
+            arguments: [MontyDict(<String, MontyValue>{})],
           ),
         )
         ..enqueueProgress(
           const MontyComplete(
-            result: MontyResult(value: 7, usage: _usage),
+            result: MontyResult(value: MontyInt(7), usage: _usage),
           ),
         );
 
@@ -189,32 +191,31 @@ void main() {
 
   group('Example: optional params (docs/host_functions.md)', () {
     test('optional param with default value', () async {
-      final server =
-          MontyMcpServer(
-            platformFactory: MockMontyPlatform.new,
-          )..registerHostFunction(
-            HostFunction(
-              schema: const HostFunctionSchema(
-                name: 'format_number',
-                description: 'Format a number',
-                params: [
-                  HostParam(name: 'value', type: HostParamType.number),
-                  HostParam(
-                    name: 'precision',
-                    type: HostParamType.integer,
-                    isRequired: false,
-                    defaultValue: 2,
-                    description: 'Decimal places to round to',
-                  ),
-                ],
-              ),
-              handler: (args) async {
-                final value = args['value']! as num;
-                final precision = args['precision']! as int;
-                return value.toStringAsFixed(precision);
-              },
+      final server = MontyMcpServer(
+        platformFactory: MockMontyPlatform.new,
+      )..registerHostFunction(
+          HostFunction(
+            schema: const HostFunctionSchema(
+              name: 'format_number',
+              description: 'Format a number',
+              params: [
+                HostParam(name: 'value', type: HostParamType.number),
+                HostParam(
+                  name: 'precision',
+                  type: HostParamType.integer,
+                  isRequired: false,
+                  defaultValue: 2,
+                  description: 'Decimal places to round to',
+                ),
+              ],
             ),
-          );
+            handler: (args) async {
+              final value = args['value']! as num;
+              final precision = args['precision']! as int;
+              return value.toStringAsFixed(precision);
+            },
+          ),
+        );
 
       await server.dispose();
     });
@@ -222,34 +223,33 @@ void main() {
 
   group('Example: jsonSchemaOverride (docs/host_functions.md)', () {
     test('registers function with jsonSchemaOverride', () async {
-      final server =
-          MontyMcpServer(
-            platformFactory: MockMontyPlatform.new,
-          )..registerHostFunction(
-            HostFunction(
-              schema: const HostFunctionSchema(
-                name: 'search',
-                description: 'Search with filters',
-                params: [
-                  HostParam(
-                    name: 'filters',
-                    type: HostParamType.map,
-                    jsonSchemaOverride: {
-                      'type': 'object',
-                      'properties': {
-                        'status': {
-                          'type': 'string',
-                          'enum': ['active', 'archived'],
-                        },
-                        'limit': {'type': 'integer', 'minimum': 1},
+      final server = MontyMcpServer(
+        platformFactory: MockMontyPlatform.new,
+      )..registerHostFunction(
+          HostFunction(
+            schema: const HostFunctionSchema(
+              name: 'search',
+              description: 'Search with filters',
+              params: [
+                HostParam(
+                  name: 'filters',
+                  type: HostParamType.map,
+                  jsonSchemaOverride: {
+                    'type': 'object',
+                    'properties': {
+                      'status': {
+                        'type': 'string',
+                        'enum': ['active', 'archived'],
                       },
+                      'limit': {'type': 'integer', 'minimum': 1},
                     },
-                  ),
-                ],
-              ),
-              handler: (args) async => args['filters'],
+                  },
+                ),
+              ],
             ),
-          );
+            handler: (args) async => args['filters'],
+          ),
+        );
 
       // Verify registration succeeded and session receives function
       server.sessionManager.createSession(id: 'schema-test');
@@ -265,7 +265,7 @@ void main() {
   group('Example: results and errors (docs/results_and_errors.md)', () {
     test('extract text from CallToolResult', () async {
       final server = MontyMcpServer(
-        platformFactory: () => _mockForStateless(4),
+        platformFactory: () => _mockForStateless(const MontyInt(4)),
       );
 
       final result = await server.sessionManager.executeStateless('2 + 2');
@@ -301,7 +301,7 @@ void main() {
         ..enqueueProgress(
           const MontyComplete(
             result: MontyResult(
-              value: 4,
+              value: MontyInt(4),
               printOutput: 'hello\n',
               usage: _usage,
             ),
@@ -325,7 +325,7 @@ void main() {
     test('session state persists across exec calls', () async {
       final server = MontyMcpServer(
         platformFactory: () => _mockForSessionExec(
-          result: const MontyResult(value: 84, usage: _usage),
+          result: const MontyResult(value: MontyInt(84), usage: _usage),
         ),
       );
 
@@ -398,7 +398,7 @@ void main() {
             ..enqueueProgress(
               const MontyPending(
                 functionName: '__persist_state__',
-                arguments: [<String, Object?>{}],
+                arguments: [MontyDict(<String, MontyValue>{})],
               ),
             )
             ..enqueueProgress(
@@ -451,27 +451,27 @@ class _MathPlugin extends MontyPlugin {
 
   @override
   List<HostFunction> get functions => [
-    HostFunction(
-      schema: const HostFunctionSchema(
-        name: 'add',
-        description: 'Add two numbers',
-        params: [
-          HostParam(name: 'a', type: HostParamType.number),
-          HostParam(name: 'b', type: HostParamType.number),
-        ],
-      ),
-      handler: (args) async => (args['a']! as num) + (args['b']! as num),
-    ),
-    HostFunction(
-      schema: const HostFunctionSchema(
-        name: 'multiply',
-        description: 'Multiply two numbers',
-        params: [
-          HostParam(name: 'a', type: HostParamType.number),
-          HostParam(name: 'b', type: HostParamType.number),
-        ],
-      ),
-      handler: (args) async => (args['a']! as num) * (args['b']! as num),
-    ),
-  ];
+        HostFunction(
+          schema: const HostFunctionSchema(
+            name: 'add',
+            description: 'Add two numbers',
+            params: [
+              HostParam(name: 'a', type: HostParamType.number),
+              HostParam(name: 'b', type: HostParamType.number),
+            ],
+          ),
+          handler: (args) async => (args['a']! as num) + (args['b']! as num),
+        ),
+        HostFunction(
+          schema: const HostFunctionSchema(
+            name: 'multiply',
+            description: 'Multiply two numbers',
+            params: [
+              HostParam(name: 'a', type: HostParamType.number),
+              HostParam(name: 'b', type: HostParamType.number),
+            ],
+          ),
+          handler: (args) async => (args['a']! as num) * (args['b']! as num),
+        ),
+      ];
 }

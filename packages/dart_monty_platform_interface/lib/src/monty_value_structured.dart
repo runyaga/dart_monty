@@ -4,13 +4,17 @@ part of 'monty_value.dart';
 // Path
 // ---------------------------------------------------------------------------
 
+/// Represents a Python `pathlib.Path` value.
 @immutable
 final class MontyPath extends MontyValue {
+  /// Creates a [MontyPath] with the given string [value].
   const MontyPath(this.value);
-  final String value;
 
   factory MontyPath._fromMap(Map<String, dynamic> map) =>
       MontyPath(map['value'] as String? ?? '');
+
+  /// The underlying path string.
+  final String value;
 
   @override
   Map<String, Object?> toJson() => {'__type': 'path', 'value': value};
@@ -33,29 +37,35 @@ final class MontyPath extends MontyValue {
 // Structured types
 // ---------------------------------------------------------------------------
 
+/// Represents a Python `collections.namedtuple` value.
 @immutable
 final class MontyNamedTuple extends MontyValue {
+  /// Creates a [MontyNamedTuple].
   const MontyNamedTuple({
     required this.typeName,
     required this.fieldNames,
     required this.values,
   });
 
-  final String typeName;
-  final List<String> fieldNames;
-  final List<MontyValue> values;
-
   factory MontyNamedTuple._fromMap(Map<String, dynamic> map) => MontyNamedTuple(
         typeName: map['type_name'] as String? ?? '',
-        fieldNames: (map['field_names'] as List<dynamic>?)
-                ?.cast<String>()
-                .toList() ??
-            const [],
+        fieldNames:
+            (map['field_names'] as List<dynamic>?)?.cast<String>().toList() ??
+                const [],
         values: (map['values'] as List<dynamic>?)
                 ?.map(MontyValue.fromJson)
                 .toList() ??
             const [],
       );
+
+  /// The name of the namedtuple type.
+  final String typeName;
+
+  /// The field names of the namedtuple.
+  final List<String> fieldNames;
+
+  /// The field values.
+  final List<MontyValue> values;
 
   @override
   Map<String, Object?> toJson() => {
@@ -81,11 +91,14 @@ final class MontyNamedTuple extends MontyValue {
       Object.hash(typeName, _deepEq.hash(fieldNames), _deepEq.hash(values));
 
   @override
-  String toString() => 'MontyNamedTuple($typeName, ${fieldNames.length} fields)';
+  String toString() =>
+      'MontyNamedTuple($typeName, ${fieldNames.length} fields)';
 }
 
+/// Represents a Python `@dataclass` value.
 @immutable
 final class MontyDataclass extends MontyValue {
+  /// Creates a [MontyDataclass].
   const MontyDataclass({
     required this.name,
     required this.typeId,
@@ -94,18 +107,11 @@ final class MontyDataclass extends MontyValue {
     this.frozen = false,
   });
 
-  final String name;
-  final int typeId;
-  final List<String> fieldNames;
-  final Map<String, MontyValue> attrs;
-  final bool frozen;
-
   factory MontyDataclass._fromMap(Map<String, dynamic> map) {
     final rawAttrs = map['attrs'];
     final Map<String, MontyValue> parsedAttrs;
     if (rawAttrs is Map<String, dynamic>) {
-      parsedAttrs =
-          rawAttrs.map((k, v) => MapEntry(k, MontyValue.fromJson(v)));
+      parsedAttrs = rawAttrs.map((k, v) => MapEntry(k, MontyValue.fromJson(v)));
     } else {
       parsedAttrs = const {};
     }
@@ -113,14 +119,28 @@ final class MontyDataclass extends MontyValue {
     return MontyDataclass(
       name: map['name'] as String? ?? '',
       typeId: (map['type_id'] as num?)?.toInt() ?? 0,
-      fieldNames: (map['field_names'] as List<dynamic>?)
-              ?.cast<String>()
-              .toList() ??
-          const [],
+      fieldNames:
+          (map['field_names'] as List<dynamic>?)?.cast<String>().toList() ??
+              const [],
       attrs: parsedAttrs,
       frozen: map['frozen'] as bool? ?? false,
     );
   }
+
+  /// The dataclass name.
+  final String name;
+
+  /// The numeric type identifier.
+  final int typeId;
+
+  /// The field names of the dataclass.
+  final List<String> fieldNames;
+
+  /// The attribute values keyed by field name.
+  final Map<String, MontyValue> attrs;
+
+  /// Whether the dataclass is frozen (immutable).
+  final bool frozen;
 
   @override
   Map<String, Object?> toJson() => {

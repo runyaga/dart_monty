@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1, user-scalable=no">
+  <meta name="description" content="API docs for the attachTo method from the PluginRegistry class, for the Dart programming language.">
+  <title>attachTo method - PluginRegistry class - dart_monty_bridge library - Dart API</title>
+
+
+  
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,300;0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
+  
+  <link rel="stylesheet" href="../../static-assets/github.css?v1">
+  <link rel="stylesheet" href="../../static-assets/styles.css?v1">
+  <link rel="icon" href="../../static-assets/favicon.png?v1">
+  
+</head>
+
+<body data-base-href="../../" data-using-base-href="false" class="light-theme">
+<div id="overlay-under-drawer"></div>
+<header id="title">
+  <span id="sidenav-left-toggle" class="material-symbols-outlined" role="button" tabindex="0">menu</span>
+  <ol class="breadcrumbs gt-separated dark hidden-xs">
+    <li><a href="../../index.html">dart_monty_bridge</a></li>
+    <li><a href="../../dart_monty_bridge/">dart_monty_bridge.dart</a></li>
+    <li><a href="../../dart_monty_bridge/PluginRegistry-class.html">PluginRegistry</a></li>
+    <li class="self-crumb">attachTo method</li>
+  </ol>
+  <div class="self-name">attachTo</div>
+  <form class="search navbar-right" role="search">
+    <input type="text" id="search-box" autocomplete="off" disabled class="form-control typeahead" placeholder="Loading search...">
+  </form>
+  <button class="toggle" id="theme-button" title="Toggle between light and dark mode" aria-label="Light and dark mode toggle">
+    <span id="dark-theme-button" class="material-symbols-outlined" aria-hidden="true">
+      dark_mode
+    </span>
+    <span id="light-theme-button" class="material-symbols-outlined" aria-hidden="true">
+      light_mode
+    </span>
+  </button>
+</header>
+<main>
+<div
+    id="dartdoc-main-content"
+    class="main-content"
+    data-above-sidebar="dart_monty_bridge&#47;PluginRegistry-class-sidebar.html"
+    data-below-sidebar="">
+    <div>
+<h1><span class="kind-method">attachTo</span> method 
+</h1></div>
+
+    <section class="multi-line-signature">
+      
+<span class="returntype"><a href="https://api.flutter.dev/flutter/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter">void</span>&gt;</span></span>
+<span class="name ">attachTo</span>(<wbr><ol class="parameter-list"> <li><span class="parameter" id="attachTo-param-bridge"><span class="type-annotation"><a href="../../dart_monty_bridge/MontyBridge-class.html">MontyBridge</a></span> <span class="parameter-name">bridge</span>, {</span></li>
+<li><span class="parameter" id="attachTo-param-extraFunctions"><span class="type-annotation"><a href="https://api.flutter.dev/flutter/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../../dart_monty_bridge/HostFunction-class.html">HostFunction</a></span>&gt;</span>?</span> <span class="parameter-name">extraFunctions</span>, </span></li>
+</ol>})
+
+      
+
+    </section>
+    
+<section class="desc markdown">
+  <p>Wires all plugins to <code>bridge</code>, calls <a href="../../dart_monty_bridge/MontyPlugin/onRegister.html">MontyPlugin.onRegister</a> for each,
+and registers introspection builtins.</p>
+<p><code>extraFunctions</code> registers standalone host functions that are not part of
+any plugin. They appear under the <code>'extra'</code> introspection category.</p>
+<p>All plugins are wired even if some <a href="../../dart_monty_bridge/MontyPlugin/onRegister.html">MontyPlugin.onRegister</a> calls throw —
+errors are collected and thrown as a single <a href="https://api.flutter.dev/flutter/dart-core/StateError-class.html">StateError</a> after all plugins
+have been attached.</p>
+</section>
+
+
+    
+<section class="summary source-code" id="source">
+  <h2><span>Implementation</span></h2>
+  <pre class="language-dart"><code class="language-dart">Future&lt;void&gt; attachTo(
+  MontyBridge bridge, {
+  List&lt;HostFunction&gt;? extraFunctions,
+}) async {
+  &#47;&#47; Get registry&#39;s own logger from the bridge.
+  _log = bridge.logger.child(&#39;registry&#39;);
+
+  final schemasByCategory = &lt;String, List&lt;HostFunctionSchema&gt;&gt;{};
+  final errors = &lt;(String, Object)&gt;[];
+
+  for (final plugin in _plugins) {
+    &#47;&#47; Inject scoped logger BEFORE registration so plugins can log
+    &#47;&#47; during onRegister().
+    plugin.logger = bridge.logger.child(plugin.namespace);
+
+    final schemas = &lt;HostFunctionSchema&gt;[];
+    for (final fn in plugin.functions) {
+      bridge.register(fn);
+      schemas.add(fn.schema);
+    }
+    schemasByCategory[plugin.namespace] = schemas;
+  }
+
+  &#47;&#47; Register standalone functions under the &#39;extra&#39; category.
+  if (extraFunctions != null &amp;&amp; extraFunctions.isNotEmpty) {
+    final extraSchemas = &lt;HostFunctionSchema&gt;[];
+    for (final fn in extraFunctions) {
+      bridge.register(fn);
+      extraSchemas.add(fn.schema);
+    }
+    schemasByCategory[&#39;extra&#39;] = extraSchemas;
+    _log.debug(
+      &#39;Registered extra functions&#39;,
+      attributes: {&#39;count&#39;: extraFunctions.length},
+    );
+  }
+
+  &#47;&#47; Store registration order for reverse-order disposal.
+  _attachOrder = List.of(_plugins);
+
+  for (final plugin in _plugins) {
+    try {
+      await plugin.onRegister(bridge);
+    } on Object catch (e) {
+      _log.warning(
+        &#39;Plugin onRegister failed&#39;,
+        attributes: {&#39;namespace&#39;: plugin.namespace, &#39;error&#39;: &#39;$e&#39;},
+      );
+      errors.add((plugin.namespace, e));
+    }
+  }
+
+  &#47;&#47; Register introspection builtins.
+  buildIntrospectionFunctions(schemasByCategory).forEach(bridge.register);
+  _log.info(
+    &#39;Attached plugins to bridge&#39;,
+    attributes: {&#39;pluginCount&#39;: _plugins.length},
+  );
+
+  if (errors.isNotEmpty) {
+    final summary = errors.map((e) =&gt; &#39;${e.$1}: ${e.$2}&#39;).join(&#39;; &#39;);
+    throw StateError(
+      &#39;${errors.length} plugin(s) failed to attach: $summary&#39;,
+    );
+  }
+}</code></pre>
+</section>
+
+
+  </div> <!-- /.main-content -->
+  <div id="dartdoc-sidebar-left" class="sidebar sidebar-offcanvas-left">
+    <!-- The search input and breadcrumbs below are only responsively visible at low resolutions. -->
+<header id="header-search-sidebar" class="hidden-l">
+  <form class="search-sidebar" role="search">
+    <input type="text" id="search-sidebar" autocomplete="off" disabled class="form-control typeahead" placeholder="Loading search...">
+  </form>
+</header>
+<ol class="breadcrumbs gt-separated dark hidden-l" id="sidebar-nav">
+    <li><a href="../../index.html">dart_monty_bridge</a></li>
+    <li><a href="../../dart_monty_bridge/">dart_monty_bridge</a></li>
+    <li><a href="../../dart_monty_bridge/PluginRegistry-class.html">PluginRegistry</a></li>
+    <li class="self-crumb">attachTo method</li>
+</ol>
+
+    <h5>PluginRegistry class</h5>
+    <div id="dartdoc-sidebar-left-content"></div>
+  </div><!--/.sidebar-offcanvas-->
+  <div id="dartdoc-sidebar-right" class="sidebar sidebar-offcanvas-right">
+</div><!--/.sidebar-offcanvas-->
+</main>
+<footer>
+  <span class="no-break">
+    dart_monty_bridge
+      0.6.0
+  </span>
+  
+</footer>
+
+
+<script src="../../static-assets/highlight.pack.js?v1"></script>
+<script src="../../static-assets/docs.dart.js"></script>
+
+</body>
+</html>
+

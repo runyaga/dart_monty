@@ -4,8 +4,10 @@ part of 'monty_value.dart';
 // Scalars
 // ---------------------------------------------------------------------------
 
+/// Represents a Python `None` value.
 @immutable
 final class MontyNull extends MontyValue {
+  /// Creates a [MontyNull].
   const MontyNull();
 
   @override
@@ -24,9 +26,13 @@ final class MontyNull extends MontyValue {
   String toString() => 'MontyNull()';
 }
 
+/// Represents a Python `bool` value.
 @immutable
 final class MontyBool extends MontyValue {
-  const MontyBool(this.value);
+  /// Creates a [MontyBool] with the given [value].
+  const MontyBool(this.value); // ignore: avoid_positional_boolean_parameters
+
+  /// The underlying boolean value.
   final bool value;
 
   @override
@@ -46,9 +52,13 @@ final class MontyBool extends MontyValue {
   String toString() => 'MontyBool($value)';
 }
 
+/// Represents a Python `int` value.
 @immutable
 final class MontyInt extends MontyValue {
+  /// Creates a [MontyInt] with the given [value].
   const MontyInt(this.value);
+
+  /// The underlying integer value.
   final int value;
 
   @override
@@ -68,9 +78,13 @@ final class MontyInt extends MontyValue {
   String toString() => 'MontyInt($value)';
 }
 
+/// Represents a Python `float` value (including NaN and infinities).
 @immutable
 final class MontyFloat extends MontyValue {
+  /// Creates a [MontyFloat] with the given [value].
   const MontyFloat(this.value);
+
+  /// The underlying double value.
   final double value;
 
   @override
@@ -99,9 +113,13 @@ final class MontyFloat extends MontyValue {
   String toString() => 'MontyFloat($value)';
 }
 
+/// Represents a Python `str` value.
 @immutable
 final class MontyString extends MontyValue {
+  /// Creates a [MontyString] with the given [value].
   const MontyString(this.value);
+
+  /// The underlying string value.
   final String value;
 
   @override

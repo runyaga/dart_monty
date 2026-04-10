@@ -17,7 +17,10 @@ void main() {
 
     test('toJson', () {
       const v = MontyBytes([1, 2, 3]);
-      expect(v.toJson(), {'__type': 'bytes', 'value': [1, 2, 3]});
+      expect(v.toJson(), {
+        '__type': 'bytes',
+        'value': [1, 2, 3],
+      });
     });
 
     test('round-trip', () {
@@ -213,8 +216,8 @@ void main() {
     });
 
     test('nested tuple', () {
-      final inner = const MontyTuple([MontyInt(1)]);
-      final outer = MontyTuple([inner]);
+      const inner = MontyTuple([MontyInt(1)]);
+      const outer = MontyTuple([inner]);
       final rt = MontyValue.fromJson(outer.toJson()) as MontyTuple;
       expect(rt.items[0], isA<MontyTuple>());
     });

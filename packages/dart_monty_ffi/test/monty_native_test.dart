@@ -115,7 +115,10 @@ void main() {
     });
 
     test('returns string value', () async {
-      mock.nextRunResult = const MontyResult(value: MontyString('hello'), usage: _zeroUsage);
+      mock.nextRunResult = const MontyResult(
+        value: MontyString('hello'),
+        usage: _zeroUsage,
+      );
 
       final result = await monty.run('"hello"');
       expect(result.value, const MontyString('hello'));
@@ -152,7 +155,10 @@ void main() {
       expect(progress, isA<MontyPending>());
       final pending = progress as MontyPending;
       expect(pending.functionName, 'fetch');
-      expect(pending.arguments, ['https://example.com']);
+      expect(
+        pending.arguments,
+        [const MontyString('https://example.com')],
+      );
       expect(mock.startCalls.first.externalFunctions, ['fetch']);
     });
 
@@ -242,7 +248,10 @@ void main() {
 
     test('returns MontyPending for another external call', () async {
       mock.resumeResults.add(
-        const MontyPending(functionName: 'save', arguments: [MontyString('data')]),
+        const MontyPending(
+          functionName: 'save',
+          arguments: [MontyString('data')],
+        ),
       );
 
       final progress = await monty.resume('response');
@@ -250,7 +259,7 @@ void main() {
       expect(progress, isA<MontyPending>());
       final pending = progress as MontyPending;
       expect(pending.functionName, 'save');
-      expect(pending.arguments, ['data']);
+      expect(pending.arguments, [const MontyString('data')]);
     });
 
     test('throws StateError when idle', () async {
@@ -529,7 +538,7 @@ void main() {
       // resume() should be allowed (active state).
       mock.resumeResults.add(
         const MontyComplete(
-          result: MontyResult(value: const MontyInt(10), usage: _zeroUsage),
+          result: MontyResult(value: MontyInt(10), usage: _zeroUsage),
         ),
       );
       final progress = await restoredNative.resume('val');

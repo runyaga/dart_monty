@@ -400,7 +400,6 @@ void main() {
       expect(result.pendingCallIds, [1, 2]);
       expect(mock.resolveFuturesCalls, hasLength(1));
     });
-
   });
 
   // ===========================================================================
@@ -415,7 +414,6 @@ void main() {
       expect(data, Uint8List.fromList([10, 20, 30]));
       expect(mock.snapshotCalls, 1);
     });
-
   });
 
   group('restoreSnapshot()', () {

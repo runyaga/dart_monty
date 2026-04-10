@@ -144,94 +144,91 @@ class MessageBusPlugin extends MontyPlugin {
 
   @override
   List<HostFunction> get functions => [
-    HostFunction(
-      schema: const HostFunctionSchema(
-        name: 'msg_send',
-        description: 'Send a message on a named channel.',
-        params: [
-          HostParam(
-            name: 'name',
-            type: HostParamType.string,
-            description: 'Channel name.',
+        HostFunction(
+          schema: const HostFunctionSchema(
+            name: 'msg_send',
+            description: 'Send a message on a named channel.',
+            params: [
+              HostParam(
+                name: 'name',
+                type: HostParamType.string,
+                description: 'Channel name.',
+              ),
+              HostParam(
+                name: 'message',
+                type: HostParamType.any,
+                description: 'Message payload (any serializable value).',
+              ),
+            ],
           ),
-          HostParam(
-            name: 'message',
-            type: HostParamType.any,
-            description: 'Message payload (any serializable value).',
+          handler: _handleSend,
+        ),
+        HostFunction(
+          schema: const HostFunctionSchema(
+            name: 'msg_recv',
+            description: 'Receive the next message from a named channel. '
+                'Blocks until a message is available or timeout expires.',
+            params: [
+              HostParam(
+                name: 'name',
+                type: HostParamType.string,
+                description: 'Channel name.',
+              ),
+              HostParam(
+                name: 'timeout_ms',
+                type: HostParamType.integer,
+                isRequired: false,
+                description: 'Timeout in milliseconds. Throws on expiry.',
+              ),
+            ],
           ),
-        ],
-      ),
-      handler: _handleSend,
-    ),
-    HostFunction(
-      schema: const HostFunctionSchema(
-        name: 'msg_recv',
-        description:
-            'Receive the next message from a named channel. '
-            'Blocks until a message is available or timeout expires.',
-        params: [
-          HostParam(
-            name: 'name',
-            type: HostParamType.string,
-            description: 'Channel name.',
+          handler: _handleRecv,
+        ),
+        HostFunction(
+          schema: const HostFunctionSchema(
+            name: 'msg_peek',
+            description: 'Peek at the front of the queue without removing. '
+                'Returns null if empty.',
+            params: [
+              HostParam(
+                name: 'name',
+                type: HostParamType.string,
+                description: 'Channel name.',
+              ),
+            ],
           ),
-          HostParam(
-            name: 'timeout_ms',
-            type: HostParamType.integer,
-            isRequired: false,
-            description: 'Timeout in milliseconds. Throws on expiry.',
+          handler: _handlePeek,
+        ),
+        HostFunction(
+          schema: const HostFunctionSchema(
+            name: 'msg_close',
+            description: 'Close a channel. Pending receivers get null. '
+                'Subsequent sends throw.',
+            params: [
+              HostParam(
+                name: 'name',
+                type: HostParamType.string,
+                description: 'Channel name.',
+              ),
+            ],
           ),
-        ],
-      ),
-      handler: _handleRecv,
-    ),
-    HostFunction(
-      schema: const HostFunctionSchema(
-        name: 'msg_peek',
-        description:
-            'Peek at the front of the queue without removing. '
-            'Returns null if empty.',
-        params: [
-          HostParam(
-            name: 'name',
-            type: HostParamType.string,
-            description: 'Channel name.',
+          handler: _handleClose,
+        ),
+        HostFunction(
+          schema: const HostFunctionSchema(
+            name: 'msg_stats',
+            description: 'Get telemetry for a named channel.',
+            params: [
+              HostParam(
+                name: 'name',
+                type: HostParamType.string,
+                description: 'Channel name.',
+              ),
+            ],
           ),
-        ],
-      ),
-      handler: _handlePeek,
-    ),
-    HostFunction(
-      schema: const HostFunctionSchema(
-        name: 'msg_close',
-        description:
-            'Close a channel. Pending receivers get null. '
-            'Subsequent sends throw.',
-        params: [
-          HostParam(
-            name: 'name',
-            type: HostParamType.string,
-            description: 'Channel name.',
-          ),
-        ],
-      ),
-      handler: _handleClose,
-    ),
-    HostFunction(
-      schema: const HostFunctionSchema(
-        name: 'msg_stats',
-        description: 'Get telemetry for a named channel.',
-        params: [
-          HostParam(
-            name: 'name',
-            type: HostParamType.string,
-            description: 'Channel name.',
-          ),
-        ],
-      ),
-      handler: _handleStats,
-    ),
-  ];
+          handler: _handleStats,
+        ),
+      ];
 
   @override
   MontyPlugin? createChildInstance({ChildSpawnContext? context}) =>

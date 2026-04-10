@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1, user-scalable=no">
+  <meta name="description" content="monty_cli API docs, for the Dart programming language.">
+  <title>monty_cli - Dart API docs</title>
+
+
+  
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,300;0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
+  
+  <link rel="stylesheet" href="static-assets/github.css?v1">
+  <link rel="stylesheet" href="static-assets/styles.css?v1">
+  <link rel="icon" href="static-assets/favicon.png?v1">
+  
+</head>
+
+<body data-base-href="" data-using-base-href="false" class="light-theme">
+<div id="overlay-under-drawer"></div>
+<header id="title">
+  <span id="sidenav-left-toggle" class="material-symbols-outlined" role="button" tabindex="0">menu</span>
+  <ol class="breadcrumbs gt-separated dark hidden-xs">
+    <li class="self-crumb">monty_cli package</li>
+  </ol>
+  <div class="self-name">monty_cli</div>
+  <form class="search navbar-right" role="search">
+    <input type="text" id="search-box" autocomplete="off" disabled class="form-control typeahead" placeholder="Loading search...">
+  </form>
+  <button class="toggle" id="theme-button" title="Toggle between light and dark mode" aria-label="Light and dark mode toggle">
+    <span id="dark-theme-button" class="material-symbols-outlined" aria-hidden="true">
+      dark_mode
+    </span>
+    <span id="light-theme-button" class="material-symbols-outlined" aria-hidden="true">
+      light_mode
+    </span>
+  </button>
+</header>
+<main>
+  <div id="dartdoc-main-content" class="main-content">
+      
+<section class="desc markdown">
+  <h1 id="dmonty--monty-python-cli">dmonty — Monty Python CLI</h1>
+<p>Standalone CLI for the Monty sandboxed Python interpreter. Run Python
+scripts, evaluate expressions, or drop into an interactive REPL — all
+powered by Dart + Rust FFI.</p>
+<h2 id="setup">Setup</h2>
+<h3 id="build-the-native-library">Build the native library</h3>
+<pre class="language-bash"><code class="language-bash">cd native &amp;&amp; cargo build --release
+</code></pre>
+<p>This produces <code>native/target/release/libdart_monty_native.dylib</code> (macOS),
+<code>.so</code> (Linux), or <code>.dll</code> (Windows).</p>
+<h3 id="compile-the-cli-binary">Compile the CLI binary</h3>
+<pre class="language-bash"><code class="language-bash">cd packages/monty_cli
+dart compile exe bin/dmonty.dart -o build/dmonty
+cp ../../native/target/release/libdart_monty_native.dylib build/
+</code></pre>
+<p>The compiled binary auto-detects the dylib when it's in the same directory.</p>
+<h3 id="run-without-compiling">Run without compiling</h3>
+<pre class="language-bash"><code class="language-bash">cd packages/monty_cli
+dart run bin/dmonty.dart --library-path ../../native/target/release/libdart_monty_native.dylib &lt;command&gt;
+</code></pre>
+<h2 id="commands">Commands</h2>
+<h3 id="repl--interactive-repl"><code>repl</code> — Interactive REPL</h3>
+<pre class="language-bash"><code class="language-bash">dmonty repl
+</code></pre>
+<p>Multi-turn REPL with persistent Python state. Variables defined in one
+line carry over to subsequent lines.</p>
+<pre class="language-text"><code class="language-text">monty&gt; x = 42
+monty&gt; x * 2
+84
+monty&gt; name = "Bob"
+monty&gt; f"hello {name}, x={x}"
+hello Bob, x=42
+monty&gt; /state
+  x = 42
+  name = Bob
+monty&gt; /quit
+</code></pre>
+<p><strong>Slash commands:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/help</code></td>
+<td>Show available commands</td>
+</tr>
+<tr>
+<td><code>/state</code></td>
+<td>Show all persisted variables</td>
+</tr>
+<tr>
+<td><code>/clear</code></td>
+<td>Clear persisted state</td>
+</tr>
+<tr>
+<td><code>/quit</code></td>
+<td>Exit the REPL</td>
+</tr>
+</tbody>
+</table>
+<h3 id="-p----prompt--expression-pipeline"><code>-p</code> / <code>--prompt</code> — Expression pipeline</h3>
+<p>Execute one or more Python expressions in a single session. State carries
+across <code>-p</code> flags, and only the last expression's result is printed.</p>
+<pre class="language-bash"><code class="language-bash"># Single expression
+dmonty -p "2 ** 10"
+# 1024
+
+# Multi-expression pipeline
+dmonty -p "x = 42" -p "y = x * 2" -p "x + y"
+# 126
+
+# JSON output
+dmonty -p "x = [1, 2, 3]" -p "x" --json
+</code></pre>
+<h3 id="eval--single-expression"><code>eval</code> — Single expression</h3>
+<pre class="language-bash"><code class="language-bash">dmonty eval "2 + 2"
+# 4
+
+dmonty eval "[i * i for i in range(5)]"
+# [0, 1, 4, 9, 16]
+</code></pre>
+<h3 id="run--execute-a-file"><code>run</code> — Execute a file</h3>
+<pre class="language-bash"><code class="language-bash">dmonty run script.py
+</code></pre>
+<h3 id="demo--host-function-dispatch"><code>demo</code> — Host function dispatch</h3>
+<p>Run Python code with built-in host functions (for testing the
+start/pending/resume dispatch loop).</p>
+<pre class="language-bash"><code class="language-bash">dmonty demo                # Run built-in demo script
+dmonty demo -s "log('hi')" # Run custom code with host functions
+dmonty demo --list         # List available host functions
+</code></pre>
+<h2 id="options">Options</h2>
+<p>All commands support:</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--library-path &lt;path&gt;</code></td>
+<td>Path to the native Monty shared library</td>
+</tr>
+<tr>
+<td><code>--json</code></td>
+<td>Output results as JSON</td>
+</tr>
+<tr>
+<td><code>-v</code> / <code>--verbose</code></td>
+<td>Show resource usage stats on stderr</td>
+</tr>
+<tr>
+<td><code>--timeout &lt;ms&gt;</code></td>
+<td>Execution timeout in milliseconds</td>
+</tr>
+<tr>
+<td><code>--memory &lt;bytes&gt;</code></td>
+<td>Memory limit in bytes</td>
+</tr>
+<tr>
+<td><code>--stack-depth &lt;n&gt;</code></td>
+<td>Maximum stack depth</td>
+</tr>
+</tbody>
+</table>
+<h3 id="library-resolution">Library resolution</h3>
+<p>The native library is resolved in this order:</p>
+<ol>
+<li><code>--library-path</code> flag</li>
+<li><code>MONTY_LIBRARY_PATH</code> environment variable</li>
+<li>Co-located dylib next to the compiled binary</li>
+<li>System default <code>DynamicLibrary.open</code> search path</li>
+</ol>
+<h2 id="monty-python-subset">Monty Python Subset</h2>
+<p>Monty is a sandboxed subset of Python. What works:</p>
+<ul>
+<li>Variables, assignments, f-strings</li>
+<li><code>def</code> functions with default args, closures, first-class refs</li>
+<li><code>if</code>/<code>elif</code>/<code>else</code>, <code>while</code>, <code>for</code>, <code>break</code></li>
+<li><code>list</code>, <code>dict</code>, <code>tuple</code>, <code>str</code>, <code>int</code>, <code>float</code>, <code>bool</code></li>
+<li><code>dict.get(key, default)</code>, <code>"key" in dict</code>, <code>dict</code> iteration</li>
+<li>List comprehensions, dict comprehensions</li>
+<li><code>len()</code>, <code>range()</code>, <code>sum()</code>, <code>str()</code>, <code>int()</code></li>
+<li>String methods: <code>.upper()</code>, <code>.startswith()</code>, <code>.split()</code></li>
+</ul>
+<p>What doesn't work:</p>
+<ul>
+<li><code>import</code> (no standard library)</li>
+<li>Classes</li>
+<li><code>x = y = 0</code> (chained assignment)</li>
+<li><code>async</code>/<code>await</code></li>
+<li>Exceptions (<code>try</code>/<code>except</code>)</li>
+</ul>
+</section>
+
+
+      <section class="summary">
+          <h2>Libraries</h2>
+        <dl>
+          <dt id="monty_cli">
+  <span class="name"><a href="monty_cli/">monty_cli</a></span> 
+
+</dt>
+<dd>Standalone CLI for dart_monty.
+</dd>
+
+        </dl>
+      </section>
+  </div> <!-- /.main-content -->
+  <div id="dartdoc-sidebar-left" class="sidebar sidebar-offcanvas-left">
+    <!-- The search input and breadcrumbs below are only responsively visible at low resolutions. -->
+<header id="header-search-sidebar" class="hidden-l">
+  <form class="search-sidebar" role="search">
+    <input type="text" id="search-sidebar" autocomplete="off" disabled class="form-control typeahead" placeholder="Loading search...">
+  </form>
+</header>
+<ol class="breadcrumbs gt-separated dark hidden-l" id="sidebar-nav">
+    <li class="self-crumb">monty_cli package</li>
+</ol>
+
+    <h5 class="hidden-xs"><span class="package-name">monty_cli</span> <span class="package-kind">package</span></h5>
+    <ol>
+      <li class="section-title">Libraries</li>
+      <li><a href="monty_cli/">monty_cli</a></li>
+</ol>
+
+  </div>
+  <div id="dartdoc-sidebar-right" class="sidebar sidebar-offcanvas-right">
+  </div>
+</main>
+<footer>
+  <span class="no-break">
+    monty_cli
+      0.1.1
+  </span>
+  
+</footer>
+
+
+<script src="static-assets/highlight.pack.js?v1"></script>
+<script src="static-assets/docs.dart.js"></script>
+
+</body>
+</html>
+

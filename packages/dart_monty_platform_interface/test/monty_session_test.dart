@@ -613,11 +613,19 @@ void main() {
 
     group('result capture (_captureLastExpression)', () {
       test('captures bare expression as last line', () async {
-        _enqueueRunCycle(mock, stateToPersist: {'x': 42}, resultValue: const MontyInt(43));
+        _enqueueRunCycle(
+          mock,
+          stateToPersist: {'x': 42},
+          resultValue: const MontyInt(43),
+        );
         await session.run('x = 42');
 
         // Run with expression as last line
-        _enqueueRunCycle(mock, stateToPersist: {'x': 42}, resultValue: const MontyInt(43));
+        _enqueueRunCycle(
+          mock,
+          stateToPersist: {'x': 42},
+          resultValue: const MontyInt(43),
+        );
         await session.run('x + 1');
 
         final code = mock.lastStartCode!;
@@ -661,7 +669,11 @@ void main() {
       });
 
       test('captures function call as expression', () async {
-        _enqueueRunCycle(mock, stateToPersist: {}, resultValue: const MontyString('hi'));
+        _enqueueRunCycle(
+          mock,
+          stateToPersist: {},
+          resultValue: const MontyString('hi'),
+        );
         await session.run('str(42)');
 
         final code = mock.lastStartCode!;
@@ -862,5 +874,4 @@ class _ThrowingMockPlatform extends MockMontyPlatform {
       scriptName: scriptName,
     );
   }
-
 }

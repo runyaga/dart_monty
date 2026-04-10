@@ -439,7 +439,8 @@ void main() {
         });
 
         test('identical instances are equal', () {
-          const pending = MontyPending(functionName: 'fn', arguments: [MontyInt(1)]);
+          const pending =
+              MontyPending(functionName: 'fn', arguments: [MontyInt(1)]);
           expect(pending == pending, isTrue);
         });
       });

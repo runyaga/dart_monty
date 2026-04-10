@@ -96,6 +96,5 @@ void main() {
         bridge.dispose();
       },
     );
-
   });
 }

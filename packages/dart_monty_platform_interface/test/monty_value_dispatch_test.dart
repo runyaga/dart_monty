@@ -14,8 +14,10 @@ void main() {
       expect(v, isA<MontyDict>());
       final dict = v as MontyDict;
       expect(dict.entries['__type'], isA<MontyString>());
-      expect((dict.entries['__type'] as MontyString).value,
-          'unknown_custom_type');
+      expect(
+        (dict.entries['__type']! as MontyString).value,
+        'unknown_custom_type',
+      );
     });
 
     test('fromJson with non-JSON input falls to MontyString', () {
@@ -32,9 +34,9 @@ void main() {
   // -------------------------------------------------------------------------
   group('recursive nesting', () {
     test('list containing tuple containing date', () {
-      final date = const MontyDate(year: 2024, month: 6, day: 15);
-      final tuple = MontyTuple([date, const MontyString('label')]);
-      final list = MontyList([tuple, const MontyInt(42)]);
+      const date = MontyDate(year: 2024, month: 6, day: 15);
+      const tuple = MontyTuple([date, MontyString('label')]);
+      const list = MontyList([tuple, MontyInt(42)]);
 
       final json = list.toJson();
       final rt = MontyValue.fromJson(json);
@@ -49,12 +51,12 @@ void main() {
     });
 
     test('dict containing list containing set', () {
-      final set = const MontySet([MontyInt(1), MontyInt(2)]);
-      final list = MontyList([set, const MontyBool(true)]);
-      final dict = MontyDict({'data': list});
+      const set = MontySet([MontyInt(1), MontyInt(2)]);
+      const list = MontyList([set, MontyBool(true)]);
+      const dict = MontyDict({'data': list});
 
       final rt = MontyValue.fromJson(dict.toJson()) as MontyDict;
-      final rtList = rt.entries['data'] as MontyList;
+      final rtList = rt.entries['data']! as MontyList;
       expect(rtList.items[0], isA<MontySet>());
     });
   });

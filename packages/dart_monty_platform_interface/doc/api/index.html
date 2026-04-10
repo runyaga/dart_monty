@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1, user-scalable=no">
+  <meta name="description" content="dart_monty_platform_interface API docs, for the Dart programming language.">
+  <title>dart_monty_platform_interface - Dart API docs</title>
+
+
+  
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,300;0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
+  
+  <link rel="stylesheet" href="static-assets/github.css?v1">
+  <link rel="stylesheet" href="static-assets/styles.css?v1">
+  <link rel="icon" href="static-assets/favicon.png?v1">
+  
+</head>
+
+<body data-base-href="" data-using-base-href="false" class="light-theme">
+<div id="overlay-under-drawer"></div>
+<header id="title">
+  <span id="sidenav-left-toggle" class="material-symbols-outlined" role="button" tabindex="0">menu</span>
+  <ol class="breadcrumbs gt-separated dark hidden-xs">
+    <li><a href="https://github.com/runyaga/dart_monty">dart_monty_platform_interface package</a></li>
+  </ol>
+  <div class="self-name">dart_monty_platform_interface</div>
+  <form class="search navbar-right" role="search">
+    <input type="text" id="search-box" autocomplete="off" disabled class="form-control typeahead" placeholder="Loading search...">
+  </form>
+  <button class="toggle" id="theme-button" title="Toggle between light and dark mode" aria-label="Light and dark mode toggle">
+    <span id="dark-theme-button" class="material-symbols-outlined" aria-hidden="true">
+      dark_mode
+    </span>
+    <span id="light-theme-button" class="material-symbols-outlined" aria-hidden="true">
+      light_mode
+    </span>
+  </button>
+</header>
+<main>
+  <div id="dartdoc-main-content" class="main-content">
+      
+<section class="desc markdown">
+  <h1 id="dart_monty_platform_interface">dart_monty_platform_interface</h1>
+<p>Part of <a href="https://github.com/runyaga/dart_monty">dart_monty</a> — pure Dart bindings for <a href="https://github.com/pydantic/monty">Monty</a>, a restricted, sandboxed Python interpreter built in Rust.</p>
+<p><a href="https://runyaga.github.io/dart_monty/">Live Demo</a> | <a href="https://github.com/runyaga/dart_monty">GitHub</a> | <a href="https://github.com/pydantic/monty">Monty</a></p>
+<p><img src="https://raw.githubusercontent.com/runyaga/dart_monty/main/docs/bob.png" alt="Bob" height="18"> This package is co-designed by human and AI — nearly all code is AI-generated.</p>
+<p><strong>Pure Dart</strong> platform interface for dart_monty. Defines the shared API contract (<code>MontyPlatform</code>) implemented by native and web backends, along with common types like <code>MontyResult</code>, <code>MontyException</code>, and <code>MontyResourceUsage</code>.</p>
+<p>This package has no Flutter dependency and can be used in CLI tools, server-side Dart, or any Dart project.</p>
+<ul>
+<li><strong>Most users</strong> should import <code>dart_monty</code> instead — it selects the native or web backend at compile time via conditional imports.</li>
+<li><strong>Direct usage</strong> is for backend implementers or projects that need fine-grained type access.</li>
+</ul>
+<h2 id="key-types">Key Types</h2>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>MontyPlatform</code></td>
+<td>Abstract contract for running Python code</td>
+</tr>
+<tr>
+<td><code>BaseMontyPlatform</code></td>
+<td>Shared translation logic with <code>MontyCoreBindings</code> adapter</td>
+</tr>
+<tr>
+<td><code>MontyResult</code></td>
+<td>Execution result with value, error, and resource usage</td>
+</tr>
+<tr>
+<td><code>MontyProgress</code></td>
+<td>Sealed type: <code>MontyPending</code> (awaiting external call) or <code>MontyComplete</code></td>
+</tr>
+<tr>
+<td><code>MontyError</code></td>
+<td>Sealed error hierarchy: <code>MontyScriptError</code>, <code>MontyPanicError</code>, <code>MontyCrashError</code>, <code>MontyDisposedError</code>, <code>MontyResourceError</code></td>
+</tr>
+<tr>
+<td><code>MontySession</code></td>
+<td>Stateful session with snapshot/restore under the hood</td>
+</tr>
+<tr>
+<td><code>MontyLimits</code></td>
+<td>Resource constraints (timeout, memory, stack depth)</td>
+</tr>
+<tr>
+<td><code>MontyException</code></td>
+<td>Python error with message, filename, line/column, traceback</td>
+</tr>
+<tr>
+<td><code>MontyResourceUsage</code></td>
+<td>Memory, time, and stack depth statistics</td>
+</tr>
+</tbody>
+</table>
+<h2 id="usage">Usage</h2>
+<pre class="language-dart"><code class="language-dart">import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
+
+// Construct a result from JSON (as returned by native/web backends).
+final result = MontyResult.fromJson({
+  'value': 42,
+  'usage': {
+    'memory_bytes_used': 1024,
+    'time_elapsed_ms': 5,
+    'stack_depth_used': 2,
+  },
+});
+
+print(result.value); // 42
+print(result.usage.memoryBytesUsed); // 1024
+</code></pre>
+<p>See the <a href="https://github.com/runyaga/dart_monty">main dart_monty repository</a> for full documentation.</p>
+</section>
+
+
+      <section class="summary">
+          <h2>Libraries</h2>
+        <dl>
+          <dt id="dart_monty_platform_interface">
+  <span class="name"><a href="dart_monty_platform_interface/">dart_monty_platform_interface</a></span> 
+
+</dt>
+<dd>Platform interface for dart_monty.
+</dd>
+
+          <dt id="dart_monty_testing">
+  <span class="name"><a href="dart_monty_testing/">dart_monty_testing</a></span> 
+
+</dt>
+<dd>Testing utilities for dart_monty.
+</dd>
+
+          <dt id="monty_backend_spi">
+  <span class="name"><a href="monty_backend_spi/">monty_backend_spi</a></span> 
+
+</dt>
+<dd>Service Provider Interface for dart_monty platform backends.
+</dd>
+
+        </dl>
+      </section>
+  </div> <!-- /.main-content -->
+  <div id="dartdoc-sidebar-left" class="sidebar sidebar-offcanvas-left">
+    <!-- The search input and breadcrumbs below are only responsively visible at low resolutions. -->
+<header id="header-search-sidebar" class="hidden-l">
+  <form class="search-sidebar" role="search">
+    <input type="text" id="search-sidebar" autocomplete="off" disabled class="form-control typeahead" placeholder="Loading search...">
+  </form>
+</header>
+<ol class="breadcrumbs gt-separated dark hidden-l" id="sidebar-nav">
+    <li><a href="https://github.com/runyaga/dart_monty">dart_monty_platform_interface package</a></li>
+</ol>
+
+    <h5 class="hidden-xs"><span class="package-name">dart_monty_platform_interface</span> <span class="package-kind">package</span></h5>
+    <ol>
+      <li class="section-title">Libraries</li>
+      <li><a href="dart_monty_platform_interface/">dart_monty_platform_interface</a></li>
+      <li><a href="dart_monty_testing/">dart_monty_testing</a></li>
+      <li><a href="monty_backend_spi/">monty_backend_spi</a></li>
+</ol>
+
+  </div>
+  <div id="dartdoc-sidebar-right" class="sidebar sidebar-offcanvas-right">
+  </div>
+</main>
+<footer>
+  <span class="no-break">
+    dart_monty_platform_interface
+      0.9.0
+  </span>
+  
+</footer>
+
+
+<script src="static-assets/highlight.pack.js?v1"></script>
+<script src="static-assets/docs.dart.js"></script>
+
+</body>
+</html>
+

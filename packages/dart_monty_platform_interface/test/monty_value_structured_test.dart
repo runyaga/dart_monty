@@ -108,51 +108,69 @@ void main() {
 
     test('equality same', () {
       const a = MontyNamedTuple(
-        typeName: 'P', fieldNames: ['x'], values: [MontyInt(1)],
+        typeName: 'P',
+        fieldNames: ['x'],
+        values: [MontyInt(1)],
       );
       const b = MontyNamedTuple(
-        typeName: 'P', fieldNames: ['x'], values: [MontyInt(1)],
+        typeName: 'P',
+        fieldNames: ['x'],
+        values: [MontyInt(1)],
       );
       expect(a, equals(b));
     });
 
     test('equality different', () {
       const a = MontyNamedTuple(
-        typeName: 'P', fieldNames: ['x'], values: [MontyInt(1)],
+        typeName: 'P',
+        fieldNames: ['x'],
+        values: [MontyInt(1)],
       );
       const b = MontyNamedTuple(
-        typeName: 'Q', fieldNames: ['x'], values: [MontyInt(1)],
+        typeName: 'Q',
+        fieldNames: ['x'],
+        values: [MontyInt(1)],
       );
       expect(a, isNot(equals(b)));
     });
 
     test('hashCode consistent', () {
       const a = MontyNamedTuple(
-        typeName: 'P', fieldNames: ['x'], values: [MontyInt(1)],
+        typeName: 'P',
+        fieldNames: ['x'],
+        values: [MontyInt(1)],
       );
       const b = MontyNamedTuple(
-        typeName: 'P', fieldNames: ['x'], values: [MontyInt(1)],
+        typeName: 'P',
+        fieldNames: ['x'],
+        values: [MontyInt(1)],
       );
       expect(a.hashCode, b.hashCode);
     });
 
     test('toString is non-empty', () {
       const v = MontyNamedTuple(
-        typeName: 'P', fieldNames: [], values: [],
+        typeName: 'P',
+        fieldNames: [],
+        values: [],
       );
       expect(v.toString(), isNotEmpty);
     });
 
     test('dartValue returns Map', () {
       const v = MontyNamedTuple(
-        typeName: 'P', fieldNames: ['x'], values: [MontyInt(1)],
+        typeName: 'P',
+        fieldNames: ['x'],
+        values: [MontyInt(1)],
       );
       expect(v.dartValue, isA<Map<String, Object?>>());
     });
 
     test('empty fields', () {
       const v = MontyNamedTuple(
-        typeName: 'Empty', fieldNames: [], values: [],
+        typeName: 'Empty',
+        fieldNames: [],
+        values: [],
       );
       expect(MontyValue.fromJson(v.toJson()), v);
     });
@@ -188,7 +206,7 @@ void main() {
         fieldNames: ['name'],
         attrs: {'name': MontyString('Alice')},
       );
-      final json = v.toJson() as Map<String, Object?>;
+      final json = v.toJson();
       expect(json['__type'], 'dataclass');
       expect(json['name'], 'Person');
       expect(json['type_id'], 42);
@@ -208,51 +226,79 @@ void main() {
 
     test('equality same', () {
       const a = MontyDataclass(
-        name: 'P', typeId: 1, fieldNames: ['x'], attrs: {'x': MontyInt(1)},
+        name: 'P',
+        typeId: 1,
+        fieldNames: ['x'],
+        attrs: {'x': MontyInt(1)},
       );
       const b = MontyDataclass(
-        name: 'P', typeId: 1, fieldNames: ['x'], attrs: {'x': MontyInt(1)},
+        name: 'P',
+        typeId: 1,
+        fieldNames: ['x'],
+        attrs: {'x': MontyInt(1)},
       );
       expect(a, equals(b));
     });
 
     test('equality different', () {
       const a = MontyDataclass(
-        name: 'P', typeId: 1, fieldNames: ['x'], attrs: {'x': MontyInt(1)},
+        name: 'P',
+        typeId: 1,
+        fieldNames: ['x'],
+        attrs: {'x': MontyInt(1)},
       );
       const b = MontyDataclass(
-        name: 'Q', typeId: 1, fieldNames: ['x'], attrs: {'x': MontyInt(1)},
+        name: 'Q',
+        typeId: 1,
+        fieldNames: ['x'],
+        attrs: {'x': MontyInt(1)},
       );
       expect(a, isNot(equals(b)));
     });
 
     test('hashCode consistent', () {
       const a = MontyDataclass(
-        name: 'P', typeId: 1, fieldNames: ['x'], attrs: {'x': MontyInt(1)},
+        name: 'P',
+        typeId: 1,
+        fieldNames: ['x'],
+        attrs: {'x': MontyInt(1)},
       );
       const b = MontyDataclass(
-        name: 'P', typeId: 1, fieldNames: ['x'], attrs: {'x': MontyInt(1)},
+        name: 'P',
+        typeId: 1,
+        fieldNames: ['x'],
+        attrs: {'x': MontyInt(1)},
       );
       expect(a.hashCode, b.hashCode);
     });
 
     test('toString is non-empty', () {
       const v = MontyDataclass(
-        name: 'P', typeId: 1, fieldNames: [], attrs: {},
+        name: 'P',
+        typeId: 1,
+        fieldNames: [],
+        attrs: {},
       );
       expect(v.toString(), isNotEmpty);
     });
 
     test('dartValue returns Map', () {
       const v = MontyDataclass(
-        name: 'P', typeId: 1, fieldNames: [], attrs: {},
+        name: 'P',
+        typeId: 1,
+        fieldNames: [],
+        attrs: {},
       );
       expect(v.dartValue, isA<Map<String, Object?>>());
     });
 
     test('frozen=true', () {
       const v = MontyDataclass(
-        name: 'P', typeId: 1, fieldNames: [], attrs: {}, frozen: true,
+        name: 'P',
+        typeId: 1,
+        fieldNames: [],
+        attrs: {},
+        frozen: true,
       );
       expect(MontyValue.fromJson(v.toJson()), v);
       expect((MontyValue.fromJson(v.toJson()) as MontyDataclass).frozen, true);
@@ -260,16 +306,20 @@ void main() {
 
     test('nested attrs', () {
       const inner = MontyDataclass(
-        name: 'Inner', typeId: 2, fieldNames: ['val'],
+        name: 'Inner',
+        typeId: 2,
+        fieldNames: ['val'],
         attrs: {'val': MontyInt(99)},
       );
       const outer = MontyDataclass(
-        name: 'Outer', typeId: 1, fieldNames: ['child'],
+        name: 'Outer',
+        typeId: 1,
+        fieldNames: ['child'],
         attrs: {'child': inner},
       );
       final rt = MontyValue.fromJson(outer.toJson()) as MontyDataclass;
       expect(rt.attrs['child'], isA<MontyDataclass>());
-      expect((rt.attrs['child'] as MontyDataclass).name, 'Inner');
+      expect((rt.attrs['child']! as MontyDataclass).name, 'Inner');
     });
   });
 }

@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1, user-scalable=no">
+  <meta name="description" content="API docs for the WasmProgressResult class from the wasm_backend_spi library, for the Dart programming language.">
+  <title>WasmProgressResult class - wasm_backend_spi library - Dart API</title>
+
+
+  
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,300;0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
+  
+  <link rel="stylesheet" href="../static-assets/github.css?v1">
+  <link rel="stylesheet" href="../static-assets/styles.css?v1">
+  <link rel="icon" href="../static-assets/favicon.png?v1">
+  
+</head>
+
+<body data-base-href="../" data-using-base-href="false" class="light-theme">
+<div id="overlay-under-drawer"></div>
+<header id="title">
+  <span id="sidenav-left-toggle" class="material-symbols-outlined" role="button" tabindex="0">menu</span>
+  <ol class="breadcrumbs gt-separated dark hidden-xs">
+    <li><a href="../index.html">dart_monty_wasm</a></li>
+    <li><a href="../wasm_backend_spi/">wasm_backend_spi.dart</a></li>
+    <li class="self-crumb">WasmProgressResult class</li>
+  </ol>
+  <div class="self-name">WasmProgressResult</div>
+  <form class="search navbar-right" role="search">
+    <input type="text" id="search-box" autocomplete="off" disabled class="form-control typeahead" placeholder="Loading search...">
+  </form>
+  <button class="toggle" id="theme-button" title="Toggle between light and dark mode" aria-label="Light and dark mode toggle">
+    <span id="dark-theme-button" class="material-symbols-outlined" aria-hidden="true">
+      dark_mode
+    </span>
+    <span id="light-theme-button" class="material-symbols-outlined" aria-hidden="true">
+      light_mode
+    </span>
+  </button>
+</header>
+<main>
+<div
+    id="dartdoc-main-content"
+    class="main-content"
+    data-above-sidebar="wasm_backend_spi&#47;wasm_backend_spi-library-sidebar.html"
+    data-below-sidebar="wasm_backend_spi&#47;WasmProgressResult-class-sidebar.html">
+    <div>
+<h1><span class="kind-class">WasmProgressResult</span> class 
+    <a href="https://dart.dev/language/class-modifiers#final" class="feature feature-final" title="This class can neither be extended, implemented, nor mixed in.">final</a>
+ 
+</h1></div>
+
+    
+<section class="desc markdown">
+  <p>Result of <a href="../wasm_backend_spi/WasmBindings/start.html">WasmBindings.start</a>, <a href="../wasm_backend_spi/WasmBindings/resume.html">WasmBindings.resume</a>, and
+<a href="../wasm_backend_spi/WasmBindings/resumeWithError.html">WasmBindings.resumeWithError</a>.</p>
+<p>Contains a progress state and, depending on the state, accessor data.</p>
+</section>
+
+
+
+    
+  <section class="summary offset-anchor" id="constructors">
+    <h2>Constructors</h2>
+    <dl class="constructor-summary-list">
+        <dt id="WasmProgressResult.new" class="callable">
+          <span class="name"><a href="../wasm_backend_spi/WasmProgressResult/WasmProgressResult.html">WasmProgressResult</a></span><span class="signature">({<span class="parameter" id="-param-ok"><span>required</span> <span class="type-annotation"><a href="https://api.flutter.dev/flutter/dart-core/bool-class.html">bool</a></span> <span class="parameter-name">ok</span>, </span><span class="parameter" id="-param-state"><span class="type-annotation"><a href="https://api.flutter.dev/flutter/dart-core/String-class.html">String</a>?</span> <span class="parameter-name">state</span>, </span><span class="parameter" id="-param-value"><span class="type-annotation"><a href="https://api.flutter.dev/flutter/dart-core/Object-class.html">Object</a>?</span> <span class="parameter-name">value</span>, </span><span class="parameter" id="-param-functionName"><span class="type-annotation"><a href="https://api.flutter.dev/flutter/dart-core/String-class.html">String</a>?</span> <span class="parameter-name">functionName</span>, </span><span class="parameter" id="-param-arguments"><span class="type-annotation"><a href="https://api.flutter.dev/flutter/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.flutter.dev/flutter/dart-core/Object-class.html">Object</a>?</span>&gt;</span>?</span> <span class="parameter-name">arguments</span>, </span><span class="parameter" id="-param-kwargs"><span class="type-annotation"><a href="https://api.flutter.dev/flutter/dart-core/Map-class.html">Map</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.flutter.dev/flutter/dart-core/String-class.html">String</a></span>, <span class="type-parameter"><a href="https://api.flutter.dev/flutter/dart-core/Object-class.html">Object</a>?</span>&gt;</span>?</span> <span class="parameter-name">kwargs</span>, </span><span class="parameter" id="-param-callId"><span class="type-annotation"><a href="https://api.flutter.dev/flutter/dart-core/int-class.html">int</a>?</span> <span class="parameter-name">callId</span>, </span><span class="parameter" id="-param-methodCall"><span class="type-annotation"><a href="https://api.flutter.dev/flutter/dart-core/bool-class.html">bool</a>?</span> <span class="parameter-name">methodCall</span>, </span><span class="parameter" id="-param-printOutput"><span class="type-annotation"><a href="https://api.flutter.dev/flutter/dart-core/String-class.html">String</a>?</span> <span class="parameter-name">printOutput</span>, </span><span class="parameter" id="-param-pendingCallIds"><span class="type-annotation"><a href="https://api.flutter.dev/flutter/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.flutter.dev/flutter/dart-core/int-class.html">int</a></span>&gt;</span>?</span> <span class="parameter-name">pendingCallIds</span>, </span><span class="parameter" id="-param-error"><span class="type-annotation"><a href="https://api.flutter.dev/flutter/dart-core/String-class.html">String</a>?</span> <span class="parameter-name">error</span>, </span><span class="parameter" id="-param-errorType"><span class="type-annotation"><a href="https://api.flutter.dev/flutter/dart-core/String-class.html">String</a>?</span> <span class="parameter-name">errorType</span>, </span><span class="parameter" id="-param-excType"><span class="type-annotation"><a href="https://api.flutter.dev/flutter/dart-core/String-class.html">String</a>?</span> <span class="parameter-name">excType</span>, </span><span class="parameter" id="-param-traceback"><span class="type-annotation"><a href="https://api.flutter.dev/flutter/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.flutter.dev/flutter/dart-core/Object-class.html">Object</a>?</span>&gt;</span>?</span> <span class="parameter-name">traceback</span></span>})</span>
+        </dt>
+        <dd>
+          Creates a <a href="../wasm_backend_spi/WasmProgressResult-class.html">WasmProgressResult</a>.
+            <div class="constructor-modifier features">const</div>
+        </dd>
+    </dl>
+  </section>
+    
+  <section
+      class="summary offset-anchor"
+      id="instance-properties">
+    <h2>Properties</h2>
+    <dl class="properties">
+        <dt id="arguments" class="property">
+  <span class="name"><a href="../wasm_backend_spi/WasmProgressResult/arguments.html">arguments</a></span>
+  <span class="signature">&#8594; <a href="https://api.flutter.dev/flutter/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.flutter.dev/flutter/dart-core/Object-class.html">Object</a>?</span>&gt;</span>?</span>
+  
+
+</dt>
+<dd>
+  The function arguments (when state is <code>'pending'</code>).
+  <div class="features"><span class="feature">final</span></div>
+
+</dd>
+
+        <dt id="callId" class="property">
+  <span class="name"><a href="../wasm_backend_spi/WasmProgressResult/callId.html">callId</a></span>
+  <span class="signature">&#8594; <a href="https://api.flutter.dev/flutter/dart-core/int-class.html">int</a>?</span>
+  
+
+</dt>
+<dd>
+  Unique call identifier (when state is <code>'pending'</code>).
+  <div class="features"><span class="feature">final</span></div>
+
+</dd>
+
+        <dt id="error" class="property">
+  <span class="name"><a href="../wasm_backend_spi/WasmProgressResult/error.html">error</a></span>
+  <span class="signature">&#8594; <a href="https://api.flutter.dev/flutter/dart-core/String-class.html">String</a>?</span>
+  
+
+</dt>
+<dd>
+  The error message (when <a href="../wasm_backend_spi/WasmProgressResult/ok.html">ok</a> is false).
+  <div class="features"><span class="feature">final</span></div>
+
+</dd>
+
+        <dt id="errorType" class="property">
+  <span class="name"><a href="../wasm_backend_spi/WasmProgressResult/errorType.html">errorType</a></span>
+  <span class="signature">&#8594; <a href="https://api.flutter.dev/flutter/dart-core/String-class.html">String</a>?</span>
+  
+
+</dt>
+<dd>
+  The error type name (when <a href="../wasm_backend_spi/WasmProgressResult/ok.html">ok</a> is false).
+  <div class="features"><span class="feature">final</span></div>
+
+</dd>
+
+        <dt id="excType" class="property">
+  <span class="name"><a href="../wasm_backend_spi/WasmProgressResult/excType.html">excType</a></span>
+  <span class="signature">&#8594; <a href="https://api.flutter.dev/flutter/dart-core/String-class.html">String</a>?</span>
+  
+
+</dt>
+<dd>
+  The Python exception class name (when error occurred).
+  <div class="features"><span class="feature">final</span></div>
+
+</dd>
+
+        <dt id="functionName" class="property">
+  <span class="name"><a href="../wasm_backend_spi/WasmProgressResult/functionName.html">functionName</a></span>
+  <span class="signature">&#8594; <a href="https://api.flutter.dev/flutter/dart-core/String-class.html">String</a>?</span>
+  
+
+</dt>
+<dd>
+  The external function name (when state is <code>'pending'</code>).
+  <div class="features"><span class="feature">final</span></div>
+
+</dd>
+
+        <dt id="hashCode" class="property inherited">
+  <span class="name"><a href="https://api.flutter.dev/flutter/dart-core/Object/hashCode.html">hashCode</a></span>
+  <span class="signature">&#8594; <a href="https://api.flutter.dev/flutter/dart-core/int-class.html">int</a></span>
+  
+
+</dt>
+<dd class="inherited">
+  The hash code for this object.
+  <div class="features"><span class="feature">no setter</span><span class="feature">inherited</span></div>
+
+</dd>
+
+        <dt id="kwargs" class="property">
+  <span class="name"><a href="../wasm_backend_spi/WasmProgressResult/kwargs.html">kwargs</a></span>
+  <span class="signature">&#8594; <a href="https://api.flutter.dev/flutter/dart-core/Map-class.html">Map</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.flutter.dev/flutter/dart-core/String-class.html">String</a></span>, <span class="type-parameter"><a href="https://api.flutter.dev/flutter/dart-core/Object-class.html">Object</a>?</span>&gt;</span>?</span>
+  
+
+</dt>
+<dd>
+  Keyword arguments from the Python call site (when state is <code>'pending'</code>).
+  <div class="features"><span class="feature">final</span></div>
+
+</dd>
+
+        <dt id="methodCall" class="property">
+  <span class="name"><a href="../wasm_backend_spi/WasmProgressResult/methodCall.html">methodCall</a></span>
+  <span class="signature">&#8594; <a href="https://api.flutter.dev/flutter/dart-core/bool-class.html">bool</a>?</span>
+  
+
+</dt>
+<dd>
+  Whether this is a method call (when state is <code>'pending'</code>).
+  <div class="features"><span class="feature">final</span></div>
+
+</dd>
+
+        <dt id="ok" class="property">
+  <span class="name"><a href="../wasm_backend_spi/WasmProgressResult/ok.html">ok</a></span>
+  <span class="signature">&#8594; <a href="https://api.flutter.dev/flutter/dart-core/bool-class.html">bool</a></span>
+  
+
+</dt>
+<dd>
+  Whether the operation succeeded.
+  <div class="features"><span class="feature">final</span></div>
+
+</dd>
+
+        <dt id="pendingCallIds" class="property">
+  <span class="name"><a href="../wasm_backend_spi/WasmProgressResult/pendingCallIds.html">pendingCallIds</a></span>
+  <span class="signature">&#8594; <a href="https://api.flutter.dev/flutter/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.flutter.dev/flutter/dart-core/int-class.html">int</a></span>&gt;</span>?</span>
+  
+
+</dt>
+<dd>
+  Pending future call IDs (when state is <code>'resolve_futures'</code>).
+  <div class="features"><span class="feature">final</span></div>
+
+</dd>
+
+        <dt id="printOutput" class="property">
+  <span class="name"><a href="../wasm_backend_spi/WasmProgressResult/printOutput.html">printOutput</a></span>
+  <span class="signature">&#8594; <a href="https://api.flutter.dev/flutter/dart-core/String-class.html">String</a>?</span>
+  
+
+</dt>
+<dd>
+  Captured Python <code>print()</code> output (when state is <code>'complete'</code>).
+  <div class="features"><span class="feature">final</span></div>
+
+</dd>
+
+        <dt id="runtimeType" class="property inherited">
+  <span class="name"><a href="https://api.flutter.dev/flutter/dart-core/Object/runtimeType.html">runtimeType</a></span>
+  <span class="signature">&#8594; <a href="https://api.flutter.dev/flutter/dart-core/Type-class.html">Type</a></span>
+  
+
+</dt>
+<dd class="inherited">
+  A representation of the runtime type of the object.
+  <div class="features"><span class="feature">no setter</span><span class="feature">inherited</span></div>
+
+</dd>
+
+        <dt id="state" class="property">
+  <span class="name"><a href="../wasm_backend_spi/WasmProgressResult/state.html">state</a></span>
+  <span class="signature">&#8594; <a href="https://api.flutter.dev/flutter/dart-core/String-class.html">String</a>?</span>
+  
+
+</dt>
+<dd>
+  <code>'complete'</code>, <code>'pending'</code>, <code>'os_call'</code>,
+or <code>'resolve_futures'</code> (when <a href="../wasm_backend_spi/WasmProgressResult/ok.html">ok</a> is true).
+  <div class="features"><span class="feature">final</span></div>
+
+</dd>
+
+        <dt id="traceback" class="property">
+  <span class="name"><a href="../wasm_backend_spi/WasmProgressResult/traceback.html">traceback</a></span>
+  <span class="signature">&#8594; <a href="https://api.flutter.dev/flutter/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.flutter.dev/flutter/dart-core/Object-class.html">Object</a>?</span>&gt;</span>?</span>
+  
+
+</dt>
+<dd>
+  The traceback frames as raw JSON list (when error occurred).
+  <div class="features"><span class="feature">final</span></div>
+
+</dd>
+
+        <dt id="value" class="property">
+  <span class="name"><a href="../wasm_backend_spi/WasmProgressResult/value.html">value</a></span>
+  <span class="signature">&#8594; <a href="https://api.flutter.dev/flutter/dart-core/Object-class.html">Object</a>?</span>
+  
+
+</dt>
+<dd>
+  The return value (when state is <code>'complete'</code>).
+  <div class="features"><span class="feature">final</span></div>
+
+</dd>
+
+    </dl>
+  </section>
+
+    
+  <section
+      class="summary offset-anchor inherited"
+      id="instance-methods">
+    <h2>Methods</h2>
+    <dl class="callables">
+        <dt id="noSuchMethod" class="callable inherited">
+  <span class="name"><a href="https://api.flutter.dev/flutter/dart-core/Object/noSuchMethod.html">noSuchMethod</a></span><span class="signature">(<wbr><span class="parameter" id="noSuchMethod-param-invocation"><span class="type-annotation"><a href="https://api.flutter.dev/flutter/dart-core/Invocation-class.html">Invocation</a></span> <span class="parameter-name">invocation</span></span>)
+    <span class="returntype parameter">&#8594; dynamic</span>
+  </span>
+  
+
+</dt>
+<dd class="inherited">
+  Invoked when a nonexistent method or property is accessed.
+  <div class="features"><span class="feature">inherited</span></div>
+
+</dd>
+
+        <dt id="toString" class="callable inherited">
+  <span class="name"><a href="https://api.flutter.dev/flutter/dart-core/Object/toString.html">toString</a></span><span class="signature">(<wbr>)
+    <span class="returntype parameter">&#8594; <a href="https://api.flutter.dev/flutter/dart-core/String-class.html">String</a></span>
+  </span>
+  
+
+</dt>
+<dd class="inherited">
+  A string representation of this object.
+  <div class="features"><span class="feature">inherited</span></div>
+
+</dd>
+
+    </dl>
+  </section>
+    
+  <section
+      class="summary offset-anchor inherited"
+      id="operators">
+    <h2>Operators</h2>
+    <dl class="callables">
+        <dt id="operator ==" class="callable inherited">
+  <span class="name"><a href="https://api.flutter.dev/flutter/dart-core/Object/operator_equals.html">operator ==</a></span><span class="signature">(<wbr><span class="parameter" id="==-param-other"><span class="type-annotation"><a href="https://api.flutter.dev/flutter/dart-core/Object-class.html">Object</a></span> <span class="parameter-name">other</span></span>)
+    <span class="returntype parameter">&#8594; <a href="https://api.flutter.dev/flutter/dart-core/bool-class.html">bool</a></span>
+  </span>
+  
+
+</dt>
+<dd class="inherited">
+  The equality operator.
+  <div class="features"><span class="feature">inherited</span></div>
+
+</dd>
+
+    </dl>
+  </section>
+    
+    
+    
+
+  </div> <!-- /.main-content -->
+  <div id="dartdoc-sidebar-left" class="sidebar sidebar-offcanvas-left">
+    <!-- The search input and breadcrumbs below are only responsively visible at low resolutions. -->
+<header id="header-search-sidebar" class="hidden-l">
+  <form class="search-sidebar" role="search">
+    <input type="text" id="search-sidebar" autocomplete="off" disabled class="form-control typeahead" placeholder="Loading search...">
+  </form>
+</header>
+<ol class="breadcrumbs gt-separated dark hidden-l" id="sidebar-nav">
+    <li><a href="../index.html">dart_monty_wasm</a></li>
+    <li><a href="../wasm_backend_spi/">wasm_backend_spi</a></li>
+    <li class="self-crumb">WasmProgressResult class</li>
+</ol>
+
+    <h5>wasm_backend_spi library</h5>
+    <div id="dartdoc-sidebar-left-content"></div>
+  </div>
+  <div id="dartdoc-sidebar-right" class="sidebar sidebar-offcanvas-right">
+  </div><!--/.sidebar-offcanvas-->
+</main>
+<footer>
+  <span class="no-break">
+    dart_monty_wasm
+      0.9.0
+  </span>
+  
+</footer>
+
+
+<script src="../static-assets/highlight.pack.js?v1"></script>
+<script src="../static-assets/docs.dart.js"></script>
+
+</body>
+</html>
+

@@ -193,7 +193,10 @@ void main() {
     });
 
     test('NaN == NaN is true', () {
-      expect(const MontyFloat(double.nan), equals(const MontyFloat(double.nan)));
+      expect(
+        const MontyFloat(double.nan),
+        equals(const MontyFloat(double.nan)),
+      );
     });
 
     test('NaN hashCode is consistent', () {

@@ -63,7 +63,8 @@ final class WasmProgressResult {
   /// Whether the operation succeeded.
   final bool ok;
 
-  /// `'complete'`, `'pending'`, `'os_call'`, or `'resolve_futures'` (when [ok] is true).
+  /// `'complete'`, `'pending'`, `'os_call'`,
+  /// or `'resolve_futures'` (when [ok] is true).
   final String? state;
 
   /// The return value (when state is `'complete'`).

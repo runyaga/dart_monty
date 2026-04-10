@@ -135,5 +135,4 @@ abstract class NativeBindings {
   ///
   /// Returns the new handle address as an `int`, or throws on error.
   int restore(Uint8List data);
-
 }

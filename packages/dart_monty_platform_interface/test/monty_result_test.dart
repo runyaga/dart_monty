@@ -185,13 +185,16 @@ void main() {
       });
 
       test('not equal when printOutput differs', () {
-        const a = MontyResult(value: MontyInt(42), usage: usage, printOutput: 'a\n');
-        const b = MontyResult(value: MontyInt(42), usage: usage, printOutput: 'b\n');
+        const a =
+            MontyResult(value: MontyInt(42), usage: usage, printOutput: 'a\n');
+        const b =
+            MontyResult(value: MontyInt(42), usage: usage, printOutput: 'b\n');
         expect(a, isNot(b));
       });
 
       test('not equal when one has printOutput and other does not', () {
-        const a = MontyResult(value: MontyInt(42), usage: usage, printOutput: 'a\n');
+        const a =
+            MontyResult(value: MontyInt(42), usage: usage, printOutput: 'a\n');
         const b = MontyResult(value: MontyInt(42), usage: usage);
         expect(a, isNot(b));
       });

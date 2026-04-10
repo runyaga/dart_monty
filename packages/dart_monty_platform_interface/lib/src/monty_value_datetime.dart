@@ -4,18 +4,30 @@ part of 'monty_value.dart';
 // DateTime types
 // ---------------------------------------------------------------------------
 
+/// Represents a Python `datetime.date` value.
 @immutable
 final class MontyDate extends MontyValue {
-  const MontyDate({required this.year, required this.month, required this.day});
-  final int year;
-  final int month;
-  final int day;
+  /// Creates a [MontyDate] with the given [year], [month], and [day].
+  const MontyDate({
+    required this.year,
+    required this.month,
+    required this.day,
+  });
 
   factory MontyDate._fromMap(Map<String, dynamic> map) => MontyDate(
         year: (map['year'] as num).toInt(),
         month: (map['month'] as num).toInt(),
         day: (map['day'] as num).toInt(),
       );
+
+  /// The year component.
+  final int year;
+
+  /// The month component (1-12).
+  final int month;
+
+  /// The day component (1-31).
+  final int day;
 
   @override
   Map<String, Object?> toJson() => {
@@ -40,12 +52,14 @@ final class MontyDate extends MontyValue {
   int get hashCode => Object.hash(year, month, day);
 
   @override
-  String toString() =>
-      'MontyDate($year-${month.toString().padLeft(2, '0')}-${day.toString().padLeft(2, '0')})';
+  String toString() => 'MontyDate($year-${month.toString().padLeft(2, '0')}'
+      '-${day.toString().padLeft(2, '0')})';
 }
 
+/// Represents a Python `datetime.datetime` value.
 @immutable
 final class MontyDateTime extends MontyValue {
+  /// Creates a [MontyDateTime] with the given components.
   const MontyDateTime({
     required this.year,
     required this.month,
@@ -58,16 +72,6 @@ final class MontyDateTime extends MontyValue {
     this.timezoneName,
   });
 
-  final int year;
-  final int month;
-  final int day;
-  final int hour;
-  final int minute;
-  final int second;
-  final int microsecond;
-  final int? offsetSeconds;
-  final String? timezoneName;
-
   factory MontyDateTime._fromMap(Map<String, dynamic> map) => MontyDateTime(
         year: (map['year'] as num).toInt(),
         month: (map['month'] as num).toInt(),
@@ -79,6 +83,33 @@ final class MontyDateTime extends MontyValue {
         offsetSeconds: (map['offset_seconds'] as num?)?.toInt(),
         timezoneName: map['timezone_name'] as String?,
       );
+
+  /// The year component.
+  final int year;
+
+  /// The month component (1-12).
+  final int month;
+
+  /// The day component (1-31).
+  final int day;
+
+  /// The hour component (0-23).
+  final int hour;
+
+  /// The minute component (0-59).
+  final int minute;
+
+  /// The second component (0-59).
+  final int second;
+
+  /// The microsecond component (0-999999).
+  final int microsecond;
+
+  /// The UTC offset in seconds, or `null` for naive datetimes.
+  final int? offsetSeconds;
+
+  /// The timezone name, or `null` for naive datetimes.
+  final String? timezoneName;
 
   @override
   Map<String, Object?> toJson() => {
@@ -113,8 +144,15 @@ final class MontyDateTime extends MontyValue {
 
   @override
   int get hashCode => Object.hash(
-        year, month, day, hour, minute, second, microsecond,
-        offsetSeconds, timezoneName,
+        year,
+        month,
+        day,
+        hour,
+        minute,
+        second,
+        microsecond,
+        offsetSeconds,
+        timezoneName,
       );
 
   @override
@@ -125,23 +163,30 @@ final class MontyDateTime extends MontyValue {
       '${second.toString().padLeft(2, '0')})';
 }
 
+/// Represents a Python `datetime.timedelta` value.
 @immutable
 final class MontyTimeDelta extends MontyValue {
+  /// Creates a [MontyTimeDelta] with the given components.
   const MontyTimeDelta({
     required this.days,
     required this.seconds,
     this.microseconds = 0,
   });
 
-  final int days;
-  final int seconds;
-  final int microseconds;
-
   factory MontyTimeDelta._fromMap(Map<String, dynamic> map) => MontyTimeDelta(
         days: (map['days'] as num).toInt(),
         seconds: (map['seconds'] as num).toInt(),
         microseconds: (map['microseconds'] as num?)?.toInt() ?? 0,
       );
+
+  /// The number of days.
+  final int days;
+
+  /// The number of seconds (0-86399).
+  final int seconds;
+
+  /// The number of microseconds (0-999999).
+  final int microseconds;
 
   @override
   Map<String, Object?> toJson() => {
@@ -169,16 +214,22 @@ final class MontyTimeDelta extends MontyValue {
   String toString() => 'MontyTimeDelta(days=$days, seconds=$seconds)';
 }
 
+/// Represents a Python `datetime.timezone` value.
 @immutable
 final class MontyTimeZone extends MontyValue {
+  /// Creates a [MontyTimeZone] with the given [offsetSeconds] and [name].
   const MontyTimeZone({required this.offsetSeconds, this.name});
-  final int offsetSeconds;
-  final String? name;
 
   factory MontyTimeZone._fromMap(Map<String, dynamic> map) => MontyTimeZone(
         offsetSeconds: (map['offset_seconds'] as num).toInt(),
         name: map['name'] as String?,
       );
+
+  /// The UTC offset in seconds.
+  final int offsetSeconds;
+
+  /// The timezone name, or `null` if unnamed.
+  final String? name;
 
   @override
   Map<String, Object?> toJson() => {

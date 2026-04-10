@@ -31,20 +31,21 @@ sealed class MontyValue {
   /// - Typed wrappers: Map with `__type` key dispatches to the appropriate type
   factory MontyValue.fromJson(Object? json) => switch (json) {
         null => const MontyNull(),
-        bool b => MontyBool(b),
-        int n => MontyInt(n),
-        double d => MontyFloat(d),
-        num n =>
-          n == n.toInt() ? MontyInt(n.toInt()) : MontyFloat(n.toDouble()),
+        final bool b => MontyBool(b),
+        final int n => MontyInt(n),
+        final double d => MontyFloat(d),
         'NaN' => const MontyFloat(double.nan),
         'Infinity' => const MontyFloat(double.infinity),
         '-Infinity' => const MontyFloat(double.negativeInfinity),
-        String s => MontyString(s),
-        List<dynamic> l => MontyList(l.map(MontyValue.fromJson).toList()),
-        Map<String, dynamic> m => _parseMap(m),
+        final String s => MontyString(s),
+        final List<dynamic> l => MontyList(l.map(MontyValue.fromJson).toList()),
+        final Map<String, dynamic> m => _parseMap(m),
         _ => MontyString(json.toString()),
       };
 
+  // Returns different sealed subclasses based on __type, so it
+  // cannot be a constructor.
+  // ignore: prefer_constructors_over_static_methods
   static MontyValue _parseMap(Map<String, dynamic> map) {
     final type = map['__type'] as String?;
     if (type == null) {

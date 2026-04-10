@@ -100,7 +100,7 @@ class WasmCoreBindings implements MontyCoreBindings {
 
   @override
   Future<Uint8List> snapshot() async {
-    return await _bindings.snapshot();
+    return _bindings.snapshot();
   }
 
   @override
@@ -220,5 +220,4 @@ class WasmCoreBindings implements MontyCoreBindings {
         throw StateError('Unknown progress state: ${progress.state}');
     }
   }
-
 }

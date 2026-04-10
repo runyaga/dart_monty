@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1, user-scalable=no">
+  <meta name="description" content="dart_monty_mcp library API docs, for the Dart programming language.">
+  <title>dart_monty_mcp library - Dart API</title>
+
+
+  
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,300;0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
+  
+  <link rel="stylesheet" href="../static-assets/github.css?v1">
+  <link rel="stylesheet" href="../static-assets/styles.css?v1">
+  <link rel="icon" href="../static-assets/favicon.png?v1">
+  
+</head>
+
+<body data-base-href="../" data-using-base-href="false" class="light-theme">
+<div id="overlay-under-drawer"></div>
+<header id="title">
+  <span id="sidenav-left-toggle" class="material-symbols-outlined" role="button" tabindex="0">menu</span>
+  <ol class="breadcrumbs gt-separated dark hidden-xs">
+    <li><a href="../index.html">dart_monty_mcp</a></li>
+    <li class="self-crumb">dart_monty_mcp.dart</li>
+  </ol>
+  <div class="self-name">dart_monty_mcp</div>
+  <form class="search navbar-right" role="search">
+    <input type="text" id="search-box" autocomplete="off" disabled class="form-control typeahead" placeholder="Loading search...">
+  </form>
+  <button class="toggle" id="theme-button" title="Toggle between light and dark mode" aria-label="Light and dark mode toggle">
+    <span id="dark-theme-button" class="material-symbols-outlined" aria-hidden="true">
+      dark_mode
+    </span>
+    <span id="light-theme-button" class="material-symbols-outlined" aria-hidden="true">
+      light_mode
+    </span>
+  </button>
+</header>
+<main>
+<div
+    id="dartdoc-main-content"
+    class="main-content"
+    data-above-sidebar=""
+    data-below-sidebar="dart_monty_mcp&#47;dart_monty_mcp-library-sidebar.html">
+  
+    <div>
+      
+
+      <h1>
+        <span class="kind-library">dart_monty_mcp</span>
+        library 
+ 
+
+      </h1>
+    </div>
+
+    
+<section class="desc markdown">
+  <p>MCP server exposing the Monty Python interpreter as tools.</p>
+</section>
+
+
+    <section class="summary offset-anchor" id="classes">
+      <h2>Classes</h2>
+      <dl>
+          <dt id="HostFunction">
+  <span class="name "><a href="../dart_monty_mcp/HostFunction-class.html">HostFunction</a></span> 
+
+</dt>
+<dd>
+  A host function: schema + handler + optional role.
+</dd>
+
+          <dt id="HostFunctionSchema">
+  <span class="name "><a href="../dart_monty_mcp/HostFunctionSchema-class.html">HostFunctionSchema</a></span> 
+
+</dt>
+<dd>
+  Schema for a host function callable from Python.
+</dd>
+
+          <dt id="HostParam">
+  <span class="name "><a href="../dart_monty_mcp/HostParam-class.html">HostParam</a></span> 
+
+</dt>
+<dd>
+  Describes a single parameter of a host function.
+</dd>
+
+          <dt id="McpMontySession">
+  <span class="name "><a href="../dart_monty_mcp/McpMontySession-class.html">McpMontySession</a></span> 
+
+</dt>
+<dd>
+  A persistent Python interpreter session for MCP.
+</dd>
+
+          <dt id="MontyMcpServer">
+  <span class="name "><a href="../dart_monty_mcp/MontyMcpServer-class.html">MontyMcpServer</a></span> 
+
+</dt>
+<dd>
+  MCP server that exposes the Monty Python interpreter as tools.
+</dd>
+
+          <dt id="MontyPlugin">
+  <span class="name "><a href="../dart_monty_mcp/MontyPlugin-class.html">MontyPlugin</a></span> 
+
+</dt>
+<dd>
+  Extension point for providing host functions to a <code>MontyBridge</code>.
+</dd>
+
+          <dt id="MontySessionManager">
+  <span class="name "><a href="../dart_monty_mcp/MontySessionManager-class.html">MontySessionManager</a></span> 
+
+</dt>
+<dd>
+  Manages the lifecycle of <a href="../dart_monty_mcp/McpMontySession-class.html">McpMontySession</a> instances.
+</dd>
+
+      </dl>
+    </section>
+
+    <section class="summary offset-anchor" id="enums">
+      <h2>Enums</h2>
+      <dl>
+          <dt id="HostParamType">
+  <span class="name "><a href="../dart_monty_mcp/HostParamType.html">HostParamType</a></span> 
+
+</dt>
+<dd>
+  Parameter types for host function arguments.
+</dd>
+
+      </dl>
+    </section>
+
+
+
+
+
+
+    <section class="summary offset-anchor" id="functions">
+      <h2>Functions</h2>
+      <dl class="callables">
+          <dt id="bridgeEventsToResult" class="callable">
+  <span class="name"><a href="../dart_monty_mcp/bridgeEventsToResult.html">bridgeEventsToResult</a></span><span class="signature">(<wbr><span class="parameter" id="bridgeEventsToResult-param-events"><span class="type-annotation"><a href="https://api.flutter.dev/flutter/dart-core/Stream-class.html">Stream</a><span class="signature">&lt;<wbr><span class="type-parameter">BridgeEvent</span>&gt;</span></span> <span class="parameter-name">events</span></span>)
+    <span class="returntype parameter">&#8594; <a href="https://api.flutter.dev/flutter/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://pub.dev/documentation/mcp_dart/2.1.0/mcp_dart/CallToolResult-class.html">CallToolResult</a></span>&gt;</span></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Collects <code>BridgeEvent</code>s from a bridge execution stream and produces
+a single MCP <a href="https://pub.dev/documentation/mcp_dart/2.1.0/mcp_dart/CallToolResult-class.html">CallToolResult</a>.
+  
+
+</dd>
+
+          <dt id="montyResultToCallToolResult" class="callable">
+  <span class="name"><a href="../dart_monty_mcp/montyResultToCallToolResult.html">montyResultToCallToolResult</a></span><span class="signature">(<wbr><span class="parameter" id="montyResultToCallToolResult-param-result"><span class="type-annotation">MontyResult</span> <span class="parameter-name">result</span></span>)
+    <span class="returntype parameter">&#8594; <a href="https://pub.dev/documentation/mcp_dart/2.1.0/mcp_dart/CallToolResult-class.html">CallToolResult</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Converts a <code>MontyResult</code> from a session execution to a <a href="https://pub.dev/documentation/mcp_dart/2.1.0/mcp_dart/CallToolResult-class.html">CallToolResult</a>.
+  
+
+</dd>
+
+      </dl>
+    </section>
+
+    <section class="summary offset-anchor" id="typedefs">
+      <h2>Typedefs</h2>
+      <dl>
+          
+  <dt id="HostFunctionHandler" class="callable">
+    <span class="name"><a href="../dart_monty_mcp/HostFunctionHandler.html">HostFunctionHandler</a></span><span class="signature">
+      <span class="returntype parameter">= <a href="https://api.flutter.dev/flutter/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.flutter.dev/flutter/dart-core/Object-class.html">Object</a>?</span>&gt;</span> Function<span class="signature">(<span class="parameter" id="param-args"><span class="type-annotation"><a href="https://api.flutter.dev/flutter/dart-core/Map-class.html">Map</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.flutter.dev/flutter/dart-core/String-class.html">String</a></span>, <span class="type-parameter"><a href="https://api.flutter.dev/flutter/dart-core/Object-class.html">Object</a>?</span>&gt;</span></span> <span class="parameter-name">args</span></span>)</span></span>
+    </span>
+    
+
+  </dt>
+  <dd>
+    Async handler that receives validated named arguments and returns a result.
+    
+
+  </dd>
+
+          
+  <dt id="PlatformFactory" class="callable">
+    <span class="name"><a href="../dart_monty_mcp/PlatformFactory.html">PlatformFactory</a></span><span class="signature">
+      <span class="returntype parameter">= MontyPlatform Function<span class="signature">()</span></span>
+    </span>
+    
+
+  </dt>
+  <dd>
+    Factory that creates a fresh <code>MontyPlatform</code> instance.
+    
+
+  </dd>
+
+      </dl>
+    </section>
+
+  </div> <!-- /.main-content -->
+  <div id="dartdoc-sidebar-left" class="sidebar sidebar-offcanvas-left">
+    <!-- The search input and breadcrumbs below are only responsively visible at low resolutions. -->
+<header id="header-search-sidebar" class="hidden-l">
+  <form class="search-sidebar" role="search">
+    <input type="text" id="search-sidebar" autocomplete="off" disabled class="form-control typeahead" placeholder="Loading search...">
+  </form>
+</header>
+<ol class="breadcrumbs gt-separated dark hidden-l" id="sidebar-nav">
+    <li><a href="../index.html">dart_monty_mcp</a></li>
+    <li class="self-crumb">dart_monty_mcp.dart</li>
+</ol>
+
+    <h5><span class="package-name">dart_monty_mcp</span> <span class="package-kind">package</span></h5>
+    <ol>
+      <li class="section-title">Libraries</li>
+      <li><a href="../dart_monty_mcp/">dart_monty_mcp</a></li>
+</ol>
+
+  </div>
+  <div id="dartdoc-sidebar-right" class="sidebar sidebar-offcanvas-right">
+    <h5>dart_monty_mcp library</h5>
+  </div><!--/sidebar-offcanvas-right-->
+</main>
+<footer>
+  <span class="no-break">
+    dart_monty_mcp
+      0.1.1
+  </span>
+  
+</footer>
+
+
+<script src="../static-assets/highlight.pack.js?v1"></script>
+<script src="../static-assets/docs.dart.js"></script>
+
+</body>
+</html>
+

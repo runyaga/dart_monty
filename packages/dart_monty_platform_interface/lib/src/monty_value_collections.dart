@@ -4,15 +4,19 @@ part of 'monty_value.dart';
 // Collections
 // ---------------------------------------------------------------------------
 
+/// Represents a Python `bytes` value.
 @immutable
 final class MontyBytes extends MontyValue {
+  /// Creates a [MontyBytes] with the given byte [value].
   const MontyBytes(this.value);
-  final List<int> value;
 
   factory MontyBytes._fromMap(Map<String, dynamic> map) {
     final raw = map['value'] as List<dynamic>? ?? const [];
     return MontyBytes(raw.cast<num>().map((n) => n.toInt()).toList());
   }
+
+  /// The underlying list of byte values.
+  final List<int> value;
 
   @override
   Map<String, Object?> toJson() => {'__type': 'bytes', 'value': value};
@@ -32,9 +36,13 @@ final class MontyBytes extends MontyValue {
   String toString() => 'MontyBytes(${value.length} bytes)';
 }
 
+/// Represents a Python `list` value.
 @immutable
 final class MontyList extends MontyValue {
+  /// Creates a [MontyList] with the given [items].
   const MontyList(this.items);
+
+  /// The list of [MontyValue] items.
   final List<MontyValue> items;
 
   @override
@@ -55,15 +63,19 @@ final class MontyList extends MontyValue {
   String toString() => 'MontyList(${items.length} items)';
 }
 
+/// Represents a Python `tuple` value.
 @immutable
 final class MontyTuple extends MontyValue {
+  /// Creates a [MontyTuple] with the given [items].
   const MontyTuple(this.items);
-  final List<MontyValue> items;
 
   factory MontyTuple._fromMap(Map<String, dynamic> map) {
     final raw = map['value'] as List<dynamic>? ?? const [];
     return MontyTuple(raw.map(MontyValue.fromJson).toList());
   }
+
+  /// The list of [MontyValue] items in the tuple.
+  final List<MontyValue> items;
 
   @override
   Map<String, Object?> toJson() => {
@@ -86,9 +98,13 @@ final class MontyTuple extends MontyValue {
   String toString() => 'MontyTuple(${items.length} items)';
 }
 
+/// Represents a Python `dict` value.
 @immutable
 final class MontyDict extends MontyValue {
+  /// Creates a [MontyDict] with the given [entries].
   const MontyDict(this.entries);
+
+  /// The map of string keys to [MontyValue] values.
   final Map<String, MontyValue> entries;
 
   @override
@@ -111,15 +127,19 @@ final class MontyDict extends MontyValue {
   String toString() => 'MontyDict(${entries.length} entries)';
 }
 
+/// Represents a Python `set` value.
 @immutable
 final class MontySet extends MontyValue {
+  /// Creates a [MontySet] with the given [items].
   const MontySet(this.items);
-  final List<MontyValue> items;
 
   factory MontySet._fromMap(Map<String, dynamic> map) {
     final raw = map['value'] as List<dynamic>? ?? const [];
     return MontySet(raw.map(MontyValue.fromJson).toList());
   }
+
+  /// The list of [MontyValue] items in the set.
+  final List<MontyValue> items;
 
   @override
   Map<String, Object?> toJson() => {
@@ -142,15 +162,19 @@ final class MontySet extends MontyValue {
   String toString() => 'MontySet(${items.length} items)';
 }
 
+/// Represents a Python `frozenset` value.
 @immutable
 final class MontyFrozenSet extends MontyValue {
+  /// Creates a [MontyFrozenSet] with the given [items].
   const MontyFrozenSet(this.items);
-  final List<MontyValue> items;
 
   factory MontyFrozenSet._fromMap(Map<String, dynamic> map) {
     final raw = map['value'] as List<dynamic>? ?? const [];
     return MontyFrozenSet(raw.map(MontyValue.fromJson).toList());
   }
+
+  /// The list of [MontyValue] items in the frozen set.
+  final List<MontyValue> items;
 
   @override
   Map<String, Object?> toJson() => {

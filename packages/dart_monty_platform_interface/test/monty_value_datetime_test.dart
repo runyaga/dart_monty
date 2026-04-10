@@ -112,10 +112,14 @@ void main() {
 
     test('toJson', () {
       const v = MontyDateTime(
-        year: 2024, month: 6, day: 15,
-        hour: 10, minute: 30, second: 45,
+        year: 2024,
+        month: 6,
+        day: 15,
+        hour: 10,
+        minute: 30,
+        second: 45,
       );
-      final json = v.toJson() as Map<String, Object?>;
+      final json = v.toJson();
       expect(json['__type'], 'datetime');
       expect(json['year'], 2024);
       expect(json['hour'], 10);
@@ -123,9 +127,14 @@ void main() {
 
     test('round-trip', () {
       const v = MontyDateTime(
-        year: 2024, month: 6, day: 15,
-        hour: 10, minute: 30, second: 45,
-        microsecond: 100, offsetSeconds: -18000,
+        year: 2024,
+        month: 6,
+        day: 15,
+        hour: 10,
+        minute: 30,
+        second: 45,
+        microsecond: 100,
+        offsetSeconds: -18000,
         timezoneName: 'EST',
       );
       expect(MontyValue.fromJson(v.toJson()), v);
@@ -133,52 +142,84 @@ void main() {
 
     test('equality same', () {
       const a = MontyDateTime(
-        year: 2024, month: 1, day: 1,
-        hour: 0, minute: 0, second: 0,
+        year: 2024,
+        month: 1,
+        day: 1,
+        hour: 0,
+        minute: 0,
+        second: 0,
       );
       const b = MontyDateTime(
-        year: 2024, month: 1, day: 1,
-        hour: 0, minute: 0, second: 0,
+        year: 2024,
+        month: 1,
+        day: 1,
+        hour: 0,
+        minute: 0,
+        second: 0,
       );
       expect(a, equals(b));
     });
 
     test('equality different', () {
       const a = MontyDateTime(
-        year: 2024, month: 1, day: 1,
-        hour: 0, minute: 0, second: 0,
+        year: 2024,
+        month: 1,
+        day: 1,
+        hour: 0,
+        minute: 0,
+        second: 0,
       );
       const b = MontyDateTime(
-        year: 2024, month: 1, day: 1,
-        hour: 0, minute: 0, second: 1,
+        year: 2024,
+        month: 1,
+        day: 1,
+        hour: 0,
+        minute: 0,
+        second: 1,
       );
       expect(a, isNot(equals(b)));
     });
 
     test('hashCode consistent', () {
       const a = MontyDateTime(
-        year: 2024, month: 1, day: 1,
-        hour: 0, minute: 0, second: 0,
+        year: 2024,
+        month: 1,
+        day: 1,
+        hour: 0,
+        minute: 0,
+        second: 0,
       );
       const b = MontyDateTime(
-        year: 2024, month: 1, day: 1,
-        hour: 0, minute: 0, second: 0,
+        year: 2024,
+        month: 1,
+        day: 1,
+        hour: 0,
+        minute: 0,
+        second: 0,
       );
       expect(a.hashCode, b.hashCode);
     });
 
     test('toString is non-empty', () {
       const v = MontyDateTime(
-        year: 2024, month: 1, day: 1,
-        hour: 0, minute: 0, second: 0,
+        year: 2024,
+        month: 1,
+        day: 1,
+        hour: 0,
+        minute: 0,
+        second: 0,
       );
       expect(v.toString(), isNotEmpty);
     });
 
     test('dartValue returns Map', () {
       const v = MontyDateTime(
-        year: 2024, month: 1, day: 1,
-        hour: 0, minute: 0, second: 0,
+        year: 2024,
+        month: 1,
+        day: 1,
+        hour: 0,
+        minute: 0,
+        second: 0,
       );
       expect(v.dartValue, isA<Map<String, Object?>>());
     });
@@ -186,8 +227,12 @@ void main() {
     test('naive datetime (null offset)', () {
       final v = MontyValue.fromJson({
         '__type': 'datetime',
-        'year': 2024, 'month': 1, 'day': 1,
-        'hour': 12, 'minute': 0, 'second': 0,
+        'year': 2024,
+        'month': 1,
+        'day': 1,
+        'hour': 12,
+        'minute': 0,
+        'second': 0,
       });
       final dt = v as MontyDateTime;
       expect(dt.offsetSeconds, isNull);
@@ -196,28 +241,43 @@ void main() {
 
     test('aware datetime UTC (offset=0)', () {
       const v = MontyDateTime(
-        year: 2024, month: 1, day: 1,
-        hour: 0, minute: 0, second: 0,
-        offsetSeconds: 0, timezoneName: 'UTC',
+        year: 2024,
+        month: 1,
+        day: 1,
+        hour: 0,
+        minute: 0,
+        second: 0,
+        offsetSeconds: 0,
+        timezoneName: 'UTC',
       );
       expect(MontyValue.fromJson(v.toJson()), v);
     });
 
     test('negative offset', () {
       const v = MontyDateTime(
-        year: 2024, month: 1, day: 1,
-        hour: 0, minute: 0, second: 0,
+        year: 2024,
+        month: 1,
+        day: 1,
+        hour: 0,
+        minute: 0,
+        second: 0,
         offsetSeconds: -18000,
       );
       expect(MontyValue.fromJson(v.toJson()), v);
-      expect((MontyValue.fromJson(v.toJson()) as MontyDateTime).offsetSeconds,
-          -18000);
+      expect(
+        (MontyValue.fromJson(v.toJson()) as MontyDateTime).offsetSeconds,
+        -18000,
+      );
     });
 
     test('microseconds preserved', () {
       const v = MontyDateTime(
-        year: 2024, month: 1, day: 1,
-        hour: 0, minute: 0, second: 0,
+        year: 2024,
+        month: 1,
+        day: 1,
+        hour: 0,
+        minute: 0,
+        second: 0,
         microsecond: 999999,
       );
       final rt = MontyValue.fromJson(v.toJson()) as MontyDateTime;
@@ -289,7 +349,7 @@ void main() {
     });
 
     test('zero timedelta', () {
-      const v = MontyTimeDelta(days: 0, seconds: 0, microseconds: 0);
+      const v = MontyTimeDelta(days: 0, seconds: 0);
       expect(MontyValue.fromJson(v.toJson()), v);
     });
 

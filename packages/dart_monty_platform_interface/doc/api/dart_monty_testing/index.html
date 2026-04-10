@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1, user-scalable=no">
+  <meta name="description" content="dart_monty_testing library API docs, for the Dart programming language.">
+  <title>dart_monty_testing library - Dart API</title>
+
+
+  
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,300;0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
+  
+  <link rel="stylesheet" href="../static-assets/github.css?v1">
+  <link rel="stylesheet" href="../static-assets/styles.css?v1">
+  <link rel="icon" href="../static-assets/favicon.png?v1">
+  
+</head>
+
+<body data-base-href="../" data-using-base-href="false" class="light-theme">
+<div id="overlay-under-drawer"></div>
+<header id="title">
+  <span id="sidenav-left-toggle" class="material-symbols-outlined" role="button" tabindex="0">menu</span>
+  <ol class="breadcrumbs gt-separated dark hidden-xs">
+    <li><a href="../index.html">dart_monty_platform_interface</a></li>
+    <li class="self-crumb">dart_monty_testing.dart</li>
+  </ol>
+  <div class="self-name">dart_monty_testing</div>
+  <form class="search navbar-right" role="search">
+    <input type="text" id="search-box" autocomplete="off" disabled class="form-control typeahead" placeholder="Loading search...">
+  </form>
+  <button class="toggle" id="theme-button" title="Toggle between light and dark mode" aria-label="Light and dark mode toggle">
+    <span id="dark-theme-button" class="material-symbols-outlined" aria-hidden="true">
+      dark_mode
+    </span>
+    <span id="light-theme-button" class="material-symbols-outlined" aria-hidden="true">
+      light_mode
+    </span>
+  </button>
+</header>
+<main>
+<div
+    id="dartdoc-main-content"
+    class="main-content"
+    data-above-sidebar=""
+    data-below-sidebar="dart_monty_testing&#47;dart_monty_testing-library-sidebar.html">
+  
+    <div>
+      
+
+      <h1>
+        <span class="kind-library">dart_monty_testing</span>
+        library 
+ 
+
+      </h1>
+    </div>
+
+    
+<section class="desc markdown">
+  <p>Testing utilities for dart_monty.</p>
+<p>Import this library in test files to access <code>MockMontyPlatform</code> and
+shared ladder test helpers:</p>
+<pre class="language-dart"><code class="language-dart">import 'package:dart_monty_platform_interface/dart_monty_testing.dart';
+</code></pre>
+</section>
+
+
+    <section class="summary offset-anchor" id="classes">
+      <h2>Classes</h2>
+      <dl>
+          <dt id="MockMontyPlatform">
+  <span class="name "><a href="../dart_monty_testing/MockMontyPlatform-class.html">MockMontyPlatform</a></span> 
+
+</dt>
+<dd>
+  A mock implementation of <a href="../dart_monty_platform_interface/MontyPlatform-class.html">MontyPlatform</a> for testing.
+</dd>
+
+      </dl>
+    </section>
+
+
+
+
+
+
+
+    <section class="summary offset-anchor" id="functions">
+      <h2>Functions</h2>
+      <dl class="callables">
+          <dt id="assertExceptionFields" class="callable">
+  <span class="name"><a href="../dart_monty_testing/assertExceptionFields.html">assertExceptionFields</a></span><span class="signature">(<wbr><span class="parameter" id="assertExceptionFields-param-exception"><span class="type-annotation"><a href="../dart_monty_platform_interface/MontyException-class.html">MontyException</a></span> <span class="parameter-name">exception</span>, </span><span class="parameter" id="assertExceptionFields-param-fixture"><span class="type-annotation"><a href="https://api.flutter.dev/flutter/dart-core/Map-class.html">Map</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.flutter.dev/flutter/dart-core/String-class.html">String</a></span>, <span class="type-parameter">dynamic</span>&gt;</span></span> <span class="parameter-name">fixture</span></span>)
+    <span class="returntype parameter">&#8594; void</span>
+  </span>
+  
+
+</dt>
+<dd>
+  Asserts M7A exception fields on a <a href="../dart_monty_platform_interface/MontyException-class.html">MontyException</a> against fixture
+expectations.
+  
+
+</dd>
+
+          <dt id="assertLadderResult" class="callable">
+  <span class="name"><a href="../dart_monty_testing/assertLadderResult.html">assertLadderResult</a></span><span class="signature">(<wbr><span class="parameter" id="assertLadderResult-param-actual"><span class="type-annotation"><a href="../dart_monty_platform_interface/MontyValue-class.html">MontyValue</a>?</span> <span class="parameter-name">actual</span>, </span><span class="parameter" id="assertLadderResult-param-fixture"><span class="type-annotation"><a href="https://api.flutter.dev/flutter/dart-core/Map-class.html">Map</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.flutter.dev/flutter/dart-core/String-class.html">String</a></span>, <span class="type-parameter">dynamic</span>&gt;</span></span> <span class="parameter-name">fixture</span></span>)
+    <span class="returntype parameter">&#8594; void</span>
+  </span>
+  
+
+</dt>
+<dd>
+  Asserts that <code>actual</code> matches the expected value in <code>fixture</code>.
+  
+
+</dd>
+
+          <dt id="assertPendingFields" class="callable">
+  <span class="name"><a href="../dart_monty_testing/assertPendingFields.html">assertPendingFields</a></span><span class="signature">(<wbr><span class="parameter" id="assertPendingFields-param-pending"><span class="type-annotation"><a href="../dart_monty_platform_interface/MontyPending-class.html">MontyPending</a></span> <span class="parameter-name">pending</span>, </span><span class="parameter" id="assertPendingFields-param-fixture"><span class="type-annotation"><a href="https://api.flutter.dev/flutter/dart-core/Map-class.html">Map</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.flutter.dev/flutter/dart-core/String-class.html">String</a></span>, <span class="type-parameter">dynamic</span>&gt;</span></span> <span class="parameter-name">fixture</span></span>)
+    <span class="returntype parameter">&#8594; void</span>
+  </span>
+  
+
+</dt>
+<dd>
+  Asserts M7A fields on a <a href="../dart_monty_platform_interface/MontyPending-class.html">MontyPending</a> against fixture expectations.
+  
+
+</dd>
+
+          <dt id="loadLadderFixtures" class="callable">
+  <span class="name"><a href="../dart_monty_testing/loadLadderFixtures.html">loadLadderFixtures</a></span><span class="signature">(<wbr><span class="parameter" id="loadLadderFixtures-param-dir"><span class="type-annotation"><a href="https://api.flutter.dev/flutter/dart-io/Directory-class.html">Directory</a></span> <span class="parameter-name">dir</span></span>)
+    <span class="returntype parameter">&#8594; <a href="https://api.flutter.dev/flutter/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter">(<span class="field"><span class="type-annotation"><a href="https://api.flutter.dev/flutter/dart-core/String-class.html">String</a></span>, </span><span class="field"><span class="type-annotation"><a href="https://api.flutter.dev/flutter/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.flutter.dev/flutter/dart-core/Map-class.html">Map</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.flutter.dev/flutter/dart-core/String-class.html">String</a></span>, <span class="type-parameter">dynamic</span>&gt;</span></span>&gt;</span></span></span>)</span>&gt;</span></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Loads ladder fixture files from <code>dir</code>, returning sorted tier entries.
+  
+
+</dd>
+
+          <dt id="registerLadderTests" class="callable">
+  <span class="name"><a href="../dart_monty_testing/registerLadderTests.html">registerLadderTests</a></span><span class="signature">(<wbr>{<span class="parameter" id="registerLadderTests-param-createPlatform"><span>required</span> <span class="type-annotation"><a href="../dart_monty_platform_interface/MontyPlatform-class.html">MontyPlatform</a></span> <span class="parameter-name">createPlatform</span>(), </span><span class="parameter" id="registerLadderTests-param-fixtureDir"><span>required</span> <span class="type-annotation"><a href="https://api.flutter.dev/flutter/dart-io/Directory-class.html">Directory</a></span> <span class="parameter-name">fixtureDir</span>, </span><span class="parameter" id="registerLadderTests-param-osCallHandler"><span class="type-annotation"><a href="../dart_monty_testing/LadderOsCallHandler.html">LadderOsCallHandler</a>?</span> <span class="parameter-name">osCallHandler</span>, </span><span class="parameter" id="registerLadderTests-param-isWeb"><span class="type-annotation"><a href="https://api.flutter.dev/flutter/dart-core/bool-class.html">bool</a></span> <span class="parameter-name">isWeb</span> = <span class="default-value">false</span></span>})
+    <span class="returntype parameter">&#8594; void</span>
+  </span>
+  
+
+</dt>
+<dd>
+  Registers ladder test groups for all tiers in <code>fixtureDir</code>.
+  
+
+</dd>
+
+          <dt id="runErrorFixture" class="callable">
+  <span class="name"><a href="../dart_monty_testing/runErrorFixture.html">runErrorFixture</a></span><span class="signature">(<wbr><span class="parameter" id="runErrorFixture-param-platform"><span class="type-annotation"><a href="../dart_monty_platform_interface/MontyPlatform-class.html">MontyPlatform</a></span> <span class="parameter-name">platform</span>, </span><span class="parameter" id="runErrorFixture-param-code"><span class="type-annotation"><a href="https://api.flutter.dev/flutter/dart-core/String-class.html">String</a></span> <span class="parameter-name">code</span>, </span><span class="parameter" id="runErrorFixture-param-fixture"><span class="type-annotation"><a href="https://api.flutter.dev/flutter/dart-core/Map-class.html">Map</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.flutter.dev/flutter/dart-core/String-class.html">String</a></span>, <span class="type-parameter">dynamic</span>&gt;</span></span> <span class="parameter-name">fixture</span></span>)
+    <span class="returntype parameter">&#8594; <a href="https://api.flutter.dev/flutter/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter">void</span>&gt;</span></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Runs an error fixture through <code>platform</code>, expecting <a href="../dart_monty_platform_interface/MontyException-class.html">MontyException</a>.
+  
+
+</dd>
+
+          <dt id="runIterativeFixture" class="callable">
+  <span class="name"><a href="../dart_monty_testing/runIterativeFixture.html">runIterativeFixture</a></span><span class="signature">(<wbr><span class="parameter" id="runIterativeFixture-param-platform"><span class="type-annotation"><a href="../dart_monty_platform_interface/MontyPlatform-class.html">MontyPlatform</a></span> <span class="parameter-name">platform</span>, </span><span class="parameter" id="runIterativeFixture-param-fixture"><span class="type-annotation"><a href="https://api.flutter.dev/flutter/dart-core/Map-class.html">Map</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.flutter.dev/flutter/dart-core/String-class.html">String</a></span>, <span class="type-parameter">dynamic</span>&gt;</span></span> <span class="parameter-name">fixture</span></span>)
+    <span class="returntype parameter">&#8594; <a href="https://api.flutter.dev/flutter/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter">void</span>&gt;</span></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Runs an iterative (external functions) fixture through <code>platform</code>.
+  
+
+</dd>
+
+          <dt id="runOsCallFixture" class="callable">
+  <span class="name"><a href="../dart_monty_testing/runOsCallFixture.html">runOsCallFixture</a></span><span class="signature">(<wbr><span class="parameter" id="runOsCallFixture-param-platform"><span class="type-annotation"><a href="../dart_monty_platform_interface/MontyPlatform-class.html">MontyPlatform</a></span> <span class="parameter-name">platform</span>, </span><span class="parameter" id="runOsCallFixture-param-fixture"><span class="type-annotation"><a href="https://api.flutter.dev/flutter/dart-core/Map-class.html">Map</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.flutter.dev/flutter/dart-core/String-class.html">String</a></span>, <span class="type-parameter">dynamic</span>&gt;</span></span> <span class="parameter-name">fixture</span>, </span><span class="parameter" id="runOsCallFixture-param-osCallHandler"><span class="type-annotation"><a href="../dart_monty_testing/LadderOsCallHandler.html">LadderOsCallHandler</a></span> <span class="parameter-name">osCallHandler</span></span>)
+    <span class="returntype parameter">&#8594; <a href="https://api.flutter.dev/flutter/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter">void</span>&gt;</span></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Runs an OsCall fixture through <code>platform</code> using start/resume.
+  
+
+</dd>
+
+          <dt id="runSimpleFixture" class="callable">
+  <span class="name"><a href="../dart_monty_testing/runSimpleFixture.html">runSimpleFixture</a></span><span class="signature">(<wbr><span class="parameter" id="runSimpleFixture-param-platform"><span class="type-annotation"><a href="../dart_monty_platform_interface/MontyPlatform-class.html">MontyPlatform</a></span> <span class="parameter-name">platform</span>, </span><span class="parameter" id="runSimpleFixture-param-code"><span class="type-annotation"><a href="https://api.flutter.dev/flutter/dart-core/String-class.html">String</a></span> <span class="parameter-name">code</span>, </span><span class="parameter" id="runSimpleFixture-param-fixture"><span class="type-annotation"><a href="https://api.flutter.dev/flutter/dart-core/Map-class.html">Map</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.flutter.dev/flutter/dart-core/String-class.html">String</a></span>, <span class="type-parameter">dynamic</span>&gt;</span></span> <span class="parameter-name">fixture</span></span>)
+    <span class="returntype parameter">&#8594; <a href="https://api.flutter.dev/flutter/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter">void</span>&gt;</span></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Runs a simple (non-error, non-iterative) fixture through <code>platform</code>.
+  
+
+</dd>
+
+      </dl>
+    </section>
+
+    <section class="summary offset-anchor" id="typedefs">
+      <h2>Typedefs</h2>
+      <dl>
+          
+  <dt id="LadderOsCallHandler" class="callable">
+    <span class="name"><a href="../dart_monty_testing/LadderOsCallHandler.html">LadderOsCallHandler</a></span><span class="signature">
+      <span class="returntype parameter">= <a href="https://api.flutter.dev/flutter/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.flutter.dev/flutter/dart-core/Object-class.html">Object</a>?</span>&gt;</span> Function<span class="signature">(<span class="parameter" id="param-call"><span class="type-annotation"><a href="../dart_monty_platform_interface/MontyOsCall-class.html">MontyOsCall</a></span> <span class="parameter-name">call</span></span>)</span></span>
+    </span>
+    
+
+  </dt>
+  <dd>
+    Callback type for handling OsCall progress in the ladder runner.
+    
+
+  </dd>
+
+      </dl>
+    </section>
+
+  </div> <!-- /.main-content -->
+  <div id="dartdoc-sidebar-left" class="sidebar sidebar-offcanvas-left">
+    <!-- The search input and breadcrumbs below are only responsively visible at low resolutions. -->
+<header id="header-search-sidebar" class="hidden-l">
+  <form class="search-sidebar" role="search">
+    <input type="text" id="search-sidebar" autocomplete="off" disabled class="form-control typeahead" placeholder="Loading search...">
+  </form>
+</header>
+<ol class="breadcrumbs gt-separated dark hidden-l" id="sidebar-nav">
+    <li><a href="../index.html">dart_monty_platform_interface</a></li>
+    <li class="self-crumb">dart_monty_testing.dart</li>
+</ol>
+
+    <h5><span class="package-name">dart_monty_platform_interface</span> <span class="package-kind">package</span></h5>
+    <ol>
+      <li class="section-title">Libraries</li>
+      <li><a href="../dart_monty_platform_interface/">dart_monty_platform_interface</a></li>
+      <li><a href="../dart_monty_testing/">dart_monty_testing</a></li>
+      <li><a href="../monty_backend_spi/">monty_backend_spi</a></li>
+</ol>
+
+  </div>
+  <div id="dartdoc-sidebar-right" class="sidebar sidebar-offcanvas-right">
+    <h5>dart_monty_testing library</h5>
+  </div><!--/sidebar-offcanvas-right-->
+</main>
+<footer>
+  <span class="no-break">
+    dart_monty_platform_interface
+      0.9.0
+  </span>
+  
+</footer>
+
+
+<script src="../static-assets/highlight.pack.js?v1"></script>
+<script src="../static-assets/docs.dart.js"></script>
+
+</body>
+</html>
+

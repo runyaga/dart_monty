@@ -79,7 +79,7 @@ CallToolResult montyResultToCallToolResult(MontyResult result) {
     parts.add(result.printOutput!.trimRight());
   }
   if (result.value != null) {
-    parts.add('${result.value}');
+    parts.add('${result.value!.dartValue}');
   }
   final text = parts.isEmpty ? '(no output)' : parts.join('\n');
   return CallToolResult(content: [TextContent(text: text)]);

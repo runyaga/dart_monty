@@ -238,5 +238,4 @@ class MockNativeBindings extends NativeBindings {
 
     return nextRestoreHandle;
   }
-
 }

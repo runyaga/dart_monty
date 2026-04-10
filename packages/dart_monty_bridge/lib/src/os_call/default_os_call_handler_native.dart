@@ -38,7 +38,7 @@ OsCallHandler createDefaultOsCallHandler() {
         return content.length;
       case 'Path.write_bytes':
         final path = _extractPath(args[0]);
-        final bytes = (args[1].dartValue as List).cast<int>();
+        final bytes = (args[1].dartValue! as List).cast<int>();
         File(path).writeAsBytesSync(bytes);
         return bytes.length;
       case 'Path.mkdir':

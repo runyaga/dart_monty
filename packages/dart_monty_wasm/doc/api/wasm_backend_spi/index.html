@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1, user-scalable=no">
+  <meta name="description" content="wasm_backend_spi library API docs, for the Dart programming language.">
+  <title>wasm_backend_spi library - Dart API</title>
+
+
+  
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,300;0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
+  
+  <link rel="stylesheet" href="../static-assets/github.css?v1">
+  <link rel="stylesheet" href="../static-assets/styles.css?v1">
+  <link rel="icon" href="../static-assets/favicon.png?v1">
+  
+</head>
+
+<body data-base-href="../" data-using-base-href="false" class="light-theme">
+<div id="overlay-under-drawer"></div>
+<header id="title">
+  <span id="sidenav-left-toggle" class="material-symbols-outlined" role="button" tabindex="0">menu</span>
+  <ol class="breadcrumbs gt-separated dark hidden-xs">
+    <li><a href="../index.html">dart_monty_wasm</a></li>
+    <li class="self-crumb">wasm_backend_spi.dart</li>
+  </ol>
+  <div class="self-name">wasm_backend_spi</div>
+  <form class="search navbar-right" role="search">
+    <input type="text" id="search-box" autocomplete="off" disabled class="form-control typeahead" placeholder="Loading search...">
+  </form>
+  <button class="toggle" id="theme-button" title="Toggle between light and dark mode" aria-label="Light and dark mode toggle">
+    <span id="dark-theme-button" class="material-symbols-outlined" aria-hidden="true">
+      dark_mode
+    </span>
+    <span id="light-theme-button" class="material-symbols-outlined" aria-hidden="true">
+      light_mode
+    </span>
+  </button>
+</header>
+<main>
+<div
+    id="dartdoc-main-content"
+    class="main-content"
+    data-above-sidebar=""
+    data-below-sidebar="wasm_backend_spi&#47;wasm_backend_spi-library-sidebar.html">
+  
+    <div>
+      
+
+      <h1>
+        <span class="kind-library">wasm_backend_spi</span>
+        library 
+ 
+
+      </h1>
+    </div>
+
+    
+<section class="desc markdown">
+  <p>SPI for dart_monty_wasm backend internals.</p>
+<p>Import this library only from sibling monorepo packages
+(e.g. <code>dart_monty_web</code>). Application code should import
+<code>package:dart_monty_wasm/dart_monty_wasm.dart</code> instead.</p>
+</section>
+
+
+    <section class="summary offset-anchor" id="classes">
+      <h2>Classes</h2>
+      <dl>
+          <dt id="WasmBindings">
+  <span class="name "><a href="../wasm_backend_spi/WasmBindings-class.html">WasmBindings</a></span> 
+
+</dt>
+<dd>
+  Abstract interface over the WASM bridge.
+</dd>
+
+          <dt id="WasmBindingsJs">
+  <span class="name "><a href="../wasm_backend_spi/WasmBindingsJs-class.html">WasmBindingsJs</a></span> 
+
+</dt>
+<dd>
+  VM stub for <a href="../wasm_backend_spi/WasmBindingsJs-class.html">WasmBindingsJs</a>.
+</dd>
+
+          <dt id="WasmCoreBindings">
+  <span class="name "><a href="../wasm_backend_spi/WasmCoreBindings-class.html">WasmCoreBindings</a></span> 
+
+</dt>
+<dd>
+  Adapts <a href="../wasm_backend_spi/WasmBindings-class.html">WasmBindings</a> (async, <a href="../wasm_backend_spi/WasmRunResult-class.html">WasmRunResult</a>/<a href="../wasm_backend_spi/WasmProgressResult-class.html">WasmProgressResult</a>)
+to the <code>MontyCoreBindings</code> interface (async, <code>CoreRunResult</code>/
+<code>CoreProgressResult</code>).
+</dd>
+
+          <dt id="WasmDiscoverResult">
+  <span class="name "><a href="../wasm_backend_spi/WasmDiscoverResult-class.html">WasmDiscoverResult</a></span> 
+
+</dt>
+<dd>
+  Result of <a href="../wasm_backend_spi/WasmBindings/discover.html">WasmBindings.discover</a>.
+</dd>
+
+          <dt id="WasmProgressResult">
+  <span class="name "><a href="../wasm_backend_spi/WasmProgressResult-class.html">WasmProgressResult</a></span> 
+
+</dt>
+<dd>
+  Result of <a href="../wasm_backend_spi/WasmBindings/start.html">WasmBindings.start</a>, <a href="../wasm_backend_spi/WasmBindings/resume.html">WasmBindings.resume</a>, and
+<a href="../wasm_backend_spi/WasmBindings/resumeWithError.html">WasmBindings.resumeWithError</a>.
+</dd>
+
+          <dt id="WasmRunResult">
+  <span class="name "><a href="../wasm_backend_spi/WasmRunResult-class.html">WasmRunResult</a></span> 
+
+</dt>
+<dd>
+  Result of <a href="../wasm_backend_spi/WasmBindings/run.html">WasmBindings.run</a>.
+</dd>
+
+      </dl>
+    </section>
+
+
+
+
+
+
+
+
+
+  </div> <!-- /.main-content -->
+  <div id="dartdoc-sidebar-left" class="sidebar sidebar-offcanvas-left">
+    <!-- The search input and breadcrumbs below are only responsively visible at low resolutions. -->
+<header id="header-search-sidebar" class="hidden-l">
+  <form class="search-sidebar" role="search">
+    <input type="text" id="search-sidebar" autocomplete="off" disabled class="form-control typeahead" placeholder="Loading search...">
+  </form>
+</header>
+<ol class="breadcrumbs gt-separated dark hidden-l" id="sidebar-nav">
+    <li><a href="../index.html">dart_monty_wasm</a></li>
+    <li class="self-crumb">wasm_backend_spi.dart</li>
+</ol>
+
+    <h5><span class="package-name">dart_monty_wasm</span> <span class="package-kind">package</span></h5>
+    <ol>
+      <li class="section-title">Libraries</li>
+      <li><a href="../dart_monty_wasm/">dart_monty_wasm</a></li>
+      <li><a href="../wasm_backend_spi/">wasm_backend_spi</a></li>
+</ol>
+
+  </div>
+  <div id="dartdoc-sidebar-right" class="sidebar sidebar-offcanvas-right">
+    <h5>wasm_backend_spi library</h5>
+  </div><!--/sidebar-offcanvas-right-->
+</main>
+<footer>
+  <span class="no-break">
+    dart_monty_wasm
+      0.9.0
+  </span>
+  
+</footer>
+
+
+<script src="../static-assets/highlight.pack.js?v1"></script>
+<script src="../static-assets/docs.dart.js"></script>
+
+</body>
+</html>
+

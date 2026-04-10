@@ -102,10 +102,9 @@ Future<void> runOsCallFixture(
     rethrow;
   }
 
-  final complete = progress as MontyComplete;
+  final complete = progress;
   if (expectError) {
-    expect(complete.result.error, isNotNull,
-        reason: 'Expected error result');
+    expect(complete.result.error, isNotNull, reason: 'Expected error result');
 
     return;
   }
@@ -309,7 +308,12 @@ void registerLadderTests({
               var passed = false;
               try {
                 await _runFixture(
-                  monty, fixture, code, expectError, osCall, osCallHandler,
+                  monty,
+                  fixture,
+                  code,
+                  expectError,
+                  osCall,
+                  osCallHandler,
                 );
                 passed = true;
               } on Object catch (_) {
@@ -323,7 +327,12 @@ void registerLadderTests({
               }
             } else {
               await _runFixture(
-                monty, fixture, code, expectError, osCall, osCallHandler,
+                monty,
+                fixture,
+                code,
+                expectError,
+                osCall,
+                osCallHandler,
               );
             }
           } finally {

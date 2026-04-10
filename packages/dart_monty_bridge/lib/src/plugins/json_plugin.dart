@@ -26,7 +26,7 @@ class JsonPlugin extends MontyPlugin {
   /// `json_loads` and `json_get` inputs. Defaults to 1 MB.
   @Deprecated('Use native `import json` in Python code instead.')
   JsonPlugin({int? maxInputSize})
-    : _maxInputSize = maxInputSize ?? defaultMaxJsonInputSize;
+      : _maxInputSize = maxInputSize ?? defaultMaxJsonInputSize;
 
   final int _maxInputSize;
 
@@ -34,86 +34,81 @@ class JsonPlugin extends MontyPlugin {
   String get namespace => 'json';
 
   @override
-  String? get systemPromptContext =>
-      'JSON is available natively: '
+  String? get systemPromptContext => 'JSON is available natively: '
       '`import json; json.loads(s); json.dumps(d)`. '
       'For dot-path extraction from JSON text, '
       'use json_get(data, path).';
 
   @override
   List<HostFunction> get functions => [
-    HostFunction(
-      schema: const HostFunctionSchema(
-        name: 'json_loads',
-        description:
-            '[Deprecated: use import json; json.loads()] '
-            'Parse a JSON string into a dict or list.',
-        params: [
-          HostParam(
-            name: 'data',
-            type: HostParamType.string,
-            description: 'JSON string to parse.',
+        HostFunction(
+          schema: const HostFunctionSchema(
+            name: 'json_loads',
+            description: '[Deprecated: use import json; json.loads()] '
+                'Parse a JSON string into a dict or list.',
+            params: [
+              HostParam(
+                name: 'data',
+                type: HostParamType.string,
+                description: 'JSON string to parse.',
+              ),
+            ],
           ),
-        ],
-      ),
-      handler: _handleLoads,
-    ),
-    HostFunction(
-      schema: const HostFunctionSchema(
-        name: 'json_dumps',
-        description:
-            '[Deprecated: use import json; json.dumps()] '
-            'Serialize a dict or list to a JSON string. '
-            'Set indent > 0 for pretty-printing.',
-        params: [
-          HostParam(
-            name: 'data',
-            type: HostParamType.any,
+          handler: _handleLoads,
+        ),
+        HostFunction(
+          schema: const HostFunctionSchema(
+            name: 'json_dumps',
+            description: '[Deprecated: use import json; json.dumps()] '
+                'Serialize a dict or list to a JSON string. '
+                'Set indent > 0 for pretty-printing.',
+            params: [
+              HostParam(
+                name: 'data',
+                type: HostParamType.any,
+                description: 'Value to serialize (dict, list, string, number, '
+                    'bool, null).',
+              ),
+              HostParam(
+                name: 'indent',
+                type: HostParamType.integer,
+                isRequired: false,
+                defaultValue: 0,
+                description: 'Indentation spaces. 0 = compact.',
+              ),
+            ],
+          ),
+          handler: _handleDumps,
+        ),
+        HostFunction(
+          schema: const HostFunctionSchema(
+            name: 'json_get',
             description:
-                'Value to serialize (dict, list, string, number, '
-                'bool, null).',
+                'Parse JSON text and extract a value by dot-separated path. '
+                'Returns null if path not found. '
+                'Use integer segments for list indexing: "items.0.name".',
+            params: [
+              HostParam(
+                name: 'data',
+                type: HostParamType.string,
+                description: 'JSON string to parse.',
+              ),
+              HostParam(
+                name: 'path',
+                type: HostParamType.string,
+                description: 'Dot-separated path. e.g. "scores.ratio.value" or '
+                    '"items.0.name".',
+              ),
+            ],
           ),
-          HostParam(
-            name: 'indent',
-            type: HostParamType.integer,
-            isRequired: false,
-            defaultValue: 0,
-            description: 'Indentation spaces. 0 = compact.',
-          ),
-        ],
-      ),
-      handler: _handleDumps,
-    ),
-    HostFunction(
-      schema: const HostFunctionSchema(
-        name: 'json_get',
-        description:
-            'Parse JSON text and extract a value by dot-separated path. '
-            'Returns null if path not found. '
-            'Use integer segments for list indexing: "items.0.name".',
-        params: [
-          HostParam(
-            name: 'data',
-            type: HostParamType.string,
-            description: 'JSON string to parse.',
-          ),
-          HostParam(
-            name: 'path',
-            type: HostParamType.string,
-            description:
-                'Dot-separated path. e.g. "scores.ratio.value" or '
-                '"items.0.name".',
-          ),
-        ],
-      ),
-      handler: _handleGet,
-    ),
-  ];
+          handler: _handleGet,
+        ),
+      ];
 
   @override
   MontyPlugin? createChildInstance({ChildSpawnContext? context}) => JsonPlugin(
-    maxInputSize: _maxInputSize,
-  );
+        maxInputSize: _maxInputSize,
+      );
 
   Future<Object?> _handleLoads(Map<String, Object?> args) async {
     final text = args['data']! as String;

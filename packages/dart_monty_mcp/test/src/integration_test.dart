@@ -435,8 +435,7 @@ void main() {
         expect(
           _text(r2),
           contains('Unexpected external function'),
-          reason:
-              'Known limitation: user-defined functions called across '
+          reason: 'Known limitation: user-defined functions called across '
               'session executions are treated as external functions by '
               'MontySession.run()',
         );

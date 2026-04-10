@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1, user-scalable=no">
+  <meta name="description" content="API docs for the assertPendingFields function from the dart_monty_testing library, for the Dart programming language.">
+  <title>assertPendingFields function - dart_monty_testing library - Dart API</title>
+
+
+  
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,300;0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
+  
+  <link rel="stylesheet" href="../static-assets/github.css?v1">
+  <link rel="stylesheet" href="../static-assets/styles.css?v1">
+  <link rel="icon" href="../static-assets/favicon.png?v1">
+  
+</head>
+
+<body data-base-href="../" data-using-base-href="false" class="light-theme">
+<div id="overlay-under-drawer"></div>
+<header id="title">
+  <span id="sidenav-left-toggle" class="material-symbols-outlined" role="button" tabindex="0">menu</span>
+  <ol class="breadcrumbs gt-separated dark hidden-xs">
+    <li><a href="../index.html">dart_monty_platform_interface</a></li>
+    <li><a href="../dart_monty_testing/">dart_monty_testing.dart</a></li>
+    <li class="self-crumb">assertPendingFields function</li>
+  </ol>
+  <div class="self-name">assertPendingFields</div>
+  <form class="search navbar-right" role="search">
+    <input type="text" id="search-box" autocomplete="off" disabled class="form-control typeahead" placeholder="Loading search...">
+  </form>
+  <button class="toggle" id="theme-button" title="Toggle between light and dark mode" aria-label="Light and dark mode toggle">
+    <span id="dark-theme-button" class="material-symbols-outlined" aria-hidden="true">
+      dark_mode
+    </span>
+    <span id="light-theme-button" class="material-symbols-outlined" aria-hidden="true">
+      light_mode
+    </span>
+  </button>
+</header>
+<main>
+  <div
+      id="dartdoc-main-content"
+      class="main-content"
+      data-above-sidebar="dart_monty_testing&#47;dart_monty_testing-library-sidebar.html"
+      data-below-sidebar="">
+      <div>
+<h1><span class="kind-function">assertPendingFields</span> function 
+ 
+</h1></div>
+
+    <section class="multi-line-signature">
+        
+<span class="returntype">void</span>
+<span class="name ">assertPendingFields</span>(<wbr><ol class="parameter-list single-line"> <li><span class="parameter" id="assertPendingFields-param-pending"><span class="type-annotation"><a href="../dart_monty_platform_interface/MontyPending-class.html">MontyPending</a></span> <span class="parameter-name">pending</span>, </span></li>
+<li><span class="parameter" id="assertPendingFields-param-fixture"><span class="type-annotation"><a href="https://api.flutter.dev/flutter/dart-core/Map-class.html">Map</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.flutter.dev/flutter/dart-core/String-class.html">String</a></span>, <span class="type-parameter">dynamic</span>&gt;</span></span> <span class="parameter-name">fixture</span></span></li>
+</ol>)
+
+        
+
+    </section>
+    
+<section class="desc markdown">
+  <p>Asserts M7A fields on a <a href="../dart_monty_platform_interface/MontyPending-class.html">MontyPending</a> against fixture expectations.</p>
+<p>Checks these fixture keys (all optional — missing keys are no-ops):</p>
+<ul>
+<li><code>expectedFnName</code> — expected <code>functionName</code></li>
+<li><code>expectedArgs</code> — expected <code>arguments</code> (JSON equality)</li>
+<li><code>expectedKwargs</code> — expected <code>kwargs</code> (null or map equality)</li>
+<li><code>expectedCallIdNonZero</code> — asserts <code>callId != 0</code></li>
+<li><code>expectedMethodCall</code> — expected <code>methodCall</code> boolean</li>
+</ul>
+</section>
+
+
+    
+<section class="summary source-code" id="source">
+  <h2><span>Implementation</span></h2>
+  <pre class="language-dart"><code class="language-dart">void assertPendingFields(MontyPending pending, Map&lt;String, dynamic&gt; fixture) {
+  final expectedFnName = fixture[&#39;expectedFnName&#39;] as String?;
+  if (expectedFnName != null) {
+    expect(
+      pending.functionName,
+      expectedFnName,
+      reason: &#39;Fixture #${fixture[&#39;id&#39;]}: expected functionName &#39;
+          &#39;&quot;$expectedFnName&quot;, got: &quot;${pending.functionName}&quot;&#39;,
+    );
+  }
+
+  final expectedArgs = fixture[&#39;expectedArgs&#39;] as List?;
+  if (expectedArgs != null) {
+    final actualArgsJson = pending.arguments.map((e) =&gt; e.toJson()).toList();
+    expect(
+      jsonEncode(actualArgsJson),
+      jsonEncode(expectedArgs),
+      reason: &#39;Fixture #${fixture[&#39;id&#39;]}: expected args &#39;
+          &#39;${jsonEncode(expectedArgs)}, got: ${jsonEncode(actualArgsJson)}&#39;,
+    );
+  }
+
+  final expectedKwargs = fixture[&#39;expectedKwargs&#39;];
+  if (fixture.containsKey(&#39;expectedKwargs&#39;)) {
+    if (expectedKwargs == null) {
+      expect(
+        pending.kwargs,
+        isNull,
+        reason: &#39;Fixture #${fixture[&#39;id&#39;]}: expected null kwargs, &#39;
+            &#39;got: ${pending.kwargs}&#39;,
+      );
+    } else {
+      final expectedMap = Map&lt;String, Object?&gt;.from(
+        expectedKwargs as Map&lt;String, dynamic&gt;,
+      );
+      final actualKwargsJson =
+          pending.kwargs?.map((k, v) =&gt; MapEntry(k, v.toJson()));
+      expect(
+        actualKwargsJson,
+        expectedMap,
+        reason: &#39;Fixture #${fixture[&#39;id&#39;]}: expected kwargs &#39;
+            &#39;$expectedMap, got: $actualKwargsJson&#39;,
+      );
+    }
+  }
+
+  if (fixture[&#39;expectedCallIdNonZero&#39;] == true) {
+    expect(
+      pending.callId,
+      isNot(0),
+      reason: &#39;Fixture #${fixture[&#39;id&#39;]}: expected nonzero callId, &#39;
+          &#39;got: ${pending.callId}&#39;,
+    );
+  }
+
+  final expectedMethodCall = fixture[&#39;expectedMethodCall&#39;] as bool?;
+  if (expectedMethodCall != null) {
+    expect(
+      pending.methodCall,
+      expectedMethodCall,
+      reason: &#39;Fixture #${fixture[&#39;id&#39;]}: expected methodCall &#39;
+          &#39;$expectedMethodCall, got: ${pending.methodCall}&#39;,
+    );
+  }
+}</code></pre>
+</section>
+
+
+  </div> <!-- /.main-content -->
+  <div id="dartdoc-sidebar-left" class="sidebar sidebar-offcanvas-left">
+    <!-- The search input and breadcrumbs below are only responsively visible at low resolutions. -->
+<header id="header-search-sidebar" class="hidden-l">
+  <form class="search-sidebar" role="search">
+    <input type="text" id="search-sidebar" autocomplete="off" disabled class="form-control typeahead" placeholder="Loading search...">
+  </form>
+</header>
+<ol class="breadcrumbs gt-separated dark hidden-l" id="sidebar-nav">
+    <li><a href="../index.html">dart_monty_platform_interface</a></li>
+    <li><a href="../dart_monty_testing/">dart_monty_testing</a></li>
+    <li class="self-crumb">assertPendingFields function</li>
+</ol>
+
+    <h5>dart_monty_testing library</h5>
+    <div id="dartdoc-sidebar-left-content"></div>
+  </div><!--/.sidebar-offcanvas-left-->
+  <div id="dartdoc-sidebar-right" class="sidebar sidebar-offcanvas-right">
+  </div><!--/.sidebar-offcanvas-->
+</main>
+<footer>
+  <span class="no-break">
+    dart_monty_platform_interface
+      0.9.0
+  </span>
+  
+</footer>
+
+
+<script src="../static-assets/highlight.pack.js?v1"></script>
+<script src="../static-assets/docs.dart.js"></script>
+
+</body>
+</html>
+

@@ -6,11 +6,11 @@ import 'package:dart_monty_platform_interface/src/monty_exception.dart';
 import 'package:dart_monty_platform_interface/src/monty_limits.dart';
 import 'package:dart_monty_platform_interface/src/monty_platform.dart';
 import 'package:dart_monty_platform_interface/src/monty_progress.dart';
-import 'package:dart_monty_platform_interface/src/monty_value.dart';
 import 'package:dart_monty_platform_interface/src/monty_resource_usage.dart';
 import 'package:dart_monty_platform_interface/src/monty_result.dart';
 import 'package:dart_monty_platform_interface/src/monty_stack_frame.dart';
 import 'package:dart_monty_platform_interface/src/monty_state_mixin.dart';
+import 'package:dart_monty_platform_interface/src/monty_value.dart';
 import 'package:meta/meta.dart';
 
 /// Abstract base that implements [MontyPlatform] by delegating to a
@@ -177,11 +177,9 @@ abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
           arguments: p.arguments != null
               ? p.arguments!.map(MontyValue.fromJson).toList()
               : const [],
-          kwargs: p.kwargs != null
-              ? p.kwargs!.map(
-                  (k, v) => MapEntry(k, MontyValue.fromJson(v)),
-                )
-              : null,
+          kwargs: p.kwargs?.map(
+            (k, v) => MapEntry(k, MontyValue.fromJson(v)),
+          ),
           callId: p.callId ?? 0,
           methodCall: p.methodCall ?? false,
         );
@@ -192,11 +190,9 @@ abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
           arguments: p.arguments != null
               ? p.arguments!.map(MontyValue.fromJson).toList()
               : const [],
-          kwargs: p.kwargs != null
-              ? p.kwargs!.map(
-                  (k, v) => MapEntry(k, MontyValue.fromJson(v)),
-                )
-              : null,
+          kwargs: p.kwargs?.map(
+            (k, v) => MapEntry(k, MontyValue.fromJson(v)),
+          ),
           callId: p.callId ?? 0,
         );
       case 'resolve_futures':
