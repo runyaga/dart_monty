@@ -11,6 +11,7 @@ OsCallHandler createDefaultOsCallHandler() {
     switch (call.operationName) {
       case 'date.today':
         final now = DateTime.now();
+
         return {
           '__type': 'date',
           'year': now.year,
@@ -19,6 +20,7 @@ OsCallHandler createDefaultOsCallHandler() {
         };
       case 'datetime.now':
         final now = DateTime.now();
+
         return {
           '__type': 'datetime',
           'year': now.year,

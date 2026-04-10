@@ -14,6 +14,14 @@ import 'package:dart_monty/src/bridge/bridge/monty_plugin.dart';
 /// by an underscore (e.g., namespace `sqlite` requires functions named
 /// `sqlite_query`, `sqlite_execute`, etc.).
 class PluginRegistry {
+  /// Optional text prepended before plugin sections in the system prompt.
+  ///
+  /// Set by `SandboxPlugin._handleSpawn` after registry construction to
+  /// inject per-child system prompt content. Using a public field (rather
+  /// than a constructor param) guarantees injection regardless of whether
+  /// the registry was built by inheritance or a custom factory.
+  String? systemPromptPrefix;
+
   final List<MontyPlugin> _plugins = [];
   List<MontyPlugin>? _attachOrder;
   final Set<String> _namespaces = {};
@@ -26,14 +34,6 @@ class PluginRegistry {
 
   /// Registered plugins in insertion order (unmodifiable).
   List<MontyPlugin> get plugins => UnmodifiableListView(_plugins);
-
-  /// Optional text prepended before plugin sections in the system prompt.
-  ///
-  /// Set by `SandboxPlugin._handleSpawn` after registry construction to
-  /// inject per-child system prompt content. Using a public field (rather
-  /// than a constructor param) guarantees injection regardless of whether
-  /// the registry was built by inheritance or a custom factory.
-  String? systemPromptPrefix;
 
   /// Validates [plugin] namespace and function names, then registers it.
   ///
@@ -57,30 +57,6 @@ class PluginRegistry {
         'functions': plugin.functions.length,
       },
     );
-  }
-
-  void _validateNamespace(String namespace) {
-    if (namespace.isEmpty) {
-      throw ArgumentError('Namespace must not be empty.');
-    }
-    if (namespace.length > _maxNamespaceLength) {
-      throw ArgumentError(
-        'Namespace "$namespace" exceeds maximum length of '
-        '$_maxNamespaceLength characters.',
-      );
-    }
-    if (!_validNamespace.hasMatch(namespace)) {
-      throw ArgumentError(
-        'Namespace "$namespace" contains invalid characters. '
-        'Must match [a-z][a-z0-9_]*.',
-      );
-    }
-    if (_reservedNamespaces.contains(namespace)) {
-      throw StateError('Namespace "$namespace" is reserved.');
-    }
-    if (_namespaces.contains(namespace)) {
-      throw StateError('Namespace "$namespace" already registered.');
-    }
   }
 
   /// Wires all plugins to [bridge], calls [MontyPlugin.onRegister] for each,
@@ -225,6 +201,30 @@ class PluginRegistry {
     }
 
     return buffer.toString().trimRight();
+  }
+
+  void _validateNamespace(String namespace) {
+    if (namespace.isEmpty) {
+      throw ArgumentError('Namespace must not be empty.');
+    }
+    if (namespace.length > _maxNamespaceLength) {
+      throw ArgumentError(
+        'Namespace "$namespace" exceeds maximum length of '
+        '$_maxNamespaceLength characters.',
+      );
+    }
+    if (!_validNamespace.hasMatch(namespace)) {
+      throw ArgumentError(
+        'Namespace "$namespace" contains invalid characters. '
+        'Must match [a-z][a-z0-9_]*.',
+      );
+    }
+    if (_reservedNamespaces.contains(namespace)) {
+      throw StateError('Namespace "$namespace" is reserved.');
+    }
+    if (_namespaces.contains(namespace)) {
+      throw StateError('Namespace "$namespace" already registered.');
+    }
   }
 
   void _checkFunctionCollisions(MontyPlugin plugin) {

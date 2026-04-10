@@ -170,12 +170,11 @@ Future<void> runIterativeFixture(
 
       return;
     }
-    final futurePlatform = platform as MontyFutureCapable;
     try {
       while (progress is! MontyComplete) {
         if (progress is MontyPending) {
           callIds.add(progress.callId);
-          progress = await futurePlatform.resumeAsFuture();
+          progress = await platform.resumeAsFuture();
         } else if (progress is MontyResolveFutures) {
           final pending = progress.pendingCallIds;
           final results = <int, Object?>{};
@@ -188,7 +187,7 @@ Future<void> runIterativeFixture(
               results[id] = asyncResumeMap[key];
             }
           }
-          progress = await futurePlatform.resolveFutures(
+          progress = await platform.resolveFutures(
             results,
             errors: errors.isNotEmpty ? errors : null,
           );

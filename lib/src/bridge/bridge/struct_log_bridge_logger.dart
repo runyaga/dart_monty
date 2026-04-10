@@ -89,6 +89,7 @@ class StructLogBridgeLogger implements BridgeLogger {
       _logManager,
     );
     _children.add(child);
+
     return child;
   }
 

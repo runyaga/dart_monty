@@ -206,6 +206,14 @@ class MontySession {
   @visibleForTesting
   bool get isDisposed => _disposed;
 
+  /// Extracts simple assignment targets from [code].
+  ///
+  /// Returns variable names from top-level `identifier = expression`
+  /// patterns. Excludes names starting with `_` (dunder/private).
+  @visibleForTesting
+  static Set<String> extractAssignmentTargets(String code) =>
+      _extractAssignmentTargets(code);
+
   // ---------------------------------------------------------------------------
   // Code generation
   // ---------------------------------------------------------------------------
@@ -326,14 +334,6 @@ class MontySession {
 
     return (lines.join('\n'), true);
   }
-
-  /// Extracts simple assignment targets from [code].
-  ///
-  /// Returns variable names from top-level `identifier = expression`
-  /// patterns. Excludes names starting with `_` (dunder/private).
-  @visibleForTesting
-  static Set<String> extractAssignmentTargets(String code) =>
-      _extractAssignmentTargets(code);
 
   static Set<String> _extractAssignmentTargets(String code) {
     final names = <String>{};

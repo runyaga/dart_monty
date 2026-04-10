@@ -12,7 +12,7 @@ import 'package:dart_monty/src/platform/monty_snapshot_capable.dart';
 /// See also:
 /// - [MontyPlatform] — the core platform contract
 /// - [MontySnapshotCapable] — companion interface for snapshot/restore
-abstract class MontyFutureCapable {
+abstract class MontyFutureCapable extends MontyPlatform {
   /// Resumes a paused execution by creating a future for the pending call.
   ///
   /// Instead of providing an immediate return value, this tells the VM

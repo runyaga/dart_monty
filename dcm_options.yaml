@@ -69,6 +69,20 @@ dcm:
           - "test/**"
           - "lib/**/native_bindings.dart"
           - "lib/**/wasm_bindings.dart"
+          # Part files — first type is a sealed subclass, not the file name
+          - "lib/src/platform/monty_value_scalars.dart"
+          - "lib/src/platform/monty_value_collections.dart"
+          - "lib/src/platform/monty_value_datetime.dart"
+          - "lib/src/platform/monty_value_structured.dart"
+          # Files with helper types/enums before the main class
+          - "lib/src/platform/core_bindings.dart"
+          - "lib/src/bridge/bridge/bridge_middleware.dart"
+          - "lib/src/bridge/bridge/event_loop_bridge.dart"
+          - "lib/src/bridge/bridge/monty_plugin.dart"
+          - "lib/src/bridge/plugins/sandbox_plugin.dart"
+          - "lib/src/bridge/plugins/template_plugin.dart"
+          - "lib/src/bridge/plugins/message_bus_plugin.dart"
+          - "lib/src/wasm/wasm_bindings_js_stub.dart"
     - prefer-immediate-return
     - prefer-commenting-analyzer-ignores
     - prefer-conditional-expressions
@@ -76,7 +90,13 @@ dcm:
     - prefer-moving-to-variable
     - newline-before-return
     - no-boolean-literal-compare
-    - no-empty-block
+    - no-empty-block:
+        exclude:
+          # Intentionally empty: null-object pattern and default no-ops
+          - "lib/src/platform/bridge_logger.dart"
+          - "lib/src/bridge/bridge/monty_plugin.dart"
+          - "lib/src/bridge/bridge/monty_bridge.dart"
+          - "lib/src/bridge/bridge/default_monty_bridge.dart"
     - no-equal-then-else
     - prefer-first
     - prefer-last
@@ -90,21 +110,35 @@ dcm:
     - avoid-late-keyword:
         exclude:
           - "test/**"
-    # Note: fromJson factories use Map<String, dynamic> per Dart convention.
-    # Excluding DTO files from avoid-dynamic is intentional.
+    # fromJson factories and JSON boundary code use Map<String, dynamic>
+    # per Dart convention. Exclude only the specific files that need it.
     - avoid-dynamic:
         exclude:
           - "test/**"
-          - "lib/**/*exception.dart"
-          - "lib/**/*result.dart"
-          - "lib/**/*usage.dart"
-          - "lib/**/*limits.dart"
-          - "lib/**/*progress.dart"
+          - "lib/src/platform/monty_value.dart"
+          - "lib/src/platform/monty_value_collections.dart"
+          - "lib/src/platform/monty_value_structured.dart"
+          - "lib/src/platform/base_monty_platform.dart"
+          - "lib/src/platform/core_bindings.dart"
+          - "lib/src/platform/monty_progress.dart"
+          - "lib/src/platform/monty_exception.dart"
+    # FFI/isolate boundary and bridge dispatch code has protocol-guaranteed
+    # non-null values that the type system cannot express.
     - avoid-non-null-assertion:
         exclude:
-          - "lib/src/platform/monty_platform.dart"
           - "test/**"
           - "**/example/**"
+          - "lib/src/ffi/native_isolate_bindings_impl.dart"
+          - "lib/src/platform/base_monty_platform.dart"
+          - "lib/src/platform/monty_progress.dart"
+          - "lib/src/platform/monty_session.dart"
+          - "lib/src/bridge/bridge/default_monty_bridge.dart"
+          - "lib/src/bridge/bridge/host_param.dart"
+          - "lib/src/bridge/bridge/plugin_registry.dart"
+          - "lib/src/bridge/plugins/sandbox_plugin.dart"
+          - "lib/src/bridge/os_call/default_os_call_handler_native.dart"
+          - "lib/src/wasm/wasm_bindings_js.dart"
+          - "lib/src/wasm/wasm_core_bindings.dart"
 
     # --- Architecture Safety ---
     - avoid-banned-imports:

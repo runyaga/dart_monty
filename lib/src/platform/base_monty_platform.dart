@@ -62,6 +62,7 @@ abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
         limitsJson: _encodeLimits(limits),
         scriptName: scriptName,
       );
+
       return _translateRunResult(result);
     } finally {
       markIdle();
@@ -86,6 +87,7 @@ abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
         limitsJson: _encodeLimits(limits),
         scriptName: scriptName,
       );
+
       return translateProgress(progress);
     } catch (e) {
       markIdle();
@@ -99,6 +101,7 @@ abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
     assertActive('resume');
     try {
       final progress = await _bindings.resume(json.encode(returnValue));
+
       return translateProgress(progress);
     } catch (e) {
       markIdle();
@@ -112,6 +115,7 @@ abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
     assertActive('resumeWithError');
     try {
       final progress = await _bindings.resumeWithError(errorMessage);
+
       return translateProgress(progress);
     } catch (e) {
       markIdle();
@@ -128,6 +132,72 @@ abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
     if (isActive) markIdle();
     await _bindings.dispose();
     markDisposed();
+  }
+
+  /// Translates a [CoreProgressResult] into a [MontyProgress] domain type.
+  @protected
+  MontyProgress translateProgress(CoreProgressResult p) {
+    switch (p.state) {
+      case 'complete':
+        markIdle();
+
+        return MontyComplete(
+          result: MontyResult(
+            value: p.value != null ? MontyValue.fromJson(p.value) : null,
+            error: _buildError(p.error, p.excType, p.traceback),
+            usage: p.usage ?? _zeroUsage,
+            printOutput: p.printOutput,
+          ),
+        );
+      case 'pending':
+        markActive();
+
+        return MontyPending(
+          functionName: p.functionName ?? '',
+          arguments: p.arguments != null
+              ? p.arguments!.map(MontyValue.fromJson).toList()
+              : const [],
+          kwargs: p.kwargs?.map(
+            (k, v) => MapEntry(k, MontyValue.fromJson(v)),
+          ),
+          callId: p.callId ?? 0,
+          methodCall: p.methodCall ?? false,
+        );
+      case 'os_call':
+        markActive();
+
+        return MontyOsCall(
+          operationName: p.functionName ?? '',
+          arguments: p.arguments != null
+              ? p.arguments!.map(MontyValue.fromJson).toList()
+              : const [],
+          kwargs: p.kwargs?.map(
+            (k, v) => MapEntry(k, MontyValue.fromJson(v)),
+          ),
+          callId: p.callId ?? 0,
+        );
+      case 'resolve_futures':
+        markActive();
+
+        return MontyResolveFutures(
+          pendingCallIds: p.pendingCallIds ?? const [],
+        );
+      case 'error':
+        markIdle();
+        _throwSealedErrorIfApplicable(p.excType, p.error ?? 'Unknown error');
+        throw MontyException(
+          message: p.error ?? 'Unknown error',
+          excType: p.excType,
+          traceback: _parseTraceback(p.traceback),
+          filename: p.filename,
+          lineNumber: p.lineNumber,
+          columnNumber: p.columnNumber,
+          sourceCode: p.sourceCode,
+        );
+      default:
+        markIdle();
+        throw StateError('Unknown progress state: ${p.state}');
+    }
   }
 
   // -- Private translation helpers --
@@ -160,77 +230,17 @@ abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
     );
   }
 
-  /// Translates a [CoreProgressResult] into a [MontyProgress] domain type.
-  @protected
-  MontyProgress translateProgress(CoreProgressResult p) {
-    switch (p.state) {
-      case 'complete':
-        markIdle();
-        return MontyComplete(
-          result: MontyResult(
-            value: p.value != null ? MontyValue.fromJson(p.value) : null,
-            error: _buildError(p.error, p.excType, p.traceback),
-            usage: p.usage ?? _zeroUsage,
-            printOutput: p.printOutput,
-          ),
-        );
-      case 'pending':
-        markActive();
-        return MontyPending(
-          functionName: p.functionName ?? '',
-          arguments: p.arguments != null
-              ? p.arguments!.map(MontyValue.fromJson).toList()
-              : const [],
-          kwargs: p.kwargs?.map(
-            (k, v) => MapEntry(k, MontyValue.fromJson(v)),
-          ),
-          callId: p.callId ?? 0,
-          methodCall: p.methodCall ?? false,
-        );
-      case 'os_call':
-        markActive();
-        return MontyOsCall(
-          operationName: p.functionName ?? '',
-          arguments: p.arguments != null
-              ? p.arguments!.map(MontyValue.fromJson).toList()
-              : const [],
-          kwargs: p.kwargs?.map(
-            (k, v) => MapEntry(k, MontyValue.fromJson(v)),
-          ),
-          callId: p.callId ?? 0,
-        );
-      case 'resolve_futures':
-        markActive();
-        return MontyResolveFutures(
-          pendingCallIds: p.pendingCallIds ?? const [],
-        );
-      case 'error':
-        markIdle();
-        _throwSealedErrorIfApplicable(p.excType, p.error ?? 'Unknown error');
-        throw MontyException(
-          message: p.error ?? 'Unknown error',
-          excType: p.excType,
-          traceback: _parseTraceback(p.traceback),
-          filename: p.filename,
-          lineNumber: p.lineNumber,
-          columnNumber: p.columnNumber,
-          sourceCode: p.sourceCode,
-        );
-      default:
-        markIdle();
-        throw StateError('Unknown progress state: ${p.state}');
-    }
-  }
-
   String? _encodeLimits(MontyLimits? limits) {
     if (limits == null) return null;
     final map = limits.toJson();
     if (map.isEmpty) return null;
+
     return json.encode(map);
   }
 
   String? _encodeExternalFunctions(List<String>? fns) {
     if (fns == null || fns.isEmpty) return null;
+
     return json.encode(fns);
   }
 
@@ -240,6 +250,7 @@ abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
     List<dynamic>? traceback,
   ) {
     if (error == null) return null;
+
     return MontyException(
       message: error,
       excType: excType,
@@ -249,6 +260,7 @@ abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
 
   List<MontyStackFrame> _parseTraceback(List<dynamic>? traceback) {
     if (traceback == null) return const [];
+
     return MontyStackFrame.listFromJson(traceback);
   }
 

@@ -56,13 +56,19 @@ class NullBridgeLogger implements BridgeLogger {
   const NullBridgeLogger();
 
   @override
-  void trace(String message, {Map<String, Object?>? attributes}) {}
+  void trace(String message, {Map<String, Object?>? attributes}) {
+    // Intentionally empty — null logger discards all output.
+  }
 
   @override
-  void debug(String message, {Map<String, Object?>? attributes}) {}
+  void debug(String message, {Map<String, Object?>? attributes}) {
+    // Intentionally empty — null logger discards all output.
+  }
 
   @override
-  void info(String message, {Map<String, Object?>? attributes}) {}
+  void info(String message, {Map<String, Object?>? attributes}) {
+    // Intentionally empty — null logger discards all output.
+  }
 
   @override
   void warning(
@@ -70,7 +76,9 @@ class NullBridgeLogger implements BridgeLogger {
     Object? error,
     StackTrace? stackTrace,
     Map<String, Object?>? attributes,
-  }) {}
+  }) {
+    // Intentionally empty — null logger discards all output.
+  }
 
   @override
   void error(
@@ -78,11 +86,15 @@ class NullBridgeLogger implements BridgeLogger {
     Object? error,
     StackTrace? stackTrace,
     Map<String, Object?>? attributes,
-  }) {}
+  }) {
+    // Intentionally empty — null logger discards all output.
+  }
 
   @override
   BridgeLogger child(String name) => this;
 
   @override
-  void close() {}
+  void close() {
+    // Intentionally empty — null logger discards all output.
+  }
 }

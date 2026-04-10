@@ -72,6 +72,7 @@ class DinjaTemplatePlugin extends MontyPlugin {
         'tmpl_render ok',
         attributes: {'templateLength': templateStr.length},
       );
+
       return result;
     } on Exception catch (e) {
       throw FormatException('Template error: $e');

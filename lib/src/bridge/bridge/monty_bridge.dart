@@ -28,7 +28,9 @@ abstract class MontyBridge {
   ///
   /// First registered = outermost in the onion chain. No-op by default;
   /// override in implementations that support middleware.
-  void use(BridgeMiddleware middleware) {}
+  void use(BridgeMiddleware middleware) {
+    // Default no-op.
+  }
 
   /// Invokes a registered host function by name, routing through middleware.
   ///

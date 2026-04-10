@@ -33,6 +33,7 @@ class WasmCoreBindings implements MontyCoreBindings {
   Future<bool> init() async {
     if (_sessionId != null) return true;
     _sessionId = await _bindings.createSession();
+
     return true;
   }
 
@@ -49,6 +50,7 @@ class WasmCoreBindings implements MontyCoreBindings {
       scriptName: scriptName,
     );
     sw.stop();
+
     return _translateRunResult(result, sw.elapsedMilliseconds);
   }
 
@@ -67,6 +69,7 @@ class WasmCoreBindings implements MontyCoreBindings {
       scriptName: scriptName,
     );
     sw.stop();
+
     return _translateProgressResult(progress, sw.elapsedMilliseconds);
   }
 
@@ -75,6 +78,7 @@ class WasmCoreBindings implements MontyCoreBindings {
     final sw = Stopwatch()..start();
     final progress = await _bindings.resume(valueJson);
     sw.stop();
+
     return _translateProgressResult(progress, sw.elapsedMilliseconds);
   }
 
@@ -83,6 +87,7 @@ class WasmCoreBindings implements MontyCoreBindings {
     final sw = Stopwatch()..start();
     final progress = await _bindings.resumeWithError(errorMessage);
     sw.stop();
+
     return _translateProgressResult(progress, sw.elapsedMilliseconds);
   }
 
@@ -91,6 +96,7 @@ class WasmCoreBindings implements MontyCoreBindings {
     final sw = Stopwatch()..start();
     final progress = await _bindings.resumeAsFuture();
     sw.stop();
+
     return _translateProgressResult(progress, sw.elapsedMilliseconds);
   }
 
@@ -102,11 +108,12 @@ class WasmCoreBindings implements MontyCoreBindings {
     final sw = Stopwatch()..start();
     final progress = await _bindings.resolveFutures(resultsJson, errorsJson);
     sw.stop();
+
     return _translateProgressResult(progress, sw.elapsedMilliseconds);
   }
 
   @override
-  Future<Uint8List> snapshot() async {
+  Future<Uint8List> snapshot() {
     return _bindings.snapshot();
   }
 
@@ -163,6 +170,7 @@ class WasmCoreBindings implements MontyCoreBindings {
       _invalidateSession();
       throw MontyPanicError(result.error ?? 'WASM trap');
     }
+
     return CoreRunResult(
       ok: false,
       error: result.error ?? 'Unknown error',
@@ -181,6 +189,7 @@ class WasmCoreBindings implements MontyCoreBindings {
         _invalidateSession();
         throw MontyPanicError(progress.error ?? 'WASM trap');
       }
+
       return CoreProgressResult(
         state: 'error',
         error: progress.error ?? 'Unknown error',

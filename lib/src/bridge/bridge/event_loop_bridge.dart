@@ -112,6 +112,7 @@ class EventLoopBridge extends DefaultMontyBridge {
       _loopState = EventLoopState.idle;
       rethrow;
     }
+
     return upstream.map((event) {
       // Track completion when the run finishes or errors.
       if (event is BridgeRunFinished || event is BridgeRunError) {
@@ -127,6 +128,7 @@ class EventLoopBridge extends DefaultMontyBridge {
           _pendingCompleter = null;
         }
       }
+
       return event;
     });
   }
@@ -182,6 +184,7 @@ class EventLoopBridge extends DefaultMontyBridge {
       _eventLoopController
         ..add(const BridgeEventLoopWaiting())
         ..add(BridgeEventLoopResumed(event: event));
+
       return event;
     }
 
@@ -201,6 +204,7 @@ class EventLoopBridge extends DefaultMontyBridge {
     _lastRenderedUi = schema;
     _eventLoopController.add(BridgeUiRendered(schema: schema));
     onRenderUi?.call(schema);
+
     return null;
   }
 }

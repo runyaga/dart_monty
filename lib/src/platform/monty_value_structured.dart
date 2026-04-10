@@ -108,12 +108,9 @@ final class MontyDataclass extends MontyValue {
 
   factory MontyDataclass._fromMap(Map<String, dynamic> map) {
     final rawAttrs = map['attrs'];
-    final Map<String, MontyValue> parsedAttrs;
-    if (rawAttrs is Map<String, dynamic>) {
-      parsedAttrs = rawAttrs.map((k, v) => MapEntry(k, MontyValue.fromJson(v)));
-    } else {
-      parsedAttrs = const {};
-    }
+    final parsedAttrs = rawAttrs is Map<String, dynamic>
+        ? rawAttrs.map((k, v) => MapEntry(k, MontyValue.fromJson(v)))
+        : const <String, MontyValue>{};
 
     return MontyDataclass(
       name: map['name'] as String? ?? '',

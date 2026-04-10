@@ -82,20 +82,10 @@ class WasmBindingsJs extends WasmBindings {
 
   bool _initialized = false;
 
-  /// Ensures the default JS bridge session is initialized.
-  ///
-  /// The static `DartMontyBridge.init()` creates a default Worker session.
-  /// All subsequent static calls (`run`, `start`, etc.) route to this
-  /// default session automatically.
-  Future<void> _ensureInit() async {
-    if (_initialized) return;
-    await _jsInit().toDart;
-    _initialized = true;
-  }
-
   @override
   Future<bool> init() async {
     await _ensureInit();
+
     return true;
   }
 
@@ -105,6 +95,7 @@ class WasmBindingsJs extends WasmBindings {
     // Ensure the JS bridge default session exists first, then return
     // a synthetic ID. All static method calls route to the default session.
     await _ensureInit();
+
     return 1;
   }
 
@@ -197,6 +188,7 @@ class WasmBindingsJs extends WasmBindings {
     if (!result.ok.toDart) {
       throw StateError(result.error?.toDart ?? 'Snapshot failed');
     }
+
     return result.snapshotBuffer!.toDart.asUint8List();
   }
 
@@ -229,6 +221,17 @@ class WasmBindingsJs extends WasmBindings {
   // ---------------------------------------------------------------------------
   // Helpers
   // ---------------------------------------------------------------------------
+
+  /// Ensures the default JS bridge session is initialized.
+  ///
+  /// The static `DartMontyBridge.init()` creates a default Worker session.
+  /// All subsequent static calls (`run`, `start`, etc.) route to this
+  /// default session automatically.
+  Future<void> _ensureInit() async {
+    if (_initialized) return;
+    await _jsInit().toDart;
+    _initialized = true;
+  }
 
   WasmProgressResult _decodeProgress(String jsonStr) {
     final map = json.decode(jsonStr) as Map<String, dynamic>;

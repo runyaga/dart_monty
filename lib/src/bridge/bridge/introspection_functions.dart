@@ -136,6 +136,7 @@ String _handleHelp(
   }
   if (bareMatches.length > 1) {
     final candidates = bareMatches.map((s) => s.name).toList()..sort();
+
     return jsonEncode({
       'error': 'ambiguous',
       'message':

@@ -12,6 +12,7 @@ final class MontyBytes extends MontyValue {
 
   factory MontyBytes._fromMap(Map<String, dynamic> map) {
     final raw = map['value'] as List<dynamic>? ?? const [];
+
     return MontyBytes(raw.cast<num>().map((n) => n.toInt()).toList());
   }
 
@@ -71,6 +72,7 @@ final class MontyTuple extends MontyValue {
 
   factory MontyTuple._fromMap(Map<String, dynamic> map) {
     final raw = map['value'] as List<dynamic>? ?? const [];
+
     return MontyTuple(raw.map(MontyValue.fromJson).toList());
   }
 
@@ -135,6 +137,7 @@ final class MontySet extends MontyValue {
 
   factory MontySet._fromMap(Map<String, dynamic> map) {
     final raw = map['value'] as List<dynamic>? ?? const [];
+
     return MontySet(raw.map(MontyValue.fromJson).toList());
   }
 
@@ -170,6 +173,7 @@ final class MontyFrozenSet extends MontyValue {
 
   factory MontyFrozenSet._fromMap(Map<String, dynamic> map) {
     final raw = map['value'] as List<dynamic>? ?? const [];
+
     return MontyFrozenSet(raw.map(MontyValue.fromJson).toList());
   }
 

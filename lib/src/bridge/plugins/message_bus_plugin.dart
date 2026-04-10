@@ -5,12 +5,12 @@ import 'package:dart_monty/dart_monty_bridge.dart';
 
 /// A named, FIFO message channel with optional telemetry.
 class _Channel {
-  final Queue<Object?> _queue = Queue();
-  final List<Completer<Object?>> _waiters = [];
-  bool _closed = false;
   int sendCount = 0;
   int recvCount = 0;
   int peakQueueDepth = 0;
+  final Queue<Object?> _queue = Queue();
+  final List<Completer<Object?>> _waiters = [];
+  bool _closed = false;
 }
 
 /// In-memory message bus with named channels.
@@ -19,8 +19,6 @@ class _Channel {
 /// Multiple consumers are served in FIFO waiter order.
 class MessageBus {
   final Map<String, _Channel> _channels = {};
-
-  _Channel _channel(String name) => _channels.putIfAbsent(name, _Channel.new);
 
   /// Enqueues [message] on channel [name], waking the first blocked receiver.
   ///
@@ -36,6 +34,7 @@ class MessageBus {
       if (!waiter.isCompleted) {
         waiter.complete(message);
         ch.recvCount++;
+
         return;
       }
     }
@@ -56,6 +55,7 @@ class MessageBus {
     final ch = _channel(name);
     if (ch._queue.isNotEmpty) {
       ch.recvCount++;
+
       return Future.value(ch._queue.removeFirst());
     }
     if (ch._closed) {
@@ -63,6 +63,7 @@ class MessageBus {
     }
     final c = waiter ?? Completer<Object?>();
     ch._waiters.add(c);
+
     return c.future;
   }
 
@@ -70,6 +71,7 @@ class MessageBus {
   Object? peek(String name) {
     final ch = _channels[name];
     if (ch == null || ch._queue.isEmpty) return null;
+
     return ch._queue.first;
   }
 
@@ -99,6 +101,7 @@ class MessageBus {
         'peak_queue_depth': 0,
       };
     }
+
     return {
       'exists': true,
       'closed': ch._closed,
@@ -113,6 +116,8 @@ class MessageBus {
   void removeWaiter(String name, Completer<Object?> c) {
     _channels[name]?._waiters.remove(c);
   }
+
+  _Channel _channel(String name) => _channels.putIfAbsent(name, _Channel.new);
 }
 
 /// Plugin providing named, bidirectional, blocking message channels.
@@ -251,6 +256,7 @@ class MessageBusPlugin extends MontyPlugin {
     final message = args['message'];
     _bus.send(name, message);
     logger.debug('msg_send', attributes: {'channel': name});
+
     return null;
   }
 
@@ -272,6 +278,7 @@ class MessageBusPlugin extends MontyPlugin {
           },
         );
       }
+
       return await future;
     } finally {
       _pendingRecvs.remove(completer);
@@ -280,6 +287,7 @@ class MessageBusPlugin extends MontyPlugin {
 
   Future<Object?> _handlePeek(Map<String, Object?> args) async {
     final name = args['name']! as String;
+
     return _bus.peek(name);
   }
 
@@ -287,11 +295,13 @@ class MessageBusPlugin extends MontyPlugin {
     final name = args['name']! as String;
     _bus.close(name);
     logger.debug('msg_close', attributes: {'channel': name});
+
     return null;
   }
 
   Future<Object?> _handleStats(Map<String, Object?> args) async {
     final name = args['name']! as String;
+
     return _bus.stats(name);
   }
 }

@@ -311,6 +311,53 @@ class SandboxPlugin extends MontyPlugin {
     ),
   ];
 
+  @override
+  Future<void> onDispose() async {
+    await super.onDispose();
+    if (_disposed) return;
+    _disposed = true;
+
+    final aliveCount = _children.values.where((c) => c.isAlive).length;
+    logger.info(
+      'Disposing SandboxPlugin',
+      attributes: {
+        'totalChildren': _children.length,
+        'aliveChildren': aliveCount,
+      },
+    );
+
+    // Tear down all living children.
+    for (final entry in _children.entries) {
+      final child = entry.value;
+      if (!child.isAlive) continue;
+
+      try {
+        await child.cancel();
+      } on Object catch (e, st) {
+        // Best-effort logging -- don't let a sink failure break the loop.
+        try {
+          logger.warning(
+            'Error tearing down child during dispose',
+            error: e,
+            stackTrace: st,
+            attributes: {'childId': entry.key},
+          );
+        } on Object {
+          // Sink failure -- nothing we can do.
+        }
+      }
+      if (!child.completer.isCompleted) {
+        child.completer.completeError(
+          ChildSandboxException(
+            childId: entry.key,
+            message: 'disposed with parent',
+          ),
+        );
+      }
+    }
+    _children.clear();
+  }
+
   Future<Object?> _handleSpawn(Map<String, Object?> args) async {
     if (_disposed) throw StateError('SandboxPlugin is disposed.');
     if (currentDepth >= maxDepth) {
@@ -483,51 +530,53 @@ class SandboxPlugin extends MontyPlugin {
           childPrintOutput = event.printOutput;
         }
       },
-      onDone: () async {
-        final child = _children[id];
-        if (child == null) return;
-        child
-          ..isAlive = false
-          ..printOutput = childPrintOutput;
+      onDone: () {
+        unawaited(() async {
+          final child = _children[id];
+          if (child == null) return;
+          child
+            ..isAlive = false
+            ..printOutput = childPrintOutput;
 
-        // Clean up child resources.
-        // bridge and platform are guaranteed non-null here -- the try block
-        // succeeded before the stream listener was created.
-        // Dispose plugins first to unblock any pending handler Futures.
-        try {
-          if (childRegistry != null) await childRegistry.disposeAll();
-          bridge!.dispose();
-          await platform!.dispose();
-        } on Object catch (e, st) {
-          logger.warning(
-            'Child cleanup error (swallowed)',
-            error: e,
-            stackTrace: st,
-            attributes: {'childId': id},
-          );
-        }
-
-        if (!completer.isCompleted) {
-          if (errorMessage != null) {
-            final truncated = errorMessage!.length > 200
-                ? '${errorMessage!.substring(0, 200)}\u2026'
-                : errorMessage!;
+          // Clean up child resources.
+          // bridge and platform are guaranteed non-null here -- the try block
+          // succeeded before the stream listener was created.
+          // Dispose plugins first to unblock any pending handler Futures.
+          try {
+            if (childRegistry != null) await childRegistry.disposeAll();
+            bridge!.dispose();
+            await platform!.dispose();
+          } on Object catch (e, st) {
             logger.warning(
-              'Child failed',
-              attributes: {'childId': id, 'error': truncated},
+              'Child cleanup error (swallowed)',
+              error: e,
+              stackTrace: st,
+              attributes: {'childId': id},
             );
-            completer.completeError(
-              ChildSandboxException(
-                childId: id,
-                message: errorMessage!,
-                exception: errorException,
-              ),
-            );
-          } else {
-            logger.info('Child completed', attributes: {'childId': id});
-            completer.complete(childValue);
           }
-        }
+
+          if (!completer.isCompleted) {
+            if (errorMessage != null) {
+              final truncated = errorMessage!.length > 200
+                  ? '${errorMessage!.substring(0, 200)}\u2026'
+                  : errorMessage!;
+              logger.warning(
+                'Child failed',
+                attributes: {'childId': id, 'error': truncated},
+              );
+              completer.completeError(
+                ChildSandboxException(
+                  childId: id,
+                  message: errorMessage!,
+                  exception: errorException,
+                ),
+              );
+            } else {
+              logger.info('Child completed', attributes: {'childId': id});
+              completer.complete(childValue);
+            }
+          }
+        }());
       },
       onError: (Object error, StackTrace stackTrace) {
         final child = _children[id];
@@ -579,6 +628,7 @@ class SandboxPlugin extends MontyPlugin {
     if (childPlugins.isEmpty) return null;
     final registry = PluginRegistry();
     childPlugins.forEach(registry.register);
+
     return registry;
   }
 
@@ -596,6 +646,7 @@ class SandboxPlugin extends MontyPlugin {
       ?builderFragment,
       ?runtimeFragment,
     ];
+
     return parts.join('\n\n');
   }
 
@@ -605,6 +656,7 @@ class SandboxPlugin extends MontyPlugin {
     if (child == null) {
       throw ArgumentError.value(handle, 'handle', 'Unknown child handle.');
     }
+
     return child.completer.future;
   }
 
@@ -630,6 +682,7 @@ class SandboxPlugin extends MontyPlugin {
     if (child == null) {
       throw ArgumentError.value(handle, 'handle', 'Unknown child handle.');
     }
+
     return child.isAlive;
   }
 
@@ -646,6 +699,7 @@ class SandboxPlugin extends MontyPlugin {
     }
     _children.remove(handle);
     logger.debug('Child freed', attributes: {'childId': handle});
+
     return null;
   }
 
@@ -660,6 +714,7 @@ class SandboxPlugin extends MontyPlugin {
         'Child $handle is still running. Await it before reading output.',
       );
     }
+
     return child.printOutput;
   }
 
@@ -688,52 +743,5 @@ class SandboxPlugin extends MontyPlugin {
     }
 
     return results;
-  }
-
-  @override
-  Future<void> onDispose() async {
-    await super.onDispose();
-    if (_disposed) return;
-    _disposed = true;
-
-    final aliveCount = _children.values.where((c) => c.isAlive).length;
-    logger.info(
-      'Disposing SandboxPlugin',
-      attributes: {
-        'totalChildren': _children.length,
-        'aliveChildren': aliveCount,
-      },
-    );
-
-    // Tear down all living children.
-    for (final entry in _children.entries) {
-      final child = entry.value;
-      if (!child.isAlive) continue;
-
-      try {
-        await child.cancel();
-      } on Object catch (e, st) {
-        // Best-effort logging -- don't let a sink failure break the loop.
-        try {
-          logger.warning(
-            'Error tearing down child during dispose',
-            error: e,
-            stackTrace: st,
-            attributes: {'childId': entry.key},
-          );
-        } on Object {
-          // Sink failure -- nothing we can do.
-        }
-      }
-      if (!child.completer.isCompleted) {
-        child.completer.completeError(
-          ChildSandboxException(
-            childId: entry.key,
-            message: 'disposed with parent',
-          ),
-        );
-      }
-    }
-    _children.clear();
   }
 }

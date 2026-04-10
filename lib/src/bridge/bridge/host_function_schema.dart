@@ -63,18 +63,19 @@ class HostFunctionSchema {
   /// Throws [ArgumentError] if required params are missing or types mismatch.
   Map<String, Object?> mapAndValidate(MontyPending pending) {
     final raw = <String, Object?>{};
+    final positionalArgs = pending.arguments;
 
     // Reject extra positional args.
-    if (pending.arguments.length > params.length) {
+    if (positionalArgs.length > params.length) {
       throw FormatException(
         '$name: expected at most ${params.length} positional argument(s), '
-        'got ${pending.arguments.length}',
+        'got ${positionalArgs.length}',
       );
     }
 
     // Positional args → named params by schema order
-    for (var i = 0; i < params.length && i < pending.arguments.length; i++) {
-      raw[params[i].name] = pending.arguments[i].dartValue;
+    for (var i = 0; i < params.length && i < positionalArgs.length; i++) {
+      raw[params[i].name] = positionalArgs[i].dartValue;
     }
 
     // Kwargs overlay — reject unknown keys.

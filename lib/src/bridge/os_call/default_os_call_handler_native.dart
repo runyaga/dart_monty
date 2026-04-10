@@ -32,14 +32,16 @@ OsCallHandler createDefaultOsCallHandler() {
       case 'Path.read_bytes':
         return File(_extractPath(args.first)).readAsBytesSync().toList();
       case 'Path.write_text':
-        final path = _extractPath(args[0]);
+        final path = _extractPath(args.first);
         final content = _extractPath(args[1]);
         File(path).writeAsStringSync(content);
+
         return content.length;
       case 'Path.write_bytes':
-        final path = _extractPath(args[0]);
+        final path = _extractPath(args.first);
         final bytes = (args[1].dartValue! as List).cast<int>();
         File(path).writeAsBytesSync(bytes);
+
         return bytes.length;
       case 'Path.mkdir':
         final path = _extractPath(args.first);
@@ -48,17 +50,21 @@ OsCallHandler createDefaultOsCallHandler() {
         final dir = Directory(path);
         if (existOk && dir.existsSync()) return null;
         dir.createSync(recursive: parents);
+
         return null;
       case 'Path.unlink':
         File(_extractPath(args.first)).deleteSync();
+
         return null;
       case 'Path.rmdir':
         Directory(_extractPath(args.first)).deleteSync();
+
         return null;
       case 'Path.rename':
-        final oldPath = _extractPath(args[0]);
+        final oldPath = _extractPath(args.first);
         final newPath = _extractPath(args[1]);
         File(oldPath).renameSync(newPath);
+
         return newPath;
       case 'Path.iterdir':
         return Directory(
@@ -73,6 +79,7 @@ OsCallHandler createDefaultOsCallHandler() {
       case 'os.getenv':
         final key = _extractPath(args.first);
         final defaultValue = args.length > 1 ? args[1].dartValue : null;
+
         return Platform.environment[key] ?? defaultValue;
       case 'os.environ':
         return Platform.environment;
@@ -80,6 +87,7 @@ OsCallHandler createDefaultOsCallHandler() {
       // -- DateTime --
       case 'date.today':
         final now = DateTime.now();
+
         return {
           '__type': 'date',
           'year': now.year,
@@ -88,6 +96,7 @@ OsCallHandler createDefaultOsCallHandler() {
         };
       case 'datetime.now':
         final now = DateTime.now();
+
         return {
           '__type': 'datetime',
           'year': now.year,

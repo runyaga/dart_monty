@@ -30,7 +30,9 @@ final class MontyNull extends MontyValue {
 @immutable
 final class MontyBool extends MontyValue {
   /// Creates a [MontyBool] with the given [value].
-  const MontyBool(this.value); // ignore: avoid_positional_boolean_parameters
+  // Value-type wrapper — single positional field is the intended API.
+  // ignore: avoid_positional_boolean_parameters
+  const MontyBool(this.value);
 
   /// The underlying boolean value.
   final bool value;
@@ -92,6 +94,7 @@ final class MontyFloat extends MontyValue {
     if (value.isNaN) return 'NaN';
     if (value == double.infinity) return 'Infinity';
     if (value == double.negativeInfinity) return '-Infinity';
+
     return value;
   }
 
@@ -103,6 +106,7 @@ final class MontyFloat extends MontyValue {
     if (identical(this, other)) return true;
     if (other is! MontyFloat) return false;
     if (value.isNaN && other.value.isNaN) return true;
+
     return value == other.value;
   }
 

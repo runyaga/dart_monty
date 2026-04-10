@@ -75,17 +75,13 @@ class DefaultMontyBridge implements MontyBridge {
        _useFutures = useFutures,
        log = logger ?? StructLogBridgeLogger.root(LogManager.instance);
 
-  final MontyPlatform _platform;
-  final MontyLimits? _limits;
-  final bool _useFutures;
-
   /// Logger for this bridge instance.
   @protected
   final BridgeLogger log;
 
-  @override
-  BridgeLogger get logger => log;
-
+  final MontyPlatform _platform;
+  final MontyLimits? _limits;
+  final bool _useFutures;
   final Map<String, HostFunction> _functions = {};
   final List<BridgeMiddleware> _middleware = [];
   final Map<int, _PendingFuture> _pendingFutures = {};
@@ -93,6 +89,9 @@ class DefaultMontyBridge implements MontyBridge {
   bool _isExecuting = false;
   bool _isDisposed = false;
   OsCallHandler? _osCallHandler;
+
+  @override
+  BridgeLogger get logger => log;
 
   String get _nextId => '${_idCounter++}';
 
@@ -217,11 +216,9 @@ class DefaultMontyBridge implements MontyBridge {
             progress = await _handleOsCall(osCall, controller);
 
           case final MontyResolveFutures resolve:
-            if (futuresCapable && _pendingFutures.isNotEmpty) {
-              progress = await _resolveFutures(resolve, controller);
-            } else {
-              progress = await _platform.resume(null);
-            }
+            progress = (futuresCapable && _pendingFutures.isNotEmpty)
+                ? await _resolveFutures(resolve, controller)
+                : await _platform.resume(null);
 
           case MontyComplete(:final result):
             _flushPrintBuffer(printBuffer, controller);
@@ -253,6 +250,7 @@ class DefaultMontyBridge implements MontyBridge {
                 ),
               );
             }
+
             return;
         }
       }
@@ -288,7 +286,7 @@ class DefaultMontyBridge implements MontyBridge {
     StringBuffer printBuffer,
     StreamController<BridgeEvent> controller, {
     required bool futuresCapable,
-  }) async {
+  }) {
     final name = pending.functionName;
 
     // Console write — always intercept, buffer for text flush.
@@ -313,11 +311,13 @@ class DefaultMontyBridge implements MontyBridge {
           role: role,
         );
       }
+
       return _dispatchToolCall(fn, cleanedPending, controller, role: role);
     }
 
     // Unknown function — raise error in Python.
     log.warning('Unknown function', attributes: {'name': name});
+
     return _platform.resumeWithError('Unknown function: $name');
   }
 
@@ -336,6 +336,7 @@ class DefaultMontyBridge implements MontyBridge {
       final errorMsg =
           'PermissionError: $opName not available (no filesystem configured)';
       controller.add(BridgeOsCallResult(callId: callId, result: errorMsg));
+
       return _platform.resumeWithError(errorMsg);
     }
 
@@ -347,6 +348,7 @@ class DefaultMontyBridge implements MontyBridge {
           result: result?.toString() ?? '',
         ),
       );
+
       return _platform.resume(result);
     } on Object catch (e, st) {
       log.error(
@@ -356,6 +358,7 @@ class DefaultMontyBridge implements MontyBridge {
         attributes: {'op': opName},
       );
       controller.add(BridgeOsCallResult(callId: callId, result: 'Error: $e'));
+
       return _platform.resumeWithError(e.toString());
     }
   }
@@ -490,7 +493,7 @@ class DefaultMontyBridge implements MontyBridge {
     MontyPending pending,
     StreamController<BridgeEvent> controller, {
     required CallRole role,
-  }) async {
+  }) {
     final callId = _nextId;
     final stepName = pending.functionName;
 
@@ -533,11 +536,15 @@ class DefaultMontyBridge implements MontyBridge {
       controller
         ..add(BridgeToolCallResult(callId: callId, result: 'Error: $e'))
         ..add(BridgeStepFinished(stepId: stepName));
+
       return _platform.resumeWithError(e.toString());
     }
     unawaited(
       handlerFuture.then<void>(
-        (_) {},
+        (_) {
+          // Success value intentionally ignored — result is consumed during
+          // future resolution in _resolveFutures.
+        },
         onError: (Object e, StackTrace st) {
           log.warning(
             'Deferred host handler error',

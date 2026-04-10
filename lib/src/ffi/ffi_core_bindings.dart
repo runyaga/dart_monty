@@ -68,6 +68,7 @@ class FfiCoreBindings implements MontyCoreBindings {
       _bindings.free(handle);
       rethrow;
     }
+
     return _translateProgressResult(handle, progress);
   }
 

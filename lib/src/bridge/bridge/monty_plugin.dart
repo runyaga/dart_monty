@@ -50,11 +50,15 @@ abstract class MontyPlugin {
 
   /// Called when attached to a bridge.
   @mustCallSuper
-  Future<void> onRegister(MontyBridge bridge) async {}
+  Future<void> onRegister(MontyBridge bridge) async {
+    // Default no-op.
+  }
 
   /// Called when session ends. Must be idempotent.
   @mustCallSuper
-  Future<void> onDispose() async {}
+  Future<void> onDispose() async {
+    // Default no-op.
+  }
 
   /// Creates a fresh instance of this plugin for a child sandbox.
   ///

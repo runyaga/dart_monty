@@ -43,6 +43,16 @@ sealed class MontyValue {
     _ => MontyString(json.toString()),
   };
 
+  /// Serializes this value back to JSON compatible with the Rust side.
+  Object? toJson();
+
+  /// Returns the underlying Dart value for easy migration.
+  ///
+  /// Scalars return their primitive (`int`, `double`, `String`, etc.).
+  /// Collections recursively unwrap to `List<Object?>` / `Map<String, Object?>`.
+  /// Typed wrappers return their `toJson()` map.
+  Object? get dartValue;
+
   // Returns different sealed subclasses based on __type, so it
   // cannot be a constructor.
   // ignore: prefer_constructors_over_static_methods
@@ -53,6 +63,7 @@ sealed class MontyValue {
         map.map((k, v) => MapEntry(k, MontyValue.fromJson(v))),
       );
     }
+
     return switch (type) {
       'bytes' => MontyBytes._fromMap(map),
       'tuple' => MontyTuple._fromMap(map),
@@ -70,14 +81,4 @@ sealed class MontyValue {
       ),
     };
   }
-
-  /// Serializes this value back to JSON compatible with the Rust side.
-  Object? toJson();
-
-  /// Returns the underlying Dart value for easy migration.
-  ///
-  /// Scalars return their primitive (`int`, `double`, `String`, etc.).
-  /// Collections recursively unwrap to `List<Object?>` / `Map<String, Object?>`.
-  /// Typed wrappers return their `toJson()` map.
-  Object? get dartValue;
 }
