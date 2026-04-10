@@ -243,7 +243,30 @@ dcm:
           - "lib/src/wasm/wasm_bindings_js.dart"
           - "lib/src/wasm/wasm_core_bindings.dart"
 
-    # --- Architecture Safety ---
+    # --- Class Design & Architecture ---
+    - avoid-accessing-other-classes-private-members
+    - avoid-default-tostring
+    - prefer-abstract-final-static-class
+    - avoid-suspicious-super-overrides
+    - avoid-unnecessary-constructor
+    - avoid-shadowed-extension-methods
+    - avoid-duplicate-mixins
+    - avoid-referencing-subclasses
+    - match-getter-setter-field-names:
+        exclude:
+          # dartValue getter intentionally wraps value field (sealed MontyValue API)
+          - "lib/src/platform/monty_value_scalars.dart"
+          - "lib/src/platform/monty_value_collections.dart"
+          - "lib/src/platform/monty_value_structured.dart"
+          # coreBindings getter wraps _bindings (protected API for subclasses)
+          - "lib/src/platform/base_monty_platform.dart"
+          # printOutput getter wraps _printBuffer (encapsulation)
+          - "lib/src/platform/monty_session.dart"
+          # logger getter wraps log field (interface compliance)
+          - "lib/src/bridge/bridge/default_monty_bridge.dart"
+    - avoid-declaring-call-method
+
+    # --- Import Safety ---
     - avoid-banned-imports:
         entries:
           - paths: ["lib/"]
