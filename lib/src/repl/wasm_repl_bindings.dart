@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dart_monty/src/platform/core_bindings.dart';
 import 'package:dart_monty/src/platform/monty_resource_usage.dart';
 import 'package:dart_monty/src/repl/repl_bindings.dart';
@@ -27,7 +29,7 @@ class WasmReplBindings implements ReplBindings {
     }
     final result = await _bindings.replFeedRun(code);
 
-    return _translateWasmResult(result);
+    return _translateWasmRunResult(result);
   }
 
   @override
@@ -37,23 +39,40 @@ class WasmReplBindings implements ReplBindings {
 
   @override
   void setExtFns(List<String> names) {
-    // WASM implementation deferred to Phase 2b.
-    throw UnimplementedError('REPL setExtFns not yet available on WASM');
+    // Fire-and-forget — the Worker processes this synchronously.
+    // ignore: discarded_futures
+    _bindings.replSetExtFns(names.join(','));
   }
 
   @override
-  Future<CoreProgressResult> feedStart(String code) {
-    throw UnimplementedError('REPL feedStart not yet available on WASM');
+  Future<CoreProgressResult> feedStart(String code) async {
+    if (!_created) {
+      throw StateError('REPL not created. Call create() first.');
+    }
+    final result = await _bindings.replFeedStart(code);
+
+    return _translateWasmProgressResult(result);
   }
 
   @override
-  Future<CoreProgressResult> resume(String valueJson) {
-    throw UnimplementedError('REPL resume not yet available on WASM');
+  Future<CoreProgressResult> resume(String valueJson) async {
+    if (!_created) {
+      throw StateError('REPL not created. Call create() first.');
+    }
+    final result = await _bindings.replResume(valueJson);
+
+    return _translateWasmProgressResult(result);
   }
 
   @override
-  Future<CoreProgressResult> resumeWithError(String errorMessage) {
-    throw UnimplementedError('REPL resumeWithError not yet available on WASM');
+  Future<CoreProgressResult> resumeWithError(String errorMessage) async {
+    if (!_created) {
+      throw StateError('REPL not created. Call create() first.');
+    }
+    final errorJson = json.encode(errorMessage);
+    final result = await _bindings.replResumeWithError(errorJson);
+
+    return _translateWasmProgressResult(result);
   }
 
   @override
@@ -64,10 +83,10 @@ class WasmReplBindings implements ReplBindings {
   }
 
   // -----------------------------------------------------------------------
-  // Translation (same logic as WasmCoreBindings._translateRunResult)
+  // Translation
   // -----------------------------------------------------------------------
 
-  CoreRunResult _translateWasmResult(WasmRunResult result) {
+  CoreRunResult _translateWasmRunResult(WasmRunResult result) {
     if (result.ok) {
       return CoreRunResult(
         ok: true,
@@ -91,5 +110,60 @@ class WasmReplBindings implements ReplBindings {
       columnNumber: result.columnNumber,
       sourceCode: result.sourceCode,
     );
+  }
+
+  CoreProgressResult _translateWasmProgressResult(
+    WasmProgressResult result,
+  ) {
+    if (!result.ok) {
+      return CoreProgressResult(
+        state: 'error',
+        error: result.error,
+        excType: result.excType,
+        traceback: result.traceback,
+      );
+    }
+
+    final state = result.state ?? 'complete';
+    switch (state) {
+      case 'complete':
+        return CoreProgressResult(
+          state: 'complete',
+          value: result.value,
+          usage: const MontyResourceUsage(
+            memoryBytesUsed: 0,
+            timeElapsedMs: 0,
+            stackDepthUsed: 0,
+          ),
+          printOutput: result.printOutput,
+        );
+      case 'pending':
+        return CoreProgressResult(
+          state: 'pending',
+          functionName: result.functionName,
+          arguments: result.arguments,
+          kwargs: result.kwargs,
+          callId: result.callId,
+          methodCall: result.methodCall,
+        );
+      case 'os_call':
+        return CoreProgressResult(
+          state: 'os_call',
+          functionName: result.functionName,
+          arguments: result.arguments,
+          kwargs: result.kwargs,
+          callId: result.callId,
+        );
+      case 'resolve_futures':
+        return CoreProgressResult(
+          state: 'resolve_futures',
+          pendingCallIds: result.pendingCallIds,
+        );
+      default:
+        return CoreProgressResult(
+          state: 'error',
+          error: 'Unknown progress state: $state',
+        );
+    }
   }
 }

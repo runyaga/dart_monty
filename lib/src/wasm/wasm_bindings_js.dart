@@ -83,6 +83,18 @@ external JSPromise<JSString> _jsReplFeedRun(JSString code);
 @JS('DartMontyBridge.replDetectContinuation')
 external JSPromise<JSString> _jsReplDetectContinuation(JSString source);
 
+@JS('DartMontyBridge.replSetExtFns')
+external JSPromise<JSString> _jsReplSetExtFns(JSString extFns);
+
+@JS('DartMontyBridge.replFeedStart')
+external JSPromise<JSString> _jsReplFeedStart(JSString code);
+
+@JS('DartMontyBridge.replResume')
+external JSPromise<JSString> _jsReplResume(JSString valueJson);
+
+@JS('DartMontyBridge.replResumeWithError')
+external JSPromise<JSString> _jsReplResumeWithError(JSString errorJson);
+
 /// Concrete [WasmBindings] implementation using `dart:js_interop`.
 ///
 /// Calls static methods on `window.DartMontyBridge`, which manages a
@@ -264,8 +276,7 @@ class WasmBindingsJs extends WasmBindings {
   @override
   Future<WasmRunResult> replFeedRun(String code) async {
     final resultJson = await _jsReplFeedRun(code.toJS).toDart;
-    final map =
-        json.decode(resultJson.toDart) as Map<String, dynamic>;
+    final map = json.decode(resultJson.toDart) as Map<String, dynamic>;
     final rawTraceback = map['traceback'] as List<Object?>?;
 
     return WasmRunResult(
@@ -285,10 +296,8 @@ class WasmBindingsJs extends WasmBindings {
 
   @override
   Future<int> replDetectContinuation(String source) async {
-    final resultJson =
-        await _jsReplDetectContinuation(source.toJS).toDart;
-    final map =
-        json.decode(resultJson.toDart) as Map<String, dynamic>;
+    final resultJson = await _jsReplDetectContinuation(source.toJS).toDart;
+    final map = json.decode(resultJson.toDart) as Map<String, dynamic>;
     if (map['ok'] != true) {
       throw StateError(
         map['error'] as String? ?? 'replDetectContinuation failed',
@@ -296,6 +305,42 @@ class WasmBindingsJs extends WasmBindings {
     }
 
     return map['value'] as int;
+  }
+
+  // ---------------------------------------------------------------------------
+  // REPL iterative execution
+  // ---------------------------------------------------------------------------
+
+  @override
+  Future<void> replSetExtFns(String extFns) async {
+    final resultJson = await _jsReplSetExtFns(extFns.toJS).toDart;
+    final map = json.decode(resultJson.toDart) as Map<String, dynamic>;
+    if (map['ok'] != true) {
+      throw StateError(
+        map['error'] as String? ?? 'replSetExtFns failed',
+      );
+    }
+  }
+
+  @override
+  Future<WasmProgressResult> replFeedStart(String code) async {
+    final resultJson = await _jsReplFeedStart(code.toJS).toDart;
+
+    return _decodeProgress(resultJson.toDart);
+  }
+
+  @override
+  Future<WasmProgressResult> replResume(String valueJson) async {
+    final resultJson = await _jsReplResume(valueJson.toJS).toDart;
+
+    return _decodeProgress(resultJson.toDart);
+  }
+
+  @override
+  Future<WasmProgressResult> replResumeWithError(String errorJson) async {
+    final resultJson = await _jsReplResumeWithError(errorJson.toJS).toDart;
+
+    return _decodeProgress(resultJson.toDart);
   }
 
   // ---------------------------------------------------------------------------

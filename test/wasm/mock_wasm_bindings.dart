@@ -302,4 +302,31 @@ class MockWasmBindings extends WasmBindings {
 
     return nextReplDetectContinuation;
   }
+
+  String? lastReplExtFns;
+
+  @override
+  Future<void> replSetExtFns(String extFns) async {
+    lastReplExtFns = extFns;
+  }
+
+  WasmProgressResult nextReplFeedStartResult = const WasmProgressResult(
+    ok: true,
+    state: 'complete',
+  );
+
+  @override
+  Future<WasmProgressResult> replFeedStart(String code) async {
+    return nextReplFeedStartResult;
+  }
+
+  @override
+  Future<WasmProgressResult> replResume(String valueJson) async {
+    return const WasmProgressResult(ok: true, state: 'complete');
+  }
+
+  @override
+  Future<WasmProgressResult> replResumeWithError(String errorJson) async {
+    return const WasmProgressResult(ok: true, state: 'complete');
+  }
 }

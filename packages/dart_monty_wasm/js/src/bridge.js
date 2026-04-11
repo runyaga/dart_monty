@@ -466,6 +466,55 @@ async function replDetectContinuation(source) {
   return JSON.stringify(result);
 }
 
+/**
+ * Register external function names for REPL name resolution.
+ */
+async function replSetExtFns(extFns) {
+  const sid = resolveSessionId(null);
+  if (sid == null || !sessions.has(sid)) return notInitializedError();
+
+  const result = await callWorker(sid, { type: 'repl_set_ext_fns', extFns }, null);
+  return JSON.stringify(result);
+}
+
+/**
+ * Start iterative REPL execution. Pauses at external function calls.
+ */
+async function replFeedStart(code) {
+  const sid = resolveSessionId(null);
+  if (sid == null || !sessions.has(sid)) return notInitializedError();
+
+  const session = sessions.get(sid);
+  const result = await callWorker(sid, { type: 'repl_feed_start', code }, session.timeoutMs);
+  return JSON.stringify(result);
+}
+
+/**
+ * Resume REPL execution with a return value.
+ */
+async function replResume(valueJson) {
+  const sid = resolveSessionId(null);
+  if (sid == null || !sessions.has(sid)) return notInitializedError();
+
+  const session = sessions.get(sid);
+  const value = JSON.parse(valueJson);
+  const result = await callWorker(sid, { type: 'repl_resume', value }, session.timeoutMs);
+  return JSON.stringify(result);
+}
+
+/**
+ * Resume REPL execution with an error.
+ */
+async function replResumeWithError(errorJson) {
+  const sid = resolveSessionId(null);
+  if (sid == null || !sessions.has(sid)) return notInitializedError();
+
+  const session = sessions.get(sid);
+  const errorMessage = JSON.parse(errorJson);
+  const result = await callWorker(sid, { type: 'repl_resume_with_error', errorMessage }, session.timeoutMs);
+  return JSON.stringify(result);
+}
+
 // Expose bridge on window for Dart JS interop
 window.DartMontyBridge = {
   init,
@@ -488,6 +537,10 @@ window.DartMontyBridge = {
   replFree,
   replFeedRun,
   replDetectContinuation,
+  replSetExtFns,
+  replFeedStart,
+  replResume,
+  replResumeWithError,
 };
 
 console.log('[DartMontyBridge] Registered on window (Worker pool architecture)');
