@@ -58,9 +58,14 @@ class MontyFfi extends BaseMontyPlatform
   Future<MontyProgress> resumeAsFuture() async {
     assertNotDisposed('resumeAsFuture');
     assertActive('resumeAsFuture');
-    final progress = await coreBindings.resumeAsFuture();
+    try {
+      final progress = await coreBindings.resumeAsFuture();
 
-    return translateProgress(progress);
+      return translateProgress(progress);
+    } catch (e) {
+      markIdle();
+      rethrow;
+    }
   }
 
   @override
@@ -70,15 +75,23 @@ class MontyFfi extends BaseMontyPlatform
   }) async {
     assertNotDisposed('resolveFutures');
     assertActive('resolveFutures');
-    final resultsJson = json.encode(
-      results.map((k, v) => MapEntry(k.toString(), v)),
-    );
-    final errorsJson = errors != null
-        ? json.encode(errors.map((k, v) => MapEntry(k.toString(), v)))
-        : '{}';
-    final progress = await coreBindings.resolveFutures(resultsJson, errorsJson);
+    try {
+      final resultsJson = json.encode(
+        results.map((k, v) => MapEntry(k.toString(), v)),
+      );
+      final errorsJson = errors != null
+          ? json.encode(errors.map((k, v) => MapEntry(k.toString(), v)))
+          : '{}';
+      final progress = await coreBindings.resolveFutures(
+        resultsJson,
+        errorsJson,
+      );
 
-    return translateProgress(progress);
+      return translateProgress(progress);
+    } catch (e) {
+      markIdle();
+      rethrow;
+    }
   }
 
   @override
