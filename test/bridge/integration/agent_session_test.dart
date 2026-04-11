@@ -238,6 +238,123 @@ void main() {
     });
   });
 
+  group('AgentSession sandbox mode', () {
+    late AgentSession session;
+
+    setUp(() {
+      session = AgentSession(sandbox: true);
+    });
+
+    tearDown(() async {
+      await session.dispose();
+    });
+
+    test('simple expression', () async {
+      final result = await session.execute('2 + 2');
+
+      expect(result.value?.dartValue, 4);
+    });
+
+    test('isSandboxMode is true', () {
+      expect(session.isSandboxMode, isTrue);
+    });
+
+    test('variables persist across execute() calls', () async {
+      await session.execute('x = 42');
+      final result = await session.execute('x + 1');
+
+      expect(result.value?.dartValue, 43);
+    });
+
+    test('state persists across fresh interpreters', () async {
+      await session.execute('name = "alice"');
+      await session.execute('age = 30');
+      final result = await session.execute('[name, age]');
+
+      expect(result.value?.dartValue, ['alice', 30]);
+    });
+
+    test('host function callable from sandbox', () async {
+      session.register(
+        HostFunction(
+          schema: const HostFunctionSchema(
+            name: 'double_it',
+            description: 'Doubles a number',
+            params: [
+              HostParam(
+                name: 'n',
+                type: HostParamType.integer,
+              ),
+            ],
+          ),
+          handler: (args) async => (args['n']! as int) * 2,
+        ),
+      );
+
+      final result = await session.execute('double_it(21)');
+
+      expect(result.value?.dartValue, 42);
+    });
+
+    test('host function result persists in state', () async {
+      session.register(
+        HostFunction(
+          schema: const HostFunctionSchema(
+            name: 'greet',
+            description: 'Returns greeting',
+            params: [
+              HostParam(name: 'name', type: HostParamType.string),
+            ],
+          ),
+          handler: (args) async => 'Hello, ${args['name']}!',
+        ),
+      );
+
+      await session.execute('msg = greet("World")');
+      final result = await session.execute('msg');
+
+      expect(result.value?.dartValue, 'Hello, World!');
+    });
+
+    test('clearState() resets all variables', () async {
+      await session.execute('x = 99');
+      session.clearState();
+      final result = await session.execute('''
+try:
+    result = x
+except NameError:
+    result = "gone"
+result
+''');
+
+      expect(result.value?.dartValue, 'gone');
+    });
+
+    test('error does not break state', () async {
+      await session.execute('x = 42');
+      await session.execute('1 / 0'); // error
+      final result = await session.execute('x');
+
+      expect(result.value?.dartValue, 42);
+    });
+
+    test('executeStream throws in sandbox mode', () {
+      expect(
+        () => session.executeStream('1 + 1'),
+        throwsUnsupportedError,
+      );
+    });
+
+    test('many sequential execute() calls work', () async {
+      for (var i = 0; i < 10; i++) {
+        await session.execute('x = $i');
+      }
+      final result = await session.execute('x');
+
+      expect(result.value?.dartValue, 9);
+    });
+  });
+
   group('AgentSession event streaming', () {
     test('executeStream emits events', () async {
       final session = AgentSession();

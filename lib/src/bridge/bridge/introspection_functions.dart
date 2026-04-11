@@ -53,6 +53,7 @@ List<HostFunction> buildIntrospectionFunctions(
       handler: (args) async {
         final name = args['name'] as String?;
         if (name == null) return _handleListAll(schemasByCategory);
+
         return _handleHelp(schemasByCategory, name);
       },
       role: const InfraCall(),
