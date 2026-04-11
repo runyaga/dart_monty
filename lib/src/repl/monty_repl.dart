@@ -11,18 +11,6 @@ import 'package:dart_monty/src/platform/monty_value.dart';
 import 'package:dart_monty/src/repl/repl_bindings.dart';
 import 'package:dart_monty/src/repl/repl_factory.dart' as repl_factory;
 
-/// Whether a source fragment is syntactically complete for REPL execution.
-enum ReplContinuationMode {
-  /// The snippet is complete and can be executed.
-  complete,
-
-  /// The snippet has unclosed brackets, parentheses, or strings.
-  incompleteImplicit,
-
-  /// The snippet opened an indented block and needs a trailing blank line.
-  incompleteBlock,
-}
-
 /// A stateful REPL session backed by the Monty interpreter.
 ///
 /// Unlike `MontySession` which fakes persistence via code generation,
@@ -67,6 +55,12 @@ class MontyRepl {
   final Map<String, String> _hostFunctions;
   bool _created = false;
   bool _disposed = false;
+
+  static const _zeroUsage = MontyResourceUsage(
+    memoryBytesUsed: 0,
+    timeElapsedMs: 0,
+    stackDepthUsed: 0,
+  );
 
   /// Feeds a Python snippet and runs to completion.
   ///
@@ -166,12 +160,6 @@ class MontyRepl {
   // Private
   // -----------------------------------------------------------------------
 
-  static const _zeroUsage = MontyResourceUsage(
-    memoryBytesUsed: 0,
-    timeElapsedMs: 0,
-    stackDepthUsed: 0,
-  );
-
   MontyProgress _translateProgress(CoreProgressResult p) {
     switch (p.state) {
       case 'complete':
@@ -187,7 +175,7 @@ class MontyRepl {
         return MontyPending(
           functionName: p.functionName ?? '',
           arguments: p.arguments != null
-              ? p.arguments!.map(MontyValue.fromJson).toList()
+              ? (p.arguments ?? const []).map(MontyValue.fromJson).toList()
               : const [],
           kwargs: p.kwargs?.map((k, v) => MapEntry(k, MontyValue.fromJson(v))),
           callId: p.callId ?? 0,
@@ -197,7 +185,7 @@ class MontyRepl {
         return MontyOsCall(
           operationName: p.functionName ?? '',
           arguments: p.arguments != null
-              ? p.arguments!.map(MontyValue.fromJson).toList()
+              ? (p.arguments ?? const []).map(MontyValue.fromJson).toList()
               : const [],
           kwargs: p.kwargs?.map((k, v) => MapEntry(k, MontyValue.fromJson(v))),
           callId: p.callId ?? 0,
@@ -269,7 +257,7 @@ def help(name=None):
   MontyException? _buildError(
     String? error,
     String? excType,
-    List<dynamic>? traceback,
+    List<Object?>? traceback,
   ) {
     if (error == null) return null;
 
@@ -283,7 +271,7 @@ def help(name=None):
   Never _throwError({
     required String message,
     String? excType,
-    List<dynamic>? traceback,
+    List<Object?>? traceback,
   }) {
     if (excType == 'MemoryLimitExceeded') {
       throw MontyResourceError(message);
@@ -299,4 +287,16 @@ def help(name=None):
       exception: exception,
     );
   }
+}
+
+/// Whether a source fragment is syntactically complete for REPL execution.
+enum ReplContinuationMode {
+  /// The snippet is complete and can be executed.
+  complete,
+
+  /// The snippet has unclosed brackets, parentheses, or strings.
+  incompleteImplicit,
+
+  /// The snippet opened an indented block and needs a trailing blank line.
+  incompleteBlock,
 }

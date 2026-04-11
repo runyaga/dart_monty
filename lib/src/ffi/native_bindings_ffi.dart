@@ -473,8 +473,7 @@ class NativeBindingsFfi extends NativeBindings {
         );
 
       case ffi_native.MontyProgressTag.MONTY_PROGRESS_RESOLVE_FUTURES:
-        final callIdsPtr =
-            ffi_native.monty_repl_pending_future_call_ids(ptr);
+        final callIdsPtr = ffi_native.monty_repl_pending_future_call_ids(ptr);
         final callIdsJson = _readAndFreeString(callIdsPtr);
 
         return ProgressResult(tag: 3, futureCallIdsJson: callIdsJson);
