@@ -391,19 +391,12 @@ class DefaultMontyBridge implements MontyBridge {
       return _platform.resumeWithError(errorMsg);
     }
 
+    // Handler errors are safe to resumeWithError (platform still active).
+    // resume() errors must propagate — see _dispatchToolCall comment.
     final sw = Stopwatch()..start();
+    final Object? result;
     try {
-      final result = await handler.resolve(osCall);
-      sw.stop();
-      controller.add(
-        BridgeOsCallResult(
-          callId: callId,
-          result: result?.toString() ?? '',
-          durationMs: sw.elapsedMilliseconds,
-        ),
-      );
-
-      return await _platform.resume(result);
+      result = await handler.resolve(osCall);
     } on Object catch (e, st) {
       sw.stop();
       log.error(
@@ -422,6 +415,17 @@ class DefaultMontyBridge implements MontyBridge {
 
       return _platform.resumeWithError(e.toString());
     }
+
+    sw.stop();
+    controller.add(
+      BridgeOsCallResult(
+        callId: callId,
+        result: result?.toString() ?? '',
+        durationMs: sw.elapsedMilliseconds,
+      ),
+    );
+
+    return _platform.resume(result);
   }
 
   /// Resolves the [CallRole] for a tool call and strips the reserved
@@ -521,19 +525,14 @@ class DefaultMontyBridge implements MontyBridge {
       ..add(BridgeToolCallArgs(callId: callId, delta: jsonEncode(args)))
       ..add(BridgeToolCallEnd(callId: callId));
 
-    // Execute handler through middleware chain.
+    // Execute handler — errors here are safe to resumeWithError because
+    // the platform is still in active state (waiting for our response).
+    // resume() errors must NOT be caught here — if resume() fails it has
+    // already called markIdle(), so resumeWithError() would hit a
+    // StateError. Let resume() errors propagate to _run()'s outer catch.
+    final Object? result;
     try {
-      final result = await _invokeWithMiddleware(fn, stepName, args, role);
-      controller
-        ..add(
-          BridgeToolCallResult(
-            callId: callId,
-            result: result?.toString() ?? '',
-          ),
-        )
-        ..add(BridgeStepFinished(stepId: stepName));
-
-      return await _platform.resume(result);
+      result = await _invokeWithMiddleware(fn, stepName, args, role);
     } on Object catch (e, st) {
       log.error(
         'Host handler error',
@@ -547,6 +546,17 @@ class DefaultMontyBridge implements MontyBridge {
 
       return _platform.resumeWithError(e.toString());
     }
+
+    controller
+      ..add(
+        BridgeToolCallResult(
+          callId: callId,
+          result: result?.toString() ?? '',
+        ),
+      )
+      ..add(BridgeStepFinished(stepId: stepName));
+
+    return _platform.resume(result);
   }
 
   Future<MontyProgress> _dispatchToolCallAsFuture(

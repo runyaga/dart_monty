@@ -1151,6 +1151,134 @@ void main() {
       expect(events.whereType<BridgeRunFinished>(), hasLength(1));
     });
   });
+
+  // Regression: resume() failure must not cause StateError (#274).
+  //
+  // Before the fix, _dispatchToolCall wrapped both the handler invocation
+  // AND platform.resume() in the same try/catch. If resume() threw
+  // (marking the platform idle), the catch called resumeWithError() on
+  // the idle platform → StateError.
+  group('resume() failure recovery (#274)', () {
+    test(
+      'handler succeeds but resume() throws — emits BridgeRunError',
+      () async {
+        // Platform throws when resume() is called with 'hello'.
+        final failMock = _ResumeFailsPlatform()..failOnValue = 'hello';
+        final failBridge = MontyBridge(platform: failMock, useFutures: false)
+          ..register(
+            HostFunction(
+              schema: const HostFunctionSchema(
+                name: 'greet',
+                description: 'Returns hello',
+              ),
+              handler: (_) async => 'hello',
+            ),
+          );
+
+        // start → Pending(greet) → handler returns 'hello' →
+        // resume('hello') throws because failOnValue matches.
+        failMock
+          ..enqueueProgress(
+            const MontyPending(
+              functionName: 'greet',
+              arguments: [],
+              callId: 1,
+            ),
+          )
+          // Enqueued for resume but never consumed — throw happens first.
+          ..enqueueProgress(
+            const MontyComplete(result: MontyResult(usage: _usage)),
+          );
+
+        final events = await failBridge.execute('greet()').toList();
+
+        // Should get a BridgeRunError, NOT an uncaught StateError.
+        final errors = events.whereType<BridgeRunError>().toList();
+        expect(
+          errors,
+          hasLength(1),
+          reason:
+              'Expected BridgeRunError, got: '
+              '${events.map((e) => e.runtimeType).toList()}',
+        );
+        expect(errors.first.message, contains('resume failed'));
+
+        failBridge.dispose();
+      },
+    );
+
+    test(
+      'multiple tool calls — resume failure on 3rd does not StateError',
+      () async {
+        // Fail when resuming with value '3' (the 3rd call).
+        final failMock = _ResumeFailsPlatform()..failOnValue = '3';
+        final failBridge = MontyBridge(platform: failMock, useFutures: false)
+          ..register(
+            HostFunction(
+              schema: const HostFunctionSchema(
+                name: 'count',
+                description: 'Returns incrementing number',
+                params: [
+                  HostParam(name: 'n', type: HostParamType.integer),
+                ],
+              ),
+              handler: (args) async => args['n'],
+            ),
+          );
+
+        // start → Pending(count,n=1) → resume(1) OK →
+        // Pending(count,n=2) → resume(2) OK →
+        // Pending(count,n=3) → resume(3) THROWS
+        failMock
+          ..enqueueProgress(
+            const MontyPending(
+              functionName: 'count',
+              arguments: [MontyInt(1)],
+              kwargs: {'n': MontyInt(1)},
+              callId: 1,
+            ),
+          )
+          ..enqueueProgress(
+            const MontyPending(
+              functionName: 'count',
+              arguments: [MontyInt(2)],
+              kwargs: {'n': MontyInt(2)},
+              callId: 2,
+            ),
+          )
+          ..enqueueProgress(
+            const MontyPending(
+              functionName: 'count',
+              arguments: [MontyInt(3)],
+              kwargs: {'n': MontyInt(3)},
+              callId: 3,
+            ),
+          )
+          ..enqueueProgress(
+            const MontyComplete(result: MontyResult(usage: _usage)),
+          );
+
+        final events = await failBridge.execute('code').toList();
+
+        // First two succeed, 3rd triggers error.
+        final errors = events.whereType<BridgeRunError>().toList();
+        expect(
+          errors,
+          hasLength(1),
+          reason:
+              'Expected BridgeRunError, got: '
+              '${events.map((e) => e.runtimeType).toList()}',
+        );
+        expect(errors.first.message, contains('resume failed'));
+
+        // First two tool calls should have result events.
+        final results = events.whereType<BridgeToolCallResult>().toList();
+        expect(results.length, greaterThanOrEqualTo(2));
+
+        failBridge.dispose();
+      },
+    );
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -1320,6 +1448,21 @@ class _PrintThenThrowPlatform extends MockMontyPlatform {
     if (_resumeCount > throwAfterResumes) {
       throw const MontyPanicError('panic after print');
     }
+
+    return super.resume(returnValue);
+  }
+}
+
+/// A mock platform that throws on resume() when the return value matches.
+class _ResumeFailsPlatform extends MockMontyPlatform {
+  String? failOnValue;
+
+  @override
+  Future<MontyProgress> resume(Object? returnValue) async {
+    if (failOnValue != null && returnValue?.toString() == failOnValue) {
+      throw const MontyPanicError('resume failed on value');
+    }
+
     return super.resume(returnValue);
   }
 }
