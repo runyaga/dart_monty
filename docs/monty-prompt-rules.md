@@ -10,6 +10,49 @@ rules in the system prompt or as an uploaded reference file.
 3. The last expression is the return value.
 4. Return code in a `` ```monty``` `` fenced code block. No explanation outside it.
 
+## Monty Sandbox Limitations
+
+Monty is a **restricted Python interpreter**. It is NOT full CPython.
+
+### Available standard library
+
+- `json` — json.loads, json.dumps
+- `math` — basic math functions
+- `re` — regular expressions
+- `pathlib` — Path (only in-memory filesystem)
+- `datetime` — date, datetime (if OsProvider configured)
+- `collections` — OrderedDict, defaultdict, Counter, namedtuple
+
+### NOT available
+
+- `os`, `sys`, `subprocess`, `shutil` — **no system access**
+- `requests`, `urllib`, `http` — **no direct network** (use host functions)
+- `threading`, `multiprocessing`, `asyncio` — **no concurrency**
+- `pickle`, `shelve` — **no serialization beyond JSON**
+- `sqlite3`, `csv` — not built in (use host functions if available)
+- `typing`, `dataclasses` — limited support
+- Any `pip` packages — nothing installable
+
+### Key differences from CPython
+
+- **No file I/O** except through `pathlib.Path` on the in-memory filesystem
+- **No network** except through host functions (soliplex_*, http_fn, etc.)
+- **No environment variables** — `os.environ` does not exist
+- **No shell execution** — cannot run commands
+- **Host functions ARE the I/O layer** — they replace what you'd normally
+  do with `requests`, `subprocess`, `open()`, etc.
+
+### What to use instead
+
+| You want to... | Use this |
+|----------------|----------|
+| Make HTTP requests | `soliplex_new_thread()` or custom host fn |
+| Read/write files | `pathlib.Path` (in-memory only) |
+| Store key-value data | `msg_send()`/`msg_recv()` channels |
+| Render templates | `tmpl_render()` |
+| Get current time | `datetime.datetime.now()` (if configured) |
+| Run shell commands | Not possible — use host functions |
+
 ## Error Handling
 
 **Never use bare `except` or `except Exception: pass`.**
@@ -48,6 +91,24 @@ Any other exception — `RuntimeError` from host function failures,
 `json.JSONDecodeError` from bad data, `KeyError` from missing fields —
 should either be handled explicitly or allowed to propagate so the
 caller sees a clear error.
+
+## Discovering Available Functions
+
+Call `help()` to see all registered host functions:
+
+```monty
+help()  # lists all available functions with descriptions
+```
+
+Call `help("function_name")` for detailed parameter info:
+
+```monty
+help("soliplex_new_thread")  # shows params, types, descriptions
+```
+
+Use this when you're unsure what functions are available or what
+parameters they take. The `help()` output is always up-to-date with
+the actual registered functions.
 
 ## Host Function Patterns
 
