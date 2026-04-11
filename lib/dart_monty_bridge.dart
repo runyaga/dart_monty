@@ -4,6 +4,7 @@
 /// event loop support, and a plugin system for modular host function bundles.
 library;
 
+export 'src/bridge/agent_session.dart';
 export 'src/bridge/bridge/bridge_event.dart';
 export 'src/bridge/bridge/bridge_middleware.dart';
 export 'src/bridge/bridge/event_loop_bridge.dart';

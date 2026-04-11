@@ -70,6 +70,9 @@ jobs:
       - name: Compile vfs_demo.dart
         working-directory: example/web
         run: dart compile js bin/vfs_demo.dart -o web/vfs_demo.dart.js
+      - name: Compile agent_demo.dart
+        working-directory: example/web
+        run: dart compile js bin/agent_demo.dart -o web/agent_demo.dart.js
 
       # ── Assemble site ────────────────────────────────────────────────
       - name: Copy WASM binary

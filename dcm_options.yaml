@@ -58,6 +58,8 @@ dcm:
           - "lib/src/bridge/os_call/memory_fs_provider.dart"
           - "lib/src/bridge/os_call/sandboxed_fs_provider.dart"
           - "lib/src/bridge/os_call/env_os_provider.dart"
+          # State wrapping: code gen accesses known-valid indices
+          - "lib/src/bridge/agent_session.dart"
           # Mock tracking lists: only accessed after recording calls
           - "lib/src/platform/mock_monty_platform.dart"
           # Guarded by isEmpty/isNotEmpty/length checks before access
@@ -222,6 +224,8 @@ dcm:
           - "test/**"
           # Lazy-initialized sorted prefixes for longest-prefix-first matching
           - "lib/src/bridge/os_call/os_provider.dart"
+          # Bridge initialized in constructor body (needs _monty.platform)
+          - "lib/src/bridge/agent_session.dart"
     - avoid-dynamic:
         exclude:
           - "test/**"
@@ -249,6 +253,8 @@ dcm:
           - "lib/src/bridge/bridge/host_param.dart"
           - "lib/src/bridge/bridge/plugin_registry.dart"
           - "lib/src/bridge/plugins/sandbox_plugin.dart"
+          # State wrapping + result extraction: non-null guaranteed by event type
+          - "lib/src/bridge/agent_session.dart"
           - "lib/src/bridge/os_call/default_sandbox_os_native.dart"
           - "lib/src/bridge/os_call/fs_provider.dart"
           - "lib/src/bridge/os_call/memory_fs_provider.dart"
