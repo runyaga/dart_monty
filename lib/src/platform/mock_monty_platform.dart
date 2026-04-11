@@ -7,6 +7,7 @@ import 'package:dart_monty/src/platform/monty_platform.dart';
 import 'package:dart_monty/src/platform/monty_progress.dart';
 import 'package:dart_monty/src/platform/monty_result.dart';
 import 'package:dart_monty/src/platform/monty_snapshot_capable.dart';
+import 'package:dart_monty/src/platform/monty_state_mixin.dart';
 
 /// A mock implementation of [MontyPlatform] for testing.
 ///
@@ -25,9 +26,13 @@ import 'package:dart_monty/src/platform/monty_snapshot_capable.dart';
 /// mock.enqueueProgress(MontyComplete(result: result));
 /// ```
 class MockMontyPlatform extends MontyPlatform
+    with MontyStateMixin
     implements MontySnapshotCapable, MontyFutureCapable {
   /// Creates a [MockMontyPlatform].
   MockMontyPlatform();
+
+  @override
+  String get backendName => 'MockMontyPlatform';
 
   // ---------------------------------------------------------------------------
   // Config (what to return)
@@ -47,9 +52,6 @@ class MockMontyPlatform extends MontyPlatform
   ///
   /// Must be set before calling [restore] or a [StateError] is thrown.
   MontyPlatform? restoreResult;
-
-  /// Whether [dispose] has been called.
-  bool isDisposed = false;
 
   // ---------------------------------------------------------------------------
   // Invocation history (what was called)
@@ -181,33 +183,46 @@ class MockMontyPlatform extends MontyPlatform
     MontyLimits? limits,
     String? scriptName,
   }) async {
+    assertNotDisposed('start');
+    assertIdle('start');
+    markActive();
+
     startCodes.add(code);
     startExternalFunctionsList.add(externalFunctions);
     startLimitsList.add(limits);
     startScriptNamesList.add(scriptName);
 
-    return _dequeueProgress();
+    return _dequeueAndTransition();
   }
 
   @override
   Future<MontyProgress> resume(Object? returnValue) async {
+    assertNotDisposed('resume');
+    assertActive('resume');
+
     resumeReturnValues.add(returnValue);
 
-    return _dequeueProgress();
+    return _dequeueAndTransition();
   }
 
   @override
   Future<MontyProgress> resumeWithError(String errorMessage) async {
+    assertNotDisposed('resumeWithError');
+    assertActive('resumeWithError');
+
     resumeErrorMessages.add(errorMessage);
 
-    return _dequeueProgress();
+    return _dequeueAndTransition();
   }
 
   @override
   Future<MontyProgress> resumeAsFuture() async {
+    assertNotDisposed('resumeAsFuture');
+    assertActive('resumeAsFuture');
+
     resumeAsFutureCount++;
 
-    return _dequeueProgress();
+    return _dequeueAndTransition();
   }
 
   @override
@@ -215,10 +230,13 @@ class MockMontyPlatform extends MontyPlatform
     Map<int, Object?> results, {
     Map<int, String>? errors,
   }) async {
+    assertNotDisposed('resolveFutures');
+    assertActive('resolveFutures');
+
     resolveFuturesResultsList.add(results);
     resolveFuturesErrorsList.add(errors);
 
-    return _dequeueProgress();
+    return _dequeueAndTransition();
   }
 
   @override
@@ -250,7 +268,18 @@ class MockMontyPlatform extends MontyPlatform
   @override
   Future<void> dispose() async {
     await restoreResult?.dispose();
-    isDisposed = true;
+    markDisposed();
+  }
+
+  /// Dequeues progress and transitions state: `MontyComplete` → idle,
+  /// everything else stays active.
+  MontyProgress _dequeueAndTransition() {
+    final progress = _dequeueProgress();
+    if (progress is MontyComplete) {
+      markIdle();
+    }
+
+    return progress;
   }
 
   MontyProgress _dequeueProgress() {
