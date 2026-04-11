@@ -259,6 +259,7 @@
     // Real host function: MessageBus (in-memory JS implementation)
     // -----------------------------------------------------------------------
     const _channels = {};
+    const _sandboxes = {};
     function _getCh(name) {
       if (!_channels[name]) _channels[name] = { queue: [], delivered: 0, closed: false };
       return _channels[name];
@@ -298,11 +299,37 @@
       },
       sandbox_spawn: (args, kwargs) => {
         const code = kwargs.code || args[0];
-        const id = 'sb-' + Math.random().toString(36).substring(2, 8);
-        return { handle: id, code: code };
+        const handle = 'sb-' + Math.random().toString(36).substring(2, 8);
+        // Store in registry so sandbox_await can look it up
+        _sandboxes[handle] = { code, status: 'running' };
+        // Simulate instant completion with eval-like result
+        try {
+          // Simple: extract the assignment value or return code length
+          const m = code.match(/=\s*(.+)/);
+          _sandboxes[handle].value = m ? m[1].trim() : code.length;
+          _sandboxes[handle].status = 'done';
+        } catch (e) {
+          _sandboxes[handle].value = null;
+          _sandboxes[handle].error = e.message;
+          _sandboxes[handle].status = 'error';
+        }
+        return handle;
       },
       sandbox_await: (args, kwargs) => {
-        return { value: 42, error: null, print_output: '' };
+        const handle = kwargs.handle || args[0];
+        const sb = _sandboxes[handle];
+        if (!sb) return { value: null, error: 'unknown handle: ' + handle };
+        return { value: sb.value, error: sb.error || null, status: sb.status };
+      },
+      sandbox_is_alive: (args, kwargs) => {
+        const handle = kwargs.handle || args[0];
+        const sb = _sandboxes[handle];
+        return sb ? sb.status === 'running' : false;
+      },
+      sandbox_free: (args, kwargs) => {
+        const handle = kwargs.handle || args[0];
+        delete _sandboxes[handle];
+        return true;
       },
     };
 
@@ -456,18 +483,21 @@
     async function bootstrap() {
       // Register all real host functions
       await DartMontyBridge.replSetExtFns(
-        'tmpl_render,msg_send,msg_recv,msg_peek,msg_close,msg_stats,sandbox_spawn,sandbox_await'
+        'tmpl_render,msg_send,msg_recv,msg_peek,msg_close,msg_stats,' +
+        'sandbox_spawn,sandbox_await,sandbox_is_alive,sandbox_free'
       );
 
       await DartMontyBridge.replFeedRun(`_help_registry = {
     "tmpl_render": "Render Jinja2 template. tmpl_render(template=str, context=dict)",
-    "msg_send": "Send message to channel. msg_send(channel, message)",
-    "msg_recv": "Receive from channel. msg_recv(channel)",
+    "msg_send": "Send message. msg_send(channel, message)",
+    "msg_recv": "Receive message. msg_recv(channel)",
     "msg_peek": "Peek next message. msg_peek(channel)",
     "msg_close": "Close channel. msg_close(channel)",
-    "msg_stats": "Channel stats. msg_stats(channel) -> {pending, delivered, closed}",
-    "sandbox_spawn": "Spawn sandbox. sandbox_spawn(code=str) -> {handle, code}",
-    "sandbox_await": "Await sandbox. sandbox_await(handle) -> {value, error}",
+    "msg_stats": "Channel stats. msg_stats(channel)",
+    "sandbox_spawn": "Run code in sandbox. sandbox_spawn(code=str) -> handle",
+    "sandbox_await": "Get sandbox result. sandbox_await(handle) -> {value, error}",
+    "sandbox_is_alive": "Check sandbox status. sandbox_is_alive(handle) -> bool",
+    "sandbox_free": "Free sandbox. sandbox_free(handle) -> bool",
 }`);
 
       await DartMontyBridge.replFeedRun(`def help(name=None):
