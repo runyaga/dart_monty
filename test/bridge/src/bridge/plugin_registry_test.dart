@@ -300,9 +300,8 @@ void main() {
 
           await registry.attachTo(bridge);
 
-          // Plugin function + introspection builtins should be registered.
+          // Plugin function + introspection builtin should be registered.
           expect(bridge.registeredNames, contains('lc_do'));
-          expect(bridge.registeredNames, contains('list_functions'));
           expect(bridge.registeredNames, contains('help'));
           expect(registered, ['lc']);
         },
@@ -343,7 +342,7 @@ void main() {
 
         expect(bridge.registeredNames, contains('ns_one'));
         expect(bridge.registeredNames, contains('standalone_op'));
-        expect(bridge.registeredNames, contains('list_functions'));
+        expect(bridge.registeredNames, contains('help'));
       });
 
       test('extraFunctions with null or empty list is a no-op', () async {
@@ -387,7 +386,7 @@ void main() {
         // Both plugins' functions were registered onto the bridge.
         expect(bridge.registeredNames, contains('aaa_x'));
         expect(bridge.registeredNames, contains('bbb_x'));
-        expect(bridge.registeredNames, contains('list_functions'));
+        expect(bridge.registeredNames, contains('help'));
       });
     });
 

@@ -43,12 +43,51 @@ void main() {
         };
       });
 
-      Future<String> callHelp(String name) async {
+      Future<String> callHelp([String? name]) async {
         final fns = buildIntrospectionFunctions(schemas);
         final helpFn = fns.firstWhere((f) => f.schema.name == 'help');
         final result = await helpFn.handler({'name': name});
         return result! as String;
       }
+
+      test('no args returns full function listing', () async {
+        final result = await callHelp();
+        final decoded = jsonDecode(result) as Map<String, Object?>;
+        final tools = decoded['tools']! as Map<String, Object?>;
+
+        expect(tools, contains('storage'));
+        expect(tools, contains('cache'));
+        expect(tools, contains('introspection'));
+
+        final storageTools = tools['storage']! as List<Object?>;
+        expect(storageTools, hasLength(2));
+      });
+
+      test('no args includes introspection with only help', () async {
+        final result = await callHelp();
+        final decoded = jsonDecode(result) as Map<String, Object?>;
+        final tools = decoded['tools']! as Map<String, Object?>;
+        final introTools = tools['introspection']! as List<Object?>;
+
+        expect(introTools, hasLength(1));
+        final helpTool = introTools.first! as Map<String, Object?>;
+        expect(helpTool['name'], 'help');
+      });
+
+      test('no args includes params in function schemas', () async {
+        final result = await callHelp();
+        final decoded = jsonDecode(result) as Map<String, Object?>;
+        final tools = decoded['tools']! as Map<String, Object?>;
+        final storageTools = tools['storage']! as List<Object?>;
+        final storageGet = storageTools.first! as Map<String, Object?>;
+
+        expect(storageGet['name'], 'storage_get');
+        final params = storageGet['params']! as List<Object?>;
+        expect(params, hasLength(1));
+        final param = params.first! as Map<String, Object?>;
+        expect(param['name'], 'key');
+        expect(param['type'], 'string');
+      });
 
       test('exact match with fully-qualified name', () async {
         final result = await callHelp('storage_get');
@@ -111,14 +150,7 @@ void main() {
         expect(result, 'Unknown function: nonexistent');
       });
 
-      test('introspection builtins resolve by exact name', () async {
-        final result = await callHelp('list_functions');
-        final decoded = jsonDecode(result) as Map<String, Object?>;
-
-        expect(decoded['name'], 'list_functions');
-      });
-
-      test('introspection builtins resolve by exact name (help)', () async {
+      test('help resolves itself by exact name', () async {
         final result = await callHelp('help');
         final decoded = jsonDecode(result) as Map<String, Object?>;
 
@@ -141,32 +173,12 @@ void main() {
 
         expect(decoded['name'], 'db_utils_query');
       });
-    });
 
-    group('list_functions', () {
-      test('output unchanged with new help behavior', () async {
-        final schemas = {
-          'math': [
-            const HostFunctionSchema(
-              name: 'math_add',
-              description: 'Add numbers.',
-            ),
-          ],
-        };
-
+      test('only one function is registered (no list_functions)', () {
         final fns = buildIntrospectionFunctions(schemas);
-        final listFn = fns.firstWhere((f) => f.schema.name == 'list_functions');
-        final result = await listFn.handler({});
-        final decoded = jsonDecode(result! as String) as Map<String, Object?>;
-        final tools = decoded['tools']! as Map<String, Object?>;
 
-        expect(tools, contains('math'));
-        expect(tools, contains('introspection'));
-
-        final mathTools = tools['math']! as List<Object?>;
-        expect(mathTools, hasLength(1));
-        final mathAdd = mathTools.first! as Map<String, Object?>;
-        expect(mathAdd['name'], 'math_add');
+        expect(fns, hasLength(1));
+        expect(fns.first.schema.name, 'help');
       });
     });
   });
