@@ -249,12 +249,12 @@ external consumers (e.g., LLMs via MCP). Runtime validation in
 `validate()` still uses the `type` field. Ensure the override is
 consistent with `type` to avoid mismatches.
 
-## DefaultMontyBridge Configuration
+## MontyBridge Configuration
 
-`DefaultMontyBridge` accepts several constructor parameters:
+`MontyBridge` accepts several constructor parameters:
 
 ```dart
-DefaultMontyBridge(
+MontyBridge(
   platform: Monty(),          // Required: MontyPlatform backend
   limits: MontyLimits(        // Optional: resource constraints
     timeoutMs: 5000,

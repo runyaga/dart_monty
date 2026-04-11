@@ -155,11 +155,7 @@ void main() {
           isA<MontyScriptError>()
               .having((e) => e.message, 'message', 'division by zero')
               .having((e) => e.excType, 'excType', 'ZeroDivisionError')
-              .having(
-                (e) => e.exception!.traceback,
-                'traceback',
-                hasLength(1),
-              ),
+              .having((e) => e.exception!.traceback, 'traceback', hasLength(1)),
         ),
       );
     });

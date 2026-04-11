@@ -20,9 +20,7 @@ void main() {
       });
 
       test('parses minimal JSON', () {
-        final exception = MontyException.fromJson(const {
-          'message': 'error',
-        });
+        final exception = MontyException.fromJson(const {'message': 'error'});
         expect(exception.message, 'error');
         expect(exception.filename, isNull);
         expect(exception.lineNumber, isNull);
@@ -134,10 +132,7 @@ void main() {
       });
 
       test('serializes excType', () {
-        const exception = MontyException(
-          message: 'bad',
-          excType: 'ValueError',
-        );
+        const exception = MontyException(message: 'bad', excType: 'ValueError');
         final json = exception.toJson();
         expect(json['exc_type'], 'ValueError');
       });
@@ -146,11 +141,7 @@ void main() {
         const exception = MontyException(
           message: 'err',
           traceback: [
-            MontyStackFrame(
-              filename: 'a.py',
-              startLine: 1,
-              startColumn: 0,
-            ),
+            MontyStackFrame(filename: 'a.py', startLine: 1, startColumn: 0),
           ],
         );
         final json = exception.toJson();
@@ -243,14 +234,8 @@ void main() {
       });
 
       test('not equal when excType differs', () {
-        const a = MontyException(
-          message: 'err',
-          excType: 'ValueError',
-        );
-        const b = MontyException(
-          message: 'err',
-          excType: 'TypeError',
-        );
+        const a = MontyException(message: 'err', excType: 'ValueError');
+        const b = MontyException(message: 'err', excType: 'TypeError');
         expect(a, isNot(b));
       });
 
@@ -258,21 +243,13 @@ void main() {
         const a = MontyException(
           message: 'err',
           traceback: [
-            MontyStackFrame(
-              filename: 'a.py',
-              startLine: 1,
-              startColumn: 0,
-            ),
+            MontyStackFrame(filename: 'a.py', startLine: 1, startColumn: 0),
           ],
         );
         const b = MontyException(
           message: 'err',
           traceback: [
-            MontyStackFrame(
-              filename: 'b.py',
-              startLine: 1,
-              startColumn: 0,
-            ),
+            MontyStackFrame(filename: 'b.py', startLine: 1, startColumn: 0),
           ],
         );
         expect(a, isNot(b));
@@ -283,22 +260,14 @@ void main() {
           message: 'err',
           excType: 'ValueError',
           traceback: [
-            MontyStackFrame(
-              filename: 'a.py',
-              startLine: 1,
-              startColumn: 0,
-            ),
+            MontyStackFrame(filename: 'a.py', startLine: 1, startColumn: 0),
           ],
         );
         const b = MontyException(
           message: 'err',
           excType: 'ValueError',
           traceback: [
-            MontyStackFrame(
-              filename: 'a.py',
-              startLine: 1,
-              startColumn: 0,
-            ),
+            MontyStackFrame(filename: 'a.py', startLine: 1, startColumn: 0),
           ],
         );
         expect(a, b);
@@ -334,10 +303,7 @@ void main() {
       });
 
       test('with filename', () {
-        const exception = MontyException(
-          message: 'err',
-          filename: 'main.py',
-        );
+        const exception = MontyException(message: 'err', filename: 'main.py');
         expect(exception.toString(), 'MontyException: err (main.py)');
       });
 

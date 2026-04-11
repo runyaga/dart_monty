@@ -1,11 +1,14 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:dart_monty/dart_monty.dart';
-import 'package:dart_monty/monty_backend_spi.dart';
 import 'package:dart_monty/src/ffi/ffi_core_bindings.dart';
 import 'package:dart_monty/src/ffi/native_bindings.dart';
 import 'package:dart_monty/src/ffi/native_bindings_ffi.dart';
+import 'package:dart_monty/src/platform/base_monty_platform.dart';
+import 'package:dart_monty/src/platform/monty_future_capable.dart';
+import 'package:dart_monty/src/platform/monty_platform.dart';
+import 'package:dart_monty/src/platform/monty_progress.dart';
+import 'package:dart_monty/src/platform/monty_snapshot_capable.dart';
 
 /// Native FFI implementation of [MontyPlatform].
 ///
@@ -71,14 +74,9 @@ class MontyFfi extends BaseMontyPlatform
       results.map((k, v) => MapEntry(k.toString(), v)),
     );
     final errorsJson = errors != null
-        ? json.encode(
-            errors.map((k, v) => MapEntry(k.toString(), v)),
-          )
+        ? json.encode(errors.map((k, v) => MapEntry(k.toString(), v)))
         : '{}';
-    final progress = await coreBindings.resolveFutures(
-      resultsJson,
-      errorsJson,
-    );
+    final progress = await coreBindings.resolveFutures(resultsJson, errorsJson);
 
     return translateProgress(progress);
   }

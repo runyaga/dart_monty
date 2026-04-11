@@ -6,11 +6,7 @@ import 'package:meta/meta.dart';
 @immutable
 final class MontyLimits {
   /// Creates a [MontyLimits] with optional resource constraints.
-  const MontyLimits({
-    this.memoryBytes,
-    this.timeoutMs,
-    this.stackDepth,
-  });
+  const MontyLimits({this.memoryBytes, this.timeoutMs, this.stackDepth});
 
   /// Creates a [MontyLimits] from a JSON map.
   ///
@@ -51,11 +47,7 @@ final class MontyLimits {
   }
 
   @override
-  int get hashCode => Object.hash(
-    memoryBytes,
-    timeoutMs,
-    stackDepth,
-  );
+  int get hashCode => Object.hash(memoryBytes, timeoutMs, stackDepth);
 
   @override
   String toString() {

@@ -4,7 +4,9 @@ library;
 import 'dart:io';
 
 import 'package:dart_monty/dart_monty.dart';
-import 'package:dart_monty/dart_monty_ffi.dart';
+import 'package:dart_monty/monty_backend_spi.dart';
+import 'package:dart_monty/src/ffi/monty_ffi.dart';
+import 'package:dart_monty/src/ffi/native_bindings_ffi.dart';
 import 'package:test/test.dart';
 
 /// Integration tests that validate Dart code blocks in README.md files
@@ -40,10 +42,7 @@ List<String> _extractDartBlocks(String markdown) =>
 // ---------------------------------------------------------------------------
 
 typedef BlockHandler =
-    Future<void> Function(
-      String block,
-      NativeBindingsFfi bindings,
-    );
+    Future<void> Function(String block, NativeBindingsFfi bindings);
 
 /// Hand-written handlers keyed by `(readmePath, blockIndex)`.
 final Map<(String, int), BlockHandler> _handlers = {
@@ -77,10 +76,7 @@ final Map<(String, int), BlockHandler> _handlers = {
 ///
 /// The README calls `fib(30)` but Monty has no built-in fib.
 /// We validate the *pattern* — `run()` works with and without limits.
-Future<void> _handleRootBlock0(
-  String block,
-  NativeBindingsFfi bindings,
-) async {
+Future<void> _handleRootBlock0(String block, NativeBindingsFfi bindings) async {
   // Verify the block looks like what we expect.
   expect(block, contains("run('2 + 2')"));
   expect(block, contains('MontyLimits'));
@@ -106,10 +102,7 @@ Future<void> _handleRootBlock0(
 }
 
 /// README.md block 1: external function dispatch loop.
-Future<void> _handleRootBlock1(
-  String block,
-  NativeBindingsFfi bindings,
-) async {
+Future<void> _handleRootBlock1(String block, NativeBindingsFfi bindings) async {
   expect(block, contains('externalFunctions'));
   expect(block, contains('MontyPending'));
 
@@ -136,10 +129,7 @@ Future<void> _handleRootBlock1(
 }
 
 /// README.md block 2: stateful sessions.
-Future<void> _handleRootBlock2(
-  String block,
-  NativeBindingsFfi bindings,
-) async {
+Future<void> _handleRootBlock2(String block, NativeBindingsFfi bindings) async {
   expect(block, contains('MontySession'));
   expect(block, contains('x = 42'));
 
@@ -188,10 +178,7 @@ Future<void> _handlePlatformInterfaceBlock0(
 // ---------------------------------------------------------------------------
 
 /// ffi/README.md block 0: MontyFfi run + external function dispatch.
-Future<void> _handleFfiBlock0(
-  String block,
-  NativeBindingsFfi bindings,
-) async {
+Future<void> _handleFfiBlock0(String block, NativeBindingsFfi bindings) async {
   expect(block, contains('MontyFfi'));
   expect(block, contains("run('2 + 2')"));
 

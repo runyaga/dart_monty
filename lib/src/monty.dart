@@ -1,76 +1,96 @@
+import 'package:dart_monty/src/bridge/os_call/os_provider.dart';
 import 'package:dart_monty/src/monty_factory.dart';
 import 'package:dart_monty/src/platform/monty_limits.dart';
 import 'package:dart_monty/src/platform/monty_platform.dart';
-import 'package:dart_monty/src/platform/monty_progress.dart';
 import 'package:dart_monty/src/platform/monty_result.dart';
+import 'package:dart_monty/src/platform/monty_session.dart';
 
 /// Monty sandboxed Python interpreter.
 ///
-/// Uses compile-time conditional imports to select the backend:
-/// - Native (macOS, Linux, Windows): Rust FFI via `dart:ffi`
-/// - Web (browser): WASM via `dart:js_interop`
-///
-/// The backend is determined at compile time, not runtime — there is no
-/// reflection or service locator. `dart compile` sees `dart.library.ffi`
-/// or `dart.library.js_interop` and picks the corresponding import.
-///
+/// Variables persist across `run()` calls:
 /// ```dart
 /// final monty = Monty();
-/// final result = await monty.run('2 + 2');
-/// print(result.value); // 4
+/// await monty.run('x = 42');
+/// await monty.run('y = x * 2');
+/// final result = await monty.run('x + y');
+/// print(result.value); // 126
 /// await monty.dispose();
 /// ```
-class Monty implements MontyPlatform {
+///
+/// For one-shot evaluation:
+/// ```dart
+/// final result = await Monty.exec('2 + 2');
+/// ```
+///
+/// To enable filesystem/environment/datetime access:
+/// ```dart
+/// final monty = Monty(os: OsProvider());
+/// ```
+class Monty {
   /// Creates a Monty interpreter with the auto-detected backend.
-  factory Monty() => Monty._(createPlatformMonty());
-
-  /// Creates a Monty interpreter with an explicit backend.
   ///
-  /// Use this when you need a specific backend or custom configuration:
-  /// ```dart
-  /// final monty = Monty.withPlatform(myCustomPlatform);
-  /// ```
-  factory Monty.withPlatform(MontyPlatform platform) => Monty._(platform);
+  /// Pass [os] to enable Python `pathlib`, `os`, and `datetime`
+  /// access. Without it, OS calls resume with `PermissionError`.
+  factory Monty({OsProvider? os}) => Monty._(createPlatformMonty(), os);
 
-  const Monty._(this._platform);
+  /// Creates a Monty interpreter with an explicit platform backend.
+  factory Monty.withPlatform(
+    MontyPlatform platform, {
+    OsProvider? os,
+  }) => Monty._(platform, os);
+
+  Monty._(MontyPlatform platform, OsProvider? os)
+    : _platform = platform,
+      _session = MontySession(platform: platform, os: os);
 
   final MontyPlatform _platform;
+  final MontySession _session;
 
-  /// Access the underlying platform for capability checks.
-  ///
-  /// ```dart
-  /// if (monty.platform is MontySnapshotCapable) { ... }
-  /// ```
+  /// The underlying platform — for advanced use (capability checks,
+  /// iterative start/resume, etc.).
   MontyPlatform get platform => _platform;
 
-  @override
+  /// The current persisted state as a JSON-decoded map.
+  Map<String, Object?> get state => _session.state;
+
+  /// Executes Python [code] and returns the result.
+  ///
+  /// Variables defined in [code] persist for subsequent `run()` calls.
   Future<MontyResult> run(
     String code, {
     MontyLimits? limits,
     String? scriptName,
-  }) => _platform.run(code, limits: limits, scriptName: scriptName);
+  }) => _session.run(code, limits: limits, scriptName: scriptName);
 
-  @override
-  Future<MontyProgress> start(
+  /// Clears all persisted state.
+  ///
+  /// After calling this, the next `run()` starts with empty globals.
+  void clearState() => _session.clearState();
+
+  /// Releases all resources.
+  Future<void> dispose() async {
+    _session.dispose();
+    await _platform.dispose();
+  }
+
+  /// One-shot evaluation — creates, runs, disposes automatically.
+  ///
+  /// Stateless — no variable persistence across calls.
+  ///
+  /// ```dart
+  /// final result = await Monty.exec('2 + 2');
+  /// ```
+  static Future<MontyResult> exec(
     String code, {
-    List<String>? externalFunctions,
     MontyLimits? limits,
     String? scriptName,
-  }) => _platform.start(
-    code,
-    externalFunctions: externalFunctions,
-    limits: limits,
-    scriptName: scriptName,
-  );
-
-  @override
-  Future<MontyProgress> resume(Object? returnValue) =>
-      _platform.resume(returnValue);
-
-  @override
-  Future<MontyProgress> resumeWithError(String errorMessage) =>
-      _platform.resumeWithError(errorMessage);
-
-  @override
-  Future<void> dispose() => _platform.dispose();
+    OsProvider? os,
+  }) async {
+    final monty = Monty(os: os);
+    try {
+      return await monty.run(code, limits: limits, scriptName: scriptName);
+    } finally {
+      await monty.dispose();
+    }
+  }
 }

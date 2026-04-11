@@ -22,7 +22,7 @@ import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty_bridge/dart_monty_bridge.dart';
 
 Future<void> main() async {
-  final bridge = DefaultMontyBridge(platform: Monty());
+  final bridge = MontyBridge(platform: Monty());
 
   // Register a host function
   bridge.register(HostFunction(
@@ -53,7 +53,7 @@ Future<void> main() async {
 
 ## What Just Happened
 
-1. `DefaultMontyBridge` wraps a `MontyPlatform` and manages the
+1. `MontyBridge` wraps a `MontyPlatform` and manages the
    start/resume dispatch loop for you.
 2. `bridge.register()` tells the bridge about a function named `greet`
    with one string parameter.
@@ -75,7 +75,7 @@ resume('Hello, World!')
   -> MontyComplete(result: ...)
 ```
 
-`DefaultMontyBridge` automates this loop. You only need the raw protocol
+`MontyBridge` automates this loop. You only need the raw protocol
 if you are building a custom bridge. For normal usage, `register()` +
 `execute()` is all you need.
 

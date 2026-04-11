@@ -107,10 +107,7 @@ void main() {
       final handler = findHandler('tmpl_render');
       final huge = 'x' * (512 * 1024 + 1);
       expect(
-        () => handler({
-          'template': huge,
-          'context': <String, Object?>{},
-        }),
+        () => handler({'template': huge, 'context': <String, Object?>{}}),
         throwsFormatException,
       );
     });

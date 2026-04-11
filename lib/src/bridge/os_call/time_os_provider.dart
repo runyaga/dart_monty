@@ -1,28 +1,29 @@
-import 'package:dart_monty/dart_monty.dart';
-import 'package:dart_monty/src/bridge/os_call/os_call_handler.dart';
+import 'package:dart_monty/src/bridge/os_call/os_provider.dart';
+import 'package:dart_monty/src/platform/monty_progress.dart';
 
 /// Handles `date.*` and `datetime.*` OS calls.
 ///
 /// Accepts an injectable `clock` function for deterministic testing.
 /// When no clock is provided, uses `DateTime.now`.
 ///
-/// Register under both `'date.'` and `'datetime.'` prefixes in the router:
+/// Register under both `'date.'` and `'datetime.'` prefixes:
 /// ```dart
-/// final time = TimeOsCallHandler(clock: () => DateTime(2026, 1, 1));
-/// RouterOsCallHandler({
+/// final time = TimeOsProvider(clock: () => DateTime(2026, 1, 1));
+/// OsProvider.compose({
 ///   'date.': time,
 ///   'datetime.': time,
 /// });
 /// ```
-class TimeOsCallHandler extends OsCallHandler {
-  /// Creates a handler with an optional frozen [clock].
-  TimeOsCallHandler({DateTime Function()? clock})
-    : _clock = clock ?? DateTime.now;
+class TimeOsProvider extends OsProvider {
+  /// Creates a provider with an optional frozen [clock].
+  TimeOsProvider({DateTime Function()? clock})
+    : _clock = clock ?? DateTime.now,
+      super.base();
 
   final DateTime Function() _clock;
 
   @override
-  Future<Object?> handle(MontyOsCall call) {
+  Future<Object?> resolve(MontyOsCall call) {
     final now = _clock();
 
     return Future.value(switch (call.operationName) {

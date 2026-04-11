@@ -1,4 +1,5 @@
 import 'package:dart_monty/dart_monty.dart';
+import 'package:dart_monty/monty_backend_spi.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -236,10 +237,7 @@ void main() {
       });
 
       test('toJson omits kwargs when null', () {
-        const pending = MontyPending(
-          functionName: 'fn',
-          arguments: [],
-        );
+        const pending = MontyPending(functionName: 'fn', arguments: []);
         final json = pending.toJson();
         expect(json.containsKey('kwargs'), isFalse);
       });
@@ -255,10 +253,7 @@ void main() {
       });
 
       test('toJson omits callId when zero', () {
-        const pending = MontyPending(
-          functionName: 'fn',
-          arguments: [],
-        );
+        const pending = MontyPending(functionName: 'fn', arguments: []);
         final json = pending.toJson();
         expect(json.containsKey('call_id'), isFalse);
       });
@@ -274,10 +269,7 @@ void main() {
       });
 
       test('toJson omits methodCall when false', () {
-        const pending = MontyPending(
-          functionName: 'fn',
-          arguments: [],
-        );
+        const pending = MontyPending(functionName: 'fn', arguments: []);
         final json = pending.toJson();
         expect(json.containsKey('method_call'), isFalse);
       });
@@ -292,10 +284,7 @@ void main() {
       });
 
       test('JSON round-trip with empty arguments', () {
-        const original = MontyPending(
-          functionName: 'noop',
-          arguments: [],
-        );
+        const original = MontyPending(functionName: 'noop', arguments: []);
         final restored = MontyPending.fromJson(original.toJson());
         expect(restored, original);
       });
@@ -384,10 +373,7 @@ void main() {
             arguments: [],
             kwargs: {'a': MontyInt(1)},
           );
-          const b = MontyPending(
-            functionName: 'fn',
-            arguments: [],
-          );
+          const b = MontyPending(functionName: 'fn', arguments: []);
           expect(a, isNot(b));
         });
 
@@ -407,24 +393,13 @@ void main() {
         });
 
         test('not equal when callId differs', () {
-          const a = MontyPending(
-            functionName: 'fn',
-            arguments: [],
-            callId: 1,
-          );
-          const b = MontyPending(
-            functionName: 'fn',
-            arguments: [],
-            callId: 2,
-          );
+          const a = MontyPending(functionName: 'fn', arguments: [], callId: 1);
+          const b = MontyPending(functionName: 'fn', arguments: [], callId: 2);
           expect(a, isNot(b));
         });
 
         test('not equal when methodCall differs', () {
-          const a = MontyPending(
-            functionName: 'fn',
-            arguments: [],
-          );
+          const a = MontyPending(functionName: 'fn', arguments: []);
           const b = MontyPending(
             functionName: 'fn',
             arguments: [],
@@ -614,10 +589,7 @@ void main() {
       });
 
       test('toJson omits kwargs when null', () {
-        const osCall = MontyOsCall(
-          operationName: 'os.getcwd',
-          arguments: [],
-        );
+        const osCall = MontyOsCall(operationName: 'os.getcwd', arguments: []);
         final json = osCall.toJson();
         expect(json.containsKey('kwargs'), isFalse);
       });
@@ -632,10 +604,7 @@ void main() {
       });
 
       test('toJson omits callId when zero', () {
-        const osCall = MontyOsCall(
-          operationName: 'fn',
-          arguments: [],
-        );
+        const osCall = MontyOsCall(operationName: 'fn', arguments: []);
         expect(osCall.toJson().containsKey('call_id'), isFalse);
       });
 
@@ -673,14 +642,8 @@ void main() {
         });
 
         test('not equal when arguments differ', () {
-          const a = MontyOsCall(
-            operationName: 'fn',
-            arguments: [MontyInt(1)],
-          );
-          const b = MontyOsCall(
-            operationName: 'fn',
-            arguments: [MontyInt(2)],
-          );
+          const a = MontyOsCall(operationName: 'fn', arguments: [MontyInt(1)]);
+          const b = MontyOsCall(operationName: 'fn', arguments: [MontyInt(2)]);
           expect(a, isNot(b));
         });
 
@@ -795,9 +758,7 @@ void main() {
 
       test('throws on unknown type', () {
         expect(
-          () => MontyProgress.fromJson(const {
-            'type': 'unknown',
-          }),
+          () => MontyProgress.fromJson(const {'type': 'unknown'}),
           throwsA(isA<ArgumentError>()),
         );
       });
@@ -882,19 +843,13 @@ void main() {
         const a = MontyPending(
           functionName: 'fn',
           arguments: [
-            MontyDict({
-              'key': MontyString('val'),
-              'nested': MontyBool(true),
-            }),
+            MontyDict({'key': MontyString('val'), 'nested': MontyBool(true)}),
           ],
         );
         const b = MontyPending(
           functionName: 'fn',
           arguments: [
-            MontyDict({
-              'key': MontyString('val'),
-              'nested': MontyBool(true),
-            }),
+            MontyDict({'key': MontyString('val'), 'nested': MontyBool(true)}),
           ],
         );
         expect(a, b);
@@ -996,9 +951,7 @@ void main() {
 
       test('MontyResolveFutures.fromJson throws on missing call_ids', () {
         expect(
-          () => MontyResolveFutures.fromJson(
-            const {'type': 'resolve_futures'},
-          ),
+          () => MontyResolveFutures.fromJson(const {'type': 'resolve_futures'}),
           throwsA(isA<TypeError>()),
         );
       });

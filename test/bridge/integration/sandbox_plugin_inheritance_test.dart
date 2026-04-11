@@ -1,9 +1,10 @@
 @Tags(['integration'])
 library;
 
-import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
-import 'package:dart_monty/dart_monty_ffi.dart';
+import 'package:dart_monty/monty_backend_spi.dart';
+import 'package:dart_monty/src/ffi/monty_ffi.dart';
+import 'package:dart_monty/src/ffi/native_bindings_ffi.dart';
 import 'package:test/test.dart';
 
 /// Child bridges use useFutures: false (#212), so host function calls
@@ -30,7 +31,7 @@ void main() {
   MontyPlatform createPlatform() => MontyFfi(bindings: bindings);
 
   /// Executes [code] on a bridge and returns the final value or throws.
-  Future<Object?> run(DefaultMontyBridge bridge, String code) async {
+  Future<Object?> run(MontyBridge bridge, String code) async {
     Object? result;
     String? error;
     await for (final event in bridge.execute(code)) {
@@ -50,8 +51,8 @@ void main() {
   // Parent bridge uses useFutures: false for simpler test code.
   // Child bridges (created by SandboxPlugin) also use useFutures: false
   // (see #212 — prevents unawaited Future leaking as Python coroutine).
-  DefaultMontyBridge createBridge() =>
-      DefaultMontyBridge(platform: createPlatform(), useFutures: false);
+  MontyBridge createBridge() =>
+      MontyBridge(platform: createPlatform(), useFutures: false);
 
   // ---------------------------------------------------------------------------
   // Baseline: child sandboxs work without plugins
@@ -187,10 +188,7 @@ void main() {
 
       // Each child increments its own counter independently.
       // useFutures: false — direct calls, no async/await needed.
-      final cc = [
-        'counter_increment()',
-        'counter_get()',
-      ].join(r'\n');
+      final cc = ['counter_increment()', 'counter_get()'].join(r'\n');
       final result = await run(
         bridge,
         'h1 = ${spawn(cc)}\n'

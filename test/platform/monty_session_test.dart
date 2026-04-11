@@ -1,6 +1,6 @@
 import 'package:dart_monty/dart_monty.dart';
-import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:dart_monty/dart_monty_testing.dart';
+import 'package:dart_monty/monty_backend_spi.dart';
 import 'package:test/test.dart';
 
 /// Shared zero-cost usage for test results.
@@ -23,10 +23,7 @@ void main() {
     group('run()', () {
       test('set and read variable', () async {
         // First run: x = 42 — restore empty, persist {x: 42}
-        _enqueueRunCycle(
-          mock,
-          stateToPersist: {'x': 42},
-        );
+        _enqueueRunCycle(mock, stateToPersist: {'x': 42});
         final r1 = await session.run('x = 42');
         expect(r1.value, isNull);
 
@@ -76,10 +73,7 @@ void main() {
       test('non-serializable silently dropped', () async {
         // The persist postamble only captures vars that don't error.
         // The mock simulates that 'math' is not in the persisted dict.
-        _enqueueRunCycle(
-          mock,
-          stateToPersist: {'x': 42},
-        );
+        _enqueueRunCycle(mock, stateToPersist: {'x': 42});
         await session.run('x = 42');
 
         final persisted = session.state;
@@ -158,9 +152,7 @@ void main() {
               arguments: [],
             ),
           )
-          ..enqueueProgress(
-            const MontyResolveFutures(pendingCallIds: [1, 2]),
-          )
+          ..enqueueProgress(const MontyResolveFutures(pendingCallIds: [1, 2]))
           ..enqueueProgress(
             MontyPending(
               functionName: '__persist_state__',
@@ -221,24 +213,14 @@ void main() {
             ),
           )
           ..enqueueProgress(
-            const MontyPending(
-              functionName: 'fetch',
-              arguments: [],
-            ),
+            const MontyPending(functionName: 'fetch', arguments: []),
           );
 
-        await session.start(
-          'fetch()',
-          externalFunctions: ['fetch'],
-        );
+        await session.start('fetch()', externalFunctions: ['fetch']);
 
         expect(
           mock.lastStartExternalFunctions,
-          containsAll([
-            '__restore_state__',
-            '__persist_state__',
-            'fetch',
-          ]),
+          containsAll(['__restore_state__', '__persist_state__', 'fetch']),
         );
       });
 
@@ -251,16 +233,10 @@ void main() {
             ),
           )
           ..enqueueProgress(
-            const MontyPending(
-              functionName: 'fetch',
-              arguments: [],
-            ),
+            const MontyPending(functionName: 'fetch', arguments: []),
           );
 
-        await session.start(
-          'result = fetch()',
-          externalFunctions: ['fetch'],
-        );
+        await session.start('result = fetch()', externalFunctions: ['fetch']);
 
         final code = mock.lastStartCode!;
         expect(code, contains('__restore_state__()'));
@@ -323,10 +299,7 @@ void main() {
             ),
           )
           ..enqueueProgress(
-            const MontyPending(
-              functionName: 'step1',
-              arguments: [],
-            ),
+            const MontyPending(functionName: 'step1', arguments: []),
           );
 
         await session.start(
@@ -335,10 +308,7 @@ void main() {
         );
 
         mock.enqueueProgress(
-          const MontyPending(
-            functionName: 'step2',
-            arguments: [],
-          ),
+          const MontyPending(functionName: 'step2', arguments: []),
         );
 
         final p2 = await session.resume('result1');
@@ -376,9 +346,7 @@ void main() {
             ),
           )
           ..enqueueProgress(
-            const MontyComplete(
-              result: MontyResult(usage: _usage),
-            ),
+            const MontyComplete(result: MontyResult(usage: _usage)),
           );
 
         final p2 = await session.resumeWithError('network failure');
@@ -390,10 +358,7 @@ void main() {
 
     group('clearState()', () {
       test('resets persisted state', () async {
-        _enqueueRunCycle(
-          mock,
-          stateToPersist: {'x': 1},
-        );
+        _enqueueRunCycle(mock, stateToPersist: {'x': 1});
         await session.run('x = 1');
         expect(session.state, {'x': 1});
 
@@ -408,10 +373,7 @@ void main() {
       });
 
       test('returns copy (not mutable reference)', () async {
-        _enqueueRunCycle(
-          mock,
-          stateToPersist: {'x': 1},
-        );
+        _enqueueRunCycle(mock, stateToPersist: {'x': 1});
         await session.run('x = 1');
 
         final s1 = session.state;
@@ -422,10 +384,7 @@ void main() {
 
     group('dispose()', () {
       test('clears state and marks disposed', () async {
-        _enqueueRunCycle(
-          mock,
-          stateToPersist: {'x': 1},
-        );
+        _enqueueRunCycle(mock, stateToPersist: {'x': 1});
         await session.run('x = 1');
 
         session.dispose();
@@ -434,28 +393,19 @@ void main() {
 
       test('run() throws after dispose', () {
         session.dispose();
-        expect(
-          () => session.run('1'),
-          throwsA(isA<StateError>()),
-        );
+        expect(() => session.run('1'), throwsA(isA<StateError>()));
       });
 
       test('clearState() throws after dispose', () {
         session.dispose();
-        expect(
-          () => session.clearState(),
-          throwsA(isA<StateError>()),
-        );
+        expect(() => session.clearState(), throwsA(isA<StateError>()));
       });
     });
 
     group('edge cases', () {
       test('error preserves previous state', () async {
         // First run succeeds with x=10
-        _enqueueRunCycle(
-          mock,
-          stateToPersist: {'x': 10},
-        );
+        _enqueueRunCycle(mock, stateToPersist: {'x': 10});
         await session.run('x = 10');
         expect(session.state, {'x': 10});
 
@@ -492,10 +442,7 @@ void main() {
         final sessionA = MontySession(platform: mockA);
         final sessionB = MontySession(platform: mockB);
 
-        _enqueueRunCycle(
-          mockA,
-          stateToPersist: {'x': 1},
-        );
+        _enqueueRunCycle(mockA, stateToPersist: {'x': 1});
         await sessionA.run('x = 1');
 
         expect(sessionA.state, {'x': 1});
@@ -527,9 +474,7 @@ void main() {
               arguments: [],
             ),
           )
-          ..enqueueProgress(
-            const MontyResolveFutures(pendingCallIds: [1]),
-          );
+          ..enqueueProgress(const MontyResolveFutures(pendingCallIds: [1]));
 
         final progress = await session.start(
           'x = fetch()',
@@ -565,13 +510,8 @@ void main() {
       });
 
       test('dunder and underscore variables excluded', () async {
-        _enqueueRunCycle(
-          mock,
-          stateToPersist: {'public': 3},
-        );
-        await session.run(
-          '__private = 1\n_also_private = 2\npublic = 3',
-        );
+        _enqueueRunCycle(mock, stateToPersist: {'public': 3});
+        await session.run('__private = 1\n_also_private = 2\npublic = 3');
 
         // extractAssignmentTargets should only find 'public'
         final code = mock.lastStartCode!;
@@ -598,10 +538,7 @@ void main() {
 
       test('resume() throws after dispose', () {
         session.dispose();
-        expect(
-          () => session.resume('val'),
-          throwsA(isA<StateError>()),
-        );
+        expect(() => session.resume('val'), throwsA(isA<StateError>()));
       });
 
       test('resumeWithError() throws after dispose', () {
@@ -780,9 +717,7 @@ void main() {
             ),
           )
           ..enqueueProgress(
-            const MontyComplete(
-              result: MontyResult(usage: _usage),
-            ),
+            const MontyComplete(result: MontyResult(usage: _usage)),
           );
 
         final result = await session.run('import os');
@@ -873,9 +808,7 @@ void main() {
       test(
         'MontyScriptError during resumeWithError returns error result',
         () async {
-          const exc = MontyException(
-            message: 'internal error',
-          );
+          const exc = MontyException(message: 'internal error');
           // Start succeeds, then restore pending, then unknown fn triggers
           // resumeWithError which throws.
           final throwing =
@@ -892,10 +825,7 @@ void main() {
                   ),
                 )
                 ..enqueueProgress(
-                  const MontyPending(
-                    functionName: 'unknown_fn',
-                    arguments: [],
-                  ),
+                  const MontyPending(functionName: 'unknown_fn', arguments: []),
                 );
 
           final s = MontySession(platform: throwing);
@@ -934,10 +864,7 @@ void main() {
                 ),
               )
               ..enqueueProgress(
-                const MontyPending(
-                  functionName: 'unknown_fn',
-                  arguments: [],
-                ),
+                const MontyPending(functionName: 'unknown_fn', arguments: []),
               );
 
         final s = MontySession(platform: throwing);
@@ -965,9 +892,7 @@ void main() {
             ),
           )
           ..enqueueProgress(
-            const MontyComplete(
-              result: MontyResult(usage: _usage),
-            ),
+            const MontyComplete(result: MontyResult(usage: _usage)),
           );
 
         await session.run('pass');
@@ -1122,10 +1047,7 @@ void main() {
                   ),
                 )
                 ..enqueueProgress(
-                  const MontyPending(
-                    functionName: 'unknown_fn',
-                    arguments: [],
-                  ),
+                  const MontyPending(functionName: 'unknown_fn', arguments: []),
                 );
 
           final s = MontySession(platform: throwing);
@@ -1137,20 +1059,20 @@ void main() {
       );
     });
 
-    group('OsCallHandler lifecycle', () {
-      test('session.dispose() disposes OsCallHandler', () {
-        final handler = _MockOsCallHandler();
-        MontySession(platform: mock, osCallHandler: handler).dispose();
+    group('OsProvider lifecycle', () {
+      test('session.dispose() disposes OsProvider', () {
+        final handler = _MockOsProvider();
+        MontySession(platform: mock, os: handler).dispose();
 
         expect(handler.disposed, isTrue);
         expect(handler.disposeCount, 1);
       });
 
       test('run() dispatches OsCall through handler', () async {
-        final handler = _MockOsCallHandler(
-          onHandle: (call) async => 'file content',
+        final handler = _MockOsProvider(
+          onResolve: (call) async => 'file content',
         );
-        final s = MontySession(platform: mock, osCallHandler: handler);
+        final s = MontySession(platform: mock, os: handler);
 
         mock
           ..enqueueProgress(
@@ -1173,25 +1095,23 @@ void main() {
             ),
           )
           ..enqueueProgress(
-            const MontyComplete(
-              result: MontyResult(usage: _usage),
-            ),
+            const MontyComplete(result: MontyResult(usage: _usage)),
           );
 
         await s.run('open("/sandbox/test.txt")');
 
         // Handler was invoked and resume received the handler's return value.
-        expect(handler.handleCount, 1);
+        expect(handler.resolveCount, 1);
         expect(mock.resumeReturnValues, contains('file content'));
 
         s.dispose();
       });
 
       test('run() catches handler error and resumes with error', () async {
-        final handler = _MockOsCallHandler(
-          onHandle: (call) async => throw StateError('disk on fire'),
+        final handler = _MockOsProvider(
+          onResolve: (call) async => throw StateError('disk on fire'),
         );
-        final s = MontySession(platform: mock, osCallHandler: handler);
+        final s = MontySession(platform: mock, os: handler);
 
         mock
           ..enqueueProgress(
@@ -1214,9 +1134,7 @@ void main() {
             ),
           )
           ..enqueueProgress(
-            const MontyComplete(
-              result: MontyResult(usage: _usage),
-            ),
+            const MontyComplete(result: MontyResult(usage: _usage)),
           );
 
         await s.run('write("/sandbox/out.txt")');
@@ -1228,13 +1146,13 @@ void main() {
       });
 
       test('run() catches OsCallFileNotFoundError', () async {
-        final handler = _MockOsCallHandler(
-          onHandle: (call) async => throw const OsCallFileNotFoundError(
+        final handler = _MockOsProvider(
+          onResolve: (call) async => throw const OsCallFileNotFoundError(
             'Path.read_text',
             'No such file: /sandbox/missing.txt',
           ),
         );
-        final s = MontySession(platform: mock, osCallHandler: handler);
+        final s = MontySession(platform: mock, os: handler);
 
         mock
           ..enqueueProgress(
@@ -1257,18 +1175,13 @@ void main() {
             ),
           )
           ..enqueueProgress(
-            const MontyComplete(
-              result: MontyResult(usage: _usage),
-            ),
+            const MontyComplete(result: MontyResult(usage: _usage)),
           );
 
         await s.run('open("/sandbox/missing.txt")');
 
         expect(mock.resumeErrorMessages, hasLength(1));
-        expect(
-          mock.resumeErrorMessages.first,
-          contains('FileNotFoundError'),
-        );
+        expect(mock.resumeErrorMessages.first, contains('FileNotFoundError'));
 
         s.dispose();
       });
@@ -1276,17 +1189,15 @@ void main() {
 
     group('extractAssignmentTargets', () {
       test('finds simple assignments', () {
-        expect(
-          MontySession.extractAssignmentTargets('x = 42'),
-          {'x'},
-        );
+        expect(MontySession.extractAssignmentTargets('x = 42'), {'x'});
       });
 
       test('finds multiple assignments', () {
-        expect(
-          MontySession.extractAssignmentTargets('x = 1\ny = 2\nz = 3'),
-          {'x', 'y', 'z'},
-        );
+        expect(MontySession.extractAssignmentTargets('x = 1\ny = 2\nz = 3'), {
+          'x',
+          'y',
+          'z',
+        });
       });
 
       test('excludes underscore-prefixed names', () {
@@ -1299,10 +1210,7 @@ void main() {
       });
 
       test('excludes comparisons (==)', () {
-        expect(
-          MontySession.extractAssignmentTargets('x == 42'),
-          isEmpty,
-        );
+        expect(MontySession.extractAssignmentTargets('x == 42'), isEmpty);
       });
 
       test('handles no assignments', () {
@@ -1321,12 +1229,11 @@ void main() {
       });
 
       test('handles semicolons (multi-statement lines)', () {
-        expect(
-          MontySession.extractAssignmentTargets(
-            'x = 1; y = 2; z = 3',
-          ),
-          {'x', 'y', 'z'},
-        );
+        expect(MontySession.extractAssignmentTargets('x = 1; y = 2; z = 3'), {
+          'x',
+          'y',
+          'z',
+        });
       });
     });
   });
@@ -1335,9 +1242,7 @@ void main() {
 /// Converts a raw `Map<String, Object?>` to a [MontyDict] for use in
 /// `__persist_state__` arguments.
 MontyDict _toMontyDict(Map<String, Object?> map) {
-  return MontyDict(
-    map.map((k, v) => MapEntry(k, MontyValue.fromJson(v))),
-  );
+  return MontyDict(map.map((k, v) => MapEntry(k, MontyValue.fromJson(v))));
 }
 
 /// Enqueues a full run cycle: restore → persist → complete.
@@ -1349,10 +1254,7 @@ void _enqueueRunCycle(
   mock
     // 1. restore
     ..enqueueProgress(
-      const MontyPending(
-        functionName: '__restore_state__',
-        arguments: [],
-      ),
+      const MontyPending(functionName: '__restore_state__', arguments: []),
     )
     // 2. persist
     ..enqueueProgress(
@@ -1413,18 +1315,18 @@ class _ThrowingMockPlatform extends MockMontyPlatform {
   }
 }
 
-class _MockOsCallHandler extends OsCallHandler {
-  _MockOsCallHandler({this.onHandle});
+class _MockOsProvider extends OsProvider {
+  _MockOsProvider({this.onResolve}) : super.base();
 
-  final Future<Object?> Function(MontyOsCall)? onHandle;
+  final Future<Object?> Function(MontyOsCall)? onResolve;
   bool disposed = false;
   int disposeCount = 0;
-  int handleCount = 0;
+  int resolveCount = 0;
 
   @override
-  Future<Object?> handle(MontyOsCall call) {
-    handleCount++;
-    if (onHandle != null) return onHandle!(call);
+  Future<Object?> resolve(MontyOsCall call) {
+    resolveCount++;
+    if (onResolve != null) return onResolve!(call);
     return Future.value();
   }
 

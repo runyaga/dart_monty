@@ -1,6 +1,7 @@
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:dart_monty/dart_monty_testing.dart';
+import 'package:dart_monty/monty_backend_spi.dart';
 import 'package:test/test.dart';
 
 const _usage = MontyResourceUsage(
@@ -11,11 +12,11 @@ const _usage = MontyResourceUsage(
 
 void main() {
   late MockMontyPlatform mock;
-  late DefaultMontyBridge bridge;
+  late MontyBridge bridge;
 
   setUp(() {
     mock = MockMontyPlatform();
-    bridge = DefaultMontyBridge(platform: mock);
+    bridge = MontyBridge(platform: mock);
   });
 
   tearDown(() {
@@ -78,7 +79,7 @@ void main() {
           ),
         ),
       );
-      final b = DefaultMontyBridge(platform: mock);
+      final b = MontyBridge(platform: mock);
       addTearDown(b.dispose);
 
       final events = await b.execute('x = 1').toList();
@@ -438,7 +439,7 @@ void main() {
       // Use sync dispatch (useFutures: false) so BridgeToolCallResult is
       // emitted immediately in _dispatchToolCall, not deferred.
       final syncMock = MockMontyPlatform();
-      final syncBridge = DefaultMontyBridge(
+      final syncBridge = MontyBridge(
         platform: syncMock,
         useFutures: false,
       );
@@ -466,7 +467,7 @@ void main() {
 
     test('middleware can throw to reject a call', () async {
       final syncMock = MockMontyPlatform();
-      final syncBridge = DefaultMontyBridge(
+      final syncBridge = MontyBridge(
         platform: syncMock,
         useFutures: false,
       );
@@ -599,14 +600,8 @@ void main() {
 
       // Should have called resumeWithError with PermissionError.
       expect(mock.resumeErrorMessages, hasLength(1));
-      expect(
-        mock.resumeErrorMessages.first,
-        contains('PermissionError'),
-      );
-      expect(
-        mock.resumeErrorMessages.first,
-        contains('Path.read_text'),
-      );
+      expect(mock.resumeErrorMessages.first, contains('PermissionError'));
+      expect(mock.resumeErrorMessages.first, contains('Path.read_text'));
 
       // Should have emitted OsCall events.
       final starts = events.whereType<BridgeOsCallStart>().toList();
@@ -618,8 +613,8 @@ void main() {
     });
 
     test('invokes registered handler and resumes with result', () async {
-      bridge.registerOsCallHandler(
-        _TestOsCallHandler((call) async {
+      bridge.registerOs(
+        _TestOsProvider((call) async {
           if (call.operationName == 'os.getenv') {
             return 'production';
           }
@@ -657,8 +652,8 @@ void main() {
     });
 
     test('handler exception resumes with error', () async {
-      bridge.registerOsCallHandler(
-        _TestOsCallHandler((call) async {
+      bridge.registerOs(
+        _TestOsProvider((call) async {
           throw StateError('disk on fire');
         }),
       );
@@ -689,20 +684,18 @@ void main() {
       expect(results.first.result, contains('disk on fire'));
     });
 
-    test('registerOsCallHandler after dispose throws StateError', () {
+    test('registerOs after dispose throws StateError', () {
       bridge.dispose();
       expect(
-        () => bridge.registerOsCallHandler(
-          _TestOsCallHandler((_) async => null),
-        ),
+        () => bridge.registerOs(_TestOsProvider((_) async => null)),
         throwsStateError,
       );
     });
 
-    test('bridge.dispose() disposes registered OsCallHandler', () {
-      final handler = _DisposableOsCallHandler();
+    test('bridge.dispose() disposes registered OsProvider', () {
+      final handler = _DisposableOsProvider();
       bridge
-        ..registerOsCallHandler(handler)
+        ..registerOs(handler)
         ..dispose();
 
       expect(handler.disposed, isTrue);
@@ -714,11 +707,9 @@ void main() {
       bridge.dispose();
 
       // Calling again (already disposed) should not double-dispose.
-      // registerOsCallHandler should throw since disposed.
+      // registerOs should throw since disposed.
       expect(
-        () => bridge.registerOsCallHandler(
-          _DisposableOsCallHandler(),
-        ),
+        () => bridge.registerOs(_DisposableOsProvider()),
         throwsStateError,
       );
     });
@@ -839,7 +830,7 @@ void main() {
       final throwingMock = _ThrowingOnResumePlatform(
         throwOnResume: const MontyPanicError('WASM trap'),
       );
-      final b = DefaultMontyBridge(
+      final b = MontyBridge(
         platform: throwingMock,
         logger: const NullBridgeLogger(),
       );
@@ -862,7 +853,7 @@ void main() {
         final throwingMock = _ThrowingOnResumePlatform(
           throwOnResume: 'unexpected string error',
         );
-        final b = DefaultMontyBridge(
+        final b = MontyBridge(
           platform: throwingMock,
           logger: const NullBridgeLogger(),
         );
@@ -883,7 +874,7 @@ void main() {
       // Register a function that triggers a pending, write to print buffer,
       // then resume throws.
       final throwingMock = _PrintThenThrowPlatform();
-      final b = DefaultMontyBridge(
+      final b = MontyBridge(
         platform: throwingMock,
         logger: const NullBridgeLogger(),
       );
@@ -929,18 +920,12 @@ void main() {
 
     test('unregister after dispose throws StateError', () {
       bridge.dispose();
-      expect(
-        () => bridge.unregister('fn'),
-        throwsStateError,
-      );
+      expect(() => bridge.unregister('fn'), throwsStateError);
     });
 
     test('execute after dispose throws StateError', () {
       bridge.dispose();
-      expect(
-        () => bridge.execute('1 + 1'),
-        throwsStateError,
-      );
+      expect(() => bridge.execute('1 + 1'), throwsStateError);
     });
 
     test('execute while already executing throws StateError', () async {
@@ -1063,10 +1048,7 @@ void main() {
     test('unknown function in pending resumes with error', () async {
       mock
         ..enqueueProgress(
-          const MontyPending(
-            functionName: 'not_registered',
-            arguments: [],
-          ),
+          const MontyPending(functionName: 'not_registered', arguments: []),
         )
         ..enqueueProgress(
           const MontyComplete(result: MontyResult(usage: _usage)),
@@ -1085,7 +1067,7 @@ void main() {
   group('argument validation error in _dispatchToolCall', () {
     test('FormatException from mapAndValidate resumes with error', () async {
       final syncMock = MockMontyPlatform();
-      final syncBridge = DefaultMontyBridge(
+      final syncBridge = MontyBridge(
         platform: syncMock,
         useFutures: false,
         logger: const NullBridgeLogger(),
@@ -1149,10 +1131,10 @@ void main() {
 
   group('ResolveFutures without futures-capable platform', () {
     test('resumes with null when not futures-capable and no pending', () async {
-      // DefaultMontyBridge with useFutures: false — ResolveFutures just resumes
+      // MontyBridge with useFutures: false — ResolveFutures just resumes
       // with null.
       final syncMock = MockMontyPlatform();
-      final syncBridge = DefaultMontyBridge(
+      final syncBridge = MontyBridge(
         platform: syncMock,
         useFutures: false,
         logger: const NullBridgeLogger(),
@@ -1160,9 +1142,7 @@ void main() {
       addTearDown(syncBridge.dispose);
 
       syncMock
-        ..enqueueProgress(
-          const MontyResolveFutures(pendingCallIds: [1]),
-        )
+        ..enqueueProgress(const MontyResolveFutures(pendingCallIds: [1]))
         ..enqueueProgress(
           const MontyComplete(result: MontyResult(usage: _usage)),
         );
@@ -1306,20 +1286,21 @@ class _ThrowingOnResumePlatform extends MockMontyPlatform {
   }
 }
 
-class _TestOsCallHandler extends OsCallHandler {
-  _TestOsCallHandler(this._fn);
+class _TestOsProvider extends OsProvider {
+  _TestOsProvider(this._fn) : super.base();
   final Future<Object?> Function(MontyOsCall) _fn;
 
   @override
-  Future<Object?> handle(MontyOsCall call) => _fn(call);
+  Future<Object?> resolve(MontyOsCall call) => _fn(call);
 }
 
-class _DisposableOsCallHandler extends OsCallHandler {
+class _DisposableOsProvider extends OsProvider {
+  _DisposableOsProvider() : super.base();
   bool disposed = false;
   int disposeCount = 0;
 
   @override
-  Future<Object?> handle(MontyOsCall call) => Future.value();
+  Future<Object?> resolve(MontyOsCall call) => Future.value();
 
   @override
   Future<void> dispose() async {

@@ -4,9 +4,7 @@ import 'package:meta/meta.dart';
 
 /// Async handler that receives validated named arguments and returns a result.
 typedef HostFunctionHandler =
-    Future<Object?> Function(
-      Map<String, Object?> args,
-    );
+    Future<Object?> Function(Map<String, Object?> args);
 
 /// A host function: schema + handler + optional role.
 @immutable

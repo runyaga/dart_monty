@@ -8,11 +8,7 @@ part of 'monty_value.dart';
 @immutable
 final class MontyDate extends MontyValue {
   /// Creates a [MontyDate] with the given [year], [month], and [day].
-  const MontyDate({
-    required this.year,
-    required this.month,
-    required this.day,
-  });
+  const MontyDate({required this.year, required this.month, required this.day});
 
   factory MontyDate._fromMap(Map<String, dynamic> map) => MontyDate(
     year: (map['year'] as num).toInt(),
@@ -38,7 +34,7 @@ final class MontyDate extends MontyValue {
   };
 
   @override
-  Map<String, Object?> get dartValue => toJson();
+  DateTime get dartValue => DateTime(year, month, day);
 
   @override
   bool operator ==(Object other) =>
@@ -127,7 +123,16 @@ final class MontyDateTime extends MontyValue {
   };
 
   @override
-  Map<String, Object?> get dartValue => toJson();
+  DateTime get dartValue => DateTime(
+    year,
+    month,
+    day,
+    hour,
+    minute,
+    second,
+    0,
+    microsecond,
+  );
 
   @override
   bool operator ==(Object other) =>
@@ -199,7 +204,11 @@ final class MontyTimeDelta extends MontyValue {
   };
 
   @override
-  Map<String, Object?> get dartValue => toJson();
+  Duration get dartValue => Duration(
+    days: days,
+    seconds: seconds,
+    microseconds: microseconds,
+  );
 
   @override
   bool operator ==(Object other) =>

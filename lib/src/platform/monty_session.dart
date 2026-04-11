@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:dart_monty/src/bridge/os_call/os_call_handler.dart';
+import 'package:dart_monty/src/bridge/os_call/os_provider.dart';
 import 'package:dart_monty/src/platform/monty_error.dart';
 import 'package:dart_monty/src/platform/monty_exception.dart';
 import 'package:dart_monty/src/platform/monty_limits.dart';
@@ -70,17 +70,15 @@ class MontySession {
   /// The session does not take ownership of the platform — calling
   /// [dispose] on the session does NOT dispose the underlying platform.
   ///
-  /// If [osCallHandler] is provided, OS calls (pathlib, os.getenv,
+  /// If [os] is provided, OS calls (pathlib, os.getenv,
   /// datetime) are dispatched through it during [run]. Without a handler,
   /// OS calls resume with an error.
-  MontySession({
-    required MontyPlatform platform,
-    OsCallHandler? osCallHandler,
-  }) : _platform = platform,
-       _osCallHandler = osCallHandler;
+  MontySession({required MontyPlatform platform, OsProvider? os})
+    : _platform = platform,
+      _os = os;
 
   final MontyPlatform _platform;
-  final OsCallHandler? _osCallHandler;
+  final OsProvider? _os;
   Map<String, Object?> _state = {};
   bool _disposed = false;
 
@@ -134,16 +132,16 @@ class MontySession {
           progress = await _safeResume(null);
 
         case MontyOsCall():
-          if (_osCallHandler != null) {
+          if (_os != null) {
             try {
-              final result = await _osCallHandler.handle(progress);
+              final result = await _os.resolve(progress);
               progress = await _safeResume(result);
             } on Object catch (e) {
               progress = await _safeResumeWithError(e.toString());
             }
           } else {
             progress = await _safeResumeWithError(
-              'OS operations not available — no OsCallHandler configured',
+              'OS operations not available — no OsProvider configured',
             );
           }
       }
@@ -168,11 +166,7 @@ class MontySession {
   }) async {
     _checkNotDisposed();
     final wrappedCode = _wrapCode(code);
-    final allExtFns = [
-      _restoreStateFn,
-      _persistStateFn,
-      ...?externalFunctions,
-    ];
+    final allExtFns = [_restoreStateFn, _persistStateFn, ...?externalFunctions];
 
     final progress = await _safeStart(
       wrappedCode,
@@ -217,12 +211,12 @@ class MontySession {
 
   /// Disposes the session.
   ///
-  /// Clears persisted state and disposes the [OsCallHandler] if one was
+  /// Clears persisted state and disposes the [OsProvider] if one was
   /// provided. Does NOT dispose the underlying [MontyPlatform].
   void dispose() {
     _state = {};
     _disposed = true;
-    unawaited(_osCallHandler?.dispose());
+    unawaited(_os?.dispose());
   }
 
   /// Whether this session has been disposed.

@@ -1,7 +1,18 @@
 import 'dart:async';
 
-import 'package:dart_monty/dart_monty.dart';
-import 'package:dart_monty/dart_monty_bridge.dart';
+import 'package:dart_monty/src/bridge/bridge/bridge_event.dart';
+import 'package:dart_monty/src/bridge/bridge/default_monty_bridge.dart';
+import 'package:dart_monty/src/bridge/bridge/host_function.dart';
+import 'package:dart_monty/src/bridge/bridge/host_function_schema.dart';
+import 'package:dart_monty/src/bridge/bridge/host_param.dart';
+import 'package:dart_monty/src/bridge/bridge/host_param_type.dart';
+import 'package:dart_monty/src/bridge/bridge/monty_plugin.dart';
+import 'package:dart_monty/src/bridge/bridge/plugin_registry.dart';
+import 'package:dart_monty/src/bridge/os_call/memory_fs_provider.dart';
+import 'package:dart_monty/src/bridge/os_call/os_provider.dart';
+import 'package:dart_monty/src/platform/monty_exception.dart';
+import 'package:dart_monty/src/platform/monty_limits.dart';
+import 'package:dart_monty/src/platform/monty_platform.dart';
 import 'package:path/path.dart' as p;
 
 /// Exception thrown when a child sandbox fails or is disposed.
@@ -40,10 +51,7 @@ typedef MontyPlatformFactory = Future<MontyPlatform> Function();
 /// Called during [SandboxPlugin._handleSpawn] to produce static,
 /// infrastructure-level prompt content (e.g., child identity, workspace path).
 /// Return `null` to skip the builder layer for a given child.
-typedef ChildSystemPromptBuilder =
-    String? Function(
-      ChildSpawnContext context,
-    );
+typedef ChildSystemPromptBuilder = String? Function(ChildSpawnContext context);
 
 /// Factory that creates and configures a [PluginRegistry] for child bridges.
 ///
@@ -52,9 +60,7 @@ typedef ChildSystemPromptBuilder =
 ///
 /// Return `null` to give children only introspection builtins (no plugins).
 typedef ChildPluginRegistryFactory =
-    Future<PluginRegistry?> Function(
-      ChildSpawnContext context,
-    );
+    Future<PluginRegistry?> Function(ChildSpawnContext context);
 
 /// Tracks a spawned child interpreter.
 class _ChildHandle {
@@ -241,7 +247,7 @@ class SandboxPlugin extends MontyPlugin {
     this.childLimits,
     this.sandboxBaseDir,
     this.systemPromptBuilder,
-    this.parentOsCallHandler,
+    this.parentOs,
   });
 
   /// Creates a fresh [MontyPlatform] for each child.
@@ -288,10 +294,10 @@ class SandboxPlugin extends MontyPlugin {
   /// Optional OS call handler from the parent bridge.
   ///
   /// When provided, each child gets an isolated VFS with its own
-  /// `MemoryFsOsCallHandler`. Time and environment handlers are shared
-  /// from the parent (if the parent uses a `RouterOsCallHandler`).
+  /// `MemoryFsProvider`. Time and environment handlers are shared
+  /// from the parent (if the parent uses a composite `OsProvider`).
   /// When null, children have no OS call access.
-  final OsCallHandler? parentOsCallHandler;
+  final OsProvider? parentOs;
 
   final Map<int, _ChildHandle> _children = {};
   int _nextId = 0;
@@ -493,9 +499,9 @@ class SandboxPlugin extends MontyPlugin {
         },
       );
 
-      final childOsHandler = _buildChildOsCallHandler();
-      if (childOsHandler != null) {
-        bridge.registerOsCallHandler(childOsHandler);
+      final childOs = _buildChildOsProvider();
+      if (childOs != null) {
+        bridge.registerOs(childOs);
       }
 
       childRegistry = await _wireChildPlugins(
@@ -639,10 +645,7 @@ class SandboxPlugin extends MontyPlugin {
                 StackTrace.current,
               );
             } else {
-              logger.info(
-                'Child completed',
-                attributes: {'childId': childId},
-              );
+              logger.info('Child completed', attributes: {'childId': childId});
               completer.complete(childValue);
             }
           }
@@ -692,32 +695,25 @@ class SandboxPlugin extends MontyPlugin {
     return registry;
   }
 
-  /// Builds an isolated [OsCallHandler] for a child sandbox.
+  /// Builds an isolated [OsProvider] for a child sandbox.
   ///
-  /// Each child gets a fresh [MemoryFsOsCallHandler] (isolated VFS).
+  /// Each child gets a fresh [MemoryFsProvider] (isolated VFS).
   /// Time and environment handlers are shared from the parent's router
   /// if available. Returns `null` when no parent handler is configured.
-  OsCallHandler? _buildChildOsCallHandler() {
-    final parent = parentOsCallHandler;
+  OsProvider? _buildChildOsProvider() {
+    final parent = parentOs;
     if (parent == null) return null;
 
-    if (parent is RouterOsCallHandler) {
-      final childHandlers = <String, OsCallHandler>{
-        'Path.': MemoryFsOsCallHandler(),
-      };
-      // Share env and time handlers from parent.
-      for (final prefix in const ['os.', 'date.', 'datetime.']) {
-        final handler = parent.handlerFor(prefix);
-        if (handler != null) childHandlers[prefix] = handler;
-      }
-
-      return RouterOsCallHandler(childHandlers);
+    // Try to share env and time providers from parent composite.
+    final childProviders = <String, OsProvider>{
+      'Path.': MemoryFsProvider(),
+    };
+    for (final prefix in const ['os.', 'date.', 'datetime.']) {
+      final provider = parent.providerFor(prefix);
+      if (provider != null) childProviders[prefix] = provider;
     }
 
-    // Non-router parent: give child an isolated VFS only.
-    return RouterOsCallHandler({
-      'Path.': MemoryFsOsCallHandler(),
-    });
+    return OsProvider.compose(childProviders);
   }
 
   /// Concatenates builder + runtime prompt layers.
@@ -730,10 +726,7 @@ class SandboxPlugin extends MontyPlugin {
     final builderFragment = systemPromptBuilder?.call(context);
     if (builderFragment == null && runtimeFragment == null) return null;
 
-    final parts = <String>[
-      ?builderFragment,
-      ?runtimeFragment,
-    ];
+    final parts = <String>[?builderFragment, ?runtimeFragment];
 
     return parts.join('\n\n');
   }

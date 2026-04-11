@@ -113,7 +113,7 @@ final registry = PluginRegistry()
   ..register(StoragePlugin())
   ..register(MathPlugin());
 
-final bridge = DefaultMontyBridge(platform: Monty());
+final bridge = MontyBridge(platform: Monty());
 await registry.attachTo(bridge);
 ```
 

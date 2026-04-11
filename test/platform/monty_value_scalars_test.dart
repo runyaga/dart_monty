@@ -280,10 +280,7 @@ void main() {
     });
 
     test('hashCode consistent', () {
-      expect(
-        const MontyString('a').hashCode,
-        const MontyString('a').hashCode,
-      );
+      expect(const MontyString('a').hashCode, const MontyString('a').hashCode);
     });
 
     test('toString is non-empty', () {

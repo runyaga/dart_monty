@@ -40,7 +40,9 @@ sealed class MontyValue {
     final String s => MontyString(s),
     final List<dynamic> l => MontyList(l.map(MontyValue.fromJson).toList()),
     final Map<String, dynamic> m => _parseMap(m),
-    _ => MontyString(json.toString()),
+    _ => throw ArgumentError(
+      'Cannot deserialize ${json.runtimeType} to MontyValue',
+    ),
   };
 
   /// Converts a native Dart value into the appropriate [MontyValue] subclass.
@@ -71,7 +73,9 @@ sealed class MontyValue {
     final Map<dynamic, dynamic> m => MontyDict(
       m.map((k, v) => MapEntry(k.toString(), MontyValue.fromDart(v))),
     ),
-    _ => MontyString(value.toString()),
+    _ => throw ArgumentError(
+      'Cannot convert ${value.runtimeType} to MontyValue',
+    ),
   };
 
   /// Serializes this value back to JSON compatible with the Rust side.
@@ -90,9 +94,7 @@ sealed class MontyValue {
   static MontyValue _parseMap(Map<String, dynamic> map) {
     final type = map['__type'] as String?;
     if (type == null) {
-      return MontyDict(
-        map.map((k, v) => MapEntry(k, MontyValue.fromJson(v))),
-      );
+      return MontyDict(map.map((k, v) => MapEntry(k, MontyValue.fromJson(v))));
     }
 
     return switch (type) {
@@ -107,9 +109,7 @@ sealed class MontyValue {
       'path' => MontyPath._fromMap(map),
       'namedtuple' => MontyNamedTuple._fromMap(map),
       'dataclass' => MontyDataclass._fromMap(map),
-      _ => MontyDict(
-        map.map((k, v) => MapEntry(k, MontyValue.fromJson(v))),
-      ),
+      _ => MontyDict(map.map((k, v) => MapEntry(k, MontyValue.fromJson(v)))),
     };
   }
 }

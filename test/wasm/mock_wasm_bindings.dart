@@ -177,14 +177,12 @@ class MockWasmBindings extends WasmBindings {
     String? limitsJson,
     String? scriptName,
   }) async {
-    startCalls.add(
-      (
-        code: code,
-        extFnsJson: extFnsJson,
-        limitsJson: limitsJson,
-        scriptName: scriptName,
-      ),
-    );
+    startCalls.add((
+      code: code,
+      extFnsJson: extFnsJson,
+      limitsJson: limitsJson,
+      scriptName: scriptName,
+    ));
     if (throwOnStart != null) throw StateError(throwOnStart!);
 
     return nextStartResult;

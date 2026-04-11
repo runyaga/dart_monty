@@ -1537,7 +1537,7 @@ graph TB
   <div class="diagram-container">
     <pre class="mermaid">
 graph TB
-    subgraph BRIDGE["DefaultMontyBridge"]
+    subgraph BRIDGE["MontyBridge"]
         LOOP["Start / Resume Loop"]
         STREAM["Stream&lt;BridgeEvent&gt;"]
     end
@@ -1703,7 +1703,7 @@ graph LR
         <span class="code-dot g"></span>
         with_plugins.dart
       </div>
-      <pre><span class="kw">final</span> bridge = <span class="type">DefaultMontyBridge</span>(platform: <span class="type">Monty</span>());
+      <pre><span class="kw">final</span> bridge = <span class="type">MontyBridge</span>(platform: <span class="type">Monty</span>());
 <span class="kw">final</span> registry = <span class="type">PluginRegistry</span>()
   ..<span class="fn">register</span>(<span class="type">WeatherPlugin</span>())
   ..<span class="fn">register</span>(<span class="type">StockPlugin</span>());

@@ -1,14 +1,33 @@
-import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/src/bridge/bridge/bridge_event.dart';
 import 'package:dart_monty/src/bridge/bridge/bridge_middleware.dart';
+import 'package:dart_monty/src/bridge/bridge/default_monty_bridge.dart';
 import 'package:dart_monty/src/bridge/bridge/host_function.dart';
 import 'package:dart_monty/src/bridge/bridge/host_function_schema.dart';
+import 'package:dart_monty/src/bridge/os_call/os_provider.dart';
+import 'package:dart_monty/src/platform/bridge_logger.dart';
+import 'package:dart_monty/src/platform/monty_limits.dart';
+import 'package:dart_monty/src/platform/monty_platform.dart';
 
 /// Bridge for LLM-generated Python calling registered Dart host functions.
 ///
 /// Executes Python code in the Monty sandbox, dispatches external function
 /// calls to registered [HostFunction] handlers, and emits [BridgeEvent]s.
+///
+/// ```dart
+/// final bridge = MontyBridge(platform: MontyFfi());
+/// bridge.registerOs(OsProvider());
+/// bridge.register(myHostFunction);
+/// final events = bridge.execute('result = my_function()');
+/// ```
 abstract class MontyBridge {
+  /// Creates a bridge backed by [platform].
+  factory MontyBridge({
+    required MontyPlatform platform,
+    MontyLimits? limits,
+    bool useFutures,
+    BridgeLogger? logger,
+  }) = DefaultMontyBridge;
+
   /// Logger for this bridge instance.
   ///
   /// Plugins and infrastructure code use this to create scoped child loggers
@@ -44,6 +63,13 @@ abstract class MontyBridge {
     Map<String, Object?> args, {
     CallRole role = const ToolCall(),
   });
+
+  /// Registers a provider for OS-level calls (pathlib, os, datetime).
+  ///
+  /// When Python code triggers an OS call and a provider is registered, the
+  /// bridge invokes it and resumes Python with the result. When no provider
+  /// is registered, the bridge resumes with a `PermissionError`.
+  void registerOs(OsProvider provider);
 
   /// Executes [code] and returns a stream of lifecycle events.
   ///

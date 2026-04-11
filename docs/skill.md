@@ -67,7 +67,7 @@ one, returning `MontyPending`. `resume(returnValue)` continues.
 
 ```dart
 final monty = Monty();
-var progress = await monty.start(
+var progress = await monty.platform.start(
   '''
 url = "https://example.com"
 html = fetch(url)
@@ -79,7 +79,7 @@ len(html)
 while (progress is MontyPending) {
   final url = progress.arguments.first.toString();
   final response = await http.get(Uri.parse(url));
-  progress = await monty.resume(response.body);
+  progress = await monty.platform.resume(response.body);
 }
 
 final complete = progress as MontyComplete;
@@ -105,7 +105,7 @@ paused interpreter.
 
 ```dart
 final monty = Monty();
-var progress = await monty.start(
+var progress = await monty.platform.start(
   '''
 try:
     data = fetch("https://httpstat.us/500")
@@ -118,7 +118,7 @@ result
 
 while (progress is MontyPending) {
   // Inject an error instead of a return value
-  progress = await monty.resumeWithError('HTTP 500');
+  progress = await monty.platform.resumeWithError('HTTP 500');
 }
 
 final complete = progress as MontyComplete;
@@ -133,7 +133,7 @@ Python pauses on each call; Dart reads args, updates UI, resumes.
 
 ```dart
 final monty = Monty();
-var progress = await monty.start(
+var progress = await monty.platform.start(
   '''
 arr = [5, 3, 1, 4, 2]
 n = len(arr)
@@ -163,7 +163,7 @@ while (progress is MontyPending) {
   final action = args[3]! as String;
   setState(() { /* update UI with array, i, j, action */ });
   await Future<void>.delayed(const Duration(milliseconds: 50));
-  progress = await monty.resume(null);
+  progress = await monty.platform.resume(null);
 }
 await monty.dispose();
 ```

@@ -104,10 +104,7 @@ void main() {
 
     test('recv with timeout throws StateError on expiry', () async {
       final recv = findHandler('msg_recv');
-      expect(
-        () => recv({'name': 'empty', 'timeout_ms': 1}),
-        throwsStateError,
-      );
+      expect(() => recv({'name': 'empty', 'timeout_ms': 1}), throwsStateError);
     });
 
     test('timed-out recv does not consume later messages', () async {
@@ -169,10 +166,7 @@ void main() {
       final close = findHandler('msg_close');
 
       await close({'name': 'ch'});
-      expect(
-        () => send({'name': 'ch', 'message': 'late'}),
-        throwsStateError,
-      );
+      expect(() => send({'name': 'ch', 'message': 'late'}), throwsStateError);
     });
 
     test('recv drains remaining messages before returning null', () async {

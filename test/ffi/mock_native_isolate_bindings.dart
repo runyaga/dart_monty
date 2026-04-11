@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:dart_monty/dart_monty.dart';
+import 'package:dart_monty/monty_backend_spi.dart';
 import 'package:dart_monty/src/ffi/native_isolate_bindings.dart';
 
 /// A hand-written mock of [NativeIsolateBindings] with configurable returns
@@ -149,14 +150,12 @@ class MockNativeIsolateBindings extends NativeIsolateBindings {
     MontyLimits? limits,
     String? scriptName,
   }) async {
-    startCalls.add(
-      (
-        code: code,
-        externalFunctions: externalFunctions,
-        limits: limits,
-        scriptName: scriptName,
-      ),
-    );
+    startCalls.add((
+      code: code,
+      externalFunctions: externalFunctions,
+      limits: limits,
+      scriptName: scriptName,
+    ));
     // Typed as Object? to allow any throwable for testing.
     if (throwOnStart != null) throw throwOnStart!; // ignore: only_throw_errors
 
@@ -173,9 +172,7 @@ class MockNativeIsolateBindings extends NativeIsolateBindings {
     }
     if (resumeResults.isNotEmpty) return resumeResults.removeAt(0);
 
-    return const MontyComplete(
-      result: MontyResult(usage: _zeroUsage),
-    );
+    return const MontyComplete(result: MontyResult(usage: _zeroUsage));
   }
 
   @override
@@ -185,9 +182,7 @@ class MockNativeIsolateBindings extends NativeIsolateBindings {
       return resumeWithErrorResults.removeAt(0);
     }
 
-    return const MontyComplete(
-      result: MontyResult(usage: _zeroUsage),
-    );
+    return const MontyComplete(result: MontyResult(usage: _zeroUsage));
   }
 
   @override
@@ -211,9 +206,7 @@ class MockNativeIsolateBindings extends NativeIsolateBindings {
       return resolveFuturesResults.removeAt(0);
     }
 
-    return const MontyComplete(
-      result: MontyResult(usage: _zeroUsage),
-    );
+    return const MontyComplete(result: MontyResult(usage: _zeroUsage));
   }
 
   @override

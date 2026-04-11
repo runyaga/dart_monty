@@ -4,6 +4,7 @@ import 'dart:collection';
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:dart_monty/dart_monty_testing.dart';
+import 'package:dart_monty/monty_backend_spi.dart';
 import 'package:test/test.dart';
 
 const _usage = MontyResourceUsage(
@@ -231,10 +232,7 @@ void main() {
           const MontyPending(
             functionName: 'render_ui',
             arguments: [
-              MontyDict({
-                'type': MontyString('counter'),
-                'value': MontyInt(0),
-              }),
+              MontyDict({'type': MontyString('counter'), 'value': MontyInt(0)}),
             ],
             callId: 1,
           ),

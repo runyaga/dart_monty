@@ -20,12 +20,11 @@ void main() {
       );
     });
 
-    test('fromJson with non-JSON input falls to MontyString', () {
-      // Objects that are not null/bool/int/double/String/List/Map
-      // fall through to MontyString(json.toString())
-      final v = MontyValue.fromJson(Object());
-      expect(v, isA<MontyString>());
-      expect((v as MontyString).value, isNotEmpty);
+    test('fromJson with non-JSON input throws ArgumentError', () {
+      expect(
+        () => MontyValue.fromJson(Object()),
+        throwsArgumentError,
+      );
     });
   });
 

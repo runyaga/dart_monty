@@ -1,18 +1,16 @@
-import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
+import 'package:dart_monty/monty_backend_spi.dart';
 import 'package:test/test.dart';
 
 void main() {
-  MontyOsCall fakeOsCall(String op) => MontyOsCall(
-    operationName: op,
-    arguments: const [],
-  );
+  MontyOsCall fakeOsCall(String op) =>
+      MontyOsCall(operationName: op, arguments: const []);
 
-  group('TimeOsCallHandler', () {
+  group('TimeOsProvider', () {
     test('date.today returns date map with __type', () async {
-      final handler = TimeOsCallHandler();
+      final handler = TimeOsProvider();
       final result =
-          (await handler.handle(fakeOsCall('date.today')))!
+          (await handler.resolve(fakeOsCall('date.today')))!
               as Map<String, Object?>;
 
       expect(result['__type'], 'date');
@@ -23,9 +21,9 @@ void main() {
     });
 
     test('datetime.now returns datetime map with __type', () async {
-      final handler = TimeOsCallHandler();
+      final handler = TimeOsProvider();
       final result =
-          (await handler.handle(fakeOsCall('datetime.now')))!
+          (await handler.resolve(fakeOsCall('datetime.now')))!
               as Map<String, Object?>;
 
       expect(result['__type'], 'datetime');
@@ -42,17 +40,17 @@ void main() {
 
     test('injected clock is used (frozen time)', () async {
       final frozen = DateTime(2026, 3, 15, 10, 30, 45, 123, 456);
-      final handler = TimeOsCallHandler(clock: () => frozen);
+      final handler = TimeOsProvider(clock: () => frozen);
 
       final date =
-          (await handler.handle(fakeOsCall('date.today')))!
+          (await handler.resolve(fakeOsCall('date.today')))!
               as Map<String, Object?>;
       expect(date['year'], 2026);
       expect(date['month'], 3);
       expect(date['day'], 15);
 
       final dt =
-          (await handler.handle(fakeOsCall('datetime.now')))!
+          (await handler.resolve(fakeOsCall('datetime.now')))!
               as Map<String, Object?>;
       expect(dt['year'], 2026);
       expect(dt['hour'], 10);
@@ -61,23 +59,23 @@ void main() {
     });
 
     test('unknown date/datetime operation throws', () {
-      final handler = TimeOsCallHandler();
+      final handler = TimeOsProvider();
 
       expect(
-        () => handler.handle(fakeOsCall('date.yesterday')),
+        () => handler.resolve(fakeOsCall('date.yesterday')),
         throwsUnsupportedError,
       );
       expect(
-        () => handler.handle(fakeOsCall('datetime.utcnow')),
+        () => handler.resolve(fakeOsCall('datetime.utcnow')),
         throwsUnsupportedError,
       );
     });
 
     test('default clock uses DateTime.now', () async {
-      final handler = TimeOsCallHandler();
+      final handler = TimeOsProvider();
       final before = DateTime.now();
       final result =
-          (await handler.handle(fakeOsCall('datetime.now')))!
+          (await handler.resolve(fakeOsCall('datetime.now')))!
               as Map<String, Object?>;
       final after = DateTime.now();
 
@@ -89,10 +87,10 @@ void main() {
 
     test('timezone offset populated correctly', () async {
       final frozen = DateTime(2026, 6, 15, 12);
-      final handler = TimeOsCallHandler(clock: () => frozen);
+      final handler = TimeOsProvider(clock: () => frozen);
 
       final result =
-          (await handler.handle(fakeOsCall('datetime.now')))!
+          (await handler.resolve(fakeOsCall('datetime.now')))!
               as Map<String, Object?>;
       expect(result['offset_seconds'], frozen.timeZoneOffset.inSeconds);
       expect(result['timezone_name'], frozen.timeZoneName);
