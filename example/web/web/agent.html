@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>dart_monty AgentSession Demo</title>
+  <style>
+    :root {
+      --bg: #1a1b26;
+      --surface: #24283b;
+      --surface2: #2f3447;
+      --border: #3b4261;
+      --text: #c0caf5;
+      --text-dim: #565f89;
+      --accent: #7aa2f7;
+      --green: #9ece6a;
+      --yellow: #e0af68;
+      --red: #f7768e;
+      --orange: #ff9e64;
+      --cyan: #7dcfff;
+      --purple: #bb9af7;
+      --mono: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    header {
+      padding: 12px 20px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    header h1 {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--accent);
+    }
+
+    header .tag {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-weight: 500;
+    }
+
+    .tag-agent { background: #3d2d5e; color: var(--purple); }
+    .tag-wasm { background: #2d3a5e; color: var(--cyan); }
+    .tag-stateful { background: #2d3e2d; color: var(--green); }
+
+    #status {
+      margin-left: auto;
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+
+    #status.ready { color: var(--green); }
+    #status.running { color: var(--yellow); }
+    #status.error { color: var(--red); }
+
+    .main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+      gap: 1px;
+      background: var(--border);
+      overflow: hidden;
+    }
+
+    .panel {
+      background: var(--surface);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .panel-header {
+      padding: 8px 12px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-dim);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .panel-header .count {
+      background: var(--surface2);
+      padding: 1px 6px;
+      border-radius: 3px;
+      font-size: 10px;
+    }
+
+    .panel-body {
+      flex: 1;
+      overflow: auto;
+      padding: 0;
+    }
+
+    /* Code editor */
+    #editor {
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      color: var(--text);
+      border: none;
+      resize: none;
+      padding: 12px;
+      font-family: var(--mono);
+      font-size: 13px;
+      line-height: 1.6;
+      outline: none;
+      tab-size: 4;
+    }
+
+    .editor-panel .panel-header {
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .btn-group { display: flex; gap: 6px; }
+
+    .btn {
+      padding: 4px 12px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: var(--surface2);
+      color: var(--text);
+      font-size: 11px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .btn:hover { border-color: var(--accent); }
+
+    .btn-run {
+      background: #1a3a1a;
+      border-color: var(--green);
+      color: var(--green);
+      font-weight: 600;
+    }
+
+    .btn-run:hover { background: #2a4a2a; }
+    .btn-run:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .btn-clear {
+      background: #3a1a1a;
+      border-color: var(--red);
+      color: var(--red);
+    }
+
+    .btn-clear:hover { background: #4a2a2a; }
+
+    /* Result & State panels */
+    .result-section {
+      padding: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .result-section:last-child { border-bottom: none; }
+
+    .result-label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-dim);
+      margin-bottom: 4px;
+    }
+
+    .result-value {
+      font-family: var(--mono);
+      font-size: 13px;
+      white-space: pre-wrap;
+      word-break: break-all;
+      color: var(--green);
+    }
+
+    .result-error {
+      font-family: var(--mono);
+      font-size: 13px;
+      white-space: pre-wrap;
+      word-break: break-all;
+      color: var(--red);
+    }
+
+    .result-print {
+      font-family: var(--mono);
+      font-size: 12px;
+      white-space: pre-wrap;
+      color: var(--text-dim);
+    }
+
+    /* State panel */
+    .state-entry {
+      padding: 4px 12px;
+      font-family: var(--mono);
+      font-size: 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      gap: 8px;
+    }
+
+    .state-key {
+      color: var(--cyan);
+      font-weight: 600;
+      min-width: 80px;
+    }
+
+    .state-val {
+      color: var(--text);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* Events panel */
+    .event-entry {
+      padding: 4px 12px;
+      font-family: var(--mono);
+      font-size: 11px;
+      border-bottom: 1px solid var(--border);
+      display: grid;
+      grid-template-columns: 100px 1fr;
+      gap: 8px;
+      align-items: baseline;
+    }
+
+    .event-type {
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .event-type-run { color: var(--green); }
+    .event-type-tool { color: var(--purple); }
+    .event-type-os { color: var(--cyan); }
+    .event-type-text { color: var(--yellow); }
+    .event-type-error { color: var(--red); }
+    .event-type-step { color: var(--orange); }
+
+    .event-detail {
+      color: var(--text-dim);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* Tools panel */
+    .tool-entry {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .tool-name {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--purple);
+      font-weight: 600;
+    }
+
+    .tool-desc {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-top: 2px;
+    }
+
+    .tool-params {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text-dim);
+      margin-top: 4px;
+    }
+
+    .tool-param-name { color: var(--cyan); }
+    .tool-param-type { color: var(--orange); }
+
+    .empty-state {
+      padding: 24px;
+      text-align: center;
+      color: var(--text-dim);
+      font-size: 13px;
+    }
+
+    /* Examples dropdown */
+    select {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text);
+      padding: 4px 8px;
+      font-size: 11px;
+      cursor: pointer;
+      outline: none;
+    }
+
+    /* Bottom panel sub-tabs */
+    .tab-bar {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .tab-btn {
+      padding: 6px 14px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-dim);
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .tab-btn:hover { color: var(--text); }
+    .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    .tab-content { display: none; flex: 1; overflow: auto; }
+    .tab-content.active { display: block; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>dart_monty AgentSession Demo</h1>
+    <span class="tag tag-agent">Agent</span>
+    <span class="tag tag-wasm">WASM</span>
+    <span class="tag tag-stateful">Stateful</span>
+    <select id="examples">
+      <option value="">Load example...</option>
+      <option value="stateful">Stateful Variables</option>
+      <option value="tools">Host Functions</option>
+      <option value="kvstore">Key-Value Store</option>
+      <option value="fetch">HTTP Fetch</option>
+      <option value="filesystem">Filesystem I/O</option>
+      <option value="template" disabled>Jinja Templates (soon)</option>
+      <option value="sandbox" disabled>Child Sandboxes (soon)</option>
+      <option value="msgbus" disabled>Message Bus (soon)</option>
+      <option value="combined">Combined Demo</option>
+    </select>
+    <span id="status">Initializing WASM...</span>
+  </header>
+
+  <div class="main">
+    <!-- Top-left: Python editor -->
+    <div class="panel editor-panel">
+      <div class="panel-header">
+        <span>Python Code</span>
+        <div class="btn-group">
+          <button class="btn btn-clear" id="clearBtn">Clear State</button>
+          <button class="btn btn-run" id="runBtn" disabled>Execute</button>
+        </div>
+      </div>
+      <div class="panel-body">
+        <textarea id="editor" spellcheck="false"># Variables persist across executions.
+# Run this, then run the next example.
+x = 42
+greeting = "hello"
+x</textarea>
+      </div>
+    </div>
+
+    <!-- Top-right: Result + State -->
+    <div class="panel">
+      <div class="panel-header">
+        <span>Result &amp; State</span>
+        <span class="count" id="stateCount">0 vars</span>
+      </div>
+      <div class="panel-body" id="resultPanel">
+        <div id="resultArea">
+          <div class="empty-state">Execute code to see the result</div>
+        </div>
+        <div id="stateArea" style="border-top: 1px solid var(--border);">
+          <div class="result-section">
+            <div class="result-label">Session State</div>
+            <div id="stateList" class="result-print">No variables yet</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom-left: Events log -->
+    <div class="panel">
+      <div class="panel-header">
+        <span>Bridge Events</span>
+        <span class="count" id="eventCount">0</span>
+      </div>
+      <div class="panel-body" id="eventLog">
+        <div class="empty-state">Run code to see bridge events in real-time</div>
+      </div>
+    </div>
+
+    <!-- Bottom-right: Tools / Info -->
+    <div class="panel">
+      <div class="tab-bar">
+        <button class="tab-btn active" data-tab="tools">Tools</button>
+        <button class="tab-btn" data-tab="help">Help</button>
+      </div>
+      <div class="tab-content active" id="tab-tools">
+        <div class="empty-state">Loading tool schemas...</div>
+      </div>
+      <div class="tab-content" id="tab-help">
+        <div style="padding: 16px; font-size: 13px; line-height: 1.6;">
+          <p style="margin-bottom: 12px;"><strong style="color: var(--accent);">AgentSession</strong> combines a Monty bridge, host functions, OS providers, and variable persistence into one API.</p>
+          <p style="margin-bottom: 12px; color: var(--text-dim);"><strong style="color: var(--cyan);">Stateful:</strong> Variables defined in one execution persist to the next. Click "Clear State" to reset.</p>
+          <p style="margin-bottom: 12px; color: var(--text-dim);"><strong style="color: var(--purple);">Host Functions:</strong> Python can call Dart-defined tools: <code style="color: var(--purple);">echo(msg)</code>, <code style="color: var(--purple);">add_numbers(a, b)</code>, <code style="color: var(--purple);">get_time()</code>.</p>
+          <p style="margin-bottom: 12px; color: var(--text-dim);"><strong style="color: var(--green);">Filesystem:</strong> pathlib works via MemoryFsProvider: <code style="color: var(--green);">Path('/sandbox/f.txt').write_text(...)</code></p>
+          <p style="color: var(--text-dim);"><strong style="color: var(--yellow);">Events:</strong> Every bridge event streams in real-time to the Events panel.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- COOP/COEP for SharedArrayBuffer (required by WASM worker) -->
+  <script src="coi-serviceworker.js"></script>
+
+  <!-- Dart callbacks — MUST be defined before agent_demo.dart.js loads -->
+  <script>
+    let _eventCount = 0;
+    let _ready = false;
+
+    window._onEvent = function(jsonStr) {
+      const event = JSON.parse(jsonStr);
+      _eventCount++;
+      const el = document.getElementById('eventLog');
+      const countEl = document.getElementById('eventCount');
+      if (!el || !countEl) return;
+      countEl.textContent = _eventCount;
+      if (_eventCount === 1) el.innerHTML = '';
+
+      const div = document.createElement('div');
+      div.className = 'event-entry';
+
+      const typeClass = getEventTypeClass(event.type);
+      let detail = getEventDetail(event);
+
+      div.innerHTML = '<span class="event-type ' + typeClass + '">' + event.type + '</span><span class="event-detail">' + escapeHtml(detail) + '</span>';
+      el.appendChild(div);
+      el.scrollTop = el.scrollHeight;
+    };
+
+    window._onReady = function() {
+      _ready = true;
+      const s = document.getElementById('status');
+      const b = document.getElementById('runBtn');
+      if (s) { s.textContent = 'Ready'; s.className = 'ready'; }
+      if (b) { b.disabled = false; }
+      renderTools();
+    };
+
+    function getEventTypeClass(type) {
+      if (type.startsWith('Run')) return 'event-type-run';
+      if (type.startsWith('Tool')) return 'event-type-tool';
+      if (type.startsWith('OsCall')) return 'event-type-os';
+      if (type.startsWith('Text')) return 'event-type-text';
+      if (type.startsWith('Step')) return 'event-type-step';
+      if (type === 'RunError') return 'event-type-error';
+      return '';
+    }
+
+    function getEventDetail(event) {
+      switch (event.type) {
+        case 'RunStarted': return 'thread=' + event.threadId;
+        case 'RunFinished': return event.value ? 'value=' + event.value : 'done';
+        case 'RunError': return event.message;
+        case 'ToolCallStart': return event.name + '()';
+        case 'ToolCallArgs': return event.delta;
+        case 'ToolCallResult': return event.result;
+        case 'OsCallStart': return event.operationName + (event.argumentSummary ? ' ' + event.argumentSummary : '');
+        case 'OsCallResult': return event.result + (event.durationMs != null ? ' [' + event.durationMs + 'ms]' : '');
+        case 'TextContent': return event.delta;
+        default: return JSON.stringify(event);
+      }
+    }
+
+    function escapeHtml(s) {
+      const d = document.createElement('div');
+      d.textContent = s;
+      return d.innerHTML;
+    }
+  </script>
+
+  <!-- Load WASM bridge, then compiled Dart agent demo -->
+  <script src="dart_monty_bridge.js"></script>
+  <script src="agent_demo.dart.js"></script>
+
+  <!-- UI wiring -->
+  <script>
+    const $ = (s) => document.getElementById(s);
+    const editor = $('editor');
+    const runBtn = $('runBtn');
+    const status = $('status');
+    const eventLog = $('eventLog');
+    const resultArea = $('resultArea');
+    const stateList = $('stateList');
+    const stateCount = $('stateCount');
+
+    async function run() {
+      if (!_ready || !window.AgentDemo) return;
+      runBtn.disabled = true;
+      status.textContent = 'Running...';
+      status.className = 'running';
+      _eventCount = 0;
+      $('eventCount').textContent = '0';
+      eventLog.innerHTML = '';
+      resultArea.innerHTML = '';
+
+      try {
+        const resultPromise = window.AgentDemo.execute(editor.value);
+        const resultJson = await resultPromise;
+        const result = JSON.parse(resultJson);
+
+        if (result.ok) {
+          let html = '';
+          if (result.value != null) {
+            html += '<div class="result-section"><div class="result-label">Value</div><div class="result-value">' + escapeHtml(formatValue(result.value)) + '</div></div>';
+          }
+          if (result.printOutput) {
+            html += '<div class="result-section"><div class="result-label">Print Output</div><div class="result-print">' + escapeHtml(result.printOutput) + '</div></div>';
+          }
+          if (!html) {
+            html = '<div class="result-section"><div class="result-value">None</div></div>';
+          }
+          resultArea.innerHTML = html;
+        } else {
+          resultArea.innerHTML = '<div class="result-section"><div class="result-label">Error</div><div class="result-error">' + escapeHtml(result.error) + '</div></div>';
+          if (result.printOutput) {
+            resultArea.innerHTML += '<div class="result-section"><div class="result-label">Print Output</div><div class="result-print">' + escapeHtml(result.printOutput) + '</div></div>';
+          }
+        }
+
+        status.textContent = result.ok ? 'Done' : 'Error';
+        status.className = result.ok ? 'ready' : 'error';
+
+        // Refresh state display.
+        refreshState();
+      } catch (e) {
+        resultArea.innerHTML = '<div class="result-section"><div class="result-error">' + escapeHtml(String(e)) + '</div></div>';
+        status.textContent = 'Error';
+        status.className = 'error';
+      }
+      runBtn.disabled = false;
+    }
+
+    function refreshState() {
+      if (!window.AgentDemo) return;
+      try {
+        const stateJson = window.AgentDemo.getState();
+        const state = JSON.parse(stateJson);
+        const keys = Object.keys(state);
+        stateCount.textContent = keys.length + ' var' + (keys.length !== 1 ? 's' : '');
+
+        if (keys.length === 0) {
+          stateList.textContent = 'No variables';
+          return;
+        }
+
+        let html = '';
+        for (const key of keys) {
+          html += '<div class="state-entry"><span class="state-key">' + escapeHtml(key) + '</span><span class="state-val">' + escapeHtml(formatValue(state[key])) + '</span></div>';
+        }
+        stateList.innerHTML = html;
+      } catch (e) {
+        stateList.textContent = 'Error reading state';
+      }
+    }
+
+    function renderTools() {
+      if (!window.AgentDemo) return;
+      const toolsEl = $('tab-tools');
+      try {
+        const schemasJson = window.AgentDemo.getSchemas();
+        const schemas = JSON.parse(schemasJson);
+
+        if (schemas.length === 0) {
+          toolsEl.innerHTML = '<div class="empty-state">No tools registered</div>';
+          return;
+        }
+
+        let html = '';
+        for (const tool of schemas) {
+          html += '<div class="tool-entry">';
+          html += '<div class="tool-name">' + escapeHtml(tool.name) + '</div>';
+          html += '<div class="tool-desc">' + escapeHtml(tool.description) + '</div>';
+          const props = tool.inputSchema && tool.inputSchema.properties;
+          if (props) {
+            const paramKeys = Object.keys(props);
+            if (paramKeys.length > 0) {
+              html += '<div class="tool-params">';
+              for (const pName of paramKeys) {
+                const p = props[pName];
+                html += '<span class="tool-param-name">' + escapeHtml(pName) + '</span>';
+                if (p.type) html += ': <span class="tool-param-type">' + escapeHtml(p.type) + '</span>';
+                if (p.description) html += ' &mdash; ' + escapeHtml(p.description);
+                html += '<br>';
+              }
+              html += '</div>';
+            }
+          }
+          html += '</div>';
+        }
+        toolsEl.innerHTML = html;
+      } catch (e) {
+        toolsEl.innerHTML = '<div class="empty-state">Error loading schemas</div>';
+      }
+    }
+
+    function formatValue(v) {
+      if (v === null || v === undefined) return 'None';
+      if (typeof v === 'object') return JSON.stringify(v, null, 2);
+      return String(v);
+    }
+
+    // Tab switching
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        btn.classList.add('active');
+        $('tab-' + btn.dataset.tab).classList.add('active');
+      });
+    });
+
+    // Examples
+    const examples = {
+      stateful: "# Variables persist across executions.\n# Run this, then run another example — x and greeting survive.\nx = 42\ngreeting = \"hello\"\ndata = [1, 2, 3]\nx",
+      tools: "# Call Dart host functions from Python\nmsg = echo(\"hello from python\")\nresult = add_numbers(17, 25)\ntimestamp = get_time()\n\n{'echoed': msg, 'sum': result, 'time': timestamp}",
+      kvstore: "# Key-value store — persistent memory\nkv_set('user', 'Alice')\nkv_set('score', 95)\nkv_set('tags', ['python', 'dart', 'monty'])\n\nall_keys = kv_list()\nuser = kv_get('user')\nscore = kv_get('score')\n\n{'keys': all_keys, 'user': user, 'score': score}",
+      fetch: "# Simulated HTTP fetch\nusers = fetch_json('https://api.example.com/users')\nweather = fetch_json('https://api.example.com/weather')\n\ntop_user = users[0]['name']\n\n{'users': len(users), 'top': top_user, 'temp': weather['temp']}",
+      filesystem: "from pathlib import Path\n\n# Write files to the virtual filesystem\nPath('/sandbox/notes.txt').write_text('Remember: variables persist!')\nPath('/sandbox/data').mkdir(parents=True, exist_ok=True)\nPath('/sandbox/data/scores.csv').write_text('name,score\\nalice,95\\nbob,87')\n\n# Read back\ncontent = Path('/sandbox/notes.txt').read_text()\ncsv_data = Path('/sandbox/data/scores.csv').read_text()\n\n{'notes': content, 'csv': csv_data}",
+      template: "# Jinja2 templates via DinjaTemplatePlugin\ngreeting = dinja_render('greeting', name='Alice', place='Monty Sandbox')\nreport = dinja_render('report', title='Q3 Sales', date='2026-04-11', content='Revenue up 15%')\n\n{'greeting': greeting, 'report': report}",
+      sandbox: "# Spawn isolated child interpreters\n# Each child has its own VFS and state\nchild1 = sandbox_spawn('x = 1 + 1\\nx')\nchild2 = sandbox_spawn('y = 2 * 3\\ny')\nchild3 = sandbox_spawn('import math\\nmath.factorial(5)')\n\n[sandbox_output(child1), sandbox_output(child2), sandbox_output(child3)]",
+      msgbus: "# Inter-sandbox messaging via MessageBusPlugin\nbus_publish('alerts', 'System healthy')\nbus_publish('alerts', 'Disk 80% full')\nbus_publish('metrics', 42)\n\nalerts = bus_history('alerts')\nmetrics = bus_history('metrics')\n\n{'alerts': alerts, 'metrics': metrics}",
+      combined: "# Full demo: state + tools + filesystem\nfrom pathlib import Path\n\ntimestamp = get_time()\nPath('/sandbox/log.txt').write_text(f'Run at: {timestamp}')\n\ntry:\n    msg = f'x was {x}, greeting was {greeting}'\nexcept NameError:\n    msg = 'No prior state — run Stateful first'\n\ntotal = add_numbers(100, 200)\nkv_set('last_run', timestamp)\n\n{'message': msg, 'total': total, 'logged_at': timestamp}",
+    };
+
+    $('examples').onchange = function() {
+      const key = this.value;
+      if (key && examples[key]) {
+        editor.value = examples[key];
+      }
+      this.value = '';
+    };
+
+    // Clear state button
+    $('clearBtn').onclick = function() {
+      if (!window.AgentDemo) return;
+      window.AgentDemo.clearState();
+      refreshState();
+    };
+
+    // Keyboard shortcuts
+    editor.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); run(); }
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        const start = editor.selectionStart;
+        editor.value = editor.value.substring(0, start) + '    ' + editor.value.substring(editor.selectionEnd);
+        editor.selectionStart = editor.selectionEnd = start + 4;
+      }
+    });
+
+    runBtn.onclick = run;
+  </script>
+</body>
+</html>
