@@ -1,8 +1,8 @@
 use std::collections::HashSet;
 
 use monty::{
-    ExtFunctionResult, LimitedTracker, MontyObject, MontyRepl, NameLookupResult, PrintWriter,
-    ReplFunctionCall, ReplOsCall, ReplProgress, ReplResolveFutures, ReplStartError, ResourceLimits,
+    ExtFunctionResult, MontyObject, MontyRepl, NameLookupResult, NoLimitTracker, PrintWriter,
+    ReplFunctionCall, ReplOsCall, ReplProgress, ReplResolveFutures, ReplStartError,
     detect_repl_continuation_mode,
 };
 use serde_json::Value;
@@ -12,16 +12,11 @@ use crate::error::monty_exception_to_json;
 use crate::handle::{MontyProgressTag, MontyResultTag};
 
 /// The concrete tracker type used for REPL execution.
-type Tracker = LimitedTracker;
-
-/// Default resource limits for REPL snippets.
-fn default_limits() -> ResourceLimits {
-    let mut limits = ResourceLimits::new();
-    limits.max_duration = Some(std::time::Duration::from_secs(30));
-    limits.max_memory = Some(256 * 1024 * 1024); // 256 MB
-    limits.max_recursion_depth = Some(1000);
-    limits
-}
+///
+/// REPLs use `NoLimitTracker` by default — no time, memory, or stack
+/// limits. Interactive sessions should not be bounded by default.
+/// Callers can add limits later via a dedicated API if needed.
+type Tracker = NoLimitTracker;
 
 /// Integer codes returned by `monty_repl_detect_continuation`.
 ///
@@ -108,10 +103,8 @@ impl MontyReplHandle {
     /// Creates a new REPL handle with an empty interpreter state.
     #[must_use]
     pub fn new(script_name: &str) -> Self {
-        let limits = default_limits();
-        let tracker = Tracker::new(limits);
         Self {
-            state: ReplHandleState::Idle(MontyRepl::new(script_name, tracker)),
+            state: ReplHandleState::Idle(MontyRepl::new(script_name, NoLimitTracker)),
             ext_fn_names: HashSet::new(),
             print_output: String::new(),
         }

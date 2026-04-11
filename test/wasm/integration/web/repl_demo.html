@@ -215,7 +215,57 @@
     }
 
     // -----------------------------------------------------------------------
-    // REPL execution
+    // Real host function: tmpl_render (Jinja2 subset in JS)
+    // -----------------------------------------------------------------------
+    function jsTmplRender(template, context) {
+      let result = template;
+      // Process structural tags FIRST (for, if) before variable substitution.
+
+      // {% for item in list %}...{% endfor %}
+      result = result.replace(
+        /\{%\s*for\s+(\w+)\s+in\s+(\w+)\s*%\}([\s\S]*?)\{%\s*endfor\s*%\}/g,
+        (_, itemVar, listVar, body) => {
+          const list = context[listVar] || [];
+          return list.map(item => {
+            // Replace loop variable, then expand any remaining {{ }} with context
+            let expanded = body.replace(
+              new RegExp(`\\{\\{\\s*${itemVar}\\s*\\}\\}`, 'g'), String(item)
+            );
+            // Also resolve context vars inside the loop body
+            expanded = expanded.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (__, key) => {
+              const val = key.split('.').reduce((o, k) => o && o[k], context);
+              return val !== undefined && val !== null ? String(val) : '';
+            });
+            return expanded;
+          }).join('');
+        }
+      );
+      // {% if var %}...{% else %}...{% endif %}
+      result = result.replace(
+        /\{%\s*if\s+(\w+)\s*%\}([\s\S]*?)(?:\{%\s*else\s*%\}([\s\S]*?))?\{%\s*endif\s*%\}/g,
+        (_, condVar, ifBody, elseBody) => {
+          return context[condVar] ? ifBody : (elseBody || '');
+        }
+      );
+      // {{ variable }} substitution (last — structural tags already expanded)
+      result = result.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (_, key) => {
+        const val = key.split('.').reduce((o, k) => o && o[k], context);
+        return val !== undefined && val !== null ? String(val) : '';
+      });
+      return result;
+    }
+
+    // Host function dispatch table
+    const hostFunctions = {
+      tmpl_render: (args, kwargs) => {
+        const template = kwargs.template || args[0];
+        const context = kwargs.context || args[1] || {};
+        return jsTmplRender(template, context);
+      },
+    };
+
+    // -----------------------------------------------------------------------
+    // REPL execution (uses feedStart + resume for host function dispatch)
     // -----------------------------------------------------------------------
     async function feed(code) {
       if (!ready || running) return;
@@ -229,19 +279,39 @@
 
       const t0 = performance.now();
       try {
-        const resultJson = await DartMontyBridge.replFeedRun(code);
-        const elapsed = (performance.now() - t0).toFixed(1);
-        const r = JSON.parse(resultJson);
+        // Use feedStart to enable host function dispatch
+        let r = JSON.parse(await DartMontyBridge.replFeedStart(code));
 
+        // Dispatch loop: handle host function calls until complete
+        while (r.state === 'pending') {
+          const fn = hostFunctions[r.functionName];
+          if (fn) {
+            try {
+              const result = fn(r.args || [], r.kwargs || {});
+              addToTranscript(
+                '<span class="timing">  ↳ ' + escapeHtml(r.functionName) +
+                '() → ' + escapeHtml(JSON.stringify(result).substring(0, 80)) + '</span>'
+              );
+              r = JSON.parse(await DartMontyBridge.replResume(JSON.stringify(result)));
+            } catch (e) {
+              r = JSON.parse(await DartMontyBridge.replResumeWithError(JSON.stringify(e.message)));
+            }
+          } else {
+            // Unknown host function — resume with error
+            r = JSON.parse(await DartMontyBridge.replResumeWithError(
+              JSON.stringify('Host function not implemented: ' + r.functionName)
+            ));
+          }
+        }
+
+        const elapsed = (performance.now() - t0).toFixed(1);
         let html = '';
 
-        // Print output
         if (r.print_output) {
           html += '<span class="print-output">' + escapeHtml(r.print_output) + '</span>';
         }
 
-        if (r.ok) {
-          // Show value (skip None for assignments)
+        if (r.ok !== false && r.state !== 'error') {
           if (r.value !== null && r.value !== undefined) {
             const repr = typeof r.value === 'string' ? "'" + r.value + "'" : JSON.stringify(r.value);
             html += '<span class="result">' + escapeHtml(repr) + '</span>';
@@ -342,39 +412,23 @@
     // Bootstrap — inject help() with host function registry
     // -----------------------------------------------------------------------
     async function bootstrap() {
+      // Register tmpl_render as a real host function
+      await DartMontyBridge.replSetExtFns('tmpl_render');
+
       await DartMontyBridge.replFeedRun(`_help_registry = {
-    "print": "Print values to output",
-    "len": "Return the length of a sequence",
-    "range": "Generate a sequence of integers",
-    "sum": "Sum an iterable",
-    "min": "Return the smallest item",
-    "max": "Return the largest item",
-    "sorted": "Return a sorted list",
-    "type": "Return the type of an object",
-    "int": "Convert to integer",
-    "float": "Convert to float",
-    "str": "Convert to string",
-    "list": "Convert to list",
-    "dict": "Create a dictionary",
-    "abs": "Return the absolute value",
-    "enumerate": "Iterate with index",
-    "zip": "Iterate over pairs",
-    "map": "Apply function to each item",
-    "filter": "Filter items by predicate",
-    "isinstance": "Check type membership",
-    "hasattr": "Check if object has attribute",
+    "tmpl_render": "Render a Jinja2 template with context dict. Supports {{ var }}, {% for %}, {% if %}.",
 }`);
 
       await DartMontyBridge.replFeedRun(`def help(name=None):
     if name is None:
         print("Monty REPL - sandboxed Python interpreter (WASM)")
         print("")
-        print("Built-in functions:")
-        for fn, desc in _help_registry.items():
-            print(f"  {fn}() - {desc}")
-        print("")
-        print("Also: def, lambda, if/elif/else, for, while,")
-        print("       try/except, list comprehensions, f-strings")
+        if _help_registry:
+            print("Host functions (real — dispatched to host):")
+            for fn, desc in _help_registry.items():
+                print(f"  {fn}() - {desc}")
+        else:
+            print("No host functions registered.")
         print("")
         print("Type help('name') for details on a function.")
     else:
