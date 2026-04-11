@@ -12,6 +12,7 @@ import 'package:dart_monty/src/platform/monty_result.dart';
 import 'package:dart_monty/src/platform/monty_value.dart';
 import 'package:dart_monty/src/repl/monty_repl.dart';
 import 'package:dart_monty/src/repl/repl_platform.dart';
+import 'package:meta/meta.dart';
 
 /// A stateful REPL session with full plugin dispatch.
 ///
@@ -39,6 +40,16 @@ class ReplSession {
   }) : _plugins = plugins,
        _os = os,
        _repl = MontyRepl(scriptName: scriptName);
+
+  /// Creates a [ReplSession] with an explicit [MontyRepl] for testing.
+  @visibleForTesting
+  ReplSession.withRepl({
+    required MontyRepl repl,
+    List<MontyPlugin>? plugins,
+    OsProvider? os,
+  }) : _plugins = plugins,
+       _os = os,
+       _repl = repl;
 
   final List<MontyPlugin>? _plugins;
   final OsProvider? _os;
