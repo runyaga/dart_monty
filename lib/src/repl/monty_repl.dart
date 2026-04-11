@@ -1,5 +1,9 @@
+import 'dart:convert';
+
+import 'package:dart_monty/src/platform/core_bindings.dart';
 import 'package:dart_monty/src/platform/monty_error.dart';
 import 'package:dart_monty/src/platform/monty_exception.dart';
+import 'package:dart_monty/src/platform/monty_progress.dart';
 import 'package:dart_monty/src/platform/monty_resource_usage.dart';
 import 'package:dart_monty/src/platform/monty_result.dart';
 import 'package:dart_monty/src/platform/monty_stack_frame.dart';
@@ -113,6 +117,48 @@ class MontyRepl {
     };
   }
 
+  // -----------------------------------------------------------------------
+  // Iterative execution (Phase 2)
+  // -----------------------------------------------------------------------
+
+  /// Starts iterative execution of [code] with external function support.
+  ///
+  /// If [externalFunctions] is provided, those names are registered for
+  /// name resolution before execution begins. When Python calls one of
+  /// these functions, execution pauses and returns [MontyPending].
+  ///
+  /// Use [resume] or [resumeWithError] to continue execution.
+  Future<MontyProgress> feedStart(
+    String code, {
+    List<String>? externalFunctions,
+  }) async {
+    _checkNotDisposed();
+    await _ensureCreated();
+    if (externalFunctions != null && externalFunctions.isNotEmpty) {
+      _bindings.setExtFns(externalFunctions);
+    }
+    final p = await _bindings.feedStart(code);
+
+    return _translateProgress(p);
+  }
+
+  /// Resumes a paused REPL execution with [returnValue].
+  Future<MontyProgress> resume(Object? returnValue) async {
+    _checkNotDisposed();
+    final json = returnValue != null ? jsonEncode(returnValue) : 'null';
+    final p = await _bindings.resume(json);
+
+    return _translateProgress(p);
+  }
+
+  /// Resumes a paused REPL execution by raising an error in Python.
+  Future<MontyProgress> resumeWithError(String errorMessage) async {
+    _checkNotDisposed();
+    final p = await _bindings.resumeWithError(errorMessage);
+
+    return _translateProgress(p);
+  }
+
   /// Disposes the REPL session and frees native resources.
   Future<void> dispose() async {
     if (_disposed) return;
@@ -129,6 +175,47 @@ class MontyRepl {
     timeElapsedMs: 0,
     stackDepthUsed: 0,
   );
+
+  MontyProgress _translateProgress(CoreProgressResult p) {
+    switch (p.state) {
+      case 'complete':
+        return MontyComplete(
+          result: MontyResult(
+            value: p.value != null ? MontyValue.fromJson(p.value) : null,
+            error: _buildError(p.error, p.excType, p.traceback),
+            usage: p.usage ?? _zeroUsage,
+            printOutput: p.printOutput,
+          ),
+        );
+      case 'pending':
+        return MontyPending(
+          functionName: p.functionName ?? '',
+          arguments: p.arguments != null
+              ? p.arguments!.map(MontyValue.fromJson).toList()
+              : const [],
+          kwargs: p.kwargs?.map((k, v) => MapEntry(k, MontyValue.fromJson(v))),
+          callId: p.callId ?? 0,
+          methodCall: p.methodCall ?? false,
+        );
+      case 'os_call':
+        return MontyOsCall(
+          operationName: p.functionName ?? '',
+          arguments: p.arguments != null
+              ? p.arguments!.map(MontyValue.fromJson).toList()
+              : const [],
+          kwargs: p.kwargs?.map((k, v) => MapEntry(k, MontyValue.fromJson(v))),
+          callId: p.callId ?? 0,
+        );
+      case 'error':
+        _throwError(
+          message: p.error ?? 'Unknown error',
+          excType: p.excType,
+          traceback: p.traceback,
+        );
+      default:
+        throw StateError('Unknown progress state: ${p.state}');
+    }
+  }
 
   Future<void> _ensureCreated() async {
     if (!_created) {

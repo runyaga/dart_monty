@@ -3,6 +3,7 @@ library;
 
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/src/ffi/native_bindings_ffi.dart';
+import 'package:dart_monty/src/platform/monty_progress.dart';
 import 'package:dart_monty/src/repl/ffi_repl_bindings.dart';
 import 'package:test/test.dart';
 
@@ -215,6 +216,119 @@ void main() {
 
     // sum of 1..50 = 1275
     expect(r.value, const MontyInt(1275));
+    await repl.dispose();
+  });
+
+  // -------------------------------------------------------------------------
+  // Phase 2: feed_start / resume (host function dispatch)
+  // -------------------------------------------------------------------------
+
+  test('REPL: feedStart pauses at ext fn, resume completes', () async {
+    final repl = MontyRepl.withBindings(
+      bindings: FfiReplBindings(bindings: bindings),
+    );
+
+    final progress = await repl.feedStart(
+      'result = get_temp()\nresult',
+      externalFunctions: ['get_temp'],
+    );
+
+    expect(progress, isA<MontyPending>());
+    final pending = progress as MontyPending;
+    expect(pending.functionName, 'get_temp');
+
+    final done = await repl.resume(72);
+    expect(done, isA<MontyComplete>());
+    final complete = done as MontyComplete;
+    expect(complete.result.value, const MontyInt(72));
+
+    await repl.dispose();
+  });
+
+  test('REPL: feedStart state persists after resume cycle', () async {
+    final repl = MontyRepl.withBindings(
+      bindings: FfiReplBindings(bindings: bindings),
+    );
+
+    // Use feedStart to set a variable via ext fn
+    final progress = await repl.feedStart(
+      'temp = get_temp()',
+      externalFunctions: ['get_temp'],
+    );
+    expect(progress, isA<MontyPending>());
+    await repl.resume(72);
+
+    // Use feed (run-to-completion) to verify state persisted
+    final r = await repl.feed('temp');
+    expect(r.value, const MontyInt(72));
+
+    await repl.dispose();
+  });
+
+  test('REPL: multiple ext fn calls in one snippet', () async {
+    final repl = MontyRepl.withBindings(
+      bindings: FfiReplBindings(bindings: bindings),
+    );
+
+    final p1 = await repl.feedStart(
+      'a = get_a()\nb = get_b()\na + b',
+      externalFunctions: ['get_a', 'get_b'],
+    );
+    expect(p1, isA<MontyPending>());
+    expect((p1 as MontyPending).functionName, 'get_a');
+
+    final p2 = await repl.resume(10);
+    expect(p2, isA<MontyPending>());
+    expect((p2 as MontyPending).functionName, 'get_b');
+
+    final done = await repl.resume(20);
+    expect(done, isA<MontyComplete>());
+    expect((done as MontyComplete).result.value, const MontyInt(30));
+
+    await repl.dispose();
+  });
+
+  test('REPL: resumeWithError propagates to Python', () async {
+    final repl = MontyRepl.withBindings(
+      bindings: FfiReplBindings(bindings: bindings),
+    );
+
+    final progress = await repl.feedStart(
+      'try:\n    result = fetch("url")\n'
+      'except Exception as e:\n    result = str(e)\nresult',
+      externalFunctions: ['fetch'],
+    );
+    expect(progress, isA<MontyPending>());
+
+    final done = await repl.resumeWithError('connection refused');
+    expect(done, isA<MontyComplete>());
+    final value = (done as MontyComplete).result.value;
+    expect(value, isA<MontyString>());
+    expect(
+      (value! as MontyString).value,
+      contains('connection refused'),
+    );
+
+    await repl.dispose();
+  });
+
+  test('REPL: feed still works after feedStart cycle', () async {
+    final repl = MontyRepl.withBindings(
+      bindings: FfiReplBindings(bindings: bindings),
+    );
+
+    // feedStart cycle
+    final progress = await repl.feedStart(
+      'x = get_val()',
+      externalFunctions: ['get_val'],
+    );
+    expect(progress, isA<MontyPending>());
+    await repl.resume(100);
+
+    // feed (synchronous) still works
+    final r = await repl.feed('x * 2');
+    expect(r.value, const MontyInt(200));
+
     await repl.dispose();
   });
 }

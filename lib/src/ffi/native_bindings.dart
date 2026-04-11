@@ -158,4 +158,26 @@ abstract class NativeBindings {
   /// Returns `0` = complete, `1` = incomplete (unclosed brackets/strings),
   /// `2` = incomplete block (needs trailing blank line).
   int replDetectContinuation(String source);
+
+  /// Registers external function names for REPL name resolution.
+  void replSetExtFns(int handle, String extFns);
+
+  /// Starts iterative REPL execution. Pauses at external function calls.
+  ProgressResult replFeedStart(int handle, String code);
+
+  /// Resumes REPL execution with a JSON-encoded return value.
+  ProgressResult replResume(int handle, String valueJson);
+
+  /// Resumes REPL execution with an error (raises RuntimeError in Python).
+  ProgressResult replResumeWithError(int handle, String errorMessage);
+
+  /// Resumes REPL by creating a future for the pending call.
+  ProgressResult replResumeAsFuture(int handle);
+
+  /// Resolves pending REPL futures with results and errors.
+  ProgressResult replResolveFutures(
+    int handle,
+    String resultsJson,
+    String errorsJson,
+  );
 }

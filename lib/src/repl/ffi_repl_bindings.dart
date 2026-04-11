@@ -89,8 +89,160 @@ class FfiReplBindings implements ReplBindings {
   }
 
   // -----------------------------------------------------------------------
+  // Phase 2: iterative execution
+  // -----------------------------------------------------------------------
+
+  @override
+  void setExtFns(List<String> names) {
+    final handle = _replHandle;
+    if (handle == null) return;
+    _bindings.replSetExtFns(handle, names.join(','));
+  }
+
+  @override
+  Future<CoreProgressResult> feedStart(String code) async {
+    final handle = _replHandle;
+    if (handle == null) {
+      throw StateError('REPL not created. Call create() first.');
+    }
+    final result = _bindings.replFeedStart(handle, code);
+
+    return _translateProgressResult(result);
+  }
+
+  @override
+  Future<CoreProgressResult> resume(String valueJson) async {
+    final handle = _replHandle;
+    if (handle == null) {
+      throw StateError('REPL not created. Call create() first.');
+    }
+    final result = _bindings.replResume(handle, valueJson);
+
+    return _translateProgressResult(result);
+  }
+
+  @override
+  Future<CoreProgressResult> resumeWithError(String errorMessage) async {
+    final handle = _replHandle;
+    if (handle == null) {
+      throw StateError('REPL not created. Call create() first.');
+    }
+    final result = _bindings.replResumeWithError(handle, errorMessage);
+
+    return _translateProgressResult(result);
+  }
+
+  // -----------------------------------------------------------------------
   // Translation (same logic as FfiCoreBindings._translateRunResult)
   // -----------------------------------------------------------------------
+
+  CoreProgressResult _translateProgressResult(ProgressResult progress) {
+    switch (progress.tag) {
+      case 0: // COMPLETE
+        return _translateComplete(progress);
+      case 1: // PENDING
+        return _translatePending(progress);
+      case 2: // ERROR
+        return _translateError(progress);
+      case 3: // RESOLVE_FUTURES
+        List<int>? callIds;
+        if (progress.futureCallIdsJson != null) {
+          callIds = (json.decode(progress.futureCallIdsJson!) as List)
+              .cast<int>();
+        }
+        return CoreProgressResult(
+          state: 'resolve_futures',
+          pendingCallIds: callIds,
+        );
+      case 4: // OS_CALL
+        List<Object?>? parsedArgs;
+        if (progress.argumentsJson != null) {
+          parsedArgs = (json.decode(progress.argumentsJson!) as List)
+              .cast<Object?>();
+        }
+        Map<String, Object?>? parsedKwargs;
+        if (progress.kwargsJson != null) {
+          parsedKwargs =
+              (json.decode(progress.kwargsJson!) as Map<String, dynamic>)
+                  .cast<String, Object?>();
+        }
+        return CoreProgressResult(
+          state: 'os_call',
+          functionName: progress.functionName,
+          arguments: parsedArgs,
+          kwargs: parsedKwargs,
+          callId: progress.callId,
+        );
+      default:
+        return CoreProgressResult(
+          state: 'error',
+          error: 'Unknown progress tag: ${progress.tag}',
+        );
+    }
+  }
+
+  CoreProgressResult _translateComplete(ProgressResult progress) {
+    final resultJson = progress.resultJson;
+    if (resultJson == null) {
+      return const CoreProgressResult(state: 'complete');
+    }
+    final jsonMap = json.decode(resultJson) as Map<String, dynamic>;
+    final usageMap = jsonMap['usage'] as Map<String, dynamic>?;
+    final errorMap = jsonMap['error'] as Map<String, dynamic>?;
+
+    return CoreProgressResult(
+      state: 'complete',
+      value: jsonMap['value'] as Object?,
+      usage: usageMap != null ? MontyResourceUsage.fromJson(usageMap) : null,
+      printOutput: jsonMap['print_output'] as String?,
+      error: errorMap?['message'] as String?,
+      excType: errorMap?['exc_type'] as String?,
+      traceback: errorMap?['traceback'] as List<Object?>?,
+    );
+  }
+
+  CoreProgressResult _translatePending(ProgressResult progress) {
+    List<Object?>? parsedArgs;
+    if (progress.argumentsJson != null) {
+      parsedArgs = (json.decode(progress.argumentsJson!) as List)
+          .cast<Object?>();
+    }
+    Map<String, Object?>? parsedKwargs;
+    if (progress.kwargsJson != null) {
+      parsedKwargs = (json.decode(progress.kwargsJson!) as Map<String, dynamic>)
+          .cast<String, Object?>();
+    }
+
+    return CoreProgressResult(
+      state: 'pending',
+      functionName: progress.functionName,
+      arguments: parsedArgs,
+      kwargs: parsedKwargs,
+      callId: progress.callId,
+      methodCall: progress.methodCall,
+    );
+  }
+
+  CoreProgressResult _translateError(ProgressResult progress) {
+    final resultJson = progress.resultJson;
+    if (resultJson != null) {
+      final jsonMap = json.decode(resultJson) as Map<String, dynamic>;
+      final errorMap = jsonMap['error'] as Map<String, dynamic>?;
+      if (errorMap != null) {
+        return CoreProgressResult(
+          state: 'error',
+          error: errorMap['message'] as String?,
+          excType: errorMap['exc_type'] as String?,
+          traceback: errorMap['traceback'] as List<Object?>?,
+        );
+      }
+    }
+
+    return CoreProgressResult(
+      state: 'error',
+      error: progress.errorMessage ?? 'Unknown error',
+    );
+  }
 
   CoreRunResult _translateRunResult(RunResult result) {
     if (result.tag == 0) {

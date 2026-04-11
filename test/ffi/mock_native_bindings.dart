@@ -268,4 +268,72 @@ class MockNativeBindings extends NativeBindings {
 
     return nextReplDetectContinuation;
   }
+
+  // Phase 2
+
+  ProgressResult nextReplFeedStartResult = const ProgressResult(
+    tag: 0,
+    resultJson:
+        '{"value": null, "usage": {"memory_bytes_used": 0, '
+        '"time_elapsed_ms": 0, "stack_depth_used": 0}}',
+  );
+  String? lastReplExtFns;
+  final List<String> replFeedStartCalls = [];
+  final List<String> replResumeCalls = [];
+  final List<String> replResumeWithErrorCalls = [];
+
+  @override
+  void replSetExtFns(int handle, String extFns) {
+    lastReplExtFns = extFns;
+  }
+
+  @override
+  ProgressResult replFeedStart(int handle, String code) {
+    replFeedStartCalls.add(code);
+
+    return nextReplFeedStartResult;
+  }
+
+  @override
+  ProgressResult replResume(int handle, String valueJson) {
+    replResumeCalls.add(valueJson);
+
+    return const ProgressResult(
+      tag: 0,
+      resultJson:
+          '{"value": null, "usage": {"memory_bytes_used": 0, '
+          '"time_elapsed_ms": 0, "stack_depth_used": 0}}',
+    );
+  }
+
+  @override
+  ProgressResult replResumeWithError(int handle, String errorMessage) {
+    replResumeWithErrorCalls.add(errorMessage);
+
+    return const ProgressResult(
+      tag: 0,
+      resultJson:
+          '{"value": null, "usage": {"memory_bytes_used": 0, '
+          '"time_elapsed_ms": 0, "stack_depth_used": 0}}',
+    );
+  }
+
+  @override
+  ProgressResult replResumeAsFuture(int handle) {
+    return const ProgressResult(tag: 3, futureCallIdsJson: '[0]');
+  }
+
+  @override
+  ProgressResult replResolveFutures(
+    int handle,
+    String resultsJson,
+    String errorsJson,
+  ) {
+    return const ProgressResult(
+      tag: 0,
+      resultJson:
+          '{"value": null, "usage": {"memory_bytes_used": 0, '
+          '"time_elapsed_ms": 0, "stack_depth_used": 0}}',
+    );
+  }
 }

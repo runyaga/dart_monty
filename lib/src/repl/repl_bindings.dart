@@ -18,6 +18,18 @@ abstract class ReplBindings {
   /// Returns `0` = complete, `1` = incomplete, `2` = incomplete block.
   Future<int> detectContinuation(String source);
 
+  /// Registers external function names for name resolution.
+  void setExtFns(List<String> names);
+
+  /// Starts iterative execution. Pauses at external function calls.
+  Future<CoreProgressResult> feedStart(String code);
+
+  /// Resumes with a JSON-encoded return value.
+  Future<CoreProgressResult> resume(String valueJson);
+
+  /// Resumes by raising an error in Python.
+  Future<CoreProgressResult> resumeWithError(String errorMessage);
+
   /// Disposes the REPL session.
   Future<void> dispose();
 }

@@ -313,8 +313,190 @@ class NativeBindingsFfi extends NativeBindings {
   }
 
   // ---------------------------------------------------------------------------
+  // REPL iterative execution
+  // ---------------------------------------------------------------------------
+
+  @override
+  void replSetExtFns(int handle, String extFns) {
+    final ptr = Pointer<ffi_native.MontyReplHandle>.fromAddress(handle);
+    final cExtFns = extFns.toNativeUtf8().cast<Char>();
+    try {
+      ffi_native.monty_repl_set_ext_fns(ptr, cExtFns);
+    } finally {
+      calloc.free(cExtFns);
+    }
+  }
+
+  @override
+  ProgressResult replFeedStart(int handle, String code) {
+    final ptr = Pointer<ffi_native.MontyReplHandle>.fromAddress(handle);
+    final cCode = code.toNativeUtf8().cast<Char>();
+    final outError = calloc<Pointer<Char>>();
+
+    try {
+      final tag = ffi_native.monty_repl_feed_start(ptr, cCode, outError);
+
+      return _buildReplProgressResult(ptr, tag, outError.value);
+    } finally {
+      calloc
+        ..free(cCode)
+        ..free(outError);
+    }
+  }
+
+  @override
+  ProgressResult replResume(int handle, String valueJson) {
+    final ptr = Pointer<ffi_native.MontyReplHandle>.fromAddress(handle);
+    final cValue = valueJson.toNativeUtf8().cast<Char>();
+    final outError = calloc<Pointer<Char>>();
+
+    try {
+      final tag = ffi_native.monty_repl_resume(ptr, cValue, outError);
+
+      return _buildReplProgressResult(ptr, tag, outError.value);
+    } finally {
+      calloc
+        ..free(cValue)
+        ..free(outError);
+    }
+  }
+
+  @override
+  ProgressResult replResumeWithError(int handle, String errorMessage) {
+    final ptr = Pointer<ffi_native.MontyReplHandle>.fromAddress(handle);
+    final cError = errorMessage.toNativeUtf8().cast<Char>();
+    final outError = calloc<Pointer<Char>>();
+
+    try {
+      final tag = ffi_native.monty_repl_resume_with_error(
+        ptr,
+        cError,
+        outError,
+      );
+
+      return _buildReplProgressResult(ptr, tag, outError.value);
+    } finally {
+      calloc
+        ..free(cError)
+        ..free(outError);
+    }
+  }
+
+  @override
+  ProgressResult replResumeAsFuture(int handle) {
+    final ptr = Pointer<ffi_native.MontyReplHandle>.fromAddress(handle);
+    final outError = calloc<Pointer<Char>>();
+
+    try {
+      final tag = ffi_native.monty_repl_resume_as_future(ptr, outError);
+
+      return _buildReplProgressResult(ptr, tag, outError.value);
+    } finally {
+      calloc.free(outError);
+    }
+  }
+
+  @override
+  ProgressResult replResolveFutures(
+    int handle,
+    String resultsJson,
+    String errorsJson,
+  ) {
+    final ptr = Pointer<ffi_native.MontyReplHandle>.fromAddress(handle);
+    final cResults = resultsJson.toNativeUtf8().cast<Char>();
+    final cErrors = errorsJson.toNativeUtf8().cast<Char>();
+    final outError = calloc<Pointer<Char>>();
+
+    try {
+      final tag = ffi_native.monty_repl_resume_futures(
+        ptr,
+        cResults,
+        cErrors,
+        outError,
+      );
+
+      return _buildReplProgressResult(ptr, tag, outError.value);
+    } finally {
+      calloc
+        ..free(cResults)
+        ..free(cErrors)
+        ..free(outError);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // Helpers
   // ---------------------------------------------------------------------------
+
+  /// Builds a [ProgressResult] from REPL handle state accessors.
+  ProgressResult _buildReplProgressResult(
+    Pointer<ffi_native.MontyReplHandle> ptr,
+    ffi_native.MontyProgressTag tag,
+    Pointer<Char> errorPtr,
+  ) {
+    switch (tag) {
+      case ffi_native.MontyProgressTag.MONTY_PROGRESS_COMPLETE:
+        final resultJsonPtr = ffi_native.monty_repl_complete_result_json(ptr);
+        final resultJson = _readAndFreeString(resultJsonPtr);
+        final isError = ffi_native.monty_repl_complete_is_error(ptr);
+
+        return ProgressResult(tag: 0, resultJson: resultJson, isError: isError);
+
+      case ffi_native.MontyProgressTag.MONTY_PROGRESS_PENDING:
+        final fnNamePtr = ffi_native.monty_repl_pending_fn_name(ptr);
+        final fnName = _readAndFreeString(fnNamePtr);
+        final argsPtr = ffi_native.monty_repl_pending_fn_args_json(ptr);
+        final argsJson = _readAndFreeString(argsPtr);
+        final kwargsPtr = ffi_native.monty_repl_pending_fn_kwargs_json(ptr);
+        final kwargsJson = _readAndFreeString(kwargsPtr);
+        final callId = ffi_native.monty_repl_pending_call_id(ptr);
+        final methodCall = ffi_native.monty_repl_pending_method_call(ptr);
+
+        return ProgressResult(
+          tag: 1,
+          functionName: fnName,
+          argumentsJson: argsJson,
+          kwargsJson: kwargsJson,
+          callId: callId,
+          methodCall: methodCall == 1,
+        );
+
+      case ffi_native.MontyProgressTag.MONTY_PROGRESS_ERROR:
+        final errorMsg = _readAndFreeString(errorPtr);
+        final resultJsonPtr = ffi_native.monty_repl_complete_result_json(ptr);
+        final resultJson = _readAndFreeString(resultJsonPtr);
+
+        return ProgressResult(
+          tag: 2,
+          errorMessage: errorMsg,
+          resultJson: resultJson,
+        );
+
+      case ffi_native.MontyProgressTag.MONTY_PROGRESS_RESOLVE_FUTURES:
+        final callIdsPtr =
+            ffi_native.monty_repl_pending_future_call_ids(ptr);
+        final callIdsJson = _readAndFreeString(callIdsPtr);
+
+        return ProgressResult(tag: 3, futureCallIdsJson: callIdsJson);
+
+      case ffi_native.MontyProgressTag.MONTY_PROGRESS_OS_CALL:
+        final fnNamePtr = ffi_native.monty_repl_os_call_fn_name(ptr);
+        final fnName = _readAndFreeString(fnNamePtr);
+        final argsPtr = ffi_native.monty_repl_os_call_args_json(ptr);
+        final argsJson = _readAndFreeString(argsPtr);
+        final kwargsPtr = ffi_native.monty_repl_os_call_kwargs_json(ptr);
+        final kwargsJson = _readAndFreeString(kwargsPtr);
+        final callId = ffi_native.monty_repl_os_call_id(ptr);
+
+        return ProgressResult(
+          tag: 4,
+          functionName: fnName,
+          argumentsJson: argsJson,
+          kwargsJson: kwargsJson,
+          callId: callId,
+        );
+    }
+  }
 
   ProgressResult _buildProgressResult(
     Pointer<ffi_native.MontyHandle> ptr,

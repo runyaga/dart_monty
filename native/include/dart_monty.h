@@ -349,6 +349,55 @@ MontyResultTag monty_repl_feed_run(MontyReplHandle *handle,
 int monty_repl_detect_continuation(const char *source);
 
 /* ------------------------------------------------------------------ */
+/* REPL iterative execution                                           */
+/* ------------------------------------------------------------------ */
+
+/** Register external function names for REPL name resolution. */
+void monty_repl_set_ext_fns(MontyReplHandle *handle, const char *ext_fns);
+
+/** Start iterative REPL execution. Pauses at external function calls. */
+MontyProgressTag monty_repl_feed_start(MontyReplHandle *handle,
+                                        const char *code,
+                                        char **out_error);
+
+/** Resume REPL execution with a JSON-encoded return value. */
+MontyProgressTag monty_repl_resume(MontyReplHandle *handle,
+                                    const char *value_json,
+                                    char **out_error);
+
+/** Resume REPL execution with an error (raises RuntimeError in Python). */
+MontyProgressTag monty_repl_resume_with_error(MontyReplHandle *handle,
+                                               const char *error_message,
+                                               char **out_error);
+
+/** Resume REPL by creating a future for the pending call. */
+MontyProgressTag monty_repl_resume_as_future(MontyReplHandle *handle,
+                                              char **out_error);
+
+/** Resolve pending REPL futures with results and errors. */
+MontyProgressTag monty_repl_resume_futures(MontyReplHandle *handle,
+                                            const char *results_json,
+                                            const char *errors_json,
+                                            char **out_error);
+
+/* ------------------------------------------------------------------ */
+/* REPL state accessors                                               */
+/* ------------------------------------------------------------------ */
+
+char *monty_repl_pending_fn_name(const MontyReplHandle *handle);
+char *monty_repl_pending_fn_args_json(const MontyReplHandle *handle);
+char *monty_repl_pending_fn_kwargs_json(const MontyReplHandle *handle);
+uint32_t monty_repl_pending_call_id(const MontyReplHandle *handle);
+int monty_repl_pending_method_call(const MontyReplHandle *handle);
+char *monty_repl_os_call_fn_name(const MontyReplHandle *handle);
+char *monty_repl_os_call_args_json(const MontyReplHandle *handle);
+char *monty_repl_os_call_kwargs_json(const MontyReplHandle *handle);
+uint32_t monty_repl_os_call_id(const MontyReplHandle *handle);
+char *monty_repl_complete_result_json(const MontyReplHandle *handle);
+int monty_repl_complete_is_error(const MontyReplHandle *handle);
+char *monty_repl_pending_future_call_ids(const MontyReplHandle *handle);
+
+/* ------------------------------------------------------------------ */
 /* Memory management                                                  */
 /* ------------------------------------------------------------------ */
 

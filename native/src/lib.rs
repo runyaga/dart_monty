@@ -279,6 +279,7 @@ pub unsafe extern "C" fn monty_pending_future_call_ids(handle: *const MontyHandl
         return ptr::null_mut();
     }
     // SAFETY: handle is non-null (just checked) and was created by monty_create via Box::into_raw
+    // SAFETY: handle is non-null (just checked), created by monty_repl_create via Box::into_raw
     let h = unsafe { &*handle };
     match h.pending_future_call_ids() {
         Some(json) => to_c_string(json),
@@ -322,6 +323,7 @@ pub unsafe extern "C" fn monty_pending_fn_name(handle: *const MontyHandle) -> *m
         return ptr::null_mut();
     }
     // SAFETY: handle is non-null (just checked) and was created by monty_create via Box::into_raw
+    // SAFETY: handle is non-null (just checked), created by monty_repl_create via Box::into_raw
     let h = unsafe { &*handle };
     match h.pending_fn_name() {
         Some(name) => to_c_string(name),
@@ -337,6 +339,7 @@ pub unsafe extern "C" fn monty_pending_fn_args_json(handle: *const MontyHandle) 
         return ptr::null_mut();
     }
     // SAFETY: handle is non-null (just checked) and was created by monty_create via Box::into_raw
+    // SAFETY: handle is non-null (just checked), created by monty_repl_create via Box::into_raw
     let h = unsafe { &*handle };
     match h.pending_fn_args_json() {
         Some(json) => to_c_string(json),
@@ -353,6 +356,7 @@ pub unsafe extern "C" fn monty_pending_fn_kwargs_json(handle: *const MontyHandle
         return ptr::null_mut();
     }
     // SAFETY: handle is non-null (just checked) and was created by monty_create via Box::into_raw
+    // SAFETY: handle is non-null (just checked), created by monty_repl_create via Box::into_raw
     let h = unsafe { &*handle };
     match h.pending_fn_kwargs_json() {
         Some(json) => to_c_string(json),
@@ -368,6 +372,7 @@ pub unsafe extern "C" fn monty_pending_call_id(handle: *const MontyHandle) -> u3
         return u32::MAX;
     }
     // SAFETY: handle is non-null (just checked) and was created by monty_create via Box::into_raw
+    // SAFETY: handle is non-null (just checked), created by monty_repl_create via Box::into_raw
     let h = unsafe { &*handle };
     h.pending_call_id().unwrap_or(u32::MAX)
 }
@@ -380,6 +385,7 @@ pub unsafe extern "C" fn monty_pending_method_call(handle: *const MontyHandle) -
         return -1;
     }
     // SAFETY: handle is non-null (just checked) and was created by monty_create via Box::into_raw
+    // SAFETY: handle is non-null (just checked), created by monty_repl_create via Box::into_raw
     let h = unsafe { &*handle };
     match h.pending_method_call() {
         Some(true) => 1,
@@ -401,6 +407,7 @@ pub unsafe extern "C" fn monty_os_call_fn_name(handle: *const MontyHandle) -> *m
         return ptr::null_mut();
     }
     // SAFETY: handle is non-null (just checked) and was created by monty_create via Box::into_raw
+    // SAFETY: handle is non-null (just checked), created by monty_repl_create via Box::into_raw
     let h = unsafe { &*handle };
     match h.os_call_fn_name() {
         Some(name) => to_c_string(name),
@@ -416,6 +423,7 @@ pub unsafe extern "C" fn monty_os_call_args_json(handle: *const MontyHandle) -> 
         return ptr::null_mut();
     }
     // SAFETY: handle is non-null (just checked) and was created by monty_create via Box::into_raw
+    // SAFETY: handle is non-null (just checked), created by monty_repl_create via Box::into_raw
     let h = unsafe { &*handle };
     match h.os_call_args_json() {
         Some(json) => to_c_string(json),
@@ -431,6 +439,7 @@ pub unsafe extern "C" fn monty_os_call_kwargs_json(handle: *const MontyHandle) -
         return ptr::null_mut();
     }
     // SAFETY: handle is non-null (just checked) and was created by monty_create via Box::into_raw
+    // SAFETY: handle is non-null (just checked), created by monty_repl_create via Box::into_raw
     let h = unsafe { &*handle };
     match h.os_call_kwargs_json() {
         Some(json) => to_c_string(json),
@@ -445,6 +454,7 @@ pub unsafe extern "C" fn monty_os_call_id(handle: *const MontyHandle) -> u32 {
         return u32::MAX;
     }
     // SAFETY: handle is non-null (just checked) and was created by monty_create via Box::into_raw
+    // SAFETY: handle is non-null (just checked), created by monty_repl_create via Box::into_raw
     let h = unsafe { &*handle };
     h.os_call_id().unwrap_or(u32::MAX)
 }
@@ -457,6 +467,7 @@ pub unsafe extern "C" fn monty_complete_result_json(handle: *const MontyHandle) 
         return ptr::null_mut();
     }
     // SAFETY: handle is non-null (just checked) and was created by monty_create via Box::into_raw
+    // SAFETY: handle is non-null (just checked), created by monty_repl_create via Box::into_raw
     let h = unsafe { &*handle };
     match h.complete_result_json() {
         Some(json) => to_c_string(json),
@@ -472,6 +483,7 @@ pub unsafe extern "C" fn monty_complete_is_error(handle: *const MontyHandle) -> 
         return -1;
     }
     // SAFETY: handle is non-null (just checked) and was created by monty_create via Box::into_raw
+    // SAFETY: handle is non-null (just checked), created by monty_repl_create via Box::into_raw
     let h = unsafe { &*handle };
     match h.complete_is_error() {
         Some(true) => 1,
@@ -498,6 +510,7 @@ pub unsafe extern "C" fn monty_snapshot(
         return ptr::null_mut();
     }
     // SAFETY: handle is non-null (checked above) and was created by monty_create via Box::into_raw
+    // SAFETY: handle is non-null (just checked), created by monty_repl_create via Box::into_raw
     let h = unsafe { &*handle };
     match catch_ffi_panic(|| h.snapshot()) {
         Ok(Ok(bytes)) => {
@@ -739,6 +752,415 @@ pub unsafe extern "C" fn monty_repl_detect_continuation(source: *const c_char) -
     };
 
     MontyReplHandle::detect_continuation(source_str)
+}
+
+// ---------------------------------------------------------------------------
+// REPL iterative execution
+// ---------------------------------------------------------------------------
+
+/// Common FFI wrapper for REPL functions returning `MontyProgressTag`.
+macro_rules! ffi_repl_progress {
+    ($handle:expr, $out_error:expr, |$h:ident| $body:expr) => {{
+        if $handle.is_null() {
+            if !$out_error.is_null() {
+                // SAFETY: out_error is non-null (just checked), Dart caller provides a valid writable pointer
+                unsafe { *$out_error = to_c_string("handle is NULL") };
+            }
+            return MontyProgressTag::Error;
+        }
+        // SAFETY: handle is non-null (just checked) and was created by monty_repl_create via Box::into_raw
+        let $h = unsafe { &mut *$handle };
+        match catch_ffi_panic(|| $body) {
+            Ok((tag, err)) => {
+                if !$out_error.is_null() {
+                    match err {
+                        // SAFETY: out_error is non-null (just checked), writing error message string
+                        Some(ref msg) => unsafe { *$out_error = to_c_string(msg) },
+                        // SAFETY: out_error is non-null (just checked), clearing error to indicate success
+                        None => unsafe { *$out_error = ptr::null_mut() },
+                    }
+                }
+                tag
+            }
+            Err(panic_msg) => {
+                if !$out_error.is_null() {
+                    // SAFETY: out_error is non-null (just checked), writing panic message string
+                    unsafe { *$out_error = to_c_string(&panic_msg) };
+                }
+                MontyProgressTag::Error
+            }
+        }
+    }};
+}
+
+/// Register external function names for REPL name resolution.
+///
+/// - `ext_fns`: NUL-terminated comma-separated function names (or NULL to clear).
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn monty_repl_set_ext_fns(
+    handle: *mut MontyReplHandle,
+    ext_fns: *const c_char,
+) {
+    if handle.is_null() {
+        return;
+    }
+    // SAFETY: handle is non-null (just checked), created by monty_repl_create
+    let h = unsafe { &mut *handle };
+    if ext_fns.is_null() {
+        h.set_ext_fns(vec![]);
+    } else {
+        // SAFETY: ext_fns is non-null (just checked), NUL-terminated C string
+        if let Ok(s) = unsafe { std::ffi::CStr::from_ptr(ext_fns) }.to_str() {
+            let names: Vec<String> = if s.is_empty() {
+                vec![]
+            } else {
+                s.split(',').map(|f| f.trim().to_string()).collect()
+            };
+            h.set_ext_fns(names);
+        }
+    }
+}
+
+/// Start iterative REPL execution. Pauses at external function calls.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn monty_repl_feed_start(
+    handle: *mut MontyReplHandle,
+    code: *const c_char,
+    out_error: *mut *mut c_char,
+) -> MontyProgressTag {
+    if handle.is_null() {
+        if !out_error.is_null() {
+            // SAFETY: out_error is non-null (just checked), Dart caller provides a valid writable pointer
+            unsafe { *out_error = to_c_string("handle is NULL") };
+        }
+        return MontyProgressTag::Error;
+    }
+    // SAFETY: code is a NUL-terminated C string from Dart FFI; parse_c_str validates non-null
+    let Ok(code_str) = (unsafe { parse_c_str(code, "code", out_error) }) else {
+        return MontyProgressTag::Error;
+    };
+    // SAFETY: handle is non-null (just checked), created by monty_repl_create via Box::into_raw
+    let h = unsafe { &mut *handle };
+    match catch_ffi_panic(|| h.feed_start(code_str)) {
+        Ok((tag, err)) => {
+            if !out_error.is_null() {
+                match err {
+                    // SAFETY: out_error is non-null (just checked), writing error message string
+                    Some(ref msg) => unsafe { *out_error = to_c_string(msg) },
+                    // SAFETY: out_error is non-null (just checked), clearing error to indicate success
+                    None => unsafe { *out_error = ptr::null_mut() },
+                }
+            }
+            tag
+        }
+        Err(panic_msg) => {
+            if !out_error.is_null() {
+                // SAFETY: out_error is non-null (just checked), writing panic message string
+                unsafe { *out_error = to_c_string(&panic_msg) };
+            }
+            MontyProgressTag::Error
+        }
+    }
+}
+
+/// Resume REPL execution with a JSON-encoded return value.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn monty_repl_resume(
+    handle: *mut MontyReplHandle,
+    value_json: *const c_char,
+    out_error: *mut *mut c_char,
+) -> MontyProgressTag {
+    if handle.is_null() {
+        if !out_error.is_null() {
+            // SAFETY: out_error is non-null (just checked), Dart caller provides a valid writable pointer
+            unsafe { *out_error = to_c_string("handle is NULL") };
+        }
+        return MontyProgressTag::Error;
+    }
+    // SAFETY: value_json is a NUL-terminated C string from Dart FFI; parse_c_str validates non-null
+    let Ok(val_str) = (unsafe { parse_c_str(value_json, "value_json", out_error) }) else {
+        return MontyProgressTag::Error;
+    };
+    // SAFETY: handle is non-null (just checked), created by monty_repl_create via Box::into_raw
+    let h = unsafe { &mut *handle };
+    match catch_ffi_panic(|| h.resume(val_str)) {
+        Ok((tag, err)) => {
+            if !out_error.is_null() {
+                match err {
+                    // SAFETY: out_error is non-null (just checked), writing error message string
+                    Some(ref msg) => unsafe { *out_error = to_c_string(msg) },
+                    // SAFETY: out_error is non-null (just checked), clearing error to indicate success
+                    None => unsafe { *out_error = ptr::null_mut() },
+                }
+            }
+            tag
+        }
+        Err(panic_msg) => {
+            if !out_error.is_null() {
+                // SAFETY: out_error is non-null (just checked), writing panic message string
+                unsafe { *out_error = to_c_string(&panic_msg) };
+            }
+            MontyProgressTag::Error
+        }
+    }
+}
+
+/// Resume REPL execution with an error (raises RuntimeError in Python).
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn monty_repl_resume_with_error(
+    handle: *mut MontyReplHandle,
+    error_message: *const c_char,
+    out_error: *mut *mut c_char,
+) -> MontyProgressTag {
+    if handle.is_null() {
+        if !out_error.is_null() {
+            // SAFETY: out_error is non-null (just checked), Dart caller provides a valid writable pointer
+            unsafe { *out_error = to_c_string("handle is NULL") };
+        }
+        return MontyProgressTag::Error;
+    }
+    // SAFETY: error_message is a NUL-terminated C string from Dart FFI; parse_c_str validates non-null
+    let Ok(msg_str) = (unsafe { parse_c_str(error_message, "error_message", out_error) }) else {
+        return MontyProgressTag::Error;
+    };
+    // SAFETY: handle is non-null (just checked), created by monty_repl_create via Box::into_raw
+    let h = unsafe { &mut *handle };
+    match catch_ffi_panic(|| h.resume_with_error(msg_str)) {
+        Ok((tag, err)) => {
+            if !out_error.is_null() {
+                match err {
+                    // SAFETY: out_error is non-null (just checked), writing error message string
+                    Some(ref msg) => unsafe { *out_error = to_c_string(msg) },
+                    // SAFETY: out_error is non-null (just checked), clearing error to indicate success
+                    None => unsafe { *out_error = ptr::null_mut() },
+                }
+            }
+            tag
+        }
+        Err(panic_msg) => {
+            if !out_error.is_null() {
+                // SAFETY: out_error is non-null (just checked), writing panic message string
+                unsafe { *out_error = to_c_string(&panic_msg) };
+            }
+            MontyProgressTag::Error
+        }
+    }
+}
+
+/// Resume REPL by creating a future for the pending call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn monty_repl_resume_as_future(
+    handle: *mut MontyReplHandle,
+    out_error: *mut *mut c_char,
+) -> MontyProgressTag {
+    ffi_repl_progress!(handle, out_error, |h| h.resume_as_future())
+}
+
+/// Resolve pending REPL futures with results and errors.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn monty_repl_resume_futures(
+    handle: *mut MontyReplHandle,
+    results_json: *const c_char,
+    errors_json: *const c_char,
+    out_error: *mut *mut c_char,
+) -> MontyProgressTag {
+    if handle.is_null() {
+        if !out_error.is_null() {
+            // SAFETY: out_error is non-null (just checked), Dart caller provides a valid writable pointer
+            unsafe { *out_error = to_c_string("handle is NULL") };
+        }
+        return MontyProgressTag::Error;
+    }
+    // SAFETY: results_json is a NUL-terminated C string from Dart FFI; parse_c_str validates non-null
+    let Ok(results_str) = (unsafe { parse_c_str(results_json, "results_json", out_error) }) else {
+        return MontyProgressTag::Error;
+    };
+    // SAFETY: errors_json is a NUL-terminated C string from Dart FFI; parse_c_str validates non-null
+    let Ok(errors_str) = (unsafe { parse_c_str(errors_json, "errors_json", out_error) }) else {
+        return MontyProgressTag::Error;
+    };
+    // SAFETY: handle is non-null (just checked), created by monty_repl_create via Box::into_raw
+    let h = unsafe { &mut *handle };
+    match catch_ffi_panic(|| h.resume_futures(results_str, errors_str)) {
+        Ok((tag, err)) => {
+            if !out_error.is_null() {
+                match err {
+                    // SAFETY: out_error is non-null (just checked), writing error message string
+                    Some(ref msg) => unsafe { *out_error = to_c_string(msg) },
+                    // SAFETY: out_error is non-null (just checked), clearing error to indicate success
+                    None => unsafe { *out_error = ptr::null_mut() },
+                }
+            }
+            tag
+        }
+        Err(panic_msg) => {
+            if !out_error.is_null() {
+                // SAFETY: out_error is non-null (just checked), writing panic message string
+                unsafe { *out_error = to_c_string(&panic_msg) };
+            }
+            MontyProgressTag::Error
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// REPL state accessors
+// ---------------------------------------------------------------------------
+
+/// Get the REPL pending external function name.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn monty_repl_pending_fn_name(handle: *const MontyReplHandle) -> *mut c_char {
+    if handle.is_null() {
+        return ptr::null_mut();
+    }
+    // SAFETY: handle is non-null (just checked), created by monty_repl_create via Box::into_raw
+    let h = unsafe { &*handle };
+    h.pending_fn_name().map_or(ptr::null_mut(), to_c_string)
+}
+
+/// Get the REPL pending function arguments as a JSON array.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn monty_repl_pending_fn_args_json(
+    handle: *const MontyReplHandle,
+) -> *mut c_char {
+    if handle.is_null() {
+        return ptr::null_mut();
+    }
+    // SAFETY: handle is non-null (just checked), created by monty_repl_create via Box::into_raw
+    let h = unsafe { &*handle };
+    h.pending_fn_args_json()
+        .map_or(ptr::null_mut(), to_c_string)
+}
+
+/// Get the REPL pending keyword arguments as a JSON object.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn monty_repl_pending_fn_kwargs_json(
+    handle: *const MontyReplHandle,
+) -> *mut c_char {
+    if handle.is_null() {
+        return ptr::null_mut();
+    }
+    // SAFETY: handle is non-null (just checked), created by monty_repl_create via Box::into_raw
+    let h = unsafe { &*handle };
+    h.pending_fn_kwargs_json()
+        .map_or(ptr::null_mut(), to_c_string)
+}
+
+/// Get the REPL pending call ID.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn monty_repl_pending_call_id(handle: *const MontyReplHandle) -> u32 {
+    if handle.is_null() {
+        return u32::MAX;
+    }
+    // SAFETY: handle is non-null (just checked), created by monty_repl_create via Box::into_raw
+    let h = unsafe { &*handle };
+    h.pending_call_id().unwrap_or(u32::MAX)
+}
+
+/// Whether the REPL pending call is a method call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn monty_repl_pending_method_call(handle: *const MontyReplHandle) -> c_int {
+    if handle.is_null() {
+        return -1;
+    }
+    // SAFETY: handle is non-null (just checked), created by monty_repl_create via Box::into_raw
+    let h = unsafe { &*handle };
+    match h.pending_method_call() {
+        Some(true) => 1,
+        Some(false) => 0,
+        None => -1,
+    }
+}
+
+/// Get the REPL OS call function name.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn monty_repl_os_call_fn_name(handle: *const MontyReplHandle) -> *mut c_char {
+    if handle.is_null() {
+        return ptr::null_mut();
+    }
+    // SAFETY: handle is non-null (just checked), created by monty_repl_create via Box::into_raw
+    let h = unsafe { &*handle };
+    h.os_call_fn_name().map_or(ptr::null_mut(), to_c_string)
+}
+
+/// Get the REPL OS call arguments as a JSON array.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn monty_repl_os_call_args_json(
+    handle: *const MontyReplHandle,
+) -> *mut c_char {
+    if handle.is_null() {
+        return ptr::null_mut();
+    }
+    // SAFETY: handle is non-null (just checked), created by monty_repl_create via Box::into_raw
+    let h = unsafe { &*handle };
+    h.os_call_args_json().map_or(ptr::null_mut(), to_c_string)
+}
+
+/// Get the REPL OS call keyword arguments as a JSON object.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn monty_repl_os_call_kwargs_json(
+    handle: *const MontyReplHandle,
+) -> *mut c_char {
+    if handle.is_null() {
+        return ptr::null_mut();
+    }
+    // SAFETY: handle is non-null (just checked), created by monty_repl_create via Box::into_raw
+    let h = unsafe { &*handle };
+    h.os_call_kwargs_json().map_or(ptr::null_mut(), to_c_string)
+}
+
+/// Get the REPL OS call ID.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn monty_repl_os_call_id(handle: *const MontyReplHandle) -> u32 {
+    if handle.is_null() {
+        return u32::MAX;
+    }
+    // SAFETY: handle is non-null (just checked), created by monty_repl_create via Box::into_raw
+    let h = unsafe { &*handle };
+    h.os_call_id().unwrap_or(u32::MAX)
+}
+
+/// Get the REPL completed result as a JSON string.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn monty_repl_complete_result_json(
+    handle: *const MontyReplHandle,
+) -> *mut c_char {
+    if handle.is_null() {
+        return ptr::null_mut();
+    }
+    // SAFETY: handle is non-null (just checked), created by monty_repl_create via Box::into_raw
+    let h = unsafe { &*handle };
+    h.complete_result_json()
+        .map_or(ptr::null_mut(), to_c_string)
+}
+
+/// Check whether the REPL completed result is an error.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn monty_repl_complete_is_error(handle: *const MontyReplHandle) -> c_int {
+    if handle.is_null() {
+        return -1;
+    }
+    // SAFETY: handle is non-null (just checked), created by monty_repl_create via Box::into_raw
+    let h = unsafe { &*handle };
+    match h.complete_is_error() {
+        Some(true) => 1,
+        Some(false) => 0,
+        None => -1,
+    }
+}
+
+/// Get the REPL pending future call IDs as a JSON array.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn monty_repl_pending_future_call_ids(
+    handle: *const MontyReplHandle,
+) -> *mut c_char {
+    if handle.is_null() {
+        return ptr::null_mut();
+    }
+    // SAFETY: handle is non-null (just checked), created by monty_repl_create via Box::into_raw
+    let h = unsafe { &*handle };
+    h.pending_future_call_ids()
+        .map_or(ptr::null_mut(), to_c_string)
 }
 
 // ---------------------------------------------------------------------------

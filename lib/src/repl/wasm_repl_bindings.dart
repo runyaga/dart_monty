@@ -36,6 +36,27 @@ class WasmReplBindings implements ReplBindings {
   }
 
   @override
+  void setExtFns(List<String> names) {
+    // WASM implementation deferred to Phase 2b.
+    throw UnimplementedError('REPL setExtFns not yet available on WASM');
+  }
+
+  @override
+  Future<CoreProgressResult> feedStart(String code) {
+    throw UnimplementedError('REPL feedStart not yet available on WASM');
+  }
+
+  @override
+  Future<CoreProgressResult> resume(String valueJson) {
+    throw UnimplementedError('REPL resume not yet available on WASM');
+  }
+
+  @override
+  Future<CoreProgressResult> resumeWithError(String errorMessage) {
+    throw UnimplementedError('REPL resumeWithError not yet available on WASM');
+  }
+
+  @override
   Future<void> dispose() async {
     if (!_created) return;
     await _bindings.replFree();
