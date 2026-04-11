@@ -1,0 +1,60 @@
+[
+  {
+    "id": 20,
+    "tier": 2,
+    "name": "function definition persists",
+    "feeds": [
+      {"code": "def double(n):\n    return n * 2"},
+      {"code": "double(21)", "expected": 42}
+    ]
+  },
+  {
+    "id": 21,
+    "tier": 2,
+    "name": "function redefinition uses latest",
+    "feeds": [
+      {"code": "def f():\n    return 1"},
+      {"code": "f()", "expected": 1},
+      {"code": "def f():\n    return 2"},
+      {"code": "f()", "expected": 2}
+    ]
+  },
+  {
+    "id": 22,
+    "tier": 2,
+    "name": "closure persists",
+    "feeds": [
+      {"code": "def make_adder(n):\n    return lambda x: x + n"},
+      {"code": "add5 = make_adder(5)"},
+      {"code": "add5(10)", "expected": 15}
+    ]
+  },
+  {
+    "id": 23,
+    "tier": 2,
+    "name": "function uses variable from prior feed",
+    "feeds": [
+      {"code": "multiplier = 3"},
+      {"code": "def scale(x):\n    return x * multiplier"},
+      {"code": "scale(10)", "expected": 30}
+    ]
+  },
+  {
+    "id": 24,
+    "tier": 2,
+    "name": "recursive function persists",
+    "feeds": [
+      {"code": "def factorial(n):\n    if n <= 1:\n        return 1\n    return n * factorial(n - 1)"},
+      {"code": "factorial(5)", "expected": 120}
+    ]
+  },
+  {
+    "id": 25,
+    "tier": 2,
+    "name": "lambda assigned to variable persists",
+    "feeds": [
+      {"code": "sq = lambda x: x ** 2"},
+      {"code": "sq(7)", "expected": 49}
+    ]
+  }
+]

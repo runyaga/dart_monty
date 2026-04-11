@@ -1,0 +1,62 @@
+[
+  {
+    "id": 60,
+    "tier": 4,
+    "name": "print output captured per feed",
+    "feeds": [
+      {"code": "print('hello')", "expectedPrint": "hello\n"},
+      {"code": "print('world')", "expectedPrint": "world\n"}
+    ]
+  },
+  {
+    "id": 61,
+    "tier": 4,
+    "name": "print output not accumulated across feeds",
+    "feeds": [
+      {"code": "print('first')"},
+      {"code": "print('second')", "expectedPrint": "second\n"}
+    ]
+  },
+  {
+    "id": 62,
+    "tier": 4,
+    "name": "continuation: complete statement",
+    "continuation": "x = 1",
+    "expectedMode": "complete"
+  },
+  {
+    "id": 63,
+    "tier": 4,
+    "name": "continuation: incomplete block (def)",
+    "continuation": "def f():",
+    "expectedMode": "incompleteBlock"
+  },
+  {
+    "id": 64,
+    "tier": 4,
+    "name": "continuation: incomplete block (if)",
+    "continuation": "if True:",
+    "expectedMode": "incompleteBlock"
+  },
+  {
+    "id": 65,
+    "tier": 4,
+    "name": "continuation: incomplete block (for)",
+    "continuation": "for i in range(10):",
+    "expectedMode": "incompleteBlock"
+  },
+  {
+    "id": 66,
+    "tier": 4,
+    "name": "continuation: incomplete implicit (open paren)",
+    "continuation": "x = (1 +",
+    "expectedMode": "incompleteImplicit"
+  },
+  {
+    "id": 67,
+    "tier": 4,
+    "name": "continuation: incomplete implicit (open bracket)",
+    "continuation": "x = [1, 2,",
+    "expectedMode": "incompleteImplicit"
+  }
+]

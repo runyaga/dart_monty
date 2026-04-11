@@ -135,4 +135,27 @@ abstract class NativeBindings {
   ///
   /// Returns the new handle address as an `int`, or throws on error.
   int restore(Uint8List data);
+
+  // ---------------------------------------------------------------------------
+  // REPL
+  // ---------------------------------------------------------------------------
+
+  /// Creates a REPL handle with empty interpreter state.
+  ///
+  /// Returns the handle address as an `int`, or throws on error.
+  int replCreate({String? scriptName});
+
+  /// Frees a REPL handle. Safe to call with `0`.
+  void replFree(int handle);
+
+  /// Feeds a Python snippet to the REPL and runs to completion.
+  ///
+  /// The handle survives — state persists for subsequent calls.
+  RunResult replFeedRun(int handle, String code);
+
+  /// Detects whether a source fragment is complete or needs more input.
+  ///
+  /// Returns `0` = complete, `1` = incomplete (unclosed brackets/strings),
+  /// `2` = incomplete block (needs trailing blank line).
+  int replDetectContinuation(String source);
 }

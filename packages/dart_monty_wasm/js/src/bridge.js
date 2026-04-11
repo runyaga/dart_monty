@@ -401,6 +401,71 @@ async function dispose() {
   return JSON.stringify({ ok: true });
 }
 
+// ---------------------------------------------------------------------------
+// REPL API
+// ---------------------------------------------------------------------------
+
+/**
+ * Create a persistent REPL session in the Worker.
+ *
+ * @param {string} scriptName Script name for tracebacks (optional).
+ * @returns {Promise<string>} JSON result.
+ */
+async function replCreate(scriptName) {
+  const sid = resolveSessionId(null);
+  if (sid == null || !sessions.has(sid)) return notInitializedError();
+
+  const session = sessions.get(sid);
+  const msg = { type: 'repl_create' };
+  if (scriptName) msg.scriptName = scriptName;
+  const result = await callWorker(sid, msg, null);
+  return JSON.stringify(result);
+}
+
+/**
+ * Free the REPL session in the Worker.
+ *
+ * @returns {Promise<string>} JSON result.
+ */
+async function replFree() {
+  const sid = resolveSessionId(null);
+  if (sid == null || !sessions.has(sid)) return notInitializedError();
+
+  const session = sessions.get(sid);
+  const result = await callWorker(sid, { type: 'repl_free' }, null);
+  return JSON.stringify(result);
+}
+
+/**
+ * Feed a Python snippet to the REPL and run to completion.
+ *
+ * @param {string} code Python source code.
+ * @returns {Promise<string>} JSON result.
+ */
+async function replFeedRun(code) {
+  const sid = resolveSessionId(null);
+  if (sid == null || !sessions.has(sid)) return notInitializedError();
+
+  const session = sessions.get(sid);
+  const result = await callWorker(sid, { type: 'repl_feed_run', code }, session.timeoutMs);
+  return JSON.stringify(result);
+}
+
+/**
+ * Detect whether a source fragment is complete or needs more input.
+ *
+ * @param {string} source Python source fragment.
+ * @returns {Promise<string>} JSON result with value: 0, 1, or 2.
+ */
+async function replDetectContinuation(source) {
+  const sid = resolveSessionId(null);
+  if (sid == null || !sessions.has(sid)) return notInitializedError();
+
+  const session = sessions.get(sid);
+  const result = await callWorker(sid, { type: 'repl_detect_continuation', source }, null);
+  return JSON.stringify(result);
+}
+
 // Expose bridge on window for Dart JS interop
 window.DartMontyBridge = {
   init,
@@ -418,6 +483,11 @@ window.DartMontyBridge = {
   createSession,
   disposeSession,
   getDefaultSessionId: () => defaultSessionId,
+  // REPL API
+  replCreate,
+  replFree,
+  replFeedRun,
+  replDetectContinuation,
 };
 
 console.log('[DartMontyBridge] Registered on window (Worker pool architecture)');

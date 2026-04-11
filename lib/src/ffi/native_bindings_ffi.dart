@@ -241,6 +241,78 @@ class NativeBindingsFfi extends NativeBindings {
   }
 
   // ---------------------------------------------------------------------------
+  // REPL
+  // ---------------------------------------------------------------------------
+
+  @override
+  int replCreate({String? scriptName}) {
+    final cScriptName = scriptName != null
+        ? scriptName.toNativeUtf8().cast<Char>()
+        : nullptr.cast<Char>();
+    final outError = calloc<Pointer<Char>>();
+
+    try {
+      final handle = ffi_native.monty_repl_create(cScriptName, outError);
+      if (handle == nullptr) {
+        final errorMsg =
+            _readAndFreeString(outError.value) ?? 'monty_repl_create failed';
+        throw StateError(errorMsg);
+      }
+
+      return handle.address;
+    } finally {
+      if (scriptName != null) calloc.free(cScriptName);
+      calloc.free(outError);
+    }
+  }
+
+  @override
+  void replFree(int handle) {
+    if (handle == 0) return;
+    ffi_native.monty_repl_free(Pointer.fromAddress(handle));
+  }
+
+  @override
+  RunResult replFeedRun(int handle, String code) {
+    final ptr = Pointer<ffi_native.MontyReplHandle>.fromAddress(handle);
+    final cCode = code.toNativeUtf8().cast<Char>();
+    final outResult = calloc<Pointer<Char>>();
+    final outError = calloc<Pointer<Char>>();
+
+    try {
+      final tag = ffi_native.monty_repl_feed_run(
+        ptr,
+        cCode,
+        outResult,
+        outError,
+      );
+      final resultJson = _readAndFreeString(outResult.value);
+      final errorMsg = _readAndFreeString(outError.value);
+
+      return RunResult(
+        tag: tag.value,
+        resultJson: resultJson,
+        errorMessage: errorMsg,
+      );
+    } finally {
+      calloc
+        ..free(cCode)
+        ..free(outResult)
+        ..free(outError);
+    }
+  }
+
+  @override
+  int replDetectContinuation(String source) {
+    final cSource = source.toNativeUtf8().cast<Char>();
+    try {
+      return ffi_native.monty_repl_detect_continuation(cSource);
+    } finally {
+      calloc.free(cSource);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // Helpers
   // ---------------------------------------------------------------------------
 

@@ -171,6 +171,7 @@ function readProgress(id, handle, tag, errMsg) {
 // ---------------------------------------------------------------------------
 
 let activeHandle = null;
+let activeReplHandle = null;
 
 // ---------------------------------------------------------------------------
 // Handlers
@@ -659,10 +660,144 @@ function handleRestore(id, dataBase64) {
   self.postMessage({ type: 'result', id, ok: true });
 }
 
+// ---------------------------------------------------------------------------
+// REPL handlers
+// ---------------------------------------------------------------------------
+
+function handleReplCreate(id, scriptName) {
+  // Free any abandoned REPL before creating a new one.
+  if (activeReplHandle) {
+    wasm.monty_repl_free(activeReplHandle);
+    activeReplHandle = null;
+  }
+
+  let cName = null;
+  let outError = null;
+
+  let handle;
+  try {
+    outError = allocOutPtr();
+    cName = scriptName ? allocCString(scriptName) : null;
+    handle = wasm.monty_repl_create(cName ? cName.ptr : 0, outError.ptr);
+  } catch (e) {
+    if (outError) outError.free();
+    throw e;
+  } finally {
+    if (cName) wasm.monty_dealloc(cName.ptr, cName.size);
+  }
+
+  if (handle === 0) {
+    const errPtr = outError.read();
+    const errMsg = readAndFreeCString(errPtr);
+    outError.free();
+    self.postMessage({
+      type: 'result', id, ok: false,
+      error: errMsg || 'monty_repl_create failed',
+      errorType: 'ReplCreateError',
+    });
+    return;
+  }
+  outError.free();
+  activeReplHandle = handle;
+  self.postMessage({ type: 'result', id, ok: true });
+}
+
+function handleReplFeedRun(id, code) {
+  if (!activeReplHandle) {
+    self.postMessage({
+      type: 'result', id, ok: false,
+      error: 'No active REPL handle. Call repl_create first.',
+      errorType: 'StateError',
+    });
+    return;
+  }
+
+  let cCode = null;
+  let outResult = null;
+  let outErrMsg = null;
+
+  let resultTag;
+  try {
+    cCode = allocCString(code);
+    outResult = allocOutPtr();
+    outErrMsg = allocOutPtr();
+    resultTag = wasm.monty_repl_feed_run(
+      activeReplHandle, cCode.ptr, outResult.ptr, outErrMsg.ptr,
+    );
+  } catch (e) {
+    // WebAssembly.RuntimeError = panic trap
+    if (cCode) wasm.monty_dealloc(cCode.ptr, cCode.size);
+    if (outResult) outResult.free();
+    if (outErrMsg) outErrMsg.free();
+    // REPL is likely dead after a panic — clean up.
+    wasm.monty_repl_free(activeReplHandle);
+    activeReplHandle = null;
+    self.postMessage({
+      type: 'result', id, ok: false,
+      error: e.message || String(e),
+      errorType: 'Panic',
+    });
+    return;
+  }
+  wasm.monty_dealloc(cCode.ptr, cCode.size);
+
+  const resultPtr = outResult.read();
+  const errorPtr = outErrMsg.read();
+  const resultJson = readAndFreeCString(resultPtr);
+  const errorMsg = readAndFreeCString(errorPtr);
+  outResult.free();
+  outErrMsg.free();
+
+  // NOTE: Do NOT free activeReplHandle — it survives for next feed.
+
+  if (resultTag === RESULT_OK && resultJson) {
+    const adapted = adaptResultForDart(resultJson, false);
+    self.postMessage({ type: 'result', id, ...adapted });
+  } else if (resultJson) {
+    const adapted = adaptResultForDart(resultJson, true);
+    self.postMessage({ type: 'result', id, ...adapted });
+  } else {
+    self.postMessage({
+      type: 'result', id, ok: false,
+      error: errorMsg || 'monty_repl_feed_run failed',
+      errorType: 'MontyException',
+    });
+  }
+}
+
+function handleReplFree(id) {
+  if (activeReplHandle) {
+    wasm.monty_repl_free(activeReplHandle);
+    activeReplHandle = null;
+  }
+  self.postMessage({ type: 'result', id, ok: true });
+}
+
+function handleReplDetectContinuation(id, source) {
+  let cSource = null;
+  try {
+    cSource = allocCString(source);
+    const mode = wasm.monty_repl_detect_continuation(cSource.ptr);
+    self.postMessage({ type: 'result', id, ok: true, value: mode });
+  } catch (e) {
+    self.postMessage({
+      type: 'result', id, ok: false,
+      error: e.message || String(e),
+      errorType: 'InternalError',
+    });
+  } finally {
+    if (cSource) wasm.monty_dealloc(cSource.ptr, cSource.size);
+  }
+}
+
 function handleDispose(id) {
   if (activeHandle) {
     wasm.monty_free(activeHandle);
     activeHandle = null;
+  }
+  if (activeReplHandle) {
+    wasm.monty_repl_free(activeReplHandle);
+    activeReplHandle = null;
   }
   self.postMessage({ type: 'result', id, ok: true });
 }
@@ -702,6 +837,18 @@ self.onmessage = (e) => {
         break;
       case 'dispose':
         handleDispose(id);
+        break;
+      case 'repl_create':
+        handleReplCreate(id, e.data.scriptName);
+        break;
+      case 'repl_feed_run':
+        handleReplFeedRun(id, code);
+        break;
+      case 'repl_free':
+        handleReplFree(id);
+        break;
+      case 'repl_detect_continuation':
+        handleReplDetectContinuation(id, e.data.source);
         break;
       default:
         self.postMessage({

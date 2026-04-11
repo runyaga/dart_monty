@@ -1,0 +1,60 @@
+[
+  {
+    "id": 40,
+    "tier": 3,
+    "name": "runtime error does not destroy state",
+    "feeds": [
+      {"code": "x = 10"},
+      {"code": "1 / 0", "expectError": true, "errorContains": "ZeroDivisionError"},
+      {"code": "x", "expected": 10}
+    ]
+  },
+  {
+    "id": 41,
+    "tier": 3,
+    "name": "partial assignment before error survives",
+    "feeds": [
+      {"code": "a = 1\nb = 2\nraise RuntimeError('boom')", "expectError": true},
+      {"code": "a + b", "expected": 3}
+    ]
+  },
+  {
+    "id": 42,
+    "tier": 3,
+    "name": "function defined before error survives",
+    "feeds": [
+      {"code": "def f():\n    return 41\nraise ValueError('oops')", "expectError": true},
+      {"code": "f()", "expected": 41}
+    ]
+  },
+  {
+    "id": 45,
+    "tier": 3,
+    "name": "help() prints info and does not corrupt state",
+    "feeds": [
+      {"code": "x = 42"},
+      {"code": "help()"},
+      {"code": "x", "expected": 42}
+    ]
+  },
+  {
+    "id": 43,
+    "tier": 3,
+    "name": "NameError does not corrupt state",
+    "feeds": [
+      {"code": "x = 99"},
+      {"code": "undefined_var", "expectError": true, "errorContains": "NameError"},
+      {"code": "x", "expected": 99}
+    ]
+  },
+  {
+    "id": 44,
+    "tier": 3,
+    "name": "TypeError does not corrupt state",
+    "feeds": [
+      {"code": "x = 'hello'"},
+      {"code": "x + 1", "expectError": true, "errorContains": "TypeError"},
+      {"code": "x", "expected": "hello"}
+    ]
+  }
+]

@@ -266,4 +266,40 @@ class MockWasmBindings extends WasmBindings {
       throw StateError(disposeError);
     }
   }
+
+  // ---------------------------------------------------------------------------
+  // REPL
+  // ---------------------------------------------------------------------------
+
+  WasmRunResult nextReplFeedRunResult = const WasmRunResult(ok: true);
+  int nextReplDetectContinuation = 0;
+
+  int replCreateCalls = 0;
+  int replFreeCalls = 0;
+  final List<String> replFeedRunCalls = [];
+  final List<String> replDetectContinuationCalls = [];
+
+  @override
+  Future<void> replCreate({String? scriptName}) async {
+    replCreateCalls++;
+  }
+
+  @override
+  Future<void> replFree() async {
+    replFreeCalls++;
+  }
+
+  @override
+  Future<WasmRunResult> replFeedRun(String code) async {
+    replFeedRunCalls.add(code);
+
+    return nextReplFeedRunResult;
+  }
+
+  @override
+  Future<int> replDetectContinuation(String source) async {
+    replDetectContinuationCalls.add(source);
+
+    return nextReplDetectContinuation;
+  }
 }

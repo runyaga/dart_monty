@@ -68,4 +68,19 @@ class WasmBindingsJs extends WasmBindings {
 
   @override
   Future<void> dispose() => throw UnimplementedError();
+
+  @override
+  Future<void> replCreate({String? scriptName}) =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> replFree() => throw UnimplementedError();
+
+  @override
+  Future<WasmRunResult> replFeedRun(String code) =>
+      throw UnimplementedError();
+
+  @override
+  Future<int> replDetectContinuation(String source) =>
+      throw UnimplementedError();
 }

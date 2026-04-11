@@ -3,8 +3,10 @@
 mod convert;
 mod error;
 mod handle;
+mod repl_handle;
 
 pub use handle::{MontyHandle, MontyProgressTag, MontyResultTag};
+pub use repl_handle::MontyReplHandle;
 
 use std::ffi::{c_char, c_int};
 use std::ptr;
@@ -588,6 +590,155 @@ pub unsafe extern "C" fn monty_set_stack_limit(handle: *mut MontyHandle, depth: 
         // SAFETY: handle is non-null (just checked) and was created by monty_create via Box::into_raw
         unsafe { &mut *handle }.set_stack_limit(depth);
     }
+}
+
+// ---------------------------------------------------------------------------
+// REPL lifecycle
+// ---------------------------------------------------------------------------
+
+/// Set of live REPL handle pointers for double-free protection.
+///
+/// Separate from `LIVE_HANDLES` to prevent type confusion — a `MontyHandle`
+/// pointer passed to `monty_repl_free` (or vice versa) will be rejected.
+static LIVE_REPL_HANDLES: std::sync::LazyLock<std::sync::RwLock<std::collections::HashSet<usize>>> =
+    std::sync::LazyLock::new(|| std::sync::RwLock::new(std::collections::HashSet::new()));
+
+/// Create a new REPL handle with an empty interpreter state.
+///
+/// - `script_name`: NUL-terminated UTF-8 script name for tracebacks (or NULL for `"repl.py"`).
+/// - `out_error`: on failure, receives an error message (caller frees with `monty_string_free`).
+///
+/// Returns a heap-allocated REPL handle, or NULL on error.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn monty_repl_create(
+    script_name: *const c_char,
+    out_error: *mut *mut c_char,
+) -> *mut MontyReplHandle {
+    let name = if script_name.is_null() {
+        "repl.py".to_string()
+    } else {
+        // SAFETY: script_name is non-null (just checked), NUL-terminated C string from Dart FFI
+        match unsafe { parse_c_str(script_name, "script_name", out_error) } {
+            Ok(s) => s.to_string(),
+            Err(()) => return ptr::null_mut(),
+        }
+    };
+
+    match catch_ffi_panic(|| MontyReplHandle::new(&name)) {
+        Ok(handle) => {
+            let ptr = Box::into_raw(Box::new(handle));
+            LIVE_REPL_HANDLES
+                .write()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .insert(ptr as usize);
+            ptr
+        }
+        Err(panic_msg) => {
+            if !out_error.is_null() {
+                // SAFETY: out_error is non-null (just checked), writing panic error message
+                unsafe { *out_error = to_c_string(&panic_msg) };
+            }
+            ptr::null_mut()
+        }
+    }
+}
+
+/// Free a REPL handle. Safe to call with NULL or an already-freed handle.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn monty_repl_free(handle: *mut MontyReplHandle) {
+    if handle.is_null() {
+        return;
+    }
+    let addr = handle as usize;
+    let removed = LIVE_REPL_HANDLES
+        .write()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .remove(&addr);
+    if !removed {
+        return; // already freed or unknown pointer
+    }
+    // SAFETY: handle was created by Box::into_raw in monty_repl_create, LIVE_REPL_HANDLES confirms it is still live
+    drop(unsafe { Box::from_raw(handle) });
+}
+
+/// Feed a Python snippet to the REPL and run to completion.
+///
+/// The REPL handle survives — state (heap, globals, functions, classes)
+/// persists for subsequent calls.
+///
+/// - `code`: NUL-terminated UTF-8 Python source.
+/// - `result_json`: receives the result JSON string (caller frees with `monty_string_free`).
+/// - `error_msg`: receives an error message on failure (caller frees with `monty_string_free`).
+///
+/// Returns `MONTY_RESULT_OK` or `MONTY_RESULT_ERROR`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn monty_repl_feed_run(
+    handle: *mut MontyReplHandle,
+    code: *const c_char,
+    result_json: *mut *mut c_char,
+    error_msg: *mut *mut c_char,
+) -> MontyResultTag {
+    if handle.is_null() {
+        if !error_msg.is_null() {
+            // SAFETY: error_msg is non-null (just checked), Dart caller provides a valid writable pointer
+            unsafe { *error_msg = to_c_string("handle is NULL") };
+        }
+        return MontyResultTag::Error;
+    }
+
+    // SAFETY: code is a NUL-terminated C string from Dart FFI; parse_c_str validates non-null
+    let Ok(code_str) = (unsafe { parse_c_str(code, "code", error_msg) }) else {
+        return MontyResultTag::Error;
+    };
+
+    // SAFETY: handle is non-null (just checked) and was created by monty_repl_create via Box::into_raw
+    let h = unsafe { &mut *handle };
+
+    match catch_ffi_panic(|| h.feed_run(code_str)) {
+        Ok((tag, json, err)) => {
+            if !result_json.is_null() {
+                // SAFETY: result_json is non-null (just checked), writing result JSON string
+                unsafe { *result_json = to_c_string(&json) };
+            }
+            if !error_msg.is_null() {
+                match err {
+                    // SAFETY: error_msg is non-null (just checked), writing error message string
+                    Some(ref msg) => unsafe { *error_msg = to_c_string(msg) },
+                    // SAFETY: error_msg is non-null (just checked), clearing error to indicate success
+                    None => unsafe { *error_msg = ptr::null_mut() },
+                }
+            }
+            tag
+        }
+        Err(panic_msg) => {
+            if !error_msg.is_null() {
+                // SAFETY: error_msg is non-null (just checked), writing panic message string
+                unsafe { *error_msg = to_c_string(&panic_msg) };
+            }
+            MontyResultTag::Error
+        }
+    }
+}
+
+/// Detect whether a source fragment is complete or needs more input.
+///
+/// Returns:
+/// - `0` = Complete (ready to execute)
+/// - `1` = Incomplete (unclosed brackets/strings)
+/// - `2` = Incomplete block (needs trailing blank line)
+///
+/// This is a stateless function — no REPL handle needed.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn monty_repl_detect_continuation(source: *const c_char) -> c_int {
+    if source.is_null() {
+        return 0; // treat null as complete
+    }
+    // SAFETY: source is non-null (just checked), NUL-terminated C string
+    let Ok(source_str) = unsafe { std::ffi::CStr::from_ptr(source) }.to_str() else {
+        return 0; // invalid UTF-8 → treat as complete
+    };
+
+    MontyReplHandle::detect_continuation(source_str)
 }
 
 // ---------------------------------------------------------------------------
