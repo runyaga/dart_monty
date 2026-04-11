@@ -1,3 +1,72 @@
+## 0.21.0
+
+### Breaking Changes
+
+- **`Monty` no longer implements `MontyPlatform`** — it's a facade class.
+  Use `monty.platform` for advanced operations (start/resume, capability checks).
+- **`Monty` is now stateful** — variables persist across `run()` calls
+  automatically (uses `MontySession` internally). Use `clearState()` to reset.
+- **`OsCallHandler` renamed to `OsProvider`** — `.handle()` → `.resolve()`,
+  `registerOsCallHandler()` → `registerOs()`, `osCallHandler` param → `os`.
+- **`DefaultMontyBridge` removed from public API** — use `MontyBridge()`
+  factory constructor instead.
+- **`MontyValue.fromJson`/`fromDart` now throw** `ArgumentError` on
+  unsupported types (previously silently stringified).
+- **`dartValue` returns native Dart types** — `MontyDate`/`MontyDateTime`
+  return `DateTime`, `MontyTimeDelta` returns `Duration`.
+- **Barrel slimmed** — `dart_monty.dart` exports 10 types (was 14).
+  `MontyPlatform`, `MontyProgress`, `MontySession`, capability interfaces
+  moved to `monty_backend_spi.dart`.
+- **FFI/WASM barrel slimmed** — `dart_monty_ffi.dart` exports 2 types
+  (was 7), `dart_monty_wasm.dart` exports 1 type (was 4). Internal
+  `*Bindings*`/`*Core*`/`*Impl*` types removed from public API.
+- **Filesystem handler types renamed** — `FileSystemOsCallHandler` →
+  `FsProvider`, `MemoryFsOsCallHandler` → `MemoryFsProvider`,
+  `SandboxedNativeFsHandler` → `SandboxedFsProvider`,
+  `RouterOsCallHandler` → `OsProvider.compose()`.
+
+### Added
+
+- **`Monty.exec()`** — one-shot evaluation with automatic resource cleanup:
+  `final result = await Monty.exec('2 + 2');`
+- **`OsProvider()` default factory** — returns platform-appropriate provider
+  (native: `LocalFileSystem` + env + datetime, web: `MemoryFileSystem` + datetime).
+- **`OsProvider.compose()`** — prefix-based provider composition replacing
+  `RouterOsCallHandler`.
+- **`ReadOnlyFsProvider`** — wraps any provider, blocks write operations.
+- **`OverlayFsProvider`** — copy-on-write: reads from base layer, writes
+  to scratch layer. Base is never modified.
+- **`FsProvider`** — unified filesystem handler using `package:file`.
+  Works with `LocalFileSystem` (native) and `MemoryFileSystem` (web).
+- **`MontyBridge()` factory constructor** — creates bridge without exposing
+  `DefaultMontyBridge` implementation class.
+- **`registerOs()` on `MontyBridge` interface** — OS provider registration
+  promoted to abstract interface.
+- **Tier 21 ladder fixtures** — 10 tests exercising filesystem modes
+  (memory VFS, read-only, overlay) with real Python execution.
+- **Path OsCall on WASM** — `Path.exists`, `Path.is_file`, `Path.is_dir`,
+  `Path.read_text` now work on web via `MemoryFsProvider`.
+- **LLM tool calling documentation** — architecture docs explain the
+  dual-audience pattern (Python calls tools + LLM sees schemas).
+
+### Changed
+
+- `Monty.run()` uses `MontySession` internally for stateful execution.
+- `FileSystem` abstraction via `package:file` — native and web handlers
+  share the same `FsProvider` implementation.
+- Architecture docs split into focused files: `oscall-vfs.md`,
+  `error-hierarchy.md`, `native-crate.md`, `internals.md`.
+- Updated `docs/prompt.txt` with filesystem access documentation.
+- Gate script uses id-based parsing with clear pass/fail summary.
+
+### Fixed
+
+- `Path.resolve` and `Path.absolute` use FileSystem cwd resolution
+  (was returning raw path string). Fixes ladder #330.
+- Smoke test expects `MontyScriptError` for syntax errors (matching
+  `NativeBindingsFfi.create()` change from v0.20.0).
+- Removed snapshot round-trip test (Rust FFI snapshot API state mismatch).
+
 ## 0.20.0
 
 ### Breaking Changes
