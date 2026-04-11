@@ -155,27 +155,64 @@ class ReplSession {
   }
 
   Future<void> _injectHelp(List<MontyPlugin> plugins) async {
-    final entries = <String>[];
+    final shortEntries = <String>[];
+    final detailEntries = <String>[];
     for (final plugin in plugins) {
       for (final fn in plugin.functions) {
         final name = fn.schema.name;
-        final desc = fn.schema.description;
+        final desc = fn.schema.description.replaceAll('"', "'");
         final short = desc.length > 60 ? '${desc.substring(0, 57)}...' : desc;
-        entries.add('    "$name": "$short"');
+        shortEntries.add('    "$name": "$short"');
+
+        // Build detailed help with signature + params.
+        final params = fn.schema.params;
+        final argNames = params
+            .where((p) => p.isRequired)
+            .map((p) => p.name)
+            .join(', ');
+        final kwNames = params
+            .where((p) => !p.isRequired)
+            .map((p) => '${p.name}=...')
+            .join(', ');
+        final sig = [argNames, kwNames].where((s) => s.isNotEmpty).join(', ');
+
+        final paramLines = StringBuffer()
+          ..write('\\n\\n  $name($sig)')
+          ..write('\\n\\n  $desc');
+        if (params.isNotEmpty) {
+          paramLines.write(r'\n\n  Args:');
+          for (final p in params) {
+            final req = p.isRequired ? '' : ', optional';
+            final pdesc = (p.description ?? '').replaceAll('"', "'");
+            final defVal = p.defaultValue != null
+                ? ' [default: ${p.defaultValue}]'
+                : '';
+            paramLines.write(
+              '\\n    ${p.name} (${p.type.name}$req): $pdesc$defVal',
+            );
+          }
+        }
+        final detail = '$paramLines';
+        detailEntries.add('    "$name": "$detail"');
       }
     }
-    final registryCode = '_help_registry = {\n${entries.join(",\n")}\n}';
     try {
-      await _repl.feed(registryCode);
+      await _repl.feed(
+        '_help_short = {\n${shortEntries.join(",\n")}\n}',
+      );
+      await _repl.feed(
+        '_help_detail = {\n${detailEntries.join(",\n")}\n}',
+      );
       await _repl.feed(
         'def help(name=None):\n'
         '    if name is None:\n'
         '        print("Host functions:")\n'
-        '        for fn, desc in _help_registry.items():\n'
+        '        for fn, desc in _help_short.items():\n'
         '            print(f"  {fn}() - {desc}")\n'
         '    else:\n'
-        '        if name in _help_registry:\n'
-        '            print(f"{name}() - {_help_registry[name]}")\n'
+        '        if name in _help_detail:\n'
+        '            print(f"{name}():")\n'
+        '            print(f"  {_help_detail[name]}")\n'
         '        else:\n'
         '            print(f"Unknown: {name}")',
       );
