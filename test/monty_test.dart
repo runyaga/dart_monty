@@ -1,5 +1,6 @@
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_testing.dart';
+import 'package:dart_monty/monty_backend_spi.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -53,7 +54,7 @@ void main() {
       );
       mock.enqueueProgress(expectedProgress);
 
-      final progress = await monty.start(
+      final progress = await monty.platform.start(
         'fetch()',
         externalFunctions: ['fetch'],
       );
@@ -73,7 +74,7 @@ void main() {
         const MontyComplete(result: MontyResult(usage: usage)),
       );
 
-      await monty.start('x', limits: limits, scriptName: 'app.py');
+      await monty.platform.start('x', limits: limits, scriptName: 'app.py');
 
       expect(mock.lastStartLimits, limits);
       expect(mock.lastStartScriptName, 'app.py');
@@ -85,7 +86,7 @@ void main() {
       );
       mock.enqueueProgress(expectedProgress);
 
-      final progress = await monty.resume('return_value');
+      final progress = await monty.platform.resume('return_value');
 
       expect(progress, expectedProgress);
       expect(mock.lastResumeReturnValue, 'return_value');
@@ -95,7 +96,7 @@ void main() {
       const expectedProgress = MontyComplete(result: MontyResult(usage: usage));
       mock.enqueueProgress(expectedProgress);
 
-      final progress = await monty.resumeWithError('something failed');
+      final progress = await monty.platform.resumeWithError('something failed');
 
       expect(progress, expectedProgress);
       expect(mock.lastResumeErrorMessage, 'something failed');

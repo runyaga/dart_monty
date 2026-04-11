@@ -1,8 +1,11 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:dart_monty/dart_monty.dart';
-import 'package:dart_monty/monty_backend_spi.dart';
+import 'package:dart_monty/src/platform/base_monty_platform.dart';
+import 'package:dart_monty/src/platform/monty_future_capable.dart';
+import 'package:dart_monty/src/platform/monty_platform.dart';
+import 'package:dart_monty/src/platform/monty_progress.dart';
+import 'package:dart_monty/src/platform/monty_snapshot_capable.dart';
 import 'package:dart_monty/src/wasm/wasm_bindings.dart';
 import 'package:dart_monty/src/wasm/wasm_bindings_js_stub.dart'
     if (dart.library.js_interop) 'package:dart_monty/src/wasm/wasm_bindings_js.dart';

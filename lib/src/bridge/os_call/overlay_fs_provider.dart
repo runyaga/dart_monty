@@ -1,7 +1,8 @@
 // ignore_for_file: avoid-unsafe-collection-methods, avoid-non-null-assertion
-import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/src/bridge/os_call/os_call_exception.dart';
 import 'package:dart_monty/src/bridge/os_call/os_provider.dart';
+import 'package:dart_monty/src/platform/monty_progress.dart';
+import 'package:dart_monty/src/platform/monty_value.dart';
 
 /// Two-layer filesystem: reads fall through to [base], writes go to [scratch].
 ///

@@ -1,6 +1,6 @@
-import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/src/bridge/os_call/os_call_exception.dart';
 import 'package:dart_monty/src/bridge/os_call/os_provider.dart';
+import 'package:dart_monty/src/platform/monty_progress.dart';
 
 /// Write operations that are blocked in read-only mode.
 const _writeOps = {

@@ -17,6 +17,7 @@ import 'dart:js_interop';
 
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
+import 'package:dart_monty/monty_backend_spi.dart';
 
 // ---------------------------------------------------------------------------
 // JS interop bindings for window.DartMontyBridge

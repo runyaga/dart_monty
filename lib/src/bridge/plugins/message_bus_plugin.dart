@@ -1,7 +1,11 @@
 import 'dart:async';
 import 'dart:collection';
 
-import 'package:dart_monty/dart_monty_bridge.dart';
+import 'package:dart_monty/src/bridge/bridge/host_function.dart';
+import 'package:dart_monty/src/bridge/bridge/host_function_schema.dart';
+import 'package:dart_monty/src/bridge/bridge/host_param.dart';
+import 'package:dart_monty/src/bridge/bridge/host_param_type.dart';
+import 'package:dart_monty/src/bridge/bridge/monty_plugin.dart';
 
 /// A named, FIFO message channel with optional telemetry.
 class _Channel {

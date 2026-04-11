@@ -1,7 +1,18 @@
 import 'dart:async';
 
-import 'package:dart_monty/dart_monty.dart';
-import 'package:dart_monty/dart_monty_bridge.dart';
+import 'package:dart_monty/src/bridge/bridge/bridge_event.dart';
+import 'package:dart_monty/src/bridge/bridge/default_monty_bridge.dart';
+import 'package:dart_monty/src/bridge/bridge/host_function.dart';
+import 'package:dart_monty/src/bridge/bridge/host_function_schema.dart';
+import 'package:dart_monty/src/bridge/bridge/host_param.dart';
+import 'package:dart_monty/src/bridge/bridge/host_param_type.dart';
+import 'package:dart_monty/src/bridge/bridge/monty_plugin.dart';
+import 'package:dart_monty/src/bridge/bridge/plugin_registry.dart';
+import 'package:dart_monty/src/bridge/os_call/memory_fs_provider.dart';
+import 'package:dart_monty/src/bridge/os_call/os_provider.dart';
+import 'package:dart_monty/src/platform/monty_exception.dart';
+import 'package:dart_monty/src/platform/monty_limits.dart';
+import 'package:dart_monty/src/platform/monty_platform.dart';
 import 'package:path/path.dart' as p;
 
 /// Exception thrown when a child sandbox fails or is disposed.

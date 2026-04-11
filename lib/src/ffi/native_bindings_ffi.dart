@@ -3,11 +3,11 @@
 import 'dart:ffi';
 import 'dart:typed_data';
 
-import 'package:dart_monty/dart_monty.dart'
-    show MontyException, MontyScriptError;
 import 'package:dart_monty/src/ffi/generated/dart_monty_bindings.dart'
     as ffi_native;
 import 'package:dart_monty/src/ffi/native_bindings.dart';
+import 'package:dart_monty/src/platform/monty_error.dart';
+import 'package:dart_monty/src/platform/monty_exception.dart';
 import 'package:ffi/ffi.dart';
 
 /// Real FFI implementation of [NativeBindings].

@@ -1,11 +1,11 @@
 import 'dart:collection';
 
-import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/src/bridge/bridge/host_function.dart';
 import 'package:dart_monty/src/bridge/bridge/host_function_schema.dart';
 import 'package:dart_monty/src/bridge/bridge/introspection_functions.dart';
 import 'package:dart_monty/src/bridge/bridge/monty_bridge.dart';
 import 'package:dart_monty/src/bridge/bridge/monty_plugin.dart';
+import 'package:dart_monty/src/platform/bridge_logger.dart';
 
 /// Collects [MontyPlugin]s with namespace validation and function name
 /// collision detection.

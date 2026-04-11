@@ -1,7 +1,8 @@
 import 'dart:typed_data';
 
-import 'package:dart_monty/dart_monty.dart';
-import 'package:dart_monty/monty_backend_spi.dart';
+import 'package:dart_monty/src/platform/core_bindings.dart';
+import 'package:dart_monty/src/platform/monty_error.dart';
+import 'package:dart_monty/src/platform/monty_resource_usage.dart';
 import 'package:dart_monty/src/wasm/wasm_bindings.dart';
 
 /// Error type string sent by the Worker when a Rust panic occurs.

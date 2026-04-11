@@ -1,9 +1,9 @@
-import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/src/bridge/bridge/bridge_event.dart';
 import 'package:dart_monty/src/bridge/bridge/bridge_middleware.dart';
 import 'package:dart_monty/src/bridge/bridge/host_function.dart';
 import 'package:dart_monty/src/bridge/bridge/host_function_schema.dart';
 import 'package:dart_monty/src/bridge/os_call/os_provider.dart';
+import 'package:dart_monty/src/platform/bridge_logger.dart';
 
 /// Bridge for LLM-generated Python calling registered Dart host functions.
 ///
