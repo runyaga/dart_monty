@@ -127,6 +127,39 @@ class ReplSession {
       final registry = PluginRegistry();
       plugins.forEach(registry.register);
       await registry.attachTo(_bridge!);
+
+      // Inject help() with registered function descriptions.
+      await _injectHelp(plugins);
+    }
+  }
+
+  Future<void> _injectHelp(List<MontyPlugin> plugins) async {
+    final entries = <String>[];
+    for (final plugin in plugins) {
+      for (final fn in plugin.functions) {
+        final name = fn.schema.name;
+        final desc = fn.schema.description;
+        final short = desc.length > 60 ? '${desc.substring(0, 57)}...' : desc;
+        entries.add('    "$name": "$short"');
+      }
+    }
+    final registryCode = '_help_registry = {\n${entries.join(",\n")}\n}';
+    try {
+      await _repl.feed(registryCode);
+      await _repl.feed(
+        'def help(name=None):\n'
+        '    if name is None:\n'
+        '        print("Host functions:")\n'
+        '        for fn, desc in _help_registry.items():\n'
+        '            print(f"  {fn}() - {desc}")\n'
+        '    else:\n'
+        '        if name in _help_registry:\n'
+        '            print(f"{name}() - {_help_registry[name]}")\n'
+        '        else:\n'
+        '            print(f"Unknown: {name}")',
+      );
+    } on Object {
+      // Non-fatal — help() is a convenience, not critical.
     }
   }
 
