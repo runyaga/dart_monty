@@ -208,6 +208,14 @@ cached = json.loads(Path("/cache/data.json").read_text())
 Standard Python `pathlib.Path` — write, read, mkdir, exists. Files
 persist within a session but not across sessions.
 
+**Important:** Files uploaded via `soliplex_upload_to_thread()` are NOT
+in the monty sandbox filesystem. They live on the server. The monty
+filesystem is a separate in-memory space. Do NOT try to read uploaded
+files with `Path()` — embed the data directly in your code instead.
+
+**No `open()`.** Use `Path("/file").read_text()` and
+`Path("/file").write_text(data)` for the sandbox filesystem.
+
 ## Complete Example
 
 ```monty
