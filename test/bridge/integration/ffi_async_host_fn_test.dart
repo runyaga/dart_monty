@@ -186,5 +186,174 @@ void main() {
       },
       timeout: const Timeout(Duration(seconds: 30)),
     );
+    test('file I/O — two calls', () async {
+      final session = AgentSession();
+      addTearDown(session.dispose);
+
+      session.register(
+        HostFunction(
+          schema: const HostFunctionSchema(
+            name: 'read_file',
+            description: 'Reads a file',
+          ),
+          handler: (_) async {
+            final file = File('/etc/hosts');
+            final content = await file.readAsString();
+
+            return content.substring(0, 20);
+          },
+        ),
+      );
+
+      final r1 = await session.execute('read_file()');
+      expect(r1.value?.dartValue, isA<String>());
+
+      final r2 = await session.execute('read_file()');
+      expect(r2.value?.dartValue, isA<String>());
+    });
+
+    test('process I/O — two calls', () async {
+      final session = AgentSession();
+      addTearDown(session.dispose);
+
+      session.register(
+        HostFunction(
+          schema: const HostFunctionSchema(
+            name: 'run_cmd',
+            description: 'Runs a command',
+          ),
+          handler: (_) async {
+            final result = await Process.run('echo', ['hello']);
+
+            return (result.stdout as String).trim();
+          },
+        ),
+      );
+
+      final r1 = await session.execute('run_cmd()');
+      expect(r1.value?.dartValue, 'hello');
+
+      final r2 = await session.execute('run_cmd()');
+      expect(r2.value?.dartValue, 'hello');
+    });
+
+    test('socket listen — two calls', () async {
+      final session = AgentSession();
+      addTearDown(session.dispose);
+
+      session.register(
+        HostFunction(
+          schema: const HostFunctionSchema(
+            name: 'socket_test',
+            description: 'Opens and closes a socket',
+          ),
+          handler: (_) async {
+            final server = await ServerSocket.bind('127.0.0.1', 0);
+            final port = server.port;
+            await server.close();
+
+            return 'port:$port';
+          },
+        ),
+      );
+
+      final r1 = await session.execute('socket_test()');
+      expect(r1.value?.dartValue, startsWith('port:'));
+
+      final r2 = await session.execute('socket_test()');
+      expect(r2.value?.dartValue, startsWith('port:'));
+    });
+
+    test(
+      'http but return small string — two calls',
+      () async {
+        final session = AgentSession();
+        addTearDown(session.dispose);
+
+        session.register(
+          HostFunction(
+            schema: const HostFunctionSchema(
+              name: 'http_tiny',
+              description: 'HTTP GET, returns status code only',
+              params: [
+                HostParam(name: 'url', type: HostParamType.string),
+              ],
+            ),
+            handler: (args) async {
+              final url = args['url']! as String;
+              final client = HttpClient();
+              try {
+                final request = await client.getUrl(Uri.parse(url));
+                final response = await request.close();
+                // Drain the body without reading it
+                await response.drain<void>();
+
+                return response.statusCode;
+              } finally {
+                client.close();
+              }
+            },
+          ),
+        );
+
+        final r1 = await session.execute(
+          'http_tiny("https://demo.toughserv.com/api/v1/installation/versions")',
+        );
+        expect(r1.value?.dartValue, 200);
+
+        final r2 = await session.execute(
+          'http_tiny("https://demo.toughserv.com/api/v1/installation/versions")',
+        );
+        expect(r2.value?.dartValue, 200);
+      },
+      timeout: const Timeout(Duration(seconds: 30)),
+    );
+
+    test(
+      'http returning large string — two calls',
+      () async {
+        final session = AgentSession();
+        addTearDown(session.dispose);
+
+        session.register(
+          HostFunction(
+            schema: const HostFunctionSchema(
+              name: 'http_large',
+              description: 'HTTP GET, returns full body',
+              params: [
+                HostParam(name: 'url', type: HostParamType.string),
+              ],
+            ),
+            handler: (args) async {
+              final url = args['url']! as String;
+              final client = HttpClient();
+              try {
+                final request = await client.getUrl(Uri.parse(url));
+                final response = await request.close();
+                final body = await response
+                    .transform(const SystemEncoding().decoder)
+                    .join();
+
+                return body;
+              } finally {
+                client.close();
+              }
+            },
+          ),
+        );
+
+        final r1 = await session.execute(
+          'http_large("https://demo.toughserv.com/api/v1/installation/versions")',
+        );
+        final v1 = r1.value?.dartValue as String;
+        expect(v1.length, greaterThan(10));
+
+        final r2 = await session.execute(
+          'http_large("https://demo.toughserv.com/api/v1/installation/versions")',
+        );
+        expect(r2.value?.dartValue, isA<String>());
+      },
+      timeout: const Timeout(Duration(seconds: 30)),
+    );
   });
 }
