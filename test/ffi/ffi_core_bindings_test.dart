@@ -162,6 +162,8 @@ void main() {
 
       await bindings.run('code');
 
+      // FfiCoreBindings skips setters when limitsJson is null.
+      // Defaults are applied upstream in BaseMontyPlatform._encodeLimits.
       expect(mock.setMemoryLimitCalls, isEmpty);
       expect(mock.setTimeLimitMsCalls, isEmpty);
       expect(mock.setStackLimitCalls, isEmpty);

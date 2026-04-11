@@ -224,12 +224,26 @@ abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
     );
   }
 
-  String? _encodeLimits(MontyLimits? limits) {
-    if (limits == null) return null;
-    final map = limits.toJson();
-    if (map.isEmpty) return null;
+  /// Default memory limit: 256 MB.
+  static const int defaultMemoryBytes = 256 * 1024 * 1024;
 
-    return json.encode(map);
+  /// Default stack depth limit: 1000 (matches CPython).
+  static const int defaultStackDepth = 1000;
+
+  /// No default time limit — host function calls (SSE streaming, HTTP,
+  /// file I/O) contribute to wall-clock time while the interpreter is
+  /// idle, making a blanket timeout actively harmful.
+
+  /// Encodes [limits] to JSON, applying defaults for unset fields.
+  ///
+  /// Always returns a non-null JSON string so both FFI and WASM backends
+  /// receive explicit limits rather than falling back to Rust-side defaults.
+  String _encodeLimits(MontyLimits? limits) {
+    return json.encode({
+      'memory_bytes': limits?.memoryBytes ?? defaultMemoryBytes,
+      'stack_depth': limits?.stackDepth ?? defaultStackDepth,
+      if (limits?.timeoutMs != null) 'timeout_ms': limits!.timeoutMs,
+    });
   }
 
   String? _encodeExternalFunctions(List<String>? fns) {

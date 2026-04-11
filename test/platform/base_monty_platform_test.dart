@@ -469,21 +469,28 @@ void main() {
   });
 
   group('limits encoding', () {
-    test('null limits passes null to bindings', () async {
+    test('null limits applies defaults (memory + stack, no timeout)', () async {
       fake.runResult = const CoreRunResult(ok: true, usage: usage);
 
       await platform.run('code');
 
-      expect(fake.lastLimitsJson, isNull);
+      expect(fake.lastLimitsJson, isNotNull);
+      final decoded = json.decode(fake.lastLimitsJson!) as Map<String, dynamic>;
+      expect(decoded['memory_bytes'], BaseMontyPlatform.defaultMemoryBytes);
+      expect(decoded['stack_depth'], BaseMontyPlatform.defaultStackDepth);
+      expect(decoded.containsKey('timeout_ms'), isFalse);
     });
 
-    test('partial limits encodes JSON subset', () async {
+    test('partial limits merges with defaults', () async {
       fake.runResult = const CoreRunResult(ok: true, usage: usage);
 
       await platform.run('code', limits: const MontyLimits(memoryBytes: 1024));
 
       final decoded = json.decode(fake.lastLimitsJson!) as Map<String, dynamic>;
-      expect(decoded, {'memory_bytes': 1024});
+      // Caller override for memory, default for stack, no timeout.
+      expect(decoded['memory_bytes'], 1024);
+      expect(decoded['stack_depth'], BaseMontyPlatform.defaultStackDepth);
+      expect(decoded.containsKey('timeout_ms'), isFalse);
     });
 
     test('full limits encodes all fields', () async {
