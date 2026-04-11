@@ -22,6 +22,9 @@ rules in the system prompt or as an uploaded reference file.
     of available functions. If a function isn't shown by `help()`, it does
     not exist. Do NOT invent functions like `bb_dump()`, `oracle()`, or
     `confirm()` — they will raise `RuntimeError: Unknown function`.
+13. **Do NOT wrap code in a function definition.** Write top-level code.
+    The last expression is the return value. Do not use `def main():` or
+    `return` — just put the result as the last line.
 
 ## Monty Sandbox Limitations
 
