@@ -22,6 +22,8 @@ export 'src/bridge/os_call/file_system_os_provider.dart';
 export 'src/bridge/os_call/memory_fs_os_provider.dart';
 export 'src/bridge/os_call/os_call_exception.dart';
 export 'src/bridge/os_call/os_provider.dart';
+export 'src/bridge/os_call/overlay_os_provider.dart';
+export 'src/bridge/os_call/readonly_os_provider.dart';
 export 'src/bridge/os_call/sandboxed_fs_provider_stub.dart'
     if (dart.library.io) 'src/bridge/os_call/sandboxed_fs_provider.dart';
 export 'src/bridge/os_call/time_os_provider.dart';
