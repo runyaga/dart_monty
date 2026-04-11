@@ -93,10 +93,6 @@ class MontyRepl {
       message: r.error ?? 'Unknown error',
       excType: r.excType,
       traceback: r.traceback,
-      filename: r.filename,
-      lineNumber: r.lineNumber,
-      columnNumber: r.columnNumber,
-      sourceCode: r.sourceCode,
     );
   }
 
@@ -288,10 +284,6 @@ def help(name=None):
     required String message,
     String? excType,
     List<dynamic>? traceback,
-    String? filename,
-    int? lineNumber,
-    int? columnNumber,
-    String? sourceCode,
   }) {
     if (excType == 'MemoryLimitExceeded') {
       throw MontyResourceError(message);
