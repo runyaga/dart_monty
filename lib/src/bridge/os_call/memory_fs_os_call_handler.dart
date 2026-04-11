@@ -74,14 +74,14 @@ class MemoryFsOsCallHandler extends OsCallHandler {
       'Path.rmdir' => _rmdir(args),
       'Path.rename' => _rename(args),
       'Path.iterdir' => _iterdir(args),
-      'Path.resolve' => _str(args.first), // No symlinks to resolve
-      'Path.absolute' => _str(args.first),
+      'Path.resolve' || 'Path.absolute' => _str(args.first),
       _ => throw UnsupportedError('Unsupported path operation: $op'),
     };
   }
 
   bool _exists(List<MontyValue> args) {
     final path = _str(args.first);
+
     return _fs.file(path).existsSync() || _fs.directory(path).existsSync();
   }
 
@@ -100,6 +100,7 @@ class MemoryFsOsCallHandler extends OsCallHandler {
         'No such file: $path',
       );
     }
+
     return file.readAsStringSync();
   }
 
@@ -112,6 +113,7 @@ class MemoryFsOsCallHandler extends OsCallHandler {
         'No such file: $path',
       );
     }
+
     return file.readAsBytesSync().toList();
   }
 
@@ -121,6 +123,7 @@ class MemoryFsOsCallHandler extends OsCallHandler {
     _fs.file(path)
       ..parent.createSync(recursive: true)
       ..writeAsStringSync(content);
+
     return content.length;
   }
 
@@ -130,6 +133,7 @@ class MemoryFsOsCallHandler extends OsCallHandler {
     _fs.file(path)
       ..parent.createSync(recursive: true)
       ..writeAsBytesSync(bytes);
+
     return bytes.length;
   }
 
@@ -138,11 +142,13 @@ class MemoryFsOsCallHandler extends OsCallHandler {
     final parents = kwargs?['parents']?.dartValue as bool? ?? false;
     final existOk = kwargs?['exist_ok']?.dartValue as bool? ?? false;
     final dir = _fs.directory(path);
-    if (existOk && dir.existsSync()) return null;
-    if (!parents && dir.existsSync()) {
+    final exists = dir.existsSync();
+    if (existOk && exists) return null;
+    if (!parents && exists) {
       throw OsCallException('Path.mkdir', 'Directory exists: $path');
     }
     dir.createSync(recursive: parents);
+
     return null;
   }
 
@@ -153,6 +159,7 @@ class MemoryFsOsCallHandler extends OsCallHandler {
       throw OsCallFileNotFoundError('Path.unlink', 'No such file: $path');
     }
     file.deleteSync();
+
     return null;
   }
 
@@ -163,6 +170,7 @@ class MemoryFsOsCallHandler extends OsCallHandler {
       throw OsCallFileNotFoundError('Path.rmdir', 'No such directory: $path');
     }
     dir.deleteSync();
+
     return null;
   }
 
@@ -170,6 +178,7 @@ class MemoryFsOsCallHandler extends OsCallHandler {
     final oldPath = _str(args.first);
     final newPath = _str(args[1]);
     _fs.file(oldPath).renameSync(newPath);
+
     return newPath;
   }
 
@@ -182,6 +191,7 @@ class MemoryFsOsCallHandler extends OsCallHandler {
         'No such directory: $path',
       );
     }
+
     return dir.listSync().map((e) => MontyPath(e.path)).toList();
   }
 }

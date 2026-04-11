@@ -11,6 +11,7 @@ import 'package:dart_monty/src/bridge/os_call/time_os_call_handler.dart';
 /// No `os.*` environment access on web (no `dart:io`).
 OsCallHandler createDefaultOsCallHandler() {
   final time = TimeOsCallHandler();
+
   return RouterOsCallHandler({
     'Path.': MemoryFsOsCallHandler(),
     'date.': time,

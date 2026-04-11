@@ -13,6 +13,7 @@ import 'package:dart_monty/src/bridge/os_call/time_os_call_handler.dart';
 /// - `os.*` -> [EnvOsCallHandler] (full host environment)
 OsCallHandler createDefaultOsCallHandler() {
   final time = TimeOsCallHandler();
+
   return RouterOsCallHandler({
     'Path.': DefaultNativePathHandler(),
     'os.': EnvOsCallHandler(Platform.environment),
@@ -67,11 +68,13 @@ Object? _handlePathOp(
 
 Object? _unlink(List<MontyValue> args) {
   File(_str(args.first)).deleteSync();
+
   return null;
 }
 
 Object? _rmdir(List<MontyValue> args) {
   Directory(_str(args.first)).deleteSync();
+
   return null;
 }
 
@@ -79,6 +82,7 @@ int _writeText(List<MontyValue> args) {
   final path = _str(args.first);
   final content = _str(args[1]);
   File(path).writeAsStringSync(content);
+
   return content.length;
 }
 
@@ -86,6 +90,7 @@ int _writeBytes(List<MontyValue> args) {
   final path = _str(args.first);
   final bytes = (args[1].dartValue! as List).cast<int>();
   File(path).writeAsBytesSync(bytes);
+
   return bytes.length;
 }
 
@@ -96,6 +101,7 @@ Object? _mkdir(List<MontyValue> args, Map<String, MontyValue>? kwargs) {
   final dir = Directory(path);
   if (existOk && dir.existsSync()) return null;
   dir.createSync(recursive: parents);
+
   return null;
 }
 
@@ -103,6 +109,7 @@ String _rename(List<MontyValue> args) {
   final oldPath = _str(args.first);
   final newPath = _str(args[1]);
   File(oldPath).renameSync(newPath);
+
   return newPath;
 }
 

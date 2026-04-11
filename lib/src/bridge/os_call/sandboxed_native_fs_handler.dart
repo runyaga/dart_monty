@@ -24,6 +24,7 @@ class SandboxedNativeFsHandler extends OsCallHandler {
   /// paths inside this directory.
   factory SandboxedNativeFsHandler({required Directory root}) {
     final resolved = root.resolveSymbolicLinksSync();
+
     return SandboxedNativeFsHandler._(resolved);
   }
 
@@ -66,7 +67,7 @@ class SandboxedNativeFsHandler extends OsCallHandler {
       'Path.rename' => _rename(args),
       'Path.iterdir' => _iterdir(args),
       'Path.resolve' => _resolve(args),
-      'Path.absolute' => _safePath(op, _str(args[0])),
+      'Path.absolute' => _safePath(op, _str(args.first)),
       _ => throw UnsupportedError('Unsupported path operation: $op'),
     };
   }
@@ -87,6 +88,7 @@ class SandboxedNativeFsHandler extends OsCallHandler {
         'Path escapes sandbox: $pythonPath',
       );
     }
+
     return joined;
   }
 
@@ -103,84 +105,97 @@ class SandboxedNativeFsHandler extends OsCallHandler {
           'Symlink escapes sandbox: $pythonPath -> $resolved',
         );
       }
+
       return resolved;
     }
+
     return safe;
   }
 
   bool _exists(List<MontyValue> args) {
-    final safe = _safePath('Path.exists', _str(args[0]));
+    final safe = _safePath('Path.exists', _str(args.first));
+
     return FileSystemEntity.typeSync(safe) != FileSystemEntityType.notFound;
   }
 
   bool _isFile(List<MontyValue> args) {
-    final safe = _safePath('Path.is_file', _str(args[0]));
+    final safe = _safePath('Path.is_file', _str(args.first));
+
     return FileSystemEntity.typeSync(safe) == FileSystemEntityType.file;
   }
 
   bool _isDir(List<MontyValue> args) {
-    final safe = _safePath('Path.is_dir', _str(args[0]));
+    final safe = _safePath('Path.is_dir', _str(args.first));
+
     return FileSystemEntity.typeSync(safe) == FileSystemEntityType.directory;
   }
 
   bool _isSymlink(List<MontyValue> args) {
-    final safe = _safePath('Path.is_symlink', _str(args[0]));
+    final safe = _safePath('Path.is_symlink', _str(args.first));
+
     return FileSystemEntity.typeSync(safe, followLinks: false) ==
         FileSystemEntityType.link;
   }
 
   String _readText(List<MontyValue> args) {
-    final safe = _safeResolved('Path.read_text', _str(args[0]));
+    final safe = _safeResolved('Path.read_text', _str(args.first));
+
     return File(safe).readAsStringSync();
   }
 
   List<int> _readBytes(List<MontyValue> args) {
-    final safe = _safeResolved('Path.read_bytes', _str(args[0]));
+    final safe = _safeResolved('Path.read_bytes', _str(args.first));
+
     return File(safe).readAsBytesSync().toList();
   }
 
   int _writeText(List<MontyValue> args) {
-    final safe = _safePath('Path.write_text', _str(args[0]));
+    final safe = _safePath('Path.write_text', _str(args.first));
     final content = _str(args[1]);
     final file = File(safe);
     file.parent.createSync(recursive: true);
     file.writeAsStringSync(content);
+
     return content.length;
   }
 
   int _writeBytes(List<MontyValue> args) {
-    final safe = _safePath('Path.write_bytes', _str(args[0]));
+    final safe = _safePath('Path.write_bytes', _str(args.first));
     final bytes = (args[1].dartValue! as List).cast<int>();
     final file = File(safe);
     file.parent.createSync(recursive: true);
     file.writeAsBytesSync(bytes);
+
     return bytes.length;
   }
 
   Object? _mkdir(List<MontyValue> args, Map<String, MontyValue>? kwargs) {
-    final safe = _safePath('Path.mkdir', _str(args[0]));
+    final safe = _safePath('Path.mkdir', _str(args.first));
     final parents = kwargs?['parents']?.dartValue as bool? ?? false;
     final existOk = kwargs?['exist_ok']?.dartValue as bool? ?? false;
     final dir = Directory(safe);
     if (existOk && dir.existsSync()) return null;
     dir.createSync(recursive: parents);
+
     return null;
   }
 
   Object? _unlink(List<MontyValue> args) {
-    final safe = _safeResolved('Path.unlink', _str(args[0]));
+    final safe = _safeResolved('Path.unlink', _str(args.first));
     File(safe).deleteSync();
+
     return null;
   }
 
   Object? _rmdir(List<MontyValue> args) {
-    final safe = _safePath('Path.rmdir', _str(args[0]));
+    final safe = _safePath('Path.rmdir', _str(args.first));
     Directory(safe).deleteSync();
+
     return null;
   }
 
   String _rename(List<MontyValue> args) {
-    final oldSafe = _safeResolved('Path.rename', _str(args[0]));
+    final oldSafe = _safeResolved('Path.rename', _str(args.first));
     final newSafe = _safePath('Path.rename', _str(args[1]));
     File(oldSafe).renameSync(newSafe);
 
@@ -188,13 +203,13 @@ class SandboxedNativeFsHandler extends OsCallHandler {
   }
 
   List<MontyPath> _iterdir(List<MontyValue> args) {
-    final safe = _safePath('Path.iterdir', _str(args[0]));
+    final safe = _safePath('Path.iterdir', _str(args.first));
 
     return Directory(safe).listSync().map((e) => MontyPath(e.path)).toList();
   }
 
   String _resolve(List<MontyValue> args) =>
-      _safeResolved('Path.resolve', _str(args[0]));
+      _safeResolved('Path.resolve', _str(args.first));
 }
 
 String _str(MontyValue arg) => switch (arg) {

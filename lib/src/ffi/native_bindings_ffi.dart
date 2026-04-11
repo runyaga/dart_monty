@@ -41,8 +41,8 @@ class NativeBindingsFfi extends NativeBindings {
         outError,
       );
       if (handle == nullptr) {
-        final errorMsg = _readAndFreeString(outError.value) ??
-            'monty_create returned null';
+        final errorMsg =
+            _readAndFreeString(outError.value) ?? 'monty_create returned null';
         // Parse errors (SyntaxError, etc.) are script errors — throw
         // MontyScriptError so callers using `on MontyScriptError` catch them.
         final excType = _extractExcType(errorMsg);
@@ -341,8 +341,9 @@ class NativeBindingsFfi extends NativeBindings {
     final prefix = message.substring(0, colonIdx);
     // Only treat it as an exc type if it looks like a Python identifier
     // (e.g. "SyntaxError", "ValueError").
-    if (RegExp(r'^[A-Z][a-zA-Z]*(?:Error|Exception|Warning)$')
-        .hasMatch(prefix)) {
+    if (RegExp(
+      r'^[A-Z][a-zA-Z]*(?:Error|Exception|Warning)$',
+    ).hasMatch(prefix)) {
       return prefix;
     }
 
