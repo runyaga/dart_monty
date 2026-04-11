@@ -1,4 +1,4 @@
-import 'package:dart_monty/src/bridge/os_call/file_system_os_provider.dart';
+import 'package:dart_monty/src/bridge/os_call/fs_provider.dart';
 import 'package:file/memory.dart';
 
 /// Handles `Path.*` OS calls using an in-memory virtual filesystem.
@@ -10,16 +10,16 @@ import 'package:file/memory.dart';
 /// execution or read results after execution.
 ///
 /// ```dart
-/// final vfs = MemoryFsOsProvider();
+/// final vfs = MemoryFsProvider();
 /// vfs.writeFile('/sandbox/config.json', '{"key": "value"}');
 /// bridge.registerOs(OsProvider.compose({
 ///   'Path.': vfs,
 ///   ...
 /// }));
 /// ```
-class MemoryFsOsProvider extends FileSystemOsProvider {
+class MemoryFsProvider extends FsProvider {
   /// Creates a provider backed by a fresh in-memory filesystem.
-  MemoryFsOsProvider() : super(MemoryFileSystem());
+  MemoryFsProvider() : super(MemoryFileSystem());
 
   /// Pre-populates a file in the VFS from Dart.
   ///

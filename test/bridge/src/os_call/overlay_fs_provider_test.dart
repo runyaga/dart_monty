@@ -7,16 +7,16 @@ void main() {
       MontyOsCall(operationName: op, arguments: args);
 
   group('OverlayFsProvider', () {
-    late MemoryFsOsProvider base;
-    late MemoryFsOsProvider scratch;
+    late MemoryFsProvider base;
+    late MemoryFsProvider scratch;
     late OverlayFsProvider overlay;
 
     setUp(() {
-      base = MemoryFsOsProvider()
+      base = MemoryFsProvider()
         ..writeFile('/project/readme.md', '# My Project')
         ..writeFile('/project/src/main.py', 'print("hello")');
 
-      scratch = MemoryFsOsProvider();
+      scratch = MemoryFsProvider();
       overlay = OverlayFsProvider(base: base, scratch: scratch);
     });
 

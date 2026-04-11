@@ -13,11 +13,11 @@ import 'package:file/file.dart';
 /// or construct directly with a custom [FileSystem]:
 ///
 /// ```dart
-/// final provider = FileSystemOsProvider(MemoryFileSystem());
+/// final provider = FsProvider(MemoryFileSystem());
 /// ```
-class FileSystemOsProvider extends OsProvider {
+class FsProvider extends OsProvider {
   /// Creates a provider backed by the given [fileSystem].
-  const FileSystemOsProvider(this._fs) : super.base();
+  const FsProvider(this._fs) : super.base();
 
   final FileSystem _fs;
 

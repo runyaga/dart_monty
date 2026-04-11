@@ -19,7 +19,7 @@ import 'package:dart_monty/src/bridge/os_call/default_sandbox_os.dart';
 /// For custom composition:
 /// ```dart
 /// final monty = Monty(os: OsProvider.compose({
-///   'Path.': MemoryFsOsProvider(),
+///   'Path.': MemoryFsProvider(),
 ///   'date.': TimeOsProvider(),
 /// }));
 /// ```
@@ -60,7 +60,7 @@ abstract class OsProvider {
   ///
   /// ```dart
   /// final os = OsProvider.compose({
-  ///   'Path.': MemoryFsOsProvider(),
+  ///   'Path.': MemoryFsProvider(),
   ///   'date.': TimeOsProvider(),
   ///   'datetime.': TimeOsProvider(),
   /// });

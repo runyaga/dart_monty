@@ -3,10 +3,10 @@ import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:test/test.dart';
 
 void main() {
-  late MemoryFsOsProvider handler;
+  late MemoryFsProvider handler;
 
   setUp(() {
-    handler = MemoryFsOsProvider();
+    handler = MemoryFsProvider();
   });
 
   MontyOsCall pathCall(
@@ -15,7 +15,7 @@ void main() {
     Map<String, MontyValue>? kwargs,
   }) => MontyOsCall(operationName: op, arguments: args, kwargs: kwargs);
 
-  group('MemoryFsOsProvider', () {
+  group('MemoryFsProvider', () {
     // -- File CRUD --
 
     test('write_text + read_text round-trip', () async {

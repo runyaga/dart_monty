@@ -290,7 +290,7 @@ Future<Map<String, dynamic>> _runOsCall(Map<String, dynamic> fixture) async {
 /// OsCall handler for the WASM ladder runner — MemoryFS + datetime.
 /// Same handler stack as defaultSandboxOs() on web.
 final OsProvider _osProvider = OsProvider.compose({
-  'Path.': MemoryFsOsProvider(),
+  'Path.': MemoryFsProvider(),
   'date.': TimeOsProvider(),
   'datetime.': TimeOsProvider(),
 });

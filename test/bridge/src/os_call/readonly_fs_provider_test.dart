@@ -6,14 +6,13 @@ void main() {
   MontyOsCall pathCall(String op, [List<MontyValue> args = const []]) =>
       MontyOsCall(operationName: op, arguments: args);
 
-  group('ReadOnlyOsProvider', () {
-    late MemoryFsOsProvider vfs;
-    late ReadOnlyOsProvider ro;
+  group('ReadOnlyFsProvider', () {
+    late MemoryFsProvider vfs;
+    late ReadOnlyFsProvider ro;
 
     setUp(() {
-      vfs = MemoryFsOsProvider()
-        ..writeFile('/data/hello.txt', 'hello world');
-      ro = ReadOnlyOsProvider(vfs);
+      vfs = MemoryFsProvider()..writeFile('/data/hello.txt', 'hello world');
+      ro = ReadOnlyFsProvider(vfs);
     });
 
     // -- Reads pass through --

@@ -54,8 +54,8 @@ dcm:
         exclude:
           # Python schema enforces arg count — all handlers receive well-formed args
           - "lib/src/bridge/os_call/default_sandbox_os_native.dart"
-          - "lib/src/bridge/os_call/file_system_os_provider.dart"
-          - "lib/src/bridge/os_call/memory_fs_os_provider.dart"
+          - "lib/src/bridge/os_call/fs_provider.dart"
+          - "lib/src/bridge/os_call/memory_fs_provider.dart"
           - "lib/src/bridge/os_call/sandboxed_fs_provider.dart"
           - "lib/src/bridge/os_call/env_os_provider.dart"
           # Mock tracking lists: only accessed after recording calls
@@ -250,8 +250,8 @@ dcm:
           - "lib/src/bridge/bridge/plugin_registry.dart"
           - "lib/src/bridge/plugins/sandbox_plugin.dart"
           - "lib/src/bridge/os_call/default_sandbox_os_native.dart"
-          - "lib/src/bridge/os_call/file_system_os_provider.dart"
-          - "lib/src/bridge/os_call/memory_fs_os_provider.dart"
+          - "lib/src/bridge/os_call/fs_provider.dart"
+          - "lib/src/bridge/os_call/memory_fs_provider.dart"
           - "lib/src/bridge/os_call/sandboxed_fs_provider.dart"
           # Router prefix map lookup: non-null guaranteed by startsWith check
           - "lib/src/bridge/os_call/os_provider.dart"
@@ -283,7 +283,7 @@ dcm:
           # logger getter wraps log field (interface compliance)
           - "lib/src/bridge/bridge/default_monty_bridge.dart"
           # fileSystem getter exposes _fs for Dart-side VFS access
-          - "lib/src/bridge/os_call/file_system_os_provider.dart"
+          - "lib/src/bridge/os_call/fs_provider.dart"
     - avoid-declaring-call-method
 
     # --- Import Safety ---

@@ -4,7 +4,7 @@ import 'package:test/test.dart';
 
 /// Runs the shared FS handler contract against any [OsProvider].
 ///
-/// Both `MemoryFsOsProvider` and `SandboxedFsProvider` must
+/// Both `MemoryFsProvider` and `SandboxedFsProvider` must
 /// pass this identical suite, proving behavioral parity.
 ///
 /// [name] is used as the test group label.

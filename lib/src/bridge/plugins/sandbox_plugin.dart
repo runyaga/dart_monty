@@ -283,7 +283,7 @@ class SandboxPlugin extends MontyPlugin {
   /// Optional OS call handler from the parent bridge.
   ///
   /// When provided, each child gets an isolated VFS with its own
-  /// `MemoryFsOsProvider`. Time and environment handlers are shared
+  /// `MemoryFsProvider`. Time and environment handlers are shared
   /// from the parent (if the parent uses a composite `OsProvider`).
   /// When null, children have no OS call access.
   final OsProvider? parentOs;
@@ -686,7 +686,7 @@ class SandboxPlugin extends MontyPlugin {
 
   /// Builds an isolated [OsProvider] for a child sandbox.
   ///
-  /// Each child gets a fresh [MemoryFsOsProvider] (isolated VFS).
+  /// Each child gets a fresh [MemoryFsProvider] (isolated VFS).
   /// Time and environment handlers are shared from the parent's router
   /// if available. Returns `null` when no parent handler is configured.
   OsProvider? _buildChildOsProvider() {
@@ -695,7 +695,7 @@ class SandboxPlugin extends MontyPlugin {
 
     // Try to share env and time providers from parent composite.
     final childProviders = <String, OsProvider>{
-      'Path.': MemoryFsOsProvider(),
+      'Path.': MemoryFsProvider(),
     };
     for (final prefix in const ['os.', 'date.', 'datetime.']) {
       final provider = parent.providerFor(prefix);

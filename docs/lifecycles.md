@@ -157,7 +157,7 @@ The OsCall subsystem intercepts Python standard-library operations
 (`pathlib`, `os`, `datetime`) and routes them through Dart providers.
 Two filesystem strategies provide the **VFS** layer:
 
-- **MemoryFsOsProvider** — pure in-memory VFS (ephemeral, platform-agnostic,
+- **MemoryFsProvider** — pure in-memory VFS (ephemeral, platform-agnostic,
   works on WASM). Backed by `package:file`'s `MemoryFileSystem`.
 - **SandboxedFsProvider** — chrooted real filesystem with path-traversal
   and symlink-escape protection.
@@ -172,7 +172,7 @@ them by operation-name prefix.
 |----------|-------------|----------|-------|
 | `OsProvider` (abstract) | Caller (`defaultSandboxOs()` or custom) | Composite `dispose()` via bridge/session dispose | `DefaultMontyBridge` or `MontySession` |
 | Composite provider child map | `OsProvider.compose()` | `dispose()` iterates + dedup-disposes children | Composite `OsProvider` |
-| `MemoryFileSystem` (VFS backing store) | `MemoryFsOsProvider` constructor | GC (no explicit dispose) | `MemoryFsOsProvider` |
+| `MemoryFileSystem` (VFS backing store) | `MemoryFsProvider` constructor | GC (no explicit dispose) | `MemoryFsProvider` |
 | `SandboxedFsProvider._root` (resolved path) | Factory constructor (resolves symlinks) | N/A — provider does not own root directory | Caller |
 | `EnvOsProvider.environment` map | Constructor (caller-provided) | GC | `EnvOsProvider` |
 | `TimeOsProvider._clock` | Constructor | GC | `TimeOsProvider` |
@@ -217,7 +217,7 @@ them by operation-name prefix.
 | F-1 | Low | BY DESIGN | Dual ownership: both `DefaultMontyBridge` and `MontySession` accept and dispose an `OsProvider`. They are mutually exclusive entry points — never share a provider instance across both. |
 | F-2 | Safe | OK | Composite `OsProvider.dispose()` deduplicates via `Set`. Provider registered under multiple prefixes is disposed once. Fallback provider is also disposed. |
 | F-3 | Safe | OK | `SandboxedFsProvider` does not own its root directory. Caller must clean up. Documented in dispose comment and constructor doc. |
-| F-4 | Safe | OK | `MemoryFsOsProvider` (VFS) has no dispose logic. `MemoryFileSystem` is GC-collected. Files are ephemeral by design. |
+| F-4 | Safe | OK | `MemoryFsProvider` (VFS) has no dispose logic. `MemoryFileSystem` is GC-collected. Files are ephemeral by design. |
 | F-5 | Safe | OK | `_handleOsCall` catches `on Object` — no unhandled exception can leak from a provider call. Error is always sent back to Python. |
 | F-6 | Low | OK | `unawaited()` on provider dispose in both bridge and session means dispose errors are fire-and-forget. If a provider's `dispose()` throws, it silently fails. |
 | F-7 | Info | OK | Web default factory omits `os.*` prefix. Any `os.getenv` call from Python hits composite's `UnsupportedError` path, which the bridge catches and sends back as a Python error. Correct. |

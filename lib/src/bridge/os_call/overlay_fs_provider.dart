@@ -13,7 +13,7 @@ import 'package:dart_monty/src/bridge/os_call/os_provider.dart';
 /// it touching the original files.
 ///
 /// ```dart
-/// final scratch = MemoryFsOsProvider();
+/// final scratch = MemoryFsProvider();
 /// final overlay = OverlayFsProvider(
 ///   base: SandboxedFsProvider(root: projectDir),
 ///   scratch: scratch,

@@ -4,8 +4,8 @@ import 'shared_fs_handler_contract.dart';
 
 void main() {
   runFsHandlerContract(
-    'MemoryFsOsProvider',
-    createHandler: () async => MemoryFsOsProvider(),
+    'MemoryFsProvider',
+    createHandler: () async => MemoryFsProvider(),
     rootPath: '/sandbox',
   );
 }

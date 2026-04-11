@@ -51,7 +51,7 @@ external void _jsOnFilesChanged(JSString filesJson);
 // State
 // ---------------------------------------------------------------------------
 
-var _vfs = MemoryFsOsProvider();
+var _vfs = MemoryFsProvider();
 late TimeOsProvider _time;
 final _osCallLog = <Map<String, dynamic>>[];
 
@@ -122,7 +122,7 @@ String _summarize(Object? value) {
 
 Future<Map<String, dynamic>> _runWithVfs(String code) async {
   _osCallLog.clear();
-  _vfs = MemoryFsOsProvider();
+  _vfs = MemoryFsProvider();
   _time = TimeOsProvider();
 
   // Mount any pre-staged files (set by mountFile before run).

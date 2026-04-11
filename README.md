@@ -101,7 +101,7 @@ Path("/tmp/hello.txt").read_text()
 }
 ```
 
-For custom filesystem backends, use `FileSystemOsProvider` with any
+For custom filesystem backends, use `FsProvider` with any
 `package:file` `FileSystem` implementation. See [docs/oscall-vfs.md](docs/oscall-vfs.md)
 for the full provider hierarchy.
 

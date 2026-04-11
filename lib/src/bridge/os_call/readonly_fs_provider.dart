@@ -18,8 +18,8 @@ const _writeOps = {
 /// Write operations throw [OsCallPermissionError].
 ///
 /// ```dart
-/// final ro = ReadOnlyOsProvider(
-///   FileSystemOsProvider(const LocalFileSystem()),
+/// final ro = ReadOnlyFsProvider(
+///   FsProvider(const LocalFileSystem()),
 /// );
 /// final monty = Monty(os: OsProvider.compose({
 ///   'Path.': ro,
@@ -28,9 +28,9 @@ const _writeOps = {
 /// ```
 ///
 /// All `date.*`, `datetime.*`, and `os.*` operations pass through unchanged.
-class ReadOnlyOsProvider extends OsProvider {
+class ReadOnlyFsProvider extends OsProvider {
   /// Creates a read-only wrapper around the given provider.
-  const ReadOnlyOsProvider(this._inner) : super.base();
+  const ReadOnlyFsProvider(this._inner) : super.base();
 
   final OsProvider _inner;
 

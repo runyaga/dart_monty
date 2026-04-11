@@ -9,8 +9,8 @@ the configured `OsProvider` hierarchy.
 
 ```text
 OsProvider (abstract)
-  ├── FileSystemOsProvider (package:file)
-  │     ├── MemoryFsOsProvider (VFS — in-memory filesystem)
+  ├── FsProvider (package:file)
+  │     ├── MemoryFsProvider (VFS — in-memory filesystem)
   │     └── SandboxedFsProvider (chroot — restricted native FS)
   ├── OsProvider.compose() (prefix-based dispatch to child providers)
   ├── EnvOsProvider (environment variable access)
@@ -18,9 +18,9 @@ OsProvider (abstract)
 ```
 
 - **`OsProvider`** — abstract base defining the provider contract.
-- **`FileSystemOsProvider`** — handles `Path.*` calls using a
+- **`FsProvider`** — handles `Path.*` calls using a
   `package:file` `FileSystem` instance.
-- **`MemoryFsOsProvider`** — VFS backed by `MemoryFileSystem`.
+- **`MemoryFsProvider`** — VFS backed by `MemoryFileSystem`.
 - **`SandboxedFsProvider`** — restricts native FS access to a
   chroot directory.
 - **`OsProvider.compose()`** — matches call prefixes and delegates to the
@@ -45,7 +45,7 @@ Python pathlib/os/datetime access
   → Rust monty yields OsCall progress
     → Dart MontyOsCall dispatched to OsProvider
       → Composite provider matches prefix
-        → FileSystemOsProvider (Path.*)
+        → FsProvider (Path.*)
         → EnvOsProvider (os.*)
         → TimeOsProvider (date.*, datetime.*)
       → Result sent back via platform.resume()
