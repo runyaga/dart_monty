@@ -3,8 +3,8 @@ library;
 
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/src/bridge/bridge/bridge_event.dart';
-import 'package:dart_monty/src/bridge/plugins/template_plugin.dart';
 import 'package:dart_monty/src/bridge/plugins/message_bus_plugin.dart';
+import 'package:dart_monty/src/bridge/plugins/template_plugin.dart';
 import 'package:test/test.dart';
 
 void main() {

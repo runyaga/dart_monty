@@ -9,15 +9,20 @@ via host functions.
 
 ## Host Functions
 
-| Function | Description |
-|----------|-------------|
-| `sandbox_spawn(code, timeout_ms?, memory_bytes?, system_prompt?)` | Spawn child interpreter, returns integer handle |
-| `sandbox_await(handle)` | Wait for child to complete, returns result |
-| `sandbox_await_all(handles)` | Wait for multiple children |
-| `sandbox_gather(handles)` | Wait + return attributed results `[{handle, value, output}]` |
-| `sandbox_is_alive(handle)` | Check if child is still running |
-| `sandbox_free(handle)` | Release completed child resources |
-| `sandbox_get_output(handle)` | Get child's captured `print()` output |
+- `sandbox_spawn(code, timeout_ms?, memory_bytes?)` --
+  Spawn child interpreter, returns integer handle
+- `sandbox_await(handle)` --
+  Wait for child to complete, returns result
+- `sandbox_await_all(handles)` --
+  Wait for multiple children
+- `sandbox_gather(handles)` --
+  Wait and return attributed results
+- `sandbox_is_alive(handle)` --
+  Check if child is still running
+- `sandbox_free(handle)` --
+  Release completed child resources
+- `sandbox_get_output(handle)` --
+  Get child's captured print output
 
 ## Usage
 
@@ -85,8 +90,8 @@ final sandbox = SandboxPlugin(
 ```
 
 Rules:
-- `SandboxPlugin` itself is **skipped** during inheritance (prevents
-  accidental infinite recursion)
+
+- `SandboxPlugin` itself is **skipped** during inheritance
 - Plugins return `null` from `createChildInstance()` to opt out
 - Plugins must return a **new instance**, not `this`
 
@@ -131,10 +136,11 @@ result = sandbox_await(h)  # 42 — computed by grandchild
 ```
 
 Depth limiting prevents infinite recursion:
+
 - `currentDepth=0` (parent) can spawn children
 - `currentDepth=1` (child) can spawn grandchildren
 - `currentDepth=2` (grandchild) can spawn great-grandchildren
-- `currentDepth >= maxDepth` → spawn raises `StateError`
+- `currentDepth >= maxDepth` raises `StateError`
 
 ## Resource Limits
 
@@ -151,6 +157,7 @@ SandboxPlugin(
 ```
 
 Python can override per-spawn:
+
 ```python
 sandbox_spawn(code='...', timeout_ms=5000, memory_bytes=1048576)
 ```
@@ -169,6 +176,7 @@ SandboxPlugin(
 ```
 
 Python can add runtime prompts:
+
 ```python
 sandbox_spawn(code='...', system_prompt='Focus on data analysis.')
 ```
@@ -191,11 +199,13 @@ SandboxPlugin(
 ```
 
 Each child receives:
-- **Fresh `MemoryFsProvider`** — isolated VFS, no access to parent files
+
+- **Fresh `MemoryFsProvider`** — isolated VFS
 - **Shared `TimeOsProvider`** — same clock as parent
 - **Shared `EnvOsProvider`** — same environment variables
 
 Optional per-child working directories via `sandboxBaseDir`:
+
 ```dart
 SandboxPlugin(
   sandboxBaseDir: '/workspace',
@@ -205,10 +215,10 @@ SandboxPlugin(
 
 ## Platform Support
 
-| Platform | `platformFactory` | Sandbox Support |
-|----------|-------------------|-----------------|
-| **FFI** (native) | `() async => MontyFfi()` | Full — spawn, gather, grandchildren |
-| **WASM** (browser) | `() async => MontyWasm()` | **Limited** — see below |
+- **FFI** (native): `() async => MontyFfi()` --
+  Full support (spawn, gather, grandchildren)
+- **WASM** (browser): `() async => MontyWasm()` --
+  **Limited** -- see below
 
 ### WASM Limitation
 
@@ -252,7 +262,7 @@ other variables survive in the native Rust REPL heap.
 
 ## Architecture Diagram
 
-```
+```text
 ReplSession
   └── DefaultMontyBridge (parent)
         ├── DinjaTemplatePlugin (tmpl_render)

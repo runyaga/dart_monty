@@ -1,5 +1,5 @@
 // Standalone JS-compiled demo, not a package:test file.
-// ignore_for_file: avoid_print, lines_longer_than_80_chars, avoid_catches_without_on_clauses, discarded_futures, unnecessary_lambdas, cast_nullable_to_non_nullable, prefer_single_quotes
+// ignore_for_file: avoid_print, lines_longer_than_80_chars, avoid_catches_without_on_clauses, cast_nullable_to_non_nullable
 /// Interactive REPL Session Demo — ReplSession + real plugins in the browser.
 ///
 /// Compiled to JS, exposes window.ReplSessionDemo to HTML.
@@ -16,10 +16,6 @@ import 'dart:js_interop';
 
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
-import 'package:dart_monty/src/bridge/bridge/bridge_event.dart';
-import 'package:dart_monty/src/bridge/plugins/message_bus_plugin.dart';
-import 'package:dart_monty/src/bridge/plugins/sandbox_plugin.dart';
-import 'package:dart_monty/src/bridge/plugins/template_plugin.dart';
 import 'package:dart_monty/src/wasm/monty_wasm.dart';
 
 // ---------------------------------------------------------------------------

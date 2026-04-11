@@ -58,8 +58,7 @@ Future<void> _testReplVariablePersists() async {
     return;
   }
 
-  final r2 =
-      _parse((await _bridgeReplFeedRun('x + 1'.toJS).toDart).toDart);
+  final r2 = _parse((await _bridgeReplFeedRun('x + 1'.toJS).toDart).toDart);
   if (r2['ok'] == true && r2['value'] == 43) {
     _pass('repl_variable');
   } else {
@@ -102,16 +101,16 @@ Future<void> _testReplSurvivesError() async {
   await _bridgeReplFeedRun('x = 10'.toJS).toDart;
 
   // This should return an error but REPL survives.
-  final errResult =
-      _parse((await _bridgeReplFeedRun('1 / 0'.toJS).toDart).toDart);
+  final errResult = _parse(
+    (await _bridgeReplFeedRun('1 / 0'.toJS).toDart).toDart,
+  );
   if (errResult['ok'] != false) {
     _fail('repl_survives_error', 'Expected error for 1/0, got ok');
     return;
   }
 
   // x should still be accessible.
-  final r =
-      _parse((await _bridgeReplFeedRun('x'.toJS).toDart).toDart);
+  final r = _parse((await _bridgeReplFeedRun('x'.toJS).toDart).toDart);
   if (r['ok'] == true && r['value'] == 10) {
     _pass('repl_survives_error');
   } else {
@@ -144,7 +143,7 @@ Future<void> _testReplDetectContinuation() async {
     _fail(
       'repl_continuation',
       'complete=${complete['value']}, block=${block['value']}, '
-      'implicit=${implicit['value']}',
+          'implicit=${implicit['value']}',
     );
   }
 
@@ -162,8 +161,7 @@ Future<void> _testRepl50Iterations() async {
   for (var i = 1; i <= 50; i++) {
     await _bridgeReplFeedRun('total += $i'.toJS).toDart;
   }
-  final r =
-      _parse((await _bridgeReplFeedRun('total'.toJS).toDart).toDart);
+  final r = _parse((await _bridgeReplFeedRun('total'.toJS).toDart).toDart);
 
   // sum of 1..50 = 1275
   if (r['ok'] == true && r['value'] == 1275) {

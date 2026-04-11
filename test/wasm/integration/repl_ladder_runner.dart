@@ -1,5 +1,5 @@
 // Standalone JS-compiled runner, not a package:test file.
-// ignore_for_file: avoid_print
+// ignore_for_file: avoid_print, avoid_catches_without_on_clauses
 /// REPL Ladder runner for WASM integration testing.
 ///
 /// Compiled to JS, runs in headless Chrome with COOP/COEP headers.
@@ -41,11 +41,13 @@ external JSPromise<JSObject> _jsFetch(JSString url);
 Map<String, dynamic> _parse(String jsonStr) =>
     jsonDecode(jsonStr) as Map<String, dynamic>;
 
+extension type _Response(JSObject _) implements JSObject {
+  external JSPromise<JSString> text();
+}
+
 Future<String> _fetchText(String url) async {
   final resp = await _jsFetch(url.toJS).toDart;
-  final textPromise =
-      (resp as JSObject).callMethod<JSPromise<JSString>>('text'.toJS);
-  return (await textPromise.toDart).toDart;
+  return (await (resp as _Response).text().toDart).toDart;
 }
 
 void _result(int id, bool ok, {Object? value, String? error}) {
@@ -87,8 +89,7 @@ Future<void> _runFeedFixture(Map<String, dynamic> fixture) async {
       final code = feed['code'] as String;
       final expectError = feed['expectError'] as bool? ?? false;
 
-      final r =
-          _parse((await _bridgeReplFeedRun(code.toJS).toDart).toDart);
+      final r = _parse((await _bridgeReplFeedRun(code.toJS).toDart).toDart);
 
       if (expectError) {
         if (r['ok'] == true) {
@@ -219,8 +220,8 @@ Future<void> main() async {
       continue;
     }
 
-    final fixtures =
-        (jsonDecode(tierJson) as List).cast<Map<String, dynamic>>();
+    final fixtures = (jsonDecode(tierJson) as List)
+        .cast<Map<String, dynamic>>();
 
     for (final fixture in fixtures) {
       total++;

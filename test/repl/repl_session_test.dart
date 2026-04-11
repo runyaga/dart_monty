@@ -1,3 +1,5 @@
+// Tests use print for debug output during development.
+// ignore_for_file: avoid_print
 @Tags(['integration'])
 library;
 
@@ -75,7 +77,7 @@ void main() {
 
     await session.run("items = ['Alice', 'Bob']");
     final r = await session.run(
-      "tmpl_render("
+      'tmpl_render('
       "template='{% for u in items %}{{ u }} {% endfor %}', "
       "context={'items': items})",
     );
@@ -228,7 +230,7 @@ void main() {
     await session.run("h = sandbox_spawn(code='1/0')");
     final r = await session.run(
       'try:\n    sandbox_await(h)\nexcept Exception as e:\n'
-      "    err = str(e)\nerr",
+      '    err = str(e)\nerr',
     );
     print('sandbox error: ${r.value}');
     expect(r.value, isA<MontyString>());
@@ -242,7 +244,6 @@ void main() {
       platformFactory: () async => MontyFfi(),
       parentPlugins: [tmpl],
       maxChildren: 4,
-      maxDepth: 3,
       childPluginRegistryFactory: (context) async {
         // Give children their own SandboxPlugin (depth+1) + template
         final childTmpl = DinjaTemplatePlugin();
@@ -250,7 +251,6 @@ void main() {
           platformFactory: () async => MontyFfi(),
           parentPlugins: [childTmpl],
           maxChildren: 2,
-          maxDepth: 3,
           currentDepth: 1,
         );
         final reg = PluginRegistry()
@@ -266,10 +266,8 @@ void main() {
     // Parent spawns child, child spawns grandchild
     // Use triple-quoted string for the child code to avoid escaping
     await session.run(
-      'child_code = """'
-      'gh = sandbox_spawn(code="6 * 7")\n'
-      'sandbox_await(gh)'
-      '"""',
+      'child_code = """gh = sandbox_spawn(code="6 * 7")\n'
+      'sandbox_await(gh)"""',
     );
     final r = await session.run('h = sandbox_spawn(code=child_code)');
     print(
