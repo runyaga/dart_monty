@@ -3,15 +3,12 @@ library;
 
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/src/bridge/bridge/bridge_event.dart';
+import 'package:dart_monty/src/bridge/bridge/plugin_registry.dart';
+import 'package:dart_monty/src/bridge/plugins/sandbox_plugin.dart';
 import 'package:dart_monty/src/bridge/plugins/template_plugin.dart';
+import 'package:dart_monty/src/ffi/monty_ffi.dart';
 import 'package:test/test.dart';
 
-/// Integration tests for [ReplSession] with real plugin dispatch.
-///
-/// Run with:
-/// ```bash
-/// dart test --run-skipped --tags=integration test/repl/repl_session_test.dart
-/// ```
 void main() {
   test('ReplSession: run simple expression', () async {
     final session = ReplSession();
@@ -102,7 +99,6 @@ void main() {
         )
         .toList();
 
-    // Should have lifecycle events
     expect(events.whereType<BridgeRunStarted>(), isNotEmpty);
     expect(
       events.whereType<BridgeRunFinished>().length +
@@ -135,7 +131,7 @@ void main() {
     );
     final r = await session.run('len(html)');
 
-    expect(r.value, const MontyInt(11)); // <h1>Hi</h1> = 11 chars
+    expect(r.value, const MontyInt(11));
     await session.dispose();
   });
 
@@ -143,6 +139,151 @@ void main() {
     final session = ReplSession();
     await session.run('1 + 1');
     await session.dispose();
-    await session.dispose(); // no-op
+    await session.dispose();
+  });
+
+  // -----------------------------------------------------------------------
+  // SandboxPlugin — real child interpreter execution
+  // -----------------------------------------------------------------------
+
+  test('ReplSession: sandbox_spawn + await real execution', () async {
+    final tmpl = DinjaTemplatePlugin();
+    final session = ReplSession(
+      plugins: [
+        SandboxPlugin(
+          platformFactory: () async => MontyFfi(),
+          parentPlugins: [tmpl],
+          maxChildren: 4,
+        ),
+        tmpl,
+      ],
+    );
+
+    // Spawn child that computes sum(range(100))
+    await session.run("h = sandbox_spawn(code='sum(range(100))')");
+
+    // Await — real child interpreter executes
+    final r = await session.run('sandbox_await(h)');
+    print('sandbox_await: ${r.value}');
+    expect(r.isError, isFalse);
+    expect(r.value, const MontyInt(4950));
+
+    await session.dispose();
+  });
+
+  test('ReplSession: sandbox result feeds into template', () async {
+    final tmpl = DinjaTemplatePlugin();
+    final session = ReplSession(
+      plugins: [
+        SandboxPlugin(
+          platformFactory: () async => MontyFfi(),
+          parentPlugins: [tmpl],
+          maxChildren: 4,
+        ),
+        tmpl,
+      ],
+    );
+
+    await session.run("h = sandbox_spawn(code='2 ** 16')");
+    await session.run('val = sandbox_await(h)');
+    final r = await session.run(
+      "tmpl_render(template='Power: {{ v }}', context={'v': val})",
+    );
+    print('sandbox+template: ${r.value}');
+    expect(r.value, isA<MontyString>());
+
+    await session.dispose();
+  });
+
+  test('ReplSession: sandbox_gather parallel execution', () async {
+    final session = ReplSession(
+      plugins: [
+        SandboxPlugin(
+          platformFactory: () async => MontyFfi(),
+          maxChildren: 4,
+        ),
+      ],
+    );
+
+    await session.run("h1 = sandbox_spawn(code='10 + 20')");
+    await session.run("h2 = sandbox_spawn(code='3 * 7')");
+    await session.run("h3 = sandbox_spawn(code='2 ** 8')");
+    final r = await session.run('sandbox_gather(handles=[h1, h2, h3])');
+    print('gather: ${r.value}');
+    expect(r.isError, isFalse);
+
+    await session.dispose();
+  });
+
+  test('ReplSession: sandbox error propagation', () async {
+    final session = ReplSession(
+      plugins: [
+        SandboxPlugin(
+          platformFactory: () async => MontyFfi(),
+          maxChildren: 4,
+        ),
+      ],
+    );
+
+    await session.run("h = sandbox_spawn(code='1/0')");
+    final r = await session.run(
+      'try:\n    sandbox_await(h)\nexcept Exception as e:\n'
+      "    err = str(e)\nerr",
+    );
+    print('sandbox error: ${r.value}');
+    expect(r.value, isA<MontyString>());
+
+    await session.dispose();
+  });
+
+  test('ReplSession: grandchild — child spawns child', () async {
+    final tmpl = DinjaTemplatePlugin();
+    final sandbox = SandboxPlugin(
+      platformFactory: () async => MontyFfi(),
+      parentPlugins: [tmpl],
+      maxChildren: 4,
+      maxDepth: 3,
+      childPluginRegistryFactory: (context) async {
+        // Give children their own SandboxPlugin (depth+1) + template
+        final childTmpl = DinjaTemplatePlugin();
+        final childSandbox = SandboxPlugin(
+          platformFactory: () async => MontyFfi(),
+          parentPlugins: [childTmpl],
+          maxChildren: 2,
+          maxDepth: 3,
+          currentDepth: 1,
+        );
+        final reg = PluginRegistry()
+          ..register(childSandbox)
+          ..register(childTmpl);
+        return reg;
+      },
+    );
+    final session = ReplSession(
+      plugins: [sandbox, tmpl],
+    );
+
+    // Parent spawns child, child spawns grandchild
+    // Use triple-quoted string for the child code to avoid escaping
+    await session.run(
+      'child_code = """'
+      'gh = sandbox_spawn(code="6 * 7")\n'
+      'sandbox_await(gh)'
+      '"""',
+    );
+    final r = await session.run('h = sandbox_spawn(code=child_code)');
+    print(
+      'grandchild spawn: isError=${r.isError}, '
+      'value=${r.value}, error=${r.error}',
+    );
+    expect(r.isError, isFalse);
+
+    final r2 = await session.run(
+      'try:\n    result = sandbox_await(h)\n'
+      'except Exception as e:\n    result = str(e)\nresult',
+    );
+    print('grandchild result: ${r2.value}');
+
+    await session.dispose();
   });
 }
