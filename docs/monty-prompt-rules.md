@@ -27,7 +27,8 @@ rules in the system prompt or as an uploaded reference file.
 14. **Use `print()` for progress and debugging.** Print output is captured
     separately from the return value. Use `print()` to show intermediate
     steps, then put the final result as the last expression:
-    ```python
+
+    ```monty
     print("Fetching rooms...")
     rooms = json.loads(soliplex_list_rooms("local"))
     print(f"Found {len(rooms)} rooms")

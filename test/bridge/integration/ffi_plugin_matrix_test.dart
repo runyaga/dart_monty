@@ -10,6 +10,7 @@
 @Tags(['integration'])
 library;
 
+// Integration test uses print for output and nullable casts for brevity.
 // ignore_for_file: avoid_print, cast_nullable_to_non_nullable
 import 'dart:io';
 
@@ -21,94 +22,95 @@ void main() {
     'FFI plugin matrix — 30 experiments in one session',
     () async {
       final kv = <String, String>{};
-      final session = AgentSession(
-        os: OsProvider.compose({
-          'Path.': MemoryFsProvider(),
-          'date.': TimeOsProvider(),
-          'datetime.': TimeOsProvider(),
-        }),
-        plugins: [DinjaTemplatePlugin(), MessageBusPlugin()],
-      )
-        ..register(
-          HostFunction(
-            schema: const HostFunctionSchema(
-              name: 'sync_fn',
-              description: 'Returns immediately',
-            ),
-            handler: (_) async => 'sync_ok',
-          ),
-        )
-        ..register(
-          HostFunction(
-            schema: const HostFunctionSchema(
-              name: 'delay_fn',
-              description: 'Awaits 200ms',
-            ),
-            handler: (_) async {
-              await Future<void>.delayed(
-                const Duration(milliseconds: 200),
-              );
+      final session =
+          AgentSession(
+              os: OsProvider.compose({
+                'Path.': MemoryFsProvider(),
+                'date.': TimeOsProvider(),
+                'datetime.': TimeOsProvider(),
+              }),
+              plugins: [DinjaTemplatePlugin(), MessageBusPlugin()],
+            )
+            ..register(
+              HostFunction(
+                schema: const HostFunctionSchema(
+                  name: 'sync_fn',
+                  description: 'Returns immediately',
+                ),
+                handler: (_) async => 'sync_ok',
+              ),
+            )
+            ..register(
+              HostFunction(
+                schema: const HostFunctionSchema(
+                  name: 'delay_fn',
+                  description: 'Awaits 200ms',
+                ),
+                handler: (_) async {
+                  await Future<void>.delayed(
+                    const Duration(milliseconds: 200),
+                  );
 
-              return 'delay_ok';
-            },
-          ),
-        )
-        ..register(
-          HostFunction(
-            schema: const HostFunctionSchema(
-              name: 'http_fn',
-              description: 'Real HTTP GET',
-            ),
-            handler: (_) async {
-              final client = HttpClient();
-              try {
-                final req = await client.getUrl(
-                  Uri.parse(
-                    'https://demo.toughserv.com'
-                    '/api/v1/installation/versions',
-                  ),
-                );
-                final resp = await req.close();
-                final body = await resp
-                    .transform(const SystemEncoding().decoder)
-                    .join();
+                  return 'delay_ok';
+                },
+              ),
+            )
+            ..register(
+              HostFunction(
+                schema: const HostFunctionSchema(
+                  name: 'http_fn',
+                  description: 'Real HTTP GET',
+                ),
+                handler: (_) async {
+                  final client = HttpClient();
+                  try {
+                    final req = await client.getUrl(
+                      Uri.parse(
+                        'https://demo.toughserv.com'
+                        '/api/v1/installation/versions',
+                      ),
+                    );
+                    final resp = await req.close();
+                    final body = await resp
+                        .transform(const SystemEncoding().decoder)
+                        .join();
 
-                return body.substring(0, 30);
-              } finally {
-                client.close();
-              }
-            },
-          ),
-        )
-        ..register(
-          HostFunction(
-            schema: const HostFunctionSchema(
-              name: 'kv_set',
-              description: 'Set',
-              params: [
-                HostParam(name: 'k', type: HostParamType.string),
-                HostParam(name: 'v', type: HostParamType.string),
-              ],
-            ),
-            handler: (a) async {
-              kv[a['k']! as String] = a['v']! as String;
+                    return body.substring(0, 30);
+                  } finally {
+                    client.close();
+                  }
+                },
+              ),
+            )
+            ..register(
+              HostFunction(
+                schema: const HostFunctionSchema(
+                  name: 'kv_set',
+                  description: 'Set',
+                  params: [
+                    HostParam(name: 'k', type: HostParamType.string),
+                    HostParam(name: 'v', type: HostParamType.string),
+                  ],
+                ),
+                handler: (a) async {
+                  kv[a['k']! as String] = a['v']! as String;
 
-              return 'stored';
-            },
-          ),
-        )
-        ..register(
-          HostFunction(
-            schema: const HostFunctionSchema(
-              name: 'kv_get',
-              description: 'Get',
-              params: [
-                HostParam(name: 'k', type: HostParamType.string),
-              ],
-            ),
-            handler: (a) async => kv[a['k']! as String],
-          ),
-        );
+                  return 'stored';
+                },
+              ),
+            )
+            ..register(
+              HostFunction(
+                schema: const HostFunctionSchema(
+                  name: 'kv_get',
+                  description: 'Get',
+                  params: [
+                    HostParam(name: 'k', type: HostParamType.string),
+                  ],
+                ),
+                handler: (a) async => kv[a['k']! as String],
+              ),
+            );
 
       try {
         // ── A. Single execute, N host calls ──────────────────────────
@@ -139,7 +141,7 @@ r2 = delay_fn()
 r3 = http_fn()
 [r1, r2, len(r3)]
 ''');
-        expect(r.value?.dartValue, isA<List>());
+        expect(r.value?.dartValue, isA<List<dynamic>>());
         print('  A4. mixed sync+delay+http: PASS');
 
         r = await session.execute('''
@@ -192,7 +194,7 @@ kv_set("url_data", http_fn())
 b = kv_get("url_data")
 [a, len(b)]
 ''');
-        expect(r.value?.dartValue, isA<List>());
+        expect(r.value?.dartValue, isA<List<dynamic>>());
         print('  C2. sync+kv+http: PASS');
 
         r = await session.execute('''

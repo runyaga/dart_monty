@@ -9,6 +9,7 @@
 /// Does NOT require network — uses only sync host functions.
 library;
 
+// Unit test uses print for progress output.
 // ignore_for_file: avoid_print
 import 'dart:developer' as developer;
 
@@ -30,7 +31,7 @@ void main() {
       // NativeFinalizer callbacks run on GC, so we need to trigger it.
       for (var i = 0; i < 5; i++) {
         // Allocate garbage to encourage GC.
-        List.generate(100000, (i) => Object()); // ignore: unused_local_variable
+        List.generate(100000, (i) => Object());
         await Future<void>.delayed(Duration.zero);
       }
       developer.NativeRuntime.writeHeapSnapshotToFile('/dev/null');
@@ -66,7 +67,7 @@ void main() {
 
       // Force GC — if s1's finalizer is still live, it frees s2's handle.
       for (var i = 0; i < 5; i++) {
-        List.generate(100000, (i) => Object()); // ignore: unused_local_variable
+        List.generate(100000, (i) => Object());
         await Future<void>.delayed(Duration.zero);
       }
 

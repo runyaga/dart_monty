@@ -20,34 +20,33 @@ void main() {
   late AgentSession session;
 
   setUpAll(() {
-    session = AgentSession(sandbox: true);
+    session = AgentSession(sandbox: true)
+      ..register(
+        HostFunction(
+          schema: const HostFunctionSchema(
+            name: 'http_get',
+            description: 'Fetches a URL and returns first N chars',
+            params: [
+              HostParam(name: 'url', type: HostParamType.string),
+            ],
+          ),
+          handler: (args) async {
+            final url = args['url']! as String;
+            final client = HttpClient();
+            try {
+              final request = await client.getUrl(Uri.parse(url));
+              final response = await request.close();
+              final body = await response
+                  .transform(const SystemEncoding().decoder)
+                  .join();
 
-    session.register(
-      HostFunction(
-        schema: const HostFunctionSchema(
-          name: 'http_get',
-          description: 'Fetches a URL and returns first N chars',
-          params: [
-            HostParam(name: 'url', type: HostParamType.string),
-          ],
+              return body.length > 100 ? body.substring(0, 100) : body;
+            } finally {
+              client.close();
+            }
+          },
         ),
-        handler: (args) async {
-          final url = args['url']! as String;
-          final client = HttpClient();
-          try {
-            final request = await client.getUrl(Uri.parse(url));
-            final response = await request.close();
-            final body = await response
-                .transform(const SystemEncoding().decoder)
-                .join();
-
-            return body.length > 100 ? body.substring(0, 100) : body;
-          } finally {
-            client.close();
-          }
-        },
-      ),
-    );
+      );
   });
 
   tearDownAll(() async {
@@ -59,7 +58,8 @@ void main() {
       'http_get("https://demo.toughserv.com/api/v1/installation/versions")',
     );
     expect(r.value?.dartValue, isA<String>());
-    expect((r.value?.dartValue as String).length, greaterThan(0));
+    expect((r.value!.dartValue! as String).length, greaterThan(0));
+    // Integration test uses print for progress output.
     // ignore: avoid_print
     print('  Call 1: ${r.value?.dartValue}');
   }, timeout: const Timeout(Duration(seconds: 15)));
@@ -71,6 +71,7 @@ void main() {
         'http_get("https://demo.toughserv.com/api/v1/installation/versions")',
       );
       expect(r.value?.dartValue, isA<String>());
+      // Integration test uses print for progress output.
       // ignore: avoid_print
       print('  Call 2: ${r.value?.dartValue}');
     },
@@ -85,6 +86,7 @@ void main() {
       );
       final r = await session.execute('len(first)');
       expect(r.value?.dartValue, greaterThan(0));
+      // Integration test uses print for progress output.
       // ignore: avoid_print
       print('  Call 3: first has ${r.value?.dartValue} chars');
     },
@@ -98,6 +100,7 @@ void main() {
         'http_get("https://demo.toughserv.com/api/v1/installation/versions")',
       );
       expect(r.value?.dartValue, isA<String>());
+      // Integration test uses print for progress output.
       // ignore: avoid_print
       print('  Call 4: ${r.value?.dartValue}');
     },
@@ -114,11 +117,12 @@ for i in range(5):
     results.append(len(r))
 results
 ''');
-      final results = r.value?.dartValue as List;
+      final results = r.value!.dartValue! as List<dynamic>;
       expect(results, hasLength(5));
       for (final len in results) {
         expect(len as int, greaterThan(0));
       }
+      // Integration test uses print for progress output.
       // ignore: avoid_print
       print('  Call 5: 5 HTTP calls in one execute, lengths=$results');
     },

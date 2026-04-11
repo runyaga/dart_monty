@@ -36,7 +36,7 @@ then creating a 3rd and calling an HTTP host function, causes a SEGFAULT.
 
 ### The race condition
 
-```
+```text
 Session 1:
   monty_create() → handle_A at address 0x1000
   _storeHandle(0x1000) → guard_1 attached to finalizer

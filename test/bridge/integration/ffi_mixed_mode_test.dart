@@ -11,6 +11,7 @@
 @Tags(['integration'])
 library;
 
+// Integration test uses print for output and nullable casts for brevity.
 // ignore_for_file: avoid_print, cast_nullable_to_non_nullable
 import 'dart:io';
 
@@ -262,7 +263,7 @@ content = Path("/data.txt").read_text()
         await s.execute('msg_send("log", report)');
         final r = await s.execute('msg_recv("log")');
         print('  H4: ${r.value?.dartValue}');
-        expect((r.value?.dartValue as String), startsWith('Got '));
+        expect(r.value?.dartValue as String, startsWith('Got '));
       },
       timeout: const Timeout(Duration(seconds: 15)),
     );

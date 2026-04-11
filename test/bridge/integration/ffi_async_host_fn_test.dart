@@ -345,7 +345,7 @@ void main() {
         final r1 = await session.execute(
           'http_large("https://demo.toughserv.com/api/v1/installation/versions")',
         );
-        final v1 = r1.value?.dartValue as String;
+        final v1 = r1.value!.dartValue! as String;
         expect(v1.length, greaterThan(10));
 
         final r2 = await session.execute(

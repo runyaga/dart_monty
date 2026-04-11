@@ -4,6 +4,7 @@
 @Tags(['integration'])
 library;
 
+// Integration test uses print for progress output.
 // ignore_for_file: avoid_print
 import 'dart:io';
 
@@ -45,8 +46,7 @@ void main() {
       final bridge = DefaultMontyBridge(
         platform: monty.platform,
         useFutures: false,
-      );
-      bridge.register(_httpGetFn());
+      )..register(_httpGetFn());
 
       for (var i = 1; i <= 3; i++) {
         final events = await bridge.execute('http_get("$_url")').toList();
@@ -68,8 +68,7 @@ void main() {
       final bridge = DefaultMontyBridge(
         platform: monty.platform,
         useFutures: false,
-      );
-      bridge.register(_httpGetFn());
+      )..register(_httpGetFn());
 
       for (var i = 1; i <= 3; i++) {
         final result = await monty.run('http_get("$_url")');
@@ -86,8 +85,7 @@ void main() {
   test(
     'AgentSession shared mode (no sandbox) — 3 sequential HTTP calls',
     () async {
-      final session = AgentSession();
-      session.register(_httpGetFn());
+      final session = AgentSession()..register(_httpGetFn());
 
       for (var i = 1; i <= 3; i++) {
         final result = await session.execute('http_get("$_url")');
@@ -103,8 +101,7 @@ void main() {
   test(
     'AgentSession sandbox mode — 3 sequential HTTP calls',
     () async {
-      final session = AgentSession(sandbox: true);
-      session.register(_httpGetFn());
+      final session = AgentSession(sandbox: true)..register(_httpGetFn());
 
       for (var i = 1; i <= 3; i++) {
         final result = await session.execute('http_get("$_url")');
