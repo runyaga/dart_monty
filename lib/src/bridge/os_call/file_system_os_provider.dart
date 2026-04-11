@@ -1,7 +1,7 @@
 // ignore_for_file: avoid-unsafe-collection-methods, avoid-non-null-assertion
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/src/bridge/os_call/os_call_exception.dart';
-import 'package:dart_monty/src/bridge/os_call/os_call_handler.dart';
+import 'package:dart_monty/src/bridge/os_call/os_provider.dart';
 import 'package:file/file.dart';
 
 /// Handles `Path.*` OS calls using any [FileSystem] implementation.
@@ -9,15 +9,15 @@ import 'package:file/file.dart';
 /// Works with both `LocalFileSystem` (native) and `MemoryFileSystem` (web/test).
 /// This is the shared implementation behind platform-specific defaults.
 ///
-/// Use `createDefaultOsCallHandler` for the platform-appropriate default,
+/// Use `defaultSandboxOs` for the platform-appropriate default,
 /// or construct directly with a custom [FileSystem]:
 ///
 /// ```dart
-/// final handler = FileSystemOsCallHandler(MemoryFileSystem());
+/// final provider = FileSystemOsProvider(MemoryFileSystem());
 /// ```
-class FileSystemOsCallHandler extends OsCallHandler {
-  /// Creates a handler backed by the given [fileSystem].
-  FileSystemOsCallHandler(this._fs);
+class FileSystemOsProvider extends OsProvider {
+  /// Creates a provider backed by the given [fileSystem].
+  const FileSystemOsProvider(this._fs) : super.base();
 
   final FileSystem _fs;
 
@@ -25,7 +25,7 @@ class FileSystemOsCallHandler extends OsCallHandler {
   FileSystem get fileSystem => _fs;
 
   @override
-  Future<Object?> handle(MontyOsCall call) => Future.value(_handleSync(call));
+  Future<Object?> resolve(MontyOsCall call) => Future.value(_handleSync(call));
 
   Object? _handleSync(MontyOsCall call) {
     final op = call.operationName;

@@ -699,7 +699,7 @@ class _MockBridge implements MontyBridge {
   void unregister(String name) {}
 
   @override
-  void registerOsCallHandler(OsCallHandler handler) {}
+  void registerOs(OsProvider provider) {}
 
   @override
   Stream<BridgeEvent> execute(String code) => const Stream.empty();

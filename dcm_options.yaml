@@ -53,11 +53,11 @@ dcm:
     - avoid-unsafe-collection-methods:
         exclude:
           # Python schema enforces arg count — all handlers receive well-formed args
-          - "lib/src/bridge/os_call/default_os_call_handler_native.dart"
-          - "lib/src/bridge/os_call/file_system_os_call_handler.dart"
-          - "lib/src/bridge/os_call/memory_fs_os_call_handler.dart"
-          - "lib/src/bridge/os_call/sandboxed_native_fs_handler.dart"
-          - "lib/src/bridge/os_call/env_os_call_handler.dart"
+          - "lib/src/bridge/os_call/default_sandbox_os_native.dart"
+          - "lib/src/bridge/os_call/file_system_os_provider.dart"
+          - "lib/src/bridge/os_call/memory_fs_os_provider.dart"
+          - "lib/src/bridge/os_call/sandboxed_fs_provider.dart"
+          - "lib/src/bridge/os_call/env_os_provider.dart"
           # Mock tracking lists: only accessed after recording calls
           - "lib/src/platform/mock_monty_platform.dart"
           # Guarded by isEmpty/isNotEmpty/length checks before access
@@ -140,7 +140,7 @@ dcm:
           - "lib/**/native_bindings.dart"
           - "lib/**/wasm_bindings.dart"
           # Factory function before class declaration
-          - "lib/src/bridge/os_call/default_os_call_handler_native.dart"
+          - "lib/src/bridge/os_call/default_sandbox_os_native.dart"
           # Part files: first type is a sealed subclass, not the file name
           - "lib/src/platform/monty_value_scalars.dart"
           - "lib/src/platform/monty_value_collections.dart"
@@ -172,8 +172,8 @@ dcm:
           # Empty .then() callback for unawaited future cleanup
           - "lib/src/bridge/bridge/default_monty_bridge.dart"
           # Intentional no-op dispose: abstract base and non-owning handler
-          - "lib/src/bridge/os_call/os_call_handler.dart"
-          - "lib/src/bridge/os_call/sandboxed_native_fs_handler.dart"
+          - "lib/src/bridge/os_call/os_provider.dart"
+          - "lib/src/bridge/os_call/sandboxed_fs_provider.dart"
     - no-equal-then-else
     - prefer-first
     - prefer-last
@@ -221,7 +221,7 @@ dcm:
         exclude:
           - "test/**"
           # Lazy-initialized sorted prefixes for longest-prefix-first matching
-          - "lib/src/bridge/os_call/router_os_call_handler.dart"
+          - "lib/src/bridge/os_call/os_provider.dart"
     - avoid-dynamic:
         exclude:
           - "test/**"
@@ -249,12 +249,12 @@ dcm:
           - "lib/src/bridge/bridge/host_param.dart"
           - "lib/src/bridge/bridge/plugin_registry.dart"
           - "lib/src/bridge/plugins/sandbox_plugin.dart"
-          - "lib/src/bridge/os_call/default_os_call_handler_native.dart"
-          - "lib/src/bridge/os_call/file_system_os_call_handler.dart"
-          - "lib/src/bridge/os_call/memory_fs_os_call_handler.dart"
-          - "lib/src/bridge/os_call/sandboxed_native_fs_handler.dart"
+          - "lib/src/bridge/os_call/default_sandbox_os_native.dart"
+          - "lib/src/bridge/os_call/file_system_os_provider.dart"
+          - "lib/src/bridge/os_call/memory_fs_os_provider.dart"
+          - "lib/src/bridge/os_call/sandboxed_fs_provider.dart"
           # Router prefix map lookup: non-null guaranteed by startsWith check
-          - "lib/src/bridge/os_call/router_os_call_handler.dart"
+          - "lib/src/bridge/os_call/os_provider.dart"
           # WASM JS interop: non-null guaranteed by JS bridge contract
           - "lib/src/wasm/wasm_bindings_js.dart"
           - "lib/src/wasm/wasm_core_bindings.dart"
@@ -283,7 +283,7 @@ dcm:
           # logger getter wraps log field (interface compliance)
           - "lib/src/bridge/bridge/default_monty_bridge.dart"
           # fileSystem getter exposes _fs for Dart-side VFS access
-          - "lib/src/bridge/os_call/file_system_os_call_handler.dart"
+          - "lib/src/bridge/os_call/file_system_os_provider.dart"
     - avoid-declaring-call-method
 
     # --- Import Safety ---

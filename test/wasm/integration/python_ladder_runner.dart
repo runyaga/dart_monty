@@ -246,7 +246,7 @@ Future<Map<String, dynamic>> _runOsCall(Map<String, dynamic> fixture) async {
         callId: callId,
       );
       try {
-        final result = await _osCallHandler.handle(osCall);
+        final result = await _osProvider.resolve(osCall);
         state = _parseResult(
           (await _montyResume(jsonEncode(result).toJS).toDart).toDart,
         );
@@ -288,11 +288,11 @@ Future<Map<String, dynamic>> _runOsCall(Map<String, dynamic> fixture) async {
 }
 
 /// OsCall handler for the WASM ladder runner — MemoryFS + datetime.
-/// Same handler stack as createDefaultOsCallHandler() on web.
-final _osCallHandler = RouterOsCallHandler({
-  'Path.': MemoryFsOsCallHandler(),
-  'date.': TimeOsCallHandler(),
-  'datetime.': TimeOsCallHandler(),
+/// Same handler stack as defaultSandboxOs() on web.
+final OsProvider _osProvider = OsProvider.compose({
+  'Path.': MemoryFsOsProvider(),
+  'date.': TimeOsProvider(),
+  'datetime.': TimeOsProvider(),
 });
 
 Future<Map<String, dynamic>> _runSimple(int id, String code) async {

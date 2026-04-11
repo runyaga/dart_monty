@@ -612,8 +612,8 @@ void main() {
     });
 
     test('invokes registered handler and resumes with result', () async {
-      bridge.registerOsCallHandler(
-        _TestOsCallHandler((call) async {
+      bridge.registerOs(
+        _TestOsProvider((call) async {
           if (call.operationName == 'os.getenv') {
             return 'production';
           }
@@ -651,8 +651,8 @@ void main() {
     });
 
     test('handler exception resumes with error', () async {
-      bridge.registerOsCallHandler(
-        _TestOsCallHandler((call) async {
+      bridge.registerOs(
+        _TestOsProvider((call) async {
           throw StateError('disk on fire');
         }),
       );
@@ -683,19 +683,18 @@ void main() {
       expect(results.first.result, contains('disk on fire'));
     });
 
-    test('registerOsCallHandler after dispose throws StateError', () {
+    test('registerOs after dispose throws StateError', () {
       bridge.dispose();
       expect(
-        () =>
-            bridge.registerOsCallHandler(_TestOsCallHandler((_) async => null)),
+        () => bridge.registerOs(_TestOsProvider((_) async => null)),
         throwsStateError,
       );
     });
 
-    test('bridge.dispose() disposes registered OsCallHandler', () {
-      final handler = _DisposableOsCallHandler();
+    test('bridge.dispose() disposes registered OsProvider', () {
+      final handler = _DisposableOsProvider();
       bridge
-        ..registerOsCallHandler(handler)
+        ..registerOs(handler)
         ..dispose();
 
       expect(handler.disposed, isTrue);
@@ -707,9 +706,9 @@ void main() {
       bridge.dispose();
 
       // Calling again (already disposed) should not double-dispose.
-      // registerOsCallHandler should throw since disposed.
+      // registerOs should throw since disposed.
       expect(
-        () => bridge.registerOsCallHandler(_DisposableOsCallHandler()),
+        () => bridge.registerOs(_DisposableOsProvider()),
         throwsStateError,
       );
     });
@@ -1286,20 +1285,21 @@ class _ThrowingOnResumePlatform extends MockMontyPlatform {
   }
 }
 
-class _TestOsCallHandler extends OsCallHandler {
-  _TestOsCallHandler(this._fn);
+class _TestOsProvider extends OsProvider {
+  _TestOsProvider(this._fn) : super.base();
   final Future<Object?> Function(MontyOsCall) _fn;
 
   @override
-  Future<Object?> handle(MontyOsCall call) => _fn(call);
+  Future<Object?> resolve(MontyOsCall call) => _fn(call);
 }
 
-class _DisposableOsCallHandler extends OsCallHandler {
+class _DisposableOsProvider extends OsProvider {
+  _DisposableOsProvider() : super.base();
   bool disposed = false;
   int disposeCount = 0;
 
   @override
-  Future<Object?> handle(MontyOsCall call) => Future.value();
+  Future<Object?> resolve(MontyOsCall call) => Future.value();
 
   @override
   Future<void> dispose() async {

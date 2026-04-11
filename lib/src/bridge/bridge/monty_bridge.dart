@@ -3,7 +3,7 @@ import 'package:dart_monty/src/bridge/bridge/bridge_event.dart';
 import 'package:dart_monty/src/bridge/bridge/bridge_middleware.dart';
 import 'package:dart_monty/src/bridge/bridge/host_function.dart';
 import 'package:dart_monty/src/bridge/bridge/host_function_schema.dart';
-import 'package:dart_monty/src/bridge/os_call/os_call_handler.dart';
+import 'package:dart_monty/src/bridge/os_call/os_provider.dart';
 
 /// Bridge for LLM-generated Python calling registered Dart host functions.
 ///
@@ -46,12 +46,12 @@ abstract class MontyBridge {
     CallRole role = const ToolCall(),
   });
 
-  /// Registers a handler for OS-level calls (pathlib, os, datetime).
+  /// Registers a provider for OS-level calls (pathlib, os, datetime).
   ///
-  /// When Python code triggers an OS call and a handler is registered, the
-  /// bridge invokes it and resumes Python with the result. When no handler
+  /// When Python code triggers an OS call and a provider is registered, the
+  /// bridge invokes it and resumes Python with the result. When no provider
   /// is registered, the bridge resumes with a `PermissionError`.
-  void registerOsCallHandler(OsCallHandler handler);
+  void registerOs(OsProvider provider);
 
   /// Executes [code] and returns a stream of lifecycle events.
   ///

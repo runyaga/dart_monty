@@ -21,7 +21,7 @@ import 'package:dart_monty/src/ffi/native_bindings_ffi.dart';
 
 Future<void> main() async {
   final bindings = NativeBindingsFfi();
-  final osCallHandler = createDefaultOsCallHandler();
+  final os = defaultSandboxOs();
   final fixtureDir = Directory('test/fixtures/python_ladder');
   final tierFiles =
       fixtureDir
@@ -36,7 +36,7 @@ Future<void> main() async {
         .cast<Map<String, dynamic>>();
 
     for (final fixture in fixtures) {
-      final result = await _runFixture(bindings, fixture, osCallHandler);
+      final result = await _runFixture(bindings, fixture, os);
       stdout.writeln(jsonEncode(result));
     }
   }
@@ -45,7 +45,7 @@ Future<void> main() async {
 Future<Map<String, dynamic>> _runFixture(
   NativeBindingsFfi bindings,
   Map<String, dynamic> fixture,
-  OsCallHandler osCallHandler,
+  OsProvider os,
 ) async {
   final id = fixture['id'] as int;
   final code = fixture['code'] as String;
@@ -57,7 +57,7 @@ Future<Map<String, dynamic>> _runFixture(
   Map<String, dynamic> result;
   try {
     if (osCall) {
-      result = await _runOsCall(monty, fixture, osCallHandler);
+      result = await _runOsCall(monty, fixture, os);
     } else if (fixture['externalFunctions'] != null) {
       result = await _runIterative(monty, fixture);
     } else if (expectError) {
@@ -93,7 +93,7 @@ Future<Map<String, dynamic>> _runSimple(
 Future<Map<String, dynamic>> _runOsCall(
   MontyFfi monty,
   Map<String, dynamic> fixture,
-  OsCallHandler osCallHandler,
+  OsProvider os,
 ) async {
   final id = fixture['id'] as int;
   final code = fixture['code'] as String;
@@ -105,7 +105,7 @@ Future<Map<String, dynamic>> _runOsCall(
     while (progress is! MontyComplete) {
       if (progress is MontyOsCall) {
         try {
-          final result = await osCallHandler.handle(progress);
+          final result = await os.resolve(progress);
           progress = await monty.resume(result);
         } on Object catch (e) {
           progress = await monty.resumeWithError(e.toString());

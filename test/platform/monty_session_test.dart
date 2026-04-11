@@ -1059,20 +1059,20 @@ void main() {
       );
     });
 
-    group('OsCallHandler lifecycle', () {
-      test('session.dispose() disposes OsCallHandler', () {
-        final handler = _MockOsCallHandler();
-        MontySession(platform: mock, osCallHandler: handler).dispose();
+    group('OsProvider lifecycle', () {
+      test('session.dispose() disposes OsProvider', () {
+        final handler = _MockOsProvider();
+        MontySession(platform: mock, os: handler).dispose();
 
         expect(handler.disposed, isTrue);
         expect(handler.disposeCount, 1);
       });
 
       test('run() dispatches OsCall through handler', () async {
-        final handler = _MockOsCallHandler(
-          onHandle: (call) async => 'file content',
+        final handler = _MockOsProvider(
+          onResolve: (call) async => 'file content',
         );
-        final s = MontySession(platform: mock, osCallHandler: handler);
+        final s = MontySession(platform: mock, os: handler);
 
         mock
           ..enqueueProgress(
@@ -1101,17 +1101,17 @@ void main() {
         await s.run('open("/sandbox/test.txt")');
 
         // Handler was invoked and resume received the handler's return value.
-        expect(handler.handleCount, 1);
+        expect(handler.resolveCount, 1);
         expect(mock.resumeReturnValues, contains('file content'));
 
         s.dispose();
       });
 
       test('run() catches handler error and resumes with error', () async {
-        final handler = _MockOsCallHandler(
-          onHandle: (call) async => throw StateError('disk on fire'),
+        final handler = _MockOsProvider(
+          onResolve: (call) async => throw StateError('disk on fire'),
         );
-        final s = MontySession(platform: mock, osCallHandler: handler);
+        final s = MontySession(platform: mock, os: handler);
 
         mock
           ..enqueueProgress(
@@ -1146,13 +1146,13 @@ void main() {
       });
 
       test('run() catches OsCallFileNotFoundError', () async {
-        final handler = _MockOsCallHandler(
-          onHandle: (call) async => throw const OsCallFileNotFoundError(
+        final handler = _MockOsProvider(
+          onResolve: (call) async => throw const OsCallFileNotFoundError(
             'Path.read_text',
             'No such file: /sandbox/missing.txt',
           ),
         );
-        final s = MontySession(platform: mock, osCallHandler: handler);
+        final s = MontySession(platform: mock, os: handler);
 
         mock
           ..enqueueProgress(
@@ -1315,18 +1315,18 @@ class _ThrowingMockPlatform extends MockMontyPlatform {
   }
 }
 
-class _MockOsCallHandler extends OsCallHandler {
-  _MockOsCallHandler({this.onHandle});
+class _MockOsProvider extends OsProvider {
+  _MockOsProvider({this.onResolve}) : super.base();
 
-  final Future<Object?> Function(MontyOsCall)? onHandle;
+  final Future<Object?> Function(MontyOsCall)? onResolve;
   bool disposed = false;
   int disposeCount = 0;
-  int handleCount = 0;
+  int resolveCount = 0;
 
   @override
-  Future<Object?> handle(MontyOsCall call) {
-    handleCount++;
-    if (onHandle != null) return onHandle!(call);
+  Future<Object?> resolve(MontyOsCall call) {
+    resolveCount++;
+    if (onResolve != null) return onResolve!(call);
     return Future.value();
   }
 

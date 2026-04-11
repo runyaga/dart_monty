@@ -40,12 +40,26 @@
 dart pub add dart_monty
 ```
 
-**2. Write three lines**
+**2. One-shot evaluation**
 
 ```dart
 import 'package:dart_monty/dart_monty.dart';
 
 void main() async {
+  // Monty.exec() creates an interpreter, runs the code, and disposes — one call.
+  final result = await Monty.exec('2 + 2');
+  print(result.value); // 4
+}
+```
+
+**3. Reusable interpreter**
+
+```dart
+import 'package:dart_monty/dart_monty.dart';
+
+void main() async {
+  // Monty() is a facade — it selects FFI or WASM at compile time.
+  // It does NOT implement MontyPlatform; use .platform for capability checks.
   final monty = Monty();
   final result = await monty.run('2 + 2');
   print(result.value); // 4
@@ -53,14 +67,43 @@ void main() async {
 }
 ```
 
-**3. Run it**
+**4. Run it**
 
 ```bash
 $ dart run
-Result: 4
+4
 ```
 
 No Flutter. No bindings. No registration. It just works.
+
+### OS Call Support (filesystem, env, datetime)
+
+Pass an `os` provider to enable Python `pathlib`, `os`, and `datetime` access.
+Without a provider, OS calls resume with a `PermissionError`.
+
+```dart
+import 'package:dart_monty/dart_monty.dart';
+
+void main() async {
+  // defaultSandboxOs() wires up filesystem, env, and datetime
+  // access with platform-appropriate defaults (native FS on desktop,
+  // in-memory FS on web).
+  final monty = Monty(os: defaultSandboxOs());
+
+  final result = await monty.run('''
+from pathlib import Path
+Path("/tmp/hello.txt").write_text("hello")
+Path("/tmp/hello.txt").read_text()
+''');
+  print(result.value); // hello
+
+  await monty.dispose();
+}
+```
+
+For custom filesystem backends, use `FileSystemOsProvider` with any
+`package:file` `FileSystem` implementation. See [docs/oscall-vfs.md](docs/oscall-vfs.md)
+for the full provider hierarchy.
 
 ### Web Quick Start
 
@@ -91,10 +134,8 @@ cp native/target/wasm32-wasip1/release/dart_monty_native.wasm web/
 import 'package:dart_monty/dart_monty.dart';
 
 void main() async {
-  final monty = Monty();
-  final result = await monty.run('2 + 2');
+  final result = await Monty.exec('2 + 2');
   print(result.value); // 4
-  await monty.dispose();
 }
 ```
 
@@ -123,30 +164,32 @@ Each WASM session uses ~16 MB of memory. Resource limits and
 
 ## Usage
 
+### MontyValue: Rich Type Conversions
+
+`MontyValue.fromJson(json)` strictly converts JSON from the interpreter into
+typed sealed subclasses. `MontyValue.fromDart(value)` converts Dart values
+(including `DateTime` and `Duration`) into `MontyValue` — it throws
+`ArgumentError` on unsupported types rather than silently coercing.
+
+`dartValue` returns native Dart types: `DateTime` for `MontyDate` and
+`MontyDatetime`, `Duration` for `MontyTimedelta`.
+
 ```dart
-import 'package:dart_monty/dart_monty.dart';
+final result = await monty.run('import datetime; datetime.date(2024, 1, 15)');
+final date = result.value!.dartValue; // DateTime(2024, 1, 15)
 
-final monty = Monty();
+final td = await monty.run('import datetime; datetime.timedelta(days=5)');
+final dur = td.value!.dartValue; // Duration(days: 5)
+```
 
-// Simple execution
-final result = await monty.run('2 + 2');
-print(result.value); // 4
+### Resource Limits
 
-// Supported stdlib modules: math, re, json, datetime
-final jsonResult = await monty.run('''
-import json
-json.loads('{"name": "alice", "age": 30}')
-''');
-print(jsonResult.value); // {name: alice, age: 30}
-
-// With resource limits
+```dart
 final limited = await monty.run(
   'sum(range(100))',
   limits: const MontyLimits(timeoutMs: 5000, memoryBytes: 10 * 1024 * 1024),
 );
 print(limited.value); // 4950
-
-await monty.dispose();
 ```
 
 ### External Functions
@@ -196,12 +239,17 @@ that handles the dispatch loop, argument coercion, and event streaming
 automatically.
 
 **`DefaultMontyBridge`** wraps the dispatch loop and emits a
-`Stream<BridgeEvent>` — tool calls, text output, and lifecycle events:
+`Stream<BridgeEvent>` — tool calls, text output, and lifecycle events.
+`MontyBridge.registerOs()` is part of the abstract interface,
+so all bridge implementations support OS call dispatch.
 
 ```dart
 import 'package:dart_monty/dart_monty_bridge.dart';
 
 final bridge = DefaultMontyBridge(platform: Monty());
+
+// Register an OS provider on the bridge
+bridge.registerOs(defaultSandboxOs());
 
 // Register host functions directly on the bridge
 bridge.register(HostFunction(
@@ -263,7 +311,9 @@ available tools at runtime.
 
 ### Error Handling
 
-dart_monty uses a sealed `MontyError` hierarchy for structured error handling:
+dart_monty uses a sealed `MontyError` hierarchy for structured error handling.
+See [docs/error-hierarchy.md](docs/error-hierarchy.md) for the full type tree and
+propagation details.
 
 ```dart
 import 'package:dart_monty/dart_monty.dart';
@@ -319,6 +369,7 @@ The table below shows current coverage and what's planned.
 | API Area | Status | Notes |
 |----------|--------|-------|
 | **Core execution** (`run`, `start`, `resume`, `dispose`) | Covered | Full iterative execution loop |
+| **One-shot evaluation** (`Monty.exec()`) | Covered | Create, run, dispose in one call |
 | **External functions** (host-provided callables) | Covered | `start()` / `resume()` / `resumeWithError()` |
 | **Resource limits** (time, memory, recursion depth) | Covered | `MontyLimits` on `run()` and `start()` |
 | **Print capture** (`print()` output collection) | Covered | `MontyResult.printOutput` |
@@ -330,7 +381,7 @@ The table below shows current coverage and what's planned.
 | **Async / futures** (`asyncio.gather`, concurrent calls) | Covered | `resumeAsFuture()`, `resolveFutures()` on both FFI and WASM |
 | **Standard library modules** (`math`, `re`, `json`, `datetime`) | Partial | Only `math`, `re`, `json`, `datetime` — other stdlib modules are not available |
 | **Rich types** (tuple, set, bytes, dataclass, namedtuple, path, date, datetime, timedelta, timezone) | Covered | Full `MontyValue` sealed hierarchy with typed subclasses |
-| **OS calls** (`os.getenv`, `os.environ`, `pathlib`, `datetime.now`) | Covered | `OsCallHandler` via bridge with platform-conditional implementations |
+| **OS calls** (`os.getenv`, `os.environ`, `pathlib`, `datetime.now`) | Covered | `OsProvider` via bridge with platform-conditional implementations |
 | REPL (stateful sessions, `feed()`, persistence) | Planned | `MontyRepl` multi-step sessions |
 | Print streaming (real-time callback) | Planned | Currently batch-only after execution |
 | Advanced limits (allocations, GC interval, `runNoLimits`) | Planned | Extended `ResourceTracker` surface |
@@ -340,9 +391,13 @@ The table below shows current coverage and what's planned.
 
 ## Architecture
 
-See [docs/architecture.md](docs/architecture.md) for detailed architecture
-documentation including state machine contracts, memory management, error
-handling, and cross-backend parity guarantees.
+See [docs/architecture.md](docs/architecture.md) for the overview, with links to
+detailed documentation:
+
+- [OsCall / VFS Layer](docs/oscall-vfs.md) — Handler hierarchy, platform defaults, call flow
+- [Error Hierarchy](docs/error-hierarchy.md) — Sealed types, propagation through boundaries
+- [Native Crate Architecture](docs/native-crate.md) — Handle lifecycle, FFI boundary, tracker abstraction
+- [Internals](docs/internals.md) — State machine, memory contracts, execution paths, testing
 
 Since v0.20.0, dart_monty is a single consolidated package (previously
 eight sub-packages). It selects the native or web backend at compile time

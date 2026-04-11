@@ -1,25 +1,25 @@
-import 'package:dart_monty/src/bridge/os_call/file_system_os_call_handler.dart';
+import 'package:dart_monty/src/bridge/os_call/file_system_os_provider.dart';
 import 'package:file/memory.dart';
 
 /// Handles `Path.*` OS calls using an in-memory virtual filesystem.
 ///
 /// Works on all platforms (FFI and WASM) since it has no `dart:io` dependency.
-/// Files are ephemeral — they exist only for the lifetime of this handler.
+/// Files are ephemeral — they exist only for the lifetime of this provider.
 ///
 /// Use [writeFile] and [readFile] from Dart to pre-populate the VFS before
 /// execution or read results after execution.
 ///
 /// ```dart
-/// final vfs = MemoryFsOsCallHandler();
+/// final vfs = MemoryFsOsProvider();
 /// vfs.writeFile('/sandbox/config.json', '{"key": "value"}');
-/// bridge.registerOsCallHandler(RouterOsCallHandler({
+/// bridge.registerOs(OsProvider.compose({
 ///   'Path.': vfs,
 ///   ...
 /// }));
 /// ```
-class MemoryFsOsCallHandler extends FileSystemOsCallHandler {
-  /// Creates a handler backed by a fresh in-memory filesystem.
-  MemoryFsOsCallHandler() : super(MemoryFileSystem());
+class MemoryFsOsProvider extends FileSystemOsProvider {
+  /// Creates a provider backed by a fresh in-memory filesystem.
+  MemoryFsOsProvider() : super(MemoryFileSystem());
 
   /// Pre-populates a file in the VFS from Dart.
   ///

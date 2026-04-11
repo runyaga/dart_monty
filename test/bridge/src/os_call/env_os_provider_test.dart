@@ -6,15 +6,15 @@ void main() {
   MontyOsCall fakeOsCall(String op, [List<MontyValue> args = const []]) =>
       MontyOsCall(operationName: op, arguments: args);
 
-  group('EnvOsCallHandler', () {
-    late EnvOsCallHandler handler;
+  group('EnvOsProvider', () {
+    late EnvOsProvider handler;
 
     setUp(() {
-      handler = EnvOsCallHandler({'APP_ENV': 'production', 'DEBUG': '0'});
+      handler = const EnvOsProvider({'APP_ENV': 'production', 'DEBUG': '0'});
     });
 
     test('os.getenv returns value from provided map', () async {
-      final result = await handler.handle(
+      final result = await handler.resolve(
         fakeOsCall('os.getenv', [const MontyString('APP_ENV')]),
       );
 
@@ -22,7 +22,7 @@ void main() {
     });
 
     test('os.getenv returns null for missing key', () async {
-      final result = await handler.handle(
+      final result = await handler.resolve(
         fakeOsCall('os.getenv', [const MontyString('NONEXISTENT')]),
       );
 
@@ -30,7 +30,7 @@ void main() {
     });
 
     test('os.getenv returns default when key missing', () async {
-      final result = await handler.handle(
+      final result = await handler.resolve(
         fakeOsCall('os.getenv', [
           const MontyString('NONEXISTENT'),
           const MontyString('fallback'),
@@ -41,7 +41,7 @@ void main() {
     });
 
     test('os.environ returns full map', () async {
-      final result = await handler.handle(fakeOsCall('os.environ'));
+      final result = await handler.resolve(fakeOsCall('os.environ'));
 
       expect(result, isA<Map<String, String>>());
       final map = result! as Map<String, String>;
@@ -52,7 +52,7 @@ void main() {
 
     test('provided map does not leak host Platform.environment', () async {
       // The handler only exposes the injected map.
-      final result = await handler.handle(fakeOsCall('os.environ'));
+      final result = await handler.resolve(fakeOsCall('os.environ'));
       final map = result! as Map<String, String>;
 
       // Should not contain typical host-only env vars.
@@ -62,7 +62,7 @@ void main() {
 
     test('unknown os.* operation throws', () {
       expect(
-        () => handler.handle(fakeOsCall('os.listdir')),
+        () => handler.resolve(fakeOsCall('os.listdir')),
         throwsUnsupportedError,
       );
     });

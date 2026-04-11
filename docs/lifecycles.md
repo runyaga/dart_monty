@@ -128,7 +128,7 @@ Last updated: 2026-04-10 (monty 0.0.10, post-OsCall + MontyValue)
 | Child `MontyPlatform` | `sandbox_spawn` | `_ChildHandle.tearDown()` or `onDone` | `SandboxPlugin` |
 | Child `DefaultMontyBridge` | `sandbox_spawn` | `_ChildHandle.tearDown()` or `onDone` | `SandboxPlugin` |
 | Child `StreamSubscription` | `sandbox_spawn` | `_ChildHandle.tearDown()` or `onDone` | `SandboxPlugin` |
-| `OsCallHandler` callback | `registerOsCallHandler()` | Bridge dispose (set to null) | `DefaultMontyBridge` |
+| `OsProvider` callback | `registerOs()` | Bridge dispose (set to null) | `DefaultMontyBridge` |
 
 ### Crash Behavior
 
@@ -138,7 +138,7 @@ Last updated: 2026-04-10 (monty 0.0.10, post-OsCall + MontyValue)
   Correct cleanup-on-error.
 - **`SandboxPlugin.onDispose()`**: Iterates all children, tears down alive
   ones, completes pending completers with error, clears map. Thorough.
-- **OsCallHandler throws**: Exception caught in `_handleOsCall`, sent back
+- **OsProvider throws**: Exception caught in `_handleOsCall`, sent back
   to Python via `resumeWithError`. No resource leak.
 
 ### Findings
@@ -151,77 +151,77 @@ Last updated: 2026-04-10 (monty 0.0.10, post-OsCall + MontyValue)
 
 ---
 
-## F. OsCall / VFS Handlers (`lib/src/bridge/os_call/`)
+## F. OsCall / VFS Providers (`lib/src/bridge/os_call/`)
 
 The OsCall subsystem intercepts Python standard-library operations
-(`pathlib`, `os`, `datetime`) and routes them through Dart handlers.
+(`pathlib`, `os`, `datetime`) and routes them through Dart providers.
 Two filesystem strategies provide the **VFS** layer:
 
-- **MemoryFsOsCallHandler** — pure in-memory VFS (ephemeral, platform-agnostic,
+- **MemoryFsOsProvider** — pure in-memory VFS (ephemeral, platform-agnostic,
   works on WASM). Backed by `package:file`'s `MemoryFileSystem`.
-- **SandboxedNativeFsHandler** — chrooted real filesystem with path-traversal
+- **SandboxedFsProvider** — chrooted real filesystem with path-traversal
   and symlink-escape protection.
 
-Non-filesystem handlers cover environment variables (`EnvOsCallHandler`)
-and date/time (`TimeOsCallHandler`). A `RouterOsCallHandler` composes
+Non-filesystem providers cover environment variables (`EnvOsProvider`)
+and date/time (`TimeOsProvider`). `OsProvider.compose()` composes
 them by operation-name prefix.
 
 ### Resources
 
 | Resource | Allocated by | Freed by | Owner |
 |----------|-------------|----------|-------|
-| `OsCallHandler` (abstract) | Caller (`createDefaultOsCallHandler()` or custom) | `RouterOsCallHandler.dispose()` via bridge/session dispose | `DefaultMontyBridge` or `MontySession` |
-| `RouterOsCallHandler` child map | Constructor | `dispose()` iterates + dedup-disposes children | `RouterOsCallHandler` |
-| `MemoryFileSystem` (VFS backing store) | `MemoryFsOsCallHandler` constructor | GC (no explicit dispose) | `MemoryFsOsCallHandler` |
-| `SandboxedNativeFsHandler._root` (resolved path) | Factory constructor (resolves symlinks) | N/A — handler does not own root directory | Caller |
-| `EnvOsCallHandler.environment` map | Constructor (caller-provided) | GC | `EnvOsCallHandler` |
-| `TimeOsCallHandler._clock` | Constructor | GC | `TimeOsCallHandler` |
+| `OsProvider` (abstract) | Caller (`defaultSandboxOs()` or custom) | Composite `dispose()` via bridge/session dispose | `DefaultMontyBridge` or `MontySession` |
+| Composite provider child map | `OsProvider.compose()` | `dispose()` iterates + dedup-disposes children | Composite `OsProvider` |
+| `MemoryFileSystem` (VFS backing store) | `MemoryFsOsProvider` constructor | GC (no explicit dispose) | `MemoryFsOsProvider` |
+| `SandboxedFsProvider._root` (resolved path) | Factory constructor (resolves symlinks) | N/A — provider does not own root directory | Caller |
+| `EnvOsProvider.environment` map | Constructor (caller-provided) | GC | `EnvOsProvider` |
+| `TimeOsProvider._clock` | Constructor | GC | `TimeOsProvider` |
 
 ### Ownership Chain
 
-1. **`DefaultMontyBridge`** accepts handler via `registerOsCallHandler()`.
-   Disposes it in `bridge.dispose()` with `unawaited(_osCallHandler?.dispose())`.
-2. **`MontySession`** accepts optional handler in constructor.
-   Disposes it in `session.dispose()` with `unawaited(_osCallHandler?.dispose())`.
+1. **`DefaultMontyBridge`** accepts provider via `registerOs()`.
+   Disposes it in `bridge.dispose()` with `unawaited(_osProvider?.dispose())`.
+2. **`MontySession`** accepts optional provider in constructor.
+   Disposes it in `session.dispose()` with `unawaited(_os?.dispose())`.
 3. These two owners are mutually exclusive by design: `MontySession` is for
-   simple `run()` mode; `DefaultMontyBridge` is for full bridge mode. A handler
+   simple `run()` mode; `DefaultMontyBridge` is for full bridge mode. A provider
    instance should never be given to both.
-4. **`RouterOsCallHandler.dispose()`** iterates child handlers using a
-   `Set<OsCallHandler>` to deduplicate. A handler registered under multiple
-   prefixes (e.g., `TimeOsCallHandler` for both `'date.'` and `'datetime.'`)
-   is disposed exactly once. The fallback handler, if present, is also disposed.
+4. **Composite `OsProvider.dispose()`** iterates child providers using a
+   `Set<OsProvider>` to deduplicate. A provider registered under multiple
+   prefixes (e.g., `TimeOsProvider` for both `'date.'` and `'datetime.'`)
+   is disposed exactly once. The fallback provider, if present, is also disposed.
 
 ### Crash Behavior
 
-- **Handler throws `OsCallException`**: Caught by `_handleOsCall` (`on Object`),
-  logged, sent back to Python via `resumeWithError()`. No handler leak.
+- **Provider throws `OsCallException`**: Caught by `_handleOsCall` (`on Object`),
+  logged, sent back to Python via `resumeWithError()`. No provider leak.
   Subclasses (`OsCallPermissionError`, `OsCallFileNotFoundError`) are
   translated to the corresponding Python exception type.
-- **Handler throws unexpected error**: Same `on Object catch (e, st)` path.
+- **Provider throws unexpected error**: Same `on Object catch (e, st)` path.
   Error logged with stack trace, resumed as Python error string.
-- **No handler registered**: Bridge resumes with `PermissionError` message.
+- **No provider registered**: Bridge resumes with `PermissionError` message.
   No crash.
-- **Handler `dispose()` throws**: Fire-and-forget via `unawaited()` in both
+- **Provider `dispose()` throws**: Fire-and-forget via `unawaited()` in both
   `DefaultMontyBridge.dispose()` and `MontySession.dispose()`. Error does not
   propagate to caller.
-- **VFS path escape (`SandboxedNativeFsHandler`)**: Throws
+- **VFS path escape (`SandboxedFsProvider`)**: Throws
   `OsCallPermissionError`. Symlink escape after initial resolution also caught
   by `_safeResolved()`. All caught by `_handleOsCall`.
-- **Web: `os.*` call with no handler**: Router has no `'os.'` prefix on web.
-  `UnsupportedError` thrown by router, caught by bridge, sent back to Python.
+- **Web: `os.*` call with no provider**: Composite has no `'os.'` prefix on web.
+  `UnsupportedError` thrown by composite, caught by bridge, sent back to Python.
 
 ### Findings
 
 | ID | Severity | Status | Description |
 |----|----------|--------|-------------|
-| F-1 | Low | BY DESIGN | Dual ownership: both `DefaultMontyBridge` and `MontySession` accept and dispose an `OsCallHandler`. They are mutually exclusive entry points — never share a handler instance across both. |
-| F-2 | Safe | OK | `RouterOsCallHandler.dispose()` deduplicates via `Set`. Handler registered under multiple prefixes is disposed once. Fallback handler is also disposed. |
-| F-3 | Safe | OK | `SandboxedNativeFsHandler` does not own its root directory. Caller must clean up. Documented in dispose comment and constructor doc. |
-| F-4 | Safe | OK | `MemoryFsOsCallHandler` (VFS) has no dispose logic. `MemoryFileSystem` is GC-collected. Files are ephemeral by design. |
-| F-5 | Safe | OK | `_handleOsCall` catches `on Object` — no unhandled exception can leak from a handler call. Error is always sent back to Python. |
-| F-6 | Low | OK | `unawaited()` on handler dispose in both bridge and session means dispose errors are fire-and-forget. If a handler's `dispose()` throws, it silently fails. |
-| F-7 | Info | OK | Web default factory omits `os.*` prefix. Any `os.getenv` call from Python hits router's `UnsupportedError` path, which the bridge catches and sends back as a Python error. Correct. |
-| F-8 | Low | OK | Path escape protection in `SandboxedNativeFsHandler` uses `startsWith` on normalized paths plus symlink re-check. Factory constructor resolves root symlinks at construction. TOCTOU: if root itself becomes a symlink after construction, the check uses the stale resolved path. Low practical risk (root is typically a temp dir). |
+| F-1 | Low | BY DESIGN | Dual ownership: both `DefaultMontyBridge` and `MontySession` accept and dispose an `OsProvider`. They are mutually exclusive entry points — never share a provider instance across both. |
+| F-2 | Safe | OK | Composite `OsProvider.dispose()` deduplicates via `Set`. Provider registered under multiple prefixes is disposed once. Fallback provider is also disposed. |
+| F-3 | Safe | OK | `SandboxedFsProvider` does not own its root directory. Caller must clean up. Documented in dispose comment and constructor doc. |
+| F-4 | Safe | OK | `MemoryFsOsProvider` (VFS) has no dispose logic. `MemoryFileSystem` is GC-collected. Files are ephemeral by design. |
+| F-5 | Safe | OK | `_handleOsCall` catches `on Object` — no unhandled exception can leak from a provider call. Error is always sent back to Python. |
+| F-6 | Low | OK | `unawaited()` on provider dispose in both bridge and session means dispose errors are fire-and-forget. If a provider's `dispose()` throws, it silently fails. |
+| F-7 | Info | OK | Web default factory omits `os.*` prefix. Any `os.getenv` call from Python hits composite's `UnsupportedError` path, which the bridge catches and sends back as a Python error. Correct. |
+| F-8 | Low | OK | Path escape protection in `SandboxedFsProvider` uses `startsWith` on normalized paths plus symlink re-check. Factory constructor resolves root symlinks at construction. TOCTOU: if root itself becomes a symlink after construction, the check uses the stale resolved path. Low practical risk (root is typically a temp dir). |
 
 ---
 

@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:dart_monty/src/bridge/os_call/os_call_handler.dart';
+import 'package:dart_monty/src/bridge/os_call/os_provider.dart';
 import 'package:dart_monty/src/platform/monty_error.dart';
 import 'package:dart_monty/src/platform/monty_exception.dart';
 import 'package:dart_monty/src/platform/monty_future_capable.dart';
@@ -47,11 +47,11 @@ Future<void> runSimpleFixture(
 /// Runs an OsCall fixture through [platform] using start/resume.
 ///
 /// Python code triggers OsCall implicitly (pathlib, os.getenv, datetime.now).
-/// The [osCallHandler] provides the host-side implementation.
+/// The [os] provides the host-side implementation.
 Future<void> runOsCallFixture(
   MontyPlatform platform,
   Map<String, dynamic> fixture,
-  OsCallHandler osCallHandler,
+  OsProvider os,
 ) async {
   final code = fixture['code'] as String;
   final expectError = fixture['expectError'] as bool? ?? false;
@@ -63,7 +63,7 @@ Future<void> runOsCallFixture(
     while (progress is! MontyComplete) {
       if (progress is MontyOsCall) {
         try {
-          final result = await osCallHandler.handle(progress);
+          final result = await os.resolve(progress);
           progress = await platform.resume(result);
         } on Object catch (e) {
           progress = await platform.resumeWithError(e.toString());
@@ -344,7 +344,7 @@ Future<void> runIterativeFixture(
 void registerLadderTests({
   required MontyPlatform Function() createPlatform,
   required Directory fixtureDir,
-  OsCallHandler? osCallHandler,
+  OsProvider? os,
   bool isWeb = false,
 }) {
   final tiers = loadLadderFixtures(fixtureDir);
@@ -379,7 +379,7 @@ void registerLadderTests({
                   code,
                   expectError,
                   osCall,
-                  osCallHandler,
+                  os,
                 );
                 passed = true;
               } on Object catch (_) {
@@ -398,7 +398,7 @@ void registerLadderTests({
                 code,
                 expectError,
                 osCall,
-                osCallHandler,
+                os,
               );
             }
           } finally {
@@ -416,10 +416,10 @@ Future<void> _runFixture(
   String code,
   bool expectError,
   bool osCall,
-  OsCallHandler? osCallHandler,
+  OsProvider? os,
 ) async {
-  if (osCall && osCallHandler != null) {
-    await runOsCallFixture(monty, fixture, osCallHandler);
+  if (osCall && os != null) {
+    await runOsCallFixture(monty, fixture, os);
   } else if (fixture['externalFunctions'] != null) {
     await runIterativeFixture(monty, fixture);
   } else if (expectError) {

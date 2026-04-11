@@ -1,4 +1,4 @@
-import 'package:dart_monty/src/bridge/os_call/os_call_handler.dart';
+import 'package:dart_monty/src/bridge/os_call/os_provider.dart';
 import 'package:dart_monty/src/monty_factory.dart';
 import 'package:dart_monty/src/platform/monty_limits.dart';
 import 'package:dart_monty/src/platform/monty_platform.dart';
@@ -26,15 +26,14 @@ import 'package:dart_monty/src/platform/monty_result.dart';
 ///
 /// To enable filesystem/environment access from Python:
 /// ```dart
-/// final monty = Monty(osCallHandler: createDefaultOsCallHandler());
+/// final monty = Monty(os: defaultSandboxOs());
 /// ```
 class Monty {
   /// Creates a Monty interpreter with the auto-detected backend.
   ///
-  /// Pass [osCallHandler] to enable Python `pathlib`, `os`, and `datetime`
+  /// Pass [os] to enable Python `pathlib`, `os`, and `datetime`
   /// access. Without a handler, OS calls resume with a `PermissionError`.
-  factory Monty({OsCallHandler? osCallHandler}) =>
-      Monty._(createPlatformMonty(), osCallHandler);
+  factory Monty({OsProvider? os}) => Monty._(createPlatformMonty(), os);
 
   /// Creates a Monty interpreter with an explicit backend.
   ///
@@ -44,13 +43,13 @@ class Monty {
   /// ```
   factory Monty.withPlatform(
     MontyPlatform platform, {
-    OsCallHandler? osCallHandler,
-  }) => Monty._(platform, osCallHandler);
+    OsProvider? os,
+  }) => Monty._(platform, os);
 
-  const Monty._(this._platform, this._osCallHandler);
+  const Monty._(this._platform, this._os);
 
   final MontyPlatform _platform;
-  final OsCallHandler? _osCallHandler;
+  final OsProvider? _os;
 
   /// Access the underlying platform for capability checks.
   ///
@@ -61,7 +60,7 @@ class Monty {
 
   /// Executes Python [code] and returns the result.
   ///
-  /// When an [OsCallHandler] is configured, OS calls (pathlib, os, datetime)
+  /// When an [OsProvider] is configured, OS calls (pathlib, os, datetime)
   /// are dispatched through it automatically. Without a handler, OS calls
   /// resume Python with a `PermissionError`.
   Future<MontyResult> run(
@@ -69,7 +68,7 @@ class Monty {
     MontyLimits? limits,
     String? scriptName,
   }) async {
-    if (_osCallHandler == null) {
+    if (_os == null) {
       return _platform.run(code, limits: limits, scriptName: scriptName);
     }
 
@@ -83,7 +82,7 @@ class Monty {
     while (progress is! MontyComplete) {
       if (progress is MontyOsCall) {
         try {
-          final result = await _osCallHandler.handle(progress);
+          final result = await _os.resolve(progress);
           progress = await _platform.resume(result);
         } on Object catch (e) {
           progress = await _platform.resumeWithError(e.toString());
@@ -145,7 +144,7 @@ class Monty {
   /// Creates a Monty instance, runs [code], disposes, and returns the result.
   /// Equivalent to:
   /// ```dart
-  /// final monty = Monty(osCallHandler: osCallHandler);
+  /// final monty = Monty(os: os);
   /// try {
   ///   return await monty.run(code, limits: limits, scriptName: scriptName);
   /// } finally {
@@ -156,9 +155,9 @@ class Monty {
     String code, {
     MontyLimits? limits,
     String? scriptName,
-    OsCallHandler? osCallHandler,
+    OsProvider? os,
   }) async {
-    final monty = Monty(osCallHandler: osCallHandler);
+    final monty = Monty(os: os);
     try {
       return await monty.run(code, limits: limits, scriptName: scriptName);
     } finally {

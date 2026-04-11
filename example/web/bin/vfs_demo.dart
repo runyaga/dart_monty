@@ -51,8 +51,8 @@ external void _jsOnFilesChanged(JSString filesJson);
 // State
 // ---------------------------------------------------------------------------
 
-var _vfs = MemoryFsOsCallHandler();
-late TimeOsCallHandler _time;
+var _vfs = MemoryFsOsProvider();
+late TimeOsProvider _time;
 final _osCallLog = <Map<String, dynamic>>[];
 
 // ---------------------------------------------------------------------------
@@ -86,9 +86,9 @@ Future<Object?> _handleOsCall(Map<String, dynamic> state) async {
   Object? result;
 
   if (op.startsWith('Path.')) {
-    result = await _vfs.handle(call);
+    result = await _vfs.resolve(call);
   } else if (op.startsWith('date.') || op.startsWith('datetime.')) {
-    result = await _time.handle(call);
+    result = await _time.resolve(call);
   } else {
     throw UnsupportedError('Unhandled os_call: $op');
   }
@@ -122,8 +122,8 @@ String _summarize(Object? value) {
 
 Future<Map<String, dynamic>> _runWithVfs(String code) async {
   _osCallLog.clear();
-  _vfs = MemoryFsOsCallHandler();
-  _time = TimeOsCallHandler();
+  _vfs = MemoryFsOsProvider();
+  _time = TimeOsProvider();
 
   // Mount any pre-staged files (set by mountFile before run).
   for (final entry in _stagedFiles.entries) {
@@ -240,7 +240,7 @@ Future<List<String>> _listDir(String path) async {
       operationName: 'Path.iterdir',
       arguments: [MontyString(path)],
     );
-    final r = await _vfs.handle(call);
+    final r = await _vfs.resolve(call);
     if (r is List) {
       return r.map((e) => e is MontyPath ? e.value : e.toString()).toList();
     }

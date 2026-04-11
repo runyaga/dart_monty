@@ -8,7 +8,7 @@ import 'package:dart_monty/src/bridge/bridge/host_function.dart';
 import 'package:dart_monty/src/bridge/bridge/host_function_schema.dart';
 import 'package:dart_monty/src/bridge/bridge/monty_bridge.dart';
 import 'package:dart_monty/src/bridge/bridge/struct_log_bridge_logger.dart';
-import 'package:dart_monty/src/bridge/os_call/os_call_handler.dart';
+import 'package:dart_monty/src/bridge/os_call/os_provider.dart';
 import 'package:meta/meta.dart';
 import 'package:struct_log/struct_log.dart';
 
@@ -83,7 +83,7 @@ class DefaultMontyBridge implements MontyBridge {
   int _idCounter = 0;
   bool _isExecuting = false;
   bool _isDisposed = false;
-  OsCallHandler? _osCallHandler;
+  OsProvider? _osProvider;
 
   @override
   BridgeLogger get logger => log;
@@ -113,9 +113,9 @@ class DefaultMontyBridge implements MontyBridge {
   }
 
   @override
-  void registerOsCallHandler(OsCallHandler handler) {
+  void registerOs(OsProvider provider) {
     if (_isDisposed) throw StateError('Bridge has been disposed');
-    _osCallHandler = handler;
+    _osProvider = provider;
   }
 
   @override
@@ -141,7 +141,7 @@ class DefaultMontyBridge implements MontyBridge {
   @override
   void dispose() {
     _isDisposed = true;
-    unawaited(_osCallHandler?.dispose());
+    unawaited(_osProvider?.dispose());
     log.close();
   }
 
@@ -373,7 +373,7 @@ class DefaultMontyBridge implements MontyBridge {
       ),
     );
 
-    final handler = _osCallHandler;
+    final handler = _osProvider;
     if (handler == null) {
       log.warning('OS call denied (no handler)', attributes: {'op': opName});
       final errorMsg =
@@ -385,7 +385,7 @@ class DefaultMontyBridge implements MontyBridge {
 
     final sw = Stopwatch()..start();
     try {
-      final result = await handler.handle(osCall);
+      final result = await handler.resolve(osCall);
       sw.stop();
       controller.add(
         BridgeOsCallResult(

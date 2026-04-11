@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/src/bridge/os_call/os_call_exception.dart';
-import 'package:dart_monty/src/bridge/os_call/os_call_handler.dart';
+import 'package:dart_monty/src/bridge/os_call/os_provider.dart';
 import 'package:path/path.dart' as p;
 
 /// Handles `Path.*` OS calls against the real filesystem, restricted to
@@ -15,23 +15,24 @@ import 'package:path/path.dart' as p;
 ///
 /// ```dart
 /// final tmp = Directory.systemTemp.createTempSync('monty_');
-/// final handler = SandboxedNativeFsHandler(root: tmp);
+/// final provider = SandboxedFsProvider(root: tmp);
 /// ```
-class SandboxedNativeFsHandler extends OsCallHandler {
-  /// Creates a handler rooted at [root].
+class SandboxedFsProvider extends OsProvider {
+  /// Creates a provider rooted at [root].
   ///
   /// [root] must exist. All Python file operations are restricted to
   /// paths inside this directory.
-  factory SandboxedNativeFsHandler({required Directory root}) {
+  factory SandboxedFsProvider({required Directory root}) {
     final resolved = root.resolveSymbolicLinksSync();
 
-    return SandboxedNativeFsHandler._(resolved);
+    return SandboxedFsProvider._(resolved);
   }
 
-  SandboxedNativeFsHandler._(this._rootExact)
+  SandboxedFsProvider._(this._rootExact)
     : _root = _rootExact.endsWith(Platform.pathSeparator)
           ? _rootExact
-          : '$_rootExact${Platform.pathSeparator}';
+          : '$_rootExact${Platform.pathSeparator}',
+      super.base();
 
   /// Normalized root path WITH trailing separator (for startsWith checks).
   final String _root;
@@ -40,7 +41,7 @@ class SandboxedNativeFsHandler extends OsCallHandler {
   final String _rootExact;
 
   @override
-  Future<Object?> handle(MontyOsCall call) => Future.value(_handleSync(call));
+  Future<Object?> resolve(MontyOsCall call) => Future.value(_handleSync(call));
 
   @override
   Future<void> dispose() async {
