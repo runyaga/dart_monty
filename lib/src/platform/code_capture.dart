@@ -88,7 +88,7 @@ bool isExpression(String line) {
   final exprLines = lines.sublist(startIdx, lastIdx + 1);
   final expr = exprLines.join('\n');
 
-  final result = <String>[
+  final result = [
     ...lines.sublist(0, startIdx),
     '__r = ($expr)',
     ...lines.sublist(lastIdx + 1),
@@ -117,6 +117,7 @@ Set<String> extractAssignmentTargets(String code) {
       }
     }
   }
+
   return names;
 }
 
