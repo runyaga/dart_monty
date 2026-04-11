@@ -295,6 +295,109 @@ void monty_set_time_limit_ms(MontyHandle *handle, uint64_t ms);
 void monty_set_stack_limit(MontyHandle *handle, size_t depth);
 
 /* ------------------------------------------------------------------ */
+/* REPL (stateful session)                                            */
+/* ------------------------------------------------------------------ */
+
+/** Opaque handle to a persistent REPL session. */
+typedef struct MontyReplHandle MontyReplHandle;
+
+/**
+ * Create a new REPL handle with empty interpreter state.
+ *
+ * @param script_name  NUL-terminated script name for tracebacks, or NULL
+ *                     for the default ("repl.py").
+ * @param out_error    On failure, receives a heap-allocated error message.
+ *                     Caller frees with monty_string_free(). May be NULL.
+ * @return             Heap-allocated REPL handle, or NULL on error.
+ */
+MontyReplHandle *monty_repl_create(const char *script_name,
+                                    char **out_error);
+
+/**
+ * Free a REPL handle. Safe to call with NULL or an already-freed handle.
+ */
+void monty_repl_free(MontyReplHandle *handle);
+
+/**
+ * Feed a Python snippet to the REPL and run to completion.
+ *
+ * The REPL handle survives — heap, globals, functions, and classes
+ * persist for subsequent calls.
+ *
+ * @param handle       Valid REPL handle from monty_repl_create().
+ * @param code         NUL-terminated UTF-8 Python source.
+ * @param result_json  Receives heap-allocated JSON result string.
+ *                     Caller frees with monty_string_free(). May be NULL.
+ * @param error_msg    Receives heap-allocated error message on failure,
+ *                     or NULL on success. Caller frees with monty_string_free().
+ * @return             MONTY_RESULT_OK or MONTY_RESULT_ERROR.
+ */
+MontyResultTag monty_repl_feed_run(MontyReplHandle *handle,
+                                    const char *code,
+                                    char **result_json,
+                                    char **error_msg);
+
+/**
+ * Detect whether a source fragment is complete or needs more input.
+ *
+ * This is a stateless function — no REPL handle is needed.
+ *
+ * @param source  NUL-terminated UTF-8 Python source fragment.
+ * @return        0 = complete, 1 = incomplete (unclosed brackets/strings),
+ *                2 = incomplete block (needs trailing blank line).
+ */
+int monty_repl_detect_continuation(const char *source);
+
+/* ------------------------------------------------------------------ */
+/* REPL iterative execution                                           */
+/* ------------------------------------------------------------------ */
+
+/** Register external function names for REPL name resolution. */
+void monty_repl_set_ext_fns(MontyReplHandle *handle, const char *ext_fns);
+
+/** Start iterative REPL execution. Pauses at external function calls. */
+MontyProgressTag monty_repl_feed_start(MontyReplHandle *handle,
+                                        const char *code,
+                                        char **out_error);
+
+/** Resume REPL execution with a JSON-encoded return value. */
+MontyProgressTag monty_repl_resume(MontyReplHandle *handle,
+                                    const char *value_json,
+                                    char **out_error);
+
+/** Resume REPL execution with an error (raises RuntimeError in Python). */
+MontyProgressTag monty_repl_resume_with_error(MontyReplHandle *handle,
+                                               const char *error_message,
+                                               char **out_error);
+
+/** Resume REPL by creating a future for the pending call. */
+MontyProgressTag monty_repl_resume_as_future(MontyReplHandle *handle,
+                                              char **out_error);
+
+/** Resolve pending REPL futures with results and errors. */
+MontyProgressTag monty_repl_resume_futures(MontyReplHandle *handle,
+                                            const char *results_json,
+                                            const char *errors_json,
+                                            char **out_error);
+
+/* ------------------------------------------------------------------ */
+/* REPL state accessors                                               */
+/* ------------------------------------------------------------------ */
+
+char *monty_repl_pending_fn_name(const MontyReplHandle *handle);
+char *monty_repl_pending_fn_args_json(const MontyReplHandle *handle);
+char *monty_repl_pending_fn_kwargs_json(const MontyReplHandle *handle);
+uint32_t monty_repl_pending_call_id(const MontyReplHandle *handle);
+int monty_repl_pending_method_call(const MontyReplHandle *handle);
+char *monty_repl_os_call_fn_name(const MontyReplHandle *handle);
+char *monty_repl_os_call_args_json(const MontyReplHandle *handle);
+char *monty_repl_os_call_kwargs_json(const MontyReplHandle *handle);
+uint32_t monty_repl_os_call_id(const MontyReplHandle *handle);
+char *monty_repl_complete_result_json(const MontyReplHandle *handle);
+int monty_repl_complete_is_error(const MontyReplHandle *handle);
+char *monty_repl_pending_future_call_ids(const MontyReplHandle *handle);
+
+/* ------------------------------------------------------------------ */
 /* Memory management                                                  */
 /* ------------------------------------------------------------------ */
 

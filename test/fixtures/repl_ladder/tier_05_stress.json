@@ -1,0 +1,41 @@
+[
+  {
+    "id": 80,
+    "tier": 5,
+    "name": "50-iteration accumulator",
+    "feeds": [
+      {"code": "total = 0"},
+      {"code": "for i in range(1, 51):\n    total += i"},
+      {"code": "total", "expected": 1275}
+    ]
+  },
+  {
+    "id": 81,
+    "tier": 5,
+    "name": "build list across 10 feeds",
+    "feeds": [
+      {"code": "items = []"},
+      {"code": "items.append(1)"},
+      {"code": "items.append(2)"},
+      {"code": "items.append(3)"},
+      {"code": "items.append(4)"},
+      {"code": "items.append(5)"},
+      {"code": "items.append(6)"},
+      {"code": "items.append(7)"},
+      {"code": "items.append(8)"},
+      {"code": "items.append(9)"},
+      {"code": "items.append(10)"},
+      {"code": "sum(items)", "expected": 55}
+    ]
+  },
+  {
+    "id": 82,
+    "tier": 5,
+    "name": "independent sessions no state bleed",
+    "isolated": true,
+    "feeds": [
+      {"code": "x = 1"},
+      {"code": "x", "expected": 1}
+    ]
+  }
+]

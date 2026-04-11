@@ -231,4 +231,36 @@ abstract class WasmBindings {
 
   /// Disposes the current Worker session.
   Future<void> dispose();
+
+  // ---------------------------------------------------------------------------
+  // REPL
+  // ---------------------------------------------------------------------------
+
+  /// Creates a persistent REPL session in the Worker.
+  Future<void> replCreate({String? scriptName});
+
+  /// Frees the REPL session in the Worker.
+  Future<void> replFree();
+
+  /// Feeds a Python snippet to the REPL and runs to completion.
+  ///
+  /// The REPL session survives — state persists for subsequent calls.
+  Future<WasmRunResult> replFeedRun(String code);
+
+  /// Detects whether a source fragment is complete or needs more input.
+  ///
+  /// Returns `0` = complete, `1` = incomplete, `2` = incomplete block.
+  Future<int> replDetectContinuation(String source);
+
+  /// Registers external function names for REPL name resolution.
+  Future<void> replSetExtFns(String extFns);
+
+  /// Starts iterative REPL execution. Pauses at external function calls.
+  Future<WasmProgressResult> replFeedStart(String code);
+
+  /// Resumes REPL execution with a JSON-encoded return value.
+  Future<WasmProgressResult> replResume(String valueJson);
+
+  /// Resumes REPL execution with an error.
+  Future<WasmProgressResult> replResumeWithError(String errorJson);
 }

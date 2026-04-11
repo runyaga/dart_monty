@@ -1,0 +1,78 @@
+[
+  {
+    "id": 1,
+    "tier": 1,
+    "name": "variable persists across feeds",
+    "feeds": [
+      {"code": "x = 42"},
+      {"code": "x + 1", "expected": 43}
+    ]
+  },
+  {
+    "id": 2,
+    "tier": 1,
+    "name": "multiple variables persist",
+    "feeds": [
+      {"code": "a = 10"},
+      {"code": "b = 20"},
+      {"code": "a + b", "expected": 30}
+    ]
+  },
+  {
+    "id": 3,
+    "tier": 1,
+    "name": "variable reassignment",
+    "feeds": [
+      {"code": "x = 1"},
+      {"code": "x = x + 100"},
+      {"code": "x", "expected": 101}
+    ]
+  },
+  {
+    "id": 4,
+    "tier": 1,
+    "name": "string variable persists",
+    "feeds": [
+      {"code": "name = 'monty'"},
+      {"code": "name.upper()", "expected": "MONTY"}
+    ]
+  },
+  {
+    "id": 5,
+    "tier": 1,
+    "name": "list mutation persists",
+    "feeds": [
+      {"code": "items = [1, 2, 3]"},
+      {"code": "items.append(4)"},
+      {"code": "len(items)", "expected": 4}
+    ]
+  },
+  {
+    "id": 6,
+    "tier": 1,
+    "name": "dict mutation persists",
+    "feeds": [
+      {"code": "d = {'a': 1}"},
+      {"code": "d['b'] = 2"},
+      {"code": "d['a'] + d['b']", "expected": 3}
+    ]
+  },
+  {
+    "id": 7,
+    "tier": 1,
+    "name": "boolean state persists",
+    "feeds": [
+      {"code": "flag = True"},
+      {"code": "not flag", "expected": false}
+    ]
+  },
+  {
+    "id": 8,
+    "tier": 1,
+    "name": "none value persists",
+    "feeds": [
+      {"code": "x = None"},
+      {"code": "x is None", "expected": true}
+    ]
+  }
+]

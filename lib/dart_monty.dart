@@ -23,3 +23,6 @@ export 'src/platform/monty_resource_usage.dart';
 export 'src/platform/monty_result.dart';
 export 'src/platform/monty_stack_frame.dart';
 export 'src/platform/monty_value.dart';
+export 'src/repl/monty_repl.dart';
+export 'src/repl/repl_platform.dart';
+export 'src/repl/repl_session.dart';

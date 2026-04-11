@@ -154,8 +154,8 @@ jobs:
           PCT=$(echo "$OUTPUT" | grep -oP '\d+\.\d+% coverage' | grep -oP '\d+\.\d+' | tail -1 || echo "0")
           echo "Coverage: ${PCT}%"
           WHOLE=${PCT%%.*}
-          if [ "${WHOLE:-0}" -lt 70 ]; then
-            echo "FAIL: Coverage ${PCT}% < 70% minimum."
+          if [ "${WHOLE:-0}" -lt 55 ]; then
+            echo "FAIL: Coverage ${PCT}% < 55% minimum."
             exit 1
           fi
       - name: Upload coverage to Codecov

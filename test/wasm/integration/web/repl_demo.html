@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>dart_monty REPL Playground</title>
+  <style>
+    :root {
+      --bg: #1a1b26;
+      --surface: #24283b;
+      --surface2: #2f3447;
+      --border: #3b4261;
+      --text: #c0caf5;
+      --text-dim: #565f89;
+      --accent: #7aa2f7;
+      --green: #9ece6a;
+      --yellow: #e0af68;
+      --red: #f7768e;
+      --cyan: #7dcfff;
+      --mono: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    header {
+      padding: 12px 20px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    header h1 { font-size: 16px; font-weight: 600; color: var(--accent); }
+    .tag { font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 500; }
+    .tag-wasm { background: #2d3a5e; color: var(--cyan); }
+    .tag-repl { background: #3e2d5e; color: #bb9af7; }
+
+    #status {
+      font-size: 12px;
+      padding: 3px 10px;
+      border-radius: 4px;
+      margin-left: auto;
+    }
+    .loading { background: #2d3a5e; color: var(--cyan); }
+    .ready { background: #2d3e2d; color: var(--green); }
+    .running { background: #3e3a2d; color: var(--yellow); }
+    .error { background: #3e2d2d; color: var(--red); }
+
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    #transcript {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 20px;
+      font-family: var(--mono);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .entry { margin-bottom: 8px; }
+    .prompt { color: var(--cyan); user-select: none; }
+    .continuation { color: var(--text-dim); user-select: none; }
+    .code { color: var(--text); }
+    .result { color: var(--green); }
+    .print-output { color: var(--text-dim); white-space: pre-wrap; }
+    .error-output { color: var(--red); }
+    .timing { color: var(--text-dim); font-size: 11px; }
+
+    #input-row {
+      display: flex;
+      align-items: flex-start;
+      padding: 8px 20px 16px;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      gap: 8px;
+    }
+
+    #prompt-label {
+      color: var(--cyan);
+      font-family: var(--mono);
+      font-size: 13px;
+      line-height: 24px;
+      user-select: none;
+      white-space: nowrap;
+    }
+
+    #input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 13px;
+      line-height: 24px;
+      outline: none;
+      resize: none;
+      min-height: 24px;
+      max-height: 120px;
+    }
+
+    #actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    button {
+      background: var(--surface2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 4px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    button:hover { background: var(--border); }
+    button:disabled { opacity: 0.4; cursor: default; }
+    button.danger { border-color: var(--red); color: var(--red); }
+    button.danger:hover { background: #3e2d2d; }
+
+    #vars-panel {
+      padding: 8px 20px;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-dim);
+      max-height: 80px;
+      overflow-y: auto;
+    }
+
+    .var-entry { display: inline-block; margin-right: 16px; }
+    .var-name { color: var(--yellow); }
+    .var-value { color: var(--text); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>dart_monty REPL</h1>
+    <span class="tag tag-wasm">WASM</span>
+    <span class="tag tag-repl">REPL</span>
+    <span id="status" class="loading">Loading WASM...</span>
+  </header>
+
+  <main>
+    <div id="transcript"></div>
+  </main>
+
+  <div id="input-row">
+    <span id="prompt-label">&gt;&gt;&gt; </span>
+    <textarea id="input" rows="1" placeholder="Type Python code..." disabled></textarea>
+    <div id="actions">
+      <button id="resetBtn" class="danger" disabled>Reset</button>
+    </div>
+  </div>
+
+  <!-- Load WASM bridge -->
+  <script src="dart_monty_bridge.js"></script>
+  <script>
+    // -----------------------------------------------------------------------
+    // State
+    // -----------------------------------------------------------------------
+    const $ = (s) => document.getElementById(s);
+    const transcript = $('transcript');
+    const input = $('input');
+    const promptLabel = $('prompt-label');
+    const status = $('status');
+    const resetBtn = $('resetBtn');
+
+    let ready = false;
+    let running = false;
+    let pendingLines = '';
+    let continuationMode = 0; // 0=complete, 1=incompleteImplicit, 2=incompleteBlock
+    let feedCount = 0;
+
+    // -----------------------------------------------------------------------
+    // Transcript rendering
+    // -----------------------------------------------------------------------
+    function addToTranscript(html) {
+      const div = document.createElement('div');
+      div.className = 'entry';
+      div.innerHTML = html;
+      transcript.appendChild(div);
+      transcript.scrollTop = transcript.scrollHeight;
+    }
+
+    function escapeHtml(s) {
+      return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    function renderCode(code) {
+      const lines = code.split('\n');
+      return lines.map((line, i) => {
+        const prompt = i === 0
+          ? '<span class="prompt">&gt;&gt;&gt; </span>'
+          : '<span class="continuation">... </span>';
+        return prompt + '<span class="code">' + escapeHtml(line) + '</span>';
+      }).join('\n');
+    }
+
+    // -----------------------------------------------------------------------
+    // Real host function: tmpl_render (Jinja2 subset in JS)
+    // -----------------------------------------------------------------------
+    function jsTmplRender(template, context) {
+      let result = template;
+      // Process structural tags FIRST (for, if) before variable substitution.
+
+      // {% for item in list %}...{% endfor %}
+      result = result.replace(
+        /\{%\s*for\s+(\w+)\s+in\s+(\w+)\s*%\}([\s\S]*?)\{%\s*endfor\s*%\}/g,
+        (_, itemVar, listVar, body) => {
+          const list = context[listVar] || [];
+          return list.map(item => {
+            // Replace loop variable, then expand any remaining {{ }} with context
+            let expanded = body.replace(
+              new RegExp(`\\{\\{\\s*${itemVar}\\s*\\}\\}`, 'g'), String(item)
+            );
+            // Also resolve context vars inside the loop body
+            expanded = expanded.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (__, key) => {
+              const val = key.split('.').reduce((o, k) => o && o[k], context);
+              return val !== undefined && val !== null ? String(val) : '';
+            });
+            return expanded;
+          }).join('');
+        }
+      );
+      // {% if var %}...{% else %}...{% endif %}
+      result = result.replace(
+        /\{%\s*if\s+(\w+)\s*%\}([\s\S]*?)(?:\{%\s*else\s*%\}([\s\S]*?))?\{%\s*endif\s*%\}/g,
+        (_, condVar, ifBody, elseBody) => {
+          return context[condVar] ? ifBody : (elseBody || '');
+        }
+      );
+      // {{ variable }} substitution (last — structural tags already expanded)
+      result = result.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (_, key) => {
+        const val = key.split('.').reduce((o, k) => o && o[k], context);
+        return val !== undefined && val !== null ? String(val) : '';
+      });
+      return result;
+    }
+
+    // -----------------------------------------------------------------------
+    // Real host function: MessageBus (in-memory JS implementation)
+    // -----------------------------------------------------------------------
+    const _channels = {};
+    const _sandboxes = {};
+    function _getCh(name) {
+      if (!_channels[name]) _channels[name] = { queue: [], delivered: 0, closed: false };
+      return _channels[name];
+    }
+
+    // Host function dispatch table
+    const hostFunctions = {
+      tmpl_render: (args, kwargs) => {
+        const template = kwargs.template || args[0];
+        const context = kwargs.context || args[1] || {};
+        return jsTmplRender(template, context);
+      },
+      msg_send: (args, kwargs) => {
+        const ch = _getCh(kwargs.name || args[0]);
+        if (ch.closed) throw new Error('channel closed');
+        ch.queue.push(args[1] || kwargs.message);
+        return true;
+      },
+      msg_recv: (args, kwargs) => {
+        const ch = _getCh(kwargs.name || args[0]);
+        if (ch.closed) throw new Error('channel closed');
+        ch.delivered++;
+        return ch.queue.length > 0 ? ch.queue.shift() : null;
+      },
+      msg_peek: (args, kwargs) => {
+        const ch = _getCh(kwargs.name || args[0]);
+        return ch.queue.length > 0 ? ch.queue[0] : null;
+      },
+      msg_close: (args, kwargs) => {
+        const ch = _getCh(kwargs.name || args[0]);
+        ch.closed = true;
+        return true;
+      },
+      msg_stats: (args, kwargs) => {
+        const ch = _getCh(kwargs.name || args[0]);
+        return { pending: ch.queue.length, delivered: ch.delivered, closed: ch.closed };
+      },
+      sandbox_spawn: async (args, kwargs) => {
+        const code = kwargs.code || args[0];
+        // Execute in a REAL fresh WASM interpreter
+        try {
+          const resultJson = await DartMontyBridge.run(code);
+          const r = JSON.parse(resultJson);
+          if (r.ok) {
+            return { value: r.value, error: null, print_output: r.print_output || '' };
+          }
+          return { value: null, error: r.error || 'execution failed' };
+        } catch (e) {
+          return { value: null, error: e.message };
+        }
+      },
+      sandbox_await: (args, kwargs) => {
+        const handle = kwargs.handle || args[0];
+        const sb = _sandboxes[handle];
+        if (!sb) return { value: null, error: 'unknown handle: ' + handle };
+        return { value: sb.value, error: sb.error || null, status: sb.status };
+      },
+      sandbox_is_alive: (args, kwargs) => {
+        const handle = kwargs.handle || args[0];
+        const sb = _sandboxes[handle];
+        return sb ? sb.status === 'running' : false;
+      },
+      sandbox_free: (args, kwargs) => {
+        const handle = kwargs.handle || args[0];
+        delete _sandboxes[handle];
+        return true;
+      },
+    };
+
+    // -----------------------------------------------------------------------
+    // REPL execution (uses feedStart + resume for host function dispatch)
+    // -----------------------------------------------------------------------
+    async function feed(code) {
+      if (!ready || running) return;
+      running = true;
+      status.textContent = 'Running...';
+      status.className = 'running';
+      input.disabled = true;
+
+      addToTranscript(renderCode(code));
+      feedCount++;
+
+      const t0 = performance.now();
+      try {
+        // Use feedStart to enable host function dispatch
+        let r = JSON.parse(await DartMontyBridge.replFeedStart(code));
+
+        // Dispatch loop: handle host calls + async futures until complete
+        const pendingFutures = {}; // callId → {fn, args, kwargs}
+        while (r.state === 'pending' || r.state === 'resolve_futures') {
+          if (r.state === 'pending') {
+            const fn = hostFunctions[r.functionName];
+            if (fn) {
+              // Check if this is an async call (sandbox_spawn etc.) — use futures path
+              if (r.functionName.startsWith('sandbox_')) {
+                pendingFutures[r.callId] = { fn, name: r.functionName, args: r.args || [], kwargs: r.kwargs || {} };
+                addToTranscript(
+                  '<span class="timing">  ↳ ' + escapeHtml(r.functionName) +
+                  '() → [future #' + r.callId + ']</span>'
+                );
+                r = JSON.parse(await DartMontyBridge.replResumeAsFuture());
+              } else {
+                // Synchronous dispatch
+                try {
+                  const result = await fn(r.args || [], r.kwargs || {});
+                  addToTranscript(
+                    '<span class="timing">  ↳ ' + escapeHtml(r.functionName) +
+                    '() → ' + escapeHtml(JSON.stringify(result).substring(0, 80)) + '</span>'
+                  );
+                  r = JSON.parse(await DartMontyBridge.replResume(JSON.stringify(result)));
+                } catch (e) {
+                  r = JSON.parse(await DartMontyBridge.replResumeWithError(JSON.stringify(e.message)));
+                }
+              }
+            } else {
+              r = JSON.parse(await DartMontyBridge.replResumeWithError(
+                JSON.stringify('Host function not implemented: ' + r.functionName)
+              ));
+            }
+          } else if (r.state === 'resolve_futures') {
+            // Resolve all pending futures — execute sandbox code in parallel
+            const callIds = r.pendingCallIds || [];
+            const results = {};
+            const errors = {};
+            addToTranscript(
+              '<span class="timing">  ⟳ resolving ' + callIds.length + ' future(s)...</span>'
+            );
+            await Promise.all(callIds.map(async (cid) => {
+              const pf = pendingFutures[cid];
+              if (!pf) { errors[String(cid)] = 'unknown call'; return; }
+              try {
+                const result = await pf.fn(pf.args, pf.kwargs);
+                results[String(cid)] = result;
+                addToTranscript(
+                  '<span class="timing">  ✓ future #' + cid + ' (' + pf.name + ') → ' +
+                  escapeHtml(JSON.stringify(result).substring(0, 60)) + '</span>'
+                );
+              } catch (e) {
+                errors[String(cid)] = e.message;
+              }
+            }));
+            r = JSON.parse(await DartMontyBridge.replResolveFutures(
+              JSON.stringify(results), JSON.stringify(errors)
+            ));
+          }
+        }
+
+        const elapsed = (performance.now() - t0).toFixed(1);
+        let html = '';
+
+        if (r.print_output) {
+          html += '<span class="print-output">' + escapeHtml(r.print_output) + '</span>';
+        }
+
+        if (r.ok !== false && r.state !== 'error') {
+          if (r.value !== null && r.value !== undefined) {
+            const repr = typeof r.value === 'string' ? "'" + r.value + "'" : JSON.stringify(r.value);
+            html += '<span class="result">' + escapeHtml(repr) + '</span>';
+          }
+        } else {
+          html += '<span class="error-output">' + escapeHtml(r.error || 'Unknown error') + '</span>';
+        }
+
+        html += ' <span class="timing">[' + elapsed + 'ms]</span>';
+
+        if (html.trim()) addToTranscript(html);
+      } catch (e) {
+        addToTranscript('<span class="error-output">Internal error: ' + escapeHtml(e.message) + '</span>');
+      } finally {
+        running = false;
+        status.textContent = 'Ready (' + feedCount + ' feeds)';
+        status.className = 'ready';
+        input.disabled = false;
+        input.focus();
+        pendingLines = '';
+        continuationMode = 0;
+        promptLabel.textContent = '>>> ';
+      }
+    }
+
+    // -----------------------------------------------------------------------
+    // Input handling
+    // -----------------------------------------------------------------------
+    input.addEventListener('keydown', async (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        const line = input.value;
+
+        if (continuationMode === 0) {
+          // Check if this line starts a block or is incomplete
+          const fullCode = pendingLines ? pendingLines + '\n' + line : line;
+
+          try {
+            const modeJson = await DartMontyBridge.replDetectContinuation(fullCode);
+            const modeResult = JSON.parse(modeJson);
+            const mode = modeResult.ok ? modeResult.value : 0;
+
+            if (mode === 0) {
+              // Complete — execute
+              e.preventDefault();
+              input.value = '';
+              await feed(fullCode);
+            } else {
+              // Incomplete — accumulate
+              e.preventDefault();
+              pendingLines = fullCode;
+              continuationMode = mode;
+              input.value = '';
+              promptLabel.textContent = '... ';
+            }
+          } catch (err) {
+            // Fallback: just execute
+            e.preventDefault();
+            input.value = '';
+            await feed(fullCode);
+          }
+        } else if (continuationMode === 2 && line.trim() === '') {
+          // Blank line terminates a block
+          e.preventDefault();
+          input.value = '';
+          await feed(pendingLines);
+        } else {
+          // Continue accumulating
+          e.preventDefault();
+          pendingLines += '\n' + line;
+          input.value = '';
+
+          // Re-check continuation mode
+          try {
+            const modeJson = await DartMontyBridge.replDetectContinuation(pendingLines);
+            const modeResult = JSON.parse(modeJson);
+            continuationMode = modeResult.ok ? modeResult.value : 0;
+            if (continuationMode === 0) {
+              await feed(pendingLines);
+            }
+          } catch (err) {
+            // Keep accumulating
+          }
+        }
+      }
+    });
+
+    // Tab inserts spaces
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        const start = input.selectionStart;
+        input.value = input.value.substring(0, start) + '    ' + input.value.substring(input.selectionEnd);
+        input.selectionStart = input.selectionEnd = start + 4;
+      }
+    });
+
+    // -----------------------------------------------------------------------
+    // Bootstrap — inject help() with host function registry
+    // -----------------------------------------------------------------------
+    async function bootstrap() {
+      // Register all real host functions
+      await DartMontyBridge.replSetExtFns(
+        'tmpl_render,msg_send,msg_recv,msg_peek,msg_close,msg_stats,' +
+        'sandbox_spawn,sandbox_await,sandbox_is_alive,sandbox_free'
+      );
+
+      await DartMontyBridge.replFeedRun(`_help_registry = {
+    "tmpl_render": "Render Jinja2 template. tmpl_render(template=str, context=dict)",
+    "msg_send": "Send message. msg_send(channel, message)",
+    "msg_recv": "Receive message. msg_recv(channel)",
+    "msg_peek": "Peek next message. msg_peek(channel)",
+    "msg_close": "Close channel. msg_close(channel)",
+    "msg_stats": "Channel stats. msg_stats(channel)",
+    "sandbox_spawn": "Run code in sandbox. sandbox_spawn(code=str) -> handle",
+    "sandbox_await": "Get sandbox result. sandbox_await(handle) -> {value, error}",
+    "sandbox_is_alive": "Check sandbox status. sandbox_is_alive(handle) -> bool",
+    "sandbox_free": "Free sandbox. sandbox_free(handle) -> bool",
+}`);
+
+      await DartMontyBridge.replFeedRun(`def help(name=None):
+    if name is None:
+        print("Monty REPL - sandboxed Python interpreter (WASM)")
+        print("")
+        if _help_registry:
+            print("Host functions (real — dispatched to host):")
+            for fn, desc in _help_registry.items():
+                print(f"  {fn}() - {desc}")
+        else:
+            print("No host functions registered.")
+        print("")
+        print("Type help('name') for details on a function.")
+    else:
+        if name in _help_registry:
+            print(f"{name}() - {_help_registry[name]}")
+        else:
+            print(f"Unknown: '{name}'. Type help() to see available functions.")`);
+    }
+
+    // -----------------------------------------------------------------------
+    // Reset
+    // -----------------------------------------------------------------------
+    resetBtn.onclick = async () => {
+      if (running) return;
+      try {
+        await DartMontyBridge.replFree();
+        await DartMontyBridge.replCreate();
+        await bootstrap();
+        transcript.innerHTML = '';
+        feedCount = 0;
+        pendingLines = '';
+        continuationMode = 0;
+        promptLabel.textContent = '>>> ';
+        status.textContent = 'Ready (reset)';
+        status.className = 'ready';
+        addToTranscript('<span class="print-output">--- Session reset ---</span>');
+        input.focus();
+      } catch (e) {
+        addToTranscript('<span class="error-output">Reset failed: ' + escapeHtml(e.message) + '</span>');
+      }
+    };
+
+    // -----------------------------------------------------------------------
+    // Init
+    // -----------------------------------------------------------------------
+    async function init() {
+      try {
+        const ok = await DartMontyBridge.init();
+        if (!ok) throw new Error('Bridge init returned false');
+
+        const createJson = await DartMontyBridge.replCreate();
+        const createResult = JSON.parse(createJson);
+        if (!createResult.ok) throw new Error(createResult.error || 'replCreate failed');
+
+        await bootstrap();
+
+        ready = true;
+        status.textContent = 'Ready';
+        status.className = 'ready';
+        input.disabled = false;
+        resetBtn.disabled = false;
+        input.focus();
+
+        addToTranscript(
+          '<span class="print-output">Monty Python REPL (WASM) — type help() for available functions</span>'
+        );
+      } catch (e) {
+        status.textContent = 'Error: ' + e.message;
+        status.className = 'error';
+        console.error('REPL init failed:', e);
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>

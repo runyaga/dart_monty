@@ -224,4 +224,116 @@ class MockNativeBindings extends NativeBindings {
 
     return nextRestoreHandle;
   }
+
+  // ---------------------------------------------------------------------------
+  // REPL
+  // ---------------------------------------------------------------------------
+
+  int nextReplCreateHandle = 100;
+  RunResult nextReplFeedRunResult = const RunResult(
+    tag: 0,
+    resultJson:
+        '{"value": null, "usage": {"memory_bytes_used": 0, '
+        '"time_elapsed_ms": 0, "stack_depth_used": 0}}',
+  );
+  int nextReplDetectContinuation = 0;
+
+  final List<String?> replCreateCalls = [];
+  final List<({int handle, String code})> replFeedRunCalls = [];
+  final List<int> replFreeCalls = [];
+  final List<String> replDetectContinuationCalls = [];
+
+  @override
+  int replCreate({String? scriptName}) {
+    replCreateCalls.add(scriptName);
+
+    return nextReplCreateHandle;
+  }
+
+  @override
+  void replFree(int handle) {
+    replFreeCalls.add(handle);
+  }
+
+  @override
+  RunResult replFeedRun(int handle, String code) {
+    replFeedRunCalls.add((handle: handle, code: code));
+
+    return nextReplFeedRunResult;
+  }
+
+  @override
+  int replDetectContinuation(String source) {
+    replDetectContinuationCalls.add(source);
+
+    return nextReplDetectContinuation;
+  }
+
+  // Phase 2
+
+  ProgressResult nextReplFeedStartResult = const ProgressResult(
+    tag: 0,
+    resultJson:
+        '{"value": null, "usage": {"memory_bytes_used": 0, '
+        '"time_elapsed_ms": 0, "stack_depth_used": 0}}',
+  );
+  String? lastReplExtFns;
+  final List<String> replFeedStartCalls = [];
+  final List<String> replResumeCalls = [];
+  final List<String> replResumeWithErrorCalls = [];
+
+  @override
+  void replSetExtFns(int handle, String extFns) {
+    lastReplExtFns = extFns;
+  }
+
+  @override
+  ProgressResult replFeedStart(int handle, String code) {
+    replFeedStartCalls.add(code);
+
+    return nextReplFeedStartResult;
+  }
+
+  @override
+  ProgressResult replResume(int handle, String valueJson) {
+    replResumeCalls.add(valueJson);
+
+    return const ProgressResult(
+      tag: 0,
+      resultJson:
+          '{"value": null, "usage": {"memory_bytes_used": 0, '
+          '"time_elapsed_ms": 0, "stack_depth_used": 0}}',
+    );
+  }
+
+  @override
+  ProgressResult replResumeWithError(int handle, String errorMessage) {
+    replResumeWithErrorCalls.add(errorMessage);
+
+    return const ProgressResult(
+      tag: 0,
+      resultJson:
+          '{"value": null, "usage": {"memory_bytes_used": 0, '
+          '"time_elapsed_ms": 0, "stack_depth_used": 0}}',
+    );
+  }
+
+  @override
+  ProgressResult replResumeAsFuture(int handle) {
+    return const ProgressResult(tag: 3, futureCallIdsJson: '[0]');
+  }
+
+  @override
+  ProgressResult replResolveFutures(
+    int handle,
+    String resultsJson,
+    String errorsJson,
+  ) {
+    return const ProgressResult(
+      tag: 0,
+      resultJson:
+          '{"value": null, "usage": {"memory_bytes_used": 0, '
+          '"time_elapsed_ms": 0, "stack_depth_used": 0}}',
+    );
+  }
 }
