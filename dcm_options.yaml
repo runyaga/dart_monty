@@ -290,6 +290,8 @@ dcm:
           - "lib/src/bridge/bridge/default_monty_bridge.dart"
           # fileSystem getter exposes _fs for Dart-side VFS access
           - "lib/src/bridge/os_call/fs_provider.dart"
+          # bridge getter returns _sharedBridge ?? _schemaBridge (dual-mode)
+          - "lib/src/bridge/agent_session.dart"
     - avoid-declaring-call-method
 
     # --- Import Safety ---

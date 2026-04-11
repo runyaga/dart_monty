@@ -115,6 +115,7 @@ class AgentSession {
 
   bool _disposed = false;
   Map<String, Object?> _sessionState = {};
+  final List<HostFunction> _extraFunctions = [];
 
   /// All registered tool schemas — feed these to an LLM as tool definitions.
   List<HostFunctionSchema> get schemas =>
@@ -143,15 +144,13 @@ class AgentSession {
     _extraFunctions.add(function);
   }
 
-  final List<HostFunction> _extraFunctions = [];
-
   /// Executes Python [code] with state persistence and full tool access.
   ///
   /// Variables defined in [code] persist for subsequent `execute()` calls.
   /// All registered host functions and plugins are callable from Python.
   ///
   /// In sandbox mode, creates a fresh interpreter per call.
-  Future<MontyResult> execute(String code) async {
+  Future<MontyResult> execute(String code) {
     _checkNotDisposed();
 
     if (_sandbox) {
@@ -218,21 +217,21 @@ class AgentSession {
 
   Future<MontyResult> _executeSandboxed(String code) async {
     final monty = Monty(os: _os);
-    final bridge = _buildBridge(platform: monty.platform);
+    final b = _buildBridge(platform: monty.platform);
 
     if (_plugins != null && _plugins.isNotEmpty) {
       final registry = PluginRegistry();
       _plugins.forEach(registry.register);
-      await registry.attachTo(bridge);
+      await registry.attachTo(b);
     }
 
     try {
       final wrappedCode = _wrapWithState(code);
-      final events = await bridge.execute(wrappedCode).toList();
+      final events = await b.execute(wrappedCode).toList();
 
       return _extractResult(events);
     } finally {
-      bridge.dispose();
+      b.dispose();
       await monty.dispose();
     }
   }
@@ -242,27 +241,27 @@ class AgentSession {
   // ---------------------------------------------------------------------------
 
   DefaultMontyBridge _buildBridge({MontyPlatform? platform}) {
-    final bridge = DefaultMontyBridge(
+    final b = DefaultMontyBridge(
       platform: platform ?? Monty().platform,
       useFutures: false,
       logger: _logger,
     );
 
-    if (_os != null) bridge.registerOs(_os);
+    if (_os != null) b.registerOs(_os);
 
-    _registerStateHostFunctions(bridge);
+    _registerStateHostFunctions(b);
 
-    _extraFunctions.forEach(bridge.register);
+    _extraFunctions.forEach(b.register);
 
-    return bridge;
+    return b;
   }
 
   // ---------------------------------------------------------------------------
   // State host functions
   // ---------------------------------------------------------------------------
 
-  void _registerStateHostFunctions(DefaultMontyBridge bridge) {
-    bridge
+  void _registerStateHostFunctions(DefaultMontyBridge target) {
+    target
       ..register(
         HostFunction(
           schema: const HostFunctionSchema(
