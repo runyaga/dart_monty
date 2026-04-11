@@ -654,6 +654,71 @@ void main() {
         final code = mock.lastStartCode!;
         expect(code, contains('__r = (42)'));
       });
+
+      test('captures multi-line dict literal as expression', () async {
+        _enqueueRunCycle(
+          mock,
+          stateToPersist: {'x': 1},
+          resultValue: const MontyDict({'a': MontyInt(1)}),
+        );
+        await session.run('x = 1\n{\n    "a": x,\n}');
+
+        final code = mock.lastStartCode!;
+        // The entire dict should be captured, not just the closing `}`.
+        expect(code, contains('__r = ({\n    "a": x,\n})'));
+        expect(code.trimRight().endsWith('__r'), isTrue);
+      });
+
+      test('captures multi-line list literal as expression', () async {
+        _enqueueRunCycle(
+          mock,
+          stateToPersist: {},
+          resultValue: const MontyList([MontyInt(1), MontyInt(2)]),
+        );
+        await session.run('[\n    1,\n    2,\n]');
+
+        final code = mock.lastStartCode!;
+        expect(code, contains('__r = ([\n    1,\n    2,\n])'));
+      });
+
+      test('captures multi-line function call as expression', () async {
+        _enqueueRunCycle(
+          mock,
+          stateToPersist: {},
+          resultValue: const MontyString('result'),
+        );
+        await session.run('foo(\n    1,\n    2,\n)');
+
+        final code = mock.lastStartCode!;
+        expect(code, contains('__r = (foo(\n    1,\n    2,\n))'));
+      });
+
+      test('multi-line dict assigned to var is not double-captured', () async {
+        _enqueueRunCycle(
+          mock,
+          stateToPersist: {
+            'result': <String, Object>{'a': 1},
+          },
+          resultValue: const MontyDict({'a': MontyInt(1)}),
+        );
+        await session.run('result = {\n    "a": 1,\n}\nresult');
+
+        final code = mock.lastStartCode!;
+        // `result` on the last line should be captured, not the dict.
+        expect(code, contains('__r = (result)'));
+      });
+
+      test('multi-line dict with complex values is captured', () async {
+        _enqueueRunCycle(
+          mock,
+          stateToPersist: {'x': 1},
+          resultValue: const MontyDict({'ok': MontyBool(true)}),
+        );
+        await session.run('x = 1\n{\n    "ok": x == 1,\n}');
+
+        final code = mock.lastStartCode!;
+        expect(code, contains('__r = ({\n    "ok": x == 1,\n})'));
+      });
     });
 
     group('C-1: catches MontyError (panic/disposed)', () {
