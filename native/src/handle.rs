@@ -18,11 +18,14 @@ use crate::error::monty_exception_to_json;
 type Tracker = LimitedTracker;
 
 /// Default resource limits when none are explicitly configured.
-/// Generous enough to not interfere with normal execution, but bounded
-/// to prevent runaway scripts.
+///
+/// Memory and recursion are bounded to prevent runaway scripts.
+/// No time limit — host function calls (SSE streaming, HTTP, file I/O)
+/// contribute to wall-clock time while the interpreter is idle, making
+/// a default timeout actively harmful. Callers who need a time limit
+/// can set `MontyLimits(timeoutMs: N)` explicitly.
 fn default_limits() -> ResourceLimits {
     let mut limits = ResourceLimits::new();
-    limits.max_duration = Some(Duration::from_secs(30));
     limits.max_memory = Some(256 * 1024 * 1024); // 256 MB
     limits.max_recursion_depth = Some(1000);
     limits

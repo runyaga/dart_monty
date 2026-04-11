@@ -109,16 +109,26 @@ void main() {
       expect(decoded['stack_depth'], 10);
     });
 
-    test('passes null limitsJson when no limits', () async {
+    test('applies default limits when no limits provided', () async {
       mock.nextRunResult = const WasmRunResult(ok: true, value: 1);
       await monty.run('1');
-      expect(mock.runCalls.first.limitsJson, isNull);
+      final limitsJson = mock.runCalls.first.limitsJson;
+      expect(limitsJson, isNotNull);
+      final decoded = json.decode(limitsJson!) as Map<String, dynamic>;
+      expect(decoded['memory_bytes'], BaseMontyPlatform.defaultMemoryBytes);
+      expect(decoded['stack_depth'], BaseMontyPlatform.defaultStackDepth);
+      expect(decoded.containsKey('timeout_ms'), isFalse);
     });
 
-    test('passes null limitsJson when all limits are null', () async {
+    test('applies default limits when all limits are null', () async {
       mock.nextRunResult = const WasmRunResult(ok: true, value: 1);
       await monty.run('1', limits: const MontyLimits());
-      expect(mock.runCalls.first.limitsJson, isNull);
+      final limitsJson = mock.runCalls.first.limitsJson;
+      expect(limitsJson, isNotNull);
+      final decoded = json.decode(limitsJson!) as Map<String, dynamic>;
+      expect(decoded['memory_bytes'], BaseMontyPlatform.defaultMemoryBytes);
+      expect(decoded['stack_depth'], BaseMontyPlatform.defaultStackDepth);
+      expect(decoded.containsKey('timeout_ms'), isFalse);
     });
 
     test('throws StateError when disposed', () async {
@@ -652,17 +662,18 @@ void main() {
       expect(result.usage.stackDepthUsed, 0);
     });
 
-    test('partial limits encode only present fields', () async {
+    test('partial limits merges with defaults', () async {
       mock.nextRunResult = const WasmRunResult(ok: true, value: 1);
 
       await monty.run('1', limits: const MontyLimits(timeoutMs: 300));
 
       final limitsJson = mock.runCalls.first.limitsJson;
       expect(limitsJson, isNotNull);
-      final decoded = json.decode(limitsJson ?? '') as Map<String, dynamic>;
-      expect(decoded, {'timeout_ms': 300});
-      expect(decoded.containsKey('memory_bytes'), isFalse);
-      expect(decoded.containsKey('stack_depth'), isFalse);
+      final decoded = json.decode(limitsJson!) as Map<String, dynamic>;
+      // Caller timeout + defaults for memory and stack.
+      expect(decoded['timeout_ms'], 300);
+      expect(decoded['memory_bytes'], BaseMontyPlatform.defaultMemoryBytes);
+      expect(decoded['stack_depth'], BaseMontyPlatform.defaultStackDepth);
     });
   });
 
