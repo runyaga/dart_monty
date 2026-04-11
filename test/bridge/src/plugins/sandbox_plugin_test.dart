@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:dart_monty/dart_monty_testing.dart';
+import 'package:dart_monty/monty_backend_spi.dart';
 import 'package:struct_log/struct_log.dart';
 import 'package:test/test.dart';
 
@@ -215,9 +216,8 @@ void main() {
 
       test('returns child return value', () async {
         final plugin = SandboxPlugin(
-          platformFactory: () async => _completingMockWithResult(
-            value: const MontyInt(42),
-          ),
+          platformFactory: () async =>
+              _completingMockWithResult(value: const MontyInt(42)),
         );
         final spawn = _findHandler(plugin, 'sandbox_spawn');
         final await_ = _findHandler(plugin, 'sandbox_await');
@@ -526,9 +526,8 @@ void main() {
 
       test('handles null printOutput (child with no print)', () async {
         final plugin = SandboxPlugin(
-          platformFactory: () async => _completingMockWithResult(
-            value: const MontyInt(42),
-          ),
+          platformFactory: () async =>
+              _completingMockWithResult(value: const MontyInt(42)),
         );
         final spawn = _findHandler(plugin, 'sandbox_spawn');
         final gather = _findHandler(plugin, 'sandbox_gather');
@@ -1281,43 +1280,37 @@ void main() {
         expect(capturedRegistry!.systemPromptPrefix, isNull);
       });
 
-      test(
-        'prompt creates registry even when no plugins exist',
-        () async {
-          final plugin = SandboxPlugin(
-            platformFactory: () async => _completingMock(),
-            systemPromptBuilder: (ctx) => 'You are child ${ctx.childId}.',
-          );
-          final spawn = _findHandler(plugin, 'sandbox_spawn');
-          final await_ = _findHandler(plugin, 'sandbox_await');
+      test('prompt creates registry even when no plugins exist', () async {
+        final plugin = SandboxPlugin(
+          platformFactory: () async => _completingMock(),
+          systemPromptBuilder: (ctx) => 'You are child ${ctx.childId}.',
+        );
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
+        final await_ = _findHandler(plugin, 'sandbox_await');
 
-          // Should not throw — a registry is created for the prompt.
-          final handle = await spawn({'code': '42'});
-          await await_({'handle': handle! as int});
-        },
-      );
+        // Should not throw — a registry is created for the prompt.
+        final handle = await spawn({'code': '42'});
+        await await_({'handle': handle! as int});
+      });
 
-      test(
-        'prompt injected via inheritance path (not factory)',
-        () async {
-          final plugin = SandboxPlugin(
-            platformFactory: () async => _completingMock(),
-            systemPromptBuilder: (ctx) => 'Builder content.',
-            parentPlugins: [_InheritablePlugin(namespace: 'inh')],
-          );
-          final spawn = _findHandler(plugin, 'sandbox_spawn');
-          final await_ = _findHandler(plugin, 'sandbox_await');
+      test('prompt injected via inheritance path (not factory)', () async {
+        final plugin = SandboxPlugin(
+          platformFactory: () async => _completingMock(),
+          systemPromptBuilder: (ctx) => 'Builder content.',
+          parentPlugins: [_InheritablePlugin(namespace: 'inh')],
+        );
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
+        final await_ = _findHandler(plugin, 'sandbox_await');
 
-          final handle = await spawn({
-            'code': '42',
-            'system_prompt': 'Runtime content.',
-          });
-          await await_({'handle': handle! as int});
+        final handle = await spawn({
+          'code': '42',
+          'system_prompt': 'Runtime content.',
+        });
+        await await_({'handle': handle! as int});
 
-          // The test passes if no error is thrown — the prompt was injected
-          // via the setter after _buildInheritedRegistry returned.
-        },
-      );
+        // The test passes if no error is thrown — the prompt was injected
+        // via the setter after _buildInheritedRegistry returned.
+      });
     });
 
     group('structured logging', () {

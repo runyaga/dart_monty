@@ -1,5 +1,5 @@
-import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
+import 'package:dart_monty/monty_backend_spi.dart';
 import 'package:test/test.dart';
 
 /// Minimal concrete implementation for testing the abstract class.
@@ -133,6 +133,9 @@ class _NoOpBridge implements MontyBridge {
 
   @override
   void unregister(String name) {}
+
+  @override
+  void registerOs(OsProvider provider) {}
 
   @override
   Stream<BridgeEvent> execute(String code) => const Stream.empty();

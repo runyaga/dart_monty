@@ -423,12 +423,12 @@ When running multiple bridge sessions (e.g., one per user), each
 session needs its own instances:
 
 ```dart
-Future<(DefaultMontyBridge, PluginRegistry)> createSession() async {
+Future<(MontyBridge, PluginRegistry)> createSession() async {
   final registry = PluginRegistry()
     ..register(StoragePlugin())  // Fresh instance per session
     ..register(MathPlugin());
 
-  final bridge = DefaultMontyBridge(platform: Monty());
+  final bridge = MontyBridge(platform: Monty());
   await registry.attachTo(bridge);
 
   return (bridge, registry);

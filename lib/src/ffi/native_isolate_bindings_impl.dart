@@ -5,11 +5,15 @@ import 'dart:developer' as developer;
 import 'dart:isolate';
 import 'dart:typed_data';
 
-import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/src/ffi/ffi_core_bindings.dart';
 import 'package:dart_monty/src/ffi/monty_ffi.dart';
 import 'package:dart_monty/src/ffi/native_bindings_ffi.dart';
 import 'package:dart_monty/src/ffi/native_isolate_bindings.dart';
+import 'package:dart_monty/src/platform/monty_error.dart';
+import 'package:dart_monty/src/platform/monty_exception.dart';
+import 'package:dart_monty/src/platform/monty_limits.dart';
+import 'package:dart_monty/src/platform/monty_progress.dart';
+import 'package:dart_monty/src/platform/monty_result.dart';
 
 // =============================================================================
 // Message types (private sealed classes)

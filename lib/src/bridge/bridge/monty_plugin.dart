@@ -1,6 +1,6 @@
-import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/src/bridge/bridge/host_function.dart';
 import 'package:dart_monty/src/bridge/bridge/monty_bridge.dart';
+import 'package:dart_monty/src/platform/bridge_logger.dart';
 import 'package:meta/meta.dart';
 
 /// Context passed to [MontyPlugin.createChildInstance] when a child sandbox

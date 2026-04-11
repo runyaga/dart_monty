@@ -207,10 +207,7 @@ void main() {
     });
 
     test('empty tuple', () {
-      final v = MontyValue.fromJson({
-        '__type': 'tuple',
-        'value': <dynamic>[],
-      });
+      final v = MontyValue.fromJson({'__type': 'tuple', 'value': <dynamic>[]});
       expect(v, isA<MontyTuple>());
       expect((v as MontyTuple).items, isEmpty);
     });
@@ -349,10 +346,7 @@ void main() {
     });
 
     test('empty set', () {
-      final v = MontyValue.fromJson({
-        '__type': 'set',
-        'value': <dynamic>[],
-      });
+      final v = MontyValue.fromJson({'__type': 'set', 'value': <dynamic>[]});
       expect(v, isA<MontySet>());
       expect((v as MontySet).items, isEmpty);
     });

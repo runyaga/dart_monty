@@ -14,6 +14,7 @@ import 'dart:js_interop';
 
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
+import 'package:dart_monty/monty_backend_spi.dart';
 
 // ---------------------------------------------------------------------------
 // JS interop — WASM bridge (static method API on window.DartMontyBridge)
@@ -51,8 +52,8 @@ external void _jsOnFilesChanged(JSString filesJson);
 // State
 // ---------------------------------------------------------------------------
 
-var _vfs = MemoryFsOsCallHandler();
-late TimeOsCallHandler _time;
+var _vfs = MemoryFsProvider();
+late TimeOsProvider _time;
 final _osCallLog = <Map<String, dynamic>>[];
 
 // ---------------------------------------------------------------------------
@@ -80,19 +81,15 @@ Future<Object?> _handleOsCall(Map<String, dynamic> state) async {
     kwargs = rawKwargs.map((k, v) => MapEntry(k, MontyValue.fromJson(v)));
   }
 
-  final call = MontyOsCall(
-    operationName: op,
-    arguments: args,
-    kwargs: kwargs,
-  );
+  final call = MontyOsCall(operationName: op, arguments: args, kwargs: kwargs);
 
   final sw = Stopwatch()..start();
   Object? result;
 
   if (op.startsWith('Path.')) {
-    result = await _vfs.handle(call);
+    result = await _vfs.resolve(call);
   } else if (op.startsWith('date.') || op.startsWith('datetime.')) {
-    result = await _time.handle(call);
+    result = await _time.resolve(call);
   } else {
     throw UnsupportedError('Unhandled os_call: $op');
   }
@@ -126,8 +123,8 @@ String _summarize(Object? value) {
 
 Future<Map<String, dynamic>> _runWithVfs(String code) async {
   _osCallLog.clear();
-  _vfs = MemoryFsOsCallHandler();
-  _time = TimeOsCallHandler();
+  _vfs = MemoryFsProvider();
+  _time = TimeOsProvider();
 
   // Mount any pre-staged files (set by mountFile before run).
   for (final entry in _stagedFiles.entries) {
@@ -151,15 +148,11 @@ Future<Map<String, dynamic>> _runWithVfs(String code) async {
         state = _parse(
           (await _bridgeResumeWithError(
             jsonEncode(e.toString()).toJS,
-          ).toDart)
-              .toDart,
+          ).toDart).toDart,
         );
       }
     } else {
-      return {
-        'ok': false,
-        'error': 'Unexpected state: ${state['state']}',
-      };
+      return {'ok': false, 'error': 'Unexpected state: ${state['state']}'};
     }
   }
 
@@ -248,7 +241,7 @@ Future<List<String>> _listDir(String path) async {
       operationName: 'Path.iterdir',
       arguments: [MontyString(path)],
     );
-    final r = await _vfs.handle(call);
+    final r = await _vfs.resolve(call);
     if (r is List) {
       return r.map((e) => e is MontyPath ? e.value : e.toString()).toList();
     }
@@ -265,8 +258,9 @@ Future<List<String>> _listDir(String path) async {
 Future<void> main() async {
   // Expose API to HTML.
   final api = <String, JSFunction>{
-    'run':
-        ((JSString code) => _apiRun(code.toDart).then((r) => r.toJS).toJS).toJS,
+    'run': ((JSString code) => _apiRun(
+      code.toDart,
+    ).then((r) => r.toJS).toJS).toJS,
     'mountFile': ((JSString path, JSString content) {
       _mountFile(path.toDart, content.toDart);
     }).toJS,

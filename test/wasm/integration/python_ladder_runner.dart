@@ -15,6 +15,10 @@ library;
 import 'dart:convert';
 import 'dart:js_interop';
 
+import 'package:dart_monty/dart_monty.dart';
+import 'package:dart_monty/dart_monty_bridge.dart';
+import 'package:dart_monty/monty_backend_spi.dart';
+
 // ---------------------------------------------------------------------------
 // JS interop bindings for window.DartMontyBridge
 // ---------------------------------------------------------------------------
@@ -26,10 +30,7 @@ external JSPromise<JSBoolean> _montyInit();
 external JSPromise<JSString> _montyRun(JSString code);
 
 @JS('DartMontyBridge.start')
-external JSPromise<JSString> _montyStart(
-  JSString code, [
-  JSString? extFnsJson,
-]);
+external JSPromise<JSString> _montyStart(JSString code, [JSString? extFnsJson]);
 
 @JS('DartMontyBridge.resume')
 external JSPromise<JSString> _montyResume(JSString valueJson);
@@ -81,6 +82,7 @@ const _tierFiles = [
   'fixtures/tier_18_datetime_module.json',
   'fixtures/tier_19_lifecycle_errors.json',
   'fixtures/tier_20_oscall.json',
+  'fixtures/tier_21_fs_modes.json',
 ];
 
 // ---------------------------------------------------------------------------
@@ -209,13 +211,12 @@ Future<Map<String, dynamic>> _runFixture(Map<String, dynamic> fixture) async {
   return result;
 }
 
-/// Handles OsCall fixtures using start/resume with a built-in handler
-/// for date/datetime operations. Path operations on web are skipped
-/// (nativeOnly). Environment operations are not available on web.
+/// Handles OsCall fixtures using start/resume with the appropriate provider.
 Future<Map<String, dynamic>> _runOsCall(Map<String, dynamic> fixture) async {
   final id = fixture['id'] as int;
   final code = fixture['code'] as String;
   final expectError = fixture['expectError'] as bool? ?? false;
+  final provider = _buildFixtureProvider(fixture);
 
   var state = _parseResult((await _montyStart(code.toJS).toDart).toDart);
 
@@ -234,16 +235,27 @@ Future<Map<String, dynamic>> _runOsCall(Map<String, dynamic> fixture) async {
 
     if (state['state'] == 'os_call') {
       final fnName = state['functionName'] as String;
-      final osResult = _handleOsCall(fnName);
-      if (osResult == null) {
+      final rawArgs = state['args'] as List? ?? [];
+      final rawKwargs = state['kwargs'] as Map<String, dynamic>?;
+      final callId = state['callId'] as int? ?? 0;
+      final osCall = MontyOsCall(
+        operationName: fnName,
+        arguments: rawArgs.map(MontyValue.fromJson).toList(),
+        kwargs: rawKwargs?.map(
+          (k, v) => MapEntry(k, MontyValue.fromJson(v)),
+        ),
+        callId: callId,
+      );
+      try {
+        final result = await provider.resolve(osCall);
+        state = _parseResult(
+          (await _montyResume(jsonEncode(result).toJS).toDart).toDart,
+        );
+      } on Object catch (e) {
         state = _parseResult(
           (await _montyResumeWithError(
-            jsonEncode('PermissionError: $fnName not available on web').toJS,
+            jsonEncode(e.toString()).toJS,
           ).toDart).toDart,
-        );
-      } else {
-        state = _parseResult(
-          (await _montyResume(jsonEncode(osResult).toJS).toDart).toDart,
         );
       }
     } else if (state['state'] == 'pending') {
@@ -276,32 +288,40 @@ Future<Map<String, dynamic>> _runOsCall(Map<String, dynamic> fixture) async {
   return {'id': id, 'ok': true, 'value': state['value']};
 }
 
-/// Built-in OsCall handler for the WASM ladder runner.
-/// Handles date/datetime operations. Returns null for unsupported operations.
-Object? _handleOsCall(String fnName) {
-  final now = DateTime.now();
+/// Builds the appropriate OsProvider for a fixture based on `fsMode`.
+OsProvider _buildFixtureProvider(Map<String, dynamic> fixture) {
+  final fsMode = fixture['fsMode'] as String? ?? 'memory';
+  final prePopulate = fixture['prePopulate'] as Map<String, dynamic>?;
+  final time = TimeOsProvider();
 
-  return switch (fnName) {
-    'date.today' => {
-      '__type': 'date',
-      'year': now.year,
-      'month': now.month,
-      'day': now.day,
-    },
-    'datetime.now' => {
-      '__type': 'datetime',
-      'year': now.year,
-      'month': now.month,
-      'day': now.day,
-      'hour': now.hour,
-      'minute': now.minute,
-      'second': now.second,
-      'microsecond': now.microsecond,
-      'offset_seconds': now.timeZoneOffset.inSeconds,
-      'timezone_name': now.timeZoneName,
-    },
-    _ => null,
-  };
+  switch (fsMode) {
+    case 'readonly':
+      final vfs = MemoryFsProvider();
+      prePopulate?.forEach((k, v) => vfs.writeFile(k, v as String));
+
+      return OsProvider.compose({
+        'Path.': ReadOnlyFsProvider(vfs),
+        'date.': time,
+        'datetime.': time,
+      });
+
+    case 'overlay':
+      final base = MemoryFsProvider();
+      prePopulate?.forEach((k, v) => base.writeFile(k, v as String));
+
+      return OsProvider.compose({
+        'Path.': OverlayFsProvider(base: base, scratch: MemoryFsProvider()),
+        'date.': time,
+        'datetime.': time,
+      });
+
+    default: // 'memory'
+      return OsProvider.compose({
+        'Path.': MemoryFsProvider(),
+        'date.': time,
+        'datetime.': time,
+      });
+  }
 }
 
 Future<Map<String, dynamic>> _runSimple(int id, String code) async {

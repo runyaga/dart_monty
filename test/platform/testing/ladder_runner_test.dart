@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_testing.dart';
+import 'package:dart_monty/monty_backend_spi.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -139,10 +140,7 @@ void main() {
     test('handles resumeErrors path', () async {
       final mock = MockMontyPlatform()
         ..enqueueProgress(
-          const MontyPending(
-            functionName: 'fetch',
-            arguments: [],
-          ),
+          const MontyPending(functionName: 'fetch', arguments: []),
         )
         ..enqueueProgress(
           const MontyComplete(

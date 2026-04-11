@@ -55,9 +55,9 @@
   of all `MontyObject` variants (Date, DateTime, Path, Tuple, Set, etc.).
 - **OsCall support**: Python code using `pathlib`, `os.getenv`, `os.environ`,
   `date.today()`, `datetime.now()` now yields to Dart instead of erroring.
-  New `MontyOsCall` sealed subclass, `OsCallHandler` callback, and
+  New `MontyOsCall` sealed subclass, `OsProvider` callback, and
   `BridgeOsCallStart`/`BridgeOsCallResult` events.
-- **Platform-aware `OsCallHandler`** via conditional imports: `dart:io` on
+- **Platform-aware `OsProvider`** via conditional imports: `dart:io` on
   native (full filesystem + env + datetime), datetime-only on web.
 - **Tier 20 ladder fixtures** for OsCall operations (12 tests, cross-platform).
 

@@ -1,7 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:dart_monty/src/bridge/os_call/os_call_handler.dart';
+import 'package:dart_monty/src/bridge/os_call/memory_fs_provider.dart';
+import 'package:dart_monty/src/bridge/os_call/os_provider.dart';
+import 'package:dart_monty/src/bridge/os_call/overlay_fs_provider.dart';
+import 'package:dart_monty/src/bridge/os_call/readonly_fs_provider.dart';
+import 'package:dart_monty/src/bridge/os_call/time_os_provider.dart';
 import 'package:dart_monty/src/platform/monty_error.dart';
 import 'package:dart_monty/src/platform/monty_exception.dart';
 import 'package:dart_monty/src/platform/monty_future_capable.dart';
@@ -47,26 +51,23 @@ Future<void> runSimpleFixture(
 /// Runs an OsCall fixture through [platform] using start/resume.
 ///
 /// Python code triggers OsCall implicitly (pathlib, os.getenv, datetime.now).
-/// The [osCallHandler] provides the host-side implementation.
+/// The [os] provides the host-side implementation.
 Future<void> runOsCallFixture(
   MontyPlatform platform,
   Map<String, dynamic> fixture,
-  OsCallHandler osCallHandler,
+  OsProvider os,
 ) async {
   final code = fixture['code'] as String;
   final expectError = fixture['expectError'] as bool? ?? false;
   final scriptName = fixture['scriptName'] as String?;
 
-  var progress = await platform.start(
-    code,
-    scriptName: scriptName,
-  );
+  var progress = await platform.start(code, scriptName: scriptName);
 
   try {
     while (progress is! MontyComplete) {
       if (progress is MontyOsCall) {
         try {
-          final result = await osCallHandler.handle(progress);
+          final result = await os.resolve(progress);
           progress = await platform.resume(result);
         } on Object catch (e) {
           progress = await platform.resumeWithError(e.toString());
@@ -347,7 +348,7 @@ Future<void> runIterativeFixture(
 void registerLadderTests({
   required MontyPlatform Function() createPlatform,
   required Directory fixtureDir,
-  OsCallHandler? osCallHandler,
+  OsProvider? os,
   bool isWeb = false,
 }) {
   final tiers = loadLadderFixtures(fixtureDir);
@@ -382,7 +383,7 @@ void registerLadderTests({
                   code,
                   expectError,
                   osCall,
-                  osCallHandler,
+                  os,
                 );
                 passed = true;
               } on Object catch (_) {
@@ -401,7 +402,7 @@ void registerLadderTests({
                 code,
                 expectError,
                 osCall,
-                osCallHandler,
+                os,
               );
             }
           } finally {
@@ -419,15 +420,77 @@ Future<void> _runFixture(
   String code,
   bool expectError,
   bool osCall,
-  OsCallHandler? osCallHandler,
+  OsProvider? os,
 ) async {
-  if (osCall && osCallHandler != null) {
-    await runOsCallFixture(monty, fixture, osCallHandler);
+  if (osCall) {
+    final provider = _buildFixtureOsProvider(fixture, os);
+    if (provider != null) {
+      await runOsCallFixture(monty, fixture, provider);
+    }
   } else if (fixture['externalFunctions'] != null) {
     await runIterativeFixture(monty, fixture);
   } else if (expectError) {
     await runErrorFixture(monty, code, fixture);
   } else {
     await runSimpleFixture(monty, code, fixture);
+  }
+}
+
+/// Builds the appropriate [OsProvider] for a fixture based on `fsMode`.
+///
+/// - `memory` (default): fresh `MemoryFsProvider`
+/// - `readonly`: `ReadOnlyFsProvider` wrapping a pre-populated VFS
+/// - `overlay`: `OverlayFsProvider` with pre-populated base + empty scratch
+///
+/// If `prePopulate` is set, files are written to the VFS before execution.
+OsProvider? _buildFixtureOsProvider(
+  Map<String, dynamic> fixture,
+  OsProvider? defaultOs,
+) {
+  final fsMode = fixture['fsMode'] as String?;
+  final prePopulate = fixture['prePopulate'] as Map<String, dynamic>?;
+
+  // No fsMode — use the default provider passed to registerLadderTests.
+  if (fsMode == null) return defaultOs;
+
+  final time = TimeOsProvider();
+
+  switch (fsMode) {
+    case 'memory':
+      return OsProvider.compose({
+        'Path.': MemoryFsProvider(),
+        'date.': time,
+        'datetime.': time,
+      });
+
+    case 'readonly':
+      final vfs = MemoryFsProvider();
+      _prePopulateVfs(vfs, prePopulate);
+
+      return OsProvider.compose({
+        'Path.': ReadOnlyFsProvider(vfs),
+        'date.': time,
+        'datetime.': time,
+      });
+
+    case 'overlay':
+      final base = MemoryFsProvider();
+      _prePopulateVfs(base, prePopulate);
+
+      return OsProvider.compose({
+        'Path.': OverlayFsProvider(base: base, scratch: MemoryFsProvider()),
+        'date.': time,
+        'datetime.': time,
+      });
+
+    default:
+      return defaultOs;
+  }
+}
+
+void _prePopulateVfs(MemoryFsProvider vfs, Map<String, dynamic>? files) {
+  if (files == null) return;
+  for (final entry in files.entries) {
+    vfs.writeFile(entry.key, entry.value as String);
   }
 }

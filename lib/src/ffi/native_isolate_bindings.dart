@@ -1,6 +1,8 @@
 import 'dart:typed_data';
 
-import 'package:dart_monty/dart_monty.dart';
+import 'package:dart_monty/src/platform/monty_limits.dart';
+import 'package:dart_monty/src/platform/monty_progress.dart';
+import 'package:dart_monty/src/platform/monty_result.dart';
 
 /// Abstract interface over the native Isolate bridge.
 ///

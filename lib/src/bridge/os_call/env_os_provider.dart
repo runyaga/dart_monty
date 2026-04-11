@@ -1,5 +1,6 @@
-import 'package:dart_monty/dart_monty.dart';
-import 'package:dart_monty/src/bridge/os_call/os_call_handler.dart';
+import 'package:dart_monty/src/bridge/os_call/os_provider.dart';
+import 'package:dart_monty/src/platform/monty_progress.dart';
+import 'package:dart_monty/src/platform/monty_value.dart';
 
 /// Handles `os.*` environment operations using a provided map.
 ///
@@ -7,17 +8,17 @@ import 'package:dart_monty/src/bridge/os_call/os_call_handler.dart';
 /// sandboxed Python code. Only the keys in [environment] are visible.
 ///
 /// ```dart
-/// EnvOsCallHandler({'APP_ENV': 'production', 'DEBUG': '0'});
+/// EnvOsProvider({'APP_ENV': 'production', 'DEBUG': '0'});
 /// ```
-class EnvOsCallHandler extends OsCallHandler {
-  /// Creates a handler backed by the given [environment] map.
-  EnvOsCallHandler(this.environment);
+class EnvOsProvider extends OsProvider {
+  /// Creates a provider backed by the given [environment] map.
+  const EnvOsProvider(this.environment) : super.base();
 
   /// The environment variables visible to Python.
   final Map<String, String> environment;
 
   @override
-  Future<Object?> handle(MontyOsCall call) {
+  Future<Object?> resolve(MontyOsCall call) {
     final op = call.operationName;
     final args = call.arguments;
 

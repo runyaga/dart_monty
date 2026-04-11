@@ -1,4 +1,8 @@
-import 'package:dart_monty/dart_monty_bridge.dart';
+import 'package:dart_monty/src/bridge/bridge/host_function.dart';
+import 'package:dart_monty/src/bridge/bridge/host_function_schema.dart';
+import 'package:dart_monty/src/bridge/bridge/host_param.dart';
+import 'package:dart_monty/src/bridge/bridge/host_param_type.dart';
+import 'package:dart_monty/src/bridge/bridge/monty_plugin.dart';
 import 'package:dinja/dinja.dart';
 
 /// Default maximum input size for template strings (512 KB).

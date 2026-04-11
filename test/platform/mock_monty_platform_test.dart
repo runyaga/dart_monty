@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_testing.dart';
+import 'package:dart_monty/monty_backend_spi.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -39,10 +40,7 @@ void main() {
     });
 
     test('run() returns result and records invocation history', () async {
-      const result = MontyResult(
-        value: MontyInt(42),
-        usage: usage,
-      );
+      const result = MontyResult(value: MontyInt(42), usage: usage);
       mock.runResult = result;
 
       final returned = await mock.run(
@@ -79,10 +77,7 @@ void main() {
     // -----------------------------------------------------------------------
 
     test('restore() throws StateError when restoreResult not set', () {
-      expect(
-        () => mock.restore(Uint8List.fromList([1])),
-        throwsStateError,
-      );
+      expect(() => mock.restore(Uint8List.fromList([1])), throwsStateError);
     });
 
     test('restore() returns platform and records data', () async {
@@ -102,10 +97,7 @@ void main() {
     // -----------------------------------------------------------------------
 
     test('start() dequeues progress and records code', () async {
-      const pending = MontyPending(
-        functionName: 'fetch',
-        arguments: [],
-      );
+      const pending = MontyPending(functionName: 'fetch', arguments: []);
       mock.enqueueProgress(pending);
 
       final progress = await mock.start(
@@ -124,9 +116,7 @@ void main() {
     });
 
     test('resume() dequeues progress and records return value', () async {
-      const complete = MontyComplete(
-        result: MontyResult(usage: usage),
-      );
+      const complete = MontyComplete(result: MontyResult(usage: usage));
       mock.enqueueProgress(complete);
 
       final progress = await mock.resume('hello');
@@ -137,9 +127,7 @@ void main() {
     });
 
     test('resumeWithError() dequeues progress and records error', () async {
-      const complete = MontyComplete(
-        result: MontyResult(usage: usage),
-      );
+      const complete = MontyComplete(result: MontyResult(usage: usage));
       mock.enqueueProgress(complete);
 
       final progress = await mock.resumeWithError('boom');
@@ -154,10 +142,7 @@ void main() {
     // -----------------------------------------------------------------------
 
     test('resumeAsFuture() increments count and dequeues', () async {
-      const pending = MontyPending(
-        functionName: 'slow_op',
-        arguments: [],
-      );
+      const pending = MontyPending(functionName: 'slow_op', arguments: []);
       mock.enqueueProgress(pending);
 
       expect(mock.resumeAsFutureCount, 0);
@@ -170,12 +155,8 @@ void main() {
 
     test('resumeAsFuture() increments on each call', () async {
       mock
-        ..enqueueProgress(
-          const MontyPending(functionName: 'a', arguments: []),
-        )
-        ..enqueueProgress(
-          const MontyPending(functionName: 'b', arguments: []),
-        );
+        ..enqueueProgress(const MontyPending(functionName: 'a', arguments: []))
+        ..enqueueProgress(const MontyPending(functionName: 'b', arguments: []));
 
       await mock.resumeAsFuture();
       await mock.resumeAsFuture();
@@ -188,9 +169,7 @@ void main() {
     // -----------------------------------------------------------------------
 
     test('resolveFutures() records results and errors, dequeues', () async {
-      const complete = MontyComplete(
-        result: MontyResult(usage: usage),
-      );
+      const complete = MontyComplete(result: MontyResult(usage: usage));
       mock.enqueueProgress(complete);
 
       final results = {1: 'value1' as Object?, 2: 42 as Object?};
@@ -210,17 +189,9 @@ void main() {
     // -----------------------------------------------------------------------
 
     test('enqueueProgress dequeues in FIFO order', () async {
-      const first = MontyPending(
-        functionName: 'a',
-        arguments: [],
-      );
-      const second = MontyPending(
-        functionName: 'b',
-        arguments: [],
-      );
-      const third = MontyComplete(
-        result: MontyResult(usage: usage),
-      );
+      const first = MontyPending(functionName: 'a', arguments: []);
+      const second = MontyPending(functionName: 'b', arguments: []);
+      const third = MontyComplete(result: MontyResult(usage: usage));
 
       mock
         ..enqueueProgress(first)

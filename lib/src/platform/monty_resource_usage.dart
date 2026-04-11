@@ -53,11 +53,8 @@ final class MontyResourceUsage {
   }
 
   @override
-  int get hashCode => Object.hash(
-    memoryBytesUsed,
-    timeElapsedMs,
-    stackDepthUsed,
-  );
+  int get hashCode =>
+      Object.hash(memoryBytesUsed, timeElapsedMs, stackDepthUsed);
 
   @override
   String toString() {

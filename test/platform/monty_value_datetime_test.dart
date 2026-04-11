@@ -63,9 +63,10 @@ void main() {
       );
     });
 
-    test('dartValue returns Map', () {
+    test('dartValue returns DateTime', () {
       const v = MontyDate(year: 2024, month: 1, day: 1);
-      expect(v.dartValue, isA<Map<String, Object?>>());
+      expect(v.dartValue, isA<DateTime>());
+      expect(v.dartValue.year, 2024);
     });
 
     test('boundary: year 1', () {
@@ -212,7 +213,7 @@ void main() {
       expect(v.toString(), isNotEmpty);
     });
 
-    test('dartValue returns Map', () {
+    test('dartValue returns DateTime', () {
       const v = MontyDateTime(
         year: 2024,
         month: 1,
@@ -221,7 +222,8 @@ void main() {
         minute: 0,
         second: 0,
       );
-      expect(v.dartValue, isA<Map<String, Object?>>());
+      expect(v.dartValue, isA<DateTime>());
+      expect(v.dartValue.year, 2024);
     });
 
     test('naive datetime (null offset)', () {
@@ -343,9 +345,9 @@ void main() {
       expect(const MontyTimeDelta(days: 0, seconds: 0).toString(), isNotEmpty);
     });
 
-    test('dartValue returns Map', () {
+    test('dartValue returns Duration', () {
       const v = MontyTimeDelta(days: 0, seconds: 0);
-      expect(v.dartValue, isA<Map<String, Object?>>());
+      expect(v.dartValue, isA<Duration>());
     });
 
     test('zero timedelta', () {

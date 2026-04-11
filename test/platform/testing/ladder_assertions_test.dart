@@ -1,5 +1,6 @@
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_testing.dart';
+import 'package:dart_monty/monty_backend_spi.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -10,11 +11,7 @@ void main() {
 
     test('exact match with list', () {
       assertLadderResult(
-        const MontyList([
-          MontyInt(1),
-          MontyInt(2),
-          MontyInt(3),
-        ]),
+        const MontyList([MontyInt(1), MontyInt(2), MontyInt(3)]),
         {
           'id': 2,
           'expected': [1, 2, 3],
@@ -27,10 +24,10 @@ void main() {
     });
 
     test('expectedContains checks substring', () {
-      assertLadderResult(
-        const MontyString('hello world'),
-        {'id': 4, 'expectedContains': 'world'},
-      );
+      assertLadderResult(const MontyString('hello world'), {
+        'id': 4,
+        'expectedContains': 'world',
+      });
     });
 
     test('expectedSorted sorts lists before comparison', () {
@@ -58,10 +55,7 @@ void main() {
 
   group('assertPendingFields', () {
     test('checks expectedFnName', () {
-      const pending = MontyPending(
-        functionName: 'fetch',
-        arguments: [],
-      );
+      const pending = MontyPending(functionName: 'fetch', arguments: []);
       assertPendingFields(pending, {'id': 1, 'expectedFnName': 'fetch'});
     });
 
@@ -89,10 +83,7 @@ void main() {
     });
 
     test('checks expectedKwargs null', () {
-      const pending = MontyPending(
-        functionName: 'fn',
-        arguments: [],
-      );
+      const pending = MontyPending(functionName: 'fn', arguments: []);
       assertPendingFields(pending, {'id': 4, 'expectedKwargs': null});
     });
 
@@ -102,10 +93,7 @@ void main() {
         arguments: [],
         callId: 42,
       );
-      assertPendingFields(
-        pending,
-        {'id': 5, 'expectedCallIdNonZero': true},
-      );
+      assertPendingFields(pending, {'id': 5, 'expectedCallIdNonZero': true});
     });
 
     test('checks expectedMethodCall', () {
@@ -114,17 +102,11 @@ void main() {
         arguments: [],
         methodCall: true,
       );
-      assertPendingFields(
-        pending,
-        {'id': 6, 'expectedMethodCall': true},
-      );
+      assertPendingFields(pending, {'id': 6, 'expectedMethodCall': true});
     });
 
     test('missing keys are no-ops', () {
-      const pending = MontyPending(
-        functionName: 'fn',
-        arguments: [],
-      );
+      const pending = MontyPending(functionName: 'fn', arguments: []);
       // No assertions fail when fixture has no expected* keys.
       assertPendingFields(pending, {'id': 7});
     });
@@ -132,10 +114,7 @@ void main() {
 
   group('assertExceptionFields', () {
     test('checks expectedExcType', () {
-      const exc = MontyException(
-        message: 'bad',
-        excType: 'ValueError',
-      );
+      const exc = MontyException(message: 'bad', excType: 'ValueError');
       assertExceptionFields(exc, {'id': 1, 'expectedExcType': 'ValueError'});
     });
 
@@ -147,60 +126,39 @@ void main() {
           MontyStackFrame(filename: 'b.py', startLine: 2, startColumn: 0),
         ],
       );
-      assertExceptionFields(
-        exc,
-        {'id': 2, 'expectedTracebackMinFrames': 2},
-      );
+      assertExceptionFields(exc, {'id': 2, 'expectedTracebackMinFrames': 2});
     });
 
     test('checks expectedTracebackFrameHasFilename', () {
       const exc = MontyException(
         message: 'bad',
         traceback: [
-          MontyStackFrame(
-            filename: 'main.py',
-            startLine: 1,
-            startColumn: 0,
-          ),
+          MontyStackFrame(filename: 'main.py', startLine: 1, startColumn: 0),
         ],
       );
-      assertExceptionFields(
-        exc,
-        {'id': 3, 'expectedTracebackFrameHasFilename': true},
-      );
+      assertExceptionFields(exc, {
+        'id': 3,
+        'expectedTracebackFrameHasFilename': true,
+      });
     });
 
     test('checks expectedErrorFilename', () {
-      const exc = MontyException(
-        message: 'bad',
-        filename: 'test.py',
-      );
-      assertExceptionFields(
-        exc,
-        {'id': 4, 'expectedErrorFilename': 'test.py'},
-      );
+      const exc = MontyException(message: 'bad', filename: 'test.py');
+      assertExceptionFields(exc, {'id': 4, 'expectedErrorFilename': 'test.py'});
     });
 
     test('checks expectedTracebackFilename', () {
       const exc = MontyException(
         message: 'bad',
         traceback: [
-          MontyStackFrame(
-            filename: 'other.py',
-            startLine: 1,
-            startColumn: 0,
-          ),
-          MontyStackFrame(
-            filename: 'target.py',
-            startLine: 5,
-            startColumn: 0,
-          ),
+          MontyStackFrame(filename: 'other.py', startLine: 1, startColumn: 0),
+          MontyStackFrame(filename: 'target.py', startLine: 5, startColumn: 0),
         ],
       );
-      assertExceptionFields(
-        exc,
-        {'id': 5, 'expectedTracebackFilename': 'target.py'},
-      );
+      assertExceptionFields(exc, {
+        'id': 5,
+        'expectedTracebackFilename': 'target.py',
+      });
     });
 
     test('missing keys are no-ops', () {

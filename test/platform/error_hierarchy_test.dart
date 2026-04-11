@@ -93,18 +93,9 @@ void main() {
     });
 
     test('toString includes type name', () {
-      expect(
-        const MontyScriptError('x').toString(),
-        'MontyScriptError: x',
-      );
-      expect(
-        const MontyPanicError('y').toString(),
-        'MontyPanicError: y',
-      );
-      expect(
-        const MontyResourceError('z').toString(),
-        'MontyResourceError: z',
-      );
+      expect(const MontyScriptError('x').toString(), 'MontyScriptError: x');
+      expect(const MontyPanicError('y').toString(), 'MontyPanicError: y');
+      expect(const MontyResourceError('z').toString(), 'MontyResourceError: z');
     });
   });
 
@@ -264,10 +255,7 @@ void main() {
     );
 
     test('null excType → MontyScriptError with null excType', () async {
-      bindings.runResult = const CoreRunResult(
-        ok: false,
-        error: 'unknown',
-      );
+      bindings.runResult = const CoreRunResult(ok: false, error: 'unknown');
 
       try {
         await platform.run('x');
@@ -367,10 +355,7 @@ void main() {
         excType: 'RuntimeError',
       );
 
-      expect(
-        () => platform.run('x'),
-        throwsA(isA<MontyScriptError>()),
-      );
+      expect(() => platform.run('x'), throwsA(isA<MontyScriptError>()));
     });
   });
 
@@ -379,10 +364,7 @@ void main() {
   // ---------------------------------------------------------------------------
   group('MontyScriptError field extraction', () {
     test('exception message matches error message', () {
-      const ex = MontyException(
-        message: 'test error',
-        excType: 'TestError',
-      );
+      const ex = MontyException(message: 'test error', excType: 'TestError');
       const error = MontyScriptError(
         'test error',
         excType: 'TestError',
@@ -400,11 +382,7 @@ void main() {
           error: 'name error',
           excType: 'NameError',
           traceback: [
-            {
-              'filename': 'test.py',
-              'start_line': 1,
-              'start_column': 0,
-            },
+            {'filename': 'test.py', 'start_line': 1, 'start_column': 0},
           ],
         );
       final platform = _TestPlatform(bindings: bindings);

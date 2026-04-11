@@ -109,10 +109,11 @@ void main() {
       expect(identical(v, original), isTrue);
     });
 
-    test('unsupported type falls back to MontyString via toString()', () {
-      final v = MontyValue.fromDart(Uri.parse('https://example.com'));
-      expect(v, isA<MontyString>());
-      expect((v as MontyString).value, 'https://example.com');
+    test('unsupported type throws ArgumentError', () {
+      expect(
+        () => MontyValue.fromDart(Uri.parse('https://example.com')),
+        throwsArgumentError,
+      );
     });
 
     test('nested List of Maps', () {

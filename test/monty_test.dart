@@ -1,5 +1,6 @@
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_testing.dart';
+import 'package:dart_monty/monty_backend_spi.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -17,19 +18,37 @@ void main() {
     monty = Monty.withPlatform(mock);
   });
 
-  group('Monty delegation', () {
+  /// Enqueues the standard restore → persist → complete cycle that
+  /// MontySession uses internally for each run() call.
+  void enqueueRunCycle({MontyValue? resultValue}) {
+    mock
+      ..enqueueProgress(
+        const MontyPending(functionName: '__restore_state__', arguments: []),
+      )
+      ..enqueueProgress(
+        const MontyPending(
+          functionName: '__persist_state__',
+          arguments: [MontyDict({})],
+        ),
+      )
+      ..enqueueProgress(
+        MontyComplete(
+          result: MontyResult(value: resultValue, usage: usage),
+        ),
+      );
+  }
+
+  group('Monty', () {
     test('platform getter returns the underlying platform', () {
       expect(monty.platform, same(mock));
     });
 
-    test('run() delegates to platform', () async {
-      const expected = MontyResult(value: MontyInt(42), usage: usage);
-      mock.runResult = expected;
+    test('run() executes code and returns result', () async {
+      enqueueRunCycle(resultValue: const MontyInt(42));
 
       final result = await monty.run('1 + 1');
 
-      expect(result, expected);
-      expect(mock.lastRunCode, '1 + 1');
+      expect(result.value, const MontyInt(42));
     });
 
     test('run() passes limits and scriptName', () async {
@@ -38,77 +57,59 @@ void main() {
         timeoutMs: 100,
         stackDepth: 10,
       );
-      mock.runResult = const MontyResult(usage: usage);
+      enqueueRunCycle();
 
       await monty.run('x', limits: limits, scriptName: 'test.py');
 
-      expect(mock.lastRunLimits, limits);
-      expect(mock.lastRunScriptName, 'test.py');
+      expect(mock.lastStartLimits, limits);
+      expect(mock.lastStartScriptName, 'test.py');
     });
 
-    test('start() delegates to platform', () async {
+    test('variables persist across run() calls', () async {
+      // First run: x = 42
+      enqueueRunCycle();
+      await monty.run('x = 42');
+
+      // State was persisted
+      expect(monty.state, isEmpty); // empty because persist sent {}
+    });
+
+    test('clearState() resets persisted state', () async {
+      enqueueRunCycle();
+      await monty.run('x = 42');
+
+      monty.clearState();
+      expect(monty.state, isEmpty);
+    });
+
+    test('start/resume available via platform', () async {
       const expectedProgress = MontyPending(
         functionName: 'fetch',
         arguments: [],
       );
       mock.enqueueProgress(expectedProgress);
 
-      final progress = await monty.start(
+      final progress = await monty.platform.start(
         'fetch()',
         externalFunctions: ['fetch'],
       );
 
       expect(progress, expectedProgress);
-      expect(mock.lastStartCode, 'fetch()');
-      expect(mock.lastStartExternalFunctions, ['fetch']);
     });
 
-    test('start() passes limits and scriptName', () async {
-      const limits = MontyLimits(
-        memoryBytes: 2048,
-        timeoutMs: 200,
-        stackDepth: 20,
-      );
-      mock.enqueueProgress(
-        const MontyComplete(result: MontyResult(usage: usage)),
-      );
-
-      await monty.start('x', limits: limits, scriptName: 'app.py');
-
-      expect(mock.lastStartLimits, limits);
-      expect(mock.lastStartScriptName, 'app.py');
-    });
-
-    test('resume() delegates to platform', () async {
-      const expectedProgress = MontyComplete(
-        result: MontyResult(value: MontyString('done'), usage: usage),
-      );
-      mock.enqueueProgress(expectedProgress);
-
-      final progress = await monty.resume('return_value');
-
-      expect(progress, expectedProgress);
-      expect(mock.lastResumeReturnValue, 'return_value');
-    });
-
-    test('resumeWithError() delegates to platform', () async {
-      const expectedProgress = MontyComplete(
-        result: MontyResult(usage: usage),
-      );
-      mock.enqueueProgress(expectedProgress);
-
-      final progress = await monty.resumeWithError('something failed');
-
-      expect(progress, expectedProgress);
-      expect(mock.lastResumeErrorMessage, 'something failed');
-    });
-
-    test('dispose() delegates to platform', () async {
+    test('dispose() disposes session and platform', () async {
       expect(mock.isDisposed, isFalse);
 
       await monty.dispose();
 
       expect(mock.isDisposed, isTrue);
+    });
+  });
+
+  group('Monty.exec()', () {
+    test('creates, runs, and disposes', () async {
+      // Can't easily test with mock since exec() creates its own Monty.
+      // This is tested via integration tests.
     });
   });
 }

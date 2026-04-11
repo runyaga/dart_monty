@@ -2,7 +2,8 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:dart_monty/dart_monty.dart';
-import 'package:dart_monty/dart_monty_ffi.dart';
+import 'package:dart_monty/src/ffi/ffi_core_bindings.dart';
+import 'package:dart_monty/src/ffi/native_bindings.dart';
 import 'package:test/test.dart';
 
 import 'mock_native_bindings.dart';
@@ -98,10 +99,7 @@ void main() {
     });
 
     test('error falls back to errorMessage', () async {
-      mock.nextRunResult = const RunResult(
-        tag: 1,
-        errorMessage: 'C API error',
-      );
+      mock.nextRunResult = const RunResult(tag: 1, errorMessage: 'C API error');
 
       final result = await bindings.run('bad');
 
@@ -170,10 +168,7 @@ void main() {
     });
 
     test('frees handle even on error', () async {
-      mock.nextRunResult = const RunResult(
-        tag: 1,
-        errorMessage: 'error',
-      );
+      mock.nextRunResult = const RunResult(tag: 1, errorMessage: 'error');
 
       await bindings.run('bad');
 
@@ -183,10 +178,7 @@ void main() {
     test('null result JSON on tag 0 throws StateError', () async {
       mock.nextRunResult = const RunResult(tag: 0);
 
-      await expectLater(
-        () => bindings.run('code'),
-        throwsA(isA<StateError>()),
-      );
+      await expectLater(() => bindings.run('code'), throwsA(isA<StateError>()));
     });
   });
 
@@ -240,10 +232,7 @@ void main() {
         methodCall: true,
       );
 
-      final result = await bindings.start(
-        'code',
-        extFnsJson: '["get_data"]',
-      );
+      final result = await bindings.start('code', extFnsJson: '["get_data"]');
 
       expect(result.state, 'pending');
       expect(result.functionName, 'get_data');
@@ -262,24 +251,15 @@ void main() {
         kwargsJson: '{}',
       );
 
-      final result = await bindings.start(
-        'code',
-        extFnsJson: '["fn"]',
-      );
+      final result = await bindings.start('code', extFnsJson: '["fn"]');
 
       expect(result.kwargs, isNull);
     });
 
     test('pending with null args defaults to empty list', () async {
-      mock.nextStartResult = const ProgressResult(
-        tag: 1,
-        functionName: 'fn',
-      );
+      mock.nextStartResult = const ProgressResult(tag: 1, functionName: 'fn');
 
-      final result = await bindings.start(
-        'code',
-        extFnsJson: '["fn"]',
-      );
+      final result = await bindings.start('code', extFnsJson: '["fn"]');
 
       expect(result.arguments, isEmpty);
     });
@@ -317,10 +297,7 @@ void main() {
         futureCallIdsJson: '[1, 2, 3]',
       );
 
-      final result = await bindings.start(
-        'code',
-        extFnsJson: '["fn"]',
-      );
+      final result = await bindings.start('code', extFnsJson: '["fn"]');
 
       expect(result.state, 'resolve_futures');
       expect(result.pendingCallIds, [1, 2, 3]);
@@ -350,11 +327,7 @@ void main() {
       await expectLater(
         () => bindings.start('code'),
         throwsA(
-          isA<StateError>().having(
-            (e) => e.message,
-            'message',
-            contains('99'),
-          ),
+          isA<StateError>().having((e) => e.message, 'message', contains('99')),
         ),
       );
     });
@@ -367,10 +340,7 @@ void main() {
             '"time_elapsed_ms": 0, "stack_depth_used": 0}}',
       );
 
-      await bindings.start(
-        'code',
-        extFnsJson: '["fn_a", "fn_b"]',
-      );
+      await bindings.start('code', extFnsJson: '["fn_a", "fn_b"]');
 
       expect(mock.createCalls.first.externalFunctions, 'fn_a,fn_b');
     });
@@ -392,10 +362,7 @@ void main() {
   group('resume()', () {
     test('delegates valueJson and translates result', () async {
       // Enter active state via start → pending.
-      mock.nextStartResult = const ProgressResult(
-        tag: 1,
-        functionName: 'fn',
-      );
+      mock.nextStartResult = const ProgressResult(tag: 1, functionName: 'fn');
       await bindings.start('code', extFnsJson: '["fn"]');
 
       // Now resume.
@@ -432,10 +399,7 @@ void main() {
 
   group('resumeWithError()', () {
     test('delegates errorMessage and translates result', () async {
-      mock.nextStartResult = const ProgressResult(
-        tag: 1,
-        functionName: 'fn',
-      );
+      mock.nextStartResult = const ProgressResult(tag: 1, functionName: 'fn');
       await bindings.start('code', extFnsJson: '["fn"]');
 
       mock.resumeWithErrorResults.add(
@@ -464,17 +428,11 @@ void main() {
 
   group('resumeAsFuture()', () {
     test('delegates and translates result', () async {
-      mock.nextStartResult = const ProgressResult(
-        tag: 1,
-        functionName: 'fn',
-      );
+      mock.nextStartResult = const ProgressResult(tag: 1, functionName: 'fn');
       await bindings.start('code', extFnsJson: '["fn"]');
 
       mock.resumeAsFutureResults.add(
-        const ProgressResult(
-          tag: 3,
-          futureCallIdsJson: '[0]',
-        ),
+        const ProgressResult(tag: 3, futureCallIdsJson: '[0]'),
       );
 
       final result = await bindings.resumeAsFuture();
@@ -510,10 +468,7 @@ void main() {
         ),
       );
 
-      final result = await bindings.resolveFutures(
-        '{"1": "value"}',
-        '{}',
-      );
+      final result = await bindings.resolveFutures('{"1": "value"}', '{}');
 
       expect(mock.resolveFuturesCalls, hasLength(1));
       expect(result.state, 'complete');
@@ -530,10 +485,7 @@ void main() {
 
   group('snapshot()', () {
     test('delegates to bindings', () async {
-      mock.nextStartResult = const ProgressResult(
-        tag: 1,
-        functionName: 'fn',
-      );
+      mock.nextStartResult = const ProgressResult(tag: 1, functionName: 'fn');
       await bindings.start('code', extFnsJson: '["fn"]');
 
       mock.nextSnapshotData = Uint8List.fromList([10, 20, 30]);
@@ -544,10 +496,7 @@ void main() {
     });
 
     test('throws StateError when no handle', () async {
-      await expectLater(
-        () => bindings.snapshot(),
-        throwsA(isA<StateError>()),
-      );
+      await expectLater(() => bindings.snapshot(), throwsA(isA<StateError>()));
     });
   });
 
@@ -590,10 +539,7 @@ void main() {
 
   group('dispose()', () {
     test('frees active handle', () async {
-      mock.nextStartResult = const ProgressResult(
-        tag: 1,
-        functionName: 'fn',
-      );
+      mock.nextStartResult = const ProgressResult(tag: 1, functionName: 'fn');
       await bindings.start('code', extFnsJson: '["fn"]');
 
       await bindings.dispose();
@@ -608,10 +554,7 @@ void main() {
     });
 
     test('second dispose is no-op', () async {
-      mock.nextStartResult = const ProgressResult(
-        tag: 1,
-        functionName: 'fn',
-      );
+      mock.nextStartResult = const ProgressResult(tag: 1, functionName: 'fn');
       await bindings.start('code', extFnsJson: '["fn"]');
 
       await bindings.dispose();
@@ -639,10 +582,7 @@ void main() {
     });
 
     test('start stores handle on pending, frees on complete', () async {
-      mock.nextStartResult = const ProgressResult(
-        tag: 1,
-        functionName: 'fn',
-      );
+      mock.nextStartResult = const ProgressResult(tag: 1, functionName: 'fn');
       await bindings.start('code', extFnsJson: '["fn"]');
 
       // Handle stored, not freed yet.

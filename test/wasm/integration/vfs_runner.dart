@@ -3,7 +3,7 @@
 /// WASM VFS Integration Test — proves full Python→WASM→OsCall→VFS→Python.
 ///
 /// Compiled to JS, runs in headless Chrome with COOP/COEP headers.
-/// Handles Path.* os_calls locally using MemoryFsOsCallHandler.
+/// Handles Path.* os_calls locally using MemoryFsProvider.
 ///
 /// Build:
 ///   dart compile js test/wasm/integration/vfs_runner.dart \
@@ -15,6 +15,7 @@ import 'dart:js_interop';
 
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
+import 'package:dart_monty/monty_backend_spi.dart';
 
 // ---------------------------------------------------------------------------
 // JS interop bindings for DartMontyBridge (instance-based)
@@ -46,8 +47,8 @@ void _fail(String name, String reason) => print('VFS_FAIL:$name:$reason');
 // ---------------------------------------------------------------------------
 
 /// Shared VFS instance across all tests. Reset per test.
-late MemoryFsOsCallHandler _vfs;
-late TimeOsCallHandler _time;
+late MemoryFsProvider _vfs;
+late TimeOsProvider _time;
 
 /// Known os_call prefixes.
 bool _isOsCall(String? functionName) {
@@ -73,16 +74,12 @@ Future<Object?> _handleOsCall(Map<String, dynamic> state) async {
     kwargs = rawKwargs.map((k, v) => MapEntry(k, MontyValue.fromJson(v)));
   }
 
-  final call = MontyOsCall(
-    operationName: op,
-    arguments: args,
-    kwargs: kwargs,
-  );
+  final call = MontyOsCall(operationName: op, arguments: args, kwargs: kwargs);
 
   if (op.startsWith('Path.')) {
-    return _vfs.handle(call);
+    return _vfs.resolve(call);
   } else if (op.startsWith('date.') || op.startsWith('datetime.')) {
-    return _time.handle(call);
+    return _time.resolve(call);
   }
   throw UnsupportedError('Unhandled os_call: $op');
 }
@@ -91,9 +88,7 @@ Future<Object?> _handleOsCall(Map<String, dynamic> state) async {
 ///
 /// Returns the final result map from the bridge.
 Future<Map<String, dynamic>> _runWithVfs(String code) async {
-  var state = _parse(
-    (await _bridge.start(code.toJS).toDart).toDart,
-  );
+  var state = _parse((await _bridge.start(code.toJS).toDart).toDart);
 
   while (state['state'] != 'complete') {
     if (state['ok'] != true) return state;
@@ -107,11 +102,7 @@ Future<Map<String, dynamic>> _runWithVfs(String code) async {
         );
       } on Object catch (e) {
         state = _parse(
-          (await _bridge
-                  .resumeWithError(
-                    jsonEncode(e.toString()).toJS,
-                  )
-                  .toDart)
+          (await _bridge.resumeWithError(jsonEncode(e.toString()).toJS).toDart)
               .toDart,
         );
       }
@@ -130,7 +121,7 @@ Future<Map<String, dynamic>> _runWithVfs(String code) async {
 
 /// Test 1: Write a file with pathlib, read it back.
 Future<void> _testWriteRead() async {
-  _vfs = MemoryFsOsCallHandler();
+  _vfs = MemoryFsProvider();
 
   const code = r"""
 from pathlib import Path
@@ -148,7 +139,7 @@ Path('/sandbox/test.txt').read_text()
 
 /// Test 2: Path.exists on missing file returns False.
 Future<void> _testPathExists() async {
-  _vfs = MemoryFsOsCallHandler();
+  _vfs = MemoryFsProvider();
 
   const code = r"""
 from pathlib import Path
@@ -165,7 +156,7 @@ Path('/sandbox/nope.txt').exists()
 
 /// Test 3: mkdir + iterdir round-trip.
 Future<void> _testMkdirIterdir() async {
-  _vfs = MemoryFsOsCallHandler();
+  _vfs = MemoryFsProvider();
 
   const code = r"""
 from pathlib import Path
@@ -191,7 +182,7 @@ sorted([p.name for p in d.iterdir()])
 
 /// Test 4: Write JSON config, read and parse it.
 Future<void> _testJsonConfig() async {
-  _vfs = MemoryFsOsCallHandler();
+  _vfs = MemoryFsProvider();
 
   // Pre-populate VFS from Dart side.
   _vfs.writeFile('/sandbox/config.json', '{"api_key": "abc123", "retries": 3}');
@@ -218,7 +209,7 @@ config = json.loads(Path('/sandbox/config.json').read_text())
 
 /// Test 5: Data pipeline — read input, process, write output, return stats.
 Future<void> _testDataPipeline() async {
-  _vfs = MemoryFsOsCallHandler();
+  _vfs = MemoryFsProvider();
 
   // Pre-populate input from Dart.
   _vfs.writeFile(
@@ -266,7 +257,7 @@ Future<void> main() async {
   print('=== WASM VFS Integration Tests ===');
 
   _bridge = _DartMontyBridge();
-  _time = TimeOsCallHandler();
+  _time = TimeOsProvider();
   final ok = (await _bridge.init().toDart).toDart;
   if (!ok) {
     print('VFS_ERROR:Init failed');

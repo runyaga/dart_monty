@@ -1,29 +1,25 @@
 /// Pure Dart bindings for the Monty sandboxed Python interpreter.
 ///
-/// Backend is selected at compile time via conditional imports:
-/// native FFI on desktop/server, WASM in browsers. No Flutter required.
-///
 /// ```dart
 /// import 'package:dart_monty/dart_monty.dart';
 ///
-/// final monty = Monty();
-/// final result = await monty.run('2 + 2');
-/// print(result.value); // 4
-/// await monty.dispose();
+/// final result = await Monty.exec('2 + 2');
+/// print(result.value); // MontyInt(4)
+/// ```
+///
+/// For filesystem/environment access:
+/// ```dart
+/// final monty = Monty(os: OsProvider());
 /// ```
 library;
 
+export 'src/bridge/os_call/os_call_exception.dart';
+export 'src/bridge/os_call/os_provider.dart';
 export 'src/monty.dart';
-export 'src/platform/bridge_logger.dart';
 export 'src/platform/monty_error.dart';
 export 'src/platform/monty_exception.dart';
-export 'src/platform/monty_future_capable.dart';
 export 'src/platform/monty_limits.dart';
-export 'src/platform/monty_platform.dart';
-export 'src/platform/monty_progress.dart';
 export 'src/platform/monty_resource_usage.dart';
 export 'src/platform/monty_result.dart';
-export 'src/platform/monty_session.dart';
-export 'src/platform/monty_snapshot_capable.dart';
 export 'src/platform/monty_stack_frame.dart';
 export 'src/platform/monty_value.dart';

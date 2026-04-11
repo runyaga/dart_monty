@@ -1,9 +1,14 @@
 import 'dart:typed_data';
 
-import 'package:dart_monty/dart_monty.dart';
-import 'package:dart_monty/monty_backend_spi.dart';
 import 'package:dart_monty/src/ffi/native_isolate_bindings.dart';
 import 'package:dart_monty/src/ffi/native_isolate_bindings_impl.dart';
+import 'package:dart_monty/src/platform/monty_future_capable.dart';
+import 'package:dart_monty/src/platform/monty_limits.dart';
+import 'package:dart_monty/src/platform/monty_platform.dart';
+import 'package:dart_monty/src/platform/monty_progress.dart';
+import 'package:dart_monty/src/platform/monty_result.dart';
+import 'package:dart_monty/src/platform/monty_snapshot_capable.dart';
+import 'package:dart_monty/src/platform/monty_state_mixin.dart';
 
 /// Native Isolate implementation of [MontyPlatform].
 ///
@@ -61,11 +66,7 @@ class MontyNative extends MontyPlatform
     try {
       await _ensureInitialized();
 
-      return await _bindings.run(
-        code,
-        limits: limits,
-        scriptName: scriptName,
-      );
+      return await _bindings.run(code, limits: limits, scriptName: scriptName);
     } finally {
       markIdle();
     }

@@ -1,9 +1,10 @@
 @Tags(['integration'])
 library;
 
-import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
-import 'package:dart_monty/dart_monty_ffi.dart';
+import 'package:dart_monty/monty_backend_spi.dart';
+import 'package:dart_monty/src/ffi/monty_ffi.dart';
+import 'package:dart_monty/src/ffi/native_bindings_ffi.dart';
 import 'package:test/test.dart';
 
 /// Integration tests for sandbox_gather output attribution with real FFI.
@@ -25,8 +26,8 @@ void main() {
 
   MontyPlatform createPlatform() => MontyFfi(bindings: bindings);
 
-  DefaultMontyBridge createBridge() =>
-      DefaultMontyBridge(platform: createPlatform(), useFutures: false);
+  MontyBridge createBridge() =>
+      MontyBridge(platform: createPlatform(), useFutures: false);
 
   group('sandbox_gather with real FFI', () {
     test(

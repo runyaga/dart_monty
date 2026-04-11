@@ -2,7 +2,9 @@
 library;
 
 import 'package:dart_monty/dart_monty.dart';
-import 'package:dart_monty/dart_monty_ffi.dart';
+import 'package:dart_monty/monty_backend_spi.dart';
+import 'package:dart_monty/src/ffi/monty_ffi.dart';
+import 'package:dart_monty/src/ffi/native_bindings_ffi.dart';
 import 'package:test/test.dart';
 
 /// Integration tests that require the native Monty library.
@@ -72,36 +74,10 @@ void main() {
     await monty.dispose();
   });
 
-  test(
-    'snapshot round-trip',
-    skip:
-        'API mismatch: Dart requires active state for snapshot() but '
-        'Rust FFI only supports Ready state (before start/run). '
-        'Needs a compile-only API to bridge the gap.',
-    () async {
-      final monty = MontyFfi(bindings: bindings);
-      final progress = await monty.start(
-        'x = 42\nfetch("url")',
-        externalFunctions: ['fetch'],
-      );
-      expect(progress, isA<MontyPending>());
-
-      final data = await monty.snapshot();
-      expect(data, isNotEmpty);
-
-      final restored = await monty.restore(data) as MontyFfi;
-      final done = await restored.resume('ok');
-      expect(done, isA<MontyComplete>());
-
-      await monty.dispose();
-      await restored.dispose();
-    },
-  );
-
   test('error handling: invalid syntax', () async {
     final monty = MontyFfi(bindings: bindings);
 
-    expect(() => monty.run('def'), throwsA(isA<MontyException>()));
+    expect(() => monty.run('def'), throwsA(isA<MontyScriptError>()));
 
     await monty.dispose();
   });

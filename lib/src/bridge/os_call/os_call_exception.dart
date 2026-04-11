@@ -1,6 +1,6 @@
 /// Base exception for OS call handler errors.
 ///
-/// Thrown by `OsCallHandler` implementations to signal domain errors.
+/// Thrown by `OsProvider` implementations to signal domain errors.
 /// The bridge translates these into the corresponding Python exception
 /// types when resuming execution.
 class OsCallException implements Exception {

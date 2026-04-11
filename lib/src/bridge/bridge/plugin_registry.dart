@@ -1,11 +1,11 @@
 import 'dart:collection';
 
-import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/src/bridge/bridge/host_function.dart';
 import 'package:dart_monty/src/bridge/bridge/host_function_schema.dart';
 import 'package:dart_monty/src/bridge/bridge/introspection_functions.dart';
 import 'package:dart_monty/src/bridge/bridge/monty_bridge.dart';
 import 'package:dart_monty/src/bridge/bridge/monty_plugin.dart';
+import 'package:dart_monty/src/platform/bridge_logger.dart';
 
 /// Collects [MontyPlugin]s with namespace validation and function name
 /// collision detection.
@@ -137,9 +137,7 @@ class PluginRegistry {
       // Clean up partially-attached plugins before throwing.
       await disposeAll();
       final summary = errors.map((e) => '${e.$1}: ${e.$2}').join('; ');
-      throw StateError(
-        '${errors.length} plugin(s) failed to attach: $summary',
-      );
+      throw StateError('${errors.length} plugin(s) failed to attach: $summary');
     }
 
     _attached = true;

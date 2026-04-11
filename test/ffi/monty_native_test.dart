@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:dart_monty/dart_monty.dart';
+import 'package:dart_monty/monty_backend_spi.dart';
 import 'package:dart_monty/src/ffi/monty_native.dart';
 import 'package:test/test.dart';
 
@@ -155,10 +156,7 @@ void main() {
       expect(progress, isA<MontyPending>());
       final pending = progress as MontyPending;
       expect(pending.functionName, 'fetch');
-      expect(
-        pending.arguments,
-        [const MontyString('https://example.com')],
-      );
+      expect(pending.arguments, [const MontyString('https://example.com')]);
       expect(mock.startCalls.first.externalFunctions, ['fetch']);
     });
 
@@ -264,9 +262,7 @@ void main() {
 
     test('throws StateError when idle', () async {
       mock.resumeResults.add(
-        const MontyComplete(
-          result: MontyResult(usage: _zeroUsage),
-        ),
+        const MontyComplete(result: MontyResult(usage: _zeroUsage)),
       );
       await monty.resume(null);
 
@@ -280,9 +276,7 @@ void main() {
 
     test('passes complex return values', () async {
       mock.resumeResults.add(
-        const MontyComplete(
-          result: MontyResult(usage: _zeroUsage),
-        ),
+        const MontyComplete(result: MontyResult(usage: _zeroUsage)),
       );
 
       await monty.resume({
@@ -309,9 +303,7 @@ void main() {
 
     test('returns MontyComplete after error injection', () async {
       mock.resumeWithErrorResults.add(
-        const MontyComplete(
-          result: MontyResult(usage: _zeroUsage),
-        ),
+        const MontyComplete(result: MontyResult(usage: _zeroUsage)),
       );
 
       final progress = await monty.resumeWithError('network failure');
@@ -335,18 +327,12 @@ void main() {
 
     test('throws StateError when idle', () {
       final freshMonty = MontyNative(bindings: mock);
-      expect(
-        () => freshMonty.resumeWithError('err'),
-        throwsStateError,
-      );
+      expect(() => freshMonty.resumeWithError('err'), throwsStateError);
     });
 
     test('throws StateError when disposed', () async {
       await monty.dispose();
-      expect(
-        () => monty.resumeWithError('err'),
-        throwsStateError,
-      );
+      expect(() => monty.resumeWithError('err'), throwsStateError);
     });
   });
 
@@ -467,18 +453,12 @@ void main() {
 
     test('throws StateError when idle', () {
       final freshMonty = MontyNative(bindings: mock);
-      expect(
-        () => freshMonty.resolveFutures({}, errors: {}),
-        throwsStateError,
-      );
+      expect(() => freshMonty.resolveFutures({}, errors: {}), throwsStateError);
     });
 
     test('throws StateError when disposed', () async {
       await monty.dispose();
-      expect(
-        () => monty.resolveFutures({}, errors: {}),
-        throwsStateError,
-      );
+      expect(() => monty.resolveFutures({}, errors: {}), throwsStateError);
     });
   });
 
@@ -557,10 +537,7 @@ void main() {
 
     test('throws StateError when disposed', () async {
       await monty.dispose();
-      expect(
-        () => monty.restore(Uint8List.fromList([1])),
-        throwsStateError,
-      );
+      expect(() => monty.restore(Uint8List.fromList([1])), throwsStateError);
     });
 
     test('throws StateError when active', () async {
@@ -570,10 +547,7 @@ void main() {
       );
       await monty.start('x', externalFunctions: ['f']);
 
-      expect(
-        () => monty.restore(Uint8List.fromList([1])),
-        throwsStateError,
-      );
+      expect(() => monty.restore(Uint8List.fromList([1])), throwsStateError);
     });
   });
 
@@ -611,10 +585,7 @@ void main() {
         arguments: [],
       );
 
-      final progress = await monty.start(
-        'noop()',
-        externalFunctions: ['noop'],
-      );
+      final progress = await monty.start('noop()', externalFunctions: ['noop']);
 
       final pending = progress as MontyPending;
       expect(pending.arguments, isEmpty);
@@ -666,10 +637,7 @@ void main() {
       expect(monty.isActive, isTrue);
 
       // A second concurrent run() should fail with StateError.
-      expect(
-        () => monty.run('second'),
-        throwsA(isA<StateError>()),
-      );
+      expect(() => monty.run('second'), throwsA(isA<StateError>()));
 
       // Release the gate so the first run completes.
       gate.complete();
@@ -699,10 +667,7 @@ void main() {
     test('start() returns to idle when bindings throw', () async {
       mock.throwOnStart = StateError('Bindings crashed');
 
-      await expectLater(
-        () => monty.start('code'),
-        throwsA(isA<StateError>()),
-      );
+      await expectLater(() => monty.start('code'), throwsA(isA<StateError>()));
 
       expect(monty.isIdle, isTrue);
     });
@@ -718,10 +683,7 @@ void main() {
 
       mock.throwOnResume = StateError('Bindings crashed');
 
-      await expectLater(
-        () => monty.resume(null),
-        throwsA(isA<StateError>()),
-      );
+      await expectLater(() => monty.resume(null), throwsA(isA<StateError>()));
 
       expect(monty.isIdle, isTrue);
     });

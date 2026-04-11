@@ -3,11 +3,11 @@
 import 'dart:ffi';
 import 'dart:typed_data';
 
-import 'package:dart_monty/dart_monty.dart'
-    show MontyException, MontyScriptError;
 import 'package:dart_monty/src/ffi/generated/dart_monty_bindings.dart'
     as ffi_native;
 import 'package:dart_monty/src/ffi/native_bindings.dart';
+import 'package:dart_monty/src/platform/monty_error.dart';
+import 'package:dart_monty/src/platform/monty_exception.dart';
 import 'package:ffi/ffi.dart';
 
 /// Real FFI implementation of [NativeBindings].
@@ -184,26 +184,17 @@ class NativeBindingsFfi extends NativeBindings {
 
   @override
   void setMemoryLimit(int handle, int bytes) {
-    ffi_native.monty_set_memory_limit(
-      Pointer.fromAddress(handle),
-      bytes,
-    );
+    ffi_native.monty_set_memory_limit(Pointer.fromAddress(handle), bytes);
   }
 
   @override
   void setTimeLimitMs(int handle, int ms) {
-    ffi_native.monty_set_time_limit_ms(
-      Pointer.fromAddress(handle),
-      ms,
-    );
+    ffi_native.monty_set_time_limit_ms(Pointer.fromAddress(handle), ms);
   }
 
   @override
   void setStackLimit(int handle, int depth) {
-    ffi_native.monty_set_stack_limit(
-      Pointer.fromAddress(handle),
-      depth,
-    );
+    ffi_native.monty_set_stack_limit(Pointer.fromAddress(handle), depth);
   }
 
   @override

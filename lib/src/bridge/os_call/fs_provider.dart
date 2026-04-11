@@ -1,59 +1,32 @@
-import 'package:dart_monty/dart_monty.dart';
+// ignore_for_file: avoid-unsafe-collection-methods, avoid-non-null-assertion
 import 'package:dart_monty/src/bridge/os_call/os_call_exception.dart';
-import 'package:dart_monty/src/bridge/os_call/os_call_handler.dart';
-import 'package:file/memory.dart';
+import 'package:dart_monty/src/bridge/os_call/os_provider.dart';
+import 'package:dart_monty/src/platform/monty_progress.dart';
+import 'package:dart_monty/src/platform/monty_value.dart';
+import 'package:file/file.dart';
 
-/// Handles `Path.*` OS calls using an in-memory virtual filesystem.
+/// Handles `Path.*` OS calls using any [FileSystem] implementation.
 ///
-/// Works on all platforms (FFI and WASM) since it has no `dart:io` dependency.
-/// Files are ephemeral — they exist only for the lifetime of this handler.
+/// Works with both `LocalFileSystem` (native) and `MemoryFileSystem` (web/test).
+/// This is the shared implementation behind platform-specific defaults.
 ///
-/// Use [writeFile] and [readFile] from Dart to pre-populate the VFS before
-/// execution or read results after execution.
+/// Use `OsProvider()` for the platform-appropriate default,
+/// or construct directly with a custom [FileSystem]:
 ///
 /// ```dart
-/// final vfs = MemoryFsOsCallHandler();
-/// vfs.writeFile('/sandbox/config.json', '{"key": "value"}');
-/// bridge.registerOsCallHandler(RouterOsCallHandler({
-///   'Path.': vfs,
-///   ...
-/// }));
+/// final provider = FsProvider(MemoryFileSystem());
 /// ```
-class MemoryFsOsCallHandler extends OsCallHandler {
-  /// Creates a handler backed by a fresh in-memory filesystem.
-  MemoryFsOsCallHandler() : _fs = MemoryFileSystem();
+class FsProvider extends OsProvider {
+  /// Creates a provider backed by the given [fileSystem].
+  const FsProvider(this._fs) : super.base();
 
-  final MemoryFileSystem _fs;
+  final FileSystem _fs;
 
-  /// Pre-populates a file in the VFS from Dart.
-  ///
-  /// Creates intermediate directories as needed.
-  void writeFile(String path, String content) {
-    _fs.file(path)
-      ..parent.createSync(recursive: true)
-      ..writeAsStringSync(content);
-  }
-
-  /// Pre-populates a binary file in the VFS from Dart.
-  void writeFileBytes(String path, List<int> bytes) {
-    _fs.file(path)
-      ..parent.createSync(recursive: true)
-      ..writeAsBytesSync(bytes);
-  }
-
-  /// Reads a file from the VFS (for Dart-side verification after execution).
-  String readFile(String path) => _fs.file(path).readAsStringSync();
-
-  /// Reads binary content from the VFS.
-  List<int> readFileBytes(String path) =>
-      _fs.file(path).readAsBytesSync().toList();
-
-  /// Whether a path exists in the VFS.
-  bool exists(String path) =>
-      _fs.file(path).existsSync() || _fs.directory(path).existsSync();
+  /// The underlying filesystem (for Dart-side access, e.g. pre-populating VFS).
+  FileSystem get fileSystem => _fs;
 
   @override
-  Future<Object?> handle(MontyOsCall call) => Future.value(_handleSync(call));
+  Future<Object?> resolve(MontyOsCall call) => Future.value(_handleSync(call));
 
   Object? _handleSync(MontyOsCall call) {
     final op = call.operationName;
@@ -64,7 +37,7 @@ class MemoryFsOsCallHandler extends OsCallHandler {
       'Path.exists' => _exists(args),
       'Path.is_file' => _isFile(args),
       'Path.is_dir' => _isDir(args),
-      'Path.is_symlink' => false, // VFS doesn't support symlinks
+      'Path.is_symlink' => _isSymlink(args),
       'Path.read_text' => _readText(args),
       'Path.read_bytes' => _readBytes(args),
       'Path.write_text' => _writeText(args),
@@ -74,7 +47,8 @@ class MemoryFsOsCallHandler extends OsCallHandler {
       'Path.rmdir' => _rmdir(args),
       'Path.rename' => _rename(args),
       'Path.iterdir' => _iterdir(args),
-      'Path.resolve' || 'Path.absolute' => _str(args.first),
+      'Path.resolve' => _resolve(args),
+      'Path.absolute' => _absolute(args),
       _ => throw UnsupportedError('Unsupported path operation: $op'),
     };
   }
@@ -82,23 +56,24 @@ class MemoryFsOsCallHandler extends OsCallHandler {
   bool _exists(List<MontyValue> args) {
     final path = _str(args.first);
 
-    return _fs.file(path).existsSync() || _fs.directory(path).existsSync();
+    return _fs.typeSync(path) != FileSystemEntityType.notFound;
   }
 
   bool _isFile(List<MontyValue> args) =>
-      _fs.file(_str(args.first)).existsSync();
+      _fs.typeSync(_str(args.first)) == FileSystemEntityType.file;
 
   bool _isDir(List<MontyValue> args) =>
-      _fs.directory(_str(args.first)).existsSync();
+      _fs.typeSync(_str(args.first)) == FileSystemEntityType.directory;
+
+  bool _isSymlink(List<MontyValue> args) =>
+      _fs.typeSync(_str(args.first), followLinks: false) ==
+      FileSystemEntityType.link;
 
   String _readText(List<MontyValue> args) {
     final path = _str(args.first);
     final file = _fs.file(path);
     if (!file.existsSync()) {
-      throw OsCallFileNotFoundError(
-        'Path.read_text',
-        'No such file: $path',
-      );
+      throw OsCallFileNotFoundError('Path.read_text', 'No such file: $path');
     }
 
     return file.readAsStringSync();
@@ -108,10 +83,7 @@ class MemoryFsOsCallHandler extends OsCallHandler {
     final path = _str(args.first);
     final file = _fs.file(path);
     if (!file.existsSync()) {
-      throw OsCallFileNotFoundError(
-        'Path.read_bytes',
-        'No such file: $path',
-      );
+      throw OsCallFileNotFoundError('Path.read_bytes', 'No such file: $path');
     }
 
     return file.readAsBytesSync().toList();
@@ -193,6 +165,25 @@ class MemoryFsOsCallHandler extends OsCallHandler {
     }
 
     return dir.listSync().map((e) => MontyPath(e.path)).toList();
+  }
+
+  String _resolve(List<MontyValue> args) {
+    final path = _str(args.first);
+    final file = _fs.file(_fs.path.join(_fs.currentDirectory.path, path));
+
+    // Resolve symlinks if the target exists.
+    if (file.existsSync()) {
+      return file.resolveSymbolicLinksSync();
+    }
+
+    // Non-existent: return the absolute normalized path.
+    return _fs.path.normalize(_fs.path.absolute(path));
+  }
+
+  String _absolute(List<MontyValue> args) {
+    final path = _str(args.first);
+
+    return _fs.path.normalize(_fs.path.absolute(path));
   }
 }
 

@@ -312,7 +312,7 @@ class NormalizerMiddleware extends BridgeMiddleware {
 Register middleware on the bridge **before** attaching plugins:
 
 ```dart
-final bridge = DefaultMontyBridge(platform: platform, log: logger);
+final bridge = MontyBridge(platform: platform, logger: logger);
 
 // First registered = outermost in the chain.
 bridge.use(GroundingMiddleware(validators: {...}));
@@ -440,7 +440,7 @@ from blocking the rest.
 ## Complete Lifecycle
 
 ```text
-1. Create bridge:   DefaultMontyBridge(platform: platform, log: logger)
+1. Create bridge:   MontyBridge(platform: platform, logger: logger)
 2. Register MW:     bridge.use(grounding), bridge.use(telemetry)
 3. Build registry:  registry.register(pluginA), registry.register(pluginB)
 4. Attach:          registry.attachTo(bridge)  // wires functions + onRegister
@@ -455,7 +455,7 @@ A typical application creates one bridge per session. Middleware slots
 into the setup path before plugins are attached:
 
 ```dart
-final bridge = DefaultMontyBridge(platform: platform, log: logger);
+final bridge = MontyBridge(platform: platform, logger: logger);
 bridge.use(SessionTelemetryMiddleware(sessionId: session.id));
 bridge.use(GroundingMiddleware(validators: roomValidators));
 
