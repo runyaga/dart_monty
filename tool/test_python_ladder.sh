@@ -36,33 +36,33 @@ KNOWN_NOW_PASSING=()
 check_ladder_results() {
   local results="$1"
   local label="$2"
+  local total=0
+  local passed=0
+  local failed=0
 
-  # Parse each failure line: LADDER_RESULT:{"tier":"tier_07_advanced.json","test":"name","ok":false,...}
   while IFS= read -r line; do
-    local tier test ok
-    tier=$(echo "$line" | grep -o '"tier":"[^"]*"' | head -1 | sed 's/"tier":"//;s/"//')
-    test=$(echo "$line" | grep -o '"test":"[^"]*"' | head -1 | sed 's/"test":"//;s/"//')
-    ok=$(echo "$line" | grep -o '"ok":\(true\|false\)' | head -1 | sed 's/"ok"://')
+    # Extract id and ok from LADDER_RESULT:{"id":N,"ok":true/false,...}
+    local id ok
+    id=$(echo "$line" | grep -o '"id":[0-9]*' | head -1 | sed 's/"id"://' || true)
+    ok=$(echo "$line" | grep -o '"ok":\(true\|false\)' | head -1 | sed 's/"ok"://' || true)
 
-    if [ -z "$tier" ] || [ -z "$test" ]; then
+    if [ -z "$id" ] || [ -z "$ok" ]; then
       continue
     fi
 
-    local key="${tier}:${test}"
+    total=$((total + 1))
 
     if [ "$ok" = "false" ]; then
-      if is_known_failure "$key"; then
-        KNOWN_HITS+=("$label:$key")
-      else
-        NEW_FAILURES+=("$label:$key")
-      fi
+      failed=$((failed + 1))
+      local error
+      error=$(echo "$line" | grep -o '"error":"[^"]*"' | head -1 | sed 's/"error":"//;s/"$//' || true)
+      NEW_FAILURES+=("$label:#$id ${error:-unknown error}")
     else
-      # Check if a known failure is now passing
-      if is_known_failure "$key"; then
-        KNOWN_NOW_PASSING+=("$label:$key")
-      fi
+      passed=$((passed + 1))
     fi
   done <<< "$results"
+
+  echo "  $label: $total fixtures, $passed passed, $failed failed"
 }
 
 # Print final failure report
