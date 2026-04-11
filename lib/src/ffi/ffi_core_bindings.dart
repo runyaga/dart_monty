@@ -54,6 +54,7 @@ class FfiCoreBindings implements MontyCoreBindings {
   final NativeBindings _bindings;
   int? _handle;
   _HandleGuard? _guard;
+  Object? _detachToken;
 
   @override
   Future<bool> init() async => true;
@@ -364,17 +365,24 @@ class FfiCoreBindings implements MontyCoreBindings {
     final existing = _guard;
     if (existing != null && existing.address == handle) return;
     final guard = _HandleGuard(handle);
+    final token = Object();
     _guard = guard;
-    _handleFinalizer.attach(guard, ffi.Pointer.fromAddress(handle));
+    _detachToken = token;
+    _handleFinalizer.attach(
+      guard,
+      ffi.Pointer.fromAddress(handle),
+      detach: token,
+    );
   }
 
   /// Frees [handle], detaches the finalizer, and clears state.
   void _freeHandle(int handle) {
-    final guard = _guard;
-    if (guard != null && guard.address == handle) {
-      _handleFinalizer.detach(guard);
-      _guard = null;
+    final token = _detachToken;
+    if (token != null) {
+      _handleFinalizer.detach(token);
+      _detachToken = null;
     }
+    _guard = null;
     if (_handle == handle) {
       _handle = null;
     }
