@@ -14,6 +14,9 @@ rules in the system prompt or as an uploaded reference file.
 7. **No dot attribute access on dicts.** Use `d["key"]` not `d.key`.
 8. **`enumerate()` has no `start` kwarg.** Use `enumerate(x)` and add offset manually:
    `for i, v in enumerate(items): day = i + 1`
+9. **No `%` string formatting.** Use f-strings or `str()` + concatenation:
+   `f"Got {count} items"` or `"Got " + str(count) + " items"`
+10. **No chained assignment.** `a = b = 1` is not supported. Use `a = 1` then `b = 1`.
 
 ## Monty Sandbox Limitations
 
