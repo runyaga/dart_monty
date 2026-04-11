@@ -18,23 +18,10 @@ rules in the system prompt or as an uploaded reference file.
    `f"Got {count} items"` or `"Got " + str(count) + " items"`
 10. **No chained assignment.** `a = b = 1` is not supported. Use `a = 1` then `b = 1`.
 11. **No `locals()`, `globals()`, `eval()`, `exec()`.** These are not available.
-12. **Only call functions listed in this document.** There is no `bb_dump()`,
-    no `oracle()`, no `confirm()`. If a function isn't listed here, it doesn't exist.
-13. **Scheduling pattern — collect then mark done:**
-    When building day-by-day schedules, do NOT mark jobs complete inside
-    the same loop pass where you check dependencies. Collect all assignments
-    for the day first, THEN mark them done after the inner loop:
-    ```python
-    for day in days:
-        assignments = []  # collect first
-        for job in ready_jobs:
-            assignments.append(job)
-        # THEN mark done
-        for job in assignments:
-            completed.add(job)
-    ```
-    If you mark done inside the inner loop, a job's dependency appears
-    satisfied on the same day it was started, which is wrong.
+12. **Only call functions that exist.** Call `help()` first to see the list
+    of available functions. If a function isn't shown by `help()`, it does
+    not exist. Do NOT invent functions like `bb_dump()`, `oracle()`, or
+    `confirm()` — they will raise `RuntimeError: Unknown function`.
 
 ## Monty Sandbox Limitations
 
