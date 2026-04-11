@@ -92,8 +92,7 @@ Future<void> main() async {
       (await _montyStart(
         'result = fetch("https://example.com")'.toJS,
         '["fetch"]'.toJS,
-      ).toDart)
-          .toDart,
+      ).toDart).toDart,
     );
     print('  start() => ${s1['state']}');
 

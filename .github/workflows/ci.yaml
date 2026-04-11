@@ -189,14 +189,9 @@ jobs:
           retention-days: 1
 
   wasm-ladder:
-    # Known issue: Worker resolves WASM binary via import.meta.url which
-    # requires the npm package directory structure at the exact serve path.
-    # CI copies the files but the Worker's relative URL resolution still
-    # fails. Needs a CI-specific server config or esbuild --serve.
     name: WASM ladder integration
     needs: [changes, build-wasm]
     if: needs.changes.outputs.code == 'true'
-    continue-on-error: true
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -212,27 +207,27 @@ jobs:
         with:
           name: wasm-binary
           path: native/target/wasm32-wasip1/release
-      - name: Build JS bridge
-        working-directory: spike/web_test
+      - name: Build JS bridge from source
+        working-directory: packages/dart_monty_wasm/js
         run: |
           npm install --force
-          npm run bundle
+          npm run build
       - name: Prepare integration test
         run: |
           INTEG_WEB="test/wasm/integration/web"
+          WASM_ASSETS="packages/dart_monty_wasm/assets"
+          WASM_JS="packages/dart_monty_wasm/js"
 
-          # Copy JS bridge assets from spike build
-          cp spike/web_test/web/monty_bundle.js "$INTEG_WEB/dart_monty_bridge.js"
-          cp spike/web_test/web/monty_worker.js "$INTEG_WEB/"
+          # Copy built JS bridge assets
+          cp "$WASM_ASSETS/dart_monty_bridge.js" "$INTEG_WEB/"
+          cp "$WASM_ASSETS/dart_monty_worker.js" "$INTEG_WEB/"
+          cp "$WASM_ASSETS/dart_monty_native.wasm" "$INTEG_WEB/"
 
-          # Copy WASM binary and WASI worker from npm package
-          # The worker resolves these via import.meta.url relative paths
-          cp spike/web_test/node_modules/@pydantic/monty-wasm32-wasi/monty.wasm32-wasi.wasm "$INTEG_WEB/"
+          # Copy WASI runtime from npm package for Worker import.meta.url resolution
+          WASI_PKG="$WASM_JS/node_modules/@pydantic/monty-wasm32-wasi"
           mkdir -p "$INTEG_WEB/@pydantic/monty-wasm32-wasi"
-          cp spike/web_test/node_modules/@pydantic/monty-wasm32-wasi/wasi-worker-browser.mjs \
-            "$INTEG_WEB/@pydantic/monty-wasm32-wasi/"
-          cp spike/web_test/node_modules/@pydantic/monty-wasm32-wasi/monty.wasm32-wasi.wasm \
-            "$INTEG_WEB/@pydantic/monty-wasm32-wasi/"
+          cp "$WASI_PKG/wasi-worker-browser.mjs" "$INTEG_WEB/@pydantic/monty-wasm32-wasi/"
+          cp "$WASI_PKG/monty.wasm32-wasi.wasm" "$INTEG_WEB/@pydantic/monty-wasm32-wasi/"
 
           # Compile Dart ladder runner to JS
           dart pub get
@@ -242,6 +237,11 @@ jobs:
           # Copy fixtures
           mkdir -p "$INTEG_WEB/fixtures"
           cp test/fixtures/python_ladder/tier_*.json "$INTEG_WEB/fixtures/"
+
+          # Diagnostic: verify all required files exist
+          echo "=== Integration test files ==="
+          ls -la "$INTEG_WEB/"*.js "$INTEG_WEB/"*.wasm "$INTEG_WEB/"*.html || true
+          ls -la "$INTEG_WEB/@pydantic/monty-wasm32-wasi/" || true
       - name: Run WASM ladder in headless Chrome
         run: |
           INTEG_WEB="test/wasm/integration/web"
@@ -283,7 +283,12 @@ jobs:
 
           if [ -z "$WEB_RESULTS" ]; then
             echo "ERROR: No LADDER_RESULT lines captured from Chrome."
-            grep -i "CONSOLE" "$LADDER_LOG" | head -20 || true
+            echo "--- Chrome console output ---"
+            grep -i "CONSOLE" "$LADDER_LOG" | head -40 || true
+            echo "--- LADDER_ERROR lines ---"
+            grep "LADDER_ERROR\|LADDER_STACKTRACE" "$LADDER_LOG" || true
+            echo "--- All stderr (last 50 lines) ---"
+            tail -50 "$LADDER_LOG" || true
             rm -f "$LADDER_LOG"
             exit 1
           fi

@@ -13,7 +13,7 @@
     "@emnapi/runtime": "^1.8.1",
     "@napi-rs/wasm-runtime": "^1.1.1",
     "@pydantic/monty": "^0.0.7",
-    "@pydantic/monty-wasm32-wasi": "^0.0.7",
+    "@pydantic/monty-wasm32-wasi": "^0.0.11",
     "@tybys/wasm-util": "^0.10.1"
   },
   "devDependencies": {

@@ -1,4 +1,5 @@
 import 'package:dart_monty/dart_monty.dart';
+import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:dart_monty/dart_monty_testing.dart';
 import 'package:test/test.dart';
 
@@ -1136,6 +1137,143 @@ void main() {
       );
     });
 
+    group('OsCallHandler lifecycle', () {
+      test('session.dispose() disposes OsCallHandler', () {
+        final handler = _MockOsCallHandler();
+        MontySession(platform: mock, osCallHandler: handler).dispose();
+
+        expect(handler.disposed, isTrue);
+        expect(handler.disposeCount, 1);
+      });
+
+      test('run() dispatches OsCall through handler', () async {
+        final handler = _MockOsCallHandler(
+          onHandle: (call) async => 'file content',
+        );
+        final s = MontySession(platform: mock, osCallHandler: handler);
+
+        mock
+          ..enqueueProgress(
+            const MontyPending(
+              functionName: '__restore_state__',
+              arguments: [],
+            ),
+          )
+          ..enqueueProgress(
+            const MontyOsCall(
+              operationName: 'Path.read_text',
+              arguments: [MontyString('/sandbox/test.txt')],
+              callId: 1,
+            ),
+          )
+          ..enqueueProgress(
+            MontyPending(
+              functionName: '__persist_state__',
+              arguments: [_toMontyDict(const {})],
+            ),
+          )
+          ..enqueueProgress(
+            const MontyComplete(
+              result: MontyResult(usage: _usage),
+            ),
+          );
+
+        await s.run('open("/sandbox/test.txt")');
+
+        // Handler was invoked and resume received the handler's return value.
+        expect(handler.handleCount, 1);
+        expect(mock.resumeReturnValues, contains('file content'));
+
+        s.dispose();
+      });
+
+      test('run() catches handler error and resumes with error', () async {
+        final handler = _MockOsCallHandler(
+          onHandle: (call) async => throw StateError('disk on fire'),
+        );
+        final s = MontySession(platform: mock, osCallHandler: handler);
+
+        mock
+          ..enqueueProgress(
+            const MontyPending(
+              functionName: '__restore_state__',
+              arguments: [],
+            ),
+          )
+          ..enqueueProgress(
+            const MontyOsCall(
+              operationName: 'Path.write_text',
+              arguments: [MontyString('/sandbox/out.txt')],
+              callId: 1,
+            ),
+          )
+          ..enqueueProgress(
+            MontyPending(
+              functionName: '__persist_state__',
+              arguments: [_toMontyDict(const {})],
+            ),
+          )
+          ..enqueueProgress(
+            const MontyComplete(
+              result: MontyResult(usage: _usage),
+            ),
+          );
+
+        await s.run('write("/sandbox/out.txt")');
+
+        expect(mock.resumeErrorMessages, hasLength(1));
+        expect(mock.resumeErrorMessages.first, contains('disk on fire'));
+
+        s.dispose();
+      });
+
+      test('run() catches OsCallFileNotFoundError', () async {
+        final handler = _MockOsCallHandler(
+          onHandle: (call) async => throw const OsCallFileNotFoundError(
+            'Path.read_text',
+            'No such file: /sandbox/missing.txt',
+          ),
+        );
+        final s = MontySession(platform: mock, osCallHandler: handler);
+
+        mock
+          ..enqueueProgress(
+            const MontyPending(
+              functionName: '__restore_state__',
+              arguments: [],
+            ),
+          )
+          ..enqueueProgress(
+            const MontyOsCall(
+              operationName: 'Path.read_text',
+              arguments: [MontyString('/sandbox/missing.txt')],
+              callId: 1,
+            ),
+          )
+          ..enqueueProgress(
+            MontyPending(
+              functionName: '__persist_state__',
+              arguments: [_toMontyDict(const {})],
+            ),
+          )
+          ..enqueueProgress(
+            const MontyComplete(
+              result: MontyResult(usage: _usage),
+            ),
+          );
+
+        await s.run('open("/sandbox/missing.txt")');
+
+        expect(mock.resumeErrorMessages, hasLength(1));
+        expect(
+          mock.resumeErrorMessages.first,
+          contains('FileNotFoundError'),
+        );
+
+        s.dispose();
+      });
+    });
+
     group('extractAssignmentTargets', () {
       test('finds simple assignments', () {
         expect(
@@ -1272,6 +1410,28 @@ class _ThrowingMockPlatform extends MockMontyPlatform {
   Future<MontyProgress> resumeWithError(String errorMessage) async {
     if (throwOnResumeWithError != null) throw throwOnResumeWithError!;
     return super.resumeWithError(errorMessage);
+  }
+}
+
+class _MockOsCallHandler extends OsCallHandler {
+  _MockOsCallHandler({this.onHandle});
+
+  final Future<Object?> Function(MontyOsCall)? onHandle;
+  bool disposed = false;
+  int disposeCount = 0;
+  int handleCount = 0;
+
+  @override
+  Future<Object?> handle(MontyOsCall call) {
+    handleCount++;
+    if (onHandle != null) return onHandle!(call);
+    return Future.value();
+  }
+
+  @override
+  Future<void> dispose() async {
+    disposed = true;
+    disposeCount++;
   }
 }
 

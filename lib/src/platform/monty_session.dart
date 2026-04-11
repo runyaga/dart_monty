@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:dart_monty/src/bridge/os_call/os_call_handler.dart';
 import 'package:dart_monty/src/platform/monty_error.dart';
 import 'package:dart_monty/src/platform/monty_exception.dart';
 import 'package:dart_monty/src/platform/monty_limits.dart';
@@ -66,9 +69,18 @@ class MontySession {
   ///
   /// The session does not take ownership of the platform — calling
   /// [dispose] on the session does NOT dispose the underlying platform.
-  MontySession({required MontyPlatform platform}) : _platform = platform;
+  ///
+  /// If [osCallHandler] is provided, OS calls (pathlib, os.getenv,
+  /// datetime) are dispatched through it during [run]. Without a handler,
+  /// OS calls resume with an error.
+  MontySession({
+    required MontyPlatform platform,
+    OsCallHandler? osCallHandler,
+  }) : _platform = platform,
+       _osCallHandler = osCallHandler;
 
   final MontyPlatform _platform;
+  final OsCallHandler? _osCallHandler;
   Map<String, Object?> _state = {};
   bool _disposed = false;
 
@@ -122,9 +134,18 @@ class MontySession {
           progress = await _safeResume(null);
 
         case MontyOsCall():
-          progress = await _safeResumeWithError(
-            'OS operations not available in session run() mode',
-          );
+          if (_osCallHandler != null) {
+            try {
+              final result = await _osCallHandler.handle(progress);
+              progress = await _safeResume(result);
+            } on Object catch (e) {
+              progress = await _safeResumeWithError(e.toString());
+            }
+          } else {
+            progress = await _safeResumeWithError(
+              'OS operations not available — no OsCallHandler configured',
+            );
+          }
       }
     }
   }
@@ -196,10 +217,12 @@ class MontySession {
 
   /// Disposes the session.
   ///
-  /// Clears persisted state. Does NOT dispose the underlying [MontyPlatform].
+  /// Clears persisted state and disposes the [OsCallHandler] if one was
+  /// provided. Does NOT dispose the underlying [MontyPlatform].
   void dispose() {
     _state = {};
     _disposed = true;
+    unawaited(_osCallHandler?.dispose());
   }
 
   /// Whether this session has been disposed.

@@ -80,6 +80,7 @@ const _tierFiles = [
   'fixtures/tier_17_json_module.json',
   'fixtures/tier_18_datetime_module.json',
   'fixtures/tier_19_lifecycle_errors.json',
+  'fixtures/tier_20_oscall.json',
 ];
 
 // ---------------------------------------------------------------------------
@@ -103,14 +104,37 @@ void _output(Map<String, dynamic> result) {
 // ---------------------------------------------------------------------------
 
 Future<void> main() async {
+  try {
+    await _runLadder();
+  } catch (e, st) {
+    print('LADDER_ERROR:Unhandled exception in main: $e');
+    print('LADDER_STACKTRACE:$st');
+    print('LADDER_DONE');
+  }
+}
+
+Future<void> _runLadder() async {
   print('=== WASM Python Ladder Runner ===');
 
-  final ok = (await _montyInit().toDart).toDart;
-  if (!ok) {
-    print('LADDER_ERROR:Monty Worker init failed');
+  late final bool ok;
+  try {
+    ok = (await _montyInit().toDart).toDart;
+  } catch (e, st) {
+    print('LADDER_ERROR:DartMontyBridge.init() threw: $e');
+    print('LADDER_STACKTRACE:$st');
     print('LADDER_DONE');
+
     return;
   }
+
+  if (!ok) {
+    print('LADDER_ERROR:Monty Worker init returned false');
+    print('LADDER_DONE');
+
+    return;
+  }
+
+  print('LADDER_INFO:Worker initialized successfully');
 
   for (final tierFile in _tierFiles) {
     try {
@@ -132,8 +156,9 @@ Future<void> main() async {
         final result = await _runFixture(fixture);
         _output(result);
       }
-    } catch (e) {
+    } catch (e, st) {
       print('LADDER_ERROR:Failed to load $tierFile: $e');
+      print('LADDER_STACKTRACE:$st');
     }
   }
 
@@ -144,11 +169,14 @@ Future<Map<String, dynamic>> _runFixture(Map<String, dynamic> fixture) async {
   final id = fixture['id'] as int;
   final code = fixture['code'] as String;
   final expectError = fixture['expectError'] as bool? ?? false;
+  final osCall = fixture['osCall'] as bool? ?? false;
   final xfail = fixture['xfail'] as String?;
 
   Map<String, dynamic> result;
   try {
-    if (fixture['externalFunctions'] != null) {
+    if (osCall) {
+      result = await _runOsCall(fixture);
+    } else if (fixture['externalFunctions'] != null) {
       result = await _runIterative(fixture);
       // Iterative path returns ok/error directly — flip for expectError.
       if (expectError) {
@@ -179,6 +207,101 @@ Future<Map<String, dynamic>> _runFixture(Map<String, dynamic> fixture) async {
     }
   }
   return result;
+}
+
+/// Handles OsCall fixtures using start/resume with a built-in handler
+/// for date/datetime operations. Path operations on web are skipped
+/// (nativeOnly). Environment operations are not available on web.
+Future<Map<String, dynamic>> _runOsCall(Map<String, dynamic> fixture) async {
+  final id = fixture['id'] as int;
+  final code = fixture['code'] as String;
+  final expectError = fixture['expectError'] as bool? ?? false;
+
+  var state = _parseResult((await _montyStart(code.toJS).toDart).toDart);
+
+  if (state['ok'] != true) {
+    if (expectError) return {'id': id, 'ok': true, 'error': state['error']};
+
+    return {'id': id, 'ok': false, 'error': state['error']};
+  }
+
+  while (state['state'] != 'complete') {
+    if (state['ok'] != true) {
+      if (expectError) return {'id': id, 'ok': true, 'error': state['error']};
+
+      return {'id': id, 'ok': false, 'error': state['error']};
+    }
+
+    if (state['state'] == 'os_call') {
+      final fnName = state['functionName'] as String;
+      final osResult = _handleOsCall(fnName);
+      if (osResult == null) {
+        state = _parseResult(
+          (await _montyResumeWithError(
+            jsonEncode('PermissionError: $fnName not available on web').toJS,
+          ).toDart).toDart,
+        );
+      } else {
+        state = _parseResult(
+          (await _montyResume(jsonEncode(osResult).toJS).toDart).toDart,
+        );
+      }
+    } else if (state['state'] == 'pending') {
+      state = _parseResult(
+        (await _montyResumeWithError(
+          jsonEncode('Unexpected external function').toJS,
+        ).toDart).toDart,
+      );
+    } else {
+      return {
+        'id': id,
+        'ok': false,
+        'error': 'Unexpected state: ${state['state']}',
+      };
+    }
+  }
+
+  if (expectError) {
+    if (state['ok'] == false || state['error'] != null) {
+      return {'id': id, 'ok': true, 'error': state['error']};
+    }
+
+    return {'id': id, 'ok': false, 'error': 'Expected error but succeeded'};
+  }
+
+  if (state['ok'] != true) {
+    return {'id': id, 'ok': false, 'error': state['error']};
+  }
+
+  return {'id': id, 'ok': true, 'value': state['value']};
+}
+
+/// Built-in OsCall handler for the WASM ladder runner.
+/// Handles date/datetime operations. Returns null for unsupported operations.
+Object? _handleOsCall(String fnName) {
+  final now = DateTime.now();
+
+  return switch (fnName) {
+    'date.today' => {
+      '__type': 'date',
+      'year': now.year,
+      'month': now.month,
+      'day': now.day,
+    },
+    'datetime.now' => {
+      '__type': 'datetime',
+      'year': now.year,
+      'month': now.month,
+      'day': now.day,
+      'hour': now.hour,
+      'minute': now.minute,
+      'second': now.second,
+      'microsecond': now.microsecond,
+      'offset_seconds': now.timeZoneOffset.inSeconds,
+      'timezone_name': now.timeZoneName,
+    },
+    _ => null,
+  };
 }
 
 Future<Map<String, dynamic>> _runSimple(int id, String code) async {
