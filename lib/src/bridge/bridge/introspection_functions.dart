@@ -9,17 +9,22 @@ import 'package:dart_monty/src/bridge/bridge/host_param_type.dart';
 /// Category name for introspection builtins.
 const introspectionCategory = 'introspection';
 
-/// Schema for the `list_functions` introspection function.
-const listFunctionsSchema = HostFunctionSchema(
-  name: 'list_functions',
-  description: 'List all available host functions grouped by category.',
-);
-
 /// Schema for the `help` introspection function.
+///
+/// When called with no arguments, lists all available host functions grouped
+/// by category. When called with a name, shows detailed information about
+/// that function.
+///
+/// ```monty
+/// help()                  # list all available functions
+/// help("csv_parse")       # detail on a specific function
+/// help("parse")           # bare name — disambiguates if needed
+/// ```
 const helpSchema = HostFunctionSchema(
   name: 'help',
   description:
-      'Show detailed information about a host function by name. '
+      'Show detailed information about a host function by name, or list all '
+      'available functions when called with no arguments. '
       'Accepts both fully-qualified names (e.g. "storage_get") and bare names '
       '(e.g. "get"). If a bare name matches multiple functions, a '
       'disambiguation list is returned.',
@@ -27,12 +32,15 @@ const helpSchema = HostFunctionSchema(
     HostParam(
       name: 'name',
       type: HostParamType.string,
-      description: 'Fully-qualified or bare function name to look up.',
+      isRequired: false,
+      description:
+          'Fully-qualified or bare function name to look up. '
+          'Omit to list all available functions.',
     ),
   ],
 );
 
-/// Builds the introspection host functions (`list_functions` and `help`).
+/// Builds the introspection host function (`help`).
 ///
 /// Takes [schemasByCategory] from the registry so introspection can enumerate
 /// all registered functions without a circular dependency on the registry.
@@ -41,14 +49,12 @@ List<HostFunction> buildIntrospectionFunctions(
 ) {
   return [
     HostFunction(
-      schema: listFunctionsSchema,
-      handler: (args) async => _handleListFunctions(schemasByCategory),
-      role: const InfraCall(),
-    ),
-    HostFunction(
       schema: helpSchema,
-      handler: (args) async =>
-          _handleHelp(schemasByCategory, args['name']! as String),
+      handler: (args) async {
+        final name = args['name'] as String?;
+        if (name == null) return _handleListAll(schemasByCategory);
+        return _handleHelp(schemasByCategory, name);
+      },
       role: const InfraCall(),
     ),
   ];
@@ -73,10 +79,10 @@ Map<String, Object?> _serializeSchema(HostFunctionSchema schema) {
   };
 }
 
-/// Handler for `list_functions`.
+/// Handler for `help()` with no arguments.
 ///
-/// Returns JSON with all categories including introspection's own entries.
-String _handleListFunctions(
+/// Returns JSON with all categories including introspection's own entry.
+String _handleListAll(
   Map<String, List<HostFunctionSchema>> schemasByCategory,
 ) {
   final tools = <String, Object?>{};
@@ -85,18 +91,15 @@ String _handleListFunctions(
     tools[entry.key] = [for (final s in entry.value) _serializeSchema(s)];
   }
 
-  // Include introspection's own schemas.
-  tools[introspectionCategory] = [
-    _serializeSchema(listFunctionsSchema),
-    _serializeSchema(helpSchema),
-  ];
+  // Include introspection's own schema.
+  tools[introspectionCategory] = [_serializeSchema(helpSchema)];
 
   return jsonEncode({'tools': tools});
 }
 
-/// Handler for `help`.
+/// Handler for `help(name)`.
 ///
-/// Looks up [name] across all categories and the introspection schemas.
+/// Looks up [name] across all categories and the introspection schema.
 /// Supports both fully-qualified names (`storage_get`) and bare names (`get`).
 /// When a bare name matches exactly one function, returns its detail.
 /// When multiple functions share the same bare name, returns a disambiguation
@@ -113,10 +116,8 @@ String _handleHelp(
       }
     }
   }
-  for (final schema in [listFunctionsSchema, helpSchema]) {
-    if (schema.name == name) {
-      return jsonEncode(_serializeSchema(schema));
-    }
+  if (helpSchema.name == name) {
+    return jsonEncode(_serializeSchema(helpSchema));
   }
 
   // 2. Bare-name fuzzy match: strip namespace prefix and compare suffix.

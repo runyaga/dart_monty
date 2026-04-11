@@ -995,8 +995,8 @@ void main() {
           final spawn = _findHandler(plugin, 'sandbox_spawn');
           final await_ = _findHandler(plugin, 'sandbox_await');
 
-          // list_functions is an introspection builtin — always available.
-          final handle = await spawn({'code': 'list_functions()'});
+          // help is an introspection builtin — always available.
+          final handle = await spawn({'code': 'help()'});
           await await_({'handle': handle! as int});
         },
       );
