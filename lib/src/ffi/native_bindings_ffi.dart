@@ -3,7 +3,8 @@
 import 'dart:ffi';
 import 'dart:typed_data';
 
-import 'package:dart_monty/dart_monty.dart' show MontyException;
+import 'package:dart_monty/dart_monty.dart'
+    show MontyException, MontyScriptError;
 import 'package:dart_monty/src/ffi/generated/dart_monty_bindings.dart'
     as ffi_native;
 import 'package:dart_monty/src/ffi/native_bindings.dart';
@@ -40,8 +41,17 @@ class NativeBindingsFfi extends NativeBindings {
         outError,
       );
       if (handle == nullptr) {
-        final errorMsg = _readAndFreeString(outError.value);
-        throw MontyException(message: errorMsg ?? 'monty_create returned null');
+        final errorMsg = _readAndFreeString(outError.value) ??
+            'monty_create returned null';
+        // Parse errors (SyntaxError, etc.) are script errors — throw
+        // MontyScriptError so callers using `on MontyScriptError` catch them.
+        final excType = _extractExcType(errorMsg);
+        final exception = MontyException(message: errorMsg, excType: excType);
+        throw MontyScriptError(
+          errorMsg,
+          excType: excType,
+          exception: exception,
+        );
       }
 
       return handle.address;
@@ -320,5 +330,22 @@ class NativeBindingsFfi extends NativeBindings {
     ffi_native.monty_string_free(ptr);
 
     return str;
+  }
+
+  /// Extracts the Python exception type from a "Type: message" error string.
+  ///
+  /// Returns `null` if no colon-separated prefix is found.
+  static String? _extractExcType(String message) {
+    final colonIdx = message.indexOf(':');
+    if (colonIdx <= 0) return null;
+    final prefix = message.substring(0, colonIdx);
+    // Only treat it as an exc type if it looks like a Python identifier
+    // (e.g. "SyntaxError", "ValueError").
+    if (RegExp(r'^[A-Z][a-zA-Z]*(?:Error|Exception|Warning)$')
+        .hasMatch(prefix)) {
+      return prefix;
+    }
+
+    return null;
   }
 }

@@ -618,12 +618,14 @@ void main() {
     });
 
     test('invokes registered handler and resumes with result', () async {
-      bridge.registerOsCallHandler((call) async {
-        if (call.operationName == 'os.getenv') {
-          return 'production';
-        }
-        return null;
-      });
+      bridge.registerOsCallHandler(
+        _TestOsCallHandler((call) async {
+          if (call.operationName == 'os.getenv') {
+            return 'production';
+          }
+          return null;
+        }),
+      );
 
       mock
         ..enqueueProgress(
@@ -655,9 +657,11 @@ void main() {
     });
 
     test('handler exception resumes with error', () async {
-      bridge.registerOsCallHandler((call) async {
-        throw StateError('disk on fire');
-      });
+      bridge.registerOsCallHandler(
+        _TestOsCallHandler((call) async {
+          throw StateError('disk on fire');
+        }),
+      );
 
       mock
         ..enqueueProgress(
@@ -688,7 +692,33 @@ void main() {
     test('registerOsCallHandler after dispose throws StateError', () {
       bridge.dispose();
       expect(
-        () => bridge.registerOsCallHandler((_) async => null),
+        () => bridge.registerOsCallHandler(
+          _TestOsCallHandler((_) async => null),
+        ),
+        throwsStateError,
+      );
+    });
+
+    test('bridge.dispose() disposes registered OsCallHandler', () {
+      final handler = _DisposableOsCallHandler();
+      bridge
+        ..registerOsCallHandler(handler)
+        ..dispose();
+
+      expect(handler.disposed, isTrue);
+      expect(handler.disposeCount, 1);
+    });
+
+    test('bridge.dispose() without handler registered does not throw', () {
+      // No handler registered — dispose should be a clean no-op.
+      bridge.dispose();
+
+      // Calling again (already disposed) should not double-dispose.
+      // registerOsCallHandler should throw since disposed.
+      expect(
+        () => bridge.registerOsCallHandler(
+          _DisposableOsCallHandler(),
+        ),
         throwsStateError,
       );
     });
@@ -1273,6 +1303,28 @@ class _ThrowingOnResumePlatform extends MockMontyPlatform {
   Future<MontyProgress> resume(Object? returnValue) async {
     // ignore: only_throw_errors – test intentionally throws non-Exception objects.
     throw throwOnResume;
+  }
+}
+
+class _TestOsCallHandler extends OsCallHandler {
+  _TestOsCallHandler(this._fn);
+  final Future<Object?> Function(MontyOsCall) _fn;
+
+  @override
+  Future<Object?> handle(MontyOsCall call) => _fn(call);
+}
+
+class _DisposableOsCallHandler extends OsCallHandler {
+  bool disposed = false;
+  int disposeCount = 0;
+
+  @override
+  Future<Object?> handle(MontyOsCall call) => Future.value();
+
+  @override
+  Future<void> dispose() async {
+    disposed = true;
+    disposeCount++;
   }
 }
 

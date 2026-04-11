@@ -53,6 +53,8 @@ dart compile js bin/ladder_showcase.dart -o "$WEB_DIR/ladder_showcase.dart.js"
 echo "  Compiled: web/ladder_showcase.dart.js"
 dart compile js bin/visualizer.dart -o "$WEB_DIR/visualizer.dart.js"
 echo "  Compiled: web/visualizer.dart.js"
+dart compile js bin/vfs_demo.dart -o "$WEB_DIR/vfs_demo.dart.js"
+echo "  Compiled: web/vfs_demo.dart.js"
 
 # ── Step 5: Start COOP/COEP server ──────────────────────────────────────
 PORT=8088
@@ -73,7 +75,10 @@ cleanup() {
         "$WEB_DIR/ladder_showcase.dart.js.map" \
         "$WEB_DIR/visualizer.dart.js" \
         "$WEB_DIR/visualizer.dart.js.deps" \
-        "$WEB_DIR/visualizer.dart.js.map"
+        "$WEB_DIR/visualizer.dart.js.map" \
+        "$WEB_DIR/vfs_demo.dart.js" \
+        "$WEB_DIR/vfs_demo.dart.js.deps" \
+        "$WEB_DIR/vfs_demo.dart.js.map"
   rm -rf "$WEB_DIR/fixtures"
 }
 trap cleanup EXIT
@@ -106,6 +111,7 @@ echo "  Home:       http://localhost:$PORT/"
 echo "  Demo:       http://localhost:$PORT/demo.html"
 echo "  Ladder:     http://localhost:$PORT/ladder.html"
 echo "  Visualizer: http://localhost:$PORT/visualizer.html"
+echo "  VFS:        http://localhost:$PORT/vfs.html"
 echo "  Press Ctrl+C to stop."
 echo ""
 

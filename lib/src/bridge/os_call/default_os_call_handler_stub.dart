@@ -1,8 +1,8 @@
-import 'package:dart_monty/src/bridge/bridge/default_monty_bridge.dart';
+import 'package:dart_monty/src/bridge/os_call/os_call_handler.dart';
+import 'package:dart_monty/src/bridge/os_call/router_os_call_handler.dart';
 
-/// Stub — throws on platforms that support neither dart:io nor dart:js_interop.
-OsCallHandler createDefaultOsCallHandler() {
-  return (_) => throw UnsupportedError(
-    'OsCallHandler not available on this platform',
-  );
-}
+/// Creates a stub [OsCallHandler] for unsupported platforms.
+///
+/// Returns an empty [RouterOsCallHandler] that throws [UnsupportedError]
+/// for all operations.
+OsCallHandler createDefaultOsCallHandler() => RouterOsCallHandler({});

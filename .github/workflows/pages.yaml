@@ -67,6 +67,9 @@ jobs:
       - name: Compile visualizer.dart
         working-directory: example/web
         run: dart compile js bin/visualizer.dart -o web/visualizer.dart.js
+      - name: Compile vfs_demo.dart
+        working-directory: example/web
+        run: dart compile js bin/vfs_demo.dart -o web/vfs_demo.dart.js
 
       # ── Assemble site ────────────────────────────────────────────────
       - name: Copy WASM binary
@@ -85,7 +88,6 @@ jobs:
         run: |
           stamp="$(date -u +'%Y-%m-%d %H:%M UTC')"
           sed -i "s/__BUILD_DATE__/$stamp/g" example/web/web/index.html
-          sed -i "s/__BUILD_DATE__/$stamp/g" example/web/web/mcp-docs.html
 
       # ── Deploy ───────────────────────────────────────────────────────
       - uses: actions/configure-pages@v5

@@ -241,6 +241,7 @@ class SandboxPlugin extends MontyPlugin {
     this.childLimits,
     this.sandboxBaseDir,
     this.systemPromptBuilder,
+    this.parentOsCallHandler,
   });
 
   /// Creates a fresh [MontyPlatform] for each child.
@@ -283,6 +284,14 @@ class SandboxPlugin extends MontyPlugin {
   /// string (if non-null) is prepended before any runtime `system_prompt`
   /// argument from `sandbox_spawn`.
   final ChildSystemPromptBuilder? systemPromptBuilder;
+
+  /// Optional OS call handler from the parent bridge.
+  ///
+  /// When provided, each child gets an isolated VFS with its own
+  /// `MemoryFsOsCallHandler`. Time and environment handlers are shared
+  /// from the parent (if the parent uses a `RouterOsCallHandler`).
+  /// When null, children have no OS call access.
+  final OsCallHandler? parentOsCallHandler;
 
   final Map<int, _ChildHandle> _children = {};
   int _nextId = 0;
@@ -484,6 +493,11 @@ class SandboxPlugin extends MontyPlugin {
         },
       );
 
+      final childOsHandler = _buildChildOsCallHandler();
+      if (childOsHandler != null) {
+        bridge.registerOsCallHandler(childOsHandler);
+      }
+
       childRegistry = await _wireChildPlugins(
         spawnContext,
         bridge,
@@ -676,6 +690,34 @@ class SandboxPlugin extends MontyPlugin {
     childPlugins.forEach(registry.register);
 
     return registry;
+  }
+
+  /// Builds an isolated [OsCallHandler] for a child sandbox.
+  ///
+  /// Each child gets a fresh [MemoryFsOsCallHandler] (isolated VFS).
+  /// Time and environment handlers are shared from the parent's router
+  /// if available. Returns `null` when no parent handler is configured.
+  OsCallHandler? _buildChildOsCallHandler() {
+    final parent = parentOsCallHandler;
+    if (parent == null) return null;
+
+    if (parent is RouterOsCallHandler) {
+      final childHandlers = <String, OsCallHandler>{
+        'Path.': MemoryFsOsCallHandler(),
+      };
+      // Share env and time handlers from parent.
+      for (final prefix in const ['os.', 'date.', 'datetime.']) {
+        final handler = parent.handlerFor(prefix);
+        if (handler != null) childHandlers[prefix] = handler;
+      }
+
+      return RouterOsCallHandler(childHandlers);
+    }
+
+    // Non-router parent: give child an isolated VFS only.
+    return RouterOsCallHandler({
+      'Path.': MemoryFsOsCallHandler(),
+    });
   }
 
   /// Concatenates builder + runtime prompt layers.

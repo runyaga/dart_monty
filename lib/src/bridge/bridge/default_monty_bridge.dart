@@ -8,6 +8,7 @@ import 'package:dart_monty/src/bridge/bridge/host_function.dart';
 import 'package:dart_monty/src/bridge/bridge/host_function_schema.dart';
 import 'package:dart_monty/src/bridge/bridge/monty_bridge.dart';
 import 'package:dart_monty/src/bridge/bridge/struct_log_bridge_logger.dart';
+import 'package:dart_monty/src/bridge/os_call/os_call_handler.dart';
 import 'package:meta/meta.dart';
 import 'package:struct_log/struct_log.dart';
 
@@ -34,12 +35,6 @@ const _preambleLineCount = 5;
 
 const _consoleWriteFn = '__console_write__';
 const _roleKwarg = '__role__';
-
-/// Handler callback for OS-level calls (pathlib, os.getenv, datetime, etc.).
-///
-/// Receives the [MontyOsCall] and returns the result to resume Python with.
-/// Throw an exception to resume Python with an error.
-typedef OsCallHandler = Future<Object?> Function(MontyOsCall call);
 
 /// Tracks an in-flight host function future awaiting resolution.
 class _PendingFuture {
@@ -151,6 +146,7 @@ class DefaultMontyBridge implements MontyBridge {
   @override
   void dispose() {
     _isDisposed = true;
+    unawaited(_osCallHandler?.dispose());
     log.close();
   }
 
@@ -373,8 +369,17 @@ class DefaultMontyBridge implements MontyBridge {
   ) async {
     final callId = _nextId;
     final opName = osCall.operationName;
+    final argSummary = osCall.arguments.isEmpty
+        ? null
+        : osCall.arguments.map((a) => a.dartValue).join(', ');
 
-    controller.add(BridgeOsCallStart(callId: callId, operationName: opName));
+    controller.add(
+      BridgeOsCallStart(
+        callId: callId,
+        operationName: opName,
+        argumentSummary: argSummary,
+      ),
+    );
 
     final handler = _osCallHandler;
     if (handler == null) {
@@ -386,24 +391,34 @@ class DefaultMontyBridge implements MontyBridge {
       return _platform.resumeWithError(errorMsg);
     }
 
+    final sw = Stopwatch()..start();
     try {
-      final result = await handler(osCall);
+      final result = await handler.handle(osCall);
+      sw.stop();
       controller.add(
         BridgeOsCallResult(
           callId: callId,
           result: result?.toString() ?? '',
+          durationMs: sw.elapsedMilliseconds,
         ),
       );
 
       return await _platform.resume(result);
     } on Object catch (e, st) {
+      sw.stop();
       log.error(
         'OS call handler error',
         error: e,
         stackTrace: st,
         attributes: {'op': opName},
       );
-      controller.add(BridgeOsCallResult(callId: callId, result: 'Error: $e'));
+      controller.add(
+        BridgeOsCallResult(
+          callId: callId,
+          result: 'Error: $e',
+          durationMs: sw.elapsedMilliseconds,
+        ),
+      );
 
       return _platform.resumeWithError(e.toString());
     }

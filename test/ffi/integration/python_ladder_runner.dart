@@ -15,10 +15,12 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:dart_monty/dart_monty.dart';
+import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:dart_monty/dart_monty_ffi.dart';
 
 Future<void> main() async {
   final bindings = NativeBindingsFfi();
+  final osCallHandler = createDefaultOsCallHandler();
   final fixtureDir = Directory('test/fixtures/python_ladder');
   final tierFiles =
       fixtureDir
@@ -35,7 +37,7 @@ Future<void> main() async {
         .cast<Map<String, dynamic>>();
 
     for (final fixture in fixtures) {
-      final result = await _runFixture(bindings, fixture);
+      final result = await _runFixture(bindings, fixture, osCallHandler);
       stdout.writeln(jsonEncode(result));
     }
   }
@@ -44,16 +46,20 @@ Future<void> main() async {
 Future<Map<String, dynamic>> _runFixture(
   NativeBindingsFfi bindings,
   Map<String, dynamic> fixture,
+  OsCallHandler osCallHandler,
 ) async {
   final id = fixture['id'] as int;
   final code = fixture['code'] as String;
   final expectError = fixture['expectError'] as bool? ?? false;
+  final osCall = fixture['osCall'] as bool? ?? false;
   final xfail = fixture['xfail'] as String?;
   final monty = MontyFfi(bindings: bindings);
 
   Map<String, dynamic> result;
   try {
-    if (fixture['externalFunctions'] != null) {
+    if (osCall) {
+      result = await _runOsCall(monty, fixture, osCallHandler);
+    } else if (fixture['externalFunctions'] != null) {
       result = await _runIterative(monty, fixture);
     } else if (expectError) {
       result = await _runExpectError(monty, id, code);
@@ -83,6 +89,56 @@ Future<Map<String, dynamic>> _runSimple(
   final result = await monty.run(code);
 
   return {'id': id, 'ok': true, 'value': result.value};
+}
+
+Future<Map<String, dynamic>> _runOsCall(
+  MontyFfi monty,
+  Map<String, dynamic> fixture,
+  OsCallHandler osCallHandler,
+) async {
+  final id = fixture['id'] as int;
+  final code = fixture['code'] as String;
+  final expectError = fixture['expectError'] as bool? ?? false;
+
+  var progress = await monty.start(code);
+
+  try {
+    while (progress is! MontyComplete) {
+      if (progress is MontyOsCall) {
+        try {
+          final result = await osCallHandler.handle(progress);
+          progress = await monty.resume(result);
+        } on Object catch (e) {
+          progress = await monty.resumeWithError(e.toString());
+        }
+      } else if (progress is MontyPending) {
+        progress = await monty.resumeWithError(
+          'Unexpected external function: ${progress.functionName}',
+        );
+      } else {
+        return {
+          'id': id,
+          'ok': false,
+          'error': 'Unexpected progress: $progress',
+        };
+      }
+    }
+  } on MontyScriptError catch (e) {
+    if (expectError) {
+      return {'id': id, 'ok': true, 'error': e.message};
+    }
+    return {'id': id, 'ok': false, 'error': e.message};
+  }
+
+  if (expectError) {
+    final error = progress.result.error;
+    if (error != null) {
+      return {'id': id, 'ok': true, 'error': error.message};
+    }
+    return {'id': id, 'ok': false, 'error': 'Expected error but succeeded'};
+  }
+
+  return {'id': id, 'ok': true, 'value': progress.result.value};
 }
 
 Future<Map<String, dynamic>> _runExpectError(

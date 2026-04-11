@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:dart_monty/src/bridge/os_call/os_call_handler.dart';
 import 'package:dart_monty/src/platform/monty_error.dart';
 import 'package:dart_monty/src/platform/monty_exception.dart';
 import 'package:dart_monty/src/platform/monty_future_capable.dart';
@@ -32,11 +33,6 @@ List<(String, List<Map<String, dynamic>>)> loadLadderFixtures(Directory dir) {
   ];
 }
 
-/// Callback type for handling OsCall progress in the ladder runner.
-///
-/// Receives the [MontyOsCall] and returns the value to resume with.
-typedef LadderOsCallHandler = Future<Object?> Function(MontyOsCall call);
-
 /// Runs a simple (non-error, non-iterative) fixture through [platform].
 Future<void> runSimpleFixture(
   MontyPlatform platform,
@@ -55,7 +51,7 @@ Future<void> runSimpleFixture(
 Future<void> runOsCallFixture(
   MontyPlatform platform,
   Map<String, dynamic> fixture,
-  LadderOsCallHandler osCallHandler,
+  OsCallHandler osCallHandler,
 ) async {
   final code = fixture['code'] as String;
   final expectError = fixture['expectError'] as bool? ?? false;
@@ -70,7 +66,7 @@ Future<void> runOsCallFixture(
     while (progress is! MontyComplete) {
       if (progress is MontyOsCall) {
         try {
-          final result = await osCallHandler(progress);
+          final result = await osCallHandler.handle(progress);
           progress = await platform.resume(result);
         } on Object catch (e) {
           progress = await platform.resumeWithError(e.toString());
@@ -351,7 +347,7 @@ Future<void> runIterativeFixture(
 void registerLadderTests({
   required MontyPlatform Function() createPlatform,
   required Directory fixtureDir,
-  LadderOsCallHandler? osCallHandler,
+  OsCallHandler? osCallHandler,
   bool isWeb = false,
 }) {
   final tiers = loadLadderFixtures(fixtureDir);
@@ -423,7 +419,7 @@ Future<void> _runFixture(
   String code,
   bool expectError,
   bool osCall,
-  LadderOsCallHandler? osCallHandler,
+  OsCallHandler? osCallHandler,
 ) async {
   if (osCall && osCallHandler != null) {
     await runOsCallFixture(monty, fixture, osCallHandler);

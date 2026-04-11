@@ -202,7 +202,7 @@ final class MontyPending extends MontyProgress {
 /// Execution paused, awaiting an OS/filesystem operation.
 ///
 /// Yielded when Python code accesses `pathlib`, `os.getenv`, `os.environ`,
-/// `date.today()`, `datetime.now()`, or similar OS-level operations.
+/// or similar OS-level operations.
 /// The host (Dart) handles the I/O and resumes with the result.
 ///
 /// ```dart
@@ -241,8 +241,7 @@ final class MontyOsCall extends MontyProgress {
     );
   }
 
-  /// The OS operation name, e.g. `"Path.read_text"`, `"os.getenv"`,
-  /// `"date.today"`.
+  /// The OS operation name, e.g. `"Path.read_text"`, `"os.getenv"`.
   final String operationName;
 
   /// The positional arguments for the operation.

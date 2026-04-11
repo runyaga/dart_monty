@@ -61,7 +61,7 @@ Last updated: 2026-04-10 (monty 0.0.10, post-OsCall + MontyValue)
 |----|----------|--------|-------------|
 | ~~B-1~~ | ~~Critical~~ | RESOLVED | Zombie tracking + diagnostic logging added. Handle leak is intentional safety choice. |
 | B-3 | Safe | OK | `_freeHandle` nulls `_handle` before calling `free()`. Prevents double-free. |
-| B-4 | Moderate | OPEN | `restoreSnapshot` does not free prior handle. Protected by state machine `assertIdle` but no defensive code. |
+| ~~B-4~~ | ~~Moderate~~ | RESOLVED | `restoreSnapshot` now frees prior handle before loading new snapshot. |
 
 ---
 
@@ -85,7 +85,7 @@ Last updated: 2026-04-10 (monty 0.0.10, post-OsCall + MontyValue)
 
 | ID | Severity | Status | Description |
 |----|----------|--------|-------------|
-| C-3 | Moderate | OPEN | No "disposed while active" recovery. Concurrent resume and dispose could race on FFI handle. |
+| ~~C-3~~ | ~~Moderate~~ | RESOLVED | `dispose()` force-idles active state before disposing. |
 
 ---
 
@@ -110,7 +110,7 @@ Last updated: 2026-04-10 (monty 0.0.10, post-OsCall + MontyValue)
 | ID | Severity | Status | Description |
 |----|----------|--------|-------------|
 | ~~D-1~~ | ~~Critical~~ | RESOLVED | `_invalidateSession()` called on panic — session properly invalidated. |
-| D-2 | Moderate | OPEN | Error classification uses string matching (`'Panic'`, `'RuntimeError'`). Fragile if Worker error format changes. |
+| ~~D-2~~ | ~~Moderate~~ | RESOLVED | `wasmPanicErrorType` constant replaces raw string matching. |
 
 ---
 
@@ -151,6 +151,80 @@ Last updated: 2026-04-10 (monty 0.0.10, post-OsCall + MontyValue)
 
 ---
 
+## F. OsCall / VFS Handlers (`lib/src/bridge/os_call/`)
+
+The OsCall subsystem intercepts Python standard-library operations
+(`pathlib`, `os`, `datetime`) and routes them through Dart handlers.
+Two filesystem strategies provide the **VFS** layer:
+
+- **MemoryFsOsCallHandler** — pure in-memory VFS (ephemeral, platform-agnostic,
+  works on WASM). Backed by `package:file`'s `MemoryFileSystem`.
+- **SandboxedNativeFsHandler** — chrooted real filesystem with path-traversal
+  and symlink-escape protection.
+
+Non-filesystem handlers cover environment variables (`EnvOsCallHandler`)
+and date/time (`TimeOsCallHandler`). A `RouterOsCallHandler` composes
+them by operation-name prefix.
+
+### Resources
+
+| Resource | Allocated by | Freed by | Owner |
+|----------|-------------|----------|-------|
+| `OsCallHandler` (abstract) | Caller (`createDefaultOsCallHandler()` or custom) | `RouterOsCallHandler.dispose()` via bridge/session dispose | `DefaultMontyBridge` or `MontySession` |
+| `RouterOsCallHandler` child map | Constructor | `dispose()` iterates + dedup-disposes children | `RouterOsCallHandler` |
+| `MemoryFileSystem` (VFS backing store) | `MemoryFsOsCallHandler` constructor | GC (no explicit dispose) | `MemoryFsOsCallHandler` |
+| `SandboxedNativeFsHandler._root` (resolved path) | Factory constructor (resolves symlinks) | N/A — handler does not own root directory | Caller |
+| `EnvOsCallHandler.environment` map | Constructor (caller-provided) | GC | `EnvOsCallHandler` |
+| `TimeOsCallHandler._clock` | Constructor | GC | `TimeOsCallHandler` |
+
+### Ownership Chain
+
+1. **`DefaultMontyBridge`** accepts handler via `registerOsCallHandler()`.
+   Disposes it in `bridge.dispose()` with `unawaited(_osCallHandler?.dispose())`.
+2. **`MontySession`** accepts optional handler in constructor.
+   Disposes it in `session.dispose()` with `unawaited(_osCallHandler?.dispose())`.
+3. These two owners are mutually exclusive by design: `MontySession` is for
+   simple `run()` mode; `DefaultMontyBridge` is for full bridge mode. A handler
+   instance should never be given to both.
+4. **`RouterOsCallHandler.dispose()`** iterates child handlers using a
+   `Set<OsCallHandler>` to deduplicate. A handler registered under multiple
+   prefixes (e.g., `TimeOsCallHandler` for both `'date.'` and `'datetime.'`)
+   is disposed exactly once. The fallback handler, if present, is also disposed.
+
+### Crash Behavior
+
+- **Handler throws `OsCallException`**: Caught by `_handleOsCall` (`on Object`),
+  logged, sent back to Python via `resumeWithError()`. No handler leak.
+  Subclasses (`OsCallPermissionError`, `OsCallFileNotFoundError`) are
+  translated to the corresponding Python exception type.
+- **Handler throws unexpected error**: Same `on Object catch (e, st)` path.
+  Error logged with stack trace, resumed as Python error string.
+- **No handler registered**: Bridge resumes with `PermissionError` message.
+  No crash.
+- **Handler `dispose()` throws**: Fire-and-forget via `unawaited()` in both
+  `DefaultMontyBridge.dispose()` and `MontySession.dispose()`. Error does not
+  propagate to caller.
+- **VFS path escape (`SandboxedNativeFsHandler`)**: Throws
+  `OsCallPermissionError`. Symlink escape after initial resolution also caught
+  by `_safeResolved()`. All caught by `_handleOsCall`.
+- **Web: `os.*` call with no handler**: Router has no `'os.'` prefix on web.
+  `UnsupportedError` thrown by router, caught by bridge, sent back to Python.
+
+### Findings
+
+| ID | Severity | Status | Description |
+|----|----------|--------|-------------|
+| F-1 | Low | BY DESIGN | Dual ownership: both `DefaultMontyBridge` and `MontySession` accept and dispose an `OsCallHandler`. They are mutually exclusive entry points — never share a handler instance across both. |
+| F-2 | Safe | OK | `RouterOsCallHandler.dispose()` deduplicates via `Set`. Handler registered under multiple prefixes is disposed once. Fallback handler is also disposed. |
+| F-3 | Safe | OK | `SandboxedNativeFsHandler` does not own its root directory. Caller must clean up. Documented in dispose comment and constructor doc. |
+| F-4 | Safe | OK | `MemoryFsOsCallHandler` (VFS) has no dispose logic. `MemoryFileSystem` is GC-collected. Files are ephemeral by design. |
+| F-5 | Safe | OK | `_handleOsCall` catches `on Object` — no unhandled exception can leak from a handler call. Error is always sent back to Python. |
+| F-6 | Low | OK | `unawaited()` on handler dispose in both bridge and session means dispose errors are fire-and-forget. If a handler's `dispose()` throws, it silently fails. |
+| F-7 | Info | OK | Web default factory omits `os.*` prefix. Any `os.getenv` call from Python hits router's `UnsupportedError` path, which the bridge catches and sends back as a Python error. Correct. |
+| F-8 | Low | OK | Path escape protection in `SandboxedNativeFsHandler` uses `startsWith` on normalized paths plus symlink re-check. Factory constructor resolves root symlinks at construction. TOCTOU: if root itself becomes a symlink after construction, the check uses the stale resolved path. Low practical risk (root is typically a temp dir). |
+
+---
+
 ## Summary
 
 ### Resolved (7)
@@ -171,12 +245,25 @@ Last updated: 2026-04-10 (monty 0.0.10, post-OsCall + MontyValue)
 |----|----------|-----------|-------|
 | E-4 | Moderate | Bridge | In-flight host functions not stoppable (known; cancel removed) |
 
-### By Design (2)
+### By Design (3)
 
 | ID | Subsystem | Rationale |
 |----|-----------|-----------|
 | E-1 | Bridge | Bridge doesn't own platform lifecycle |
 | E-3 | Bridge | Children persist for output access |
+| F-1 | OsCall/VFS | Dual ownership is by design — bridge mode and session mode are mutually exclusive |
+
+### Reviewed — No Action (7)
+
+| ID | Subsystem | Note |
+|----|-----------|------|
+| F-2 | OsCall | Router dedup dispose correct |
+| F-3 | OsCall/VFS | Sandbox handler doesn't own root (documented) |
+| F-4 | OsCall/VFS | MemoryFS (VFS) is GC-collected |
+| F-5 | OsCall | All handler errors caught by bridge |
+| F-6 | OsCall | Dispose errors are fire-and-forget (acceptable) |
+| F-7 | OsCall/VFS | Web `os.*` correctly unsupported |
+| F-8 | OsCall/VFS | Path escape TOCTOU — low practical risk |
 
 ---
 

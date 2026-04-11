@@ -191,6 +191,7 @@ class BridgeOsCallStart extends BridgeEvent {
   const BridgeOsCallStart({
     required this.callId,
     required this.operationName,
+    this.argumentSummary,
   });
 
   /// Call identifier (bridge-assigned).
@@ -198,16 +199,31 @@ class BridgeOsCallStart extends BridgeEvent {
 
   /// The OS operation name, e.g. `"Path.read_text"`, `"os.getenv"`.
   final String operationName;
+
+  /// Human-readable summary of the call's arguments (for telemetry).
+  ///
+  /// Example: `"'/sandbox/test.txt'"` for a read_text call.
+  /// May be null for calls with no arguments.
+  final String? argumentSummary;
 }
 
 /// An OS call completed with a result (or error string).
 class BridgeOsCallResult extends BridgeEvent {
   /// Creates a [BridgeOsCallResult].
-  const BridgeOsCallResult({required this.callId, required this.result});
+  const BridgeOsCallResult({
+    required this.callId,
+    required this.result,
+    this.durationMs,
+  });
 
   /// Call identifier (bridge-assigned).
   final String callId;
 
   /// Result string (or error description).
   final String result;
+
+  /// Wall-clock duration of the handler invocation in milliseconds.
+  ///
+  /// Null when the call was rejected (no handler registered).
+  final int? durationMs;
 }
