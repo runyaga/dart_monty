@@ -117,7 +117,13 @@ void main() {
 
     test('resume() dequeues progress and records return value', () async {
       const complete = MontyComplete(result: MontyResult(usage: usage));
-      mock.enqueueProgress(complete);
+      // start() transitions idle→active; resume() requires active.
+      mock
+        ..enqueueProgress(
+          const MontyPending(functionName: 'f', arguments: []),
+        )
+        ..enqueueProgress(complete);
+      await mock.start('code');
 
       final progress = await mock.resume('hello');
 
@@ -128,7 +134,12 @@ void main() {
 
     test('resumeWithError() dequeues progress and records error', () async {
       const complete = MontyComplete(result: MontyResult(usage: usage));
-      mock.enqueueProgress(complete);
+      mock
+        ..enqueueProgress(
+          const MontyPending(functionName: 'f', arguments: []),
+        )
+        ..enqueueProgress(complete);
+      await mock.start('code');
 
       final progress = await mock.resumeWithError('boom');
 
@@ -143,7 +154,12 @@ void main() {
 
     test('resumeAsFuture() increments count and dequeues', () async {
       const pending = MontyPending(functionName: 'slow_op', arguments: []);
-      mock.enqueueProgress(pending);
+      mock
+        ..enqueueProgress(
+          const MontyPending(functionName: 'f', arguments: []),
+        )
+        ..enqueueProgress(pending);
+      await mock.start('code');
 
       expect(mock.resumeAsFutureCount, 0);
 
@@ -155,8 +171,16 @@ void main() {
 
     test('resumeAsFuture() increments on each call', () async {
       mock
-        ..enqueueProgress(const MontyPending(functionName: 'a', arguments: []))
-        ..enqueueProgress(const MontyPending(functionName: 'b', arguments: []));
+        ..enqueueProgress(
+          const MontyPending(functionName: 'f', arguments: []),
+        )
+        ..enqueueProgress(
+          const MontyPending(functionName: 'a', arguments: []),
+        )
+        ..enqueueProgress(
+          const MontyPending(functionName: 'b', arguments: []),
+        );
+      await mock.start('code');
 
       await mock.resumeAsFuture();
       await mock.resumeAsFuture();
@@ -170,7 +194,12 @@ void main() {
 
     test('resolveFutures() records results and errors, dequeues', () async {
       const complete = MontyComplete(result: MontyResult(usage: usage));
-      mock.enqueueProgress(complete);
+      mock
+        ..enqueueProgress(
+          const MontyPending(functionName: 'f', arguments: []),
+        )
+        ..enqueueProgress(complete);
+      await mock.start('code');
 
       final results = {1: 'value1' as Object?, 2: 42 as Object?};
       final errors = {3: 'timeout'};
