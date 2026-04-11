@@ -137,9 +137,7 @@ class PluginRegistry {
       // Clean up partially-attached plugins before throwing.
       await disposeAll();
       final summary = errors.map((e) => '${e.$1}: ${e.$2}').join('; ');
-      throw StateError(
-        '${errors.length} plugin(s) failed to attach: $summary',
-      );
+      throw StateError('${errors.length} plugin(s) failed to attach: $summary');
     }
 
     _attached = true;

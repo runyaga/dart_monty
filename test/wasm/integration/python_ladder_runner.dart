@@ -26,10 +26,7 @@ external JSPromise<JSBoolean> _montyInit();
 external JSPromise<JSString> _montyRun(JSString code);
 
 @JS('DartMontyBridge.start')
-external JSPromise<JSString> _montyStart(
-  JSString code, [
-  JSString? extFnsJson,
-]);
+external JSPromise<JSString> _montyStart(JSString code, [JSString? extFnsJson]);
 
 @JS('DartMontyBridge.resume')
 external JSPromise<JSString> _montyResume(JSString valueJson);

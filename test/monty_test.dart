@@ -92,9 +92,7 @@ void main() {
     });
 
     test('resumeWithError() delegates to platform', () async {
-      const expectedProgress = MontyComplete(
-        result: MontyResult(usage: usage),
-      );
+      const expectedProgress = MontyComplete(result: MontyResult(usage: usage));
       mock.enqueueProgress(expectedProgress);
 
       final progress = await monty.resumeWithError('something failed');

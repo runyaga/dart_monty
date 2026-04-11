@@ -23,10 +23,7 @@ class ToolCall extends CallRole {
 
 /// Signature for the next handler in the middleware chain.
 typedef ToolHandler =
-    Future<Object?> Function(
-      String name,
-      Map<String, Object?> args,
-    );
+    Future<Object?> Function(String name, Map<String, Object?> args);
 
 /// Intercepts every tool call through a bridge.
 ///

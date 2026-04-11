@@ -10,10 +10,7 @@ void main() {
     late EnvOsCallHandler handler;
 
     setUp(() {
-      handler = EnvOsCallHandler({
-        'APP_ENV': 'production',
-        'DEBUG': '0',
-      });
+      handler = EnvOsCallHandler({'APP_ENV': 'production', 'DEBUG': '0'});
     });
 
     test('os.getenv returns value from provided map', () async {

@@ -231,10 +231,7 @@ void main() {
           const MontyPending(
             functionName: 'render_ui',
             arguments: [
-              MontyDict({
-                'type': MontyString('counter'),
-                'value': MontyInt(0),
-              }),
+              MontyDict({'type': MontyString('counter'), 'value': MontyInt(0)}),
             ],
             callId: 1,
           ),

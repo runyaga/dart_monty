@@ -77,11 +77,7 @@ Future<Object?> _handleOsCall(Map<String, dynamic> state) async {
     kwargs = rawKwargs.map((k, v) => MapEntry(k, MontyValue.fromJson(v)));
   }
 
-  final call = MontyOsCall(
-    operationName: op,
-    arguments: args,
-    kwargs: kwargs,
-  );
+  final call = MontyOsCall(operationName: op, arguments: args, kwargs: kwargs);
 
   final sw = Stopwatch()..start();
   Object? result;
@@ -151,10 +147,7 @@ Future<Map<String, dynamic>> _runWithVfs(String code) async {
         );
       }
     } else {
-      return {
-        'ok': false,
-        'error': 'Unexpected state: ${state['state']}',
-      };
+      return {'ok': false, 'error': 'Unexpected state: ${state['state']}'};
     }
   }
 

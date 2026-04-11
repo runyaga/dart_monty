@@ -16,7 +16,8 @@ import 'dart:io';
 
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
-import 'package:dart_monty/dart_monty_ffi.dart';
+import 'package:dart_monty/src/ffi/monty_ffi.dart';
+import 'package:dart_monty/src/ffi/native_bindings_ffi.dart';
 
 Future<void> main() async {
   final bindings = NativeBindingsFfi();
@@ -26,9 +27,7 @@ Future<void> main() async {
       fixtureDir
           .listSync()
           .whereType<File>()
-          .where(
-            (f) => f.path.endsWith('.json'),
-          )
+          .where((f) => f.path.endsWith('.json'))
           .toList()
         ..sort((a, b) => a.path.compareTo(b.path));
 

@@ -3,10 +3,8 @@ import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:test/test.dart';
 
 void main() {
-  MontyOsCall fakeOsCall(String op) => MontyOsCall(
-    operationName: op,
-    arguments: const [],
-  );
+  MontyOsCall fakeOsCall(String op) =>
+      MontyOsCall(operationName: op, arguments: const []);
 
   group('RouterOsCallHandler', () {
     test('routes Path.* to filesystem handler', () async {
@@ -30,9 +28,7 @@ void main() {
     });
 
     test('unknown prefix throws UnsupportedError', () {
-      final router = RouterOsCallHandler({
-        'Path.': _StubHandler('fs'),
-      });
+      final router = RouterOsCallHandler({'Path.': _StubHandler('fs')});
 
       expect(
         () => router.handle(fakeOsCall('socket.connect')),
@@ -41,10 +37,9 @@ void main() {
     });
 
     test('custom fallback handler receives unknown operations', () async {
-      final router = RouterOsCallHandler(
-        {'Path.': _StubHandler('fs')},
-        fallback: _StubHandler('fallback'),
-      );
+      final router = RouterOsCallHandler({
+        'Path.': _StubHandler('fs'),
+      }, fallback: _StubHandler('fallback'));
 
       final result = await router.handle(fakeOsCall('socket.connect'));
       expect(result, 'fallback');
@@ -54,10 +49,10 @@ void main() {
       final fs = _StubHandler('fs');
       final env = _StubHandler('env');
       final fallback = _StubHandler('fallback');
-      final router = RouterOsCallHandler(
-        {'Path.': fs, 'os.': env},
-        fallback: fallback,
-      );
+      final router = RouterOsCallHandler({
+        'Path.': fs,
+        'os.': env,
+      }, fallback: fallback);
 
       await router.dispose();
 

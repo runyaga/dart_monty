@@ -184,26 +184,17 @@ class NativeBindingsFfi extends NativeBindings {
 
   @override
   void setMemoryLimit(int handle, int bytes) {
-    ffi_native.monty_set_memory_limit(
-      Pointer.fromAddress(handle),
-      bytes,
-    );
+    ffi_native.monty_set_memory_limit(Pointer.fromAddress(handle), bytes);
   }
 
   @override
   void setTimeLimitMs(int handle, int ms) {
-    ffi_native.monty_set_time_limit_ms(
-      Pointer.fromAddress(handle),
-      ms,
-    );
+    ffi_native.monty_set_time_limit_ms(Pointer.fromAddress(handle), ms);
   }
 
   @override
   void setStackLimit(int handle, int depth) {
-    ffi_native.monty_set_stack_limit(
-      Pointer.fromAddress(handle),
-      depth,
-    );
+    ffi_native.monty_set_stack_limit(Pointer.fromAddress(handle), depth);
   }
 
   @override

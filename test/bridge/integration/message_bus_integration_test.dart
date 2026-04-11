@@ -3,7 +3,8 @@ library;
 
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
-import 'package:dart_monty/dart_monty_ffi.dart';
+import 'package:dart_monty/src/ffi/monty_ffi.dart';
+import 'package:dart_monty/src/ffi/native_bindings_ffi.dart';
 import 'package:test/test.dart';
 
 /// Integration tests for MessageBusPlugin parent↔child communication.
@@ -26,10 +27,7 @@ void main() {
   MontyPlatform createPlatform() => MontyFfi(bindings: bindings);
 
   /// Executes [code] on a bridge and returns the final value or throws.
-  Future<Object?> run(
-    DefaultMontyBridge bridge,
-    String code,
-  ) async {
+  Future<Object?> run(DefaultMontyBridge bridge, String code) async {
     Object? result;
     String? error;
     await for (final event in bridge.execute(code)) {

@@ -14,24 +14,15 @@ void main() {
       });
 
       test('run() throws', () {
-        expect(
-          () => platform.run('code'),
-          throwsUnimplementedError,
-        );
+        expect(() => platform.run('code'), throwsUnimplementedError);
       });
 
       test('start() throws', () {
-        expect(
-          () => platform.start('code'),
-          throwsUnimplementedError,
-        );
+        expect(() => platform.start('code'), throwsUnimplementedError);
       });
 
       test('resume() throws', () {
-        expect(
-          () => platform.resume(null),
-          throwsUnimplementedError,
-        );
+        expect(() => platform.resume(null), throwsUnimplementedError);
       });
 
       test('resumeWithError() throws', () {
@@ -42,10 +33,7 @@ void main() {
       });
 
       test('dispose() throws', () {
-        expect(
-          () => platform.dispose(),
-          throwsUnimplementedError,
-        );
+        expect(() => platform.dispose(), throwsUnimplementedError);
       });
     });
   });

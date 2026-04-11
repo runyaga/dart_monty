@@ -57,10 +57,7 @@ Future<void> runOsCallFixture(
   final expectError = fixture['expectError'] as bool? ?? false;
   final scriptName = fixture['scriptName'] as String?;
 
-  var progress = await platform.start(
-    code,
-    scriptName: scriptName,
-  );
+  var progress = await platform.start(code, scriptName: scriptName);
 
   try {
     while (progress is! MontyComplete) {

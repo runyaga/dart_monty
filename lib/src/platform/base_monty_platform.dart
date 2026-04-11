@@ -157,9 +157,7 @@ abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
           arguments: p.arguments != null
               ? p.arguments!.map(MontyValue.fromJson).toList()
               : const [],
-          kwargs: p.kwargs?.map(
-            (k, v) => MapEntry(k, MontyValue.fromJson(v)),
-          ),
+          kwargs: p.kwargs?.map((k, v) => MapEntry(k, MontyValue.fromJson(v))),
           callId: p.callId ?? 0,
           methodCall: p.methodCall ?? false,
         );
@@ -171,9 +169,7 @@ abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
           arguments: p.arguments != null
               ? p.arguments!.map(MontyValue.fromJson).toList()
               : const [],
-          kwargs: p.kwargs?.map(
-            (k, v) => MapEntry(k, MontyValue.fromJson(v)),
-          ),
+          kwargs: p.kwargs?.map((k, v) => MapEntry(k, MontyValue.fromJson(v))),
           callId: p.callId ?? 0,
         );
       case 'resolve_futures':
@@ -291,10 +287,6 @@ abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
       columnNumber: columnNumber,
       sourceCode: sourceCode,
     );
-    throw MontyScriptError(
-      message,
-      excType: excType,
-      exception: exception,
-    );
+    throw MontyScriptError(message, excType: excType, exception: exception);
   }
 }

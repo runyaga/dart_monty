@@ -36,9 +36,7 @@ void main() {
       expect(f.existsSync(), isTrue);
 
       final result = await handler.handle(
-        pathCall('Path.read_text', [
-          MontyString('$rootPath/test.txt'),
-        ]),
+        pathCall('Path.read_text', [MontyString('$rootPath/test.txt')]),
       );
 
       expect(result, 'hello');
@@ -74,9 +72,7 @@ void main() {
         ]),
       );
       final result = await handler.handle(
-        pathCall('Path.read_bytes', [
-          MontyString('$rootPath/data.bin'),
-        ]),
+        pathCall('Path.read_bytes', [MontyString('$rootPath/data.bin')]),
       );
 
       expect(result, [65, 66]);
@@ -98,9 +94,7 @@ void main() {
       );
 
       final result = await handler.handle(
-        pathCall('Path.iterdir', [
-          MontyString('$rootPath/sub'),
-        ]),
+        pathCall('Path.iterdir', [MontyString('$rootPath/sub')]),
       );
 
       expect(result, isA<List<MontyPath>>());
@@ -112,17 +106,13 @@ void main() {
 
       expect(
         await handler.handle(
-          pathCall('Path.exists', [
-            MontyString('$rootPath/x.txt'),
-          ]),
+          pathCall('Path.exists', [MontyString('$rootPath/x.txt')]),
         ),
         isTrue,
       );
       expect(
         await handler.handle(
-          pathCall('Path.exists', [
-            MontyString('$rootPath/nope.txt'),
-          ]),
+          pathCall('Path.exists', [MontyString('$rootPath/nope.txt')]),
         ),
         isFalse,
       );
@@ -131,9 +121,7 @@ void main() {
     test('unlink removes file', () async {
       File('$rootPath/del.txt').writeAsStringSync('bye');
       await handler.handle(
-        pathCall('Path.unlink', [
-          MontyString('$rootPath/del.txt'),
-        ]),
+        pathCall('Path.unlink', [MontyString('$rootPath/del.txt')]),
       );
 
       expect(File('$rootPath/del.txt').existsSync(), isFalse);
@@ -181,37 +169,32 @@ void main() {
       test('absolute path outside root is rejected', () {
         expect(
           () => handler.handle(
-            pathCall('Path.read_text', [
-              const MontyString('/etc/passwd'),
-            ]),
+            pathCall('Path.read_text', [const MontyString('/etc/passwd')]),
           ),
           throwsA(isA<OsCallPermissionError>()),
         );
       });
 
-      test(
-        'path that startsWith root prefix but is different dir is '
-        'rejected',
-        () {
-          // e.g., root=/tmp/sandbox, path=/tmp/sandboxevil/etc/passwd
-          // This is the exact edge case from review comment #9.
-          final evilDir = Directory('${rootPath}evil')..createSync();
-          addTearDown(() {
-            if (evilDir.existsSync()) evilDir.deleteSync(recursive: true);
-          });
+      test('path that startsWith root prefix but is different dir is '
+          'rejected', () {
+        // e.g., root=/tmp/sandbox, path=/tmp/sandboxevil/etc/passwd
+        // This is the exact edge case from review comment #9.
+        final evilDir = Directory('${rootPath}evil')..createSync();
+        addTearDown(() {
+          if (evilDir.existsSync()) evilDir.deleteSync(recursive: true);
+        });
 
-          File('${evilDir.path}/secret.txt').writeAsStringSync('stolen');
+        File('${evilDir.path}/secret.txt').writeAsStringSync('stolen');
 
-          expect(
-            () => handler.handle(
-              pathCall('Path.read_text', [
-                MontyString('${rootPath}evil/secret.txt'),
-              ]),
-            ),
-            throwsA(isA<OsCallPermissionError>()),
-          );
-        },
-      );
+        expect(
+          () => handler.handle(
+            pathCall('Path.read_text', [
+              MontyString('${rootPath}evil/secret.txt'),
+            ]),
+          ),
+          throwsA(isA<OsCallPermissionError>()),
+        );
+      });
 
       test('symlink inside sandbox pointing outside is rejected', () {
         // Create a symlink inside the sandbox that points to /tmp.
@@ -221,9 +204,7 @@ void main() {
 
         expect(
           () => handler.handle(
-            pathCall('Path.read_text', [
-              MontyString('$rootPath/escape_link'),
-            ]),
+            pathCall('Path.read_text', [MontyString('$rootPath/escape_link')]),
           ),
           throwsA(isA<OsCallPermissionError>()),
         );
@@ -245,9 +226,7 @@ void main() {
 
         expect(
           () => handler.handle(
-            pathCall('Path.read_text', [
-              MontyString('$rootPath/chain_link'),
-            ]),
+            pathCall('Path.read_text', [MontyString('$rootPath/chain_link')]),
           ),
           throwsA(isA<OsCallPermissionError>()),
         );
@@ -263,9 +242,7 @@ void main() {
 
         expect(
           () => handler.handle(
-            pathCall('Path.resolve', [
-              MontyString('$rootPath/resolve_link'),
-            ]),
+            pathCall('Path.resolve', [MontyString('$rootPath/resolve_link')]),
           ),
           throwsA(isA<OsCallPermissionError>()),
         );
@@ -276,9 +253,7 @@ void main() {
 
         // Double slashes should normalize and still work.
         final result = await handler.handle(
-          pathCall('Path.read_text', [
-            MontyString('$rootPath//norm.txt'),
-          ]),
+          pathCall('Path.read_text', [MontyString('$rootPath//norm.txt')]),
         );
 
         expect(result, 'ok');

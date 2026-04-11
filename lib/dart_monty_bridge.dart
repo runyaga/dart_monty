@@ -18,6 +18,7 @@ export 'src/bridge/bridge/plugin_registry.dart';
 export 'src/bridge/bridge/struct_log_bridge_logger.dart';
 export 'src/bridge/os_call/default_os_call_handler.dart';
 export 'src/bridge/os_call/env_os_call_handler.dart';
+export 'src/bridge/os_call/file_system_os_call_handler.dart';
 export 'src/bridge/os_call/memory_fs_os_call_handler.dart';
 export 'src/bridge/os_call/os_call_exception.dart';
 export 'src/bridge/os_call/os_call_handler.dart';

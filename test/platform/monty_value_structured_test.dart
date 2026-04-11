@@ -34,10 +34,7 @@ void main() {
     });
 
     test('hashCode consistent', () {
-      expect(
-        const MontyPath('/a').hashCode,
-        const MontyPath('/a').hashCode,
-      );
+      expect(const MontyPath('/a').hashCode, const MontyPath('/a').hashCode);
     });
 
     test('toString is non-empty', () {
@@ -149,11 +146,7 @@ void main() {
     });
 
     test('toString is non-empty', () {
-      const v = MontyNamedTuple(
-        typeName: 'P',
-        fieldNames: [],
-        values: [],
-      );
+      const v = MontyNamedTuple(typeName: 'P', fieldNames: [], values: []);
       expect(v.toString(), isNotEmpty);
     });
 
@@ -167,11 +160,7 @@ void main() {
     });
 
     test('empty fields', () {
-      const v = MontyNamedTuple(
-        typeName: 'Empty',
-        fieldNames: [],
-        values: [],
-      );
+      const v = MontyNamedTuple(typeName: 'Empty', fieldNames: [], values: []);
       expect(MontyValue.fromJson(v.toJson()), v);
     });
   });
@@ -273,22 +262,12 @@ void main() {
     });
 
     test('toString is non-empty', () {
-      const v = MontyDataclass(
-        name: 'P',
-        typeId: 1,
-        fieldNames: [],
-        attrs: {},
-      );
+      const v = MontyDataclass(name: 'P', typeId: 1, fieldNames: [], attrs: {});
       expect(v.toString(), isNotEmpty);
     });
 
     test('dartValue returns Map', () {
-      const v = MontyDataclass(
-        name: 'P',
-        typeId: 1,
-        fieldNames: [],
-        attrs: {},
-      );
+      const v = MontyDataclass(name: 'P', typeId: 1, fieldNames: [], attrs: {});
       expect(v.dartValue, isA<Map<String, Object?>>());
     });
 

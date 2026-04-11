@@ -135,6 +135,9 @@ class _NoOpBridge implements MontyBridge {
   void unregister(String name) {}
 
   @override
+  void registerOsCallHandler(OsCallHandler handler) {}
+
+  @override
   Stream<BridgeEvent> execute(String code) => const Stream.empty();
 
   @override

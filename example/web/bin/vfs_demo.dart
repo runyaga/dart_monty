@@ -80,11 +80,7 @@ Future<Object?> _handleOsCall(Map<String, dynamic> state) async {
     kwargs = rawKwargs.map((k, v) => MapEntry(k, MontyValue.fromJson(v)));
   }
 
-  final call = MontyOsCall(
-    operationName: op,
-    arguments: args,
-    kwargs: kwargs,
-  );
+  final call = MontyOsCall(operationName: op, arguments: args, kwargs: kwargs);
 
   final sw = Stopwatch()..start();
   Object? result;
@@ -151,15 +147,11 @@ Future<Map<String, dynamic>> _runWithVfs(String code) async {
         state = _parse(
           (await _bridgeResumeWithError(
             jsonEncode(e.toString()).toJS,
-          ).toDart)
-              .toDart,
+          ).toDart).toDart,
         );
       }
     } else {
-      return {
-        'ok': false,
-        'error': 'Unexpected state: ${state['state']}',
-      };
+      return {'ok': false, 'error': 'Unexpected state: ${state['state']}'};
     }
   }
 
@@ -265,8 +257,9 @@ Future<List<String>> _listDir(String path) async {
 Future<void> main() async {
   // Expose API to HTML.
   final api = <String, JSFunction>{
-    'run':
-        ((JSString code) => _apiRun(code.toDart).then((r) => r.toJS).toJS).toJS,
+    'run': ((JSString code) => _apiRun(
+      code.toDart,
+    ).then((r) => r.toJS).toJS).toJS,
     'mountFile': ((JSString path, JSString content) {
       _mountFile(path.toDart, content.toDart);
     }).toJS,

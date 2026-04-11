@@ -29,9 +29,7 @@ final _handleFinalizer = ffi.NativeFinalizer(
         ffi.NativeFunction<
           ffi.Void Function(ffi.Pointer<ffi_native.MontyHandle>)
         >
-      >(
-        ffi_native.monty_free,
-      )
+      >(ffi_native.monty_free)
       .cast(),
 );
 
@@ -50,9 +48,7 @@ final _handleFinalizer = ffi.NativeFinalizer(
 /// ```
 class FfiCoreBindings implements MontyCoreBindings {
   /// Creates an [FfiCoreBindings] backed by [bindings].
-  FfiCoreBindings({
-    required NativeBindings bindings,
-  }) : _bindings = bindings;
+  FfiCoreBindings({required NativeBindings bindings}) : _bindings = bindings;
 
   final NativeBindings _bindings;
   int? _handle;
@@ -259,9 +255,7 @@ class FfiCoreBindings implements MontyCoreBindings {
     _storeHandle(handle);
     final argsJson = progress.argumentsJson;
     final args = argsJson != null
-        ? List<Object?>.from(
-            json.decode(argsJson) as List<Object?>,
-          )
+        ? List<Object?>.from(json.decode(argsJson) as List<Object?>)
         : const <Object?>[];
 
     final kwargsJson = progress.kwargsJson;
@@ -318,23 +312,16 @@ class FfiCoreBindings implements MontyCoreBindings {
     if (idsJson == null) {
       throw StateError('Future call IDs JSON is null');
     }
-    final ids = List<int>.from(
-      json.decode(idsJson) as List<Object?>,
-    );
+    final ids = List<int>.from(json.decode(idsJson) as List<Object?>);
 
-    return CoreProgressResult(
-      state: 'resolve_futures',
-      pendingCallIds: ids,
-    );
+    return CoreProgressResult(state: 'resolve_futures', pendingCallIds: ids);
   }
 
   CoreProgressResult _translateOsCall(ProgressResult progress, int handle) {
     _storeHandle(handle);
     final argsJson = progress.argumentsJson;
     final args = argsJson != null
-        ? List<Object?>.from(
-            json.decode(argsJson) as List<Object?>,
-          )
+        ? List<Object?>.from(json.decode(argsJson) as List<Object?>)
         : const <Object?>[];
 
     final kwargsJson = progress.kwargsJson;
@@ -411,9 +398,7 @@ class FfiCoreBindings implements MontyCoreBindings {
   /// expected by [NativeBindings.create].
   String? _parseExtFns(String? extFnsJson) {
     if (extFnsJson == null) return null;
-    final list = List<String>.from(
-      json.decode(extFnsJson) as List<Object?>,
-    );
+    final list = List<String>.from(json.decode(extFnsJson) as List<Object?>);
 
     return list.isNotEmpty ? list.join(',') : null;
   }

@@ -3,7 +3,8 @@ library;
 
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
-import 'package:dart_monty/dart_monty_ffi.dart';
+import 'package:dart_monty/src/ffi/monty_ffi.dart';
+import 'package:dart_monty/src/ffi/native_bindings_ffi.dart';
 import 'package:test/test.dart';
 
 /// Child bridges use useFutures: false (#212), so host function calls
@@ -187,10 +188,7 @@ void main() {
 
       // Each child increments its own counter independently.
       // useFutures: false — direct calls, no async/await needed.
-      final cc = [
-        'counter_increment()',
-        'counter_get()',
-      ].join(r'\n');
+      final cc = ['counter_increment()', 'counter_get()'].join(r'\n');
       final result = await run(
         bridge,
         'h1 = ${spawn(cc)}\n'

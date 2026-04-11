@@ -339,10 +339,7 @@ void main() {
           _TestPlugin(namespace: 'ns', functions: [_fn('ns_one')]),
         );
 
-        await registry.attachTo(
-          bridge,
-          extraFunctions: [_fn('standalone_op')],
-        );
+        await registry.attachTo(bridge, extraFunctions: [_fn('standalone_op')]);
 
         expect(bridge.registeredNames, contains('ns_one'));
         expect(bridge.registeredNames, contains('standalone_op'));
@@ -593,10 +590,7 @@ void main() {
 
       test('null systemPromptPrefix produces no prefix', () {
         registry.register(
-          _TestPlugin(
-            namespace: 'ns',
-            functions: [_fn('ns_one')],
-          ),
+          _TestPlugin(namespace: 'ns', functions: [_fn('ns_one')]),
         );
 
         final prompt = registry.generateSystemPrompt();
@@ -607,12 +601,7 @@ void main() {
       test('empty systemPromptPrefix produces no prefix', () {
         registry
           ..systemPromptPrefix = ''
-          ..register(
-            _TestPlugin(
-              namespace: 'ns',
-              functions: [_fn('ns_one')],
-            ),
-          );
+          ..register(_TestPlugin(namespace: 'ns', functions: [_fn('ns_one')]));
 
         final prompt = registry.generateSystemPrompt();
 
@@ -708,6 +697,9 @@ class _MockBridge implements MontyBridge {
 
   @override
   void unregister(String name) {}
+
+  @override
+  void registerOsCallHandler(OsCallHandler handler) {}
 
   @override
   Stream<BridgeEvent> execute(String code) => const Stream.empty();

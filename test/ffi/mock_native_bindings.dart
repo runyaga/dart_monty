@@ -113,13 +113,11 @@ class MockNativeBindings extends NativeBindings {
 
   @override
   int create(String code, {String? externalFunctions, String? scriptName}) {
-    createCalls.add(
-      (
-        code: code,
-        externalFunctions: externalFunctions,
-        scriptName: scriptName,
-      ),
-    );
+    createCalls.add((
+      code: code,
+      externalFunctions: externalFunctions,
+      scriptName: scriptName,
+    ));
     final createError = nextCreateError;
     if (createError != null) {
       throw MontyException(message: createError);
@@ -152,25 +150,17 @@ class MockNativeBindings extends NativeBindings {
     resumeCalls.add((handle: handle, valueJson: valueJson));
     if (resumeResults.isNotEmpty) return resumeResults.removeAt(0);
 
-    return const ProgressResult(
-      tag: 0,
-      resultJson: _defaultCompleteJson,
-    );
+    return const ProgressResult(tag: 0, resultJson: _defaultCompleteJson);
   }
 
   @override
   ProgressResult resumeWithError(int handle, String errorMessage) {
-    resumeWithErrorCalls.add(
-      (handle: handle, errorMessage: errorMessage),
-    );
+    resumeWithErrorCalls.add((handle: handle, errorMessage: errorMessage));
     if (resumeWithErrorResults.isNotEmpty) {
       return resumeWithErrorResults.removeAt(0);
     }
 
-    return const ProgressResult(
-      tag: 0,
-      resultJson: _defaultCompleteJson,
-    );
+    return const ProgressResult(tag: 0, resultJson: _defaultCompleteJson);
   }
 
   @override
@@ -180,10 +170,7 @@ class MockNativeBindings extends NativeBindings {
       return resumeAsFutureResults.removeAt(0);
     }
 
-    return const ProgressResult(
-      tag: 3,
-      futureCallIdsJson: '[0]',
-    );
+    return const ProgressResult(tag: 3, futureCallIdsJson: '[0]');
   }
 
   @override
@@ -192,17 +179,16 @@ class MockNativeBindings extends NativeBindings {
     String resultsJson,
     String errorsJson,
   ) {
-    resolveFuturesCalls.add(
-      (handle: handle, resultsJson: resultsJson, errorsJson: errorsJson),
-    );
+    resolveFuturesCalls.add((
+      handle: handle,
+      resultsJson: resultsJson,
+      errorsJson: errorsJson,
+    ));
     if (resolveFuturesResults.isNotEmpty) {
       return resolveFuturesResults.removeAt(0);
     }
 
-    return const ProgressResult(
-      tag: 0,
-      resultJson: _defaultCompleteJson,
-    );
+    return const ProgressResult(tag: 0, resultJson: _defaultCompleteJson);
   }
 
   @override

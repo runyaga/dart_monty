@@ -3,10 +3,8 @@ import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:test/test.dart';
 
 void main() {
-  MontyOsCall fakeOsCall(String op) => MontyOsCall(
-    operationName: op,
-    arguments: const [],
-  );
+  MontyOsCall fakeOsCall(String op) =>
+      MontyOsCall(operationName: op, arguments: const []);
 
   group('TimeOsCallHandler', () {
     test('date.today returns date map with __type', () async {

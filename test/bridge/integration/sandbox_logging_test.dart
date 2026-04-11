@@ -3,7 +3,8 @@ library;
 
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
-import 'package:dart_monty/dart_monty_ffi.dart';
+import 'package:dart_monty/src/ffi/monty_ffi.dart';
+import 'package:dart_monty/src/ffi/native_bindings_ffi.dart';
 import 'package:struct_log/struct_log.dart';
 import 'package:test/test.dart';
 
@@ -53,9 +54,7 @@ void main() {
       final bridge = createBridge();
       final registry = PluginRegistry()
         ..register(
-          SandboxPlugin(
-            platformFactory: () async => createPlatform(),
-          ),
+          SandboxPlugin(platformFactory: () async => createPlatform()),
         );
       await registry.attachTo(bridge);
 
@@ -92,9 +91,7 @@ void main() {
       final bridge = createBridge();
       final registry = PluginRegistry()
         ..register(
-          SandboxPlugin(
-            platformFactory: () async => createPlatform(),
-          ),
+          SandboxPlugin(platformFactory: () async => createPlatform()),
         );
       await registry.attachTo(bridge);
 
@@ -128,9 +125,7 @@ void main() {
       final bridge = createBridge();
       final registry = PluginRegistry()
         ..register(
-          SandboxPlugin(
-            platformFactory: () async => createPlatform(),
-          ),
+          SandboxPlugin(platformFactory: () async => createPlatform()),
         );
       await registry.attachTo(bridge);
 

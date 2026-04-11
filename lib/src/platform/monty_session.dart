@@ -73,11 +73,9 @@ class MontySession {
   /// If [osCallHandler] is provided, OS calls (pathlib, os.getenv,
   /// datetime) are dispatched through it during [run]. Without a handler,
   /// OS calls resume with an error.
-  MontySession({
-    required MontyPlatform platform,
-    OsCallHandler? osCallHandler,
-  }) : _platform = platform,
-       _osCallHandler = osCallHandler;
+  MontySession({required MontyPlatform platform, OsCallHandler? osCallHandler})
+    : _platform = platform,
+      _osCallHandler = osCallHandler;
 
   final MontyPlatform _platform;
   final OsCallHandler? _osCallHandler;
@@ -168,11 +166,7 @@ class MontySession {
   }) async {
     _checkNotDisposed();
     final wrappedCode = _wrapCode(code);
-    final allExtFns = [
-      _restoreStateFn,
-      _persistStateFn,
-      ...?externalFunctions,
-    ];
+    final allExtFns = [_restoreStateFn, _persistStateFn, ...?externalFunctions];
 
     final progress = await _safeStart(
       wrappedCode,

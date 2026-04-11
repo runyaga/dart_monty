@@ -71,14 +71,9 @@ class MontyFfi extends BaseMontyPlatform
       results.map((k, v) => MapEntry(k.toString(), v)),
     );
     final errorsJson = errors != null
-        ? json.encode(
-            errors.map((k, v) => MapEntry(k.toString(), v)),
-          )
+        ? json.encode(errors.map((k, v) => MapEntry(k.toString(), v)))
         : '{}';
-    final progress = await coreBindings.resolveFutures(
-      resultsJson,
-      errorsJson,
-    );
+    final progress = await coreBindings.resolveFutures(resultsJson, errorsJson);
 
     return translateProgress(progress);
   }

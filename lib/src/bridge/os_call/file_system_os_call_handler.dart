@@ -1,0 +1,172 @@
+// ignore_for_file: avoid-unsafe-collection-methods, avoid-non-null-assertion
+import 'package:dart_monty/dart_monty.dart';
+import 'package:dart_monty/src/bridge/os_call/os_call_exception.dart';
+import 'package:dart_monty/src/bridge/os_call/os_call_handler.dart';
+import 'package:file/file.dart';
+
+/// Handles `Path.*` OS calls using any [FileSystem] implementation.
+///
+/// Works with both `LocalFileSystem` (native) and `MemoryFileSystem` (web/test).
+/// This is the shared implementation behind platform-specific defaults.
+///
+/// Use `createDefaultOsCallHandler` for the platform-appropriate default,
+/// or construct directly with a custom [FileSystem]:
+///
+/// ```dart
+/// final handler = FileSystemOsCallHandler(MemoryFileSystem());
+/// ```
+class FileSystemOsCallHandler extends OsCallHandler {
+  /// Creates a handler backed by the given [fileSystem].
+  FileSystemOsCallHandler(this._fs);
+
+  final FileSystem _fs;
+
+  /// The underlying filesystem (for Dart-side access, e.g. pre-populating VFS).
+  FileSystem get fileSystem => _fs;
+
+  @override
+  Future<Object?> handle(MontyOsCall call) => Future.value(_handleSync(call));
+
+  Object? _handleSync(MontyOsCall call) {
+    final op = call.operationName;
+    final args = call.arguments;
+    final kwargs = call.kwargs;
+
+    return switch (op) {
+      'Path.exists' => _exists(args),
+      'Path.is_file' => _isFile(args),
+      'Path.is_dir' => _isDir(args),
+      'Path.is_symlink' => _isSymlink(args),
+      'Path.read_text' => _readText(args),
+      'Path.read_bytes' => _readBytes(args),
+      'Path.write_text' => _writeText(args),
+      'Path.write_bytes' => _writeBytes(args),
+      'Path.mkdir' => _mkdir(args, kwargs),
+      'Path.unlink' => _unlink(args),
+      'Path.rmdir' => _rmdir(args),
+      'Path.rename' => _rename(args),
+      'Path.iterdir' => _iterdir(args),
+      'Path.resolve' || 'Path.absolute' => _str(args.first),
+      _ => throw UnsupportedError('Unsupported path operation: $op'),
+    };
+  }
+
+  bool _exists(List<MontyValue> args) {
+    final path = _str(args.first);
+
+    return _fs.typeSync(path) != FileSystemEntityType.notFound;
+  }
+
+  bool _isFile(List<MontyValue> args) =>
+      _fs.typeSync(_str(args.first)) == FileSystemEntityType.file;
+
+  bool _isDir(List<MontyValue> args) =>
+      _fs.typeSync(_str(args.first)) == FileSystemEntityType.directory;
+
+  bool _isSymlink(List<MontyValue> args) =>
+      _fs.typeSync(_str(args.first), followLinks: false) ==
+      FileSystemEntityType.link;
+
+  String _readText(List<MontyValue> args) {
+    final path = _str(args.first);
+    final file = _fs.file(path);
+    if (!file.existsSync()) {
+      throw OsCallFileNotFoundError('Path.read_text', 'No such file: $path');
+    }
+
+    return file.readAsStringSync();
+  }
+
+  List<int> _readBytes(List<MontyValue> args) {
+    final path = _str(args.first);
+    final file = _fs.file(path);
+    if (!file.existsSync()) {
+      throw OsCallFileNotFoundError('Path.read_bytes', 'No such file: $path');
+    }
+
+    return file.readAsBytesSync().toList();
+  }
+
+  int _writeText(List<MontyValue> args) {
+    final path = _str(args.first);
+    final content = _str(args[1]);
+    _fs.file(path)
+      ..parent.createSync(recursive: true)
+      ..writeAsStringSync(content);
+
+    return content.length;
+  }
+
+  int _writeBytes(List<MontyValue> args) {
+    final path = _str(args.first);
+    final bytes = (args[1].dartValue! as List).cast<int>();
+    _fs.file(path)
+      ..parent.createSync(recursive: true)
+      ..writeAsBytesSync(bytes);
+
+    return bytes.length;
+  }
+
+  Object? _mkdir(List<MontyValue> args, Map<String, MontyValue>? kwargs) {
+    final path = _str(args.first);
+    final parents = kwargs?['parents']?.dartValue as bool? ?? false;
+    final existOk = kwargs?['exist_ok']?.dartValue as bool? ?? false;
+    final dir = _fs.directory(path);
+    final exists = dir.existsSync();
+    if (existOk && exists) return null;
+    if (!parents && exists) {
+      throw OsCallException('Path.mkdir', 'Directory exists: $path');
+    }
+    dir.createSync(recursive: parents);
+
+    return null;
+  }
+
+  Object? _unlink(List<MontyValue> args) {
+    final path = _str(args.first);
+    final file = _fs.file(path);
+    if (!file.existsSync()) {
+      throw OsCallFileNotFoundError('Path.unlink', 'No such file: $path');
+    }
+    file.deleteSync();
+
+    return null;
+  }
+
+  Object? _rmdir(List<MontyValue> args) {
+    final path = _str(args.first);
+    final dir = _fs.directory(path);
+    if (!dir.existsSync()) {
+      throw OsCallFileNotFoundError('Path.rmdir', 'No such directory: $path');
+    }
+    dir.deleteSync();
+
+    return null;
+  }
+
+  String _rename(List<MontyValue> args) {
+    final oldPath = _str(args.first);
+    final newPath = _str(args[1]);
+    _fs.file(oldPath).renameSync(newPath);
+
+    return newPath;
+  }
+
+  List<MontyPath> _iterdir(List<MontyValue> args) {
+    final path = _str(args.first);
+    final dir = _fs.directory(path);
+    if (!dir.existsSync()) {
+      throw OsCallFileNotFoundError(
+        'Path.iterdir',
+        'No such directory: $path',
+      );
+    }
+
+    return dir.listSync().map((e) => MontyPath(e.path)).toList();
+  }
+}
+
+String _str(MontyValue arg) => switch (arg) {
+  MontyString(:final value) || MontyPath(:final value) => value,
+  _ => throw ArgumentError('Expected string or path, got: $arg'),
+};

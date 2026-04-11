@@ -18,10 +18,7 @@ void main() {
     });
 
     test('omits description when null', () {
-      const param = HostParam(
-        name: 'count',
-        type: HostParamType.integer,
-      );
+      const param = HostParam(name: 'count', type: HostParamType.integer);
 
       expect(param.toJsonSchema(), {'type': 'integer'});
     });
@@ -274,10 +271,7 @@ void main() {
     });
 
     test('throws FormatException when required param is missing', () {
-      const pending = MontyPending(
-        functionName: 'greet',
-        arguments: [],
-      );
+      const pending = MontyPending(functionName: 'greet', arguments: []);
 
       expect(() => schema.mapAndValidate(pending), throwsFormatException);
     });
@@ -292,15 +286,9 @@ void main() {
     });
 
     test('works with no params schema', () {
-      const emptySchema = HostFunctionSchema(
-        name: 'ping',
-        description: 'Ping',
-      );
+      const emptySchema = HostFunctionSchema(name: 'ping', description: 'Ping');
 
-      const pending = MontyPending(
-        functionName: 'ping',
-        arguments: [],
-      );
+      const pending = MontyPending(functionName: 'ping', arguments: []);
 
       final result = emptySchema.mapAndValidate(pending);
       expect(result, isEmpty);

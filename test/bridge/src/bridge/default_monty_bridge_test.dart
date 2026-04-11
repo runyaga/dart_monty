@@ -599,14 +599,8 @@ void main() {
 
       // Should have called resumeWithError with PermissionError.
       expect(mock.resumeErrorMessages, hasLength(1));
-      expect(
-        mock.resumeErrorMessages.first,
-        contains('PermissionError'),
-      );
-      expect(
-        mock.resumeErrorMessages.first,
-        contains('Path.read_text'),
-      );
+      expect(mock.resumeErrorMessages.first, contains('PermissionError'));
+      expect(mock.resumeErrorMessages.first, contains('Path.read_text'));
 
       // Should have emitted OsCall events.
       final starts = events.whereType<BridgeOsCallStart>().toList();
@@ -692,9 +686,8 @@ void main() {
     test('registerOsCallHandler after dispose throws StateError', () {
       bridge.dispose();
       expect(
-        () => bridge.registerOsCallHandler(
-          _TestOsCallHandler((_) async => null),
-        ),
+        () =>
+            bridge.registerOsCallHandler(_TestOsCallHandler((_) async => null)),
         throwsStateError,
       );
     });
@@ -716,9 +709,7 @@ void main() {
       // Calling again (already disposed) should not double-dispose.
       // registerOsCallHandler should throw since disposed.
       expect(
-        () => bridge.registerOsCallHandler(
-          _DisposableOsCallHandler(),
-        ),
+        () => bridge.registerOsCallHandler(_DisposableOsCallHandler()),
         throwsStateError,
       );
     });
@@ -929,18 +920,12 @@ void main() {
 
     test('unregister after dispose throws StateError', () {
       bridge.dispose();
-      expect(
-        () => bridge.unregister('fn'),
-        throwsStateError,
-      );
+      expect(() => bridge.unregister('fn'), throwsStateError);
     });
 
     test('execute after dispose throws StateError', () {
       bridge.dispose();
-      expect(
-        () => bridge.execute('1 + 1'),
-        throwsStateError,
-      );
+      expect(() => bridge.execute('1 + 1'), throwsStateError);
     });
 
     test('execute while already executing throws StateError', () async {
@@ -1063,10 +1048,7 @@ void main() {
     test('unknown function in pending resumes with error', () async {
       mock
         ..enqueueProgress(
-          const MontyPending(
-            functionName: 'not_registered',
-            arguments: [],
-          ),
+          const MontyPending(functionName: 'not_registered', arguments: []),
         )
         ..enqueueProgress(
           const MontyComplete(result: MontyResult(usage: _usage)),
@@ -1160,9 +1142,7 @@ void main() {
       addTearDown(syncBridge.dispose);
 
       syncMock
-        ..enqueueProgress(
-          const MontyResolveFutures(pendingCallIds: [1]),
-        )
+        ..enqueueProgress(const MontyResolveFutures(pendingCallIds: [1]))
         ..enqueueProgress(
           const MontyComplete(result: MontyResult(usage: _usage)),
         );

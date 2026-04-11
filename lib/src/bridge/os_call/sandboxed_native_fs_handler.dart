@@ -83,10 +83,7 @@ class SandboxedNativeFsHandler extends OsCallHandler {
         : p.normalize(p.join(_rootExact, pythonPath));
 
     if (joined != _rootExact && !joined.startsWith(_root)) {
-      throw OsCallPermissionError(
-        op,
-        'Path escapes sandbox: $pythonPath',
-      );
+      throw OsCallPermissionError(op, 'Path escapes sandbox: $pythonPath');
     }
 
     return joined;

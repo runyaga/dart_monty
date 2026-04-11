@@ -73,11 +73,7 @@ Future<Object?> _handleOsCall(Map<String, dynamic> state) async {
     kwargs = rawKwargs.map((k, v) => MapEntry(k, MontyValue.fromJson(v)));
   }
 
-  final call = MontyOsCall(
-    operationName: op,
-    arguments: args,
-    kwargs: kwargs,
-  );
+  final call = MontyOsCall(operationName: op, arguments: args, kwargs: kwargs);
 
   if (op.startsWith('Path.')) {
     return _vfs.handle(call);
@@ -91,9 +87,7 @@ Future<Object?> _handleOsCall(Map<String, dynamic> state) async {
 ///
 /// Returns the final result map from the bridge.
 Future<Map<String, dynamic>> _runWithVfs(String code) async {
-  var state = _parse(
-    (await _bridge.start(code.toJS).toDart).toDart,
-  );
+  var state = _parse((await _bridge.start(code.toJS).toDart).toDart);
 
   while (state['state'] != 'complete') {
     if (state['ok'] != true) return state;
@@ -107,11 +101,7 @@ Future<Map<String, dynamic>> _runWithVfs(String code) async {
         );
       } on Object catch (e) {
         state = _parse(
-          (await _bridge
-                  .resumeWithError(
-                    jsonEncode(e.toString()).toJS,
-                  )
-                  .toDart)
+          (await _bridge.resumeWithError(jsonEncode(e.toString()).toJS).toDart)
               .toDart,
         );
       }

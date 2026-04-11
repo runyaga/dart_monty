@@ -45,9 +45,7 @@ void runFsHandlerContract(
         ]),
       );
       final result = await handler.handle(
-        pathCall('Path.read_text', [
-          MontyString('$rootPath/test.txt'),
-        ]),
+        pathCall('Path.read_text', [MontyString('$rootPath/test.txt')]),
       );
       expect(result, 'hello world');
     });
@@ -60,9 +58,7 @@ void runFsHandlerContract(
         ]),
       );
       final result = await handler.handle(
-        pathCall('Path.read_bytes', [
-          MontyString('$rootPath/data.bin'),
-        ]),
+        pathCall('Path.read_bytes', [MontyString('$rootPath/data.bin')]),
       );
       expect(result, [72, 105]);
     });
@@ -97,9 +93,7 @@ void runFsHandlerContract(
         ]),
       );
       final result = await handler.handle(
-        pathCall('Path.read_bytes', [
-          MontyString('$rootPath/bytes.bin'),
-        ]),
+        pathCall('Path.read_bytes', [MontyString('$rootPath/bytes.bin')]),
       );
       expect(result, isA<List<int>>());
       expect(result, [65, 66, 67]);
@@ -116,9 +110,7 @@ void runFsHandlerContract(
         ),
       );
       final isDir = await handler.handle(
-        pathCall('Path.is_dir', [
-          MontyString('$rootPath/newdir'),
-        ]),
+        pathCall('Path.is_dir', [MontyString('$rootPath/newdir')]),
       );
       expect(isDir, isTrue);
     });
@@ -132,9 +124,7 @@ void runFsHandlerContract(
         ),
       );
       final isDir = await handler.handle(
-        pathCall('Path.is_dir', [
-          MontyString('$rootPath/a/b/c'),
-        ]),
+        pathCall('Path.is_dir', [MontyString('$rootPath/a/b/c')]),
       );
       expect(isDir, isTrue);
     });
@@ -172,9 +162,7 @@ void runFsHandlerContract(
       );
 
       final result = await handler.handle(
-        pathCall('Path.iterdir', [
-          MontyString('$rootPath/ls'),
-        ]),
+        pathCall('Path.iterdir', [MontyString('$rootPath/ls')]),
       );
       expect(result, isA<List<MontyPath>>());
       final paths = (result! as List<MontyPath>).map((p) => p.value).toList()
@@ -192,9 +180,7 @@ void runFsHandlerContract(
         ]),
       );
       final result = await handler.handle(
-        pathCall('Path.iterdir', [
-          MontyString('$rootPath/lsdir'),
-        ]),
+        pathCall('Path.iterdir', [MontyString('$rootPath/lsdir')]),
       );
       expect(result, isA<List<MontyPath>>());
     });
@@ -209,18 +195,14 @@ void runFsHandlerContract(
         ]),
       );
       final result = await handler.handle(
-        pathCall('Path.exists', [
-          MontyString('$rootPath/exists.txt'),
-        ]),
+        pathCall('Path.exists', [MontyString('$rootPath/exists.txt')]),
       );
       expect(result, isTrue);
     });
 
     test('Path.exists false for missing path', () async {
       final result = await handler.handle(
-        pathCall('Path.exists', [
-          MontyString('$rootPath/nope.txt'),
-        ]),
+        pathCall('Path.exists', [MontyString('$rootPath/nope.txt')]),
       );
       expect(result, isFalse);
     });
@@ -234,18 +216,12 @@ void runFsHandlerContract(
       );
       expect(
         await handler.handle(
-          pathCall('Path.is_file', [
-            MontyString('$rootPath/f.txt'),
-          ]),
+          pathCall('Path.is_file', [MontyString('$rootPath/f.txt')]),
         ),
         isTrue,
       );
       expect(
-        await handler.handle(
-          pathCall('Path.is_file', [
-            MontyString(rootPath),
-          ]),
-        ),
+        await handler.handle(pathCall('Path.is_file', [MontyString(rootPath)])),
         isFalse,
       );
     });
@@ -258,18 +234,12 @@ void runFsHandlerContract(
         ]),
       );
       expect(
-        await handler.handle(
-          pathCall('Path.is_dir', [
-            MontyString(rootPath),
-          ]),
-        ),
+        await handler.handle(pathCall('Path.is_dir', [MontyString(rootPath)])),
         isTrue,
       );
       expect(
         await handler.handle(
-          pathCall('Path.is_dir', [
-            MontyString('$rootPath/d.txt'),
-          ]),
+          pathCall('Path.is_dir', [MontyString('$rootPath/d.txt')]),
         ),
         isFalse,
       );
@@ -285,14 +255,10 @@ void runFsHandlerContract(
         ]),
       );
       await handler.handle(
-        pathCall('Path.unlink', [
-          MontyString('$rootPath/kill.txt'),
-        ]),
+        pathCall('Path.unlink', [MontyString('$rootPath/kill.txt')]),
       );
       final exists = await handler.handle(
-        pathCall('Path.exists', [
-          MontyString('$rootPath/kill.txt'),
-        ]),
+        pathCall('Path.exists', [MontyString('$rootPath/kill.txt')]),
       );
       expect(exists, isFalse);
     });
@@ -306,14 +272,10 @@ void runFsHandlerContract(
         ),
       );
       await handler.handle(
-        pathCall('Path.rmdir', [
-          MontyString('$rootPath/emptydir'),
-        ]),
+        pathCall('Path.rmdir', [MontyString('$rootPath/emptydir')]),
       );
       final exists = await handler.handle(
-        pathCall('Path.exists', [
-          MontyString('$rootPath/emptydir'),
-        ]),
+        pathCall('Path.exists', [MontyString('$rootPath/emptydir')]),
       );
       expect(exists, isFalse);
     });
@@ -334,16 +296,12 @@ void runFsHandlerContract(
       expect(newPath, '$rootPath/new.txt');
 
       final oldExists = await handler.handle(
-        pathCall('Path.exists', [
-          MontyString('$rootPath/old.txt'),
-        ]),
+        pathCall('Path.exists', [MontyString('$rootPath/old.txt')]),
       );
       expect(oldExists, isFalse);
 
       final content = await handler.handle(
-        pathCall('Path.read_text', [
-          MontyString('$rootPath/new.txt'),
-        ]),
+        pathCall('Path.read_text', [MontyString('$rootPath/new.txt')]),
       );
       expect(content, 'moved');
     });
@@ -352,9 +310,7 @@ void runFsHandlerContract(
 
     test('Path.resolve returns a path string', () async {
       final result = await handler.handle(
-        pathCall('Path.resolve', [
-          MontyString('$rootPath/any.txt'),
-        ]),
+        pathCall('Path.resolve', [MontyString('$rootPath/any.txt')]),
       );
       expect(result, isA<String>());
       expect(result! as String, contains('any.txt'));
@@ -362,9 +318,7 @@ void runFsHandlerContract(
 
     test('Path.absolute returns a path string', () async {
       final result = await handler.handle(
-        pathCall('Path.absolute', [
-          MontyString('$rootPath/any.txt'),
-        ]),
+        pathCall('Path.absolute', [MontyString('$rootPath/any.txt')]),
       );
       expect(result, isA<String>());
       expect(result! as String, contains('any.txt'));

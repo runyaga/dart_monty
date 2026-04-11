@@ -37,9 +37,7 @@ external ffi.Pointer<MontyHandle> monty_create(
 
 /// Free a handle. Safe to call with NULL.
 @ffi.Native<ffi.Void Function(ffi.Pointer<MontyHandle>)>()
-external void monty_free(
-  ffi.Pointer<MontyHandle> handle,
-);
+external void monty_free(ffi.Pointer<MontyHandle> handle);
 
 /// Run Python code to completion.
 ///
@@ -66,13 +64,7 @@ MontyResultTag monty_run(
   ffi.Pointer<MontyHandle> handle,
   ffi.Pointer<ffi.Pointer<ffi.Char>> result_json,
   ffi.Pointer<ffi.Pointer<ffi.Char>> error_msg,
-) => MontyResultTag.fromValue(
-  _monty_run(
-    handle,
-    result_json,
-    error_msg,
-  ),
-);
+) => MontyResultTag.fromValue(_monty_run(handle, result_json, error_msg));
 
 /// Start iterative execution. Pauses at external function calls.
 ///
@@ -93,12 +85,7 @@ external int _monty_start(
 MontyProgressTag monty_start(
   ffi.Pointer<MontyHandle> handle,
   ffi.Pointer<ffi.Pointer<ffi.Char>> out_error,
-) => MontyProgressTag.fromValue(
-  _monty_start(
-    handle,
-    out_error,
-  ),
-);
+) => MontyProgressTag.fromValue(_monty_start(handle, out_error));
 
 /// Resume execution with a return value.
 ///
@@ -123,13 +110,7 @@ MontyProgressTag monty_resume(
   ffi.Pointer<MontyHandle> handle,
   ffi.Pointer<ffi.Char> value_json,
   ffi.Pointer<ffi.Pointer<ffi.Char>> out_error,
-) => MontyProgressTag.fromValue(
-  _monty_resume(
-    handle,
-    value_json,
-    out_error,
-  ),
-);
+) => MontyProgressTag.fromValue(_monty_resume(handle, value_json, out_error));
 
 /// Resume execution with an error (raises RuntimeError in Python).
 ///
@@ -155,11 +136,7 @@ MontyProgressTag monty_resume_with_error(
   ffi.Pointer<ffi.Char> error_message,
   ffi.Pointer<ffi.Pointer<ffi.Char>> out_error,
 ) => MontyProgressTag.fromValue(
-  _monty_resume_with_error(
-    handle,
-    error_message,
-    out_error,
-  ),
+  _monty_resume_with_error(handle, error_message, out_error),
 );
 
 /// Resume by creating a future (tells the VM this call returns a future).
@@ -183,12 +160,7 @@ external int _monty_resume_as_future(
 MontyProgressTag monty_resume_as_future(
   ffi.Pointer<MontyHandle> handle,
   ffi.Pointer<ffi.Pointer<ffi.Char>> out_error,
-) => MontyProgressTag.fromValue(
-  _monty_resume_as_future(
-    handle,
-    out_error,
-  ),
-);
+) => MontyProgressTag.fromValue(_monty_resume_as_future(handle, out_error));
 
 /// Get the pending future call IDs as a JSON array.
 /// Only valid after progress returned MONTY_PROGRESS_RESOLVE_FUTURES.
@@ -232,12 +204,7 @@ MontyProgressTag monty_resume_futures(
   ffi.Pointer<ffi.Char> errors_json,
   ffi.Pointer<ffi.Pointer<ffi.Char>> out_error,
 ) => MontyProgressTag.fromValue(
-  _monty_resume_futures(
-    handle,
-    results_json,
-    errors_json,
-    out_error,
-  ),
+  _monty_resume_futures(handle, results_json, errors_json, out_error),
 );
 
 /// Get the pending external function name.
@@ -273,18 +240,14 @@ external ffi.Pointer<ffi.Char> monty_pending_fn_kwargs_json(
 ///
 /// @return  Call ID, or UINT32_MAX if not in Paused state.
 @ffi.Native<ffi.Uint32 Function(ffi.Pointer<MontyHandle>)>()
-external int monty_pending_call_id(
-  ffi.Pointer<MontyHandle> handle,
-);
+external int monty_pending_call_id(ffi.Pointer<MontyHandle> handle);
 
 /// Whether the pending call is a method call (obj.method() vs func()).
 /// Only valid after monty_start/monty_resume returned MONTY_PROGRESS_PENDING.
 ///
 /// @return  1 for method call, 0 for function call, -1 if not in Paused state.
 @ffi.Native<ffi.Int Function(ffi.Pointer<MontyHandle>)>()
-external int monty_pending_method_call(
-  ffi.Pointer<MontyHandle> handle,
-);
+external int monty_pending_method_call(ffi.Pointer<MontyHandle> handle);
 
 /// Get the OS function name (only valid after MONTY_PROGRESS_OS_CALL).
 /// @return  Heap-allocated string, or NULL. Caller frees with monty_string_free().
@@ -310,9 +273,7 @@ external ffi.Pointer<ffi.Char> monty_os_call_kwargs_json(
 /// Get the OS call ID.
 /// @return  The call ID, or UINT32_MAX if not in OsCall state.
 @ffi.Native<ffi.Uint32 Function(ffi.Pointer<MontyHandle>)>()
-external int monty_os_call_id(
-  ffi.Pointer<MontyHandle> handle,
-);
+external int monty_os_call_id(ffi.Pointer<MontyHandle> handle);
 
 /// Get the completed result as a JSON string.
 /// Only valid after execution reached COMPLETE state.
@@ -327,9 +288,7 @@ external ffi.Pointer<ffi.Char> monty_complete_result_json(
 ///
 /// @return  1 = error, 0 = success, -1 = not in Complete state.
 @ffi.Native<ffi.Int Function(ffi.Pointer<MontyHandle>)>()
-external int monty_complete_is_error(
-  ffi.Pointer<MontyHandle> handle,
-);
+external int monty_complete_is_error(ffi.Pointer<MontyHandle> handle);
 
 /// Serialize compiled code to a byte buffer (snapshot).
 /// Only valid in Ready state.
@@ -376,30 +335,19 @@ external void monty_set_memory_limit(
 
 /// Set execution time limit in milliseconds.
 @ffi.Native<ffi.Void Function(ffi.Pointer<MontyHandle>, ffi.Uint64)>()
-external void monty_set_time_limit_ms(
-  ffi.Pointer<MontyHandle> handle,
-  int ms,
-);
+external void monty_set_time_limit_ms(ffi.Pointer<MontyHandle> handle, int ms);
 
 /// Set stack depth limit.
 @ffi.Native<ffi.Void Function(ffi.Pointer<MontyHandle>, ffi.Size)>()
-external void monty_set_stack_limit(
-  ffi.Pointer<MontyHandle> handle,
-  int depth,
-);
+external void monty_set_stack_limit(ffi.Pointer<MontyHandle> handle, int depth);
 
 /// Free a string returned by any monty_* function. Safe with NULL.
 @ffi.Native<ffi.Void Function(ffi.Pointer<ffi.Char>)>()
-external void monty_string_free(
-  ffi.Pointer<ffi.Char> ptr,
-);
+external void monty_string_free(ffi.Pointer<ffi.Char> ptr);
 
 /// Free a byte buffer returned by monty_snapshot(). Safe with NULL.
 @ffi.Native<ffi.Void Function(ffi.Pointer<ffi.Uint8>, ffi.Size)>()
-external void monty_bytes_free(
-  ffi.Pointer<ffi.Uint8> ptr,
-  int len,
-);
+external void monty_bytes_free(ffi.Pointer<ffi.Uint8> ptr, int len);
 
 final class MontyHandle extends ffi.Opaque {}
 

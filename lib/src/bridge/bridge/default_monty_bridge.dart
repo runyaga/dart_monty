@@ -112,12 +112,7 @@ class DefaultMontyBridge implements MontyBridge {
     _functions.remove(name);
   }
 
-  /// Registers a handler for OS-level calls (pathlib, os.getenv, datetime,
-  /// etc.).
-  ///
-  /// When Python code triggers an OS call and a handler is registered, the
-  /// bridge invokes it and resumes Python with the result. When no handler is
-  /// registered, the bridge resumes with a `PermissionError`.
+  @override
   void registerOsCallHandler(OsCallHandler handler) {
     if (_isDisposed) throw StateError('Bridge has been disposed');
     _osCallHandler = handler;
@@ -188,10 +183,7 @@ class DefaultMontyBridge implements MontyBridge {
       bool futuresCapable,
     })
   >
-  _initExecution(
-    String code,
-    StreamController<BridgeEvent> controller,
-  ) async {
+  _initExecution(String code, StreamController<BridgeEvent> controller) async {
     final threadId = _nextId;
     final runId = _nextId;
     controller.add(BridgeRunStarted(threadId: threadId, runId: runId));

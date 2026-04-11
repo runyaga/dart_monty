@@ -7,8 +7,10 @@ import 'package:dart_monty/src/bridge/os_call/time_os_call_handler.dart';
 ///
 /// Returns a [RouterOsCallHandler] with:
 /// - `Path.*` -> [MemoryFsOsCallHandler] (in-memory VFS)
+/// - `date.*`, `datetime.*` -> [TimeOsCallHandler]
 ///
-/// No `os.*` environment access on web (no `dart:io`).
+/// No `os.*` environment access on web (no `dart:io`). Any `os.getenv`
+/// or `os.environ` call will resume Python with a `PermissionError`.
 OsCallHandler createDefaultOsCallHandler() {
   final time = TimeOsCallHandler();
 

@@ -26,9 +26,7 @@ void main() {
         ]),
       );
       final result = await handler.handle(
-        pathCall('Path.read_text', [
-          const MontyString('/sandbox/test.txt'),
-        ]),
+        pathCall('Path.read_text', [const MontyString('/sandbox/test.txt')]),
       );
 
       expect(result, 'hello world');
@@ -42,9 +40,7 @@ void main() {
         ]),
       );
       final result = await handler.handle(
-        pathCall('Path.read_bytes', [
-          const MontyString('/sandbox/data.bin'),
-        ]),
+        pathCall('Path.read_bytes', [const MontyString('/sandbox/data.bin')]),
       );
 
       expect(result, [72, 105]);
@@ -83,14 +79,10 @@ void main() {
       handler.writeFile('/sandbox/placeholder', '');
 
       await handler.handle(
-        pathCall('Path.mkdir', [
-          const MontyString('/sandbox/newdir'),
-        ]),
+        pathCall('Path.mkdir', [const MontyString('/sandbox/newdir')]),
       );
       final isDir = await handler.handle(
-        pathCall('Path.is_dir', [
-          const MontyString('/sandbox/newdir'),
-        ]),
+        pathCall('Path.is_dir', [const MontyString('/sandbox/newdir')]),
       );
 
       expect(isDir, isTrue);
@@ -105,9 +97,7 @@ void main() {
         ),
       );
       final isDir = await handler.handle(
-        pathCall('Path.is_dir', [
-          const MontyString('/sandbox/a/b/c'),
-        ]),
+        pathCall('Path.is_dir', [const MontyString('/sandbox/a/b/c')]),
       );
 
       expect(isDir, isTrue);
@@ -155,9 +145,7 @@ void main() {
         ..writeFile('/sandbox/dir/b.txt', 'b');
 
       final result = await handler.handle(
-        pathCall('Path.iterdir', [
-          const MontyString('/sandbox/dir'),
-        ]),
+        pathCall('Path.iterdir', [const MontyString('/sandbox/dir')]),
       );
 
       expect(result, isA<List<MontyPath>>());
@@ -171,9 +159,7 @@ void main() {
     test('iterdir on missing dir throws', () {
       expect(
         () => handler.handle(
-          pathCall('Path.iterdir', [
-            const MontyString('/sandbox/nope'),
-          ]),
+          pathCall('Path.iterdir', [const MontyString('/sandbox/nope')]),
         ),
         throwsA(isA<OsCallFileNotFoundError>()),
       );
@@ -184,9 +170,7 @@ void main() {
     test('Path.exists true for existing file', () async {
       handler.writeFile('/sandbox/x.txt', 'x');
       final result = await handler.handle(
-        pathCall('Path.exists', [
-          const MontyString('/sandbox/x.txt'),
-        ]),
+        pathCall('Path.exists', [const MontyString('/sandbox/x.txt')]),
       );
 
       expect(result, isTrue);
@@ -194,9 +178,7 @@ void main() {
 
     test('Path.exists false for missing path', () async {
       final result = await handler.handle(
-        pathCall('Path.exists', [
-          const MontyString('/sandbox/nope'),
-        ]),
+        pathCall('Path.exists', [const MontyString('/sandbox/nope')]),
       );
 
       expect(result, isFalse);
@@ -207,17 +189,13 @@ void main() {
 
       expect(
         await handler.handle(
-          pathCall('Path.is_file', [
-            const MontyString('/sandbox/f.txt'),
-          ]),
+          pathCall('Path.is_file', [const MontyString('/sandbox/f.txt')]),
         ),
         isTrue,
       );
       expect(
         await handler.handle(
-          pathCall('Path.is_file', [
-            const MontyString('/sandbox'),
-          ]),
+          pathCall('Path.is_file', [const MontyString('/sandbox')]),
         ),
         isFalse,
       );
@@ -228,17 +206,13 @@ void main() {
 
       expect(
         await handler.handle(
-          pathCall('Path.is_dir', [
-            const MontyString('/sandbox'),
-          ]),
+          pathCall('Path.is_dir', [const MontyString('/sandbox')]),
         ),
         isTrue,
       );
       expect(
         await handler.handle(
-          pathCall('Path.is_dir', [
-            const MontyString('/sandbox/f.txt'),
-          ]),
+          pathCall('Path.is_dir', [const MontyString('/sandbox/f.txt')]),
         ),
         isFalse,
       );
@@ -249,9 +223,7 @@ void main() {
     test('unlink removes file', () async {
       handler.writeFile('/sandbox/kill.txt', 'bye');
       await handler.handle(
-        pathCall('Path.unlink', [
-          const MontyString('/sandbox/kill.txt'),
-        ]),
+        pathCall('Path.unlink', [const MontyString('/sandbox/kill.txt')]),
       );
 
       expect(handler.exists('/sandbox/kill.txt'), isFalse);
@@ -260,9 +232,7 @@ void main() {
     test('unlink on missing file throws', () {
       expect(
         () => handler.handle(
-          pathCall('Path.unlink', [
-            const MontyString('/sandbox/ghost.txt'),
-          ]),
+          pathCall('Path.unlink', [const MontyString('/sandbox/ghost.txt')]),
         ),
         throwsA(isA<OsCallFileNotFoundError>()),
       );
@@ -277,9 +247,7 @@ void main() {
         ),
       );
       await handler.handle(
-        pathCall('Path.rmdir', [
-          const MontyString('/sandbox/empty'),
-        ]),
+        pathCall('Path.rmdir', [const MontyString('/sandbox/empty')]),
       );
 
       expect(handler.exists('/sandbox/empty'), isFalse);
@@ -303,9 +271,7 @@ void main() {
 
     test('Path.resolve returns path string', () async {
       final result = await handler.handle(
-        pathCall('Path.resolve', [
-          const MontyString('/sandbox/test.txt'),
-        ]),
+        pathCall('Path.resolve', [const MontyString('/sandbox/test.txt')]),
       );
 
       expect(result, '/sandbox/test.txt');
@@ -313,9 +279,7 @@ void main() {
 
     test('Path.absolute returns path string', () async {
       final result = await handler.handle(
-        pathCall('Path.absolute', [
-          const MontyString('/sandbox/test.txt'),
-        ]),
+        pathCall('Path.absolute', [const MontyString('/sandbox/test.txt')]),
       );
 
       expect(result, '/sandbox/test.txt');
@@ -350,9 +314,7 @@ void main() {
     test('read_bytes returns List<int>', () async {
       handler.writeFileBytes('/sandbox/bytes.bin', [65, 66, 67]);
       final result = await handler.handle(
-        pathCall('Path.read_bytes', [
-          const MontyString('/sandbox/bytes.bin'),
-        ]),
+        pathCall('Path.read_bytes', [const MontyString('/sandbox/bytes.bin')]),
       );
 
       expect(result, isA<List<int>>());
@@ -362,9 +324,7 @@ void main() {
     test('iterdir returns List<MontyPath>', () async {
       handler.writeFile('/sandbox/ls/x.txt', 'x');
       final result = await handler.handle(
-        pathCall('Path.iterdir', [
-          const MontyString('/sandbox/ls'),
-        ]),
+        pathCall('Path.iterdir', [const MontyString('/sandbox/ls')]),
       );
 
       expect(result, isA<List<MontyPath>>());

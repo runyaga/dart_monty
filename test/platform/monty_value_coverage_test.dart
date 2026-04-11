@@ -37,14 +37,16 @@ void main() {
       expect(v.dartValue, [true, null]);
     });
 
-    test('MontyDate.dartValue returns map', () {
+    test('MontyDate.dartValue returns DateTime', () {
       const v = MontyDate(year: 2026, month: 4, day: 10);
       final dv = v.dartValue;
-      expect(dv['__type'], 'date');
-      expect(dv['year'], 2026);
+      expect(dv, isA<DateTime>());
+      expect(dv.year, 2026);
+      expect(dv.month, 4);
+      expect(dv.day, 10);
     });
 
-    test('MontyDateTime.dartValue returns map', () {
+    test('MontyDateTime.dartValue returns DateTime', () {
       const v = MontyDateTime(
         year: 2026,
         month: 4,
@@ -54,13 +56,16 @@ void main() {
         second: 0,
       );
       final dv = v.dartValue;
-      expect(dv['__type'], 'datetime');
+      expect(dv, isA<DateTime>());
+      expect(dv.year, 2026);
+      expect(dv.hour, 12);
     });
 
-    test('MontyTimeDelta.dartValue returns map', () {
+    test('MontyTimeDelta.dartValue returns Duration', () {
       const v = MontyTimeDelta(days: 1, seconds: 0);
       final dv = v.dartValue;
-      expect(dv['__type'], 'timedelta');
+      expect(dv, isA<Duration>());
+      expect(dv.inDays, 1);
     });
 
     test('MontyTimeZone.dartValue returns map', () {
@@ -122,17 +127,8 @@ void main() {
         const MontyTimeDelta(days: 0, seconds: 0),
         const MontyTimeZone(offsetSeconds: 0),
         const MontyPath('/x'),
-        const MontyNamedTuple(
-          typeName: 'T',
-          fieldNames: [],
-          values: [],
-        ),
-        const MontyDataclass(
-          name: 'D',
-          typeId: 0,
-          fieldNames: [],
-          attrs: {},
-        ),
+        const MontyNamedTuple(typeName: 'T', fieldNames: [], values: []),
+        const MontyDataclass(name: 'D', typeId: 0, fieldNames: [], attrs: {}),
       ];
 
       for (final v in values) {
@@ -174,17 +170,8 @@ void main() {
         const MontyTimeDelta(days: 0, seconds: 0),
         const MontyTimeZone(offsetSeconds: 0),
         const MontyPath(''),
-        const MontyNamedTuple(
-          typeName: '',
-          fieldNames: [],
-          values: [],
-        ),
-        const MontyDataclass(
-          name: '',
-          typeId: 0,
-          fieldNames: [],
-          attrs: {},
-        ),
+        const MontyNamedTuple(typeName: '', fieldNames: [], values: []),
+        const MontyDataclass(name: '', typeId: 0, fieldNames: [], attrs: {}),
       ];
 
       for (final v in values) {

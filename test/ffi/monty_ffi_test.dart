@@ -124,10 +124,7 @@ void main() {
     });
 
     test('frees handle even when run throws', () async {
-      mock.nextRunResult = const RunResult(
-        tag: 1,
-        errorMessage: 'boom',
-      );
+      mock.nextRunResult = const RunResult(tag: 1, errorMessage: 'boom');
 
       try {
         await monty.run('x');
@@ -197,10 +194,7 @@ void main() {
         argumentsJson: '[]',
       );
 
-      await monty.start(
-        'a()',
-        externalFunctions: ['a', 'b', 'c'],
-      );
+      await monty.start('a()', externalFunctions: ['a', 'b', 'c']);
 
       expect(mock.createCalls.first.externalFunctions, 'a,b,c');
     });
@@ -231,10 +225,7 @@ void main() {
       );
 
       final pending = progress as MontyPending;
-      expect(
-        pending.kwargs,
-        {'timeout': const MontyInt(30)},
-      );
+      expect(pending.kwargs, {'timeout': const MontyInt(30)});
       expect(pending.arguments, [const MontyInt(1)]);
     });
 
@@ -328,10 +319,7 @@ void main() {
         isError: 0,
       );
 
-      await monty.start(
-        'x',
-        limits: const MontyLimits(memoryBytes: 512),
-      );
+      await monty.start('x', limits: const MontyLimits(memoryBytes: 512));
 
       expect(mock.setMemoryLimitCalls, hasLength(1));
       expect(mock.setMemoryLimitCalls.first.bytes, 512);
@@ -405,20 +393,13 @@ void main() {
         const ProgressResult(tag: 2, errorMessage: 'runtime error'),
       );
 
-      expect(
-        () => monty.resume(null),
-        throwsA(isA<MontyScriptError>()),
-      );
+      expect(() => monty.resume(null), throwsA(isA<MontyScriptError>()));
     });
 
     test('throws StateError when idle', () async {
       // Complete the execution first to go back to idle.
       mock.resumeResults.add(
-        ProgressResult(
-          tag: 0,
-          resultJson: _okResultJson(null),
-          isError: 0,
-        ),
+        ProgressResult(tag: 0, resultJson: _okResultJson(null), isError: 0),
       );
       await monty.resume(null);
 
@@ -432,11 +413,7 @@ void main() {
 
     test('encodes complex return values as JSON', () async {
       mock.resumeResults.add(
-        ProgressResult(
-          tag: 0,
-          resultJson: _okResultJson(null),
-          isError: 0,
-        ),
+        ProgressResult(tag: 0, resultJson: _okResultJson(null), isError: 0),
       );
 
       await monty.resume({
@@ -480,18 +457,12 @@ void main() {
 
     test('throws StateError when idle', () {
       final freshMonty = MontyFfi(bindings: mock);
-      expect(
-        () => freshMonty.resumeWithError('err'),
-        throwsStateError,
-      );
+      expect(() => freshMonty.resumeWithError('err'), throwsStateError);
     });
 
     test('throws StateError when disposed', () async {
       await monty.dispose();
-      expect(
-        () => monty.resumeWithError('err'),
-        throwsStateError,
-      );
+      expect(() => monty.resumeWithError('err'), throwsStateError);
     });
   });
 
@@ -554,11 +525,7 @@ void main() {
 
       // resume() should be allowed (active state).
       mock.resumeResults.add(
-        ProgressResult(
-          tag: 0,
-          resultJson: _okResultJson(10),
-          isError: 0,
-        ),
+        ProgressResult(tag: 0, resultJson: _okResultJson(10), isError: 0),
       );
       final progress = await restoredFfi.resume('val');
       expect(progress, isA<MontyComplete>());
@@ -576,10 +543,7 @@ void main() {
 
     test('throws StateError when disposed', () async {
       await monty.dispose();
-      expect(
-        () => monty.restore(Uint8List.fromList([1])),
-        throwsStateError,
-      );
+      expect(() => monty.restore(Uint8List.fromList([1])), throwsStateError);
     });
 
     test('throws StateError when active', () async {
@@ -590,10 +554,7 @@ void main() {
       );
       await monty.start('x', externalFunctions: ['f']);
 
-      expect(
-        () => monty.restore(Uint8List.fromList([1])),
-        throwsStateError,
-      );
+      expect(() => monty.restore(Uint8List.fromList([1])), throwsStateError);
     });
   });
 
@@ -667,25 +628,16 @@ void main() {
         argumentsJson: '[]',
       );
 
-      final progress = await monty.start(
-        'noop()',
-        externalFunctions: ['noop'],
-      );
+      final progress = await monty.start('noop()', externalFunctions: ['noop']);
 
       final pending = progress as MontyPending;
       expect(pending.arguments, isEmpty);
     });
 
     test('pending with null argumentsJson defaults to empty', () async {
-      mock.nextStartResult = const ProgressResult(
-        tag: 1,
-        functionName: 'noop',
-      );
+      mock.nextStartResult = const ProgressResult(tag: 1, functionName: 'noop');
 
-      final progress = await monty.start(
-        'noop()',
-        externalFunctions: ['noop'],
-      );
+      final progress = await monty.start('noop()', externalFunctions: ['noop']);
 
       final pending = progress as MontyPending;
       expect(pending.arguments, isEmpty);
@@ -1013,20 +965,14 @@ void main() {
     });
 
     test('throws StateError when idle', () {
-      expect(
-        () => monty.resolveFutures({}, errors: {}),
-        throwsStateError,
-      );
+      expect(() => monty.resolveFutures({}, errors: {}), throwsStateError);
     });
   });
 
   group('MontyFfi.withCore', () {
     test('constructs with pre-built core bindings', () {
       final core = FfiCoreBindings(bindings: mock);
-      final ffi = MontyFfi.withCore(
-        coreBindings: core,
-        nativeBindings: mock,
-      );
+      final ffi = MontyFfi.withCore(coreBindings: core, nativeBindings: mock);
       expect(ffi, isA<MontyFfi>());
       expect(ffi.isIdle, isTrue);
     });

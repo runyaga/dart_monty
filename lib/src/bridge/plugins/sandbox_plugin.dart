@@ -40,10 +40,7 @@ typedef MontyPlatformFactory = Future<MontyPlatform> Function();
 /// Called during [SandboxPlugin._handleSpawn] to produce static,
 /// infrastructure-level prompt content (e.g., child identity, workspace path).
 /// Return `null` to skip the builder layer for a given child.
-typedef ChildSystemPromptBuilder =
-    String? Function(
-      ChildSpawnContext context,
-    );
+typedef ChildSystemPromptBuilder = String? Function(ChildSpawnContext context);
 
 /// Factory that creates and configures a [PluginRegistry] for child bridges.
 ///
@@ -52,9 +49,7 @@ typedef ChildSystemPromptBuilder =
 ///
 /// Return `null` to give children only introspection builtins (no plugins).
 typedef ChildPluginRegistryFactory =
-    Future<PluginRegistry?> Function(
-      ChildSpawnContext context,
-    );
+    Future<PluginRegistry?> Function(ChildSpawnContext context);
 
 /// Tracks a spawned child interpreter.
 class _ChildHandle {
@@ -639,10 +634,7 @@ class SandboxPlugin extends MontyPlugin {
                 StackTrace.current,
               );
             } else {
-              logger.info(
-                'Child completed',
-                attributes: {'childId': childId},
-              );
+              logger.info('Child completed', attributes: {'childId': childId});
               completer.complete(childValue);
             }
           }
@@ -715,9 +707,7 @@ class SandboxPlugin extends MontyPlugin {
     }
 
     // Non-router parent: give child an isolated VFS only.
-    return RouterOsCallHandler({
-      'Path.': MemoryFsOsCallHandler(),
-    });
+    return RouterOsCallHandler({'Path.': MemoryFsOsCallHandler()});
   }
 
   /// Concatenates builder + runtime prompt layers.
@@ -730,10 +720,7 @@ class SandboxPlugin extends MontyPlugin {
     final builderFragment = systemPromptBuilder?.call(context);
     if (builderFragment == null && runtimeFragment == null) return null;
 
-    final parts = <String>[
-      ?builderFragment,
-      ?runtimeFragment,
-    ];
+    final parts = <String>[?builderFragment, ?runtimeFragment];
 
     return parts.join('\n\n');
   }
