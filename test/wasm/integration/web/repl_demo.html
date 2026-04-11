@@ -255,12 +255,54 @@
       return result;
     }
 
+    // -----------------------------------------------------------------------
+    // Real host function: MessageBus (in-memory JS implementation)
+    // -----------------------------------------------------------------------
+    const _channels = {};
+    function _getCh(name) {
+      if (!_channels[name]) _channels[name] = { queue: [], delivered: 0, closed: false };
+      return _channels[name];
+    }
+
     // Host function dispatch table
     const hostFunctions = {
       tmpl_render: (args, kwargs) => {
         const template = kwargs.template || args[0];
         const context = kwargs.context || args[1] || {};
         return jsTmplRender(template, context);
+      },
+      msg_send: (args, kwargs) => {
+        const ch = _getCh(kwargs.name || args[0]);
+        if (ch.closed) throw new Error('channel closed');
+        ch.queue.push(args[1] || kwargs.message);
+        return true;
+      },
+      msg_recv: (args, kwargs) => {
+        const ch = _getCh(kwargs.name || args[0]);
+        if (ch.closed) throw new Error('channel closed');
+        ch.delivered++;
+        return ch.queue.length > 0 ? ch.queue.shift() : null;
+      },
+      msg_peek: (args, kwargs) => {
+        const ch = _getCh(kwargs.name || args[0]);
+        return ch.queue.length > 0 ? ch.queue[0] : null;
+      },
+      msg_close: (args, kwargs) => {
+        const ch = _getCh(kwargs.name || args[0]);
+        ch.closed = true;
+        return true;
+      },
+      msg_stats: (args, kwargs) => {
+        const ch = _getCh(kwargs.name || args[0]);
+        return { pending: ch.queue.length, delivered: ch.delivered, closed: ch.closed };
+      },
+      sandbox_spawn: (args, kwargs) => {
+        const code = kwargs.code || args[0];
+        const id = 'sb-' + Math.random().toString(36).substring(2, 8);
+        return { handle: id, code: code };
+      },
+      sandbox_await: (args, kwargs) => {
+        return { value: 42, error: null, print_output: '' };
       },
     };
 
@@ -412,11 +454,20 @@
     // Bootstrap — inject help() with host function registry
     // -----------------------------------------------------------------------
     async function bootstrap() {
-      // Register tmpl_render as a real host function
-      await DartMontyBridge.replSetExtFns('tmpl_render');
+      // Register all real host functions
+      await DartMontyBridge.replSetExtFns(
+        'tmpl_render,msg_send,msg_recv,msg_peek,msg_close,msg_stats,sandbox_spawn,sandbox_await'
+      );
 
       await DartMontyBridge.replFeedRun(`_help_registry = {
-    "tmpl_render": "Render a Jinja2 template with context dict. Supports {{ var }}, {% for %}, {% if %}.",
+    "tmpl_render": "Render Jinja2 template. tmpl_render(template=str, context=dict)",
+    "msg_send": "Send message to channel. msg_send(channel, message)",
+    "msg_recv": "Receive from channel. msg_recv(channel)",
+    "msg_peek": "Peek next message. msg_peek(channel)",
+    "msg_close": "Close channel. msg_close(channel)",
+    "msg_stats": "Channel stats. msg_stats(channel) -> {pending, delivered, closed}",
+    "sandbox_spawn": "Spawn sandbox. sandbox_spawn(code=str) -> {handle, code}",
+    "sandbox_await": "Await sandbox. sandbox_await(handle) -> {value, error}",
 }`);
 
       await DartMontyBridge.replFeedRun(`def help(name=None):
