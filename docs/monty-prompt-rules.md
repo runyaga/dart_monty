@@ -22,9 +22,18 @@ rules in the system prompt or as an uploaded reference file.
     of available functions. If a function isn't shown by `help()`, it does
     not exist. Do NOT invent functions like `bb_dump()`, `oracle()`, or
     `confirm()` — they will raise `RuntimeError: Unknown function`.
-13. **Do NOT wrap code in a function definition.** Write top-level code.
-    The last expression is the return value. Do not use `def main():` or
-    `return` — just put the result as the last line.
+13. **Write top-level code, not function definitions.** Do not use
+    `def main():` or `return`. The last expression is the return value.
+14. **Use `print()` for progress and debugging.** Print output is captured
+    separately from the return value. Use `print()` to show intermediate
+    steps, then put the final result as the last expression:
+    ```python
+    print("Fetching rooms...")
+    rooms = json.loads(soliplex_list_rooms("local"))
+    print(f"Found {len(rooms)} rooms")
+    # last expression = return value
+    [r["name"] for r in rooms]
+    ```
 
 ## Monty Sandbox Limitations
 
