@@ -358,7 +358,7 @@ class AgentSession {
       buf
         ..write('\ntry:')
         ..write('\n    __d2["$name"] = $name')
-        ..write('\nexcept Exception:')
+        ..write('\nexcept NameError:')
         ..write('\n    pass');
     }
     buf.write('\n$_persistFn(__d2)');
