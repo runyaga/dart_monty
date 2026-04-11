@@ -15,6 +15,9 @@ library;
 import 'dart:convert';
 import 'dart:js_interop';
 
+import 'package:dart_monty/dart_monty.dart';
+import 'package:dart_monty/dart_monty_bridge.dart';
+
 // ---------------------------------------------------------------------------
 // JS interop bindings for window.DartMontyBridge
 // ---------------------------------------------------------------------------
@@ -231,16 +234,27 @@ Future<Map<String, dynamic>> _runOsCall(Map<String, dynamic> fixture) async {
 
     if (state['state'] == 'os_call') {
       final fnName = state['functionName'] as String;
-      final osResult = _handleOsCall(fnName);
-      if (osResult == null) {
+      final rawArgs = state['args'] as List? ?? [];
+      final rawKwargs = state['kwargs'] as Map<String, dynamic>?;
+      final callId = state['callId'] as int? ?? 0;
+      final osCall = MontyOsCall(
+        operationName: fnName,
+        arguments: rawArgs.map(MontyValue.fromJson).toList(),
+        kwargs: rawKwargs?.map(
+          (k, v) => MapEntry(k, MontyValue.fromJson(v)),
+        ),
+        callId: callId,
+      );
+      try {
+        final result = await _osCallHandler.handle(osCall);
+        state = _parseResult(
+          (await _montyResume(jsonEncode(result).toJS).toDart).toDart,
+        );
+      } on Object catch (e) {
         state = _parseResult(
           (await _montyResumeWithError(
-            jsonEncode('PermissionError: $fnName not available on web').toJS,
+            jsonEncode(e.toString()).toJS,
           ).toDart).toDart,
-        );
-      } else {
-        state = _parseResult(
-          (await _montyResume(jsonEncode(osResult).toJS).toDart).toDart,
         );
       }
     } else if (state['state'] == 'pending') {
@@ -273,33 +287,13 @@ Future<Map<String, dynamic>> _runOsCall(Map<String, dynamic> fixture) async {
   return {'id': id, 'ok': true, 'value': state['value']};
 }
 
-/// Built-in OsCall handler for the WASM ladder runner.
-/// Handles date/datetime operations. Returns null for unsupported operations.
-Object? _handleOsCall(String fnName) {
-  final now = DateTime.now();
-
-  return switch (fnName) {
-    'date.today' => {
-      '__type': 'date',
-      'year': now.year,
-      'month': now.month,
-      'day': now.day,
-    },
-    'datetime.now' => {
-      '__type': 'datetime',
-      'year': now.year,
-      'month': now.month,
-      'day': now.day,
-      'hour': now.hour,
-      'minute': now.minute,
-      'second': now.second,
-      'microsecond': now.microsecond,
-      'offset_seconds': now.timeZoneOffset.inSeconds,
-      'timezone_name': now.timeZoneName,
-    },
-    _ => null,
-  };
-}
+/// OsCall handler for the WASM ladder runner — MemoryFS + datetime.
+/// Same handler stack as createDefaultOsCallHandler() on web.
+final _osCallHandler = RouterOsCallHandler({
+  'Path.': MemoryFsOsCallHandler(),
+  'date.': TimeOsCallHandler(),
+  'datetime.': TimeOsCallHandler(),
+});
 
 Future<Map<String, dynamic>> _runSimple(int id, String code) async {
   final result = _parseResult((await _montyRun(code.toJS).toDart).toDart);
