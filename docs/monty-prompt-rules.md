@@ -9,6 +9,11 @@ rules in the system prompt or as an uploaded reference file.
 2. `import json` at the top of every program.
 3. The last expression is the return value.
 4. Return code in a `` ```monty``` `` fenced code block. No explanation outside it.
+5. **Use `=` for assignment, NOT `:=`.** The walrus operator is not supported.
+6. **No `open()`, `eval()`, `exec()`.** Use `Path().read_text()` for files.
+7. **No dot attribute access on dicts.** Use `d["key"]` not `d.key`.
+8. **`enumerate()` has no `start` kwarg.** Use `enumerate(x)` and add offset manually:
+   `for i, v in enumerate(items): day = i + 1`
 
 ## Monty Sandbox Limitations
 
