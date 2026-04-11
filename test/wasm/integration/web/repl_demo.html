@@ -297,23 +297,19 @@
         const ch = _getCh(kwargs.name || args[0]);
         return { pending: ch.queue.length, delivered: ch.delivered, closed: ch.closed };
       },
-      sandbox_spawn: (args, kwargs) => {
+      sandbox_spawn: async (args, kwargs) => {
         const code = kwargs.code || args[0];
-        const handle = 'sb-' + Math.random().toString(36).substring(2, 8);
-        // Store in registry so sandbox_await can look it up
-        _sandboxes[handle] = { code, status: 'running' };
-        // Simulate instant completion with eval-like result
+        // Execute in a REAL fresh WASM interpreter
         try {
-          // Simple: extract the assignment value or return code length
-          const m = code.match(/=\s*(.+)/);
-          _sandboxes[handle].value = m ? m[1].trim() : code.length;
-          _sandboxes[handle].status = 'done';
+          const resultJson = await DartMontyBridge.run(code);
+          const r = JSON.parse(resultJson);
+          if (r.ok) {
+            return { value: r.value, error: null, print_output: r.print_output || '' };
+          }
+          return { value: null, error: r.error || 'execution failed' };
         } catch (e) {
-          _sandboxes[handle].value = null;
-          _sandboxes[handle].error = e.message;
-          _sandboxes[handle].status = 'error';
+          return { value: null, error: e.message };
         }
-        return handle;
       },
       sandbox_await: (args, kwargs) => {
         const handle = kwargs.handle || args[0];
@@ -351,24 +347,62 @@
         // Use feedStart to enable host function dispatch
         let r = JSON.parse(await DartMontyBridge.replFeedStart(code));
 
-        // Dispatch loop: handle host function calls until complete
-        while (r.state === 'pending') {
-          const fn = hostFunctions[r.functionName];
-          if (fn) {
-            try {
-              const result = fn(r.args || [], r.kwargs || {});
-              addToTranscript(
-                '<span class="timing">  ↳ ' + escapeHtml(r.functionName) +
-                '() → ' + escapeHtml(JSON.stringify(result).substring(0, 80)) + '</span>'
-              );
-              r = JSON.parse(await DartMontyBridge.replResume(JSON.stringify(result)));
-            } catch (e) {
-              r = JSON.parse(await DartMontyBridge.replResumeWithError(JSON.stringify(e.message)));
+        // Dispatch loop: handle host calls + async futures until complete
+        const pendingFutures = {}; // callId → {fn, args, kwargs}
+        while (r.state === 'pending' || r.state === 'resolve_futures') {
+          if (r.state === 'pending') {
+            const fn = hostFunctions[r.functionName];
+            if (fn) {
+              // Check if this is an async call (sandbox_spawn etc.) — use futures path
+              if (r.functionName.startsWith('sandbox_')) {
+                pendingFutures[r.callId] = { fn, name: r.functionName, args: r.args || [], kwargs: r.kwargs || {} };
+                addToTranscript(
+                  '<span class="timing">  ↳ ' + escapeHtml(r.functionName) +
+                  '() → [future #' + r.callId + ']</span>'
+                );
+                r = JSON.parse(await DartMontyBridge.replResumeAsFuture());
+              } else {
+                // Synchronous dispatch
+                try {
+                  const result = await fn(r.args || [], r.kwargs || {});
+                  addToTranscript(
+                    '<span class="timing">  ↳ ' + escapeHtml(r.functionName) +
+                    '() → ' + escapeHtml(JSON.stringify(result).substring(0, 80)) + '</span>'
+                  );
+                  r = JSON.parse(await DartMontyBridge.replResume(JSON.stringify(result)));
+                } catch (e) {
+                  r = JSON.parse(await DartMontyBridge.replResumeWithError(JSON.stringify(e.message)));
+                }
+              }
+            } else {
+              r = JSON.parse(await DartMontyBridge.replResumeWithError(
+                JSON.stringify('Host function not implemented: ' + r.functionName)
+              ));
             }
-          } else {
-            // Unknown host function — resume with error
-            r = JSON.parse(await DartMontyBridge.replResumeWithError(
-              JSON.stringify('Host function not implemented: ' + r.functionName)
+          } else if (r.state === 'resolve_futures') {
+            // Resolve all pending futures — execute sandbox code in parallel
+            const callIds = r.pendingCallIds || [];
+            const results = {};
+            const errors = {};
+            addToTranscript(
+              '<span class="timing">  ⟳ resolving ' + callIds.length + ' future(s)...</span>'
+            );
+            await Promise.all(callIds.map(async (cid) => {
+              const pf = pendingFutures[cid];
+              if (!pf) { errors[String(cid)] = 'unknown call'; return; }
+              try {
+                const result = await pf.fn(pf.args, pf.kwargs);
+                results[String(cid)] = result;
+                addToTranscript(
+                  '<span class="timing">  ✓ future #' + cid + ' (' + pf.name + ') → ' +
+                  escapeHtml(JSON.stringify(result).substring(0, 60)) + '</span>'
+                );
+              } catch (e) {
+                errors[String(cid)] = e.message;
+              }
+            }));
+            r = JSON.parse(await DartMontyBridge.replResolveFutures(
+              JSON.stringify(results), JSON.stringify(errors)
             ));
           }
         }
