@@ -46,7 +46,8 @@ class FileSystemOsCallHandler extends OsCallHandler {
       'Path.rmdir' => _rmdir(args),
       'Path.rename' => _rename(args),
       'Path.iterdir' => _iterdir(args),
-      'Path.resolve' || 'Path.absolute' => _str(args.first),
+      'Path.resolve' => _resolve(args),
+      'Path.absolute' => _absolute(args),
       _ => throw UnsupportedError('Unsupported path operation: $op'),
     };
   }
@@ -163,6 +164,25 @@ class FileSystemOsCallHandler extends OsCallHandler {
     }
 
     return dir.listSync().map((e) => MontyPath(e.path)).toList();
+  }
+
+  String _resolve(List<MontyValue> args) {
+    final path = _str(args.first);
+    final file = _fs.file(_fs.path.join(_fs.currentDirectory.path, path));
+
+    // Resolve symlinks if the target exists.
+    if (file.existsSync()) {
+      return file.resolveSymbolicLinksSync();
+    }
+
+    // Non-existent: return the absolute normalized path.
+    return _fs.path.normalize(_fs.path.absolute(path));
+  }
+
+  String _absolute(List<MontyValue> args) {
+    final path = _str(args.first);
+
+    return _fs.path.normalize(_fs.path.absolute(path));
   }
 }
 
