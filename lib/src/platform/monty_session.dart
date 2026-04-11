@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:dart_monty/src/bridge/os_call/os_provider.dart';
+import 'package:dart_monty/src/platform/code_capture.dart' as code_capture;
 import 'package:dart_monty/src/platform/monty_error.dart';
 import 'package:dart_monty/src/platform/monty_exception.dart';
 import 'package:dart_monty/src/platform/monty_limits.dart';
@@ -17,11 +18,6 @@ const _restoreStateFn = '__restore_state__';
 /// The internal function name used to persist state from Python globals.
 const _persistStateFn = '__persist_state__';
 
-/// Matches simple assignment targets: `identifier = ...`
-///
-/// Only captures a single identifier before `=`.
-/// Excludes `==` (comparison) and augmented assignments (`+=`, etc.).
-final _assignmentPattern = RegExp(r'^([a-zA-Z]\w*)\s*=[^=]', multiLine: true);
 
 /// Zero-cost usage for error results synthesized from caught exceptions.
 const _zeroUsage = MontyResourceUsage(
@@ -30,26 +26,6 @@ const _zeroUsage = MontyResourceUsage(
   stackDepthUsed: 0,
 );
 
-/// Python keyword prefixes that indicate a line is a statement (not an
-/// expression). Used to detect the user code's last expression so it can
-/// be captured before the persist postamble runs.
-const _statementPrefixes = [
-  'if ',
-  'for ',
-  'while ',
-  'with ',
-  'try:',
-  'def ',
-  'class ',
-  'import ',
-  'from ',
-  'raise ',
-  'return ',
-  'pass',
-  'break',
-  'continue',
-  'assert ',
-];
 
 /// A stateful execution session that persists variables across calls.
 ///
@@ -229,7 +205,7 @@ class MontySession {
   /// patterns. Excludes names starting with `_` (dunder/private).
   @visibleForTesting
   static Set<String> extractAssignmentTargets(String code) =>
-      _extractAssignmentTargets(code);
+      code_capture.extractAssignmentTargets(code);
 
   // ---------------------------------------------------------------------------
   // Code generation
@@ -244,7 +220,8 @@ class MontySession {
   String _wrapCode(String userCode) {
     final restore = _generateRestore();
     final persist = _generatePersist(userCode);
-    final (processedCode, hasResult) = _captureLastExpression(userCode);
+    final (processedCode, hasResult) =
+        code_capture.captureLastExpression(userCode);
 
     final buf = StringBuffer(restore)
       ..write('\n')
@@ -281,7 +258,7 @@ class MontySession {
   String _generatePersist(String userCode) {
     final names = <String>{
       ..._state.keys,
-      ..._extractAssignmentTargets(userCode),
+      ...code_capture.extractAssignmentTargets(userCode),
     };
 
     if (names.isEmpty) {
@@ -299,80 +276,6 @@ class MontySession {
     buf.write('\n__persist_state__(__d2)');
 
     return buf.toString();
-  }
-
-  /// Checks whether [line] looks like a Python expression (not a statement).
-  ///
-  /// Returns `false` for lines starting with known statement keywords,
-  /// assignments (`name = ...`), or empty/comment lines.
-  static bool _isExpression(String line) {
-    final trimmed = line.trim();
-    if (trimmed.isEmpty || trimmed.startsWith('#')) return false;
-
-    for (final prefix in _statementPrefixes) {
-      if (trimmed.startsWith(prefix) || trimmed == prefix.trim()) return false;
-    }
-
-    // Simple assignment: `identifier = ...` (not `==`)
-    if (_assignmentPattern.hasMatch(trimmed)) return false;
-
-    return true;
-  }
-
-  /// Processes [userCode] to capture the last expression's value.
-  ///
-  /// If the last non-empty line is an expression, replaces it with
-  /// `__r = (expression)` and returns `(modifiedCode, true)`.
-  /// After the persist postamble, `__r` is re-emitted so
-  /// `MontyResult.value` reflects the user's expression.
-  ///
-  /// If the last line is a statement (or there is no code), returns
-  /// `(userCode, false)`.
-  static (String, bool) _captureLastExpression(String userCode) {
-    final lines = userCode.split('\n');
-
-    // Find last non-empty, non-comment line index.
-    var lastIdx = -1;
-    for (var i = lines.length - 1; i >= 0; i--) {
-      final trimmed = lines[i].trim();
-      if (trimmed.isNotEmpty && !trimmed.startsWith('#')) {
-        lastIdx = i;
-        break;
-      }
-    }
-
-    if (lastIdx < 0) return (userCode, false);
-
-    if (!_isExpression(lines[lastIdx])) return (userCode, false);
-
-    // Replace last expression with `__r = (expression)`
-    final expr = lines[lastIdx];
-    lines[lastIdx] = '__r = ($expr)';
-
-    return (lines.join('\n'), true);
-  }
-
-  static Set<String> _extractAssignmentTargets(String code) {
-    final names = <String>{};
-    for (final line in code.split('\n')) {
-      // Only process top-level lines (no leading whitespace).
-      if (line.isNotEmpty && line[0] != ' ' && line[0] != '\t') {
-        // Split by semicolons to handle multi-statement lines
-        // like `x = 1; y = 2; z = 3`.
-        for (final segment in line.split(';')) {
-          final trimmed = segment.trimLeft();
-          final match = _assignmentPattern.firstMatch(trimmed);
-          if (match != null) {
-            final name = match.group(1)!;
-            if (!name.startsWith('_')) {
-              names.add(name);
-            }
-          }
-        }
-      }
-    }
-
-    return names;
   }
 
   // ---------------------------------------------------------------------------

@@ -12,32 +12,11 @@ import 'package:dart_monty/src/bridge/bridge/plugin_registry.dart';
 import 'package:dart_monty/src/bridge/os_call/os_provider.dart';
 import 'package:dart_monty/src/monty.dart';
 import 'package:dart_monty/src/platform/bridge_logger.dart';
+import 'package:dart_monty/src/platform/code_capture.dart' as code_capture;
 import 'package:dart_monty/src/platform/monty_exception.dart';
 import 'package:dart_monty/src/platform/monty_resource_usage.dart';
 import 'package:dart_monty/src/platform/monty_result.dart';
 import 'package:dart_monty/src/platform/monty_value.dart';
-
-/// Matches simple assignment targets: `identifier = ...`
-final _assignmentPattern = RegExp(r'^([a-zA-Z]\w*)\s*=[^=]', multiLine: true);
-
-/// Python keywords that start statements (not expressions).
-const _statementPrefixes = [
-  'if ',
-  'for ',
-  'while ',
-  'with ',
-  'try:',
-  'def ',
-  'class ',
-  'import ',
-  'from ',
-  'raise ',
-  'return ',
-  'pass',
-  'break',
-  'continue',
-  'assert ',
-];
 
 const _restoreFn = '__restore_state__';
 const _persistFn = '__persist_state__';
@@ -199,7 +178,8 @@ class AgentSession {
   String _wrapWithState(String userCode) {
     final restore = _generateRestore();
     final persist = _generatePersist(userCode);
-    final (processed, hasResult) = _captureLastExpression(userCode);
+    final (processed, hasResult) =
+        code_capture.captureLastExpression(userCode);
 
     final buf = StringBuffer(restore)
       ..write('\n')
@@ -226,7 +206,7 @@ class AgentSession {
   String _generatePersist(String userCode) {
     final names = <String>{
       ..._sessionState.keys,
-      ..._extractAssignmentTargets(userCode),
+      ...code_capture.extractAssignmentTargets(userCode),
     };
 
     if (names.isEmpty) {
@@ -244,54 +224,6 @@ class AgentSession {
     buf.write('\n$_persistFn(__d2)');
 
     return buf.toString();
-  }
-
-  static (String, bool) _captureLastExpression(String userCode) {
-    final lines = userCode.split('\n');
-    var lastIdx = -1;
-    for (var i = lines.length - 1; i >= 0; i--) {
-      final trimmed = lines[i].trim();
-      if (trimmed.isNotEmpty && !trimmed.startsWith('#')) {
-        lastIdx = i;
-        break;
-      }
-    }
-    if (lastIdx < 0) return (userCode, false);
-    if (!_isExpression(lines[lastIdx])) return (userCode, false);
-
-    lines[lastIdx] = '__r = (${lines[lastIdx]})';
-
-    return (lines.join('\n'), true);
-  }
-
-  static bool _isExpression(String line) {
-    final trimmed = line.trim();
-    if (trimmed.isEmpty || trimmed.startsWith('#')) return false;
-    for (final prefix in _statementPrefixes) {
-      if (trimmed.startsWith(prefix) || trimmed == prefix.trim()) return false;
-    }
-    if (_assignmentPattern.hasMatch(trimmed)) return false;
-
-    return true;
-  }
-
-  static Set<String> _extractAssignmentTargets(String code) {
-    final names = <String>{};
-    for (final line in code.split('\n')) {
-      if (line.isNotEmpty && line[0] != ' ' && line[0] != '\t') {
-        for (final segment in line.split(';')) {
-          final match = _assignmentPattern.firstMatch(segment.trimLeft());
-          if (match != null) {
-            final name = match.group(1)!;
-            if (!name.startsWith('_')) {
-              names.add(name);
-            }
-          }
-        }
-      }
-    }
-
-    return names;
   }
 
   // ---------------------------------------------------------------------------
