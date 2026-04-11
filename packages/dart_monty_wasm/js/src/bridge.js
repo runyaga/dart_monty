@@ -515,6 +515,30 @@ async function replResumeWithError(errorJson) {
   return JSON.stringify(result);
 }
 
+/**
+ * Resume REPL by creating a future for the pending call.
+ */
+async function replResumeAsFuture() {
+  const sid = resolveSessionId(null);
+  if (sid == null || !sessions.has(sid)) return notInitializedError();
+
+  const session = sessions.get(sid);
+  const result = await callWorker(sid, { type: 'repl_resume_as_future' }, session.timeoutMs);
+  return JSON.stringify(result);
+}
+
+/**
+ * Resolve pending REPL futures with results and errors.
+ */
+async function replResolveFutures(resultsJson, errorsJson) {
+  const sid = resolveSessionId(null);
+  if (sid == null || !sessions.has(sid)) return notInitializedError();
+
+  const session = sessions.get(sid);
+  const result = await callWorker(sid, { type: 'repl_resolve_futures', resultsJson, errorsJson }, session.timeoutMs);
+  return JSON.stringify(result);
+}
+
 // Expose bridge on window for Dart JS interop
 window.DartMontyBridge = {
   init,
@@ -541,6 +565,8 @@ window.DartMontyBridge = {
   replFeedStart,
   replResume,
   replResumeWithError,
+  replResumeAsFuture,
+  replResolveFutures,
 };
 
 console.log('[DartMontyBridge] Registered on window (Worker pool architecture)');

@@ -985,6 +985,83 @@ function handleReplResumeWithError(id, errorMessage) {
   self.postMessage(readReplProgress(id, tag, errMsg));
 }
 
+function handleReplResumeAsFuture(id) {
+  if (!activeReplHandle) {
+    self.postMessage({
+      type: 'result', id, ok: false,
+      error: 'No active REPL handle.',
+      errorType: 'StateError',
+    });
+    return;
+  }
+
+  let outErr = null;
+  let tag;
+  try {
+    outErr = allocOutPtr();
+    tag = wasm.monty_repl_resume_as_future(activeReplHandle, outErr.ptr);
+  } catch (e) {
+    if (outErr) outErr.free();
+    wasm.monty_repl_free(activeReplHandle);
+    activeReplHandle = null;
+    self.postMessage({
+      type: 'result', id, ok: false,
+      error: e.message || String(e),
+      errorType: 'Panic',
+    });
+    return;
+  }
+
+  const errPtr = outErr.read();
+  const errMsg = readAndFreeCString(errPtr);
+  outErr.free();
+
+  self.postMessage(readReplProgress(id, tag, errMsg));
+}
+
+function handleReplResolveFutures(id, resultsJson, errorsJson) {
+  if (!activeReplHandle) {
+    self.postMessage({
+      type: 'result', id, ok: false,
+      error: 'No active REPL handle.',
+      errorType: 'StateError',
+    });
+    return;
+  }
+
+  let cResults = null;
+  let cErrors = null;
+  let outErr = null;
+
+  let tag;
+  try {
+    cResults = allocCString(resultsJson);
+    cErrors = allocCString(errorsJson);
+    outErr = allocOutPtr();
+    tag = wasm.monty_repl_resume_futures(activeReplHandle, cResults.ptr, cErrors.ptr, outErr.ptr);
+  } catch (e) {
+    if (cResults) wasm.monty_dealloc(cResults.ptr, cResults.size);
+    if (cErrors) wasm.monty_dealloc(cErrors.ptr, cErrors.size);
+    if (outErr) outErr.free();
+    wasm.monty_repl_free(activeReplHandle);
+    activeReplHandle = null;
+    self.postMessage({
+      type: 'result', id, ok: false,
+      error: e.message || String(e),
+      errorType: 'Panic',
+    });
+    return;
+  }
+  wasm.monty_dealloc(cResults.ptr, cResults.size);
+  wasm.monty_dealloc(cErrors.ptr, cErrors.size);
+
+  const errPtr = outErr.read();
+  const errMsg = readAndFreeCString(errPtr);
+  outErr.free();
+
+  self.postMessage(readReplProgress(id, tag, errMsg));
+}
+
 function handleReplFree(id) {
   if (activeReplHandle) {
     wasm.monty_repl_free(activeReplHandle);
@@ -1081,6 +1158,12 @@ self.onmessage = (e) => {
         break;
       case 'repl_resume_with_error':
         handleReplResumeWithError(id, errorMessage);
+        break;
+      case 'repl_resume_as_future':
+        handleReplResumeAsFuture(id);
+        break;
+      case 'repl_resolve_futures':
+        handleReplResolveFutures(id, resultsJson, errorsJson);
         break;
       default:
         self.postMessage({
