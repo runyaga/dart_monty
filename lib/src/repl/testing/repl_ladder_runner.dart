@@ -97,7 +97,7 @@ Future<void> _runFeedFixture(
       if (feed.containsKey('expectedPrint')) {
         expect(
           result.printOutput,
-          feed['expectedPrint'] as String,
+          feed['expectedPrint'],
           reason: 'Print output after: $code',
         );
       }

@@ -33,7 +33,7 @@ class WasmReplBindings implements ReplBindings {
   }
 
   @override
-  Future<int> detectContinuation(String source) async {
+  Future<int> detectContinuation(String source) {
     return _bindings.replDetectContinuation(source);
   }
 

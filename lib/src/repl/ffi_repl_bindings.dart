@@ -79,8 +79,9 @@ class FfiReplBindings implements ReplBindings {
     if (handle == null) return;
 
     // Detach finalizer before explicit free.
-    if (_guard != null && _detachToken != null) {
-      _replHandleFinalizer.detach(_detachToken!);
+    final token = _detachToken;
+    if (_guard != null && token != null) {
+      _replHandleFinalizer.detach(token);
     }
     _bindings.replFree(handle);
     _replHandle = null;
@@ -146,26 +147,28 @@ class FfiReplBindings implements ReplBindings {
         return _translateError(progress);
       case 3: // RESOLVE_FUTURES
         List<int>? callIds;
-        if (progress.futureCallIdsJson != null) {
-          callIds = (json.decode(progress.futureCallIdsJson!) as List)
-              .cast<int>();
+        final futureCallIdsJson = progress.futureCallIdsJson;
+        if (futureCallIdsJson != null) {
+          callIds = (json.decode(futureCallIdsJson) as List).cast<int>();
         }
+
         return CoreProgressResult(
           state: 'resolve_futures',
           pendingCallIds: callIds,
         );
       case 4: // OS_CALL
         List<Object?>? parsedArgs;
-        if (progress.argumentsJson != null) {
-          parsedArgs = (json.decode(progress.argumentsJson!) as List)
-              .cast<Object?>();
+        final osArgsJson = progress.argumentsJson;
+        if (osArgsJson != null) {
+          parsedArgs = (json.decode(osArgsJson) as List).cast<Object?>();
         }
         Map<String, Object?>? parsedKwargs;
-        if (progress.kwargsJson != null) {
-          parsedKwargs =
-              (json.decode(progress.kwargsJson!) as Map<String, dynamic>)
-                  .cast<String, Object?>();
+        final osKwargsJson = progress.kwargsJson;
+        if (osKwargsJson != null) {
+          parsedKwargs = (json.decode(osKwargsJson) as Map<String, dynamic>)
+              .cast<String, Object?>();
         }
+
         return CoreProgressResult(
           state: 'os_call',
           functionName: progress.functionName,
@@ -203,13 +206,14 @@ class FfiReplBindings implements ReplBindings {
 
   CoreProgressResult _translatePending(ProgressResult progress) {
     List<Object?>? parsedArgs;
-    if (progress.argumentsJson != null) {
-      parsedArgs = (json.decode(progress.argumentsJson!) as List)
-          .cast<Object?>();
+    final pendingArgsJson = progress.argumentsJson;
+    if (pendingArgsJson != null) {
+      parsedArgs = (json.decode(pendingArgsJson) as List).cast<Object?>();
     }
     Map<String, Object?>? parsedKwargs;
-    if (progress.kwargsJson != null) {
-      parsedKwargs = (json.decode(progress.kwargsJson!) as Map<String, dynamic>)
+    final pendingKwargsJson = progress.kwargsJson;
+    if (pendingKwargsJson != null) {
+      parsedKwargs = (json.decode(pendingKwargsJson) as Map<String, dynamic>)
           .cast<String, Object?>();
     }
 

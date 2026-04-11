@@ -59,6 +59,12 @@ class ReplSession {
   bool _attached = false;
   bool _disposed = false;
 
+  static const _zeroUsage = MontyResourceUsage(
+    memoryBytesUsed: 0,
+    timeElapsedMs: 0,
+    stackDepthUsed: 0,
+  );
+
   /// Executes [code] with full plugin dispatch, returning a stream
   /// of [BridgeEvent]s for real-time visibility into tool calls.
   ///
@@ -70,11 +76,6 @@ class ReplSession {
 
     // Wrap in async* to allow awaiting plugin attachment on first call.
     return _executeWithPlugins(code);
-  }
-
-  Stream<BridgeEvent> _executeWithPlugins(String code) async* {
-    await _ensurePluginsAttached();
-    yield* _bridge!.execute(code);
   }
 
   /// Convenience: executes [code] and awaits the final result.
@@ -93,7 +94,11 @@ class ReplSession {
   void register(HostFunction function) {
     _checkNotDisposed();
     _ensureBridge();
-    _bridge!.register(function);
+    final bridge = _bridge;
+    if (bridge == null) {
+      throw StateError('Bridge not initialized.');
+    }
+    bridge.register(function);
   }
 
   /// Disposes the session, bridge, and REPL.
@@ -108,22 +113,26 @@ class ReplSession {
   // Private
   // -----------------------------------------------------------------------
 
-  static const _zeroUsage = MontyResourceUsage(
-    memoryBytesUsed: 0,
-    timeElapsedMs: 0,
-    stackDepthUsed: 0,
-  );
+  Stream<BridgeEvent> _executeWithPlugins(String code) async* {
+    await _ensurePluginsAttached();
+    final bridge = _bridge;
+    if (bridge == null) {
+      throw StateError('Bridge not initialized.');
+    }
+    yield* bridge.execute(code);
+  }
 
   void _ensureBridge() {
     if (_bridge != null) return;
 
     final platform = ReplPlatform(repl: _repl);
-    _bridge = DefaultMontyBridge(
+    final bridge = DefaultMontyBridge(
       platform: platform,
       useFutures: false,
     );
 
-    if (_os != null) _bridge!.registerOs(_os);
+    if (_os != null) bridge.registerOs(_os);
+    _bridge = bridge;
 
     // Plugin attachment is deferred to first execute — plugins may
     // need async setup via onRegister().
@@ -134,10 +143,11 @@ class ReplSession {
     _attached = true;
 
     final plugins = _plugins;
-    if (plugins != null && plugins.isNotEmpty) {
+    final bridge = _bridge;
+    if (plugins != null && plugins.isNotEmpty && bridge != null) {
       final registry = PluginRegistry();
       plugins.forEach(registry.register);
-      await registry.attachTo(_bridge!);
+      await registry.attachTo(bridge);
 
       // Inject help() with registered function descriptions.
       await _injectHelp(plugins);

@@ -15,7 +15,7 @@ import 'package:dart_monty/src/repl/monty_repl.dart';
 /// heap state (variables, functions, classes) across calls.
 class ReplPlatform implements MontyPlatform {
   /// Creates a [ReplPlatform] wrapping [repl].
-  ReplPlatform({required MontyRepl repl}) : _repl = repl;
+  const ReplPlatform({required MontyRepl repl}) : _repl = repl;
 
   final MontyRepl _repl;
 
