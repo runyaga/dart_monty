@@ -260,7 +260,7 @@ WASI sub-worker via `new URL(..., import.meta.url)` relative to its own
 server path. Without symlinks the server returns 404s, causing
 `WebAssembly.Module(): expected magic word 00 61 73 6d` errors.
 
-**For the examples (`example/web/`, `example/web-showcase/`):**
+**For the examples (`example/web/`):**
 
 These are standalone HTML+JS apps that don't use `package:test`. Serve
 their directories with the same COOP/COEP Python server above, adjusting

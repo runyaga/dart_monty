@@ -342,7 +342,7 @@ Cross-Origin-Opener-Policy: same-origin
 Cross-Origin-Embedder-Policy: require-corp
 ```
 
-The showcase uses `coi-serviceworker.js` to inject these headers when
+The web demos use `coi-serviceworker.js` to inject these headers when
 the server doesn't set them natively.
 
 ## Comparison with Native Path
