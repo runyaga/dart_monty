@@ -1,8 +1,7 @@
 # Built-in Plugins
 
 dart_monty ships three plugins that provide host functions to
-sandboxed Python code. All plugins work with `ReplSession` and
-`AgentSession`.
+sandboxed Python code. All plugins work with `ReplSession`.
 
 ## TemplatePlugin
 
