@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>dart_monty REPL — Interactive Python</title>
+  <style>
+    :root {
+      --bg: #1a1b26; --surface: #24283b; --surface2: #2f3447;
+      --border: #3b4261; --text: #c0caf5; --text-dim: #565f89;
+      --accent: #7aa2f7; --green: #9ece6a; --red: #f7768e;
+      --cyan: #7dcfff; --purple: #bb9af7;
+      --mono: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+    header { padding: 12px 20px; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 16px; }
+    header a { color: var(--text-dim); text-decoration: none; font-size: 13px; }
+    header a:hover { color: var(--text); }
+    header h1 { font-size: 16px; font-weight: 600; color: var(--accent); }
+    .tag { font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 500; }
+    .tag-wasm { background: #2d3a5e; color: var(--cyan); }
+    .tag-dart { background: #2d5e3a; color: var(--green); }
+    #status { font-size: 12px; padding: 3px 10px; border-radius: 4px; margin-left: auto; }
+    .loading { background: #2d3a5e; color: var(--cyan); }
+    .ready { background: #2d3e2d; color: var(--green); }
+    .running { background: #3e3a2d; color: #e0af68; }
+    main { flex: 1; overflow-y: auto; padding: 16px 20px; font-family: var(--mono); font-size: 13px; line-height: 1.6; }
+    #transcript { white-space: pre-wrap; }
+    .prompt { color: var(--cyan); } .code { color: var(--text); }
+    .result { color: var(--green); } .print-output { color: var(--text); white-space: pre-wrap; }
+    .error-output { color: var(--red); } .timing { color: var(--text-dim); font-size: 11px; }
+    .tool-call { color: var(--purple); font-size: 11px; }
+    #input-row { display: flex; padding: 8px 20px 16px; background: var(--surface); border-top: 1px solid var(--border); gap: 8px; }
+    #prompt-label { color: var(--cyan); font-family: var(--mono); font-size: 13px; line-height: 24px; }
+    #input { flex: 1; background: transparent; border: none; color: var(--text); font-family: var(--mono); font-size: 13px; outline: none; resize: none; min-height: 24px; }
+    button { background: var(--surface2); color: var(--text); border: 1px solid var(--border); padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+    button:hover { background: var(--border); }
+    button.danger { border-color: var(--red); color: var(--red); }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="index.html">&larr; Home</a>
+    <h1>dart_monty REPL</h1>
+    <span class="tag tag-wasm">WASM</span>
+    <span class="tag tag-dart">Dart Compiled</span>
+    <span id="status" class="loading">Loading...</span>
+  </header>
+  <main><div id="transcript"></div></main>
+  <div id="input-row">
+    <span id="prompt-label">&gt;&gt;&gt; </span>
+    <textarea id="input" rows="1" placeholder="Type Python code..." disabled></textarea>
+    <button id="resetBtn" class="danger" disabled>Reset</button>
+  </div>
+
+  <script>
+    window._onReady = function() {};
+    window._onToolCall = function() {};
+  </script>
+  <script src="dart_monty_bridge.js"></script>
+  <script src="repl_demo.dart.js"></script>
+  <script>
+    const transcript = document.getElementById('transcript');
+    const input = document.getElementById('input');
+    const status = document.getElementById('status');
+    const resetBtn = document.getElementById('resetBtn');
+    let ready = false, running = false, feedCount = 0;
+
+    function addEntry(html) {
+      const div = document.createElement('div');
+      div.innerHTML = html;
+      transcript.appendChild(div);
+      transcript.parentElement.scrollTop = transcript.parentElement.scrollHeight;
+    }
+    function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+
+    window._onToolCall = function(jsonStr) {
+      const e = JSON.parse(jsonStr);
+      if (e.type === 'tool_call_start') {
+        addEntry('<span class="tool-call">  \u21b3 ' + esc(e.function) + '()</span>');
+      } else if (e.type === 'tool_call_result') {
+        addEntry('<span class="tool-call">    \u2192 ' + esc(e.result || '') + '</span>');
+      }
+    };
+
+    function onReady() {
+      ready = true;
+      status.textContent = 'Ready';
+      status.className = 'ready';
+      input.disabled = false;
+      resetBtn.disabled = false;
+      input.focus();
+      addEntry('<span class="print-output">dart_monty REPL (WASM + Dart compiled plugins)\nPlugins: tmpl_render, msg_*, sandbox_*\nType help() for available functions.</span>');
+    }
+    window._onReady = onReady;
+    if (window.ReplSessionDemo) onReady();
+
+    async function feed(code) {
+      if (!ready || running || !window.ReplSessionDemo) return;
+      running = true;
+      status.textContent = 'Running...';
+      status.className = 'running';
+      input.disabled = true;
+      feedCount++;
+
+      const lines = code.split('\n');
+      const codeHtml = lines.map((l, i) =>
+        (i === 0 ? '<span class="prompt">&gt;&gt;&gt; </span>' : '<span class="prompt">... </span>') +
+        '<span class="code">' + esc(l) + '</span>'
+      ).join('\n');
+      addEntry(codeHtml);
+
+      const t0 = performance.now();
+      try {
+        const resultJson = await window.ReplSessionDemo.run(code);
+        const elapsed = (performance.now() - t0).toFixed(1);
+        const r = JSON.parse(resultJson);
+        let html = '';
+        if (r.print_output) html += '<span class="print-output">' + esc(r.print_output) + '</span>';
+        if (r.ok) {
+          if (r.value !== null && r.value !== undefined) {
+            const repr = typeof r.value === 'string' ? "'" + r.value + "'" : JSON.stringify(r.value);
+            html += '<span class="result">' + esc(repr) + '</span>';
+          }
+        } else {
+          html += '<span class="error-output">' + esc(r.error || 'Error') + '</span>';
+        }
+        html += ' <span class="timing">[' + elapsed + 'ms]</span>';
+        if (html.trim()) addEntry(html);
+      } catch (e) {
+        addEntry('<span class="error-output">Internal: ' + esc(e.message) + '</span>');
+      } finally {
+        running = false;
+        status.textContent = 'Ready (' + feedCount + ')';
+        status.className = 'ready';
+        input.disabled = false;
+        input.focus();
+      }
+    }
+
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        const code = input.value;
+        input.value = '';
+        feed(code);
+      }
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        const s = input.selectionStart;
+        input.value = input.value.substring(0, s) + '    ' + input.value.substring(input.selectionEnd);
+        input.selectionStart = input.selectionEnd = s + 4;
+      }
+    });
+
+    resetBtn.onclick = async () => {
+      if (running || !window.ReplSessionDemo) return;
+      await window.ReplSessionDemo.reset();
+      transcript.innerHTML = '';
+      feedCount = 0;
+      status.textContent = 'Ready (reset)';
+      addEntry('<span class="print-output">--- Session reset ---</span>');
+      input.focus();
+    };
+  </script>
+</body>
+</html>
