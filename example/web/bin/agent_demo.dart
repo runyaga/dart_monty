@@ -172,6 +172,9 @@ final _demoHostFunctions = <HostFunction>[
 
 final _kvStore = <String, Object?>{};
 
+/// Shared bus — accessible to Python via MessageBusPlugin and to Dart directly.
+MessageBus? _msgBus;
+
 // ---------------------------------------------------------------------------
 // Initialization
 // ---------------------------------------------------------------------------
@@ -188,6 +191,8 @@ Future<bool> _init() async {
 
     final tmplPlugin = DinjaTemplatePlugin();
     final msgPlugin = MessageBusPlugin();
+    _msgBus = msgPlugin.bus;
+
     final plugins = <MontyPlugin>[tmplPlugin, msgPlugin];
     final sandboxPlugin = SandboxPlugin(
       platformFactory: () async => Monty(os: os).platform,
@@ -398,6 +403,32 @@ Future<void> main() async {
     'getSchemas': (() => _getSchemas().toJS).toJS,
     'clearState': _clearState.toJS,
     'dispose': (() => _dispose().then((_) => null).toJS).toJS,
+    // Dart-side MessageBus access — push data to any channel from JS.
+    // Python code calling msg_recv() on the same channel will unblock
+    // immediately when Dart pushes, because they share the same MessageBus.
+    'dartPush': ((JSString channel, JSString messageJson) {
+      try {
+        final msg = jsonDecode(messageJson.toDart);
+        _msgBus?.send(channel.toDart, msg);
+        return true.toJS;
+      } on Object catch (e) {
+        print('dartPush error: $e');
+        return false.toJS;
+      }
+    }).toJS,
+    // Returns current ChannelSnapshot as JSON for the given channel.
+    'dartChannelStats': ((JSString channel) {
+      final ch = _msgBus?.channelOrNull(channel.toDart);
+      if (ch == null) return 'null'.toJS;
+      final s = ch.snapshot;
+      return jsonEncode({
+        'isClosed': s.isClosed,
+        'queueDepth': s.queueDepth,
+        'sendCount': s.sendCount,
+        'recvCount': s.recvCount,
+        'peakQueueDepth': s.peakQueueDepth,
+      }).toJS;
+    }).toJS,
   }.jsify();
   // jsify() returns JSObject? but we know our non-empty map produces one.
   _agentDemo = api! as JSObject;

@@ -365,6 +365,12 @@
       <option value="bidir">Bidirectional Parent↔Child</option>
       <option value="childfs">Child Filesystem Isolation</option>
       <option value="combined">Combined Demo</option>
+      <optgroup label="MessageBus: new in v0.20">
+        <option value="dartpush">Dart → Python Live Push</option>
+        <option value="msgstats">Channel Telemetry (msg_stats)</option>
+        <option value="drain">End-of-Stream Drain</option>
+        <option value="workerpool">Worker Pool (N workers, shared queue)</option>
+      </optgroup>
     </select>
     <span id="status">Initializing WASM...</span>
   </header>
@@ -386,6 +392,18 @@
 x = 42
 greeting = "hello"
 x</textarea>
+      </div>
+      <div id="dartPushBar" style="padding:6px 10px;background:var(--surface2);border-top:1px solid var(--border);display:flex;gap:6px;align-items:center;">
+        <span style="font-size:11px;color:var(--cyan);font-weight:600;white-space:nowrap;">Dart →</span>
+        <input id="dartPushChannel" type="text" value="dart_input" placeholder="channel"
+          style="font-family:var(--mono);font-size:12px;padding:3px 7px;background:var(--surface);border:1px solid var(--border);border-radius:4px;color:var(--text);width:100px;">
+        <input id="dartPushMessage" type="text" value='{"greeting":"hello from Dart","n":42}' placeholder='{"key":"value"}'
+          style="font-family:var(--mono);font-size:12px;padding:3px 7px;background:var(--surface);border:1px solid var(--border);border-radius:4px;color:var(--text);flex:1;">
+        <button id="dartPushBtn"
+          style="font-size:12px;padding:3px 10px;background:var(--accent);border:none;border-radius:4px;color:#1a1b26;font-weight:600;cursor:pointer;white-space:nowrap;">
+          Push →
+        </button>
+        <span id="dartPushFeedback" style="font-size:11px;color:var(--text-dim);white-space:nowrap;"></span>
       </div>
     </div>
 
@@ -688,6 +706,16 @@ x</textarea>
       childfs: "# FILESYSTEM ISOLATION\n# Prove: parent, child A, child B each have their own VFS.\n# None can see the others' files.\nfrom pathlib import Path\n\nPath('/data/parent.txt').write_text('parent data')\n\n# Child A checks for parent's file, writes its own\na = sandbox_spawn(code='''\nfrom pathlib import Path\ncan_see_parent = Path(\"/data/parent.txt\").exists()\nPath(\"/child_a.txt\").write_text(\"from child A\")\n{\"parent_visible\": can_see_parent, \"wrote\": Path(\"/child_a.txt\").read_text()}\n''')\n\n# Child B checks for child A's file, writes its own\nb = sandbox_spawn(code='''\nfrom pathlib import Path\ncan_see_sibling = Path(\"/child_a.txt\").exists()\nPath(\"/child_b.txt\").write_text(\"from child B\")\n{\"sibling_visible\": can_see_sibling, \"wrote\": Path(\"/child_b.txt\").read_text()}\n''')\n\na_r = sandbox_await(handle=a)\nb_r = sandbox_await(handle=b)\n\n# Parent checks for children's files\n{\n    'child_a': a_r,\n    'child_b': b_r,\n    'parent_sees_child_a': Path('/child_a.txt').exists(),\n    'parent_sees_child_b': Path('/child_b.txt').exists(),\n    'parent_file_intact': Path('/data/parent.txt').read_text()\n}",
 
       combined: "# EVERYTHING TOGETHER\nfrom pathlib import Path\n\n# 1. Template rendering\ngreeting = tmpl_render(\n    template='{{ name }} scored {{ score }}',\n    context={'name': 'Alice', 'score': 95}\n)\n\n# 2. Send to bus and write to VFS\nmsg_send(name='results', message=greeting)\nPath('/report.txt').write_text(greeting)\n\n# 3. Read back from both\nfrom_vfs = Path('/report.txt').read_text()\nfrom_bus = msg_recv(name='results')\n\n# 4. Dart host functions\ntotal = add_numbers(100, 200)\n\n# Prove: all four systems return consistent data\n{\n    'template': greeting,\n    'from_vfs': from_vfs,\n    'from_bus': from_bus,\n    'all_match': greeting == from_vfs == from_bus,\n    'host_fn': total\n}",
+
+      // --- MessageBus v0.20 examples ---
+
+      dartpush: "# DART \u2192 PYTHON LIVE PUSH\n# Python blocks here on msg_recv. While it's waiting,\n# use the 'Dart \u2192' bar below the editor:\n#   channel: dart_input   message: {\"greeting\":\"hello\",\"n\":42}\n# Click Push \u2192 — Python unblocks instantly with your payload.\n#\n# This works because MessageBus is now a shared Dart object:\n#   Dart calls  bus.channel('dart_input').send(payload)\n#   Python calls msg_recv(name='dart_input')\n# Both sides of the bridge touch the same MessageChannel.\n\nprint('Python: blocking on msg_recv, waiting for Dart push...')\npayload = msg_recv(name='dart_input', timeout_ms=30000)\nprint(f'Python: received {payload!r}')\n\n{\n    'received': payload,\n    'value_type': type(payload).__name__,\n    'came_from': 'Dart via shared MessageBus',\n}",
+
+      msgstats: "# CHANNEL TELEMETRY (msg_stats + ChannelSnapshot)\n# msg_stats() returns a live snapshot: queue depth,\n# send/recv counts, peak depth, and closed flag.\n# Driven by ChannelSnapshot in the new reactive bus.\n\n# Phase 1: queue 5 messages without reading any\nfor i in range(5):\n    msg_send(name='meter', message=f'item-{i}')\n\nafter_sends = msg_stats(name='meter')\n\n# Phase 2: drain 3, check counters again\nfor _ in range(3):\n    msg_recv(name='meter')\n\nafter_drain = msg_stats(name='meter')\n\n# Phase 3: close and confirm\nmsg_close(name='meter')\nafter_close = msg_stats(name='meter')\n\n# Query a channel that was never touched\nnever_used = msg_stats(name='ghost')\n\n{\n    'after_5_sends':  after_sends,\n    'after_3_recvs':  after_drain,\n    'after_close':    after_close,\n    'never_used':     never_used,\n    'peak_was_5':     after_drain['peak_queue_depth'] == 5,\n    'count_checks_out': (\n        after_drain['send_count'] == 5 and\n        after_drain['recv_count'] == 3 and\n        after_drain['queue_depth'] == 2\n    ),\n}",
+
+      drain: "# END-OF-STREAM DRAIN PATTERN\n# Producer sends N items then closes the channel.\n# Consumer reads until msg_recv returns None (channel closed + empty).\n# This is the idiomatic way to signal end-of-stream.\n\nproducer = sandbox_spawn(code='''\nfor item in ['alpha', 'beta', 'gamma', 'delta']:\n    msg_send(name=\"stream\", message=item)\nmsg_close(name=\"stream\")  # <-- signals end-of-stream\n{\"sent\": 4}\n''')\n\n# Consumer drains until channel closed+empty\nreceived = []\nwhile True:\n    item = msg_recv(name='stream', timeout_ms=5000)\n    if item is None:   # None == channel closed and empty\n        break\n    received.append(item)\n\nproducer_result = sandbox_await(handle=producer)\nstats = msg_stats(name='stream')\n\n{\n    'producer': producer_result,\n    'received': received,\n    'count': len(received),\n    'channel_closed': stats['closed'],\n    'correct_order': received == ['alpha', 'beta', 'gamma', 'delta'],\n}",
+
+      workerpool: "# WORKER POOL — shared task queue, N parallel workers\n# 9 tasks queued on 'tasks'. 3 workers each pull until\n# they receive a None sentinel (shutdown signal).\n# Tasks distribute non-deterministically across workers.\n\n# Queue tasks then sentinels\nfor i in range(9):\n    msg_send(name='tasks', message={'id': i, 'v': i * i})\nfor _ in range(3):\n    msg_send(name='tasks', message=None)  # shutdown sentinels\n\n# Spawn 3 workers — they pull from the shared queue\ndef worker_code(wid):\n    return f'''\nresults = []\nwhile True:\n    task = msg_recv(name=\"tasks\")\n    if task is None: break\n    results.append({{\"w\": {wid}, \"id\": task[\"id\"], \"sq\": task[\"v\"]}})\n{{\"worker\": {wid}, \"done\": results}}\n'''\n\nh1 = sandbox_spawn(code=worker_code(1))\nh2 = sandbox_spawn(code=worker_code(2))\nh3 = sandbox_spawn(code=worker_code(3))\n\nr1 = sandbox_await(handle=h1)\nr2 = sandbox_await(handle=h2)\nr3 = sandbox_await(handle=h3)\n\nall_results = r1['done'] + r2['done'] + r3['done']\nall_results.sort(key=lambda x: x['id'])\n\n{\n    'total_tasks': len(all_results),\n    'all_ids_present': [t['id'] for t in all_results] == list(range(9)),\n    'all_squares_correct': all(t['sq'] == t['id']**2 for t in all_results),\n    'w1_count': len(r1['done']),\n    'w2_count': len(r2['done']),\n    'w3_count': len(r3['done']),\n    'queue_stats': msg_stats(name='tasks'),\n}",
     };
 
     const descriptions = {
@@ -709,6 +737,10 @@ x</textarea>
       bidir: 'Parent sends a work task via message bus, child processes it and sends the result back. Full round-trip.',
       childfs: 'Each child gets its own isolated VFS. Children write files independently; parent filesystem is unaffected.',
       combined: 'Everything together: templates, message bus, filesystem, and host functions in a single execution.',
+      dartpush: 'Python blocks on msg_recv(). Use the Dart → bar below the editor to push JSON from Dart. Python unblocks instantly — same MessageBus, both sides.',
+      msgstats: 'msg_stats() returns a live ChannelSnapshot: queue depth, send/recv counts, peak depth, closed flag. Powered by the new reactive MessageChannel.',
+      drain: 'Producer sends items then calls msg_close(). Consumer loops msg_recv() until None — the idiomatic end-of-stream signal for message channels.',
+      workerpool: '9 tasks queued on a shared channel. 3 parallel workers pull from it until they receive a None sentinel. Tasks distribute across workers automatically.',
     };
 
     $('examples').onchange = function() {
@@ -745,6 +777,30 @@ x</textarea>
     });
 
     runBtn.onclick = run;
+
+    // Dart Push — calls AgentDemo.dartPush(channel, messageJson) which
+    // calls MessageBus.send() directly, unblocking any Python msg_recv()
+    // waiting on the same channel.
+    $('dartPushBtn').onclick = function() {
+      const ch = $('dartPushChannel').value.trim();
+      const msg = $('dartPushMessage').value.trim();
+      const fb = $('dartPushFeedback');
+      if (!window.AgentDemo || !ch) {
+        fb.textContent = 'not ready';
+        fb.style.color = 'var(--red)';
+        return;
+      }
+      try {
+        JSON.parse(msg); // validate JSON before sending
+        window.AgentDemo.dartPush(ch, msg);
+        fb.textContent = '\u2713 pushed to ' + ch;
+        fb.style.color = 'var(--green)';
+      } catch (e) {
+        fb.textContent = 'invalid JSON';
+        fb.style.color = 'var(--red)';
+      }
+      setTimeout(() => { fb.textContent = ''; }, 2500);
+    };
   </script>
 </body>
 </html>
