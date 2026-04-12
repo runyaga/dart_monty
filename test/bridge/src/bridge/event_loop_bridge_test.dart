@@ -696,6 +696,85 @@ void main() {
       expect(result['type'], 'sync_click');
     });
   });
+
+  group('lifecycle and ownership', () {
+    test('dispatch throws StateError when bridge is completed', () async {
+      mock.enqueueProgress(
+        const MontyComplete(result: MontyResult(usage: _usage)),
+      );
+
+      await bridge.execute('code').toList();
+      expect(bridge.loopState, EventLoopState.completed);
+
+      expect(() => bridge.dispatch({'type': 'too_late'}), throwsStateError);
+    });
+
+    test('dispatch is allowed after re-execute following completion', () async {
+      // First execution completes.
+      mock.enqueueProgress(
+        const MontyComplete(result: MontyResult(usage: _usage)),
+      );
+
+      await bridge.execute('code').toList();
+      expect(bridge.loopState, EventLoopState.completed);
+
+      // Second execution starts — state transitions back to executing.
+      mock
+        ..enqueueProgress(
+          const MontyPending(
+            functionName: 'recv',
+            arguments: [],
+            callId: 1,
+          ),
+        )
+        ..enqueueProgress(const MontyResolveFutures(pendingCallIds: [1]))
+        ..enqueueProgress(
+          const MontyComplete(result: MontyResult(usage: _usage)),
+        );
+
+      final stream = bridge.execute('recv()');
+      final sub = stream.listen((_) {});
+      await Future<void>.delayed(Duration.zero);
+
+      // Bridge is now waiting — dispatch must not throw.
+      expect(() => bridge.dispatch({'type': 'ok'}), returnsNormally);
+
+      await sub.asFuture<void>();
+      await sub.cancel();
+    });
+
+    test('onEmit callback throwing does not produce a Python error', () async {
+      bridge = EventLoopBridge(
+        platform: mock,
+        onEmit: (_) => throw Exception('callback blew up'),
+      );
+
+      mock
+        ..enqueueProgress(
+          const MontyPending(
+            functionName: 'emit',
+            arguments: [
+              MontyDict({'type': MontyString('event')}),
+            ],
+            callId: 1,
+          ),
+        )
+        ..enqueueProgress(const MontyResolveFutures(pendingCallIds: [1]))
+        ..enqueueProgress(
+          const MontyComplete(result: MontyResult(usage: _usage)),
+        );
+
+      final events = await bridge.execute('emit(value)').toList();
+
+      // The script should complete normally — the callback throwing
+      // is a Dart-side side effect and must not become a Python error.
+      expect(events.whereType<BridgeRunFinished>(), isNotEmpty);
+      expect(events.whereType<BridgeRunError>(), isEmpty);
+      // resumeWithError must NOT have been called — that would signal a
+      // Python-level failure back to the interpreter.
+      expect(mock.resumeErrorMessages, isEmpty);
+    });
+  });
 }
 
 /// Mock platform that does NOT implement [MontyFutureCapable].

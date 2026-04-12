@@ -26,7 +26,7 @@ enum EventLoopState {
 }
 
 /// Callback invoked when Python calls `emit`.
-typedef EmitCallback = void Function(Map<String, dynamic> schema);
+typedef EmitCallback = void Function(Map<String, dynamic> value);
 
 /// A [DefaultMontyBridge] that turns a single [execute] call into a
 /// long-running cooperative exchange between Python and Dart.
@@ -123,13 +123,26 @@ class EventLoopBridge extends DefaultMontyBridge {
   /// `recv()`, it resumes immediately with [event]. Otherwise [event] is
   /// queued for the next `recv()` call.
   ///
-  /// Throws [StateError] if the bridge has been disposed.
+  /// Throws [StateError] if the bridge has been disposed or if the previous
+  /// execution has already completed. Call [execute] again before dispatching.
   void dispatch(Map<String, dynamic> event) {
     if (_loopState == EventLoopState.disposed) {
       throw StateError('Cannot dispatch events on a disposed bridge');
     }
+    if (_loopState == EventLoopState.completed) {
+      // Design note: a completed bridge has no active Python coroutine to
+      // deliver to. Silently queueing here creates phantom state that
+      // survives into the next execute() — callers would have no idea
+      // whether a queued event belongs to the old or new execution.
+      // The structural fix is to clear _eventQueue at execute() start, but
+      // that would silently discard pre-queued events from legitimate callers.
+      // Throwing here is the conservative, discoverable choice.
+      throw StateError(
+        'Cannot dispatch events on a completed bridge; call execute() first',
+      );
+    }
     log.trace(
-      'Dispatching UI event',
+      'Dispatching event',
       attributes: {'eventKeys': '${event.keys.toList()}'},
     );
 
@@ -228,9 +241,11 @@ class EventLoopBridge extends DefaultMontyBridge {
     // If events are already queued, return the first one immediately.
     if (_eventQueue.isNotEmpty) {
       final event = _eventQueue.removeAt(0);
-      _eventLoopController
-        ..add(const BridgeEventLoopWaiting())
-        ..add(BridgeEventLoopResumed(event: event));
+      if (_loopState != EventLoopState.disposed) {
+        _eventLoopController
+          ..add(const BridgeEventLoopWaiting())
+          ..add(BridgeEventLoopResumed(event: event));
+      }
 
       return event;
     }
@@ -249,8 +264,27 @@ class EventLoopBridge extends DefaultMontyBridge {
   Future<Object?> _handleEmit(Map<String, Object?> args) {
     final value = args['value']! as Map<String, dynamic>;
     _lastEmitted = value;
-    _eventLoopController.add(BridgeEmitted(value: value));
-    onEmit?.call(value);
+    if (_loopState != EventLoopState.disposed) {
+      // Design note: the bridge may be disposed mid-execution if the host
+      // calls dispose() from a concurrent callback. Guarding here prevents
+      // adding to a closed StreamController. The structural fix is cooperative
+      // cancellation in DefaultMontyBridge._run() so execution stops before
+      // host function handlers are invoked after dispose.
+      _eventLoopController.add(BridgeEmitted(value: value));
+    }
+    try {
+      onEmit?.call(value);
+    } on Object catch (e, st) {
+      // Design note: onEmit is a Dart-side side effect. If it throws, the
+      // exception must not propagate out of this handler — doing so would
+      // cause DefaultMontyBridge to call resumeWithError(), signalling a
+      // Python-level failure for what is purely a host callback error.
+      // The structural fix is to decouple the callback entirely:
+      // either schedule via scheduleMicrotask() so exceptions cannot reach
+      // the handler's return path, or remove onEmit and let callers filter
+      // eventLoopEvents.whereType<BridgeEmitted>() instead.
+      log.error('onEmit callback threw', error: e, stackTrace: st);
+    }
 
     return Future.value();
   }
