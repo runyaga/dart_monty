@@ -86,28 +86,42 @@ jobs:
         working-directory: example/web
         run: dart compile js bin/repl_demo.dart -o web/repl_demo.dart.js
 
+      - name: Install Web Showcase dependencies
+        working-directory: example/web-showcase
+        run: dart pub get
+      - name: Compile showcase.dart
+        working-directory: example/web-showcase
+        run: dart compile js bin/showcase.dart -o web/showcase.dart.js
+
+      # ── Build MkDocs ────────────────────────────────────────────────
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Install MkDocs dependencies
+        run: pip install mkdocs-material
+      - name: Build documentation
+        run: mkdocs build
       # ── Assemble site ────────────────────────────────────────────────
-      - name: Copy WASM binary
+      - name: Copy live demo assets to site root
         run: |
-          cp native/target/wasm32-wasip1/release/dart_monty_native.wasm example/web/web/
-      - name: Copy fixture files
-        run: |
-          mkdir -p example/web/web/fixtures
-          cp test/fixtures/python_ladder/tier_*.json example/web/web/fixtures/
-      - name: Copy site images
-        run: |
-          cp docs/dart_monty.jpg example/web/web/
+          cp -r example/web/web/* site/
+          cp -r example/web-showcase/web/* site/
+          cp native/target/wasm32-wasip1/release/dart_monty_native.wasm site/
+          mkdir -p site/fixtures
+          cp test/fixtures/python_ladder/tier_*.json site/fixtures/
+          mkdir -p site/assets
+          cp -r docs/assets/* site/assets/
 
       # ── Stamp build date ─────────────────────────────────────────────
       - name: Stamp build date into HTML
         run: |
           stamp="$(date -u +'%Y-%m-%d %H:%M UTC')"
-          sed -i "s/__BUILD_DATE__/$stamp/g" example/web/web/index.html
+          sed -i "s/__BUILD_DATE__/$stamp/g" site/index.html
 
       # ── Deploy ───────────────────────────────────────────────────────
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: example/web/web
+          path: site
       - id: deploy
         uses: actions/deploy-pages@v4
