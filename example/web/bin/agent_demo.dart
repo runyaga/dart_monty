@@ -13,7 +13,6 @@ library;
 import 'dart:convert';
 import 'dart:js_interop';
 
-import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
 
 // ---------------------------------------------------------------------------
@@ -187,17 +186,13 @@ Future<bool> _init() async {
       'datetime.': TimeOsProvider(),
     });
 
-    final tmplPlugin = DinjaTemplatePlugin();
-    final msgPlugin = MessageBusPlugin();
-    final plugins = <MontyPlugin>[tmplPlugin, msgPlugin];
-    final sandboxPlugin = SandboxPlugin(
-      platformFactory: () async => Monty(os: os).platform,
-      parentPlugins: plugins,
-      parentOs: os,
+    // SandboxPlugin is omitted on WASM — spawning child interpreters inside
+    // an active WASM Worker session causes MontyDisposed errors that crash
+    // the parent session. Sandbox demos work on native (FFI) only.
+    _session = AgentSession(
+      os: os,
+      plugins: [DinjaTemplatePlugin(), MessageBusPlugin()],
     );
-    plugins.add(sandboxPlugin);
-
-    _session = AgentSession(os: os, plugins: plugins);
 
     _demoHostFunctions.forEach(_session!.register);
 
