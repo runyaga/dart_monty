@@ -1,7 +1,7 @@
 # dart_monty
 
 <p align="center">
-  <img src="assets/dart_monty.jpg" alt="dart_monty" width="280">
+  <img src="/assets/dart_monty.jpg" alt="dart_monty" width="280">
 </p>
 
 [![CI](https://github.com/runyaga/dart_monty/actions/workflows/ci.yaml/badge.svg)](https://github.com/runyaga/dart_monty/actions/workflows/ci.yaml)

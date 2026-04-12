@@ -3,13 +3,26 @@ site_description: Pure Dart bindings for Monty, a restricted sandboxed Python in
 theme:
   name: material
   palette:
-    primary: indigo
-    accent: indigo
+    - scheme: slate
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/brightness-4
+        name: Switch to dark mode
+    - scheme: default
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/brightness-7
+        name: Switch to light mode
   features:
     - navigation.sections
     - navigation.expand
     - content.code.copy
 use_directory_urls: false
+
+extra_css:
+  - extra.css
 
 nav:
   - Overview: help.md
