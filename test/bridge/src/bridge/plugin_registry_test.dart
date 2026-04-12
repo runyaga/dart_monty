@@ -344,7 +344,6 @@ void main() {
               namespace: 'low',
               functions: [_fn('low_a')],
               onRegisterCallback: () => order.add('low'),
-              priority: 0,
             ),
           )
           ..register(
@@ -396,7 +395,6 @@ void main() {
                 namespace: 'low',
                 functions: [_fn('low_b')],
                 onDisposeCallback: () => disposeOrder.add('low'),
-                priority: 0,
               ),
             )
             ..register(

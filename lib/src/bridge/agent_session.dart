@@ -22,6 +22,98 @@ import 'package:dart_monty/src/platform/monty_value.dart';
 const _restoreFn = '__restore_state__';
 const _persistFn = '__persist_state__';
 
+const _zeroUsage = MontyResourceUsage(
+  memoryBytesUsed: 0,
+  timeElapsedMs: 0,
+  stackDepthUsed: 0,
+);
+
+// ---------------------------------------------------------------------------
+// Top-level helpers — pure utilities that do not need AgentSession state.
+// ---------------------------------------------------------------------------
+
+/// Extracts the terminal [MontyResult] from a completed bridge event list.
+/// Throws [StateError] if no [BridgeRunFinished]/[BridgeRunError] event exists.
+MontyResult _extractBridgeResult(List<BridgeEvent> events) {
+  for (final event in events.reversed) {
+    if (event is BridgeRunFinished) {
+      final value = event.value != null
+          ? MontyValue.fromDart(event.value)
+          : null;
+
+      return MontyResult(
+        value: value,
+        usage: _zeroUsage,
+        printOutput: event.printOutput,
+      );
+    }
+    if (event is BridgeRunError) {
+      return MontyResult(
+        error: event.exception ?? MontyException(message: event.message),
+        usage: _zeroUsage,
+        printOutput: event.printOutput,
+      );
+    }
+  }
+
+  throw StateError('No terminal event in bridge execution');
+}
+
+/// Generates the `__restore_state__` preamble that loads [state] into Python.
+String _generateRestoreCode(Map<String, Object?> state) {
+  final buf = StringBuffer('__d = $_restoreFn()');
+  for (final key in state.keys) {
+    buf.write('\n$key = __d["$key"]');
+  }
+
+  return buf.toString();
+}
+
+/// Generates the `__persist_state__` epilogue that captures [userCode]
+/// assignment targets plus existing [state] keys back to Dart.
+String _generatePersistCode(String userCode, Map<String, Object?> state) {
+  final names = <String>{
+    ...state.keys,
+    ...code_capture.extractAssignmentTargets(userCode),
+  };
+
+  if (names.isEmpty) return '$_persistFn({})';
+
+  final buf = StringBuffer('__d2 = {}');
+  for (final name in names) {
+    buf
+      ..write('\ntry:')
+      ..write('\n    __d2["$name"] = $name')
+      ..write('\nexcept NameError:')
+      ..write('\n    pass');
+  }
+  buf.write('\n$_persistFn(__d2)');
+
+  return buf.toString();
+}
+
+/// Wraps [userCode] with restore/persist state bookkeeping, preserving
+/// the last-expression result capture.
+String _wrapWithStateCode(String userCode, Map<String, Object?> state) {
+  final restore = _generateRestoreCode(state);
+  final persist = _generatePersistCode(userCode, state);
+  final (processed, hasResult) = code_capture.captureLastExpression(userCode);
+
+  final buf = StringBuffer(restore)
+    ..write('\n')
+    ..write(processed)
+    ..write('\n')
+    ..write(persist);
+
+  if (hasResult) buf.write('\n__r');
+
+  return buf.toString();
+}
+
+// ---------------------------------------------------------------------------
+// AgentSession
+// ---------------------------------------------------------------------------
+
 /// High-level agent session — stateful Python execution with tools and plugins.
 ///
 /// Combines `MontyBridge`, `PluginRegistry`, OS providers, and variable
@@ -93,12 +185,6 @@ class AgentSession {
     }
   }
 
-  static const _zeroUsage = MontyResourceUsage(
-    memoryBytesUsed: 0,
-    timeElapsedMs: 0,
-    stackDepthUsed: 0,
-  );
-
   final OsProvider? _os;
   final List<MontyPlugin>? _plugins;
   final BridgeLogger? _logger;
@@ -137,7 +223,7 @@ class AgentSession {
   ///
   /// In sandbox mode, the function is registered on every fresh bridge.
   void register(HostFunction function) {
-    _checkNotDisposed();
+    if (_disposed) throw StateError('AgentSession has been disposed');
     if (_sharedBridge != null) {
       _sharedBridge!.register(function);
     }
@@ -151,7 +237,7 @@ class AgentSession {
   ///
   /// In sandbox mode, creates a fresh interpreter per call.
   Future<MontyResult> execute(String code) {
-    _checkNotDisposed();
+    if (_disposed) throw StateError('AgentSession has been disposed');
 
     if (_sandbox) {
       return _executeSandboxed(code);
@@ -164,7 +250,7 @@ class AgentSession {
   ///
   /// Only available in shared mode. In sandbox mode, use `execute()`.
   Stream<BridgeEvent> executeStream(String code) {
-    _checkNotDisposed();
+    if (_disposed) throw StateError('AgentSession has been disposed');
     if (_sandbox) {
       throw UnsupportedError(
         'executeStream() is not supported in sandbox mode. '
@@ -177,7 +263,7 @@ class AgentSession {
 
   /// Clears all persisted Python state.
   void clearState() {
-    _checkNotDisposed();
+    if (_disposed) throw StateError('AgentSession has been disposed');
     _sessionState = {};
   }
 
@@ -191,9 +277,11 @@ class AgentSession {
   }
 
   Stream<BridgeEvent> _executeStreamShared(String code) async* {
-    await _ensureSharedAttached();
-    final wrappedCode = _wrapWithState(code);
-    yield* _sharedBridge!.execute(wrappedCode);
+    if (!_sharedAttached && _sharedRegistry != null) {
+      await _sharedRegistry!.attachTo(_sharedBridge!);
+      _sharedAttached = true;
+    }
+    yield* _sharedBridge!.execute(_wrapWithStateCode(code, _sessionState));
   }
 
   // ---------------------------------------------------------------------------
@@ -201,19 +289,15 @@ class AgentSession {
   // ---------------------------------------------------------------------------
 
   Future<MontyResult> _executeShared(String code) async {
-    await _ensureSharedAttached();
-
-    final wrappedCode = _wrapWithState(code);
-    final events = await _sharedBridge!.execute(wrappedCode).toList();
-
-    return _extractResult(events);
-  }
-
-  Future<void> _ensureSharedAttached() async {
     if (!_sharedAttached && _sharedRegistry != null) {
       await _sharedRegistry!.attachTo(_sharedBridge!);
       _sharedAttached = true;
     }
+    final events = await _sharedBridge!
+        .execute(_wrapWithStateCode(code, _sessionState))
+        .toList();
+
+    return _extractBridgeResult(events);
   }
 
   // ---------------------------------------------------------------------------
@@ -231,10 +315,11 @@ class AgentSession {
     }
 
     try {
-      final wrappedCode = _wrapWithState(code);
-      final events = await b.execute(wrappedCode).toList();
+      final events = await b
+          .execute(_wrapWithStateCode(code, _sessionState))
+          .toList();
 
-      return _extractResult(events);
+      return _extractBridgeResult(events);
     } finally {
       b.dispose();
       await monty.dispose();
@@ -293,92 +378,5 @@ class AgentSession {
           },
         ),
       );
-  }
-
-  // ---------------------------------------------------------------------------
-  // Code wrapping (state persistence)
-  // ---------------------------------------------------------------------------
-
-  String _wrapWithState(String userCode) {
-    final restore = _generateRestore();
-    final persist = _generatePersist(userCode);
-    final (processed, hasResult) = code_capture.captureLastExpression(userCode);
-
-    final buf = StringBuffer(restore)
-      ..write('\n')
-      ..write(processed)
-      ..write('\n')
-      ..write(persist);
-
-    if (hasResult) {
-      buf.write('\n__r');
-    }
-
-    return buf.toString();
-  }
-
-  String _generateRestore() {
-    final buf = StringBuffer('__d = $_restoreFn()');
-    for (final key in _sessionState.keys) {
-      buf.write('\n$key = __d["$key"]');
-    }
-
-    return buf.toString();
-  }
-
-  String _generatePersist(String userCode) {
-    final names = <String>{
-      ..._sessionState.keys,
-      ...code_capture.extractAssignmentTargets(userCode),
-    };
-
-    if (names.isEmpty) {
-      return '$_persistFn({})';
-    }
-
-    final buf = StringBuffer('__d2 = {}');
-    for (final name in names) {
-      buf
-        ..write('\ntry:')
-        ..write('\n    __d2["$name"] = $name')
-        ..write('\nexcept NameError:')
-        ..write('\n    pass');
-    }
-    buf.write('\n$_persistFn(__d2)');
-
-    return buf.toString();
-  }
-
-  // ---------------------------------------------------------------------------
-  // Helpers
-  // ---------------------------------------------------------------------------
-
-  MontyResult _extractResult(List<BridgeEvent> events) {
-    for (final event in events.reversed) {
-      if (event is BridgeRunFinished) {
-        return MontyResult(
-          value: MontyValue.fromDart(event.value),
-          usage: _zeroUsage,
-          printOutput: event.printOutput,
-        );
-      }
-      if (event is BridgeRunError) {
-        return MontyResult(
-          value: const MontyNull(),
-          error: event.exception ?? MontyException(message: event.message),
-          usage: _zeroUsage,
-          printOutput: event.printOutput,
-        );
-      }
-    }
-
-    // Should not happen — bridge always emits a terminal event.
-    throw StateError('No terminal event in bridge execution');
-  }
-
-  void _checkNotDisposed() {
-    if (_disposed) {
-      throw StateError('AgentSession has been disposed');
-    }
   }
 }

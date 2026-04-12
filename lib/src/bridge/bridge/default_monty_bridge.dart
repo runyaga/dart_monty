@@ -1,11 +1,11 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:dart_monty/src/bridge/bridge/bridge_event.dart';
 import 'package:dart_monty/src/bridge/bridge/bridge_middleware.dart';
 import 'package:dart_monty/src/bridge/bridge/host_function.dart';
 import 'package:dart_monty/src/bridge/bridge/host_function_schema.dart';
 import 'package:dart_monty/src/bridge/bridge/monty_bridge.dart';
+import 'package:dart_monty/src/bridge/bridge/plugin_host.dart';
 import 'package:dart_monty/src/bridge/bridge/struct_log_bridge_logger.dart';
 import 'package:dart_monty/src/bridge/os_call/os_provider.dart';
 import 'package:dart_monty/src/platform/bridge_logger.dart';
@@ -16,7 +16,6 @@ import 'package:dart_monty/src/platform/monty_limits.dart';
 import 'package:dart_monty/src/platform/monty_platform.dart';
 import 'package:dart_monty/src/platform/monty_progress.dart';
 import 'package:dart_monty/src/platform/monty_stack_frame.dart';
-import 'package:dart_monty/src/platform/monty_value.dart';
 import 'package:meta/meta.dart';
 import 'package:struct_log/struct_log.dart';
 
@@ -41,26 +40,155 @@ print = _cw
 /// Plus the `\n` in `'$_printPreamble\n$code'` = user code starts at line 6.
 const _preambleLineCount = 5;
 
-const _consoleWriteFn = '__console_write__';
-const _roleKwarg = '__role__';
+// ---------------------------------------------------------------------------
+// Top-level helpers — pure utilities that do not need bridge instance state.
+// ---------------------------------------------------------------------------
 
-/// Tracks an in-flight host function future awaiting resolution.
-class _PendingFuture {
-  const _PendingFuture({
-    required this.future,
-    required this.bridgeCallId,
-    required this.stepName,
-  });
-
-  final Future<Object?> future;
-  final String bridgeCallId;
-  final String stepName;
+/// Adjusts [MontyException] line numbers to account for the print preamble
+/// injected by [DefaultMontyBridge._run]. Filters preamble frames from the
+/// traceback.
+MontyException _adjustException(MontyException e) {
+  return MontyException(
+    message: e.message,
+    filename: e.filename,
+    lineNumber: e.lineNumber != null
+        ? e.lineNumber! - _preambleLineCount
+        : null,
+    columnNumber: e.columnNumber,
+    sourceCode: e.sourceCode,
+    excType: e.excType,
+    traceback: e.traceback
+        .where((f) => f.startLine > _preambleLineCount)
+        .map(
+          (f) => MontyStackFrame(
+            filename: f.filename,
+            startLine: f.startLine - _preambleLineCount,
+            startColumn: f.startColumn,
+            endLine: f.endLine != null
+                ? f.endLine! - _preambleLineCount
+                : null,
+            endColumn: f.endColumn,
+            frameName: f.frameName,
+            previewLine: f.previewLine,
+            hideCaret: f.hideCaret,
+            hideFrameName: f.hideFrameName,
+          ),
+        )
+        .toList(),
+  );
 }
+
+/// Flushes buffered print output as [BridgeTextStart]/[BridgeTextContent]/
+/// [BridgeTextEnd] events. No-op if [buffer] is empty.
+void _flushPrintBuffer(
+  StringBuffer buffer,
+  StreamController<BridgeEvent> controller,
+  String messageId,
+) {
+  if (buffer.isEmpty) return;
+  controller
+    ..add(BridgeTextStart(messageId: messageId))
+    ..add(BridgeTextContent(messageId: messageId, delta: buffer.toString()))
+    ..add(BridgeTextEnd(messageId: messageId));
+}
+
+/// Handles the [MontyComplete] terminal step — flushes print output, emits
+/// [BridgeRunFinished] or [BridgeRunError] depending on the result.
+void _emitComplete(
+  MontyComplete complete,
+  StringBuffer printBuffer,
+  StreamController<BridgeEvent> controller,
+  String threadId,
+  String runId,
+  String messageId,
+) {
+  _flushPrintBuffer(printBuffer, controller, messageId);
+  final capturedOutput = printBuffer.isNotEmpty
+      ? printBuffer.toString()
+      : complete.result.printOutput;
+
+  if (complete.result.isError) {
+    final adjusted = _adjustException(complete.result.error!);
+    controller.add(
+      BridgeRunError(
+        message: adjusted.message,
+        printOutput: capturedOutput,
+        exception: adjusted,
+      ),
+    );
+  } else {
+    controller.add(
+      BridgeRunFinished(
+        threadId: threadId,
+        runId: runId,
+        value: complete.result.value?.dartValue,
+        printOutput: capturedOutput,
+      ),
+    );
+  }
+}
+
+/// Emits a [BridgeRunError] for a [MontyScriptError] caught during `_run`.
+void _emitScriptError(
+  MontyScriptError e,
+  StringBuffer printBuffer,
+  StreamController<BridgeEvent> controller,
+  BridgeLogger log,
+  String messageId,
+) {
+  final adjusted = e.exception != null ? _adjustException(e.exception!) : null;
+  log.warning(
+    'Python error',
+    attributes: {'error': adjusted?.message ?? e.message},
+  );
+  _flushPrintBuffer(printBuffer, controller, messageId);
+  final output = printBuffer.isNotEmpty ? printBuffer.toString() : null;
+  controller.add(
+    BridgeRunError(
+      message: adjusted?.message ?? e.message,
+      printOutput: output,
+      exception: adjusted,
+    ),
+  );
+}
+
+/// Emits a [BridgeRunError] for a [MontyError] caught during `_run`.
+void _emitMontyError(
+  MontyError e,
+  StringBuffer printBuffer,
+  StreamController<BridgeEvent> controller,
+  BridgeLogger log,
+  String messageId,
+) {
+  log.warning('Monty error', attributes: {'error': e.message});
+  _flushPrintBuffer(printBuffer, controller, messageId);
+  final output = printBuffer.isNotEmpty ? printBuffer.toString() : null;
+  controller.add(BridgeRunError(message: e.message, printOutput: output));
+}
+
+/// Emits a [BridgeRunError] for an unexpected [Object] caught during `_run`.
+void _emitInfraError(
+  Object e,
+  StackTrace stackTrace,
+  StringBuffer printBuffer,
+  StreamController<BridgeEvent> controller,
+  BridgeLogger log,
+  String messageId,
+) {
+  log.error('Bridge infrastructure error', error: e, stackTrace: stackTrace);
+  _flushPrintBuffer(printBuffer, controller, messageId);
+  final output = printBuffer.isNotEmpty ? printBuffer.toString() : null;
+  controller.add(BridgeRunError(message: '$e', printOutput: output));
+}
+
+// ---------------------------------------------------------------------------
+// DefaultMontyBridge — thin coordinator.
+// ---------------------------------------------------------------------------
 
 /// Default [MontyBridge] implementation.
 ///
-/// Orchestrates the Monty start/resume loop, dispatching external function
-/// calls to registered [HostFunction] handlers and emitting [BridgeEvent]s.
+/// Orchestrates the Monty start/resume loop and delegates function
+/// registration and tool dispatch to a [PluginHost].
 class DefaultMontyBridge implements MontyBridge {
   /// Creates a [DefaultMontyBridge].
   ///
@@ -76,7 +204,9 @@ class DefaultMontyBridge implements MontyBridge {
   }) : _platform = platform,
        _limits = limits,
        _useFutures = useFutures,
-       log = logger ?? StructLogBridgeLogger.root(LogManager.instance);
+       log = logger ?? StructLogBridgeLogger.root(LogManager.instance) {
+    _host = PluginHost(platform: platform, log: log);
+  }
 
   /// Logger for this bridge instance.
   @protected
@@ -85,72 +215,73 @@ class DefaultMontyBridge implements MontyBridge {
   final MontyPlatform _platform;
   final MontyLimits? _limits;
   final bool _useFutures;
-  final Map<String, HostFunction> _functions = {};
-  final Map<String, Set<String>> _categoryIndex = {};
-  final List<BridgeMiddleware> _middleware = [];
-  final Map<int, _PendingFuture> _pendingFutures = {};
-  int _idCounter = 0;
+  late final PluginHost _host;
+
+  // Kept separately from PluginHost._osProvider so dispose() can call it
+  // without accessing PluginHost internals.
+  OsProvider? _osProvider;
+
   bool _isExecuting = false;
   bool _isDisposed = false;
-  OsProvider? _osProvider;
 
   @override
   BridgeLogger get logger => log;
 
-  String get _nextId => '${_idCounter++}';
+  // ---------------------------------------------------------------------------
+  // MontyBridge interface — delegated to PluginHost.
+  // ---------------------------------------------------------------------------
 
   @override
-  List<HostFunctionSchema> get schemas =>
-      _functions.values.map((f) => f.schema).toList(growable: false);
+  List<HostFunctionSchema> get schemas => _host.schemas;
 
   @override
-  Map<String, List<HostFunctionSchema>> get schemasByCategory {
-    final result = <String, List<HostFunctionSchema>>{};
-    for (final entry in _categoryIndex.entries) {
-      final categorySchemas = <HostFunctionSchema>[];
-      for (final name in entry.value) {
-        final fn = _functions[name];
-        if (fn != null) categorySchemas.add(fn.schema);
-      }
-      if (categorySchemas.isNotEmpty) result[entry.key] = categorySchemas;
-    }
-
-    return result;
-  }
+  Map<String, List<HostFunctionSchema>> get schemasByCategory =>
+      _host.schemasByCategory;
 
   @override
   void use(BridgeMiddleware middleware) {
     if (_isDisposed) throw StateError('Bridge has been disposed');
-    _middleware.add(middleware);
+    _host.use(middleware);
   }
 
   @override
   void register(HostFunction function, {String? category}) {
     if (_isDisposed) throw StateError('Bridge has been disposed');
-    final name = function.schema.name;
-    _functions[name] = function;
-    final cat = category ?? 'uncategorized';
-    (_categoryIndex[cat] ??= {}).add(name);
+    _host.register(function, category: category);
   }
 
   @override
   void unregister(String name) {
     if (_isDisposed) throw StateError('Bridge has been disposed');
-    _functions.remove(name);
+    _host.unregister(name);
   }
 
   @override
   void registerOs(OsProvider provider) {
     if (_isDisposed) throw StateError('Bridge has been disposed');
     _osProvider = provider;
+    _host.registerOs(provider);
   }
+
+  @override
+  Future<Object?> invokeHostFunction(
+    String name,
+    Map<String, Object?> args, {
+    CallRole role = const ToolCall(),
+  }) {
+    if (_isDisposed) throw StateError('Bridge has been disposed');
+
+    return _host.invokeHostFunction(name, args, role: role);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Execution.
+  // ---------------------------------------------------------------------------
 
   @override
   Stream<BridgeEvent> execute(String code) {
     if (_isDisposed) throw StateError('Bridge has been disposed');
-    if (_isExecuting) {
-      throw StateError('Bridge is already executing');
-    }
+    if (_isExecuting) throw StateError('Bridge is already executing');
     log.debug('Executing code', attributes: {'codeLength': code.length});
 
     final controller = StreamController<BridgeEvent>();
@@ -172,36 +303,41 @@ class DefaultMontyBridge implements MontyBridge {
     log.close();
   }
 
-  @override
-  Future<Object?> invokeHostFunction(
-    String name,
-    Map<String, Object?> args, {
-    CallRole role = const ToolCall(),
-  }) {
-    if (_isDisposed) throw StateError('Bridge has been disposed');
-    final fn = _functions[name];
-    if (fn == null) {
-      throw ArgumentError('Unknown host function: $name');
+  // ---------------------------------------------------------------------------
+  // Internal execution loop.
+  // ---------------------------------------------------------------------------
+
+  Future<void> _run(
+    String code,
+    StreamController<BridgeEvent> controller,
+  ) async {
+    final printBuffer = StringBuffer();
+    try {
+      final init = await _initExecution(code, controller);
+      var progress = init.progress;
+      while (true) {
+        final next = await _dispatchProgress(
+          progress,
+          controller,
+          printBuffer,
+          init.threadId,
+          init.runId,
+          futuresCapable: init.futuresCapable,
+        );
+        if (next == null) return;
+        progress = next;
+      }
+    } on MontyScriptError catch (e) {
+      _emitScriptError(e, printBuffer, controller, log, _host.nextId);
+    } on MontyError catch (e) {
+      _emitMontyError(e, printBuffer, controller, log, _host.nextId);
+    } on Object catch (e, st) {
+      _emitInfraError(e, st, printBuffer, controller, log, _host.nextId);
+    } finally {
+      _host.clearPendingFutures();
     }
-
-    // Route through mapAndValidate for type coercion (e.g., string→int).
-    // Construct a MontyPending with kwargs only (Dart callers use named args).
-    // Wrap raw Dart values as MontyValue so they satisfy the typed constructor.
-    final pending = MontyPending(
-      functionName: name,
-      arguments: const [],
-      kwargs: args.map((k, v) => MapEntry(k, MontyValue.fromJson(v))),
-    );
-    final validatedArgs = fn.schema.mapAndValidate(pending);
-
-    return _invokeWithMiddleware(fn, name, validatedArgs, role);
   }
 
-  /// Initialises a single execution: builds preamble, starts the platform,
-  /// and emits [BridgeRunStarted].
-  ///
-  /// Returns the initial [MontyProgress], a shared [StringBuffer] for print
-  /// output, the thread/run IDs, and whether the platform supports futures.
   Future<
     ({
       MontyProgress progress,
@@ -211,14 +347,17 @@ class DefaultMontyBridge implements MontyBridge {
     })
   >
   _initExecution(String code, StreamController<BridgeEvent> controller) async {
-    final threadId = _nextId;
-    final runId = _nextId;
+    final threadId = _host.nextId;
+    final runId = _host.nextId;
     controller.add(BridgeRunStarted(threadId: threadId, runId: runId));
 
     final wrappedCode = '$_printPreamble\n$code';
-    final externalFunctions = [_consoleWriteFn, ..._functions.keys];
+    final externalFunctions = [
+      '__console_write__',
+      ..._host.schemas.map((s) => s.name),
+    ];
     final futuresCapable = _useFutures && _platform is MontyFutureCapable;
-    _pendingFutures.clear();
+    _host.clearPendingFutures();
 
     final progress = await _platform.start(
       wrappedCode,
@@ -234,10 +373,6 @@ class DefaultMontyBridge implements MontyBridge {
     );
   }
 
-  /// Dispatches a single [MontyProgress] step.
-  ///
-  /// Returns the next [MontyProgress] to continue the loop, or `null` when
-  /// execution is complete (i.e. [MontyComplete] was handled).
   Future<MontyProgress?> _dispatchProgress(
     MontyProgress progress,
     StreamController<BridgeEvent> controller,
@@ -248,499 +383,29 @@ class DefaultMontyBridge implements MontyBridge {
   }) async {
     switch (progress) {
       case final MontyPending pending:
-        return _handlePending(
+        return _host.handlePending(
           pending,
           printBuffer,
           controller,
           futuresCapable: futuresCapable,
         );
       case final MontyOsCall osCall:
-        return _handleOsCall(osCall, controller);
+        return _host.handleOsCall(osCall, controller);
       case final MontyResolveFutures resolve:
-        return (futuresCapable && _pendingFutures.isNotEmpty)
-            ? _resolveFutures(resolve, controller)
+        return futuresCapable
+            ? _host.resolveFutures(resolve, controller)
             : _platform.resume(null);
-      case MontyComplete(:final result):
-        _flushPrintBuffer(printBuffer, controller);
-        final capturedOutput = printBuffer.isNotEmpty
-            ? printBuffer.toString()
-            : result.printOutput;
-        if (result.isError) {
-          final adjusted = _adjustException(result.error!);
-          controller.add(
-            BridgeRunError(
-              message: adjusted.message,
-              printOutput: capturedOutput,
-              exception: adjusted,
-            ),
-          );
-        } else {
-          controller.add(
-            BridgeRunFinished(
-              threadId: threadId,
-              runId: runId,
-              value: result.value.dartValue,
-              printOutput: capturedOutput,
-            ),
-          );
-        }
+      case final MontyComplete complete:
+        _emitComplete(
+          complete,
+          printBuffer,
+          controller,
+          threadId,
+          runId,
+          _host.nextId,
+        );
 
         return null;
     }
-  }
-
-  Future<void> _run(
-    String code,
-    StreamController<BridgeEvent> controller,
-  ) async {
-    final printBuffer = StringBuffer();
-    try {
-      final init = await _initExecution(code, controller);
-      var progress = init.progress;
-
-      while (true) {
-        final next = await _dispatchProgress(
-          progress,
-          controller,
-          printBuffer,
-          init.threadId,
-          init.runId,
-          futuresCapable: init.futuresCapable,
-        );
-        if (next == null) return;
-        progress = next;
-      }
-    } on MontyScriptError catch (e) {
-      final adjusted = e.exception != null
-          ? _adjustException(e.exception!)
-          : null;
-      log.warning(
-        'Python error',
-        attributes: {'error': adjusted?.message ?? e.message},
-      );
-      _flushPrintBuffer(printBuffer, controller);
-      final output = printBuffer.isNotEmpty ? printBuffer.toString() : null;
-      controller.add(
-        BridgeRunError(
-          message: adjusted?.message ?? e.message,
-          printOutput: output,
-          exception: adjusted,
-        ),
-      );
-    } on MontyError catch (e) {
-      log.warning('Monty error', attributes: {'error': e.message});
-      _flushPrintBuffer(printBuffer, controller);
-      final output = printBuffer.isNotEmpty ? printBuffer.toString() : null;
-      controller.add(BridgeRunError(message: e.message, printOutput: output));
-    } on Object catch (e, st) {
-      log.error('Bridge infrastructure error', error: e, stackTrace: st);
-      _flushPrintBuffer(printBuffer, controller);
-      final output = printBuffer.isNotEmpty ? printBuffer.toString() : null;
-      controller.add(BridgeRunError(message: '$e', printOutput: output));
-    } finally {
-      _pendingFutures.clear();
-    }
-  }
-
-  Future<MontyProgress> _handlePending(
-    MontyPending pending,
-    StringBuffer printBuffer,
-    StreamController<BridgeEvent> controller, {
-    required bool futuresCapable,
-  }) {
-    final name = pending.functionName;
-
-    // Console write — always intercept, buffer for text flush.
-    if (name == _consoleWriteFn) {
-      if (pending.arguments.isNotEmpty) {
-        printBuffer.write(pending.arguments.first.dartValue?.toString());
-      }
-
-      return _platform.resume(null);
-    }
-
-    // Registered host function — extract role, strip reserved kwargs, dispatch.
-    final fn = _functions[name];
-    if (fn != null) {
-      final (cleanedPending, role) = _extractRole(pending, fn.role);
-      log.trace('Host function call', attributes: {'name': name});
-      if (futuresCapable) {
-        return _dispatchToolCallAsFuture(
-          fn,
-          cleanedPending,
-          controller,
-          role: role,
-        );
-      }
-
-      return _dispatchToolCall(fn, cleanedPending, controller, role: role);
-    }
-
-    // Unknown function — raise error in Python.
-    log.warning('Unknown function', attributes: {'name': name});
-
-    return _platform.resumeWithError('Unknown function: $name');
-  }
-
-  Future<MontyProgress> _handleOsCall(
-    MontyOsCall osCall,
-    StreamController<BridgeEvent> controller,
-  ) async {
-    final callId = _nextId;
-    final opName = osCall.operationName;
-    final argSummary = osCall.arguments.isEmpty
-        ? null
-        : osCall.arguments.map((a) => a.dartValue).join(', ');
-
-    controller.add(
-      BridgeOsCallStart(
-        callId: callId,
-        operationName: opName,
-        argumentSummary: argSummary,
-      ),
-    );
-
-    final handler = _osProvider;
-    if (handler == null) {
-      log.warning('OS call denied (no handler)', attributes: {'op': opName});
-      final errorMsg =
-          'PermissionError: $opName not available (no filesystem configured)';
-      controller.add(BridgeOsCallResult(callId: callId, result: errorMsg));
-
-      return _platform.resumeWithError(errorMsg);
-    }
-
-    // Handler errors are safe to resumeWithError (platform still active).
-    // resume() errors must propagate — see _dispatchToolCall comment.
-    final sw = Stopwatch()..start();
-    final Object? result;
-    try {
-      result = await handler.resolve(osCall);
-    } on Object catch (e, st) {
-      sw.stop();
-      log.error(
-        'OS call handler error',
-        error: e,
-        stackTrace: st,
-        attributes: {'op': opName},
-      );
-      controller.add(
-        BridgeOsCallResult(
-          callId: callId,
-          result: 'Error: $e',
-          durationMs: sw.elapsedMilliseconds,
-        ),
-      );
-
-      return _platform.resumeWithError(e.toString());
-    }
-
-    sw.stop();
-    controller.add(
-      BridgeOsCallResult(
-        callId: callId,
-        result: result?.toString() ?? '',
-        durationMs: sw.elapsedMilliseconds,
-      ),
-    );
-
-    return _platform.resume(result);
-  }
-
-  /// Resolves the [CallRole] for a tool call and strips the reserved
-  /// `__role__` kwarg from [pending].
-  ///
-  /// Resolution order:
-  /// 1. If [hostRole] is non-null (declared on [HostFunction]), it is
-  ///    authoritative — Python cannot override it.
-  /// 2. Otherwise, the `__role__` kwarg from Python is used.
-  /// 3. If neither is present, defaults to [ToolCall].
-  (MontyPending, CallRole) _extractRole(
-    MontyPending pending,
-    CallRole? hostRole,
-  ) {
-    final kwargs = pending.kwargs;
-
-    // Always strip __role__ from kwargs regardless of how role is resolved.
-    final MontyPending cleanedPending;
-    if (kwargs != null && kwargs.containsKey(_roleKwarg)) {
-      final cleaned = Map<String, MontyValue>.of(kwargs)..remove(_roleKwarg);
-      cleanedPending = MontyPending(
-        functionName: pending.functionName,
-        arguments: pending.arguments,
-        kwargs: cleaned.isEmpty ? null : cleaned,
-        callId: pending.callId,
-        methodCall: pending.methodCall,
-      );
-    } else {
-      cleanedPending = pending;
-    }
-
-    // Host-declared role is authoritative — Python cannot escalate.
-    if (hostRole != null) {
-      return (cleanedPending, hostRole);
-    }
-
-    // Fall back to Python kwarg, defaulting to ToolCall.
-    final roleValue = kwargs?[_roleKwarg]?.dartValue;
-    final role = switch (roleValue) {
-      'infra' => const InfraCall(),
-      _ => const ToolCall(),
-    };
-
-    return (cleanedPending, role);
-  }
-
-  /// Invokes [fn] through the middleware chain with the given [role].
-  ///
-  /// Fast path: when no middleware is registered, calls the handler directly.
-  Future<Object?> _invokeWithMiddleware(
-    HostFunction fn,
-    String name,
-    Map<String, Object?> args,
-    CallRole role,
-  ) {
-    if (_middleware.isEmpty) return fn.handler(args);
-
-    // Build onion chain: first registered = outermost.
-    var handler = (String _, Map<String, Object?> a) => fn.handler(a);
-    for (final mw in _middleware.reversed) {
-      final next = handler;
-      handler = (n, a) => mw.handle(n, a, role, next);
-    }
-
-    return handler(name, args);
-  }
-
-  Future<MontyProgress> _dispatchToolCall(
-    HostFunction fn,
-    MontyPending pending,
-    StreamController<BridgeEvent> controller, {
-    required CallRole role,
-  }) async {
-    final callId = _nextId;
-    final stepName = pending.functionName;
-
-    controller
-      ..add(BridgeStepStarted(stepId: stepName))
-      ..add(BridgeToolCallStart(callId: callId, name: stepName));
-
-    // Map and validate arguments.
-    final Map<String, Object?> args;
-    try {
-      args = fn.schema.mapAndValidate(pending);
-    } on FormatException catch (e) {
-      log.warning(
-        'Argument validation failed',
-        attributes: {'function': stepName, 'error': e.message},
-      );
-      controller
-        ..add(BridgeToolCallResult(callId: callId, result: 'Error: $e'))
-        ..add(BridgeStepFinished(stepId: stepName));
-
-      return _platform.resumeWithError(e.toString());
-    }
-    controller
-      ..add(BridgeToolCallArgs(callId: callId, delta: jsonEncode(args)))
-      ..add(BridgeToolCallEnd(callId: callId));
-
-    // Execute handler — errors here are safe to resumeWithError because
-    // the platform is still in active state (waiting for our response).
-    // resume() errors must NOT be caught here — if resume() fails it has
-    // already called markIdle(), so resumeWithError() would hit a
-    // StateError. Let resume() errors propagate to _run()'s outer catch.
-    final Object? result;
-    try {
-      result = await _invokeWithMiddleware(fn, stepName, args, role);
-    } on Object catch (e, st) {
-      log.error(
-        'Host handler error',
-        error: e,
-        stackTrace: st,
-        attributes: {'function': stepName},
-      );
-      controller
-        ..add(BridgeToolCallResult(callId: callId, result: 'Error: $e'))
-        ..add(BridgeStepFinished(stepId: stepName));
-
-      return _platform.resumeWithError(e.toString());
-    }
-
-    controller
-      ..add(
-        BridgeToolCallResult(callId: callId, result: result?.toString() ?? ''),
-      )
-      ..add(BridgeStepFinished(stepId: stepName));
-
-    return _platform.resume(result);
-  }
-
-  Future<MontyProgress> _dispatchToolCallAsFuture(
-    HostFunction fn,
-    MontyPending pending,
-    StreamController<BridgeEvent> controller, {
-    required CallRole role,
-  }) {
-    final callId = _nextId;
-    final stepName = pending.functionName;
-
-    controller
-      ..add(BridgeStepStarted(stepId: stepName))
-      ..add(BridgeToolCallStart(callId: callId, name: stepName));
-
-    // Map and validate arguments.
-    final Map<String, Object?> args;
-    try {
-      args = fn.schema.mapAndValidate(pending);
-    } on FormatException catch (e) {
-      controller
-        ..add(BridgeToolCallResult(callId: callId, result: 'Error: $e'))
-        ..add(BridgeStepFinished(stepId: stepName));
-
-      return _platform.resumeWithError(e.toString());
-    }
-    controller
-      ..add(BridgeToolCallArgs(callId: callId, delta: jsonEncode(args)))
-      ..add(BridgeToolCallEnd(callId: callId));
-
-    // Launch handler and store future for later resolution.
-    // Errors are caught during resolution in _resolveFutures; suppress
-    // unhandled async error reporting in the meantime.
-    //
-    // If the handler throws synchronously (before returning a Future),
-    // we must catch it here to avoid deadlocking the platform in active
-    // state with a leaked FFI handle.
-    final Future<Object?> handlerFuture;
-    try {
-      handlerFuture = _invokeWithMiddleware(fn, stepName, args, role);
-    } on Object catch (e, st) {
-      log.error(
-        'Host handler threw synchronously',
-        error: e,
-        stackTrace: st,
-        attributes: {'function': stepName},
-      );
-      controller
-        ..add(BridgeToolCallResult(callId: callId, result: 'Error: $e'))
-        ..add(BridgeStepFinished(stepId: stepName));
-
-      return _platform.resumeWithError(e.toString());
-    }
-    unawaited(
-      handlerFuture.then<void>(
-        (_) {
-          // Success value intentionally ignored — result is consumed during
-          // future resolution in _resolveFutures.
-        },
-        onError: (Object e, StackTrace st) {
-          log.warning(
-            'Deferred host handler error',
-            error: e,
-            stackTrace: st,
-            attributes: {'function': stepName},
-          );
-        },
-      ),
-    );
-    _pendingFutures[pending.callId] = _PendingFuture(
-      future: handlerFuture,
-      bridgeCallId: callId,
-      stepName: stepName,
-    );
-
-    return (_platform as MontyFutureCapable).resumeAsFuture();
-  }
-
-  Future<MontyProgress> _resolveFutures(
-    MontyResolveFutures resolve,
-    StreamController<BridgeEvent> controller,
-  ) async {
-    final results = <int, Object?>{};
-    final errors = <int, String>{};
-
-    // Collect futures for the requested call IDs.
-    final entries = <int, _PendingFuture>{};
-    for (final id in resolve.pendingCallIds) {
-      final pending = _pendingFutures.remove(id);
-      if (pending != null) entries[id] = pending;
-    }
-
-    // Await all futures and partition into results/errors.
-    for (final entry in entries.entries) {
-      final id = entry.key;
-      final pending = entry.value;
-      try {
-        final value = await pending.future;
-        results[id] = value;
-        controller
-          ..add(
-            BridgeToolCallResult(
-              callId: pending.bridgeCallId,
-              result: value?.toString() ?? '',
-            ),
-          )
-          ..add(BridgeStepFinished(stepId: pending.stepName));
-      } on Object catch (e) {
-        errors[id] = e.toString();
-        controller
-          ..add(
-            BridgeToolCallResult(
-              callId: pending.bridgeCallId,
-              result: 'Error: $e',
-            ),
-          )
-          ..add(BridgeStepFinished(stepId: pending.stepName));
-      }
-    }
-
-    return (_platform as MontyFutureCapable).resolveFutures(
-      results,
-      errors: errors.isEmpty ? null : errors,
-    );
-  }
-
-  /// Adjusts [MontyException] line numbers to account for the print preamble
-  /// injected by [_run]. Filters out traceback frames from the preamble.
-  MontyException _adjustException(MontyException e) {
-    return MontyException(
-      message: e.message,
-      filename: e.filename,
-      lineNumber: e.lineNumber != null
-          ? e.lineNumber! - _preambleLineCount
-          : null,
-      columnNumber: e.columnNumber,
-      sourceCode: e.sourceCode,
-      excType: e.excType,
-      traceback: e.traceback
-          .where((f) => f.startLine > _preambleLineCount)
-          .map(
-            (f) => MontyStackFrame(
-              filename: f.filename,
-              startLine: f.startLine - _preambleLineCount,
-              startColumn: f.startColumn,
-              endLine: f.endLine != null
-                  ? f.endLine! - _preambleLineCount
-                  : null,
-              endColumn: f.endColumn,
-              frameName: f.frameName,
-              previewLine: f.previewLine,
-              hideCaret: f.hideCaret,
-              hideFrameName: f.hideFrameName,
-            ),
-          )
-          .toList(),
-    );
-  }
-
-  void _flushPrintBuffer(
-    StringBuffer buffer,
-    StreamController<BridgeEvent> controller,
-  ) {
-    if (buffer.isEmpty) return;
-    final messageId = _nextId;
-    controller
-      ..add(BridgeTextStart(messageId: messageId))
-      ..add(BridgeTextContent(messageId: messageId, delta: buffer.toString()))
-      ..add(BridgeTextEnd(messageId: messageId));
   }
 }
