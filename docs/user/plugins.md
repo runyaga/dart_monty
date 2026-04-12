@@ -144,7 +144,7 @@ gets its own `MontyPlatform` and `DefaultMontyBridge`. Children
 can inherit plugins from the parent and even spawn their own
 children (grandchildren).
 
-See [Sandbox Architecture](../architecture/sandbox-architecture.md) for the
+See [Sandbox and Isolation](../architecture/overview.md#sandbox-and-isolation) for the
 full deep dive.
 
 ### Sandbox Functions
