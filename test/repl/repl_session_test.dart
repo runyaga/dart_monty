@@ -48,7 +48,7 @@ void main() {
     );
 
     expect(r.value, isA<MontyString>());
-    expect((r.value! as MontyString).value, 'Hello World!');
+    expect((r.value as MontyString).value, 'Hello World!');
     await session.dispose();
   });
 
@@ -66,7 +66,7 @@ void main() {
     );
 
     expect(r.value, isA<MontyString>());
-    expect((r.value! as MontyString).value, 'avg=87.6, top=95');
+    expect((r.value as MontyString).value, 'avg=87.6, top=95');
     await session.dispose();
   });
 
@@ -84,7 +84,7 @@ void main() {
 
     expect(r.value, isA<MontyString>());
     expect(
-      (r.value! as MontyString).value,
+      (r.value as MontyString).value,
       contains('Alice'),
     );
     await session.dispose();

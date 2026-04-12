@@ -26,7 +26,7 @@ class MockNativeIsolateBindings extends NativeIsolateBindings {
 
   /// Result returned by [start].
   MontyProgress nextStartResult = const MontyComplete(
-    result: MontyResult(usage: _zeroUsage),
+    result: MontyResult(value: MontyNull(), usage: _zeroUsage),
   );
 
   /// Queue of results returned by [resume]. Dequeues on each call.
@@ -172,7 +172,9 @@ class MockNativeIsolateBindings extends NativeIsolateBindings {
     }
     if (resumeResults.isNotEmpty) return resumeResults.removeAt(0);
 
-    return const MontyComplete(result: MontyResult(usage: _zeroUsage));
+    return const MontyComplete(
+      result: MontyResult(value: MontyNull(), usage: _zeroUsage),
+    );
   }
 
   @override
@@ -182,7 +184,9 @@ class MockNativeIsolateBindings extends NativeIsolateBindings {
       return resumeWithErrorResults.removeAt(0);
     }
 
-    return const MontyComplete(result: MontyResult(usage: _zeroUsage));
+    return const MontyComplete(
+      result: MontyResult(value: MontyNull(), usage: _zeroUsage),
+    );
   }
 
   @override
@@ -206,7 +210,9 @@ class MockNativeIsolateBindings extends NativeIsolateBindings {
       return resolveFuturesResults.removeAt(0);
     }
 
-    return const MontyComplete(result: MontyResult(usage: _zeroUsage));
+    return const MontyComplete(
+      result: MontyResult(value: MontyNull(), usage: _zeroUsage),
+    );
   }
 
   @override

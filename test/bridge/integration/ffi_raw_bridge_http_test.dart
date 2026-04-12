@@ -72,8 +72,8 @@ void main() {
 
       for (var i = 1; i <= 3; i++) {
         final result = await monty.run('http_get("$_url")');
-        print('  monty.run call $i: ${result.value?.dartValue}');
-        expect(result.value?.dartValue, isA<String>());
+        print('  monty.run call $i: ${result.value.dartValue}');
+        expect(result.value.dartValue, isA<String>());
       }
 
       bridge.dispose();
@@ -89,8 +89,8 @@ void main() {
 
       for (var i = 1; i <= 3; i++) {
         final result = await session.execute('http_get("$_url")');
-        print('  session.execute call $i: ${result.value?.dartValue}');
-        expect(result.value?.dartValue, isA<String>());
+        print('  session.execute call $i: ${result.value.dartValue}');
+        expect(result.value.dartValue, isA<String>());
       }
 
       await session.dispose();
@@ -105,8 +105,8 @@ void main() {
 
       for (var i = 1; i <= 3; i++) {
         final result = await session.execute('http_get("$_url")');
-        print('  sandbox.execute call $i: ${result.value?.dartValue}');
-        expect(result.value?.dartValue, isA<String>());
+        print('  sandbox.execute call $i: ${result.value.dartValue}');
+        expect(result.value.dartValue, isA<String>());
       }
 
       await session.dispose();

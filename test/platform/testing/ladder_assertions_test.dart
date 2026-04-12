@@ -20,7 +20,7 @@ void main() {
     });
 
     test('null value matches null expected', () {
-      assertLadderResult(null, {'id': 3, 'expected': null});
+      assertLadderResult(const MontyNull(), {'id': 3, 'expected': null});
     });
 
     test('expectedContains checks substring', () {

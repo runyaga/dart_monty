@@ -75,7 +75,7 @@ class MontyRepl {
 
     if (r.ok) {
       return MontyResult(
-        value: r.value != null ? MontyValue.fromJson(r.value) : null,
+        value: MontyValue.fromJson(r.value),
         error: _buildError(r.error, r.excType, r.traceback),
         usage: r.usage ?? _zeroUsage,
         printOutput: r.printOutput,
@@ -165,7 +165,7 @@ class MontyRepl {
       case 'complete':
         return MontyComplete(
           result: MontyResult(
-            value: p.value != null ? MontyValue.fromJson(p.value) : null,
+            value: MontyValue.fromJson(p.value),
             error: _buildError(p.error, p.excType, p.traceback),
             usage: p.usage ?? _zeroUsage,
             printOutput: p.printOutput,

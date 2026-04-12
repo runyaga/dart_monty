@@ -305,7 +305,7 @@ void main() {
     final value = (done as MontyComplete).result.value;
     expect(value, isA<MontyString>());
     expect(
-      (value! as MontyString).value,
+      (value as MontyString).value,
       contains('connection refused'),
     );
 

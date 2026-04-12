@@ -58,7 +58,7 @@ void main() {
     final r3 = await session.run(
       "tmpl_render(template='Recovered {{ v }}', context={'v': 42})",
     );
-    expect((r3.value! as MontyString).value, 'Recovered 42');
+    expect((r3.value as MontyString).value, 'Recovered 42');
 
     await session.dispose();
   });
@@ -72,7 +72,7 @@ void main() {
       final r = await session.run(
         "tmpl_render(template='len={{ n }}', context={'n': len(data)})",
       );
-      expect((r.value! as MontyString).value, 'len=${i + 1}');
+      expect((r.value as MontyString).value, 'len=${i + 1}');
     }
 
     await session.dispose();

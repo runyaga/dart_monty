@@ -34,7 +34,7 @@ void main() {
             'stack_depth_used': 3,
           },
         });
-        expect(result.value, isNull);
+        expect(result.value, const MontyNull());
         expect(result.error, const MontyException(message: 'fail'));
         expect(result.isError, isTrue);
       });
@@ -48,7 +48,7 @@ void main() {
             'stack_depth_used': 0,
           },
         });
-        expect(result.value, isNull);
+        expect(result.value, const MontyNull());
         expect(result.error, isNull);
         expect(result.printOutput, isNull);
       });
@@ -95,6 +95,7 @@ void main() {
 
       test('serializes error result', () {
         const result = MontyResult(
+          value: MontyNull(),
           error: MontyException(message: 'oops'),
           usage: usage,
         );
@@ -126,6 +127,7 @@ void main() {
 
     test('JSON round-trip for error result', () {
       const original = MontyResult(
+        value: MontyNull(),
         error: MontyException(
           message: 'SyntaxError',
           filename: 'test.py',
@@ -163,10 +165,12 @@ void main() {
 
       test('not equal when error differs', () {
         const a = MontyResult(
+          value: MontyNull(),
           error: MontyException(message: 'a'),
           usage: usage,
         );
         const b = MontyResult(
+          value: MontyNull(),
           error: MontyException(message: 'b'),
           usage: usage,
         );
@@ -227,6 +231,7 @@ void main() {
 
       test('error result', () {
         const result = MontyResult(
+          value: MontyNull(),
           error: MontyException(message: 'fail'),
           usage: usage,
         );
@@ -234,8 +239,8 @@ void main() {
       });
 
       test('null value result', () {
-        const result = MontyResult(usage: usage);
-        expect(result.toString(), 'MontyResult.value(null)');
+        const result = MontyResult(value: MontyNull(), usage: usage);
+        expect(result.toString(), 'MontyResult.value(MontyNull())');
       });
     });
 

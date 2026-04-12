@@ -69,7 +69,7 @@ void main() {
     final done = await monty.resumeWithError('network failure');
     expect(done, isA<MontyComplete>());
     final complete = done as MontyComplete;
-    expect(complete.result.value?.dartValue, contains('network failure'));
+    expect(complete.result.value.dartValue, contains('network failure'));
 
     await monty.dispose();
   });

@@ -152,7 +152,7 @@ void main() {
       mock.nextRunResult = const WasmRunResult(ok: true);
 
       final result = await monty.run('None');
-      expect(result.value, isNull);
+      expect(result.value, const MontyNull());
       expect(result.isError, isFalse);
     });
 
@@ -649,7 +649,7 @@ void main() {
       final progress = await monty.start('None');
 
       final complete = progress as MontyComplete;
-      expect(complete.result.value, isNull);
+      expect(complete.result.value, const MontyNull());
     });
 
     test('resource usage has Dart-side wall-clock timing', () async {

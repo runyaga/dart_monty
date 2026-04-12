@@ -105,7 +105,7 @@ void main() {
       addTearDown(s.dispose);
       for (var i = 0; i < 20; i++) {
         final r = await s.execute('sync_fn()');
-        expect(r.value?.dartValue, 'sync_ok');
+        expect(r.value.dartValue, 'sync_ok');
       }
       print('  G1: 20/20 sync');
     });
@@ -117,7 +117,7 @@ void main() {
         addTearDown(s.dispose);
         for (var i = 0; i < 10; i++) {
           final r = await s.execute('delay_fn()');
-          expect(r.value?.dartValue, 'delay_ok');
+          expect(r.value.dartValue, 'delay_ok');
         }
         print('  G2: 10/10 delay');
       },
@@ -132,7 +132,7 @@ void main() {
         var passed = 0;
         for (var i = 0; i < 10; i++) {
           final r = await s.execute('http_fn()');
-          if (r.value?.dartValue != null) passed++;
+          if (r.value.dartValue != null) passed++;
         }
         print('  G3: $passed/10 http');
         expect(passed, 10);
@@ -145,7 +145,7 @@ void main() {
       addTearDown(s.dispose);
       for (var i = 1; i <= 5; i++) {
         final r = await s.execute('counter()');
-        expect(r.value?.dartValue, i);
+        expect(r.value.dartValue, i);
       }
       print('  G4: counter 1→5');
     });
@@ -156,8 +156,8 @@ void main() {
       await s.execute('accum("a")');
       await s.execute('accum("b")');
       final r = await s.execute('accum("c")');
-      print('  G5: accum count = ${r.value?.dartValue}');
-      expect(r.value?.dartValue, 3);
+      print('  G5: accum count = ${r.value.dartValue}');
+      expect(r.value.dartValue, 3);
     });
 
     test('G6. state accumulation: build list across 10 calls', () async {
@@ -168,8 +168,8 @@ void main() {
         await s.execute('items.append(sync_fn() + "_$i")');
       }
       final r = await s.execute('len(items)');
-      print('  G6: ${r.value?.dartValue} items');
-      expect(r.value?.dartValue, 10);
+      print('  G6: ${r.value.dartValue} items');
+      expect(r.value.dartValue, 10);
     });
 
     test('G7. error recovery: bad call then good call', () async {
@@ -178,8 +178,8 @@ void main() {
       await s.execute('x = 42');
       await s.execute('1/0'); // error
       final r = await s.execute('x');
-      print('  G7: x = ${r.value?.dartValue} (survived error)');
-      expect(r.value?.dartValue, 42);
+      print('  G7: x = ${r.value.dartValue} (survived error)');
+      expect(r.value.dartValue, 42);
     });
 
     test(
@@ -192,8 +192,8 @@ void main() {
         await s.execute('data = http_fn()');
         await s.execute('1/0'); // error
         final r = await s.execute('len(data)');
-        print('  G8: len(data) = ${r.value?.dartValue}');
-        expect(r.value?.dartValue as int, greaterThan(0));
+        print('  G8: len(data) = ${r.value.dartValue}');
+        expect(r.value.dartValue as int, greaterThan(0));
       },
       timeout: const Timeout(Duration(seconds: 15)),
     );
@@ -212,8 +212,8 @@ void main() {
       await s.execute('name = "Alice"');
       await s.execute('greeting2 = tmpl_render("Hi {{n}}", {"n": name})');
       final r = await s.execute('[greeting, greeting2]');
-      print('  H1: ${r.value?.dartValue}');
-      expect(r.value?.dartValue, ['Hi World', 'Hi Alice']);
+      print('  H1: ${r.value.dartValue}');
+      expect(r.value.dartValue, ['Hi World', 'Hi Alice']);
     });
 
     test('H2. MessageBus across execute calls', () async {
@@ -223,9 +223,9 @@ void main() {
       await s.execute('msg_send("q", "second")');
       final r1 = await s.execute('msg_recv("q")');
       final r2 = await s.execute('msg_recv("q")');
-      print('  H2: ${r1.value?.dartValue}, ${r2.value?.dartValue}');
-      expect(r1.value?.dartValue, 'first');
-      expect(r2.value?.dartValue, 'second');
+      print('  H2: ${r1.value.dartValue}, ${r2.value.dartValue}');
+      expect(r1.value.dartValue, 'first');
+      expect(r2.value.dartValue, 'second');
     });
 
     test('H3. FS + Template across calls', () async {
@@ -245,8 +245,8 @@ content = Path("/data.txt").read_text()
       final r = await s.execute(
         'tmpl_render("File has: {{c}}", {"c": content})',
       );
-      print('  H3: ${r.value?.dartValue}');
-      expect(r.value?.dartValue, 'File has: hello');
+      print('  H3: ${r.value.dartValue}');
+      expect(r.value.dartValue, 'File has: hello');
     });
 
     test(
@@ -262,8 +262,8 @@ content = Path("/data.txt").read_text()
         );
         await s.execute('msg_send("log", report)');
         final r = await s.execute('msg_recv("log")');
-        print('  H4: ${r.value?.dartValue}');
-        expect(r.value?.dartValue as String, startsWith('Got '));
+        print('  H4: ${r.value.dartValue}');
+        expect(r.value.dartValue as String, startsWith('Got '));
       },
       timeout: const Timeout(Duration(seconds: 15)),
     );
@@ -280,8 +280,8 @@ content = Path("/data.txt").read_text()
         await s.execute('http_fn()');
         await s.execute('c2 = counter()');
         final r = await s.execute('[c1, c2]');
-        print('  H5: ${r.value?.dartValue}');
-        expect(r.value?.dartValue, [1, 2]);
+        print('  H5: ${r.value.dartValue}');
+        expect(r.value.dartValue, [1, 2]);
       },
       timeout: const Timeout(Duration(seconds: 30)),
     );
@@ -337,8 +337,8 @@ from pathlib import Path
 cached = Path("/cache.txt").read_text()
 ''');
         final r = await s.execute('[kv_get("cached"), len(cached)]');
-        print('  H6: ${r.value?.dartValue}');
-        final list = r.value?.dartValue as List;
+        print('  H6: ${r.value.dartValue}');
+        final list = r.value.dartValue as List;
         expect(list[0], 'true');
         expect(list[1] as int, greaterThan(0));
       },
@@ -355,21 +355,21 @@ cached = Path("/cache.txt").read_text()
       final s = AgentSession();
       addTearDown(s.dispose);
       final r = await s.execute('pass');
-      print('  I1: ${r.value?.dartValue} (None)');
+      print('  I1: ${r.value.dartValue} (None)');
     });
 
     test('I2. execute with only comments', () async {
       final s = AgentSession();
       addTearDown(s.dispose);
       final r = await s.execute('# just a comment');
-      print('  I2: ${r.value?.dartValue}');
+      print('  I2: ${r.value.dartValue}');
     });
 
     test('I3. large string return', () async {
       final s = AgentSession();
       addTearDown(s.dispose);
       final r = await s.execute('"x" * 100000');
-      final v = r.value?.dartValue as String;
+      final v = r.value.dartValue as String;
       print('  I3: ${v.length} chars');
       expect(v.length, 100000);
     });
@@ -378,7 +378,7 @@ cached = Path("/cache.txt").read_text()
       final s = AgentSession();
       addTearDown(s.dispose);
       final r = await s.execute('list(range(1000))');
-      final v = r.value?.dartValue as List;
+      final v = r.value.dartValue as List;
       print('  I4: ${v.length} items');
       expect(v.length, 1000);
     });
@@ -387,7 +387,7 @@ cached = Path("/cache.txt").read_text()
       final s = AgentSession();
       addTearDown(s.dispose);
       final r = await s.execute('{"a": {"b": {"c": 42}}}');
-      final v = r.value?.dartValue as Map;
+      final v = r.value.dartValue as Map;
       print('  I5: $v');
       expect((v['a'] as Map)['b'], {'c': 42});
     });
@@ -408,8 +408,8 @@ cached = Path("/cache.txt").read_text()
 x = returns_none()
 x is None
 ''');
-      print('  I6: ${r.value?.dartValue}');
-      expect(r.value?.dartValue, true);
+      print('  I6: ${r.value.dartValue}');
+      expect(r.value.dartValue, true);
     });
 
     test('I7. host fn returning large string', () async {
@@ -425,8 +425,8 @@ x is None
         );
       addTearDown(s.dispose);
       final r = await s.execute('len(big_string())');
-      print('  I7: ${r.value?.dartValue}');
-      expect(r.value?.dartValue, 50000);
+      print('  I7: ${r.value.dartValue}');
+      expect(r.value.dartValue, 50000);
     });
 
     test('I8. host fn exception propagates to Python', () async {
@@ -449,8 +449,8 @@ except Exception as e:
     result = "caught"
 result
 ''');
-      print('  I8: ${r.value?.dartValue}');
-      expect(r.value?.dartValue, 'caught');
+      print('  I8: ${r.value.dartValue}');
+      expect(r.value.dartValue, 'caught');
     });
 
     test('I9. print output captured', () async {

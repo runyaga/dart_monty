@@ -333,11 +333,16 @@ class MontySession {
       );
     } on MontyScriptError catch (e) {
       return MontyComplete(
-        result: MontyResult(error: e.exception, usage: _zeroUsage),
+        result: MontyResult(
+          value: const MontyNull(),
+          error: e.exception,
+          usage: _zeroUsage,
+        ),
       );
     } on MontyError catch (e) {
       return MontyComplete(
         result: MontyResult(
+          value: const MontyNull(),
           error: MontyException(message: e.message),
           usage: _zeroUsage,
         ),
@@ -352,11 +357,16 @@ class MontySession {
       return await _platform.resume(returnValue);
     } on MontyScriptError catch (e) {
       return MontyComplete(
-        result: MontyResult(error: e.exception, usage: _zeroUsage),
+        result: MontyResult(
+          value: const MontyNull(),
+          error: e.exception,
+          usage: _zeroUsage,
+        ),
       );
     } on MontyError catch (e) {
       return MontyComplete(
         result: MontyResult(
+          value: const MontyNull(),
           error: MontyException(message: e.message),
           usage: _zeroUsage,
         ),
@@ -371,11 +381,16 @@ class MontySession {
       return await _platform.resumeWithError(errorMessage);
     } on MontyScriptError catch (e) {
       return MontyComplete(
-        result: MontyResult(error: e.exception, usage: _zeroUsage),
+        result: MontyResult(
+          value: const MontyNull(),
+          error: e.exception,
+          usage: _zeroUsage,
+        ),
       );
     } on MontyError catch (e) {
       return MontyComplete(
         result: MontyResult(
+          value: const MontyNull(),
           error: MontyException(message: e.message),
           usage: _zeroUsage,
         ),
