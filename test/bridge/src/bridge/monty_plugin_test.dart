@@ -22,37 +22,7 @@ class _TestPlugin extends MontyPlugin {
 
 void main() {
   group('MontyPlugin', () {
-    test('concrete implementation can be constructed', () {
-      final plugin = _TestPlugin(
-        namespace: 'test',
-        systemPromptContext: 'A test plugin.',
-        functions: [],
-      );
-
-      expect(plugin, isA<MontyPlugin>());
-    });
-
-    test('namespace is accessible', () {
-      final plugin = _TestPlugin(
-        namespace: 'my_ns',
-        systemPromptContext: '',
-        functions: [],
-      );
-
-      expect(plugin.namespace, 'my_ns');
-    });
-
-    test('systemPromptContext is accessible', () {
-      final plugin = _TestPlugin(
-        namespace: 'ns',
-        systemPromptContext: 'Does cool things.',
-        functions: [],
-      );
-
-      expect(plugin.systemPromptContext, 'Does cool things.');
-    });
-
-    test('functions list is accessible', () {
+    test('exposes namespace, systemPromptContext, and functions', () {
       final fn = HostFunction(
         schema: const HostFunctionSchema(
           name: 'do_thing',
@@ -62,11 +32,13 @@ void main() {
       );
 
       final plugin = _TestPlugin(
-        namespace: 'ns',
-        systemPromptContext: '',
+        namespace: 'my_ns',
+        systemPromptContext: 'Does cool things.',
         functions: [fn],
       );
 
+      expect(plugin.namespace, 'my_ns');
+      expect(plugin.systemPromptContext, 'Does cool things.');
       expect(plugin.functions, hasLength(1));
       expect(plugin.functions.first.schema.name, 'do_thing');
     });

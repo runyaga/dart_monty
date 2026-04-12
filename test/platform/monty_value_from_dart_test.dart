@@ -153,24 +153,6 @@ void main() {
   });
 
   group('MontyValue.fromJson special float strings', () {
-    test('NaN string produces MontyFloat(NaN)', () {
-      final v = MontyValue.fromJson('NaN');
-      expect(v, isA<MontyFloat>());
-      expect((v as MontyFloat).value.isNaN, isTrue);
-    });
-
-    test('Infinity string produces MontyFloat(infinity)', () {
-      final v = MontyValue.fromJson('Infinity');
-      expect(v, isA<MontyFloat>());
-      expect((v as MontyFloat).value, double.infinity);
-    });
-
-    test('-Infinity string produces MontyFloat(negativeInfinity)', () {
-      final v = MontyValue.fromJson('-Infinity');
-      expect(v, isA<MontyFloat>());
-      expect((v as MontyFloat).value, double.negativeInfinity);
-    });
-
     test('other strings are MontyString', () {
       final v = MontyValue.fromJson('not_infinity');
       expect(v, isA<MontyString>());

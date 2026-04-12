@@ -7,6 +7,7 @@
 /// token), detach works reliably.
 ///
 /// Does NOT require network — uses only sync host functions.
+@Tags(['integration'])
 library;
 
 // Unit test uses print for progress output.

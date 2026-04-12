@@ -7,10 +7,6 @@ import 'package:dart_monty/src/ffi/monty_ffi.dart';
 import 'package:dart_monty/src/ffi/native_bindings_ffi.dart';
 import 'package:test/test.dart';
 
-/// Child bridges use useFutures: false (#212), so host function calls
-/// return resolved values directly — no async def/await needed.
-String _syncChild(String expr) => expr;
-
 /// Integration tests for SandboxPlugin child inheritance with real FFI.
 ///
 /// Run with:
@@ -137,7 +133,7 @@ void main() {
       await registry.attachTo(bridge);
 
       // Child bridge uses useFutures: false (#212) — direct calls.
-      final cc = _syncChild(r'greeter_hello(name=\"child\")');
+      const cc = r'greeter_hello(name=\"child\")';
       final result = await run(
         bridge,
         'h = ${spawn(cc)}\n'
@@ -157,7 +153,7 @@ void main() {
       await registry.attachTo(bridge);
 
       // Child calls greeter_hello — not available (no inheritance).
-      final cc = _syncChild(r'greeter_hello(name=\"test\")');
+      const cc = r'greeter_hello(name=\"test\")';
       final result = await run(
         bridge,
         'h = ${spawn(cc)}\n'
@@ -232,7 +228,7 @@ void main() {
       await registry.attachTo(bridge);
 
       // Child should NOT have greeter_hello (factory overrides).
-      final cc = _syncChild(r'greeter_hello(name=\"test\")');
+      const cc = r'greeter_hello(name=\"test\")';
       final result = await run(
         bridge,
         'h = ${spawn(cc)}\n'

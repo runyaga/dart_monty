@@ -43,8 +43,8 @@ void main() {
       );
     });
 
-    test('toString is non-empty', () {
-      expect(const MontyBytes([1]).toString(), isNotEmpty);
+    test('toString', () {
+      expect(const MontyBytes([1]).toString(), 'MontyBytes(1 bytes)');
     });
 
     test('dartValue returns List<int>', () {
@@ -110,8 +110,8 @@ void main() {
       );
     });
 
-    test('toString is non-empty', () {
-      expect(const MontyList([]).toString(), isNotEmpty);
+    test('toString', () {
+      expect(const MontyList([]).toString(), 'MontyList(0 items)');
     });
 
     test('dartValue returns List<Object?>', () {
@@ -197,8 +197,8 @@ void main() {
       );
     });
 
-    test('toString is non-empty', () {
-      expect(const MontyTuple([]).toString(), isNotEmpty);
+    test('toString', () {
+      expect(const MontyTuple([]).toString(), 'MontyTuple(0 items)');
     });
 
     test('dartValue returns List<Object?>', () {
@@ -263,8 +263,8 @@ void main() {
       );
     });
 
-    test('toString is non-empty', () {
-      expect(const MontyDict({}).toString(), isNotEmpty);
+    test('toString', () {
+      expect(const MontyDict({}).toString(), 'MontyDict(0 entries)');
     });
 
     test('dartValue returns Map<String, Object?>', () {
@@ -336,8 +336,8 @@ void main() {
       );
     });
 
-    test('toString is non-empty', () {
-      expect(const MontySet([]).toString(), isNotEmpty);
+    test('toString', () {
+      expect(const MontySet([]).toString(), 'MontySet(0 items)');
     });
 
     test('dartValue returns List<Object?>', () {
@@ -399,8 +399,8 @@ void main() {
       );
     });
 
-    test('toString is non-empty', () {
-      expect(const MontyFrozenSet([]).toString(), isNotEmpty);
+    test('toString', () {
+      expect(const MontyFrozenSet([]).toString(), 'MontyFrozenSet(0 items)');
     });
 
     test('dartValue returns List<Object?>', () {
