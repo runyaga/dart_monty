@@ -360,6 +360,9 @@
       <option value="lifecycle">Sandbox Lifecycle</option>
       <option value="error">Sandbox Error Handling</option>
       <option value="crossplug">Cross-Plugin (tmpl in child)</option>
+      <option value="pipeline">Producer/Consumer Pipeline</option>
+      <option value="bidir">Bidirectional Parent↔Child</option>
+      <option value="childfs">Child Filesystem Isolation</option>
       <option value="combined">Combined Demo</option>
     </select>
     <span id="status">Initializing WASM...</span>
@@ -375,6 +378,7 @@
           <button class="btn btn-run" id="runBtn" disabled>Execute</button>
         </div>
       </div>
+      <div id="exampleDesc" style="padding:6px 12px;font-size:12px;color:var(--text-dim);border-bottom:1px solid var(--border);display:none;line-height:1.5;"></div>
       <div class="panel-body">
         <textarea id="editor" spellcheck="false"># Variables persist across executions.
 # Run this, then run the next example.
@@ -661,13 +665,43 @@ x</textarea>
       lifecycle: "# Full lifecycle: spawn, check, await, free\nh = sandbox_spawn(code='x = 42\\nx')\n\n# Check if still running\nalive_before = sandbox_is_alive(handle=h)\n\n# Await result\nresult = sandbox_await(handle=h)\nalive_after = sandbox_is_alive(handle=h)\n\n# Free the handle\nsandbox_free(handle=h)\n\n{'result': result, 'alive_after': alive_after}",
       error: "# Child errors propagate cleanly\nh = sandbox_spawn(code='1 / 0')\ntry:\n    result = sandbox_await(handle=h)\nexcept Exception as e:\n    result = f'Caught: {e}'\n\nresult",
       crossplug: "# Children inherit plugins — templates work in child sandboxes\nh = sandbox_spawn(\n    code='result = tmpl_render(template=\"Hello {{ who }}!\", context={\"who\": \"child\"})\\nresult'\n)\nchild_result = sandbox_await(handle=h)\n\n{'child_rendered': child_result}",
+      pipeline: "# Producer/consumer pipeline — children communicate via message bus\nproducer = sandbox_spawn(code='''\nfor i in range(3):\n    msg_send(name=\"pipeline\", message=f\"item-{i}\")\n\"produced 3 items\"\n''')\n\nconsumer = sandbox_spawn(code='''\ncollected = []\nfor i in range(3):\n    item = msg_recv(name=\"pipeline\")\n    collected.append(item.upper())\ncollected\n''')\n\np_result = sandbox_await(handle=producer)\nc_result = sandbox_await(handle=consumer)\n\n{'producer': p_result, 'consumer': c_result}",
+      bidir: "# Bidirectional parent/child — parent sends work, child replies\nmsg_send(name='work', message={'op': 'square', 'value': 7})\n\nworker = sandbox_spawn(code='''\ntask = msg_recv(name=\"work\")\nresult = task[\"value\"] ** 2 if task[\"op\"] == \"square\" else -1\nmsg_send(name=\"done\", message={\"input\": task[\"value\"], \"result\": result})\nresult\n''')\n\nchild_val = sandbox_await(handle=worker)\nparent_got = msg_recv(name='done')\n\n{'child_returned': child_val, 'parent_received': parent_got}",
+      childfs: "# Each child gets its own isolated filesystem\nfrom pathlib import Path\n\n# Parent writes a file\nPath('/data/config.txt').write_text('shared config')\n\n# Child A writes to its own VFS\na = sandbox_spawn(code='''\nfrom pathlib import Path\nPath(\"/output/result_a.txt\").write_text(\"hello from A\")\nPath(\"/output/result_a.txt\").read_text()\n''')\n\n# Child B writes independently\nb = sandbox_spawn(code='''\nfrom pathlib import Path\nPath(\"/output/result_b.txt\").write_text(\"hello from B\")\nPath(\"/output/result_b.txt\").read_text()\n''')\n\na_result = sandbox_await(handle=a)\nb_result = sandbox_await(handle=b)\nparent_file = Path('/data/config.txt').read_text()\n\n{'child_a': a_result, 'child_b': b_result, 'parent_fs_intact': parent_file}",
       combined: "# Full demo: templates + msgbus + filesystem + tools\nfrom pathlib import Path\n\n# Render a template\ngreeting = tmpl_render(\n    template='{{ name }} scored {{ score }}',\n    context={'name': 'Alice', 'score': 95}\n)\n\n# Send to message bus, write to filesystem\nmsg_send(name='results', message=greeting)\nPath('/sandbox/report.txt').write_text(greeting)\n\n# Read back from both\nsaved = Path('/sandbox/report.txt').read_text()\nfrom_bus = msg_recv(name='results')\ntotal = add_numbers(100, 200)\ntimestamp = get_time()\n\n{'greeting': greeting, 'saved': saved, 'total': total, 'from_bus': from_bus}",
+    };
+
+    const descriptions = {
+      stateful: 'Variables defined here persist across executions. Run this first, then try other examples that reference x and greeting.',
+      tools: 'Call Dart host functions from Python. echo() uppercases, add_numbers() sums, get_time() returns ISO timestamp.',
+      kvstore: 'Persistent key-value store backed by Dart. Data survives across execute() calls.',
+      fetch: 'Simulated HTTP fetch — demonstrates host functions returning complex JSON structures.',
+      filesystem: 'Python pathlib backed by an in-memory VFS. Write and read files without touching the host disk.',
+      template: 'Jinja2 template rendering via DinjaTemplatePlugin. Supports variables, loops, and conditionals.',
+      msgbus: 'Named message channels with FIFO ordering. Send, receive, peek (non-blocking), and get channel stats.',
+      sandbox: 'Spawn 3 isolated child interpreters, each in its own WASM Worker. Await their results independently.',
+      gather: 'sandbox_gather collects attributed results from multiple children — each result includes handle, value, and print output.',
+      output: 'Children capture print() output separately. sandbox_get_output retrieves it after the child completes.',
+      lifecycle: 'Full handle lifecycle: spawn, check if alive, await result, then free the handle to release resources.',
+      error: 'Child errors propagate cleanly as ChildSandboxException. Parent catches it without crashing.',
+      crossplug: 'Children inherit plugins from the parent. This child uses tmpl_render() inside its own sandbox.',
+      pipeline: 'Two children communicate through a shared message bus — producer writes items, consumer reads and transforms them.',
+      bidir: 'Parent sends a work task via message bus, child processes it and sends the result back. Full round-trip.',
+      childfs: 'Each child gets its own isolated VFS. Children write files independently; parent filesystem is unaffected.',
+      combined: 'Everything together: templates, message bus, filesystem, and host functions in a single execution.',
     };
 
     $('examples').onchange = function() {
       const key = this.value;
       if (key && examples[key]) {
         editor.value = examples[key];
+      }
+      const descEl = $('exampleDesc');
+      if (key && descriptions[key]) {
+        descEl.textContent = descriptions[key];
+        descEl.style.display = 'block';
+      } else {
+        descEl.style.display = 'none';
       }
       this.value = '';
     };
