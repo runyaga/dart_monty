@@ -14,6 +14,7 @@ import 'package:dart_monty/src/platform/monty_exception.dart';
 import 'package:dart_monty/src/platform/monty_limits.dart';
 import 'package:dart_monty/src/platform/monty_platform.dart';
 import 'package:path/path.dart' as p;
+import 'package:signals_core/signals_core.dart';
 
 /// Exception thrown when a child sandbox fails or is disposed.
 ///
@@ -42,6 +43,79 @@ class ChildSandboxException implements Exception {
   @override
   String toString() => 'ChildSandboxException(child $childId): $message';
 }
+
+// ---------------------------------------------------------------------------
+// ChildState — sealed lifecycle state for spawned children.
+// ---------------------------------------------------------------------------
+
+/// The lifecycle state of a spawned child sandbox.
+///
+/// Subscribe to [SandboxPlugin.childrenSignal] for reactive observation:
+/// ```dart
+/// effect(() {
+///   for (final entry in plugin.childrenSignal.value.entries) {
+///     switch (entry.value) {
+///       case ChildRunning(): // still executing
+///       case ChildCompleted(:final value): // finished with value
+///       case ChildFailed(:final message): // finished with error
+///       case ChildDisposed(): // cancelled or parent disposed
+///     }
+///   }
+/// });
+/// ```
+sealed class ChildState {
+  /// Creates a [ChildState].
+  const ChildState();
+}
+
+/// The child is still executing.
+final class ChildRunning extends ChildState {
+  /// Creates a [ChildRunning].
+  const ChildRunning();
+}
+
+/// The child finished successfully.
+final class ChildCompleted extends ChildState {
+  /// Creates a [ChildCompleted].
+  const ChildCompleted({required this.value, this.printOutput});
+
+  /// The Python return value (JSON-decoded), or `null`.
+  final Object? value;
+
+  /// Captured `print()` output, or `null` if the child produced none.
+  final String? printOutput;
+}
+
+/// The child finished with an error.
+final class ChildFailed extends ChildState {
+  /// Creates a [ChildFailed].
+  const ChildFailed({
+    required this.message,
+    this.exception,
+    this.printOutput,
+  });
+
+  /// Human-readable error description.
+  final String message;
+
+  /// The original [MontyException] when the error came from Python.
+  ///
+  /// Null for non-Python failures.
+  final MontyException? exception;
+
+  /// Captured `print()` output, or `null` if the child produced none.
+  final String? printOutput;
+}
+
+/// The child was cancelled or the parent plugin was disposed before completion.
+final class ChildDisposed extends ChildState {
+  /// Creates a [ChildDisposed].
+  const ChildDisposed();
+}
+
+// ---------------------------------------------------------------------------
+// Factory typedefs
+// ---------------------------------------------------------------------------
 
 /// Factory that creates a fresh [MontyPlatform] for each child sandbox.
 typedef MontyPlatformFactory = Future<MontyPlatform> Function();
@@ -77,13 +151,22 @@ class _ChildHandle {
   final Completer<Object?> completer;
   final StreamSubscription<BridgeEvent> subscription;
   final PluginRegistry? registry;
-  bool isAlive = true;
 
-  /// Captured print output from the child (set on completion).
-  String? printOutput;
+  /// Reactive lifecycle state — starts as [ChildRunning].
+  final Signal<ChildState> state = signal(const ChildRunning());
+
+  /// Whether the child is still executing.
+  bool get isAlive => state.value is ChildRunning;
+
+  /// Captured `print()` output from a completed child, or `null`.
+  String? get printOutput => switch (state.value) {
+    ChildCompleted(:final printOutput) => printOutput,
+    ChildFailed(:final printOutput) => printOutput,
+    _ => null,
+  };
 
   Future<void> cancel() async {
-    isAlive = false;
+    state.value = const ChildDisposed();
     // Dispose plugins FIRST — this unblocks pending handler Futures
     // (e.g., MessageBusPlugin completes waiters with StateError).
     // The bridge/stream must still be alive to deliver the resulting errors.
@@ -216,18 +299,6 @@ const _gatherSchema = HostFunctionSchema(
   ],
 );
 
-/// Accumulates terminal events from a child execution stream.
-///
-/// Passed to [SandboxPlugin._onChildDone] after the stream closes.
-class _ChildOutcome {
-  String? errorMessage;
-  MontyException? errorException;
-  Object? value;
-  String? printOutput;
-
-  bool get hasError => errorMessage != null;
-}
-
 /// Plugin that spawns Python scripts in separate Monty interpreter instances.
 ///
 /// Each child gets its own [MontyPlatform] (via [platformFactory]) and
@@ -260,7 +331,12 @@ class SandboxPlugin extends MontyPlugin {
     this.sandboxBaseDir,
     this.systemPromptBuilder,
     this.parentOs,
-  });
+  }) {
+    childrenSignal = _childrenSignal;
+    aliveCountSignal = computed(
+      () => _childrenSignal.value.values.whereType<ChildRunning>().length,
+    );
+  }
 
   /// Creates a fresh [MontyPlatform] for each child.
   final MontyPlatformFactory platformFactory;
@@ -314,6 +390,22 @@ class SandboxPlugin extends MontyPlugin {
   final Map<int, _ChildHandle> _children = {};
   int _nextId = 0;
   bool _disposed = false;
+
+  final Signal<Map<int, ChildState>> _childrenSignal = signal({});
+
+  /// Reactive snapshot of every child's [ChildState], keyed by handle.
+  ///
+  /// Updated whenever a child transitions state (spawn, complete, fail, free,
+  /// or dispose). Subscribe via `effect` for reactive UI or monitoring:
+  /// ```dart
+  /// effect(() => print(plugin.childrenSignal.value));
+  /// ```
+  late final ReadonlySignal<Map<int, ChildState>> childrenSignal;
+
+  /// Reactive count of children still in [ChildRunning] state.
+  ///
+  /// Derived from [childrenSignal]; updates automatically.
+  late final ReadonlySignal<int> aliveCountSignal;
 
   @override
   String get namespace => 'sandbox';
@@ -381,6 +473,7 @@ class SandboxPlugin extends MontyPlugin {
       }
     }
     _children.clear();
+    _childrenSignal.value = {};
   }
 
   Future<Object?> _handleSpawn(Map<String, Object?> args) async {
@@ -433,6 +526,7 @@ class SandboxPlugin extends MontyPlugin {
       subscription: subscription,
       registry: childRegistry,
     );
+    _updateChildrenSignal();
 
     return id;
   }
@@ -602,22 +696,34 @@ class SandboxPlugin extends MontyPlugin {
     required int childId,
     required Stream<BridgeEvent> stream,
   }) {
-    final outcome = _ChildOutcome();
+    String? errorMessage;
+    MontyException? errorException;
+    Object? value;
+    String? printOutput;
+
     return stream.listen(
       (event) {
         if (event is BridgeRunError) {
-          outcome
-            ..errorMessage = event.message
-            ..errorException = event.exception
-            ..printOutput ??= event.printOutput;
+          errorMessage = event.message;
+          errorException = event.exception;
+          printOutput ??= event.printOutput;
         } else if (event is BridgeRunFinished) {
-          outcome
-            ..value = event.value
-            ..printOutput = event.printOutput;
+          value = event.value;
+          printOutput = event.printOutput;
         }
       },
       onDone: () => unawaited(
-        _onChildDone(childId, bridge, platform, registry, completer, outcome),
+        _onChildDone(
+          childId,
+          bridge,
+          platform,
+          registry,
+          completer,
+          errorMessage: errorMessage,
+          errorException: errorException,
+          value: value,
+          printOutput: printOutput,
+        ),
       ),
       onError: (Object error, StackTrace stackTrace) =>
           _onChildStreamError(childId, completer, error, stackTrace),
@@ -629,14 +735,25 @@ class SandboxPlugin extends MontyPlugin {
     DefaultMontyBridge bridge,
     MontyPlatform platform,
     PluginRegistry? registry,
-    Completer<Object?> completer,
-    _ChildOutcome outcome,
-  ) async {
+    Completer<Object?> completer, {
+    String? errorMessage,
+    MontyException? errorException,
+    Object? value,
+    String? printOutput,
+  }) async {
     final child = _children[childId];
     if (child == null) return;
-    child
-      ..isAlive = false
-      ..printOutput = outcome.printOutput;
+
+    final finalState = errorMessage != null
+        ? ChildFailed(
+            message: errorMessage,
+            exception: errorException,
+            printOutput: printOutput,
+          )
+        : ChildCompleted(value: value, printOutput: printOutput);
+
+    child.state.value = finalState;
+    _updateChildrenSignal();
 
     try {
       if (registry != null) await registry.disposeAll();
@@ -653,10 +770,10 @@ class SandboxPlugin extends MontyPlugin {
 
     if (completer.isCompleted) return;
 
-    if (outcome.hasError) {
-      final msg = outcome.errorMessage!;
-      final truncated =
-          msg.length > 200 ? '${msg.substring(0, 200)}\u2026' : msg;
+    if (errorMessage != null) {
+      final truncated = errorMessage.length > 200
+          ? '${errorMessage.substring(0, 200)}\u2026'
+          : errorMessage;
       logger.debug(
         'Child failed',
         attributes: {'childId': childId, 'error': truncated},
@@ -664,14 +781,14 @@ class SandboxPlugin extends MontyPlugin {
       completer.completeError(
         ChildSandboxException(
           childId: childId,
-          message: msg,
-          exception: outcome.errorException,
+          message: errorMessage,
+          exception: errorException,
         ),
         StackTrace.current,
       );
     } else {
       logger.info('Child completed', attributes: {'childId': childId});
-      completer.complete(outcome.value);
+      completer.complete(value);
     }
   }
 
@@ -682,7 +799,10 @@ class SandboxPlugin extends MontyPlugin {
     StackTrace stackTrace,
   ) {
     final child = _children[childId];
-    if (child != null) child.isAlive = false;
+    if (child != null) {
+      child.state.value = ChildFailed(message: error.toString());
+      _updateChildrenSignal();
+    }
     logger.error(
       'Child stream error',
       error: error,
@@ -691,6 +811,13 @@ class SandboxPlugin extends MontyPlugin {
     if (!completer.isCompleted) {
       completer.completeError(error, stackTrace);
     }
+  }
+
+  /// Snapshots all children's current [ChildState] into [_childrenSignal].
+  void _updateChildrenSignal() {
+    _childrenSignal.value = {
+      for (final entry in _children.entries) entry.key: entry.value.state.value,
+    };
   }
 
   /// Builds a child registry from parent plugins that opt into inheritance.
@@ -806,6 +933,7 @@ class SandboxPlugin extends MontyPlugin {
       );
     }
     _children.remove(handle);
+    _updateChildrenSignal();
     logger.debug('Child freed', attributes: {'childId': handle});
 
     return Future.value();
