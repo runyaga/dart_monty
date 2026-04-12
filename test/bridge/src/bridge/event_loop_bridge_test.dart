@@ -5,6 +5,7 @@ import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:dart_monty/dart_monty_testing.dart';
 import 'package:dart_monty/monty_backend_spi.dart';
+import 'package:signals_core/signals_core.dart';
 import 'package:test/test.dart';
 
 const _usage = MontyResourceUsage(
@@ -23,7 +24,7 @@ void main() {
   });
 
   tearDown(() {
-    if (bridge.loopState != EventLoopState.disposed) {
+    if (bridge.channelState is! BridgeChannelDisposed) {
       bridge.dispose();
     }
   });
@@ -59,7 +60,7 @@ void main() {
         // Give the bridge time to reach the recv handler.
         await Future<void>.delayed(Duration.zero);
 
-        expect(bridge.loopState, EventLoopState.waiting);
+        expect(bridge.channelState, isA<BridgeChannelWaiting>());
 
         // Dispatch a value.
         bridge.dispatch({'type': 'button_press', 'id': 'ok'});
@@ -67,7 +68,7 @@ void main() {
         await sub.asFuture<void>();
         await sub.cancel();
 
-        expect(bridge.loopState, EventLoopState.completed);
+        expect(bridge.channelState, const BridgeChannelCompleted());
 
         // Verify the result was passed through resolveFutures.
         final resolvedResults = mock.lastResolveFuturesResults;
@@ -219,7 +220,7 @@ void main() {
       await sub.asFuture<void>();
       await sub.cancel();
 
-      expect(bridge.loopState, EventLoopState.completed);
+      expect(bridge.channelState, const BridgeChannelCompleted());
 
       // Both resolves should have the correct events.
       expect(mock.resolveFuturesResultsList, hasLength(2));
@@ -231,10 +232,7 @@ void main() {
   });
 
   group('emit', () {
-    test('stores value and invokes callback', () async {
-      final emittedValues = <Map<String, dynamic>>[];
-      bridge = EventLoopBridge(platform: mock, onEmit: emittedValues.add);
-
+    test('stores value in lastEmitted', () async {
       mock
         ..enqueueProgress(
           const MontyPending(
@@ -255,8 +253,6 @@ void main() {
       await bridge.execute('emit(value)').toList();
 
       expect(bridge.lastEmitted, {'type': 'counter', 'value': 0});
-      expect(emittedValues, hasLength(1));
-      expect(emittedValues.first['type'], 'counter');
     });
 
     test('lastEmitted tracks most recent value', () async {
@@ -337,7 +333,7 @@ void main() {
       await sub.cancel();
 
       // Bridge should be completed, not stuck in waiting.
-      expect(bridge.loopState, EventLoopState.completed);
+      expect(bridge.channelState, const BridgeChannelCompleted());
 
       // Verify a BridgeRunError was emitted.
       expect(events.whereType<BridgeRunError>(), isNotEmpty);
@@ -375,7 +371,7 @@ void main() {
 
       // Dispose while waiting.
       bridge.dispose();
-      expect(bridge.loopState, EventLoopState.disposed);
+      expect(bridge.channelState, const BridgeChannelDisposed());
 
       // The execution stream should finish (possibly with an error event).
       await sub.asFuture<void>();
@@ -383,9 +379,9 @@ void main() {
     });
   });
 
-  group('loopState transitions', () {
+  group('channelState transitions', () {
     test('idle -> executing -> completed', () async {
-      expect(bridge.loopState, EventLoopState.idle);
+      expect(bridge.channelState, const BridgeChannelIdle());
 
       mock.enqueueProgress(
         const MontyComplete(
@@ -396,17 +392,17 @@ void main() {
       final stream = bridge.execute('42');
 
       // Should be executing after execute() is called.
-      expect(bridge.loopState, EventLoopState.executing);
+      expect(bridge.channelState, const BridgeChannelExecuting());
 
       await stream.toList();
 
-      expect(bridge.loopState, EventLoopState.completed);
+      expect(bridge.channelState, const BridgeChannelCompleted());
     });
 
     test(
       'idle -> executing -> waiting -> executing -> completed',
       () async {
-        expect(bridge.loopState, EventLoopState.idle);
+        expect(bridge.channelState, const BridgeChannelIdle());
 
         mock
           ..enqueueProgress(
@@ -428,25 +424,25 @@ void main() {
 
         // Let it reach recv.
         await Future<void>.delayed(Duration.zero);
-        expect(bridge.loopState, EventLoopState.waiting);
+        expect(bridge.channelState, isA<BridgeChannelWaiting>());
 
         bridge.dispatch({'type': 'click'});
-        expect(bridge.loopState, EventLoopState.executing);
+        expect(bridge.channelState, const BridgeChannelExecuting());
 
         await sub.asFuture<void>();
         await sub.cancel();
-        expect(bridge.loopState, EventLoopState.completed);
+        expect(bridge.channelState, const BridgeChannelCompleted());
       },
     );
 
     test('disposed state after dispose()', () {
       bridge.dispose();
-      expect(bridge.loopState, EventLoopState.disposed);
+      expect(bridge.channelState, const BridgeChannelDisposed());
     });
   });
 
-  group('eventLoopEvents stream', () {
-    test('emits BridgeEventLoopWaiting and BridgeEventLoopResumed', () async {
+  group('signals', () {
+    test('channelStateSignal reflects transitions through waiting', () async {
       mock
         ..enqueueProgress(
           const MontyPending(
@@ -462,8 +458,8 @@ void main() {
           ),
         );
 
-      final loopEvents = <BridgeEvent>[];
-      final loopSub = bridge.eventLoopEvents.listen(loopEvents.add);
+      final states = <BridgeChannelState>[];
+      final cleanup = effect(() => states.add(bridge.channelStateSignal.value));
 
       final stream = bridge.execute('recv()');
       final sub = stream.listen((_) {});
@@ -474,15 +470,20 @@ void main() {
 
       await sub.asFuture<void>();
       await sub.cancel();
-      await loopSub.cancel();
+      cleanup();
 
-      expect(loopEvents.whereType<BridgeEventLoopWaiting>().length, 1);
-      expect(loopEvents.whereType<BridgeEventLoopResumed>().length, 1);
-      final resumed = loopEvents.whereType<BridgeEventLoopResumed>().first;
-      expect(resumed.event['type'], 'tap');
+      // States collected: idle (initial effect run), executing, waiting,
+      // executing (dispatch), completed.
+      expect(states, [
+        isA<BridgeChannelIdle>(),
+        isA<BridgeChannelExecuting>(),
+        isA<BridgeChannelWaiting>(),
+        isA<BridgeChannelExecuting>(),
+        isA<BridgeChannelCompleted>(),
+      ]);
     });
 
-    test('emits BridgeEmitted when emit is called', () async {
+    test('lastEmittedSignal updates when emit is called', () async {
       mock
         ..enqueueProgress(
           const MontyPending(
@@ -500,16 +501,15 @@ void main() {
           ),
         );
 
-      final loopEvents = <BridgeEvent>[];
-      final loopSub = bridge.eventLoopEvents.listen(loopEvents.add);
+      final emitted = <Map<String, dynamic>?>[];
+      final cleanup = effect(() => emitted.add(bridge.lastEmittedSignal.value));
 
       await bridge.execute('emit(value)').toList();
+      cleanup();
 
-      await loopSub.cancel();
-
-      final emitted = loopEvents.whereType<BridgeEmitted>().toList();
-      expect(emitted, hasLength(1));
-      expect(emitted.first.value['type'], 'label');
+      // Initial null + one update from emit.
+      expect(emitted.where((e) => e != null), hasLength(1));
+      expect(emitted.last?['type'], 'label');
     });
   });
 
@@ -527,7 +527,7 @@ void main() {
 
       // Calling execute on a disposed bridge throws from super.execute().
       // The EventLoopBridge.execute() catch block should reset state to idle
-      // and rethrow. But since the bridge is already disposed, loopState
+      // and rethrow. But since the bridge is already disposed, channelState
       // transitions to disposed via dispose(), so we can only test the throw.
       expect(() => bridge.execute('1'), throwsStateError);
     });
@@ -546,20 +546,18 @@ void main() {
 
       // Bridge is now executing. A second execute should fail via
       // super.execute() StateError, and the catch block resets to idle.
-      // However, loopState was already 'executing' from the override, so
-      // the catch block sets it back to idle.
-      expect(bridge.loopState, EventLoopState.executing);
+      expect(bridge.channelState, const BridgeChannelExecuting());
       try {
         bridge.execute('2');
         fail('Should have thrown');
         // ignore: avoid_catching_errors – intentional: test verifies StateError recovery.
       } on StateError {
-        // The catch in execute() rethrows. Since there's no loopState
+        // The catch in execute() rethrows. Since there's no channelState
         // visible between the throw and catch, we verify it does not crash.
       }
 
-      // After the catch block, loopState should be reset to idle.
-      expect(bridge.loopState, EventLoopState.idle);
+      // After the catch block, channelState should be reset to idle.
+      expect(bridge.channelState, const BridgeChannelIdle());
 
       // Clean up: dispatch event and drain the stream.
       bridge.dispatch({'type': 'cleanup'});
@@ -608,7 +606,7 @@ void main() {
         await sub.cancel();
 
         // Bridge should be completed (error event was emitted).
-        expect(bridge.loopState, EventLoopState.completed);
+        expect(bridge.channelState, const BridgeChannelCompleted());
         final errors = events.whereType<BridgeRunError>().toList();
         expect(errors, hasLength(1));
         expect(errors.first.message, contains('script died unexpectedly'));
@@ -650,7 +648,7 @@ void main() {
 
       // The stream.map handler in execute() should have completed the
       // orphaned completer with an error and set state to completed.
-      expect(bridge.loopState, EventLoopState.completed);
+      expect(bridge.channelState, const BridgeChannelCompleted());
       final errors = events.whereType<BridgeRunError>().toList();
       expect(errors, hasLength(1));
       expect(errors.first.message, contains('script crashed'));
@@ -689,7 +687,7 @@ void main() {
       await sub.asFuture<void>();
       await sub.cancel();
 
-      expect(syncBridge.loopState, EventLoopState.completed);
+      expect(syncBridge.channelState, const BridgeChannelCompleted());
       // Sync path uses resume() not resumeAsFuture().
       expect(syncMock.lastResumeReturnValue, isA<Map<String, dynamic>>());
       final result = syncMock.lastResumeReturnValue! as Map<String, dynamic>;
@@ -704,7 +702,7 @@ void main() {
       );
 
       await bridge.execute('code').toList();
-      expect(bridge.loopState, EventLoopState.completed);
+      expect(bridge.channelState, const BridgeChannelCompleted());
 
       expect(() => bridge.dispatch({'type': 'too_late'}), throwsStateError);
     });
@@ -716,7 +714,7 @@ void main() {
       );
 
       await bridge.execute('code').toList();
-      expect(bridge.loopState, EventLoopState.completed);
+      expect(bridge.channelState, const BridgeChannelCompleted());
 
       // Second execution starts — state transitions back to executing.
       mock
@@ -743,12 +741,11 @@ void main() {
       await sub.cancel();
     });
 
-    test('onEmit callback throwing does not produce a Python error', () async {
-      bridge = EventLoopBridge(
-        platform: mock,
-        onEmit: (_) => throw Exception('callback blew up'),
-      );
-
+    test('emit does not cause execution error', () async {
+      // Structural property: _handleEmit only updates a signal.
+      // No callback path exists that could throw and propagate to
+      // DefaultMontyBridge.resumeWithError(). This test verifies that
+      // invariant end-to-end.
       mock
         ..enqueueProgress(
           const MontyPending(
@@ -766,12 +763,8 @@ void main() {
 
       final events = await bridge.execute('emit(value)').toList();
 
-      // The script should complete normally — the callback throwing
-      // is a Dart-side side effect and must not become a Python error.
       expect(events.whereType<BridgeRunFinished>(), isNotEmpty);
       expect(events.whereType<BridgeRunError>(), isEmpty);
-      // resumeWithError must NOT have been called — that would signal a
-      // Python-level failure back to the interpreter.
       expect(mock.resumeErrorMessages, isEmpty);
     });
   });

@@ -161,30 +161,6 @@ class BridgeTextEnd extends BridgeEvent {
   final String messageId;
 }
 
-/// Event loop entered wait state (Python called `recv()`).
-class BridgeEventLoopWaiting extends BridgeEvent {
-  /// Creates a [BridgeEventLoopWaiting].
-  const BridgeEventLoopWaiting();
-}
-
-/// Event loop resumed after receiving a dispatched value.
-class BridgeEventLoopResumed extends BridgeEvent {
-  /// Creates a [BridgeEventLoopResumed].
-  const BridgeEventLoopResumed({required this.event});
-
-  /// The value that was dispatched.
-  final Map<String, dynamic> event;
-}
-
-/// Python called `emit` with a value.
-class BridgeEmitted extends BridgeEvent {
-  /// Creates a [BridgeEmitted].
-  const BridgeEmitted({required this.value});
-
-  /// The value emitted by Python via `emit()`.
-  final Map<String, dynamic> value;
-}
-
 /// An OS call started (Python accessed pathlib, os, datetime, etc.).
 class BridgeOsCallStart extends BridgeEvent {
   /// Creates a [BridgeOsCallStart].
