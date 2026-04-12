@@ -292,20 +292,20 @@ Python/Dart state management. It registers two host functions:
 
 | Function | Purpose |
 |----------|---------|
-| `wait_for_event()` | Pauses Python until a UI event is dispatched from Dart |
-| `render_ui(schema)` | Pushes a UI schema from Python to Dart |
+| `recv()` | Pauses Python until a value is dispatched from Dart |
+| `emit(schema)` | Emits a value from Python to the host |
 
 ### The Pattern
 
-Python holds state in a loop, calling `wait_for_event()` to pause and
-`render_ui(schema)` to push UI updates:
+Python holds state in a loop, calling `recv()` to pause and
+`emit(schema)` to emit values to the host:
 
 ```python
 state = {"count": 0}
 
 while True:
-    render_ui({"type": "counter", "count": state["count"]})
-    event = wait_for_event()
+    emit({"type": "counter", "count": state["count"]})
+    event = recv()
 
     if event["action"] == "increment":
         state["count"] = state["count"] + 1
@@ -320,9 +320,9 @@ while True:
 ```dart
 final bridge = EventLoopBridge(
   platform: Monty(),
-  onRenderUi: (schema) {
-    // Update your UI with the schema
-    print('UI update: $schema');
+  onEmit: (schema) {
+    // Handle the emitted value from Python
+    print('Emitted value: $schema');
   },
 );
 
@@ -330,10 +330,10 @@ final bridge = EventLoopBridge(
 final events = bridge.execute(pythonCode);
 events.listen((event) { /* handle lifecycle events */ });
 
-// Dispatch events when the user interacts
-bridge.dispatchUiEvent({'action': 'increment'});
-bridge.dispatchUiEvent({'action': 'increment'});
-bridge.dispatchUiEvent({'action': 'quit'});
+// Dispatch values to Python
+bridge.dispatch({'action': 'increment'});
+bridge.dispatch({'action': 'increment'});
+bridge.dispatch({'action': 'quit'});
 ```
 
 ### EventLoopState
@@ -344,11 +344,11 @@ The bridge tracks its lifecycle state:
 |-------|---------|
 | `idle` | Bridge created, no script executing |
 | `executing` | Python is actively running |
-| `waitingForEvent` | Python is paused at `wait_for_event()` |
+| `waiting` | Python is paused at `recv()` |
 | `completed` | Script finished (normally or with error) |
 | `disposed` | Bridge has been disposed |
 
-Access with `bridge.loopState` or `bridge.isWaitingForEvent`.
+Access with `bridge.loopState` or `bridge.isWaiting`.
 
 ### Event Loop Events
 
@@ -356,25 +356,25 @@ In addition to standard `BridgeEvent`s, the event loop emits:
 
 | Event | When |
 |-------|------|
-| `BridgeEventLoopWaiting` | Python called `wait_for_event()` |
-| `BridgeEventLoopResumed` | An event was dispatched to Python |
-| `BridgeUiRendered` | Python called `render_ui(schema)` |
+| `BridgeEventLoopWaiting` | Python called `recv()` |
+| `BridgeEventLoopResumed` | A value was dispatched to Python |
+| `BridgeEmitted` | Python called `emit(schema)` |
 
 Listen via `bridge.eventLoopEvents` (a broadcast stream separate from
 the `execute()` stream).
 
 ### Event Queuing
 
-If you call `dispatchUiEvent()` while Python is not yet waiting, the
-event is queued. The next `wait_for_event()` call dequeues immediately
-without pausing. This means you can dispatch events at any time without
+If you call `dispatch()` while Python is not yet waiting, the
+value is queued. The next `recv()` call dequeues immediately
+without pausing. This means you can dispatch values at any time without
 worrying about timing.
 
 ### Disposal
 
 `EventLoopBridge.dispose()` cleans up any pending completer, clears the
 event queue, sets the state to `disposed`, and calls
-`super.dispose()`. If Python is blocked at `wait_for_event()` when the
+`super.dispose()`. If Python is blocked at `recv()` when the
 bridge is disposed, the pending completer is completed with a
 `StateError`.
 

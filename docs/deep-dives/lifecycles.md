@@ -123,7 +123,7 @@ Last updated: 2026-04-10 (monty 0.0.10, post-OsCall + MontyValue)
 | `StreamController` per execute | `execute()` | `whenComplete` closure | `DefaultMontyBridge` |
 | `_pendingFutures` map | Per async dispatch | `finally` block in `_run` | `DefaultMontyBridge` |
 | `EventLoopBridge._eventLoopController` | Construction | `dispose()` | `EventLoopBridge` |
-| `EventLoopBridge._pendingCompleter` | `wait_for_event` call | Completed on event or dispose | `EventLoopBridge` |
+| `EventLoopBridge._pendingCompleter` | `recv` call | Completed on dispatched value or dispose | `EventLoopBridge` |
 | `SandboxPlugin._children` map | `sandbox_spawn` | `sandbox_free` or `onDispose` | `SandboxPlugin` |
 | Child `MontyPlatform` | `sandbox_spawn` | `_ChildHandle.tearDown()` or `onDone` | `SandboxPlugin` |
 | Child `DefaultMontyBridge` | `sandbox_spawn` | `_ChildHandle.tearDown()` or `onDone` | `SandboxPlugin` |

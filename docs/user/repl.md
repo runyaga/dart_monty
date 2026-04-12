@@ -154,7 +154,7 @@ visible. Results are organized by plugin category.
 ```
 
 The introspection is **live** — functions registered after bridge
-initialization (e.g. `EventLoopBridge`'s `wait_for_event`) are
+initialization (e.g. `EventLoopBridge`'s `recv`) are
 visible in `help()` without restarting.
 
 ## Platform Support
