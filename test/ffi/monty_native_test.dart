@@ -108,10 +108,13 @@ void main() {
     });
 
     test('returns null value', () async {
-      mock.nextRunResult = const MontyResult(usage: _zeroUsage);
+      mock.nextRunResult = const MontyResult(
+        value: MontyNull(),
+        usage: _zeroUsage,
+      );
 
       final result = await monty.run('None');
-      expect(result.value, isNull);
+      expect(result.value, const MontyNull());
       expect(result.isError, isFalse);
     });
 
@@ -173,7 +176,7 @@ void main() {
 
     test('passes null externalFunctions when empty list', () async {
       mock.nextStartResult = const MontyComplete(
-        result: MontyResult(usage: _zeroUsage),
+        result: MontyResult(value: MontyNull(), usage: _zeroUsage),
       );
 
       await monty.start('x', externalFunctions: []);
@@ -183,7 +186,7 @@ void main() {
 
     test('passes null externalFunctions when null', () async {
       mock.nextStartResult = const MontyComplete(
-        result: MontyResult(usage: _zeroUsage),
+        result: MontyResult(value: MontyNull(), usage: _zeroUsage),
       );
 
       await monty.start('x');
@@ -208,7 +211,7 @@ void main() {
 
     test('applies limits', () async {
       mock.nextStartResult = const MontyComplete(
-        result: MontyResult(usage: _zeroUsage),
+        result: MontyResult(value: MontyNull(), usage: _zeroUsage),
       );
       const limits = MontyLimits(memoryBytes: 512);
 
@@ -262,7 +265,9 @@ void main() {
 
     test('throws StateError when idle', () async {
       mock.resumeResults.add(
-        const MontyComplete(result: MontyResult(usage: _zeroUsage)),
+        const MontyComplete(
+          result: MontyResult(value: MontyNull(), usage: _zeroUsage),
+        ),
       );
       await monty.resume(null);
 
@@ -276,7 +281,9 @@ void main() {
 
     test('passes complex return values', () async {
       mock.resumeResults.add(
-        const MontyComplete(result: MontyResult(usage: _zeroUsage)),
+        const MontyComplete(
+          result: MontyResult(value: MontyNull(), usage: _zeroUsage),
+        ),
       );
 
       await monty.resume({
@@ -303,7 +310,9 @@ void main() {
 
     test('returns MontyComplete after error injection', () async {
       mock.resumeWithErrorResults.add(
-        const MontyComplete(result: MontyResult(usage: _zeroUsage)),
+        const MontyComplete(
+          result: MontyResult(value: MontyNull(), usage: _zeroUsage),
+        ),
       );
 
       final progress = await monty.resumeWithError('network failure');
@@ -593,13 +602,13 @@ void main() {
 
     test('complete with null value', () async {
       mock.nextStartResult = const MontyComplete(
-        result: MontyResult(usage: _zeroUsage),
+        result: MontyResult(value: MontyNull(), usage: _zeroUsage),
       );
 
       final progress = await monty.start('None');
 
       final complete = progress as MontyComplete;
-      expect(complete.result.value, isNull);
+      expect(complete.result.value, const MontyNull());
     });
 
     test('resource usage is preserved from bindings', () async {
@@ -648,6 +657,7 @@ void main() {
 
     test('run() returns to idle after error', () async {
       mock.nextRunResult = const MontyResult(
+        value: MontyNull(),
         error: MontyException(message: 'boom'),
         usage: _zeroUsage,
       );

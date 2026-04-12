@@ -88,6 +88,7 @@ void main() {
     test('fails when no exception thrown', () async {
       final mock = MockMontyPlatform()
         ..runResult = const MontyResult(
+          value: MontyNull(),
           usage: MontyResourceUsage(
             memoryBytesUsed: 0,
             timeElapsedMs: 0,

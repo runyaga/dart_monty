@@ -52,7 +52,7 @@ void main() {
       final r = await session.execute('test_fn()');
       await session.dispose();
 
-      expect(r.value?.dartValue, 'alive');
+      expect(r.value.dartValue, 'alive');
       print('  handle survived 20 prior disposals + GC pressure');
     });
 
@@ -76,7 +76,7 @@ void main() {
       final r = await s2.execute('y');
       await s2.dispose();
 
-      expect(r.value?.dartValue, 99);
+      expect(r.value.dartValue, 99);
       print('  s2 survived GC after s1 disposal');
     });
 
@@ -84,7 +84,7 @@ void main() {
       for (var i = 0; i < 100; i++) {
         final s = AgentSession();
         final r = await s.execute('$i * 2');
-        expect(r.value?.dartValue, i * 2);
+        expect(r.value.dartValue, i * 2);
         await s.dispose();
       }
       print('  100/100 rapid cycles passed');

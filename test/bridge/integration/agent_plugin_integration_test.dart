@@ -33,7 +33,7 @@ void main() {
 tmpl_render(template='Hello {{ name }}!', context={'name': 'Alice'})
 ''');
 
-      expect(result.value?.dartValue, 'Hello Alice!');
+      expect(result.value.dartValue, 'Hello Alice!');
     });
 
     test('tmpl_render with loop', () async {
@@ -43,7 +43,7 @@ tmpl_render(
     context={'items': ['a', 'b', 'c']})
 ''');
 
-      expect(result.value?.dartValue, 'a b c ');
+      expect(result.value.dartValue, 'a b c ');
     });
 
     test('tmpl_render with conditional', () async {
@@ -53,7 +53,7 @@ tmpl_render(
     context={'n': 42})
 ''');
 
-      expect(result.value?.dartValue, 'big');
+      expect(result.value.dartValue, 'big');
     });
   });
 
@@ -81,13 +81,13 @@ msg_send(name='ch', message='second')
         "[msg_recv(name='ch'), msg_recv(name='ch')]",
       );
 
-      expect(result.value?.dartValue, ['first', 'second']);
+      expect(result.value.dartValue, ['first', 'second']);
     });
 
     test('peek returns None when empty', () async {
       final result = await session.execute("msg_peek(name='empty')");
 
-      expect(result.value?.dartValue, isNull);
+      expect(result.value.dartValue, isNull);
     });
 
     test('stats reports queue depth', () async {
@@ -96,7 +96,7 @@ msg_send(name='q', message=1)
 msg_send(name='q', message=2)
 ''');
       final result = await session.execute("msg_stats(name='q')");
-      final stats = result.value!.dartValue! as Map;
+      final stats = result.value.dartValue! as Map;
 
       expect(stats['send_count'], 2);
       expect(stats['queue_depth'], 2);
@@ -139,7 +139,7 @@ h = sandbox_spawn(code='2 + 3')
 sandbox_await(handle=h)
 ''');
 
-      expect(result.value?.dartValue, 5);
+      expect(result.value.dartValue, 5);
     });
 
     test('gather multiple children', () async {
@@ -150,7 +150,7 @@ h3 = sandbox_spawn(code='30')
 sandbox_await_all(handles=[h1, h2, h3])
 ''');
 
-      expect(result.value?.dartValue, [10, 20, 30]);
+      expect(result.value.dartValue, [10, 20, 30]);
     });
 
     test('child error propagates cleanly', () async {
@@ -162,7 +162,7 @@ except Exception as e:
     r = f'caught: {e}'
 r
 ''');
-      final val = result.value!.dartValue! as String;
+      final val = result.value.dartValue! as String;
 
       expect(val, contains('ZeroDivisionError'));
     });
@@ -174,7 +174,7 @@ sandbox_await(handle=h)
 sandbox_get_output(handle=h)
 ''');
 
-      expect(result.value?.dartValue, contains('hello'));
+      expect(result.value.dartValue, contains('hello'));
     });
 
     test('child lifecycle: spawn, alive, await, free', () async {
@@ -186,7 +186,7 @@ sandbox_free(handle=h)
 [r, alive]
 ''');
 
-      expect(result.value?.dartValue, [99, false]);
+      expect(result.value.dartValue, [99, false]);
     });
   });
 
@@ -226,7 +226,7 @@ h = sandbox_spawn(code='tmpl_render(template="Hi {{ who }}!", context={"who": "c
 sandbox_await(handle=h)
 ''');
 
-      expect(result.value?.dartValue, 'Hi child!');
+      expect(result.value.dartValue, 'Hi child!');
     });
 
     test('child sends message to parent via shared bus', () async {
@@ -238,7 +238,7 @@ parent_got = msg_recv(name='results')
 [child_got, parent_got]
 ''');
 
-      expect(result.value?.dartValue, ['do X', 'done: do X']);
+      expect(result.value.dartValue, ['do X', 'done: do X']);
     });
 
     test('producer/consumer pipeline between children', () async {
@@ -248,7 +248,7 @@ consumer = sandbox_spawn(code='items = []\nfor i in range(3):\n    items.append(
 sandbox_await(handle=producer)
 sandbox_await(handle=consumer)
 ''');
-      final items = result.value!.dartValue! as List;
+      final items = result.value.dartValue! as List;
 
       expect(items, ['item-0', 'item-1', 'item-2']);
     });
@@ -263,7 +263,7 @@ parent_file = Path('/parent.txt').read_text()
 [child_result, parent_file]
 ''');
 
-      expect(result.value?.dartValue, ['child data', 'parent data']);
+      expect(result.value.dartValue, ['child data', 'parent data']);
     });
   });
 }
