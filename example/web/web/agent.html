@@ -352,9 +352,9 @@
       <option value="kvstore">Key-Value Store</option>
       <option value="fetch">HTTP Fetch</option>
       <option value="filesystem">Filesystem I/O</option>
-      <option value="template" disabled>Jinja Templates (soon)</option>
-      <option value="sandbox" disabled>Child Sandboxes (soon)</option>
-      <option value="msgbus" disabled>Message Bus (soon)</option>
+      <option value="template">Jinja Templates</option>
+      <option value="sandbox">Child Sandboxes</option>
+      <option value="msgbus">Message Bus</option>
       <option value="combined">Combined Demo</option>
     </select>
     <span id="status">Initializing WASM...</span>
@@ -423,6 +423,7 @@ x</textarea>
           <p style="margin-bottom: 12px;"><strong style="color: var(--accent);">AgentSession</strong> combines a Monty bridge, host functions, OS providers, and variable persistence into one API.</p>
           <p style="margin-bottom: 12px; color: var(--text-dim);"><strong style="color: var(--cyan);">Stateful:</strong> Variables defined in one execution persist to the next. Click "Clear State" to reset.</p>
           <p style="margin-bottom: 12px; color: var(--text-dim);"><strong style="color: var(--purple);">Host Functions:</strong> Python can call Dart-defined tools: <code style="color: var(--purple);">echo(msg)</code>, <code style="color: var(--purple);">add_numbers(a, b)</code>, <code style="color: var(--purple);">get_time()</code>.</p>
+          <p style="margin-bottom: 12px; color: var(--text-dim);"><strong style="color: var(--orange);">Plugins:</strong> <code style="color: var(--orange);">tmpl_render()</code> (Jinja2 templates), <code style="color: var(--orange);">msg_send()/msg_recv()</code> (message channels), <code style="color: var(--orange);">sandbox_spawn()/sandbox_await()</code> (child interpreters).</p>
           <p style="margin-bottom: 12px; color: var(--text-dim);"><strong style="color: var(--green);">Filesystem:</strong> pathlib works via MemoryFsProvider: <code style="color: var(--green);">Path('/sandbox/f.txt').write_text(...)</code></p>
           <p style="color: var(--text-dim);"><strong style="color: var(--yellow);">Events:</strong> Every bridge event streams in real-time to the Events panel.</p>
         </div>
@@ -647,9 +648,9 @@ x</textarea>
       kvstore: "# Key-value store — persistent memory\nkv_set('user', 'Alice')\nkv_set('score', 95)\nkv_set('tags', ['python', 'dart', 'monty'])\n\nall_keys = kv_list()\nuser = kv_get('user')\nscore = kv_get('score')\n\n{'keys': all_keys, 'user': user, 'score': score}",
       fetch: "# Simulated HTTP fetch\nusers = fetch_json('https://api.example.com/users')\nweather = fetch_json('https://api.example.com/weather')\n\ntop_user = users[0]['name']\n\n{'users': len(users), 'top': top_user, 'temp': weather['temp']}",
       filesystem: "from pathlib import Path\n\n# Write files to the virtual filesystem\nPath('/sandbox/notes.txt').write_text('Remember: variables persist!')\nPath('/sandbox/data').mkdir(parents=True, exist_ok=True)\nPath('/sandbox/data/scores.csv').write_text('name,score\\nalice,95\\nbob,87')\n\n# Read back\ncontent = Path('/sandbox/notes.txt').read_text()\ncsv_data = Path('/sandbox/data/scores.csv').read_text()\n\n{'notes': content, 'csv': csv_data}",
-      template: "# Jinja2 templates via DinjaTemplatePlugin\ngreeting = dinja_render('greeting', name='Alice', place='Monty Sandbox')\nreport = dinja_render('report', title='Q3 Sales', date='2026-04-11', content='Revenue up 15%')\n\n{'greeting': greeting, 'report': report}",
-      sandbox: "# Spawn isolated child interpreters\n# Each child has its own VFS and state\nchild1 = sandbox_spawn('x = 1 + 1\\nx')\nchild2 = sandbox_spawn('y = 2 * 3\\ny')\nchild3 = sandbox_spawn('import math\\nmath.factorial(5)')\n\n[sandbox_output(child1), sandbox_output(child2), sandbox_output(child3)]",
-      msgbus: "# Inter-sandbox messaging via MessageBusPlugin\nbus_publish('alerts', 'System healthy')\nbus_publish('alerts', 'Disk 80% full')\nbus_publish('metrics', 42)\n\nalerts = bus_history('alerts')\nmetrics = bus_history('metrics')\n\n{'alerts': alerts, 'metrics': metrics}",
+      template: "# Jinja2 templates via DinjaTemplatePlugin\ngreeting = tmpl_render(template='Hello {{ name }} from {{ place }}!', context={'name': 'Alice', 'place': 'Monty Sandbox'})\nreport = tmpl_render(template='## {{ title }}\\nDate: {{ date }}\\n\\n{{ content }}', context={'title': 'Q3 Sales', 'date': '2026-04-11', 'content': 'Revenue up 15%'})\n\n{'greeting': greeting, 'report': report}",
+      sandbox: "# Spawn isolated child interpreters\n# Each child has its own state\nhandle1 = sandbox_spawn(code='x = 1 + 1\\nx')\nhandle2 = sandbox_spawn(code='y = 2 * 3\\ny')\nhandle3 = sandbox_spawn(code='import math\\nmath.factorial(5)')\n\nr1 = sandbox_await(handle=handle1)\nr2 = sandbox_await(handle=handle2)\nr3 = sandbox_await(handle=handle3)\n\n[r1, r2, r3]",
+      msgbus: "# Named message channels via MessageBusPlugin\nmsg_send(channel='alerts', message='System healthy')\nmsg_send(channel='alerts', message='Disk 80% full')\nmsg_send(channel='metrics', message=42)\n\nalert1 = msg_recv(channel='alerts')\nalert2 = msg_recv(channel='alerts')\nmetric = msg_recv(channel='metrics')\n\n{'alerts': [alert1, alert2], 'metric': metric}",
       combined: "# Full demo: state + tools + filesystem\nfrom pathlib import Path\n\ntimestamp = get_time()\nPath('/sandbox/log.txt').write_text(f'Run at: {timestamp}')\n\ntry:\n    msg = f'x was {x}, greeting was {greeting}'\nexcept NameError:\n    msg = 'No prior state — run Stateful first'\n\ntotal = add_numbers(100, 200)\nkv_set('last_run', timestamp)\n\n{'message': msg, 'total': total, 'logged_at': timestamp}",
     };
 

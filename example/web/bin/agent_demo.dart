@@ -13,6 +13,7 @@ library;
 import 'dart:convert';
 import 'dart:js_interop';
 
+import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
 
 // ---------------------------------------------------------------------------
@@ -186,7 +187,16 @@ Future<bool> _init() async {
       'datetime.': TimeOsProvider(),
     });
 
-    _session = AgentSession(os: os);
+    _session = AgentSession(
+      os: os,
+      plugins: [
+        DinjaTemplatePlugin(),
+        MessageBusPlugin(),
+        SandboxPlugin(
+          platformFactory: () async => Monty(os: os).platform,
+        ),
+      ],
+    );
 
     _demoHostFunctions.forEach(_session!.register);
 
