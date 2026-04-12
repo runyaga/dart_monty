@@ -11,6 +11,7 @@ import 'package:dart_monty/src/platform/monty_resource_usage.dart';
 import 'package:dart_monty/src/platform/monty_result.dart';
 import 'package:dart_monty/src/platform/monty_value.dart';
 import 'package:meta/meta.dart';
+import 'package:signals_core/signals_core.dart';
 
 /// The internal function name used to restore state into Python globals.
 const _restoreStateFn = '__restore_state__';
@@ -25,12 +26,238 @@ const _zeroUsage = MontyResourceUsage(
   stackDepthUsed: 0,
 );
 
+// ---------------------------------------------------------------------------
+// MontySessionLifecycle — sealed lifecycle state for MontySession.
+// ---------------------------------------------------------------------------
+
+/// The lifecycle state of a [MontySession].
+///
+/// Use exhaustive pattern matching or `lifecycleSignal` for reactive
+/// observation:
+/// ```dart
+/// effect(() {
+///   switch (session.lifecycleSignal.value) {
+///     case MontySessionActive(): // session is live
+///     case MontySessionDisposed(): // session was disposed
+///   }
+/// });
+/// ```
+sealed class MontySessionLifecycle {
+  /// Creates a [MontySessionLifecycle].
+  const MontySessionLifecycle();
+}
+
+/// The session is active and accepting `run()` calls.
+final class MontySessionActive extends MontySessionLifecycle {
+  /// Creates a [MontySessionActive].
+  const MontySessionActive();
+}
+
+/// The session has been disposed and no longer accepts calls.
+final class MontySessionDisposed extends MontySessionLifecycle {
+  /// Creates a [MontySessionDisposed].
+  const MontySessionDisposed();
+}
+
+// ---------------------------------------------------------------------------
+// Top-level helpers — pure utilities that do not need MontySession state.
+// ---------------------------------------------------------------------------
+
+/// Wraps [userCode] with restore preamble and persist postamble.
+String _wrapSessionCode(String userCode, Map<String, Object?> state) {
+  final restore = _generateSessionRestore(state);
+  final persist = _generateSessionPersist(userCode, state);
+  final (processedCode, hasResult) = code_capture.captureLastExpression(
+    userCode,
+  );
+
+  final buf = StringBuffer(restore)
+    ..write('\n')
+    ..write(processedCode)
+    ..write('\n')
+    ..write(persist);
+
+  if (hasResult) buf.write('\n__r');
+
+  return buf.toString();
+}
+
+/// Generates Python code to restore [state] from `__restore_state__`.
+String _generateSessionRestore(Map<String, Object?> state) {
+  final buf = StringBuffer('__d = __restore_state__()');
+  for (final key in state.keys) {
+    buf.write('\n$key = __d["$key"]');
+  }
+
+  return buf.toString();
+}
+
+/// Generates Python code to persist [state] + new [userCode] targets.
+String _generateSessionPersist(String userCode, Map<String, Object?> state) {
+  final names = <String>{
+    ...state.keys,
+    ...code_capture.extractAssignmentTargets(userCode),
+  };
+
+  if (names.isEmpty) return '__persist_state__({})';
+
+  final buf = StringBuffer('__d2 = {}');
+  for (final name in names) {
+    buf
+      ..write('\ntry:')
+      ..write('\n    __d2["$name"] = $name')
+      ..write('\nexcept Exception:')
+      ..write('\n    pass');
+  }
+  buf.write('\n__persist_state__(__d2)');
+
+  return buf.toString();
+}
+
+/// Drives the `run()` execution loop — handles all progress variants until
+/// [MontyComplete], routing state restore/persist and OS calls transparently.
+Future<MontyResult> _runSessionLoop(
+  MontyPlatform platform,
+  OsProvider? os,
+  MontyProgress initialProgress,
+  Map<String, Object?> Function() getState,
+  void Function(List<MontyValue>) onPersist,
+) async {
+  var progress = initialProgress;
+  while (true) {
+    switch (progress) {
+      case MontyPending(functionName: _restoreStateFn):
+        progress = await _safeSessionResume(platform, getState());
+
+      case MontyPending(functionName: _persistStateFn):
+        onPersist(progress.arguments);
+        progress = await _safeSessionResume(platform, null);
+
+      case MontyComplete(:final result):
+        return result;
+
+      case MontyPending():
+        progress = await _safeSessionResumeWithError(
+          platform,
+          'Unexpected external function in run() mode: '
+          '${progress.functionName}',
+        );
+
+      case MontyResolveFutures():
+        progress = await _safeSessionResume(platform, null);
+
+      case MontyOsCall():
+        final handler = os;
+        if (handler != null) {
+          progress = await _handleSessionOsCall(handler, progress, platform);
+        } else {
+          progress = await _safeSessionResumeWithError(
+            platform,
+            'OS operations not available — no OsProvider configured',
+          );
+        }
+    }
+  }
+}
+
+/// Resolves an OS call through [os], catching errors and returning a resume.
+Future<MontyProgress> _handleSessionOsCall(
+  OsProvider os,
+  MontyOsCall osCall,
+  MontyPlatform platform,
+) async {
+  try {
+    final result = await os.resolve(osCall);
+    return _safeSessionResume(platform, result);
+  } on Object catch (e) {
+    return _safeSessionResumeWithError(platform, e.toString());
+  }
+}
+
+/// Wraps [MontyPlatform.start], converting platform errors to [MontyComplete].
+Future<MontyProgress> _safeSessionStart(
+  MontyPlatform platform,
+  String code, {
+  List<String>? externalFunctions,
+  MontyLimits? limits,
+  String? scriptName,
+}) async {
+  try {
+    return await platform.start(
+      code,
+      externalFunctions: externalFunctions,
+      limits: limits,
+      scriptName: scriptName,
+    );
+  } on MontyScriptError catch (e) {
+    return MontyComplete(
+      result: MontyResult(error: e.exception, usage: _zeroUsage),
+    );
+  } on MontyError catch (e) {
+    return MontyComplete(
+      result: MontyResult(
+        error: MontyException(message: e.message),
+        usage: _zeroUsage,
+      ),
+    );
+  }
+}
+
+/// Wraps [MontyPlatform.resume], converting platform errors to [MontyComplete].
+Future<MontyProgress> _safeSessionResume(
+  MontyPlatform platform,
+  Object? returnValue,
+) async {
+  try {
+    return await platform.resume(returnValue);
+  } on MontyScriptError catch (e) {
+    return MontyComplete(
+      result: MontyResult(error: e.exception, usage: _zeroUsage),
+    );
+  } on MontyError catch (e) {
+    return MontyComplete(
+      result: MontyResult(
+        error: MontyException(message: e.message),
+        usage: _zeroUsage,
+      ),
+    );
+  }
+}
+
+/// Wraps [MontyPlatform.resumeWithError], converting errors to [MontyComplete].
+Future<MontyProgress> _safeSessionResumeWithError(
+  MontyPlatform platform,
+  String errorMessage,
+) async {
+  try {
+    return await platform.resumeWithError(errorMessage);
+  } on MontyScriptError catch (e) {
+    return MontyComplete(
+      result: MontyResult(error: e.exception, usage: _zeroUsage),
+    );
+  } on MontyError catch (e) {
+    return MontyComplete(
+      result: MontyResult(
+        error: MontyException(message: e.message),
+        usage: _zeroUsage,
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// MontySession
+// ---------------------------------------------------------------------------
+
 /// A stateful execution session that persists variables across calls.
 ///
 /// Each [MontySession] wraps a [MontyPlatform] instance and maintains
 /// a snapshot of Python globals between executions. Only JSON-serializable
 /// types persist (int, float, str, bool, list, dict, None).
 /// Non-serializable values are silently dropped after each call.
+///
+/// Subscribe to [persistedStateSignal] for reactive state updates, or read
+/// [state] for a one-shot snapshot.
 ///
 /// ```dart
 /// final session = MontySession(platform: monty);
@@ -49,12 +276,32 @@ class MontySession {
   /// OS calls resume with an error.
   MontySession({required MontyPlatform platform, OsProvider? os})
     : _platform = platform,
-      _os = os;
+      _os = os {
+    lifecycleSignal = _lifecycleSignal;
+    persistedStateSignal = _persistedStateSignal;
+  }
 
   final MontyPlatform _platform;
   final OsProvider? _os;
   Map<String, Object?> _state = {};
-  bool _disposed = false;
+
+  final Signal<MontySessionLifecycle> _lifecycleSignal =
+      signal(const MontySessionActive());
+  final Signal<Map<String, Object?>> _persistedStateSignal =
+      signal(const {});
+
+  /// Reactive lifecycle state. Starts as [MontySessionActive], transitions
+  /// to [MontySessionDisposed] when [dispose] is called.
+  late final ReadonlySignal<MontySessionLifecycle> lifecycleSignal;
+
+  /// Reactive persisted state map. Updates whenever Python persists new
+  /// values via `__persist_state__` or [clearState] is called.
+  ///
+  /// Subscribe via `effect` to reactively forward Python session state:
+  /// ```dart
+  /// effect(() => syncState(session.persistedStateSignal.value));
+  /// ```
+  late final ReadonlySignal<Map<String, Object?>> persistedStateSignal;
 
   /// The current persisted state as a JSON-decoded map.
   ///
@@ -65,85 +312,47 @@ class MontySession {
   ///
   /// Returns the [MontyResult] from execution. Variables defined in
   /// [code] persist for subsequent calls (if JSON-serializable).
-  ///
-  /// Internal external functions (`__restore_state__`, `__persist_state__`)
-  /// are handled transparently. Any other external function call causes
-  /// an error — use `start()` for code that calls external functions.
   Future<MontyResult> run(
     String code, {
     MontyLimits? limits,
     String? scriptName,
   }) async {
-    _checkNotDisposed();
-    final wrappedCode = _wrapCode(code);
-
-    var progress = await _safeStart(
-      wrappedCode,
+    if (_lifecycleSignal.value is MontySessionDisposed) {
+      throw StateError('MontySession has been disposed.');
+    }
+    final progress = await _safeSessionStart(
+      _platform,
+      _wrapSessionCode(code, _state),
       externalFunctions: [_restoreStateFn, _persistStateFn],
       limits: limits,
       scriptName: scriptName,
     );
 
-    while (true) {
-      switch (progress) {
-        case MontyPending(functionName: _restoreStateFn):
-          progress = await _safeResume(_state);
-
-        case MontyPending(functionName: _persistStateFn):
-          _capturePersistArgs(progress.arguments);
-          progress = await _safeResume(null);
-
-        case MontyComplete(:final result):
-          return result;
-
-        case MontyPending():
-          progress = await _safeResumeWithError(
-            'Unexpected external function in run() mode: '
-            '${progress.functionName}',
-          );
-
-        case MontyResolveFutures():
-          progress = await _safeResume(null);
-
-        case MontyOsCall():
-          if (_os != null) {
-            try {
-              final result = await _os.resolve(progress);
-              progress = await _safeResume(result);
-            } on Object catch (e) {
-              progress = await _safeResumeWithError(e.toString());
-            }
-          } else {
-            progress = await _safeResumeWithError(
-              'OS operations not available — no OsProvider configured',
-            );
-          }
-      }
-    }
+    return _runSessionLoop(
+      _platform, _os, progress,
+      () => _state,
+      _capturePersistArgs,
+    );
   }
 
   /// Starts iterative execution of [code] with state restore/persist.
   ///
-  /// Same as [MontyPlatform.start] but with state management injected.
   /// Internal functions (`__restore_state__`, `__persist_state__`) are
   /// handled transparently — only user external functions are returned
   /// as [MontyPending] to the caller.
-  ///
-  /// The caller must resume through [resume] or [resumeWithError] on
-  /// this session (not on the underlying platform) so that internal
-  /// state functions are intercepted on completion.
   Future<MontyProgress> start(
     String code, {
     List<String>? externalFunctions,
     MontyLimits? limits,
     String? scriptName,
   }) async {
-    _checkNotDisposed();
-    final wrappedCode = _wrapCode(code);
+    if (_lifecycleSignal.value is MontySessionDisposed) {
+      throw StateError('MontySession has been disposed.');
+    }
     final allExtFns = [_restoreStateFn, _persistStateFn, ...?externalFunctions];
-
-    final progress = await _safeStart(
-      wrappedCode,
+    final progress = await _safeSessionStart(
+      _platform,
+      _wrapSessionCode(code, _state),
       externalFunctions: allExtFns,
       limits: limits,
       scriptName: scriptName,
@@ -157,10 +366,13 @@ class MontySession {
   /// Must be used instead of [MontyPlatform.resume] so that internal
   /// state functions are intercepted transparently.
   Future<MontyProgress> resume(Object? returnValue) async {
-    _checkNotDisposed();
-    final progress = await _safeResume(returnValue);
+    if (_lifecycleSignal.value is MontySessionDisposed) {
+      throw StateError('MontySession has been disposed.');
+    }
 
-    return _interceptProgress(progress);
+    return _interceptProgress(
+      await _safeSessionResume(_platform, returnValue),
+    );
   }
 
   /// Resumes a paused execution by raising an error with [errorMessage].
@@ -168,10 +380,13 @@ class MontySession {
   /// Must be used instead of [MontyPlatform.resumeWithError] so that
   /// internal state functions are intercepted transparently.
   Future<MontyProgress> resumeWithError(String errorMessage) async {
-    _checkNotDisposed();
-    final progress = await _safeResumeWithError(errorMessage);
+    if (_lifecycleSignal.value is MontySessionDisposed) {
+      throw StateError('MontySession has been disposed.');
+    }
 
-    return _interceptProgress(progress);
+    return _interceptProgress(
+      await _safeSessionResumeWithError(_platform, errorMessage),
+    );
   }
 
   /// Clears all persisted state.
@@ -179,8 +394,11 @@ class MontySession {
   /// After calling this, the next `run()` or `start()` call begins with
   /// empty globals (as if creating a fresh session).
   void clearState() {
-    _checkNotDisposed();
+    if (_lifecycleSignal.value is MontySessionDisposed) {
+      throw StateError('MontySession has been disposed.');
+    }
     _state = {};
+    _persistedStateSignal.value = const {};
   }
 
   /// Disposes the session.
@@ -189,13 +407,14 @@ class MontySession {
   /// provided. Does NOT dispose the underlying [MontyPlatform].
   void dispose() {
     _state = {};
-    _disposed = true;
+    _lifecycleSignal.value = const MontySessionDisposed();
+    _persistedStateSignal.value = const {};
     unawaited(_os?.dispose());
   }
 
   /// Whether this session has been disposed.
   @visibleForTesting
-  bool get isDisposed => _disposed;
+  bool get isDisposed => _lifecycleSignal.value is MontySessionDisposed;
 
   /// Extracts simple assignment targets from [code].
   ///
@@ -204,78 +423,6 @@ class MontySession {
   @visibleForTesting
   static Set<String> extractAssignmentTargets(String code) =>
       code_capture.extractAssignmentTargets(code);
-
-  // ---------------------------------------------------------------------------
-  // Code generation
-  // ---------------------------------------------------------------------------
-
-  /// Wraps [userCode] with restore preamble and persist postamble.
-  ///
-  /// If the user code's last line is an expression (not a statement),
-  /// it is captured in `__r` so the persist postamble doesn't overwrite
-  /// the result value. After persistence, `__r` is re-emitted as the
-  /// final expression so `MontyResult.value` reflects the user's code.
-  String _wrapCode(String userCode) {
-    final restore = _generateRestore();
-    final persist = _generatePersist(userCode);
-    final (processedCode, hasResult) = code_capture.captureLastExpression(
-      userCode,
-    );
-
-    final buf = StringBuffer(restore)
-      ..write('\n')
-      ..write(processedCode)
-      ..write('\n')
-      ..write(persist);
-
-    if (hasResult) {
-      buf.write('\n__r');
-    }
-
-    return buf.toString();
-  }
-
-  /// Generates Python code to restore state from the `__restore_state__`
-  /// external function.
-  ///
-  /// The function returns the current state as a Python dict. Each known
-  /// key is unpacked into a local variable assignment.
-  String _generateRestore() {
-    final buf = StringBuffer('__d = __restore_state__()');
-    for (final key in _state.keys) {
-      buf.write('\n$key = __d["$key"]');
-    }
-
-    return buf.toString();
-  }
-
-  /// Generates Python code to persist state via `__persist_state__`.
-  ///
-  /// Builds a dict of all known variable names (previous state keys +
-  /// new assignment targets from [userCode]), using try/except per
-  /// variable to gracefully skip undefined or non-serializable values.
-  String _generatePersist(String userCode) {
-    final names = <String>{
-      ..._state.keys,
-      ...code_capture.extractAssignmentTargets(userCode),
-    };
-
-    if (names.isEmpty) {
-      return '__persist_state__({})';
-    }
-
-    final buf = StringBuffer('__d2 = {}');
-    for (final name in names) {
-      buf
-        ..write('\ntry:')
-        ..write('\n    __d2["$name"] = $name')
-        ..write('\nexcept Exception:')
-        ..write('\n    pass');
-    }
-    buf.write('\n__persist_state__(__d2)');
-
-    return buf.toString();
-  }
 
   // ---------------------------------------------------------------------------
   // State interception
@@ -287,11 +434,11 @@ class MontySession {
     while (true) {
       switch (current) {
         case MontyPending(functionName: _restoreStateFn):
-          current = await _safeResume(_state);
+          current = await _safeSessionResume(_platform, _state);
 
         case MontyPending(functionName: _persistStateFn):
           _capturePersistArgs(current.arguments);
-          current = await _safeResume(null);
+          current = await _safeSessionResume(_platform, null);
 
         case MontyComplete():
         case MontyPending():
@@ -302,12 +449,14 @@ class MontySession {
     }
   }
 
-  /// Captures persisted state from `__persist_state__` arguments.
+  /// Captures persisted state from `__persist_state__` arguments and
+  /// updates [persistedStateSignal].
   void _capturePersistArgs(List<MontyValue> arguments) {
     if (arguments.isEmpty) return;
     final arg = arguments.first;
     if (arg is MontyDict) {
       _state = arg.entries.map((k, v) => MapEntry(k, v.dartValue));
+      _persistedStateSignal.value = Map.from(_state);
     }
   }
 
