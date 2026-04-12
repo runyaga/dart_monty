@@ -159,6 +159,7 @@ class EventLoopBridge extends DefaultMontyBridge {
         ),
         handler: _handleWaitForEvent,
       ),
+      category: 'event_loop',
     );
 
     register(
@@ -176,6 +177,7 @@ class EventLoopBridge extends DefaultMontyBridge {
         ),
         handler: _handleRenderUi,
       ),
+      category: 'event_loop',
     );
   }
 

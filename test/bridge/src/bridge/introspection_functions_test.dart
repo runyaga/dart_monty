@@ -1,50 +1,79 @@
 import 'dart:convert';
 
+import 'package:dart_monty/src/bridge/bridge/bridge_event.dart';
+import 'package:dart_monty/src/bridge/bridge/bridge_middleware.dart';
+import 'package:dart_monty/src/bridge/bridge/host_function.dart';
 import 'package:dart_monty/src/bridge/bridge/host_function_schema.dart';
 import 'package:dart_monty/src/bridge/bridge/host_param.dart';
 import 'package:dart_monty/src/bridge/bridge/host_param_type.dart';
 import 'package:dart_monty/src/bridge/bridge/introspection_functions.dart';
+import 'package:dart_monty/src/bridge/bridge/monty_bridge.dart';
+import 'package:dart_monty/src/bridge/os_call/os_provider.dart';
+import 'package:dart_monty/src/platform/bridge_logger.dart';
 import 'package:test/test.dart';
 
 void main() {
   group('buildIntrospectionFunctions', () {
     group('help', () {
-      late Map<String, List<HostFunctionSchema>> schemas;
+      late _FakeBridge bridge;
 
       setUp(() {
-        schemas = {
-          'storage': [
-            const HostFunctionSchema(
-              name: 'storage_get',
-              description: 'Get a value from storage.',
-              params: [
-                HostParam(
-                  name: 'key',
-                  type: HostParamType.string,
-                  description: 'The key.',
-                ),
-              ],
+        bridge = _FakeBridge()
+          ..register(
+            HostFunction(
+              schema: const HostFunctionSchema(
+                name: 'storage_get',
+                description: 'Get a value from storage.',
+                params: [
+                  HostParam(
+                    name: 'key',
+                    type: HostParamType.string,
+                    description: 'The key.',
+                  ),
+                ],
+              ),
+              handler: (_) async => null,
             ),
-            const HostFunctionSchema(
-              name: 'storage_set',
-              description: 'Set a value in storage.',
+            category: 'storage',
+          )
+          ..register(
+            HostFunction(
+              schema: const HostFunctionSchema(
+                name: 'storage_set',
+                description: 'Set a value in storage.',
+              ),
+              handler: (_) async => null,
             ),
-          ],
-          'cache': [
-            const HostFunctionSchema(
-              name: 'cache_get',
-              description: 'Get a value from cache.',
+            category: 'storage',
+          )
+          ..register(
+            HostFunction(
+              schema: const HostFunctionSchema(
+                name: 'cache_get',
+                description: 'Get a value from cache.',
+              ),
+              handler: (_) async => null,
             ),
-            const HostFunctionSchema(
-              name: 'cache_clear',
-              description: 'Clear the cache.',
+            category: 'cache',
+          )
+          ..register(
+            HostFunction(
+              schema: const HostFunctionSchema(
+                name: 'cache_clear',
+                description: 'Clear the cache.',
+              ),
+              handler: (_) async => null,
             ),
-          ],
-        };
+            category: 'cache',
+          );
+        // Register introspection builtins so help can find itself.
+        for (final fn in buildIntrospectionFunctions(bridge)) {
+          bridge.register(fn, category: 'introspection');
+        }
       });
 
       Future<String> callHelp([String? name]) async {
-        final fns = buildIntrospectionFunctions(schemas);
+        final fns = buildIntrospectionFunctions(bridge);
         final helpFn = fns.firstWhere((f) => f.schema.name == 'help');
         final result = await helpFn.handler({'name': name});
         return result! as String;
@@ -158,15 +187,18 @@ void main() {
       });
 
       test('bare name resolves with underscore namespace', () async {
-        final underscoreSchemas = {
-          'db_utils': [
-            const HostFunctionSchema(
-              name: 'db_utils_query',
-              description: 'Run a DB query.',
+        final b = _FakeBridge()
+          ..register(
+            HostFunction(
+              schema: const HostFunctionSchema(
+                name: 'db_utils_query',
+                description: 'Run a DB query.',
+              ),
+              handler: (_) async => null,
             ),
-          ],
-        };
-        final fns = buildIntrospectionFunctions(underscoreSchemas);
+            category: 'db_utils',
+          );
+        final fns = buildIntrospectionFunctions(b);
         final helpFn = fns.firstWhere((f) => f.schema.name == 'help');
         final result = await helpFn.handler({'name': 'query'});
         final decoded = jsonDecode(result! as String) as Map<String, Object?>;
@@ -175,11 +207,124 @@ void main() {
       });
 
       test('only one function is registered (no list_functions)', () {
-        final fns = buildIntrospectionFunctions(schemas);
+        final fns = buildIntrospectionFunctions(bridge);
 
         expect(fns, hasLength(1));
         expect(fns.first.schema.name, 'help');
       });
     });
+
+    group('live introspection', () {
+      test(
+        'function registered after buildIntrospectionFunctions is visible',
+        () async {
+          final bridge = _FakeBridge();
+          // Build introspection FIRST.
+          final fns = buildIntrospectionFunctions(bridge);
+          final helpFn = fns.firstWhere((f) => f.schema.name == 'help');
+
+          // Register a function AFTER.
+          bridge.register(
+            HostFunction(
+              schema: const HostFunctionSchema(
+                name: 'late_fn',
+                description: 'Registered late.',
+              ),
+              handler: (_) async => null,
+            ),
+            category: 'late',
+          );
+
+          final result = await helpFn.handler({'name': 'late_fn'});
+          final decoded = jsonDecode(result! as String) as Map<String, Object?>;
+
+          expect(decoded['name'], 'late_fn');
+          expect(decoded['description'], 'Registered late.');
+        },
+      );
+
+      test('late-registered function appears in no-arg listing', () async {
+        final bridge = _FakeBridge();
+        final fns = buildIntrospectionFunctions(bridge);
+        final helpFn = fns.firstWhere((f) => f.schema.name == 'help');
+
+        // Register after.
+        bridge.register(
+          HostFunction(
+            schema: const HostFunctionSchema(
+              name: 'late_fn',
+              description: 'Registered late.',
+            ),
+            handler: (_) async => null,
+          ),
+          category: 'late',
+        );
+
+        final result = await helpFn.handler({});
+        final decoded = jsonDecode(result! as String) as Map<String, Object?>;
+        final tools = decoded['tools']! as Map<String, Object?>;
+
+        expect(tools, contains('late'));
+      });
+    });
   });
+}
+
+/// Minimal fake bridge that tracks registered functions and categories.
+class _FakeBridge implements MontyBridge {
+  final Map<String, HostFunction> _functions = {};
+  final Map<String, Set<String>> _categoryIndex = {};
+
+  @override
+  BridgeLogger get logger => const NullBridgeLogger();
+
+  @override
+  List<HostFunctionSchema> get schemas =>
+      _functions.values.map((f) => f.schema).toList(growable: false);
+
+  @override
+  Map<String, List<HostFunctionSchema>> get schemasByCategory {
+    final result = <String, List<HostFunctionSchema>>{};
+    for (final entry in _categoryIndex.entries) {
+      final schemas = <HostFunctionSchema>[];
+      for (final name in entry.value) {
+        final fn = _functions[name];
+        if (fn != null) schemas.add(fn.schema);
+      }
+      if (schemas.isNotEmpty) result[entry.key] = schemas;
+    }
+    return result;
+  }
+
+  @override
+  void register(HostFunction function, {String? category}) {
+    final name = function.schema.name;
+    _functions[name] = function;
+    final cat = category ?? 'uncategorized';
+    (_categoryIndex[cat] ??= {}).add(name);
+  }
+
+  @override
+  void unregister(String name) {
+    _functions.remove(name);
+  }
+
+  @override
+  void use(BridgeMiddleware middleware) {}
+
+  @override
+  void registerOs(OsProvider provider) {}
+
+  @override
+  Stream<BridgeEvent> execute(String code) => const Stream.empty();
+
+  @override
+  Future<Object?> invokeHostFunction(
+    String name,
+    Map<String, Object?> args, {
+    CallRole role = const ToolCall(),
+  }) => throw UnimplementedError();
+
+  @override
+  void dispose() {}
 }

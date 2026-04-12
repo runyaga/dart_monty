@@ -5,6 +5,7 @@ import 'package:dart_monty/src/bridge/bridge/host_function.dart';
 import 'package:dart_monty/src/bridge/bridge/host_function_schema.dart';
 import 'package:dart_monty/src/bridge/bridge/host_param.dart';
 import 'package:dart_monty/src/bridge/bridge/host_param_type.dart';
+import 'package:dart_monty/src/bridge/bridge/monty_bridge.dart';
 
 /// Category name for introspection builtins.
 const introspectionCategory = 'introspection';
@@ -42,19 +43,18 @@ const helpSchema = HostFunctionSchema(
 
 /// Builds the introspection host function (`help`).
 ///
-/// Takes [schemasByCategory] from the registry so introspection can enumerate
-/// all registered functions without a circular dependency on the registry.
-List<HostFunction> buildIntrospectionFunctions(
-  Map<String, List<HostFunctionSchema>> schemasByCategory,
-) {
+/// Takes the [bridge] so introspection queries live state rather than a
+/// point-in-time snapshot. Functions registered after `attachTo` are visible.
+List<HostFunction> buildIntrospectionFunctions(MontyBridge bridge) {
   return [
     HostFunction(
       schema: helpSchema,
       handler: (args) async {
         final name = args['name'] as String?;
-        if (name == null) return _handleListAll(schemasByCategory);
+        final schemas = bridge.schemasByCategory;
+        if (name == null) return _handleListAll(schemas);
 
-        return _handleHelp(schemasByCategory, name);
+        return _handleHelp(schemas, name);
       },
       role: const InfraCall(),
     ),
@@ -82,25 +82,22 @@ Map<String, Object?> _serializeSchema(HostFunctionSchema schema) {
 
 /// Handler for `help()` with no arguments.
 ///
-/// Returns JSON with all categories including introspection's own entry.
-String _handleListAll(
-  Map<String, List<HostFunctionSchema>> schemasByCategory,
-) {
+/// Returns JSON with all categories. The introspection category is already
+/// present in [schemasByCategory] because `help` is registered with that
+/// category on the bridge.
+String _handleListAll(Map<String, List<HostFunctionSchema>> schemasByCategory) {
   final tools = <String, Object?>{};
 
   for (final entry in schemasByCategory.entries) {
     tools[entry.key] = [for (final s in entry.value) _serializeSchema(s)];
   }
 
-  // Include introspection's own schema.
-  tools[introspectionCategory] = [_serializeSchema(helpSchema)];
-
   return jsonEncode({'tools': tools});
 }
 
 /// Handler for `help(name)`.
 ///
-/// Looks up [name] across all categories and the introspection schema.
+/// Looks up [name] across all categories.
 /// Supports both fully-qualified names (`storage_get`) and bare names (`get`).
 /// When a bare name matches exactly one function, returns its detail.
 /// When multiple functions share the same bare name, returns a disambiguation
@@ -109,16 +106,13 @@ String _handleHelp(
   Map<String, List<HostFunctionSchema>> schemasByCategory,
   String name,
 ) {
-  // 1. Exact match on fully-qualified name (backwards compatible).
+  // 1. Exact match on fully-qualified name.
   for (final schemas in schemasByCategory.values) {
     for (final schema in schemas) {
       if (schema.name == name) {
         return jsonEncode(_serializeSchema(schema));
       }
     }
-  }
-  if (helpSchema.name == name) {
-    return jsonEncode(_serializeSchema(helpSchema));
   }
 
   // 2. Bare-name fuzzy match: strip namespace prefix and compare suffix.
