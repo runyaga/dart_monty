@@ -12,7 +12,7 @@
 > in sections 3-5 (kwargs, full tracebacks, exception types, call_id,
 > OS calls, async/futures) are now complete. The upstream API inventory
 > (section 1) and Rust type catalog remain useful references. Coverage
-> is now approximately 75% — see the table in README.md for current status.
+> is now approximately 75% — see the table in [README.md](../../README.md) for current status.
 
 ## 1. Upstream monty Surface Area
 

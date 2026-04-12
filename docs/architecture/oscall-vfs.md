@@ -8,7 +8,7 @@
 > calls by name -- LLMs know about these and generate code against them.
 > Both are registered on `MontyBridge`: `registerOs()` for the OS side,
 > `register()` / `PluginRegistry` for the tool side.
-> See [architecture.md](architecture.md) for the full tool-calling flow.
+> See [overview.md](overview.md) for the full tool-calling flow.
 
 When Python code uses `pathlib`, `os`, or `datetime`, the Rust interpreter
 yields an `OsCall` progress event instead of performing the operation
