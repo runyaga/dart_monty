@@ -86,13 +86,6 @@ jobs:
         working-directory: example/web
         run: dart compile js bin/repl_demo.dart -o web/repl_demo.dart.js
 
-      - name: Install Web Showcase dependencies
-        working-directory: example/web-showcase
-        run: dart pub get
-      - name: Compile showcase.dart
-        working-directory: example/web-showcase
-        run: dart compile js bin/showcase.dart -o web/showcase.dart.js
-
       # ── Build MkDocs ────────────────────────────────────────────────
       - uses: actions/setup-python@v5
         with:
