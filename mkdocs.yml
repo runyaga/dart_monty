@@ -9,6 +9,7 @@ theme:
     - navigation.sections
     - navigation.expand
     - content.code.copy
+use_directory_urls: false
 
 nav:
   - Overview: help.md
