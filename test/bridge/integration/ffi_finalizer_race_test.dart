@@ -61,8 +61,8 @@ void main() {
         final s = AgentSession()..register(_httpFn());
         final r = await s.execute('http_fn()');
         await s.dispose();
-        print('  result: ${r.value?.dartValue}');
-        expect(r.value?.dartValue, isA<String>());
+        print('  result: ${r.value.dartValue}');
+        expect(r.value.dartValue, isA<String>());
       },
       timeout: const Timeout(Duration(seconds: 30)),
     );
@@ -74,7 +74,7 @@ void main() {
           final s = AgentSession()..register(_httpFn());
           final r = await s.execute('http_fn()');
           await s.dispose();
-          expect(r.value?.dartValue, isA<String>());
+          expect(r.value.dartValue, isA<String>());
         }
         print('  10/10 sessions with HTTP passed');
       },
@@ -114,7 +114,7 @@ void main() {
         final r = await s.execute('http_fn()');
         await s.dispose();
         print('  survived 20 rapid dispose + 1 HTTP');
-        expect(r.value?.dartValue, isA<String>());
+        expect(r.value.dartValue, isA<String>());
       },
       timeout: const Timeout(Duration(seconds: 30)),
     );
@@ -125,7 +125,7 @@ void main() {
         final s = AgentSession(sandbox: true)..register(_httpFn());
         for (var i = 0; i < 10; i++) {
           final r = await s.execute('http_fn()');
-          expect(r.value?.dartValue, isA<String>());
+          expect(r.value.dartValue, isA<String>());
         }
         await s.dispose();
         print('  10/10 sandbox HTTP calls passed');

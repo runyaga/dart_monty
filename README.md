@@ -202,10 +202,10 @@ typed sealed subclasses. `MontyValue.fromDart(value)` converts Dart values
 
 ```dart
 final result = await monty.run('import datetime; datetime.date(2024, 1, 15)');
-final date = result.value!.dartValue; // DateTime(2024, 1, 15)
+final date = result.value.dartValue; // DateTime(2024, 1, 15)
 
 final td = await monty.run('import datetime; datetime.timedelta(days=5)');
-final dur = td.value!.dartValue; // Duration(days: 5)
+final dur = td.value.dartValue; // Duration(days: 5)
 ```
 
 ### Resource Limits

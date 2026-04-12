@@ -116,7 +116,9 @@ void main() {
     });
 
     test('resume() dequeues progress and records return value', () async {
-      const complete = MontyComplete(result: MontyResult(usage: usage));
+      const complete = MontyComplete(
+        result: MontyResult(value: MontyNull(), usage: usage),
+      );
       // start() transitions idle→active; resume() requires active.
       mock
         ..enqueueProgress(
@@ -133,7 +135,9 @@ void main() {
     });
 
     test('resumeWithError() dequeues progress and records error', () async {
-      const complete = MontyComplete(result: MontyResult(usage: usage));
+      const complete = MontyComplete(
+        result: MontyResult(value: MontyNull(), usage: usage),
+      );
       mock
         ..enqueueProgress(
           const MontyPending(functionName: 'f', arguments: []),
@@ -193,7 +197,9 @@ void main() {
     // -----------------------------------------------------------------------
 
     test('resolveFutures() records results and errors, dequeues', () async {
-      const complete = MontyComplete(result: MontyResult(usage: usage));
+      const complete = MontyComplete(
+        result: MontyResult(value: MontyNull(), usage: usage),
+      );
       mock
         ..enqueueProgress(
           const MontyPending(functionName: 'f', arguments: []),
@@ -220,7 +226,9 @@ void main() {
     test('enqueueProgress dequeues in FIFO order', () async {
       const first = MontyPending(functionName: 'a', arguments: []);
       const second = MontyPending(functionName: 'b', arguments: []);
-      const third = MontyComplete(result: MontyResult(usage: usage));
+      const third = MontyComplete(
+        result: MontyResult(value: MontyNull(), usage: usage),
+      );
 
       mock
         ..enqueueProgress(first)

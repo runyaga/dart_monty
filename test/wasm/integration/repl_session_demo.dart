@@ -138,7 +138,7 @@ Map<String, dynamic> _resultToJson(MontyResult result) {
   }
   return {
     'ok': true,
-    'value': result.value?.dartValue,
+    'value': result.value.dartValue,
     'print_output': result.printOutput,
   };
 }

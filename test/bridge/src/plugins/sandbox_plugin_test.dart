@@ -15,8 +15,11 @@ const _usage = MontyResourceUsage(
 
 /// Creates a [MockMontyPlatform] that runs code to completion immediately.
 MockMontyPlatform _completingMock() {
-  return MockMontyPlatform()
-    ..enqueueProgress(const MontyComplete(result: MontyResult(usage: _usage)));
+  return MockMontyPlatform()..enqueueProgress(
+    const MontyComplete(
+      result: MontyResult(value: MontyNull(), usage: _usage),
+    ),
+  );
 }
 
 /// Creates a [MockMontyPlatform] that completes with [value] and [printOutput].
@@ -27,7 +30,7 @@ MockMontyPlatform _completingMockWithResult({
   return MockMontyPlatform()..enqueueProgress(
     MontyComplete(
       result: MontyResult(
-        value: value,
+        value: value ?? const MontyNull(),
         usage: _usage,
         printOutput: printOutput,
       ),
@@ -40,6 +43,7 @@ MockMontyPlatform _failingMock(String message) {
   return MockMontyPlatform()..enqueueProgress(
     MontyComplete(
       result: MontyResult(
+        value: const MontyNull(),
         error: MontyException(message: message),
         usage: _usage,
       ),
@@ -58,6 +62,7 @@ MockMontyPlatform _failingMockStructured({
   return MockMontyPlatform()..enqueueProgress(
     MontyComplete(
       result: MontyResult(
+        value: const MontyNull(),
         error: MontyException(
           message: message,
           filename: filename,
@@ -359,7 +364,9 @@ void main() {
 
         // Unblock and clean up.
         startCompleter.complete(
-          const MontyComplete(result: MontyResult(usage: _usage)),
+          const MontyComplete(
+            result: MontyResult(value: MontyNull(), usage: _usage),
+          ),
         );
         await plugin.onDispose();
       });
@@ -442,7 +449,9 @@ void main() {
 
         // Unblock and clean up.
         startCompleter.complete(
-          const MontyComplete(result: MontyResult(usage: _usage)),
+          const MontyComplete(
+            result: MontyResult(value: MontyNull(), usage: _usage),
+          ),
         );
         await plugin.onDispose();
       });
@@ -651,7 +660,9 @@ void main() {
         );
 
         startCompleter.complete(
-          const MontyComplete(result: MontyResult(usage: _usage)),
+          const MontyComplete(
+            result: MontyResult(value: MontyNull(), usage: _usage),
+          ),
         );
         await plugin.onDispose();
       });
@@ -689,6 +700,7 @@ void main() {
           ..enqueueProgress(
             const MontyComplete(
               result: MontyResult(
+                value: MontyNull(),
                 error: MontyException(message: 'NameError: x'),
                 usage: _usage,
                 printOutput: 'debug line\n',
@@ -774,7 +786,11 @@ void main() {
 
         // Unblock all children and dispose.
         for (final c in completers) {
-          c.complete(const MontyComplete(result: MontyResult(usage: _usage)));
+          c.complete(
+            const MontyComplete(
+              result: MontyResult(value: MontyNull(), usage: _usage),
+            ),
+          );
         }
         await plugin.onDispose();
       });
@@ -839,7 +855,11 @@ void main() {
 
         // Unblock so _run() finishes.
         for (final c in completers) {
-          c.complete(const MontyComplete(result: MontyResult(usage: _usage)));
+          c.complete(
+            const MontyComplete(
+              result: MontyResult(value: MontyNull(), usage: _usage),
+            ),
+          );
         }
       });
 
@@ -1485,7 +1505,11 @@ void main() {
         expect(warnRecord.attributes['maxChildren'], 1);
 
         for (final c in completers) {
-          c.complete(const MontyComplete(result: MontyResult(usage: _usage)));
+          c.complete(
+            const MontyComplete(
+              result: MontyResult(value: MontyNull(), usage: _usage),
+            ),
+          );
         }
         await plugin.onDispose();
       });
@@ -1775,6 +1799,7 @@ class _DisposeBoomMock extends MontyPlatform {
     String? scriptName,
   }) async => const MontyComplete(
     result: MontyResult(
+      value: MontyNull(),
       usage: MontyResourceUsage(
         memoryBytesUsed: 1024,
         timeElapsedMs: 10,

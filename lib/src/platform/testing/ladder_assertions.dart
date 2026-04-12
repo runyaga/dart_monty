@@ -11,11 +11,11 @@ import 'package:test/test.dart';
 /// - `expectedContains` — asserts `actual.toString()` contains the string.
 /// - `expectedSorted` — sorts both sides before JSON comparison.
 /// - `expected` — exact JSON equality.
-void assertLadderResult(MontyValue? actual, Map<String, dynamic> fixture) {
+void assertLadderResult(MontyValue actual, Map<String, dynamic> fixture) {
   final expectedContains = fixture['expectedContains'] as String?;
   if (expectedContains != null) {
     expect(
-      actual?.toString(),
+      actual.toString(),
       contains(expectedContains),
       reason:
           'Fixture #${fixture['id']}: expected value to contain '
@@ -28,7 +28,7 @@ void assertLadderResult(MontyValue? actual, Map<String, dynamic> fixture) {
   var expected = fixture['expected'];
   final expectedSorted = fixture['expectedSorted'] as bool? ?? false;
 
-  var actualJson = actual?.toJson();
+  var actualJson = actual.toJson();
   if (expectedSorted) {
     actualJson = _sortValue(actualJson);
     expected = _sortValue(expected);

@@ -25,7 +25,7 @@ void main() {
         // First run: x = 42 — restore empty, persist {x: 42}
         _enqueueRunCycle(mock, stateToPersist: {'x': 42});
         final r1 = await session.run('x = 42');
-        expect(r1.value, isNull);
+        expect(r1.value, const MontyNull());
 
         // Verify restore got empty state on first call
         expect(mock.resumeReturnValues.first, isEmpty);
@@ -128,6 +128,7 @@ void main() {
           ..enqueueProgress(
             const MontyComplete(
               result: MontyResult(
+                value: MontyNull(),
                 usage: _usage,
                 error: MontyException(message: 'fetch not allowed'),
               ),
@@ -346,7 +347,9 @@ void main() {
             ),
           )
           ..enqueueProgress(
-            const MontyComplete(result: MontyResult(usage: _usage)),
+            const MontyComplete(
+              result: MontyResult(value: MontyNull(), usage: _usage),
+            ),
           );
 
         final p2 = await session.resumeWithError('network failure');
@@ -420,6 +423,7 @@ void main() {
           ..enqueueProgress(
             const MontyComplete(
               result: MontyResult(
+                value: MontyNull(),
                 usage: _usage,
                 error: MontyException(
                   message: 'ZeroDivisionError',
@@ -782,7 +786,9 @@ void main() {
             ),
           )
           ..enqueueProgress(
-            const MontyComplete(result: MontyResult(usage: _usage)),
+            const MontyComplete(
+              result: MontyResult(value: MontyNull(), usage: _usage),
+            ),
           );
 
         final result = await session.run('import os');
@@ -957,7 +963,9 @@ void main() {
             ),
           )
           ..enqueueProgress(
-            const MontyComplete(result: MontyResult(usage: _usage)),
+            const MontyComplete(
+              result: MontyResult(value: MontyNull(), usage: _usage),
+            ),
           );
 
         await session.run('pass');
@@ -1160,7 +1168,9 @@ void main() {
             ),
           )
           ..enqueueProgress(
-            const MontyComplete(result: MontyResult(usage: _usage)),
+            const MontyComplete(
+              result: MontyResult(value: MontyNull(), usage: _usage),
+            ),
           );
 
         await s.run('open("/sandbox/test.txt")');
@@ -1199,7 +1209,9 @@ void main() {
             ),
           )
           ..enqueueProgress(
-            const MontyComplete(result: MontyResult(usage: _usage)),
+            const MontyComplete(
+              result: MontyResult(value: MontyNull(), usage: _usage),
+            ),
           );
 
         await s.run('write("/sandbox/out.txt")');
@@ -1240,7 +1252,9 @@ void main() {
             ),
           )
           ..enqueueProgress(
-            const MontyComplete(result: MontyResult(usage: _usage)),
+            const MontyComplete(
+              result: MontyResult(value: MontyNull(), usage: _usage),
+            ),
           );
 
         await s.run('open("/sandbox/missing.txt")');
@@ -1331,7 +1345,10 @@ void _enqueueRunCycle(
     // 3. complete
     ..enqueueProgress(
       MontyComplete(
-        result: MontyResult(value: resultValue, usage: _usage),
+        result: MontyResult(
+          value: resultValue ?? const MontyNull(),
+          usage: _usage,
+        ),
       ),
     );
 }
