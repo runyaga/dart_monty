@@ -332,6 +332,90 @@ void main() {
         expect(order, ['first', 'second']);
       });
 
+      test('higher-priority plugin attaches before lower-priority', () async {
+        final order = <String>[];
+        final bridge = _MockBridge();
+
+        // Register low-priority first, high-priority second —
+        // attachment order must still be [high, low].
+        registry
+          ..register(
+            _LifecyclePlugin(
+              namespace: 'low',
+              functions: [_fn('low_a')],
+              onRegisterCallback: () => order.add('low'),
+              priority: 0,
+            ),
+          )
+          ..register(
+            _LifecyclePlugin(
+              namespace: 'high',
+              functions: [_fn('high_a')],
+              onRegisterCallback: () => order.add('high'),
+              priority: 10,
+            ),
+          );
+
+        await registry.attachTo(bridge);
+
+        expect(order, ['high', 'low']);
+      });
+
+      test(
+        'equal-priority plugins preserve registration order (stable sort)',
+        () async {
+          final order = <String>[];
+          final bridge = _MockBridge();
+
+          for (final ns in ['alpha', 'beta', 'gamma']) {
+            registry.register(
+              _LifecyclePlugin(
+                namespace: ns,
+                functions: [_fn('${ns}_a')],
+                onRegisterCallback: () => order.add(ns),
+                priority: 5,
+              ),
+            );
+          }
+
+          await registry.attachTo(bridge);
+
+          expect(order, ['alpha', 'beta', 'gamma']);
+        },
+      );
+
+      test(
+        'higher-priority plugin disposes last (reverse of attach order)',
+        () async {
+          final disposeOrder = <String>[];
+          final bridge = _MockBridge();
+
+          registry
+            ..register(
+              _LifecyclePlugin(
+                namespace: 'low',
+                functions: [_fn('low_b')],
+                onDisposeCallback: () => disposeOrder.add('low'),
+                priority: 0,
+              ),
+            )
+            ..register(
+              _LifecyclePlugin(
+                namespace: 'high',
+                functions: [_fn('high_b')],
+                onDisposeCallback: () => disposeOrder.add('high'),
+                priority: 10,
+              ),
+            );
+
+          await registry.attachTo(bridge);
+          await registry.disposeAll();
+
+          // Attach order: [high, low]; dispose order: reversed → [low, high].
+          expect(disposeOrder, ['low', 'high']);
+        },
+      );
+
       test('registers extraFunctions onto bridge', () async {
         final bridge = _MockBridge();
         registry.register(
@@ -649,7 +733,8 @@ class _LifecyclePlugin extends MontyPlugin {
     required this.functions,
     this.onRegisterCallback,
     this.onDisposeCallback,
-  });
+    int priority = 0,
+  }) : _priority = priority;
 
   @override
   final String namespace;
@@ -659,6 +744,11 @@ class _LifecyclePlugin extends MontyPlugin {
 
   @override
   final List<HostFunction> functions;
+
+  final int _priority;
+
+  @override
+  int get priority => _priority;
 
   final void Function()? onRegisterCallback;
   final void Function()? onDisposeCallback;

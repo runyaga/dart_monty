@@ -216,6 +216,18 @@ const _gatherSchema = HostFunctionSchema(
   ],
 );
 
+/// Accumulates terminal events from a child execution stream.
+///
+/// Passed to [SandboxPlugin._onChildDone] after the stream closes.
+class _ChildOutcome {
+  String? errorMessage;
+  MontyException? errorException;
+  Object? value;
+  String? printOutput;
+
+  bool get hasError => errorMessage != null;
+}
+
 /// Plugin that spawns Python scripts in separate Monty interpreter instances.
 ///
 /// Each child gets its own [MontyPlatform] (via [platformFactory]) and
@@ -590,80 +602,95 @@ class SandboxPlugin extends MontyPlugin {
     required int childId,
     required Stream<BridgeEvent> stream,
   }) {
-    String? errorMessage;
-    MontyException? errorException;
-    Object? childValue;
-    String? childPrintOutput;
-
+    final outcome = _ChildOutcome();
     return stream.listen(
       (event) {
         if (event is BridgeRunError) {
-          errorMessage = event.message;
-          errorException = event.exception;
-          childPrintOutput ??= event.printOutput;
+          outcome
+            ..errorMessage = event.message
+            ..errorException = event.exception
+            ..printOutput ??= event.printOutput;
         } else if (event is BridgeRunFinished) {
-          childValue = event.value;
-          childPrintOutput = event.printOutput;
+          outcome
+            ..value = event.value
+            ..printOutput = event.printOutput;
         }
       },
-      onDone: () {
-        unawaited(() async {
-          final child = _children[childId];
-          if (child == null) return;
-          child
-            ..isAlive = false
-            ..printOutput = childPrintOutput;
-
-          try {
-            if (registry != null) await registry.disposeAll();
-            bridge.dispose();
-            await platform.dispose();
-          } on Object catch (e, st) {
-            logger.warning(
-              'Child cleanup error (swallowed)',
-              error: e,
-              stackTrace: st,
-              attributes: {'childId': childId},
-            );
-          }
-
-          if (!completer.isCompleted) {
-            if (errorMessage != null) {
-              final truncated = errorMessage!.length > 200
-                  ? '${errorMessage!.substring(0, 200)}\u2026'
-                  : errorMessage!;
-              logger.debug(
-                'Child failed',
-                attributes: {'childId': childId, 'error': truncated},
-              );
-              completer.completeError(
-                ChildSandboxException(
-                  childId: childId,
-                  message: errorMessage!,
-                  exception: errorException,
-                ),
-                StackTrace.current,
-              );
-            } else {
-              logger.info('Child completed', attributes: {'childId': childId});
-              completer.complete(childValue);
-            }
-          }
-        }());
-      },
-      onError: (Object error, StackTrace stackTrace) {
-        final child = _children[childId];
-        if (child != null) child.isAlive = false;
-        logger.error(
-          'Child stream error',
-          error: error,
-          attributes: {'childId': childId},
-        );
-        if (!completer.isCompleted) {
-          completer.completeError(error, stackTrace);
-        }
-      },
+      onDone: () => unawaited(
+        _onChildDone(childId, bridge, platform, registry, completer, outcome),
+      ),
+      onError: (Object error, StackTrace stackTrace) =>
+          _onChildStreamError(childId, completer, error, stackTrace),
     );
+  }
+
+  Future<void> _onChildDone(
+    int childId,
+    DefaultMontyBridge bridge,
+    MontyPlatform platform,
+    PluginRegistry? registry,
+    Completer<Object?> completer,
+    _ChildOutcome outcome,
+  ) async {
+    final child = _children[childId];
+    if (child == null) return;
+    child
+      ..isAlive = false
+      ..printOutput = outcome.printOutput;
+
+    try {
+      if (registry != null) await registry.disposeAll();
+      bridge.dispose();
+      await platform.dispose();
+    } on Object catch (e, st) {
+      logger.warning(
+        'Child cleanup error (swallowed)',
+        error: e,
+        stackTrace: st,
+        attributes: {'childId': childId},
+      );
+    }
+
+    if (completer.isCompleted) return;
+
+    if (outcome.hasError) {
+      final msg = outcome.errorMessage!;
+      final truncated =
+          msg.length > 200 ? '${msg.substring(0, 200)}\u2026' : msg;
+      logger.warning(
+        'Child failed',
+        attributes: {'childId': childId, 'error': truncated},
+      );
+      completer.completeError(
+        ChildSandboxException(
+          childId: childId,
+          message: msg,
+          exception: outcome.errorException,
+        ),
+        StackTrace.current,
+      );
+    } else {
+      logger.info('Child completed', attributes: {'childId': childId});
+      completer.complete(outcome.value);
+    }
+  }
+
+  void _onChildStreamError(
+    int childId,
+    Completer<Object?> completer,
+    Object error,
+    StackTrace stackTrace,
+  ) {
+    final child = _children[childId];
+    if (child != null) child.isAlive = false;
+    logger.error(
+      'Child stream error',
+      error: error,
+      attributes: {'childId': childId},
+    );
+    if (!completer.isCompleted) {
+      completer.completeError(error, stackTrace);
+    }
   }
 
   /// Builds a child registry from parent plugins that opt into inheritance.

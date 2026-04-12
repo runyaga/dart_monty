@@ -83,9 +83,18 @@ class PluginRegistry {
     // Get registry's own logger from the bridge.
     _log = bridge.logger.child('registry');
 
+    // Sort by descending priority so higher-priority plugins attach first.
+    // Stable sort preserves insertion order for equal priorities.
+    final attachOrder = [..._plugins]
+      ..sort((a, b) => b.priority.compareTo(a.priority));
+
+    // Store sorted order — disposeAll reverses this list, so high-priority
+    // plugins dispose last (they were first to attach).
+    _attachOrder = attachOrder;
+
     final errors = <(String, Object)>[];
 
-    for (final plugin in _plugins) {
+    for (final plugin in attachOrder) {
       // Inject scoped logger BEFORE registration so plugins can log
       // during onRegister().
       plugin.logger = bridge.logger.child(plugin.namespace);
@@ -106,10 +115,7 @@ class PluginRegistry {
       );
     }
 
-    // Store registration order for reverse-order disposal.
-    _attachOrder = List.of(_plugins);
-
-    for (final plugin in _plugins) {
+    for (final plugin in attachOrder) {
       try {
         await plugin.onRegister(bridge);
       } on Object catch (e) {
