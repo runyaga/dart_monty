@@ -1,7 +1,7 @@
 # dart_monty
 
 <p align="center">
-  <img src="docs/assets/dart_monty.jpg" alt="dart_monty" width="280">
+  <img src="docs/dart_monty.jpg" alt="dart_monty" width="280">
 </p>
 
 [![CI](https://github.com/runyaga/dart_monty/actions/workflows/ci.yaml/badge.svg)](https://github.com/runyaga/dart_monty/actions/workflows/ci.yaml)
@@ -92,7 +92,7 @@ sandbox_await(handle=h)
 answer = msg_recv(name="result")  # {"answer": 42}
 ```
 
-See [docs/architecture/sandbox-architecture.md](docs/architecture/sandbox-architecture.md) for plugin inheritance, resource limits, and grandchild support.
+See [docs/sandbox-architecture.md](docs/sandbox-architecture.md) for plugin inheritance, resource limits, and grandchild support.
 
 ## OS / Filesystem
 
@@ -126,15 +126,15 @@ Conditional imports select FFI or WASM at compile time. Pure Dart — works in C
 
 ## Documentation
 
-- [Architecture](docs/architecture/overview.md) — Module structure, execution paths, bridge flow
-- [REPL Guide](docs/user/repl.md) — Stateful interactive execution
-- [Plugins](docs/user/plugins.md) — Template, MessageBus, Sandbox
-- [Sandbox Architecture](docs/architecture/sandbox-architecture.md) — Child spawning, grandchildren, limits
-- [Host Functions Guide](docs/user/host-functions-intro.md) — Writing custom plugins
-- [OsCall / VFS](docs/architecture/oscall-vfs.md) — Handler hierarchy, platform defaults
-- [Error Hierarchy](docs/architecture/error-hierarchy.md) — Sealed types, propagation
-- [Native Crate](docs/internal/native-crate.md) — Handle lifecycle, FFI boundary
-- [Internals](docs/internal/internals.md) — State machine, memory contracts, testing
+- [Architecture](docs/architecture.md) — Module structure, execution paths, bridge flow
+- [REPL Guide](docs/repl.md) — Stateful interactive execution
+- [Plugins](docs/plugins.md) — Template, MessageBus, Sandbox
+- [Sandbox Architecture](docs/sandbox-architecture.md) — Child spawning, grandchildren, limits
+- [Host Functions Guide](docs/guides/host-functions-intro.md) — Writing custom plugins
+- [OsCall / VFS](docs/oscall-vfs.md) — Handler hierarchy, platform defaults
+- [Error Hierarchy](docs/error-hierarchy.md) — Sealed types, propagation
+- [Native Crate](docs/native-crate.md) — Handle lifecycle, FFI boundary
+- [Internals](docs/internals.md) — State machine, memory contracts, testing
 
 ## Contributing
 
