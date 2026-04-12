@@ -1,0 +1,55 @@
+site_name: dart_monty
+site_description: Pure Dart bindings for Monty, a restricted sandboxed Python interpreter built in Rust.
+theme:
+  name: material
+  palette:
+    - scheme: slate
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/brightness-4
+        name: Switch to dark mode
+    - scheme: default
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/brightness-7
+        name: Switch to light mode
+  features:
+    - navigation.sections
+    - navigation.expand
+    - content.code.copy
+use_directory_urls: false
+
+extra_css:
+  - extra.css
+
+nav:
+  - Overview: help.md
+  - User Guide:
+      - Installation: user/install.md
+      - REPL: user/repl.md
+      - Plugins: user/plugins.md
+      - API Reference: user/api-reference.md
+      - Host Functions:
+          - Introduction: user/host-functions-intro.md
+          - Beginner: user/host-functions-beginner.md
+          - Intermediate: user/host-functions-intermediate.md
+          - Advanced: user/host-functions-advanced.md
+      - Bridge Middleware: user/bridge-middleware.md
+  - Architecture:
+      - Overview: architecture/overview.md
+      - Error Hierarchy: architecture/error-hierarchy.md
+      - Lifecycles: architecture/lifecycles.md
+      - OsCall / VFS: architecture/oscall-vfs.md
+      - Plugin System: architecture/plugin-system.md
+      - Sandbox Architecture: architecture/sandbox-architecture.md
+  - Live Demo:
+      - Introduction: index.html
+      - Stateful REPL: repl.html
+      - VFS / Filesystem: vfs.html
+      - Agent Interaction: agent.html
+      - Execution Visualizer: visualizer.html
+      - Python Ladder: ladder.html
+  - Contributing:
+      - Native Build: contributor/native-build.md
