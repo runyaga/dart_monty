@@ -1,7 +1,7 @@
 # Overview
 
 <p align="center">
-  <img src="/assets/dart_monty.jpg" alt="dart_monty" width="280">
+  <img src="assets/dart_monty.jpg" alt="dart_monty" width="280">
 </p>
 
 [Live Demo](https://runyaga.github.io/dart_monty/) | [GitHub](https://github.com/runyaga/dart_monty) | [Monty](https://github.com/pydantic/monty)
@@ -45,10 +45,10 @@ print(r.value); // 'Hello World!'
 
 ## Documentation
 
-- [**Installation**](user/install.html) — Add to your project
-- [**Architecture**](architecture/overview.html) — Module structure and internals
-- [**REPL Guide**](user/repl.html) — Stateful interactive execution
-- [**Plugins**](user/plugins.html) — Template, MessageBus, Sandbox
-- [**Host Functions**](user/host-functions-intro.html) — Custom bridge functions
-- [**Testing**](contributor/testing.html) — Run tests and quality gates
-- [**Contributor Setup**](contributor/setup.html) — Build and test the library
+- [**Installation**](user/install.md) — Add to your project
+- [**Architecture**](architecture/overview.md) — Module structure and internals
+- [**REPL Guide**](user/repl.md) — Stateful interactive execution
+- [**Plugins**](user/plugins.md) — Template, MessageBus, Sandbox
+- [**Host Functions**](user/host-functions-intro.md) — Custom bridge functions
+- [**Testing**](contributor/testing.md) — Run tests and quality gates
+- [**Contributor Setup**](contributor/setup.md) — Build and test the library

@@ -250,8 +250,7 @@ etc.) are not supported on WASM. The WASM Worker architecture needs
 multi-session support (isolated Workers per child) to enable sandboxes.
 
 **Workaround:** Use the JS-level `DartMontyBridge.run()` for one-shot
-sandbox execution (no plugin inheritance or grandchildren). See
-`repl_demo.html` for this approach.
+sandbox execution (no plugin inheritance or grandchildren). See `../repl.html` for this approach.
 
 **Planned fix:** Refactor `MontyWasm` to use `createSession()` for
 each child, giving each sandbox its own Worker. The bridge JS already

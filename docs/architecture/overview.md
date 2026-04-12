@@ -135,8 +135,8 @@ not from a single JSON blob.
   call flow diagram, exception contract.
 - [Error Hierarchy](error-hierarchy.md) — Sealed types, type relationships,
   source-to-type mapping, propagation through boundaries.
-- [Native Crate Architecture](native-crate.md) — Handle lifecycle, FFI boundary,
+- [Native Crate Architecture](../internal/native-crate.md) — Handle lifecycle, FFI boundary,
   tracker abstraction, PrintWriter drain.
-- [Internals](internals.md) — BaseMontyPlatform/MontyCoreBindings, capability
+- [Internals](../internal/internals.md) — BaseMontyPlatform/MontyCoreBindings, capability
   interfaces, MontySession, state machine contract, cross-language memory
   contracts, execution paths, cross-backend parity, testing strategy.

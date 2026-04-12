@@ -8,11 +8,11 @@ first principles through production patterns.
 
 | Level | Document | What you will learn |
 |-------|----------|---------------------|
-| Intro | [Host Functions Intro](guides/host-functions-intro.md) | What host functions are, why they exist, and a 3-line "hello world" |
-| Beginner | [Host Functions Beginner](guides/host-functions-beginner.md) | `HostFunctionSchema`, typed params, validation, error handling, `BridgeEvent` stream |
-| Intermediate | [Host Functions Intermediate](guides/host-functions-intermediate.md) | `MontyPlugin`, `PluginRegistry`, namespaces, lifecycle hooks, introspection, `EventLoopBridge` |
-| Advanced | [Host Functions Advanced](guides/host-functions-advanced.md) | `SandboxPlugin`, child spawning, depth/concurrency limits, production patterns |
-| Middleware | [Bridge Middleware](guides/bridge-middleware.md) | `BridgeMiddleware`, sealed `CallRole`, onion chain, grounding, rate limiting, why `CompositePlugin` was removed |
+| Intro | [Host Functions Intro](../user/host-functions-intro.md) | What host functions are, why they exist, and a 3-line "hello world" |
+| Beginner | [Host Functions Beginner](../user/host-functions-beginner.md) | `HostFunctionSchema`, typed params, validation, error handling, `BridgeEvent` stream |
+| Intermediate | [Host Functions Intermediate](../user/host-functions-intermediate.md) | `MontyPlugin`, `PluginRegistry`, namespaces, lifecycle hooks, introspection, `EventLoopBridge` |
+| Advanced | [Host Functions Advanced](../user/host-functions-advanced.md) | `SandboxPlugin`, child spawning, depth/concurrency limits, production patterns |
+| Middleware | [Bridge Middleware](../user/bridge-middleware.md) | `BridgeMiddleware`, sealed `CallRole`, onion chain, grounding, rate limiting, why `CompositePlugin` was removed |
 
 ## Architecture at a Glance
 
