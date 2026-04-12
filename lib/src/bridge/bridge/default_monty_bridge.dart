@@ -107,13 +107,14 @@ class DefaultMontyBridge implements MontyBridge {
   Map<String, List<HostFunctionSchema>> get schemasByCategory {
     final result = <String, List<HostFunctionSchema>>{};
     for (final entry in _categoryIndex.entries) {
-      final schemas = <HostFunctionSchema>[];
+      final categorySchemas = <HostFunctionSchema>[];
       for (final name in entry.value) {
         final fn = _functions[name];
-        if (fn != null) schemas.add(fn.schema);
+        if (fn != null) categorySchemas.add(fn.schema);
       }
-      if (schemas.isNotEmpty) result[entry.key] = schemas;
+      if (categorySchemas.isNotEmpty) result[entry.key] = categorySchemas;
     }
+
     return result;
   }
 
