@@ -15,8 +15,8 @@ enum EventLoopState {
   /// Python code is actively executing (not waiting for events).
   executing,
 
-  /// Python is paused at `wait_for_event()`.
-  waitingForEvent,
+  /// Python is paused at `recv()`.
+  waiting,
 
   /// Script completed (normally or with error).
   completed,
@@ -25,38 +25,81 @@ enum EventLoopState {
   disposed,
 }
 
-/// Callback invoked when Python calls `render_ui`.
-typedef RenderUiCallback = void Function(Map<String, dynamic> schema);
+/// Callback invoked when Python calls `emit`.
+typedef EmitCallback = void Function(Map<String, dynamic> schema);
 
-/// A [DefaultMontyBridge] subclass for bidirectional Python/Flutter state.
+/// A [DefaultMontyBridge] that turns a single [execute] call into a
+/// long-running cooperative exchange between Python and Dart.
 ///
-/// Registers two host functions:
-/// - `wait_for_event` -- pauses Python until [dispatchUiEvent] is called
-/// - `render_ui` -- stores a UI schema and invokes [onRenderUi]
+/// ## Pattern
 ///
-/// Python holds state in a `while True` loop, calling `wait_for_event()` to
-/// pause and `render_ui(schema)` to push UI updates. The host dispatches
-/// user interactions via [dispatchUiEvent].
+/// Normal [execute] is a one-shot call: Python runs to completion and
+/// returns one value. [EventLoopBridge] extends this into a multi-round
+/// protocol. Python becomes a coroutine — it runs, emits output, suspends,
+/// waits for input, and continues — all within one [execute] call. Dart is
+/// the scheduler that decides when to resume it.
+///
+/// Two host functions are registered that Python calls directly:
+///
+/// - `emit(value)` — Python pushes a value to Dart (non-blocking). Dart
+///   receives it via [onEmit] and as [BridgeEmitted] on [eventLoopEvents].
+///
+/// - `recv()` — Python blocks until Dart calls [dispatch]. The return value
+///   of `recv()` is whatever was passed to [dispatch]. If values were
+///   queued before Python reached `recv()`, the oldest queued value is
+///   returned immediately without suspending.
+///
+/// ## Lifecycle
+///
+/// ```text
+/// idle → executing → waiting → executing → … → completed
+///                       ↑              ↓
+///                  dispatch(v)    (Python resumes with v)
+/// ```
+///
+/// Only one `recv()` can be pending at a time. Values dispatched while
+/// Python is executing (not yet at `recv()`) are queued and delivered
+/// FIFO when Python next calls `recv()`.
+///
+/// ## Example
+///
+/// ```python
+/// # Python — runs inside execute()
+/// while True:
+///     event = recv()
+///     result = process(event)
+///     emit(result)
+/// ```
+///
+/// ```dart
+/// // Dart
+/// final bridge = EventLoopBridge(
+///   platform: platform,
+///   onEmit: (value) => handleOutput(value),
+/// );
+/// bridge.execute(script);
+/// bridge.dispatch({'action': 'increment'});
+/// ```
 class EventLoopBridge extends DefaultMontyBridge {
   /// Creates an [EventLoopBridge].
   ///
-  /// Pass [onRenderUi] to receive schema updates when Python calls
-  /// `render_ui`. Pass [platform] and [limits] as with [DefaultMontyBridge].
+  /// Pass [onEmit] to receive values when Python calls
+  /// `emit`. Pass [platform] and [limits] as with [DefaultMontyBridge].
   EventLoopBridge({
     required super.platform,
     super.limits,
     super.logger,
-    this.onRenderUi,
+    this.onEmit,
   }) : super(useFutures: true) {
     _registerEventLoopFunctions();
   }
 
-  /// Optional callback invoked when Python calls `render_ui`.
-  final RenderUiCallback? onRenderUi;
+  /// Optional callback invoked when Python calls `emit`.
+  final EmitCallback? onEmit;
 
   final _eventQueue = <Map<String, dynamic>>[];
   Completer<Map<String, dynamic>>? _pendingCompleter;
-  Map<String, dynamic>? _lastRenderedUi;
+  Map<String, dynamic>? _lastEmitted;
   EventLoopState _loopState = EventLoopState.idle;
 
   final _eventLoopController = StreamController<BridgeEvent>.broadcast();
@@ -64,25 +107,24 @@ class EventLoopBridge extends DefaultMontyBridge {
   /// Current state of the event loop.
   EventLoopState get loopState => _loopState;
 
-  /// The most recent schema passed to `render_ui`, or `null`.
-  Map<String, dynamic>? get lastRenderedUi => _lastRenderedUi;
+  /// The most recent value passed to `emit`, or `null`.
+  Map<String, dynamic>? get lastEmitted => _lastEmitted;
 
-  /// Whether Python is currently paused at `wait_for_event()`.
-  bool get isWaitingForEvent => _loopState == EventLoopState.waitingForEvent;
+  /// Whether Python is currently paused at `recv()`.
+  bool get isWaiting => _loopState == EventLoopState.waiting;
 
   /// Stream of event-loop lifecycle events.
   ///
   /// Emits [BridgeEventLoopWaiting], [BridgeEventLoopResumed], and
-  /// [BridgeUiRendered] as the event loop progresses.
+  /// `BridgeEmitted` as the event loop progresses.
   Stream<BridgeEvent> get eventLoopEvents => _eventLoopController.stream;
 
-  /// Dispatches a UI event to the Python event loop.
-  ///
-  /// If Python is waiting at `wait_for_event()`, the completer is resolved
-  /// immediately. Otherwise the event is queued for the next call.
+  /// Dispatches a value to the Python coroutine. If Python is paused at
+  /// `recv()`, it resumes immediately with [event]. Otherwise [event] is
+  /// queued for the next `recv()` call.
   ///
   /// Throws [StateError] if the bridge has been disposed.
-  void dispatchUiEvent(Map<String, dynamic> event) {
+  void dispatch(Map<String, dynamic> event) {
     if (_loopState == EventLoopState.disposed) {
       throw StateError('Cannot dispatch events on a disposed bridge');
     }
@@ -154,10 +196,11 @@ class EventLoopBridge extends DefaultMontyBridge {
     register(
       HostFunction(
         schema: const HostFunctionSchema(
-          name: 'wait_for_event',
-          description: 'Pauses the event loop until a UI event is dispatched.',
+          name: 'recv',
+          description:
+              'Pauses the coroutine until a value is dispatched from the host.',
         ),
-        handler: _handleWaitForEvent,
+        handler: _handleRecv,
       ),
       category: 'event_loop',
     );
@@ -165,23 +208,23 @@ class EventLoopBridge extends DefaultMontyBridge {
     register(
       HostFunction(
         schema: const HostFunctionSchema(
-          name: 'render_ui',
-          description: 'Renders a UI schema to the host.',
+          name: 'emit',
+          description: 'Emits a value to the host.',
           params: [
             HostParam(
-              name: 'schema',
+              name: 'value',
               type: HostParamType.map,
-              description: 'The UI schema to render.',
+              description: 'The value to emit to the host.',
             ),
           ],
         ),
-        handler: _handleRenderUi,
+        handler: _handleEmit,
       ),
       category: 'event_loop',
     );
   }
 
-  Future<Object?> _handleWaitForEvent(Map<String, Object?> args) async {
+  Future<Object?> _handleRecv(Map<String, Object?> args) async {
     // If events are already queued, return the first one immediately.
     if (_eventQueue.isNotEmpty) {
       final event = _eventQueue.removeAt(0);
@@ -193,7 +236,7 @@ class EventLoopBridge extends DefaultMontyBridge {
     }
 
     // No events queued — create a completer and wait.
-    _loopState = EventLoopState.waitingForEvent;
+    _loopState = EventLoopState.waiting;
     log.trace('Waiting for event');
     _eventLoopController.add(const BridgeEventLoopWaiting());
 
@@ -203,11 +246,11 @@ class EventLoopBridge extends DefaultMontyBridge {
     return completer.future;
   }
 
-  Future<Object?> _handleRenderUi(Map<String, Object?> args) {
-    final schema = args['schema']! as Map<String, dynamic>;
-    _lastRenderedUi = schema;
-    _eventLoopController.add(BridgeUiRendered(schema: schema));
-    onRenderUi?.call(schema);
+  Future<Object?> _handleEmit(Map<String, Object?> args) {
+    final value = args['value']! as Map<String, dynamic>;
+    _lastEmitted = value;
+    _eventLoopController.add(BridgeEmitted(value: value));
+    onEmit?.call(value);
 
     return Future.value();
   }

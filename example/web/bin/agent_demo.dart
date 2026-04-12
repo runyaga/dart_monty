@@ -349,9 +349,9 @@ Map<String, dynamic> _eventToMap(BridgeEvent event) {
       'type': 'EventLoopResumed',
       'event': event,
     },
-    BridgeUiRendered(:final schema) => {
-      'type': 'UiRendered',
-      'schema': schema,
+    BridgeEmitted(:final value) => {
+      'type': 'Emitted',
+      'value': value,
     },
   };
 }

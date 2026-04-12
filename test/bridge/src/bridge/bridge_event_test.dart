@@ -107,9 +107,9 @@ void main() {
       expect(event.event, {'type': 'click'});
     });
 
-    test('BridgeUiRendered stores schema map', () {
-      const event = BridgeUiRendered(schema: {'type': 'form'});
-      expect(event.schema, {'type': 'form'});
+    test('BridgeEmitted stores value', () {
+      const event = BridgeEmitted(value: {'type': 'form'});
+      expect(event.value, {'type': 'form'});
     });
 
     test('BridgeOsCallStart stores callId and operationName', () {
