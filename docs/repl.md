@@ -132,27 +132,30 @@ the plugin system — you never call `feedStart`/`resume` directly.
 
 ## help() Function
 
-`ReplSession` automatically injects a `help()` function that lists
-all registered host functions from plugin schemas.
+The bridge provides a built-in `help()` host function that queries
+live bridge state — functions registered after initialization are
+visible. Results are organized by plugin category.
 
 ```python
 >>> help()
-Host functions:
-  tmpl_render() - Render a Jinja2 template string with the given...
-  msg_send() - Send a message on a named channel...
-  sandbox_spawn() - Spawn a Python script in a new sandboxed int...
+# Returns JSON listing all functions by plugin category:
+# {"tools": {"tmpl": [{"name": "tmpl_render", ...}],
+#            "msg": [{"name": "msg_send", ...}, ...],
+#            "sandbox": [{"name": "sandbox_spawn", ...}, ...]}}
 
 >>> help('tmpl_render')
-tmpl_render():
+# Returns schema detail:
+# {"name": "tmpl_render",
+#  "description": "Render a Jinja2 template...",
+#  "params": [{"name": "template", "type": "string", ...}, ...]}
 
-  tmpl_render(template, context)
-
-  Render a Jinja2 template string with the given context dict.
-
-  Args:
-    template (string): Jinja2 template string.
-    context (map): Context dict for template variables.
+>>> help('render')
+# Bare name — auto-disambiguates if unique, lists candidates if not
 ```
+
+The introspection is **live** — functions registered after bridge
+initialization (e.g. `EventLoopBridge`'s `wait_for_event`) are
+visible in `help()` without restarting.
 
 ## Platform Support
 
