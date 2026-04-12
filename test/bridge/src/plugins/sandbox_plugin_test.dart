@@ -1383,7 +1383,7 @@ void main() {
         expect(completedRecord.attributes['childId'], 0);
       });
 
-      test('failure logs warning with childId and error', () async {
+      test('failure logs debug with childId and error', () async {
         final plugin = SandboxPlugin(
           platformFactory: () async => _failingMock('NameError: x'),
         )..logger = StructLogBridgeLogger(logger, LogManager.instance);
@@ -1400,7 +1400,7 @@ void main() {
         final failRecord = sink.records.firstWhere(
           (r) => r.message == 'Child failed',
         );
-        expect(failRecord.level, LogLevel.warning);
+        expect(failRecord.level, LogLevel.debug);
         expect(failRecord.attributes['childId'], 0);
         expect(failRecord.attributes['error'], contains('NameError'));
       });
