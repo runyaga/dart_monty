@@ -112,7 +112,7 @@ Filesystem modes: **In-memory VFS** (ephemeral), **Read-only mount**, **Overlay*
 
 ## Architecture
 
-```
+```text
 dart_monty (single package)
 ├── lib/src/platform/    Core types: MontyResult, MontyProgress, MontyValue
 ├── lib/src/ffi/         Native FFI backend (dart:ffi)
