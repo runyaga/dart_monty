@@ -144,7 +144,7 @@ gets its own `MontyPlatform` and `DefaultMontyBridge`. Children
 can inherit plugins from the parent and even spawn their own
 children (grandchildren).
 
-See [Sandbox and Isolation](../architecture/overview.md#sandbox-and-isolation) for the
+See [Sandbox Architecture](../architecture/sandbox-architecture.md) for the
 full deep dive.
 
 ### Sandbox Functions
@@ -242,6 +242,5 @@ await session.dispose();
 
 ## Writing Custom Plugins
 
-See the [host functions guide](host-functions.md) for
+See the [host functions guide](../tutorials/host-functions-intro.md) for
 how to create your own plugins with custom host functions.
- host functions.
