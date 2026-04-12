@@ -353,8 +353,13 @@
       <option value="fetch">HTTP Fetch</option>
       <option value="filesystem">Filesystem I/O</option>
       <option value="template">Jinja Templates</option>
-      <option value="sandbox">Child Sandboxes</option>
       <option value="msgbus">Message Bus</option>
+      <option value="sandbox">Child Sandboxes</option>
+      <option value="gather">Sandbox Gather</option>
+      <option value="output">Sandbox Print Capture</option>
+      <option value="lifecycle">Sandbox Lifecycle</option>
+      <option value="error">Sandbox Error Handling</option>
+      <option value="crossplug">Cross-Plugin (tmpl in child)</option>
       <option value="combined">Combined Demo</option>
     </select>
     <span id="status">Initializing WASM...</span>
@@ -648,10 +653,15 @@ x</textarea>
       kvstore: "# Key-value store — persistent memory\nkv_set('user', 'Alice')\nkv_set('score', 95)\nkv_set('tags', ['python', 'dart', 'monty'])\n\nall_keys = kv_list()\nuser = kv_get('user')\nscore = kv_get('score')\n\n{'keys': all_keys, 'user': user, 'score': score}",
       fetch: "# Simulated HTTP fetch\nusers = fetch_json('https://api.example.com/users')\nweather = fetch_json('https://api.example.com/weather')\n\ntop_user = users[0]['name']\n\n{'users': len(users), 'top': top_user, 'temp': weather['temp']}",
       filesystem: "from pathlib import Path\n\n# Write files to the virtual filesystem\nPath('/sandbox/notes.txt').write_text('Remember: variables persist!')\nPath('/sandbox/data').mkdir(parents=True, exist_ok=True)\nPath('/sandbox/data/scores.csv').write_text('name,score\\nalice,95\\nbob,87')\n\n# Read back\ncontent = Path('/sandbox/notes.txt').read_text()\ncsv_data = Path('/sandbox/data/scores.csv').read_text()\n\n{'notes': content, 'csv': csv_data}",
-      template: "# Jinja2 templates via DinjaTemplatePlugin\ngreeting = tmpl_render(template='Hello {{ name }} from {{ place }}!', context={'name': 'Alice', 'place': 'Monty Sandbox'})\nreport = tmpl_render(template='## {{ title }}\\nDate: {{ date }}\\n\\n{{ content }}', context={'title': 'Q3 Sales', 'date': '2026-04-11', 'content': 'Revenue up 15%'})\n\n{'greeting': greeting, 'report': report}",
-      sandbox: "# Spawn isolated child interpreters\n# Each child has its own state\nhandle1 = sandbox_spawn(code='x = 1 + 1\\nx')\nhandle2 = sandbox_spawn(code='y = 2 * 3\\ny')\nhandle3 = sandbox_spawn(code='import math\\nmath.factorial(5)')\n\nr1 = sandbox_await(handle=handle1)\nr2 = sandbox_await(handle=handle2)\nr3 = sandbox_await(handle=handle3)\n\n[r1, r2, r3]",
-      msgbus: "# Named message channels via MessageBusPlugin\nmsg_send(channel='alerts', message='System healthy')\nmsg_send(channel='alerts', message='Disk 80% full')\nmsg_send(channel='metrics', message=42)\n\nalert1 = msg_recv(channel='alerts')\nalert2 = msg_recv(channel='alerts')\nmetric = msg_recv(channel='metrics')\n\n{'alerts': [alert1, alert2], 'metric': metric}",
-      combined: "# Full demo: state + tools + filesystem\nfrom pathlib import Path\n\ntimestamp = get_time()\nPath('/sandbox/log.txt').write_text(f'Run at: {timestamp}')\n\ntry:\n    msg = f'x was {x}, greeting was {greeting}'\nexcept NameError:\n    msg = 'No prior state — run Stateful first'\n\ntotal = add_numbers(100, 200)\nkv_set('last_run', timestamp)\n\n{'message': msg, 'total': total, 'logged_at': timestamp}",
+      template: "# Jinja2 templates — variables, loops, conditionals\ngreeting = tmpl_render(\n    template='Hello {{ name }} from {{ place }}!',\n    context={'name': 'Alice', 'place': 'Monty Sandbox'}\n)\n\nitems = tmpl_render(\n    template='Items:\\n{% for item in items %}- {{ item }}\\n{% endfor %}',\n    context={'items': ['alpha', 'beta', 'gamma']}\n)\n\ngrade = tmpl_render(\n    template='{% if score > 90 %}A{% elif score > 80 %}B{% else %}C{% endif %}',\n    context={'score': 95}\n)\n\n{'greeting': greeting, 'items': items, 'grade': grade}",
+      msgbus: "# Named message channels — FIFO queues\nmsg_send(name='alerts', message='System healthy')\nmsg_send(name='alerts', message='Disk 80% full')\nmsg_send(name='metrics', message=42)\n\n# Receive in FIFO order\nalert1 = msg_recv(name='alerts')\nalert2 = msg_recv(name='alerts')\nmetric = msg_recv(name='metrics')\n\n# Peek (non-blocking, None if empty)\nnothing = msg_peek(name='alerts')\n\n# Channel stats\nmsg_send(name='log', message='entry1')\nmsg_send(name='log', message='entry2')\nstats = msg_stats(name='log')\n\n{'alerts': [alert1, alert2], 'metric': metric, 'peek_empty': nothing, 'log_stats': stats}",
+      sandbox: "# Spawn isolated child interpreters\nh1 = sandbox_spawn(code='x = 1 + 1\\nx')\nh2 = sandbox_spawn(code='y = 2 * 3\\ny')\nh3 = sandbox_spawn(code='import math\\nmath.factorial(5)')\n\nr1 = sandbox_await(handle=h1)\nr2 = sandbox_await(handle=h2)\nr3 = sandbox_await(handle=h3)\n\n[r1, r2, r3]",
+      gather: "# sandbox_gather — attributed results with output\nh1 = sandbox_spawn(code='42')\nh2 = sandbox_spawn(code='\"hello\"')\nh3 = sandbox_spawn(code='[1,2,3]')\n\n# Returns list of dicts with handle, value, output\nresults = sandbox_gather(handles=[h1, h2, h3])\nresults",
+      output: "# Capture print() output from children\nh = sandbox_spawn(code='print(\"line 1\")\\nprint(\"line 2\")\\n99')\n\nresult = sandbox_await(handle=h)\noutput = sandbox_get_output(handle=h)\n\n{'value': result, 'print_output': output}",
+      lifecycle: "# Full lifecycle: spawn, check, await, free\nh = sandbox_spawn(code='x = 42\\nx')\n\n# Check if still running\nalive_before = sandbox_is_alive(handle=h)\n\n# Await result\nresult = sandbox_await(handle=h)\nalive_after = sandbox_is_alive(handle=h)\n\n# Free the handle\nsandbox_free(handle=h)\n\n{'result': result, 'alive_after': alive_after}",
+      error: "# Child errors propagate cleanly\nh = sandbox_spawn(code='1 / 0')\ntry:\n    result = sandbox_await(handle=h)\nexcept Exception as e:\n    result = f'Caught: {e}'\n\nresult",
+      crossplug: "# Children inherit plugins — templates work in child sandboxes\nh = sandbox_spawn(\n    code='result = tmpl_render(template=\"Hello {{ who }}!\", context={\"who\": \"child\"})\\nresult'\n)\nchild_result = sandbox_await(handle=h)\n\n{'child_rendered': child_result}",
+      combined: "# Full demo: templates + msgbus + filesystem + tools\nfrom pathlib import Path\n\n# Render a template\ngreeting = tmpl_render(\n    template='{{ name }} scored {{ score }}',\n    context={'name': 'Alice', 'score': 95}\n)\n\n# Send to message bus, write to filesystem\nmsg_send(name='results', message=greeting)\nPath('/sandbox/report.txt').write_text(greeting)\n\n# Read back from both\nsaved = Path('/sandbox/report.txt').read_text()\nfrom_bus = msg_recv(name='results')\ntotal = add_numbers(100, 200)\ntimestamp = get_time()\n\n{'greeting': greeting, 'saved': saved, 'total': total, 'from_bus': from_bus}",
     };
 
     $('examples').onchange = function() {

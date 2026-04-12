@@ -187,16 +187,17 @@ Future<bool> _init() async {
       'datetime.': TimeOsProvider(),
     });
 
-    _session = AgentSession(
-      os: os,
-      plugins: [
-        DinjaTemplatePlugin(),
-        MessageBusPlugin(),
-        SandboxPlugin(
-          platformFactory: () async => Monty(os: os).platform,
-        ),
-      ],
+    final tmplPlugin = DinjaTemplatePlugin();
+    final msgPlugin = MessageBusPlugin();
+    final plugins = <MontyPlugin>[tmplPlugin, msgPlugin];
+    final sandboxPlugin = SandboxPlugin(
+      platformFactory: () async => Monty(os: os).platform,
+      parentPlugins: plugins,
+      parentOs: os,
     );
+    plugins.add(sandboxPlugin);
+
+    _session = AgentSession(os: os, plugins: plugins);
 
     _demoHostFunctions.forEach(_session!.register);
 
