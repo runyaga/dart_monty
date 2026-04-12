@@ -52,6 +52,15 @@ OsProvider (abstract)
 ### Examples
 
 ```dart
+// Basic filesystem operations
+final monty = Monty(os: OsProvider());
+final result = await monty.run('''
+from pathlib import Path
+Path("/tmp/hello.txt").write_text("hello")
+Path("/tmp/hello.txt").read_text()
+''');
+print(result.value); // hello
+
 // Default — platform-appropriate (native FS on desktop, memory on web)
 final monty = Monty(os: OsProvider());
 

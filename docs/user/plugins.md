@@ -3,6 +3,12 @@
 dart_monty ships three plugins that provide host functions to
 sandboxed Python code. All plugins work with `ReplSession`.
 
+| Plugin | Functions | Description |
+|--------|-----------|-------------|
+| **TemplatePlugin** | `tmpl_render` | Jinja2 template rendering |
+| **MessageBusPlugin** | `msg_send`, `msg_recv`, `msg_peek`, `msg_close`, `msg_stats` | In-memory named channels |
+| **SandboxPlugin** | `sandbox_spawn`, `sandbox_await`, `sandbox_gather`, `sandbox_free` | Isolated child interpreters |
+
 ## TemplatePlugin
 
 **Class:** `DinjaTemplatePlugin`
@@ -236,5 +242,5 @@ await session.dispose();
 
 ## Writing Custom Plugins
 
-See the [host functions guide](guides/host-functions-intro.md) for
+See the [host functions guide](host-functions-intro.md) for
 how to create your own plugins with custom host functions.

@@ -52,4 +52,6 @@ nav:
       - Execution Visualizer: visualizer.html
       - Python Ladder: ladder.html
   - Contributing:
+      - Development Setup: contributor/setup.md
+      - Testing: contributor/testing.md
       - Native Build: contributor/native-build.md
