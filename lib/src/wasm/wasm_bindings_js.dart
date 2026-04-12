@@ -16,21 +16,25 @@ extension type _SnapshotResult._(JSObject _) implements JSObject {
 }
 
 // ---------------------------------------------------------------------------
-// JS interop for window.DartMontyBridge (static method API)
+// JS interop for window.DartMontyBridge
 // ---------------------------------------------------------------------------
 //
 // The JS bridge exposes `window.DartMontyBridge` as a plain object with
-// static methods — NOT a constructor. Each method operates on an internal
-// Worker session pool managed by sessionId.
+// static methods. Each method accepts an optional sessionId as the last
+// parameter for multi-session routing.
 
 @JS('DartMontyBridge.init')
 external JSPromise<JSBoolean> _jsInit();
+
+@JS('DartMontyBridge.createSession')
+external JSPromise<JSNumber> _jsCreateSession();
 
 @JS('DartMontyBridge.run')
 external JSPromise<JSString> _jsRun(
   JSString code, [
   JSString? limitsJson,
   JSString? scriptName,
+  JSNumber? sessionId,
 ]);
 
 @JS('DartMontyBridge.start')
@@ -39,67 +43,98 @@ external JSPromise<JSString> _jsStart(
   JSString? extFnsJson,
   JSString? limitsJson,
   JSString? scriptName,
+  JSNumber? sessionId,
 ]);
 
 @JS('DartMontyBridge.resume')
-external JSPromise<JSString> _jsResume(JSString valueJson);
+external JSPromise<JSString> _jsResume(
+  JSString valueJson, [
+  JSNumber? sessionId,
+]);
 
 @JS('DartMontyBridge.resumeWithError')
-external JSPromise<JSString> _jsResumeWithError(JSString errorJson);
+external JSPromise<JSString> _jsResumeWithError(
+  JSString errorJson, [
+  JSNumber? sessionId,
+]);
 
 @JS('DartMontyBridge.resumeAsFuture')
-external JSPromise<JSString> _jsResumeAsFuture();
+external JSPromise<JSString> _jsResumeAsFuture([JSNumber? sessionId]);
 
 @JS('DartMontyBridge.resolveFutures')
 external JSPromise<JSString> _jsResolveFutures(
   JSString resultsJson,
-  JSString errorsJson,
-);
+  JSString errorsJson, [
+  JSNumber? sessionId,
+]);
 
 @JS('DartMontyBridge.snapshot')
-external JSPromise<JSAny> _jsSnapshot();
+external JSPromise<JSAny> _jsSnapshot([JSNumber? sessionId]);
 
 @JS('DartMontyBridge.restore')
-external JSPromise<JSString> _jsRestore(JSString dataBase64);
+external JSPromise<JSString> _jsRestore(
+  JSString dataBase64, [
+  JSNumber? sessionId,
+]);
 
 @JS('DartMontyBridge.discover')
 external JSString _jsDiscover();
 
 @JS('DartMontyBridge.dispose')
-external JSPromise<JSString> _jsDispose();
+external JSPromise<JSString> _jsDispose([JSNumber? sessionId]);
 
 @JS('DartMontyBridge.disposeSession')
 external void _jsDisposeSession(JSNumber sessionId);
 
 @JS('DartMontyBridge.replCreate')
-external JSPromise<JSString> _jsReplCreate([JSString? scriptName]);
+external JSPromise<JSString> _jsReplCreate([
+  JSString? scriptName,
+  JSNumber? sessionId,
+]);
 
 @JS('DartMontyBridge.replFree')
-external JSPromise<JSString> _jsReplFree();
+external JSPromise<JSString> _jsReplFree([JSNumber? sessionId]);
 
 @JS('DartMontyBridge.replFeedRun')
-external JSPromise<JSString> _jsReplFeedRun(JSString code);
+external JSPromise<JSString> _jsReplFeedRun(
+  JSString code, [
+  JSNumber? sessionId,
+]);
 
 @JS('DartMontyBridge.replDetectContinuation')
-external JSPromise<JSString> _jsReplDetectContinuation(JSString source);
+external JSPromise<JSString> _jsReplDetectContinuation(
+  JSString source, [
+  JSNumber? sessionId,
+]);
 
 @JS('DartMontyBridge.replSetExtFns')
-external JSPromise<JSString> _jsReplSetExtFns(JSString extFns);
+external JSPromise<JSString> _jsReplSetExtFns(
+  JSString extFns, [
+  JSNumber? sessionId,
+]);
 
 @JS('DartMontyBridge.replFeedStart')
-external JSPromise<JSString> _jsReplFeedStart(JSString code);
+external JSPromise<JSString> _jsReplFeedStart(
+  JSString code, [
+  JSNumber? sessionId,
+]);
 
 @JS('DartMontyBridge.replResume')
-external JSPromise<JSString> _jsReplResume(JSString valueJson);
+external JSPromise<JSString> _jsReplResume(
+  JSString valueJson, [
+  JSNumber? sessionId,
+]);
 
 @JS('DartMontyBridge.replResumeWithError')
-external JSPromise<JSString> _jsReplResumeWithError(JSString errorJson);
+external JSPromise<JSString> _jsReplResumeWithError(
+  JSString errorJson, [
+  JSNumber? sessionId,
+]);
 
 /// Concrete [WasmBindings] implementation using `dart:js_interop`.
 ///
 /// Calls static methods on `window.DartMontyBridge`, which manages a
-/// Worker session pool internally. The default session (created by `init()`)
-/// is used for all operations.
+/// Worker session pool internally. Each session gets its own Worker.
 class WasmBindingsJs extends WasmBindings {
   /// Creates a [WasmBindingsJs].
   WasmBindingsJs();
@@ -115,12 +150,10 @@ class WasmBindingsJs extends WasmBindings {
 
   @override
   Future<int> createSession() async {
-    // WasmCoreBindings calls createSession() during its init().
-    // Ensure the JS bridge default session exists first, then return
-    // a synthetic ID. All static method calls route to the default session.
     await _ensureInit();
+    final jsSessionId = await _jsCreateSession().toDart;
 
-    return 1;
+    return jsSessionId.toDartInt;
   }
 
   @override
@@ -133,11 +166,13 @@ class WasmBindingsJs extends WasmBindings {
     String code, {
     String? limitsJson,
     String? scriptName,
+    int? sessionId,
   }) async {
     final resultJson = await _jsRun(
       code.toJS,
       limitsJson?.toJS,
       scriptName?.toJS,
+      sessionId?.toJS,
     ).toDart;
     final map = json.decode(resultJson.toDart) as Map<String, dynamic>;
     final rawTraceback = map['traceback'] as List<Object?>?;
@@ -163,35 +198,46 @@ class WasmBindingsJs extends WasmBindings {
     String? extFnsJson,
     String? limitsJson,
     String? scriptName,
+    int? sessionId,
   }) async {
     final resultJson = await _jsStart(
       code.toJS,
       extFnsJson?.toJS,
       limitsJson?.toJS,
       scriptName?.toJS,
+      sessionId?.toJS,
     ).toDart;
 
     return _decodeProgress(resultJson.toDart);
   }
 
   @override
-  Future<WasmProgressResult> resume(String valueJson) async {
-    final resultJson = await _jsResume(valueJson.toJS).toDart;
+  Future<WasmProgressResult> resume(
+    String valueJson, {
+    int? sessionId,
+  }) async {
+    final resultJson = await _jsResume(valueJson.toJS, sessionId?.toJS).toDart;
 
     return _decodeProgress(resultJson.toDart);
   }
 
   @override
-  Future<WasmProgressResult> resumeWithError(String errorMessage) async {
+  Future<WasmProgressResult> resumeWithError(
+    String errorMessage, {
+    int? sessionId,
+  }) async {
     final errorJson = json.encode(errorMessage);
-    final resultJson = await _jsResumeWithError(errorJson.toJS).toDart;
+    final resultJson = await _jsResumeWithError(
+      errorJson.toJS,
+      sessionId?.toJS,
+    ).toDart;
 
     return _decodeProgress(resultJson.toDart);
   }
 
   @override
-  Future<WasmProgressResult> resumeAsFuture() async {
-    final resultJson = await _jsResumeAsFuture().toDart;
+  Future<WasmProgressResult> resumeAsFuture({int? sessionId}) async {
+    final resultJson = await _jsResumeAsFuture(sessionId?.toJS).toDart;
 
     return _decodeProgress(resultJson.toDart);
   }
@@ -199,19 +245,21 @@ class WasmBindingsJs extends WasmBindings {
   @override
   Future<WasmProgressResult> resolveFutures(
     String resultsJson,
-    String errorsJson,
-  ) async {
+    String errorsJson, {
+    int? sessionId,
+  }) async {
     final resultJson = await _jsResolveFutures(
       resultsJson.toJS,
       errorsJson.toJS,
+      sessionId?.toJS,
     ).toDart;
 
     return _decodeProgress(resultJson.toDart);
   }
 
   @override
-  Future<Uint8List> snapshot() async {
-    final jsAny = await _jsSnapshot().toDart;
+  Future<Uint8List> snapshot({int? sessionId}) async {
+    final jsAny = await _jsSnapshot(sessionId?.toJS).toDart;
     final result = jsAny as _SnapshotResult;
     if (!result.ok.toDart) {
       throw StateError(result.error?.toDart ?? 'Snapshot failed');
@@ -221,9 +269,12 @@ class WasmBindingsJs extends WasmBindings {
   }
 
   @override
-  Future<void> restore(Uint8List data) async {
+  Future<void> restore(Uint8List data, {int? sessionId}) async {
     final dataBase64 = base64Encode(data);
-    final resultJson = await _jsRestore(dataBase64.toJS).toDart;
+    final resultJson = await _jsRestore(
+      dataBase64.toJS,
+      sessionId?.toJS,
+    ).toDart;
     final map = json.decode(resultJson.toDart) as Map<String, dynamic>;
     if (map['ok'] != true) {
       throw StateError(map['error'] as String? ?? 'Restore failed');
@@ -242,8 +293,8 @@ class WasmBindingsJs extends WasmBindings {
   }
 
   @override
-  Future<void> dispose() async {
-    await _jsDispose().toDart;
+  Future<void> dispose({int? sessionId}) async {
+    await _jsDispose(sessionId?.toJS).toDart;
   }
 
   // ---------------------------------------------------------------------------
@@ -251,9 +302,12 @@ class WasmBindingsJs extends WasmBindings {
   // ---------------------------------------------------------------------------
 
   @override
-  Future<void> replCreate({String? scriptName}) async {
+  Future<void> replCreate({String? scriptName, int? sessionId}) async {
     await _ensureInit();
-    final resultJson = await _jsReplCreate(scriptName?.toJS).toDart;
+    final resultJson = await _jsReplCreate(
+      scriptName?.toJS,
+      sessionId?.toJS,
+    ).toDart;
     final map = json.decode(resultJson.toDart) as Map<String, dynamic>;
     if (map['ok'] != true) {
       throw StateError(
@@ -263,8 +317,8 @@ class WasmBindingsJs extends WasmBindings {
   }
 
   @override
-  Future<void> replFree() async {
-    final resultJson = await _jsReplFree().toDart;
+  Future<void> replFree({int? sessionId}) async {
+    final resultJson = await _jsReplFree(sessionId?.toJS).toDart;
     final map = json.decode(resultJson.toDart) as Map<String, dynamic>;
     if (map['ok'] != true) {
       throw StateError(
@@ -274,8 +328,8 @@ class WasmBindingsJs extends WasmBindings {
   }
 
   @override
-  Future<WasmRunResult> replFeedRun(String code) async {
-    final resultJson = await _jsReplFeedRun(code.toJS).toDart;
+  Future<WasmRunResult> replFeedRun(String code, {int? sessionId}) async {
+    final resultJson = await _jsReplFeedRun(code.toJS, sessionId?.toJS).toDart;
     final map = json.decode(resultJson.toDart) as Map<String, dynamic>;
     final rawTraceback = map['traceback'] as List<Object?>?;
 
@@ -295,8 +349,14 @@ class WasmBindingsJs extends WasmBindings {
   }
 
   @override
-  Future<int> replDetectContinuation(String source) async {
-    final resultJson = await _jsReplDetectContinuation(source.toJS).toDart;
+  Future<int> replDetectContinuation(
+    String source, {
+    int? sessionId,
+  }) async {
+    final resultJson = await _jsReplDetectContinuation(
+      source.toJS,
+      sessionId?.toJS,
+    ).toDart;
     final map = json.decode(resultJson.toDart) as Map<String, dynamic>;
     if (map['ok'] != true) {
       throw StateError(
@@ -312,8 +372,11 @@ class WasmBindingsJs extends WasmBindings {
   // ---------------------------------------------------------------------------
 
   @override
-  Future<void> replSetExtFns(String extFns) async {
-    final resultJson = await _jsReplSetExtFns(extFns.toJS).toDart;
+  Future<void> replSetExtFns(String extFns, {int? sessionId}) async {
+    final resultJson = await _jsReplSetExtFns(
+      extFns.toJS,
+      sessionId?.toJS,
+    ).toDart;
     final map = json.decode(resultJson.toDart) as Map<String, dynamic>;
     if (map['ok'] != true) {
       throw StateError(
@@ -323,22 +386,40 @@ class WasmBindingsJs extends WasmBindings {
   }
 
   @override
-  Future<WasmProgressResult> replFeedStart(String code) async {
-    final resultJson = await _jsReplFeedStart(code.toJS).toDart;
+  Future<WasmProgressResult> replFeedStart(
+    String code, {
+    int? sessionId,
+  }) async {
+    final resultJson = await _jsReplFeedStart(
+      code.toJS,
+      sessionId?.toJS,
+    ).toDart;
 
     return _decodeProgress(resultJson.toDart);
   }
 
   @override
-  Future<WasmProgressResult> replResume(String valueJson) async {
-    final resultJson = await _jsReplResume(valueJson.toJS).toDart;
+  Future<WasmProgressResult> replResume(
+    String valueJson, {
+    int? sessionId,
+  }) async {
+    final resultJson = await _jsReplResume(
+      valueJson.toJS,
+      sessionId?.toJS,
+    ).toDart;
 
     return _decodeProgress(resultJson.toDart);
   }
 
   @override
-  Future<WasmProgressResult> replResumeWithError(String errorJson) async {
-    final resultJson = await _jsReplResumeWithError(errorJson.toJS).toDart;
+  Future<WasmProgressResult> replResumeWithError(
+    String errorJson, {
+    int? sessionId,
+  }) async {
+    final resultJson = await _jsReplResumeWithError(
+      errorJson.toJS,
+      sessionId?.toJS,
+    ).toDart;
 
     return _decodeProgress(resultJson.toDart);
   }
@@ -350,8 +431,8 @@ class WasmBindingsJs extends WasmBindings {
   /// Ensures the default JS bridge session is initialized.
   ///
   /// The static `DartMontyBridge.init()` creates a default Worker session.
-  /// All subsequent static calls (`run`, `start`, etc.) route to this
-  /// default session automatically.
+  /// Subsequent `createSession()` calls create additional sessions with
+  /// their own Workers.
   Future<void> _ensureInit() async {
     if (_initialized) return;
     await _jsInit().toDart;

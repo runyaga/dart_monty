@@ -86,41 +86,57 @@ class MockWasmBindings extends WasmBindings {
   /// Number of times [init] was called.
   int initCalls = 0;
 
-  /// Records of `(code, limitsJson, scriptName)` passed to [run].
-  final List<({String code, String? limitsJson, String? scriptName})> runCalls =
-      [];
-
-  /// Records of `(code, extFnsJson, limitsJson, scriptName)` passed to
-  /// [start].
+  /// Records of arguments passed to [run].
   final List<
-    ({String code, String? extFnsJson, String? limitsJson, String? scriptName})
+    ({String code, String? limitsJson, String? scriptName, int? sessionId})
+  >
+  runCalls = [];
+
+  /// Records of arguments passed to [start].
+  final List<
+    ({
+      String code,
+      String? extFnsJson,
+      String? limitsJson,
+      String? scriptName,
+      int? sessionId,
+    })
   >
   startCalls = [];
 
-  /// Records of `valueJson` passed to [resume].
-  final List<String> resumeCalls = [];
+  /// Records of arguments passed to [resume].
+  final List<({String valueJson, int? sessionId})> resumeCalls = [];
 
-  /// Records of `errorMessage` passed to [resumeWithError].
-  final List<String> resumeWithErrorCalls = [];
+  /// Records of arguments passed to [resumeWithError].
+  final List<({String errorMessage, int? sessionId})> resumeWithErrorCalls = [];
+
+  /// Session IDs passed to [resumeAsFuture].
+  final List<int?> resumeAsFutureSessionIds = [];
+
+  /// Number of times [resumeAsFuture] was called.
+  int get resumeAsFutureCalls => resumeAsFutureSessionIds.length;
+
+  /// Records of arguments passed to [resolveFutures].
+  final List<({String resultsJson, String errorsJson, int? sessionId})>
+  resolveFuturesCalls = [];
+
+  /// Session IDs passed to [snapshot].
+  final List<int?> snapshotSessionIds = [];
 
   /// Number of times [snapshot] was called.
-  int snapshotCalls = 0;
+  int get snapshotCalls => snapshotSessionIds.length;
 
   /// Records of snapshot data passed to [restore].
-  final List<Uint8List> restoreCalls = [];
+  final List<({Uint8List data, int? sessionId})> restoreCalls = [];
 
   /// Number of times [discover] was called.
   int discoverCalls = 0;
 
-  /// Number of times [resumeAsFuture] was called.
-  int resumeAsFutureCalls = 0;
-
-  /// Records of `(resultsJson, errorsJson)` passed to [resolveFutures].
-  final List<({String resultsJson, String errorsJson})> resolveFuturesCalls =
-      [];
+  /// Session IDs passed to [dispose].
+  final List<int?> disposeSessionIds = [];
 
   /// Number of times [dispose] was called.
-  int disposeCalls = 0;
+  int get disposeCalls => disposeSessionIds.length;
 
   /// Next session ID returned by [createSession].
   int _nextSessionId = 1;
@@ -163,8 +179,14 @@ class MockWasmBindings extends WasmBindings {
     String code, {
     String? limitsJson,
     String? scriptName,
+    int? sessionId,
   }) async {
-    runCalls.add((code: code, limitsJson: limitsJson, scriptName: scriptName));
+    runCalls.add((
+      code: code,
+      limitsJson: limitsJson,
+      scriptName: scriptName,
+      sessionId: sessionId,
+    ));
     if (throwOnRun != null) throw StateError(throwOnRun!);
 
     return nextRunResult;
@@ -176,12 +198,14 @@ class MockWasmBindings extends WasmBindings {
     String? extFnsJson,
     String? limitsJson,
     String? scriptName,
+    int? sessionId,
   }) async {
     startCalls.add((
       code: code,
       extFnsJson: extFnsJson,
       limitsJson: limitsJson,
       scriptName: scriptName,
+      sessionId: sessionId,
     ));
     if (throwOnStart != null) throw StateError(throwOnStart!);
 
@@ -189,8 +213,11 @@ class MockWasmBindings extends WasmBindings {
   }
 
   @override
-  Future<WasmProgressResult> resume(String valueJson) async {
-    resumeCalls.add(valueJson);
+  Future<WasmProgressResult> resume(
+    String valueJson, {
+    int? sessionId,
+  }) async {
+    resumeCalls.add((valueJson: valueJson, sessionId: sessionId));
     if (throwOnResume != null) throw StateError(throwOnResume!);
     if (resumeResults.isNotEmpty) return resumeResults.removeAt(0);
 
@@ -198,8 +225,14 @@ class MockWasmBindings extends WasmBindings {
   }
 
   @override
-  Future<WasmProgressResult> resumeWithError(String errorMessage) async {
-    resumeWithErrorCalls.add(errorMessage);
+  Future<WasmProgressResult> resumeWithError(
+    String errorMessage, {
+    int? sessionId,
+  }) async {
+    resumeWithErrorCalls.add((
+      errorMessage: errorMessage,
+      sessionId: sessionId,
+    ));
     if (throwOnResumeWithError != null) {
       throw StateError(throwOnResumeWithError!);
     }
@@ -211,29 +244,36 @@ class MockWasmBindings extends WasmBindings {
   }
 
   @override
-  Future<WasmProgressResult> resumeAsFuture() async {
-    resumeAsFutureCalls++;
+  Future<WasmProgressResult> resumeAsFuture({int? sessionId}) async {
+    resumeAsFutureSessionIds.add(sessionId);
     if (throwOnResumeAsFuture != null) {
       throw StateError(throwOnResumeAsFuture!);
     }
+
     return nextResumeAsFutureResult;
   }
 
   @override
   Future<WasmProgressResult> resolveFutures(
     String resultsJson,
-    String errorsJson,
-  ) async {
-    resolveFuturesCalls.add((resultsJson: resultsJson, errorsJson: errorsJson));
+    String errorsJson, {
+    int? sessionId,
+  }) async {
+    resolveFuturesCalls.add((
+      resultsJson: resultsJson,
+      errorsJson: errorsJson,
+      sessionId: sessionId,
+    ));
     if (throwOnResolveFutures != null) {
       throw StateError(throwOnResolveFutures!);
     }
+
     return nextResolveFuturesResult;
   }
 
   @override
-  Future<Uint8List> snapshot() async {
-    snapshotCalls++;
+  Future<Uint8List> snapshot({int? sessionId}) async {
+    snapshotSessionIds.add(sessionId);
     final snapshotError = nextSnapshotError;
     if (snapshotError != null) {
       throw StateError(snapshotError);
@@ -243,8 +283,8 @@ class MockWasmBindings extends WasmBindings {
   }
 
   @override
-  Future<void> restore(Uint8List data) async {
-    restoreCalls.add(data);
+  Future<void> restore(Uint8List data, {int? sessionId}) async {
+    restoreCalls.add((data: data, sessionId: sessionId));
     final restoreError = nextRestoreError;
     if (restoreError != null) {
       throw MontyException(message: restoreError);
@@ -259,8 +299,8 @@ class MockWasmBindings extends WasmBindings {
   }
 
   @override
-  Future<void> dispose() async {
-    disposeCalls++;
+  Future<void> dispose({int? sessionId}) async {
+    disposeSessionIds.add(sessionId);
     final disposeError = nextDisposeError;
     if (disposeError != null) {
       throw StateError(disposeError);
@@ -280,24 +320,24 @@ class MockWasmBindings extends WasmBindings {
   final List<String> replDetectContinuationCalls = [];
 
   @override
-  Future<void> replCreate({String? scriptName}) async {
+  Future<void> replCreate({String? scriptName, int? sessionId}) async {
     replCreateCalls++;
   }
 
   @override
-  Future<void> replFree() async {
+  Future<void> replFree({int? sessionId}) async {
     replFreeCalls++;
   }
 
   @override
-  Future<WasmRunResult> replFeedRun(String code) async {
+  Future<WasmRunResult> replFeedRun(String code, {int? sessionId}) async {
     replFeedRunCalls.add(code);
 
     return nextReplFeedRunResult;
   }
 
   @override
-  Future<int> replDetectContinuation(String source) async {
+  Future<int> replDetectContinuation(String source, {int? sessionId}) async {
     replDetectContinuationCalls.add(source);
 
     return nextReplDetectContinuation;
@@ -306,7 +346,7 @@ class MockWasmBindings extends WasmBindings {
   String? lastReplExtFns;
 
   @override
-  Future<void> replSetExtFns(String extFns) async {
+  Future<void> replSetExtFns(String extFns, {int? sessionId}) async {
     lastReplExtFns = extFns;
   }
 
@@ -316,17 +356,26 @@ class MockWasmBindings extends WasmBindings {
   );
 
   @override
-  Future<WasmProgressResult> replFeedStart(String code) async {
+  Future<WasmProgressResult> replFeedStart(
+    String code, {
+    int? sessionId,
+  }) async {
     return nextReplFeedStartResult;
   }
 
   @override
-  Future<WasmProgressResult> replResume(String valueJson) async {
+  Future<WasmProgressResult> replResume(
+    String valueJson, {
+    int? sessionId,
+  }) async {
     return const WasmProgressResult(ok: true, state: 'complete');
   }
 
   @override
-  Future<WasmProgressResult> replResumeWithError(String errorJson) async {
+  Future<WasmProgressResult> replResumeWithError(
+    String errorJson, {
+    int? sessionId,
+  }) async {
     return const WasmProgressResult(ok: true, state: 'complete');
   }
 }

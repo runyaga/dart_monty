@@ -49,6 +49,7 @@ class WasmCoreBindings implements MontyCoreBindings {
       code,
       limitsJson: limitsJson,
       scriptName: scriptName,
+      sessionId: _sessionId,
     );
     sw.stop();
 
@@ -68,6 +69,7 @@ class WasmCoreBindings implements MontyCoreBindings {
       extFnsJson: extFnsJson,
       limitsJson: limitsJson,
       scriptName: scriptName,
+      sessionId: _sessionId,
     );
     sw.stop();
 
@@ -77,7 +79,7 @@ class WasmCoreBindings implements MontyCoreBindings {
   @override
   Future<CoreProgressResult> resume(String valueJson) async {
     final sw = Stopwatch()..start();
-    final progress = await _bindings.resume(valueJson);
+    final progress = await _bindings.resume(valueJson, sessionId: _sessionId);
     sw.stop();
 
     return _translateProgressResult(progress, sw.elapsedMilliseconds);
@@ -86,7 +88,10 @@ class WasmCoreBindings implements MontyCoreBindings {
   @override
   Future<CoreProgressResult> resumeWithError(String errorMessage) async {
     final sw = Stopwatch()..start();
-    final progress = await _bindings.resumeWithError(errorMessage);
+    final progress = await _bindings.resumeWithError(
+      errorMessage,
+      sessionId: _sessionId,
+    );
     sw.stop();
 
     return _translateProgressResult(progress, sw.elapsedMilliseconds);
@@ -95,7 +100,7 @@ class WasmCoreBindings implements MontyCoreBindings {
   @override
   Future<CoreProgressResult> resumeAsFuture() async {
     final sw = Stopwatch()..start();
-    final progress = await _bindings.resumeAsFuture();
+    final progress = await _bindings.resumeAsFuture(sessionId: _sessionId);
     sw.stop();
 
     return _translateProgressResult(progress, sw.elapsedMilliseconds);
@@ -107,7 +112,11 @@ class WasmCoreBindings implements MontyCoreBindings {
     String errorsJson,
   ) async {
     final sw = Stopwatch()..start();
-    final progress = await _bindings.resolveFutures(resultsJson, errorsJson);
+    final progress = await _bindings.resolveFutures(
+      resultsJson,
+      errorsJson,
+      sessionId: _sessionId,
+    );
     sw.stop();
 
     return _translateProgressResult(progress, sw.elapsedMilliseconds);
@@ -115,7 +124,7 @@ class WasmCoreBindings implements MontyCoreBindings {
 
   @override
   Future<Uint8List> snapshot() {
-    return _bindings.snapshot();
+    return _bindings.snapshot(sessionId: _sessionId);
   }
 
   @override
@@ -123,7 +132,7 @@ class WasmCoreBindings implements MontyCoreBindings {
     // Ensure a session exists before restoring — _sessionId would be null
     // if restore is called on a fresh WasmCoreBindings instance.
     await init();
-    await _bindings.restore(data);
+    await _bindings.restore(data, sessionId: _sessionId);
   }
 
   @override

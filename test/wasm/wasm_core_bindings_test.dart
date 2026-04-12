@@ -333,7 +333,7 @@ void main() {
 
       expect(result.state, 'complete');
       expect(result.value, 'done');
-      expect(mock.resumeCalls, ['"hello"']);
+      expect(mock.resumeCalls.first.valueJson, '"hello"');
     });
 
     test('error translates to error state', () async {
@@ -360,7 +360,7 @@ void main() {
       final result = await bindings.resumeWithError('network failure');
 
       expect(result.state, 'complete');
-      expect(mock.resumeWithErrorCalls, ['network failure']);
+      expect(mock.resumeWithErrorCalls.first.errorMessage, 'network failure');
     });
   });
 
@@ -423,7 +423,7 @@ void main() {
       await bindings.restoreSnapshot(data);
 
       expect(mock.restoreCalls, hasLength(1));
-      expect(mock.restoreCalls.first, data);
+      expect(mock.restoreCalls.first.data, data);
     });
   });
 

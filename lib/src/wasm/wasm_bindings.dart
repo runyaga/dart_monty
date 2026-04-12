@@ -181,10 +181,14 @@ abstract class WasmBindings {
   /// If [limitsJson] is non-null, it is a JSON-encoded map of limits.
   /// If [scriptName] is non-null, it overrides the default filename in
   /// tracebacks and error messages.
+  ///
+  /// When [sessionId] is non-null, routes to that specific session instead of
+  /// the default.
   Future<WasmRunResult> run(
     String code, {
     String? limitsJson,
     String? scriptName,
+    int? sessionId,
   });
 
   /// Starts iterative execution of [code].
@@ -192,75 +196,131 @@ abstract class WasmBindings {
   /// If [extFnsJson] is non-null, it is a JSON array of external function
   /// names. If [limitsJson] is non-null, it is a JSON-encoded map of limits.
   /// If [scriptName] is non-null, it overrides the default filename.
+  ///
+  /// When [sessionId] is non-null, routes to that specific session instead of
+  /// the default.
   Future<WasmProgressResult> start(
     String code, {
     String? extFnsJson,
     String? limitsJson,
     String? scriptName,
+    int? sessionId,
   });
 
   /// Resumes a paused execution with a JSON-encoded return [valueJson].
-  Future<WasmProgressResult> resume(String valueJson);
+  ///
+  /// When [sessionId] is non-null, routes to that specific session instead of
+  /// the default.
+  Future<WasmProgressResult> resume(String valueJson, {int? sessionId});
 
   /// Resumes a paused execution with an [errorMessage].
-  Future<WasmProgressResult> resumeWithError(String errorMessage);
+  ///
+  /// When [sessionId] is non-null, routes to that specific session instead of
+  /// the default.
+  Future<WasmProgressResult> resumeWithError(
+    String errorMessage, {
+    int? sessionId,
+  });
 
   /// Resumes by creating a future for the pending call.
   ///
   /// Returns a progress result which may be `pending` (next call),
   /// `resolve_futures` (all futures registered), or `complete`.
-  Future<WasmProgressResult> resumeAsFuture();
+  ///
+  /// When [sessionId] is non-null, routes to that specific session instead of
+  /// the default.
+  Future<WasmProgressResult> resumeAsFuture({int? sessionId});
 
   /// Resolves pending futures with [resultsJson] and [errorsJson].
   ///
   /// [resultsJson] is a JSON object `{"callId": value, ...}`.
   /// [errorsJson] is a JSON object `{"callId": "errorMsg", ...}`.
+  ///
+  /// When [sessionId] is non-null, routes to that specific session instead of
+  /// the default.
   Future<WasmProgressResult> resolveFutures(
     String resultsJson,
-    String errorsJson,
-  );
+    String errorsJson, {
+    int? sessionId,
+  });
 
   /// Captures the current interpreter state as a binary snapshot.
-  Future<Uint8List> snapshot();
+  ///
+  /// When [sessionId] is non-null, routes to that specific session instead of
+  /// the default.
+  Future<Uint8List> snapshot({int? sessionId});
 
   /// Restores interpreter state from snapshot [data].
-  Future<void> restore(Uint8List data);
+  ///
+  /// When [sessionId] is non-null, routes to that specific session instead of
+  /// the default.
+  Future<void> restore(Uint8List data, {int? sessionId});
 
   /// Discovers the bridge API surface.
   Future<WasmDiscoverResult> discover();
 
   /// Disposes the current Worker session.
-  Future<void> dispose();
+  ///
+  /// When [sessionId] is non-null, routes to that specific session instead of
+  /// the default.
+  Future<void> dispose({int? sessionId});
 
   // ---------------------------------------------------------------------------
   // REPL
   // ---------------------------------------------------------------------------
 
   /// Creates a persistent REPL session in the Worker.
-  Future<void> replCreate({String? scriptName});
+  ///
+  /// When [sessionId] is non-null, routes to that specific session instead of
+  /// the default.
+  Future<void> replCreate({String? scriptName, int? sessionId});
 
   /// Frees the REPL session in the Worker.
-  Future<void> replFree();
+  ///
+  /// When [sessionId] is non-null, routes to that specific session instead of
+  /// the default.
+  Future<void> replFree({int? sessionId});
 
   /// Feeds a Python snippet to the REPL and runs to completion.
   ///
-  /// The REPL session survives — state persists for subsequent calls.
-  Future<WasmRunResult> replFeedRun(String code);
+  /// The REPL session survives -- state persists for subsequent calls.
+  ///
+  /// When [sessionId] is non-null, routes to that specific session instead of
+  /// the default.
+  Future<WasmRunResult> replFeedRun(String code, {int? sessionId});
 
   /// Detects whether a source fragment is complete or needs more input.
   ///
   /// Returns `0` = complete, `1` = incomplete, `2` = incomplete block.
-  Future<int> replDetectContinuation(String source);
+  ///
+  /// When [sessionId] is non-null, routes to that specific session instead of
+  /// the default.
+  Future<int> replDetectContinuation(String source, {int? sessionId});
 
   /// Registers external function names for REPL name resolution.
-  Future<void> replSetExtFns(String extFns);
+  ///
+  /// When [sessionId] is non-null, routes to that specific session instead of
+  /// the default.
+  Future<void> replSetExtFns(String extFns, {int? sessionId});
 
   /// Starts iterative REPL execution. Pauses at external function calls.
-  Future<WasmProgressResult> replFeedStart(String code);
+  ///
+  /// When [sessionId] is non-null, routes to that specific session instead of
+  /// the default.
+  Future<WasmProgressResult> replFeedStart(String code, {int? sessionId});
 
   /// Resumes REPL execution with a JSON-encoded return value.
-  Future<WasmProgressResult> replResume(String valueJson);
+  ///
+  /// When [sessionId] is non-null, routes to that specific session instead of
+  /// the default.
+  Future<WasmProgressResult> replResume(String valueJson, {int? sessionId});
 
   /// Resumes REPL execution with an error.
-  Future<WasmProgressResult> replResumeWithError(String errorJson);
+  ///
+  /// When [sessionId] is non-null, routes to that specific session instead of
+  /// the default.
+  Future<WasmProgressResult> replResumeWithError(
+    String errorJson, {
+    int? sessionId,
+  });
 }

@@ -171,9 +171,8 @@ class AgentSession {
         'Use execute() instead.',
       );
     }
-    final wrappedCode = _wrapWithState(code);
 
-    return _sharedBridge!.execute(wrappedCode);
+    return _executeStreamShared(code);
   }
 
   /// Clears all persisted Python state.
@@ -189,6 +188,12 @@ class AgentSession {
     _sharedBridge?.dispose();
     _schemaBridge?.dispose();
     await _sharedMonty?.dispose();
+  }
+
+  Stream<BridgeEvent> _executeStreamShared(String code) async* {
+    await _ensureSharedAttached();
+    final wrappedCode = _wrapWithState(code);
+    yield* _sharedBridge!.execute(wrappedCode);
   }
 
   // ---------------------------------------------------------------------------
