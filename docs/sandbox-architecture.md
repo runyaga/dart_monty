@@ -7,6 +7,18 @@ Each child gets its own `MontyPlatform`, `DefaultMontyBridge`, and
 optional plugin registry. The parent Python script controls children
 via host functions.
 
+**Cross-platform:** Works on both native (FFI) and web (WASM). On
+native, each child gets a fresh `MontyFfi` instance. On WASM, each
+child gets its own Web Worker with independent memory.
+
+| | Native (FFI) | Web (WASM) |
+|---|---|---|
+| Child interpreter | Fresh `MontyFfi` (same isolate) | Fresh Worker session |
+| Memory isolation | Separate Rust interpreter state | Separate Worker memory |
+| Parallelism | Sequential (same event loop) | Concurrent (independent Workers) |
+| Plugin inheritance | Shared objects (same heap) | Shared objects (same main thread) |
+| MessageBus | Shared instance (direct) | Shared instance (direct) |
+
 ## Host Functions
 
 - `sandbox_spawn(code, timeout_ms?, memory_bytes?)` --

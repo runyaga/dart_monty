@@ -75,6 +75,25 @@ No Flutter required. It just works.
 | **MessageBusPlugin** | `msg_send`, `msg_recv`, `msg_peek`, `msg_close`, `msg_stats` | In-memory named channels |
 | **SandboxPlugin** | `sandbox_spawn`, `sandbox_await`, `sandbox_gather`, `sandbox_free` | Isolated child interpreters |
 
+**SandboxPlugin works on both native (FFI) and web (WASM).** On native, each child gets a fresh interpreter. On WASM, each child gets its own Web Worker — true isolation with independent memory.
+
+```python
+# Spawn parallel workers
+h1 = sandbox_spawn(code="2 ** 16")
+h2 = sandbox_spawn(code="3 ** 10")
+results = sandbox_gather(handles=[h1, h2])
+# [{'handle': 0, 'value': 65536}, {'handle': 1, 'value': 59049}]
+
+# Children inherit plugins — message bus for parent↔child communication
+h = sandbox_spawn(code="""
+msg_send(name="result", message={"answer": 42})
+""")
+sandbox_await(handle=h)
+answer = msg_recv(name="result")  # {"answer": 42}
+```
+
+See [docs/sandbox-architecture.md](docs/sandbox-architecture.md) for plugin inheritance, resource limits, and grandchild support.
+
 ## OS / Filesystem
 
 Configurable providers for filesystem, time, and environment access:

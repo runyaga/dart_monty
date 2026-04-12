@@ -1,3 +1,23 @@
+## Unreleased
+
+### Features
+
+- **SandboxPlugin works on WASM** — child interpreters spawn in independent
+  Web Workers via real session ID routing (#291)
+- **No default execution timeout** — removed hardcoded 30s wall-clock
+  timeout from native FFI (#278)
+- **Bridge state machine fix** — `resume()` failures no longer cause
+  `StateError` (#275)
+- **Multi-line expression capture** — dict/list/tuple literals as return
+  values now work correctly (#272)
+
+### Known Limitations
+
+- Children cannot spawn grandchildren by default — use
+  `childPluginRegistryFactory` for grandchild support
+- Children have no filesystem by default — pass `parentOs` to
+  `SandboxPlugin`
+
 ## 0.21.0
 
 ### Breaking Changes
