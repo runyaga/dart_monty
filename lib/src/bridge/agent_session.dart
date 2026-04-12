@@ -175,12 +175,6 @@ class AgentSession {
     return _executeStreamShared(code);
   }
 
-  Stream<BridgeEvent> _executeStreamShared(String code) async* {
-    await _ensureSharedAttached();
-    final wrappedCode = _wrapWithState(code);
-    yield* _sharedBridge!.execute(wrappedCode);
-  }
-
   /// Clears all persisted Python state.
   void clearState() {
     _checkNotDisposed();
@@ -194,6 +188,12 @@ class AgentSession {
     _sharedBridge?.dispose();
     _schemaBridge?.dispose();
     await _sharedMonty?.dispose();
+  }
+
+  Stream<BridgeEvent> _executeStreamShared(String code) async* {
+    await _ensureSharedAttached();
+    final wrappedCode = _wrapWithState(code);
+    yield* _sharedBridge!.execute(wrappedCode);
   }
 
   // ---------------------------------------------------------------------------

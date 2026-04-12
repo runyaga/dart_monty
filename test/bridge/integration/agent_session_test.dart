@@ -379,10 +379,12 @@ result
       // Call executeStream as the FIRST operation — no prior execute().
       // Before the fix, this would fail with "Unknown function: tmpl_render"
       // because executeStream() skipped _ensureSharedAttached().
-      final events = await session.executeStream(
-        'tmpl_render(template="Hello {{ name }}!", '
-        'context={"name": "test"})',
-      ).toList();
+      final events = await session
+          .executeStream(
+            'tmpl_render(template="Hello {{ name }}!", '
+            'context={"name": "test"})',
+          )
+          .toList();
 
       final finished = events.whereType<BridgeRunFinished>().single;
       expect(finished.value, 'Hello test!');
