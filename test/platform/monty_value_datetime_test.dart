@@ -56,10 +56,10 @@ void main() {
       );
     });
 
-    test('toString is non-empty', () {
+    test('toString', () {
       expect(
         const MontyDate(year: 2024, month: 1, day: 1).toString(),
-        isNotEmpty,
+        'MontyDate(2024-01-01)',
       );
     });
 
@@ -201,7 +201,7 @@ void main() {
       expect(a.hashCode, b.hashCode);
     });
 
-    test('toString is non-empty', () {
+    test('toString', () {
       const v = MontyDateTime(
         year: 2024,
         month: 1,
@@ -210,7 +210,7 @@ void main() {
         minute: 0,
         second: 0,
       );
-      expect(v.toString(), isNotEmpty);
+      expect(v.toString(), 'MontyDateTime(2024-01-01T00:00:00)');
     });
 
     test('dartValue returns DateTime', () {
@@ -341,8 +341,11 @@ void main() {
       );
     });
 
-    test('toString is non-empty', () {
-      expect(const MontyTimeDelta(days: 0, seconds: 0).toString(), isNotEmpty);
+    test('toString', () {
+      expect(
+        const MontyTimeDelta(days: 0, seconds: 0).toString(),
+        'MontyTimeDelta(days=0, seconds=0)',
+      );
     });
 
     test('dartValue returns Duration', () {
@@ -413,8 +416,11 @@ void main() {
       );
     });
 
-    test('toString is non-empty', () {
-      expect(const MontyTimeZone(offsetSeconds: 0).toString(), isNotEmpty);
+    test('toString', () {
+      expect(
+        const MontyTimeZone(offsetSeconds: 0).toString(),
+        'MontyTimeZone(offset=0, name=null)',
+      );
     });
 
     test('dartValue returns Map', () {

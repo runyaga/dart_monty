@@ -27,8 +27,8 @@ void main() {
       expect(const MontyNull().hashCode, const MontyNull().hashCode);
     });
 
-    test('toString is non-empty', () {
-      expect(const MontyNull().toString(), isNotEmpty);
+    test('toString', () {
+      expect(const MontyNull().toString(), 'MontyNull()');
     });
 
     test('dartValue returns null', () {
@@ -73,8 +73,8 @@ void main() {
       expect(const MontyBool(true).hashCode, const MontyBool(true).hashCode);
     });
 
-    test('toString is non-empty', () {
-      expect(const MontyBool(true).toString(), isNotEmpty);
+    test('toString', () {
+      expect(const MontyBool(true).toString(), 'MontyBool(true)');
     });
 
     test('dartValue returns bool', () {
@@ -114,8 +114,8 @@ void main() {
       expect(const MontyInt(7).hashCode, const MontyInt(7).hashCode);
     });
 
-    test('toString is non-empty', () {
-      expect(const MontyInt(7).toString(), isNotEmpty);
+    test('toString', () {
+      expect(const MontyInt(7).toString(), 'MontyInt(7)');
     });
 
     test('dartValue returns int', () {
@@ -167,8 +167,8 @@ void main() {
       expect(const MontyFloat(1.5).hashCode, const MontyFloat(1.5).hashCode);
     });
 
-    test('toString is non-empty', () {
-      expect(const MontyFloat(1.5).toString(), isNotEmpty);
+    test('toString', () {
+      expect(const MontyFloat(1.5).toString(), 'MontyFloat(1.5)');
     });
 
     test('dartValue returns double', () {
@@ -283,8 +283,8 @@ void main() {
       expect(const MontyString('a').hashCode, const MontyString('a').hashCode);
     });
 
-    test('toString is non-empty', () {
-      expect(const MontyString('hello').toString(), isNotEmpty);
+    test('toString', () {
+      expect(const MontyString('hello').toString(), 'MontyString(hello)');
     });
 
     test('dartValue returns String', () {
