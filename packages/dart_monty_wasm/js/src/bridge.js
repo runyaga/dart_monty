@@ -4,7 +4,8 @@
  * Exposes window.DartMontyBridge with methods Dart calls via dart:js_interop.
  * Each session gets its own Worker hosting a Monty WASM runtime.
  *
- * Architecture: Multi-session Worker pool (Phase 2a).
+ * Architecture: Multi-session Worker pool.
+ * All methods accept an optional sessionId as the last parameter.
  * Backward-compatible: init/run/start/resume/etc. without sessionId use
  * a default session, so existing Dart code works without changes.
  */
@@ -231,8 +232,8 @@ async function init() {
  * @param {string} scriptName Script name for tracebacks (optional).
  * @returns {Promise<string>} JSON result.
  */
-async function run(code, limitsJson, scriptName) {
-  const sid = resolveSessionId(null);
+async function run(code, limitsJson, scriptName, sessionId) {
+  const sid = resolveSessionId(sessionId ?? null);
   if (sid == null || !sessions.has(sid)) return notInitializedError();
 
   const session = sessions.get(sid);
@@ -255,8 +256,8 @@ async function run(code, limitsJson, scriptName) {
  * @param {string} scriptName Script name for tracebacks (optional).
  * @returns {Promise<string>} JSON result.
  */
-async function start(code, extFnsJson, limitsJson, scriptName) {
-  const sid = resolveSessionId(null);
+async function start(code, extFnsJson, limitsJson, scriptName, sessionId) {
+  const sid = resolveSessionId(sessionId ?? null);
   if (sid == null || !sessions.has(sid)) return notInitializedError();
 
   const session = sessions.get(sid);
@@ -277,8 +278,8 @@ async function start(code, extFnsJson, limitsJson, scriptName) {
  * @param {string} valueJson JSON-encoded value to return to Python.
  * @returns {Promise<string>} JSON result.
  */
-async function resume(valueJson) {
-  const sid = resolveSessionId(null);
+async function resume(valueJson, sessionId) {
+  const sid = resolveSessionId(sessionId ?? null);
   if (sid == null || !sessions.has(sid)) return notInitializedError();
 
   const session = sessions.get(sid);
@@ -293,8 +294,8 @@ async function resume(valueJson) {
  * @param {string} errorJson JSON-encoded error message string.
  * @returns {Promise<string>} JSON result.
  */
-async function resumeWithError(errorJson) {
-  const sid = resolveSessionId(null);
+async function resumeWithError(errorJson, sessionId) {
+  const sid = resolveSessionId(sessionId ?? null);
   if (sid == null || !sessions.has(sid)) return notInitializedError();
 
   const session = sessions.get(sid);
@@ -308,8 +309,8 @@ async function resumeWithError(errorJson) {
  *
  * @returns {Promise<string>} JSON result with state: pending, resolve_futures, or complete.
  */
-async function resumeAsFuture() {
-  const sid = resolveSessionId(null);
+async function resumeAsFuture(sessionId) {
+  const sid = resolveSessionId(sessionId ?? null);
   if (sid == null || !sessions.has(sid)) return notInitializedError();
 
   const session = sessions.get(sid);
@@ -324,8 +325,8 @@ async function resumeAsFuture() {
  * @param {string} errorsJson  JSON object {"callId": "errorMsg", ...}.
  * @returns {Promise<string>} JSON result.
  */
-async function resolveFutures(resultsJson, errorsJson) {
-  const sid = resolveSessionId(null);
+async function resolveFutures(resultsJson, errorsJson, sessionId) {
+  const sid = resolveSessionId(sessionId ?? null);
   if (sid == null || !sessions.has(sid)) return notInitializedError();
 
   const session = sessions.get(sid);
@@ -340,8 +341,8 @@ async function resolveFutures(resultsJson, errorsJson) {
  *
  * @returns {Promise<string>} JSON result with base64-encoded data.
  */
-async function snapshot() {
-  const sid = resolveSessionId(null);
+async function snapshot(sessionId) {
+  const sid = resolveSessionId(sessionId ?? null);
   if (sid == null || !sessions.has(sid)) {
     // Return a raw JS object (not JSON string) — Dart casts to _SnapshotResult.
     return { ok: false, error: 'Not initialized' };
@@ -359,8 +360,8 @@ async function snapshot() {
  * @param {string} dataBase64 Base64-encoded snapshot data.
  * @returns {Promise<string>} JSON result.
  */
-async function restore(dataBase64) {
-  const sid = resolveSessionId(null);
+async function restore(dataBase64, sessionId) {
+  const sid = resolveSessionId(sessionId ?? null);
   if (sid == null || !sessions.has(sid)) return notInitializedError();
 
   const session = sessions.get(sid);
@@ -386,8 +387,8 @@ function discover() {
  *
  * @returns {Promise<string>} JSON result.
  */
-async function dispose() {
-  const sid = resolveSessionId(null);
+async function dispose(sessionId) {
+  const sid = resolveSessionId(sessionId ?? null);
   if (sid == null || !sessions.has(sid)) {
     return JSON.stringify({ ok: true });
   }
@@ -411,8 +412,8 @@ async function dispose() {
  * @param {string} scriptName Script name for tracebacks (optional).
  * @returns {Promise<string>} JSON result.
  */
-async function replCreate(scriptName) {
-  const sid = resolveSessionId(null);
+async function replCreate(scriptName, sessionId) {
+  const sid = resolveSessionId(sessionId ?? null);
   if (sid == null || !sessions.has(sid)) return notInitializedError();
 
   const session = sessions.get(sid);
@@ -427,8 +428,8 @@ async function replCreate(scriptName) {
  *
  * @returns {Promise<string>} JSON result.
  */
-async function replFree() {
-  const sid = resolveSessionId(null);
+async function replFree(sessionId) {
+  const sid = resolveSessionId(sessionId ?? null);
   if (sid == null || !sessions.has(sid)) return notInitializedError();
 
   const session = sessions.get(sid);
@@ -442,8 +443,8 @@ async function replFree() {
  * @param {string} code Python source code.
  * @returns {Promise<string>} JSON result.
  */
-async function replFeedRun(code) {
-  const sid = resolveSessionId(null);
+async function replFeedRun(code, sessionId) {
+  const sid = resolveSessionId(sessionId ?? null);
   if (sid == null || !sessions.has(sid)) return notInitializedError();
 
   const session = sessions.get(sid);
@@ -457,8 +458,8 @@ async function replFeedRun(code) {
  * @param {string} source Python source fragment.
  * @returns {Promise<string>} JSON result with value: 0, 1, or 2.
  */
-async function replDetectContinuation(source) {
-  const sid = resolveSessionId(null);
+async function replDetectContinuation(source, sessionId) {
+  const sid = resolveSessionId(sessionId ?? null);
   if (sid == null || !sessions.has(sid)) return notInitializedError();
 
   const session = sessions.get(sid);
@@ -469,8 +470,8 @@ async function replDetectContinuation(source) {
 /**
  * Register external function names for REPL name resolution.
  */
-async function replSetExtFns(extFns) {
-  const sid = resolveSessionId(null);
+async function replSetExtFns(extFns, sessionId) {
+  const sid = resolveSessionId(sessionId ?? null);
   if (sid == null || !sessions.has(sid)) return notInitializedError();
 
   const result = await callWorker(sid, { type: 'repl_set_ext_fns', extFns }, null);
@@ -480,8 +481,8 @@ async function replSetExtFns(extFns) {
 /**
  * Start iterative REPL execution. Pauses at external function calls.
  */
-async function replFeedStart(code) {
-  const sid = resolveSessionId(null);
+async function replFeedStart(code, sessionId) {
+  const sid = resolveSessionId(sessionId ?? null);
   if (sid == null || !sessions.has(sid)) return notInitializedError();
 
   const session = sessions.get(sid);
@@ -492,8 +493,8 @@ async function replFeedStart(code) {
 /**
  * Resume REPL execution with a return value.
  */
-async function replResume(valueJson) {
-  const sid = resolveSessionId(null);
+async function replResume(valueJson, sessionId) {
+  const sid = resolveSessionId(sessionId ?? null);
   if (sid == null || !sessions.has(sid)) return notInitializedError();
 
   const session = sessions.get(sid);
@@ -505,8 +506,8 @@ async function replResume(valueJson) {
 /**
  * Resume REPL execution with an error.
  */
-async function replResumeWithError(errorJson) {
-  const sid = resolveSessionId(null);
+async function replResumeWithError(errorJson, sessionId) {
+  const sid = resolveSessionId(sessionId ?? null);
   if (sid == null || !sessions.has(sid)) return notInitializedError();
 
   const session = sessions.get(sid);
@@ -518,8 +519,8 @@ async function replResumeWithError(errorJson) {
 /**
  * Resume REPL by creating a future for the pending call.
  */
-async function replResumeAsFuture() {
-  const sid = resolveSessionId(null);
+async function replResumeAsFuture(sessionId) {
+  const sid = resolveSessionId(sessionId ?? null);
   if (sid == null || !sessions.has(sid)) return notInitializedError();
 
   const session = sessions.get(sid);
@@ -530,8 +531,8 @@ async function replResumeAsFuture() {
 /**
  * Resolve pending REPL futures with results and errors.
  */
-async function replResolveFutures(resultsJson, errorsJson) {
-  const sid = resolveSessionId(null);
+async function replResolveFutures(resultsJson, errorsJson, sessionId) {
+  const sid = resolveSessionId(sessionId ?? null);
   if (sid == null || !sessions.has(sid)) return notInitializedError();
 
   const session = sessions.get(sid);

@@ -365,7 +365,7 @@ void main() {
 
       expect(progress, isA<MontyComplete>());
       expect(mock.resumeCalls, hasLength(1));
-      expect(mock.resumeCalls.first, '"response"');
+      expect(mock.resumeCalls.first.valueJson, '"response"');
     });
 
     test('returns MontyPending for another external call', () async {
@@ -422,7 +422,7 @@ void main() {
         'key': [1, 2, 3],
       });
 
-      expect(mock.resumeCalls.first, '{"key":[1,2,3]}');
+      expect(mock.resumeCalls.first.valueJson, '{"key":[1,2,3]}');
     });
   });
 
@@ -449,7 +449,7 @@ void main() {
 
       expect(progress, isA<MontyComplete>());
       expect(mock.resumeWithErrorCalls, hasLength(1));
-      expect(mock.resumeWithErrorCalls.first, 'network failure');
+      expect(mock.resumeWithErrorCalls.first.errorMessage, 'network failure');
     });
 
     test('returns MontyPending for continuation', () async {
@@ -525,7 +525,7 @@ void main() {
 
       expect(restored, isA<MontyWasm>());
       expect(mock.restoreCalls, hasLength(1));
-      expect(mock.restoreCalls.first, data);
+      expect(mock.restoreCalls.first.data, data);
     });
 
     test('restored instance is in active state', () async {

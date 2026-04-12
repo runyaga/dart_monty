@@ -30,6 +30,7 @@ class WasmBindingsJs extends WasmBindings {
     String code, {
     String? limitsJson,
     String? scriptName,
+    int? sessionId,
   }) => throw UnimplementedError();
 
   @override
@@ -38,62 +39,77 @@ class WasmBindingsJs extends WasmBindings {
     String? extFnsJson,
     String? limitsJson,
     String? scriptName,
+    int? sessionId,
   }) => throw UnimplementedError();
 
   @override
-  Future<WasmProgressResult> resume(String valueJson) =>
-      throw UnimplementedError();
+  Future<WasmProgressResult> resume(
+    String valueJson, {
+    int? sessionId,
+  }) => throw UnimplementedError();
 
   @override
-  Future<WasmProgressResult> resumeWithError(String errorMessage) =>
-      throw UnimplementedError();
+  Future<WasmProgressResult> resumeWithError(
+    String errorMessage, {
+    int? sessionId,
+  }) => throw UnimplementedError();
 
   @override
-  Future<WasmProgressResult> resumeAsFuture() => throw UnimplementedError();
+  Future<WasmProgressResult> resumeAsFuture({int? sessionId}) =>
+      throw UnimplementedError();
 
   @override
   Future<WasmProgressResult> resolveFutures(
     String resultsJson,
-    String errorsJson,
-  ) => throw UnimplementedError();
+    String errorsJson, {
+    int? sessionId,
+  }) => throw UnimplementedError();
 
   @override
-  Future<Uint8List> snapshot() => throw UnimplementedError();
+  Future<Uint8List> snapshot({int? sessionId}) => throw UnimplementedError();
 
   @override
-  Future<void> restore(Uint8List data) => throw UnimplementedError();
+  Future<void> restore(Uint8List data, {int? sessionId}) =>
+      throw UnimplementedError();
 
   @override
   Future<WasmDiscoverResult> discover() => throw UnimplementedError();
 
   @override
-  Future<void> dispose() => throw UnimplementedError();
+  Future<void> dispose({int? sessionId}) => throw UnimplementedError();
 
   @override
-  Future<void> replCreate({String? scriptName}) => throw UnimplementedError();
-
-  @override
-  Future<void> replFree() => throw UnimplementedError();
-
-  @override
-  Future<WasmRunResult> replFeedRun(String code) => throw UnimplementedError();
-
-  @override
-  Future<int> replDetectContinuation(String source) =>
+  Future<void> replCreate({String? scriptName, int? sessionId}) =>
       throw UnimplementedError();
 
   @override
-  Future<void> replSetExtFns(String extFns) => throw UnimplementedError();
+  Future<void> replFree({int? sessionId}) => throw UnimplementedError();
 
   @override
-  Future<WasmProgressResult> replFeedStart(String code) =>
+  Future<WasmRunResult> replFeedRun(String code, {int? sessionId}) =>
       throw UnimplementedError();
 
   @override
-  Future<WasmProgressResult> replResume(String valueJson) =>
+  Future<int> replDetectContinuation(String source, {int? sessionId}) =>
       throw UnimplementedError();
 
   @override
-  Future<WasmProgressResult> replResumeWithError(String errorJson) =>
+  Future<void> replSetExtFns(String extFns, {int? sessionId}) =>
       throw UnimplementedError();
+
+  @override
+  Future<WasmProgressResult> replFeedStart(String code, {int? sessionId}) =>
+      throw UnimplementedError();
+
+  @override
+  Future<WasmProgressResult> replResume(
+    String valueJson, {
+    int? sessionId,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<WasmProgressResult> replResumeWithError(
+    String errorJson, {
+    int? sessionId,
+  }) => throw UnimplementedError();
 }
