@@ -1,3 +1,19 @@
+// Tests for SandboxedFsProvider behavior NOT covered by the shared
+// contract.
+//
+// The shared FS handler contract
+// (run via sandboxed_fs_provider_contract_test.dart) covers:
+//   - File CRUD: write/read text & bytes round-trips, return types
+//   - Directory: mkdir (with parents, exist_ok), iterdir, rmdir
+//   - Queries: exists, is_file, is_dir
+//   - Mutations: unlink, rename
+//   - Path ops: resolve, absolute
+//
+// This file tests only:
+//   - Security boundary enforcement (path traversal, symlink
+//     escape, prefix-collision, write/rename outside sandbox)
+//   - Path normalization (redundant separators)
+
 import 'dart:io';
 
 import 'package:dart_monty/dart_monty.dart';
@@ -28,119 +44,6 @@ void main() {
   }) => MontyOsCall(operationName: op, arguments: args, kwargs: kwargs);
 
   group('SandboxedFsProvider', () {
-    // -- Basic FS operations (same contract as VFS) --
-
-    test('write_text + read_text round-trip', () async {
-      // Create the file first.
-      final f = File('$rootPath/test.txt')..writeAsStringSync('hello');
-      expect(f.existsSync(), isTrue);
-
-      final result = await handler.resolve(
-        pathCall('Path.read_text', [MontyString('$rootPath/test.txt')]),
-      );
-
-      expect(result, 'hello');
-    });
-
-    test('write_text creates file inside sandbox', () async {
-      await handler.resolve(
-        pathCall('Path.write_text', [
-          MontyString('$rootPath/new.txt'),
-          const MontyString('content'),
-        ]),
-      );
-
-      expect(File('$rootPath/new.txt').readAsStringSync(), 'content');
-    });
-
-    test('write_text returns int (content length)', () async {
-      final result = await handler.resolve(
-        pathCall('Path.write_text', [
-          MontyString('$rootPath/len.txt'),
-          const MontyString('hello'),
-        ]),
-      );
-
-      expect(result, 5);
-    });
-
-    test('write_bytes + read_bytes round-trip', () async {
-      await handler.resolve(
-        pathCall('Path.write_bytes', [
-          MontyString('$rootPath/data.bin'),
-          const MontyList([MontyInt(65), MontyInt(66)]),
-        ]),
-      );
-      final result = await handler.resolve(
-        pathCall('Path.read_bytes', [MontyString('$rootPath/data.bin')]),
-      );
-
-      expect(result, [65, 66]);
-    });
-
-    test('mkdir + iterdir', () async {
-      await handler.resolve(
-        pathCall(
-          'Path.mkdir',
-          [MontyString('$rootPath/sub')],
-          kwargs: {'parents': const MontyBool(true)},
-        ),
-      );
-      await handler.resolve(
-        pathCall('Path.write_text', [
-          MontyString('$rootPath/sub/a.txt'),
-          const MontyString('a'),
-        ]),
-      );
-
-      final result = await handler.resolve(
-        pathCall('Path.iterdir', [MontyString('$rootPath/sub')]),
-      );
-
-      expect(result, isA<List<MontyPath>>());
-      expect((result! as List<MontyPath>).first.value, contains('a.txt'));
-    });
-
-    test('Path.exists true for file, false for missing', () async {
-      File('$rootPath/x.txt').writeAsStringSync('x');
-
-      expect(
-        await handler.resolve(
-          pathCall('Path.exists', [MontyString('$rootPath/x.txt')]),
-        ),
-        isTrue,
-      );
-      expect(
-        await handler.resolve(
-          pathCall('Path.exists', [MontyString('$rootPath/nope.txt')]),
-        ),
-        isFalse,
-      );
-    });
-
-    test('unlink removes file', () async {
-      File('$rootPath/del.txt').writeAsStringSync('bye');
-      await handler.resolve(
-        pathCall('Path.unlink', [MontyString('$rootPath/del.txt')]),
-      );
-
-      expect(File('$rootPath/del.txt').existsSync(), isFalse);
-    });
-
-    test('rename moves file', () async {
-      File('$rootPath/old.txt').writeAsStringSync('moved');
-      final result = await handler.resolve(
-        pathCall('Path.rename', [
-          MontyString('$rootPath/old.txt'),
-          MontyString('$rootPath/new.txt'),
-        ]),
-      );
-
-      expect(result, '$rootPath/new.txt');
-      expect(File('$rootPath/old.txt').existsSync(), isFalse);
-      expect(File('$rootPath/new.txt').readAsStringSync(), 'moved');
-    });
-
     // -- Security tests --
 
     group('security', () {
