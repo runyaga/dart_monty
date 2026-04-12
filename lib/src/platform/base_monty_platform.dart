@@ -32,6 +32,12 @@ abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
   BaseMontyPlatform({required MontyCoreBindings bindings})
     : _bindings = bindings;
 
+  /// Default memory limit: 256 MB.
+  static const int defaultMemoryBytes = 256 * 1024 * 1024;
+
+  /// Default stack depth limit: 1000 (matches CPython).
+  static const int defaultStackDepth = 1000;
+
   final MontyCoreBindings _bindings;
 
   /// The underlying bindings adapter for subclass use.
@@ -223,16 +229,6 @@ abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
       sourceCode: r.sourceCode,
     );
   }
-
-  /// Default memory limit: 256 MB.
-  static const int defaultMemoryBytes = 256 * 1024 * 1024;
-
-  /// Default stack depth limit: 1000 (matches CPython).
-  static const int defaultStackDepth = 1000;
-
-  /// No default time limit — host function calls (SSE streaming, HTTP,
-  /// file I/O) contribute to wall-clock time while the interpreter is
-  /// idle, making a blanket timeout actively harmful.
 
   /// Encodes [limits] to JSON, applying defaults for unset fields.
   ///
