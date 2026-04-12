@@ -657,7 +657,7 @@ class SandboxPlugin extends MontyPlugin {
       final msg = outcome.errorMessage!;
       final truncated =
           msg.length > 200 ? '${msg.substring(0, 200)}\u2026' : msg;
-      logger.warning(
+      logger.debug(
         'Child failed',
         attributes: {'childId': childId, 'error': truncated},
       );
