@@ -433,6 +433,27 @@ monty.clearState();
 await monty.dispose();
 ```
 
+### REPL — Native Heap Persistence
+
+For stateful sessions where functions, classes, and closures must
+survive across calls, use `MontyRepl` or `ReplSession`:
+
+```dart
+// Low-level REPL
+final repl = MontyRepl();
+await repl.feed('def fib(n):\n    a,b=0,1\n    for _ in range(n): a,b=b,a+b\n    return a');
+final r = await repl.feed('fib(10)');
+print(r.value); // MontyInt(55)
+
+// High-level session with plugins
+final session = ReplSession(
+  plugins: [DinjaTemplatePlugin(), MessageBusPlugin()],
+);
+await session.run("tmpl_render(template='Hello {{ x }}', context={'x': 42})");
+```
+
+See [docs/repl.md](docs/repl.md) for the full REPL guide.
+
 ## Monty API Coverage (~75%)
 
 dart_monty wraps the [Monty Rust API](https://github.com/runyaga/monty) (fork of [pydantic/monty](https://github.com/pydantic/monty)).

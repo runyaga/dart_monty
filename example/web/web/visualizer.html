@@ -7,20 +7,20 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-      background: #1e1e1e;
-      color: #d4d4d4;
+      background: #1a1b26;
+      color: #c0caf5;
       padding: 2rem;
       max-width: 960px;
       margin: 0 auto;
     }
-    a { color: #569cd6; }
+    a { color: #7aa2f7; }
     h1 {
-      color: #569cd6;
+      color: #7aa2f7;
       margin-bottom: 0.5rem;
       font-size: 1.4rem;
     }
     .subtitle {
-      color: #808080;
+      color: #565f89;
       margin-bottom: 1.5rem;
       font-size: 0.9rem;
     }
@@ -29,23 +29,23 @@
 
     /* Status bar */
     #status {
-      background: #2d2d2d;
-      border: 1px solid #404040;
+      background: #24283b;
+      border: 1px solid #3b4261;
       border-radius: 4px;
       padding: 0.75rem 1rem;
       margin-bottom: 1.5rem;
       font-size: 0.9rem;
     }
-    #status.init { border-left: 3px solid #569cd6; }
-    #status.ready { border-left: 3px solid #6a9955; }
-    #status.sorting { border-left: 3px solid #dcdcaa; }
-    #status.complete { border-left: 3px solid #6a9955; }
-    #status.error { border-left: 3px solid #f44747; }
+    #status.init { border-left: 3px solid #7aa2f7; }
+    #status.ready { border-left: 3px solid #9ece6a; }
+    #status.sorting { border-left: 3px solid #e0af68; }
+    #status.complete { border-left: 3px solid #9ece6a; }
+    #status.error { border-left: 3px solid #f7768e; }
 
     /* Controls panel */
     .controls {
-      background: #252526;
-      border: 1px solid #404040;
+      background: #24283b;
+      border: 1px solid #3b4261;
       border-radius: 6px;
       padding: 1.25rem;
       margin-bottom: 1.5rem;
@@ -59,7 +59,7 @@
     }
     .control-row:last-child { margin-bottom: 0; }
     .control-label {
-      color: #808080;
+      color: #565f89;
       font-size: 0.8rem;
       min-width: 80px;
     }
@@ -67,9 +67,9 @@
     /* Algorithm toggle buttons */
     .algo-buttons { display: flex; gap: 0.5rem; flex-wrap: wrap; }
     .algo-btn {
-      background: #1e1e1e;
-      border: 1px solid #404040;
-      color: #d4d4d4;
+      background: #1a1b26;
+      border: 1px solid #3b4261;
+      color: #c0caf5;
       padding: 0.4rem 0.8rem;
       border-radius: 4px;
       cursor: pointer;
@@ -77,11 +77,11 @@
       font-size: 0.8rem;
       transition: border-color 0.2s, background 0.2s;
     }
-    .algo-btn:hover { border-color: #569cd6; }
+    .algo-btn:hover { border-color: #7aa2f7; }
     .algo-btn.active {
-      background: #569cd6;
-      color: #1e1e1e;
-      border-color: #569cd6;
+      background: #7aa2f7;
+      color: #1a1b26;
+      border-color: #7aa2f7;
     }
     .algo-btn:disabled {
       opacity: 0.5;
@@ -97,10 +97,10 @@
     }
     .slider-group input[type="range"] {
       flex: 1;
-      accent-color: #569cd6;
+      accent-color: #7aa2f7;
     }
     .slider-value {
-      color: #dcdcaa;
+      color: #e0af68;
       font-size: 0.85rem;
       min-width: 40px;
       text-align: right;
@@ -108,9 +108,9 @@
 
     /* Start button */
     #start-btn {
-      background: #6a9955;
+      background: #9ece6a;
       border: none;
-      color: #1e1e1e;
+      color: #1a1b26;
       padding: 0.5rem 1.5rem;
       border-radius: 4px;
       cursor: pointer;
@@ -121,14 +121,14 @@
     }
     #start-btn:hover { background: #7ec068; }
     #start-btn:disabled {
-      background: #404040;
-      color: #808080;
+      background: #3b4261;
+      color: #565f89;
       cursor: not-allowed;
     }
     #stop-btn {
-      background: #f44747;
+      background: #f7768e;
       border: none;
-      color: #1e1e1e;
+      color: #1a1b26;
       padding: 0.5rem 1.5rem;
       border-radius: 4px;
       cursor: pointer;
@@ -141,8 +141,8 @@
 
     /* Bar chart */
     .chart-container {
-      background: #252526;
-      border: 1px solid #404040;
+      background: #24283b;
+      border: 1px solid #3b4261;
       border-radius: 6px;
       padding: 1.25rem;
       margin-bottom: 1rem;
@@ -153,29 +153,29 @@
       gap: 1px;
     }
     .bar {
-      background: #569cd6;
+      background: #7aa2f7;
       border-radius: 2px 2px 0 0;
       transition: height 0.08s ease-out, background-color 0.15s;
       min-width: 2px;
       flex: 1;
       max-width: 20px;
     }
-    .bar.comparing { background: #dcdcaa; }
-    .bar.swapped { background: #f44747; }
-    .bar.done { background: #6a9955; }
+    .bar.comparing { background: #e0af68; }
+    .bar.swapped { background: #f7768e; }
+    .bar.done { background: #9ece6a; }
 
     /* Stats row */
     .stats {
       display: flex;
       gap: 2rem;
-      background: #252526;
-      border: 1px solid #404040;
+      background: #24283b;
+      border: 1px solid #3b4261;
       border-radius: 4px;
       padding: 0.75rem 1rem;
       font-size: 0.85rem;
     }
-    .stat-label { color: #808080; }
-    .stat-value { color: #dcdcaa; margin-left: 0.5rem; }
+    .stat-label { color: #565f89; }
+    .stat-value { color: #e0af68; margin-left: 0.5rem; }
 
     /* Legend */
     .legend {
@@ -183,7 +183,7 @@
       gap: 1.5rem;
       margin-top: 1rem;
       font-size: 0.75rem;
-      color: #808080;
+      color: #565f89;
       flex-wrap: wrap;
     }
     .legend-item { display: flex; align-items: center; gap: 0.3rem; }
@@ -192,10 +192,10 @@
       height: 10px;
       border-radius: 2px;
     }
-    .legend-dot.blue { background: #569cd6; }
-    .legend-dot.yellow { background: #dcdcaa; }
-    .legend-dot.red { background: #f44747; }
-    .legend-dot.green { background: #6a9955; }
+    .legend-dot.blue { background: #7aa2f7; }
+    .legend-dot.yellow { background: #e0af68; }
+    .legend-dot.red { background: #f7768e; }
+    .legend-dot.green { background: #9ece6a; }
 
     /* Code editor */
     .code-panel {
@@ -208,19 +208,19 @@
       margin-bottom: 0.5rem;
     }
     .code-header-label {
-      color: #808080;
+      color: #565f89;
       font-size: 0.8rem;
     }
     .code-hint {
-      color: #569cd6;
+      color: #7aa2f7;
       font-size: 0.75rem;
     }
     #code-editor {
       width: 100%;
       min-height: 200px;
-      background: #1e1e1e;
-      color: #d4d4d4;
-      border: 1px solid #404040;
+      background: #1a1b26;
+      color: #c0caf5;
+      border: 1px solid #3b4261;
       border-radius: 4px;
       padding: 0.75rem;
       font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
@@ -231,7 +231,7 @@
     }
     #code-editor:focus {
       outline: none;
-      border-color: #569cd6;
+      border-color: #7aa2f7;
     }
     #code-editor:disabled {
       opacity: 0.6;
@@ -240,12 +240,10 @@
   </style>
 </head>
 <body>
-  <h1>Algorithm Visualizer</h1>
-  <p class="subtitle">Python sorting algorithms running step-by-step through Monty WASM</p>
-  <div class="nav">
-    <a href="index.html">&larr; Home</a>
-    <a href="demo.html">Demo</a>
-    <a href="ladder.html">Ladder</a>
+  <div style="padding:12px 20px;background:#24283b;border-bottom:1px solid #3b4261;display:flex;align-items:center;gap:16px;">
+    <a href="index.html" style="color:#565f89;text-decoration:none;font-size:13px;">&larr; Home</a>
+    <span style="font-size:16px;font-weight:600;color:#7aa2f7;">Sorting Visualizer</span>
+    <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:#2d3a5e;color:#7dcfff;">WASM</span>
   </div>
 
   <div id="status" class="init">Initializing WASM Worker...</div>

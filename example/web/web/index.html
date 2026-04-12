@@ -4,1838 +4,438 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>dart_monty — Sandboxed Python for Dart & Flutter</title>
-  <meta name="description" content="Pure Dart bindings for the Monty sandboxed Python interpreter. Run Python from Dart — native, web, mobile. Same code, every platform.">
-  <script type="module">
-    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
-    mermaid.initialize({
-      startOnLoad: true,
-      theme: 'dark',
-      themeVariables: {
-        darkMode: true,
-        background: '#0a0a0f',
-        primaryColor: '#c586c0',
-        primaryTextColor: '#e0e0e0',
-        primaryBorderColor: '#569cd6',
-        secondaryColor: '#264f78',
-        tertiaryColor: '#1e1e2e',
-        lineColor: '#569cd6',
-        fontFamily: '"IBM Plex Mono", "Fira Code", "Consolas", monospace',
-        fontSize: '13px',
-        nodeBorder: '#569cd6',
-        clusterBkg: '#12121a',
-        clusterBorder: '#333',
-        edgeLabelBackground: '#1e1e2e',
-        nodeTextColor: '#e0e0e0',
-      },
-      flowchart: { curve: 'basis', padding: 16 },
-      sequence: { actorMargin: 50, messageMargin: 40 },
-    });
-  </script>
+  <meta name="description" content="Run sandboxed Python from Dart and Flutter. Native, web, mobile. One package, every platform.">
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
-
     :root {
-      --bg-deep: #06060a;
-      --bg-primary: #0a0a0f;
-      --bg-surface: #111118;
-      --bg-elevated: #1a1a24;
-      --bg-hover: #222230;
-      --border: #2a2a38;
-      --border-bright: #3a3a4a;
-      --text-primary: #e0e0e8;
-      --text-secondary: #8888a0;
-      --text-dim: #555568;
-      --accent-blue: #569cd6;
-      --accent-purple: #c586c0;
-      --accent-green: #6a9955;
-      --accent-yellow: #dcdcaa;
-      --accent-orange: #ce9178;
-      --accent-red: #f44747;
-      --accent-cyan: #4ec9b0;
-      --glow-blue: rgba(86, 156, 214, 0.15);
-      --glow-purple: rgba(197, 134, 192, 0.15);
+      --bg: #1a1b26;
+      --surface: #24283b;
+      --surface2: #2f3447;
+      --border: #3b4261;
+      --text: #c0caf5;
+      --text-dim: #565f89;
+      --accent: #7aa2f7;
+      --green: #9ece6a;
+      --yellow: #e0af68;
+      --red: #f7768e;
+      --purple: #bb9af7;
+      --cyan: #7dcfff;
+      --orange: #ff9e64;
+      --mono: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+      --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      --max-w: 900px;
     }
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
-
-    html {
-      scroll-behavior: smooth;
-      scrollbar-width: thin;
-      scrollbar-color: var(--border) var(--bg-primary);
-    }
+    html { scroll-behavior: smooth; }
 
     body {
-      font-family: 'Space Grotesk', -apple-system, sans-serif;
-      background: var(--bg-deep);
-      color: var(--text-primary);
+      font-family: var(--sans);
+      background: var(--bg);
+      color: var(--text);
       line-height: 1.7;
-      overflow-x: hidden;
+      font-size: 15px;
     }
 
-    code, pre, .mono {
-      font-family: 'IBM Plex Mono', 'Fira Code', 'Consolas', monospace;
-    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
 
-    a { color: var(--accent-blue); text-decoration: none; transition: color 0.2s; }
-    a:hover { color: var(--accent-purple); }
+    /* Layout */
+    .container { max-width: var(--max-w); margin: 0 auto; padding: 0 24px; }
+    section { padding: 64px 0; border-bottom: 1px solid var(--border); }
 
-    /* ── Navigation ──────────────────────────────────────────────── */
+    /* Nav */
     nav {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      z-index: 100;
-      background: rgba(6, 6, 10, 0.85);
-      backdrop-filter: blur(20px);
-      border-bottom: 1px solid var(--border);
-      padding: 0 2rem;
+      position: sticky; top: 0; z-index: 100;
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      padding: 12px 0;
     }
-    nav .inner {
-      max-width: 1200px;
-      margin: 0 auto;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      height: 56px;
-    }
-    nav .logo {
-      font-family: 'IBM Plex Mono', monospace;
-      font-weight: 700;
-      font-size: 1rem;
-      color: var(--accent-purple);
-      letter-spacing: -0.5px;
-    }
-    nav .logo span { color: var(--accent-blue); }
-    nav .links { display: flex; gap: 1.5rem; align-items: center; }
-    nav .links a {
-      font-size: 0.82rem;
-      color: var(--text-secondary);
-      font-weight: 500;
-      transition: color 0.2s;
-    }
-    nav .links a:hover { color: var(--text-primary); }
-    nav .github-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.4rem;
-      padding: 0.35rem 0.75rem;
-      background: var(--bg-elevated);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      font-size: 0.8rem;
-      color: var(--text-secondary);
-      transition: all 0.2s;
-    }
-    nav .github-btn:hover { border-color: var(--accent-blue); color: var(--text-primary); }
-    nav .github-btn svg { width: 16px; height: 16px; fill: currentColor; }
+    nav .container { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
+    nav .logo { font-weight: 700; font-size: 16px; color: var(--accent); font-family: var(--mono); }
+    nav a { color: var(--text-dim); font-size: 13px; }
+    nav a:hover { color: var(--text); text-decoration: none; }
 
-    /* ── Sections ─────────────────────────────────────────────────── */
-    section {
-      max-width: 1100px;
-      margin: 0 auto;
-      padding: 5rem 2rem;
-    }
-    .section-label {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 0.7rem;
-      font-weight: 600;
-      letter-spacing: 3px;
-      text-transform: uppercase;
-      color: var(--accent-purple);
-      margin-bottom: 0.75rem;
-    }
-    .section-title {
-      font-size: 2rem;
-      font-weight: 700;
-      line-height: 1.2;
-      margin-bottom: 1rem;
-      letter-spacing: -0.5px;
-    }
-    .section-subtitle {
-      font-size: 1.05rem;
-      color: var(--text-secondary);
-      max-width: 700px;
-      line-height: 1.7;
-    }
+    /* Hero */
+    .hero { padding: 80px 0 64px; text-align: center; }
+    .hero h1 { font-size: 48px; font-weight: 700; color: var(--text); margin-bottom: 16px; }
+    .hero h1 span { color: var(--accent); }
+    .hero p { font-size: 18px; color: var(--text-dim); max-width: 600px; margin: 0 auto 32px; }
+    .hero-tags { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-bottom: 32px; }
+    .tag { font-size: 12px; padding: 4px 12px; border-radius: 4px; font-weight: 500; }
+    .tag-blue { background: #2d3a5e; color: var(--cyan); }
+    .tag-green { background: #2d3e2d; color: var(--green); }
+    .tag-purple { background: #3e2d5e; color: var(--purple); }
+    .tag-orange { background: #3e3a2d; color: var(--orange); }
 
-    /* ── Hero ─────────────────────────────────────────────────────── */
-    .hero {
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      text-align: center;
-      position: relative;
-      padding-top: 56px;
-    }
-    .hero-bg {
-      position: absolute;
-      inset: 0;
-      background:
-        radial-gradient(ellipse 60% 40% at 50% 45%, rgba(86, 156, 214, 0.06) 0%, transparent 70%),
-        radial-gradient(ellipse 40% 30% at 30% 60%, rgba(197, 134, 192, 0.04) 0%, transparent 60%);
-      pointer-events: none;
-    }
-    .hero-content { position: relative; z-index: 1; }
-    .hero h1 {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: clamp(3rem, 8vw, 5.5rem);
-      font-weight: 700;
-      letter-spacing: -2px;
-      margin-bottom: 0.5rem;
-      background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-purple) 50%, var(--accent-cyan) 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-    .hero .tagline {
-      font-size: clamp(1rem, 2.5vw, 1.35rem);
-      color: var(--text-secondary);
-      margin-bottom: 2.5rem;
-      font-weight: 400;
-    }
-    .hero .tagline em {
-      color: var(--accent-yellow);
-      font-style: normal;
-    }
-    .hero-actions {
-      display: flex;
-      gap: 1rem;
-      flex-wrap: wrap;
-      justify-content: center;
-    }
-    .btn-primary {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.65rem 1.5rem;
-      background: var(--accent-blue);
-      color: var(--bg-deep);
-      font-weight: 600;
-      font-size: 0.9rem;
-      border-radius: 8px;
-      transition: all 0.2s;
-    }
-    .btn-primary:hover { background: #6aacf0; color: var(--bg-deep); transform: translateY(-1px); }
-    .btn-secondary {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.65rem 1.5rem;
-      background: var(--bg-surface);
-      color: var(--text-primary);
-      font-weight: 500;
-      font-size: 0.9rem;
+    /* Headings */
+    h2 { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+    h2 .dim { color: var(--text-dim); font-weight: 400; }
+    h3 { font-size: 18px; font-weight: 600; margin: 24px 0 8px; color: var(--accent); }
+    .section-desc { color: var(--text-dim); margin-bottom: 32px; }
+
+    /* Code */
+    pre {
+      background: var(--surface);
       border: 1px solid var(--border);
       border-radius: 8px;
-      transition: all 0.2s;
-    }
-    .btn-secondary:hover { border-color: var(--accent-blue); transform: translateY(-1px); }
-    .hero-install {
-      margin-top: 2.5rem;
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 0.85rem;
-      color: var(--text-dim);
-    }
-    .hero-install code {
-      color: var(--accent-green);
-      background: var(--bg-surface);
-      padding: 0.3rem 0.75rem;
-      border-radius: 4px;
-      border: 1px solid var(--border);
-    }
-
-    /* ── Why Section ──────────────────────────────────────────────── */
-    .why-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 2.5rem;
-      margin-top: 2.5rem;
-    }
-    @media (max-width: 800px) { .why-grid { grid-template-columns: 1fr; } }
-    .why-item h3 {
-      font-size: 1.1rem;
-      font-weight: 600;
-      margin-bottom: 0.5rem;
-      color: var(--text-primary);
-    }
-    .why-item p {
-      font-size: 0.92rem;
-      color: var(--text-secondary);
-      line-height: 1.7;
-    }
-    .why-item .why-icon {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 0.7rem;
-      font-weight: 600;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      margin-bottom: 0.5rem;
-    }
-    .why-icon-agent { color: var(--accent-purple); }
-    .why-icon-sandbox { color: var(--accent-green); }
-    .why-icon-mobile { color: var(--accent-cyan); }
-    .why-icon-parity { color: var(--accent-yellow); }
-
-    /* ── Epigraph (cultural references) ──────────────────────────── */
-    .epigraph {
-      font-family: 'IBM Plex Mono', monospace;
-      font-style: italic;
-      font-size: 0.82rem;
-      color: var(--text-dim);
-      border-left: 2px solid var(--border);
-      padding: 0.5rem 0 0.5rem 1rem;
-      margin: 2rem 0;
-      max-width: 500px;
-    }
-    .epigraph .attribution {
-      display: block;
-      margin-top: 0.3rem;
-      font-style: normal;
-      color: var(--text-dim);
-      opacity: 0.7;
-    }
-    .epigraph-center {
-      margin-left: auto;
-      margin-right: auto;
-    }
-
-    /* ── Pitch ────────────────────────────────────────────────────── */
-    .pitch-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 1.5rem;
-      margin-top: 2.5rem;
-    }
-    .pitch-card {
-      background: var(--bg-surface);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 1.5rem;
-      transition: border-color 0.3s, transform 0.2s;
-    }
-    .pitch-card:hover { border-color: var(--accent-blue); transform: translateY(-2px); }
-    .pitch-card h3 {
-      font-size: 1rem;
-      font-weight: 600;
-      margin-bottom: 0.5rem;
-      color: var(--accent-yellow);
-    }
-    .pitch-card p {
-      font-size: 0.88rem;
-      color: var(--text-secondary);
+      padding: 16px 20px;
+      overflow-x: auto;
+      font-family: var(--mono);
+      font-size: 13px;
       line-height: 1.6;
+      margin: 16px 0;
     }
-    .pitch-card .mono-tag {
-      display: inline-block;
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 0.7rem;
-      padding: 0.15rem 0.5rem;
-      background: var(--bg-elevated);
+    code { font-family: var(--mono); font-size: 13px; }
+    p code, li code {
+      background: var(--surface);
+      padding: 2px 6px;
       border-radius: 3px;
-      color: var(--accent-cyan);
-      margin-bottom: 0.75rem;
+      font-size: 12px;
     }
 
-    /* ── Mermaid Diagrams ─────────────────────────────────────────── */
-    .diagram-container {
-      background: var(--bg-surface);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 2rem;
-      margin: 2rem 0;
-      overflow-x: auto;
-    }
-    .diagram-container .mermaid {
-      display: flex;
-      justify-content: center;
-    }
-    .diagram-caption {
-      text-align: center;
-      font-size: 0.8rem;
-      color: var(--text-dim);
-      margin-top: 1rem;
-      font-family: 'IBM Plex Mono', monospace;
-    }
-
-    /* ── Architecture Split ───────────────────────────────────────── */
-    .arch-split {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 2rem;
-      margin-top: 2rem;
-    }
-    @media (max-width: 800px) { .arch-split { grid-template-columns: 1fr; } }
-    .arch-panel {
-      background: var(--bg-surface);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 1.5rem;
-    }
-    .arch-panel h3 {
-      font-size: 1rem;
-      font-weight: 600;
-      margin-bottom: 0.75rem;
-    }
-    .arch-panel .path-label {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 0.7rem;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      color: var(--accent-purple);
-      margin-bottom: 0.5rem;
-    }
-
-    /* ── Python Ladder ────────────────────────────────────────────── */
-    .ladder {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-      gap: 1rem;
-      margin-top: 2rem;
-    }
-    .ladder-tier {
-      background: var(--bg-surface);
+    /* Cards */
+    .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+    .card {
+      background: var(--surface);
       border: 1px solid var(--border);
       border-radius: 8px;
-      padding: 1.25rem;
-      position: relative;
-      overflow: hidden;
-      transition: border-color 0.3s, transform 0.2s;
+      padding: 20px;
     }
-    .ladder-tier:hover { border-color: var(--accent-green); transform: translateY(-2px); }
-    .ladder-tier::before {
-      content: attr(data-tier);
-      position: absolute;
-      top: -8px;
-      right: 10px;
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 3rem;
-      font-weight: 700;
-      color: var(--bg-elevated);
-      pointer-events: none;
-    }
-    .ladder-tier h4 {
-      font-size: 0.88rem;
-      font-weight: 600;
-      color: var(--accent-green);
-      margin-bottom: 0.4rem;
-      position: relative;
-    }
-    .ladder-tier p {
-      font-size: 0.78rem;
-      color: var(--text-secondary);
-      line-height: 1.5;
-      position: relative;
-    }
-    .ladder-tier code {
-      font-size: 0.72rem;
-      color: var(--accent-orange);
-      background: var(--bg-elevated);
-      padding: 0.1rem 0.3rem;
-      border-radius: 2px;
-    }
+    .card h3 { margin-top: 0; font-size: 16px; }
+    .card p { color: var(--text-dim); font-size: 14px; }
+    .card .fn { font-family: var(--mono); font-size: 12px; color: var(--green); margin-top: 8px; }
 
-    /* ── Features ─────────────────────────────────────────────────── */
-    .feature-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 3rem;
-      align-items: center;
-      margin: 4rem 0;
-    }
-    .feature-row.reverse { direction: rtl; }
-    .feature-row.reverse > * { direction: ltr; }
-    @media (max-width: 800px) {
-      .feature-row, .feature-row.reverse { grid-template-columns: 1fr; direction: ltr; }
-    }
-    .feature-text h3 {
-      font-size: 1.3rem;
-      font-weight: 600;
-      margin-bottom: 0.5rem;
-    }
-    .feature-text p {
-      font-size: 0.95rem;
-      color: var(--text-secondary);
-      line-height: 1.7;
-    }
-    .feature-text .feature-tag {
-      display: inline-block;
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 0.68rem;
-      padding: 0.2rem 0.6rem;
-      border-radius: 4px;
-      margin-bottom: 0.75rem;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-      font-weight: 600;
-    }
-    .tag-safety { background: rgba(106, 153, 85, 0.15); color: var(--accent-green); }
-    .tag-perf { background: rgba(220, 220, 170, 0.15); color: var(--accent-yellow); }
-    .tag-arch { background: rgba(86, 156, 214, 0.15); color: var(--accent-blue); }
-    .tag-control { background: rgba(197, 134, 192, 0.15); color: var(--accent-purple); }
-
-    /* ── Code Blocks ──────────────────────────────────────────────── */
-    .code-block {
-      background: var(--bg-surface);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      overflow: hidden;
-    }
-    .code-header {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.6rem 1rem;
-      background: var(--bg-elevated);
-      border-bottom: 1px solid var(--border);
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 0.72rem;
-      color: var(--text-dim);
-    }
-    .code-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-    }
-    .code-dot.r { background: var(--accent-red); opacity: 0.7; }
-    .code-dot.y { background: var(--accent-yellow); opacity: 0.7; }
-    .code-dot.g { background: var(--accent-green); opacity: 0.7; }
-    .code-block pre {
-      padding: 1rem 1.25rem;
-      font-size: 0.82rem;
-      line-height: 1.7;
-      overflow-x: auto;
-    }
-    .code-block .kw { color: var(--accent-purple); }
-    .code-block .str { color: var(--accent-orange); }
-    .code-block .type { color: var(--accent-cyan); }
-    .code-block .fn { color: var(--accent-yellow); }
-    .code-block .cmt { color: var(--text-dim); }
-    .code-block .num { color: #b5cea8; }
-
-    /* ── Demos ─────────────────────────────────────────────────────── */
-    .demo-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      gap: 1.25rem;
-      margin-top: 2rem;
-    }
-    .demo-card {
+    /* Demo links */
+    .demo-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+    .demo-link {
       display: block;
-      background: var(--bg-surface);
+      background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 1.5rem;
-      transition: all 0.3s;
-      position: relative;
-      overflow: hidden;
+      border-radius: 8px;
+      padding: 16px;
+      text-decoration: none;
+      transition: border-color 0.2s;
     }
-    .demo-card:hover {
-      border-color: var(--accent-blue);
-      transform: translateY(-3px);
-      box-shadow: 0 8px 30px rgba(86, 156, 214, 0.1);
-      color: var(--text-primary);
-    }
-    .demo-card::after {
-      content: '\2192';
-      position: absolute;
-      top: 1.5rem;
-      right: 1.5rem;
-      color: var(--text-dim);
-      font-size: 1.2rem;
-      transition: transform 0.2s;
-    }
-    .demo-card:hover::after { transform: translateX(4px); color: var(--accent-blue); }
-    .demo-card h3 {
-      font-size: 1rem;
-      font-weight: 600;
-      margin-bottom: 0.4rem;
-      color: var(--accent-yellow);
-    }
-    .demo-card p {
-      font-size: 0.82rem;
-      color: var(--text-secondary);
-      line-height: 1.5;
-    }
-    .demo-card .demo-badge {
-      display: inline-block;
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 0.65rem;
-      padding: 0.15rem 0.5rem;
-      border-radius: 3px;
-      margin-bottom: 0.75rem;
-      font-weight: 600;
-    }
-    .badge-wasm { background: rgba(78, 201, 176, 0.15); color: var(--accent-cyan); }
-    .badge-dart { background: rgba(86, 156, 214, 0.15); color: var(--accent-blue); }
-    .badge-flutter { background: rgba(197, 134, 192, 0.15); color: var(--accent-purple); }
-    .badge-mcp { background: rgba(220, 220, 170, 0.15); color: var(--accent-yellow); }
+    .demo-link:hover { border-color: var(--accent); text-decoration: none; }
+    .demo-link h4 { color: var(--text); font-size: 14px; margin-bottom: 4px; }
+    .demo-link p { color: var(--text-dim); font-size: 12px; margin: 0; }
 
-    /* ── Stats bar ────────────────────────────────────────────────── */
-    .stats-bar {
-      display: flex;
-      justify-content: center;
-      gap: 3rem;
-      padding: 3rem 2rem;
-      border-top: 1px solid var(--border);
-      border-bottom: 1px solid var(--border);
-      background: var(--bg-primary);
-      flex-wrap: wrap;
-    }
-    .stat-item { text-align: center; }
-    .stat-number {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 2rem;
-      font-weight: 700;
-      color: var(--accent-blue);
-      line-height: 1;
-    }
-    .stat-desc {
-      font-size: 0.78rem;
-      color: var(--text-dim);
-      margin-top: 0.25rem;
+    /* Architecture */
+    .arch-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+      font-family: var(--mono);
+      font-size: 13px;
+      line-height: 1.8;
+      white-space: pre;
+      overflow-x: auto;
     }
 
-    /* ── Divider ──────────────────────────────────────────────────── */
-    .section-divider {
-      max-width: 1100px;
-      margin: 0 auto;
-      padding: 0 2rem;
-    }
-    .section-divider hr {
-      border: none;
-      border-top: 1px solid var(--border);
-    }
-
-    /* ── Footer ───────────────────────────────────────────────────── */
+    /* Footer */
     footer {
-      max-width: 1100px;
-      margin: 0 auto;
-      padding: 3rem 2rem;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 1rem;
-      border-top: 1px solid var(--border);
-    }
-    footer .foot-left {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 0.78rem;
-      color: var(--text-dim);
-    }
-    footer .foot-links {
-      display: flex;
-      gap: 1.5rem;
-    }
-    footer .foot-links a {
-      font-size: 0.8rem;
-      color: var(--text-secondary);
-    }
-
-    /* ── Mobile nav ────────────────────────────────────────────────── */
-    nav .menu-toggle {
-      display: none;
-      background: none;
-      border: none;
-      color: var(--text-secondary);
-      font-size: 1.4rem;
-      cursor: pointer;
-      padding: 0.25rem;
-      line-height: 1;
-    }
-    @media (max-width: 700px) {
-      nav .menu-toggle { display: block; }
-      nav .links {
-        display: none;
-        position: absolute;
-        top: 56px;
-        left: 0;
-        right: 0;
-        flex-direction: column;
-        background: rgba(6, 6, 10, 0.95);
-        backdrop-filter: blur(20px);
-        border-bottom: 1px solid var(--border);
-        padding: 1rem 2rem;
-        gap: 0.75rem;
-      }
-      nav .links.open { display: flex; }
-      nav .links a { font-size: 0.85rem; }
-      section { padding: 3rem 1.25rem; }
-      .hero h1 { letter-spacing: -1px; }
-      .stats-bar { gap: 1.5rem; }
-      .ladder { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
-    }
-
-    /* ── Scroll animation ─────────────────────────────────────────── */
-    .fade-in {
-      opacity: 0;
-      transform: translateY(20px);
-      transition: opacity 0.6s ease, transform 0.6s ease;
-    }
-    .fade-in.visible {
-      opacity: 1;
-      transform: translateY(0);
-    }
-
-    /* ── Evolving pulse (subtle) ──────────────────────────────────── */
-    @keyframes pulse-border {
-      0%, 100% { border-color: var(--border); }
-      50% { border-color: var(--border-bright); }
-    }
-    .evolving { animation: pulse-border 4s ease-in-out infinite; }
-
-    /* ── Street Art / Culture Jamming ────────────────────────────── */
-
-    /* Torn paper epigraphs */
-    .epigraph {
-      background: var(--bg-surface);
-      padding: 1rem 1.25rem 1.5rem 1.25rem;
-      border-left: none;
-      clip-path: polygon(
-        0% 0%, 100% 0%, 100% 85%,
-        95% 100%, 88% 90%, 80% 98%, 70% 88%,
-        60% 95%, 50% 87%, 40% 94%, 30% 88%,
-        20% 98%, 10% 90%, 0% 95%
-      );
-      box-shadow: 2px 3px 10px rgba(0, 0, 0, 0.25);
-      position: relative;
-    }
-
-    /* "OBEY" style stickers */
-    #architecture, #ladder, #ffi {
-      position: relative;
-      overflow: visible;
-    }
-    #architecture::after {
-      content: 'FNORD';
-      position: absolute;
-      top: 5rem;
-      right: 1.5rem;
-      transform: rotate(7deg);
-      font-family: 'Space Grotesk', sans-serif;
-      font-weight: 700;
-      font-size: 0.75rem;
-      letter-spacing: 0.5px;
-      padding: 0.4rem 0.8rem;
-      background: var(--accent-red);
-      color: var(--bg-deep);
-      border-radius: 3px;
-      box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
-      z-index: 10;
-      opacity: 0.85;
-    }
-    #ladder::before {
-      content: 'SLACK!';
-      position: absolute;
-      top: 4.5rem;
-      left: 1rem;
-      transform: rotate(-5deg);
-      font-family: 'IBM Plex Mono', monospace;
-      font-weight: 700;
-      font-size: 0.8rem;
-      padding: 0.3rem 1rem;
-      background: var(--accent-yellow);
-      color: var(--bg-deep);
-      border: 2px solid var(--bg-deep);
-      outline: 1px solid var(--accent-yellow);
-      border-radius: 2px;
-      box-shadow: -2px 2px 6px rgba(0,0,0,0.4);
-      z-index: 10;
-      opacity: 0.85;
-    }
-
-    /* Hand-drawn underline */
-    .title-tagged {
-      position: relative;
-      display: inline-block;
-    }
-    .title-tagged::after {
-      content: '';
-      position: absolute;
-      bottom: -10px;
-      left: 0;
-      right: 0;
-      height: 8px;
-      background-image: url("data:image/svg+xml,%3Csvg width='100' height='8' viewBox='0 0 100 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1.5 4.5C10.5 2.5 22.5 5.5 30.5 5.5C42.5 5.5 55 -1.5 67.5 2.5C79.5 6.5 89.5 4.5 98.5 4.5' stroke='%23c586c0' stroke-width='2.5' stroke-linecap='round'/%3E%3C/svg%3E");
-      background-repeat: no-repeat;
-      background-size: 100% 100%;
-    }
-
-    /* Spray-paint texture on FFI section */
-    #ffi { z-index: 1; }
-    #ffi::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300' viewBox='0 0 300 300'%3E%3Cdefs%3E%3Cfilter id='a'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.1' numOctaves='3' result='t'/%3E%3CfeDisplacementMap in2='t' in='SourceGraphic' scale='20' xChannelSelector='R' yChannelSelector='G'/%3E%3C/filter%3E%3C/defs%3E%3Ccircle cx='150' cy='150' r='100' fill='%23569cd6' filter='url(%23a)' opacity='.5'/%3E%3Ccircle cx='50' cy='250' r='50' fill='%23c586c0' filter='url(%23a)' opacity='.4'/%3E%3Ccircle cx='250' cy='50' r='70' fill='%23569cd6' filter='url(%23a)' opacity='.6'/%3E%3C/svg%3E");
-      background-size: 300px 300px;
-      opacity: 0.04;
-      background-blend-mode: overlay;
-      pointer-events: none;
-      z-index: -1;
-    }
-
-    /* The Foot — Monty Python stomp */
-    .hero-foot {
-      margin-top: 2rem;
-      position: relative;
-      display: inline-block;
-    }
-    .hero-foot img {
-      width: 200px;
-      border-radius: 10px;
-      opacity: 0.8;
-      transition: opacity 0.3s, transform 0.3s;
-      filter: drop-shadow(0 4px 20px rgba(86, 156, 214, 0.2));
-    }
-    .hero-foot img:hover {
-      opacity: 1;
-      transform: scale(1.03);
-    }
-    .hero-foot .foot-caption {
-      display: block;
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 0.65rem;
-      color: var(--text-dim);
-      margin-top: 0.4rem;
+      padding: 32px 0;
       text-align: center;
-      letter-spacing: 1px;
-      text-transform: uppercase;
+      color: var(--text-dim);
+      font-size: 13px;
     }
+    footer a { color: var(--text-dim); }
 
-    /* Hide stickers on small screens */
-    @media (max-width: 700px) {
-      #architecture::after, #ladder::before { display: none; }
-      .hero-foot img { width: 140px; }
+    /* Responsive */
+    @media (max-width: 600px) {
+      .hero h1 { font-size: 32px; }
+      .hero p { font-size: 16px; }
+      section { padding: 40px 0; }
     }
   </style>
 </head>
 <body>
 
-<!-- ═══════════════════════════════════════════════════════════════
-     NAVIGATION
-     ═══════════════════════════════════════════════════════════════ -->
 <nav>
-  <div class="inner">
-    <div class="logo">dart<span>_monty</span></div>
-    <button class="menu-toggle" onclick="document.querySelector('nav .links').classList.toggle('open')" aria-label="Menu">&#9776;</button>
-    <div class="links">
-      <a href="#why">Why</a>
-      <a href="#architecture">Architecture</a>
-      <a href="#ladder">Python Ladder</a>
-      <a href="#features">Features</a>
-      <a href="#demos">Demos</a>
-      <a href="#start">Get Started</a>
-      <a href="https://pub.dev/packages/dart_monty" style="color: var(--accent-cyan);">pub.dev</a>
-      <a href="https://github.com/runyaga/dart_monty/tree/main/docs">Docs</a>
-      <a class="github-btn" href="https://github.com/runyaga/dart_monty">
-        <svg viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
-        GitHub
-      </a>
-    </div>
+  <div class="container">
+    <span class="logo">dart_monty</span>
+    <a href="#quickstart">Quick Start</a>
+    <a href="#repl">REPL</a>
+    <a href="#plugins">Plugins</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#demos">Demos</a>
+    <a href="https://pub.dev/packages/dart_monty">pub.dev</a>
+    <a href="https://github.com/runyaga/dart_monty">GitHub</a>
   </div>
 </nav>
 
-<!-- ═══════════════════════════════════════════════════════════════
-     HERO
-     ═══════════════════════════════════════════════════════════════ -->
-<section class="hero">
-  <div class="hero-bg"></div>
-  <div class="hero-content">
-    <h1>dart_monty</h1>
-    <p class="tagline">Sandboxed Python for Dart & Flutter.<br>Same code. <em>Every platform.</em></p>
-    <div class="hero-actions">
-      <a class="btn-primary" href="#demos">Try Live Demos</a>
-      <a class="btn-secondary" href="#architecture">Explore Architecture</a>
-    </div>
-    <div class="hero-install">
-      <code>dart pub add dart_monty</code>
-    </div>
-    <div class="hero-foot">
-      <img src="dart_monty.jpg" alt="The Holy Stomping — Monty Python foot with Dart, Python, Rust, WASM, and JS logos">
-      <span class="foot-caption">holy stompin'</span>
-    </div>
-    <div class="epigraph epigraph-center" style="margin-top: 3rem;">
-      "And you may ask yourself&mdash;well, how did I get here?"
-      <span class="attribution">&mdash; Talking Heads, "Once in a Lifetime"</span>
+<!-- Hero -->
+<section class="hero" style="border: none;">
+  <div class="container">
+    <h1><span>dart_monty</span></h1>
+    <p>Sandboxed Python interpreter for Dart and Flutter.
+       Run Python from native, web, and mobile — one package, every platform.</p>
+    <div class="hero-tags">
+      <span class="tag tag-blue">FFI (Native)</span>
+      <span class="tag tag-blue">WASM (Browser)</span>
+      <span class="tag tag-green">REPL</span>
+      <span class="tag tag-purple">Plugins</span>
+      <span class="tag tag-orange">Sandbox</span>
     </div>
   </div>
 </section>
 
-<!-- ═══════════════════════════════════════════════════════════════
-     STATS BAR
-     ═══════════════════════════════════════════════════════════════ -->
-<div class="stats-bar">
-  <div class="stat-item">
-    <div class="stat-number">8</div>
-    <div class="stat-desc">Dart packages</div>
-  </div>
-  <div class="stat-item">
-    <div class="stat-number">6</div>
-    <div class="stat-desc">platforms</div>
-  </div>
-  <div class="stat-item">
-    <div class="stat-number">11</div>
-    <div class="stat-desc">Python ladder tiers</div>
-  </div>
-  <div class="stat-item">
-    <div class="stat-number">90%+</div>
-    <div class="stat-desc">test coverage</div>
-  </div>
-  <div class="stat-item">
-    <div class="stat-number">0</div>
-    <div class="stat-desc">Flutter imports required</div>
-  </div>
-</div>
+<!-- Quick Start -->
+<section id="quickstart">
+  <div class="container">
+    <h2>Quick Start</h2>
+    <p class="section-desc">Three API levels — from one-shot execution to full plugin sessions.</p>
 
-<!-- ═══════════════════════════════════════════════════════════════
-     WHY
-     ═══════════════════════════════════════════════════════════════ -->
-<section id="why" class="fade-in">
-  <div class="section-label">The Why</div>
-  <div class="section-title">You may ask yourself: well, how did I get here?</div>
-  <p class="section-subtitle">
-    LLMs write Python. Your app runs on Dart. That gap kills you.
-    Every agent framework, every code-generating model, every automation pipeline
-    produces Python&mdash;and your Flutter app can't run it. Until now.
-  </p>
+    <h3>One-Shot Execution</h3>
+<pre><span style="color:var(--text-dim)">// Run Python and get the result</span>
+final result = await Monty.exec('2 + 2');
+print(result.value); <span style="color:var(--text-dim)">// MontyInt(4)</span></pre>
 
-  <div class="why-grid">
-    <div class="why-item">
-      <div class="why-icon why-icon-agent">AI Agents</div>
-      <h3>LLMs generate Python. Your app should execute it.</h3>
-      <p>
-        When an LLM writes code to answer a question, transform data, or call a tool&mdash;it writes Python.
-        dart_monty lets your Dart and Flutter apps execute that code directly, in-process, without a server round-trip.
-        The LLM writes 35 lines of glue. <a href="https://github.com/pydantic/monty">Monty</a> runs it. Your host functions provide the domain logic.
-        The agent loop closes locally.
-      </p>
-    </div>
-    <div class="why-item">
-      <div class="why-icon why-icon-sandbox">Sandboxing</div>
-      <h3>User-submitted code without the terror.</h3>
-      <p>
-        You want users to write scripts, formulas, automations&mdash;but you can't let arbitrary code
-        touch the filesystem, the network, or memory you don't control. <a href="https://github.com/pydantic/monty">Monty</a>'s Python subset has
-        no <code>import</code>, no <code>eval()</code>, no I/O. The sandbox isn't a policy layer bolted on top.
-        It's the interpreter itself. There is no escape because there is nothing to escape to.
-      </p>
-    </div>
-    <div class="why-item">
-      <div class="why-icon why-icon-parity">One Codebase, Proven Parity</div>
-      <h3>Write it once. Know it works the same everywhere.</h3>
-      <p>
-        Most cross-platform stories are "write once, hope for the best." dart_monty has an
-        11-tier test suite that runs the <em>same</em> JSON fixtures on native FFI and browser WASM,
-        diffs the JSONL output, and fails CI on any divergence. Parity isn't a goal. It's a gate.
-        You don't ship if native and web disagree.
-      </p>
-    </div>
-  </div>
+    <h3>Stateful REPL</h3>
+<pre><span style="color:var(--text-dim)">// Variables, functions, classes persist across calls</span>
+final repl = MontyRepl();
+await repl.feed('x = 42');
+await repl.feed('def double(n): return n * 2');
+final r = await repl.feed('double(x)');
+print(r.value); <span style="color:var(--text-dim)">// MontyInt(84)</span></pre>
 
-  <div class="epigraph" style="margin-top: 2.5rem;">
-    "The SubGenius must have Slack, or the whole world will be destroyed."
-    <span class="attribution">&mdash; J.R. "Bob" Dobbs, The Book of the SubGenius</span>
+    <h3>Session with Plugins</h3>
+<pre><span style="color:var(--text-dim)">// Full plugin dispatch — template, messaging, sandboxing</span>
+final session = ReplSession(
+  plugins: [
+    DinjaTemplatePlugin(),
+    MessageBusPlugin(),
+    SandboxPlugin(platformFactory: () async => MontyFfi()),
+  ],
+);
+
+final r = await session.run(
+  "tmpl_render(template='Hello {{ name }}!', context={'name': 'World'})",
+);
+print(r.value); <span style="color:var(--text-dim)">// 'Hello World!'</span></pre>
   </div>
 </section>
 
-<div class="section-divider"><hr></div>
+<!-- REPL -->
+<section id="repl">
+  <div class="container">
+    <h2>REPL <span class="dim">— Native Heap Persistence</span></h2>
+    <p class="section-desc">
+      Functions, classes, closures, and heap objects survive across calls.
+      No JSON serialization — the Rust interpreter maintains state natively.
+    </p>
 
-<!-- ═══════════════════════════════════════════════════════════════
-     WHAT IS THIS
-     ═══════════════════════════════════════════════════════════════ -->
-<section id="about" class="fade-in">
-  <div class="section-label">The What</div>
-  <div class="section-title">A Rust Python interpreter. In your Dart and Flutter apps. Everywhere.</div>
-  <p class="section-subtitle">
-    dart_monty wraps <a href="https://github.com/pydantic/monty"><strong>Monty</strong></a>&mdash;Pydantic's
-    tree-walking Python interpreter written in Rust&mdash;in pure Dart bindings.
-    Native desktop uses FFI. Web uses WASM in a Worker. Mobile gets Isolate-based
-    execution. Your code doesn't change. The platform does.
-    <small style="display: block; margin-top: 0.5rem; color: var(--text-dim);">
-      We maintain a <a href="https://github.com/runyaga/monty" style="color: var(--text-dim); text-decoration: underline;">fork</a>
-      with patches for cancellation and FFI safety until they land upstream.
-    </small>
-  </p>
-
-  <div class="pitch-grid">
-    <div class="pitch-card">
-      <div class="mono-tag">pure dart</div>
-      <h3>Zero Flutter Dependency</h3>
-      <p>The entire platform interface is pure Dart. Use it in CLI tools, servers, or Flutter apps. No widget tree required.</p>
-    </div>
-    <div class="pitch-card">
-      <div class="mono-tag">sandboxed</div>
-      <h3>Sandboxed by Construction</h3>
-      <p>No file I/O. No network. No eval(). No import. Monty executes a Python subset that can't escape its sandbox. The interpreter IS the <a href="https://www.youtube.com/watch?v=eMHMf9y-27w" title="The voices have been liberated" style="color: inherit; text-decoration: none; border-bottom: 1px dotted var(--text-dim);">security model</a>.</p>
-    </div>
-    <div class="pitch-card">
-      <div class="mono-tag">federated</div>
-      <h3>Compile-Time Backend Selection</h3>
-      <p>Conditional imports choose FFI or WASM at compile time. Zero runtime overhead. Zero platform checks. <code>Monty()</code> just works.</p>
-    </div>
-    <div class="pitch-card">
-      <div class="mono-tag">extensible</div>
-      <h3>Host Function Plugins</h3>
-      <p>Python calls your Dart functions. Execution pauses, your host resolves the call, execution resumes. Full async bridge with typed schemas.</p>
-    </div>
-    <div class="pitch-card">
-      <div class="mono-tag">resilient</div>
-      <h3>Sealed Error Hierarchy</h3>
-      <p>Six error subtypes. Exhaustive pattern matching. Rust panics caught at the FFI boundary, never crashing your app. Every failure path is typed.</p>
-    </div>
-    <div class="pitch-card">
-      <div class="mono-tag">persistent</div>
-      <h3>Snapshot / Restore</h3>
-      <p>Freeze execution state. Serialize it. Restore it later. Stateful sessions that survive app restarts, powered by Monty's snapshot protocol.</p>
-    </div>
-  </div>
-
-  <div class="epigraph" style="margin-top: 2.5rem;">
-    "Pull the wool over your own eyes."
-    <span class="attribution">&mdash; The Church of the SubGenius</span>
-  </div>
-</section>
-
-<div class="section-divider"><hr></div>
-
-<!-- ═══════════════════════════════════════════════════════════════
-     ARCHITECTURE
-     ═══════════════════════════════════════════════════════════════ -->
-<section id="architecture" class="fade-in">
-  <div class="section-label">Architecture</div>
-  <div class="section-title">This is not my beautiful interpreter.</div>
-  <p class="section-subtitle">
-    Four packages form the core. A platform interface defines the contract. Two backends implement it.
-    A bridge layer adds plugins and streaming. Everything is pure Dart.
-  </p>
-
-  <!-- Package Dependency Graph -->
-  <div class="diagram-container">
-    <pre class="mermaid">
-graph TD
-    subgraph APP["Your Application"]
-        A["dart_monty<br/><small>App-facing API</small>"]
-    end
-
-    subgraph CORE["Platform Contract"]
-        PI["dart_monty_platform_interface<br/><small>Pure Dart &bull; MontyPlatform &bull; SPI</small>"]
-    end
-
-    subgraph BACKENDS["Backend Implementations"]
-        FFI["dart_monty_ffi<br/><small>dart:ffi &rarr; Rust shared lib</small>"]
-        WASM["dart_monty_wasm<br/><small>dart:js_interop &rarr; Web Worker</small>"]
-    end
-
-    subgraph BRIDGE["Orchestration"]
-        BR["dart_monty_bridge<br/><small>Plugins &bull; Streaming &bull; Events</small>"]
-    end
-
-    subgraph WRAPPERS["Platform Wrappers"]
-        NAT["dart_monty_native<br/><small>Isolate-based</small>"]
-        WEB["dart_monty_web<br/><small>pub.dev web plugin</small>"]
-    end
-
-    subgraph TOOLS["Developer Tools"]
-        CLI["monty_cli<br/><small>CLI tool</small>"]
-        MCP["dart_monty_mcp<br/><small>MCP server</small>"]
-    end
-
-    A --> PI
-    A --> BR
-    FFI --> PI
-    WASM --> PI
-    BR --> PI
-    NAT --> FFI
-    WEB --> WASM
-    CLI --> A
-    MCP --> BR
-
-    style APP fill:#1a1a2e,stroke:#569cd6,stroke-width:2px
-    style CORE fill:#1a1a2e,stroke:#c586c0,stroke-width:2px
-    style BACKENDS fill:#1a1a2e,stroke:#6a9955,stroke-width:2px
-    style BRIDGE fill:#1a1a2e,stroke:#dcdcaa,stroke-width:2px
-    style WRAPPERS fill:#1a1a2e,stroke:#4ec9b0,stroke-width:1px
-    style TOOLS fill:#1a1a2e,stroke:#808080,stroke-width:1px
-    </pre>
-    <div class="diagram-caption">Package dependency graph &mdash; arrows point from consumer to provider</div>
-  </div>
-
-  <!-- Execution Paths -->
-  <div class="arch-split">
-    <div class="arch-panel">
-      <div class="path-label">Native Path (Desktop / Mobile)</div>
-      <div class="diagram-container" style="border: none; padding: 1rem; margin: 0;">
-        <pre class="mermaid">
-graph LR
-    D["Dart App"] --> MI["MontyNative<br/><small>Isolate</small>"]
-    MI --> MF["MontyFfi<br/><small>dart:ffi</small>"]
-    MF --> LIB["libdart_monty<br/><small>.dylib / .so / .dll</small>"]
-    LIB --> MONTY["Monty<br/><small>Rust interpreter</small>"]
-
-    style D fill:#1a1a2e,stroke:#569cd6
-    style MI fill:#1a1a2e,stroke:#4ec9b0
-    style MF fill:#1a1a2e,stroke:#6a9955
-    style LIB fill:#1a1a2e,stroke:#dcdcaa
-    style MONTY fill:#1a1a2e,stroke:#c586c0,stroke-width:2px
-        </pre>
+    <div class="card-grid">
+      <div class="card">
+        <h3>MontyRepl</h3>
+        <p>Low-level REPL with <code>feed()</code> and
+           <code>feedStart()</code>/<code>resume()</code> for
+           host function dispatch.</p>
       </div>
-      <p style="font-size: 0.82rem; color: var(--text-secondary); margin-top: 0.5rem;">
-        FFI calls are synchronous. The Isolate wrapper runs them off the main thread&mdash;your
-        UI never freezes, even on 500ms Python executions.
-      </p>
-    </div>
-    <div class="arch-panel">
-      <div class="path-label">Web Path (Browser)</div>
-      <div class="diagram-container" style="border: none; padding: 1rem; margin: 0;">
-        <pre class="mermaid">
-graph LR
-    D["Dart<br/><small>compiled to JS</small>"] --> JS["js_interop<br/><small>monty_glue.js</small>"]
-    JS --> W["Web Worker"]
-    W --> WASM["Monty WASM<br/><small>wasm32-wasip1</small>"]
-
-    style D fill:#1a1a2e,stroke:#569cd6
-    style JS fill:#1a1a2e,stroke:#dcdcaa
-    style W fill:#1a1a2e,stroke:#4ec9b0
-    style WASM fill:#1a1a2e,stroke:#c586c0,stroke-width:2px
-        </pre>
+      <div class="card">
+        <h3>ReplSession</h3>
+        <p>High-level session combining REPL + plugin dispatch +
+           event streaming. The recommended API.</p>
       </div>
-      <p style="font-size: 0.82rem; color: var(--text-secondary); margin-top: 0.5rem;">
-        Chrome's 8MB sync compile limit means WASM must live in a Worker. Each session gets its
-        own Worker&mdash;preemptive kill via <code>Worker.terminate()</code>.
-      </p>
-    </div>
-  </div>
-
-  <div class="epigraph" style="margin-top: 2.5rem;">
-    "Are we not men? We are Devo!"
-    <span class="attribution">&mdash; Devo, "Jocko Homo"</span>
-  </div>
-</section>
-
-<div class="section-divider"><hr></div>
-
-<!-- ═══════════════════════════════════════════════════════════════
-     STATE MACHINE
-     ═══════════════════════════════════════════════════════════════ -->
-<section id="lifecycle" class="fade-in">
-  <div class="section-label">Lifecycle</div>
-  <div class="section-title">Stop making sense. Start making state machines.</div>
-  <p class="section-subtitle">
-    Every Monty session follows a deterministic state machine. <code>MontyStateMixin</code> enforces
-    valid transitions at the type level. No invalid states. No race conditions. No surprises.
-  </p>
-
-  <div class="diagram-container">
-    <pre class="mermaid">
-stateDiagram-v2
-    [*] --> Idle : create()
-
-    Idle --> Idle : run() &mdash; one-shot execution
-    Idle --> Active : start() &mdash; iterative execution
-
-    Active --> Active : resume() &mdash; pending result
-    Active --> Idle : resume() &mdash; complete result
-
-    Active --> Idle : cancel()
-
-    Idle --> Disposed : dispose()
-    Active --> Disposed : dispose()
-
-    Disposed --> [*]
-
-    note right of Active
-        Python pauses on host function call.
-        Dart resolves. Execution resumes.
-    end note
-    </pre>
-    <div class="diagram-caption">MontyPlatform lifecycle &mdash; guarded by MontyStateMixin</div>
-  </div>
-
-  <!-- Error Hierarchy -->
-  <div class="diagram-container">
-    <pre class="mermaid">
-graph TD
-    ME["MontyError<br/><small>sealed class</small>"]
-    ME --> MSE["MontyScriptError<br/><small>Python raised an exception</small>"]
-    ME --> MCE["MontyCancelledError<br/><small>Cooperative cancellation</small>"]
-    ME --> MRE["MontyResourceError<br/><small>Limits exceeded</small>"]
-    ME --> MPE["MontyPanicError<br/><small>Rust panic caught at FFI</small>"]
-    ME --> MCRE["MontyCrashError<br/><small>Unexpected crash</small>"]
-    ME --> MDE["MontyDisposedError<br/><small>Used after dispose</small>"]
-
-    style ME fill:#1a1a2e,stroke:#f44747,stroke-width:2px
-    style MSE fill:#1a1a2e,stroke:#dcdcaa
-    style MCE fill:#1a1a2e,stroke:#c586c0
-    style MRE fill:#1a1a2e,stroke:#ce9178
-    style MPE fill:#1a1a2e,stroke:#f44747
-    style MCRE fill:#1a1a2e,stroke:#f44747
-    style MDE fill:#1a1a2e,stroke:#808080
-    </pre>
-    <div class="diagram-caption">Sealed error hierarchy &mdash; exhaustive switch, no surprises</div>
-  </div>
-  <!-- fnord -->
-  <div class="epigraph" style="margin-top: 2.5rem;">
-    "All statements are true in some sense, false in some sense,
-    meaningless in some sense, true and false in some sense,
-    true and meaningless in some sense, false and meaningless in some sense,
-    and true and false and meaningless in some sense."
-    <span class="attribution">&mdash; Principia Discordia, The Fifth Commandment</span>
-  </div>
-</section>
-
-<div class="section-divider"><hr></div>
-
-<!-- ═══════════════════════════════════════════════════════════════
-     PYTHON LADDER
-     ═══════════════════════════════════════════════════════════════ -->
-<section id="ladder" class="fade-in">
-  <div class="section-label">Parity Verification</div>
-  <div class="section-title">The Python Ladder</div>
-  <p class="section-subtitle">
-    11 tiers of JSON test fixtures. Every tier runs on native FFI AND WASM.
-    Results are diffed as JSONL. Zero divergences on logic. This is how you prove
-    cross-platform parity&mdash;not with hope, but with evidence.
-  </p>
-
-  <div class="ladder">
-    <div class="ladder-tier" data-tier="1">
-      <h4>Expressions</h4>
-      <p><code>1 + 2</code>, <code>"hello"</code>, arithmetic, string ops</p>
-    </div>
-    <div class="ladder-tier" data-tier="2">
-      <h4>Variables</h4>
-      <p><code>x = 42</code>, assignment, lookup, scope</p>
-    </div>
-    <div class="ladder-tier" data-tier="3">
-      <h4>Control Flow</h4>
-      <p><code>if</code>, <code>while</code>, <code>break</code>, <code>continue</code></p>
-    </div>
-    <div class="ladder-tier" data-tier="4">
-      <h4>Functions</h4>
-      <p><code>def greet(name):</code>, closures, recursion</p>
-    </div>
-    <div class="ladder-tier" data-tier="5">
-      <h4>Errors</h4>
-      <p><code>NameError</code>, <code>TypeError</code>, <code>ZeroDivisionError</code></p>
-    </div>
-    <div class="ladder-tier" data-tier="6">
-      <h4>External Functions</h4>
-      <p>Host function calls, pause/resume protocol</p>
-    </div>
-    <div class="ladder-tier" data-tier="7">
-      <h4>Keyword Args</h4>
-      <p><code>greet(name="world")</code>, positional + keyword</p>
-    </div>
-    <div class="ladder-tier" data-tier="8">
-      <h4>Exceptions</h4>
-      <p><code>try</code>/<code>except</code>/<code>finally</code>, traceback</p>
-    </div>
-    <div class="ladder-tier" data-tier="9">
-      <h4>Async</h4>
-      <p>External functions resolving as futures</p>
-    </div>
-    <div class="ladder-tier" data-tier="10">
-      <h4>Script Naming</h4>
-      <p><code>__name__</code>, source attribution, metadata</p>
-    </div>
-    <div class="ladder-tier" data-tier="11">
-      <h4>Edge Cases</h4>
-      <p>Unicode, empty programs, max recursion, limits</p>
-    </div>
-  </div>
-
-  <div class="epigraph" style="margin-top: 2.5rem;">
-    "Eternal Salvation or Triple Your Money Back."
-    <span class="attribution">&mdash; The Church of the SubGenius</span>
-  </div>
-</section>
-
-<div class="section-divider"><hr></div>
-
-<!-- ═══════════════════════════════════════════════════════════════
-     FEATURES DEEP DIVE
-     ═══════════════════════════════════════════════════════════════ -->
-<section id="features" class="fade-in">
-  <div class="section-label">Deep Dive</div>
-  <div class="section-title title-tagged">Features that actually matter.</div>
-
-  <!-- Feature 1: Panic Safety -->
-  <div class="feature-row">
-    <div class="feature-text">
-      <div class="feature-tag tag-safety">Panic Safety</div>
-      <h3>Burning down the house? Not today.</h3>
-      <p>
-        Every Rust FFI function is wrapped in <code>ffi_progress!</code>&mdash;a macro that catches panics
-        via <code>std::panic::catch_unwind</code>, checks null pointers, and writes errors to caller-provided
-        buffers. Rust panics become typed Dart errors, never process crashes. This is the pattern that
-        should be standard for any Dart-Rust embedding.
-      </p>
-    </div>
-    <div class="code-block">
-      <div class="code-header">
-        <span class="code-dot r"></span>
-        <span class="code-dot y"></span>
-        <span class="code-dot g"></span>
-        native/src/lib.rs
+      <div class="card">
+        <h3>Continuation Detection</h3>
+        <p>Detects incomplete input (<code>&gt;&gt;&gt;</code> vs
+           <code>...</code> prompts) for building REPL UIs.</p>
       </div>
-      <pre><span class="cmt">// Every FFI entry point. Every time.</span>
-<span class="fn">ffi_progress!</span>(handle, out_error, |h| {
-    <span class="cmt">// Null check on handle pointer</span>
-    <span class="cmt">// Panic containment via catch_unwind</span>
-    <span class="cmt">// Error written to out-parameter</span>
-    h.<span class="fn">process_progress</span>(code, external_fns)
-});</pre>
     </div>
-  </div>
 
-  <!-- Feature 2: Cooperative Cancellation -->
-  <div class="feature-row reverse">
-    <div class="feature-text">
-      <div class="feature-tag tag-control">Cancellation</div>
-      <h3>When a problem comes along&mdash;you must whip it.</h3>
-      <p>
-        <code>MontyCancelToken</code> wraps an <code>Arc&lt;AtomicBool&gt;</code> checked in Monty's bytecode loop.
-        Cooperative cancellation without preemption. On web, <code>Worker.terminate()</code> gives you true
-        preemptive kill. Zombie tracking handles FFI calls that outlive their timeout.
-      </p>
-    </div>
-    <div class="code-block">
-      <div class="code-header">
-        <span class="code-dot r"></span>
-        <span class="code-dot y"></span>
-        <span class="code-dot g"></span>
-        cancellation.dart
+    <p style="margin-top: 24px;">
+      <a href="repl.html">Try the interactive REPL demo &rarr;</a>
+      &nbsp;&nbsp;|&nbsp;&nbsp;
+      <a href="https://github.com/runyaga/dart_monty/blob/main/docs/repl.md">
+        REPL documentation &rarr;</a>
+    </p>
+  </div>
+</section>
+
+<!-- Plugins -->
+<section id="plugins">
+  <div class="container">
+    <h2>Built-in Plugins</h2>
+    <p class="section-desc">
+      Host functions that Python code can call. All plugins work
+      with both <code>ReplSession</code> and <code>AgentSession</code>.
+    </p>
+
+    <div class="card-grid">
+      <div class="card">
+        <h3>TemplatePlugin</h3>
+        <p>Jinja2 template rendering. Variables, loops, conditionals, filters.</p>
+        <div class="fn">tmpl_render(template, context)</div>
       </div>
-      <pre><span class="kw">final</span> token = <span class="kw">await</span> monty.<span class="fn">cancelToken</span>();
-
-<span class="cmt">// From another isolate or timer:</span>
-<span class="kw">await</span> monty.<span class="fn">cancel</span>(token);
-
-<span class="cmt">// Result is MontyCancelledError</span>
-<span class="kw">switch</span> (error) {
-  <span class="type">MontyCancelledError</span>() => <span class="fn">print</span>(<span class="str">'whipped it'</span>),
-  <span class="type">MontyScriptError</span>(:final exception) => <span class="fn">handleErr</span>(exception),
-}</pre>
-    </div>
-  </div>
-
-  <!-- Feature 3: Plugin System -->
-  <div class="feature-row">
-    <div class="feature-text">
-      <div class="feature-tag tag-arch">Plugins</div>
-      <h3>Freedom of choice is what you got.</h3>
-      <p>
-        Group host functions into namespaced plugins. The registry validates collisions at registration time,
-        not at runtime. Python code can call <code>list_functions()</code> and <code>help("fn_name")</code>
-        to discover what's available. Introspection is auto-generated.
-      </p>
-    </div>
-    <div class="code-block">
-      <div class="code-header">
-        <span class="code-dot r"></span>
-        <span class="code-dot y"></span>
-        <span class="code-dot g"></span>
-        weather_plugin.dart
+      <div class="card">
+        <h3>MessageBusPlugin</h3>
+        <p>In-memory named message channels. Send, receive, peek, stats.</p>
+        <div class="fn">msg_send &middot; msg_recv &middot; msg_peek &middot; msg_close &middot; msg_stats</div>
       </div>
-      <pre><span class="kw">class</span> <span class="type">WeatherPlugin</span> <span class="kw">extends</span> <span class="type">MontyPlugin</span> {
-  <span class="type">String</span> <span class="kw">get</span> namespace => <span class="str">'weather'</span>;
-
-  <span class="type">List</span>&lt;<span class="type">HostFunction</span>&gt; <span class="kw">get</span> functions => [
-    <span class="type">HostFunction</span>(
-      schema: <span class="kw">const</span> <span class="type">HostFunctionSchema</span>(
-        name: <span class="str">'get_forecast'</span>,
-        params: [<span class="type">HostParam</span>(name: <span class="str">'city'</span>)],
-      ),
-      handler: (args) <span class="kw">async</span> => <span class="fn">fetchWeather</span>(args[<span class="str">'city'</span>]),
-    ),
-  ];
-}</pre>
-    </div>
-  </div>
-
-  <!-- Feature 4: Iterative Execution -->
-  <div class="feature-row reverse">
-    <div class="feature-text">
-      <div class="feature-tag tag-perf">Iterative Execution</div>
-      <h3>Same as it ever was. Same as it ever was.</h3>
-      <p>
-        <code>start()</code> begins execution. When Python hits a host function call, execution
-        <em>pauses</em>&mdash;returning a <code>MontyPending</code> with the function name and arguments.
-        Your Dart code resolves it. <code>resume()</code> continues from exactly where it stopped.
-        This loop is the <a href="https://www.youtube.com/watch?v=x1RC5rL3G9E" title="Got an uncontrollable urge" style="color: inherit; text-decoration: none; border-bottom: 1px dotted var(--text-dim);">beating heart</a> of dart_monty.
-      </p>
-    </div>
-    <div class="diagram-container" style="border: none; padding: 1rem; margin: 0;">
-      <pre class="mermaid">
-sequenceDiagram
-    participant App as Dart App
-    participant M as Monty
-    participant PY as Python Code
-
-    App->>M: start(code)
-    M->>PY: execute
-    PY->>M: call host_fn("get_data", args)
-    M-->>App: MontyPending{name, args}
-    Note over App: resolve async
-    App->>M: resume(result)
-    M->>PY: inject result, continue
-    PY->>M: return final_value
-    M-->>App: MontyComplete{value}
-      </pre>
-    </div>
-  </div>
-
-  <div class="epigraph" style="margin-top: 2.5rem;">
-    "We must understand the NATURE OF SLACK!<br>We must achieve SLACK or the whole world will be destroyed!"
-    <span class="attribution">&mdash; J.R. "Bob" Dobbs</span>
-  </div>
-</section>
-
-<div class="section-divider"><hr></div>
-
-<!-- ═══════════════════════════════════════════════════════════════
-     RUST FFI BOUNDARY
-     ═══════════════════════════════════════════════════════════════ -->
-<section id="ffi" class="fade-in">
-  <div class="section-label">The Boundary</div>
-  <div class="section-title">17 C functions. Every one panic-safe.</div>
-  <p class="section-subtitle">
-    The native Rust crate exposes a minimal C ABI surface. Four source files. A state machine
-    with 7 handle variants. Bidirectional JSON serialization for all values. No leaked pointers.
-    No unwound panics.
-  </p>
-
-  <div class="diagram-container">
-    <pre class="mermaid">
-graph LR
-    subgraph DART["Dart Side"]
-        NB["NativeBindingsFfi<br/><small>dart:ffi pointers</small>"]
-    end
-
-    subgraph FFI["C ABI Boundary"]
-        direction TB
-        CREATE["monty_create()"]
-        RUN["monty_run()"]
-        START["monty_start()"]
-        RESUME["monty_resume()"]
-        SNAP["monty_snapshot()"]
-        RESTORE["monty_restore()"]
-        CANCEL["monty_cancel()"]
-        FREE["monty_free()"]
-    end
-
-    subgraph RUST["Rust Side"]
-        HANDLE["MontyHandle<br/><small>state machine</small>"]
-        PROC["process_progress()<br/><small>generic dispatch</small>"]
-        CONV["convert.rs<br/><small>MontyObject &harr; JSON</small>"]
-        ERR["error.rs<br/><small>catch_unwind</small>"]
-    end
-
-    NB --> CREATE
-    NB --> RUN
-    NB --> START
-    NB --> RESUME
-    NB --> SNAP
-    NB --> CANCEL
-    NB --> FREE
-    CREATE --> HANDLE
-    RUN --> PROC
-    START --> PROC
-    RESUME --> PROC
-    PROC --> CONV
-    PROC --> ERR
-
-    style DART fill:#1a1a2e,stroke:#569cd6,stroke-width:2px
-    style FFI fill:#1a1a2e,stroke:#dcdcaa,stroke-width:2px
-    style RUST fill:#1a1a2e,stroke:#c586c0,stroke-width:2px
-    </pre>
-    <div class="diagram-caption">The FFI boundary &mdash; 17 extern "C" functions wrapping Monty's Rust interpreter</div>
-  </div>
-
-  <div class="epigraph" style="margin-top: 2.5rem;">
-    "It's not true unless it makes you laugh, but you don't
-    understand it until it makes you weep."
-    <span class="attribution">&mdash; Robert Anton Wilson, <em>The Illuminatus! Trilogy</em></span>
-  </div>
-</section>
-
-<div class="section-divider"><hr></div>
-
-<!-- ═══════════════════════════════════════════════════════════════
-     SPI CONTRACT
-     ═══════════════════════════════════════════════════════════════ -->
-<section id="spi" class="fade-in">
-  <div class="section-label">Contract Design</div>
-  <div class="section-title">Two barrels. One contract. No confusion.</div>
-  <p class="section-subtitle">
-    The platform interface exports two barrel files: the public API for apps, and the SPI for backend
-    implementers. This separation prevents accidental coupling between app code and implementation details.
-  </p>
-
-  <div class="diagram-container">
-    <pre class="mermaid">
-graph TB
-    subgraph PUBLIC["dart_monty_platform_interface.dart<br/><small>Public API &mdash; apps import this</small>"]
-        MP["MontyPlatform"]
-        MR["MontyResult"]
-        MERR["MontyError (sealed)"]
-        MS["MontySession"]
-        ML["MontyLimits"]
-        MCT["MontyCancelToken"]
-    end
-
-    subgraph SPI["monty_backend_spi.dart<br/><small>SPI &mdash; backends only</small>"]
-        BMP["BaseMontyPlatform"]
-        MCB["MontyCoreBindings"]
-        MSM["MontyStateMixin"]
-        MSC["MontySnapshotCapable"]
-        MFC["MontyFutureCapable"]
-    end
-
-    FFI_PKG["dart_monty_ffi"] --> SPI
-    WASM_PKG["dart_monty_wasm"] --> SPI
-    APP["Your App"] --> PUBLIC
-    BRIDGE["dart_monty_bridge"] --> PUBLIC
-
-    APP -.-x SPI
-    BRIDGE -.-x SPI
-
-    style PUBLIC fill:#1a1a2e,stroke:#569cd6,stroke-width:2px
-    style SPI fill:#1a1a2e,stroke:#c586c0,stroke-width:2px
-    style APP fill:#1a1a2e,stroke:#6a9955
-    style FFI_PKG fill:#1a1a2e,stroke:#6a9955
-    style WASM_PKG fill:#1a1a2e,stroke:#6a9955
-    style BRIDGE fill:#1a1a2e,stroke:#dcdcaa
-    </pre>
-    <div class="diagram-caption">Apps never import the SPI. Backends never skip it. The dashed X means "must not import."</div>
-  </div>
-  <!-- THINK FOR YOURSELF, SCHMUCK -->
-  <div class="epigraph" style="margin-top: 2.5rem;">
-    "Convictions cause convicts."
-    <span class="attribution">&mdash; Principia Discordia</span>
-  </div>
-</section>
-
-<div class="section-divider"><hr></div>
-
-<!-- ═══════════════════════════════════════════════════════════════
-     BRIDGE & PLUGIN ARCHITECTURE
-     ═══════════════════════════════════════════════════════════════ -->
-<section id="plugins" class="fade-in">
-  <div class="section-label">Plugin System</div>
-  <div class="section-title">Beautiful world. Beautiful plugins.</div>
-  <p class="section-subtitle">
-    The bridge layer wraps the raw start/resume loop into a streaming event pipeline.
-    Plugins register host functions. The registry auto-generates <code>list_functions()</code>
-    and <code>help()</code> for runtime introspection.
-  </p>
-
-  <div class="diagram-container">
-    <pre class="mermaid">
-graph TB
-    subgraph BRIDGE["MontyBridge"]
-        LOOP["Start / Resume Loop"]
-        STREAM["Stream&lt;BridgeEvent&gt;"]
-    end
-
-    subgraph REGISTRY["PluginRegistry"]
-        REG["register()"]
-        VALID["Collision detection"]
-        INTRO["Auto introspection"]
-    end
-
-    subgraph PLUGINS["Your Plugins"]
-        P1["WeatherPlugin<br/><small>weather.get_forecast</small>"]
-        P2["StockPlugin<br/><small>stock.get_price</small>"]
-        P3["MathPlugin<br/><small>math.solve</small>"]
-    end
-
-    subgraph EVENTS["BridgeEvent (sealed)"]
-        TC["BridgeToolCallResult"]
-        TX["BridgeTextContent"]
-        FIN["BridgeRunFinished"]
-    end
-
-    P1 --> REG
-    P2 --> REG
-    P3 --> REG
-    REG --> VALID
-    VALID --> INTRO
-    REGISTRY --> BRIDGE
-    LOOP --> STREAM
-    STREAM --> TC
-    STREAM --> TX
-    STREAM --> FIN
-
-    style BRIDGE fill:#1a1a2e,stroke:#dcdcaa,stroke-width:2px
-    style REGISTRY fill:#1a1a2e,stroke:#c586c0,stroke-width:2px
-    style PLUGINS fill:#1a1a2e,stroke:#6a9955,stroke-width:2px
-    style EVENTS fill:#1a1a2e,stroke:#569cd6,stroke-width:2px
-    </pre>
-    <div class="diagram-caption">Plugin registry &rarr; bridge dispatch &rarr; event stream</div>
-  </div>
-
-  <!-- Bridge Middleware -->
-  <div class="feature-row" style="margin-top: 3rem;">
-    <div class="feature-text">
-      <div class="feature-tag tag-arch">Bridge Middleware</div>
-      <h3>Cross-cutting concerns at the chokepoint.</h3>
-      <p>
-        <code>BridgeMiddleware</code> intercepts every tool call through the bridge&mdash;grounding,
-        telemetry, rate limiting, access control&mdash;without wrapping individual plugins.
-        A sealed <code>CallRole</code> hierarchy distinguishes orchestration infrastructure
-        from agent-initiated tool calls, so middleware can enforce policy selectively.
-      </p>
-    </div>
-    <div class="diagram-container" style="border: none; padding: 1rem; margin: 0;">
-      <pre class="mermaid">
-graph LR
-    PY["Python seed"] -->|"__role__=infra"| MW1["Grounding"]
-    PY -->|"__role__=tool"| MW1
-    MW1 --> MW2["Telemetry"]
-    MW2 --> MW3["Rate Limit"]
-    MW3 --> H["Plugin Handler"]
-
-    style PY fill:#1a1a2e,stroke:#569cd6,stroke-width:2px
-    style MW1 fill:#1a1a2e,stroke:#c586c0,stroke-width:2px
-    style MW2 fill:#1a1a2e,stroke:#c586c0,stroke-width:2px
-    style MW3 fill:#1a1a2e,stroke:#c586c0,stroke-width:2px
-    style H fill:#1a1a2e,stroke:#6a9955,stroke-width:2px
-      </pre>
-    </div>
-  </div>
-
-  <div class="epigraph" style="margin-top: 2.5rem;">
-    "Freedom of choice is what you got. Freedom from choice is what you want."
-    <span class="attribution">&mdash; Devo, "Freedom of Choice"</span>
-  </div>
-</section>
-
-<div class="section-divider"><hr></div>
-
-<!-- ═══════════════════════════════════════════════════════════════
-     INTERACTIVE DEMOS
-     ═══════════════════════════════════════════════════════════════ -->
-<section id="demos" class="fade-in">
-  <div class="section-label">Try It Now</div>
-  <div class="section-title">Python. In your browser. Right now.</div>
-  <p class="section-subtitle">
-    These demos compile Dart to JavaScript, load the Monty WASM binary in a Web Worker, and
-    execute Python&mdash;all client-side. No server. No backend. Just your browser and a
-    Rust interpreter compiled to WebAssembly.
-  </p>
-
-  <div class="demo-grid">
-    <a class="demo-card" href="demo.html">
-      <div class="demo-badge badge-wasm">WASM</div>
-      <h3>Python Executor</h3>
-      <p>Run Python expressions and functions through Monty WASM. See results in real time. Open DevTools for the full story.</p>
-    </a>
-    <a class="demo-card" href="ladder.html">
-      <div class="demo-badge badge-dart">PARITY</div>
-      <h3>Python Ladder</h3>
-      <p>Run all 11 tiers of cross-platform test fixtures in-browser. Watch every tier pass. This is the parity guarantee, live.</p>
-    </a>
-    <a class="demo-card" href="visualizer.html">
-      <div class="demo-badge badge-wasm">INTERACTIVE</div>
-      <h3>Algorithm Visualizer</h3>
-      <p>8 sorting algorithms. Python writes the logic. Monty's iterative execution pauses at each step. You see every comparison and swap.</p>
-    </a>
-    <a class="demo-card" href="vfs.html">
-      <div class="demo-badge badge-wasm">VFS</div>
-      <h3>VFS Playground</h3>
-      <p>Virtual filesystem in the browser. Python reads and writes files through pathlib. Dart handles every OS call. Watch the round-trip live.</p>
-    </a>
-  </div>
-</section>
-
-<div class="section-divider"><hr></div>
-
-<!-- ═══════════════════════════════════════════════════════════════
-     GETTING STARTED
-     ═══════════════════════════════════════════════════════════════ -->
-<section id="start" class="fade-in">
-  <div class="section-label">Get Started</div>
-  <div class="section-title">Three lines. That's it.</div>
-
-  <div class="code-block" style="max-width: 600px; margin-top: 2rem;">
-    <div class="code-header">
-      <span class="code-dot r"></span>
-      <span class="code-dot y"></span>
-      <span class="code-dot g"></span>
-      main.dart
-    </div>
-    <pre><span class="kw">import</span> <span class="str">'package:dart_monty/dart_monty.dart'</span>;
-
-<span class="kw">void</span> <span class="fn">main</span>() <span class="kw">async</span> {
-  <span class="kw">final</span> monty = <span class="type">Monty</span>();
-  <span class="kw">final</span> result = <span class="kw">await</span> monty.<span class="fn">run</span>(<span class="str">'2 + 2'</span>);
-  <span class="fn">print</span>(result.value); <span class="cmt">// 4</span>
-}</pre>
-  </div>
-
-  <div style="margin-top: 2rem;">
-    <div class="code-block" style="max-width: 600px;">
-      <div class="code-header">
-        <span class="code-dot r"></span>
-        <span class="code-dot y"></span>
-        <span class="code-dot g"></span>
-        stateful_session.dart
+      <div class="card">
+        <h3>SandboxPlugin</h3>
+        <p>Spawn isolated child interpreters. Parallel execution, gather,
+           plugin inheritance, grandchildren.</p>
+        <div class="fn">sandbox_spawn &middot; sandbox_await &middot; sandbox_gather &middot; sandbox_free</div>
       </div>
-      <pre><span class="kw">final</span> session = <span class="type">MontySession</span>(platform: <span class="type">Monty</span>());
-
-<span class="kw">await</span> session.<span class="fn">run</span>(<span class="str">'x = 42'</span>);
-<span class="kw">await</span> session.<span class="fn">run</span>(<span class="str">'y = x * 2'</span>);
-<span class="kw">final</span> result = <span class="kw">await</span> session.<span class="fn">run</span>(<span class="str">'x + y'</span>);
-<span class="fn">print</span>(result.value); <span class="cmt">// 126</span></pre>
     </div>
-  </div>
 
-  <div style="margin-top: 2rem;">
-    <div class="code-block" style="max-width: 600px;">
-      <div class="code-header">
-        <span class="code-dot r"></span>
-        <span class="code-dot y"></span>
-        <span class="code-dot g"></span>
-        with_plugins.dart
+    <h3>OS / Filesystem</h3>
+    <p>Configurable OS call providers for filesystem, time, and environment:</p>
+
+    <div class="card-grid" style="margin-top: 12px;">
+      <div class="card">
+        <h3>In-Memory VFS</h3>
+        <p>Read/write filesystem in memory. No host disk access.</p>
       </div>
-      <pre><span class="kw">final</span> bridge = <span class="type">MontyBridge</span>(platform: <span class="type">Monty</span>());
-<span class="kw">final</span> registry = <span class="type">PluginRegistry</span>()
-  ..<span class="fn">register</span>(<span class="type">WeatherPlugin</span>())
-  ..<span class="fn">register</span>(<span class="type">StockPlugin</span>());
-<span class="kw">await</span> registry.<span class="fn">attachTo</span>(bridge);
+      <div class="card">
+        <h3>Read-Only Mount</h3>
+        <p>Mount a host directory read-only into the sandbox.</p>
+      </div>
+      <div class="card">
+        <h3>Overlay</h3>
+        <p>Copy-on-write layer over a read-only base. Writes go to memory.</p>
+      </div>
+    </div>
 
-<span class="cmt">// Python can now call weather.get_forecast("NYC")</span>
-<span class="cmt">// and stock.get_price("AAPL")</span>
-<span class="kw">await for</span> (<span class="kw">final</span> event <span class="kw">in</span> bridge.<span class="fn">run</span>(script)) {
-  <span class="cmt">// handle BridgeEvent stream</span>
-}</pre>
+    <p style="margin-top: 24px;">
+      <a href="https://github.com/runyaga/dart_monty/blob/main/docs/plugins.md">
+        Plugin documentation &rarr;</a>
+      &nbsp;&nbsp;|&nbsp;&nbsp;
+      <a href="https://github.com/runyaga/dart_monty/blob/main/docs/sandbox-architecture.md">
+        Sandbox deep dive &rarr;</a>
+    </p>
+  </div>
+</section>
+
+<!-- Architecture -->
+<section id="architecture">
+  <div class="container">
+    <h2>Architecture</h2>
+    <p class="section-desc">
+      One package. Conditional imports select FFI or WASM at compile time.
+    </p>
+
+    <div class="arch-box">dart_monty (single package)
+├── lib/src/platform/    <span style="color:var(--text-dim)">Core types: MontyResult, MontyProgress, MontyValue</span>
+├── lib/src/ffi/         <span style="color:var(--text-dim)">Native FFI backend (dart:ffi)</span>
+├── lib/src/wasm/        <span style="color:var(--text-dim)">Web WASM backend (dart:js_interop + Worker)</span>
+├── lib/src/bridge/      <span style="color:var(--text-dim)">Plugin dispatch, events, middleware</span>
+├── lib/src/repl/        <span style="color:var(--text-dim)">REPL: MontyRepl, ReplSession, ReplPlatform</span>
+└── native/              <span style="color:var(--text-dim)">Rust C API crate (compiles to .dylib/.so/.dll + .wasm)</span></div>
+
+    <h3>Execution Paths</h3>
+    <div class="card-grid" style="margin-top: 12px;">
+      <div class="card">
+        <h3>Native (FFI)</h3>
+        <p>Dart &rarr; dart:ffi &rarr; libdart_monty_native &rarr; Monty Rust interpreter</p>
+        <p style="color:var(--green); font-size:12px;">Desktop, server, mobile</p>
+      </div>
+      <div class="card">
+        <h3>Web (WASM)</h3>
+        <p>Dart/JS &rarr; js_interop &rarr; Web Worker &rarr; Monty WASM</p>
+        <p style="color:var(--cyan); font-size:12px;">Browser (any modern browser)</p>
+      </div>
+    </div>
+
+    <h3>Bridge &amp; Events</h3>
+    <p>
+      <code>DefaultMontyBridge</code> orchestrates execution. Plugins register
+      host functions. When Python calls one, execution suspends, the bridge
+      dispatches to the handler, and resumes with the result. Every step
+      emits <code>BridgeEvent</code>s for real-time UI updates.
+    </p>
+
+    <p style="margin-top: 24px;">
+      <a href="https://github.com/runyaga/dart_monty/blob/main/docs/architecture.md">
+        Full architecture docs &rarr;</a>
+    </p>
+  </div>
+</section>
+
+<!-- Demos -->
+<section id="demos">
+  <div class="container">
+    <h2>Interactive Demos</h2>
+    <p class="section-desc">
+      All demos run in your browser via WebAssembly. No server required.
+    </p>
+
+    <div class="demo-grid">
+      <a href="repl.html" class="demo-link">
+        <h4>REPL</h4>
+        <p>Interactive Python REPL with real plugins (template, message bus).</p>
+      </a>
+      <a href="demo.html" class="demo-link">
+        <h4>Basic Execution</h4>
+        <p>One-shot Python execution, error handling, external functions.</p>
+      </a>
+      <a href="vfs.html" class="demo-link">
+        <h4>Virtual Filesystem</h4>
+        <p>Python pathlib operations against in-memory VFS.</p>
+      </a>
+      <a href="agent.html" class="demo-link">
+        <h4>Agent Session</h4>
+        <p>Stateful agent with plugins, telemetry, and event streaming.</p>
+      </a>
+      <a href="ladder.html" class="demo-link">
+        <h4>Python Ladder</h4>
+        <p>350+ compatibility tests across 21 tiers.</p>
+      </a>
+      <a href="visualizer.html" class="demo-link">
+        <h4>Sorting Visualizer</h4>
+        <p>Step-by-step sorting algorithm animations in Python.</p>
+      </a>
     </div>
   </div>
+</section>
 
-  <div class="epigraph" style="margin-top: 3rem;">
-    "It's a beautiful world we live in. A sweet romantic place."
-    <span class="attribution">&mdash; Devo, "Beautiful World"</span>
+<!-- Get Started -->
+<section id="start" style="border: none;">
+  <div class="container">
+    <h2>Get Started</h2>
+
+    <h3>Install</h3>
+<pre>dart pub add dart_monty</pre>
+
+    <h3>Native (FFI)</h3>
+    <p>Works out of the box on macOS, Linux, and Windows.
+       The Rust native library is built automatically via Dart's
+       native assets hook.</p>
+
+    <h3>Web (WASM)</h3>
+    <p>Copy the WASM assets to your web directory:</p>
+<pre>cp packages/dart_monty_wasm/assets/dart_monty_bridge.js web/
+cp packages/dart_monty_wasm/assets/dart_monty_worker.js web/
+cp packages/dart_monty_wasm/assets/dart_monty_native.wasm web/</pre>
+    <p>Serve with <code>Cross-Origin-Opener-Policy: same-origin</code>
+       and <code>Cross-Origin-Embedder-Policy: require-corp</code> headers
+       (required for SharedArrayBuffer).</p>
+
+    <h3>Documentation</h3>
+    <ul style="padding-left: 20px; color: var(--text-dim);">
+      <li><a href="https://github.com/runyaga/dart_monty/blob/main/README.md">README</a> — Quick start and API overview</li>
+      <li><a href="https://github.com/runyaga/dart_monty/blob/main/docs/repl.md">REPL Guide</a> — Stateful interactive execution</li>
+      <li><a href="https://github.com/runyaga/dart_monty/blob/main/docs/plugins.md">Plugins</a> — Template, MessageBus, Sandbox</li>
+      <li><a href="https://github.com/runyaga/dart_monty/blob/main/docs/architecture.md">Architecture</a> — Module structure and internals</li>
+      <li><a href="https://github.com/runyaga/dart_monty/blob/main/docs/sandbox-architecture.md">Sandbox</a> — Child spawning, grandchildren, limits</li>
+      <li><a href="https://github.com/runyaga/dart_monty/blob/main/docs/guides/host-functions-intro.md">Host Functions Guide</a> — Writing custom plugins</li>
+    </ul>
   </div>
 </section>
 
-<div class="section-divider"><hr></div>
-
-<!-- ═══════════════════════════════════════════════════════════════
-     EVOLVING
-     ═══════════════════════════════════════════════════════════════ -->
-<section id="evolving" class="fade-in">
-  <div class="section-label">Self-Evolving</div>
-  <div class="section-title">The road to somewhere.</div>
-  <p class="section-subtitle" style="max-width: 800px;">
-    dart_monty is not a finished product. It's an evolving system. The Python ladder grows.
-    The plugin API deepens. The WASM path optimizes. Supervision trees emerge. Every commit
-    makes the parity guarantee stronger. Every test fixture is evidence.
-  </p>
-
-  <div class="diagram-container">
-    <pre class="mermaid">
-timeline
-    title dart_monty Evolution
-    section Foundation
-        Pure Dart platform interface : MontyPlatform contract
-        Native FFI bindings : dart_monty_ffi + Rust crate
-        WASM Web Worker : dart_monty_wasm + JS bridge
-    section Parity
-        Python Ladder : 11-tier fixture suite
-        Cross-path JSONL diff : Native vs WASM verification
-        Snapshot portability : State persistence probes
-    section Safety
-        ffi_progress! macro : Panic containment
-        Sealed MontyError : 6 typed subtypes
-        CancellableTracker : Cooperative cancellation
-    section Orchestration
-        Plugin Registry : Namespaced host functions
-        Bridge Events : Streaming execution
-        Bridge Middleware : Sealed CallRole + onion chain
-        MCP Server : LLM integration
-    section Horizon
-        Supervision Trees : Fault tolerance
-        WASM Optimization : 16MB per session target
-        REPL Mode : Stateful multi-step
-        Rich Types : Tuples, sets, dataclasses
-    </pre>
-    <div class="diagram-caption">Past, present, and horizon &mdash; every phase builds on the last</div>
-  </div>
-
-  <div class="epigraph epigraph-center" style="margin-top: 2.5rem;">
-    "Letting the days go by, let the water hold me down.<br>
-    Letting the days go by, water flowing underground.<br>
-    Into the blue again, after the money's gone.<br>
-    Once in a lifetime, water flowing underground."
-    <span class="attribution">&mdash; Talking Heads, "Once in a Lifetime"</span>
-  </div>
-
-  <div class="epigraph epigraph-center" style="margin-top: 1.5rem;">
-    "The border between the Real and the Unreal is not fixed,
-    but just marks the last place where rival gangs of programmers
-    managed to push the line."
-    <span class="attribution">&mdash; Robert Anton Wilson, <em>The Illuminatus! Trilogy</em></span>
-  </div>
-</section>
-
-<!-- fnord fnord fnord -->
-<!-- ═══════════════════════════════════════════════════════════════
-     FOOTER
-     ═══════════════════════════════════════════════════════════════ -->
 <footer>
-  <div class="foot-left">
-    <span title="Hail Eris! All Hail Discordia!">dart_monty</span> &mdash; __BUILD_DATE__
-  </div>
-  <div class="foot-links">
-    <a href="https://github.com/runyaga/dart_monty">GitHub</a>
-    <a href="https://pub.dev/packages/dart_monty">pub.dev</a>
-    <a href="https://github.com/runyaga/dart_monty/tree/main/docs">Docs</a>
-    <a href="vfs.html">VFS Playground</a>
+  <div class="container">
+    <p>
+      dart_monty &mdash;
+      <a href="https://github.com/runyaga/dart_monty">GitHub</a> &middot;
+      <a href="https://pub.dev/packages/dart_monty">pub.dev</a>
+      <br>
+      <span id="build-date"></span>
+    </p>
   </div>
 </footer>
-
-<!-- ═══════════════════════════════════════════════════════════════
-     SCROLL ANIMATION
-     ═══════════════════════════════════════════════════════════════ -->
-<script>
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        entry.target.classList.add('visible');
-      }
-    });
-  }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
-
-  document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
-
-  // Close mobile menu on link click
-  document.querySelectorAll('nav .links a').forEach(a => {
-    a.addEventListener('click', () => {
-      document.querySelector('nav .links').classList.remove('open');
-    });
-  });
-
-  // Smooth nav active state
-  const sections = document.querySelectorAll('section[id]');
-  const navLinks = document.querySelectorAll('nav .links a[href^="#"]');
-
-  window.addEventListener('scroll', () => {
-    let current = '';
-    sections.forEach(section => {
-      const top = section.offsetTop - 100;
-      if (window.scrollY >= top) current = section.getAttribute('id');
-    });
-    navLinks.forEach(link => {
-      link.style.color = link.getAttribute('href') === '#' + current
-        ? 'var(--text-primary)' : '';
-    });
-  });
-</script>
 
 </body>
 </html>

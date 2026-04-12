@@ -7,20 +7,20 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-      background: #1e1e1e;
-      color: #d4d4d4;
+      background: #1a1b26;
+      color: #c0caf5;
       padding: 2rem;
       max-width: 960px;
       margin: 0 auto;
     }
-    a { color: #569cd6; }
+    a { color: #7aa2f7; }
     h1 {
-      color: #569cd6;
+      color: #7aa2f7;
       margin-bottom: 0.5rem;
       font-size: 1.4rem;
     }
     .subtitle {
-      color: #808080;
+      color: #565f89;
       margin-bottom: 1.5rem;
       font-size: 0.9rem;
     }
@@ -29,36 +29,36 @@
 
     /* Status bar */
     #status {
-      background: #2d2d2d;
-      border: 1px solid #404040;
+      background: #24283b;
+      border: 1px solid #3b4261;
       border-radius: 4px;
       padding: 0.75rem 1rem;
       margin-bottom: 1.5rem;
       font-size: 0.9rem;
     }
-    #status.init { border-left: 3px solid #569cd6; }
-    #status.running { border-left: 3px solid #dcdcaa; }
-    #status.done { border-left: 3px solid #6a9955; }
-    #status.error { border-left: 3px solid #f44747; }
+    #status.init { border-left: 3px solid #7aa2f7; }
+    #status.running { border-left: 3px solid #e0af68; }
+    #status.done { border-left: 3px solid #9ece6a; }
+    #status.error { border-left: 3px solid #f7768e; }
 
     /* Totals */
     #totals {
       display: none;
-      background: #2d2d2d;
-      border: 1px solid #404040;
+      background: #24283b;
+      border: 1px solid #3b4261;
       border-radius: 4px;
       padding: 0.75rem 1rem;
       margin-bottom: 1.5rem;
     }
     .progress-bar {
-      background: #404040;
+      background: #3b4261;
       border-radius: 3px;
       height: 8px;
       margin-top: 0.5rem;
       overflow: hidden;
     }
     .progress-fill {
-      background: #6a9955;
+      background: #9ece6a;
       height: 100%;
       transition: width 0.3s;
     }
@@ -66,7 +66,7 @@
     /* Legend */
     .legend {
       display: none;
-      background: #252526;
+      background: #24283b;
       border: 1px solid #333;
       border-radius: 4px;
       padding: 0.75rem 1rem;
@@ -82,20 +82,20 @@
       margin-right: 0.3rem;
       vertical-align: middle;
     }
-    .legend-dot.pass { background: #6a9955; }
-    .legend-dot.warn { background: #dcdcaa; }
-    .legend-dot.fail { background: #f44747; }
-    .legend-dot.skip { background: #808080; }
+    .legend-dot.pass { background: #9ece6a; }
+    .legend-dot.warn { background: #e0af68; }
+    .legend-dot.fail { background: #f7768e; }
+    .legend-dot.skip { background: #565f89; }
     .legend-dot.xfail { background: #9b59b6; }
     .legend-dot.xpass { background: #8e44ad; }
 
     /* Tier sections */
     .tier { margin-bottom: 1.5rem; }
     .tier-header {
-      color: #dcdcaa;
+      color: #e0af68;
       font-size: 1rem;
       padding: 0.5rem 0;
-      border-bottom: 1px solid #404040;
+      border-bottom: 1px solid #3b4261;
       margin-bottom: 0.5rem;
       cursor: pointer;
       user-select: none;
@@ -107,16 +107,16 @@
 
     /* Test cards */
     .test-card {
-      background: #252526;
+      background: #24283b;
       border: 1px solid #333;
       border-radius: 4px;
       margin-bottom: 0.5rem;
       overflow: hidden;
     }
-    .test-card.pass { border-left: 3px solid #6a9955; }
-    .test-card.warn { border-left: 3px solid #dcdcaa; }
-    .test-card.fail { border-left: 3px solid #f44747; }
-    .test-card.skip { border-left: 3px solid #808080; }
+    .test-card.pass { border-left: 3px solid #9ece6a; }
+    .test-card.warn { border-left: 3px solid #e0af68; }
+    .test-card.fail { border-left: 3px solid #f7768e; }
+    .test-card.skip { border-left: 3px solid #565f89; }
     .test-card.xfail { border-left: 3px solid #9b59b6; }
     .test-card.xpass { border-left: 3px solid #8e44ad; }
 
@@ -137,12 +137,12 @@
       font-weight: bold;
       text-transform: uppercase;
     }
-    .badge.pass { background: #6a9955; color: #1e1e1e; }
-    .badge.warn { background: #dcdcaa; color: #1e1e1e; }
-    .badge.fail { background: #f44747; color: #1e1e1e; }
-    .badge.skip { background: #808080; color: #1e1e1e; }
-    .badge.xfail { background: #9b59b6; color: #1e1e1e; }
-    .badge.xpass { background: #8e44ad; color: #1e1e1e; }
+    .badge.pass { background: #9ece6a; color: #1a1b26; }
+    .badge.warn { background: #e0af68; color: #1a1b26; }
+    .badge.fail { background: #f7768e; color: #1a1b26; }
+    .badge.skip { background: #565f89; color: #1a1b26; }
+    .badge.xfail { background: #9b59b6; color: #1a1b26; }
+    .badge.xpass { background: #8e44ad; color: #1a1b26; }
 
     .card-body {
       display: none;
@@ -153,13 +153,13 @@
 
     .card-body label {
       display: block;
-      color: #808080;
+      color: #565f89;
       font-size: 0.75rem;
       margin-top: 0.4rem;
       margin-bottom: 0.2rem;
     }
     .card-body pre {
-      background: #1e1e1e;
+      background: #1a1b26;
       padding: 0.5rem;
       border-radius: 3px;
       font-size: 0.8rem;
@@ -169,17 +169,15 @@
     }
     .code-block { color: #ce9178; }
     .result-block { color: #b5cea8; }
-    .warn-block { color: #dcdcaa; }
-    .error-block { color: #f44747; }
+    .warn-block { color: #e0af68; }
+    .error-block { color: #f7768e; }
   </style>
 </head>
 <body>
-  <h1>Python Ladder Showcase</h1>
-  <p class="subtitle">Running all Python ladder fixtures through Monty WASM in the browser</p>
-  <div class="nav">
-    <a href="index.html">&larr; Home</a>
-    <a href="demo.html">Demo</a>
-    <a href="visualizer.html">Visualizer</a>
+  <div style="padding:12px 20px;background:#24283b;border-bottom:1px solid #3b4261;display:flex;align-items:center;gap:16px;">
+    <a href="index.html" style="color:#565f89;text-decoration:none;font-size:13px;">&larr; Home</a>
+    <span style="font-size:16px;font-weight:600;color:#7aa2f7;">Python Ladder</span>
+    <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:#2d3a5e;color:#7dcfff;">WASM</span>
   </div>
 
   <div id="status" class="init">Initializing WASM Worker...</div>
@@ -310,9 +308,9 @@
       totalsEl.style.display = 'block';
       totalsEl.innerHTML =
         '<strong>' + passed + ' passed</strong>' +
-        (warned > 0 ? ' &middot; <span style="color:#dcdcaa">' + warned + ' warnings</span>' : '') +
-        (failed > 0 ? ' &middot; <span style="color:#f44747">' + failed + ' failed</span>' : '') +
-        (skipped > 0 ? ' &middot; <span style="color:#808080">' + skipped + ' skipped</span>' : '') +
+        (warned > 0 ? ' &middot; <span style="color:#e0af68">' + warned + ' warnings</span>' : '') +
+        (failed > 0 ? ' &middot; <span style="color:#f7768e">' + failed + ' failed</span>' : '') +
+        (skipped > 0 ? ' &middot; <span style="color:#565f89">' + skipped + ' skipped</span>' : '') +
         (xfailed > 0 ? ' &middot; <span style="color:#9b59b6">' + xfailed + ' xfail</span>' : '') +
         (xpassed > 0 ? ' &middot; <span style="color:#8e44ad">' + xpassed + ' xpass</span>' : '') +
         ' &middot; ' + total + ' total' +
