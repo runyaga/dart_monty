@@ -46,7 +46,6 @@ nav:
       - Sandbox Architecture: architecture/sandbox-architecture.md
   - Live Demo:
       - Introduction: index.html
-      - The Altar of Dart: showcase.html
       - Stateful REPL: repl.html
       - VFS / Filesystem: vfs.html
       - Agent Interaction: agent.html
