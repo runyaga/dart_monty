@@ -105,11 +105,4 @@ void main() {
       expect(mock.isDisposed, isTrue);
     });
   });
-
-  group('Monty.exec()', () {
-    test('creates, runs, and disposes', () async {
-      // Can't easily test with mock since exec() creates its own Monty.
-      // This is tested via integration tests.
-    });
-  });
 }
