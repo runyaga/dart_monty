@@ -28,22 +28,15 @@ nav:
   - Overview: help.md
   - User Guide:
       - Installation: user/install.md
+      - Host Functions: user/host-functions.md
       - REPL: user/repl.md
       - Plugins: user/plugins.md
       - API Reference: user/api-reference.md
-      - Host Functions:
-          - Introduction: user/host-functions-intro.md
-          - Beginner: user/host-functions-beginner.md
-          - Intermediate: user/host-functions-intermediate.md
-          - Advanced: user/host-functions-advanced.md
-      - Bridge Middleware: user/bridge-middleware.md
-  - Architecture:
-      - Overview: architecture/overview.md
-      - Error Hierarchy: architecture/error-hierarchy.md
-      - Lifecycles: architecture/lifecycles.md
-      - OsCall / VFS: architecture/oscall-vfs.md
-      - Plugin System: architecture/plugin-system.md
-      - Sandbox Architecture: architecture/sandbox-architecture.md
+  - Architecture: architecture/overview.md
+  - Contributing:
+      - Development Setup: contributor/setup.md
+      - Testing: contributor/testing.md
+      - Native Build: contributor/native-build.md
   - Live Demo:
       - Introduction: index.html
       - Stateful REPL: repl.html
@@ -51,7 +44,3 @@ nav:
       - Agent Interaction: agent.html
       - Execution Visualizer: visualizer.html
       - Python Ladder: ladder.html
-  - Contributing:
-      - Development Setup: contributor/setup.md
-      - Testing: contributor/testing.md
-      - Native Build: contributor/native-build.md

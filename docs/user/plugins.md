@@ -242,5 +242,6 @@ await session.dispose();
 
 ## Writing Custom Plugins
 
-See the [host functions guide](host-functions-intro.md) for
+See the [host functions guide](host-functions.md) for
 how to create your own plugins with custom host functions.
+ host functions.

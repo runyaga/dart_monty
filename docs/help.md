@@ -49,6 +49,6 @@ print(r.value); // 'Hello World!'
 - [**Architecture**](architecture/overview.md) — Module structure and internals
 - [**REPL Guide**](user/repl.md) — Stateful interactive execution
 - [**Plugins**](user/plugins.md) — Template, MessageBus, Sandbox
-- [**Host Functions**](user/host-functions-intro.md) — Custom bridge functions
+- [**Host Functions**](user/host-functions.md) — Custom bridge functions
 - [**Testing**](contributor/testing.md) — Run tests and quality gates
 - [**Contributor Setup**](contributor/setup.md) — Build and test the library
