@@ -707,7 +707,7 @@ void main() {
             },
           },
         });
-        expect(complete.result.value, isNull);
+        expect(complete.result.value, const MontyNull());
         expect(complete.result.error, isNotNull);
         expect(complete.result.error!.message, 'division by zero');
         expect(complete.result.isError, isTrue);

@@ -356,18 +356,15 @@ class AgentSession {
   MontyResult _extractResult(List<BridgeEvent> events) {
     for (final event in events.reversed) {
       if (event is BridgeRunFinished) {
-        final value = event.value != null
-            ? MontyValue.fromDart(event.value)
-            : null;
-
         return MontyResult(
-          value: value,
+          value: MontyValue.fromDart(event.value),
           usage: _zeroUsage,
           printOutput: event.printOutput,
         );
       }
       if (event is BridgeRunError) {
         return MontyResult(
+          value: const MontyNull(),
           error: event.exception ?? MontyException(message: event.message),
           usage: _zeroUsage,
           printOutput: event.printOutput,

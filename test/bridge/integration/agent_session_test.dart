@@ -25,7 +25,7 @@ void main() {
     test('simple expression', () async {
       final result = await session.execute('2 + 2');
 
-      expect(result.value?.dartValue, 4);
+      expect(result.value.dartValue, 4);
     });
 
     test('variables persist across execute() calls', () async {
@@ -33,14 +33,14 @@ void main() {
       await session.execute('y = x * 2');
       final result = await session.execute('x + y');
 
-      expect(result.value?.dartValue, 126);
+      expect(result.value.dartValue, 126);
     });
 
     test('string variables persist', () async {
       await session.execute('name = "monty"');
       final result = await session.execute('name.upper()');
 
-      expect(result.value?.dartValue, 'MONTY');
+      expect(result.value.dartValue, 'MONTY');
     });
 
     test('list variables persist', () async {
@@ -48,14 +48,14 @@ void main() {
       await session.execute('data.append(4)');
       final result = await session.execute('sum(data)');
 
-      expect(result.value?.dartValue, 10);
+      expect(result.value.dartValue, 10);
     });
 
     test('dict variables persist', () async {
       await session.execute('config = {"debug": True, "level": 5}');
       final result = await session.execute('config["debug"]');
 
-      expect(result.value?.dartValue, true);
+      expect(result.value.dartValue, true);
     });
 
     test('clearState() resets all variables', () async {
@@ -70,7 +70,7 @@ void main() {
       await session.execute('a = 1; b = 2.5; c = "hello"; d = True');
       final result = await session.execute('[a, b, c, d]');
 
-      expect(result.value?.dartValue, [1, 2.5, 'hello', true]);
+      expect(result.value.dartValue, [1, 2.5, 'hello', true]);
     });
   });
 
@@ -99,7 +99,7 @@ void main() {
 
       final result = await session.execute('double_it(21)');
 
-      expect(result.value?.dartValue, 42);
+      expect(result.value.dartValue, 42);
     });
 
     test('host function result persists in state', () async {
@@ -116,7 +116,7 @@ void main() {
       await session.execute('data = get_data()');
       final result = await session.execute('sum(data)');
 
-      expect(result.value?.dartValue, 15);
+      expect(result.value.dartValue, 15);
     });
 
     test('schemas include registered functions', () {
@@ -167,7 +167,7 @@ void main() {
         'Path("/data/test.txt").read_text()',
       );
 
-      expect(result.value?.dartValue, 'hello from agent');
+      expect(result.value.dartValue, 'hello from agent');
     });
 
     test('filesystem state persists across calls', () async {
@@ -188,7 +188,7 @@ void main() {
         'int(Path("/data/counter.txt").read_text())',
       );
 
-      expect(result.value?.dartValue, 1);
+      expect(result.value.dartValue, 1);
     });
 
     test('date.today() returns reasonable year', () async {
@@ -199,7 +199,7 @@ void main() {
         'date.today().year >= 2024',
       );
 
-      expect(result.value?.dartValue, true);
+      expect(result.value.dartValue, true);
     });
   });
 
@@ -225,7 +225,7 @@ void main() {
       await session.execute('1 / 0'); // error, but x should survive
       final result = await session.execute('x');
 
-      expect(result.value?.dartValue, 42);
+      expect(result.value.dartValue, 42);
     });
 
     test('execute after dispose throws', () async {
@@ -252,7 +252,7 @@ void main() {
     test('simple expression', () async {
       final result = await session.execute('2 + 2');
 
-      expect(result.value?.dartValue, 4);
+      expect(result.value.dartValue, 4);
     });
 
     test('isSandboxMode is true', () {
@@ -263,7 +263,7 @@ void main() {
       await session.execute('x = 42');
       final result = await session.execute('x + 1');
 
-      expect(result.value?.dartValue, 43);
+      expect(result.value.dartValue, 43);
     });
 
     test('state persists across fresh interpreters', () async {
@@ -271,7 +271,7 @@ void main() {
       await session.execute('age = 30');
       final result = await session.execute('[name, age]');
 
-      expect(result.value?.dartValue, ['alice', 30]);
+      expect(result.value.dartValue, ['alice', 30]);
     });
 
     test('host function callable from sandbox', () async {
@@ -293,7 +293,7 @@ void main() {
 
       final result = await session.execute('double_it(21)');
 
-      expect(result.value?.dartValue, 42);
+      expect(result.value.dartValue, 42);
     });
 
     test('host function result persists in state', () async {
@@ -313,7 +313,7 @@ void main() {
       await session.execute('msg = greet("World")');
       final result = await session.execute('msg');
 
-      expect(result.value?.dartValue, 'Hello, World!');
+      expect(result.value.dartValue, 'Hello, World!');
     });
 
     test('clearState() resets all variables', () async {
@@ -327,7 +327,7 @@ except NameError:
 result
 ''');
 
-      expect(result.value?.dartValue, 'gone');
+      expect(result.value.dartValue, 'gone');
     });
 
     test('error does not break state', () async {
@@ -335,7 +335,7 @@ result
       await session.execute('1 / 0'); // error
       final result = await session.execute('x');
 
-      expect(result.value?.dartValue, 42);
+      expect(result.value.dartValue, 42);
     });
 
     test('executeStream throws in sandbox mode', () {
@@ -351,7 +351,7 @@ result
       }
       final result = await session.execute('x');
 
-      expect(result.value?.dartValue, 9);
+      expect(result.value.dartValue, 9);
     });
   });
 

@@ -33,6 +33,7 @@ void main() {
         mock.enqueueProgress(
           const MontyComplete(
             result: MontyResult(
+              value: MontyNull(),
               error: MontyException(
                 message: 'NameError: name "foo" is not defined',
                 lineNumber: 8,
@@ -93,6 +94,7 @@ void main() {
       mock.enqueueProgress(
         const MontyComplete(
           result: MontyResult(
+            value: MontyNull(),
             error: MontyException(
               message: 'error',
               traceback: [
@@ -147,7 +149,9 @@ void main() {
         )
         ..enqueueProgress(const MontyResolveFutures(pendingCallIds: [1]))
         ..enqueueProgress(
-          const MontyComplete(result: MontyResult(usage: _usage)),
+          const MontyComplete(
+            result: MontyResult(value: MontyNull(), usage: _usage),
+          ),
         );
 
       final events = await bridge.execute('slow_fail()').toList();
@@ -192,7 +196,9 @@ void main() {
           )
           // After the sync throw, bridge calls resumeWithError which yields:
           ..enqueueProgress(
-            const MontyComplete(result: MontyResult(usage: _usage)),
+            const MontyComplete(
+              result: MontyResult(value: MontyNull(), usage: _usage),
+            ),
           );
 
         final events = await bridge.execute('explode()').toList();
@@ -225,7 +231,9 @@ void main() {
           const MontyPending(functionName: 'greet', arguments: []),
         )
         ..enqueueProgress(
-          const MontyComplete(result: MontyResult(usage: _usage)),
+          const MontyComplete(
+            result: MontyResult(value: MontyNull(), usage: _usage),
+          ),
         );
 
       await bridge.execute('greet()').toList();
@@ -251,7 +259,9 @@ void main() {
       mock
         ..enqueueProgress(const MontyPending(functionName: 'fn', arguments: []))
         ..enqueueProgress(
-          const MontyComplete(result: MontyResult(usage: _usage)),
+          const MontyComplete(
+            result: MontyResult(value: MontyNull(), usage: _usage),
+          ),
         );
 
       await bridge.execute('fn()').toList();
@@ -279,7 +289,9 @@ void main() {
       mock
         ..enqueueProgress(const MontyPending(functionName: 'fn', arguments: []))
         ..enqueueProgress(
-          const MontyComplete(result: MontyResult(usage: _usage)),
+          const MontyComplete(
+            result: MontyResult(value: MontyNull(), usage: _usage),
+          ),
         );
 
       await bridge.execute('fn()').toList();
@@ -307,7 +319,9 @@ void main() {
           ),
         )
         ..enqueueProgress(
-          const MontyComplete(result: MontyResult(usage: _usage)),
+          const MontyComplete(
+            result: MontyResult(value: MontyNull(), usage: _usage),
+          ),
         );
 
       await bridge.execute('fn(__role__="infra")').toList();
@@ -337,7 +351,9 @@ void main() {
           ),
         )
         ..enqueueProgress(
-          const MontyComplete(result: MontyResult(usage: _usage)),
+          const MontyComplete(
+            result: MontyResult(value: MontyNull(), usage: _usage),
+          ),
         );
 
       await bridge.execute('fn(__role__="infra")').toList();
@@ -361,7 +377,9 @@ void main() {
       mock
         ..enqueueProgress(const MontyPending(functionName: 'fn', arguments: []))
         ..enqueueProgress(
-          const MontyComplete(result: MontyResult(usage: _usage)),
+          const MontyComplete(
+            result: MontyResult(value: MontyNull(), usage: _usage),
+          ),
         );
 
       await bridge.execute('fn()').toList();
@@ -395,7 +413,9 @@ void main() {
           ),
         )
         ..enqueueProgress(
-          const MontyComplete(result: MontyResult(usage: _usage)),
+          const MontyComplete(
+            result: MontyResult(value: MontyNull(), usage: _usage),
+          ),
         );
 
       await bridge.execute('fn(x=42, __role__="infra")').toList();
@@ -428,7 +448,9 @@ void main() {
           ),
         )
         ..enqueueProgress(
-          const MontyComplete(result: MontyResult(usage: _usage)),
+          const MontyComplete(
+            result: MontyResult(value: MontyNull(), usage: _usage),
+          ),
         );
 
       await bridge.execute('fn(x=42, __role__="infra")').toList();
@@ -457,7 +479,9 @@ void main() {
       syncMock
         ..enqueueProgress(const MontyPending(functionName: 'fn', arguments: []))
         ..enqueueProgress(
-          const MontyComplete(result: MontyResult(usage: _usage)),
+          const MontyComplete(
+            result: MontyResult(value: MontyNull(), usage: _usage),
+          ),
         );
 
       final events = await syncBridge.execute('fn()').toList();
@@ -485,7 +509,9 @@ void main() {
       syncMock
         ..enqueueProgress(const MontyPending(functionName: 'fn', arguments: []))
         ..enqueueProgress(
-          const MontyComplete(result: MontyResult(usage: _usage)),
+          const MontyComplete(
+            result: MontyResult(value: MontyNull(), usage: _usage),
+          ),
         );
 
       final events = await syncBridge.execute('fn()').toList();
@@ -508,7 +534,9 @@ void main() {
       mock
         ..enqueueProgress(const MontyPending(functionName: 'fn', arguments: []))
         ..enqueueProgress(
-          const MontyComplete(result: MontyResult(usage: _usage)),
+          const MontyComplete(
+            result: MontyResult(value: MontyNull(), usage: _usage),
+          ),
         );
 
       await bridge.execute('fn()').toList();
@@ -543,7 +571,9 @@ void main() {
         )
         ..enqueueProgress(const MontyResolveFutures(pendingCallIds: [1]))
         ..enqueueProgress(
-          const MontyComplete(result: MontyResult(usage: _usage)),
+          const MontyComplete(
+            result: MontyResult(value: MontyNull(), usage: _usage),
+          ),
         );
 
       await bridge.execute('await async_fn()').toList();
@@ -571,7 +601,9 @@ void main() {
           ),
         )
         ..enqueueProgress(
-          const MontyComplete(result: MontyResult(usage: _usage)),
+          const MontyComplete(
+            result: MontyResult(value: MontyNull(), usage: _usage),
+          ),
         );
 
       await bridge.execute('fn()').toList();
@@ -590,7 +622,9 @@ void main() {
           ),
         )
         ..enqueueProgress(
-          const MontyComplete(result: MontyResult(usage: _usage)),
+          const MontyComplete(
+            result: MontyResult(value: MontyNull(), usage: _usage),
+          ),
         );
 
       final events = await bridge.execute('path.read_text()').toList();
@@ -631,7 +665,9 @@ void main() {
           ),
         )
         ..enqueueProgress(
-          const MontyComplete(result: MontyResult(usage: _usage)),
+          const MontyComplete(
+            result: MontyResult(value: MontyNull(), usage: _usage),
+          ),
         );
 
       final events = await bridge.execute('os.getenv("APP_ENV")').toList();
@@ -667,7 +703,9 @@ void main() {
           ),
         )
         ..enqueueProgress(
-          const MontyComplete(result: MontyResult(usage: _usage)),
+          const MontyComplete(
+            result: MontyResult(value: MontyNull(), usage: _usage),
+          ),
         );
 
       final events = await bridge.execute('path.write_text()').toList();
@@ -931,7 +969,9 @@ void main() {
     test('execute while already executing throws StateError', () async {
       // Start one execution.
       mock.enqueueProgress(
-        const MontyComplete(result: MontyResult(usage: _usage)),
+        const MontyComplete(
+          result: MontyResult(value: MontyNull(), usage: _usage),
+        ),
       );
       final stream = bridge.execute('1');
       // Try starting another before the first completes.
@@ -973,7 +1013,9 @@ void main() {
             ),
           )
           ..enqueueProgress(
-            const MontyComplete(result: MontyResult(usage: _usage)),
+            const MontyComplete(
+              result: MontyResult(value: MontyNull(), usage: _usage),
+            ),
           );
 
         final events = await bridge.execute('print()').toList();
@@ -996,7 +1038,9 @@ void main() {
             ),
           )
           ..enqueueProgress(
-            const MontyComplete(result: MontyResult(usage: _usage)),
+            const MontyComplete(
+              result: MontyResult(value: MontyNull(), usage: _usage),
+            ),
           );
 
         final events = await bridge
@@ -1025,6 +1069,7 @@ void main() {
         ..enqueueProgress(
           const MontyComplete(
             result: MontyResult(
+              value: MontyNull(),
               error: MontyException(message: 'NameError'),
               usage: _usage,
             ),
@@ -1051,7 +1096,9 @@ void main() {
           const MontyPending(functionName: 'not_registered', arguments: []),
         )
         ..enqueueProgress(
-          const MontyComplete(result: MontyResult(usage: _usage)),
+          const MontyComplete(
+            result: MontyResult(value: MontyNull(), usage: _usage),
+          ),
         );
 
       final events = await bridge.execute('not_registered()').toList();
@@ -1091,7 +1138,9 @@ void main() {
           const MontyPending(functionName: 'need_param', arguments: []),
         )
         ..enqueueProgress(
-          const MontyComplete(result: MontyResult(usage: _usage)),
+          const MontyComplete(
+            result: MontyResult(value: MontyNull(), usage: _usage),
+          ),
         );
 
       final events = await syncBridge.execute('need_param()').toList();
@@ -1120,7 +1169,9 @@ void main() {
           ),
         )
         ..enqueueProgress(
-          const MontyComplete(result: MontyResult(usage: _usage)),
+          const MontyComplete(
+            result: MontyResult(value: MontyNull(), usage: _usage),
+          ),
         );
 
       final events = await bridge.execute('need_param()').toList();
@@ -1144,7 +1195,9 @@ void main() {
       syncMock
         ..enqueueProgress(const MontyResolveFutures(pendingCallIds: [1]))
         ..enqueueProgress(
-          const MontyComplete(result: MontyResult(usage: _usage)),
+          const MontyComplete(
+            result: MontyResult(value: MontyNull(), usage: _usage),
+          ),
         );
 
       final events = await syncBridge.execute('code').toList();
@@ -1187,7 +1240,9 @@ void main() {
           )
           // Enqueued for resume but never consumed — throw happens first.
           ..enqueueProgress(
-            const MontyComplete(result: MontyResult(usage: _usage)),
+            const MontyComplete(
+              result: MontyResult(value: MontyNull(), usage: _usage),
+            ),
           );
 
         final events = await failBridge.execute('greet()').toList();
@@ -1255,7 +1310,9 @@ void main() {
             ),
           )
           ..enqueueProgress(
-            const MontyComplete(result: MontyResult(usage: _usage)),
+            const MontyComplete(
+              result: MontyResult(value: MontyNull(), usage: _usage),
+            ),
           );
 
         final events = await failBridge.execute('code').toList();

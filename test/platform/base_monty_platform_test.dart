@@ -201,7 +201,7 @@ void main() {
       expect(result.isError, isTrue);
       expect(result.error?.message, 'NameError');
       expect(result.error?.excType, 'NameError');
-      expect(result.value, isNull);
+      expect(result.value, const MontyNull());
     });
   });
 
@@ -607,7 +607,7 @@ void main() {
       // Release the gate so the first run completes.
       gate.complete();
       final result = await first;
-      expect(result.value, isNull);
+      expect(result.value, const MontyNull());
       expect(platform.isIdle, isTrue);
     });
 

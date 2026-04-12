@@ -595,7 +595,7 @@ void main() {
       mock.nextRunResult = RunResult(tag: 0, resultJson: _okResultJson(null));
 
       final result = await monty.run('None');
-      expect(result.value, isNull);
+      expect(result.value, const MontyNull());
       expect(result.isError, isFalse);
     });
 

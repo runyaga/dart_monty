@@ -90,7 +90,7 @@ Future<void> _runFeedFixture(
 
       if (feed.containsKey('expected')) {
         final expected = feed['expected'];
-        final actual = result.value?.dartValue;
+        final actual = result.value.dartValue;
         expect(actual, equals(expected), reason: 'After feeding: $code');
       }
 

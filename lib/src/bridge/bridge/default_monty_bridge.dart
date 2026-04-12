@@ -279,7 +279,7 @@ class DefaultMontyBridge implements MontyBridge {
             BridgeRunFinished(
               threadId: threadId,
               runId: runId,
-              value: result.value?.dartValue,
+              value: result.value.dartValue,
               printOutput: capturedOutput,
             ),
           );

@@ -33,7 +33,10 @@ void main() {
       )
       ..enqueueProgress(
         MontyComplete(
-          result: MontyResult(value: resultValue, usage: usage),
+          result: MontyResult(
+            value: resultValue ?? const MontyNull(),
+            usage: usage,
+          ),
         ),
       );
   }

@@ -47,7 +47,9 @@ void main() {
           )
           ..enqueueProgress(const MontyResolveFutures(pendingCallIds: [1]))
           ..enqueueProgress(
-            const MontyComplete(result: MontyResult(usage: _usage)),
+            const MontyComplete(
+              result: MontyResult(value: MontyNull(), usage: _usage),
+            ),
           );
 
         final events = <BridgeEvent>[];
@@ -103,7 +105,9 @@ void main() {
           )
           ..enqueueProgress(const MontyResolveFutures(pendingCallIds: [2]))
           ..enqueueProgress(
-            const MontyComplete(result: MontyResult(usage: _usage)),
+            const MontyComplete(
+              result: MontyResult(value: MontyNull(), usage: _usage),
+            ),
           );
 
         // Queue an event BEFORE execution starts.
@@ -151,7 +155,9 @@ void main() {
         )
         ..enqueueProgress(const MontyResolveFutures(pendingCallIds: [3]))
         ..enqueueProgress(
-          const MontyComplete(result: MontyResult(usage: _usage)),
+          const MontyComplete(
+            result: MontyResult(value: MontyNull(), usage: _usage),
+          ),
         );
 
       // Queue 3 events BEFORE execution starts.
@@ -191,7 +197,9 @@ void main() {
         )
         ..enqueueProgress(const MontyResolveFutures(pendingCallIds: [2]))
         ..enqueueProgress(
-          const MontyComplete(result: MontyResult(usage: _usage)),
+          const MontyComplete(
+            result: MontyResult(value: MontyNull(), usage: _usage),
+          ),
         );
 
       final stream = bridge.execute('loop');
@@ -239,7 +247,9 @@ void main() {
         )
         ..enqueueProgress(const MontyResolveFutures(pendingCallIds: [1]))
         ..enqueueProgress(
-          const MontyComplete(result: MontyResult(usage: _usage)),
+          const MontyComplete(
+            result: MontyResult(value: MontyNull(), usage: _usage),
+          ),
         );
 
       await bridge.execute('render_ui(schema)').toList();
@@ -272,7 +282,9 @@ void main() {
         )
         ..enqueueProgress(const MontyResolveFutures(pendingCallIds: [2]))
         ..enqueueProgress(
-          const MontyComplete(result: MontyResult(usage: _usage)),
+          const MontyComplete(
+            result: MontyResult(value: MontyNull(), usage: _usage),
+          ),
         );
 
       await bridge.execute('code').toList();
@@ -301,6 +313,7 @@ void main() {
         ..enqueueProgress(
           const MontyComplete(
             result: MontyResult(
+              value: MontyNull(),
               error: MontyException(message: 'kaboom'),
               usage: _usage,
             ),
@@ -343,6 +356,7 @@ void main() {
         ..enqueueProgress(
           const MontyComplete(
             result: MontyResult(
+              value: MontyNull(),
               error: MontyException(
                 message: 'Bridge disposed while waiting for event',
               ),
@@ -374,7 +388,9 @@ void main() {
       expect(bridge.loopState, EventLoopState.idle);
 
       mock.enqueueProgress(
-        const MontyComplete(result: MontyResult(usage: _usage)),
+        const MontyComplete(
+          result: MontyResult(value: MontyNull(), usage: _usage),
+        ),
       );
 
       final stream = bridge.execute('42');
@@ -402,7 +418,9 @@ void main() {
           )
           ..enqueueProgress(const MontyResolveFutures(pendingCallIds: [1]))
           ..enqueueProgress(
-            const MontyComplete(result: MontyResult(usage: _usage)),
+            const MontyComplete(
+              result: MontyResult(value: MontyNull(), usage: _usage),
+            ),
           );
 
         final stream = bridge.execute('wait_for_event()');
@@ -439,7 +457,9 @@ void main() {
         )
         ..enqueueProgress(const MontyResolveFutures(pendingCallIds: [1]))
         ..enqueueProgress(
-          const MontyComplete(result: MontyResult(usage: _usage)),
+          const MontyComplete(
+            result: MontyResult(value: MontyNull(), usage: _usage),
+          ),
         );
 
       final loopEvents = <BridgeEvent>[];
@@ -475,7 +495,9 @@ void main() {
         )
         ..enqueueProgress(const MontyResolveFutures(pendingCallIds: [1]))
         ..enqueueProgress(
-          const MontyComplete(result: MontyResult(usage: _usage)),
+          const MontyComplete(
+            result: MontyResult(value: MontyNull(), usage: _usage),
+          ),
         );
 
       final loopEvents = <BridgeEvent>[];
@@ -564,6 +586,7 @@ void main() {
           ..enqueueProgress(
             const MontyComplete(
               result: MontyResult(
+                value: MontyNull(),
                 error: MontyException(message: 'script died unexpectedly'),
                 usage: _usage,
               ),
@@ -605,6 +628,7 @@ void main() {
         ..enqueueProgress(
           const MontyComplete(
             result: MontyResult(
+              value: MontyNull(),
               error: MontyException(message: 'script crashed'),
               usage: _usage,
             ),
@@ -648,7 +672,9 @@ void main() {
           ),
         )
         ..enqueueProgress(
-          const MontyComplete(result: MontyResult(usage: _usage)),
+          const MontyComplete(
+            result: MontyResult(value: MontyNull(), usage: _usage),
+          ),
         );
 
       final stream = syncBridge.execute('wait_for_event()');
