@@ -369,5 +369,23 @@ result
 
       await session.dispose();
     });
+
+    test('executeStream attaches plugins without prior execute()', () async {
+      final session = AgentSession(
+        plugins: [DinjaTemplatePlugin()],
+      );
+      addTearDown(session.dispose);
+
+      // Call executeStream as the FIRST operation — no prior execute().
+      // Before the fix, this would fail with "Unknown function: tmpl_render"
+      // because executeStream() skipped _ensureSharedAttached().
+      final events = await session.executeStream(
+        'tmpl_render(template="Hello {{ name }}!", '
+        'context={"name": "test"})',
+      ).toList();
+
+      final finished = events.whereType<BridgeRunFinished>().single;
+      expect(finished.value, 'Hello test!');
+    });
   });
 }
