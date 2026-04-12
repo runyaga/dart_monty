@@ -679,19 +679,40 @@ class _LifecyclePlugin extends MontyPlugin {
 /// Minimal bridge mock that tracks registered function names.
 class _MockBridge implements MontyBridge {
   final registeredNames = <String>[];
+  final _functions = <String, HostFunction>{};
+  final _categoryIndex = <String, Set<String>>{};
 
   @override
   BridgeLogger get logger => const NullBridgeLogger();
 
   @override
-  List<HostFunctionSchema> get schemas => [];
+  List<HostFunctionSchema> get schemas =>
+      _functions.values.map((f) => f.schema).toList(growable: false);
+
+  @override
+  Map<String, List<HostFunctionSchema>> get schemasByCategory {
+    final result = <String, List<HostFunctionSchema>>{};
+    for (final entry in _categoryIndex.entries) {
+      final schemas = <HostFunctionSchema>[];
+      for (final name in entry.value) {
+        final fn = _functions[name];
+        if (fn != null) schemas.add(fn.schema);
+      }
+      if (schemas.isNotEmpty) result[entry.key] = schemas;
+    }
+    return result;
+  }
 
   @override
   void use(BridgeMiddleware middleware) {}
 
   @override
-  void register(HostFunction function) {
-    registeredNames.add(function.schema.name);
+  void register(HostFunction function, {String? category}) {
+    final name = function.schema.name;
+    registeredNames.add(name);
+    _functions[name] = function;
+    final cat = category ?? 'uncategorized';
+    (_categoryIndex[cat] ??= {}).add(name);
   }
 
   @override

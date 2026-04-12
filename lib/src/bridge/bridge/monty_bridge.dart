@@ -37,8 +37,14 @@ abstract class MontyBridge {
   /// All registered function schemas.
   List<HostFunctionSchema> get schemas;
 
+  /// All registered function schemas, grouped by category.
+  Map<String, List<HostFunctionSchema>> get schemasByCategory;
+
   /// Registers a host function.
-  void register(HostFunction function);
+  ///
+  /// When [category] is provided, the function is indexed under that category
+  /// for introspection. Functions with no category go into `'uncategorized'`.
+  void register(HostFunction function, {String? category});
 
   /// Unregisters a host function by name.
   void unregister(String name);

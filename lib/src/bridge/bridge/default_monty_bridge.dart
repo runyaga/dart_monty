@@ -86,6 +86,7 @@ class DefaultMontyBridge implements MontyBridge {
   final MontyLimits? _limits;
   final bool _useFutures;
   final Map<String, HostFunction> _functions = {};
+  final Map<String, Set<String>> _categoryIndex = {};
   final List<BridgeMiddleware> _middleware = [];
   final Map<int, _PendingFuture> _pendingFutures = {};
   int _idCounter = 0;
@@ -103,15 +104,32 @@ class DefaultMontyBridge implements MontyBridge {
       _functions.values.map((f) => f.schema).toList(growable: false);
 
   @override
+  Map<String, List<HostFunctionSchema>> get schemasByCategory {
+    final result = <String, List<HostFunctionSchema>>{};
+    for (final entry in _categoryIndex.entries) {
+      final schemas = <HostFunctionSchema>[];
+      for (final name in entry.value) {
+        final fn = _functions[name];
+        if (fn != null) schemas.add(fn.schema);
+      }
+      if (schemas.isNotEmpty) result[entry.key] = schemas;
+    }
+    return result;
+  }
+
+  @override
   void use(BridgeMiddleware middleware) {
     if (_isDisposed) throw StateError('Bridge has been disposed');
     _middleware.add(middleware);
   }
 
   @override
-  void register(HostFunction function) {
+  void register(HostFunction function, {String? category}) {
     if (_isDisposed) throw StateError('Bridge has been disposed');
-    _functions[function.schema.name] = function;
+    final name = function.schema.name;
+    _functions[name] = function;
+    final cat = category ?? 'uncategorized';
+    (_categoryIndex[cat] ??= {}).add(name);
   }
 
   @override
@@ -549,10 +567,7 @@ class DefaultMontyBridge implements MontyBridge {
 
     controller
       ..add(
-        BridgeToolCallResult(
-          callId: callId,
-          result: result?.toString() ?? '',
-        ),
+        BridgeToolCallResult(callId: callId, result: result?.toString() ?? ''),
       )
       ..add(BridgeStepFinished(stepId: stepName));
 

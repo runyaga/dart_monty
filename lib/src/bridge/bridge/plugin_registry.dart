@@ -1,7 +1,6 @@
 import 'dart:collection';
 
 import 'package:dart_monty/src/bridge/bridge/host_function.dart';
-import 'package:dart_monty/src/bridge/bridge/host_function_schema.dart';
 import 'package:dart_monty/src/bridge/bridge/introspection_functions.dart';
 import 'package:dart_monty/src/bridge/bridge/monty_bridge.dart';
 import 'package:dart_monty/src/bridge/bridge/monty_plugin.dart';
@@ -84,7 +83,6 @@ class PluginRegistry {
     // Get registry's own logger from the bridge.
     _log = bridge.logger.child('registry');
 
-    final schemasByCategory = <String, List<HostFunctionSchema>>{};
     final errors = <(String, Object)>[];
 
     for (final plugin in _plugins) {
@@ -92,22 +90,16 @@ class PluginRegistry {
       // during onRegister().
       plugin.logger = bridge.logger.child(plugin.namespace);
 
-      final schemas = <HostFunctionSchema>[];
       for (final fn in plugin.functions) {
-        bridge.register(fn);
-        schemas.add(fn.schema);
+        bridge.register(fn, category: plugin.namespace);
       }
-      schemasByCategory[plugin.namespace] = schemas;
     }
 
     // Register standalone functions under the 'extra' category.
     if (extraFunctions != null && extraFunctions.isNotEmpty) {
-      final extraSchemas = <HostFunctionSchema>[];
       for (final fn in extraFunctions) {
-        bridge.register(fn);
-        extraSchemas.add(fn.schema);
+        bridge.register(fn, category: 'extra');
       }
-      schemasByCategory['extra'] = extraSchemas;
       _log.debug(
         'Registered extra functions',
         attributes: {'count': extraFunctions.length},
@@ -130,7 +122,9 @@ class PluginRegistry {
     }
 
     if (enableIntrospection) {
-      buildIntrospectionFunctions(schemasByCategory).forEach(bridge.register);
+      for (final fn in buildIntrospectionFunctions(bridge)) {
+        bridge.register(fn, category: introspectionCategory);
+      }
     }
 
     if (errors.isNotEmpty) {
