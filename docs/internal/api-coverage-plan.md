@@ -1,5 +1,12 @@
 # dart_monty API Coverage Plan
 
+> **Fork notice:** dart_monty currently builds against [`runyaga/monty`](https://github.com/runyaga/monty) (branch `runyaga/main`), a fork of [`pydantic/monty`](https://github.com/pydantic/monty). The fork carries patches required for embedding that are not yet upstream.
+>
+> | Patch | Upstream PR | Status |
+> |-------|-------------|--------|
+> | Fix partial future resolution panics in mixed `asyncio.gather()` | [pydantic/monty#251](https://github.com/pydantic/monty/pull/251) | Awaiting review |
+> | `cpu: wasm32` restriction in `monty-wasm32-wasi` npm package | [runyaga/monty#4](https://github.com/runyaga/monty/issues/4) | Open issue |
+
 > **Historical document.** This plan was written before the OsCall/VFS,
 > MontyValue, async/futures, and bridge layers were implemented. Many items
 > in sections 3-5 (kwargs, full tracebacks, exception types, call_id,

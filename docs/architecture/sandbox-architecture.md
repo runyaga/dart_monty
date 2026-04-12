@@ -64,6 +64,13 @@ h4 = sandbox_spawn(
     memory_bytes=1048576,
 )
 
+# Children inherit plugins — message bus for parent↔child communication
+h = sandbox_spawn(code="""
+msg_send(name="result", message={"answer": 42})
+""")
+sandbox_await(handle=h)
+answer = msg_recv(name="result")  # {"answer": 42}
+
 # Clean up
 sandbox_free(h1)
 sandbox_free(h2)
