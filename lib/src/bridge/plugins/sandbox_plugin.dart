@@ -305,6 +305,17 @@ const _gatherSchema = HostFunctionSchema(
 /// [DefaultMontyBridge]. The parent Python script can spawn children with
 /// `sandbox_spawn(code)` and await their results with `sandbox_await(handle)`.
 ///
+/// ## Features
+///
+/// - **Reactive state**: [childrenSignal] tracks every child's [ChildState]
+///   natively. [aliveCountSignal] is a computed count for gating UI actions.
+/// - **Factory overrides**: Inject custom [MontyPlatform] backends per-child
+///   with [platformFactory], or custom plugin sets with [childPluginRegistryFactory].
+/// - **Per-child isolation**: When [sandboxBaseDir] is set, each child is
+///   assigned a unique working directory path in its [ChildSpawnContext].
+/// - **OS composition**: Child OS providers flow through `attachTo` so child
+///   plugin `osContribution` maps compose correctly with the child VFS.
+///
 /// Children are sandboxed: each has its own interpreter state.
 /// All living children are killed when this plugin is disposed.
 class SandboxPlugin extends MontyPlugin {

@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>dart_monty — Reactive Signals</title>
+  <style>
+    :root {
+      --bg: #1a1b26; --surface: #24283b; --surface2: #2f3447;
+      --border: #3b4261; --text: #c0caf5; --text-dim: #565f89;
+      --accent: #7aa2f7; --green: #9ece6a; --red: #f7768e;
+      --cyan: #7dcfff; --purple: #bb9af7; --orange: #ff9e64;
+      --mono: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+    header { padding: 12px 20px; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 16px; flex-shrink: 0; }
+    header a { color: var(--text-dim); text-decoration: none; font-size: 13px; }
+    header a:hover { color: var(--text); }
+    header h1 { font-size: 16px; font-weight: 600; color: var(--accent); }
+    .tag { font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 500; }
+    .tag-wasm { background: #2d3a5e; color: var(--cyan); }
+    #status-badge { font-size: 11px; padding: 2px 8px; border-radius: 4px; margin-left: auto; background: var(--surface2); color: var(--text-dim); }
+    
+    .main { flex: 1; display: flex; overflow: hidden; }
+    .editor-panel { flex: 1; display: flex; flex-direction: column; border-right: 1px solid var(--border); }
+    .inspector-panel { width: 350px; display: flex; flex-direction: column; background: var(--surface); }
+    
+    .panel-header { padding: 8px 16px; background: var(--surface2); border-bottom: 1px solid var(--border); font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-dim); display: flex; justify-content: space-between; align-items: center; }
+    
+    textarea { flex: 1; background: transparent; border: none; color: var(--text); font-family: var(--mono); font-size: 13px; padding: 16px; outline: none; resize: none; tab-size: 4; }
+    
+    .inspector-content { flex: 1; overflow-y: auto; padding: 16px; font-family: var(--mono); font-size: 12px; }
+    .signal-card { margin-bottom: 20px; }
+    .signal-label { color: var(--accent); font-weight: 600; margin-bottom: 4px; display: flex; justify-content: space-between; }
+    .signal-value { background: var(--bg); padding: 8px; border-radius: 4px; border: 1px solid var(--border); color: var(--text); white-space: pre-wrap; word-break: break-all; }
+    .badge { font-size: 10px; padding: 1px 6px; border-radius: 3px; font-weight: bold; }
+    .badge-idle { background: var(--surface2); color: var(--text-dim); }
+    .badge-executing { background: #2d3e2d; color: var(--green); }
+    .badge-waiting { background: #3e3a2d; color: var(--orange); }
+    
+    .controls { padding: 12px 16px; border-top: 1px solid var(--border); display: flex; gap: 8px; }
+    button { background: var(--accent); color: var(--bg); border: none; padding: 6px 16px; border-radius: 4px; font-weight: 600; cursor: pointer; font-size: 13px; }
+    button:hover { filter: brightness(1.1); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    button.secondary { background: var(--surface2); color: var(--text); }
+    
+    select { background: var(--surface2); color: var(--text); border: 1px solid var(--border); border-radius: 4px; padding: 4px 8px; font-size: 12px; outline: none; }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="index.html">&larr; Home</a>
+    <h1>Reactive Signals</h1>
+    <span class="tag tag-wasm">WASM</span>
+    <div id="status-badge">Loading...</div>
+  </header>
+  
+  <div class="main">
+    <div class="editor-panel">
+      <div class="panel-header">
+        Python Code
+        <select id="examples">
+          <option value="basic">Variable Assignment</option>
+          <option value="loop">Long Loop (Reactivity)</option>
+          <option value="emit">Manual Emission (el_emit)</option>
+          <option value="error">Error Handling</option>
+        </select>
+      </div>
+      <textarea id="editor" spellcheck="false"># Assign some variables
+x = 42
+y = "Hello Signals"
+data = {"a": 1, "b": 2}
+x, y, data</textarea>
+      <div class="controls">
+        <button id="run-btn" disabled>Run Script</button>
+        <button id="reset-btn" class="secondary" disabled>Reset Session</button>
+      </div>
+    </div>
+    
+    <div class="inspector-panel">
+      <div class="panel-header">Signal Inspector</div>
+      <div class="inspector-content">
+        <div class="signal-card">
+          <div class="signal-label">stateSignal</div>
+          <div id="state-signal" class="signal-value">...</div>
+        </div>
+        <div class="signal-card">
+          <div class="signal-label">channelStateSignal</div>
+          <div id="channel-state-signal" class="signal-value">...</div>
+        </div>
+        <div class="signal-card">
+          <div class="signal-label">sessionStateSignal</div>
+          <div id="session-state-signal" class="signal-value">{}</div>
+        </div>
+        <div class="signal-card">
+          <div class="signal-label">lastEmittedSignal</div>
+          <div id="last-emitted-signal" class="signal-value">null</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="coi-serviceworker.js"></script>
+  <script>
+    const $ = s => document.getElementById(s);
+    const editor = $('editor');
+    const runBtn = $('run-btn');
+    const resetBtn = $('reset-btn');
+    const statusBadge = $('status-badge');
+    
+    const examples = {
+      basic: 'x = 42\ny = "Hello Signals"\ndata = {"a": 1, "b": 2}\nx, y, data',
+      loop: 'import time\nfor i in range(10):\n    progress = (i + 1) * 10\n    el_emit({"progress": progress})\n    # In real app, we might wait for event loop\n    # Here we just show reactive variable updates\n    val = i\n    time.sleep(0.1)\n"Done"',
+      emit: 'el_emit({"status": "starting", "count": 0})\nel_emit({"status": "processing", "count": 50})\nel_emit({"status": "finished", "count": 100})\n"Check lastEmittedSignal"',
+      error: 'x = 10\ny = 0\nx / y # Division by zero'
+    };
+
+    $('examples').onchange = e => {
+      editor.value = examples[e.target.value] || '';
+    };
+
+    // Dart Signal callbacks
+    window._onStateSignal = state => {
+      $('state-signal').textContent = state;
+    };
+    
+    window._onSessionStateSignal = json => {
+      const state = JSON.parse(json);
+      $('session-state-signal').textContent = JSON.stringify(state, null, 2);
+    };
+    
+    window._onChannelStateSignal = state => {
+      const el = $('channel-state-signal');
+      el.textContent = state;
+      const badgeClass = `badge-${state}`;
+      el.innerHTML = `<span class="badge ${badgeClass}">${state.toUpperCase()}</span>`;
+    };
+    
+    window._onLastEmittedSignal = json => {
+      const val = JSON.parse(json);
+      $('last-emitted-signal').textContent = JSON.stringify(val, null, 2);
+    };
+
+    window._onReady = () => {
+      statusBadge.textContent = 'Ready';
+      runBtn.disabled = false;
+      resetBtn.disabled = false;
+    };
+
+    runBtn.onclick = async () => {
+      runBtn.disabled = true;
+      statusBadge.textContent = 'Running...';
+      try {
+        const result = await window.SignalsDemo.execute(editor.value);
+        console.log('Result:', JSON.parse(result));
+      } catch (e) {
+        console.error(e);
+      } finally {
+        runBtn.disabled = false;
+        statusBadge.textContent = 'Ready';
+      }
+    };
+
+    resetBtn.onclick = async () => {
+      await window.SignalsDemo.reset();
+    };
+
+    editor.onkeydown = e => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        runBtn.click();
+      }
+    };
+  </script>
+  <script src="dart_monty_bridge.js"></script>
+  <script src="signals_demo.dart.js"></script>
+</body>
+</html>

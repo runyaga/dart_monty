@@ -57,6 +57,8 @@ dart compile js bin/vfs_demo.dart -o "$WEB_DIR/vfs_demo.dart.js"
 echo "  Compiled: web/vfs_demo.dart.js"
 dart compile js bin/repl_demo.dart -o "$WEB_DIR/repl_demo.dart.js"
 echo "  Compiled: web/repl_demo.dart.js"
+dart compile js bin/signals_demo.dart -o "$WEB_DIR/signals_demo.dart.js"
+echo "  Compiled: web/signals_demo.dart.js"
 
 # ── Step 5: Start COOP/COEP server ──────────────────────────────────────
 PORT=8088
@@ -80,7 +82,13 @@ cleanup() {
         "$WEB_DIR/visualizer.dart.js.map" \
         "$WEB_DIR/vfs_demo.dart.js" \
         "$WEB_DIR/vfs_demo.dart.js.deps" \
-        "$WEB_DIR/vfs_demo.dart.js.map"
+        "$WEB_DIR/vfs_demo.dart.js.map" \
+        "$WEB_DIR/repl_demo.dart.js" \
+        "$WEB_DIR/repl_demo.dart.js.deps" \
+        "$WEB_DIR/repl_demo.dart.js.map" \
+        "$WEB_DIR/signals_demo.dart.js" \
+        "$WEB_DIR/signals_demo.dart.js.deps" \
+        "$WEB_DIR/signals_demo.dart.js.map"
   rm -rf "$WEB_DIR/fixtures"
 }
 trap cleanup EXIT

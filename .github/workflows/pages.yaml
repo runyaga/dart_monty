@@ -85,6 +85,9 @@ jobs:
       - name: Compile repl_demo.dart
         working-directory: example/web
         run: dart compile js bin/repl_demo.dart -o web/repl_demo.dart.js
+      - name: Compile signals_demo.dart
+        working-directory: example/web
+        run: dart compile js bin/signals_demo.dart -o web/signals_demo.dart.js
 
       # ── Build MkDocs ────────────────────────────────────────────────
       - uses: actions/setup-python@v5

@@ -39,12 +39,22 @@ dart_monty                           (single package — Monty() + conditional i
   │     │     implements MontySnapshotCapable, MontyFutureCapable
   │     └── NativeLibraryLoader
   │
-  └── lib/src/wasm/                    (pure Dart, dart:js_interop)
-        ├── WasmBindings               (abstract) → WasmBindingsJs (JS bridge)
-        ├── WasmCoreBindings           (implements MontyCoreBindings)
-        ├── MontyWasm                  (extends BaseMontyPlatform)
-        │     implements MontySnapshotCapable
-        └── js/                        (bridge.js + worker_src.js)
+  ├── lib/src/wasm/                    (pure Dart, dart:js_interop)
+  │     ├── WasmBindings               (abstract) → WasmBindingsJs (JS bridge)
+  │     ├── WasmCoreBindings           (implements MontyCoreBindings)
+  │     ├── MontyWasm                  (extends BaseMontyPlatform)
+  │     │     implements MontySnapshotCapable
+  │     └── js/                        (bridge.js + worker_src.js)
+  │
+  ├── lib/src/bridge/                  (high-level coordination)
+  │     ├── AgentSession               (Facade: Bridge + Persistence + Registry)
+  │     ├── MontyBridge                (Tool dispatch and event streaming)
+  │     ├── MontyPlugin                (Abstract base for tool bundles)
+  │     └── PluginRegistry             (Injection, OS composition, prompt generation)
+  │
+  └── lib/src/repl/                    (REPL: native heap persistence)
+        ├── MontyRepl                  (Native Rust-backed REPL)
+        └── ReplSession                (REPL + Plugins + Events)
 ```
 
 ## Platform Support Matrix
@@ -62,12 +72,12 @@ dart_monty                           (single package — Monty() + conditional i
 
 | Use case | API | Example |
 |----------|-----|---------|
-| Simple script evaluation | `Monty.exec()` | `await Monty.exec('2+2')` |
-| Multiple runs, same interpreter | `Monty()` + `.run()` | `monty.run(code1); monty.run(code2)` |
-| Stateful session (persist variables) | `MontySession` | `session.run('x=1'); session.run('x+1')` |
-| Host functions + plugins | `MontyBridge` | `bridge.register(...); bridge.execute(code)` |
-| LLM tool calling | `MontyBridge` + `bridge.schemas` | Register tools, feed schemas to LLM, execute generated code |
-| Custom filesystem/env | `Monty(os: ...)` | See OsCall section |
+| **Standard Agents** | `AgentSession` | `final s = AgentSession(); await s.execute('x=1');` |
+| Native function/class persistence | `ReplSession` | `final s = ReplSession(); await s.run('def f():...');` |
+| Host functions (no persistence) | `MontyBridge` | `bridge.register(...); bridge.execute(code)` |
+| Simple one-shot scripts | `Monty.run()` | `await Monty.run('2+2')` |
+| One-shot (no instance) | `Monty.exec()` | `await Monty.exec('2+2')` |
+| Custom OS virtualization | `Monty(os: ...)` | See OsCall section |
 
 ## Tool Calling & LLM Integration
 
@@ -112,7 +122,7 @@ LLM sees tool schemas (bridge.schemas)
 
 For a complete example, see the "LLM Tool Calling" section in the
 [README](../README.md). For the OsProvider layer, see
-[oscall-vfs.md](oscall-vfs.md).
+[oscall-vfs.md](../deep-dives/oscall-vfs.md).
 
 ## JSON Contract Reference
 
@@ -131,12 +141,11 @@ not from a single JSON blob.
 
 ## Detailed Documentation
 
-- [OsCall / VFS Layer](../deep-dives/oscall-vfs.md) — Handler hierarchy, platform defaults,
-  call flow diagram, exception contract.
-- [Error Hierarchy](../deep-dives/error-hierarchy.md) — Sealed types, type relationships,
-  source-to-type mapping, propagation through boundaries.
-- [Native Crate Architecture](../reference/native-crate.md) — Handle lifecycle, FFI boundary,
-  tracker abstraction, PrintWriter drain.
-- [Internals](../reference/internals.md) — BaseMontyPlatform/MontyCoreBindings, capability
-  interfaces, MontySession, state machine contract, cross-language memory
-  contracts, execution paths, cross-backend parity, testing strategy.
+- [Trusted Grounding](../deep-dives/grounding.md) — The "Air Gap" security model and call attribution.
+- [State Persistence](../deep-dives/persistence.md) — How AgentSession serializes Python state.
+- [Reactive Signals](../deep-dives/signals.md) — Observing interpreter state with signals_core.
+- [Security & Guardrails](../deep-dives/security.md) — Memory limits, stack depth, and timeouts.
+- [Event Loop](../deep-dives/event-loop.md) — Cooperative multitasking via EventLoopPlugin.
+- [OsCall / VFS Layer](../deep-dives/oscall-vfs.md) — Handler hierarchy and call flow.
+- [Error Hierarchy](../deep-dives/error-hierarchy.md) — Sealed types and propagation.
+- [Internals](../reference/internals.md) — Platform contracts and cross-language memory.

@@ -46,6 +46,11 @@ nav:
       - Error Hierarchy: deep-dives/error-hierarchy.md
       - Lifecycle Management: deep-dives/lifecycles.md
       - Plugin System: deep-dives/plugin-system.md
+      - Reactive Signals: deep-dives/signals.md
+      - Trusted Grounding: deep-dives/grounding.md
+      - State Persistence: deep-dives/persistence.md
+      - Security & Guardrails: deep-dives/security.md
+      - Event Loop: deep-dives/event-loop.md
   - Technical Reference:
       - Native Crate (Rust): reference/native-crate.md
       - Monty Rust API: reference/monty-rust-api.md
@@ -62,5 +67,6 @@ nav:
       - Stateful REPL: repl.html
       - VFS / Filesystem: vfs.html
       - Agent Interaction: agent.html
+      - Reactive Signals: signals.html
       - Execution Visualizer: visualizer.html
       - Python Ladder: ladder.html

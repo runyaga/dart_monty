@@ -1,73 +1,38 @@
 # Built-in Plugins
 
-dart_monty ships three plugins that provide host functions to
-sandboxed Python code. All plugins work with `ReplSession`.
+dart_monty ships several plugins that provide host functions to sandboxed Python code. All plugins are designed to work with `AgentSession`.
 
 | Plugin | Functions | Description |
 |--------|-----------|-------------|
-| **TemplatePlugin** | `tmpl_render` | Jinja2 template rendering |
-| **MessageBusPlugin** | `msg_send`, `msg_recv`, `msg_peek`, `msg_close`, `msg_stats` | In-memory named channels |
-| **SandboxPlugin** | `sandbox_spawn`, `sandbox_await`, `sandbox_gather`, `sandbox_free` | Isolated child interpreters |
+| **TemplatePlugin** | `tmpl_render` | Jinja2 template rendering via [dinja](https://pub.dev/packages/dinja). |
+| **MessageBusPlugin** | `msg_send`, `msg_recv`, `msg_peek`, `msg_close`, `msg_stats` | In-memory named message channels. |
+| **SandboxPlugin** | `sandbox_spawn`, `sandbox_await`, `sandbox_gather`, `sandbox_free` | Isolated child interpreters with plugin inheritance. |
+| **EventLoopPlugin** | (none) | Reactive signals for execution-turn UI state. |
+
+## EventLoopPlugin
+
+The `EventLoopPlugin` does not expose functions to Python. Instead, it provides reactive signals to your Dart application to track the state of the execution loop.
+
+- `channelStateSignal`: Tracks whether the interpreter is idle, executing, or waiting for input.
+- `lastEmittedSignal`: Emits values sent from Python via `el_emit()` in real-time.
+
+See [Reactive Signals](../deep-dives/signals.md) for detailed usage patterns.
 
 ## TemplatePlugin
 
 **Class:** `DinjaTemplatePlugin`
 **Namespace:** `tmpl`
 
-Renders Jinja2 templates using the [dinja](https://pub.dev/packages/dinja)
-Dart package. Supports `{{ variables }}`, `{% for %}` loops,
-`{% if %}` conditionals, and filters.
+Renders Jinja2 templates. Supports `{{ variables }}`, `{% for %}` loops, `{% if %}` conditionals, and filters.
 
 ### Functions
 
 **`tmpl_render(template, context)`**
 
-Render a Jinja2 template string with a context dict.
-
 ```python
 # Basic variable substitution
 tmpl_render(template='Hello {{ name }}!', context={'name': 'World'})
 # -> 'Hello World!'
-
-# For loop
-tmpl_render(
-    template='{% for item in items %}{{ item }} {% endfor %}',
-    context={'items': ['Alice', 'Bob', 'Charlie']}
-)
-# -> 'Alice Bob Charlie '
-
-# Conditional
-tmpl_render(
-    template='{% if admin %}Admin{% else %}Guest{% endif %}',
-    context={'admin': True}
-)
-# -> 'Admin'
-```
-
-### Typical Pattern
-
-Compute data in Python, render with the host template engine:
-
-```python
-scores = [85, 92, 78, 95, 88]
-report = {
-    'avg': sum(scores) / len(scores),
-    'top': max(scores),
-    'n': len(scores),
-}
-tmpl_render(
-    template='{{ n }} students, avg={{ avg }}, top={{ top }}',
-    context=report,
-)
-# -> '5 students, avg=87.6, top=95'
-```
-
-### Configuration
-
-```dart
-DinjaTemplatePlugin(
-  maxInputSize: 512 * 1024,  // 512 KB default
-)
 ```
 
 ---
@@ -77,60 +42,13 @@ DinjaTemplatePlugin(
 **Class:** `MessageBusPlugin`
 **Namespace:** `msg`
 
-In-memory named message channels (FIFO queues). Useful for
-inter-process communication when combining multiple plugins
-or coordinating between parent and child sandboxes.
+In-memory named message channels (FIFO queues). Useful for inter-process communication between parent and child sandboxes.
 
-### MessageBus Functions
+### Functions
 
 **`msg_send(name, message)`** — Send a message to a named channel.
-
-```python
-msg_send('tasks', {'id': 1, 'action': 'analyze'})
-```
-
-**`msg_recv(name, timeout_ms=None)`** — Receive the next message.
-Blocks until a message is available or timeout expires.
-
-```python
-task = msg_recv('tasks')
-# -> {'id': 1, 'action': 'analyze'}
-```
-
+**`msg_recv(name, timeout_ms=None)`** — Receive the next message (blocking).
 **`msg_peek(name)`** — Check the next message without consuming it.
-Returns `None` if the channel is empty.
-
-```python
-msg_peek('tasks')  # -> {'id': 1, ...} or None
-```
-
-**`msg_close(name)`** — Close a channel. Subsequent `msg_recv`
-calls raise an error.
-
-```python
-msg_close('tasks')
-```
-
-**`msg_stats(name)`** — Get channel statistics.
-
-```python
-msg_stats('tasks')
-# -> {'pending': 2, 'delivered': 5, ...}
-```
-
-### MessageBus Pattern
-
-Log events from multiple operations:
-
-```python
-msg_send('audit', {'action': 'upload', 'file': 'data.csv'})
-msg_send('audit', {'action': 'query', 'room': 'analysis'})
-
-# Later: collect all audit entries
-logs = []
-while msg_peek('audit') is not None:
-    logs.append(msg_recv('audit'))
-```
 
 ---
 
@@ -139,108 +57,104 @@ while msg_peek('audit') is not None:
 **Class:** `SandboxPlugin`
 **Namespace:** `sandbox`
 
-Spawns Python scripts in isolated child interpreters. Each child
-gets its own `MontyPlatform` and `DefaultMontyBridge`. Children
-can inherit plugins from the parent and even spawn their own
-children (grandchildren).
+Spawns Python scripts in isolated child interpreters. Children can inherit plugins from the parent and even spawn their own children (grandchildren).
 
-See [Sandbox Architecture](../architecture/sandbox-architecture.md) for the
-full deep dive.
+### Functions
 
-### Sandbox Functions
+**`sandbox_spawn(code, timeout_ms=None, memory_bytes=None)`** — Spawn a child. Returns an integer handle.
+**`sandbox_await(handle)`** — Wait for a child to complete and return its result.
+**`sandbox_gather(handles)`** — Wait for multiple children and return attributed results.
 
-**`sandbox_spawn(code, timeout_ms=None, memory_bytes=None)`** —
-Spawn a child interpreter. Returns an integer handle.
-
-```python
-h = sandbox_spawn(code='sum(range(100))')
-```
-
-**`sandbox_await(handle)`** — Wait for a child to complete.
-Returns the result value.
-
-```python
-result = sandbox_await(h)  # -> 4950
-```
-
-**`sandbox_await_all(handles)`** — Wait for multiple children.
-
-```python
-results = sandbox_await_all(handles=[h1, h2, h3])
-```
-
-**`sandbox_gather(handles)`** — Wait and return attributed results
-with handle, value, and output for each child.
-
-```python
-results = sandbox_gather(handles=[h1, h2, h3])
-# [{'handle': 0, 'value': 10, 'output': None}, ...]
-```
-
-**`sandbox_is_alive(handle)`** — Check if a child is still running.
-
-**`sandbox_free(handle)`** — Release a completed child's resources.
-
-**`sandbox_get_output(handle)`** — Get a completed child's
-captured `print()` output.
-
-### Sandbox Pattern
-
-Parallel computation with result aggregation:
-
-```python
-# Spawn 3 independent computations
-h1 = sandbox_spawn(code='2 ** 16')
-h2 = sandbox_spawn(code='sum(range(1000))')
-h3 = sandbox_spawn(code='len([x for x in range(100) if x % 7 == 0])')
-
-# Wait for all and get attributed results
-results = sandbox_gather(handles=[h1, h2, h3])
-for r in results:
-    print(f"Handle {r['handle']}: {r['value']}")
-```
-
-### Sandbox Configuration
+### Configuration
 
 ```dart
 SandboxPlugin(
-  platformFactory: () async => MontyFfi(),  // or MontyWasm()
-  parentPlugins: [tmpl, msgBus],  // children inherit these
-  maxChildren: 16,       // concurrent child limit
-  maxDepth: 3,           // grandchild recursion limit
-  childLimits: MontyLimits(
-    timeoutMs: 10000,
-    memoryBytes: 4 * 1024 * 1024,
-  ),
+  platformFactory: () async => MontyFfi(),
+  childPluginRegistryFactory: (context) async => PluginRegistry()..register(MyPlugin()),
+  maxChildren: 16,
+  maxDepth: 3,
+  childLimits: MontyLimits(timeoutMs: 10000),
 )
 ```
 
 ---
 
-## Using Plugins with ReplSession
+## Using Plugins with `AgentSession`
+
+`AgentSession` is the recommended way to use plugins. It orchestrates the bridge and handles the event loop automatically.
 
 ```dart
-final session = ReplSession(
+final session = AgentSession(
   plugins: [
     DinjaTemplatePlugin(),
     MessageBusPlugin(),
-    SandboxPlugin(
-      platformFactory: () async => MontyFfi(),
-      parentPlugins: [DinjaTemplatePlugin()],
-    ),
+    SandboxPlugin(platformFactory: () async => MontyFfi()),
   ],
 );
 
 // All plugin functions are now available in Python
-await session.run("help()");  // lists all functions
-await session.run("tmpl_render(template='{{ x }}', context={'x': 1})");
-await session.run("msg_send('ch', 'hello')");
-await session.run("h = sandbox_spawn(code='42')");
+final result = await session.execute("tmpl_render(template='Hello {{ x }}', context={'x': 42})");
+print(result.value); // 'Hello 42'
 
 await session.dispose();
 ```
 
-## Writing Custom Plugins
+---
 
-See the [host functions guide](../tutorials/host-functions-intro.md) for
-how to create your own plugins with custom host functions.
+## Writing Plugins — Advanced Features
+
+When authoring custom plugins, several advanced capabilities are available to handle cross-plugin communication, OS integration, and execution lifecycle hooks:
+
+### Registry Injection
+
+The `registry` field is automatically injected before `onRegister` fires. Use it to discover peer plugins:
+
+```dart
+class MyPlugin extends MontyPlugin {
+  @override
+  Future<void> onRegister(MontyBridge bridge) async {
+    // sibling<T>() works after onRegister
+    final bus = sibling<MessageBusPlugin>();
+    bus?.send('init', {'plugin': namespace});
+  }
+}
+```
+
+### OS Contributions
+
+Plugins can contribute to the virtual filesystem by providing an `osContribution` map.
+
+```dart
+@override
+Map<String, OsProvider>? get osContribution => {
+  'Path./my_plugin': MyPluginFsProvider(),
+};
+```
+
+### Execute Hooks
+
+Set `hasExecuteHooks = true` to wrap every `session.execute()` call with lifecycle hooks.
+
+```dart
+@override
+bool get hasExecuteHooks => true;
+
+@override
+void onExecuteStart(String code) => print('Starting: $code');
+
+@override
+void onExecuteEnd(ExecuteOutcome outcome) => print('Finished: ${outcome.value}');
+```
+
+### System Prompt Context
+
+Provide context that can be used by LLMs to understand how to use your plugin.
+
+```dart
+@override
+String? get systemPromptContext => 'Use this plugin to manage user preferences.';
+```
+
+---
+
+For a full list of available signals, see the [Reactive Signals](../deep-dives/signals.md) deep dive.

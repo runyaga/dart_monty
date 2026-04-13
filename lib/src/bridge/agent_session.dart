@@ -17,6 +17,7 @@ import 'package:dart_monty/src/platform/monty_exception.dart';
 import 'package:dart_monty/src/platform/monty_platform.dart';
 import 'package:dart_monty/src/platform/monty_resource_usage.dart';
 import 'package:dart_monty/src/platform/monty_result.dart';
+import 'package:dart_monty/src/platform/monty_state_mixin.dart';
 import 'package:dart_monty/src/platform/monty_value.dart';
 import 'package:signals_core/signals_core.dart';
 
@@ -144,7 +145,7 @@ String _wrapWithStateCode(String userCode, Map<String, Object?> state) {
 /// await session.execute('r = soliplex_new_thread("s", "r", "Hi")');
 /// await session.execute('r2 = soliplex_reply_thread(...)'); // no crash
 /// ```
-class AgentSession {
+class AgentSession with MontyStateMixin {
   /// Creates an agent session.
   ///
   /// When [sandbox] is true, each `execute()` call creates a fresh
@@ -184,6 +185,9 @@ class AgentSession {
     }
   }
 
+  @override
+  String get backendName => 'AgentSession';
+
   final OsProvider? _os;
   final List<MontyPlugin>? _plugins;
   final BridgeLogger? _logger;
@@ -198,7 +202,6 @@ class AgentSession {
   // Sandbox mode schema bridge (no platform, just for introspection).
   DefaultMontyBridge? _schemaBridge;
 
-  bool _disposed = false;
   final Signal<Map<String, Object?>> _sessionStateSignal =
       signal<Map<String, Object?>>({});
   final List<HostFunction> _extraFunctions = [];
@@ -238,7 +241,7 @@ class AgentSession {
   ///
   /// In sandbox mode, the function is registered on every fresh bridge.
   void register(HostFunction function) {
-    if (_disposed) throw StateError('AgentSession has been disposed');
+    assertNotDisposed('register');
     if (_sharedBridge != null) {
       _sharedBridge!.register(function);
     }
@@ -252,7 +255,7 @@ class AgentSession {
   ///
   /// In sandbox mode, creates a fresh interpreter per call.
   Future<MontyResult> execute(String code) {
-    if (_disposed) throw StateError('AgentSession has been disposed');
+    assertNotDisposed('execute');
 
     if (_sandbox) {
       return _executeSandboxed(code);
@@ -265,7 +268,7 @@ class AgentSession {
   ///
   /// Only available in shared mode. In sandbox mode, use `execute()`.
   Stream<BridgeEvent> executeStream(String code) {
-    if (_disposed) throw StateError('AgentSession has been disposed');
+    assertNotDisposed('executeStream');
     if (_sandbox) {
       throw UnsupportedError(
         'executeStream() is not supported in sandbox mode. '
@@ -278,14 +281,14 @@ class AgentSession {
 
   /// Clears all persisted Python state.
   void clearState() {
-    if (_disposed) throw StateError('AgentSession has been disposed');
+    assertNotDisposed('clearState');
     _sessionStateSignal.value = {};
   }
 
   /// Releases all resources.
   Future<void> dispose() async {
-    if (_disposed) return;
-    _disposed = true;
+    if (isDisposed) return;
+    markDisposed();
     if (_sharedRegistry != null) await _sharedRegistry!.disposeAll();
     _sharedBridge?.dispose();
     _schemaBridge?.dispose();
@@ -298,9 +301,14 @@ class AgentSession {
       await _sharedRegistry!.attachTo(_sharedBridge!, baseOs: _os);
       _sharedAttached = true;
     }
-    yield* _sharedBridge!.execute(
-      _wrapWithStateCode(code, _sessionStateSignal.value),
-    );
+    markActive();
+    try {
+      yield* _sharedBridge!.execute(
+        _wrapWithStateCode(code, _sessionStateSignal.value),
+      );
+    } finally {
+      markIdle();
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -312,11 +320,16 @@ class AgentSession {
       await _sharedRegistry!.attachTo(_sharedBridge!, baseOs: _os);
       _sharedAttached = true;
     }
-    final events = await _sharedBridge!
-        .execute(_wrapWithStateCode(code, _sessionStateSignal.value))
-        .toList();
+    markActive();
+    try {
+      final events = await _sharedBridge!
+          .execute(_wrapWithStateCode(code, _sessionStateSignal.value))
+          .toList();
 
-    return _extractBridgeResult(events);
+      return _extractBridgeResult(events);
+    } finally {
+      markIdle();
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -333,6 +346,7 @@ class AgentSession {
     }
     await registry.attachTo(b, baseOs: _os);
 
+    markActive();
     try {
       final events = await b
           .execute(_wrapWithStateCode(code, _sessionStateSignal.value))
@@ -340,6 +354,7 @@ class AgentSession {
 
       return _extractBridgeResult(events);
     } finally {
+      markIdle();
       await registry.disposeAll();
       b.dispose();
       await monty.dispose();

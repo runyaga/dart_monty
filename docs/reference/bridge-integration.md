@@ -96,21 +96,31 @@ worker.onmessage = (e) => {
 };
 ```
 
-### Bridge API Surface
+## Bridge API Surface
 
 | Method | Worker message type | Purpose |
 |--------|-------------------|---------|
 | `init()` | (creates Worker) | Initialize WASM runtime |
-| `run(code, limitsJson, scriptName)` | `run` | One-shot execution |
-| `start(code, extFnsJson, limitsJson, scriptName)` | `start` | Begin iterative execution |
-| `resume(valueJson)` | `resume` | Continue with host function return value |
-| `resumeWithError(errorJson)` | `resumeWithError` | Continue with error |
-| `snapshot()` | `snapshot` | Capture interpreter state (base64) |
-| `restore(dataBase64)` | `restore` | Restore interpreter from snapshot |
-| `discover()` | (synchronous) | Check if Worker is loaded |
+| `createSession()` | `createSession` | Create an isolated interpreter session (Worker pool) |
+| `disposeSession(sessionId)` | `disposeSession` | Release session resources |
+| `run(code, limits, scriptName, sessionId)` | `run` | One-shot execution |
+| `start(code, extFns, limits, scriptName, sessionId)` | `start` | Begin iterative execution |
+| `resume(value, sessionId)` | `resume` | Continue with host function return value |
+| `resumeWithError(error, sessionId)` | `resumeWithError` | Continue with error |
+| `snapshot(sessionId)` | `snapshot` | Capture interpreter state (base64) |
+| `restore(dataBase64, sessionId)` | `restore` | Restore interpreter from snapshot |
 | `dispose()` | `dispose` | Terminate Worker |
 
-## Layer 3: WASM Worker
+## AgentSession Orchestration
+
+While the low-level execution loop handles raw JSON messages, `AgentSession` provides the high-level orchestration required for standard agentic workloads.
+
+1.  **State Persistence**: Uses `snapshot()` and `restore()` (or the `__restore_state__` / `__persist_state__` pattern) to maintain variables across `execute()` calls.
+2.  **Plugin Dispatch**: Routes `pending` events through the `PluginRegistry` to the appropriate `MontyPlugin`.
+3.  **Event Loop**: Wraps the stream to handle `el_recv()` / `el_emit()` coroutine behavior.
+4.  **Automatic Cleanup**: Ensures `disposeSession()` is called when the session is closed to prevent memory leaks in the Worker pool.
+
+## Comparison with Native Path
 
 The Worker loads `@pydantic/monty-wasm32-wasi` and handles messages
 dispatched from the bridge. Key state:

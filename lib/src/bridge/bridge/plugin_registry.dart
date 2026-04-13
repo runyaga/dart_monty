@@ -185,6 +185,19 @@ void _collectAndApplyOsContributions(
 /// Collects [MontyPlugin]s with namespace validation and function name
 /// collision detection.
 ///
+/// ## Key Capabilities
+///
+/// - **Registry injection**: `attachTo` sets the `registry` and `logger` on
+///   each plugin before `onRegister` fires. Use `sibling<T>()` inside
+///   handlers or `onRegister` to discover co-registered peers.
+/// - **OS contributions**: `attachTo` merges plugin `osContribution` maps into
+///   a single composite `OsProvider`. Throws `StateError` on prefix overlap.
+/// - **Execute hooks**: Plugins with `hasExecuteHooks = true` get their
+///   `onExecuteStart` and `onExecuteEnd` hooks wired as the outermost
+///   wrapper around every bridge execution.
+/// - **System prompt**: Combines [systemPromptPrefix] with per-plugin
+///   `systemPromptContext` to produce a consolidated prompt for LLMs.
+///
 /// All function names must be prefixed with the plugin's namespace followed
 /// by an underscore (e.g., namespace `sqlite` requires functions named
 /// `sqlite_query`, `sqlite_execute`, etc.).

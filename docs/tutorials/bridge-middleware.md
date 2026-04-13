@@ -416,18 +416,37 @@ to know about each other (telemetry, grounding, rate limiting), use
 `BridgeMiddleware` instead -- it operates at the dispatch chokepoint
 without any plugin coupling.
 
-### Historical note: CompositePlugin
+### Alternative: sibling<T>() registry lookup
 
-An earlier version of `dart_monty_bridge` provided `CompositePlugin` and
-`PluginRef<T>` for declaring inter-plugin dependencies with automatic
-topological sort and cycle detection. This was removed in #197 because:
+Constructor injection requires knowing all dependencies upfront. When a plugin is registered
+as part of an open-ended registry (e.g. assembled dynamically at runtime), use `sibling<T>()`
+to discover a co-registered peer after `onRegister` fires:
 
-1. **Zero consumers** outside the test file used it. Constructor
-   injection was already the established pattern.
-2. **Type-identity conflicts.** `PluginRef<T>` uses runtime `is T`
-   matching, which fails with proxied or cross-package plugin types.
-3. **Unnecessary complexity.** ~180 lines of topological sort for a
-   problem constructor injection solves in zero lines.
+```dart
+class BudgetPlugin extends MontyPlugin {
+  @override
+  String get namespace => 'budget';
+
+  @override
+  List<HostFunction> get functions => [
+    HostFunction(
+      schema: const HostFunctionSchema(name: 'budget_check', description: '...'),
+      handler: (args) async {
+        // sibling<T>() is safe to call inside handler — registry is already wired
+        final memory = registry.sibling<MemoryPlugin>();
+        return memory?.recall(args['key'] as String);
+      },
+    ),
+  ];
+}
+```
+
+`sibling<T>()` returns `null` if no matching plugin is registered — handle
+gracefully or assert non-null when the dependency is required.
+
+**Choose constructor injection when** the dependency is required and known at
+build time — the compiler enforces it. **Choose sibling<T>()** when the registry
+composition is dynamic, optional, or outside your control.
 
 ## Registry Error Handling
 

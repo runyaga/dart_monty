@@ -1,229 +1,105 @@
-# Monty API — Dart
+# API Reference
 
-Sandboxed Python interpreter for Dart/Flutter (pure Dart, no Flutter required).
+`dart_monty` provides three levels of API, depending on your needs for state management and plugin support.
 
-## Types
+## 1. AgentSession (Recommended)
 
-| Type | Fields |
-|------|--------|
-| `MontyResult` | `.value`, `.error`, `.usage` |
-| `MontyException` | `.message`, `.lineNumber`, `.columnNumber` |
-| `MontyLimits` | `.timeoutMs`, `.memoryBytes`, `.stackDepth` |
-| `MontyResourceUsage` | `.memoryBytesUsed`, `.timeElapsedMs` |
-| `MontyProgress` | sealed: `MontyPending`, `MontyComplete` |
-| `MontyPending` | `.functionName`, `.arguments` |
-| `MontyComplete` | `.result` (a `MontyResult`) |
+`AgentSession` is the high-level facade for building stateful agents. It handles tool registration, OS virtualization, and variable persistence automatically.
 
-## Run
+### Basic Execution
 
 ```dart
-import 'package:dart_monty/dart_monty.dart';
-
-final monty = Monty();
-final result = await monty.run('2 ** 100');
-// result.value  -> 1267650600228229401496703205376
-// result.usage.memoryBytesUsed, .timeElapsedMs, .stackDepthUsed
-await monty.dispose();
+final session = AgentSession();
+final result = await session.execute('x = 42');
+print(result.value); // 42
 ```
 
-Multi-line:
+### Reactive State
+
+`AgentSession` implements `MontyStateMixin` and provides reactive signals via [signals_core](https://pub.dev/packages/signals_core).
 
 ```dart
-final result = await monty.run('''
-def fib(n):
-    a, b = 0, 1
-    for _ in range(n):
-        a, b = b, a + b
-    return a
-fib(30)
-''');
-// result.value -> 832040
+// React to variable changes
+effect(() {
+  final variables = session.sessionStateSignal.value;
+  print("Active variables: ${variables.keys}");
+});
+
+// React to lifecycle changes
+effect(() {
+  if (session.stateSignal.value == MontyLifecycleState.disposed) {
+    print("Session closed");
+  }
+});
 ```
 
-## Limits
-
-All fields optional. Omitted = unconstrained. Exceeding throws
-`MontyException`.
+### Using Plugins
 
 ```dart
-try {
-  await monty.run(
-    'while True: pass',
-    limits: MontyLimits(
-      timeoutMs: 100,
-      memoryBytes: 10 * 1024 * 1024,
-      stackDepth: 50,
-    ),
-  );
-} on MontyException catch (e) {
-  print(e.message); // timeout exceeded
-}
+final session = AgentSession(
+  plugins: [
+    MessageBusPlugin(),
+    SandboxPlugin(platformFactory: () async => MontyFfi()),
+  ],
+);
 ```
 
-## Iterative Execution
+---
 
-`start()` declares external functions. Python pauses when it calls
-one, returning `MontyPending`. `resume(returnValue)` continues.
+## 2. ReplSession (Native Only)
+
+For workloads requiring high-performance persistence of complex objects (functions, classes, closures), `ReplSession` uses a native Rust heap that persists across calls.
+
+```dart
+final session = ReplSession();
+await session.run('def greet(name): return f"Hello {name}"');
+final result = await session.run('greet("Monty")'); 
+print(result.value); // "Hello Monty"
+```
+
+---
+
+## 3. Monty (Low-Level)
+
+The `Monty` class provides raw access to the interpreter. Use this for one-shot scripts where no state or plugin system is required.
+
+```dart
+final result = await Monty.run('2 + 2');
+print(result.value); // 4
+```
+
+### Manual Iteration
+
+If you aren't using `AgentSession`, you must handle external function calls manually:
 
 ```dart
 final monty = Monty();
 var progress = await monty.platform.start(
-  '''
-url = "https://example.com"
-html = fetch(url)
-len(html)
-''',
+  'html = fetch("https://example.com")',
   externalFunctions: ['fetch'],
 );
 
-while (progress is MontyPending) {
-  final url = progress.arguments.first.toString();
-  final response = await http.get(Uri.parse(url));
-  progress = await monty.platform.resume(response.body);
-}
-
-final complete = progress as MontyComplete;
-print(complete.result.value);
-await monty.dispose();
-```
-
-Pattern match:
-
-```dart
-switch (progress) {
-  case MontyComplete(:final result):
-    print(result.value);
-  case MontyPending(:final functionName, :final arguments):
-    print('$functionName($arguments)');
+if (progress is MontyPending) {
+  // Manual dispatch...
+  progress = await monty.platform.resume(htmlData);
 }
 ```
 
-## Error Injection
+---
 
-`resumeWithError(message)` raises a Python `Exception` in the
-paused interpreter.
+## Shared Types
 
-```dart
-final monty = Monty();
-var progress = await monty.platform.start(
-  '''
-try:
-    data = fetch("https://httpstat.us/500")
-except Exception as e:
-    result = f"caught: {e}"
-result
-''',
-  externalFunctions: ['fetch'],
-);
+| Type | Description |
+|------|-------------|
+| `MontyResult` | The output of an execution, including `.value` and `.usage`. |
+| `MontyValue` | A boxed Python value (e.g., `MontyInt`, `MontyString`, `MontyMap`). |
+| `MontyLimits` | Resource constraints (`timeoutMs`, `memoryBytes`, `stackDepth`). |
+| `MontyException` | Thrown when Python code fails, includes `.traceback`. |
+| `MontyLifecycleState` | `idle`, `active`, or `disposed`. |
 
-while (progress is MontyPending) {
-  // Inject an error instead of a return value
-  progress = await monty.platform.resumeWithError('HTTP 500');
-}
+### MontyResult Fields
 
-final complete = progress as MontyComplete;
-print(complete.result.value); // "caught: HTTP 500"
-await monty.dispose();
-```
-
-## Cooperative Multitasking
-
-Any external function name works. Convention: `yield_state`.
-Python pauses on each call; Dart reads args, updates UI, resumes.
-
-```dart
-final monty = Monty();
-var progress = await monty.platform.start(
-  '''
-arr = [5, 3, 1, 4, 2]
-n = len(arr)
-i = 0
-while i < n:
-    j = 0
-    while j < n - i - 1:
-        yield_state(arr, j, j + 1, "compare")
-        if arr[j] > arr[j + 1]:
-            tmp = arr[j]
-            arr[j] = arr[j + 1]
-            arr[j + 1] = tmp
-            yield_state(arr, j, j + 1, "swap")
-        j = j + 1
-    i = i + 1
-yield_state(arr, -1, -1, "done")
-arr
-''',
-  externalFunctions: ['yield_state'],
-);
-
-while (progress is MontyPending) {
-  final args = progress.arguments;
-  final array = (args[0]! as List).cast<int>();
-  final i = args[1]! as int;
-  final j = args[2]! as int;
-  final action = args[3]! as String;
-  setState(() { /* update UI with array, i, j, action */ });
-  await Future<void>.delayed(const Duration(milliseconds: 50));
-  progress = await monty.platform.resume(null);
-}
-await monty.dispose();
-```
-
-## Error Handling
-
-Python errors throw `MontyException`. They never return silently
-inside `MontyResult`.
-
-```dart
-final monty = Monty();
-try {
-  await monty.run('items = [1, 2, 3]\nitems[10]');
-} on MontyException catch (e) {
-  print(e.message);      // "list index out of range"
-  print(e.lineNumber);   // 2
-  print(e.columnNumber); // nullable
-  print(e.sourceCode);   // nullable
-} finally {
-  await monty.dispose();
-}
-```
-
-## State Machine
-
-| State | Allowed methods |
-|-------|----------------|
-| **idle** | `run()`, `start()`, `restore()`, `dispose()` |
-| **active** | `resume()`, `resumeWithError()`, `snapshot()`, `dispose()` |
-| **disposed** | none (throws `StateError`) |
-
-- `start()`: idle -> active
-- `resume()`/`resumeWithError()` + `MontyComplete`: active -> idle
-- `resume()`/`resumeWithError()` + `MontyPending`: stays active
-- `dispose()`: any -> disposed (no-op if already disposed)
-- Wrong-state call throws `StateError`
-
-## Platform Backends
-
-### Auto-detected backend
-
-```dart
-import 'package:dart_monty/dart_monty.dart';
-
-final monty = Monty(); // selects MontyFfi or MontyWasm at compile time
-```
-
-### Explicit backend
-
-```dart
-import 'package:dart_monty/dart_monty.dart';
-import 'package:dart_monty_ffi/dart_monty_ffi.dart';
-
-final monty = Monty.withPlatform(MontyFfi()); // explicit native backend
-```
-
-## Constraints
-
-- `inputs` parameter: throws `UnsupportedError` if non-empty
-- `initialize()` (WASM only): idempotent, auto-called by `run()`/`start()`
-- Snapshots on web: rely on Node.js `Buffer`, may fail in browsers
-- WASM `MontyResourceUsage`: synthetic zeros (no `ResourceTracker`)
-- One execution at a time: `run()`/`start()` while active throws `StateError`
+- `value`: The `MontyValue` returned by the script.
+- `error`: Non-null if execution failed (and wasn't caught in Python).
+- `usage`: A `MontyResourceUsage` object tracking memory and time.
+- `printOutput`: All text captured from `print()` calls during execution.
