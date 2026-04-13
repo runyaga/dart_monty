@@ -2,6 +2,7 @@
 library;
 
 import 'package:dart_monty/dart_monty_bridge.dart';
+import 'package:signals_core/signals_core.dart';
 import 'package:test/test.dart';
 
 /// Integration tests for AgentSession — requires the native Monty library.
@@ -430,6 +431,101 @@ result
         );
       },
     );
+  });
+
+  group('AgentSession.sessionStateSignal', () {
+    late AgentSession session;
+
+    setUp(() {
+      session = AgentSession();
+    });
+
+    tearDown(() async {
+      await session.dispose();
+    });
+
+    test('starts as an empty map', () {
+      expect(session.sessionStateSignal.value, isEmpty);
+    });
+
+    test('updates after execute() assigns a variable', () async {
+      await session.execute('x = 42');
+
+      expect(session.sessionStateSignal.value['x'], 42);
+    });
+
+    test('accumulates variables across multiple execute() calls', () async {
+      await session.execute('a = 1');
+      await session.execute('b = 2');
+
+      final s = session.sessionStateSignal.value;
+      expect(s['a'], 1);
+      expect(s['b'], 2);
+    });
+
+    test('subscriber is notified after each execute()', () async {
+      final snapshots = <Map<String, Object?>>[];
+      final sub = session.sessionStateSignal.subscribe(
+        (v) => snapshots.add(Map.from(v)),
+      );
+      addTearDown(sub);
+
+      await session.execute('x = 1');
+      await session.execute('y = 2');
+
+      // subscribe fires immediately on attach (empty), then after each execute.
+      expect(snapshots.length, greaterThanOrEqualTo(3));
+      expect(snapshots.last['x'], 1);
+      expect(snapshots.last['y'], 2);
+    });
+
+    test('clearState() resets signal to empty map', () async {
+      await session.execute('x = 42');
+      session.clearState();
+
+      expect(session.sessionStateSignal.value, isEmpty);
+    });
+
+    test('error in execute() does not clear existing state', () async {
+      await session.execute('x = 42');
+      await session.execute('1 / 0'); // error
+
+      expect(session.sessionStateSignal.value['x'], 42);
+    });
+
+    test('is a ReadonlySignal', () {
+      expect(
+        session.sessionStateSignal,
+        isA<ReadonlySignal<Map<String, Object?>>>(),
+      );
+    });
+  });
+
+  group('AgentSession.sessionStateSignal sandbox mode', () {
+    late AgentSession session;
+
+    setUp(() {
+      session = AgentSession(sandbox: true);
+    });
+
+    tearDown(() async {
+      await session.dispose();
+    });
+
+    test('updates after execute() assigns a variable', () async {
+      await session.execute('x = 99');
+
+      expect(session.sessionStateSignal.value['x'], 99);
+    });
+
+    test('accumulates across sandbox execute() calls', () async {
+      await session.execute('a = 10');
+      await session.execute('b = 20');
+
+      final s = session.sessionStateSignal.value;
+      expect(s['a'], 10);
+      expect(s['b'], 20);
+    });
   });
 
   group('AgentSession event streaming', () {
