@@ -18,6 +18,7 @@ import 'package:dart_monty/src/platform/monty_platform.dart';
 import 'package:dart_monty/src/platform/monty_resource_usage.dart';
 import 'package:dart_monty/src/platform/monty_result.dart';
 import 'package:dart_monty/src/platform/monty_value.dart';
+import 'package:signals_core/signals_core.dart';
 
 const _restoreFn = '__restore_state__';
 const _persistFn = '__persist_state__';
@@ -198,7 +199,8 @@ class AgentSession {
   DefaultMontyBridge? _schemaBridge;
 
   bool _disposed = false;
-  Map<String, Object?> _sessionState = {};
+  final Signal<Map<String, Object?>> _sessionStateSignal =
+      signal<Map<String, Object?>>({});
   final List<HostFunction> _extraFunctions = [];
 
   /// All registered tool schemas — feed these to an LLM as tool definitions.
@@ -212,7 +214,22 @@ class AgentSession {
   MontyBridge? get bridge => _sharedBridge ?? _schemaBridge;
 
   /// The current persisted Python state.
-  Map<String, Object?> get state => Map.from(_sessionState);
+  Map<String, Object?> get state => Map.from(_sessionStateSignal.value);
+
+  /// Reactive persisted Python state.
+  ///
+  /// Emits a new snapshot after every `execute()` call that assigns
+  /// variables in Python (via `__persist_state__`). Subscribe via [effect]
+  /// to react to variable changes without polling [state]:
+  ///
+  /// ```dart
+  /// effect(() {
+  ///   final s = session.sessionStateSignal.value;
+  ///   if (s.containsKey('result')) print(s['result']);
+  /// });
+  /// ```
+  ReadonlySignal<Map<String, Object?>> get sessionStateSignal =>
+      _sessionStateSignal;
 
   /// Whether this session creates a fresh interpreter per `execute()`.
   bool get isSandboxMode => _sandbox;
@@ -262,7 +279,7 @@ class AgentSession {
   /// Clears all persisted Python state.
   void clearState() {
     if (_disposed) throw StateError('AgentSession has been disposed');
-    _sessionState = {};
+    _sessionStateSignal.value = {};
   }
 
   /// Releases all resources.
@@ -273,6 +290,7 @@ class AgentSession {
     _sharedBridge?.dispose();
     _schemaBridge?.dispose();
     await _sharedMonty?.dispose();
+    _sessionStateSignal.dispose();
   }
 
   Stream<BridgeEvent> _executeStreamShared(String code) async* {
@@ -280,7 +298,9 @@ class AgentSession {
       await _sharedRegistry!.attachTo(_sharedBridge!, baseOs: _os);
       _sharedAttached = true;
     }
-    yield* _sharedBridge!.execute(_wrapWithStateCode(code, _sessionState));
+    yield* _sharedBridge!.execute(
+      _wrapWithStateCode(code, _sessionStateSignal.value),
+    );
   }
 
   // ---------------------------------------------------------------------------
@@ -293,7 +313,7 @@ class AgentSession {
       _sharedAttached = true;
     }
     final events = await _sharedBridge!
-        .execute(_wrapWithStateCode(code, _sessionState))
+        .execute(_wrapWithStateCode(code, _sessionStateSignal.value))
         .toList();
 
     return _extractBridgeResult(events);
@@ -315,7 +335,7 @@ class AgentSession {
 
     try {
       final events = await b
-          .execute(_wrapWithStateCode(code, _sessionState))
+          .execute(_wrapWithStateCode(code, _sessionStateSignal.value))
           .toList();
 
       return _extractBridgeResult(events);
@@ -358,7 +378,7 @@ class AgentSession {
             name: _restoreFn,
             description: 'Internal: restore session state',
           ),
-          handler: (_) async => _sessionState,
+          handler: (_) async => _sessionStateSignal.value,
         ),
       )
       ..register(
@@ -371,7 +391,7 @@ class AgentSession {
           handler: (args) async {
             final captured = args['state'];
             if (captured is Map<String, Object?>) {
-              _sessionState = captured;
+              _sessionStateSignal.value = captured;
             }
 
             return null;

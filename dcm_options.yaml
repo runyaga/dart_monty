@@ -140,6 +140,8 @@ dcm:
     - prefer-match-file-name:
         exclude:
           - "test/**"
+          # MontyLifecycleState enum declared before MontyStateMixin mixin
+          - "lib/src/platform/monty_state_mixin.dart"
           # FFI/WASM binding abstractions
           - "lib/**/native_bindings.dart"
           - "lib/**/wasm_bindings.dart"

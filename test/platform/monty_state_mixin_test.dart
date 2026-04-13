@@ -145,6 +145,60 @@ void main() {
     });
   });
 
+  group('stateSignal', () {
+    test('starts as idle', () {
+      expect(sm.stateSignal.value, MontyLifecycleState.idle);
+    });
+
+    test('fires on markActive', () {
+      final seen = <MontyLifecycleState>[];
+      final sub = sm.stateSignal.subscribe(seen.add);
+      addTearDown(sub);
+
+      sm.doMarkActive();
+      expect(seen, [MontyLifecycleState.idle, MontyLifecycleState.active]);
+    });
+
+    test('fires on markIdle', () {
+      sm.doMarkActive();
+      final seen = <MontyLifecycleState>[];
+      final sub = sm.stateSignal.subscribe(seen.add);
+      addTearDown(sub);
+
+      sm.doMarkIdle();
+      expect(seen, [MontyLifecycleState.active, MontyLifecycleState.idle]);
+    });
+
+    test('fires on markDisposed', () {
+      final seen = <MontyLifecycleState>[];
+      final sub = sm.stateSignal.subscribe(seen.add);
+      addTearDown(sub);
+
+      sm.doMarkDisposed();
+      expect(seen, [MontyLifecycleState.idle, MontyLifecycleState.disposed]);
+    });
+
+    test('stateSignal reflects full lifecycle sequence', () {
+      final seen = <MontyLifecycleState>[];
+      final sub = sm.stateSignal.subscribe(seen.add);
+      addTearDown(sub);
+
+      sm
+        ..doMarkActive()
+        ..doMarkIdle()
+        ..doMarkActive()
+        ..doMarkDisposed();
+
+      expect(seen, [
+        MontyLifecycleState.idle,
+        MontyLifecycleState.active,
+        MontyLifecycleState.idle,
+        MontyLifecycleState.active,
+        MontyLifecycleState.disposed,
+      ]);
+    });
+  });
+
   group('error messages contain backendName', () {
     test('assertNotDisposed message', () {
       sm.doMarkDisposed();
