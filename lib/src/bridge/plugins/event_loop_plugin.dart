@@ -208,6 +208,7 @@ class EventLoopPlugin extends MontyPlugin {
           _channelState.value = const BridgeChannelCompleted();
         }
       }
+
       return event;
     });
   }

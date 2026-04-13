@@ -315,6 +315,7 @@ class DefaultMontyBridge implements MontyBridge {
     for (final wrap in _streamWrappers) {
       stream = wrap(code, stream);
     }
+
     return stream;
   }
 
