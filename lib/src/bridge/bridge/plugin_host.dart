@@ -75,11 +75,11 @@ Map<String, Object?>? _validateToolCallArgs(
   BridgeLogger log,
   void Function(String) setResumeError,
 ) {
-  final stepName = pending.functionName;
   final Map<String, Object?> args;
   try {
     args = fn.schema.mapAndValidate(pending);
   } on FormatException catch (e) {
+    final stepName = pending.functionName;
     log.warning(
       'Argument validation failed',
       attributes: {'function': stepName, 'error': e.message},
@@ -151,7 +151,7 @@ Future<MontyProgress> _resolveOsCall(
       ),
     );
 
-    return platform.resume(result);
+    return await platform.resume(result);
   } on Object catch (e, st) {
     sw.stop();
     log.error(
@@ -179,19 +179,24 @@ void _suppressFutureErrors(
   String stepName,
   BridgeLogger log,
 ) {
-  unawaited(
-    future.then<void>(
-      (_) {},
-      onError: (Object e, StackTrace st) {
-        log.warning(
-          'Deferred host handler error',
-          error: e,
-          stackTrace: st,
-          attributes: {'function': stepName},
-        );
-      },
-    ),
-  );
+  unawaited(_logDeferredError(future, stepName, log));
+}
+
+Future<void> _logDeferredError(
+  Future<Object?> future,
+  String stepName,
+  BridgeLogger log,
+) async {
+  try {
+    await future;
+  } on Object catch (e, st) {
+    log.warning(
+      'Deferred host handler error',
+      error: e,
+      stackTrace: st,
+      attributes: {'function': stepName},
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -271,7 +276,7 @@ class PluginHost {
   void unregister(String name) => _functions.remove(name);
 
   /// Registers an OS provider for filesystem/OS-level calls.
-  // ignore: use_setters_to_change_properties
+  // ignore: use_setters_to_change_properties — method name matches the public API surface
   void registerOs(OsProvider provider) => _osProvider = provider;
 
   /// Invokes a registered host function by [name] directly from Dart,
@@ -310,7 +315,7 @@ class PluginHost {
     // Console write — always intercept, buffer output for flush on completion.
     if (name == _consoleWriteFn) {
       if (pending.arguments.isNotEmpty) {
-        printBuffer.write(pending.arguments.first.dartValue?.toString());
+        printBuffer.write(pending.arguments.firstOrNull?.dartValue?.toString());
       }
 
       return _platform.resume(null);
@@ -337,7 +342,7 @@ class PluginHost {
   Future<MontyProgress> handleOsCall(
     MontyOsCall osCall,
     StreamController<BridgeEvent> controller,
-  ) async {
+  ) {
     final callId = nextId;
     final opName = osCall.operationName;
     final argSummary = osCall.arguments.isEmpty
@@ -382,7 +387,11 @@ class PluginHost {
 
     var resumeError = '';
     final args = _validateToolCallArgs(
-      fn, pending, callId, controller, _log,
+      fn,
+      pending,
+      callId,
+      controller,
+      _log,
       (e) => resumeError = e,
     );
     if (args == null) return _platform.resumeWithError(resumeError);
@@ -390,7 +399,11 @@ class PluginHost {
     final Object? result;
     try {
       result = await _invokeWithMiddleware(
-        _middleware, fn, stepName, args, role,
+        _middleware,
+        fn,
+        stepName,
+        args,
+        role,
       );
     } on Object catch (e, st) {
       _log.error(
@@ -432,7 +445,11 @@ class PluginHost {
 
     var resumeError = '';
     final args = _validateToolCallArgs(
-      fn, pending, callId, controller, _log,
+      fn,
+      pending,
+      callId,
+      controller,
+      _log,
       (e) => resumeError = e,
     );
     if (args == null) return _platform.resumeWithError(resumeError);
@@ -440,7 +457,11 @@ class PluginHost {
     final Future<Object?> handlerFuture;
     try {
       handlerFuture = _invokeWithMiddleware(
-        _middleware, fn, stepName, args, role,
+        _middleware,
+        fn,
+        stepName,
+        args,
+        role,
       );
     } on Object catch (e, st) {
       _log.error(
@@ -517,7 +538,6 @@ class PluginHost {
   /// Called from `DefaultMontyBridge._run`'s `finally` block to avoid leaking
   /// futures across executions when a run ends unexpectedly.
   void clearPendingFutures() => _pendingFutures.clear();
-
 }
 
 // ---------------------------------------------------------------------------

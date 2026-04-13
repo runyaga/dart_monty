@@ -699,8 +699,8 @@ void main() {
     test('dispatch throws StateError when bridge is completed', () async {
       mock.enqueueProgress(
         const MontyComplete(
-            result: MontyResult(value: MontyNull(), usage: _usage),
-          ),
+          result: MontyResult(value: MontyNull(), usage: _usage),
+        ),
       );
 
       await bridge.execute('code').toList();
@@ -713,8 +713,8 @@ void main() {
       // First execution completes.
       mock.enqueueProgress(
         const MontyComplete(
-            result: MontyResult(value: MontyNull(), usage: _usage),
-          ),
+          result: MontyResult(value: MontyNull(), usage: _usage),
+        ),
       );
 
       await bridge.execute('code').toList();

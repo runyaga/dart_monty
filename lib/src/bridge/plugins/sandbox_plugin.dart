@@ -160,8 +160,8 @@ class _ChildHandle {
 
   /// Captured `print()` output from a completed child, or `null`.
   String? get printOutput => switch (state.value) {
-    ChildCompleted(:final printOutput) => printOutput,
-    ChildFailed(:final printOutput) => printOutput,
+    ChildCompleted(printOutput: final output) ||
+    ChildFailed(printOutput: final output) => output,
     _ => null,
   };
 
@@ -331,12 +331,7 @@ class SandboxPlugin extends MontyPlugin {
     this.sandboxBaseDir,
     this.systemPromptBuilder,
     this.parentOs,
-  }) {
-    childrenSignal = _childrenSignal;
-    aliveCountSignal = computed(
-      () => _childrenSignal.value.values.whereType<ChildRunning>().length,
-    );
-  }
+  });
 
   /// Creates a fresh [MontyPlatform] for each child.
   final MontyPlatformFactory platformFactory;
@@ -391,8 +386,6 @@ class SandboxPlugin extends MontyPlugin {
   int _nextId = 0;
   bool _disposed = false;
 
-  final Signal<Map<int, ChildState>> _childrenSignal = signal({});
-
   /// Reactive snapshot of every child's [ChildState], keyed by handle.
   ///
   /// Updated whenever a child transitions state (spawn, complete, fail, free,
@@ -400,12 +393,17 @@ class SandboxPlugin extends MontyPlugin {
   /// ```dart
   /// effect(() => print(plugin.childrenSignal.value));
   /// ```
-  late final ReadonlySignal<Map<int, ChildState>> childrenSignal;
+  ReadonlySignal<Map<int, ChildState>> get childrenSignal => _childrenSignal;
 
   /// Reactive count of children still in [ChildRunning] state.
   ///
   /// Derived from [childrenSignal]; updates automatically.
-  late final ReadonlySignal<int> aliveCountSignal;
+  ReadonlySignal<int> get aliveCountSignal => _aliveCountSignal;
+
+  final Signal<Map<int, ChildState>> _childrenSignal = signal({});
+  late final Computed<int> _aliveCountSignal = computed(
+    () => _childrenSignal.value.values.whereType<ChildRunning>().length,
+  );
 
   @override
   String get namespace => 'sandbox';

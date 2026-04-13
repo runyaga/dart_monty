@@ -104,17 +104,14 @@ class ChannelSnapshot {
 /// ```
 class MessageChannel {
   /// Creates a [MessageChannel] with empty state.
-  MessageChannel() {
-    snapshotSignal = _snapshotSignal;
-  }
-
-  final Signal<ChannelSnapshot> _snapshotSignal =
-      signal(ChannelSnapshot.empty);
+  MessageChannel();
 
   /// Reactive snapshot of this channel's current state.
   ///
   /// Updated on every [send], [recv], and [close] call.
-  late final ReadonlySignal<ChannelSnapshot> snapshotSignal;
+  ReadonlySignal<ChannelSnapshot> get snapshotSignal => _snapshotSignal;
+
+  final Signal<ChannelSnapshot> _snapshotSignal = signal(ChannelSnapshot.empty);
 
   final Queue<Object?> _queue = Queue();
   final List<Completer<Object?>> _waiters = [];
@@ -143,6 +140,7 @@ class MessageChannel {
           sendCount: s.sendCount + 1,
           recvCount: s.recvCount + 1,
         );
+
         return;
       }
     }
@@ -173,6 +171,7 @@ class MessageChannel {
         recvCount: s.recvCount + 1,
         queueDepth: _queue.length,
       );
+
       return Future.value(msg);
     }
 
@@ -180,6 +179,7 @@ class MessageChannel {
 
     final c = waiter ?? Completer<Object?>();
     _waiters.add(c);
+
     return c.future;
   }
 
@@ -197,6 +197,7 @@ class MessageChannel {
       if (!w.isCompleted) w.complete(null);
     }
     _waiters.clear();
+    _snapshotSignal.dispose();
   }
 
   /// Removes [waiter] from the pending receiver list.
@@ -228,19 +229,18 @@ class MessageChannel {
 /// ```
 class MessageBus {
   /// Creates an empty [MessageBus].
-  MessageBus() {
-    channelsSignal = _channelsSignal;
-  }
-
-  final Map<String, MessageChannel> _channels = {};
-  final Signal<Map<String, MessageChannel>> _channelsSignal = signal({});
+  MessageBus();
 
   /// Reactive map of all channels that have been accessed.
   ///
   /// A new entry is added whenever [channel] auto-creates a new channel.
   /// Each value is a [MessageChannel] whose own [MessageChannel.snapshotSignal]
   /// updates independently when messages flow through it.
-  late final ReadonlySignal<Map<String, MessageChannel>> channelsSignal;
+  ReadonlySignal<Map<String, MessageChannel>> get channelsSignal =>
+      _channelsSignal;
+
+  final Map<String, MessageChannel> _channels = {};
+  final Signal<Map<String, MessageChannel>> _channelsSignal = signal({});
 
   /// Returns the [MessageChannel] for [name], creating it if absent.
   ///
@@ -251,8 +251,12 @@ class MessageBus {
     final ch = MessageChannel();
     _channels[name] = ch;
     _channelsSignal.value = Map.from(_channels);
+
     return ch;
   }
+
+  /// Disposes the bus and its [_channelsSignal].
+  void dispose() => _channelsSignal.dispose();
 
   /// Returns the [MessageChannel] for [name] if it exists, or `null`.
   ///
@@ -397,16 +401,14 @@ class MessageBusPlugin extends MontyPlugin {
       'Use msg_send/msg_recv for blocking parent↔child communication. '
       'msg_peek checks without blocking. msg_close signals end-of-stream.';
 
-  late final List<HostFunction> _functions = [
+  @override
+  List<HostFunction> get functions => [
     HostFunction(schema: _msgSendSchema, handler: _handleSend),
     HostFunction(schema: _msgRecvSchema, handler: _handleRecv),
     HostFunction(schema: _msgPeekSchema, handler: _handlePeek),
     HostFunction(schema: _msgCloseSchema, handler: _handleClose),
     HostFunction(schema: _msgStatsSchema, handler: _handleStats),
   ];
-
-  @override
-  List<HostFunction> get functions => _functions;
 
   @override
   MontyPlugin? createChildInstance({ChildSpawnContext? context}) =>
@@ -428,6 +430,7 @@ class MessageBusPlugin extends MontyPlugin {
     final message = args['message'];
     _bus.send(name, message);
     logger.debug('msg_send', attributes: {'channel': name});
+
     return Future.value();
   }
 
@@ -442,6 +445,7 @@ class MessageBusPlugin extends MontyPlugin {
       final future = _bus.recv(name, waiter: completer);
       if (timeoutMs != null) {
         unawaited(future.catchError((_) => null));
+
         return await future.timeout(
           Duration(milliseconds: timeoutMs),
           onTimeout: () {
@@ -450,6 +454,7 @@ class MessageBusPlugin extends MontyPlugin {
           },
         );
       }
+
       return await future;
     } on Object {
       unawaited(completer.future.catchError((_) => null));
@@ -461,6 +466,7 @@ class MessageBusPlugin extends MontyPlugin {
 
   Future<Object?> _handlePeek(Map<String, Object?> args) {
     final name = args['name']! as String;
+
     return Future.value(_bus.peek(name));
   }
 
@@ -468,6 +474,7 @@ class MessageBusPlugin extends MontyPlugin {
     final name = args['name']! as String;
     _bus.close(name);
     logger.debug('msg_close', attributes: {'channel': name});
+
     return Future.value();
   }
 
@@ -475,6 +482,7 @@ class MessageBusPlugin extends MontyPlugin {
     final name = args['name']! as String;
     final ch = _bus.channelOrNull(name);
     final s = ch?.snapshot ?? ChannelSnapshot.empty;
+
     return Future.value({
       'exists': ch != null,
       'closed': s.isClosed,

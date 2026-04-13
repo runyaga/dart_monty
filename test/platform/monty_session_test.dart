@@ -1350,11 +1350,13 @@ void main() {
         expect(session.persistedStateSignal.value, isEmpty);
       });
 
-      test('lifecycleSignal transitions to MontySessionDisposed on dispose()',
-          () {
-        session.dispose();
-        expect(session.lifecycleSignal.value, isA<MontySessionDisposed>());
-      });
+      test(
+        'lifecycleSignal transitions to MontySessionDisposed on dispose()',
+        () {
+          session.dispose();
+          expect(session.lifecycleSignal.value, isA<MontySessionDisposed>());
+        },
+      );
 
       test('persistedStateSignal emits empty map on dispose()', () async {
         _enqueueRunCycle(mock, stateToPersist: {'x': 1});
@@ -1374,7 +1376,7 @@ void main() {
         await session.run('a = 10');
 
         expect(observed.last, {'a': 10});
-        sub();  // dispose effect
+        sub(); // dispose effect
       });
     });
   });

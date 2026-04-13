@@ -64,9 +64,7 @@ MontyException _adjustException(MontyException e) {
             filename: f.filename,
             startLine: f.startLine - _preambleLineCount,
             startColumn: f.startColumn,
-            endLine: f.endLine != null
-                ? f.endLine! - _preambleLineCount
-                : null,
+            endLine: f.endLine != null ? f.endLine! - _preambleLineCount : null,
             endColumn: f.endColumn,
             frameName: f.frameName,
             previewLine: f.previewLine,
@@ -204,9 +202,11 @@ class DefaultMontyBridge implements MontyBridge {
   }) : _platform = platform,
        _limits = limits,
        _useFutures = useFutures,
-       log = logger ?? StructLogBridgeLogger.root(LogManager.instance) {
-    _host = PluginHost(platform: platform, log: log);
-  }
+       log = logger ?? StructLogBridgeLogger.root(LogManager.instance),
+       _host = PluginHost(
+         platform: platform,
+         log: logger ?? StructLogBridgeLogger.root(LogManager.instance),
+       );
 
   /// Logger for this bridge instance.
   @protected
@@ -215,7 +215,7 @@ class DefaultMontyBridge implements MontyBridge {
   final MontyPlatform _platform;
   final MontyLimits? _limits;
   final bool _useFutures;
-  late final PluginHost _host;
+  final PluginHost _host;
 
   // Kept separately from PluginHost._osProvider so dispose() can call it
   // without accessing PluginHost internals.

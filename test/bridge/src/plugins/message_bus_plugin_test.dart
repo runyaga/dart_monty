@@ -277,16 +277,18 @@ void main() {
       expect(ch.snapshot.recvCount, 1);
     });
 
-    test('direct send-to-waiter increments both counts without queue',
-        () async {
-      final ch = MessageChannel();
-      final future = ch.recv();
-      ch.send('x');
-      await future;
-      expect(ch.snapshot.sendCount, 1);
-      expect(ch.snapshot.recvCount, 1);
-      expect(ch.snapshot.queueDepth, 0);
-    });
+    test(
+      'direct send-to-waiter increments both counts without queue',
+      () async {
+        final ch = MessageChannel();
+        final future = ch.recv();
+        ch.send('x');
+        await future;
+        expect(ch.snapshot.sendCount, 1);
+        expect(ch.snapshot.recvCount, 1);
+        expect(ch.snapshot.queueDepth, 0);
+      },
+    );
 
     test('tracks peak queue depth', () {
       final ch = MessageChannel()
@@ -362,19 +364,21 @@ void main() {
       expect(observed.last.keys, contains('tasks'));
     });
 
-    test('channelsSignal does not fire for channelOrNull on missing channel',
-        () {
-      final bus = MessageBus();
-      final observed = <int>[];
-      final dispose = effect(
-        () => observed.add(bus.channelsSignal.value.length),
-      );
-      addTearDown(dispose);
+    test(
+      'channelsSignal does not fire for channelOrNull on missing channel',
+      () {
+        final bus = MessageBus();
+        final observed = <int>[];
+        final dispose = effect(
+          () => observed.add(bus.channelsSignal.value.length),
+        );
+        addTearDown(dispose);
 
-      bus.channelOrNull('nonexistent');
+        bus.channelOrNull('nonexistent');
 
-      expect(observed, [0]); // only the initial fire
-    });
+        expect(observed, [0]); // only the initial fire
+      },
+    );
 
     test('accessing same channel twice does not re-fire channelsSignal', () {
       // Pre-create 'x' before subscribing so the effect starts at length 1.

@@ -152,6 +152,7 @@ dcm:
           - "lib/src/platform/monty_value_structured.dart"
           # Helper types/enums declared before the main class
           - "lib/src/platform/core_bindings.dart"
+          - "lib/src/platform/monty_session.dart"
           - "lib/src/bridge/bridge/bridge_middleware.dart"
           - "lib/src/bridge/bridge/event_loop_bridge.dart"
           - "lib/src/bridge/bridge/monty_plugin.dart"
@@ -200,6 +201,8 @@ dcm:
           - "lib/src/wasm/wasm_bindings_js.dart"
           # NativeBindingsFfi has non-final fields (handle state)
           - "lib/src/ffi/native_bindings_ffi.dart"
+          # BridgeChannelWaiting holds Completer which cannot be const
+          - "lib/src/bridge/bridge/event_loop_bridge.dart"
     - format-comment
 
     # --- Immutability ---
@@ -228,6 +231,8 @@ dcm:
           - "lib/src/bridge/os_call/os_provider.dart"
           # Bridge initialized in constructor body (needs _monty.platform)
           - "lib/src/bridge/agent_session.dart"
+          # Computed signal initialized in constructor body (needs _childrenSignal instance field)
+          - "lib/src/bridge/plugins/sandbox_plugin.dart"
     - avoid-dynamic:
         exclude:
           - "test/**"
@@ -296,6 +301,8 @@ dcm:
           - "lib/src/bridge/os_call/fs_provider.dart"
           # bridge getter returns _sharedBridge ?? _schemaBridge (dual-mode)
           - "lib/src/bridge/agent_session.dart"
+          # channelStateSignal/lastEmittedSignal wrap _channelState/_lastEmitted (shorter backing names)
+          - "lib/src/bridge/bridge/event_loop_bridge.dart"
     - avoid-declaring-call-method
 
     # --- Import Safety ---

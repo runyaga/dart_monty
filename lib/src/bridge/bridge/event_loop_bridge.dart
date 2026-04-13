@@ -34,6 +34,7 @@ final class BridgeChannelExecuting extends BridgeChannelState {
 /// Python is paused at `recv()`, holding an unresolved [completer].
 final class BridgeChannelWaiting extends BridgeChannelState {
   /// Creates a [BridgeChannelWaiting].
+  // ignore: prefer-declaring-const-constructor — Completer cannot be const
   BridgeChannelWaiting(this.completer);
 
   /// The pending completer that will resume Python when fulfilled.
@@ -124,8 +125,6 @@ class EventLoopBridge extends DefaultMontyBridge {
     super.limits,
     super.logger,
   }) : super(useFutures: true) {
-    channelStateSignal = _channelState;
-    lastEmittedSignal = _lastEmitted;
     _registerEventLoopFunctions();
   }
 
@@ -136,16 +135,17 @@ class EventLoopBridge extends DefaultMontyBridge {
   /// effect(() => print(bridge.channelStateSignal.value));
   /// ```
   /// Use [channelState] for non-reactive reads.
-  late final ReadonlySignal<BridgeChannelState> channelStateSignal;
+  ReadonlySignal<BridgeChannelState> get channelStateSignal => _channelState;
 
   /// Reactive last-emitted value.
   ///
   /// Updates whenever Python calls `emit`. Use [lastEmitted] for
   /// non-reactive reads, or subscribe via [effect] to react to each emission.
-  late final ReadonlySignal<Map<String, dynamic>?> lastEmittedSignal;
+  ReadonlySignal<Map<String, dynamic>?> get lastEmittedSignal => _lastEmitted;
 
-  final Signal<BridgeChannelState> _channelState =
-      signal<BridgeChannelState>(const BridgeChannelIdle());
+  final Signal<BridgeChannelState> _channelState = signal<BridgeChannelState>(
+    const BridgeChannelIdle(),
+  );
   final Signal<Map<String, dynamic>?> _lastEmitted =
       signal<Map<String, dynamic>?>(null);
   final _eventQueue = <Map<String, dynamic>>[];
@@ -220,6 +220,7 @@ class EventLoopBridge extends DefaultMontyBridge {
           _channelState.value = const BridgeChannelCompleted();
         }
       }
+
       return event;
     });
   }
@@ -235,6 +236,8 @@ class EventLoopBridge extends DefaultMontyBridge {
     }
     _eventQueue.clear();
     _channelState.value = const BridgeChannelDisposed();
+    _channelState.dispose();
+    _lastEmitted.dispose();
     super.dispose();
   }
 
@@ -287,6 +290,7 @@ class EventLoopBridge extends DefaultMontyBridge {
   Future<Object?> _handleEmit(Map<String, Object?> args) {
     final value = args['value']! as Map<String, dynamic>;
     _lastEmitted.value = value;
+
     return Future.value();
   }
 }

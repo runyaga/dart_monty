@@ -42,6 +42,7 @@ const _zeroUsage = MontyResourceUsage(
 ///   }
 /// });
 /// ```
+// ignore: prefer-match-file-name — lifecycle sealed types co-located with MontySession
 sealed class MontySessionLifecycle {
   /// Creates a [MontySessionLifecycle].
   const MontySessionLifecycle();
@@ -147,15 +148,12 @@ Future<MontyResult> _runSessionLoop(
         progress = await _safeSessionResume(platform, null);
 
       case MontyOsCall():
-        final handler = os;
-        if (handler != null) {
-          progress = await _handleSessionOsCall(handler, progress, platform);
-        } else {
-          progress = await _safeSessionResumeWithError(
-            platform,
-            'OS operations not available — no OsProvider configured',
-          );
-        }
+        progress = os != null
+            ? await _handleSessionOsCall(os, progress, platform)
+            : await _safeSessionResumeWithError(
+                platform,
+                'OS operations not available — no OsProvider configured',
+              );
     }
   }
 }
@@ -168,7 +166,8 @@ Future<MontyProgress> _handleSessionOsCall(
 ) async {
   try {
     final result = await os.resolve(osCall);
-    return _safeSessionResume(platform, result);
+
+    return await _safeSessionResume(platform, result);
   } on Object catch (e) {
     return _safeSessionResumeWithError(platform, e.toString());
   }
@@ -291,23 +290,15 @@ class MontySession {
   /// OS calls resume with an error.
   MontySession({required MontyPlatform platform, OsProvider? os})
     : _platform = platform,
-      _os = os {
-    lifecycleSignal = _lifecycleSignal;
-    persistedStateSignal = _persistedStateSignal;
-  }
+      _os = os;
 
   final MontyPlatform _platform;
   final OsProvider? _os;
   Map<String, Object?> _state = {};
 
-  final Signal<MontySessionLifecycle> _lifecycleSignal =
-      signal(const MontySessionActive());
-  final Signal<Map<String, Object?>> _persistedStateSignal =
-      signal(const {});
-
   /// Reactive lifecycle state. Starts as [MontySessionActive], transitions
   /// to [MontySessionDisposed] when [dispose] is called.
-  late final ReadonlySignal<MontySessionLifecycle> lifecycleSignal;
+  ReadonlySignal<MontySessionLifecycle> get lifecycleSignal => _lifecycleSignal;
 
   /// Reactive persisted state map. Updates whenever Python persists new
   /// values via `__persist_state__` or [clearState] is called.
@@ -316,7 +307,13 @@ class MontySession {
   /// ```dart
   /// effect(() => syncState(session.persistedStateSignal.value));
   /// ```
-  late final ReadonlySignal<Map<String, Object?>> persistedStateSignal;
+  ReadonlySignal<Map<String, Object?>> get persistedStateSignal =>
+      _persistedStateSignal;
+
+  final Signal<MontySessionLifecycle> _lifecycleSignal = signal(
+    const MontySessionActive(),
+  );
+  final Signal<Map<String, Object?>> _persistedStateSignal = signal(const {});
 
   /// The current persisted state as a JSON-decoded map.
   ///
@@ -344,7 +341,9 @@ class MontySession {
     );
 
     return _runSessionLoop(
-      _platform, _os, progress,
+      _platform,
+      _os,
+      progress,
       () => _state,
       _capturePersistArgs,
     );
@@ -424,6 +423,8 @@ class MontySession {
     _state = {};
     _lifecycleSignal.value = const MontySessionDisposed();
     _persistedStateSignal.value = const {};
+    _lifecycleSignal.dispose();
+    _persistedStateSignal.dispose();
     unawaited(_os?.dispose());
   }
 
@@ -474,5 +475,4 @@ class MontySession {
       _persistedStateSignal.value = Map.from(_state);
     }
   }
-
 }
