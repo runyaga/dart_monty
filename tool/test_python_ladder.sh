@@ -254,6 +254,7 @@ fi
 if [ -z "$CHROME" ]; then
   echo "  WASM  SKIPPED (Chrome not found)"
   echo ""
+  if ! $VERBOSE; then echo "  (--verbose / -v for details)"; fi
   echo "=== Ladder: PASSED (FFI only — rerun with Chrome for WASM) ==="
   exit 0
 fi
@@ -279,6 +280,7 @@ if [ -z "$WEB_RESULTS" ]; then
   fi
   rm -f "$CONSOLE_LOG"
   echo ""
+  if ! $VERBOSE; then echo "  (--verbose / -v for details)"; fi
   echo "=== Ladder: PASSED (FFI only — WASM inconclusive) ==="
   exit 0
 fi
@@ -297,9 +299,11 @@ check_ladder_results "$WEB_RESULTS" "WASM"
 
 if report_failures; then
   echo ""
+  if ! $VERBOSE; then echo "  (--verbose / -v for details)"; fi
   echo "=== Ladder: PASSED ==="
 else
   echo ""
+  if ! $VERBOSE; then echo "  (--verbose / -v for details)"; fi
   echo "=== Ladder: FAILED ==="
   exit 1
 fi
