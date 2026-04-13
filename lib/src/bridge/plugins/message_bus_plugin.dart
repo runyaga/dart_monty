@@ -189,6 +189,8 @@ class MessageChannel {
   /// Closes the channel, completing all pending [recv] futures with `null`.
   ///
   /// Idempotent — closing an already-closed channel is a no-op.
+  /// Closed ≠ disposed: the snapshot remains readable after close. Call
+  /// [dispose] when the channel object itself is no longer needed.
   void close() {
     final s = _snapshotSignal.value;
     if (s.isClosed) return;
@@ -197,8 +199,13 @@ class MessageChannel {
       if (!w.isCompleted) w.complete(null);
     }
     _waiters.clear();
-    _snapshotSignal.dispose();
   }
+
+  /// Disposes the channel's signal.
+  ///
+  /// Called by [MessageBus.dispose]. After disposal, [snapshotSignal] must
+  /// not be read. Callers should call [close] first to drain pending receivers.
+  void dispose() => _snapshotSignal.dispose();
 
   /// Removes [waiter] from the pending receiver list.
   ///
@@ -255,8 +262,13 @@ class MessageBus {
     return ch;
   }
 
-  /// Disposes the bus and its [_channelsSignal].
-  void dispose() => _channelsSignal.dispose();
+  /// Disposes the bus, all channels, and [_channelsSignal].
+  void dispose() {
+    for (final ch in _channels.values) {
+      ch.dispose();
+    }
+    _channelsSignal.dispose();
+  }
 
   /// Returns the [MessageChannel] for [name] if it exists, or `null`.
   ///

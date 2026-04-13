@@ -196,6 +196,9 @@ class EventLoopBridge extends DefaultMontyBridge {
 
   @override
   Stream<BridgeEvent> execute(String code) {
+    if (_channelState.value is BridgeChannelDisposed) {
+      throw StateError('Cannot execute on a disposed bridge');
+    }
     _channelState.value = const BridgeChannelExecuting();
     final Stream<BridgeEvent> upstream;
     try {
