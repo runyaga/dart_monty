@@ -169,11 +169,12 @@ class AgentSession {
         useFutures: false,
         logger: logger,
       );
-      if (os != null) _sharedBridge!.registerOs(os);
+      // OS registration is deferred to the first execute() call via
+      // PluginRegistry.attachTo(bridge, baseOs: _os).
       _registerStateHostFunctions(_sharedBridge!);
 
-      if (plugins != null && plugins.isNotEmpty) {
-        _sharedRegistry = PluginRegistry();
+      _sharedRegistry = PluginRegistry();
+      if (plugins != null) {
         plugins.forEach(_sharedRegistry!.register);
       }
     } else {
@@ -275,8 +276,8 @@ class AgentSession {
   }
 
   Stream<BridgeEvent> _executeStreamShared(String code) async* {
-    if (!_sharedAttached && _sharedRegistry != null) {
-      await _sharedRegistry!.attachTo(_sharedBridge!);
+    if (!_sharedAttached) {
+      await _sharedRegistry!.attachTo(_sharedBridge!, baseOs: _os);
       _sharedAttached = true;
     }
     yield* _sharedBridge!.execute(_wrapWithStateCode(code, _sessionState));
@@ -287,8 +288,8 @@ class AgentSession {
   // ---------------------------------------------------------------------------
 
   Future<MontyResult> _executeShared(String code) async {
-    if (!_sharedAttached && _sharedRegistry != null) {
-      await _sharedRegistry!.attachTo(_sharedBridge!);
+    if (!_sharedAttached) {
+      await _sharedRegistry!.attachTo(_sharedBridge!, baseOs: _os);
       _sharedAttached = true;
     }
     final events = await _sharedBridge!
@@ -306,12 +307,11 @@ class AgentSession {
     final monty = Monty(os: _os);
     final b = _buildBridge(platform: monty.platform);
 
-    PluginRegistry? registry;
-    if (_plugins != null && _plugins.isNotEmpty) {
-      registry = PluginRegistry();
+    final registry = PluginRegistry();
+    if (_plugins != null) {
       _plugins.forEach(registry.register);
-      await registry.attachTo(b);
     }
+    await registry.attachTo(b, baseOs: _os);
 
     try {
       final events = await b
@@ -320,7 +320,7 @@ class AgentSession {
 
       return _extractBridgeResult(events);
     } finally {
-      if (registry != null) await registry.disposeAll();
+      await registry.disposeAll();
       b.dispose();
       await monty.dispose();
     }
@@ -337,7 +337,7 @@ class AgentSession {
       logger: _logger,
     );
 
-    if (_os != null) b.registerOs(_os);
+    // OS registration is handled by PluginRegistry.attachTo(b, baseOs: _os).
 
     _registerStateHostFunctions(b);
 

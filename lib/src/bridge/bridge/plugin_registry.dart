@@ -1,10 +1,12 @@
 import 'dart:collection';
 
+import 'package:dart_monty/src/bridge/bridge/bridge_event.dart';
 import 'package:dart_monty/src/bridge/bridge/default_monty_bridge.dart';
 import 'package:dart_monty/src/bridge/bridge/host_function.dart';
 import 'package:dart_monty/src/bridge/bridge/introspection_functions.dart';
 import 'package:dart_monty/src/bridge/bridge/monty_bridge.dart';
 import 'package:dart_monty/src/bridge/bridge/monty_plugin.dart';
+import 'package:dart_monty/src/bridge/os_call/os_provider.dart';
 import 'package:dart_monty/src/platform/bridge_logger.dart';
 
 // ---------------------------------------------------------------------------
@@ -79,6 +81,107 @@ Future<List<(String, Object)>> _runPluginOnRegisters(
   return errors;
 }
 
+/// Injects [registry] into each plugin's [MontyPlugin.registry] field.
+///
+/// Called before [_runPluginOnRegisters] so that [MontyPlugin.sibling] is
+/// available inside [MontyPlugin.onRegister].
+void _injectRegistries(
+  List<MontyPlugin> attachOrder,
+  PluginRegistry registry,
+) {
+  for (final plugin in attachOrder) {
+    plugin.registry = registry;
+  }
+}
+
+/// Registers the execute-hooks stream wrapper as the outermost wrapper.
+///
+/// Fires [MontyPlugin.onExecuteStart] before the first event and
+/// [MontyPlugin.onExecuteEnd] after the stream exhausts. Only plugins with
+/// [MontyPlugin.hasExecuteHooks] set to `true` are included.
+///
+/// Only called when [bridge] is a [DefaultMontyBridge] — stream wrapping is a
+/// `DefaultMontyBridge`-level feature not part of the `MontyBridge` interface.
+/// Registered after plugin stream wrappers, making it the outermost wrapper
+/// (fires first before events, last after events).
+void _attachExecuteHooks(
+  List<MontyPlugin> attachOrder,
+  MontyBridge bridge,
+) {
+  if (bridge is! DefaultMontyBridge) return;
+
+  final hooksPlugins = [
+    for (final p in attachOrder)
+      if (p.hasExecuteHooks) p,
+  ];
+  if (hooksPlugins.isEmpty) return;
+
+  bridge.addStreamWrapper((code, stream) async* {
+    for (final plugin in hooksPlugins) {
+      await plugin.onExecuteStart(code);
+    }
+
+    ExecuteOutcome? outcome;
+
+    await for (final event in stream) {
+      if (event is BridgeRunFinished) outcome = ExecuteSuccess(event);
+      if (event is BridgeRunError) outcome = ExecuteFailure(event);
+      yield event;
+    }
+
+    if (outcome != null) {
+      for (final plugin in hooksPlugins) {
+        await plugin.onExecuteEnd(outcome);
+      }
+    }
+  });
+}
+
+/// Collects OS call prefix contributions from all plugins in [attachOrder],
+/// validates that no two plugins claim the same prefix, composes them into a
+/// single [OsProvider] (with [baseOs] as the fallback), and registers the
+/// result on [bridge].
+///
+/// Throws [StateError] if two plugins return the same prefix key from
+/// [MontyPlugin.osContribution].
+///
+/// No-op when there are no contributions and [baseOs] is `null`.
+void _collectAndApplyOsContributions(
+  List<MontyPlugin> attachOrder,
+  MontyBridge bridge,
+  OsProvider? baseOs,
+) {
+  // prefix → (owning namespace, provider)
+  final merged = <String, (String, OsProvider)>{};
+
+  for (final plugin in attachOrder) {
+    final contrib = plugin.osContribution;
+    if (contrib == null) continue;
+    for (final entry in contrib.entries) {
+      final prefix = entry.key;
+      if (merged.containsKey(prefix)) {
+        final owner = merged[prefix]!.$1;
+        throw StateError(
+          'OS prefix "$prefix" is claimed by both "${plugin.namespace}" and '
+          '"$owner". Each prefix may be claimed by at most one plugin.',
+        );
+      }
+      merged[prefix] = (plugin.namespace, entry.value);
+    }
+  }
+
+  final contributions = {
+    for (final e in merged.entries) e.key: e.value.$2,
+  };
+
+  if (contributions.isEmpty && baseOs == null) return;
+
+  final composed = contributions.isNotEmpty
+      ? OsProvider.compose(contributions, fallback: baseOs)
+      : baseOs!;
+  bridge.registerOs(composed);
+}
+
 /// Collects [MontyPlugin]s with namespace validation and function name
 /// collision detection.
 ///
@@ -143,10 +246,25 @@ class PluginRegistry {
   /// registers introspection builtins, and registers [extraFunctions] under the
   /// `'extra'` category. [MontyPlugin.onRegister] errors are collected and
   /// thrown together as a single [StateError] after all plugins are processed.
+  ///
+  /// ## OS registration
+  ///
+  /// If any plugins return a non-null [MontyPlugin.osContribution], their
+  /// prefix maps are merged (overlapping prefixes throw [StateError]) and
+  /// composed with [baseOs] as the fallback. The composed provider is then
+  /// registered on [bridge] via `registerOs`. If there are no contributions
+  /// and [baseOs] is non-null, [baseOs] is registered directly.
+  ///
+  /// ## Registry injection
+  ///
+  /// [MontyPlugin.registry] is set to this registry before
+  /// [MontyPlugin.onRegister] is called, so [MontyPlugin.sibling] is
+  /// available inside [MontyPlugin.onRegister].
   Future<void> attachTo(
     MontyBridge bridge, {
     List<HostFunction>? extraFunctions,
     bool enableIntrospection = true,
+    OsProvider? baseOs,
   }) async {
     if (_attached) {
       throw StateError(
@@ -163,8 +281,16 @@ class PluginRegistry {
       ..sort((a, b) => b.priority.compareTo(a.priority));
     _attachOrder = attachOrder;
 
+    // Inject registry before onRegister so sibling() works during lifecycle.
+    _injectRegistries(attachOrder, this);
+
     _attachPluginFunctions(attachOrder, bridge);
+    // Plugin stream wrappers are registered first so that the execute-hooks
+    // wrapper (registered next) is outermost — it fires before any plugin
+    // wrapper on start and after all plugin wrappers on end.
     _attachStreamWrappers(attachOrder, bridge);
+    _attachExecuteHooks(attachOrder, bridge);
+    _collectAndApplyOsContributions(attachOrder, bridge, baseOs);
     if (extraFunctions != null && extraFunctions.isNotEmpty) {
       _attachExtraFunctions(extraFunctions, bridge, _log);
     }

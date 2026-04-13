@@ -98,6 +98,10 @@ final class BridgeChannelDisposed extends BridgeChannelState {
 /// plugin.dispatch({'action': 'increment'});
 /// ```
 ///
+/// This plugin overrides [MontyPlugin.hasStreamWrapper] to return `true` so
+/// that `PluginRegistry` automatically registers [wrapExecuteStream] during
+/// `PluginRegistry.attachTo`.
+///
 /// ## Reactive observation
 ///
 /// Channel state and emitted values are exposed as signals:

@@ -391,6 +391,19 @@ const _msgStatsSchema = HostFunctionSchema(
 /// [MessageBus] is also directly usable from Dart — call
 /// `bus.channel('name').send(x)` to push tasks from Dart to Python, or
 /// `await bus.channel('name').recv()` to pull results back.
+///
+/// ## Cross-plugin access
+///
+/// After `PluginRegistry.attachTo` runs, other plugins can obtain a reference
+/// via `sibling<MessageBusPlugin>()`:
+///
+/// ```dart
+/// @override
+/// Future<void> onRegister(MontyBridge bridge) async {
+///   final bus = sibling<MessageBusPlugin>()?.bus;
+///   bus?.channel('results').send({'status': 'ready'});
+/// }
+/// ```
 class MessageBusPlugin extends MontyPlugin {
   /// Creates a [MessageBusPlugin].
   ///

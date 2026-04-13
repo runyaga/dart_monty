@@ -613,14 +613,11 @@ class SandboxPlugin extends MontyPlugin {
       );
 
       final childOs = _buildChildOsProvider();
-      if (childOs != null) {
-        bridge.registerOs(childOs);
-      }
-
       childRegistry = await _wireChildPlugins(
         spawnContext,
         bridge,
         runtimePrompt,
+        baseOs: childOs,
       );
     } on Object {
       if (bridge != null) bridge.dispose();
@@ -633,11 +630,16 @@ class SandboxPlugin extends MontyPlugin {
   }
 
   /// Creates and attaches a [PluginRegistry] for a child bridge.
+  ///
+  /// [baseOs] is forwarded to [PluginRegistry.attachTo] so that child plugin
+  /// OS contributions are composed with the child OS provider rather than
+  /// applied separately.
   Future<PluginRegistry?> _wireChildPlugins(
     ChildSpawnContext spawnContext,
     DefaultMontyBridge bridge,
-    String? runtimePrompt,
-  ) async {
+    String? runtimePrompt, {
+    OsProvider? baseOs,
+  }) async {
     PluginRegistry? childRegistry;
     final registryFactory = childPluginRegistryFactory;
     if (registryFactory != null) {
@@ -667,14 +669,14 @@ class SandboxPlugin extends MontyPlugin {
     }
 
     final childPrompt = _buildChildSystemPrompt(spawnContext, runtimePrompt);
-    if (childRegistry == null && childPrompt != null) {
+    if (childRegistry == null && (childPrompt != null || baseOs != null)) {
       childRegistry = PluginRegistry();
     }
 
     if (childRegistry != null) {
       childRegistry.systemPromptPrefix = childPrompt;
       try {
-        await childRegistry.attachTo(bridge);
+        await childRegistry.attachTo(bridge, baseOs: baseOs);
         logger.debug(
           'Child plugins attached',
           attributes: {'pluginCount': childRegistry.plugins.length},

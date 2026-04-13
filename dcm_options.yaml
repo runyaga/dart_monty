@@ -233,6 +233,8 @@ dcm:
           - "lib/src/bridge/agent_session.dart"
           # Computed signal initialized in constructor body (needs _childrenSignal instance field)
           - "lib/src/bridge/plugins/sandbox_plugin.dart"
+          # Registry injected externally by PluginRegistry._injectRegistries before onRegister
+          - "lib/src/bridge/bridge/monty_plugin.dart"
     - avoid-dynamic:
         exclude:
           - "test/**"
