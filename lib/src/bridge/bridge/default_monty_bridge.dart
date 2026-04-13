@@ -224,6 +224,23 @@ class DefaultMontyBridge implements MontyBridge {
   bool _isExecuting = false;
   bool _isDisposed = false;
 
+  // Stream wrappers registered by PluginRegistry for plugins that override
+  // wrapExecuteStream. Applied in registration order (first = outermost).
+  final List<Stream<BridgeEvent> Function(String, Stream<BridgeEvent>)>
+  _streamWrappers = [];
+
+  /// Registers a stream wrapper callback from a plugin.
+  ///
+  /// Called by `PluginRegistry` during `PluginRegistry.attachTo` for each
+  /// plugin whose `MontyPlugin.hasStreamWrapper` returns `true`.
+  @internal
+  void addStreamWrapper(
+    Stream<BridgeEvent> Function(String code, Stream<BridgeEvent> stream)
+    wrapper,
+  ) {
+    _streamWrappers.add(wrapper);
+  }
+
   @override
   BridgeLogger get logger => log;
 
@@ -293,7 +310,24 @@ class DefaultMontyBridge implements MontyBridge {
       }),
     );
 
-    return controller.stream;
+    // Apply plugin stream wrappers in registration order.
+    // If any wrapper throws synchronously, reset _isExecuting so the bridge
+    // is not permanently locked and re-throw.
+    // Note: do NOT close the controller here — _run is already running via
+    // unawaited and will close it via its own whenComplete. Closing it early
+    // causes _run to throw when it tries controller.add(), producing an
+    // unhandled zone error.
+    try {
+      var stream = controller.stream;
+      for (final wrap in _streamWrappers) {
+        stream = wrap(code, stream);
+      }
+
+      return stream;
+    } catch (_) {
+      _isExecuting = false;
+      rethrow;
+    }
   }
 
   @override

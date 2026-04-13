@@ -290,4 +290,4 @@ has been disposed.
 The [Intermediate guide](host-functions-intermediate.md) covers organizing
 functions into plugins with `MontyPlugin` and `PluginRegistry`, namespace
 validation, lifecycle hooks, introspection builtins, and the
-`EventLoopBridge` for bidirectional Python/Dart communication.
+`EventLoopPlugin` for bidirectional Python/Dart communication.

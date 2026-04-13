@@ -154,7 +154,7 @@ dcm:
           - "lib/src/platform/core_bindings.dart"
           - "lib/src/platform/monty_session.dart"
           - "lib/src/bridge/bridge/bridge_middleware.dart"
-          - "lib/src/bridge/bridge/event_loop_bridge.dart"
+          - "lib/src/bridge/plugins/event_loop_plugin.dart"
           - "lib/src/bridge/bridge/monty_plugin.dart"
           - "lib/src/bridge/plugins/sandbox_plugin.dart"
           - "lib/src/bridge/plugins/template_plugin.dart"
@@ -202,7 +202,7 @@ dcm:
           # NativeBindingsFfi has non-final fields (handle state)
           - "lib/src/ffi/native_bindings_ffi.dart"
           # BridgeChannelWaiting holds Completer which cannot be const
-          - "lib/src/bridge/bridge/event_loop_bridge.dart"
+          - "lib/src/bridge/plugins/event_loop_plugin.dart"
     - format-comment
 
     # --- Immutability ---
@@ -302,7 +302,7 @@ dcm:
           # bridge getter returns _sharedBridge ?? _schemaBridge (dual-mode)
           - "lib/src/bridge/agent_session.dart"
           # channelStateSignal/lastEmittedSignal wrap _channelState/_lastEmitted (shorter backing names)
-          - "lib/src/bridge/bridge/event_loop_bridge.dart"
+          - "lib/src/bridge/plugins/event_loop_plugin.dart"
     - avoid-declaring-call-method
 
     # --- Import Safety ---

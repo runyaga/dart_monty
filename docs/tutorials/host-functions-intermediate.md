@@ -2,7 +2,7 @@
 
 This guide covers organizing host functions into plugins, the plugin
 registry, namespace validation, lifecycle hooks, introspection builtins,
-system prompt generation, and the `EventLoopBridge`.
+system prompt generation, and the `EventLoopPlugin`.
 
 **Prerequisites:** Read the [Beginner guide](host-functions-beginner.md) first.
 
@@ -285,27 +285,28 @@ and the `system_prompt` argument from `sandbox_spawn`. See the
 [Advanced guide](host-functions-advanced.md) for details on the
 dual-layer injection system.
 
-## EventLoopBridge
+## EventLoopPlugin
 
-`EventLoopBridge` extends `DefaultMontyBridge` for bidirectional
-Python/Dart state management. It registers two host functions:
+`EventLoopPlugin` is a `MontyPlugin` that turns a single `execute` call
+into a long-running cooperative exchange between Python and Dart. Register
+it like any other plugin through `PluginRegistry`:
 
 | Function | Purpose |
 |----------|---------|
-| `recv()` | Pauses Python until a value is dispatched from Dart |
-| `emit(schema)` | Emits a value from Python to the host |
+| `el_recv()` | Pauses Python until a value is dispatched from Dart |
+| `el_emit(value)` | Emits a map value from Python to the host |
 
 ### The Pattern
 
-Python holds state in a loop, calling `recv()` to pause and
-`emit(schema)` to emit values to the host:
+Python holds state in a loop, calling `el_recv()` to pause and
+`el_emit(value)` to push values back to the host:
 
 ```python
 state = {"count": 0}
 
 while True:
-    emit({"type": "counter", "count": state["count"]})
-    event = recv()
+    el_emit({"type": "counter", "count": state["count"]})
+    event = el_recv()
 
     if event["action"] == "increment":
         state["count"] = state["count"] + 1
@@ -318,65 +319,61 @@ while True:
 ### Dart Side
 
 ```dart
-final bridge = EventLoopBridge(
-  platform: Monty(),
-  onEmit: (schema) {
-    // Handle the emitted value from Python
-    print('Emitted value: $schema');
-  },
-);
+final plugin = EventLoopPlugin();
+final registry = PluginRegistry()..register(plugin);
+final bridge = DefaultMontyBridge(platform: Monty());
+await registry.attachTo(bridge);
+
+// Observe emitted values
+plugin.lastEmittedSignal.subscribe((value) {
+  if (value != null) print('Python emitted: $value');
+});
 
 // Start the Python event loop
 final events = bridge.execute(pythonCode);
 events.listen((event) { /* handle lifecycle events */ });
 
 // Dispatch values to Python
-bridge.dispatch({'action': 'increment'});
-bridge.dispatch({'action': 'increment'});
-bridge.dispatch({'action': 'quit'});
+plugin.dispatch({'action': 'increment'});
+plugin.dispatch({'action': 'increment'});
+plugin.dispatch({'action': 'quit'});
 ```
 
-### EventLoopState
+### Channel State
 
-The bridge tracks its lifecycle state:
+The plugin exposes lifecycle state as a reactive signal:
 
 | State | Meaning |
 |-------|---------|
-| `idle` | Bridge created, no script executing |
-| `executing` | Python is actively running |
-| `waiting` | Python is paused at `recv()` |
-| `completed` | Script finished (normally or with error) |
-| `disposed` | Bridge has been disposed |
+| `BridgeChannelIdle` | Plugin created, no script executing |
+| `BridgeChannelExecuting` | Python is actively running |
+| `BridgeChannelWaiting` | Python is paused at `el_recv()` |
+| `BridgeChannelCompleted` | Script finished (normally or with error) |
+| `BridgeChannelDisposed` | Plugin has been disposed |
 
-Access with `bridge.loopState` or `bridge.isWaiting`.
+Read with `plugin.channelState` (non-reactive) or subscribe via
+`plugin.channelStateSignal` with the signals API:
 
-### Event Loop Events
-
-In addition to standard `BridgeEvent`s, the event loop emits:
-
-| Event | When |
-|-------|------|
-| `BridgeEventLoopWaiting` | Python called `recv()` |
-| `BridgeEventLoopResumed` | A value was dispatched to Python |
-| `BridgeEmitted` | Python called `emit(schema)` |
-
-Listen via `bridge.eventLoopEvents` (a broadcast stream separate from
-the `execute()` stream).
+```dart
+effect(() {
+  if (plugin.channelStateSignal.value is BridgeChannelWaiting) {
+    showInputField();
+  }
+});
+```
 
 ### Event Queuing
 
-If you call `dispatch()` while Python is not yet waiting, the
-value is queued. The next `recv()` call dequeues immediately
-without pausing. This means you can dispatch values at any time without
-worrying about timing.
+If you call `dispatch()` while Python is not yet at `el_recv()`, the
+value is queued and delivered the next time Python calls `el_recv()` —
+no timing coordination required. Values dispatched before `execute()` is
+called are also queued and delivered on the first `el_recv()`.
 
 ### Disposal
 
-`EventLoopBridge.dispose()` cleans up any pending completer, clears the
-event queue, sets the state to `disposed`, and calls
-`super.dispose()`. If Python is blocked at `recv()` when the
-bridge is disposed, the pending completer is completed with a
-`StateError`.
+`plugin.onDispose()` completes any pending `el_recv()` completer with a
+`StateError`, clears the event queue, and disposes the signals. The
+method is idempotent — safe to call multiple times.
 
 ## Next Steps
 
