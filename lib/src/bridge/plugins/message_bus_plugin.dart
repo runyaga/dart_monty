@@ -6,129 +6,391 @@ import 'package:dart_monty/src/bridge/bridge/host_function_schema.dart';
 import 'package:dart_monty/src/bridge/bridge/host_param.dart';
 import 'package:dart_monty/src/bridge/bridge/host_param_type.dart';
 import 'package:dart_monty/src/bridge/bridge/monty_plugin.dart';
+import 'package:signals_core/signals_core.dart';
 
-/// A named, FIFO message channel with optional telemetry.
-class _Channel {
-  int sendCount = 0;
-  int recvCount = 0;
-  int peakQueueDepth = 0;
-  final Queue<Object?> _queue = Queue();
-  final List<Completer<Object?>> _waiters = [];
-  bool _closed = false;
+// ---------------------------------------------------------------------------
+// ChannelSnapshot — immutable telemetry snapshot for a MessageChannel.
+// ---------------------------------------------------------------------------
+
+/// An immutable snapshot of a [MessageChannel]'s state at a point in time.
+///
+/// Emitted by [MessageChannel.snapshotSignal] on every state transition.
+/// Suitable for reactive display in UI or for metrics collection:
+///
+/// ```dart
+/// effect(() {
+///   final s = bus.channel('results').snapshotSignal.value;
+///   print('queue: ${s.queueDepth}, closed: ${s.isClosed}');
+/// });
+/// ```
+class ChannelSnapshot {
+  /// Creates a [ChannelSnapshot].
+  const ChannelSnapshot({
+    required this.isClosed,
+    required this.queueDepth,
+    required this.sendCount,
+    required this.recvCount,
+    required this.peakQueueDepth,
+  });
+
+  /// The initial state for a newly created channel.
+  static const empty = ChannelSnapshot(
+    isClosed: false,
+    queueDepth: 0,
+    sendCount: 0,
+    recvCount: 0,
+    peakQueueDepth: 0,
+  );
+
+  /// Whether the channel has been closed.
+  final bool isClosed;
+
+  /// Number of messages currently queued (unread).
+  final int queueDepth;
+
+  /// Total messages sent on this channel.
+  final int sendCount;
+
+  /// Total messages received (dequeued) on this channel.
+  final int recvCount;
+
+  /// Highest queue depth observed since the channel was created.
+  final int peakQueueDepth;
+
+  /// Returns a copy with the given fields replaced.
+  ChannelSnapshot copyWith({
+    bool? isClosed,
+    int? queueDepth,
+    int? sendCount,
+    int? recvCount,
+    int? peakQueueDepth,
+  }) => ChannelSnapshot(
+    isClosed: isClosed ?? this.isClosed,
+    queueDepth: queueDepth ?? this.queueDepth,
+    sendCount: sendCount ?? this.sendCount,
+    recvCount: recvCount ?? this.recvCount,
+    peakQueueDepth: peakQueueDepth ?? this.peakQueueDepth,
+  );
+
+  @override
+  String toString() =>
+      'ChannelSnapshot(isClosed: $isClosed, queueDepth: $queueDepth, '
+      'sendCount: $sendCount, recvCount: $recvCount, '
+      'peakQueueDepth: $peakQueueDepth)';
 }
 
-/// In-memory message bus with named channels.
-///
-/// Channels auto-create on first use. Messages are FIFO within each channel.
-/// Multiple consumers are served in FIFO waiter order.
-class MessageBus {
-  final Map<String, _Channel> _channels = {};
+// ---------------------------------------------------------------------------
+// MessageChannel — observable named channel primitive.
+// ---------------------------------------------------------------------------
 
-  /// Enqueues [message] on channel [name], waking the first blocked receiver.
+/// A named, FIFO message channel with reactive state.
+///
+/// [MessageChannel] is the first-class Dart primitive for communicating
+/// between Python sandboxes and Dart code. It is usable directly from Dart
+/// as well as through Python host functions (`msg_send`, `msg_recv`).
+///
+/// Obtain a channel via [MessageBus.channel]. Observe state changes
+/// reactively via [snapshotSignal]:
+///
+/// ```dart
+/// final ch = bus.channel('results');
+/// effect(() => print(ch.snapshotSignal.value));
+///
+/// // Dart → Python: push a task
+/// ch.send({'file': 'data.txt'});
+///
+/// // Dart ← Python: pull a result (async)
+/// final result = await ch.recv();
+/// ```
+class MessageChannel {
+  /// Creates a [MessageChannel] with empty state.
+  MessageChannel();
+
+  /// Reactive snapshot of this channel's current state.
+  ///
+  /// Updated on every [send], [recv], and [close] call.
+  ReadonlySignal<ChannelSnapshot> get snapshotSignal => _snapshotSignal;
+
+  final Signal<ChannelSnapshot> _snapshotSignal = signal(ChannelSnapshot.empty);
+
+  final Queue<Object?> _queue = Queue();
+  final List<Completer<Object?>> _waiters = [];
+
+  /// The current snapshot (non-reactive one-shot read).
+  ChannelSnapshot get snapshot => _snapshotSignal.value;
+
+  /// Whether this channel has been closed.
+  bool get isClosed => _snapshotSignal.value.isClosed;
+
+  /// Enqueues [message], waking the first blocked [recv] if present.
   ///
   /// Throws [StateError] if the channel is closed.
-  void send(String name, Object? message) {
-    final ch = _channel(name);
-    if (ch._closed) {
-      throw StateError('Cannot send on closed channel "$name".');
+  void send(Object? message) {
+    final s = _snapshotSignal.value;
+    if (s.isClosed) {
+      throw StateError('Cannot send on a closed channel.');
     }
-    ch.sendCount++;
-    if (ch._waiters.isNotEmpty) {
-      final waiter = ch._waiters.removeAt(0);
+
+    // Fast path: hand directly to a waiting receiver.
+    if (_waiters.isNotEmpty) {
+      final waiter = _waiters.removeAt(0);
       if (!waiter.isCompleted) {
         waiter.complete(message);
-        ch.recvCount++;
+        _snapshotSignal.value = s.copyWith(
+          sendCount: s.sendCount + 1,
+          recvCount: s.recvCount + 1,
+        );
 
         return;
       }
     }
-    ch._queue.add(message);
-    if (ch._queue.length > ch.peakQueueDepth) {
-      ch.peakQueueDepth = ch._queue.length;
-    }
+
+    // Slow path: enqueue for a future recv.
+    _queue.add(message);
+    final depth = _queue.length;
+    _snapshotSignal.value = s.copyWith(
+      sendCount: s.sendCount + 1,
+      queueDepth: depth,
+      peakQueueDepth: depth > s.peakQueueDepth ? depth : s.peakQueueDepth,
+    );
   }
 
-  /// Returns a future that completes with the next message on channel [name].
+  /// Returns a future that resolves with the next message.
   ///
-  /// If messages are queued, returns immediately. If the channel is closed and
-  /// empty, returns `null` without blocking. Otherwise blocks until a message
-  /// arrives or the channel is closed.
+  /// - If messages are queued, resolves immediately.
+  /// - If the channel is closed and empty, resolves with `null`.
+  /// - Otherwise blocks until [send] or [close] is called.
   ///
-  /// Pass [waiter] to allow external cancellation (e.g. timeout or disposal).
-  Future<Object?> recv(String name, {Completer<Object?>? waiter}) {
-    final ch = _channel(name);
-    if (ch._queue.isNotEmpty) {
-      ch.recvCount++;
+  /// Pass [waiter] to allow external cancellation (e.g., timeout or disposal).
+  Future<Object?> recv({Completer<Object?>? waiter}) {
+    final s = _snapshotSignal.value;
 
-      return Future.value(ch._queue.removeFirst());
+    if (_queue.isNotEmpty) {
+      final msg = _queue.removeFirst();
+      _snapshotSignal.value = s.copyWith(
+        recvCount: s.recvCount + 1,
+        queueDepth: _queue.length,
+      );
+
+      return Future.value(msg);
     }
-    if (ch._closed) {
-      return Future.value();
-    }
+
+    if (s.isClosed) return Future.value();
+
     final c = waiter ?? Completer<Object?>();
-    ch._waiters.add(c);
+    _waiters.add(c);
 
     return c.future;
   }
 
-  /// Returns the front of the queue without removing, or `null` if empty.
-  Object? peek(String name) {
-    final ch = _channels[name];
-    if (ch == null || ch._queue.isEmpty) return null;
+  /// Returns the front of the queue without removing it, or `null` if empty.
+  Object? peek() => _queue.isEmpty ? null : _queue.first;
 
-    return ch._queue.first;
-  }
-
-  /// Closes channel [name], completing all pending receivers with `null`.
+  /// Closes the channel, completing all pending [recv] futures with `null`.
   ///
   /// Idempotent — closing an already-closed channel is a no-op.
-  void close(String name) {
-    final ch = _channel(name);
-    if (ch._closed) return;
-    ch._closed = true;
-    for (final w in ch._waiters) {
+  /// Closed ≠ disposed: the snapshot remains readable after close. Call
+  /// [dispose] when the channel object itself is no longer needed.
+  void close() {
+    final s = _snapshotSignal.value;
+    if (s.isClosed) return;
+    _snapshotSignal.value = s.copyWith(isClosed: true);
+    for (final w in _waiters) {
       if (!w.isCompleted) w.complete(null);
     }
-    ch._waiters.clear();
+    _waiters.clear();
   }
 
-  /// Returns telemetry for channel [name].
-  Map<String, Object?> stats(String name) {
-    final ch = _channels[name];
-    if (ch == null) {
-      return {
-        'exists': false,
-        'closed': false,
-        'queue_depth': 0,
-        'send_count': 0,
-        'recv_count': 0,
-        'peak_queue_depth': 0,
-      };
-    }
+  /// Disposes the channel's signal.
+  ///
+  /// Called by [MessageBus.dispose]. After disposal, [snapshotSignal] must
+  /// not be read. Callers should call [close] first to drain pending receivers.
+  void dispose() => _snapshotSignal.dispose();
 
-    return {
-      'exists': true,
-      'closed': ch._closed,
-      'queue_depth': ch._queue.length,
-      'send_count': ch.sendCount,
-      'recv_count': ch.recvCount,
-      'peak_queue_depth': ch.peakQueueDepth,
-    };
+  /// Removes [waiter] from the pending receiver list.
+  ///
+  /// Used to cancel a timed-out or disposed recv without closing the channel.
+  void removeWaiter(Completer<Object?> waiter) {
+    _waiters.remove(waiter);
   }
-
-  /// Removes [c] from the waiter list of channel [name].
-  void removeWaiter(String name, Completer<Object?> c) {
-    _channels[name]?._waiters.remove(c);
-  }
-
-  _Channel _channel(String name) => _channels.putIfAbsent(name, _Channel.new);
 }
+
+// ---------------------------------------------------------------------------
+// MessageBus — observable bus holding named channels.
+// ---------------------------------------------------------------------------
+
+/// An observable, in-memory message bus with named [MessageChannel]s.
+///
+/// Channels auto-create on first use via [channel]. Share a single [MessageBus]
+/// instance across [MessageBusPlugin] parent and child instances for
+/// transparent Python↔Python and Dart↔Python communication.
+///
+/// ```dart
+/// final bus = MessageBus();
+///
+/// // Dart pushes a task; Python calls msg_recv('tasks') to pick it up.
+/// bus.channel('tasks').send({'file': 'data.txt'});
+///
+/// // React to any channel activity.
+/// effect(() => print(bus.channelsSignal.value.keys));
+/// ```
+class MessageBus {
+  /// Creates an empty [MessageBus].
+  MessageBus();
+
+  /// Reactive map of all channels that have been accessed.
+  ///
+  /// A new entry is added whenever [channel] auto-creates a new channel.
+  /// Each value is a [MessageChannel] whose own [MessageChannel.snapshotSignal]
+  /// updates independently when messages flow through it.
+  ReadonlySignal<Map<String, MessageChannel>> get channelsSignal =>
+      _channelsSignal;
+
+  final Map<String, MessageChannel> _channels = {};
+  final Signal<Map<String, MessageChannel>> _channelsSignal = signal({});
+
+  /// Returns the [MessageChannel] for [name], creating it if absent.
+  ///
+  /// Creating a new channel updates [channelsSignal].
+  MessageChannel channel(String name) {
+    final existing = _channels[name];
+    if (existing != null) return existing;
+    final ch = MessageChannel();
+    _channels[name] = ch;
+    _channelsSignal.value = Map.from(_channels);
+
+    return ch;
+  }
+
+  /// Disposes the bus, all channels, and [_channelsSignal].
+  void dispose() {
+    for (final ch in _channels.values) {
+      ch.dispose();
+    }
+    _channelsSignal.dispose();
+  }
+
+  /// Returns the [MessageChannel] for [name] if it exists, or `null`.
+  ///
+  /// Does NOT create a new channel — use [channel] for auto-creation.
+  MessageChannel? channelOrNull(String name) => _channels[name];
+
+  // ---------------------------------------------------------------------------
+  // Convenience methods — delegate to channel(name).* for fluent bus usage.
+  // ---------------------------------------------------------------------------
+
+  /// Sends [message] on channel [name], creating the channel if needed.
+  void send(String name, Object? message) => channel(name).send(message);
+
+  /// Receives the next message from channel [name], creating it if needed.
+  Future<Object?> recv(String name, {Completer<Object?>? waiter}) =>
+      channel(name).recv(waiter: waiter);
+
+  /// Peeks at the front of channel [name] without removing.
+  Object? peek(String name) => channelOrNull(name)?.peek();
+
+  /// Closes channel [name], creating it first if needed.
+  void close(String name) => channel(name).close();
+
+  /// Removes [waiter] from the pending receiver list of channel [name].
+  void removeWaiter(String name, Completer<Object?> waiter) =>
+      channelOrNull(name)?.removeWaiter(waiter);
+}
+
+// ---------------------------------------------------------------------------
+// Schema constants for MessageBusPlugin host functions.
+// ---------------------------------------------------------------------------
+
+const _msgSendSchema = HostFunctionSchema(
+  name: 'msg_send',
+  description: 'Send a message on a named channel.',
+  params: [
+    HostParam(
+      name: 'name',
+      type: HostParamType.string,
+      description: 'Channel name.',
+    ),
+    HostParam(
+      name: 'message',
+      type: HostParamType.any,
+      description: 'Message payload (any serializable value).',
+    ),
+  ],
+);
+
+const _msgRecvSchema = HostFunctionSchema(
+  name: 'msg_recv',
+  description:
+      'Receive the next message from a named channel. '
+      'Blocks until a message is available or timeout expires.',
+  params: [
+    HostParam(
+      name: 'name',
+      type: HostParamType.string,
+      description: 'Channel name.',
+    ),
+    HostParam(
+      name: 'timeout_ms',
+      type: HostParamType.integer,
+      isRequired: false,
+      description: 'Timeout in milliseconds. Throws on expiry.',
+    ),
+  ],
+);
+
+const _msgPeekSchema = HostFunctionSchema(
+  name: 'msg_peek',
+  description:
+      'Peek at the front of the queue without removing. '
+      'Returns null if empty.',
+  params: [
+    HostParam(
+      name: 'name',
+      type: HostParamType.string,
+      description: 'Channel name.',
+    ),
+  ],
+);
+
+const _msgCloseSchema = HostFunctionSchema(
+  name: 'msg_close',
+  description:
+      'Close a channel. Pending receivers get null. '
+      'Subsequent sends throw.',
+  params: [
+    HostParam(
+      name: 'name',
+      type: HostParamType.string,
+      description: 'Channel name.',
+    ),
+  ],
+);
+
+const _msgStatsSchema = HostFunctionSchema(
+  name: 'msg_stats',
+  description: 'Get telemetry for a named channel.',
+  params: [
+    HostParam(
+      name: 'name',
+      type: HostParamType.string,
+      description: 'Channel name.',
+    ),
+  ],
+);
+
+// ---------------------------------------------------------------------------
+// MessageBusPlugin — thin Python adapter over MessageBus.
+// ---------------------------------------------------------------------------
 
 /// Plugin providing named, bidirectional, blocking message channels.
 ///
 /// Parent and child sandbox interpreters share the same [MessageBus] instance,
 /// enabling structured communication patterns like task distribution, progress
 /// reporting, and coordinated multi-worker pipelines.
+///
+/// [MessageBus] is also directly usable from Dart — call
+/// `bus.channel('name').send(x)` to push tasks from Dart to Python, or
+/// `await bus.channel('name').recv()` to pull results back.
 class MessageBusPlugin extends MontyPlugin {
   /// Creates a [MessageBusPlugin].
   ///
@@ -139,7 +401,7 @@ class MessageBusPlugin extends MontyPlugin {
   final MessageBus _bus;
   final Set<Completer<Object?>> _pendingRecvs = {};
 
-  /// The backing bus, exposed for testing.
+  /// The backing bus, exposed for testing and Dart-side usage.
   MessageBus get bus => _bus;
 
   @override
@@ -153,93 +415,11 @@ class MessageBusPlugin extends MontyPlugin {
 
   @override
   List<HostFunction> get functions => [
-    HostFunction(
-      schema: const HostFunctionSchema(
-        name: 'msg_send',
-        description: 'Send a message on a named channel.',
-        params: [
-          HostParam(
-            name: 'name',
-            type: HostParamType.string,
-            description: 'Channel name.',
-          ),
-          HostParam(
-            name: 'message',
-            type: HostParamType.any,
-            description: 'Message payload (any serializable value).',
-          ),
-        ],
-      ),
-      handler: _handleSend,
-    ),
-    HostFunction(
-      schema: const HostFunctionSchema(
-        name: 'msg_recv',
-        description:
-            'Receive the next message from a named channel. '
-            'Blocks until a message is available or timeout expires.',
-        params: [
-          HostParam(
-            name: 'name',
-            type: HostParamType.string,
-            description: 'Channel name.',
-          ),
-          HostParam(
-            name: 'timeout_ms',
-            type: HostParamType.integer,
-            isRequired: false,
-            description: 'Timeout in milliseconds. Throws on expiry.',
-          ),
-        ],
-      ),
-      handler: _handleRecv,
-    ),
-    HostFunction(
-      schema: const HostFunctionSchema(
-        name: 'msg_peek',
-        description:
-            'Peek at the front of the queue without removing. '
-            'Returns null if empty.',
-        params: [
-          HostParam(
-            name: 'name',
-            type: HostParamType.string,
-            description: 'Channel name.',
-          ),
-        ],
-      ),
-      handler: _handlePeek,
-    ),
-    HostFunction(
-      schema: const HostFunctionSchema(
-        name: 'msg_close',
-        description:
-            'Close a channel. Pending receivers get null. '
-            'Subsequent sends throw.',
-        params: [
-          HostParam(
-            name: 'name',
-            type: HostParamType.string,
-            description: 'Channel name.',
-          ),
-        ],
-      ),
-      handler: _handleClose,
-    ),
-    HostFunction(
-      schema: const HostFunctionSchema(
-        name: 'msg_stats',
-        description: 'Get telemetry for a named channel.',
-        params: [
-          HostParam(
-            name: 'name',
-            type: HostParamType.string,
-            description: 'Channel name.',
-          ),
-        ],
-      ),
-      handler: _handleStats,
-    ),
+    HostFunction(schema: _msgSendSchema, handler: _handleSend),
+    HostFunction(schema: _msgRecvSchema, handler: _handleRecv),
+    HostFunction(schema: _msgPeekSchema, handler: _handlePeek),
+    HostFunction(schema: _msgCloseSchema, handler: _handleClose),
+    HostFunction(schema: _msgStatsSchema, handler: _handleStats),
   ];
 
   @override
@@ -276,8 +456,6 @@ class MessageBusPlugin extends MontyPlugin {
     try {
       final future = _bus.recv(name, waiter: completer);
       if (timeoutMs != null) {
-        // Drain the original future so a later error doesn't go uncaught
-        // if the timeout fires before the recv completes.
         unawaited(future.catchError((_) => null));
 
         return await future.timeout(
@@ -291,8 +469,6 @@ class MessageBusPlugin extends MontyPlugin {
 
       return await future;
     } on Object {
-      // Drain any lingering error on the completer so it does not surface
-      // as an uncaught async error after we stop listening.
       unawaited(completer.future.catchError((_) => null));
       rethrow;
     } finally {
@@ -316,7 +492,16 @@ class MessageBusPlugin extends MontyPlugin {
 
   Future<Object?> _handleStats(Map<String, Object?> args) {
     final name = args['name']! as String;
+    final ch = _bus.channelOrNull(name);
+    final s = ch?.snapshot ?? ChannelSnapshot.empty;
 
-    return Future.value(_bus.stats(name));
+    return Future.value({
+      'exists': ch != null,
+      'closed': s.isClosed,
+      'queue_depth': s.queueDepth,
+      'send_count': s.sendCount,
+      'recv_count': s.recvCount,
+      'peak_queue_depth': s.peakQueueDepth,
+    });
   }
 }

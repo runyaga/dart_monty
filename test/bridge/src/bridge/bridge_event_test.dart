@@ -97,21 +97,6 @@ void main() {
       expect(event.messageId, 'm1');
     });
 
-    test('BridgeEventLoopWaiting is constructible', () {
-      const event = BridgeEventLoopWaiting();
-      expect(event, isA<BridgeEvent>());
-    });
-
-    test('BridgeEventLoopResumed stores event map', () {
-      const event = BridgeEventLoopResumed(event: {'type': 'click'});
-      expect(event.event, {'type': 'click'});
-    });
-
-    test('BridgeUiRendered stores schema map', () {
-      const event = BridgeUiRendered(schema: {'type': 'form'});
-      expect(event.schema, {'type': 'form'});
-    });
-
     test('BridgeOsCallStart stores callId and operationName', () {
       const event = BridgeOsCallStart(
         callId: 'oc1',

@@ -4,6 +4,7 @@ import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:dart_monty/dart_monty_testing.dart';
 import 'package:dart_monty/monty_backend_spi.dart';
+import 'package:signals_core/signals_core.dart';
 import 'package:struct_log/struct_log.dart';
 import 'package:test/test.dart';
 
@@ -1693,6 +1694,157 @@ void main() {
           platformFactory: () async => _completingMock(),
         );
         expect(defaultPlugin.logger, isA<NullBridgeLogger>());
+      });
+    });
+
+    group('signals', () {
+      test('childrenSignal is empty before any spawn', () {
+        final plugin = SandboxPlugin(
+          platformFactory: () async => _completingMock(),
+        );
+        expect(plugin.childrenSignal.value, isEmpty);
+      });
+
+      test('aliveCountSignal is 0 before any spawn', () {
+        final plugin = SandboxPlugin(
+          platformFactory: () async => _completingMock(),
+        );
+        expect(plugin.aliveCountSignal.value, 0);
+      });
+
+      test(
+        'childrenSignal contains ChildRunning immediately after spawn',
+        () async {
+          final plugin = SandboxPlugin(
+            platformFactory: () async => _completingMock(),
+          );
+          final spawn = _findHandler(plugin, 'sandbox_spawn');
+
+          final handle = (await spawn({'code': 'x = 1'}))! as int;
+
+          expect(
+            plugin.childrenSignal.value,
+            containsPair(handle, isA<ChildRunning>()),
+          );
+          expect(plugin.aliveCountSignal.value, 1);
+        },
+      );
+
+      test(
+        'childrenSignal updates to ChildCompleted after child finishes',
+        () async {
+          final plugin = SandboxPlugin(
+            platformFactory: () async => _completingMockWithResult(
+              value: const MontyInt(42),
+            ),
+          );
+          final spawn = _findHandler(plugin, 'sandbox_spawn');
+          final await_ = _findHandler(plugin, 'sandbox_await');
+
+          final handle = (await spawn({'code': 'x = 42'}))! as int;
+          await await_({'handle': handle});
+
+          expect(
+            plugin.childrenSignal.value[handle],
+            isA<ChildCompleted>(),
+          );
+          expect(plugin.aliveCountSignal.value, 0);
+        },
+      );
+
+      test('ChildCompleted carries the return value', () async {
+        final plugin = SandboxPlugin(
+          platformFactory: () async => _completingMockWithResult(
+            value: const MontyInt(7),
+          ),
+        );
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
+        final await_ = _findHandler(plugin, 'sandbox_await');
+
+        final handle = (await spawn({'code': 'x = 7'}))! as int;
+        await await_({'handle': handle});
+
+        final state = plugin.childrenSignal.value[handle]! as ChildCompleted;
+        expect(state.value, 7);
+      });
+
+      test('childrenSignal updates to ChildFailed when child errors', () async {
+        final plugin = SandboxPlugin(
+          platformFactory: () async => _failingMock('boom'),
+        );
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
+        final await_ = _findHandler(plugin, 'sandbox_await');
+
+        final handle =
+            (await spawn({'code': 'raise ValueError("boom")'}))! as int;
+        await await_({'handle': handle}).catchError((_) => null);
+
+        expect(plugin.childrenSignal.value[handle], isA<ChildFailed>());
+        expect(plugin.aliveCountSignal.value, 0);
+      });
+
+      test('ChildFailed carries the error message', () async {
+        final plugin = SandboxPlugin(
+          platformFactory: () async => _failingMock('something broke'),
+        );
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
+        final await_ = _findHandler(plugin, 'sandbox_await');
+
+        final handle =
+            (await spawn({'code': 'raise ValueError("something broke")'}))!
+                as int;
+        await await_({'handle': handle}).catchError((_) => null);
+
+        final state = plugin.childrenSignal.value[handle]! as ChildFailed;
+        expect(state.message, contains('something broke'));
+      });
+
+      test('childrenSignal is empty after sandbox_free', () async {
+        final plugin = SandboxPlugin(
+          platformFactory: () async => _completingMock(),
+        );
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
+        final await_ = _findHandler(plugin, 'sandbox_await');
+        final free = _findHandler(plugin, 'sandbox_free');
+
+        final handle = (await spawn({'code': '1'}))! as int;
+        await await_({'handle': handle});
+        await free({'handle': handle});
+
+        expect(plugin.childrenSignal.value, isEmpty);
+      });
+
+      test('effect() fires when child completes', () async {
+        final plugin = SandboxPlugin(
+          platformFactory: () async => _completingMock(),
+        );
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
+        final await_ = _findHandler(plugin, 'sandbox_await');
+
+        final observed = <Map<int, ChildState>>[];
+        final dispose = effect(
+          () => observed.add(Map.from(plugin.childrenSignal.value)),
+        );
+        addTearDown(dispose);
+
+        final handle = (await spawn({'code': '1'}))! as int;
+        await await_({'handle': handle});
+
+        // At least: initial empty, spawned (Running), completed
+        expect(observed.length, greaterThanOrEqualTo(2));
+        expect(observed.last[handle], isA<ChildCompleted>());
+      });
+
+      test('childrenSignal is empty after dispose', () async {
+        final plugin = SandboxPlugin(
+          platformFactory: () async => _completingMock(),
+        );
+        final spawn = _findHandler(plugin, 'sandbox_spawn');
+        await spawn({'code': '1'});
+
+        await plugin.onDispose();
+
+        expect(plugin.childrenSignal.value, isEmpty);
       });
     });
   });

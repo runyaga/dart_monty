@@ -6,6 +6,61 @@ import 'package:dart_monty/src/bridge/bridge/monty_bridge.dart';
 import 'package:dart_monty/src/bridge/bridge/monty_plugin.dart';
 import 'package:dart_monty/src/platform/bridge_logger.dart';
 
+// ---------------------------------------------------------------------------
+// Top-level helpers used by PluginRegistry.attachTo.
+// ---------------------------------------------------------------------------
+
+/// Injects scoped loggers and registers all plugin functions with [bridge].
+void _attachPluginFunctions(
+  List<MontyPlugin> attachOrder,
+  MontyBridge bridge,
+) {
+  for (final plugin in attachOrder) {
+    plugin.logger = bridge.logger.child(plugin.namespace);
+    for (final fn in plugin.functions) {
+      bridge.register(fn, category: plugin.namespace);
+    }
+  }
+}
+
+/// Registers [extraFunctions] under the `'extra'` category and logs the count.
+void _attachExtraFunctions(
+  List<HostFunction> extraFunctions,
+  MontyBridge bridge,
+  BridgeLogger log,
+) {
+  for (final fn in extraFunctions) {
+    bridge.register(fn, category: 'extra');
+  }
+  log.debug(
+    'Registered extra functions',
+    attributes: {'count': extraFunctions.length},
+  );
+}
+
+/// Calls [MontyPlugin.onRegister] for each plugin in [attachOrder], collecting
+/// failures. Returns `(namespace, error)` pairs for every plugin that threw.
+Future<List<(String, Object)>> _runPluginOnRegisters(
+  List<MontyPlugin> attachOrder,
+  MontyBridge bridge,
+  BridgeLogger log,
+) async {
+  final errors = <(String, Object)>[];
+  for (final plugin in attachOrder) {
+    try {
+      await plugin.onRegister(bridge);
+    } on Object catch (e) {
+      log.warning(
+        'Plugin onRegister failed',
+        attributes: {'namespace': plugin.namespace, 'error': '$e'},
+      );
+      errors.add((plugin.namespace, e));
+    }
+  }
+
+  return errors;
+}
+
 /// Collects [MontyPlugin]s with namespace validation and function name
 /// collision detection.
 ///
@@ -60,14 +115,9 @@ class PluginRegistry {
   }
 
   /// Wires all plugins to [bridge], calls [MontyPlugin.onRegister] for each,
-  /// and registers introspection builtins.
-  ///
-  /// [extraFunctions] registers standalone host functions that are not part of
-  /// any plugin. They appear under the `'extra'` introspection category.
-  ///
-  /// All plugins are wired even if some [MontyPlugin.onRegister] calls throw —
-  /// errors are collected and thrown as a single [StateError] after all plugins
-  /// have been attached.
+  /// registers introspection builtins, and registers [extraFunctions] under the
+  /// `'extra'` category. [MontyPlugin.onRegister] errors are collected and
+  /// thrown together as a single [StateError] after all plugins are processed.
   Future<void> attachTo(
     MontyBridge bridge, {
     List<HostFunction>? extraFunctions,
@@ -80,46 +130,20 @@ class PluginRegistry {
       );
     }
 
-    // Get registry's own logger from the bridge.
     _log = bridge.logger.child('registry');
 
-    final errors = <(String, Object)>[];
+    // Sort by descending priority; stable sort preserves insertion order for
+    // equal priorities. High-priority plugins attach first, dispose last.
+    final attachOrder = [..._plugins]
+      ..sort((a, b) => b.priority.compareTo(a.priority));
+    _attachOrder = attachOrder;
 
-    for (final plugin in _plugins) {
-      // Inject scoped logger BEFORE registration so plugins can log
-      // during onRegister().
-      plugin.logger = bridge.logger.child(plugin.namespace);
-
-      for (final fn in plugin.functions) {
-        bridge.register(fn, category: plugin.namespace);
-      }
-    }
-
-    // Register standalone functions under the 'extra' category.
+    _attachPluginFunctions(attachOrder, bridge);
     if (extraFunctions != null && extraFunctions.isNotEmpty) {
-      for (final fn in extraFunctions) {
-        bridge.register(fn, category: 'extra');
-      }
-      _log.debug(
-        'Registered extra functions',
-        attributes: {'count': extraFunctions.length},
-      );
+      _attachExtraFunctions(extraFunctions, bridge, _log);
     }
 
-    // Store registration order for reverse-order disposal.
-    _attachOrder = List.of(_plugins);
-
-    for (final plugin in _plugins) {
-      try {
-        await plugin.onRegister(bridge);
-      } on Object catch (e) {
-        _log.warning(
-          'Plugin onRegister failed',
-          attributes: {'namespace': plugin.namespace, 'error': '$e'},
-        );
-        errors.add((plugin.namespace, e));
-      }
-    }
+    final errors = await _runPluginOnRegisters(attachOrder, bridge, _log);
 
     if (enableIntrospection) {
       for (final fn in buildIntrospectionFunctions(bridge)) {

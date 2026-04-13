@@ -62,11 +62,7 @@ void main() {
   );
 
   test(
-    // monty.run() is a direct platform call — it cannot dispatch bridge
-    // callbacks. External functions must be invoked via bridge.execute().
-    // This test verifies the bridge.execute() path works for 3 sequential
-    // calls (the bridge owns the callback loop; monty.run() does not).
-    'Monty.run — 3 sequential HTTP calls via bridge.execute()',
+    'DefaultMontyBridge.execute — 3 sequential HTTP calls, value extraction',
     () async {
       final monty = Monty();
       final bridge = DefaultMontyBridge(
@@ -77,7 +73,7 @@ void main() {
       for (var i = 1; i <= 3; i++) {
         final events = await bridge.execute('http_get("$_url")').toList();
         final finished = events.whereType<BridgeRunFinished>().first;
-        print('  monty.run call $i: ${finished.value}');
+        print('  bridge call $i value: ${finished.value}');
         expect(finished.value, isA<String>());
       }
 

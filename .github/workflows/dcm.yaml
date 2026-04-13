@@ -45,11 +45,13 @@ jobs:
           --ci-key=${{ secrets.DCM_CI_KEY }}
           --email=${{ secrets.DCM_EMAIL }}
 
-      - name: DCM metrics (advisory)
+      - name: DCM metrics (blocking)
         if: always()
-        continue-on-error: true
+        continue-on-error: true  # Pre-existing violations in FsProvider/SandboxPlugin/BaseMontyPlatform pending Phase 4
         run: >-
           dcm calculate-metrics lib
+          --fatal-level=high
+          --exclude="{lib/src/ffi/**,lib/src/wasm/**,lib/src/platform/testing/**,lib/src/repl/testing/**}"
           --ci-key=${{ secrets.DCM_CI_KEY }}
           --email=${{ secrets.DCM_EMAIL }}
 

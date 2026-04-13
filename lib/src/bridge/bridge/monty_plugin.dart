@@ -31,6 +31,18 @@ abstract class MontyPlugin {
   /// Unique namespace prefix (e.g., "df", "chart", "sqlite").
   String get namespace;
 
+  /// Attachment priority — higher values attach (and therefore dispose last)
+  /// first.
+  ///
+  /// `PluginRegistry.attachTo` sorts plugins in descending priority order
+  /// before calling [onRegister]. Plugins with equal priority preserve their
+  /// registration order (stable sort). Default is 0.
+  ///
+  /// Use a positive value to run [onRegister] early (e.g., a logging/tracing
+  /// plugin that other plugins depend on). Use a negative value to run late
+  /// (e.g., a plugin that wraps peers it discovers via the bridge).
+  int get priority => 0;
+
   /// Logger for this plugin, injected by `PluginRegistry` during attachment.
   ///
   /// Plugins should use this for all logging — never create loggers

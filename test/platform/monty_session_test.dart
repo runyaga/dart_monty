@@ -1,6 +1,7 @@
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_testing.dart';
 import 'package:dart_monty/monty_backend_spi.dart';
+import 'package:signals_core/signals_core.dart';
 import 'package:test/test.dart';
 
 /// Shared zero-cost usage for test results.
@@ -1313,6 +1314,69 @@ void main() {
           'y',
           'z',
         });
+      });
+    });
+
+    group('signals', () {
+      test('lifecycleSignal starts as MontySessionActive', () {
+        expect(session.lifecycleSignal.value, isA<MontySessionActive>());
+      });
+
+      test('persistedStateSignal starts empty', () {
+        expect(session.persistedStateSignal.value, isEmpty);
+      });
+
+      test('persistedStateSignal updates after run() persists state', () async {
+        _enqueueRunCycle(mock, stateToPersist: {'x': 42});
+        await session.run('x = 42');
+        expect(session.persistedStateSignal.value, {'x': 42});
+      });
+
+      test('persistedStateSignal updates with each run()', () async {
+        _enqueueRunCycle(mock, stateToPersist: {'x': 1});
+        await session.run('x = 1');
+        expect(session.persistedStateSignal.value, {'x': 1});
+
+        _enqueueRunCycle(mock, stateToPersist: {'x': 1, 'y': 2});
+        await session.run('y = 2');
+        expect(session.persistedStateSignal.value, {'x': 1, 'y': 2});
+      });
+
+      test('persistedStateSignal emits empty map after clearState()', () async {
+        _enqueueRunCycle(mock, stateToPersist: {'x': 1});
+        await session.run('x = 1');
+
+        session.clearState();
+        expect(session.persistedStateSignal.value, isEmpty);
+      });
+
+      test(
+        'lifecycleSignal transitions to MontySessionDisposed on dispose()',
+        () {
+          session.dispose();
+          expect(session.lifecycleSignal.value, isA<MontySessionDisposed>());
+        },
+      );
+
+      test('persistedStateSignal emits empty map on dispose()', () async {
+        _enqueueRunCycle(mock, stateToPersist: {'x': 1});
+        await session.run('x = 1');
+
+        session.dispose();
+        expect(session.persistedStateSignal.value, isEmpty);
+      });
+
+      test('effect() fires when state is persisted', () async {
+        final observed = <Map<String, Object?>>[];
+        final sub = effect(
+          () => observed.add(session.persistedStateSignal.value),
+        );
+
+        _enqueueRunCycle(mock, stateToPersist: {'a': 10});
+        await session.run('a = 10');
+
+        expect(observed.last, {'a': 10});
+        sub(); // dispose effect
       });
     });
   });

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:dart_monty/dart_monty_bridge.dart';
+import 'package:signals_core/signals_core.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -253,6 +254,176 @@ void main() {
         (f) => f.schema.name == 'msg_recv',
       );
       expect(await freshRecv.handler({'name': 'ch'}), 'from_child');
+    });
+  });
+
+  group('MessageChannel direct Dart usage', () {
+    test('starts with empty snapshot', () {
+      final ch = MessageChannel();
+      expect(ch.snapshot, ChannelSnapshot.empty);
+      expect(ch.isClosed, false);
+    });
+
+    test('send increments sendCount', () {
+      final ch = MessageChannel()..send('a');
+      expect(ch.snapshot.sendCount, 1);
+      expect(ch.snapshot.queueDepth, 1);
+    });
+
+    test('send then recv decrements queueDepth', () {
+      final ch = MessageChannel()..send('a');
+      unawaited(ch.recv());
+      expect(ch.snapshot.queueDepth, 0);
+      expect(ch.snapshot.recvCount, 1);
+    });
+
+    test(
+      'direct send-to-waiter increments both counts without queue',
+      () async {
+        final ch = MessageChannel();
+        final future = ch.recv();
+        ch.send('x');
+        await future;
+        expect(ch.snapshot.sendCount, 1);
+        expect(ch.snapshot.recvCount, 1);
+        expect(ch.snapshot.queueDepth, 0);
+      },
+    );
+
+    test('tracks peak queue depth', () {
+      final ch = MessageChannel()
+        ..send(1)
+        ..send(2)
+        ..send(3);
+      unawaited(ch.recv());
+      expect(ch.snapshot.peakQueueDepth, 3);
+      expect(ch.snapshot.queueDepth, 2);
+    });
+
+    test('close sets isClosed and resolves waiters with null', () async {
+      final ch = MessageChannel();
+      final future = ch.recv();
+      ch.close();
+      expect(await future, isNull);
+      expect(ch.snapshot.isClosed, true);
+    });
+
+    test('snapshotSignal fires on send', () {
+      final ch = MessageChannel();
+      final observed = <ChannelSnapshot>[];
+      final dispose = effect(() => observed.add(ch.snapshotSignal.value));
+      addTearDown(dispose);
+
+      ch.send('msg');
+
+      expect(observed.length, 2); // initial + after send
+      expect(observed.last.sendCount, 1);
+    });
+
+    test('snapshotSignal fires on recv', () async {
+      final ch = MessageChannel()..send('a');
+      final observed = <ChannelSnapshot>[];
+      final dispose = effect(() => observed.add(ch.snapshotSignal.value));
+      addTearDown(dispose);
+
+      await ch.recv();
+
+      expect(observed.last.recvCount, 1);
+      expect(observed.last.queueDepth, 0);
+    });
+
+    test('snapshotSignal fires on close', () {
+      final ch = MessageChannel();
+      final observed = <ChannelSnapshot>[];
+      final dispose = effect(() => observed.add(ch.snapshotSignal.value));
+      addTearDown(dispose);
+
+      ch.close();
+
+      expect(observed.last.isClosed, true);
+    });
+  });
+
+  group('MessageBus signals', () {
+    test('channelsSignal is empty before any channel access', () {
+      final bus = MessageBus();
+      expect(bus.channelsSignal.value, isEmpty);
+    });
+
+    test('channelsSignal updates when a new channel is auto-created', () {
+      final bus = MessageBus();
+      final observed = <Map<String, MessageChannel>>[];
+      final dispose = effect(
+        () => observed.add(Map.from(bus.channelsSignal.value)),
+      );
+      addTearDown(dispose);
+
+      bus.channel('tasks');
+
+      expect(observed.length, 2); // initial + after creation
+      expect(observed.last.keys, contains('tasks'));
+    });
+
+    test(
+      'channelsSignal does not fire for channelOrNull on missing channel',
+      () {
+        final bus = MessageBus();
+        final observed = <int>[];
+        final dispose = effect(
+          () => observed.add(bus.channelsSignal.value.length),
+        );
+        addTearDown(dispose);
+
+        bus.channelOrNull('nonexistent');
+
+        expect(observed, [0]); // only the initial fire
+      },
+    );
+
+    test('accessing same channel twice does not re-fire channelsSignal', () {
+      // Pre-create 'x' before subscribing so the effect starts at length 1.
+      final bus = MessageBus()..channel('x');
+      final observed = <int>[];
+      final dispose = effect(
+        () => observed.add(bus.channelsSignal.value.length),
+      );
+      addTearDown(dispose);
+
+      bus.channel('x'); // access existing — no new creation event
+
+      expect(observed, [1]); // only the initial fire
+    });
+
+    test('bus.send auto-creates channel and updates channelsSignal', () {
+      final bus = MessageBus();
+      final observed = <Map<String, MessageChannel>>[];
+      final dispose = effect(
+        () => observed.add(Map.from(bus.channelsSignal.value)),
+      );
+      addTearDown(dispose);
+
+      bus.send('work', 42);
+
+      expect(observed.last.keys, contains('work'));
+    });
+
+    test('channel snapshotSignal updates flow through shared bus', () async {
+      final bus = MessageBus();
+
+      // Simulate parent plugin and child plugin sharing the same bus.
+      final parentCh = bus.channel('shared');
+      final childCh = bus.channel('shared'); // same object
+      expect(identical(parentCh, childCh), isTrue);
+
+      final observed = <ChannelSnapshot>[];
+      final dispose = effect(
+        () => observed.add(parentCh.snapshotSignal.value),
+      );
+      addTearDown(dispose);
+
+      // Child sends; parent's signal updates because it's the same channel.
+      childCh.send('from_child');
+      expect(observed.last.sendCount, 1);
     });
   });
 
