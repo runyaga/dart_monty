@@ -224,6 +224,23 @@ class DefaultMontyBridge implements MontyBridge {
   bool _isExecuting = false;
   bool _isDisposed = false;
 
+  // Stream wrappers registered by PluginRegistry for plugins that override
+  // wrapExecuteStream. Applied in registration order (first = outermost).
+  final List<Stream<BridgeEvent> Function(String, Stream<BridgeEvent>)>
+      _streamWrappers = [];
+
+  /// Registers a stream wrapper callback from a plugin.
+  ///
+  /// Called by `PluginRegistry` during `PluginRegistry.attachTo` for each
+  /// plugin whose `MontyPlugin.hasStreamWrapper` returns `true`.
+  @internal
+  void addStreamWrapper(
+    Stream<BridgeEvent> Function(String code, Stream<BridgeEvent> stream)
+        wrapper,
+  ) {
+    _streamWrappers.add(wrapper);
+  }
+
   @override
   BridgeLogger get logger => log;
 
@@ -293,7 +310,12 @@ class DefaultMontyBridge implements MontyBridge {
       }),
     );
 
-    return controller.stream;
+    // Apply plugin stream wrappers in registration order.
+    var stream = controller.stream;
+    for (final wrap in _streamWrappers) {
+      stream = wrap(code, stream);
+    }
+    return stream;
   }
 
   @override

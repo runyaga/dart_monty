@@ -1,5 +1,6 @@
 import 'dart:collection';
 
+import 'package:dart_monty/src/bridge/bridge/default_monty_bridge.dart';
 import 'package:dart_monty/src/bridge/bridge/host_function.dart';
 import 'package:dart_monty/src/bridge/bridge/introspection_functions.dart';
 import 'package:dart_monty/src/bridge/bridge/monty_bridge.dart';
@@ -36,6 +37,23 @@ void _attachExtraFunctions(
     'Registered extra functions',
     attributes: {'count': extraFunctions.length},
   );
+}
+
+/// Registers stream wrappers for plugins that set
+/// `MontyPlugin.hasStreamWrapper` to `true`.
+///
+/// Only called when [bridge] is a `DefaultMontyBridge` — stream wrapping is a
+/// `DefaultMontyBridge`-level feature not part of the `MontyBridge` interface.
+void _attachStreamWrappers(
+  List<MontyPlugin> attachOrder,
+  MontyBridge bridge,
+) {
+  if (bridge is! DefaultMontyBridge) return;
+  for (final plugin in attachOrder) {
+    if (plugin.hasStreamWrapper) {
+      bridge.addStreamWrapper(plugin.wrapExecuteStream);
+    }
+  }
 }
 
 /// Calls [MontyPlugin.onRegister] for each plugin in [attachOrder], collecting
@@ -146,6 +164,7 @@ class PluginRegistry {
     _attachOrder = attachOrder;
 
     _attachPluginFunctions(attachOrder, bridge);
+    _attachStreamWrappers(attachOrder, bridge);
     if (extraFunctions != null && extraFunctions.isNotEmpty) {
       _attachExtraFunctions(extraFunctions, bridge, _log);
     }

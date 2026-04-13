@@ -1,3 +1,4 @@
+import 'package:dart_monty/src/bridge/bridge/bridge_event.dart';
 import 'package:dart_monty/src/bridge/bridge/host_function.dart';
 import 'package:dart_monty/src/bridge/bridge/monty_bridge.dart';
 import 'package:dart_monty/src/platform/bridge_logger.dart';
@@ -85,4 +86,26 @@ abstract class MontyPlugin {
   /// can use [ChildSpawnContext.workingDirectory] to create a private
   /// directory for the child.
   MontyPlugin? createChildInstance({ChildSpawnContext? context}) => null;
+
+  /// Returns `true` if this plugin overrides [wrapExecuteStream].
+  ///
+  /// `PluginRegistry` uses this opt-in flag to skip no-op wrapper
+  /// registration. Override to return `true` when [wrapExecuteStream]
+  /// is also overridden.
+  bool get hasStreamWrapper => false;
+
+  /// Wraps the execution stream produced by `DefaultMontyBridge.execute`.
+  ///
+  /// Called by `DefaultMontyBridge.execute` after the stream is created.
+  /// Plugins that need to observe or transform the stream override this and
+  /// set [hasStreamWrapper] to `true`.
+  ///
+  /// The default is a passthrough — return [stream] unchanged.
+  ///
+  /// Implementations must not swallow events. Map or tap and forward each
+  /// event. Return a broadcast stream only if [stream] is already broadcast.
+  Stream<BridgeEvent> wrapExecuteStream(
+    String code,
+    Stream<BridgeEvent> stream,
+  ) => stream;
 }
