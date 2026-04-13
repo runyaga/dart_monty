@@ -92,14 +92,14 @@ class StoragePlugin extends MontyPlugin {
       );
     }
     await _backend.set(args['key']! as String, value);
-    unawaited(_updateSignal());
+    await _updateSignal();
 
     return null;
   }
 
   Future<Object?> _handleDelete(Map<String, Object?> args) async {
     await _backend.delete(args['key']! as String);
-    unawaited(_updateSignal());
+    await _updateSignal();
 
     return null;
   }
@@ -116,7 +116,7 @@ class StoragePlugin extends MontyPlugin {
 
   Future<Object?> _handleClear(Map<String, Object?> args) async {
     await _backend.clear();
-    unawaited(_updateSignal());
+    await _updateSignal();
 
     return null;
   }
@@ -208,13 +208,16 @@ class StorageFsOsProvider extends OsProvider {
   }
 
   String? _extractPath(MontyOsCall call) {
-    // Standard Path.* calls pass the path as the first positional argument.
+    // Path.* calls pass the path as the first positional argument.
+    // It may be a MontyString (raw string) or MontyPath (pathlib import case).
     final first = call.arguments.firstOrNull;
     if (first is MontyString) return first.value;
+    if (first is MontyPath) return first.value;
 
     // Check kwargs just in case.
     final path = call.kwargs?['path'];
     if (path is MontyString) return path.value;
+    if (path is MontyPath) return path.value;
 
     return null;
   }

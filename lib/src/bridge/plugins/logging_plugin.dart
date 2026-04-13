@@ -50,7 +50,7 @@ class _MontyHandler(_logging.Handler):
     def flush(self):
         if self._batch:
             try:
-                log_log_event_batch(batch=self._batch)
+                log_event_batch(batch=self._batch)
                 self._batch = []
             except Exception:
                 pass
