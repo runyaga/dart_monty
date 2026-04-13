@@ -6,8 +6,6 @@ import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:dart_monty/dart_monty_testing.dart';
 import 'package:dart_monty/monty_backend_spi.dart';
 import 'package:dart_monty/src/bridge/bridge/default_monty_bridge.dart';
-import 'package:dart_monty/src/bridge/bridge/plugin_registry.dart';
-import 'package:dart_monty/src/bridge/plugins/event_loop_plugin.dart';
 import 'package:signals_core/signals_core.dart';
 import 'package:test/test.dart';
 
@@ -25,8 +23,8 @@ void main() {
   setUp(() {
     mock = MockMontyPlatform();
     plugin = EventLoopPlugin();
-    bridge = DefaultMontyBridge(platform: mock, useFutures: true);
-    bridge.addStreamWrapper(plugin.wrapExecuteStream);
+    bridge = DefaultMontyBridge(platform: mock)
+      ..addStreamWrapper(plugin.wrapExecuteStream);
     for (final fn in plugin.functions) {
       bridge.register(fn, category: plugin.namespace);
     }
@@ -701,8 +699,7 @@ void main() {
       final syncBridge = DefaultMontyBridge(
         platform: syncMock,
         useFutures: false,
-      );
-      syncBridge.addStreamWrapper(syncPlugin.wrapExecuteStream);
+      )..addStreamWrapper(syncPlugin.wrapExecuteStream);
       for (final fn in syncPlugin.functions) {
         syncBridge.register(fn, category: syncPlugin.namespace);
       }
@@ -921,7 +918,7 @@ void main() {
           reason: 'must be a fresh independent instance',
         );
 
-        final childPlugin = child! as EventLoopPlugin;
+        final childPlugin = child as EventLoopPlugin;
         expect(childPlugin.channelState, const BridgeChannelIdle());
 
         // Disposing the child must not affect the parent.
@@ -933,18 +930,15 @@ void main() {
 
   group('PluginRegistry integration', () {
     test('PluginRegistry.attachTo wires stream wrapper', () async {
-      final mock2 = MockMontyPlatform();
-      mock2.enqueueProgress(
-        const MontyComplete(
-          result: MontyResult(value: MontyNull(), usage: _usage),
-        ),
-      );
+      final mock2 = MockMontyPlatform()
+        ..enqueueProgress(
+          const MontyComplete(
+            result: MontyResult(value: MontyNull(), usage: _usage),
+          ),
+        );
       final plugin2 = EventLoopPlugin();
       final registry = PluginRegistry()..register(plugin2);
-      final bridge2 = DefaultMontyBridge(
-        platform: mock2,
-        useFutures: true,
-      );
+      final bridge2 = DefaultMontyBridge(platform: mock2);
       await registry.attachTo(bridge2);
 
       final events = await bridge2.execute('pass').toList();
