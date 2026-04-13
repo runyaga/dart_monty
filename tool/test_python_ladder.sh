@@ -5,9 +5,19 @@
 # Runs all 34 fixtures on both native FFI and web WASM paths.
 # Reports per-tier pass/fail.
 #
-# Usage: bash tool/test_python_ladder.sh
+# Usage: bash tool/test_python_ladder.sh [--verbose|-v]
+#   --verbose / -v   Print individual test names and LADDER_RESULT lines.
+#                    Default: one summary line per platform.
 # =============================================================================
 set -euo pipefail
+
+VERBOSE=false
+for arg in "$@"; do
+  case "$arg" in
+    --verbose|-v) VERBOSE=true ;;
+    *) echo "Unknown argument: $arg" >&2; exit 1 ;;
+  esac
+done
 
 ROOT="$(git rev-parse --show-toplevel)"
 SPIKE="$ROOT/spike/web_test"
@@ -62,7 +72,7 @@ check_ladder_results() {
     fi
   done <<< "$results"
 
-  echo "  $label: $total fixtures, $passed passed, $failed failed"
+  echo "  $label $total fixtures — $passed passed, $failed failed"
 }
 
 # Print final failure report
@@ -98,81 +108,92 @@ report_failures() {
   return 0
 }
 
-echo "=== M3C Gate: Python Compatibility Ladder ==="
-echo ""
+if $VERBOSE; then
+  echo "=== M3C Gate: Python Compatibility Ladder ==="
+  echo ""
+fi
 
 # -------------------------------------------------------
 # Step 1: Build native library (if needed)
 # -------------------------------------------------------
-echo "--- Building native library ---"
 if [ ! -f "$ROOT/native/target/release/libdart_monty_native.dylib" ] && \
    [ ! -f "$ROOT/native/target/release/libdart_monty_native.so" ]; then
+  if $VERBOSE; then echo "--- Building native library ---"; fi
   cd "$ROOT/native"
   cargo build --release
-else
-  echo "  Native library already built, skipping."
 fi
 
 # -------------------------------------------------------
 # Step 2: Run native ladder tests
 # -------------------------------------------------------
 echo ""
-echo "--- Native ladder tests (dart test --tags=ladder) ---"
 cd "$ROOT"
-dart test --run-skipped --tags=ladder test/ffi/integration/
+NATIVE_LOG=$(mktemp)
+if $VERBOSE; then
+  echo "--- Native ladder tests (dart test --tags=ladder) ---"
+  dart test --run-skipped --tags=ladder test/ffi/integration/ 2>&1 | tee "$NATIVE_LOG"
+else
+  dart test --run-skipped --tags=ladder test/ffi/integration/ >"$NATIVE_LOG" 2>&1
+fi
 
-echo ""
-echo "  Native ladder: PASSED"
+# Extract summary — last line matching "N tests passed" or "N: ..." pattern
+NATIVE_SUMMARY=$(grep -oE '[0-9]+ tests? passed' "$NATIVE_LOG" | tail -1 || true)
+if [ -z "$NATIVE_SUMMARY" ]; then
+  NATIVE_SUMMARY=$(tail -1 "$NATIVE_LOG")
+fi
+rm -f "$NATIVE_LOG"
+echo "  FFI   $NATIVE_SUMMARY"
 
 # -------------------------------------------------------
 # Step 3: Build web bundle
 # -------------------------------------------------------
 echo ""
-echo "--- Building web bundle ---"
+if $VERBOSE; then
+  echo "--- Building web bundle ---"
+fi
 cd "$SPIKE"
 # --force: @pydantic/monty-wasm32-wasi declares cpu:wasm32 but the WASM binary
 # is architecture-independent. Without --force, npm refuses on ARM64 hosts.
 # See: https://github.com/runyaga/monty/issues/4
-npm install --force
+npm install --force >/dev/null 2>&1
 
-echo "  esbuild: bundle worker"
 npx esbuild web/monty_worker_src.js \
   --bundle \
   --format=esm \
   --outfile=web/monty_worker.js \
   --platform=browser \
   --external:'*.wasm' \
-  --log-level=warning
+  --log-level=warning \
+  >/dev/null 2>&1
 
 cp node_modules/@pydantic/monty-wasm32-wasi/monty.wasm32-wasi.wasm web/ 2>/dev/null || true
 
-echo "  esbuild: bundle glue"
 npx esbuild web/monty_glue.js \
   --bundle \
   --format=iife \
   --outfile=web/monty_bundle.js \
   --platform=browser \
-  --log-level=warning
+  --log-level=warning \
+  >/dev/null 2>&1
 
 # -------------------------------------------------------
 # Step 4: Compile ladder runner to JS
 # -------------------------------------------------------
-echo "  dart compile js: ladder_runner"
-dart pub get
-dart compile js bin/ladder_runner.dart -o web/ladder_runner.dart.js
+dart pub get >/dev/null 2>&1
+dart compile js bin/ladder_runner.dart -o web/ladder_runner.dart.js >/dev/null 2>&1
 
 # -------------------------------------------------------
 # Step 5: Copy fixtures to web/fixtures/
 # -------------------------------------------------------
-echo "  Copying fixtures to web/fixtures/"
 mkdir -p web/fixtures
 cp "$ROOT"/test/fixtures/python_ladder/tier_*.json web/fixtures/
 
 # -------------------------------------------------------
 # Step 6: Serve and run headless Chrome
 # -------------------------------------------------------
-echo ""
-echo "--- Web ladder tests (headless Chrome) ---"
+if $VERBOSE; then
+  echo "--- Web ladder tests (headless Chrome) ---"
+fi
 
 SERVE_PORT=8098
 SERVE_PID=""
@@ -214,7 +235,9 @@ server.serve_forever()
 SERVE_PID=$!
 sleep 1
 
-echo "  Server running on http://127.0.0.1:$SERVE_PORT (PID $SERVE_PID)"
+if $VERBOSE; then
+  echo "  Server running on http://127.0.0.1:$SERVE_PORT (PID $SERVE_PID)"
+fi
 
 # Detect Chrome
 CHROME=""
@@ -229,13 +252,11 @@ elif command -v chromium &>/dev/null; then
 fi
 
 if [ -z "$CHROME" ]; then
-  echo "  WARN: Chrome not found. Skipping web ladder verification."
+  echo "  WASM  SKIPPED (Chrome not found)"
   echo ""
-  echo "=== M3C Ladder: Native PASSED, Web SKIPPED (no Chrome) ==="
+  echo "=== Ladder: PASSED (FFI only — rerun with Chrome for WASM) ==="
   exit 0
 fi
-
-echo "  Using: $CHROME"
 
 CONSOLE_LOG=$(mktemp)
 
@@ -249,41 +270,36 @@ timeout 60 "$CHROME" \
   "http://127.0.0.1:$SERVE_PORT/ladder_runner.html" \
   2>"$CONSOLE_LOG" || true
 
-# Extract LADDER_RESULT lines from Chrome console output
-echo ""
-echo "--- Web results ---"
 WEB_RESULTS=$(grep -o 'LADDER_RESULT:{.*}' "$CONSOLE_LOG" 2>/dev/null || true)
 
 if [ -z "$WEB_RESULTS" ]; then
-  echo "  WARN: No LADDER_RESULT lines captured from Chrome."
-  echo "  Raw console output:"
-  grep -i "CONSOLE" "$CONSOLE_LOG" | head -30 || echo "  (no output)"
+  echo "  WASM  INCONCLUSIVE (no LADDER_RESULT lines from Chrome)"
+  if $VERBOSE; then
+    grep -i "CONSOLE" "$CONSOLE_LOG" | head -30 || echo "  (no console output)"
+  fi
   rm -f "$CONSOLE_LOG"
   echo ""
-  echo "=== M3C Ladder: Native PASSED, Web INCONCLUSIVE ==="
+  echo "=== Ladder: PASSED (FFI only — WASM inconclusive) ==="
   exit 0
 fi
 
-echo "$WEB_RESULTS" | while IFS= read -r line; do
-  echo "  $line"
-done
-
-LADDER_DONE=$(grep -c 'LADDER_DONE' "$CONSOLE_LOG" 2>/dev/null || echo "0")
+if $VERBOSE; then
+  echo ""
+  echo "--- WASM LADDER_RESULT lines ---"
+  echo "$WEB_RESULTS" | while IFS= read -r line; do
+    echo "  $line"
+  done
+fi
 
 rm -f "$CONSOLE_LOG"
 
-check_ladder_results "$WEB_RESULTS" "web-spike"
+check_ladder_results "$WEB_RESULTS" "WASM"
 
-echo ""
-echo "  Web spike ladder: checked"
-
-echo ""
-echo "--- Ladder failure report ---"
 if report_failures; then
   echo ""
-  echo "=== Ladder: PASSED (native and web spike) ==="
+  echo "=== Ladder: PASSED ==="
 else
   echo ""
-  echo "=== Ladder: FAILED (new regressions detected) ==="
+  echo "=== Ladder: FAILED ==="
   exit 1
 fi
