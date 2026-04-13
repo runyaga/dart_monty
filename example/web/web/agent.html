@@ -254,6 +254,27 @@
     .event-type-text { color: var(--yellow); }
     .event-type-error { color: var(--red); }
     .event-type-step { color: var(--orange); }
+    .event-type-waiting { color: var(--red); font-weight: 600; }
+    .event-type-resumed { color: var(--green); font-weight: 600; }
+    .event-type-emitted { color: var(--cyan); }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    #waitingBanner {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      background: rgba(247, 118, 142, 0.12);
+      border-top: 1px solid var(--red);
+      font-size: 12px;
+      color: var(--red);
+      font-weight: 600;
+    }
+    #waitingBanner span.arrow { color: var(--cyan); }
 
     .event-detail {
       color: var(--text-dim);
@@ -393,14 +414,15 @@ x = 42
 greeting = "hello"
 x</textarea>
       </div>
+      <div id="waitingBanner">⏸ Python is blocked on msg_recv — <span class="arrow">click Push → to unblock it</span></div>
       <div id="dartPushBar" style="padding:6px 10px;background:var(--surface2);border-top:1px solid var(--border);display:flex;gap:6px;align-items:center;">
         <span style="font-size:11px;color:var(--cyan);font-weight:600;white-space:nowrap;">Dart →</span>
         <input id="dartPushChannel" type="text" value="dart_input" placeholder="channel"
           style="font-family:var(--mono);font-size:12px;padding:3px 7px;background:var(--surface);border:1px solid var(--border);border-radius:4px;color:var(--text);width:100px;">
         <input id="dartPushMessage" type="text" value='{"greeting":"hello from Dart","n":42}' placeholder='{"key":"value"}'
           style="font-family:var(--mono);font-size:12px;padding:3px 7px;background:var(--surface);border:1px solid var(--border);border-radius:4px;color:var(--text);flex:1;">
-        <button id="dartPushBtn"
-          style="font-size:12px;padding:3px 10px;background:var(--accent);border:none;border-radius:4px;color:#1a1b26;font-weight:600;cursor:pointer;white-space:nowrap;">
+        <button id="dartPushBtn" disabled
+          style="font-size:12px;padding:3px 10px;background:var(--accent);border:none;border-radius:4px;color:#1a1b26;font-weight:600;cursor:pointer;white-space:nowrap;opacity:0.4;">
           Push →
         </button>
         <span id="dartPushFeedback" style="font-size:11px;color:var(--text-dim);white-space:nowrap;"></span>
@@ -476,6 +498,17 @@ x</textarea>
       countEl.textContent = _eventCount;
       if (_eventCount === 1) el.innerHTML = '';
 
+      // Visual indicator: Python blocked on msg_recv / unblocked
+      const pushBtn = document.getElementById('dartPushBtn');
+      const waitingBanner = document.getElementById('waitingBanner');
+      if (event.type === 'ToolCallStart' && event.name === 'msg_recv') {
+        if (waitingBanner) { waitingBanner.style.display = 'flex'; }
+        if (pushBtn) { pushBtn.disabled = false; pushBtn.style.opacity = '1'; pushBtn.style.animation = 'pulse 1s infinite'; }
+      } else if (event.type === 'ToolCallResult' || event.type === 'RunFinished' || event.type === 'RunError') {
+        if (waitingBanner) { waitingBanner.style.display = 'none'; }
+        if (pushBtn) { pushBtn.disabled = true; pushBtn.style.opacity = '0.4'; pushBtn.style.animation = ''; }
+      }
+
       const div = document.createElement('div');
       div.className = 'event-entry';
 
@@ -497,12 +530,15 @@ x</textarea>
     };
 
     function getEventTypeClass(type) {
+      if (type === 'RunError') return 'event-type-error';
       if (type.startsWith('Run')) return 'event-type-run';
       if (type.startsWith('Tool')) return 'event-type-tool';
       if (type.startsWith('OsCall')) return 'event-type-os';
       if (type.startsWith('Text')) return 'event-type-text';
       if (type.startsWith('Step')) return 'event-type-step';
-      if (type === 'RunError') return 'event-type-error';
+      if (type === 'EventLoopWaiting') return 'event-type-waiting';
+      if (type === 'EventLoopResumed') return 'event-type-resumed';
+      if (type === 'Emitted') return 'event-type-emitted';
       return '';
     }
 
@@ -517,6 +553,9 @@ x</textarea>
         case 'OsCallStart': return event.operationName + (event.argumentSummary ? ' ' + event.argumentSummary : '');
         case 'OsCallResult': return event.result + (event.durationMs != null ? ' [' + event.durationMs + 'ms]' : '');
         case 'TextContent': return event.delta;
+        case 'EventLoopWaiting': return '⏸ Python blocked — waiting for Dart push';
+        case 'EventLoopResumed': return '▶ Python unblocked with: ' + JSON.stringify(event.event);
+        case 'Emitted': return JSON.stringify(event.value);
         default: return JSON.stringify(event);
       }
     }
@@ -709,9 +748,9 @@ x</textarea>
 
       // --- MessageBus v0.20 examples ---
 
-      dartpush: "# DART \u2192 PYTHON LIVE PUSH\n# Python blocks here on msg_recv. While it's waiting,\n# use the 'Dart \u2192' bar below the editor:\n#   channel: dart_input   message: {\"greeting\":\"hello\",\"n\":42}\n# Click Push \u2192 — Python unblocks instantly with your payload.\n#\n# This works because MessageBus is now a shared Dart object:\n#   Dart calls  bus.channel('dart_input').send(payload)\n#   Python calls msg_recv(name='dart_input')\n# Both sides of the bridge touch the same MessageChannel.\n\nprint('Python: blocking on msg_recv, waiting for Dart push...')\npayload = msg_recv(name='dart_input', timeout_ms=30000)\nprint(f'Python: received {payload!r}')\n\n{\n    'received': payload,\n    'value_type': type(payload).__name__,\n    'came_from': 'Dart via shared MessageBus',\n}",
+      dartpush: "# DART \u2192 PYTHON LIVE PUSH\n#\n# STEP 1: Click Execute. Python starts and immediately\n#         blocks at msg_recv — the red banner appears.\n# STEP 2: Click Push \u2192 in the bar below.\n#         Python receives your JSON and finishes.\n#\n# Why this works: both sides use the SAME MessageChannel\n# object in Dart. Push calls channel.send() from Dart;\n# msg_recv() is waiting on the same channel from Python.\n\npayload = msg_recv(name='dart_input')\n\n{\n    'received': payload,\n    'type': type(payload).__name__,\n    'note': 'this value was pushed from Dart'\n}",
 
-      msgstats: "# CHANNEL TELEMETRY (msg_stats + ChannelSnapshot)\n# msg_stats() returns a live snapshot: queue depth,\n# send/recv counts, peak depth, and closed flag.\n# Driven by ChannelSnapshot in the new reactive bus.\n\n# Phase 1: queue 5 messages without reading any\nfor i in range(5):\n    msg_send(name='meter', message=f'item-{i}')\n\nafter_sends = msg_stats(name='meter')\n\n# Phase 2: drain 3, check counters again\nfor _ in range(3):\n    msg_recv(name='meter')\n\nafter_drain = msg_stats(name='meter')\n\n# Phase 3: close and confirm\nmsg_close(name='meter')\nafter_close = msg_stats(name='meter')\n\n# Query a channel that was never touched\nnever_used = msg_stats(name='ghost')\n\n{\n    'after_5_sends':  after_sends,\n    'after_3_recvs':  after_drain,\n    'after_close':    after_close,\n    'never_used':     never_used,\n    'peak_was_5':     after_drain['peak_queue_depth'] == 5,\n    'count_checks_out': (\n        after_drain['send_count'] == 5 and\n        after_drain['recv_count'] == 3 and\n        after_drain['queue_depth'] == 2\n    ),\n}",
+      msgstats: "# CHANNEL TELEMETRY — msg_stats()\n# Answers: is my queue backing up? Did any messages get lost?\n\nbefore = msg_stats(name='work')\nprint(f\"before:    exists={before['exists']}, depth={before['queue_depth']}\")\n\n# Fast producer: queues 5 tasks without waiting\nproducer = sandbox_spawn(code='''\nfor i in range(5):\n    msg_send(name=\"work\", message=i)\n''')\nsandbox_await(handle=producer)\n\nbacked_up = msg_stats(name='work')\nprint(f\"backed_up: depth={backed_up['queue_depth']}, sent={backed_up['send_count']}\")\n\n# Drain all messages\nwhile msg_peek(name='work') is not None:\n    msg_recv(name='work')\n\ndrained = msg_stats(name='work')\nprint(f\"drained:   depth={drained['queue_depth']}, peak={drained['peak_queue_depth']}, recvd={drained['recv_count']}\")\n\n# peak_queue_depth is the high-water mark — survives draining\nbacked_up['send_count'] == drained['recv_count']  # nothing lost",
 
       drain: "# END-OF-STREAM DRAIN PATTERN\n# Producer sends N items then closes the channel.\n# Consumer reads until msg_recv returns None (channel closed + empty).\n# This is the idiomatic way to signal end-of-stream.\n\nproducer = sandbox_spawn(code='''\nfor item in ['alpha', 'beta', 'gamma', 'delta']:\n    msg_send(name=\"stream\", message=item)\nmsg_close(name=\"stream\")  # <-- signals end-of-stream\n{\"sent\": 4}\n''')\n\n# Consumer drains until channel closed+empty\nreceived = []\nwhile True:\n    item = msg_recv(name='stream', timeout_ms=5000)\n    if item is None:   # None == channel closed and empty\n        break\n    received.append(item)\n\nproducer_result = sandbox_await(handle=producer)\nstats = msg_stats(name='stream')\n\n{\n    'producer': producer_result,\n    'received': received,\n    'count': len(received),\n    'channel_closed': stats['closed'],\n    'correct_order': received == ['alpha', 'beta', 'gamma', 'delta'],\n}",
 
@@ -737,7 +776,7 @@ x</textarea>
       bidir: 'Parent sends a work task via message bus, child processes it and sends the result back. Full round-trip.',
       childfs: 'Each child gets its own isolated VFS. Children write files independently; parent filesystem is unaffected.',
       combined: 'Everything together: templates, message bus, filesystem, and host functions in a single execution.',
-      dartpush: 'Python blocks on msg_recv(). Use the Dart → bar below the editor to push JSON from Dart. Python unblocks instantly — same MessageBus, both sides.',
+      dartpush: 'Step 1: click Execute — Python blocks on msg_recv and a red banner appears. Step 2: click Push → — Python receives your JSON instantly and the result shows what arrived. Both sides share the same MessageChannel object in Dart.',
       msgstats: 'msg_stats() returns a live ChannelSnapshot: queue depth, send/recv counts, peak depth, closed flag. Powered by the new reactive MessageChannel.',
       drain: 'Producer sends items then calls msg_close(). Consumer loops msg_recv() until None — the idiomatic end-of-stream signal for message channels.',
       workerpool: '9 tasks queued on a shared channel. 3 parallel workers pull from it until they receive a None sentinel. Tasks distribute across workers automatically.',
