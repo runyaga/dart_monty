@@ -500,6 +500,15 @@ class SandboxPlugin extends MontyPlugin {
       code.length,
     );
 
+    // Post-await disposed check — the plugin may have been disposed while
+    // _createChildPlatformAndBridge was in flight.
+    if (_disposed) {
+      bridge.dispose();
+      await platform.dispose();
+      if (childRegistry != null) await childRegistry.disposeAll();
+      throw StateError('SandboxPlugin was disposed during child spawn.');
+    }
+
     final completer = Completer<Object?>();
     completer.future.ignore();
     logger.info(

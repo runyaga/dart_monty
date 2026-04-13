@@ -268,6 +268,7 @@ class AgentSession {
   Future<void> dispose() async {
     if (_disposed) return;
     _disposed = true;
+    if (_sharedRegistry != null) await _sharedRegistry!.disposeAll();
     _sharedBridge?.dispose();
     _schemaBridge?.dispose();
     await _sharedMonty?.dispose();
@@ -305,8 +306,9 @@ class AgentSession {
     final monty = Monty(os: _os);
     final b = _buildBridge(platform: monty.platform);
 
+    PluginRegistry? registry;
     if (_plugins != null && _plugins.isNotEmpty) {
-      final registry = PluginRegistry();
+      registry = PluginRegistry();
       _plugins.forEach(registry.register);
       await registry.attachTo(b);
     }
@@ -318,6 +320,7 @@ class AgentSession {
 
       return _extractBridgeResult(events);
     } finally {
+      if (registry != null) await registry.disposeAll();
       b.dispose();
       await monty.dispose();
     }

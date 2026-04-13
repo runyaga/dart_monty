@@ -873,6 +873,57 @@ void main() {
         await plugin.onDispose();
       });
 
+      test(
+        'dispose during child creation cleans up and spawn throws',
+        () async {
+          // Regression test for #264 — post-await _disposed check in
+          // _handleSpawn.
+          //
+          // Without the fix, the child platform would be created and added to
+          // _children after onDispose() returned, leaking it permanently.
+          // With the fix, the platform is disposed and spawn throws StateError.
+          final platformCompleter = Completer<MontyPlatform>();
+          late _SlowMockPlatform createdPlatform;
+
+          final plugin = SandboxPlugin(
+            platformFactory: () async {
+              createdPlatform = _SlowMockPlatform(
+                // Platform.start() never returns — child stays alive while we
+                // test the race.
+                Completer<MontyProgress>().future,
+              );
+              platformCompleter.complete(createdPlatform);
+
+              return createdPlatform;
+            },
+          );
+          final spawn = _findHandler(plugin, 'sandbox_spawn');
+
+          // Start spawn — hangs inside _createChildPlatformAndBridge at the
+          // await platformFactory() call.
+          final spawnFuture = spawn({'code': '1'});
+
+          // Wait until the factory has been entered (platform is now being
+          // created) then dispose the plugin while spawn is in flight.
+          await platformCompleter.future;
+          await plugin.onDispose();
+
+          // spawn should throw StateError and the created platform must be
+          // disposed by the post-await cleanup.
+          await expectLater(spawnFuture, throwsStateError);
+          expect(
+            createdPlatform.isDisposed,
+            isTrue,
+            reason: 'platform created during disposed spawn must be torn down',
+          );
+          expect(
+            plugin.childrenSignal.value,
+            isEmpty,
+            reason: 'disposed-mid-spawn child must not appear in children',
+          );
+        },
+      );
+
       test('completed children are not torn down again', () async {
         final mock = _completingMock();
         final plugin = SandboxPlugin(platformFactory: () async => mock);

@@ -355,6 +355,83 @@ result
     });
   });
 
+  group('AgentSession plugin lifecycle (#296)', () {
+    test('dispose() calls onDispose on shared-mode plugins', () async {
+      // Regression test for #296 — dispose() never called
+      // PluginRegistry.disposeAll().
+      //
+      // Without the fix, _onDisposeCalled stays false after dispose().
+      // With the fix, disposeAll() propagates to each plugin's onDispose().
+      final plugin = _TrackingPlugin();
+      final session = AgentSession(plugins: [plugin]);
+
+      await session.execute('pass'); // triggers attachTo
+      await session.dispose();
+
+      expect(
+        plugin.onDisposeCalled,
+        isTrue,
+        reason: 'plugin.onDispose must be called when session is disposed',
+      );
+    });
+
+    test('dispose() calls onDispose even without prior execute()', () async {
+      // Plugins registered but never attached (no execute() called) must
+      // still have onDispose called — disposeAll() iterates _plugins when
+      // _attachOrder is null, so this works once disposeAll() is invoked.
+      final plugin = _TrackingPlugin();
+      final session = AgentSession(plugins: [plugin]);
+
+      await session.dispose();
+
+      expect(
+        plugin.onDisposeCalled,
+        isTrue,
+        reason: 'onDispose must be called even without a prior execute()',
+      );
+    });
+
+    test(
+      'sandbox mode: plugin onDispose called after each execute()',
+      () async {
+        // In sandbox mode a fresh PluginRegistry is created per execute() and
+        // must be disposed in the finally block regardless of success or error.
+        final plugin = _TrackingPlugin();
+        final session = AgentSession(sandbox: true, plugins: [plugin]);
+        addTearDown(session.dispose);
+
+        await session.execute('pass');
+        expect(plugin.disposeCount, 1);
+
+        await session.execute('pass');
+        expect(
+          plugin.disposeCount,
+          2,
+          reason: 'each sandboxed execute() must dispose its per-call registry',
+        );
+      },
+    );
+
+    test(
+      'sandbox mode: plugin onDispose called even when execute() throws',
+      () async {
+        // The finally block must run even on error — verifies no leak when
+        // Python raises an exception.
+        final plugin = _TrackingPlugin();
+        final session = AgentSession(sandbox: true, plugins: [plugin]);
+        addTearDown(session.dispose);
+
+        await session.execute('raise ValueError("boom")');
+
+        expect(
+          plugin.disposeCount,
+          1,
+          reason: 'registry must be disposed even when Python raises',
+        );
+      },
+    );
+  });
+
   group('AgentSession event streaming', () {
     test('executeStream emits events', () async {
       final session = AgentSession();
@@ -390,4 +467,27 @@ result
       expect(finished.value, 'Hello test!');
     });
   });
+}
+
+// ---------------------------------------------------------------------------
+// Test helpers
+// ---------------------------------------------------------------------------
+
+/// Plugin that records how many times [onDispose] was called.
+class _TrackingPlugin extends MontyPlugin {
+  bool onDisposeCalled = false;
+  int disposeCount = 0;
+
+  @override
+  String get namespace => 'track';
+
+  @override
+  List<HostFunction> get functions => [];
+
+  @override
+  Future<void> onDispose() async {
+    await super.onDispose();
+    onDisposeCalled = true;
+    disposeCount++;
+  }
 }
