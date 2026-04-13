@@ -19,6 +19,7 @@ export 'src/monty.dart';
 export 'src/platform/monty_error.dart';
 export 'src/platform/monty_exception.dart';
 export 'src/platform/monty_limits.dart';
+export 'src/platform/monty_progress.dart';
 export 'src/platform/monty_resource_usage.dart';
 export 'src/platform/monty_result.dart';
 export 'src/platform/monty_stack_frame.dart';
