@@ -40,12 +40,7 @@ The grounding layer uses an "Onion" middleware model to wrap tool execution in m
 1. **Input Grounding**: Sanitizing arguments (e.g., stripping SQL injection patterns or PII) before they reach the tool handler.
 2. **Output Grounding**: Asserting invariants on the data returned to the LLM. If a tool returns malformed data or sensitive information, the middleware can redact it or throw an error before the LLM sees it.
 
-```dart
-// Example: Ensure 'fetch' only returns data from approved domains
-bridge.use(GroundingMiddleware(validators: {
-  'fetch': (result) => result['url'].startsWith('https://api.trusted.com'),
-}));
-```
+See the [Middleware Tutorial](../tutorials/bridge-middleware.md) for implementation patterns.
 
 ## System Prompt Integrity
 
