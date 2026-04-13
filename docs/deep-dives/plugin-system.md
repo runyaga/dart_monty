@@ -10,7 +10,7 @@ first principles through production patterns.
 |-------|----------|---------------------|
 | Intro | [Host Functions Intro](../tutorials/host-functions-intro.md) | What host functions are, why they exist, and a 3-line "hello world" |
 | Beginner | [Host Functions Beginner](../tutorials/host-functions-beginner.md) | `HostFunctionSchema`, typed params, validation, error handling, `BridgeEvent` stream |
-| Intermediate | [Host Functions Intermediate](../tutorials/host-functions-intermediate.md) | `MontyPlugin`, `PluginRegistry`, namespaces, lifecycle hooks, introspection, `EventLoopBridge` |
+| Intermediate | [Host Functions Intermediate](../tutorials/host-functions-intermediate.md) | `MontyPlugin`, `PluginRegistry`, namespaces, lifecycle hooks, introspection, `EventLoopPlugin` |
 | Advanced | [Host Functions Advanced](../tutorials/host-functions-advanced.md) | `SandboxPlugin`, child spawning, depth/concurrency limits, production patterns |
 | Middleware | [Bridge Middleware](../tutorials/bridge-middleware.md) | `BridgeMiddleware`, sealed `CallRole`, onion chain, grounding, rate limiting, why `CompositePlugin` was removed |
 
