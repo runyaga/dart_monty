@@ -6,7 +6,7 @@
 
 The core of `dart_monty`'s security is the strict separation between the Python interpreter and the host environment.
 
-1. **Crate-Level Stripping**: The underlying `monty` Rust crate does not include standard Python modules that interact with the OS (like `os`, `sys`, `subprocess`, or `socket`).
+1. **Crate-Level Stripping**: The underlying `monty` Rust crate ships only a small, audited subset of the Python standard library. Modules like `subprocess` and `socket` are absent entirely. `os` and `sys` exist as stub modules — they import without error but expose almost no attributes; `os.listdir`, `os.getcwd`, and `os.path` are all absent, and `sys` only surfaces `sys.version` and `sys.platform`.
 2. **No Native Access**: Python code cannot access memory outside its own heap. It has no access to the Dart VM or the host's native pointers.
 3. **Bridge-Only Communication**: The only way for Python to interact with the outside world is through host functions explicitly registered by you on the `MontyBridge`.
 
