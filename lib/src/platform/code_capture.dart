@@ -10,6 +10,13 @@ library;
 /// Excludes `==` (comparison) and augmented assignments (`+=`, etc.).
 final assignmentPattern = RegExp(r'^([a-zA-Z]\w*)\s*=[^=]', multiLine: true);
 
+/// Matches top-level function definitions: `def identifier(`.
+///
+/// Used so `extractAssignmentTargets` can include function names in the
+/// expected-persist set, which lets the Dart-side warn the developer that
+/// user-defined functions cannot be serialised across `execute()` calls.
+final _defPattern = RegExp(r'^def\s+([a-zA-Z]\w*)\s*\(');
+
 /// Python keyword prefixes that indicate a line is a statement (not an
 /// expression). Used to detect the user code's last expression so it can
 /// be captured before the persist postamble runs.
@@ -102,10 +109,17 @@ bool isExpression(String line) {
 /// Only considers lines with no leading whitespace (top-level).
 /// Handles semicolons for multi-statement lines.
 /// Excludes names starting with `_` (internal/dunder).
+///
+/// Also captures top-level `def function_name(` declarations. Functions are
+/// included so the Dart-side persist handler can detect and warn that they
+/// were dropped (user-defined functions are not JSON-serialisable and do not
+/// survive `execute()` calls). They are filtered out by the Python-side
+/// isinstance check before `__persist_state__` is called.
 Set<String> extractAssignmentTargets(String code) {
   final names = <String>{};
   for (final line in code.split('\n')) {
     if (line.isNotEmpty && line[0] != ' ' && line[0] != '\t') {
+      // Assignments: `name = ...`
       for (final segment in line.split(';')) {
         final match = assignmentPattern.firstMatch(segment.trimLeft());
         if (match != null) {
@@ -113,6 +127,14 @@ Set<String> extractAssignmentTargets(String code) {
           if (!name.startsWith('_')) {
             names.add(name);
           }
+        }
+      }
+      // Function definitions: `def name(`
+      final defMatch = _defPattern.firstMatch(line);
+      if (defMatch != null) {
+        final name = defMatch.group(1)!;
+        if (!name.startsWith('_')) {
+          names.add(name);
         }
       }
     }

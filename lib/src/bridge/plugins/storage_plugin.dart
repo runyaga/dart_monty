@@ -92,14 +92,14 @@ class StoragePlugin extends MontyPlugin {
       );
     }
     await _backend.set(args['key']! as String, value);
-    unawaited(_updateSignal());
+    await _updateSignal();
 
     return null;
   }
 
   Future<Object?> _handleDelete(Map<String, Object?> args) async {
     await _backend.delete(args['key']! as String);
-    unawaited(_updateSignal());
+    await _updateSignal();
 
     return null;
   }
@@ -116,7 +116,7 @@ class StoragePlugin extends MontyPlugin {
 
   Future<Object?> _handleClear(Map<String, Object?> args) async {
     await _backend.clear();
-    unawaited(_updateSignal());
+    await _updateSignal();
 
     return null;
   }
