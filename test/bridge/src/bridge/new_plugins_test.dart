@@ -21,16 +21,15 @@ void main() {
     });
 
     test('schedule a periodic job and verify it posts to bus', () async {
-      // periodic:1ms is too fast for reliable testing, but we'll use it to trigger a fire.
-      final id =
-          await plugin.functions
-                  .firstWhere((f) => f.schema.name == 'cron_schedule')
-                  .handler({
-                    'expression': 'periodic:1',
-                    'channel': 'ticks',
-                    'label': 'test_job',
-                  })
-              as String;
+      // periodic:1ms is too fast for reliable testing, but we'll use it to
+      // trigger a fire.
+      final id = await plugin.functions
+          .firstWhere((f) => f.schema.name == 'cron_schedule')
+          .handler({
+            'expression': 'periodic:1',
+            'channel': 'ticks',
+            'label': 'test_job',
+          }) as String?;
 
       expect(id, startsWith('job_'));
 
@@ -40,7 +39,7 @@ void main() {
           .recv()
           .timeout(const Duration(seconds: 1));
       expect(msg, isA<Map<String, Object?>>());
-      final payload = msg as Map<String, Object?>;
+      final payload = msg! as Map<String, Object?>;
       expect(payload['job_id'], id);
       expect(payload['label'], 'test_job');
       expect(payload['fire_count'], 1);
@@ -74,36 +73,33 @@ void main() {
         if (request.url.path == '/binary') {
           return http.Response.bytes(Uint8List.fromList([1, 2, 3]), 200);
         }
+
         return http.Response('not found', 404);
       });
       plugin = HttpPlugin(client: mockClient);
     });
 
     test('http_get returns text and content', () async {
-      final result =
-          await plugin.functions
-                  .firstWhere((f) => f.schema.name == 'http_get')
-                  .handler({
-                    'url': 'http://example.com/text',
-                  })
-              as Map<String, Object?>;
+      final result = await plugin.functions
+          .firstWhere((f) => f.schema.name == 'http_get')
+          .handler({
+            'url': 'http://example.com/text',
+          }) as Map<String, Object?>?;
 
-      expect(result['status_code'], 200);
+      expect(result!['status_code'], 200);
       expect(result['text'], 'hello');
       expect(result['content'], isA<Uint8List>());
       expect(result['ok'], isTrue);
     });
 
     test('binary response handling', () async {
-      final result =
-          await plugin.functions
-                  .firstWhere((f) => f.schema.name == 'http_get')
-                  .handler({
-                    'url': 'http://example.com/binary',
-                  })
-              as Map<String, Object?>;
+      final result = await plugin.functions
+          .firstWhere((f) => f.schema.name == 'http_get')
+          .handler({
+            'url': 'http://example.com/binary',
+          }) as Map<String, Object?>?;
 
-      expect(result['status_code'], 200);
+      expect(result!['status_code'], 200);
       expect(result['content'], [1, 2, 3]);
     });
 
@@ -199,11 +195,11 @@ void main() {
 
       // Simulate Path.write_text('/storage/data.txt', contents='hello')
       await provider.resolve(
-        MontyOsCall(
+        const MontyOsCall(
           operationName: 'Path.write_text',
           arguments: [
-            const MontyString('/storage/data.txt'),
-            const MontyString('hello'),
+            MontyString('/storage/data.txt'),
+            MontyString('hello'),
           ],
         ),
       );
@@ -213,9 +209,9 @@ void main() {
 
       // Simulate Path.read_text('/storage/data.txt')
       final read = await provider.resolve(
-        MontyOsCall(
+        const MontyOsCall(
           operationName: 'Path.read_text',
-          arguments: [const MontyString('/storage/data.txt')],
+          arguments: [MontyString('/storage/data.txt')],
         ),
       );
       expect(read, 'hello');
@@ -233,11 +229,11 @@ void main() {
 
       final provider = plugin.osContribution!['Path.']!;
       await provider.resolve(
-        MontyOsCall(
+        const MontyOsCall(
           operationName: 'Path.write_text',
           arguments: [
-            const MontyString('/storage/vfs.txt'),
-            const MontyString('vfs'),
+            MontyString('/storage/vfs.txt'),
+            MontyString('vfs'),
           ],
         ),
       );

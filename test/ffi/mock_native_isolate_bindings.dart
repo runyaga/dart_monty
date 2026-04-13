@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:dart_monty/dart_monty.dart';
-import 'package:dart_monty/monty_backend_spi.dart';
 import 'package:dart_monty/src/ffi/native_isolate_bindings.dart';
 
 /// A hand-written mock of [NativeIsolateBindings] with configurable returns

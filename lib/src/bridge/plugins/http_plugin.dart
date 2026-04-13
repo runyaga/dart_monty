@@ -10,29 +10,6 @@ import 'package:dart_monty/src/bridge/bridge/monty_plugin.dart';
 import 'package:http/http.dart' as http;
 import 'package:signals_core/signals_core.dart';
 
-/// Configuration for [HttpPlugin].
-class HttpPluginConfig {
-  /// Creates an [HttpPluginConfig].
-  const HttpPluginConfig({
-    this.baseUrl,
-    this.defaultHeaders = const {},
-    this.defaultTimeout = const Duration(seconds: 30),
-    this.maxResponseBodyBytes = 10 * 1024 * 1024,
-  });
-
-  /// Base URL to prepend to relative request URLs.
-  final String? baseUrl;
-
-  /// Default headers to include in every request.
-  final Map<String, String> defaultHeaders;
-
-  /// Default timeout for requests if not specified at call site.
-  final Duration defaultTimeout;
-
-  /// Maximum allowed size for response bodies.
-  final int maxResponseBodyBytes;
-}
-
 /// Plugin providing HTTP client capabilities to Python code.
 class HttpPlugin extends MontyPlugin {
   /// Creates an [HttpPlugin].
@@ -78,7 +55,8 @@ class HttpPlugin extends MontyPlugin {
   @override
   String? get systemPromptContext =>
       'Perform HTTP requests (GET, POST, etc.). Responses include status_code, '
-      'text (UTF-8), and content (binary bytes). Base URL: ${config.baseUrl ?? "none"}.';
+      'text (UTF-8), and content (binary bytes). '
+      'Base URL: ${config.baseUrl ?? "none"}.';
 
   @override
   List<HostFunction> get functions => [
@@ -90,6 +68,7 @@ class HttpPlugin extends MontyPlugin {
   @override
   MontyPlugin? createChildInstance({ChildSpawnContext? context}) {
     if (!allowFromSandboxedChildren) return _DisabledHttpPlugin();
+
     return HttpPlugin(
       config: config,
       client: _client,
@@ -122,18 +101,24 @@ class HttpPlugin extends MontyPlugin {
   }
 
   Future<Object?> _handleGet(Map<String, Object?> args) {
+    final url = args['url'] as String?;
+    if (url == null) throw ArgumentError('url is required');
+
     return _doRequest(
       'GET',
-      args['url'] as String? ?? '',
+      url,
       headers: args['headers'] as Map<String, Object?>?,
       timeoutMs: args['timeout_ms'] as int?,
     );
   }
 
   Future<Object?> _handlePost(Map<String, Object?> args) {
+    final url = args['url'] as String?;
+    if (url == null) throw ArgumentError('url is required');
+
     return _doRequest(
       'POST',
-      args['url'] as String? ?? '',
+      url,
       body: args['body'],
       headers: args['headers'] as Map<String, Object?>?,
       timeoutMs: args['timeout_ms'] as int?,
@@ -141,9 +126,13 @@ class HttpPlugin extends MontyPlugin {
   }
 
   Future<Object?> _handleRequest(Map<String, Object?> args) {
+    final method = args['method'] as String? ?? 'GET';
+    final url = args['url'] as String?;
+    if (url == null) throw ArgumentError('url is required');
+
     return _doRequest(
-      args['method'] as String? ?? 'GET',
-      args['url'] as String? ?? '',
+      method,
+      url,
       body: args['body'],
       headers: args['headers'] as Map<String, Object?>?,
       timeoutMs: args['timeout_ms'] as int?,
@@ -159,13 +148,17 @@ class HttpPlugin extends MontyPlugin {
   }) async {
     _requestCount++;
     var uri = Uri.parse(urlStr);
-    if (!uri.isAbsolute && config.baseUrl != null) {
-      uri = Uri.parse(config.baseUrl!).resolveUri(uri);
+    final baseUrl = config.baseUrl;
+    if (!uri.isAbsolute && baseUrl != null) {
+      uri = Uri.parse(baseUrl).resolveUri(uri);
     }
 
     final requestHeaders = {
       ...config.defaultHeaders,
-      if (headers != null) ...headers.map((k, v) => MapEntry(k, v.toString())),
+      if (headers != null)
+        ...headers.map(
+          (k, v) => MapEntry(k, v?.toString() ?? ''),
+        ),
     };
 
     final request = http.Request(method, uri);
@@ -213,6 +206,29 @@ class HttpPlugin extends MontyPlugin {
       _activeRequestsSignal.value--;
     }
   }
+}
+
+/// Configuration for [HttpPlugin].
+class HttpPluginConfig {
+  /// Creates an [HttpPluginConfig].
+  const HttpPluginConfig({
+    this.baseUrl,
+    this.defaultHeaders = const {},
+    this.defaultTimeout = const Duration(seconds: 30),
+    this.maxResponseBodyBytes = 10 * 1024 * 1024,
+  });
+
+  /// Base URL to prepend to relative request URLs.
+  final String? baseUrl;
+
+  /// Default headers to include in every request.
+  final Map<String, String> defaultHeaders;
+
+  /// Default timeout for requests if not specified at call site.
+  final Duration defaultTimeout;
+
+  /// Maximum allowed size for response bodies.
+  final int maxResponseBodyBytes;
 }
 
 class _DisabledHttpPlugin extends MontyPlugin {

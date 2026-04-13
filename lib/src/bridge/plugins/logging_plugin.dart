@@ -1,47 +1,7 @@
 import 'dart:async';
 
-import 'package:dart_monty/src/bridge/bridge/host_function.dart';
-import 'package:dart_monty/src/bridge/bridge/host_function_schema.dart';
-import 'package:dart_monty/src/bridge/bridge/host_param.dart';
-import 'package:dart_monty/src/bridge/bridge/host_param_type.dart';
-import 'package:dart_monty/src/bridge/bridge/monty_plugin.dart';
+import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:signals_core/signals_core.dart';
-
-/// A structured log record emitted by Python code.
-class LogRecord {
-  /// Creates a [LogRecord].
-  const LogRecord({
-    required this.level,
-    required this.loggerName,
-    required this.message,
-    required this.timestamp,
-    this.excInfo,
-  });
-
-  /// The severity level of the log record (using Python logging levels).
-  final int level;
-
-  /// The name of the Python logger that emitted this record.
-  final String loggerName;
-
-  /// The formatted log message.
-  final String message;
-
-  /// When the log record was received by the bridge.
-  final DateTime timestamp;
-
-  /// Formatted exception info/traceback, if any.
-  final String? excInfo;
-
-  /// Converts the record to a map for serialization.
-  Map<String, Object?> toMap() => {
-    'level': level,
-    'logger': loggerName,
-    'message': message,
-    'timestamp': timestamp.toIso8601String(),
-    'exc_info': excInfo,
-  };
-}
 
 /// Plugin for capturing structured logs from Python.
 class LoggingPlugin extends MontyPlugin {
@@ -63,77 +23,6 @@ class LoggingPlugin extends MontyPlugin {
 
   /// Reactive list of recently captured log records.
   final ReadonlySignal<List<LogRecord>> logSignal = signal(const []);
-
-  final List<LogRecord> _buffer = [];
-
-  Signal<List<LogRecord>> get _logSignal =>
-      logSignal as Signal<List<LogRecord>>;
-
-  @override
-  String get namespace => 'log';
-
-  @override
-  bool get hasExecuteHooks => false;
-
-  @override
-  String? get systemPromptContext =>
-      'Capture structured logs from Python using the logging module. '
-      'Records are available in the host logSignal.';
-
-  @override
-  List<HostFunction> get functions => [
-    HostFunction(schema: _logEventBatchSchema, handler: _handleLogEventBatch),
-  ];
-
-  @override
-  MontyPlugin? createChildInstance({ChildSpawnContext? context}) {
-    // Shared signal/buffer for children.
-    return _ChildLoggingPlugin(parent: this);
-  }
-
-  void _addRecord(LogRecord record) {
-    if (_buffer.length >= maxRecords) {
-      _buffer.removeAt(0);
-    }
-    _buffer.add(record);
-    _logSignal.value = List.from(_buffer);
-
-    onRecord?.call(record);
-
-    if (forwardToBridgeLogger) {
-      final bridgeLogger = logger.child('python');
-      final msg = '[${record.loggerName}] ${record.message}';
-      final attr = {'python_level': record.level};
-
-      if (record.level >= 40) {
-        bridgeLogger.error(msg, attributes: attr, error: record.excInfo);
-      } else if (record.level >= 30) {
-        bridgeLogger.warning(msg, attributes: attr);
-      } else if (record.level >= 20) {
-        bridgeLogger.info(msg, attributes: attr);
-      } else {
-        bridgeLogger.debug(msg, attributes: attr);
-      }
-    }
-  }
-
-  Future<Object?> _handleLogEventBatch(Map<String, Object?> args) async {
-    final batch = args['batch']! as List<Object?>;
-    for (final item in batch) {
-      if (item is Map<String, Object?>) {
-        final record = LogRecord(
-          level: item['level'] as int? ?? 20,
-          loggerName: item['logger'] as String? ?? 'root',
-          message: item['message'] as String? ?? '',
-          timestamp: DateTime.now(),
-          excInfo: item['exc_info'] as String?,
-        );
-        _addRecord(record);
-      }
-    }
-
-    return null;
-  }
 
   /// Python preamble to install MontyHandler.
   static const String pythonPreamble = '''
@@ -174,6 +63,116 @@ _logging.getLogger().setLevel(_logging.DEBUG)
 import atexit as _atexit
 _atexit.register(_monty_handler.flush)
 ''';
+
+  final List<LogRecord> _buffer = [];
+
+  Signal<List<LogRecord>> get _logSignal =>
+      logSignal as Signal<List<LogRecord>>;
+
+  @override
+  String get namespace => 'log';
+
+  @override
+  bool get hasExecuteHooks => false;
+
+  @override
+  String? get systemPromptContext =>
+      'Capture structured logs from Python using the logging module. '
+      'Records are available in the host logSignal.';
+
+  @override
+  List<HostFunction> get functions => [
+    HostFunction(
+      schema: _logEventBatchSchema,
+      handler: _handleLogEventBatch,
+    ),
+  ];
+
+  @override
+  MontyPlugin? createChildInstance({ChildSpawnContext? context}) {
+    // Shared signal/buffer for children.
+    return _ChildLoggingPlugin(parent: this);
+  }
+
+  void _addRecord(LogRecord record) {
+    if (_buffer.length >= maxRecords) {
+      _buffer.removeAt(0);
+    }
+    _buffer.add(record);
+    _logSignal.value = List.from(_buffer);
+
+    onRecord?.call(record);
+
+    if (forwardToBridgeLogger) {
+      final bridgeLogger = logger.child('python');
+      final msg = '[${record.loggerName}] ${record.message}';
+      final attr = {'python_level': record.level};
+
+      if (record.level >= 40) {
+        bridgeLogger.error(msg, attributes: attr, error: record.excInfo);
+      } else if (record.level >= 30) {
+        bridgeLogger.warning(msg, attributes: attr);
+      } else if (record.level >= 20) {
+        bridgeLogger.info(msg, attributes: attr);
+      } else {
+        bridgeLogger.debug(msg, attributes: attr);
+      }
+    }
+  }
+
+  Future<Object?> _handleLogEventBatch(Map<String, Object?> args) {
+    final batch = args['batch']! as List<Object?>;
+    for (final item in batch) {
+      if (item is Map<String, Object?>) {
+        final record = LogRecord(
+          level: item['level'] as int? ?? 20,
+          loggerName: item['logger'] as String? ?? 'root',
+          message: item['message'] as String? ?? '',
+          timestamp: DateTime.now(),
+          excInfo: item['exc_info'] as String?,
+        );
+        _addRecord(record);
+      }
+    }
+
+    return Future.value();
+  }
+}
+
+/// A structured log record emitted by Python code.
+class LogRecord {
+  /// Creates a [LogRecord].
+  const LogRecord({
+    required this.level,
+    required this.loggerName,
+    required this.message,
+    required this.timestamp,
+    this.excInfo,
+  });
+
+  /// The severity level of the log record (using Python logging levels).
+  final int level;
+
+  /// The name of the Python logger that emitted this record.
+  final String loggerName;
+
+  /// The formatted log message.
+  final String message;
+
+  /// When the log record was received by the bridge.
+  final DateTime timestamp;
+
+  /// Formatted exception info/traceback, if any.
+  final String? excInfo;
+
+  /// Converts the record to a map for serialization.
+  Map<String, Object?> toMap() => {
+    'level': level,
+    'logger': loggerName,
+    'message': message,
+    'timestamp': timestamp.toIso8601String(),
+    'exc_info': excInfo,
+  };
 }
 
 class _ChildLoggingPlugin extends MontyPlugin {

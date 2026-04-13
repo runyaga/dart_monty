@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:dart_monty/dart_monty.dart';
-import 'package:dart_monty/monty_backend_spi.dart';
 import 'package:dart_monty/src/ffi/monty_native.dart';
 import 'package:test/test.dart';
 
