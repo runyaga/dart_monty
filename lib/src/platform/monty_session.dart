@@ -191,11 +191,16 @@ Future<MontyProgress> _safeSessionStart(
     );
   } on MontyScriptError catch (e) {
     return MontyComplete(
-      result: MontyResult(error: e.exception, usage: _zeroUsage),
+      result: MontyResult(
+        value: const MontyNull(),
+        error: e.exception,
+        usage: _zeroUsage,
+      ),
     );
   } on MontyError catch (e) {
     return MontyComplete(
       result: MontyResult(
+        value: const MontyNull(),
         error: MontyException(message: e.message),
         usage: _zeroUsage,
       ),
@@ -212,11 +217,16 @@ Future<MontyProgress> _safeSessionResume(
     return await platform.resume(returnValue);
   } on MontyScriptError catch (e) {
     return MontyComplete(
-      result: MontyResult(error: e.exception, usage: _zeroUsage),
+      result: MontyResult(
+        value: const MontyNull(),
+        error: e.exception,
+        usage: _zeroUsage,
+      ),
     );
   } on MontyError catch (e) {
     return MontyComplete(
       result: MontyResult(
+        value: const MontyNull(),
         error: MontyException(message: e.message),
         usage: _zeroUsage,
       ),
@@ -233,11 +243,16 @@ Future<MontyProgress> _safeSessionResumeWithError(
     return await platform.resumeWithError(errorMessage);
   } on MontyScriptError catch (e) {
     return MontyComplete(
-      result: MontyResult(error: e.exception, usage: _zeroUsage),
+      result: MontyResult(
+        value: const MontyNull(),
+        error: e.exception,
+        usage: _zeroUsage,
+      ),
     );
   } on MontyError catch (e) {
     return MontyComplete(
       result: MontyResult(
+        value: const MontyNull(),
         error: MontyException(message: e.message),
         usage: _zeroUsage,
       ),
@@ -460,96 +475,4 @@ class MontySession {
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // Safe platform wrappers
-  // ---------------------------------------------------------------------------
-
-  /// Wraps [MontyPlatform.start], catching [MontyException] (Python errors)
-  /// and [MontyError] (cancel, panic, disposed, resource) and converting
-  /// them to [MontyComplete] with an error result.
-  Future<MontyProgress> _safeStart(
-    String code, {
-    List<String>? externalFunctions,
-    MontyLimits? limits,
-    String? scriptName,
-  }) async {
-    try {
-      return await _platform.start(
-        code,
-        externalFunctions: externalFunctions,
-        limits: limits,
-        scriptName: scriptName,
-      );
-    } on MontyScriptError catch (e) {
-      return MontyComplete(
-        result: MontyResult(
-          value: const MontyNull(),
-          error: e.exception,
-          usage: _zeroUsage,
-        ),
-      );
-    } on MontyError catch (e) {
-      return MontyComplete(
-        result: MontyResult(
-          value: const MontyNull(),
-          error: MontyException(message: e.message),
-          usage: _zeroUsage,
-        ),
-      );
-    }
-  }
-
-  /// Wraps [MontyPlatform.resume], catching [MontyScriptError] and
-  /// [MontyError].
-  Future<MontyProgress> _safeResume(Object? returnValue) async {
-    try {
-      return await _platform.resume(returnValue);
-    } on MontyScriptError catch (e) {
-      return MontyComplete(
-        result: MontyResult(
-          value: const MontyNull(),
-          error: e.exception,
-          usage: _zeroUsage,
-        ),
-      );
-    } on MontyError catch (e) {
-      return MontyComplete(
-        result: MontyResult(
-          value: const MontyNull(),
-          error: MontyException(message: e.message),
-          usage: _zeroUsage,
-        ),
-      );
-    }
-  }
-
-  /// Wraps [MontyPlatform.resumeWithError], catching [MontyScriptError] and
-  /// [MontyError].
-  Future<MontyProgress> _safeResumeWithError(String errorMessage) async {
-    try {
-      return await _platform.resumeWithError(errorMessage);
-    } on MontyScriptError catch (e) {
-      return MontyComplete(
-        result: MontyResult(
-          value: const MontyNull(),
-          error: e.exception,
-          usage: _zeroUsage,
-        ),
-      );
-    } on MontyError catch (e) {
-      return MontyComplete(
-        result: MontyResult(
-          value: const MontyNull(),
-          error: MontyException(message: e.message),
-          usage: _zeroUsage,
-        ),
-      );
-    }
-  }
-
-  void _checkNotDisposed() {
-    if (_disposed) {
-      throw StateError('MontySession has been disposed.');
-    }
-  }
 }

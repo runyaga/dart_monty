@@ -121,7 +121,7 @@ void _emitComplete(
       BridgeRunFinished(
         threadId: threadId,
         runId: runId,
-        value: complete.result.value?.dartValue,
+        value: complete.result.value.dartValue,
         printOutput: capturedOutput,
       ),
     );

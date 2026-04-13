@@ -698,7 +698,9 @@ void main() {
   group('lifecycle and ownership', () {
     test('dispatch throws StateError when bridge is completed', () async {
       mock.enqueueProgress(
-        const MontyComplete(result: MontyResult(usage: _usage)),
+        const MontyComplete(
+            result: MontyResult(value: MontyNull(), usage: _usage),
+          ),
       );
 
       await bridge.execute('code').toList();
@@ -710,7 +712,9 @@ void main() {
     test('dispatch is allowed after re-execute following completion', () async {
       // First execution completes.
       mock.enqueueProgress(
-        const MontyComplete(result: MontyResult(usage: _usage)),
+        const MontyComplete(
+            result: MontyResult(value: MontyNull(), usage: _usage),
+          ),
       );
 
       await bridge.execute('code').toList();
@@ -727,7 +731,9 @@ void main() {
         )
         ..enqueueProgress(const MontyResolveFutures(pendingCallIds: [1]))
         ..enqueueProgress(
-          const MontyComplete(result: MontyResult(usage: _usage)),
+          const MontyComplete(
+            result: MontyResult(value: MontyNull(), usage: _usage),
+          ),
         );
 
       final stream = bridge.execute('recv()');
@@ -758,7 +764,9 @@ void main() {
         )
         ..enqueueProgress(const MontyResolveFutures(pendingCallIds: [1]))
         ..enqueueProgress(
-          const MontyComplete(result: MontyResult(usage: _usage)),
+          const MontyComplete(
+            result: MontyResult(value: MontyNull(), usage: _usage),
+          ),
         );
 
       final events = await bridge.execute('emit(value)').toList();
