@@ -41,13 +41,13 @@ class CronPlugin extends MontyPlugin {
 
   @override
   List<HostFunction> get functions => [
-        HostFunction(schema: _cronScheduleSchema, handler: _handleSchedule),
-        HostFunction(schema: _cronCancelSchema, handler: _handleCancel),
-        HostFunction(schema: _cronPauseSchema, handler: _handlePause),
-        HostFunction(schema: _cronResumeSchema, handler: _handleResume),
-        HostFunction(schema: _cronListSchema, handler: _handleList),
-        HostFunction(schema: _cronJobInfoSchema, handler: _handleJobInfo),
-      ];
+    HostFunction(schema: _cronScheduleSchema, handler: _handleSchedule),
+    HostFunction(schema: _cronCancelSchema, handler: _handleCancel),
+    HostFunction(schema: _cronPauseSchema, handler: _handlePause),
+    HostFunction(schema: _cronResumeSchema, handler: _handleResume),
+    HostFunction(schema: _cronListSchema, handler: _handleList),
+    HostFunction(schema: _cronJobInfoSchema, handler: _handleJobInfo),
+  ];
 
   @override
   MontyPlugin? createChildInstance({ChildSpawnContext? context}) {
@@ -240,7 +240,9 @@ class CronPlugin extends MontyPlugin {
   DateTime _nextCronFire(String expr, DateTime from) {
     // flutter_style_todos: 5-field cron parser (minutes only).
     if (expr.trim() == '* * * * *') {
-      return from.add(const Duration(minutes: 1)).subtract(
+      return from
+          .add(const Duration(minutes: 1))
+          .subtract(
             Duration(
               seconds: from.second,
               milliseconds: from.millisecond,
@@ -304,14 +306,14 @@ class _CronJob {
 
   /// Converts the job to a map for serialization.
   Map<String, Object?> toMap() => {
-        'job_id': id,
-        'expression': expression,
-        'channel': channel,
-        'label': label,
-        'state': state.name,
-        'fire_count': fireCount,
-        'next_fire_at_ms': nextFireAt?.millisecondsSinceEpoch,
-      };
+    'job_id': id,
+    'expression': expression,
+    'channel': channel,
+    'label': label,
+    'state': state.name,
+    'fire_count': fireCount,
+    'next_fire_at_ms': nextFireAt?.millisecondsSinceEpoch,
+  };
 }
 
 // ---------------------------------------------------------------------------

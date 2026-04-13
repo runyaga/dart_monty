@@ -23,13 +23,15 @@ void main() {
     test('schedule a periodic job and verify it posts to bus', () async {
       // periodic:1ms is too fast for reliable testing, but we'll use it to
       // trigger a fire.
-      final id = await plugin.functions
-          .firstWhere((f) => f.schema.name == 'cron_schedule')
-          .handler({
-            'expression': 'periodic:1',
-            'channel': 'ticks',
-            'label': 'test_job',
-          }) as String?;
+      final id =
+          await plugin.functions
+                  .firstWhere((f) => f.schema.name == 'cron_schedule')
+                  .handler({
+                    'expression': 'periodic:1',
+                    'channel': 'ticks',
+                    'label': 'test_job',
+                  })
+              as String?;
 
       expect(id, startsWith('job_'));
 
@@ -80,11 +82,13 @@ void main() {
     });
 
     test('http_get returns text and content', () async {
-      final result = await plugin.functions
-          .firstWhere((f) => f.schema.name == 'http_get')
-          .handler({
-            'url': 'http://example.com/text',
-          }) as Map<String, Object?>?;
+      final result =
+          await plugin.functions
+                  .firstWhere((f) => f.schema.name == 'http_get')
+                  .handler({
+                    'url': 'http://example.com/text',
+                  })
+              as Map<String, Object?>?;
 
       expect(result!['status_code'], 200);
       expect(result['text'], 'hello');
@@ -93,11 +97,13 @@ void main() {
     });
 
     test('binary response handling', () async {
-      final result = await plugin.functions
-          .firstWhere((f) => f.schema.name == 'http_get')
-          .handler({
-            'url': 'http://example.com/binary',
-          }) as Map<String, Object?>?;
+      final result =
+          await plugin.functions
+                  .firstWhere((f) => f.schema.name == 'http_get')
+                  .handler({
+                    'url': 'http://example.com/binary',
+                  })
+              as Map<String, Object?>?;
 
       expect(result!['status_code'], 200);
       expect(result['content'], [1, 2, 3]);
