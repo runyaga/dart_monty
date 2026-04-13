@@ -44,10 +44,10 @@ Future<void> main() async {
 
 ## What Just Happened
 
-1.  **`AgentSession`** provides a high-level API that combines the Python interpreter with a tool-calling bridge.
-2.  **`session.register()`** tells the session about a function named `greet` with one string parameter.
-3.  **`session.execute()`** runs the Python code. When Python calls `greet("World")`, the session pauses execution, calls your Dart handler with `{'name': 'World'}`, and feeds the return value (`'Hello, World!'`) back to Python.
-4.  **Result Capture**: The final result of the Python script is returned as a `MontyResult`.
+1. **`AgentSession`** provides a high-level API that combines the Python interpreter with a tool-calling bridge.
+2. **`session.register()`** tells the session about a function named `greet` with one string parameter.
+3. **`session.execute()`** runs the Python code. When Python calls `greet("World")`, the session pauses execution, calls your Dart handler with `{'name': 'World'}`, and feeds the return value (`'Hello, $name!'`) back to Python.
+4. **Result Capture**: The final result of the Python script is returned as a `MontyResult`.
 
 ## The Low-Level Bridge (Optional)
 

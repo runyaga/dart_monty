@@ -6,9 +6,9 @@
 
 The core of `dart_monty`'s security is the strict separation between the Python interpreter and the host environment.
 
-1.  **Crate-Level Stripping**: The underlying `monty` Rust crate does not include standard Python modules that interact with the OS (like `os`, `sys`, `subprocess`, or `socket`).
-2.  **No Native Access**: Python code cannot access memory outside its own heap. It has no access to the Dart VM or the host's native pointers.
-3.  **Bridge-Only Communication**: The only way for Python to interact with the outside world is through host functions explicitly registered by you on the `MontyBridge`.
+1. **Crate-Level Stripping**: The underlying `monty` Rust crate does not include standard Python modules that interact with the OS (like `os`, `sys`, `subprocess`, or `socket`).
+2. **No Native Access**: Python code cannot access memory outside its own heap. It has no access to the Dart VM or the host's native pointers.
+3. **Bridge-Only Communication**: The only way for Python to interact with the outside world is through host functions explicitly registered by you on the `MontyBridge`.
 
 ## Resource Quotas
 
@@ -16,7 +16,7 @@ To prevent Denial of Service (DoS) attacks or accidental resource exhaustion, `d
 
 ### 1. Hard Memory Limits
 
-The interpreter's memory is capped at the native level. 
+The interpreter's memory is capped at the native level.
 
 - **FFI**: Rust uses a custom allocator to monitor every byte used by Python. If the script exceeds the limit (e.g., 16MB), the interpreter is instantly killed with a `MontyError`.
 - **WASM**: Each session runs in an isolated Web Worker with its own memory space, ensuring a runaway script cannot crash your main UI thread.

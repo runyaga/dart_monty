@@ -31,10 +31,12 @@ void main() async {
 ## Platform Requirements
 
 ### Native (Desktop/Server)
+
 - **macOS, Linux, Windows:** No manual setup. The native binary is automatically downloaded or built.
 - **iOS/Android:** Support planned.
 
 ### Web (Browser)
+
 Copy the WASM assets to your `web/` directory:
 
 ```bash

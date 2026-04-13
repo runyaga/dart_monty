@@ -313,8 +313,9 @@ const _gatherSchema = HostFunctionSchema(
 ///   with [platformFactory], or custom plugin sets with [childPluginRegistryFactory].
 /// - **Per-child isolation**: When [sandboxBaseDir] is set, each child is
 ///   assigned a unique working directory path in its [ChildSpawnContext].
-/// - **OS composition**: Child OS providers flow through `attachTo` so child
-///   plugin `osContribution` maps compose correctly with the child VFS.
+/// - **OS composition**: Child OS providers flow through `attachTo` so
+///   child plugin `osContribution` maps compose correctly with the
+///   child VFS.
 ///
 /// Children are sandboxed: each has its own interpreter state.
 /// All living children are killed when this plugin is disposed.

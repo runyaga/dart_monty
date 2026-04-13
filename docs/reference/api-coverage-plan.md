@@ -6,7 +6,6 @@
 > |-------|-------------|--------|
 > | Fix partial future resolution panics in mixed `asyncio.gather()` | [pydantic/monty#251](https://github.com/pydantic/monty/pull/251) | Awaiting review |
 > | `cpu: wasm32` restriction in `monty-wasm32-wasi` npm package | [runyaga/monty#4](https://github.com/runyaga/monty/issues/4) | Open issue |
-
 > **Historical document.** This plan was written before the OsCall/VFS,
 > MontyValue, async/futures, and bridge layers were implemented. Many items
 > in sections 3-5 (kwargs, full tracebacks, exception types, call_id,

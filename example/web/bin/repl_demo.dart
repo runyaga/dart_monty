@@ -118,9 +118,7 @@ void _createSession() {
     maxDepth: 2,
   );
 
-  _session = ReplSession(
-    plugins: [tmpl, msgBus, sandbox],
-  );
+  _session = ReplSession(plugins: [tmpl, msgBus, sandbox]);
 }
 
 // ---------------------------------------------------------------------------
@@ -162,10 +160,7 @@ Map<String, dynamic>? _eventToJson(BridgeEvent event) {
     };
   }
   if (event is BridgeToolCallStart) {
-    return {
-      'type': 'tool_call_start',
-      'function': event.name,
-    };
+    return {'type': 'tool_call_start', 'function': event.name};
   }
   if (event is BridgeToolCallResult) {
     return {

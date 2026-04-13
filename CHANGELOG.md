@@ -118,6 +118,7 @@
 
 - **`MontyResult.value` is now `MontyValue?`** (was `Object?`). Use pattern
   matching or `.dartValue` for migration:
+
   ```dart
   switch (result.value) {
     case MontyInt(:final value): print(value);
@@ -125,6 +126,7 @@
     case MontyDate(:final year, :final month, :final day): ...
   }
   ```
+
 - **`MontyPending.arguments` is now `List<MontyValue>`** (was `List<Object?>`).
   Same for `kwargs` (`Map<String, MontyValue>?`).
 - **`MontyOsCall.arguments/kwargs`** follow the same typed pattern.

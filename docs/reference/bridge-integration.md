@@ -115,10 +115,10 @@ worker.onmessage = (e) => {
 
 While the low-level execution loop handles raw JSON messages, `AgentSession` provides the high-level orchestration required for standard agentic workloads.
 
-1.  **State Persistence**: Uses `snapshot()` and `restore()` (or the `__restore_state__` / `__persist_state__` pattern) to maintain variables across `execute()` calls.
-2.  **Plugin Dispatch**: Routes `pending` events through the `PluginRegistry` to the appropriate `MontyPlugin`.
-3.  **Event Loop**: Wraps the stream to handle `el_recv()` / `el_emit()` coroutine behavior.
-4.  **Automatic Cleanup**: Ensures `disposeSession()` is called when the session is closed to prevent memory leaks in the Worker pool.
+1. **State Persistence**: Uses `snapshot()` and `restore()` (or the `__restore_state__` / `__persist_state__` pattern) to maintain variables across `execute()` calls.
+2. **Plugin Dispatch**: Routes `pending` events through the `PluginRegistry` to the appropriate `MontyPlugin`.
+3. **Event Loop**: Wraps the stream to handle `el_recv()` / `el_emit()` coroutine behavior.
+4. **Automatic Cleanup**: Ensures `disposeSession()` is called when the session is closed to prevent memory leaks in the Worker pool.
 
 ## Comparison with Native Path
 

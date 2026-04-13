@@ -110,9 +110,7 @@ final _demoHostFunctions = <HostFunction>[
     schema: const HostFunctionSchema(
       name: 'kv_get',
       description: 'Retrieve a value from the key-value store.',
-      params: [
-        HostParam(name: 'key', type: HostParamType.string),
-      ],
+      params: [HostParam(name: 'key', type: HostParamType.string)],
     ),
     handler: (args) async {
       return _kvStore[args['key']! as String];
@@ -133,9 +131,7 @@ final _demoHostFunctions = <HostFunction>[
     schema: const HostFunctionSchema(
       name: 'fetch_json',
       description: 'Fetch JSON data from a URL (simulated).',
-      params: [
-        HostParam(name: 'url', type: HostParamType.string),
-      ],
+      params: [HostParam(name: 'url', type: HostParamType.string)],
     ),
     handler: (args) async {
       final url = args['url']! as String;
@@ -159,9 +155,7 @@ final _demoHostFunctions = <HostFunction>[
     schema: const HostFunctionSchema(
       name: 'log',
       description: 'Log a message to the events panel.',
-      params: [
-        HostParam(name: 'msg', type: HostParamType.string),
-      ],
+      params: [HostParam(name: 'msg', type: HostParamType.string)],
     ),
     handler: (args) async {
       // The event will be visible in the bridge events panel
@@ -259,11 +253,7 @@ Future<String> _execute(String code) async {
       'events': events,
     });
   } on Object catch (e) {
-    return jsonEncode({
-      'ok': false,
-      'error': e.toString(),
-      'events': events,
-    });
+    return jsonEncode({'ok': false, 'error': e.toString(), 'events': events});
   }
 }
 

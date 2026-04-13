@@ -53,30 +53,42 @@ Future<bool> _init() async {
     });
 
     final eventLoop = EventLoopPlugin();
-    final plugins = <MontyPlugin>[eventLoop, MessageBusPlugin(), SandboxPlugin(platformFactory: () async => Monty(os: os).platform)];
+    final plugins = <MontyPlugin>[
+      eventLoop,
+      MessageBusPlugin(),
+      SandboxPlugin(platformFactory: () async => Monty(os: os).platform),
+    ];
 
     _session = AgentSession(os: os, plugins: plugins);
 
     // Subscribe to signals and notify JS
-    _disposers.add(effect(() {
-      final state = _session!.stateSignal.value;
-      _jsOnStateSignal(state.name.toJS);
-    }));
+    _disposers.add(
+      effect(() {
+        final state = _session!.stateSignal.value;
+        _jsOnStateSignal(state.name.toJS);
+      }),
+    );
 
-    _disposers.add(effect(() {
-      final state = _session!.sessionStateSignal.value;
-      _jsOnSessionStateSignal(jsonEncode(state).toJS);
-    }));
+    _disposers.add(
+      effect(() {
+        final state = _session!.sessionStateSignal.value;
+        _jsOnSessionStateSignal(jsonEncode(state).toJS);
+      }),
+    );
 
-    _disposers.add(effect(() {
-      final state = eventLoop.channelStateSignal.value;
-      _jsOnChannelStateSignal(_channelStateToString(state).toJS);
-    }));
+    _disposers.add(
+      effect(() {
+        final state = eventLoop.channelStateSignal.value;
+        _jsOnChannelStateSignal(_channelStateToString(state).toJS);
+      }),
+    );
 
-    _disposers.add(effect(() {
-      final value = eventLoop.lastEmittedSignal.value;
-      _jsOnLastEmittedSignal(jsonEncode(value ?? {}).toJS);
-    }));
+    _disposers.add(
+      effect(() {
+        final value = eventLoop.lastEmittedSignal.value;
+        _jsOnLastEmittedSignal(jsonEncode(value ?? {}).toJS);
+      }),
+    );
 
     _initialized = true;
     return true;
@@ -113,10 +125,7 @@ Future<String> _execute(String code) async {
       'printOutput': result.printOutput,
     });
   } on Object catch (e) {
-    return jsonEncode({
-      'ok': false,
-      'error': e.toString(),
-    });
+    return jsonEncode({'ok': false, 'error': e.toString()});
   }
 }
 
@@ -137,7 +146,9 @@ Future<void> _dispose() async {
 Future<void> main() async {
   final Map<String, JSFunction> apiMap = {
     'init': (() => _init().then((ok) => ok.toJS).toJS).toJS,
-    'execute': ((JSString code) => _execute(code.toDart).then((r) => r.toJS).toJS).toJS,
+    'execute': ((JSString code) => _execute(
+      code.toDart,
+    ).then((r) => r.toJS).toJS).toJS,
     'dispose': (() => _dispose().then((_) => null).toJS).toJS,
     'reset': (() {
       final s = _session;

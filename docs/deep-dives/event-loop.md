@@ -6,8 +6,8 @@ Standard Python execution is "One-Shot": you provide code, it runs to completion
 
 In an event-loop session, Python doesn't just run and exit. It uses two key functions to communicate with Dart:
 
-1.  **`el_emit(value)`**: Python pushes data to the host without stopping. This is useful for streaming progress updates, partial results, or status messages.
-2.  **`el_recv()`**: Python suspends execution and waits for the host to send an event. This turns Python into a stateful listener.
+1. **`el_emit(value)`**: Python pushes data to the host without stopping. This is useful for streaming progress updates, partial results, or status messages.
+2. **`el_recv()`**: Python suspends execution and waits for the host to send an event. This turns Python into a stateful listener.
 
 ```python
 # Python Coroutine Example
@@ -43,9 +43,10 @@ plugin.dispatch({"action": "process", "data": 123});
 
 ## Queueing and Buffering
 
-What happens if your Dart code dispatches an event before Python is ready to receive it? 
+What happens if your Dart code dispatches an event before Python is ready to receive it?
 
-`EventLoopPlugin` maintains an internal **FIFO (First-In-First-Out) Queue**. 
+`EventLoopPlugin` maintains an internal **FIFO (First-In-First-Out) Queue**.
+
 - If Python is already waiting (`el_recv`), the event is delivered immediately.
 - If Python is busy processing or hasn't reached `el_recv` yet, the event is stored in the queue and delivered the moment Python calls `el_recv()`.
 
