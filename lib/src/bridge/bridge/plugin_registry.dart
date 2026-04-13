@@ -94,9 +94,16 @@ class PluginRegistry {
   ///
   /// Throws [ArgumentError] if the namespace is empty, malformed, or exceeds
   /// 32 characters.
-  /// Throws [StateError] if the namespace is reserved, already registered, or
-  /// any function name collides with a previously registered function.
+  /// Throws [StateError] if the namespace is reserved, already registered,
+  /// any function name collides with a previously registered function, or
+  /// [attachTo] has already been called.
   void register(MontyPlugin plugin) {
+    if (_attached) {
+      throw StateError(
+        'Cannot register plugin "${plugin.namespace}" after attachTo() '
+        'has been called. Create a new PluginRegistry.',
+      );
+    }
     _validateNamespace(plugin.namespace);
     _checkFunctionCollisions(plugin);
 

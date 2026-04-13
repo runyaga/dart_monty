@@ -284,6 +284,25 @@ void main() {
       });
     });
 
+    group('register after attachTo', () {
+      test('throws StateError', () async {
+        final bridge = _MockBridge();
+        registry.register(_TestPlugin(namespace: 'df'));
+        await registry.attachTo(bridge);
+
+        expect(
+          () => registry.register(_TestPlugin(namespace: 'chart')),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              allOf(contains('chart'), contains('attachTo')),
+            ),
+          ),
+        );
+      });
+    });
+
     group('attachTo', () {
       test(
         'registers all functions onto bridge and calls onRegister',
