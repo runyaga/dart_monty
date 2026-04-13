@@ -311,12 +311,23 @@ class DefaultMontyBridge implements MontyBridge {
     );
 
     // Apply plugin stream wrappers in registration order.
-    var stream = controller.stream;
-    for (final wrap in _streamWrappers) {
-      stream = wrap(code, stream);
-    }
+    // If any wrapper throws synchronously, reset _isExecuting so the bridge
+    // is not permanently locked and re-throw.
+    // Note: do NOT close the controller here — _run is already running via
+    // unawaited and will close it via its own whenComplete. Closing it early
+    // causes _run to throw when it tries controller.add(), producing an
+    // unhandled zone error.
+    try {
+      var stream = controller.stream;
+      for (final wrap in _streamWrappers) {
+        stream = wrap(code, stream);
+      }
 
-    return stream;
+      return stream;
+    } catch (_) {
+      _isExecuting = false;
+      rethrow;
+    }
   }
 
   @override

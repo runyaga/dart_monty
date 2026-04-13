@@ -175,6 +175,10 @@ class EventLoopPlugin extends MontyPlugin {
   ];
 
   @override
+  MontyPlugin createChildInstance({ChildSpawnContext? context}) =>
+      EventLoopPlugin();
+
+  @override
   bool get hasStreamWrapper => true;
 
   @override
@@ -195,8 +199,10 @@ class EventLoopPlugin extends MontyPlugin {
 
     return stream.map((event) {
       if (event is BridgeRunFinished || event is BridgeRunError) {
-        final state = _channelState.value;
-        if (state is! BridgeChannelDisposed) {
+        // Guard on the plain bool, not the signal, to avoid reading a
+        // disposed signal when onDispose() races with the stream tail.
+        if (!_disposed) {
+          final state = _channelState.value;
           // Clean up orphaned completer when the script finishes while Python
           // is still paused at el_recv() (e.g. script errored mid-execution).
           if (state is BridgeChannelWaiting) {

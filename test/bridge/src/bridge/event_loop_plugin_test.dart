@@ -844,6 +844,93 @@ void main() {
     });
   });
 
+  group('bridge locking regression', () {
+    test(
+      'wrapper exception resets _isExecuting immediately (not after _run)',
+      () async {
+        // Regression: without the try-catch in DefaultMontyBridge.execute(),
+        // a synchronously-throwing wrapper leaves _isExecuting = true until
+        // _run's whenComplete fires. The very next execute() call (before any
+        // microtask yields) would throw 'Bridge is already executing' even
+        // though the first call failed before producing a valid stream.
+        final lockMock = MockMontyPlatform();
+        final lockBridge = DefaultMontyBridge(
+          platform: lockMock,
+          useFutures: false,
+        );
+        addTearDown(lockBridge.dispose);
+
+        var wrapperCalls = 0;
+        lockBridge.addStreamWrapper((code, stream) {
+          // Throw on the first call only so the second execute() can succeed.
+          if (wrapperCalls++ == 0) {
+            throw StateError('intentional wrapper failure');
+          }
+
+          return stream;
+        });
+
+        // Enqueue one completion for the background _run that the first
+        // (failed) execute() starts, and one for the successful re-execute.
+        lockMock
+          ..enqueueProgress(
+            const MontyComplete(
+              result: MontyResult(value: MontyNull(), usage: _usage),
+            ),
+          )
+          ..enqueueProgress(
+            const MontyComplete(
+              result: MontyResult(value: MontyNull(), usage: _usage),
+            ),
+          );
+
+        // First call: wrapper throws synchronously.
+        expect(() => lockBridge.execute('first'), throwsStateError);
+
+        // Re-execute synchronously (no await — _run from call 1 hasn't
+        // completed yet). Without the fix: throws 'Bridge is already
+        // executing'. With the fix: _isExecuting was reset in the catch
+        // block so this proceeds normally.
+        final stream = lockBridge.execute('second');
+        final events = await stream.toList();
+        expect(events.whereType<BridgeRunFinished>(), isNotEmpty);
+      },
+    );
+  });
+
+  group('createChildInstance', () {
+    test(
+      'returns a fresh EventLoopPlugin for child sandboxes',
+      () async {
+        // Regression: without the createChildInstance override the default
+        // returns null. SandboxPlugin treats null as "plugin not needed in
+        // child", so child bridges get no EventLoopPlugin. Python code inside
+        // a child sandbox that calls el_recv() or el_emit() would raise
+        // NameError because those host functions were never registered.
+        final child = plugin.createChildInstance();
+
+        expect(
+          child,
+          isNotNull,
+          reason: 'child sandboxes must inherit event loop capability',
+        );
+        expect(child, isA<EventLoopPlugin>());
+        expect(
+          child,
+          isNot(same(plugin)),
+          reason: 'must be a fresh independent instance',
+        );
+
+        final childPlugin = child! as EventLoopPlugin;
+        expect(childPlugin.channelState, const BridgeChannelIdle());
+
+        // Disposing the child must not affect the parent.
+        await childPlugin.onDispose();
+        expect(plugin.channelState, isNot(const BridgeChannelDisposed()));
+      },
+    );
+  });
+
   group('PluginRegistry integration', () {
     test('PluginRegistry.attachTo wires stream wrapper', () async {
       final mock2 = MockMontyPlatform();
