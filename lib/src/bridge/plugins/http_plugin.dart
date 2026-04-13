@@ -12,6 +12,7 @@ import 'package:signals_core/signals_core.dart';
 
 /// Configuration for [HttpPlugin].
 class HttpPluginConfig {
+  /// Creates an [HttpPluginConfig].
   const HttpPluginConfig({
     this.baseUrl,
     this.defaultHeaders = const {},
@@ -19,14 +20,22 @@ class HttpPluginConfig {
     this.maxResponseBodyBytes = 10 * 1024 * 1024,
   });
 
+  /// Base URL to prepend to relative request URLs.
   final String? baseUrl;
+
+  /// Default headers to include in every request.
   final Map<String, String> defaultHeaders;
+
+  /// Default timeout for requests if not specified at call site.
   final Duration defaultTimeout;
+
+  /// Maximum allowed size for response bodies.
   final int maxResponseBodyBytes;
 }
 
 /// Plugin providing HTTP client capabilities to Python code.
 class HttpPlugin extends MontyPlugin {
+  /// Creates an [HttpPlugin].
   HttpPlugin({
     HttpPluginConfig? config,
     http.Client? client,
@@ -34,21 +43,31 @@ class HttpPlugin extends MontyPlugin {
   }) : config = config ?? const HttpPluginConfig(),
        _client = client ?? http.Client();
 
+  /// Configuration for the plugin.
   final HttpPluginConfig config;
-  final http.Client _client;
+
+  /// Whether to allow HTTP requests from sandboxed child interpreters.
   final bool allowFromSandboxedChildren;
 
   /// Number of requests currently in flight.
-  late final Signal<int> activeRequestsSignal = signal(0);
+  final ReadonlySignal<int> activeRequestsSignal = signal(0);
 
   /// Total number of requests initiated in this session.
-  late final Signal<int> totalRequestsSignal = signal(0);
+  final ReadonlySignal<int> totalRequestsSignal = signal(0);
 
   /// Total bytes downloaded across all requests.
-  late final Signal<int> totalBytesDownloadedSignal = signal(0);
+  final ReadonlySignal<int> totalBytesDownloadedSignal = signal(0);
 
+  final http.Client _client;
   int _requestCount = 0;
   Stopwatch? _executionTimer;
+
+  Signal<int> get _activeRequestsSignal => activeRequestsSignal as Signal<int>;
+
+  Signal<int> get _totalRequestsSignal => totalRequestsSignal as Signal<int>;
+
+  Signal<int> get _totalBytesDownloadedSignal =>
+      totalBytesDownloadedSignal as Signal<int>;
 
   @override
   String get namespace => 'http';
@@ -105,7 +124,7 @@ class HttpPlugin extends MontyPlugin {
   Future<Object?> _handleGet(Map<String, Object?> args) {
     return _doRequest(
       'GET',
-      args['url']! as String,
+      args['url'] as String? ?? '',
       headers: args['headers'] as Map<String, Object?>?,
       timeoutMs: args['timeout_ms'] as int?,
     );
@@ -114,7 +133,7 @@ class HttpPlugin extends MontyPlugin {
   Future<Object?> _handlePost(Map<String, Object?> args) {
     return _doRequest(
       'POST',
-      args['url']! as String,
+      args['url'] as String? ?? '',
       body: args['body'],
       headers: args['headers'] as Map<String, Object?>?,
       timeoutMs: args['timeout_ms'] as int?,
@@ -123,8 +142,8 @@ class HttpPlugin extends MontyPlugin {
 
   Future<Object?> _handleRequest(Map<String, Object?> args) {
     return _doRequest(
-      args['method']! as String,
-      args['url']! as String,
+      args['method'] as String? ?? 'GET',
+      args['url'] as String? ?? '',
       body: args['body'],
       headers: args['headers'] as Map<String, Object?>?,
       timeoutMs: args['timeout_ms'] as int?,
@@ -168,8 +187,8 @@ class HttpPlugin extends MontyPlugin {
         : config.defaultTimeout;
 
     try {
-      activeRequestsSignal.value++;
-      totalRequestsSignal.value++;
+      _activeRequestsSignal.value++;
+      _totalRequestsSignal.value++;
       final streamedResponse = await _client.send(request).timeout(timeout);
       final response = await http.Response.fromStream(streamedResponse);
 
@@ -177,7 +196,7 @@ class HttpPlugin extends MontyPlugin {
         throw StateError('Response body size exceeds limit');
       }
 
-      totalBytesDownloadedSignal.value += response.bodyBytes.length;
+      _totalBytesDownloadedSignal.value += response.bodyBytes.length;
 
       return {
         'status_code': response.statusCode,
@@ -191,7 +210,7 @@ class HttpPlugin extends MontyPlugin {
         'HTTP request timed out after ${timeout.inMilliseconds}ms',
       );
     } finally {
-      activeRequestsSignal.value--;
+      _activeRequestsSignal.value--;
     }
   }
 }

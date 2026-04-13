@@ -9,6 +9,7 @@ import 'package:signals_core/signals_core.dart';
 
 /// A structured log record emitted by Python code.
 class LogRecord {
+  /// Creates a [LogRecord].
   const LogRecord({
     required this.level,
     required this.loggerName,
@@ -17,12 +18,22 @@ class LogRecord {
     this.excInfo,
   });
 
+  /// The severity level of the log record (using Python logging levels).
   final int level;
+
+  /// The name of the Python logger that emitted this record.
   final String loggerName;
+
+  /// The formatted log message.
   final String message;
+
+  /// When the log record was received by the bridge.
   final DateTime timestamp;
+
+  /// Formatted exception info/traceback, if any.
   final String? excInfo;
 
+  /// Converts the record to a map for serialization.
   Map<String, Object?> toMap() => {
     'level': level,
     'logger': loggerName,
@@ -34,25 +45,35 @@ class LogRecord {
 
 /// Plugin for capturing structured logs from Python.
 class LoggingPlugin extends MontyPlugin {
+  /// Creates a [LoggingPlugin].
   LoggingPlugin({
     this.maxRecords = 500,
     this.forwardToBridgeLogger = true,
     this.onRecord,
   });
 
+  /// Maximum number of log records to keep in the reactive [logSignal].
   final int maxRecords;
+
+  /// Whether to forward captured Python logs to the [BridgeLogger].
   final bool forwardToBridgeLogger;
+
+  /// Optional callback invoked for every log record received.
   final void Function(LogRecord)? onRecord;
 
+  /// Reactive list of recently captured log records.
+  final ReadonlySignal<List<LogRecord>> logSignal = signal(const []);
+
   final List<LogRecord> _buffer = [];
-  late final Signal<List<LogRecord>> _logSignal = signal(const []);
-  late final ReadonlySignal<List<LogRecord>> logSignal = _logSignal;
+
+  Signal<List<LogRecord>> get _logSignal =>
+      logSignal as Signal<List<LogRecord>>;
 
   @override
   String get namespace => 'log';
 
   @override
-  bool get hasExecuteHooks => true;
+  bool get hasExecuteHooks => false;
 
   @override
   String? get systemPromptContext =>
@@ -68,12 +89,6 @@ class LoggingPlugin extends MontyPlugin {
   MontyPlugin? createChildInstance({ChildSpawnContext? context}) {
     // Shared signal/buffer for children.
     return _ChildLoggingPlugin(parent: this);
-  }
-
-  @override
-  Future<void> onExecuteEnd(ExecuteOutcome outcome) async {
-    // Print output capture from BridgeRunFinished could be added here if needed.
-    // For now, we rely on the logging module + log_event_batch.
   }
 
   void _addRecord(LogRecord record) {
@@ -116,6 +131,7 @@ class LoggingPlugin extends MontyPlugin {
         _addRecord(record);
       }
     }
+
     return null;
   }
 

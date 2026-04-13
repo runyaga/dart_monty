@@ -8,16 +8,26 @@ import 'package:dart_monty/src/bridge/bridge/host_param.dart';
 import 'package:dart_monty/src/bridge/bridge/host_param_type.dart';
 import 'package:dart_monty/src/bridge/bridge/monty_bridge.dart';
 import 'package:dart_monty/src/bridge/bridge/monty_plugin.dart';
-import 'package:dart_monty/src/bridge/os_call/os_provider.dart';
 import 'package:signals_core/signals_core.dart';
 
 /// Minimal interface for a key-value storage backend.
 abstract interface class StorageBackend {
+  /// Retrieves the value associated with [key].
   Future<Object?> get(String key);
+
+  /// Sets the [value] for [key].
   Future<void> set(String key, Object? value);
+
+  /// Deletes the entry for [key].
   Future<void> delete(String key);
+
+  /// Returns a list of all keys currently in the store.
   Future<List<String>> list();
+
+  /// Deletes all entries from the store.
   Future<void> clear();
+
+  /// Closes the backend and releases any resources.
   Future<void> dispose();
 }
 
@@ -46,16 +56,23 @@ class MemoryStorageBackend implements StorageBackend {
 
 /// Plugin for persistent or in-memory key-value storage.
 class StoragePlugin extends MontyPlugin {
+  /// Creates a [StoragePlugin].
   StoragePlugin({
     StorageBackend? backend,
     this.scope = 'default',
   }) : _backend = backend ?? MemoryStorageBackend();
 
-  final StorageBackend _backend;
+  /// The storage scope for this plugin instance.
   final String scope;
 
   /// Reactive list of all keys currently in the store.
-  late final Signal<List<String>> storageSignal = signal(const []);
+  final ReadonlySignal<List<String>> storageSignal = signal(const []);
+
+  final StorageBackend _backend;
+
+  /// Internal writable signal for storage keys.
+  Signal<List<String>> get _storageSignal =>
+      storageSignal as Signal<List<String>>;
 
   @override
   String get namespace => 'storage';
@@ -92,7 +109,7 @@ class StoragePlugin extends MontyPlugin {
   }
 
   Future<void> _updateSignal() async {
-    storageSignal.value = await _backend.list();
+    _storageSignal.value = await _backend.list();
   }
 
   @override
@@ -117,13 +134,15 @@ class StoragePlugin extends MontyPlugin {
       );
     }
     await _backend.set(args['key']! as String, value);
-    await _updateSignal();
+    unawaited(_updateSignal());
+
     return null;
   }
 
   Future<Object?> _handleDelete(Map<String, Object?> args) async {
     await _backend.delete(args['key']! as String);
-    await _updateSignal();
+    unawaited(_updateSignal());
+
     return null;
   }
 
@@ -133,21 +152,27 @@ class StoragePlugin extends MontyPlugin {
 
   Future<Object?> _handleHas(Map<String, Object?> args) async {
     final list = await _backend.list();
+
     return list.contains(args['key']! as String);
   }
 
   Future<Object?> _handleClear(Map<String, Object?> args) async {
     await _backend.clear();
-    await _updateSignal();
+    unawaited(_updateSignal());
+
     return null;
   }
 }
 
 /// OsProvider that maps /storage/ path operations to a [StorageBackend].
 class StorageFsOsProvider extends OsProvider {
+  /// Creates a [StorageFsOsProvider].
   StorageFsOsProvider({required this.backend, this.onUpdate}) : super.base();
 
+  /// The backend to use for storage operations.
   final StorageBackend backend;
+
+  /// Optional callback invoked when the storage is modified via VFS.
   final Future<void> Function()? onUpdate;
 
   @override
@@ -172,8 +197,7 @@ class StorageFsOsProvider extends OsProvider {
         await onUpdate?.call();
         return null;
       }(),
-      'Path.exists' => (await backend.list()).contains(key),
-      'Path.is_file' => (await backend.list()).contains(key),
+      'Path.exists' || 'Path.is_file' => (await backend.list()).contains(key),
       _ => null,
     };
   }
@@ -203,8 +227,8 @@ class StorageFsOsProvider extends OsProvider {
     return null;
   }
 
-  Object? _toDart(MontyValue value) {
-    return switch (value) {
+  Object? _toDart(MontyValue val) {
+    return switch (val) {
       MontyString(:final value) => value,
       MontyInt(:final value) => value,
       MontyFloat(:final value) => value,

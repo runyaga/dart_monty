@@ -4,7 +4,6 @@ import 'package:dart_monty/src/bridge/bridge/host_function.dart';
 import 'package:dart_monty/src/bridge/bridge/host_function_schema.dart';
 import 'package:dart_monty/src/bridge/bridge/host_param.dart';
 import 'package:dart_monty/src/bridge/bridge/host_param_type.dart';
-import 'package:dart_monty/src/bridge/bridge/monty_bridge.dart';
 import 'package:dart_monty/src/bridge/bridge/monty_plugin.dart';
 import 'package:dart_monty/src/bridge/plugins/message_bus_plugin.dart';
 import 'package:signals_core/signals_core.dart';
@@ -13,9 +12,21 @@ import 'package:signals_core/signals_core.dart';
 // CronPlugin
 // ---------------------------------------------------------------------------
 
-enum _JobState { active, paused, cancelled }
+/// Possible states for a scheduled cron job.
+enum _JobState {
+  /// Job is currently active and will fire.
+  active,
 
+  /// Job is paused and will not fire.
+  paused,
+
+  /// Job has been cancelled and will never fire again.
+  cancelled,
+}
+
+/// Internal representation of a scheduled cron job.
 class _CronJob {
+  /// Creates a [_CronJob].
   _CronJob({
     required this.id,
     required this.expression,
@@ -24,16 +35,34 @@ class _CronJob {
     this.maxFires = 0,
   });
 
+  /// Unique job identifier.
   final String id;
+
+  /// The scheduling expression (periodic, delay, or cron).
   final String expression;
+
+  /// MessageBus channel to post payloads to.
   final String channel;
+
+  /// Optional metadata label.
   final String? label;
+
+  /// Maximum number of times this job should fire (0 for infinite).
   final int maxFires;
+
+  /// Current operational state of the job.
   _JobState state = _JobState.active;
+
+  /// Number of times this job has fired.
   int fireCount = 0;
+
+  /// Active timer for this job, if any.
   Timer? timer;
+
+  /// When the job is next scheduled to fire.
   DateTime? nextFireAt;
 
+  /// Converts the job to a map for serialization.
   Map<String, Object?> toMap() => {
     'job_id': id,
     'expression': expression,
@@ -47,25 +76,33 @@ class _CronJob {
 
 /// Plugin for scheduling recurring or one-shot jobs that post to MessageBus.
 class CronPlugin extends MontyPlugin {
+  /// Creates a [CronPlugin].
   CronPlugin({MessageBus? bus, this.maxJobs = 64}) : _bus = bus;
 
-  final MessageBus? _bus;
+  /// Maximum number of concurrent jobs allowed.
   final int maxJobs;
-  final Map<String, _CronJob> _jobs = {};
-  bool _isDisposed = false;
-  int _idCounter = 0;
 
-  late final Signal<List<Map<String, Object?>>> _jobsSignal = signal(const []);
-  late final ReadonlySignal<List<Map<String, Object?>>> jobsSignal =
-      _jobsSignal;
+  /// Reactive list of all registered jobs and their status.
+  final ReadonlySignal<List<Map<String, Object?>>> jobsSignal = signal(
+    const [],
+  );
+
+  final MessageBus? _bus;
+  final Map<String, _CronJob> _jobs = {};
+  int _idCounter = 0;
+  bool _isDisposed = false;
+
+  /// Internal writable signal for jobs.
+  Signal<List<Map<String, Object?>>> get _jobsSignal =>
+      jobsSignal as Signal<List<Map<String, Object?>>>;
 
   @override
   String get namespace => 'cron';
 
   @override
   String? get systemPromptContext =>
-      'Schedule named, recurring or one-shot jobs using cron or interval expressions. '
-      'Jobs post payloads to MessageBus channels. '
+      'Schedule named, recurring or one-shot jobs using cron or interval '
+      'expressions. Jobs post payloads to MessageBus channels. '
       'Supported expressions: periodic:<ms>, delay:<ms>, cron:<5-field-expr>.';
 
   @override
@@ -139,6 +176,7 @@ class CronPlugin extends MontyPlugin {
       job.state = _JobState.cancelled;
       _updateSignal();
     }
+
     return null;
   }
 
@@ -146,12 +184,14 @@ class CronPlugin extends MontyPlugin {
     final id = args['job_id']! as String;
     final job = _jobs[id];
     if (job != null && job.state == _JobState.active) {
-      job.timer?.cancel();
-      job.timer = null;
-      job.state = _JobState.paused;
-      job.nextFireAt = null;
+      job
+        ..timer?.cancel()
+        ..timer = null
+        ..state = _JobState.paused
+        ..nextFireAt = null;
       _updateSignal();
     }
+
     return null;
   }
 
@@ -163,6 +203,7 @@ class CronPlugin extends MontyPlugin {
       _arm(job);
       _updateSignal();
     }
+
     return null;
   }
 
@@ -172,6 +213,7 @@ class CronPlugin extends MontyPlugin {
 
   Future<Object?> _handleJobInfo(Map<String, Object?> args) async {
     final id = args['job_id']! as String;
+
     return _jobs[id]?.toMap();
   }
 
@@ -182,7 +224,10 @@ class CronPlugin extends MontyPlugin {
       final ms = int.tryParse(job.expression.substring(9));
       if (ms == null) throw FormatException('Invalid periodic expression');
       job.nextFireAt = DateTime.now().add(Duration(milliseconds: ms));
-      job.timer = Timer.periodic(Duration(milliseconds: ms), (t) => _fire(job));
+      job.timer = Timer.periodic(
+        Duration(milliseconds: ms),
+        (t) => _fire(job),
+      );
     } else if (job.expression.startsWith('delay:')) {
       final ms = int.tryParse(job.expression.substring(6));
       if (ms == null) throw FormatException('Invalid delay expression');
@@ -230,12 +275,13 @@ class CronPlugin extends MontyPlugin {
         'cron_fire failed',
         attributes: {'job_id': job.id, 'error': e.toString()},
       );
-      _handleCancel({'job_id': job.id});
+      _handleCancel({'job_id': job.id}).ignore();
+
       return;
     }
 
     if (job.maxFires > 0 && job.fireCount >= job.maxFires) {
-      _handleCancel({'job_id': job.id});
+      _handleCancel({'job_id': job.id}).ignore();
     } else {
       _updateSignal();
     }
