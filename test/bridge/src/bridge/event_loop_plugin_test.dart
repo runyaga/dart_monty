@@ -133,8 +133,7 @@ void main() {
         final resolvedResults = mock.resolveFuturesResultsList;
         expect(resolvedResults, hasLength(2));
         // Second resolve (recv) should contain the queued event.
-        final waitResult =
-            resolvedResults[1][2]! as Map<String, dynamic>;
+        final waitResult = resolvedResults[1][2]! as Map<String, dynamic>;
         expect(waitResult['type'], 'early_click');
       },
     );
@@ -740,8 +739,7 @@ void main() {
         syncMock.lastResumeReturnValue,
         isA<Map<String, dynamic>>(),
       );
-      final result =
-          syncMock.lastResumeReturnValue! as Map<String, dynamic>;
+      final result = syncMock.lastResumeReturnValue! as Map<String, dynamic>;
       expect(result['type'], 'sync_click');
     });
   });

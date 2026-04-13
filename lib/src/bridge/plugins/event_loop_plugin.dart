@@ -109,8 +109,9 @@ final class BridgeChannelDisposed extends BridgeChannelState {
 /// });
 /// ```
 class EventLoopPlugin extends MontyPlugin {
-  final Signal<BridgeChannelState> _channelState =
-      signal<BridgeChannelState>(const BridgeChannelIdle());
+  final Signal<BridgeChannelState> _channelState = signal<BridgeChannelState>(
+    const BridgeChannelIdle(),
+  );
   final Signal<Map<String, dynamic>?> _lastEmitted =
       signal<Map<String, dynamic>?>(null);
   final _eventQueue = <Map<String, dynamic>>[];

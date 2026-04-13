@@ -227,7 +227,7 @@ class DefaultMontyBridge implements MontyBridge {
   // Stream wrappers registered by PluginRegistry for plugins that override
   // wrapExecuteStream. Applied in registration order (first = outermost).
   final List<Stream<BridgeEvent> Function(String, Stream<BridgeEvent>)>
-      _streamWrappers = [];
+  _streamWrappers = [];
 
   /// Registers a stream wrapper callback from a plugin.
   ///
@@ -236,7 +236,7 @@ class DefaultMontyBridge implements MontyBridge {
   @internal
   void addStreamWrapper(
     Stream<BridgeEvent> Function(String code, Stream<BridgeEvent> stream)
-        wrapper,
+    wrapper,
   ) {
     _streamWrappers.add(wrapper);
   }
