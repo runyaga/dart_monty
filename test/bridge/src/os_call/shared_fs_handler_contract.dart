@@ -1,5 +1,4 @@
 import 'package:dart_monty/dart_monty.dart';
-import 'package:dart_monty/monty_backend_spi.dart';
 import 'package:test/test.dart';
 
 /// Runs the shared FS handler contract against any [OsProvider].

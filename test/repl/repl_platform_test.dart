@@ -1,6 +1,5 @@
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/src/ffi/native_bindings.dart';
-import 'package:dart_monty/src/platform/monty_progress.dart';
 import 'package:dart_monty/src/repl/ffi_repl_bindings.dart';
 import 'package:test/test.dart';
 

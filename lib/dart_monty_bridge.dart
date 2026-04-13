@@ -26,7 +26,12 @@ export 'src/bridge/os_call/readonly_fs_provider.dart';
 export 'src/bridge/os_call/sandboxed_fs_provider_stub.dart'
     if (dart.library.io) 'src/bridge/os_call/sandboxed_fs_provider.dart';
 export 'src/bridge/os_call/time_os_provider.dart';
+export 'src/bridge/plugins/cron_plugin.dart';
 export 'src/bridge/plugins/event_loop_plugin.dart';
+export 'src/bridge/plugins/http_plugin.dart';
+export 'src/bridge/plugins/logging_plugin.dart';
 export 'src/bridge/plugins/message_bus_plugin.dart';
 export 'src/bridge/plugins/sandbox_plugin.dart';
+export 'src/bridge/plugins/storage_plugin.dart';
 export 'src/bridge/plugins/template_plugin.dart';
+export 'src/platform/bridge_logger.dart';
