@@ -95,13 +95,10 @@ void main() {
       throwsA(isA<MontyScriptError>()),
     );
 
-    // Platform is now idle. A direct caller resumeWithError() here should NOT
-    // throw StateError. Currently throws:
-    //   StateError: Cannot call resumeWithError() when not in active state.
-    expect(
-      () => monty.resumeWithError('error from host'),
-      throwsA(isA<StateError>()),  // BUG: this should NOT throw
-    );
+    // Platform is now idle. resumeWithError() must NOT throw StateError —
+    // it must return a graceful MontyComplete no-op.
+    final noOp = await monty.resumeWithError('error from host');
+    expect(noOp, isA<MontyComplete>());
 
     await monty.dispose();
   });
@@ -121,11 +118,9 @@ void main() {
     expect(result.isError, isTrue);
     expect(result.error!.excType, 'ModuleNotFoundError');
 
-    // Platform is idle. resumeWithError() must not StateError.
-    expect(
-      () => monty.resumeWithError('cleanup'),
-      throwsA(isA<StateError>()),  // BUG — should be a graceful no-op
-    );
+    // Platform is idle. resumeWithError() must return a graceful no-op.
+    final noOp = await monty.resumeWithError('cleanup');
+    expect(noOp, isA<MontyComplete>());
 
     await monty.dispose();
   });
