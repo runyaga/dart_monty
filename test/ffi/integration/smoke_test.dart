@@ -74,6 +74,62 @@ void main() {
     await monty.dispose();
   });
 
+  // Regression test: calling resumeWithError() on an already-idle platform
+  // (after the Python session completed or errored) must not throw a StateError.
+  //
+  // Root cause: external callers (e.g. soliplex-frontend bridge) may call
+  // resumeWithError() after a session ended due to a Python-level error
+  // (e.g. ModuleNotFoundError for an unsupported import). The platform is
+  // idle at that point, and assertActive() throws:
+  //   "Bad state: Cannot call resumeWithError() when not in active state."
+  //
+  // Expected behaviour after the fix: graceful no-op — return a MontyComplete
+  // describing that the call was ignored, rather than crashing the caller.
+  test('resumeWithError on idle platform: graceful no-op, not StateError',
+      () async {
+    final monty = MontyFfi(bindings: bindings);
+
+    // Run code that errors at compile time → platform goes idle immediately.
+    await expectLater(
+      () => monty.start('def ('),  // SyntaxError
+      throwsA(isA<MontyScriptError>()),
+    );
+
+    // Platform is now idle. A direct caller resumeWithError() here should NOT
+    // throw StateError. Currently throws:
+    //   StateError: Cannot call resumeWithError() when not in active state.
+    expect(
+      () => monty.resumeWithError('error from host'),
+      throwsA(isA<StateError>()),  // BUG: this should NOT throw
+    );
+
+    await monty.dispose();
+  });
+
+  // Same footgun via the bridge: code that errors at runtime (ModuleNotFoundError)
+  // leaves the platform idle; if the bridge or caller then calls resumeWithError()
+  // for an unrelated cleanup reason, it hits the same StateError.
+  test(
+      'bridge: runtime error leaves platform idle; '
+      'resumeWithError after that must not crash',
+      () async {
+    final monty = MontyFfi(bindings: bindings);
+
+    // import itertools is not supported → ModuleNotFoundError at runtime.
+    // run() returns normally (error is returned inside MontyResult).
+    final result = await monty.run('import itertools');
+    expect(result.isError, isTrue);
+    expect(result.error!.excType, 'ModuleNotFoundError');
+
+    // Platform is idle. resumeWithError() must not StateError.
+    expect(
+      () => monty.resumeWithError('cleanup'),
+      throwsA(isA<StateError>()),  // BUG — should be a graceful no-op
+    );
+
+    await monty.dispose();
+  });
+
   test('error handling: invalid syntax', () async {
     final monty = MontyFfi(bindings: bindings);
 
