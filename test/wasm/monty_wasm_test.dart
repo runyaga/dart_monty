@@ -469,7 +469,7 @@ void main() {
       expect(pending.functionName, 'retry');
     });
 
-    test('throws StateError when idle', () {
+    test('throws StateError when idle (fresh instance)', () {
       final freshMonty = MontyWasm(bindings: mock);
       expect(() => freshMonty.resumeWithError('err'), throwsStateError);
     });
@@ -478,6 +478,68 @@ void main() {
       await monty.dispose();
       expect(() => monty.resumeWithError('err'), throwsStateError);
     });
+
+    // Regression: calling resumeWithError() after the session already completed
+    // (e.g. due to a compile-time SyntaxError) must not throw StateError.
+    //
+    // Bug: "Bad state: Cannot call resumeWithError() when not in active state."
+    // Seen in soliplex-frontend when Python code raises a ModuleNotFoundError
+    // or SyntaxError and host-side code subsequently calls resumeWithError().
+    //
+    // Expected after fix: graceful no-op (MontyComplete), not StateError.
+    test(
+      'WASM: resumeWithError after compile error (idle platform) — '
+      'currently StateError, should be graceful no-op',
+      () async {
+        final freshMonty = MontyWasm(bindings: mock);
+
+        // Simulate compile-time SyntaxError: start() throws MontyScriptError
+        // and the platform goes back to idle without ever entering active state.
+        mock.nextStartResult = const WasmProgressResult(
+          ok: false,
+          error: 'SyntaxError: invalid syntax',
+          errorType: 'SyntaxError',
+        );
+        await expectLater(
+          () => freshMonty.start('def ('),
+          throwsA(isA<MontyScriptError>()),
+        );
+
+        // Platform is idle. resumeWithError() must NOT throw StateError.
+        // BUG: currently throws StateError.
+        expect(
+          () => freshMonty.resumeWithError('cleanup'),
+          throwsA(isA<StateError>()),
+        );
+      },
+    );
+
+    test(
+      'WASM: resumeWithError after runtime error via run() (idle platform) — '
+      'currently StateError, should be graceful no-op',
+      () async {
+        final freshMonty = MontyWasm(bindings: mock);
+
+        // Simulate runtime error: run() returns an error result.
+        // Platform stays idle (run() is a one-shot lifecycle).
+        mock.nextRunResult = const WasmRunResult(
+          ok: false,
+          error: "ModuleNotFoundError: No module named 'itertools'",
+          errorType: 'ModuleNotFoundError',
+        );
+        await expectLater(
+          () => freshMonty.run('import itertools'),
+          throwsA(isA<MontyScriptError>()),
+        );
+
+        // Platform is idle. resumeWithError() must NOT throw StateError.
+        // BUG: currently throws StateError.
+        expect(
+          () => freshMonty.resumeWithError('cleanup'),
+          throwsA(isA<StateError>()),
+        );
+      },
+    );
   });
 
   // ===========================================================================
