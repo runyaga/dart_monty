@@ -144,7 +144,7 @@ impl MontyHandle {
         let mut buf = String::new();
         let limits = self.limits.clone().unwrap_or_else(default_limits);
         let tracker = Tracker::new(limits);
-        let result = compiled.run(vec![], tracker, PrintWriter::Collect(&mut buf));
+        let result = compiled.run(vec![], tracker, PrintWriter::CollectString(&mut buf));
 
         self.print_output.push_str(&buf);
 
@@ -466,7 +466,7 @@ impl MontyHandle {
         f: impl FnOnce(PrintWriter) -> Result<RunProgress<Tracker>, MontyException>,
     ) -> (MontyProgressTag, Option<String>) {
         let mut buf = String::new();
-        let result = f(PrintWriter::Collect(&mut buf));
+        let result = f(PrintWriter::CollectString(&mut buf));
         self.print_output.push_str(&buf);
         match result {
             Ok(progress) => self.process_progress(progress),
@@ -542,10 +542,13 @@ impl MontyHandle {
                                 name,
                                 docstring: None,
                             }),
-                            PrintWriter::Collect(&mut buf),
+                            PrintWriter::CollectString(&mut buf),
                         )
                     } else {
-                        lookup.resume(NameLookupResult::Undefined, PrintWriter::Collect(&mut buf))
+                        lookup.resume(
+                            NameLookupResult::Undefined,
+                            PrintWriter::CollectString(&mut buf),
+                        )
                     };
                     self.print_output.push_str(&buf);
                     match result {
