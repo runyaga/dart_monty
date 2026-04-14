@@ -436,8 +436,9 @@ void main() {
       expect(() => platform.resume(null), throwsA(isA<StateError>()));
     });
 
-    test('resumeWithError() while idle throws StateError', () {
-      expect(() => platform.resumeWithError('err'), throwsA(isA<StateError>()));
+    test('resumeWithError() while idle returns graceful no-op', () async {
+      final noOp = await platform.resumeWithError('err');
+      expect(noOp, isA<MontyComplete>());
     });
 
     test('run() after disposed throws StateError', () async {

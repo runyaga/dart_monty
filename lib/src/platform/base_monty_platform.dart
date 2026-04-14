@@ -118,6 +118,18 @@ abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
   @override
   Future<MontyProgress> resumeWithError(String errorMessage) async {
     assertNotDisposed('resumeWithError');
+    // Graceful no-op when idle: the session already completed or errored
+    // (e.g. SyntaxError from start(), ModuleNotFoundError from run()).
+    // Callers such as plugin_host may call resumeWithError() for cleanup
+    // after any Python-level error; we must not crash them with a StateError.
+    if (isIdle) {
+      return const MontyComplete(
+        result: MontyResult(
+          value: MontyNull(),
+          usage: _zeroUsage,
+        ),
+      );
+    }
     assertActive('resumeWithError');
     try {
       final progress = await _bindings.resumeWithError(errorMessage);
