@@ -512,7 +512,7 @@ void main() {
     );
 
     test(
-      'resumeWithError after runtime error via run() (idle platform) — graceful no-op',
+      'resumeWithError after runtime error via run() — graceful no-op',
       () async {
         final freshMonty = MontyWasm(bindings: mock);
 

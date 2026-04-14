@@ -456,9 +456,10 @@ void main() {
       expect(mock.resumeWithErrorCalls.first.errorMessage, 'network failure');
     });
 
-    test('throws StateError when idle', () {
+    test('graceful no-op when idle (never started)', () async {
       final freshMonty = MontyFfi(bindings: mock);
-      expect(() => freshMonty.resumeWithError('err'), throwsStateError);
+      final noOp = await freshMonty.resumeWithError('err');
+      expect(noOp, isA<MontyComplete>());
     });
 
     test('throws StateError when disposed', () async {

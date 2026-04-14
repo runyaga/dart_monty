@@ -123,9 +123,9 @@ abstract class BaseMontyPlatform extends MontyPlatform with MontyStateMixin {
     // Callers such as plugin_host may call resumeWithError() for cleanup
     // after any Python-level error; we must not crash them with a StateError.
     if (isIdle) {
-      return MontyComplete(
+      return const MontyComplete(
         result: MontyResult(
-          value: const MontyNull(),
+          value: MontyNull(),
           usage: _zeroUsage,
         ),
       );
