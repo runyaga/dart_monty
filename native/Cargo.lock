@@ -588,8 +588,8 @@ checksum = "f8ca58f447f06ed17d5fc4043ce1b10dd205e060fb3ce5b979b8ed8e59ff3f79"
 
 [[package]]
 name = "monty"
-version = "0.0.10"
-source = "git+https://github.com/runyaga/monty.git?branch=runyaga%2F0.0.10#0bec01436bdede88b01dd6c5b7a77e361d040719"
+version = "0.0.12"
+source = "git+https://github.com/runyaga/monty.git?branch=runyaga%2F0.0.12#9473d87807f17eb93d0b635c7e0e64d04a79ef6e"
 dependencies = [
  "ahash",
  "bytemuck",
@@ -604,7 +604,6 @@ dependencies = [
  "num-integer",
  "num-traits",
  "postcard",
- "pyo3-build-config",
  "ruff_python_ast",
  "ruff_python_parser",
  "ruff_text_size",

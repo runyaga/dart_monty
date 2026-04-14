@@ -131,7 +131,7 @@ impl MontyReplHandle {
         };
 
         let mut buf = String::new();
-        let result = repl.feed_run(code, vec![], PrintWriter::Collect(&mut buf));
+        let result = repl.feed_run(code, vec![], PrintWriter::CollectString(&mut buf));
 
         self.print_output.push_str(&buf);
 
@@ -171,7 +171,7 @@ impl MontyReplHandle {
         };
 
         let mut buf = String::new();
-        let result = repl.feed_start(code, vec![], PrintWriter::Collect(&mut buf));
+        let result = repl.feed_start(code, vec![], PrintWriter::CollectString(&mut buf));
         self.print_output.push_str(&buf);
 
         match result {
@@ -194,7 +194,7 @@ impl MontyReplHandle {
                 let mut buf = String::new();
                 let result = call.resume(
                     ExtFunctionResult::Return(obj),
-                    PrintWriter::Collect(&mut buf),
+                    PrintWriter::CollectString(&mut buf),
                 );
                 self.print_output.push_str(&buf);
                 match result {
@@ -206,7 +206,7 @@ impl MontyReplHandle {
                 let mut buf = String::new();
                 let result = call.resume(
                     ExtFunctionResult::Return(obj),
-                    PrintWriter::Collect(&mut buf),
+                    PrintWriter::CollectString(&mut buf),
                 );
                 self.print_output.push_str(&buf);
                 match result {
@@ -235,7 +235,7 @@ impl MontyReplHandle {
                         monty::ExcType::RuntimeError,
                         Some(error_message.to_string()),
                     )),
-                    PrintWriter::Collect(&mut buf),
+                    PrintWriter::CollectString(&mut buf),
                 );
                 self.print_output.push_str(&buf);
                 match result {
@@ -250,7 +250,7 @@ impl MontyReplHandle {
                         monty::ExcType::RuntimeError,
                         Some(error_message.to_string()),
                     )),
-                    PrintWriter::Collect(&mut buf),
+                    PrintWriter::CollectString(&mut buf),
                 );
                 self.print_output.push_str(&buf);
                 match result {
@@ -274,7 +274,7 @@ impl MontyReplHandle {
         match state {
             ReplHandleState::Paused { call, .. } => {
                 let mut buf = String::new();
-                let result = call.resume_pending(PrintWriter::Collect(&mut buf));
+                let result = call.resume_pending(PrintWriter::CollectString(&mut buf));
                 self.print_output.push_str(&buf);
                 match result {
                     Ok(progress) => self.process_repl_progress(progress),
@@ -327,7 +327,7 @@ impl MontyReplHandle {
         }
 
         let mut buf = String::new();
-        let result = futures.resume(resolved, PrintWriter::Collect(&mut buf));
+        let result = futures.resume(resolved, PrintWriter::CollectString(&mut buf));
         self.print_output.push_str(&buf);
 
         match result {
@@ -553,10 +553,13 @@ impl MontyReplHandle {
                                 name,
                                 docstring: None,
                             }),
-                            PrintWriter::Collect(&mut buf),
+                            PrintWriter::CollectString(&mut buf),
                         )
                     } else {
-                        lookup.resume(NameLookupResult::Undefined, PrintWriter::Collect(&mut buf))
+                        lookup.resume(
+                            NameLookupResult::Undefined,
+                            PrintWriter::CollectString(&mut buf),
+                        )
                     };
                     self.print_output.push_str(&buf);
                     match result {
