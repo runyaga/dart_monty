@@ -115,9 +115,62 @@ pub fn monty_exception_to_json(e: &MontyException) -> Value {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use monty::ExcType;
+    use monty::{ExcType, MontyRun, NoLimitTracker, PrintWriter};
     use std::ffi::CStr;
     use std::ptr;
+
+    /// Checks that `message` contains none of the known Rust-internal debug tokens
+    /// that must never appear in user-facing Python error messages.
+    fn assert_no_rust_debug_leak(message: &str) {
+        let forbidden = [
+            "NodeIndex",
+            "ExprSubscript",
+            "ExprName",
+            "ExprAttribute",
+            "ExprCall",
+            "node_index:",
+            "TextRange",
+        ];
+        for token in forbidden {
+            assert!(
+                !message.contains(token),
+                "error message leaks Rust internal `{token}`: {message:?}",
+            );
+        }
+    }
+
+    /// Subscript targets in a tuple swap — the canonical repro for the leak.
+    ///
+    /// `arr[j], arr[j+1] = arr[j+1], arr[j]` is valid Python 3 but triggers
+    /// the `other` catch-all arm in `parse_unpack_target_impl`, which previously
+    /// formatted the Rust AST node with `{other:?}`, leaking `ExprSubscript { ... }`.
+    #[test]
+    fn test_subscript_swap_parse_error_does_not_leak_rust_debug() {
+        let code = "arr = [3, 1, 2]\narr[0], arr[1] = arr[1], arr[0]";
+        let err = MontyRun::new(code.into(), "<test>", vec![]).unwrap_err();
+        assert_no_rust_debug_leak(&err.summary());
+    }
+
+    /// Multi-element subscript unpacking — same parser arm, different arity.
+    #[test]
+    fn test_subscript_multi_unpack_parse_error_does_not_leak_rust_debug() {
+        let code = "a = [0, 0, 0]\ni, j = 0, 1\na[i], a[j], a[2] = 1, 2, 3";
+        let err = MontyRun::new(code.into(), "<test>", vec![]).unwrap_err();
+        assert_no_rust_debug_leak(&err.summary());
+    }
+
+    /// Runtime errors must also not leak Rust debug output through `monty_exception_to_json`.
+    #[test]
+    fn test_runtime_error_message_does_not_leak_rust_debug() {
+        let code = "x = 1 / 0";
+        let compiled = MontyRun::new(code.into(), "<test>", vec![]).unwrap();
+        let err = compiled
+            .run(vec![], NoLimitTracker, PrintWriter::Disabled)
+            .unwrap_err();
+        let json = monty_exception_to_json(&err);
+        let message = json["message"].as_str().unwrap();
+        assert_no_rust_debug_leak(message);
+    }
 
     #[test]
     fn test_to_c_string_basic() {
@@ -183,8 +236,6 @@ mod tests {
     #[test]
     fn test_monty_exception_to_json_with_traceback() {
         // Run code that produces a multi-frame traceback through monty
-        use monty::{MontyRun, NoLimitTracker, PrintWriter};
-
         let code = "def inner():\n    1/0\n\ndef outer():\n    inner()\n\nouter()";
         let compiled = MontyRun::new(code.into(), "<test>", vec![]).unwrap();
         let err = compiled

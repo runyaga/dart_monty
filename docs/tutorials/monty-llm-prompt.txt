@@ -9,6 +9,10 @@ Core language:
 - Variables, assignment, augmented assignment (+=, -=, etc.)
 - Multiple assignment (a, b = 1, 2), star unpack (a, *b = [1,2,3]),
   nested unpack ((a, b), c = [1,2], 3)
+  **NOTE: tuple-unpack targets must be plain names or nested tuples.
+  Subscript targets are NOT supported: `a[i], a[j] = a[j], a[i]` raises
+  SyntaxError. Use a temporary variable instead:
+  `tmp = a[i]; a[i] = a[j]; a[j] = tmp`**
 - Strings: f-strings, slicing, multiply ("ha" * 3)
 - Lists, dicts, sets, tuples: construction, indexing, slicing
 - Comprehensions: list, dict, set, and generator expressions
