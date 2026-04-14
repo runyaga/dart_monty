@@ -888,4 +888,361 @@ mod tests {
         let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed["value"], 200);
     }
+
+    // -----------------------------------------------------------------------
+    // OsCall state tests
+    // -----------------------------------------------------------------------
+
+    fn os_call_snippet() -> &'static str {
+        "from pathlib import Path\np = Path('test.txt')\np.read_text()"
+    }
+
+    #[test]
+    fn feed_start_os_call_pauses() {
+        let mut repl = MontyReplHandle::new("test.py");
+        let (tag, _) = repl.feed_start(os_call_snippet());
+        assert_eq!(tag, MontyProgressTag::OsCall);
+    }
+
+    #[test]
+    fn repl_os_call_fn_name_accessor() {
+        let mut repl = MontyReplHandle::new("test.py");
+        repl.feed_start(os_call_snippet());
+        let name = repl.os_call_fn_name();
+        assert!(name.is_some());
+        assert!(
+            name.unwrap().contains("read_text") || name.unwrap().contains("Path"),
+            "expected a Path-related OsCall, got: {:?}",
+            name
+        );
+    }
+
+    #[test]
+    fn repl_os_call_args_json_accessor() {
+        let mut repl = MontyReplHandle::new("test.py");
+        repl.feed_start(os_call_snippet());
+        let args = repl.os_call_args_json();
+        assert!(args.is_some());
+        let _: serde_json::Value = serde_json::from_str(args.unwrap()).unwrap();
+    }
+
+    #[test]
+    fn repl_os_call_kwargs_json_accessor() {
+        let mut repl = MontyReplHandle::new("test.py");
+        repl.feed_start(os_call_snippet());
+        let kwargs = repl.os_call_kwargs_json();
+        assert!(kwargs.is_some());
+        let _: serde_json::Value = serde_json::from_str(kwargs.unwrap()).unwrap();
+    }
+
+    #[test]
+    fn repl_os_call_id_accessor() {
+        let mut repl = MontyReplHandle::new("test.py");
+        repl.feed_start(os_call_snippet());
+        let id = repl.os_call_id();
+        assert!(id.is_some());
+    }
+
+    #[test]
+    fn repl_os_call_accessors_wrong_state() {
+        let repl = MontyReplHandle::new("test.py");
+        assert!(repl.os_call_fn_name().is_none());
+        assert!(repl.os_call_args_json().is_none());
+        assert!(repl.os_call_kwargs_json().is_none());
+        assert!(repl.os_call_id().is_none());
+    }
+
+    #[test]
+    fn repl_resume_from_os_call_with_value() {
+        let code = r#"from pathlib import Path
+p = Path('test.txt')
+result = p.read_text()
+result"#;
+        let mut repl = MontyReplHandle::new("test.py");
+        let (tag, _) = repl.feed_start(code);
+        assert_eq!(tag, MontyProgressTag::OsCall);
+
+        let (tag, _) = repl.resume("\"file contents\"");
+        assert_eq!(tag, MontyProgressTag::Complete);
+        assert_eq!(repl.complete_is_error(), Some(false));
+        let result_json = repl.complete_result_json().unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(result_json).unwrap();
+        assert_eq!(parsed["value"], "file contents");
+    }
+
+    #[test]
+    fn repl_resume_with_error_from_os_call() {
+        let code = r#"from pathlib import Path
+p = Path('missing.txt')
+try:
+    result = p.read_text()
+except Exception as e:
+    result = str(e)
+result"#;
+        let mut repl = MontyReplHandle::new("test.py");
+        let (tag, _) = repl.feed_start(code);
+        assert_eq!(tag, MontyProgressTag::OsCall);
+
+        let (tag, _) = repl.resume_with_error("permission denied");
+        assert_eq!(tag, MontyProgressTag::Complete);
+        let result_json = repl.complete_result_json().unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(result_json).unwrap();
+        assert!(
+            parsed["value"]
+                .as_str()
+                .unwrap()
+                .contains("permission denied")
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // resume_with_error from wrong state
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn resume_with_error_wrong_state() {
+        let mut repl = MontyReplHandle::new("test.py");
+        // Idle state — not Paused or OsCall
+        let (tag, err) = repl.resume_with_error("boom");
+        assert_eq!(tag, MontyProgressTag::Error);
+        assert!(err.unwrap().contains("not in Paused or OsCall state"));
+    }
+
+    // -----------------------------------------------------------------------
+    // resume_as_future from wrong state
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn resume_as_future_wrong_state() {
+        let mut repl = MontyReplHandle::new("test.py");
+        let (tag, err) = repl.resume_as_future();
+        assert_eq!(tag, MontyProgressTag::Error);
+        assert!(err.unwrap().contains("not in Paused state"));
+    }
+
+    // -----------------------------------------------------------------------
+    // resume_as_future from Paused state
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn repl_resume_as_future_single() {
+        let code =
+            "async def main():\n  result = await fetch('x')\n  return result\n\nawait main()";
+        let mut repl = MontyReplHandle::new("test.py");
+        repl.set_ext_fns(vec!["fetch".into()]);
+
+        let (tag, _) = repl.feed_start(code);
+        assert_eq!(tag, MontyProgressTag::Pending);
+
+        let (tag, _) = repl.resume_as_future();
+        assert_eq!(tag, MontyProgressTag::ResolveFutures);
+
+        let ids_str = repl.pending_future_call_ids().unwrap();
+        let ids: Vec<u32> = serde_json::from_str(ids_str).unwrap();
+        assert_eq!(ids.len(), 1);
+
+        let results = format!("{{\"{}\":\"response\"}}", ids[0]);
+        let (tag, _) = repl.resume_futures(&results, "{}");
+        assert_eq!(tag, MontyProgressTag::Complete);
+
+        let result_json = repl.complete_result_json().unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(result_json).unwrap();
+        assert_eq!(parsed["value"], "response");
+    }
+
+    // -----------------------------------------------------------------------
+    // resume_futures from wrong state
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn repl_resume_futures_wrong_state() {
+        let mut repl = MontyReplHandle::new("test.py");
+        let (tag, err) = repl.resume_futures("{}", "{}");
+        assert_eq!(tag, MontyProgressTag::Error);
+        assert!(err.unwrap().contains("not in Futures state"));
+    }
+
+    // -----------------------------------------------------------------------
+    // resume_futures with errors map
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn repl_resume_futures_with_error_in_map() {
+        let code =
+            "async def main():\n  result = await fetch('x')\n  return result\n\nawait main()";
+        let mut repl = MontyReplHandle::new("test.py");
+        repl.set_ext_fns(vec!["fetch".into()]);
+
+        let (tag, _) = repl.feed_start(code);
+        assert_eq!(tag, MontyProgressTag::Pending);
+
+        let (tag, _) = repl.resume_as_future();
+        assert_eq!(tag, MontyProgressTag::ResolveFutures);
+
+        let ids_str = repl.pending_future_call_ids().unwrap();
+        let ids: Vec<u32> = serde_json::from_str(ids_str).unwrap();
+
+        // Provide an error for the future
+        let errors = format!("{{\"{}\":\"network timeout\"}}", ids[0]);
+        let (tag, _) = repl.resume_futures("{}", &errors);
+        assert_eq!(tag, MontyProgressTag::Error);
+        assert_eq!(repl.complete_is_error(), Some(true));
+    }
+
+    // -----------------------------------------------------------------------
+    // take_repl error path (not Idle/Complete state)
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn feed_run_while_paused_fails() {
+        let mut repl = MontyReplHandle::new("test.py");
+        repl.set_ext_fns(vec!["get_val".into()]);
+
+        // Pause the REPL
+        let (tag, _) = repl.feed_start("get_val()");
+        assert_eq!(tag, MontyProgressTag::Pending);
+
+        // Try feed_run while paused — should error because take_repl fails
+        let (tag, _, err) = repl.feed_run("1 + 1");
+        assert_eq!(tag, MontyResultTag::Error);
+        assert!(err.unwrap().contains("not in Idle or Complete state"));
+    }
+
+    #[test]
+    fn feed_start_while_paused_fails() {
+        let mut repl = MontyReplHandle::new("test.py");
+        repl.set_ext_fns(vec!["get_val".into()]);
+
+        let (tag, _) = repl.feed_start("get_val()");
+        assert_eq!(tag, MontyProgressTag::Pending);
+
+        // Try feed_start while paused — should error
+        let (tag, err) = repl.feed_start("1 + 1");
+        assert_eq!(tag, MontyProgressTag::Error);
+        assert!(err.unwrap().contains("not in Idle or Complete state"));
+    }
+
+    // -----------------------------------------------------------------------
+    // State accessors returning None in wrong state
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn repl_pending_accessors_idle_state() {
+        let repl = MontyReplHandle::new("test.py");
+        assert!(repl.pending_fn_name().is_none());
+        assert!(repl.pending_fn_args_json().is_none());
+        assert!(repl.pending_fn_kwargs_json().is_none());
+        assert!(repl.pending_call_id().is_none());
+        assert!(repl.pending_method_call().is_none());
+        assert!(repl.complete_result_json().is_none());
+        assert!(repl.complete_is_error().is_none());
+        assert!(repl.pending_future_call_ids().is_none());
+    }
+
+    // -----------------------------------------------------------------------
+    // Print output in feed_start/resume cycle
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn feed_start_captures_print_output() {
+        let mut repl = MontyReplHandle::new("test.py");
+        repl.set_ext_fns(vec!["get_val".into()]);
+
+        let (tag, _) = repl.feed_start("print('before')\nresult = get_val()\nresult");
+        assert_eq!(tag, MontyProgressTag::Pending);
+
+        let (tag, _) = repl.resume("42");
+        assert_eq!(tag, MontyProgressTag::Complete);
+
+        let result_json = repl.complete_result_json().unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(result_json).unwrap();
+        assert_eq!(parsed["print_output"], "before\n");
+        assert_eq!(parsed["value"], 42);
+    }
+
+    #[test]
+    fn feed_run_print_output_cleared_after_run() {
+        let mut repl = MontyReplHandle::new("test.py");
+
+        let (_, json1, _) = repl.feed_run("print('first')");
+        let p1: serde_json::Value = serde_json::from_str(&json1).unwrap();
+        assert_eq!(p1["print_output"], "first\n");
+
+        // Second run should not carry over print from first
+        let (_, json2, _) = repl.feed_run("2 + 2");
+        let p2: serde_json::Value = serde_json::from_str(&json2).unwrap();
+        assert!(p2.get("print_output").is_none());
+    }
+
+    // -----------------------------------------------------------------------
+    // Debug impl
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn repl_debug_impl() {
+        let repl = MontyReplHandle::new("test.py");
+        let debug_str = format!("{repl:?}");
+        assert!(debug_str.contains("MontyReplHandle"));
+    }
+
+    // -----------------------------------------------------------------------
+    // build_repl_result_json coverage
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn repl_result_json_with_error() {
+        let mut repl = MontyReplHandle::new("test.py");
+        let (tag, json, _) = repl.feed_run("1 / 0");
+        assert_eq!(tag, MontyResultTag::Error);
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert!(parsed.get("error").is_some());
+        assert!(parsed["value"].is_null());
+    }
+
+    #[test]
+    fn repl_result_json_with_print_and_error() {
+        let mut repl = MontyReplHandle::new("test.py");
+        let (tag, json, _) = repl.feed_run("print('oops')\n1/0");
+        assert_eq!(tag, MontyResultTag::Error);
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed["print_output"], "oops\n");
+        assert!(parsed.get("error").is_some());
+    }
+
+    // -----------------------------------------------------------------------
+    // resume with invalid JSON
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn repl_resume_invalid_json() {
+        let mut repl = MontyReplHandle::new("test.py");
+        repl.set_ext_fns(vec!["get_val".into()]);
+
+        let (tag, _) = repl.feed_start("get_val()");
+        assert_eq!(tag, MontyProgressTag::Pending);
+
+        let (tag, err) = repl.resume("not-valid-json{{{");
+        assert_eq!(tag, MontyProgressTag::Error);
+        assert!(err.unwrap().contains("invalid JSON"));
+    }
+
+    // -----------------------------------------------------------------------
+    // NameLookup with registered ext_fn exercises the known-name branch
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn repl_name_lookup_registered_fn() {
+        let mut repl = MontyReplHandle::new("test.py");
+        repl.set_ext_fns(vec!["compute".into()]);
+
+        let (tag, _) = repl.feed_start("result = compute(5)\nresult");
+        assert_eq!(tag, MontyProgressTag::Pending);
+        assert_eq!(repl.pending_fn_name(), Some("compute"));
+
+        let (tag, _) = repl.resume("25");
+        assert_eq!(tag, MontyProgressTag::Complete);
+        let result_json = repl.complete_result_json().unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(result_json).unwrap();
+        assert_eq!(parsed["value"], 25);
+    }
 }

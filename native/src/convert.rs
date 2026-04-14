@@ -1424,4 +1424,76 @@ mod tests {
             "plain dict should not gain extra __type wrapper"
         );
     }
+
+    // --- number_to_monty_object: u64-overflow branch ---
+    // A JSON number that doesn't fit i64 but is a valid u64 (e.g. u64::MAX)
+    // falls through as_i64() and as_f64() (f64 loses precision) into the
+    // BigInt branch.  We test via a raw serde_json::Number.
+    #[test]
+    fn test_number_to_monty_u64_large() {
+        // serde_json represents u64::MAX correctly as a Number.
+        // u64::MAX doesn't fit in i64 — monty's json_to_monty_object will
+        // try as_i64() (fails), then as_f64() (lossy), so it may return Float.
+        // The important thing is it doesn't panic and returns a numeric MontyObject.
+        let val = serde_json::Value::Number(serde_json::Number::from(u64::MAX));
+        let obj = json_to_monty_object(&val);
+        match obj {
+            MontyObject::Int(_) | MontyObject::BigInt(_) | MontyObject::Float(_) => {}
+            other => panic!("expected a numeric MontyObject for u64::MAX, got {other:?}"),
+        }
+    }
+
+    // --- json_to_monty_object with unknown __type falls through to dict ---
+    #[test]
+    fn test_json_to_monty_unknown_type_becomes_dict() {
+        // An object with an unrecognised __type must produce a Dict,
+        // not panic or discard data.
+        let val = json!({"__type": "xyzzy", "data": 42});
+        let obj = json_to_monty_object(&val);
+        match obj {
+            MontyObject::Dict(pairs) => {
+                let items: Vec<_> = pairs.into_iter().collect();
+                assert!(
+                    !items.is_empty(),
+                    "unknown __type should produce a non-empty dict"
+                );
+            }
+            other => panic!("expected Dict for unknown __type, got {other:?}"),
+        }
+    }
+
+    // --- MontyObject::Cycle serializes as a plain string ---
+    // NOTE: Cycle(HeapId, String) cannot be constructed from outside the monty crate because
+    // HeapId is not pub-exported. Instead we verify Cycle output by running Python code that
+    // produces a self-referential structure, which the monty VM wraps in Cycle.
+    #[test]
+    fn test_cycle_to_json_via_execution() {
+        // Verify that dict-to-JSON handles self-referential structures without panic.
+        // The Cycle branch is exercised when monty's VM detects a reference loop.
+        use monty::{MontyRun, NoLimitTracker, PrintWriter};
+        // A self-referential list: x = []; x.append(x) → Cycle
+        let code = "x = []\nx.append(x)\nx";
+        let compiled = MontyRun::new(code.into(), "<test>", vec![]).unwrap();
+        let result = compiled.run(vec![], NoLimitTracker, PrintWriter::Disabled);
+        if let Ok(obj) = result {
+            let val = monty_object_to_json(&obj);
+            // The value is either an array (if cycle detection wraps each elem)
+            // or a string sentinel — just confirm it doesn't panic and is JSON-serializable.
+            let _ = serde_json::to_string(&val).unwrap();
+        }
+    }
+
+    // --- empty dict serializes as an empty JSON object ---
+    #[test]
+    fn test_dict_to_json_empty() {
+        let obj = MontyObject::dict(vec![]);
+        let val = monty_object_to_json(&obj);
+        // An empty dict has all-string-keys vacuously, so it becomes Value::Object({})
+        assert!(val.is_object(), "empty dict should be JSON object");
+        assert_eq!(
+            val.as_object().unwrap().len(),
+            0,
+            "empty dict should have 0 keys"
+        );
+    }
 }

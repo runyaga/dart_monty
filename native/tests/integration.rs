@@ -1453,3 +1453,720 @@ fn free_null_is_noop() {
     // NULL has always been safe, but verify it still is.
     unsafe { monty_free(ptr::null_mut()) };
 }
+
+// ---------------------------------------------------------------------------
+// REPL FFI: basic lifecycle
+// ---------------------------------------------------------------------------
+
+#[test]
+fn repl_create_feed_run_free() {
+    let name = c("test.py");
+    let mut out_error: *mut c_char = ptr::null_mut();
+
+    let repl = unsafe { monty_repl_create(name.as_ptr(), &mut out_error) };
+    assert!(!repl.is_null(), "monty_repl_create returned NULL");
+    assert!(out_error.is_null());
+
+    let code = c("2 + 2");
+    let mut result_json: *mut c_char = ptr::null_mut();
+    let mut error_msg: *mut c_char = ptr::null_mut();
+    let tag = unsafe { monty_repl_feed_run(repl, code.as_ptr(), &mut result_json, &mut error_msg) };
+    assert_eq!(tag, MontyResultTag::Ok);
+    assert!(!result_json.is_null());
+
+    let json_str = unsafe { read_c_string(result_json) };
+    let parsed: serde_json::Value = serde_json::from_str(&json_str).unwrap();
+    assert_eq!(parsed["value"], 4);
+
+    if !error_msg.is_null() {
+        unsafe { monty_string_free(error_msg) };
+    }
+    unsafe { monty_repl_free(repl) };
+}
+
+#[test]
+fn repl_create_null_name_uses_default() {
+    let mut out_error: *mut c_char = ptr::null_mut();
+    let repl = unsafe { monty_repl_create(ptr::null(), &mut out_error) };
+    assert!(!repl.is_null());
+    unsafe { monty_repl_free(repl) };
+}
+
+#[test]
+fn repl_free_null_is_noop() {
+    unsafe { monty_repl_free(ptr::null_mut()) };
+}
+
+#[test]
+fn repl_free_double_free_is_noop() {
+    let name = c("test.py");
+    let mut out_error: *mut c_char = ptr::null_mut();
+    let repl = unsafe { monty_repl_create(name.as_ptr(), &mut out_error) };
+    assert!(!repl.is_null());
+    unsafe { monty_repl_free(repl) };
+    unsafe { monty_repl_free(repl) }; // should be no-op
+}
+
+// ---------------------------------------------------------------------------
+// REPL FFI: feed_run error cases
+// ---------------------------------------------------------------------------
+
+#[test]
+fn repl_feed_run_null_handle() {
+    let code = c("2 + 2");
+    let mut result: *mut c_char = ptr::null_mut();
+    let mut err: *mut c_char = ptr::null_mut();
+    let tag = unsafe { monty_repl_feed_run(ptr::null_mut(), code.as_ptr(), &mut result, &mut err) };
+    assert_eq!(tag, MontyResultTag::Error);
+    if !err.is_null() {
+        unsafe { monty_string_free(err) };
+    }
+}
+
+#[test]
+fn repl_feed_run_null_code() {
+    let name = c("test.py");
+    let mut out_error: *mut c_char = ptr::null_mut();
+    let repl = unsafe { monty_repl_create(name.as_ptr(), &mut out_error) };
+    assert!(!repl.is_null());
+
+    let mut result: *mut c_char = ptr::null_mut();
+    let mut err: *mut c_char = ptr::null_mut();
+    let tag = unsafe { monty_repl_feed_run(repl, ptr::null(), &mut result, &mut err) };
+    assert_eq!(tag, MontyResultTag::Error);
+    if !err.is_null() {
+        unsafe { monty_string_free(err) };
+    }
+    unsafe { monty_repl_free(repl) };
+}
+
+#[test]
+fn repl_feed_run_null_output_params() {
+    let name = c("test.py");
+    let mut out_error: *mut c_char = ptr::null_mut();
+    let repl = unsafe { monty_repl_create(name.as_ptr(), &mut out_error) };
+    assert!(!repl.is_null());
+
+    let code = c("2 + 2");
+    let tag = unsafe { monty_repl_feed_run(repl, code.as_ptr(), ptr::null_mut(), ptr::null_mut()) };
+    assert_eq!(tag, MontyResultTag::Ok);
+
+    unsafe { monty_repl_free(repl) };
+}
+
+#[test]
+fn repl_feed_run_error_result() {
+    let name = c("test.py");
+    let mut out_error: *mut c_char = ptr::null_mut();
+    let repl = unsafe { monty_repl_create(name.as_ptr(), &mut out_error) };
+    assert!(!repl.is_null());
+
+    let code = c("1 / 0");
+    let mut result: *mut c_char = ptr::null_mut();
+    let mut err: *mut c_char = ptr::null_mut();
+    let tag = unsafe { monty_repl_feed_run(repl, code.as_ptr(), &mut result, &mut err) };
+    assert_eq!(tag, MontyResultTag::Error);
+    assert!(!err.is_null());
+
+    if !result.is_null() {
+        unsafe { monty_string_free(result) };
+    }
+    unsafe { monty_string_free(err) };
+    unsafe { monty_repl_free(repl) };
+}
+
+// ---------------------------------------------------------------------------
+// REPL FFI: state persistence across feed_run calls
+// ---------------------------------------------------------------------------
+
+#[test]
+fn repl_state_persists_across_calls() {
+    let name = c("test.py");
+    let mut out_error: *mut c_char = ptr::null_mut();
+    let repl = unsafe { monty_repl_create(name.as_ptr(), &mut out_error) };
+    assert!(!repl.is_null());
+
+    let code1 = c("x = 42");
+    let mut r1: *mut c_char = ptr::null_mut();
+    let mut e1: *mut c_char = ptr::null_mut();
+    let tag = unsafe { monty_repl_feed_run(repl, code1.as_ptr(), &mut r1, &mut e1) };
+    assert_eq!(tag, MontyResultTag::Ok);
+    if !r1.is_null() {
+        unsafe { monty_string_free(r1) };
+    }
+    if !e1.is_null() {
+        unsafe { monty_string_free(e1) };
+    }
+
+    let code2 = c("x + 1");
+    let mut r2: *mut c_char = ptr::null_mut();
+    let mut e2: *mut c_char = ptr::null_mut();
+    let tag = unsafe { monty_repl_feed_run(repl, code2.as_ptr(), &mut r2, &mut e2) };
+    assert_eq!(tag, MontyResultTag::Ok);
+    assert!(!r2.is_null());
+
+    let json_str = unsafe { read_c_string(r2) };
+    let parsed: serde_json::Value = serde_json::from_str(&json_str).unwrap();
+    assert_eq!(parsed["value"], 43);
+
+    if !e2.is_null() {
+        unsafe { monty_string_free(e2) };
+    }
+    unsafe { monty_repl_free(repl) };
+}
+
+// ---------------------------------------------------------------------------
+// REPL FFI: detect_continuation
+// ---------------------------------------------------------------------------
+
+#[test]
+fn repl_detect_continuation_complete() {
+    let code = c("x = 1");
+    let result = unsafe { monty_repl_detect_continuation(code.as_ptr()) };
+    assert_eq!(result, 0); // CONTINUATION_COMPLETE
+}
+
+#[test]
+fn repl_detect_continuation_incomplete_block() {
+    let code = c("def f():");
+    let result = unsafe { monty_repl_detect_continuation(code.as_ptr()) };
+    assert_eq!(result, 2); // CONTINUATION_INCOMPLETE_BLOCK
+}
+
+#[test]
+fn repl_detect_continuation_null() {
+    let result = unsafe { monty_repl_detect_continuation(ptr::null()) };
+    assert_eq!(result, 0); // treat null as complete
+}
+
+// ---------------------------------------------------------------------------
+// REPL FFI: set_ext_fns
+// ---------------------------------------------------------------------------
+
+#[test]
+fn repl_set_ext_fns_null_clears() {
+    let name = c("test.py");
+    let mut out_error: *mut c_char = ptr::null_mut();
+    let repl = unsafe { monty_repl_create(name.as_ptr(), &mut out_error) };
+    assert!(!repl.is_null());
+
+    // set_ext_fns with NULL should clear (no crash)
+    unsafe { monty_repl_set_ext_fns(repl, ptr::null()) };
+
+    unsafe { monty_repl_free(repl) };
+}
+
+#[test]
+fn repl_set_ext_fns_null_handle_noop() {
+    // Should not crash
+    let ext = c("foo,bar");
+    unsafe { monty_repl_set_ext_fns(ptr::null_mut(), ext.as_ptr()) };
+}
+
+#[test]
+fn repl_set_ext_fns_empty_string() {
+    let name = c("test.py");
+    let mut out_error: *mut c_char = ptr::null_mut();
+    let repl = unsafe { monty_repl_create(name.as_ptr(), &mut out_error) };
+    assert!(!repl.is_null());
+
+    let empty = c("");
+    unsafe { monty_repl_set_ext_fns(repl, empty.as_ptr()) };
+
+    unsafe { monty_repl_free(repl) };
+}
+
+#[test]
+fn repl_set_ext_fns_and_feed_start() {
+    let name = c("test.py");
+    let mut out_error: *mut c_char = ptr::null_mut();
+    let repl = unsafe { monty_repl_create(name.as_ptr(), &mut out_error) };
+    assert!(!repl.is_null());
+
+    let ext_fns = c("get_val");
+    unsafe { monty_repl_set_ext_fns(repl, ext_fns.as_ptr()) };
+
+    let code = c("result = get_val()\nresult");
+    let mut feed_err: *mut c_char = ptr::null_mut();
+    let tag = unsafe { monty_repl_feed_start(repl, code.as_ptr(), &mut feed_err) };
+    assert_eq!(tag, MontyProgressTag::Pending);
+
+    // Check pending fn name
+    let fn_name_ptr = unsafe { monty_repl_pending_fn_name(repl) };
+    assert!(!fn_name_ptr.is_null());
+    let fn_name = unsafe { read_c_string(fn_name_ptr) };
+    assert_eq!(fn_name, "get_val");
+
+    // Resume
+    let val = c("99");
+    let tag = unsafe { monty_repl_resume(repl, val.as_ptr(), &mut feed_err) };
+    assert_eq!(tag, MontyProgressTag::Complete);
+    assert_eq!(unsafe { monty_repl_complete_is_error(repl) }, 0);
+
+    let result_ptr = unsafe { monty_repl_complete_result_json(repl) };
+    assert!(!result_ptr.is_null());
+    let result_str = unsafe { read_c_string(result_ptr) };
+    let result: serde_json::Value = serde_json::from_str(&result_str).unwrap();
+    assert_eq!(result["value"], 99);
+
+    if !feed_err.is_null() {
+        unsafe { monty_string_free(feed_err) };
+    }
+    unsafe { monty_repl_free(repl) };
+}
+
+// ---------------------------------------------------------------------------
+// REPL FFI: feed_start null safety
+// ---------------------------------------------------------------------------
+
+#[test]
+fn repl_feed_start_null_handle() {
+    let code = c("2 + 2");
+    let mut out_error: *mut c_char = ptr::null_mut();
+    let tag = unsafe { monty_repl_feed_start(ptr::null_mut(), code.as_ptr(), &mut out_error) };
+    assert_eq!(tag, MontyProgressTag::Error);
+    if !out_error.is_null() {
+        unsafe { monty_string_free(out_error) };
+    }
+}
+
+#[test]
+fn repl_feed_start_null_code() {
+    let name = c("test.py");
+    let mut out_error: *mut c_char = ptr::null_mut();
+    let repl = unsafe { monty_repl_create(name.as_ptr(), &mut out_error) };
+    assert!(!repl.is_null());
+
+    let mut err: *mut c_char = ptr::null_mut();
+    let tag = unsafe { monty_repl_feed_start(repl, ptr::null(), &mut err) };
+    assert_eq!(tag, MontyProgressTag::Error);
+    if !err.is_null() {
+        unsafe { monty_string_free(err) };
+    }
+    unsafe { monty_repl_free(repl) };
+}
+
+// ---------------------------------------------------------------------------
+// REPL FFI: resume null safety
+// ---------------------------------------------------------------------------
+
+#[test]
+fn repl_resume_null_handle() {
+    let val = c("42");
+    let mut out_error: *mut c_char = ptr::null_mut();
+    let tag = unsafe { monty_repl_resume(ptr::null_mut(), val.as_ptr(), &mut out_error) };
+    assert_eq!(tag, MontyProgressTag::Error);
+    if !out_error.is_null() {
+        unsafe { monty_string_free(out_error) };
+    }
+}
+
+#[test]
+fn repl_resume_null_value() {
+    let name = c("test.py");
+    let mut out_error: *mut c_char = ptr::null_mut();
+    let repl = unsafe { monty_repl_create(name.as_ptr(), &mut out_error) };
+    assert!(!repl.is_null());
+
+    let ext_fns = c("get_val");
+    unsafe { monty_repl_set_ext_fns(repl, ext_fns.as_ptr()) };
+
+    let code = c("get_val()");
+    let mut err: *mut c_char = ptr::null_mut();
+    let tag = unsafe { monty_repl_feed_start(repl, code.as_ptr(), &mut err) };
+    assert_eq!(tag, MontyProgressTag::Pending);
+
+    // Pass NULL value
+    let mut err2: *mut c_char = ptr::null_mut();
+    let tag = unsafe { monty_repl_resume(repl, ptr::null(), &mut err2) };
+    assert_eq!(tag, MontyProgressTag::Error);
+
+    if !err.is_null() {
+        unsafe { monty_string_free(err) };
+    }
+    if !err2.is_null() {
+        unsafe { monty_string_free(err2) };
+    }
+    unsafe { monty_repl_free(repl) };
+}
+
+// ---------------------------------------------------------------------------
+// REPL FFI: resume_with_error null safety
+// ---------------------------------------------------------------------------
+
+#[test]
+fn repl_resume_with_error_null_handle() {
+    let msg = c("oops");
+    let mut out_error: *mut c_char = ptr::null_mut();
+    let tag =
+        unsafe { monty_repl_resume_with_error(ptr::null_mut(), msg.as_ptr(), &mut out_error) };
+    assert_eq!(tag, MontyProgressTag::Error);
+    if !out_error.is_null() {
+        unsafe { monty_string_free(out_error) };
+    }
+}
+
+#[test]
+fn repl_resume_with_error_null_message() {
+    let name = c("test.py");
+    let mut out_error: *mut c_char = ptr::null_mut();
+    let repl = unsafe { monty_repl_create(name.as_ptr(), &mut out_error) };
+    assert!(!repl.is_null());
+
+    let ext_fns = c("get_val");
+    unsafe { monty_repl_set_ext_fns(repl, ext_fns.as_ptr()) };
+
+    let code = c("get_val()");
+    let mut err: *mut c_char = ptr::null_mut();
+    let tag = unsafe { monty_repl_feed_start(repl, code.as_ptr(), &mut err) };
+    assert_eq!(tag, MontyProgressTag::Pending);
+
+    let mut err2: *mut c_char = ptr::null_mut();
+    let tag = unsafe { monty_repl_resume_with_error(repl, ptr::null(), &mut err2) };
+    assert_eq!(tag, MontyProgressTag::Error);
+
+    if !err.is_null() {
+        unsafe { monty_string_free(err) };
+    }
+    if !err2.is_null() {
+        unsafe { monty_string_free(err2) };
+    }
+    unsafe { monty_repl_free(repl) };
+}
+
+#[test]
+fn repl_resume_with_error_flow() {
+    let name = c("test.py");
+    let mut out_error: *mut c_char = ptr::null_mut();
+    let repl = unsafe { monty_repl_create(name.as_ptr(), &mut out_error) };
+    assert!(!repl.is_null());
+
+    let ext_fns = c("fetch");
+    unsafe { monty_repl_set_ext_fns(repl, ext_fns.as_ptr()) };
+
+    let code =
+        c("try:\n    result = fetch('url')\nexcept Exception as e:\n    result = str(e)\nresult");
+    let mut err: *mut c_char = ptr::null_mut();
+    let tag = unsafe { monty_repl_feed_start(repl, code.as_ptr(), &mut err) };
+    assert_eq!(tag, MontyProgressTag::Pending);
+
+    let err_msg = c("connection refused");
+    let tag = unsafe { monty_repl_resume_with_error(repl, err_msg.as_ptr(), &mut err) };
+    assert_eq!(tag, MontyProgressTag::Complete);
+    assert_eq!(unsafe { monty_repl_complete_is_error(repl) }, 0);
+
+    let result_ptr = unsafe { monty_repl_complete_result_json(repl) };
+    assert!(!result_ptr.is_null());
+    let result_str = unsafe { read_c_string(result_ptr) };
+    assert!(result_str.contains("connection refused"));
+
+    if !err.is_null() {
+        unsafe { monty_string_free(err) };
+    }
+    unsafe { monty_repl_free(repl) };
+}
+
+// ---------------------------------------------------------------------------
+// REPL FFI: accessor null safety
+// ---------------------------------------------------------------------------
+
+#[test]
+fn repl_accessor_null_safety() {
+    // All accessors with NULL handle
+    let p = unsafe { monty_repl_pending_fn_name(ptr::null()) };
+    assert!(p.is_null());
+
+    let p = unsafe { monty_repl_pending_fn_args_json(ptr::null()) };
+    assert!(p.is_null());
+
+    let p = unsafe { monty_repl_pending_fn_kwargs_json(ptr::null()) };
+    assert!(p.is_null());
+
+    let id = unsafe { monty_repl_pending_call_id(ptr::null()) };
+    assert_eq!(id, u32::MAX);
+
+    let mc = unsafe { monty_repl_pending_method_call(ptr::null()) };
+    assert_eq!(mc, -1);
+
+    let p = unsafe { monty_repl_os_call_fn_name(ptr::null()) };
+    assert!(p.is_null());
+
+    let p = unsafe { monty_repl_os_call_args_json(ptr::null()) };
+    assert!(p.is_null());
+
+    let p = unsafe { monty_repl_os_call_kwargs_json(ptr::null()) };
+    assert!(p.is_null());
+
+    let id = unsafe { monty_repl_os_call_id(ptr::null()) };
+    assert_eq!(id, u32::MAX);
+
+    let p = unsafe { monty_repl_complete_result_json(ptr::null()) };
+    assert!(p.is_null());
+
+    let v = unsafe { monty_repl_complete_is_error(ptr::null()) };
+    assert_eq!(v, -1);
+
+    let p = unsafe { monty_repl_pending_future_call_ids(ptr::null()) };
+    assert!(p.is_null());
+}
+
+// ---------------------------------------------------------------------------
+// REPL FFI: resume_as_future null safety
+// ---------------------------------------------------------------------------
+
+#[test]
+fn repl_resume_as_future_null_handle() {
+    let mut out: *mut c_char = ptr::null_mut();
+    let tag = unsafe { monty_repl_resume_as_future(ptr::null_mut(), &mut out) };
+    assert_eq!(tag, MontyProgressTag::Error);
+    if !out.is_null() {
+        unsafe { monty_string_free(out) };
+    }
+}
+
+// ---------------------------------------------------------------------------
+// REPL FFI: resume_futures null safety
+// ---------------------------------------------------------------------------
+
+#[test]
+fn repl_resume_futures_null_handle() {
+    let r = c("{}");
+    let e = c("{}");
+    let mut out: *mut c_char = ptr::null_mut();
+    let tag =
+        unsafe { monty_repl_resume_futures(ptr::null_mut(), r.as_ptr(), e.as_ptr(), &mut out) };
+    assert_eq!(tag, MontyProgressTag::Error);
+    if !out.is_null() {
+        unsafe { monty_string_free(out) };
+    }
+}
+
+#[test]
+fn repl_resume_futures_null_results() {
+    let name = c("test.py");
+    let mut out_error: *mut c_char = ptr::null_mut();
+    let repl = unsafe { monty_repl_create(name.as_ptr(), &mut out_error) };
+    assert!(!repl.is_null());
+
+    let e = c("{}");
+    let mut out: *mut c_char = ptr::null_mut();
+    let tag = unsafe { monty_repl_resume_futures(repl, ptr::null(), e.as_ptr(), &mut out) };
+    assert_eq!(tag, MontyProgressTag::Error);
+    if !out.is_null() {
+        unsafe { monty_string_free(out) };
+    }
+    unsafe { monty_repl_free(repl) };
+}
+
+#[test]
+fn repl_resume_futures_null_errors() {
+    let name = c("test.py");
+    let mut out_error: *mut c_char = ptr::null_mut();
+    let repl = unsafe { monty_repl_create(name.as_ptr(), &mut out_error) };
+    assert!(!repl.is_null());
+
+    let r = c("{}");
+    let mut out: *mut c_char = ptr::null_mut();
+    let tag = unsafe { monty_repl_resume_futures(repl, r.as_ptr(), ptr::null(), &mut out) };
+    assert_eq!(tag, MontyProgressTag::Error);
+    if !out.is_null() {
+        unsafe { monty_string_free(out) };
+    }
+    unsafe { monty_repl_free(repl) };
+}
+
+// ---------------------------------------------------------------------------
+// REPL FFI: async flow (feed_start → resume_as_future → resume_futures)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn repl_async_single_await_via_ffi() {
+    let name = c("test.py");
+    let mut out_error: *mut c_char = ptr::null_mut();
+    let repl = unsafe { monty_repl_create(name.as_ptr(), &mut out_error) };
+    assert!(!repl.is_null());
+
+    let ext_fns = c("fetch");
+    unsafe { monty_repl_set_ext_fns(repl, ext_fns.as_ptr()) };
+
+    let code = c("async def main():\n  result = await fetch('x')\n  return result\n\nawait main()");
+    let mut err: *mut c_char = ptr::null_mut();
+    let tag = unsafe { monty_repl_feed_start(repl, code.as_ptr(), &mut err) };
+    assert_eq!(tag, MontyProgressTag::Pending);
+
+    let call_id = unsafe { monty_repl_pending_call_id(repl) };
+    assert_ne!(call_id, u32::MAX);
+
+    let tag = unsafe { monty_repl_resume_as_future(repl, &mut err) };
+    assert_eq!(tag, MontyProgressTag::ResolveFutures);
+
+    let ids_ptr = unsafe { monty_repl_pending_future_call_ids(repl) };
+    assert!(!ids_ptr.is_null());
+    let ids_str = unsafe { read_c_string(ids_ptr) };
+    let ids: Vec<u32> = serde_json::from_str(&ids_str).unwrap();
+    assert_eq!(ids.len(), 1);
+
+    let results = CString::new(format!("{{\"{}\":\"response_x\"}}", ids[0])).unwrap();
+    let errors = c("{}");
+    let tag =
+        unsafe { monty_repl_resume_futures(repl, results.as_ptr(), errors.as_ptr(), &mut err) };
+    assert_eq!(tag, MontyProgressTag::Complete);
+    assert_eq!(unsafe { monty_repl_complete_is_error(repl) }, 0);
+
+    let result_ptr = unsafe { monty_repl_complete_result_json(repl) };
+    assert!(!result_ptr.is_null());
+    let result_str = unsafe { read_c_string(result_ptr) };
+    let result: serde_json::Value = serde_json::from_str(&result_str).unwrap();
+    assert_eq!(result["value"], "response_x");
+
+    if !err.is_null() {
+        unsafe { monty_string_free(err) };
+    }
+    unsafe { monty_repl_free(repl) };
+}
+
+// ---------------------------------------------------------------------------
+// REPL FFI: os_call accessors (non-null handle)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn repl_os_call_accessors_via_ffi() {
+    let name = c("test.py");
+    let mut out_error: *mut c_char = ptr::null_mut();
+    let repl = unsafe { monty_repl_create(name.as_ptr(), &mut out_error) };
+    assert!(!repl.is_null());
+
+    let code = c("from pathlib import Path\np = Path('test.txt')\np.read_text()");
+    let mut err: *mut c_char = ptr::null_mut();
+    let tag = unsafe { monty_repl_feed_start(repl, code.as_ptr(), &mut err) };
+    assert_eq!(tag, MontyProgressTag::OsCall);
+
+    // os_call_fn_name
+    let fn_ptr = unsafe { monty_repl_os_call_fn_name(repl) };
+    assert!(!fn_ptr.is_null());
+    let fn_name = unsafe { read_c_string(fn_ptr) };
+    assert!(fn_name.contains("read_text") || fn_name.contains("Path"));
+
+    // os_call_args_json
+    let args_ptr = unsafe { monty_repl_os_call_args_json(repl) };
+    assert!(!args_ptr.is_null());
+    let args_str = unsafe { read_c_string(args_ptr) };
+    let _: serde_json::Value = serde_json::from_str(&args_str).unwrap();
+
+    // os_call_kwargs_json
+    let kwargs_ptr = unsafe { monty_repl_os_call_kwargs_json(repl) };
+    assert!(!kwargs_ptr.is_null());
+    let kwargs_str = unsafe { read_c_string(kwargs_ptr) };
+    let _: serde_json::Value = serde_json::from_str(&kwargs_str).unwrap();
+
+    // os_call_id
+    let os_id = unsafe { monty_repl_os_call_id(repl) };
+    assert_ne!(os_id, u32::MAX);
+
+    // Resume with a value to complete
+    let val = c("\"file content\"");
+    let tag = unsafe { monty_repl_resume(repl, val.as_ptr(), &mut err) };
+    assert_eq!(tag, MontyProgressTag::Complete);
+
+    if !err.is_null() {
+        unsafe { monty_string_free(err) };
+    }
+    unsafe { monty_repl_free(repl) };
+}
+
+// ---------------------------------------------------------------------------
+// REPL FFI: complete_result_json and complete_is_error in idle/wrong state
+// ---------------------------------------------------------------------------
+
+#[test]
+fn repl_complete_accessors_idle_state() {
+    let name = c("test.py");
+    let mut out_error: *mut c_char = ptr::null_mut();
+    let repl = unsafe { monty_repl_create(name.as_ptr(), &mut out_error) };
+    assert!(!repl.is_null());
+
+    // In idle state, complete accessors return NULL/-1
+    let result_ptr = unsafe { monty_repl_complete_result_json(repl) };
+    assert!(result_ptr.is_null());
+
+    let is_error = unsafe { monty_repl_complete_is_error(repl) };
+    assert_eq!(is_error, -1);
+
+    unsafe { monty_repl_free(repl) };
+}
+
+// ---------------------------------------------------------------------------
+// REPL FFI: pending accessors in idle state
+// ---------------------------------------------------------------------------
+
+#[test]
+fn repl_pending_accessors_idle_state() {
+    let name = c("test.py");
+    let mut out_error: *mut c_char = ptr::null_mut();
+    let repl = unsafe { monty_repl_create(name.as_ptr(), &mut out_error) };
+    assert!(!repl.is_null());
+
+    assert!(unsafe { monty_repl_pending_fn_name(repl) }.is_null());
+    assert!(unsafe { monty_repl_pending_fn_args_json(repl) }.is_null());
+    assert!(unsafe { monty_repl_pending_fn_kwargs_json(repl) }.is_null());
+    assert_eq!(unsafe { monty_repl_pending_call_id(repl) }, u32::MAX);
+    assert_eq!(unsafe { monty_repl_pending_method_call(repl) }, -1);
+    assert!(unsafe { monty_repl_os_call_fn_name(repl) }.is_null());
+    assert!(unsafe { monty_repl_os_call_args_json(repl) }.is_null());
+    assert!(unsafe { monty_repl_os_call_kwargs_json(repl) }.is_null());
+    assert_eq!(unsafe { monty_repl_os_call_id(repl) }, u32::MAX);
+    assert!(unsafe { monty_repl_pending_future_call_ids(repl) }.is_null());
+
+    unsafe { monty_repl_free(repl) };
+}
+
+// ---------------------------------------------------------------------------
+// monty_alloc / monty_dealloc
+// ---------------------------------------------------------------------------
+
+#[test]
+fn alloc_dealloc_basic() {
+    let ptr = monty_alloc(64);
+    assert!(!ptr.is_null());
+    // Memory should be zeroed
+    let slice = unsafe { std::slice::from_raw_parts(ptr, 64) };
+    assert!(slice.iter().all(|&b| b == 0));
+    unsafe { monty_dealloc(ptr, 64) };
+}
+
+#[test]
+fn alloc_zero_size_returns_null() {
+    let ptr = monty_alloc(0);
+    assert!(ptr.is_null());
+}
+
+#[test]
+fn dealloc_null_is_noop() {
+    unsafe { monty_dealloc(ptr::null_mut(), 0) };
+    unsafe { monty_dealloc(ptr::null_mut(), 64) };
+}
+
+#[test]
+fn dealloc_zero_size_is_noop() {
+    let ptr = monty_alloc(64);
+    assert!(!ptr.is_null());
+    // Dealloc with 0 size is a no-op (should not crash)
+    unsafe { monty_dealloc(ptr, 0) };
+    // Properly free
+    unsafe { monty_dealloc(ptr, 64) };
+}
+
+// ---------------------------------------------------------------------------
+// REPL FFI: create with non-UTF8 script_name
+// ---------------------------------------------------------------------------
+
+#[test]
+fn repl_create_non_utf8_name() {
+    let bad_name: &[u8] = &[0xFF, 0xFE, 0x00];
+    let mut out_error: *mut c_char = ptr::null_mut();
+    let repl = unsafe { monty_repl_create(bad_name.as_ptr().cast(), &mut out_error) };
+    assert!(repl.is_null());
+    assert!(!out_error.is_null());
+    let err = unsafe { read_c_string(out_error) };
+    assert!(err.contains("not valid UTF-8"), "got: {err}");
+}

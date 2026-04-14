@@ -1409,4 +1409,222 @@ outer()
         let result: Value = serde_json::from_str(handle.complete_result_json().unwrap()).unwrap();
         assert_eq!(result["value"], "limited_response");
     }
+
+    // --- OsCall state tests ---
+
+    fn os_call_code() -> &'static str {
+        "from pathlib import Path\np = Path('test.txt')\np.read_text()"
+    }
+
+    #[test]
+    fn test_os_call_pauses_handle() {
+        let mut handle = MontyHandle::new(os_call_code().into(), vec![], None).unwrap();
+        let (tag, err) = handle.start();
+        assert_eq!(tag, MontyProgressTag::OsCall);
+        assert!(err.is_none());
+    }
+
+    #[test]
+    fn test_os_call_fn_name() {
+        let mut handle = MontyHandle::new(os_call_code().into(), vec![], None).unwrap();
+        handle.start();
+        let name = handle.os_call_fn_name();
+        assert!(name.is_some(), "expected os_call_fn_name to be Some");
+        assert!(
+            name.unwrap().contains("read_text") || name.unwrap().contains("Path"),
+            "expected a Path-related OsCall, got: {:?}",
+            name
+        );
+    }
+
+    #[test]
+    fn test_os_call_args_json() {
+        let mut handle = MontyHandle::new(os_call_code().into(), vec![], None).unwrap();
+        handle.start();
+        let args = handle.os_call_args_json();
+        assert!(args.is_some());
+        // args should be a valid JSON array
+        let _: Value = serde_json::from_str(args.unwrap()).unwrap();
+    }
+
+    #[test]
+    fn test_os_call_kwargs_json() {
+        let mut handle = MontyHandle::new(os_call_code().into(), vec![], None).unwrap();
+        handle.start();
+        let kwargs = handle.os_call_kwargs_json();
+        assert!(kwargs.is_some());
+        let _: Value = serde_json::from_str(kwargs.unwrap()).unwrap();
+    }
+
+    #[test]
+    fn test_os_call_id() {
+        let mut handle = MontyHandle::new(os_call_code().into(), vec![], None).unwrap();
+        handle.start();
+        let id = handle.os_call_id();
+        assert!(id.is_some());
+    }
+
+    #[test]
+    fn test_os_call_accessors_wrong_state() {
+        let handle = MontyHandle::new("2 + 2".into(), vec![], None).unwrap();
+        assert!(handle.os_call_fn_name().is_none());
+        assert!(handle.os_call_args_json().is_none());
+        assert!(handle.os_call_kwargs_json().is_none());
+        assert!(handle.os_call_id().is_none());
+    }
+
+    #[test]
+    fn test_resume_from_os_call_with_value() {
+        let code = r#"
+from pathlib import Path
+p = Path('test.txt')
+result = p.read_text()
+result
+"#;
+        let mut handle = MontyHandle::new(code.into(), vec![], None).unwrap();
+        let (tag, _) = handle.start();
+        assert_eq!(tag, MontyProgressTag::OsCall);
+
+        // Resume with a fake file content
+        let (tag, _) = handle.resume("\"file contents here\"");
+        assert_eq!(tag, MontyProgressTag::Complete);
+        let result: Value = serde_json::from_str(handle.complete_result_json().unwrap()).unwrap();
+        assert_eq!(result["value"], "file contents here");
+    }
+
+    #[test]
+    fn test_resume_from_os_call_with_error() {
+        let code = r#"
+from pathlib import Path
+p = Path('missing.txt')
+try:
+    result = p.read_text()
+except Exception as e:
+    result = str(e)
+result
+"#;
+        let mut handle = MontyHandle::new(code.into(), vec![], None).unwrap();
+        let (tag, _) = handle.start();
+        assert_eq!(tag, MontyProgressTag::OsCall);
+
+        let (tag, _) = handle.resume_with_error("file not found");
+        assert_eq!(tag, MontyProgressTag::Complete);
+        let result: Value = serde_json::from_str(handle.complete_result_json().unwrap()).unwrap();
+        assert!(result["value"].as_str().unwrap().contains("file not found"));
+    }
+
+    #[test]
+    fn test_resume_with_error_not_paused_or_oscall() {
+        let mut handle = MontyHandle::new("2 + 2".into(), vec![], None).unwrap();
+        // handle is in Ready state — not Paused or OsCall
+        let (tag, err) = handle.resume_with_error("boom");
+        assert_eq!(tag, MontyProgressTag::Error);
+        assert!(err.unwrap().contains("not in Paused or OsCall state"));
+    }
+
+    // --- Resume futures with invalid errors JSON ---
+
+    #[test]
+    fn test_resume_futures_invalid_errors_json() {
+        let mut handle =
+            MontyHandle::new(async_code_single().into(), vec!["fetch".into()], None).unwrap();
+        let (tag, _) = handle.start();
+        assert_eq!(tag, MontyProgressTag::Pending);
+        let (tag, _) = handle.resume_as_future();
+        assert_eq!(tag, MontyProgressTag::ResolveFutures);
+
+        let (tag, err) = handle.resume_futures("{}", "not-valid-json{{{");
+        assert_eq!(tag, MontyProgressTag::Error);
+        assert!(err.unwrap().contains("invalid errors JSON"));
+    }
+
+    #[test]
+    fn test_resume_futures_invalid_call_id_in_results() {
+        let mut handle =
+            MontyHandle::new(async_code_single().into(), vec!["fetch".into()], None).unwrap();
+        let (tag, _) = handle.start();
+        assert_eq!(tag, MontyProgressTag::Pending);
+        let (tag, _) = handle.resume_as_future();
+        assert_eq!(tag, MontyProgressTag::ResolveFutures);
+
+        // Non-numeric call_id in results
+        let (tag, err) = handle.resume_futures("{\"not-a-number\":42}", "{}");
+        assert_eq!(tag, MontyProgressTag::Error);
+        assert!(err.unwrap().contains("invalid call_id"));
+    }
+
+    #[test]
+    fn test_resume_futures_invalid_call_id_in_errors() {
+        let mut handle =
+            MontyHandle::new(async_code_single().into(), vec!["fetch".into()], None).unwrap();
+        let (tag, _) = handle.start();
+        assert_eq!(tag, MontyProgressTag::Pending);
+        let (tag, _) = handle.resume_as_future();
+        assert_eq!(tag, MontyProgressTag::ResolveFutures);
+
+        // Non-numeric call_id in errors
+        let (tag, err) = handle.resume_futures("{}", "{\"not-a-number\":\"err\"}");
+        assert_eq!(tag, MontyProgressTag::Error);
+        assert!(err.unwrap().contains("invalid call_id"));
+    }
+
+    // --- Kwargs passthrough ---
+
+    #[test]
+    fn test_pending_kwargs_with_values() {
+        // Python: ext_fn(x=1, y=2) — kwargs should appear in kwargs_json
+        let code = "result = ext_fn(x=10, y=20)\nresult";
+        let mut handle = MontyHandle::new(code.into(), vec!["ext_fn".into()], None).unwrap();
+        let (tag, _) = handle.start();
+        assert_eq!(tag, MontyProgressTag::Pending);
+
+        let kwargs_str = handle.pending_fn_kwargs_json().unwrap();
+        let kwargs: Value = serde_json::from_str(kwargs_str).unwrap();
+        // kwargs should be an object with x and y
+        assert!(kwargs.is_object(), "kwargs should be JSON object");
+        assert_eq!(kwargs["x"], json!(10));
+        assert_eq!(kwargs["y"], json!(20));
+    }
+
+    // --- NameLookup with known ext_fn ---
+
+    #[test]
+    fn test_name_lookup_known_ext_fn() {
+        // When ext_fn is registered, NameLookup resolves to a Function variant.
+        // This exercises the `ext_fn_names.contains(&name)` branch.
+        let code = "result = ext_fn(99)\nresult";
+        let mut handle = MontyHandle::new(code.into(), vec!["ext_fn".into()], None).unwrap();
+        let (tag, err) = handle.start();
+        // Should pause at the function call — NameLookup was auto-resolved
+        assert_eq!(tag, MontyProgressTag::Pending);
+        assert!(err.is_none());
+        assert_eq!(handle.pending_fn_name(), Some("ext_fn"));
+
+        let (tag, _) = handle.resume("99");
+        assert_eq!(tag, MontyProgressTag::Complete);
+        let result: Value = serde_json::from_str(handle.complete_result_json().unwrap()).unwrap();
+        assert_eq!(result["value"], json!(99));
+    }
+
+    // --- Debug impl ---
+
+    #[test]
+    fn test_debug_impl() {
+        let handle = MontyHandle::new("2 + 2".into(), vec![], None).unwrap();
+        let debug_str = format!("{handle:?}");
+        assert!(debug_str.contains("MontyHandle"));
+    }
+
+    // --- build_result_json invalid usage_json fallback ---
+
+    #[test]
+    fn test_build_result_json_invalid_usage_json_fallback() {
+        // When usage_json is invalid, falls back to zeros object
+        let result = build_result_json(&json!(42), None, "not-valid-json", "");
+        let parsed: Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(parsed["value"], 42);
+        assert!(parsed["usage"].is_object());
+        // Should have fallen back to defaults
+        assert_eq!(parsed["usage"]["memory_bytes_used"], 0);
+    }
 }

@@ -259,4 +259,69 @@ mod tests {
         // SAFETY: err was allocated by CString::into_raw inside to_c_string, reclaiming ownership
         unsafe { drop(CString::from_raw(err)) };
     }
+
+    #[test]
+    fn test_parse_c_str_null_ptr_null_out_error() {
+        // null ptr + null out_error: must return Err without crashing (no write attempted)
+        // SAFETY: both pointers are null; parse_c_str must guard the out_error write
+        let result = unsafe { parse_c_str(ptr::null(), "myarg", ptr::null_mut()) };
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_c_str_invalid_utf8() {
+        // Build a raw C string with invalid UTF-8 bytes (0xFF is never valid in UTF-8)
+        let invalid: &[u8] = &[0xFF, 0xFE, 0x00]; // NUL-terminated but not valid UTF-8
+        let ptr = invalid.as_ptr().cast::<c_char>();
+        let mut err: *mut c_char = ptr::null_mut();
+        // SAFETY: ptr points to a NUL-terminated byte slice; to_str() will fail on 0xFF
+        let result = unsafe { parse_c_str(ptr, "myarg", &mut err) };
+        assert!(result.is_err());
+        assert!(!err.is_null());
+        // SAFETY: err was set by parse_c_str to a valid NUL-terminated C string
+        let msg = unsafe { CStr::from_ptr(err) }.to_str().unwrap();
+        assert!(
+            msg.contains("not valid UTF-8"),
+            "expected UTF-8 error, got: {msg}"
+        );
+        // SAFETY: err was allocated by CString::into_raw inside to_c_string
+        unsafe { drop(CString::from_raw(err)) };
+    }
+
+    #[test]
+    fn test_parse_c_str_invalid_utf8_null_out_error() {
+        // Invalid UTF-8 + null out_error: must return Err without crashing
+        let invalid: &[u8] = &[0xFF, 0x00];
+        let ptr = invalid.as_ptr().cast::<c_char>();
+        // SAFETY: ptr is a NUL-terminated byte sequence; out_error is null (skip write)
+        let result = unsafe { parse_c_str(ptr, "myarg", ptr::null_mut()) };
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_monty_exception_to_json_no_traceback() {
+        // A freshly constructed exception has no traceback — the traceback
+        // block should be omitted entirely (no "filename", "line_number",
+        // "traceback" keys in the JSON).
+        let exc = MontyException::new(ExcType::ValueError, Some("no frames".into()));
+        let json = monty_exception_to_json(&exc);
+        let obj = json.as_object().unwrap();
+
+        assert!(obj["message"].as_str().unwrap().contains("no frames"));
+        assert_eq!(obj["exc_type"].as_str().unwrap(), "ValueError");
+
+        // No traceback frames → legacy single-frame keys must be absent
+        assert!(
+            obj.get("filename").is_none(),
+            "expected no filename key when traceback is empty"
+        );
+        assert!(
+            obj.get("line_number").is_none(),
+            "expected no line_number key when traceback is empty"
+        );
+        assert!(
+            obj.get("traceback").is_none(),
+            "expected no traceback key when traceback is empty"
+        );
+    }
 }
