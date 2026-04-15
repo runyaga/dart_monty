@@ -8,11 +8,75 @@ Instructions for AI coding agents working on this repository.
 dart pub get                              # Install dependencies
 dart format .                             # Format all Dart files
 dart analyze --fatal-infos                # Analyze (zero issues required)
+dcm analyze .                             # DCM lint (zero issues required)
 dart test                                 # Run unit tests
 bash tool/gate.sh                         # Run ALL quality checks
 ```
 
 See [Testing Guide](docs/contributor/testing.md) for more commands.
+
+## Test Commands
+
+### Dart unit tests
+```bash
+dart test                                 # All unit tests (VM)
+dart test --tags=ffi                      # FFI unit tests only
+```
+
+### FFI integration tests (requires built native library)
+```bash
+# Build native dylib first:
+cd native && cargo build --release
+cp target/release/libdart_monty.dylib ../assets/
+
+# Run against oracle (requires cargo build --bin oracle):
+dart test test/integration/oracle_ffi_test.dart -p vm --run-skipped
+```
+
+### WASM fixture tests (requires Chrome + built WASM/JS)
+```bash
+# Full build + test (npm, cargo wasm32-wasip1, dart compile js):
+bash tool/test_wasm.sh
+
+# Skip rebuild when assets are already current:
+bash tool/test_wasm.sh --skip-build
+
+# Run the dart2js fixture test directly (after building):
+dart test -p chrome --run-skipped --tags=wasm
+
+# Run the standalone wasm_runner.dart (headless Chrome, no dart test):
+# This uses a custom runner that prints FIXTURE_RESULT/FIXTURE_DONE lines.
+# See tool/test_wasm.sh for the full pipeline — it compiles wasm_runner.dart
+# to JS, serves it, and parses the output from Chrome.
+```
+
+### WASM oracle test (compares dart2js output vs directive expectations)
+```bash
+# wasm_fixture_test.dart — driven by # Return= / # Raise= directives
+# (unlike oracle_ffi_test which compares against a Rust oracle binary):
+dart test test/integration/wasm_fixture_test.dart -p chrome --run-skipped --tags=wasm
+```
+
+### Rust tests and linting
+```bash
+cd native
+
+# Unit + integration tests:
+cargo test
+
+# Clippy linter (zero warnings required):
+cargo clippy -- -D warnings
+
+# Format check:
+cargo fmt --check
+```
+
+### Dart linting
+```bash
+dart analyze --fatal-infos                # Zero issues required
+dcm analyze .                             # DCM rules (zero issues required)
+dart format --set-exit-if-changed .       # Format check
+```
 
 ## Architecture
 
