@@ -126,6 +126,7 @@ jobs:
             exit 0
           fi
           lcov --remove coverage/lcov.info \
+            --ignore-errors unused \
             '*/generated/*' \
             -o filtered-coverage.info
           diff-cover filtered-coverage.info \
