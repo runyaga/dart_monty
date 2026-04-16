@@ -25,33 +25,37 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # ── Checkout dart_monty_core for WASM build + JS bridge ──────────
+      - uses: actions/checkout@v4
+        with:
+          repository: runyaga/dart_monty_core
+          ref: main
+          path: dart_monty_core
+
       # ── Build WASM binary (Rust → wasm32-wasip1) ─────────────────────
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-wasip1
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: native
+          workspaces: dart_monty_core/native
       - name: Build WASM
-        working-directory: native
+        working-directory: dart_monty_core/native
         run: cargo build --release --target wasm32-wasip1
 
       # ── Build JS bridge ──────────────────────────────────────────────
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: Verify WASM binary
-        run: |
-          test -f native/target/wasm32-wasip1/release/dart_monty_native.wasm
       - name: Build JS bridge and worker
-        working-directory: packages/dart_monty_wasm/js
+        working-directory: dart_monty_core/js
         run: |
           npm install --force
           node build.js
-      - name: Copy JS bridge assets to site
+      - name: Copy JS bridge assets to example
         run: |
-          cp packages/dart_monty_wasm/assets/dart_monty_bridge.js example/web/web/
-          cp packages/dart_monty_wasm/assets/dart_monty_worker.js example/web/web/
+          cp dart_monty_core/assets/dart_monty_bridge.js example/web/web/
+          cp dart_monty_core/assets/dart_monty_worker.js example/web/web/
 
       # ── Compile Dart to JS ───────────────────────────────────────────
       - uses: dart-lang/setup-dart@v1
@@ -98,7 +102,7 @@ jobs:
       - name: Copy live demo assets to site root
         run: |
           cp -r example/web/web/* site/
-          cp native/target/wasm32-wasip1/release/dart_monty_native.wasm site/
+          cp dart_monty_core/assets/dart_monty_native.wasm site/
           mkdir -p site/fixtures
           cp test/fixtures/python_ladder/tier_*.json site/fixtures/
           mkdir -p site/assets
