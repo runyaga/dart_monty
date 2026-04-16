@@ -6,6 +6,7 @@ import 'package:dart_monty/src/bridge/bridge/host_function.dart';
 import 'package:dart_monty/src/bridge/bridge/host_function_schema.dart';
 import 'package:dart_monty/src/bridge/bridge/host_param.dart';
 import 'package:dart_monty/src/bridge/bridge/host_param_type.dart';
+import 'package:dart_monty/src/bridge/bridge/introspection_functions.dart';
 import 'package:dart_monty/src/bridge/bridge/monty_bridge.dart';
 import 'package:dart_monty/src/bridge/bridge/monty_plugin.dart';
 import 'package:dart_monty/src/bridge/bridge/plugin_registry.dart';
@@ -398,5 +399,15 @@ class AgentSession {
           },
         ),
       );
+
+    // Register introspection builtins (e.g. help()) so they are available
+    // even when no PluginRegistry is attached — e.g. when functions are
+    // registered directly via AgentSession.register() without going through
+    // PluginRegistry.attachTo(). When a PluginRegistry IS later attached,
+    // re-registration is a safe no-op (bridge.register() overwrites by name,
+    // _categoryIndex is a Set so the duplicate category entry is ignored).
+    for (final fn in buildIntrospectionFunctions(target)) {
+      target.register(fn, category: introspectionCategory);
+    }
   }
 }

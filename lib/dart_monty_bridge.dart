@@ -11,6 +11,7 @@ export 'src/bridge/bridge/host_function.dart';
 export 'src/bridge/bridge/host_function_schema.dart';
 export 'src/bridge/bridge/host_param.dart';
 export 'src/bridge/bridge/host_param_type.dart';
+export 'src/bridge/bridge/introspection_functions.dart';
 export 'src/bridge/bridge/monty_bridge.dart';
 export 'src/bridge/bridge/monty_plugin.dart';
 export 'src/bridge/bridge/plugin_registry.dart';
