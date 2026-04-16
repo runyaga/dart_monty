@@ -1,4 +1,4 @@
-import 'package:dart_monty/src/platform/monty_exception.dart';
+import 'package:dart_monty_core/dart_monty_core.dart';
 
 /// Protocol-agnostic lifecycle events emitted by a bridge.
 ///

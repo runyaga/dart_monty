@@ -657,7 +657,7 @@ void main() {
 
             mock.enqueueProgress(
               const MontyComplete(
-                result: MontyResult(value: MontyNull(), usage: _zeroUsage),
+                result: MontyResult(value: MontyNone(), usage: _zeroUsage),
               ),
             );
 
@@ -679,7 +679,7 @@ void main() {
             mock.enqueueProgress(
               const MontyComplete(
                 result: MontyResult(
-                  value: MontyNull(),
+                  value: MontyNone(),
                   error: MontyException(message: 'oops'),
                   usage: _zeroUsage,
                 ),
@@ -700,7 +700,7 @@ void main() {
 
           mock.enqueueProgress(
             const MontyComplete(
-              result: MontyResult(value: MontyNull(), usage: _zeroUsage),
+              result: MontyResult(value: MontyNone(), usage: _zeroUsage),
             ),
           );
 

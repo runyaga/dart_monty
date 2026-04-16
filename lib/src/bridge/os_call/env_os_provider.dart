@@ -1,6 +1,5 @@
 import 'package:dart_monty/src/bridge/os_call/os_provider.dart';
-import 'package:dart_monty/src/platform/monty_progress.dart';
-import 'package:dart_monty/src/platform/monty_value.dart';
+import 'package:dart_monty_core/dart_monty_core.dart';
 
 /// Handles `os.*` environment operations using a provided map.
 ///

@@ -8,14 +8,9 @@ import 'package:dart_monty/src/bridge/bridge/monty_bridge.dart';
 import 'package:dart_monty/src/bridge/bridge/plugin_host.dart';
 import 'package:dart_monty/src/bridge/bridge/struct_log_bridge_logger.dart';
 import 'package:dart_monty/src/bridge/os_call/os_provider.dart';
-import 'package:dart_monty/src/platform/bridge_logger.dart';
-import 'package:dart_monty/src/platform/monty_error.dart';
-import 'package:dart_monty/src/platform/monty_exception.dart';
-import 'package:dart_monty/src/platform/monty_future_capable.dart';
-import 'package:dart_monty/src/platform/monty_limits.dart';
-import 'package:dart_monty/src/platform/monty_platform.dart';
-import 'package:dart_monty/src/platform/monty_progress.dart';
-import 'package:dart_monty/src/platform/monty_stack_frame.dart';
+import 'package:dart_monty/src/bridge/bridge/bridge_logger.dart';
+import 'package:dart_monty_core/dart_monty_core.dart';
+import 'package:dart_monty_core/src/platform/monty_future_capable.dart';
 import 'package:meta/meta.dart';
 import 'package:struct_log/struct_log.dart';
 
@@ -429,6 +424,10 @@ class DefaultMontyBridge implements MontyBridge {
         return futuresCapable
             ? _host.resolveFutures(resolve, controller)
             : _platform.resume(null);
+      case final MontyNameLookup lookup:
+        // The bridge does not maintain a name-constant registry.
+        // Indicate undefined so Python raises NameError.
+        return _platform.resumeNameLookupUndefined(lookup.variableName);
       case final MontyComplete complete:
         _emitComplete(
           complete,

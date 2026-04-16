@@ -9,7 +9,7 @@ import 'package:dart_monty/src/bridge/bridge/host_param_type.dart';
 import 'package:dart_monty/src/bridge/bridge/introspection_functions.dart';
 import 'package:dart_monty/src/bridge/bridge/monty_bridge.dart';
 import 'package:dart_monty/src/bridge/os_call/os_provider.dart';
-import 'package:dart_monty/src/platform/bridge_logger.dart';
+import 'package:dart_monty/src/bridge/bridge/bridge_logger.dart';
 import 'package:test/test.dart';
 
 void main() {

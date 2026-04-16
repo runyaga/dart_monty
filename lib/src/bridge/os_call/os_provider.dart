@@ -1,5 +1,5 @@
 import 'package:dart_monty/src/bridge/os_call/default_sandbox_os.dart';
-import 'package:dart_monty/src/platform/monty_progress.dart';
+import 'package:dart_monty_core/dart_monty_core.dart';
 
 /// Interface for resolving OS-level calls from sandboxed Python code.
 ///

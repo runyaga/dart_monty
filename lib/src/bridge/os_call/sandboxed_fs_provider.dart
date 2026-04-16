@@ -2,8 +2,7 @@ import 'dart:io';
 
 import 'package:dart_monty/src/bridge/os_call/os_call_exception.dart';
 import 'package:dart_monty/src/bridge/os_call/os_provider.dart';
-import 'package:dart_monty/src/platform/monty_progress.dart';
-import 'package:dart_monty/src/platform/monty_value.dart';
+import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:path/path.dart' as p;
 
 /// Handles `Path.*` OS calls against the real filesystem, restricted to

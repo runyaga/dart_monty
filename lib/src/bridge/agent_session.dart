@@ -11,14 +11,9 @@ import 'package:dart_monty/src/bridge/bridge/monty_bridge.dart';
 import 'package:dart_monty/src/bridge/bridge/monty_plugin.dart';
 import 'package:dart_monty/src/bridge/bridge/plugin_registry.dart';
 import 'package:dart_monty/src/bridge/os_call/os_provider.dart';
-import 'package:dart_monty/src/monty.dart';
-import 'package:dart_monty/src/platform/bridge_logger.dart';
-import 'package:dart_monty/src/platform/code_capture.dart' as code_capture;
-import 'package:dart_monty/src/platform/monty_exception.dart';
-import 'package:dart_monty/src/platform/monty_platform.dart';
-import 'package:dart_monty/src/platform/monty_resource_usage.dart';
-import 'package:dart_monty/src/platform/monty_result.dart';
-import 'package:dart_monty/src/platform/monty_value.dart';
+import 'package:dart_monty/src/bridge/bridge/bridge_logger.dart';
+import 'package:dart_monty_core/dart_monty_core.dart';
+import 'package:dart_monty_core/src/platform/code_capture.dart' as code_capture;
 import 'package:signals_core/signals_core.dart';
 
 const _restoreFn = '__restore_state__';
@@ -47,7 +42,7 @@ MontyResult _extractBridgeResult(List<BridgeEvent> events) {
     }
     if (event is BridgeRunError) {
       return MontyResult(
-        value: const MontyNull(),
+        value: const MontyNone(),
         error: event.exception ?? MontyException(message: event.message),
         usage: _zeroUsage,
         printOutput: event.printOutput,
@@ -165,7 +160,8 @@ class AgentSession {
        _sandbox = sandbox {
     if (!sandbox) {
       // Shared mode: create persistent interpreter.
-      _sharedMonty = Monty(os: os);
+      // The bridge handles OS calls — don't pass os to Monty directly.
+      _sharedMonty = Monty();
       _sharedBridge = DefaultMontyBridge(
         platform: _sharedMonty!.platform,
         useFutures: false,
@@ -325,7 +321,7 @@ class AgentSession {
   // ---------------------------------------------------------------------------
 
   Future<MontyResult> _executeSandboxed(String code) async {
-    final monty = Monty(os: _os);
+    final monty = Monty();
     final b = _buildBridge(platform: monty.platform);
 
     final registry = PluginRegistry();

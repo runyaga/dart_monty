@@ -2,28 +2,20 @@
 ///
 /// ```dart
 /// import 'package:dart_monty/dart_monty.dart';
+/// import 'package:dart_monty_core/dart_monty_core.dart';
 ///
-/// final result = await Monty.exec('2 + 2');
+/// final monty = Monty();
+/// final result = await monty.exec('2 + 2');
 /// print(result.value); // MontyInt(4)
-/// ```
-///
-/// For filesystem/environment access:
-/// ```dart
-/// final monty = Monty(os: OsProvider());
 /// ```
 library;
 
+// Execution engine — provided by dart_monty_core.
+// OsCallException is intentionally hidden: dart_monty keeps its own richer
+// subclass hierarchy (OsCallPermissionError, OsCallFileNotFoundError).
+export 'package:dart_monty_core/dart_monty_core.dart' hide OsCallException;
+
+// dart_monty bridge/plugin layer
+export 'src/bridge/agent_session.dart';
 export 'src/bridge/os_call/os_call_exception.dart';
 export 'src/bridge/os_call/os_provider.dart';
-export 'src/monty.dart';
-export 'src/platform/monty_error.dart';
-export 'src/platform/monty_exception.dart';
-export 'src/platform/monty_limits.dart';
-export 'src/platform/monty_progress.dart';
-export 'src/platform/monty_resource_usage.dart';
-export 'src/platform/monty_result.dart';
-export 'src/platform/monty_stack_frame.dart';
-export 'src/platform/monty_value.dart';
-export 'src/repl/monty_repl.dart';
-export 'src/repl/repl_platform.dart';
-export 'src/repl/repl_session.dart';

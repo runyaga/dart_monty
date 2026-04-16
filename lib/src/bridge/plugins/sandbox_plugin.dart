@@ -10,9 +10,7 @@ import 'package:dart_monty/src/bridge/bridge/monty_plugin.dart';
 import 'package:dart_monty/src/bridge/bridge/plugin_registry.dart';
 import 'package:dart_monty/src/bridge/os_call/memory_fs_provider.dart';
 import 'package:dart_monty/src/bridge/os_call/os_provider.dart';
-import 'package:dart_monty/src/platform/monty_exception.dart';
-import 'package:dart_monty/src/platform/monty_limits.dart';
-import 'package:dart_monty/src/platform/monty_platform.dart';
+import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:path/path.dart' as p;
 import 'package:signals_core/signals_core.dart';
 

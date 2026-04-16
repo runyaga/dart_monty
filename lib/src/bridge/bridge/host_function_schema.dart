@@ -1,5 +1,5 @@
 import 'package:dart_monty/src/bridge/bridge/host_param.dart';
-import 'package:dart_monty/src/platform/monty_progress.dart';
+import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:meta/meta.dart';
 
 /// Schema for a host function callable from Python.

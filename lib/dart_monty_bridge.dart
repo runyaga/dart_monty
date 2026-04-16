@@ -35,4 +35,4 @@ export 'src/bridge/plugins/message_bus_plugin.dart';
 export 'src/bridge/plugins/sandbox_plugin.dart';
 export 'src/bridge/plugins/storage_plugin.dart';
 export 'src/bridge/plugins/template_plugin.dart';
-export 'src/platform/bridge_logger.dart';
+export 'src/bridge/bridge/bridge_logger.dart';
