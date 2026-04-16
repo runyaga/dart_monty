@@ -29,7 +29,7 @@ void main() {
                 'date.': TimeOsProvider(),
                 'datetime.': TimeOsProvider(),
               }),
-              plugins: [DinjaTemplatePlugin(), MessageBusPlugin()],
+              plugins: [JinjaTemplatePlugin(), MessageBusPlugin()],
             )
             ..register(
               HostFunction(

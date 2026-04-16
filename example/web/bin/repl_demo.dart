@@ -109,7 +109,7 @@ Future<String> _apiReset() async {
 // ---------------------------------------------------------------------------
 
 void _createSession() {
-  final tmpl = DinjaTemplatePlugin();
+  final tmpl = JinjaTemplatePlugin();
   final msgBus = MessageBusPlugin();
   final sandbox = SandboxPlugin(
     platformFactory: () async => MontyWasm(),

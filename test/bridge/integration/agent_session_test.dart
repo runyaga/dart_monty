@@ -545,7 +545,7 @@ result
 
     test('executeStream attaches plugins without prior execute()', () async {
       final session = AgentSession(
-        plugins: [DinjaTemplatePlugin()],
+        plugins: [JinjaTemplatePlugin()],
       );
       addTearDown(session.dispose);
 

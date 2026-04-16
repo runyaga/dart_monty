@@ -205,7 +205,7 @@ void main() {
 
   group('H. Plugin combos across execute calls', () {
     test('H1. Template across 5 execute calls', () async {
-      final s = AgentSession(plugins: [DinjaTemplatePlugin()]);
+      final s = AgentSession(plugins: [JinjaTemplatePlugin()]);
       addTearDown(s.dispose);
       await s.execute('name = "World"');
       await s.execute('greeting = tmpl_render("Hi {{n}}", {"n": name})');
@@ -231,7 +231,7 @@ void main() {
     test('H3. FS + Template across calls', () async {
       final s = AgentSession(
         os: OsProvider.compose({'Path.': MemoryFsProvider()}),
-        plugins: [DinjaTemplatePlugin()],
+        plugins: [JinjaTemplatePlugin()],
       );
       addTearDown(s.dispose);
       await s.execute('''
@@ -253,7 +253,7 @@ content = Path("/data.txt").read_text()
       'H4. HTTP + Template + MsgBus across calls',
       () async {
         final s = AgentSession(
-          plugins: [DinjaTemplatePlugin(), MessageBusPlugin()],
+          plugins: [JinjaTemplatePlugin(), MessageBusPlugin()],
         )..register(httpFn());
         addTearDown(s.dispose);
         await s.execute('data = http_fn()');
