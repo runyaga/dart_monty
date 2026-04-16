@@ -195,7 +195,7 @@ Future<bool> _init() async {
 
     final plugins = <MontyPlugin>[tmplPlugin, msgPlugin];
     final sandboxPlugin = SandboxPlugin(
-      platformFactory: () async => Monty(os: os).platform,
+      platformFactory: () async => Monty().platform,
       parentPlugins: plugins,
       parentOs: os,
     );
@@ -348,6 +348,15 @@ Map<String, dynamic> _eventToMap(BridgeEvent event) {
       'callId': callId,
       'result': result,
       if (durationMs != null) 'durationMs': durationMs,
+    },
+    BridgeEventLoopWaiting() => {'type': 'EventLoopWaiting'},
+    BridgeEventLoopResumed(:final event) => {
+      'type': 'EventLoopResumed',
+      'event': event,
+    },
+    BridgeUiRendered(:final schema) => {
+      'type': 'UiRendered',
+      'schema': schema,
     },
   };
 }
