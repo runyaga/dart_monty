@@ -64,13 +64,22 @@ String _generateRestoreCode(Map<String, Object?> state) {
 
 /// Generates the `__persist_state__` epilogue that captures [userCode]
 /// assignment targets plus existing [state] keys back to Dart.
-String _generatePersistCode(String userCode, Map<String, Object?> state) {
+///
+/// Returns `(code, expectedNames)` where `expectedNames` is the full set of
+/// names the epilogue attempted to capture. The Dart-side handler compares
+/// this against the keys that actually arrive to detect and warn about values
+/// that were silently dropped (non-JSON-serialisable types such as
+/// `re.Pattern`, lambdas, or user-defined functions).
+(String, Set<String>) _generatePersistCode(
+  String userCode,
+  Map<String, Object?> state,
+) {
   final names = <String>{
     ...state.keys,
     ...extractAssignmentTargets(userCode),
   };
 
-  if (names.isEmpty) return '$_persistFn({})';
+  if (names.isEmpty) return ('$_persistFn({})', names);
 
   final buf = StringBuffer('__d2 = {}');
   for (final name in names) {
@@ -80,16 +89,35 @@ String _generatePersistCode(String userCode, Map<String, Object?> state) {
       ..write('\nexcept NameError:')
       ..write('\n    pass');
   }
-  buf.write('\n$_persistFn(__d2)');
 
-  return buf.toString();
+  // Filter to only JSON-serialisable primitives before calling
+  // __persist_state__. Non-serialisable values (re.Pattern, lambdas,
+  // user-defined functions, generators, etc.) are excluded here rather
+  // than silently coerced to their string representation by the Monty
+  // bridge. The Dart-side handler logs a warning for any missing keys.
+  buf
+    ..write(
+      '\n__d2 = {__k: __v for __k, __v in __d2.items() '
+      'if isinstance(__v, (int, float, str, bool, list, dict, type(None)))}',
+    )
+    ..write('\n$_persistFn(__d2)');
+
+  return (buf.toString(), names);
 }
 
 /// Wraps [userCode] with restore/persist state bookkeeping, preserving
 /// the last-expression result capture.
-String _wrapWithStateCode(String userCode, Map<String, Object?> state) {
+///
+/// Returns `(wrappedCode, expectedPersistKeys)` where `expectedPersistKeys`
+/// is the set of names the persist epilogue attempted to capture. Callers
+/// should store this before execution so the `__persist_state__` handler can
+/// detect dropped keys and emit warnings.
+(String, Set<String>) _wrapWithStateCode(
+  String userCode,
+  Map<String, Object?> state,
+) {
   final restore = _generateRestoreCode(state);
-  final persist = _generatePersistCode(userCode, state);
+  final (persist, names) = _generatePersistCode(userCode, state);
   final (processed, hasResult) = captureLastExpression(userCode);
 
   final buf = StringBuffer(restore)
@@ -100,7 +128,7 @@ String _wrapWithStateCode(String userCode, Map<String, Object?> state) {
 
   if (hasResult) buf.write('\n__r');
 
-  return buf.toString();
+  return (buf.toString(), names);
 }
 
 // ---------------------------------------------------------------------------
@@ -199,6 +227,11 @@ class AgentSession {
       signal<Map<String, Object?>>({});
   final List<HostFunction> _extraFunctions = [];
 
+  // Keys the current execute() call's persist epilogue attempted to capture.
+  // Compared against the keys that actually arrive in __persist_state__ to
+  // detect silently dropped values and emit a warning.
+  Set<String> _pendingPersistKeys = {};
+
   /// All registered tool schemas — feed these to an LLM as tool definitions.
   List<HostFunctionSchema> get schemas =>
       (_sharedBridge ?? _schemaBridge)?.schemas ?? [];
@@ -294,9 +327,12 @@ class AgentSession {
       await _sharedRegistry!.attachTo(_sharedBridge!, baseOs: _os);
       _sharedAttached = true;
     }
-    yield* _sharedBridge!.execute(
-      _wrapWithStateCode(code, _sessionStateSignal.value),
+    final (wrapped, pendingKeys) = _wrapWithStateCode(
+      code,
+      _sessionStateSignal.value,
     );
+    _pendingPersistKeys = pendingKeys;
+    yield* _sharedBridge!.execute(wrapped);
   }
 
   // ---------------------------------------------------------------------------
@@ -308,9 +344,12 @@ class AgentSession {
       await _sharedRegistry!.attachTo(_sharedBridge!, baseOs: _os);
       _sharedAttached = true;
     }
-    final events = await _sharedBridge!
-        .execute(_wrapWithStateCode(code, _sessionStateSignal.value))
-        .toList();
+    final (wrapped, pendingKeys) = _wrapWithStateCode(
+      code,
+      _sessionStateSignal.value,
+    );
+    _pendingPersistKeys = pendingKeys;
+    final events = await _sharedBridge!.execute(wrapped).toList();
 
     return _extractBridgeResult(events);
   }
@@ -330,9 +369,12 @@ class AgentSession {
     await registry.attachTo(b, baseOs: _os);
 
     try {
-      final events = await b
-          .execute(_wrapWithStateCode(code, _sessionStateSignal.value))
-          .toList();
+      final (wrapped, pendingKeys) = _wrapWithStateCode(
+        code,
+        _sessionStateSignal.value,
+      );
+      _pendingPersistKeys = pendingKeys;
+      final events = await b.execute(wrapped).toList();
 
       return _extractBridgeResult(events);
     } finally {
@@ -387,6 +429,22 @@ class AgentSession {
           handler: (args) async {
             final captured = args['state'];
             if (captured is Map<String, Object?>) {
+              // Detect values that were dropped by the Python-side isinstance
+              // filter (non-serialisable types: re.Pattern, lambdas, functions,
+              // generators, etc.) and warn so developers know what was dropped.
+              final dropped = _pendingPersistKeys.difference(
+                captured.keys.toSet(),
+              );
+              if (dropped.isNotEmpty) {
+                _logger?.warning(
+                  'state_persistence: ${dropped.length} value(s) could not be '
+                  'persisted across execute() calls because their type is not '
+                  'JSON-serialisable. '
+                  'Dropped keys: ${(dropped.toList()..sort()).join(', ')}. '
+                  'Only int, float, str, bool, list, dict, and None persist.',
+                );
+              }
+              _pendingPersistKeys = {};
               _sessionStateSignal.value = captured;
             }
 
