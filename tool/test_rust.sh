@@ -1,15 +1,49 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Gate Script — Rust Native Crate
+# Gate Script — Rust Native Crate (via dart_monty_core)
 # =============================================================================
-# Validates: fmt, clippy, test, release build, symbol export, WASM build
+# dart_monty no longer owns the Rust crate — it lives in dart_monty_core.
+# Resolves dart_monty_core's native/ directory from .dart_tool/package_config.json
+# and runs all Rust quality checks there.
+#
 # Usage: bash tool/test_rust.sh
 # =============================================================================
 set -euo pipefail
 
-cd "$(git rev-parse --show-toplevel)/native"
+ROOT="$(git rev-parse --show-toplevel)"
+PACKAGE_CONFIG="$ROOT/.dart_tool/package_config.json"
 
-echo "=== Rust Gate: native/ ==="
+if [ ! -f "$PACKAGE_CONFIG" ]; then
+  echo "ERROR: .dart_tool/package_config.json not found — run 'dart pub get' first."
+  exit 1
+fi
+
+# Resolve dart_monty_core's root from the package config.
+CORE_ROOT=$(python3 - <<'EOF'
+import json, sys
+with open(sys.argv[1]) as f:
+    cfg = json.load(f)
+for pkg in cfg['packages']:
+    if pkg['name'] == 'dart_monty_core':
+        uri = pkg['rootUri']
+        # Strip file:// prefix
+        print(uri.removeprefix('file://'))
+        sys.exit(0)
+print('ERROR: dart_monty_core not found in package_config.json', file=sys.stderr)
+sys.exit(1)
+EOF
+"$PACKAGE_CONFIG")
+
+NATIVE="$CORE_ROOT/native"
+
+if [ ! -d "$NATIVE" ]; then
+  echo "SKIP: dart_monty_core/native/ not found at $NATIVE"
+  echo "  (pre-built binary consumer path — no Rust source to gate)"
+  exit 0
+fi
+
+cd "$NATIVE"
+echo "=== Rust Gate: $NATIVE ==="
 
 echo "--- cargo fmt --check ---"
 cargo fmt --check

@@ -42,6 +42,9 @@ dcm:
     rules:
       - "**/*.g.dart"
       - "**/*.freezed.dart"
+      # Tests use different conventions: repeated invocations, .first/.last for
+      # fail-fast assertions, member ordering that follows test readability, etc.
+      - "test/**"
 
   # ---------------------------------------------------------------------------
   # Rules
@@ -156,6 +159,7 @@ dcm:
           - "lib/src/platform/core_bindings.dart"
           - "lib/src/platform/monty_session.dart"
           - "lib/src/bridge/bridge/bridge_middleware.dart"
+          - "lib/src/bridge/bridge/event_loop_bridge.dart"
           - "lib/src/bridge/plugins/event_loop_plugin.dart"
           - "lib/src/bridge/bridge/monty_plugin.dart"
           - "lib/src/bridge/plugins/sandbox_plugin.dart"
@@ -172,7 +176,7 @@ dcm:
     - no-empty-block:
         exclude:
           # NullBridgeLogger: null-object pattern, all methods intentionally empty
-          - "lib/src/platform/bridge_logger.dart"
+          - "lib/src/bridge/bridge/bridge_logger.dart"
           # Default no-op lifecycle hooks
           - "lib/src/bridge/bridge/monty_plugin.dart"
           - "lib/src/bridge/bridge/monty_bridge.dart"
@@ -219,7 +223,11 @@ dcm:
           - "lib/src/bridge/plugins/template_plugin.dart"
     - avoid-type-casts
     - avoid-inferrable-type-arguments
-    - avoid-unnecessary-futures
+    - avoid-unnecessary-futures:
+        exclude:
+          # HostFunctionHandler typedef requires Future<Object?> — async is
+          # mandatory for signature compatibility even when body is synchronous
+          - "lib/src/bridge/bridge/event_loop_bridge.dart"
     - prefer-correct-future-return-type
     - avoid-future-tostring
     - avoid-nullable-tostring

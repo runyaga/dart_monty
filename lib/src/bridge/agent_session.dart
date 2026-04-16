@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:dart_monty/src/bridge/bridge/bridge_event.dart';
+import 'package:dart_monty/src/bridge/bridge/bridge_logger.dart';
 import 'package:dart_monty/src/bridge/bridge/default_monty_bridge.dart';
 import 'package:dart_monty/src/bridge/bridge/host_function.dart';
 import 'package:dart_monty/src/bridge/bridge/host_function_schema.dart';
@@ -11,14 +12,7 @@ import 'package:dart_monty/src/bridge/bridge/monty_bridge.dart';
 import 'package:dart_monty/src/bridge/bridge/monty_plugin.dart';
 import 'package:dart_monty/src/bridge/bridge/plugin_registry.dart';
 import 'package:dart_monty/src/bridge/os_call/os_provider.dart';
-import 'package:dart_monty/src/monty.dart';
-import 'package:dart_monty/src/platform/bridge_logger.dart';
-import 'package:dart_monty/src/platform/code_capture.dart' as code_capture;
-import 'package:dart_monty/src/platform/monty_exception.dart';
-import 'package:dart_monty/src/platform/monty_platform.dart';
-import 'package:dart_monty/src/platform/monty_resource_usage.dart';
-import 'package:dart_monty/src/platform/monty_result.dart';
-import 'package:dart_monty/src/platform/monty_value.dart';
+import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:signals_core/signals_core.dart';
 
 const _restoreFn = '__restore_state__';
@@ -47,7 +41,7 @@ MontyResult _extractBridgeResult(List<BridgeEvent> events) {
     }
     if (event is BridgeRunError) {
       return MontyResult(
-        value: const MontyNull(),
+        value: const MontyNone(),
         error: event.exception ?? MontyException(message: event.message),
         usage: _zeroUsage,
         printOutput: event.printOutput,
@@ -73,7 +67,7 @@ String _generateRestoreCode(Map<String, Object?> state) {
 String _generatePersistCode(String userCode, Map<String, Object?> state) {
   final names = <String>{
     ...state.keys,
-    ...code_capture.extractAssignmentTargets(userCode),
+    ...extractAssignmentTargets(userCode),
   };
 
   if (names.isEmpty) return '$_persistFn({})';
@@ -96,7 +90,7 @@ String _generatePersistCode(String userCode, Map<String, Object?> state) {
 String _wrapWithStateCode(String userCode, Map<String, Object?> state) {
   final restore = _generateRestoreCode(state);
   final persist = _generatePersistCode(userCode, state);
-  final (processed, hasResult) = code_capture.captureLastExpression(userCode);
+  final (processed, hasResult) = captureLastExpression(userCode);
 
   final buf = StringBuffer(restore)
     ..write('\n')
@@ -165,7 +159,8 @@ class AgentSession {
        _sandbox = sandbox {
     if (!sandbox) {
       // Shared mode: create persistent interpreter.
-      _sharedMonty = Monty(os: os);
+      // The bridge handles OS calls — don't pass os to Monty directly.
+      _sharedMonty = Monty();
       _sharedBridge = DefaultMontyBridge(
         platform: _sharedMonty!.platform,
         useFutures: false,
@@ -325,7 +320,7 @@ class AgentSession {
   // ---------------------------------------------------------------------------
 
   Future<MontyResult> _executeSandboxed(String code) async {
-    final monty = Monty(os: _os);
+    final monty = Monty();
     final b = _buildBridge(platform: monty.platform);
 
     final registry = PluginRegistry();

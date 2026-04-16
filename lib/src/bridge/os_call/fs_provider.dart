@@ -1,8 +1,7 @@
 // ignore_for_file: avoid-unsafe-collection-methods, avoid-non-null-assertion
 import 'package:dart_monty/src/bridge/os_call/os_call_exception.dart';
 import 'package:dart_monty/src/bridge/os_call/os_provider.dart';
-import 'package:dart_monty/src/platform/monty_progress.dart';
-import 'package:dart_monty/src/platform/monty_value.dart';
+import 'package:dart_monty_core/dart_monty_core.dart' hide OsCallException;
 import 'package:file/file.dart';
 
 /// Handles `Path.*` OS calls using any [FileSystem] implementation.

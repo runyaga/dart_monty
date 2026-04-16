@@ -1,4 +1,4 @@
-import 'package:dart_monty/src/platform/bridge_logger.dart';
+import 'package:dart_monty/src/bridge/bridge/bridge_logger.dart';
 import 'package:struct_log/struct_log.dart';
 
 /// Default [BridgeLogger] backed by struct_log.

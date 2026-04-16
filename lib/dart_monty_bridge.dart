@@ -6,7 +6,10 @@ library;
 
 export 'src/bridge/agent_session.dart';
 export 'src/bridge/bridge/bridge_event.dart';
+export 'src/bridge/bridge/bridge_logger.dart';
 export 'src/bridge/bridge/bridge_middleware.dart';
+export 'src/bridge/bridge/default_monty_bridge.dart';
+export 'src/bridge/bridge/event_loop_bridge.dart';
 export 'src/bridge/bridge/host_function.dart';
 export 'src/bridge/bridge/host_function_schema.dart';
 export 'src/bridge/bridge/host_param.dart';
@@ -35,4 +38,3 @@ export 'src/bridge/plugins/message_bus_plugin.dart';
 export 'src/bridge/plugins/sandbox_plugin.dart';
 export 'src/bridge/plugins/storage_plugin.dart';
 export 'src/bridge/plugins/template_plugin.dart';
-export 'src/platform/bridge_logger.dart';

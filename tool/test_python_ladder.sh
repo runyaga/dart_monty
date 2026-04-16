@@ -114,14 +114,10 @@ if $VERBOSE; then
 fi
 
 # -------------------------------------------------------
-# Step 1: Build native library (if needed)
+# Step 1: (native library managed by dart_monty_core hook/build.dart)
 # -------------------------------------------------------
-if [ ! -f "$ROOT/native/target/release/libdart_monty_native.dylib" ] && \
-   [ ! -f "$ROOT/native/target/release/libdart_monty_native.so" ]; then
-  if $VERBOSE; then echo "--- Building native library ---"; fi
-  cd "$ROOT/native"
-  cargo build --release
-fi
+# dart_monty no longer owns the Rust crate. The native library is built
+# or downloaded by dart_monty_core's hook/build.dart when dart test runs.
 
 # -------------------------------------------------------
 # Step 2: Run native ladder tests

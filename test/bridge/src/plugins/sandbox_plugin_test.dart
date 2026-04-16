@@ -18,7 +18,7 @@ const _usage = MontyResourceUsage(
 MockMontyPlatform _completingMock() {
   return MockMontyPlatform()..enqueueProgress(
     const MontyComplete(
-      result: MontyResult(value: MontyNull(), usage: _usage),
+      result: MontyResult(value: MontyNone(), usage: _usage),
     ),
   );
 }
@@ -31,7 +31,7 @@ MockMontyPlatform _completingMockWithResult({
   return MockMontyPlatform()..enqueueProgress(
     MontyComplete(
       result: MontyResult(
-        value: value ?? const MontyNull(),
+        value: value ?? const MontyNone(),
         usage: _usage,
         printOutput: printOutput,
       ),
@@ -44,7 +44,7 @@ MockMontyPlatform _failingMock(String message) {
   return MockMontyPlatform()..enqueueProgress(
     MontyComplete(
       result: MontyResult(
-        value: const MontyNull(),
+        value: const MontyNone(),
         error: MontyException(message: message),
         usage: _usage,
       ),
@@ -63,7 +63,7 @@ MockMontyPlatform _failingMockStructured({
   return MockMontyPlatform()..enqueueProgress(
     MontyComplete(
       result: MontyResult(
-        value: const MontyNull(),
+        value: const MontyNone(),
         error: MontyException(
           message: message,
           filename: filename,
@@ -157,7 +157,7 @@ void main() {
 
         // The bridge wraps code with print preamble, so check the mock
         // received something containing our code.
-        expect(mock.lastStartCode, contains('print("hello")'));
+        expect(mock.history.lastStartCode, contains('print("hello")'));
       });
 
       test('child platform is disposed after completion', () async {
@@ -182,9 +182,9 @@ void main() {
         // Give the bridge time to call start().
         await Future<void>.delayed(Duration.zero);
 
-        expect(mock.lastStartLimits, isNotNull);
-        expect(mock.lastStartLimits!.timeoutMs, 5000);
-        expect(mock.lastStartLimits!.memoryBytes, 1048576);
+        expect(mock.history.lastStartLimits, isNotNull);
+        expect(mock.history.lastStartLimits!.timeoutMs, 5000);
+        expect(mock.history.lastStartLimits!.memoryBytes, 1048576);
       });
 
       test('throws StateError when disposed', () async {
@@ -366,7 +366,7 @@ void main() {
         // Unblock and clean up.
         startCompleter.complete(
           const MontyComplete(
-            result: MontyResult(value: MontyNull(), usage: _usage),
+            result: MontyResult(value: MontyNone(), usage: _usage),
           ),
         );
         await plugin.onDispose();
@@ -451,7 +451,7 @@ void main() {
         // Unblock and clean up.
         startCompleter.complete(
           const MontyComplete(
-            result: MontyResult(value: MontyNull(), usage: _usage),
+            result: MontyResult(value: MontyNone(), usage: _usage),
           ),
         );
         await plugin.onDispose();
@@ -662,7 +662,7 @@ void main() {
 
         startCompleter.complete(
           const MontyComplete(
-            result: MontyResult(value: MontyNull(), usage: _usage),
+            result: MontyResult(value: MontyNone(), usage: _usage),
           ),
         );
         await plugin.onDispose();
@@ -701,7 +701,7 @@ void main() {
           ..enqueueProgress(
             const MontyComplete(
               result: MontyResult(
-                value: MontyNull(),
+                value: MontyNone(),
                 error: MontyException(message: 'NameError: x'),
                 usage: _usage,
                 printOutput: 'debug line\n',
@@ -789,7 +789,7 @@ void main() {
         for (final c in completers) {
           c.complete(
             const MontyComplete(
-              result: MontyResult(value: MontyNull(), usage: _usage),
+              result: MontyResult(value: MontyNone(), usage: _usage),
             ),
           );
         }
@@ -858,7 +858,7 @@ void main() {
         for (final c in completers) {
           c.complete(
             const MontyComplete(
-              result: MontyResult(value: MontyNull(), usage: _usage),
+              result: MontyResult(value: MontyNone(), usage: _usage),
             ),
           );
         }
@@ -1559,7 +1559,7 @@ void main() {
         for (final c in completers) {
           c.complete(
             const MontyComplete(
-              result: MontyResult(value: MontyNull(), usage: _usage),
+              result: MontyResult(value: MontyNone(), usage: _usage),
             ),
           );
         }
@@ -2002,7 +2002,7 @@ class _DisposeBoomMock extends MontyPlatform {
     String? scriptName,
   }) async => const MontyComplete(
     result: MontyResult(
-      value: MontyNull(),
+      value: MontyNone(),
       usage: MontyResourceUsage(
         memoryBytesUsed: 1024,
         timeElapsedMs: 10,

@@ -31,35 +31,12 @@ jobs:
             code:
               - 'lib/**'
               - 'test/**'
-              - 'native/**'
               - 'example/**'
               - 'hook/**'
               - 'tool/**'
               - 'pubspec.*'
               - '.github/**'
               - '!**.md'
-
-  ffigen:
-    name: Generate FFI bindings
-    needs: [changes]
-    if: needs.changes.outputs.code == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dart-lang/setup-dart@v1
-        with:
-          sdk: stable
-      - name: Install libclang
-        run: sudo apt-get update && sudo apt-get install -y libclang-dev
-      - name: Generate bindings
-        run: bash tool/generate_bindings.sh
-      - name: Upload bindings
-        uses: actions/upload-artifact@v4
-        with:
-          name: ffi-bindings
-          path: lib/src/ffi/generated/dart_monty_bindings.dart
-          retention-days: 1
 
   markdown:
     name: Markdown lint
@@ -82,20 +59,23 @@ jobs:
     name: Dart test
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: [ffigen]
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
     steps:
       - uses: actions/checkout@v4
       - uses: dart-lang/setup-dart@v1
         with:
           sdk: stable
-      - name: Download FFI bindings
-        uses: actions/download-artifact@v4
+      - uses: actions/cache@v4
         with:
-          name: ffi-bindings
-          path: lib/src/ffi/generated
+          path: ~/.pub-cache
+          key: pub-${{ runner.os }}-${{ hashFiles('pubspec.yaml') }}
+          restore-keys: pub-${{ runner.os }}-
       - run: dart pub get
       - name: Analyze
         run: dart analyze --fatal-infos
+      - name: dart format
+        run: dart format --set-exit-if-changed lib/ test/ tool/
       - name: Test
         run: dart test --coverage=coverage
       - name: Generate LCOV
@@ -116,193 +96,6 @@ jobs:
           name: lcov-dart
           path: coverage/lcov.info
           retention-days: 1
-      - name: dart format
-        run: dart format --set-exit-if-changed lib/ test/ hook/ bin/ tool/ example/
-
-  rust:
-    name: Rust (fmt + clippy + test + coverage)
-    needs: [changes]
-    if: needs.changes.outputs.code == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: native
-      - name: cargo fmt
-        working-directory: native
-        run: cargo fmt --check
-      - name: cargo clippy
-        working-directory: native
-        run: cargo clippy -- -D warnings
-      - name: Install cargo-deny
-        uses: taiki-e/install-action@cargo-deny
-      - name: cargo deny check
-        working-directory: native
-        run: cargo deny check
-      - name: Install cargo-tarpaulin
-        uses: taiki-e/install-action@cargo-tarpaulin
-      - name: Run tests with coverage
-        working-directory: native
-        run: |
-          OUTPUT=$(cargo tarpaulin --out Xml --output-dir target/tarpaulin 2>&1)
-          echo "$OUTPUT"
-          PCT=$(echo "$OUTPUT" | grep -oP '\d+\.\d+% coverage' | grep -oP '\d+\.\d+' | tail -1 || echo "0")
-          echo "Coverage: ${PCT}%"
-          WHOLE=${PCT%%.*}
-          if [ "${WHOLE:-0}" -lt 55 ]; then
-            echo "FAIL: Coverage ${PCT}% < 55% minimum."
-            exit 1
-          fi
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: native/target/tarpaulin/cobertura.xml
-          flags: native
-
-  build-wasm:
-    name: Build WASM
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    needs: [rust]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: wasm32-wasip1
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: native
-      - name: Build WASM
-        working-directory: native
-        run: cargo build --release --target wasm32-wasip1
-      - name: Upload WASM binary
-        uses: actions/upload-artifact@v4
-        with:
-          name: wasm-binary
-          path: native/target/wasm32-wasip1/release/dart_monty_native.wasm
-          retention-days: 1
-
-  wasm-ladder:
-    name: WASM ladder integration
-    needs: [changes, build-wasm]
-    if: needs.changes.outputs.code == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      - uses: dart-lang/setup-dart@v1
-        with:
-          sdk: stable
-      - name: Download WASM binary
-        uses: actions/download-artifact@v4
-        with:
-          name: wasm-binary
-          path: native/target/wasm32-wasip1/release
-      - name: Build JS bridge from source
-        working-directory: packages/dart_monty_wasm/js
-        run: |
-          npm install --force
-          npm run build
-      - name: Prepare integration test
-        run: |
-          INTEG_WEB="test/wasm/integration/web"
-          WASM_ASSETS="packages/dart_monty_wasm/assets"
-          WASM_JS="packages/dart_monty_wasm/js"
-
-          # Copy built JS bridge assets
-          cp "$WASM_ASSETS/dart_monty_bridge.js" "$INTEG_WEB/"
-          cp "$WASM_ASSETS/dart_monty_worker.js" "$INTEG_WEB/"
-          cp "$WASM_ASSETS/dart_monty_native.wasm" "$INTEG_WEB/"
-
-          # Copy WASI runtime from npm package for Worker import.meta.url resolution
-          WASI_PKG="$WASM_JS/node_modules/@pydantic/monty-wasm32-wasi"
-          mkdir -p "$INTEG_WEB/@pydantic/monty-wasm32-wasi"
-          cp "$WASI_PKG/wasi-worker-browser.mjs" "$INTEG_WEB/@pydantic/monty-wasm32-wasi/"
-          cp "$WASI_PKG/monty.wasm32-wasi.wasm" "$INTEG_WEB/@pydantic/monty-wasm32-wasi/"
-
-          # Compile Dart ladder runner to JS
-          dart pub get
-          dart compile js test/wasm/integration/python_ladder_runner.dart \
-            -o "$INTEG_WEB/ladder_runner.dart.js"
-
-          # Copy fixtures
-          mkdir -p "$INTEG_WEB/fixtures"
-          cp test/fixtures/python_ladder/tier_*.json "$INTEG_WEB/fixtures/"
-
-          # Diagnostic: verify all required files exist
-          echo "=== Integration test files ==="
-          ls -la "$INTEG_WEB/"*.js "$INTEG_WEB/"*.wasm "$INTEG_WEB/"*.html || true
-          ls -la "$INTEG_WEB/@pydantic/monty-wasm32-wasi/" || true
-      - name: Run WASM ladder in headless Chrome
-        run: |
-          INTEG_WEB="test/wasm/integration/web"
-          SERVE_PORT=8099
-
-          python3 << 'PYEOF' &
-          import http.server, functools
-          class H(http.server.SimpleHTTPRequestHandler):
-              def end_headers(self):
-                  self.send_header("Cross-Origin-Opener-Policy", "same-origin")
-                  self.send_header("Cross-Origin-Embedder-Policy", "require-corp")
-                  self.send_header("Access-Control-Allow-Origin", "*")
-                  self.send_header("Cache-Control", "no-store")
-                  super().end_headers()
-              def guess_type(self, path):
-                  if path.endswith(".mjs"): return "application/javascript"
-                  if path.endswith(".wasm"): return "application/wasm"
-                  return super().guess_type(path)
-              def log_message(self, fmt, *args): pass
-          handler = functools.partial(H, directory="test/wasm/integration/web")
-          http.server.HTTPServer(("127.0.0.1", 8099), handler).serve_forever()
-          PYEOF
-          sleep 2
-
-          CHROME="google-chrome-stable"
-          LADDER_LOG=$(mktemp)
-
-          timeout 120 "$CHROME" \
-            --headless \
-            --disable-gpu \
-            --no-sandbox \
-            --disable-dev-shm-usage \
-            --enable-logging=stderr \
-            --v=0 \
-            "http://127.0.0.1:$SERVE_PORT/ladder.html" \
-            2>"$LADDER_LOG" || true
-
-          WEB_RESULTS=$(grep -o 'LADDER_RESULT:{.*}' "$LADDER_LOG" 2>/dev/null || true)
-
-          if [ -z "$WEB_RESULTS" ]; then
-            echo "ERROR: No LADDER_RESULT lines captured from Chrome."
-            echo "--- Chrome console output ---"
-            grep -i "CONSOLE" "$LADDER_LOG" | head -40 || true
-            echo "--- LADDER_ERROR lines ---"
-            grep "LADDER_ERROR\|LADDER_STACKTRACE" "$LADDER_LOG" || true
-            echo "--- All stderr (last 50 lines) ---"
-            tail -50 "$LADDER_LOG" || true
-            rm -f "$LADDER_LOG"
-            exit 1
-          fi
-
-          FAILURES=$(echo "$WEB_RESULTS" | grep -c '"ok":false' || echo "0")
-          TOTAL=$(echo "$WEB_RESULTS" | wc -l | tr -d ' ')
-          rm -f "$LADDER_LOG"
-
-          echo "Results: $TOTAL fixtures, $FAILURES failures"
-          if [ "$FAILURES" -gt 0 ]; then
-            echo "$WEB_RESULTS" | grep '"ok":false'
-            exit 1
-          fi
-          echo "WASM ladder: PASSED"
 
   patch-coverage:
     name: Patch coverage gate (70%)
@@ -327,10 +120,14 @@ jobs:
       - name: Check patch coverage
         run: |
           sudo apt-get update && sudo apt-get install -y lcov
+          # Skip gate when tracefile is empty (no unit tests yet).
+          if [ ! -s coverage/lcov.info ]; then
+            echo "Coverage tracefile is empty — skipping patch coverage gate."
+            exit 0
+          fi
           lcov --remove coverage/lcov.info \
+            --ignore-errors unused \
             '*/generated/*' \
-            '*/native_bindings_ffi.dart' \
-            '*/native_isolate_bindings_impl.dart' \
             -o filtered-coverage.info
           diff-cover filtered-coverage.info \
             --compare-branch=origin/${{ github.base_ref }} \

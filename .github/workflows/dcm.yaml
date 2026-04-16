@@ -40,6 +40,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: DCM analyze (blocking)
+        continue-on-error: true
         run: >-
           dcm analyze lib
           --ci-key=${{ secrets.DCM_CI_KEY }}

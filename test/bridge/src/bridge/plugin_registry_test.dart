@@ -1,8 +1,6 @@
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:dart_monty/dart_monty_testing.dart';
-import 'package:dart_monty/monty_backend_spi.dart';
-import 'package:dart_monty/src/bridge/bridge/default_monty_bridge.dart';
 import 'package:test/test.dart';
 
 /// Minimal test plugin with configurable namespace and functions.
@@ -657,7 +655,7 @@ void main() {
 
             mock.enqueueProgress(
               const MontyComplete(
-                result: MontyResult(value: MontyNull(), usage: _zeroUsage),
+                result: MontyResult(value: MontyNone(), usage: _zeroUsage),
               ),
             );
 
@@ -679,7 +677,7 @@ void main() {
             mock.enqueueProgress(
               const MontyComplete(
                 result: MontyResult(
-                  value: MontyNull(),
+                  value: MontyNone(),
                   error: MontyException(message: 'oops'),
                   usage: _zeroUsage,
                 ),
@@ -700,7 +698,7 @@ void main() {
 
           mock.enqueueProgress(
             const MontyComplete(
-              result: MontyResult(value: MontyNull(), usage: _zeroUsage),
+              result: MontyResult(value: MontyNone(), usage: _zeroUsage),
             ),
           );
 

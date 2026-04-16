@@ -4,8 +4,6 @@ import 'dart:collection';
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:dart_monty/dart_monty_testing.dart';
-import 'package:dart_monty/monty_backend_spi.dart';
-import 'package:dart_monty/src/bridge/bridge/default_monty_bridge.dart';
 import 'package:signals_core/signals_core.dart';
 import 'package:test/test.dart';
 
@@ -57,7 +55,7 @@ void main() {
           )
           ..enqueueProgress(
             const MontyComplete(
-              result: MontyResult(value: MontyNull(), usage: _usage),
+              result: MontyResult(value: MontyNone(), usage: _usage),
             ),
           );
 
@@ -79,7 +77,7 @@ void main() {
         expect(plugin.channelState, const BridgeChannelCompleted());
 
         // Verify the result was passed through resolveFutures.
-        final resolvedResults = mock.lastResolveFuturesResults;
+        final resolvedResults = mock.history.lastResolveFuturesResults;
         expect(resolvedResults, isNotNull);
         expect(resolvedResults![1], isA<Map<String, dynamic>>());
         final resultMap = resolvedResults[1]! as Map<String, dynamic>;
@@ -119,7 +117,7 @@ void main() {
           )
           ..enqueueProgress(
             const MontyComplete(
-              result: MontyResult(value: MontyNull(), usage: _usage),
+              result: MontyResult(value: MontyNone(), usage: _usage),
             ),
           );
 
@@ -130,7 +128,7 @@ void main() {
 
         // The queued event should have been returned immediately by
         // el_recv, no waiting needed.
-        final resolvedResults = mock.resolveFuturesResultsList;
+        final resolvedResults = mock.history.resolveFuturesResultsList;
         expect(resolvedResults, hasLength(2));
         // Second resolve (recv) should contain the queued event.
         final waitResult = resolvedResults[1][2]! as Map<String, dynamic>;
@@ -175,7 +173,7 @@ void main() {
         )
         ..enqueueProgress(
           const MontyComplete(
-            result: MontyResult(value: MontyNull(), usage: _usage),
+            result: MontyResult(value: MontyNone(), usage: _usage),
           ),
         );
 
@@ -188,7 +186,7 @@ void main() {
       await bridge.execute('loop').toList();
 
       // All three resolves should contain events in FIFO order.
-      final results = mock.resolveFuturesResultsList;
+      final results = mock.history.resolveFuturesResultsList;
       expect(results, hasLength(3));
       expect((results[0][1]! as Map)['order'], 1);
       expect((results[1][2]! as Map)['order'], 2);
@@ -221,7 +219,7 @@ void main() {
         )
         ..enqueueProgress(
           const MontyComplete(
-            result: MontyResult(value: MontyNull(), usage: _usage),
+            result: MontyResult(value: MontyNone(), usage: _usage),
           ),
         );
 
@@ -245,10 +243,10 @@ void main() {
       expect(plugin.channelState, const BridgeChannelCompleted());
 
       // Both resolves should have the correct events.
-      expect(mock.resolveFuturesResultsList, hasLength(2));
-      final first = mock.resolveFuturesResultsList[0][1]! as Map;
+      expect(mock.history.resolveFuturesResultsList, hasLength(2));
+      final first = mock.history.resolveFuturesResultsList[0][1]! as Map;
       expect(first['cycle'], 1);
-      final second = mock.resolveFuturesResultsList[1][2]! as Map;
+      final second = mock.history.resolveFuturesResultsList[1][2]! as Map;
       expect(second['cycle'], 2);
     });
   });
@@ -273,7 +271,7 @@ void main() {
         )
         ..enqueueProgress(
           const MontyComplete(
-            result: MontyResult(value: MontyNull(), usage: _usage),
+            result: MontyResult(value: MontyNone(), usage: _usage),
           ),
         );
 
@@ -310,7 +308,7 @@ void main() {
         )
         ..enqueueProgress(
           const MontyComplete(
-            result: MontyResult(value: MontyNull(), usage: _usage),
+            result: MontyResult(value: MontyNone(), usage: _usage),
           ),
         );
 
@@ -347,7 +345,7 @@ void main() {
           ..enqueueProgress(
             const MontyComplete(
               result: MontyResult(
-                value: MontyNull(),
+                value: MontyNone(),
                 error: MontyException(message: 'kaboom'),
                 usage: _usage,
               ),
@@ -394,7 +392,7 @@ void main() {
         ..enqueueProgress(
           const MontyComplete(
             result: MontyResult(
-              value: MontyNull(),
+              value: MontyNone(),
               error: MontyException(
                 message: 'Bridge disposed while waiting for event',
               ),
@@ -427,7 +425,7 @@ void main() {
 
       mock.enqueueProgress(
         const MontyComplete(
-          result: MontyResult(value: MontyNull(), usage: _usage),
+          result: MontyResult(value: MontyNone(), usage: _usage),
         ),
       );
 
@@ -459,7 +457,7 @@ void main() {
           )
           ..enqueueProgress(
             const MontyComplete(
-              result: MontyResult(value: MontyNull(), usage: _usage),
+              result: MontyResult(value: MontyNone(), usage: _usage),
             ),
           );
 
@@ -502,7 +500,7 @@ void main() {
           )
           ..enqueueProgress(
             const MontyComplete(
-              result: MontyResult(value: MontyNull(), usage: _usage),
+              result: MontyResult(value: MontyNone(), usage: _usage),
             ),
           );
 
@@ -550,7 +548,7 @@ void main() {
         )
         ..enqueueProgress(
           const MontyComplete(
-            result: MontyResult(value: MontyNull(), usage: _usage),
+            result: MontyResult(value: MontyNone(), usage: _usage),
           ),
         );
 
@@ -612,7 +610,7 @@ void main() {
           ..enqueueProgress(
             const MontyComplete(
               result: MontyResult(
-                value: MontyNull(),
+                value: MontyNone(),
                 error: MontyException(
                   message: 'script died unexpectedly',
                 ),
@@ -660,7 +658,7 @@ void main() {
           ..enqueueProgress(
             const MontyComplete(
               result: MontyResult(
-                value: MontyNull(),
+                value: MontyNone(),
                 error: MontyException(message: 'script crashed'),
                 usage: _usage,
               ),
@@ -717,7 +715,7 @@ void main() {
         )
         ..enqueueProgress(
           const MontyComplete(
-            result: MontyResult(value: MontyNull(), usage: _usage),
+            result: MontyResult(value: MontyNone(), usage: _usage),
           ),
         );
 
@@ -748,7 +746,7 @@ void main() {
     test('dispatch throws StateError when plugin is completed', () async {
       mock.enqueueProgress(
         const MontyComplete(
-          result: MontyResult(value: MontyNull(), usage: _usage),
+          result: MontyResult(value: MontyNone(), usage: _usage),
         ),
       );
 
@@ -767,7 +765,7 @@ void main() {
         // First execution completes.
         mock.enqueueProgress(
           const MontyComplete(
-            result: MontyResult(value: MontyNull(), usage: _usage),
+            result: MontyResult(value: MontyNone(), usage: _usage),
           ),
         );
 
@@ -788,7 +786,7 @@ void main() {
           )
           ..enqueueProgress(
             const MontyComplete(
-              result: MontyResult(value: MontyNull(), usage: _usage),
+              result: MontyResult(value: MontyNone(), usage: _usage),
             ),
           );
 
@@ -827,7 +825,7 @@ void main() {
         )
         ..enqueueProgress(
           const MontyComplete(
-            result: MontyResult(value: MontyNull(), usage: _usage),
+            result: MontyResult(value: MontyNone(), usage: _usage),
           ),
         );
 
@@ -835,7 +833,7 @@ void main() {
 
       expect(events.whereType<BridgeRunFinished>(), isNotEmpty);
       expect(events.whereType<BridgeRunError>(), isEmpty);
-      expect(mock.resumeErrorMessages, isEmpty);
+      expect(mock.history.resumeErrorMessages, isEmpty);
     });
   });
 
@@ -870,12 +868,12 @@ void main() {
         lockMock
           ..enqueueProgress(
             const MontyComplete(
-              result: MontyResult(value: MontyNull(), usage: _usage),
+              result: MontyResult(value: MontyNone(), usage: _usage),
             ),
           )
           ..enqueueProgress(
             const MontyComplete(
-              result: MontyResult(value: MontyNull(), usage: _usage),
+              result: MontyResult(value: MontyNone(), usage: _usage),
             ),
           );
 
@@ -931,7 +929,7 @@ void main() {
       final mock2 = MockMontyPlatform()
         ..enqueueProgress(
           const MontyComplete(
-            result: MontyResult(value: MontyNull(), usage: _usage),
+            result: MontyResult(value: MontyNone(), usage: _usage),
           ),
         );
       final plugin2 = EventLoopPlugin();
@@ -951,7 +949,7 @@ void main() {
 
 /// Mock platform that does NOT implement [MontyFutureCapable].
 ///
-/// Used to test that [EventLoopPlugin] falls back to synchronous behaviour
+/// Used to test that EventLoopPlugin falls back to synchronous behaviour
 /// when the platform does not support futures (WASM).
 class _SyncOnlyMockPlatform extends MontyPlatform {
   final Queue<MontyProgress> _progressQueue = Queue<MontyProgress>();
