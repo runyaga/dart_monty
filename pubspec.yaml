@@ -19,7 +19,7 @@ dependencies:
   dart_monty_core:
     git:
       url: https://github.com/runyaga/dart_monty_core.git
-      ref: feat/api-alignment-followup
+      ref: main
   dinja: ^1.0.0
   file: ^7.0.0
   http: ^1.1.0
