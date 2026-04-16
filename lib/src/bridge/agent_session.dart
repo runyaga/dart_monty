@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:dart_monty/src/bridge/bridge/bridge_event.dart';
+import 'package:dart_monty/src/bridge/bridge/bridge_logger.dart';
 import 'package:dart_monty/src/bridge/bridge/default_monty_bridge.dart';
 import 'package:dart_monty/src/bridge/bridge/host_function.dart';
 import 'package:dart_monty/src/bridge/bridge/host_function_schema.dart';
@@ -11,9 +12,7 @@ import 'package:dart_monty/src/bridge/bridge/monty_bridge.dart';
 import 'package:dart_monty/src/bridge/bridge/monty_plugin.dart';
 import 'package:dart_monty/src/bridge/bridge/plugin_registry.dart';
 import 'package:dart_monty/src/bridge/os_call/os_provider.dart';
-import 'package:dart_monty/src/bridge/bridge/bridge_logger.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
-import 'package:dart_monty_core/src/platform/code_capture.dart' as code_capture;
 import 'package:signals_core/signals_core.dart';
 
 const _restoreFn = '__restore_state__';
@@ -68,7 +67,7 @@ String _generateRestoreCode(Map<String, Object?> state) {
 String _generatePersistCode(String userCode, Map<String, Object?> state) {
   final names = <String>{
     ...state.keys,
-    ...code_capture.extractAssignmentTargets(userCode),
+    ...extractAssignmentTargets(userCode),
   };
 
   if (names.isEmpty) return '$_persistFn({})';
@@ -91,7 +90,7 @@ String _generatePersistCode(String userCode, Map<String, Object?> state) {
 String _wrapWithStateCode(String userCode, Map<String, Object?> state) {
   final restore = _generateRestoreCode(state);
   final persist = _generatePersistCode(userCode, state);
-  final (processed, hasResult) = code_capture.captureLastExpression(userCode);
+  final (processed, hasResult) = captureLastExpression(userCode);
 
   final buf = StringBuffer(restore)
     ..write('\n')

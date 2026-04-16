@@ -1,6 +1,7 @@
 name: dart_monty
 description: Pure Dart bindings for Monty, a restricted sandboxed Python interpreter built in Rust. Run Python from Dart and Flutter on desktop, web, and mobile.
 version: 0.20.0
+publish_to: none
 homepage: https://github.com/runyaga/dart_monty
 repository: https://github.com/runyaga/dart_monty
 issue_tracker: https://github.com/runyaga/dart_monty/issues
@@ -18,7 +19,7 @@ dependencies:
   dart_monty_core:
     git:
       url: https://github.com/runyaga/dart_monty_core.git
-      ref: feat/api-alignment
+      ref: feat/api-alignment-followup
   dinja: ^1.0.0
   file: ^7.0.0
   http: ^1.1.0

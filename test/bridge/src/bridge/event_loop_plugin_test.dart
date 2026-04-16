@@ -4,8 +4,6 @@ import 'dart:collection';
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:dart_monty/dart_monty_testing.dart';
-import 'package:dart_monty/monty_backend_spi.dart';
-import 'package:dart_monty/src/bridge/bridge/default_monty_bridge.dart';
 import 'package:signals_core/signals_core.dart';
 import 'package:test/test.dart';
 
@@ -951,7 +949,7 @@ void main() {
 
 /// Mock platform that does NOT implement [MontyFutureCapable].
 ///
-/// Used to test that [EventLoopPlugin] falls back to synchronous behaviour
+/// Used to test that EventLoopPlugin falls back to synchronous behaviour
 /// when the platform does not support futures (WASM).
 class _SyncOnlyMockPlatform extends MontyPlatform {
   final Queue<MontyProgress> _progressQueue = Queue<MontyProgress>();

@@ -1,10 +1,10 @@
 import 'package:dart_monty/src/bridge/bridge/bridge_event.dart';
+import 'package:dart_monty/src/bridge/bridge/bridge_logger.dart';
 import 'package:dart_monty/src/bridge/bridge/bridge_middleware.dart';
 import 'package:dart_monty/src/bridge/bridge/default_monty_bridge.dart';
 import 'package:dart_monty/src/bridge/bridge/host_function.dart';
 import 'package:dart_monty/src/bridge/bridge/host_function_schema.dart';
 import 'package:dart_monty/src/bridge/os_call/os_provider.dart';
-import 'package:dart_monty/src/bridge/bridge/bridge_logger.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 
 /// Bridge for LLM-generated Python calling registered Dart host functions.

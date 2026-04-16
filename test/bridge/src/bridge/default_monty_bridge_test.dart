@@ -1,7 +1,6 @@
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:dart_monty/dart_monty_testing.dart';
-import 'package:dart_monty/monty_backend_spi.dart';
 import 'package:test/test.dart';
 
 const _usage = MontyResourceUsage(
@@ -634,8 +633,14 @@ void main() {
 
       // Should have called resumeWithError with PermissionError.
       expect(mock.history.resumeErrorMessages, hasLength(1));
-      expect(mock.history.resumeErrorMessages.first, contains('PermissionError'));
-      expect(mock.history.resumeErrorMessages.first, contains('Path.read_text'));
+      expect(
+        mock.history.resumeErrorMessages.first,
+        contains('PermissionError'),
+      );
+      expect(
+        mock.history.resumeErrorMessages.first,
+        contains('Path.read_text'),
+      );
 
       // Should have emitted OsCall events.
       final starts = events.whereType<BridgeOsCallStart>().toList();

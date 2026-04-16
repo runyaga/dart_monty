@@ -203,3 +203,27 @@ class BridgeOsCallResult extends BridgeEvent {
   /// Null when the call was rejected (no handler registered).
   final int? durationMs;
 }
+
+/// Event loop entered wait state (Python called `wait_for_event()`).
+class BridgeEventLoopWaiting extends BridgeEvent {
+  /// Creates a [BridgeEventLoopWaiting].
+  const BridgeEventLoopWaiting();
+}
+
+/// Event loop resumed after receiving a UI event.
+class BridgeEventLoopResumed extends BridgeEvent {
+  /// Creates a [BridgeEventLoopResumed].
+  const BridgeEventLoopResumed({required this.event});
+
+  /// The UI event map that was dispatched.
+  final Map<String, dynamic> event;
+}
+
+/// Python called `render_ui` with a schema.
+class BridgeUiRendered extends BridgeEvent {
+  /// Creates a [BridgeUiRendered].
+  const BridgeUiRendered({required this.schema});
+
+  /// The UI schema map that was rendered.
+  final Map<String, dynamic> schema;
+}
