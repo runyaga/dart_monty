@@ -17,11 +17,11 @@ void main() {
   // Template plugin
   // ---------------------------------------------------------------------------
 
-  group('AgentSession + DinjaTemplatePlugin', () {
+  group('AgentSession + JinjaTemplatePlugin', () {
     late AgentSession session;
 
     setUp(() {
-      session = AgentSession(plugins: [DinjaTemplatePlugin()]);
+      session = AgentSession(plugins: [JinjaTemplatePlugin()]);
     });
 
     tearDown(() async {
@@ -116,7 +116,7 @@ msg_send(name='q', message=2)
         'date.': TimeOsProvider(),
         'datetime.': TimeOsProvider(),
       });
-      final tmpl = DinjaTemplatePlugin();
+      final tmpl = JinjaTemplatePlugin();
       final msg = MessageBusPlugin();
       final plugins = <MontyPlugin>[tmpl, msg];
       plugins.add(
@@ -203,7 +203,7 @@ sandbox_free(handle=h)
         'date.': TimeOsProvider(),
         'datetime.': TimeOsProvider(),
       });
-      final tmpl = DinjaTemplatePlugin();
+      final tmpl = JinjaTemplatePlugin();
       final msg = MessageBusPlugin();
       final plugins = <MontyPlugin>[tmpl, msg];
       plugins.add(

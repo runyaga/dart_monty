@@ -22,7 +22,6 @@ dependencies:
       ref: main
   dinja: ^1.0.0
   file: ^7.0.0
-  http: ^1.1.0
   meta: ^1.11.0
   path: ^1.8.0
   signals_core: ^6.2.0

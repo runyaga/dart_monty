@@ -189,7 +189,7 @@ Future<bool> _init() async {
       'datetime.': TimeOsProvider(),
     });
 
-    final tmplPlugin = DinjaTemplatePlugin();
+    final tmplPlugin = JinjaTemplatePlugin();
     final msgPlugin = MessageBusPlugin();
     _msgBus = msgPlugin.bus;
 
