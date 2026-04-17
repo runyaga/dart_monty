@@ -10,7 +10,6 @@ import 'package:dart_monty/src/bridge/os_call/os_provider.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:meta/meta.dart';
 
-const _consoleWriteFn = '__console_write__';
 const _roleKwarg = '__role__';
 
 // ---------------------------------------------------------------------------
@@ -299,24 +298,14 @@ class PluginHost {
   // Execution dispatch.
   // ---------------------------------------------------------------------------
 
-  /// Dispatches a [MontyPending] step — routes console writes, registered
-  /// host functions, and unknown functions.
+  /// Dispatches a [MontyPending] step — routes registered host functions and
+  /// unknown functions.
   Future<MontyProgress> handlePending(
     MontyPending pending,
-    StringBuffer printBuffer,
     StreamController<BridgeEvent> controller, {
     required bool futuresCapable,
   }) {
     final name = pending.functionName;
-
-    // Console write — always intercept, buffer output for flush on completion.
-    if (name == _consoleWriteFn) {
-      if (pending.arguments.isNotEmpty) {
-        printBuffer.write(pending.arguments.firstOrNull?.dartValue?.toString());
-      }
-
-      return _platform.resume(null);
-    }
 
     // Registered host function — extract role, strip reserved kwargs, dispatch.
     final fn = _functions[name];

@@ -70,19 +70,14 @@ void main() {
 
   group('2b — non-serializable values in state persistence', () {
     test(
-      're.Pattern in scope: Monty errors or drops when persisting',
+      're.Pattern in scope: Monty coerces to String when persisting',
       () async {
-        // PR #331 injected a Python-side isinstance filter to prevent
-        // re.Pattern objects from reaching __persist_state__. This test
-        // observes what Monty actually does WITHOUT that filter.
+        // Ground truth (observed): Monty coerces re.Pattern to its string
+        // representation when it passes through __persist_state__. It does
+        // NOT error and does NOT drop the key.
         //
-        // Expected outcomes (one of):
-        //   (a) Monty errors → error result
-        //   (b) Monty silently drops the key → key absent from state
-        //   (c) Monty coerces to string → key present, value is string
-        //
-        // The result determines whether dart_monty needs any filtering,
-        // or just lets Monty's behavior surface.
+        // dart_monty does not need any isinstance filter — Monty's own
+        // serializer decides what survives.
         final session = AgentSession();
         try {
           final result = await session.execute(r'''
@@ -91,20 +86,17 @@ p = re.compile(r'\d+')
 p
 ''');
           if (result.error != null) {
-            // Monty errored — ground truth; no dart_monty filtering needed.
+            // Monty errored — also acceptable; document the message.
             expect(result.error!.message, isNotEmpty);
           } else {
             final state = session.state;
-            if (state.containsKey('p')) {
-              // Coerced to some MontyValue — document the type
-              addTearDown(session.dispose);
-              fail(
-                'Monty serialized re.Pattern as '
-                '${state['p'].runtimeType} — '
-                'dart_monty should document, not filter this.',
-              );
-            }
-            // Key absent → Monty silently dropped it
+            // Monty coerces re.Pattern to a String — key is present.
+            expect(
+              state.containsKey('p'),
+              isTrue,
+              reason: 'Monty coerces re.Pattern to a string representation.',
+            );
+            expect(state['p'], isA<String>());
           }
         } finally {
           await session.dispose();
@@ -112,27 +104,30 @@ p
       },
     );
 
-    test('lambda in scope: behavior when persisting', () async {
-      final session = AgentSession();
-      try {
-        final result = await session.execute('f = lambda x: x + 1\nf');
-        if (result.error != null) {
-          expect(result.error!.message, isNotEmpty);
-        } else {
-          // If Monty didn't error, check whether 'f' persisted to state
-          final state = session.state;
-          expect(
-            state.containsKey('f'),
-            isFalse,
-            reason:
-                'Lambda functions should not persist — either Monty errors '
-                'or silently drops them.',
-          );
+    test(
+      'lambda in scope: Monty coerces to String when persisting',
+      () async {
+        // Ground truth (observed): Monty coerces lambdas to their string
+        // representation rather than dropping or erroring.
+        final session = AgentSession();
+        try {
+          final result = await session.execute('f = lambda x: x + 1\nf');
+          if (result.error != null) {
+            expect(result.error!.message, isNotEmpty);
+          } else {
+            // Lambda serialized — key is present as a String.
+            final state = session.state;
+            expect(
+              state.containsKey('f'),
+              isTrue,
+              reason: 'Monty coerces lambdas to a String representation.',
+            );
+          }
+        } finally {
+          await session.dispose();
         }
-      } finally {
-        await session.dispose();
-      }
-    });
+      },
+    );
 
     test('primitive values persist correctly across calls', () async {
       // Positive control: known-good serializable values must persist.

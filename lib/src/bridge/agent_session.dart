@@ -28,9 +28,60 @@ const _zeroUsage = MontyResourceUsage(
 // Top-level helpers — pure utilities that do not need AgentSession state.
 // ---------------------------------------------------------------------------
 
-/// Extracts the terminal [MontyResult] from a completed bridge event list.
+// Number of lines the state restore preamble adds before user code.
+//
+// Structure:
+//   __d = __restore_state__()   ← always 1 line
+//   x = __d["x"]               ← 1 line per state variable
+//   <user code>
+int _restoreLineCount(Map<String, Object?> state) => 1 + state.keys.length;
+
+/// Adjusts [e] line numbers by subtracting [offset] lines added by the state
+/// restore preamble, so errors point to user code lines, not wrapped lines.
+MontyException _adjustRestoreOffset(MontyException e, int offset) {
+  if (offset <= 0) return e;
+
+  return MontyException(
+    message: e.message,
+    filename: e.filename,
+    lineNumber:
+        e.lineNumber != null
+            ? (e.lineNumber! - offset).clamp(1, e.lineNumber!)
+            : null,
+    columnNumber: e.columnNumber,
+    sourceCode: e.sourceCode,
+    excType: e.excType,
+    traceback: e.traceback
+        .where((f) => f.startLine > offset)
+        .map(
+          (f) => MontyStackFrame(
+            filename: f.filename,
+            startLine: (f.startLine - offset).clamp(1, f.startLine),
+            startColumn: f.startColumn,
+            endLine:
+                f.endLine != null
+                    ? (f.endLine! - offset).clamp(1, f.endLine!)
+                    : null,
+            endColumn: f.endColumn,
+            frameName: f.frameName,
+            previewLine: f.previewLine,
+            hideCaret: f.hideCaret,
+            hideFrameName: f.hideFrameName,
+          ),
+        )
+        .toList(),
+  );
+}
+
+/// Extracts the terminal [MontyResult] from a completed bridge event list,
+/// adjusting exception line numbers by [restoreOffset] to account for the
+/// state restore preamble injected before user code.
+///
 /// Throws [StateError] if no [BridgeRunFinished]/[BridgeRunError] event exists.
-MontyResult _extractBridgeResult(List<BridgeEvent> events) {
+MontyResult _extractBridgeResult(
+  List<BridgeEvent> events,
+  int restoreOffset,
+) {
   for (final event in events.reversed) {
     if (event is BridgeRunFinished) {
       return MontyResult(
@@ -40,9 +91,12 @@ MontyResult _extractBridgeResult(List<BridgeEvent> events) {
       );
     }
     if (event is BridgeRunError) {
+      final raw = event.exception ?? MontyException(message: event.message);
+      final adjusted = _adjustRestoreOffset(raw, restoreOffset);
+
       return MontyResult(
         value: const MontyNone(),
-        error: event.exception ?? MontyException(message: event.message),
+        error: adjusted,
         usage: _zeroUsage,
         printOutput: event.printOutput,
       );
@@ -118,11 +172,13 @@ String _wrapWithStateCode(String userCode, Map<String, Object?> state) {
 /// Only Monty-representable types survive across calls: `int`, `float`,
 /// `str`, `bool`, `list`, `dict`, `bytes`, `datetime`, `None`, and other
 /// [MontyValue] subtypes. Non-representable values (functions, `re.Pattern`,
-/// generators, class instances, etc.) produce a Monty serialization error
-/// or are silently dropped — behavior is determined by the Monty interpreter,
-/// not dart_monty. The variable capture itself is heuristic: only top-level
-/// assignment targets are detected; dynamic assignments (`exec`, `setattr`)
-/// are not captured.
+/// generators, class instances, etc.) are coerced to their string
+/// representation by the Monty interpreter — they do not error or disappear,
+/// but they cannot be round-tripped back to the original Python object.
+/// This behavior is determined by the Monty interpreter, not dart_monty.
+/// The variable capture itself is heuristic: only top-level assignment
+/// targets are detected; dynamic assignments (`exec`, `setattr`) are not
+/// captured.
 ///
 /// Two execution modes:
 ///
@@ -319,11 +375,12 @@ class AgentSession {
       await _sharedRegistry!.attachTo(_sharedBridge!, baseOs: _os);
       _sharedAttached = true;
     }
+    final state = _sessionStateSignal.value;
     final events = await _sharedBridge!
-        .execute(_wrapWithStateCode(code, _sessionStateSignal.value))
+        .execute(_wrapWithStateCode(code, state))
         .toList();
 
-    return _extractBridgeResult(events);
+    return _extractBridgeResult(events, _restoreLineCount(state));
   }
 
   // ---------------------------------------------------------------------------
@@ -341,11 +398,12 @@ class AgentSession {
     await registry.attachTo(b, baseOs: _os);
 
     try {
+      final state = _sessionStateSignal.value;
       final events = await b
-          .execute(_wrapWithStateCode(code, _sessionStateSignal.value))
+          .execute(_wrapWithStateCode(code, state))
           .toList();
 
-      return _extractBridgeResult(events);
+      return _extractBridgeResult(events, _restoreLineCount(state));
     } finally {
       await registry.disposeAll();
       b.dispose();

@@ -81,22 +81,6 @@ void main() {
       expect(event.result, 'ok');
     });
 
-    test('BridgeTextStart stores messageId', () {
-      const event = BridgeTextStart(messageId: 'm1');
-      expect(event.messageId, 'm1');
-    });
-
-    test('BridgeTextContent stores messageId and delta', () {
-      const event = BridgeTextContent(messageId: 'm1', delta: 'text');
-      expect(event.messageId, 'm1');
-      expect(event.delta, 'text');
-    });
-
-    test('BridgeTextEnd stores messageId', () {
-      const event = BridgeTextEnd(messageId: 'm1');
-      expect(event.messageId, 'm1');
-    });
-
     test('BridgeOsCallStart stores callId and operationName', () {
       const event = BridgeOsCallStart(
         callId: 'oc1',

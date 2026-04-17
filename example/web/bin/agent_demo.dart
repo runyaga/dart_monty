@@ -319,19 +319,6 @@ Map<String, dynamic> _eventToMap(BridgeEvent event) {
       'callId': callId,
       'result': result,
     },
-    BridgeTextStart(:final messageId) => {
-      'type': 'TextStart',
-      'messageId': messageId,
-    },
-    BridgeTextContent(:final messageId, :final delta) => {
-      'type': 'TextContent',
-      'messageId': messageId,
-      'delta': delta,
-    },
-    BridgeTextEnd(:final messageId) => {
-      'type': 'TextEnd',
-      'messageId': messageId,
-    },
     BridgeOsCallStart(
       :final callId,
       :final operationName,

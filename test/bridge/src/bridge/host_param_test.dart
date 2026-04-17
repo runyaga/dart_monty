@@ -24,23 +24,23 @@ void main() {
         expect(() => param.validate('true'), throwsFormatException);
       });
 
-      test('coerces int for integer param', () {
+      test('accepts int for integer param', () {
         const param = HostParam(name: 'x', type: HostParamType.integer);
         expect(param.validate(42), 42);
       });
 
-      test('coerces num to int for integer param', () {
+      test('throws FormatException for float on integer param', () {
+        // Floats are not losslessly coercible to int — reject always.
         const param = HostParam(name: 'x', type: HostParamType.integer);
-        expect(param.validate(3.7), 3);
+        expect(() => param.validate(3.7), throwsFormatException);
+        expect(() => param.validate(1.0), throwsFormatException);
       });
 
-      test('coerces numeric string to int for integer param', () {
+      test('throws FormatException for string on integer param', () {
+        // Monty maps Python int → Dart int directly; a string means a
+        // Python-side type error, not something dart_monty should paper over.
         const param = HostParam(name: 'x', type: HostParamType.integer);
-        expect(param.validate('99'), 99);
-      });
-
-      test('throws FormatException for non-numeric string on integer', () {
-        const param = HostParam(name: 'x', type: HostParamType.integer);
+        expect(() => param.validate('99'), throwsFormatException);
         expect(() => param.validate('abc'), throwsFormatException);
       });
 
@@ -55,13 +55,11 @@ void main() {
         expect(param.validate(42), 42);
       });
 
-      test('coerces numeric string to num for number param', () {
+      test('throws FormatException for string on number param', () {
+        // Monty maps Python numeric types to Dart num directly; strings are
+        // rejected, not coerced.
         const param = HostParam(name: 'x', type: HostParamType.number);
-        expect(param.validate('2.5'), 2.5);
-      });
-
-      test('throws FormatException for non-numeric string on number', () {
-        const param = HostParam(name: 'x', type: HostParamType.number);
+        expect(() => param.validate('2.5'), throwsFormatException);
         expect(() => param.validate('abc'), throwsFormatException);
       });
 

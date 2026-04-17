@@ -276,8 +276,8 @@ void main() {
             expect(e.exception, isNotNull);
             expect(e.exception!.excType, 'NameError');
             expect(e.exception!.filename, '<code>');
-            // Line number is adjusted by bridge preamble offset (5 lines).
-            expect(e.exception!.lineNumber, 7 - 5);
+            // Line number is the raw Monty value — no preamble offset applied.
+            expect(e.exception!.lineNumber, 7);
             expect(e.exception!.columnNumber, 4);
           }
         },

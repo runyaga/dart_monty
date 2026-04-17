@@ -131,36 +131,6 @@ class BridgeToolCallResult extends BridgeEvent {
   final String result;
 }
 
-/// Text output started (print buffer flush).
-class BridgeTextStart extends BridgeEvent {
-  /// Creates a [BridgeTextStart].
-  const BridgeTextStart({required this.messageId});
-
-  /// Message identifier.
-  final String messageId;
-}
-
-/// Text output content delta.
-class BridgeTextContent extends BridgeEvent {
-  /// Creates a [BridgeTextContent].
-  const BridgeTextContent({required this.messageId, required this.delta});
-
-  /// Message identifier.
-  final String messageId;
-
-  /// Text content delta.
-  final String delta;
-}
-
-/// Text output ended.
-class BridgeTextEnd extends BridgeEvent {
-  /// Creates a [BridgeTextEnd].
-  const BridgeTextEnd({required this.messageId});
-
-  /// Message identifier.
-  final String messageId;
-}
-
 /// An OS call started (Python accessed pathlib, os, datetime, etc.).
 class BridgeOsCallStart extends BridgeEvent {
   /// Creates a [BridgeOsCallStart].
