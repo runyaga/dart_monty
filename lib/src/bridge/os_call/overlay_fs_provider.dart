@@ -1,6 +1,7 @@
 // ignore_for_file: avoid-unsafe-collection-methods, avoid-non-null-assertion
 import 'package:dart_monty/src/bridge/os_call/os_call_exception.dart';
 import 'package:dart_monty/src/bridge/os_call/os_provider.dart';
+import 'package:dart_monty/src/bridge/os_call/path_op.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 
 /// Two-layer filesystem: reads fall through to [base], writes go to [scratch].
@@ -52,25 +53,25 @@ class OverlayFsProvider extends OsProvider {
   Future<Object?> resolve(MontyOsCall call) {
     return switch (call.operationName) {
       // Writes + rename → scratch
-      'Path.write_text' ||
-      'Path.write_bytes' ||
-      'Path.mkdir' ||
-      'Path.rename' => scratch.resolve(call),
+      PathOp.writeText ||
+      PathOp.writeBytes ||
+      PathOp.mkdir ||
+      PathOp.rename => scratch.resolve(call),
 
       // Reads → scratch first, fall through to base
-      'Path.read_text' || 'Path.read_bytes' => _readWithFallback(call),
+      PathOp.readText || PathOp.readBytes => _readWithFallback(call),
 
       // Queries → scratch first, fall through to base
-      'Path.exists' ||
-      'Path.is_file' ||
-      'Path.is_dir' ||
-      'Path.is_symlink' => _queryWithFallback(call),
+      PathOp.exists ||
+      PathOp.isFile ||
+      PathOp.isDir ||
+      PathOp.isSymlink => _queryWithFallback(call),
 
       // Listing → merge both layers
-      'Path.iterdir' => _mergedIterdir(call),
+      PathOp.iterdir => _mergedIterdir(call),
 
       // Delete → scratch only (no whiteout)
-      'Path.unlink' || 'Path.rmdir' => _deleteFromScratch(call),
+      PathOp.unlink || PathOp.rmdir => _deleteFromScratch(call),
 
       // Everything else (resolve, absolute, env, datetime) → base
       _ => base.resolve(call),

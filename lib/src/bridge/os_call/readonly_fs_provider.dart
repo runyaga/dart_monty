@@ -1,15 +1,16 @@
 import 'package:dart_monty/src/bridge/os_call/os_call_exception.dart';
 import 'package:dart_monty/src/bridge/os_call/os_provider.dart';
+import 'package:dart_monty/src/bridge/os_call/path_op.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 
 /// Write operations that are blocked in read-only mode.
-const _writeOps = {
-  'Path.write_text',
-  'Path.write_bytes',
-  'Path.mkdir',
-  'Path.unlink',
-  'Path.rmdir',
-  'Path.rename',
+const Set<String> _writeOps = {
+  PathOp.writeText,
+  PathOp.writeBytes,
+  PathOp.mkdir,
+  PathOp.unlink,
+  PathOp.rmdir,
+  PathOp.rename,
 };
 
 /// Wraps any [OsProvider] and blocks write operations.

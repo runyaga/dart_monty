@@ -171,7 +171,7 @@ Dart app
 ```
 
 For Flutter apps or long-running executions, use `MontyNative` (from
-`lib/src/ffi/`) which wraps `MontyFfi` in a background Isolate:
+`dart_monty_core`) which wraps `MontyFfi` in a background Isolate:
 
 ```text
 Dart app

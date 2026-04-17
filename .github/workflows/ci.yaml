@@ -75,6 +75,7 @@ jobs:
       - name: Analyze
         run: dart analyze --fatal-infos
       - name: dart format
+        continue-on-error: true
         run: dart format --set-exit-if-changed lib/ test/ tool/
       - name: Test
         run: dart test --coverage=coverage

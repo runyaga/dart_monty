@@ -198,15 +198,13 @@ dcm:
         exclude:
           # Fire-and-forget .then() for unawaited error logging
           - "lib/src/bridge/bridge/default_monty_bridge.dart"
-          # Isolate message dispatch and timeout-or-false chain
-          - "lib/src/ffi/native_isolate_bindings_impl.dart"
+          # (ffi shim removed — dart_monty_core handles isolate dispatch)
     - avoid-adjacent-strings
     - prefer-declaring-const-constructor:
         exclude:
           # Extension types cannot have const constructors
           - "lib/src/wasm/wasm_bindings_js.dart"
-          # NativeBindingsFfi has non-final fields (handle state)
-          - "lib/src/ffi/native_bindings_ffi.dart"
+          # (ffi shim removed — NativeBindingsFfi lives in dart_monty_core)
           # BridgeChannelWaiting holds Completer which cannot be const
           - "lib/src/bridge/plugins/event_loop_plugin.dart"
     - format-comment
@@ -261,8 +259,7 @@ dcm:
         exclude:
           - "test/**"
           - "**/example/**"
-          # Isolate message protocol: non-null guaranteed by sealed message types
-          - "lib/src/ffi/native_isolate_bindings_impl.dart"
+          # (ffi shim removed — dart_monty_core handles isolate message protocol)
           # JSON deserialization: fields guaranteed by Rust FFI contract
           - "lib/src/platform/base_monty_platform.dart"
           - "lib/src/platform/monty_progress.dart"

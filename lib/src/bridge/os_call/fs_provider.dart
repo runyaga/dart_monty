@@ -1,6 +1,7 @@
 // ignore_for_file: avoid-unsafe-collection-methods, avoid-non-null-assertion
 import 'package:dart_monty/src/bridge/os_call/os_call_exception.dart';
 import 'package:dart_monty/src/bridge/os_call/os_provider.dart';
+import 'package:dart_monty/src/bridge/os_call/path_op.dart';
 import 'package:dart_monty_core/dart_monty_core.dart' hide OsCallException;
 import 'package:file/file.dart';
 
@@ -33,21 +34,21 @@ class FsProvider extends OsProvider {
     final kwargs = call.kwargs;
 
     return switch (op) {
-      'Path.exists' => _exists(args),
-      'Path.is_file' => _isFile(args),
-      'Path.is_dir' => _isDir(args),
-      'Path.is_symlink' => _isSymlink(args),
-      'Path.read_text' => _readText(args),
-      'Path.read_bytes' => _readBytes(args),
-      'Path.write_text' => _writeText(args),
-      'Path.write_bytes' => _writeBytes(args),
-      'Path.mkdir' => _mkdir(args, kwargs),
-      'Path.unlink' => _unlink(args),
-      'Path.rmdir' => _rmdir(args),
-      'Path.rename' => _rename(args),
-      'Path.iterdir' => _iterdir(args),
-      'Path.resolve' => _resolve(args),
-      'Path.absolute' => _absolute(args),
+      PathOp.exists => _exists(args),
+      PathOp.isFile => _isFile(args),
+      PathOp.isDir => _isDir(args),
+      PathOp.isSymlink => _isSymlink(args),
+      PathOp.readText => _readText(args),
+      PathOp.readBytes => _readBytes(args),
+      PathOp.writeText => _writeText(args),
+      PathOp.writeBytes => _writeBytes(args),
+      PathOp.mkdir => _mkdir(args, kwargs),
+      PathOp.unlink => _unlink(args),
+      PathOp.rmdir => _rmdir(args),
+      PathOp.rename => _rename(args),
+      PathOp.iterdir => _iterdir(args),
+      PathOp.resolve => _resolve(args),
+      PathOp.absolute => _absolute(args),
       _ => throw UnsupportedError('Unsupported path operation: $op'),
     };
   }

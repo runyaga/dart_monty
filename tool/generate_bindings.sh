@@ -2,8 +2,8 @@
 # =============================================================================
 # Generate FFI bindings for dart_monty
 # =============================================================================
-# Runs dart run ffigen in the root package to regenerate C bindings.
-# Output: lib/src/ffi/generated/dart_monty_bindings.dart
+# Runs dart run ffigen in dart_monty_core to regenerate C bindings.
+# Note: FFI bindings now live in dart_monty_core, not dart_monty.
 # Usage: bash tool/generate_bindings.sh
 # =============================================================================
 set -euo pipefail

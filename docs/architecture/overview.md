@@ -30,16 +30,8 @@ dart_monty                           (single package — Monty() + conditional i
   │     ├── MontyProgress              (sealed: Pending | Complete | ResolveFutures | OsCall)
   │     └── MontyResult, MontyException, MontyStackFrame, ...
   │
-  ├── lib/src/ffi/                     (pure Dart, no Flutter)
-  │     ├── NativeBindings             (abstract) → NativeBindingsFfi (dart:ffi)
-  │     ├── FfiCoreBindings            (implements MontyCoreBindings)
-  │     ├── MontyFfi                   (extends BaseMontyPlatform)
-  │     │     implements MontySnapshotCapable, MontyFutureCapable
-  │     ├── MontyNative                (Isolate-based wrapper around MontyFfi)
-  │     │     implements MontySnapshotCapable, MontyFutureCapable
-  │     └── NativeLibraryLoader
-  │
   └── lib/src/wasm/                    (pure Dart, dart:js_interop)
+  │   [FFI/WASM backends live in dart_monty_core, not dart_monty]
         ├── WasmBindings               (abstract) → WasmBindingsJs (JS bridge)
         ├── WasmCoreBindings           (implements MontyCoreBindings)
         ├── MontyWasm                  (extends BaseMontyPlatform)
@@ -51,12 +43,12 @@ dart_monty                           (single package — Monty() + conditional i
 
 | Platform | Module | Status | Library |
 |----------|--------|--------|---------|
-| macOS | lib/src/ffi/ | Supported | `.dylib` |
-| Linux | lib/src/ffi/ | Supported | `.so` |
-| Web | lib/src/wasm/ | Supported | WASM via Worker |
-| iOS | lib/src/ffi/ | Planned (M9) | `.a` static |
-| Android | lib/src/ffi/ | Planned (M9) | `.so` via NDK |
-| Windows | lib/src/ffi/ | Planned (M9) | `.dll` via MSVC |
+| macOS | dart_monty_core (FFI) | Supported | `.dylib` |
+| Linux | dart_monty_core (FFI) | Supported | `.so` |
+| Web | dart_monty_core (WASM) | Supported | WASM via Worker |
+| iOS | dart_monty_core (FFI) | Planned (M9) | `.a` static |
+| Android | dart_monty_core (FFI) | Planned (M9) | `.so` via NDK |
+| Windows | dart_monty_core (FFI) | Planned (M9) | `.dll` via MSVC |
 
 ## Choosing the Right API
 
