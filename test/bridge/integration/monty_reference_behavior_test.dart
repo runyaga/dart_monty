@@ -30,9 +30,8 @@ void main() {
       // print. If MontyResult.printOutput is populated here, Monty captures
       // prints natively and the bridge's print preamble is adding unnecessary
       // overhead (and injecting 5 extra lines that distort line numbers).
-      final monty = Monty();
+      final session = MontySession();
       try {
-        final session = MontySession(platform: monty.platform);
         final result = await session.run('print("hello from monty")');
         // Document what we observe:
         expect(
@@ -44,7 +43,7 @@ void main() {
         );
         expect(result.printOutput, contains('hello from monty'));
       } finally {
-        await monty.dispose();
+        session.dispose();
       }
     });
 
@@ -194,9 +193,8 @@ p
         // dart_monty_core's captureLastExpression wraps the last expression as
         // `__r = (expr); __r`. This test checks whether that wrapper is needed,
         // or whether Monty returns the last expression natively.
-        final monty = Monty();
+        final session = MontySession();
         try {
-          final session = MontySession(platform: monty.platform);
           // Run bare expression with NO captureLastExpression wrapping
           final result = await session.run('1 + 1');
           // Document the result:
@@ -209,16 +207,15 @@ p
           );
           expect((result.value as MontyInt).value, 2);
         } finally {
-          await monty.dispose();
+          session.dispose();
         }
       },
     );
 
     test('raw MontySession: assignment statement returns MontyNone', () async {
       // Assignments are statements, not expressions — they should return None.
-      final monty = Monty();
+      final session = MontySession();
       try {
-        final session = MontySession(platform: monty.platform);
         final result = await session.run('x = 42');
         expect(
           result.value,
@@ -226,7 +223,7 @@ p
           reason: 'Assignment statement has no return value — MontyNone.',
         );
       } finally {
-        await monty.dispose();
+        session.dispose();
       }
     });
   });

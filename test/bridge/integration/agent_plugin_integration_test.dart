@@ -121,7 +121,7 @@ msg_send(name='q', message=2)
       final plugins = <MontyPlugin>[tmpl, msg];
       plugins.add(
         SandboxPlugin(
-          platformFactory: () async => Monty().platform,
+          platformFactory: () async => createPlatformMonty(),
           parentPlugins: plugins,
           parentOs: os,
         ),
@@ -208,7 +208,7 @@ sandbox_free(handle=h)
       final plugins = <MontyPlugin>[tmpl, msg];
       plugins.add(
         SandboxPlugin(
-          platformFactory: () async => Monty().platform,
+          platformFactory: () async => createPlatformMonty(),
           parentPlugins: plugins,
           parentOs: os,
         ),

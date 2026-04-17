@@ -227,9 +227,9 @@ class AgentSession {
     if (!sandbox) {
       // Shared mode: create persistent interpreter.
       // The bridge handles OS calls — don't pass os to Monty directly.
-      _sharedMonty = Monty();
+      _sharedPlatform = createPlatformMonty();
       _sharedBridge = DefaultMontyBridge(
-        platform: _sharedMonty!.platform,
+        platform: _sharedPlatform!,
         useFutures: false,
         logger: logger,
       );
@@ -253,7 +253,7 @@ class AgentSession {
   final bool _sandbox;
 
   // Shared mode state.
-  Monty? _sharedMonty;
+  MontyPlatform? _sharedPlatform;
   DefaultMontyBridge? _sharedBridge;
   PluginRegistry? _sharedRegistry;
   bool _sharedAttached = false;
@@ -352,7 +352,7 @@ class AgentSession {
     if (_sharedRegistry != null) await _sharedRegistry!.disposeAll();
     _sharedBridge?.dispose();
     _schemaBridge?.dispose();
-    await _sharedMonty?.dispose();
+    await _sharedPlatform?.dispose();
     _sessionStateSignal.dispose();
   }
 
@@ -388,8 +388,8 @@ class AgentSession {
   // ---------------------------------------------------------------------------
 
   Future<MontyResult> _executeSandboxed(String code) async {
-    final monty = Monty();
-    final b = _buildBridge(platform: monty.platform);
+    final platform = createPlatformMonty();
+    final b = _buildBridge(platform: platform);
 
     final registry = PluginRegistry();
     if (_plugins != null) {
@@ -407,7 +407,7 @@ class AgentSession {
     } finally {
       await registry.disposeAll();
       b.dispose();
-      await monty.dispose();
+      await platform.dispose();
     }
   }
 
@@ -417,7 +417,7 @@ class AgentSession {
 
   DefaultMontyBridge _buildBridge({MontyPlatform? platform}) {
     final b = DefaultMontyBridge(
-      platform: platform ?? Monty().platform,
+      platform: platform ?? createPlatformMonty(),
       useFutures: false,
       logger: _logger,
     );
