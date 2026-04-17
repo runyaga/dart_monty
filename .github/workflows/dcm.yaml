@@ -52,7 +52,7 @@ jobs:
         run: >-
           dcm calculate-metrics lib
           --fatal-level=high
-          --exclude="{lib/src/ffi/**,lib/src/wasm/**,lib/src/platform/testing/**,lib/src/repl/testing/**}"
+          --exclude="{lib/src/wasm/**,lib/src/platform/testing/**,lib/src/repl/testing/**}"
           --ci-key=${{ secrets.DCM_CI_KEY }}
           --email=${{ secrets.DCM_EMAIL }}
 

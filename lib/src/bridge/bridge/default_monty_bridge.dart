@@ -13,99 +13,28 @@ import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:meta/meta.dart';
 import 'package:struct_log/struct_log.dart';
 
-/// Print-override preamble injected before user code.
-///
-/// Routes Python `print()` calls through `__console_write__` so the bridge
-/// can capture output and emit it as text events.
-const _printPreamble = r'''
-def _cw(*a, sep=' ', end='\n', **k):
-    __console_write__(sep.join(str(x) for x in a) + end)
-print = _cw
-''';
-
-/// Number of lines the preamble + separator add before user code.
-///
-/// The raw string literal opens with a newline after `r'''`, producing:
-///   line 1: (empty)
-///   line 2: def _cw(...)
-///   line 3:     __console_write__(...)
-///   line 4: print = _cw
-///   line 5: (empty, closing `'''`)
-/// Plus the `\n` in `'$_printPreamble\n$code'` = user code starts at line 6.
-const _preambleLineCount = 5;
-
 // ---------------------------------------------------------------------------
 // Top-level helpers — pure utilities that do not need bridge instance state.
 // ---------------------------------------------------------------------------
 
-/// Adjusts [MontyException] line numbers to account for the print preamble
-/// injected by [DefaultMontyBridge._run]. Filters preamble frames from the
-/// traceback.
-MontyException _adjustException(MontyException e) {
-  return MontyException(
-    message: e.message,
-    filename: e.filename,
-    lineNumber: e.lineNumber != null
-        ? e.lineNumber! - _preambleLineCount
-        : null,
-    columnNumber: e.columnNumber,
-    sourceCode: e.sourceCode,
-    excType: e.excType,
-    traceback: e.traceback
-        .where((f) => f.startLine > _preambleLineCount)
-        .map(
-          (f) => MontyStackFrame(
-            filename: f.filename,
-            startLine: f.startLine - _preambleLineCount,
-            startColumn: f.startColumn,
-            endLine: f.endLine != null ? f.endLine! - _preambleLineCount : null,
-            endColumn: f.endColumn,
-            frameName: f.frameName,
-            previewLine: f.previewLine,
-            hideCaret: f.hideCaret,
-            hideFrameName: f.hideFrameName,
-          ),
-        )
-        .toList(),
-  );
-}
-
-/// Flushes buffered print output as [BridgeTextStart]/[BridgeTextContent]/
-/// [BridgeTextEnd] events. No-op if [buffer] is empty.
-void _flushPrintBuffer(
-  StringBuffer buffer,
-  StreamController<BridgeEvent> controller,
-  String messageId,
-) {
-  if (buffer.isEmpty) return;
-  controller
-    ..add(BridgeTextStart(messageId: messageId))
-    ..add(BridgeTextContent(messageId: messageId, delta: buffer.toString()))
-    ..add(BridgeTextEnd(messageId: messageId));
-}
-
-/// Handles the [MontyComplete] terminal step — flushes print output, emits
-/// [BridgeRunFinished] or [BridgeRunError] depending on the result.
+/// Handles the [MontyComplete] terminal step — emits [BridgeRunFinished] or
+/// [BridgeRunError] depending on the result.
+///
+/// `printOutput` is sourced directly from [MontyResult.printOutput] — the
+/// Monty interpreter captures `print()` output natively.
 void _emitComplete(
   MontyComplete complete,
-  StringBuffer printBuffer,
   StreamController<BridgeEvent> controller,
   String threadId,
   String runId,
-  String messageId,
 ) {
-  _flushPrintBuffer(printBuffer, controller, messageId);
-  final capturedOutput = printBuffer.isNotEmpty
-      ? printBuffer.toString()
-      : complete.result.printOutput;
-
   if (complete.result.isError) {
-    final adjusted = _adjustException(complete.result.error!);
+    final e = complete.result.error!;
     controller.add(
       BridgeRunError(
-        message: adjusted.message,
-        printOutput: capturedOutput,
-        exception: adjusted,
+        message: e.message,
+        printOutput: complete.result.printOutput,
+        exception: e,
       ),
     );
   } else {
@@ -114,7 +43,7 @@ void _emitComplete(
         threadId: threadId,
         runId: runId,
         value: complete.result.value.dartValue,
-        printOutput: capturedOutput,
+        printOutput: complete.result.printOutput,
       ),
     );
   }
@@ -123,23 +52,17 @@ void _emitComplete(
 /// Emits a [BridgeRunError] for a [MontyScriptError] caught during `_run`.
 void _emitScriptError(
   MontyScriptError e,
-  StringBuffer printBuffer,
   StreamController<BridgeEvent> controller,
   BridgeLogger log,
-  String messageId,
 ) {
-  final adjusted = e.exception != null ? _adjustException(e.exception!) : null;
   log.warning(
     'Python error',
-    attributes: {'error': adjusted?.message ?? e.message},
+    attributes: {'error': e.exception?.message ?? e.message},
   );
-  _flushPrintBuffer(printBuffer, controller, messageId);
-  final output = printBuffer.isNotEmpty ? printBuffer.toString() : null;
   controller.add(
     BridgeRunError(
-      message: adjusted?.message ?? e.message,
-      printOutput: output,
-      exception: adjusted,
+      message: e.exception?.message ?? e.message,
+      exception: e.exception,
     ),
   );
 }
@@ -147,30 +70,22 @@ void _emitScriptError(
 /// Emits a [BridgeRunError] for a [MontyError] caught during `_run`.
 void _emitMontyError(
   MontyError e,
-  StringBuffer printBuffer,
   StreamController<BridgeEvent> controller,
   BridgeLogger log,
-  String messageId,
 ) {
   log.warning('Monty error', attributes: {'error': e.message});
-  _flushPrintBuffer(printBuffer, controller, messageId);
-  final output = printBuffer.isNotEmpty ? printBuffer.toString() : null;
-  controller.add(BridgeRunError(message: e.message, printOutput: output));
+  controller.add(BridgeRunError(message: e.message));
 }
 
 /// Emits a [BridgeRunError] for an unexpected [Object] caught during `_run`.
 void _emitInfraError(
   Object e,
   StackTrace stackTrace,
-  StringBuffer printBuffer,
   StreamController<BridgeEvent> controller,
   BridgeLogger log,
-  String messageId,
 ) {
   log.error('Bridge infrastructure error', error: e, stackTrace: stackTrace);
-  _flushPrintBuffer(printBuffer, controller, messageId);
-  final output = printBuffer.isNotEmpty ? printBuffer.toString() : null;
-  controller.add(BridgeRunError(message: '$e', printOutput: output));
+  controller.add(BridgeRunError(message: '$e'));
 }
 
 // ---------------------------------------------------------------------------
@@ -339,7 +254,6 @@ class DefaultMontyBridge implements MontyBridge {
     String code,
     StreamController<BridgeEvent> controller,
   ) async {
-    final printBuffer = StringBuffer();
     try {
       final init = await _initExecution(code, controller);
       var progress = init.progress;
@@ -347,7 +261,6 @@ class DefaultMontyBridge implements MontyBridge {
         final next = await _dispatchProgress(
           progress,
           controller,
-          printBuffer,
           init.threadId,
           init.runId,
           futuresCapable: init.futuresCapable,
@@ -356,11 +269,11 @@ class DefaultMontyBridge implements MontyBridge {
         progress = next;
       }
     } on MontyScriptError catch (e) {
-      _emitScriptError(e, printBuffer, controller, log, _host.nextId);
+      _emitScriptError(e, controller, log);
     } on MontyError catch (e) {
-      _emitMontyError(e, printBuffer, controller, log, _host.nextId);
+      _emitMontyError(e, controller, log);
     } on Object catch (e, st) {
-      _emitInfraError(e, st, printBuffer, controller, log, _host.nextId);
+      _emitInfraError(e, st, controller, log);
     } finally {
       _host.clearPendingFutures();
     }
@@ -379,16 +292,12 @@ class DefaultMontyBridge implements MontyBridge {
     final runId = _host.nextId;
     controller.add(BridgeRunStarted(threadId: threadId, runId: runId));
 
-    final wrappedCode = '$_printPreamble\n$code';
-    final externalFunctions = [
-      '__console_write__',
-      ..._host.schemas.map((s) => s.name),
-    ];
+    final externalFunctions = _host.schemas.map((s) => s.name).toList();
     final futuresCapable = _useFutures && _platform is MontyFutureCapable;
     _host.clearPendingFutures();
 
     final progress = await _platform.start(
-      wrappedCode,
+      code,
       externalFunctions: externalFunctions,
       limits: _limits,
     );
@@ -404,7 +313,6 @@ class DefaultMontyBridge implements MontyBridge {
   Future<MontyProgress?> _dispatchProgress(
     MontyProgress progress,
     StreamController<BridgeEvent> controller,
-    StringBuffer printBuffer,
     String threadId,
     String runId, {
     required bool futuresCapable,
@@ -413,7 +321,6 @@ class DefaultMontyBridge implements MontyBridge {
       case final MontyPending pending:
         return _host.handlePending(
           pending,
-          printBuffer,
           controller,
           futuresCapable: futuresCapable,
         );
@@ -428,14 +335,7 @@ class DefaultMontyBridge implements MontyBridge {
         // Indicate undefined so Python raises NameError.
         return _platform.resumeNameLookupUndefined(lookup.variableName);
       case final MontyComplete complete:
-        _emitComplete(
-          complete,
-          printBuffer,
-          controller,
-          threadId,
-          runId,
-          _host.nextId,
-        );
+        _emitComplete(complete, controller, threadId, runId);
 
         return null;
     }

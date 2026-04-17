@@ -22,105 +22,6 @@ void main() {
     bridge.dispose();
   });
 
-  // P0: preamble line offset adjustment for MontyException.
-  group('preamble line offset adjustment', () {
-    test(
-      'adjusts MontyException line numbers from MontyComplete error path',
-      () async {
-        // The print preamble adds 5 lines before user code. If Python reports
-        // an error at line 8, user code line is 8 - 5 = 3.
-        mock.enqueueProgress(
-          const MontyComplete(
-            result: MontyResult(
-              value: MontyNone(),
-              error: MontyException(
-                message: 'NameError: name "foo" is not defined',
-                lineNumber: 8,
-                traceback: [
-                  MontyStackFrame(
-                    filename: '<module>',
-                    startLine: 8,
-                    startColumn: 0,
-                  ),
-                ],
-              ),
-              usage: _usage,
-            ),
-          ),
-        );
-
-        final events = await bridge.execute('foo').toList();
-        final error = events.whereType<BridgeRunError>().single;
-        expect(error.message, 'NameError: name "foo" is not defined');
-      },
-    );
-
-    test('adjusts thrown MontyScriptError line numbers', () async {
-      // Simulate platform throwing MontyScriptError (the 'error' progress state
-      // path in BaseMontyPlatform.translateProgress).
-      final mock = _ThrowingMontyPlatform(
-        const MontyScriptError(
-          'SyntaxError: invalid syntax',
-          exception: MontyException(
-            message: 'SyntaxError: invalid syntax',
-            lineNumber: 7,
-            traceback: [
-              MontyStackFrame(
-                filename: '<module>',
-                startLine: 3,
-                startColumn: 0,
-              ),
-              MontyStackFrame(
-                filename: '<module>',
-                startLine: 7,
-                startColumn: 4,
-              ),
-            ],
-          ),
-        ),
-      );
-      final b = MontyBridge(platform: mock);
-      addTearDown(b.dispose);
-
-      final events = await b.execute('x = 1').toList();
-      final error = events.whereType<BridgeRunError>().single;
-      expect(error.message, 'SyntaxError: invalid syntax');
-    });
-
-    test('filters traceback frames from preamble lines', () async {
-      // A traceback frame at startLine=3 (inside preamble) should be removed.
-      // A frame at startLine=7 (user code line 2) should be kept and adjusted.
-      mock.enqueueProgress(
-        const MontyComplete(
-          result: MontyResult(
-            value: MontyNone(),
-            error: MontyException(
-              message: 'error',
-              traceback: [
-                MontyStackFrame(
-                  filename: '<module>',
-                  startLine: 3,
-                  startColumn: 0,
-                ),
-                MontyStackFrame(
-                  filename: '<module>',
-                  startLine: 7,
-                  startColumn: 4,
-                  endLine: 7,
-                ),
-              ],
-            ),
-            usage: _usage,
-          ),
-        ),
-      );
-
-      final events = await bridge.execute('code').toList();
-      // The error event is emitted — the filtering happens inside the bridge.
-      expect(events.whereType<BridgeRunError>(), hasLength(1));
-    });
-  });
-
   // P0: deferred host handler errors must not be swallowed silently.
   group('deferred async error logging', () {
     test('does not swallow deferred host handler errors', () async {
@@ -837,9 +738,7 @@ void main() {
       );
     });
 
-    test('coerces string to int for integer param', () async {
-      Map<String, Object?>? capturedArgs;
-
+    test('rejects string for integer param', () {
       bridge.register(
         HostFunction(
           schema: const HostFunctionSchema(
@@ -847,18 +746,16 @@ void main() {
             description: '',
             params: [HostParam(name: 'n', type: HostParamType.integer)],
           ),
-          handler: (args) async {
-            capturedArgs = args;
-            return args['n'];
-          },
+          handler: (args) async => args['n'],
         ),
       );
 
-      final result = await bridge.invokeHostFunction('add', {'n': '42'});
-
-      expect(result, 42);
-      expect(capturedArgs!['n'], isA<int>());
-      expect(capturedArgs!['n'], 42);
+      // Strings are no longer coerced — Monty maps Python int → Dart int
+      // directly, so a string argument indicates a Python-side type error.
+      expect(
+        () => bridge.invokeHostFunction('add', {'n': '42'}),
+        throwsFormatException,
+      );
     });
 
     test('disposed bridge throws StateError', () {
@@ -875,16 +772,24 @@ void main() {
       );
       final b = MontyBridge(
         platform: throwingMock,
+        useFutures: false,
         logger: const NullBridgeLogger(),
       );
       addTearDown(b.dispose);
 
-      // Enqueue a pending so _run calls resume, which throws MontyError.
+      // Register a noop function so the bridge dispatches it and calls
+      // _platform.resume(), which throws MontyPanicError (a MontyError).
+      b.register(
+        HostFunction(
+          schema: const HostFunctionSchema(name: 'noop', description: ''),
+          handler: (_) async => null,
+        ),
+      );
       throwingMock.enqueueProgress(
-        const MontyPending(functionName: '__console_write__', arguments: []),
+        const MontyPending(functionName: 'noop', arguments: []),
       );
 
-      final events = await b.execute('print("hi")').toList();
+      final events = await b.execute('noop()').toList();
       final errors = events.whereType<BridgeRunError>().toList();
       expect(errors, hasLength(1));
       expect(errors.first.message, contains('WASM trap'));
@@ -898,53 +803,60 @@ void main() {
         );
         final b = MontyBridge(
           platform: throwingMock,
+          useFutures: false,
           logger: const NullBridgeLogger(),
         );
         addTearDown(b.dispose);
 
+        b.register(
+          HostFunction(
+            schema: const HostFunctionSchema(name: 'noop', description: ''),
+            handler: (_) async => null,
+          ),
+        );
         throwingMock.enqueueProgress(
-          const MontyPending(functionName: '__console_write__', arguments: []),
+          const MontyPending(functionName: 'noop', arguments: []),
         );
 
-        final events = await b.execute('print("hi")').toList();
+        final events = await b.execute('noop()').toList();
         final errors = events.whereType<BridgeRunError>().toList();
         expect(errors, hasLength(1));
         expect(errors.first.message, contains('unexpected string error'));
       },
     );
 
-    test('print output captured before MontyError', () async {
-      // Register a function that triggers a pending, write to print buffer,
-      // then resume throws.
-      final throwingMock = _PrintThenThrowPlatform();
-      final b = MontyBridge(
-        platform: throwingMock,
-        logger: const NullBridgeLogger(),
-      );
-      addTearDown(b.dispose);
+    test(
+      'MontyError mid-execution emits BridgeRunError (no printOutput)',
+      () async {
+        // Without the print preamble, printOutput for infrastructure errors
+        // is null — Monty cannot surface print output when the interpreter
+        // itself panics.
+        final throwingMock = _PrintThenThrowPlatform();
+        final b = MontyBridge(
+          platform: throwingMock,
+          useFutures: false,
+          logger: const NullBridgeLogger(),
+        );
+        addTearDown(b.dispose);
 
-      // Sequence: console_write("hello") -> resume -> console_write(" world")
-      // -> resume throws MontyError
-      throwingMock
-        ..enqueueProgress(
-          const MontyPending(
-            functionName: '__console_write__',
-            arguments: [MontyString('hello')],
+        b.register(
+          HostFunction(
+            schema: const HostFunctionSchema(name: 'noop', description: ''),
+            handler: (_) async => null,
           ),
-        )
-        ..enqueueProgress(
-          const MontyPending(
-            functionName: '__console_write__',
-            arguments: [MontyString(' world')],
-          ),
-        )
-        ..throwAfterResumes = 2;
+        );
+        throwingMock
+          ..enqueueProgress(
+            const MontyPending(functionName: 'noop', arguments: []),
+          )
+          ..throwAfterResumes = 0;
 
-      final events = await b.execute('print("hello world")').toList();
-      final errors = events.whereType<BridgeRunError>().toList();
-      expect(errors, hasLength(1));
-      expect(errors.first.printOutput, 'hello world');
-    });
+        final events = await b.execute('noop()').toList();
+        final errors = events.whereType<BridgeRunError>().toList();
+        expect(errors, hasLength(1));
+        expect(errors.first.printOutput, isNull);
+      },
+    );
   });
 
   group('dispose safety', () {
@@ -1003,94 +915,6 @@ void main() {
     test('unregister non-existent function does not throw', () {
       // Should be a no-op, not an error.
       expect(() => bridge.unregister('does_not_exist'), returnsNormally);
-    });
-  });
-
-  group('console write edge cases', () {
-    test(
-      'console write with empty arguments resumes without buffering',
-      () async {
-        mock
-          ..enqueueProgress(
-            const MontyPending(
-              functionName: '__console_write__',
-              arguments: [],
-            ),
-          )
-          ..enqueueProgress(
-            const MontyComplete(
-              result: MontyResult(value: MontyNone(), usage: _usage),
-            ),
-          );
-
-        final events = await bridge.execute('print()').toList();
-        expect(events.whereType<BridgeRunFinished>(), hasLength(1));
-        // No text events should be emitted since nothing was written.
-        expect(events.whereType<BridgeTextStart>(), isEmpty);
-      },
-    );
-  });
-
-  group('print output flushing', () {
-    test(
-      'print buffer flushed as BridgeText events on successful complete',
-      () async {
-        mock
-          ..enqueueProgress(
-            const MontyPending(
-              functionName: '__console_write__',
-              arguments: [MontyString('hello from python\n')],
-            ),
-          )
-          ..enqueueProgress(
-            const MontyComplete(
-              result: MontyResult(value: MontyNone(), usage: _usage),
-            ),
-          );
-
-        final events = await bridge
-            .execute('print("hello from python")')
-            .toList();
-
-        // Should have text events from the flush.
-        final textStarts = events.whereType<BridgeTextStart>().toList();
-        expect(textStarts, hasLength(1));
-        final textContents = events.whereType<BridgeTextContent>().toList();
-        expect(textContents, hasLength(1));
-        expect(textContents.first.delta, 'hello from python\n');
-        final textEnds = events.whereType<BridgeTextEnd>().toList();
-        expect(textEnds, hasLength(1));
-      },
-    );
-
-    test('print buffer flushed before error event', () async {
-      mock
-        ..enqueueProgress(
-          const MontyPending(
-            functionName: '__console_write__',
-            arguments: [MontyString('debug output\n')],
-          ),
-        )
-        ..enqueueProgress(
-          const MontyComplete(
-            result: MontyResult(
-              value: MontyNone(),
-              error: MontyException(message: 'NameError'),
-              usage: _usage,
-            ),
-          ),
-        );
-
-      final events = await bridge
-          .execute('print("debug output"); foo')
-          .toList();
-
-      // Text events from flush should be present.
-      expect(events.whereType<BridgeTextContent>(), hasLength(1));
-      // Error event should include the captured output.
-      final errors = events.whereType<BridgeRunError>().toList();
-      expect(errors, hasLength(1));
-      expect(errors.first.printOutput, 'debug output\n');
     });
   });
 
@@ -1424,42 +1248,6 @@ class _CapturingMiddleware extends BridgeMiddleware {
     onCall(name, args, role);
     return next(name, args);
   }
-}
-
-/// A minimal [MontyPlatform] that throws a [MontyScriptError] from [start].
-///
-/// Used to test the bridge's `on MontyScriptError` catch path where the
-/// platform itself throws (rather than returning a MontyComplete with error).
-class _ThrowingMontyPlatform extends MontyPlatform {
-  _ThrowingMontyPlatform(this._exception);
-
-  final MontyScriptError _exception;
-
-  @override
-  Future<MontyResult> run(
-    String code, {
-    MontyLimits? limits,
-    String? scriptName,
-  }) async => throw UnimplementedError();
-
-  @override
-  Future<MontyProgress> start(
-    String code, {
-    List<String>? externalFunctions,
-    MontyLimits? limits,
-    String? scriptName,
-  }) async => throw _exception;
-
-  @override
-  Future<MontyProgress> resume(Object? returnValue) async =>
-      throw UnimplementedError();
-
-  @override
-  Future<MontyProgress> resumeWithError(String errorMessage) async =>
-      throw UnimplementedError();
-
-  @override
-  Future<void> dispose() async {}
 }
 
 /// A mock platform that throws from [resume] after enqueued progresses

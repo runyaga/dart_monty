@@ -41,9 +41,9 @@ void main() {
   test(
     'DefaultMontyBridge.execute — 3 sequential HTTP calls',
     () async {
-      final monty = Monty();
+      final platform = createPlatformMonty();
       final bridge = DefaultMontyBridge(
-        platform: monty.platform,
+        platform: platform,
         useFutures: false,
       )..register(_httpGetFn());
 
@@ -55,7 +55,7 @@ void main() {
       }
 
       bridge.dispose();
-      await monty.dispose();
+      await platform.dispose();
     },
     timeout: const Timeout(Duration(seconds: 60)),
   );
@@ -63,9 +63,9 @@ void main() {
   test(
     'DefaultMontyBridge.execute — 3 sequential HTTP calls, value extraction',
     () async {
-      final monty = Monty();
+      final platform = createPlatformMonty();
       final bridge = DefaultMontyBridge(
-        platform: monty.platform,
+        platform: platform,
         useFutures: false,
       )..register(_httpGetFn());
 
@@ -77,7 +77,7 @@ void main() {
       }
 
       bridge.dispose();
-      await monty.dispose();
+      await platform.dispose();
     },
     timeout: const Timeout(Duration(seconds: 60)),
   );

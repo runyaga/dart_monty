@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:dart_monty/src/bridge/agent_session_state.dart';
 import 'package:dart_monty/src/bridge/bridge/bridge_event.dart';
 import 'package:dart_monty/src/bridge/bridge/bridge_logger.dart';
 import 'package:dart_monty/src/bridge/bridge/default_monty_bridge.dart';
@@ -14,94 +15,6 @@ import 'package:dart_monty/src/bridge/bridge/plugin_registry.dart';
 import 'package:dart_monty/src/bridge/os_call/os_provider.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:signals_core/signals_core.dart';
-
-const _restoreFn = '__restore_state__';
-const _persistFn = '__persist_state__';
-
-const _zeroUsage = MontyResourceUsage(
-  memoryBytesUsed: 0,
-  timeElapsedMs: 0,
-  stackDepthUsed: 0,
-);
-
-// ---------------------------------------------------------------------------
-// Top-level helpers — pure utilities that do not need AgentSession state.
-// ---------------------------------------------------------------------------
-
-/// Extracts the terminal [MontyResult] from a completed bridge event list.
-/// Throws [StateError] if no [BridgeRunFinished]/[BridgeRunError] event exists.
-MontyResult _extractBridgeResult(List<BridgeEvent> events) {
-  for (final event in events.reversed) {
-    if (event is BridgeRunFinished) {
-      return MontyResult(
-        value: MontyValue.fromDart(event.value),
-        usage: _zeroUsage,
-        printOutput: event.printOutput,
-      );
-    }
-    if (event is BridgeRunError) {
-      return MontyResult(
-        value: const MontyNone(),
-        error: event.exception ?? MontyException(message: event.message),
-        usage: _zeroUsage,
-        printOutput: event.printOutput,
-      );
-    }
-  }
-
-  throw StateError('No terminal event in bridge execution');
-}
-
-/// Generates the `__restore_state__` preamble that loads [state] into Python.
-String _generateRestoreCode(Map<String, Object?> state) {
-  final buf = StringBuffer('__d = $_restoreFn()');
-  for (final key in state.keys) {
-    buf.write('\n$key = __d["$key"]');
-  }
-
-  return buf.toString();
-}
-
-/// Generates the `__persist_state__` epilogue that captures [userCode]
-/// assignment targets plus existing [state] keys back to Dart.
-String _generatePersistCode(String userCode, Map<String, Object?> state) {
-  final names = <String>{
-    ...state.keys,
-    ...extractAssignmentTargets(userCode),
-  };
-
-  if (names.isEmpty) return '$_persistFn({})';
-
-  final buf = StringBuffer('__d2 = {}');
-  for (final name in names) {
-    buf
-      ..write('\ntry:')
-      ..write('\n    __d2["$name"] = $name')
-      ..write('\nexcept NameError:')
-      ..write('\n    pass');
-  }
-  buf.write('\n$_persistFn(__d2)');
-
-  return buf.toString();
-}
-
-/// Wraps [userCode] with restore/persist state bookkeeping, preserving
-/// the last-expression result capture.
-String _wrapWithStateCode(String userCode, Map<String, Object?> state) {
-  final restore = _generateRestoreCode(state);
-  final persist = _generatePersistCode(userCode, state);
-  final (processed, hasResult) = captureLastExpression(userCode);
-
-  final buf = StringBuffer(restore)
-    ..write('\n')
-    ..write(processed)
-    ..write('\n')
-    ..write(persist);
-
-  if (hasResult) buf.write('\n__r');
-
-  return buf.toString();
-}
 
 // ---------------------------------------------------------------------------
 // AgentSession
@@ -118,11 +31,13 @@ String _wrapWithStateCode(String userCode, Map<String, Object?> state) {
 /// Only Monty-representable types survive across calls: `int`, `float`,
 /// `str`, `bool`, `list`, `dict`, `bytes`, `datetime`, `None`, and other
 /// [MontyValue] subtypes. Non-representable values (functions, `re.Pattern`,
-/// generators, class instances, etc.) produce a Monty serialization error
-/// or are silently dropped — behavior is determined by the Monty interpreter,
-/// not dart_monty. The variable capture itself is heuristic: only top-level
-/// assignment targets are detected; dynamic assignments (`exec`, `setattr`)
-/// are not captured.
+/// generators, class instances, etc.) are coerced to their string
+/// representation by the Monty interpreter — they do not error or disappear,
+/// but they cannot be round-tripped back to the original Python object.
+/// This behavior is determined by the Monty interpreter, not dart_monty.
+/// The variable capture itself is heuristic: only top-level assignment
+/// targets are detected; dynamic assignments (`exec`, `setattr`) are not
+/// captured.
 ///
 /// Two execution modes:
 ///
@@ -171,9 +86,9 @@ class AgentSession {
     if (!sandbox) {
       // Shared mode: create persistent interpreter.
       // The bridge handles OS calls — don't pass os to Monty directly.
-      _sharedMonty = Monty();
+      _sharedPlatform = createPlatformMonty();
       _sharedBridge = DefaultMontyBridge(
-        platform: _sharedMonty!.platform,
+        platform: _sharedPlatform!,
         useFutures: false,
         logger: logger,
       );
@@ -197,7 +112,7 @@ class AgentSession {
   final bool _sandbox;
 
   // Shared mode state.
-  Monty? _sharedMonty;
+  MontyPlatform? _sharedPlatform;
   DefaultMontyBridge? _sharedBridge;
   PluginRegistry? _sharedRegistry;
   bool _sharedAttached = false;
@@ -296,7 +211,7 @@ class AgentSession {
     if (_sharedRegistry != null) await _sharedRegistry!.disposeAll();
     _sharedBridge?.dispose();
     _schemaBridge?.dispose();
-    await _sharedMonty?.dispose();
+    await _sharedPlatform?.dispose();
     _sessionStateSignal.dispose();
   }
 
@@ -306,7 +221,7 @@ class AgentSession {
       _sharedAttached = true;
     }
     yield* _sharedBridge!.execute(
-      _wrapWithStateCode(code, _sessionStateSignal.value),
+      wrapWithStateCode(code, _sessionStateSignal.value),
     );
   }
 
@@ -319,11 +234,12 @@ class AgentSession {
       await _sharedRegistry!.attachTo(_sharedBridge!, baseOs: _os);
       _sharedAttached = true;
     }
+    final state = _sessionStateSignal.value;
     final events = await _sharedBridge!
-        .execute(_wrapWithStateCode(code, _sessionStateSignal.value))
+        .execute(wrapWithStateCode(code, state))
         .toList();
 
-    return _extractBridgeResult(events);
+    return extractBridgeResult(events, restoreLineCount(state));
   }
 
   // ---------------------------------------------------------------------------
@@ -331,8 +247,8 @@ class AgentSession {
   // ---------------------------------------------------------------------------
 
   Future<MontyResult> _executeSandboxed(String code) async {
-    final monty = Monty();
-    final b = _buildBridge(platform: monty.platform);
+    final platform = createPlatformMonty();
+    final b = _buildBridge(platform: platform);
 
     final registry = PluginRegistry();
     if (_plugins != null) {
@@ -341,15 +257,14 @@ class AgentSession {
     await registry.attachTo(b, baseOs: _os);
 
     try {
-      final events = await b
-          .execute(_wrapWithStateCode(code, _sessionStateSignal.value))
-          .toList();
+      final state = _sessionStateSignal.value;
+      final events = await b.execute(wrapWithStateCode(code, state)).toList();
 
-      return _extractBridgeResult(events);
+      return extractBridgeResult(events, restoreLineCount(state));
     } finally {
       await registry.disposeAll();
       b.dispose();
-      await monty.dispose();
+      await platform.dispose();
     }
   }
 
@@ -359,7 +274,7 @@ class AgentSession {
 
   DefaultMontyBridge _buildBridge({MontyPlatform? platform}) {
     final b = DefaultMontyBridge(
-      platform: platform ?? Monty().platform,
+      platform: platform ?? createPlatformMonty(),
       useFutures: false,
       logger: _logger,
     );
@@ -382,7 +297,7 @@ class AgentSession {
       ..register(
         HostFunction(
           schema: const HostFunctionSchema(
-            name: _restoreFn,
+            name: restoreFn,
             description: 'Internal: restore session state',
           ),
           handler: (_) async => _sessionStateSignal.value,
@@ -391,7 +306,7 @@ class AgentSession {
       ..register(
         HostFunction(
           schema: const HostFunctionSchema(
-            name: _persistFn,
+            name: persistFn,
             description: 'Internal: persist session state',
             params: [HostParam(name: 'state', type: HostParamType.any)],
           ),

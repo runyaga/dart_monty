@@ -94,27 +94,25 @@ class HostParam {
     );
   }
 
-  /// Accept int, num, or numeric string for integer params.
+  /// Accepts only Dart [int] for integer params.
+  ///
+  /// Floats (even whole-number floats like 1.0) and strings are rejected —
+  /// Monty maps Python `int` to Dart `int` directly. Accepting floats would
+  /// silently truncate (1.5 → 1), masking type errors at the Python call site.
   int _coerceInt(Object? value) {
     if (value is int) return value;
-    if (value is num) return value.toInt();
-    if (value is String) {
-      final parsed = int.tryParse(value);
-      if (parsed != null) return parsed;
-    }
     throw FormatException(
       'Parameter "$name": expected int, got ${value.runtimeType}',
       value,
     );
   }
 
-  /// Accept both int and double for number params.
+  /// Accepts any Dart [num] (int or double) for number params.
+  ///
+  /// Strings are not coerced — Monty maps Python numeric types to Dart [num]
+  /// directly. A string argument indicates a Python-side type error.
   num _coerceNumber(Object? value) {
     if (value is num) return value;
-    if (value is String) {
-      final parsed = num.tryParse(value);
-      if (parsed != null) return parsed;
-    }
     throw FormatException(
       'Parameter "$name": expected num, got ${value.runtimeType}',
       value,

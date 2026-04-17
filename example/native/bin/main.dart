@@ -9,8 +9,8 @@
 library;
 
 import 'package:dart_monty/dart_monty.dart';
-import 'package:dart_monty/src/ffi/monty_ffi.dart';
-import 'package:dart_monty/src/ffi/native_bindings_ffi.dart';
+import 'package:dart_monty_core/src/ffi/monty_ffi.dart';
+import 'package:dart_monty_core/src/ffi/native_bindings_ffi.dart';
 
 Future<void> main() async {
   final monty = MontyFfi(bindings: NativeBindingsFfi());
