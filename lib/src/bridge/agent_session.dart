@@ -113,6 +113,17 @@ String _wrapWithStateCode(String userCode, Map<String, Object?> state) {
 /// persistence into a single API. Variables persist across `execute()` calls
 /// via Dart-side state serialization — not interpreter reuse.
 ///
+/// **State persistence limitation**: Variable persistence is a dart_monty
+/// abstraction built on top of the Monty interpreter's value serializer.
+/// Only Monty-representable types survive across calls: `int`, `float`,
+/// `str`, `bool`, `list`, `dict`, `bytes`, `datetime`, `None`, and other
+/// [MontyValue] subtypes. Non-representable values (functions, `re.Pattern`,
+/// generators, class instances, etc.) produce a Monty serialization error
+/// or are silently dropped — behavior is determined by the Monty interpreter,
+/// not dart_monty. The variable capture itself is heuristic: only top-level
+/// assignment targets are detected; dynamic assignments (`exec`, `setattr`)
+/// are not captured.
+///
 /// Two execution modes:
 ///
 /// **Shared interpreter** (default): One interpreter across all `execute()`
