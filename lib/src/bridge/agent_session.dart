@@ -44,10 +44,9 @@ MontyException _adjustRestoreOffset(MontyException e, int offset) {
   return MontyException(
     message: e.message,
     filename: e.filename,
-    lineNumber:
-        e.lineNumber != null
-            ? (e.lineNumber! - offset).clamp(1, e.lineNumber!)
-            : null,
+    lineNumber: e.lineNumber != null
+        ? (e.lineNumber! - offset).clamp(1, e.lineNumber!)
+        : null,
     columnNumber: e.columnNumber,
     sourceCode: e.sourceCode,
     excType: e.excType,
@@ -58,10 +57,9 @@ MontyException _adjustRestoreOffset(MontyException e, int offset) {
             filename: f.filename,
             startLine: (f.startLine - offset).clamp(1, f.startLine),
             startColumn: f.startColumn,
-            endLine:
-                f.endLine != null
-                    ? (f.endLine! - offset).clamp(1, f.endLine!)
-                    : null,
+            endLine: f.endLine != null
+                ? (f.endLine! - offset).clamp(1, f.endLine!)
+                : null,
             endColumn: f.endColumn,
             frameName: f.frameName,
             previewLine: f.previewLine,
@@ -78,10 +76,7 @@ MontyException _adjustRestoreOffset(MontyException e, int offset) {
 /// state restore preamble injected before user code.
 ///
 /// Throws [StateError] if no [BridgeRunFinished]/[BridgeRunError] event exists.
-MontyResult _extractBridgeResult(
-  List<BridgeEvent> events,
-  int restoreOffset,
-) {
+MontyResult _extractBridgeResult(List<BridgeEvent> events, int restoreOffset) {
   for (final event in events.reversed) {
     if (event is BridgeRunFinished) {
       return MontyResult(
@@ -119,10 +114,7 @@ String _generateRestoreCode(Map<String, Object?> state) {
 /// Generates the `__persist_state__` epilogue that captures [userCode]
 /// assignment targets plus existing [state] keys back to Dart.
 String _generatePersistCode(String userCode, Map<String, Object?> state) {
-  final names = <String>{
-    ...state.keys,
-    ...extractAssignmentTargets(userCode),
-  };
+  final names = <String>{...state.keys, ...extractAssignmentTargets(userCode)};
 
   if (names.isEmpty) return '$_persistFn({})';
 
@@ -399,9 +391,7 @@ class AgentSession {
 
     try {
       final state = _sessionStateSignal.value;
-      final events = await b
-          .execute(_wrapWithStateCode(code, state))
-          .toList();
+      final events = await b.execute(_wrapWithStateCode(code, state)).toList();
 
       return _extractBridgeResult(events, _restoreLineCount(state));
     } finally {
