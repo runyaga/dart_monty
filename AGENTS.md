@@ -82,9 +82,7 @@ dart format --set-exit-if-changed .       # Format check
 
 Pure Dart with compile-time conditional imports (no Flutter required).
 
-- `lib/src/platform/` -- abstract contract (pure Dart)
-- `lib/src/ffi/` -- native FFI bindings via `dart:ffi`
-- `lib/src/wasm/` -- web WASM bindings via `dart:js_interop`
+- `lib/src/platform/` -- abstract contract (pure Dart); concrete implementations in `dart_monty_core`
 - `lib/src/bridge/` -- high-level bridge with plugins and host functions
 
 See [Architecture Overview](docs/architecture/overview.md) for details.

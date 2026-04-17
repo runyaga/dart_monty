@@ -15,7 +15,7 @@ then creating a 3rd and calling an HTTP host function, causes a SEGFAULT.
 2. **Rust `LIVE_HANDLES`** (`native/src/lib.rs:124`) — global `HashSet<usize>`
    tracking live handle pointers. Prevents double-free.
 
-3. **Dart `FfiCoreBindings`** (`lib/src/ffi/ffi_core_bindings.dart`) —
+3. **Dart `FfiCoreBindings`** (`dart_monty_core/lib/src/ffi/ffi_core_bindings.dart`) —
    adapts FFI bindings to the core interface. Owns `_handle` (int) and
    `_guard` (`_HandleGuard`).
 

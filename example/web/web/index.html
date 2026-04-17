@@ -319,10 +319,10 @@ print(r.value); <span style="color:var(--text-dim)">// 'Hello World!'</span></pr
     </p>
 
     <div class="arch-box">dart_monty (single package)
-├── lib/src/platform/    <span style="color:var(--text-dim)">Core types: MontyResult, MontyProgress, MontyValue</span>
-├── lib/src/ffi/         <span style="color:var(--text-dim)">Native FFI backend (dart:ffi)</span>
-├── lib/src/wasm/        <span style="color:var(--text-dim)">Web WASM backend (dart:js_interop + Worker)</span>
 ├── lib/src/bridge/      <span style="color:var(--text-dim)">Plugin dispatch, events, middleware</span>
+dart_monty_core (backends)
+├── FFI                  <span style="color:var(--text-dim)">Native backend (dart:ffi)</span>
+├── WASM                 <span style="color:var(--text-dim)">Web backend (dart:js_interop + Worker)</span>
 ├── lib/src/repl/        <span style="color:var(--text-dim)">REPL: MontyRepl, ReplSession, ReplPlatform</span>
 └── native/              <span style="color:var(--text-dim)">Rust C API crate (compiles to .dylib/.so/.dll + .wasm)</span></div>
 
