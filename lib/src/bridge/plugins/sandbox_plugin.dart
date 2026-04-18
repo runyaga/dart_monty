@@ -9,6 +9,7 @@ import 'package:dart_monty/src/bridge/bridge/host_param.dart';
 import 'package:dart_monty/src/bridge/bridge/host_param_type.dart';
 import 'package:dart_monty/src/bridge/bridge/monty_backend_kind.dart';
 import 'package:dart_monty/src/bridge/bridge/monty_plugin.dart';
+import 'package:dart_monty/src/bridge/bridge/param_render_hint.dart';
 import 'package:dart_monty/src/bridge/bridge/plugin_registry.dart';
 import 'package:dart_monty/src/bridge/bridge/stateful_plugin.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
@@ -181,6 +182,7 @@ const _spawnSchema = HostFunctionSchema(
       name: 'code',
       type: HostParamType.string,
       description: 'Python code to execute.',
+      renderAs: ParamRenderHint.python,
     ),
     HostParam(
       name: 'timeout_ms',

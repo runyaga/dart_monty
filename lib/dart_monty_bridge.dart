@@ -19,6 +19,7 @@ export 'src/bridge/bridge/introspection_functions.dart';
 export 'src/bridge/bridge/monty_backend_kind.dart';
 export 'src/bridge/bridge/monty_bridge.dart';
 export 'src/bridge/bridge/monty_plugin.dart';
+export 'src/bridge/bridge/param_render_hint.dart';
 export 'src/bridge/bridge/plugin_registry.dart';
 export 'src/bridge/bridge/stateful_plugin.dart';
 export 'src/bridge/bridge/struct_log_bridge_logger.dart';

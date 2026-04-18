@@ -138,6 +138,19 @@ void main() {
           );
         expect(registry.plugins, hasLength(1));
       });
+
+      test('sandbox_spawn.code declares python render hint', () {
+        final plugin = SandboxPlugin(
+          platformFactory: () async => MockMontyPlatform(),
+        );
+        final spawn = plugin.functions.firstWhere(
+          (f) => f.schema.name == 'sandbox_spawn',
+        );
+        final schema = spawn.schema.toJsonSchema();
+        final properties = schema['properties']! as Map<String, Object?>;
+        final code = properties['code']! as Map<String, Object?>;
+        expect(code['x-render-as'], 'python');
+      });
     });
 
     group('sandbox_spawn', () {
