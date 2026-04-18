@@ -1,6 +1,7 @@
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:dart_monty/dart_monty_testing.dart';
+import 'package:signals_core/signals_core.dart' show ReadonlySignal;
 import 'package:test/test.dart';
 
 /// Minimal test plugin with configurable namespace and functions.
@@ -970,7 +971,73 @@ void main() {
         expect(alphaIdx, lessThan(betaIdx));
       });
     });
+
+    group('statefulObservations', () {
+      test('returns empty iterable when no stateful plugins registered', () {
+        registry.register(_TestPlugin(namespace: 'ns', functions: []));
+
+        expect(registry.statefulObservations(), isEmpty);
+      });
+
+      test('yields one pair per StatefulPlugin', () {
+        registry
+          ..register(_StatefulTestPlugin(namespace: 'alpha', initial: 'a'))
+          ..register(_StatefulTestPlugin(namespace: 'beta', initial: 'b'));
+
+        final observations = registry.statefulObservations().toList();
+
+        expect(observations, hasLength(2));
+        expect(observations[0].$1, 'alpha');
+        expect(observations[1].$1, 'beta');
+      });
+
+      test('skips plain (non-stateful) plugins', () {
+        registry
+          ..register(_TestPlugin(namespace: 'plain', functions: []))
+          ..register(_StatefulTestPlugin(namespace: 'stateful', initial: 0));
+
+        final observations = registry.statefulObservations().toList();
+
+        expect(observations, hasLength(1));
+        expect(observations.first.$1, 'stateful');
+      });
+
+      test('signal value reflects current plugin state', () {
+        final plugin = _StatefulTestPlugin(namespace: 'counter', initial: 0);
+        registry.register(plugin);
+
+        final (_, signal) = registry.statefulObservations().first;
+
+        expect(signal.value, 0);
+
+        plugin.state = 42;
+        expect(signal.value, 42);
+      });
+
+      test('stateSignalAsObject returns covariant-erased signal', () {
+        final plugin = _StatefulTestPlugin(namespace: 'typed', initial: 'x');
+        registry.register(plugin);
+
+        final (_, signal) = registry.statefulObservations().first;
+
+        expect(signal, isA<ReadonlySignal<Object?>>());
+        expect(signal.value, 'x');
+      });
+    });
   });
+}
+
+/// Plugin that mixes in `StatefulPlugin` for testing `statefulObservations`.
+class _StatefulTestPlugin<T> extends MontyPlugin with StatefulPlugin<T> {
+  _StatefulTestPlugin({required this.namespace, required T initial}) {
+    setInitialState(initial);
+  }
+
+  @override
+  final String namespace;
+
+  @override
+  List<HostFunction> get functions => [];
 }
 
 /// Plugin with configurable lifecycle callbacks for testing.
