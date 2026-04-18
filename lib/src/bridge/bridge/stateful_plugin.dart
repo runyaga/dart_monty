@@ -28,7 +28,7 @@ import 'package:signals_core/signals_core.dart';
 ///
 /// Subclasses MUST call [setInitialState] once before any reactive read; the
 /// recommended spot is the plugin's constructor body.
-mixin StatefulPlugin<T> on MontyPlugin {
+mixin StatefulPlugin<T> on MontyPlugin implements HasStateSignal {
   Signal<T>? _stateSignal;
 
   /// The reactive primary state of this plugin.
@@ -49,6 +49,9 @@ mixin StatefulPlugin<T> on MontyPlugin {
 
   /// Current non-reactive value of [stateSignal].
   T get state => stateSignal.value;
+
+  @override
+  ReadonlySignal<Object?> get stateSignalAsObject => stateSignal;
 
   /// Sets the initial state for [stateSignal]. Call once from the plugin's
   /// constructor body, before any handler runs.
@@ -76,4 +79,14 @@ mixin StatefulPlugin<T> on MontyPlugin {
     await super.onDispose();
     _stateSignal?.dispose();
   }
+}
+
+/// Non-generic base for type-safe introspection of [StatefulPlugin] plugins.
+///
+/// Provides a covariant-safe `stateSignal` accessor that returns
+/// `ReadonlySignal<Object?>`, allowing callers to subscribe to any
+/// [StatefulPlugin] without knowing its concrete type parameter.
+mixin HasStateSignal on MontyPlugin {
+  /// Returns [StatefulPlugin.stateSignal] typed as `ReadonlySignal<Object?>`.
+  ReadonlySignal<Object?> get stateSignalAsObject;
 }
