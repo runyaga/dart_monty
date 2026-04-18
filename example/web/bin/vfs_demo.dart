@@ -1,5 +1,5 @@
 // Standalone JS-compiled demo, not a package:test file.
-// ignore_for_file: avoid_print, unnecessary_raw_strings, lines_longer_than_80_chars
+// ignore_for_file: avoid_print, lines_longer_than_80_chars
 /// Interactive VFS Demo — shows Python↔VFS round-trip in the browser.
 ///
 /// Compiled to JS, exposes functions to the HTML UI via window.VfsDemo.
@@ -15,6 +15,8 @@ import 'dart:js_interop';
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:dart_monty/monty_backend_spi.dart';
+import 'package:file/file.dart';
+import 'package:file/memory.dart';
 
 // ---------------------------------------------------------------------------
 // JS interop — WASM bridge (static method API on window.DartMontyBridge)
@@ -52,8 +54,9 @@ external void _jsOnFilesChanged(JSString filesJson);
 // State
 // ---------------------------------------------------------------------------
 
-var _vfs = MemoryFsProvider();
-late TimeOsProvider _time;
+FileSystem _vfs = MemoryFileSystem();
+OsCallHandler _fs = fsHandler(_vfs);
+OsCallHandler _time = timeHandler();
 final _osCallLog = <Map<String, dynamic>>[];
 
 // ---------------------------------------------------------------------------
@@ -72,24 +75,22 @@ bool _isOsCall(String? fn) {
 
 Future<Object?> _handleOsCall(Map<String, dynamic> state) async {
   final op = state['functionName'] as String;
-  final rawArgs = state['args'] as List? ?? [];
-  final args = rawArgs.map(MontyValue.fromJson).toList();
+  final rawArgs = (state['args'] as List?) ?? const [];
+  final args = List<Object?>.from(rawArgs);
 
-  Map<String, MontyValue>? kwargs;
+  Map<String, Object?>? kwargs;
   final rawKwargs = state['kwargs'] as Map<String, dynamic>?;
   if (rawKwargs != null) {
-    kwargs = rawKwargs.map((k, v) => MapEntry(k, MontyValue.fromJson(v)));
+    kwargs = Map<String, Object?>.from(rawKwargs);
   }
-
-  final call = MontyOsCall(operationName: op, arguments: args, kwargs: kwargs);
 
   final sw = Stopwatch()..start();
   Object? result;
 
   if (op.startsWith('Path.')) {
-    result = await _vfs.resolve(call);
+    result = await _fs(op, args, kwargs);
   } else if (op.startsWith('date.') || op.startsWith('datetime.')) {
-    result = await _time.resolve(call);
+    result = await _time(op, args, kwargs);
   } else {
     throw UnsupportedError('Unhandled os_call: $op');
   }
@@ -123,12 +124,13 @@ String _summarize(Object? value) {
 
 Future<Map<String, dynamic>> _runWithVfs(String code) async {
   _osCallLog.clear();
-  _vfs = MemoryFsProvider();
-  _time = TimeOsProvider();
+  _vfs = MemoryFileSystem();
+  _fs = fsHandler(_vfs);
+  _time = timeHandler();
 
   // Mount any pre-staged files (set by mountFile before run).
   for (final entry in _stagedFiles.entries) {
-    _vfs.writeFile(entry.key, entry.value);
+    _writeVfsFile(entry.key, entry.value);
   }
 
   var state = _parse((await _bridgeStart(code.toJS).toDart).toDart);
@@ -148,7 +150,8 @@ Future<Map<String, dynamic>> _runWithVfs(String code) async {
         state = _parse(
           (await _bridgeResumeWithError(
             jsonEncode(e.toString()).toJS,
-          ).toDart).toDart,
+          ).toDart)
+              .toDart,
         );
       }
     } else {
@@ -165,9 +168,15 @@ Future<Map<String, dynamic>> _runWithVfs(String code) async {
 
 final _stagedFiles = <String, String>{};
 
+void _writeVfsFile(String path, String content) {
+  _vfs.file(path)
+    ..parent.createSync(recursive: true)
+    ..writeAsStringSync(content);
+}
+
 Future<void> _mountFile(String path, String content) async {
   _stagedFiles[path] = content;
-  _vfs.writeFile(path, content);
+  _writeVfsFile(path, content);
   // Refresh VFS panel immediately.
   final files = await _collectFiles();
   try {
@@ -206,23 +215,20 @@ Future<List<Map<String, dynamic>>> _collectFiles() async {
     try {
       final entries = await _listDir(dirPath);
       for (final entry in entries) {
-        if (_vfs.exists(entry)) {
-          // Check if it's a file by trying to read it.
-          try {
-            final content = _vfs.readFile(entry);
-            files.add({
-              'path': entry,
-              'type': 'file',
-              'size': content.length,
-              'preview': content.length > 200
-                  ? '${content.substring(0, 197)}...'
-                  : content,
-            });
-          } catch (_) {
-            // It's a directory.
-            files.add({'path': entry, 'type': 'dir'});
-            await walk(entry);
-          }
+        final type = _vfs.typeSync(entry);
+        if (type == FileSystemEntityType.file) {
+          final content = _vfs.file(entry).readAsStringSync();
+          files.add({
+            'path': entry,
+            'type': 'file',
+            'size': content.length,
+            'preview': content.length > 200
+                ? '${content.substring(0, 197)}...'
+                : content,
+          });
+        } else if (type == FileSystemEntityType.directory) {
+          files.add({'path': entry, 'type': 'dir'});
+          await walk(entry);
         }
       }
     } catch (_) {
@@ -237,11 +243,7 @@ Future<List<Map<String, dynamic>>> _collectFiles() async {
 
 Future<List<String>> _listDir(String path) async {
   try {
-    final call = MontyOsCall(
-      operationName: 'Path.iterdir',
-      arguments: [MontyString(path)],
-    );
-    final r = await _vfs.resolve(call);
+    final r = await _fs('Path.iterdir', [path], null);
     if (r is List) {
       return r.map((e) => e is MontyPath ? e.value : e.toString()).toList();
     }
@@ -259,8 +261,8 @@ Future<void> main() async {
   // Expose API to HTML.
   final api = <String, JSFunction>{
     'run': ((JSString code) => _apiRun(
-      code.toDart,
-    ).then((r) => r.toJS).toJS).toJS,
+          code.toDart,
+        ).then((r) => r.toJS).toJS).toJS,
     'mountFile': ((JSString path, JSString content) {
       _mountFile(path.toDart, content.toDart);
     }).toJS,

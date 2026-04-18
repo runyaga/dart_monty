@@ -28,6 +28,7 @@ export 'src/bridge/os_call/path_op.dart';
 export 'src/bridge/os_call/platform_handlers.dart';
 export 'src/bridge/os_call/sandboxed_fs_handler_stub.dart'
     if (dart.library.io) 'src/bridge/os_call/sandboxed_fs_handler.dart';
+export 'src/bridge/plugins/default_plugins.dart';
 export 'src/bridge/plugins/event_loop_plugin.dart';
 export 'src/bridge/plugins/message_bus_plugin.dart';
 export 'src/bridge/plugins/sandbox_plugin.dart';
