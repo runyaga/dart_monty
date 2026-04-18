@@ -8,8 +8,8 @@ import 'package:dart_monty/src/bridge/bridge/host_param.dart';
 import 'package:dart_monty/src/bridge/bridge/host_param_type.dart';
 import 'package:dart_monty/src/bridge/bridge/monty_plugin.dart';
 import 'package:dart_monty/src/bridge/bridge/plugin_registry.dart';
-import 'package:dart_monty/src/bridge/os_call/memory_fs_provider.dart';
-import 'package:dart_monty/src/bridge/os_call/os_provider.dart';
+import 'package:dart_monty/src/bridge/os_call/fs_handlers.dart';
+import 'package:dart_monty/src/bridge/os_call/os_handlers.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:path/path.dart' as p;
 import 'package:signals_core/signals_core.dart';
@@ -328,7 +328,7 @@ class SandboxPlugin extends MontyPlugin {
     this.childLimits,
     this.sandboxBaseDir,
     this.systemPromptBuilder,
-    this.parentOs,
+    this.parentOsContributions,
   });
 
   /// Creates a fresh [MontyPlatform] for each child.
@@ -372,13 +372,17 @@ class SandboxPlugin extends MontyPlugin {
   /// argument from `sandbox_spawn`.
   final ChildSystemPromptBuilder? systemPromptBuilder;
 
-  /// Optional OS call handler from the parent bridge.
+  /// Optional OS call handlers from the parent bridge, keyed by prefix.
   ///
-  /// When provided, each child gets an isolated VFS with its own
-  /// `MemoryFsProvider`. Time and environment handlers are shared
-  /// from the parent (if the parent uses a composite `OsProvider`).
-  /// When null, children have no OS call access.
-  final OsProvider? parentOs;
+  /// When provided, each child gets an isolated VFS: `'Path.'` is swapped
+  /// for a fresh [memoryFsHandler], and any other prefixes (typically
+  /// `'os.'`, `'date.'`, `'datetime.'`) are forwarded through to the
+  /// parent's handler unchanged. When null, children have no OS call access.
+  ///
+  /// Pass a prefix map rather than an opaque [OsCallHandler] because
+  /// [OsCallHandler] is a plain typedef — it cannot be introspected to
+  /// recover individual handlers by prefix.
+  final Map<String, OsCallHandler>? parentOsContributions;
 
   final Map<int, _ChildHandle> _children = {};
   int _nextId = 0;
@@ -610,7 +614,7 @@ class SandboxPlugin extends MontyPlugin {
         },
       );
 
-      final childOs = _buildChildOsProvider();
+      final childOs = _buildChildOsHandler();
       childRegistry = await _wireChildPlugins(
         spawnContext,
         bridge,
@@ -636,7 +640,7 @@ class SandboxPlugin extends MontyPlugin {
     ChildSpawnContext spawnContext,
     DefaultMontyBridge bridge,
     String? runtimePrompt, {
-    OsProvider? baseOs,
+    OsCallHandler? baseOs,
   }) async {
     PluginRegistry? childRegistry;
     final registryFactory = childPluginRegistryFactory;
@@ -856,25 +860,23 @@ class SandboxPlugin extends MontyPlugin {
     return registry;
   }
 
-  /// Builds an isolated [OsProvider] for a child sandbox.
+  /// Builds an isolated [OsCallHandler] for a child sandbox.
   ///
-  /// Each child gets a fresh [MemoryFsProvider] (isolated VFS).
-  /// Time and environment handlers are shared from the parent's router
-  /// if available. Returns `null` when no parent handler is configured.
-  OsProvider? _buildChildOsProvider() {
-    final parent = parentOs;
-    if (parent == null) return null;
+  /// `'Path.'` is replaced with a fresh [memoryFsHandler] so each child has
+  /// an isolated VFS. All other prefix entries from [parentOsContributions]
+  /// (typically `'os.'`, `'date.'`, `'datetime.'`) are forwarded unchanged.
+  /// Returns `null` when [parentOsContributions] is null.
+  OsCallHandler? _buildChildOsHandler() {
+    final contrib = parentOsContributions;
+    if (contrib == null) return null;
 
-    // Try to share env and time providers from parent composite.
-    final childProviders = <String, OsProvider>{
-      'Path.': MemoryFsProvider(),
+    final childHandlers = {
+      for (final entry in contrib.entries)
+        if (entry.key != 'Path.') entry.key: entry.value,
+      'Path.': memoryFsHandler(),
     };
-    for (final prefix in const ['os.', 'date.', 'datetime.']) {
-      final provider = parent.providerFor(prefix);
-      if (provider != null) childProviders[prefix] = provider;
-    }
 
-    return OsProvider.compose(childProviders);
+    return composeOsHandlers(childHandlers);
   }
 
   /// Concatenates builder + runtime prompt layers.

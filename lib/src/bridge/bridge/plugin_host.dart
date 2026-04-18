@@ -6,7 +6,6 @@ import 'package:dart_monty/src/bridge/bridge/bridge_logger.dart';
 import 'package:dart_monty/src/bridge/bridge/bridge_middleware.dart';
 import 'package:dart_monty/src/bridge/bridge/host_function.dart';
 import 'package:dart_monty/src/bridge/bridge/host_function_schema.dart';
-import 'package:dart_monty/src/bridge/os_call/os_provider.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:meta/meta.dart';
 
@@ -110,64 +109,6 @@ Future<MontyProgress> _emitToolCallError(
   return platform.resumeWithError(error);
 }
 
-/// Emits [BridgeOsCallResult] for a denied OS call (no provider registered)
-/// and returns `platform.resumeWithError`.
-Future<MontyProgress> _emitOsCallDenied(
-  String callId,
-  String opName,
-  StreamController<BridgeEvent> controller,
-  MontyPlatform platform,
-) {
-  final errorMsg =
-      'PermissionError: $opName not available (no filesystem configured)';
-  controller.add(BridgeOsCallResult(callId: callId, result: errorMsg));
-
-  return platform.resumeWithError(errorMsg);
-}
-
-/// Resolves [osCall] through [handler], emitting [BridgeOsCallResult] and
-/// resuming the platform. Errors are caught and surfaced via `resumeWithError`.
-Future<MontyProgress> _resolveOsCall(
-  OsProvider handler,
-  MontyOsCall osCall,
-  String callId,
-  StreamController<BridgeEvent> controller,
-  MontyPlatform platform,
-  BridgeLogger log,
-) async {
-  final sw = Stopwatch()..start();
-  try {
-    final result = await handler.resolve(osCall);
-    sw.stop();
-    controller.add(
-      BridgeOsCallResult(
-        callId: callId,
-        result: result?.toString() ?? '',
-        durationMs: sw.elapsedMilliseconds,
-      ),
-    );
-
-    return await platform.resume(result);
-  } on Object catch (e, st) {
-    sw.stop();
-    log.error(
-      'OS call handler error',
-      error: e,
-      stackTrace: st,
-      attributes: {'op': osCall.operationName},
-    );
-    controller.add(
-      BridgeOsCallResult(
-        callId: callId,
-        result: 'Error: $e',
-        durationMs: sw.elapsedMilliseconds,
-      ),
-    );
-
-    return platform.resumeWithError(e.toString());
-  }
-}
-
 /// Suppresses unhandled async errors from [future], logging a warning.
 /// Errors surface later during [MontyResolveFutures] resolution.
 void _suppressFutureErrors(
@@ -199,8 +140,8 @@ Future<void> _logDeferredError(
 // PluginHost — function registry + tool dispatch.
 // ---------------------------------------------------------------------------
 
-/// Manages host function registration, middleware, OS provider wiring, and
-/// tool call dispatch for a `DefaultMontyBridge`.
+/// Manages host function registration, middleware, and tool call dispatch
+/// for a `DefaultMontyBridge`.
 ///
 /// This is an internal implementation-detail class — it is not part of the
 /// public `MontyBridge` API. Callers access it through the bridge's delegation
@@ -223,7 +164,6 @@ class PluginHost {
   final Map<String, HostFunction> _functions = {};
   final Map<String, Set<String>> _categoryIndex = {};
   final List<BridgeMiddleware> _middleware = [];
-  OsProvider? _osProvider;
 
   final Map<int, _PendingFuture> _pendingFutures = {};
   int _idCounter = 0;
@@ -270,10 +210,6 @@ class PluginHost {
 
   /// Unregisters the function with [name].
   void unregister(String name) => _functions.remove(name);
-
-  /// Registers an OS provider for filesystem/OS-level calls.
-  // ignore: use_setters_to_change_properties — method name matches the public API surface
-  void registerOs(OsProvider provider) => _osProvider = provider;
 
   /// Invokes a registered host function by [name] directly from Dart,
   /// routing through the middleware chain.
@@ -322,35 +258,6 @@ class PluginHost {
     _log.warning('Unknown function', attributes: {'name': name});
 
     return _platform.resumeWithError('Unknown function: $name');
-  }
-
-  /// Dispatches an OS call through the registered [OsProvider].
-  Future<MontyProgress> handleOsCall(
-    MontyOsCall osCall,
-    StreamController<BridgeEvent> controller,
-  ) {
-    final callId = nextId;
-    final opName = osCall.operationName;
-    final argSummary = osCall.arguments.isEmpty
-        ? null
-        : osCall.arguments.map((a) => a.dartValue).join(', ');
-
-    controller.add(
-      BridgeOsCallStart(
-        callId: callId,
-        operationName: opName,
-        argumentSummary: argSummary,
-      ),
-    );
-
-    final handler = _osProvider;
-    if (handler == null) {
-      _log.warning('OS call denied (no handler)', attributes: {'op': opName});
-
-      return _emitOsCallDenied(callId, opName, controller, _platform);
-    }
-
-    return _resolveOsCall(handler, osCall, callId, controller, _platform, _log);
   }
 
   /// Invokes [fn] synchronously and resumes the platform with the result.

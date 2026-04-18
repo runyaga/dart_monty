@@ -24,10 +24,10 @@ void main() {
       final kv = <String, String>{};
       final session =
           AgentSession(
-              os: OsProvider.compose({
-                'Path.': MemoryFsProvider(),
-                'date.': TimeOsProvider(),
-                'datetime.': TimeOsProvider(),
+              os: composeOsHandlers({
+                'Path.': memoryFsHandler(),
+                'date.': timeHandler(),
+                'datetime.': timeHandler(),
               }),
               plugins: [JinjaTemplatePlugin(), MessageBusPlugin()],
             )

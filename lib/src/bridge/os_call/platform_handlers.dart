@@ -1,3 +1,5 @@
+// ignore_for_file: avoid-unsafe-collection-methods
+// ignore_for_file: avoid-unnecessary-futures, newline-before-return
 import 'package:dart_monty/src/bridge/os_call/os_handlers.dart';
 
 /// Handler for `date.*` and `datetime.*` operations.

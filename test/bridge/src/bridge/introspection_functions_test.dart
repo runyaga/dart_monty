@@ -9,7 +9,7 @@ import 'package:dart_monty/src/bridge/bridge/host_param.dart';
 import 'package:dart_monty/src/bridge/bridge/host_param_type.dart';
 import 'package:dart_monty/src/bridge/bridge/introspection_functions.dart';
 import 'package:dart_monty/src/bridge/bridge/monty_bridge.dart';
-import 'package:dart_monty/src/bridge/os_call/os_provider.dart';
+import 'package:dart_monty/src/bridge/os_call/os_handlers.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -313,7 +313,7 @@ class _FakeBridge implements MontyBridge {
   void use(BridgeMiddleware middleware) {}
 
   @override
-  void registerOs(OsProvider provider) {}
+  void registerOs(OsCallHandler handler) {}
 
   @override
   Stream<BridgeEvent> execute(String code) => const Stream.empty();

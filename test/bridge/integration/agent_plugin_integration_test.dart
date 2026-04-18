@@ -111,11 +111,12 @@ msg_send(name='q', message=2)
     late AgentSession session;
 
     setUp(() {
-      final os = OsProvider.compose({
-        'Path.': MemoryFsProvider(),
-        'date.': TimeOsProvider(),
-        'datetime.': TimeOsProvider(),
-      });
+      final osContribs = <String, OsCallHandler>{
+        'Path.': memoryFsHandler(),
+        'date.': timeHandler(),
+        'datetime.': timeHandler(),
+      };
+      final os = composeOsHandlers(osContribs);
       final tmpl = JinjaTemplatePlugin();
       final msg = MessageBusPlugin();
       final plugins = <MontyPlugin>[tmpl, msg];
@@ -123,7 +124,7 @@ msg_send(name='q', message=2)
         SandboxPlugin(
           platformFactory: () async => createPlatformMonty(),
           parentPlugins: plugins,
-          parentOs: os,
+          parentOsContributions: osContribs,
         ),
       );
       session = AgentSession(os: os, plugins: plugins);
@@ -198,11 +199,12 @@ sandbox_free(handle=h)
     late AgentSession session;
 
     setUp(() {
-      final os = OsProvider.compose({
-        'Path.': MemoryFsProvider(),
-        'date.': TimeOsProvider(),
-        'datetime.': TimeOsProvider(),
-      });
+      final osContribs = <String, OsCallHandler>{
+        'Path.': memoryFsHandler(),
+        'date.': timeHandler(),
+        'datetime.': timeHandler(),
+      };
+      final os = composeOsHandlers(osContribs);
       final tmpl = JinjaTemplatePlugin();
       final msg = MessageBusPlugin();
       final plugins = <MontyPlugin>[tmpl, msg];
@@ -210,7 +212,7 @@ sandbox_free(handle=h)
         SandboxPlugin(
           platformFactory: () async => createPlatformMonty(),
           parentPlugins: plugins,
-          parentOs: os,
+          parentOsContributions: osContribs,
         ),
       );
       session = AgentSession(os: os, plugins: plugins);

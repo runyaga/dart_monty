@@ -143,11 +143,11 @@ void main() {
     late AgentSession session;
 
     setUp(() {
-      // Use MemoryFsProvider for filesystem tests (not LocalFileSystem)
-      final time = TimeOsProvider();
+      // Use memory filesystem for these tests (not LocalFileSystem)
+      final time = timeHandler();
       session = AgentSession(
-        os: OsProvider.compose({
-          'Path.': MemoryFsProvider(),
+        os: composeOsHandlers({
+          'Path.': memoryFsHandler(),
           'date.': time,
           'datetime.': time,
         }),

@@ -1,3 +1,4 @@
+// ignore_for_file: newline-before-return
 import 'dart:io';
 
 import 'package:dart_monty/src/bridge/os_call/fs_handlers.dart';

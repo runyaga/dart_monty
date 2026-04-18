@@ -7,7 +7,7 @@ import 'package:dart_monty/src/bridge/bridge/host_function.dart';
 import 'package:dart_monty/src/bridge/bridge/introspection_functions.dart';
 import 'package:dart_monty/src/bridge/bridge/monty_bridge.dart';
 import 'package:dart_monty/src/bridge/bridge/monty_plugin.dart';
-import 'package:dart_monty/src/bridge/os_call/os_provider.dart';
+import 'package:dart_monty/src/bridge/os_call/os_handlers.dart';
 
 // ---------------------------------------------------------------------------
 // Top-level helpers used by PluginRegistry.attachTo.
@@ -139,7 +139,7 @@ void _attachExecuteHooks(
 
 /// Collects OS call prefix contributions from all plugins in [attachOrder],
 /// validates that no two plugins claim the same prefix, composes them into a
-/// single [OsProvider] (with [baseOs] as the fallback), and registers the
+/// single [OsCallHandler] (with [baseOs] as the fallback), and registers the
 /// result on [bridge].
 ///
 /// Throws [StateError] if two plugins return the same prefix key from
@@ -149,10 +149,10 @@ void _attachExecuteHooks(
 void _collectAndApplyOsContributions(
   List<MontyPlugin> attachOrder,
   MontyBridge bridge,
-  OsProvider? baseOs,
+  OsCallHandler? baseOs,
 ) {
-  // prefix → (owning namespace, provider)
-  final merged = <String, (String, OsProvider)>{};
+  // prefix → (owning namespace, handler)
+  final merged = <String, (String, OsCallHandler)>{};
 
   for (final plugin in attachOrder) {
     final contrib = plugin.osContribution;
@@ -177,7 +177,7 @@ void _collectAndApplyOsContributions(
   if (contributions.isEmpty && baseOs == null) return;
 
   final composed = contributions.isNotEmpty
-      ? OsProvider.compose(contributions, fallback: baseOs)
+      ? composeOsHandlers(contributions, fallback: baseOs)
       : baseOs!;
   bridge.registerOs(composed);
 }
@@ -251,7 +251,7 @@ class PluginRegistry {
   ///
   /// If any plugins return a non-null [MontyPlugin.osContribution], their
   /// prefix maps are merged (overlapping prefixes throw [StateError]) and
-  /// composed with [baseOs] as the fallback. The composed provider is then
+  /// composed with [baseOs] as the fallback. The composed handler is then
   /// registered on [bridge] via `registerOs`. If there are no contributions
   /// and [baseOs] is non-null, [baseOs] is registered directly.
   ///
@@ -264,7 +264,7 @@ class PluginRegistry {
     MontyBridge bridge, {
     List<HostFunction>? extraFunctions,
     bool enableIntrospection = true,
-    OsProvider? baseOs,
+    OsCallHandler? baseOs,
   }) async {
     if (_attached) {
       throw StateError(

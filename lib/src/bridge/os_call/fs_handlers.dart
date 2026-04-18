@@ -1,4 +1,5 @@
 // ignore_for_file: avoid-unsafe-collection-methods, avoid-non-null-assertion
+// ignore_for_file: avoid-unnecessary-futures, newline-before-return
 import 'package:dart_monty/src/bridge/os_call/os_call_exception.dart';
 import 'package:dart_monty/src/bridge/os_call/os_handlers.dart';
 import 'package:dart_monty/src/bridge/os_call/path_op.dart';

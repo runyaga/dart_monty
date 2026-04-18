@@ -553,14 +553,12 @@ void main() {
     });
 
     test('invokes registered handler and resumes with result', () async {
-      bridge.registerOs(
-        _TestOsProvider((call) async {
-          if (call.operationName == 'os.getenv') {
-            return 'production';
-          }
-          return null;
-        }),
-      );
+      bridge.registerOs((operation, args, kwargs) async {
+        if (operation == 'os.getenv') {
+          return 'production';
+        }
+        return null;
+      });
 
       mock
         ..enqueueProgress(
@@ -594,11 +592,9 @@ void main() {
     });
 
     test('handler exception resumes with error', () async {
-      bridge.registerOs(
-        _TestOsProvider((call) async {
-          throw StateError('disk on fire');
-        }),
-      );
+      bridge.registerOs((operation, args, kwargs) async {
+        throw StateError('disk on fire');
+      });
 
       mock
         ..enqueueProgress(
@@ -631,19 +627,9 @@ void main() {
     test('registerOs after dispose throws StateError', () {
       bridge.dispose();
       expect(
-        () => bridge.registerOs(_TestOsProvider((_) async => null)),
+        () => bridge.registerOs((op, args, kwargs) async => null),
         throwsStateError,
       );
-    });
-
-    test('bridge.dispose() disposes registered OsProvider', () {
-      final handler = _DisposableOsProvider();
-      bridge
-        ..registerOs(handler)
-        ..dispose();
-
-      expect(handler.disposed, isTrue);
-      expect(handler.disposeCount, 1);
     });
 
     test('bridge.dispose() without handler registered does not throw', () {
@@ -653,7 +639,7 @@ void main() {
       // Calling again (already disposed) should not double-dispose.
       // registerOs should throw since disposed.
       expect(
-        () => bridge.registerOs(_DisposableOsProvider()),
+        () => bridge.registerOs((op, args, kwargs) async => null),
         throwsStateError,
       );
     });
@@ -1261,29 +1247,6 @@ class _ThrowingOnResumePlatform extends MockMontyPlatform {
   Future<MontyProgress> resume(Object? returnValue) async {
     // ignore: only_throw_errors – test intentionally throws non-Exception objects.
     throw throwOnResume;
-  }
-}
-
-class _TestOsProvider extends OsProvider {
-  _TestOsProvider(this._fn) : super.base();
-  final Future<Object?> Function(MontyOsCall) _fn;
-
-  @override
-  Future<Object?> resolve(MontyOsCall call) => _fn(call);
-}
-
-class _DisposableOsProvider extends OsProvider {
-  _DisposableOsProvider() : super.base();
-  bool disposed = false;
-  int disposeCount = 0;
-
-  @override
-  Future<Object?> resolve(MontyOsCall call) => Future.value();
-
-  @override
-  Future<void> dispose() async {
-    disposed = true;
-    disposeCount++;
   }
 }
 

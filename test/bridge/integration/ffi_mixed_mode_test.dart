@@ -230,7 +230,7 @@ void main() {
 
     test('H3. FS + Template across calls', () async {
       final s = AgentSession(
-        os: OsProvider.compose({'Path.': MemoryFsProvider()}),
+        os: composeOsHandlers({'Path.': memoryFsHandler()}),
         plugins: [JinjaTemplatePlugin()],
       );
       addTearDown(s.dispose);
@@ -292,7 +292,7 @@ content = Path("/data.txt").read_text()
         final kv = <String, String>{};
         final s =
             AgentSession(
-                os: OsProvider.compose({'Path.': MemoryFsProvider()}),
+                os: composeOsHandlers({'Path.': memoryFsHandler()}),
               )
               ..register(httpFn())
               ..register(

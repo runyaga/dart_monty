@@ -1,3 +1,4 @@
+// ignore_for_file: avoid-non-null-assertion, binary-expression-operand-order
 import 'package:dart_monty/src/bridge/bridge/bridge_event.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 
@@ -119,9 +120,14 @@ String generatePersistCode(String userCode, Map<String, Object?> state) {
   return buf.toString();
 }
 
-/// Wraps [userCode] with restore/persist state bookkeeping, preserving
-/// the last-expression result capture.
-String wrapWithStateCode(String userCode, Map<String, Object?> state) {
+/// Wraps [userCode] for **sandbox** mode: restore preamble + user code +
+/// persist epilogue, preserving the last-expression result capture.
+///
+/// Use this when the interpreter is fresh for each `execute()` call — state
+/// must be reconstituted from the Dart-side map before user code runs.
+/// Error line numbers returned by the interpreter will be offset by
+/// [restoreLineCount]; use [adjustRestoreOffset] to map them back.
+String wrapSandboxed(String userCode, Map<String, Object?> state) {
   final restore = generateRestoreCode(state);
   final persist = generatePersistCode(userCode, state);
   final (processed, hasResult) = captureLastExpression(userCode);
@@ -129,6 +135,26 @@ String wrapWithStateCode(String userCode, Map<String, Object?> state) {
   final buf = StringBuffer(restore)
     ..write('\n')
     ..write(processed)
+    ..write('\n')
+    ..write(persist);
+
+  if (hasResult) buf.write('\n__r');
+
+  return buf.toString();
+}
+
+/// Wraps [userCode] for **shared** mode: user code + persist epilogue only.
+///
+/// The Rust REPL heap already holds variables from prior `execute()` calls,
+/// so no restore preamble is needed (and emitting one would overwrite live
+/// Python objects with their Dart-side string repr — see #333). Persist is
+/// still needed so the Dart-side `sessionStateSignal` tracks assignments for
+/// observers.
+String wrapShared(String userCode, Map<String, Object?> state) {
+  final persist = generatePersistCode(userCode, state);
+  final (processed, hasResult) = captureLastExpression(userCode);
+
+  final buf = StringBuffer(processed)
     ..write('\n')
     ..write(persist);
 
