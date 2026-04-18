@@ -22,42 +22,34 @@ import 'package:signals_core/signals_core.dart';
 
 /// High-level agent session — stateful Python execution with tools and plugins.
 ///
-/// Combines `MontyBridge`, `PluginRegistry`, OS providers, and variable
-/// persistence into a single API. Variables persist across `execute()` calls
-/// via Dart-side state serialization — not interpreter reuse.
-///
-/// **State persistence limitation**: Variable persistence is a dart_monty
-/// abstraction built on top of the Monty interpreter's value serializer.
-/// Only Monty-representable types survive across calls: `int`, `float`,
-/// `str`, `bool`, `list`, `dict`, `bytes`, `datetime`, `None`, and other
-/// [MontyValue] subtypes. Non-representable values (functions, `re.Pattern`,
-/// generators, class instances, etc.) are coerced to their string
-/// representation by the Monty interpreter — they do not error or disappear,
-/// but they cannot be round-tripped back to the original Python object.
-/// This behavior is determined by the Monty interpreter, not dart_monty.
-/// The variable capture itself is heuristic: only top-level assignment
-/// targets are detected; dynamic assignments (`exec`, `setattr`) are not
-/// captured.
+/// Combines `MontyBridge`, `PluginRegistry`, and OS providers into a single
+/// API. Both execution modes are backed by [ReplPlatform], which adapts
+/// [MontyRepl] to the [MontyPlatform] interface accepted by
+/// [DefaultMontyBridge]. All state (variables, functions, classes, modules)
+/// persists natively in the Rust REPL heap across `execute()` calls — no
+/// Dart-side serialization round-trip.
 ///
 /// Two execution modes:
 ///
-/// **Shared interpreter** (default): One interpreter across all `execute()`
-/// calls. Fast for lightweight host functions. May crash on FFI if host
-/// functions do long-running async I/O (see #271).
+/// **Shared interpreter** (default): One [MontyRepl] across all `execute()`
+/// calls. Variables, functions, classes, and modules defined in one call are
+/// available in every subsequent call. Fast; suitable for interactive REPLs
+/// and LLM tool-call loops.
 ///
 /// **Fresh sandbox** (`sandbox: true`): Each `execute()` creates and disposes
-/// a fresh interpreter. State persists via `__restore_state__` /
-/// `__persist_state__` host functions. Safe for host functions that do
-/// async I/O (HTTP, SSE streaming, etc.) at the cost of ~2-5ms interpreter
-/// creation overhead per call.
+/// a fresh [MontyRepl]. State does not persist between calls. Safe for
+/// host functions that do async I/O (HTTP, SSE streaming, etc.) at the cost
+/// of ~2-5ms interpreter creation overhead per call.
 ///
 /// ```dart
-/// // Shared interpreter (default) — fast, light host functions
+/// // Shared interpreter (default) — full state persistence
 /// final session = AgentSession(os: defaultSandboxOsHandler());
 /// await session.execute('x = 42');
 /// final result = await session.execute('x + 1'); // 43
+/// await session.execute('def add(a, b): return a + b');
+/// final r = await session.execute('add(3, 4)'); // 7
 ///
-/// // Fresh sandbox — safe for async I/O host functions
+/// // Fresh sandbox — isolated per call, safe for async I/O host functions
 /// final session = AgentSession(
 ///   sandbox: true,
 ///   plugins: [SoliplexPlugin(connections: {...})],
@@ -68,12 +60,12 @@ import 'package:signals_core/signals_core.dart';
 class AgentSession {
   /// Creates an agent session.
   ///
-  /// When [sandbox] is true, each `execute()` call creates a fresh
-  /// interpreter. This avoids FFI state corruption when host functions
-  /// do long-running async I/O (#271). State persists via host functions.
+  /// When [sandbox] is true, each `execute()` call creates a fresh [MontyRepl].
+  /// State does not persist between calls. Safe for host functions that do
+  /// long-running async I/O (#271).
   ///
-  /// When [sandbox] is false (default), a single interpreter is reused
-  /// across calls for maximum performance.
+  /// When [sandbox] is false (default), a single [MontyRepl] is reused across
+  /// all calls — all state persists natively in the Rust heap.
   AgentSession({
     OsCallHandler? os,
     Map<String, OsCallHandler>? osHandlers,
@@ -89,9 +81,11 @@ class AgentSession {
        _logger = logger,
        _sandbox = sandbox {
     if (!sandbox) {
-      // Shared mode: create persistent interpreter.
-      // The bridge handles OS calls — don't pass os to Monty directly.
-      _sharedPlatform = createPlatformMonty();
+      // Shared mode: create persistent REPL-backed interpreter.
+      // ReplPlatform retains all state (variables, functions, classes) natively
+      // in the Rust heap across execute() calls — no Dart-side serialization.
+      _sharedRepl = MontyRepl();
+      _sharedPlatform = ReplPlatform(repl: _sharedRepl!);
       _sharedBridge = DefaultMontyBridge(
         platform: _sharedPlatform!,
         useFutures: false,
@@ -117,6 +111,7 @@ class AgentSession {
   final bool _sandbox;
 
   // Shared mode state.
+  MontyRepl? _sharedRepl;
   MontyPlatform? _sharedPlatform;
   DefaultMontyBridge? _sharedBridge;
   PluginRegistry? _sharedRegistry;
@@ -145,16 +140,8 @@ class AgentSession {
 
   /// Reactive persisted Python state.
   ///
-  /// Emits a new snapshot after every `execute()` call that assigns
-  /// variables in Python (via `__persist_state__`). Subscribe via [effect]
-  /// to react to variable changes without polling [state]:
-  ///
-  /// ```dart
-  /// effect(() {
-  ///   final s = session.sessionStateSignal.value;
-  ///   if (s.containsKey('result')) print(s['result']);
-  /// });
-  /// ```
+  /// Always emits an empty map — state persists natively in the Rust REPL
+  /// heap and is not mirrored to Dart. Kept for API compatibility.
   ReadonlySignal<Map<String, Object?>> get sessionStateSignal =>
       _sessionStateSignal;
 
@@ -205,19 +192,38 @@ class AgentSession {
 
   /// Clears all persisted Python state.
   ///
-  /// In shared mode, also issues a `del` snippet against the live interpreter
-  /// so tracked names disappear from Python globals, not just the Dart map.
+  /// In shared mode, recreates the full interpreter stack ([MontyRepl],
+  /// [ReplPlatform], [DefaultMontyBridge], and [PluginRegistry]) so the next
+  /// `execute()` call starts with empty Python globals. Plugins are
+  /// re-attached on the next `execute()` call.
+  ///
+  /// In sandbox mode, each call already uses a fresh interpreter — this is
+  /// a no-op.
   void clearState() {
     if (_disposed) throw StateError('AgentSession has been disposed');
-    final known = _sessionStateSignal.value.keys.toList();
     _sessionStateSignal.value = {};
-    if (_sharedBridge != null && known.isNotEmpty) {
-      final delCode = [
-        for (final k in known) 'try:\n    del $k\nexcept NameError:\n    pass',
-      ].join('\n');
-      // Fire-and-forget — the bridge exposes a stream; drain it so any errors
-      // surface as unhandled zone errors rather than silently lingering.
-      unawaited(_sharedBridge!.execute(delCode).drain());
+    if (!_sandbox && _sharedBridge != null) {
+      final oldPlatform = _sharedPlatform;
+      final oldRegistry = _sharedRegistry;
+
+      _sharedRepl = MontyRepl();
+      _sharedPlatform = ReplPlatform(repl: _sharedRepl!);
+      _sharedBridge = DefaultMontyBridge(
+        platform: _sharedPlatform!,
+        useFutures: false,
+        logger: _logger,
+      );
+      _registerStateHostFunctions(_sharedBridge!);
+      _extraFunctions.forEach(_sharedBridge!.register);
+
+      _sharedRegistry = PluginRegistry();
+      if (_plugins != null) {
+        _plugins.forEach(_sharedRegistry!.register);
+      }
+      _sharedAttached = false;
+
+      if (oldRegistry != null) unawaited(oldRegistry.disposeAll());
+      unawaited(oldPlatform?.dispose());
     }
   }
 
@@ -229,6 +235,7 @@ class AgentSession {
     _sharedBridge?.dispose();
     _schemaBridge?.dispose();
     await _sharedPlatform?.dispose();
+    await _sharedRepl?.dispose();
     _sessionStateSignal.dispose();
   }
 
@@ -237,11 +244,7 @@ class AgentSession {
       await _sharedRegistry!.attachTo(_sharedBridge!, baseOs: _os);
       _sharedAttached = true;
     }
-    // Shared mode: Rust REPL heap persists variables natively — no restore
-    // preamble, so error line numbers already point at user code.
-    yield* _sharedBridge!.execute(
-      wrapShared(code, _sessionStateSignal.value),
-    );
+    yield* _sharedBridge!.execute(code);
   }
 
   // ---------------------------------------------------------------------------
@@ -253,10 +256,7 @@ class AgentSession {
       await _sharedRegistry!.attachTo(_sharedBridge!, baseOs: _os);
       _sharedAttached = true;
     }
-    final snapshot = _sessionStateSignal.value;
-    final events = await _sharedBridge!
-        .execute(wrapShared(code, snapshot))
-        .toList();
+    final events = await _sharedBridge!.execute(code).toList();
 
     return extractBridgeResult(events, 0);
   }
@@ -266,7 +266,8 @@ class AgentSession {
   // ---------------------------------------------------------------------------
 
   Future<MontyResult> _executeSandboxed(String code) async {
-    final platform = createPlatformMonty();
+    final repl = MontyRepl();
+    final platform = ReplPlatform(repl: repl);
     final b = _buildBridge(platform: platform);
 
     final registry = PluginRegistry();
@@ -276,10 +277,9 @@ class AgentSession {
     await registry.attachTo(b, baseOs: _os);
 
     try {
-      final snapshot = _sessionStateSignal.value;
-      final events = await b.execute(wrapSandboxed(code, snapshot)).toList();
+      final events = await b.execute(code).toList();
 
-      return extractBridgeResult(events, restoreLineCount(snapshot));
+      return extractBridgeResult(events, 0);
     } finally {
       await registry.disposeAll();
       b.dispose();
@@ -293,7 +293,7 @@ class AgentSession {
 
   DefaultMontyBridge _buildBridge({MontyPlatform? platform}) {
     final b = DefaultMontyBridge(
-      platform: platform ?? createPlatformMonty(),
+      platform: platform ?? ReplPlatform(repl: MontyRepl()),
       useFutures: false,
       logger: _logger,
     );

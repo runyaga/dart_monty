@@ -229,61 +229,56 @@ void main() {
   });
 
   // ---------------------------------------------------------------------------
-  // wrapSandboxed
+  // wrapSandboxed — ReplPlatform backing: returns code unchanged
   // ---------------------------------------------------------------------------
 
   group('wrapSandboxed', () {
-    test('empty state wraps with restore/persist', () {
-      final code = wrapSandboxed('x = 1', <String, Object?>{});
-      expect(code, startsWith('__d = __restore_state__()'));
-      expect(code, contains('x = 1'));
-      expect(code, endsWith('__persist_state__(__d2)'));
+    test('returns user code unchanged', () {
+      const input = 'x = 1';
+      final code = wrapSandboxed(input);
+      expect(code, input);
     });
 
-    test('expression result is captured via __r', () {
-      final code = wrapSandboxed('1 + 1', <String, Object?>{});
-      expect(code, contains('__r = (1 + 1)'));
-      expect(code, endsWith('\n__r'));
+    test('expression code returned unchanged — no __r capture', () {
+      const input = '1 + 1';
+      final code = wrapSandboxed(input);
+      expect(code, input);
+      expect(code, isNot(contains('__r')));
     });
 
-    test('statement does not append __r', () {
-      final code = wrapSandboxed('x = 42', <String, Object?>{});
-      expect(code, isNot(endsWith('\n__r')));
+    test('state argument ignored — no restore preamble', () {
+      final code = wrapSandboxed('pass');
+      expect(code, isNot(contains('__restore_state__')));
+      expect(code, isNot(contains('__persist_state__')));
     });
   });
 
   // ---------------------------------------------------------------------------
-  // wrapShared
+  // wrapShared — ReplPlatform backing: returns code unchanged
   // ---------------------------------------------------------------------------
 
   group('wrapShared', () {
-    test('does not emit restore preamble', () {
-      final code = wrapShared('x = 1', <String, Object?>{});
+    test('returns user code unchanged', () {
+      const input = 'x = 1';
+      final code = wrapShared(input);
+      expect(code, input);
+    });
+
+    test('expression code returned unchanged — no __r capture', () {
+      const input = '1 + 1';
+      final code = wrapShared(input);
+      expect(code, input);
+      expect(code, isNot(contains('__r')));
+    });
+
+    test('no restore preamble emitted', () {
+      final code = wrapShared('x = 1');
       expect(code, isNot(contains('__restore_state__')));
-      expect(code, contains('x = 1'));
-      expect(code, endsWith('__persist_state__(__d2)'));
     });
 
-    test('persist captures assignments from user code', () {
-      final code = wrapShared('x = 1', <String, Object?>{});
-      expect(code, contains('__d2["x"] = x'));
-    });
-
-    test('persist also captures keys already in state', () {
-      final code = wrapShared('y = 2', <String, Object?>{'x': 1});
-      expect(code, contains('__d2["x"] = x'));
-      expect(code, contains('__d2["y"] = y'));
-    });
-
-    test('expression result is captured via __r', () {
-      final code = wrapShared('1 + 1', <String, Object?>{});
-      expect(code, contains('__r = (1 + 1)'));
-      expect(code, endsWith('\n__r'));
-    });
-
-    test('statement does not append __r', () {
-      final code = wrapShared('x = 42', <String, Object?>{});
-      expect(code, isNot(endsWith('\n__r')));
+    test('no persist epilogue emitted', () {
+      final code = wrapShared('x = 1');
+      expect(code, isNot(contains('__persist_state__')));
     });
   });
 }
