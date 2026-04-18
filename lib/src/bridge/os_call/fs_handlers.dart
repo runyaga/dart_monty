@@ -116,52 +116,14 @@ OsCallHandler fsHandler(FileSystem fs) {
   };
 }
 
-/// An in-memory VFS helper with Dart-side pre-population / readback
-/// convenience, plus a [handler] getter for bridge registration.
+/// Fresh in-memory VFS [OsCallHandler] — works on all platforms.
 ///
-/// Works on all platforms (no `dart:io` dependency).
+/// For tests or hosts that need to pre-populate or read back files, hold the
+/// [MemoryFileSystem] yourself and pass it to [fsHandler]:
 ///
 /// ```dart
-/// final vfs = MemoryVfs();
-/// vfs.writeFile('/sandbox/config.json', '{"key": "value"}');
-/// bridge.registerOs(composeOsHandlers({'Path.': vfs.handler, ...}));
+/// final fs = MemoryFileSystem()
+///   ..file('/sandbox/config.json').writeAsStringSync('{"k": 1}');
+/// bridge.registerOs(composeOsHandlers({'Path.': fsHandler(fs), ...}));
 /// ```
-class MemoryVfs {
-  /// Creates a fresh in-memory VFS.
-  MemoryVfs() : fileSystem = MemoryFileSystem();
-
-  /// The underlying in-memory filesystem.
-  final FileSystem fileSystem;
-
-  /// The `Path.*` [OsCallHandler] backed by this VFS.
-  late final OsCallHandler handler = fsHandler(fileSystem);
-
-  /// Pre-populates a text file.
-  void writeFile(String path, String content) {
-    fileSystem.file(path)
-      ..parent.createSync(recursive: true)
-      ..writeAsStringSync(content);
-  }
-
-  /// Pre-populates a binary file.
-  void writeFileBytes(String path, List<int> bytes) {
-    fileSystem.file(path)
-      ..parent.createSync(recursive: true)
-      ..writeAsBytesSync(bytes);
-  }
-
-  /// Reads back a text file (for post-execution verification).
-  String readFile(String path) => fileSystem.file(path).readAsStringSync();
-
-  /// Reads back a binary file.
-  List<int> readFileBytes(String path) =>
-      fileSystem.file(path).readAsBytesSync().toList();
-
-  /// Whether a file or directory exists in the VFS.
-  bool exists(String path) =>
-      fileSystem.file(path).existsSync() ||
-      fileSystem.directory(path).existsSync();
-}
-
-/// Convenience: fresh in-memory VFS handler.
-OsCallHandler memoryFsHandler() => MemoryVfs().handler;
+OsCallHandler memoryFsHandler() => fsHandler(MemoryFileSystem());
