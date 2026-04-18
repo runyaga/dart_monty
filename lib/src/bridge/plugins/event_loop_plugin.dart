@@ -1,11 +1,13 @@
 import 'dart:async';
 
 import 'package:dart_monty/src/bridge/bridge/bridge_event.dart';
+import 'package:dart_monty/src/bridge/bridge/host_args.dart';
 import 'package:dart_monty/src/bridge/bridge/host_function.dart';
 import 'package:dart_monty/src/bridge/bridge/host_function_schema.dart';
 import 'package:dart_monty/src/bridge/bridge/host_param.dart';
 import 'package:dart_monty/src/bridge/bridge/host_param_type.dart';
 import 'package:dart_monty/src/bridge/bridge/monty_plugin.dart';
+import 'package:dart_monty/src/bridge/bridge/stateful_plugin.dart';
 import 'package:signals_core/signals_core.dart';
 
 /// State of the event loop channel lifecycle.
@@ -38,7 +40,7 @@ final class BridgeChannelWaiting extends BridgeChannelState {
   BridgeChannelWaiting(this.completer);
 
   /// The pending completer that will resume Python when fulfilled.
-  final Completer<Map<String, dynamic>> completer;
+  final Completer<Map<String, Object?>> completer;
 }
 
 /// Script completed (normally or with error).
@@ -112,13 +114,16 @@ final class BridgeChannelDisposed extends BridgeChannelState {
 ///   if (state is BridgeChannelWaiting) showInputField();
 /// });
 /// ```
-class EventLoopPlugin extends MontyPlugin {
-  final Signal<BridgeChannelState> _channelState = signal<BridgeChannelState>(
-    const BridgeChannelIdle(),
-  );
-  final Signal<Map<String, dynamic>?> _lastEmitted =
-      signal<Map<String, dynamic>?>(null);
-  final _eventQueue = <Map<String, dynamic>>[];
+class EventLoopPlugin extends MontyPlugin
+    with StatefulPlugin<BridgeChannelState> {
+  /// Creates an [EventLoopPlugin] initialized at [BridgeChannelIdle].
+  EventLoopPlugin() {
+    setInitialState(const BridgeChannelIdle());
+  }
+
+  final Signal<Map<String, Object?>?> _lastEmitted =
+      signal<Map<String, Object?>?>(null);
+  final _eventQueue = <Map<String, Object?>>[];
   bool _disposed = false;
 
   @override
@@ -136,22 +141,22 @@ class EventLoopPlugin extends MontyPlugin {
   /// effect(() => print(plugin.channelStateSignal.value));
   /// ```
   /// Use [channelState] for non-reactive reads.
-  ReadonlySignal<BridgeChannelState> get channelStateSignal => _channelState;
+  ReadonlySignal<BridgeChannelState> get channelStateSignal => stateSignal;
 
   /// Reactive last-emitted value.
   ///
   /// Updates whenever Python calls `el_emit`. Use [lastEmitted] for
   /// non-reactive reads, or subscribe via [effect] to react to each emission.
-  ReadonlySignal<Map<String, dynamic>?> get lastEmittedSignal => _lastEmitted;
+  ReadonlySignal<Map<String, Object?>?> get lastEmittedSignal => _lastEmitted;
 
   /// Current channel state.
-  BridgeChannelState get channelState => _channelState.value;
+  BridgeChannelState get channelState => state;
 
   /// The most recent value passed to `el_emit`, or `null` if none yet.
-  Map<String, dynamic>? get lastEmitted => _lastEmitted.value;
+  Map<String, Object?>? get lastEmitted => _lastEmitted.value;
 
   /// Whether Python is currently paused at `el_recv()`.
-  bool get isWaiting => _channelState.value is BridgeChannelWaiting;
+  bool get isWaiting => state is BridgeChannelWaiting;
 
   @override
   List<HostFunction> get functions => [
@@ -197,26 +202,26 @@ class EventLoopPlugin extends MontyPlugin {
     // Clear stale queued events only when re-executing after a completed run.
     // Events dispatched while idle (before the first execute) are intentional
     // pre-dispatch and must not be discarded.
-    if (_channelState.value is BridgeChannelCompleted) {
+    if (state is BridgeChannelCompleted) {
       _eventQueue.clear();
     }
-    _channelState.value = const BridgeChannelExecuting();
+    state = const BridgeChannelExecuting();
 
     return stream.map((event) {
       if (event is BridgeRunFinished || event is BridgeRunError) {
         // Guard on the plain bool, not the signal, to avoid reading a
         // disposed signal when onDispose() races with the stream tail.
         if (!_disposed) {
-          final state = _channelState.value;
+          final current = state;
           // Clean up orphaned completer when the script finishes while Python
           // is still paused at el_recv() (e.g. script errored mid-execution).
-          if (state is BridgeChannelWaiting) {
-            state.completer.completeError(
+          if (current is BridgeChannelWaiting) {
+            current.completer.completeError(
               StateError('Script finished while waiting for event'),
               StackTrace.current,
             );
           }
-          _channelState.value = const BridgeChannelCompleted();
+          state = const BridgeChannelCompleted();
         }
       }
 
@@ -231,8 +236,8 @@ class EventLoopPlugin extends MontyPlugin {
   ///
   /// Throws [StateError] if the plugin has been disposed or if the previous
   /// execution has already completed. Call `execute` again before dispatching.
-  void dispatch(Map<String, dynamic> event) {
-    switch (_channelState.value) {
+  void dispatch(Map<String, Object?> event) {
+    switch (state) {
       case BridgeChannelDisposed():
         throw StateError('Cannot dispatch events on a disposed plugin');
       case BridgeChannelCompleted():
@@ -245,7 +250,7 @@ class EventLoopPlugin extends MontyPlugin {
           'Dispatching event (resuming)',
           attributes: {'eventKeys': '${event.keys.toList()}'},
         );
-        _channelState.value = const BridgeChannelExecuting();
+        state = const BridgeChannelExecuting();
         completer.complete(event);
       case BridgeChannelIdle() || BridgeChannelExecuting():
         logger.trace(
@@ -259,19 +264,18 @@ class EventLoopPlugin extends MontyPlugin {
   @override
   Future<void> onDispose() async {
     if (_disposed) return;
-    await super.onDispose();
     _disposed = true;
-    final state = _channelState.value;
-    if (state is BridgeChannelWaiting) {
-      state.completer.completeError(
+    final current = state;
+    if (current is BridgeChannelWaiting) {
+      current.completer.completeError(
         StateError('EventLoopPlugin disposed while waiting for event'),
         StackTrace.current,
       );
     }
     _eventQueue.clear();
-    _channelState.value = const BridgeChannelDisposed();
-    _channelState.dispose();
+    state = const BridgeChannelDisposed();
     _lastEmitted.dispose();
+    await super.onDispose();
   }
 
   Future<Object?> _handleRecv(Map<String, Object?> args) async {
@@ -281,15 +285,15 @@ class EventLoopPlugin extends MontyPlugin {
     }
 
     // No events queued — park in waiting state with the live completer.
-    final completer = Completer<Map<String, dynamic>>();
-    _channelState.value = BridgeChannelWaiting(completer);
+    final completer = Completer<Map<String, Object?>>();
+    state = BridgeChannelWaiting(completer);
     logger.trace('Waiting for event');
 
     return completer.future;
   }
 
   Future<Object?> _handleEmit(Map<String, Object?> args) {
-    final value = args['value']! as Map<String, dynamic>;
+    final value = args.mapArg('value');
     _lastEmitted.value = value;
 
     return Future.value();

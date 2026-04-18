@@ -118,14 +118,11 @@ msg_send(name='q', message=2)
       };
       final tmpl = JinjaTemplatePlugin();
       final msg = MessageBusPlugin();
-      final plugins = <MontyPlugin>[tmpl, msg];
-      plugins.add(
-        SandboxPlugin(
-          platformFactory: () async => createPlatformMonty(),
-          parentPlugins: plugins,
-          parentOsContributions: osContribs,
-        ),
-      );
+      final plugins = <MontyPlugin>[
+        tmpl,
+        msg,
+        SandboxPlugin(platformFactory: () async => createPlatformMonty()),
+      ];
       session = AgentSession(osHandlers: osContribs, plugins: plugins);
     });
 
@@ -205,14 +202,11 @@ sandbox_free(handle=h)
       };
       final tmpl = JinjaTemplatePlugin();
       final msg = MessageBusPlugin();
-      final plugins = <MontyPlugin>[tmpl, msg];
-      plugins.add(
-        SandboxPlugin(
-          platformFactory: () async => createPlatformMonty(),
-          parentPlugins: plugins,
-          parentOsContributions: osContribs,
-        ),
-      );
+      final plugins = <MontyPlugin>[
+        tmpl,
+        msg,
+        SandboxPlugin(platformFactory: () async => createPlatformMonty()),
+      ];
       session = AgentSession(osHandlers: osContribs, plugins: plugins);
     });
 

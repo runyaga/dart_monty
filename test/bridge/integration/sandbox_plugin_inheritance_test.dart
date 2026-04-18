@@ -108,7 +108,6 @@ void main() {
         ..register(
           SandboxPlugin(
             platformFactory: () async => createPlatform(),
-            parentPlugins: [greeter],
           ),
         );
       await registry.attachTo(bridge);
@@ -127,7 +126,6 @@ void main() {
         ..register(
           SandboxPlugin(
             platformFactory: () async => createPlatform(),
-            parentPlugins: [greeter],
           ),
         );
       await registry.attachTo(bridge);
@@ -177,7 +175,6 @@ void main() {
         ..register(
           SandboxPlugin(
             platformFactory: () async => createPlatform(),
-            parentPlugins: [counter],
           ),
         );
       await registry.attachTo(bridge);
@@ -206,45 +203,6 @@ void main() {
   });
 
   // ---------------------------------------------------------------------------
-  // childPluginRegistryFactory precedence
-  // ---------------------------------------------------------------------------
-
-  group('childPluginRegistryFactory precedence', () {
-    test('factory takes precedence over parentPlugins', () async {
-      final bridge = createBridge();
-      final greeter = _GreeterPlugin();
-      final registry = PluginRegistry()
-        ..register(greeter)
-        ..register(
-          SandboxPlugin(
-            platformFactory: () async => createPlatform(),
-            parentPlugins: [greeter],
-            childPluginRegistryFactory: (_) async {
-              // Empty registry — no parent inheritance.
-              return PluginRegistry();
-            },
-          ),
-        );
-      await registry.attachTo(bridge);
-
-      // Child should NOT have greeter_hello (factory overrides).
-      const cc = r'greeter_hello(name=\"test\")';
-      final result = await run(
-        bridge,
-        'h = ${spawn(cc)}\n'
-        'try:\n'
-        '    sandbox_await(handle=h)\n'
-        '    result = "should_not_reach"\n'
-        'except:\n'
-        '    result = "error_caught"\n'
-        'result',
-      );
-
-      expect(result, 'error_caught');
-      bridge.dispose();
-    });
-  });
-  // ---------------------------------------------------------------------------
   // ChildSpawnContext threading
   // ---------------------------------------------------------------------------
 
@@ -263,7 +221,6 @@ void main() {
             SandboxPlugin(
               platformFactory: () async => createPlatform(),
               sandboxBaseDir: '/tmp/sandbox_test',
-              parentPlugins: [contextPlugin],
             ),
           );
         await registry.attachTo(bridge);
@@ -298,7 +255,6 @@ void main() {
           ..register(
             SandboxPlugin(
               platformFactory: () async => createPlatform(),
-              parentPlugins: [contextPlugin],
             ),
           );
         await registry.attachTo(bridge);

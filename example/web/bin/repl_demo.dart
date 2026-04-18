@@ -113,7 +113,6 @@ void _createSession() {
   final msgBus = MessageBusPlugin();
   final sandbox = SandboxPlugin(
     platformFactory: () async => MontyWasm(),
-    parentPlugins: [tmpl, msgBus],
     maxChildren: 8,
     maxDepth: 2,
   );
@@ -191,11 +190,11 @@ Future<void> main() async {
   // Expose API to window
   final api = <String, JSFunction>{
     'run': ((JSString code) => _apiRun(
-      code.toDart,
-    ).then((r) => r.toJS).toJS).toJS,
+          code.toDart,
+        ).then((r) => r.toJS).toJS).toJS,
     'execute': ((JSString code) => _apiExecute(
-      code.toDart,
-    ).then((r) => r.toJS).toJS).toJS,
+          code.toDart,
+        ).then((r) => r.toJS).toJS).toJS,
     'reset': (() => _apiReset().then((r) => r.toJS).toJS).toJS,
   }.jsify();
   _replSessionDemo = api as JSObject;

@@ -10,7 +10,8 @@ import 'package:dart_monty/src/bridge/plugins/template_plugin.dart';
 /// useful in the majority of embedding contexts:
 ///
 /// - [JinjaTemplatePlugin] — `tmpl_render`
-/// - [MessageBusPlugin] — `mb_publish`, `mb_subscribe`
+/// - [MessageBusPlugin] — `msg_send`, `msg_recv`, `msg_peek`, `msg_close`,
+///   `msg_stats`
 /// - [EventLoopPlugin] — `el_recv`, `el_emit`
 ///
 /// Not included: [SandboxPlugin] (requires a `platformFactory`), and plugins

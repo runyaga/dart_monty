@@ -2,14 +2,15 @@ import 'dart:async';
 
 import 'package:dart_monty/src/bridge/bridge/bridge_event.dart';
 import 'package:dart_monty/src/bridge/bridge/default_monty_bridge.dart';
+import 'package:dart_monty/src/bridge/bridge/host_args.dart';
 import 'package:dart_monty/src/bridge/bridge/host_function.dart';
 import 'package:dart_monty/src/bridge/bridge/host_function_schema.dart';
 import 'package:dart_monty/src/bridge/bridge/host_param.dart';
 import 'package:dart_monty/src/bridge/bridge/host_param_type.dart';
+import 'package:dart_monty/src/bridge/bridge/monty_backend_kind.dart';
 import 'package:dart_monty/src/bridge/bridge/monty_plugin.dart';
 import 'package:dart_monty/src/bridge/bridge/plugin_registry.dart';
-import 'package:dart_monty/src/bridge/os_call/fs_handlers.dart';
-import 'package:dart_monty/src/bridge/os_call/os_handlers.dart';
+import 'package:dart_monty/src/bridge/bridge/stateful_plugin.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:path/path.dart' as p;
 import 'package:signals_core/signals_core.dart';
@@ -125,15 +126,6 @@ typedef MontyPlatformFactory = Future<MontyPlatform> Function();
 /// Return `null` to skip the builder layer for a given child.
 typedef ChildSystemPromptBuilder = String? Function(ChildSpawnContext context);
 
-/// Factory that creates and configures a [PluginRegistry] for child bridges.
-///
-/// Receives the [ChildSpawnContext] for the child being spawned, allowing
-/// the factory to configure per-child resources (e.g., filesystem roots).
-///
-/// Return `null` to give children only introspection builtins (no plugins).
-typedef ChildPluginRegistryFactory =
-    Future<PluginRegistry?> Function(ChildSpawnContext context);
-
 /// Tracks a spawned child interpreter.
 class _ChildHandle {
   _ChildHandle({
@@ -141,14 +133,14 @@ class _ChildHandle {
     required this.platform,
     required this.completer,
     required this.subscription,
-    this.registry,
+    required this.registry,
   });
 
   final DefaultMontyBridge bridge;
   final MontyPlatform platform;
   final Completer<Object?> completer;
   final StreamSubscription<BridgeEvent> subscription;
-  final PluginRegistry? registry;
+  final PluginRegistry registry;
 
   /// Reactive lifecycle state — starts as [ChildRunning].
   final Signal<ChildState> state = signal(const ChildRunning());
@@ -168,7 +160,7 @@ class _ChildHandle {
     // Dispose plugins FIRST — this unblocks pending handler Futures
     // (e.g., MessageBusPlugin completes waiters with StateError).
     // The bridge/stream must still be alive to deliver the resulting errors.
-    if (registry != null) await registry!.disposeAll();
+    await registry.disposeAll();
     await subscription.cancel();
     bridge.dispose();
     await platform.dispose();
@@ -305,45 +297,45 @@ const _gatherSchema = HostFunctionSchema(
 ///
 /// Children are sandboxed: each has its own interpreter state.
 /// All living children are killed when this plugin is disposed.
-class SandboxPlugin extends MontyPlugin {
+///
+/// ## Child plugin and VFS inheritance
+///
+/// Child plugins and OS handlers are inherited from the parent
+/// [PluginRegistry] via [PluginRegistry.spawnChild]. Plugins opt into
+/// inheritance by overriding [MontyPlugin.createChildInstance]; the child's
+/// filesystem visibility is controlled by [childVfsStrategy].
+///
+/// `SandboxPlugin` MUST be attached through a [PluginRegistry] — it uses the
+/// parent registry to compose the child.
+class SandboxPlugin extends MontyPlugin
+    with StatefulPlugin<Map<int, ChildState>> {
   /// Creates a [SandboxPlugin].
   ///
   /// [platformFactory] creates a fresh [MontyPlatform] for each child.
-  /// [childPluginRegistryFactory] optionally provides plugins to children.
-  /// When null, children automatically inherit plugins from [parentPlugins]
-  /// that return non-null from [MontyPlugin.createChildInstance].
-  /// [parentPlugins] the parent registry's plugin list -- used for automatic
-  /// child inheritance when [childPluginRegistryFactory] is null.
+  /// [childVfsStrategy] selects how the child's `Path.` handler relates to
+  /// the parent's — defaults to [ChildVfsStrategy.isolated].
   /// [maxChildren] limits concurrent children (default: 16).
   /// [maxDepth] limits recursion depth if children also have SandboxPlugin
   /// (default: 3). Set [currentDepth] when creating nested plugins.
   /// [childLimits] sets resource limits for child interpreters.
   SandboxPlugin({
     required this.platformFactory,
-    this.childPluginRegistryFactory,
-    this.parentPlugins = const [],
+    this.childVfsStrategy = ChildVfsStrategy.isolated,
     this.maxChildren = 16,
     this.maxDepth = 3,
     this.currentDepth = 0,
     this.childLimits,
     this.sandboxBaseDir,
     this.systemPromptBuilder,
-    this.parentOsContributions,
-  });
+  }) {
+    setInitialState(const {});
+  }
 
   /// Creates a fresh [MontyPlatform] for each child.
   final MontyPlatformFactory platformFactory;
 
-  /// Optional factory for child plugin registries.
-  ///
-  /// When null, children inherit plugins from [parentPlugins] via
-  /// [MontyPlugin.createChildInstance].
-  final ChildPluginRegistryFactory? childPluginRegistryFactory;
-
-  /// Parent registry's plugins, used for automatic child inheritance.
-  ///
-  /// Only consulted when [childPluginRegistryFactory] is null.
-  final List<MontyPlugin> parentPlugins;
+  /// How the child's `Path.` handler is derived from the parent's.
+  final ChildVfsStrategy childVfsStrategy;
 
   /// Maximum number of concurrent children.
   final int maxChildren;
@@ -372,18 +364,6 @@ class SandboxPlugin extends MontyPlugin {
   /// argument from `sandbox_spawn`.
   final ChildSystemPromptBuilder? systemPromptBuilder;
 
-  /// Optional OS call handlers from the parent bridge, keyed by prefix.
-  ///
-  /// When provided, each child gets an isolated VFS: `'Path.'` is swapped
-  /// for a fresh [memoryFsHandler], and any other prefixes (typically
-  /// `'os.'`, `'date.'`, `'datetime.'`) are forwarded through to the
-  /// parent's handler unchanged. When null, children have no OS call access.
-  ///
-  /// Pass a prefix map rather than an opaque [OsCallHandler] because
-  /// [OsCallHandler] is a plain typedef — it cannot be introspected to
-  /// recover individual handlers by prefix.
-  final Map<String, OsCallHandler>? parentOsContributions;
-
   final Map<int, _ChildHandle> _children = {};
   int _nextId = 0;
   bool _disposed = false;
@@ -395,20 +375,24 @@ class SandboxPlugin extends MontyPlugin {
   /// ```dart
   /// effect(() => print(plugin.childrenSignal.value));
   /// ```
-  ReadonlySignal<Map<int, ChildState>> get childrenSignal => _childrenSignal;
+  ReadonlySignal<Map<int, ChildState>> get childrenSignal => stateSignal;
 
   /// Reactive count of children still in [ChildRunning] state.
   ///
   /// Derived from [childrenSignal]; updates automatically.
   ReadonlySignal<int> get aliveCountSignal => _aliveCountSignal;
 
-  final Signal<Map<int, ChildState>> _childrenSignal = signal({});
   late final Computed<int> _aliveCountSignal = computed(
-    () => _childrenSignal.value.values.whereType<ChildRunning>().length,
+    () => state.values.whereType<ChildRunning>().length,
   );
 
   @override
   String get namespace => 'sandbox';
+
+  /// FFI-only. Spawning a second interpreter crashes the parent WASM
+  /// session; see `project_sandbox_wasm_finding` in the backlog memory.
+  @override
+  Set<MontyBackendKind> get supportedBackends => const {MontyBackendKind.ffi};
 
   @override
   String? get systemPromptContext =>
@@ -429,7 +413,6 @@ class SandboxPlugin extends MontyPlugin {
 
   @override
   Future<void> onDispose() async {
-    await super.onDispose();
     if (_disposed) return;
     _disposed = true;
 
@@ -473,14 +456,15 @@ class SandboxPlugin extends MontyPlugin {
       }
     }
     _children.clear();
-    _childrenSignal.value = {};
+    state = const <int, ChildState>{};
+    await super.onDispose();
   }
 
   Future<Object?> _handleSpawn(Map<String, Object?> args) async {
     _validateSpawnRequest();
 
-    final code = args['code']! as String;
-    final runtimePrompt = args['system_prompt'] as String?;
+    final code = args.str('code');
+    final runtimePrompt = args.strOrNull('system_prompt');
     final limits = _buildChildLimits(args);
 
     final id = _nextId++;
@@ -507,7 +491,7 @@ class SandboxPlugin extends MontyPlugin {
     if (_disposed) {
       bridge.dispose();
       await platform.dispose();
-      if (childRegistry != null) await childRegistry.disposeAll();
+      await childRegistry.disposeAll();
       throw StateError('SandboxPlugin was disposed during child spawn.');
     }
 
@@ -563,8 +547,8 @@ class SandboxPlugin extends MontyPlugin {
   /// Parses optional timeout/memory overrides from [args] and merges with
   /// [childLimits].
   MontyLimits? _buildChildLimits(Map<String, Object?> args) {
-    final timeoutMs = args['timeout_ms'] as int?;
-    final memoryBytes = args['memory_bytes'] as int?;
+    final timeoutMs = args.intArgOrNull('timeout_ms');
+    final memoryBytes = args.intArgOrNull('memory_bytes');
     if (timeoutMs == null && memoryBytes == null) return childLimits;
 
     return MontyLimits(
@@ -578,7 +562,7 @@ class SandboxPlugin extends MontyPlugin {
   /// registry.
   ///
   /// Disposes all partially-created resources on failure.
-  Future<(MontyPlatform, DefaultMontyBridge, PluginRegistry?)>
+  Future<(MontyPlatform, DefaultMontyBridge, PluginRegistry)>
   _createChildPlatformAndBridge(
     ChildSpawnContext spawnContext,
     MontyLimits? limits,
@@ -614,12 +598,10 @@ class SandboxPlugin extends MontyPlugin {
         },
       );
 
-      final childOs = _buildChildOsHandler();
       childRegistry = await _wireChildPlugins(
         spawnContext,
         bridge,
         runtimePrompt,
-        baseOs: childOs,
       );
     } on Object {
       if (bridge != null) bridge.dispose();
@@ -631,78 +613,48 @@ class SandboxPlugin extends MontyPlugin {
     return (platform, bridge, childRegistry);
   }
 
-  /// Creates and attaches a [PluginRegistry] for a child bridge.
+  /// Creates and attaches a child [PluginRegistry] by delegating to
+  /// [PluginRegistry.spawnChild] on the parent registry. Child plugins are
+  /// composed via [MontyPlugin.createChildInstance]; the child OS handler
+  /// follows [childVfsStrategy].
   ///
-  /// [baseOs] is forwarded to [PluginRegistry.attachTo] so that child plugin
-  /// OS contributions are composed with the child OS provider rather than
-  /// applied separately.
-  Future<PluginRegistry?> _wireChildPlugins(
+  /// Relies on [MontyPlugin.registry] being injected — i.e., this plugin
+  /// must be attached through a [PluginRegistry].
+  Future<PluginRegistry> _wireChildPlugins(
     ChildSpawnContext spawnContext,
     DefaultMontyBridge bridge,
-    String? runtimePrompt, {
-    OsCallHandler? baseOs,
-  }) async {
-    PluginRegistry? childRegistry;
-    final registryFactory = childPluginRegistryFactory;
-    if (registryFactory != null) {
-      try {
-        childRegistry = await registryFactory(spawnContext);
-      } on Object catch (e, st) {
-        logger.error(
-          'Child plugin factory failed',
-          error: e,
-          stackTrace: st,
-          attributes: {'phase': 'factory'},
-        );
-        rethrow;
-      }
-    } else if (parentPlugins.isNotEmpty) {
-      try {
-        childRegistry = _buildInheritedRegistry(spawnContext);
-      } on Object catch (e, st) {
-        logger.error(
-          'Child plugin inheritance failed',
-          error: e,
-          stackTrace: st,
-          attributes: {'phase': 'inheritance'},
-        );
-        rethrow;
-      }
-    }
-
+    String? runtimePrompt,
+  ) async {
     final childPrompt = _buildChildSystemPrompt(spawnContext, runtimePrompt);
-    if (childRegistry == null && (childPrompt != null || baseOs != null)) {
-      childRegistry = PluginRegistry();
-    }
+    try {
+      final childRegistry = await registry.spawnChild(
+        context: spawnContext,
+        bridge: bridge,
+        vfsStrategy: childVfsStrategy,
+        childSystemPromptPrefix: childPrompt,
+      );
+      logger.debug(
+        'Child plugins attached',
+        attributes: {'pluginCount': childRegistry.plugins.length},
+      );
 
-    if (childRegistry != null) {
-      childRegistry.systemPromptPrefix = childPrompt;
-      try {
-        await childRegistry.attachTo(bridge, baseOs: baseOs);
-        logger.debug(
-          'Child plugins attached',
-          attributes: {'pluginCount': childRegistry.plugins.length},
-        );
-      } on Object catch (e, st) {
-        final pluginCount = childRegistry.plugins.length;
-        logger.error(
-          'Child plugin attachment failed',
-          error: e,
-          stackTrace: st,
-          attributes: {'phase': 'attachTo', 'pluginCount': pluginCount},
-        );
-        rethrow;
-      }
+      return childRegistry;
+    } on Object catch (e, st) {
+      logger.error(
+        'Child plugin inheritance failed',
+        error: e,
+        stackTrace: st,
+        attributes: {'phase': 'spawnChild'},
+      );
+      rethrow;
     }
-
-    return childRegistry;
   }
 
   /// Subscribes to [stream] and wires completion/error handling for a child.
   StreamSubscription<BridgeEvent> _setupChildListener({
     required DefaultMontyBridge bridge,
     required MontyPlatform platform,
-    required PluginRegistry? registry,
+    required PluginRegistry registry,
     required Completer<Object?> completer,
     required int childId,
     required Stream<BridgeEvent> stream,
@@ -745,7 +697,7 @@ class SandboxPlugin extends MontyPlugin {
     int childId,
     DefaultMontyBridge bridge,
     MontyPlatform platform,
-    PluginRegistry? registry,
+    PluginRegistry registry,
     Completer<Object?> completer, {
     String? errorMessage,
     MontyException? errorException,
@@ -767,7 +719,7 @@ class SandboxPlugin extends MontyPlugin {
     _updateChildrenSignal();
 
     try {
-      if (registry != null) await registry.disposeAll();
+      await registry.disposeAll();
       bridge.dispose();
       await platform.dispose();
     } on Object catch (e, st) {
@@ -824,59 +776,11 @@ class SandboxPlugin extends MontyPlugin {
     }
   }
 
-  /// Snapshots all children's current [ChildState] into [_childrenSignal].
+  /// Snapshots all children's current [ChildState] into [stateSignal].
   void _updateChildrenSignal() {
-    _childrenSignal.value = {
+    state = {
       for (final entry in _children.entries) entry.key: entry.value.state.value,
     };
-  }
-
-  /// Builds a child registry from parent plugins that opt into inheritance.
-  PluginRegistry? _buildInheritedRegistry(ChildSpawnContext context) {
-    final childPlugins = <MontyPlugin>[];
-    for (final plugin in parentPlugins) {
-      // Skip SandboxPlugin itself -- children get their own via depth control.
-      if (plugin is SandboxPlugin) continue;
-      final child = plugin.createChildInstance(context: context);
-      if (child == null) continue;
-      // Guard: returning `this` would cause the parent plugin to be disposed
-      // when the child finishes, and returning a SandboxPlugin would bypass
-      // depth limiting.
-      assert(
-        !identical(child, plugin),
-        'createChildInstance() must return a new instance, not `this`.',
-      );
-      if (child is SandboxPlugin) {
-        throw StateError(
-          'createChildInstance() must not return a SandboxPlugin.',
-        );
-      }
-      childPlugins.add(child);
-    }
-    if (childPlugins.isEmpty) return null;
-    final registry = PluginRegistry();
-    childPlugins.forEach(registry.register);
-
-    return registry;
-  }
-
-  /// Builds an isolated [OsCallHandler] for a child sandbox.
-  ///
-  /// `'Path.'` is replaced with a fresh [memoryFsHandler] so each child has
-  /// an isolated VFS. All other prefix entries from [parentOsContributions]
-  /// (typically `'os.'`, `'date.'`, `'datetime.'`) are forwarded unchanged.
-  /// Returns `null` when [parentOsContributions] is null.
-  OsCallHandler? _buildChildOsHandler() {
-    final contrib = parentOsContributions;
-    if (contrib == null) return null;
-
-    final childHandlers = {
-      for (final entry in contrib.entries)
-        if (entry.key != 'Path.') entry.key: entry.value,
-      'Path.': memoryFsHandler(),
-    };
-
-    return composeOsHandlers(childHandlers);
   }
 
   /// Concatenates builder + runtime prompt layers.
@@ -895,7 +799,7 @@ class SandboxPlugin extends MontyPlugin {
   }
 
   Future<Object?> _handleAwait(Map<String, Object?> args) async {
-    final handle = args['handle']! as int;
+    final handle = args.intArg('handle');
     final child = _children[handle];
     if (child == null) {
       throw ArgumentError.value(handle, 'handle', 'Unknown child handle.');
@@ -905,8 +809,7 @@ class SandboxPlugin extends MontyPlugin {
   }
 
   Future<Object?> _handleAwaitAll(Map<String, Object?> args) async {
-    final raw = args['handles']! as List<Object?>;
-    final handles = raw.cast<num>().map((n) => n.toInt()).toList();
+    final handles = args.listOf<num>('handles').map((n) => n.toInt()).toList();
 
     final futures = <Future<Object?>>[];
     for (final handle in handles) {
@@ -921,7 +824,7 @@ class SandboxPlugin extends MontyPlugin {
   }
 
   Future<Object?> _handleIsAlive(Map<String, Object?> args) {
-    final handle = args['handle']! as int;
+    final handle = args.intArg('handle');
     final child = _children[handle];
     if (child == null) {
       throw ArgumentError.value(handle, 'handle', 'Unknown child handle.');
@@ -931,7 +834,7 @@ class SandboxPlugin extends MontyPlugin {
   }
 
   Future<Object?> _handleFree(Map<String, Object?> args) {
-    final handle = args['handle']! as int;
+    final handle = args.intArg('handle');
     final child = _children[handle];
     if (child == null) {
       throw ArgumentError.value(handle, 'handle', 'Unknown child handle.');
@@ -949,7 +852,7 @@ class SandboxPlugin extends MontyPlugin {
   }
 
   Future<Object?> _handleGetOutput(Map<String, Object?> args) {
-    final handle = args['handle']! as int;
+    final handle = args.intArg('handle');
     final child = _children[handle];
     if (child == null) {
       throw ArgumentError.value(handle, 'handle', 'Unknown child handle.');
@@ -964,8 +867,7 @@ class SandboxPlugin extends MontyPlugin {
   }
 
   Future<Object?> _handleGather(Map<String, Object?> args) async {
-    final raw = args['handles']! as List<Object?>;
-    final handles = raw.cast<num>().map((n) => n.toInt()).toList();
+    final handles = args.listOf<num>('handles').map((n) => n.toInt()).toList();
 
     final futures = <Future<Object?>>[];
     for (final handle in handles) {

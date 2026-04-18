@@ -1,3 +1,4 @@
+import 'package:dart_monty/src/bridge/bridge/host_args.dart';
 import 'package:dart_monty/src/bridge/bridge/host_function.dart';
 import 'package:dart_monty/src/bridge/bridge/host_function_schema.dart';
 import 'package:dart_monty/src/bridge/bridge/host_param.dart';
@@ -65,8 +66,8 @@ class JinjaTemplatePlugin extends MontyPlugin {
       JinjaTemplatePlugin(maxInputSize: _maxInputSize);
 
   Future<Object?> _handleRender(Map<String, Object?> args) {
-    final templateStr = args['template']! as String;
-    final context = args['context']! as Map<String, Object?>;
+    final templateStr = args.str('template');
+    final context = args.mapArg('context');
     _guardInputSize(templateStr);
 
     try {

@@ -5,9 +5,39 @@ import 'package:dart_monty/src/bridge/bridge/bridge_logger.dart';
 import 'package:dart_monty/src/bridge/bridge/default_monty_bridge.dart';
 import 'package:dart_monty/src/bridge/bridge/host_function.dart';
 import 'package:dart_monty/src/bridge/bridge/introspection_functions.dart';
+import 'package:dart_monty/src/bridge/bridge/monty_backend_kind.dart';
 import 'package:dart_monty/src/bridge/bridge/monty_bridge.dart';
 import 'package:dart_monty/src/bridge/bridge/monty_plugin.dart';
+import 'package:dart_monty/src/bridge/os_call/decorator_handlers.dart';
+import 'package:dart_monty/src/bridge/os_call/fs_handlers.dart';
 import 'package:dart_monty/src/bridge/os_call/os_handlers.dart';
+
+/// How a child sandbox's `Path.` handler is derived from the parent's.
+///
+/// Passed to [PluginRegistry.spawnChild] to control filesystem visibility
+/// between parent and child. All strategies forward non-`Path.` prefixes
+/// (`os.`, `date.`, `datetime.`, etc.) to the parent unchanged.
+enum ChildVfsStrategy {
+  /// Fresh in-memory filesystem. Parent's `Path.` is invisible to the child.
+  ///
+  /// This is the safe default and matches the pre-M1 `SandboxPlugin`
+  /// behavior.
+  isolated,
+
+  /// Child shares the parent's `Path.` handler directly.
+  ///
+  /// Reads and writes are immediately visible to the parent. Use when the
+  /// child intentionally extends the parent's workspace (e.g., a coordinated
+  /// build step).
+  shared,
+
+  /// Child reads from the parent's `Path.` but writes go to a fresh
+  /// in-memory scratch layer. Copy-on-write.
+  ///
+  /// Parent is never modified. Use for transient sub-scripts that should see
+  /// the parent's files but whose changes should not escape.
+  overlay,
+}
 
 // ---------------------------------------------------------------------------
 // Top-level helpers used by PluginRegistry.attachTo.
@@ -23,6 +53,52 @@ void _attachPluginFunctions(
     for (final fn in plugin.functions) {
       bridge.register(fn, category: plugin.namespace);
     }
+  }
+}
+
+/// Validates every plugin's [MontyPlugin.supportedBackends] against
+/// [currentBackendKind]. Logs and throws [UnsupportedBackendError] on the
+/// first mismatch so the failure is a clean configuration error before any
+/// lifecycle hook fires.
+void _checkSupportedBackends(List<MontyPlugin> plugins, BridgeLogger log) {
+  final here = currentBackendKind;
+  for (final plugin in plugins) {
+    final supported = plugin.supportedBackends;
+    if (supported.contains(here)) continue;
+    final error = UnsupportedBackendError(
+      pluginNamespace: plugin.namespace,
+      current: here,
+      supported: supported,
+    );
+    log.error(
+      'plugin does not support current backend',
+      attributes: {
+        'namespace': plugin.namespace,
+        'current': here.name,
+        'supported': supported.map((b) => b.name).toList(),
+      },
+    );
+    throw error;
+  }
+}
+
+/// Emits a `plugin registered` info log per plugin with namespace,
+/// function count, and declared supported backends.
+void _logPluginsRegistered(
+  List<MontyPlugin> attachOrder,
+  BridgeLogger log,
+) {
+  for (final plugin in attachOrder) {
+    log.info(
+      'plugin registered',
+      attributes: {
+        'namespace': plugin.namespace,
+        'functionCount': plugin.functions.length,
+        'supportedBackends': plugin.supportedBackends
+            .map((b) => b.name)
+            .toList(),
+      },
+    );
   }
 }
 
@@ -137,19 +213,13 @@ void _attachExecuteHooks(
   });
 }
 
-/// Collects OS call prefix contributions from all plugins in [attachOrder],
-/// validates that no two plugins claim the same prefix, composes them into a
-/// single [OsCallHandler] (with [baseOs] as the fallback), and registers the
-/// result on [bridge].
+/// Collects OS call prefix contributions from all plugins in [attachOrder]
+/// and validates that no two plugins claim the same prefix.
 ///
 /// Throws [StateError] if two plugins return the same prefix key from
 /// [MontyPlugin.osContribution].
-///
-/// No-op when there are no contributions and [baseOs] is `null`.
-void _collectAndApplyOsContributions(
+Map<String, OsCallHandler> _collectOsContributions(
   List<MontyPlugin> attachOrder,
-  MontyBridge bridge,
-  OsCallHandler? baseOs,
 ) {
   // prefix → (owning namespace, handler)
   final merged = <String, (String, OsCallHandler)>{};
@@ -170,10 +240,18 @@ void _collectAndApplyOsContributions(
     }
   }
 
-  final contributions = {
+  return {
     for (final e in merged.entries) e.key: e.value.$2,
   };
+}
 
+/// Composes [contributions] with [baseOs] as fallback and registers the result
+/// on [bridge]. No-op when there are no contributions and [baseOs] is `null`.
+void _applyOsContributions(
+  MontyBridge bridge,
+  Map<String, OsCallHandler> contributions,
+  OsCallHandler? baseOs,
+) {
   if (contributions.isEmpty && baseOs == null) return;
 
   final composed = contributions.isNotEmpty
@@ -203,6 +281,17 @@ class PluginRegistry {
   final Set<String> _functionNames = {};
   BridgeLogger _log = const NullBridgeLogger();
   bool _attached = false;
+
+  /// The plugin OS contributions resolved during [attachTo], keyed by prefix.
+  ///
+  /// Captured so that [spawnChild] can re-compose a child handler per
+  /// [ChildVfsStrategy] (swapping only the `Path.` entry) instead of
+  /// opaquely delegating to the already-composed parent handler.
+  Map<String, OsCallHandler>? _osContributions;
+
+  /// The `baseOs` passed to [attachTo], if any. Used as the fallback for any
+  /// prefix that no plugin claims when [spawnChild] composes a child handler.
+  OsCallHandler? _baseOs;
 
   static final RegExp _validNamespace = RegExp(r'^[a-z][a-z0-9_]*$');
   static const int _maxNamespaceLength = 32;
@@ -275,6 +364,8 @@ class PluginRegistry {
 
     _log = bridge.logger.child('registry');
 
+    _checkSupportedBackends(_plugins, _log);
+
     // Sort by descending priority; stable sort preserves insertion order for
     // equal priorities. High-priority plugins attach first, dispose last.
     final attachOrder = [..._plugins]
@@ -285,12 +376,16 @@ class PluginRegistry {
     _injectRegistries(attachOrder, this);
 
     _attachPluginFunctions(attachOrder, bridge);
+    _logPluginsRegistered(attachOrder, _log);
     // Plugin stream wrappers are registered first so that the execute-hooks
     // wrapper (registered next) is outermost — it fires before any plugin
     // wrapper on start and after all plugin wrappers on end.
     _attachStreamWrappers(attachOrder, bridge);
     _attachExecuteHooks(attachOrder, bridge);
-    _collectAndApplyOsContributions(attachOrder, bridge, baseOs);
+    final contributions = _collectOsContributions(attachOrder);
+    _osContributions = contributions;
+    _baseOs = baseOs;
+    _applyOsContributions(bridge, contributions, baseOs);
     if (extraFunctions != null && extraFunctions.isNotEmpty) {
       _attachExtraFunctions(extraFunctions, bridge, _log);
     }
@@ -346,6 +441,51 @@ class PluginRegistry {
     }
   }
 
+  /// Builds a child [PluginRegistry] seeded from this (parent) registry and
+  /// attaches it to [bridge].
+  ///
+  /// Every parent plugin gets the chance to contribute a child instance via
+  /// [MontyPlugin.createChildInstance]; plugins that return `null` are
+  /// skipped. The resulting registry is attached to [bridge] with an OS
+  /// handler composed per [vfsStrategy] (see [ChildVfsStrategy]).
+  ///
+  /// Non-`Path.` OS prefixes (e.g., `os.`, `date.`, `datetime.`) are
+  /// forwarded to the parent unchanged, and the parent's [attachTo] `baseOs`
+  /// is used as the child's fallback for any unclaimed prefix.
+  ///
+  /// Throws [StateError] if [attachTo] has not yet been called on this
+  /// registry — there is no parent OS state to inherit from.
+  Future<PluginRegistry> spawnChild({
+    required ChildSpawnContext context,
+    required MontyBridge bridge,
+    ChildVfsStrategy vfsStrategy = ChildVfsStrategy.isolated,
+    String? childSystemPromptPrefix,
+  }) async {
+    if (!_attached) {
+      throw StateError(
+        'PluginRegistry.spawnChild() called before attachTo(). '
+        'A parent registry must be attached before spawning children.',
+      );
+    }
+
+    final child = PluginRegistry();
+    for (final plugin in _plugins) {
+      final instance = plugin.createChildInstance(context: context);
+      if (instance == null) continue;
+      assert(
+        !identical(instance, plugin),
+        'createChildInstance() must return a new instance, not `this`.',
+      );
+      child.register(instance);
+    }
+
+    child.systemPromptPrefix = childSystemPromptPrefix;
+    final childBaseOs = _composeChildBaseOs(vfsStrategy);
+    await child.attachTo(bridge, baseOs: childBaseOs);
+
+    return child;
+  }
+
   /// Auto-generates an LLM system prompt from plugin schemas.
   ///
   /// Each plugin produces a markdown section with its namespace as heading,
@@ -383,6 +523,36 @@ class PluginRegistry {
     }
 
     return buffer.toString().trimRight();
+  }
+
+  /// Builds a composed child [OsCallHandler] from the parent's captured
+  /// contributions and [strategy]. Returns `null` when the parent has no OS
+  /// state at all (nothing to inherit).
+  OsCallHandler? _composeChildBaseOs(ChildVfsStrategy strategy) {
+    final parentOs = _osContributions;
+    final parentBase = _baseOs;
+    if ((parentOs == null || parentOs.isEmpty) && parentBase == null) {
+      return null;
+    }
+
+    final parentPath = parentOs?['Path.'];
+    final childPath = switch (strategy) {
+      ChildVfsStrategy.isolated => memoryFsHandler(),
+      ChildVfsStrategy.shared => parentPath ?? memoryFsHandler(),
+      ChildVfsStrategy.overlay =>
+        parentPath == null
+            ? memoryFsHandler()
+            : overlayFsHandler(base: parentPath, scratch: memoryFsHandler()),
+    };
+
+    final childHandlers = {
+      if (parentOs != null)
+        for (final entry in parentOs.entries)
+          if (entry.key != 'Path.') entry.key: entry.value,
+      'Path.': childPath,
+    };
+
+    return composeOsHandlers(childHandlers, fallback: parentBase);
   }
 
   void _validateNamespace(String namespace) {

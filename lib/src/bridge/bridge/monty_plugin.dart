@@ -1,6 +1,7 @@
 import 'package:dart_monty/src/bridge/bridge/bridge_event.dart';
 import 'package:dart_monty/src/bridge/bridge/bridge_logger.dart';
 import 'package:dart_monty/src/bridge/bridge/host_function.dart';
+import 'package:dart_monty/src/bridge/bridge/monty_backend_kind.dart';
 import 'package:dart_monty/src/bridge/bridge/monty_bridge.dart';
 import 'package:dart_monty/src/bridge/bridge/plugin_registry.dart';
 import 'package:dart_monty/src/bridge/os_call/os_handlers.dart';
@@ -135,6 +136,21 @@ class ChildSpawnContext {
 abstract class MontyPlugin {
   /// Unique namespace prefix (e.g., `"df"`, `"chart"`, `"sqlite"`).
   String get namespace;
+
+  /// Backends this plugin supports.
+  ///
+  /// `PluginRegistry.attachTo` checks [currentBackendKind] against this set
+  /// and throws [UnsupportedBackendError] before any script runs if the
+  /// plugin declares it cannot operate on the current backend.
+  ///
+  /// Defaults to all backends. Override to `{MontyBackendKind.ffi}` or
+  /// `{MontyBackendKind.wasm}` if the plugin depends on capabilities that
+  /// only exist on one backend (e.g., `SandboxPlugin` needs `dart:io` + a
+  /// second interpreter instance, which crashes the parent session on WASM).
+  Set<MontyBackendKind> get supportedBackends => const {
+    MontyBackendKind.ffi,
+    MontyBackendKind.wasm,
+  };
 
   /// Attachment priority — higher values attach first and dispose last.
   ///
