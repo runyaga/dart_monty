@@ -75,7 +75,8 @@ void main() {
     });
 
     // Regression: augmented assignment previously caused SyntaxError because
-    // captureLastExpression wrapped `x += 1` as `__r = (x += 1)` — invalid Python.
+    // captureLastExpression wrapped `x += 1` as `__r = (x += 1)` — invalid
+    // Python.
     test('augmented assignment (x += 1) does not error', () async {
       await session.execute('x = 10');
       final result = await session.execute('x += 1');
