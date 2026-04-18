@@ -146,11 +146,11 @@ void main() {
       // Use memory filesystem for these tests (not LocalFileSystem)
       final time = timeHandler();
       session = AgentSession(
-        os: composeOsHandlers({
+        osHandlers: {
           'Path.': memoryFsHandler(),
           'date.': time,
           'datetime.': time,
-        }),
+        },
       );
     });
 

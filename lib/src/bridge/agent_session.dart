@@ -12,6 +12,7 @@ import 'package:dart_monty/src/bridge/bridge/introspection_functions.dart';
 import 'package:dart_monty/src/bridge/bridge/monty_bridge.dart';
 import 'package:dart_monty/src/bridge/bridge/monty_plugin.dart';
 import 'package:dart_monty/src/bridge/bridge/plugin_registry.dart';
+import 'package:dart_monty/src/bridge/os_call/os_handlers.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:signals_core/signals_core.dart';
 
@@ -75,10 +76,15 @@ class AgentSession {
   /// across calls for maximum performance.
   AgentSession({
     OsCallHandler? os,
+    Map<String, OsCallHandler>? osHandlers,
     List<MontyPlugin>? plugins,
     BridgeLogger? logger,
     bool sandbox = false,
-  }) : _os = os,
+  }) : assert(
+         os == null || osHandlers == null,
+         'Pass either os or osHandlers, not both.',
+       ),
+       _os = os ?? (osHandlers != null ? composeOsHandlers(osHandlers) : null),
        _plugins = plugins,
        _logger = logger,
        _sandbox = sandbox {

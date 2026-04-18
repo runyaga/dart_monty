@@ -116,7 +116,6 @@ msg_send(name='q', message=2)
         'date.': timeHandler(),
         'datetime.': timeHandler(),
       };
-      final os = composeOsHandlers(osContribs);
       final tmpl = JinjaTemplatePlugin();
       final msg = MessageBusPlugin();
       final plugins = <MontyPlugin>[tmpl, msg];
@@ -127,7 +126,7 @@ msg_send(name='q', message=2)
           parentOsContributions: osContribs,
         ),
       );
-      session = AgentSession(os: os, plugins: plugins);
+      session = AgentSession(osHandlers: osContribs, plugins: plugins);
     });
 
     tearDown(() async {
@@ -204,7 +203,6 @@ sandbox_free(handle=h)
         'date.': timeHandler(),
         'datetime.': timeHandler(),
       };
-      final os = composeOsHandlers(osContribs);
       final tmpl = JinjaTemplatePlugin();
       final msg = MessageBusPlugin();
       final plugins = <MontyPlugin>[tmpl, msg];
@@ -215,7 +213,7 @@ sandbox_free(handle=h)
           parentOsContributions: osContribs,
         ),
       );
-      session = AgentSession(os: os, plugins: plugins);
+      session = AgentSession(osHandlers: osContribs, plugins: plugins);
     });
 
     tearDown(() async {
