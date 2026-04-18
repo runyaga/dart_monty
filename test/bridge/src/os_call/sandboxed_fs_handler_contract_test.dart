@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:dart_monty/src/bridge/os_call/sandboxed_fs_provider.dart';
+import 'package:dart_monty/src/bridge/os_call/sandboxed_fs_handler.dart';
 import 'package:test/test.dart';
 
 import 'shared_fs_handler_contract.dart';
@@ -14,8 +14,8 @@ void main() {
   tearDownAll(() => root.deleteSync(recursive: true));
 
   runFsHandlerContract(
-    'SandboxedFsProvider',
-    createHandler: () async => SandboxedFsProvider(root: root),
+    'sandboxedFsHandler',
+    createHandler: () async => sandboxedFsHandler(root: root),
     rootPath: rootPath,
   );
 }

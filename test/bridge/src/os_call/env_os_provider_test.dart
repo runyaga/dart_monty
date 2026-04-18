@@ -1,47 +1,38 @@
-import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:test/test.dart';
 
 void main() {
-  MontyOsCall fakeOsCall(String op, [List<MontyValue> args = const []]) =>
-      MontyOsCall(operationName: op, arguments: args);
-
-  group('EnvOsProvider', () {
-    late EnvOsProvider handler;
+  group('envHandler', () {
+    late OsCallHandler handler;
 
     setUp(() {
-      handler = const EnvOsProvider({'APP_ENV': 'production', 'DEBUG': '0'});
+      handler = envHandler(const {'APP_ENV': 'production', 'DEBUG': '0'});
     });
 
     test('os.getenv returns value from provided map', () async {
-      final result = await handler.resolve(
-        fakeOsCall('os.getenv', [const MontyString('APP_ENV')]),
-      );
+      final result = await handler('os.getenv', ['APP_ENV'], null);
 
       expect(result, 'production');
     });
 
     test('os.getenv returns null for missing key', () async {
-      final result = await handler.resolve(
-        fakeOsCall('os.getenv', [const MontyString('NONEXISTENT')]),
-      );
+      final result = await handler('os.getenv', ['NONEXISTENT'], null);
 
       expect(result, isNull);
     });
 
     test('os.getenv returns default when key missing', () async {
-      final result = await handler.resolve(
-        fakeOsCall('os.getenv', [
-          const MontyString('NONEXISTENT'),
-          const MontyString('fallback'),
-        ]),
+      final result = await handler(
+        'os.getenv',
+        ['NONEXISTENT', 'fallback'],
+        null,
       );
 
       expect(result, 'fallback');
     });
 
     test('os.environ returns full map', () async {
-      final result = await handler.resolve(fakeOsCall('os.environ'));
+      final result = await handler('os.environ', const [], null);
 
       expect(result, isA<Map<String, String>>());
       final map = result! as Map<String, String>;
@@ -52,7 +43,7 @@ void main() {
 
     test('provided map does not leak host Platform.environment', () async {
       // The handler only exposes the injected map.
-      final result = await handler.resolve(fakeOsCall('os.environ'));
+      final result = await handler('os.environ', const [], null);
       final map = result! as Map<String, String>;
 
       // Should not contain typical host-only env vars.
@@ -62,7 +53,7 @@ void main() {
 
     test('unknown os.* operation throws', () {
       expect(
-        () => handler.resolve(fakeOsCall('os.listdir')),
+        () => handler('os.listdir', const [], null),
         throwsUnsupportedError,
       );
     });
