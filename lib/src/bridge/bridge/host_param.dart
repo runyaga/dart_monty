@@ -65,7 +65,7 @@ class HostParam {
   /// Use this for polymorphic tools where the hint depends on another
   /// arg — e.g. `execute_script(language="python", script="...")` sets
   /// `renderHintFrom: 'language'` on `script`. Consumers resolve the
-  /// sibling's string value via [ParamRenderHint.values.byName] and fall
+  /// sibling's string value via `ParamRenderHint.values.byName` and fall
   /// back to [ParamRenderHint.plain] if the value is unrecognized.
   final String? renderHintFrom;
 
