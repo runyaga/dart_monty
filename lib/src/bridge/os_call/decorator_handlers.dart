@@ -155,3 +155,23 @@ OsCallHandler overlayFsHandler({
     };
   };
 }
+
+/// Fluent composition helpers for [OsCallHandler].
+///
+/// ```dart
+/// // Instead of:
+/// overlayFsHandler(base: readOnlyHandler(fsHandler(baseFs)), scratch: scratch)
+///
+/// // Write:
+/// fsHandler(baseFs).readOnly().overlayWith(scratch)
+/// ```
+extension DecoratorHandlers on OsCallHandler {
+  /// Wraps this handler so write operations throw [OsCallPermissionError].
+  OsCallHandler readOnly() => readOnlyHandler(this);
+
+  /// Uses this handler as the read-only base of a copy-on-write overlay.
+  ///
+  /// Writes go to [scratch]; reads fall through to this handler on miss.
+  OsCallHandler overlayWith(OsCallHandler scratch) =>
+      overlayFsHandler(base: this, scratch: scratch);
+}
