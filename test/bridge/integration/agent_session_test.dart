@@ -73,6 +73,28 @@ void main() {
 
       expect(result.value.dartValue, [1, 2.5, 'hello', true]);
     });
+
+    // Regression: augmented assignment previously caused SyntaxError because
+    // captureLastExpression wrapped `x += 1` as `__r = (x += 1)` — invalid
+    // Python.
+    test('augmented assignment (x += 1) does not error', () async {
+      await session.execute('x = 10');
+      final result = await session.execute('x += 1');
+
+      expect(result.error, isNull);
+      final val = await session.execute('x');
+      expect(val.value.dartValue, 11);
+    });
+
+    // Regression: functions were previously coerced to their string repr by the
+    // persist→restore round-trip and became NameError on the second call.
+    test('function defined in one call callable in next', () async {
+      await session.execute('def add(a, b): return a + b');
+      final result = await session.execute('add(3, 4)');
+
+      expect(result.error, isNull);
+      expect(result.value.dartValue, 7);
+    });
   });
 
   group('AgentSession with host functions', () {
@@ -260,19 +282,23 @@ void main() {
       expect(session.isSandboxMode, isTrue);
     });
 
-    test('variables persist across execute() calls', () async {
+    // Sandbox mode creates a fresh MontyRepl per execute() call — state does
+    // NOT persist between calls (no restore/persist serialization).
+    test('each execute() is isolated — variables do not carry over', () async {
       await session.execute('x = 42');
       final result = await session.execute('x + 1');
 
-      expect(result.value.dartValue, 43);
+      // x is not defined in the second fresh interpreter; expect an error.
+      expect(result.error, isNotNull);
     });
 
-    test('state persists across fresh interpreters', () async {
-      await session.execute('name = "alice"');
-      await session.execute('age = 30');
-      final result = await session.execute('[name, age]');
+    test('consecutive calls each run in an independent fresh interpreter',
+        () async {
+      final r1 = await session.execute('2 + 2');
+      final r2 = await session.execute('3 + 3');
 
-      expect(result.value.dartValue, ['alice', 30]);
+      expect(r1.value.dartValue, 4);
+      expect(r2.value.dartValue, 6);
     });
 
     test('host function callable from sandbox', () async {
@@ -297,29 +323,28 @@ void main() {
       expect(result.value.dartValue, 42);
     });
 
-    test('host function result persists in state', () async {
+    test('host function available within same call', () async {
       session.register(
         HostFunction(
           schema: const HostFunctionSchema(
             name: 'greet',
             description: 'Returns greeting',
-            params: [
-              HostParam(name: 'name', type: HostParamType.string),
-            ],
+            params: [HostParam(name: 'name', type: HostParamType.string)],
           ),
           handler: (args) async => 'Hello, ${args['name']}!',
         ),
       );
 
-      await session.execute('msg = greet("World")');
-      final result = await session.execute('msg');
+      // Both the call and the result access are in the same execute() call.
+      final result = await session.execute('greet("World")');
 
       expect(result.value.dartValue, 'Hello, World!');
     });
 
-    test('clearState() resets all variables', () async {
+    test('clearState() is a no-op — sandbox already starts fresh', () async {
       await session.execute('x = 99');
-      session.clearState();
+      session.clearState(); // no-op in sandbox mode
+      // x was never going to be visible in a fresh interpreter anyway
       final result = await session.execute('''
 try:
     result = x
@@ -331,12 +356,13 @@ result
       expect(result.value.dartValue, 'gone');
     });
 
-    test('error does not break state', () async {
-      await session.execute('x = 42');
-      await session.execute('1 / 0'); // error
-      final result = await session.execute('x');
+    test('Python error in one call does not affect the next call', () async {
+      final errResult = await session.execute('1 / 0');
+      expect(errResult.error, isNotNull);
 
-      expect(result.value.dartValue, 42);
+      // Next call is a clean interpreter — basic arithmetic works.
+      final result = await session.execute('1 + 1');
+      expect(result.value.dartValue, 2);
     });
 
     test('executeStream throws in sandbox mode', () {
@@ -348,11 +374,9 @@ result
 
     test('many sequential execute() calls work', () async {
       for (var i = 0; i < 10; i++) {
-        await session.execute('x = $i');
+        final r = await session.execute('$i * 2');
+        expect(r.value.dartValue, i * 2);
       }
-      final result = await session.execute('x');
-
-      expect(result.value.dartValue, 9);
     });
   });
 
@@ -433,6 +457,9 @@ result
     );
   });
 
+  // sessionStateSignal is a Dart-side mirror of Python globals retained for
+  // API compatibility. With ReplPlatform backing, state lives natively in the
+  // Rust REPL heap — the signal always emits an empty map.
   group('AgentSession.sessionStateSignal', () {
     late AgentSession session;
 
@@ -444,53 +471,18 @@ result
       await session.dispose();
     });
 
-    test('starts as an empty map', () {
-      expect(session.sessionStateSignal.value, isEmpty);
-    });
-
-    test('updates after execute() assigns a variable', () async {
+    test('always an empty map — state lives in Rust REPL heap', () async {
       await session.execute('x = 42');
+      await session.execute('y = 99');
 
-      expect(session.sessionStateSignal.value['x'], 42);
-    });
-
-    test('accumulates variables across multiple execute() calls', () async {
-      await session.execute('a = 1');
-      await session.execute('b = 2');
-
-      final s = session.sessionStateSignal.value;
-      expect(s['a'], 1);
-      expect(s['b'], 2);
-    });
-
-    test('subscriber is notified after each execute()', () async {
-      final snapshots = <Map<String, Object?>>[];
-      final sub = session.sessionStateSignal.subscribe(
-        (v) => snapshots.add(Map.from(v)),
-      );
-      addTearDown(sub);
-
-      await session.execute('x = 1');
-      await session.execute('y = 2');
-
-      // subscribe fires immediately on attach (empty), then after each execute.
-      expect(snapshots.length, greaterThanOrEqualTo(3));
-      expect(snapshots.last['x'], 1);
-      expect(snapshots.last['y'], 2);
+      // Signal is not populated — state is in the native REPL, not Dart.
+      expect(session.sessionStateSignal.value, isEmpty);
     });
 
     test('clearState() resets signal to empty map', () async {
-      await session.execute('x = 42');
       session.clearState();
 
       expect(session.sessionStateSignal.value, isEmpty);
-    });
-
-    test('error in execute() does not clear existing state', () async {
-      await session.execute('x = 42');
-      await session.execute('1 / 0'); // error
-
-      expect(session.sessionStateSignal.value['x'], 42);
     });
 
     test('is a ReadonlySignal', () {
@@ -512,19 +504,11 @@ result
       await session.dispose();
     });
 
-    test('updates after execute() assigns a variable', () async {
+    test('always empty — sandbox calls use fresh interpreters', () async {
       await session.execute('x = 99');
+      await session.execute('y = 20');
 
-      expect(session.sessionStateSignal.value['x'], 99);
-    });
-
-    test('accumulates across sandbox execute() calls', () async {
-      await session.execute('a = 10');
-      await session.execute('b = 20');
-
-      final s = session.sessionStateSignal.value;
-      expect(s['a'], 10);
-      expect(s['b'], 20);
+      expect(session.sessionStateSignal.value, isEmpty);
     });
   });
 
