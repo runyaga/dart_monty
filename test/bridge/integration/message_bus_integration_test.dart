@@ -52,10 +52,7 @@ void main() {
     final registry = PluginRegistry()
       ..register(msgBus)
       ..register(
-        SandboxPlugin(
-          platformFactory: () async => createPlatform(),
-          parentPlugins: [msgBus],
-        ),
+        SandboxPlugin(platformFactory: () async => createPlatform()),
       );
     await registry.attachTo(bridge);
     return bridge;

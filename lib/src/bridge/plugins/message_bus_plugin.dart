@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:collection';
 
+import 'package:dart_monty/src/bridge/bridge/host_args.dart';
 import 'package:dart_monty/src/bridge/bridge/host_function.dart';
 import 'package:dart_monty/src/bridge/bridge/host_function_schema.dart';
 import 'package:dart_monty/src/bridge/bridge/host_param.dart';
@@ -451,7 +452,7 @@ class MessageBusPlugin extends MontyPlugin {
   }
 
   Future<Object?> _handleSend(Map<String, Object?> args) {
-    final name = args['name']! as String;
+    final name = args.str('name');
     final message = args['message'];
     _bus.send(name, message);
     logger.debug('msg_send', attributes: {'channel': name});
@@ -460,8 +461,8 @@ class MessageBusPlugin extends MontyPlugin {
   }
 
   Future<Object?> _handleRecv(Map<String, Object?> args) async {
-    final name = args['name']! as String;
-    final timeoutMs = args['timeout_ms'] as int?;
+    final name = args.str('name');
+    final timeoutMs = args.intArgOrNull('timeout_ms');
 
     final completer = Completer<Object?>();
     _pendingRecvs.add(completer);
@@ -490,13 +491,13 @@ class MessageBusPlugin extends MontyPlugin {
   }
 
   Future<Object?> _handlePeek(Map<String, Object?> args) {
-    final name = args['name']! as String;
+    final name = args.str('name');
 
     return Future.value(_bus.peek(name));
   }
 
   Future<Object?> _handleClose(Map<String, Object?> args) {
-    final name = args['name']! as String;
+    final name = args.str('name');
     _bus.close(name);
     logger.debug('msg_close', attributes: {'channel': name});
 
@@ -504,7 +505,7 @@ class MessageBusPlugin extends MontyPlugin {
   }
 
   Future<Object?> _handleStats(Map<String, Object?> args) {
-    final name = args['name']! as String;
+    final name = args.str('name');
     final ch = _bus.channelOrNull(name);
     final s = ch?.snapshot ?? ChannelSnapshot.empty;
 

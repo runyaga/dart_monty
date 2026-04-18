@@ -216,7 +216,11 @@ class DefaultMontyBridge implements MontyBridge {
     // causes _run to throw when it tries controller.add(), producing an
     // unhandled zone error.
     try {
-      var stream = controller.stream;
+      var stream = controller.stream.map((event) {
+        _logEvent(event);
+
+        return event;
+      });
       for (final wrap in _streamWrappers) {
         stream = wrap(code, stream);
       }
@@ -364,6 +368,58 @@ class DefaultMontyBridge implements MontyBridge {
       _emitInfraError(e, st, controller, log);
     } finally {
       _host.clearPendingFutures();
+    }
+  }
+
+  /// Maps [BridgeEvent]s to [BridgeLogger] calls so consumers that tail the
+  /// logger see a complete execution trace without also subscribing to the
+  /// event stream.
+  ///
+  /// Trace level is used for OS calls (high-volume, verbose); debug for tool
+  /// calls; info for run lifecycle; warning for run errors.
+  void _logEvent(BridgeEvent event) {
+    switch (event) {
+      case BridgeRunStarted(:final threadId, :final runId):
+        log.info(
+          'run started',
+          attributes: {'threadId': threadId, 'runId': runId},
+        );
+      case BridgeRunFinished(:final threadId, :final runId):
+        log.info(
+          'run finished',
+          attributes: {'threadId': threadId, 'runId': runId},
+        );
+      case BridgeRunError(:final message, :final exception):
+        log.warning(
+          'run error',
+          attributes: {'message': message},
+          error: exception,
+        );
+      case BridgeToolCallStart(:final callId, :final name):
+        log.debug('tool call', attributes: {'callId': callId, 'name': name});
+      case BridgeToolCallResult(:final callId):
+        log.debug('tool result', attributes: {'callId': callId});
+      case BridgeOsCallStart(:final callId, :final operationName):
+        log.trace(
+          'os call',
+          attributes: {'callId': callId, 'op': operationName},
+        );
+      case BridgeOsCallResult(:final callId, :final durationMs):
+        log.trace(
+          'os result',
+          attributes: {'callId': callId, 'durationMs': ?durationMs},
+        );
+      case BridgeStepStarted() ||
+          BridgeStepFinished() ||
+          BridgeToolCallArgs() ||
+          BridgeToolCallEnd() ||
+          BridgeEventLoopWaiting() ||
+          BridgeEventLoopResumed() ||
+          BridgeUiRendered():
+        // No-op: these events are surface-level telemetry (step boundaries,
+        // argument deltas, UI) — logging them would be chatty duplication of
+        // the event stream.
+        break;
     }
   }
 }

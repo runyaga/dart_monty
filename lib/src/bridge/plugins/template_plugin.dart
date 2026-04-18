@@ -1,8 +1,10 @@
+import 'package:dart_monty/src/bridge/bridge/host_args.dart';
 import 'package:dart_monty/src/bridge/bridge/host_function.dart';
 import 'package:dart_monty/src/bridge/bridge/host_function_schema.dart';
 import 'package:dart_monty/src/bridge/bridge/host_param.dart';
 import 'package:dart_monty/src/bridge/bridge/host_param_type.dart';
 import 'package:dart_monty/src/bridge/bridge/monty_plugin.dart';
+import 'package:dart_monty/src/bridge/bridge/param_render_hint.dart';
 import 'package:dinja/dinja.dart';
 
 /// Default maximum input size for template strings (512 KB).
@@ -48,6 +50,7 @@ class JinjaTemplatePlugin extends MontyPlugin {
             name: 'template',
             type: HostParamType.string,
             description: 'Jinja2 template string.',
+            renderAs: ParamRenderHint.jinja,
           ),
           HostParam(
             name: 'context',
@@ -65,8 +68,8 @@ class JinjaTemplatePlugin extends MontyPlugin {
       JinjaTemplatePlugin(maxInputSize: _maxInputSize);
 
   Future<Object?> _handleRender(Map<String, Object?> args) {
-    final templateStr = args['template']! as String;
-    final context = args['context']! as Map<String, Object?>;
+    final templateStr = args.str('template');
+    final context = args.mapArg('context');
     _guardInputSize(templateStr);
 
     try {

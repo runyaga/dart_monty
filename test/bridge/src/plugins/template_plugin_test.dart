@@ -30,6 +30,13 @@ void main() {
       expect(child, isA<JinjaTemplatePlugin>());
       expect(child, isNot(same(plugin)));
     });
+
+    test('tmpl_render.template declares jinja render hint', () {
+      final schema = plugin.functions.single.schema.toJsonSchema();
+      final properties = schema['properties']! as Map<String, Object?>;
+      final template = properties['template']! as Map<String, Object?>;
+      expect(template['x-render-as'], 'jinja');
+    });
   });
 
   group('tmpl_render', () {

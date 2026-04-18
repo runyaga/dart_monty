@@ -134,6 +134,62 @@ void main() {
     });
   });
 
+  group('renderAs / renderHintFrom', () {
+    test('absent hint produces no render keys in JSON Schema', () {
+      const param = HostParam(
+        name: 'x',
+        type: HostParamType.string,
+        description: 'a string',
+      );
+      final schema = param.toJsonSchema();
+      expect(schema.containsKey('x-render-as'), isFalse);
+      expect(schema.containsKey('x-render-hint-from'), isFalse);
+    });
+
+    test('renderAs emits x-render-as with enum name', () {
+      const param = HostParam(
+        name: 'code',
+        type: HostParamType.string,
+        renderAs: ParamRenderHint.python,
+      );
+      expect(param.toJsonSchema()['x-render-as'], 'python');
+    });
+
+    test('renderHintFrom emits x-render-hint-from sibling name', () {
+      const param = HostParam(
+        name: 'script',
+        type: HostParamType.string,
+        renderHintFrom: 'language',
+      );
+      expect(param.toJsonSchema()['x-render-hint-from'], 'language');
+    });
+
+    test('render hint survives a jsonSchemaOverride', () {
+      const param = HostParam(
+        name: 'template',
+        type: HostParamType.string,
+        jsonSchemaOverride: {'type': 'string', 'minLength': 1},
+        renderAs: ParamRenderHint.jinja,
+      );
+      final schema = param.toJsonSchema();
+      expect(schema['type'], 'string');
+      expect(schema['minLength'], 1);
+      expect(schema['x-render-as'], 'jinja');
+    });
+
+    test('assert rejects both renderAs and renderHintFrom', () {
+      expect(
+        () => HostParam(
+          name: 'x',
+          type: HostParamType.string,
+          renderAs: ParamRenderHint.python,
+          renderHintFrom: 'language',
+        ),
+        throwsA(isA<AssertionError>()),
+      );
+    });
+  });
+
   group('HostParamType', () {
     test('jsonSchemaType for each type', () {
       expect(HostParamType.string.jsonSchemaType, 'string');
