@@ -8,7 +8,6 @@ import 'package:dart_monty/src/bridge/bridge/host_function_schema.dart';
 import 'package:dart_monty/src/bridge/bridge/monty_bridge.dart';
 import 'package:dart_monty/src/bridge/bridge/plugin_host.dart';
 import 'package:dart_monty/src/bridge/bridge/struct_log_bridge_logger.dart';
-import 'package:dart_monty/src/bridge/os_call/os_provider.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:meta/meta.dart';
 import 'package:struct_log/struct_log.dart';
@@ -55,16 +54,9 @@ void _emitScriptError(
   StreamController<BridgeEvent> controller,
   BridgeLogger log,
 ) {
-  log.warning(
-    'Python error',
-    attributes: {'error': e.exception?.message ?? e.message},
-  );
-  controller.add(
-    BridgeRunError(
-      message: e.exception?.message ?? e.message,
-      exception: e.exception,
-    ),
-  );
+  final msg = e.exception?.message ?? e.message;
+  log.warning('Python error', attributes: {'error': msg});
+  controller.add(BridgeRunError(message: msg, exception: e.exception));
 }
 
 /// Emits a [BridgeRunError] for a [MontyError] caught during `_run`.
@@ -126,9 +118,7 @@ class DefaultMontyBridge implements MontyBridge {
   final bool _useFutures;
   final PluginHost _host;
 
-  // Kept separately from PluginHost._osProvider so dispose() can call it
-  // without accessing PluginHost internals.
-  OsProvider? _osProvider;
+  OsCallHandler? _osHandler;
 
   bool _isExecuting = false;
   bool _isDisposed = false;
@@ -183,10 +173,9 @@ class DefaultMontyBridge implements MontyBridge {
   }
 
   @override
-  void registerOs(OsProvider provider) {
+  void registerOs(OsCallHandler handler) {
     if (_isDisposed) throw StateError('Bridge has been disposed');
-    _osProvider = provider;
-    _host.registerOs(provider);
+    _osHandler = handler;
   }
 
   @override
@@ -242,7 +231,7 @@ class DefaultMontyBridge implements MontyBridge {
   @override
   void dispose() {
     _isDisposed = true;
-    unawaited(_osProvider?.dispose());
+    _osHandler = null;
     log.close();
   }
 
@@ -250,23 +239,122 @@ class DefaultMontyBridge implements MontyBridge {
   // Internal execution loop.
   // ---------------------------------------------------------------------------
 
+  /// Dispatches a [MontyOsCall] through the registered [OsCallHandler],
+  /// emitting `BridgeOsCallStart`/`BridgeOsCallResult` and resuming the
+  /// platform. Errors are surfaced via `resumeWithError`.
+  ///
+  /// Mirrors the shape of `MontyRepl._handleOsCall` — arguments and kwargs
+  /// are unwrapped to raw `Object?` values before invoking the handler.
+  Future<MontyProgress> _handleOsCall(
+    MontyOsCall osCall,
+    StreamController<BridgeEvent> controller,
+  ) async {
+    final callId = _host.nextId;
+    final opName = osCall.operationName;
+    final argSummary = osCall.arguments.isEmpty
+        ? null
+        : osCall.arguments.map((a) => a.dartValue).join(', ');
+
+    controller.add(
+      BridgeOsCallStart(
+        callId: callId,
+        operationName: opName,
+        argumentSummary: argSummary,
+      ),
+    );
+
+    final handler = _osHandler;
+    if (handler == null) {
+      log.warning('OS call denied (no handler)', attributes: {'op': opName});
+      final errorMsg =
+          'PermissionError: $opName not available (no filesystem configured)';
+      controller.add(BridgeOsCallResult(callId: callId, result: errorMsg));
+
+      return _platform.resumeWithError(errorMsg);
+    }
+
+    final sw = Stopwatch()..start();
+    try {
+      final args = osCall.arguments.map((v) => v.dartValue).toList();
+      final kwargs = osCall.kwargs?.map((k, v) => MapEntry(k, v.dartValue));
+      final result = await handler(opName, args, kwargs);
+      sw.stop();
+      controller.add(
+        BridgeOsCallResult(
+          callId: callId,
+          result: result?.toString() ?? '',
+          durationMs: sw.elapsedMilliseconds,
+        ),
+      );
+
+      return await _platform.resume(result);
+    } on Object catch (e, st) {
+      sw.stop();
+      log.error(
+        'OS call handler error',
+        error: e,
+        stackTrace: st,
+        attributes: {'op': opName},
+      );
+      controller.add(
+        BridgeOsCallResult(
+          callId: callId,
+          result: 'Error: $e',
+          durationMs: sw.elapsedMilliseconds,
+        ),
+      );
+
+      return _platform.resumeWithError(e.toString());
+    }
+  }
+
+  /// Drives the Monty start/resume loop, mirroring the shape of
+  /// `MontyRepl._driveLoop`. Each [MontyProgress] kind is handled inline;
+  /// the switch terminates on [MontyComplete] after emitting the terminal
+  /// [BridgeRunFinished] / [BridgeRunError] event.
   Future<void> _run(
     String code,
     StreamController<BridgeEvent> controller,
   ) async {
+    final threadId = _host.nextId;
+    final runId = _host.nextId;
+    controller.add(BridgeRunStarted(threadId: threadId, runId: runId));
+
+    final externalFunctions = _host.schemas.map((s) => s.name).toList();
+    final futuresCapable = _useFutures && _platform is MontyFutureCapable;
+    _host.clearPendingFutures();
+
     try {
-      final init = await _initExecution(code, controller);
-      var progress = init.progress;
+      var progress = await _platform.start(
+        code,
+        externalFunctions: externalFunctions,
+        limits: _limits,
+      );
       while (true) {
-        final next = await _dispatchProgress(
-          progress,
-          controller,
-          init.threadId,
-          init.runId,
-          futuresCapable: init.futuresCapable,
-        );
-        if (next == null) return;
-        progress = next;
+        switch (progress) {
+          case final MontyComplete complete:
+            _emitComplete(complete, controller, threadId, runId);
+
+            return;
+          case final MontyPending pending:
+            progress = await _host.handlePending(
+              pending,
+              controller,
+              futuresCapable: futuresCapable,
+            );
+          case final MontyOsCall osCall:
+            progress = await _handleOsCall(osCall, controller);
+          case final MontyResolveFutures resolve:
+            progress = await (futuresCapable
+                ? _host.resolveFutures(resolve, controller)
+                : _platform.resume(null));
+          case final MontyNameLookup lookup:
+            // The bridge does not maintain a name-constant registry.
+            // Indicate undefined so Python raises NameError.
+            progress = await _platform.resumeNameLookupUndefined(
+              lookup.variableName,
+            );
+        }
       }
     } on MontyScriptError catch (e) {
       _emitScriptError(e, controller, log);
@@ -276,68 +364,6 @@ class DefaultMontyBridge implements MontyBridge {
       _emitInfraError(e, st, controller, log);
     } finally {
       _host.clearPendingFutures();
-    }
-  }
-
-  Future<
-    ({
-      MontyProgress progress,
-      String threadId,
-      String runId,
-      bool futuresCapable,
-    })
-  >
-  _initExecution(String code, StreamController<BridgeEvent> controller) async {
-    final threadId = _host.nextId;
-    final runId = _host.nextId;
-    controller.add(BridgeRunStarted(threadId: threadId, runId: runId));
-
-    final externalFunctions = _host.schemas.map((s) => s.name).toList();
-    final futuresCapable = _useFutures && _platform is MontyFutureCapable;
-    _host.clearPendingFutures();
-
-    final progress = await _platform.start(
-      code,
-      externalFunctions: externalFunctions,
-      limits: _limits,
-    );
-
-    return (
-      progress: progress,
-      threadId: threadId,
-      runId: runId,
-      futuresCapable: futuresCapable,
-    );
-  }
-
-  Future<MontyProgress?> _dispatchProgress(
-    MontyProgress progress,
-    StreamController<BridgeEvent> controller,
-    String threadId,
-    String runId, {
-    required bool futuresCapable,
-  }) async {
-    switch (progress) {
-      case final MontyPending pending:
-        return _host.handlePending(
-          pending,
-          controller,
-          futuresCapable: futuresCapable,
-        );
-      case final MontyOsCall osCall:
-        return _host.handleOsCall(osCall, controller);
-      case final MontyResolveFutures resolve:
-        return futuresCapable
-            ? _host.resolveFutures(resolve, controller)
-            : _platform.resume(null);
-      case final MontyNameLookup lookup:
-        // The bridge does not maintain a name-constant registry.
-        // Indicate undefined so Python raises NameError.
-        return _platform.resumeNameLookupUndefined(lookup.variableName);
-      case final MontyComplete complete:
-        _emitComplete(complete, controller, threadId, runId);
-
-        return null;
     }
   }
 }

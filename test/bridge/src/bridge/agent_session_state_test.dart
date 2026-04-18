@@ -229,25 +229,60 @@ void main() {
   });
 
   // ---------------------------------------------------------------------------
-  // wrapWithStateCode
+  // wrapSandboxed
   // ---------------------------------------------------------------------------
 
-  group('wrapWithStateCode', () {
+  group('wrapSandboxed', () {
     test('empty state wraps with restore/persist', () {
-      final code = wrapWithStateCode('x = 1', {});
+      final code = wrapSandboxed('x = 1', <String, Object?>{});
       expect(code, startsWith('__d = __restore_state__()'));
       expect(code, contains('x = 1'));
       expect(code, endsWith('__persist_state__(__d2)'));
     });
 
     test('expression result is captured via __r', () {
-      final code = wrapWithStateCode('1 + 1', {});
+      final code = wrapSandboxed('1 + 1', <String, Object?>{});
       expect(code, contains('__r = (1 + 1)'));
       expect(code, endsWith('\n__r'));
     });
 
     test('statement does not append __r', () {
-      final code = wrapWithStateCode('x = 42', {});
+      final code = wrapSandboxed('x = 42', <String, Object?>{});
+      expect(code, isNot(endsWith('\n__r')));
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // wrapShared
+  // ---------------------------------------------------------------------------
+
+  group('wrapShared', () {
+    test('does not emit restore preamble', () {
+      final code = wrapShared('x = 1', <String, Object?>{});
+      expect(code, isNot(contains('__restore_state__')));
+      expect(code, contains('x = 1'));
+      expect(code, endsWith('__persist_state__(__d2)'));
+    });
+
+    test('persist captures assignments from user code', () {
+      final code = wrapShared('x = 1', <String, Object?>{});
+      expect(code, contains('__d2["x"] = x'));
+    });
+
+    test('persist also captures keys already in state', () {
+      final code = wrapShared('y = 2', <String, Object?>{'x': 1});
+      expect(code, contains('__d2["x"] = x'));
+      expect(code, contains('__d2["y"] = y'));
+    });
+
+    test('expression result is captured via __r', () {
+      final code = wrapShared('1 + 1', <String, Object?>{});
+      expect(code, contains('__r = (1 + 1)'));
+      expect(code, endsWith('\n__r'));
+    });
+
+    test('statement does not append __r', () {
+      final code = wrapShared('x = 42', <String, Object?>{});
       expect(code, isNot(endsWith('\n__r')));
     });
   });

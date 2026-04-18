@@ -12,7 +12,7 @@ import 'package:dart_monty/src/bridge/bridge/introspection_functions.dart';
 import 'package:dart_monty/src/bridge/bridge/monty_bridge.dart';
 import 'package:dart_monty/src/bridge/bridge/monty_plugin.dart';
 import 'package:dart_monty/src/bridge/bridge/plugin_registry.dart';
-import 'package:dart_monty/src/bridge/os_call/os_provider.dart';
+import 'package:dart_monty/src/bridge/os_call/os_handlers.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:signals_core/signals_core.dart';
 
@@ -53,7 +53,7 @@ import 'package:signals_core/signals_core.dart';
 ///
 /// ```dart
 /// // Shared interpreter (default) — fast, light host functions
-/// final session = AgentSession(os: OsProvider());
+/// final session = AgentSession(os: defaultSandboxOsHandler());
 /// await session.execute('x = 42');
 /// final result = await session.execute('x + 1'); // 43
 ///
@@ -75,11 +75,16 @@ class AgentSession {
   /// When [sandbox] is false (default), a single interpreter is reused
   /// across calls for maximum performance.
   AgentSession({
-    OsProvider? os,
+    OsCallHandler? os,
+    Map<String, OsCallHandler>? osHandlers,
     List<MontyPlugin>? plugins,
     BridgeLogger? logger,
     bool sandbox = false,
-  }) : _os = os,
+  }) : assert(
+         os == null || osHandlers == null,
+         'Pass either os or osHandlers, not both.',
+       ),
+       _os = os ?? (osHandlers != null ? composeOsHandlers(osHandlers) : null),
        _plugins = plugins,
        _logger = logger,
        _sandbox = sandbox {
@@ -106,7 +111,7 @@ class AgentSession {
     }
   }
 
-  final OsProvider? _os;
+  final OsCallHandler? _os;
   final List<MontyPlugin>? _plugins;
   final BridgeLogger? _logger;
   final bool _sandbox;
@@ -199,9 +204,21 @@ class AgentSession {
   }
 
   /// Clears all persisted Python state.
+  ///
+  /// In shared mode, also issues a `del` snippet against the live interpreter
+  /// so tracked names disappear from Python globals, not just the Dart map.
   void clearState() {
     if (_disposed) throw StateError('AgentSession has been disposed');
+    final known = _sessionStateSignal.value.keys.toList();
     _sessionStateSignal.value = {};
+    if (_sharedBridge != null && known.isNotEmpty) {
+      final delCode = [
+        for (final k in known) 'try:\n    del $k\nexcept NameError:\n    pass',
+      ].join('\n');
+      // Fire-and-forget — the bridge exposes a stream; drain it so any errors
+      // surface as unhandled zone errors rather than silently lingering.
+      unawaited(_sharedBridge!.execute(delCode).drain());
+    }
   }
 
   /// Releases all resources.
@@ -220,8 +237,10 @@ class AgentSession {
       await _sharedRegistry!.attachTo(_sharedBridge!, baseOs: _os);
       _sharedAttached = true;
     }
+    // Shared mode: Rust REPL heap persists variables natively — no restore
+    // preamble, so error line numbers already point at user code.
     yield* _sharedBridge!.execute(
-      wrapWithStateCode(code, _sessionStateSignal.value),
+      wrapShared(code, _sessionStateSignal.value),
     );
   }
 
@@ -234,12 +253,12 @@ class AgentSession {
       await _sharedRegistry!.attachTo(_sharedBridge!, baseOs: _os);
       _sharedAttached = true;
     }
-    final state = _sessionStateSignal.value;
+    final snapshot = _sessionStateSignal.value;
     final events = await _sharedBridge!
-        .execute(wrapWithStateCode(code, state))
+        .execute(wrapShared(code, snapshot))
         .toList();
 
-    return extractBridgeResult(events, restoreLineCount(state));
+    return extractBridgeResult(events, 0);
   }
 
   // ---------------------------------------------------------------------------
@@ -257,10 +276,10 @@ class AgentSession {
     await registry.attachTo(b, baseOs: _os);
 
     try {
-      final state = _sessionStateSignal.value;
-      final events = await b.execute(wrapWithStateCode(code, state)).toList();
+      final snapshot = _sessionStateSignal.value;
+      final events = await b.execute(wrapSandboxed(code, snapshot)).toList();
 
-      return extractBridgeResult(events, restoreLineCount(state));
+      return extractBridgeResult(events, restoreLineCount(snapshot));
     } finally {
       await registry.disposeAll();
       b.dispose();

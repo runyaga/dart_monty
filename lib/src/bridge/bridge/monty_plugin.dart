@@ -3,7 +3,7 @@ import 'package:dart_monty/src/bridge/bridge/bridge_logger.dart';
 import 'package:dart_monty/src/bridge/bridge/host_function.dart';
 import 'package:dart_monty/src/bridge/bridge/monty_bridge.dart';
 import 'package:dart_monty/src/bridge/bridge/plugin_registry.dart';
-import 'package:dart_monty/src/bridge/os_call/os_provider.dart';
+import 'package:dart_monty/src/bridge/os_call/os_handlers.dart';
 import 'package:meta/meta.dart';
 
 // ---------------------------------------------------------------------------
@@ -102,13 +102,13 @@ class ChildSpawnContext {
 /// Plugins that need to intercept OS calls return a prefix map from
 /// [osContribution]. `PluginRegistry.attachTo` merges contributions from all
 /// plugins, throws [StateError] if two plugins claim the same prefix, and
-/// calls `bridge.registerOs` with the composed provider:
+/// calls `bridge.registerOs` with the composed handler:
 ///
 /// ```dart
 /// @override
-/// Map<String, OsProvider>? get osContribution => {
-///   'Path.': _myFsProvider,
-///   'os.getcwd': _myFsProvider,
+/// Map<String, OsCallHandler>? get osContribution => {
+///   'Path.': _myFsHandler,
+///   'os.getcwd': _myFsHandler,
 /// };
 /// ```
 ///
@@ -183,12 +183,12 @@ abstract class MontyPlugin {
   /// OS call prefix contributions for this plugin.
   ///
   /// Each key is an operation-name prefix (e.g., `'Path.'`, `'os.'`); the
-  /// value is the [OsProvider] that handles those operations.
+  /// value is the [OsCallHandler] that handles those operations.
   ///
   /// `PluginRegistry.attachTo` merges contributions from all plugins and
   /// throws [StateError] if two plugins claim the same prefix. Returns `null`
   /// (the default) if this plugin does not intercept OS calls.
-  Map<String, OsProvider>? get osContribution => null;
+  Map<String, OsCallHandler>? get osContribution => null;
 
   /// Host functions this plugin provides.
   List<HostFunction> get functions;

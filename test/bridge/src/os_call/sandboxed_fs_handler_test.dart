@@ -1,8 +1,8 @@
-// Tests for SandboxedFsProvider behavior NOT covered by the shared
+// Tests for sandboxedFsHandler behavior NOT covered by the shared
 // contract.
 //
 // The shared FS handler contract
-// (run via sandboxed_fs_provider_contract_test.dart) covers:
+// (run via sandboxed_fs_handler_contract_test.dart) covers:
 //   - File CRUD: write/read text & bytes round-trips, return types
 //   - Directory: mkdir (with parents, exist_ok), iterdir, rmdir
 //   - Queries: exists, is_file, is_dir
@@ -16,63 +16,51 @@
 
 import 'dart:io';
 
-import 'package:dart_monty/dart_monty.dart';
-import 'package:dart_monty/src/bridge/os_call/sandboxed_fs_provider.dart';
+import 'package:dart_monty/dart_monty_bridge.dart';
+import 'package:dart_monty/src/bridge/os_call/sandboxed_fs_handler.dart';
 import 'package:test/test.dart';
 
 void main() {
   late Directory root;
   late String rootPath;
-  late SandboxedFsProvider handler;
+  late OsCallHandler handler;
 
   setUp(() {
     root = Directory.systemTemp.createTempSync('monty_sandbox_test_');
     // Resolve symlinks so paths match on macOS (/var -> /private/var).
     rootPath = root.resolveSymbolicLinksSync();
-    handler = SandboxedFsProvider(root: root);
+    handler = sandboxedFsHandler(root: root);
   });
 
   tearDown(() {
     root.deleteSync(recursive: true);
   });
 
-  MontyOsCall pathCall(
-    String op,
-    List<MontyValue> args, {
-    Map<String, MontyValue>? kwargs,
-  }) => MontyOsCall(operationName: op, arguments: args, kwargs: kwargs);
-
-  group('SandboxedFsProvider', () {
+  group('sandboxedFsHandler', () {
     // -- Security tests --
 
     group('security', () {
       test('path traversal via ../ is rejected', () {
         expect(
-          () => handler.resolve(
-            pathCall('Path.read_text', [
-              MontyString('$rootPath/../../../etc/passwd'),
-            ]),
-          ),
+          () => handler('Path.read_text', [
+            '$rootPath/../../../etc/passwd',
+          ], null),
           throwsA(isA<OsCallPermissionError>()),
         );
       });
 
       test('path traversal via /../ in middle is rejected', () {
         expect(
-          () => handler.resolve(
-            pathCall('Path.read_text', [
-              MontyString('$rootPath/sub/../../etc/passwd'),
-            ]),
-          ),
+          () => handler('Path.read_text', [
+            '$rootPath/sub/../../etc/passwd',
+          ], null),
           throwsA(isA<OsCallPermissionError>()),
         );
       });
 
       test('absolute path outside root is rejected', () {
         expect(
-          () => handler.resolve(
-            pathCall('Path.read_text', [const MontyString('/etc/passwd')]),
-          ),
+          () => handler('Path.read_text', ['/etc/passwd'], null),
           throwsA(isA<OsCallPermissionError>()),
         );
       });
@@ -89,11 +77,9 @@ void main() {
         File('${evilDir.path}/secret.txt').writeAsStringSync('stolen');
 
         expect(
-          () => handler.resolve(
-            pathCall('Path.read_text', [
-              MontyString('${rootPath}evil/secret.txt'),
-            ]),
-          ),
+          () => handler('Path.read_text', [
+            '${rootPath}evil/secret.txt',
+          ], null),
           throwsA(isA<OsCallPermissionError>()),
         );
       });
@@ -105,9 +91,9 @@ void main() {
         expect(link.existsSync(), isTrue);
 
         expect(
-          () => handler.resolve(
-            pathCall('Path.read_text', [MontyString('$rootPath/escape_link')]),
-          ),
+          () => handler('Path.read_text', [
+            '$rootPath/escape_link',
+          ], null),
           throwsA(isA<OsCallPermissionError>()),
         );
       });
@@ -127,9 +113,9 @@ void main() {
         ).createSync('${outsideDir.path}/secret.txt');
 
         expect(
-          () => handler.resolve(
-            pathCall('Path.read_text', [MontyString('$rootPath/chain_link')]),
-          ),
+          () => handler('Path.read_text', [
+            '$rootPath/chain_link',
+          ], null),
           throwsA(isA<OsCallPermissionError>()),
         );
       });
@@ -143,9 +129,9 @@ void main() {
         Link('$rootPath/resolve_link').createSync(outsideDir.path);
 
         expect(
-          () => handler.resolve(
-            pathCall('Path.resolve', [MontyString('$rootPath/resolve_link')]),
-          ),
+          () => handler('Path.resolve', [
+            '$rootPath/resolve_link',
+          ], null),
           throwsA(isA<OsCallPermissionError>()),
         );
       });
@@ -154,21 +140,19 @@ void main() {
         File('$rootPath/norm.txt').writeAsStringSync('ok');
 
         // Double slashes should normalize and still work.
-        final result = await handler.resolve(
-          pathCall('Path.read_text', [MontyString('$rootPath//norm.txt')]),
-        );
+        final result = await handler('Path.read_text', [
+          '$rootPath//norm.txt',
+        ], null);
 
         expect(result, 'ok');
       });
 
       test('write to path outside sandbox is rejected', () {
         expect(
-          () => handler.resolve(
-            pathCall('Path.write_text', [
-              const MontyString('/tmp/escape.txt'),
-              const MontyString('pwned'),
-            ]),
-          ),
+          () => handler('Path.write_text', [
+            '/tmp/escape.txt',
+            'pwned',
+          ], null),
           throwsA(isA<OsCallPermissionError>()),
         );
       });
@@ -177,12 +161,10 @@ void main() {
         File('$rootPath/src.txt').writeAsStringSync('data');
 
         expect(
-          () => handler.resolve(
-            pathCall('Path.rename', [
-              MontyString('$rootPath/src.txt'),
-              const MontyString('/tmp/escaped.txt'),
-            ]),
-          ),
+          () => handler('Path.rename', [
+            '$rootPath/src.txt',
+            '/tmp/escaped.txt',
+          ], null),
           throwsA(isA<OsCallPermissionError>()),
         );
       });

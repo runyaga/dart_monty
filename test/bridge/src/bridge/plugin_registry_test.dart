@@ -550,7 +550,7 @@ void main() {
             registry.register(
               _OsContribPlugin(
                 namespace: 'fs',
-                contribution: {'Path.': const _FakeOsProvider()},
+                contribution: {'Path.': _fakeOsHandler},
               ),
             );
             await registry.attachTo(bridge);
@@ -574,7 +574,7 @@ void main() {
           'baseOs alone is registered directly when there are no contributions',
           () async {
             final bridge = _MockBridge();
-            const baseOs = _FakeOsProvider();
+            const baseOs = _fakeOsHandler;
             registry.register(
               _TestPlugin(namespace: 'ns', functions: [_fn('ns_x')]),
             );
@@ -590,10 +590,10 @@ void main() {
             registry.register(
               _OsContribPlugin(
                 namespace: 'fs',
-                contribution: {'Path.': const _FakeOsProvider()},
+                contribution: {'Path.': _fakeOsHandler},
               ),
             );
-            const baseOs = _FakeOsProvider();
+            const baseOs = _fakeOsHandler;
             await registry.attachTo(bridge, baseOs: baseOs);
             // A composed provider is registered — not baseOs directly.
             expect(bridge.capturedOs, isNotNull);
@@ -609,13 +609,13 @@ void main() {
               ..register(
                 _OsContribPlugin(
                   namespace: 'fs',
-                  contribution: {'Path.': const _FakeOsProvider()},
+                  contribution: {'Path.': _fakeOsHandler},
                 ),
               )
               ..register(
                 _OsContribPlugin(
                   namespace: 'other',
-                  contribution: {'Path.': const _FakeOsProvider()},
+                  contribution: {'Path.': _fakeOsHandler},
                 ),
               );
             await expectLater(
@@ -1013,19 +1013,18 @@ class _LifecyclePlugin extends MontyPlugin {
   }
 }
 
-/// Minimal [OsProvider] stub — resolve is never called in these tests.
-class _FakeOsProvider extends OsProvider {
-  const _FakeOsProvider() : super.base();
-
-  @override
-  Future<Object?> resolve(MontyOsCall call) => throw UnimplementedError();
-}
+/// Fake [OsCallHandler] — resolves to nothing, never actually invoked in tests.
+Future<Object?> _fakeOsHandler(
+  String operation,
+  List<Object?> args,
+  Map<String, Object?>? kwargs,
+) => throw UnimplementedError();
 
 /// Plugin with a configurable [osContribution] for OS prefix merging tests.
 class _OsContribPlugin extends MontyPlugin {
   _OsContribPlugin({
     required this.namespace,
-    required Map<String, OsProvider>? contribution,
+    required Map<String, OsCallHandler>? contribution,
   }) : _contribution = contribution;
 
   @override
@@ -1034,10 +1033,10 @@ class _OsContribPlugin extends MontyPlugin {
   @override
   List<HostFunction> get functions => [];
 
-  final Map<String, OsProvider>? _contribution;
+  final Map<String, OsCallHandler>? _contribution;
 
   @override
-  Map<String, OsProvider>? get osContribution => _contribution;
+  Map<String, OsCallHandler>? get osContribution => _contribution;
 }
 
 /// Plugin that opts into execute hooks. Tracks invocations for assertions.
@@ -1131,11 +1130,11 @@ class _MockBridge implements MontyBridge {
   @override
   void unregister(String name) {}
 
-  OsProvider? capturedOs;
+  OsCallHandler? capturedOs;
 
   @override
-  void registerOs(OsProvider provider) {
-    capturedOs = provider;
+  void registerOs(OsCallHandler handler) {
+    capturedOs = handler;
   }
 
   @override

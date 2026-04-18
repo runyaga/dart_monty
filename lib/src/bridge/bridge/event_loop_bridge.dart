@@ -6,7 +6,7 @@ import 'package:dart_monty/src/bridge/bridge/host_function.dart';
 import 'package:dart_monty/src/bridge/bridge/host_function_schema.dart';
 import 'package:dart_monty/src/bridge/bridge/host_param.dart';
 import 'package:dart_monty/src/bridge/bridge/host_param_type.dart';
-import 'package:dart_monty/src/bridge/os_call/os_provider.dart';
+import 'package:dart_monty/src/bridge/os_call/os_handlers.dart';
 
 /// State of the event loop bridge lifecycle.
 enum EventLoopState {
@@ -46,7 +46,7 @@ class EventLoopBridge extends DefaultMontyBridge {
   EventLoopBridge({
     required super.platform,
     super.limits,
-    OsProvider? os,
+    OsCallHandler? os,
     this.onRenderUi,
   }) : super(useFutures: true) {
     if (os != null) registerOs(os);

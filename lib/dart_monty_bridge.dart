@@ -19,18 +19,15 @@ export 'src/bridge/bridge/monty_bridge.dart';
 export 'src/bridge/bridge/monty_plugin.dart';
 export 'src/bridge/bridge/plugin_registry.dart';
 export 'src/bridge/bridge/struct_log_bridge_logger.dart';
-export 'src/bridge/os_call/default_sandbox_os.dart';
-export 'src/bridge/os_call/env_os_provider.dart';
-export 'src/bridge/os_call/fs_provider.dart';
-export 'src/bridge/os_call/memory_fs_provider.dart';
+export 'src/bridge/os_call/decorator_handlers.dart';
+export 'src/bridge/os_call/default_os_handler.dart';
+export 'src/bridge/os_call/fs_handlers.dart';
 export 'src/bridge/os_call/os_call_exception.dart';
-export 'src/bridge/os_call/os_provider.dart';
-export 'src/bridge/os_call/overlay_fs_provider.dart';
+export 'src/bridge/os_call/os_handlers.dart';
 export 'src/bridge/os_call/path_op.dart';
-export 'src/bridge/os_call/readonly_fs_provider.dart';
-export 'src/bridge/os_call/sandboxed_fs_provider_stub.dart'
-    if (dart.library.io) 'src/bridge/os_call/sandboxed_fs_provider.dart';
-export 'src/bridge/os_call/time_os_provider.dart';
+export 'src/bridge/os_call/platform_handlers.dart';
+export 'src/bridge/os_call/sandboxed_fs_handler_stub.dart'
+    if (dart.library.io) 'src/bridge/os_call/sandboxed_fs_handler.dart';
 export 'src/bridge/plugins/event_loop_plugin.dart';
 export 'src/bridge/plugins/message_bus_plugin.dart';
 export 'src/bridge/plugins/sandbox_plugin.dart';
