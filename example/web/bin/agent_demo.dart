@@ -15,6 +15,7 @@ import 'dart:js_interop';
 
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
+import 'package:file/memory.dart';
 
 // ---------------------------------------------------------------------------
 // JS interop — expose API to HTML
@@ -183,10 +184,10 @@ Future<bool> _init() async {
   if (_initialized) return true;
 
   try {
-    final os = OsProvider.compose({
-      'Path.': MemoryFsProvider(),
-      'date.': TimeOsProvider(),
-      'datetime.': TimeOsProvider(),
+    final os = composeOsHandlers({
+      'Path.': fsHandler(MemoryFileSystem()),
+      'date.': timeHandler(),
+      'datetime.': timeHandler(),
     });
 
     final tmplPlugin = JinjaTemplatePlugin();
@@ -195,7 +196,7 @@ Future<bool> _init() async {
 
     final plugins = <MontyPlugin>[tmplPlugin, msgPlugin];
     final sandboxPlugin = SandboxPlugin(
-      platformFactory: () async => Monty().platform,
+      platformFactory: () async => ReplPlatform(repl: MontyRepl()),
     );
     plugins.add(sandboxPlugin);
 
