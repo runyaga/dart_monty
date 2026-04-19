@@ -56,7 +56,7 @@ dcm:
     - avoid-unsafe-collection-methods:
         exclude:
           # State wrapping: code gen accesses known-valid indices
-          - "lib/src/monty_bridge_session.dart"
+          - "lib/src/monty_runtime.dart"
           # Index access guarded by for-loop bounds and prior length checks
           - "lib/src/platform/code_capture.dart"
           # Mock tracking lists: only accessed after recording calls
@@ -221,7 +221,7 @@ dcm:
         exclude:
           - "test/**"
           # Bridge initialized in constructor body (needs _monty.platform)
-          - "lib/src/monty_bridge_session.dart"
+          - "lib/src/monty_runtime.dart"
           # Computed signal initialized in constructor body (needs _childrenSignal instance field)
           - "lib/src/plugins/sandbox_plugin.dart"
           # Registry injected externally by PluginRegistry._injectRegistries before onRegister
@@ -252,7 +252,7 @@ dcm:
           - "lib/src/plugin_registry.dart"
           - "lib/src/plugins/sandbox_plugin.dart"
           # State wrapping + result extraction: non-null guaranteed by event type
-          - "lib/src/monty_bridge_session.dart"
+          - "lib/src/monty_runtime.dart"
           # Regex match.group(1) non-null guaranteed by pattern structure
           - "lib/src/platform/code_capture.dart"
           # WASM JS interop: non-null guaranteed by JS bridge contract
@@ -285,7 +285,7 @@ dcm:
           # fileSystem getter exposes _fs for Dart-side VFS access
           - "lib/src/os_call/fs_provider.dart"
           # bridge getter returns _sharedBridge ?? _schemaBridge (dual-mode)
-          - "lib/src/monty_bridge_session.dart"
+          - "lib/src/monty_runtime.dart"
           # channelStateSignal/lastEmittedSignal wrap _channelState/_lastEmitted (shorter backing names)
           - "lib/src/plugins/event_loop_plugin.dart"
     - avoid-declaring-call-method

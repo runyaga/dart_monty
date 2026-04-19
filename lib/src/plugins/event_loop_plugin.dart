@@ -95,7 +95,7 @@ final class BridgeChannelDisposed extends BridgeChannelState {
 ///
 /// ```dart
 /// final plugin = EventLoopPlugin();
-/// final session = MontyBridgeSession(plugins: [plugin]);
+/// final session = MontyRuntime(plugins: [plugin]);
 /// session.executeStream(script);
 /// plugin.dispatch({'action': 'increment'});
 /// ```

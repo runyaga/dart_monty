@@ -9,15 +9,15 @@ import 'package:dart_monty/src/host_param.dart';
 import 'package:dart_monty/src/host_param_type.dart';
 import 'package:dart_monty/src/introspection_functions.dart';
 import 'package:dart_monty/src/monty_bridge.dart';
-import 'package:dart_monty/src/monty_bridge_session_state.dart';
 import 'package:dart_monty/src/monty_plugin.dart';
+import 'package:dart_monty/src/monty_runtime_state.dart';
 import 'package:dart_monty/src/os_call/os_handlers.dart';
 import 'package:dart_monty/src/plugin_registry.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:signals_core/signals_core.dart';
 
 // ---------------------------------------------------------------------------
-// MontyBridgeSession
+// MontyRuntime
 // ---------------------------------------------------------------------------
 
 /// High-level agent session — stateful Python execution with tools and plugins.
@@ -43,21 +43,21 @@ import 'package:signals_core/signals_core.dart';
 ///
 /// ```dart
 /// // Shared interpreter (default) — full state persistence
-/// final session = MontyBridgeSession(os: defaultSandboxOsHandler());
+/// final session = MontyRuntime(os: defaultSandboxOsHandler());
 /// await session.execute('x = 42');
 /// final result = await session.execute('x + 1'); // 43
 /// await session.execute('def add(a, b): return a + b');
 /// final r = await session.execute('add(3, 4)'); // 7
 ///
 /// // Fresh sandbox — isolated per call, safe for async I/O host functions
-/// final session = MontyBridgeSession(
+/// final session = MontyRuntime(
 ///   sandbox: true,
 ///   plugins: [SoliplexPlugin(connections: {...})],
 /// );
 /// await session.execute('r = soliplex_new_thread("s", "r", "Hi")');
 /// await session.execute('r2 = soliplex_reply_thread(...)'); // no crash
 /// ```
-class MontyBridgeSession {
+class MontyRuntime {
   /// Creates an agent session.
   ///
   /// When [sandbox] is true, each `execute()` call creates a fresh [MontyRepl].
@@ -66,7 +66,7 @@ class MontyBridgeSession {
   ///
   /// When [sandbox] is false (default), a single [MontyRepl] is reused across
   /// all calls — all state persists natively in the Rust heap.
-  MontyBridgeSession({
+  MontyRuntime({
     OsCallHandler? os,
     Map<String, OsCallHandler>? osHandlers,
     List<MontyPlugin>? plugins,
@@ -152,7 +152,7 @@ class MontyBridgeSession {
   ///
   /// In sandbox mode, the function is registered on every fresh bridge.
   void register(HostFunction function) {
-    if (_disposed) throw StateError('MontyBridgeSession has been disposed');
+    if (_disposed) throw StateError('MontyRuntime has been disposed');
     if (_sharedBridge != null) {
       _sharedBridge!.register(function);
     }
@@ -166,7 +166,7 @@ class MontyBridgeSession {
   ///
   /// In sandbox mode, creates a fresh interpreter per call.
   Future<MontyResult> execute(String code) {
-    if (_disposed) throw StateError('MontyBridgeSession has been disposed');
+    if (_disposed) throw StateError('MontyRuntime has been disposed');
 
     if (_sandbox) {
       return _executeSandboxed(code);
@@ -179,7 +179,7 @@ class MontyBridgeSession {
   ///
   /// Only available in shared mode. In sandbox mode, use `execute()`.
   Stream<BridgeEvent> executeStream(String code) {
-    if (_disposed) throw StateError('MontyBridgeSession has been disposed');
+    if (_disposed) throw StateError('MontyRuntime has been disposed');
     if (_sandbox) {
       throw UnsupportedError(
         'executeStream() is not supported in sandbox mode. '
@@ -200,7 +200,7 @@ class MontyBridgeSession {
   /// In sandbox mode, each call already uses a fresh interpreter — this is
   /// a no-op.
   void clearState() {
-    if (_disposed) throw StateError('MontyBridgeSession has been disposed');
+    if (_disposed) throw StateError('MontyRuntime has been disposed');
     _sessionStateSignal.value = {};
     if (!_sandbox && _sharedBridge != null) {
       final oldPlatform = _sharedPlatform;
@@ -342,7 +342,7 @@ class MontyBridgeSession {
 
     // Register introspection builtins (e.g. help()) so they are available
     // even when no PluginRegistry is attached — e.g. when functions are
-    // registered directly via MontyBridgeSession.register() without going
+    // registered directly via MontyRuntime.register() without going
     // through
     // PluginRegistry.attachTo(). When a PluginRegistry IS later attached,
     // re-registration is a safe no-op (bridge.register() overwrites by name,

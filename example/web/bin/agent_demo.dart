@@ -1,6 +1,6 @@
 // Standalone JS-compiled demo, not a package:test file.
 // ignore_for_file: avoid_print, use_null_aware_elements
-/// Interactive MontyBridgeSession Demo — shows stateful Python execution with host
+/// Interactive MontyRuntime Demo — shows stateful Python execution with host
 /// functions, filesystem access, and real-time bridge event streaming.
 ///
 /// Compiled to JS, exposes functions to the HTML UI via window.AgentDemo.
@@ -34,7 +34,7 @@ external void _jsOnReady();
 // State
 // ---------------------------------------------------------------------------
 
-MontyBridgeSession? _session;
+MontyRuntime? _session;
 bool _initialized = false;
 
 // ---------------------------------------------------------------------------
@@ -200,7 +200,7 @@ Future<bool> _init() async {
     );
     plugins.add(sandboxPlugin);
 
-    _session = MontyBridgeSession(os: os, plugins: plugins);
+    _session = MontyRuntime(os: os, plugins: plugins);
 
     _demoHostFunctions.forEach(_session!.register);
 

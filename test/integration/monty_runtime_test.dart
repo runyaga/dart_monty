@@ -5,19 +5,19 @@ import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:signals_core/signals_core.dart';
 import 'package:test/test.dart';
 
-/// Integration tests for MontyBridgeSession — requires the native Monty
+/// Integration tests for MontyRuntime — requires the native Monty
 /// library.
 ///
 /// Run with:
 /// ```bash
-/// dart test --run-skipped --tags=integration test/bridge/integration/monty_bridge_session_test.dart
+/// dart test --run-skipped --tags=integration test/bridge/integration/monty_runtime_test.dart
 /// ```
 void main() {
-  group('MontyBridgeSession stateful execution', () {
-    late MontyBridgeSession session;
+  group('MontyRuntime stateful execution', () {
+    late MontyRuntime session;
 
     setUp(() {
-      session = MontyBridgeSession();
+      session = MontyRuntime();
     });
 
     tearDown(() async {
@@ -98,11 +98,11 @@ void main() {
     });
   });
 
-  group('MontyBridgeSession with host functions', () {
-    late MontyBridgeSession session;
+  group('MontyRuntime with host functions', () {
+    late MontyRuntime session;
 
     setUp(() {
-      session = MontyBridgeSession();
+      session = MontyRuntime();
     });
 
     tearDown(() async {
@@ -162,13 +162,13 @@ void main() {
     });
   });
 
-  group('MontyBridgeSession with filesystem', () {
-    late MontyBridgeSession session;
+  group('MontyRuntime with filesystem', () {
+    late MontyRuntime session;
 
     setUp(() {
       // Use memory filesystem for these tests (not LocalFileSystem)
       final time = timeHandler();
-      session = MontyBridgeSession(
+      session = MontyRuntime(
         osHandlers: {
           'Path.': memoryFsHandler(),
           'date.': time,
@@ -227,11 +227,11 @@ void main() {
     });
   });
 
-  group('MontyBridgeSession error handling', () {
-    late MontyBridgeSession session;
+  group('MontyRuntime error handling', () {
+    late MontyRuntime session;
 
     setUp(() {
-      session = MontyBridgeSession();
+      session = MontyRuntime();
     });
 
     tearDown(() async {
@@ -262,11 +262,11 @@ void main() {
     });
   });
 
-  group('MontyBridgeSession sandbox mode', () {
-    late MontyBridgeSession session;
+  group('MontyRuntime sandbox mode', () {
+    late MontyRuntime session;
 
     setUp(() {
-      session = MontyBridgeSession(sandbox: true);
+      session = MontyRuntime(sandbox: true);
     });
 
     tearDown(() async {
@@ -383,7 +383,7 @@ result
     });
   });
 
-  group('MontyBridgeSession plugin lifecycle (#296)', () {
+  group('MontyRuntime plugin lifecycle (#296)', () {
     test('dispose() calls onDispose on shared-mode plugins', () async {
       // Regression test for #296 — dispose() never called
       // PluginRegistry.disposeAll().
@@ -391,7 +391,7 @@ result
       // Without the fix, _onDisposeCalled stays false after dispose().
       // With the fix, disposeAll() propagates to each plugin's onDispose().
       final plugin = _TrackingPlugin();
-      final session = MontyBridgeSession(plugins: [plugin]);
+      final session = MontyRuntime(plugins: [plugin]);
 
       await session.execute('pass'); // triggers attachTo
       await session.dispose();
@@ -408,7 +408,7 @@ result
       // still have onDispose called — disposeAll() iterates _plugins when
       // _attachOrder is null, so this works once disposeAll() is invoked.
       final plugin = _TrackingPlugin();
-      final session = MontyBridgeSession(plugins: [plugin]);
+      final session = MontyRuntime(plugins: [plugin]);
 
       await session.dispose();
 
@@ -425,7 +425,7 @@ result
         // In sandbox mode a fresh PluginRegistry is created per execute() and
         // must be disposed in the finally block regardless of success or error.
         final plugin = _TrackingPlugin();
-        final session = MontyBridgeSession(sandbox: true, plugins: [plugin]);
+        final session = MontyRuntime(sandbox: true, plugins: [plugin]);
         addTearDown(session.dispose);
 
         await session.execute('pass');
@@ -446,7 +446,7 @@ result
         // The finally block must run even on error — verifies no leak when
         // Python raises an exception.
         final plugin = _TrackingPlugin();
-        final session = MontyBridgeSession(sandbox: true, plugins: [plugin]);
+        final session = MontyRuntime(sandbox: true, plugins: [plugin]);
         addTearDown(session.dispose);
 
         await session.execute('raise ValueError("boom")');
@@ -463,11 +463,11 @@ result
   // sessionStateSignal is a Dart-side mirror of Python globals retained for
   // API compatibility. With ReplPlatform backing, state lives natively in the
   // Rust REPL heap — the signal always emits an empty map.
-  group('MontyBridgeSession.sessionStateSignal', () {
-    late MontyBridgeSession session;
+  group('MontyRuntime.sessionStateSignal', () {
+    late MontyRuntime session;
 
     setUp(() {
-      session = MontyBridgeSession();
+      session = MontyRuntime();
     });
 
     tearDown(() async {
@@ -496,11 +496,11 @@ result
     });
   });
 
-  group('MontyBridgeSession.sessionStateSignal sandbox mode', () {
-    late MontyBridgeSession session;
+  group('MontyRuntime.sessionStateSignal sandbox mode', () {
+    late MontyRuntime session;
 
     setUp(() {
-      session = MontyBridgeSession(sandbox: true);
+      session = MontyRuntime(sandbox: true);
     });
 
     tearDown(() async {
@@ -515,9 +515,9 @@ result
     });
   });
 
-  group('MontyBridgeSession event streaming', () {
+  group('MontyRuntime event streaming', () {
     test('executeStream emits events', () async {
-      final session = MontyBridgeSession();
+      final session = MontyRuntime();
 
       // First execute to ensure attached
       await session.execute('pass');
@@ -531,7 +531,7 @@ result
     });
 
     test('executeStream attaches plugins without prior execute()', () async {
-      final session = MontyBridgeSession(
+      final session = MontyRuntime(
         plugins: [JinjaTemplatePlugin()],
       );
       addTearDown(session.dispose);

@@ -19,7 +19,7 @@ import 'package:dart_monty/src/plugins/template_plugin.dart';
 /// `dart_monty_plugins`).
 ///
 /// ```dart
-/// final session = MontyBridgeSession(
+/// final session = MontyRuntime(
 ///   plugins: [...defaultPlugins(), MyCustomPlugin()],
 ///   osHandlers: {'Path.': memoryFsHandler()},
 /// );

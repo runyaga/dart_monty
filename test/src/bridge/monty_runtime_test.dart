@@ -3,23 +3,23 @@ import 'package:signals_core/signals_core.dart';
 import 'package:test/test.dart';
 
 void main() {
-  group('MontyBridgeSession.sessionStateSignal', () {
+  group('MontyRuntime.sessionStateSignal', () {
     test('starts as an empty map', () {
-      final session = MontyBridgeSession();
+      final session = MontyRuntime();
       addTearDown(session.dispose);
 
       expect(session.sessionStateSignal.value, isEmpty);
     });
 
     test('sessionStateSignal and state return the same initial value', () {
-      final session = MontyBridgeSession();
+      final session = MontyRuntime();
       addTearDown(session.dispose);
 
       expect(session.sessionStateSignal.value, equals(session.state));
     });
 
     test('clearState() fires the signal with an empty map', () {
-      final session = MontyBridgeSession();
+      final session = MontyRuntime();
       addTearDown(session.dispose);
 
       // Real updates come from execute() via __persist_state__ (tested
@@ -38,7 +38,7 @@ void main() {
     test(
       'state getter returns a copy — mutations do not affect the signal',
       () {
-        final session = MontyBridgeSession();
+        final session = MontyRuntime();
         addTearDown(session.dispose);
 
         final copy = session.state;
@@ -50,7 +50,7 @@ void main() {
     );
 
     test('sessionStateSignal is a ReadonlySignal', () {
-      final session = MontyBridgeSession();
+      final session = MontyRuntime();
       addTearDown(session.dispose);
 
       expect(

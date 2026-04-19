@@ -1,5 +1,5 @@
 /// Tests raw bridge.execute() and Monty.run() with HTTP host functions.
-/// No MontyBridgeSession state wrapping — isolates whether the bug is in state
+/// No MontyRuntime state wrapping — isolates whether the bug is in state
 /// wrapping or in the FFI/bridge layer itself.
 @Tags(['integration'])
 library;
@@ -83,9 +83,9 @@ void main() {
   );
 
   test(
-    'MontyBridgeSession shared mode (no sandbox) — 3 sequential HTTP calls',
+    'MontyRuntime shared mode (no sandbox) — 3 sequential HTTP calls',
     () async {
-      final session = MontyBridgeSession()..register(_httpGetFn());
+      final session = MontyRuntime()..register(_httpGetFn());
 
       for (var i = 1; i <= 3; i++) {
         final result = await session.execute('http_get("$_url")');
@@ -99,9 +99,9 @@ void main() {
   );
 
   test(
-    'MontyBridgeSession sandbox mode — 3 sequential HTTP calls',
+    'MontyRuntime sandbox mode — 3 sequential HTTP calls',
     () async {
-      final session = MontyBridgeSession(sandbox: true)..register(_httpGetFn());
+      final session = MontyRuntime(sandbox: true)..register(_httpGetFn());
 
       for (var i = 1; i <= 3; i++) {
         final result = await session.execute('http_get("$_url")');

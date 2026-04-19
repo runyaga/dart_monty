@@ -52,7 +52,7 @@ void main() {
       () async {
         // If the raw session test above passes, this confirms the bridge
         // is not introducing a duplicate or conflicting capture path.
-        final session = MontyBridgeSession();
+        final session = MontyRuntime();
         try {
           final result = await session.execute('print("hello from bridge")');
           expect(result.printOutput, contains('hello from bridge'));
@@ -77,7 +77,7 @@ void main() {
         //
         // dart_monty does not need any isinstance filter — Monty's own
         // serializer decides what survives.
-        final session = MontyBridgeSession();
+        final session = MontyRuntime();
         try {
           final result = await session.execute(r'''
 import re
@@ -108,7 +108,7 @@ p
       () async {
         // Ground truth (observed): Monty coerces lambdas to their string
         // representation rather than dropping or erroring.
-        final session = MontyBridgeSession();
+        final session = MontyRuntime();
         try {
           final result = await session.execute('f = lambda x: x + 1\nf');
           if (result.error != null) {
@@ -130,7 +130,7 @@ p
 
     test('primitive values persist correctly across calls', () async {
       // Positive control: known-good serializable values must persist.
-      final session = MontyBridgeSession();
+      final session = MontyRuntime();
       try {
         await session.execute('x = 42\ns = "hello"\nb = True\nls = [1, 2, 3]');
         final result = await session.execute('x + 1');
@@ -152,7 +152,7 @@ p
       // DefaultMontyBridge injects a print-override preamble (~5 lines)
       // before user code, then subtracts _preambleLineCount from exception
       // line numbers. This test verifies the adjustment is correct.
-      final session = MontyBridgeSession();
+      final session = MontyRuntime();
       try {
         final result = await session.execute('undefined_variable_xyz');
         expect(result.error, isNotNull);
@@ -171,7 +171,7 @@ p
     });
 
     test('NameError on line 3 of user code reports line 3', () async {
-      final session = MontyBridgeSession();
+      final session = MontyRuntime();
       try {
         final result = await session.execute('x = 1\ny = 2\nundefined_xyz');
         expect(result.error, isNotNull);
@@ -233,10 +233,10 @@ p
   // ---------------------------------------------------------------------------
 
   group('2e — host param type coercion', () {
-    late MontyBridgeSession session;
+    late MontyRuntime session;
 
     setUp(() {
-      session = MontyBridgeSession()
+      session = MontyRuntime()
         ..register(
           HostFunction(
             schema: const HostFunctionSchema(
