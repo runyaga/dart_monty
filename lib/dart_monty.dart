@@ -16,6 +16,6 @@ library;
 export 'package:dart_monty_core/dart_monty_core.dart' hide OsCallException;
 
 // dart_monty bridge/plugin layer
-export 'src/bridge/agent_session.dart';
-export 'src/bridge/os_call/os_call_exception.dart';
-export 'src/bridge/os_call/os_handlers.dart';
+export 'src/monty_bridge_session.dart';
+export 'src/os_call/os_call_exception.dart';
+export 'src/os_call/os_handlers.dart';
