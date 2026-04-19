@@ -9,7 +9,6 @@ export 'src/bridge/bridge/bridge_event.dart';
 export 'src/bridge/bridge/bridge_logger.dart';
 export 'src/bridge/bridge/bridge_middleware.dart';
 export 'src/bridge/bridge/default_monty_bridge.dart';
-export 'src/bridge/bridge/event_loop_bridge.dart';
 export 'src/bridge/bridge/host_args.dart';
 export 'src/bridge/bridge/host_function.dart';
 export 'src/bridge/bridge/host_function_schema.dart';
