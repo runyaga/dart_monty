@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:dart_monty/src/bridge_event.dart';
 import 'package:dart_monty/src/bridge_logger.dart';
-import 'package:dart_monty/src/bridge_middleware.dart';
 import 'package:dart_monty/src/host_function.dart';
 import 'package:dart_monty/src/host_function_schema.dart';
 import 'package:dart_monty/src/monty_bridge.dart';
@@ -100,6 +99,7 @@ class DefaultMontyBridge implements MontyBridge {
     MontyLimits? limits,
     bool useFutures = true,
     BridgeLogger? logger,
+    MontyInterceptor? interceptor,
   }) : _platform = platform,
        _limits = limits,
        _useFutures = useFutures,
@@ -107,6 +107,7 @@ class DefaultMontyBridge implements MontyBridge {
        _host = PluginHost(
          platform: platform,
          log: logger ?? StructLogBridgeLogger.root(LogManager.instance),
+         interceptor: interceptor,
        );
 
   /// Logger for this bridge instance.
@@ -155,12 +156,6 @@ class DefaultMontyBridge implements MontyBridge {
       _host.schemasByCategory;
 
   @override
-  void use(BridgeMiddleware middleware) {
-    if (_isDisposed) throw StateError('Bridge has been disposed');
-    _host.use(middleware);
-  }
-
-  @override
   void register(HostFunction function, {String? category}) {
     if (_isDisposed) throw StateError('Bridge has been disposed');
     _host.register(function, category: category);
@@ -179,14 +174,10 @@ class DefaultMontyBridge implements MontyBridge {
   }
 
   @override
-  Future<Object?> invokeHostFunction(
-    String name,
-    Map<String, Object?> args, {
-    CallRole role = const ToolCall(),
-  }) {
+  Future<Object?> invokeHostFunction(String name, Map<String, Object?> args) {
     if (_isDisposed) throw StateError('Bridge has been disposed');
 
-    return _host.invokeHostFunction(name, args, role: role);
+    return _host.invokeHostFunction(name, args);
   }
 
   // ---------------------------------------------------------------------------

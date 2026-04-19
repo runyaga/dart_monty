@@ -1183,9 +1183,6 @@ class _MockBridge implements MontyBridge {
   }
 
   @override
-  void use(BridgeMiddleware middleware) {}
-
-  @override
   void register(HostFunction function, {String? category}) {
     final name = function.schema.name;
     registeredNames.add(name);
@@ -1210,9 +1207,8 @@ class _MockBridge implements MontyBridge {
   @override
   Future<Object?> invokeHostFunction(
     String name,
-    Map<String, Object?> args, {
-    CallRole role = const ToolCall(),
-  }) => throw UnimplementedError();
+    Map<String, Object?> args,
+  ) => throw UnimplementedError();
 
   @override
   void dispose() {}

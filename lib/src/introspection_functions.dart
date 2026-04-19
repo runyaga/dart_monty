@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:dart_monty/src/bridge_middleware.dart';
 import 'package:dart_monty/src/host_function.dart';
 import 'package:dart_monty/src/host_function_schema.dart';
 import 'package:dart_monty/src/host_param.dart';
@@ -56,7 +55,7 @@ List<HostFunction> buildIntrospectionFunctions(MontyBridge bridge) {
 
         return _handleHelp(schemas, name);
       },
-      role: const InfraCall(),
+      isInfra: true,
     ),
   ];
 }

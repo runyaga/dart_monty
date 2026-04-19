@@ -2,7 +2,6 @@ import 'dart:convert';
 
 import 'package:dart_monty/src/bridge_event.dart';
 import 'package:dart_monty/src/bridge_logger.dart';
-import 'package:dart_monty/src/bridge_middleware.dart';
 import 'package:dart_monty/src/host_function.dart';
 import 'package:dart_monty/src/host_function_schema.dart';
 import 'package:dart_monty/src/host_param.dart';
@@ -310,9 +309,6 @@ class _FakeBridge implements MontyBridge {
   }
 
   @override
-  void use(BridgeMiddleware middleware) {}
-
-  @override
   void registerOs(OsCallHandler handler) {}
 
   @override
@@ -321,9 +317,8 @@ class _FakeBridge implements MontyBridge {
   @override
   Future<Object?> invokeHostFunction(
     String name,
-    Map<String, Object?> args, {
-    CallRole role = const ToolCall(),
-  }) => throw UnimplementedError();
+    Map<String, Object?> args,
+  ) => throw UnimplementedError();
 
   @override
   void dispose() {}

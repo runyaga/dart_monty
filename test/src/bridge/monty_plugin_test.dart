@@ -154,9 +154,6 @@ class _NoOpBridge implements MontyBridge {
   Map<String, List<HostFunctionSchema>> get schemasByCategory => {};
 
   @override
-  void use(BridgeMiddleware middleware) {}
-
-  @override
   void register(HostFunction function, {String? category}) {}
 
   @override
@@ -171,9 +168,8 @@ class _NoOpBridge implements MontyBridge {
   @override
   Future<Object?> invokeHostFunction(
     String name,
-    Map<String, Object?> args, {
-    CallRole role = const ToolCall(),
-  }) => throw UnimplementedError();
+    Map<String, Object?> args,
+  ) => throw UnimplementedError();
 
   @override
   void dispose() {}

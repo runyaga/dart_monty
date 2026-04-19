@@ -12,6 +12,7 @@ import 'package:dart_monty/src/monty_bridge.dart';
 import 'package:dart_monty/src/monty_plugin.dart';
 import 'package:dart_monty/src/monty_runtime_state.dart';
 import 'package:dart_monty/src/os_call/os_handlers.dart';
+import 'package:dart_monty/src/plugin_host.dart';
 import 'package:dart_monty/src/plugin_registry.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:signals_core/signals_core.dart';
@@ -71,6 +72,7 @@ class MontyRuntime {
     Map<String, OsCallHandler>? osHandlers,
     List<MontyPlugin>? plugins,
     BridgeLogger? logger,
+    MontyInterceptor? interceptor,
     bool sandbox = false,
   }) : assert(
          os == null || osHandlers == null,
@@ -79,6 +81,7 @@ class MontyRuntime {
        _os = os ?? (osHandlers != null ? composeOsHandlers(osHandlers) : null),
        _plugins = plugins,
        _logger = logger,
+       _interceptor = interceptor,
        _sandbox = sandbox {
     if (!sandbox) {
       // Shared mode: create persistent REPL-backed interpreter.
@@ -90,6 +93,7 @@ class MontyRuntime {
         platform: _sharedPlatform!,
         useFutures: false,
         logger: logger,
+        interceptor: interceptor,
       );
       // OS registration is deferred to the first execute() call via
       // PluginRegistry.attachTo(bridge, baseOs: _os).
@@ -108,6 +112,7 @@ class MontyRuntime {
   final OsCallHandler? _os;
   final List<MontyPlugin>? _plugins;
   final BridgeLogger? _logger;
+  final MontyInterceptor? _interceptor;
   final bool _sandbox;
 
   // Shared mode state.
@@ -296,6 +301,7 @@ class MontyRuntime {
       platform: platform ?? ReplPlatform(repl: MontyRepl()),
       useFutures: false,
       logger: _logger,
+      interceptor: _interceptor,
     );
 
     // OS registration is handled by PluginRegistry.attachTo(b, baseOs: _os).
