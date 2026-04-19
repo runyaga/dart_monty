@@ -1,4 +1,3 @@
-import 'package:dart_monty/src/bridge_middleware.dart';
 import 'package:dart_monty/src/host_function_schema.dart';
 import 'package:meta/meta.dart';
 
@@ -6,18 +5,19 @@ import 'package:meta/meta.dart';
 typedef HostFunctionHandler =
     Future<Object?> Function(Map<String, Object?> args);
 
-/// A host function: schema + handler + optional role.
+/// A host function: schema + handler + optional infra flag.
 @immutable
 class HostFunction {
   /// Creates a [HostFunction].
   ///
-  /// When [role] is provided, it is authoritative — the bridge uses it
-  /// regardless of any `__role__` kwarg sent from Python. This prevents
-  /// untrusted Python code from escalating to [InfraCall].
-  ///
-  /// When [role] is `null` (the default), the bridge falls back to the
-  /// `__role__` kwarg from Python, defaulting to [ToolCall] if absent.
-  const HostFunction({required this.schema, required this.handler, this.role});
+  /// Set [isInfra] to `true` for orchestration builtins that should bypass
+  /// the interceptor (e.g. introspection, internal routing). Regular
+  /// Python-callable tools should leave this as the default `false`.
+  const HostFunction({
+    required this.schema,
+    required this.handler,
+    this.isInfra = false,
+  });
 
   /// Describes name, parameters, and types.
   final HostFunctionSchema schema;
@@ -25,10 +25,6 @@ class HostFunction {
   /// Async handler invoked when Python calls this function.
   final HostFunctionHandler handler;
 
-  /// Host-declared call role for middleware dispatch.
-  ///
-  /// When non-null, this overrides any `__role__` kwarg from Python.
-  /// Use `const InfraCall()` for orchestration builtins that should
-  /// bypass policy middleware.
-  final CallRole? role;
+  /// When `true`, calls to this function bypass the interceptor.
+  final bool isInfra;
 }

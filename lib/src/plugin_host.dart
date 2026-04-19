@@ -3,13 +3,21 @@ import 'dart:convert';
 
 import 'package:dart_monty/src/bridge_event.dart';
 import 'package:dart_monty/src/bridge_logger.dart';
-import 'package:dart_monty/src/bridge_middleware.dart';
 import 'package:dart_monty/src/host_function.dart';
 import 'package:dart_monty/src/host_function_schema.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:meta/meta.dart';
 
-const _roleKwarg = '__role__';
+/// Intercepts a tool call before the handler runs.
+///
+/// Called only for non-infra functions. [next] invokes the actual handler.
+/// Return a value or throw to short-circuit the handler.
+typedef MontyInterceptor =
+    Future<Object?> Function(
+      String name,
+      Map<String, Object?> args,
+      Future<Object?> Function() next,
+    );
 
 // ---------------------------------------------------------------------------
 // Internal tracking for the futures (WASM) dispatch path.
@@ -31,26 +39,16 @@ class _PendingFuture {
 // Top-level helpers shared by PluginHost dispatch methods.
 // ---------------------------------------------------------------------------
 
-/// Invokes [fn] through [middleware], or calls the handler directly when
-/// no middleware is registered.
-///
-/// First registered = outermost in the onion chain.
-Future<Object?> _invokeWithMiddleware(
-  List<BridgeMiddleware> middleware,
+/// Invokes [fn] through [interceptor], or calls the handler directly when
+/// [fn] is infra or no interceptor is registered.
+Future<Object?> _invoke(
+  MontyInterceptor? interceptor,
   HostFunction fn,
   String name,
   Map<String, Object?> args,
-  CallRole role,
 ) {
-  if (middleware.isEmpty) return fn.handler(args);
-
-  var handler = (String _, Map<String, Object?> a) => fn.handler(a);
-  for (final mw in middleware.reversed) {
-    final next = handler;
-    handler = (n, a) => mw.handle(n, a, role, next);
-  }
-
-  return handler(name, args);
+  if (interceptor == null || fn.isInfra) return fn.handler(args);
+  return interceptor(name, args, () => fn.handler(args));
 }
 
 /// Validates [pending] arguments against [fn]'s schema and emits the
@@ -140,7 +138,7 @@ Future<void> _logDeferredError(
 // PluginHost — function registry + tool dispatch.
 // ---------------------------------------------------------------------------
 
-/// Manages host function registration, middleware, and tool call dispatch
+/// Manages host function registration, the interceptor, and tool call dispatch
 /// for a `DefaultMontyBridge`.
 ///
 /// This is an internal implementation-detail class — it is not part of the
@@ -155,15 +153,17 @@ class PluginHost {
   PluginHost({
     required MontyPlatform platform,
     required BridgeLogger log,
+    MontyInterceptor? interceptor,
   }) : _platform = platform,
-       _log = log;
+       _log = log,
+       _interceptor = interceptor;
 
   final MontyPlatform _platform;
   final BridgeLogger _log;
+  final MontyInterceptor? _interceptor;
 
   final Map<String, HostFunction> _functions = {};
   final Map<String, Set<String>> _categoryIndex = {};
-  final List<BridgeMiddleware> _middleware = [];
 
   final Map<int, _PendingFuture> _pendingFutures = {};
   int _idCounter = 0;
@@ -198,9 +198,6 @@ class PluginHost {
     return result;
   }
 
-  /// Registers a middleware interceptor.
-  void use(BridgeMiddleware middleware) => _middleware.add(middleware);
-
   /// Registers [function] under an optional [category].
   void register(HostFunction function, {String? category}) {
     final name = function.schema.name;
@@ -211,13 +208,10 @@ class PluginHost {
   /// Unregisters the function with [name].
   void unregister(String name) => _functions.remove(name);
 
-  /// Invokes a registered host function by [name] directly from Dart,
-  /// routing through the middleware chain.
-  Future<Object?> invokeHostFunction(
-    String name,
-    Map<String, Object?> args, {
-    CallRole role = const ToolCall(),
-  }) {
+  /// Invokes a registered host function by [name] directly from Dart.
+  ///
+  /// Infra functions bypass the interceptor; all others go through it.
+  Future<Object?> invokeHostFunction(String name, Map<String, Object?> args) {
     final fn = _functions[name];
     if (fn == null) throw ArgumentError('Unknown host function: $name');
     final pending = MontyPending(
@@ -227,7 +221,7 @@ class PluginHost {
     );
     final validatedArgs = fn.schema.mapAndValidate(pending);
 
-    return _invokeWithMiddleware(_middleware, fn, name, validatedArgs, role);
+    return _invoke(_interceptor, fn, name, validatedArgs);
   }
 
   // ---------------------------------------------------------------------------
@@ -243,18 +237,15 @@ class PluginHost {
   }) {
     final name = pending.functionName;
 
-    // Registered host function — extract role, strip reserved kwargs, dispatch.
     final fn = _functions[name];
     if (fn != null) {
-      final (cleanedPending, role) = _extractRole(pending, fn.role);
       _log.trace('Host function call', attributes: {'name': name});
 
       return futuresCapable
-          ? dispatchToolCallAsFuture(fn, cleanedPending, controller, role: role)
-          : dispatchToolCall(fn, cleanedPending, controller, role: role);
+          ? dispatchToolCallAsFuture(fn, pending, controller)
+          : dispatchToolCall(fn, pending, controller);
     }
 
-    // Unknown function — raise error in Python.
     _log.warning('Unknown function', attributes: {'name': name});
 
     return _platform.resumeWithError('Unknown function: $name');
@@ -268,9 +259,8 @@ class PluginHost {
   Future<MontyProgress> dispatchToolCall(
     HostFunction fn,
     MontyPending pending,
-    StreamController<BridgeEvent> controller, {
-    required CallRole role,
-  }) async {
+    StreamController<BridgeEvent> controller,
+  ) async {
     final callId = nextId;
     final stepName = pending.functionName;
 
@@ -291,13 +281,7 @@ class PluginHost {
 
     final Object? result;
     try {
-      result = await _invokeWithMiddleware(
-        _middleware,
-        fn,
-        stepName,
-        args,
-        role,
-      );
+      result = await _invoke(_interceptor, fn, stepName, args);
     } on Object catch (e, st) {
       _log.error(
         'Host handler error',
@@ -326,9 +310,8 @@ class PluginHost {
   Future<MontyProgress> dispatchToolCallAsFuture(
     HostFunction fn,
     MontyPending pending,
-    StreamController<BridgeEvent> controller, {
-    required CallRole role,
-  }) {
+    StreamController<BridgeEvent> controller,
+  ) {
     final callId = nextId;
     final stepName = pending.functionName;
 
@@ -349,13 +332,7 @@ class PluginHost {
 
     final Future<Object?> handlerFuture;
     try {
-      handlerFuture = _invokeWithMiddleware(
-        _middleware,
-        fn,
-        stepName,
-        args,
-        role,
-      );
+      handlerFuture = _invoke(_interceptor, fn, stepName, args);
     } on Object catch (e, st) {
       _log.error(
         'Host handler threw synchronously',
@@ -431,49 +408,4 @@ class PluginHost {
   /// Called from `DefaultMontyBridge._run`'s `finally` block to avoid leaking
   /// futures across executions when a run ends unexpectedly.
   void clearPendingFutures() => _pendingFutures.clear();
-}
-
-// ---------------------------------------------------------------------------
-// _extractRole — pure function, lives here since it operates on MontyPending
-// which is a dispatch concern and references _roleKwarg.
-// ---------------------------------------------------------------------------
-
-/// Resolves the [CallRole] for a tool call and strips the reserved
-/// `__role__` kwarg from [pending].
-///
-/// Resolution order:
-/// 1. If [hostRole] is non-null (declared on [HostFunction]), it is
-///    authoritative — Python cannot override it.
-/// 2. Otherwise, the `__role__` kwarg from Python is used.
-/// 3. If neither is present, defaults to [ToolCall].
-(MontyPending, CallRole) _extractRole(
-  MontyPending pending,
-  CallRole? hostRole,
-) {
-  final kwargs = pending.kwargs;
-
-  // Always strip __role__ from kwargs regardless of how role is resolved.
-  final MontyPending cleanedPending;
-  if (kwargs != null && kwargs.containsKey(_roleKwarg)) {
-    final cleaned = Map<String, MontyValue>.of(kwargs)..remove(_roleKwarg);
-    cleanedPending = MontyPending(
-      functionName: pending.functionName,
-      arguments: pending.arguments,
-      kwargs: cleaned.isEmpty ? null : cleaned,
-      callId: pending.callId,
-      methodCall: pending.methodCall,
-    );
-  } else {
-    cleanedPending = pending;
-  }
-
-  if (hostRole != null) return (cleanedPending, hostRole);
-
-  final roleValue = kwargs?[_roleKwarg]?.dartValue;
-  final role = switch (roleValue) {
-    'infra' => const InfraCall(),
-    _ => const ToolCall(),
-  };
-
-  return (cleanedPending, role);
 }

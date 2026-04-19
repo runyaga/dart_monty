@@ -113,18 +113,27 @@ void main() {
     );
   });
 
-  group('BridgeMiddleware', () {
-    test('use() registers middleware called on tool dispatch', () async {
+  group('MontyInterceptor', () {
+    test('interceptor is called on tool dispatch', () async {
       final log = <String>[];
 
-      bridge
-        ..use(_LoggingMiddleware('mw1', log))
-        ..register(
-          HostFunction(
-            schema: const HostFunctionSchema(name: 'greet', description: ''),
-            handler: (_) async => 'hello',
-          ),
-        );
+      final b = MontyBridge(
+        platform: mock,
+        interceptor: (name, args, next) async {
+          log.add('before:$name');
+          final result = await next();
+          log.add('after:$name');
+          return result;
+        },
+      );
+      addTearDown(b.dispose);
+
+      b.register(
+        HostFunction(
+          schema: const HostFunctionSchema(name: 'greet', description: ''),
+          handler: (_) async => 'hello',
+        ),
+      );
 
       mock
         ..enqueueProgress(
@@ -136,180 +145,41 @@ void main() {
           ),
         );
 
-      await bridge.execute('greet()').toList();
-      expect(log, ['mw1:before:greet', 'mw1:after:greet']);
+      await b.execute('greet()').toList();
+      expect(log, ['before:greet', 'after:greet']);
     });
 
-    test('onion chain order: first registered = outermost', () async {
-      final log = <String>[];
-
-      bridge
-        ..use(_LoggingMiddleware('outer', log))
-        ..use(_LoggingMiddleware('inner', log))
-        ..register(
-          HostFunction(
-            schema: const HostFunctionSchema(name: 'fn', description: ''),
-            handler: (_) async {
-              log.add('handler');
-              return null;
-            },
-          ),
-        );
-
-      mock
-        ..enqueueProgress(const MontyPending(functionName: 'fn', arguments: []))
-        ..enqueueProgress(
-          const MontyComplete(
-            result: MontyResult(value: MontyNone(), usage: _usage),
-          ),
-        );
-
-      await bridge.execute('fn()').toList();
-      expect(log, [
-        'outer:before:fn',
-        'inner:before:fn',
-        'handler',
-        'inner:after:fn',
-        'outer:after:fn',
-      ]);
-    });
-
-    test('middleware receives ToolCall role by default', () async {
-      CallRole? captured;
-
-      bridge
-        ..use(_RoleCapturingMiddleware((role) => captured = role))
-        ..register(
-          HostFunction(
-            schema: const HostFunctionSchema(name: 'fn', description: ''),
-            handler: (_) async => null,
-          ),
-        );
-
-      mock
-        ..enqueueProgress(const MontyPending(functionName: 'fn', arguments: []))
-        ..enqueueProgress(
-          const MontyComplete(
-            result: MontyResult(value: MontyNone(), usage: _usage),
-          ),
-        );
-
-      await bridge.execute('fn()').toList();
-      expect(captured, isA<ToolCall>());
-    });
-
-    test('__role__=infra kwarg sets InfraCall role (no host role)', () async {
-      CallRole? captured;
-
-      bridge
-        ..use(_RoleCapturingMiddleware((role) => captured = role))
-        ..register(
-          HostFunction(
-            schema: const HostFunctionSchema(name: 'fn', description: ''),
-            handler: (_) async => null,
-          ),
-        );
-
-      mock
-        ..enqueueProgress(
-          const MontyPending(
-            functionName: 'fn',
-            arguments: [],
-            kwargs: {'__role__': MontyString('infra')},
-          ),
-        )
-        ..enqueueProgress(
-          const MontyComplete(
-            result: MontyResult(value: MontyNone(), usage: _usage),
-          ),
-        );
-
-      await bridge.execute('fn(__role__="infra")').toList();
-      expect(captured, isA<InfraCall>());
-    });
-
-    test('host-declared role overrides __role__ kwarg', () async {
-      CallRole? captured;
-
-      bridge
-        ..use(_RoleCapturingMiddleware((role) => captured = role))
-        ..register(
-          HostFunction(
-            schema: const HostFunctionSchema(name: 'fn', description: ''),
-            handler: (_) async => null,
-            role: const ToolCall(),
-          ),
-        );
-
-      // Python sends __role__=infra but host declares ToolCall.
-      mock
-        ..enqueueProgress(
-          const MontyPending(
-            functionName: 'fn',
-            arguments: [],
-            kwargs: {'__role__': MontyString('infra')},
-          ),
-        )
-        ..enqueueProgress(
-          const MontyComplete(
-            result: MontyResult(value: MontyNone(), usage: _usage),
-          ),
-        );
-
-      await bridge.execute('fn(__role__="infra")').toList();
-      // Host role wins — Python cannot escalate to InfraCall.
-      expect(captured, isA<ToolCall>());
-    });
-
-    test('host-declared InfraCall role used even without kwarg', () async {
-      CallRole? captured;
-
-      bridge
-        ..use(_RoleCapturingMiddleware((role) => captured = role))
-        ..register(
-          HostFunction(
-            schema: const HostFunctionSchema(name: 'fn', description: ''),
-            handler: (_) async => null,
-            role: const InfraCall(),
-          ),
-        );
-
-      mock
-        ..enqueueProgress(const MontyPending(functionName: 'fn', arguments: []))
-        ..enqueueProgress(
-          const MontyComplete(
-            result: MontyResult(value: MontyNone(), usage: _usage),
-          ),
-        );
-
-      await bridge.execute('fn()').toList();
-      expect(captured, isA<InfraCall>());
-    });
-
-    test('__role__ kwarg stripped even when host role overrides', () async {
+    test('interceptor receives function name and args', () async {
+      String? capturedName;
       Map<String, Object?>? capturedArgs;
 
-      bridge.register(
+      final b = MontyBridge(
+        platform: mock,
+        interceptor: (name, args, next) {
+          capturedName = name;
+          capturedArgs = args;
+          return next();
+        },
+      );
+      addTearDown(b.dispose);
+
+      b.register(
         HostFunction(
           schema: const HostFunctionSchema(
-            name: 'fn',
+            name: 'greet',
             description: '',
-            params: [HostParam(name: 'x', type: HostParamType.integer)],
+            params: [HostParam(name: 'who', type: HostParamType.string)],
           ),
-          handler: (args) async {
-            capturedArgs = args;
-            return null;
-          },
-          role: const ToolCall(),
+          handler: (args) async => 'hello ${args['who']}',
         ),
       );
 
       mock
         ..enqueueProgress(
           const MontyPending(
-            functionName: 'fn',
+            functionName: 'greet',
             arguments: [],
-            kwargs: {'x': MontyInt(42), '__role__': MontyString('infra')},
+            kwargs: {'who': MontyString('world')},
           ),
         )
         ..enqueueProgress(
@@ -318,63 +188,26 @@ void main() {
           ),
         );
 
-      await bridge.execute('fn(x=42, __role__="infra")').toList();
-      expect(capturedArgs, {'x': 42});
+      await b.execute('greet(who="world")').toList();
+      expect(capturedName, 'greet');
+      expect(capturedArgs, {'who': 'world'});
     });
 
-    test('__role__ kwarg is stripped before mapAndValidate', () async {
-      Map<String, Object?>? capturedArgs;
-
-      bridge.register(
-        HostFunction(
-          schema: const HostFunctionSchema(
-            name: 'fn',
-            description: '',
-            params: [HostParam(name: 'x', type: HostParamType.integer)],
-          ),
-          handler: (args) async {
-            capturedArgs = args;
-            return null;
-          },
-        ),
-      );
-
-      mock
-        ..enqueueProgress(
-          const MontyPending(
-            functionName: 'fn',
-            arguments: [],
-            kwargs: {'x': MontyInt(42), '__role__': MontyString('infra')},
-          ),
-        )
-        ..enqueueProgress(
-          const MontyComplete(
-            result: MontyResult(value: MontyNone(), usage: _usage),
-          ),
-        );
-
-      await bridge.execute('fn(x=42, __role__="infra")').toList();
-      expect(capturedArgs, {'x': 42});
-    });
-
-    test('middleware can short-circuit by not calling next', () async {
-      // Use sync dispatch (useFutures: false) so BridgeToolCallResult is
-      // emitted immediately in _dispatchToolCall, not deferred.
+    test('interceptor can short-circuit by not calling next', () async {
       final syncMock = MockMontyPlatform();
       final syncBridge = MontyBridge(
         platform: syncMock,
         useFutures: false,
+        interceptor: (name, args, next) async => 'blocked',
       );
       addTearDown(syncBridge.dispose);
 
-      syncBridge
-        ..use(_BlockingMiddleware('blocked'))
-        ..register(
-          HostFunction(
-            schema: const HostFunctionSchema(name: 'fn', description: ''),
-            handler: (_) async => fail('should not be called'),
-          ),
-        );
+      syncBridge.register(
+        HostFunction(
+          schema: const HostFunctionSchema(name: 'fn', description: ''),
+          handler: (_) async => fail('should not be called'),
+        ),
+      );
 
       syncMock
         ..enqueueProgress(const MontyPending(functionName: 'fn', arguments: []))
@@ -389,22 +222,21 @@ void main() {
       expect(result.result, 'blocked');
     });
 
-    test('middleware can throw to reject a call', () async {
+    test('interceptor can throw to reject a call', () async {
       final syncMock = MockMontyPlatform();
       final syncBridge = MontyBridge(
         platform: syncMock,
         useFutures: false,
+        interceptor: (name, args, next) => throw StateError('Access denied'),
       );
       addTearDown(syncBridge.dispose);
 
-      syncBridge
-        ..use(_ThrowingMiddleware())
-        ..register(
-          HostFunction(
-            schema: const HostFunctionSchema(name: 'fn', description: ''),
-            handler: (_) async => fail('should not be called'),
-          ),
-        );
+      syncBridge.register(
+        HostFunction(
+          schema: const HostFunctionSchema(name: 'fn', description: ''),
+          handler: (_) async => fail('should not be called'),
+        ),
+      );
 
       syncMock
         ..enqueueProgress(const MontyPending(functionName: 'fn', arguments: []))
@@ -419,7 +251,7 @@ void main() {
       expect(result.result, contains('Access denied'));
     });
 
-    test('no middleware = fast path (handler called directly)', () async {
+    test('no interceptor = fast path (handler called directly)', () async {
       var called = false;
       bridge.register(
         HostFunction(
@@ -443,24 +275,27 @@ void main() {
       expect(called, isTrue);
     });
 
-    test('use() after dispose throws StateError', () {
-      bridge.dispose();
-      expect(() => bridge.use(_LoggingMiddleware('x', [])), throwsStateError);
-    });
-
-    test('middleware works on futures path', () async {
+    test('interceptor works on futures path', () async {
       final log = <String>[];
 
-      bridge
-        ..use(_LoggingMiddleware('mw', log))
-        ..register(
-          HostFunction(
-            schema: const HostFunctionSchema(name: 'async_fn', description: ''),
-            handler: (_) async => 'result',
-          ),
-        );
+      final b = MontyBridge(
+        platform: mock,
+        interceptor: (name, args, next) async {
+          log.add('before:$name');
+          final result = await next();
+          log.add('after:$name');
+          return result;
+        },
+      );
+      addTearDown(b.dispose);
 
-      // Futures path: Pending -> resumeAsFuture -> ResolveFutures -> Complete
+      b.register(
+        HostFunction(
+          schema: const HostFunctionSchema(name: 'async_fn', description: ''),
+          handler: (_) async => 'result',
+        ),
+      );
+
       mock
         ..enqueueProgress(
           const MontyPending(
@@ -476,38 +311,40 @@ void main() {
           ),
         );
 
-      await bridge.execute('await async_fn()').toList();
-      expect(log, ['mw:before:async_fn', 'mw:after:async_fn']);
+      await b.execute('await async_fn()').toList();
+      expect(log, ['before:async_fn', 'after:async_fn']);
     });
 
-    test('unknown __role__ value defaults to ToolCall', () async {
-      CallRole? captured;
+    test('isInfra: true bypasses interceptor', () async {
+      var interceptorCalled = false;
 
-      bridge
-        ..use(_RoleCapturingMiddleware((role) => captured = role))
-        ..register(
-          HostFunction(
-            schema: const HostFunctionSchema(name: 'fn', description: ''),
-            handler: (_) async => null,
-          ),
-        );
+      final b = MontyBridge(
+        platform: mock,
+        interceptor: (name, args, next) async {
+          interceptorCalled = true;
+          return next();
+        },
+      );
+      addTearDown(b.dispose);
+
+      b.register(
+        HostFunction(
+          schema: const HostFunctionSchema(name: 'fn', description: ''),
+          handler: (_) async => 'infra result',
+          isInfra: true,
+        ),
+      );
 
       mock
-        ..enqueueProgress(
-          const MontyPending(
-            functionName: 'fn',
-            arguments: [],
-            kwargs: {'__role__': MontyString('unknown_value')},
-          ),
-        )
+        ..enqueueProgress(const MontyPending(functionName: 'fn', arguments: []))
         ..enqueueProgress(
           const MontyComplete(
             result: MontyResult(value: MontyNone(), usage: _usage),
           ),
         );
 
-      await bridge.execute('fn()').toList();
-      expect(captured, isA<ToolCall>());
+      await b.execute('fn()').toList();
+      expect(interceptorCalled, isFalse);
     });
   });
 
@@ -646,64 +483,66 @@ void main() {
   });
 
   group('invokeHostFunction', () {
-    test(
-      'routes through middleware with correct name, args, and role',
-      () async {
-        String? capturedName;
-        Map<String, Object?>? capturedArgs;
-        CallRole? capturedRole;
+    test('routes through interceptor with correct name and args', () async {
+      String? capturedName;
+      Map<String, Object?>? capturedArgs;
 
-        bridge
-          ..use(
-            _CapturingMiddleware(
-              onCall: (name, args, role) {
-                capturedName = name;
-                capturedArgs = args;
-                capturedRole = role;
-              },
-            ),
-          )
-          ..register(
-            HostFunction(
-              schema: const HostFunctionSchema(
-                name: 'greet',
-                description: '',
-                params: [HostParam(name: 'who', type: HostParamType.string)],
-              ),
-              handler: (args) async => 'hello ${args['who']}',
-            ),
-          );
+      final b = MontyBridge(
+        platform: mock,
+        interceptor: (name, args, next) {
+          capturedName = name;
+          capturedArgs = args;
+          return next();
+        },
+      );
+      addTearDown(b.dispose);
 
-        final result = await bridge.invokeHostFunction('greet', {
-          'who': 'world',
-        });
+      b.register(
+        HostFunction(
+          schema: const HostFunctionSchema(
+            name: 'greet',
+            description: '',
+            params: [HostParam(name: 'who', type: HostParamType.string)],
+          ),
+          handler: (args) async => 'hello ${args['who']}',
+        ),
+      );
 
-        expect(result, 'hello world');
-        expect(capturedName, 'greet');
-        expect(capturedArgs, {'who': 'world'});
-        expect(capturedRole, isA<ToolCall>());
-      },
-    );
+      final result = await b.invokeHostFunction('greet', {'who': 'world'});
+
+      expect(result, 'hello world');
+      expect(capturedName, 'greet');
+      expect(capturedArgs, {'who': 'world'});
+    });
 
     test('unknown function throws ArgumentError', () {
       expect(() => bridge.invokeHostFunction('nope', {}), throwsArgumentError);
     });
 
-    test('propagates InfraCall role to middleware', () async {
-      CallRole? capturedRole;
+    test('isInfra: true bypasses interceptor on direct invoke', () async {
+      var interceptorCalled = false;
 
-      bridge
-        ..use(_RoleCapturingMiddleware((role) => capturedRole = role))
-        ..register(
-          HostFunction(
-            schema: const HostFunctionSchema(name: 'fn', description: ''),
-            handler: (_) async => null,
-          ),
-        );
+      final b = MontyBridge(
+        platform: mock,
+        interceptor: (name, args, next) async {
+          interceptorCalled = true;
+          return next();
+        },
+      );
+      addTearDown(b.dispose);
 
-      await bridge.invokeHostFunction('fn', {}, role: const InfraCall());
+      b.register(
+        HostFunction(
+          schema: const HostFunctionSchema(name: 'fn', description: ''),
+          handler: (_) async => 'result',
+          isInfra: true,
+        ),
+      );
 
-      expect(capturedRole, isA<InfraCall>());
+      final result = await b.invokeHostFunction('fn', {});
+
+      expect(result, 'result');
+      expect(interceptorCalled, isFalse);
     });
 
     test('validates arguments via mapAndValidate', () {
@@ -1151,89 +990,6 @@ void main() {
       },
     );
   });
-}
-
-// ---------------------------------------------------------------------------
-// Test middleware implementations
-// ---------------------------------------------------------------------------
-
-class _LoggingMiddleware extends BridgeMiddleware {
-  _LoggingMiddleware(this.tag, this.log);
-
-  final String tag;
-  final List<String> log;
-
-  @override
-  Future<Object?> handle(
-    String name,
-    Map<String, Object?> args,
-    CallRole role,
-    ToolHandler next,
-  ) async {
-    log.add('$tag:before:$name');
-    final result = await next(name, args);
-    log.add('$tag:after:$name');
-    return result;
-  }
-}
-
-class _RoleCapturingMiddleware extends BridgeMiddleware {
-  _RoleCapturingMiddleware(this.onRole);
-
-  final void Function(CallRole) onRole;
-
-  @override
-  Future<Object?> handle(
-    String name,
-    Map<String, Object?> args,
-    CallRole role,
-    ToolHandler next,
-  ) {
-    onRole(role);
-    return next(name, args);
-  }
-}
-
-class _BlockingMiddleware extends BridgeMiddleware {
-  _BlockingMiddleware(this.returnValue);
-
-  final Object? returnValue;
-
-  @override
-  Future<Object?> handle(
-    String name,
-    Map<String, Object?> args,
-    CallRole role,
-    ToolHandler next,
-  ) async => returnValue;
-}
-
-class _ThrowingMiddleware extends BridgeMiddleware {
-  @override
-  Future<Object?> handle(
-    String name,
-    Map<String, Object?> args,
-    CallRole role,
-    ToolHandler next,
-  ) => throw StateError('Access denied');
-}
-
-class _CapturingMiddleware extends BridgeMiddleware {
-  _CapturingMiddleware({required this.onCall});
-
-  final void Function(String name, Map<String, Object?> args, CallRole role)
-  onCall;
-
-  @override
-  Future<Object?> handle(
-    String name,
-    Map<String, Object?> args,
-    CallRole role,
-    ToolHandler next,
-  ) {
-    onCall(name, args, role);
-    return next(name, args);
-  }
 }
 
 /// A mock platform that throws from [resume] after enqueued progresses

@@ -1,9 +1,9 @@
 import 'package:dart_monty/src/bridge_event.dart';
 import 'package:dart_monty/src/bridge_logger.dart';
-import 'package:dart_monty/src/bridge_middleware.dart';
 import 'package:dart_monty/src/default_monty_bridge.dart';
 import 'package:dart_monty/src/host_function.dart';
 import 'package:dart_monty/src/host_function_schema.dart';
+import 'package:dart_monty/src/plugin_host.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 
 /// Bridge for LLM-generated Python calling registered Dart host functions.
@@ -24,6 +24,7 @@ abstract class MontyBridge {
     MontyLimits? limits,
     bool useFutures,
     BridgeLogger? logger,
+    MontyInterceptor? interceptor,
   }) = DefaultMontyBridge;
 
   /// Logger for this bridge instance.
@@ -47,26 +48,13 @@ abstract class MontyBridge {
   /// Unregisters a host function by name.
   void unregister(String name);
 
-  /// Registers a [BridgeMiddleware] to intercept tool calls.
+  /// Invokes a registered host function by [name] directly from Dart.
   ///
-  /// First registered = outermost in the onion chain. No-op by default;
-  /// override in implementations that support middleware.
-  void use(BridgeMiddleware middleware) {
-    // Default no-op.
-  }
-
-  /// Invokes a registered host function by name, routing through middleware.
-  ///
-  /// Use this to call host functions from Dart infrastructure code
-  /// (e.g., orchestration loops) rather than from Python. Arguments are
-  /// validated through [HostFunctionSchema.mapAndValidate] before dispatch.
+  /// Infra functions (where [HostFunction.isInfra] is `true`) bypass the
+  /// interceptor. All others go through it.
   ///
   /// Throws [ArgumentError] if [name] is not registered.
-  Future<Object?> invokeHostFunction(
-    String name,
-    Map<String, Object?> args, {
-    CallRole role = const ToolCall(),
-  });
+  Future<Object?> invokeHostFunction(String name, Map<String, Object?> args);
 
   /// Registers an [OsCallHandler] for OS-level calls (pathlib, os, datetime).
   ///

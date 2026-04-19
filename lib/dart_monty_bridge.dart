@@ -6,7 +6,6 @@ library;
 
 export 'src/bridge_event.dart';
 export 'src/bridge_logger.dart';
-export 'src/bridge_middleware.dart';
 export 'src/default_monty_bridge.dart';
 export 'src/host_args.dart';
 export 'src/host_function.dart';
@@ -28,6 +27,7 @@ export 'src/os_call/platform_handlers.dart';
 export 'src/os_call/sandboxed_fs_handler_stub.dart'
     if (dart.library.io) 'src/os_call/sandboxed_fs_handler.dart';
 export 'src/param_render_hint.dart';
+export 'src/plugin_host.dart' show MontyInterceptor;
 export 'src/plugin_registry.dart';
 export 'src/plugins/default_plugins.dart';
 export 'src/plugins/event_loop_plugin.dart';
