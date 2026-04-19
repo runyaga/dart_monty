@@ -1,6 +1,6 @@
 // Standalone JS-compiled demo, not a package:test file.
 // ignore_for_file: avoid_print, lines_longer_than_80_chars, avoid_catches_without_on_clauses, cast_nullable_to_non_nullable
-/// Interactive REPL Session Demo — MontyBridgeSession + real plugins in the browser.
+/// Interactive REPL Session Demo — MontyRuntime + real plugins in the browser.
 ///
 /// Compiled to JS, exposes window.ReplSessionDemo to HTML.
 /// All host function dispatch (template, message bus) runs in
@@ -34,7 +34,7 @@ external void _jsOnToolCall(JSString jsonPayload);
 // State
 // ---------------------------------------------------------------------------
 
-late MontyBridgeSession _session;
+late MontyRuntime _session;
 
 // ---------------------------------------------------------------------------
 // API
@@ -112,7 +112,7 @@ void _createSession() {
   final msgBus = MessageBusPlugin();
 
   // SandboxPlugin is FFI-only and cannot be used in a web build.
-  _session = MontyBridgeSession(
+  _session = MontyRuntime(
     plugins: [tmpl, msgBus],
   );
 }

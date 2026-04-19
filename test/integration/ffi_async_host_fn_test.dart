@@ -19,7 +19,7 @@ import 'package:test/test.dart';
 void main() {
   group('FFI async host function regression (#271)', () {
     test('sync host function — two sequential calls work', () async {
-      final session = MontyBridgeSession();
+      final session = MontyRuntime();
       addTearDown(session.dispose);
 
       session.register(
@@ -40,7 +40,7 @@ void main() {
     });
 
     test('async host function with short delay — two calls', () async {
-      final session = MontyBridgeSession();
+      final session = MontyRuntime();
       addTearDown(session.dispose);
 
       session.register(
@@ -65,7 +65,7 @@ void main() {
     });
 
     test('async host function with 1s delay — two calls', () async {
-      final session = MontyBridgeSession();
+      final session = MontyRuntime();
       addTearDown(session.dispose);
 
       session.register(
@@ -92,7 +92,7 @@ void main() {
     test(
       'async host function with real HTTP — two calls',
       () async {
-        final session = MontyBridgeSession();
+        final session = MontyRuntime();
         addTearDown(session.dispose);
 
         session.register(
@@ -142,7 +142,7 @@ void main() {
     test(
       'sandbox mode — async HTTP — two calls',
       () async {
-        final session = MontyBridgeSession(sandbox: true);
+        final session = MontyRuntime(sandbox: true);
         addTearDown(session.dispose);
 
         session.register(
@@ -187,7 +187,7 @@ void main() {
       timeout: const Timeout(Duration(seconds: 30)),
     );
     test('file I/O — two calls', () async {
-      final session = MontyBridgeSession();
+      final session = MontyRuntime();
       addTearDown(session.dispose);
 
       session.register(
@@ -213,7 +213,7 @@ void main() {
     });
 
     test('process I/O — two calls', () async {
-      final session = MontyBridgeSession();
+      final session = MontyRuntime();
       addTearDown(session.dispose);
 
       session.register(
@@ -238,7 +238,7 @@ void main() {
     });
 
     test('socket listen — two calls', () async {
-      final session = MontyBridgeSession();
+      final session = MontyRuntime();
       addTearDown(session.dispose);
 
       session.register(
@@ -267,7 +267,7 @@ void main() {
     test(
       'http but return small string — two calls',
       () async {
-        final session = MontyBridgeSession();
+        final session = MontyRuntime();
         addTearDown(session.dispose);
 
         session.register(
@@ -312,7 +312,7 @@ void main() {
     test(
       'http returning large string — two calls',
       () async {
-        final session = MontyBridgeSession();
+        final session = MontyRuntime();
         addTearDown(session.dispose);
 
         session.register(

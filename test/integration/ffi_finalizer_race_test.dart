@@ -1,6 +1,6 @@
 /// Regression test for #271: NativeFinalizer race on handle address reuse.
 ///
-/// Creates and disposes multiple MontyBridgeSession instances in rapid
+/// Creates and disposes multiple MontyRuntime instances in rapid
 /// succession,
 /// then verifies the next session works correctly with HTTP host functions.
 /// Before the fix, this would SEGFAULT because a stale GC finalizer freed
@@ -53,13 +53,13 @@ void main() {
       () async {
         // Create and dispose 5 sessions to trigger GC finalizer race.
         for (var i = 0; i < 5; i++) {
-          final s = MontyBridgeSession()..register(_syncFn());
+          final s = MontyRuntime()..register(_syncFn());
           await s.execute('sync_fn()');
           await s.dispose();
         }
 
         // 6th session with HTTP — crashed before the fix.
-        final s = MontyBridgeSession()..register(_httpFn());
+        final s = MontyRuntime()..register(_httpFn());
         final r = await s.execute('http_fn()');
         await s.dispose();
         print('  result: ${r.value.dartValue}');
@@ -72,7 +72,7 @@ void main() {
       'create/dispose 10 sessions with HTTP each',
       () async {
         for (var i = 0; i < 10; i++) {
-          final s = MontyBridgeSession()..register(_httpFn());
+          final s = MontyRuntime()..register(_httpFn());
           final r = await s.execute('http_fn()');
           await s.dispose();
           expect(r.value.dartValue, isA<String>());
@@ -86,7 +86,7 @@ void main() {
       'interleaved sync and HTTP sessions',
       () async {
         for (var i = 0; i < 10; i++) {
-          final s = MontyBridgeSession()
+          final s = MontyRuntime()
             ..register(_syncFn())
             ..register(_httpFn());
           if (i.isEven) {
@@ -106,12 +106,12 @@ void main() {
       () async {
         // Rapid lifecycle without using the session — tests GC pressure.
         for (var i = 0; i < 20; i++) {
-          final s = MontyBridgeSession()..register(_syncFn());
+          final s = MontyRuntime()..register(_syncFn());
           await s.dispose();
         }
 
         // Then one real session with HTTP.
-        final s = MontyBridgeSession()..register(_httpFn());
+        final s = MontyRuntime()..register(_httpFn());
         final r = await s.execute('http_fn()');
         await s.dispose();
         print('  survived 20 rapid dispose + 1 HTTP');
@@ -123,7 +123,7 @@ void main() {
     test(
       'sandbox mode: 10 execute calls with HTTP',
       () async {
-        final s = MontyBridgeSession(sandbox: true)..register(_httpFn());
+        final s = MontyRuntime(sandbox: true)..register(_httpFn());
         for (var i = 0; i < 10; i++) {
           final r = await s.execute('http_fn()');
           expect(r.value.dartValue, isA<String>());

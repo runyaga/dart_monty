@@ -5,7 +5,7 @@ import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:test/test.dart';
 
-/// Integration tests for MontyBridgeSession with plugins — requires native FFI.
+/// Integration tests for MontyRuntime with plugins — requires native FFI.
 ///
 /// Run with:
 /// ```bash
@@ -17,11 +17,11 @@ void main() {
   // Template plugin
   // ---------------------------------------------------------------------------
 
-  group('MontyBridgeSession + JinjaTemplatePlugin', () {
-    late MontyBridgeSession session;
+  group('MontyRuntime + JinjaTemplatePlugin', () {
+    late MontyRuntime session;
 
     setUp(() {
-      session = MontyBridgeSession(plugins: [JinjaTemplatePlugin()]);
+      session = MontyRuntime(plugins: [JinjaTemplatePlugin()]);
     });
 
     tearDown(() async {
@@ -61,11 +61,11 @@ tmpl_render(
   // Message bus plugin
   // ---------------------------------------------------------------------------
 
-  group('MontyBridgeSession + MessageBusPlugin', () {
-    late MontyBridgeSession session;
+  group('MontyRuntime + MessageBusPlugin', () {
+    late MontyRuntime session;
 
     setUp(() {
-      session = MontyBridgeSession(plugins: [MessageBusPlugin()]);
+      session = MontyRuntime(plugins: [MessageBusPlugin()]);
     });
 
     tearDown(() async {
@@ -107,8 +107,8 @@ msg_send(name='q', message=2)
   // Sandbox plugin — child spawning
   // ---------------------------------------------------------------------------
 
-  group('MontyBridgeSession + SandboxPlugin', () {
-    late MontyBridgeSession session;
+  group('MontyRuntime + SandboxPlugin', () {
+    late MontyRuntime session;
 
     setUp(() {
       final osContribs = <String, OsCallHandler>{
@@ -123,7 +123,7 @@ msg_send(name='q', message=2)
         msg,
         SandboxPlugin(platformFactory: () async => createPlatformMonty()),
       ];
-      session = MontyBridgeSession(osHandlers: osContribs, plugins: plugins);
+      session = MontyRuntime(osHandlers: osContribs, plugins: plugins);
     });
 
     tearDown(() async {
@@ -191,8 +191,8 @@ sandbox_free(handle=h)
   // Cross-plugin: templates inside children
   // ---------------------------------------------------------------------------
 
-  group('MontyBridgeSession cross-plugin inheritance', () {
-    late MontyBridgeSession session;
+  group('MontyRuntime cross-plugin inheritance', () {
+    late MontyRuntime session;
 
     setUp(() {
       final osContribs = <String, OsCallHandler>{
@@ -207,7 +207,7 @@ sandbox_free(handle=h)
         msg,
         SandboxPlugin(platformFactory: () async => createPlatformMonty()),
       ];
-      session = MontyBridgeSession(osHandlers: osContribs, plugins: plugins);
+      session = MontyRuntime(osHandlers: osContribs, plugins: plugins);
     });
 
     tearDown(() async {

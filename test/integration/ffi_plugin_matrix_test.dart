@@ -23,7 +23,7 @@ void main() {
     () async {
       final kv = <String, String>{};
       final session =
-          MontyBridgeSession(
+          MontyRuntime(
               osHandlers: {
                 'Path.': memoryFsHandler(),
                 'date.': timeHandler(),
