@@ -1,6 +1,6 @@
 // Standalone JS-compiled demo, not a package:test file.
 // ignore_for_file: avoid_print, use_null_aware_elements
-/// Interactive AgentSession Demo — shows stateful Python execution with host
+/// Interactive MontyBridgeSession Demo — shows stateful Python execution with host
 /// functions, filesystem access, and real-time bridge event streaming.
 ///
 /// Compiled to JS, exposes functions to the HTML UI via window.AgentDemo.
@@ -34,7 +34,7 @@ external void _jsOnReady();
 // State
 // ---------------------------------------------------------------------------
 
-AgentSession? _session;
+MontyBridgeSession? _session;
 bool _initialized = false;
 
 // ---------------------------------------------------------------------------
@@ -200,7 +200,7 @@ Future<bool> _init() async {
     );
     plugins.add(sandboxPlugin);
 
-    _session = AgentSession(os: os, plugins: plugins);
+    _session = MontyBridgeSession(os: os, plugins: plugins);
 
     _demoHostFunctions.forEach(_session!.register);
 
@@ -269,10 +269,10 @@ Future<String> _execute(String code) async {
 Map<String, dynamic> _eventToMap(BridgeEvent event) {
   return switch (event) {
     BridgeRunStarted(:final threadId, :final runId) => {
-        'type': 'RunStarted',
-        'threadId': threadId,
-        'runId': runId,
-      },
+      'type': 'RunStarted',
+      'threadId': threadId,
+      'runId': runId,
+    },
     BridgeRunFinished(
       :final threadId,
       :final runId,
@@ -287,37 +287,37 @@ Map<String, dynamic> _eventToMap(BridgeEvent event) {
         if (printOutput != null) 'printOutput': printOutput,
       },
     BridgeRunError(:final message, :final printOutput) => {
-        'type': 'RunError',
-        'message': message,
-        if (printOutput != null) 'printOutput': printOutput,
-      },
+      'type': 'RunError',
+      'message': message,
+      if (printOutput != null) 'printOutput': printOutput,
+    },
     BridgeStepStarted(:final stepId) => {
-        'type': 'StepStarted',
-        'stepId': stepId,
-      },
+      'type': 'StepStarted',
+      'stepId': stepId,
+    },
     BridgeStepFinished(:final stepId) => {
-        'type': 'StepFinished',
-        'stepId': stepId,
-      },
+      'type': 'StepFinished',
+      'stepId': stepId,
+    },
     BridgeToolCallStart(:final callId, :final name) => {
-        'type': 'ToolCallStart',
-        'callId': callId,
-        'name': name,
-      },
+      'type': 'ToolCallStart',
+      'callId': callId,
+      'name': name,
+    },
     BridgeToolCallArgs(:final callId, :final delta) => {
-        'type': 'ToolCallArgs',
-        'callId': callId,
-        'delta': delta,
-      },
+      'type': 'ToolCallArgs',
+      'callId': callId,
+      'delta': delta,
+    },
     BridgeToolCallEnd(:final callId) => {
-        'type': 'ToolCallEnd',
-        'callId': callId,
-      },
+      'type': 'ToolCallEnd',
+      'callId': callId,
+    },
     BridgeToolCallResult(:final callId, :final result) => {
-        'type': 'ToolCallResult',
-        'callId': callId,
-        'result': result,
-      },
+      'type': 'ToolCallResult',
+      'callId': callId,
+      'result': result,
+    },
     BridgeOsCallStart(
       :final callId,
       :final operationName,
@@ -330,11 +330,11 @@ Map<String, dynamic> _eventToMap(BridgeEvent event) {
         if (argumentSummary != null) 'argumentSummary': argumentSummary,
       },
     BridgeOsCallResult(:final callId, :final result, :final durationMs) => {
-        'type': 'OsCallResult',
-        'callId': callId,
-        'result': result,
-        if (durationMs != null) 'durationMs': durationMs,
-      },
+      'type': 'OsCallResult',
+      'callId': callId,
+      'result': result,
+      if (durationMs != null) 'durationMs': durationMs,
+    },
   };
 }
 
@@ -383,8 +383,8 @@ Future<void> main() async {
   final api = <String, JSFunction>{
     'init': (() => _init().then((ok) => ok.toJS).toJS).toJS,
     'execute': ((JSString code) => _execute(
-          code.toDart,
-        ).then((r) => r.toJS).toJS).toJS,
+      code.toDart,
+    ).then((r) => r.toJS).toJS).toJS,
     'getState': (() => _getState().toJS).toJS,
     'getSchemas': (() => _getSchemas().toJS).toJS,
     'clearState': _clearState.toJS,

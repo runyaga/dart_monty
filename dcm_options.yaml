@@ -56,7 +56,7 @@ dcm:
     - avoid-unsafe-collection-methods:
         exclude:
           # State wrapping: code gen accesses known-valid indices
-          - "lib/src/bridge/agent_session.dart"
+          - "lib/src/monty_bridge_session.dart"
           # Index access guarded by for-loop bounds and prior length checks
           - "lib/src/platform/code_capture.dart"
           # Mock tracking lists: only accessed after recording calls
@@ -64,16 +64,16 @@ dcm:
           # Guarded by isEmpty/isNotEmpty/length checks before access
           - "lib/src/platform/monty_session.dart"
           - "lib/src/platform/testing/ladder_assertions.dart"
-          - "lib/src/bridge/bridge/default_monty_bridge.dart"
-          - "lib/src/bridge/bridge/host_function_schema.dart"
-          - "lib/src/bridge/bridge/introspection_functions.dart"
-          - "lib/src/bridge/plugins/message_bus_plugin.dart"
-          - "lib/src/bridge/plugins/sandbox_plugin.dart"
+          - "lib/src/default_monty_bridge.dart"
+          - "lib/src/host_function_schema.dart"
+          - "lib/src/introspection_functions.dart"
+          - "lib/src/plugins/message_bus_plugin.dart"
+          - "lib/src/plugins/sandbox_plugin.dart"
     - avoid-missing-completer-stack-trace
     - avoid-uncaught-future-errors:
         exclude:
           # Future is drained via unawaited(future.catchError)
-          - "lib/src/bridge/plugins/message_bus_plugin.dart"
+          - "lib/src/plugins/message_bus_plugin.dart"
     - avoid-recursive-calls
     - avoid-contradictory-expressions
     - avoid-self-assignment
@@ -150,13 +150,13 @@ dcm:
           # Helper types/enums declared before the main class
           - "lib/src/platform/core_bindings.dart"
           - "lib/src/platform/monty_session.dart"
-          - "lib/src/bridge/bridge/bridge_middleware.dart"
-          - "lib/src/bridge/plugins/event_loop_plugin.dart"
-          - "lib/src/bridge/bridge/monty_plugin.dart"
-          - "lib/src/bridge/plugins/sandbox_plugin.dart"
-          - "lib/src/bridge/plugins/template_plugin.dart"
-          - "lib/src/bridge/plugins/message_bus_plugin.dart"
-          - "lib/src/bridge/bridge/plugin_registry.dart"
+          - "lib/src/bridge_middleware.dart"
+          - "lib/src/plugins/event_loop_plugin.dart"
+          - "lib/src/monty_plugin.dart"
+          - "lib/src/plugins/sandbox_plugin.dart"
+          - "lib/src/plugins/template_plugin.dart"
+          - "lib/src/plugins/message_bus_plugin.dart"
+          - "lib/src/plugin_registry.dart"
           - "lib/src/wasm/wasm_bindings_js_stub.dart"
     - prefer-immediate-return
     - prefer-commenting-analyzer-ignores
@@ -168,12 +168,12 @@ dcm:
     - no-empty-block:
         exclude:
           # NullBridgeLogger: null-object pattern, all methods intentionally empty
-          - "lib/src/bridge/bridge/bridge_logger.dart"
+          - "lib/src/bridge_logger.dart"
           # Default no-op lifecycle hooks
-          - "lib/src/bridge/bridge/monty_plugin.dart"
-          - "lib/src/bridge/bridge/monty_bridge.dart"
+          - "lib/src/monty_plugin.dart"
+          - "lib/src/monty_bridge.dart"
           # Empty .then() callback for unawaited future cleanup
-          - "lib/src/bridge/bridge/default_monty_bridge.dart"
+          - "lib/src/default_monty_bridge.dart"
     - no-equal-then-else
     - prefer-first
     - prefer-last
@@ -186,7 +186,7 @@ dcm:
     - prefer-async-await:
         exclude:
           # Fire-and-forget .then() for unawaited error logging
-          - "lib/src/bridge/bridge/default_monty_bridge.dart"
+          - "lib/src/default_monty_bridge.dart"
           # (ffi shim removed — dart_monty_core handles isolate dispatch)
     - avoid-adjacent-strings
     - prefer-declaring-const-constructor:
@@ -195,7 +195,7 @@ dcm:
           - "lib/src/wasm/wasm_bindings_js.dart"
           # (ffi shim removed — NativeBindingsFfi lives in dart_monty_core)
           # BridgeChannelWaiting holds Completer which cannot be const
-          - "lib/src/bridge/plugins/event_loop_plugin.dart"
+          - "lib/src/plugins/event_loop_plugin.dart"
     - format-comment
 
     # --- Immutability ---
@@ -207,7 +207,7 @@ dcm:
     - prefer-return-await:
         exclude:
           # Future.value() return in try/catch — already resolved, no async gap
-          - "lib/src/bridge/plugins/template_plugin.dart"
+          - "lib/src/plugins/template_plugin.dart"
     - avoid-type-casts
     - avoid-inferrable-type-arguments
     - avoid-unnecessary-futures
@@ -221,11 +221,11 @@ dcm:
         exclude:
           - "test/**"
           # Bridge initialized in constructor body (needs _monty.platform)
-          - "lib/src/bridge/agent_session.dart"
+          - "lib/src/monty_bridge_session.dart"
           # Computed signal initialized in constructor body (needs _childrenSignal instance field)
-          - "lib/src/bridge/plugins/sandbox_plugin.dart"
+          - "lib/src/plugins/sandbox_plugin.dart"
           # Registry injected externally by PluginRegistry._injectRegistries before onRegister
-          - "lib/src/bridge/bridge/monty_plugin.dart"
+          - "lib/src/monty_plugin.dart"
     - avoid-dynamic:
         exclude:
           - "test/**"
@@ -247,12 +247,12 @@ dcm:
           - "lib/src/platform/monty_progress.dart"
           - "lib/src/platform/monty_session.dart"
           # Bridge dispatch: non-null guaranteed by host function schema validation
-          - "lib/src/bridge/bridge/default_monty_bridge.dart"
-          - "lib/src/bridge/bridge/host_param.dart"
-          - "lib/src/bridge/bridge/plugin_registry.dart"
-          - "lib/src/bridge/plugins/sandbox_plugin.dart"
+          - "lib/src/default_monty_bridge.dart"
+          - "lib/src/host_param.dart"
+          - "lib/src/plugin_registry.dart"
+          - "lib/src/plugins/sandbox_plugin.dart"
           # State wrapping + result extraction: non-null guaranteed by event type
-          - "lib/src/bridge/agent_session.dart"
+          - "lib/src/monty_bridge_session.dart"
           # Regex match.group(1) non-null guaranteed by pattern structure
           - "lib/src/platform/code_capture.dart"
           # WASM JS interop: non-null guaranteed by JS bridge contract
@@ -281,13 +281,13 @@ dcm:
           # printOutput getter wraps _printBuffer (encapsulation)
           - "lib/src/platform/monty_session.dart"
           # logger getter wraps log field (interface compliance)
-          - "lib/src/bridge/bridge/default_monty_bridge.dart"
+          - "lib/src/default_monty_bridge.dart"
           # fileSystem getter exposes _fs for Dart-side VFS access
-          - "lib/src/bridge/os_call/fs_provider.dart"
+          - "lib/src/os_call/fs_provider.dart"
           # bridge getter returns _sharedBridge ?? _schemaBridge (dual-mode)
-          - "lib/src/bridge/agent_session.dart"
+          - "lib/src/monty_bridge_session.dart"
           # channelStateSignal/lastEmittedSignal wrap _channelState/_lastEmitted (shorter backing names)
-          - "lib/src/bridge/plugins/event_loop_plugin.dart"
+          - "lib/src/plugins/event_loop_plugin.dart"
     - avoid-declaring-call-method
 
     # --- Import Safety ---
