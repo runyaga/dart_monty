@@ -412,12 +412,9 @@ class DefaultMontyBridge implements MontyBridge {
       case BridgeStepStarted() ||
           BridgeStepFinished() ||
           BridgeToolCallArgs() ||
-          BridgeToolCallEnd() ||
-          BridgeEventLoopWaiting() ||
-          BridgeEventLoopResumed() ||
-          BridgeUiRendered():
+          BridgeToolCallEnd():
         // No-op: these events are surface-level telemetry (step boundaries,
-        // argument deltas, UI) — logging them would be chatty duplication of
+        // argument deltas) — logging them would be chatty duplication of
         // the event stream.
         break;
     }
