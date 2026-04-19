@@ -201,16 +201,15 @@ final r = await repl.feed('double(x)');
 print(r.value); <span style="color:var(--text-dim)">// MontyInt(84)</span></pre>
 
     <h3>Session with Plugins</h3>
-<pre><span style="color:var(--text-dim)">// Full plugin dispatch — template, messaging, sandboxing</span>
-final session = ReplSession(
+<pre><span style="color:var(--text-dim)">// Full plugin dispatch — template, messaging</span>
+final session = MontyRuntime(
   plugins: [
-    DinjaTemplatePlugin(),
+    JinjaTemplatePlugin(),
     MessageBusPlugin(),
-    SandboxPlugin(platformFactory: () async => MontyFfi()),
   ],
 );
 
-final r = await session.run(
+final r = await session.execute(
   "tmpl_render(template='Hello {{ name }}!', context={'name': 'World'})",
 );
 print(r.value); <span style="color:var(--text-dim)">// 'Hello World!'</span></pre>
@@ -234,7 +233,7 @@ print(r.value); <span style="color:var(--text-dim)">// 'Hello World!'</span></pr
            host function dispatch.</p>
       </div>
       <div class="card">
-        <h3>ReplSession</h3>
+        <h3>MontyRuntime</h3>
         <p>High-level session combining REPL + plugin dispatch +
            event streaming. The recommended API.</p>
       </div>
@@ -260,7 +259,7 @@ print(r.value); <span style="color:var(--text-dim)">// 'Hello World!'</span></pr
     <h2>Built-in Plugins</h2>
     <p class="section-desc">
       Host functions that Python code can call. All plugins work
-      with both <code>ReplSession</code> and <code>AgentSession</code>.
+      with <code>MontyRuntime</code>.
     </p>
 
     <div class="card-grid">
@@ -323,7 +322,7 @@ print(r.value); <span style="color:var(--text-dim)">// 'Hello World!'</span></pr
 dart_monty_core (backends)
 ├── FFI                  <span style="color:var(--text-dim)">Native backend (dart:ffi)</span>
 ├── WASM                 <span style="color:var(--text-dim)">Web backend (dart:js_interop + Worker)</span>
-├── lib/src/repl/        <span style="color:var(--text-dim)">REPL: MontyRepl, ReplSession, ReplPlatform</span>
+├── lib/src/repl/        <span style="color:var(--text-dim)">REPL: MontyRepl, ReplPlatform</span>
 └── native/              <span style="color:var(--text-dim)">Rust C API crate (compiles to .dylib/.so/.dll + .wasm)</span></div>
 
     <h3>Execution Paths</h3>
