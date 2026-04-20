@@ -14,6 +14,9 @@
 //     escape, prefix-collision, write/rename outside sandbox)
 //   - Path normalization (redundant separators)
 
+@TestOn('vm')
+library;
+
 import 'dart:io';
 
 import 'package:dart_monty/dart_monty_bridge.dart';

@@ -1,3 +1,6 @@
+@TestOn('vm')
+library;
+
 import 'dart:io';
 
 import 'package:dart_monty/src/os_call/sandboxed_fs_handler.dart';

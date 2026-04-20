@@ -1,3 +1,6 @@
+@TestOn('vm')
+library;
+
 import 'dart:async';
 
 import 'package:dart_monty/dart_monty.dart';

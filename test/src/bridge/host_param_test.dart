@@ -29,12 +29,18 @@ void main() {
         expect(param.validate(42), 42);
       });
 
-      test('throws FormatException for float on integer param', () {
-        // Floats are not losslessly coercible to int — reject always.
-        const param = HostParam(name: 'x', type: HostParamType.integer);
-        expect(() => param.validate(3.7), throwsFormatException);
-        expect(() => param.validate(1.0), throwsFormatException);
-      });
+      test(
+        'throws FormatException for float on integer param',
+        () {
+          // Floats are not losslessly coercible to int — reject always.
+          const param = HostParam(name: 'x', type: HostParamType.integer);
+          expect(() => param.validate(3.7), throwsFormatException);
+          expect(() => param.validate(1.0), throwsFormatException);
+        },
+        // On JS/WASM, `1.0 is int` is true (unified num type), so this
+        // coercion path is VM-only.
+        testOn: 'vm',
+      );
 
       test('throws FormatException for string on integer param', () {
         // Monty maps Python int → Dart int directly; a string means a
