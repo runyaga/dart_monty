@@ -60,7 +60,7 @@ class HostFunction {
   /// Which surfaces this function is visible on.
   ///
   /// Defaults to `{FunctionSurface.python}`. Add [FunctionSurface.llm] to
-  /// expose the schema via `MontyRuntime.llmSchemas`.
+  /// expose the schema via `MontyRuntime.exposedSchemas`.
   final Set<FunctionSurface> surfaces;
 
   /// Whether this function is visible inside child sandboxes spawned from

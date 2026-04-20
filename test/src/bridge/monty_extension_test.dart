@@ -114,7 +114,7 @@ class _NoOpBridge implements MontyBridge {
   List<HostFunctionSchema> get schemas => [];
 
   @override
-  List<HostFunctionSchema> get llmSchemas => [];
+  List<HostFunctionSchema> get exposedSchemas => [];
 
   @override
   Map<String, List<HostFunctionSchema>> get schemasByCategory => {};

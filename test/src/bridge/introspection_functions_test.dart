@@ -285,7 +285,7 @@ class _FakeBridge implements MontyBridge {
       _functions.values.map((f) => f.schema).toList(growable: false);
 
   @override
-  List<HostFunctionSchema> get llmSchemas => const [];
+  List<HostFunctionSchema> get exposedSchemas => const [];
 
   @override
   Map<String, List<HostFunctionSchema>> get schemasByCategory {

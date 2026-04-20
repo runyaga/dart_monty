@@ -74,7 +74,7 @@ Map<String, Object?> _serializeParam(HostParam param) {
 Map<String, Object?> _serializeSchema(HostFunctionSchema schema) {
   return {
     'name': schema.name,
-    'description': schema.description,
+    if (schema.description != null) 'description': schema.description,
     'params': [for (final p in schema.params) _serializeParam(p)],
   };
 }
