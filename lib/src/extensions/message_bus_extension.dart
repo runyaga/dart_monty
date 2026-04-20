@@ -224,7 +224,7 @@ class MessageChannel {
 /// An observable, in-memory message bus with named [MessageChannel]s.
 ///
 /// Channels auto-create on first use via [channel]. Share a single [MessageBus]
-/// instance across [MessageBusPlugin] parent and child instances for
+/// instance across [MessageBusExtension] parent and child instances for
 /// transparent Python↔Python and Dart↔Python communication.
 ///
 /// ```dart
@@ -300,7 +300,7 @@ class MessageBus {
 }
 
 // ---------------------------------------------------------------------------
-// Schema constants for MessageBusPlugin host functions.
+// Schema constants for MessageBusExtension host functions.
 // ---------------------------------------------------------------------------
 
 const _msgSendSchema = HostFunctionSchema(
@@ -381,7 +381,7 @@ const _msgStatsSchema = HostFunctionSchema(
 );
 
 // ---------------------------------------------------------------------------
-// MessageBusPlugin — thin Python adapter over MessageBus.
+// MessageBusExtension — thin Python adapter over MessageBus.
 // ---------------------------------------------------------------------------
 
 /// Plugin providing named, bidirectional, blocking message channels.
@@ -401,12 +401,12 @@ const _msgStatsSchema = HostFunctionSchema(
 /// than holding a direct reference to the plugin. This keeps extension
 /// boundaries narrow and goes through the same interceptor path as Python
 /// callers.
-class MessageBusPlugin extends MontyExtension {
-  /// Creates a [MessageBusPlugin].
+class MessageBusExtension extends MontyExtension {
+  /// Creates a [MessageBusExtension].
   ///
   /// If [bus] is omitted a new [MessageBus] is created. Child instances
   /// returned by [createChildInstance] share the same bus.
-  MessageBusPlugin({MessageBus? bus}) : _bus = bus ?? MessageBus();
+  MessageBusExtension({MessageBus? bus}) : _bus = bus ?? MessageBus();
 
   final MessageBus _bus;
   final Set<Completer<Object?>> _pendingRecvs = {};
@@ -437,7 +437,7 @@ class MessageBusPlugin extends MontyExtension {
 
   @override
   MontyExtension createChildInstance(ChildSpawnContext context) =>
-      MessageBusPlugin(bus: _bus);
+      MessageBusExtension(bus: _bus);
 
   @override
   Future<void> onDispose() async {

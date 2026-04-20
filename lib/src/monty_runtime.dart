@@ -51,7 +51,7 @@ import 'package:dart_monty_core/dart_monty_core.dart';
 /// // Fresh sandbox — isolated per call, safe for async I/O host functions
 /// final session = MontyRuntime(
 ///   sandbox: true,
-///   extensions: [SoliplexPlugin(connections: {...})],
+///   extensions: [SoliplexExtension(connections: {...})],
 /// );
 /// await session.execute('r = soliplex_new_thread("s", "r", "Hi")');
 /// await session.execute('r2 = soliplex_reply_thread(...)'); // no crash
@@ -139,7 +139,7 @@ class MontyRuntime implements MontyRuntimeRef {
       (_sharedBridge ?? _schemaBridge)?.llmSchemas ?? [];
 
   /// Broadcast stream of all [BridgeEvent]s emitted across every execution,
-  /// including child executions spawned via extensions such as `SandboxPlugin`.
+  /// including child executions spawned via extensions such as `SandboxExtension`.
   ///
   /// Child-plugin events arrive wrapped in [BridgeChildEvent] with
   /// `childHandle` set to the plugin's local handle (e.g. a sandbox child

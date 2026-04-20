@@ -18,12 +18,12 @@ const int defaultMaxTemplateInputSize = 512 * 1024;
 /// `{% for item in items %}` loops, and `{% if condition %}` conditionals.
 ///
 /// All functions are prefixed with `tmpl_`.
-class JinjaTemplatePlugin extends MontyExtension {
-  /// Creates a [JinjaTemplatePlugin].
+class JinjaTemplateExtension extends MontyExtension {
+  /// Creates a [JinjaTemplateExtension].
   ///
   /// [maxInputSize] controls the maximum allowed character count for
   /// template strings. Defaults to 512 KB.
-  JinjaTemplatePlugin({int? maxInputSize})
+  JinjaTemplateExtension({int? maxInputSize})
     : _maxInputSize = maxInputSize ?? defaultMaxTemplateInputSize;
 
   final int _maxInputSize;
@@ -69,7 +69,7 @@ class JinjaTemplatePlugin extends MontyExtension {
 
   @override
   MontyExtension createChildInstance(ChildSpawnContext context) =>
-      JinjaTemplatePlugin(maxInputSize: _maxInputSize);
+      JinjaTemplateExtension(maxInputSize: _maxInputSize);
 
   Future<Object?> _handleRender(Map<String, Object?> args, HostContext ctx) {
     final templateStr = args.str('template');

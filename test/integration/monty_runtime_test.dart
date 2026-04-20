@@ -380,7 +380,7 @@ result
       //
       // Without the fix, _onDisposeCalled stays false after dispose().
       // With the fix, disposeAll() propagates to each plugin's onDispose().
-      final plugin = _TrackingPlugin();
+      final plugin = _TrackingExtension();
       final session = MontyRuntime(extensions: [plugin]);
 
       await session.execute('pass').result; // triggers attachTo
@@ -397,7 +397,7 @@ result
       // Plugins registered but never attached (no execute() called) must
       // still have onDispose called — disposeAll() iterates _extensions when
       // _attachOrder is null, so this works once disposeAll() is invoked.
-      final plugin = _TrackingPlugin();
+      final plugin = _TrackingExtension();
       final session = MontyRuntime(extensions: [plugin]);
 
       await session.dispose();
@@ -414,7 +414,7 @@ result
       () async {
         // In sandbox mode a fresh ExtensionCoordinator is created per execute() and
         // must be disposed in the finally block regardless of success or error.
-        final plugin = _TrackingPlugin();
+        final plugin = _TrackingExtension();
         final session = MontyRuntime(sandbox: true, extensions: [plugin]);
         addTearDown(session.dispose);
 
@@ -436,7 +436,7 @@ result
       () async {
         // The finally block must run even on error — verifies no leak when
         // Python raises an exception.
-        final plugin = _TrackingPlugin();
+        final plugin = _TrackingExtension();
         final session = MontyRuntime(sandbox: true, extensions: [plugin]);
         addTearDown(session.dispose);
 
@@ -468,7 +468,7 @@ result
 
     test('execute().events attaches plugins without prior execute()', () async {
       final session = MontyRuntime(
-        extensions: [JinjaTemplatePlugin()],
+        extensions: [JinjaTemplateExtension()],
       );
       addTearDown(session.dispose);
 
@@ -548,7 +548,7 @@ result
 // ---------------------------------------------------------------------------
 
 /// Plugin that records how many times [onDispose] was called.
-class _TrackingPlugin extends MontyExtension {
+class _TrackingExtension extends MontyExtension {
   bool onDisposeCalled = false;
   int disposeCount = 0;
 

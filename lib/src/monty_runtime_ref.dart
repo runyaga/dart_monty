@@ -22,7 +22,7 @@ abstract interface class MontyRuntimeRef {
   /// Emits [event] on this runtime's broadcast `events` stream wrapped as a
   /// [BridgeChildEvent] tagged with [childHandle].
   ///
-  /// Used by child-spawning plugins (e.g. `SandboxPlugin`) to aggregate child
+  /// Used by child-spawning plugins (e.g. `SandboxExtension`) to aggregate child
   /// execution events into the parent's event stream so observers see a single
   /// attributed ordering across the ownership tree.
   void emitChildEvent(String childHandle, BridgeEvent event);

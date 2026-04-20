@@ -11,7 +11,7 @@ import 'package:test/test.dart';
 
 final _testCtx = HostContext(emit: (_) {}, executionId: 'test');
 
-/// Integration tests for SandboxPlugin structured logging with real FFI.
+/// Integration tests for SandboxExtension structured logging with real FFI.
 ///
 /// Run with:
 /// ```bash
@@ -57,11 +57,11 @@ void main() {
       final bridge = createBridge();
       final registry = ExtensionCoordinator()
         ..register(
-          SandboxPlugin(platformFactory: () async => createPlatform()),
+          SandboxExtension(platformFactory: () async => createPlatform()),
         );
       await registry.attachTo(bridge);
 
-      final plugin = registry.extensions.whereType<SandboxPlugin>().first;
+      final plugin = registry.extensions.whereType<SandboxExtension>().first;
       final spawn = plugin.functions
           .firstWhere((f) => f.schema.name == 'sandbox_spawn')
           .handler;
@@ -94,11 +94,11 @@ void main() {
       final bridge = createBridge();
       final registry = ExtensionCoordinator()
         ..register(
-          SandboxPlugin(platformFactory: () async => createPlatform()),
+          SandboxExtension(platformFactory: () async => createPlatform()),
         );
       await registry.attachTo(bridge);
 
-      final plugin = registry.extensions.whereType<SandboxPlugin>().first;
+      final plugin = registry.extensions.whereType<SandboxExtension>().first;
       final spawn = plugin.functions
           .firstWhere((f) => f.schema.name == 'sandbox_spawn')
           .handler;
@@ -128,11 +128,11 @@ void main() {
       final bridge = createBridge();
       final registry = ExtensionCoordinator()
         ..register(
-          SandboxPlugin(platformFactory: () async => createPlatform()),
+          SandboxExtension(platformFactory: () async => createPlatform()),
         );
       await registry.attachTo(bridge);
 
-      final plugin = registry.extensions.whereType<SandboxPlugin>().first;
+      final plugin = registry.extensions.whereType<SandboxExtension>().first;
       final spawn = plugin.functions
           .firstWhere((f) => f.schema.name == 'sandbox_spawn')
           .handler;
@@ -146,7 +146,7 @@ void main() {
       await plugin.onDispose();
 
       final disposeRecord = sink.records.firstWhere(
-        (r) => r.message == 'Disposing SandboxPlugin',
+        (r) => r.message == 'Disposing SandboxExtension',
       );
       expect(disposeRecord.level, LogLevel.info);
       expect(disposeRecord.attributes['totalChildren'], 1);

@@ -39,11 +39,11 @@ void main() {
         final bridge = createBridge();
         final registry = ExtensionCoordinator()
           ..register(
-            SandboxPlugin(platformFactory: () async => createPlatform()),
+            SandboxExtension(platformFactory: () async => createPlatform()),
           );
         await registry.attachTo(bridge);
 
-        final plugin = registry.extensions.whereType<SandboxPlugin>().first;
+        final plugin = registry.extensions.whereType<SandboxExtension>().first;
         final spawn = plugin.functions
             .firstWhere((f) => f.schema.name == 'sandbox_spawn')
             .handler;
@@ -91,11 +91,11 @@ void main() {
       final bridge = createBridge();
       final registry = ExtensionCoordinator()
         ..register(
-          SandboxPlugin(platformFactory: () async => createPlatform()),
+          SandboxExtension(platformFactory: () async => createPlatform()),
         );
       await registry.attachTo(bridge);
 
-      final plugin = registry.extensions.whereType<SandboxPlugin>().first;
+      final plugin = registry.extensions.whereType<SandboxExtension>().first;
       final spawn = plugin.functions
           .firstWhere((f) => f.schema.name == 'sandbox_spawn')
           .handler;
@@ -125,11 +125,11 @@ void main() {
       final bridge = createBridge();
       final registry = ExtensionCoordinator()
         ..register(
-          SandboxPlugin(platformFactory: () async => createPlatform()),
+          SandboxExtension(platformFactory: () async => createPlatform()),
         );
       await registry.attachTo(bridge);
 
-      final plugin = registry.extensions.whereType<SandboxPlugin>().first;
+      final plugin = registry.extensions.whereType<SandboxExtension>().first;
       final spawn = plugin.functions
           .firstWhere((f) => f.schema.name == 'sandbox_spawn')
           .handler;
@@ -160,11 +160,11 @@ void main() {
       final bridge = createBridge();
       final registry = ExtensionCoordinator()
         ..register(
-          SandboxPlugin(platformFactory: () async => createPlatform()),
+          SandboxExtension(platformFactory: () async => createPlatform()),
         );
       await registry.attachTo(bridge);
 
-      final plugin = registry.extensions.whereType<SandboxPlugin>().first;
+      final plugin = registry.extensions.whereType<SandboxExtension>().first;
       final spawn = plugin.functions
           .firstWhere((f) => f.schema.name == 'sandbox_spawn')
           .handler;
@@ -197,11 +197,11 @@ void main() {
         final bridge = createBridge();
         final registry = ExtensionCoordinator()
           ..register(
-            SandboxPlugin(platformFactory: () async => createPlatform()),
+            SandboxExtension(platformFactory: () async => createPlatform()),
           );
         await registry.attachTo(bridge);
 
-        final plugin = registry.extensions.whereType<SandboxPlugin>().first;
+        final plugin = registry.extensions.whereType<SandboxExtension>().first;
         final spawn = plugin.functions
             .firstWhere((f) => f.schema.name == 'sandbox_spawn')
             .handler;

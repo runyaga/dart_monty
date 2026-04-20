@@ -173,7 +173,7 @@ final _demoHostFunctions = <HostFunction>[
 
 final _kvStore = <String, Object?>{};
 
-/// Shared bus — accessible to Python via MessageBusPlugin and to Dart directly.
+/// Shared bus — accessible to Python via MessageBusExtension and to Dart directly.
 MessageBus? _msgBus;
 
 // ---------------------------------------------------------------------------
@@ -190,12 +190,12 @@ Future<bool> _init() async {
       'datetime.': timeHandler(),
     });
 
-    final tmplPlugin = JinjaTemplatePlugin();
-    final msgPlugin = MessageBusPlugin();
+    final tmplPlugin = JinjaTemplateExtension();
+    final msgPlugin = MessageBusExtension();
     _msgBus = msgPlugin.bus;
 
     final extensions = <MontyExtension>[tmplPlugin, msgPlugin];
-    final sandboxPlugin = SandboxPlugin(
+    final sandboxPlugin = SandboxExtension(
       platformFactory: () async => ReplPlatform(repl: MontyRepl()),
     );
     extensions.add(sandboxPlugin);

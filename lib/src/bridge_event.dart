@@ -170,7 +170,7 @@ class BridgeOsCallStart extends BridgeEvent {
 
 /// Wraps an event re-emitted from a child runtime on its parent's stream.
 ///
-/// Used by child-spawning plugins (e.g. `SandboxPlugin`) to aggregate child
+/// Used by child-spawning plugins (e.g. `SandboxExtension`) to aggregate child
 /// execution events into the parent runtime's broadcast `events` stream so
 /// observers see a single, attributed ordering across the ownership tree.
 class BridgeChildEvent extends BridgeEvent {

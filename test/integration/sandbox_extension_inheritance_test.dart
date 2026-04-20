@@ -7,7 +7,7 @@ import 'package:dart_monty_core/src/ffi/monty_ffi.dart';
 import 'package:dart_monty_core/src/ffi/native_bindings_ffi.dart';
 import 'package:test/test.dart';
 
-/// Integration tests for SandboxPlugin child inheritance with real FFI.
+/// Integration tests for SandboxExtension child inheritance with real FFI.
 ///
 /// Run with:
 /// ```bash
@@ -45,7 +45,7 @@ void main() {
   String spawn(String childCode) => 'sandbox_spawn(code="$childCode")';
 
   // Parent bridge uses useFutures: false for simpler test code.
-  // Child bridges (created by SandboxPlugin) also use useFutures: false
+  // Child bridges (created by SandboxExtension) also use useFutures: false
   // (see #212 — prevents unawaited Future leaking as Python coroutine).
   MontyBridge createBridge() =>
       MontyBridge(platform: createPlatform(), useFutures: false);
@@ -59,7 +59,7 @@ void main() {
       final bridge = createBridge();
       final registry = ExtensionCoordinator()
         ..register(
-          SandboxPlugin(platformFactory: () async => createPlatform()),
+          SandboxExtension(platformFactory: () async => createPlatform()),
         );
       await registry.attachTo(bridge);
 
@@ -79,7 +79,7 @@ void main() {
       final bridge = createBridge();
       final registry = ExtensionCoordinator()
         ..register(
-          SandboxPlugin(platformFactory: () async => createPlatform()),
+          SandboxExtension(platformFactory: () async => createPlatform()),
         );
       await registry.attachTo(bridge);
 
@@ -102,11 +102,11 @@ void main() {
   group('createChildInstance inheritance', () {
     test('parent can call inherited plugin function', () async {
       final bridge = createBridge();
-      final greeter = _GreeterPlugin();
+      final greeter = _GreeterExtension();
       final registry = ExtensionCoordinator()
         ..register(greeter)
         ..register(
-          SandboxPlugin(
+          SandboxExtension(
             platformFactory: () async => createPlatform(),
           ),
         );
@@ -120,11 +120,11 @@ void main() {
 
     test('child inherits plugin via createChildInstance', () async {
       final bridge = createBridge();
-      final greeter = _GreeterPlugin();
+      final greeter = _GreeterExtension();
       final registry = ExtensionCoordinator()
         ..register(greeter)
         ..register(
-          SandboxPlugin(
+          SandboxExtension(
             platformFactory: () async => createPlatform(),
           ),
         );
@@ -146,7 +146,7 @@ void main() {
       final bridge = createBridge();
       final registry = ExtensionCoordinator()
         ..register(
-          SandboxPlugin(platformFactory: () async => createPlatform()),
+          SandboxExtension(platformFactory: () async => createPlatform()),
         );
       await registry.attachTo(bridge);
 
@@ -169,11 +169,11 @@ void main() {
 
     test('multiple children get independent plugin instances', () async {
       final bridge = createBridge();
-      final counter = _CounterPlugin();
+      final counter = _CounterExtension();
       final registry = ExtensionCoordinator()
         ..register(counter)
         ..register(
-          SandboxPlugin(
+          SandboxExtension(
             platformFactory: () async => createPlatform(),
           ),
         );
@@ -211,14 +211,14 @@ void main() {
       'child receives context with working directory via real FFI',
       () async {
         ChildSpawnContext? capturedContext;
-        final contextPlugin = _ContextCapturingPlugin(
+        final contextPlugin = _ContextCapturingExtension(
           onContext: (ctx) => capturedContext = ctx,
         );
         final bridge = createBridge();
         final registry = ExtensionCoordinator()
           ..register(contextPlugin)
           ..register(
-            SandboxPlugin(
+            SandboxExtension(
               platformFactory: () async => createPlatform(),
               sandboxBaseDir: '/tmp/sandbox_test',
             ),
@@ -246,14 +246,14 @@ void main() {
       'context has null workingDirectory when sandboxBaseDir unset',
       () async {
         ChildSpawnContext? capturedContext;
-        final contextPlugin = _ContextCapturingPlugin(
+        final contextPlugin = _ContextCapturingExtension(
           onContext: (ctx) => capturedContext = ctx,
         );
         final bridge = createBridge();
         final registry = ExtensionCoordinator()
           ..register(contextPlugin)
           ..register(
-            SandboxPlugin(
+            SandboxExtension(
               platformFactory: () async => createPlatform(),
             ),
           );
@@ -280,7 +280,7 @@ void main() {
 // ---------------------------------------------------------------------------
 
 /// Simple plugin that provides `greeter_hello(name)`.
-class _GreeterPlugin extends MontyExtension {
+class _GreeterExtension extends MontyExtension {
   @override
   String get namespace => 'greeter';
 
@@ -310,11 +310,11 @@ class _GreeterPlugin extends MontyExtension {
 
   @override
   MontyExtension createChildInstance(ChildSpawnContext context) =>
-      _GreeterPlugin();
+      _GreeterExtension();
 }
 
 /// Plugin that provides a counter. Each instance has its own count.
-class _CounterPlugin extends MontyExtension {
+class _CounterExtension extends MontyExtension {
   int count = 0;
 
   @override
@@ -346,12 +346,12 @@ class _CounterPlugin extends MontyExtension {
 
   @override
   MontyExtension createChildInstance(ChildSpawnContext context) =>
-      _CounterPlugin();
+      _CounterExtension();
 }
 
 /// Plugin that captures the [ChildSpawnContext] for test assertions.
-class _ContextCapturingPlugin extends MontyExtension {
-  _ContextCapturingPlugin({required this.onContext});
+class _ContextCapturingExtension extends MontyExtension {
+  _ContextCapturingExtension({required this.onContext});
 
   final void Function(ChildSpawnContext) onContext;
 
@@ -370,6 +370,6 @@ class _ContextCapturingPlugin extends MontyExtension {
   @override
   MontyExtension createChildInstance(ChildSpawnContext context) {
     onContext(context);
-    return _ContextCapturingPlugin(onContext: onContext);
+    return _ContextCapturingExtension(onContext: onContext);
   }
 }

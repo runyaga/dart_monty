@@ -10,7 +10,7 @@ import 'package:dart_monty/src/default_monty_bridge.dart';
 import 'package:dart_monty/src/host_param_type.dart';
 import 'package:dart_monty/src/monty_plugin.dart';
 import 'package:dart_monty/src/attach_context.dart';
-import 'package:dart_monty/src/stateful_plugin.dart';
+import 'package:dart_monty/src/stateful_extension.dart';
 import 'package:signals_core/signals_core.dart';
 
 /// State of the event loop channel lifecycle.
@@ -64,7 +64,7 @@ final class BridgeChannelDisposed extends BridgeChannelState {
 /// ## Pattern
 ///
 /// Normal `execute` is a one-shot call: Python runs to completion and
-/// returns one value. [EventLoopPlugin] extends this into a multi-round
+/// returns one value. [EventLoopExtension] extends this into a multi-round
 /// protocol. Python becomes a coroutine — it runs, emits output, suspends,
 /// waits for input, and continues — all within one `execute` call. Dart is
 /// the scheduler that decides when to resume it.
@@ -97,7 +97,7 @@ final class BridgeChannelDisposed extends BridgeChannelState {
 /// Register through `ExtensionCoordinator` for automatic wiring:
 ///
 /// ```dart
-/// final ext = EventLoopPlugin();
+/// final ext = EventLoopExtension();
 /// final session = MontyRuntime(extensions: [ext]);
 /// session.executeStream(script);
 /// ext.dispatch({'action': 'increment'});
@@ -116,10 +116,10 @@ final class BridgeChannelDisposed extends BridgeChannelState {
 ///   if (state is BridgeChannelWaiting) showInputField();
 /// });
 /// ```
-class EventLoopPlugin extends MontyExtension
-    with StatefulPlugin<BridgeChannelState> {
-  /// Creates an [EventLoopPlugin] initialized at [BridgeChannelIdle].
-  EventLoopPlugin() {
+class EventLoopExtension extends MontyExtension
+    with StatefulExtension<BridgeChannelState> {
+  /// Creates an [EventLoopExtension] initialized at [BridgeChannelIdle].
+  EventLoopExtension() {
     setInitialState(const BridgeChannelIdle());
   }
 
@@ -191,7 +191,7 @@ class EventLoopPlugin extends MontyExtension
 
   @override
   MontyExtension createChildInstance(ChildSpawnContext context) =>
-      EventLoopPlugin();
+      EventLoopExtension();
 
   @override
   Future<void> onAttach(AttachContext host) async {
@@ -203,7 +203,7 @@ class EventLoopPlugin extends MontyExtension
 
   Stream<BridgeEvent> _wrapStream(String code, Stream<BridgeEvent> stream) {
     if (_disposed) {
-      throw StateError('Cannot execute on a disposed EventLoopPlugin');
+      throw StateError('Cannot execute on a disposed EventLoopExtension');
     }
     // Clear stale queued events only when re-executing after a completed run.
     // Events dispatched while idle (before the first execute) are intentional
@@ -274,7 +274,7 @@ class EventLoopPlugin extends MontyExtension
     final current = state;
     if (current is BridgeChannelWaiting) {
       current.completer.completeError(
-        StateError('EventLoopPlugin disposed while waiting for event'),
+        StateError('EventLoopExtension disposed while waiting for event'),
         StackTrace.current,
       );
     }

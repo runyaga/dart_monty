@@ -7,7 +7,7 @@ import 'package:test/test.dart';
 /// Asserts that child-plugin-originated events surface on the parent's
 /// broadcast `events` stream wrapped in a [BridgeChildEvent], so observers
 /// see a single attributed ordering across the ownership tree. Does not
-/// spawn an actual child — [SandboxPlugin] integration tests (FFI-tagged)
+/// spawn an actual child — [SandboxExtension] integration tests (FFI-tagged)
 /// cover the end-to-end forwarding path.
 void main() {
   group('MontyRuntime.emitChildEvent', () {

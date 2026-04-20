@@ -17,11 +17,11 @@ void main() {
   // Template plugin
   // ---------------------------------------------------------------------------
 
-  group('MontyRuntime + JinjaTemplatePlugin', () {
+  group('MontyRuntime + JinjaTemplateExtension', () {
     late MontyRuntime session;
 
     setUp(() {
-      session = MontyRuntime(extensions: [JinjaTemplatePlugin()]);
+      session = MontyRuntime(extensions: [JinjaTemplateExtension()]);
     });
 
     tearDown(() async {
@@ -61,11 +61,11 @@ tmpl_render(
   // Message bus plugin
   // ---------------------------------------------------------------------------
 
-  group('MontyRuntime + MessageBusPlugin', () {
+  group('MontyRuntime + MessageBusExtension', () {
     late MontyRuntime session;
 
     setUp(() {
-      session = MontyRuntime(extensions: [MessageBusPlugin()]);
+      session = MontyRuntime(extensions: [MessageBusExtension()]);
     });
 
     tearDown(() async {
@@ -107,7 +107,7 @@ msg_send(name='q', message=2)
   // Sandbox plugin — child spawning
   // ---------------------------------------------------------------------------
 
-  group('MontyRuntime + SandboxPlugin', () {
+  group('MontyRuntime + SandboxExtension', () {
     late MontyRuntime session;
 
     setUp(() {
@@ -116,12 +116,12 @@ msg_send(name='q', message=2)
         'date.': timeHandler(),
         'datetime.': timeHandler(),
       };
-      final tmpl = JinjaTemplatePlugin();
-      final msg = MessageBusPlugin();
+      final tmpl = JinjaTemplateExtension();
+      final msg = MessageBusExtension();
       final extensions = <MontyExtension>[
         tmpl,
         msg,
-        SandboxPlugin(platformFactory: () async => createPlatformMonty()),
+        SandboxExtension(platformFactory: () async => createPlatformMonty()),
       ];
       session = MontyRuntime(osHandlers: osContribs, extensions: extensions);
     });
@@ -200,12 +200,12 @@ sandbox_free(handle=h)
         'date.': timeHandler(),
         'datetime.': timeHandler(),
       };
-      final tmpl = JinjaTemplatePlugin();
-      final msg = MessageBusPlugin();
+      final tmpl = JinjaTemplateExtension();
+      final msg = MessageBusExtension();
       final extensions = <MontyExtension>[
         tmpl,
         msg,
-        SandboxPlugin(platformFactory: () async => createPlatformMonty()),
+        SandboxExtension(platformFactory: () async => createPlatformMonty()),
       ];
       session = MontyRuntime(osHandlers: osContribs, extensions: extensions);
     });

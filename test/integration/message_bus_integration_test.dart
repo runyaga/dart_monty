@@ -7,7 +7,7 @@ import 'package:dart_monty_core/src/ffi/monty_ffi.dart';
 import 'package:dart_monty_core/src/ffi/native_bindings_ffi.dart';
 import 'package:test/test.dart';
 
-/// Integration tests for MessageBusPlugin parent↔child communication.
+/// Integration tests for MessageBusExtension parent↔child communication.
 ///
 /// Run with:
 /// ```bash
@@ -48,11 +48,11 @@ void main() {
 
   Future<MontyBridge> createBridgeWithMessageBus() async {
     final bridge = createBridge();
-    final msgBus = MessageBusPlugin();
+    final msgBus = MessageBusExtension();
     final registry = ExtensionCoordinator()
       ..register(msgBus)
       ..register(
-        SandboxPlugin(platformFactory: () async => createPlatform()),
+        SandboxExtension(platformFactory: () async => createPlatform()),
       );
     await registry.attachTo(bridge);
     return bridge;

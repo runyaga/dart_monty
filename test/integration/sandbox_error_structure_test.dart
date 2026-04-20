@@ -35,7 +35,7 @@ void main() {
   /// Spawns a child via plugin handler and awaits it, expecting a
   /// [ChildSandboxException]. Returns the caught exception.
   Future<ChildSandboxException> spawnAndExpectFailure(
-    SandboxPlugin plugin,
+    SandboxExtension plugin,
     String code,
   ) async {
     final spawnHandler = plugin.functions
@@ -62,11 +62,11 @@ void main() {
         final bridge = createBridge();
         final registry = ExtensionCoordinator()
           ..register(
-            SandboxPlugin(platformFactory: () async => createPlatform()),
+            SandboxExtension(platformFactory: () async => createPlatform()),
           );
         await registry.attachTo(bridge);
 
-        final plugin = registry.extensions.whereType<SandboxPlugin>().first;
+        final plugin = registry.extensions.whereType<SandboxExtension>().first;
         final caught = await spawnAndExpectFailure(
           plugin,
           'undefined_variable_xyz',
@@ -86,11 +86,11 @@ void main() {
         final bridge = createBridge();
         final registry = ExtensionCoordinator()
           ..register(
-            SandboxPlugin(platformFactory: () async => createPlatform()),
+            SandboxExtension(platformFactory: () async => createPlatform()),
           );
         await registry.attachTo(bridge);
 
-        final plugin = registry.extensions.whereType<SandboxPlugin>().first;
+        final plugin = registry.extensions.whereType<SandboxExtension>().first;
         final caught = await spawnAndExpectFailure(plugin, 'def (');
 
         expect(caught.exception, isNotNull);

@@ -8,10 +8,10 @@ import 'package:test/test.dart';
 final _testCtx = HostContext(emit: (_) {}, executionId: 'test');
 
 void main() {
-  late MessageBusPlugin plugin;
+  late MessageBusExtension plugin;
 
   setUp(() {
-    plugin = MessageBusPlugin();
+    plugin = MessageBusExtension();
   });
 
   /// Returns a 1-arg callable that forwards to the handler with [_testCtx].
@@ -42,7 +42,7 @@ void main() {
     test('createChildInstance shares bus', () {
       final child = plugin.createChildInstance(
         const ChildSpawnContext(childId: 1),
-      ) as MessageBusPlugin;
+      ) as MessageBusExtension;
       expect(child, isNot(same(plugin)));
       expect(child.bus, same(plugin.bus));
     });
@@ -246,7 +246,7 @@ void main() {
     test('sibling plugin instance still works after one disposed', () async {
       final child = plugin.createChildInstance(
         const ChildSpawnContext(childId: 1),
-      ) as MessageBusPlugin;
+      ) as MessageBusExtension;
       final childSend = child.functions.firstWhere(
         (f) => f.schema.name == 'msg_send',
       );
@@ -258,7 +258,7 @@ void main() {
       await childSend.handler!({'name': 'ch', 'message': 'from_child'}, _testCtx);
 
       // New plugin on same bus can receive.
-      final fresh = MessageBusPlugin(bus: child.bus);
+      final fresh = MessageBusExtension(bus: child.bus);
       final freshRecv = fresh.functions.firstWhere(
         (f) => f.schema.name == 'msg_recv',
       );
@@ -440,7 +440,7 @@ void main() {
     test('parent sends, child receives via shared bus', () async {
       final child = plugin.createChildInstance(
         const ChildSpawnContext(childId: 1),
-      ) as MessageBusPlugin;
+      ) as MessageBusExtension;
       final parentSend = findHandler('msg_send');
       final childRecv = child.functions.firstWhere(
         (f) => f.schema.name == 'msg_recv',
@@ -457,7 +457,7 @@ void main() {
     test('child sends, parent receives via shared bus', () async {
       final child = plugin.createChildInstance(
         const ChildSpawnContext(childId: 1),
-      ) as MessageBusPlugin;
+      ) as MessageBusExtension;
       final childSend = child.functions.firstWhere(
         (f) => f.schema.name == 'msg_send',
       );

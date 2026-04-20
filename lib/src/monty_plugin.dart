@@ -49,14 +49,14 @@ class ChildSpawnContext {
   /// Creates a [ChildSpawnContext].
   const ChildSpawnContext({required this.childId, this.workingDirectory});
 
-  /// Unique identifier for this child within the parent `SandboxPlugin`.
+  /// Unique identifier for this child within the parent `SandboxExtension`.
   final int childId;
 
   /// Per-child working directory path, or `null` if the parent did not
-  /// configure `SandboxPlugin.sandboxBaseDir`.
+  /// configure `SandboxExtension.sandboxBaseDir`.
   ///
   /// This is a computed path string only — actual directory creation is the
-  /// consumer's responsibility (e.g., in `FsPlugin.createChildInstance`).
+  /// consumer's responsibility (e.g., in `FsExtension.createChildInstance`).
   final String? workingDirectory;
 }
 
@@ -73,7 +73,7 @@ class ChildSpawnContext {
 ///
 /// After `ExtensionCoordinator.attachTo` runs, [coordinator] is set to the
 /// owning coordinator. Extensions that need to spawn children or drive
-/// lifecycle operations reach for it directly (see [SandboxPlugin]).
+/// lifecycle operations reach for it directly (see [SandboxExtension]).
 ///
 /// Cross-extension communication goes through the bridge — invoke another
 /// extension's function via `MontyRuntime.invoke(name, args)` rather than
@@ -108,7 +108,7 @@ abstract class MontyExtension {
   ///
   /// Defaults to all backends. Override to `{MontyBackendKind.ffi}` or
   /// `{MontyBackendKind.wasm}` if the extension depends on capabilities that
-  /// only exist on one backend (e.g., `SandboxPlugin` needs `dart:io` + a
+  /// only exist on one backend (e.g., `SandboxExtension` needs `dart:io` + a
   /// second interpreter instance, which crashes the parent session on WASM).
   Set<MontyBackendKind> get supportedBackends => const {
     MontyBackendKind.ffi,
@@ -137,7 +137,7 @@ abstract class MontyExtension {
   /// The owning coordinator, injected during [ExtensionCoordinator.attachTo].
   ///
   /// Extensions that spawn children or drive lifecycle operations reach for
-  /// this field directly (see `SandboxPlugin`). For cross-extension calls,
+  /// this field directly (see `SandboxExtension`). For cross-extension calls,
   /// prefer `MontyRuntime.invoke(name, args)` over holding references to
   /// peer extensions.
   ///
@@ -189,7 +189,7 @@ abstract class MontyExtension {
   /// with the child.
   ///
   /// [context] carries the child's ID and optional per-child working
-  /// directory. Extensions that need filesystem isolation (e.g., `FsPlugin`)
+  /// directory. Extensions that need filesystem isolation (e.g., `FsExtension`)
   /// can use [ChildSpawnContext.workingDirectory] to create a private
   /// directory for the child.
   ///

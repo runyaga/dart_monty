@@ -3,8 +3,8 @@ import 'package:signals_core/signals_core.dart';
 
 /// Unifies the "plugin owns a single primary state signal" pattern.
 ///
-/// Plugins that expose reactive state (e.g. `EventLoopPlugin`,
-/// `SandboxPlugin`) historically allocated their own `Signal<T>`, exposed it
+/// Plugins that expose reactive state (e.g. `EventLoopExtension`,
+/// `SandboxExtension`) historically allocated their own `Signal<T>`, exposed it
 /// via a plugin-specific getter (`channelStateSignal`, `childrenSignal`), and
 /// had to remember to call `.dispose()` in [MontyExtension.onDispose]. Over four
 /// plugins that ceremony produced inconsistent disposal: some signals leaked,
@@ -16,7 +16,7 @@ import 'package:signals_core/signals_core.dart';
 /// Secondary signals are still disposed manually inside [onDispose].
 ///
 /// ```dart
-/// class MyPlugin extends MontyExtension with StatefulPlugin<MyState> {
+/// class MyPlugin extends MontyExtension with StatefulExtension<MyState> {
 ///   MyPlugin() {
 ///     setInitialState(const MyState.initial());
 ///   }
@@ -28,7 +28,7 @@ import 'package:signals_core/signals_core.dart';
 ///
 /// Subclasses MUST call [setInitialState] once before any reactive read; the
 /// recommended spot is the plugin's constructor body.
-mixin StatefulPlugin<T> on MontyExtension implements HasStateSignal {
+mixin StatefulExtension<T> on MontyExtension implements HasStateSignal {
   Signal<T>? _stateSignal;
 
   /// The reactive primary state of this plugin.
@@ -39,7 +39,7 @@ mixin StatefulPlugin<T> on MontyExtension implements HasStateSignal {
     final s = _stateSignal;
     if (s == null) {
       throw StateError(
-        'StatefulPlugin<$T>.setInitialState() must be called before '
+        'StatefulExtension<$T>.setInitialState() must be called before '
         'reading stateSignal. Call it in the plugin constructor.',
       );
     }
@@ -67,7 +67,7 @@ mixin StatefulPlugin<T> on MontyExtension implements HasStateSignal {
     final s = _stateSignal;
     if (s == null) {
       throw StateError(
-        'StatefulPlugin<$T>.setInitialState() must be called before '
+        'StatefulExtension<$T>.setInitialState() must be called before '
         'writing state.',
       );
     }
@@ -81,12 +81,12 @@ mixin StatefulPlugin<T> on MontyExtension implements HasStateSignal {
   }
 }
 
-/// Non-generic base for type-safe introspection of [StatefulPlugin] plugins.
+/// Non-generic base for type-safe introspection of [StatefulExtension] plugins.
 ///
 /// Provides a covariant-safe `stateSignal` accessor that returns
 /// `ReadonlySignal<Object?>`, allowing callers to subscribe to any
-/// [StatefulPlugin] without knowing its concrete type parameter.
+/// [StatefulExtension] without knowing its concrete type parameter.
 mixin HasStateSignal on MontyExtension {
-  /// Returns [StatefulPlugin.stateSignal] typed as `ReadonlySignal<Object?>`.
+  /// Returns [StatefulExtension.stateSignal] typed as `ReadonlySignal<Object?>`.
   ReadonlySignal<Object?> get stateSignalAsObject;
 }

@@ -108,10 +108,10 @@ Future<String> _apiReset() async {
 // ---------------------------------------------------------------------------
 
 void _createSession() {
-  final tmpl = JinjaTemplatePlugin();
-  final msgBus = MessageBusPlugin();
+  final tmpl = JinjaTemplateExtension();
+  final msgBus = MessageBusExtension();
 
-  // SandboxPlugin is FFI-only and cannot be used in a web build.
+  // SandboxExtension is FFI-only and cannot be used in a web build.
   _session = MontyRuntime(
     extensions: [tmpl, msgBus],
   );

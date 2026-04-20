@@ -4,8 +4,8 @@ import 'package:signals_core/signals_core.dart' show ReadonlySignal;
 import 'package:test/test.dart';
 
 /// Minimal test plugin with configurable namespace and functions.
-class _TestPlugin extends MontyExtension {
-  _TestPlugin({
+class _TestExtension extends MontyExtension {
+  _TestExtension({
     required this.namespace,
     this.systemPromptContext,
     List<HostFunction>? functions,
@@ -39,7 +39,7 @@ void main() {
     });
 
     test('register adds plugin to plugins list', () {
-      final plugin = _TestPlugin(
+      final plugin = _TestExtension(
         namespace: 'alpha',
         systemPromptContext: 'Alpha operations.',
       );
@@ -53,8 +53,8 @@ void main() {
 
     test('multiple plugins register successfully', () {
       registry
-        ..register(_TestPlugin(namespace: 'aaa', functions: [_fn('aaa_do')]))
-        ..register(_TestPlugin(namespace: 'bbb', functions: [_fn('bbb_do')]));
+        ..register(_TestExtension(namespace: 'aaa', functions: [_fn('aaa_do')]))
+        ..register(_TestExtension(namespace: 'bbb', functions: [_fn('bbb_do')]));
 
       expect(registry.extensions, hasLength(2));
       expect(registry.extensions[0].namespace, 'aaa');
@@ -62,11 +62,11 @@ void main() {
     });
 
     test('accepts plugins with disjoint namespaces and function names', () {
-      final p1 = _TestPlugin(
+      final p1 = _TestExtension(
         namespace: 'alpha',
         functions: [_fn('alpha_one'), _fn('alpha_two')],
       );
-      final p2 = _TestPlugin(namespace: 'beta', functions: [_fn('beta_one')]);
+      final p2 = _TestExtension(namespace: 'beta', functions: [_fn('beta_one')]);
 
       registry
         ..register(p1)
@@ -76,10 +76,10 @@ void main() {
     });
 
     test('plugins list is unmodifiable', () {
-      registry.register(_TestPlugin(namespace: 'ns'));
+      registry.register(_TestExtension(namespace: 'ns'));
 
       expect(
-        () => registry.extensions.add(_TestPlugin(namespace: 'hack')),
+        () => registry.extensions.add(_TestExtension(namespace: 'hack')),
         throwsA(isA<UnsupportedError>()),
       );
     });
@@ -87,7 +87,7 @@ void main() {
     group('namespace validation', () {
       test('rejects empty namespace string', () {
         expect(
-          () => registry.register(_TestPlugin(namespace: '')),
+          () => registry.register(_TestExtension(namespace: '')),
           throwsA(
             isA<ArgumentError>().having(
               (e) => e.message,
@@ -100,7 +100,7 @@ void main() {
 
       test('rejects namespace with uppercase characters', () {
         expect(
-          () => registry.register(_TestPlugin(namespace: 'MyPlugin')),
+          () => registry.register(_TestExtension(namespace: 'MyPlugin')),
           throwsA(
             isA<ArgumentError>().having(
               (e) => e.message,
@@ -113,7 +113,7 @@ void main() {
 
       test('rejects namespace with spaces', () {
         expect(
-          () => registry.register(_TestPlugin(namespace: 'my plugin')),
+          () => registry.register(_TestExtension(namespace: 'my plugin')),
           throwsA(
             isA<ArgumentError>().having(
               (e) => e.message,
@@ -126,7 +126,7 @@ void main() {
 
       test('rejects namespace with special characters', () {
         expect(
-          () => registry.register(_TestPlugin(namespace: 'my-plugin')),
+          () => registry.register(_TestExtension(namespace: 'my-plugin')),
           throwsA(
             isA<ArgumentError>().having(
               (e) => e.message,
@@ -139,7 +139,7 @@ void main() {
 
       test('rejects namespace starting with digit', () {
         expect(
-          () => registry.register(_TestPlugin(namespace: '1abc')),
+          () => registry.register(_TestExtension(namespace: '1abc')),
           throwsA(
             isA<ArgumentError>().having(
               (e) => e.message,
@@ -154,7 +154,7 @@ void main() {
         final long = 'a' * 33;
 
         expect(
-          () => registry.register(_TestPlugin(namespace: long)),
+          () => registry.register(_TestExtension(namespace: long)),
           throwsA(
             isA<ArgumentError>().having(
               (e) => e.message,
@@ -167,7 +167,7 @@ void main() {
 
       test('rejects reserved namespace "introspection"', () {
         expect(
-          () => registry.register(_TestPlugin(namespace: 'introspection')),
+          () => registry.register(_TestExtension(namespace: 'introspection')),
           throwsA(
             isA<StateError>().having(
               (e) => e.message,
@@ -180,7 +180,7 @@ void main() {
 
       test('rejects reserved namespace "extra"', () {
         expect(
-          () => registry.register(_TestPlugin(namespace: 'extra')),
+          () => registry.register(_TestExtension(namespace: 'extra')),
           throwsA(
             isA<StateError>().having(
               (e) => e.message,
@@ -196,7 +196,7 @@ void main() {
       test('rejects function not prefixed with namespace', () {
         expect(
           () => registry.register(
-            _TestPlugin(namespace: 'sqlite', functions: [_fn('query')]),
+            _TestExtension(namespace: 'sqlite', functions: [_fn('query')]),
           ),
           throwsA(
             isA<ArgumentError>().having(
@@ -210,7 +210,7 @@ void main() {
 
       test('accepts function correctly prefixed with namespace', () {
         registry.register(
-          _TestPlugin(namespace: 'sqlite', functions: [_fn('sqlite_query')]),
+          _TestExtension(namespace: 'sqlite', functions: [_fn('sqlite_query')]),
         );
 
         expect(registry.extensions, hasLength(1));
@@ -219,10 +219,10 @@ void main() {
 
     group('collision detection', () {
       test('throws StateError on duplicate namespace', () {
-        registry.register(_TestPlugin(namespace: 'df'));
+        registry.register(_TestExtension(namespace: 'df'));
 
         expect(
-          () => registry.register(_TestPlugin(namespace: 'df')),
+          () => registry.register(_TestExtension(namespace: 'df')),
           throwsA(
             isA<StateError>().having(
               (e) => e.message,
@@ -237,12 +237,12 @@ void main() {
         // alpha_s_thing satisfies both alpha_ and alpha_s_ prefixes,
         // so registering it under both namespaces causes a collision.
         registry.register(
-          _TestPlugin(namespace: 'alpha', functions: [_fn('alpha_s_thing')]),
+          _TestExtension(namespace: 'alpha', functions: [_fn('alpha_s_thing')]),
         );
 
         expect(
           () => registry.register(
-            _TestPlugin(
+            _TestExtension(
               namespace: 'alpha_s',
               functions: [_fn('alpha_s_thing')],
             ),
@@ -264,7 +264,7 @@ void main() {
       test('collision does not partially register the plugin', () {
         // alpha_s_one satisfies prefix alpha_ — register it under alpha.
         registry.register(
-          _TestPlugin(namespace: 'alpha', functions: [_fn('alpha_s_one')]),
+          _TestExtension(namespace: 'alpha', functions: [_fn('alpha_s_one')]),
         );
 
         // alpha_s tries to register alpha_s_ok (valid, no collision) and
@@ -272,7 +272,7 @@ void main() {
         // be rejected — no partial registration.
         expect(
           () => registry.register(
-            _TestPlugin(
+            _TestExtension(
               namespace: 'alpha_s',
               functions: [_fn('alpha_s_ok'), _fn('alpha_s_one')],
             ),
@@ -288,11 +288,11 @@ void main() {
     group('register after attachTo', () {
       test('throws StateError', () async {
         final bridge = _MockBridge();
-        registry.register(_TestPlugin(namespace: 'df'));
+        registry.register(_TestExtension(namespace: 'df'));
         await registry.attachTo(bridge);
 
         expect(
-          () => registry.register(_TestPlugin(namespace: 'chart')),
+          () => registry.register(_TestExtension(namespace: 'chart')),
           throwsA(
             isA<StateError>().having(
               (e) => e.message,
@@ -311,7 +311,7 @@ void main() {
           final registered = <String>[];
           final bridge = _MockBridge();
 
-          final plugin = _LifecyclePlugin(
+          final plugin = _LifecycleExtension(
             namespace: 'lc',
             functions: [_fn('lc_do')],
             onAttachCallback: () => registered.add('lc'),
@@ -333,14 +333,14 @@ void main() {
 
         registry
           ..register(
-            _LifecyclePlugin(
+            _LifecycleExtension(
               namespace: 'first',
               functions: [_fn('first_a')],
               onAttachCallback: () => order.add('first'),
             ),
           )
           ..register(
-            _LifecyclePlugin(
+            _LifecycleExtension(
               namespace: 'second',
               functions: [_fn('second_a')],
               onAttachCallback: () => order.add('second'),
@@ -360,14 +360,14 @@ void main() {
         // attachment order must still be [high, low].
         registry
           ..register(
-            _LifecyclePlugin(
+            _LifecycleExtension(
               namespace: 'low',
               functions: [_fn('low_a')],
               onAttachCallback: () => order.add('low'),
             ),
           )
           ..register(
-            _LifecyclePlugin(
+            _LifecycleExtension(
               namespace: 'high',
               functions: [_fn('high_a')],
               onAttachCallback: () => order.add('high'),
@@ -388,7 +388,7 @@ void main() {
 
           for (final ns in ['alpha', 'beta', 'gamma']) {
             registry.register(
-              _LifecyclePlugin(
+              _LifecycleExtension(
                 namespace: ns,
                 functions: [_fn('${ns}_a')],
                 onAttachCallback: () => order.add(ns),
@@ -411,14 +411,14 @@ void main() {
 
           registry
             ..register(
-              _LifecyclePlugin(
+              _LifecycleExtension(
                 namespace: 'low',
                 functions: [_fn('low_b')],
                 onDisposeCallback: () => disposeOrder.add('low'),
               ),
             )
             ..register(
-              _LifecyclePlugin(
+              _LifecycleExtension(
                 namespace: 'high',
                 functions: [_fn('high_b')],
                 onDisposeCallback: () => disposeOrder.add('high'),
@@ -437,7 +437,7 @@ void main() {
       test('registers extraFunctions onto bridge', () async {
         final bridge = _MockBridge();
         registry.register(
-          _TestPlugin(namespace: 'ns', functions: [_fn('ns_one')]),
+          _TestExtension(namespace: 'ns', functions: [_fn('ns_one')]),
         );
 
         await registry.attachTo(bridge, extraFunctions: [_fn('standalone_op')]);
@@ -450,7 +450,7 @@ void main() {
       test('extraFunctions with null or empty list is a no-op', () async {
         final bridge = _MockBridge();
         registry.register(
-          _TestPlugin(namespace: 'ns', functions: [_fn('ns_one')]),
+          _TestExtension(namespace: 'ns', functions: [_fn('ns_one')]),
         );
 
         await registry.attachTo(bridge, extraFunctions: []);
@@ -464,14 +464,14 @@ void main() {
 
         registry
           ..register(
-            _LifecyclePlugin(
+            _LifecycleExtension(
               namespace: 'aaa',
               functions: [_fn('aaa_x')],
               onAttachCallback: () => throw Exception('aaa boom'),
             ),
           )
           ..register(
-            _LifecyclePlugin(namespace: 'bbb', functions: [_fn('bbb_x')]),
+            _LifecycleExtension(namespace: 'bbb', functions: [_fn('bbb_x')]),
           );
 
         await expectLater(
@@ -496,7 +496,7 @@ void main() {
           'coordinator is set on each extension before onAttach fires',
           () async {
             final bridge = _MockBridge();
-            final plugin = _RegistryCapturingPlugin(namespace: 'alpha');
+            final plugin = _RegistryCapturingExtension(namespace: 'alpha');
             registry.register(plugin);
             await registry.attachTo(bridge);
             expect(plugin.capturedCoordinator, same(registry));
@@ -504,7 +504,7 @@ void main() {
         );
 
         test('accessing coordinator before attachTo throws', () {
-          final plugin = _LifecyclePlugin(namespace: 'lc', functions: []);
+          final plugin = _LifecycleExtension(namespace: 'lc', functions: []);
           // Accessing an uninitialised late field throws
           // LateInitializationError, a subtype of Error.
           expect(() => plugin.coordinator, throwsA(isA<Error>()));
@@ -517,7 +517,7 @@ void main() {
           () async {
             final bridge = _MockBridge();
             registry.register(
-              _OsContribPlugin(
+              _OsContribExtension(
                 namespace: 'fs',
                 contribution: {'Path.': _fakeOsHandler},
               ),
@@ -532,7 +532,7 @@ void main() {
           () async {
             final bridge = _MockBridge();
             registry.register(
-              _TestPlugin(namespace: 'ns', functions: [_fn('ns_x')]),
+              _TestExtension(namespace: 'ns', functions: [_fn('ns_x')]),
             );
             await registry.attachTo(bridge);
             expect(bridge.capturedOs, isNull);
@@ -545,7 +545,7 @@ void main() {
             final bridge = _MockBridge();
             const baseOs = _fakeOsHandler;
             registry.register(
-              _TestPlugin(namespace: 'ns', functions: [_fn('ns_x')]),
+              _TestExtension(namespace: 'ns', functions: [_fn('ns_x')]),
             );
             await registry.attachTo(bridge, baseOs: baseOs);
             expect(bridge.capturedOs, same(baseOs));
@@ -557,7 +557,7 @@ void main() {
           () async {
             final bridge = _MockBridge();
             registry.register(
-              _OsContribPlugin(
+              _OsContribExtension(
                 namespace: 'fs',
                 contribution: {'Path.': _fakeOsHandler},
               ),
@@ -576,13 +576,13 @@ void main() {
             final bridge = _MockBridge();
             registry
               ..register(
-                _OsContribPlugin(
+                _OsContribExtension(
                   namespace: 'fs',
                   contribution: {'Path.': _fakeOsHandler},
                 ),
               )
               ..register(
-                _OsContribPlugin(
+                _OsContribExtension(
                   namespace: 'other',
                   contribution: {'Path.': _fakeOsHandler},
                 ),
@@ -609,14 +609,14 @@ void main() {
 
         registry
           ..register(
-            _LifecyclePlugin(
+            _LifecycleExtension(
               namespace: 'aaa',
               functions: [_fn('aaa_x')],
               onDisposeCallback: () => order.add('aaa'),
             ),
           )
           ..register(
-            _LifecyclePlugin(
+            _LifecycleExtension(
               namespace: 'bbb',
               functions: [_fn('bbb_x')],
               onDisposeCallback: () => order.add('bbb'),
@@ -631,7 +631,7 @@ void main() {
       test('is idempotent', () async {
         var count = 0;
         registry.register(
-          _LifecyclePlugin(
+          _LifecycleExtension(
             namespace: 'idem',
             functions: [_fn('idem_x')],
             onDisposeCallback: () => count++,
@@ -649,21 +649,21 @@ void main() {
 
         registry
           ..register(
-            _LifecyclePlugin(
+            _LifecycleExtension(
               namespace: 'aaa',
               functions: [_fn('aaa_x')],
               onDisposeCallback: () => disposed.add('aaa'),
             ),
           )
           ..register(
-            _LifecyclePlugin(
+            _LifecycleExtension(
               namespace: 'bbb',
               functions: [_fn('bbb_x')],
               onDisposeCallback: () => throw Exception('bbb boom'),
             ),
           )
           ..register(
-            _LifecyclePlugin(
+            _LifecycleExtension(
               namespace: 'ccc',
               functions: [_fn('ccc_x')],
               onDisposeCallback: () => disposed.add('ccc'),
@@ -688,14 +688,14 @@ void main() {
       test('collects multiple dispose errors', () async {
         registry
           ..register(
-            _LifecyclePlugin(
+            _LifecycleExtension(
               namespace: 'aaa',
               functions: [_fn('aaa_x')],
               onDisposeCallback: () => throw Exception('aaa fail'),
             ),
           )
           ..register(
-            _LifecyclePlugin(
+            _LifecycleExtension(
               namespace: 'bbb',
               functions: [_fn('bbb_x')],
               onDisposeCallback: () => throw Exception('bbb fail'),
@@ -722,7 +722,7 @@ void main() {
 
       test('single plugin with functions produces expected markdown', () {
         registry.register(
-          _TestPlugin(
+          _TestExtension(
             namespace: 'sqlite',
             systemPromptContext: 'SQLite operations.',
             functions: [
@@ -754,7 +754,7 @@ void main() {
 
       test('optional params show ? suffix', () {
         registry.register(
-          _TestPlugin(
+          _TestExtension(
             namespace: 'demo',
             functions: [
               HostFunction(
@@ -784,7 +784,7 @@ void main() {
         registry
           ..systemPromptPrefix = 'You are child 0. Workspace: /child_0.'
           ..register(
-            _TestPlugin(
+            _TestExtension(
               namespace: 'alpha',
               systemPromptContext: 'Alpha operations.',
               functions: [_fn('alpha_one')],
@@ -802,7 +802,7 @@ void main() {
 
       test('null systemPromptPrefix produces no prefix', () {
         registry.register(
-          _TestPlugin(namespace: 'ns', functions: [_fn('ns_one')]),
+          _TestExtension(namespace: 'ns', functions: [_fn('ns_one')]),
         );
 
         final prompt = registry.generateSystemPrompt();
@@ -813,7 +813,7 @@ void main() {
       test('empty systemPromptPrefix produces no prefix', () {
         registry
           ..systemPromptPrefix = ''
-          ..register(_TestPlugin(namespace: 'ns', functions: [_fn('ns_one')]));
+          ..register(_TestExtension(namespace: 'ns', functions: [_fn('ns_one')]));
 
         final prompt = registry.generateSystemPrompt();
 
@@ -831,14 +831,14 @@ void main() {
       test('multiple plugins produce sections in registration order', () {
         registry
           ..register(
-            _TestPlugin(
+            _TestExtension(
               namespace: 'alpha',
               systemPromptContext: 'Alpha stuff.',
               functions: [_fn('alpha_one')],
             ),
           )
           ..register(
-            _TestPlugin(
+            _TestExtension(
               namespace: 'beta',
               systemPromptContext: 'Beta stuff.',
               functions: [_fn('beta_one')],
@@ -855,12 +855,12 @@ void main() {
 
     group('statefulObservations', () {
       test('returns empty iterable when no stateful plugins registered', () {
-        registry.register(_TestPlugin(namespace: 'ns', functions: []));
+        registry.register(_TestExtension(namespace: 'ns', functions: []));
 
         expect(registry.statefulObservations(), isEmpty);
       });
 
-      test('yields one pair per StatefulPlugin', () {
+      test('yields one pair per StatefulExtension', () {
         registry
           ..register(_StatefulTestPlugin(namespace: 'alpha', initial: 'a'))
           ..register(_StatefulTestPlugin(namespace: 'beta', initial: 'b'));
@@ -874,7 +874,7 @@ void main() {
 
       test('skips plain (non-stateful) plugins', () {
         registry
-          ..register(_TestPlugin(namespace: 'plain', functions: []))
+          ..register(_TestExtension(namespace: 'plain', functions: []))
           ..register(_StatefulTestPlugin(namespace: 'stateful', initial: 0));
 
         final observations = registry.statefulObservations().toList();
@@ -919,7 +919,7 @@ void main() {
 
       test('excludes extras by default from child surface', () async {
         final parentBridge = _MockBridge();
-        registry.register(_TestPlugin(namespace: 'ns', functions: []));
+        registry.register(_TestExtension(namespace: 'ns', functions: []));
         await registry.attachTo(
           parentBridge,
           extraFunctions: [extraFn('parent_only')],
@@ -937,7 +937,7 @@ void main() {
 
       test('propagates inherit-tagged extras to child surface', () async {
         final parentBridge = _MockBridge();
-        registry.register(_TestPlugin(namespace: 'ns', functions: []));
+        registry.register(_TestExtension(namespace: 'ns', functions: []));
         await registry.attachTo(
           parentBridge,
           extraFunctions: [
@@ -971,8 +971,8 @@ void main() {
   });
 }
 
-/// Plugin that mixes in `StatefulPlugin` for testing `statefulObservations`.
-class _StatefulTestPlugin<T> extends MontyExtension with StatefulPlugin<T> {
+/// Plugin that mixes in `StatefulExtension` for testing `statefulObservations`.
+class _StatefulTestPlugin<T> extends MontyExtension with StatefulExtension<T> {
   _StatefulTestPlugin({required this.namespace, required T initial}) {
     setInitialState(initial);
   }
@@ -985,8 +985,8 @@ class _StatefulTestPlugin<T> extends MontyExtension with StatefulPlugin<T> {
 }
 
 /// Plugin with configurable lifecycle callbacks for testing.
-class _LifecyclePlugin extends MontyExtension {
-  _LifecyclePlugin({
+class _LifecycleExtension extends MontyExtension {
+  _LifecycleExtension({
     required this.namespace,
     required this.functions,
     this.onAttachCallback,
@@ -1032,8 +1032,8 @@ Future<Object?> _fakeOsHandler(
 ) => throw UnimplementedError();
 
 /// Plugin with a configurable [osContribution] for OS prefix merging tests.
-class _OsContribPlugin extends MontyExtension {
-  _OsContribPlugin({
+class _OsContribExtension extends MontyExtension {
+  _OsContribExtension({
     required this.namespace,
     required Map<String, OsCallHandler>? contribution,
   }) : _contribution = contribution;
@@ -1054,8 +1054,8 @@ class _OsContribPlugin extends MontyExtension {
 ///
 /// Used to verify that `ExtensionCoordinator` injects the coordinator before
 /// the first [onAttach] call.
-class _RegistryCapturingPlugin extends MontyExtension {
-  _RegistryCapturingPlugin({required this.namespace});
+class _RegistryCapturingExtension extends MontyExtension {
+  _RegistryCapturingExtension({required this.namespace});
 
   @override
   final String namespace;

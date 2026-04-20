@@ -1,6 +1,3 @@
-@TestOn('vm')
-library;
-
 import 'dart:async';
 
 import 'package:dart_monty/dart_monty.dart';
@@ -88,7 +85,7 @@ MockMontyPlatform _failingMockStructured({
 /// Many tests exercise handlers directly (via [_findHandler]) but
 /// `sandbox_spawn` reaches into `registry.spawnChild(...)` — that field is
 /// injected by [ExtensionCoordinator.attachTo], so the plugin must be attached first.
-Future<SandboxPlugin> _attachedPlugin(SandboxPlugin plugin) async {
+Future<SandboxExtension> _attachedPlugin(SandboxExtension plugin) async {
   final registry = ExtensionCoordinator()..register(plugin);
   final bridge = DefaultMontyBridge(platform: MockMontyPlatform());
   await registry.attachTo(bridge);
@@ -96,11 +93,11 @@ Future<SandboxPlugin> _attachedPlugin(SandboxPlugin plugin) async {
 }
 
 void main() {
-  group('SandboxPlugin', () {
+  group('SandboxExtension', () {
     group('metadata', () {
       test('namespace is "sandbox"', () async {
         final plugin = await _attachedPlugin(
-          SandboxPlugin(
+          SandboxExtension(
             platformFactory: () async => MockMontyPlatform(),
           ),
         );
@@ -109,7 +106,7 @@ void main() {
 
       test('has system prompt context', () async {
         final plugin = await _attachedPlugin(
-          SandboxPlugin(
+          SandboxExtension(
             platformFactory: () async => MockMontyPlatform(),
           ),
         );
@@ -119,7 +116,7 @@ void main() {
 
       test('provides 7 host functions', () async {
         final plugin = await _attachedPlugin(
-          SandboxPlugin(
+          SandboxExtension(
             platformFactory: () async => MockMontyPlatform(),
           ),
         );
@@ -128,7 +125,7 @@ void main() {
 
       test('all function names start with sandbox_', () async {
         final plugin = await _attachedPlugin(
-          SandboxPlugin(
+          SandboxExtension(
             platformFactory: () async => MockMontyPlatform(),
           ),
         );
@@ -140,13 +137,13 @@ void main() {
       test('registers on ExtensionCoordinator without collision', () {
         final registry = ExtensionCoordinator()
           ..register(
-            SandboxPlugin(platformFactory: () async => MockMontyPlatform()),
+            SandboxExtension(platformFactory: () async => MockMontyPlatform()),
           );
         expect(registry.extensions, hasLength(1));
       });
 
       test('sandbox_spawn.code declares python render hint', () {
-        final plugin = SandboxPlugin(
+        final plugin = SandboxExtension(
           platformFactory: () async => MockMontyPlatform(),
         );
         final spawn = plugin.functions.firstWhere(
@@ -162,7 +159,7 @@ void main() {
     group('sandbox_spawn', () {
       test('returns an integer handle', () async {
         final plugin = await _attachedPlugin(
-          SandboxPlugin(
+          SandboxExtension(
             platformFactory: () async => _completingMock(),
           ),
         );
@@ -176,7 +173,7 @@ void main() {
 
       test('sequential spawns return incrementing handles', () async {
         final plugin = await _attachedPlugin(
-          SandboxPlugin(
+          SandboxExtension(
             platformFactory: () async => _completingMock(),
           ),
         );
@@ -194,7 +191,7 @@ void main() {
       test('passes code to child platform start()', () async {
         final mock = _completingMock();
         final plugin = await _attachedPlugin(
-          SandboxPlugin(platformFactory: () async => mock),
+          SandboxExtension(platformFactory: () async => mock),
         );
         final spawn = _findHandler(plugin, 'sandbox_spawn');
 
@@ -208,7 +205,7 @@ void main() {
       test('child platform is disposed after completion', () async {
         final mock = _completingMock();
         final plugin = await _attachedPlugin(
-          SandboxPlugin(platformFactory: () async => mock),
+          SandboxExtension(platformFactory: () async => mock),
         );
         final spawn = _findHandler(plugin, 'sandbox_spawn');
         final await_ = _findHandler(plugin, 'sandbox_await');
@@ -222,7 +219,7 @@ void main() {
       test('applies timeout_ms and memory_bytes to child limits', () async {
         final mock = _completingMock();
         final plugin = await _attachedPlugin(
-          SandboxPlugin(platformFactory: () async => mock),
+          SandboxExtension(platformFactory: () async => mock),
         );
         final spawn = _findHandler(plugin, 'sandbox_spawn');
 
@@ -238,7 +235,7 @@ void main() {
 
       test('throws StateError when disposed', () async {
         final plugin = await _attachedPlugin(
-          SandboxPlugin(
+          SandboxExtension(
             platformFactory: () async => _completingMock(),
           ),
         );
@@ -261,7 +258,7 @@ void main() {
     group('sandbox_await', () {
       test('returns null for child with no return value', () async {
         final plugin = await _attachedPlugin(
-          SandboxPlugin(
+          SandboxExtension(
             platformFactory: () async => _completingMock(),
           ),
         );
@@ -275,7 +272,7 @@ void main() {
 
       test('returns child return value', () async {
         final plugin = await _attachedPlugin(
-          SandboxPlugin(
+          SandboxExtension(
             platformFactory: () async =>
                 _completingMockWithResult(value: const MontyInt(42)),
           ),
@@ -290,7 +287,7 @@ void main() {
 
       test('throws ChildSandboxException for failed child', () async {
         final plugin = await _attachedPlugin(
-          SandboxPlugin(
+          SandboxExtension(
             platformFactory: () async => _failingMock('NameError: x'),
           ),
         );
@@ -312,7 +309,7 @@ void main() {
         'preserves MontyException fields through ChildSandboxException',
         () async {
           final plugin = await _attachedPlugin(
-            SandboxPlugin(
+            SandboxExtension(
               platformFactory: () async => _failingMockStructured(
                 message: 'NameError: undefined_var',
                 filename: '<code>',
@@ -344,7 +341,7 @@ void main() {
 
       test('throws ArgumentError for unknown handle', () async {
         final plugin = await _attachedPlugin(
-          SandboxPlugin(
+          SandboxExtension(
             platformFactory: () async => _completingMock(),
           ),
         );
@@ -357,7 +354,7 @@ void main() {
     group('sandbox_await_all', () {
       test('returns results for all children', () async {
         final plugin = await _attachedPlugin(
-          SandboxPlugin(
+          SandboxExtension(
             platformFactory: () async => _completingMock(),
           ),
         );
@@ -377,7 +374,7 @@ void main() {
       test('throws if any child fails', () async {
         var callCount = 0;
         final plugin = await _attachedPlugin(
-          SandboxPlugin(
+          SandboxExtension(
             platformFactory: () async {
               callCount++;
               if (callCount == 2) return _failingMock('boom');
@@ -400,7 +397,7 @@ void main() {
 
       test('throws ArgumentError for unknown handle in list', () async {
         final plugin = await _attachedPlugin(
-          SandboxPlugin(
+          SandboxExtension(
             platformFactory: () async => _completingMock(),
           ),
         );
@@ -422,7 +419,7 @@ void main() {
         final mock = _SlowMockPlatform(startCompleter.future);
 
         final plugin = await _attachedPlugin(
-          SandboxPlugin(platformFactory: () async => mock),
+          SandboxExtension(platformFactory: () async => mock),
         );
         final spawn = _findHandler(plugin, 'sandbox_spawn');
         final isAlive = _findHandler(plugin, 'sandbox_is_alive');
@@ -443,7 +440,7 @@ void main() {
 
       test('returns false after child completes', () async {
         final plugin = await _attachedPlugin(
-          SandboxPlugin(
+          SandboxExtension(
             platformFactory: () async => _completingMock(),
           ),
         );
@@ -460,7 +457,7 @@ void main() {
 
       test('throws ArgumentError for unknown handle', () async {
         final plugin = await _attachedPlugin(
-          SandboxPlugin(
+          SandboxExtension(
             platformFactory: () async => _completingMock(),
           ),
         );
@@ -473,7 +470,7 @@ void main() {
     group('sandbox_get_output', () {
       test('returns print output from completed child', () async {
         final plugin = await _attachedPlugin(
-          SandboxPlugin(
+          SandboxExtension(
             platformFactory: () async =>
                 _completingMockWithResult(printOutput: 'hello world\n'),
           ),
@@ -491,7 +488,7 @@ void main() {
 
       test('returns null when child had no print output', () async {
         final plugin = await _attachedPlugin(
-          SandboxPlugin(
+          SandboxExtension(
             platformFactory: () async => _completingMock(),
           ),
         );
@@ -510,7 +507,7 @@ void main() {
         final startCompleter = Completer<MontyProgress>();
         final mock = _SlowMockPlatform(startCompleter.future);
         final plugin = await _attachedPlugin(
-          SandboxPlugin(platformFactory: () async => mock),
+          SandboxExtension(platformFactory: () async => mock),
         );
         final spawn = _findHandler(plugin, 'sandbox_spawn');
         final getOutput = _findHandler(plugin, 'sandbox_get_output');
@@ -538,7 +535,7 @@ void main() {
 
       test('throws ArgumentError for unknown handle', () async {
         final plugin = await _attachedPlugin(
-          SandboxPlugin(
+          SandboxExtension(
             platformFactory: () async => _completingMock(),
           ),
         );
@@ -554,7 +551,7 @@ void main() {
         () async {
           var callCount = 0;
           final plugin = await _attachedPlugin(
-            SandboxPlugin(
+            SandboxExtension(
               platformFactory: () async {
                 callCount++;
                 return _completingMockWithResult(
@@ -592,7 +589,7 @@ void main() {
       test('preserves handle order', () async {
         var callCount = 0;
         final plugin = await _attachedPlugin(
-          SandboxPlugin(
+          SandboxExtension(
             platformFactory: () async {
               callCount++;
               return _completingMockWithResult(value: MontyInt(callCount * 10));
@@ -621,7 +618,7 @@ void main() {
 
       test('handles null printOutput (child with no print)', () async {
         final plugin = await _attachedPlugin(
-          SandboxPlugin(
+          SandboxExtension(
             platformFactory: () async =>
                 _completingMockWithResult(value: const MontyInt(42)),
           ),
@@ -647,7 +644,7 @@ void main() {
       test('throws ChildSandboxException if any child fails', () async {
         var callCount = 0;
         final plugin = await _attachedPlugin(
-          SandboxPlugin(
+          SandboxExtension(
             platformFactory: () async {
               callCount++;
               if (callCount == 2) return _failingMock('child failed');
@@ -671,7 +668,7 @@ void main() {
 
       test('throws ArgumentError for unknown handle', () async {
         final plugin = await _attachedPlugin(
-          SandboxPlugin(
+          SandboxExtension(
             platformFactory: () async => _completingMock(),
           ),
         );
@@ -687,7 +684,7 @@ void main() {
 
       test('works with single handle', () async {
         final plugin = await _attachedPlugin(
-          SandboxPlugin(
+          SandboxExtension(
             platformFactory: () async => _completingMockWithResult(
               value: const MontyString('solo'),
               printOutput: 'hi\n',
@@ -716,7 +713,7 @@ void main() {
     group('sandbox_free', () {
       test('removes completed child from map', () async {
         final plugin = await _attachedPlugin(
-          SandboxPlugin(
+          SandboxExtension(
             platformFactory: () async => _completingMock(),
           ),
         );
@@ -740,7 +737,7 @@ void main() {
         final startCompleter = Completer<MontyProgress>();
         final mock = _SlowMockPlatform(startCompleter.future);
         final plugin = await _attachedPlugin(
-          SandboxPlugin(platformFactory: () async => mock),
+          SandboxExtension(platformFactory: () async => mock),
         );
         final spawn = _findHandler(plugin, 'sandbox_spawn');
         final free = _findHandler(plugin, 'sandbox_free');
@@ -767,7 +764,7 @@ void main() {
 
       test('throws ArgumentError for unknown handle', () async {
         final plugin = await _attachedPlugin(
-          SandboxPlugin(
+          SandboxExtension(
             platformFactory: () async => _completingMock(),
           ),
         );
@@ -778,7 +775,7 @@ void main() {
 
       test('double free throws ArgumentError', () async {
         final plugin = await _attachedPlugin(
-          SandboxPlugin(
+          SandboxExtension(
             platformFactory: () async => _completingMock(),
           ),
         );
@@ -810,7 +807,7 @@ void main() {
             ),
           );
         final plugin = await _attachedPlugin(
-          SandboxPlugin(platformFactory: () async => mock),
+          SandboxExtension(platformFactory: () async => mock),
         );
         final spawn = _findHandler(plugin, 'sandbox_spawn');
         final await_ = _findHandler(plugin, 'sandbox_await');
@@ -831,7 +828,7 @@ void main() {
     group('depth limiting', () {
       test('rejects spawn when currentDepth >= maxDepth', () async {
         final plugin = await _attachedPlugin(
-          SandboxPlugin(
+          SandboxExtension(
             platformFactory: () async => _completingMock(),
             maxDepth: 2,
             currentDepth: 2,
@@ -853,7 +850,7 @@ void main() {
 
       test('allows spawn when currentDepth < maxDepth', () async {
         final plugin = await _attachedPlugin(
-          SandboxPlugin(
+          SandboxExtension(
             platformFactory: () async => _completingMock(),
             currentDepth: 1,
           ),
@@ -869,7 +866,7 @@ void main() {
       test('rejects spawn when maxChildren reached', () async {
         final completers = <Completer<MontyProgress>>[];
         final plugin = await _attachedPlugin(
-          SandboxPlugin(
+          SandboxExtension(
             platformFactory: () async {
               final c = Completer<MontyProgress>();
               completers.add(c);
@@ -922,7 +919,7 @@ void main() {
         // The bridge catches it via `on Object` and emits BridgeRunError
         // without a MontyException.
         final plugin = await _attachedPlugin(
-          SandboxPlugin(
+          SandboxExtension(
             platformFactory: () async => _InfraErrorMock(),
           ),
         );
@@ -946,7 +943,7 @@ void main() {
         final completers = <Completer<MontyProgress>>[];
         final mocks = <_SlowMockPlatform>[];
         final plugin = await _attachedPlugin(
-          SandboxPlugin(
+          SandboxExtension(
             platformFactory: () async {
               final c = Completer<MontyProgress>();
               completers.add(c);
@@ -979,7 +976,7 @@ void main() {
 
       test('is idempotent', () async {
         final plugin = await _attachedPlugin(
-          SandboxPlugin(
+          SandboxExtension(
             platformFactory: () async => _completingMock(),
           ),
         );
@@ -1001,7 +998,7 @@ void main() {
           late _SlowMockPlatform createdPlatform;
 
           final plugin = await _attachedPlugin(
-            SandboxPlugin(
+            SandboxExtension(
               platformFactory: () async {
                 createdPlatform = _SlowMockPlatform(
                   // Platform.start() never returns — child stays alive while we
@@ -1044,7 +1041,7 @@ void main() {
       test('completed children are not torn down again', () async {
         final mock = _completingMock();
         final plugin = await _attachedPlugin(
-          SandboxPlugin(platformFactory: () async => mock),
+          SandboxExtension(platformFactory: () async => mock),
         );
         final spawn = _findHandler(plugin, 'sandbox_spawn');
         final await_ = _findHandler(plugin, 'sandbox_await');
@@ -1069,7 +1066,7 @@ void main() {
         LogManager.instance
           ..addSink(sink)
           ..minimumLevel = LogLevel.trace;
-        logger = LogManager.instance.getLogger('SandboxPlugin.test');
+        logger = LogManager.instance.getLogger('SandboxExtension.test');
       });
 
       tearDown(() {
@@ -1081,7 +1078,7 @@ void main() {
       test('spawn logs info with childId and depth', () async {
         final plugin =
             await _attachedPlugin(
-                SandboxPlugin(
+                SandboxExtension(
                   platformFactory: () async => _completingMock(),
                 ),
               )
@@ -1103,7 +1100,7 @@ void main() {
       test('spawn logs debug for bridge creation with codeLength', () async {
         final plugin =
             await _attachedPlugin(
-                SandboxPlugin(
+                SandboxExtension(
                   platformFactory: () async => _completingMock(),
                 ),
               )
@@ -1122,7 +1119,7 @@ void main() {
       test('completion logs info with childId', () async {
         final plugin =
             await _attachedPlugin(
-                SandboxPlugin(
+                SandboxExtension(
                   platformFactory: () async => _completingMock(),
                 ),
               )
@@ -1143,7 +1140,7 @@ void main() {
       test('failure logs debug with childId and error', () async {
         final plugin =
             await _attachedPlugin(
-                SandboxPlugin(
+                SandboxExtension(
                   platformFactory: () async => _failingMock('NameError: x'),
                 ),
               )
@@ -1169,7 +1166,7 @@ void main() {
       test('free logs debug with childId', () async {
         final plugin =
             await _attachedPlugin(
-                SandboxPlugin(
+                SandboxExtension(
                   platformFactory: () async => _completingMock(),
                 ),
               )
@@ -1192,7 +1189,7 @@ void main() {
       test('dispose logs info with child counts', () async {
         final plugin =
             await _attachedPlugin(
-                SandboxPlugin(
+                SandboxExtension(
                   platformFactory: () async => _completingMock(),
                 ),
               )
@@ -1205,7 +1202,7 @@ void main() {
         await plugin.onDispose();
 
         final disposeRecord = sink.records.firstWhere(
-          (r) => r.message == 'Disposing SandboxPlugin',
+          (r) => r.message == 'Disposing SandboxExtension',
         );
         expect(disposeRecord.level, LogLevel.info);
         expect(disposeRecord.attributes['totalChildren'], 1);
@@ -1215,7 +1212,7 @@ void main() {
       test('depth limit rejection logs warning', () async {
         final plugin =
             await _attachedPlugin(
-                SandboxPlugin(
+                SandboxExtension(
                   platformFactory: () async => _completingMock(),
                   maxDepth: 2,
                   currentDepth: 2,
@@ -1238,7 +1235,7 @@ void main() {
         final completers = <Completer<MontyProgress>>[];
         final plugin =
             await _attachedPlugin(
-                SandboxPlugin(
+                SandboxExtension(
                   platformFactory: () async {
                     final c = Completer<MontyProgress>();
                     completers.add(c);
@@ -1275,7 +1272,7 @@ void main() {
         final longError = 'E' * 300;
         final plugin =
             await _attachedPlugin(
-                SandboxPlugin(
+                SandboxExtension(
                   platformFactory: () async => _failingMock(longError),
                 ),
               )
@@ -1301,7 +1298,7 @@ void main() {
       test('platformFactory failure logs error with phase=platform', () async {
         final plugin =
             await _attachedPlugin(
-                SandboxPlugin(
+                SandboxExtension(
                   platformFactory: () async {
                     throw StateError('platform creation boom');
                   },
@@ -1321,7 +1318,7 @@ void main() {
       });
 
       test('default logger is NullBridgeLogger before attach', () {
-        final defaultPlugin = SandboxPlugin(
+        final defaultPlugin = SandboxExtension(
           platformFactory: () async => _completingMock(),
         );
         expect(defaultPlugin.logger, isA<NullBridgeLogger>());
@@ -1331,7 +1328,7 @@ void main() {
     group('signals', () {
       test('childrenSignal is empty before any spawn', () async {
         final plugin = await _attachedPlugin(
-          SandboxPlugin(
+          SandboxExtension(
             platformFactory: () async => _completingMock(),
           ),
         );
@@ -1340,7 +1337,7 @@ void main() {
 
       test('aliveCountSignal is 0 before any spawn', () async {
         final plugin = await _attachedPlugin(
-          SandboxPlugin(
+          SandboxExtension(
             platformFactory: () async => _completingMock(),
           ),
         );
@@ -1351,7 +1348,7 @@ void main() {
         'childrenSignal contains ChildRunning immediately after spawn',
         () async {
           final plugin = await _attachedPlugin(
-            SandboxPlugin(
+            SandboxExtension(
               platformFactory: () async => _completingMock(),
             ),
           );
@@ -1371,7 +1368,7 @@ void main() {
         'childrenSignal updates to ChildCompleted after child finishes',
         () async {
           final plugin = await _attachedPlugin(
-            SandboxPlugin(
+            SandboxExtension(
               platformFactory: () async => _completingMockWithResult(
                 value: const MontyInt(42),
               ),
@@ -1393,7 +1390,7 @@ void main() {
 
       test('ChildCompleted carries the return value', () async {
         final plugin = await _attachedPlugin(
-          SandboxPlugin(
+          SandboxExtension(
             platformFactory: () async => _completingMockWithResult(
               value: const MontyInt(7),
             ),
@@ -1411,7 +1408,7 @@ void main() {
 
       test('childrenSignal updates to ChildFailed when child errors', () async {
         final plugin = await _attachedPlugin(
-          SandboxPlugin(
+          SandboxExtension(
             platformFactory: () async => _failingMock('boom'),
           ),
         );
@@ -1428,7 +1425,7 @@ void main() {
 
       test('ChildFailed carries the error message', () async {
         final plugin = await _attachedPlugin(
-          SandboxPlugin(
+          SandboxExtension(
             platformFactory: () async => _failingMock('something broke'),
           ),
         );
@@ -1446,7 +1443,7 @@ void main() {
 
       test('childrenSignal is empty after sandbox_free', () async {
         final plugin = await _attachedPlugin(
-          SandboxPlugin(
+          SandboxExtension(
             platformFactory: () async => _completingMock(),
           ),
         );
@@ -1463,7 +1460,7 @@ void main() {
 
       test('effect() fires when child completes', () async {
         final plugin = await _attachedPlugin(
-          SandboxPlugin(
+          SandboxExtension(
             platformFactory: () async => _completingMock(),
           ),
         );
@@ -1486,7 +1483,7 @@ void main() {
 
       test('childrenSignal is cleared when dispose runs', () async {
         final plugin = await _attachedPlugin(
-          SandboxPlugin(
+          SandboxExtension(
             platformFactory: () async => _completingMock(),
           ),
         );
@@ -1511,7 +1508,7 @@ void main() {
 
 /// Finds a handler by function name and wraps it with [_testCtx].
 Future<Object?> Function(Map<String, Object?>) _findHandler(
-  SandboxPlugin plugin,
+  SandboxExtension plugin,
   String name,
 ) {
   final h = plugin.functions.firstWhere((f) => f.schema.name == name).handler!;

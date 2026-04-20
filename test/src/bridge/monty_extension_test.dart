@@ -2,8 +2,8 @@ import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:test/test.dart';
 
 /// Minimal concrete implementation for testing the abstract class.
-class _TestPlugin extends MontyExtension {
-  _TestPlugin({
+class _TestExtension extends MontyExtension {
+  _TestExtension({
     required this.namespace,
     required this.functions,
     this.systemPromptContext,
@@ -30,7 +30,7 @@ void main() {
         handler: (args, _) async => null,
       );
 
-      final plugin = _TestPlugin(
+      final plugin = _TestExtension(
         namespace: 'my_ns',
         systemPromptContext: 'Does cool things.',
         functions: [fn],
@@ -43,7 +43,7 @@ void main() {
     });
 
     test('onAttach default implementation is a no-op', () async {
-      final plugin = _TestPlugin(
+      final plugin = _TestExtension(
         namespace: 'ns',
         systemPromptContext: '',
         functions: [],
@@ -54,19 +54,19 @@ void main() {
     });
 
     test('systemPromptContext defaults to null', () {
-      final plugin = _TestPlugin(namespace: 'ns', functions: []);
+      final plugin = _TestExtension(namespace: 'ns', functions: []);
 
       expect(plugin.systemPromptContext, isNull);
     });
 
     test('childPolicy defaults to exclude', () {
-      final plugin = _TestPlugin(namespace: 'ns', functions: []);
+      final plugin = _TestExtension(namespace: 'ns', functions: []);
 
       expect(plugin.childPolicy, ChildPolicy.exclude);
     });
 
     test('createChildInstance throws when not overridden', () {
-      final plugin = _TestPlugin(namespace: 'ns', functions: []);
+      final plugin = _TestExtension(namespace: 'ns', functions: []);
       const context = ChildSpawnContext(
         childId: 42,
         workingDirectory: '/tmp/child_42',
@@ -79,7 +79,7 @@ void main() {
     });
 
     test('onDispose default implementation is a no-op', () async {
-      final plugin = _TestPlugin(
+      final plugin = _TestExtension(
         namespace: 'ns',
         systemPromptContext: '',
         functions: [],
@@ -90,14 +90,14 @@ void main() {
     });
 
     test('osContribution defaults to null', () {
-      final plugin = _TestPlugin(namespace: 'ns', functions: []);
+      final plugin = _TestExtension(namespace: 'ns', functions: []);
       expect(plugin.osContribution, isNull);
     });
 
     test(
       'accessing coordinator before attachTo throws LateInitializationError',
       () {
-        final plugin = _TestPlugin(namespace: 'ns', functions: []);
+        final plugin = _TestExtension(namespace: 'ns', functions: []);
         // LateInitializationError is a subtype of Error.
         expect(() => plugin.coordinator, throwsA(isA<Error>()));
       },

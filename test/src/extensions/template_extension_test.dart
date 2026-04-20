@@ -5,10 +5,10 @@ import 'package:test/test.dart';
 final _testCtx = HostContext(emit: (_) {}, executionId: 'test');
 
 void main() {
-  late JinjaTemplatePlugin plugin;
+  late JinjaTemplateExtension plugin;
 
   setUp(() {
-    plugin = JinjaTemplatePlugin();
+    plugin = JinjaTemplateExtension();
   });
 
   /// Returns a 1-arg callable that forwards to the handler with [_testCtx].
@@ -30,11 +30,11 @@ void main() {
       expect(plugin.systemPromptContext, isNotNull);
     });
 
-    test('createChildInstance returns new JinjaTemplatePlugin', () {
+    test('createChildInstance returns new JinjaTemplateExtension', () {
       final child = plugin.createChildInstance(
         const ChildSpawnContext(childId: 1),
       );
-      expect(child, isA<JinjaTemplatePlugin>());
+      expect(child, isA<JinjaTemplateExtension>());
       expect(child, isNot(same(plugin)));
     });
 
@@ -127,7 +127,7 @@ void main() {
     });
 
     test('respects custom maxInputSize', () async {
-      final small = JinjaTemplatePlugin(maxInputSize: 10);
+      final small = JinjaTemplateExtension(maxInputSize: 10);
       final handler = small.functions.firstWhere(
         (f) => f.schema.name == 'tmpl_render',
       );

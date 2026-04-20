@@ -16,11 +16,11 @@ const _usage = MontyResourceUsage(
 void main() {
   late MockMontyPlatform mock;
   late DefaultMontyBridge bridge;
-  late EventLoopPlugin plugin;
+  late EventLoopExtension plugin;
 
   setUp(() async {
     mock = MockMontyPlatform();
-    plugin = EventLoopPlugin();
+    plugin = EventLoopExtension();
     bridge = DefaultMontyBridge(platform: mock);
     await plugin.onAttach(bridge);
     for (final fn in plugin.functions) {
@@ -691,7 +691,7 @@ void main() {
   group('WASM fallback (sync-only platform)', () {
     test('el_recv works with sync-only platform', () async {
       final syncMock = _SyncOnlyMockPlatform();
-      final syncPlugin = EventLoopPlugin();
+      final syncPlugin = EventLoopExtension();
       final syncBridge = DefaultMontyBridge(
         platform: syncMock,
         useFutures: false,
@@ -893,11 +893,11 @@ void main() {
 
   group('createChildInstance', () {
     test(
-      'returns a fresh EventLoopPlugin for child sandboxes',
+      'returns a fresh EventLoopExtension for child sandboxes',
       () async {
         // Regression: without the createChildInstance override the default
-        // returns null. SandboxPlugin treats null as "plugin not needed in
-        // child", so child bridges get no EventLoopPlugin. Python code inside
+        // returns null. SandboxExtension treats null as "plugin not needed in
+        // child", so child bridges get no EventLoopExtension. Python code inside
         // a child sandbox that calls el_recv() or el_emit() would raise
         // NameError because those host functions were never registered.
         final child = plugin.createChildInstance(
@@ -909,14 +909,14 @@ void main() {
           isNotNull,
           reason: 'child sandboxes must inherit event loop capability',
         );
-        expect(child, isA<EventLoopPlugin>());
+        expect(child, isA<EventLoopExtension>());
         expect(
           child,
           isNot(same(plugin)),
           reason: 'must be a fresh independent instance',
         );
 
-        final childPlugin = child as EventLoopPlugin;
+        final childPlugin = child as EventLoopExtension;
         expect(childPlugin.channelState, const BridgeChannelIdle());
 
         // Disposing the child must not affect the parent.
@@ -934,7 +934,7 @@ void main() {
             result: MontyResult(value: MontyNone(), usage: _usage),
           ),
         );
-      final plugin2 = EventLoopPlugin();
+      final plugin2 = EventLoopExtension();
       final registry = ExtensionCoordinator()..register(plugin2);
       final bridge2 = DefaultMontyBridge(platform: mock2);
       await registry.attachTo(bridge2);
@@ -951,7 +951,7 @@ void main() {
 
 /// Mock platform that does NOT implement [MontyFutureCapable].
 ///
-/// Used to test that EventLoopPlugin falls back to synchronous behaviour
+/// Used to test that EventLoopExtension falls back to synchronous behaviour
 /// when the platform does not support futures (WASM).
 class _SyncOnlyMockPlatform extends MontyPlatform {
   final Queue<MontyProgress> _progressQueue = Queue<MontyProgress>();

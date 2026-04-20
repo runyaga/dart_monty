@@ -13,7 +13,7 @@ import 'package:dart_monty/src/monty_plugin.dart';
 import 'package:dart_monty/src/monty_runtime_ref.dart';
 import 'package:dart_monty/src/param_render_hint.dart';
 import 'package:dart_monty/src/extension_coordinator.dart';
-import 'package:dart_monty/src/stateful_plugin.dart';
+import 'package:dart_monty/src/stateful_extension.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:path/path.dart' as p;
 import 'package:signals_core/signals_core.dart';
@@ -52,7 +52,7 @@ class ChildSandboxException implements Exception {
 
 /// The lifecycle state of a spawned child sandbox.
 ///
-/// Subscribe to [SandboxPlugin.childrenSignal] for reactive observation:
+/// Subscribe to [SandboxExtension.childrenSignal] for reactive observation:
 /// ```dart
 /// effect(() {
 ///   for (final entry in plugin.childrenSignal.value.entries) {
@@ -124,7 +124,7 @@ typedef MontyPlatformFactory = Future<MontyPlatform> Function();
 
 /// Builds a system prompt fragment from infrastructure context.
 ///
-/// Called during [SandboxPlugin._handleSpawn] to produce static,
+/// Called during [SandboxExtension._handleSpawn] to produce static,
 /// infrastructure-level prompt content (e.g., child identity, workspace path).
 /// Return `null` to skip the builder layer for a given child.
 typedef ChildSystemPromptBuilder = String? Function(ChildSpawnContext context);
@@ -161,7 +161,7 @@ class _ChildHandle {
   Future<void> cancel() async {
     state.value = const ChildDisposed();
     // Dispose plugins FIRST — this unblocks pending handler Futures
-    // (e.g., MessageBusPlugin completes waiters with StateError).
+    // (e.g., MessageBusExtension completes waiters with StateError).
     // The bridge/stream must still be alive to deliver the resulting errors.
     await coordinator.disposeAll();
     await subscription.cancel();
@@ -171,7 +171,7 @@ class _ChildHandle {
 }
 
 // ---------------------------------------------------------------------------
-// Schema constants for SandboxPlugin host functions.
+// Schema constants for SandboxExtension host functions.
 // ---------------------------------------------------------------------------
 
 const _spawnSchema = HostFunctionSchema(
@@ -309,20 +309,20 @@ const _gatherSchema = HostFunctionSchema(
 /// inheritance by overriding [MontyExtension.createChildInstance]; the child's
 /// filesystem visibility is controlled by [childVfsStrategy].
 ///
-/// `SandboxPlugin` MUST be attached through an [ExtensionCoordinator] — it uses the
+/// `SandboxExtension` MUST be attached through an [ExtensionCoordinator] — it uses the
 /// parent coordinator to compose the child.
-class SandboxPlugin extends MontyExtension
-    with StatefulPlugin<Map<int, ChildState>> {
-  /// Creates a [SandboxPlugin].
+class SandboxExtension extends MontyExtension
+    with StatefulExtension<Map<int, ChildState>> {
+  /// Creates a [SandboxExtension].
   ///
   /// [platformFactory] creates a fresh [MontyPlatform] for each child.
   /// [childVfsStrategy] selects how the child's `Path.` handler relates to
   /// the parent's — defaults to [ChildVfsStrategy.isolated].
   /// [maxChildren] limits concurrent children (default: 16).
-  /// [maxDepth] limits recursion depth if children also have SandboxPlugin
+  /// [maxDepth] limits recursion depth if children also have SandboxExtension
   /// (default: 3). Set [currentDepth] when creating nested plugins.
   /// [childLimits] sets resource limits for child interpreters.
-  SandboxPlugin({
+  SandboxExtension({
     required this.platformFactory,
     this.childVfsStrategy = ChildVfsStrategy.isolated,
     this.maxChildren = 16,
@@ -358,7 +358,7 @@ class SandboxPlugin extends MontyExtension
   /// When non-null, each child receives a [ChildSpawnContext] with
   /// `workingDirectory` set to `$sandboxBaseDir/.sandboxes/child_$id`.
   /// The directory is **not** created by this plugin — consumers (e.g.,
-  /// `FsPlugin.createChildInstance`) are responsible for creation.
+  /// `FsExtension.createChildInstance`) are responsible for creation.
   final String? sandboxBaseDir;
 
   /// Optional builder for static, infrastructure-level system prompt content.
@@ -422,7 +422,7 @@ class SandboxPlugin extends MontyExtension
 
     final aliveCount = _children.values.where((c) => c.isAlive).length;
     logger.info(
-      'Disposing SandboxPlugin',
+      'Disposing SandboxExtension',
       attributes: {
         'totalChildren': _children.length,
         'aliveChildren': aliveCount,
@@ -497,7 +497,7 @@ class SandboxPlugin extends MontyExtension
       bridge.dispose();
       await platform.dispose();
       await childCoordinator.disposeAll();
-      throw StateError('SandboxPlugin was disposed during child spawn.');
+      throw StateError('SandboxExtension was disposed during child spawn.');
     }
 
     final completer = Completer<Object?>();
@@ -532,7 +532,7 @@ class SandboxPlugin extends MontyExtension
 
   /// Throws if the plugin is disposed or resource limits are exceeded.
   void _validateSpawnRequest() {
-    if (_disposed) throw StateError('SandboxPlugin is disposed.');
+    if (_disposed) throw StateError('SandboxExtension is disposed.');
     if (currentDepth >= maxDepth) {
       logger.warning(
         'Spawn rejected: depth limit',
@@ -605,7 +605,7 @@ class SandboxPlugin extends MontyExtension
         },
       );
 
-      childCoordinator = await _wireChildPlugins(
+      childCoordinator = await _wireChildExtensions(
         spawnContext,
         bridge,
         runtimePrompt,
@@ -628,7 +628,7 @@ class SandboxPlugin extends MontyExtension
   ///
   /// Relies on [MontyExtension.coordinator] being injected — i.e., this extension
   /// must be attached through an [ExtensionCoordinator].
-  Future<ExtensionCoordinator> _wireChildPlugins(
+  Future<ExtensionCoordinator> _wireChildExtensions(
     ChildSpawnContext spawnContext,
     DefaultMontyBridge bridge,
     String? runtimePrompt,

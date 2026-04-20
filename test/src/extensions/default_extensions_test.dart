@@ -7,9 +7,9 @@ void main() {
       final extensions = defaultExtensions();
 
       expect(extensions, hasLength(3));
-      expect(extensions[0], isA<JinjaTemplatePlugin>());
-      expect(extensions[1], isA<MessageBusPlugin>());
-      expect(extensions[2], isA<EventLoopPlugin>());
+      expect(extensions[0], isA<JinjaTemplateExtension>());
+      expect(extensions[1], isA<MessageBusExtension>());
+      expect(extensions[2], isA<EventLoopExtension>());
     });
 
     test('returns a fresh list on each call', () {
@@ -20,9 +20,9 @@ void main() {
       expect(identical(a[0], b[0]), isFalse);
     });
 
-    test('does not include SandboxPlugin (needs platformFactory)', () {
+    test('does not include SandboxExtension (needs platformFactory)', () {
       final extensions = defaultExtensions();
-      expect(extensions.any((p) => p is SandboxPlugin), isFalse);
+      expect(extensions.any((p) => p is SandboxExtension), isFalse);
     });
   });
 }

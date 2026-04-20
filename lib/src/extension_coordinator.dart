@@ -10,7 +10,7 @@ import 'package:dart_monty/src/attach_context.dart';
 import 'package:dart_monty/src/os_call/decorator_handlers.dart';
 import 'package:dart_monty/src/os_call/fs_handlers.dart';
 import 'package:dart_monty/src/os_call/os_handlers.dart';
-import 'package:dart_monty/src/stateful_plugin.dart';
+import 'package:dart_monty/src/stateful_extension.dart';
 import 'package:signals_core/signals_core.dart';
 
 /// How a child sandbox's `Path.` handler is derived from the parent's.
@@ -21,7 +21,7 @@ import 'package:signals_core/signals_core.dart';
 enum ChildVfsStrategy {
   /// Fresh in-memory filesystem. Parent's `Path.` is invisible to the child.
   ///
-  /// This is the safe default and matches the pre-M1 `SandboxPlugin`
+  /// This is the safe default and matches the pre-M1 `SandboxExtension`
   /// behavior.
   isolated,
 
@@ -211,7 +211,7 @@ void _applyOsContributions(
 class ExtensionCoordinator {
   /// Optional text prepended before extension sections in the system prompt.
   ///
-  /// Set by `SandboxPlugin._handleSpawn` after coordinator construction to
+  /// Set by `SandboxExtension._handleSpawn` after coordinator construction to
   /// inject per-child system prompt content. Using a public field (rather
   /// than a constructor param) guarantees injection regardless of whether
   /// the coordinator was built by inheritance or a custom factory.
@@ -321,7 +321,7 @@ class ExtensionCoordinator {
     _attachOrder = attachOrder;
 
     // Inject coordinator before onAttach so extensions that spawn children
-    // (e.g. SandboxPlugin) can reach it during lifecycle hooks.
+    // (e.g. SandboxExtension) can reach it during lifecycle hooks.
     _injectCoordinators(attachOrder, this);
 
     _attachExtensionFunctions(attachOrder, bridge);
@@ -490,7 +490,7 @@ class ExtensionCoordinator {
   }
 
   /// Returns one `(namespace, signal)` pair per extension that mixes in
-  /// [StatefulPlugin].
+  /// [StatefulExtension].
   ///
   /// Consumers (e.g., an ag-ui session adapter) use these pairs to subscribe
   /// to extension state and emit `STATE_SNAPSHOT` + `STATE_DELTA` frames keyed
