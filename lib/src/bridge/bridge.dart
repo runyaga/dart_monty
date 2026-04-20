@@ -59,8 +59,21 @@ abstract class MontyBridge implements AttachContext {
   /// Infra functions (where [HostFunction.isInfra] is `true`) bypass the
   /// interceptor. All others go through it.
   ///
+  /// When [onEvent] is provided, any [BridgeEvent] the handler emits via
+  /// `HostContext.emit` / `HostContext.emitText` is delivered to the callback
+  /// before the returned future completes. When omitted, emissions are
+  /// dropped. Extension-registered stream wrappers apply to [execute] only
+  /// and are NOT run for direct-Dart invocations — direct calls are outside
+  /// Python-execution semantics.
+  ///
+  /// Callback exceptions are logged and swallowed; they never fail the call.
+  ///
   /// Throws [ArgumentError] if [name] is not registered.
-  Future<Object?> invokeHostFunction(String name, Map<String, Object?> args);
+  Future<Object?> invokeHostFunction(
+    String name,
+    Map<String, Object?> args, {
+    void Function(BridgeEvent)? onEvent,
+  });
 
   /// Registers an [OsCallHandler] for OS-level calls (pathlib, os, datetime).
   ///

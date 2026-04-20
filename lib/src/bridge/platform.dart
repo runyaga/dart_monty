@@ -201,10 +201,14 @@ class PlatformBridge implements MontyBridge, AttachContext {
   OsCallHandler? get currentOsHandler => _osHandler;
 
   @override
-  Future<Object?> invokeHostFunction(String name, Map<String, Object?> args) {
+  Future<Object?> invokeHostFunction(
+    String name,
+    Map<String, Object?> args, {
+    void Function(BridgeEvent)? onEvent,
+  }) {
     if (_isDisposed) throw StateError('Bridge has been disposed');
 
-    return _host.invokeHostFunction(name, args);
+    return _host.invokeHostFunction(name, args, onEvent: onEvent);
   }
 
   // ---------------------------------------------------------------------------

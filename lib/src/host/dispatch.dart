@@ -232,7 +232,20 @@ class HostDispatch {
   /// Invokes a registered host function by [name] directly from Dart.
   ///
   /// Infra functions bypass the interceptor; all others go through it.
-  Future<Object?> invokeHostFunction(String name, Map<String, Object?> args) {
+  ///
+  /// When [onEvent] is provided, any [BridgeEvent] the handler emits via
+  /// `HostContext.emit` / `HostContext.emitText` is delivered to the callback
+  /// before the returned future completes. When [onEvent] is omitted, emissions
+  /// are dropped (direct-Dart calls have no stream). Stream wrappers registered
+  /// by extensions apply to Python-`execute` runs only and are NOT applied to
+  /// direct invocations.
+  ///
+  /// Callback exceptions are logged via the bridge logger and swallowed.
+  Future<Object?> invokeHostFunction(
+    String name,
+    Map<String, Object?> args, {
+    void Function(BridgeEvent)? onEvent,
+  }) {
     final fn = _functions[name];
     if (fn == null) throw ArgumentError('Unknown host function: $name');
     final pending = MontyPending(
@@ -241,8 +254,22 @@ class HostDispatch {
       kwargs: args.map((k, v) => MapEntry(k, MontyValue.fromJson(v))),
     );
     final validatedArgs = fn.schema.mapAndValidate(pending);
+    void sink(BridgeEvent event) {
+      if (onEvent == null) return;
+      try {
+        onEvent(event);
+      } on Object catch (err, st) {
+        _log.error(
+          'invokeHostFunction onEvent callback threw',
+          error: err,
+          stackTrace: st,
+          attributes: {'name': name},
+        );
+      }
+    }
+
     final ctx = HostContext(
-      emit: (_) {}, // no stream available for direct Dart invocations
+      emit: sink,
       executionId: name,
       os: osHandler,
       runtime: _runtime,
