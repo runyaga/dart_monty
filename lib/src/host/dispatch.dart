@@ -232,7 +232,20 @@ class HostDispatch {
   /// Invokes a registered host function by [name] directly from Dart.
   ///
   /// Infra functions bypass the interceptor; all others go through it.
-  Future<Object?> invokeHostFunction(String name, Map<String, Object?> args) {
+  ///
+  /// When [onEvent] is provided, any [BridgeEvent] the handler emits via
+  /// [HostContext.emit] / [HostContext.emitText] is delivered to the callback
+  /// before the returned future completes. When omitted, emitted events are
+  /// silently dropped (preserving prior behavior). Exceptions thrown by
+  /// [onEvent] are caught and logged as warnings; they do not fail the call.
+  ///
+  /// Note: extension-registered stream wrappers (applied to `execute`) are
+  /// NOT applied here — they are Python-execution-specific.
+  Future<Object?> invokeHostFunction(
+    String name,
+    Map<String, Object?> args, {
+    void Function(BridgeEvent)? onEvent,
+  }) {
     final fn = _functions[name];
     if (fn == null) throw ArgumentError('Unknown host function: $name');
     final pending = MontyPending(
@@ -242,7 +255,7 @@ class HostDispatch {
     );
     final validatedArgs = fn.schema.mapAndValidate(pending);
     final ctx = HostContext(
-      emit: (_) {}, // no stream available for direct Dart invocations
+      emit: _safeEmit(onEvent),
       executionId: name,
       os: osHandler,
       runtime: _runtime,
@@ -450,4 +463,24 @@ class HostDispatch {
   /// Called from `PlatformBridge._run`'s `finally` block to avoid leaking
   /// futures across executions when a run ends unexpectedly.
   void clearPendingFutures() => _pendingFutures.clear();
+
+  /// Wraps [onEvent] so exceptions thrown by the caller's callback are caught
+  /// and logged rather than propagated into the handler. Returns a no-op sink
+  /// when [onEvent] is `null`.
+  void Function(BridgeEvent) _safeEmit(void Function(BridgeEvent)? onEvent) {
+    if (onEvent == null) return (_) {};
+
+    return (event) {
+      try {
+        onEvent(event);
+      } on Object catch (e, st) {
+        _log.warning(
+          'invokeHostFunction onEvent callback threw; event dropped',
+          attributes: {'eventType': event.runtimeType.toString()},
+          error: e,
+          stackTrace: st,
+        );
+      }
+    };
+  }
 }

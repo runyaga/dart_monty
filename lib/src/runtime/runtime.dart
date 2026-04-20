@@ -221,7 +221,11 @@ class MontyRuntime implements MontyRuntimeRef {
   /// - [StateError] if the runtime is disposed.
   /// - [UnsupportedError] if called on a sandbox-mode runtime.
   /// - [ArgumentError] if [name] is not registered.
-  Future<Object?> invoke(String name, Map<String, Object?> args) async {
+  Future<Object?> invoke(
+    String name,
+    Map<String, Object?> args, {
+    void Function(BridgeEvent)? onEvent,
+  }) async {
     if (_disposed) throw StateError('MontyRuntime has been disposed');
     if (_sandbox) {
       throw UnsupportedError(
@@ -238,7 +242,7 @@ class MontyRuntime implements MontyRuntimeRef {
       _sharedAttached = true;
     }
 
-    return _sharedBridge!.invokeHostFunction(name, args);
+    return _sharedBridge!.invokeHostFunction(name, args, onEvent: onEvent);
   }
 
   /// Clears all persisted Python state.

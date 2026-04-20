@@ -674,6 +674,186 @@ void main() {
 
       expect(() => bridge.invokeHostFunction('fn', {}), throwsStateError);
     });
+
+    group('onEvent', () {
+      test('omitted — emitted events are dropped silently', () async {
+        bridge.register(
+          HostFunction(
+            schema: const HostFunctionSchema(name: 'emits', description: ''),
+            handler: (_, ctx) async {
+              ctx.emitText('dropped');
+
+              return 'ok';
+            },
+          ),
+        );
+
+        final result = await bridge.invokeHostFunction('emits', const {});
+
+        expect(result, 'ok');
+      });
+
+      test('provided — handler emissions surface in order', () async {
+        bridge.register(
+          HostFunction(
+            schema: const HostFunctionSchema(name: 'emits', description: ''),
+            handler: (_, ctx) async {
+              ctx
+                ..emitText('first')
+                ..emitText('second');
+
+              return 'done';
+            },
+          ),
+        );
+
+        final received = <BridgeEvent>[];
+        final result = await bridge.invokeHostFunction(
+          'emits',
+          const {},
+          onEvent: received.add,
+        );
+
+        expect(result, 'done');
+        expect(received, hasLength(2));
+        expect(received[0], isA<BridgeFunctionEmit>());
+        expect(received[1], isA<BridgeFunctionEmit>());
+        expect((received[0] as BridgeFunctionEmit).text, 'first');
+        expect((received[1] as BridgeFunctionEmit).text, 'second');
+      });
+
+      test('interceptor runs + emits still deliver', () async {
+        var interceptorCalls = 0;
+        final b = MontyBridge(
+          platform: mock,
+          interceptor: (name, args, next) {
+            interceptorCalls++;
+
+            return next();
+          },
+        );
+        addTearDown(b.dispose);
+
+        b.register(
+          HostFunction(
+            schema: const HostFunctionSchema(name: 'emits', description: ''),
+            handler: (_, ctx) async {
+              ctx.emitText('via interceptor');
+
+              return 'ok';
+            },
+          ),
+        );
+
+        final received = <BridgeEvent>[];
+        final result = await b.invokeHostFunction(
+          'emits',
+          const {},
+          onEvent: received.add,
+        );
+
+        expect(result, 'ok');
+        expect(interceptorCalls, 1);
+        expect(received, hasLength(1));
+      });
+
+      test('infra bypasses interceptor + emits still deliver', () async {
+        var interceptorCalls = 0;
+        final b = MontyBridge(
+          platform: mock,
+          interceptor: (name, args, next) {
+            interceptorCalls++;
+
+            return next();
+          },
+        );
+        addTearDown(b.dispose);
+
+        b.register(
+          HostFunction(
+            schema: const HostFunctionSchema(name: 'emits', description: ''),
+            handler: (_, ctx) async {
+              ctx.emitText('infra');
+
+              return 'ok';
+            },
+            isInfra: true,
+          ),
+        );
+
+        final received = <BridgeEvent>[];
+        final result = await b.invokeHostFunction(
+          'emits',
+          const {},
+          onEvent: received.add,
+        );
+
+        expect(result, 'ok');
+        expect(interceptorCalls, 0);
+        expect(received, hasLength(1));
+      });
+
+      test('custom BridgeEvent subtypes deliver verbatim', () async {
+        bridge.register(
+          HostFunction(
+            schema: const HostFunctionSchema(name: 'emits', description: ''),
+            handler: (_, ctx) async {
+              ctx.emit(
+                const BridgeOsCallStart(
+                  callId: 'custom',
+                  operationName: 'Path.exists',
+                ),
+              );
+
+              return null;
+            },
+          ),
+        );
+
+        final received = <BridgeEvent>[];
+        await bridge.invokeHostFunction(
+          'emits',
+          const {},
+          onEvent: received.add,
+        );
+
+        expect(received, hasLength(1));
+        final event = received.single;
+        expect(event, isA<BridgeOsCallStart>());
+        expect((event as BridgeOsCallStart).operationName, 'Path.exists');
+      });
+
+      test('onEvent throws — swallowed; handler returns', () async {
+        bridge.register(
+          HostFunction(
+            schema: const HostFunctionSchema(name: 'emits', description: ''),
+            handler: (_, ctx) async {
+              ctx
+                ..emitText('first')
+                ..emitText('second');
+
+              return 'final';
+            },
+          ),
+        );
+
+        final received = <BridgeEvent>[];
+        final result = await bridge.invokeHostFunction(
+          'emits',
+          const {},
+          onEvent: (event) {
+            received.add(event);
+            if (received.length == 1) {
+              throw StateError('callback kaboom');
+            }
+          },
+        );
+
+        expect(result, 'final');
+        // Both emits delivered — second NOT blocked by first's throw.
+        expect(received, hasLength(2));
+      });
+    });
   });
 
   group('error handling in _run', () {
