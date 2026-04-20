@@ -95,5 +95,13 @@ void main() {
       expect(event.callId, 'oc1');
       expect(event.result, 'contents');
     });
+
+    test('BridgeChildEvent wraps inner event with childHandle', () {
+      const inner = BridgeRunFinished(threadId: 't1', runId: 'r1', value: 42);
+      const event = BridgeChildEvent(childHandle: '3', inner: inner);
+      expect(event.childHandle, '3');
+      expect(event.inner, inner);
+      expect(event, isA<BridgeEvent>());
+    });
   });
 }

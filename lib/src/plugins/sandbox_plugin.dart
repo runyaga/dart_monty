@@ -10,6 +10,7 @@ import 'package:dart_monty/src/host_param.dart';
 import 'package:dart_monty/src/host_param_type.dart';
 import 'package:dart_monty/src/monty_backend_kind.dart';
 import 'package:dart_monty/src/monty_plugin.dart';
+import 'package:dart_monty/src/monty_runtime_ref.dart';
 import 'package:dart_monty/src/param_render_hint.dart';
 import 'package:dart_monty/src/plugin_registry.dart';
 import 'package:dart_monty/src/stateful_plugin.dart';
@@ -513,6 +514,7 @@ class SandboxPlugin extends MontyPlugin
       completer: completer,
       childId: id,
       stream: stream,
+      parent: ctx.runtime,
     );
 
     _children[id] = _ChildHandle(
@@ -654,6 +656,11 @@ class SandboxPlugin extends MontyPlugin
   }
 
   /// Subscribes to [stream] and wires completion/error handling for a child.
+  ///
+  /// When [parent] is non-null, every child event is also re-emitted on the
+  /// parent runtime's broadcast `events` stream wrapped in a
+  /// [BridgeChildEvent] tagged with the child's integer id — giving
+  /// observers a single attributed ordering across the ownership tree.
   StreamSubscription<BridgeEvent> _setupChildListener({
     required DefaultMontyBridge bridge,
     required MontyPlatform platform,
@@ -661,14 +668,17 @@ class SandboxPlugin extends MontyPlugin
     required Completer<Object?> completer,
     required int childId,
     required Stream<BridgeEvent> stream,
+    required MontyRuntimeRef? parent,
   }) {
     String? errorMessage;
     MontyException? errorException;
     Object? value;
     String? printOutput;
+    final childHandle = '$childId';
 
     return stream.listen(
       (event) {
+        parent?.emitChildEvent(childHandle, event);
         if (event is BridgeRunError) {
           errorMessage = event.message;
           errorException = event.exception;

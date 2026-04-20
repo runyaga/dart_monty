@@ -168,6 +168,23 @@ class BridgeOsCallStart extends BridgeEvent {
   final String? argumentSummary;
 }
 
+/// Wraps an event re-emitted from a child runtime on its parent's stream.
+///
+/// Used by child-spawning plugins (e.g. `SandboxPlugin`) to aggregate child
+/// execution events into the parent runtime's broadcast `events` stream so
+/// observers see a single, attributed ordering across the ownership tree.
+class BridgeChildEvent extends BridgeEvent {
+  /// Creates a [BridgeChildEvent].
+  const BridgeChildEvent({required this.childHandle, required this.inner});
+
+  /// Identifier of the child that produced [inner] (namespace-local to the
+  /// plugin that spawned the child, e.g. a sandbox child id).
+  final String childHandle;
+
+  /// The original event emitted by the child.
+  final BridgeEvent inner;
+}
+
 /// An OS call completed with a result (or error string).
 class BridgeOsCallResult extends BridgeEvent {
   /// Creates a [BridgeOsCallResult].

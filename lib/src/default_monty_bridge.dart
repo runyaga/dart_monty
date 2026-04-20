@@ -412,10 +412,11 @@ class DefaultMontyBridge implements MontyBridge, PluginHost {
           BridgeStepFinished() ||
           BridgeToolCallArgs() ||
           BridgeToolCallEnd() ||
-          BridgeToolEmit():
+          BridgeToolEmit() ||
+          BridgeChildEvent():
         // No-op: these events are surface-level telemetry (step boundaries,
-        // argument deltas, intermediate emissions) — logging them would be
-        // chatty duplication of the event stream.
+        // argument deltas, intermediate emissions, child re-emissions) —
+        // logging them would be chatty duplication of the event stream.
         break;
     }
   }

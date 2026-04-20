@@ -136,12 +136,24 @@ class MontyRuntime implements MontyRuntimeRef {
   List<HostFunctionSchema> get llmSchemas =>
       (_sharedBridge ?? _schemaBridge)?.llmSchemas ?? [];
 
-  /// Broadcast stream of all [BridgeEvent]s emitted across every execution.
+  /// Broadcast stream of all [BridgeEvent]s emitted across every execution,
+  /// including child executions spawned via plugins such as `SandboxPlugin`.
   ///
-  /// Observers that need all executions (e.g. `ExecutionTracker`) can attach
-  /// once at construction and receive events from every `execute()` call on
-  /// this runtime without re-attaching per call.
+  /// Child-plugin events arrive wrapped in [BridgeChildEvent] with
+  /// `childHandle` set to the plugin's local handle (e.g. a sandbox child
+  /// id). Observers that need all executions (e.g. `ExecutionTracker`) can
+  /// attach once at construction and receive events from every `execute()`
+  /// call on this runtime — and every child — without re-attaching per call.
   Stream<BridgeEvent> get events => _eventsController.stream;
+
+  @override
+  void emitChildEvent(String childHandle, BridgeEvent event) {
+    if (_disposed) return;
+    if (_eventsController.isClosed) return;
+    _eventsController.add(
+      BridgeChildEvent(childHandle: childHandle, inner: event),
+    );
+  }
 
   /// Whether this session creates a fresh interpreter per `execute()`.
   bool get isSandboxMode => _sandbox;

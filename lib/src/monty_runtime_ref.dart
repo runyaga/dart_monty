@@ -1,3 +1,4 @@
+import 'package:dart_monty/src/bridge_event.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 
 /// Minimal interface that [HostContext] uses to reference the owning runtime.
@@ -12,4 +13,12 @@ import 'package:dart_monty_core/dart_monty_core.dart';
 abstract interface class MontyRuntimeRef {
   /// Executes Python [code] in this runtime and returns the result.
   Future<MontyResult> execute(String code);
+
+  /// Emits [event] on this runtime's broadcast `events` stream wrapped as a
+  /// [BridgeChildEvent] tagged with [childHandle].
+  ///
+  /// Used by child-spawning plugins (e.g. `SandboxPlugin`) to aggregate child
+  /// execution events into the parent's event stream so observers see a single
+  /// attributed ordering across the ownership tree.
+  void emitChildEvent(String childHandle, BridgeEvent event);
 }
