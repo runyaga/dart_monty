@@ -1,8 +1,6 @@
 import 'dart:collection';
 
-import 'package:dart_monty/src/bridge_event.dart';
 import 'package:dart_monty/src/bridge_logger.dart';
-import 'package:dart_monty/src/default_monty_bridge.dart';
 import 'package:dart_monty/src/host_function.dart';
 import 'package:dart_monty/src/introspection_functions.dart';
 import 'package:dart_monty/src/monty_backend_kind.dart';
@@ -119,23 +117,6 @@ void _attachExtraFunctions(
   );
 }
 
-/// Registers stream wrappers for plugins that set
-/// `MontyPlugin.hasStreamWrapper` to `true`.
-///
-/// Only called when [bridge] is a `DefaultMontyBridge` — stream wrapping is a
-/// `DefaultMontyBridge`-level feature not part of the `MontyBridge` interface.
-void _attachStreamWrappers(
-  List<MontyPlugin> attachOrder,
-  MontyBridge bridge,
-) {
-  if (bridge is! DefaultMontyBridge) return;
-  for (final plugin in attachOrder) {
-    if (plugin.hasStreamWrapper) {
-      bridge.addStreamWrapper(plugin.wrapExecuteStream);
-    }
-  }
-}
-
 /// Calls [MontyPlugin.onRegister] for each plugin in [attachOrder], collecting
 /// failures. Returns `(namespace, error)` pairs for every plugin that threw.
 Future<List<(String, Object)>> _runPluginOnRegisters(
@@ -170,49 +151,6 @@ void _injectRegistries(
   for (final plugin in attachOrder) {
     plugin.registry = registry;
   }
-}
-
-/// Registers the execute-hooks stream wrapper as the outermost wrapper.
-///
-/// Fires [MontyPlugin.onExecuteStart] before the first event and
-/// [MontyPlugin.onExecuteEnd] after the stream exhausts. Only plugins with
-/// [MontyPlugin.hasExecuteHooks] set to `true` are included.
-///
-/// Only called when [bridge] is a [DefaultMontyBridge] — stream wrapping is a
-/// `DefaultMontyBridge`-level feature not part of the `MontyBridge` interface.
-/// Registered after plugin stream wrappers, making it the outermost wrapper
-/// (fires first before events, last after events).
-void _attachExecuteHooks(
-  List<MontyPlugin> attachOrder,
-  MontyBridge bridge,
-) {
-  if (bridge is! DefaultMontyBridge) return;
-
-  final hooksPlugins = [
-    for (final p in attachOrder)
-      if (p.hasExecuteHooks) p,
-  ];
-  if (hooksPlugins.isEmpty) return;
-
-  bridge.addStreamWrapper((code, stream) async* {
-    for (final plugin in hooksPlugins) {
-      await plugin.onExecuteStart(code);
-    }
-
-    ExecuteOutcome? outcome;
-
-    await for (final event in stream) {
-      if (event is BridgeRunFinished) outcome = ExecuteSuccess(event);
-      if (event is BridgeRunError) outcome = ExecuteFailure(event);
-      yield event;
-    }
-
-    if (outcome != null) {
-      for (final plugin in hooksPlugins) {
-        await plugin.onExecuteEnd(outcome);
-      }
-    }
-  });
 }
 
 /// Collects OS call prefix contributions from all plugins in [attachOrder]
@@ -379,11 +317,6 @@ class PluginRegistry {
 
     _attachPluginFunctions(attachOrder, bridge);
     _logPluginsRegistered(attachOrder, _log);
-    // Plugin stream wrappers are registered first so that the execute-hooks
-    // wrapper (registered next) is outermost — it fires before any plugin
-    // wrapper on start and after all plugin wrappers on end.
-    _attachStreamWrappers(attachOrder, bridge);
-    _attachExecuteHooks(attachOrder, bridge);
     final contributions = _collectOsContributions(attachOrder);
     _osContributions = contributions;
     _baseOs = baseOs;

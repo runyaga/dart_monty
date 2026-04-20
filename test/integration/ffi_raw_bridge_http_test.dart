@@ -18,7 +18,7 @@ HostFunction _httpGetFn() => HostFunction(
     description: 'Fetches a URL',
     params: [HostParam(name: 'url', type: HostParamType.string)],
   ),
-  handler: (args) async {
+  handler: (args, _) async {
     final url = args['url']! as String;
     final client = HttpClient();
     try {

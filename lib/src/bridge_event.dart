@@ -131,6 +131,21 @@ class BridgeToolCallResult extends BridgeEvent {
   final String result;
 }
 
+/// Intermediate text emitted by a host function handler via [HostContext.emit].
+///
+/// Emitted mid-tool-call for streaming progress updates or partial results.
+/// Arrives between [BridgeToolCallStart] and [BridgeToolCallResult].
+class BridgeToolEmit extends BridgeEvent {
+  /// Creates a [BridgeToolEmit].
+  const BridgeToolEmit({required this.callId, required this.text});
+
+  /// Call identifier — matches the enclosing [BridgeToolCallStart.callId].
+  final String callId;
+
+  /// Emitted text.
+  final String text;
+}
+
 /// An OS call started (Python accessed pathlib, os, datetime, etc.).
 class BridgeOsCallStart extends BridgeEvent {
   /// Creates a [BridgeOsCallStart].

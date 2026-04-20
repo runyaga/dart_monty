@@ -18,11 +18,11 @@ void main() {
   late DefaultMontyBridge bridge;
   late EventLoopPlugin plugin;
 
-  setUp(() {
+  setUp(() async {
     mock = MockMontyPlatform();
     plugin = EventLoopPlugin();
-    bridge = DefaultMontyBridge(platform: mock)
-      ..addStreamWrapper(plugin.wrapExecuteStream);
+    bridge = DefaultMontyBridge(platform: mock);
+    await plugin.onRegister(bridge);
     for (final fn in plugin.functions) {
       bridge.register(fn, category: plugin.namespace);
     }
@@ -579,7 +579,7 @@ void main() {
       bridge.dispose();
       expect(plugin.channelState, const BridgeChannelIdle());
       expect(() => bridge.execute('1'), throwsStateError);
-      // wrapExecuteStream was never called — state remains idle
+      // onRegister was called but _wrapStream was never called — state remains idle
       expect(plugin.channelState, const BridgeChannelIdle());
     });
 
@@ -678,9 +678,8 @@ void main() {
         await sub.asFuture<void>();
         await sub.cancel();
 
-        // The stream.map handler in wrapExecuteStream should have
-        // completed the orphaned completer with an error and set state
-        // to completed.
+        // The stream.map handler should have completed the orphaned
+        // completer with an error and set state to completed.
         expect(plugin.channelState, const BridgeChannelCompleted());
         final errors = events.whereType<BridgeRunError>().toList();
         expect(errors, hasLength(1));
@@ -696,7 +695,8 @@ void main() {
       final syncBridge = DefaultMontyBridge(
         platform: syncMock,
         useFutures: false,
-      )..addStreamWrapper(syncPlugin.wrapExecuteStream);
+      );
+      await syncPlugin.onRegister(syncBridge);
       for (final fn in syncPlugin.functions) {
         syncBridge.register(fn, category: syncPlugin.namespace);
       }

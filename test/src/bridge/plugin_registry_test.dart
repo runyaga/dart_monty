@@ -1,6 +1,5 @@
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
-import 'package:dart_monty/dart_monty_testing.dart';
 import 'package:signals_core/signals_core.dart' show ReadonlySignal;
 import 'package:test/test.dart';
 
@@ -24,13 +23,7 @@ class _TestPlugin extends MontyPlugin {
 
 HostFunction _fn(String name) => HostFunction(
   schema: HostFunctionSchema(name: name, description: ''),
-  handler: (args) async => null,
-);
-
-const _zeroUsage = MontyResourceUsage(
-  memoryBytesUsed: 0,
-  timeElapsedMs: 0,
-  stackDepthUsed: 0,
+  handler: (args, _) async => null,
 );
 
 void main() {
@@ -512,16 +505,16 @@ void main() {
 
         test('sibling<T>() finds a registered plugin by type', () async {
           final bridge = _MockBridge();
-          final hooks = _HooksPlugin(namespace: 'hooks');
+          final os = _OsContribPlugin(namespace: 'hooks', contribution: null);
           final lc = _LifecyclePlugin(
             namespace: 'lc',
             functions: [_fn('lc_x')],
           );
           registry
-            ..register(hooks)
+            ..register(os)
             ..register(lc);
           await registry.attachTo(bridge);
-          expect(lc.sibling<_HooksPlugin>(), same(hooks));
+          expect(lc.sibling<_OsContribPlugin>(), same(os));
         });
 
         test('sibling<T>() returns null for an unregistered type', () async {
@@ -532,7 +525,7 @@ void main() {
           );
           registry.register(lc);
           await registry.attachTo(bridge);
-          expect(lc.sibling<_HooksPlugin>(), isNull);
+          expect(lc.sibling<_OsContribPlugin>(), isNull);
         });
 
         test('accessing registry before attachTo throws', () {
@@ -633,93 +626,6 @@ void main() {
         );
       });
 
-      group('execute hooks', () {
-        late MockMontyPlatform mock;
-        late DefaultMontyBridge execBridge;
-
-        setUp(() {
-          mock = MockMontyPlatform();
-          execBridge = DefaultMontyBridge(platform: mock);
-        });
-
-        tearDown(() {
-          execBridge.dispose();
-        });
-
-        test(
-          'onExecuteStart receives the code; '
-          'onExecuteEnd fires with ExecuteSuccess',
-          () async {
-            final plugin = _HooksPlugin(namespace: 'hooks');
-            registry.register(plugin);
-            await registry.attachTo(execBridge);
-
-            mock.enqueueProgress(
-              const MontyComplete(
-                result: MontyResult(value: MontyNone(), usage: _zeroUsage),
-              ),
-            );
-
-            await execBridge.execute('x = 42').toList();
-
-            expect(plugin.startCodes, ['x = 42']);
-            expect(plugin.endOutcomes, hasLength(1));
-            expect(plugin.endOutcomes.first, isA<ExecuteSuccess>());
-          },
-        );
-
-        test(
-          'onExecuteEnd fires with ExecuteFailure when bridge emits an error',
-          () async {
-            final plugin = _HooksPlugin(namespace: 'hooks');
-            registry.register(plugin);
-            await registry.attachTo(execBridge);
-
-            mock.enqueueProgress(
-              const MontyComplete(
-                result: MontyResult(
-                  value: MontyNone(),
-                  error: MontyException(message: 'oops'),
-                  usage: _zeroUsage,
-                ),
-              ),
-            );
-
-            await execBridge.execute('raise Exception()').toList();
-
-            expect(plugin.endOutcomes, hasLength(1));
-            expect(plugin.endOutcomes.first, isA<ExecuteFailure>());
-          },
-        );
-
-        test('hooks are not invoked when hasExecuteHooks is false', () async {
-          // _TestPlugin inherits the default hasExecuteHooks == false.
-          registry.register(_TestPlugin(namespace: 'noop', functions: []));
-          await registry.attachTo(execBridge);
-
-          mock.enqueueProgress(
-            const MontyComplete(
-              result: MontyResult(value: MontyNone(), usage: _zeroUsage),
-            ),
-          );
-
-          // Should complete without error — verifies no wrapper was registered.
-          await execBridge.execute('x = 1').toList();
-        });
-
-        test('hooks are skipped on non-DefaultMontyBridge', () async {
-          final mockBridge = _MockBridge();
-          final plugin = _HooksPlugin(namespace: 'hooks');
-          registry.register(plugin);
-          await registry.attachTo(mockBridge);
-
-          // _MockBridge.execute returns an empty stream — hooks never fire.
-          await mockBridge.execute('x = 1').toList();
-
-          expect(plugin.startCodes, isEmpty);
-          expect(plugin.endOutcomes, isEmpty);
-        });
-      });
     });
 
     group('disposeAll', () {
@@ -857,7 +763,7 @@ void main() {
                     ),
                   ],
                 ),
-                handler: (args) async => null,
+                handler: (args, _) async => null,
               ),
             ],
           ),
@@ -888,7 +794,7 @@ void main() {
                     ),
                   ],
                 ),
-                handler: (args) async => null,
+                handler: (args, _) async => null,
               ),
             ],
           ),
@@ -1106,33 +1012,6 @@ class _OsContribPlugin extends MontyPlugin {
   Map<String, OsCallHandler>? get osContribution => _contribution;
 }
 
-/// Plugin that opts into execute hooks. Tracks invocations for assertions.
-class _HooksPlugin extends MontyPlugin {
-  _HooksPlugin({required this.namespace});
-
-  @override
-  final String namespace;
-
-  @override
-  List<HostFunction> get functions => [];
-
-  @override
-  bool get hasExecuteHooks => true;
-
-  final List<String> startCodes = [];
-  final List<ExecuteOutcome> endOutcomes = [];
-
-  @override
-  Future<void> onExecuteStart(String code) async {
-    startCodes.add(code);
-  }
-
-  @override
-  Future<void> onExecuteEnd(ExecuteOutcome outcome) async {
-    endOutcomes.add(outcome);
-  }
-}
-
 /// Plugin that captures its [registry] reference during [onRegister].
 ///
 /// Used to verify that `PluginRegistry` injects the registry before
@@ -1167,6 +1046,9 @@ class _MockBridge implements MontyBridge {
   @override
   List<HostFunctionSchema> get schemas =>
       _functions.values.map((f) => f.schema).toList(growable: false);
+
+  @override
+  List<HostFunctionSchema> get llmSchemas => const [];
 
   @override
   Map<String, List<HostFunctionSchema>> get schemasByCategory {

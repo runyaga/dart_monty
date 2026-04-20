@@ -2,25 +2,11 @@
 import 'package:dart_monty/src/bridge_event.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 
-/// Python name of the host function that restores serialized session state.
-const restoreFn = '__restore_state__';
-
-/// Python name of the host function that persists session state to Dart.
-const persistFn = '__persist_state__';
-
 const _zeroUsage = MontyResourceUsage(
   memoryBytesUsed: 0,
   timeElapsedMs: 0,
   stackDepthUsed: 0,
 );
-
-/// Number of lines the state restore preamble adds before user code.
-///
-/// Structure:
-///   __d = __restore_state__()   ← always 1 line
-///   x = __d["x"]               ← 1 line per state variable
-///   [user code]
-int restoreLineCount(Map<String, Object?> state) => 1 + state.keys.length;
 
 /// Adjusts [e] line numbers by subtracting [offset] lines added by the state
 /// restore preamble, so errors point to user code lines, not wrapped lines.
@@ -89,49 +75,3 @@ MontyResult extractBridgeResult(
 
   throw StateError('No terminal event in bridge execution');
 }
-
-/// Generates the `__restore_state__` preamble that loads [state] into Python.
-String generateRestoreCode(Map<String, Object?> state) {
-  final buf = StringBuffer('__d = $restoreFn()');
-  for (final key in state.keys) {
-    buf.write('\n$key = __d["$key"]');
-  }
-
-  return buf.toString();
-}
-
-/// Generates the `__persist_state__` epilogue that captures [userCode]
-/// assignment targets plus existing [state] keys back to Dart.
-String generatePersistCode(String userCode, Map<String, Object?> state) {
-  final names = <String>{...state.keys, ...extractAssignmentTargets(userCode)};
-
-  if (names.isEmpty) return '$persistFn({})';
-
-  final buf = StringBuffer('__d2 = {}');
-  for (final name in names) {
-    buf
-      ..write('\ntry:')
-      ..write('\n    __d2["$name"] = $name')
-      ..write('\nexcept NameError:')
-      ..write('\n    pass');
-  }
-  buf.write('\n$persistFn(__d2)');
-
-  return buf.toString();
-}
-
-/// Returns [userCode] unchanged.
-///
-/// Sandbox mode creates a fresh [MontyRepl] (via [ReplPlatform]) per
-/// `execute()` call. State does not persist between calls; each call sees
-/// a clean Python heap. Last-expression capture is native to the REPL —
-/// no Dart-side wrapping needed.
-String wrapSandboxed(String userCode) => userCode;
-
-/// Returns [userCode] unchanged.
-///
-/// With [ReplPlatform] backing, the Rust REPL heap retains all state
-/// natively across `execute()` calls — functions, classes, modules, all
-/// types, not just JSON-serialisable values. Last-expression capture is
-/// also native to the REPL, so no Dart-side wrapping is needed.
-String wrapShared(String userCode) => userCode;

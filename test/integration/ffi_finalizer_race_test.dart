@@ -20,7 +20,7 @@ HostFunction _httpFn() => HostFunction(
     name: 'http_fn',
     description: 'HTTP GET',
   ),
-  handler: (_) async {
+  handler: (_, __) async {
     final client = HttpClient();
     try {
       final req = await client.getUrl(
@@ -43,7 +43,7 @@ HostFunction _syncFn() => HostFunction(
     name: 'sync_fn',
     description: 'Returns immediately',
   ),
-  handler: (_) async => 'ok',
+  handler: (_, __) async => 'ok',
 );
 
 void main() {

@@ -36,6 +36,10 @@ abstract class MontyBridge {
   /// All registered function schemas.
   List<HostFunctionSchema> get schemas;
 
+  /// Schemas for functions visible to the LLM (where `surfaces` includes
+  /// [ToolSurface.llm]).
+  List<HostFunctionSchema> get llmSchemas;
+
   /// All registered function schemas, grouped by category.
   Map<String, List<HostFunctionSchema>> get schemasByCategory;
 

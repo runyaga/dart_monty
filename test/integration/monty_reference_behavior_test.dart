@@ -64,86 +64,6 @@ void main() {
   });
 
   // ---------------------------------------------------------------------------
-  // 2b. Non-serializable value in __persist_state__
-  // ---------------------------------------------------------------------------
-
-  group('2b — non-serializable values in state persistence', () {
-    test(
-      're.Pattern in scope: Monty coerces to String when persisting',
-      () async {
-        // Ground truth (observed): Monty coerces re.Pattern to its string
-        // representation when it passes through __persist_state__. It does
-        // NOT error and does NOT drop the key.
-        //
-        // dart_monty does not need any isinstance filter — Monty's own
-        // serializer decides what survives.
-        final session = MontyRuntime();
-        try {
-          final result = await session.execute(r'''
-import re
-p = re.compile(r'\d+')
-p
-''');
-          if (result.error != null) {
-            // Monty errored — also acceptable; document the message.
-            expect(result.error!.message, isNotEmpty);
-          } else {
-            final state = session.state;
-            // Monty coerces re.Pattern to a String — key is present.
-            expect(
-              state.containsKey('p'),
-              isTrue,
-              reason: 'Monty coerces re.Pattern to a string representation.',
-            );
-            expect(state['p'], isA<String>());
-          }
-        } finally {
-          await session.dispose();
-        }
-      },
-    );
-
-    test(
-      'lambda in scope: Monty coerces to String when persisting',
-      () async {
-        // Ground truth (observed): Monty coerces lambdas to their string
-        // representation rather than dropping or erroring.
-        final session = MontyRuntime();
-        try {
-          final result = await session.execute('f = lambda x: x + 1\nf');
-          if (result.error != null) {
-            expect(result.error!.message, isNotEmpty);
-          } else {
-            // Lambda serialized — key is present as a String.
-            final state = session.state;
-            expect(
-              state.containsKey('f'),
-              isTrue,
-              reason: 'Monty coerces lambdas to a String representation.',
-            );
-          }
-        } finally {
-          await session.dispose();
-        }
-      },
-    );
-
-    test('primitive values persist correctly across calls', () async {
-      // Positive control: known-good serializable values must persist.
-      final session = MontyRuntime();
-      try {
-        await session.execute('x = 42\ns = "hello"\nb = True\nls = [1, 2, 3]');
-        final result = await session.execute('x + 1');
-        expect(result.value.dartValue, 43);
-        expect(session.state['s'], 'hello');
-        expect(session.state['b'], true);
-      } finally {
-        await session.dispose();
-      }
-    });
-  });
-
-  // ---------------------------------------------------------------------------
   // 2c. Exception line numbers with bridge preamble
   // ---------------------------------------------------------------------------
 
@@ -246,7 +166,7 @@ p
                 HostParam(name: 'n', type: HostParamType.integer),
               ],
             ),
-            handler: (args) async => args['n'],
+            handler: (args, _) async => args['n'],
           ),
         );
     });

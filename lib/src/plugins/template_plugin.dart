@@ -1,4 +1,5 @@
 import 'package:dart_monty/src/host_args.dart';
+import 'package:dart_monty/src/host_context.dart';
 import 'package:dart_monty/src/host_function.dart';
 import 'package:dart_monty/src/host_function_schema.dart';
 import 'package:dart_monty/src/host_param.dart';
@@ -67,7 +68,7 @@ class JinjaTemplatePlugin extends MontyPlugin {
   MontyPlugin? createChildInstance({ChildSpawnContext? context}) =>
       JinjaTemplatePlugin(maxInputSize: _maxInputSize);
 
-  Future<Object?> _handleRender(Map<String, Object?> args) {
+  Future<Object?> _handleRender(Map<String, Object?> args, HostContext ctx) {
     final templateStr = args.str('template');
     final context = args.mapArg('context');
     _guardInputSize(templateStr);

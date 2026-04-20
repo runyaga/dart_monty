@@ -27,7 +27,7 @@ HostFunction syncFn() => HostFunction(
     name: 'sync_fn',
     description: 'Returns immediately',
   ),
-  handler: (_) async => 'sync_ok',
+  handler: (_, _ctx) async => 'sync_ok',
 );
 
 HostFunction delayFn() => HostFunction(
@@ -35,7 +35,7 @@ HostFunction delayFn() => HostFunction(
     name: 'delay_fn',
     description: 'Awaits 200ms',
   ),
-  handler: (_) async {
+  handler: (_, __) async {
     await Future<void>.delayed(const Duration(milliseconds: 200));
 
     return 'delay_ok';
@@ -47,7 +47,7 @@ HostFunction httpFn() => HostFunction(
     name: 'http_fn',
     description: 'Real HTTP GET',
   ),
-  handler: (_) async {
+  handler: (_, __) async {
     final client = HttpClient();
     try {
       final req = await client.getUrl(
@@ -73,7 +73,7 @@ HostFunction counterFn() {
       name: 'counter',
       description: 'Increments and returns a counter',
     ),
-    handler: (_) async => ++count,
+    handler: (_, __) async => ++count,
   );
 }
 
@@ -86,7 +86,7 @@ HostFunction accumFn() {
       description: 'Accumulates items',
       params: [HostParam(name: 'item', type: HostParamType.string)],
     ),
-    handler: (args) async {
+    handler: (args, _) async {
       items.add(args['item']! as String);
 
       return items.length;
@@ -305,7 +305,7 @@ content = Path("/data.txt").read_text()
                       HostParam(name: 'v', type: HostParamType.string),
                     ],
                   ),
-                  handler: (a) async {
+                  handler: (a, _) async {
                     kv[a['k']! as String] = a['v']! as String;
 
                     return 'ok';
@@ -321,7 +321,7 @@ content = Path("/data.txt").read_text()
                       HostParam(name: 'k', type: HostParamType.string),
                     ],
                   ),
-                  handler: (a) async => kv[a['k']! as String],
+                  handler: (a, _) async => kv[a['k']! as String],
                 ),
               );
         addTearDown(s.dispose);
@@ -400,7 +400,7 @@ cached = Path("/cache.txt").read_text()
               name: 'returns_none',
               description: 'Returns null',
             ),
-            handler: (_) async => null,
+            handler: (_, __) async => null,
           ),
         );
       addTearDown(s.dispose);
@@ -420,7 +420,7 @@ x is None
               name: 'big_string',
               description: 'Returns 50KB string',
             ),
-            handler: (_) async => 'x' * 50000,
+            handler: (_, __) async => 'x' * 50000,
           ),
         );
       addTearDown(s.dispose);
@@ -437,7 +437,7 @@ x is None
               name: 'throws',
               description: 'Throws',
             ),
-            handler: (_) async => throw Exception('boom'),
+            handler: (_, __) async => throw Exception('boom'),
           ),
         );
       addTearDown(s.dispose);

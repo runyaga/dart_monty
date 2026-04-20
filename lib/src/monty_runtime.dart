@@ -5,17 +5,14 @@ import 'package:dart_monty/src/bridge_logger.dart';
 import 'package:dart_monty/src/default_monty_bridge.dart';
 import 'package:dart_monty/src/host_function.dart';
 import 'package:dart_monty/src/host_function_schema.dart';
-import 'package:dart_monty/src/host_param.dart';
-import 'package:dart_monty/src/host_param_type.dart';
-import 'package:dart_monty/src/introspection_functions.dart';
-import 'package:dart_monty/src/monty_bridge.dart';
 import 'package:dart_monty/src/monty_plugin.dart';
+import 'package:dart_monty/src/monty_runtime_ref.dart';
 import 'package:dart_monty/src/monty_runtime_state.dart';
 import 'package:dart_monty/src/os_call/os_handlers.dart';
 import 'package:dart_monty/src/plugin_host.dart';
 import 'package:dart_monty/src/plugin_registry.dart';
+import 'package:dart_monty/src/tool_surface.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
-import 'package:signals_core/signals_core.dart';
 
 // ---------------------------------------------------------------------------
 // MontyRuntime
@@ -58,7 +55,7 @@ import 'package:signals_core/signals_core.dart';
 /// await session.execute('r = soliplex_new_thread("s", "r", "Hi")');
 /// await session.execute('r2 = soliplex_reply_thread(...)'); // no crash
 /// ```
-class MontyRuntime {
+class MontyRuntime implements MontyRuntimeRef {
   /// Creates an agent session.
   ///
   /// When [sandbox] is true, each `execute()` call creates a fresh [MontyRepl].
@@ -94,10 +91,10 @@ class MontyRuntime {
         useFutures: false,
         logger: logger,
         interceptor: interceptor,
+        runtime: this,
       );
       // OS registration is deferred to the first execute() call via
       // PluginRegistry.attachTo(bridge, baseOs: _os).
-      _registerStateHostFunctions(_sharedBridge!);
 
       _sharedRegistry = PluginRegistry();
       if (plugins != null) {
@@ -126,29 +123,25 @@ class MontyRuntime {
   DefaultMontyBridge? _schemaBridge;
 
   bool _disposed = false;
-  final Signal<Map<String, Object?>> _sessionStateSignal =
-      signal<Map<String, Object?>>({});
   final List<HostFunction> _extraFunctions = [];
+  final StreamController<BridgeEvent> _eventsController =
+      StreamController<BridgeEvent>.broadcast();
 
   /// All registered tool schemas — feed these to an LLM as tool definitions.
   List<HostFunctionSchema> get schemas =>
       (_sharedBridge ?? _schemaBridge)?.schemas ?? [];
 
-  /// The underlying bridge — for advanced use (middleware, direct execute).
-  ///
-  /// In sandbox mode, returns a schema-only bridge (no platform). Use
-  /// `execute()` for actual code execution.
-  MontyBridge? get bridge => _sharedBridge ?? _schemaBridge;
+  /// Schemas for functions visible to the LLM (where [ToolSurface.llm] is
+  /// declared). Feed these to an LLM alongside `execute_python`.
+  List<HostFunctionSchema> get llmSchemas =>
+      (_sharedBridge ?? _schemaBridge)?.llmSchemas ?? [];
 
-  /// The current persisted Python state.
-  Map<String, Object?> get state => Map.from(_sessionStateSignal.value);
-
-  /// Reactive persisted Python state.
+  /// Broadcast stream of all [BridgeEvent]s emitted across every execution.
   ///
-  /// Always emits an empty map — state persists natively in the Rust REPL
-  /// heap and is not mirrored to Dart. Kept for API compatibility.
-  ReadonlySignal<Map<String, Object?>> get sessionStateSignal =>
-      _sessionStateSignal;
+  /// Observers that need all executions (e.g. `ExecutionTracker`) can attach
+  /// once at construction and receive events from every `execute()` call on
+  /// this runtime without re-attaching per call.
+  Stream<BridgeEvent> get events => _eventsController.stream;
 
   /// Whether this session creates a fresh interpreter per `execute()`.
   bool get isSandboxMode => _sandbox;
@@ -170,6 +163,7 @@ class MontyRuntime {
   /// All registered host functions and plugins are callable from Python.
   ///
   /// In sandbox mode, creates a fresh interpreter per call.
+  @override
   Future<MontyResult> execute(String code) {
     if (_disposed) throw StateError('MontyRuntime has been disposed');
 
@@ -206,7 +200,6 @@ class MontyRuntime {
   /// a no-op.
   void clearState() {
     if (_disposed) throw StateError('MontyRuntime has been disposed');
-    _sessionStateSignal.value = {};
     if (!_sandbox && _sharedBridge != null) {
       final oldPlatform = _sharedPlatform;
       final oldRegistry = _sharedRegistry;
@@ -217,8 +210,8 @@ class MontyRuntime {
         platform: _sharedPlatform!,
         useFutures: false,
         logger: _logger,
+        runtime: this,
       );
-      _registerStateHostFunctions(_sharedBridge!);
       _extraFunctions.forEach(_sharedBridge!.register);
 
       _sharedRegistry = PluginRegistry();
@@ -241,7 +234,7 @@ class MontyRuntime {
     _schemaBridge?.dispose();
     await _sharedPlatform?.dispose();
     await _sharedRepl?.dispose();
-    _sessionStateSignal.dispose();
+    await _eventsController.close();
   }
 
   Stream<BridgeEvent> _executeStreamShared(String code) async* {
@@ -249,7 +242,10 @@ class MontyRuntime {
       await _sharedRegistry!.attachTo(_sharedBridge!, baseOs: _os);
       _sharedAttached = true;
     }
-    yield* _sharedBridge!.execute(code);
+    await for (final event in _sharedBridge!.execute(code)) {
+      if (!_eventsController.isClosed) _eventsController.add(event);
+      yield event;
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -261,7 +257,10 @@ class MontyRuntime {
       await _sharedRegistry!.attachTo(_sharedBridge!, baseOs: _os);
       _sharedAttached = true;
     }
-    final events = await _sharedBridge!.execute(code).toList();
+    final events = await _sharedBridge!.execute(code).map((event) {
+      if (!_eventsController.isClosed) _eventsController.add(event);
+      return event;
+    }).toList();
 
     return extractBridgeResult(events, 0);
   }
@@ -282,7 +281,10 @@ class MontyRuntime {
     await registry.attachTo(b, baseOs: _os);
 
     try {
-      final events = await b.execute(code).toList();
+      final events = await b.execute(code).map((event) {
+        if (!_eventsController.isClosed) _eventsController.add(event);
+        return event;
+      }).toList();
 
       return extractBridgeResult(events, 0);
     } finally {
@@ -302,59 +304,13 @@ class MontyRuntime {
       useFutures: false,
       logger: _logger,
       interceptor: _interceptor,
+      runtime: this,
     );
 
     // OS registration is handled by PluginRegistry.attachTo(b, baseOs: _os).
 
-    _registerStateHostFunctions(b);
-
     _extraFunctions.forEach(b.register);
 
     return b;
-  }
-
-  // ---------------------------------------------------------------------------
-  // State host functions
-  // ---------------------------------------------------------------------------
-
-  void _registerStateHostFunctions(DefaultMontyBridge target) {
-    target
-      ..register(
-        HostFunction(
-          schema: const HostFunctionSchema(
-            name: restoreFn,
-            description: 'Internal: restore session state',
-          ),
-          handler: (_) async => _sessionStateSignal.value,
-        ),
-      )
-      ..register(
-        HostFunction(
-          schema: const HostFunctionSchema(
-            name: persistFn,
-            description: 'Internal: persist session state',
-            params: [HostParam(name: 'state', type: HostParamType.any)],
-          ),
-          handler: (args) async {
-            final captured = args['state'];
-            if (captured is Map<String, Object?>) {
-              _sessionStateSignal.value = captured;
-            }
-
-            return null;
-          },
-        ),
-      );
-
-    // Register introspection builtins (e.g. help()) so they are available
-    // even when no PluginRegistry is attached — e.g. when functions are
-    // registered directly via MontyRuntime.register() without going
-    // through
-    // PluginRegistry.attachTo(). When a PluginRegistry IS later attached,
-    // re-registration is a safe no-op (bridge.register() overwrites by name,
-    // _categoryIndex is a Set so the duplicate category entry is ignored).
-    for (final fn in buildIntrospectionFunctions(target)) {
-      target.register(fn, category: introspectionCategory);
-    }
   }
 }

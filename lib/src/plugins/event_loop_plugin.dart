@@ -2,10 +2,13 @@ import 'dart:async';
 
 import 'package:dart_monty/src/bridge_event.dart';
 import 'package:dart_monty/src/host_args.dart';
+import 'package:dart_monty/src/host_context.dart';
 import 'package:dart_monty/src/host_function.dart';
 import 'package:dart_monty/src/host_function_schema.dart';
 import 'package:dart_monty/src/host_param.dart';
 import 'package:dart_monty/src/host_param_type.dart';
+import 'package:dart_monty/src/default_monty_bridge.dart';
+import 'package:dart_monty/src/monty_bridge.dart';
 import 'package:dart_monty/src/monty_plugin.dart';
 import 'package:dart_monty/src/stateful_plugin.dart';
 import 'package:signals_core/signals_core.dart';
@@ -100,9 +103,8 @@ final class BridgeChannelDisposed extends BridgeChannelState {
 /// plugin.dispatch({'action': 'increment'});
 /// ```
 ///
-/// This plugin overrides [MontyPlugin.hasStreamWrapper] to return `true` so
-/// that `PluginRegistry` automatically registers [wrapExecuteStream] during
-/// `PluginRegistry.attachTo`.
+/// This plugin registers a stream wrapper in [onRegister] to track execution
+/// lifecycle state.
 ///
 /// ## Reactive observation
 ///
@@ -189,13 +191,14 @@ class EventLoopPlugin extends MontyPlugin
       EventLoopPlugin();
 
   @override
-  bool get hasStreamWrapper => true;
+  Future<void> onRegister(MontyBridge bridge) async {
+    await super.onRegister(bridge);
+    if (bridge is DefaultMontyBridge) {
+      bridge.addStreamWrapper(_wrapStream);
+    }
+  }
 
-  @override
-  Stream<BridgeEvent> wrapExecuteStream(
-    String code,
-    Stream<BridgeEvent> stream,
-  ) {
+  Stream<BridgeEvent> _wrapStream(String code, Stream<BridgeEvent> stream) {
     if (_disposed) {
       throw StateError('Cannot execute on a disposed EventLoopPlugin');
     }
@@ -278,7 +281,7 @@ class EventLoopPlugin extends MontyPlugin
     await super.onDispose();
   }
 
-  Future<Object?> _handleRecv(Map<String, Object?> args) async {
+  Future<Object?> _handleRecv(Map<String, Object?> args, HostContext ctx) async {
     // If events are already queued, return the first one immediately.
     if (_eventQueue.isNotEmpty) {
       return _eventQueue.removeAt(0);
@@ -292,7 +295,7 @@ class EventLoopPlugin extends MontyPlugin
     return completer.future;
   }
 
-  Future<Object?> _handleEmit(Map<String, Object?> args) {
+  Future<Object?> _handleEmit(Map<String, Object?> args, HostContext ctx) {
     final value = args.mapArg('value');
     _lastEmitted.value = value;
 

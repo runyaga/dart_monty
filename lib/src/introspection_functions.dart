@@ -48,7 +48,7 @@ List<HostFunction> buildIntrospectionFunctions(MontyBridge bridge) {
   return [
     HostFunction(
       schema: helpSchema,
-      handler: (args) async {
+      handler: (args, _) async {
         final name = args['name'] as String?;
         final schemas = bridge.schemasByCategory;
         if (name == null) return _handleListAll(schemas);

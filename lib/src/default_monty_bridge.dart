@@ -5,6 +5,7 @@ import 'package:dart_monty/src/bridge_logger.dart';
 import 'package:dart_monty/src/host_function.dart';
 import 'package:dart_monty/src/host_function_schema.dart';
 import 'package:dart_monty/src/monty_bridge.dart';
+import 'package:dart_monty/src/monty_runtime_ref.dart';
 import 'package:dart_monty/src/plugin_host.dart';
 import 'package:dart_monty/src/struct_log_bridge_logger.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
@@ -100,6 +101,7 @@ class DefaultMontyBridge implements MontyBridge {
     bool useFutures = true,
     BridgeLogger? logger,
     MontyInterceptor? interceptor,
+    MontyRuntimeRef? runtime,
   }) : _platform = platform,
        _limits = limits,
        _useFutures = useFutures,
@@ -108,6 +110,7 @@ class DefaultMontyBridge implements MontyBridge {
          platform: platform,
          log: logger ?? StructLogBridgeLogger.root(LogManager.instance),
          interceptor: interceptor,
+         runtime: runtime,
        );
 
   /// Logger for this bridge instance.
@@ -150,6 +153,9 @@ class DefaultMontyBridge implements MontyBridge {
 
   @override
   List<HostFunctionSchema> get schemas => _host.schemas;
+
+  @override
+  List<HostFunctionSchema> get llmSchemas => _host.llmSchemas;
 
   @override
   Map<String, List<HostFunctionSchema>> get schemasByCategory =>
@@ -403,10 +409,11 @@ class DefaultMontyBridge implements MontyBridge {
       case BridgeStepStarted() ||
           BridgeStepFinished() ||
           BridgeToolCallArgs() ||
-          BridgeToolCallEnd():
+          BridgeToolCallEnd() ||
+          BridgeToolEmit():
         // No-op: these events are surface-level telemetry (step boundaries,
-        // argument deltas) — logging them would be chatty duplication of
-        // the event stream.
+        // argument deltas, intermediate emissions) — logging them would be
+        // chatty duplication of the event stream.
         break;
     }
   }

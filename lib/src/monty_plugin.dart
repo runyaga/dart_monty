@@ -1,4 +1,3 @@
-import 'package:dart_monty/src/bridge_event.dart';
 import 'package:dart_monty/src/bridge_logger.dart';
 import 'package:dart_monty/src/host_function.dart';
 import 'package:dart_monty/src/monty_backend_kind.dart';
@@ -6,48 +5,6 @@ import 'package:dart_monty/src/monty_bridge.dart';
 import 'package:dart_monty/src/os_call/os_handlers.dart';
 import 'package:dart_monty/src/plugin_registry.dart';
 import 'package:meta/meta.dart';
-
-// ---------------------------------------------------------------------------
-// ExecuteOutcome — sealed terminal result for onExecuteEnd.
-// ---------------------------------------------------------------------------
-
-/// Terminal outcome of a single [MontyBridge.execute] call.
-///
-/// Passed to [MontyPlugin.onExecuteEnd] after the stream exhausts.
-/// Use exhaustive pattern-matching to distinguish success from failure:
-///
-/// ```dart
-/// @override
-/// Future<void> onExecuteEnd(ExecuteOutcome outcome) async {
-///   switch (outcome) {
-///     case ExecuteSuccess(:final event):
-///       log.info('run finished', attributes: {'runId': event.runId});
-///     case ExecuteFailure(:final event):
-///       log.warning('run failed', attributes: {'error': event.message});
-///   }
-/// }
-/// ```
-sealed class ExecuteOutcome {
-  const ExecuteOutcome();
-}
-
-/// Outcome for a run that completed with [BridgeRunFinished].
-final class ExecuteSuccess extends ExecuteOutcome {
-  /// Creates an [ExecuteSuccess] wrapping [event].
-  const ExecuteSuccess(this.event);
-
-  /// The terminal finished event.
-  final BridgeRunFinished event;
-}
-
-/// Outcome for a run that ended with [BridgeRunError].
-final class ExecuteFailure extends ExecuteOutcome {
-  /// Creates an [ExecuteFailure] wrapping [event].
-  const ExecuteFailure(this.event);
-
-  /// The terminal error event.
-  final BridgeRunError event;
-}
 
 // ---------------------------------------------------------------------------
 // ChildSpawnContext
@@ -111,27 +68,6 @@ class ChildSpawnContext {
 ///   'Path.': _myFsHandler,
 ///   'os.getcwd': _myFsHandler,
 /// };
-/// ```
-///
-/// ## Execution hooks
-///
-/// Override [onExecuteStart] and [onExecuteEnd] (and set [hasExecuteHooks]
-/// to `true`) to observe every `bridge.execute()` call:
-///
-/// ```dart
-/// @override
-/// bool get hasExecuteHooks => true;
-///
-/// @override
-/// Future<void> onExecuteStart(String code) async {
-///   _timer = Stopwatch()..start();
-/// }
-///
-/// @override
-/// Future<void> onExecuteEnd(ExecuteOutcome outcome) async {
-///   _timer.stop();
-///   log.info('elapsed', attributes: {'ms': _timer.elapsedMilliseconds});
-/// }
 /// ```
 abstract class MontyPlugin {
   /// Unique namespace prefix (e.g., `"df"`, `"chart"`, `"sqlite"`).
@@ -234,56 +170,4 @@ abstract class MontyPlugin {
   /// can use [ChildSpawnContext.workingDirectory] to create a private
   /// directory for the child.
   MontyPlugin? createChildInstance({ChildSpawnContext? context}) => null;
-
-  /// Returns `true` if this plugin overrides [wrapExecuteStream].
-  ///
-  /// `PluginRegistry` uses this opt-in flag to skip no-op wrapper
-  /// registration. Override to return `true` when [wrapExecuteStream]
-  /// is also overridden.
-  bool get hasStreamWrapper => false;
-
-  /// Returns `true` if this plugin overrides [onExecuteStart] or
-  /// [onExecuteEnd].
-  ///
-  /// `PluginRegistry` uses this opt-in flag to avoid registering a no-op
-  /// wrapper. Override to return `true` when either hook is overridden.
-  bool get hasExecuteHooks => false;
-
-  /// Called before the first event of each [MontyBridge.execute] call.
-  ///
-  /// [code] is the Python source being executed. Override to start timers,
-  /// record metrics, or set up per-run state.
-  ///
-  /// Only invoked when [hasExecuteHooks] returns `true`.
-  Future<void> onExecuteStart(String code) async {
-    // Default no-op.
-  }
-
-  /// Called after the bridge stream exhausts for each [MontyBridge.execute]
-  /// call.
-  ///
-  /// [outcome] is the terminal event — either [ExecuteSuccess] or
-  /// [ExecuteFailure]. Override to stop timers, flush metrics, or clean up
-  /// per-run state.
-  ///
-  /// Only invoked when [hasExecuteHooks] returns `true` and the stream
-  /// contained a terminal event.
-  Future<void> onExecuteEnd(ExecuteOutcome outcome) async {
-    // Default no-op.
-  }
-
-  /// Wraps the execution stream produced by `DefaultMontyBridge.execute`.
-  ///
-  /// Called by `DefaultMontyBridge.execute` after the stream is created.
-  /// Plugins that need to observe or transform the stream override this and
-  /// set [hasStreamWrapper] to `true`.
-  ///
-  /// The default is a passthrough — return [stream] unchanged.
-  ///
-  /// Implementations must not swallow events. Map or tap and forward each
-  /// event. Return a broadcast stream only if [stream] is already broadcast.
-  Stream<BridgeEvent> wrapExecuteStream(
-    String code,
-    Stream<BridgeEvent> stream,
-  ) => stream;
 }

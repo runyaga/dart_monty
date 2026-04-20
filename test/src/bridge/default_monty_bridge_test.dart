@@ -31,7 +31,7 @@ void main() {
             name: 'slow_fail',
             description: 'Fails asynchronously.',
           ),
-          handler: (_) async {
+          handler: (_, __) async {
             throw StateError('async kaboom');
           },
         ),
@@ -81,7 +81,7 @@ void main() {
               name: 'explode',
               description: 'Throws synchronously.',
             ),
-            handler: (_) => throw StateError('sync boom'),
+            handler: (_, __) => throw StateError('sync boom'),
           ),
         );
 
@@ -131,7 +131,7 @@ void main() {
       b.register(
         HostFunction(
           schema: const HostFunctionSchema(name: 'greet', description: ''),
-          handler: (_) async => 'hello',
+          handler: (_, __) async => 'hello',
         ),
       );
 
@@ -170,7 +170,7 @@ void main() {
             description: '',
             params: [HostParam(name: 'who', type: HostParamType.string)],
           ),
-          handler: (args) async => 'hello ${args['who']}',
+          handler: (args, _) async => 'hello ${args['who']}',
         ),
       );
 
@@ -205,7 +205,7 @@ void main() {
       syncBridge.register(
         HostFunction(
           schema: const HostFunctionSchema(name: 'fn', description: ''),
-          handler: (_) async => fail('should not be called'),
+          handler: (_, __) async => fail('should not be called'),
         ),
       );
 
@@ -234,7 +234,7 @@ void main() {
       syncBridge.register(
         HostFunction(
           schema: const HostFunctionSchema(name: 'fn', description: ''),
-          handler: (_) async => fail('should not be called'),
+          handler: (_, __) async => fail('should not be called'),
         ),
       );
 
@@ -256,7 +256,7 @@ void main() {
       bridge.register(
         HostFunction(
           schema: const HostFunctionSchema(name: 'fn', description: ''),
-          handler: (_) async {
+          handler: (_, __) async {
             called = true;
             return 'ok';
           },
@@ -292,7 +292,7 @@ void main() {
       b.register(
         HostFunction(
           schema: const HostFunctionSchema(name: 'async_fn', description: ''),
-          handler: (_) async => 'result',
+          handler: (_, __) async => 'result',
         ),
       );
 
@@ -330,7 +330,7 @@ void main() {
       b.register(
         HostFunction(
           schema: const HostFunctionSchema(name: 'fn', description: ''),
-          handler: (_) async => 'infra result',
+          handler: (_, __) async => 'infra result',
           isInfra: true,
         ),
       );
@@ -504,7 +504,7 @@ void main() {
             description: '',
             params: [HostParam(name: 'who', type: HostParamType.string)],
           ),
-          handler: (args) async => 'hello ${args['who']}',
+          handler: (args, _) async => 'hello ${args['who']}',
         ),
       );
 
@@ -534,7 +534,7 @@ void main() {
       b.register(
         HostFunction(
           schema: const HostFunctionSchema(name: 'fn', description: ''),
-          handler: (_) async => 'result',
+          handler: (_, __) async => 'result',
           isInfra: true,
         ),
       );
@@ -553,7 +553,7 @@ void main() {
             description: '',
             params: [HostParam(name: 'name', type: HostParamType.string)],
           ),
-          handler: (_) async => null,
+          handler: (_, __) async => null,
         ),
       );
 
@@ -571,7 +571,7 @@ void main() {
             description: '',
             params: [HostParam(name: 'n', type: HostParamType.integer)],
           ),
-          handler: (args) async => args['n'],
+          handler: (args, _) async => args['n'],
         ),
       );
 
@@ -607,7 +607,7 @@ void main() {
       b.register(
         HostFunction(
           schema: const HostFunctionSchema(name: 'noop', description: ''),
-          handler: (_) async => null,
+          handler: (_, __) async => null,
         ),
       );
       throwingMock.enqueueProgress(
@@ -636,7 +636,7 @@ void main() {
         b.register(
           HostFunction(
             schema: const HostFunctionSchema(name: 'noop', description: ''),
-            handler: (_) async => null,
+            handler: (_, __) async => null,
           ),
         );
         throwingMock.enqueueProgress(
@@ -667,7 +667,7 @@ void main() {
         b.register(
           HostFunction(
             schema: const HostFunctionSchema(name: 'noop', description: ''),
-            handler: (_) async => null,
+            handler: (_, __) async => null,
           ),
         );
         throwingMock
@@ -691,7 +691,7 @@ void main() {
         () => bridge.register(
           HostFunction(
             schema: const HostFunctionSchema(name: 'fn', description: ''),
-            handler: (_) async => null,
+            handler: (_, __) async => null,
           ),
         ),
         throwsStateError,
@@ -728,7 +728,7 @@ void main() {
       bridge.register(
         HostFunction(
           schema: const HostFunctionSchema(name: 'temp', description: ''),
-          handler: (_) async => null,
+          handler: (_, __) async => null,
         ),
       );
       expect(bridge.schemas.map((s) => s.name), contains('temp'));
@@ -782,7 +782,7 @@ void main() {
             description: '',
             params: [HostParam(name: 'x', type: HostParamType.integer)],
           ),
-          handler: (_) async => null,
+          handler: (_, __) async => null,
         ),
       );
 
@@ -810,7 +810,7 @@ void main() {
             description: '',
             params: [HostParam(name: 'x', type: HostParamType.integer)],
           ),
-          handler: (_) async => null,
+          handler: (_, __) async => null,
         ),
       );
 
@@ -878,7 +878,7 @@ void main() {
                 name: 'greet',
                 description: 'Returns hello',
               ),
-              handler: (_) async => 'hello',
+              handler: (_, __) async => 'hello',
             ),
           );
 
@@ -931,7 +931,7 @@ void main() {
                   HostParam(name: 'n', type: HostParamType.integer),
                 ],
               ),
-              handler: (args) async => args['n'],
+              handler: (args, _) async => args['n'],
             ),
           );
 

@@ -3,9 +3,12 @@ library;
 
 import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:dart_monty/monty_backend_spi.dart';
+import 'package:dart_monty/src/host_context.dart';
 import 'package:dart_monty_core/src/ffi/monty_ffi.dart';
 import 'package:dart_monty_core/src/ffi/native_bindings_ffi.dart';
 import 'package:test/test.dart';
+
+final _testCtx = HostContext(emit: (_) {}, executionId: 'test');
 
 /// Integration tests for sandbox_gather output attribution with real FFI.
 ///
@@ -49,14 +52,14 @@ void main() {
             .handler;
 
         // Spawn 3 workers with distinct print output and return values.
-        final h0 = (await spawn({'code': 'print("worker-A")\n42'}))! as int;
-        final h1 = (await spawn({'code': 'print("worker-B")\n99'}))! as int;
-        final h2 = (await spawn({'code': 'print("worker-C")\n7'}))! as int;
+        final h0 = (await spawn!({'code': 'print("worker-A")\n42'}, _testCtx))! as int;
+        final h1 = (await spawn!({'code': 'print("worker-B")\n99'}, _testCtx))! as int;
+        final h2 = (await spawn!({'code': 'print("worker-C")\n7'}, _testCtx))! as int;
 
         final results =
-            (await gather({
+            (await gather!({
                   'handles': [h0, h1, h2],
-                }))!
+                }, _testCtx))!
                 as List<Object?>;
 
         expect(results, hasLength(3));
@@ -100,14 +103,14 @@ void main() {
           .firstWhere((f) => f.schema.name == 'sandbox_gather')
           .handler;
 
-      final h0 = (await spawn({'code': '10'}))! as int;
-      final h1 = (await spawn({'code': '20'}))! as int;
+      final h0 = (await spawn!({'code': '10'}, _testCtx))! as int;
+      final h1 = (await spawn!({'code': '20'}, _testCtx))! as int;
 
       // Request in reverse order.
       final results =
-          (await gather({
+          (await gather!({
                 'handles': [h1, h0],
-              }))!
+              }, _testCtx))!
               as List<Object?>;
 
       expect((results[0]! as Map)['handle'], h1);
@@ -135,13 +138,13 @@ void main() {
           .handler;
 
       // One worker prints, the other does not.
-      final hLoud = (await spawn({'code': 'print("hello")\n1'}))! as int;
-      final hSilent = (await spawn({'code': '2'}))! as int;
+      final hLoud = (await spawn!({'code': 'print("hello")\n1'}, _testCtx))! as int;
+      final hSilent = (await spawn!({'code': '2'}, _testCtx))! as int;
 
       final results =
-          (await gather({
+          (await gather!({
                 'handles': [hLoud, hSilent],
-              }))!
+              }, _testCtx))!
               as List<Object?>;
 
       final rLoud = results[0]! as Map<String, Object?>;
@@ -169,13 +172,13 @@ void main() {
           .firstWhere((f) => f.schema.name == 'sandbox_gather')
           .handler;
 
-      final hGood = (await spawn({'code': '1'}))! as int;
-      final hBad = (await spawn({'code': 'undefined_variable_xyz'}))! as int;
+      final hGood = (await spawn!({'code': '1'}, _testCtx))! as int;
+      final hBad = (await spawn!({'code': 'undefined_variable_xyz'}, _testCtx))! as int;
 
       expect(
-        () => gather({
+        () => gather!({
           'handles': [hGood, hBad],
-        }),
+        }, _testCtx),
         throwsA(
           isA<ChildSandboxException>().having(
             (e) => e.message,
@@ -207,14 +210,14 @@ void main() {
             .handler;
 
         final h0 =
-            (await spawn({'code': 'print("line1")\nprint("line2")\n100'}))!
+            (await spawn!({'code': 'print("line1")\nprint("line2")\n100'}, _testCtx))!
                 as int;
-        final h1 = (await spawn({'code': 'print("only")\n200'}))! as int;
+        final h1 = (await spawn!({'code': 'print("only")\n200'}, _testCtx))! as int;
 
         final results =
-            (await gather({
+            (await gather!({
                   'handles': [h0, h1],
-                }))!
+                }, _testCtx))!
                 as List<Object?>;
 
         // Verify every result has exactly the expected keys.

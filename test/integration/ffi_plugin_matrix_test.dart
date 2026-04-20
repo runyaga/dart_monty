@@ -37,7 +37,7 @@ void main() {
                   name: 'sync_fn',
                   description: 'Returns immediately',
                 ),
-                handler: (_) async => 'sync_ok',
+                handler: (_, __) async => 'sync_ok',
               ),
             )
             ..register(
@@ -46,7 +46,7 @@ void main() {
                   name: 'delay_fn',
                   description: 'Awaits 200ms',
                 ),
-                handler: (_) async {
+                handler: (_, __) async {
                   await Future<void>.delayed(
                     const Duration(milliseconds: 200),
                   );
@@ -61,7 +61,7 @@ void main() {
                   name: 'http_fn',
                   description: 'Real HTTP GET',
                 ),
-                handler: (_) async {
+                handler: (_, __) async {
                   final client = HttpClient();
                   try {
                     final req = await client.getUrl(
@@ -92,7 +92,7 @@ void main() {
                     HostParam(name: 'v', type: HostParamType.string),
                   ],
                 ),
-                handler: (a) async {
+                handler: (a, _) async {
                   kv[a['k']! as String] = a['v']! as String;
 
                   return 'stored';
@@ -108,7 +108,7 @@ void main() {
                     HostParam(name: 'k', type: HostParamType.string),
                   ],
                 ),
-                handler: (a) async => kv[a['k']! as String],
+                handler: (a, _) async => kv[a['k']! as String],
               ),
             );
 

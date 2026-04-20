@@ -22,28 +22,6 @@ MontyStackFrame _frame(int startLine, {int? endLine}) => MontyStackFrame(
 );
 
 void main() {
-  // ---------------------------------------------------------------------------
-  // restoreLineCount
-  // ---------------------------------------------------------------------------
-
-  group('restoreLineCount', () {
-    test('empty state is 1 line (just __restore_state__() call)', () {
-      expect(restoreLineCount({}), 1);
-    });
-
-    test('one variable adds one line', () {
-      expect(restoreLineCount({'x': 1}), 2);
-    });
-
-    test('three variables adds three lines', () {
-      expect(restoreLineCount({'a': 1, 'b': 2, 'c': 3}), 4);
-    });
-  });
-
-  // ---------------------------------------------------------------------------
-  // adjustRestoreOffset
-  // ---------------------------------------------------------------------------
-
   group('adjustRestoreOffset', () {
     test('zero offset returns exception unchanged', () {
       final e = _exception(lineNumber: 5);
@@ -79,8 +57,6 @@ void main() {
         traceback: [_frame(1), _frame(3), _frame(5)],
       );
       final adjusted = adjustRestoreOffset(e, 2);
-      // Frame at line 1 and line 3 are at/below offset=2 — only frame at 3
-      // has startLine > 2, so only it (and line 5) survive.
       expect(adjusted.traceback.length, 2);
       expect(adjusted.traceback[0].startLine, 1); // 3 - 2 = 1
       expect(adjusted.traceback[1].startLine, 3); // 5 - 2 = 3
@@ -100,10 +76,6 @@ void main() {
       expect(adjusted.traceback.first.endLine, isNull);
     });
   });
-
-  // ---------------------------------------------------------------------------
-  // extractBridgeResult
-  // ---------------------------------------------------------------------------
 
   group('extractBridgeResult', () {
     test('returns value from BridgeRunFinished', () {
@@ -172,113 +144,6 @@ void main() {
         () => extractBridgeResult([], 0),
         throwsA(isA<StateError>()),
       );
-    });
-  });
-
-  // ---------------------------------------------------------------------------
-  // generateRestoreCode
-  // ---------------------------------------------------------------------------
-
-  group('generateRestoreCode', () {
-    test('empty state generates only the restore call', () {
-      final code = generateRestoreCode({});
-      expect(code, '__d = __restore_state__()');
-    });
-
-    test('one variable adds one assignment line', () {
-      final code = generateRestoreCode({'x': 1});
-      expect(code, '__d = __restore_state__()\nx = __d["x"]');
-    });
-
-    test('multiple variables generate one line each', () {
-      final code = generateRestoreCode({'a': 1, 'b': 2});
-      expect(code, contains('a = __d["a"]'));
-      expect(code, contains('b = __d["b"]'));
-    });
-  });
-
-  // ---------------------------------------------------------------------------
-  // generatePersistCode
-  // ---------------------------------------------------------------------------
-
-  group('generatePersistCode', () {
-    test('empty state and no assignments generates empty persist call', () {
-      final code = generatePersistCode('pass', {});
-      expect(code, '__persist_state__({})');
-    });
-
-    test('assignment in userCode is captured', () {
-      final code = generatePersistCode('x = 42', {});
-      expect(code, contains('__d2["x"] = x'));
-    });
-
-    test('existing state key is captured', () {
-      final code = generatePersistCode('pass', {'y': 1});
-      expect(code, contains('__d2["y"] = y'));
-    });
-
-    test('generated code has NameError guard', () {
-      final code = generatePersistCode('x = 1', {});
-      expect(code, contains('except NameError:'));
-    });
-
-    test('ends with persist call', () {
-      final code = generatePersistCode('x = 1', {});
-      expect(code, endsWith('__persist_state__(__d2)'));
-    });
-  });
-
-  // ---------------------------------------------------------------------------
-  // wrapSandboxed — ReplPlatform backing: returns code unchanged
-  // ---------------------------------------------------------------------------
-
-  group('wrapSandboxed', () {
-    test('returns user code unchanged', () {
-      const input = 'x = 1';
-      final code = wrapSandboxed(input);
-      expect(code, input);
-    });
-
-    test('expression code returned unchanged — no __r capture', () {
-      const input = '1 + 1';
-      final code = wrapSandboxed(input);
-      expect(code, input);
-      expect(code, isNot(contains('__r')));
-    });
-
-    test('state argument ignored — no restore preamble', () {
-      final code = wrapSandboxed('pass');
-      expect(code, isNot(contains('__restore_state__')));
-      expect(code, isNot(contains('__persist_state__')));
-    });
-  });
-
-  // ---------------------------------------------------------------------------
-  // wrapShared — ReplPlatform backing: returns code unchanged
-  // ---------------------------------------------------------------------------
-
-  group('wrapShared', () {
-    test('returns user code unchanged', () {
-      const input = 'x = 1';
-      final code = wrapShared(input);
-      expect(code, input);
-    });
-
-    test('expression code returned unchanged — no __r capture', () {
-      const input = '1 + 1';
-      final code = wrapShared(input);
-      expect(code, input);
-      expect(code, isNot(contains('__r')));
-    });
-
-    test('no restore preamble emitted', () {
-      final code = wrapShared('x = 1');
-      expect(code, isNot(contains('__restore_state__')));
-    });
-
-    test('no persist epilogue emitted', () {
-      final code = wrapShared('x = 1');
-      expect(code, isNot(contains('__persist_state__')));
     });
   });
 }

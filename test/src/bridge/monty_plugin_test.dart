@@ -27,7 +27,7 @@ void main() {
           name: 'do_thing',
           description: 'Does a thing.',
         ),
-        handler: (args) async => null,
+        handler: (args, _) async => null,
       );
 
       final plugin = _TestPlugin(
@@ -86,35 +86,9 @@ void main() {
       await plugin.onDispose();
     });
 
-    test('hasExecuteHooks defaults to false', () {
-      final plugin = _TestPlugin(namespace: 'ns', functions: []);
-      expect(plugin.hasExecuteHooks, isFalse);
-    });
-
-    test('hasStreamWrapper defaults to false', () {
-      final plugin = _TestPlugin(namespace: 'ns', functions: []);
-      expect(plugin.hasStreamWrapper, isFalse);
-    });
-
     test('osContribution defaults to null', () {
       final plugin = _TestPlugin(namespace: 'ns', functions: []);
       expect(plugin.osContribution, isNull);
-    });
-
-    test('onExecuteStart default implementation is a no-op', () async {
-      final plugin = _TestPlugin(namespace: 'ns', functions: []);
-      // Should complete without error.
-      await plugin.onExecuteStart('x = 1');
-    });
-
-    test('onExecuteEnd default implementation is a no-op', () async {
-      final plugin = _TestPlugin(namespace: 'ns', functions: []);
-      const event = BridgeRunFinished(threadId: 't', runId: 'r');
-      // Should complete without error for both outcome types.
-      await plugin.onExecuteEnd(const ExecuteSuccess(event));
-      await plugin.onExecuteEnd(
-        const ExecuteFailure(BridgeRunError(message: 'err')),
-      );
     });
 
     test(
@@ -126,19 +100,6 @@ void main() {
       },
     );
 
-    test('ExecuteSuccess carries the BridgeRunFinished event', () {
-      const event = BridgeRunFinished(threadId: 'tid', runId: 'rid', value: 42);
-      const outcome = ExecuteSuccess(event);
-      expect(outcome.event, same(event));
-      expect(outcome.event.value, 42);
-    });
-
-    test('ExecuteFailure carries the BridgeRunError event', () {
-      const event = BridgeRunError(message: 'boom');
-      const outcome = ExecuteFailure(event);
-      expect(outcome.event, same(event));
-      expect(outcome.event.message, 'boom');
-    });
   });
 }
 
@@ -149,6 +110,9 @@ class _NoOpBridge implements MontyBridge {
 
   @override
   List<HostFunctionSchema> get schemas => [];
+
+  @override
+  List<HostFunctionSchema> get llmSchemas => [];
 
   @override
   Map<String, List<HostFunctionSchema>> get schemasByCategory => {};

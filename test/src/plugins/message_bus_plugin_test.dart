@@ -1,8 +1,11 @@
 import 'dart:async';
 
 import 'package:dart_monty/dart_monty_bridge.dart';
+import 'package:dart_monty/src/host_context.dart';
 import 'package:signals_core/signals_core.dart';
 import 'package:test/test.dart';
+
+final _testCtx = HostContext(emit: (_) {}, executionId: 'test');
 
 void main() {
   late MessageBusPlugin plugin;
@@ -11,8 +14,10 @@ void main() {
     plugin = MessageBusPlugin();
   });
 
-  HostFunctionHandler findHandler(String name) {
-    return plugin.functions.firstWhere((f) => f.schema.name == name).handler;
+  /// Returns a 1-arg callable that forwards to the handler with [_testCtx].
+  Future<Object?> Function(Map<String, Object?>) findHandler(String name) {
+    final h = plugin.functions.firstWhere((f) => f.schema.name == name).handler!;
+    return (args) => h(args, _testCtx);
   }
 
   group('metadata', () {
@@ -246,14 +251,14 @@ void main() {
       await plugin.onDispose();
 
       // Child can still send — bus is still alive.
-      await childSend.handler({'name': 'ch', 'message': 'from_child'});
+      await childSend.handler!({'name': 'ch', 'message': 'from_child'}, _testCtx);
 
       // New plugin on same bus can receive.
       final fresh = MessageBusPlugin(bus: child.bus);
       final freshRecv = fresh.functions.firstWhere(
         (f) => f.schema.name == 'msg_recv',
       );
-      expect(await freshRecv.handler({'name': 'ch'}), 'from_child');
+      expect(await freshRecv.handler!({'name': 'ch'}, _testCtx), 'from_child');
     });
   });
 
@@ -439,7 +444,7 @@ void main() {
         'name': 'task',
         'message': {'file': 'data.txt'},
       });
-      final msg = await childRecv.handler({'name': 'task'});
+      final msg = await childRecv.handler!({'name': 'task'}, _testCtx);
       expect(msg, {'file': 'data.txt'});
     });
 
@@ -450,10 +455,10 @@ void main() {
       );
       final parentRecv = findHandler('msg_recv');
 
-      await childSend.handler({
+      await childSend.handler!({
         'name': 'result',
         'message': {'count': 42, 'status': 'done'},
-      });
+      }, _testCtx);
       final msg = await parentRecv({'name': 'result'});
       expect(msg, {'count': 42, 'status': 'done'});
     });

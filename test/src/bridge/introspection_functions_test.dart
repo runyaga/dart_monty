@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:dart_monty/src/bridge_event.dart';
 import 'package:dart_monty/src/bridge_logger.dart';
+import 'package:dart_monty/src/host_context.dart';
 import 'package:dart_monty/src/host_function.dart';
 import 'package:dart_monty/src/host_function_schema.dart';
 import 'package:dart_monty/src/host_param.dart';
@@ -10,6 +11,8 @@ import 'package:dart_monty/src/introspection_functions.dart';
 import 'package:dart_monty/src/monty_bridge.dart';
 import 'package:dart_monty/src/os_call/os_handlers.dart';
 import 'package:test/test.dart';
+
+final _testCtx = HostContext(emit: (_) {}, executionId: 'test');
 
 void main() {
   group('buildIntrospectionFunctions', () {
@@ -31,7 +34,7 @@ void main() {
                   ),
                 ],
               ),
-              handler: (_) async => null,
+              handler: (_, __) async => null,
             ),
             category: 'storage',
           )
@@ -41,7 +44,7 @@ void main() {
                 name: 'storage_set',
                 description: 'Set a value in storage.',
               ),
-              handler: (_) async => null,
+              handler: (_, __) async => null,
             ),
             category: 'storage',
           )
@@ -51,7 +54,7 @@ void main() {
                 name: 'cache_get',
                 description: 'Get a value from cache.',
               ),
-              handler: (_) async => null,
+              handler: (_, __) async => null,
             ),
             category: 'cache',
           )
@@ -61,7 +64,7 @@ void main() {
                 name: 'cache_clear',
                 description: 'Clear the cache.',
               ),
-              handler: (_) async => null,
+              handler: (_, __) async => null,
             ),
             category: 'cache',
           );
@@ -74,7 +77,7 @@ void main() {
       Future<String> callHelp([String? name]) async {
         final fns = buildIntrospectionFunctions(bridge);
         final helpFn = fns.firstWhere((f) => f.schema.name == 'help');
-        final result = await helpFn.handler({'name': name});
+        final result = await helpFn.handler!({'name': name}, _testCtx);
         return result! as String;
       }
 
@@ -193,13 +196,13 @@ void main() {
                 name: 'db_utils_query',
                 description: 'Run a DB query.',
               ),
-              handler: (_) async => null,
+              handler: (_, __) async => null,
             ),
             category: 'db_utils',
           );
         final fns = buildIntrospectionFunctions(b);
         final helpFn = fns.firstWhere((f) => f.schema.name == 'help');
-        final result = await helpFn.handler({'name': 'query'});
+        final result = await helpFn.handler!({'name': 'query'}, _testCtx);
         final decoded = jsonDecode(result! as String) as Map<String, Object?>;
 
         expect(decoded['name'], 'db_utils_query');
@@ -229,12 +232,12 @@ void main() {
                 name: 'late_fn',
                 description: 'Registered late.',
               ),
-              handler: (_) async => null,
+              handler: (_, __) async => null,
             ),
             category: 'late',
           );
 
-          final result = await helpFn.handler({'name': 'late_fn'});
+          final result = await helpFn.handler!({'name': 'late_fn'}, _testCtx);
           final decoded = jsonDecode(result! as String) as Map<String, Object?>;
 
           expect(decoded['name'], 'late_fn');
@@ -254,12 +257,12 @@ void main() {
               name: 'late_fn',
               description: 'Registered late.',
             ),
-            handler: (_) async => null,
+            handler: (_, __) async => null,
           ),
           category: 'late',
         );
 
-        final result = await helpFn.handler({});
+        final result = await helpFn.handler!({}, _testCtx);
         final decoded = jsonDecode(result! as String) as Map<String, Object?>;
         final tools = decoded['tools']! as Map<String, Object?>;
 
@@ -280,6 +283,9 @@ class _FakeBridge implements MontyBridge {
   @override
   List<HostFunctionSchema> get schemas =>
       _functions.values.map((f) => f.schema).toList(growable: false);
+
+  @override
+  List<HostFunctionSchema> get llmSchemas => const [];
 
   @override
   Map<String, List<HostFunctionSchema>> get schemasByCategory {

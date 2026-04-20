@@ -301,7 +301,7 @@ class _GreeterPlugin extends MontyPlugin {
           ),
         ],
       ),
-      handler: (args) async => 'Hello, ${args['name']}!',
+      handler: (args, _) async => 'Hello, ${args['name']}!',
     ),
   ];
 
@@ -327,14 +327,14 @@ class _CounterPlugin extends MontyPlugin {
         name: 'counter_increment',
         description: 'Increment the counter.',
       ),
-      handler: (args) async => ++count,
+      handler: (args, _) async => ++count,
     ),
     HostFunction(
       schema: const HostFunctionSchema(
         name: 'counter_get',
         description: 'Get the current counter value.',
       ),
-      handler: (args) async => count,
+      handler: (args, _) async => count,
     ),
   ];
 

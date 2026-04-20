@@ -3,8 +3,11 @@ import 'dart:convert';
 
 import 'package:dart_monty/src/bridge_event.dart';
 import 'package:dart_monty/src/bridge_logger.dart';
+import 'package:dart_monty/src/host_context.dart';
 import 'package:dart_monty/src/host_function.dart';
 import 'package:dart_monty/src/host_function_schema.dart';
+import 'package:dart_monty/src/monty_runtime_ref.dart';
+import 'package:dart_monty/src/tool_surface.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:meta/meta.dart';
 
@@ -46,9 +49,10 @@ Future<Object?> _invoke(
   HostFunction fn,
   String name,
   Map<String, Object?> args,
+  HostContext ctx,
 ) {
-  if (interceptor == null || fn.isInfra) return fn.handler(args);
-  return interceptor(name, args, () => fn.handler(args));
+  if (interceptor == null || fn.isInfra) return fn.handler!(args, ctx);
+  return interceptor(name, args, () => fn.handler!(args, ctx));
 }
 
 /// Validates [pending] arguments against [fn]'s schema and emits the
@@ -154,13 +158,16 @@ class PluginHost {
     required MontyPlatform platform,
     required BridgeLogger log,
     MontyInterceptor? interceptor,
+    MontyRuntimeRef? runtime,
   }) : _platform = platform,
        _log = log,
-       _interceptor = interceptor;
+       _interceptor = interceptor,
+       _runtime = runtime;
 
   final MontyPlatform _platform;
   final BridgeLogger _log;
   final MontyInterceptor? _interceptor;
+  final MontyRuntimeRef? _runtime;
 
   final Map<String, HostFunction> _functions = {};
   final Map<String, Set<String>> _categoryIndex = {};
@@ -183,6 +190,12 @@ class PluginHost {
   List<HostFunctionSchema> get schemas =>
       _functions.values.map((f) => f.schema).toList(growable: false);
 
+  /// Schemas for functions visible to the LLM.
+  List<HostFunctionSchema> get llmSchemas => _functions.values
+      .where((f) => f.surfaces.contains(ToolSurface.llm))
+      .map((f) => f.schema)
+      .toList(growable: false);
+
   /// All registered function schemas, grouped by category.
   Map<String, List<HostFunctionSchema>> get schemasByCategory {
     final result = <String, List<HostFunctionSchema>>{};
@@ -199,7 +212,11 @@ class PluginHost {
   }
 
   /// Registers [function] under an optional [category].
+  ///
+  /// Silently skips functions whose [HostFunction.handler] is `null` on the
+  /// current backend — no [supportedBackends] declaration required.
   void register(HostFunction function, {String? category}) {
+    if (function.handler == null) return;
     final name = function.schema.name;
     _functions[name] = function;
     (_categoryIndex[category ?? 'uncategorized'] ??= {}).add(name);
@@ -220,8 +237,13 @@ class PluginHost {
       kwargs: args.map((k, v) => MapEntry(k, MontyValue.fromJson(v))),
     );
     final validatedArgs = fn.schema.mapAndValidate(pending);
+    final ctx = HostContext(
+      emit: (_) {}, // no stream available for direct Dart invocations
+      executionId: name,
+      runtime: _runtime,
+    );
 
-    return _invoke(_interceptor, fn, name, validatedArgs);
+    return _invoke(_interceptor, fn, name, validatedArgs, ctx);
   }
 
   // ---------------------------------------------------------------------------
@@ -279,9 +301,14 @@ class PluginHost {
     );
     if (args == null) return _platform.resumeWithError(resumeError);
 
+    final ctx = HostContext(
+      emit: controller.add,
+      executionId: callId,
+      runtime: _runtime,
+    );
     final Object? result;
     try {
-      result = await _invoke(_interceptor, fn, stepName, args);
+      result = await _invoke(_interceptor, fn, stepName, args, ctx);
     } on Object catch (e, st) {
       _log.error(
         'Host handler error',
@@ -330,9 +357,14 @@ class PluginHost {
     );
     if (args == null) return _platform.resumeWithError(resumeError);
 
+    final ctx = HostContext(
+      emit: controller.add,
+      executionId: callId,
+      runtime: _runtime,
+    );
     final Future<Object?> handlerFuture;
     try {
-      handlerFuture = _invoke(_interceptor, fn, stepName, args);
+      handlerFuture = _invoke(_interceptor, fn, stepName, args, ctx);
     } on Object catch (e, st) {
       _log.error(
         'Host handler threw synchronously',

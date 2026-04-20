@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:collection';
 
 import 'package:dart_monty/src/host_args.dart';
+import 'package:dart_monty/src/host_context.dart';
 import 'package:dart_monty/src/host_function.dart';
 import 'package:dart_monty/src/host_function_schema.dart';
 import 'package:dart_monty/src/host_param.dart';
@@ -451,7 +452,7 @@ class MessageBusPlugin extends MontyPlugin {
     _pendingRecvs.clear();
   }
 
-  Future<Object?> _handleSend(Map<String, Object?> args) {
+  Future<Object?> _handleSend(Map<String, Object?> args, HostContext ctx) {
     final name = args.str('name');
     final message = args['message'];
     _bus.send(name, message);
@@ -460,7 +461,7 @@ class MessageBusPlugin extends MontyPlugin {
     return Future.value();
   }
 
-  Future<Object?> _handleRecv(Map<String, Object?> args) async {
+  Future<Object?> _handleRecv(Map<String, Object?> args, HostContext ctx) async {
     final name = args.str('name');
     final timeoutMs = args.intArgOrNull('timeout_ms');
 
@@ -490,13 +491,13 @@ class MessageBusPlugin extends MontyPlugin {
     }
   }
 
-  Future<Object?> _handlePeek(Map<String, Object?> args) {
+  Future<Object?> _handlePeek(Map<String, Object?> args, HostContext ctx) {
     final name = args.str('name');
 
     return Future.value(_bus.peek(name));
   }
 
-  Future<Object?> _handleClose(Map<String, Object?> args) {
+  Future<Object?> _handleClose(Map<String, Object?> args, HostContext ctx) {
     final name = args.str('name');
     _bus.close(name);
     logger.debug('msg_close', attributes: {'channel': name});
@@ -504,7 +505,7 @@ class MessageBusPlugin extends MontyPlugin {
     return Future.value();
   }
 
-  Future<Object?> _handleStats(Map<String, Object?> args) {
+  Future<Object?> _handleStats(Map<String, Object?> args, HostContext ctx) {
     final name = args.str('name');
     final ch = _bus.channelOrNull(name);
     final s = ch?.snapshot ?? ChannelSnapshot.empty;

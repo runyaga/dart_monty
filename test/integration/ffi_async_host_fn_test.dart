@@ -28,7 +28,7 @@ void main() {
             name: 'fast_fn',
             description: 'Returns immediately',
           ),
-          handler: (_) async => 'fast',
+          handler: (_, __) async => 'fast',
         ),
       );
 
@@ -49,7 +49,7 @@ void main() {
             name: 'delay_100ms',
             description: 'Waits 100ms',
           ),
-          handler: (_) async {
+          handler: (_, __) async {
             await Future<void>.delayed(const Duration(milliseconds: 100));
 
             return 'done';
@@ -74,7 +74,7 @@ void main() {
             name: 'delay_1s',
             description: 'Waits 1 second',
           ),
-          handler: (_) async {
+          handler: (_, __) async {
             await Future<void>.delayed(const Duration(seconds: 1));
 
             return 'done';
@@ -104,7 +104,7 @@ void main() {
                 HostParam(name: 'url', type: HostParamType.string),
               ],
             ),
-            handler: (args) async {
+            handler: (args, _) async {
               final url = args['url']! as String;
               final client = HttpClient();
               try {
@@ -154,7 +154,7 @@ void main() {
                 HostParam(name: 'url', type: HostParamType.string),
               ],
             ),
-            handler: (args) async {
+            handler: (args, _) async {
               final url = args['url']! as String;
               final client = HttpClient();
               try {
@@ -196,7 +196,7 @@ void main() {
             name: 'read_file',
             description: 'Reads a file',
           ),
-          handler: (_) async {
+          handler: (_, __) async {
             final file = File('/etc/hosts');
             final content = await file.readAsString();
 
@@ -222,7 +222,7 @@ void main() {
             name: 'run_cmd',
             description: 'Runs a command',
           ),
-          handler: (_) async {
+          handler: (_, __) async {
             final result = await Process.run('echo', ['hello']);
 
             return (result.stdout as String).trim();
@@ -247,7 +247,7 @@ void main() {
             name: 'socket_test',
             description: 'Opens and closes a socket',
           ),
-          handler: (_) async {
+          handler: (_, __) async {
             final server = await ServerSocket.bind('127.0.0.1', 0);
             final port = server.port;
             await server.close();
@@ -279,7 +279,7 @@ void main() {
                 HostParam(name: 'url', type: HostParamType.string),
               ],
             ),
-            handler: (args) async {
+            handler: (args, _) async {
               final url = args['url']! as String;
               final client = HttpClient();
               try {
@@ -324,7 +324,7 @@ void main() {
                 HostParam(name: 'url', type: HostParamType.string),
               ],
             ),
-            handler: (args) async {
+            handler: (args, _) async {
               final url = args['url']! as String;
               final client = HttpClient();
               try {

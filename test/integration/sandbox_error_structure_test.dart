@@ -3,9 +3,12 @@ library;
 
 import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:dart_monty/monty_backend_spi.dart';
+import 'package:dart_monty/src/host_context.dart';
 import 'package:dart_monty_core/src/ffi/monty_ffi.dart';
 import 'package:dart_monty_core/src/ffi/native_bindings_ffi.dart';
 import 'package:test/test.dart';
+
+final _testCtx = HostContext(emit: (_) {}, executionId: 'test');
 
 /// Integration tests for child sandbox error structure preservation.
 ///
@@ -42,10 +45,10 @@ void main() {
         .firstWhere((f) => f.schema.name == 'sandbox_await')
         .handler;
 
-    final handle = (await spawnHandler({'code': code}))! as int;
+    final handle = (await spawnHandler!({'code': code}, _testCtx))! as int;
 
     try {
-      await awaitHandler({'handle': handle});
+      await awaitHandler!({'handle': handle}, _testCtx);
       fail('Expected ChildSandboxException');
     } on ChildSandboxException catch (e) {
       return e;

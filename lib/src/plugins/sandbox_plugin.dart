@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:dart_monty/src/bridge_event.dart';
 import 'package:dart_monty/src/default_monty_bridge.dart';
 import 'package:dart_monty/src/host_args.dart';
+import 'package:dart_monty/src/host_context.dart';
 import 'package:dart_monty/src/host_function.dart';
 import 'package:dart_monty/src/host_function_schema.dart';
 import 'package:dart_monty/src/host_param.dart';
@@ -462,7 +463,7 @@ class SandboxPlugin extends MontyPlugin
     await super.onDispose();
   }
 
-  Future<Object?> _handleSpawn(Map<String, Object?> args) async {
+  Future<Object?> _handleSpawn(Map<String, Object?> args, HostContext ctx) async {
     _validateSpawnRequest();
 
     final code = args.str('code');
@@ -800,7 +801,7 @@ class SandboxPlugin extends MontyPlugin
     return parts.join('\n\n');
   }
 
-  Future<Object?> _handleAwait(Map<String, Object?> args) async {
+  Future<Object?> _handleAwait(Map<String, Object?> args, HostContext ctx) async {
     final handle = args.intArg('handle');
     final child = _children[handle];
     if (child == null) {
@@ -810,7 +811,7 @@ class SandboxPlugin extends MontyPlugin
     return child.completer.future;
   }
 
-  Future<Object?> _handleAwaitAll(Map<String, Object?> args) async {
+  Future<Object?> _handleAwaitAll(Map<String, Object?> args, HostContext ctx) async {
     final handles = args.listOf<num>('handles').map((n) => n.toInt()).toList();
 
     final futures = <Future<Object?>>[];
@@ -825,7 +826,7 @@ class SandboxPlugin extends MontyPlugin
     return Future.wait(futures);
   }
 
-  Future<Object?> _handleIsAlive(Map<String, Object?> args) {
+  Future<Object?> _handleIsAlive(Map<String, Object?> args, HostContext ctx) {
     final handle = args.intArg('handle');
     final child = _children[handle];
     if (child == null) {
@@ -835,7 +836,7 @@ class SandboxPlugin extends MontyPlugin
     return Future.value(child.isAlive);
   }
 
-  Future<Object?> _handleFree(Map<String, Object?> args) {
+  Future<Object?> _handleFree(Map<String, Object?> args, HostContext ctx) {
     final handle = args.intArg('handle');
     final child = _children[handle];
     if (child == null) {
@@ -853,7 +854,7 @@ class SandboxPlugin extends MontyPlugin
     return Future.value();
   }
 
-  Future<Object?> _handleGetOutput(Map<String, Object?> args) {
+  Future<Object?> _handleGetOutput(Map<String, Object?> args, HostContext ctx) {
     final handle = args.intArg('handle');
     final child = _children[handle];
     if (child == null) {
@@ -868,7 +869,7 @@ class SandboxPlugin extends MontyPlugin
     return Future.value(child.printOutput);
   }
 
-  Future<Object?> _handleGather(Map<String, Object?> args) async {
+  Future<Object?> _handleGather(Map<String, Object?> args, HostContext ctx) async {
     final handles = args.listOf<num>('handles').map((n) => n.toInt()).toList();
 
     final futures = <Future<Object?>>[];

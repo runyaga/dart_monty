@@ -2,7 +2,6 @@
 library;
 
 import 'package:dart_monty/dart_monty_bridge.dart';
-import 'package:signals_core/signals_core.dart';
 import 'package:test/test.dart';
 
 /// Integration tests for MontyRuntime — requires the native Monty
@@ -117,7 +116,7 @@ void main() {
             description: 'Doubles a number',
             params: [HostParam(name: 'n', type: HostParamType.integer)],
           ),
-          handler: (args) async => (args['n']! as int) * 2,
+          handler: (args, _) async => (args['n']! as int) * 2,
         ),
       );
 
@@ -133,7 +132,7 @@ void main() {
             name: 'get_data',
             description: 'Returns sample data',
           ),
-          handler: (_) async => [1, 2, 3, 4, 5],
+          handler: (_, __) async => [1, 2, 3, 4, 5],
         ),
       );
 
@@ -150,7 +149,7 @@ void main() {
             name: 'my_tool',
             description: 'A custom tool',
           ),
-          handler: (_) async => null,
+          handler: (_, __) async => null,
         ),
       );
 
@@ -317,7 +316,7 @@ void main() {
               ),
             ],
           ),
-          handler: (args) async => (args['n']! as int) * 2,
+          handler: (args, _) async => (args['n']! as int) * 2,
         ),
       );
 
@@ -334,7 +333,7 @@ void main() {
             description: 'Returns greeting',
             params: [HostParam(name: 'name', type: HostParamType.string)],
           ),
-          handler: (args) async => 'Hello, ${args['name']}!',
+          handler: (args, _) async => 'Hello, ${args['name']}!',
         ),
       );
 
@@ -458,61 +457,6 @@ result
         );
       },
     );
-  });
-
-  // sessionStateSignal is a Dart-side mirror of Python globals retained for
-  // API compatibility. With ReplPlatform backing, state lives natively in the
-  // Rust REPL heap — the signal always emits an empty map.
-  group('MontyRuntime.sessionStateSignal', () {
-    late MontyRuntime session;
-
-    setUp(() {
-      session = MontyRuntime();
-    });
-
-    tearDown(() async {
-      await session.dispose();
-    });
-
-    test('always an empty map — state lives in Rust REPL heap', () async {
-      await session.execute('x = 42');
-      await session.execute('y = 99');
-
-      // Signal is not populated — state is in the native REPL, not Dart.
-      expect(session.sessionStateSignal.value, isEmpty);
-    });
-
-    test('clearState() resets signal to empty map', () async {
-      session.clearState();
-
-      expect(session.sessionStateSignal.value, isEmpty);
-    });
-
-    test('is a ReadonlySignal', () {
-      expect(
-        session.sessionStateSignal,
-        isA<ReadonlySignal<Map<String, Object?>>>(),
-      );
-    });
-  });
-
-  group('MontyRuntime.sessionStateSignal sandbox mode', () {
-    late MontyRuntime session;
-
-    setUp(() {
-      session = MontyRuntime(sandbox: true);
-    });
-
-    tearDown(() async {
-      await session.dispose();
-    });
-
-    test('always empty — sandbox calls use fresh interpreters', () async {
-      await session.execute('x = 99');
-      await session.execute('y = 20');
-
-      expect(session.sessionStateSignal.value, isEmpty);
-    });
   });
 
   group('MontyRuntime event streaming', () {

@@ -3,10 +3,13 @@ library;
 
 import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:dart_monty/monty_backend_spi.dart';
+import 'package:dart_monty/src/host_context.dart';
 import 'package:dart_monty_core/src/ffi/monty_ffi.dart';
 import 'package:dart_monty_core/src/ffi/native_bindings_ffi.dart';
 import 'package:struct_log/struct_log.dart';
 import 'package:test/test.dart';
+
+final _testCtx = HostContext(emit: (_) {}, executionId: 'test');
 
 /// Integration tests for SandboxPlugin structured logging with real FFI.
 ///
@@ -66,8 +69,8 @@ void main() {
           .firstWhere((f) => f.schema.name == 'sandbox_await')
           .handler;
 
-      final handle = (await spawn({'code': '2 + 3'}))! as int;
-      final result = await await_({'handle': handle});
+      final handle = (await spawn!({'code': '2 + 3'}, _testCtx))! as int;
+      final result = await await_!({'handle': handle}, _testCtx);
 
       expect(result, 5);
 
@@ -103,10 +106,10 @@ void main() {
           .firstWhere((f) => f.schema.name == 'sandbox_await')
           .handler;
 
-      final handle = (await spawn({'code': 'undefined_variable_xyz'}))! as int;
+      final handle = (await spawn!({'code': 'undefined_variable_xyz'}, _testCtx))! as int;
 
       try {
-        await await_({'handle': handle});
+        await await_!({'handle': handle}, _testCtx);
       } on Exception {
         // Expected.
       }
@@ -137,8 +140,8 @@ void main() {
           .firstWhere((f) => f.schema.name == 'sandbox_await')
           .handler;
 
-      final handle = (await spawn({'code': '42'}))! as int;
-      await await_({'handle': handle});
+      final handle = (await spawn!({'code': '42'}, _testCtx))! as int;
+      await await_!({'handle': handle}, _testCtx);
 
       await plugin.onDispose();
 
