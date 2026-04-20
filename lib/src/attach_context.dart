@@ -1,6 +1,6 @@
 import 'package:dart_monty/dart_monty_bridge.dart' show MontyExtension;
 import 'package:dart_monty/src/host_function_schema.dart';
-import 'package:dart_monty/src/monty_plugin.dart' show MontyExtension;
+import 'package:dart_monty/src/monty_extension.dart' show MontyExtension;
 import 'package:dart_monty/src/os_call/os_handlers.dart';
 
 /// The narrow capability surface passed to [MontyExtension.onAttach].

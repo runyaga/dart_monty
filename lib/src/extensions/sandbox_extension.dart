@@ -9,7 +9,7 @@ import 'package:dart_monty/src/host_function_schema.dart';
 import 'package:dart_monty/src/host_param.dart';
 import 'package:dart_monty/src/host_param_type.dart';
 import 'package:dart_monty/src/monty_backend_kind.dart';
-import 'package:dart_monty/src/monty_plugin.dart';
+import 'package:dart_monty/src/monty_extension.dart';
 import 'package:dart_monty/src/monty_runtime_ref.dart';
 import 'package:dart_monty/src/param_render_hint.dart';
 import 'package:dart_monty/src/platform_bridge.dart';

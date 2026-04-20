@@ -24,7 +24,7 @@ export 'src/host_param_type.dart';
 export 'src/introspection_functions.dart';
 export 'src/monty_backend_kind.dart';
 export 'src/monty_bridge.dart';
-export 'src/monty_plugin.dart';
+export 'src/monty_extension.dart';
 export 'src/monty_runtime.dart';
 export 'src/os_call/decorator_handlers.dart';
 export 'src/os_call/default_os_handler.dart';

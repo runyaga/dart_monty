@@ -1,4 +1,4 @@
-import 'package:dart_monty/src/monty_plugin.dart';
+import 'package:dart_monty/src/monty_extension.dart';
 import 'package:signals_core/signals_core.dart';
 
 /// Unifies the "plugin owns a single primary state signal" pattern.

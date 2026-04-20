@@ -3,7 +3,7 @@ import 'package:dart_monty/src/function_surface.dart';
 import 'package:dart_monty/src/host_context.dart';
 import 'package:dart_monty/src/host_function_schema.dart';
 import 'package:dart_monty/src/monty_backend_kind.dart';
-import 'package:dart_monty/src/monty_plugin.dart' show MontyExtension;
+import 'package:dart_monty/src/monty_extension.dart' show MontyExtension;
 import 'package:meta/meta.dart';
 
 /// Async handler that receives validated named arguments and a [HostContext].

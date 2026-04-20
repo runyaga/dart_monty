@@ -2,7 +2,7 @@ import 'package:dart_monty/src/extensions/event_loop_extension.dart';
 import 'package:dart_monty/src/extensions/message_bus_extension.dart';
 import 'package:dart_monty/src/extensions/sandbox_extension.dart';
 import 'package:dart_monty/src/extensions/template_extension.dart';
-import 'package:dart_monty/src/monty_plugin.dart';
+import 'package:dart_monty/src/monty_extension.dart';
 
 /// Returns a fresh list of the extensions most scripts expect to have
 /// available.
@@ -18,7 +18,7 @@ import 'package:dart_monty/src/monty_plugin.dart';
 /// Not included: [SandboxExtension] (requires a `platformFactory`), and
 /// extensions that depend on external services (HTTP, storage, logging —
 /// those live in
-/// `dart_monty_plugins`).
+/// `dart_monty_extensions`).
 ///
 /// ```dart
 /// final session = MontyRuntime(

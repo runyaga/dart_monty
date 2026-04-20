@@ -7,7 +7,7 @@ import 'package:dart_monty/src/host_function.dart';
 import 'package:dart_monty/src/host_function_schema.dart';
 import 'package:dart_monty/src/host_param.dart';
 import 'package:dart_monty/src/host_param_type.dart';
-import 'package:dart_monty/src/monty_plugin.dart';
+import 'package:dart_monty/src/monty_extension.dart';
 import 'package:signals_core/signals_core.dart';
 
 // ---------------------------------------------------------------------------
