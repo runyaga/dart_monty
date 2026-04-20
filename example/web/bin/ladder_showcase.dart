@@ -236,7 +236,7 @@ Future<void> main() async {
           detail.toJS,
         );
       }
-    } catch (e) {
+    } on Object catch (e) {
       totalFailed++;
       _reportResult(
         (tierIdx + 1).toJS,
@@ -279,7 +279,7 @@ Future<Map<String, dynamic>> _runFixture(Map<String, dynamic> fixture) async {
     } else {
       result = await _runSimple(fixture);
     }
-  } catch (e) {
+  } on Object catch (e) {
     if (expectError) {
       result = {'status': 'pass', 'detail': 'Error (expected): $e'};
     } else {
@@ -515,7 +515,7 @@ Map<String, dynamic> _compareResult(
   if (expectedContains != null) {
     final str = '$actual';
     if (str.contains(expectedContains)) {
-      return {'status': 'pass', 'detail': '$str'};
+      return {'status': 'pass', 'detail': str};
     }
 
     return {

@@ -1,5 +1,5 @@
 // Standalone JS-compiled demo, not a package:test file.
-// ignore_for_file: avoid_print, lines_longer_than_80_chars
+// ignore_for_file: avoid_print
 /// Interactive VFS Demo — shows Python↔VFS round-trip in the browser.
 ///
 /// Compiled to JS, exposes functions to the HTML UI via window.VfsDemo.
@@ -9,6 +9,7 @@
 ///     -o test/wasm/integration/web/vfs_demo.dart.js
 library;
 
+import 'dart:async' show unawaited;
 import 'dart:convert';
 import 'dart:js_interop';
 
@@ -109,7 +110,7 @@ Future<Object?> _handleOsCall(Map<String, dynamic> state) async {
   // Notify the HTML UI in real-time.
   try {
     _jsOnOsCall(jsonEncode(logEntry).toJS);
-  } catch (_) {
+  } on Object catch (_) {
     // _onOsCall not defined — OK in headless mode.
   }
 
@@ -180,7 +181,7 @@ Future<void> _mountFile(String path, String content) async {
   final files = await _collectFiles();
   try {
     _jsOnFilesChanged(jsonEncode(files).toJS);
-  } catch (_) {}
+  } on Object catch (_) {}
 }
 
 void _clearMounts() {
@@ -230,7 +231,7 @@ Future<List<Map<String, dynamic>>> _collectFiles() async {
           await walk(entry);
         }
       }
-    } catch (_) {
+    } on Object catch (_) {
       // Not a directory or doesn't exist.
     }
   }
@@ -247,7 +248,7 @@ Future<List<String>> _listDir(String path) async {
       return r.map((e) => e is MontyPath ? e.value : e.toString()).toList();
     }
     return [];
-  } catch (_) {
+  } on Object catch (_) {
     return [];
   }
 }
@@ -263,11 +264,11 @@ Future<void> main() async {
       code.toDart,
     ).then((r) => r.toJS).toJS).toJS,
     'mountFile': ((JSString path, JSString content) {
-      _mountFile(path.toDart, content.toDart);
+      unawaited(_mountFile(path.toDart, content.toDart));
     }).toJS,
-    'clearMounts': (() => _clearMounts()).toJS,
+    'clearMounts': _clearMounts.toJS,
   }.jsify();
-  _vfsDemo = api as JSObject;
+  _vfsDemo = api! as JSObject;
 
   // Initialize WASM bridge (static method API).
   final ok = (await _bridgeInit().toDart).toDart;
@@ -279,7 +280,7 @@ Future<void> main() async {
   print('VFS Demo ready');
   try {
     _jsOnReady();
-  } catch (_) {
+  } on Object catch (_) {
     // _onReady not defined — OK in headless mode.
   }
 }
