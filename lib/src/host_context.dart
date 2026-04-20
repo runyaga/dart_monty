@@ -1,6 +1,7 @@
 import 'package:dart_monty/src/bridge_event.dart';
 import 'package:dart_monty/src/execution_handle.dart';
 import 'package:dart_monty/src/monty_runtime_ref.dart';
+import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:meta/meta.dart';
 
 /// Context passed to every [HostFunctionHandler] invocation.
@@ -10,6 +11,8 @@ import 'package:meta/meta.dart';
 /// - [emitText] — convenience shorthand for [BridgeToolEmit] text output
 /// - [executionId] — correlate events across the [BridgeEvent] stream
 /// - [cancelToken] — cooperative cancellation signal for long-running work
+/// - [os] — the currently-registered OS handler, for handlers that want to
+///   call OS primitives directly without routing through Python
 /// - [runtime] — the owning runtime, for sub-executions (nullable in tests)
 @immutable
 class HostContext {
@@ -18,6 +21,7 @@ class HostContext {
     required this.emit,
     required this.executionId,
     CancelToken? cancelToken,
+    this.os,
     this.runtime,
   }) : cancelToken = cancelToken ?? CancelToken();
 
@@ -41,6 +45,14 @@ class HostContext {
   /// standalone, un-cancelled token when the owning runtime does not supply
   /// one (e.g. test contexts).
   final CancelToken cancelToken;
+
+  /// The OS call handler currently registered with the bridge.
+  ///
+  /// Host function handlers that want to read files, query environment, or
+  /// invoke other OS primitives without routing through Python can call this
+  /// directly. `null` when no handler is registered (bridges used purely for
+  /// pure-Dart host functions).
+  final OsCallHandler? os;
 
   /// The owning runtime that dispatched this tool call.
   ///

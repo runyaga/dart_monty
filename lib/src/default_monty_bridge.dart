@@ -179,6 +179,7 @@ class DefaultMontyBridge implements MontyBridge, PluginHost {
   void registerOs(OsCallHandler handler) {
     if (_isDisposed) throw StateError('Bridge has been disposed');
     _osHandler = handler;
+    _host.osHandler = handler;
   }
 
   @override
@@ -235,6 +236,7 @@ class DefaultMontyBridge implements MontyBridge, PluginHost {
   void dispose() {
     _isDisposed = true;
     _osHandler = null;
+    _host.osHandler = null;
     log.close();
   }
 

@@ -519,6 +519,34 @@ void main() {
       expect(() => bridge.invokeHostFunction('nope', {}), throwsArgumentError);
     });
 
+    test('HostContext.os reflects currently-registered OsCallHandler', () async {
+      OsCallHandler? capturedOs;
+      bridge.register(
+        HostFunction(
+          schema: const HostFunctionSchema(name: 'peek_os', description: ''),
+          handler: (_, ctx) async {
+            capturedOs = ctx.os;
+            return null;
+          },
+        ),
+      );
+
+      // Before registerOs: ctx.os is null.
+      await bridge.invokeHostFunction('peek_os', const {});
+      expect(capturedOs, isNull);
+
+      // After registerOs: ctx.os is the registered handler.
+      Future<Object?> handler(
+        String op,
+        List<Object?> args,
+        Map<String, Object?>? kwargs,
+      ) async => 'ok';
+      bridge.registerOs(handler);
+
+      await bridge.invokeHostFunction('peek_os', const {});
+      expect(capturedOs, same(handler));
+    });
+
     test('isInfra: true bypasses interceptor on direct invoke', () async {
       var interceptorCalled = false;
 

@@ -164,6 +164,10 @@ class HostDispatch {
        _interceptor = interceptor,
        _runtime = runtime;
 
+  /// Current OS call handler — mirrored from the owning bridge so handlers
+  /// receive it via [HostContext.os]. Updated by the bridge's `registerOs`.
+  OsCallHandler? osHandler;
+
   final MontyPlatform _platform;
   final BridgeLogger _log;
   final MontyInterceptor? _interceptor;
@@ -240,6 +244,7 @@ class HostDispatch {
     final ctx = HostContext(
       emit: (_) {}, // no stream available for direct Dart invocations
       executionId: name,
+      os: osHandler,
       runtime: _runtime,
     );
 
@@ -304,6 +309,7 @@ class HostDispatch {
     final ctx = HostContext(
       emit: controller.add,
       executionId: callId,
+      os: osHandler,
       runtime: _runtime,
     );
     final Object? result;
@@ -360,6 +366,7 @@ class HostDispatch {
     final ctx = HostContext(
       emit: controller.add,
       executionId: callId,
+      os: osHandler,
       runtime: _runtime,
     );
     final Future<Object?> handlerFuture;
