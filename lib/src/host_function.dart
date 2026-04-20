@@ -24,6 +24,11 @@ class HostFunction {
   ///
   /// Set [isInfra] to `true` for orchestration builtins that should bypass
   /// the interceptor (e.g. introspection, internal routing).
+  ///
+  /// [childPropagation] controls whether this function is visible inside
+  /// child sandboxes spawned from the parent runtime. Defaults to
+  /// [HostFunctionChildPropagation.exclude] — children see only extension
+  /// functions, not ad-hoc functions registered via `extraFunctions:`.
   const HostFunction({
     required this.schema,
     HostFunctionHandler? handler,
@@ -31,6 +36,7 @@ class HostFunction {
     HostFunctionHandler? wasmHandler,
     this.isInfra = false,
     this.surfaces = const {ToolSurface.python},
+    this.childPropagation = HostFunctionChildPropagation.exclude,
   })  : ffiHandler = ffiHandler ?? handler,
         wasmHandler = wasmHandler ?? handler;
 
@@ -56,10 +62,29 @@ class HostFunction {
   /// the schema via `MontyRuntime.llmSchemas`.
   final Set<ToolSurface> surfaces;
 
+  /// Whether this function is visible inside child sandboxes spawned from
+  /// the runtime it is attached to.
+  ///
+  /// Only applies to functions registered via the `extraFunctions:` slot on
+  /// `ExtensionCoordinator.attachTo` — extension-provided functions are
+  /// governed by [MontyExtension.childPolicy] instead.
+  final HostFunctionChildPropagation childPropagation;
+
   /// The handler for the current backend, or `null` if not available.
   ///
   /// `AttachContext.register()` uses this to silently skip functions that have
   /// no implementation for the running backend.
   HostFunctionHandler? get handler =>
       currentBackendKind == MontyBackendKind.ffi ? ffiHandler : wasmHandler;
+}
+
+/// Whether an ad-hoc [HostFunction] registered via `extraFunctions:` should
+/// be re-registered inside child sandboxes.
+enum HostFunctionChildPropagation {
+  /// Do not forward this function to children. The default — children get
+  /// a clean surface and cannot accidentally inherit parent-only tools.
+  exclude,
+
+  /// Re-register this function on every spawned child coordinator.
+  inherit,
 }

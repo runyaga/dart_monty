@@ -930,6 +930,69 @@ void main() {
         expect(signal.value, 'x');
       });
     });
+
+    group('spawnChild — extraFunctions childPropagation', () {
+      HostFunction extraFn(
+        String name, {
+        HostFunctionChildPropagation propagation =
+            HostFunctionChildPropagation.exclude,
+      }) => HostFunction(
+        schema: HostFunctionSchema(name: name, description: ''),
+        handler: (args, _) async => null,
+        childPropagation: propagation,
+      );
+
+      test('excludes extras by default from child surface', () async {
+        final parentBridge = _MockBridge();
+        registry.register(_TestPlugin(namespace: 'ns', functions: []));
+        await registry.attachTo(
+          parentBridge,
+          extraFunctions: [extraFn('parent_only')],
+        );
+
+        final childBridge = _MockBridge();
+        await registry.spawnChild(
+          context: const ChildSpawnContext(childId: 1),
+          bridge: childBridge,
+        );
+
+        expect(parentBridge.registeredNames, contains('parent_only'));
+        expect(childBridge.registeredNames, isNot(contains('parent_only')));
+      });
+
+      test('propagates inherit-tagged extras to child surface', () async {
+        final parentBridge = _MockBridge();
+        registry.register(_TestPlugin(namespace: 'ns', functions: []));
+        await registry.attachTo(
+          parentBridge,
+          extraFunctions: [
+            extraFn(
+              'shared_tool',
+              propagation: HostFunctionChildPropagation.inherit,
+            ),
+            extraFn('parent_only'),
+          ],
+        );
+
+        final childBridge = _MockBridge();
+        await registry.spawnChild(
+          context: const ChildSpawnContext(childId: 2),
+          bridge: childBridge,
+        );
+
+        expect(childBridge.registeredNames, contains('shared_tool'));
+        expect(childBridge.registeredNames, isNot(contains('parent_only')));
+      });
+
+      test('defaults to exclude when childPropagation is not specified', () {
+        final fn = HostFunction(
+          schema: HostFunctionSchema(name: 'x', description: ''),
+          handler: (args, _) async => null,
+        );
+
+        expect(fn.childPropagation, HostFunctionChildPropagation.exclude);
+      });
+    });
   });
 }
 
