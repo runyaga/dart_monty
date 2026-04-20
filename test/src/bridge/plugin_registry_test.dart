@@ -503,31 +503,6 @@ void main() {
           },
         );
 
-        test('peer<T>() finds a registered extension by type', () async {
-          final bridge = _MockBridge();
-          final os = _OsContribPlugin(namespace: 'hooks', contribution: null);
-          final lc = _LifecyclePlugin(
-            namespace: 'lc',
-            functions: [_fn('lc_x')],
-          );
-          registry
-            ..register(os)
-            ..register(lc);
-          await registry.attachTo(bridge);
-          expect(lc.peer<_OsContribPlugin>(), same(os));
-        });
-
-        test('peer<T>() returns null for an unregistered type', () async {
-          final bridge = _MockBridge();
-          final lc = _LifecyclePlugin(
-            namespace: 'lc',
-            functions: [_fn('lc_x')],
-          );
-          registry.register(lc);
-          await registry.attachTo(bridge);
-          expect(lc.peer<_OsContribPlugin>(), isNull);
-        });
-
         test('accessing coordinator before attachTo throws', () {
           final plugin = _LifecyclePlugin(namespace: 'lc', functions: []);
           // Accessing an uninitialised late field throws

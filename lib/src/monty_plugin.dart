@@ -71,19 +71,16 @@ class ChildSpawnContext {
 ///
 /// ## Coordinator injection
 ///
-/// After `ExtensionCoordinator.attachTo` runs, [coordinator] is set to the owning
-/// coordinator. Use [peer] for cross-extension lookups inside [onAttach]:
+/// After `ExtensionCoordinator.attachTo` runs, [coordinator] is set to the
+/// owning coordinator. Extensions that need to spawn children or drive
+/// lifecycle operations reach for it directly (see [SandboxPlugin]).
 ///
-/// ```dart
-/// @override
-/// Future<void> onAttach(AttachContext ctx) async {
-///   final other = peer<OtherExtension>();
-///   other?.configure(this);
-/// }
-/// ```
+/// Cross-extension communication goes through the bridge — invoke another
+/// extension's function via `MontyRuntime.invoke(name, args)` rather than
+/// holding a reference to a peer extension.
 ///
-/// Accessing [coordinator] or calling [peer] before `attachTo` is called
-/// throws a `LateInitializationError`.
+/// Accessing [coordinator] before `attachTo` is called throws a
+/// `LateInitializationError`.
 ///
 /// ## OS contributions
 ///
@@ -139,22 +136,14 @@ abstract class MontyExtension {
 
   /// The owning coordinator, injected during [ExtensionCoordinator.attachTo].
   ///
-  /// Use [peer] as the preferred API for cross-extension lookups.
+  /// Extensions that spawn children or drive lifecycle operations reach for
+  /// this field directly (see `SandboxPlugin`). For cross-extension calls,
+  /// prefer `MontyRuntime.invoke(name, args)` over holding references to
+  /// peer extensions.
+  ///
   /// Accessing this field before `attachTo` has been called throws a
   /// `LateInitializationError`.
   late ExtensionCoordinator coordinator;
-
-  /// Returns the first attached extension of type [T], or `null` if none exists.
-  ///
-  /// Searches [ExtensionCoordinator.extensions] in registration order. Requires that
-  /// [coordinator] has been injected (i.e., `attachTo` was called).
-  T? peer<T extends MontyExtension>() {
-    for (final p in coordinator.extensions) {
-      if (p is T) return p;
-    }
-
-    return null;
-  }
 
   /// Human-readable description for LLM system prompt.
   ///

@@ -396,16 +396,11 @@ const _msgStatsSchema = HostFunctionSchema(
 ///
 /// ## Cross-plugin access
 ///
-/// After `ExtensionCoordinator.attachTo` runs, other extensions can obtain a reference
-/// via `peer<MessageBusPlugin>()`:
-///
-/// ```dart
-/// @override
-/// Future<void> onAttach(AttachContext ctx) async {
-///   final bus = peer<MessageBusPlugin>()?.bus;
-///   bus?.channel('results').send({'status': 'ready'});
-/// }
-/// ```
+/// Other extensions should invoke message-bus operations through the bridge
+/// (`ctx.invoke('msg_send', {...})` / `ctx.invoke('msg_recv', {...})`) rather
+/// than holding a direct reference to the plugin. This keeps extension
+/// boundaries narrow and goes through the same interceptor path as Python
+/// callers.
 class MessageBusPlugin extends MontyExtension {
   /// Creates a [MessageBusPlugin].
   ///

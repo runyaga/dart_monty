@@ -143,8 +143,9 @@ Future<List<(String, Object)>> _runExtensionOnAttaches(
 
 /// Injects [coordinator] into each extension's [MontyExtension.coordinator] field.
 ///
-/// Called before [_runExtensionOnAttaches] so that [MontyExtension.peer] is
-/// available inside [MontyExtension.onAttach].
+/// Called before [_runExtensionOnAttaches] so that [MontyExtension.coordinator]
+/// is available inside [MontyExtension.onAttach] (used by extensions that
+/// spawn children or drive lifecycle operations).
 void _injectCoordinators(
   List<MontyExtension> attachOrder,
   ExtensionCoordinator coordinator,
@@ -293,8 +294,9 @@ class ExtensionCoordinator {
   /// ## Coordinator injection
   ///
   /// [MontyExtension.coordinator] is set to this coordinator before
-  /// [MontyExtension.onAttach] is called, so [MontyExtension.peer] is
-  /// available inside [MontyExtension.onAttach].
+  /// [MontyExtension.onAttach] is called, so extensions that need to spawn
+  /// children or drive lifecycle operations can reach for it from inside
+  /// [MontyExtension.onAttach].
   Future<void> attachTo(
     MontyBridge bridge, {
     List<HostFunction>? extraFunctions,
@@ -318,7 +320,8 @@ class ExtensionCoordinator {
       ..sort((a, b) => b.priority.compareTo(a.priority));
     _attachOrder = attachOrder;
 
-    // Inject coordinator before onAttach so peer() works during lifecycle.
+    // Inject coordinator before onAttach so extensions that spawn children
+    // (e.g. SandboxPlugin) can reach it during lifecycle hooks.
     _injectCoordinators(attachOrder, this);
 
     _attachExtensionFunctions(attachOrder, bridge);
