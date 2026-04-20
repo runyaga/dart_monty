@@ -59,7 +59,7 @@ Future<String> _apiExecute(String code) async {
       if (map != null) {
         events.add(map);
         // Notify HTML of tool calls in real-time
-        if (event is BridgeToolCallStart || event is BridgeToolCallResult) {
+        if (event is BridgeFunctionCallStart || event is BridgeFunctionCallResult) {
           try {
             _jsOnToolCall(jsonEncode(map).toJS);
           } catch (_) {}
@@ -155,13 +155,13 @@ Map<String, dynamic>? _eventToJson(BridgeEvent event) {
       'print_output': event.printOutput,
     };
   }
-  if (event is BridgeToolCallStart) {
+  if (event is BridgeFunctionCallStart) {
     return {
       'type': 'tool_call_start',
       'function': event.name,
     };
   }
-  if (event is BridgeToolCallResult) {
+  if (event is BridgeFunctionCallResult) {
     return {
       'type': 'tool_call_result',
       'callId': event.callId,

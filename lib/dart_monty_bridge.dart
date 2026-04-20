@@ -38,4 +38,4 @@ export 'src/plugins/sandbox_plugin.dart';
 export 'src/plugins/template_plugin.dart';
 export 'src/stateful_plugin.dart';
 export 'src/struct_log_bridge_logger.dart';
-export 'src/tool_surface.dart';
+export 'src/function_surface.dart';

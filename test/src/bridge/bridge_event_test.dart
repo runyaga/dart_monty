@@ -58,25 +58,25 @@ void main() {
       expect(event.stepId, 's1');
     });
 
-    test('BridgeToolCallStart stores callId and name', () {
-      const event = BridgeToolCallStart(callId: 'c1', name: 'fetch');
+    test('BridgeFunctionCallStart stores callId and name', () {
+      const event = BridgeFunctionCallStart(callId: 'c1', name: 'fetch');
       expect(event.callId, 'c1');
       expect(event.name, 'fetch');
     });
 
-    test('BridgeToolCallArgs stores callId and delta', () {
-      const event = BridgeToolCallArgs(callId: 'c1', delta: '{"x":1}');
+    test('BridgeFunctionCallArgs stores callId and delta', () {
+      const event = BridgeFunctionCallArgs(callId: 'c1', delta: '{"x":1}');
       expect(event.callId, 'c1');
       expect(event.delta, '{"x":1}');
     });
 
-    test('BridgeToolCallEnd stores callId', () {
-      const event = BridgeToolCallEnd(callId: 'c1');
+    test('BridgeFunctionCallEnd stores callId', () {
+      const event = BridgeFunctionCallEnd(callId: 'c1');
       expect(event.callId, 'c1');
     });
 
-    test('BridgeToolCallResult stores callId and result', () {
-      const event = BridgeToolCallResult(callId: 'c1', result: 'ok');
+    test('BridgeFunctionCallResult stores callId and result', () {
+      const event = BridgeFunctionCallResult(callId: 'c1', result: 'ok');
       expect(event.callId, 'c1');
       expect(event.result, 'ok');
     });

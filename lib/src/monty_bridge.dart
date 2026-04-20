@@ -39,7 +39,7 @@ abstract class MontyBridge implements AttachContext {
   List<HostFunctionSchema> get schemas;
 
   /// Schemas for functions visible to the LLM (where `surfaces` includes
-  /// [ToolSurface.llm]).
+  /// [FunctionSurface.llm]).
   List<HostFunctionSchema> get llmSchemas;
 
   /// All registered function schemas, grouped by category.

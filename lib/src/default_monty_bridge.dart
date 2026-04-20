@@ -412,9 +412,9 @@ class DefaultMontyBridge implements MontyBridge, AttachContext {
           attributes: {'message': message},
           error: exception,
         );
-      case BridgeToolCallStart(:final callId, :final name):
+      case BridgeFunctionCallStart(:final callId, :final name):
         log.debug('tool call', attributes: {'callId': callId, 'name': name});
-      case BridgeToolCallResult(:final callId):
+      case BridgeFunctionCallResult(:final callId):
         log.debug('tool result', attributes: {'callId': callId});
       case BridgeOsCallStart(:final callId, :final operationName):
         log.trace(
@@ -428,9 +428,9 @@ class DefaultMontyBridge implements MontyBridge, AttachContext {
         );
       case BridgeStepStarted() ||
           BridgeStepFinished() ||
-          BridgeToolCallArgs() ||
-          BridgeToolCallEnd() ||
-          BridgeToolEmit() ||
+          BridgeFunctionCallArgs() ||
+          BridgeFunctionCallEnd() ||
+          BridgeFunctionEmit() ||
           BridgeChildEvent():
         // No-op: these events are surface-level telemetry (step boundaries,
         // argument deltas, intermediate emissions, child re-emissions) —

@@ -218,7 +218,7 @@ void main() {
         );
 
       final events = await syncBridge.execute('fn()').toList();
-      final result = events.whereType<BridgeToolCallResult>().first;
+      final result = events.whereType<BridgeFunctionCallResult>().first;
       expect(result.result, 'blocked');
     });
 
@@ -247,7 +247,7 @@ void main() {
         );
 
       final events = await syncBridge.execute('fn()').toList();
-      final result = events.whereType<BridgeToolCallResult>().first;
+      final result = events.whereType<BridgeFunctionCallResult>().first;
       expect(result.result, contains('Access denied'));
     });
 
@@ -1064,7 +1064,7 @@ void main() {
         expect(errors.first.message, contains('resume failed'));
 
         // First two tool calls should have result events.
-        final results = events.whereType<BridgeToolCallResult>().toList();
+        final results = events.whereType<BridgeFunctionCallResult>().toList();
         expect(results.length, greaterThanOrEqualTo(2));
 
         failBridge.dispose();

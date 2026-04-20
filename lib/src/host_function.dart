@@ -1,7 +1,7 @@
 import 'package:dart_monty/src/host_context.dart';
 import 'package:dart_monty/src/host_function_schema.dart';
 import 'package:dart_monty/src/monty_backend_kind.dart';
-import 'package:dart_monty/src/tool_surface.dart';
+import 'package:dart_monty/src/function_surface.dart';
 import 'package:meta/meta.dart';
 
 /// Async handler that receives validated named arguments and a [HostContext].
@@ -35,7 +35,7 @@ class HostFunction {
     HostFunctionHandler? ffiHandler,
     HostFunctionHandler? wasmHandler,
     this.isInfra = false,
-    this.surfaces = const {ToolSurface.python},
+    this.surfaces = const {FunctionSurface.python},
     this.childPropagation = HostFunctionChildPropagation.exclude,
   })  : ffiHandler = ffiHandler ?? handler,
         wasmHandler = wasmHandler ?? handler;
@@ -58,9 +58,9 @@ class HostFunction {
 
   /// Which surfaces this function is visible on.
   ///
-  /// Defaults to `{ToolSurface.python}`. Add [ToolSurface.llm] to expose
-  /// the schema via `MontyRuntime.llmSchemas`.
-  final Set<ToolSurface> surfaces;
+  /// Defaults to `{FunctionSurface.python}`. Add [FunctionSurface.llm] to
+  /// expose the schema via `MontyRuntime.llmSchemas`.
+  final Set<FunctionSurface> surfaces;
 
   /// Whether this function is visible inside child sandboxes spawned from
   /// the runtime it is attached to.

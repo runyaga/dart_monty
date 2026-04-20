@@ -12,7 +12,7 @@ import 'package:dart_monty/src/monty_runtime_ref.dart';
 import 'package:dart_monty/src/monty_runtime_state.dart';
 import 'package:dart_monty/src/os_call/os_handlers.dart';
 import 'package:dart_monty/src/extension_coordinator.dart';
-import 'package:dart_monty/src/tool_surface.dart';
+import 'package:dart_monty/src/function_surface.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 
 // ---------------------------------------------------------------------------
@@ -133,7 +133,7 @@ class MontyRuntime implements MontyRuntimeRef {
   List<HostFunctionSchema> get schemas =>
       (_sharedBridge ?? _schemaBridge)?.schemas ?? [];
 
-  /// Schemas for functions visible to the LLM (where [ToolSurface.llm] is
+  /// Schemas for functions visible to the LLM (where [FunctionSurface.llm] is
   /// declared). Feed these to an LLM alongside `execute_python`.
   List<HostFunctionSchema> get llmSchemas =>
       (_sharedBridge ?? _schemaBridge)?.llmSchemas ?? [];
@@ -344,6 +344,9 @@ class MontyRuntime implements MontyRuntimeRef {
       if (_extensions != null) {
         _extensions.forEach(registry.register);
       }
+      MontyResult? result;
+      Object? error;
+      StackTrace? stackTrace;
       try {
         await registry.attachTo(b, baseOs: osOverride ?? _os);
         final events = <BridgeEvent>[];
@@ -352,16 +355,27 @@ class MontyRuntime implements MontyRuntimeRef {
           if (!_eventsController.isClosed) _eventsController.add(event);
           if (!controller.isClosed) controller.add(event);
         }
-        if (!resultCompleter.isCompleted) {
-          resultCompleter.complete(extractBridgeResult(events, 0));
-        }
+        result = extractBridgeResult(events, 0);
       } on Object catch (e, st) {
-        if (!resultCompleter.isCompleted) resultCompleter.completeError(e, st);
+        error = e;
+        stackTrace = st;
       } finally {
-        await registry.disposeAll();
+        try {
+          await registry.disposeAll();
+        } on Object catch (e, st) {
+          error ??= e;
+          stackTrace ??= st;
+        }
         b.dispose();
         await platform.dispose();
         if (!controller.isClosed) await controller.close();
+        if (!resultCompleter.isCompleted) {
+          if (error != null) {
+            resultCompleter.completeError(error, stackTrace);
+          } else {
+            resultCompleter.complete(result!);
+          }
+        }
       }
     });
 

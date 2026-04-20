@@ -7,11 +7,11 @@ import 'package:dart_monty/src/host_context.dart';
 import 'package:dart_monty/src/host_function.dart';
 import 'package:dart_monty/src/host_function_schema.dart';
 import 'package:dart_monty/src/monty_runtime_ref.dart';
-import 'package:dart_monty/src/tool_surface.dart';
+import 'package:dart_monty/src/function_surface.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:meta/meta.dart';
 
-/// Intercepts a tool call before the handler runs.
+/// Intercepts a host function call before the handler runs.
 ///
 /// Called only for non-infra functions. [next] invokes the actual handler.
 /// Return a value or throw to short-circuit the handler.
@@ -56,10 +56,10 @@ Future<Object?> _invoke(
 }
 
 /// Validates [pending] arguments against [fn]'s schema and emits the
-/// `BridgeToolCallArgs`/`BridgeToolCallEnd` events on success.
+/// `BridgeFunctionCallArgs`/`BridgeFunctionCallEnd` events on success.
 ///
 /// Returns the validated arg map, or `null` when validation fails (the
-/// `BridgeToolCallResult`/`BridgeStepFinished` error events are already
+/// `BridgeFunctionCallResult`/`BridgeStepFinished` error events are already
 /// emitted and the caller must call `resumeWithError`). The `FormatException`
 /// message is written to `resumeError` on failure.
 ///
@@ -82,20 +82,20 @@ Map<String, Object?>? _validateToolCallArgs(
       attributes: {'function': stepName, 'error': e.message},
     );
     controller
-      ..add(BridgeToolCallResult(callId: callId, result: 'Error: $e'))
+      ..add(BridgeFunctionCallResult(callId: callId, result: 'Error: $e'))
       ..add(BridgeStepFinished(stepId: stepName));
     setResumeError(e.toString());
 
     return null;
   }
   controller
-    ..add(BridgeToolCallArgs(callId: callId, delta: jsonEncode(args)))
-    ..add(BridgeToolCallEnd(callId: callId));
+    ..add(BridgeFunctionCallArgs(callId: callId, delta: jsonEncode(args)))
+    ..add(BridgeFunctionCallEnd(callId: callId));
 
   return args;
 }
 
-/// Emits [BridgeToolCallResult] + [BridgeStepFinished] for a handler error
+/// Emits [BridgeFunctionCallResult] + [BridgeStepFinished] for a handler error
 /// and returns `platform.resumeWithError`.
 Future<MontyProgress> _emitToolCallError(
   String callId,
@@ -105,7 +105,7 @@ Future<MontyProgress> _emitToolCallError(
   MontyPlatform platform,
 ) {
   controller
-    ..add(BridgeToolCallResult(callId: callId, result: 'Error: $error'))
+    ..add(BridgeFunctionCallResult(callId: callId, result: 'Error: $error'))
     ..add(BridgeStepFinished(stepId: stepName));
 
   return platform.resumeWithError(error);
@@ -196,7 +196,7 @@ class HostDispatch {
 
   /// Schemas for functions visible to the LLM.
   List<HostFunctionSchema> get llmSchemas => _functions.values
-      .where((f) => f.surfaces.contains(ToolSurface.llm))
+      .where((f) => f.surfaces.contains(FunctionSurface.llm))
       .map((f) => f.schema)
       .toList(growable: false);
 
@@ -293,7 +293,7 @@ class HostDispatch {
 
     controller
       ..add(BridgeStepStarted(stepId: stepName))
-      ..add(BridgeToolCallStart(callId: callId, name: stepName));
+      ..add(BridgeFunctionCallStart(callId: callId, name: stepName));
 
     var resumeError = '';
     final args = _validateToolCallArgs(
@@ -328,7 +328,7 @@ class HostDispatch {
 
     controller
       ..add(
-        BridgeToolCallResult(callId: callId, result: result?.toString() ?? ''),
+        BridgeFunctionCallResult(callId: callId, result: result?.toString() ?? ''),
       )
       ..add(BridgeStepFinished(stepId: stepName));
 
@@ -350,7 +350,7 @@ class HostDispatch {
 
     controller
       ..add(BridgeStepStarted(stepId: stepName))
-      ..add(BridgeToolCallStart(callId: callId, name: stepName));
+      ..add(BridgeFunctionCallStart(callId: callId, name: stepName));
 
     var resumeError = '';
     final args = _validateToolCallArgs(
@@ -417,7 +417,7 @@ class HostDispatch {
         results[id] = value;
         controller
           ..add(
-            BridgeToolCallResult(
+            BridgeFunctionCallResult(
               callId: pending.bridgeCallId,
               result: value?.toString() ?? '',
             ),
@@ -427,7 +427,7 @@ class HostDispatch {
         errors[id] = e.toString();
         controller
           ..add(
-            BridgeToolCallResult(
+            BridgeFunctionCallResult(
               callId: pending.bridgeCallId,
               result: 'Error: $e',
             ),

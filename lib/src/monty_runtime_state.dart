@@ -62,7 +62,8 @@ MontyResult extractBridgeResult(
     }
     if (event is BridgeRunError) {
       final raw = event.exception ?? MontyException(message: event.message);
-      final adjusted = adjustRestoreOffset(raw, restoreOffset);
+      final withLine = _backfillLineNumber(raw);
+      final adjusted = adjustRestoreOffset(withLine, restoreOffset);
 
       return MontyResult(
         value: const MontyNone(),
@@ -74,4 +75,18 @@ MontyResult extractBridgeResult(
   }
 
   throw StateError('No terminal event in bridge execution');
+}
+
+MontyException _backfillLineNumber(MontyException e) {
+  if (e.lineNumber != null || e.traceback.isEmpty) return e;
+  final firstFrame = e.traceback.first;
+  return MontyException(
+    message: e.message,
+    filename: e.filename ?? firstFrame.filename,
+    lineNumber: firstFrame.startLine,
+    columnNumber: e.columnNumber ?? firstFrame.startColumn,
+    sourceCode: e.sourceCode,
+    excType: e.excType,
+    traceback: e.traceback,
+  );
 }

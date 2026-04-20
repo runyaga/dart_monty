@@ -86,10 +86,10 @@ class BridgeStepFinished extends BridgeEvent {
   final String stepId;
 }
 
-/// A tool call began (function name known).
-class BridgeToolCallStart extends BridgeEvent {
-  /// Creates a [BridgeToolCallStart].
-  const BridgeToolCallStart({required this.callId, required this.name});
+/// A host function call began (function name known).
+class BridgeFunctionCallStart extends BridgeEvent {
+  /// Creates a [BridgeFunctionCallStart].
+  const BridgeFunctionCallStart({required this.callId, required this.name});
 
   /// Call identifier.
   final String callId;
@@ -98,10 +98,10 @@ class BridgeToolCallStart extends BridgeEvent {
   final String name;
 }
 
-/// Tool call arguments (JSON delta).
-class BridgeToolCallArgs extends BridgeEvent {
-  /// Creates a [BridgeToolCallArgs].
-  const BridgeToolCallArgs({required this.callId, required this.delta});
+/// Host function call arguments (JSON delta).
+class BridgeFunctionCallArgs extends BridgeEvent {
+  /// Creates a [BridgeFunctionCallArgs].
+  const BridgeFunctionCallArgs({required this.callId, required this.delta});
 
   /// Call identifier.
   final String callId;
@@ -110,19 +110,19 @@ class BridgeToolCallArgs extends BridgeEvent {
   final String delta;
 }
 
-/// Tool call arguments complete.
-class BridgeToolCallEnd extends BridgeEvent {
-  /// Creates a [BridgeToolCallEnd].
-  const BridgeToolCallEnd({required this.callId});
+/// Host function call arguments complete.
+class BridgeFunctionCallEnd extends BridgeEvent {
+  /// Creates a [BridgeFunctionCallEnd].
+  const BridgeFunctionCallEnd({required this.callId});
 
   /// Call identifier.
   final String callId;
 }
 
-/// Tool call result (handler output or error).
-class BridgeToolCallResult extends BridgeEvent {
-  /// Creates a [BridgeToolCallResult].
-  const BridgeToolCallResult({required this.callId, required this.result});
+/// Host function call result (handler output or error).
+class BridgeFunctionCallResult extends BridgeEvent {
+  /// Creates a [BridgeFunctionCallResult].
+  const BridgeFunctionCallResult({required this.callId, required this.result});
 
   /// Call identifier.
   final String callId;
@@ -133,13 +133,13 @@ class BridgeToolCallResult extends BridgeEvent {
 
 /// Intermediate text emitted by a host function handler via [HostContext.emit].
 ///
-/// Emitted mid-tool-call for streaming progress updates or partial results.
-/// Arrives between [BridgeToolCallStart] and [BridgeToolCallResult].
-class BridgeToolEmit extends BridgeEvent {
-  /// Creates a [BridgeToolEmit].
-  const BridgeToolEmit({required this.callId, required this.text});
+/// Emitted mid-call for streaming progress updates or partial results.
+/// Arrives between [BridgeFunctionCallStart] and [BridgeFunctionCallResult].
+class BridgeFunctionEmit extends BridgeEvent {
+  /// Creates a [BridgeFunctionEmit].
+  const BridgeFunctionEmit({required this.callId, required this.text});
 
-  /// Call identifier — matches the enclosing [BridgeToolCallStart.callId].
+  /// Call identifier — matches the enclosing [BridgeFunctionCallStart.callId].
   final String callId;
 
   /// Emitted text.

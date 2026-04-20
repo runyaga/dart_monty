@@ -299,21 +299,21 @@ Map<String, dynamic> _eventToMap(BridgeEvent event) {
       'type': 'StepFinished',
       'stepId': stepId,
     },
-    BridgeToolCallStart(:final callId, :final name) => {
+    BridgeFunctionCallStart(:final callId, :final name) => {
       'type': 'ToolCallStart',
       'callId': callId,
       'name': name,
     },
-    BridgeToolCallArgs(:final callId, :final delta) => {
+    BridgeFunctionCallArgs(:final callId, :final delta) => {
       'type': 'ToolCallArgs',
       'callId': callId,
       'delta': delta,
     },
-    BridgeToolCallEnd(:final callId) => {
+    BridgeFunctionCallEnd(:final callId) => {
       'type': 'ToolCallEnd',
       'callId': callId,
     },
-    BridgeToolCallResult(:final callId, :final result) => {
+    BridgeFunctionCallResult(:final callId, :final result) => {
       'type': 'ToolCallResult',
       'callId': callId,
       'result': result,
