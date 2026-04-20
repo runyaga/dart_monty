@@ -1,6 +1,6 @@
 // Standalone JS-compiled demo, not a package:test file.
 // ignore_for_file: avoid_print, use_null_aware_elements
-/// Interactive AgentSession Demo — shows stateful Python execution with host
+/// Interactive MontyRuntime Demo — shows stateful Python execution with host
 /// functions, filesystem access, and real-time bridge event streaming.
 ///
 /// Compiled to JS, exposes functions to the HTML UI via window.AgentDemo.
@@ -34,7 +34,7 @@ external void _jsOnReady();
 // State
 // ---------------------------------------------------------------------------
 
-AgentSession? _session;
+MontyRuntime? _session;
 bool _initialized = false;
 
 // ---------------------------------------------------------------------------
@@ -173,7 +173,7 @@ final _demoHostFunctions = <HostFunction>[
 
 final _kvStore = <String, Object?>{};
 
-/// Shared bus — accessible to Python via MessageBusPlugin and to Dart directly.
+/// Shared bus — accessible to Python via MessageBusExtension and to Dart directly.
 MessageBus? _msgBus;
 
 // ---------------------------------------------------------------------------
@@ -190,17 +190,17 @@ Future<bool> _init() async {
       'datetime.': timeHandler(),
     });
 
-    final tmplPlugin = JinjaTemplatePlugin();
-    final msgPlugin = MessageBusPlugin();
+    final tmplPlugin = JinjaTemplateExtension();
+    final msgPlugin = MessageBusExtension();
     _msgBus = msgPlugin.bus;
 
-    final plugins = <MontyPlugin>[tmplPlugin, msgPlugin];
-    final sandboxPlugin = SandboxPlugin(
+    final extensions = <MontyExtension>[tmplPlugin, msgPlugin];
+    final sandboxPlugin = SandboxExtension(
       platformFactory: () async => ReplPlatform(repl: MontyRepl()),
     );
-    plugins.add(sandboxPlugin);
+    extensions.add(sandboxPlugin);
 
-    _session = AgentSession(os: os, plugins: plugins);
+    _session = MontyRuntime(os: os, extensions: extensions);
 
     _demoHostFunctions.forEach(_session!.register);
 
@@ -224,7 +224,7 @@ Future<String> _execute(String code) async {
   final events = <Map<String, dynamic>>[];
 
   try {
-    final eventStream = _session!.executeStream(code);
+    final eventStream = _session!.execute(code).events;
     Object? resultValue;
     String? resultError;
     String? printOutput;
@@ -269,10 +269,10 @@ Future<String> _execute(String code) async {
 Map<String, dynamic> _eventToMap(BridgeEvent event) {
   return switch (event) {
     BridgeRunStarted(:final threadId, :final runId) => {
-        'type': 'RunStarted',
-        'threadId': threadId,
-        'runId': runId,
-      },
+      'type': 'RunStarted',
+      'threadId': threadId,
+      'runId': runId,
+    },
     BridgeRunFinished(
       :final threadId,
       :final runId,
@@ -287,37 +287,37 @@ Map<String, dynamic> _eventToMap(BridgeEvent event) {
         if (printOutput != null) 'printOutput': printOutput,
       },
     BridgeRunError(:final message, :final printOutput) => {
-        'type': 'RunError',
-        'message': message,
-        if (printOutput != null) 'printOutput': printOutput,
-      },
-    BridgeStepStarted(:final stepId) => {
-        'type': 'StepStarted',
-        'stepId': stepId,
-      },
-    BridgeStepFinished(:final stepId) => {
-        'type': 'StepFinished',
-        'stepId': stepId,
-      },
-    BridgeToolCallStart(:final callId, :final name) => {
-        'type': 'ToolCallStart',
-        'callId': callId,
-        'name': name,
-      },
-    BridgeToolCallArgs(:final callId, :final delta) => {
-        'type': 'ToolCallArgs',
-        'callId': callId,
-        'delta': delta,
-      },
-    BridgeToolCallEnd(:final callId) => {
-        'type': 'ToolCallEnd',
-        'callId': callId,
-      },
-    BridgeToolCallResult(:final callId, :final result) => {
-        'type': 'ToolCallResult',
-        'callId': callId,
-        'result': result,
-      },
+      'type': 'RunError',
+      'message': message,
+      if (printOutput != null) 'printOutput': printOutput,
+    },
+    BridgeCallStarted(:final callId) => {
+      'type': 'CallStarted',
+      'callId': callId,
+    },
+    BridgeCallFinished(:final callId) => {
+      'type': 'CallFinished',
+      'callId': callId,
+    },
+    BridgeFunctionCallStart(:final callId, :final name) => {
+      'type': 'ToolCallStart',
+      'callId': callId,
+      'name': name,
+    },
+    BridgeFunctionCallArgs(:final callId, :final delta) => {
+      'type': 'ToolCallArgs',
+      'callId': callId,
+      'delta': delta,
+    },
+    BridgeFunctionCallEnd(:final callId) => {
+      'type': 'ToolCallEnd',
+      'callId': callId,
+    },
+    BridgeFunctionCallResult(:final callId, :final result) => {
+      'type': 'ToolCallResult',
+      'callId': callId,
+      'result': result,
+    },
     BridgeOsCallStart(
       :final callId,
       :final operationName,
@@ -330,20 +330,11 @@ Map<String, dynamic> _eventToMap(BridgeEvent event) {
         if (argumentSummary != null) 'argumentSummary': argumentSummary,
       },
     BridgeOsCallResult(:final callId, :final result, :final durationMs) => {
-        'type': 'OsCallResult',
-        'callId': callId,
-        'result': result,
-        if (durationMs != null) 'durationMs': durationMs,
-      },
-    BridgeEventLoopWaiting() => {'type': 'EventLoopWaiting'},
-    BridgeEventLoopResumed(:final event) => {
-        'type': 'EventLoopResumed',
-        'event': event,
-      },
-    BridgeUiRendered(:final schema) => {
-        'type': 'UiRendered',
-        'schema': schema,
-      },
+      'type': 'OsCallResult',
+      'callId': callId,
+      'result': result,
+      if (durationMs != null) 'durationMs': durationMs,
+    },
   };
 }
 
@@ -392,8 +383,8 @@ Future<void> main() async {
   final api = <String, JSFunction>{
     'init': (() => _init().then((ok) => ok.toJS).toJS).toJS,
     'execute': ((JSString code) => _execute(
-          code.toDart,
-        ).then((r) => r.toJS).toJS).toJS,
+      code.toDart,
+    ).then((r) => r.toJS).toJS).toJS,
     'getState': (() => _getState().toJS).toJS,
     'getSchemas': (() => _getSchemas().toJS).toJS,
     'clearState': _clearState.toJS,
