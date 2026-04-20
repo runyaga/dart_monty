@@ -198,6 +198,38 @@ class MontyRuntime implements MontyRuntimeRef {
     return _executeShared(code, osOverride: os);
   }
 
+  /// Invokes a registered host function directly from Dart — useful for
+  /// exercising tools without routing through Python.
+  ///
+  /// Routes through the same [MontyInterceptor] chain as Python-originated
+  /// tool calls, so access policies, logging middleware, and rate limiters
+  /// apply uniformly regardless of call origin. Infra functions still bypass
+  /// the interceptor.
+  ///
+  /// Shared mode only — in sandbox mode each execution owns its own bridge
+  /// and there is no persistent registry to invoke against. Callers that
+  /// need Dart-side invocation should use shared mode.
+  ///
+  /// Throws:
+  /// - [StateError] if the runtime is disposed.
+  /// - [UnsupportedError] if called on a sandbox-mode runtime.
+  /// - [ArgumentError] if [name] is not registered.
+  Future<Object?> invoke(String name, Map<String, Object?> args) async {
+    if (_disposed) throw StateError('MontyRuntime has been disposed');
+    if (_sandbox) {
+      throw UnsupportedError(
+        'MontyRuntime.invoke() is only available in shared mode. '
+        'In sandbox mode, call host functions from Python via execute().',
+      );
+    }
+    if (!_sharedAttached) {
+      await _sharedRegistry!.attachTo(_sharedBridge!, baseOs: _os);
+      _sharedAttached = true;
+    }
+
+    return _sharedBridge!.invokeHostFunction(name, args);
+  }
+
   /// Clears all persisted Python state.
   ///
   /// In shared mode, recreates the full interpreter stack ([MontyRepl],

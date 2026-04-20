@@ -488,6 +488,60 @@ result
       expect(finished.value, 'Hello test!');
     });
   });
+
+  group('MontyRuntime.invoke', () {
+    test('invokes a registered host function and runs interceptor', () async {
+      var interceptorCalls = 0;
+      String? seenName;
+      Map<String, Object?>? seenArgs;
+      final session = MontyRuntime(
+        interceptor: (name, args, next) {
+          interceptorCalls++;
+          seenName = name;
+          seenArgs = args;
+          return next();
+        },
+      );
+      addTearDown(session.dispose);
+      session.register(
+        HostFunction(
+          schema: const HostFunctionSchema(
+            name: 'shout',
+            description: '',
+            params: [HostParam(name: 'msg', type: HostParamType.string)],
+          ),
+          handler: (args, _) async => (args['msg']! as String).toUpperCase(),
+        ),
+      );
+
+      final result = await session.invoke('shout', const {'msg': 'hi'});
+
+      expect(result, 'HI');
+      expect(interceptorCalls, 1);
+      expect(seenName, 'shout');
+      expect(seenArgs, const {'msg': 'hi'});
+    });
+
+    test('sandbox mode throws UnsupportedError', () async {
+      final session = MontyRuntime(sandbox: true);
+      addTearDown(session.dispose);
+
+      await expectLater(
+        session.invoke('anything', const {}),
+        throwsUnsupportedError,
+      );
+    });
+
+    test('unknown function throws ArgumentError', () async {
+      final session = MontyRuntime();
+      addTearDown(session.dispose);
+
+      await expectLater(
+        session.invoke('nope', const {}),
+        throwsArgumentError,
+      );
+    });
+  });
 }
 
 // ---------------------------------------------------------------------------
