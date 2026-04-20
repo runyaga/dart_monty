@@ -10,9 +10,13 @@ import 'package:meta/meta.dart';
 @immutable
 class HostFunctionSchema {
   /// Creates a [HostFunctionSchema].
+  ///
+  /// [description] is optional. Infrastructure functions (e.g. `help`) may
+  /// omit it. Runtimes that expose functions to an LLM can inject descriptions
+  /// at registration time via `MontyRuntime`'s `descriptionProvider`.
   const HostFunctionSchema({
     required this.name,
-    required this.description,
+    this.description,
     this.params = const [],
   });
 
@@ -20,13 +24,24 @@ class HostFunctionSchema {
   final String name;
 
   /// Human-readable description for tool export.
-  final String description;
+  ///
+  /// `null` when no description has been provided. Omitted from JSON schema
+  /// and system-prompt output when `null`.
+  final String? description;
 
   /// Ordered parameter definitions.
   ///
   /// Positional args from Monty are mapped to params by insertion order.
   /// Keyword args overlay by name.
   final List<HostParam> params;
+
+  /// Returns a copy with [newDescription] as the description.
+  HostFunctionSchema copyWithDescription(String newDescription) =>
+      HostFunctionSchema(
+        name: name,
+        description: newDescription,
+        params: params,
+      );
 
   /// Returns a JSON Schema object describing this function's input.
   ///
