@@ -974,8 +974,8 @@ class _LifecyclePlugin extends MontyPlugin {
   final void Function()? onDisposeCallback;
 
   @override
-  Future<void> onRegister(MontyBridge bridge) async {
-    await super.onRegister(bridge);
+  Future<void> onRegister(PluginHost host) async {
+    await super.onRegister(host);
     onRegisterCallback?.call();
   }
 
@@ -1028,8 +1028,8 @@ class _RegistryCapturingPlugin extends MontyPlugin {
   PluginRegistry? capturedRegistry;
 
   @override
-  Future<void> onRegister(MontyBridge bridge) async {
-    await super.onRegister(bridge);
+  Future<void> onRegister(PluginHost host) async {
+    await super.onRegister(host);
     capturedRegistry = registry;
   }
 }

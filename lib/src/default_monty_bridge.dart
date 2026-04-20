@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:dart_monty/src/bridge_event.dart';
 import 'package:dart_monty/src/bridge_logger.dart';
+import 'package:dart_monty/src/host_dispatch.dart';
 import 'package:dart_monty/src/host_function.dart';
 import 'package:dart_monty/src/host_function_schema.dart';
 import 'package:dart_monty/src/monty_bridge.dart';
@@ -87,8 +88,9 @@ void _emitInfraError(
 /// Default [MontyBridge] implementation.
 ///
 /// Orchestrates the Monty start/resume loop and delegates function
-/// registration and tool dispatch to a [PluginHost].
-class DefaultMontyBridge implements MontyBridge {
+/// registration and tool dispatch to a [HostDispatch]. Exposes a narrow
+/// [PluginHost] view of itself for [MontyPlugin.onRegister].
+class DefaultMontyBridge implements MontyBridge, PluginHost {
   /// Creates a [DefaultMontyBridge].
   ///
   /// Pass [logger] to inject a custom [BridgeLogger] for this bridge instance.
@@ -106,7 +108,7 @@ class DefaultMontyBridge implements MontyBridge {
        _limits = limits,
        _useFutures = useFutures,
        log = logger ?? StructLogBridgeLogger.root(LogManager.instance),
-       _host = PluginHost(
+       _host = HostDispatch(
          platform: platform,
          log: logger ?? StructLogBridgeLogger.root(LogManager.instance),
          interceptor: interceptor,
@@ -120,7 +122,7 @@ class DefaultMontyBridge implements MontyBridge {
   final MontyPlatform _platform;
   final MontyLimits? _limits;
   final bool _useFutures;
-  final PluginHost _host;
+  final HostDispatch _host;
 
   OsCallHandler? _osHandler;
 
@@ -148,7 +150,7 @@ class DefaultMontyBridge implements MontyBridge {
   BridgeLogger get logger => log;
 
   // ---------------------------------------------------------------------------
-  // MontyBridge interface — delegated to PluginHost.
+  // MontyBridge interface — delegated to HostDispatch.
   // ---------------------------------------------------------------------------
 
   @override

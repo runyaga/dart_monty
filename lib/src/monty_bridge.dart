@@ -1,6 +1,7 @@
 import 'package:dart_monty/src/bridge_event.dart';
 import 'package:dart_monty/src/bridge_logger.dart';
 import 'package:dart_monty/src/default_monty_bridge.dart';
+import 'package:dart_monty/src/host_dispatch.dart';
 import 'package:dart_monty/src/host_function.dart';
 import 'package:dart_monty/src/host_function_schema.dart';
 import 'package:dart_monty/src/plugin_host.dart';
@@ -17,7 +18,7 @@ import 'package:dart_monty_core/dart_monty_core.dart';
 /// bridge.register(myHostFunction);
 /// final events = bridge.execute('result = my_function()');
 /// ```
-abstract class MontyBridge {
+abstract class MontyBridge implements PluginHost {
   /// Creates a bridge backed by [platform].
   factory MontyBridge({
     required MontyPlatform platform,
@@ -34,6 +35,7 @@ abstract class MontyBridge {
   BridgeLogger get logger;
 
   /// All registered function schemas.
+  @override
   List<HostFunctionSchema> get schemas;
 
   /// Schemas for functions visible to the LLM (where `surfaces` includes
@@ -65,6 +67,7 @@ abstract class MontyBridge {
   /// When Python code triggers an OS call and a handler is registered, the
   /// bridge invokes it and resumes Python with the result. When no handler
   /// is registered, the bridge resumes with a `PermissionError`.
+  @override
   void registerOs(OsCallHandler handler);
 
   /// Executes [code] and returns a stream of lifecycle events.

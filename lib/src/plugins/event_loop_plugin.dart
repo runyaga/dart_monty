@@ -6,10 +6,10 @@ import 'package:dart_monty/src/host_context.dart';
 import 'package:dart_monty/src/host_function.dart';
 import 'package:dart_monty/src/host_function_schema.dart';
 import 'package:dart_monty/src/host_param.dart';
-import 'package:dart_monty/src/host_param_type.dart';
 import 'package:dart_monty/src/default_monty_bridge.dart';
-import 'package:dart_monty/src/monty_bridge.dart';
+import 'package:dart_monty/src/host_param_type.dart';
 import 'package:dart_monty/src/monty_plugin.dart';
+import 'package:dart_monty/src/plugin_host.dart';
 import 'package:dart_monty/src/stateful_plugin.dart';
 import 'package:signals_core/signals_core.dart';
 
@@ -191,10 +191,10 @@ class EventLoopPlugin extends MontyPlugin
       EventLoopPlugin();
 
   @override
-  Future<void> onRegister(MontyBridge bridge) async {
-    await super.onRegister(bridge);
-    if (bridge is DefaultMontyBridge) {
-      bridge.addStreamWrapper(_wrapStream);
+  Future<void> onRegister(PluginHost host) async {
+    await super.onRegister(host);
+    if (host is DefaultMontyBridge) {
+      host.addStreamWrapper(_wrapStream);
     }
   }
 

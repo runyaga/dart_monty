@@ -6,6 +6,7 @@ import 'package:dart_monty/src/introspection_functions.dart';
 import 'package:dart_monty/src/monty_backend_kind.dart';
 import 'package:dart_monty/src/monty_bridge.dart';
 import 'package:dart_monty/src/monty_plugin.dart';
+import 'package:dart_monty/src/plugin_host.dart';
 import 'package:dart_monty/src/os_call/decorator_handlers.dart';
 import 'package:dart_monty/src/os_call/fs_handlers.dart';
 import 'package:dart_monty/src/os_call/os_handlers.dart';
@@ -121,13 +122,13 @@ void _attachExtraFunctions(
 /// failures. Returns `(namespace, error)` pairs for every plugin that threw.
 Future<List<(String, Object)>> _runPluginOnRegisters(
   List<MontyPlugin> attachOrder,
-  MontyBridge bridge,
+  PluginHost host,
   BridgeLogger log,
 ) async {
   final errors = <(String, Object)>[];
   for (final plugin in attachOrder) {
     try {
-      await plugin.onRegister(bridge);
+      await plugin.onRegister(host);
     } on Object catch (e) {
       log.warning(
         'Plugin onRegister failed',

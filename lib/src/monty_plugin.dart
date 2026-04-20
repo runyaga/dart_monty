@@ -1,8 +1,8 @@
 import 'package:dart_monty/src/bridge_logger.dart';
 import 'package:dart_monty/src/host_function.dart';
 import 'package:dart_monty/src/monty_backend_kind.dart';
-import 'package:dart_monty/src/monty_bridge.dart';
 import 'package:dart_monty/src/os_call/os_handlers.dart';
+import 'package:dart_monty/src/plugin_host.dart';
 import 'package:dart_monty/src/plugin_registry.dart';
 import 'package:meta/meta.dart';
 
@@ -34,7 +34,7 @@ class ChildSpawnContext {
 // MontyPlugin
 // ---------------------------------------------------------------------------
 
-/// Extension point for providing host functions to a [MontyBridge].
+/// Extension point for providing host functions to a [PluginHost].
 ///
 /// Each plugin declares a unique [namespace], a set of [functions], and
 /// optional lifecycle hooks ([onRegister], [onDispose]).
@@ -46,7 +46,7 @@ class ChildSpawnContext {
 ///
 /// ```dart
 /// @override
-/// Future<void> onRegister(MontyBridge bridge) async {
+/// Future<void> onRegister(PluginHost host) async {
 ///   final other = sibling<OtherPlugin>();
 ///   other?.configure(this);
 /// }
@@ -145,11 +145,9 @@ abstract class MontyPlugin {
   /// Host functions this plugin provides.
   List<HostFunction> get functions;
 
-  /// Called when attached to a bridge.
+  /// Called when attached to a [PluginHost]. Default no-op.
   @mustCallSuper
-  Future<void> onRegister(MontyBridge bridge) async {
-    // Default no-op.
-  }
+  Future<void> onRegister(PluginHost host) async {}
 
   /// Called when session ends. Must be idempotent.
   @mustCallSuper
