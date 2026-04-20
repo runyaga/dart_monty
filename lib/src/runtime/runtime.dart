@@ -291,7 +291,7 @@ class MontyRuntime implements MontyRuntimeRef {
     final cancelToken = CancelToken();
 
     unawaited(
-      Future<void>.microtask(() async {
+      Future.microtask(() async {
         OsCallHandler? priorOs;
         final overrideActive = osOverride != null;
         try {
@@ -342,7 +342,7 @@ class MontyRuntime implements MontyRuntimeRef {
     final cancelToken = CancelToken();
 
     unawaited(
-      Future<void>.microtask(() async {
+      Future.microtask(() async {
         final repl = MontyRepl();
         final platform = ReplPlatform(repl: repl);
         final b = _buildBridge(platform: platform);

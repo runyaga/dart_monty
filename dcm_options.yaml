@@ -56,7 +56,7 @@ dcm:
     - avoid-unsafe-collection-methods:
         exclude:
           # State wrapping: code gen accesses known-valid indices
-          - "lib/src/monty_runtime.dart"
+          - "lib/src/runtime/runtime.dart"
           # Index access guarded by for-loop bounds and prior length checks
           - "lib/src/platform/code_capture.dart"
           # Mock tracking lists: only accessed after recording calls
@@ -64,16 +64,16 @@ dcm:
           # Guarded by isEmpty/isNotEmpty/length checks before access
           - "lib/src/platform/monty_session.dart"
           - "lib/src/platform/testing/ladder_assertions.dart"
-          - "lib/src/default_monty_bridge.dart"
+          - "lib/src/bridge/platform.dart"
           - "lib/src/host/schema.dart"
           - "lib/src/introspection_functions.dart"
-          - "lib/src/plugins/message_bus_plugin.dart"
-          - "lib/src/plugins/sandbox_plugin.dart"
+          - "lib/src/extensions/message_bus.dart"
+          - "lib/src/extensions/sandbox.dart"
     - avoid-missing-completer-stack-trace
     - avoid-uncaught-future-errors:
         exclude:
           # Future is drained via unawaited(future.catchError)
-          - "lib/src/plugins/message_bus_plugin.dart"
+          - "lib/src/extensions/message_bus.dart"
     - avoid-recursive-calls
     - avoid-contradictory-expressions
     - avoid-self-assignment
@@ -86,7 +86,11 @@ dcm:
     - avoid-collapsible-if
     - avoid-redundant-else
     - avoid-unnecessary-conditionals
-    - avoid-unnecessary-overrides
+    - avoid-unnecessary-overrides:
+        exclude:
+          # MontyBridge default no-op factory overrides are required by the sealed
+          # class pattern — removing them breaks subclass construction
+          - "lib/src/bridge/bridge.dart"
     - avoid-shadowing
     - avoid-only-rethrow
     - avoid-identical-exception-handling-blocks
@@ -150,14 +154,18 @@ dcm:
           # Helper types/enums declared before the main class
           - "lib/src/platform/core_bindings.dart"
           - "lib/src/platform/monty_session.dart"
-          - "lib/src/bridge_middleware.dart"
-          - "lib/src/plugins/event_loop_plugin.dart"
-          - "lib/src/monty_plugin.dart"
-          - "lib/src/plugins/sandbox_plugin.dart"
-          - "lib/src/plugins/template_plugin.dart"
-          - "lib/src/plugins/message_bus_plugin.dart"
-          - "lib/src/extension_coordinator.dart"
           - "lib/src/wasm/wasm_bindings_js_stub.dart"
+          # Subfolders where filenames strip the type-name prefix/suffix (by design).
+          # e.g. host/function.dart contains HostFunction (not Function),
+          #      bridge/event.dart contains BridgeEvent (not Event),
+          #      runtime/runtime.dart contains MontyRuntime (not Runtime).
+          - "lib/src/host/**"
+          - "lib/src/bridge/**"
+          - "lib/src/runtime/**"
+          - "lib/src/extension/**"
+          - "lib/src/extensions/**"
+          # os_call/fs_decorators.dart: first extension is DecoratorHandlers
+          - "lib/src/os_call/fs_decorators.dart"
     - prefer-immediate-return
     - prefer-commenting-analyzer-ignores
     - prefer-conditional-expressions
@@ -168,12 +176,14 @@ dcm:
     - no-empty-block:
         exclude:
           # NullBridgeLogger: null-object pattern, all methods intentionally empty
-          - "lib/src/bridge_logger.dart"
+          - "lib/src/bridge/logger.dart"
           # Default no-op lifecycle hooks
-          - "lib/src/monty_plugin.dart"
-          - "lib/src/monty_bridge.dart"
+          - "lib/src/extension/extension.dart"
+          - "lib/src/bridge/bridge.dart"
           # Empty .then() callback for unawaited future cleanup
-          - "lib/src/default_monty_bridge.dart"
+          - "lib/src/bridge/platform.dart"
+          # Internal HostDispatch: empty catch block intentional (errors logged separately)
+          - "lib/src/host/dispatch.dart"
     - no-equal-then-else
     - prefer-first
     - prefer-last
@@ -186,16 +196,14 @@ dcm:
     - prefer-async-await:
         exclude:
           # Fire-and-forget .then() for unawaited error logging
-          - "lib/src/default_monty_bridge.dart"
-          # (ffi shim removed — dart_monty_core handles isolate dispatch)
+          - "lib/src/bridge/platform.dart"
     - avoid-adjacent-strings
     - prefer-declaring-const-constructor:
         exclude:
           # Extension types cannot have const constructors
           - "lib/src/wasm/wasm_bindings_js.dart"
-          # (ffi shim removed — NativeBindingsFfi lives in dart_monty_core)
-          # BridgeChannelWaiting holds Completer which cannot be const
-          - "lib/src/plugins/event_loop_plugin.dart"
+          # EventLoopWaiting holds Completer which cannot be const
+          - "lib/src/extensions/event_loop.dart"
     - format-comment
 
     # --- Immutability ---
@@ -207,7 +215,7 @@ dcm:
     - prefer-return-await:
         exclude:
           # Future.value() return in try/catch — already resolved, no async gap
-          - "lib/src/plugins/template_plugin.dart"
+          - "lib/src/extensions/jinja_template.dart"
     - avoid-type-casts
     - avoid-inferrable-type-arguments
     - avoid-unnecessary-futures
@@ -221,11 +229,11 @@ dcm:
         exclude:
           - "test/**"
           # Bridge initialized in constructor body (needs _monty.platform)
-          - "lib/src/monty_runtime.dart"
+          - "lib/src/runtime/runtime.dart"
           # Computed signal initialized in constructor body (needs _childrenSignal instance field)
-          - "lib/src/plugins/sandbox_plugin.dart"
-          # Registry injected externally by PluginRegistry._injectRegistries before onRegister
-          - "lib/src/monty_plugin.dart"
+          - "lib/src/extensions/sandbox.dart"
+          # coordinator injected externally by ExtensionCoordinator before onAttach
+          - "lib/src/extension/extension.dart"
     - avoid-dynamic:
         exclude:
           - "test/**"
@@ -247,12 +255,13 @@ dcm:
           - "lib/src/platform/monty_progress.dart"
           - "lib/src/platform/monty_session.dart"
           # Bridge dispatch: non-null guaranteed by host function schema validation
-          - "lib/src/default_monty_bridge.dart"
+          - "lib/src/bridge/platform.dart"
+          - "lib/src/host/dispatch.dart"
           - "lib/src/host/param.dart"
-          - "lib/src/extension_coordinator.dart"
-          - "lib/src/plugins/sandbox_plugin.dart"
+          - "lib/src/extension/coordinator.dart"
+          - "lib/src/extensions/sandbox.dart"
           # State wrapping + result extraction: non-null guaranteed by event type
-          - "lib/src/monty_runtime.dart"
+          - "lib/src/runtime/runtime.dart"
           # Regex match.group(1) non-null guaranteed by pattern structure
           - "lib/src/platform/code_capture.dart"
           # WASM JS interop: non-null guaranteed by JS bridge contract
@@ -281,13 +290,13 @@ dcm:
           # printOutput getter wraps _printBuffer (encapsulation)
           - "lib/src/platform/monty_session.dart"
           # logger getter wraps log field (interface compliance)
-          - "lib/src/default_monty_bridge.dart"
+          - "lib/src/bridge/platform.dart"
           # fileSystem getter exposes _fs for Dart-side VFS access
           - "lib/src/os_call/fs_provider.dart"
           # bridge getter returns _sharedBridge ?? _schemaBridge (dual-mode)
-          - "lib/src/monty_runtime.dart"
-          # channelStateSignal/lastEmittedSignal wrap _channelState/_lastEmitted (shorter backing names)
-          - "lib/src/plugins/event_loop_plugin.dart"
+          - "lib/src/runtime/runtime.dart"
+          # channelStateSignal/lastEmittedSignal wrap _channelState/_lastEmitted
+          - "lib/src/extensions/event_loop.dart"
     - avoid-declaring-call-method
 
     # --- Import Safety ---
@@ -305,6 +314,10 @@ dcm:
 
     # --- Member Ordering ---
     - member-ordering:
+        exclude:
+          # EventLoopExtension: private helpers interleaved with public methods
+          # for locality — each private method is adjacent to its public caller.
+          - "lib/src/extensions/event_loop.dart"
         order:
           - constructors
           - public-fields

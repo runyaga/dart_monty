@@ -52,6 +52,7 @@ Future<Object?> _invoke(
   HostContext ctx,
 ) {
   if (interceptor == null || fn.isInfra) return fn.handler!(args, ctx);
+
   return interceptor(name, args, () => fn.handler!(args, ctx));
 }
 
@@ -99,7 +100,6 @@ Map<String, Object?>? _validateToolCallArgs(
 /// and returns `platform.resumeWithError`.
 Future<MontyProgress> _emitToolCallError(
   String callId,
-  String stepName,
   String error,
   StreamController<BridgeEvent> controller,
   MontyPlatform platform,
@@ -323,7 +323,7 @@ class HostDispatch {
         attributes: {'function': stepName},
       );
 
-      return _emitToolCallError(callId, stepName, '$e', controller, _platform);
+      return _emitToolCallError(callId, '$e', controller, _platform);
     }
 
     controller
@@ -383,7 +383,7 @@ class HostDispatch {
         attributes: {'function': stepName},
       );
 
-      return _emitToolCallError(callId, stepName, '$e', controller, _platform);
+      return _emitToolCallError(callId, '$e', controller, _platform);
     }
     _suppressFutureErrors(handlerFuture, stepName, _log);
     _pendingFutures[pending.callId] = _PendingFuture(
