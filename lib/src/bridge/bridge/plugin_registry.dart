@@ -8,9 +8,11 @@ import 'package:dart_monty/src/bridge/bridge/introspection_functions.dart';
 import 'package:dart_monty/src/bridge/bridge/monty_backend_kind.dart';
 import 'package:dart_monty/src/bridge/bridge/monty_bridge.dart';
 import 'package:dart_monty/src/bridge/bridge/monty_plugin.dart';
+import 'package:dart_monty/src/bridge/bridge/stateful_plugin.dart';
 import 'package:dart_monty/src/bridge/os_call/decorator_handlers.dart';
 import 'package:dart_monty/src/bridge/os_call/fs_handlers.dart';
 import 'package:dart_monty/src/bridge/os_call/os_handlers.dart';
+import 'package:signals_core/signals_core.dart';
 
 /// How a child sandbox's `Path.` handler is derived from the parent's.
 ///
@@ -523,6 +525,20 @@ class PluginRegistry {
     }
 
     return buffer.toString().trimRight();
+  }
+
+  /// Returns one `(namespace, signal)` pair per plugin that mixes in
+  /// [StatefulPlugin].
+  ///
+  /// Consumers (e.g., an ag-ui session adapter) use these pairs to subscribe
+  /// to plugin state and emit `STATE_SNAPSHOT` + `STATE_DELTA` frames keyed
+  /// as `plugin.<namespace>`.
+  Iterable<(String, ReadonlySignal<Object?>)> statefulObservations() sync* {
+    for (final plugin in _plugins) {
+      if (plugin is HasStateSignal) {
+        yield (plugin.namespace, plugin.stateSignalAsObject);
+      }
+    }
   }
 
   /// Builds a composed child [OsCallHandler] from the parent's captured
