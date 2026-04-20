@@ -533,7 +533,7 @@ void main() {
           Map<String, Object?>? kwargs,
         ) async => 'B';
 
-        final b = MontyBridge(platform: mock) as DefaultMontyBridge;
+        final b = MontyBridge(platform: mock) as PlatformBridge;
         addTearDown(b.dispose);
 
         OsCallHandler? captured;

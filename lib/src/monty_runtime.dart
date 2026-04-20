@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:dart_monty/src/bridge_event.dart';
 import 'package:dart_monty/src/bridge_logger.dart';
-import 'package:dart_monty/src/default_monty_bridge.dart';
 import 'package:dart_monty/src/execution_handle.dart';
 import 'package:dart_monty/src/extension_coordinator.dart';
 import 'package:dart_monty/src/function_surface.dart';
@@ -13,6 +12,7 @@ import 'package:dart_monty/src/monty_plugin.dart';
 import 'package:dart_monty/src/monty_runtime_ref.dart';
 import 'package:dart_monty/src/monty_runtime_state.dart';
 import 'package:dart_monty/src/os_call/os_handlers.dart';
+import 'package:dart_monty/src/platform_bridge.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 
 // ---------------------------------------------------------------------------
@@ -25,7 +25,7 @@ import 'package:dart_monty_core/dart_monty_core.dart';
 /// Combines `MontyBridge`, `ExtensionCoordinator`, and OS providers into a
 /// single API. Both execution modes are backed by [ReplPlatform], which adapts
 /// [MontyRepl] to the [MontyPlatform] interface accepted by
-/// [DefaultMontyBridge]. All state (variables, functions, classes, modules)
+/// [PlatformBridge]. All state (variables, functions, classes, modules)
 /// persists natively in the Rust REPL heap across `execute()` calls — no
 /// Dart-side serialization round-trip.
 ///
@@ -88,7 +88,7 @@ class MontyRuntime implements MontyRuntimeRef {
       // in the Rust heap across execute() calls — no Dart-side serialization.
       _sharedRepl = MontyRepl();
       _sharedPlatform = ReplPlatform(repl: _sharedRepl!);
-      _sharedBridge = DefaultMontyBridge(
+      _sharedBridge = PlatformBridge(
         platform: _sharedPlatform!,
         useFutures: false,
         logger: logger,
@@ -117,12 +117,12 @@ class MontyRuntime implements MontyRuntimeRef {
   // Shared mode state.
   MontyRepl? _sharedRepl;
   MontyPlatform? _sharedPlatform;
-  DefaultMontyBridge? _sharedBridge;
+  PlatformBridge? _sharedBridge;
   ExtensionCoordinator? _sharedRegistry;
   bool _sharedAttached = false;
 
   // Sandbox mode schema bridge (no platform, just for introspection).
-  DefaultMontyBridge? _schemaBridge;
+  PlatformBridge? _schemaBridge;
 
   bool _disposed = false;
   int _nextExecutionId = 0;
@@ -235,7 +235,7 @@ class MontyRuntime implements MontyRuntimeRef {
   /// Clears all persisted Python state.
   ///
   /// In shared mode, recreates the full interpreter stack ([MontyRepl],
-  /// [ReplPlatform], [DefaultMontyBridge], and [ExtensionCoordinator]) so the
+  /// [ReplPlatform], [PlatformBridge], and [ExtensionCoordinator]) so the
   /// next `execute()` call starts with empty Python globals. Plugins are
   /// re-attached on the next `execute()` call.
   ///
@@ -249,7 +249,7 @@ class MontyRuntime implements MontyRuntimeRef {
 
       _sharedRepl = MontyRepl();
       _sharedPlatform = ReplPlatform(repl: _sharedRepl!);
-      _sharedBridge = DefaultMontyBridge(
+      _sharedBridge = PlatformBridge(
         platform: _sharedPlatform!,
         useFutures: false,
         logger: _logger,
@@ -399,8 +399,8 @@ class MontyRuntime implements MontyRuntimeRef {
   // Bridge factory
   // ---------------------------------------------------------------------------
 
-  DefaultMontyBridge _buildBridge({MontyPlatform? platform}) {
-    final b = DefaultMontyBridge(
+  PlatformBridge _buildBridge({MontyPlatform? platform}) {
+    final b = PlatformBridge(
       platform: platform ?? ReplPlatform(repl: MontyRepl()),
       useFutures: false,
       logger: _logger,

@@ -87,7 +87,7 @@ MockMontyPlatform _failingMockStructured({
 /// attached first.
 Future<SandboxExtension> _attachedPlugin(SandboxExtension plugin) async {
   final registry = ExtensionCoordinator()..register(plugin);
-  final bridge = DefaultMontyBridge(platform: MockMontyPlatform());
+  final bridge = PlatformBridge(platform: MockMontyPlatform());
   await registry.attachTo(bridge);
   return plugin;
 }

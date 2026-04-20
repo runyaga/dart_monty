@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:dart_monty/src/bridge_event.dart';
-import 'package:dart_monty/src/default_monty_bridge.dart';
 import 'package:dart_monty/src/extension_coordinator.dart';
 import 'package:dart_monty/src/host_args.dart';
 import 'package:dart_monty/src/host_context.dart';
@@ -13,6 +12,7 @@ import 'package:dart_monty/src/monty_backend_kind.dart';
 import 'package:dart_monty/src/monty_plugin.dart';
 import 'package:dart_monty/src/monty_runtime_ref.dart';
 import 'package:dart_monty/src/param_render_hint.dart';
+import 'package:dart_monty/src/platform_bridge.dart';
 import 'package:dart_monty/src/stateful_extension.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:path/path.dart' as p;
@@ -139,7 +139,7 @@ class _ChildHandle {
     required this.coordinator,
   });
 
-  final DefaultMontyBridge bridge;
+  final PlatformBridge bridge;
   final MontyPlatform platform;
   final Completer<Object?> completer;
   final StreamSubscription<BridgeEvent> subscription;
@@ -296,7 +296,7 @@ const _gatherSchema = HostFunctionSchema(
 /// Plugin that spawns Python scripts in separate Monty interpreter instances.
 ///
 /// Each child gets its own [MontyPlatform] (via [platformFactory]) and
-/// [DefaultMontyBridge]. The parent Python script can spawn children with
+/// [PlatformBridge]. The parent Python script can spawn children with
 /// `sandbox_spawn(code)` and await their results with `sandbox_await(handle)`.
 ///
 /// Children are sandboxed: each has its own interpreter state.
@@ -571,7 +571,7 @@ class SandboxExtension extends MontyExtension
   /// coordinator.
   ///
   /// Disposes all partially-created resources on failure.
-  Future<(MontyPlatform, DefaultMontyBridge, ExtensionCoordinator)>
+  Future<(MontyPlatform, PlatformBridge, ExtensionCoordinator)>
   _createChildPlatformAndBridge(
     ChildSpawnContext spawnContext,
     MontyLimits? limits,
@@ -580,7 +580,7 @@ class SandboxExtension extends MontyExtension
     OsCallHandler? parentOsOverride,
   ) async {
     MontyPlatform? platform;
-    DefaultMontyBridge? bridge;
+    PlatformBridge? bridge;
     ExtensionCoordinator? childCoordinator;
     try {
       try {
@@ -594,7 +594,7 @@ class SandboxExtension extends MontyExtension
         );
         rethrow;
       }
-      bridge = DefaultMontyBridge(
+      bridge = PlatformBridge(
         platform: platform,
         limits: limits,
         useFutures: false,
@@ -633,7 +633,7 @@ class SandboxExtension extends MontyExtension
   /// extension must be attached through an [ExtensionCoordinator].
   Future<ExtensionCoordinator> _wireChildExtensions(
     ChildSpawnContext spawnContext,
-    DefaultMontyBridge bridge,
+    PlatformBridge bridge,
     String? runtimePrompt,
     OsCallHandler? parentOsOverride,
   ) async {
@@ -670,7 +670,7 @@ class SandboxExtension extends MontyExtension
   /// [BridgeChildEvent] tagged with the child's integer id — giving
   /// observers a single attributed ordering across the ownership tree.
   StreamSubscription<BridgeEvent> _setupChildListener({
-    required DefaultMontyBridge bridge,
+    required PlatformBridge bridge,
     required MontyPlatform platform,
     required ExtensionCoordinator coordinator,
     required Completer<Object?> completer,
@@ -716,7 +716,7 @@ class SandboxExtension extends MontyExtension
 
   Future<void> _onChildDone(
     int childId,
-    DefaultMontyBridge bridge,
+    PlatformBridge bridge,
     MontyPlatform platform,
     ExtensionCoordinator coordinator,
     Completer<Object?> completer, {

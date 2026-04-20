@@ -143,7 +143,7 @@ Future<void> _logDeferredError(
 // ---------------------------------------------------------------------------
 
 /// Manages host function registration, the interceptor, and tool call dispatch
-/// for a `DefaultMontyBridge`.
+/// for a `PlatformBridge`.
 ///
 /// This is an internal implementation-detail class — it is not part of the
 /// public `MontyBridge` API. Callers access it through the bridge's delegation
@@ -447,7 +447,7 @@ class HostDispatch {
 
   /// Clears all tracked pending futures.
   ///
-  /// Called from `DefaultMontyBridge._run`'s `finally` block to avoid leaking
+  /// Called from `PlatformBridge._run`'s `finally` block to avoid leaking
   /// futures across executions when a run ends unexpectedly.
   void clearPendingFutures() => _pendingFutures.clear();
 }

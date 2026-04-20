@@ -48,7 +48,7 @@ void main() {
     });
 
     test(
-      'DefaultMontyBridge also captures print() — consistent with raw session',
+      'PlatformBridge also captures print() — consistent with raw session',
       () async {
         // If the raw session test above passes, this confirms the bridge
         // is not introducing a duplicate or conflicting capture path.
@@ -71,7 +71,7 @@ void main() {
 
   group('2c — exception line numbers', () {
     test('NameError on line 1 of user code reports line 1', () async {
-      // DefaultMontyBridge injects a print-override preamble (~5 lines)
+      // PlatformBridge injects a print-override preamble (~5 lines)
       // before user code, then subtracts _preambleLineCount from exception
       // line numbers. This test verifies the adjustment is correct.
       final session = MontyRuntime();

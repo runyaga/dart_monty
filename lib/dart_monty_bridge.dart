@@ -7,7 +7,6 @@ library;
 export 'src/attach_context.dart' show AttachContext;
 export 'src/bridge_event.dart';
 export 'src/bridge_logger.dart';
-export 'src/default_monty_bridge.dart';
 export 'src/execution_handle.dart';
 export 'src/extension_coordinator.dart';
 export 'src/extensions/default_extensions.dart';
@@ -37,5 +36,6 @@ export 'src/os_call/platform_handlers.dart';
 export 'src/os_call/sandboxed_fs_handler_stub.dart'
     if (dart.library.io) 'src/os_call/sandboxed_fs_handler.dart';
 export 'src/param_render_hint.dart';
+export 'src/platform_bridge.dart';
 export 'src/stateful_extension.dart';
 export 'src/struct_log_bridge_logger.dart';

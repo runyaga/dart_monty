@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:dart_monty/src/attach_context.dart';
 import 'package:dart_monty/src/bridge_event.dart';
-import 'package:dart_monty/src/default_monty_bridge.dart';
 import 'package:dart_monty/src/host_args.dart';
 import 'package:dart_monty/src/host_context.dart';
 import 'package:dart_monty/src/host_function.dart';
@@ -10,6 +9,7 @@ import 'package:dart_monty/src/host_function_schema.dart';
 import 'package:dart_monty/src/host_param.dart';
 import 'package:dart_monty/src/host_param_type.dart';
 import 'package:dart_monty/src/monty_plugin.dart';
+import 'package:dart_monty/src/platform_bridge.dart';
 import 'package:dart_monty/src/stateful_extension.dart';
 import 'package:signals_core/signals_core.dart';
 
@@ -196,7 +196,7 @@ class EventLoopExtension extends MontyExtension
   @override
   Future<void> onAttach(AttachContext ctx) async {
     await super.onAttach(ctx);
-    if (ctx is DefaultMontyBridge) {
+    if (ctx is PlatformBridge) {
       ctx.addStreamWrapper(_wrapStream);
     }
   }

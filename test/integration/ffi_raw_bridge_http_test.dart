@@ -39,10 +39,10 @@ const _url = 'https://demo.toughserv.com/api/v1/installation/versions';
 
 void main() {
   test(
-    'DefaultMontyBridge.execute — 3 sequential HTTP calls',
+    'PlatformBridge.execute — 3 sequential HTTP calls',
     () async {
       final platform = createPlatformMonty();
-      final bridge = DefaultMontyBridge(
+      final bridge = PlatformBridge(
         platform: platform,
         useFutures: false,
       )..register(_httpGetFn());
@@ -61,10 +61,10 @@ void main() {
   );
 
   test(
-    'DefaultMontyBridge.execute — 3 sequential HTTP calls, value extraction',
+    'PlatformBridge.execute — 3 sequential HTTP calls, value extraction',
     () async {
       final platform = createPlatformMonty();
-      final bridge = DefaultMontyBridge(
+      final bridge = PlatformBridge(
         platform: platform,
         useFutures: false,
       )..register(_httpGetFn());

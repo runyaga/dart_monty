@@ -84,7 +84,7 @@ void _emitInfraError(
 }
 
 // ---------------------------------------------------------------------------
-// DefaultMontyBridge — thin coordinator.
+// PlatformBridge — thin coordinator.
 // ---------------------------------------------------------------------------
 
 /// Default [MontyBridge] implementation.
@@ -92,14 +92,14 @@ void _emitInfraError(
 /// Orchestrates the Monty start/resume loop and delegates function
 /// registration and tool dispatch to a [HostDispatch]. Exposes a narrow
 /// [AttachContext] view of itself for [MontyExtension.onAttach].
-class DefaultMontyBridge implements MontyBridge, AttachContext {
-  /// Creates a [DefaultMontyBridge].
+class PlatformBridge implements MontyBridge, AttachContext {
+  /// Creates a [PlatformBridge].
   ///
   /// Pass [logger] to inject a custom [BridgeLogger] for this bridge instance.
   /// If omitted, defaults to struct_log via [StructLogBridgeLogger].
   ///
   /// To silence logging entirely, pass `const NullBridgeLogger()`.
-  DefaultMontyBridge({
+  PlatformBridge({
     required MontyPlatform platform,
     MontyLimits? limits,
     bool useFutures = true,

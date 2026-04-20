@@ -15,13 +15,13 @@ const _usage = MontyResourceUsage(
 
 void main() {
   late MockMontyPlatform mock;
-  late DefaultMontyBridge bridge;
+  late PlatformBridge bridge;
   late EventLoopExtension plugin;
 
   setUp(() async {
     mock = MockMontyPlatform();
     plugin = EventLoopExtension();
-    bridge = DefaultMontyBridge(platform: mock);
+    bridge = PlatformBridge(platform: mock);
     await plugin.onAttach(bridge);
     for (final fn in plugin.functions) {
       bridge.register(fn, category: plugin.namespace);
@@ -693,7 +693,7 @@ void main() {
     test('el_recv works with sync-only platform', () async {
       final syncMock = _SyncOnlyMockPlatform();
       final syncPlugin = EventLoopExtension();
-      final syncBridge = DefaultMontyBridge(
+      final syncBridge = PlatformBridge(
         platform: syncMock,
         useFutures: false,
       );
@@ -809,7 +809,7 @@ void main() {
     test('el_emit does not cause execution error', () async {
       // Structural property: _handleEmit only updates a signal.
       // No callback path exists that could throw and propagate to
-      // DefaultMontyBridge.resumeWithError(). This test verifies that
+      // PlatformBridge.resumeWithError(). This test verifies that
       // invariant end-to-end.
       mock
         ..enqueueProgress(
@@ -842,13 +842,13 @@ void main() {
     test(
       'wrapper exception resets _isExecuting immediately (not after _run)',
       () async {
-        // Regression: without the try-catch in DefaultMontyBridge.execute(),
+        // Regression: without the try-catch in PlatformBridge.execute(),
         // a synchronously-throwing wrapper leaves _isExecuting = true until
         // _run's whenComplete fires. The very next execute() call (before any
         // microtask yields) would throw 'Bridge is already executing' even
         // though the first call failed before producing a valid stream.
         final lockMock = MockMontyPlatform();
-        final lockBridge = DefaultMontyBridge(
+        final lockBridge = PlatformBridge(
           platform: lockMock,
           useFutures: false,
         );
@@ -937,7 +937,7 @@ void main() {
         );
       final plugin2 = EventLoopExtension();
       final registry = ExtensionCoordinator()..register(plugin2);
-      final bridge2 = DefaultMontyBridge(platform: mock2);
+      final bridge2 = PlatformBridge(platform: mock2);
       await registry.attachTo(bridge2);
 
       final events = await bridge2.execute('pass').toList();
