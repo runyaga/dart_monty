@@ -2,7 +2,7 @@
 
 ## The Bug (#271)
 
-Creating and disposing 2+ `AgentSession` instances in the same process,
+Creating and disposing 2+ `MontyRuntime` instances in the same process,
 then creating a 3rd and calling an HTTP host function, causes a SEGFAULT.
 
 ## Root Cause: NativeFinalizer Race
@@ -29,7 +29,7 @@ then creating a 3rd and calling an HTTP host function, causes a SEGFAULT.
 6. **Dart `BaseMontyPlatform`** (`lib/src/platform/base_monty_platform.dart`) —
    calls `_bindings.dispose()` on platform disposal.
 
-7. **Dart `AgentSession`** (`lib/src/bridge/agent_session.dart`) —
+7. **Dart `MontyRuntime`** (`lib/src/bridge/monty_runtime.dart`) —
    creates `Monty` → `MontyFfi` → `FfiCoreBindings`. Dispose chain:
    `session.dispose()` → `bridge.dispose()` → `monty.dispose()` →
    `platform.dispose()` → `bindings.dispose()` → `_freeHandle()`.
