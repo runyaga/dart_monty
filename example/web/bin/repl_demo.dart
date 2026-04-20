@@ -1,6 +1,6 @@
 // Standalone JS-compiled demo, not a package:test file.
 // ignore_for_file: avoid_print, lines_longer_than_80_chars, avoid_catches_without_on_clauses, cast_nullable_to_non_nullable
-/// Interactive REPL Session Demo — AgentSession + real plugins in the browser.
+/// Interactive REPL Session Demo — MontyRuntime + real plugins in the browser.
 ///
 /// Compiled to JS, exposes window.ReplSessionDemo to HTML.
 /// All host function dispatch (template, message bus) runs in
@@ -34,7 +34,7 @@ external void _jsOnToolCall(JSString jsonPayload);
 // State
 // ---------------------------------------------------------------------------
 
-late AgentSession _session;
+late MontyRuntime _session;
 
 // ---------------------------------------------------------------------------
 // API
@@ -43,7 +43,7 @@ late AgentSession _session;
 /// Run Python code and return JSON result.
 Future<String> _apiRun(String code) async {
   try {
-    final result = await _session.execute(code);
+    final result = await _session.execute(code).result;
     return jsonEncode(_resultToJson(result));
   } catch (e) {
     return jsonEncode({'ok': false, 'error': e.toString()});
@@ -54,12 +54,12 @@ Future<String> _apiRun(String code) async {
 Future<String> _apiExecute(String code) async {
   try {
     final events = <Map<String, dynamic>>[];
-    await for (final event in _session.executeStream(code)) {
+    await for (final event in _session.execute(code).events) {
       final map = _eventToJson(event);
       if (map != null) {
         events.add(map);
         // Notify HTML of tool calls in real-time
-        if (event is BridgeToolCallStart || event is BridgeToolCallResult) {
+        if (event is BridgeFunctionCallStart || event is BridgeFunctionCallResult) {
           try {
             _jsOnToolCall(jsonEncode(map).toJS);
           } catch (_) {}
@@ -108,12 +108,12 @@ Future<String> _apiReset() async {
 // ---------------------------------------------------------------------------
 
 void _createSession() {
-  final tmpl = JinjaTemplatePlugin();
-  final msgBus = MessageBusPlugin();
+  final tmpl = JinjaTemplateExtension();
+  final msgBus = MessageBusExtension();
 
-  // SandboxPlugin is FFI-only and cannot be used in a web build.
-  _session = AgentSession(
-    plugins: [tmpl, msgBus],
+  // SandboxExtension is FFI-only and cannot be used in a web build.
+  _session = MontyRuntime(
+    extensions: [tmpl, msgBus],
   );
 }
 
@@ -155,13 +155,13 @@ Map<String, dynamic>? _eventToJson(BridgeEvent event) {
       'print_output': event.printOutput,
     };
   }
-  if (event is BridgeToolCallStart) {
+  if (event is BridgeFunctionCallStart) {
     return {
       'type': 'tool_call_start',
       'function': event.name,
     };
   }
-  if (event is BridgeToolCallResult) {
+  if (event is BridgeFunctionCallResult) {
     return {
       'type': 'tool_call_result',
       'callId': event.callId,
@@ -185,11 +185,11 @@ Future<void> main() async {
   // Expose API to window
   final api = <String, JSFunction>{
     'run': ((JSString code) => _apiRun(
-          code.toDart,
-        ).then((r) => r.toJS).toJS).toJS,
+      code.toDart,
+    ).then((r) => r.toJS).toJS).toJS,
     'execute': ((JSString code) => _apiExecute(
-          code.toDart,
-        ).then((r) => r.toJS).toJS).toJS,
+      code.toDart,
+    ).then((r) => r.toJS).toJS).toJS,
     'reset': (() => _apiReset().then((r) => r.toJS).toJS).toJS,
   }.jsify();
   _replSessionDemo = api as JSObject;

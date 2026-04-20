@@ -326,7 +326,8 @@ Future<Map<String, dynamic>> _runExpectError(
 
   return {
     'status': 'warn',
-    'detail': 'Expected error but got value: ${result['value']}'
+    'detail':
+        'Expected error but got value: ${result['value']}'
         ' — WASM Monty may handle this differently than CPython',
   };
 }
@@ -477,8 +478,7 @@ Future<Map<String, dynamic>> _runAsync(Map<String, dynamic> fixture) async {
     (await _montyResolveFutures(
       jsonEncode(results).toJS,
       jsonEncode(errors).toJS,
-    ).toDart)
-        .toDart,
+    ).toDart).toDart,
   );
 
   if (result['ok'] != true) {
@@ -520,7 +520,8 @@ Map<String, dynamic> _compareResult(
 
     return {
       'status': 'warn',
-      'detail': 'Value: $str'
+      'detail':
+          'Value: $str'
           ' — expected to contain "$expectedContains"'
           ' (WASM Monty behavioral difference)',
     };
@@ -535,7 +536,8 @@ Map<String, dynamic> _compareResult(
 
     return {
       'status': 'warn',
-      'detail': 'Value: $actual'
+      'detail':
+          'Value: $actual'
           ' — expected (sorted): $expected'
           ' (WASM Monty behavioral difference)',
     };
@@ -547,7 +549,8 @@ Map<String, dynamic> _compareResult(
 
   return {
     'status': 'warn',
-    'detail': 'Value: $actual'
+    'detail':
+        'Value: $actual'
         ' — expected: $expected'
         ' (WASM Monty behavioral difference)',
   };

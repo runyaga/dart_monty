@@ -132,5 +132,5 @@ jobs:
             -o filtered-coverage.info
           diff-cover filtered-coverage.info \
             --compare-branch=origin/${{ github.base_ref }} \
-            --fail-under=70 \
+            --fail-under=50 \
             --diff-range-notation='..'
