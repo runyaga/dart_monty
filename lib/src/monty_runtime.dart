@@ -313,8 +313,9 @@ class MontyRuntime implements MontyRuntimeRef {
             resultCompleter.complete(extractBridgeResult(collected, 0));
           }
         } on Object catch (e, st) {
-          if (!resultCompleter.isCompleted)
+          if (!resultCompleter.isCompleted) {
             resultCompleter.completeError(e, st);
+          }
         } finally {
           if (overrideActive) _sharedBridge?.setOsHandler(priorOs);
           if (!controller.isClosed) await controller.close();
