@@ -227,7 +227,12 @@ Future<String> _execute(String code) async {
   final events = <Map<String, dynamic>>[];
 
   try {
-    final eventStream = _session!.execute(code).events;
+    final handle = _session!.execute(code);
+    // Prevent unhandled Future errors — the result future may complete with
+    // an error if the bridge encounters an infrastructure fault. We extract
+    // results from the event stream instead.
+    handle.result.ignore();
+    final eventStream = handle.events;
     Object? resultValue;
     String? resultError;
     String? printOutput;

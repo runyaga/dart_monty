@@ -33,6 +33,29 @@ cp target/release/libdart_monty.dylib ../assets/
 dart test test/integration/oracle_ffi_test.dart -p vm --run-skipped
 ```
 
+### JS compilation (dart2js)
+
+**Always pass `--packages` when using `pubspec_overrides.yaml` path overrides:**
+
+```bash
+dart compile js \
+  --packages=.dart_tool/package_config.json \
+  example/web/bin/agent_demo.dart \
+  -o example/web/web/agent_demo.dart.js
+```
+
+Without `--packages`, `dart compile js` uses its own package resolution that
+**silently ignores** `pubspec_overrides.yaml` path overrides. It resolves
+dependencies from the pub cache or git-cached version instead of your local
+checkout. Symptoms:
+
+- Source edits have no effect on the compiled output
+- Syntax errors in overridden packages don't cause compilation failures
+- The "Compiled N input bytes" count never changes between builds
+
+This flag tells dart2js to use the same `.dart_tool/package_config.json` that
+`dart pub get` writes, which respects path overrides.
+
 ### WASM fixture tests (requires Chrome + built WASM/JS)
 ```bash
 # Full build + test (npm, cargo wasm32-wasip1, dart compile js):

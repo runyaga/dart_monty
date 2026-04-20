@@ -3,6 +3,7 @@
 .packages
 build/
 pubspec.lock
+pubspec_overrides.yaml
 *.iml
 .idea/
 .vscode/

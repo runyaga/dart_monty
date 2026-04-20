@@ -407,9 +407,9 @@ dart_monty_core (backends)
 
     <h3>Web (WASM)</h3>
     <p>Copy the WASM assets to your web directory:</p>
-<pre>cp packages/dart_monty_wasm/assets/dart_monty_core_bridge.js web/
-cp packages/dart_monty_wasm/assets/dart_monty_core_worker.js web/
-cp packages/dart_monty_wasm/assets/dart_monty_core_native.wasm web/</pre>
+<pre>cp dart_monty_core/assets/dart_monty_bridge.js web/
+cp dart_monty_core/assets/dart_monty_worker.js web/
+cp dart_monty_core/assets/dart_monty_native.wasm web/</pre>
     <p>Serve with <code>Cross-Origin-Opener-Policy: same-origin</code>
        and <code>Cross-Origin-Embedder-Policy: require-corp</code> headers
        (required for SharedArrayBuffer).</p>
