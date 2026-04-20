@@ -428,8 +428,8 @@ class PlatformBridge implements MontyBridge, AttachContext {
           'os result',
           attributes: {'callId': callId, 'durationMs': ?durationMs},
         );
-      case BridgeStepStarted() ||
-          BridgeStepFinished() ||
+      case BridgeCallStarted() ||
+          BridgeCallFinished() ||
           BridgeFunctionCallArgs() ||
           BridgeFunctionCallEnd() ||
           BridgeFunctionEmit() ||

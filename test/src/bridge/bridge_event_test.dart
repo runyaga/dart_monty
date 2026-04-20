@@ -48,14 +48,14 @@ void main() {
       expect(event.exception, isNull);
     });
 
-    test('BridgeStepStarted stores stepId', () {
-      const event = BridgeStepStarted(stepId: 's1');
-      expect(event.stepId, 's1');
+    test('BridgeCallStarted stores callId', () {
+      const event = BridgeCallStarted(callId: 'c1');
+      expect(event.callId, 'c1');
     });
 
-    test('BridgeStepFinished stores stepId', () {
-      const event = BridgeStepFinished(stepId: 's1');
-      expect(event.stepId, 's1');
+    test('BridgeCallFinished stores callId', () {
+      const event = BridgeCallFinished(callId: 'c1');
+      expect(event.callId, 'c1');
     });
 
     test('BridgeFunctionCallStart stores callId and name', () {

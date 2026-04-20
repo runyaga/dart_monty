@@ -291,13 +291,13 @@ Map<String, dynamic> _eventToMap(BridgeEvent event) {
       'message': message,
       if (printOutput != null) 'printOutput': printOutput,
     },
-    BridgeStepStarted(:final stepId) => {
-      'type': 'StepStarted',
-      'stepId': stepId,
+    BridgeCallStarted(:final callId) => {
+      'type': 'CallStarted',
+      'callId': callId,
     },
-    BridgeStepFinished(:final stepId) => {
-      'type': 'StepFinished',
-      'stepId': stepId,
+    BridgeCallFinished(:final callId) => {
+      'type': 'CallFinished',
+      'callId': callId,
     },
     BridgeFunctionCallStart(:final callId, :final name) => {
       'type': 'ToolCallStart',

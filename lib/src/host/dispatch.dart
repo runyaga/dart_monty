@@ -59,7 +59,7 @@ Future<Object?> _invoke(
 /// `BridgeFunctionCallArgs`/`BridgeFunctionCallEnd` events on success.
 ///
 /// Returns the validated arg map, or `null` when validation fails (the
-/// `BridgeFunctionCallResult`/`BridgeStepFinished` error events are already
+/// `BridgeFunctionCallResult`/`BridgeCallFinished` error events are already
 /// emitted and the caller must call `resumeWithError`). The `FormatException`
 /// message is written to `resumeError` on failure.
 ///
@@ -83,7 +83,7 @@ Map<String, Object?>? _validateToolCallArgs(
     );
     controller
       ..add(BridgeFunctionCallResult(callId: callId, result: 'Error: $e'))
-      ..add(BridgeStepFinished(stepId: stepName));
+      ..add(BridgeCallFinished(callId: callId));
     setResumeError(e.toString());
 
     return null;
@@ -95,7 +95,7 @@ Map<String, Object?>? _validateToolCallArgs(
   return args;
 }
 
-/// Emits [BridgeFunctionCallResult] + [BridgeStepFinished] for a handler error
+/// Emits [BridgeFunctionCallResult] + [BridgeCallFinished] for a handler error
 /// and returns `platform.resumeWithError`.
 Future<MontyProgress> _emitToolCallError(
   String callId,
@@ -106,7 +106,7 @@ Future<MontyProgress> _emitToolCallError(
 ) {
   controller
     ..add(BridgeFunctionCallResult(callId: callId, result: 'Error: $error'))
-    ..add(BridgeStepFinished(stepId: stepName));
+    ..add(BridgeCallFinished(callId: callId));
 
   return platform.resumeWithError(error);
 }
@@ -292,7 +292,7 @@ class HostDispatch {
     final stepName = pending.functionName;
 
     controller
-      ..add(BridgeStepStarted(stepId: stepName))
+      ..add(BridgeCallStarted(callId: callId))
       ..add(BridgeFunctionCallStart(callId: callId, name: stepName));
 
     var resumeError = '';
@@ -333,7 +333,7 @@ class HostDispatch {
           result: result?.toString() ?? '',
         ),
       )
-      ..add(BridgeStepFinished(stepId: stepName));
+      ..add(BridgeCallFinished(callId: callId));
 
     return _platform.resume(result);
   }
@@ -352,7 +352,7 @@ class HostDispatch {
     final stepName = pending.functionName;
 
     controller
-      ..add(BridgeStepStarted(stepId: stepName))
+      ..add(BridgeCallStarted(callId: callId))
       ..add(BridgeFunctionCallStart(callId: callId, name: stepName));
 
     var resumeError = '';
@@ -425,7 +425,7 @@ class HostDispatch {
               result: value?.toString() ?? '',
             ),
           )
-          ..add(BridgeStepFinished(stepId: pending.stepName));
+          ..add(BridgeCallFinished(callId: pending.bridgeCallId));
       } on Object catch (e) {
         errors[id] = e.toString();
         controller
@@ -435,7 +435,7 @@ class HostDispatch {
               result: 'Error: $e',
             ),
           )
-          ..add(BridgeStepFinished(stepId: pending.stepName));
+          ..add(BridgeCallFinished(callId: pending.bridgeCallId));
       }
     }
 

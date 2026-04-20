@@ -70,22 +70,22 @@ class BridgeRunError extends BridgeEvent {
   final MontyException? exception;
 }
 
-/// A host function call step started.
-class BridgeStepStarted extends BridgeEvent {
-  /// Creates a [BridgeStepStarted].
-  const BridgeStepStarted({required this.stepId});
+/// A host function call started (wraps start through result).
+class BridgeCallStarted extends BridgeEvent {
+  /// Creates a [BridgeCallStarted].
+  const BridgeCallStarted({required this.callId});
 
-  /// Step identifier.
-  final String stepId;
+  /// Call identifier (matches [BridgeFunctionCallStart.name]).
+  final String callId;
 }
 
-/// A host function call step finished.
-class BridgeStepFinished extends BridgeEvent {
-  /// Creates a [BridgeStepFinished].
-  const BridgeStepFinished({required this.stepId});
+/// A host function call finished (wraps start through result).
+class BridgeCallFinished extends BridgeEvent {
+  /// Creates a [BridgeCallFinished].
+  const BridgeCallFinished({required this.callId});
 
-  /// Step identifier.
-  final String stepId;
+  /// Call identifier (matches [BridgeFunctionCallStart.name]).
+  final String callId;
 }
 
 /// A host function call began (function name known).
