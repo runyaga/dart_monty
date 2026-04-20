@@ -117,21 +117,21 @@ void main() {
         var r = await session.execute('''
 results = [sync_fn() for _ in range(10)]
 len(results)
-''');
+''').result;
         expect(r.value.dartValue, 10);
         print('  A1. sync × 10: PASS');
 
         r = await session.execute('''
 results = [delay_fn() for _ in range(5)]
 len(results)
-''');
+''').result;
         expect(r.value.dartValue, 5);
         print('  A2. delay × 5: PASS');
 
         r = await session.execute('''
 results = [http_fn() for _ in range(3)]
 len(results)
-''');
+''').result;
         expect(r.value.dartValue, 3);
         print('  A3. http × 3: PASS');
 
@@ -140,39 +140,39 @@ r1 = sync_fn()
 r2 = delay_fn()
 r3 = http_fn()
 [r1, r2, len(r3)]
-''');
+''').result;
         expect(r.value.dartValue, isA<List<dynamic>>());
         print('  A4. mixed sync+delay+http: PASS');
 
         r = await session.execute('''
 kv_set("name", "alice")
 kv_get("name")
-''');
+''').result;
         expect(r.value.dartValue, 'alice');
         print('  A5. kv_set+kv_get: PASS');
 
         // ── B. State persistence ─────────────────────────────────────
 
-        await session.execute('x = sync_fn()');
-        r = await session.execute('x');
+        await session.execute('x = sync_fn()').result;
+        r = await session.execute('x').result;
         expect(r.value.dartValue, 'sync_ok');
         print('  B1. state persists (sync): PASS');
 
-        await session.execute('hdata = http_fn()');
-        r = await session.execute('len(hdata)');
+        await session.execute('hdata = http_fn()').result;
+        r = await session.execute('len(hdata)').result;
         expect(r.value.dartValue as int, greaterThan(0));
         print('  B2. state persists (http): PASS');
 
-        await session.execute('items = []');
-        await session.execute('items.append("a")');
-        await session.execute('items.append("b")');
-        r = await session.execute('len(items)');
+        await session.execute('items = []').result;
+        await session.execute('items.append("a")').result;
+        await session.execute('items.append("b")').result;
+        r = await session.execute('len(items)').result;
         expect(r.value.dartValue, 2);
         print('  B3. list accumulation: PASS');
 
-        await session.execute('safe_val = 42');
-        await session.execute('1/0');
-        r = await session.execute('safe_val');
+        await session.execute('safe_val = 42').result;
+        await session.execute('1/0').result;
+        r = await session.execute('safe_val').result;
         expect(r.value.dartValue, 42);
         print('  B4. error recovery: PASS');
 
@@ -184,7 +184,7 @@ kv_set("k1", "v1")
 b = kv_get("k1")
 c = delay_fn()
 [a, b, c]
-''');
+''').result;
         expect(r.value.dartValue, ['sync_ok', 'v1', 'delay_ok']);
         print('  C1. sync+kv+delay: PASS');
 
@@ -193,7 +193,7 @@ a = sync_fn()
 kv_set("url_data", http_fn())
 b = kv_get("url_data")
 [a, len(b)]
-''');
+''').result;
         expect(r.value.dartValue, isA<List<dynamic>>());
         print('  C2. sync+kv+http: PASS');
 
@@ -204,7 +204,7 @@ r3 = http_fn()
 kv_set("all", r1 + "_" + r2)
 r4 = kv_get("all")
 [r1, r2, len(r3), r4]
-''');
+''').result;
         final c3 = r.value.dartValue as List;
         expect(c3[0], 'sync_ok');
         expect(c3[3], 'sync_ok_delay_ok');
@@ -214,7 +214,7 @@ r4 = kv_get("all")
 
         r = await session.execute(
           'tmpl_render("Hello {{ n }}!", {"n": "World"})',
-        );
+        ).result;
         expect(r.value.dartValue, 'Hello World!');
         print('  D1. template: PASS');
 
@@ -224,7 +224,7 @@ msg_send("ch1", "world")
 r1 = msg_recv("ch1")
 r2 = msg_recv("ch1")
 [r1, r2]
-''');
+''').result;
         expect(r.value.dartValue, ['hello', 'world']);
         print('  D2. msgbus: PASS');
 
@@ -233,7 +233,7 @@ a = sync_fn()
 b = tmpl_render("R: {{ v }}", {"v": a})
 msg_send("res", b)
 msg_recv("res")
-''');
+''').result;
         expect(r.value.dartValue, 'R: sync_ok');
         print('  D3. template+msgbus+sync: PASS');
 
@@ -242,7 +242,7 @@ data = http_fn()
 rendered = tmpl_render("Got {{ n }}", {"n": len(data)})
 msg_send("log", rendered)
 msg_recv("log")
-''');
+''').result;
         expect(r.value.dartValue as String, startsWith('Got '));
         print('  D4. template+msgbus+http: PASS');
 
@@ -256,7 +256,7 @@ e = tmpl_render("{{ a }}-{{ b }}", {"a": a, "b": b})
 msg_send("ch", e)
 f = msg_recv("ch")
 [a, b, len(c), d, e, f]
-''');
+''').result;
         final d5 = r.value.dartValue as List;
         expect(d5[0], 'sync_ok');
         expect(d5[4], 'sync_ok-delay_ok');
@@ -268,7 +268,7 @@ f = msg_recv("ch")
 from pathlib import Path
 Path("/out.txt").write_text(sync_fn())
 Path("/out.txt").read_text()
-''');
+''').result;
         expect(r.value.dartValue, 'sync_ok');
         print('  E1. fs write+read: PASS');
 
@@ -277,7 +277,7 @@ from pathlib import Path
 data = http_fn()
 Path("/data.json").write_text(data)
 len(Path("/data.json").read_text())
-''');
+''').result;
         expect(r.value.dartValue as int, greaterThan(0));
         print('  E2. http→fs: PASS');
 
@@ -290,29 +290,29 @@ msg_send("log2", rendered)
 log = msg_recv("log2")
 saved = Path("/raw.txt").read_text()
 [log, len(saved)]
-''');
+''').result;
         final e3 = r.value.dartValue as List;
         expect(e3[0] as String, startsWith('Saved '));
         print('  E3. fs+template+msgbus+http: PASS');
 
         // ── F. Edge cases ────────────────────────────────────────────
 
-        r = await session.execute('"x" * 100000');
+        r = await session.execute('"x" * 100000').result;
         expect((r.value.dartValue as String).length, 100000);
         print('  F1. large string (100K): PASS');
 
-        r = await session.execute('list(range(1000))');
+        r = await session.execute('list(range(1000))').result;
         expect((r.value.dartValue as List).length, 1000);
         print('  F2. large list (1000): PASS');
 
-        r = await session.execute('{"a": {"b": {"c": 42}}}');
+        r = await session.execute('{"a": {"b": {"c": 42}}}').result;
         expect(
           ((r.value.dartValue as Map)['a'] as Map)['b'],
           {'c': 42},
         );
         print('  F3. nested dict: PASS');
 
-        r = await session.execute('print("hello")');
+        r = await session.execute('print("hello")').result;
         expect(r.printOutput, contains('hello'));
         print('  F4. print capture: PASS');
 
@@ -321,7 +321,7 @@ results = []
 for i in range(5):
     results.append(len(http_fn()))
 results
-''');
+''').result;
         expect((r.value.dartValue as List).length, 5);
         print('  F5. http × 5 loop: PASS');
 

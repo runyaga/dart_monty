@@ -104,7 +104,7 @@ void main() {
       final s = MontyRuntime()..register(syncFn());
       addTearDown(s.dispose);
       for (var i = 0; i < 20; i++) {
-        final r = await s.execute('sync_fn()');
+        final r = await s.execute('sync_fn()').result;
         expect(r.value.dartValue, 'sync_ok');
       }
       print('  G1: 20/20 sync');
@@ -116,7 +116,7 @@ void main() {
         final s = MontyRuntime()..register(delayFn());
         addTearDown(s.dispose);
         for (var i = 0; i < 10; i++) {
-          final r = await s.execute('delay_fn()');
+          final r = await s.execute('delay_fn()').result;
           expect(r.value.dartValue, 'delay_ok');
         }
         print('  G2: 10/10 delay');
@@ -131,7 +131,7 @@ void main() {
         addTearDown(s.dispose);
         var passed = 0;
         for (var i = 0; i < 10; i++) {
-          final r = await s.execute('http_fn()');
+          final r = await s.execute('http_fn()').result;
           if (r.value.dartValue != null) passed++;
         }
         print('  G3: $passed/10 http');
@@ -144,7 +144,7 @@ void main() {
       final s = MontyRuntime()..register(counterFn());
       addTearDown(s.dispose);
       for (var i = 1; i <= 5; i++) {
-        final r = await s.execute('counter()');
+        final r = await s.execute('counter()').result;
         expect(r.value.dartValue, i);
       }
       print('  G4: counter 1→5');
@@ -153,9 +153,9 @@ void main() {
     test('G5. accum host fn builds up across execute calls', () async {
       final s = MontyRuntime()..register(accumFn());
       addTearDown(s.dispose);
-      await s.execute('accum("a")');
-      await s.execute('accum("b")');
-      final r = await s.execute('accum("c")');
+      await s.execute('accum("a")').result;
+      await s.execute('accum("b")').result;
+      final r = await s.execute('accum("c")').result;
       print('  G5: accum count = ${r.value.dartValue}');
       expect(r.value.dartValue, 3);
     });
@@ -163,11 +163,11 @@ void main() {
     test('G6. state accumulation: build list across 10 calls', () async {
       final s = MontyRuntime()..register(syncFn());
       addTearDown(s.dispose);
-      await s.execute('items = []');
+      await s.execute('items = []').result;
       for (var i = 0; i < 10; i++) {
-        await s.execute('items.append(sync_fn() + "_$i")');
+        await s.execute('items.append(sync_fn() + "_$i")').result;
       }
-      final r = await s.execute('len(items)');
+      final r = await s.execute('len(items)').result;
       print('  G6: ${r.value.dartValue} items');
       expect(r.value.dartValue, 10);
     });
@@ -175,9 +175,9 @@ void main() {
     test('G7. error recovery: bad call then good call', () async {
       final s = MontyRuntime()..register(syncFn());
       addTearDown(s.dispose);
-      await s.execute('x = 42');
-      await s.execute('1/0'); // error
-      final r = await s.execute('x');
+      await s.execute('x = 42').result;
+      await s.execute('1/0').result; // error
+      final r = await s.execute('x').result;
       print('  G7: x = ${r.value.dartValue} (survived error)');
       expect(r.value.dartValue, 42);
     });
@@ -189,9 +189,9 @@ void main() {
           ..register(syncFn())
           ..register(httpFn());
         addTearDown(s.dispose);
-        await s.execute('data = http_fn()');
-        await s.execute('1/0'); // error
-        final r = await s.execute('len(data)');
+        await s.execute('data = http_fn()').result;
+        await s.execute('1/0').result; // error
+        final r = await s.execute('len(data)').result;
         print('  G8: len(data) = ${r.value.dartValue}');
         expect(r.value.dartValue as int, greaterThan(0));
       },
@@ -207,11 +207,11 @@ void main() {
     test('H1. Template across 5 execute calls', () async {
       final s = MontyRuntime(plugins: [JinjaTemplatePlugin()]);
       addTearDown(s.dispose);
-      await s.execute('name = "World"');
-      await s.execute('greeting = tmpl_render("Hi {{n}}", {"n": name})');
-      await s.execute('name = "Alice"');
-      await s.execute('greeting2 = tmpl_render("Hi {{n}}", {"n": name})');
-      final r = await s.execute('[greeting, greeting2]');
+      await s.execute('name = "World"').result;
+      await s.execute('greeting = tmpl_render("Hi {{n}}", {"n": name})').result;
+      await s.execute('name = "Alice"').result;
+      await s.execute('greeting2 = tmpl_render("Hi {{n}}", {"n": name})').result;
+      final r = await s.execute('[greeting, greeting2]').result;
       print('  H1: ${r.value.dartValue}');
       expect(r.value.dartValue, ['Hi World', 'Hi Alice']);
     });
@@ -219,10 +219,10 @@ void main() {
     test('H2. MessageBus across execute calls', () async {
       final s = MontyRuntime(plugins: [MessageBusPlugin()]);
       addTearDown(s.dispose);
-      await s.execute('msg_send("q", "first")');
-      await s.execute('msg_send("q", "second")');
-      final r1 = await s.execute('msg_recv("q")');
-      final r2 = await s.execute('msg_recv("q")');
+      await s.execute('msg_send("q", "first")').result;
+      await s.execute('msg_send("q", "second")').result;
+      final r1 = await s.execute('msg_recv("q")').result;
+      final r2 = await s.execute('msg_recv("q")').result;
       print('  H2: ${r1.value.dartValue}, ${r2.value.dartValue}');
       expect(r1.value.dartValue, 'first');
       expect(r2.value.dartValue, 'second');
@@ -237,14 +237,14 @@ void main() {
       await s.execute('''
 from pathlib import Path
 Path("/data.txt").write_text("hello")
-''');
+''').result;
       await s.execute('''
 from pathlib import Path
 content = Path("/data.txt").read_text()
-''');
+''').result;
       final r = await s.execute(
         'tmpl_render("File has: {{c}}", {"c": content})',
-      );
+      ).result;
       print('  H3: ${r.value.dartValue}');
       expect(r.value.dartValue, 'File has: hello');
     });
@@ -256,12 +256,12 @@ content = Path("/data.txt").read_text()
           plugins: [JinjaTemplatePlugin(), MessageBusPlugin()],
         )..register(httpFn());
         addTearDown(s.dispose);
-        await s.execute('data = http_fn()');
+        await s.execute('data = http_fn()').result;
         await s.execute(
           'report = tmpl_render("Got {{n}} bytes", {"n": len(data)})',
-        );
-        await s.execute('msg_send("log", report)');
-        final r = await s.execute('msg_recv("log")');
+        ).result;
+        await s.execute('msg_send("log", report)').result;
+        final r = await s.execute('msg_recv("log")').result;
         print('  H4: ${r.value.dartValue}');
         expect(r.value.dartValue as String, startsWith('Got '));
       },
@@ -275,11 +275,11 @@ content = Path("/data.txt").read_text()
           ..register(httpFn())
           ..register(counterFn());
         addTearDown(s.dispose);
-        await s.execute('http_fn()');
-        await s.execute('c1 = counter()');
-        await s.execute('http_fn()');
-        await s.execute('c2 = counter()');
-        final r = await s.execute('[c1, c2]');
+        await s.execute('http_fn()').result;
+        await s.execute('c1 = counter()').result;
+        await s.execute('http_fn()').result;
+        await s.execute('c2 = counter()').result;
+        final r = await s.execute('[c1, c2]').result;
         print('  H5: ${r.value.dartValue}');
         expect(r.value.dartValue, [1, 2]);
       },
@@ -326,17 +326,17 @@ content = Path("/data.txt").read_text()
               );
         addTearDown(s.dispose);
 
-        await s.execute('data = http_fn()');
+        await s.execute('data = http_fn()').result;
         await s.execute('''
 from pathlib import Path
 Path("/cache.txt").write_text(data)
-''');
-        await s.execute('kv_set("cached", "true")');
+''').result;
+        await s.execute('kv_set("cached", "true")').result;
         await s.execute('''
 from pathlib import Path
 cached = Path("/cache.txt").read_text()
-''');
-        final r = await s.execute('[kv_get("cached"), len(cached)]');
+''').result;
+        final r = await s.execute('[kv_get("cached"), len(cached)]').result;
         print('  H6: ${r.value.dartValue}');
         final list = r.value.dartValue as List;
         expect(list[0], 'true');
@@ -354,21 +354,21 @@ cached = Path("/cache.txt").read_text()
     test('I1. empty execute', () async {
       final s = MontyRuntime();
       addTearDown(s.dispose);
-      final r = await s.execute('pass');
+      final r = await s.execute('pass').result;
       print('  I1: ${r.value.dartValue} (None)');
     });
 
     test('I2. execute with only comments', () async {
       final s = MontyRuntime();
       addTearDown(s.dispose);
-      final r = await s.execute('# just a comment');
+      final r = await s.execute('# just a comment').result;
       print('  I2: ${r.value.dartValue}');
     });
 
     test('I3. large string return', () async {
       final s = MontyRuntime();
       addTearDown(s.dispose);
-      final r = await s.execute('"x" * 100000');
+      final r = await s.execute('"x" * 100000').result;
       final v = r.value.dartValue as String;
       print('  I3: ${v.length} chars');
       expect(v.length, 100000);
@@ -377,7 +377,7 @@ cached = Path("/cache.txt").read_text()
     test('I4. large list return', () async {
       final s = MontyRuntime();
       addTearDown(s.dispose);
-      final r = await s.execute('list(range(1000))');
+      final r = await s.execute('list(range(1000))').result;
       final v = r.value.dartValue as List;
       print('  I4: ${v.length} items');
       expect(v.length, 1000);
@@ -386,7 +386,7 @@ cached = Path("/cache.txt").read_text()
     test('I5. nested dict return', () async {
       final s = MontyRuntime();
       addTearDown(s.dispose);
-      final r = await s.execute('{"a": {"b": {"c": 42}}}');
+      final r = await s.execute('{"a": {"b": {"c": 42}}}').result;
       final v = r.value.dartValue as Map;
       print('  I5: $v');
       expect((v['a'] as Map)['b'], {'c': 42});
@@ -407,7 +407,7 @@ cached = Path("/cache.txt").read_text()
       final r = await s.execute('''
 x = returns_none()
 x is None
-''');
+''').result;
       print('  I6: ${r.value.dartValue}');
       expect(r.value.dartValue, true);
     });
@@ -424,7 +424,7 @@ x is None
           ),
         );
       addTearDown(s.dispose);
-      final r = await s.execute('len(big_string())');
+      final r = await s.execute('len(big_string())').result;
       print('  I7: ${r.value.dartValue}');
       expect(r.value.dartValue, 50000);
     });
@@ -448,7 +448,7 @@ try:
 except Exception as e:
     result = "caught"
 result
-''');
+''').result;
       print('  I8: ${r.value.dartValue}');
       expect(r.value.dartValue, 'caught');
     });
@@ -456,7 +456,7 @@ result
     test('I9. print output captured', () async {
       final s = MontyRuntime();
       addTearDown(s.dispose);
-      final r = await s.execute('print("hello from monty")');
+      final r = await s.execute('print("hello from monty")').result;
       print('  I9: printOutput = "${r.printOutput}"');
       expect(r.printOutput, contains('hello from monty'));
     });
@@ -464,8 +464,8 @@ result
     test('I10. multiple prints across execute calls', () async {
       final s = MontyRuntime();
       addTearDown(s.dispose);
-      final r1 = await s.execute('print("line1")');
-      final r2 = await s.execute('print("line2")');
+      final r1 = await s.execute('print("line1")').result;
+      final r2 = await s.execute('print("line2")').result;
       print('  I10: "${r1.printOutput}" / "${r2.printOutput}"');
       expect(r1.printOutput, contains('line1'));
       expect(r2.printOutput, contains('line2'));

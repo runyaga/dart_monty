@@ -7,6 +7,7 @@ library;
 export 'src/bridge_event.dart';
 export 'src/bridge_logger.dart';
 export 'src/default_monty_bridge.dart';
+export 'src/execution_handle.dart';
 export 'src/host_context.dart';
 export 'src/host_function.dart';
 export 'src/host_function_schema.dart';

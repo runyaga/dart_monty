@@ -54,13 +54,13 @@ void main() {
         // Create and dispose 5 sessions to trigger GC finalizer race.
         for (var i = 0; i < 5; i++) {
           final s = MontyRuntime()..register(_syncFn());
-          await s.execute('sync_fn()');
+          await s.execute('sync_fn()').result;
           await s.dispose();
         }
 
         // 6th session with HTTP — crashed before the fix.
         final s = MontyRuntime()..register(_httpFn());
-        final r = await s.execute('http_fn()');
+        final r = await s.execute('http_fn()').result;
         await s.dispose();
         print('  result: ${r.value.dartValue}');
         expect(r.value.dartValue, isA<String>());
@@ -73,7 +73,7 @@ void main() {
       () async {
         for (var i = 0; i < 10; i++) {
           final s = MontyRuntime()..register(_httpFn());
-          final r = await s.execute('http_fn()');
+          final r = await s.execute('http_fn()').result;
           await s.dispose();
           expect(r.value.dartValue, isA<String>());
         }
@@ -90,9 +90,9 @@ void main() {
             ..register(_syncFn())
             ..register(_httpFn());
           if (i.isEven) {
-            await s.execute('sync_fn()');
+            await s.execute('sync_fn()').result;
           } else {
-            await s.execute('http_fn()');
+            await s.execute('http_fn()').result;
           }
           await s.dispose();
         }
@@ -112,7 +112,7 @@ void main() {
 
         // Then one real session with HTTP.
         final s = MontyRuntime()..register(_httpFn());
-        final r = await s.execute('http_fn()');
+        final r = await s.execute('http_fn()').result;
         await s.dispose();
         print('  survived 20 rapid dispose + 1 HTTP');
         expect(r.value.dartValue, isA<String>());
@@ -125,7 +125,7 @@ void main() {
       () async {
         final s = MontyRuntime(sandbox: true)..register(_httpFn());
         for (var i = 0; i < 10; i++) {
-          final r = await s.execute('http_fn()');
+          final r = await s.execute('http_fn()').result;
           expect(r.value.dartValue, isA<String>());
         }
         await s.dispose();

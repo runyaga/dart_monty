@@ -24,52 +24,52 @@ void main() {
     });
 
     test('simple expression', () async {
-      final result = await session.execute('2 + 2');
+      final result = await session.execute('2 + 2').result;
 
       expect(result.value.dartValue, 4);
     });
 
     test('variables persist across execute() calls', () async {
-      await session.execute('x = 42');
-      await session.execute('y = x * 2');
-      final result = await session.execute('x + y');
+      await session.execute('x = 42').result;
+      await session.execute('y = x * 2').result;
+      final result = await session.execute('x + y').result;
 
       expect(result.value.dartValue, 126);
     });
 
     test('string variables persist', () async {
-      await session.execute('name = "monty"');
-      final result = await session.execute('name.upper()');
+      await session.execute('name = "monty"').result;
+      final result = await session.execute('name.upper()').result;
 
       expect(result.value.dartValue, 'MONTY');
     });
 
     test('list variables persist', () async {
-      await session.execute('data = [1, 2, 3]');
-      await session.execute('data.append(4)');
-      final result = await session.execute('sum(data)');
+      await session.execute('data = [1, 2, 3]').result;
+      await session.execute('data.append(4)').result;
+      final result = await session.execute('sum(data)').result;
 
       expect(result.value.dartValue, 10);
     });
 
     test('dict variables persist', () async {
-      await session.execute('config = {"debug": True, "level": 5}');
-      final result = await session.execute('config["debug"]');
+      await session.execute('config = {"debug": True, "level": 5}').result;
+      final result = await session.execute('config["debug"]').result;
 
       expect(result.value.dartValue, true);
     });
 
     test('clearState() resets all variables', () async {
-      await session.execute('x = 42');
+      await session.execute('x = 42').result;
       session.clearState();
-      final result = await session.execute('x');
+      final result = await session.execute('x').result;
 
       expect(result.error, isNotNull);
     });
 
     test('multiple types in state', () async {
-      await session.execute('a = 1; b = 2.5; c = "hello"; d = True');
-      final result = await session.execute('[a, b, c, d]');
+      await session.execute('a = 1; b = 2.5; c = "hello"; d = True').result;
+      final result = await session.execute('[a, b, c, d]').result;
 
       expect(result.value.dartValue, [1, 2.5, 'hello', true]);
     });
@@ -78,19 +78,19 @@ void main() {
     // captureLastExpression wrapped `x += 1` as `__r = (x += 1)` — invalid
     // Python.
     test('augmented assignment (x += 1) does not error', () async {
-      await session.execute('x = 10');
-      final result = await session.execute('x += 1');
+      await session.execute('x = 10').result;
+      final result = await session.execute('x += 1').result;
 
       expect(result.error, isNull);
-      final val = await session.execute('x');
+      final val = await session.execute('x').result;
       expect(val.value.dartValue, 11);
     });
 
     // Regression: functions were previously coerced to their string repr by the
     // persist→restore round-trip and became NameError on the second call.
     test('function defined in one call callable in next', () async {
-      await session.execute('def add(a, b): return a + b');
-      final result = await session.execute('add(3, 4)');
+      await session.execute('def add(a, b): return a + b').result;
+      final result = await session.execute('add(3, 4)').result;
 
       expect(result.error, isNull);
       expect(result.value.dartValue, 7);
@@ -120,7 +120,7 @@ void main() {
         ),
       );
 
-      final result = await session.execute('double_it(21)');
+      final result = await session.execute('double_it(21)').result;
 
       expect(result.value.dartValue, 42);
     });
@@ -136,8 +136,8 @@ void main() {
         ),
       );
 
-      await session.execute('data = get_data()');
-      final result = await session.execute('sum(data)');
+      await session.execute('data = get_data()').result;
+      final result = await session.execute('sum(data)').result;
 
       expect(result.value.dartValue, 15);
     });
@@ -184,11 +184,11 @@ void main() {
       await session.execute(
         'from pathlib import Path\n'
         'Path("/data/test.txt").write_text("hello from agent")',
-      );
+      ).result;
       final result = await session.execute(
         'from pathlib import Path\n'
         'Path("/data/test.txt").read_text()',
-      );
+      ).result;
 
       expect(result.value.dartValue, 'hello from agent');
     });
@@ -198,18 +198,18 @@ void main() {
         'from pathlib import Path\n'
         'Path("/data").mkdir(parents=True, exist_ok=True)\n'
         'Path("/data/counter.txt").write_text("0")',
-      );
+      ).result;
 
       await session.execute(
         'from pathlib import Path\n'
         'n = int(Path("/data/counter.txt").read_text())\n'
         'Path("/data/counter.txt").write_text(str(n + 1))',
-      );
+      ).result;
 
       final result = await session.execute(
         'from pathlib import Path\n'
         'int(Path("/data/counter.txt").read_text())',
-      );
+      ).result;
 
       expect(result.value.dartValue, 1);
     });
@@ -220,7 +220,7 @@ void main() {
       final result = await session.execute(
         'from datetime import date\n'
         'date.today().year >= 2024',
-      );
+      ).result;
 
       expect(result.value.dartValue, true);
     });
@@ -238,15 +238,15 @@ void main() {
     });
 
     test('Python error returns error result', () async {
-      final result = await session.execute('1 / 0');
+      final result = await session.execute('1 / 0').result;
 
       expect(result.error, isNotNull);
     });
 
     test('error does not break state', () async {
-      await session.execute('x = 42');
-      await session.execute('1 / 0'); // error, but x should survive
-      final result = await session.execute('x');
+      await session.execute('x = 42').result;
+      await session.execute('1 / 0').result; // error, but x should survive
+      final result = await session.execute('x').result;
 
       expect(result.value.dartValue, 42);
     });
@@ -273,7 +273,7 @@ void main() {
     });
 
     test('simple expression', () async {
-      final result = await session.execute('2 + 2');
+      final result = await session.execute('2 + 2').result;
 
       expect(result.value.dartValue, 4);
     });
@@ -285,8 +285,8 @@ void main() {
     // Sandbox mode creates a fresh MontyRepl per execute() call — state does
     // NOT persist between calls (no restore/persist serialization).
     test('each execute() is isolated — variables do not carry over', () async {
-      await session.execute('x = 42');
-      final result = await session.execute('x + 1');
+      await session.execute('x = 42').result;
+      final result = await session.execute('x + 1').result;
 
       // x is not defined in the second fresh interpreter; expect an error.
       expect(result.error, isNotNull);
@@ -295,8 +295,8 @@ void main() {
     test(
       'consecutive calls each run in an independent fresh interpreter',
       () async {
-        final r1 = await session.execute('2 + 2');
-        final r2 = await session.execute('3 + 3');
+        final r1 = await session.execute('2 + 2').result;
+        final r2 = await session.execute('3 + 3').result;
 
         expect(r1.value.dartValue, 4);
         expect(r2.value.dartValue, 6);
@@ -320,7 +320,7 @@ void main() {
         ),
       );
 
-      final result = await session.execute('double_it(21)');
+      final result = await session.execute('double_it(21)').result;
 
       expect(result.value.dartValue, 42);
     });
@@ -338,13 +338,13 @@ void main() {
       );
 
       // Both the call and the result access are in the same execute() call.
-      final result = await session.execute('greet("World")');
+      final result = await session.execute('greet("World")').result;
 
       expect(result.value.dartValue, 'Hello, World!');
     });
 
     test('clearState() is a no-op — sandbox already starts fresh', () async {
-      await session.execute('x = 99');
+      await session.execute('x = 99').result;
       session.clearState(); // no-op in sandbox mode
       // x was never going to be visible in a fresh interpreter anyway
       final result = await session.execute('''
@@ -353,30 +353,23 @@ try:
 except NameError:
     result = "gone"
 result
-''');
+''').result;
 
       expect(result.value.dartValue, 'gone');
     });
 
     test('Python error in one call does not affect the next call', () async {
-      final errResult = await session.execute('1 / 0');
+      final errResult = await session.execute('1 / 0').result;
       expect(errResult.error, isNotNull);
 
       // Next call is a clean interpreter — basic arithmetic works.
-      final result = await session.execute('1 + 1');
+      final result = await session.execute('1 + 1').result;
       expect(result.value.dartValue, 2);
-    });
-
-    test('executeStream throws in sandbox mode', () {
-      expect(
-        () => session.executeStream('1 + 1'),
-        throwsUnsupportedError,
-      );
     });
 
     test('many sequential execute() calls work', () async {
       for (var i = 0; i < 10; i++) {
-        final r = await session.execute('$i * 2');
+        final r = await session.execute('$i * 2').result;
         expect(r.value.dartValue, i * 2);
       }
     });
@@ -392,7 +385,7 @@ result
       final plugin = _TrackingPlugin();
       final session = MontyRuntime(plugins: [plugin]);
 
-      await session.execute('pass'); // triggers attachTo
+      await session.execute('pass').result; // triggers attachTo
       await session.dispose();
 
       expect(
@@ -427,10 +420,10 @@ result
         final session = MontyRuntime(sandbox: true, plugins: [plugin]);
         addTearDown(session.dispose);
 
-        await session.execute('pass');
+        await session.execute('pass').result;
         expect(plugin.disposeCount, 1);
 
-        await session.execute('pass');
+        await session.execute('pass').result;
         expect(
           plugin.disposeCount,
           2,
@@ -448,7 +441,7 @@ result
         final session = MontyRuntime(sandbox: true, plugins: [plugin]);
         addTearDown(session.dispose);
 
-        await session.execute('raise ValueError("boom")');
+        await session.execute('raise ValueError("boom")').result;
 
         expect(
           plugin.disposeCount,
@@ -460,13 +453,13 @@ result
   });
 
   group('MontyRuntime event streaming', () {
-    test('executeStream emits events', () async {
+    test('execute().events emits events', () async {
       final session = MontyRuntime();
 
       // First execute to ensure attached
-      await session.execute('pass');
+      await session.execute('pass').result;
 
-      final events = await session.executeStream('2 + 2').toList();
+      final events = await session.execute('2 + 2').events.toList();
 
       expect(events, isNotEmpty);
       expect(events.whereType<BridgeRunFinished>(), hasLength(1));
@@ -474,20 +467,21 @@ result
       await session.dispose();
     });
 
-    test('executeStream attaches plugins without prior execute()', () async {
+    test('execute().events attaches plugins without prior execute()', () async {
       final session = MontyRuntime(
         plugins: [JinjaTemplatePlugin()],
       );
       addTearDown(session.dispose);
 
-      // Call executeStream as the FIRST operation — no prior execute().
+      // Call execute().events as the FIRST operation — no prior .result await.
       // Before the fix, this would fail with "Unknown function: tmpl_render"
-      // because executeStream() skipped _ensureSharedAttached().
+      // because the events-only path skipped _ensureSharedAttached().
       final events = await session
-          .executeStream(
+          .execute(
             'tmpl_render(template="Hello {{ name }}!", '
             'context={"name": "test"})',
           )
+          .events
           .toList();
 
       final finished = events.whereType<BridgeRunFinished>().single;

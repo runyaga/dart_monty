@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:dart_monty/src/bridge_event.dart';
 import 'package:dart_monty/src/bridge_logger.dart';
 import 'package:dart_monty/src/default_monty_bridge.dart';
+import 'package:dart_monty/src/execution_handle.dart';
 import 'package:dart_monty/src/host_dispatch.dart';
 import 'package:dart_monty/src/host_function.dart';
 import 'package:dart_monty/src/host_function_schema.dart';
@@ -123,6 +124,7 @@ class MontyRuntime implements MontyRuntimeRef {
   DefaultMontyBridge? _schemaBridge;
 
   bool _disposed = false;
+  int _nextExecutionId = 0;
   final List<HostFunction> _extraFunctions = [];
   final StreamController<BridgeEvent> _eventsController =
       StreamController<BridgeEvent>.broadcast();
@@ -171,12 +173,17 @@ class MontyRuntime implements MontyRuntimeRef {
 
   /// Executes Python [code] with state persistence and full tool access.
   ///
-  /// Variables defined in [code] persist for subsequent `execute()` calls.
-  /// All registered host functions and plugins are callable from Python.
+  /// Returns an [ExecutionHandle] with the events stream, terminal result
+  /// future, and a cooperative cancel hook. Variables defined in [code]
+  /// persist across subsequent `execute()` calls (shared mode) or are
+  /// discarded after each call (sandbox mode). All registered host
+  /// functions and plugins are callable from Python.
   ///
-  /// In sandbox mode, creates a fresh interpreter per call.
+  /// Wait for completion with `handle.result`; observe events with
+  /// `handle.events.listen(...)` (subscribe synchronously after obtaining
+  /// the handle to see the full sequence).
   @override
-  Future<MontyResult> execute(String code) {
+  ExecutionHandle execute(String code) {
     if (_disposed) throw StateError('MontyRuntime has been disposed');
 
     if (_sandbox) {
@@ -184,21 +191,6 @@ class MontyRuntime implements MontyRuntimeRef {
     }
 
     return _executeShared(code);
-  }
-
-  /// Executes [code] and returns the stream of bridge events.
-  ///
-  /// Only available in shared mode. In sandbox mode, use `execute()`.
-  Stream<BridgeEvent> executeStream(String code) {
-    if (_disposed) throw StateError('MontyRuntime has been disposed');
-    if (_sandbox) {
-      throw UnsupportedError(
-        'executeStream() is not supported in sandbox mode. '
-        'Use execute() instead.',
-      );
-    }
-
-    return _executeStreamShared(code);
   }
 
   /// Clears all persisted Python state.
@@ -249,61 +241,92 @@ class MontyRuntime implements MontyRuntimeRef {
     await _eventsController.close();
   }
 
-  Stream<BridgeEvent> _executeStreamShared(String code) async* {
-    if (!_sharedAttached) {
-      await _sharedRegistry!.attachTo(_sharedBridge!, baseOs: _os);
-      _sharedAttached = true;
-    }
-    await for (final event in _sharedBridge!.execute(code)) {
-      if (!_eventsController.isClosed) _eventsController.add(event);
-      yield event;
-    }
-  }
-
   // ---------------------------------------------------------------------------
   // Shared mode execution
   // ---------------------------------------------------------------------------
 
-  Future<MontyResult> _executeShared(String code) async {
-    if (!_sharedAttached) {
-      await _sharedRegistry!.attachTo(_sharedBridge!, baseOs: _os);
-      _sharedAttached = true;
-    }
-    final events = await _sharedBridge!.execute(code).map((event) {
-      if (!_eventsController.isClosed) _eventsController.add(event);
-      return event;
-    }).toList();
+  ExecutionHandle _executeShared(String code) {
+    final executionId = 'exec-${_nextExecutionId++}';
+    final resultCompleter = Completer<MontyResult>();
+    final controller = StreamController<BridgeEvent>.broadcast();
+    final cancelToken = CancelToken();
 
-    return extractBridgeResult(events, 0);
+    Future<void>.microtask(() async {
+      try {
+        if (!_sharedAttached) {
+          await _sharedRegistry!.attachTo(_sharedBridge!, baseOs: _os);
+          _sharedAttached = true;
+        }
+        final events = <BridgeEvent>[];
+        await for (final event in _sharedBridge!.execute(code)) {
+          events.add(event);
+          if (!_eventsController.isClosed) _eventsController.add(event);
+          if (!controller.isClosed) controller.add(event);
+        }
+        if (!resultCompleter.isCompleted) {
+          resultCompleter.complete(extractBridgeResult(events, 0));
+        }
+      } on Object catch (e, st) {
+        if (!resultCompleter.isCompleted) resultCompleter.completeError(e, st);
+      } finally {
+        if (!controller.isClosed) await controller.close();
+      }
+    });
+
+    return ExecutionHandle(
+      events: controller.stream,
+      result: resultCompleter.future,
+      executionId: executionId,
+      cancel: () async => cancelToken.cancel(),
+    );
   }
 
   // ---------------------------------------------------------------------------
   // Sandbox mode execution
   // ---------------------------------------------------------------------------
 
-  Future<MontyResult> _executeSandboxed(String code) async {
-    final repl = MontyRepl();
-    final platform = ReplPlatform(repl: repl);
-    final b = _buildBridge(platform: platform);
+  ExecutionHandle _executeSandboxed(String code) {
+    final executionId = 'exec-${_nextExecutionId++}';
+    final resultCompleter = Completer<MontyResult>();
+    final controller = StreamController<BridgeEvent>.broadcast();
+    final cancelToken = CancelToken();
 
-    final registry = PluginRegistry();
-    if (_plugins != null) {
-      _plugins.forEach(registry.register);
-    }
-    await registry.attachTo(b, baseOs: _os);
+    Future<void>.microtask(() async {
+      final repl = MontyRepl();
+      final platform = ReplPlatform(repl: repl);
+      final b = _buildBridge(platform: platform);
 
-    try {
-      final events = await b.execute(code).map((event) {
-        if (!_eventsController.isClosed) _eventsController.add(event);
-        return event;
-      }).toList();
+      final registry = PluginRegistry();
+      if (_plugins != null) {
+        _plugins.forEach(registry.register);
+      }
+      try {
+        await registry.attachTo(b, baseOs: _os);
+        final events = <BridgeEvent>[];
+        await for (final event in b.execute(code)) {
+          events.add(event);
+          if (!_eventsController.isClosed) _eventsController.add(event);
+          if (!controller.isClosed) controller.add(event);
+        }
+        if (!resultCompleter.isCompleted) {
+          resultCompleter.complete(extractBridgeResult(events, 0));
+        }
+      } on Object catch (e, st) {
+        if (!resultCompleter.isCompleted) resultCompleter.completeError(e, st);
+      } finally {
+        await registry.disposeAll();
+        b.dispose();
+        await platform.dispose();
+        if (!controller.isClosed) await controller.close();
+      }
+    });
 
-      return extractBridgeResult(events, 0);
-    } finally {
-      await registry.disposeAll();
-      b.dispose();
-      await platform.dispose();
-    }
+    return ExecutionHandle(
+      events: controller.stream,
+      result: resultCompleter.future,
+      executionId: executionId,
+      cancel: () async => cancelToken.cancel(),
+    );
   }
 
   // ---------------------------------------------------------------------------

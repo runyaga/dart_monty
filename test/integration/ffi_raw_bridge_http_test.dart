@@ -88,7 +88,7 @@ void main() {
       final session = MontyRuntime()..register(_httpGetFn());
 
       for (var i = 1; i <= 3; i++) {
-        final result = await session.execute('http_get("$_url")');
+        final result = await session.execute('http_get("$_url")').result;
         print('  session.execute call $i: ${result.value.dartValue}');
         expect(result.value.dartValue, isA<String>());
       }
@@ -104,7 +104,7 @@ void main() {
       final session = MontyRuntime(sandbox: true)..register(_httpGetFn());
 
       for (var i = 1; i <= 3; i++) {
-        final result = await session.execute('http_get("$_url")');
+        final result = await session.execute('http_get("$_url")').result;
         print('  sandbox.execute call $i: ${result.value.dartValue}');
         expect(result.value.dartValue, isA<String>());
       }

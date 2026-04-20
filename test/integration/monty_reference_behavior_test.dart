@@ -54,7 +54,7 @@ void main() {
         // is not introducing a duplicate or conflicting capture path.
         final session = MontyRuntime();
         try {
-          final result = await session.execute('print("hello from bridge")');
+          final result = await session.execute('print("hello from bridge")').result;
           expect(result.printOutput, contains('hello from bridge'));
         } finally {
           await session.dispose();
@@ -74,7 +74,7 @@ void main() {
       // line numbers. This test verifies the adjustment is correct.
       final session = MontyRuntime();
       try {
-        final result = await session.execute('undefined_variable_xyz');
+        final result = await session.execute('undefined_variable_xyz').result;
         expect(result.error, isNotNull);
         expect(result.error!.excType, 'NameError');
         // Line 1 of user code should report as line 1, not line 6
@@ -93,7 +93,7 @@ void main() {
     test('NameError on line 3 of user code reports line 3', () async {
       final session = MontyRuntime();
       try {
-        final result = await session.execute('x = 1\ny = 2\nundefined_xyz');
+        final result = await session.execute('x = 1\ny = 2\nundefined_xyz').result;
         expect(result.error, isNotNull);
         expect(result.error!.lineNumber, 3);
       } finally {
@@ -174,7 +174,7 @@ void main() {
     tearDown(() async => session.dispose());
 
     test('integer param accepts Python int', () async {
-      final result = await session.execute('typed_fn(n=42)');
+      final result = await session.execute('typed_fn(n=42)').result;
       expect(result.error, isNull);
       expect(result.value.dartValue, 42);
     });
@@ -185,7 +185,7 @@ void main() {
       // If the test PASSES (no error), coercion is active.
       // If it FAILS (error returned), coercion was removed and strict
       // typing is enforced — which better matches Monty's raw behavior.
-      final result = await session.execute('typed_fn(n="42")');
+      final result = await session.execute('typed_fn(n="42")').result;
       // Document current behavior:
       if (result.error != null) {
         expect(
@@ -206,7 +206,7 @@ void main() {
     });
 
     test('integer param rejects Python float 1.5', () async {
-      final result = await session.execute('typed_fn(n=1.5)');
+      final result = await session.execute('typed_fn(n=1.5)').result;
       // A float cannot losslessly become an int — should error.
       expect(
         result.error,

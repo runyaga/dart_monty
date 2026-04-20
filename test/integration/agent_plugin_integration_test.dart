@@ -31,7 +31,7 @@ void main() {
     test('tmpl_render with variables', () async {
       final result = await session.execute('''
 tmpl_render(template='Hello {{ name }}!', context={'name': 'Alice'})
-''');
+''').result;
 
       expect(result.value.dartValue, 'Hello Alice!');
     });
@@ -41,7 +41,7 @@ tmpl_render(template='Hello {{ name }}!', context={'name': 'Alice'})
 tmpl_render(
     template='{% for x in items %}{{ x }} {% endfor %}',
     context={'items': ['a', 'b', 'c']})
-''');
+''').result;
 
       expect(result.value.dartValue, 'a b c ');
     });
@@ -51,7 +51,7 @@ tmpl_render(
 tmpl_render(
     template='{% if n > 10 %}big{% else %}small{% endif %}',
     context={'n': 42})
-''');
+''').result;
 
       expect(result.value.dartValue, 'big');
     });
@@ -76,16 +76,16 @@ tmpl_render(
       await session.execute('''
 msg_send(name='ch', message='first')
 msg_send(name='ch', message='second')
-''');
+''').result;
       final result = await session.execute(
         "[msg_recv(name='ch'), msg_recv(name='ch')]",
-      );
+      ).result;
 
       expect(result.value.dartValue, ['first', 'second']);
     });
 
     test('peek returns None when empty', () async {
-      final result = await session.execute("msg_peek(name='empty')");
+      final result = await session.execute("msg_peek(name='empty')").result;
 
       expect(result.value.dartValue, isNull);
     });
@@ -94,8 +94,8 @@ msg_send(name='ch', message='second')
       await session.execute('''
 msg_send(name='q', message=1)
 msg_send(name='q', message=2)
-''');
-      final result = await session.execute("msg_stats(name='q')");
+''').result;
+      final result = await session.execute("msg_stats(name='q')").result;
       final stats = result.value.dartValue! as Map;
 
       expect(stats['send_count'], 2);
@@ -134,7 +134,7 @@ msg_send(name='q', message=2)
       final result = await session.execute('''
 h = sandbox_spawn(code='2 + 3')
 sandbox_await(handle=h)
-''');
+''').result;
 
       expect(result.value.dartValue, 5);
     });
@@ -145,7 +145,7 @@ h1 = sandbox_spawn(code='10')
 h2 = sandbox_spawn(code='20')
 h3 = sandbox_spawn(code='30')
 sandbox_await_all(handles=[h1, h2, h3])
-''');
+''').result;
 
       expect(result.value.dartValue, [10, 20, 30]);
     });
@@ -158,7 +158,7 @@ try:
 except Exception as e:
     r = f'caught: {e}'
 r
-''');
+''').result;
       final val = result.value.dartValue! as String;
 
       expect(val, contains('ZeroDivisionError'));
@@ -169,7 +169,7 @@ r
 h = sandbox_spawn(code='print("hello")\n42')
 sandbox_await(handle=h)
 sandbox_get_output(handle=h)
-''');
+''').result;
 
       expect(result.value.dartValue, contains('hello'));
     });
@@ -181,7 +181,7 @@ r = sandbox_await(handle=h)
 alive = sandbox_is_alive(handle=h)
 sandbox_free(handle=h)
 [r, alive]
-''');
+''').result;
 
       expect(result.value.dartValue, [99, false]);
     });
@@ -218,7 +218,7 @@ sandbox_free(handle=h)
       final result = await session.execute('''
 h = sandbox_spawn(code='tmpl_render(template="Hi {{ who }}!", context={"who": "child"})')
 sandbox_await(handle=h)
-''');
+''').result;
 
       expect(result.value.dartValue, 'Hi child!');
     });
@@ -230,7 +230,7 @@ h = sandbox_spawn(code='task = msg_recv(name="tasks")\nmsg_send(name="results", 
 child_got = sandbox_await(handle=h)
 parent_got = msg_recv(name='results')
 [child_got, parent_got]
-''');
+''').result;
 
       expect(result.value.dartValue, ['do X', 'done: do X']);
     });
@@ -241,7 +241,7 @@ producer = sandbox_spawn(code='for i in range(3):\n    msg_send(name="pipe", mes
 consumer = sandbox_spawn(code='items = []\nfor i in range(3):\n    items.append(msg_recv(name="pipe"))\nitems')
 sandbox_await(handle=producer)
 sandbox_await(handle=consumer)
-''');
+''').result;
       final items = result.value.dartValue! as List;
 
       expect(items, ['item-0', 'item-1', 'item-2']);
@@ -255,7 +255,7 @@ h = sandbox_spawn(code='from pathlib import Path\nPath("/child.txt").write_text(
 child_result = sandbox_await(handle=h)
 parent_file = Path('/parent.txt').read_text()
 [child_result, parent_file]
-''');
+''').result;
 
       expect(result.value.dartValue, ['child data', 'parent data']);
     });

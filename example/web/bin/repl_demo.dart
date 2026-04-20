@@ -43,7 +43,7 @@ late MontyRuntime _session;
 /// Run Python code and return JSON result.
 Future<String> _apiRun(String code) async {
   try {
-    final result = await _session.execute(code);
+    final result = await _session.execute(code).result;
     return jsonEncode(_resultToJson(result));
   } catch (e) {
     return jsonEncode({'ok': false, 'error': e.toString()});
@@ -54,7 +54,7 @@ Future<String> _apiRun(String code) async {
 Future<String> _apiExecute(String code) async {
   try {
     final events = <Map<String, dynamic>>[];
-    await for (final event in _session.executeStream(code)) {
+    await for (final event in _session.execute(code).events) {
       final map = _eventToJson(event);
       if (map != null) {
         events.add(map);

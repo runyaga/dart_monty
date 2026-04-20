@@ -224,7 +224,7 @@ Future<String> _execute(String code) async {
   final events = <Map<String, dynamic>>[];
 
   try {
-    final eventStream = _session!.executeStream(code);
+    final eventStream = _session!.execute(code).events;
     Object? resultValue;
     String? resultError;
     String? printOutput;
