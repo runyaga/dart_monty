@@ -399,9 +399,9 @@ class SandboxExtension extends MontyExtension
   ///
   /// The extension attaches and registers its functions on the WASM backend
   /// so demos and tests can run without a backend guard. Calling
-  /// `sandbox_spawn_py` on WASM returns an error string — it does not crash
-  /// the session. Spawning a second interpreter on WASM would crash the parent
-  /// session (see `project_sandbox_wasm_finding` in the backlog memory).
+  /// `sandbox_spawn` on WASM throws [UnsupportedError], which surfaces as a
+  /// Python exception the caller can catch. Spawning a second interpreter on
+  /// WASM would crash the parent session.
   @override
   Set<MontyBackendKind> get supportedBackends => const {
     MontyBackendKind.ffi,
@@ -479,9 +479,11 @@ class SandboxExtension extends MontyExtension
     HostContext ctx,
   ) async {
     if (currentBackendKind == MontyBackendKind.wasm) {
-      return 'error: sandbox_spawn_py is not available in the browser '
-          '(WASM) backend — spawning a second interpreter would crash the '
-          'parent session. Use the native (FFI) backend for sandbox features.';
+      throw UnsupportedError(
+        'sandbox_spawn is not available in the browser (WASM) backend — '
+        'spawning a second interpreter would crash the parent session. '
+        'Use the native (FFI) backend for sandbox features.',
+      );
     }
     _validateSpawnRequest();
 
