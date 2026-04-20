@@ -73,6 +73,7 @@ class MontyRuntime implements MontyRuntimeRef {
     BridgeLogger? logger,
     MontyInterceptor? interceptor,
     bool sandbox = false,
+    DescriptionProvider? descriptionProvider,
   }) : assert(
          os == null || osHandlers == null,
          'Pass either os or osHandlers, not both.',
@@ -81,7 +82,8 @@ class MontyRuntime implements MontyRuntimeRef {
        _extensions = extensions,
        _logger = logger,
        _interceptor = interceptor,
-       _sandbox = sandbox {
+       _sandbox = sandbox,
+       _descriptionProvider = descriptionProvider {
     if (!sandbox) {
       // Shared mode: create persistent REPL-backed interpreter.
       // ReplPlatform retains all state (variables, functions, classes) natively
@@ -113,6 +115,7 @@ class MontyRuntime implements MontyRuntimeRef {
   final BridgeLogger? _logger;
   final MontyInterceptor? _interceptor;
   final bool _sandbox;
+  final DescriptionProvider? _descriptionProvider;
 
   // Shared mode state.
   MontyRepl? _sharedRepl;
@@ -134,10 +137,11 @@ class MontyRuntime implements MontyRuntimeRef {
   List<HostFunctionSchema> get schemas =>
       (_sharedBridge ?? _schemaBridge)?.schemas ?? [];
 
-  /// Schemas for functions visible to the LLM (where [FunctionSurface.llm] is
-  /// declared). Feed these to an LLM alongside `execute_python`.
-  List<HostFunctionSchema> get llmSchemas =>
-      (_sharedBridge ?? _schemaBridge)?.llmSchemas ?? [];
+  /// Schemas for functions that declare [FunctionSurface.llm].
+  ///
+  /// Feed these to an LLM as tool definitions.
+  List<HostFunctionSchema> get exposedSchemas =>
+      (_sharedBridge ?? _schemaBridge)?.exposedSchemas ?? [];
 
   /// Broadcast stream of all [BridgeEvent]s emitted across every execution,
   /// including child executions spawned via extensions such as
@@ -167,10 +171,11 @@ class MontyRuntime implements MontyRuntimeRef {
   /// In sandbox mode, the function is registered on every fresh bridge.
   void register(HostFunction function) {
     if (_disposed) throw StateError('MontyRuntime has been disposed');
+    final fn = _applyDescription(function);
     if (_sharedBridge != null) {
-      _sharedBridge!.register(function);
+      _sharedBridge!.register(fn);
     }
-    _extraFunctions.add(function);
+    _extraFunctions.add(fn);
   }
 
   /// Executes Python [code] with state persistence and full tool access.
@@ -225,7 +230,11 @@ class MontyRuntime implements MontyRuntimeRef {
       );
     }
     if (!_sharedAttached) {
-      await _sharedRegistry!.attachTo(_sharedBridge!, baseOs: _os);
+      await _sharedRegistry!.attachTo(
+        _sharedBridge!,
+        baseOs: _os,
+        descriptionProvider: _descriptionProvider,
+      );
       _sharedAttached = true;
     }
 
@@ -296,7 +305,11 @@ class MontyRuntime implements MontyRuntimeRef {
         final overrideActive = osOverride != null;
         try {
           if (!_sharedAttached) {
-            await _sharedRegistry!.attachTo(_sharedBridge!, baseOs: _os);
+            await _sharedRegistry!.attachTo(
+              _sharedBridge!,
+              baseOs: _os,
+              descriptionProvider: _descriptionProvider,
+            );
             _sharedAttached = true;
           }
           if (overrideActive) {
@@ -355,7 +368,11 @@ class MontyRuntime implements MontyRuntimeRef {
         Object? error;
         StackTrace? stackTrace;
         try {
-          await registry.attachTo(b, baseOs: osOverride ?? _os);
+          await registry.attachTo(
+            b,
+            baseOs: osOverride ?? _os,
+            descriptionProvider: _descriptionProvider,
+          );
           final collected = <BridgeEvent>[];
           await for (final event in b.execute(code)) {
             collected.add(event);
@@ -414,5 +431,20 @@ class MontyRuntime implements MontyRuntimeRef {
     _extraFunctions.forEach(b.register);
 
     return b;
+  }
+
+  HostFunction _applyDescription(HostFunction fn) {
+    if (_descriptionProvider == null) return fn;
+    final desc = _descriptionProvider(fn.schema.name);
+    if (desc == null) return fn;
+
+    return HostFunction(
+      schema: fn.schema.copyWithDescription(desc),
+      ffiHandler: fn.ffiHandler,
+      wasmHandler: fn.wasmHandler,
+      isInfra: fn.isInfra,
+      surfaces: fn.surfaces,
+      childPropagation: fn.childPropagation,
+    );
   }
 }
