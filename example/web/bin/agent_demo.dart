@@ -340,6 +340,11 @@ Map<String, dynamic> _eventToMap(BridgeEvent event) {
       'callId': callId,
       'text': text,
     },
+    BridgeChildEvent(:final childHandle, :final inner) => {
+      'type': 'ChildEvent',
+      'childHandle': childHandle,
+      'inner': _eventToMap(inner),
+    },
   };
 }
 
