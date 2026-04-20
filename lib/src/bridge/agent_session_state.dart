@@ -120,45 +120,18 @@ String generatePersistCode(String userCode, Map<String, Object?> state) {
   return buf.toString();
 }
 
-/// Wraps [userCode] for **sandbox** mode: restore preamble + user code +
-/// persist epilogue, preserving the last-expression result capture.
+/// Returns [userCode] unchanged.
 ///
-/// Use this when the interpreter is fresh for each `execute()` call — state
-/// must be reconstituted from the Dart-side map before user code runs.
-/// Error line numbers returned by the interpreter will be offset by
-/// [restoreLineCount]; use [adjustRestoreOffset] to map them back.
-String wrapSandboxed(String userCode, Map<String, Object?> state) {
-  final restore = generateRestoreCode(state);
-  final persist = generatePersistCode(userCode, state);
-  final (processed, hasResult) = captureLastExpression(userCode);
+/// Sandbox mode creates a fresh [MontyRepl] (via [ReplPlatform]) per
+/// `execute()` call. State does not persist between calls; each call sees
+/// a clean Python heap. Last-expression capture is native to the REPL —
+/// no Dart-side wrapping needed.
+String wrapSandboxed(String userCode) => userCode;
 
-  final buf = StringBuffer(restore)
-    ..write('\n')
-    ..write(processed)
-    ..write('\n')
-    ..write(persist);
-
-  if (hasResult) buf.write('\n__r');
-
-  return buf.toString();
-}
-
-/// Wraps [userCode] for **shared** mode: user code + persist epilogue only.
+/// Returns [userCode] unchanged.
 ///
-/// The Rust REPL heap already holds variables from prior `execute()` calls,
-/// so no restore preamble is needed (and emitting one would overwrite live
-/// Python objects with their Dart-side string repr — see #333). Persist is
-/// still needed so the Dart-side `sessionStateSignal` tracks assignments for
-/// observers.
-String wrapShared(String userCode, Map<String, Object?> state) {
-  final persist = generatePersistCode(userCode, state);
-  final (processed, hasResult) = captureLastExpression(userCode);
-
-  final buf = StringBuffer(processed)
-    ..write('\n')
-    ..write(persist);
-
-  if (hasResult) buf.write('\n__r');
-
-  return buf.toString();
-}
+/// With [ReplPlatform] backing, the Rust REPL heap retains all state
+/// natively across `execute()` calls — functions, classes, modules, all
+/// types, not just JSON-serialisable values. Last-expression capture is
+/// also native to the REPL, so no Dart-side wrapping is needed.
+String wrapShared(String userCode) => userCode;
