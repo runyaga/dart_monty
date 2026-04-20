@@ -54,7 +54,7 @@ final _demoHostFunctions = <HostFunction>[
         ),
       ],
     ),
-    handler: (args) async {
+    handler: (args, _) async {
       final msg = args['msg']! as String;
       return msg.toUpperCase();
     },
@@ -76,7 +76,7 @@ final _demoHostFunctions = <HostFunction>[
         ),
       ],
     ),
-    handler: (args) async {
+    handler: (args, _) async {
       final a = args['a']! as num;
       final b = args['b']! as num;
       return a + b;
@@ -87,7 +87,7 @@ final _demoHostFunctions = <HostFunction>[
       name: 'get_time',
       description: 'Returns the current time as an ISO 8601 string.',
     ),
-    handler: (_) async {
+    handler: (_, __) async {
       return DateTime.now().toIso8601String();
     },
   ),
@@ -102,7 +102,7 @@ final _demoHostFunctions = <HostFunction>[
         HostParam(name: 'value', type: HostParamType.any),
       ],
     ),
-    handler: (args) async {
+    handler: (args, _) async {
       _kvStore[args['key']! as String] = args['value'];
       return null;
     },
@@ -115,7 +115,7 @@ final _demoHostFunctions = <HostFunction>[
         HostParam(name: 'key', type: HostParamType.string),
       ],
     ),
-    handler: (args) async {
+    handler: (args, _) async {
       return _kvStore[args['key']! as String];
     },
   ),
@@ -124,7 +124,7 @@ final _demoHostFunctions = <HostFunction>[
       name: 'kv_list',
       description: 'List all keys in the key-value store.',
     ),
-    handler: (_) async {
+    handler: (_, __) async {
       return _kvStore.keys.toList();
     },
   ),
@@ -138,7 +138,7 @@ final _demoHostFunctions = <HostFunction>[
         HostParam(name: 'url', type: HostParamType.string),
       ],
     ),
-    handler: (args) async {
+    handler: (args, _) async {
       final url = args['url']! as String;
       // Simulated API responses
       if (url.contains('users')) {
@@ -164,7 +164,7 @@ final _demoHostFunctions = <HostFunction>[
         HostParam(name: 'msg', type: HostParamType.string),
       ],
     ),
-    handler: (args) async {
+    handler: (args, _) async {
       // The event will be visible in the bridge events panel
       return null;
     },
@@ -335,6 +335,11 @@ Map<String, dynamic> _eventToMap(BridgeEvent event) {
       'result': result,
       if (durationMs != null) 'durationMs': durationMs,
     },
+    BridgeFunctionEmit(:final callId, :final text) => {
+      'type': 'FunctionEmit',
+      'callId': callId,
+      'text': text,
+    },
   };
 }
 
@@ -343,16 +348,12 @@ Map<String, dynamic> _eventToMap(BridgeEvent event) {
 // ---------------------------------------------------------------------------
 
 String _getState() {
-  if (_session == null) return '{}';
-  return jsonEncode(_session!.state);
+  return '{}';
 }
 
 String _getSchemas() {
   if (_session == null) return '[]';
   final schemas = _session!.schemas
-      .where(
-        (s) => s.name != '__restore_state__' && s.name != '__persist_state__',
-      )
       .map(
         (s) => {
           'name': s.name,
