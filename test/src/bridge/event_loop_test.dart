@@ -66,7 +66,7 @@ void main() {
         // Give the bridge time to reach the recv handler.
         await Future<void>.delayed(Duration.zero);
 
-        expect(plugin.channelState, isA<BridgeChannelWaiting>());
+        expect(plugin.channelState, isA<EventLoopWaiting>());
 
         // Dispatch a value.
         plugin.dispatch({'type': 'button_press', 'id': 'ok'});
@@ -74,7 +74,7 @@ void main() {
         await sub.asFuture<void>();
         await sub.cancel();
 
-        expect(plugin.channelState, const BridgeChannelCompleted());
+        expect(plugin.channelState, const EventLoopCompleted());
 
         // Verify the result was passed through resolveFutures.
         final resolvedResults = mock.history.lastResolveFuturesResults;
@@ -240,7 +240,7 @@ void main() {
       await sub.asFuture<void>();
       await sub.cancel();
 
-      expect(plugin.channelState, const BridgeChannelCompleted());
+      expect(plugin.channelState, const EventLoopCompleted());
 
       // Both resolves should have the correct events.
       expect(mock.history.resolveFuturesResultsList, hasLength(2));
@@ -370,7 +370,7 @@ void main() {
         await sub.cancel();
 
         // Plugin should be completed, not stuck in waiting.
-        expect(plugin.channelState, const BridgeChannelCompleted());
+        expect(plugin.channelState, const EventLoopCompleted());
 
         // Verify a BridgeRunError was emitted.
         expect(events.whereType<BridgeRunError>(), isNotEmpty);
@@ -411,7 +411,7 @@ void main() {
 
       // Dispose while waiting.
       await plugin.onDispose();
-      expect(plugin.channelState, const BridgeChannelDisposed());
+      expect(plugin.channelState, const EventLoopDisposed());
 
       // The execution stream should finish (possibly with an error event).
       await sub.asFuture<void>();
@@ -421,7 +421,7 @@ void main() {
 
   group('channelState transitions', () {
     test('idle -> executing -> completed', () async {
-      expect(plugin.channelState, const BridgeChannelIdle());
+      expect(plugin.channelState, const EventLoopIdle());
 
       mock.enqueueProgress(
         const MontyComplete(
@@ -432,17 +432,17 @@ void main() {
       final stream = bridge.execute('42');
 
       // Should be executing after execute() is called.
-      expect(plugin.channelState, const BridgeChannelExecuting());
+      expect(plugin.channelState, const EventLoopExecuting());
 
       await stream.toList();
 
-      expect(plugin.channelState, const BridgeChannelCompleted());
+      expect(plugin.channelState, const EventLoopCompleted());
     });
 
     test(
       'idle -> executing -> waiting -> executing -> completed',
       () async {
-        expect(plugin.channelState, const BridgeChannelIdle());
+        expect(plugin.channelState, const EventLoopIdle());
 
         mock
           ..enqueueProgress(
@@ -466,20 +466,20 @@ void main() {
 
         // Let it reach recv.
         await Future<void>.delayed(Duration.zero);
-        expect(plugin.channelState, isA<BridgeChannelWaiting>());
+        expect(plugin.channelState, isA<EventLoopWaiting>());
 
         plugin.dispatch({'type': 'click'});
-        expect(plugin.channelState, const BridgeChannelExecuting());
+        expect(plugin.channelState, const EventLoopExecuting());
 
         await sub.asFuture<void>();
         await sub.cancel();
-        expect(plugin.channelState, const BridgeChannelCompleted());
+        expect(plugin.channelState, const EventLoopCompleted());
       },
     );
 
     test('disposed state after onDispose()', () async {
       await plugin.onDispose();
-      expect(plugin.channelState, const BridgeChannelDisposed());
+      expect(plugin.channelState, const EventLoopDisposed());
     });
   });
 
@@ -504,7 +504,7 @@ void main() {
             ),
           );
 
-        final states = <BridgeChannelState>[];
+        final states = <EventLoopState>[];
         final cleanup = effect(
           () => states.add(plugin.channelStateSignal.value),
         );
@@ -523,11 +523,11 @@ void main() {
         // States collected: idle (initial effect run), executing, waiting,
         // executing (dispatch), completed.
         expect(states, [
-          isA<BridgeChannelIdle>(),
-          isA<BridgeChannelExecuting>(),
-          isA<BridgeChannelWaiting>(),
-          isA<BridgeChannelExecuting>(),
-          isA<BridgeChannelCompleted>(),
+          isA<EventLoopIdle>(),
+          isA<EventLoopExecuting>(),
+          isA<EventLoopWaiting>(),
+          isA<EventLoopExecuting>(),
+          isA<EventLoopCompleted>(),
         ]);
       },
     );
@@ -577,11 +577,11 @@ void main() {
   group('execute error paths', () {
     test('plugin state stays idle when execute() throws StateError', () {
       bridge.dispose();
-      expect(plugin.channelState, const BridgeChannelIdle());
+      expect(plugin.channelState, const EventLoopIdle());
       expect(() => bridge.execute('1'), throwsStateError);
       // onAttach was called but _wrapStream was never called — state remains
       // idle
-      expect(plugin.channelState, const BridgeChannelIdle());
+      expect(plugin.channelState, const EventLoopIdle());
     });
 
     test('execute after plugin dispose throws', () async {
@@ -635,7 +635,7 @@ void main() {
         await sub.cancel();
 
         // Plugin should be completed (error event was emitted).
-        expect(plugin.channelState, const BridgeChannelCompleted());
+        expect(plugin.channelState, const EventLoopCompleted());
         final errors = events.whereType<BridgeRunError>().toList();
         expect(errors, hasLength(1));
         expect(errors.first.message, contains('script died unexpectedly'));
@@ -681,7 +681,7 @@ void main() {
 
         // The stream.map handler should have completed the orphaned
         // completer with an error and set state to completed.
-        expect(plugin.channelState, const BridgeChannelCompleted());
+        expect(plugin.channelState, const EventLoopCompleted());
         final errors = events.whereType<BridgeRunError>().toList();
         expect(errors, hasLength(1));
         expect(errors.first.message, contains('script crashed'));
@@ -732,7 +732,7 @@ void main() {
       await sub.asFuture<void>();
       await sub.cancel();
 
-      expect(syncPlugin.channelState, const BridgeChannelCompleted());
+      expect(syncPlugin.channelState, const EventLoopCompleted());
       // Sync path uses resume() not resumeAsFuture().
       expect(
         syncMock.lastResumeReturnValue,
@@ -752,7 +752,7 @@ void main() {
       );
 
       await bridge.execute('code').toList();
-      expect(plugin.channelState, const BridgeChannelCompleted());
+      expect(plugin.channelState, const EventLoopCompleted());
 
       expect(
         () => plugin.dispatch({'type': 'too_late'}),
@@ -771,7 +771,7 @@ void main() {
         );
 
         await bridge.execute('code').toList();
-        expect(plugin.channelState, const BridgeChannelCompleted());
+        expect(plugin.channelState, const EventLoopCompleted());
 
         // Second execution starts — state transitions back to executing.
         mock
@@ -918,11 +918,11 @@ void main() {
         );
 
         final childPlugin = child as EventLoopExtension;
-        expect(childPlugin.channelState, const BridgeChannelIdle());
+        expect(childPlugin.channelState, const EventLoopIdle());
 
         // Disposing the child must not affect the parent.
         await childPlugin.onDispose();
-        expect(plugin.channelState, isNot(const BridgeChannelDisposed()));
+        expect(plugin.channelState, isNot(const EventLoopDisposed()));
       },
     );
   });
@@ -942,7 +942,7 @@ void main() {
 
       final events = await bridge2.execute('pass').toList();
       expect(events.whereType<BridgeRunFinished>(), hasLength(1));
-      expect(plugin2.channelState, const BridgeChannelCompleted());
+      expect(plugin2.channelState, const EventLoopCompleted());
 
       await registry.disposeAll();
       bridge2.dispose();
