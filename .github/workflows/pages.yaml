@@ -54,8 +54,8 @@ jobs:
           node build.js
       - name: Copy JS bridge assets to example
         run: |
-          cp dart_monty_core/assets/dart_monty_bridge.js example/web/web/
-          cp dart_monty_core/assets/dart_monty_worker.js example/web/web/
+          cp dart_monty_core/assets/dart_monty_core_bridge.js example/web/web/
+          cp dart_monty_core/assets/dart_monty_core_worker.js example/web/web/
 
       # ── Compile Dart to JS ───────────────────────────────────────────
       - uses: dart-lang/setup-dart@v1
@@ -102,7 +102,7 @@ jobs:
       - name: Copy live demo assets to site root
         run: |
           cp -r example/web/web/* site/
-          cp dart_monty_core/assets/dart_monty_native.wasm site/
+          cp dart_monty_core/assets/dart_monty_core_native.wasm site/
           mkdir -p site/fixtures
           cp test/fixtures/python_ladder/tier_*.json site/fixtures/
           mkdir -p site/assets
