@@ -217,11 +217,20 @@ class MontyRuntime implements MontyRuntimeRef {
   /// and there is no persistent registry to invoke against. Callers that
   /// need Dart-side invocation should use shared mode.
   ///
+  /// When [onEvent] is provided, any [BridgeEvent] the handler emits is
+  /// delivered to the callback before the returned future completes. When
+  /// omitted, emissions are dropped (direct-Dart invocations do not route
+  /// through [events]).
+  ///
   /// Throws:
   /// - [StateError] if the runtime is disposed.
   /// - [UnsupportedError] if called on a sandbox-mode runtime.
   /// - [ArgumentError] if [name] is not registered.
-  Future<Object?> invoke(String name, Map<String, Object?> args) async {
+  Future<Object?> invoke(
+    String name,
+    Map<String, Object?> args, {
+    void Function(BridgeEvent)? onEvent,
+  }) async {
     if (_disposed) throw StateError('MontyRuntime has been disposed');
     if (_sandbox) {
       throw UnsupportedError(
@@ -238,7 +247,7 @@ class MontyRuntime implements MontyRuntimeRef {
       _sharedAttached = true;
     }
 
-    return _sharedBridge!.invokeHostFunction(name, args);
+    return _sharedBridge!.invokeHostFunction(name, args, onEvent: onEvent);
   }
 
   /// Clears all persisted Python state.

@@ -1138,8 +1138,9 @@ class _MockBridge implements MontyBridge {
   @override
   Future<Object?> invokeHostFunction(
     String name,
-    Map<String, Object?> args,
-  ) => throw UnimplementedError();
+    Map<String, Object?> args, {
+    void Function(BridgeEvent)? onEvent,
+  }) => throw UnimplementedError();
 
   @override
   void dispose() {}
