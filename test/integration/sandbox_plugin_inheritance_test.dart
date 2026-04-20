@@ -306,7 +306,10 @@ class _GreeterPlugin extends MontyPlugin {
   ];
 
   @override
-  MontyPlugin? createChildInstance({ChildSpawnContext? context}) =>
+  ChildPolicy get childPolicy => ChildPolicy.clone;
+
+  @override
+  MontyPlugin createChildInstance(ChildSpawnContext context) =>
       _GreeterPlugin();
 }
 
@@ -339,7 +342,10 @@ class _CounterPlugin extends MontyPlugin {
   ];
 
   @override
-  MontyPlugin? createChildInstance({ChildSpawnContext? context}) =>
+  ChildPolicy get childPolicy => ChildPolicy.clone;
+
+  @override
+  MontyPlugin createChildInstance(ChildSpawnContext context) =>
       _CounterPlugin();
 }
 
@@ -359,8 +365,11 @@ class _ContextCapturingPlugin extends MontyPlugin {
   List<HostFunction> get functions => [];
 
   @override
-  MontyPlugin? createChildInstance({ChildSpawnContext? context}) {
-    if (context != null) onContext(context);
-    return null;
+  ChildPolicy get childPolicy => ChildPolicy.clone;
+
+  @override
+  MontyPlugin createChildInstance(ChildSpawnContext context) {
+    onContext(context);
+    return _ContextCapturingPlugin(onContext: onContext);
   }
 }

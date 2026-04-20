@@ -65,7 +65,10 @@ class JinjaTemplatePlugin extends MontyPlugin {
   ];
 
   @override
-  MontyPlugin? createChildInstance({ChildSpawnContext? context}) =>
+  ChildPolicy get childPolicy => ChildPolicy.clone;
+
+  @override
+  MontyPlugin createChildInstance(ChildSpawnContext context) =>
       JinjaTemplatePlugin(maxInputSize: _maxInputSize);
 
   Future<Object?> _handleRender(Map<String, Object?> args, HostContext ctx) {

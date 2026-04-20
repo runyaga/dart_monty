@@ -59,20 +59,23 @@ void main() {
       expect(plugin.systemPromptContext, isNull);
     });
 
-    test('createChildInstance defaults to null', () {
+    test('childPolicy defaults to exclude', () {
       final plugin = _TestPlugin(namespace: 'ns', functions: []);
 
-      expect(plugin.createChildInstance(), isNull);
+      expect(plugin.childPolicy, ChildPolicy.exclude);
     });
 
-    test('createChildInstance accepts optional context', () {
+    test('createChildInstance throws when not overridden', () {
       final plugin = _TestPlugin(namespace: 'ns', functions: []);
       const context = ChildSpawnContext(
         childId: 42,
         workingDirectory: '/tmp/child_42',
       );
 
-      expect(plugin.createChildInstance(context: context), isNull);
+      expect(
+        () => plugin.createChildInstance(context),
+        throwsUnsupportedError,
+      );
     });
 
     test('onDispose default implementation is a no-op', () async {

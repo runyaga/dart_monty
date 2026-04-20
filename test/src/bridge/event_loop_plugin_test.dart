@@ -900,7 +900,9 @@ void main() {
         // child", so child bridges get no EventLoopPlugin. Python code inside
         // a child sandbox that calls el_recv() or el_emit() would raise
         // NameError because those host functions were never registered.
-        final child = plugin.createChildInstance();
+        final child = plugin.createChildInstance(
+          const ChildSpawnContext(childId: 1),
+        );
 
         expect(
           child,

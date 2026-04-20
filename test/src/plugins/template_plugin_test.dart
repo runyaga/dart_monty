@@ -31,7 +31,9 @@ void main() {
     });
 
     test('createChildInstance returns new JinjaTemplatePlugin', () {
-      final child = plugin.createChildInstance();
+      final child = plugin.createChildInstance(
+        const ChildSpawnContext(childId: 1),
+      );
       expect(child, isA<JinjaTemplatePlugin>());
       expect(child, isNot(same(plugin)));
     });

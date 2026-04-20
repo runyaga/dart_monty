@@ -438,7 +438,10 @@ class MessageBusPlugin extends MontyPlugin {
   ];
 
   @override
-  MontyPlugin? createChildInstance({ChildSpawnContext? context}) =>
+  ChildPolicy get childPolicy => ChildPolicy.clone;
+
+  @override
+  MontyPlugin createChildInstance(ChildSpawnContext context) =>
       MessageBusPlugin(bus: _bus);
 
   @override

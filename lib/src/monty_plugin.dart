@@ -7,6 +7,36 @@ import 'package:dart_monty/src/plugin_registry.dart';
 import 'package:meta/meta.dart';
 
 // ---------------------------------------------------------------------------
+// ChildPolicy
+// ---------------------------------------------------------------------------
+
+/// How a plugin participates when a child sandbox is spawned.
+///
+/// Replaces the old `createChildInstance() → MontyPlugin?` nullable signature,
+/// where `null` ambiguously meant "intentionally excluded" or "forgot to
+/// implement." Each plugin now declares intent explicitly.
+enum ChildPolicy {
+  /// The plugin contributes a fresh instance to each child sandbox.
+  ///
+  /// `PluginRegistry.spawnChild` calls [MontyPlugin.createChildInstance];
+  /// the returned instance must be a *new* object (not `this`).
+  clone,
+
+  /// The child sandbox shares the parent plugin's instance directly.
+  ///
+  /// No new object is created; the same plugin is attached to both the
+  /// parent and each child registry. Use for plugins backed by shared
+  /// infrastructure that tolerates multiple registrations safely.
+  inherit,
+
+  /// The plugin is not present in child sandboxes. Default.
+  ///
+  /// This is the safe default — plugins opt into child propagation
+  /// explicitly by overriding [MontyPlugin.childPolicy].
+  exclude,
+}
+
+// ---------------------------------------------------------------------------
 // ChildSpawnContext
 // ---------------------------------------------------------------------------
 
@@ -155,17 +185,32 @@ abstract class MontyPlugin {
     // Default no-op.
   }
 
+  /// Declares how this plugin participates in child sandboxes.
+  ///
+  /// Default: [ChildPolicy.exclude] — the plugin is not present in children.
+  /// Override to [ChildPolicy.clone] (and implement [createChildInstance])
+  /// or [ChildPolicy.inherit] (share this instance across children).
+  ChildPolicy get childPolicy => ChildPolicy.exclude;
+
   /// Creates a fresh instance of this plugin for a child sandbox.
   ///
-  /// Override to opt into automatic child inheritance via `SandboxPlugin`.
-  /// Return `null` (the default) to exclude this plugin from children.
-  ///
-  /// The returned instance must be independent — it will be registered on a
-  /// separate [MontyBridge] and disposed with the child.
+  /// Called by `PluginRegistry.spawnChild` **only when [childPolicy] is
+  /// [ChildPolicy.clone]**. The returned instance must be a new object
+  /// (not `this`) and is registered on a separate `PluginHost` and disposed
+  /// with the child.
   ///
   /// [context] carries the child's ID and optional per-child working
   /// directory. Plugins that need filesystem isolation (e.g., `FsPlugin`)
   /// can use [ChildSpawnContext.workingDirectory] to create a private
   /// directory for the child.
-  MontyPlugin? createChildInstance({ChildSpawnContext? context}) => null;
+  ///
+  /// The default throws [UnsupportedError]: a plugin with
+  /// `childPolicy == clone` must override this method.
+  MontyPlugin createChildInstance(ChildSpawnContext context) {
+    throw UnsupportedError(
+      'Plugin $runtimeType has childPolicy == ChildPolicy.clone but did not '
+      'override createChildInstance(). Either override it to return a fresh '
+      'instance, or set childPolicy to ChildPolicy.inherit / ChildPolicy.exclude.',
+    );
+  }
 }

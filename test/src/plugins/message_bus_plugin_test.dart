@@ -40,7 +40,9 @@ void main() {
     });
 
     test('createChildInstance shares bus', () {
-      final child = plugin.createChildInstance()! as MessageBusPlugin;
+      final child = plugin.createChildInstance(
+        const ChildSpawnContext(childId: 1),
+      ) as MessageBusPlugin;
       expect(child, isNot(same(plugin)));
       expect(child.bus, same(plugin.bus));
     });
@@ -242,7 +244,9 @@ void main() {
     });
 
     test('sibling plugin instance still works after one disposed', () async {
-      final child = plugin.createChildInstance()! as MessageBusPlugin;
+      final child = plugin.createChildInstance(
+        const ChildSpawnContext(childId: 1),
+      ) as MessageBusPlugin;
       final childSend = child.functions.firstWhere(
         (f) => f.schema.name == 'msg_send',
       );
@@ -434,7 +438,9 @@ void main() {
 
   group('parent↔child integration', () {
     test('parent sends, child receives via shared bus', () async {
-      final child = plugin.createChildInstance()! as MessageBusPlugin;
+      final child = plugin.createChildInstance(
+        const ChildSpawnContext(childId: 1),
+      ) as MessageBusPlugin;
       final parentSend = findHandler('msg_send');
       final childRecv = child.functions.firstWhere(
         (f) => f.schema.name == 'msg_recv',
@@ -449,7 +455,9 @@ void main() {
     });
 
     test('child sends, parent receives via shared bus', () async {
-      final child = plugin.createChildInstance()! as MessageBusPlugin;
+      final child = plugin.createChildInstance(
+        const ChildSpawnContext(childId: 1),
+      ) as MessageBusPlugin;
       final childSend = child.functions.firstWhere(
         (f) => f.schema.name == 'msg_send',
       );

@@ -380,9 +380,11 @@ class PluginRegistry {
   /// Builds a child [PluginRegistry] seeded from this (parent) registry and
   /// attaches it to [bridge].
   ///
-  /// Every parent plugin gets the chance to contribute a child instance via
-  /// [MontyPlugin.createChildInstance]; plugins that return `null` are
-  /// skipped. The resulting registry is attached to [bridge] with an OS
+  /// Every parent plugin contributes to the child according to its
+  /// [MontyPlugin.childPolicy] — `clone` invokes
+  /// [MontyPlugin.createChildInstance] for a fresh instance, `inherit`
+  /// re-registers the parent instance, and `exclude` skips the plugin
+  /// entirely. The resulting registry is attached to [bridge] with an OS
   /// handler composed per [vfsStrategy] (see [ChildVfsStrategy]).
   ///
   /// Non-`Path.` OS prefixes (e.g., `os.`, `date.`, `datetime.`) are
@@ -406,13 +408,20 @@ class PluginRegistry {
 
     final child = PluginRegistry();
     for (final plugin in _plugins) {
-      final instance = plugin.createChildInstance(context: context);
-      if (instance == null) continue;
-      assert(
-        !identical(instance, plugin),
-        'createChildInstance() must return a new instance, not `this`.',
-      );
-      child.register(instance);
+      switch (plugin.childPolicy) {
+        case ChildPolicy.exclude:
+          continue;
+        case ChildPolicy.inherit:
+          child.register(plugin);
+        case ChildPolicy.clone:
+          final instance = plugin.createChildInstance(context);
+          assert(
+            !identical(instance, plugin),
+            'createChildInstance() must return a new instance, not `this`. '
+            'Use ChildPolicy.inherit if the plugin should be shared.',
+          );
+          child.register(instance);
+      }
     }
 
     child.systemPromptPrefix = childSystemPromptPrefix;

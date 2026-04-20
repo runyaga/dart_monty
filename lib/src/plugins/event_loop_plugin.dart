@@ -187,7 +187,10 @@ class EventLoopPlugin extends MontyPlugin
   ];
 
   @override
-  MontyPlugin createChildInstance({ChildSpawnContext? context}) =>
+  ChildPolicy get childPolicy => ChildPolicy.clone;
+
+  @override
+  MontyPlugin createChildInstance(ChildSpawnContext context) =>
       EventLoopPlugin();
 
   @override
