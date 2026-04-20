@@ -395,13 +395,11 @@ class SandboxExtension extends MontyExtension
   @override
   String get namespace => 'sandbox';
 
-  /// Supported on both backends, but spawning is disabled on WASM.
+  /// Supported on both FFI and WASM backends.
   ///
-  /// The extension attaches and registers its functions on the WASM backend
-  /// so demos and tests can run without a backend guard. Calling
-  /// `sandbox_spawn` on WASM throws [UnsupportedError], which surfaces as a
-  /// Python exception the caller can catch. Spawning a second interpreter on
-  /// WASM would crash the parent session.
+  /// On WASM, each child gets its own [MontyRepl] with a unique `replId`
+  /// inside the shared Worker — multiple concurrent children coexist without
+  /// conflicting.
   @override
   Set<MontyBackendKind> get supportedBackends => const {
     MontyBackendKind.ffi,
@@ -478,13 +476,6 @@ class SandboxExtension extends MontyExtension
     Map<String, Object?> args,
     HostContext ctx,
   ) async {
-    if (currentBackendKind == MontyBackendKind.wasm) {
-      throw UnsupportedError(
-        'sandbox_spawn is not available in the browser (WASM) backend — '
-        'spawning a second interpreter would crash the parent session. '
-        'Use the native (FFI) backend for sandbox features.',
-      );
-    }
     _validateSpawnRequest();
 
     final code = args.str('code');
