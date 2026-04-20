@@ -1,4 +1,6 @@
+import 'package:dart_monty/dart_monty_bridge.dart' show MontyExtension;
 import 'package:dart_monty/src/host_function_schema.dart';
+import 'package:dart_monty/src/monty_plugin.dart' show MontyExtension;
 import 'package:dart_monty/src/os_call/os_handlers.dart';
 
 /// The narrow capability surface passed to [MontyExtension.onAttach].
@@ -21,8 +23,9 @@ abstract interface class AttachContext {
 
   /// Registers an [OsCallHandler] imperatively.
   ///
-  /// Most extensions should prefer the declarative [MontyExtension.osContribution]
-  /// path, which participates in `ExtensionCoordinator`'s prefix merging and
+  /// Most extensions should prefer the declarative
+  /// [MontyExtension.osContribution] path, which participates in
+  /// `ExtensionCoordinator`'s prefix merging and
   /// collision checks. Use [registerOs] only when no declarative path works.
   void registerOs(OsCallHandler handler);
 }

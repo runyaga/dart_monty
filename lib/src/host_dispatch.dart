@@ -3,11 +3,11 @@ import 'dart:convert';
 
 import 'package:dart_monty/src/bridge_event.dart';
 import 'package:dart_monty/src/bridge_logger.dart';
+import 'package:dart_monty/src/function_surface.dart';
 import 'package:dart_monty/src/host_context.dart';
 import 'package:dart_monty/src/host_function.dart';
 import 'package:dart_monty/src/host_function_schema.dart';
 import 'package:dart_monty/src/monty_runtime_ref.dart';
-import 'package:dart_monty/src/function_surface.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:meta/meta.dart';
 
@@ -218,7 +218,7 @@ class HostDispatch {
   /// Registers [function] under an optional [category].
   ///
   /// Silently skips functions whose [HostFunction.handler] is `null` on the
-  /// current backend — no [supportedBackends] declaration required.
+  /// current backend — no `supportedBackends` declaration required.
   void register(HostFunction function, {String? category}) {
     if (function.handler == null) return;
     final name = function.schema.name;
@@ -328,7 +328,10 @@ class HostDispatch {
 
     controller
       ..add(
-        BridgeFunctionCallResult(callId: callId, result: result?.toString() ?? ''),
+        BridgeFunctionCallResult(
+          callId: callId,
+          result: result?.toString() ?? '',
+        ),
       )
       ..add(BridgeStepFinished(stepId: stepName));
 

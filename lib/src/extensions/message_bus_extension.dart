@@ -459,7 +459,10 @@ class MessageBusExtension extends MontyExtension {
     return Future.value();
   }
 
-  Future<Object?> _handleRecv(Map<String, Object?> args, HostContext ctx) async {
+  Future<Object?> _handleRecv(
+    Map<String, Object?> args,
+    HostContext ctx,
+  ) async {
     final name = args.str('name');
     final timeoutMs = args.intArgOrNull('timeout_ms');
 

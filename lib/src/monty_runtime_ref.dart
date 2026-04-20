@@ -1,5 +1,7 @@
+import 'package:dart_monty/dart_monty_bridge.dart' show HostContext;
 import 'package:dart_monty/src/bridge_event.dart';
 import 'package:dart_monty/src/execution_handle.dart';
+import 'package:dart_monty/src/host_context.dart' show HostContext;
 import 'package:dart_monty_core/dart_monty_core.dart';
 
 /// Minimal interface that [HostContext] uses to reference the owning runtime.
@@ -22,8 +24,8 @@ abstract interface class MontyRuntimeRef {
   /// Emits [event] on this runtime's broadcast `events` stream wrapped as a
   /// [BridgeChildEvent] tagged with [childHandle].
   ///
-  /// Used by child-spawning plugins (e.g. `SandboxExtension`) to aggregate child
-  /// execution events into the parent's event stream so observers see a single
-  /// attributed ordering across the ownership tree.
+  /// Used by child-spawning plugins (e.g. `SandboxExtension`) to aggregate
+  /// child execution events into the parent's event stream so observers see a
+  /// single attributed ordering across the ownership tree.
   void emitChildEvent(String childHandle, BridgeEvent event);
 }

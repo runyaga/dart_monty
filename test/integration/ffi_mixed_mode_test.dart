@@ -27,7 +27,7 @@ HostFunction syncFn() => HostFunction(
     name: 'sync_fn',
     description: 'Returns immediately',
   ),
-  handler: (_, _ctx) async => 'sync_ok',
+  handler: (_, ctx) async => 'sync_ok',
 );
 
 HostFunction delayFn() => HostFunction(
@@ -35,7 +35,7 @@ HostFunction delayFn() => HostFunction(
     name: 'delay_fn',
     description: 'Awaits 200ms',
   ),
-  handler: (_, __) async {
+  handler: (_, _) async {
     await Future<void>.delayed(const Duration(milliseconds: 200));
 
     return 'delay_ok';
@@ -47,7 +47,7 @@ HostFunction httpFn() => HostFunction(
     name: 'http_fn',
     description: 'Real HTTP GET',
   ),
-  handler: (_, __) async {
+  handler: (_, _) async {
     final client = HttpClient();
     try {
       final req = await client.getUrl(
@@ -73,7 +73,7 @@ HostFunction counterFn() {
       name: 'counter',
       description: 'Increments and returns a counter',
     ),
-    handler: (_, __) async => ++count,
+    handler: (_, _) async => ++count,
   );
 }
 
@@ -210,7 +210,9 @@ void main() {
       await s.execute('name = "World"').result;
       await s.execute('greeting = tmpl_render("Hi {{n}}", {"n": name})').result;
       await s.execute('name = "Alice"').result;
-      await s.execute('greeting2 = tmpl_render("Hi {{n}}", {"n": name})').result;
+      await s
+          .execute('greeting2 = tmpl_render("Hi {{n}}", {"n": name})')
+          .result;
       final r = await s.execute('[greeting, greeting2]').result;
       print('  H1: ${r.value.dartValue}');
       expect(r.value.dartValue, ['Hi World', 'Hi Alice']);
@@ -242,9 +244,11 @@ Path("/data.txt").write_text("hello")
 from pathlib import Path
 content = Path("/data.txt").read_text()
 ''').result;
-      final r = await s.execute(
-        'tmpl_render("File has: {{c}}", {"c": content})',
-      ).result;
+      final r = await s
+          .execute(
+            'tmpl_render("File has: {{c}}", {"c": content})',
+          )
+          .result;
       print('  H3: ${r.value.dartValue}');
       expect(r.value.dartValue, 'File has: hello');
     });
@@ -257,9 +261,11 @@ content = Path("/data.txt").read_text()
         )..register(httpFn());
         addTearDown(s.dispose);
         await s.execute('data = http_fn()').result;
-        await s.execute(
-          'report = tmpl_render("Got {{n}} bytes", {"n": len(data)})',
-        ).result;
+        await s
+            .execute(
+              'report = tmpl_render("Got {{n}} bytes", {"n": len(data)})',
+            )
+            .result;
         await s.execute('msg_send("log", report)').result;
         final r = await s.execute('msg_recv("log")').result;
         print('  H4: ${r.value.dartValue}');
@@ -400,7 +406,7 @@ cached = Path("/cache.txt").read_text()
               name: 'returns_none',
               description: 'Returns null',
             ),
-            handler: (_, __) async => null,
+            handler: (_, _) async => null,
           ),
         );
       addTearDown(s.dispose);
@@ -420,7 +426,7 @@ x is None
               name: 'big_string',
               description: 'Returns 50KB string',
             ),
-            handler: (_, __) async => 'x' * 50000,
+            handler: (_, _) async => 'x' * 50000,
           ),
         );
       addTearDown(s.dispose);
@@ -437,7 +443,7 @@ x is None
               name: 'throws',
               description: 'Throws',
             ),
-            handler: (_, __) async => throw Exception('boom'),
+            handler: (_, _) async => throw Exception('boom'),
           ),
         );
       addTearDown(s.dispose);

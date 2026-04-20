@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:dart_monty/dart_monty_bridge.dart';
-import 'package:dart_monty/src/host_context.dart';
 import 'package:signals_core/signals_core.dart';
 import 'package:test/test.dart';
 
@@ -16,7 +15,9 @@ void main() {
 
   /// Returns a 1-arg callable that forwards to the handler with [_testCtx].
   Future<Object?> Function(Map<String, Object?>) findHandler(String name) {
-    final h = plugin.functions.firstWhere((f) => f.schema.name == name).handler!;
+    final h = plugin.functions
+        .firstWhere((f) => f.schema.name == name)
+        .handler!;
     return (args) => h(args, _testCtx);
   }
 
@@ -40,9 +41,11 @@ void main() {
     });
 
     test('createChildInstance shares bus', () {
-      final child = plugin.createChildInstance(
-        const ChildSpawnContext(childId: 1),
-      ) as MessageBusExtension;
+      final child =
+          plugin.createChildInstance(
+                const ChildSpawnContext(childId: 1),
+              )
+              as MessageBusExtension;
       expect(child, isNot(same(plugin)));
       expect(child.bus, same(plugin.bus));
     });
@@ -244,9 +247,11 @@ void main() {
     });
 
     test('sibling plugin instance still works after one disposed', () async {
-      final child = plugin.createChildInstance(
-        const ChildSpawnContext(childId: 1),
-      ) as MessageBusExtension;
+      final child =
+          plugin.createChildInstance(
+                const ChildSpawnContext(childId: 1),
+              )
+              as MessageBusExtension;
       final childSend = child.functions.firstWhere(
         (f) => f.schema.name == 'msg_send',
       );
@@ -255,7 +260,10 @@ void main() {
       await plugin.onDispose();
 
       // Child can still send — bus is still alive.
-      await childSend.handler!({'name': 'ch', 'message': 'from_child'}, _testCtx);
+      await childSend.handler!({
+        'name': 'ch',
+        'message': 'from_child',
+      }, _testCtx);
 
       // New plugin on same bus can receive.
       final fresh = MessageBusExtension(bus: child.bus);
@@ -438,9 +446,11 @@ void main() {
 
   group('parent↔child integration', () {
     test('parent sends, child receives via shared bus', () async {
-      final child = plugin.createChildInstance(
-        const ChildSpawnContext(childId: 1),
-      ) as MessageBusExtension;
+      final child =
+          plugin.createChildInstance(
+                const ChildSpawnContext(childId: 1),
+              )
+              as MessageBusExtension;
       final parentSend = findHandler('msg_send');
       final childRecv = child.functions.firstWhere(
         (f) => f.schema.name == 'msg_recv',
@@ -455,9 +465,11 @@ void main() {
     });
 
     test('child sends, parent receives via shared bus', () async {
-      final child = plugin.createChildInstance(
-        const ChildSpawnContext(childId: 1),
-      ) as MessageBusExtension;
+      final child =
+          plugin.createChildInstance(
+                const ChildSpawnContext(childId: 1),
+              )
+              as MessageBusExtension;
       final childSend = child.functions.firstWhere(
         (f) => f.schema.name == 'msg_send',
       );

@@ -1,9 +1,12 @@
+import 'package:dart_monty/dart_monty_bridge.dart' show SandboxExtension;
+import 'package:dart_monty/src/attach_context.dart';
 import 'package:dart_monty/src/bridge_logger.dart';
+import 'package:dart_monty/src/extension_coordinator.dart';
+import 'package:dart_monty/src/extensions/sandbox_extension.dart'
+    show SandboxExtension;
 import 'package:dart_monty/src/host_function.dart';
 import 'package:dart_monty/src/monty_backend_kind.dart';
 import 'package:dart_monty/src/os_call/os_handlers.dart';
-import 'package:dart_monty/src/attach_context.dart';
-import 'package:dart_monty/src/extension_coordinator.dart';
 import 'package:meta/meta.dart';
 
 // ---------------------------------------------------------------------------
@@ -12,14 +15,16 @@ import 'package:meta/meta.dart';
 
 /// How an extension participates when a child sandbox is spawned.
 ///
-/// Replaces the old `createChildInstance() → MontyExtension?` nullable signature,
-/// where `null` ambiguously meant "intentionally excluded" or "forgot to
+/// Replaces the old `createChildInstance() → MontyExtension?` nullable
+/// signature, where `null` ambiguously meant "intentionally excluded" or
+/// "forgot to
 /// implement." Each extension now declares intent explicitly.
 enum ChildPolicy {
   /// The extension contributes a fresh instance to each child sandbox.
   ///
-  /// `ExtensionCoordinator.spawnChild` calls [MontyExtension.createChildInstance];
-  /// the returned instance must be a *new* object (not `this`).
+  /// `ExtensionCoordinator.spawnChild` calls
+  /// [MontyExtension.createChildInstance]; the returned instance must be a
+  /// *new* object (not `this`).
   clone,
 
   /// The child sandbox shares the parent extension's instance directly.
@@ -85,9 +90,9 @@ class ChildSpawnContext {
 /// ## OS contributions
 ///
 /// Extensions that need to intercept OS calls return a prefix map from
-/// [osContribution]. `ExtensionCoordinator.attachTo` merges contributions from all
-/// extensions, throws [StateError] if two extensions claim the same prefix, and
-/// calls `bridge.registerOs` with the composed handler:
+/// [osContribution]. `ExtensionCoordinator.attachTo` merges contributions
+/// from all extensions, throws [StateError] if two extensions claim the
+/// same prefix, and calls `bridge.registerOs` with the composed handler:
 ///
 /// ```dart
 /// @override
@@ -102,8 +107,8 @@ abstract class MontyExtension {
 
   /// Backends this extension supports.
   ///
-  /// `ExtensionCoordinator.attachTo` checks [currentBackendKind] against this set
-  /// and throws [UnsupportedBackendError] before any script runs if the
+  /// `ExtensionCoordinator.attachTo` checks [currentBackendKind] against this
+  /// set and throws [UnsupportedBackendError] before any script runs if the
   /// extension declares it cannot operate on the current backend.
   ///
   /// Defaults to all backends. Override to `{MontyBackendKind.ffi}` or
@@ -117,16 +122,17 @@ abstract class MontyExtension {
 
   /// Attachment priority — higher values attach first and dispose last.
   ///
-  /// `ExtensionCoordinator.attachTo` sorts extensions in descending priority order
-  /// before calling [onAttach]. Equal-priority extensions preserve insertion
-  /// order (stable sort). Default is `0`.
+  /// `ExtensionCoordinator.attachTo` sorts extensions in descending priority
+  /// order before calling [onAttach]. Equal-priority extensions preserve
+  /// insertion order (stable sort). Default is `0`.
   ///
   /// Use a positive value to run [onAttach] early (e.g., a logging/tracing
-  /// extension that other extensions depend on). Use a negative value to run late
-  /// (e.g., an extension that wraps peers it discovers via the bridge).
+  /// extension that other extensions depend on). Use a negative value to run
+  /// late (e.g., an extension that wraps peers it discovers via the bridge).
   int get priority => 0;
 
-  /// Logger for this extension, injected by `ExtensionCoordinator` during attachment.
+  /// Logger for this extension, injected by `ExtensionCoordinator` during
+  /// attachment.
   ///
   /// Extensions should use this for all logging — never create loggers
   /// independently via `LogManager.instance.getLogger()`.
@@ -156,9 +162,9 @@ abstract class MontyExtension {
   /// Each key is an operation-name prefix (e.g., `'Path.'`, `'os.'`); the
   /// value is the [OsCallHandler] that handles those operations.
   ///
-  /// `ExtensionCoordinator.attachTo` merges contributions from all extensions and
-  /// throws [StateError] if two extensions claim the same prefix. Returns `null`
-  /// (the default) if this extension does not intercept OS calls.
+  /// `ExtensionCoordinator.attachTo` merges contributions from all extensions
+  /// and throws [StateError] if two extensions claim the same prefix. Returns
+  /// `null` (the default) if this extension does not intercept OS calls.
   Map<String, OsCallHandler>? get osContribution => null;
 
   /// Host functions this extension provides.

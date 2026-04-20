@@ -1,5 +1,7 @@
+import 'package:dart_monty/dart_monty_bridge.dart' show HostFunctionHandler;
 import 'package:dart_monty/src/bridge_event.dart';
 import 'package:dart_monty/src/execution_handle.dart';
+import 'package:dart_monty/src/host_function.dart' show HostFunctionHandler;
 import 'package:dart_monty/src/monty_runtime_ref.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:meta/meta.dart';
@@ -27,9 +29,9 @@ class HostContext {
 
   /// Emits an arbitrary [BridgeEvent] during a handler invocation.
   ///
-  /// Events land in the execution stream between [BridgeFunctionCallStart] and
-  /// [BridgeFunctionCallResult]. Use [emitText] for the common case of streaming
-  /// progress text, or emit any custom event type directly.
+  /// Events land in the execution stream between [BridgeFunctionCallStart]
+  /// and [BridgeFunctionCallResult]. Use [emitText] for the common case of
+  /// streaming progress text, or emit any custom event type directly.
   final void Function(BridgeEvent event) emit;
 
   /// Bridge-assigned call identifier for the current tool invocation.

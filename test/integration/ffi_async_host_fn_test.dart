@@ -28,7 +28,7 @@ void main() {
             name: 'fast_fn',
             description: 'Returns immediately',
           ),
-          handler: (_, __) async => 'fast',
+          handler: (_, _) async => 'fast',
         ),
       );
 
@@ -49,7 +49,7 @@ void main() {
             name: 'delay_100ms',
             description: 'Waits 100ms',
           ),
-          handler: (_, __) async {
+          handler: (_, _) async {
             await Future<void>.delayed(const Duration(milliseconds: 100));
 
             return 'done';
@@ -74,7 +74,7 @@ void main() {
             name: 'delay_1s',
             description: 'Waits 1 second',
           ),
-          handler: (_, __) async {
+          handler: (_, _) async {
             await Future<void>.delayed(const Duration(seconds: 1));
 
             return 'done';
@@ -124,16 +124,20 @@ void main() {
           ),
         );
 
-        final r1 = await session.execute(
-          'http_get("https://demo.toughserv.com/api/v1/installation/versions")',
-        ).result;
+        final r1 = await session
+            .execute(
+              'http_get("https://demo.toughserv.com/api/v1/installation/versions")',
+            )
+            .result;
         expect(r1.value.dartValue, isA<String>());
         expect(r1.value.dartValue, isNotEmpty);
 
         // This is the call that crashes on #271
-        final r2 = await session.execute(
-          'http_get("https://demo.toughserv.com/api/v1/installation/versions")',
-        ).result;
+        final r2 = await session
+            .execute(
+              'http_get("https://demo.toughserv.com/api/v1/installation/versions")',
+            )
+            .result;
         expect(r2.value.dartValue, isA<String>());
       },
       timeout: const Timeout(Duration(seconds: 30)),
@@ -174,14 +178,18 @@ void main() {
           ),
         );
 
-        final r1 = await session.execute(
-          'http_get("https://demo.toughserv.com/api/v1/installation/versions")',
-        ).result;
+        final r1 = await session
+            .execute(
+              'http_get("https://demo.toughserv.com/api/v1/installation/versions")',
+            )
+            .result;
         expect(r1.value.dartValue, isA<String>());
 
-        final r2 = await session.execute(
-          'http_get("https://demo.toughserv.com/api/v1/installation/versions")',
-        ).result;
+        final r2 = await session
+            .execute(
+              'http_get("https://demo.toughserv.com/api/v1/installation/versions")',
+            )
+            .result;
         expect(r2.value.dartValue, isA<String>());
       },
       timeout: const Timeout(Duration(seconds: 30)),
@@ -196,7 +204,7 @@ void main() {
             name: 'read_file',
             description: 'Reads a file',
           ),
-          handler: (_, __) async {
+          handler: (_, _) async {
             final file = File('/etc/hosts');
             final content = await file.readAsString();
 
@@ -222,7 +230,7 @@ void main() {
             name: 'run_cmd',
             description: 'Runs a command',
           ),
-          handler: (_, __) async {
+          handler: (_, _) async {
             final result = await Process.run('echo', ['hello']);
 
             return (result.stdout as String).trim();
@@ -247,7 +255,7 @@ void main() {
             name: 'socket_test',
             description: 'Opens and closes a socket',
           ),
-          handler: (_, __) async {
+          handler: (_, _) async {
             final server = await ServerSocket.bind('127.0.0.1', 0);
             final port = server.port;
             await server.close();
@@ -296,14 +304,18 @@ void main() {
           ),
         );
 
-        final r1 = await session.execute(
-          'http_tiny("https://demo.toughserv.com/api/v1/installation/versions")',
-        ).result;
+        final r1 = await session
+            .execute(
+              'http_tiny("https://demo.toughserv.com/api/v1/installation/versions")',
+            )
+            .result;
         expect(r1.value.dartValue, 200);
 
-        final r2 = await session.execute(
-          'http_tiny("https://demo.toughserv.com/api/v1/installation/versions")',
-        ).result;
+        final r2 = await session
+            .execute(
+              'http_tiny("https://demo.toughserv.com/api/v1/installation/versions")',
+            )
+            .result;
         expect(r2.value.dartValue, 200);
       },
       timeout: const Timeout(Duration(seconds: 30)),
@@ -342,15 +354,19 @@ void main() {
           ),
         );
 
-        final r1 = await session.execute(
-          'http_large("https://demo.toughserv.com/api/v1/installation/versions")',
-        ).result;
+        final r1 = await session
+            .execute(
+              'http_large("https://demo.toughserv.com/api/v1/installation/versions")',
+            )
+            .result;
         final v1 = r1.value.dartValue! as String;
         expect(v1.length, greaterThan(10));
 
-        final r2 = await session.execute(
-          'http_large("https://demo.toughserv.com/api/v1/installation/versions")',
-        ).result;
+        final r2 = await session
+            .execute(
+              'http_large("https://demo.toughserv.com/api/v1/installation/versions")',
+            )
+            .result;
         expect(r2.value.dartValue, isA<String>());
       },
       timeout: const Timeout(Duration(seconds: 30)),

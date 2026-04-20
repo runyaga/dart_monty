@@ -1,3 +1,6 @@
+import 'package:dart_monty/dart_monty_bridge.dart' show HostFunction;
+import 'package:dart_monty/src/host_function.dart' show HostFunction;
+
 /// The surfaces on which a [HostFunction] is visible.
 ///
 /// Defaults to `{FunctionSurface.python}` — existing extensions register as

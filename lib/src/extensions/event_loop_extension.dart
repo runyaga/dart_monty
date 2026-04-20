@@ -1,15 +1,15 @@
 import 'dart:async';
 
+import 'package:dart_monty/src/attach_context.dart';
 import 'package:dart_monty/src/bridge_event.dart';
+import 'package:dart_monty/src/default_monty_bridge.dart';
 import 'package:dart_monty/src/host_args.dart';
 import 'package:dart_monty/src/host_context.dart';
 import 'package:dart_monty/src/host_function.dart';
 import 'package:dart_monty/src/host_function_schema.dart';
 import 'package:dart_monty/src/host_param.dart';
-import 'package:dart_monty/src/default_monty_bridge.dart';
 import 'package:dart_monty/src/host_param_type.dart';
 import 'package:dart_monty/src/monty_plugin.dart';
-import 'package:dart_monty/src/attach_context.dart';
 import 'package:dart_monty/src/stateful_extension.dart';
 import 'package:signals_core/signals_core.dart';
 
@@ -194,10 +194,10 @@ class EventLoopExtension extends MontyExtension
       EventLoopExtension();
 
   @override
-  Future<void> onAttach(AttachContext host) async {
-    await super.onAttach(host);
-    if (host is DefaultMontyBridge) {
-      host.addStreamWrapper(_wrapStream);
+  Future<void> onAttach(AttachContext ctx) async {
+    await super.onAttach(ctx);
+    if (ctx is DefaultMontyBridge) {
+      ctx.addStreamWrapper(_wrapStream);
     }
   }
 
@@ -284,7 +284,10 @@ class EventLoopExtension extends MontyExtension
     await super.onDispose();
   }
 
-  Future<Object?> _handleRecv(Map<String, Object?> args, HostContext ctx) async {
+  Future<Object?> _handleRecv(
+    Map<String, Object?> args,
+    HostContext ctx,
+  ) async {
     // If events are already queued, return the first one immediately.
     if (_eventQueue.isNotEmpty) {
       return _eventQueue.removeAt(0);

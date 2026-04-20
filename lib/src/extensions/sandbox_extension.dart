@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:dart_monty/src/bridge_event.dart';
 import 'package:dart_monty/src/default_monty_bridge.dart';
+import 'package:dart_monty/src/extension_coordinator.dart';
 import 'package:dart_monty/src/host_args.dart';
 import 'package:dart_monty/src/host_context.dart';
 import 'package:dart_monty/src/host_function.dart';
@@ -12,7 +13,6 @@ import 'package:dart_monty/src/monty_backend_kind.dart';
 import 'package:dart_monty/src/monty_plugin.dart';
 import 'package:dart_monty/src/monty_runtime_ref.dart';
 import 'package:dart_monty/src/param_render_hint.dart';
-import 'package:dart_monty/src/extension_coordinator.dart';
 import 'package:dart_monty/src/stateful_extension.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:path/path.dart' as p;
@@ -305,12 +305,12 @@ const _gatherSchema = HostFunctionSchema(
 /// ## Child extension and VFS inheritance
 ///
 /// Child extensions and OS handlers are inherited from the parent
-/// [ExtensionCoordinator] via [ExtensionCoordinator.spawnChild]. Extensions opt into
-/// inheritance by overriding [MontyExtension.createChildInstance]; the child's
-/// filesystem visibility is controlled by [childVfsStrategy].
+/// [ExtensionCoordinator] via [ExtensionCoordinator.spawnChild]. Extensions
+/// opt into inheritance by overriding [MontyExtension.createChildInstance];
+/// the child's filesystem visibility is controlled by [childVfsStrategy].
 ///
-/// `SandboxExtension` MUST be attached through an [ExtensionCoordinator] — it uses the
-/// parent coordinator to compose the child.
+/// `SandboxExtension` MUST be attached through an [ExtensionCoordinator] —
+/// it uses the parent coordinator to compose the child.
 class SandboxExtension extends MontyExtension
     with StatefulExtension<Map<int, ChildState>> {
   /// Creates a [SandboxExtension].
@@ -464,7 +464,10 @@ class SandboxExtension extends MontyExtension
     await super.onDispose();
   }
 
-  Future<Object?> _handleSpawn(Map<String, Object?> args, HostContext ctx) async {
+  Future<Object?> _handleSpawn(
+    Map<String, Object?> args,
+    HostContext ctx,
+  ) async {
     _validateSpawnRequest();
 
     final code = args.str('code');
@@ -622,12 +625,12 @@ class SandboxExtension extends MontyExtension
   }
 
   /// Creates and attaches a child [ExtensionCoordinator] by delegating to
-  /// [ExtensionCoordinator.spawnChild] on the parent coordinator. Child extensions are
-  /// composed via [MontyExtension.createChildInstance]; the child OS handler
-  /// follows [childVfsStrategy].
+  /// [ExtensionCoordinator.spawnChild] on the parent coordinator. Child
+  /// extensions are composed via [MontyExtension.createChildInstance]; the
+  /// child OS handler follows [childVfsStrategy].
   ///
-  /// Relies on [MontyExtension.coordinator] being injected — i.e., this extension
-  /// must be attached through an [ExtensionCoordinator].
+  /// Relies on [MontyExtension.coordinator] being injected — i.e., this
+  /// extension must be attached through an [ExtensionCoordinator].
   Future<ExtensionCoordinator> _wireChildExtensions(
     ChildSpawnContext spawnContext,
     DefaultMontyBridge bridge,
@@ -816,7 +819,10 @@ class SandboxExtension extends MontyExtension
     return parts.join('\n\n');
   }
 
-  Future<Object?> _handleAwait(Map<String, Object?> args, HostContext ctx) async {
+  Future<Object?> _handleAwait(
+    Map<String, Object?> args,
+    HostContext ctx,
+  ) async {
     final handle = args.intArg('handle');
     final child = _children[handle];
     if (child == null) {
@@ -826,7 +832,10 @@ class SandboxExtension extends MontyExtension
     return child.completer.future;
   }
 
-  Future<Object?> _handleAwaitAll(Map<String, Object?> args, HostContext ctx) async {
+  Future<Object?> _handleAwaitAll(
+    Map<String, Object?> args,
+    HostContext ctx,
+  ) async {
     final handles = args.listOf<num>('handles').map((n) => n.toInt()).toList();
 
     final futures = <Future<Object?>>[];
@@ -884,7 +893,10 @@ class SandboxExtension extends MontyExtension
     return Future.value(child.printOutput);
   }
 
-  Future<Object?> _handleGather(Map<String, Object?> args, HostContext ctx) async {
+  Future<Object?> _handleGather(
+    Map<String, Object?> args,
+    HostContext ctx,
+  ) async {
     final handles = args.listOf<num>('handles').map((n) => n.toInt()).toList();
 
     final futures = <Future<Object?>>[];

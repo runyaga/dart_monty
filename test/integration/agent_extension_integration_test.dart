@@ -77,9 +77,11 @@ tmpl_render(
 msg_send(name='ch', message='first')
 msg_send(name='ch', message='second')
 ''').result;
-      final result = await session.execute(
-        "[msg_recv(name='ch'), msg_recv(name='ch')]",
-      ).result;
+      final result = await session
+          .execute(
+            "[msg_recv(name='ch'), msg_recv(name='ch')]",
+          )
+          .result;
 
       expect(result.value.dartValue, ['first', 'second']);
     });

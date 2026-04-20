@@ -54,7 +54,7 @@ class ExecutionHandle {
 ///
 /// Fires [future] (completes `void`) when the owning execution is cancelled.
 /// Handlers that do long work can race their own futures against
-/// [token.future] to bail out early:
+/// `cancelToken.future` to bail out early:
 ///
 /// ```dart
 /// final result = await Future.any([

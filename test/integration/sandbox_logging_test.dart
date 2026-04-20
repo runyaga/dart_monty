@@ -3,7 +3,6 @@ library;
 
 import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:dart_monty/monty_backend_spi.dart';
-import 'package:dart_monty/src/host_context.dart';
 import 'package:dart_monty_core/src/ffi/monty_ffi.dart';
 import 'package:dart_monty_core/src/ffi/native_bindings_ffi.dart';
 import 'package:struct_log/struct_log.dart';
@@ -106,7 +105,8 @@ void main() {
           .firstWhere((f) => f.schema.name == 'sandbox_await')
           .handler;
 
-      final handle = (await spawn!({'code': 'undefined_variable_xyz'}, _testCtx))! as int;
+      final handle =
+          (await spawn!({'code': 'undefined_variable_xyz'}, _testCtx))! as int;
 
       try {
         await await_!({'handle': handle}, _testCtx);

@@ -4,7 +4,6 @@ import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:dart_monty/dart_monty_testing.dart';
 import 'package:dart_monty/monty_backend_spi.dart';
-import 'package:dart_monty/src/host_context.dart';
 import 'package:signals_core/signals_core.dart';
 import 'package:struct_log/struct_log.dart';
 import 'package:test/test.dart';
@@ -84,7 +83,8 @@ MockMontyPlatform _failingMockStructured({
 ///
 /// Many tests exercise handlers directly (via [_findHandler]) but
 /// `sandbox_spawn` reaches into `registry.spawnChild(...)` — that field is
-/// injected by [ExtensionCoordinator.attachTo], so the plugin must be attached first.
+/// injected by [ExtensionCoordinator.attachTo], so the plugin must be
+/// attached first.
 Future<SandboxExtension> _attachedPlugin(SandboxExtension plugin) async {
   final registry = ExtensionCoordinator()..register(plugin);
   final bridge = DefaultMontyBridge(platform: MockMontyPlatform());
@@ -165,7 +165,7 @@ void main() {
         );
         final spawn = _findHandler(plugin, 'sandbox_spawn');
 
-        final handle = await spawn!({'code': 'x = 1'});
+        final handle = await spawn({'code': 'x = 1'});
 
         expect(handle, isA<int>());
         expect(handle, 0);
@@ -179,9 +179,9 @@ void main() {
         );
         final spawn = _findHandler(plugin, 'sandbox_spawn');
 
-        final h0 = await spawn!({'code': 'a'});
-        final h1 = await spawn!({'code': 'b'});
-        final h2 = await spawn!({'code': 'c'});
+        final h0 = await spawn({'code': 'a'});
+        final h1 = await spawn({'code': 'b'});
+        final h2 = await spawn({'code': 'c'});
 
         expect(h0, 0);
         expect(h1, 1);
@@ -195,7 +195,7 @@ void main() {
         );
         final spawn = _findHandler(plugin, 'sandbox_spawn');
 
-        await spawn!({'code': 'print("hello")'});
+        await spawn({'code': 'print("hello")'});
 
         // The bridge wraps code with print preamble, so check the mock
         // received something containing our code.
@@ -209,9 +209,9 @@ void main() {
         );
         final spawn = _findHandler(plugin, 'sandbox_spawn');
         final await_ = _findHandler(plugin, 'sandbox_await');
-        final handle = await spawn!({'code': '42'});
+        final handle = await spawn({'code': '42'});
 
-        await await_!({'handle': handle! as int});
+        await await_({'handle': handle! as int});
 
         expect(mock.isDisposed, isTrue);
       });
@@ -223,7 +223,7 @@ void main() {
         );
         final spawn = _findHandler(plugin, 'sandbox_spawn');
 
-        await spawn!({'code': '1', 'timeout_ms': 5000, 'memory_bytes': 1048576});
+        await spawn({'code': '1', 'timeout_ms': 5000, 'memory_bytes': 1048576});
 
         // Give the bridge time to call start().
         await Future<void>.delayed(Duration.zero);
@@ -243,7 +243,7 @@ void main() {
         final spawn = _findHandler(plugin, 'sandbox_spawn');
 
         expect(
-          () => spawn!({'code': '1'}),
+          () => spawn({'code': '1'}),
           throwsA(
             isA<StateError>().having(
               (e) => e.message,
@@ -264,8 +264,8 @@ void main() {
         );
         final spawn = _findHandler(plugin, 'sandbox_spawn');
         final await_ = _findHandler(plugin, 'sandbox_await');
-        final handle = await spawn!({'code': 'x = 1'});
-        final result = await await_!({'handle': handle! as int});
+        final handle = await spawn({'code': 'x = 1'});
+        final result = await await_({'handle': handle! as int});
 
         expect(result, isNull);
       });
@@ -279,8 +279,8 @@ void main() {
         );
         final spawn = _findHandler(plugin, 'sandbox_spawn');
         final await_ = _findHandler(plugin, 'sandbox_await');
-        final handle = await spawn!({'code': '42'});
-        final result = await await_!({'handle': handle! as int});
+        final handle = await spawn({'code': '42'});
+        final result = await await_({'handle': handle! as int});
 
         expect(result, 42);
       });
@@ -293,10 +293,10 @@ void main() {
         );
         final spawn = _findHandler(plugin, 'sandbox_spawn');
         final await_ = _findHandler(plugin, 'sandbox_await');
-        final handle = await spawn!({'code': 'x'});
+        final handle = await spawn({'code': 'x'});
 
         expect(
-          () => await_!({'handle': handle! as int}),
+          () => await_({'handle': handle! as int}),
           throwsA(
             isA<ChildSandboxException>()
                 .having((e) => e.childId, 'childId', handle)
@@ -321,10 +321,10 @@ void main() {
           );
           final spawn = _findHandler(plugin, 'sandbox_spawn');
           final await_ = _findHandler(plugin, 'sandbox_await');
-          final handle = await spawn!({'code': 'undefined_var'});
+          final handle = await spawn({'code': 'undefined_var'});
 
           try {
-            await await_!({'handle': handle! as int});
+            await await_({'handle': handle! as int});
             fail('Expected ChildSandboxException');
           } on ChildSandboxException catch (e) {
             expect(e.childId, handle);
@@ -347,7 +347,7 @@ void main() {
         );
         final await_ = _findHandler(plugin, 'sandbox_await');
 
-        expect(() => await_!({'handle': 999}), throwsA(isA<ArgumentError>()));
+        expect(() => await_({'handle': 999}), throwsA(isA<ArgumentError>()));
       });
     });
 
@@ -360,8 +360,8 @@ void main() {
         );
         final spawn = _findHandler(plugin, 'sandbox_spawn');
         final awaitAll = _findHandler(plugin, 'sandbox_await_all');
-        final h0 = await spawn!({'code': 'a'});
-        final h1 = await spawn!({'code': 'b'});
+        final h0 = await spawn({'code': 'a'});
+        final h1 = await spawn({'code': 'b'});
 
         final results = await awaitAll({
           'handles': <Object?>[h0, h1],
@@ -384,8 +384,8 @@ void main() {
         );
         final spawn = _findHandler(plugin, 'sandbox_spawn');
         final awaitAll = _findHandler(plugin, 'sandbox_await_all');
-        final h0 = await spawn!({'code': 'ok'});
-        final h1 = await spawn!({'code': 'fail'});
+        final h0 = await spawn({'code': 'ok'});
+        final h1 = await spawn({'code': 'fail'});
 
         expect(
           () => awaitAll({
@@ -423,7 +423,7 @@ void main() {
         );
         final spawn = _findHandler(plugin, 'sandbox_spawn');
         final isAlive = _findHandler(plugin, 'sandbox_is_alive');
-        final handle = await spawn!({'code': '1'});
+        final handle = await spawn({'code': '1'});
 
         // Bridge is waiting for start() to complete — child is alive.
         final alive = await isAlive({'handle': handle! as int});
@@ -447,9 +447,9 @@ void main() {
         final spawn = _findHandler(plugin, 'sandbox_spawn');
         final await_ = _findHandler(plugin, 'sandbox_await');
         final isAlive = _findHandler(plugin, 'sandbox_is_alive');
-        final handle = await spawn!({'code': '1'});
+        final handle = await spawn({'code': '1'});
 
-        await await_!({'handle': handle! as int});
+        await await_({'handle': handle! as int});
 
         final alive = await isAlive({'handle': handle as int});
         expect(alive, isFalse);
@@ -478,9 +478,9 @@ void main() {
         final spawn = _findHandler(plugin, 'sandbox_spawn');
         final await_ = _findHandler(plugin, 'sandbox_await');
         final getOutput = _findHandler(plugin, 'sandbox_get_output');
-        final handle = await spawn!({'code': 'print("hello world")'});
+        final handle = await spawn({'code': 'print("hello world")'});
 
-        await await_!({'handle': handle! as int});
+        await await_({'handle': handle! as int});
 
         final output = await getOutput({'handle': handle as int});
         expect(output, 'hello world\n');
@@ -495,9 +495,9 @@ void main() {
         final spawn = _findHandler(plugin, 'sandbox_spawn');
         final await_ = _findHandler(plugin, 'sandbox_await');
         final getOutput = _findHandler(plugin, 'sandbox_get_output');
-        final handle = await spawn!({'code': '42'});
+        final handle = await spawn({'code': '42'});
 
-        await await_!({'handle': handle! as int});
+        await await_({'handle': handle! as int});
 
         final output = await getOutput({'handle': handle as int});
         expect(output, isNull);
@@ -511,7 +511,7 @@ void main() {
         );
         final spawn = _findHandler(plugin, 'sandbox_spawn');
         final getOutput = _findHandler(plugin, 'sandbox_get_output');
-        final handle = await spawn!({'code': 'print("hi")'});
+        final handle = await spawn({'code': 'print("hi")'});
 
         expect(
           () => getOutput({'handle': handle! as int}),
@@ -564,11 +564,11 @@ void main() {
           final spawn = _findHandler(plugin, 'sandbox_spawn');
           final gather = _findHandler(plugin, 'sandbox_gather');
 
-          final h0 = (await spawn!({'code': 'a'}))! as int;
-          final h1 = (await spawn!({'code': 'b'}))! as int;
+          final h0 = (await spawn({'code': 'a'}))! as int;
+          final h1 = (await spawn({'code': 'b'}))! as int;
 
           final result =
-              (await gather!({
+              (await gather({
                     'handles': [h0, h1],
                   }))!
                   as List<Object?>;
@@ -599,13 +599,13 @@ void main() {
         final spawn = _findHandler(plugin, 'sandbox_spawn');
         final gather = _findHandler(plugin, 'sandbox_gather');
 
-        final h0 = (await spawn!({'code': 'a'}))! as int;
-        final h1 = (await spawn!({'code': 'b'}))! as int;
-        final h2 = (await spawn!({'code': 'c'}))! as int;
+        final h0 = (await spawn({'code': 'a'}))! as int;
+        final h1 = (await spawn({'code': 'b'}))! as int;
+        final h2 = (await spawn({'code': 'c'}))! as int;
 
         // Request in reverse order.
         final result =
-            (await gather!({
+            (await gather({
                   'handles': [h2, h0, h1],
                 }))!
                 as List<Object?>;
@@ -626,10 +626,10 @@ void main() {
         final spawn = _findHandler(plugin, 'sandbox_spawn');
         final gather = _findHandler(plugin, 'sandbox_gather');
 
-        final h0 = (await spawn!({'code': 'a'}))! as int;
+        final h0 = (await spawn({'code': 'a'}))! as int;
 
         final result =
-            (await gather!({
+            (await gather({
                   'handles': [h0],
                 }))!
                 as List<Object?>;
@@ -655,11 +655,11 @@ void main() {
         final spawn = _findHandler(plugin, 'sandbox_spawn');
         final gather = _findHandler(plugin, 'sandbox_gather');
 
-        final h0 = (await spawn!({'code': 'a'}))! as int;
-        final h1 = (await spawn!({'code': 'b'}))! as int;
+        final h0 = (await spawn({'code': 'a'}))! as int;
+        final h1 = (await spawn({'code': 'b'}))! as int;
 
         expect(
-          () => gather!({
+          () => gather({
             'handles': [h0, h1],
           }),
           throwsA(isA<ChildSandboxException>()),
@@ -675,7 +675,7 @@ void main() {
         final gather = _findHandler(plugin, 'sandbox_gather');
 
         expect(
-          () => gather!({
+          () => gather({
             'handles': [999],
           }),
           throwsA(isA<ArgumentError>()),
@@ -694,10 +694,10 @@ void main() {
         final spawn = _findHandler(plugin, 'sandbox_spawn');
         final gather = _findHandler(plugin, 'sandbox_gather');
 
-        final h0 = (await spawn!({'code': 'a'}))! as int;
+        final h0 = (await spawn({'code': 'a'}))! as int;
 
         final result =
-            (await gather!({
+            (await gather({
                   'handles': [h0],
                 }))!
                 as List<Object?>;
@@ -720,9 +720,9 @@ void main() {
         final spawn = _findHandler(plugin, 'sandbox_spawn');
         final await_ = _findHandler(plugin, 'sandbox_await');
         final free = _findHandler(plugin, 'sandbox_free');
-        final handle = await spawn!({'code': '1'});
+        final handle = await spawn({'code': '1'});
 
-        await await_!({'handle': handle! as int});
+        await await_({'handle': handle! as int});
         await free({'handle': handle as int});
 
         // Handle is now unknown.
@@ -741,7 +741,7 @@ void main() {
         );
         final spawn = _findHandler(plugin, 'sandbox_spawn');
         final free = _findHandler(plugin, 'sandbox_free');
-        final handle = await spawn!({'code': '1'});
+        final handle = await spawn({'code': '1'});
 
         expect(
           () => free({'handle': handle! as int}),
@@ -782,9 +782,9 @@ void main() {
         final spawn = _findHandler(plugin, 'sandbox_spawn');
         final await_ = _findHandler(plugin, 'sandbox_await');
         final free = _findHandler(plugin, 'sandbox_free');
-        final handle = await spawn!({'code': '1'});
+        final handle = await spawn({'code': '1'});
 
-        await await_!({'handle': handle! as int});
+        await await_({'handle': handle! as int});
         await free({'handle': handle as int});
 
         expect(() => free({'handle': handle}), throwsA(isA<ArgumentError>()));
@@ -812,11 +812,11 @@ void main() {
         final spawn = _findHandler(plugin, 'sandbox_spawn');
         final await_ = _findHandler(plugin, 'sandbox_await');
         final getOutput = _findHandler(plugin, 'sandbox_get_output');
-        final handle = await spawn!({'code': 'print("debug line"); x'});
+        final handle = await spawn({'code': 'print("debug line"); x'});
 
         // Await will throw because the child failed.
         await expectLater(
-          () => await_!({'handle': handle! as int}),
+          () => await_({'handle': handle! as int}),
           throwsA(isA<ChildSandboxException>()),
         );
 
@@ -837,7 +837,7 @@ void main() {
         final spawn = _findHandler(plugin, 'sandbox_spawn');
 
         expect(
-          () => spawn!({'code': '1'}),
+          () => spawn({'code': '1'}),
           throwsA(
             isA<StateError>().having(
               (e) => e.message,
@@ -857,7 +857,7 @@ void main() {
         );
         final spawn = _findHandler(plugin, 'sandbox_spawn');
 
-        final handle = await spawn!({'code': '1'});
+        final handle = await spawn({'code': '1'});
         expect(handle, isA<int>());
       });
     });
@@ -877,11 +877,11 @@ void main() {
         );
         final spawn = _findHandler(plugin, 'sandbox_spawn');
 
-        await spawn!({'code': 'a'});
-        await spawn!({'code': 'b'});
+        await spawn({'code': 'a'});
+        await spawn({'code': 'b'});
 
         expect(
-          () => spawn!({'code': 'c'}),
+          () => spawn({'code': 'c'}),
           throwsA(
             isA<StateError>().having(
               (e) => e.message,
@@ -925,10 +925,10 @@ void main() {
         );
         final spawn = _findHandler(plugin, 'sandbox_spawn');
         final await_ = _findHandler(plugin, 'sandbox_await');
-        final handle = await spawn!({'code': '1'});
+        final handle = await spawn({'code': '1'});
 
         expect(
-          () => await_!({'handle': handle! as int}),
+          () => await_({'handle': handle! as int}),
           throwsA(
             isA<ChildSandboxException>()
                 .having((e) => e.exception, 'exception', isNull)
@@ -955,8 +955,8 @@ void main() {
         );
         final spawn = _findHandler(plugin, 'sandbox_spawn');
 
-        await spawn!({'code': 'a'});
-        await spawn!({'code': 'b'});
+        await spawn({'code': 'a'});
+        await spawn({'code': 'b'});
 
         await plugin.onDispose();
 
@@ -1015,7 +1015,7 @@ void main() {
 
           // Start spawn — hangs inside _createChildPlatformAndBridge at the
           // await platformFactory() call.
-          final spawnFuture = spawn!({'code': '1'});
+          final spawnFuture = spawn({'code': '1'});
 
           // Wait until the factory has been entered (platform is now being
           // created) then dispose the plugin while spawn is in flight.
@@ -1045,9 +1045,9 @@ void main() {
         );
         final spawn = _findHandler(plugin, 'sandbox_spawn');
         final await_ = _findHandler(plugin, 'sandbox_await');
-        final handle = await spawn!({'code': '1'});
+        final handle = await spawn({'code': '1'});
 
-        await await_!({'handle': handle! as int});
+        await await_({'handle': handle! as int});
 
         await plugin.onDispose();
 
@@ -1086,8 +1086,8 @@ void main() {
         final spawn = _findHandler(plugin, 'sandbox_spawn');
         final await_ = _findHandler(plugin, 'sandbox_await');
 
-        final handle = await spawn!({'code': '42'});
-        await await_!({'handle': handle! as int});
+        final handle = await spawn({'code': '42'});
+        await await_({'handle': handle! as int});
 
         final spawnRecord = sink.records.firstWhere(
           (r) => r.message == 'Child spawned',
@@ -1107,7 +1107,7 @@ void main() {
               ..logger = StructLogBridgeLogger(logger, LogManager.instance);
         final spawn = _findHandler(plugin, 'sandbox_spawn');
 
-        await spawn!({'code': 'x = 42'});
+        await spawn({'code': 'x = 42'});
 
         final bridgeRecord = sink.records.firstWhere(
           (r) => r.message == 'Child bridge created',
@@ -1127,8 +1127,8 @@ void main() {
         final spawn = _findHandler(plugin, 'sandbox_spawn');
         final await_ = _findHandler(plugin, 'sandbox_await');
 
-        final handle = await spawn!({'code': '42'});
-        await await_!({'handle': handle! as int});
+        final handle = await spawn({'code': '42'});
+        await await_({'handle': handle! as int});
 
         final completedRecord = sink.records.firstWhere(
           (r) => r.message == 'Child completed',
@@ -1148,9 +1148,9 @@ void main() {
         final spawn = _findHandler(plugin, 'sandbox_spawn');
         final await_ = _findHandler(plugin, 'sandbox_await');
 
-        final handle = await spawn!({'code': 'x'});
+        final handle = await spawn({'code': 'x'});
         try {
-          await await_!({'handle': handle! as int});
+          await await_({'handle': handle! as int});
         } on Exception {
           // Expected.
         }
@@ -1175,8 +1175,8 @@ void main() {
         final await_ = _findHandler(plugin, 'sandbox_await');
         final free = _findHandler(plugin, 'sandbox_free');
 
-        final handle = await spawn!({'code': '1'});
-        await await_!({'handle': handle! as int});
+        final handle = await spawn({'code': '1'});
+        await await_({'handle': handle! as int});
         await free({'handle': handle as int});
 
         final freeRecord = sink.records.firstWhere(
@@ -1197,8 +1197,8 @@ void main() {
         final spawn = _findHandler(plugin, 'sandbox_spawn');
         final await_ = _findHandler(plugin, 'sandbox_await');
 
-        final handle = await spawn!({'code': '1'});
-        await await_!({'handle': handle! as int});
+        final handle = await spawn({'code': '1'});
+        await await_({'handle': handle! as int});
         await plugin.onDispose();
 
         final disposeRecord = sink.records.firstWhere(
@@ -1221,7 +1221,7 @@ void main() {
               ..logger = StructLogBridgeLogger(logger, LogManager.instance);
         final spawn = _findHandler(plugin, 'sandbox_spawn');
 
-        await expectLater(spawn!({'code': '1'}), throwsStateError);
+        await expectLater(spawn({'code': '1'}), throwsStateError);
 
         final warnRecord = sink.records.firstWhere(
           (r) => r.message == 'Spawn rejected: depth limit',
@@ -1247,9 +1247,9 @@ void main() {
               ..logger = StructLogBridgeLogger(logger, LogManager.instance);
         final spawn = _findHandler(plugin, 'sandbox_spawn');
 
-        await spawn!({'code': 'a'});
+        await spawn({'code': 'a'});
 
-        await expectLater(spawn!({'code': 'b'}), throwsStateError);
+        await expectLater(spawn({'code': 'b'}), throwsStateError);
 
         final warnRecord = sink.records.firstWhere(
           (r) => r.message == 'Spawn rejected: concurrency limit',
@@ -1280,9 +1280,9 @@ void main() {
         final spawn = _findHandler(plugin, 'sandbox_spawn');
         final await_ = _findHandler(plugin, 'sandbox_await');
 
-        final handle = await spawn!({'code': 'x'});
+        final handle = await spawn({'code': 'x'});
         try {
-          await await_!({'handle': handle! as int});
+          await await_({'handle': handle! as int});
         } on Exception {
           // Expected.
         }
@@ -1307,7 +1307,7 @@ void main() {
               ..logger = StructLogBridgeLogger(logger, LogManager.instance);
         final spawn = _findHandler(plugin, 'sandbox_spawn');
 
-        await expectLater(spawn!({'code': '1'}), throwsStateError);
+        await expectLater(spawn({'code': '1'}), throwsStateError);
 
         final errorRecord = sink.records.firstWhere(
           (r) => r.message == 'Child platform creation failed',
@@ -1354,7 +1354,7 @@ void main() {
           );
           final spawn = _findHandler(plugin, 'sandbox_spawn');
 
-          final handle = (await spawn!({'code': 'x = 1'}))! as int;
+          final handle = (await spawn({'code': 'x = 1'}))! as int;
 
           expect(
             plugin.childrenSignal.value,
@@ -1377,8 +1377,8 @@ void main() {
           final spawn = _findHandler(plugin, 'sandbox_spawn');
           final await_ = _findHandler(plugin, 'sandbox_await');
 
-          final handle = (await spawn!({'code': 'x = 42'}))! as int;
-          await await_!({'handle': handle});
+          final handle = (await spawn({'code': 'x = 42'}))! as int;
+          await await_({'handle': handle});
 
           expect(
             plugin.childrenSignal.value[handle],
@@ -1399,8 +1399,8 @@ void main() {
         final spawn = _findHandler(plugin, 'sandbox_spawn');
         final await_ = _findHandler(plugin, 'sandbox_await');
 
-        final handle = (await spawn!({'code': 'x = 7'}))! as int;
-        await await_!({'handle': handle});
+        final handle = (await spawn({'code': 'x = 7'}))! as int;
+        await await_({'handle': handle});
 
         final state = plugin.childrenSignal.value[handle]! as ChildCompleted;
         expect(state.value, 7);
@@ -1416,8 +1416,8 @@ void main() {
         final await_ = _findHandler(plugin, 'sandbox_await');
 
         final handle =
-            (await spawn!({'code': 'raise ValueError("boom")'}))! as int;
-        await await_!({'handle': handle}).catchError((_) => null);
+            (await spawn({'code': 'raise ValueError("boom")'}))! as int;
+        await await_({'handle': handle}).catchError((_) => null);
 
         expect(plugin.childrenSignal.value[handle], isA<ChildFailed>());
         expect(plugin.aliveCountSignal.value, 0);
@@ -1433,9 +1433,9 @@ void main() {
         final await_ = _findHandler(plugin, 'sandbox_await');
 
         final handle =
-            (await spawn!({'code': 'raise ValueError("something broke")'}))!
+            (await spawn({'code': 'raise ValueError("something broke")'}))!
                 as int;
-        await await_!({'handle': handle}).catchError((_) => null);
+        await await_({'handle': handle}).catchError((_) => null);
 
         final state = plugin.childrenSignal.value[handle]! as ChildFailed;
         expect(state.message, contains('something broke'));
@@ -1451,8 +1451,8 @@ void main() {
         final await_ = _findHandler(plugin, 'sandbox_await');
         final free = _findHandler(plugin, 'sandbox_free');
 
-        final handle = (await spawn!({'code': '1'}))! as int;
-        await await_!({'handle': handle});
+        final handle = (await spawn({'code': '1'}))! as int;
+        await await_({'handle': handle});
         await free({'handle': handle});
 
         expect(plugin.childrenSignal.value, isEmpty);
@@ -1473,8 +1473,8 @@ void main() {
         );
         addTearDown(dispose);
 
-        final handle = (await spawn!({'code': '1'}))! as int;
-        await await_!({'handle': handle});
+        final handle = (await spawn({'code': '1'}))! as int;
+        await await_({'handle': handle});
 
         // At least: initial empty, spawned (Running), completed
         expect(observed.length, greaterThanOrEqualTo(2));
@@ -1488,7 +1488,7 @@ void main() {
           ),
         );
         final spawn = _findHandler(plugin, 'sandbox_spawn');
-        await spawn!({'code': '1'});
+        await spawn({'code': '1'});
 
         // Observe the signal up to the moment dispose fires; the mixin
         // disposes stateSignal in super.onDispose(), so reading after dispose

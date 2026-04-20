@@ -19,16 +19,16 @@ enum MontyBackendKind {
 
 /// The backend this compile unit runs against.
 ///
-/// Resolved at compile time. `ExtensionCoordinator.attachTo` compares each extension's
-/// `supportedBackends` against this value and throws
+/// Resolved at compile time. `ExtensionCoordinator.attachTo` compares each
+/// extension's `supportedBackends` against this value and throws
 /// [UnsupportedBackendError] if a extension declares it cannot run here.
 MontyBackendKind get currentBackendKind => platform.currentBackendKind;
 
 /// Thrown when a extension's declared `supportedBackends` does not include the
 /// current runtime backend.
 ///
-/// Raised from `ExtensionCoordinator.attachTo` before any script executes so the
-/// failure is a clean configuration error rather than a mid-run crash.
+/// Raised from `ExtensionCoordinator.attachTo` before any script executes so
+/// the failure is a clean configuration error rather than a mid-run crash.
 class UnsupportedBackendError extends Error {
   /// Creates an [UnsupportedBackendError].
   UnsupportedBackendError({

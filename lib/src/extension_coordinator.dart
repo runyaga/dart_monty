@@ -1,12 +1,12 @@
 import 'dart:collection';
 
+import 'package:dart_monty/src/attach_context.dart';
 import 'package:dart_monty/src/bridge_logger.dart';
 import 'package:dart_monty/src/host_function.dart';
 import 'package:dart_monty/src/introspection_functions.dart';
 import 'package:dart_monty/src/monty_backend_kind.dart';
 import 'package:dart_monty/src/monty_bridge.dart';
 import 'package:dart_monty/src/monty_plugin.dart';
-import 'package:dart_monty/src/attach_context.dart';
 import 'package:dart_monty/src/os_call/decorator_handlers.dart';
 import 'package:dart_monty/src/os_call/fs_handlers.dart';
 import 'package:dart_monty/src/os_call/os_handlers.dart';
@@ -61,7 +61,10 @@ void _attachExtensionFunctions(
 /// [currentBackendKind]. Logs and throws [UnsupportedBackendError] on the
 /// first mismatch so the failure is a clean configuration error before any
 /// lifecycle hook fires.
-void _checkSupportedBackends(List<MontyExtension> extensions, BridgeLogger log) {
+void _checkSupportedBackends(
+  List<MontyExtension> extensions,
+  BridgeLogger log,
+) {
   final here = currentBackendKind;
   for (final ext in extensions) {
     final supported = ext.supportedBackends;
@@ -95,9 +98,7 @@ void _logExtensionsRegistered(
       attributes: {
         'namespace': ext.namespace,
         'functionCount': ext.functions.length,
-        'supportedBackends': ext.supportedBackends
-            .map((b) => b.name)
-            .toList(),
+        'supportedBackends': ext.supportedBackends.map((b) => b.name).toList(),
       },
     );
   }
@@ -118,8 +119,9 @@ void _attachExtraFunctions(
   );
 }
 
-/// Calls [MontyExtension.onAttach] for each extension in [attachOrder], collecting
-/// failures. Returns `(namespace, error)` pairs for every extension that threw.
+/// Calls [MontyExtension.onAttach] for each extension in [attachOrder],
+/// collecting failures. Returns `(namespace, error)` pairs for every
+/// extension that threw.
 Future<List<(String, Object)>> _runExtensionOnAttaches(
   List<MontyExtension> attachOrder,
   AttachContext ctx,
@@ -141,9 +143,11 @@ Future<List<(String, Object)>> _runExtensionOnAttaches(
   return errors;
 }
 
-/// Injects [coordinator] into each extension's [MontyExtension.coordinator] field.
+/// Injects [coordinator] into each extension's
+/// [MontyExtension.coordinator] field.
 ///
-/// Called before [_runExtensionOnAttaches] so that [MontyExtension.coordinator]
+/// Called before [_runExtensionOnAttaches] so that
+/// [MontyExtension.coordinator]
 /// is available inside [MontyExtension.onAttach] (used by extensions that
 /// spawn children or drive lifecycle operations).
 void _injectCoordinators(
@@ -224,7 +228,8 @@ class ExtensionCoordinator {
   BridgeLogger _log = const NullBridgeLogger();
   bool _attached = false;
 
-  /// The extension OS contributions resolved during [attachTo], keyed by prefix.
+  /// The extension OS contributions resolved during [attachTo], keyed by
+  /// prefix.
   ///
   /// Captured so that [spawnChild] can re-compose a child handler per
   /// [ChildVfsStrategy] (swapping only the `Path.` entry) instead of
@@ -232,7 +237,8 @@ class ExtensionCoordinator {
   Map<String, OsCallHandler>? _osContributions;
 
   /// The `baseOs` passed to [attachTo], if any. Used as the fallback for any
-  /// prefix that no extension claims when [spawnChild] composes a child handler.
+  /// prefix that no extension claims when [spawnChild] composes a child
+  /// handler.
   OsCallHandler? _baseOs;
 
   /// The `extraFunctions` passed to [attachTo], captured so that [spawnChild]
@@ -278,10 +284,11 @@ class ExtensionCoordinator {
     );
   }
 
-  /// Wires all extensions to [bridge], calls [MontyExtension.onAttach] for each,
-  /// registers introspection builtins, and registers [extraFunctions] under the
-  /// `'extra'` category. [MontyExtension.onAttach] errors are collected and
-  /// thrown together as a single [StateError] after all extensions are processed.
+  /// Wires all extensions to [bridge], calls [MontyExtension.onAttach] for
+  /// each, registers introspection builtins, and registers [extraFunctions]
+  /// under the `'extra'` category. [MontyExtension.onAttach] errors are
+  /// collected and thrown together as a single [StateError] after all
+  /// extensions are processed.
   ///
   /// ## OS registration
   ///
@@ -347,7 +354,9 @@ class ExtensionCoordinator {
       // Clean up partially-attached extensions before throwing.
       await disposeAll();
       final summary = errors.map((e) => '${e.$1}: ${e.$2}').join('; ');
-      throw StateError('${errors.length} extension(s) failed to attach: $summary');
+      throw StateError(
+        '${errors.length} extension(s) failed to attach: $summary',
+      );
     }
 
     _attached = true;
@@ -386,8 +395,8 @@ class ExtensionCoordinator {
     }
   }
 
-  /// Builds a child [ExtensionCoordinator] seeded from this (parent) coordinator and
-  /// attaches it to [bridge].
+  /// Builds a child [ExtensionCoordinator] seeded from this (parent)
+  /// coordinator and attaches it to [bridge].
   ///
   /// Every parent extension contributes to the child according to its
   /// [MontyExtension.childPolicy] — `clone` invokes
@@ -435,7 +444,10 @@ class ExtensionCoordinator {
     }
 
     child.systemPromptPrefix = childSystemPromptPrefix;
-    final childBaseOs = _composeChildBaseOs(vfsStrategy, baseOsOverride: baseOs);
+    final childBaseOs = _composeChildBaseOs(
+      vfsStrategy,
+      baseOsOverride: baseOs,
+    );
     final inheritedExtras = _extraFunctions
         .where(
           (fn) => fn.childPropagation == HostFunctionChildPropagation.inherit,

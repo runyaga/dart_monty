@@ -579,7 +579,8 @@ void main() {
       bridge.dispose();
       expect(plugin.channelState, const BridgeChannelIdle());
       expect(() => bridge.execute('1'), throwsStateError);
-      // onAttach was called but _wrapStream was never called — state remains idle
+      // onAttach was called but _wrapStream was never called — state remains
+      // idle
       expect(plugin.channelState, const BridgeChannelIdle());
     });
 
@@ -897,9 +898,9 @@ void main() {
       () async {
         // Regression: without the createChildInstance override the default
         // returns null. SandboxExtension treats null as "plugin not needed in
-        // child", so child bridges get no EventLoopExtension. Python code inside
-        // a child sandbox that calls el_recv() or el_emit() would raise
-        // NameError because those host functions were never registered.
+        // child", so child bridges get no EventLoopExtension. Python code
+        // inside a child sandbox that calls el_recv() or el_emit() would
+        // raise NameError because those host functions were never registered.
         final child = plugin.createChildInstance(
           const ChildSpawnContext(childId: 1),
         );

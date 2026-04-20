@@ -54,7 +54,9 @@ void main() {
         // is not introducing a duplicate or conflicting capture path.
         final session = MontyRuntime();
         try {
-          final result = await session.execute('print("hello from bridge")').result;
+          final result = await session
+              .execute('print("hello from bridge")')
+              .result;
           expect(result.printOutput, contains('hello from bridge'));
         } finally {
           await session.dispose();
@@ -93,7 +95,9 @@ void main() {
     test('NameError on line 3 of user code reports line 3', () async {
       final session = MontyRuntime();
       try {
-        final result = await session.execute('x = 1\ny = 2\nundefined_xyz').result;
+        final result = await session
+            .execute('x = 1\ny = 2\nundefined_xyz')
+            .result;
         expect(result.error, isNotNull);
         expect(result.error!.lineNumber, 3);
       } finally {

@@ -132,7 +132,7 @@ void main() {
             name: 'get_data',
             description: 'Returns sample data',
           ),
-          handler: (_, __) async => [1, 2, 3, 4, 5],
+          handler: (_, _) async => [1, 2, 3, 4, 5],
         ),
       );
 
@@ -149,7 +149,7 @@ void main() {
             name: 'my_tool',
             description: 'A custom tool',
           ),
-          handler: (_, __) async => null,
+          handler: (_, _) async => null,
         ),
       );
 
@@ -179,35 +179,45 @@ void main() {
     });
 
     test('write and read file via pathlib', () async {
-      await session.execute(
-        'from pathlib import Path\n'
-        'Path("/data/test.txt").write_text("hello from agent")',
-      ).result;
-      final result = await session.execute(
-        'from pathlib import Path\n'
-        'Path("/data/test.txt").read_text()',
-      ).result;
+      await session
+          .execute(
+            'from pathlib import Path\n'
+            'Path("/data/test.txt").write_text("hello from agent")',
+          )
+          .result;
+      final result = await session
+          .execute(
+            'from pathlib import Path\n'
+            'Path("/data/test.txt").read_text()',
+          )
+          .result;
 
       expect(result.value.dartValue, 'hello from agent');
     });
 
     test('filesystem state persists across calls', () async {
-      await session.execute(
-        'from pathlib import Path\n'
-        'Path("/data").mkdir(parents=True, exist_ok=True)\n'
-        'Path("/data/counter.txt").write_text("0")',
-      ).result;
+      await session
+          .execute(
+            'from pathlib import Path\n'
+            'Path("/data").mkdir(parents=True, exist_ok=True)\n'
+            'Path("/data/counter.txt").write_text("0")',
+          )
+          .result;
 
-      await session.execute(
-        'from pathlib import Path\n'
-        'n = int(Path("/data/counter.txt").read_text())\n'
-        'Path("/data/counter.txt").write_text(str(n + 1))',
-      ).result;
+      await session
+          .execute(
+            'from pathlib import Path\n'
+            'n = int(Path("/data/counter.txt").read_text())\n'
+            'Path("/data/counter.txt").write_text(str(n + 1))',
+          )
+          .result;
 
-      final result = await session.execute(
-        'from pathlib import Path\n'
-        'int(Path("/data/counter.txt").read_text())',
-      ).result;
+      final result = await session
+          .execute(
+            'from pathlib import Path\n'
+            'int(Path("/data/counter.txt").read_text())',
+          )
+          .result;
 
       expect(result.value.dartValue, 1);
     });
@@ -215,10 +225,12 @@ void main() {
     test('date.today() returns reasonable year', () async {
       // Note: date objects stored in state are not JSON-serializable,
       // so we extract the year immediately rather than persisting.
-      final result = await session.execute(
-        'from datetime import date\n'
-        'date.today().year >= 2024',
-      ).result;
+      final result = await session
+          .execute(
+            'from datetime import date\n'
+            'date.today().year >= 2024',
+          )
+          .result;
 
       expect(result.value.dartValue, true);
     });
@@ -412,8 +424,9 @@ result
     test(
       'sandbox mode: plugin onDispose called after each execute()',
       () async {
-        // In sandbox mode a fresh ExtensionCoordinator is created per execute() and
-        // must be disposed in the finally block regardless of success or error.
+        // In sandbox mode a fresh ExtensionCoordinator is created per
+        // execute() and must be disposed in the finally block regardless of
+        // success or error.
         final plugin = _TrackingExtension();
         final session = MontyRuntime(sandbox: true, extensions: [plugin]);
         addTearDown(session.dispose);

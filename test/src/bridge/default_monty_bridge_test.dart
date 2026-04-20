@@ -31,7 +31,7 @@ void main() {
             name: 'slow_fail',
             description: 'Fails asynchronously.',
           ),
-          handler: (_, __) async {
+          handler: (_, _) async {
             throw StateError('async kaboom');
           },
         ),
@@ -81,7 +81,7 @@ void main() {
               name: 'explode',
               description: 'Throws synchronously.',
             ),
-            handler: (_, __) => throw StateError('sync boom'),
+            handler: (_, _) => throw StateError('sync boom'),
           ),
         );
 
@@ -131,7 +131,7 @@ void main() {
       b.register(
         HostFunction(
           schema: const HostFunctionSchema(name: 'greet', description: ''),
-          handler: (_, __) async => 'hello',
+          handler: (_, _) async => 'hello',
         ),
       );
 
@@ -205,7 +205,7 @@ void main() {
       syncBridge.register(
         HostFunction(
           schema: const HostFunctionSchema(name: 'fn', description: ''),
-          handler: (_, __) async => fail('should not be called'),
+          handler: (_, _) async => fail('should not be called'),
         ),
       );
 
@@ -234,7 +234,7 @@ void main() {
       syncBridge.register(
         HostFunction(
           schema: const HostFunctionSchema(name: 'fn', description: ''),
-          handler: (_, __) async => fail('should not be called'),
+          handler: (_, _) async => fail('should not be called'),
         ),
       );
 
@@ -256,7 +256,7 @@ void main() {
       bridge.register(
         HostFunction(
           schema: const HostFunctionSchema(name: 'fn', description: ''),
-          handler: (_, __) async {
+          handler: (_, _) async {
             called = true;
             return 'ok';
           },
@@ -292,7 +292,7 @@ void main() {
       b.register(
         HostFunction(
           schema: const HostFunctionSchema(name: 'async_fn', description: ''),
-          handler: (_, __) async => 'result',
+          handler: (_, _) async => 'result',
         ),
       );
 
@@ -330,7 +330,7 @@ void main() {
       b.register(
         HostFunction(
           schema: const HostFunctionSchema(name: 'fn', description: ''),
-          handler: (_, __) async => 'infra result',
+          handler: (_, _) async => 'infra result',
           isInfra: true,
         ),
       );
@@ -519,86 +519,91 @@ void main() {
       expect(() => bridge.invokeHostFunction('nope', {}), throwsArgumentError);
     });
 
-    test('setOsHandler(null) clears; restoring via setOsHandler roundtrips',
-        () async {
-      Future<Object?> handlerA(
-        String op,
-        List<Object?> args,
-        Map<String, Object?>? kwargs,
-      ) async => 'A';
-      Future<Object?> handlerB(
-        String op,
-        List<Object?> args,
-        Map<String, Object?>? kwargs,
-      ) async => 'B';
+    test(
+      'setOsHandler(null) clears; restoring via setOsHandler roundtrips',
+      () async {
+        Future<Object?> handlerA(
+          String op,
+          List<Object?> args,
+          Map<String, Object?>? kwargs,
+        ) async => 'A';
+        Future<Object?> handlerB(
+          String op,
+          List<Object?> args,
+          Map<String, Object?>? kwargs,
+        ) async => 'B';
 
-      final b = MontyBridge(platform: mock) as DefaultMontyBridge;
-      addTearDown(b.dispose);
+        final b = MontyBridge(platform: mock) as DefaultMontyBridge;
+        addTearDown(b.dispose);
 
-      OsCallHandler? captured;
-      b.register(
-        HostFunction(
-          schema: const HostFunctionSchema(name: 'peek', description: ''),
-          handler: (_, ctx) async {
-            captured = ctx.os;
-            return null;
-          },
-        ),
-      );
+        OsCallHandler? captured;
+        b.register(
+          HostFunction(
+            schema: const HostFunctionSchema(name: 'peek', description: ''),
+            handler: (_, ctx) async {
+              captured = ctx.os;
+              return null;
+            },
+          ),
+        );
 
-      // Initially null.
-      await b.invokeHostFunction('peek', const {});
-      expect(captured, isNull);
+        // Initially null.
+        await b.invokeHostFunction('peek', const {});
+        expect(captured, isNull);
 
-      b.registerOs(handlerA);
-      await b.invokeHostFunction('peek', const {});
-      expect(captured, same(handlerA));
-      expect(b.currentOsHandler, same(handlerA));
+        b.registerOs(handlerA);
+        await b.invokeHostFunction('peek', const {});
+        expect(captured, same(handlerA));
+        expect(b.currentOsHandler, same(handlerA));
 
-      // Override to B, confirm swap visible to handlers.
-      b.setOsHandler(handlerB);
-      await b.invokeHostFunction('peek', const {});
-      expect(captured, same(handlerB));
+        // Override to B, confirm swap visible to handlers.
+        b.setOsHandler(handlerB);
+        await b.invokeHostFunction('peek', const {});
+        expect(captured, same(handlerB));
 
-      // Restore A.
-      b.setOsHandler(handlerA);
-      await b.invokeHostFunction('peek', const {});
-      expect(captured, same(handlerA));
+        // Restore A.
+        b.setOsHandler(handlerA);
+        await b.invokeHostFunction('peek', const {});
+        expect(captured, same(handlerA));
 
-      // Clear via null.
-      b.setOsHandler(null);
-      await b.invokeHostFunction('peek', const {});
-      expect(captured, isNull);
-      expect(b.currentOsHandler, isNull);
-    });
+        // Clear via null.
+        b.setOsHandler(null);
+        await b.invokeHostFunction('peek', const {});
+        expect(captured, isNull);
+        expect(b.currentOsHandler, isNull);
+      },
+    );
 
-    test('HostContext.os reflects currently-registered OsCallHandler', () async {
-      OsCallHandler? capturedOs;
-      bridge.register(
-        HostFunction(
-          schema: const HostFunctionSchema(name: 'peek_os', description: ''),
-          handler: (_, ctx) async {
-            capturedOs = ctx.os;
-            return null;
-          },
-        ),
-      );
+    test(
+      'HostContext.os reflects currently-registered OsCallHandler',
+      () async {
+        OsCallHandler? capturedOs;
+        bridge.register(
+          HostFunction(
+            schema: const HostFunctionSchema(name: 'peek_os', description: ''),
+            handler: (_, ctx) async {
+              capturedOs = ctx.os;
+              return null;
+            },
+          ),
+        );
 
-      // Before registerOs: ctx.os is null.
-      await bridge.invokeHostFunction('peek_os', const {});
-      expect(capturedOs, isNull);
+        // Before registerOs: ctx.os is null.
+        await bridge.invokeHostFunction('peek_os', const {});
+        expect(capturedOs, isNull);
 
-      // After registerOs: ctx.os is the registered handler.
-      Future<Object?> handler(
-        String op,
-        List<Object?> args,
-        Map<String, Object?>? kwargs,
-      ) async => 'ok';
-      bridge.registerOs(handler);
+        // After registerOs: ctx.os is the registered handler.
+        Future<Object?> handler(
+          String op,
+          List<Object?> args,
+          Map<String, Object?>? kwargs,
+        ) async => 'ok';
+        bridge.registerOs(handler);
 
-      await bridge.invokeHostFunction('peek_os', const {});
-      expect(capturedOs, same(handler));
-    });
+        await bridge.invokeHostFunction('peek_os', const {});
+        expect(capturedOs, same(handler));
+      },
+    );
 
     test('isInfra: true bypasses interceptor on direct invoke', () async {
       var interceptorCalled = false;
@@ -615,7 +620,7 @@ void main() {
       b.register(
         HostFunction(
           schema: const HostFunctionSchema(name: 'fn', description: ''),
-          handler: (_, __) async => 'result',
+          handler: (_, _) async => 'result',
           isInfra: true,
         ),
       );
@@ -634,7 +639,7 @@ void main() {
             description: '',
             params: [HostParam(name: 'name', type: HostParamType.string)],
           ),
-          handler: (_, __) async => null,
+          handler: (_, _) async => null,
         ),
       );
 
@@ -688,7 +693,7 @@ void main() {
       b.register(
         HostFunction(
           schema: const HostFunctionSchema(name: 'noop', description: ''),
-          handler: (_, __) async => null,
+          handler: (_, _) async => null,
         ),
       );
       throwingMock.enqueueProgress(
@@ -717,7 +722,7 @@ void main() {
         b.register(
           HostFunction(
             schema: const HostFunctionSchema(name: 'noop', description: ''),
-            handler: (_, __) async => null,
+            handler: (_, _) async => null,
           ),
         );
         throwingMock.enqueueProgress(
@@ -748,7 +753,7 @@ void main() {
         b.register(
           HostFunction(
             schema: const HostFunctionSchema(name: 'noop', description: ''),
-            handler: (_, __) async => null,
+            handler: (_, _) async => null,
           ),
         );
         throwingMock
@@ -772,7 +777,7 @@ void main() {
         () => bridge.register(
           HostFunction(
             schema: const HostFunctionSchema(name: 'fn', description: ''),
-            handler: (_, __) async => null,
+            handler: (_, _) async => null,
           ),
         ),
         throwsStateError,
@@ -809,7 +814,7 @@ void main() {
       bridge.register(
         HostFunction(
           schema: const HostFunctionSchema(name: 'temp', description: ''),
-          handler: (_, __) async => null,
+          handler: (_, _) async => null,
         ),
       );
       expect(bridge.schemas.map((s) => s.name), contains('temp'));
@@ -863,7 +868,7 @@ void main() {
             description: '',
             params: [HostParam(name: 'x', type: HostParamType.integer)],
           ),
-          handler: (_, __) async => null,
+          handler: (_, _) async => null,
         ),
       );
 
@@ -891,7 +896,7 @@ void main() {
             description: '',
             params: [HostParam(name: 'x', type: HostParamType.integer)],
           ),
-          handler: (_, __) async => null,
+          handler: (_, _) async => null,
         ),
       );
 
@@ -959,7 +964,7 @@ void main() {
                 name: 'greet',
                 description: 'Returns hello',
               ),
-              handler: (_, __) async => 'hello',
+              handler: (_, _) async => 'hello',
             ),
           );
 

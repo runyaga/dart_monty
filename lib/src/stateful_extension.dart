@@ -4,10 +4,11 @@ import 'package:signals_core/signals_core.dart';
 /// Unifies the "plugin owns a single primary state signal" pattern.
 ///
 /// Plugins that expose reactive state (e.g. `EventLoopExtension`,
-/// `SandboxExtension`) historically allocated their own `Signal<T>`, exposed it
-/// via a plugin-specific getter (`channelStateSignal`, `childrenSignal`), and
-/// had to remember to call `.dispose()` in [MontyExtension.onDispose]. Over four
-/// plugins that ceremony produced inconsistent disposal: some signals leaked,
+/// `SandboxExtension`) historically allocated their own `Signal<T>`, exposed
+/// it via a plugin-specific getter (`channelStateSignal`, `childrenSignal`),
+/// and had to remember to call `.dispose()` in [MontyExtension.onDispose].
+/// Over four plugins that ceremony produced inconsistent disposal: some
+/// signals leaked,
 /// some were double-disposed.
 ///
 /// This mixin owns one primary signal for the plugin, guarantees disposal,
@@ -87,6 +88,7 @@ mixin StatefulExtension<T> on MontyExtension implements HasStateSignal {
 /// `ReadonlySignal<Object?>`, allowing callers to subscribe to any
 /// [StatefulExtension] without knowing its concrete type parameter.
 mixin HasStateSignal on MontyExtension {
-  /// Returns [StatefulExtension.stateSignal] typed as `ReadonlySignal<Object?>`.
+  /// Returns [StatefulExtension.stateSignal] typed as
+  /// `ReadonlySignal<Object?>`.
   ReadonlySignal<Object?> get stateSignalAsObject;
 }

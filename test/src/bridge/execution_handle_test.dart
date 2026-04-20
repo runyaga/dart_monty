@@ -33,10 +33,10 @@ void main() {
     });
 
     test('cancel is idempotent', () async {
-      final token = CancelToken();
-      token.cancel();
-      token.cancel();
-      token.cancel();
+      final token = CancelToken()
+        ..cancel()
+        ..cancel()
+        ..cancel();
 
       expect(token.isCancelled, isTrue);
       await expectLater(token.future, completes);
@@ -46,9 +46,9 @@ void main() {
   group('ExecutionHandle', () {
     test('exposes events, result, executionId, and cancel', () async {
       final token = CancelToken();
-      final stubResult = MontyResult(
-        value: const MontyNone(),
-        usage: const MontyResourceUsage(
+      const stubResult = MontyResult(
+        value: MontyNone(),
+        usage: MontyResourceUsage(
           memoryBytesUsed: 0,
           timeElapsedMs: 0,
           stackDepthUsed: 0,

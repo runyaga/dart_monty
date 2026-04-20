@@ -102,7 +102,6 @@ void main() {
         expect(() => plugin.coordinator, throwsA(isA<Error>()));
       },
     );
-
   });
 }
 

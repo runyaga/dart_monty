@@ -34,7 +34,7 @@ void main() {
                   ),
                 ],
               ),
-              handler: (_, __) async => null,
+              handler: (_, _) async => null,
             ),
             category: 'storage',
           )
@@ -44,7 +44,7 @@ void main() {
                 name: 'storage_set',
                 description: 'Set a value in storage.',
               ),
-              handler: (_, __) async => null,
+              handler: (_, _) async => null,
             ),
             category: 'storage',
           )
@@ -54,7 +54,7 @@ void main() {
                 name: 'cache_get',
                 description: 'Get a value from cache.',
               ),
-              handler: (_, __) async => null,
+              handler: (_, _) async => null,
             ),
             category: 'cache',
           )
@@ -64,7 +64,7 @@ void main() {
                 name: 'cache_clear',
                 description: 'Clear the cache.',
               ),
-              handler: (_, __) async => null,
+              handler: (_, _) async => null,
             ),
             category: 'cache',
           );
@@ -196,7 +196,7 @@ void main() {
                 name: 'db_utils_query',
                 description: 'Run a DB query.',
               ),
-              handler: (_, __) async => null,
+              handler: (_, _) async => null,
             ),
             category: 'db_utils',
           );
@@ -232,7 +232,7 @@ void main() {
                 name: 'late_fn',
                 description: 'Registered late.',
               ),
-              handler: (_, __) async => null,
+              handler: (_, _) async => null,
             ),
             category: 'late',
           );
@@ -257,7 +257,7 @@ void main() {
               name: 'late_fn',
               description: 'Registered late.',
             ),
-            handler: (_, __) async => null,
+            handler: (_, _) async => null,
           ),
           category: 'late',
         );

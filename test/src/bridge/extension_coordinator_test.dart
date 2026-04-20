@@ -1,4 +1,3 @@
-import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:signals_core/signals_core.dart' show ReadonlySignal;
 import 'package:test/test.dart';
@@ -48,13 +47,18 @@ void main() {
 
       expect(registry.extensions, hasLength(1));
       expect(registry.extensions.first.namespace, 'alpha');
-      expect(registry.extensions.first.systemPromptContext, 'Alpha operations.');
+      expect(
+        registry.extensions.first.systemPromptContext,
+        'Alpha operations.',
+      );
     });
 
     test('multiple plugins register successfully', () {
       registry
         ..register(_TestExtension(namespace: 'aaa', functions: [_fn('aaa_do')]))
-        ..register(_TestExtension(namespace: 'bbb', functions: [_fn('bbb_do')]));
+        ..register(
+          _TestExtension(namespace: 'bbb', functions: [_fn('bbb_do')]),
+        );
 
       expect(registry.extensions, hasLength(2));
       expect(registry.extensions[0].namespace, 'aaa');
@@ -66,7 +70,10 @@ void main() {
         namespace: 'alpha',
         functions: [_fn('alpha_one'), _fn('alpha_two')],
       );
-      final p2 = _TestExtension(namespace: 'beta', functions: [_fn('beta_one')]);
+      final p2 = _TestExtension(
+        namespace: 'beta',
+        functions: [_fn('beta_one')],
+      );
 
       registry
         ..register(p1)
@@ -600,7 +607,6 @@ void main() {
           },
         );
       });
-
     });
 
     group('disposeAll', () {
@@ -708,7 +714,11 @@ void main() {
             isA<StateError>().having(
               (e) => e.message,
               'message',
-              allOf(contains('2 extension(s)'), contains('aaa'), contains('bbb')),
+              allOf(
+                contains('2 extension(s)'),
+                contains('aaa'),
+                contains('bbb'),
+              ),
             ),
           ),
         );
@@ -813,7 +823,9 @@ void main() {
       test('empty systemPromptPrefix produces no prefix', () {
         registry
           ..systemPromptPrefix = ''
-          ..register(_TestExtension(namespace: 'ns', functions: [_fn('ns_one')]));
+          ..register(
+            _TestExtension(namespace: 'ns', functions: [_fn('ns_one')]),
+          );
 
         final prompt = registry.generateSystemPrompt();
 
@@ -961,7 +973,7 @@ void main() {
 
       test('defaults to exclude when childPropagation is not specified', () {
         final fn = HostFunction(
-          schema: HostFunctionSchema(name: 'x', description: ''),
+          schema: const HostFunctionSchema(name: 'x', description: ''),
           handler: (args, _) async => null,
         );
 

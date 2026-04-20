@@ -37,7 +37,7 @@ void main() {
                   name: 'sync_fn',
                   description: 'Returns immediately',
                 ),
-                handler: (_, __) async => 'sync_ok',
+                handler: (_, _) async => 'sync_ok',
               ),
             )
             ..register(
@@ -46,7 +46,7 @@ void main() {
                   name: 'delay_fn',
                   description: 'Awaits 200ms',
                 ),
-                handler: (_, __) async {
+                handler: (_, _) async {
                   await Future<void>.delayed(
                     const Duration(milliseconds: 200),
                   );
@@ -61,7 +61,7 @@ void main() {
                   name: 'http_fn',
                   description: 'Real HTTP GET',
                 ),
-                handler: (_, __) async {
+                handler: (_, _) async {
                   final client = HttpClient();
                   try {
                     final req = await client.getUrl(
@@ -224,9 +224,11 @@ r4 = kv_get("all")
 
         // ── D. Built-in plugins ──────────────────────────────────────
 
-        r = await session.execute(
-          'tmpl_render("Hello {{ n }}!", {"n": "World"})',
-        ).result;
+        r = await session
+            .execute(
+              'tmpl_render("Hello {{ n }}!", {"n": "World"})',
+            )
+            .result;
         expect(r.value.dartValue, 'Hello World!');
         print('  D1. template: PASS');
 

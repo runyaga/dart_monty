@@ -1,5 +1,8 @@
 import 'dart:async';
 
+import 'package:dart_monty/dart_monty_bridge.dart'
+    show MontyExtension, MontyRuntime;
+import 'package:dart_monty/src/attach_context.dart';
 import 'package:dart_monty/src/bridge_event.dart';
 import 'package:dart_monty/src/bridge_logger.dart';
 import 'package:dart_monty/src/host_dispatch.dart';
@@ -7,7 +10,6 @@ import 'package:dart_monty/src/host_function.dart';
 import 'package:dart_monty/src/host_function_schema.dart';
 import 'package:dart_monty/src/monty_bridge.dart';
 import 'package:dart_monty/src/monty_runtime_ref.dart';
-import 'package:dart_monty/src/attach_context.dart';
 import 'package:dart_monty/src/struct_log_bridge_logger.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:meta/meta.dart';

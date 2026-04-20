@@ -4,6 +4,8 @@ import 'package:dart_monty/src/bridge_event.dart';
 import 'package:dart_monty/src/bridge_logger.dart';
 import 'package:dart_monty/src/default_monty_bridge.dart';
 import 'package:dart_monty/src/execution_handle.dart';
+import 'package:dart_monty/src/extension_coordinator.dart';
+import 'package:dart_monty/src/function_surface.dart';
 import 'package:dart_monty/src/host_dispatch.dart';
 import 'package:dart_monty/src/host_function.dart';
 import 'package:dart_monty/src/host_function_schema.dart';
@@ -11,18 +13,17 @@ import 'package:dart_monty/src/monty_plugin.dart';
 import 'package:dart_monty/src/monty_runtime_ref.dart';
 import 'package:dart_monty/src/monty_runtime_state.dart';
 import 'package:dart_monty/src/os_call/os_handlers.dart';
-import 'package:dart_monty/src/extension_coordinator.dart';
-import 'package:dart_monty/src/function_surface.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 
 // ---------------------------------------------------------------------------
 // MontyRuntime
 // ---------------------------------------------------------------------------
 
-/// High-level agent session — stateful Python execution with tools and extensions.
+/// High-level agent session — stateful Python execution with tools and
+/// extensions.
 ///
-/// Combines `MontyBridge`, `ExtensionCoordinator`, and OS providers into a single
-/// API. Both execution modes are backed by [ReplPlatform], which adapts
+/// Combines `MontyBridge`, `ExtensionCoordinator`, and OS providers into a
+/// single API. Both execution modes are backed by [ReplPlatform], which adapts
 /// [MontyRepl] to the [MontyPlatform] interface accepted by
 /// [DefaultMontyBridge]. All state (variables, functions, classes, modules)
 /// persists natively in the Rust REPL heap across `execute()` calls — no
@@ -139,7 +140,8 @@ class MontyRuntime implements MontyRuntimeRef {
       (_sharedBridge ?? _schemaBridge)?.llmSchemas ?? [];
 
   /// Broadcast stream of all [BridgeEvent]s emitted across every execution,
-  /// including child executions spawned via extensions such as `SandboxExtension`.
+  /// including child executions spawned via extensions such as
+  /// `SandboxExtension`.
   ///
   /// Child-plugin events arrive wrapped in [BridgeChildEvent] with
   /// `childHandle` set to the plugin's local handle (e.g. a sandbox child
@@ -233,8 +235,8 @@ class MontyRuntime implements MontyRuntimeRef {
   /// Clears all persisted Python state.
   ///
   /// In shared mode, recreates the full interpreter stack ([MontyRepl],
-  /// [ReplPlatform], [DefaultMontyBridge], and [ExtensionCoordinator]) so the next
-  /// `execute()` call starts with empty Python globals. Plugins are
+  /// [ReplPlatform], [DefaultMontyBridge], and [ExtensionCoordinator]) so the
+  /// next `execute()` call starts with empty Python globals. Plugins are
   /// re-attached on the next `execute()` call.
   ///
   /// In sandbox mode, each call already uses a fresh interpreter — this is
@@ -288,34 +290,37 @@ class MontyRuntime implements MontyRuntimeRef {
     final controller = StreamController<BridgeEvent>.broadcast();
     final cancelToken = CancelToken();
 
-    Future<void>.microtask(() async {
-      OsCallHandler? priorOs;
-      final overrideActive = osOverride != null;
-      try {
-        if (!_sharedAttached) {
-          await _sharedRegistry!.attachTo(_sharedBridge!, baseOs: _os);
-          _sharedAttached = true;
+    unawaited(
+      Future<void>.microtask(() async {
+        OsCallHandler? priorOs;
+        final overrideActive = osOverride != null;
+        try {
+          if (!_sharedAttached) {
+            await _sharedRegistry!.attachTo(_sharedBridge!, baseOs: _os);
+            _sharedAttached = true;
+          }
+          if (overrideActive) {
+            priorOs = _sharedBridge!.currentOsHandler;
+            _sharedBridge!.setOsHandler(osOverride);
+          }
+          final collected = <BridgeEvent>[];
+          await for (final event in _sharedBridge!.execute(code)) {
+            collected.add(event);
+            if (!_eventsController.isClosed) _eventsController.add(event);
+            if (!controller.isClosed) controller.add(event);
+          }
+          if (!resultCompleter.isCompleted) {
+            resultCompleter.complete(extractBridgeResult(collected, 0));
+          }
+        } on Object catch (e, st) {
+          if (!resultCompleter.isCompleted)
+            resultCompleter.completeError(e, st);
+        } finally {
+          if (overrideActive) _sharedBridge?.setOsHandler(priorOs);
+          if (!controller.isClosed) await controller.close();
         }
-        if (overrideActive) {
-          priorOs = _sharedBridge!.currentOsHandler;
-          _sharedBridge!.setOsHandler(osOverride);
-        }
-        final collected = <BridgeEvent>[];
-        await for (final event in _sharedBridge!.execute(code)) {
-          collected.add(event);
-          if (!_eventsController.isClosed) _eventsController.add(event);
-          if (!controller.isClosed) controller.add(event);
-        }
-        if (!resultCompleter.isCompleted) {
-          resultCompleter.complete(extractBridgeResult(collected, 0));
-        }
-      } on Object catch (e, st) {
-        if (!resultCompleter.isCompleted) resultCompleter.completeError(e, st);
-      } finally {
-        if (overrideActive) _sharedBridge?.setOsHandler(priorOs);
-        if (!controller.isClosed) await controller.close();
-      }
-    });
+      }),
+    );
 
     return ExecutionHandle(
       events: controller.stream,
@@ -335,49 +340,51 @@ class MontyRuntime implements MontyRuntimeRef {
     final controller = StreamController<BridgeEvent>.broadcast();
     final cancelToken = CancelToken();
 
-    Future<void>.microtask(() async {
-      final repl = MontyRepl();
-      final platform = ReplPlatform(repl: repl);
-      final b = _buildBridge(platform: platform);
+    unawaited(
+      Future<void>.microtask(() async {
+        final repl = MontyRepl();
+        final platform = ReplPlatform(repl: repl);
+        final b = _buildBridge(platform: platform);
 
-      final registry = ExtensionCoordinator();
-      if (_extensions != null) {
-        _extensions.forEach(registry.register);
-      }
-      MontyResult? result;
-      Object? error;
-      StackTrace? stackTrace;
-      try {
-        await registry.attachTo(b, baseOs: osOverride ?? _os);
-        final collected = <BridgeEvent>[];
-        await for (final event in b.execute(code)) {
-          collected.add(event);
-          if (!_eventsController.isClosed) _eventsController.add(event);
-          if (!controller.isClosed) controller.add(event);
+        final registry = ExtensionCoordinator();
+        if (_extensions != null) {
+          _extensions.forEach(registry.register);
         }
-        result = extractBridgeResult(collected, 0);
-      } on Object catch (e, st) {
-        error = e;
-        stackTrace = st;
-      } finally {
+        MontyResult? result;
+        Object? error;
+        StackTrace? stackTrace;
         try {
-          await registry.disposeAll();
+          await registry.attachTo(b, baseOs: osOverride ?? _os);
+          final collected = <BridgeEvent>[];
+          await for (final event in b.execute(code)) {
+            collected.add(event);
+            if (!_eventsController.isClosed) _eventsController.add(event);
+            if (!controller.isClosed) controller.add(event);
+          }
+          result = extractBridgeResult(collected, 0);
         } on Object catch (e, st) {
-          error ??= e;
-          stackTrace ??= st;
-        }
-        b.dispose();
-        await platform.dispose();
-        if (!controller.isClosed) await controller.close();
-        if (!resultCompleter.isCompleted) {
-          if (error != null) {
-            resultCompleter.completeError(error, stackTrace);
-          } else {
-            resultCompleter.complete(result!);
+          error = e;
+          stackTrace = st;
+        } finally {
+          try {
+            await registry.disposeAll();
+          } on Object catch (e, st) {
+            error ??= e;
+            stackTrace ??= st;
+          }
+          b.dispose();
+          await platform.dispose();
+          if (!controller.isClosed) await controller.close();
+          if (!resultCompleter.isCompleted) {
+            if (error != null) {
+              resultCompleter.completeError(error, stackTrace);
+            } else {
+              resultCompleter.complete(result!);
+            }
           }
         }
-      }
-    });
+      }),
+    );
 
     return ExecutionHandle(
       events: controller.stream,
@@ -400,7 +407,8 @@ class MontyRuntime implements MontyRuntimeRef {
       runtime: this,
     );
 
-    // OS registration is handled by ExtensionCoordinator.attachTo(b, baseOs: _os).
+    // OS registration is handled by
+    // ExtensionCoordinator.attachTo(b, baseOs: _os).
 
     _extraFunctions.forEach(b.register);
 

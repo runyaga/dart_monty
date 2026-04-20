@@ -3,7 +3,6 @@ library;
 
 import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:dart_monty/monty_backend_spi.dart';
-import 'package:dart_monty/src/host_context.dart';
 import 'package:dart_monty_core/src/ffi/monty_ffi.dart';
 import 'package:dart_monty_core/src/ffi/native_bindings_ffi.dart';
 import 'package:test/test.dart';
@@ -52,9 +51,12 @@ void main() {
             .handler;
 
         // Spawn 3 workers with distinct print output and return values.
-        final h0 = (await spawn!({'code': 'print("worker-A")\n42'}, _testCtx))! as int;
-        final h1 = (await spawn!({'code': 'print("worker-B")\n99'}, _testCtx))! as int;
-        final h2 = (await spawn!({'code': 'print("worker-C")\n7'}, _testCtx))! as int;
+        final h0 =
+            (await spawn!({'code': 'print("worker-A")\n42'}, _testCtx))! as int;
+        final h1 =
+            (await spawn({'code': 'print("worker-B")\n99'}, _testCtx))! as int;
+        final h2 =
+            (await spawn({'code': 'print("worker-C")\n7'}, _testCtx))! as int;
 
         final results =
             (await gather!({
@@ -104,7 +106,7 @@ void main() {
           .handler;
 
       final h0 = (await spawn!({'code': '10'}, _testCtx))! as int;
-      final h1 = (await spawn!({'code': '20'}, _testCtx))! as int;
+      final h1 = (await spawn({'code': '20'}, _testCtx))! as int;
 
       // Request in reverse order.
       final results =
@@ -138,8 +140,9 @@ void main() {
           .handler;
 
       // One worker prints, the other does not.
-      final hLoud = (await spawn!({'code': 'print("hello")\n1'}, _testCtx))! as int;
-      final hSilent = (await spawn!({'code': '2'}, _testCtx))! as int;
+      final hLoud =
+          (await spawn!({'code': 'print("hello")\n1'}, _testCtx))! as int;
+      final hSilent = (await spawn({'code': '2'}, _testCtx))! as int;
 
       final results =
           (await gather!({
@@ -173,7 +176,8 @@ void main() {
           .handler;
 
       final hGood = (await spawn!({'code': '1'}, _testCtx))! as int;
-      final hBad = (await spawn!({'code': 'undefined_variable_xyz'}, _testCtx))! as int;
+      final hBad =
+          (await spawn({'code': 'undefined_variable_xyz'}, _testCtx))! as int;
 
       expect(
         () => gather!({
@@ -210,9 +214,12 @@ void main() {
             .handler;
 
         final h0 =
-            (await spawn!({'code': 'print("line1")\nprint("line2")\n100'}, _testCtx))!
+            (await spawn!({
+                  'code': 'print("line1")\nprint("line2")\n100',
+                }, _testCtx))!
                 as int;
-        final h1 = (await spawn!({'code': 'print("only")\n200'}, _testCtx))! as int;
+        final h1 =
+            (await spawn({'code': 'print("only")\n200'}, _testCtx))! as int;
 
         final results =
             (await gather!({

@@ -1,7 +1,9 @@
+import 'package:dart_monty/dart_monty_bridge.dart' show MontyExtension;
+import 'package:dart_monty/src/function_surface.dart';
 import 'package:dart_monty/src/host_context.dart';
 import 'package:dart_monty/src/host_function_schema.dart';
 import 'package:dart_monty/src/monty_backend_kind.dart';
-import 'package:dart_monty/src/function_surface.dart';
+import 'package:dart_monty/src/monty_plugin.dart' show MontyExtension;
 import 'package:meta/meta.dart';
 
 /// Async handler that receives validated named arguments and a [HostContext].
@@ -18,9 +20,9 @@ class HostFunction {
   /// backend-specific slots directly when the implementation differs per
   /// platform (e.g. `dart:js_interop` on WASM, native packages on FFI).
   ///
-  /// When only one backend slot is populated, `AttachContext.register()` silently
-  /// skips the function on the other backend — no `supportedBackends`
-  /// declaration required.
+  /// When only one backend slot is populated, `AttachContext.register()`
+  /// silently skips the function on the other backend — no
+  /// `supportedBackends` declaration required.
   ///
   /// Set [isInfra] to `true` for orchestration builtins that should bypass
   /// the interceptor (e.g. introspection, internal routing).
@@ -37,8 +39,8 @@ class HostFunction {
     this.isInfra = false,
     this.surfaces = const {FunctionSurface.python},
     this.childPropagation = HostFunctionChildPropagation.exclude,
-  })  : ffiHandler = ffiHandler ?? handler,
-        wasmHandler = wasmHandler ?? handler;
+  }) : ffiHandler = ffiHandler ?? handler,
+       wasmHandler = wasmHandler ?? handler;
 
   /// Describes name, parameters, and types.
   final HostFunctionSchema schema;
