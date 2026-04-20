@@ -1,3 +1,7 @@
+// Printing to stdout is expected in an example.
+// JS interop declarations may declare optional params the Dart side never
+// passes — that is intentional and not dead code.
+// ignore_for_file: avoid_print, unused_element_parameter
 /// Web WASM example — run Python from Dart in the browser.
 ///
 /// This is a standalone Dart script compiled to JS, not a package:test file.

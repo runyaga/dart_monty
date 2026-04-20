@@ -1,5 +1,6 @@
 // Standalone JS-compiled demo, not a package:test file.
-// ignore_for_file: avoid_print, use_null_aware_elements
+// ignore_for_file: avoid_print, unnecessary_underscores
+// ignore_for_file: use_null_aware_elements, unnecessary_ignore
 /// Interactive MontyRuntime Demo — shows stateful Python execution with host
 /// functions, filesystem access, and real-time bridge event streaming.
 ///
@@ -173,7 +174,7 @@ final _demoHostFunctions = <HostFunction>[
 
 final _kvStore = <String, Object?>{};
 
-/// Shared bus — accessible to Python via MessageBusExtension and to Dart directly.
+/// Shared bus — accessible to Python via MessageBusExtension and to Dart.
 MessageBus? _msgBus;
 
 // ---------------------------------------------------------------------------
@@ -194,16 +195,13 @@ Future<bool> _init() async {
     final msgPlugin = MessageBusExtension();
     _msgBus = msgPlugin.bus;
 
-    final extensions = <MontyExtension>[tmplPlugin, msgPlugin];
-    // SandboxExtension is FFI-only — spawning a second interpreter crashes
-    // the parent WASM session. Skip it on the browser backend.
-    if (currentBackendKind == MontyBackendKind.ffi) {
-      extensions.add(
-        SandboxExtension(
-          platformFactory: () async => ReplPlatform(repl: MontyRepl()),
-        ),
-      );
-    }
+    final extensions = <MontyExtension>[
+      tmplPlugin,
+      msgPlugin,
+      SandboxExtension(
+        platformFactory: () async => ReplPlatform(repl: MontyRepl()),
+      ),
+    ];
 
     _session = MontyRuntime(os: os, extensions: extensions);
 

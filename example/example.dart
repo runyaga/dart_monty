@@ -22,5 +22,5 @@ Future<void> main() async {
     print('Error: ${bad.error!.message}');
   }
 
-  await monty.dispose();
+  monty.dispose();
 }

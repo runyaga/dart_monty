@@ -55,7 +55,7 @@ class ChildSandboxException implements Exception {
 /// Subscribe to [SandboxExtension.childrenSignal] for reactive observation:
 /// ```dart
 /// effect(() {
-///   for (final entry in plugin.childrenSignal.value.entries) {
+///   for (final entry in extension.childrenSignal.value.entries) {
 ///     switch (entry.value) {
 ///       case ChildRunning(): // still executing
 ///       case ChildCompleted(:final value): // finished with value
@@ -109,7 +109,8 @@ final class ChildFailed extends ChildState {
   final String? printOutput;
 }
 
-/// The child was cancelled or the parent plugin was disposed before completion.
+/// The child was cancelled or the parent extension was disposed
+/// before completion.
 final class ChildDisposed extends ChildState {
   /// Creates a [ChildDisposed].
   const ChildDisposed();
@@ -293,14 +294,15 @@ const _gatherSchema = HostFunctionSchema(
   ],
 );
 
-/// Plugin that spawns Python scripts in separate Monty interpreter instances.
+/// Extension that spawns Python scripts in separate Monty interpreter
+/// instances.
 ///
 /// Each child gets its own [MontyPlatform] (via [platformFactory]) and
 /// [PlatformBridge]. The parent Python script can spawn children with
 /// `sandbox_spawn(code)` and await their results with `sandbox_await(handle)`.
 ///
 /// Children are sandboxed: each has its own interpreter state.
-/// All living children are killed when this plugin is disposed.
+/// All living children are killed when this extension is disposed.
 ///
 /// ## Child extension and VFS inheritance
 ///
@@ -357,7 +359,7 @@ class SandboxExtension extends MontyExtension
   ///
   /// When non-null, each child receives a [ChildSpawnContext] with
   /// `workingDirectory` set to `$sandboxBaseDir/.sandboxes/child_$id`.
-  /// The directory is **not** created by this plugin — consumers (e.g.,
+  /// The directory is **not** created by this extension — consumers (e.g.,
   /// `FsExtension.createChildInstance`) are responsible for creation.
   final String? sandboxBaseDir;
 
@@ -377,7 +379,7 @@ class SandboxExtension extends MontyExtension
   /// Updated whenever a child transitions state (spawn, complete, fail, free,
   /// or dispose). Subscribe via `effect` for reactive UI or monitoring:
   /// ```dart
-  /// effect(() => print(plugin.childrenSignal.value));
+  /// effect(() => print(extension.childrenSignal.value));
   /// ```
   ReadonlySignal<Map<int, ChildState>> get childrenSignal => stateSignal;
 
@@ -393,10 +395,18 @@ class SandboxExtension extends MontyExtension
   @override
   String get namespace => 'sandbox';
 
-  /// FFI-only. Spawning a second interpreter crashes the parent WASM
-  /// session; see `project_sandbox_wasm_finding` in the backlog memory.
+  /// Supported on both backends, but spawning is disabled on WASM.
+  ///
+  /// The extension attaches and registers its functions on the WASM backend
+  /// so demos and tests can run without a backend guard. Calling
+  /// `sandbox_spawn_py` on WASM returns an error string — it does not crash
+  /// the session. Spawning a second interpreter on WASM would crash the parent
+  /// session (see `project_sandbox_wasm_finding` in the backlog memory).
   @override
-  Set<MontyBackendKind> get supportedBackends => const {MontyBackendKind.ffi};
+  Set<MontyBackendKind> get supportedBackends => const {
+    MontyBackendKind.ffi,
+    MontyBackendKind.wasm,
+  };
 
   @override
   String? get systemPromptContext =>
@@ -468,6 +478,11 @@ class SandboxExtension extends MontyExtension
     Map<String, Object?> args,
     HostContext ctx,
   ) async {
+    if (currentBackendKind == MontyBackendKind.wasm) {
+      return 'error: sandbox_spawn_py is not available in the browser '
+          '(WASM) backend — spawning a second interpreter would crash the '
+          'parent session. Use the native (FFI) backend for sandbox features.';
+    }
     _validateSpawnRequest();
 
     final code = args.str('code');
@@ -494,7 +509,7 @@ class SandboxExtension extends MontyExtension
       ctx.os,
     );
 
-    // Post-await disposed check — the plugin may have been disposed while
+    // Post-await disposed check — the extension may have been disposed while
     // _createChildPlatformAndBridge was in flight.
     if (_disposed) {
       bridge.dispose();
@@ -533,7 +548,7 @@ class SandboxExtension extends MontyExtension
     return id;
   }
 
-  /// Throws if the plugin is disposed or resource limits are exceeded.
+  /// Throws if the extension is disposed or resource limits are exceeded.
   void _validateSpawnRequest() {
     if (_disposed) throw StateError('SandboxExtension is disposed.');
     if (currentDepth >= maxDepth) {

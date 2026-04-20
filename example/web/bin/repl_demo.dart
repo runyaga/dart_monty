@@ -1,5 +1,5 @@
 // Standalone JS-compiled demo, not a package:test file.
-// ignore_for_file: avoid_print, lines_longer_than_80_chars, avoid_catches_without_on_clauses, cast_nullable_to_non_nullable
+// ignore_for_file: avoid_print, lines_longer_than_80_chars, avoid_catches_without_on_clauses, cast_nullable_to_non_nullable, invalid_null_aware_operator
 /// Interactive REPL Session Demo — MontyRuntime + real plugins in the browser.
 ///
 /// Compiled to JS, exposes window.ReplSessionDemo to HTML.
@@ -62,7 +62,7 @@ Future<String> _apiExecute(String code) async {
         if (event is BridgeFunctionCallStart || event is BridgeFunctionCallResult) {
           try {
             _jsOnToolCall(jsonEncode(map).toJS);
-          } catch (_) {}
+          } on Object catch (_) {}
         }
       }
     }
