@@ -109,6 +109,14 @@ void main() {
       expect(result.error, isNull);
       expect(result.value.dartValue, 42);
     });
+
+    test('unknown kwarg raises error — schema rejects it', () async {
+      // F9 regression guard: removing the unknown-kwarg check in
+      // HostFunctionSchema.mapAndValidate() would make this pass silently.
+      final result = await h.run("typed_tool(n=1, surprise='x')");
+
+      expect(result.error, isNotNull);
+    });
   });
 
   // ---------------------------------------------------------------------------
