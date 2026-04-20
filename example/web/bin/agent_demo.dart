@@ -1,5 +1,6 @@
 // Standalone JS-compiled demo, not a package:test file.
-// ignore_for_file: avoid_print
+// ignore_for_file: avoid_print, unnecessary_underscores
+// ignore_for_file: use_null_aware_elements, unnecessary_ignore
 /// Interactive MontyRuntime Demo — shows stateful Python execution with host
 /// functions, filesystem access, and real-time bridge event streaming.
 ///
