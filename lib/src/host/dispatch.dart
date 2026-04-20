@@ -1,13 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:dart_monty/src/bridge_event.dart';
-import 'package:dart_monty/src/bridge_logger.dart';
-import 'package:dart_monty/src/function_surface.dart';
-import 'package:dart_monty/src/host_context.dart';
-import 'package:dart_monty/src/host_function.dart';
-import 'package:dart_monty/src/host_function_schema.dart';
-import 'package:dart_monty/src/monty_runtime_ref.dart';
+import 'package:dart_monty/src/bridge/event.dart';
+import 'package:dart_monty/src/bridge/logger.dart';
+import 'package:dart_monty/src/host/context.dart';
+import 'package:dart_monty/src/host/function.dart';
+import 'package:dart_monty/src/host/function_surface.dart';
+import 'package:dart_monty/src/host/schema.dart';
+import 'package:dart_monty/src/runtime/runtime_ref.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:meta/meta.dart';
 

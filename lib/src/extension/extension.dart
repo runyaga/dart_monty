@@ -1,12 +1,11 @@
-import 'package:dart_monty/dart_monty_bridge.dart' show SandboxExtension;
-import 'package:dart_monty/src/attach_context.dart';
-import 'package:dart_monty/src/bridge_logger.dart';
-import 'package:dart_monty/src/extension_coordinator.dart';
-import 'package:dart_monty/src/extensions/sandbox_extension.dart'
+import 'package:dart_monty/src/bridge/logger.dart';
+import 'package:dart_monty/src/extension/attach_context.dart';
+import 'package:dart_monty/src/extension/coordinator.dart';
+import 'package:dart_monty/src/extensions/sandbox.dart'
     show SandboxExtension;
-import 'package:dart_monty/src/host_function.dart';
-import 'package:dart_monty/src/monty_backend_kind.dart';
+import 'package:dart_monty/src/host/function.dart';
 import 'package:dart_monty/src/os_call/os_handlers.dart';
+import 'package:dart_monty/src/runtime/backend_kind.dart';
 import 'package:meta/meta.dart';
 
 // ---------------------------------------------------------------------------

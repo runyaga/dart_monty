@@ -1,11 +1,11 @@
-import 'package:dart_monty/src/host_args.dart';
-import 'package:dart_monty/src/host_context.dart';
-import 'package:dart_monty/src/host_function.dart';
-import 'package:dart_monty/src/host_function_schema.dart';
-import 'package:dart_monty/src/host_param.dart';
-import 'package:dart_monty/src/host_param_type.dart';
-import 'package:dart_monty/src/monty_extension.dart';
-import 'package:dart_monty/src/param_render_hint.dart';
+import 'package:dart_monty/src/extension/extension.dart';
+import 'package:dart_monty/src/host/args.dart';
+import 'package:dart_monty/src/host/context.dart';
+import 'package:dart_monty/src/host/function.dart';
+import 'package:dart_monty/src/host/param.dart';
+import 'package:dart_monty/src/host/param_type.dart';
+import 'package:dart_monty/src/host/render_hint.dart';
+import 'package:dart_monty/src/host/schema.dart';
 import 'package:dinja/dinja.dart';
 
 /// Default maximum input size for template strings (512 KB).

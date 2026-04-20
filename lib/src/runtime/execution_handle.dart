@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:dart_monty/src/bridge_event.dart';
+import 'package:dart_monty/src/bridge/event.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 
 /// Handle to an in-flight `MontyRuntime.execute()` call.

@@ -65,7 +65,7 @@ dcm:
           - "lib/src/platform/monty_session.dart"
           - "lib/src/platform/testing/ladder_assertions.dart"
           - "lib/src/default_monty_bridge.dart"
-          - "lib/src/host_function_schema.dart"
+          - "lib/src/host/schema.dart"
           - "lib/src/introspection_functions.dart"
           - "lib/src/plugins/message_bus_plugin.dart"
           - "lib/src/plugins/sandbox_plugin.dart"
@@ -248,7 +248,7 @@ dcm:
           - "lib/src/platform/monty_session.dart"
           # Bridge dispatch: non-null guaranteed by host function schema validation
           - "lib/src/default_monty_bridge.dart"
-          - "lib/src/host_param.dart"
+          - "lib/src/host/param.dart"
           - "lib/src/extension_coordinator.dart"
           - "lib/src/plugins/sandbox_plugin.dart"
           # State wrapping + result extraction: non-null guaranteed by event type

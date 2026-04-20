@@ -1,6 +1,6 @@
-import 'package:dart_monty/src/monty_backend_kind_stub.dart'
-    if (dart.library.ffi) 'package:dart_monty/src/monty_backend_kind_native.dart'
-    if (dart.library.js_interop) 'package:dart_monty/src/monty_backend_kind_web.dart'
+import 'package:dart_monty/src/runtime/backend_kind_stub.dart'
+    if (dart.library.ffi) 'package:dart_monty/src/runtime/backend_kind_native.dart'
+    if (dart.library.js_interop) 'package:dart_monty/src/runtime/backend_kind_web.dart'
     as platform;
 
 /// The Monty execution backend the current Dart program is compiled against.

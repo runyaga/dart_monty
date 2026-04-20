@@ -1,10 +1,10 @@
 import 'dart:convert';
 
-import 'package:dart_monty/src/host_function.dart';
-import 'package:dart_monty/src/host_function_schema.dart';
-import 'package:dart_monty/src/host_param.dart';
-import 'package:dart_monty/src/host_param_type.dart';
-import 'package:dart_monty/src/monty_bridge.dart';
+import 'package:dart_monty/src/bridge/bridge.dart';
+import 'package:dart_monty/src/host/function.dart';
+import 'package:dart_monty/src/host/param.dart';
+import 'package:dart_monty/src/host/param_type.dart';
+import 'package:dart_monty/src/host/schema.dart';
 
 /// Category name for introspection builtins.
 const introspectionCategory = 'introspection';

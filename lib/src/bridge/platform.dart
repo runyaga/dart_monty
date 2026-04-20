@@ -1,16 +1,16 @@
 import 'dart:async';
 
-import 'package:dart_monty/dart_monty_bridge.dart'
-    show MontyExtension, MontyRuntime;
-import 'package:dart_monty/src/attach_context.dart';
-import 'package:dart_monty/src/bridge_event.dart';
-import 'package:dart_monty/src/bridge_logger.dart';
-import 'package:dart_monty/src/host_dispatch.dart';
-import 'package:dart_monty/src/host_function.dart';
-import 'package:dart_monty/src/host_function_schema.dart';
-import 'package:dart_monty/src/monty_bridge.dart';
-import 'package:dart_monty/src/monty_runtime_ref.dart';
-import 'package:dart_monty/src/struct_log_bridge_logger.dart';
+import 'package:dart_monty/src/bridge/bridge.dart';
+import 'package:dart_monty/src/bridge/event.dart';
+import 'package:dart_monty/src/bridge/logger.dart';
+import 'package:dart_monty/src/bridge/struct_log_logger.dart';
+import 'package:dart_monty/src/extension/attach_context.dart';
+import 'package:dart_monty/src/extension/extension.dart' show MontyExtension;
+import 'package:dart_monty/src/host/dispatch.dart';
+import 'package:dart_monty/src/host/function.dart';
+import 'package:dart_monty/src/host/schema.dart';
+import 'package:dart_monty/src/runtime/runtime.dart' show MontyRuntime;
+import 'package:dart_monty/src/runtime/runtime_ref.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:meta/meta.dart';
 import 'package:struct_log/struct_log.dart';

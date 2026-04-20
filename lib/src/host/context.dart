@@ -1,8 +1,7 @@
-import 'package:dart_monty/dart_monty_bridge.dart' show HostFunctionHandler;
-import 'package:dart_monty/src/bridge_event.dart';
-import 'package:dart_monty/src/execution_handle.dart';
-import 'package:dart_monty/src/host_function.dart' show HostFunctionHandler;
-import 'package:dart_monty/src/monty_runtime_ref.dart';
+import 'package:dart_monty/src/bridge/event.dart';
+import 'package:dart_monty/src/host/function.dart' show HostFunctionHandler;
+import 'package:dart_monty/src/runtime/execution_handle.dart';
+import 'package:dart_monty/src/runtime/runtime_ref.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:meta/meta.dart';
 

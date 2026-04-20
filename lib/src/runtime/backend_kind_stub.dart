@@ -1,4 +1,4 @@
-import 'package:dart_monty/src/monty_backend_kind.dart';
+import 'package:dart_monty/src/runtime/backend_kind.dart';
 
 /// Stub fallback for [currentBackendKind] — throws on any compile target
 /// without `dart.library.ffi` or `dart.library.js_interop`.

@@ -1,5 +1,5 @@
-import 'package:dart_monty/src/host_param_type.dart';
-import 'package:dart_monty/src/param_render_hint.dart';
+import 'package:dart_monty/src/host/param_type.dart';
+import 'package:dart_monty/src/host/render_hint.dart';
 import 'package:meta/meta.dart';
 
 /// Describes a single parameter of a host function.

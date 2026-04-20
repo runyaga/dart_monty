@@ -1,18 +1,18 @@
 import 'dart:async';
 
-import 'package:dart_monty/src/bridge_event.dart';
-import 'package:dart_monty/src/bridge_logger.dart';
-import 'package:dart_monty/src/execution_handle.dart';
-import 'package:dart_monty/src/extension_coordinator.dart';
-import 'package:dart_monty/src/function_surface.dart';
-import 'package:dart_monty/src/host_dispatch.dart';
-import 'package:dart_monty/src/host_function.dart';
-import 'package:dart_monty/src/host_function_schema.dart';
-import 'package:dart_monty/src/monty_extension.dart';
-import 'package:dart_monty/src/monty_runtime_ref.dart';
-import 'package:dart_monty/src/monty_runtime_state.dart';
+import 'package:dart_monty/src/bridge/event.dart';
+import 'package:dart_monty/src/bridge/logger.dart';
+import 'package:dart_monty/src/bridge/platform.dart';
+import 'package:dart_monty/src/extension/coordinator.dart';
+import 'package:dart_monty/src/extension/extension.dart';
+import 'package:dart_monty/src/host/dispatch.dart';
+import 'package:dart_monty/src/host/function.dart';
+import 'package:dart_monty/src/host/function_surface.dart';
+import 'package:dart_monty/src/host/schema.dart';
 import 'package:dart_monty/src/os_call/os_handlers.dart';
-import 'package:dart_monty/src/platform_bridge.dart';
+import 'package:dart_monty/src/runtime/execution_handle.dart';
+import 'package:dart_monty/src/runtime/runtime_ref.dart';
+import 'package:dart_monty/src/runtime/runtime_state.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 
 // ---------------------------------------------------------------------------

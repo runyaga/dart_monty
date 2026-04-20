@@ -1,5 +1,5 @@
 import 'package:dart_monty/dart_monty_bridge.dart' show HostContext;
-import 'package:dart_monty/src/host_context.dart' show HostContext;
+import 'package:dart_monty/src/host/context.dart' show HostContext;
 import 'package:dart_monty_core/dart_monty_core.dart';
 
 /// Protocol-agnostic lifecycle events emitted by a bridge.

@@ -1,9 +1,8 @@
-import 'package:dart_monty/dart_monty_bridge.dart' show MontyExtension;
-import 'package:dart_monty/src/function_surface.dart';
-import 'package:dart_monty/src/host_context.dart';
-import 'package:dart_monty/src/host_function_schema.dart';
-import 'package:dart_monty/src/monty_backend_kind.dart';
-import 'package:dart_monty/src/monty_extension.dart' show MontyExtension;
+import 'package:dart_monty/src/extension/extension.dart' show MontyExtension;
+import 'package:dart_monty/src/host/context.dart';
+import 'package:dart_monty/src/host/function_surface.dart';
+import 'package:dart_monty/src/host/schema.dart';
+import 'package:dart_monty/src/runtime/backend_kind.dart';
 import 'package:meta/meta.dart';
 
 /// Async handler that receives validated named arguments and a [HostContext].

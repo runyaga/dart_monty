@@ -1,16 +1,16 @@
 import 'dart:collection';
 
-import 'package:dart_monty/src/attach_context.dart';
-import 'package:dart_monty/src/bridge_logger.dart';
-import 'package:dart_monty/src/host_function.dart';
+import 'package:dart_monty/src/bridge/bridge.dart';
+import 'package:dart_monty/src/bridge/logger.dart';
+import 'package:dart_monty/src/extension/attach_context.dart';
+import 'package:dart_monty/src/extension/extension.dart';
+import 'package:dart_monty/src/extension/stateful.dart';
+import 'package:dart_monty/src/host/function.dart';
 import 'package:dart_monty/src/introspection_functions.dart';
-import 'package:dart_monty/src/monty_backend_kind.dart';
-import 'package:dart_monty/src/monty_bridge.dart';
-import 'package:dart_monty/src/monty_extension.dart';
 import 'package:dart_monty/src/os_call/decorator_handlers.dart';
 import 'package:dart_monty/src/os_call/fs_handlers.dart';
 import 'package:dart_monty/src/os_call/os_handlers.dart';
-import 'package:dart_monty/src/stateful_extension.dart';
+import 'package:dart_monty/src/runtime/backend_kind.dart';
 import 'package:signals_core/signals_core.dart';
 
 /// How a child sandbox's `Path.` handler is derived from the parent's.

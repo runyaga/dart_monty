@@ -1,5 +1,5 @@
-import 'package:dart_monty/src/bridge_event.dart';
-import 'package:dart_monty/src/monty_runtime_state.dart';
+import 'package:dart_monty/src/bridge/event.dart';
+import 'package:dart_monty/src/runtime/runtime_state.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:test/test.dart';
 

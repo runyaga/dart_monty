@@ -1,4 +1,4 @@
-import 'package:dart_monty/src/host_param.dart';
+import 'package:dart_monty/src/host/param.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:meta/meta.dart';
 

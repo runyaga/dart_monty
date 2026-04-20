@@ -1,14 +1,14 @@
 import 'dart:convert';
 
-import 'package:dart_monty/src/bridge_event.dart';
-import 'package:dart_monty/src/bridge_logger.dart';
-import 'package:dart_monty/src/host_context.dart';
-import 'package:dart_monty/src/host_function.dart';
-import 'package:dart_monty/src/host_function_schema.dart';
-import 'package:dart_monty/src/host_param.dart';
-import 'package:dart_monty/src/host_param_type.dart';
+import 'package:dart_monty/src/bridge/bridge.dart';
+import 'package:dart_monty/src/bridge/event.dart';
+import 'package:dart_monty/src/bridge/logger.dart';
+import 'package:dart_monty/src/host/context.dart';
+import 'package:dart_monty/src/host/function.dart';
+import 'package:dart_monty/src/host/param.dart';
+import 'package:dart_monty/src/host/param_type.dart';
+import 'package:dart_monty/src/host/schema.dart';
 import 'package:dart_monty/src/introspection_functions.dart';
-import 'package:dart_monty/src/monty_bridge.dart';
 import 'package:dart_monty/src/os_call/os_handlers.dart';
 import 'package:test/test.dart';
 

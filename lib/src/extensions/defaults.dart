@@ -1,8 +1,8 @@
-import 'package:dart_monty/src/extensions/event_loop_extension.dart';
-import 'package:dart_monty/src/extensions/message_bus_extension.dart';
-import 'package:dart_monty/src/extensions/sandbox_extension.dart';
-import 'package:dart_monty/src/extensions/template_extension.dart';
-import 'package:dart_monty/src/monty_extension.dart';
+import 'package:dart_monty/src/extension/extension.dart';
+import 'package:dart_monty/src/extensions/event_loop.dart';
+import 'package:dart_monty/src/extensions/jinja_template.dart';
+import 'package:dart_monty/src/extensions/message_bus.dart';
+import 'package:dart_monty/src/extensions/sandbox.dart';
 
 /// Returns a fresh list of the extensions most scripts expect to have
 /// available.

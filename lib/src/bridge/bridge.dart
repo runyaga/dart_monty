@@ -1,12 +1,11 @@
-import 'package:dart_monty/dart_monty_bridge.dart' show FunctionSurface;
-import 'package:dart_monty/src/attach_context.dart';
-import 'package:dart_monty/src/bridge_event.dart';
-import 'package:dart_monty/src/bridge_logger.dart';
-import 'package:dart_monty/src/function_surface.dart' show FunctionSurface;
-import 'package:dart_monty/src/host_dispatch.dart';
-import 'package:dart_monty/src/host_function.dart';
-import 'package:dart_monty/src/host_function_schema.dart';
-import 'package:dart_monty/src/platform_bridge.dart';
+import 'package:dart_monty/src/bridge/event.dart';
+import 'package:dart_monty/src/bridge/logger.dart';
+import 'package:dart_monty/src/bridge/platform.dart';
+import 'package:dart_monty/src/extension/attach_context.dart';
+import 'package:dart_monty/src/host/dispatch.dart';
+import 'package:dart_monty/src/host/function.dart';
+import 'package:dart_monty/src/host/function_surface.dart' show FunctionSurface;
+import 'package:dart_monty/src/host/schema.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 
 /// Bridge for LLM-generated Python calling registered Dart host functions.
