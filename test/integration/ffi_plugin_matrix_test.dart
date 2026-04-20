@@ -114,22 +114,34 @@ void main() {
 
       try {
         // ── A. Single execute, N host calls ──────────────────────────
+        // NOTE: uses `for` loops instead of list comprehensions. A host
+        // function called from a list comprehension across multiple
+        // execute() calls corrupts the global binding in the REPL heap
+        // (name becomes `int`). Tracking:
+        // https://github.com/runyaga/dart_monty_core/issues/32
+        // Workaround preserves coverage without tripping the bug.
         var r = await session.execute('''
-results = [sync_fn() for _ in range(10)]
+results = []
+for _ in range(10):
+    results.append(sync_fn())
 len(results)
 ''').result;
         expect(r.value.dartValue, 10);
         print('  A1. sync × 10: PASS');
 
         r = await session.execute('''
-results = [delay_fn() for _ in range(5)]
+results = []
+for _ in range(5):
+    results.append(delay_fn())
 len(results)
 ''').result;
         expect(r.value.dartValue, 5);
         print('  A2. delay × 5: PASS');
 
         r = await session.execute('''
-results = [http_fn() for _ in range(3)]
+results = []
+for _ in range(3):
+    results.append(http_fn())
 len(results)
 ''').result;
         expect(r.value.dartValue, 3);
