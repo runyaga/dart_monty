@@ -156,7 +156,7 @@ dcm:
           - "lib/src/plugins/sandbox_plugin.dart"
           - "lib/src/plugins/template_plugin.dart"
           - "lib/src/plugins/message_bus_plugin.dart"
-          - "lib/src/plugin_registry.dart"
+          - "lib/src/extension_coordinator.dart"
           - "lib/src/wasm/wasm_bindings_js_stub.dart"
     - prefer-immediate-return
     - prefer-commenting-analyzer-ignores
@@ -249,7 +249,7 @@ dcm:
           # Bridge dispatch: non-null guaranteed by host function schema validation
           - "lib/src/default_monty_bridge.dart"
           - "lib/src/host_param.dart"
-          - "lib/src/plugin_registry.dart"
+          - "lib/src/extension_coordinator.dart"
           - "lib/src/plugins/sandbox_plugin.dart"
           # State wrapping + result extraction: non-null guaranteed by event type
           - "lib/src/monty_runtime.dart"

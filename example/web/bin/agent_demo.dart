@@ -194,13 +194,13 @@ Future<bool> _init() async {
     final msgPlugin = MessageBusPlugin();
     _msgBus = msgPlugin.bus;
 
-    final plugins = <MontyPlugin>[tmplPlugin, msgPlugin];
+    final extensions = <MontyExtension>[tmplPlugin, msgPlugin];
     final sandboxPlugin = SandboxPlugin(
       platformFactory: () async => ReplPlatform(repl: MontyRepl()),
     );
-    plugins.add(sandboxPlugin);
+    extensions.add(sandboxPlugin);
 
-    _session = MontyRuntime(os: os, plugins: plugins);
+    _session = MontyRuntime(os: os, extensions: extensions);
 
     _demoHostFunctions.forEach(_session!.register);
 

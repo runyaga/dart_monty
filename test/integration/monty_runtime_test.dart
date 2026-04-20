@@ -378,12 +378,12 @@ result
   group('MontyRuntime plugin lifecycle (#296)', () {
     test('dispose() calls onDispose on shared-mode plugins', () async {
       // Regression test for #296 — dispose() never called
-      // PluginRegistry.disposeAll().
+      // ExtensionCoordinator.disposeAll().
       //
       // Without the fix, _onDisposeCalled stays false after dispose().
       // With the fix, disposeAll() propagates to each plugin's onDispose().
       final plugin = _TrackingPlugin();
-      final session = MontyRuntime(plugins: [plugin]);
+      final session = MontyRuntime(extensions: [plugin]);
 
       await session.execute('pass').result; // triggers attachTo
       await session.dispose();
@@ -397,10 +397,10 @@ result
 
     test('dispose() calls onDispose even without prior execute()', () async {
       // Plugins registered but never attached (no execute() called) must
-      // still have onDispose called — disposeAll() iterates _plugins when
+      // still have onDispose called — disposeAll() iterates _extensions when
       // _attachOrder is null, so this works once disposeAll() is invoked.
       final plugin = _TrackingPlugin();
-      final session = MontyRuntime(plugins: [plugin]);
+      final session = MontyRuntime(extensions: [plugin]);
 
       await session.dispose();
 
@@ -414,10 +414,10 @@ result
     test(
       'sandbox mode: plugin onDispose called after each execute()',
       () async {
-        // In sandbox mode a fresh PluginRegistry is created per execute() and
+        // In sandbox mode a fresh ExtensionCoordinator is created per execute() and
         // must be disposed in the finally block regardless of success or error.
         final plugin = _TrackingPlugin();
-        final session = MontyRuntime(sandbox: true, plugins: [plugin]);
+        final session = MontyRuntime(sandbox: true, extensions: [plugin]);
         addTearDown(session.dispose);
 
         await session.execute('pass').result;
@@ -427,7 +427,8 @@ result
         expect(
           plugin.disposeCount,
           2,
-          reason: 'each sandboxed execute() must dispose its per-call registry',
+          reason:
+              'each sandboxed execute() must dispose its per-call coordinator',
         );
       },
     );
@@ -438,7 +439,7 @@ result
         // The finally block must run even on error — verifies no leak when
         // Python raises an exception.
         final plugin = _TrackingPlugin();
-        final session = MontyRuntime(sandbox: true, plugins: [plugin]);
+        final session = MontyRuntime(sandbox: true, extensions: [plugin]);
         addTearDown(session.dispose);
 
         await session.execute('raise ValueError("boom")').result;
@@ -469,7 +470,7 @@ result
 
     test('execute().events attaches plugins without prior execute()', () async {
       final session = MontyRuntime(
-        plugins: [JinjaTemplatePlugin()],
+        extensions: [JinjaTemplatePlugin()],
       );
       addTearDown(session.dispose);
 
@@ -549,7 +550,7 @@ result
 // ---------------------------------------------------------------------------
 
 /// Plugin that records how many times [onDispose] was called.
-class _TrackingPlugin extends MontyPlugin {
+class _TrackingPlugin extends MontyExtension {
   bool onDisposeCalled = false;
   int disposeCount = 0;
 

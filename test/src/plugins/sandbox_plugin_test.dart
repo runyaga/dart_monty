@@ -84,9 +84,9 @@ MockMontyPlatform _failingMockStructured({
 ///
 /// Many tests exercise handlers directly (via [_findHandler]) but
 /// `sandbox_spawn` reaches into `registry.spawnChild(...)` — that field is
-/// injected by [PluginRegistry.attachTo], so the plugin must be attached first.
+/// injected by [ExtensionCoordinator.attachTo], so the plugin must be attached first.
 Future<SandboxPlugin> _attachedPlugin(SandboxPlugin plugin) async {
-  final registry = PluginRegistry()..register(plugin);
+  final registry = ExtensionCoordinator()..register(plugin);
   final bridge = DefaultMontyBridge(platform: MockMontyPlatform());
   await registry.attachTo(bridge);
   return plugin;
@@ -134,12 +134,12 @@ void main() {
         }
       });
 
-      test('registers on PluginRegistry without collision', () {
-        final registry = PluginRegistry()
+      test('registers on ExtensionCoordinator without collision', () {
+        final registry = ExtensionCoordinator()
           ..register(
             SandboxPlugin(platformFactory: () async => MockMontyPlatform()),
           );
-        expect(registry.plugins, hasLength(1));
+        expect(registry.extensions, hasLength(1));
       });
 
       test('sandbox_spawn.code declares python render hint', () {

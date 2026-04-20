@@ -11,7 +11,7 @@ import 'package:dart_monty/src/monty_plugin.dart';
 import 'package:dart_monty/src/monty_runtime_ref.dart';
 import 'package:dart_monty/src/monty_runtime_state.dart';
 import 'package:dart_monty/src/os_call/os_handlers.dart';
-import 'package:dart_monty/src/plugin_registry.dart';
+import 'package:dart_monty/src/extension_coordinator.dart';
 import 'package:dart_monty/src/tool_surface.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 
@@ -19,9 +19,9 @@ import 'package:dart_monty_core/dart_monty_core.dart';
 // MontyRuntime
 // ---------------------------------------------------------------------------
 
-/// High-level agent session — stateful Python execution with tools and plugins.
+/// High-level agent session — stateful Python execution with tools and extensions.
 ///
-/// Combines `MontyBridge`, `PluginRegistry`, and OS providers into a single
+/// Combines `MontyBridge`, `ExtensionCoordinator`, and OS providers into a single
 /// API. Both execution modes are backed by [ReplPlatform], which adapts
 /// [MontyRepl] to the [MontyPlatform] interface accepted by
 /// [DefaultMontyBridge]. All state (variables, functions, classes, modules)
@@ -51,7 +51,7 @@ import 'package:dart_monty_core/dart_monty_core.dart';
 /// // Fresh sandbox — isolated per call, safe for async I/O host functions
 /// final session = MontyRuntime(
 ///   sandbox: true,
-///   plugins: [SoliplexPlugin(connections: {...})],
+///   extensions: [SoliplexPlugin(connections: {...})],
 /// );
 /// await session.execute('r = soliplex_new_thread("s", "r", "Hi")');
 /// await session.execute('r2 = soliplex_reply_thread(...)'); // no crash
@@ -68,7 +68,7 @@ class MontyRuntime implements MontyRuntimeRef {
   MontyRuntime({
     OsCallHandler? os,
     Map<String, OsCallHandler>? osHandlers,
-    List<MontyPlugin>? plugins,
+    List<MontyExtension>? extensions,
     BridgeLogger? logger,
     MontyInterceptor? interceptor,
     bool sandbox = false,
@@ -77,7 +77,7 @@ class MontyRuntime implements MontyRuntimeRef {
          'Pass either os or osHandlers, not both.',
        ),
        _os = os ?? (osHandlers != null ? composeOsHandlers(osHandlers) : null),
-       _plugins = plugins,
+       _extensions = extensions,
        _logger = logger,
        _interceptor = interceptor,
        _sandbox = sandbox {
@@ -95,11 +95,11 @@ class MontyRuntime implements MontyRuntimeRef {
         runtime: this,
       );
       // OS registration is deferred to the first execute() call via
-      // PluginRegistry.attachTo(bridge, baseOs: _os).
+      // ExtensionCoordinator.attachTo(bridge, baseOs: _os).
 
-      _sharedRegistry = PluginRegistry();
-      if (plugins != null) {
-        plugins.forEach(_sharedRegistry!.register);
+      _sharedRegistry = ExtensionCoordinator();
+      if (extensions != null) {
+        extensions.forEach(_sharedRegistry!.register);
       }
     } else {
       // Sandbox mode: build a schema bridge once for introspection.
@@ -108,7 +108,7 @@ class MontyRuntime implements MontyRuntimeRef {
   }
 
   final OsCallHandler? _os;
-  final List<MontyPlugin>? _plugins;
+  final List<MontyExtension>? _extensions;
   final BridgeLogger? _logger;
   final MontyInterceptor? _interceptor;
   final bool _sandbox;
@@ -117,7 +117,7 @@ class MontyRuntime implements MontyRuntimeRef {
   MontyRepl? _sharedRepl;
   MontyPlatform? _sharedPlatform;
   DefaultMontyBridge? _sharedBridge;
-  PluginRegistry? _sharedRegistry;
+  ExtensionCoordinator? _sharedRegistry;
   bool _sharedAttached = false;
 
   // Sandbox mode schema bridge (no platform, just for introspection).
@@ -139,7 +139,7 @@ class MontyRuntime implements MontyRuntimeRef {
       (_sharedBridge ?? _schemaBridge)?.llmSchemas ?? [];
 
   /// Broadcast stream of all [BridgeEvent]s emitted across every execution,
-  /// including child executions spawned via plugins such as `SandboxPlugin`.
+  /// including child executions spawned via extensions such as `SandboxPlugin`.
   ///
   /// Child-plugin events arrive wrapped in [BridgeChildEvent] with
   /// `childHandle` set to the plugin's local handle (e.g. a sandbox child
@@ -177,7 +177,7 @@ class MontyRuntime implements MontyRuntimeRef {
   /// future, and a cooperative cancel hook. Variables defined in [code]
   /// persist across subsequent `execute()` calls (shared mode) or are
   /// discarded after each call (sandbox mode). All registered host
-  /// functions and plugins are callable from Python.
+  /// functions and extensions are callable from Python.
   ///
   /// Wait for completion with `handle.result`; observe events with
   /// `handle.events.listen(...)` (subscribe synchronously after obtaining
@@ -233,7 +233,7 @@ class MontyRuntime implements MontyRuntimeRef {
   /// Clears all persisted Python state.
   ///
   /// In shared mode, recreates the full interpreter stack ([MontyRepl],
-  /// [ReplPlatform], [DefaultMontyBridge], and [PluginRegistry]) so the next
+  /// [ReplPlatform], [DefaultMontyBridge], and [ExtensionCoordinator]) so the next
   /// `execute()` call starts with empty Python globals. Plugins are
   /// re-attached on the next `execute()` call.
   ///
@@ -255,9 +255,9 @@ class MontyRuntime implements MontyRuntimeRef {
       );
       _extraFunctions.forEach(_sharedBridge!.register);
 
-      _sharedRegistry = PluginRegistry();
-      if (_plugins != null) {
-        _plugins.forEach(_sharedRegistry!.register);
+      _sharedRegistry = ExtensionCoordinator();
+      if (_extensions != null) {
+        _extensions.forEach(_sharedRegistry!.register);
       }
       _sharedAttached = false;
 
@@ -340,9 +340,9 @@ class MontyRuntime implements MontyRuntimeRef {
       final platform = ReplPlatform(repl: repl);
       final b = _buildBridge(platform: platform);
 
-      final registry = PluginRegistry();
-      if (_plugins != null) {
-        _plugins.forEach(registry.register);
+      final registry = ExtensionCoordinator();
+      if (_extensions != null) {
+        _extensions.forEach(registry.register);
       }
       try {
         await registry.attachTo(b, baseOs: osOverride ?? _os);
@@ -386,7 +386,7 @@ class MontyRuntime implements MontyRuntimeRef {
       runtime: this,
     );
 
-    // OS registration is handled by PluginRegistry.attachTo(b, baseOs: _os).
+    // OS registration is handled by ExtensionCoordinator.attachTo(b, baseOs: _os).
 
     _extraFunctions.forEach(b.register);
 

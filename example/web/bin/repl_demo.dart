@@ -113,7 +113,7 @@ void _createSession() {
 
   // SandboxPlugin is FFI-only and cannot be used in a web build.
   _session = MontyRuntime(
-    plugins: [tmpl, msgBus],
+    extensions: [tmpl, msgBus],
   );
 }
 

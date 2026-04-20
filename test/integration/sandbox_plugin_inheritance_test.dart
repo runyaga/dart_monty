@@ -57,7 +57,7 @@ void main() {
   group('baseline (no plugins)', () {
     test('child sandbox computes and returns value', () async {
       final bridge = createBridge();
-      final registry = PluginRegistry()
+      final registry = ExtensionCoordinator()
         ..register(
           SandboxPlugin(platformFactory: () async => createPlatform()),
         );
@@ -77,7 +77,7 @@ void main() {
 
     test('child sandbox captures print output', () async {
       final bridge = createBridge();
-      final registry = PluginRegistry()
+      final registry = ExtensionCoordinator()
         ..register(
           SandboxPlugin(platformFactory: () async => createPlatform()),
         );
@@ -103,7 +103,7 @@ void main() {
     test('parent can call inherited plugin function', () async {
       final bridge = createBridge();
       final greeter = _GreeterPlugin();
-      final registry = PluginRegistry()
+      final registry = ExtensionCoordinator()
         ..register(greeter)
         ..register(
           SandboxPlugin(
@@ -121,7 +121,7 @@ void main() {
     test('child inherits plugin via createChildInstance', () async {
       final bridge = createBridge();
       final greeter = _GreeterPlugin();
-      final registry = PluginRegistry()
+      final registry = ExtensionCoordinator()
         ..register(greeter)
         ..register(
           SandboxPlugin(
@@ -144,7 +144,7 @@ void main() {
 
     test('child without inheritable plugins errors on call', () async {
       final bridge = createBridge();
-      final registry = PluginRegistry()
+      final registry = ExtensionCoordinator()
         ..register(
           SandboxPlugin(platformFactory: () async => createPlatform()),
         );
@@ -170,7 +170,7 @@ void main() {
     test('multiple children get independent plugin instances', () async {
       final bridge = createBridge();
       final counter = _CounterPlugin();
-      final registry = PluginRegistry()
+      final registry = ExtensionCoordinator()
         ..register(counter)
         ..register(
           SandboxPlugin(
@@ -215,7 +215,7 @@ void main() {
           onContext: (ctx) => capturedContext = ctx,
         );
         final bridge = createBridge();
-        final registry = PluginRegistry()
+        final registry = ExtensionCoordinator()
           ..register(contextPlugin)
           ..register(
             SandboxPlugin(
@@ -250,7 +250,7 @@ void main() {
           onContext: (ctx) => capturedContext = ctx,
         );
         final bridge = createBridge();
-        final registry = PluginRegistry()
+        final registry = ExtensionCoordinator()
           ..register(contextPlugin)
           ..register(
             SandboxPlugin(
@@ -280,7 +280,7 @@ void main() {
 // ---------------------------------------------------------------------------
 
 /// Simple plugin that provides `greeter_hello(name)`.
-class _GreeterPlugin extends MontyPlugin {
+class _GreeterPlugin extends MontyExtension {
   @override
   String get namespace => 'greeter';
 
@@ -309,12 +309,12 @@ class _GreeterPlugin extends MontyPlugin {
   ChildPolicy get childPolicy => ChildPolicy.clone;
 
   @override
-  MontyPlugin createChildInstance(ChildSpawnContext context) =>
+  MontyExtension createChildInstance(ChildSpawnContext context) =>
       _GreeterPlugin();
 }
 
 /// Plugin that provides a counter. Each instance has its own count.
-class _CounterPlugin extends MontyPlugin {
+class _CounterPlugin extends MontyExtension {
   int count = 0;
 
   @override
@@ -345,12 +345,12 @@ class _CounterPlugin extends MontyPlugin {
   ChildPolicy get childPolicy => ChildPolicy.clone;
 
   @override
-  MontyPlugin createChildInstance(ChildSpawnContext context) =>
+  MontyExtension createChildInstance(ChildSpawnContext context) =>
       _CounterPlugin();
 }
 
 /// Plugin that captures the [ChildSpawnContext] for test assertions.
-class _ContextCapturingPlugin extends MontyPlugin {
+class _ContextCapturingPlugin extends MontyExtension {
   _ContextCapturingPlugin({required this.onContext});
 
   final void Function(ChildSpawnContext) onContext;
@@ -368,7 +368,7 @@ class _ContextCapturingPlugin extends MontyPlugin {
   ChildPolicy get childPolicy => ChildPolicy.clone;
 
   @override
-  MontyPlugin createChildInstance(ChildSpawnContext context) {
+  MontyExtension createChildInstance(ChildSpawnContext context) {
     onContext(context);
     return _ContextCapturingPlugin(onContext: onContext);
   }

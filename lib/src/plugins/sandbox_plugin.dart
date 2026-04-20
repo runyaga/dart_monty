@@ -12,7 +12,7 @@ import 'package:dart_monty/src/monty_backend_kind.dart';
 import 'package:dart_monty/src/monty_plugin.dart';
 import 'package:dart_monty/src/monty_runtime_ref.dart';
 import 'package:dart_monty/src/param_render_hint.dart';
-import 'package:dart_monty/src/plugin_registry.dart';
+import 'package:dart_monty/src/extension_coordinator.dart';
 import 'package:dart_monty/src/stateful_plugin.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:path/path.dart' as p;
@@ -136,14 +136,14 @@ class _ChildHandle {
     required this.platform,
     required this.completer,
     required this.subscription,
-    required this.registry,
+    required this.coordinator,
   });
 
   final DefaultMontyBridge bridge;
   final MontyPlatform platform;
   final Completer<Object?> completer;
   final StreamSubscription<BridgeEvent> subscription;
-  final PluginRegistry registry;
+  final ExtensionCoordinator coordinator;
 
   /// Reactive lifecycle state — starts as [ChildRunning].
   final Signal<ChildState> state = signal(const ChildRunning());
@@ -163,7 +163,7 @@ class _ChildHandle {
     // Dispose plugins FIRST — this unblocks pending handler Futures
     // (e.g., MessageBusPlugin completes waiters with StateError).
     // The bridge/stream must still be alive to deliver the resulting errors.
-    await registry.disposeAll();
+    await coordinator.disposeAll();
     await subscription.cancel();
     bridge.dispose();
     await platform.dispose();
@@ -302,16 +302,16 @@ const _gatherSchema = HostFunctionSchema(
 /// Children are sandboxed: each has its own interpreter state.
 /// All living children are killed when this plugin is disposed.
 ///
-/// ## Child plugin and VFS inheritance
+/// ## Child extension and VFS inheritance
 ///
-/// Child plugins and OS handlers are inherited from the parent
-/// [PluginRegistry] via [PluginRegistry.spawnChild]. Plugins opt into
-/// inheritance by overriding [MontyPlugin.createChildInstance]; the child's
+/// Child extensions and OS handlers are inherited from the parent
+/// [ExtensionCoordinator] via [ExtensionCoordinator.spawnChild]. Extensions opt into
+/// inheritance by overriding [MontyExtension.createChildInstance]; the child's
 /// filesystem visibility is controlled by [childVfsStrategy].
 ///
-/// `SandboxPlugin` MUST be attached through a [PluginRegistry] — it uses the
-/// parent registry to compose the child.
-class SandboxPlugin extends MontyPlugin
+/// `SandboxPlugin` MUST be attached through an [ExtensionCoordinator] — it uses the
+/// parent coordinator to compose the child.
+class SandboxPlugin extends MontyExtension
     with StatefulPlugin<Map<int, ChildState>> {
   /// Creates a [SandboxPlugin].
   ///
@@ -482,7 +482,7 @@ class SandboxPlugin extends MontyPlugin
     final (
       platform,
       bridge,
-      childRegistry,
+      childCoordinator,
     ) = await _createChildPlatformAndBridge(
       spawnContext,
       limits,
@@ -496,7 +496,7 @@ class SandboxPlugin extends MontyPlugin
     if (_disposed) {
       bridge.dispose();
       await platform.dispose();
-      await childRegistry.disposeAll();
+      await childCoordinator.disposeAll();
       throw StateError('SandboxPlugin was disposed during child spawn.');
     }
 
@@ -511,7 +511,7 @@ class SandboxPlugin extends MontyPlugin
     final subscription = _setupChildListener(
       bridge: bridge,
       platform: platform,
-      registry: childRegistry,
+      coordinator: childCoordinator,
       completer: completer,
       childId: id,
       stream: stream,
@@ -523,7 +523,7 @@ class SandboxPlugin extends MontyPlugin
       platform: platform,
       completer: completer,
       subscription: subscription,
-      registry: childRegistry,
+      coordinator: childCoordinator,
     );
     _updateChildrenSignal();
 
@@ -564,11 +564,11 @@ class SandboxPlugin extends MontyPlugin
     );
   }
 
-  /// Creates the child platform, bridge, wires plugins, and attaches the
-  /// registry.
+  /// Creates the child platform, bridge, wires extensions, and attaches the
+  /// coordinator.
   ///
   /// Disposes all partially-created resources on failure.
-  Future<(MontyPlatform, DefaultMontyBridge, PluginRegistry)>
+  Future<(MontyPlatform, DefaultMontyBridge, ExtensionCoordinator)>
   _createChildPlatformAndBridge(
     ChildSpawnContext spawnContext,
     MontyLimits? limits,
@@ -578,7 +578,7 @@ class SandboxPlugin extends MontyPlugin
   ) async {
     MontyPlatform? platform;
     DefaultMontyBridge? bridge;
-    PluginRegistry? childRegistry;
+    ExtensionCoordinator? childCoordinator;
     try {
       try {
         platform = await platformFactory();
@@ -605,7 +605,7 @@ class SandboxPlugin extends MontyPlugin
         },
       );
 
-      childRegistry = await _wireChildPlugins(
+      childCoordinator = await _wireChildPlugins(
         spawnContext,
         bridge,
         runtimePrompt,
@@ -614,21 +614,21 @@ class SandboxPlugin extends MontyPlugin
     } on Object {
       if (bridge != null) bridge.dispose();
       if (platform != null) await platform.dispose();
-      if (childRegistry != null) await childRegistry.disposeAll();
+      if (childCoordinator != null) await childCoordinator.disposeAll();
       rethrow;
     }
 
-    return (platform, bridge, childRegistry);
+    return (platform, bridge, childCoordinator);
   }
 
-  /// Creates and attaches a child [PluginRegistry] by delegating to
-  /// [PluginRegistry.spawnChild] on the parent registry. Child plugins are
-  /// composed via [MontyPlugin.createChildInstance]; the child OS handler
+  /// Creates and attaches a child [ExtensionCoordinator] by delegating to
+  /// [ExtensionCoordinator.spawnChild] on the parent coordinator. Child extensions are
+  /// composed via [MontyExtension.createChildInstance]; the child OS handler
   /// follows [childVfsStrategy].
   ///
-  /// Relies on [MontyPlugin.registry] being injected — i.e., this plugin
-  /// must be attached through a [PluginRegistry].
-  Future<PluginRegistry> _wireChildPlugins(
+  /// Relies on [MontyExtension.coordinator] being injected — i.e., this extension
+  /// must be attached through an [ExtensionCoordinator].
+  Future<ExtensionCoordinator> _wireChildPlugins(
     ChildSpawnContext spawnContext,
     DefaultMontyBridge bridge,
     String? runtimePrompt,
@@ -636,7 +636,7 @@ class SandboxPlugin extends MontyPlugin
   ) async {
     final childPrompt = _buildChildSystemPrompt(spawnContext, runtimePrompt);
     try {
-      final childRegistry = await registry.spawnChild(
+      final childCoordinator = await coordinator.spawnChild(
         context: spawnContext,
         bridge: bridge,
         vfsStrategy: childVfsStrategy,
@@ -644,14 +644,14 @@ class SandboxPlugin extends MontyPlugin
         baseOs: parentOsOverride,
       );
       logger.debug(
-        'Child plugins attached',
-        attributes: {'pluginCount': childRegistry.plugins.length},
+        'Child extensions attached',
+        attributes: {'extensionCount': childCoordinator.extensions.length},
       );
 
-      return childRegistry;
+      return childCoordinator;
     } on Object catch (e, st) {
       logger.error(
-        'Child plugin inheritance failed',
+        'Child extension inheritance failed',
         error: e,
         stackTrace: st,
         attributes: {'phase': 'spawnChild'},
@@ -669,7 +669,7 @@ class SandboxPlugin extends MontyPlugin
   StreamSubscription<BridgeEvent> _setupChildListener({
     required DefaultMontyBridge bridge,
     required MontyPlatform platform,
-    required PluginRegistry registry,
+    required ExtensionCoordinator coordinator,
     required Completer<Object?> completer,
     required int childId,
     required Stream<BridgeEvent> stream,
@@ -698,7 +698,7 @@ class SandboxPlugin extends MontyPlugin
           childId,
           bridge,
           platform,
-          registry,
+          coordinator,
           completer,
           errorMessage: errorMessage,
           errorException: errorException,
@@ -715,7 +715,7 @@ class SandboxPlugin extends MontyPlugin
     int childId,
     DefaultMontyBridge bridge,
     MontyPlatform platform,
-    PluginRegistry registry,
+    ExtensionCoordinator coordinator,
     Completer<Object?> completer, {
     String? errorMessage,
     MontyException? errorException,
@@ -737,7 +737,7 @@ class SandboxPlugin extends MontyPlugin
     _updateChildrenSignal();
 
     try {
-      await registry.disposeAll();
+      await coordinator.disposeAll();
       bridge.dispose();
       await platform.dispose();
     } on Object catch (e, st) {

@@ -6,7 +6,7 @@ import 'package:signals_core/signals_core.dart';
 /// Plugins that expose reactive state (e.g. `EventLoopPlugin`,
 /// `SandboxPlugin`) historically allocated their own `Signal<T>`, exposed it
 /// via a plugin-specific getter (`channelStateSignal`, `childrenSignal`), and
-/// had to remember to call `.dispose()` in [MontyPlugin.onDispose]. Over four
+/// had to remember to call `.dispose()` in [MontyExtension.onDispose]. Over four
 /// plugins that ceremony produced inconsistent disposal: some signals leaked,
 /// some were double-disposed.
 ///
@@ -16,7 +16,7 @@ import 'package:signals_core/signals_core.dart';
 /// Secondary signals are still disposed manually inside [onDispose].
 ///
 /// ```dart
-/// class MyPlugin extends MontyPlugin with StatefulPlugin<MyState> {
+/// class MyPlugin extends MontyExtension with StatefulPlugin<MyState> {
 ///   MyPlugin() {
 ///     setInitialState(const MyState.initial());
 ///   }
@@ -28,7 +28,7 @@ import 'package:signals_core/signals_core.dart';
 ///
 /// Subclasses MUST call [setInitialState] once before any reactive read; the
 /// recommended spot is the plugin's constructor body.
-mixin StatefulPlugin<T> on MontyPlugin implements HasStateSignal {
+mixin StatefulPlugin<T> on MontyExtension implements HasStateSignal {
   Signal<T>? _stateSignal;
 
   /// The reactive primary state of this plugin.
@@ -86,7 +86,7 @@ mixin StatefulPlugin<T> on MontyPlugin implements HasStateSignal {
 /// Provides a covariant-safe `stateSignal` accessor that returns
 /// `ReadonlySignal<Object?>`, allowing callers to subscribe to any
 /// [StatefulPlugin] without knowing its concrete type parameter.
-mixin HasStateSignal on MontyPlugin {
+mixin HasStateSignal on MontyExtension {
   /// Returns [StatefulPlugin.stateSignal] typed as `ReadonlySignal<Object?>`.
   ReadonlySignal<Object?> get stateSignalAsObject;
 }

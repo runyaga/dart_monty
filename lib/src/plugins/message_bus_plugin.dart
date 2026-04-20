@@ -396,17 +396,17 @@ const _msgStatsSchema = HostFunctionSchema(
 ///
 /// ## Cross-plugin access
 ///
-/// After `PluginRegistry.attachTo` runs, other plugins can obtain a reference
-/// via `sibling<MessageBusPlugin>()`:
+/// After `ExtensionCoordinator.attachTo` runs, other extensions can obtain a reference
+/// via `peer<MessageBusPlugin>()`:
 ///
 /// ```dart
 /// @override
-/// Future<void> onRegister(MontyBridge bridge) async {
-///   final bus = sibling<MessageBusPlugin>()?.bus;
+/// Future<void> onAttach(AttachContext ctx) async {
+///   final bus = peer<MessageBusPlugin>()?.bus;
 ///   bus?.channel('results').send({'status': 'ready'});
 /// }
 /// ```
-class MessageBusPlugin extends MontyPlugin {
+class MessageBusPlugin extends MontyExtension {
   /// Creates a [MessageBusPlugin].
   ///
   /// If [bus] is omitted a new [MessageBus] is created. Child instances
@@ -441,7 +441,7 @@ class MessageBusPlugin extends MontyPlugin {
   ChildPolicy get childPolicy => ChildPolicy.clone;
 
   @override
-  MontyPlugin createChildInstance(ChildSpawnContext context) =>
+  MontyExtension createChildInstance(ChildSpawnContext context) =>
       MessageBusPlugin(bus: _bus);
 
   @override

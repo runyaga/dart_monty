@@ -37,13 +37,13 @@ void main() {
       'attributes print output and return value to correct worker',
       () async {
         final bridge = createBridge();
-        final registry = PluginRegistry()
+        final registry = ExtensionCoordinator()
           ..register(
             SandboxPlugin(platformFactory: () async => createPlatform()),
           );
         await registry.attachTo(bridge);
 
-        final plugin = registry.plugins.whereType<SandboxPlugin>().first;
+        final plugin = registry.extensions.whereType<SandboxPlugin>().first;
         final spawn = plugin.functions
             .firstWhere((f) => f.schema.name == 'sandbox_spawn')
             .handler;
@@ -89,13 +89,13 @@ void main() {
 
     test('gather preserves requested handle order', () async {
       final bridge = createBridge();
-      final registry = PluginRegistry()
+      final registry = ExtensionCoordinator()
         ..register(
           SandboxPlugin(platformFactory: () async => createPlatform()),
         );
       await registry.attachTo(bridge);
 
-      final plugin = registry.plugins.whereType<SandboxPlugin>().first;
+      final plugin = registry.extensions.whereType<SandboxPlugin>().first;
       final spawn = plugin.functions
           .firstWhere((f) => f.schema.name == 'sandbox_spawn')
           .handler;
@@ -123,13 +123,13 @@ void main() {
 
     test('gather with silent worker returns null output', () async {
       final bridge = createBridge();
-      final registry = PluginRegistry()
+      final registry = ExtensionCoordinator()
         ..register(
           SandboxPlugin(platformFactory: () async => createPlatform()),
         );
       await registry.attachTo(bridge);
 
-      final plugin = registry.plugins.whereType<SandboxPlugin>().first;
+      final plugin = registry.extensions.whereType<SandboxPlugin>().first;
       final spawn = plugin.functions
           .firstWhere((f) => f.schema.name == 'sandbox_spawn')
           .handler;
@@ -158,13 +158,13 @@ void main() {
 
     test('gather propagates child failure as ChildSandboxException', () async {
       final bridge = createBridge();
-      final registry = PluginRegistry()
+      final registry = ExtensionCoordinator()
         ..register(
           SandboxPlugin(platformFactory: () async => createPlatform()),
         );
       await registry.attachTo(bridge);
 
-      final plugin = registry.plugins.whereType<SandboxPlugin>().first;
+      final plugin = registry.extensions.whereType<SandboxPlugin>().first;
       final spawn = plugin.functions
           .firstWhere((f) => f.schema.name == 'sandbox_spawn')
           .handler;
@@ -195,13 +195,13 @@ void main() {
       'gather results are machine-parseable for downstream tooling',
       () async {
         final bridge = createBridge();
-        final registry = PluginRegistry()
+        final registry = ExtensionCoordinator()
           ..register(
             SandboxPlugin(platformFactory: () async => createPlatform()),
           );
         await registry.attachTo(bridge);
 
-        final plugin = registry.plugins.whereType<SandboxPlugin>().first;
+        final plugin = registry.extensions.whereType<SandboxPlugin>().first;
         final spawn = plugin.functions
             .firstWhere((f) => f.schema.name == 'sandbox_spawn')
             .handler;

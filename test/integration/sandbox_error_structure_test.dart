@@ -60,13 +60,13 @@ void main() {
       'ChildSandboxException preserves excType from child NameError',
       () async {
         final bridge = createBridge();
-        final registry = PluginRegistry()
+        final registry = ExtensionCoordinator()
           ..register(
             SandboxPlugin(platformFactory: () async => createPlatform()),
           );
         await registry.attachTo(bridge);
 
-        final plugin = registry.plugins.whereType<SandboxPlugin>().first;
+        final plugin = registry.extensions.whereType<SandboxPlugin>().first;
         final caught = await spawnAndExpectFailure(
           plugin,
           'undefined_variable_xyz',
@@ -84,13 +84,13 @@ void main() {
       'ChildSandboxException preserves info from child SyntaxError',
       () async {
         final bridge = createBridge();
-        final registry = PluginRegistry()
+        final registry = ExtensionCoordinator()
           ..register(
             SandboxPlugin(platformFactory: () async => createPlatform()),
           );
         await registry.attachTo(bridge);
 
-        final plugin = registry.plugins.whereType<SandboxPlugin>().first;
+        final plugin = registry.extensions.whereType<SandboxPlugin>().first;
         final caught = await spawnAndExpectFailure(plugin, 'def (');
 
         expect(caught.exception, isNotNull);

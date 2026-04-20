@@ -29,8 +29,8 @@ export 'src/os_call/sandboxed_fs_handler_stub.dart'
     if (dart.library.io) 'src/os_call/sandboxed_fs_handler.dart';
 export 'src/param_render_hint.dart';
 export 'src/host_dispatch.dart' show MontyInterceptor;
-export 'src/plugin_host.dart' show PluginHost;
-export 'src/plugin_registry.dart';
+export 'src/attach_context.dart' show AttachContext;
+export 'src/extension_coordinator.dart';
 export 'src/plugins/default_plugins.dart';
 export 'src/plugins/event_loop_plugin.dart';
 export 'src/plugins/message_bus_plugin.dart';

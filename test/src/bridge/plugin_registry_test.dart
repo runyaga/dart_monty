@@ -4,7 +4,7 @@ import 'package:signals_core/signals_core.dart' show ReadonlySignal;
 import 'package:test/test.dart';
 
 /// Minimal test plugin with configurable namespace and functions.
-class _TestPlugin extends MontyPlugin {
+class _TestPlugin extends MontyExtension {
   _TestPlugin({
     required this.namespace,
     this.systemPromptContext,
@@ -27,15 +27,15 @@ HostFunction _fn(String name) => HostFunction(
 );
 
 void main() {
-  late PluginRegistry registry;
+  late ExtensionCoordinator registry;
 
   setUp(() {
-    registry = PluginRegistry();
+    registry = ExtensionCoordinator();
   });
 
-  group('PluginRegistry', () {
+  group('ExtensionCoordinator', () {
     test('empty registry has empty plugins list', () {
-      expect(registry.plugins, isEmpty);
+      expect(registry.extensions, isEmpty);
     });
 
     test('register adds plugin to plugins list', () {
@@ -46,9 +46,9 @@ void main() {
 
       registry.register(plugin);
 
-      expect(registry.plugins, hasLength(1));
-      expect(registry.plugins.first.namespace, 'alpha');
-      expect(registry.plugins.first.systemPromptContext, 'Alpha operations.');
+      expect(registry.extensions, hasLength(1));
+      expect(registry.extensions.first.namespace, 'alpha');
+      expect(registry.extensions.first.systemPromptContext, 'Alpha operations.');
     });
 
     test('multiple plugins register successfully', () {
@@ -56,9 +56,9 @@ void main() {
         ..register(_TestPlugin(namespace: 'aaa', functions: [_fn('aaa_do')]))
         ..register(_TestPlugin(namespace: 'bbb', functions: [_fn('bbb_do')]));
 
-      expect(registry.plugins, hasLength(2));
-      expect(registry.plugins[0].namespace, 'aaa');
-      expect(registry.plugins[1].namespace, 'bbb');
+      expect(registry.extensions, hasLength(2));
+      expect(registry.extensions[0].namespace, 'aaa');
+      expect(registry.extensions[1].namespace, 'bbb');
     });
 
     test('accepts plugins with disjoint namespaces and function names', () {
@@ -72,14 +72,14 @@ void main() {
         ..register(p1)
         ..register(p2);
 
-      expect(registry.plugins, hasLength(2));
+      expect(registry.extensions, hasLength(2));
     });
 
     test('plugins list is unmodifiable', () {
       registry.register(_TestPlugin(namespace: 'ns'));
 
       expect(
-        () => registry.plugins.add(_TestPlugin(namespace: 'hack')),
+        () => registry.extensions.add(_TestPlugin(namespace: 'hack')),
         throwsA(isA<UnsupportedError>()),
       );
     });
@@ -213,7 +213,7 @@ void main() {
           _TestPlugin(namespace: 'sqlite', functions: [_fn('sqlite_query')]),
         );
 
-        expect(registry.plugins, hasLength(1));
+        expect(registry.extensions, hasLength(1));
       });
     });
 
@@ -280,8 +280,8 @@ void main() {
           throwsA(isA<StateError>()),
         );
 
-        expect(registry.plugins, hasLength(1));
-        expect(registry.plugins.first.namespace, 'alpha');
+        expect(registry.extensions, hasLength(1));
+        expect(registry.extensions.first.namespace, 'alpha');
       });
     });
 
@@ -306,7 +306,7 @@ void main() {
 
     group('attachTo', () {
       test(
-        'registers all functions onto bridge and calls onRegister',
+        'registers all functions onto bridge and calls onAttach',
         () async {
           final registered = <String>[];
           final bridge = _MockBridge();
@@ -314,7 +314,7 @@ void main() {
           final plugin = _LifecyclePlugin(
             namespace: 'lc',
             functions: [_fn('lc_do')],
-            onRegisterCallback: () => registered.add('lc'),
+            onAttachCallback: () => registered.add('lc'),
           );
           registry.register(plugin);
 
@@ -327,7 +327,7 @@ void main() {
         },
       );
 
-      test('calls onRegister in registration order', () async {
+      test('calls onAttach in registration order', () async {
         final order = <String>[];
         final bridge = _MockBridge();
 
@@ -336,14 +336,14 @@ void main() {
             _LifecyclePlugin(
               namespace: 'first',
               functions: [_fn('first_a')],
-              onRegisterCallback: () => order.add('first'),
+              onAttachCallback: () => order.add('first'),
             ),
           )
           ..register(
             _LifecyclePlugin(
               namespace: 'second',
               functions: [_fn('second_a')],
-              onRegisterCallback: () => order.add('second'),
+              onAttachCallback: () => order.add('second'),
             ),
           );
 
@@ -363,14 +363,14 @@ void main() {
             _LifecyclePlugin(
               namespace: 'low',
               functions: [_fn('low_a')],
-              onRegisterCallback: () => order.add('low'),
+              onAttachCallback: () => order.add('low'),
             ),
           )
           ..register(
             _LifecyclePlugin(
               namespace: 'high',
               functions: [_fn('high_a')],
-              onRegisterCallback: () => order.add('high'),
+              onAttachCallback: () => order.add('high'),
               priority: 10,
             ),
           );
@@ -391,7 +391,7 @@ void main() {
               _LifecyclePlugin(
                 namespace: ns,
                 functions: [_fn('${ns}_a')],
-                onRegisterCallback: () => order.add(ns),
+                onAttachCallback: () => order.add(ns),
                 priority: 5,
               ),
             );
@@ -459,7 +459,7 @@ void main() {
         expect(bridge.registeredNames, isNot(contains('standalone_op')));
       });
 
-      test('attaches all plugins even if onRegister throws', () async {
+      test('attaches all plugins even if onAttach throws', () async {
         final bridge = _MockBridge();
 
         registry
@@ -467,7 +467,7 @@ void main() {
             _LifecyclePlugin(
               namespace: 'aaa',
               functions: [_fn('aaa_x')],
-              onRegisterCallback: () => throw Exception('aaa boom'),
+              onAttachCallback: () => throw Exception('aaa boom'),
             ),
           )
           ..register(
@@ -480,7 +480,7 @@ void main() {
             isA<StateError>().having(
               (e) => e.message,
               'message',
-              allOf(contains('1 plugin(s)'), contains('aaa')),
+              allOf(contains('1 extension(s)'), contains('aaa')),
             ),
           ),
         );
@@ -491,19 +491,19 @@ void main() {
         expect(bridge.registeredNames, contains('help'));
       });
 
-      group('registry injection', () {
+      group('coordinator injection', () {
         test(
-          'registry is set on each plugin before onRegister fires',
+          'coordinator is set on each extension before onAttach fires',
           () async {
             final bridge = _MockBridge();
             final plugin = _RegistryCapturingPlugin(namespace: 'alpha');
             registry.register(plugin);
             await registry.attachTo(bridge);
-            expect(plugin.capturedRegistry, same(registry));
+            expect(plugin.capturedCoordinator, same(registry));
           },
         );
 
-        test('sibling<T>() finds a registered plugin by type', () async {
+        test('peer<T>() finds a registered extension by type', () async {
           final bridge = _MockBridge();
           final os = _OsContribPlugin(namespace: 'hooks', contribution: null);
           final lc = _LifecyclePlugin(
@@ -514,10 +514,10 @@ void main() {
             ..register(os)
             ..register(lc);
           await registry.attachTo(bridge);
-          expect(lc.sibling<_OsContribPlugin>(), same(os));
+          expect(lc.peer<_OsContribPlugin>(), same(os));
         });
 
-        test('sibling<T>() returns null for an unregistered type', () async {
+        test('peer<T>() returns null for an unregistered type', () async {
           final bridge = _MockBridge();
           final lc = _LifecyclePlugin(
             namespace: 'lc',
@@ -525,14 +525,14 @@ void main() {
           );
           registry.register(lc);
           await registry.attachTo(bridge);
-          expect(lc.sibling<_OsContribPlugin>(), isNull);
+          expect(lc.peer<_OsContribPlugin>(), isNull);
         });
 
-        test('accessing registry before attachTo throws', () {
+        test('accessing coordinator before attachTo throws', () {
           final plugin = _LifecyclePlugin(namespace: 'lc', functions: []);
           // Accessing an uninitialised late field throws
           // LateInitializationError, a subtype of Error.
-          expect(() => plugin.registry, throwsA(isA<Error>()));
+          expect(() => plugin.coordinator, throwsA(isA<Error>()));
         });
       });
 
@@ -701,7 +701,7 @@ void main() {
             isA<StateError>().having(
               (e) => e.message,
               'message',
-              allOf(contains('1 plugin(s)'), contains('bbb')),
+              allOf(contains('1 extension(s)'), contains('bbb')),
             ),
           ),
         );
@@ -733,7 +733,7 @@ void main() {
             isA<StateError>().having(
               (e) => e.message,
               'message',
-              allOf(contains('2 plugin(s)'), contains('aaa'), contains('bbb')),
+              allOf(contains('2 extension(s)'), contains('aaa'), contains('bbb')),
             ),
           ),
         );
@@ -934,7 +934,7 @@ void main() {
 }
 
 /// Plugin that mixes in `StatefulPlugin` for testing `statefulObservations`.
-class _StatefulTestPlugin<T> extends MontyPlugin with StatefulPlugin<T> {
+class _StatefulTestPlugin<T> extends MontyExtension with StatefulPlugin<T> {
   _StatefulTestPlugin({required this.namespace, required T initial}) {
     setInitialState(initial);
   }
@@ -947,11 +947,11 @@ class _StatefulTestPlugin<T> extends MontyPlugin with StatefulPlugin<T> {
 }
 
 /// Plugin with configurable lifecycle callbacks for testing.
-class _LifecyclePlugin extends MontyPlugin {
+class _LifecyclePlugin extends MontyExtension {
   _LifecyclePlugin({
     required this.namespace,
     required this.functions,
-    this.onRegisterCallback,
+    this.onAttachCallback,
     this.onDisposeCallback,
     int priority = 0,
   }) : _priority = priority;
@@ -970,13 +970,13 @@ class _LifecyclePlugin extends MontyPlugin {
   @override
   int get priority => _priority;
 
-  final void Function()? onRegisterCallback;
+  final void Function()? onAttachCallback;
   final void Function()? onDisposeCallback;
 
   @override
-  Future<void> onRegister(PluginHost host) async {
-    await super.onRegister(host);
-    onRegisterCallback?.call();
+  Future<void> onAttach(AttachContext host) async {
+    await super.onAttach(host);
+    onAttachCallback?.call();
   }
 
   @override
@@ -994,7 +994,7 @@ Future<Object?> _fakeOsHandler(
 ) => throw UnimplementedError();
 
 /// Plugin with a configurable [osContribution] for OS prefix merging tests.
-class _OsContribPlugin extends MontyPlugin {
+class _OsContribPlugin extends MontyExtension {
   _OsContribPlugin({
     required this.namespace,
     required Map<String, OsCallHandler>? contribution,
@@ -1012,11 +1012,11 @@ class _OsContribPlugin extends MontyPlugin {
   Map<String, OsCallHandler>? get osContribution => _contribution;
 }
 
-/// Plugin that captures its [registry] reference during [onRegister].
+/// Extension that captures its [coordinator] reference during [onAttach].
 ///
-/// Used to verify that `PluginRegistry` injects the registry before
-/// the first [onRegister] call.
-class _RegistryCapturingPlugin extends MontyPlugin {
+/// Used to verify that `ExtensionCoordinator` injects the coordinator before
+/// the first [onAttach] call.
+class _RegistryCapturingPlugin extends MontyExtension {
   _RegistryCapturingPlugin({required this.namespace});
 
   @override
@@ -1025,12 +1025,12 @@ class _RegistryCapturingPlugin extends MontyPlugin {
   @override
   List<HostFunction> get functions => [];
 
-  PluginRegistry? capturedRegistry;
+  ExtensionCoordinator? capturedCoordinator;
 
   @override
-  Future<void> onRegister(PluginHost host) async {
-    await super.onRegister(host);
-    capturedRegistry = registry;
+  Future<void> onAttach(AttachContext host) async {
+    await super.onAttach(host);
+    capturedCoordinator = coordinator;
   }
 }
 

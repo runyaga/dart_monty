@@ -55,13 +55,13 @@ void main() {
   group('sandbox logging with real FFI', () {
     test('spawn + await logs full lifecycle', () async {
       final bridge = createBridge();
-      final registry = PluginRegistry()
+      final registry = ExtensionCoordinator()
         ..register(
           SandboxPlugin(platformFactory: () async => createPlatform()),
         );
       await registry.attachTo(bridge);
 
-      final plugin = registry.plugins.whereType<SandboxPlugin>().first;
+      final plugin = registry.extensions.whereType<SandboxPlugin>().first;
       final spawn = plugin.functions
           .firstWhere((f) => f.schema.name == 'sandbox_spawn')
           .handler;
@@ -92,13 +92,13 @@ void main() {
 
     test('failed child logs error details', () async {
       final bridge = createBridge();
-      final registry = PluginRegistry()
+      final registry = ExtensionCoordinator()
         ..register(
           SandboxPlugin(platformFactory: () async => createPlatform()),
         );
       await registry.attachTo(bridge);
 
-      final plugin = registry.plugins.whereType<SandboxPlugin>().first;
+      final plugin = registry.extensions.whereType<SandboxPlugin>().first;
       final spawn = plugin.functions
           .firstWhere((f) => f.schema.name == 'sandbox_spawn')
           .handler;
@@ -126,13 +126,13 @@ void main() {
 
     test('dispose logs child counts', () async {
       final bridge = createBridge();
-      final registry = PluginRegistry()
+      final registry = ExtensionCoordinator()
         ..register(
           SandboxPlugin(platformFactory: () async => createPlatform()),
         );
       await registry.attachTo(bridge);
 
-      final plugin = registry.plugins.whereType<SandboxPlugin>().first;
+      final plugin = registry.extensions.whereType<SandboxPlugin>().first;
       final spawn = plugin.functions
           .firstWhere((f) => f.schema.name == 'sandbox_spawn')
           .handler;

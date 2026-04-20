@@ -49,7 +49,7 @@ void main() {
   Future<MontyBridge> createBridgeWithMessageBus() async {
     final bridge = createBridge();
     final msgBus = MessageBusPlugin();
-    final registry = PluginRegistry()
+    final registry = ExtensionCoordinator()
       ..register(msgBus)
       ..register(
         SandboxPlugin(platformFactory: () async => createPlatform()),

@@ -7,7 +7,7 @@ import 'package:dart_monty/src/host_function.dart';
 import 'package:dart_monty/src/host_function_schema.dart';
 import 'package:dart_monty/src/monty_bridge.dart';
 import 'package:dart_monty/src/monty_runtime_ref.dart';
-import 'package:dart_monty/src/plugin_host.dart';
+import 'package:dart_monty/src/attach_context.dart';
 import 'package:dart_monty/src/struct_log_bridge_logger.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:meta/meta.dart';
@@ -89,8 +89,8 @@ void _emitInfraError(
 ///
 /// Orchestrates the Monty start/resume loop and delegates function
 /// registration and tool dispatch to a [HostDispatch]. Exposes a narrow
-/// [PluginHost] view of itself for [MontyPlugin.onRegister].
-class DefaultMontyBridge implements MontyBridge, PluginHost {
+/// [AttachContext] view of itself for [MontyExtension.onAttach].
+class DefaultMontyBridge implements MontyBridge, AttachContext {
   /// Creates a [DefaultMontyBridge].
   ///
   /// Pass [logger] to inject a custom [BridgeLogger] for this bridge instance.
@@ -129,15 +129,17 @@ class DefaultMontyBridge implements MontyBridge, PluginHost {
   bool _isExecuting = false;
   bool _isDisposed = false;
 
-  // Stream wrappers registered by PluginRegistry for plugins that override
-  // wrapExecuteStream. Applied in registration order (first = outermost).
+  // Stream wrappers registered by ExtensionCoordinator for extensions that
+  // override wrapExecuteStream. Applied in registration order
+  // (first = outermost).
   final List<Stream<BridgeEvent> Function(String, Stream<BridgeEvent>)>
   _streamWrappers = [];
 
-  /// Registers a stream wrapper callback from a plugin.
+  /// Registers a stream wrapper callback from an extension.
   ///
-  /// Called by `PluginRegistry` during `PluginRegistry.attachTo` for each
-  /// plugin whose `MontyPlugin.hasStreamWrapper` returns `true`.
+  /// Called by `ExtensionCoordinator` during `ExtensionCoordinator.attachTo`
+  /// for each extension whose `MontyExtension.hasStreamWrapper` returns
+  /// `true`.
   @internal
   void addStreamWrapper(
     Stream<BridgeEvent> Function(String code, Stream<BridgeEvent> stream)

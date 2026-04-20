@@ -4,7 +4,7 @@ import 'package:dart_monty/src/default_monty_bridge.dart';
 import 'package:dart_monty/src/host_dispatch.dart';
 import 'package:dart_monty/src/host_function.dart';
 import 'package:dart_monty/src/host_function_schema.dart';
-import 'package:dart_monty/src/plugin_host.dart';
+import 'package:dart_monty/src/attach_context.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 
 /// Bridge for LLM-generated Python calling registered Dart host functions.
@@ -18,7 +18,7 @@ import 'package:dart_monty_core/dart_monty_core.dart';
 /// bridge.register(myHostFunction);
 /// final events = bridge.execute('result = my_function()');
 /// ```
-abstract class MontyBridge implements PluginHost {
+abstract class MontyBridge implements AttachContext {
   /// Creates a bridge backed by [platform].
   factory MontyBridge({
     required MontyPlatform platform,

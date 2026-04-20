@@ -2,7 +2,7 @@ import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:test/test.dart';
 
 /// Minimal concrete implementation for testing the abstract class.
-class _TestPlugin extends MontyPlugin {
+class _TestPlugin extends MontyExtension {
   _TestPlugin({
     required this.namespace,
     required this.functions,
@@ -20,7 +20,7 @@ class _TestPlugin extends MontyPlugin {
 }
 
 void main() {
-  group('MontyPlugin', () {
+  group('MontyExtension', () {
     test('exposes namespace, systemPromptContext, and functions', () {
       final fn = HostFunction(
         schema: const HostFunctionSchema(
@@ -42,7 +42,7 @@ void main() {
       expect(plugin.functions.first.schema.name, 'do_thing');
     });
 
-    test('onRegister default implementation is a no-op', () async {
+    test('onAttach default implementation is a no-op', () async {
       final plugin = _TestPlugin(
         namespace: 'ns',
         systemPromptContext: '',
@@ -50,7 +50,7 @@ void main() {
       );
 
       // Should complete without error.
-      await plugin.onRegister(_NoOpBridge());
+      await plugin.onAttach(_NoOpBridge());
     });
 
     test('systemPromptContext defaults to null', () {
@@ -95,11 +95,11 @@ void main() {
     });
 
     test(
-      'accessing registry before attachTo throws LateInitializationError',
+      'accessing coordinator before attachTo throws LateInitializationError',
       () {
         final plugin = _TestPlugin(namespace: 'ns', functions: []);
         // LateInitializationError is a subtype of Error.
-        expect(() => plugin.registry, throwsA(isA<Error>()));
+        expect(() => plugin.coordinator, throwsA(isA<Error>()));
       },
     );
 

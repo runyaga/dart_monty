@@ -6,7 +6,7 @@ import 'package:dart_monty/src/introspection_functions.dart';
 import 'package:dart_monty/src/monty_backend_kind.dart';
 import 'package:dart_monty/src/monty_bridge.dart';
 import 'package:dart_monty/src/monty_plugin.dart';
-import 'package:dart_monty/src/plugin_host.dart';
+import 'package:dart_monty/src/attach_context.dart';
 import 'package:dart_monty/src/os_call/decorator_handlers.dart';
 import 'package:dart_monty/src/os_call/fs_handlers.dart';
 import 'package:dart_monty/src/os_call/os_handlers.dart';
@@ -15,7 +15,7 @@ import 'package:signals_core/signals_core.dart';
 
 /// How a child sandbox's `Path.` handler is derived from the parent's.
 ///
-/// Passed to [PluginRegistry.spawnChild] to control filesystem visibility
+/// Passed to [ExtensionCoordinator.spawnChild] to control filesystem visibility
 /// between parent and child. All strategies forward non-`Path.` prefixes
 /// (`os.`, `date.`, `datetime.`, etc.) to the parent unchanged.
 enum ChildVfsStrategy {
@@ -41,40 +41,40 @@ enum ChildVfsStrategy {
 }
 
 // ---------------------------------------------------------------------------
-// Top-level helpers used by PluginRegistry.attachTo.
+// Top-level helpers used by ExtensionCoordinator.attachTo.
 // ---------------------------------------------------------------------------
 
-/// Injects scoped loggers and registers all plugin functions with [bridge].
-void _attachPluginFunctions(
-  List<MontyPlugin> attachOrder,
+/// Injects scoped loggers and registers all extension functions with [bridge].
+void _attachExtensionFunctions(
+  List<MontyExtension> attachOrder,
   MontyBridge bridge,
 ) {
-  for (final plugin in attachOrder) {
-    plugin.logger = bridge.logger.child(plugin.namespace);
-    for (final fn in plugin.functions) {
-      bridge.register(fn, category: plugin.namespace);
+  for (final ext in attachOrder) {
+    ext.logger = bridge.logger.child(ext.namespace);
+    for (final fn in ext.functions) {
+      bridge.register(fn, category: ext.namespace);
     }
   }
 }
 
-/// Validates every plugin's [MontyPlugin.supportedBackends] against
+/// Validates every extension's [MontyExtension.supportedBackends] against
 /// [currentBackendKind]. Logs and throws [UnsupportedBackendError] on the
 /// first mismatch so the failure is a clean configuration error before any
 /// lifecycle hook fires.
-void _checkSupportedBackends(List<MontyPlugin> plugins, BridgeLogger log) {
+void _checkSupportedBackends(List<MontyExtension> extensions, BridgeLogger log) {
   final here = currentBackendKind;
-  for (final plugin in plugins) {
-    final supported = plugin.supportedBackends;
+  for (final ext in extensions) {
+    final supported = ext.supportedBackends;
     if (supported.contains(here)) continue;
     final error = UnsupportedBackendError(
-      pluginNamespace: plugin.namespace,
+      extensionNamespace: ext.namespace,
       current: here,
       supported: supported,
     );
     log.error(
-      'plugin does not support current backend',
+      'extension does not support current backend',
       attributes: {
-        'namespace': plugin.namespace,
+        'namespace': ext.namespace,
         'current': here.name,
         'supported': supported.map((b) => b.name).toList(),
       },
@@ -83,19 +83,19 @@ void _checkSupportedBackends(List<MontyPlugin> plugins, BridgeLogger log) {
   }
 }
 
-/// Emits a `plugin registered` info log per plugin with namespace,
+/// Emits an `extension registered` info log per extension with namespace,
 /// function count, and declared supported backends.
-void _logPluginsRegistered(
-  List<MontyPlugin> attachOrder,
+void _logExtensionsRegistered(
+  List<MontyExtension> attachOrder,
   BridgeLogger log,
 ) {
-  for (final plugin in attachOrder) {
+  for (final ext in attachOrder) {
     log.info(
-      'plugin registered',
+      'extension registered',
       attributes: {
-        'namespace': plugin.namespace,
-        'functionCount': plugin.functions.length,
-        'supportedBackends': plugin.supportedBackends
+        'namespace': ext.namespace,
+        'functionCount': ext.functions.length,
+        'supportedBackends': ext.supportedBackends
             .map((b) => b.name)
             .toList(),
       },
@@ -118,66 +118,66 @@ void _attachExtraFunctions(
   );
 }
 
-/// Calls [MontyPlugin.onRegister] for each plugin in [attachOrder], collecting
-/// failures. Returns `(namespace, error)` pairs for every plugin that threw.
-Future<List<(String, Object)>> _runPluginOnRegisters(
-  List<MontyPlugin> attachOrder,
-  PluginHost host,
+/// Calls [MontyExtension.onAttach] for each extension in [attachOrder], collecting
+/// failures. Returns `(namespace, error)` pairs for every extension that threw.
+Future<List<(String, Object)>> _runExtensionOnAttaches(
+  List<MontyExtension> attachOrder,
+  AttachContext ctx,
   BridgeLogger log,
 ) async {
   final errors = <(String, Object)>[];
-  for (final plugin in attachOrder) {
+  for (final ext in attachOrder) {
     try {
-      await plugin.onRegister(host);
+      await ext.onAttach(ctx);
     } on Object catch (e) {
       log.warning(
-        'Plugin onRegister failed',
-        attributes: {'namespace': plugin.namespace, 'error': '$e'},
+        'Extension onAttach failed',
+        attributes: {'namespace': ext.namespace, 'error': '$e'},
       );
-      errors.add((plugin.namespace, e));
+      errors.add((ext.namespace, e));
     }
   }
 
   return errors;
 }
 
-/// Injects [registry] into each plugin's [MontyPlugin.registry] field.
+/// Injects [coordinator] into each extension's [MontyExtension.coordinator] field.
 ///
-/// Called before [_runPluginOnRegisters] so that [MontyPlugin.sibling] is
-/// available inside [MontyPlugin.onRegister].
-void _injectRegistries(
-  List<MontyPlugin> attachOrder,
-  PluginRegistry registry,
+/// Called before [_runExtensionOnAttaches] so that [MontyExtension.peer] is
+/// available inside [MontyExtension.onAttach].
+void _injectCoordinators(
+  List<MontyExtension> attachOrder,
+  ExtensionCoordinator coordinator,
 ) {
-  for (final plugin in attachOrder) {
-    plugin.registry = registry;
+  for (final ext in attachOrder) {
+    ext.coordinator = coordinator;
   }
 }
 
-/// Collects OS call prefix contributions from all plugins in [attachOrder]
-/// and validates that no two plugins claim the same prefix.
+/// Collects OS call prefix contributions from all extensions in [attachOrder]
+/// and validates that no two extensions claim the same prefix.
 ///
-/// Throws [StateError] if two plugins return the same prefix key from
-/// [MontyPlugin.osContribution].
+/// Throws [StateError] if two extensions return the same prefix key from
+/// [MontyExtension.osContribution].
 Map<String, OsCallHandler> _collectOsContributions(
-  List<MontyPlugin> attachOrder,
+  List<MontyExtension> attachOrder,
 ) {
   // prefix → (owning namespace, handler)
   final merged = <String, (String, OsCallHandler)>{};
 
-  for (final plugin in attachOrder) {
-    final contrib = plugin.osContribution;
+  for (final ext in attachOrder) {
+    final contrib = ext.osContribution;
     if (contrib == null) continue;
     for (final entry in contrib.entries) {
       final prefix = entry.key;
       if (merged.containsKey(prefix)) {
         final owner = merged[prefix]!.$1;
         throw StateError(
-          'OS prefix "$prefix" is claimed by both "${plugin.namespace}" and '
-          '"$owner". Each prefix may be claimed by at most one plugin.',
+          'OS prefix "$prefix" is claimed by both "${ext.namespace}" and '
+          '"$owner". Each prefix may be claimed by at most one extension.',
         );
       }
-      merged[prefix] = (plugin.namespace, entry.value);
+      merged[prefix] = (ext.namespace, entry.value);
     }
   }
 
@@ -201,29 +201,29 @@ void _applyOsContributions(
   bridge.registerOs(composed);
 }
 
-/// Collects [MontyPlugin]s with namespace validation and function name
+/// Collects [MontyExtension]s with namespace validation and function name
 /// collision detection.
 ///
-/// All function names must be prefixed with the plugin's namespace followed
+/// All function names must be prefixed with the extension's namespace followed
 /// by an underscore (e.g., namespace `sqlite` requires functions named
 /// `sqlite_query`, `sqlite_execute`, etc.).
-class PluginRegistry {
-  /// Optional text prepended before plugin sections in the system prompt.
+class ExtensionCoordinator {
+  /// Optional text prepended before extension sections in the system prompt.
   ///
-  /// Set by `SandboxPlugin._handleSpawn` after registry construction to
+  /// Set by `SandboxPlugin._handleSpawn` after coordinator construction to
   /// inject per-child system prompt content. Using a public field (rather
   /// than a constructor param) guarantees injection regardless of whether
-  /// the registry was built by inheritance or a custom factory.
+  /// the coordinator was built by inheritance or a custom factory.
   String? systemPromptPrefix;
 
-  final List<MontyPlugin> _plugins = [];
-  List<MontyPlugin>? _attachOrder;
+  final List<MontyExtension> _extensions = [];
+  List<MontyExtension>? _attachOrder;
   final Set<String> _namespaces = {};
   final Set<String> _functionNames = {};
   BridgeLogger _log = const NullBridgeLogger();
   bool _attached = false;
 
-  /// The plugin OS contributions resolved during [attachTo], keyed by prefix.
+  /// The extension OS contributions resolved during [attachTo], keyed by prefix.
   ///
   /// Captured so that [spawnChild] can re-compose a child handler per
   /// [ChildVfsStrategy] (swapping only the `Path.` entry) instead of
@@ -231,65 +231,65 @@ class PluginRegistry {
   Map<String, OsCallHandler>? _osContributions;
 
   /// The `baseOs` passed to [attachTo], if any. Used as the fallback for any
-  /// prefix that no plugin claims when [spawnChild] composes a child handler.
+  /// prefix that no extension claims when [spawnChild] composes a child handler.
   OsCallHandler? _baseOs;
 
   static final RegExp _validNamespace = RegExp(r'^[a-z][a-z0-9_]*$');
   static const int _maxNamespaceLength = 32;
   static const Set<String> _reservedNamespaces = {'introspection', 'extra'};
 
-  /// Registered plugins in insertion order (unmodifiable).
-  List<MontyPlugin> get plugins => UnmodifiableListView(_plugins);
+  /// Registered extensions in insertion order (unmodifiable).
+  List<MontyExtension> get extensions => UnmodifiableListView(_extensions);
 
-  /// Validates [plugin] namespace and function names, then registers it.
+  /// Validates [extension] namespace and function names, then registers it.
   ///
   /// Throws [ArgumentError] if the namespace is empty, malformed, or exceeds
   /// 32 characters.
   /// Throws [StateError] if the namespace is reserved, already registered,
   /// any function name collides with a previously registered function, or
   /// [attachTo] has already been called.
-  void register(MontyPlugin plugin) {
+  void register(MontyExtension extension) {
     if (_attached) {
       throw StateError(
-        'Cannot register plugin "${plugin.namespace}" after attachTo() '
-        'has been called. Create a new PluginRegistry.',
+        'Cannot register extension "${extension.namespace}" after attachTo() '
+        'has been called. Create a new ExtensionCoordinator.',
       );
     }
-    _validateNamespace(plugin.namespace);
-    _checkFunctionCollisions(plugin);
+    _validateNamespace(extension.namespace);
+    _checkFunctionCollisions(extension);
 
-    _namespaces.add(plugin.namespace);
-    for (final fn in plugin.functions) {
+    _namespaces.add(extension.namespace);
+    for (final fn in extension.functions) {
       _functionNames.add(fn.schema.name);
     }
-    _plugins.add(plugin);
+    _extensions.add(extension);
     _log.debug(
-      'Registered plugin',
+      'Registered extension',
       attributes: {
-        'namespace': plugin.namespace,
-        'functions': plugin.functions.length,
+        'namespace': extension.namespace,
+        'functions': extension.functions.length,
       },
     );
   }
 
-  /// Wires all plugins to [bridge], calls [MontyPlugin.onRegister] for each,
+  /// Wires all extensions to [bridge], calls [MontyExtension.onAttach] for each,
   /// registers introspection builtins, and registers [extraFunctions] under the
-  /// `'extra'` category. [MontyPlugin.onRegister] errors are collected and
-  /// thrown together as a single [StateError] after all plugins are processed.
+  /// `'extra'` category. [MontyExtension.onAttach] errors are collected and
+  /// thrown together as a single [StateError] after all extensions are processed.
   ///
   /// ## OS registration
   ///
-  /// If any plugins return a non-null [MontyPlugin.osContribution], their
+  /// If any extensions return a non-null [MontyExtension.osContribution], their
   /// prefix maps are merged (overlapping prefixes throw [StateError]) and
   /// composed with [baseOs] as the fallback. The composed handler is then
   /// registered on [bridge] via `registerOs`. If there are no contributions
   /// and [baseOs] is non-null, [baseOs] is registered directly.
   ///
-  /// ## Registry injection
+  /// ## Coordinator injection
   ///
-  /// [MontyPlugin.registry] is set to this registry before
-  /// [MontyPlugin.onRegister] is called, so [MontyPlugin.sibling] is
-  /// available inside [MontyPlugin.onRegister].
+  /// [MontyExtension.coordinator] is set to this coordinator before
+  /// [MontyExtension.onAttach] is called, so [MontyExtension.peer] is
+  /// available inside [MontyExtension.onAttach].
   Future<void> attachTo(
     MontyBridge bridge, {
     List<HostFunction>? extraFunctions,
@@ -298,26 +298,26 @@ class PluginRegistry {
   }) async {
     if (_attached) {
       throw StateError(
-        'PluginRegistry.attachTo() has already been called. '
-        'Create a new PluginRegistry for a different bridge.',
+        'ExtensionCoordinator.attachTo() has already been called. '
+        'Create a new ExtensionCoordinator for a different bridge.',
       );
     }
 
-    _log = bridge.logger.child('registry');
+    _log = bridge.logger.child('coordinator');
 
-    _checkSupportedBackends(_plugins, _log);
+    _checkSupportedBackends(_extensions, _log);
 
     // Sort by descending priority; stable sort preserves insertion order for
-    // equal priorities. High-priority plugins attach first, dispose last.
-    final attachOrder = [..._plugins]
+    // equal priorities. High-priority extensions attach first, dispose last.
+    final attachOrder = [..._extensions]
       ..sort((a, b) => b.priority.compareTo(a.priority));
     _attachOrder = attachOrder;
 
-    // Inject registry before onRegister so sibling() works during lifecycle.
-    _injectRegistries(attachOrder, this);
+    // Inject coordinator before onAttach so peer() works during lifecycle.
+    _injectCoordinators(attachOrder, this);
 
-    _attachPluginFunctions(attachOrder, bridge);
-    _logPluginsRegistered(attachOrder, _log);
+    _attachExtensionFunctions(attachOrder, bridge);
+    _logExtensionsRegistered(attachOrder, _log);
     final contributions = _collectOsContributions(attachOrder);
     _osContributions = contributions;
     _baseOs = baseOs;
@@ -326,7 +326,7 @@ class PluginRegistry {
       _attachExtraFunctions(extraFunctions, bridge, _log);
     }
 
-    final errors = await _runPluginOnRegisters(attachOrder, bridge, _log);
+    final errors = await _runExtensionOnAttaches(attachOrder, bridge, _log);
 
     if (enableIntrospection) {
       for (final fn in buildIntrospectionFunctions(bridge)) {
@@ -335,56 +335,56 @@ class PluginRegistry {
     }
 
     if (errors.isNotEmpty) {
-      // Clean up partially-attached plugins before throwing.
+      // Clean up partially-attached extensions before throwing.
       await disposeAll();
       final summary = errors.map((e) => '${e.$1}: ${e.$2}').join('; ');
-      throw StateError('${errors.length} plugin(s) failed to attach: $summary');
+      throw StateError('${errors.length} extension(s) failed to attach: $summary');
     }
 
     _attached = true;
     _log.info(
-      'Attached plugins to bridge',
-      attributes: {'pluginCount': _plugins.length},
+      'Attached extensions to bridge',
+      attributes: {'extensionCount': _extensions.length},
     );
   }
 
-  /// Disposes all plugins in reverse registration order.
+  /// Disposes all extensions in reverse registration order.
   ///
-  /// All plugins are disposed even if some throw — errors are collected and
-  /// thrown as a single [StateError] after all plugins have been disposed.
-  /// Safe to call multiple times — each plugin's [MontyPlugin.onDispose]
+  /// All extensions are disposed even if some throw — errors are collected and
+  /// thrown as a single [StateError] after all extensions have been disposed.
+  /// Safe to call multiple times — each extension's [MontyExtension.onDispose]
   /// must be idempotent.
   Future<void> disposeAll() async {
     final errors = <(String, Object)>[];
-    // Reverse registration order so later-registered plugins dispose first.
-    final disposeOrder = (_attachOrder ?? _plugins).reversed;
-    for (final plugin in disposeOrder) {
+    // Reverse registration order so later-registered extensions dispose first.
+    final disposeOrder = (_attachOrder ?? _extensions).reversed;
+    for (final ext in disposeOrder) {
       try {
-        await plugin.onDispose();
+        await ext.onDispose();
       } on Object catch (e) {
         _log.warning(
-          'Plugin dispose failed',
-          attributes: {'namespace': plugin.namespace, 'error': '$e'},
+          'Extension dispose failed',
+          attributes: {'namespace': ext.namespace, 'error': '$e'},
         );
-        errors.add((plugin.namespace, e));
+        errors.add((ext.namespace, e));
       }
     }
     if (errors.isNotEmpty) {
       final summary = errors.map((e) => '${e.$1}: ${e.$2}').join('; ');
       throw StateError(
-        '${errors.length} plugin(s) failed to dispose: $summary',
+        '${errors.length} extension(s) failed to dispose: $summary',
       );
     }
   }
 
-  /// Builds a child [PluginRegistry] seeded from this (parent) registry and
+  /// Builds a child [ExtensionCoordinator] seeded from this (parent) coordinator and
   /// attaches it to [bridge].
   ///
-  /// Every parent plugin contributes to the child according to its
-  /// [MontyPlugin.childPolicy] — `clone` invokes
-  /// [MontyPlugin.createChildInstance] for a fresh instance, `inherit`
-  /// re-registers the parent instance, and `exclude` skips the plugin
-  /// entirely. The resulting registry is attached to [bridge] with an OS
+  /// Every parent extension contributes to the child according to its
+  /// [MontyExtension.childPolicy] — `clone` invokes
+  /// [MontyExtension.createChildInstance] for a fresh instance, `inherit`
+  /// re-registers the parent instance, and `exclude` skips the extension
+  /// entirely. The resulting coordinator is attached to [bridge] with an OS
   /// handler composed per [vfsStrategy] (see [ChildVfsStrategy]).
   ///
   /// Non-`Path.` OS prefixes (e.g., `os.`, `date.`, `datetime.`) are
@@ -392,8 +392,8 @@ class PluginRegistry {
   /// is used as the child's fallback for any unclaimed prefix.
   ///
   /// Throws [StateError] if [attachTo] has not yet been called on this
-  /// registry — there is no parent OS state to inherit from.
-  Future<PluginRegistry> spawnChild({
+  /// coordinator — there is no parent OS state to inherit from.
+  Future<ExtensionCoordinator> spawnChild({
     required ChildSpawnContext context,
     required MontyBridge bridge,
     ChildVfsStrategy vfsStrategy = ChildVfsStrategy.isolated,
@@ -402,24 +402,24 @@ class PluginRegistry {
   }) async {
     if (!_attached) {
       throw StateError(
-        'PluginRegistry.spawnChild() called before attachTo(). '
-        'A parent registry must be attached before spawning children.',
+        'ExtensionCoordinator.spawnChild() called before attachTo(). '
+        'A parent coordinator must be attached before spawning children.',
       );
     }
 
-    final child = PluginRegistry();
-    for (final plugin in _plugins) {
-      switch (plugin.childPolicy) {
+    final child = ExtensionCoordinator();
+    for (final ext in _extensions) {
+      switch (ext.childPolicy) {
         case ChildPolicy.exclude:
           continue;
         case ChildPolicy.inherit:
-          child.register(plugin);
+          child.register(ext);
         case ChildPolicy.clone:
-          final instance = plugin.createChildInstance(context);
+          final instance = ext.createChildInstance(context);
           assert(
-            !identical(instance, plugin),
+            !identical(instance, ext),
             'createChildInstance() must return a new instance, not `this`. '
-            'Use ChildPolicy.inherit if the plugin should be shared.',
+            'Use ChildPolicy.inherit if the extension should be shared.',
           );
           child.register(instance);
       }
@@ -432,10 +432,10 @@ class PluginRegistry {
     return child;
   }
 
-  /// Auto-generates an LLM system prompt from plugin schemas.
+  /// Auto-generates an LLM system prompt from extension schemas.
   ///
-  /// Each plugin produces a markdown section with its namespace as heading,
-  /// optional [MontyPlugin.systemPromptContext], and a list of functions.
+  /// Each extension produces a markdown section with its namespace as heading,
+  /// optional [MontyExtension.systemPromptContext], and a list of functions.
   String generateSystemPrompt() {
     final buffer = StringBuffer();
 
@@ -445,13 +445,13 @@ class PluginRegistry {
         ..writeln();
     }
 
-    for (final plugin in _plugins) {
-      buffer.writeln('### ${plugin.namespace}');
-      final context = plugin.systemPromptContext;
+    for (final ext in _extensions) {
+      buffer.writeln('### ${ext.namespace}');
+      final context = ext.systemPromptContext;
       if (context != null && context.isNotEmpty) {
         buffer.writeln(context);
       }
-      for (final fn in plugin.functions) {
+      for (final fn in ext.functions) {
         final params = fn.schema.params
             .map(
               (p) =>
@@ -471,16 +471,16 @@ class PluginRegistry {
     return buffer.toString().trimRight();
   }
 
-  /// Returns one `(namespace, signal)` pair per plugin that mixes in
+  /// Returns one `(namespace, signal)` pair per extension that mixes in
   /// [StatefulPlugin].
   ///
   /// Consumers (e.g., an ag-ui session adapter) use these pairs to subscribe
-  /// to plugin state and emit `STATE_SNAPSHOT` + `STATE_DELTA` frames keyed
-  /// as `plugin.<namespace>`.
+  /// to extension state and emit `STATE_SNAPSHOT` + `STATE_DELTA` frames keyed
+  /// as `extension.<namespace>`.
   Iterable<(String, ReadonlySignal<Object?>)> statefulObservations() sync* {
-    for (final plugin in _plugins) {
-      if (plugin is HasStateSignal) {
-        yield (plugin.namespace, plugin.stateSignalAsObject);
+    for (final ext in _extensions) {
+      if (ext is HasStateSignal) {
+        yield (ext.namespace, ext.stateSignalAsObject);
       }
     }
   }
@@ -546,26 +546,26 @@ class PluginRegistry {
     }
   }
 
-  void _checkFunctionCollisions(MontyPlugin plugin) {
-    final prefix = '${plugin.namespace}_';
+  void _checkFunctionCollisions(MontyExtension extension) {
+    final prefix = '${extension.namespace}_';
     final seen = <String>{};
-    for (final fn in plugin.functions) {
+    for (final fn in extension.functions) {
       final name = fn.schema.name;
       if (!name.startsWith(prefix)) {
         throw ArgumentError(
-          'Function "$name" in plugin "${plugin.namespace}" must be '
+          'Function "$name" in extension "${extension.namespace}" must be '
           'prefixed with "$prefix".',
         );
       }
       if (!seen.add(name)) {
         throw ArgumentError(
-          'Plugin "${plugin.namespace}" declares duplicate '
+          'Extension "${extension.namespace}" declares duplicate '
           'function "$name".',
         );
       }
       if (_functionNames.contains(name)) {
         throw StateError(
-          'Function "$name" from plugin "${plugin.namespace}" conflicts '
+          'Function "$name" from extension "${extension.namespace}" conflicts '
           'with an already registered function.',
         );
       }

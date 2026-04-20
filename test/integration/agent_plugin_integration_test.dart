@@ -21,7 +21,7 @@ void main() {
     late MontyRuntime session;
 
     setUp(() {
-      session = MontyRuntime(plugins: [JinjaTemplatePlugin()]);
+      session = MontyRuntime(extensions: [JinjaTemplatePlugin()]);
     });
 
     tearDown(() async {
@@ -65,7 +65,7 @@ tmpl_render(
     late MontyRuntime session;
 
     setUp(() {
-      session = MontyRuntime(plugins: [MessageBusPlugin()]);
+      session = MontyRuntime(extensions: [MessageBusPlugin()]);
     });
 
     tearDown(() async {
@@ -118,12 +118,12 @@ msg_send(name='q', message=2)
       };
       final tmpl = JinjaTemplatePlugin();
       final msg = MessageBusPlugin();
-      final plugins = <MontyPlugin>[
+      final extensions = <MontyExtension>[
         tmpl,
         msg,
         SandboxPlugin(platformFactory: () async => createPlatformMonty()),
       ];
-      session = MontyRuntime(osHandlers: osContribs, plugins: plugins);
+      session = MontyRuntime(osHandlers: osContribs, extensions: extensions);
     });
 
     tearDown(() async {
@@ -202,12 +202,12 @@ sandbox_free(handle=h)
       };
       final tmpl = JinjaTemplatePlugin();
       final msg = MessageBusPlugin();
-      final plugins = <MontyPlugin>[
+      final extensions = <MontyExtension>[
         tmpl,
         msg,
         SandboxPlugin(platformFactory: () async => createPlatformMonty()),
       ];
-      session = MontyRuntime(osHandlers: osContribs, plugins: plugins);
+      session = MontyRuntime(osHandlers: osContribs, extensions: extensions);
     });
 
     tearDown(() async {

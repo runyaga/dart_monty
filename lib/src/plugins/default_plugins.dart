@@ -4,9 +4,9 @@ import 'package:dart_monty/src/plugins/message_bus_plugin.dart';
 import 'package:dart_monty/src/plugins/sandbox_plugin.dart';
 import 'package:dart_monty/src/plugins/template_plugin.dart';
 
-/// Returns a fresh list of the plugins most scripts expect to have available.
+/// Returns a fresh list of the extensions most scripts expect to have available.
 ///
-/// Includes the plugins that have no required configuration and are
+/// Includes the extensions that have no required configuration and are
 /// useful in the majority of embedding contexts:
 ///
 /// - [JinjaTemplatePlugin] — `tmpl_render`
@@ -14,17 +14,17 @@ import 'package:dart_monty/src/plugins/template_plugin.dart';
 ///   `msg_stats`
 /// - [EventLoopPlugin] — `el_recv`, `el_emit`
 ///
-/// Not included: [SandboxPlugin] (requires a `platformFactory`), and plugins
+/// Not included: [SandboxPlugin] (requires a `platformFactory`), and extensions
 /// that depend on external services (HTTP, storage, logging — those live in
 /// `dart_monty_plugins`).
 ///
 /// ```dart
 /// final session = MontyRuntime(
-///   plugins: [...defaultPlugins(), MyCustomPlugin()],
+///   extensions: [...defaultExtensions(), MyCustomExtension()],
 ///   osHandlers: {'Path.': memoryFsHandler()},
 /// );
 /// ```
-List<MontyPlugin> defaultPlugins() => [
+List<MontyExtension> defaultExtensions() => [
   JinjaTemplatePlugin(),
   MessageBusPlugin(),
   EventLoopPlugin(),

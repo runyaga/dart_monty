@@ -2,37 +2,37 @@ import 'package:dart_monty/src/bridge_logger.dart';
 import 'package:dart_monty/src/host_function.dart';
 import 'package:dart_monty/src/monty_backend_kind.dart';
 import 'package:dart_monty/src/os_call/os_handlers.dart';
-import 'package:dart_monty/src/plugin_host.dart';
-import 'package:dart_monty/src/plugin_registry.dart';
+import 'package:dart_monty/src/attach_context.dart';
+import 'package:dart_monty/src/extension_coordinator.dart';
 import 'package:meta/meta.dart';
 
 // ---------------------------------------------------------------------------
 // ChildPolicy
 // ---------------------------------------------------------------------------
 
-/// How a plugin participates when a child sandbox is spawned.
+/// How an extension participates when a child sandbox is spawned.
 ///
-/// Replaces the old `createChildInstance() → MontyPlugin?` nullable signature,
+/// Replaces the old `createChildInstance() → MontyExtension?` nullable signature,
 /// where `null` ambiguously meant "intentionally excluded" or "forgot to
-/// implement." Each plugin now declares intent explicitly.
+/// implement." Each extension now declares intent explicitly.
 enum ChildPolicy {
-  /// The plugin contributes a fresh instance to each child sandbox.
+  /// The extension contributes a fresh instance to each child sandbox.
   ///
-  /// `PluginRegistry.spawnChild` calls [MontyPlugin.createChildInstance];
+  /// `ExtensionCoordinator.spawnChild` calls [MontyExtension.createChildInstance];
   /// the returned instance must be a *new* object (not `this`).
   clone,
 
-  /// The child sandbox shares the parent plugin's instance directly.
+  /// The child sandbox shares the parent extension's instance directly.
   ///
-  /// No new object is created; the same plugin is attached to both the
-  /// parent and each child registry. Use for plugins backed by shared
+  /// No new object is created; the same extension is attached to both the
+  /// parent and each child coordinator. Use for extensions backed by shared
   /// infrastructure that tolerates multiple registrations safely.
   inherit,
 
-  /// The plugin is not present in child sandboxes. Default.
+  /// The extension is not present in child sandboxes. Default.
   ///
-  /// This is the safe default — plugins opt into child propagation
-  /// explicitly by overriding [MontyPlugin.childPolicy].
+  /// This is the safe default — extensions opt into child propagation
+  /// explicitly by overriding [MontyExtension.childPolicy].
   exclude,
 }
 
@@ -40,7 +40,7 @@ enum ChildPolicy {
 // ChildSpawnContext
 // ---------------------------------------------------------------------------
 
-/// Context passed to [MontyPlugin.createChildInstance] when a child sandbox
+/// Context passed to [MontyExtension.createChildInstance] when a child sandbox
 /// is spawned.
 ///
 /// Carries the child's unique [childId] and an optional [workingDirectory]
@@ -61,35 +61,35 @@ class ChildSpawnContext {
 }
 
 // ---------------------------------------------------------------------------
-// MontyPlugin
+// MontyExtension
 // ---------------------------------------------------------------------------
 
-/// Extension point for providing host functions to a [PluginHost].
+/// Extension point for providing host functions to an [AttachContext].
 ///
-/// Each plugin declares a unique [namespace], a set of [functions], and
-/// optional lifecycle hooks ([onRegister], [onDispose]).
+/// Each extension declares a unique [namespace], a set of [functions], and
+/// optional lifecycle hooks ([onAttach], [onDispose]).
 ///
-/// ## Registry injection
+/// ## Coordinator injection
 ///
-/// After `PluginRegistry.attachTo` runs, [registry] is set to the owning
-/// registry. Use [sibling] for cross-plugin lookups inside [onRegister]:
+/// After `ExtensionCoordinator.attachTo` runs, [coordinator] is set to the owning
+/// coordinator. Use [peer] for cross-extension lookups inside [onAttach]:
 ///
 /// ```dart
 /// @override
-/// Future<void> onRegister(PluginHost host) async {
-///   final other = sibling<OtherPlugin>();
+/// Future<void> onAttach(AttachContext ctx) async {
+///   final other = peer<OtherExtension>();
 ///   other?.configure(this);
 /// }
 /// ```
 ///
-/// Accessing [registry] or calling [sibling] before `attachTo` is called
+/// Accessing [coordinator] or calling [peer] before `attachTo` is called
 /// throws a `LateInitializationError`.
 ///
 /// ## OS contributions
 ///
-/// Plugins that need to intercept OS calls return a prefix map from
-/// [osContribution]. `PluginRegistry.attachTo` merges contributions from all
-/// plugins, throws [StateError] if two plugins claim the same prefix, and
+/// Extensions that need to intercept OS calls return a prefix map from
+/// [osContribution]. `ExtensionCoordinator.attachTo` merges contributions from all
+/// extensions, throws [StateError] if two extensions claim the same prefix, and
 /// calls `bridge.registerOs` with the composed handler:
 ///
 /// ```dart
@@ -99,18 +99,18 @@ class ChildSpawnContext {
 ///   'os.getcwd': _myFsHandler,
 /// };
 /// ```
-abstract class MontyPlugin {
+abstract class MontyExtension {
   /// Unique namespace prefix (e.g., `"df"`, `"chart"`, `"sqlite"`).
   String get namespace;
 
-  /// Backends this plugin supports.
+  /// Backends this extension supports.
   ///
-  /// `PluginRegistry.attachTo` checks [currentBackendKind] against this set
+  /// `ExtensionCoordinator.attachTo` checks [currentBackendKind] against this set
   /// and throws [UnsupportedBackendError] before any script runs if the
-  /// plugin declares it cannot operate on the current backend.
+  /// extension declares it cannot operate on the current backend.
   ///
   /// Defaults to all backends. Override to `{MontyBackendKind.ffi}` or
-  /// `{MontyBackendKind.wasm}` if the plugin depends on capabilities that
+  /// `{MontyBackendKind.wasm}` if the extension depends on capabilities that
   /// only exist on one backend (e.g., `SandboxPlugin` needs `dart:io` + a
   /// second interpreter instance, which crashes the parent session on WASM).
   Set<MontyBackendKind> get supportedBackends => const {
@@ -120,36 +120,36 @@ abstract class MontyPlugin {
 
   /// Attachment priority — higher values attach first and dispose last.
   ///
-  /// `PluginRegistry.attachTo` sorts plugins in descending priority order
-  /// before calling [onRegister]. Equal-priority plugins preserve insertion
+  /// `ExtensionCoordinator.attachTo` sorts extensions in descending priority order
+  /// before calling [onAttach]. Equal-priority extensions preserve insertion
   /// order (stable sort). Default is `0`.
   ///
-  /// Use a positive value to run [onRegister] early (e.g., a logging/tracing
-  /// plugin that other plugins depend on). Use a negative value to run late
-  /// (e.g., a plugin that wraps peers it discovers via the bridge).
+  /// Use a positive value to run [onAttach] early (e.g., a logging/tracing
+  /// extension that other extensions depend on). Use a negative value to run late
+  /// (e.g., an extension that wraps peers it discovers via the bridge).
   int get priority => 0;
 
-  /// Logger for this plugin, injected by `PluginRegistry` during attachment.
+  /// Logger for this extension, injected by `ExtensionCoordinator` during attachment.
   ///
-  /// Plugins should use this for all logging — never create loggers
+  /// Extensions should use this for all logging — never create loggers
   /// independently via `LogManager.instance.getLogger()`.
   ///
-  /// Defaults to [NullBridgeLogger] (silent) until the registry sets it.
+  /// Defaults to [NullBridgeLogger] (silent) until the coordinator sets it.
   BridgeLogger logger = const NullBridgeLogger();
 
-  /// The owning registry, injected during [PluginRegistry.attachTo].
+  /// The owning coordinator, injected during [ExtensionCoordinator.attachTo].
   ///
-  /// Use [sibling] as the preferred API for cross-plugin lookups.
+  /// Use [peer] as the preferred API for cross-extension lookups.
   /// Accessing this field before `attachTo` has been called throws a
   /// `LateInitializationError`.
-  late PluginRegistry registry;
+  late ExtensionCoordinator coordinator;
 
-  /// Returns the first attached plugin of type [T], or `null` if none exists.
+  /// Returns the first attached extension of type [T], or `null` if none exists.
   ///
-  /// Searches [PluginRegistry.plugins] in registration order. Requires that
-  /// [registry] has been injected (i.e., `attachTo` was called).
-  T? sibling<T extends MontyPlugin>() {
-    for (final p in registry.plugins) {
+  /// Searches [ExtensionCoordinator.extensions] in registration order. Requires that
+  /// [coordinator] has been injected (i.e., `attachTo` was called).
+  T? peer<T extends MontyExtension>() {
+    for (final p in coordinator.extensions) {
       if (p is T) return p;
     }
 
@@ -158,26 +158,26 @@ abstract class MontyPlugin {
 
   /// Human-readable description for LLM system prompt.
   ///
-  /// Return `null` if the plugin has no additional prompt context beyond
+  /// Return `null` if the extension has no additional prompt context beyond
   /// its function schemas.
   String? get systemPromptContext => null;
 
-  /// OS call prefix contributions for this plugin.
+  /// OS call prefix contributions for this extension.
   ///
   /// Each key is an operation-name prefix (e.g., `'Path.'`, `'os.'`); the
   /// value is the [OsCallHandler] that handles those operations.
   ///
-  /// `PluginRegistry.attachTo` merges contributions from all plugins and
-  /// throws [StateError] if two plugins claim the same prefix. Returns `null`
-  /// (the default) if this plugin does not intercept OS calls.
+  /// `ExtensionCoordinator.attachTo` merges contributions from all extensions and
+  /// throws [StateError] if two extensions claim the same prefix. Returns `null`
+  /// (the default) if this extension does not intercept OS calls.
   Map<String, OsCallHandler>? get osContribution => null;
 
-  /// Host functions this plugin provides.
+  /// Host functions this extension provides.
   List<HostFunction> get functions;
 
-  /// Called when attached to a [PluginHost]. Default no-op.
+  /// Called when attached to an [AttachContext]. Default no-op.
   @mustCallSuper
-  Future<void> onRegister(PluginHost host) async {}
+  Future<void> onAttach(AttachContext ctx) async {}
 
   /// Called when session ends. Must be idempotent.
   @mustCallSuper
@@ -185,30 +185,30 @@ abstract class MontyPlugin {
     // Default no-op.
   }
 
-  /// Declares how this plugin participates in child sandboxes.
+  /// Declares how this extension participates in child sandboxes.
   ///
-  /// Default: [ChildPolicy.exclude] — the plugin is not present in children.
+  /// Default: [ChildPolicy.exclude] — the extension is not present in children.
   /// Override to [ChildPolicy.clone] (and implement [createChildInstance])
   /// or [ChildPolicy.inherit] (share this instance across children).
   ChildPolicy get childPolicy => ChildPolicy.exclude;
 
-  /// Creates a fresh instance of this plugin for a child sandbox.
+  /// Creates a fresh instance of this extension for a child sandbox.
   ///
-  /// Called by `PluginRegistry.spawnChild` **only when [childPolicy] is
+  /// Called by `ExtensionCoordinator.spawnChild` **only when [childPolicy] is
   /// [ChildPolicy.clone]**. The returned instance must be a new object
-  /// (not `this`) and is registered on a separate `PluginHost` and disposed
+  /// (not `this`) and is registered on a separate [AttachContext] and disposed
   /// with the child.
   ///
   /// [context] carries the child's ID and optional per-child working
-  /// directory. Plugins that need filesystem isolation (e.g., `FsPlugin`)
+  /// directory. Extensions that need filesystem isolation (e.g., `FsPlugin`)
   /// can use [ChildSpawnContext.workingDirectory] to create a private
   /// directory for the child.
   ///
-  /// The default throws [UnsupportedError]: a plugin with
+  /// The default throws [UnsupportedError]: an extension with
   /// `childPolicy == clone` must override this method.
-  MontyPlugin createChildInstance(ChildSpawnContext context) {
+  MontyExtension createChildInstance(ChildSpawnContext context) {
     throw UnsupportedError(
-      'Plugin $runtimeType has childPolicy == ChildPolicy.clone but did not '
+      'Extension $runtimeType has childPolicy == ChildPolicy.clone but did not '
       'override createChildInstance(). Either override it to return a fresh '
       'instance, or set childPolicy to ChildPolicy.inherit / ChildPolicy.exclude.',
     );

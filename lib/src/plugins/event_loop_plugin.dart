@@ -9,7 +9,7 @@ import 'package:dart_monty/src/host_param.dart';
 import 'package:dart_monty/src/default_monty_bridge.dart';
 import 'package:dart_monty/src/host_param_type.dart';
 import 'package:dart_monty/src/monty_plugin.dart';
-import 'package:dart_monty/src/plugin_host.dart';
+import 'package:dart_monty/src/attach_context.dart';
 import 'package:dart_monty/src/stateful_plugin.dart';
 import 'package:signals_core/signals_core.dart';
 
@@ -58,7 +58,7 @@ final class BridgeChannelDisposed extends BridgeChannelState {
   const BridgeChannelDisposed();
 }
 
-/// A `MontyPlugin` that turns a single `execute` call into a long-running
+/// A `MontyExtension` that turns a single `execute` call into a long-running
 /// cooperative exchange between Python and Dart.
 ///
 /// ## Pattern
@@ -94,16 +94,16 @@ final class BridgeChannelDisposed extends BridgeChannelState {
 ///
 /// ## Usage
 ///
-/// Register through `PluginRegistry` for automatic wiring:
+/// Register through `ExtensionCoordinator` for automatic wiring:
 ///
 /// ```dart
-/// final plugin = EventLoopPlugin();
-/// final session = MontyRuntime(plugins: [plugin]);
+/// final ext = EventLoopPlugin();
+/// final session = MontyRuntime(extensions: [ext]);
 /// session.executeStream(script);
-/// plugin.dispatch({'action': 'increment'});
+/// ext.dispatch({'action': 'increment'});
 /// ```
 ///
-/// This plugin registers a stream wrapper in [onRegister] to track execution
+/// This extension registers a stream wrapper in [onAttach] to track execution
 /// lifecycle state.
 ///
 /// ## Reactive observation
@@ -116,7 +116,7 @@ final class BridgeChannelDisposed extends BridgeChannelState {
 ///   if (state is BridgeChannelWaiting) showInputField();
 /// });
 /// ```
-class EventLoopPlugin extends MontyPlugin
+class EventLoopPlugin extends MontyExtension
     with StatefulPlugin<BridgeChannelState> {
   /// Creates an [EventLoopPlugin] initialized at [BridgeChannelIdle].
   EventLoopPlugin() {
@@ -190,12 +190,12 @@ class EventLoopPlugin extends MontyPlugin
   ChildPolicy get childPolicy => ChildPolicy.clone;
 
   @override
-  MontyPlugin createChildInstance(ChildSpawnContext context) =>
+  MontyExtension createChildInstance(ChildSpawnContext context) =>
       EventLoopPlugin();
 
   @override
-  Future<void> onRegister(PluginHost host) async {
-    await super.onRegister(host);
+  Future<void> onAttach(AttachContext host) async {
+    await super.onAttach(host);
     if (host is DefaultMontyBridge) {
       host.addStreamWrapper(_wrapStream);
     }

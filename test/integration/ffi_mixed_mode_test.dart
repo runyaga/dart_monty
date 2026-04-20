@@ -205,7 +205,7 @@ void main() {
 
   group('H. Plugin combos across execute calls', () {
     test('H1. Template across 5 execute calls', () async {
-      final s = MontyRuntime(plugins: [JinjaTemplatePlugin()]);
+      final s = MontyRuntime(extensions: [JinjaTemplatePlugin()]);
       addTearDown(s.dispose);
       await s.execute('name = "World"').result;
       await s.execute('greeting = tmpl_render("Hi {{n}}", {"n": name})').result;
@@ -217,7 +217,7 @@ void main() {
     });
 
     test('H2. MessageBus across execute calls', () async {
-      final s = MontyRuntime(plugins: [MessageBusPlugin()]);
+      final s = MontyRuntime(extensions: [MessageBusPlugin()]);
       addTearDown(s.dispose);
       await s.execute('msg_send("q", "first")').result;
       await s.execute('msg_send("q", "second")').result;
@@ -231,7 +231,7 @@ void main() {
     test('H3. FS + Template across calls', () async {
       final s = MontyRuntime(
         osHandlers: {'Path.': memoryFsHandler()},
-        plugins: [JinjaTemplatePlugin()],
+        extensions: [JinjaTemplatePlugin()],
       );
       addTearDown(s.dispose);
       await s.execute('''
@@ -253,7 +253,7 @@ content = Path("/data.txt").read_text()
       'H4. HTTP + Template + MsgBus across calls',
       () async {
         final s = MontyRuntime(
-          plugins: [JinjaTemplatePlugin(), MessageBusPlugin()],
+          extensions: [JinjaTemplatePlugin(), MessageBusPlugin()],
         )..register(httpFn());
         addTearDown(s.dispose);
         await s.execute('data = http_fn()').result;

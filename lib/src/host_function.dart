@@ -18,7 +18,7 @@ class HostFunction {
   /// backend-specific slots directly when the implementation differs per
   /// platform (e.g. `dart:js_interop` on WASM, native packages on FFI).
   ///
-  /// When only one backend slot is populated, `PluginHost.register()` silently
+  /// When only one backend slot is populated, `AttachContext.register()` silently
   /// skips the function on the other backend — no `supportedBackends`
   /// declaration required.
   ///
@@ -58,7 +58,7 @@ class HostFunction {
 
   /// The handler for the current backend, or `null` if not available.
   ///
-  /// `PluginHost.register()` uses this to silently skip functions that have
+  /// `AttachContext.register()` uses this to silently skip functions that have
   /// no implementation for the running backend.
   HostFunctionHandler? get handler =>
       currentBackendKind == MontyBackendKind.ffi ? ffiHandler : wasmHandler;

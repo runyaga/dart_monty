@@ -29,7 +29,7 @@ void main() {
                 'date.': timeHandler(),
                 'datetime.': timeHandler(),
               },
-              plugins: [JinjaTemplatePlugin(), MessageBusPlugin()],
+              extensions: [JinjaTemplatePlugin(), MessageBusPlugin()],
             )
             ..register(
               HostFunction(

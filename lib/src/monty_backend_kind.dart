@@ -19,36 +19,36 @@ enum MontyBackendKind {
 
 /// The backend this compile unit runs against.
 ///
-/// Resolved at compile time. `PluginRegistry.attachTo` compares each plugin's
+/// Resolved at compile time. `ExtensionCoordinator.attachTo` compares each extension's
 /// `supportedBackends` against this value and throws
-/// [UnsupportedBackendError] if a plugin declares it cannot run here.
+/// [UnsupportedBackendError] if a extension declares it cannot run here.
 MontyBackendKind get currentBackendKind => platform.currentBackendKind;
 
-/// Thrown when a plugin's declared `supportedBackends` does not include the
+/// Thrown when a extension's declared `supportedBackends` does not include the
 /// current runtime backend.
 ///
-/// Raised from `PluginRegistry.attachTo` before any script executes so the
+/// Raised from `ExtensionCoordinator.attachTo` before any script executes so the
 /// failure is a clean configuration error rather than a mid-run crash.
 class UnsupportedBackendError extends Error {
   /// Creates an [UnsupportedBackendError].
   UnsupportedBackendError({
-    required this.pluginNamespace,
+    required this.extensionNamespace,
     required this.current,
     required this.supported,
   });
 
-  /// Namespace of the offending plugin.
-  final String pluginNamespace;
+  /// Namespace of the offending extension.
+  final String extensionNamespace;
 
   /// The backend currently running.
   final MontyBackendKind current;
 
-  /// Backends the plugin declares support for.
+  /// Backends the extension declares support for.
   final Set<MontyBackendKind> supported;
 
   @override
   String toString() =>
-      'UnsupportedBackendError: plugin "$pluginNamespace" supports '
+      'UnsupportedBackendError: extension "$extensionNamespace" supports '
       '${supported.map((b) => b.name).join(", ")} but this program is '
       'running on ${current.name}.';
 }

@@ -22,7 +22,7 @@ void main() {
     mock = MockMontyPlatform();
     plugin = EventLoopPlugin();
     bridge = DefaultMontyBridge(platform: mock);
-    await plugin.onRegister(bridge);
+    await plugin.onAttach(bridge);
     for (final fn in plugin.functions) {
       bridge.register(fn, category: plugin.namespace);
     }
@@ -579,7 +579,7 @@ void main() {
       bridge.dispose();
       expect(plugin.channelState, const BridgeChannelIdle());
       expect(() => bridge.execute('1'), throwsStateError);
-      // onRegister was called but _wrapStream was never called — state remains idle
+      // onAttach was called but _wrapStream was never called — state remains idle
       expect(plugin.channelState, const BridgeChannelIdle());
     });
 
@@ -696,7 +696,7 @@ void main() {
         platform: syncMock,
         useFutures: false,
       );
-      await syncPlugin.onRegister(syncBridge);
+      await syncPlugin.onAttach(syncBridge);
       for (final fn in syncPlugin.functions) {
         syncBridge.register(fn, category: syncPlugin.namespace);
       }
@@ -926,8 +926,8 @@ void main() {
     );
   });
 
-  group('PluginRegistry integration', () {
-    test('PluginRegistry.attachTo wires stream wrapper', () async {
+  group('ExtensionCoordinator integration', () {
+    test('ExtensionCoordinator.attachTo wires stream wrapper', () async {
       final mock2 = MockMontyPlatform()
         ..enqueueProgress(
           const MontyComplete(
@@ -935,7 +935,7 @@ void main() {
           ),
         );
       final plugin2 = EventLoopPlugin();
-      final registry = PluginRegistry()..register(plugin2);
+      final registry = ExtensionCoordinator()..register(plugin2);
       final bridge2 = DefaultMontyBridge(platform: mock2);
       await registry.attachTo(bridge2);
 
