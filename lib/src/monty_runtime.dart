@@ -300,14 +300,14 @@ class MontyRuntime implements MontyRuntimeRef {
           priorOs = _sharedBridge!.currentOsHandler;
           _sharedBridge!.setOsHandler(osOverride);
         }
-        final events = <BridgeEvent>[];
+        final collected = <BridgeEvent>[];
         await for (final event in _sharedBridge!.execute(code)) {
-          events.add(event);
+          collected.add(event);
           if (!_eventsController.isClosed) _eventsController.add(event);
           if (!controller.isClosed) controller.add(event);
         }
         if (!resultCompleter.isCompleted) {
-          resultCompleter.complete(extractBridgeResult(events, 0));
+          resultCompleter.complete(extractBridgeResult(collected, 0));
         }
       } on Object catch (e, st) {
         if (!resultCompleter.isCompleted) resultCompleter.completeError(e, st);
@@ -349,13 +349,13 @@ class MontyRuntime implements MontyRuntimeRef {
       StackTrace? stackTrace;
       try {
         await registry.attachTo(b, baseOs: osOverride ?? _os);
-        final events = <BridgeEvent>[];
+        final collected = <BridgeEvent>[];
         await for (final event in b.execute(code)) {
-          events.add(event);
+          collected.add(event);
           if (!_eventsController.isClosed) _eventsController.add(event);
           if (!controller.isClosed) controller.add(event);
         }
-        result = extractBridgeResult(events, 0);
+        result = extractBridgeResult(collected, 0);
       } on Object catch (e, st) {
         error = e;
         stackTrace = st;

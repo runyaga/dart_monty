@@ -78,8 +78,10 @@ MontyResult extractBridgeResult(
 }
 
 MontyException _backfillLineNumber(MontyException e) {
-  if (e.lineNumber != null || e.traceback.isEmpty) return e;
-  final firstFrame = e.traceback.first;
+  if (e.lineNumber != null) return e;
+  final firstFrame = e.traceback.firstOrNull;
+  if (firstFrame == null) return e;
+
   return MontyException(
     message: e.message,
     filename: e.filename ?? firstFrame.filename,
