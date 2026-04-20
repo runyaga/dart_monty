@@ -161,7 +161,7 @@ class PlatformBridge implements MontyBridge, AttachContext {
   List<HostFunctionSchema> get schemas => _host.schemas;
 
   @override
-  List<HostFunctionSchema> get llmSchemas => _host.llmSchemas;
+  List<HostFunctionSchema> get exposedSchemas => _host.exposedSchemas;
 
   @override
   Map<String, List<HostFunctionSchema>> get schemasByCategory =>

@@ -194,8 +194,8 @@ class HostDispatch {
   List<HostFunctionSchema> get schemas =>
       _functions.values.map((f) => f.schema).toList(growable: false);
 
-  /// Schemas for functions visible to the LLM.
-  List<HostFunctionSchema> get llmSchemas => _functions.values
+  /// Schemas for functions that declare [FunctionSurface.llm].
+  List<HostFunctionSchema> get exposedSchemas => _functions.values
       .where((f) => f.surfaces.contains(FunctionSurface.llm))
       .map((f) => f.schema)
       .toList(growable: false);
