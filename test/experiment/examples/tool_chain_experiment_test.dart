@@ -87,18 +87,31 @@ results = [get_weather(city=c)['temp'] for c in cities]
       final log = <String>[];
 
       h = MontyHarness()
-        ..registerTool('db_get', (args, ctx) async {
-          final key = (args['key'] as String?)!;
-          return db[key] ?? <String, Object?>{};
-        })
-        ..registerTool('send_offer', (args, ctx) async {
-          log.add('offer:${args['user']}:${args['offer']}');
-          return true;
-        })
-        ..registerTool('send_upsell', (args, ctx) async {
-          log.add('upsell:${args['user']}');
-          return true;
-        });
+        ..registerTool(
+          'db_get',
+          (args, ctx) async =>
+              db[args['key']! as String] ?? <String, Object?>{},
+          params: [const HostParam(name: 'key', type: HostParamType.string)],
+        )
+        ..registerTool(
+          'send_offer',
+          (args, ctx) async {
+            log.add('offer:${args['user']}:${args['offer']}');
+            return true;
+          },
+          params: [
+            const HostParam(name: 'user', type: HostParamType.string),
+            const HostParam(name: 'offer', type: HostParamType.string),
+          ],
+        )
+        ..registerTool(
+          'send_upsell',
+          (args, ctx) async {
+            log.add('upsell:${args['user']}');
+            return true;
+          },
+          params: [const HostParam(name: 'user', type: HostParamType.string)],
+        );
 
       await h.setup();
     });
@@ -162,13 +175,21 @@ for uid in ['user:alice', 'user:bob']:
 
     setUp(() async {
       h = MontyHarness()
-        ..writeFile('/config/rules.json', jsonEncode({
-          'discount_threshold': 100,
-          'premium_offer': '25pct_off',
-        }))
-        ..registerTool('apply_discount', (args, ctx) async {
-          return 'discount:${args['offer']}:${args['user']}';
-        })
+        ..writeFile(
+          '/config/rules.json',
+          jsonEncode({
+            'discount_threshold': 100,
+            'premium_offer': '25pct_off',
+          }),
+        )
+        ..registerTool(
+          'apply_discount',
+          (args, ctx) async => 'discount:${args['offer']}:${args['user']}',
+          params: [
+            const HostParam(name: 'offer', type: HostParamType.string),
+            const HostParam(name: 'user', type: HostParamType.string),
+          ],
+        )
         ..prime('from pathlib import Path');
 
       await h.setup();
@@ -187,10 +208,13 @@ if balance >= threshold:
 ''');
 
       expect(result.error, isNull);
-      h.assertCalled('apply_discount', args: {
-        'offer': '25pct_off',
-        'user': 'alice',
-      });
+      h.assertCalled(
+        'apply_discount',
+        args: {
+          'offer': '25pct_off',
+          'user': 'alice',
+        },
+      );
     });
   });
 
@@ -211,9 +235,11 @@ def greet_user(name, lang='en'):
         return f'Hola, {name}!'
     return f'Hi, {name}!'
 ''')
-        ..registerTool('send_message', (args, ctx) async {
-          return 'sent:${args['msg']}';
-        })
+        ..registerTool(
+          'send_message',
+          (args, ctx) async => 'sent:${args['msg']}',
+          params: [const HostParam(name: 'msg', type: HostParamType.string)],
+        )
         ..prime('from pathlib import Path');
 
       await h.setup();
@@ -244,21 +270,22 @@ send_message(msg=msg)
     late MontyHarness h;
 
     setUp(() async {
-      h = MontyHarness()
-        ..registerTool('probe', (args, ctx) async => 'ok');
+      h = MontyHarness()..registerTool('probe', (args, ctx) async => 'ok');
       await h.setup();
     });
 
     tearDown(() => h.dispose());
 
-    test('runWithEvents captures BridgeToolCallStart for each tool call',
-        () async {
-      final (:result, :events) = await h.runWithEvents('probe()');
+    test(
+      'runWithEvents captures BridgeToolCallStart for each tool call',
+      () async {
+        final (:result, :events) = await h.runWithEvents('probe()');
 
-      expect(result.error, isNull);
-      final starts = events.whereType<BridgeFunctionCallStart>().toList();
-      expect(starts.map((e) => e.name), contains('probe'));
-    });
+        expect(result.error, isNull);
+        final starts = events.whereType<BridgeFunctionCallStart>().toList();
+        expect(starts.map((e) => e.name), contains('probe'));
+      },
+    );
 
     test('runWithEvents captures BridgeRunFinished', () async {
       final (:result, :events) = await h.runWithEvents('1 + 1');

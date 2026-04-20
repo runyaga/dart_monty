@@ -5,7 +5,7 @@
 ///   - Intercepting tool call layer (records every call + result)
 ///   - Per-tool fault injection (override result, force throw, add delay)
 ///   - Script priming (execute setup Python before the experiment starts)
-///   - SignalCapture<T> — records every signal value change via effect()
+///   - `SignalCapture<T>` — records every signal value change via effect()
 ///   - FauxUi — subscribes to runtime.events + plugin signals, simulates
 ///     what a Flutter widget tree would observe without the Flutter overhead
 ///
@@ -65,12 +65,10 @@ class ToolFault {
   const ToolFault._({this.throws, this.override, this.delay});
 
   /// Force the tool to throw this exception.
-  factory ToolFault.throws(Exception error) =>
-      ToolFault._(throws: error);
+  factory ToolFault.throws(Exception error) => ToolFault._(throws: error);
 
   /// Replace the tool's return value with [value].
-  factory ToolFault.returns(Object? value) =>
-      ToolFault._(override: value);
+  factory ToolFault.returns(Object? value) => ToolFault._(override: value);
 
   /// Add an artificial delay before the tool responds.
   factory ToolFault.delayed(Duration delay, {Object? then}) =>
@@ -115,7 +113,7 @@ class SignalCapture<T> {
 
 /// Simulates what a Flutter widget tree would observe from a MontyRuntime.
 ///
-/// Subscribes to [runtime.events] and collects typed events — giving you the
+/// Subscribes to `runtime.events` and collects typed events — giving you the
 /// same AG-UI state delta / snapshot / activity coverage that a real UI would
 /// see, without Flutter or widget-test overhead.
 ///
@@ -135,7 +133,7 @@ class SignalCapture<T> {
 /// ```
 class FauxUi {
   FauxUi(MontyRuntime runtime) {
-    _sub = runtime.events.listen((e) => _events.add(e));
+    _sub = runtime.events.listen(_events.add);
   }
 
   final List<BridgeEvent> _events = [];
@@ -144,8 +142,7 @@ class FauxUi {
   List<BridgeEvent> get events => List.unmodifiable(_events);
 
   /// All events of type [T].
-  List<T> eventsOf<T extends BridgeEvent>() =>
-      _events.whereType<T>().toList();
+  List<T> eventsOf<T extends BridgeEvent>() => _events.whereType<T>().toList();
 
   /// Assert that the flat event list matches [matchers] in order.
   ///
@@ -167,22 +164,22 @@ class FauxUi {
     }
   }
 
-  /// Assert that [eventType] appears at least once.
+  /// Assert that the event type [T] appears at least once.
   void assertContains<T extends BridgeEvent>() {
     if (eventsOf<T>().isEmpty) {
       throw TestFailure(
-        'Expected at least one ${T} event, but none appeared.\n'
+        'Expected at least one $T event, but none appeared.\n'
         'Events: ${_events.map((e) => e.runtimeType).toList()}',
       );
     }
   }
 
-  /// Assert that [eventType] never appeared.
+  /// Assert that the event type [T] never appeared.
   void assertAbsent<T extends BridgeEvent>() {
     final found = eventsOf<T>();
     if (found.isNotEmpty) {
       throw TestFailure(
-        'Expected no ${T} events, but found ${found.length}.',
+        'Expected no $T events, but found ${found.length}.',
       );
     }
   }
@@ -201,9 +198,9 @@ class MontyHarness {
   MontyHarness({
     List<MontyExtension>? extensions,
     bool sandbox = false,
-  })  : _extensions = extensions ?? [],
-        _sandbox = sandbox,
-        _fs = MemoryFileSystem();
+  }) : _extensions = extensions ?? [],
+       _sandbox = sandbox,
+       _fs = MemoryFileSystem();
 
   final List<MontyExtension> _extensions;
   final bool _sandbox;
@@ -354,10 +351,12 @@ class MontyHarness {
         return true;
       }).toList();
       if (withArgs.isEmpty) {
+        final actual = matching
+            .map((c) => '  $toolName(${_fmtArgs(c.args)})')
+            .join('\n');
         throw TestFailure(
           'Expected $toolName(${_fmtArgs(args)}) but actual calls were:\n'
-          '${matching.map((c) => '  $toolName(${_fmtArgs(c.args)})')
-              .join('\n')}',
+          '$actual',
         );
       }
     }

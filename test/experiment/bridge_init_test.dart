@@ -25,8 +25,15 @@ void main() {
     expect(fn, isNotNull, reason: 'DartMontyBridge.init must be defined');
   });
 
-  test('DartMontyBridge.init() resolves to true (worker + WASM load)', () async {
-    final result = await _jsInit().toDart;
-    expect(result.toDart, isTrue, reason: 'init() must return true — Worker + WASM loaded');
-  });
+  test(
+    'DartMontyBridge.init() resolves to true (worker + WASM load)',
+    () async {
+      final result = await _jsInit().toDart;
+      expect(
+        result.toDart,
+        isTrue,
+        reason: 'init() must return true — Worker + WASM loaded',
+      );
+    },
+  );
 }

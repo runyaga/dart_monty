@@ -10,6 +10,7 @@
 @Tags(['integration'])
 library;
 
+import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:test/test.dart';
 
 import '../harness.dart';
@@ -34,8 +35,11 @@ void main() {
       h.injectFault('risky_op', ToolFault.throws(Exception('db_timeout')));
 
       final r = await h.run('risky_op()');
-      expect(r.error, isNotNull,
-          reason: 'Injected throw must surface as a Python-level error');
+      expect(
+        r.error,
+        isNotNull,
+        reason: 'Injected throw must surface as a Python-level error',
+      );
 
       // Session must survive — clear the fault and retry.
       h.clearFault('risky_op');
@@ -55,8 +59,11 @@ except Exception as e:
 result
 ''');
 
-      expect(r.error, isNull,
-          reason: 'Python try/except should handle the injected error');
+      expect(
+        r.error,
+        isNull,
+        reason: 'Python try/except should handle the injected error',
+      );
       expect(r.value.dartValue.toString(), contains('caught'));
     });
 
@@ -65,7 +72,7 @@ result
         ..registerTool('stable_op', (args, ctx) async => 42)
         ..injectFault('risky_op', ToolFault.throws(Exception('boom')));
 
-      await h.run('risky_op()');  // error — recorded
+      await h.run('risky_op()'); // error — recorded
 
       final r = await h.run('stable_op()');
       expect(r.error, isNull);
@@ -86,10 +93,13 @@ result
 
     setUp(() async {
       h = MontyHarness()
-        ..registerTool('fetch_price', (args, ctx) async {
-          // Real handler — would normally hit an external service.
-          return {'price': 99.99, 'currency': 'USD'};
-        });
+        ..registerTool(
+          'fetch_price',
+          (args, ctx) async => {'price': 99.99, 'currency': 'USD'},
+          params: [
+            const HostParam(name: 'symbol', type: HostParamType.string),
+          ],
+        );
       await h.setup();
     });
 
@@ -208,8 +218,11 @@ c = step_c()
       h.injectFault('step_b', ToolFault.throws(Exception('b_fail')));
 
       final r = await h.run(chain);
-      expect(r.error, isNotNull,
-          reason: 'Uncaught tool error must propagate to Python');
+      expect(
+        r.error,
+        isNotNull,
+        reason: 'Uncaught tool error must propagate to Python',
+      );
       h
         ..assertCalled('step_a')
         ..assertCalled('step_b')
@@ -248,7 +261,18 @@ c = step_c()
 
     setUp(() async {
       h = MontyHarness()
-        ..registerTool('log_event', (args, ctx) async => null);
+        ..registerTool(
+          'log_event',
+          (args, ctx) async => null,
+          params: [
+            const HostParam(name: 'event', type: HostParamType.string),
+            const HostParam(
+              name: 'seq',
+              type: HostParamType.integer,
+              isRequired: false,
+            ),
+          ],
+        );
       await h.setup();
     });
 
