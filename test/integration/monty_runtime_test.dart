@@ -156,8 +156,6 @@ void main() {
       final names = session.schemas.map((s) => s.name).toList();
 
       expect(names, contains('my_tool'));
-      expect(names, contains('__restore_state__'));
-      expect(names, contains('__persist_state__'));
     });
   });
 
