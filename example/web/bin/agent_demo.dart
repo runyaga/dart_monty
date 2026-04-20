@@ -195,10 +195,15 @@ Future<bool> _init() async {
     _msgBus = msgPlugin.bus;
 
     final extensions = <MontyExtension>[tmplPlugin, msgPlugin];
-    final sandboxPlugin = SandboxExtension(
-      platformFactory: () async => ReplPlatform(repl: MontyRepl()),
-    );
-    extensions.add(sandboxPlugin);
+    // SandboxExtension is FFI-only — spawning a second interpreter crashes
+    // the parent WASM session. Skip it on the browser backend.
+    if (currentBackendKind == MontyBackendKind.ffi) {
+      extensions.add(
+        SandboxExtension(
+          platformFactory: () async => ReplPlatform(repl: MontyRepl()),
+        ),
+      );
+    }
 
     _session = MontyRuntime(os: os, extensions: extensions);
 
