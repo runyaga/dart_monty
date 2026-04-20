@@ -519,6 +519,59 @@ void main() {
       expect(() => bridge.invokeHostFunction('nope', {}), throwsArgumentError);
     });
 
+    test('setOsHandler(null) clears; restoring via setOsHandler roundtrips',
+        () async {
+      Future<Object?> handlerA(
+        String op,
+        List<Object?> args,
+        Map<String, Object?>? kwargs,
+      ) async => 'A';
+      Future<Object?> handlerB(
+        String op,
+        List<Object?> args,
+        Map<String, Object?>? kwargs,
+      ) async => 'B';
+
+      final b = MontyBridge(platform: mock) as DefaultMontyBridge;
+      addTearDown(b.dispose);
+
+      OsCallHandler? captured;
+      b.register(
+        HostFunction(
+          schema: const HostFunctionSchema(name: 'peek', description: ''),
+          handler: (_, ctx) async {
+            captured = ctx.os;
+            return null;
+          },
+        ),
+      );
+
+      // Initially null.
+      await b.invokeHostFunction('peek', const {});
+      expect(captured, isNull);
+
+      b.registerOs(handlerA);
+      await b.invokeHostFunction('peek', const {});
+      expect(captured, same(handlerA));
+      expect(b.currentOsHandler, same(handlerA));
+
+      // Override to B, confirm swap visible to handlers.
+      b.setOsHandler(handlerB);
+      await b.invokeHostFunction('peek', const {});
+      expect(captured, same(handlerB));
+
+      // Restore A.
+      b.setOsHandler(handlerA);
+      await b.invokeHostFunction('peek', const {});
+      expect(captured, same(handlerA));
+
+      // Clear via null.
+      b.setOsHandler(null);
+      await b.invokeHostFunction('peek', const {});
+      expect(captured, isNull);
+      expect(b.currentOsHandler, isNull);
+    });
+
     test('HostContext.os reflects currently-registered OsCallHandler', () async {
       OsCallHandler? capturedOs;
       bridge.register(

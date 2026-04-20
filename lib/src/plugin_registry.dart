@@ -398,6 +398,7 @@ class PluginRegistry {
     required MontyBridge bridge,
     ChildVfsStrategy vfsStrategy = ChildVfsStrategy.isolated,
     String? childSystemPromptPrefix,
+    OsCallHandler? baseOs,
   }) async {
     if (!_attached) {
       throw StateError(
@@ -425,7 +426,7 @@ class PluginRegistry {
     }
 
     child.systemPromptPrefix = childSystemPromptPrefix;
-    final childBaseOs = _composeChildBaseOs(vfsStrategy);
+    final childBaseOs = _composeChildBaseOs(vfsStrategy, baseOsOverride: baseOs);
     await child.attachTo(bridge, baseOs: childBaseOs);
 
     return child;
@@ -487,9 +488,16 @@ class PluginRegistry {
   /// Builds a composed child [OsCallHandler] from the parent's captured
   /// contributions and [strategy]. Returns `null` when the parent has no OS
   /// state at all (nothing to inherit).
-  OsCallHandler? _composeChildBaseOs(ChildVfsStrategy strategy) {
+  ///
+  /// When [baseOsOverride] is non-null it replaces the parent's captured
+  /// `_baseOs` as the fallback — callers use this to propagate a
+  /// per-execution OS override into child composition.
+  OsCallHandler? _composeChildBaseOs(
+    ChildVfsStrategy strategy, {
+    OsCallHandler? baseOsOverride,
+  }) {
     final parentOs = _osContributions;
-    final parentBase = _baseOs;
+    final parentBase = baseOsOverride ?? _baseOs;
     if ((parentOs == null || parentOs.isEmpty) && parentBase == null) {
       return null;
     }

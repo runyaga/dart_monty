@@ -1,5 +1,6 @@
 import 'package:dart_monty/src/bridge_event.dart';
 import 'package:dart_monty/src/execution_handle.dart';
+import 'package:dart_monty_core/dart_monty_core.dart';
 
 /// Minimal interface that [HostContext] uses to reference the owning runtime.
 ///
@@ -13,7 +14,10 @@ import 'package:dart_monty/src/execution_handle.dart';
 abstract interface class MontyRuntimeRef {
   /// Executes Python [code] in this runtime and returns an [ExecutionHandle]
   /// carrying the events stream, terminal result future, and cancel hook.
-  ExecutionHandle execute(String code);
+  ///
+  /// Passing [os] overrides the runtime's session OS handler for this one
+  /// call. Children spawned during the execution inherit the override.
+  ExecutionHandle execute(String code, {OsCallHandler? os});
 
   /// Emits [event] on this runtime's broadcast `events` stream wrapped as a
   /// [BridgeChildEvent] tagged with [childHandle].

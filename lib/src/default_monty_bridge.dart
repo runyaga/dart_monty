@@ -182,6 +182,20 @@ class DefaultMontyBridge implements MontyBridge, PluginHost {
     _host.osHandler = handler;
   }
 
+  /// Replaces the currently-registered OS handler with [handler] (or clears it
+  /// when `null`). Used by [MontyRuntime] to swap in a per-execution override
+  /// and restore the prior handler afterwards without raising `StateError`.
+  @internal
+  void setOsHandler(OsCallHandler? handler) {
+    if (_isDisposed) return;
+    _osHandler = handler;
+    _host.osHandler = handler;
+  }
+
+  /// The currently-registered OS handler, if any.
+  @internal
+  OsCallHandler? get currentOsHandler => _osHandler;
+
   @override
   Future<Object?> invokeHostFunction(String name, Map<String, Object?> args) {
     if (_isDisposed) throw StateError('Bridge has been disposed');

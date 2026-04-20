@@ -488,6 +488,7 @@ class SandboxPlugin extends MontyPlugin
       limits,
       runtimePrompt,
       code.length,
+      ctx.os,
     );
 
     // Post-await disposed check — the plugin may have been disposed while
@@ -573,6 +574,7 @@ class SandboxPlugin extends MontyPlugin
     MontyLimits? limits,
     String? runtimePrompt,
     int codeLength,
+    OsCallHandler? parentOsOverride,
   ) async {
     MontyPlatform? platform;
     DefaultMontyBridge? bridge;
@@ -607,6 +609,7 @@ class SandboxPlugin extends MontyPlugin
         spawnContext,
         bridge,
         runtimePrompt,
+        parentOsOverride,
       );
     } on Object {
       if (bridge != null) bridge.dispose();
@@ -629,6 +632,7 @@ class SandboxPlugin extends MontyPlugin
     ChildSpawnContext spawnContext,
     DefaultMontyBridge bridge,
     String? runtimePrompt,
+    OsCallHandler? parentOsOverride,
   ) async {
     final childPrompt = _buildChildSystemPrompt(spawnContext, runtimePrompt);
     try {
@@ -637,6 +641,7 @@ class SandboxPlugin extends MontyPlugin
         bridge: bridge,
         vfsStrategy: childVfsStrategy,
         childSystemPromptPrefix: childPrompt,
+        baseOs: parentOsOverride,
       );
       logger.debug(
         'Child plugins attached',

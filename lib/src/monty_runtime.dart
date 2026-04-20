@@ -182,15 +182,20 @@ class MontyRuntime implements MontyRuntimeRef {
   /// Wait for completion with `handle.result`; observe events with
   /// `handle.events.listen(...)` (subscribe synchronously after obtaining
   /// the handle to see the full sequence).
+  ///
+  /// Passing [os] overrides the runtime's session OS handler for this one
+  /// call — useful for swapping in a scoped filesystem / env for a single
+  /// execution without mutating session state. Children spawned during the
+  /// call inherit the override via `HostContext.os` and `spawnChild`.
   @override
-  ExecutionHandle execute(String code) {
+  ExecutionHandle execute(String code, {OsCallHandler? os}) {
     if (_disposed) throw StateError('MontyRuntime has been disposed');
 
     if (_sandbox) {
-      return _executeSandboxed(code);
+      return _executeSandboxed(code, osOverride: os);
     }
 
-    return _executeShared(code);
+    return _executeShared(code, osOverride: os);
   }
 
   /// Clears all persisted Python state.
@@ -245,17 +250,23 @@ class MontyRuntime implements MontyRuntimeRef {
   // Shared mode execution
   // ---------------------------------------------------------------------------
 
-  ExecutionHandle _executeShared(String code) {
+  ExecutionHandle _executeShared(String code, {OsCallHandler? osOverride}) {
     final executionId = 'exec-${_nextExecutionId++}';
     final resultCompleter = Completer<MontyResult>();
     final controller = StreamController<BridgeEvent>.broadcast();
     final cancelToken = CancelToken();
 
     Future<void>.microtask(() async {
+      OsCallHandler? priorOs;
+      final overrideActive = osOverride != null;
       try {
         if (!_sharedAttached) {
           await _sharedRegistry!.attachTo(_sharedBridge!, baseOs: _os);
           _sharedAttached = true;
+        }
+        if (overrideActive) {
+          priorOs = _sharedBridge!.currentOsHandler;
+          _sharedBridge!.setOsHandler(osOverride);
         }
         final events = <BridgeEvent>[];
         await for (final event in _sharedBridge!.execute(code)) {
@@ -269,6 +280,7 @@ class MontyRuntime implements MontyRuntimeRef {
       } on Object catch (e, st) {
         if (!resultCompleter.isCompleted) resultCompleter.completeError(e, st);
       } finally {
+        if (overrideActive) _sharedBridge?.setOsHandler(priorOs);
         if (!controller.isClosed) await controller.close();
       }
     });
@@ -285,7 +297,7 @@ class MontyRuntime implements MontyRuntimeRef {
   // Sandbox mode execution
   // ---------------------------------------------------------------------------
 
-  ExecutionHandle _executeSandboxed(String code) {
+  ExecutionHandle _executeSandboxed(String code, {OsCallHandler? osOverride}) {
     final executionId = 'exec-${_nextExecutionId++}';
     final resultCompleter = Completer<MontyResult>();
     final controller = StreamController<BridgeEvent>.broadcast();
@@ -301,7 +313,7 @@ class MontyRuntime implements MontyRuntimeRef {
         _plugins.forEach(registry.register);
       }
       try {
-        await registry.attachTo(b, baseOs: _os);
+        await registry.attachTo(b, baseOs: osOverride ?? _os);
         final events = <BridgeEvent>[];
         await for (final event in b.execute(code)) {
           events.add(event);
