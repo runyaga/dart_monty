@@ -7,7 +7,7 @@ import 'package:dart_monty/src/extension/extension.dart';
 import 'package:dart_monty/src/extension/stateful.dart';
 import 'package:dart_monty/src/host/function.dart';
 import 'package:dart_monty/src/introspection_functions.dart';
-import 'package:dart_monty/src/os_call/decorator_handlers.dart';
+import 'package:dart_monty/src/os_call/fs_decorators.dart';
 import 'package:dart_monty/src/os_call/fs_handlers.dart';
 import 'package:dart_monty/src/os_call/os_handlers.dart';
 import 'package:dart_monty/src/runtime/backend_kind.dart';
