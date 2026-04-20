@@ -242,7 +242,7 @@ class ExtensionCoordinator {
   OsCallHandler? _baseOs;
 
   /// The `extraFunctions` passed to [attachTo], captured so that [spawnChild]
-  /// can forward entries tagged [HostFunctionChildPropagation.inherit] to the
+  /// can forward entries tagged [ChildPropagation.inherit] to the
   /// child coordinator.
   List<HostFunction> _extraFunctions = const [];
 
@@ -450,7 +450,7 @@ class ExtensionCoordinator {
     );
     final inheritedExtras = _extraFunctions
         .where(
-          (fn) => fn.childPropagation == HostFunctionChildPropagation.inherit,
+          (fn) => fn.childPropagation == ChildPropagation.inherit,
         )
         .toList(growable: false);
     await child.attachTo(

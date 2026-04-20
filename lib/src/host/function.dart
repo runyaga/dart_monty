@@ -28,7 +28,7 @@ class HostFunction {
   ///
   /// [childPropagation] controls whether this function is visible inside
   /// child sandboxes spawned from the parent runtime. Defaults to
-  /// [HostFunctionChildPropagation.exclude] — children see only extension
+  /// [ChildPropagation.exclude] — children see only extension
   /// functions, not ad-hoc functions registered via `extraFunctions:`.
   const HostFunction({
     required this.schema,
@@ -37,7 +37,7 @@ class HostFunction {
     HostFunctionHandler? wasmHandler,
     this.isInfra = false,
     this.surfaces = const {FunctionSurface.python},
-    this.childPropagation = HostFunctionChildPropagation.exclude,
+    this.childPropagation = ChildPropagation.exclude,
   }) : ffiHandler = ffiHandler ?? handler,
        wasmHandler = wasmHandler ?? handler;
 
@@ -69,7 +69,7 @@ class HostFunction {
   /// Only applies to functions registered via the `extraFunctions:` slot on
   /// `ExtensionCoordinator.attachTo` — extension-provided functions are
   /// governed by [MontyExtension.childPolicy] instead.
-  final HostFunctionChildPropagation childPropagation;
+  final ChildPropagation childPropagation;
 
   /// The handler for the current backend, or `null` if not available.
   ///
@@ -81,7 +81,7 @@ class HostFunction {
 
 /// Whether an ad-hoc [HostFunction] registered via `extraFunctions:` should
 /// be re-registered inside child sandboxes.
-enum HostFunctionChildPropagation {
+enum ChildPropagation {
   /// Do not forward this function to children. The default — children get
   /// a clean surface and cannot accidentally inherit parent-only tools.
   exclude,

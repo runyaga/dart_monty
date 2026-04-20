@@ -921,8 +921,7 @@ void main() {
     group('spawnChild — extraFunctions childPropagation', () {
       HostFunction extraFn(
         String name, {
-        HostFunctionChildPropagation propagation =
-            HostFunctionChildPropagation.exclude,
+        ChildPropagation propagation = ChildPropagation.exclude,
       }) => HostFunction(
         schema: HostFunctionSchema(name: name, description: ''),
         handler: (args, _) async => null,
@@ -955,7 +954,7 @@ void main() {
           extraFunctions: [
             extraFn(
               'shared_tool',
-              propagation: HostFunctionChildPropagation.inherit,
+              propagation: ChildPropagation.inherit,
             ),
             extraFn('parent_only'),
           ],
@@ -977,7 +976,7 @@ void main() {
           handler: (args, _) async => null,
         );
 
-        expect(fn.childPropagation, HostFunctionChildPropagation.exclude);
+        expect(fn.childPropagation, ChildPropagation.exclude);
       });
     });
   });
