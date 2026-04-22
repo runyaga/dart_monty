@@ -21,6 +21,13 @@ theme:
     - content.code.copy
 use_directory_urls: false
 
+markdown_extensions:
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+
 extra_css:
   - extra.css
 
@@ -38,13 +45,11 @@ nav:
       - Host Functions Advanced: tutorials/host-functions-advanced.md
       - Bridge Middleware: tutorials/bridge-middleware.md
       - LLM Prompt Rules: tutorials/llm-prompt-rules.md
-      - Shape Negotiation Research: tutorials/live-shape-negotiation-research.md
   - Deep Dives:
       - Architecture Overview: architecture/overview.md
       - Sandbox Architecture: deep-dives/sandbox-architecture.md
       - OsCall / VFS Layer: deep-dives/oscall-vfs.md
       - Error Hierarchy: deep-dives/error-hierarchy.md
-      - Lifecycle Management: deep-dives/lifecycles.md
       - Extension System: deep-dives/extension-system.md
   - Technical Reference:
       - Native Crate (Rust): reference/native-crate.md
@@ -57,10 +62,4 @@ nav:
       - Development Setup: contributor/setup.md
       - Testing: contributor/testing.md
       - Native Build: contributor/native-build.md
-  - Live Demo:
-      - Introduction: index.html
-      - Stateful REPL: repl.html
-      - VFS / Filesystem: vfs.html
-      - Agent Interaction: agent.html
-      - Execution Visualizer: visualizer.html
-      - Python Ladder: ladder.html
+
