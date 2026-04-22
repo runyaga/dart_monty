@@ -107,7 +107,7 @@ HostFunction(
       HostParam(name: 'b', type: HostParamType.number),
     ],
   ),
-  handler: (args) async {
+  handler: (args, ctx) async {
     final a = args['a'] as num;
     final b = args['b'] as num;
     if (b == 0) throw ArgumentError('Division by zero');
@@ -249,12 +249,12 @@ external consumers (e.g., LLMs via MCP). Runtime validation in
 `validate()` still uses the `type` field. Ensure the override is
 consistent with `type` to avoid mismatches.
 
-## MontyBridge Configuration
+## PlatformBridge Configuration
 
-`MontyBridge` accepts several constructor parameters:
+`PlatformBridge` accepts several constructor parameters:
 
 ```dart
-MontyBridge(
+PlatformBridge(
   platform: Monty(),          // Required: MontyPlatform backend
   limits: MontyLimits(        // Optional: resource constraints
     timeoutMs: 5000,
@@ -288,6 +288,6 @@ has been disposed.
 ## Next Steps
 
 The [Intermediate guide](host-functions-intermediate.md) covers organizing
-functions into plugins with `MontyPlugin` and `PluginRegistry`, namespace
+functions into extensions with `MontyExtension` and `ExtensionCoordinator`, namespace
 validation, lifecycle hooks, introspection builtins, and the
-`EventLoopPlugin` for bidirectional Python/Dart communication.
+`EventLoopExtension` for bidirectional Python/Dart communication.
