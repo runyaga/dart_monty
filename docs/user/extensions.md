@@ -1,17 +1,17 @@
-# Built-in Plugins
+# Built-in Extensions
 
-dart_monty ships three plugins that provide host functions to
-sandboxed Python code. All plugins work with `ReplSession`.
+dart_monty ships three extensions that provide host functions to
+sandboxed Python code. All extensions work with `MontyRuntime`.
 
-| Plugin | Functions | Description |
+| Extension | Functions | Description |
 |--------|-----------|-------------|
-| **TemplatePlugin** | `tmpl_render` | Jinja2 template rendering |
-| **MessageBusPlugin** | `msg_send`, `msg_recv`, `msg_peek`, `msg_close`, `msg_stats` | In-memory named channels |
-| **SandboxPlugin** | `sandbox_spawn`, `sandbox_await`, `sandbox_gather`, `sandbox_free` | Isolated child interpreters |
+| **TemplateExtension** | `tmpl_render` | Jinja2 template rendering |
+| **MessageBusExtension** | `msg_send`, `msg_recv`, `msg_peek`, `msg_close`, `msg_stats` | In-memory named channels |
+| **SandboxExtension** | `sandbox_spawn`, `sandbox_await`, `sandbox_gather`, `sandbox_free` | Isolated child interpreters |
 
-## TemplatePlugin
+## TemplateExtension
 
-**Class:** `DinjaTemplatePlugin`
+**Class:** `JinjaTemplateExtension`
 **Namespace:** `tmpl`
 
 Renders Jinja2 templates using the [dinja](https://pub.dev/packages/dinja)
@@ -65,20 +65,20 @@ tmpl_render(
 ### Configuration
 
 ```dart
-DinjaTemplatePlugin(
+JinjaTemplateExtension(
   maxInputSize: 512 * 1024,  // 512 KB default
 )
 ```
 
 ---
 
-## MessageBusPlugin
+## MessageBusExtension
 
-**Class:** `MessageBusPlugin`
+**Class:** `MessageBusExtension`
 **Namespace:** `msg`
 
 In-memory named message channels (FIFO queues). Useful for
-inter-process communication when combining multiple plugins
+inter-process communication when combining multiple extensions
 or coordinating between parent and child sandboxes.
 
 ### MessageBus Functions
@@ -134,14 +134,14 @@ while msg_peek('audit') is not None:
 
 ---
 
-## SandboxPlugin
+## SandboxExtension
 
-**Class:** `SandboxPlugin`
+**Class:** `SandboxExtension`
 **Namespace:** `sandbox`
 
 Spawns Python scripts in isolated child interpreters. Each child
 gets its own `MontyPlatform` and `DefaultMontyBridge`. Children
-can inherit plugins from the parent and even spawn their own
+can inherit extensions from the parent and even spawn their own
 children (grandchildren).
 
 See [Sandbox Architecture](../architecture/sandbox-architecture.md) for the
@@ -203,9 +203,9 @@ for r in results:
 ### Sandbox Configuration
 
 ```dart
-SandboxPlugin(
+SandboxExtension(
   platformFactory: () async => MontyFfi(),  // or MontyWasm()
-  parentPlugins: [tmpl, msgBus],  // children inherit these
+  parentExtensions: [tmpl, msgBus],  // children inherit these
   maxChildren: 16,       // concurrent child limit
   maxDepth: 3,           // grandchild recursion limit
   childLimits: MontyLimits(
@@ -217,21 +217,21 @@ SandboxPlugin(
 
 ---
 
-## Using Plugins with ReplSession
+## Using Extensions with MontyRuntime
 
 ```dart
-final session = ReplSession(
-  plugins: [
-    DinjaTemplatePlugin(),
-    MessageBusPlugin(),
-    SandboxPlugin(
+final session = MontyRuntime(
+  extensions: [
+    JinjaTemplateExtension(),
+    MessageBusExtension(),
+    SandboxExtension(
       platformFactory: () async => MontyFfi(),
-      parentPlugins: [DinjaTemplatePlugin()],
+      parentExtensions: [JinjaTemplateExtension()],
     ),
   ],
 );
 
-// All plugin functions are now available in Python
+// All extension functions are now available in Python
 await session.run("help()");  // lists all functions
 await session.run("tmpl_render(template='{{ x }}', context={'x': 1})");
 await session.run("msg_send('ch', 'hello')");
@@ -240,7 +240,7 @@ await session.run("h = sandbox_spawn(code='42')");
 await session.dispose();
 ```
 
-## Writing Custom Plugins
+## Writing Custom Extensions
 
 See the [host functions guide](../tutorials/host-functions-intro.md) for
-how to create your own plugins with custom host functions.
+how to create your own extensions with custom host functions.

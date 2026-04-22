@@ -46,7 +46,7 @@ Monty is a **restricted Python interpreter**. It is NOT full CPython.
 - `math` — basic math functions
 - `re` — regular expressions
 - `pathlib` — Path (only in-memory filesystem)
-- `datetime` — date, datetime (if OsProvider configured)
+- `datetime` — date, datetime (if OsCallHandler configured)
 - `collections` — OrderedDict, defaultdict, Counter, namedtuple
 
 ### NOT available

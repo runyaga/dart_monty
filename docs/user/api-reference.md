@@ -1,229 +1,91 @@
 # Monty API — Dart
 
-Sandboxed Python interpreter for Dart/Flutter (pure Dart, no Flutter required).
+Sandboxed Python interpreter for Dart and Flutter. Pure Dart, no Flutter
+required.
 
-## Types
+## MontyRuntime (Recommended)
 
-| Type | Fields |
-|------|--------|
-| `MontyResult` | `.value`, `.error`, `.usage` |
-| `MontyException` | `.message`, `.lineNumber`, `.columnNumber` |
-| `MontyLimits` | `.timeoutMs`, `.memoryBytes`, `.stackDepth` |
-| `MontyResourceUsage` | `.memoryBytesUsed`, `.timeElapsedMs` |
-| `MontyProgress` | sealed: `MontyPending`, `MontyComplete` |
-| `MontyPending` | `.functionName`, `.arguments` |
-| `MontyComplete` | `.result` (a `MontyResult`) |
-
-## Run
+`MontyRuntime` is the high-level API for stateful Python execution with
+tools, extensions, and OS-level interception.
 
 ```dart
-import 'package:dart_monty/dart_monty.dart';
-
-final monty = Monty();
-final result = await monty.run('2 ** 100');
-// result.value  -> 1267650600228229401496703205376
-// result.usage.memoryBytesUsed, .timeElapsedMs, .stackDepthUsed
-await monty.dispose();
-```
-
-Multi-line:
-
-```dart
-final result = await monty.run('''
-def fib(n):
-    a, b = 0, 1
-    for _ in range(n):
-        a, b = b, a + b
-    return a
-fib(30)
-''');
-// result.value -> 832040
-```
-
-## Limits
-
-All fields optional. Omitted = unconstrained. Exceeding throws
-`MontyException`.
-
-```dart
-try {
-  await monty.run(
-    'while True: pass',
-    limits: MontyLimits(
-      timeoutMs: 100,
-      memoryBytes: 10 * 1024 * 1024,
-      stackDepth: 50,
-    ),
-  );
-} on MontyException catch (e) {
-  print(e.message); // timeout exceeded
-}
-```
-
-## Iterative Execution
-
-`start()` declares external functions. Python pauses when it calls
-one, returning `MontyPending`. `resume(returnValue)` continues.
-
-```dart
-final monty = Monty();
-var progress = await monty.platform.start(
-  '''
-url = "https://example.com"
-html = fetch(url)
-len(html)
-''',
-  externalFunctions: ['fetch'],
+final session = MontyRuntime(
+  extensions: [JinjaTemplateExtension()],
+  osHandlers: {'Path.': memoryFsHandler()},
 );
 
-while (progress is MontyPending) {
-  final url = progress.arguments.first.toString();
-  final response = await http.get(Uri.parse(url));
-  progress = await monty.platform.resume(response.body);
-}
+// Variables persist natively across calls
+await session.execute('x = 42').result;
+final r = await session.execute('x + 1').result;
+print(r.value); // 43
 
-final complete = progress as MontyComplete;
-print(complete.result.value);
-await monty.dispose();
+await session.dispose();
 ```
 
-Pattern match:
+### Execution Modes
 
-```dart
-switch (progress) {
-  case MontyComplete(:final result):
-    print(result.value);
-  case MontyPending(:final functionName, :final arguments):
-    print('$functionName($arguments)');
-}
-```
+- **Shared Mode** (default): One interpreter persists across all calls.
+  Variables and functions survive in the Rust heap.
+- **Sandbox Mode** (`sandbox: true`): Each call creates and disposes a
+  fresh interpreter. Safe for async I/O host functions.
 
-## Error Injection
+## Monty (Low-level)
 
-`resumeWithError(message)` raises a Python `Exception` in the
-paused interpreter.
+The `Monty` class provides a simple stateful REPL wrapper from `dart_monty_core`.
 
 ```dart
 final monty = Monty();
-var progress = await monty.platform.start(
-  '''
-try:
-    data = fetch("https://httpstat.us/500")
-except Exception as e:
-    result = f"caught: {e}"
-result
-''',
-  externalFunctions: ['fetch'],
-);
-
-while (progress is MontyPending) {
-  // Inject an error instead of a return value
-  progress = await monty.platform.resumeWithError('HTTP 500');
-}
-
-final complete = progress as MontyComplete;
-print(complete.result.value); // "caught: HTTP 500"
+final r = await monty.run('import pathlib; x=1');
 await monty.dispose();
 ```
 
-## Cooperative Multitasking
-
-Any external function name works. Convention: `yield_state`.
-Python pauses on each call; Dart reads args, updates UI, resumes.
-
+One-shot execution:
 ```dart
-final monty = Monty();
-var progress = await monty.platform.start(
-  '''
-arr = [5, 3, 1, 4, 2]
-n = len(arr)
-i = 0
-while i < n:
-    j = 0
-    while j < n - i - 1:
-        yield_state(arr, j, j + 1, "compare")
-        if arr[j] > arr[j + 1]:
-            tmp = arr[j]
-            arr[j] = arr[j + 1]
-            arr[j + 1] = tmp
-            yield_state(arr, j, j + 1, "swap")
-        j = j + 1
-    i = i + 1
-yield_state(arr, -1, -1, "done")
-arr
-''',
-  externalFunctions: ['yield_state'],
-);
-
-while (progress is MontyPending) {
-  final args = progress.arguments;
-  final array = (args[0]! as List).cast<int>();
-  final i = args[1]! as int;
-  final j = args[2]! as int;
-  final action = args[3]! as String;
-  setState(() { /* update UI with array, i, j, action */ });
-  await Future<void>.delayed(const Duration(milliseconds: 50));
-  progress = await monty.platform.resume(null);
-}
-await monty.dispose();
+final result = await Monty.exec('2 + 2');
 ```
 
-## Error Handling
+## Host Functions
 
-Python errors throw `MontyException`. They never return silently
-inside `MontyResult`.
-
-```dart
-final monty = Monty();
-try {
-  await monty.run('items = [1, 2, 3]\nitems[10]');
-} on MontyException catch (e) {
-  print(e.message);      // "list index out of range"
-  print(e.lineNumber);   // 2
-  print(e.columnNumber); // nullable
-  print(e.sourceCode);   // nullable
-} finally {
-  await monty.dispose();
-}
-```
-
-## State Machine
-
-| State | Allowed methods |
-|-------|----------------|
-| **idle** | `run()`, `start()`, `restore()`, `dispose()` |
-| **active** | `resume()`, `resumeWithError()`, `snapshot()`, `dispose()` |
-| **disposed** | none (throws `StateError`) |
-
-- `start()`: idle -> active
-- `resume()`/`resumeWithError()` + `MontyComplete`: active -> idle
-- `resume()`/`resumeWithError()` + `MontyPending`: stays active
-- `dispose()`: any -> disposed (no-op if already disposed)
-- Wrong-state call throws `StateError`
-
-## Platform Backends
-
-### Auto-detected backend
+Expose Dart code to Python:
 
 ```dart
-import 'package:dart_monty/dart_monty.dart';
-
-final monty = Monty(); // selects MontyFfi or MontyWasm at compile time
+HostFunction(
+  schema: const HostFunctionSchema(
+    name: 'fetch',
+    description: 'Fetch URL content.',
+    params: [HostParam(name: 'url', type: HostParamType.string)],
+  ),
+  handler: (args, ctx) async => http.read(Uri.parse(args.str('url'))),
+)
 ```
 
-### Explicit backend
+## Extensions
 
-```dart
-import 'package:dart_monty/dart_monty.dart';
-import 'package:dart_monty_ffi/dart_monty_ffi.dart';
+Group related tools into namespaced units.
 
-final monty = Monty.withPlatform(MontyFfi()); // explicit native backend
-```
+| Extension | Description |
+|-----------|-------------|
+| `JinjaTemplateExtension` | Jinja2 template rendering |
+| `MessageBusExtension` | In-memory message channels |
+| `SandboxExtension` | Recursive child interpreters |
+| `EventLoopExtension` | Long-running coroutine exchange |
 
-## Constraints
+## OS Call Handlers
 
-- `inputs` parameter: throws `UnsupportedError` if non-empty
-- `initialize()` (WASM only): idempotent, auto-called by `run()`/`start()`
-- Snapshots on web: rely on Node.js `Buffer`, may fail in browsers
-- WASM `MontyResourceUsage`: synthetic zeros (no `ResourceTracker`)
-- One execution at a time: `run()`/`start()` while active throws `StateError`
+Intercept Python `pathlib`, `os`, and `datetime` calls.
+
+| Handler | Description |
+|---------|-------------|
+| `fsHandler(FileSystem)` | Generic Path.* handler |
+| `memoryFsHandler()` | Ephemeral in-memory VFS |
+| `sandboxedFsHandler(root)`| Restricted native FS |
+| `readOnlyHandler(child)` | Blocks write operations |
+| `overlayFsHandler()` | Copy-on-write overlay |
+| `composeOsHandlers({})` | Prefix-based dispatch |
+
+## Core Types
+
+- `MontyResult`: `.value`, `.error`, `.usage`, `.printOutput`
+- `MontyException`: `.message`, `.excType`, `.traceback`
+- `MontyValue`: Sealed hierarchy representing Python objects (Int, String, List, Map, etc.)
+- `BridgeEvent`: Sealed hierarchy for execution observability.

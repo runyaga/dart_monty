@@ -1,49 +1,49 @@
 # OsCall / VFS Layer
 
-> **How this relates to host functions and plugins:**
+> **How this relates to host functions and extensions:**
 > dart_monty has two interception layers that work together.
-> **OsProvider** provides transparent OS-level interception (filesystem, env,
+> **OsCallHandler** provides transparent OS-level interception (filesystem, env,
 > time) -- Python does not know it is being intercepted.
-> **HostFunction / MontyPlugin** provides explicit named tools that Python
+> **HostFunction / MontyExtension** provides explicit named tools that Python
 > calls by name -- LLMs know about these and generate code against them.
 > Both are registered on `MontyBridge`: `registerOs()` for the OS side,
-> `register()` / `PluginRegistry` for the tool side.
+> `register()` / `ExtensionCoordinator` for the tool side.
 > See [../architecture/overview.md](../architecture/overview.md) for the full tool-calling flow.
 
 When Python code uses `pathlib`, `os`, or `datetime`, the Rust interpreter
 yields an `OsCall` progress event instead of performing the operation
 itself. Dart receives this as a `MontyOsCall` and dispatches it through
-the configured `OsProvider` hierarchy.
+the configured `OsCallHandler` hierarchy.
 
 ## Provider Hierarchy
 
 ```text
-OsProvider (abstract)
+OsCallHandler (abstract)
   ├── FsProvider (package:file)
   │     ├── MemoryFsProvider (VFS — in-memory filesystem)
   │     └── SandboxedFsProvider (chroot — restricted native FS)
-  ├── OsProvider.compose() (prefix-based dispatch to child providers)
-  ├── EnvOsProvider (environment variable access)
-  └── TimeOsProvider (date/datetime operations)
+  ├── OsCallHandler.compose() (prefix-based dispatch to child providers)
+  ├── EnvOsCallHandler (environment variable access)
+  └── TimeOsCallHandler (date/datetime operations)
 ```
 
-- **`OsProvider`** — abstract base defining the provider contract.
+- **`OsCallHandler`** — abstract base defining the provider contract.
 - **`FsProvider`** — handles `Path.*` calls using a
   `package:file` `FileSystem` instance.
 - **`MemoryFsProvider`** — VFS backed by `MemoryFileSystem`.
 - **`SandboxedFsProvider`** — restricts native FS access to a
   chroot directory.
-- **`OsProvider.compose()`** — matches call prefixes and delegates to the
+- **`OsCallHandler.compose()`** — matches call prefixes and delegates to the
   appropriate child provider (e.g., `Path.*` to file provider, `os.*` to
   env provider).
-- **`EnvOsProvider`** — handles environment variable reads/writes.
-- **`TimeOsProvider`** — handles `date.*` and `datetime.*` calls.
+- **`EnvOsCallHandler`** — handles environment variable reads/writes.
+- **`TimeOsCallHandler`** — handles `date.*` and `datetime.*` calls.
 
 ## Filesystem Modes
 
 | Mode | Class | Use case |
 |------|-------|----------|
-| **Default** | `OsProvider()` | Platform-appropriate defaults (native FS on desktop, memory FS on web) |
+| **Default** | `OsCallHandler()` | Platform-appropriate defaults (native FS on desktop, memory FS on web) |
 | **In-memory** | `MemoryFsProvider` | Ephemeral VFS, works on all platforms |
 | **Read-only** | `ReadOnlyFsProvider` | Wraps any provider, blocks writes |
 | **Sandboxed** | `SandboxedFsProvider` | Chroot to a directory on native FS |
@@ -53,7 +53,7 @@ OsProvider (abstract)
 
 ```dart
 // Basic filesystem operations
-final monty = Monty(os: OsProvider());
+final monty = Monty(os: OsCallHandler());
 final result = await monty.run('''
 from pathlib import Path
 Path("/tmp/hello.txt").write_text("hello")
@@ -62,25 +62,25 @@ Path("/tmp/hello.txt").read_text()
 print(result.value); // hello
 
 // Default — platform-appropriate (native FS on desktop, memory on web)
-final monty = Monty(os: OsProvider());
+final monty = Monty(os: OsCallHandler());
 
 // In-memory VFS
 final vfs = MemoryFsProvider();
 vfs.writeFile('/data/input.csv', data);
-final monty = Monty(os: OsProvider.compose({
+final monty = Monty(os: OsCallHandler.compose({
   'Path.': vfs,
-  'date.': TimeOsProvider(),
-  'datetime.': TimeOsProvider(),
+  'date.': TimeOsCallHandler(),
+  'datetime.': TimeOsCallHandler(),
 }));
 
 // Read-only wrapper
-final monty = Monty(os: OsProvider.compose({
+final monty = Monty(os: OsCallHandler.compose({
   'Path.': ReadOnlyFsProvider(FsProvider(const LocalFileSystem())),
 }));
 
 // Overlay (agent workloads)
 final scratch = MemoryFsProvider();
-final monty = Monty(os: OsProvider.compose({
+final monty = Monty(os: OsCallHandler.compose({
   'Path.': OverlayFsProvider(
     base: SandboxedFsProvider(root: projectDir),
     scratch: scratch,
@@ -90,7 +90,7 @@ final monty = Monty(os: OsProvider.compose({
 
 ## Platform-Conditional Default
 
-`OsProvider()` returns a pre-wired composite provider:
+`OsCallHandler()` returns a pre-wired composite provider:
 
 | Platform | Filesystem | Env | Time |
 |----------|-----------|-----|------|
@@ -102,11 +102,11 @@ final monty = Monty(os: OsProvider.compose({
 ```text
 Python pathlib/os/datetime access
   → Rust monty yields OsCall progress
-    → Dart MontyOsCall dispatched to OsProvider
+    → Dart MontyOsCall dispatched to OsCallHandler
       → Composite provider matches prefix
         → FsProvider (Path.*)
-        → EnvOsProvider (os.*)
-        → TimeOsProvider (date.*, datetime.*)
+        → EnvOsCallHandler (os.*)
+        → TimeOsCallHandler (date.*, datetime.*)
       → Result sent back via platform.resume()
 ```
 

@@ -122,13 +122,13 @@ Last updated: 2026-04-10 (monty 0.0.10, post-OsCall + MontyValue)
 |----------|-------------|----------|-------|
 | `StreamController` per execute | `execute()` | `whenComplete` closure | `DefaultMontyBridge` |
 | `_pendingFutures` map | Per async dispatch | `finally` block in `_run` | `DefaultMontyBridge` |
-| `EventLoopPlugin._channelState` signal | Construction | `onDispose()` | `EventLoopPlugin` |
-| `EventLoopPlugin._pendingCompleter` | `el_recv` call | Completed on dispatched value or dispose | `EventLoopPlugin` |
-| `SandboxPlugin._children` map | `sandbox_spawn` | `sandbox_free` or `onDispose` | `SandboxPlugin` |
-| Child `MontyPlatform` | `sandbox_spawn` | `_ChildHandle.tearDown()` or `onDone` | `SandboxPlugin` |
-| Child `DefaultMontyBridge` | `sandbox_spawn` | `_ChildHandle.tearDown()` or `onDone` | `SandboxPlugin` |
-| Child `StreamSubscription` | `sandbox_spawn` | `_ChildHandle.tearDown()` or `onDone` | `SandboxPlugin` |
-| `OsProvider` callback | `registerOs()` | Bridge dispose (set to null) | `DefaultMontyBridge` |
+| `EventLoopExtension._channelState` signal | Construction | `onDispose()` | `EventLoopExtension` |
+| `EventLoopExtension._pendingCompleter` | `el_recv` call | Completed on dispatched value or dispose | `EventLoopExtension` |
+| `SandboxExtension._children` map | `sandbox_spawn` | `sandbox_free` or `onDispose` | `SandboxExtension` |
+| Child `MontyPlatform` | `sandbox_spawn` | `_ChildHandle.tearDown()` or `onDone` | `SandboxExtension` |
+| Child `DefaultMontyBridge` | `sandbox_spawn` | `_ChildHandle.tearDown()` or `onDone` | `SandboxExtension` |
+| Child `StreamSubscription` | `sandbox_spawn` | `_ChildHandle.tearDown()` or `onDone` | `SandboxExtension` |
+| `OsCallHandler` callback | `registerOs()` | Bridge dispose (set to null) | `DefaultMontyBridge` |
 
 ### Crash Behavior
 
@@ -136,9 +136,9 @@ Last updated: 2026-04-10 (monty 0.0.10, post-OsCall + MontyValue)
   `BridgeRunError`. `_pendingFutures` cleared in `finally`. Clean.
 - **Child spawn failure**: Disposes bridge, platform, registry in catch.
   Correct cleanup-on-error.
-- **`SandboxPlugin.onDispose()`**: Iterates all children, tears down alive
+- **`SandboxExtension.onDispose()`**: Iterates all children, tears down alive
   ones, completes pending completers with error, clears map. Thorough.
-- **OsProvider throws**: Exception caught in `_handleOsCall`, sent back
+- **OsCallHandler throws**: Exception caught in `_handleOsCall`, sent back
   to Python via `resumeWithError`. No resource leak.
 
 ### Findings
@@ -146,7 +146,7 @@ Last updated: 2026-04-10 (monty 0.0.10, post-OsCall + MontyValue)
 | ID | Severity | Status | Description |
 |----|----------|--------|-------------|
 | E-1 | Low | BY DESIGN | `DefaultMontyBridge.dispose()` does not dispose the platform. Bridge doesn't own platform — caller must dispose separately. |
-| E-3 | Low | BY DESIGN | Completed children persist in `SandboxPlugin._children` until `sandbox_free`. Required for output/result access. |
+| E-3 | Low | BY DESIGN | Completed children persist in `SandboxExtension._children` until `sandbox_free`. Required for output/result access. |
 | E-4 | Moderate | KNOWN | No mechanism for stopping in-flight host functions. Cancel infrastructure removed; host async work runs to completion. |
 
 ---
@@ -162,33 +162,33 @@ Two filesystem strategies provide the **VFS** layer:
 - **SandboxedFsProvider** — chrooted real filesystem with path-traversal
   and symlink-escape protection.
 
-Non-filesystem providers cover environment variables (`EnvOsProvider`)
-and date/time (`TimeOsProvider`). `OsProvider.compose()` composes
+Non-filesystem providers cover environment variables (`EnvOsCallHandler`)
+and date/time (`TimeOsCallHandler`). `OsCallHandler.compose()` composes
 them by operation-name prefix.
 
 ### Resources
 
 | Resource | Allocated by | Freed by | Owner |
 |----------|-------------|----------|-------|
-| `OsProvider` (abstract) | Caller (`OsProvider()` or custom) | Composite `dispose()` via bridge/session dispose | `MontyBridge` or `MontySession` |
-| Composite provider child map | `OsProvider.compose()` | `dispose()` iterates + dedup-disposes children | Composite `OsProvider` |
+| `OsCallHandler` (abstract) | Caller (`OsCallHandler()` or custom) | Composite `dispose()` via bridge/session dispose | `MontyBridge` or `MontySession` |
+| Composite provider child map | `OsCallHandler.compose()` | `dispose()` iterates + dedup-disposes children | Composite `OsCallHandler` |
 | `MemoryFileSystem` (VFS backing store) | `MemoryFsProvider` constructor | GC (no explicit dispose) | `MemoryFsProvider` |
 | `SandboxedFsProvider._root` (resolved path) | Factory constructor (resolves symlinks) | N/A — provider does not own root directory | Caller |
-| `EnvOsProvider.environment` map | Constructor (caller-provided) | GC | `EnvOsProvider` |
-| `TimeOsProvider._clock` | Constructor | GC | `TimeOsProvider` |
+| `EnvOsCallHandler.environment` map | Constructor (caller-provided) | GC | `EnvOsCallHandler` |
+| `TimeOsCallHandler._clock` | Constructor | GC | `TimeOsCallHandler` |
 
 ### Ownership Chain
 
 1. **`DefaultMontyBridge`** accepts provider via `registerOs()`.
-   Disposes it in `bridge.dispose()` with `unawaited(_osProvider?.dispose())`.
+   Disposes it in `bridge.dispose()` with `unawaited(_OsCallHandler?.dispose())`.
 2. **`MontySession`** accepts optional provider in constructor.
    Disposes it in `session.dispose()` with `unawaited(_os?.dispose())`.
 3. These two owners are mutually exclusive by design: `MontySession` is for
    simple `run()` mode; `DefaultMontyBridge` is for full bridge mode. A provider
    instance should never be given to both.
-4. **Composite `OsProvider.dispose()`** iterates child providers using a
-   `Set<OsProvider>` to deduplicate. A provider registered under multiple
-   prefixes (e.g., `TimeOsProvider` for both `'date.'` and `'datetime.'`)
+4. **Composite `OsCallHandler.dispose()`** iterates child providers using a
+   `Set<OsCallHandler>` to deduplicate. A provider registered under multiple
+   prefixes (e.g., `TimeOsCallHandler` for both `'date.'` and `'datetime.'`)
    is disposed exactly once. The fallback provider, if present, is also disposed.
 
 ### Crash Behavior
@@ -214,8 +214,8 @@ them by operation-name prefix.
 
 | ID | Severity | Status | Description |
 |----|----------|--------|-------------|
-| F-1 | Low | BY DESIGN | Dual ownership: both `DefaultMontyBridge` and `MontySession` accept and dispose an `OsProvider`. They are mutually exclusive entry points — never share a provider instance across both. |
-| F-2 | Safe | OK | Composite `OsProvider.dispose()` deduplicates via `Set`. Provider registered under multiple prefixes is disposed once. Fallback provider is also disposed. |
+| F-1 | Low | BY DESIGN | Dual ownership: both `DefaultMontyBridge` and `MontySession` accept and dispose an `OsCallHandler`. They are mutually exclusive entry points — never share a provider instance across both. |
+| F-2 | Safe | OK | Composite `OsCallHandler.dispose()` deduplicates via `Set`. Provider registered under multiple prefixes is disposed once. Fallback provider is also disposed. |
 | F-3 | Safe | OK | `SandboxedFsProvider` does not own its root directory. Caller must clean up. Documented in dispose comment and constructor doc. |
 | F-4 | Safe | OK | `MemoryFsProvider` (VFS) has no dispose logic. `MemoryFileSystem` is GC-collected. Files are ephemeral by design. |
 | F-5 | Safe | OK | `_handleOsCall` catches `on Object` — no unhandled exception can leak from a provider call. Error is always sent back to Python. |
