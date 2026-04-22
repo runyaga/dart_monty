@@ -1,8 +1,28 @@
 ## Unreleased
 
+### Breaking Changes
+
+- **Plugin renamed to Extension** — `MontyPlugin` → `MontyExtension`, `PluginRegistry` → `ExtensionCoordinator`.
+- **OsProvider replaced by OsCallHandler** — Generic `OsCallHandler` typedef and functional handlers (`fsHandler`, `memoryFsHandler`, etc.) replace the class hierarchy.
+- **ReplSession replaced by MontyRuntime** — High-level session management moved to `MontyRuntime`.
+- **Module Structure** — Core models and base platform moved to `package:dart_monty_core`. `package:dart_monty` now focuses on the high-level bridge and extension layer.
+
 ### Features
 
-- **SandboxPlugin works on WASM** — child interpreters spawn in independent
+- **MontyRuntime** — New primary entry point for stateful sessions with extensions and OS interception.
+- **WASM Sandbox support** — `SandboxExtension` now fully supports WASM via unique `replId` routing in the shared Worker.
+- **ExtensionCoordinator** — Improved lifecycle management with `onAttach` and `spawnChild` for inheritance.
+- **Functional OS Handlers** — Composable handlers for filesystem, environment, and time interception.
+
+### Documentation
+
+- **Complete documentation overhaul** — All guides, tutorials, and deep dives updated to reflect the new architecture.
+- **Stacked PRs** — Documentation updates organized into logical stacks for easier review.
+- **Gaps identified and filled** — Added detailed documentation for `MontyRuntime` and corrected outdated examples.
+
+### Features (previously unreleased)
+
+- **SandboxExtension works on WASM** — child interpreters spawn in independent
   Web Workers via real session ID routing (#291)
 - **No default execution timeout** — removed hardcoded 30s wall-clock
   timeout from native FFI (#278)

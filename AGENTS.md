@@ -103,10 +103,14 @@ dart format --set-exit-if-changed .       # Format check
 
 ## Architecture
 
-Pure Dart with compile-time conditional imports (no Flutter required).
+Pure Dart high-level API for the Monty interpreter.
 
-- `lib/src/platform/` -- abstract contract (pure Dart); concrete implementations in `dart_monty_core`
-- `lib/src/bridge/` -- high-level bridge with plugins and host functions
+- `lib/src/runtime/` -- stateful sessions (`MontyRuntime`)
+- `lib/src/bridge/` -- tool-calling layer (`PlatformBridge`)
+- `lib/src/extension/` -- `MontyExtension` and `ExtensionCoordinator`
+- `lib/src/os_call/` -- `OsCallHandler` and VFS logic
+
+Core interpreter logic and models live in `package:dart_monty_core`.
 
 See [Architecture Overview](docs/architecture/overview.md) for details.
 
@@ -115,9 +119,7 @@ See [Architecture Overview](docs/architecture/overview.md) for details.
 - Follow KISS, YAGNI, SOLID.
 - Match surrounding code style exactly.
 - Run `dart format` before committing.
-- Keep `lib/src/platform/` pure Dart (no Flutter).
-- All JSON keys at the C FFI boundary must be `snake_case`.
-- **Dispose:** `MontyFfi` and `MontyNative` must be disposed to avoid leaks.
+- **Dispose:** `MontyRuntime`, `Monty`, and `MontyRepl` must be disposed to avoid leaks.
 
 ## Commit Messages
 

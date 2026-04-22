@@ -31,11 +31,11 @@ final r = await repl.feed('double(x)');
 print(r.value); // MontyInt(84)
 ```
 
-**Session with plugins**
+**Session with extensions**
 
 ```dart
 final session = ReplSession(
-  plugins: [DinjaTemplatePlugin(), MessageBusPlugin()],
+  extensions: [DinjaTemplateExtension(), MessageBusExtension()],
 );
 final r = await session.run(
   "tmpl_render(template='Hello {{ name }}!', context={'name': 'World'})",
@@ -48,7 +48,7 @@ print(r.value); // 'Hello World!'
 - [**Installation**](user/install.md) — Add to your project
 - [**Architecture**](architecture/overview.md) — Module structure and internals
 - [**REPL Guide**](user/repl.md) — Stateful interactive execution
-- [**Plugins**](user/plugins.md) — Template, MessageBus, Sandbox
+- [**Extensions**](user/extensions.md) — Template, MessageBus, Sandbox
 - [**Tutorials**](tutorials/host-functions-intro.md) — Bridge functions and LLM rules
 - [**Testing**](contributor/testing.md) — Run tests and quality gates
 - [**Contributor Setup**](contributor/setup.md) — Build and test the library

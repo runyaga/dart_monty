@@ -14,10 +14,24 @@ is a facade class, not a platform implementation. No Flutter required.
 ## Internal Module Structure
 
 ```text
-dart_monty                           (single package — Monty() + conditional imports)
-  │  Monty class delegates to createPlatformMonty() + OsProvider support:
-  │    if (dart.library.ffi)           → MontyFfi()
-  │    if (dart.library.js_interop)    → MontyWasm()
+dart_monty                           (high-level API package)
+  │
+  ├── lib/src/runtime/               (session management)
+  │     ├── MontyRuntime              (high-level session facade)
+  │     └── ExecutionHandle           (async execution control)
+  │
+  ├── lib/src/bridge/                (tool-calling layer)
+  │     ├── PlatformBridge            (tool schema + dispatch logic)
+  │     └── BridgeEvent               (streamable execution events)
+  │
+  ├── lib/src/extension/             (extension system)
+  │     ├── MontyExtension            (abstract base)
+  │     └── ExtensionCoordinator      (lifecycle and registration)
+  │
+  └── lib/src/os_call/               (VFS and OS-level interception)
+        └── OsCallHandler             (operation interception logic)
+
+dart_monty_core                      (low-level core engine package)
   │
   ├── lib/src/platform/               (abstract contract, pure Dart)
   │     ├── MontyPlatform              (abstract class)
@@ -26,17 +40,17 @@ dart_monty                           (single package — Monty() + conditional i
   │     ├── MontyStateMixin            (shared state machine lifecycle)
   │     ├── MontySnapshotCapable       (capability: snapshot/restore)
   │     ├── MontyFutureCapable         (capability: resumeAsFuture/resolveFutures)
-  │     ├── MontySession               (stateful sessions — persists globals)
-  │     ├── MontyProgress              (sealed: Pending | Complete | ResolveFutures | OsCall)
   │     └── MontyResult, MontyException, MontyStackFrame, ...
   │
-  └── lib/src/wasm/                    (pure Dart, dart:js_interop)
-  │   [FFI/WASM backends live in dart_monty_core, not dart_monty]
-        ├── WasmBindings               (abstract) → WasmBindingsJs (JS bridge)
-        ├── WasmCoreBindings           (implements MontyCoreBindings)
-        ├── MontyWasm                  (extends BaseMontyPlatform)
-        │     implements MontySnapshotCapable
-        └── js/                        (bridge.js + worker_src.js)
+  ├── lib/src/repl/                   (stateful Python REPL)
+  │     ├── MontyRepl                  (persistent Rust-backed REPL)
+  │     └── ReplPlatform               (adapts MontyRepl to MontyPlatform)
+  │
+  ├── lib/src/ffi/                    (native FFI backend)
+  │     └── MontyFfi                   (FFI implementation)
+  │
+  └── lib/src/wasm/                   (web WASM backend)
+        └── MontyWasm                  (WASM implementation)
 ```
 
 ## Platform Support Matrix
@@ -57,7 +71,7 @@ dart_monty                           (single package — Monty() + conditional i
 | Simple script evaluation | `Monty.exec()` | `await Monty.exec('2+2')` |
 | Multiple runs, same interpreter | `Monty()` + `.run()` | `monty.run(code1); monty.run(code2)` |
 | Stateful session (persist variables) | `MontySession` | `session.run('x=1'); session.run('x+1')` |
-| Host functions + plugins | `MontyBridge` | `bridge.register(...); bridge.execute(code)` |
+| Host functions + extensions | `MontyBridge` | `bridge.register(...); bridge.execute(code)` |
 | LLM tool calling | `MontyBridge` + `bridge.schemas` | Register tools, feed schemas to LLM, execute generated code |
 | Custom filesystem/env | `Monty(os: ...)` | See OsCall section |
 
@@ -92,18 +106,18 @@ LLM sees tool schemas (bridge.schemas)
   Feed `bridge.schemas` directly to an LLM as tool definitions.
 - **`HostFunction`** -- pairs a schema with a Dart handler that executes
   when Python calls the function.
-- **`MontyPlugin` / `PluginRegistry`** -- pre-built tool bundles
-  (e.g., `SandboxPlugin`, `MessageBusPlugin`) that group related functions
+- **`MontyExtension` / `ExtensionCoordinator`** -- pre-built tool bundles
+  (e.g., `SandboxExtension`, `MessageBusExtension`) that group related functions
   under a namespace.
 - **`BridgeEvent` stream** -- `bridge.execute()` returns a
   `Stream<BridgeEvent>` providing real-time observability into tool calls,
   text output, and lifecycle events.
-- **`OsProvider`** -- transparent OS-level interception (filesystem, env,
+- **`OsCallHandler`** -- transparent OS-level interception (filesystem, env,
   time) that Python does not know about. Works alongside explicit tools:
-  `OsProvider` handles the "OS" side, plugins handle the "tool" side.
+  `OsCallHandler` handles the "OS" side, extensions handle the "tool" side.
 
 For a complete example, see the "LLM Tool Calling" section in the
-[README](../README.md). For the OsProvider layer, see
+[README](../README.md). For the OsCallHandler layer, see
 [oscall-vfs.md](oscall-vfs.md).
 
 ## JSON Contract Reference
