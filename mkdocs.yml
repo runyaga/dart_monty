@@ -29,7 +29,7 @@ nav:
   - User Guide:
       - Installation: user/install.md
       - REPL: user/repl.md
-      - Plugins: user/plugins.md
+      - Extensions: user/extensions.md
       - API Reference: user/api-reference.md
   - Tutorials:
       - Host Functions Intro: tutorials/host-functions-intro.md
@@ -45,7 +45,7 @@ nav:
       - OsCall / VFS Layer: deep-dives/oscall-vfs.md
       - Error Hierarchy: deep-dives/error-hierarchy.md
       - Lifecycle Management: deep-dives/lifecycles.md
-      - Plugin System: deep-dives/plugin-system.md
+      - Extension System: deep-dives/extension-system.md
   - Technical Reference:
       - Native Crate (Rust): reference/native-crate.md
       - Monty Rust API: reference/monty-rust-api.md

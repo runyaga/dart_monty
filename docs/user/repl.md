@@ -34,7 +34,7 @@ await repl.dispose();
 ### 2. ReplPlatform — Bridge Adapter
 
 A 20-line adapter that plugs `MontyRepl` into `DefaultMontyBridge`.
-This enables the full plugin dispatch system — middleware, events,
+This enables the full extension dispatch system — middleware, events,
 schema validation — without changing any bridge code.
 
 ```dart
@@ -49,19 +49,19 @@ bridge.register(myHostFunction);
 final events = bridge.execute(code);
 ```
 
-You rarely use `ReplPlatform` directly — `ReplSession` wraps it.
+You rarely use `ReplPlatform` directly — `MontyRuntime` wraps it.
 
-### 3. ReplSession — High-Level with Plugins
+### 3. MontyRuntime — High-Level with Extensions
 
 The recommended API. Combines `MontyRepl` + `DefaultMontyBridge` +
-plugin dispatch. All registered plugins work automatically.
+extension dispatch. All registered extensions work automatically.
 
 ```dart
-final session = ReplSession(
-  plugins: [
-    DinjaTemplatePlugin(),
-    MessageBusPlugin(),
-    SandboxPlugin(
+final session = MontyRuntime(
+  extensions: [
+    JinjaTemplateExtension(),
+    MessageBusExtension(),
+    SandboxExtension(
       platformFactory: () async => MontyFfi(),
     ),
   ],
@@ -127,18 +127,18 @@ if (progress is MontyPending) {
 }
 ```
 
-With `ReplSession`, this dispatch happens automatically through
-the plugin system — you never call `feedStart`/`resume` directly.
+With `MontyRuntime`, this dispatch happens automatically through
+the extension system — you never call `feedStart`/`resume` directly.
 
 ## help() Function
 
 The bridge provides a built-in `help()` host function that queries
 live bridge state — functions registered after initialization are
-visible. Results are organized by plugin category.
+visible. Results are organized by extension category.
 
 ```python
 >>> help()
-# Returns JSON listing all functions by plugin category:
+# Returns JSON listing all functions by extension category:
 # {"tools": {"tmpl": [{"name": "tmpl_render", ...}],
 #            "msg": [{"name": "msg_send", ...}, ...],
 #            "sandbox": [{"name": "sandbox_spawn", ...}, ...]}}
@@ -154,16 +154,16 @@ visible. Results are organized by plugin category.
 ```
 
 The introspection is **live** — functions registered after bridge
-initialization (e.g. `EventLoopPlugin`'s `el_recv`) are
+initialization (e.g. `EventLoopExtension`'s `el_recv`) are
 visible in `help()` without restarting.
 
 ## Platform Support
 
 The REPL works on both FFI (native) and WASM (browser):
 
-- **FFI**: Full support including `SandboxPlugin` with grandchildren
-- **WASM**: Full support for `MontyRepl`, `ReplSession`, template
-  and message bus plugins. Sandbox support requires multi-session
+- **FFI**: Full support including `SandboxExtension` with grandchildren
+- **WASM**: Full support for `MontyRepl`, `MontyRuntime`, template
+  and message bus extensions. Sandbox support requires multi-session
   Workers (see issue #280)
 
 ## Comparison with MontySession

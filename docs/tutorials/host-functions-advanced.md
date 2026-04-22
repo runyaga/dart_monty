@@ -1,14 +1,14 @@
 # Host Functions -- Advanced
 
-This guide covers the `SandboxPlugin` for spawning child Python
+This guide covers the `SandboxExtension` for spawning child Python
 interpreters, depth and concurrency limits, resource limits per child,
 handle lifecycle management, and production patterns.
 
 **Prerequisites:** Read the [Intermediate guide](host-functions-intermediate.md) first.
 
-## SandboxPlugin
+## SandboxExtension
 
-`SandboxPlugin` is a `MontyPlugin` that lets parent Python code spawn
+`SandboxExtension` is a `MontyExtension` that lets parent Python code spawn
 child Python scripts in separate Monty interpreter instances. Each child
 gets its own `MontyPlatform` and `DefaultMontyBridge` -- fully isolated
 interpreter state.
@@ -25,17 +25,17 @@ Use cases for child interpreters:
   themselves spawn further children (bounded by depth limits).
 - **Fault isolation:** A failing child does not crash the parent.
 
-### Creating an SandboxPlugin
+### Creating an SandboxExtension
 
 ```dart
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty_bridge/dart_monty_bridge.dart';
 
-final plugin = SandboxPlugin(
+final extension = SandboxExtension(
   platformFactory: () async => Monty(),
   maxChildren: 16,      // Max concurrent children (default: 16)
   maxDepth: 3,          // Max recursion depth (default: 3)
-  currentDepth: 0,      // This plugin's depth level (default: 0)
+  currentDepth: 0,      // This extension's depth level (default: 0)
   childLimits: MontyLimits(
     timeoutMs: 5000,
     memoryBytes: 10 * 1024 * 1024,
@@ -46,18 +46,18 @@ final plugin = SandboxPlugin(
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `platformFactory` | `Future<MontyPlatform> Function()` | required | Creates a fresh platform for each child |
-| `childPluginRegistryFactory` | `Future<PluginRegistry?> Function(ChildSpawnContext)?` | `null` | Optional: provides plugins to children |
-| `parentPlugins` | `List<MontyPlugin>` | `const []` | Parent plugins for automatic child inheritance |
+| `childExtensionCoordinatorFactory` | `Future<ExtensionCoordinator?> Function(ChildSpawnContext)?` | `null` | Optional: provides extensions to children |
+| `parentExtensions` | `List<MontyExtension>` | `const []` | Parent extensions for automatic child inheritance |
 | `maxChildren` | `int` | `16` | Maximum concurrent living children |
-| `maxDepth` | `int` | `3` | Maximum recursion depth for nested SandboxPlugins |
-| `currentDepth` | `int` | `0` | This plugin's current depth in the recursion tree |
+| `maxDepth` | `int` | `3` | Maximum recursion depth for nested SandboxExtensions |
+| `currentDepth` | `int` | `0` | This extension's current depth in the recursion tree |
 | `childLimits` | `MontyLimits?` | `null` | Default resource limits for all children |
 | `sandboxBaseDir` | `String?` | `null` | Base directory for per-child working directories |
 | `systemPromptBuilder` | `ChildSystemPromptBuilder?` | `null` | Builds static system prompt from child context |
 
 ### Host Functions Provided
 
-The plugin registers these functions under the `sandbox` namespace:
+The extension registers these functions under the `sandbox` namespace:
 
 | Function | Description | Parameters |
 |----------|-------------|------------|
@@ -152,19 +152,19 @@ uses the value from `childLimits`.
 
 ### Depth Limits
 
-If children also have `SandboxPlugin` registered (via
-`childPluginRegistryFactory`), they can spawn their own children. The
+If children also have `SandboxExtension` registered (via
+`childExtensionCoordinatorFactory`), they can spawn their own children. The
 `maxDepth` and `currentDepth` parameters control how deep this
 recursion can go:
 
 ```dart
-SandboxPlugin(
+SandboxExtension(
   platformFactory: () async => Monty(),
   maxDepth: 3,
   currentDepth: 0,
-  childPluginRegistryFactory: (context) async {
-    final registry = PluginRegistry();
-    registry.register(SandboxPlugin(
+  childExtensionCoordinatorFactory: (context) async {
+    final registry = ExtensionCoordinator();
+    registry.register(SandboxExtension(
       platformFactory: () async => Monty(),
       maxDepth: 3,
       currentDepth: 1,  // One level deeper
@@ -186,20 +186,20 @@ the message `"Maximum concurrent children (N) reached."`.
 Freed children do not count against the limit. After
 `sandbox_free(handle)`, the slot is available for new children.
 
-## Providing Plugins to Children
+## Providing Extensions to Children
 
 By default, children only get the introspection builtins (if a
-`PluginRegistry` is attached). Use `childPluginRegistryFactory` to
+`ExtensionCoordinator` is attached). Use `childExtensionCoordinatorFactory` to
 give children access to host functions:
 
 ```dart
-SandboxPlugin(
+SandboxExtension(
   platformFactory: () async => Monty(),
-  childPluginRegistryFactory: (context) async {
-    final registry = PluginRegistry();
-    registry.register(MathPlugin());
-    registry.register(StoragePlugin());
-    // Note: do NOT register SandboxPlugin here unless you want
+  childExtensionCoordinatorFactory: (context) async {
+    final registry = ExtensionCoordinator();
+    registry.register(MathExtension());
+    registry.register(StorageExtension());
+    // Note: do NOT register SandboxExtension here unless you want
     // recursive spawning (and remember to increment currentDepth)
     return registry;
   },
@@ -211,47 +211,47 @@ and optional `workingDirectory` -- use these for per-child resource
 configuration.
 
 Return `null` from the factory to give children only introspection
-builtins (no plugins). If the factory itself is `null`, children get
-no plugins at all and no introspection.
+builtins (no extensions). If the factory itself is `null`, children get
+no extensions at all and no introspection.
 
-### Automatic Plugin Inheritance
+### Automatic Extension Inheritance
 
-When `childPluginRegistryFactory` is `null`, children automatically
-inherit plugins from `parentPlugins` that opt in via
+When `childExtensionCoordinatorFactory` is `null`, children automatically
+inherit extensions from `parentExtensions` that opt in via
 `createChildInstance()`:
 
 ```dart
-SandboxPlugin(
+SandboxExtension(
   platformFactory: () async => Monty(),
-  parentPlugins: registry.plugins,  // Pass parent's plugin list
+  parentExtensions: registry.extensions,  // Pass parent's extension list
 )
 ```
 
-Each parent plugin's `createChildInstance(context:)` is called with a
-`ChildSpawnContext`. Plugins that return a new instance are registered
-on the child's bridge. Plugins that return `null` are excluded.
+Each parent extension's `createChildInstance(context:)` is called with a
+`ChildSpawnContext`. Extensions that return a new instance are registered
+on the child's bridge. Extensions that return `null` are excluded.
 
 ### Per-Child Filesystem Isolation
 
 The `sandboxBaseDir` parameter enables per-child working directories:
 
 ```dart
-SandboxPlugin(
+SandboxExtension(
   platformFactory: () async => Monty(),
   sandboxBaseDir: '/data',
-  parentPlugins: registry.plugins,
+  parentExtensions: registry.extensions,
 )
 ```
 
 When set, each child's `ChildSpawnContext.workingDirectory` is computed
 as `$sandboxBaseDir/.sandboxes/child_$id` (e.g.,
 `/data/.sandboxes/child_0`). The directory is **not** created by
-`SandboxPlugin` -- consumers (e.g., an `FsPlugin.createChildInstance`)
+`SandboxExtension` -- consumers (e.g., an `FsExtension.createChildInstance`)
 are responsible for creating and managing it.
 
 ## Child System Prompts
 
-`SandboxPlugin` supports injecting custom system prompts into child
+`SandboxExtension` supports injecting custom system prompts into child
 sandboxes via two layers:
 
 ### Layer 1: Infrastructure Builder (static, from Dart)
@@ -260,7 +260,7 @@ The `systemPromptBuilder` callback produces static, infrastructure-level
 prompt content from `ChildSpawnContext`:
 
 ```dart
-SandboxPlugin(
+SandboxExtension(
   platformFactory: () async => Monty(),
   sandboxBaseDir: '/data',
   systemPromptBuilder: (context) =>
@@ -306,18 +306,18 @@ You are the validator. Check results for correctness.
 ### How It Works
 
 The concatenated prompt is injected into the child's
-`PluginRegistry.systemPromptPrefix` **after** registry construction.
+`ExtensionCoordinator.systemPromptPrefix` **after** registry construction.
 This setter-based approach guarantees prompt injection regardless of
 whether the registry was built by inheritance or a custom factory --
 factories cannot accidentally forget to wire the prompt.
 
-If no plugins exist but a prompt is provided, an empty `PluginRegistry`
+If no extensions exist but a prompt is provided, an empty `ExtensionCoordinator`
 is created automatically so the prompt (and introspection builtins) are
 available to the child.
 
 ## Disposal and Cleanup
 
-When `SandboxPlugin.onDispose()` is called:
+When `SandboxExtension.onDispose()` is called:
 
 1. All living children are torn down (disposed).
 2. Each child's completer is completed with a `StateError`.
@@ -326,9 +326,9 @@ When `SandboxPlugin.onDispose()` is called:
 
 Disposal is idempotent -- calling `onDispose()` multiple times is safe.
 
-When a child completes (normally or with error), the plugin performs
+When a child completes (normally or with error), the extension performs
 best-effort cleanup: the child's bridge is disposed, its platform is
-disposed, and its plugin registry (if any) is disposed. Cleanup errors
+disposed, and its extension registry (if any) is disposed. Cleanup errors
 are swallowed to avoid masking the child's actual result.
 
 ## Production Patterns
@@ -382,9 +382,9 @@ output = sandbox_get_output(h)
 sandbox_free(h)
 ```
 
-## Writing Custom Plugins for Production
+## Writing Custom Extensions for Production
 
-### Plugin Design Checklist
+### Extension Design Checklist
 
 1. **Namespace:** Choose a short, descriptive namespace (e.g., `db`,
    `http`, `auth`). It must match `[a-z][a-z0-9_]*` and be at most
@@ -395,7 +395,7 @@ sandbox_free(h)
    `db_query`, `db_execute`, `db_tables`.
 
 3. **System prompt context:** Provide `systemPromptContext` if your
-   plugin needs explanation beyond what the function schemas convey.
+   extension needs explanation beyond what the function schemas convey.
    This text goes into LLM system prompts via `generateSystemPrompt()`.
 
 4. **Lifecycle hooks:** Use `onRegister()` to initialize resources
@@ -411,7 +411,7 @@ sandbox_free(h)
    `jsonSchemaOverride` for complex types that `HostParamType` cannot
    express.
 
-7. **Thread safety:** If your plugin holds mutable state, consider
+7. **Thread safety:** If your extension holds mutable state, consider
    that `DefaultMontyBridge` processes one execution at a time (it
    throws `StateError` on concurrent `execute()` calls), but futures
    batching means multiple handlers can run concurrently within a
@@ -423,10 +423,10 @@ When running multiple bridge sessions (e.g., one per user), each
 session needs its own instances:
 
 ```dart
-Future<(MontyBridge, PluginRegistry)> createSession() async {
-  final registry = PluginRegistry()
-    ..register(StoragePlugin())  // Fresh instance per session
-    ..register(MathPlugin());
+Future<(MontyBridge, ExtensionCoordinator)> createSession() async {
+  final registry = ExtensionCoordinator()
+    ..register(StorageExtension())  // Fresh instance per session
+    ..register(MathExtension());
 
   final bridge = MontyBridge(platform: Monty());
   await registry.attachTo(bridge);
@@ -443,7 +443,7 @@ bridge1.dispose();
 await registry1.disposeAll();
 ```
 
-Each plugin instance maintains its own state. Two `StoragePlugin`
+Each extension instance maintains its own state. Two `StorageExtension`
 instances do not share data.
 
 ## Futures Batching

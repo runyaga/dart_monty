@@ -2,7 +2,7 @@
 
 ### Features
 
-- **SandboxPlugin works on WASM** — child interpreters spawn in independent
+- **SandboxExtension works on WASM** — child interpreters spawn in independent
   Web Workers via real session ID routing (#291)
 - **No default execution timeout** — removed hardcoded 30s wall-clock
   timeout from native FFI (#278)
@@ -14,9 +14,9 @@
 ### Known Limitations
 
 - Children cannot spawn grandchildren by default — use
-  `childPluginRegistryFactory` for grandchild support
+  `childExtensionCoordinatorFactory` for grandchild support
 - Children have no filesystem by default — pass `parentOs` to
-  `SandboxPlugin`
+  `SandboxExtension`
 
 ## 0.21.0
 
@@ -26,7 +26,7 @@
   Use `monty.platform` for advanced operations (start/resume, capability checks).
 - **`Monty` is now stateful** — variables persist across `run()` calls
   automatically (uses `MontySession` internally). Use `clearState()` to reset.
-- **`OsCallHandler` renamed to `OsProvider`** — `.handle()` → `.resolve()`,
+- **`OsCallHandler` renamed to `OsCallHandler`** — `.handle()` → `.resolve()`,
   `registerOsCallHandler()` → `registerOs()`, `osCallHandler` param → `os`.
 - **`DefaultMontyBridge` removed from public API** — use `MontyBridge()`
   factory constructor instead.
@@ -43,15 +43,15 @@
 - **Filesystem handler types renamed** — `FileSystemOsCallHandler` →
   `FsProvider`, `MemoryFsOsCallHandler` → `MemoryFsProvider`,
   `SandboxedNativeFsHandler` → `SandboxedFsProvider`,
-  `RouterOsCallHandler` → `OsProvider.compose()`.
+  `RouterOsCallHandler` → `OsCallHandler.compose()`.
 
 ### Added
 
 - **`Monty.exec()`** — one-shot evaluation with automatic resource cleanup:
   `final result = await Monty.exec('2 + 2');`
-- **`OsProvider()` default factory** — returns platform-appropriate provider
+- **`OsCallHandler()` default factory** — returns platform-appropriate provider
   (native: `LocalFileSystem` + env + datetime, web: `MemoryFileSystem` + datetime).
-- **`OsProvider.compose()`** — prefix-based provider composition replacing
+- **`OsCallHandler.compose()`** — prefix-based provider composition replacing
   `RouterOsCallHandler`.
 - **`ReadOnlyFsProvider`** — wraps any provider, blocks write operations.
 - **`OverlayFsProvider`** — copy-on-write: reads from base layer, writes
@@ -97,7 +97,7 @@
 - All imports changed from `package:dart_monty_<sub>/...` to `package:dart_monty/...`
 - Removed `dart_monty_native` and `dart_monty_web` Flutter shims
 - Removed `dart_monty_mcp` and `monty_cli` (unpublished)
-- Removed deprecated `JsonPlugin` (use native `import json` in Python)
+- Removed deprecated `JsonExtension` (use native `import json` in Python)
 
 ### Added
 
@@ -144,9 +144,9 @@
   of all `MontyObject` variants (Date, DateTime, Path, Tuple, Set, etc.).
 - **OsCall support**: Python code using `pathlib`, `os.getenv`, `os.environ`,
   `date.today()`, `datetime.now()` now yields to Dart instead of erroring.
-  New `MontyOsCall` sealed subclass, `OsProvider` callback, and
+  New `MontyOsCall` sealed subclass, `OsCallHandler` callback, and
   `BridgeOsCallStart`/`BridgeOsCallResult` events.
-- **Platform-aware `OsProvider`** via conditional imports: `dart:io` on
+- **Platform-aware `OsCallHandler`** via conditional imports: `dart:io` on
   native (full filesystem + env + datetime), datetime-only on web.
 - **Tier 20 ladder fixtures** for OsCall operations (12 tests, cross-platform).
 
@@ -193,7 +193,7 @@
   implementation types moved to SPI barrels (`ffi_backend_spi.dart`,
   `wasm_backend_spi.dart`, `bridge_internals.dart`). Remove deprecated
   `MontyCancelledException` typedef and `BaseMontyPlatform` static methods.
-  Remove `JsonPlugin` from bridge barrel.
+  Remove `JsonExtension` from bridge barrel.
 
 ### Changed
 
@@ -351,7 +351,7 @@
 ## 0.4.2
 
 - Plumb async/futures API through desktop Isolate bridge (`resumeAsFuture()`, `resolveFutures()`, `resolveFuturesWithErrors()`)
-- Override async/futures methods in web plugin with `UnsupportedError`
+- Override async/futures methods in web extension with `UnsupportedError`
 - Add tier 4 function parameter fixtures (keyword-only, mixed args/kwargs, forwarding, positional-only)
 - Enable tier 13 async ladder fixtures (remove xfail)
 - Add "Async gather" and "Function params" examples to desktop and web example apps
@@ -383,7 +383,7 @@
 - Fix FFI error paths to parse full error JSON (excType, traceback, filename)
 - Add ladder test fixtures for tiers 8 (kwargs/callId), 9 (exceptions/traceback), 15 (scriptName)
 - Xfail pre-existing try-except and syntax error ladder fixtures
-- Add Flutter web plugin (dart_monty_web) with 52 unit tests
+- Add Flutter web extension (dart_monty_web) with 52 unit tests
 - Add Flutter web example app with sorting visualizer, TSP, and ladder runner
 - Deploy Flutter web app to GitHub Pages at /flutter/
 

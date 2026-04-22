@@ -3,16 +3,16 @@
 Cross-cutting policy enforcement at the tool dispatch chokepoint.
 
 **Prerequisites:** Read the [Intermediate guide](host-functions-intermediate.md)
-(plugins, registry) and the [Advanced guide](host-functions-advanced.md)
-(SandboxPlugin, production patterns) first.
+(extensions, registry) and the [Advanced guide](host-functions-advanced.md)
+(SandboxExtension, production patterns) first.
 
 ## The Problem
 
 Every tool call from Python passes through `DefaultMontyBridge`. Before
 middleware, adding cross-cutting behaviour -- telemetry, rate limiting,
-access control, grounding -- meant wrapping individual plugin handlers.
+access control, grounding -- meant wrapping individual extension handlers.
 That approach scatters policy across dozens of functions, breaks when
-plugins are added, and is invisible to other plugins.
+extensions are added, and is invisible to other extensions.
 
 `BridgeMiddleware` intercepts **every** tool call at the dispatch level,
 in an onion-style chain identical to HTTP middleware in Express, Shelf,
@@ -32,7 +32,7 @@ DefaultMontyBridge._dispatch()
        |  +- MW1 (outermost, first registered)|
        |  |   +- MW2                          |
        |  |   |   +- MW3 (innermost, last)    |
-       |  |   |   |   Plugin Handler          |
+       |  |   |   |   Extension Handler          |
        |  |   |   +---------------------------+
        |  |   +-------------------------------+
        |  +-----------------------------------+
@@ -81,7 +81,7 @@ result = list_functions(__role__="infra")
 data = df_create(data=rows)
 ```
 
-The bridge strips `__role__` before dispatching to the handler -- plugins
+The bridge strips `__role__` before dispatching to the handler -- extensions
 never see it. When omitted or set to an unrecognized value, the default
 is `ToolCall`.
 
@@ -309,7 +309,7 @@ class NormalizerMiddleware extends BridgeMiddleware {
 
 ## Registration
 
-Register middleware on the bridge **before** attaching plugins:
+Register middleware on the bridge **before** attaching extensions:
 
 ```dart
 final bridge = MontyBridge(platform: platform, logger: logger);
@@ -319,10 +319,10 @@ bridge.use(GroundingMiddleware(validators: {...}));
 bridge.use(TelemetryMiddleware());
 bridge.use(RateLimitMiddleware(maxPerSecond: 10));
 
-// Then attach plugins.
-final registry = PluginRegistry();
-registry.register(DataFramePlugin());
-registry.register(WeatherPlugin());
+// Then attach extensions.
+final registry = ExtensionCoordinator();
+registry.register(DataFrameExtension());
+registry.register(WeatherExtension());
 await registry.attachTo(bridge);
 ```
 
@@ -369,16 +369,16 @@ For details on how futures batching works at the platform level, see
 [Futures Batching](host-functions-advanced.md#futures-batching) in the
 Advanced guide.
 
-## Inter-Plugin Dependencies
+## Inter-Extension Dependencies
 
-Plugins sometimes need to call into each other. The recommended pattern
+Extensions sometimes need to call into each other. The recommended pattern
 is **constructor injection** -- pass dependencies when you create the
-plugin, before registration:
+extension, before registration:
 
 ```dart
-class BudgetPlugin extends MontyPlugin {
-  BudgetPlugin({required this.memory});
-  final MemoryPlugin memory;
+class BudgetExtension extends MontyExtension {
+  BudgetExtension({required this.memory});
+  final MemoryExtension memory;
 
   @override
   String get namespace => 'budget';
@@ -398,8 +398,8 @@ class BudgetPlugin extends MontyPlugin {
 }
 
 // Wire at creation time:
-final memory = MemoryPlugin();
-final budget = BudgetPlugin(memory: memory);
+final memory = MemoryExtension();
+final budget = BudgetExtension(memory: memory);
 registry.register(memory);
 registry.register(budget);
 ```
@@ -411,30 +411,30 @@ Constructor injection is:
 - **Testable** -- pass mocks directly, no registry needed
 - **Proxy-friendly** -- works with any object satisfying the interface
 
-For **cross-cutting concerns** that would otherwise require many plugins
+For **cross-cutting concerns** that would otherwise require many extensions
 to know about each other (telemetry, grounding, rate limiting), use
 `BridgeMiddleware` instead -- it operates at the dispatch chokepoint
-without any plugin coupling.
+without any extension coupling.
 
-### Historical note: CompositePlugin
+### Historical note: CompositeExtension
 
-An earlier version of `dart_monty_bridge` provided `CompositePlugin` and
-`PluginRef<T>` for declaring inter-plugin dependencies with automatic
+An earlier version of `dart_monty_bridge` provided `CompositeExtension` and
+`ExtensionRef<T>` for declaring inter-extension dependencies with automatic
 topological sort and cycle detection. This was removed in #197 because:
 
 1. **Zero consumers** outside the test file used it. Constructor
    injection was already the established pattern.
-2. **Type-identity conflicts.** `PluginRef<T>` uses runtime `is T`
-   matching, which fails with proxied or cross-package plugin types.
+2. **Type-identity conflicts.** `ExtensionRef<T>` uses runtime `is T`
+   matching, which fails with proxied or cross-package extension types.
 3. **Unnecessary complexity.** ~180 lines of topological sort for a
    problem constructor injection solves in zero lines.
 
 ## Registry Error Handling
 
-`PluginRegistry.attachTo()` and `disposeAll()` are resilient: they
-process **all** plugins even if individual `onRegister` or `onDispose`
+`ExtensionCoordinator.attachTo()` and `disposeAll()` are resilient: they
+process **all** extensions even if individual `onRegister` or `onDispose`
 hooks throw. Errors are collected and thrown as a single `StateError`
-after all plugins have been processed. This prevents one failing plugin
+after all extensions have been processed. This prevents one failing extension
 from blocking the rest.
 
 ## Complete Lifecycle
@@ -442,7 +442,7 @@ from blocking the rest.
 ```text
 1. Create bridge:   MontyBridge(platform: platform, logger: logger)
 2. Register MW:     bridge.use(grounding), bridge.use(telemetry)
-3. Build registry:  registry.register(pluginA), registry.register(pluginB)
+3. Build registry:  registry.register(extensionA), registry.register(extensionB)
 4. Attach:          registry.attachTo(bridge)  // wires functions + onRegister
 5. Execute:         bridge.execute(code)       // MW wraps every tool call
 6. Dispose:         registry.disposeAll()      // reverse registration order
@@ -452,16 +452,16 @@ from blocking the rest.
 ## Example: Per-Session Integration
 
 A typical application creates one bridge per session. Middleware slots
-into the setup path before plugins are attached:
+into the setup path before extensions are attached:
 
 ```dart
 final bridge = MontyBridge(platform: platform, logger: logger);
 bridge.use(SessionTelemetryMiddleware(sessionId: session.id));
 bridge.use(GroundingMiddleware(validators: roomValidators));
 
-final registry = PluginRegistry();
-registry.register(DataFramePlugin(store: dfStore));
-registry.register(AgentPlugin(runtime: runtime));
+final registry = ExtensionCoordinator();
+registry.register(DataFrameExtension(store: dfStore));
+registry.register(AgentExtension(runtime: runtime));
 await registry.attachTo(bridge);
 ```
 

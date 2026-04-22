@@ -288,6 +288,6 @@ has been disposed.
 ## Next Steps
 
 The [Intermediate guide](host-functions-intermediate.md) covers organizing
-functions into plugins with `MontyPlugin` and `PluginRegistry`, namespace
+functions into extensions with `MontyExtension` and `ExtensionCoordinator`, namespace
 validation, lifecycle hooks, introspection builtins, and the
-`EventLoopPlugin` for bidirectional Python/Dart communication.
+`EventLoopExtension` for bidirectional Python/Dart communication.
