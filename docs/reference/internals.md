@@ -42,3 +42,21 @@ The `MontyFfi` backend calls the Rust shared library (`.dylib`, `.so`, `.dll`) v
 
 - **FFI (Native)**: Strings and bytes are passed as pointers. Dart is responsible for allocating and freeing memory for data it sends to Rust, and for freeing pointers returned from Rust using designated `_free` functions.
 - **Web (WASM)**: All data is passed by value via `postMessage`, using the structured clone algorithm. There is no shared memory.
+
+## Resource Lifecycle Management
+
+### FFI Layer
+- **`MontyHandle`**: The pointer to the Rust interpreter instance is owned by the Dart backend (`MontyFfi`). It is freed exactly once when `dispose()` is called, or on a finalizer if the Dart object is garbage collected.
+- **Rust-allocated Strings**: When Rust returns a string (e.g., an error message), it allocates memory and gives Dart the pointer. Dart reads it into a Dart `String` and immediately calls the corresponding `_free` function to release the memory on the Rust side.
+- **Dart-allocated Strings**: When Dart passes a string to Rust, it allocates memory via `toNativeUtf8`, passes the pointer, and is responsible for freeing that memory after the call returns.
+
+### WASM Layer
+- **Session Management**: Each `MontyWasm` instance manages sessions within the Web Worker via a unique session ID. `dispose()` sends a message to the worker to terminate that specific session and free its associated resources in the worker's memory.
+- **No Manual Memory**: Since there is no shared memory, all data is copied via the structured clone algorithm, so manual memory management is not required.
+
+### Bridge & Extension Layer
+- **Ownership**: `MontyRuntime` owns the `PlatformBridge` and `ExtensionCoordinator`. When `MontyRuntime.dispose()` is called, it triggers a clean disposal cascade:
+  1. `ExtensionCoordinator.disposeAll()` is called, which calls `onDispose()` on every registered extension in reverse order.
+  2. `PlatformBridge.dispose()` is called.
+  3. The underlying `MontyRepl` instance is disposed.
+- **`SandboxExtension`**: When this extension is disposed, it iterates through all living child interpreters it has spawned and calls `dispose()` on each one to prevent orphaned resources.

@@ -31,7 +31,6 @@ graph TD
     end
 
     style E fill:#ccf,stroke:#333,stroke-width:2px;
-    style F fill:#f9f,stroke:#333,stroke-width:2px;
 ```
 
 ### Core Handlers
