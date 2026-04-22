@@ -10,6 +10,86 @@ web (JS interop to a WASM module running in a Web Worker).
 `MontyRuntime` is the recommended high-level API for stateful sessions with
 extensions and OS-level interception.
 
+## Architecture Diagrams
+
+### Diagram 1: High-Level Package Dependency
+
+This diagram provides a simple, high-level overview of the main components and their dependencies, illustrating how the packages fit together.
+
+```mermaid
+graph TD
+    subgraph User Application
+        A[Dart/Flutter App]
+    end
+
+    subgraph dart_monty
+        B(MontyRuntime API)
+    end
+
+    subgraph dart_monty_core
+        C(Low-Level Engine)
+    end
+
+    subgraph Rust
+        D{Monty Crate}
+    end
+
+    A --> B
+    B --> C
+    C --> D
+```
+
+### Diagram 2: API Layering & Abstraction
+
+This diagram illustrates the separation of concerns and how the APIs are layered, from the user-facing runtime down to the platform-specific backends.
+
+```mermaid
+graph TD
+    subgraph dart_monty [High-Level API]
+        A(MontyRuntime)
+        B(ExtensionCoordinator)
+        C(PlatformBridge)
+        D(OsCallHandler)
+    end
+
+    subgraph dart_monty_core [Low-Level Engine]
+        E(MontyPlatform)
+        F(MontyRepl)
+        G[FFI Backend]
+        H[WASM Backend]
+    end
+
+    A --> B & C
+    B --> C
+    C --> D & E
+    E --> F
+    F --> G & H
+```
+
+### Diagram 3: Execution Flow for a Tool Call
+
+This diagram shows the sequence of events when a user calls `execute` and the Python code invokes a host function (a "tool").
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant RT as MontyRuntime
+    participant PB as PlatformBridge
+    participant MR as MontyRepl (Core)
+    participant HF as Host Function (Dart)
+
+    User->>RT: execute("my_tool()")
+    RT->>PB: execute("my_tool()")
+    PB->>MR: feed("my_tool()")
+    MR-->>PB: Yields (Pending Tool Call)
+    PB->>HF: Invoke handler for "my_tool"
+    HF-->>PB: Returns result
+    PB->>MR: resume(result)
+    MR-->>PB: Completes
+    PB-->>RT: ExecutionHandle completes
+    RT-->>User: Returns MontyResult
+```
+
 ## Internal Module Structure
 
 ```text
@@ -79,6 +159,4 @@ The `MontyRuntime` and `PlatformBridge` serve two audiences simultaneously:
 This dual-audience pattern means you register a tool once and get both a
 callable Python function and an LLM-compatible tool definition.
 
-For a complete example, see the "LLM Tool Calling" section in the
-[README](../README.md). For the `OsCallHandler` layer, see
-[oscall-vfs.md](oscall-vfs.md).
+For the `OsCallHandler` layer, see [../deep-dives/oscall-vfs.md](../deep-dives/oscall-vfs.md).

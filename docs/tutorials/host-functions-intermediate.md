@@ -102,6 +102,25 @@ coordinator propagates extensions to the child based on their `childPolicy`:
 `EventLoopExtension` turns a one-shot `execute()` call into a long-running
 cooperative exchange.
 
+### Flow Diagram
+```mermaid
+sequenceDiagram
+    participant D as Dart
+    participant P as Python
+
+    D->>P: execute(script_with_loop)
+    loop Event Loop
+        P->>D: el_emit(state)
+        Note right of D: Dart UI updates
+        P-->>D: el_recv() (blocks)
+        Note left of P: Python is paused
+        D->>P: dispatch(event)
+        Note right of D: User action triggers dispatch
+    end
+    D->>P: dispatch({action: "quit"})
+    P-->>D: Loop breaks, script finishes
+```
+
 ### The Pattern
 
 Python calls `el_recv()` to pause and `el_emit(value)` to push data back:

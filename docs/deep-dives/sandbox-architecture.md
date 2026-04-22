@@ -3,298 +3,78 @@
 ## Overview
 
 `SandboxExtension` spawns Python scripts in isolated child interpreters.
-Each child gets its own `MontyPlatform`, `DefaultMontyBridge`, and
-optional extension registry. The parent Python script controls children
-via host functions.
+Each child gets its own `MontyPlatform` and `PlatformBridge`, and an
+`ExtensionCoordinator` for inherited tools. The parent Python script
+controls children via host functions.
 
-**Cross-platform:** Works on both native (FFI) and web (WASM). On
-native, each child gets a fresh `MontyFfi` instance. On WASM, each
-child gets its own Web Worker with independent memory.
+### Architecture Diagram
+
+This diagram shows how a parent `MontyRuntime` spawns an isolated child session.
+
+```mermaid
+graph TD
+    subgraph Parent Session
+        A(MontyRuntime)
+        B(ExtensionCoordinator)
+        C(PlatformBridge)
+        D[SandboxExtension]
+    end
+
+    subgraph Child Session
+        F(PlatformBridge)
+        G(ExtensionCoordinator)
+        H[Inherited Extension]
+    end
+
+    A --> B
+    B --> D
+    C -.-> D
+
+    D -- "sandbox_spawn()" creates --> F
+    F --> G
+    G --> H
+
+    style D fill:#f9f,stroke:#333,stroke-width:2px
+    style F fill:#ccf,stroke:#333,stroke-width:2px
+```
+
+### Cross-platform Support
+
+`SandboxExtension` is fully supported on both native (FFI) and web (WASM).
 
 | | Native (FFI) | Web (WASM) |
 |---|---|---|
-| Child interpreter | Fresh `MontyFfi` (same isolate) | Fresh Worker session |
-| Memory isolation | Separate Rust interpreter state | Separate Worker memory |
-| Parallelism | Sequential (same event loop) | Concurrent (independent Workers) |
-| Extension inheritance | Shared objects (same heap) | Shared objects (same main thread) |
-| MessageBus | Shared instance (direct) | Shared instance (direct) |
+| Child interpreter | Fresh `MontyFfi` instance | Fresh `MontyRepl` session in shared Worker |
+| Memory isolation | Separate Rust interpreter state | Separate Rust REPL heap |
+| Parallelism | Sequential (parent's event loop) | Concurrent (shared Worker loop) |
 
 ## Host Functions
 
-- `sandbox_spawn(code, timeout_ms?, memory_bytes?)` --
-  Spawn child interpreter, returns integer handle
-- `sandbox_await(handle)` --
-  Wait for child to complete, returns result
-- `sandbox_await_all(handles)` --
-  Wait for multiple children
-- `sandbox_gather(handles)` --
-  Wait and return attributed results
-- `sandbox_is_alive(handle)` --
-  Check if child is still running
-- `sandbox_free(handle)` --
-  Release completed child resources
-- `sandbox_get_output(handle)` --
-  Get child's captured print output
-
-## Usage
-
-```python
-# Spawn a child that computes something
-h = sandbox_spawn(code='sum(range(100))')
-
-# Wait for the result
-result = sandbox_await(h)  # 4950
-
-# Parallel execution
-h1 = sandbox_spawn(code='2 ** 16')
-h2 = sandbox_spawn(code='3 ** 10')
-results = sandbox_gather(handles=[h1, h2])
-# [{'handle': 0, 'value': 65536, 'output': None},
-#  {'handle': 1, 'value': 59049, 'output': None}]
-
-# Get print output from child
-h3 = sandbox_spawn(code='for i in range(5):\n    print(i)')
-sandbox_await(h3)
-output = sandbox_get_output(h3)  # '0\n1\n2\n3\n4\n'
-
-# Resource limits
-h4 = sandbox_spawn(
-    code='while True: pass',
-    timeout_ms=5000,
-    memory_bytes=1048576,
-)
-
-# Children inherit extensions — message bus for parent↔child communication
-h = sandbox_spawn(code="""
-msg_send(name="result", message={"answer": 42})
-""")
-sandbox_await(handle=h)
-answer = msg_recv(name="result")  # {"answer": 42}
-
-# Clean up
-sandbox_free(h1)
-sandbox_free(h2)
-```
+- `sandbox_spawn(code, timeout_ms?, memory_bytes?, system_prompt?)`
+- `sandbox_await(handle)`
+- `sandbox_await_all(handles)`
+- `sandbox_gather(handles)`
+- `sandbox_is_alive(handle)`
+- `sandbox_free(handle)`
+- `sandbox_get_output(handle)`
 
 ## Isolation Model
 
 Each child gets:
 
-- **Own `MontyPlatform`** — fresh interpreter instance via `platformFactory`
-- **Own `DefaultMontyBridge`** — independent dispatch loop, middleware, events
-- **Own extension registry** — inherited from parent or custom via factory
-- **Own VFS** (optional) — isolated `MemoryFsProvider` per child
-- **Shared time/env** — `TimeOsCallHandler` and `EnvOsCallHandler` from parent
-
-Children cannot access the parent's heap, globals, or variables.
-Communication happens only through return values and print output.
+- **Own `MontyPlatform`** — A fresh interpreter instance via the `platformFactory`.
+- **Own `PlatformBridge`** — An independent dispatch loop and event stream.
+- **Own `ExtensionCoordinator`** — A new coordinator with inherited extensions.
+- **Own VFS (optional)** — Filesystem access controlled by the `childVfsStrategy`.
 
 ## Extension Inheritance
 
-When `SandboxExtension` spawns a child, it can give the child its own
-extensions. There are two modes:
+`SandboxExtension` relies on its parent `ExtensionCoordinator` to build the child's environment. It calls `coordinator.spawnChild()`, which iterates through all registered extensions and calls `MontyExtension.createChildInstance()` on each one, allowing them to be cloned for the child.
 
-### Automatic Inheritance (default)
+## Filesystem Inheritance (VFS)
 
-Set `parentExtensions` on the `SandboxExtension`. Each extension's
-`createChildInstance()` is called to create a fresh copy for the child.
+The `childVfsStrategy` enum controls how a child's filesystem relates to its parent's:
 
-```dart
-final tmpl = JinjaTemplateExtension();
-final msgBus = MessageBusExtension();
-final sandbox = SandboxExtension(
-  platformFactory: () async => MontyFfi(),
-  parentExtensions: [tmpl, msgBus],  // children inherit these
-);
-```
-
-Rules:
-
-- `SandboxExtension` itself is **skipped** during inheritance
-- Extensions return `null` from `createChildInstance()` to opt out
-- Extensions must return a **new instance**, not `this`
-
-### Custom Registry Factory
-
-For full control (including grandchild support), use
-`childExtensionCoordinatorFactory`:
-
-```dart
-final sandbox = SandboxExtension(
-  platformFactory: () async => MontyFfi(),
-  childExtensionCoordinatorFactory: (context) async {
-    final reg = ExtensionCoordinator()
-      ..register(JinjaTemplateExtension())
-      ..register(SandboxExtension(  // child can also spawn!
-        platformFactory: () async => MontyFfi(),
-        currentDepth: context.childId + 1,  // increment depth
-        maxDepth: 3,
-      ));
-    return reg;
-  },
-);
-```
-
-## Grandchildren
-
-Children can spawn their own children (grandchildren) if they have
-`SandboxExtension` in their registry. This requires:
-
-1. A `childExtensionCoordinatorFactory` that includes a `SandboxExtension`
-   with incremented `currentDepth`
-2. `maxDepth` controls the maximum recursion level (default: 3)
-
-```python
-# Parent spawns child, child spawns grandchild
-child_code = """
-gh = sandbox_spawn(code="6 * 7")
-sandbox_await(gh)
-"""
-h = sandbox_spawn(code=child_code)
-result = sandbox_await(h)  # 42 — computed by grandchild
-```
-
-Depth limiting prevents infinite recursion:
-
-- `currentDepth=0` (parent) can spawn children
-- `currentDepth=1` (child) can spawn grandchildren
-- `currentDepth=2` (grandchild) can spawn great-grandchildren
-- `currentDepth >= maxDepth` raises `StateError`
-
-## Resource Limits
-
-Per-child limits via `sandbox_spawn` arguments or extension-level defaults:
-
-```dart
-SandboxExtension(
-  platformFactory: () async => MontyFfi(),
-  childLimits: MontyLimits(
-    timeoutMs: 10000,    // 10 second default
-    memoryBytes: 4194304, // 4MB default
-  ),
-);
-```
-
-Python can override per-spawn:
-
-```python
-sandbox_spawn(code='...', timeout_ms=5000, memory_bytes=1048576)
-```
-
-## System Prompts
-
-Children can receive context via system prompts:
-
-```dart
-SandboxExtension(
-  platformFactory: () async => MontyFfi(),
-  systemPromptBuilder: (context) =>
-    'You are child #${context.childId}. '
-    'Working directory: ${context.workingDirectory}',
-);
-```
-
-Python can add runtime prompts:
-
-```python
-sandbox_spawn(code='...', system_prompt='Focus on data analysis.')
-```
-
-The final prompt is: `builder output + runtime system_prompt`.
-
-## OS Provider / Filesystem
-
-When `parentOs` is set, children get isolated filesystems:
-
-```dart
-SandboxExtension(
-  platformFactory: () async => MontyFfi(),
-  parentOs: OsCallHandler.compose({
-    'Path.': MemoryFsProvider(),
-    'date.': TimeOsCallHandler(),
-    'os.': EnvOsCallHandler({'KEY': 'value'}),
-  }),
-);
-```
-
-Each child receives:
-
-- **Fresh `MemoryFsProvider`** — isolated VFS
-- **Shared `TimeOsCallHandler`** — same clock as parent
-- **Shared `EnvOsCallHandler`** — same environment variables
-
-Optional per-child working directories via `sandboxBaseDir`:
-
-```dart
-SandboxExtension(
-  sandboxBaseDir: '/workspace',
-  // Children get /workspace/.sandboxes/child_0, child_1, etc.
-);
-```
-
-## Platform Support
-
-- **FFI** (native): `() async => MontyFfi()` --
-  Full support (spawn, gather, grandchildren)
-- **WASM** (browser): `() async => MontyWasm()` --
-  **Limited** -- see below
-
-### WASM Limitation
-
-On WASM, `SandboxExtension` creates child `MontyWasm()` instances that
-share the browser's WASM Worker session. When a child disposes, it
-terminates the shared Worker, killing the parent session.
-
-**Current status:** Sandbox functions (`sandbox_spawn`, `sandbox_await`,
-etc.) are not supported on WASM. The WASM Worker architecture needs
-multi-session support (isolated Workers per child) to enable sandboxes.
-
-**Workaround:** Use the JS-level `DartMontyBridge.run()` for one-shot
-sandbox execution (no extension inheritance or grandchildren). See `../repl.html` for this approach.
-
-**Planned fix:** Refactor `MontyWasm` to use `createSession()` for
-each child, giving each sandbox its own Worker. The bridge JS already
-supports multi-session — the Dart binding needs to use it.
-
-## MontyRuntime Integration
-
-`MontyRuntime` provides the simplest way to use sandboxes:
-
-```dart
-final session = MontyRuntime(
-  extensions: [
-    SandboxExtension(
-      platformFactory: () async => MontyFfi(),
-      parentExtensions: [JinjaTemplateExtension()],
-    ),
-    JinjaTemplateExtension(),
-  ],
-);
-
-// Python can now spawn sandboxes
-final r = await session.run("sandbox_spawn(code='42')");
-```
-
-State persists across calls — sandbox handles, results, and all
-other variables survive in the native Rust REPL heap.
-
-## Architecture Diagram
-
-```text
-MontyRuntime
-  └── DefaultMontyBridge (parent)
-        ├── JinjaTemplateExtension (tmpl_render)
-        ├── MessageBusExtension (msg_send, msg_recv, ...)
-        └── SandboxExtension
-              ├── sandbox_spawn → creates:
-              │     └── MontyPlatform (child)
-              │           └── DefaultMontyBridge (child)
-              │                 ├── JinjaTemplateExtension (inherited)
-              │                 └── SandboxExtension (depth+1, if configured)
-              │                       └── sandbox_spawn → creates:
-              │                             └── MontyPlatform (grandchild)
-              │                                   └── ...
-              ├── sandbox_await → awaits child.completer.future
-              ├── sandbox_gather → Future.wait(children)
-              └── sandbox_free → disposes child resources
-```
+- **`ChildVfsStrategy.isolated`** (default): Each child gets a fresh, empty `memoryFsHandler()`. No access to the parent's filesystem.
+- **`ChildVfsStrategy.shared`**: The child shares the parent's `Path.*` handler. This is useful for shared workspaces but removes filesystem isolation.
+- **`ChildVfsStrategy.none`**: The child has no filesystem access at all. Any `Path.*` operations will fail.
