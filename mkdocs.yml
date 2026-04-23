@@ -32,9 +32,10 @@ extra_css:
   - extra.css
 
 nav:
-  - Overview: help.md
+  - Overview: index.md
   - User Guide:
       - Installation: user/install.md
+      - Deployment: user/deployment.md
       - REPL: user/repl.md
       - Extensions: user/extensions.md
       - API Reference: user/api-reference.md
