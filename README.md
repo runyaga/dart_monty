@@ -14,37 +14,61 @@ Sandboxed Python interpreter for Dart and Flutter. Run Python from native, web, 
 
 ## Quick Start
 
+First, add `dart_monty` to your `pubspec.yaml`:
+
 ```bash
 dart pub add dart_monty
 ```
 
-**One-shot execution**
+Then, import the package in your Dart code:
 
 ```dart
-final result = await Monty.exec('2 + 2');
-print(result.value); // 4
+import 'package:dart_monty/dart_monty.dart';
 ```
 
-**Stateful REPL**
+Now you can use `dart_monty` in three ways:
+
+**1. One-shot execution**
+
+For simple, stateless execution, use the static `Monty.run()` method:
 
 ```dart
-final repl = MontyRepl();
-await repl.feed('x = 42');
-await repl.feed('def double(n): return n * 2');
-final r = await repl.feed('double(x)');
-print(r.value); // MontyInt(84)
+Future<void> main() async {
+  final result = await Monty.run('2 + 2');
+  print(result.value); // 4
+}
 ```
 
-**Session with extensions**
+**2. Stateful REPL**
+
+For interactive, stateful sessions, use a `MontyRepl`:
 
 ```dart
-final session = MontyRuntime(
-  extensions: [JinjaTemplateExtension(), MessageBusExtension()],
-);
-final r = await session.run(
-  "tmpl_render(template='Hello {{ name }}!', context={'name': 'World'})",
-);
-print(r.value); // 'Hello World!'
+Future<void> main() async {
+  final repl = MontyRepl();
+  await repl.feed('x = 42');
+  await repl.feed('def double(n): return n * 2');
+  final result = await repl.feed('double(x)');
+  print(result.value); // MontyInt(84)
+  repl.dispose();
+}
+```
+
+**3. Runtime with extensions**
+
+For more advanced use cases, create a `MontyRuntime` to manage extensions and sessions:
+
+```dart
+Future<void> main() async {
+  final runtime = MontyRuntime(
+    extensions: [JinjaTemplateExtension(), MessageBusExtension()],
+  );
+  final result = await runtime.run(
+    "tmpl_render(template='Hello {{ name }}!', context={'name': 'World'})",
+  );
+  print(result.value); // 'Hello World!'
+  runtime.dispose();
+}
 ```
 
 ## Documentation

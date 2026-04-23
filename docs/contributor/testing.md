@@ -25,10 +25,12 @@ will automatically build and serve the necessary files to run in headless Chrome
 dart test -p chrome
 ```
 
-**Note:** The previous requirement for a special web server with COOP/COEP
-headers has been **removed**. The standard `dart test` server is sufficient.
-
 ## Test Categories
+
+1. **Build WASM:** `cd native && cargo build --release --target wasm32-wasip1`
+2. **Compile Runner:** `dart compile js test/wasm/integration/python_ladder_runner.dart -o test/wasm/integration/web/ladder_runner.dart.js`
+3. **Copy Assets:** Copy `dart_monty_bridge.js`, `dart_monty_worker.js`, and `.wasm` files to the integration web directory.
+4. **Serve:** Use a server that provides COOP/COEP headers (required for `SharedArrayBuffer`).
 
 - **Unit Tests (`/test`)**: Fast, focused tests that use mocks to isolate
   components.
@@ -41,6 +43,11 @@ headers has been **removed**. The standard `dart test` server is sufficient.
 
 ## Cross-Platform Parity: Oracle-Based Testing
 
+Both the native FFI and web WASM paths are verified to produce identical
+results via JSON test fixtures in `test/fixtures/python_ladder/`. The
+`tool/test_cross_path_parity.sh` script runs both runners and diffs their
+output.
+
 To guarantee that `dart_monty` behaves identically to the upstream reference implementation, we use an **oracle-based testing model**.
 
 1.  **The Oracle:** The `pydantic/monty` Python library serves as the ground-truth "oracle."
@@ -51,3 +58,21 @@ To guarantee that `dart_monty` behaves identically to the upstream reference imp
 This rigorous process ensures that `dart_monty` is a faithful and reliable implementation of the `pydantic/monty` behavior on every platform.
 
 Running `dart test -p chrome` executes this entire validation suite automatically.
+
+## Manual Browser Testing
+
+To test in a real browser, use the Python-based COOP/COEP server:
+
+```python
+# Start the COOP/COEP server
+python3 -c "
+import http.server, functools
+class H(http.server.SimpleHTTPRequestHandler):
+    def end_headers(self):
+        self.send_header('Cross-Origin-Opener-Policy', 'same-origin')
+        self.send_header('Cross-Origin-Embedder-Policy', 'require-corp')
+        super().end_headers()
+handler = functools.partial(H, directory='web')
+http.server.HTTPServer(('127.0.0.1', 8099), handler).serve_forever()
+"
+```
