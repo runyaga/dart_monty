@@ -1,0 +1,1952 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Pure Dart bindings for Monty, a restricted sandboxed Python interpreter built in Rust.">
+      
+      
+      
+      
+        <link rel="prev" href="repl.html">
+      
+      
+        <link rel="next" href="api-reference.html">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Extensions - dart_monty</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../extra.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#built-in-extensions" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="dart_monty" class="md-header__button md-logo" aria-label="dart_monty" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            dart_monty
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Extensions
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="dart_monty" class="md-nav__button md-logo" aria-label="dart_monty" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    dart_monty
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../help.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    User Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="install.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="repl.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    REPL
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Extensions
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="extensions.html" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Extensions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#templateextension" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TemplateExtension
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="TemplateExtension">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Functions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#typical-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Typical Pattern
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#messagebusextension" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MessageBusExtension
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="MessageBusExtension">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#messagebus-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MessageBus Functions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#messagebus-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MessageBus Pattern
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sandboxextension" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SandboxExtension
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="SandboxExtension">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sandbox-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sandbox Functions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sandbox-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sandbox Pattern
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sandbox-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sandbox Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#using-extensions-with-montyruntime" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Using Extensions with MontyRuntime
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#writing-custom-extensions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Writing Custom Extensions
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="api-reference.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorials
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tutorials
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorials/host-functions-intro.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Host Functions Intro
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorials/host-functions-beginner.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Host Functions Beginner
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorials/host-functions-intermediate.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Host Functions Intermediate
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorials/host-functions-advanced.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Host Functions Advanced
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorials/bridge-middleware.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bridge Middleware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorials/llm-prompt-rules.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LLM Prompt Rules
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorials/live-shape-negotiation-research.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Shape Negotiation Research
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deep Dives
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Deep Dives
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/overview.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../deep-dives/sandbox-architecture.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sandbox Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../deep-dives/oscall-vfs.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    OsCall / VFS Layer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../deep-dives/error-hierarchy.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Error Hierarchy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../deep-dives/lifecycles.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Lifecycle Management
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../deep-dives/extension-system.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Extension System
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Technical Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Technical Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/native-crate.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Native Crate (Rust)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/monty-rust-api.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Monty Rust API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/ffi-handle-lifecycle.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FFI Handle Lifecycle
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/bridge-integration.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bridge Integration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/internals.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Internals
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/api-coverage-plan.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Coverage Plan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Contributing
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contributor/setup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contributor/testing.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contributor/native-build.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Native Build
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#templateextension" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TemplateExtension
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="TemplateExtension">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Functions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#typical-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Typical Pattern
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#messagebusextension" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MessageBusExtension
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="MessageBusExtension">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#messagebus-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MessageBus Functions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#messagebus-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MessageBus Pattern
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sandboxextension" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SandboxExtension
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="SandboxExtension">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sandbox-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sandbox Functions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sandbox-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sandbox Pattern
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sandbox-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sandbox Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#using-extensions-with-montyruntime" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Using Extensions with MontyRuntime
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#writing-custom-extensions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Writing Custom Extensions
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="built-in-extensions">Built-in Extensions</h1>
+<p>dart_monty ships three extensions that provide host functions to
+sandboxed Python code. All extensions work with <code>MontyRuntime</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Extension</th>
+<th>Functions</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>TemplateExtension</strong></td>
+<td><code>tmpl_render</code></td>
+<td>Jinja2 template rendering</td>
+</tr>
+<tr>
+<td><strong>MessageBusExtension</strong></td>
+<td><code>msg_send</code>, <code>msg_recv</code>, <code>msg_peek</code>, <code>msg_close</code>, <code>msg_stats</code></td>
+<td>In-memory named channels</td>
+</tr>
+<tr>
+<td><strong>SandboxExtension</strong></td>
+<td><code>sandbox_spawn</code>, <code>sandbox_await</code>, <code>sandbox_gather</code>, <code>sandbox_free</code></td>
+<td>Isolated child interpreters</td>
+</tr>
+</tbody>
+</table>
+<h2 id="templateextension">TemplateExtension</h2>
+<p><strong>Class:</strong> <code>JinjaTemplateExtension</code>
+<strong>Namespace:</strong> <code>tmpl</code></p>
+<p>Renders Jinja2 templates using the <a href="https://pub.dev/packages/dinja">dinja</a>
+Dart package. Supports <code>{{ variables }}</code>, <code>{% for %}</code> loops,
+<code>{% if %}</code> conditionals, and filters.</p>
+<h3 id="functions">Functions</h3>
+<p><strong><code>tmpl_render(template, context)</code></strong></p>
+<p>Render a Jinja2 template string with a context dict.</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># Basic variable substitution</span>
+<span class="n">tmpl_render</span><span class="p">(</span><span class="n">template</span><span class="o">=</span><span class="s1">&#39;Hello {{ name }}!&#39;</span><span class="p">,</span> <span class="n">context</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="s1">&#39;World&#39;</span><span class="p">})</span>
+<span class="c1"># -&gt; &#39;Hello World!&#39;</span>
+
+<span class="c1"># For loop</span>
+<span class="n">tmpl_render</span><span class="p">(</span>
+    <span class="n">template</span><span class="o">=</span><span class="s1">&#39;{</span><span class="si">% f</span><span class="s1">or item in items %}{{ item }} {</span><span class="si">% e</span><span class="s1">ndfor %}&#39;</span><span class="p">,</span>
+    <span class="n">context</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;items&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;Alice&#39;</span><span class="p">,</span> <span class="s1">&#39;Bob&#39;</span><span class="p">,</span> <span class="s1">&#39;Charlie&#39;</span><span class="p">]}</span>
+<span class="p">)</span>
+<span class="c1"># -&gt; &#39;Alice Bob Charlie &#39;</span>
+
+<span class="c1"># Conditional</span>
+<span class="n">tmpl_render</span><span class="p">(</span>
+    <span class="n">template</span><span class="o">=</span><span class="s1">&#39;{</span><span class="si">% i</span><span class="s1">f admin %}Admin{</span><span class="si">% e</span><span class="s1">lse %}Guest{</span><span class="si">% e</span><span class="s1">ndif %}&#39;</span><span class="p">,</span>
+    <span class="n">context</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;admin&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">}</span>
+<span class="p">)</span>
+<span class="c1"># -&gt; &#39;Admin&#39;</span>
+</code></pre></div>
+<h3 id="typical-pattern">Typical Pattern</h3>
+<p>Compute data in Python, render with the host template engine:</p>
+<div class="highlight"><pre><span></span><code><span class="n">scores</span> <span class="o">=</span> <span class="p">[</span><span class="mi">85</span><span class="p">,</span> <span class="mi">92</span><span class="p">,</span> <span class="mi">78</span><span class="p">,</span> <span class="mi">95</span><span class="p">,</span> <span class="mi">88</span><span class="p">]</span>
+<span class="n">report</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s1">&#39;avg&#39;</span><span class="p">:</span> <span class="nb">sum</span><span class="p">(</span><span class="n">scores</span><span class="p">)</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">scores</span><span class="p">),</span>
+    <span class="s1">&#39;top&#39;</span><span class="p">:</span> <span class="nb">max</span><span class="p">(</span><span class="n">scores</span><span class="p">),</span>
+    <span class="s1">&#39;n&#39;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">scores</span><span class="p">),</span>
+<span class="p">}</span>
+<span class="n">tmpl_render</span><span class="p">(</span>
+    <span class="n">template</span><span class="o">=</span><span class="s1">&#39;{{ n }} students, avg={{ avg }}, top={{ top }}&#39;</span><span class="p">,</span>
+    <span class="n">context</span><span class="o">=</span><span class="n">report</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="c1"># -&gt; &#39;5 students, avg=87.6, top=95&#39;</span>
+</code></pre></div>
+<h3 id="configuration">Configuration</h3>
+<div class="highlight"><pre><span></span><code><span class="n">JinjaTemplateExtension</span><span class="p">(</span>
+<span class="w">  </span><span class="nl">maxInputSize:</span><span class="w"> </span><span class="m">512</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="m">1024</span><span class="p">,</span><span class="w">  </span><span class="c1">// 512 KB default</span>
+<span class="p">)</span>
+</code></pre></div>
+<hr />
+<h2 id="messagebusextension">MessageBusExtension</h2>
+<p><strong>Class:</strong> <code>MessageBusExtension</code>
+<strong>Namespace:</strong> <code>msg</code></p>
+<p>In-memory named message channels (FIFO queues). Useful for
+inter-process communication when combining multiple extensions
+or coordinating between parent and child sandboxes.</p>
+<h3 id="messagebus-functions">MessageBus Functions</h3>
+<p><strong><code>msg_send(name, message)</code></strong> — Send a message to a named channel.</p>
+<div class="highlight"><pre><span></span><code><span class="n">msg_send</span><span class="p">(</span><span class="s1">&#39;tasks&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;id&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;action&#39;</span><span class="p">:</span> <span class="s1">&#39;analyze&#39;</span><span class="p">})</span>
+</code></pre></div>
+<p><strong><code>msg_recv(name, timeout_ms=None)</code></strong> — Receive the next message.
+Blocks until a message is available or timeout expires.</p>
+<div class="highlight"><pre><span></span><code><span class="n">task</span> <span class="o">=</span> <span class="n">msg_recv</span><span class="p">(</span><span class="s1">&#39;tasks&#39;</span><span class="p">)</span>
+<span class="c1"># -&gt; {&#39;id&#39;: 1, &#39;action&#39;: &#39;analyze&#39;}</span>
+</code></pre></div>
+<p><strong><code>msg_peek(name)</code></strong> — Check the next message without consuming it.
+Returns <code>None</code> if the channel is empty.</p>
+<div class="highlight"><pre><span></span><code><span class="n">msg_peek</span><span class="p">(</span><span class="s1">&#39;tasks&#39;</span><span class="p">)</span>  <span class="c1"># -&gt; {&#39;id&#39;: 1, ...} or None</span>
+</code></pre></div>
+<p><strong><code>msg_close(name)</code></strong> — Close a channel. Subsequent <code>msg_recv</code>
+calls raise an error.</p>
+<div class="highlight"><pre><span></span><code><span class="n">msg_close</span><span class="p">(</span><span class="s1">&#39;tasks&#39;</span><span class="p">)</span>
+</code></pre></div>
+<p><strong><code>msg_stats(name)</code></strong> — Get channel statistics.</p>
+<div class="highlight"><pre><span></span><code><span class="n">msg_stats</span><span class="p">(</span><span class="s1">&#39;tasks&#39;</span><span class="p">)</span>
+<span class="c1"># -&gt; {&#39;pending&#39;: 2, &#39;delivered&#39;: 5, ...}</span>
+</code></pre></div>
+<h3 id="messagebus-pattern">MessageBus Pattern</h3>
+<p>Log events from multiple operations:</p>
+<div class="highlight"><pre><span></span><code><span class="n">msg_send</span><span class="p">(</span><span class="s1">&#39;audit&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;action&#39;</span><span class="p">:</span> <span class="s1">&#39;upload&#39;</span><span class="p">,</span> <span class="s1">&#39;file&#39;</span><span class="p">:</span> <span class="s1">&#39;data.csv&#39;</span><span class="p">})</span>
+<span class="n">msg_send</span><span class="p">(</span><span class="s1">&#39;audit&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;action&#39;</span><span class="p">:</span> <span class="s1">&#39;query&#39;</span><span class="p">,</span> <span class="s1">&#39;room&#39;</span><span class="p">:</span> <span class="s1">&#39;analysis&#39;</span><span class="p">})</span>
+
+<span class="c1"># Later: collect all audit entries</span>
+<span class="n">logs</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">while</span> <span class="n">msg_peek</span><span class="p">(</span><span class="s1">&#39;audit&#39;</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">logs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">msg_recv</span><span class="p">(</span><span class="s1">&#39;audit&#39;</span><span class="p">))</span>
+</code></pre></div>
+<hr />
+<h2 id="sandboxextension">SandboxExtension</h2>
+<p><strong>Class:</strong> <code>SandboxExtension</code>
+<strong>Namespace:</strong> <code>sandbox</code></p>
+<p>Spawns Python scripts in isolated child interpreters. Each child
+gets its own <code>MontyPlatform</code> and <code>DefaultMontyBridge</code>. Children
+can inherit extensions from the parent and even spawn their own
+children (grandchildren).</p>
+<p>See <a href="../deep-dives/sandbox-architecture.html">Sandbox Architecture</a> for the
+full deep dive.</p>
+<h3 id="sandbox-functions">Sandbox Functions</h3>
+<p><strong><code>sandbox_spawn(code, timeout_ms=None, memory_bytes=None)</code></strong> —
+Spawn a child interpreter. Returns an integer handle.</p>
+<div class="highlight"><pre><span></span><code><span class="n">h</span> <span class="o">=</span> <span class="n">sandbox_spawn</span><span class="p">(</span><span class="n">code</span><span class="o">=</span><span class="s1">&#39;sum(range(100))&#39;</span><span class="p">)</span>
+</code></pre></div>
+<p><strong><code>sandbox_await(handle)</code></strong> — Wait for a child to complete.
+Returns the result value.</p>
+<div class="highlight"><pre><span></span><code><span class="n">result</span> <span class="o">=</span> <span class="n">sandbox_await</span><span class="p">(</span><span class="n">h</span><span class="p">)</span>  <span class="c1"># -&gt; 4950</span>
+</code></pre></div>
+<p><strong><code>sandbox_await_all(handles)</code></strong> — Wait for multiple children.</p>
+<div class="highlight"><pre><span></span><code><span class="n">results</span> <span class="o">=</span> <span class="n">sandbox_await_all</span><span class="p">(</span><span class="n">handles</span><span class="o">=</span><span class="p">[</span><span class="n">h1</span><span class="p">,</span> <span class="n">h2</span><span class="p">,</span> <span class="n">h3</span><span class="p">])</span>
+</code></pre></div>
+<p><strong><code>sandbox_gather(handles)</code></strong> — Wait and return attributed results
+with handle, value, and output for each child.</p>
+<div class="highlight"><pre><span></span><code><span class="n">results</span> <span class="o">=</span> <span class="n">sandbox_gather</span><span class="p">(</span><span class="n">handles</span><span class="o">=</span><span class="p">[</span><span class="n">h1</span><span class="p">,</span> <span class="n">h2</span><span class="p">,</span> <span class="n">h3</span><span class="p">])</span>
+<span class="c1"># [{&#39;handle&#39;: 0, &#39;value&#39;: 10, &#39;output&#39;: None}, ...]</span>
+</code></pre></div>
+<p><strong><code>sandbox_is_alive(handle)</code></strong> — Check if a child is still running.</p>
+<p><strong><code>sandbox_free(handle)</code></strong> — Release a completed child's resources.</p>
+<p><strong><code>sandbox_get_output(handle)</code></strong> — Get a completed child's
+captured <code>print()</code> output.</p>
+<h3 id="sandbox-pattern">Sandbox Pattern</h3>
+<p>Parallel computation with result aggregation:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># Spawn 3 independent computations</span>
+<span class="n">h1</span> <span class="o">=</span> <span class="n">sandbox_spawn</span><span class="p">(</span><span class="n">code</span><span class="o">=</span><span class="s1">&#39;2 ** 16&#39;</span><span class="p">)</span>
+<span class="n">h2</span> <span class="o">=</span> <span class="n">sandbox_spawn</span><span class="p">(</span><span class="n">code</span><span class="o">=</span><span class="s1">&#39;sum(range(1000))&#39;</span><span class="p">)</span>
+<span class="n">h3</span> <span class="o">=</span> <span class="n">sandbox_spawn</span><span class="p">(</span><span class="n">code</span><span class="o">=</span><span class="s1">&#39;len([x for x in range(100) if x % 7 == 0])&#39;</span><span class="p">)</span>
+
+<span class="c1"># Wait for all and get attributed results</span>
+<span class="n">results</span> <span class="o">=</span> <span class="n">sandbox_gather</span><span class="p">(</span><span class="n">handles</span><span class="o">=</span><span class="p">[</span><span class="n">h1</span><span class="p">,</span> <span class="n">h2</span><span class="p">,</span> <span class="n">h3</span><span class="p">])</span>
+<span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">results</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Handle </span><span class="si">{</span><span class="n">r</span><span class="p">[</span><span class="s1">&#39;handle&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">r</span><span class="p">[</span><span class="s1">&#39;value&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="sandbox-configuration">Sandbox Configuration</h3>
+<div class="highlight"><pre><span></span><code><span class="n">SandboxExtension</span><span class="p">(</span>
+<span class="w">  </span><span class="nl">platformFactory:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="kd">async</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">MontyFfi</span><span class="p">(),</span><span class="w">  </span><span class="c1">// or MontyWasm()</span>
+<span class="w">  </span><span class="nl">parentExtensions:</span><span class="w"> </span><span class="p">[</span><span class="n">tmpl</span><span class="p">,</span><span class="w"> </span><span class="n">msgBus</span><span class="p">],</span><span class="w">  </span><span class="c1">// children inherit these</span>
+<span class="w">  </span><span class="nl">maxChildren:</span><span class="w"> </span><span class="m">16</span><span class="p">,</span><span class="w">       </span><span class="c1">// concurrent child limit</span>
+<span class="w">  </span><span class="nl">maxDepth:</span><span class="w"> </span><span class="m">3</span><span class="p">,</span><span class="w">           </span><span class="c1">// grandchild recursion limit</span>
+<span class="w">  </span><span class="nl">childLimits:</span><span class="w"> </span><span class="n">MontyLimits</span><span class="p">(</span>
+<span class="w">    </span><span class="nl">timeoutMs:</span><span class="w"> </span><span class="m">10000</span><span class="p">,</span>
+<span class="w">    </span><span class="nl">memoryBytes:</span><span class="w"> </span><span class="m">4</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="m">1024</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="m">1024</span><span class="p">,</span>
+<span class="w">  </span><span class="p">),</span>
+<span class="p">)</span>
+</code></pre></div>
+<hr />
+<h2 id="using-extensions-with-montyruntime">Using Extensions with MontyRuntime</h2>
+<div class="highlight"><pre><span></span><code><span class="kd">final</span><span class="w"> </span><span class="n">session</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">MontyRuntime</span><span class="p">(</span>
+<span class="w">  </span><span class="nl">extensions:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="n">JinjaTemplateExtension</span><span class="p">(),</span>
+<span class="w">    </span><span class="n">MessageBusExtension</span><span class="p">(),</span>
+<span class="w">    </span><span class="n">SandboxExtension</span><span class="p">(</span>
+<span class="w">      </span><span class="nl">platformFactory:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="kd">async</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">MontyFfi</span><span class="p">(),</span>
+<span class="w">      </span><span class="nl">parentExtensions:</span><span class="w"> </span><span class="p">[</span><span class="n">JinjaTemplateExtension</span><span class="p">()],</span>
+<span class="w">    </span><span class="p">),</span>
+<span class="w">  </span><span class="p">],</span>
+<span class="p">);</span>
+
+<span class="c1">// All extension functions are now available in Python</span>
+<span class="kd">await</span><span class="w"> </span><span class="n">session</span><span class="p">.</span><span class="n">run</span><span class="p">(</span><span class="s2">&quot;help()&quot;</span><span class="p">);</span><span class="w">  </span><span class="c1">// lists all functions</span>
+<span class="kd">await</span><span class="w"> </span><span class="n">session</span><span class="p">.</span><span class="n">run</span><span class="p">(</span><span class="s2">&quot;tmpl_render(template=&#39;{{ x }}&#39;, context={&#39;x&#39;: 1})&quot;</span><span class="p">);</span>
+<span class="kd">await</span><span class="w"> </span><span class="n">session</span><span class="p">.</span><span class="n">run</span><span class="p">(</span><span class="s2">&quot;msg_send(&#39;ch&#39;, &#39;hello&#39;)&quot;</span><span class="p">);</span>
+<span class="kd">await</span><span class="w"> </span><span class="n">session</span><span class="p">.</span><span class="n">run</span><span class="p">(</span><span class="s2">&quot;h = sandbox_spawn(code=&#39;42&#39;)&quot;</span><span class="p">);</span>
+
+<span class="kd">await</span><span class="w"> </span><span class="n">session</span><span class="p">.</span><span class="n">dispose</span><span class="p">();</span>
+</code></pre></div>
+<h2 id="writing-custom-extensions">Writing Custom Extensions</h2>
+<p>See the <a href="../tutorials/host-functions-intro.html">host functions guide</a> for
+how to create your own extensions with custom host functions.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.expand", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

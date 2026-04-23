@@ -241,8 +241,8 @@ if [ -d "$WASM_JS" ]; then
   npm install --silent
   npm run build 2>&1 | tail -1
 
-  cp "$ROOT/assets/dart_monty_bridge.js" "$WASM_INTEG/"
-  cp "$ROOT/assets/dart_monty_worker.js" "$WASM_INTEG/"
+  cp "$ROOT/assets/dart_monty_core_bridge.js" "$WASM_INTEG/"
+  cp "$ROOT/assets/dart_monty_core_worker.js" "$WASM_INTEG/"
   cp "$ROOT/assets/"*.wasm "$WASM_INTEG/"
 
   cd "$ROOT"
@@ -302,8 +302,8 @@ http.server.HTTPServer(('127.0.0.1', $SERVE_PORT), handler).serve_forever()
   echo "  Lines: $(wc -l < "$WASM_JSONL" | tr -d ' ')"
 
   # Clean up copied assets
-  rm -f "$WASM_INTEG/dart_monty_bridge.js" \
-        "$WASM_INTEG/dart_monty_worker.js" \
+  rm -f "$WASM_INTEG/dart_monty_core_bridge.js" \
+        "$WASM_INTEG/dart_monty_core_worker.js" \
         "$WASM_INTEG/"*.wasm \
         "$WASM_INTEG/ladder_runner.dart.js" \
         "$WASM_INTEG/ladder_runner.dart.js.deps" \

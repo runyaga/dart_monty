@@ -11,7 +11,7 @@
 set -euo pipefail
 
 ROOT="$(git rev-parse --show-toplevel)"
-BRIDGE="$ROOT/assets/dart_monty_bridge.js"
+BRIDGE="$ROOT/assets/dart_monty_core_bridge.js"
 BRIDGE_SRC="$ROOT/js/src/bridge.js"
 PASS=0
 FAIL=0

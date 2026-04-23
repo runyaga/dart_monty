@@ -1,0 +1,2957 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Pure Dart bindings for Monty, a restricted sandboxed Python interpreter built in Rust.">
+      
+      
+      
+      
+        <link rel="prev" href="internals.html">
+      
+      
+        <link rel="next" href="../contributor/setup.html">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>API Coverage Plan - dart_monty</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../extra.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#dart_monty-api-coverage-plan" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="dart_monty" class="md-header__button md-logo" aria-label="dart_monty" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            dart_monty
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              API Coverage Plan
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="dart_monty" class="md-nav__button md-logo" aria-label="dart_monty" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    dart_monty
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../help.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    User Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user/install.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user/repl.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    REPL
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user/extensions.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Extensions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user/api-reference.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorials
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tutorials
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorials/host-functions-intro.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Host Functions Intro
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorials/host-functions-beginner.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Host Functions Beginner
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorials/host-functions-intermediate.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Host Functions Intermediate
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorials/host-functions-advanced.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Host Functions Advanced
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorials/bridge-middleware.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bridge Middleware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorials/llm-prompt-rules.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LLM Prompt Rules
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorials/live-shape-negotiation-research.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Shape Negotiation Research
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deep Dives
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Deep Dives
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/overview.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../deep-dives/sandbox-architecture.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sandbox Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../deep-dives/oscall-vfs.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    OsCall / VFS Layer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../deep-dives/error-hierarchy.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Error Hierarchy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../deep-dives/lifecycles.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Lifecycle Management
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../deep-dives/extension-system.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Extension System
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Technical Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Technical Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="native-crate.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Native Crate (Rust)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="monty-rust-api.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Monty Rust API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ffi-handle-lifecycle.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FFI Handle Lifecycle
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="bridge-integration.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bridge Integration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="internals.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Internals
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Coverage Plan
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="api-coverage-plan.html" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Coverage Plan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-upstream-monty-surface-area" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Upstream monty Surface Area
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Upstream monty Surface Area">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#11-run-api-stateless-single-shot-execution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.1 Run API (stateless, single-shot execution)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#12-repl-api-stateful-incremental-execution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.2 REPL API (stateful, incremental execution)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#13-async-futures-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.3 Async / Futures API
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#14-resource-tracking" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.4 Resource Tracking
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#15-type-system-data-representation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.5 Type System &amp; Data Representation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#16-built-in-python-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.6 Built-in Python Functions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#17-standard-library-modules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.7 Standard Library Modules
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#18-javascript-bindings-monty-js-napi" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.8 JavaScript Bindings (monty-js / NAPI)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-what-dart_monty-currently-supports" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. What dart_monty Currently Supports
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. What dart_monty Currently Supports">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#21-platform-interface-montyplatform" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1 Platform Interface (MontyPlatform)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#22-data-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.2 Data Models
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#23-implementations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.3 Implementations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#24-native-c-ffi-functions-17-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.4 Native C FFI Functions (17 functions)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-what-dart_monty-does-not-support" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. What dart_monty Does NOT Support
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. What dart_monty Does NOT Support">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#31-missing-api-surfaces" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.1 Missing API Surfaces
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#32-missing-data-fidelity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.2 Missing Data Fidelity
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#33-missing-parameters-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.3 Missing Parameters &amp; Options
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-coverage-matrix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Coverage Matrix
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-prioritized-gaps-for-future-work" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Prioritized Gaps for Future Work
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Prioritized Gaps for Future Work">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#tier-1-high-value-moderate-effort" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tier 1 — High Value, Moderate Effort
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tier-2-new-api-surface-higher-effort" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tier 2 — New API Surface, Higher Effort
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tier-3-nice-to-have" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tier 3 — Nice to Have
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Contributing
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contributor/setup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contributor/testing.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contributor/native-build.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Native Build
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-upstream-monty-surface-area" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Upstream monty Surface Area
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Upstream monty Surface Area">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#11-run-api-stateless-single-shot-execution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.1 Run API (stateless, single-shot execution)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#12-repl-api-stateful-incremental-execution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.2 REPL API (stateful, incremental execution)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#13-async-futures-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.3 Async / Futures API
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#14-resource-tracking" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.4 Resource Tracking
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#15-type-system-data-representation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.5 Type System &amp; Data Representation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#16-built-in-python-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.6 Built-in Python Functions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#17-standard-library-modules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.7 Standard Library Modules
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#18-javascript-bindings-monty-js-napi" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.8 JavaScript Bindings (monty-js / NAPI)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-what-dart_monty-currently-supports" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. What dart_monty Currently Supports
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. What dart_monty Currently Supports">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#21-platform-interface-montyplatform" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1 Platform Interface (MontyPlatform)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#22-data-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.2 Data Models
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#23-implementations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.3 Implementations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#24-native-c-ffi-functions-17-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.4 Native C FFI Functions (17 functions)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-what-dart_monty-does-not-support" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. What dart_monty Does NOT Support
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. What dart_monty Does NOT Support">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#31-missing-api-surfaces" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.1 Missing API Surfaces
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#32-missing-data-fidelity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.2 Missing Data Fidelity
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#33-missing-parameters-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.3 Missing Parameters &amp; Options
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-coverage-matrix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Coverage Matrix
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-prioritized-gaps-for-future-work" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Prioritized Gaps for Future Work
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Prioritized Gaps for Future Work">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#tier-1-high-value-moderate-effort" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tier 1 — High Value, Moderate Effort
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tier-2-new-api-surface-higher-effort" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tier 2 — New API Surface, Higher Effort
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tier-3-nice-to-have" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tier 3 — Nice to Have
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="dart_monty-api-coverage-plan">dart_monty API Coverage Plan</h1>
+<blockquote>
+<p><strong>Fork notice:</strong> dart_monty currently builds against <a href="https://github.com/runyaga/monty"><code>runyaga/monty</code></a> (branch <code>runyaga/main</code>), a fork of <a href="https://github.com/pydantic/monty"><code>pydantic/monty</code></a>. The fork carries patches required for embedding that are not yet upstream.</p>
+<table>
+<thead>
+<tr>
+<th>Patch</th>
+<th>Upstream PR</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Fix partial future resolution panics in mixed <code>asyncio.gather()</code></td>
+<td><a href="https://github.com/pydantic/monty/pull/251">pydantic/monty#251</a></td>
+<td>Awaiting review</td>
+</tr>
+<tr>
+<td><code>cpu: wasm32</code> restriction in <code>monty-wasm32-wasi</code> npm package</td>
+<td><a href="https://github.com/runyaga/monty/issues/4">runyaga/monty#4</a></td>
+<td>Open issue</td>
+</tr>
+</tbody>
+</table>
+</blockquote>
+<h2 id="1-upstream-monty-surface-area">1. Upstream monty Surface Area</h2>
+<p>pydantic/monty is a sandboxed Python interpreter written in Rust, designed
+for AI agent tool execution. It provides six major API surfaces plus
+serialization of in-flight execution state.</p>
+<h3 id="11-run-api-stateless-single-shot-execution">1.1 Run API (stateless, single-shot execution)</h3>
+<p>The primary entry point for executing self-contained Python scripts.</p>
+<table>
+<thead>
+<tr>
+<th>Rust Type</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>MontyRun</code></td>
+<td>Compiles Python source; holds bytecode for repeated execution</td>
+</tr>
+<tr>
+<td><code>RunProgress&lt;T&gt;</code></td>
+<td>Enum yielded during iterative execution</td>
+</tr>
+<tr>
+<td><code>Snapshot&lt;T&gt;</code></td>
+<td>Paused execution state at an external call boundary</td>
+</tr>
+<tr>
+<td><code>ExternalResult</code></td>
+<td>Host response: <code>Return(MontyObject)</code>, <code>Error(MontyException)</code>, or <code>Future</code></td>
+</tr>
+<tr>
+<td><code>PrintWriter</code></td>
+<td>Output capture: <code>Disabled</code>, <code>Stdout</code>, <code>Collect(String)</code>, <code>Callback(...)</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Key methods:</strong></p>
+<div class="highlight"><pre><span></span><code><span class="n">MontyRun</span><span class="p">::</span><span class="n">new</span><span class="p">(</span><span class="n">code</span><span class="p">,</span><span class="w"> </span><span class="n">script_name</span><span class="p">,</span><span class="w"> </span><span class="n">input_names</span><span class="p">,</span><span class="w"> </span><span class="n">external_functions</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="bp">Self</span><span class="p">,</span><span class="w"> </span><span class="n">MontyException</span><span class="o">&gt;</span>
+<span class="n">MontyRun</span><span class="p">::</span><span class="n">run</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">inputs</span><span class="p">,</span><span class="w"> </span><span class="n">tracker</span><span class="p">,</span><span class="w"> </span><span class="n">print</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="n">MontyObject</span><span class="p">,</span><span class="w"> </span><span class="n">MontyException</span><span class="o">&gt;</span>
+<span class="n">MontyRun</span><span class="p">::</span><span class="n">run_no_limits</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">inputs</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="n">MontyObject</span><span class="p">,</span><span class="w"> </span><span class="n">MontyException</span><span class="o">&gt;</span>
+<span class="n">MontyRun</span><span class="p">::</span><span class="n">start</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">inputs</span><span class="p">,</span><span class="w"> </span><span class="n">tracker</span><span class="p">,</span><span class="w"> </span><span class="n">print</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="n">RunProgress</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="n">MontyException</span><span class="o">&gt;</span>
+<span class="n">MontyRun</span><span class="p">::</span><span class="n">dump</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="nb">Vec</span><span class="o">&lt;</span><span class="kt">u8</span><span class="o">&gt;&gt;</span>
+<span class="n">MontyRun</span><span class="p">::</span><span class="n">load</span><span class="p">(</span><span class="n">bytes</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="bp">Self</span><span class="o">&gt;</span>
+<span class="n">MontyRun</span><span class="p">::</span><span class="n">code</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="kp">&amp;</span><span class="kt">str</span>
+
+<span class="nc">Snapshot</span><span class="p">::</span><span class="n">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">result</span><span class="p">,</span><span class="w"> </span><span class="n">print</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="n">RunProgress</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="n">MontyException</span><span class="o">&gt;</span>
+<span class="n">Snapshot</span><span class="p">::</span><span class="n">run_pending</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">print</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="n">RunProgress</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="n">MontyException</span><span class="o">&gt;</span>
+<span class="n">Snapshot</span><span class="p">::</span><span class="n">tracker_mut</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="kp">&amp;</span><span class="nc">mut</span><span class="w"> </span><span class="n">T</span>
+
+<span class="n">RunProgress</span><span class="p">::</span><span class="n">dump</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="nb">Vec</span><span class="o">&lt;</span><span class="kt">u8</span><span class="o">&gt;&gt;</span><span class="w">   </span><span class="c1">// serialize in-flight state</span>
+<span class="n">RunProgress</span><span class="p">::</span><span class="n">load</span><span class="p">(</span><span class="n">bytes</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="bp">Self</span><span class="o">&gt;</span><span class="w">       </span><span class="c1">// restore in-flight state</span>
+</code></pre></div>
+<blockquote>
+<p><strong>Note:</strong> <code>MontyRun::run()</code> takes <code>&amp;self</code> (non-consuming) and cannot
+handle external function calls — use <code>start()</code>/<code>resume()</code> for those.
+The JS bindings implement this workaround internally; Dart should
+mirror it.</p>
+</blockquote>
+<p><strong>RunProgress variants:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Variant</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>FunctionCall { function_name, args, kwargs, call_id, method_call, state }</code></td>
+<td>Paused at external function call</td>
+</tr>
+<tr>
+<td><code>OsCall { function, args, kwargs, call_id, state }</code></td>
+<td>Paused at OS operation</td>
+</tr>
+<tr>
+<td><code>ResolveFutures(FutureSnapshot&lt;T&gt;)</code></td>
+<td>Paused waiting for async futures</td>
+</tr>
+<tr>
+<td><code>Complete(MontyObject)</code></td>
+<td>Execution finished</td>
+</tr>
+</tbody>
+</table>
+<h3 id="12-repl-api-stateful-incremental-execution">1.2 REPL API (stateful, incremental execution)</h3>
+<p>Maintains persistent heap and namespace across multiple code snippets.</p>
+<table>
+<thead>
+<tr>
+<th>Rust Type</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>MontyRepl&lt;T&gt;</code></td>
+<td>Stateful session; variables survive across <code>feed()</code> calls</td>
+</tr>
+<tr>
+<td><code>ReplProgress&lt;T&gt;</code></td>
+<td>Same shape as <code>RunProgress</code> but returns the REPL for reuse</td>
+</tr>
+<tr>
+<td><code>ReplSnapshot&lt;T&gt;</code></td>
+<td>Paused REPL state at external call boundary</td>
+</tr>
+<tr>
+<td><code>ReplFutureSnapshot&lt;T&gt;</code></td>
+<td>Paused REPL state waiting for async futures</td>
+</tr>
+<tr>
+<td><code>ReplStartError&lt;T&gt;</code></td>
+<td>Error that preserves REPL state for recovery</td>
+</tr>
+<tr>
+<td><code>ReplContinuationMode</code></td>
+<td>Parse state: <code>Complete</code>, <code>IncompleteImplicit</code>, <code>IncompleteBlock</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Key methods:</strong></p>
+<div class="highlight"><pre><span></span><code><span class="n">MontyRepl</span><span class="p">::</span><span class="n">new</span><span class="p">(</span><span class="n">code</span><span class="p">,</span><span class="w"> </span><span class="n">script_name</span><span class="p">,</span><span class="w"> </span><span class="n">inputs</span><span class="p">,</span><span class="w"> </span><span class="n">ext_fns</span><span class="p">,</span><span class="w"> </span><span class="o">..</span><span class="p">.)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="p">(</span><span class="bp">Self</span><span class="p">,</span><span class="w"> </span><span class="n">MontyObject</span><span class="p">),</span><span class="w"> </span><span class="n">MontyException</span><span class="o">&gt;</span>
+<span class="n">MontyRepl</span><span class="p">::</span><span class="n">start</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">code</span><span class="p">,</span><span class="w"> </span><span class="n">print</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="n">ReplProgress</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="nb">Box</span><span class="o">&lt;</span><span class="n">ReplStartError</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;&gt;&gt;</span>
+<span class="n">MontyRepl</span><span class="p">::</span><span class="n">feed</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">code</span><span class="p">,</span><span class="w"> </span><span class="n">print</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="n">MontyObject</span><span class="p">,</span><span class="w"> </span><span class="n">MontyException</span><span class="o">&gt;</span>
+<span class="n">MontyRepl</span><span class="p">::</span><span class="n">dump</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="nb">Vec</span><span class="o">&lt;</span><span class="kt">u8</span><span class="o">&gt;&gt;</span>
+<span class="n">MontyRepl</span><span class="p">::</span><span class="n">load</span><span class="p">(</span><span class="n">bytes</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="bp">Self</span><span class="o">&gt;</span>
+
+<span class="n">ReplSnapshot</span><span class="p">::</span><span class="n">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">result</span><span class="p">,</span><span class="w"> </span><span class="n">print</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="n">ReplProgress</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="nb">Box</span><span class="o">&lt;</span><span class="n">ReplStartError</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;&gt;&gt;</span>
+<span class="n">ReplSnapshot</span><span class="p">::</span><span class="n">run_pending</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">print</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="n">ReplProgress</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="nb">Box</span><span class="o">&lt;</span><span class="n">ReplStartError</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;&gt;&gt;</span>
+
+<span class="n">ReplProgress</span><span class="p">::</span><span class="n">dump</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="nb">Vec</span><span class="o">&lt;</span><span class="kt">u8</span><span class="o">&gt;&gt;</span><span class="w">   </span><span class="c1">// serialize in-flight REPL state</span>
+<span class="n">ReplProgress</span><span class="p">::</span><span class="n">load</span><span class="p">(</span><span class="n">bytes</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="bp">Self</span><span class="o">&gt;</span><span class="w">       </span><span class="c1">// restore in-flight REPL state</span>
+
+<span class="n">detect_repl_continuation_mode</span><span class="p">(</span><span class="n">source</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nc">ReplContinuationMode</span>
+</code></pre></div>
+<blockquote>
+<p><strong>Note:</strong> <code>MontyRepl::new()</code> also requires <code>inputs</code>, a
+<code>ResourceTracker</code>, and a <code>PrintWriter</code> — the REPL session is fully
+resource-tracked from initialization.</p>
+</blockquote>
+<h3 id="13-async-futures-api">1.3 Async / Futures API</h3>
+<p>Cooperative multitasking where the host acts as the event loop.</p>
+<table>
+<thead>
+<tr>
+<th>Rust Type</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>FutureSnapshot&lt;T&gt;</code></td>
+<td>VM paused waiting on external futures (run API)</td>
+</tr>
+<tr>
+<td><code>ReplFutureSnapshot&lt;T&gt;</code></td>
+<td>VM paused waiting on external futures (REPL API)</td>
+</tr>
+<tr>
+<td><code>MontyFuture</code></td>
+<td>Marker type for <code>ExternalResult::Future</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Key methods:</strong></p>
+<div class="highlight"><pre><span></span><code><span class="n">FutureSnapshot</span><span class="p">::</span><span class="n">pending_call_ids</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="kp">&amp;</span><span class="p">[</span><span class="kt">u32</span><span class="p">]</span>
+<span class="n">FutureSnapshot</span><span class="p">::</span><span class="n">resume</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">results</span><span class="p">:</span><span class="w"> </span><span class="nb">Vec</span><span class="o">&lt;</span><span class="p">(</span><span class="kt">u32</span><span class="p">,</span><span class="w"> </span><span class="n">ExternalResult</span><span class="p">)</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="n">print</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="n">RunProgress</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;&gt;</span>
+
+<span class="n">ReplFutureSnapshot</span><span class="p">::</span><span class="n">pending_call_ids</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="kp">&amp;</span><span class="p">[</span><span class="kt">u32</span><span class="p">]</span>
+<span class="n">ReplFutureSnapshot</span><span class="p">::</span><span class="n">resume</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">results</span><span class="p">:</span><span class="w"> </span><span class="nb">Vec</span><span class="o">&lt;</span><span class="p">(</span><span class="kt">u32</span><span class="p">,</span><span class="w"> </span><span class="n">ExternalResult</span><span class="p">)</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="n">print</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="n">ReplProgress</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;&gt;</span>
+</code></pre></div>
+<p><strong>Flow:</strong> Host returns <code>ExternalResult::Future</code> from a function call -&gt;
+Python code <code>await</code>s the future -&gt; VM yields <code>ResolveFutures</code> when all
+tasks are blocked -&gt; host resolves futures -&gt; VM resumes.</p>
+<h3 id="14-resource-tracking">1.4 Resource Tracking</h3>
+<table>
+<thead>
+<tr>
+<th>Rust Type</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ResourceTracker</code> (trait)</td>
+<td>Interface for allocation/time/recursion checking</td>
+</tr>
+<tr>
+<td><code>ResourceLimits</code></td>
+<td>Builder for configuring limits</td>
+</tr>
+<tr>
+<td><code>LimitedTracker</code></td>
+<td>Production tracker enforcing limits</td>
+</tr>
+<tr>
+<td><code>NoLimitTracker</code></td>
+<td>No memory/time limits, but still enforces recursion depth (1000)</td>
+</tr>
+<tr>
+<td><code>ResourceError</code></td>
+<td>Enum: <code>Allocation</code>, <code>Time</code>, <code>Memory</code>, <code>Recursion</code>, <code>Exception</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Additional public methods:</strong></p>
+<div class="highlight"><pre><span></span><code><span class="n">LimitedTracker</span><span class="p">::</span><span class="n">set_max_duration</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">duration</span><span class="p">:</span><span class="w"> </span><span class="nc">Duration</span><span class="p">)</span><span class="w">  </span><span class="c1">// re-arm time limit between phases</span>
+<span class="n">ResourceTracker</span><span class="p">::</span><span class="n">check_large_result</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">estimated_bytes</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="p">(),</span><span class="w"> </span><span class="n">ResourceError</span><span class="o">&gt;</span>
+</code></pre></div>
+<p><strong>ResourceLimits fields:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>max_allocations</code></td>
+<td><code>usize</code></td>
+<td>Max heap allocations</td>
+</tr>
+<tr>
+<td><code>max_duration</code></td>
+<td><code>Duration</code></td>
+<td>Max wall-clock time</td>
+</tr>
+<tr>
+<td><code>max_memory</code></td>
+<td><code>usize</code></td>
+<td>Max memory in bytes</td>
+</tr>
+<tr>
+<td><code>gc_interval</code></td>
+<td><code>usize</code></td>
+<td>Allocations between GC sweeps</td>
+</tr>
+<tr>
+<td><code>max_recursion_depth</code></td>
+<td><code>Option&lt;usize&gt;</code></td>
+<td>Stack depth limit (default 1000)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="15-type-system-data-representation">1.5 Type System &amp; Data Representation</h3>
+<p><strong>MontyObject variants:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Variant</th>
+<th>Rust Payload</th>
+<th>Python Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>None</code></td>
+<td>—</td>
+<td><code>None</code></td>
+</tr>
+<tr>
+<td><code>Ellipsis</code></td>
+<td>—</td>
+<td><code>...</code></td>
+</tr>
+<tr>
+<td><code>Bool(bool)</code></td>
+<td><code>bool</code></td>
+<td><code>bool</code></td>
+</tr>
+<tr>
+<td><code>Int(i64)</code></td>
+<td><code>i64</code></td>
+<td><code>int</code></td>
+</tr>
+<tr>
+<td><code>BigInt(BigInt)</code></td>
+<td><code>num_bigint::BigInt</code></td>
+<td><code>int</code> (arbitrary precision)</td>
+</tr>
+<tr>
+<td><code>Float(f64)</code></td>
+<td><code>f64</code></td>
+<td><code>float</code></td>
+</tr>
+<tr>
+<td><code>String(String)</code></td>
+<td><code>String</code></td>
+<td><code>str</code></td>
+</tr>
+<tr>
+<td><code>Bytes(Vec&lt;u8&gt;)</code></td>
+<td><code>Vec&lt;u8&gt;</code></td>
+<td><code>bytes</code></td>
+</tr>
+<tr>
+<td><code>List(Vec&lt;Self&gt;)</code></td>
+<td><code>Vec&lt;MontyObject&gt;</code></td>
+<td><code>list</code></td>
+</tr>
+<tr>
+<td><code>Tuple(Vec&lt;Self&gt;)</code></td>
+<td><code>Vec&lt;MontyObject&gt;</code></td>
+<td><code>tuple</code></td>
+</tr>
+<tr>
+<td><code>NamedTuple { type_name, field_names, values }</code></td>
+<td>structured</td>
+<td><code>namedtuple</code></td>
+</tr>
+<tr>
+<td><code>Dict(DictPairs)</code></td>
+<td>ordered k/v pairs</td>
+<td><code>dict</code></td>
+</tr>
+<tr>
+<td><code>Set(Vec&lt;Self&gt;)</code></td>
+<td><code>Vec&lt;MontyObject&gt;</code></td>
+<td><code>set</code></td>
+</tr>
+<tr>
+<td><code>FrozenSet(Vec&lt;Self&gt;)</code></td>
+<td><code>Vec&lt;MontyObject&gt;</code></td>
+<td><code>frozenset</code></td>
+</tr>
+<tr>
+<td><code>Exception { exc_type, arg }</code></td>
+<td><code>ExcType</code> + message</td>
+<td>exception object</td>
+</tr>
+<tr>
+<td><code>Type(Type)</code></td>
+<td>type marker</td>
+<td><code>type</code></td>
+</tr>
+<tr>
+<td><code>BuiltinFunction(...)</code></td>
+<td>function marker</td>
+<td>built-in function</td>
+</tr>
+<tr>
+<td><code>Path(String)</code></td>
+<td><code>String</code></td>
+<td><code>pathlib.Path</code></td>
+</tr>
+<tr>
+<td><code>Dataclass { name, type_id, field_names, attrs, frozen }</code></td>
+<td>structured</td>
+<td><code>@dataclass</code></td>
+</tr>
+<tr>
+<td><code>Repr(String)</code></td>
+<td>display string</td>
+<td>non-serializable repr</td>
+</tr>
+<tr>
+<td><code>Cycle(HeapId, String)</code></td>
+<td>cycle marker</td>
+<td>circular reference</td>
+</tr>
+</tbody>
+</table>
+<p><strong>MontyException:</strong></p>
+<div class="highlight"><pre><span></span><code><span class="n">MontyException</span><span class="p">::</span><span class="n">exc_type</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nc">ExcType</span>
+<span class="n">MontyException</span><span class="p">::</span><span class="n">message</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Option</span><span class="o">&lt;&amp;</span><span class="kt">str</span><span class="o">&gt;</span>
+<span class="n">MontyException</span><span class="p">::</span><span class="n">traceback</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="kp">&amp;</span><span class="p">[</span><span class="n">StackFrame</span><span class="p">]</span>
+<span class="n">MontyException</span><span class="p">::</span><span class="n">summary</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">String</span>
+<span class="nc">MontyException</span><span class="p">::</span><span class="n">py_repr</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">String</span>
+</code></pre></div>
+<p><strong>StackFrame:</strong></p>
+<div class="highlight"><pre><span></span><code><span class="k">pub</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">StackFrame</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">filename</span><span class="p">:</span><span class="w"> </span><span class="nb">String</span><span class="p">,</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">start</span><span class="p">:</span><span class="w"> </span><span class="nc">CodeLoc</span><span class="p">,</span><span class="w">      </span><span class="c1">// { line: u16, column: u16 }</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">end</span><span class="p">:</span><span class="w"> </span><span class="nc">CodeLoc</span><span class="p">,</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">frame_name</span><span class="p">:</span><span class="w"> </span><span class="nb">Option</span><span class="o">&lt;</span><span class="nb">String</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">preview_line</span><span class="p">:</span><span class="w"> </span><span class="nb">Option</span><span class="o">&lt;</span><span class="nb">String</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">hide_caret</span><span class="p">:</span><span class="w"> </span><span class="kt">bool</span><span class="p">,</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">hide_frame_name</span><span class="p">:</span><span class="w"> </span><span class="kt">bool</span><span class="p">,</span>
+<span class="p">}</span>
+</code></pre></div>
+<p><strong>ExcType variants:</strong> <code>Exception</code>, <code>BaseException</code>, <code>SystemExit</code>,
+<code>KeyboardInterrupt</code>, <code>ArithmeticError</code>, <code>OverflowError</code>,
+<code>ZeroDivisionError</code>, <code>LookupError</code>, <code>IndexError</code>, <code>KeyError</code>,
+<code>RuntimeError</code>, <code>NotImplementedError</code>, <code>RecursionError</code>,
+<code>AttributeError</code>, <code>FrozenInstanceError</code>, <code>NameError</code>,
+<code>UnboundLocalError</code>, <code>ValueError</code>, <code>UnicodeDecodeError</code>, <code>ImportError</code>,
+<code>ModuleNotFoundError</code>, <code>OSError</code>, <code>FileNotFoundError</code>,
+<code>FileExistsError</code>, <code>IsADirectoryError</code>, <code>NotADirectoryError</code>,
+<code>AssertionError</code>, <code>MemoryError</code>, <code>StopIteration</code>, <code>SyntaxError</code>,
+<code>TimeoutError</code>, <code>TypeError</code></p>
+<h3 id="16-built-in-python-functions">1.6 Built-in Python Functions</h3>
+<p><code>abs</code>, <code>all</code>, <code>any</code>, <code>bin</code>, <code>chr</code>, <code>divmod</code>, <code>enumerate</code>, <code>hash</code>,
+<code>hex</code>, <code>id</code>, <code>isinstance</code>, <code>len</code>, <code>map</code>, <code>max</code>, <code>min</code>, <code>next</code>, <code>oct</code>,
+<code>ord</code>, <code>pow</code>, <code>print</code>, <code>repr</code>, <code>reversed</code>, <code>round</code>, <code>sorted</code>, <code>sum</code>,
+<code>type</code>, <code>zip</code></p>
+<p>Type constructors: <code>bool</code>, <code>bytearray</code>, <code>bytes</code>, <code>complex</code>, <code>dict</code>,
+<code>float</code>, <code>frozenset</code>, <code>int</code>, <code>list</code>, <code>memoryview</code>, <code>object</code>, <code>range</code>,
+<code>set</code>, <code>str</code>, <code>tuple</code></p>
+<h3 id="17-standard-library-modules">1.7 Standard Library Modules</h3>
+<table>
+<thead>
+<tr>
+<th>Module</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sys</code></td>
+<td>Supported (<code>platform</code>, <code>stdout</code>, <code>stderr</code>, <code>version</code>, <code>version_info</code>)</td>
+</tr>
+<tr>
+<td><code>typing</code></td>
+<td>Supported (type hints)</td>
+</tr>
+<tr>
+<td><code>asyncio</code></td>
+<td>Supported (<code>gather</code>, coroutine scheduling)</td>
+</tr>
+<tr>
+<td><code>pathlib</code></td>
+<td>Supported (<code>Path</code> class)</td>
+</tr>
+<tr>
+<td><code>os</code></td>
+<td>Supported (sandboxed: yields <code>OsCall</code> to host for <code>environ</code>, <code>getenv</code>, <code>stat</code>, <code>dir_stat</code>, <code>file_stat</code>, <code>symlink_stat</code>)</td>
+</tr>
+<tr>
+<td><code>dataclasses</code></td>
+<td>Coming soon</td>
+</tr>
+<tr>
+<td><code>json</code></td>
+<td>Coming soon</td>
+</tr>
+</tbody>
+</table>
+<h3 id="18-javascript-bindings-monty-js-napi">1.8 JavaScript Bindings (monty-js / NAPI)</h3>
+<table>
+<thead>
+<tr>
+<th>Class</th>
+<th>Methods</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Monty</code></td>
+<td><code>create</code>, <code>run</code>, <code>start</code>, <code>dump</code>, <code>load</code>, <code>typeCheck(prefixCode?)</code>, <code>repr</code>, getters: <code>scriptName</code>, <code>inputs</code>, <code>externalFunctions</code></td>
+</tr>
+<tr>
+<td><code>MontyRepl</code></td>
+<td><code>create</code>, <code>feed</code>, <code>dump</code>, <code>load</code>, getter: <code>scriptName</code>, <code>repr</code></td>
+</tr>
+<tr>
+<td><code>MontySnapshot</code></td>
+<td><code>resume</code>, <code>dump</code>, <code>load</code>, getters: <code>scriptName</code>, <code>functionName</code>, <code>args</code>, <code>kwargs</code>, <code>repr</code></td>
+</tr>
+<tr>
+<td><code>MontyComplete</code></td>
+<td>getter: <code>output</code>, <code>repr</code></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="2-what-dart_monty-currently-supports">2. What dart_monty Currently Supports</h2>
+<h3 id="21-platform-interface-montyplatform">2.1 Platform Interface (<code>MontyPlatform</code>)</h3>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Maps To</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>run(code, inputs, limits)</code></td>
+<td><code>MontyRun::new</code> + <code>MontyRun::run</code> (no external functions)</td>
+<td>Supported</td>
+</tr>
+<tr>
+<td><code>start(code, inputs, externalFunctions, limits)</code></td>
+<td><code>MontyRun::new</code> + <code>MontyRun::start</code></td>
+<td>Supported</td>
+</tr>
+<tr>
+<td><code>resume(returnValue)</code></td>
+<td><code>Snapshot::run(ExternalResult::Return)</code></td>
+<td>Supported</td>
+</tr>
+<tr>
+<td><code>resumeWithError(errorMessage)</code></td>
+<td><code>Snapshot::run(ExternalResult::Error)</code></td>
+<td>Supported</td>
+</tr>
+<tr>
+<td><code>snapshot()</code></td>
+<td><code>MontyRun::dump</code></td>
+<td>Supported</td>
+</tr>
+<tr>
+<td><code>restore(data)</code></td>
+<td><code>MontyRun::load</code></td>
+<td>Supported</td>
+</tr>
+<tr>
+<td><code>dispose()</code></td>
+<td>Drop <code>MontyHandle</code></td>
+<td>Supported</td>
+</tr>
+</tbody>
+</table>
+<h3 id="22-data-models">2.2 Data Models</h3>
+<table>
+<thead>
+<tr>
+<th>Dart Model</th>
+<th>Maps To</th>
+<th>Coverage</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>MontyResult</code></td>
+<td><code>RunProgress::Complete</code> + tracker stats</td>
+<td><code>value</code>, <code>error</code>, <code>usage</code>, <code>printOutput</code></td>
+</tr>
+<tr>
+<td><code>MontyException</code></td>
+<td><code>MontyException</code> (Rust)</td>
+<td><code>message</code>, <code>filename</code>, <code>lineNumber</code>, <code>columnNumber</code>, <code>sourceCode</code> (maps to <code>StackFrame::preview_line</code>) — <strong>single frame only</strong></td>
+</tr>
+<tr>
+<td><code>MontyProgress</code></td>
+<td><code>RunProgress&lt;T&gt;</code></td>
+<td><code>MontyComplete</code> and <code>MontyPending</code> variants</td>
+</tr>
+<tr>
+<td><code>MontyPending</code></td>
+<td><code>RunProgress::FunctionCall</code></td>
+<td><code>functionName</code>, <code>arguments</code> — <strong>no kwargs, call_id, method_call</strong></td>
+</tr>
+<tr>
+<td><code>MontyLimits</code></td>
+<td><code>ResourceLimits</code></td>
+<td><code>memoryBytes</code>, <code>time</code>, <code>stackDepth</code></td>
+</tr>
+<tr>
+<td><code>MontyResourceUsage</code></td>
+<td><code>LimitedTracker</code> stats</td>
+<td><code>memoryBytesUsed</code>, <code>timeElapsedMs</code>, <code>stackDepthUsed</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="23-implementations">2.3 Implementations</h3>
+<table>
+<thead>
+<tr>
+<th>Package</th>
+<th>Backend</th>
+<th>Platform</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>dart_monty_ffi</code></td>
+<td><code>dart:ffi</code> -&gt; C FFI -&gt; Rust <code>MontyRun</code></td>
+<td>Desktop (macOS, Linux)</td>
+</tr>
+<tr>
+<td><code>dart_monty_wasm</code></td>
+<td><code>dart:js_interop</code> -&gt; monty-js NAPI -&gt; WASM</td>
+<td>Web (Chrome)</td>
+</tr>
+<tr>
+<td><code>dart_monty_native</code></td>
+<td>Legacy Flutter extension shim (delegates to <code>dart_monty_ffi</code>)</td>
+<td>Flutter desktop (deprecated)</td>
+</tr>
+<tr>
+<td><code>dart_monty_web</code></td>
+<td>Legacy Flutter extension shim (delegates to <code>dart_monty_wasm</code>)</td>
+<td>Flutter web (deprecated)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="24-native-c-ffi-functions-17-functions">2.4 Native C FFI Functions (17 functions)</h3>
+<div class="highlight"><pre><span></span><code>monty_create, monty_free, monty_run,
+monty_start, monty_resume, monty_resume_with_error,
+monty_pending_fn_name, monty_pending_fn_args_json,
+monty_complete_result_json, monty_complete_is_error,
+monty_snapshot, monty_restore,
+monty_set_memory_limit, monty_set_time_limit_ms, monty_set_stack_limit,
+monty_string_free, monty_bytes_free
+</code></pre></div>
+<hr />
+<h2 id="3-what-dart_monty-does-not-support">3. What dart_monty Does NOT Support</h2>
+<h3 id="31-missing-api-surfaces">3.1 Missing API Surfaces</h3>
+<table>
+<thead>
+<tr>
+<th>Gap</th>
+<th>Upstream Feature</th>
+<th>Impact</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>REPL API</strong></td>
+<td><code>MontyRepl</code>, <code>ReplProgress</code>, <code>feed()</code>, session persistence</td>
+<td>Cannot build interactive Python consoles or incremental execution sessions</td>
+</tr>
+<tr>
+<td><strong>Async / Futures</strong></td>
+<td><code>RunProgress::ResolveFutures</code>, <code>FutureSnapshot</code>, <code>ExternalResult::Future</code></td>
+<td>Cannot support Python <code>async</code>/<code>await</code> or concurrent external calls</td>
+</tr>
+<tr>
+<td><strong>OS Calls</strong></td>
+<td><code>RunProgress::OsCall</code>, <code>OsFunction</code> (<code>GetEnviron</code>, <code>Getenv</code>)</td>
+<td>Python <code>os.environ</code> / <code>os.getenv()</code> calls will fail</td>
+</tr>
+<tr>
+<td><strong>Type Checking</strong></td>
+<td>JS: <code>Monty.typeCheck(prefixCode?)</code>, Rust: <code>monty-type-checking</code> crate</td>
+<td>No static analysis before execution</td>
+</tr>
+<tr>
+<td><strong>Live Print Streaming</strong></td>
+<td><code>PrintWriter::Callback</code>, <code>PrintWriter::Stdout</code></td>
+<td>Print output only available after execution completes, not in real-time</td>
+</tr>
+</tbody>
+</table>
+<h3 id="32-missing-data-fidelity">3.2 Missing Data Fidelity</h3>
+<table>
+<thead>
+<tr>
+<th>Gap</th>
+<th>Detail</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>kwargs</strong></td>
+<td><code>MontyPending</code> drops keyword arguments entirely; only positional <code>args</code> are exposed</td>
+</tr>
+<tr>
+<td><strong>call_id</strong></td>
+<td>External call identifier not exposed; prevents future correlation for async</td>
+</tr>
+<tr>
+<td><strong>method_call</strong></td>
+<td>Boolean flag distinguishing <code>obj.method()</code> from <code>func()</code> not exposed</td>
+</tr>
+<tr>
+<td><strong>Full tracebacks</strong></td>
+<td>Only top stack frame exposed (<code>filename</code>, <code>lineNumber</code>); full <code>Vec&lt;StackFrame&gt;</code> with <code>frame_name</code>, <code>start</code>/<code>end</code> locations, preview lines are lost</td>
+</tr>
+<tr>
+<td><strong>Exception types</strong></td>
+<td><code>ExcType</code> enum (ValueError, TypeError, etc.) merged into message string; cannot programmatically distinguish exception types</td>
+</tr>
+<tr>
+<td><strong>NamedTuple</strong></td>
+<td>Collapses to generic <code>Map</code>; <code>type_name</code> and <code>field_names</code> lost</td>
+</tr>
+<tr>
+<td><strong>Dataclass</strong></td>
+<td>Collapses to generic <code>Map</code>; <code>name</code>, <code>type_id</code>, <code>frozen</code>, <code>field_names</code> lost</td>
+</tr>
+<tr>
+<td><strong>Set / FrozenSet</strong></td>
+<td>Collapse to <code>List</code>; upstream uses <code>$set</code>/<code>$frozenset</code> JSON tags but our C FFI bridge discards them</td>
+</tr>
+<tr>
+<td><strong>Tuple vs List</strong></td>
+<td>Both become Dart <code>List</code>; upstream uses <code>$tuple</code> JSON tag but our bridge discards it</td>
+</tr>
+<tr>
+<td><strong>Bytes</strong></td>
+<td>Upstream uses <code>$bytes</code> JSON tag; our bridge collapses to array of ints, no <code>Uint8List</code> mapping</td>
+</tr>
+<tr>
+<td><strong>BigInt</strong></td>
+<td>Serialized as number (if fits i64) or string; no automatic <code>BigInt</code> parsing in Dart</td>
+</tr>
+<tr>
+<td><strong>Path</strong></td>
+<td>Becomes plain string; <code>pathlib.Path</code> type information lost</td>
+</tr>
+<tr>
+<td><strong>Repr / Cycle</strong></td>
+<td>Non-serializable markers; likely cause JSON errors</td>
+</tr>
+</tbody>
+</table>
+<h3 id="33-missing-parameters-options">3.3 Missing Parameters &amp; Options</h3>
+<table>
+<thead>
+<tr>
+<th>Gap</th>
+<th>Detail</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>script_name</strong></td>
+<td>Cannot set <code>script_name</code> for <code>MontyRun::new</code>; defaults to internal name</td>
+</tr>
+<tr>
+<td><strong>max_allocations</strong></td>
+<td><code>ResourceLimits::max_allocations</code> not configurable from Dart</td>
+</tr>
+<tr>
+<td><strong>gc_interval</strong></td>
+<td><code>ResourceLimits::gc_interval</code> not configurable from Dart</td>
+</tr>
+<tr>
+<td><strong>run_no_limits</strong></td>
+<td>No fast path using <code>NoLimitTracker</code>; every execution pays tracking overhead</td>
+</tr>
+<tr>
+<td><strong>Progress serialization</strong></td>
+<td><code>RunProgress::dump/load</code> and <code>ReplProgress::dump/load</code> enable suspend/resume of in-flight execution across process boundaries; not exposed</td>
+</tr>
+<tr>
+<td><strong>set_max_duration</strong></td>
+<td><code>LimitedTracker::set_max_duration</code> for re-arming time limits between resume phases; not exposed</td>
+</tr>
+<tr>
+<td><strong>check_large_result</strong></td>
+<td>Preflight size check before returning large results; part of <code>ResourceTracker</code> trait; not exposed</td>
+</tr>
+<tr>
+<td><strong>OS stat helpers</strong></td>
+<td><code>dir_stat</code>, <code>file_stat</code>, <code>symlink_stat</code>, <code>stat_result</code> — broader OS surface than just <code>getenv</code>/<code>environ</code>; not exposed</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="4-coverage-matrix">4. Coverage Matrix</h2>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Run API</th>
+<th>REPL API</th>
+<th>Async</th>
+<th>OS</th>
+<th>TypeCheck</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Execute code</strong></td>
+<td>YES</td>
+<td>NO</td>
+<td>NO</td>
+<td>NO</td>
+<td>NO</td>
+</tr>
+<tr>
+<td><strong>External functions</strong></td>
+<td>YES (positional only)</td>
+<td>NO</td>
+<td>NO</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Resume with value</strong></td>
+<td>YES</td>
+<td>NO</td>
+<td>NO</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Resume with error</strong></td>
+<td>YES</td>
+<td>NO</td>
+<td>NO</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Resume with future</strong></td>
+<td>NO</td>
+<td>NO</td>
+<td>NO</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Snapshot/restore</strong></td>
+<td>YES</td>
+<td>NO</td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Resource limits</strong></td>
+<td>Partial (3 of 5)</td>
+<td>NO</td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Print output</strong></td>
+<td>Batch only</td>
+<td>NO</td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Exception detail</strong></td>
+<td>Partial (1 frame)</td>
+<td>NO</td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>kwargs</strong></td>
+<td>NO</td>
+<td>NO</td>
+<td>NO</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Native (FFI)</strong></td>
+<td>YES</td>
+<td>NO</td>
+<td>NO</td>
+<td>NO</td>
+<td>NO</td>
+</tr>
+<tr>
+<td><strong>Web (WASM/JS)</strong></td>
+<td>YES</td>
+<td>NO</td>
+<td>NO</td>
+<td>NO</td>
+<td>NO</td>
+</tr>
+</tbody>
+</table>
+<p>Estimated coverage of upstream public API surface: <strong>~25-35%</strong></p>
+<p>The range depends on how heavily you weight the REPL and async surfaces.
+dart_monty covers the Run API well (with gaps in kwargs, tracebacks, and
+exception types) but omits entire REPL, async, OS, and type-checking
+surfaces.</p>
+<hr />
+<h2 id="5-prioritized-gaps-for-future-work">5. Prioritized Gaps for Future Work</h2>
+<h3 id="tier-1-high-value-moderate-effort">Tier 1 — High Value, Moderate Effort</h3>
+<p>These unlock the most important use cases and affect existing API quality.</p>
+<ol>
+<li>
+<p><strong>kwargs support</strong> — Add <code>Map&lt;String, Object?&gt;? kwargs</code> to <code>MontyPending</code>.
+   Requires: C FFI accessor for kwargs JSON, JS bridge accessor, platform
+   interface model update.</p>
+</li>
+<li>
+<p><strong>Full tracebacks</strong> — Replace single-frame exception with
+   <code>List&lt;MontyStackFrame&gt;</code>. Requires: JSON contract update in C FFI,
+   new <code>MontyStackFrame</code> model, platform interface update.</p>
+</li>
+<li>
+<p><strong>Exception types</strong> — Add <code>String excType</code> field to <code>MontyException</code>
+   (e.g. "ValueError", "TypeError"). Requires: C FFI accessor, JSON
+   field addition.</p>
+</li>
+<li>
+<p><strong>script_name parameter</strong> — Add optional <code>scriptName</code> to <code>run()</code> and
+   <code>start()</code>. Requires: C FFI update to pass through to <code>MontyRun::new</code>.</p>
+</li>
+<li>
+<p><strong>Live print streaming</strong> — Add optional <code>onPrint</code> callback to <code>run()</code>
+   and <code>start()</code>. Native: <code>PrintWriter::Callback</code>. Web: message-based.</p>
+</li>
+<li>
+<p><strong>call_id + method_call</strong> — Expose <code>call_id: u32</code> and
+   <code>method_call: bool</code> on <code>MontyPending</code>. Foundational for async
+   futures (call_id correlation) and richer host-side dispatch.</p>
+</li>
+</ol>
+<h3 id="tier-2-new-api-surface-higher-effort">Tier 2 — New API Surface, Higher Effort</h3>
+<p>These add entirely new capabilities.</p>
+<ol>
+<li>
+<p><strong>REPL API</strong> — <code>MontyRepl</code> class with <code>feed()</code>, session state
+   persistence, snapshot/restore. Requires: New C FFI functions, new
+   JS bridge class, new Dart <code>MontyRepl</code> class in platform interface.</p>
+</li>
+<li>
+<p><strong>Async / Futures</strong> — Support <code>ExternalResult::Future</code>,
+   <code>FutureSnapshot</code>, <code>ResolveFutures</code>. Requires: New progress variant,
+   new C FFI functions, cooperative resume protocol. Depends on
+   call_id support (Tier 1 item 6).</p>
+</li>
+<li>
+<p><strong>OS Calls</strong> — Handle <code>RunProgress::OsCall</code> for <code>os.environ</code>,
+   <code>os.getenv</code>, <code>stat</code>, <code>dir_stat</code>, <code>file_stat</code>, <code>symlink_stat</code>.
+   Requires: New progress variant or automatic host-side resolution.</p>
+</li>
+<li>
+<p><strong>Progress serialization</strong> — Expose <code>RunProgress::dump/load</code> and
+   <code>ReplProgress::dump/load</code> for suspending/resuming in-flight
+   execution across process boundaries.</p>
+</li>
+</ol>
+<h3 id="tier-3-nice-to-have">Tier 3 — Nice to Have</h3>
+<ol>
+<li>
+<p><strong>Type checking</strong> — Expose static type checking (upstream JS:
+   <code>Monty.typeCheck(prefixCode?)</code>, Rust: <code>monty-type-checking</code> crate).</p>
+</li>
+<li>
+<p><strong>Rich MontyObject types</strong> — Preserve <code>NamedTuple</code>, <code>Dataclass</code>,
+   <code>Set</code>, <code>FrozenSet</code>, <code>Tuple</code>, <code>Bytes</code>, <code>Path</code> type identity through
+   the JSON bridge using upstream <code>$tuple</code>/<code>$bytes</code>/<code>$set</code> tags.</p>
+</li>
+<li>
+<p><strong>Resource limit completeness</strong> — Expose <code>max_allocations</code>,
+   <code>gc_interval</code>, and <code>set_max_duration</code> for re-arming between phases.</p>
+</li>
+<li>
+<p><strong>run_no_limits fast path</strong> — Skip tracker setup for unconstrained
+   execution using <code>NoLimitTracker</code> (still enforces recursion depth 1000).</p>
+</li>
+</ol>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.expand", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

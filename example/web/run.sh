@@ -18,7 +18,7 @@ FIXTURES_SRC="$ROOT/test/fixtures/python_ladder"
 echo "=== dart_monty Web Example ==="
 
 # ── Step 1: Build JS bridge (if assets missing) ─────────────────────────
-if [ ! -f "$WASM_PKG/assets/dart_monty_bridge.js" ]; then
+if [ ! -f "$WASM_PKG/assets/dart_monty_core_bridge.js" ]; then
   echo ""
   echo "--- Building JS bridge ---"
   cd "$WASM_PKG/js"
@@ -30,8 +30,8 @@ fi
 # ── Step 2: Copy assets to web dir ───────────────────────────────────────
 echo ""
 echo "--- Copying assets ---"
-cp "$WASM_PKG/assets/dart_monty_bridge.js" "$WEB_DIR/"
-cp "$WASM_PKG/assets/dart_monty_worker.js" "$WEB_DIR/"
+cp "$WASM_PKG/assets/dart_monty_core_bridge.js" "$WEB_DIR/"
+cp "$WASM_PKG/assets/dart_monty_core_worker.js" "$WEB_DIR/"
 cp "$WASM_PKG/assets/"*.wasm "$WEB_DIR/"
 echo "  Assets copied."
 
@@ -66,8 +66,8 @@ cleanup() {
     wait "$SERVER_PID" 2>/dev/null || true
   fi
   # Clean up copied files
-  rm -f "$WEB_DIR/dart_monty_bridge.js" \
-        "$WEB_DIR/dart_monty_worker.js" \
+  rm -f "$WEB_DIR/dart_monty_core_bridge.js" \
+        "$WEB_DIR/dart_monty_core_worker.js" \
         "$WEB_DIR/"*.wasm \
         "$WEB_DIR/main.dart.js" \
         "$WEB_DIR/main.dart.js.deps" \

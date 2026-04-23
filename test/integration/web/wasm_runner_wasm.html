@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>dart_monty_core WASM (dart2wasm) fixture runner</title>
+</head>
+<body>
+  <!-- Bridge must load before the Dart runner initialises MontyWasm -->
+  <script src="dart_monty_core_bridge.js"></script>
+  <script type="module">
+    import { compileStreaming } from './wasm_runner.mjs';
+    
+    // Instantiate and run the dart2wasm module
+    try {
+      const compiledApp = await compileStreaming(fetch('./wasm_runner.wasm'));
+      const instantiatedApp = await compiledApp.instantiate({});
+      instantiatedApp.invokeMain();
+    } catch (e) {
+      console.error('Failed to run dart2wasm runner:', e);
+    }
+  </script>
+</body>
+</html>

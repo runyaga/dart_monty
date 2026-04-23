@@ -376,11 +376,14 @@ class PlatformBridge implements MontyBridge, AttachContext {
                 ? _host.resolveFutures(resolve, controller)
                 : _platform.resume(null));
           case final MontyNameLookup lookup:
-            // The bridge does not maintain a name-constant registry.
-            // Indicate undefined so Python raises NameError.
-            progress = await _platform.resumeNameLookupUndefined(
-              lookup.variableName,
-            );
+            final name = lookup.variableName;
+            if (externalFunctions.contains(name)) {
+                // By returning null for a registered host function name,
+                // we tell the Rust interpreter that the name is a host-callable.
+                progress = await _platform.resumeNameLookup(name, null);
+            } else {
+                progress = await _platform.resumeNameLookupUndefined(name);
+            }
         }
       }
     } on MontyScriptError catch (e) {

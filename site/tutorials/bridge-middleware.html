@@ -1,0 +1,2281 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Pure Dart bindings for Monty, a restricted sandboxed Python interpreter built in Rust.">
+      
+      
+      
+      
+        <link rel="prev" href="host-functions-advanced.html">
+      
+      
+        <link rel="next" href="llm-prompt-rules.html">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Bridge Middleware - dart_monty</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../extra.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#bridge-middleware" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="dart_monty" class="md-header__button md-logo" aria-label="dart_monty" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            dart_monty
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Bridge Middleware
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="dart_monty" class="md-nav__button md-logo" aria-label="dart_monty" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    dart_monty
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../help.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    User Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user/install.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user/repl.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    REPL
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user/extensions.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Extensions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user/api-reference.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorials
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tutorials
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="host-functions-intro.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Host Functions Intro
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="host-functions-beginner.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Host Functions Beginner
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="host-functions-intermediate.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Host Functions Intermediate
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="host-functions-advanced.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Host Functions Advanced
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bridge Middleware
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="bridge-middleware.html" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bridge Middleware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-problem" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Problem
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architecture
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#callrole-sealed-discrimination" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CallRole: Sealed Discrimination
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="CallRole: Sealed Discrimination">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#why-sealed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why sealed?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#security-host-declared-roles-prevent-spoofing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Security: host-declared roles prevent spoofing
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#writing-middleware" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Writing Middleware
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Writing Middleware">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#example-telemetry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example: Telemetry
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-rate-limiter" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example: Rate Limiter
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-grounding" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example: Grounding
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-access-control" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example: Access Control
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-argument-normalization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example: Argument Normalization
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#registration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Registration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#middleware-state-and-lifecycle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Middleware State and Lifecycle
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#middleware-and-futures-batching" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Middleware and Futures Batching
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#inter-extension-dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Inter-Extension Dependencies
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Inter-Extension Dependencies">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#historical-note-compositeextension" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Historical note: CompositeExtension
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#registry-error-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Registry Error Handling
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#complete-lifecycle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Complete Lifecycle
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#example-per-session-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example: Per-Session Integration
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="llm-prompt-rules.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LLM Prompt Rules
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="live-shape-negotiation-research.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Shape Negotiation Research
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deep Dives
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Deep Dives
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/overview.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../deep-dives/sandbox-architecture.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sandbox Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../deep-dives/oscall-vfs.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    OsCall / VFS Layer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../deep-dives/error-hierarchy.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Error Hierarchy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../deep-dives/lifecycles.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Lifecycle Management
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../deep-dives/extension-system.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Extension System
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Technical Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Technical Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/native-crate.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Native Crate (Rust)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/monty-rust-api.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Monty Rust API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/ffi-handle-lifecycle.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FFI Handle Lifecycle
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/bridge-integration.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bridge Integration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/internals.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Internals
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/api-coverage-plan.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Coverage Plan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Contributing
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contributor/setup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contributor/testing.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contributor/native-build.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Native Build
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-problem" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Problem
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architecture
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#callrole-sealed-discrimination" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CallRole: Sealed Discrimination
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="CallRole: Sealed Discrimination">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#why-sealed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why sealed?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#security-host-declared-roles-prevent-spoofing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Security: host-declared roles prevent spoofing
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#writing-middleware" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Writing Middleware
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Writing Middleware">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#example-telemetry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example: Telemetry
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-rate-limiter" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example: Rate Limiter
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-grounding" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example: Grounding
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-access-control" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example: Access Control
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-argument-normalization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example: Argument Normalization
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#registration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Registration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#middleware-state-and-lifecycle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Middleware State and Lifecycle
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#middleware-and-futures-batching" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Middleware and Futures Batching
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#inter-extension-dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Inter-Extension Dependencies
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Inter-Extension Dependencies">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#historical-note-compositeextension" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Historical note: CompositeExtension
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#registry-error-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Registry Error Handling
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#complete-lifecycle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Complete Lifecycle
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#example-per-session-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example: Per-Session Integration
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="bridge-middleware">Bridge Middleware</h1>
+<p>Cross-cutting policy enforcement at the tool dispatch chokepoint.</p>
+<p><strong>Prerequisites:</strong> Read the <a href="host-functions-intermediate.html">Intermediate guide</a>
+(extensions, registry) and the <a href="host-functions-advanced.html">Advanced guide</a>
+(SandboxExtension, production patterns) first.</p>
+<h2 id="the-problem">The Problem</h2>
+<p>Every tool call from Python passes through <code>DefaultMontyBridge</code>. Before
+middleware, adding cross-cutting behaviour -- telemetry, rate limiting,
+access control, grounding -- meant wrapping individual extension handlers.
+That approach scatters policy across dozens of functions, breaks when
+extensions are added, and is invisible to other extensions.</p>
+<p><code>BridgeMiddleware</code> intercepts <strong>every</strong> tool call at the dispatch level,
+in an onion-style chain identical to HTTP middleware in Express, Shelf,
+or ASP.NET Core.</p>
+<h2 id="architecture">Architecture</h2>
+<div class="highlight"><pre><span></span><code>Python call
+    |
+    v
+DefaultMontyBridge._dispatch()
+    |
+    v  +--------------------------------------+
+       |  Middleware Chain (onion model)       |
+       |                                      |
+       |  +- MW1 (outermost, first registered)|
+       |  |   +- MW2                          |
+       |  |   |   +- MW3 (innermost, last)    |
+       |  |   |   |   Extension Handler          |
+       |  |   |   +---------------------------+
+       |  |   +-------------------------------+
+       |  +-----------------------------------+
+       +--------------------------------------+
+    |
+    v
+Result -&gt; Python
+</code></pre></div>
+<p>Registration order determines nesting: <strong>first registered = outermost</strong>.
+When no middleware is registered, the bridge takes a fast path that calls
+the handler directly with zero overhead.</p>
+<h2 id="callrole-sealed-discrimination">CallRole: Sealed Discrimination</h2>
+<p>Not all tool calls are equal. A sealed <code>CallRole</code> hierarchy lets
+middleware distinguish orchestration infrastructure from agent-initiated
+actions:</p>
+<div class="highlight"><pre><span></span><code><span class="n">sealed</span><span class="w"> </span><span class="kd">class</span><span class="w"> </span><span class="nc">CallRole</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">const</span><span class="w"> </span><span class="n">CallRole</span><span class="p">();</span>
+<span class="p">}</span>
+
+<span class="c1">/// Orchestration loop, planning, routing.</span>
+<span class="c1">/// Middleware should observe but not enforce policy.</span>
+<span class="kd">class</span><span class="w"> </span><span class="nc">InfraCall</span><span class="w"> </span><span class="kd">extends</span><span class="w"> </span><span class="n">CallRole</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">const</span><span class="w"> </span><span class="n">InfraCall</span><span class="p">();</span>
+<span class="p">}</span>
+
+<span class="c1">/// Agent-initiated tool action -- full policy enforcement.</span>
+<span class="kd">class</span><span class="w"> </span><span class="nc">ToolCall</span><span class="w"> </span><span class="kd">extends</span><span class="w"> </span><span class="n">CallRole</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">const</span><span class="w"> </span><span class="n">ToolCall</span><span class="p">();</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Python signals the role via a reserved <code>__role__</code> kwarg. Typically, a
+Python orchestration harness (seed code, prelude) injects <code>__role__</code>
+during planning or routing calls. LLM-generated tool calls omit it:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># Infrastructure call -- middleware observes only</span>
+<span class="n">result</span> <span class="o">=</span> <span class="n">list_functions</span><span class="p">(</span><span class="n">__role__</span><span class="o">=</span><span class="s2">&quot;infra&quot;</span><span class="p">)</span>
+
+<span class="c1"># Tool call (default when __role__ is omitted)</span>
+<span class="n">data</span> <span class="o">=</span> <span class="n">df_create</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">rows</span><span class="p">)</span>
+</code></pre></div>
+<p>The bridge strips <code>__role__</code> before dispatching to the handler -- extensions
+never see it. When omitted or set to an unrecognized value, the default
+is <code>ToolCall</code>.</p>
+<h3 id="why-sealed">Why sealed?</h3>
+<p>Adding a new <code>CallRole</code> subtype is a <strong>compile-time breaking change</strong>.
+Every <code>switch (role)</code> in every middleware must handle the new case. Policy
+gaps are caught at build time, not in production.</p>
+<h3 id="security-host-declared-roles-prevent-spoofing">Security: host-declared roles prevent spoofing</h3>
+<p>The <code>__role__</code> kwarg is set by Python code, which may be LLM-generated
+and untrusted. To prevent role escalation, <code>HostFunction</code> accepts an
+optional <code>role</code> parameter that is <strong>authoritative</strong> — the bridge uses
+it regardless of any <code>__role__</code> kwarg from Python:</p>
+<div class="highlight"><pre><span></span><code><span class="n">HostFunction</span><span class="p">(</span>
+<span class="w">  </span><span class="nl">schema:</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">HostFunctionSchema</span><span class="p">(</span><span class="nl">name:</span><span class="w"> </span><span class="s1">&#39;fn&#39;</span><span class="p">,</span><span class="w"> </span><span class="nl">description:</span><span class="w"> </span><span class="s1">&#39;...&#39;</span><span class="p">),</span>
+<span class="w">  </span><span class="nl">handler:</span><span class="w"> </span><span class="p">(</span><span class="n">args</span><span class="p">)</span><span class="w"> </span><span class="kd">async</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">...,</span>
+<span class="w">  </span><span class="nl">role:</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">ToolCall</span><span class="p">(),</span><span class="w">  </span><span class="c1">// Python cannot escalate to InfraCall</span>
+<span class="p">)</span>
+</code></pre></div>
+<p>Resolution order:</p>
+<ol>
+<li><code>HostFunction.role</code> (host-declared) — authoritative, cannot be overridden</li>
+<li><code>__role__</code> kwarg from Python — advisory, used only when no host role</li>
+<li><code>ToolCall</code> — default when neither is present</li>
+</ol>
+<p>Introspection builtins (<code>list_functions</code>, <code>help</code>) are registered with
+<code>role: const InfraCall()</code> so they bypass policy middleware by design.</p>
+<p>For functions where the role should be fixed, always declare it on the
+host side. Reserve the <code>__role__</code> kwarg fallback for cases where trusted
+Python orchestration code (seed/prelude) legitimately needs to signal
+role at call time.</p>
+<h2 id="writing-middleware">Writing Middleware</h2>
+<p>Implement <code>BridgeMiddleware</code> with a single <code>handle</code> method:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">abstract</span><span class="w"> </span><span class="kd">class</span><span class="w"> </span><span class="nc">BridgeMiddleware</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="n">Future</span><span class="o">&lt;</span><span class="kt">Object</span><span class="o">?&gt;</span><span class="w"> </span><span class="n">handle</span><span class="p">(</span>
+<span class="w">    </span><span class="kt">String</span><span class="w"> </span><span class="n">name</span><span class="p">,</span>
+<span class="w">    </span><span class="n">Map</span><span class="o">&lt;</span><span class="kt">String</span><span class="p">,</span><span class="w"> </span><span class="kt">Object</span><span class="o">?&gt;</span><span class="w"> </span><span class="n">args</span><span class="p">,</span>
+<span class="w">    </span><span class="n">CallRole</span><span class="w"> </span><span class="n">role</span><span class="p">,</span>
+<span class="w">    </span><span class="n">ToolHandler</span><span class="w"> </span><span class="n">next</span><span class="p">,</span>
+<span class="w">  </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<ul>
+<li><strong><code>name</code></strong> -- the host function name (e.g. <code>df_create</code>)</li>
+<li><strong><code>args</code></strong> -- validated argument map (after schema coercion)</li>
+<li><strong><code>role</code></strong> -- <code>InfraCall</code> or <code>ToolCall</code></li>
+<li><strong><code>next</code></strong> -- calls the next middleware (or the handler if innermost)</li>
+</ul>
+<p>Three rules:</p>
+<ol>
+<li><strong>Call <code>next(name, args)</code> to proceed.</strong> Omitting it short-circuits the
+   chain and returns your value directly to Python.</li>
+<li><strong>Throw to reject.</strong> The exception surfaces as a Python <code>RuntimeError</code>
+   via the bridge's <code>resumeWithError()</code> path.</li>
+<li><strong>Inspect <code>role</code> for selective enforcement.</strong> Infra calls should
+   generally pass through; tool calls are where you enforce policy.</li>
+</ol>
+<h3 id="example-telemetry">Example: Telemetry</h3>
+<div class="highlight"><pre><span></span><code><span class="kd">class</span><span class="w"> </span><span class="nc">TelemetryMiddleware</span><span class="w"> </span><span class="kd">extends</span><span class="w"> </span><span class="n">BridgeMiddleware</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">final</span><span class="w"> </span><span class="n">durations</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&lt;</span><span class="kt">String</span><span class="p">,</span><span class="w"> </span><span class="n">List</span><span class="o">&lt;</span><span class="n">Duration</span><span class="o">&gt;&gt;</span><span class="p">{};</span>
+
+<span class="w">  </span><span class="nd">@override</span>
+<span class="w">  </span><span class="n">Future</span><span class="o">&lt;</span><span class="kt">Object</span><span class="o">?&gt;</span><span class="w"> </span><span class="n">handle</span><span class="p">(</span>
+<span class="w">    </span><span class="kt">String</span><span class="w"> </span><span class="n">name</span><span class="p">,</span>
+<span class="w">    </span><span class="n">Map</span><span class="o">&lt;</span><span class="kt">String</span><span class="p">,</span><span class="w"> </span><span class="kt">Object</span><span class="o">?&gt;</span><span class="w"> </span><span class="n">args</span><span class="p">,</span>
+<span class="w">    </span><span class="n">CallRole</span><span class="w"> </span><span class="n">role</span><span class="p">,</span>
+<span class="w">    </span><span class="n">ToolHandler</span><span class="w"> </span><span class="n">next</span><span class="p">,</span>
+<span class="w">  </span><span class="p">)</span><span class="w"> </span><span class="kd">async</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">final</span><span class="w"> </span><span class="n">sw</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Stopwatch</span><span class="p">()..</span><span class="n">start</span><span class="p">();</span>
+<span class="w">    </span><span class="k">try</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="kd">await</span><span class="w"> </span><span class="n">next</span><span class="p">(</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">args</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">finally</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="n">sw</span><span class="p">.</span><span class="n">stop</span><span class="p">();</span>
+<span class="w">      </span><span class="n">durations</span><span class="p">.</span><span class="n">putIfAbsent</span><span class="p">(</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">[]).</span><span class="n">add</span><span class="p">(</span><span class="n">sw</span><span class="p">.</span><span class="n">elapsed</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>This records latency for every tool call regardless of role. Because it
+always calls <code>next</code>, it never blocks execution.</p>
+<h3 id="example-rate-limiter">Example: Rate Limiter</h3>
+<p>Enforce a per-second call limit, but only on agent tool calls:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">class</span><span class="w"> </span><span class="nc">RateLimitMiddleware</span><span class="w"> </span><span class="kd">extends</span><span class="w"> </span><span class="n">BridgeMiddleware</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="n">RateLimitMiddleware</span><span class="p">({</span><span class="kd">required</span><span class="w"> </span><span class="k">this</span><span class="p">.</span><span class="n">maxPerSecond</span><span class="p">});</span>
+
+<span class="w">  </span><span class="kd">final</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">maxPerSecond</span><span class="p">;</span>
+<span class="w">  </span><span class="kd">final</span><span class="w"> </span><span class="n">_timestamps</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&lt;</span><span class="n">DateTime</span><span class="o">&gt;</span><span class="p">[];</span>
+
+<span class="w">  </span><span class="nd">@override</span>
+<span class="w">  </span><span class="n">Future</span><span class="o">&lt;</span><span class="kt">Object</span><span class="o">?&gt;</span><span class="w"> </span><span class="n">handle</span><span class="p">(</span>
+<span class="w">    </span><span class="kt">String</span><span class="w"> </span><span class="n">name</span><span class="p">,</span>
+<span class="w">    </span><span class="n">Map</span><span class="o">&lt;</span><span class="kt">String</span><span class="p">,</span><span class="w"> </span><span class="kt">Object</span><span class="o">?&gt;</span><span class="w"> </span><span class="n">args</span><span class="p">,</span>
+<span class="w">    </span><span class="n">CallRole</span><span class="w"> </span><span class="n">role</span><span class="p">,</span>
+<span class="w">    </span><span class="n">ToolHandler</span><span class="w"> </span><span class="n">next</span><span class="p">,</span>
+<span class="w">  </span><span class="p">)</span><span class="w"> </span><span class="kd">async</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">role</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">ToolCall</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="kd">final</span><span class="w"> </span><span class="n">now</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">DateTime</span><span class="p">.</span><span class="n">now</span><span class="p">();</span>
+<span class="w">      </span><span class="n">_timestamps</span><span class="p">.</span><span class="n">removeWhere</span><span class="p">((</span><span class="n">t</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">now</span><span class="p">.</span><span class="n">difference</span><span class="p">(</span><span class="n">t</span><span class="p">).</span><span class="n">inSeconds</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="m">1</span><span class="p">);</span>
+<span class="w">      </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">_timestamps</span><span class="p">.</span><span class="n">length</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="n">maxPerSecond</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">throw</span><span class="w"> </span><span class="n">StateError</span><span class="p">(</span><span class="s1">&#39;Rate limit: </span><span class="si">$</span><span class="n">maxPerSecond</span><span class="s1"> calls/sec exceeded&#39;</span><span class="p">);</span>
+<span class="w">      </span><span class="p">}</span>
+<span class="w">      </span><span class="n">_timestamps</span><span class="p">.</span><span class="n">add</span><span class="p">(</span><span class="n">now</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">next</span><span class="p">(</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">args</span><span class="p">);</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Infrastructure calls (<code>__role__="infra"</code>) pass through unchecked. Agent
+tool calls that exceed the limit get a Python <code>RuntimeError</code>.</p>
+<h3 id="example-grounding">Example: Grounding</h3>
+<p>Validate tool outputs against domain constraints before returning
+results to the LLM. This is the primary motivation for middleware --
+a single chokepoint where you can assert invariants on what data
+flows back into the agent's context.</p>
+<div class="highlight"><pre><span></span><code><span class="kd">class</span><span class="w"> </span><span class="nc">GroundingMiddleware</span><span class="w"> </span><span class="kd">extends</span><span class="w"> </span><span class="n">BridgeMiddleware</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="n">GroundingMiddleware</span><span class="p">({</span><span class="kd">required</span><span class="w"> </span><span class="k">this</span><span class="p">.</span><span class="n">validators</span><span class="p">});</span>
+
+<span class="w">  </span><span class="c1">/// Function name -&gt; output validator. Return true to pass.</span>
+<span class="w">  </span><span class="kd">final</span><span class="w"> </span><span class="n">Map</span><span class="o">&lt;</span><span class="kt">String</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="kt">Function</span><span class="p">(</span><span class="kt">Object</span><span class="o">?</span><span class="p">)</span><span class="o">&gt;</span><span class="w"> </span><span class="n">validators</span><span class="p">;</span>
+
+<span class="w">  </span><span class="nd">@override</span>
+<span class="w">  </span><span class="n">Future</span><span class="o">&lt;</span><span class="kt">Object</span><span class="o">?&gt;</span><span class="w"> </span><span class="n">handle</span><span class="p">(</span>
+<span class="w">    </span><span class="kt">String</span><span class="w"> </span><span class="n">name</span><span class="p">,</span>
+<span class="w">    </span><span class="n">Map</span><span class="o">&lt;</span><span class="kt">String</span><span class="p">,</span><span class="w"> </span><span class="kt">Object</span><span class="o">?&gt;</span><span class="w"> </span><span class="n">args</span><span class="p">,</span>
+<span class="w">    </span><span class="n">CallRole</span><span class="w"> </span><span class="n">role</span><span class="p">,</span>
+<span class="w">    </span><span class="n">ToolHandler</span><span class="w"> </span><span class="n">next</span><span class="p">,</span>
+<span class="w">  </span><span class="p">)</span><span class="w"> </span><span class="kd">async</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">final</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kd">await</span><span class="w"> </span><span class="n">next</span><span class="p">(</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">args</span><span class="p">);</span>
+<span class="w">    </span><span class="kd">final</span><span class="w"> </span><span class="n">validate</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">validators</span><span class="p">[</span><span class="n">name</span><span class="p">];</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">validate</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">null</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="o">!</span><span class="n">validate</span><span class="p">(</span><span class="n">result</span><span class="p">))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="k">throw</span><span class="w"> </span><span class="n">StateError</span><span class="p">(</span>
+<span class="w">        </span><span class="s1">&#39;Grounding failed for &quot;</span><span class="si">$</span><span class="n">name</span><span class="s1">&quot;: output did not pass validation&#39;</span><span class="p">,</span>
+<span class="w">      </span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">result</span><span class="p">;</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Usage:</p>
+<div class="highlight"><pre><span></span><code><span class="n">bridge</span><span class="p">.</span><span class="n">use</span><span class="p">(</span><span class="n">GroundingMiddleware</span><span class="p">(</span><span class="nl">validators:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="s1">&#39;df_filter&#39;</span><span class="o">:</span><span class="w"> </span><span class="p">(</span><span class="n">r</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">r</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="kt">int</span><span class="p">,</span><span class="w">                      </span><span class="c1">// Must return a handle</span>
+<span class="w">  </span><span class="s1">&#39;fetch&#39;</span><span class="o">:</span><span class="w"> </span><span class="p">(</span><span class="n">r</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">r</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">Map</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">r</span><span class="p">[</span><span class="s1">&#39;status&#39;</span><span class="p">]</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="m">200</span><span class="p">,</span><span class="w">    </span><span class="c1">// Must succeed</span>
+<span class="p">}));</span>
+</code></pre></div>
+<h3 id="example-access-control">Example: Access Control</h3>
+<p>Deny specific functions based on a permission set:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">class</span><span class="w"> </span><span class="nc">AccessControlMiddleware</span><span class="w"> </span><span class="kd">extends</span><span class="w"> </span><span class="n">BridgeMiddleware</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="n">AccessControlMiddleware</span><span class="p">({</span><span class="kd">required</span><span class="w"> </span><span class="k">this</span><span class="p">.</span><span class="n">denied</span><span class="p">});</span>
+
+<span class="w">  </span><span class="kd">final</span><span class="w"> </span><span class="n">Set</span><span class="o">&lt;</span><span class="kt">String</span><span class="o">&gt;</span><span class="w"> </span><span class="n">denied</span><span class="p">;</span>
+
+<span class="w">  </span><span class="nd">@override</span>
+<span class="w">  </span><span class="n">Future</span><span class="o">&lt;</span><span class="kt">Object</span><span class="o">?&gt;</span><span class="w"> </span><span class="n">handle</span><span class="p">(</span>
+<span class="w">    </span><span class="kt">String</span><span class="w"> </span><span class="n">name</span><span class="p">,</span>
+<span class="w">    </span><span class="n">Map</span><span class="o">&lt;</span><span class="kt">String</span><span class="p">,</span><span class="w"> </span><span class="kt">Object</span><span class="o">?&gt;</span><span class="w"> </span><span class="n">args</span><span class="p">,</span>
+<span class="w">    </span><span class="n">CallRole</span><span class="w"> </span><span class="n">role</span><span class="p">,</span>
+<span class="w">    </span><span class="n">ToolHandler</span><span class="w"> </span><span class="n">next</span><span class="p">,</span>
+<span class="w">  </span><span class="p">)</span><span class="w"> </span><span class="kd">async</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">role</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">ToolCall</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">denied</span><span class="p">.</span><span class="n">contains</span><span class="p">(</span><span class="n">name</span><span class="p">))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="k">throw</span><span class="w"> </span><span class="n">StateError</span><span class="p">(</span><span class="s1">&#39;Access denied: &quot;</span><span class="si">$</span><span class="n">name</span><span class="s1">&quot; is not permitted&#39;</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">next</span><span class="p">(</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">args</span><span class="p">);</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="example-argument-normalization">Example: Argument Normalization</h3>
+<p>Middleware can mutate arguments before dispatch and transform results
+on the way back -- the full bidirectional power of the onion model:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">class</span><span class="w"> </span><span class="nc">NormalizerMiddleware</span><span class="w"> </span><span class="kd">extends</span><span class="w"> </span><span class="n">BridgeMiddleware</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nd">@override</span>
+<span class="w">  </span><span class="n">Future</span><span class="o">&lt;</span><span class="kt">Object</span><span class="o">?&gt;</span><span class="w"> </span><span class="n">handle</span><span class="p">(</span>
+<span class="w">    </span><span class="kt">String</span><span class="w"> </span><span class="n">name</span><span class="p">,</span>
+<span class="w">    </span><span class="n">Map</span><span class="o">&lt;</span><span class="kt">String</span><span class="p">,</span><span class="w"> </span><span class="kt">Object</span><span class="o">?&gt;</span><span class="w"> </span><span class="n">args</span><span class="p">,</span>
+<span class="w">    </span><span class="n">CallRole</span><span class="w"> </span><span class="n">role</span><span class="p">,</span>
+<span class="w">    </span><span class="n">ToolHandler</span><span class="w"> </span><span class="n">next</span><span class="p">,</span>
+<span class="w">  </span><span class="p">)</span><span class="w"> </span><span class="kd">async</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// Normalize args: trim all string values before dispatch.</span>
+<span class="w">    </span><span class="kd">final</span><span class="w"> </span><span class="n">cleaned</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kd">final</span><span class="w"> </span><span class="n">e</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">args</span><span class="p">.</span><span class="n">entries</span><span class="p">)</span>
+<span class="w">        </span><span class="n">e</span><span class="p">.</span><span class="nl">key:</span><span class="w"> </span><span class="n">e</span><span class="p">.</span><span class="n">value</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="kt">String</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="p">(</span><span class="n">e</span><span class="p">.</span><span class="n">value</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">String</span><span class="p">).</span><span class="n">trim</span><span class="p">()</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">e</span><span class="p">.</span><span class="n">value</span><span class="p">,</span>
+<span class="w">    </span><span class="p">};</span>
+<span class="w">    </span><span class="kd">final</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kd">await</span><span class="w"> </span><span class="n">next</span><span class="p">(</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">cleaned</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// Redact PII from string results on the way back.</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">result</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="kt">String</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="n">result</span><span class="p">.</span><span class="n">replaceAll</span><span class="p">(</span><span class="n">RegExp</span><span class="p">(</span><span class="s1">r&#39;\b\d{3}-\d{2}-\d{4}\b&#39;</span><span class="p">),</span><span class="w"> </span><span class="s1">&#39;[REDACTED]&#39;</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">result</span><span class="p">;</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<h2 id="registration">Registration</h2>
+<p>Register middleware on the bridge <strong>before</strong> attaching extensions:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">final</span><span class="w"> </span><span class="n">bridge</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">MontyBridge</span><span class="p">(</span><span class="nl">platform:</span><span class="w"> </span><span class="n">platform</span><span class="p">,</span><span class="w"> </span><span class="nl">logger:</span><span class="w"> </span><span class="n">logger</span><span class="p">);</span>
+
+<span class="c1">// First registered = outermost in the chain.</span>
+<span class="n">bridge</span><span class="p">.</span><span class="n">use</span><span class="p">(</span><span class="n">GroundingMiddleware</span><span class="p">(</span><span class="nl">validators:</span><span class="w"> </span><span class="p">{...}));</span>
+<span class="n">bridge</span><span class="p">.</span><span class="n">use</span><span class="p">(</span><span class="n">TelemetryMiddleware</span><span class="p">());</span>
+<span class="n">bridge</span><span class="p">.</span><span class="n">use</span><span class="p">(</span><span class="n">RateLimitMiddleware</span><span class="p">(</span><span class="nl">maxPerSecond:</span><span class="w"> </span><span class="m">10</span><span class="p">));</span>
+
+<span class="c1">// Then attach extensions.</span>
+<span class="kd">final</span><span class="w"> </span><span class="n">registry</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ExtensionCoordinator</span><span class="p">();</span>
+<span class="n">registry</span><span class="p">.</span><span class="n">register</span><span class="p">(</span><span class="n">DataFrameExtension</span><span class="p">());</span>
+<span class="n">registry</span><span class="p">.</span><span class="n">register</span><span class="p">(</span><span class="n">WeatherExtension</span><span class="p">());</span>
+<span class="kd">await</span><span class="w"> </span><span class="n">registry</span><span class="p">.</span><span class="n">attachTo</span><span class="p">(</span><span class="n">bridge</span><span class="p">);</span>
+</code></pre></div>
+<p>Order matters. In this configuration:</p>
+<ol>
+<li><strong>Grounding</strong> (outermost) sees the final result and validates it.</li>
+<li><strong>Telemetry</strong> times the call including rate-limit overhead.</li>
+<li><strong>Rate Limiter</strong> (innermost) checks the limit just before dispatch.</li>
+<li><strong>Handler</strong> executes.</li>
+</ol>
+<p>Results flow back outward: handler -&gt; rate limiter -&gt; telemetry -&gt; grounding.</p>
+<p><code>use()</code> throws <code>StateError</code> if the bridge has been disposed. Middleware
+registered after an <code>execute()</code> call takes effect on subsequent tool
+calls within the same or later executions.</p>
+<h2 id="middleware-state-and-lifecycle">Middleware State and Lifecycle</h2>
+<p>Middleware instances share the lifecycle of the bridge. State in a
+middleware object (like <code>TelemetryMiddleware.durations</code> or
+<code>RateLimitMiddleware._timestamps</code>) persists across multiple <code>execute()</code>
+calls on the same bridge.</p>
+<p>If you need per-execution state, reset it manually before each
+<code>execute()</code> call, or create a new bridge per execution. In practice,
+most applications create one bridge per session, so middleware state
+is naturally scoped to the session.</p>
+<h2 id="middleware-and-futures-batching">Middleware and Futures Batching</h2>
+<p>Both the synchronous and futures dispatch paths pass through the
+middleware chain. When <code>useFutures: true</code> (the default) and the platform
+implements <code>MontyFutureCapable</code>, multiple handler calls may be in-flight
+concurrently. Each call gets its own independent pass through the
+middleware chain.</p>
+<p>This means middleware must be safe for concurrent use if futures batching
+is active. The telemetry and rate limiter examples above are safe because
+Dart is single-threaded (event loop) -- but if your middleware accesses
+external resources (files, network, databases), ensure those resources
+handle concurrent access.</p>
+<p>For details on how futures batching works at the platform level, see
+<a href="host-functions-advanced.html#futures-batching">Futures Batching</a> in the
+Advanced guide.</p>
+<h2 id="inter-extension-dependencies">Inter-Extension Dependencies</h2>
+<p>Extensions sometimes need to call into each other. The recommended pattern
+is <strong>constructor injection</strong> -- pass dependencies when you create the
+extension, before registration:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">class</span><span class="w"> </span><span class="nc">BudgetExtension</span><span class="w"> </span><span class="kd">extends</span><span class="w"> </span><span class="n">MontyExtension</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="n">BudgetExtension</span><span class="p">({</span><span class="kd">required</span><span class="w"> </span><span class="k">this</span><span class="p">.</span><span class="n">memory</span><span class="p">});</span>
+<span class="w">  </span><span class="kd">final</span><span class="w"> </span><span class="n">MemoryExtension</span><span class="w"> </span><span class="n">memory</span><span class="p">;</span>
+
+<span class="w">  </span><span class="nd">@override</span>
+<span class="w">  </span><span class="kt">String</span><span class="w"> </span><span class="kd">get</span><span class="w"> </span><span class="n">namespace</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="s1">&#39;budget&#39;</span><span class="p">;</span>
+
+<span class="w">  </span><span class="nd">@override</span>
+<span class="w">  </span><span class="n">List</span><span class="o">&lt;</span><span class="n">HostFunction</span><span class="o">&gt;</span><span class="w"> </span><span class="kd">get</span><span class="w"> </span><span class="n">functions</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="n">HostFunction</span><span class="p">(</span>
+<span class="w">      </span><span class="nl">schema:</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">HostFunctionSchema</span><span class="p">(</span>
+<span class="w">        </span><span class="nl">name:</span><span class="w"> </span><span class="s1">&#39;budget_check&#39;</span><span class="p">,</span>
+<span class="w">        </span><span class="nl">description:</span><span class="w"> </span><span class="s1">&#39;Check budget against stored limits.&#39;</span><span class="p">,</span>
+<span class="w">      </span><span class="p">),</span>
+<span class="w">      </span><span class="nl">handler:</span><span class="w"> </span><span class="p">(</span><span class="n">args</span><span class="p">)</span><span class="w"> </span><span class="kd">async</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">memory</span><span class="p">.</span><span class="n">recall</span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="s1">&#39;key&#39;</span><span class="p">]</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">String</span><span class="p">);</span>
+<span class="w">      </span><span class="p">},</span>
+<span class="w">    </span><span class="p">),</span>
+<span class="w">  </span><span class="p">];</span>
+<span class="p">}</span>
+
+<span class="c1">// Wire at creation time:</span>
+<span class="kd">final</span><span class="w"> </span><span class="n">memory</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">MemoryExtension</span><span class="p">();</span>
+<span class="kd">final</span><span class="w"> </span><span class="n">budget</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">BudgetExtension</span><span class="p">(</span><span class="nl">memory:</span><span class="w"> </span><span class="n">memory</span><span class="p">);</span>
+<span class="n">registry</span><span class="p">.</span><span class="n">register</span><span class="p">(</span><span class="n">memory</span><span class="p">);</span>
+<span class="n">registry</span><span class="p">.</span><span class="n">register</span><span class="p">(</span><span class="n">budget</span><span class="p">);</span>
+</code></pre></div>
+<p>Constructor injection is:</p>
+<ul>
+<li><strong>Explicit</strong> -- dependencies are visible in the constructor signature</li>
+<li><strong>Type-safe</strong> -- no runtime resolution failures</li>
+<li><strong>Testable</strong> -- pass mocks directly, no registry needed</li>
+<li><strong>Proxy-friendly</strong> -- works with any object satisfying the interface</li>
+</ul>
+<p>For <strong>cross-cutting concerns</strong> that would otherwise require many extensions
+to know about each other (telemetry, grounding, rate limiting), use
+<code>BridgeMiddleware</code> instead -- it operates at the dispatch chokepoint
+without any extension coupling.</p>
+<h3 id="historical-note-compositeextension">Historical note: CompositeExtension</h3>
+<p>An earlier version of <code>dart_monty_bridge</code> provided <code>CompositeExtension</code> and
+<code>ExtensionRef&lt;T&gt;</code> for declaring inter-extension dependencies with automatic
+topological sort and cycle detection. This was removed in #197 because:</p>
+<ol>
+<li><strong>Zero consumers</strong> outside the test file used it. Constructor
+   injection was already the established pattern.</li>
+<li><strong>Type-identity conflicts.</strong> <code>ExtensionRef&lt;T&gt;</code> uses runtime <code>is T</code>
+   matching, which fails with proxied or cross-package extension types.</li>
+<li><strong>Unnecessary complexity.</strong> ~180 lines of topological sort for a
+   problem constructor injection solves in zero lines.</li>
+</ol>
+<h2 id="registry-error-handling">Registry Error Handling</h2>
+<p><code>ExtensionCoordinator.attachTo()</code> and <code>disposeAll()</code> are resilient: they
+process <strong>all</strong> extensions even if individual <code>onRegister</code> or <code>onDispose</code>
+hooks throw. Errors are collected and thrown as a single <code>StateError</code>
+after all extensions have been processed. This prevents one failing extension
+from blocking the rest.</p>
+<h2 id="complete-lifecycle">Complete Lifecycle</h2>
+<div class="highlight"><pre><span></span><code>1. Create bridge:   MontyBridge(platform: platform, logger: logger)
+2. Register MW:     bridge.use(grounding), bridge.use(telemetry)
+3. Build registry:  registry.register(extensionA), registry.register(extensionB)
+4. Attach:          registry.attachTo(bridge)  // wires functions + onRegister
+5. Execute:         bridge.execute(code)       // MW wraps every tool call
+6. Dispose:         registry.disposeAll()      // reverse registration order
+                    bridge.dispose()
+</code></pre></div>
+<h2 id="example-per-session-integration">Example: Per-Session Integration</h2>
+<p>A typical application creates one bridge per session. Middleware slots
+into the setup path before extensions are attached:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">final</span><span class="w"> </span><span class="n">bridge</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">MontyBridge</span><span class="p">(</span><span class="nl">platform:</span><span class="w"> </span><span class="n">platform</span><span class="p">,</span><span class="w"> </span><span class="nl">logger:</span><span class="w"> </span><span class="n">logger</span><span class="p">);</span>
+<span class="n">bridge</span><span class="p">.</span><span class="n">use</span><span class="p">(</span><span class="n">SessionTelemetryMiddleware</span><span class="p">(</span><span class="nl">sessionId:</span><span class="w"> </span><span class="n">session</span><span class="p">.</span><span class="n">id</span><span class="p">));</span>
+<span class="n">bridge</span><span class="p">.</span><span class="n">use</span><span class="p">(</span><span class="n">GroundingMiddleware</span><span class="p">(</span><span class="nl">validators:</span><span class="w"> </span><span class="n">roomValidators</span><span class="p">));</span>
+
+<span class="kd">final</span><span class="w"> </span><span class="n">registry</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ExtensionCoordinator</span><span class="p">();</span>
+<span class="n">registry</span><span class="p">.</span><span class="n">register</span><span class="p">(</span><span class="n">DataFrameExtension</span><span class="p">(</span><span class="nl">store:</span><span class="w"> </span><span class="n">dfStore</span><span class="p">));</span>
+<span class="n">registry</span><span class="p">.</span><span class="n">register</span><span class="p">(</span><span class="n">AgentExtension</span><span class="p">(</span><span class="nl">runtime:</span><span class="w"> </span><span class="n">runtime</span><span class="p">));</span>
+<span class="kd">await</span><span class="w"> </span><span class="n">registry</span><span class="p">.</span><span class="n">attachTo</span><span class="p">(</span><span class="n">bridge</span><span class="p">);</span>
+</code></pre></div>
+<p>Each session gets its own bridge and middleware instances, so per-session
+policy (rate limits, access control, telemetry) is naturally isolated
+without shared state.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.expand", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

@@ -1,0 +1,2183 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Pure Dart bindings for Monty, a restricted sandboxed Python interpreter built in Rust.">
+      
+      
+      
+      
+        <link rel="prev" href="ffi-handle-lifecycle.html">
+      
+      
+        <link rel="next" href="internals.html">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Bridge Integration - dart_monty</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../extra.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#bridge-integration-dart-js-wasm-worker" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="dart_monty" class="md-header__button md-logo" aria-label="dart_monty" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            dart_monty
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Bridge Integration
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="dart_monty" class="md-nav__button md-logo" aria-label="dart_monty" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    dart_monty
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../help.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    User Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user/install.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user/repl.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    REPL
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user/extensions.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Extensions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user/api-reference.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorials
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tutorials
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorials/host-functions-intro.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Host Functions Intro
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorials/host-functions-beginner.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Host Functions Beginner
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorials/host-functions-intermediate.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Host Functions Intermediate
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorials/host-functions-advanced.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Host Functions Advanced
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorials/bridge-middleware.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bridge Middleware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorials/llm-prompt-rules.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LLM Prompt Rules
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorials/live-shape-negotiation-research.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Shape Negotiation Research
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deep Dives
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Deep Dives
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/overview.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../deep-dives/sandbox-architecture.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sandbox Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../deep-dives/oscall-vfs.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    OsCall / VFS Layer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../deep-dives/error-hierarchy.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Error Hierarchy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../deep-dives/lifecycles.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Lifecycle Management
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../deep-dives/extension-system.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Extension System
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Technical Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Technical Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="native-crate.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Native Crate (Rust)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="monty-rust-api.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Monty Rust API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ffi-handle-lifecycle.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FFI Handle Lifecycle
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bridge Integration
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="bridge-integration.html" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bridge Integration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#three-layer-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Three-Layer Architecture
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#layer-1-dart-js-interop-bindings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layer 1: Dart JS Interop Bindings
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#layer-2-js-bridge-dart_monty_bridgejs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layer 2: JS Bridge (dart_monty_bridge.js)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Layer 2: JS Bridge (dart_monty_bridge.js)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#bridge-api-surface" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bridge API Surface
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#layer-3-wasm-worker" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layer 3: WASM Worker
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Layer 3: WASM Worker">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#why-a-worker" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why a Worker?
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-execution-loop" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Execution Loop
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#host-function-implementation-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Host Function Implementation Patterns
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Host Function Implementation Patterns">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pattern-1-synchronous-return-a-value-immediately" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pattern 1: Synchronous — return a value immediately
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pattern-2-blocking-await-a-future-python-suspends" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pattern 2: Blocking — await a Future, Python suspends
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pattern-3-multi-button-wait-dom_await_click_any" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pattern 3: Multi-button wait — dom_await_click_any
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pattern-4-browser-api-file-upload" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pattern 4: Browser API — file upload
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#opaque-handle-system" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Opaque Handle System
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#json-wire-format" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        JSON Wire Format
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#coopcoep-requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        COOP/COEP Requirements
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#comparison-with-native-path" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comparison with Native Path
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="internals.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Internals
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="api-coverage-plan.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Coverage Plan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Contributing
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contributor/setup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contributor/testing.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contributor/native-build.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Native Build
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#three-layer-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Three-Layer Architecture
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#layer-1-dart-js-interop-bindings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layer 1: Dart JS Interop Bindings
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#layer-2-js-bridge-dart_monty_bridgejs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layer 2: JS Bridge (dart_monty_bridge.js)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Layer 2: JS Bridge (dart_monty_bridge.js)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#bridge-api-surface" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bridge API Surface
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#layer-3-wasm-worker" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layer 3: WASM Worker
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Layer 3: WASM Worker">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#why-a-worker" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why a Worker?
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-execution-loop" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Execution Loop
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#host-function-implementation-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Host Function Implementation Patterns
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Host Function Implementation Patterns">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pattern-1-synchronous-return-a-value-immediately" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pattern 1: Synchronous — return a value immediately
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pattern-2-blocking-await-a-future-python-suspends" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pattern 2: Blocking — await a Future, Python suspends
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pattern-3-multi-button-wait-dom_await_click_any" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pattern 3: Multi-button wait — dom_await_click_any
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pattern-4-browser-api-file-upload" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pattern 4: Browser API — file upload
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#opaque-handle-system" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Opaque Handle System
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#json-wire-format" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        JSON Wire Format
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#coopcoep-requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        COOP/COEP Requirements
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#comparison-with-native-path" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comparison with Native Path
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="bridge-integration-dart-js-wasm-worker">Bridge Integration — Dart + JS + WASM Worker</h1>
+<p>How Python code runs inside a browser tab: three layers, zero servers.</p>
+<h2 id="three-layer-architecture">Three-Layer Architecture</h2>
+<div class="highlight"><pre><span></span><code> Dart (main thread)           JS Bridge (main thread)         WASM Worker
+ ──────────────────           ──────────────────────          ────────────
+ @JS() interop bindings  ──&gt;  window.DartMontyBridge    ──&gt;  Web Worker
+ dart:js_interop              postMessage + promise map       @pydantic/monty WASM
+                         &lt;──                             &lt;──
+                              resolve pending promise         postMessage response
+</code></pre></div>
+<p><strong>Dart</strong> calls <code>@JS()</code>-annotated external functions that resolve to methods on
+<code>window.DartMontyBridge</code>. The <strong>JS bridge</strong> serializes each call into a
+<code>postMessage</code> to the Web Worker, tracked by a unique integer ID. The <strong>Worker</strong>
+runs the Monty WASM interpreter and posts results back. The bridge resolves the
+matching promise, which Dart awaits via <code>.toDart</code>.</p>
+<h2 id="layer-1-dart-js-interop-bindings">Layer 1: Dart JS Interop Bindings</h2>
+<p>Dart declares external functions using <code>dart:js_interop</code> annotations that map
+directly to <code>window.DartMontyBridge.*</code> methods:</p>
+<div class="highlight"><pre><span></span><code><span class="nd">@JS</span><span class="p">(</span><span class="s1">&#39;DartMontyBridge.init&#39;</span><span class="p">)</span>
+<span class="kd">external</span><span class="w"> </span><span class="n">JSPromise</span><span class="o">&lt;</span><span class="n">JSBoolean</span><span class="o">&gt;</span><span class="w"> </span><span class="n">_bridgeInit</span><span class="p">();</span>
+
+<span class="nd">@JS</span><span class="p">(</span><span class="s1">&#39;DartMontyBridge.start&#39;</span><span class="p">)</span>
+<span class="kd">external</span><span class="w"> </span><span class="n">JSPromise</span><span class="o">&lt;</span><span class="n">JSString</span><span class="o">&gt;</span><span class="w"> </span><span class="n">_bridgeStart</span><span class="p">(</span>
+<span class="w">  </span><span class="n">JSString</span><span class="w"> </span><span class="n">code</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="n">JSString</span><span class="o">?</span><span class="w"> </span><span class="n">extFnsJson</span><span class="p">]);</span>
+
+<span class="nd">@JS</span><span class="p">(</span><span class="s1">&#39;DartMontyBridge.resume&#39;</span><span class="p">)</span>
+<span class="kd">external</span><span class="w"> </span><span class="n">JSPromise</span><span class="o">&lt;</span><span class="n">JSString</span><span class="o">&gt;</span><span class="w"> </span><span class="n">_bridgeResume</span><span class="p">(</span><span class="n">JSString</span><span class="w"> </span><span class="n">valueJson</span><span class="p">);</span>
+
+<span class="nd">@JS</span><span class="p">(</span><span class="s1">&#39;DartMontyBridge.resumeWithError&#39;</span><span class="p">)</span>
+<span class="kd">external</span><span class="w"> </span><span class="n">JSPromise</span><span class="o">&lt;</span><span class="n">JSString</span><span class="o">&gt;</span><span class="w"> </span><span class="n">_bridgeResumeWithError</span><span class="p">(</span><span class="n">JSString</span><span class="w"> </span><span class="n">errorJson</span><span class="p">);</span>
+
+<span class="nd">@JS</span><span class="p">(</span><span class="s1">&#39;DartMontyBridge.snapshot&#39;</span><span class="p">)</span>
+<span class="kd">external</span><span class="w"> </span><span class="n">JSPromise</span><span class="o">&lt;</span><span class="n">JSString</span><span class="o">&gt;</span><span class="w"> </span><span class="n">_bridgeSnapshot</span><span class="p">();</span>
+
+<span class="nd">@JS</span><span class="p">(</span><span class="s1">&#39;DartMontyBridge.restore&#39;</span><span class="p">)</span>
+<span class="kd">external</span><span class="w"> </span><span class="n">JSPromise</span><span class="o">&lt;</span><span class="n">JSString</span><span class="o">&gt;</span><span class="w"> </span><span class="n">_bridgeRestore</span><span class="p">(</span><span class="n">JSString</span><span class="w"> </span><span class="n">dataBase64</span><span class="p">);</span>
+</code></pre></div>
+<p>Every function returns <code>JSPromise&lt;JSString&gt;</code>. Dart converts to a native Future
+with <code>.toDart</code>, then parses the JSON string result:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">final</span><span class="w"> </span><span class="n">resultJson</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="kd">await</span><span class="w"> </span><span class="n">_bridgeStart</span><span class="p">(</span><span class="n">code</span><span class="p">.</span><span class="n">toJS</span><span class="p">,</span><span class="w"> </span><span class="n">extFnsJson</span><span class="p">.</span><span class="n">toJS</span><span class="p">).</span><span class="n">toDart</span><span class="p">).</span><span class="n">toDart</span><span class="p">;</span>
+<span class="kd">final</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">jsonDecode</span><span class="p">(</span><span class="n">resultJson</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">Map</span><span class="o">&lt;</span><span class="kt">String</span><span class="p">,</span><span class="w"> </span><span class="kt">dynamic</span><span class="o">&gt;</span><span class="p">;</span>
+</code></pre></div>
+<p>The <code>dart_monty_wasm</code> package wraps this pattern in <code>WasmBindingsJs</code>
+(<code>packages/dart_monty_wasm/lib/src/wasm_bindings_js.dart</code>), which adapts
+all calls to the <code>WasmBindings</code> abstract interface.</p>
+<h2 id="layer-2-js-bridge-dart_monty_bridgejs">Layer 2: JS Bridge (<code>dart_monty_bridge.js</code>)</h2>
+<p>The bridge is a self-contained IIFE that creates the Worker and manages
+request/response correlation:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">var</span><span class="w"> </span><span class="nx">worker</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">null</span><span class="p">;</span>
+<span class="kd">var</span><span class="w"> </span><span class="nx">nextId</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">1</span><span class="p">;</span>
+<span class="kd">var</span><span class="w"> </span><span class="nx">pending</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="nb">Map</span><span class="p">();</span><span class="w">  </span><span class="c1">// id -&gt; { resolve, reject }</span>
+
+<span class="kd">function</span><span class="w"> </span><span class="nx">callWorker</span><span class="p">(</span><span class="nx">msg</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="nb">Promise</span><span class="p">((</span><span class="nx">resolve</span><span class="p">,</span><span class="w"> </span><span class="nx">reject</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">nextId</span><span class="o">++</span><span class="p">;</span>
+<span class="w">    </span><span class="nx">pending</span><span class="p">.</span><span class="nx">set</span><span class="p">(</span><span class="nx">id</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">resolve</span><span class="p">,</span><span class="w"> </span><span class="nx">reject</span><span class="w"> </span><span class="p">});</span>
+<span class="w">    </span><span class="nx">worker</span><span class="p">.</span><span class="nx">postMessage</span><span class="p">({</span><span class="w"> </span><span class="p">...</span><span class="nx">msg</span><span class="p">,</span><span class="w"> </span><span class="nx">id</span><span class="w"> </span><span class="p">});</span>
+<span class="w">  </span><span class="p">});</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Every bridge method follows the same pattern:</p>
+<ol>
+<li>Guard: if <code>!worker</code>, return an error JSON string</li>
+<li>Call <code>callWorker(msg)</code> with a typed message</li>
+<li>Serialize the response as JSON string</li>
+</ol>
+<p>The Worker's <code>onmessage</code> handler resolves the matching pending promise:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">worker</span><span class="p">.</span><span class="nx">onmessage</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="nx">e</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">msg</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">e</span><span class="p">.</span><span class="nx">data</span><span class="p">;</span>
+<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">msg</span><span class="p">.</span><span class="nx">type</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="s2">&quot;ready&quot;</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">resolve</span><span class="p">(</span><span class="kc">true</span><span class="p">);</span><span class="w"> </span><span class="k">return</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">msg</span><span class="p">.</span><span class="nx">id</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nx">pending</span><span class="p">.</span><span class="nx">has</span><span class="p">(</span><span class="nx">msg</span><span class="p">.</span><span class="nx">id</span><span class="p">))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">resolve</span><span class="o">:</span><span class="w"> </span><span class="nx">res</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">pending</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="nx">msg</span><span class="p">.</span><span class="nx">id</span><span class="p">);</span>
+<span class="w">    </span><span class="nx">pending</span><span class="p">.</span><span class="ow">delete</span><span class="p">(</span><span class="nx">msg</span><span class="p">.</span><span class="nx">id</span><span class="p">);</span>
+<span class="w">    </span><span class="nx">res</span><span class="p">(</span><span class="nx">msg</span><span class="p">);</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">};</span>
+</code></pre></div>
+<h3 id="bridge-api-surface">Bridge API Surface</h3>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Worker message type</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>init()</code></td>
+<td>(creates Worker)</td>
+<td>Initialize WASM runtime</td>
+</tr>
+<tr>
+<td><code>run(code, limitsJson, scriptName)</code></td>
+<td><code>run</code></td>
+<td>One-shot execution</td>
+</tr>
+<tr>
+<td><code>start(code, extFnsJson, limitsJson, scriptName)</code></td>
+<td><code>start</code></td>
+<td>Begin iterative execution</td>
+</tr>
+<tr>
+<td><code>resume(valueJson)</code></td>
+<td><code>resume</code></td>
+<td>Continue with host function return value</td>
+</tr>
+<tr>
+<td><code>resumeWithError(errorJson)</code></td>
+<td><code>resumeWithError</code></td>
+<td>Continue with error</td>
+</tr>
+<tr>
+<td><code>snapshot()</code></td>
+<td><code>snapshot</code></td>
+<td>Capture interpreter state (base64)</td>
+</tr>
+<tr>
+<td><code>restore(dataBase64)</code></td>
+<td><code>restore</code></td>
+<td>Restore interpreter from snapshot</td>
+</tr>
+<tr>
+<td><code>discover()</code></td>
+<td>(synchronous)</td>
+<td>Check if Worker is loaded</td>
+</tr>
+<tr>
+<td><code>dispose()</code></td>
+<td><code>dispose</code></td>
+<td>Terminate Worker</td>
+</tr>
+</tbody>
+</table>
+<h2 id="layer-3-wasm-worker">Layer 3: WASM Worker</h2>
+<p>The Worker loads <code>@pydantic/monty-wasm32-wasi</code> and handles messages
+dispatched from the bridge. Key state:</p>
+<ul>
+<li><code>monty</code> — the Monty interpreter instance</li>
+<li><code>activeSnapshot</code> — set when execution pauses (pending), used for resume</li>
+</ul>
+<p>On <code>start</code>, the Worker compiles and runs the code. If the code calls an
+external function, execution pauses and the Worker posts a <code>pending</code> message
+back with the function name and arguments. On <code>resume</code>, the Worker feeds the
+return value back into the snapshot and continues.</p>
+<h3 id="why-a-worker">Why a Worker?</h3>
+<p>Chrome's synchronous <code>WebAssembly.compile()</code> limit is 8 MB. The Monty WASM
+module exceeds this. Inside a Worker, <code>WebAssembly.compileStreaming</code> works
+asynchronously without this limit.</p>
+<h2 id="the-execution-loop">The Execution Loop</h2>
+<p>The core pattern for running Python that calls host functions:</p>
+<div class="highlight"><pre><span></span><code>Dart                    JS Bridge              Worker
+ │                        │                      │
+ │ _bridgeStart(code, fns)│                      │
+ │───────────────────────&gt;│  postMessage(start)  │
+ │                        │─────────────────────&gt;│
+ │                        │                      │ ── Python runs ──
+ │                        │                      │ ── hits dom_create() ──
+ │                        │  postMessage(pending)│
+ │                        │&lt;─────────────────────│
+ │  { state: &quot;pending&quot;,   │                      │
+ │    functionName: ...    │                      │
+ │    args: [...] }        │                      │
+ │&lt;───────────────────────│                      │
+ │                        │                      │
+ │ (Dart handles the call)│                      │
+ │                        │                      │
+ │ _bridgeResume(value)   │                      │
+ │───────────────────────&gt;│  postMessage(resume) │
+ │                        │─────────────────────&gt;│
+ │                        │                      │ ── Python resumes ──
+ │                        │                      │ ── hits dom_text() ──
+ │                        │  postMessage(pending)│
+ │                        │&lt;─────────────────────│
+ │                        │                      │
+ │ (repeat until complete)│                      │
+ │                        │                      │
+ │  { state: &quot;complete&quot;,  │                      │
+ │    value: ..., ok: true}│                     │
+ │&lt;───────────────────────│                      │
+</code></pre></div>
+<p>In Dart, this loop is implemented as:</p>
+<div class="highlight"><pre><span></span><code><span class="n">Future</span><span class="o">&lt;</span><span class="n">Map</span><span class="o">&lt;</span><span class="kt">String</span><span class="p">,</span><span class="w"> </span><span class="kt">dynamic</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="n">_runWithHostFunctions</span><span class="p">(</span><span class="kt">String</span><span class="w"> </span><span class="n">code</span><span class="p">)</span><span class="w"> </span><span class="kd">async</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">final</span><span class="w"> </span><span class="n">extFnsJson</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">jsonEncode</span><span class="p">(</span><span class="n">_hostFunctions</span><span class="p">);</span>
+<span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">_parse</span><span class="p">(</span>
+<span class="w">    </span><span class="p">(</span><span class="kd">await</span><span class="w"> </span><span class="n">_bridgeStart</span><span class="p">(</span><span class="n">code</span><span class="p">.</span><span class="n">toJS</span><span class="p">,</span><span class="w"> </span><span class="n">extFnsJson</span><span class="p">.</span><span class="n">toJS</span><span class="p">).</span><span class="n">toDart</span><span class="p">).</span><span class="n">toDart</span><span class="p">,</span>
+<span class="w">  </span><span class="p">);</span>
+
+<span class="w">  </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">result</span><span class="p">[</span><span class="s1">&#39;state&#39;</span><span class="p">]</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s1">&#39;pending&#39;</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">final</span><span class="w"> </span><span class="n">fnName</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">result</span><span class="p">[</span><span class="s1">&#39;functionName&#39;</span><span class="p">]</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">String</span><span class="p">;</span>
+<span class="w">    </span><span class="kd">final</span><span class="w"> </span><span class="n">fnArgs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">result</span><span class="p">[</span><span class="s1">&#39;args&#39;</span><span class="p">]</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">List</span><span class="o">&lt;</span><span class="kt">dynamic</span><span class="o">&gt;?</span><span class="p">)</span><span class="w"> </span><span class="o">??</span><span class="w"> </span><span class="p">[];</span>
+
+<span class="w">    </span><span class="k">try</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="kd">final</span><span class="w"> </span><span class="n">value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kd">await</span><span class="w"> </span><span class="n">_dispatch</span><span class="p">(</span><span class="n">fnName</span><span class="p">,</span><span class="w"> </span><span class="n">fnArgs</span><span class="p">);</span>
+<span class="w">      </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">_parse</span><span class="p">(</span>
+<span class="w">        </span><span class="p">(</span><span class="kd">await</span><span class="w"> </span><span class="n">_bridgeResume</span><span class="p">(</span><span class="n">jsonEncode</span><span class="p">(</span><span class="n">value</span><span class="p">).</span><span class="n">toJS</span><span class="p">).</span><span class="n">toDart</span><span class="p">).</span><span class="n">toDart</span><span class="p">,</span>
+<span class="w">      </span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="kd">on</span><span class="w"> </span><span class="n">Exception</span><span class="w"> </span><span class="k">catch</span><span class="w"> </span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">_parse</span><span class="p">(</span>
+<span class="w">        </span><span class="p">(</span><span class="kd">await</span><span class="w"> </span><span class="n">_bridgeResumeWithError</span><span class="p">(</span>
+<span class="w">          </span><span class="n">jsonEncode</span><span class="p">(</span><span class="n">e</span><span class="p">.</span><span class="n">toString</span><span class="p">()).</span><span class="n">toJS</span><span class="p">).</span><span class="n">toDart</span><span class="p">).</span><span class="n">toDart</span><span class="p">,</span>
+<span class="w">      </span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">result</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div>
+<h2 id="host-function-implementation-patterns">Host Function Implementation Patterns</h2>
+<h3 id="pattern-1-synchronous-return-a-value-immediately">Pattern 1: Synchronous — return a value immediately</h3>
+<div class="highlight"><pre><span></span><code><span class="k">case</span><span class="w"> </span><span class="s1">&#39;dom_create&#39;</span><span class="o">:</span>
+<span class="w">  </span><span class="kd">final</span><span class="w"> </span><span class="n">tag</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">args</span><span class="p">.</span><span class="n">isNotEmpty</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="n">args</span><span class="p">[</span><span class="m">0</span><span class="p">]</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">String</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;div&#39;</span><span class="p">;</span>
+<span class="w">  </span><span class="kd">final</span><span class="w"> </span><span class="n">el</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">document</span><span class="p">.</span><span class="n">createElement</span><span class="p">(</span><span class="n">tag</span><span class="p">);</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">_store</span><span class="p">(</span><span class="n">el</span><span class="p">);</span><span class="w">  </span><span class="c1">// returns int handle</span>
+
+<span class="k">case</span><span class="w"> </span><span class="s1">&#39;now&#39;</span><span class="o">:</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">DateTime</span><span class="p">.</span><span class="n">now</span><span class="p">().</span><span class="n">toIso8601String</span><span class="p">();</span>
+
+<span class="k">case</span><span class="w"> </span><span class="s1">&#39;json_dumps&#39;</span><span class="o">:</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">jsonEncode</span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="m">0</span><span class="p">]);</span>
+</code></pre></div>
+<p>These compute a result synchronously and return it. The dispatch function
+wraps the return value in <code>jsonEncode()</code> and feeds it to <code>_bridgeResume()</code>.</p>
+<h3 id="pattern-2-blocking-await-a-future-python-suspends">Pattern 2: Blocking — await a Future, Python suspends</h3>
+<div class="highlight"><pre><span></span><code><span class="k">case</span><span class="w"> </span><span class="s1">&#39;dom_on_click&#39;</span><span class="o">:</span>
+<span class="w">  </span><span class="kd">final</span><span class="w"> </span><span class="n">h</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">args</span><span class="p">[</span><span class="m">0</span><span class="p">]</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span>
+<span class="w">  </span><span class="kd">final</span><span class="w"> </span><span class="n">el</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">_get</span><span class="p">(</span><span class="n">h</span><span class="p">);</span>
+<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">el</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="kc">null</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="kc">null</span><span class="p">;</span>
+<span class="w">  </span><span class="kd">final</span><span class="w"> </span><span class="n">completer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Completer</span><span class="o">&lt;</span><span class="kt">String</span><span class="o">&gt;</span><span class="p">();</span>
+<span class="w">  </span><span class="n">el</span><span class="p">.</span><span class="n">addEventListener</span><span class="p">(</span><span class="s1">&#39;click&#39;</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="n">Event</span><span class="w"> </span><span class="n">e</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">completer</span><span class="p">.</span><span class="n">isCompleted</span><span class="p">)</span><span class="w"> </span><span class="n">completer</span><span class="p">.</span><span class="n">complete</span><span class="p">(</span><span class="s1">&#39;clicked&#39;</span><span class="p">);</span>
+<span class="w">  </span><span class="p">}.</span><span class="n">toJS</span><span class="p">);</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="kd">await</span><span class="w"> </span><span class="n">completer</span><span class="p">.</span><span class="n">future</span><span class="p">;</span><span class="w">  </span><span class="c1">// Python blocks here</span>
+</code></pre></div>
+<p>The dispatch function is <code>async</code> — it can <code>await</code> Dart Futures. Python
+execution is already suspended (the Worker is waiting). When the click
+fires, the Completer resolves, the dispatch function returns, and
+<code>_bridgeResume()</code> continues Python.</p>
+<h3 id="pattern-3-multi-button-wait-dom_await_click_any">Pattern 3: Multi-button wait — <code>dom_await_click_any</code></h3>
+<div class="highlight"><pre><span></span><code><span class="k">case</span><span class="w"> </span><span class="s1">&#39;dom_await_click_any&#39;</span><span class="o">:</span>
+<span class="w">  </span><span class="kd">final</span><span class="w"> </span><span class="n">handles</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="m">0</span><span class="p">]</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">List</span><span class="o">&lt;</span><span class="kt">dynamic</span><span class="o">&gt;</span><span class="p">).</span><span class="n">cast</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="p">();</span>
+<span class="w">  </span><span class="kd">final</span><span class="w"> </span><span class="n">completer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Completer</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="p">();</span>
+<span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kd">final</span><span class="w"> </span><span class="n">h</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">handles</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">final</span><span class="w"> </span><span class="n">el</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">_get</span><span class="p">(</span><span class="n">h</span><span class="p">);</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">el</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">null</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="n">el</span><span class="p">.</span><span class="n">addEventListener</span><span class="p">(</span><span class="s1">&#39;click&#39;</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="n">Event</span><span class="w"> </span><span class="n">e</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">completer</span><span class="p">.</span><span class="n">isCompleted</span><span class="p">)</span><span class="w"> </span><span class="n">completer</span><span class="p">.</span><span class="n">complete</span><span class="p">(</span><span class="n">h</span><span class="p">);</span>
+<span class="w">      </span><span class="p">}.</span><span class="n">toJS</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="kd">await</span><span class="w"> </span><span class="n">completer</span><span class="p">.</span><span class="n">future</span><span class="p">;</span><span class="w">  </span><span class="c1">// returns which handle was clicked</span>
+</code></pre></div>
+<p>This enables <code>while True</code> event loops in Python — the script blocks on
+<code>dom_await_click_any([btn1, btn2, btn3])</code>, gets back which button was
+clicked, dispatches the action, and loops.</p>
+<h3 id="pattern-4-browser-api-file-upload">Pattern 4: Browser API — file upload</h3>
+<div class="highlight"><pre><span></span><code><span class="k">case</span><span class="w"> </span><span class="s1">&#39;upload_file&#39;</span><span class="o">:</span>
+<span class="w">  </span><span class="kd">final</span><span class="w"> </span><span class="n">input</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">document</span><span class="p">.</span><span class="n">createElement</span><span class="p">(</span><span class="s1">&#39;input&#39;</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">HTMLInputElement</span><span class="p">;</span>
+<span class="w">  </span><span class="n">input</span><span class="p">.</span><span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;file&#39;</span><span class="p">;</span>
+<span class="w">  </span><span class="kd">final</span><span class="w"> </span><span class="n">completer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Completer</span><span class="o">&lt;</span><span class="kt">String</span><span class="o">?&gt;</span><span class="p">();</span>
+<span class="w">  </span><span class="n">input</span><span class="p">.</span><span class="n">addEventListener</span><span class="p">(</span><span class="s1">&#39;change&#39;</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="n">Event</span><span class="w"> </span><span class="n">e</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">final</span><span class="w"> </span><span class="n">file</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">input</span><span class="p">.</span><span class="n">files</span><span class="o">!</span><span class="p">.</span><span class="n">item</span><span class="p">(</span><span class="m">0</span><span class="p">)</span><span class="o">!</span><span class="p">;</span>
+<span class="w">    </span><span class="kd">final</span><span class="w"> </span><span class="n">reader</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">FileReader</span><span class="p">();</span>
+<span class="w">    </span><span class="n">reader</span><span class="p">.</span><span class="n">addEventListener</span><span class="p">(</span><span class="s1">&#39;load&#39;</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="n">Event</span><span class="w"> </span><span class="n">ev</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="n">completer</span><span class="p">.</span><span class="n">complete</span><span class="p">((</span><span class="n">reader</span><span class="p">.</span><span class="n">result</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">JSString</span><span class="o">?</span><span class="p">)</span><span class="o">?</span><span class="p">.</span><span class="n">toDart</span><span class="w"> </span><span class="o">??</span><span class="w"> </span><span class="s1">&#39;&#39;</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}.</span><span class="n">toJS</span><span class="p">);</span>
+<span class="w">    </span><span class="n">reader</span><span class="p">.</span><span class="n">readAsText</span><span class="p">(</span><span class="n">file</span><span class="p">);</span>
+<span class="w">  </span><span class="p">}.</span><span class="n">toJS</span><span class="p">);</span>
+<span class="w">  </span><span class="n">input</span><span class="p">.</span><span class="n">click</span><span class="p">();</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="kd">await</span><span class="w"> </span><span class="n">completer</span><span class="p">.</span><span class="n">future</span><span class="p">;</span>
+</code></pre></div>
+<p>Python calls <code>upload_file()</code> and blocks. Dart opens a file picker, reads
+the selected file, and returns its text content. Python resumes with the
+file data as a string.</p>
+<h2 id="opaque-handle-system">Opaque Handle System</h2>
+<p>DOM elements cannot cross the WASM boundary. Instead, Dart maintains a
+handle map:</p>
+<div class="highlight"><pre><span></span><code><span class="kt">int</span><span class="w"> </span><span class="n">_nextHandle</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">1</span><span class="p">;</span>
+<span class="kd">final</span><span class="w"> </span><span class="n">Map</span><span class="o">&lt;</span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="n">Element</span><span class="o">&gt;</span><span class="w"> </span><span class="n">_handles</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{};</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="n">_store</span><span class="p">(</span><span class="n">Element</span><span class="w"> </span><span class="n">el</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">final</span><span class="w"> </span><span class="n">h</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">_nextHandle</span><span class="o">++</span><span class="p">;</span>
+<span class="w">  </span><span class="n">_handles</span><span class="p">[</span><span class="n">h</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">el</span><span class="p">;</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">h</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="n">Element</span><span class="o">?</span><span class="w"> </span><span class="n">_get</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">h</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">_handles</span><span class="p">[</span><span class="n">h</span><span class="p">];</span>
+<span class="kt">void</span><span class="w"> </span><span class="n">_free</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">h</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">_handles</span><span class="p">.</span><span class="n">remove</span><span class="p">(</span><span class="n">h</span><span class="p">);</span>
+</code></pre></div>
+<p>Python works exclusively with integer handles:</p>
+<div class="highlight"><pre><span></span><code><span class="n">btn</span> <span class="o">=</span> <span class="n">dom_create</span><span class="p">(</span><span class="s2">&quot;button&quot;</span><span class="p">)</span>   <span class="c1"># returns 1</span>
+<span class="n">dom_text</span><span class="p">(</span><span class="n">btn</span><span class="p">,</span> <span class="s2">&quot;Click me&quot;</span><span class="p">)</span>    <span class="c1"># passes handle 1</span>
+<span class="n">dom_append</span><span class="p">(</span><span class="n">app</span><span class="p">,</span> <span class="n">btn</span><span class="p">)</span>         <span class="c1"># passes handles</span>
+<span class="n">dom_on_click</span><span class="p">(</span><span class="n">btn</span><span class="p">)</span>            <span class="c1"># blocks on handle 1</span>
+</code></pre></div>
+<h2 id="json-wire-format">JSON Wire Format</h2>
+<p>All data between layers is JSON. Key message shapes:</p>
+<p><strong>Start request</strong> (bridge -&gt; worker):</p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="w"> </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;start&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;code&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;...&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;extFns&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;dom_create&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;log&quot;</span><span class="p">],</span><span class="w"> </span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="p">}</span>
+</code></pre></div>
+<p><strong>Pending response</strong> (worker -&gt; bridge -&gt; Dart):</p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="w"> </span><span class="nt">&quot;state&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;pending&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;functionName&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;dom_create&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;args&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;button&quot;</span><span class="p">],</span><span class="w"> </span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="p">}</span>
+</code></pre></div>
+<p><strong>Resume request</strong> (bridge -&gt; worker):</p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="w"> </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;resume&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;value&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">42</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="p">}</span>
+</code></pre></div>
+<p><strong>Complete response</strong> (worker -&gt; bridge -&gt; Dart):</p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="w"> </span><span class="nt">&quot;state&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;complete&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;ok&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;value&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;done&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">3</span><span class="w"> </span><span class="p">}</span>
+</code></pre></div>
+<h2 id="coopcoep-requirements">COOP/COEP Requirements</h2>
+<p>The web server must set these headers for <code>SharedArrayBuffer</code> support:</p>
+<div class="highlight"><pre><span></span><code>Cross-Origin-Opener-Policy: same-origin
+Cross-Origin-Embedder-Policy: require-corp
+</code></pre></div>
+<p>The showcase uses <code>coi-serviceworker.js</code> to inject these headers when
+the server doesn't set them natively.</p>
+<h2 id="comparison-with-native-path">Comparison with Native Path</h2>
+<table>
+<thead>
+<tr>
+<th>Concern</th>
+<th>Web (bridge)</th>
+<th>Native (FFI)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Transport</td>
+<td><code>postMessage</code> + JSON</td>
+<td><code>dart:ffi</code> + C pointers</td>
+</tr>
+<tr>
+<td>Threading</td>
+<td>Web Worker</td>
+<td>Dart Isolate</td>
+</tr>
+<tr>
+<td>WASM compile</td>
+<td>Async in Worker</td>
+<td>N/A (native binary)</td>
+</tr>
+<tr>
+<td>Memory</td>
+<td>Structured clone</td>
+<td>Shared memory + manual alloc/free</td>
+</tr>
+<tr>
+<td>Snapshot format</td>
+<td>base64 string</td>
+<td><code>Uint8List</code> via raw pointer</td>
+</tr>
+<tr>
+<td>Latency per call</td>
+<td>~5-20ms (postMessage overhead)</td>
+<td>&lt;1ms (FFI is near-zero)</td>
+</tr>
+</tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.expand", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

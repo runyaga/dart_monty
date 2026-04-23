@@ -1,0 +1,2606 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Pure Dart bindings for Monty, a restricted sandboxed Python interpreter built in Rust.">
+      
+      
+      
+      
+        <link rel="prev" href="host-functions-intermediate.html">
+      
+      
+        <link rel="next" href="bridge-middleware.html">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Host Functions Advanced - dart_monty</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../extra.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#host-functions-advanced" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="dart_monty" class="md-header__button md-logo" aria-label="dart_monty" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            dart_monty
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Host Functions Advanced
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="dart_monty" class="md-nav__button md-logo" aria-label="dart_monty" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    dart_monty
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../help.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    User Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user/install.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user/repl.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    REPL
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user/extensions.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Extensions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user/api-reference.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorials
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tutorials
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="host-functions-intro.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Host Functions Intro
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="host-functions-beginner.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Host Functions Beginner
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="host-functions-intermediate.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Host Functions Intermediate
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Host Functions Advanced
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="host-functions-advanced.html" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Host Functions Advanced
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#sandboxextension" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SandboxExtension
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="SandboxExtension">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#why-isolated-children" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why Isolated Children
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#creating-an-sandboxextension" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Creating an SandboxExtension
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#host-functions-provided" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Host Functions Provided
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#basic-usage-from-python" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Basic Usage from Python
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#handle-lifecycle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Handle Lifecycle
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#per-child-resource-limits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Per-Child Resource Limits
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#depth-and-concurrency-limits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Depth and Concurrency Limits
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Depth and Concurrency Limits">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#depth-limits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Depth Limits
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#concurrency-limits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Concurrency Limits
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#providing-extensions-to-children" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Providing Extensions to Children
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Providing Extensions to Children">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#automatic-extension-inheritance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Automatic Extension Inheritance
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#per-child-filesystem-isolation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Per-Child Filesystem Isolation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#child-system-prompts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Child System Prompts
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Child System Prompts">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#layer-1-infrastructure-builder-static-from-dart" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layer 1: Infrastructure Builder (static, from Dart)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#layer-2-parent-llm-fragment-dynamic-from-python" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layer 2: Parent LLM Fragment (dynamic, from Python)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#concatenation-order" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Concatenation Order
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-it-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How It Works
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#disposal-and-cleanup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Disposal and Cleanup
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#production-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Production Patterns
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Production Patterns">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fan-out-fan-in" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fan-Out / Fan-In
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#timeout-with-fallback" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Timeout with Fallback
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#checking-progress" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Checking Progress
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#writing-custom-extensions-for-production" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Writing Custom Extensions for Production
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Writing Custom Extensions for Production">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#extension-design-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Extension Design Checklist
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#multi-session-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Multi-Session Patterns
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#futures-batching" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Futures Batching
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="bridge-middleware.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bridge Middleware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="llm-prompt-rules.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LLM Prompt Rules
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="live-shape-negotiation-research.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Shape Negotiation Research
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deep Dives
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Deep Dives
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/overview.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../deep-dives/sandbox-architecture.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sandbox Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../deep-dives/oscall-vfs.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    OsCall / VFS Layer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../deep-dives/error-hierarchy.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Error Hierarchy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../deep-dives/lifecycles.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Lifecycle Management
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../deep-dives/extension-system.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Extension System
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Technical Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Technical Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/native-crate.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Native Crate (Rust)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/monty-rust-api.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Monty Rust API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/ffi-handle-lifecycle.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FFI Handle Lifecycle
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/bridge-integration.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bridge Integration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/internals.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Internals
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/api-coverage-plan.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Coverage Plan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Contributing
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contributor/setup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contributor/testing.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contributor/native-build.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Native Build
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#sandboxextension" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SandboxExtension
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="SandboxExtension">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#why-isolated-children" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why Isolated Children
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#creating-an-sandboxextension" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Creating an SandboxExtension
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#host-functions-provided" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Host Functions Provided
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#basic-usage-from-python" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Basic Usage from Python
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#handle-lifecycle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Handle Lifecycle
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#per-child-resource-limits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Per-Child Resource Limits
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#depth-and-concurrency-limits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Depth and Concurrency Limits
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Depth and Concurrency Limits">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#depth-limits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Depth Limits
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#concurrency-limits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Concurrency Limits
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#providing-extensions-to-children" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Providing Extensions to Children
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Providing Extensions to Children">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#automatic-extension-inheritance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Automatic Extension Inheritance
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#per-child-filesystem-isolation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Per-Child Filesystem Isolation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#child-system-prompts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Child System Prompts
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Child System Prompts">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#layer-1-infrastructure-builder-static-from-dart" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layer 1: Infrastructure Builder (static, from Dart)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#layer-2-parent-llm-fragment-dynamic-from-python" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layer 2: Parent LLM Fragment (dynamic, from Python)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#concatenation-order" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Concatenation Order
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-it-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How It Works
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#disposal-and-cleanup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Disposal and Cleanup
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#production-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Production Patterns
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Production Patterns">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fan-out-fan-in" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fan-Out / Fan-In
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#timeout-with-fallback" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Timeout with Fallback
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#checking-progress" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Checking Progress
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#writing-custom-extensions-for-production" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Writing Custom Extensions for Production
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Writing Custom Extensions for Production">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#extension-design-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Extension Design Checklist
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#multi-session-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Multi-Session Patterns
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#futures-batching" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Futures Batching
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="host-functions-advanced">Host Functions -- Advanced</h1>
+<p>This guide covers the <code>SandboxExtension</code> for spawning child Python
+interpreters, depth and concurrency limits, resource limits per child,
+handle lifecycle management, and production patterns.</p>
+<p><strong>Prerequisites:</strong> Read the <a href="host-functions-intermediate.html">Intermediate guide</a> first.</p>
+<h2 id="sandboxextension">SandboxExtension</h2>
+<p><code>SandboxExtension</code> is a <code>MontyExtension</code> that lets parent Python code spawn
+child Python scripts in separate Monty interpreter instances. Each child
+gets its own <code>MontyPlatform</code> and <code>DefaultMontyBridge</code> -- fully isolated
+interpreter state.</p>
+<h3 id="why-isolated-children">Why Isolated Children</h3>
+<p>Use cases for child interpreters:</p>
+<ul>
+<li><strong>Parallel computation:</strong> Fan out work across multiple interpreters
+  and collect results.</li>
+<li><strong>Untrusted code execution:</strong> Run user-supplied code in a constrained
+  child with strict resource limits.</li>
+<li><strong>Recursive scripting:</strong> A script spawns sub-scripts that may
+  themselves spawn further children (bounded by depth limits).</li>
+<li><strong>Fault isolation:</strong> A failing child does not crash the parent.</li>
+</ul>
+<h3 id="creating-an-sandboxextension">Creating an SandboxExtension</h3>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="s1">&#39;package:dart_monty/dart_monty.dart&#39;</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="s1">&#39;package:dart_monty_bridge/dart_monty_bridge.dart&#39;</span><span class="p">;</span>
+
+<span class="kd">final</span><span class="w"> </span><span class="kd">extension</span><span class="w"> </span><span class="err">= </span><span class="nc">SandboxExtension</span><span class="p">(</span>
+<span class="w">  </span><span class="nl">platformFactory:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="kd">async</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">Monty</span><span class="p">(),</span>
+<span class="w">  </span><span class="nl">maxChildren:</span><span class="w"> </span><span class="m">16</span><span class="p">,</span><span class="w">      </span><span class="c1">// Max concurrent children (default: 16)</span>
+<span class="w">  </span><span class="nl">maxDepth:</span><span class="w"> </span><span class="m">3</span><span class="p">,</span><span class="w">          </span><span class="c1">// Max recursion depth (default: 3)</span>
+<span class="w">  </span><span class="nl">currentDepth:</span><span class="w"> </span><span class="m">0</span><span class="p">,</span><span class="w">      </span><span class="c1">// This extension&#39;s depth level (default: 0)</span>
+<span class="w">  </span><span class="nl">childLimits:</span><span class="w"> </span><span class="n">MontyLimits</span><span class="p">(</span>
+<span class="w">    </span><span class="nl">timeoutMs:</span><span class="w"> </span><span class="m">5000</span><span class="p">,</span>
+<span class="w">    </span><span class="nl">memoryBytes:</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="m">1024</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="m">1024</span><span class="p">,</span>
+<span class="w">  </span><span class="p">),</span>
+<span class="p">);</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>platformFactory</code></td>
+<td><code>Future&lt;MontyPlatform&gt; Function()</code></td>
+<td>required</td>
+<td>Creates a fresh platform for each child</td>
+</tr>
+<tr>
+<td><code>childExtensionCoordinatorFactory</code></td>
+<td><code>Future&lt;ExtensionCoordinator?&gt; Function(ChildSpawnContext)?</code></td>
+<td><code>null</code></td>
+<td>Optional: provides extensions to children</td>
+</tr>
+<tr>
+<td><code>parentExtensions</code></td>
+<td><code>List&lt;MontyExtension&gt;</code></td>
+<td><code>const []</code></td>
+<td>Parent extensions for automatic child inheritance</td>
+</tr>
+<tr>
+<td><code>maxChildren</code></td>
+<td><code>int</code></td>
+<td><code>16</code></td>
+<td>Maximum concurrent living children</td>
+</tr>
+<tr>
+<td><code>maxDepth</code></td>
+<td><code>int</code></td>
+<td><code>3</code></td>
+<td>Maximum recursion depth for nested SandboxExtensions</td>
+</tr>
+<tr>
+<td><code>currentDepth</code></td>
+<td><code>int</code></td>
+<td><code>0</code></td>
+<td>This extension's current depth in the recursion tree</td>
+</tr>
+<tr>
+<td><code>childLimits</code></td>
+<td><code>MontyLimits?</code></td>
+<td><code>null</code></td>
+<td>Default resource limits for all children</td>
+</tr>
+<tr>
+<td><code>sandboxBaseDir</code></td>
+<td><code>String?</code></td>
+<td><code>null</code></td>
+<td>Base directory for per-child working directories</td>
+</tr>
+<tr>
+<td><code>systemPromptBuilder</code></td>
+<td><code>ChildSystemPromptBuilder?</code></td>
+<td><code>null</code></td>
+<td>Builds static system prompt from child context</td>
+</tr>
+</tbody>
+</table>
+<h3 id="host-functions-provided">Host Functions Provided</h3>
+<p>The extension registers these functions under the <code>sandbox</code> namespace:</p>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Description</th>
+<th>Parameters</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sandbox_spawn(code, timeout_ms?, memory_bytes?, system_prompt?)</code></td>
+<td>Spawn a child. Returns an integer handle.</td>
+<td><code>code</code>: string (required), <code>timeout_ms</code>: integer, <code>memory_bytes</code>: integer, <code>system_prompt</code>: string</td>
+</tr>
+<tr>
+<td><code>sandbox_await(handle)</code></td>
+<td>Wait for a child to complete. Returns its result.</td>
+<td><code>handle</code>: integer</td>
+</tr>
+<tr>
+<td><code>sandbox_await_all(handles)</code></td>
+<td>Wait for multiple children. Returns list of results.</td>
+<td><code>handles</code>: list</td>
+</tr>
+<tr>
+<td><code>sandbox_is_alive(handle)</code></td>
+<td>Check if a child is still running. Returns boolean.</td>
+<td><code>handle</code>: integer</td>
+</tr>
+<tr>
+<td><code>sandbox_free(handle)</code></td>
+<td>Release a completed child's handle.</td>
+<td><code>handle</code>: integer</td>
+</tr>
+<tr>
+<td><code>sandbox_get_output(handle)</code></td>
+<td>Get a completed child's print output.</td>
+<td><code>handle</code>: integer</td>
+</tr>
+<tr>
+<td><code>sandbox_gather(handles)</code></td>
+<td>Wait for multiple children. Returns list of dicts with handle, value, and output.</td>
+<td><code>handles</code>: list</td>
+</tr>
+</tbody>
+</table>
+<h3 id="basic-usage-from-python">Basic Usage from Python</h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># Spawn two children</span>
+<span class="n">h1</span> <span class="o">=</span> <span class="n">sandbox_spawn</span><span class="p">(</span><span class="s2">&quot;2 ** 10&quot;</span><span class="p">)</span>
+<span class="n">h2</span> <span class="o">=</span> <span class="n">sandbox_spawn</span><span class="p">(</span><span class="s2">&quot;3 ** 7&quot;</span><span class="p">)</span>
+
+<span class="c1"># Wait for both</span>
+<span class="n">results</span> <span class="o">=</span> <span class="n">sandbox_await_all</span><span class="p">([</span><span class="n">h1</span><span class="p">,</span> <span class="n">h2</span><span class="p">])</span>
+<span class="c1"># results == [1024, 2187]</span>
+
+<span class="c1"># Clean up</span>
+<span class="n">sandbox_free</span><span class="p">(</span><span class="n">h1</span><span class="p">)</span>
+<span class="n">sandbox_free</span><span class="p">(</span><span class="n">h2</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="handle-lifecycle">Handle Lifecycle</h3>
+<p>Each <code>sandbox_spawn()</code> returns an integer handle. Handles follow a
+strict lifecycle:</p>
+<div class="highlight"><pre><span></span><code>spawn  -&gt;  alive  -&gt;  completed  -&gt;  freed
+</code></pre></div>
+<p><strong>Rules:</strong></p>
+<ul>
+<li><code>sandbox_await(handle)</code> blocks until the child completes or fails.
+  If the child failed, it raises an error with the child's error message.</li>
+<li><code>sandbox_free(handle)</code> releases the handle's resources. It throws
+  <code>StateError</code> if the child is still alive -- you must await first.</li>
+<li><code>sandbox_get_output(handle)</code> returns the child's captured <code>print()</code>
+  output as a string (or <code>null</code> if no output). Throws <code>StateError</code> if
+  the child is still running.</li>
+<li><code>sandbox_is_alive(handle)</code> returns <code>true</code> if the child is still
+  executing.</li>
+<li>Unknown handles throw <code>ArgumentError</code>.</li>
+</ul>
+<p><strong>Warning:</strong> You must call <code>sandbox_free()</code> on every completed
+handle. Handles are never garbage collected automatically.
+Failing to free handles causes a silent memory leak (the <code>_ChildHandle</code>
+and its captured output remain in memory) and will eventually exhaust
+<code>maxChildren</code>, preventing new children from being spawned.</p>
+<h3 id="per-child-resource-limits">Per-Child Resource Limits</h3>
+<p>Children can override the default <code>childLimits</code> at spawn time:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># Use default limits from childLimits</span>
+<span class="n">h1</span> <span class="o">=</span> <span class="n">sandbox_spawn</span><span class="p">(</span><span class="s2">&quot;expensive_computation()&quot;</span><span class="p">)</span>
+
+<span class="c1"># Override timeout for this specific child</span>
+<span class="n">h2</span> <span class="o">=</span> <span class="n">sandbox_spawn</span><span class="p">(</span><span class="s2">&quot;slow_task()&quot;</span><span class="p">,</span> <span class="n">timeout_ms</span><span class="o">=</span><span class="mi">30000</span><span class="p">)</span>
+
+<span class="c1"># Override memory for this specific child</span>
+<span class="n">h3</span> <span class="o">=</span> <span class="n">sandbox_spawn</span><span class="p">(</span><span class="s2">&quot;memory_heavy()&quot;</span><span class="p">,</span> <span class="n">memory_bytes</span><span class="o">=</span><span class="mi">50000000</span><span class="p">)</span>
+
+<span class="c1"># Override both</span>
+<span class="n">h4</span> <span class="o">=</span> <span class="n">sandbox_spawn</span><span class="p">(</span><span class="s2">&quot;big_slow()&quot;</span><span class="p">,</span> <span class="n">timeout_ms</span><span class="o">=</span><span class="mi">60000</span><span class="p">,</span> <span class="n">memory_bytes</span><span class="o">=</span><span class="mi">100000000</span><span class="p">)</span>
+</code></pre></div>
+<p>When <code>timeout_ms</code> or <code>memory_bytes</code> are specified at spawn time, they
+override the corresponding fields in <code>childLimits</code>. Unspecified fields
+fall back to the <code>childLimits</code> defaults. If <code>childLimits</code> is <code>null</code>
+and no per-child overrides are given, the child runs without resource
+constraints.</p>
+<p>The <code>MontyLimits</code> fields that can be constrained:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>timeoutMs</code></td>
+<td>Maximum execution time in milliseconds</td>
+</tr>
+<tr>
+<td><code>memoryBytes</code></td>
+<td>Maximum memory usage in bytes</td>
+</tr>
+<tr>
+<td><code>stackDepth</code></td>
+<td>Maximum Python call stack depth</td>
+</tr>
+</tbody>
+</table>
+<p>Note that <code>stackDepth</code> is not overridable per-child from Python -- it
+uses the value from <code>childLimits</code>.</p>
+<h2 id="depth-and-concurrency-limits">Depth and Concurrency Limits</h2>
+<h3 id="depth-limits">Depth Limits</h3>
+<p>If children also have <code>SandboxExtension</code> registered (via
+<code>childExtensionCoordinatorFactory</code>), they can spawn their own children. The
+<code>maxDepth</code> and <code>currentDepth</code> parameters control how deep this
+recursion can go:</p>
+<div class="highlight"><pre><span></span><code><span class="n">SandboxExtension</span><span class="p">(</span>
+<span class="w">  </span><span class="nl">platformFactory:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="kd">async</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">Monty</span><span class="p">(),</span>
+<span class="w">  </span><span class="nl">maxDepth:</span><span class="w"> </span><span class="m">3</span><span class="p">,</span>
+<span class="w">  </span><span class="nl">currentDepth:</span><span class="w"> </span><span class="m">0</span><span class="p">,</span>
+<span class="w">  </span><span class="nl">childExtensionCoordinatorFactory:</span><span class="w"> </span><span class="p">(</span><span class="n">context</span><span class="p">)</span><span class="w"> </span><span class="kd">async</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">final</span><span class="w"> </span><span class="n">registry</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ExtensionCoordinator</span><span class="p">();</span>
+<span class="w">    </span><span class="n">registry</span><span class="p">.</span><span class="n">register</span><span class="p">(</span><span class="n">SandboxExtension</span><span class="p">(</span>
+<span class="w">      </span><span class="nl">platformFactory:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="kd">async</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">Monty</span><span class="p">(),</span>
+<span class="w">      </span><span class="nl">maxDepth:</span><span class="w"> </span><span class="m">3</span><span class="p">,</span>
+<span class="w">      </span><span class="nl">currentDepth:</span><span class="w"> </span><span class="m">1</span><span class="p">,</span><span class="w">  </span><span class="c1">// One level deeper</span>
+<span class="w">    </span><span class="p">));</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">registry</span><span class="p">;</span>
+<span class="w">  </span><span class="p">},</span>
+<span class="p">)</span>
+</code></pre></div>
+<p>When <code>currentDepth &gt;= maxDepth</code>, <code>sandbox_spawn()</code> throws <code>StateError</code>
+with the message <code>"Maximum sandbox recursion depth (N) exceeded."</code>.</p>
+<h3 id="concurrency-limits">Concurrency Limits</h3>
+<p><code>maxChildren</code> limits the number of <strong>alive</strong> children at any time.
+When the limit is reached, <code>sandbox_spawn()</code> throws <code>StateError</code> with
+the message <code>"Maximum concurrent children (N) reached."</code>.</p>
+<p>Freed children do not count against the limit. After
+<code>sandbox_free(handle)</code>, the slot is available for new children.</p>
+<h2 id="providing-extensions-to-children">Providing Extensions to Children</h2>
+<p>By default, children only get the introspection builtins (if a
+<code>ExtensionCoordinator</code> is attached). Use <code>childExtensionCoordinatorFactory</code> to
+give children access to host functions:</p>
+<div class="highlight"><pre><span></span><code><span class="n">SandboxExtension</span><span class="p">(</span>
+<span class="w">  </span><span class="nl">platformFactory:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="kd">async</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">Monty</span><span class="p">(),</span>
+<span class="w">  </span><span class="nl">childExtensionCoordinatorFactory:</span><span class="w"> </span><span class="p">(</span><span class="n">context</span><span class="p">)</span><span class="w"> </span><span class="kd">async</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">final</span><span class="w"> </span><span class="n">registry</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ExtensionCoordinator</span><span class="p">();</span>
+<span class="w">    </span><span class="n">registry</span><span class="p">.</span><span class="n">register</span><span class="p">(</span><span class="n">MathExtension</span><span class="p">());</span>
+<span class="w">    </span><span class="n">registry</span><span class="p">.</span><span class="n">register</span><span class="p">(</span><span class="n">StorageExtension</span><span class="p">());</span>
+<span class="w">    </span><span class="c1">// Note: do NOT register SandboxExtension here unless you want</span>
+<span class="w">    </span><span class="c1">// recursive spawning (and remember to increment currentDepth)</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">registry</span><span class="p">;</span>
+<span class="w">  </span><span class="p">},</span>
+<span class="p">)</span>
+</code></pre></div>
+<p>The factory receives a <code>ChildSpawnContext</code> with the child's <code>childId</code>
+and optional <code>workingDirectory</code> -- use these for per-child resource
+configuration.</p>
+<p>Return <code>null</code> from the factory to give children only introspection
+builtins (no extensions). If the factory itself is <code>null</code>, children get
+no extensions at all and no introspection.</p>
+<h3 id="automatic-extension-inheritance">Automatic Extension Inheritance</h3>
+<p>When <code>childExtensionCoordinatorFactory</code> is <code>null</code>, children automatically
+inherit extensions from <code>parentExtensions</code> that opt in via
+<code>createChildInstance()</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="n">SandboxExtension</span><span class="p">(</span>
+<span class="w">  </span><span class="nl">platformFactory:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="kd">async</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">Monty</span><span class="p">(),</span>
+<span class="w">  </span><span class="nl">parentExtensions:</span><span class="w"> </span><span class="n">registry</span><span class="p">.</span><span class="n">extensions</span><span class="p">,</span><span class="w">  </span><span class="c1">// Pass parent&#39;s extension list</span>
+<span class="p">)</span>
+</code></pre></div>
+<p>Each parent extension's <code>createChildInstance(context:)</code> is called with a
+<code>ChildSpawnContext</code>. Extensions that return a new instance are registered
+on the child's bridge. Extensions that return <code>null</code> are excluded.</p>
+<h3 id="per-child-filesystem-isolation">Per-Child Filesystem Isolation</h3>
+<p>The <code>sandboxBaseDir</code> parameter enables per-child working directories:</p>
+<div class="highlight"><pre><span></span><code><span class="n">SandboxExtension</span><span class="p">(</span>
+<span class="w">  </span><span class="nl">platformFactory:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="kd">async</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">Monty</span><span class="p">(),</span>
+<span class="w">  </span><span class="nl">sandboxBaseDir:</span><span class="w"> </span><span class="s1">&#39;/data&#39;</span><span class="p">,</span>
+<span class="w">  </span><span class="nl">parentExtensions:</span><span class="w"> </span><span class="n">registry</span><span class="p">.</span><span class="n">extensions</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+<p>When set, each child's <code>ChildSpawnContext.workingDirectory</code> is computed
+as <code>$sandboxBaseDir/.sandboxes/child_$id</code> (e.g.,
+<code>/data/.sandboxes/child_0</code>). The directory is <strong>not</strong> created by
+<code>SandboxExtension</code> -- consumers (e.g., an <code>FsExtension.createChildInstance</code>)
+are responsible for creating and managing it.</p>
+<h2 id="child-system-prompts">Child System Prompts</h2>
+<p><code>SandboxExtension</code> supports injecting custom system prompts into child
+sandboxes via two layers:</p>
+<h3 id="layer-1-infrastructure-builder-static-from-dart">Layer 1: Infrastructure Builder (static, from Dart)</h3>
+<p>The <code>systemPromptBuilder</code> callback produces static, infrastructure-level
+prompt content from <code>ChildSpawnContext</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="n">SandboxExtension</span><span class="p">(</span>
+<span class="w">  </span><span class="nl">platformFactory:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="kd">async</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">Monty</span><span class="p">(),</span>
+<span class="w">  </span><span class="nl">sandboxBaseDir:</span><span class="w"> </span><span class="s1">&#39;/data&#39;</span><span class="p">,</span>
+<span class="w">  </span><span class="nl">systemPromptBuilder:</span><span class="w"> </span><span class="p">(</span><span class="n">context</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span>
+<span class="w">      </span><span class="s1">&#39;You are child </span><span class="si">${</span><span class="n">context</span><span class="p">.</span><span class="n">childId</span><span class="si">}</span><span class="s1">. &#39;</span>
+<span class="w">      </span><span class="s1">&#39;Your workspace is </span><span class="si">${</span><span class="n">context</span><span class="p">.</span><span class="n">workingDirectory</span><span class="si">}</span><span class="s1">. &#39;</span>
+<span class="w">      </span><span class="s1">&#39;Do not access other children</span><span class="se">\&#39;</span><span class="s1">s data.&#39;</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+<ul>
+<li>Computed from <code>ChildSpawnContext</code> (childId, workingDirectory)</li>
+<li>Infrastructure truths that should never be wrong</li>
+<li>Cannot be prompt-injected by the parent LLM</li>
+<li>Return <code>null</code> to skip the builder layer for a specific child</li>
+</ul>
+<h3 id="layer-2-parent-llm-fragment-dynamic-from-python">Layer 2: Parent LLM Fragment (dynamic, from Python)</h3>
+<p>The <code>system_prompt</code> parameter on <code>sandbox_spawn</code> lets the parent LLM
+inject role-specific instructions at runtime:</p>
+<div class="highlight"><pre><span></span><code><span class="n">h</span> <span class="o">=</span> <span class="n">sandbox_spawn</span><span class="p">(</span>
+    <span class="s2">&quot;analyze(data)&quot;</span><span class="p">,</span>
+    <span class="n">system_prompt</span><span class="o">=</span><span class="s2">&quot;You are the validator. Check results for correctness.&quot;</span>
+<span class="p">)</span>
+</code></pre></div>
+<ul>
+<li>Role assignment, task-specific instructions</li>
+<li>The parent LLM's planning decision at runtime</li>
+<li>Optional -- omit if the parent doesn't need to customize</li>
+</ul>
+<h3 id="concatenation-order">Concatenation Order</h3>
+<p>When both layers are present, the builder output comes first
+(infrastructure truth), then the runtime fragment (role assignment),
+separated by a blank line:</p>
+<div class="highlight"><pre><span></span><code>You are child 0. Your workspace is /data/.sandboxes/child_0.
+
+You are the validator. Check results for correctness.
+</code></pre></div>
+<h3 id="how-it-works">How It Works</h3>
+<p>The concatenated prompt is injected into the child's
+<code>ExtensionCoordinator.systemPromptPrefix</code> <strong>after</strong> registry construction.
+This setter-based approach guarantees prompt injection regardless of
+whether the registry was built by inheritance or a custom factory --
+factories cannot accidentally forget to wire the prompt.</p>
+<p>If no extensions exist but a prompt is provided, an empty <code>ExtensionCoordinator</code>
+is created automatically so the prompt (and introspection builtins) are
+available to the child.</p>
+<h2 id="disposal-and-cleanup">Disposal and Cleanup</h2>
+<p>When <code>SandboxExtension.onDispose()</code> is called:</p>
+<ol>
+<li>All living children are torn down (disposed).</li>
+<li>Each child's completer is completed with a <code>StateError</code>.</li>
+<li>Unhandled async errors are suppressed (via <code>future.ignore()</code>).</li>
+<li>The children map is cleared.</li>
+</ol>
+<p>Disposal is idempotent -- calling <code>onDispose()</code> multiple times is safe.</p>
+<p>When a child completes (normally or with error), the extension performs
+best-effort cleanup: the child's bridge is disposed, its platform is
+disposed, and its extension registry (if any) is disposed. Cleanup errors
+are swallowed to avoid masking the child's actual result.</p>
+<h2 id="production-patterns">Production Patterns</h2>
+<h3 id="fan-out-fan-in">Fan-Out / Fan-In</h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># Fan out work</span>
+<span class="n">handles</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="n">items</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;task_a&quot;</span><span class="p">,</span> <span class="s2">&quot;task_b&quot;</span><span class="p">,</span> <span class="s2">&quot;task_c&quot;</span><span class="p">,</span> <span class="s2">&quot;task_d&quot;</span><span class="p">]</span>
+<span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="k">while</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">items</span><span class="p">):</span>
+    <span class="n">h</span> <span class="o">=</span> <span class="n">sandbox_spawn</span><span class="p">(</span><span class="s1">&#39;process(&quot;&#39;</span> <span class="o">+</span> <span class="n">items</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+</span> <span class="s1">&#39;&quot;)&#39;</span><span class="p">)</span>
+    <span class="n">handles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">h</span><span class="p">)</span>
+    <span class="n">i</span> <span class="o">=</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span>
+
+<span class="c1"># Fan in results</span>
+<span class="n">results</span> <span class="o">=</span> <span class="n">sandbox_await_all</span><span class="p">(</span><span class="n">handles</span><span class="p">)</span>
+
+<span class="c1"># Clean up all handles</span>
+<span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="k">while</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">handles</span><span class="p">):</span>
+    <span class="n">sandbox_free</span><span class="p">(</span><span class="n">handles</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+    <span class="n">i</span> <span class="o">=</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span>
+</code></pre></div>
+<h3 id="timeout-with-fallback">Timeout with Fallback</h3>
+<div class="highlight"><pre><span></span><code><span class="n">h</span> <span class="o">=</span> <span class="n">sandbox_spawn</span><span class="p">(</span><span class="s2">&quot;slow_computation()&quot;</span><span class="p">,</span> <span class="n">timeout_ms</span><span class="o">=</span><span class="mi">5000</span><span class="p">)</span>
+<span class="k">try</span><span class="p">:</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">sandbox_await</span><span class="p">(</span><span class="n">h</span><span class="p">)</span>
+<span class="k">except</span><span class="p">:</span>
+    <span class="c1"># Child timed out or failed</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="s2">&quot;fallback_value&quot;</span>
+<span class="n">sandbox_free</span><span class="p">(</span><span class="n">h</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="checking-progress">Checking Progress</h3>
+<div class="highlight"><pre><span></span><code><span class="n">h</span> <span class="o">=</span> <span class="n">sandbox_spawn</span><span class="p">(</span><span class="s2">&quot;long_running_task()&quot;</span><span class="p">)</span>
+
+<span class="c1"># Poll periodically (in practice, do useful work between checks)</span>
+<span class="k">while</span> <span class="n">sandbox_is_alive</span><span class="p">(</span><span class="n">h</span><span class="p">):</span>
+    <span class="c1"># ... do other work ...</span>
+    <span class="k">pass</span>
+
+<span class="n">result</span> <span class="o">=</span> <span class="n">sandbox_await</span><span class="p">(</span><span class="n">h</span><span class="p">)</span>
+<span class="n">output</span> <span class="o">=</span> <span class="n">sandbox_get_output</span><span class="p">(</span><span class="n">h</span><span class="p">)</span>
+<span class="n">sandbox_free</span><span class="p">(</span><span class="n">h</span><span class="p">)</span>
+</code></pre></div>
+<h2 id="writing-custom-extensions-for-production">Writing Custom Extensions for Production</h2>
+<h3 id="extension-design-checklist">Extension Design Checklist</h3>
+<ol>
+<li>
+<p><strong>Namespace:</strong> Choose a short, descriptive namespace (e.g., <code>db</code>,
+   <code>http</code>, <code>auth</code>). It must match <code>[a-z][a-z0-9_]*</code> and be at most
+   32 characters.</p>
+</li>
+<li>
+<p><strong>Function naming:</strong> All function names must start with
+   <code>{namespace}_</code>. Keep names descriptive but concise:
+   <code>db_query</code>, <code>db_execute</code>, <code>db_tables</code>.</p>
+</li>
+<li>
+<p><strong>System prompt context:</strong> Provide <code>systemPromptContext</code> if your
+   extension needs explanation beyond what the function schemas convey.
+   This text goes into LLM system prompts via <code>generateSystemPrompt()</code>.</p>
+</li>
+<li>
+<p><strong>Lifecycle hooks:</strong> Use <code>onRegister()</code> to initialize resources
+   (open connections, load configs). Use <code>onDispose()</code> to clean them
+   up. Both must be idempotent.</p>
+</li>
+<li>
+<p><strong>Error handling:</strong> Let exceptions propagate naturally -- the bridge
+   converts them to Python errors. Only catch if you need custom
+   recovery or cleanup.</p>
+</li>
+<li>
+<p><strong>Parameter types:</strong> Use the most specific <code>HostParamType</code> possible.
+   Reserve <code>any</code> for genuinely polymorphic parameters. Use
+   <code>jsonSchemaOverride</code> for complex types that <code>HostParamType</code> cannot
+   express.</p>
+</li>
+<li>
+<p><strong>Thread safety:</strong> If your extension holds mutable state, consider
+   that <code>DefaultMontyBridge</code> processes one execution at a time (it
+   throws <code>StateError</code> on concurrent <code>execute()</code> calls), but futures
+   batching means multiple handlers can run concurrently within a
+   single execution.</p>
+</li>
+</ol>
+<h3 id="multi-session-patterns">Multi-Session Patterns</h3>
+<p>When running multiple bridge sessions (e.g., one per user), each
+session needs its own instances:</p>
+<div class="highlight"><pre><span></span><code><span class="n">Future</span><span class="o">&lt;</span><span class="p">(</span><span class="n">MontyBridge</span><span class="p">,</span><span class="w"> </span><span class="n">ExtensionCoordinator</span><span class="p">)</span><span class="o">&gt;</span><span class="w"> </span><span class="n">createSession</span><span class="p">()</span><span class="w"> </span><span class="kd">async</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">final</span><span class="w"> </span><span class="n">registry</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ExtensionCoordinator</span><span class="p">()</span>
+<span class="w">    </span><span class="p">..</span><span class="n">register</span><span class="p">(</span><span class="n">StorageExtension</span><span class="p">())</span><span class="w">  </span><span class="c1">// Fresh instance per session</span>
+<span class="w">    </span><span class="p">..</span><span class="n">register</span><span class="p">(</span><span class="n">MathExtension</span><span class="p">());</span>
+
+<span class="w">  </span><span class="kd">final</span><span class="w"> </span><span class="n">bridge</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">MontyBridge</span><span class="p">(</span><span class="nl">platform:</span><span class="w"> </span><span class="n">Monty</span><span class="p">());</span>
+<span class="w">  </span><span class="kd">await</span><span class="w"> </span><span class="n">registry</span><span class="p">.</span><span class="n">attachTo</span><span class="p">(</span><span class="n">bridge</span><span class="p">);</span>
+
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span><span class="n">bridge</span><span class="p">,</span><span class="w"> </span><span class="n">registry</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="c1">// Each session is fully isolated</span>
+<span class="kd">final</span><span class="w"> </span><span class="p">(</span><span class="n">bridge1</span><span class="p">,</span><span class="w"> </span><span class="n">registry1</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kd">await</span><span class="w"> </span><span class="n">createSession</span><span class="p">();</span>
+<span class="kd">final</span><span class="w"> </span><span class="p">(</span><span class="n">bridge2</span><span class="p">,</span><span class="w"> </span><span class="n">registry2</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kd">await</span><span class="w"> </span><span class="n">createSession</span><span class="p">();</span>
+
+<span class="c1">// Dispose independently</span>
+<span class="n">bridge1</span><span class="p">.</span><span class="n">dispose</span><span class="p">();</span>
+<span class="kd">await</span><span class="w"> </span><span class="n">registry1</span><span class="p">.</span><span class="n">disposeAll</span><span class="p">();</span>
+</code></pre></div>
+<p>Each extension instance maintains its own state. Two <code>StorageExtension</code>
+instances do not share data.</p>
+<h2 id="futures-batching">Futures Batching</h2>
+<p>When <code>useFutures: true</code> (the default) and the platform implements
+<code>MontyFutureCapable</code>, the bridge dispatches host function calls as
+futures. This enables concurrent handler execution within a single
+Python execution:</p>
+<ol>
+<li>Python calls a host function.</li>
+<li>Instead of blocking until the handler completes, the bridge calls
+   <code>resumeAsFuture()</code> to tell the platform "this call is pending."</li>
+<li>Python continues executing. If it calls more host functions before
+   using the return value, those are also dispatched as futures.</li>
+<li>When Python actually <strong>reads</strong> a return value from a host function
+   call (e.g., assigns it to a variable, passes it to another function,
+   or uses it in an expression), the Monty runtime needs the concrete
+   result. At that point the platform emits <code>MontyResolveFutures</code> with
+   the list of pending call IDs.</li>
+<li>The bridge awaits all pending handler futures and feeds the results
+   back in a batch.</li>
+</ol>
+<p>This is transparent to the Python code and the handler implementations.
+It only affects execution ordering: handlers may run concurrently if
+the platform supports futures.</p>
+<p>If a handler throws synchronously (before returning a <code>Future</code>), the
+bridge catches it immediately and feeds the error back via
+<code>resumeWithError()</code> to avoid deadlocking the platform.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.expand", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

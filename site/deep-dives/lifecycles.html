@@ -1,0 +1,2888 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Pure Dart bindings for Monty, a restricted sandboxed Python interpreter built in Rust.">
+      
+      
+      
+      
+        <link rel="prev" href="error-hierarchy.html">
+      
+      
+        <link rel="next" href="extension-system.html">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Lifecycle Management - dart_monty</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../extra.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#resource-lifecycle-audit" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="dart_monty" class="md-header__button md-logo" aria-label="dart_monty" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            dart_monty
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Lifecycle Management
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="dart_monty" class="md-nav__button md-logo" aria-label="dart_monty" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    dart_monty
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../help.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    User Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user/install.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user/repl.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    REPL
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user/extensions.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Extensions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user/api-reference.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorials
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tutorials
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorials/host-functions-intro.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Host Functions Intro
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorials/host-functions-beginner.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Host Functions Beginner
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorials/host-functions-intermediate.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Host Functions Intermediate
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorials/host-functions-advanced.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Host Functions Advanced
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorials/bridge-middleware.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bridge Middleware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorials/llm-prompt-rules.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LLM Prompt Rules
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorials/live-shape-negotiation-research.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Shape Negotiation Research
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deep Dives
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Deep Dives
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/overview.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="sandbox-architecture.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sandbox Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="oscall-vfs.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    OsCall / VFS Layer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="error-hierarchy.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Error Hierarchy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Lifecycle Management
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="lifecycles.html" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Lifecycle Management
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#a-rust-ffi-layer-nativesrc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A. Rust FFI Layer (native/src/)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="A. Rust FFI Layer (native/src/)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#resources" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Resources
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#crash-behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Crash Behavior
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#findings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Findings
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#b-dart-ffi-bindings-packagesdart_monty_ffilibsrc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        B. Dart FFI Bindings (packages/dart_monty_ffi/lib/src/)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="B. Dart FFI Bindings (packages/dart_monty_ffi/lib/src/)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#resources_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Resources
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#crash-behavior_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Crash Behavior
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#findings_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Findings
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#c-platform-interface-packagesdart_monty_platform_interfacelibsrc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        C. Platform Interface (packages/dart_monty_platform_interface/lib/src/)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="C. Platform Interface (packages/dart_monty_platform_interface/lib/src/)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#resources_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Resources
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#crash-behavior_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Crash Behavior
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#findings_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Findings
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#d-wasm-bindings-packagesdart_monty_wasmlibsrc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D. WASM Bindings (packages/dart_monty_wasm/lib/src/)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="D. WASM Bindings (packages/dart_monty_wasm/lib/src/)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#resources_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Resources
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#crash-behavior_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Crash Behavior
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#findings_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Findings
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#e-bridge-layer-packagesdart_monty_bridgelibsrc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        E. Bridge Layer (packages/dart_monty_bridge/lib/src/)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="E. Bridge Layer (packages/dart_monty_bridge/lib/src/)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#resources_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Resources
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#crash-behavior_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Crash Behavior
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#findings_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Findings
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#f-oscall-vfs-providers-libsrcbridgeos_call" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        F. OsCall / VFS Providers (lib/src/bridge/os_call/)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="F. OsCall / VFS Providers (lib/src/bridge/os_call/)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#resources_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Resources
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ownership-chain" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ownership Chain
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#crash-behavior_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Crash Behavior
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#findings_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Findings
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Summary
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Summary">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#resolved-7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Resolved (7)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#open-1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Open (1)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#by-design-3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        By Design (3)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reviewed-no-action-7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reviewed — No Action (7)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#recommended-fixes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Recommended Fixes
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="extension-system.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Extension System
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Technical Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Technical Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/native-crate.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Native Crate (Rust)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/monty-rust-api.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Monty Rust API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/ffi-handle-lifecycle.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FFI Handle Lifecycle
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/bridge-integration.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bridge Integration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/internals.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Internals
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/api-coverage-plan.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Coverage Plan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Contributing
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contributor/setup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contributor/testing.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contributor/native-build.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Native Build
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#a-rust-ffi-layer-nativesrc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A. Rust FFI Layer (native/src/)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="A. Rust FFI Layer (native/src/)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#resources" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Resources
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#crash-behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Crash Behavior
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#findings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Findings
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#b-dart-ffi-bindings-packagesdart_monty_ffilibsrc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        B. Dart FFI Bindings (packages/dart_monty_ffi/lib/src/)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="B. Dart FFI Bindings (packages/dart_monty_ffi/lib/src/)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#resources_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Resources
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#crash-behavior_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Crash Behavior
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#findings_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Findings
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#c-platform-interface-packagesdart_monty_platform_interfacelibsrc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        C. Platform Interface (packages/dart_monty_platform_interface/lib/src/)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="C. Platform Interface (packages/dart_monty_platform_interface/lib/src/)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#resources_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Resources
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#crash-behavior_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Crash Behavior
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#findings_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Findings
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#d-wasm-bindings-packagesdart_monty_wasmlibsrc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D. WASM Bindings (packages/dart_monty_wasm/lib/src/)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="D. WASM Bindings (packages/dart_monty_wasm/lib/src/)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#resources_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Resources
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#crash-behavior_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Crash Behavior
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#findings_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Findings
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#e-bridge-layer-packagesdart_monty_bridgelibsrc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        E. Bridge Layer (packages/dart_monty_bridge/lib/src/)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="E. Bridge Layer (packages/dart_monty_bridge/lib/src/)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#resources_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Resources
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#crash-behavior_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Crash Behavior
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#findings_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Findings
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#f-oscall-vfs-providers-libsrcbridgeos_call" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        F. OsCall / VFS Providers (lib/src/bridge/os_call/)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="F. OsCall / VFS Providers (lib/src/bridge/os_call/)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#resources_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Resources
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ownership-chain" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ownership Chain
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#crash-behavior_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Crash Behavior
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#findings_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Findings
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Summary
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Summary">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#resolved-7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Resolved (7)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#open-1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Open (1)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#by-design-3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        By Design (3)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reviewed-no-action-7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reviewed — No Action (7)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#recommended-fixes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Recommended Fixes
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="resource-lifecycle-audit">Resource Lifecycle Audit</h1>
+<p>Inventories every resource allocated across dart_monty subsystems,
+how each is freed, what happens on crash, and known gaps.</p>
+<p>Last updated: 2026-04-10 (monty 0.0.10, post-OsCall + MontyValue)</p>
+<hr />
+<h2 id="a-rust-ffi-layer-nativesrc">A. Rust FFI Layer (<code>native/src/</code>)</h2>
+<h3 id="resources">Resources</h3>
+<table>
+<thead>
+<tr>
+<th>Resource</th>
+<th>Allocated by</th>
+<th>Freed by</th>
+<th>Owner</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>MontyHandle</code> (heap)</td>
+<td><code>monty_create</code> → <code>Box::into_raw</code></td>
+<td><code>monty_free</code> → <code>Box::from_raw</code></td>
+<td>Dart FFI caller</td>
+</tr>
+<tr>
+<td><code>LIVE_HANDLES</code> entry</td>
+<td><code>monty_create</code> (lib.rs:91)</td>
+<td><code>monty_free</code> (lib.rs:130)</td>
+<td>Static <code>HashSet</code></td>
+</tr>
+<tr>
+<td>C strings (error messages)</td>
+<td><code>to_c_string</code> (error.rs)</td>
+<td><code>monty_string_free</code> (lib.rs)</td>
+<td>Dart FFI caller</td>
+</tr>
+<tr>
+<td>Snapshot byte buffer</td>
+<td><code>monty_snapshot</code> (lib.rs)</td>
+<td><code>monty_bytes_free</code> (lib.rs)</td>
+<td>Dart FFI caller</td>
+</tr>
+</tbody>
+</table>
+<h3 id="crash-behavior">Crash Behavior</h3>
+<ul>
+<li><strong>Panic during execution</strong>: Caught by <code>catch_ffi_panic</code> (error.rs:13).
+  Handle stays valid. Returns error tag. No leak.</li>
+<li><strong><code>monty_free</code> never called</strong>: Handle leaks permanently.</li>
+<li><strong>Double-free on <code>monty_free</code></strong>: Safe no-op — <code>LIVE_HANDLES.remove()</code>
+  returns false on second call (lib.rs:130-132).</li>
+</ul>
+<h3 id="findings">Findings</h3>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Severity</th>
+<th>Status</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>~~A-1~~</td>
+<td>~~Low~~</td>
+<td>RESOLVED</td>
+<td><code>LIVE_HANDLES</code> is a HashSet — entries properly removed on free.</td>
+</tr>
+<tr>
+<td>~~A-2~~</td>
+<td>~~Critical~~</td>
+<td>RESOLVED</td>
+<td>Double-free protection added via <code>LIVE_HANDLES</code> check before <code>Box::from_raw</code>.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="b-dart-ffi-bindings-packagesdart_monty_ffilibsrc">B. Dart FFI Bindings (<code>packages/dart_monty_ffi/lib/src/</code>)</h2>
+<h3 id="resources_1">Resources</h3>
+<table>
+<thead>
+<tr>
+<th>Resource</th>
+<th>Allocated by</th>
+<th>Freed by</th>
+<th>Owner</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FFI handle (int address)</td>
+<td><code>FfiCoreBindings.run/start</code></td>
+<td><code>_freeHandle</code> → <code>_bindings.free()</code></td>
+<td><code>FfiCoreBindings</code></td>
+</tr>
+<tr>
+<td>Background isolate</td>
+<td><code>NativeIsolateBindingsImpl.init</code></td>
+<td><code>dispose()</code>/<code>terminate()</code> → <code>Isolate.kill</code></td>
+<td><code>NativeIsolateBindingsImpl</code></td>
+</tr>
+<tr>
+<td><code>ReceivePort</code></td>
+<td><code>init()</code></td>
+<td><code>dispose()</code> → <code>.close()</code></td>
+<td><code>NativeIsolateBindingsImpl</code></td>
+</tr>
+<tr>
+<td>Pending completers map</td>
+<td>Per request</td>
+<td><code>_failAllPending</code> on dispose/crash</td>
+<td><code>NativeIsolateBindingsImpl</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="crash-behavior_1">Crash Behavior</h3>
+<ul>
+<li><strong><code>FfiCoreBindings.run()</code></strong>: <code>try/finally</code> always frees handle. Correct.</li>
+<li><strong><code>FfiCoreBindings.start()</code> error</strong>: <code>catch</code> frees handle. Correct.</li>
+<li><strong>Isolate dies unexpectedly</strong>: <code>addOnExitListener</code> fires null message.
+  <code>_failAllPending</code> completes all futures with errors.</li>
+<li><strong><code>terminate()</code> timeout</strong>: After 5s, increments <code>_zombieCount</code>. Warning
+  emitted at threshold of 3. Handle may leak in killed isolate.</li>
+</ul>
+<h3 id="findings_1">Findings</h3>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Severity</th>
+<th>Status</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>~~B-1~~</td>
+<td>~~Critical~~</td>
+<td>RESOLVED</td>
+<td>Zombie tracking + diagnostic logging added. Handle leak is intentional safety choice.</td>
+</tr>
+<tr>
+<td>B-3</td>
+<td>Safe</td>
+<td>OK</td>
+<td><code>_freeHandle</code> nulls <code>_handle</code> before calling <code>free()</code>. Prevents double-free.</td>
+</tr>
+<tr>
+<td>~~B-4~~</td>
+<td>~~Moderate~~</td>
+<td>RESOLVED</td>
+<td><code>restoreSnapshot</code> now frees prior handle before loading new snapshot.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="c-platform-interface-packagesdart_monty_platform_interfacelibsrc">C. Platform Interface (<code>packages/dart_monty_platform_interface/lib/src/</code>)</h2>
+<h3 id="resources_2">Resources</h3>
+<table>
+<thead>
+<tr>
+<th>Resource</th>
+<th>Allocated by</th>
+<th>Freed by</th>
+<th>Owner</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>State machine (<code>_MontyState</code>)</td>
+<td>Construction</td>
+<td>N/A (enum, not heap)</td>
+<td><code>MontyStateMixin</code></td>
+</tr>
+<tr>
+<td><code>MontySession._state</code> map</td>
+<td>Construction</td>
+<td><code>clearState()</code>/<code>dispose()</code></td>
+<td><code>MontySession</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="crash-behavior_2">Crash Behavior</h3>
+<ul>
+<li><strong><code>BaseMontyPlatform.run()</code></strong>: <code>markActive()</code> in try, <code>markIdle()</code> in finally. Correct.</li>
+<li><strong><code>BaseMontyPlatform.resume()</code> error</strong>: Catches, calls <code>markIdle()</code>, rethrows. State machine unblocked.</li>
+<li><strong><code>dispose()</code> while active</strong>: Calls <code>_bindings.dispose()</code> which frees
+  handle. But a concurrent in-flight resume could race with the free.</li>
+</ul>
+<h3 id="findings_2">Findings</h3>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Severity</th>
+<th>Status</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>~~C-3~~</td>
+<td>~~Moderate~~</td>
+<td>RESOLVED</td>
+<td><code>dispose()</code> force-idles active state before disposing.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="d-wasm-bindings-packagesdart_monty_wasmlibsrc">D. WASM Bindings (<code>packages/dart_monty_wasm/lib/src/</code>)</h2>
+<h3 id="resources_3">Resources</h3>
+<table>
+<thead>
+<tr>
+<th>Resource</th>
+<th>Allocated by</th>
+<th>Freed by</th>
+<th>Owner</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>JS Worker session</td>
+<td><code>WasmBindingsJs.createSession()</code></td>
+<td><code>disposeSession()</code></td>
+<td><code>WasmCoreBindings</code></td>
+</tr>
+<tr>
+<td>Session ID (String)</td>
+<td><code>createSession</code></td>
+<td>Nulled on dispose or panic</td>
+<td><code>WasmCoreBindings</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="crash-behavior_3">Crash Behavior</h3>
+<ul>
+<li><strong>WASM panic/trap</strong>: <code>_invalidateSession()</code> nulls <code>_sessionId</code>, throws
+  <code>MontyPanicError</code>. Worker is dead; subsequent calls require new session.</li>
+<li><strong>Worker termination during in-flight call</strong>: Pending <code>JSPromise.toDart</code>
+  rejects. Error classified by string matching on <code>errorType</code>.</li>
+</ul>
+<h3 id="findings_3">Findings</h3>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Severity</th>
+<th>Status</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>~~D-1~~</td>
+<td>~~Critical~~</td>
+<td>RESOLVED</td>
+<td><code>_invalidateSession()</code> called on panic — session properly invalidated.</td>
+</tr>
+<tr>
+<td>~~D-2~~</td>
+<td>~~Moderate~~</td>
+<td>RESOLVED</td>
+<td><code>wasmPanicErrorType</code> constant replaces raw string matching.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="e-bridge-layer-packagesdart_monty_bridgelibsrc">E. Bridge Layer (<code>packages/dart_monty_bridge/lib/src/</code>)</h2>
+<h3 id="resources_4">Resources</h3>
+<table>
+<thead>
+<tr>
+<th>Resource</th>
+<th>Allocated by</th>
+<th>Freed by</th>
+<th>Owner</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>StreamController</code> per execute</td>
+<td><code>execute()</code></td>
+<td><code>whenComplete</code> closure</td>
+<td><code>DefaultMontyBridge</code></td>
+</tr>
+<tr>
+<td><code>_pendingFutures</code> map</td>
+<td>Per async dispatch</td>
+<td><code>finally</code> block in <code>_run</code></td>
+<td><code>DefaultMontyBridge</code></td>
+</tr>
+<tr>
+<td><code>EventLoopExtension._channelState</code> signal</td>
+<td>Construction</td>
+<td><code>onDispose()</code></td>
+<td><code>EventLoopExtension</code></td>
+</tr>
+<tr>
+<td><code>EventLoopExtension._pendingCompleter</code></td>
+<td><code>el_recv</code> call</td>
+<td>Completed on dispatched value or dispose</td>
+<td><code>EventLoopExtension</code></td>
+</tr>
+<tr>
+<td><code>SandboxExtension._children</code> map</td>
+<td><code>sandbox_spawn</code></td>
+<td><code>sandbox_free</code> or <code>onDispose</code></td>
+<td><code>SandboxExtension</code></td>
+</tr>
+<tr>
+<td>Child <code>MontyPlatform</code></td>
+<td><code>sandbox_spawn</code></td>
+<td><code>_ChildHandle.tearDown()</code> or <code>onDone</code></td>
+<td><code>SandboxExtension</code></td>
+</tr>
+<tr>
+<td>Child <code>DefaultMontyBridge</code></td>
+<td><code>sandbox_spawn</code></td>
+<td><code>_ChildHandle.tearDown()</code> or <code>onDone</code></td>
+<td><code>SandboxExtension</code></td>
+</tr>
+<tr>
+<td>Child <code>StreamSubscription</code></td>
+<td><code>sandbox_spawn</code></td>
+<td><code>_ChildHandle.tearDown()</code> or <code>onDone</code></td>
+<td><code>SandboxExtension</code></td>
+</tr>
+<tr>
+<td><code>OsCallHandler</code> callback</td>
+<td><code>registerOs()</code></td>
+<td>Bridge dispose (set to null)</td>
+<td><code>DefaultMontyBridge</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="crash-behavior_4">Crash Behavior</h3>
+<ul>
+<li><strong>Bridge error during <code>_run</code></strong>: All error types caught, converted to
+  <code>BridgeRunError</code>. <code>_pendingFutures</code> cleared in <code>finally</code>. Clean.</li>
+<li><strong>Child spawn failure</strong>: Disposes bridge, platform, registry in catch.
+  Correct cleanup-on-error.</li>
+<li><strong><code>SandboxExtension.onDispose()</code></strong>: Iterates all children, tears down alive
+  ones, completes pending completers with error, clears map. Thorough.</li>
+<li><strong>OsCallHandler throws</strong>: Exception caught in <code>_handleOsCall</code>, sent back
+  to Python via <code>resumeWithError</code>. No resource leak.</li>
+</ul>
+<h3 id="findings_4">Findings</h3>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Severity</th>
+<th>Status</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>E-1</td>
+<td>Low</td>
+<td>BY DESIGN</td>
+<td><code>DefaultMontyBridge.dispose()</code> does not dispose the platform. Bridge doesn't own platform — caller must dispose separately.</td>
+</tr>
+<tr>
+<td>E-3</td>
+<td>Low</td>
+<td>BY DESIGN</td>
+<td>Completed children persist in <code>SandboxExtension._children</code> until <code>sandbox_free</code>. Required for output/result access.</td>
+</tr>
+<tr>
+<td>E-4</td>
+<td>Moderate</td>
+<td>KNOWN</td>
+<td>No mechanism for stopping in-flight host functions. Cancel infrastructure removed; host async work runs to completion.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="f-oscall-vfs-providers-libsrcbridgeos_call">F. OsCall / VFS Providers (<code>lib/src/bridge/os_call/</code>)</h2>
+<p>The OsCall subsystem intercepts Python standard-library operations
+(<code>pathlib</code>, <code>os</code>, <code>datetime</code>) and routes them through Dart providers.
+Two filesystem strategies provide the <strong>VFS</strong> layer:</p>
+<ul>
+<li><strong>MemoryFsProvider</strong> — pure in-memory VFS (ephemeral, platform-agnostic,
+  works on WASM). Backed by <code>package:file</code>'s <code>MemoryFileSystem</code>.</li>
+<li><strong>SandboxedFsProvider</strong> — chrooted real filesystem with path-traversal
+  and symlink-escape protection.</li>
+</ul>
+<p>Non-filesystem providers cover environment variables (<code>EnvOsCallHandler</code>)
+and date/time (<code>TimeOsCallHandler</code>). <code>OsCallHandler.compose()</code> composes
+them by operation-name prefix.</p>
+<h3 id="resources_5">Resources</h3>
+<table>
+<thead>
+<tr>
+<th>Resource</th>
+<th>Allocated by</th>
+<th>Freed by</th>
+<th>Owner</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>OsCallHandler</code> (abstract)</td>
+<td>Caller (<code>OsCallHandler()</code> or custom)</td>
+<td>Composite <code>dispose()</code> via bridge/session dispose</td>
+<td><code>MontyBridge</code> or <code>MontySession</code></td>
+</tr>
+<tr>
+<td>Composite provider child map</td>
+<td><code>OsCallHandler.compose()</code></td>
+<td><code>dispose()</code> iterates + dedup-disposes children</td>
+<td>Composite <code>OsCallHandler</code></td>
+</tr>
+<tr>
+<td><code>MemoryFileSystem</code> (VFS backing store)</td>
+<td><code>MemoryFsProvider</code> constructor</td>
+<td>GC (no explicit dispose)</td>
+<td><code>MemoryFsProvider</code></td>
+</tr>
+<tr>
+<td><code>SandboxedFsProvider._root</code> (resolved path)</td>
+<td>Factory constructor (resolves symlinks)</td>
+<td>N/A — provider does not own root directory</td>
+<td>Caller</td>
+</tr>
+<tr>
+<td><code>EnvOsCallHandler.environment</code> map</td>
+<td>Constructor (caller-provided)</td>
+<td>GC</td>
+<td><code>EnvOsCallHandler</code></td>
+</tr>
+<tr>
+<td><code>TimeOsCallHandler._clock</code></td>
+<td>Constructor</td>
+<td>GC</td>
+<td><code>TimeOsCallHandler</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="ownership-chain">Ownership Chain</h3>
+<ol>
+<li><strong><code>DefaultMontyBridge</code></strong> accepts provider via <code>registerOs()</code>.
+   Disposes it in <code>bridge.dispose()</code> with <code>unawaited(_OsCallHandler?.dispose())</code>.</li>
+<li><strong><code>MontySession</code></strong> accepts optional provider in constructor.
+   Disposes it in <code>session.dispose()</code> with <code>unawaited(_os?.dispose())</code>.</li>
+<li>These two owners are mutually exclusive by design: <code>MontySession</code> is for
+   simple <code>run()</code> mode; <code>DefaultMontyBridge</code> is for full bridge mode. A provider
+   instance should never be given to both.</li>
+<li><strong>Composite <code>OsCallHandler.dispose()</code></strong> iterates child providers using a
+   <code>Set&lt;OsCallHandler&gt;</code> to deduplicate. A provider registered under multiple
+   prefixes (e.g., <code>TimeOsCallHandler</code> for both <code>'date.'</code> and <code>'datetime.'</code>)
+   is disposed exactly once. The fallback provider, if present, is also disposed.</li>
+</ol>
+<h3 id="crash-behavior_5">Crash Behavior</h3>
+<ul>
+<li><strong>Provider throws <code>OsCallException</code></strong>: Caught by <code>_handleOsCall</code> (<code>on Object</code>),
+  logged, sent back to Python via <code>resumeWithError()</code>. No provider leak.
+  Subclasses (<code>OsCallPermissionError</code>, <code>OsCallFileNotFoundError</code>) are
+  translated to the corresponding Python exception type.</li>
+<li><strong>Provider throws unexpected error</strong>: Same <code>on Object catch (e, st)</code> path.
+  Error logged with stack trace, resumed as Python error string.</li>
+<li><strong>No provider registered</strong>: Bridge resumes with <code>PermissionError</code> message.
+  No crash.</li>
+<li><strong>Provider <code>dispose()</code> throws</strong>: Fire-and-forget via <code>unawaited()</code> in both
+  <code>DefaultMontyBridge.dispose()</code> and <code>MontySession.dispose()</code>. Error does not
+  propagate to caller.</li>
+<li><strong>VFS path escape (<code>SandboxedFsProvider</code>)</strong>: Throws
+  <code>OsCallPermissionError</code>. Symlink escape after initial resolution also caught
+  by <code>_safeResolved()</code>. All caught by <code>_handleOsCall</code>.</li>
+<li><strong>Web: <code>os.*</code> call with no provider</strong>: Composite has no <code>'os.'</code> prefix on web.
+  <code>UnsupportedError</code> thrown by composite, caught by bridge, sent back to Python.</li>
+</ul>
+<h3 id="findings_5">Findings</h3>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Severity</th>
+<th>Status</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>F-1</td>
+<td>Low</td>
+<td>BY DESIGN</td>
+<td>Dual ownership: both <code>DefaultMontyBridge</code> and <code>MontySession</code> accept and dispose an <code>OsCallHandler</code>. They are mutually exclusive entry points — never share a provider instance across both.</td>
+</tr>
+<tr>
+<td>F-2</td>
+<td>Safe</td>
+<td>OK</td>
+<td>Composite <code>OsCallHandler.dispose()</code> deduplicates via <code>Set</code>. Provider registered under multiple prefixes is disposed once. Fallback provider is also disposed.</td>
+</tr>
+<tr>
+<td>F-3</td>
+<td>Safe</td>
+<td>OK</td>
+<td><code>SandboxedFsProvider</code> does not own its root directory. Caller must clean up. Documented in dispose comment and constructor doc.</td>
+</tr>
+<tr>
+<td>F-4</td>
+<td>Safe</td>
+<td>OK</td>
+<td><code>MemoryFsProvider</code> (VFS) has no dispose logic. <code>MemoryFileSystem</code> is GC-collected. Files are ephemeral by design.</td>
+</tr>
+<tr>
+<td>F-5</td>
+<td>Safe</td>
+<td>OK</td>
+<td><code>_handleOsCall</code> catches <code>on Object</code> — no unhandled exception can leak from a provider call. Error is always sent back to Python.</td>
+</tr>
+<tr>
+<td>F-6</td>
+<td>Low</td>
+<td>OK</td>
+<td><code>unawaited()</code> on provider dispose in both bridge and session means dispose errors are fire-and-forget. If a provider's <code>dispose()</code> throws, it silently fails.</td>
+</tr>
+<tr>
+<td>F-7</td>
+<td>Info</td>
+<td>OK</td>
+<td>Web default factory omits <code>os.*</code> prefix. Any <code>os.getenv</code> call from Python hits composite's <code>UnsupportedError</code> path, which the bridge catches and sends back as a Python error. Correct.</td>
+</tr>
+<tr>
+<td>F-8</td>
+<td>Low</td>
+<td>OK</td>
+<td>Path escape protection in <code>SandboxedFsProvider</code> uses <code>startsWith</code> on normalized paths plus symlink re-check. Factory constructor resolves root symlinks at construction. TOCTOU: if root itself becomes a symlink after construction, the check uses the stale resolved path. Low practical risk (root is typically a temp dir).</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="summary">Summary</h2>
+<h3 id="resolved-7">Resolved (7)</h3>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Subsystem</th>
+<th>Resolution</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A-1</td>
+<td>Rust FFI</td>
+<td>HashSet properly deletes entries</td>
+</tr>
+<tr>
+<td>A-2</td>
+<td>Rust FFI</td>
+<td>LIVE_HANDLES check prevents double-free</td>
+</tr>
+<tr>
+<td>B-1</td>
+<td>Dart FFI</td>
+<td>Zombie tracking + diagnostic logging</td>
+</tr>
+<tr>
+<td>B-4</td>
+<td>Dart FFI</td>
+<td><code>restoreSnapshot</code> now frees prior handle</td>
+</tr>
+<tr>
+<td>C-3</td>
+<td>Platform</td>
+<td><code>dispose()</code> force-idles active state before disposing</td>
+</tr>
+<tr>
+<td>D-1</td>
+<td>WASM</td>
+<td><code>_invalidateSession()</code> on panic</td>
+</tr>
+<tr>
+<td>D-2</td>
+<td>WASM</td>
+<td><code>wasmPanicErrorType</code> constant replaces raw string</td>
+</tr>
+</tbody>
+</table>
+<h3 id="open-1">Open (1)</h3>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Severity</th>
+<th>Subsystem</th>
+<th>Issue</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>E-4</td>
+<td>Moderate</td>
+<td>Bridge</td>
+<td>In-flight host functions not stoppable (known; cancel removed)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="by-design-3">By Design (3)</h3>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Subsystem</th>
+<th>Rationale</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>E-1</td>
+<td>Bridge</td>
+<td>Bridge doesn't own platform lifecycle</td>
+</tr>
+<tr>
+<td>E-3</td>
+<td>Bridge</td>
+<td>Children persist for output access</td>
+</tr>
+<tr>
+<td>F-1</td>
+<td>OsCall/VFS</td>
+<td>Dual ownership is by design — bridge mode and session mode are mutually exclusive</td>
+</tr>
+</tbody>
+</table>
+<h3 id="reviewed-no-action-7">Reviewed — No Action (7)</h3>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Subsystem</th>
+<th>Note</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>F-2</td>
+<td>OsCall</td>
+<td>Router dedup dispose correct</td>
+</tr>
+<tr>
+<td>F-3</td>
+<td>OsCall/VFS</td>
+<td>Sandbox handler doesn't own root (documented)</td>
+</tr>
+<tr>
+<td>F-4</td>
+<td>OsCall/VFS</td>
+<td>MemoryFS (VFS) is GC-collected</td>
+</tr>
+<tr>
+<td>F-5</td>
+<td>OsCall</td>
+<td>All handler errors caught by bridge</td>
+</tr>
+<tr>
+<td>F-6</td>
+<td>OsCall</td>
+<td>Dispose errors are fire-and-forget (acceptable)</td>
+</tr>
+<tr>
+<td>F-7</td>
+<td>OsCall/VFS</td>
+<td>Web <code>os.*</code> correctly unsupported</td>
+</tr>
+<tr>
+<td>F-8</td>
+<td>OsCall/VFS</td>
+<td>Path escape TOCTOU — low practical risk</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="recommended-fixes">Recommended Fixes</h2>
+<ol>
+<li><strong>E-4</strong> (if needed in future): Accept a timeout parameter in host
+   function handlers, or add a <code>Future.timeout()</code> wrapper around handler
+   invocation in <code>_dispatchToolCall</code>.</li>
+</ol>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.expand", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

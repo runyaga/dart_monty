@@ -154,7 +154,7 @@
 <nav>
   <div class="container">
     <a href="./index.html" class="logo">dart_monty</a>
-    <a href="help.html">Documentation</a>
+    <a href="user/install.html">Documentation</a>
     <a href="#quickstart">Quick Start</a>
     <a href="#repl">REPL</a>
     <a href="#plugins">Plugins</a>
@@ -301,10 +301,10 @@ print(r.value); <span style="color:var(--text-dim)">// 'Hello World!'</span></pr
     </div>
 
     <p style="margin-top: 24px;">
-      <a href="user/plugins.html">
+      <a href="user/extensions.html">
         Plugin documentation &rarr;</a>
       &nbsp;&nbsp;|&nbsp;&nbsp;
-      <a href="architecture/sandbox-architecture.html">
+      <a href="deep-dives/sandbox-architecture.html">
         Sandbox deep dive &rarr;</a>
     </p>
   </div>
@@ -407,7 +407,7 @@ dart_monty_core (backends)
 
     <h3>Web (WASM)</h3>
     <p>Copy the WASM assets to your web directory:</p>
-<pre>cp dart_monty_core/assets/dart_monty_bridge.js web/
+<pre>cp dart_monty_core/assets/dart_monty_core_bridge.js web/
 cp dart_monty_core/assets/dart_monty_worker.js web/
 cp dart_monty_core/assets/dart_monty_native.wasm web/</pre>
     <p>Serve with <code>Cross-Origin-Opener-Policy: same-origin</code>
@@ -416,12 +416,12 @@ cp dart_monty_core/assets/dart_monty_native.wasm web/</pre>
 
     <h3>Documentation</h3>
     <ul style="padding-left: 20px; color: var(--text-dim);">
-      <li><a href="help.html">Overview</a> — Quick start and API overview</li>
+      <li><a href="user/install.html">Overview</a> — Quick start and API overview</li>
       <li><a href="user/repl.html">REPL Guide</a> — Stateful interactive execution</li>
-      <li><a href="user/plugins.html">Plugins</a> — Template, MessageBus, Sandbox</li>
+      <li><a href="user/extensions.html">Plugins</a> — Template, MessageBus, Sandbox</li>
       <li><a href="architecture/overview.html">Architecture</a> — Module structure and internals</li>
-      <li><a href="architecture/sandbox-architecture.html">Sandbox</a> — Child spawning, grandchildren, limits</li>
-      <li><a href="user/host-functions-intro.html">Host Functions Guide</a> — Writing custom plugins</li>
+      <li><a href="deep-dives/sandbox-architecture.html">Sandbox</a> — Child spawning, grandchildren, limits</li>
+      <li><a href="tutorials/host-functions-intro.html">Host Functions Guide</a> — Writing custom plugins</li>
     </ul>
   </div>
 </section>
@@ -433,14 +433,8 @@ cp dart_monty_core/assets/dart_monty_native.wasm web/</pre>
       <a href="https://github.com/runyaga/dart_monty">GitHub</a> &middot;
       <a href="https://pub.dev/packages/dart_monty">pub.dev</a>
       <br>
-      <span id="build-date"></span>
+      <span id="build-date">__BUILD_DATE__</span>
     </p>
-  </div>
-</footer>
-
-</body>
-</html>
->
   </div>
 </footer>
 

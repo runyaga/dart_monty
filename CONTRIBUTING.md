@@ -54,7 +54,7 @@ DART_MONTY_LIB_PATH=../../native/target/release/libdart_monty_native.dylib \
 cd wasm/js && npm install && npm run build && cd ../..
 cd example/web && dart pub get
 dart compile js bin/main.dart -o web/main.dart.js
-cp ../../wasm/assets/dart_monty_bridge.js web/
+cp ../../wasm/assets/dart_monty_core_bridge.js web/
 cp ../../wasm/assets/dart_monty_worker.js web/
 cp ../../wasm/assets/*.wasm web/
 
