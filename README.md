@@ -71,6 +71,26 @@ Future<void> main() async {
 }
 ```
 
+## Known upstream limitations
+
+Host functions registered via `MontyRuntime` are first-class Python values
+in most contexts, but currently **cannot** be invoked from inside the
+iterator-consuming C builtins `map()`, `filter()`, or `sorted(key=...)`.
+Calling them that way raises `RuntimeError` with a message from the
+upstream `pydantic/monty` VM:
+
+```
+RuntimeError: Internal error in monty:
+map(): external functions are not yet supported in this context
+```
+
+Wrapping the host function in a `lambda` does not help — the suspension
+point is still inside `map()`'s frame. Pass a plain Python function (or
+unroll the `map` into a `for` loop) as a workaround.
+
+This is tracked upstream; see `dart_monty_core`'s README for details and
+the regression fixtures that will auto-detect when it's fixed.
+
 ## Documentation
 
 - [**Installation**](docs/user/install.md) — Add to your project
