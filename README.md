@@ -14,17 +14,41 @@ Sandboxed Python interpreter for Dart and Flutter. Run Python from native, web, 
 
 ## Quick Start
 
-First, add `dart_monty` to your `pubspec.yaml`:
+Add `dart_monty` to your `pubspec.yaml`. Flutter Web consumers add
+`dart_monty_core` as a peer dep so the asset bundler can locate the
+WASM/JS files:
 
-```bash
-dart pub add dart_monty
+```yaml
+# pubspec.yaml
+dependencies:
+  dart_monty: ^<version>
+  # Flutter Web only — Flutter's asset resolver needs this listed
+  # directly; it does not chase transitive references. Not redundant.
+  dart_monty_core: ^<version>
+
+flutter:
+  assets:
+    - package: dart_monty_core
 ```
 
-Then, import the package in your Dart code:
+Then import the package:
 
 ```dart
 import 'package:dart_monty/dart_monty.dart';
 ```
+
+On Flutter Web, initialise the bridge before first use:
+
+```dart
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await DartMonty.ensureInitialized(); // loads bridge on web; no-op native
+  runApp(const MyApp());
+}
+```
+
+No `<script>` tag in `web/index.html` is required —
+`DartMonty.ensureInitialized()` injects the bridge dynamically.
 
 Now you can use `dart_monty` in three ways:
 

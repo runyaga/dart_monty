@@ -2,6 +2,13 @@
 
 ### Features
 
+- **`DartMonty.ensureInitialized()`** — new public API that dynamically
+  injects the `dart_monty_core` JS bridge on Flutter Web. Replaces the
+  deleted `DartMontyFlutter.ensureInitialized()` shim from
+  `dart_monty_core/packages/dart_monty_flutter/` (sidecar removed in
+  dart_monty_core). No `<script>` tag in `web/index.html` is required;
+  `--base-href` is honoured automatically. On native targets the call
+  is a no-op via conditional-import stub.
 - **SandboxExtension works on WASM** — child interpreters spawn in independent
   Web Workers via real session ID routing (#291)
 - **No default execution timeout** — removed hardcoded 30s wall-clock
@@ -10,6 +17,28 @@
   `StateError` (#275)
 - **Multi-line expression capture** — dict/list/tuple literals as return
   values now work correctly (#272)
+
+### Chores
+
+- Deleted stale native-artifact scripts (`tool/build_native.sh`,
+  `tool/vendor_native.sh`) and retired three broken release workflows
+  (`native-release.yaml`, `release.yaml`, `prepare-release.yaml`) —
+  all referenced the `native/` directory that was removed in earlier
+  cleanup.
+- Simplified `.github/workflows/pages.yaml` to consume
+  `dart_monty_core`'s committed assets directly; dropped the
+  in-workflow cargo + node build steps.
+- Documentation overhaul: `docs/user/install.md`,
+  `docs/user/deployment.md`, `example/web/run.sh`, and
+  `example/web/web/index.html` all rewritten for the two-package
+  pattern and current asset filenames. Deleted the fictional
+  `docs/contributor/native-build.md` (referenced non-existent
+  `dart_monty_ffi` package). Bulk-renamed `dart_monty_bridge.js` /
+  `dart_monty_worker.js` / `dart_monty_native.wasm` to the
+  `dart_monty_core_*` prefix across remaining docs. Narrative refs to
+  removed packages (`dart_monty_ffi`, `dart_monty_wasm`,
+  `dart_monty_native`, `dart_monty_web`) in architecture / reference
+  docs are noted as stale and tracked for a structural rewrite.
 
 ### Known Limitations
 
