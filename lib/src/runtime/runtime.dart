@@ -166,6 +166,19 @@ class MontyRuntime implements MontyRuntimeRef {
   /// Whether this session creates a fresh interpreter per `execute()`.
   bool get isSandboxMode => _sandbox;
 
+  /// The shared [ExtensionCoordinator] for this runtime.
+  ///
+  /// Non-null in shared mode (the default). Returns the same instance across
+  /// all `execute()` calls until [clearState] is called, at which point a new
+  /// coordinator is created and this getter returns that new instance.
+  ///
+  /// Always `null` in sandbox mode — each `execute()` call owns its own
+  /// transient coordinator that is disposed when the call finishes.
+  ///
+  /// Consumers (e.g. `MontyRuntimeExtension`) use this to subscribe to inner
+  /// extension state via [ExtensionCoordinator.statefulObservations].
+  ExtensionCoordinator? get coordinator => _sharedRegistry;
+
   /// Registers an additional host function.
   ///
   /// In sandbox mode, the function is registered on every fresh bridge.
@@ -448,7 +461,11 @@ class MontyRuntime implements MontyRuntimeRef {
     if (desc == null) return fn;
 
     return HostFunction(
-      schema: fn.schema.copyWithDescription(desc),
+      schema: HostFunctionSchema(
+        name: fn.schema.name,
+        description: desc,
+        params: fn.schema.params,
+      ),
       ffiHandler: fn.ffiHandler,
       wasmHandler: fn.wasmHandler,
       isInfra: fn.isInfra,

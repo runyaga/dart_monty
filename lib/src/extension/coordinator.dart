@@ -6,6 +6,7 @@ import 'package:dart_monty/src/extension/attach_context.dart';
 import 'package:dart_monty/src/extension/extension.dart';
 import 'package:dart_monty/src/extension/stateful.dart';
 import 'package:dart_monty/src/host/function.dart';
+import 'package:dart_monty/src/host/schema.dart';
 import 'package:dart_monty/src/introspection_functions.dart';
 import 'package:dart_monty/src/os_call/fs_decorators.dart';
 import 'package:dart_monty/src/os_call/fs_handlers.dart';
@@ -66,7 +67,11 @@ HostFunction _enrichFunction(HostFunction fn, DescriptionProvider? provider) {
   if (desc == null) return fn;
 
   return HostFunction(
-    schema: fn.schema.copyWithDescription(desc),
+    schema: HostFunctionSchema(
+      name: fn.schema.name,
+      description: desc,
+      params: fn.schema.params,
+    ),
     ffiHandler: fn.ffiHandler,
     wasmHandler: fn.wasmHandler,
     isInfra: fn.isInfra,
