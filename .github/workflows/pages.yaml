@@ -26,9 +26,10 @@ jobs:
       - uses: actions/checkout@v4
 
       # ── Checkout dart_monty_core for its committed assets ─────────────
-      # Assets live in dart_monty_core/assets/ and are committed to git
-      # (Mode A). No cargo/node build step is required — just check out
-      # the repo and copy the files.
+      # Assets live in dart_monty_core/lib/assets/ (under lib/ so Flutter
+      # can resolve them via packages/dart_monty_core/...). Committed to
+      # git (Mode A). No cargo/node build step is required — just check
+      # out the repo and copy the files.
       - uses: actions/checkout@v4
         with:
           repository: runyaga/dart_monty_core
@@ -80,7 +81,7 @@ jobs:
       - name: Copy live demo assets to site root
         run: |
           cp -r example/web/web/* site/
-          cp dart_monty_core/assets/* site/
+          cp dart_monty_core/lib/assets/* site/
           mkdir -p site/fixtures
           cp test/fixtures/python_ladder/tier_*.json site/fixtures/
           mkdir -p site/assets
