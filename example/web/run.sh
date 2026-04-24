@@ -2,37 +2,54 @@
 # =============================================================================
 # Web Example Runner
 # =============================================================================
-# Builds the JS bridge, compiles Dart to JS, starts a COOP/COEP server,
-# and opens the example in your default browser.
+# Stages the dart_monty_core WASM/JS bridge assets next to the compiled
+# Dart demo, then starts a COOP/COEP server.
 #
-# Usage: bash example/web/run.sh
+# Usage:
+#   bash example/web/run.sh
+#
+# The assets are pulled from the dart_monty_core package. Set
+# DART_MONTY_CORE_DIR to an explicit checkout path when working on
+# unreleased core changes; otherwise the script resolves the pub cache.
 # =============================================================================
 set -euo pipefail
 
 ROOT="$(git rev-parse --show-toplevel)"
-WASM_PKG="$ROOT/packages/dart_monty_wasm"
 EXAMPLE="$ROOT/example/web"
 WEB_DIR="$EXAMPLE/web"
 FIXTURES_SRC="$ROOT/test/fixtures/python_ladder"
 
 echo "=== dart_monty Web Example ==="
 
-# ── Step 1: Build JS bridge (if assets missing) ─────────────────────────
-if [ ! -f "$WASM_PKG/assets/dart_monty_bridge.js" ]; then
-  echo ""
-  echo "--- Building JS bridge ---"
-  cd "$WASM_PKG/js"
-  npm install
-  npm run build
-  echo "  JS build: OK"
+# ── Step 1: Locate dart_monty_core assets ────────────────────────────────
+if [ -n "${DART_MONTY_CORE_DIR:-}" ] && [ -d "$DART_MONTY_CORE_DIR/assets" ]; then
+  CORE_ASSETS="$DART_MONTY_CORE_DIR/assets"
+  echo "--- Using DART_MONTY_CORE_DIR: $CORE_ASSETS ---"
+else
+  # dart_monty_core commits assets to git, so any pub-resolved copy has
+  # them. Pull from the resolved package's asset dir.
+  cd "$EXAMPLE"
+  dart pub get >/dev/null
+  CORE_ASSETS="$(dart pub cache dir)/hosted/pub.dev/dart_monty_core-"*/assets
+  # The glob above may expand to multiple paths; take the first existing one.
+  for d in $CORE_ASSETS; do
+    if [ -d "$d" ]; then CORE_ASSETS="$d"; break; fi
+  done
+  if [ ! -d "$CORE_ASSETS" ]; then
+    echo "FATAL: could not locate dart_monty_core assets." >&2
+    echo "  Set DART_MONTY_CORE_DIR to a local checkout, or run" >&2
+    echo "  'bash tool/prebuild.sh' in a dart_monty_core checkout first." >&2
+    exit 1
+  fi
+  echo "--- Using pub cache: $CORE_ASSETS ---"
 fi
 
 # ── Step 2: Copy assets to web dir ───────────────────────────────────────
 echo ""
 echo "--- Copying assets ---"
-cp "$WASM_PKG/assets/dart_monty_bridge.js" "$WEB_DIR/"
-cp "$WASM_PKG/assets/dart_monty_worker.js" "$WEB_DIR/"
-cp "$WASM_PKG/assets/"*.wasm "$WEB_DIR/"
+cp "$CORE_ASSETS/dart_monty_core_bridge.js" "$WEB_DIR/"
+cp "$CORE_ASSETS/dart_monty_core_worker.js" "$WEB_DIR/"
+cp "$CORE_ASSETS/dart_monty_core_native.wasm" "$WEB_DIR/"
 echo "  Assets copied."
 
 # ── Step 3: Copy fixture files for ladder showcase ───────────────────────
@@ -66,9 +83,9 @@ cleanup() {
     wait "$SERVER_PID" 2>/dev/null || true
   fi
   # Clean up copied files
-  rm -f "$WEB_DIR/dart_monty_bridge.js" \
-        "$WEB_DIR/dart_monty_worker.js" \
-        "$WEB_DIR/"*.wasm \
+  rm -f "$WEB_DIR/dart_monty_core_bridge.js" \
+        "$WEB_DIR/dart_monty_core_worker.js" \
+        "$WEB_DIR/dart_monty_core_native.wasm" \
         "$WEB_DIR/main.dart.js" \
         "$WEB_DIR/main.dart.js.deps" \
         "$WEB_DIR/main.dart.js.map" \
@@ -80,7 +97,10 @@ cleanup() {
         "$WEB_DIR/visualizer.dart.js.map" \
         "$WEB_DIR/vfs_demo.dart.js" \
         "$WEB_DIR/vfs_demo.dart.js.deps" \
-        "$WEB_DIR/vfs_demo.dart.js.map"
+        "$WEB_DIR/vfs_demo.dart.js.map" \
+        "$WEB_DIR/repl_demo.dart.js" \
+        "$WEB_DIR/repl_demo.dart.js.deps" \
+        "$WEB_DIR/repl_demo.dart.js.map"
   rm -rf "$WEB_DIR/fixtures"
 }
 trap cleanup EXIT

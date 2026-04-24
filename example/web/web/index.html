@@ -406,10 +406,17 @@ dart_monty_core (backends)
        native assets hook.</p>
 
     <h3>Web (WASM)</h3>
-    <p>Copy the WASM assets to your web directory:</p>
-<pre>cp dart_monty_core/assets/dart_monty_bridge.js web/
-cp dart_monty_core/assets/dart_monty_worker.js web/
-cp dart_monty_core/assets/dart_monty_native.wasm web/</pre>
+    <p>Flutter consumers depend on both <code>dart_monty</code> and
+       <code>dart_monty_core</code>, list
+       <code>- package: dart_monty_core</code> under
+       <code>flutter.assets</code>, and call
+       <code>await DartMonty.ensureInitialized()</code> before first
+       use. See the <a href="https://github.com/runyaga/dart_monty#flutter-web">
+       README</a> for the full pattern.</p>
+    <p>Plain-Dart-web consumers copy the assets manually:</p>
+<pre>cp dart_monty_core/assets/dart_monty_core_bridge.js web/
+cp dart_monty_core/assets/dart_monty_core_worker.js web/
+cp dart_monty_core/assets/dart_monty_core_native.wasm web/</pre>
     <p>Serve with <code>Cross-Origin-Opener-Policy: same-origin</code>
        and <code>Cross-Origin-Embedder-Policy: require-corp</code> headers
        (required for SharedArrayBuffer).</p>
