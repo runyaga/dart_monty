@@ -54,6 +54,7 @@ nav:
       - Error Hierarchy: deep-dives/error-hierarchy.md
       - Lifecycle Management: deep-dives/lifecycles.md
       - Extension System: deep-dives/extension-system.md
+      - Bridge Concurrency: deep-dives/bridge-concurrency.md
   - Technical Reference:
       - Native Crate (Rust): reference/native-crate.md
       - Monty Rust API: reference/monty-rust-api.md
