@@ -5,25 +5,26 @@ import 'package:web/web.dart' as web;
 
 /// Web implementation of `DartMonty.ensureInitialized()`.
 ///
-/// Dynamically injects
-/// `packages/dart_monty_core/assets/dart_monty_core_bridge.js` into
-/// `document.head`, awaits its load, and verifies that
-/// `window.DartMontyBridge` is defined. Raises [StateError] with a
-/// pointer to the most likely misconfiguration if the bridge fails to
-/// load or doesn't register after load.
+/// Dynamically injects the `dart_monty_core` JS bridge into
+/// `document.head`, awaits its load, and verifies
+/// `window.DartMontyBridge` is defined.
+///
+/// The URL `assets/packages/dart_monty_core/lib/assets/...` is where
+/// Flutter serves transitively-bundled package assets. Consumers do
+/// NOT need to redeclare the three asset files under their own
+/// `flutter.assets` — adding `dart_monty` to pubspec is enough.
 Future<void> ensureInitialized() async {
   if (_isBridgeLoaded()) return;
 
   await _injectScript(
-    'packages/dart_monty_core/assets/dart_monty_core_bridge.js',
+    'assets/packages/dart_monty_core/lib/assets/dart_monty_core_bridge.js',
   );
 
   if (!_isBridgeLoaded()) {
     throw StateError(
-      'dart_monty: bridge script loaded but window.DartMontyBridge is not '
-      'defined. Ensure your app lists "- package: dart_monty_core" under '
-      'flutter.assets in pubspec.yaml and that dart_monty_core is in your '
-      'dependencies.',
+      'dart_monty: bridge script loaded but window.DartMontyBridge is '
+      'not defined. Run `flutter pub upgrade` to refresh dart_monty_core '
+      'and rebuild; if the error persists, file an issue.',
     );
   }
 }
@@ -43,10 +44,10 @@ Future<void> _injectScript(String src) {
     ..onerror = (web.Event _) {
       completer.completeError(
         StateError(
-          'dart_monty: failed to load Monty bridge from $src. Verify '
-          '"- package: dart_monty_core" is listed under flutter.assets '
-          'in pubspec.yaml and that the dart_monty_core package is in '
-          'your dependencies.',
+          'dart_monty: failed to load Monty bridge from $src. '
+          'dart_monty_core should be pulled in transitively via dart_monty; '
+          'check `flutter pub deps` to confirm it is resolved, and that no '
+          'consumer-side flutter.assets block is stripping it.',
         ),
       );
     }.toJS;
