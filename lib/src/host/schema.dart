@@ -35,14 +35,6 @@ class HostFunctionSchema {
   /// Keyword args overlay by name.
   final List<HostParam> params;
 
-  /// Returns a copy with [newDescription] as the description.
-  HostFunctionSchema copyWithDescription(String newDescription) =>
-      HostFunctionSchema(
-        name: name,
-        description: newDescription,
-        params: params,
-      );
-
   /// Returns a JSON Schema object describing this function's input.
   ///
   /// Produces a schema compatible with MCP tool `inputSchema`:

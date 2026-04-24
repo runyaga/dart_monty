@@ -17,7 +17,7 @@ import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:signals_core/signals_core.dart';
 import 'package:test/test.dart';
 
-import '../harness.dart';
+import 'harness.dart';
 
 MontyPlatformFactory _replFactory() =>
     () async => ReplPlatform(repl: MontyRepl());

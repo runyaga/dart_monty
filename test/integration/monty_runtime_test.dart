@@ -554,6 +554,78 @@ result
       );
     });
   });
+
+  group('MontyRuntime.coordinator', () {
+    test('shared mode: non-null after construction', () async {
+      final session = MontyRuntime();
+      addTearDown(session.dispose);
+      expect(session.coordinator, isNotNull);
+    });
+
+    test('shared mode: is ExtensionCoordinator', () async {
+      final session = MontyRuntime();
+      addTearDown(session.dispose);
+      expect(session.coordinator, isA<ExtensionCoordinator>());
+    });
+
+    test('shared mode: stable reference across repeated access', () async {
+      final session = MontyRuntime();
+      addTearDown(session.dispose);
+      expect(session.coordinator, same(session.coordinator));
+    });
+
+    test('sandbox mode: null', () async {
+      final session = MontyRuntime(sandbox: true);
+      addTearDown(session.dispose);
+      expect(session.coordinator, isNull);
+    });
+
+    test('shared mode: registered extensions are visible on coordinator',
+        () async {
+      final ext = JinjaTemplateExtension();
+      final session = MontyRuntime(extensions: [ext]);
+      addTearDown(session.dispose);
+      expect(
+        session.coordinator!.extensions.map((e) => e.namespace),
+        contains('tmpl'),
+      );
+    });
+
+    test('clearState() produces a new non-null coordinator', () async {
+      final session = MontyRuntime();
+      addTearDown(session.dispose);
+      final before = session.coordinator;
+      session.clearState();
+      final after = session.coordinator;
+      expect(after, isNotNull);
+      expect(after, isNot(same(before)));
+    });
+  });
+
+  group('MontyRuntime.descriptionProvider', () {
+    test('overrides function description on registered extension', () async {
+      final session = MontyRuntime(
+        extensions: [JinjaTemplateExtension()],
+        descriptionProvider: (name) => 'custom: $name',
+      );
+      addTearDown(session.dispose);
+      await session.execute('pass').result;
+      final schema = session.schemas.firstWhere((s) => s.name == 'tmpl_render');
+      expect(schema.description, 'custom: tmpl_render');
+    });
+
+    test('null return from provider leaves description unchanged', () async {
+      final session = MontyRuntime(
+        extensions: [JinjaTemplateExtension()],
+        descriptionProvider: (_) => null,
+      );
+      addTearDown(session.dispose);
+      await session.execute('pass').result;
+      final schema = session.schemas.firstWhere((s) => s.name == 'tmpl_render');
+      expect(schema.description, isNotEmpty);
+      expect(schema.description, isNot(startsWith('custom:')));
+    });
+  });
 }
 
 // ---------------------------------------------------------------------------

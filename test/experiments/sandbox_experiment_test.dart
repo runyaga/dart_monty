@@ -15,7 +15,7 @@ import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:signals_core/signals_core.dart';
 import 'package:test/test.dart';
 
-import '../harness.dart';
+import 'harness.dart';
 
 // Builds a fresh ReplPlatform for each sandbox child.
 MontyPlatformFactory _replFactory() =>
