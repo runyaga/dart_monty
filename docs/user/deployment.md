@@ -1,66 +1,103 @@
 # Deployment and Bundling
 
-This guide covers how to bundle and deploy `dart_monty` for both web (WASM) and native (FFI) applications.
+This guide covers how to bundle and deploy `dart_monty` for both web
+and native applications.
 
-## Web (WASM)
+## Packages you depend on
 
-When you build a web application that uses `dart_monty`, you need to ensure that the necessary JavaScript and WASM assets are available to your application at runtime.
+- **`dart_monty_core`** — ships the JS bridge, WASM worker, and
+  compiled WASM binary. Also ships the native `hook/build.dart` that
+  compiles a platform dylib on `pub get` for desktop/server targets.
+- **`dart_monty`** — high-level API layered on top of core. This is
+  the package your code imports day-to-day.
 
-### Core Packages
+Flutter consumers depend on both — `dart_monty` for the API and
+`dart_monty_core` so Flutter's asset bundler can locate the WASM/JS
+files directly. The asset resolver does not chase transitive
+references, so both deps must be listed.
 
-- **`dart_monty_core`**: This package provides the core WASM backend. It includes the JavaScript bridge and the WASM binary.
-- **`dart_monty`**: This is the high-level API that you use in your application. It depends on `dart_monty_core`.
+## Flutter Web
 
-### Bundling
+```yaml
+# pubspec.yaml
+dependencies:
+  dart_monty: ^<version>
+  dart_monty_core: ^<version>  # needed for flutter.assets
 
-When you compile your Dart web application, you need to copy the following assets from the `dart_monty_core` package to your web application's output directory:
-
-- `packages/dart_monty_core/assets/dart_monty_core_bridge.js`
-- `packages/dart_monty_core/assets/dart_monty_core_worker.js`
-- `packages/dart_monty_core/assets/dart_monty_native.wasm`
-
-These files must be served from the same directory as your application's main JavaScript file. Most web development servers will do this automatically if you place them in your `web` or `public` directory.
-
-Here is an example of how you might copy these files in a shell script:
-
-```bash
-cp packages/dart_monty_core/assets/dart_monty_core_bridge.js web/
-cp packages/dart_monty_core/assets/dart_monty_core_worker.js web/
-cp packages/dart_monty_core/assets/dart_monty_native.wasm web/
+flutter:
+  assets:
+    - package: dart_monty_core
 ```
 
-### Dependencies
+```dart
+// main.dart
+import 'package:dart_monty/dart_monty.dart';
 
-The WASM implementation of `dart_monty` runs in a Web Worker. The `dart_monty_core_bridge.js` file handles communication between your main application and the `dart_monty_core_worker.js`, which in turn loads and runs the `dart_monty_native.wasm` file.
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await DartMonty.ensureInitialized();
+  runApp(const MyApp());
+}
+```
 
-The good news is that you don't need to configure any special server headers like COOP/COEP. The `wasm32-wasip1` target allows `dart_monty` to run without these restrictions.
+`DartMonty.ensureInitialized()` injects
+`packages/dart_monty_core/assets/dart_monty_core_bridge.js` into
+`document.head` at runtime, awaits load, and verifies
+`window.DartMontyBridge` is defined. No manual `<script>` tag in
+`web/index.html` is required.
+
+### Required security headers
+
+The WASM worker uses `SharedArrayBuffer` for zero-copy communication
+with the bridge. Browsers only permit `SharedArrayBuffer` on pages
+served with:
+
+- `Cross-Origin-Opener-Policy: same-origin`
+- `Cross-Origin-Embedder-Policy: require-corp`
+
+GitHub Pages cannot set these headers; a standard hosting target
+(nginx, Cloudflare Workers, S3+CloudFront with edge functions) can.
+
+## Plain Dart web (no Flutter)
+
+Without Flutter's asset bundler, copy the three asset files from the
+`dart_monty_core` pub cache into your own `web/` directory and add a
+`<script>` tag:
+
+```bash
+CORE_ASSETS=$(dart pub cache dir)/hosted/pub.dev/dart_monty_core-*/assets
+cp $CORE_ASSETS/dart_monty_core_bridge.js   web/
+cp $CORE_ASSETS/dart_monty_core_worker.js   web/
+cp $CORE_ASSETS/dart_monty_core_native.wasm web/
+```
+
+```html
+<!-- web/index.html -->
+<script src="dart_monty_core_bridge.js"></script>
+```
+
+The synchronous `<script>` tag sets `window.DartMontyBridge` before
+Dart starts, so `DartMonty.ensureInitialized()` sees the bridge as
+already loaded and returns immediately.
 
 ## Native (FFI)
 
-When you build a native application with `dart_monty` (for example, a command-line application or a Flutter desktop app), you are using the FFI (Foreign Function Interface) to call into a native library.
+For desktop / server / Flutter desktop / Flutter mobile targets,
+`dart_monty_core/hook/build.dart` compiles a platform-specific
+shared library at `pub get` time and registers it as a `CodeAsset`.
+Dart's native-assets toolchain bundles the library into your
+compiled output automatically — no manual copy step required.
 
-### Native Library
+Requirements:
 
-The native library is a `.dylib` file on macOS, a `.so` file on Linux, or a `.dll` file on Windows. This library is built from Rust source code.
+- Rust toolchain (`cargo` + `rustc stable`) on the build machine.
+- `flutter pub get` or `dart pub get` triggers the build.
 
-### Bundling
+### AOT-compiled standalone binaries
 
-When you build your application using `dart compile`, you need to ensure that the native library is placed in the same directory as your compiled executable.
-
-For example, if you compile your application to `build/my_app`, you need to copy the native library to `build/libdart_monty_native.dylib` (on macOS).
-
-The `dart_monty_ffi` package uses a build hook to automatically download or build the correct native library for your platform. You can find the library in the `.dart_tool` directory of your project.
-
-### AOT Compilation
-
-When you create an AOT (Ahead-Of-Time) compiled binary of your application, you must manually copy the dynamic library to be alongside your executable. The Dart AOT runtime does not bundle dynamic libraries.
-
-For example, on Linux, if your application is `my_app`, you would have a file structure like this:
-
-```
-/path/to/your/app/
-├── my_app
-└── libdart_monty_native.so
-```
-
-You can automate this copying process as part of your build script.
+When you produce a plain `dart compile exe` binary, the native
+assets hook still runs at build time and the dylib is referenced
+with an absolute path from the pub cache. For distribution, Dart's
+native-asset tooling handles the staging; see the
+[Dart native-assets documentation](https://dart.dev/interop/c-interop/native-assets)
+for the current layout.

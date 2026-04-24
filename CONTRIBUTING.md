@@ -22,6 +22,8 @@ dart test
 ### Native (desktop)
 
 Runs Python from Dart via FFI into the Rust native library.
+`dart_monty_core`'s `hook/build.dart` compiles the dylib
+automatically on `dart pub get` — no manual cargo step needed.
 
 ```bash
 bash example/native/run.sh
@@ -29,50 +31,21 @@ bash example/native/run.sh
 
 ### Web (browser)
 
-Runs Python from Dart compiled to JS, via a Web Worker hosting the WASM
-interpreter.
+Runs Python from Dart compiled to JS, via a Web Worker hosting the
+WASM interpreter. The run script stages `dart_monty_core`'s committed
+assets into the example's `web/` dir and serves with COOP/COEP
+headers.
 
 ```bash
 bash example/web/run.sh
 ```
 
-<details>
-<summary>Manual steps (without run scripts)</summary>
-
-**Native:**
+To point the script at an in-progress `dart_monty_core` checkout
+(instead of the pub cache), set `DART_MONTY_CORE_DIR`:
 
 ```bash
-cd native && cargo build --release && cd ..
-cd example/native && dart pub get
-DART_MONTY_LIB_PATH=../../native/target/release/libdart_monty_native.dylib \
-  dart run bin/main.dart
+DART_MONTY_CORE_DIR=/path/to/dart_monty_core bash example/web/run.sh
 ```
-
-**Web:**
-
-```bash
-cd wasm/js && npm install && npm run build && cd ../..
-cd example/web && dart pub get
-dart compile js bin/main.dart -o web/main.dart.js
-cp ../../wasm/assets/dart_monty_bridge.js web/
-cp ../../wasm/assets/dart_monty_worker.js web/
-cp ../../wasm/assets/*.wasm web/
-
-# Serve with COOP/COEP headers
-python3 -c "
-import http.server, functools
-class H(http.server.SimpleHTTPRequestHandler):
-    def end_headers(self):
-        self.send_header('Cross-Origin-Opener-Policy', 'same-origin')
-        self.send_header('Cross-Origin-Embedder-Policy', 'require-corp')
-        super().end_headers()
-handler = functools.partial(H, directory='web')
-http.server.HTTPServer(('127.0.0.1', 8088), handler).serve_forever()
-"
-# Open http://localhost:8088/index.html
-```
-
-</details>
 
 ## Gate Scripts
 
@@ -124,11 +97,15 @@ The project is published as a single `dart_monty` package to pub.dev
 using **OIDC automated publishing**. No tokens or secrets needed — GitHub
 Actions generates a short-lived OIDC token that pub.dev verifies directly.
 
-A version tag triggers two workflows:
+A version tag triggers one workflow:
 
 - `publish_dart_monty.yaml` — publishes to pub.dev via OIDC
-- `release.yaml` — builds native binaries and a web bundle, creates a
-  GitHub Release
+
+(The legacy `release.yaml` / `native-release.yaml` /
+`prepare-release.yaml` workflows have been retired — they referenced
+the removed `native/` directory. Native artefacts now live in
+`dart_monty_core` and are built via its own `hook/build.dart` +
+native-asset hook toolchain.)
 
 ### Pre-release checklist
 

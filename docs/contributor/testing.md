@@ -29,7 +29,7 @@ dart test -p chrome
 
 1. **Build WASM:** `cd native && cargo build --release --target wasm32-wasip1`
 2. **Compile Runner:** `dart compile js test/wasm/integration/python_ladder_runner.dart -o test/wasm/integration/web/ladder_runner.dart.js`
-3. **Copy Assets:** Copy `dart_monty_bridge.js`, `dart_monty_worker.js`, and `.wasm` files to the integration web directory.
+3. **Copy Assets:** Copy `dart_monty_core_bridge.js`, `dart_monty_core_worker.js`, and `.wasm` files to the integration web directory.
 4. **Serve:** Use a server that provides COOP/COEP headers (required for `SharedArrayBuffer`).
 
 - **Unit Tests (`/test`)**: Fast, focused tests that use mocks to isolate

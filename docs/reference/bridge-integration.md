@@ -57,7 +57,7 @@ The `dart_monty_wasm` package wraps this pattern in `WasmBindingsJs`
 (`packages/dart_monty_wasm/lib/src/wasm_bindings_js.dart`), which adapts
 all calls to the `WasmBindings` abstract interface.
 
-## Layer 2: JS Bridge (`dart_monty_bridge.js`)
+## Layer 2: JS Bridge (`dart_monty_core_bridge.js`)
 
 The bridge is a self-contained IIFE that creates the Worker and manages
 request/response correlation:
