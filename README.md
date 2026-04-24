@@ -54,11 +54,11 @@ Now you can use `dart_monty` in three ways:
 
 **1. One-shot execution**
 
-For simple, stateless execution, use the static `Monty.run()` method:
+For simple, stateless execution, use the static `Monty.exec()` method:
 
 ```dart
 Future<void> main() async {
-  final result = await Monty.run('2 + 2');
+  final result = await Monty.exec('2 + 2');
   print(result.value); // 4
 }
 ```
