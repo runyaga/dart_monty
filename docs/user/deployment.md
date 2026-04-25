@@ -5,16 +5,11 @@ and native applications.
 
 ## Packages you depend on
 
-- **`dart_monty_core`** — ships the JS bridge, WASM worker, and
-  compiled WASM binary. Also ships the native `hook/build.dart` that
-  compiles a platform dylib on `pub get` for desktop/server targets.
-- **`dart_monty`** — high-level API layered on top of core. This is
-  the package your code imports day-to-day.
-
-Flutter consumers depend on both — `dart_monty` for the API and
-`dart_monty_core` so Flutter's asset bundler can locate the WASM/JS
-files directly. The asset resolver does not chase transitive
-references, so both deps must be listed.
+- **`dart_monty`** — high-level API. This is the only package your
+  app lists as a direct dependency.
+- **`dart_monty_core`** — ships the JS bridge, WASM worker, compiled
+  WASM binary, and native `hook/build.dart`. Comes in transitively
+  through `dart_monty`; you do not need to list it directly.
 
 ## Flutter Web
 
@@ -22,16 +17,12 @@ references, so both deps must be listed.
 # pubspec.yaml
 dependencies:
   dart_monty: ^<version>
-  dart_monty_core: ^<version>  # needed for flutter.assets
-
-flutter:
-  assets:
-    - package: dart_monty_core
 ```
 
 ```dart
 // main.dart
 import 'package:dart_monty/dart_monty.dart';
+import 'package:flutter/widgets.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -40,11 +31,14 @@ Future<void> main() async {
 }
 ```
 
+Flutter bundles `dart_monty_core`'s declared `flutter.assets`
+automatically — no consumer-side redeclaration is needed.
 `DartMonty.ensureInitialized()` injects
-`packages/dart_monty_core/assets/dart_monty_core_bridge.js` into
+`assets/packages/dart_monty_core/lib/assets/dart_monty_core_bridge.js` into
 `document.head` at runtime, awaits load, and verifies
 `window.DartMontyBridge` is defined. No manual `<script>` tag in
-`web/index.html` is required.
+`web/index.html` is required; `--base-href` is honoured
+automatically.
 
 ### Required security headers
 
