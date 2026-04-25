@@ -19,6 +19,18 @@ import 'package:struct_log/struct_log.dart';
 // Top-level helpers — pure utilities that do not need bridge instance state.
 // ---------------------------------------------------------------------------
 
+/// Composes `excType: message` for the human-readable [BridgeRunError.message]
+/// surface, falling back to just the message when no exception type is known.
+///
+/// `dart_monty_core` ≥ post-PR-#48 splits `excType` and `message` into
+/// orthogonal fields — the `message` field on [MontyException] no longer
+/// carries the Python exception type prefix that `summary()` previously
+/// embedded. Bridge consumers display [BridgeRunError.message] directly in
+/// UIs and logs, so we restore the prefixed form here. Consumers who want
+/// the structured fields read [BridgeRunError.exception] instead.
+String _composeMessage(String? excType, String message) =>
+    (excType == null || excType.isEmpty) ? message : '$excType: $message';
+
 /// Handles the [MontyComplete] terminal step — emits [BridgeRunFinished] or
 /// [BridgeRunError] depending on the result.
 ///
@@ -34,7 +46,7 @@ void _emitComplete(
     final e = complete.result.error!;
     controller.add(
       BridgeRunError(
-        message: e.message,
+        message: _composeMessage(e.excType, e.message),
         printOutput: complete.result.printOutput,
         exception: e,
       ),
@@ -57,7 +69,9 @@ void _emitScriptError(
   StreamController<BridgeEvent> controller,
   BridgeLogger log,
 ) {
-  final msg = e.exception?.message ?? e.message;
+  final excType = e.exception?.excType ?? e.excType;
+  final rawMessage = e.exception?.message ?? e.message;
+  final msg = _composeMessage(excType, rawMessage);
   log.warning('Python error', attributes: {'error': msg});
   controller.add(BridgeRunError(message: msg, exception: e.exception));
 }
