@@ -33,6 +33,9 @@ dependencies:
   # Do not remove; it is not redundant with dart_monty.
   dart_monty_core: ^<version>
 
+# Only needed by Flutter's build hook — instructs the asset bundler
+# to include dart_monty_core's WASM/JS bridge files. Plain-Dart
+# consumers ignore this stanza.
 flutter:
   assets:
     - package: dart_monty_core
