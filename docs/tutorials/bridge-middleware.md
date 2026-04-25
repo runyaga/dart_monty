@@ -1,38 +1,25 @@
 # Bridge Middleware
 
-Cross-cutting policy enforcement at the tool dispatch chokepoint.
+Bridge middleware provides a powerful mechanism for intercepting every tool call, allowing for cross-cutting concerns like logging, rate limiting, and access control without modifying individual extension handlers.
 
-**Prerequisites:** Read the [Intermediate guide](host-functions-intermediate.md)
-(extensions, registry) and the [Advanced guide](host-functions-advanced.md)
-(SandboxExtension, production patterns) first.
+**Prerequisites:** Read the [Intermediate guide](host-functions-intermediate.md) (extensions) and the [Advanced guide](host-functions-advanced.md) (sandboxing).
 
-## The Problem
+## The Middleware Pattern
 
-Every tool call from Python passes through `DefaultMontyBridge`. Before
-middleware, adding cross-cutting behaviour -- telemetry, rate limiting,
-access control, grounding -- meant wrapping individual extension handlers.
-That approach scatters policy across dozens of functions, breaks when
-extensions are added, and is invisible to other extensions.
-
-`BridgeMiddleware` intercepts **every** tool call at the dispatch level,
-in an onion-style chain identical to HTTP middleware in Express, Shelf,
-or ASP.NET Core.
-
-## Architecture
+Middleware is implemented as a chain of handlers that wrap the core tool dispatch logic. Each middleware can inspect a request, modify it, short-circuit it, or pass it down the chain. This is identical to the onion-style middleware in frameworks like Express or Shelf.
 
 ```text
-Python call
+Python tool call
     |
     v
-DefaultMontyBridge._dispatch()
+PlatformBridge._dispatchToolCall()
     |
     v  +--------------------------------------+
-       |  Middleware Chain (onion model)       |
+       |  Middleware Chain (onion model)      |
        |                                      |
-       |  +- MW1 (outermost, first registered)|
-       |  |   +- MW2                          |
-       |  |   |   +- MW3 (innermost, last)    |
-       |  |   |   |   Extension Handler          |
+       |  +- Middleware 1 (first registered)  |
+       |  |   +- Middleware 2                 |
+       |  |   |   +- Extension Handler        |
        |  |   |   +---------------------------+
        |  |   +-------------------------------+
        |  +-----------------------------------+
@@ -42,87 +29,9 @@ DefaultMontyBridge._dispatch()
 Result -> Python
 ```
 
-Registration order determines nesting: **first registered = outermost**.
-When no middleware is registered, the bridge takes a fast path that calls
-the handler directly with zero overhead.
-
-## CallRole: Sealed Discrimination
-
-Not all tool calls are equal. A sealed `CallRole` hierarchy lets
-middleware distinguish orchestration infrastructure from agent-initiated
-actions:
-
-```dart
-sealed class CallRole {
-  const CallRole();
-}
-
-/// Orchestration loop, planning, routing.
-/// Middleware should observe but not enforce policy.
-class InfraCall extends CallRole {
-  const InfraCall();
-}
-
-/// Agent-initiated tool action -- full policy enforcement.
-class ToolCall extends CallRole {
-  const ToolCall();
-}
-```
-
-Python signals the role via a reserved `__role__` kwarg. Typically, a
-Python orchestration harness (seed code, prelude) injects `__role__`
-during planning or routing calls. LLM-generated tool calls omit it:
-
-```python
-# Infrastructure call -- middleware observes only
-result = list_functions(__role__="infra")
-
-# Tool call (default when __role__ is omitted)
-data = df_create(data=rows)
-```
-
-The bridge strips `__role__` before dispatching to the handler -- extensions
-never see it. When omitted or set to an unrecognized value, the default
-is `ToolCall`.
-
-### Why sealed?
-
-Adding a new `CallRole` subtype is a **compile-time breaking change**.
-Every `switch (role)` in every middleware must handle the new case. Policy
-gaps are caught at build time, not in production.
-
-### Security: host-declared roles prevent spoofing
-
-The `__role__` kwarg is set by Python code, which may be LLM-generated
-and untrusted. To prevent role escalation, `HostFunction` accepts an
-optional `role` parameter that is **authoritative** — the bridge uses
-it regardless of any `__role__` kwarg from Python:
-
-```dart
-HostFunction(
-  schema: const HostFunctionSchema(name: 'fn', description: '...'),
-  handler: (args) async => ...,
-  role: const ToolCall(),  // Python cannot escalate to InfraCall
-)
-```
-
-Resolution order:
-
-1. `HostFunction.role` (host-declared) — authoritative, cannot be overridden
-2. `__role__` kwarg from Python — advisory, used only when no host role
-3. `ToolCall` — default when neither is present
-
-Introspection builtins (`list_functions`, `help`) are registered with
-`role: const InfraCall()` so they bypass policy middleware by design.
-
-For functions where the role should be fixed, always declare it on the
-host side. Reserve the `__role__` kwarg fallback for cases where trusted
-Python orchestration code (seed/prelude) legitimately needs to signal
-role at call time.
-
 ## Writing Middleware
 
-Implement `BridgeMiddleware` with a single `handle` method:
+Implement the `BridgeMiddleware` abstract class and its `handle` method:
 
 ```dart
 abstract class BridgeMiddleware {
@@ -134,27 +43,16 @@ abstract class BridgeMiddleware {
   );
 }
 ```
+- **`name`**: The name of the host function being called.
+- **`args`**: The validated arguments for the function.
+- **`role`**: The `CallRole` indicating if this is an infrastructure or tool call.
+- **`next`**: A function to call the next middleware in the chain.
 
-- **`name`** -- the host function name (e.g. `df_create`)
-- **`args`** -- validated argument map (after schema coercion)
-- **`role`** -- `InfraCall` or `ToolCall`
-- **`next`** -- calls the next middleware (or the handler if innermost)
-
-Three rules:
-
-1. **Call `next(name, args)` to proceed.** Omitting it short-circuits the
-   chain and returns your value directly to Python.
-2. **Throw to reject.** The exception surfaces as a Python `RuntimeError`
-   via the bridge's `resumeWithError()` path.
-3. **Inspect `role` for selective enforcement.** Infra calls should
-   generally pass through; tool calls are where you enforce policy.
-
-### Example: Telemetry
+### Example: Telemetry Middleware
+This middleware logs the duration of every tool call.
 
 ```dart
 class TelemetryMiddleware extends BridgeMiddleware {
-  final durations = <String, List<Duration>>{};
-
   @override
   Future<Object?> handle(
     String name,
@@ -167,100 +65,19 @@ class TelemetryMiddleware extends BridgeMiddleware {
       return await next(name, args);
     } finally {
       sw.stop();
-      durations.putIfAbsent(name, () => []).add(sw.elapsed);
+      print('Call to "$name" took ${sw.elapsedMilliseconds}ms');
     }
   }
 }
 ```
 
-This records latency for every tool call regardless of role. Because it
-always calls `next`, it never blocks execution.
-
-### Example: Rate Limiter
-
-Enforce a per-second call limit, but only on agent tool calls:
-
-```dart
-class RateLimitMiddleware extends BridgeMiddleware {
-  RateLimitMiddleware({required this.maxPerSecond});
-
-  final int maxPerSecond;
-  final _timestamps = <DateTime>[];
-
-  @override
-  Future<Object?> handle(
-    String name,
-    Map<String, Object?> args,
-    CallRole role,
-    ToolHandler next,
-  ) async {
-    if (role is ToolCall) {
-      final now = DateTime.now();
-      _timestamps.removeWhere((t) => now.difference(t).inSeconds >= 1);
-      if (_timestamps.length >= maxPerSecond) {
-        throw StateError('Rate limit: $maxPerSecond calls/sec exceeded');
-      }
-      _timestamps.add(now);
-    }
-    return next(name, args);
-  }
-}
-```
-
-Infrastructure calls (`__role__="infra"`) pass through unchecked. Agent
-tool calls that exceed the limit get a Python `RuntimeError`.
-
-### Example: Grounding
-
-Validate tool outputs against domain constraints before returning
-results to the LLM. This is the primary motivation for middleware --
-a single chokepoint where you can assert invariants on what data
-flows back into the agent's context.
-
-```dart
-class GroundingMiddleware extends BridgeMiddleware {
-  GroundingMiddleware({required this.validators});
-
-  /// Function name -> output validator. Return true to pass.
-  final Map<String, bool Function(Object?)> validators;
-
-  @override
-  Future<Object?> handle(
-    String name,
-    Map<String, Object?> args,
-    CallRole role,
-    ToolHandler next,
-  ) async {
-    final result = await next(name, args);
-    final validate = validators[name];
-    if (validate != null && !validate(result)) {
-      throw StateError(
-        'Grounding failed for "$name": output did not pass validation',
-      );
-    }
-    return result;
-  }
-}
-```
-
-Usage:
-
-```dart
-bridge.use(GroundingMiddleware(validators: {
-  'df_filter': (r) => r is int,                      // Must return a handle
-  'fetch': (r) => r is Map && r['status'] == 200,    // Must succeed
-}));
-```
-
-### Example: Access Control
-
-Deny specific functions based on a permission set:
+### Example: Access Control Middleware
+This middleware denies access to certain functions based on the `CallRole`.
 
 ```dart
 class AccessControlMiddleware extends BridgeMiddleware {
-  AccessControlMiddleware({required this.denied});
-
-  final Set<String> denied;
+  final Set<String> _deniedFunctions;
+  AccessControlMiddleware(this._deniedFunctions);
 
   @override
   Future<Object?> handle(
@@ -269,202 +86,34 @@ class AccessControlMiddleware extends BridgeMiddleware {
     CallRole role,
     ToolHandler next,
   ) async {
-    if (role is ToolCall && denied.contains(name)) {
-      throw StateError('Access denied: "$name" is not permitted');
+    // Only enforce policy on agent tool calls, not infrastructure calls
+    if (role is ToolCall && _deniedFunctions.contains(name)) {
+      throw StateError('Access denied: function "$name" is not permitted.');
     }
     return next(name, args);
   }
 }
 ```
 
-### Example: Argument Normalization
+## Registering Middleware
 
-Middleware can mutate arguments before dispatch and transform results
-on the way back -- the full bidirectional power of the onion model:
-
-```dart
-class NormalizerMiddleware extends BridgeMiddleware {
-  @override
-  Future<Object?> handle(
-    String name,
-    Map<String, Object?> args,
-    CallRole role,
-    ToolHandler next,
-  ) async {
-    // Normalize args: trim all string values before dispatch.
-    final cleaned = {
-      for (final e in args.entries)
-        e.key: e.value is String ? (e.value as String).trim() : e.value,
-    };
-    final result = await next(name, cleaned);
-
-    // Redact PII from string results on the way back.
-    if (result is String) {
-      return result.replaceAll(RegExp(r'\b\d{3}-\d{2}-\d{4}\b'), '[REDACTED]');
-    }
-    return result;
-  }
-}
-```
-
-## Registration
-
-Register middleware on the bridge **before** attaching extensions:
+Middleware must be registered on the `PlatformBridge` **before** extensions are attached. The order of registration matters: the first middleware registered is the outermost in the chain.
 
 ```dart
-final bridge = MontyBridge(platform: platform, logger: logger);
+// 1. Create the bridge
+final bridge = PlatformBridge(platform: MontyFfi());
 
-// First registered = outermost in the chain.
-bridge.use(GroundingMiddleware(validators: {...}));
+// 2. Register middleware (outermost first)
 bridge.use(TelemetryMiddleware());
-bridge.use(RateLimitMiddleware(maxPerSecond: 10));
+bridge.use(AccessControlMiddleware({'file_delete'}));
 
-// Then attach extensions.
-final registry = ExtensionCoordinator();
-registry.register(DataFrameExtension());
-registry.register(WeatherExtension());
-await registry.attachTo(bridge);
+// 3. Attach extensions
+final coordinator = ExtensionCoordinator()
+  ..register(FileExtension())
+  ..register(WebExtension());
+await coordinator.attachTo(bridge);
+
+// Now the bridge is ready to execute
+final runtime = MontyRuntime(bridge: bridge, coordinator: coordinator);
 ```
-
-Order matters. In this configuration:
-
-1. **Grounding** (outermost) sees the final result and validates it.
-2. **Telemetry** times the call including rate-limit overhead.
-3. **Rate Limiter** (innermost) checks the limit just before dispatch.
-4. **Handler** executes.
-
-Results flow back outward: handler -> rate limiter -> telemetry -> grounding.
-
-`use()` throws `StateError` if the bridge has been disposed. Middleware
-registered after an `execute()` call takes effect on subsequent tool
-calls within the same or later executions.
-
-## Middleware State and Lifecycle
-
-Middleware instances share the lifecycle of the bridge. State in a
-middleware object (like `TelemetryMiddleware.durations` or
-`RateLimitMiddleware._timestamps`) persists across multiple `execute()`
-calls on the same bridge.
-
-If you need per-execution state, reset it manually before each
-`execute()` call, or create a new bridge per execution. In practice,
-most applications create one bridge per session, so middleware state
-is naturally scoped to the session.
-
-## Middleware and Futures Batching
-
-Both the synchronous and futures dispatch paths pass through the
-middleware chain. When `useFutures: true` (the default) and the platform
-implements `MontyFutureCapable`, multiple handler calls may be in-flight
-concurrently. Each call gets its own independent pass through the
-middleware chain.
-
-This means middleware must be safe for concurrent use if futures batching
-is active. The telemetry and rate limiter examples above are safe because
-Dart is single-threaded (event loop) -- but if your middleware accesses
-external resources (files, network, databases), ensure those resources
-handle concurrent access.
-
-For details on how futures batching works at the platform level, see
-[Futures Batching](host-functions-advanced.md#futures-batching) in the
-Advanced guide.
-
-## Inter-Extension Dependencies
-
-Extensions sometimes need to call into each other. The recommended pattern
-is **constructor injection** -- pass dependencies when you create the
-extension, before registration:
-
-```dart
-class BudgetExtension extends MontyExtension {
-  BudgetExtension({required this.memory});
-  final MemoryExtension memory;
-
-  @override
-  String get namespace => 'budget';
-
-  @override
-  List<HostFunction> get functions => [
-    HostFunction(
-      schema: const HostFunctionSchema(
-        name: 'budget_check',
-        description: 'Check budget against stored limits.',
-      ),
-      handler: (args) async {
-        return memory.recall(args['key'] as String);
-      },
-    ),
-  ];
-}
-
-// Wire at creation time:
-final memory = MemoryExtension();
-final budget = BudgetExtension(memory: memory);
-registry.register(memory);
-registry.register(budget);
-```
-
-Constructor injection is:
-
-- **Explicit** -- dependencies are visible in the constructor signature
-- **Type-safe** -- no runtime resolution failures
-- **Testable** -- pass mocks directly, no registry needed
-- **Proxy-friendly** -- works with any object satisfying the interface
-
-For **cross-cutting concerns** that would otherwise require many extensions
-to know about each other (telemetry, grounding, rate limiting), use
-`BridgeMiddleware` instead -- it operates at the dispatch chokepoint
-without any extension coupling.
-
-### Historical note: CompositeExtension
-
-An earlier version of `dart_monty_bridge` provided `CompositeExtension` and
-`ExtensionRef<T>` for declaring inter-extension dependencies with automatic
-topological sort and cycle detection. This was removed in #197 because:
-
-1. **Zero consumers** outside the test file used it. Constructor
-   injection was already the established pattern.
-2. **Type-identity conflicts.** `ExtensionRef<T>` uses runtime `is T`
-   matching, which fails with proxied or cross-package extension types.
-3. **Unnecessary complexity.** ~180 lines of topological sort for a
-   problem constructor injection solves in zero lines.
-
-## Registry Error Handling
-
-`ExtensionCoordinator.attachTo()` and `disposeAll()` are resilient: they
-process **all** extensions even if individual `onRegister` or `onDispose`
-hooks throw. Errors are collected and thrown as a single `StateError`
-after all extensions have been processed. This prevents one failing extension
-from blocking the rest.
-
-## Complete Lifecycle
-
-```text
-1. Create bridge:   MontyBridge(platform: platform, logger: logger)
-2. Register MW:     bridge.use(grounding), bridge.use(telemetry)
-3. Build registry:  registry.register(extensionA), registry.register(extensionB)
-4. Attach:          registry.attachTo(bridge)  // wires functions + onRegister
-5. Execute:         bridge.execute(code)       // MW wraps every tool call
-6. Dispose:         registry.disposeAll()      // reverse registration order
-                    bridge.dispose()
-```
-
-## Example: Per-Session Integration
-
-A typical application creates one bridge per session. Middleware slots
-into the setup path before extensions are attached:
-
-```dart
-final bridge = MontyBridge(platform: platform, logger: logger);
-bridge.use(SessionTelemetryMiddleware(sessionId: session.id));
-bridge.use(GroundingMiddleware(validators: roomValidators));
-
-final registry = ExtensionCoordinator();
-registry.register(DataFrameExtension(store: dfStore));
-registry.register(AgentExtension(runtime: runtime));
-await registry.attachTo(bridge);
-```
-
-Each session gets its own bridge and middleware instances, so per-session
-policy (rate limits, access control, telemetry) is naturally isolated
-without shared state.
+In this example, the `TelemetryMiddleware` will wrap the `AccessControlMiddleware`, so it will time the call including any access control logic.

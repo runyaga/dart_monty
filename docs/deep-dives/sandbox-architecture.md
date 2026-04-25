@@ -34,8 +34,7 @@ graph TD
     F --> G
     G --> H
 
-    style D fill:#f9f,stroke:#333,stroke-width:2px
-    style F fill:#ccf,stroke:#333,stroke-width:2px
+    style F fill:#ccf,stroke:#333,stroke-width:2px,color:#000
 ```
 
 ### Cross-platform Support
