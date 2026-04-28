@@ -46,14 +46,32 @@ final extension = SandboxExtension(
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `platformFactory` | `Future<MontyPlatform> Function()` | required | Creates a fresh platform for each child |
-| `childExtensionCoordinatorFactory` | `Future<ExtensionCoordinator?> Function(ChildSpawnContext)?` | `null` | Optional: provides extensions to children |
-| `parentExtensions` | `List<MontyExtension>` | `const []` | Parent extensions for automatic child inheritance |
+| `childVfsStrategy` | `ChildVfsStrategy` | `ChildVfsStrategy.isolated` | How the child's `Path.` handler relates to the parent's |
 | `maxChildren` | `int` | `16` | Maximum concurrent living children |
 | `maxDepth` | `int` | `3` | Maximum recursion depth for nested SandboxExtensions |
 | `currentDepth` | `int` | `0` | This extension's current depth in the recursion tree |
 | `childLimits` | `MontyLimits?` | `null` | Default resource limits for all children |
 | `sandboxBaseDir` | `String?` | `null` | Base directory for per-child working directories |
 | `systemPromptBuilder` | `ChildSystemPromptBuilder?` | `null` | Builds static system prompt from child context |
+
+### What children inherit (and what they don't)
+
+Children created by `sandbox_spawn` automatically inherit the host
+functions provided by the parent runtime's **built-in
+`MontyExtension`** instances — `tmpl_render`, `msg_send`,
+`sandbox_spawn` itself (subject to `maxDepth`), etc.
+
+Children do **not** inherit host functions you registered directly on
+the parent runtime via `runtime.register(HostFunction(...))`. Those
+are runtime-local, not extension-attached, and the child's own
+runtime has no record of them. If a child script needs to call a
+custom host function:
+
+- Wrap it in a `MontyExtension` and add it to the parent runtime's
+  `extensions` list, OR
+- Compute the value on the parent and pass it into the child's `code`
+  string at spawn time (e.g. interpolate a JSON literal into the
+  child source).
 
 ### Host Functions Provided
 
@@ -152,26 +170,17 @@ uses the value from `childLimits`.
 
 ### Depth Limits
 
-If children also have `SandboxExtension` registered (via
-`childExtensionCoordinatorFactory`), they can spawn their own children. The
-`maxDepth` and `currentDepth` parameters control how deep this
-recursion can go:
+`maxDepth` caps how deep nested `sandbox_spawn` calls can go;
+`currentDepth` tracks where in the recursion this extension sits.
+A child runtime that itself wires `SandboxExtension` (with
+`currentDepth: parent + 1`) is what makes grandchildren possible:
 
 ```dart
-SandboxExtension(
+final root = SandboxExtension(
   platformFactory: () async => createPlatformMonty(),
   maxDepth: 3,
   currentDepth: 0,
-  childExtensionCoordinatorFactory: (context) async {
-    final registry = ExtensionCoordinator();
-    registry.register(SandboxExtension(
-      platformFactory: () async => createPlatformMonty(),
-      maxDepth: 3,
-      currentDepth: 1,  // One level deeper
-    ));
-    return registry;
-  },
-)
+);
 ```
 
 When `currentDepth >= maxDepth`, `sandbox_spawn()` throws `StateError`
@@ -186,60 +195,42 @@ the message `"Maximum concurrent children (N) reached."`.
 Freed children do not count against the limit. After
 `sandbox_free(handle)`, the slot is available for new children.
 
-## Providing Extensions to Children
+## What children inherit from the parent runtime
 
-By default, children only get the introspection builtins (if a
-`ExtensionCoordinator` is attached). Use `childExtensionCoordinatorFactory` to
-give children access to host functions:
+Children created by `sandbox_spawn` automatically get the host
+functions provided by **built-in `MontyExtension` instances** on the
+parent — `tmpl_render` (from `JinjaTemplateExtension`), `msg_send`
+(from `MessageBusExtension`), `sandbox_spawn` itself (subject to
+`maxDepth`), etc.
 
-```dart
-SandboxExtension(
-  platformFactory: () async => createPlatformMonty(),
-  childExtensionCoordinatorFactory: (context) async {
-    final registry = ExtensionCoordinator();
-    registry.register(MathExtension());
-    registry.register(StorageExtension());
-    // Note: do NOT register SandboxExtension here unless you want
-    // recursive spawning (and remember to increment currentDepth)
-    return registry;
-  },
-)
-```
+Children do **not** inherit:
 
-The factory receives a `ChildSpawnContext` with the child's `childId`
-and optional `workingDirectory` -- use these for per-child resource
-configuration.
+- Host functions you registered directly via
+  `runtime.register(HostFunction(...))` — these are runtime-local,
+  not extension-attached, and the child has no record of them.
+- The parent's OS-call handler chain — children get a fresh handler
+  per `childVfsStrategy`.
 
-Return `null` from the factory to give children only introspection
-builtins (no extensions). If the factory itself is `null`, children get
-no extensions at all and no introspection.
+### Workaround: surface custom host functions to children
 
-### Automatic Extension Inheritance
+If a child script needs a custom host function, do one of:
 
-When `childExtensionCoordinatorFactory` is `null`, children automatically
-inherit extensions from `parentExtensions` that opt in via
-`createChildInstance()`:
-
-```dart
-SandboxExtension(
-  platformFactory: () async => createPlatformMonty(),
-  parentExtensions: registry.extensions,  // Pass parent's extension list
-)
-```
-
-Each parent extension's `createChildInstance(context:)` is called with a
-`ChildSpawnContext`. Extensions that return a new instance are registered
-on the child's bridge. Extensions that return `null` are excluded.
+1. **Wrap it in a `MontyExtension`** and add the extension to the
+   parent runtime's `extensions` list. The child's runtime will
+   automatically register the extension's host functions.
+2. **Pre-compute on the parent and pass via the `code` string** — for
+   one-shot data, interpolate a JSON literal into the spawn code:
+   `sandbox_spawn(code='import json; data = json.loads({json_str!r}); ...')`.
 
 ### Per-Child Filesystem Isolation
 
-The `sandboxBaseDir` parameter enables per-child working directories:
+The `sandboxBaseDir` parameter sets a base directory for per-child
+working directories:
 
 ```dart
 SandboxExtension(
   platformFactory: () async => createPlatformMonty(),
   sandboxBaseDir: '/data',
-  parentExtensions: registry.extensions,
 )
 ```
 

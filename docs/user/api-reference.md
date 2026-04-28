@@ -95,7 +95,7 @@ checker knows their types:
 ```dart
 final errors = await Monty.typeCheck(
   'result: str = fetch("https://example.com")',
-  prefixCode: 'def fetch(url: str) -> str: ...',
+  prefixCode: 'def fetch(url: str) -> str: return ""',
 );
 ```
 
@@ -111,21 +111,30 @@ final errors = await Monty.typeCheck(
 > ```dart
 > const prefixCode = '''
 > # Built-in extension functions
-> def tmpl_render(template: str, context: dict) -> str: ...
-> def msg_send(name: str, message) -> None: ...
-> def msg_recv(name: str, timeout_ms: int = None) -> object: ...
+> def tmpl_render(template: str, context: dict) -> str: return ""
+> def msg_send(name: str, message) -> None: return None
+> def msg_recv(name: str, timeout_ms: int = None) -> object: return None
 >
 > # Your host functions (one stub per HostFunction registered on the runtime)
-> def fetch(url: str) -> str: ...
-> def write_log(level: str, message: str) -> None: ...
+> def fetch(url: str) -> str: return ""
+> def write_log(level: str, message: str) -> None: return None
 > ''';
 >
 > final errors = await Monty.typeCheck(userCode, prefixCode: prefixCode);
 > ```
 >
+> **Body must be an actual statement, not Ellipsis.** Monty's Python
+> subset does not accept `def f(): ...` — that triggers an empty-body
+> error and the stub is rejected. Use a literal return value matching
+> the declared return type: `return ""` for `str`, `return 0` for
+> `int`, `return None` for `None`, `return []` for `list`, etc. The
+> value is never executed (the real implementation runs at
+> `runtime.execute(...)` time); it just satisfies Monty's parser.
+>
 > Rule of thumb: if a name is in scope at `runtime.execute(...)` time
 > but not in the standard Monty stdlib (`json`, `math`, `re`,
-> `pathlib`, `datetime`, `collections`), it needs a stub.
+> `pathlib`, `datetime`, `collections`), it needs a stub. See
+> `example/type_check_demo.dart` for a working reference.
 
 ## Host Functions
 

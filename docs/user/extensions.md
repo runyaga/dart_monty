@@ -239,15 +239,25 @@ for r in results:
 ```dart
 SandboxExtension(
   platformFactory: () async => createPlatformMonty(),
-  parentExtensions: [tmpl, msgBus],  // children inherit these
-  maxChildren: 16,       // concurrent child limit
-  maxDepth: 3,           // grandchild recursion limit
+  maxChildren: 16,       // concurrent child limit (default)
+  maxDepth: 3,           // grandchild recursion limit (default)
   childLimits: MontyLimits(
     timeoutMs: 10000,
     memoryBytes: 4 * 1024 * 1024,
   ),
+  childVfsStrategy: ChildVfsStrategy.isolated,  // default
 )
 ```
+
+> **Children inherit only built-in extension functions, not your
+> custom host functions.** Children automatically gain
+> `tmpl_render`, `msg_send`, `sandbox_spawn`, etc. (the host
+> functions registered by built-in `MontyExtension` instances on the
+> parent runtime). They do **not** inherit host functions you
+> registered via `runtime.register(HostFunction(...))` — those live
+> only on the parent. If a child script needs a custom host
+> function, expose it through a `MontyExtension` on the parent or
+> pass its result into the child's `code` parameter at spawn time.
 
 ---
 
@@ -260,7 +270,6 @@ final session = MontyRuntime(
     MessageBusExtension(),
     SandboxExtension(
       platformFactory: () async => createPlatformMonty(),
-      parentExtensions: [JinjaTemplateExtension()],
     ),
   ],
 );
