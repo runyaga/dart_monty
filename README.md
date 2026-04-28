@@ -98,6 +98,21 @@ Future<void> main() async {
 }
 ```
 
+## Examples
+
+Runnable end-to-end demos, all platform-agnostic (FFI on the VM, WASM
+in Chrome — `Monty` dispatches to the same Rust ABI on every backend):
+
+| File | What it shows |
+|---|---|
+| [`example/example.dart`](example/example.dart) | Minimal `Monty.exec` one-shots, including error handling. |
+| [`example/type_check_demo.dart`](example/type_check_demo.dart) | `Monty.typeCheck` for static type analysis — clean code, type errors, `prefixCode` for declaring external function shapes. |
+| [`example/dataclass_demo.dart`](example/dataclass_demo.dart) | Round-trip Python `@dataclass` values into typed Dart objects via `MontyDataclass.hydrate(factory)` and a caller-side registry. |
+
+Run any of them with `dart run example/<file>.dart` from the repo root.
+For the native and web runners (with built Rust library and a COOP/COEP
+server), see `example/native/run.sh` and `example/web/run.sh`.
+
 ## Documentation
 
 - [**Installation**](docs/user/install.md) — Add to your project
