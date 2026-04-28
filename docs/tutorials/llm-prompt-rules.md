@@ -3,6 +3,16 @@
 When an LLM generates Python code for the Monty sandbox, include these
 rules in the system prompt or as an uploaded reference file.
 
+> **Pre-flight every generated script with `Monty.typeCheck` before
+> running it.** `Monty.typeCheck(userCode, prefixCode: ...)` catches
+> subset violations as typed errors, with line/column info that you
+> can either fix automatically or feed back to the model — far
+> cheaper than a runtime failure deep inside `runtime.execute(...)`.
+> See [the Monty.typeCheck section in the API
+> reference](../user/api-reference.md#static-type-checking) for the
+> full rules (especially: stub all host-function names in
+> `prefixCode` with real `return` statements, not Ellipsis bodies).
+
 ## Core Rules
 
 1. **All host functions return JSON strings.** Always `json.loads()` the result.
