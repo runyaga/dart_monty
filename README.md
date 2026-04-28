@@ -73,11 +73,11 @@ For interactive, stateful sessions, use a `MontyRepl`:
 ```dart
 Future<void> main() async {
   final repl = MontyRepl();
-  await repl.feed('x = 42');
-  await repl.feed('def double(n): return n * 2');
-  final result = await repl.feed('double(x)');
+  await repl.feedRun('x = 42');
+  await repl.feedRun('def double(n): return n * 2');
+  final result = await repl.feedRun('double(x)');
   print(result.value); // MontyInt(84)
-  repl.dispose();
+  await repl.dispose();
 }
 ```
 
@@ -90,11 +90,11 @@ Future<void> main() async {
   final runtime = MontyRuntime(
     extensions: [JinjaTemplateExtension(), MessageBusExtension()],
   );
-  final result = await runtime.run(
+  final result = await runtime.execute(
     "tmpl_render(template='Hello {{ name }}!', context={'name': 'World'})",
-  );
+  ).result;
   print(result.value); // 'Hello World!'
-  runtime.dispose();
+  await runtime.dispose();
 }
 ```
 

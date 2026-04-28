@@ -80,7 +80,7 @@ sequenceDiagram
 
     User->>RT: execute("my_tool()")
     RT->>PB: execute("my_tool()")
-    PB->>MR: feed("my_tool()")
+    PB->>MR: feedRun("my_tool()")
     MR-->>PB: Yields (Pending Tool Call)
     PB->>HF: Invoke handler for "my_tool"
     HF-->>PB: Returns result
@@ -144,7 +144,7 @@ dart_monty_core                      (low-level core engine package)
 | Use case | API | Example |
 |----------|-----|---------|
 | Stateful session with tools | `MontyRuntime` | `final session = MontyRuntime(extensions: ...)` |
-| Simple stateful evaluation | `MontyRepl` | `final repl = MontyRepl(); repl.feed('x=1')` |
+| Simple stateful evaluation | `MontyRepl` | `final repl = MontyRepl(); repl.feedRun('x=1')` |
 | One-shot stateless evaluation | `Monty.exec()` | `await Monty.exec('2+2')` |
 
 ## Tool Calling & LLM Integration

@@ -204,7 +204,7 @@ for r in results:
 
 ```dart
 SandboxExtension(
-  platformFactory: () async => MontyFfi(),  // or MontyWasm()
+  platformFactory: () async => createPlatformMonty(),
   parentExtensions: [tmpl, msgBus],  // children inherit these
   maxChildren: 16,       // concurrent child limit
   maxDepth: 3,           // grandchild recursion limit
@@ -225,17 +225,17 @@ final session = MontyRuntime(
     JinjaTemplateExtension(),
     MessageBusExtension(),
     SandboxExtension(
-      platformFactory: () async => MontyFfi(),
+      platformFactory: () async => createPlatformMonty(),
       parentExtensions: [JinjaTemplateExtension()],
     ),
   ],
 );
 
 // All extension functions are now available in Python
-await session.run("help()");  // lists all functions
-await session.run("tmpl_render(template='{{ x }}', context={'x': 1})");
-await session.run("msg_send('ch', 'hello')");
-await session.run("h = sandbox_spawn(code='42')");
+await session.execute("help()").result;  // lists all functions
+await session.execute("tmpl_render(template='{{ x }}', context={'x': 1})").result;
+await session.execute("msg_send('ch', 'hello')").result;
+await session.execute("h = sandbox_spawn(code='42')").result;
 
 await session.dispose();
 ```

@@ -255,7 +255,7 @@ consistent with `type` to avoid mismatches.
 
 ```dart
 MontyBridge(
-  platform: Monty(),          // Required: MontyPlatform backend
+  platform: createPlatformMonty(), // Required: MontyPlatform backend
   limits: MontyLimits(        // Optional: resource constraints
     timeoutMs: 5000,
     memoryBytes: 10 * 1024 * 1024,

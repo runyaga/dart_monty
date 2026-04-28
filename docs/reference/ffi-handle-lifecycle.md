@@ -29,9 +29,9 @@ then creating a 3rd and calling an HTTP host function, causes a SEGFAULT.
 6. **Dart `BaseMontyPlatform`** (`lib/src/platform/base_monty_platform.dart`) —
    calls `_bindings.dispose()` on platform disposal.
 
-7. **Dart `MontyRuntime`** (`lib/src/bridge/monty_runtime.dart`) —
-   creates `Monty` → `MontyFfi` → `FfiCoreBindings`. Dispose chain:
-   `session.dispose()` → `bridge.dispose()` → `monty.dispose()` →
+7. **Dart `MontyRuntime`** (`lib/src/runtime/runtime.dart`) —
+   creates `MontyRepl` → `MontyFfi` → `FfiCoreBindings`. Dispose chain:
+   `session.dispose()` → `bridge.dispose()` → `repl.dispose()` →
    `platform.dispose()` → `bindings.dispose()` → `_freeHandle()`.
 
 ### The race condition
