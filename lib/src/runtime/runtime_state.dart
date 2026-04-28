@@ -54,8 +54,11 @@ MontyResult extractBridgeResult(
 ) {
   for (final event in events.reversed) {
     if (event is BridgeRunFinished) {
+      // Prefer the typed MontyValue when the bridge attached one — falling
+      // back to fromDart loses __type envelopes (dataclass, namedtuple, …)
+      // because event.value is the dartValue, a plain Dart shape.
       return MontyResult(
-        value: MontyValue.fromDart(event.value),
+        value: event.montyValue ?? MontyValue.fromDart(event.value),
         usage: _zeroUsage,
         printOutput: event.printOutput,
       );

@@ -127,6 +127,47 @@ void main() {
       expect(result.value.dartValue, 99);
     });
 
+    test('preserves typed MontyValue (regression for #384)', () {
+      // event.value is the dartValue (a Map for MontyDataclass) which
+      // would normally re-parse as MontyDict via fromDart. The
+      // montyValue field carries the typed value through losslessly.
+      const dataclass = MontyDataclass(
+        name: 'User',
+        typeId: 1,
+        fieldNames: ['name', 'age'],
+        attrs: {
+          'name': MontyString('alice'),
+          'age': MontyInt(30),
+        },
+      );
+      final events = <BridgeEvent>[
+        BridgeRunFinished(
+          threadId: 't',
+          runId: 'r',
+          value: dataclass.dartValue,
+          montyValue: dataclass,
+        ),
+      ];
+      final result = extractBridgeResult(events, 0);
+      expect(result.value, isA<MontyDataclass>());
+      expect((result.value as MontyDataclass).name, 'User');
+    });
+
+    test('falls back to fromDart when montyValue absent', () {
+      // External bridge implementations that don't set montyValue
+      // still get a MontyDict from a Map event.value — backwards
+      // compatible behaviour.
+      final events = <BridgeEvent>[
+        const BridgeRunFinished(
+          threadId: 't',
+          runId: 'r',
+          value: {'k': 1},
+        ),
+      ];
+      final result = extractBridgeResult(events, 0);
+      expect(result.value, isA<MontyDict>());
+    });
+
     test('preserves printOutput from BridgeRunFinished', () {
       final events = <BridgeEvent>[
         const BridgeRunFinished(

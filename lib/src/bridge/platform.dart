@@ -57,6 +57,7 @@ void _emitComplete(
         threadId: threadId,
         runId: runId,
         value: complete.result.value.dartValue,
+        montyValue: complete.result.value,
         printOutput: complete.result.printOutput,
       ),
     );
