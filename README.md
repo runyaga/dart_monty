@@ -107,7 +107,7 @@ in Chrome — `Monty` dispatches to the same Rust ABI on every backend):
 |---|---|
 | [`example/example.dart`](example/example.dart) | Minimal `Monty.exec` one-shots, including error handling. |
 | [`example/type_check_demo.dart`](example/type_check_demo.dart) | `Monty.typeCheck` for static type analysis — clean code, type errors, `prefixCode` for declaring external function shapes. |
-| [`example/dataclass_demo.dart`](example/dataclass_demo.dart) | Round-trip Python `@dataclass` values into typed Dart objects via `MontyDataclass.hydrate(factory)` and a caller-side registry. |
+| [`example/dataclass_demo.dart`](example/dataclass_demo.dart) | Stateful dataclass round-trip across `MontyRuntime.execute` calls — produce, attribute-access, return, and re-bind a `@dataclass`, hydrating into a typed Dart `User` on the way back. |
 
 Run any of them with `dart run example/<file>.dart` from the repo root.
 For the native and web runners (with built Rust library and a COOP/COEP
