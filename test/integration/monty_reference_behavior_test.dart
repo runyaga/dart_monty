@@ -74,7 +74,7 @@ void main() {
       try {
         final result = await session.execute('undefined_variable_xyz').result;
         expect(result.error, isNotNull);
-        expect(result.error!.excType, 'NameError');
+        expect(result.excType, 'NameError');
         expect(
           result.error!.lineNumber,
           1,

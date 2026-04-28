@@ -122,11 +122,11 @@ void _createSession() {
 // ---------------------------------------------------------------------------
 
 Map<String, dynamic> _resultToJson(MontyResult result) {
-  if (result.isError) {
+  if (!result.ok) {
     return {
       'ok': false,
       'error': result.error?.message ?? 'Unknown error',
-      'excType': result.error?.excType,
+      'excType': result.excType,
       'print_output': result.printOutput,
     };
   }
