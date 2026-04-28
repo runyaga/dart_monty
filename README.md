@@ -14,24 +14,45 @@ Sandboxed Python interpreter for Dart and Flutter. Run Python from native, web, 
 
 ## Quick Start
 
-Add `dart_monty` to your `pubspec.yaml`. Flutter Web consumers add
-`dart_monty_core` as a peer dep so the asset bundler can locate the
-WASM/JS files:
+### Install (from GitHub)
+
+Both packages install from GitHub via `git:` deps. **Do not use
+`dart pub add dart_monty`** — pub.dev's `dart_monty` is the legacy
+0.11.0 with a different API; the current code (with `Monty.exec`,
+`MontyRuntime`, etc.) lives only on GitHub for now.
+
+You must list **both** packages explicitly under `git:` — without
+the explicit `dart_monty_core` entry, pub will resolve it from
+pub.dev and the APIs won't match:
 
 ```yaml
 # pubspec.yaml
 dependencies:
-  dart_monty: ^<version>
-  # Flutter Web only — Flutter's asset resolver needs this listed
-  # directly; it does not chase transitive references. Not redundant.
-  dart_monty_core: ^<version>
+  dart_monty:
+    git:
+      url: https://github.com/runyaga/dart_monty.git
+      ref: main
+  dart_monty_core:
+    git:
+      url: https://github.com/runyaga/dart_monty_core.git
+      ref: main
 
-# Only needed by Flutter's build hook — instructs the asset bundler
-# to include dart_monty_core's WASM/JS bridge files. Plain-Dart
-# consumers ignore this stanza.
+# Flutter only — instructs the asset bundler to include
+# dart_monty_core's WASM/JS bridge files. Plain-Dart consumers
+# ignore this stanza.
 flutter:
   assets:
     - package: dart_monty_core
+```
+
+For local development against a worktree, swap `git:` for `path:`:
+
+```yaml
+dependencies:
+  dart_monty:
+    path: /path/to/dart_monty
+  dart_monty_core:
+    path: /path/to/dart_monty_core
 ```
 
 Then import the package:

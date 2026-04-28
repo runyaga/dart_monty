@@ -1,10 +1,28 @@
 # Installation
 
-Add `dart_monty` to your project:
+Both `dart_monty` and `dart_monty_core` install from GitHub via
+`git:` deps. **Do not run `dart pub add dart_monty`** — pub.dev's
+`dart_monty` is the legacy 0.11.0 with a different API (no
+`Monty.exec`, no `MontyRuntime`); the current code lives only on
+GitHub for now.
 
-```bash
-dart pub add dart_monty
+```yaml
+# pubspec.yaml
+dependencies:
+  dart_monty:
+    git:
+      url: https://github.com/runyaga/dart_monty.git
+      ref: main
+  dart_monty_core:
+    git:
+      url: https://github.com/runyaga/dart_monty_core.git
+      ref: main
 ```
+
+Both packages must be listed under `git:` — without an explicit
+`dart_monty_core` entry, pub will resolve the transitive dep from
+pub.dev and the APIs won't match. For local worktree development
+swap `git:` for `path:`.
 
 ## Platform Requirements
 
@@ -28,14 +46,20 @@ package that owns the files.
 ```yaml
 # pubspec.yaml
 dependencies:
-  dart_monty: ^<version>
+  dart_monty:
+    git:
+      url: https://github.com/runyaga/dart_monty.git
+      ref: main
   # Required — Flutter's asset bundler needs this listed directly.
   # Do not remove; it is not redundant with dart_monty.
-  dart_monty_core: ^<version>
+  dart_monty_core:
+    git:
+      url: https://github.com/runyaga/dart_monty_core.git
+      ref: main
 
-# Only needed by Flutter's build hook — instructs the asset bundler
-# to include dart_monty_core's WASM/JS bridge files. Plain-Dart
-# consumers ignore this stanza.
+# Flutter only — instructs the asset bundler to include
+# dart_monty_core's WASM/JS bridge files. Plain-Dart consumers
+# ignore this stanza.
 flutter:
   assets:
     - package: dart_monty_core
@@ -72,8 +96,9 @@ Without Flutter's asset bundler, copy the three asset files from the
 `<script>` tag:
 
 ```bash
-# Locate dart_monty_core's assets in the pub cache
-CORE_ASSETS=$(dart pub cache dir)/hosted/pub.dev/dart_monty_core-*/assets
+# dart_monty_core is git-installed, so its assets live under the
+# git pub cache (not the pub.dev hosted cache).
+CORE_ASSETS=$(dart pub cache dir)/git/dart_monty_core-*/lib/assets
 cp $CORE_ASSETS/dart_monty_core_bridge.js web/
 cp $CORE_ASSETS/dart_monty_core_worker.js web/
 cp $CORE_ASSETS/dart_monty_core_native.wasm web/

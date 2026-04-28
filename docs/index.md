@@ -14,8 +14,20 @@ Sandboxed Python interpreter for Dart and Flutter. Run Python from native, web, 
 
 ## Quick Start
 
-```bash
-dart pub add dart_monty
+Install both packages from GitHub (do **not** use `dart pub add` —
+pub.dev has a legacy `dart_monty` 0.11.0 with a different API):
+
+```yaml
+# pubspec.yaml
+dependencies:
+  dart_monty:
+    git:
+      url: https://github.com/runyaga/dart_monty.git
+      ref: main
+  dart_monty_core:
+    git:
+      url: https://github.com/runyaga/dart_monty_core.git
+      ref: main
 ```
 
 **One-shot execution**
