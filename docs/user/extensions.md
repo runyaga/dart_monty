@@ -144,8 +144,27 @@ gets its own `MontyPlatform` and `DefaultMontyBridge`. Children
 can inherit extensions from the parent and even spawn their own
 children (grandchildren).
 
+### What the sandbox actually constrains
+
+| Dimension | Mechanism | Limit / behaviour |
+|---|---|---|
+| **Memory** | `MontyLimits(memoryBytes:)` on parent or per-child | Hard cap; raises `MontyResourceError.MemoryLimitExceeded` on overflow |
+| **CPU / wall-clock** | `MontyLimits(timeoutMs:)` | Raises `MontyResourceError.TimeoutError` on overflow |
+| **Stack depth** | `MontyLimits(stackDepth:)` | Raises a Python `RecursionError` on overflow |
+| **Filesystem** | `OsCallHandler` composition (`memoryFsHandler`, `sandboxedFsHandler`, `readOnlyHandler`, `overlayFsHandler`) | No filesystem access at all unless an `OsCallHandler` is registered for `Path.*` |
+| **Network** | None native — Python stdlib has no `requests`/`urllib`/`http` | Network access is exposed only via host functions you register |
+| **Child concurrency** | `maxChildren:` on `SandboxExtension` | Hard cap on simultaneous live children |
+| **Child depth** | `maxDepth:` on `SandboxExtension` | Cap on grandchild → great-grandchild recursion |
+| **Per-child VFS** | `childVfsStrategy:` (`isolated` default, `shared`, `none`) | Whether children inherit the parent's VFS or get their own |
+
+**Not constrained**: per-call instruction count independent of
+wall-clock time (the interpreter runs on the host thread for native
+backends and a Worker thread for WASM); CPU usage by the host
+process itself; non-Python work the host does in handlers you
+expose (those run on the host with full host privileges).
+
 See [Sandbox Architecture](../deep-dives/sandbox-architecture.md) for the
-full deep dive.
+full deep dive on the parent↔child runtime topology.
 
 ### Sandbox Functions
 
