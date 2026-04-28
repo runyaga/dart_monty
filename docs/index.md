@@ -12,6 +12,40 @@
 
 Sandboxed Python interpreter for Dart and Flutter. Run Python from native, web, and mobile — one package, every platform.
 
+## Monty is a Python *subset*
+
+Before you write any code, know that Monty does **not** support a
+chunk of regular Python. Hitting one of these features at runtime
+raises a typed error, but it's much friendlier to gate your code
+through `Monty.typeCheck` first.
+
+**Not supported:**
+
+- `class` keyword (no user-defined classes — use dicts + module-level
+  functions in their place)
+- Decorators (`@foo`) and `@dataclass`
+- Generators (`yield`, `yield from`)
+- `match` / `case`, `del`, walrus (`:=`), chained assignment
+- `open()`, `eval()`, `exec()`, `locals()`, `globals()`
+- `os`, `sys`, `subprocess`, `shutil`, `requests`, `urllib`, `http`
+- `threading`, `multiprocessing`, `asyncio`
+- Arbitrary `import` — stdlib is curated to `json`, `math`, `re`,
+  `pathlib`, `datetime`, `collections`
+
+**Pre-flight every script:**
+
+```dart
+final errors = await Monty.typeCheck(userCode);
+if (errors.isNotEmpty) {
+  // Reject before runtime.execute(...).
+  return errors.map((e) => '${e.path}:${e.line}: ${e.message}').toList();
+}
+final result = await runtime.execute(userCode).result;
+```
+
+See [LLM prompt rules](tutorials/llm-prompt-rules.md) for the full
+constraint list.
+
 ## Quick Start
 
 Install both packages from GitHub (do **not** use `dart pub add` —

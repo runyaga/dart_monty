@@ -12,6 +12,31 @@
 
 Sandboxed Python interpreter for Dart and Flutter. Run Python from native, web, and mobile — one package, every platform.
 
+## Monty is a Python *subset*
+
+Before writing code, know that Monty does **not** support a chunk
+of regular Python. Hitting one of these features at runtime raises
+a typed error — gate your code through `Monty.typeCheck` first.
+
+**Not supported:** `class`, decorators (`@foo`, `@dataclass`),
+generators (`yield`), `match`/`case`, `del`, walrus (`:=`), chained
+assignment; `open()`/`eval()`/`exec()`/`locals()`/`globals()`;
+`os`/`sys`/`subprocess`/`shutil`; `requests`/`urllib`/`http`;
+`threading`/`multiprocessing`/`asyncio`. **Use dicts + module-level
+functions in place of classes.** Curated stdlib: `json`, `math`,
+`re`, `pathlib`, `datetime`, `collections`.
+
+**Pre-flight every script:**
+
+```dart
+final errors = await Monty.typeCheck(userCode);
+if (errors.isNotEmpty) return; // reject before runtime.execute
+final result = await runtime.execute(userCode).result;
+```
+
+See [`docs/tutorials/llm-prompt-rules.md`](docs/tutorials/llm-prompt-rules.md)
+for the full constraint list and rationale.
+
 ## Quick Start
 
 ### Install (from GitHub)
