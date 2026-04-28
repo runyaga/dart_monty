@@ -14,9 +14,20 @@ and native applications.
 ## Flutter Web
 
 ```yaml
-# pubspec.yaml
+# pubspec.yaml — install both packages from GitHub
 dependencies:
-  dart_monty: ^<version>
+  dart_monty:
+    git:
+      url: https://github.com/runyaga/dart_monty.git
+      ref: main
+  dart_monty_core:
+    git:
+      url: https://github.com/runyaga/dart_monty_core.git
+      ref: main
+
+flutter:
+  assets:
+    - package: dart_monty_core
 ```
 
 ```dart
