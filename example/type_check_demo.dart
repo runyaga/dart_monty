@@ -1,9 +1,13 @@
 // Printing to stdout is expected in an example.
 // ignore_for_file: avoid_print
-/// Static type-checking example — Monty.typeCheck on the FFI backend.
+/// Static type-checking example — `Monty.typeCheck`.
+///
+/// Works on every backend that ships in dart_monty_core (native FFI,
+/// WASM, dart2js) — the symbol dispatches to the same `monty_type_check`
+/// Rust ABI.
 ///
 /// Run:
-///   dart run bin/type_check_demo.dart
+///   dart run example/type_check_demo.dart
 library;
 
 import 'package:dart_monty/dart_monty.dart';
