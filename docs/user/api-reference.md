@@ -29,6 +29,30 @@ await session.dispose();
 - **Sandbox Mode** (`sandbox: true`): Each call creates and disposes a
   fresh interpreter. Safe for async I/O host functions.
 
+### Resource Limits with MontyRuntime
+
+`MontyRuntime` does **not** accept a `limits` parameter — neither on
+the constructor nor on `execute()`. If you need memory / wall-clock /
+stack-depth caps, use one of these instead:
+
+- **`Monty.exec(code, limits: MontyLimits(...))`** — one-shot,
+  stateless execution with the limits applied to that single call.
+- **`MontyRepl(limits: MontyLimits(...))`** — stateful REPL where
+  every `feedRun()` runs under the same limit envelope.
+- **`SandboxExtension(childLimits: MontyLimits(...))`** — when
+  spawning child interpreters from inside a `MontyRuntime`, the
+  children get limits even though the parent runtime does not. See
+  the Sandbox section in [Extensions](extensions.md).
+
+If your use case needs a stateful runtime with limits and host
+function tools, the recommended pattern is:
+
+1. Create a `MontyRuntime` for tool/extension wiring.
+2. Spawn child interpreters via `SandboxExtension(childLimits: ...)`
+   for the actual user-script execution.
+3. The runtime's parent interpreter remains uncapped (it only
+   coordinates; user scripts run in capped children).
+
 ## Monty (Low-level)
 
 `Monty` from `dart_monty_core` is the low-level execution surface. It has
@@ -65,7 +89,7 @@ for (final e in errors) {
 }
 ```
 
-`prefixCode` lets you declare input or external-function shapes so the
+`prefixCode` declares input or external-function shapes so the
 checker knows their types:
 
 ```dart
@@ -74,6 +98,34 @@ final errors = await Monty.typeCheck(
   prefixCode: 'def fetch(url: str) -> str: ...',
 );
 ```
+
+> **`prefixCode` is required when the script calls host functions or
+> extension functions.** The type checker has no built-in knowledge
+> of names introduced by the bridge — `tmpl_render`, `msg_send`,
+> `sandbox_spawn`, host functions you register via `HostFunction(...)`,
+> etc. Without a stub for each, `Monty.typeCheck` reports
+> `unresolved-reference` for those names and you'll see false
+> positives that look like bugs in your script. Stub every name your
+> script will reach at runtime:
+>
+> ```dart
+> const prefixCode = '''
+> # Built-in extension functions
+> def tmpl_render(template: str, context: dict) -> str: ...
+> def msg_send(name: str, message) -> None: ...
+> def msg_recv(name: str, timeout_ms: int = None) -> object: ...
+>
+> # Your host functions (one stub per HostFunction registered on the runtime)
+> def fetch(url: str) -> str: ...
+> def write_log(level: str, message: str) -> None: ...
+> ''';
+>
+> final errors = await Monty.typeCheck(userCode, prefixCode: prefixCode);
+> ```
+>
+> Rule of thumb: if a name is in scope at `runtime.execute(...)` time
+> but not in the standard Monty stdlib (`json`, `math`, `re`,
+> `pathlib`, `datetime`, `collections`), it needs a stub.
 
 ## Host Functions
 

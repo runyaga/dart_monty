@@ -132,6 +132,11 @@ Future<void> main() async {
 For more advanced use cases, create a `MontyRuntime` to manage extensions and sessions:
 
 ```dart
+import 'package:dart_monty/dart_monty.dart';
+// Extensions, host functions, and bridge events live in the bridge
+// library — `dart_monty.dart` alone does not export them.
+import 'package:dart_monty/dart_monty_bridge.dart';
+
 Future<void> main() async {
   final runtime = MontyRuntime(
     extensions: [JinjaTemplateExtension(), MessageBusExtension()],

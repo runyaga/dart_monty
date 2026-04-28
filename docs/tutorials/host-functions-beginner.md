@@ -127,74 +127,92 @@ the bridge does it automatically. Only catch if you need custom recovery.
 ## The BridgeEvent Stream
 
 `bridge.execute()` returns a `Stream<BridgeEvent>`. The events form a
-sealed class hierarchy describing the full execution lifecycle:
+sealed class hierarchy declared in
+`lib/src/bridge/event.dart`. **Use the class names below verbatim** —
+the table is generated against the real source, not aspirational
+naming.
 
 ### Lifecycle Events
 
 | Event | When | Key fields |
 |-------|------|------------|
 | `BridgeRunStarted` | Execution begins | `threadId`, `runId` |
-| `BridgeRunFinished` | Execution completes | `threadId`, `runId`, `value`, `printOutput` |
-| `BridgeRunError` | Execution fails | `message`, `printOutput` |
+| `BridgeRunFinished` | Execution completes | `threadId`, `runId`, `value`, `montyValue`, `printOutput` |
+| `BridgeRunError` | Execution fails | `message`, `printOutput`, `exception` |
 
-### Tool Call Events
+> **Print output lives on `BridgeRunFinished.printOutput`** (and on
+> `BridgeRunError.printOutput` when an error interrupts execution).
+> There are no per-event text classes — `print()` calls are buffered
+> and surfaced once at the end as a single `String?`. If you need
+> incremental text from a host handler mid-call, see
+> `BridgeFunctionEmit` below.
 
-Each host function call emits a sequence of tool call events:
+### Host Function Call Events
+
+Each host function invocation emits a sequence of events:
 
 ```text
-BridgeStepStarted(stepId: "greet")
-BridgeToolCallStart(callId: "0", name: "greet")
-BridgeToolCallArgs(callId: "0", delta: '{"name":"World"}')
-BridgeToolCallEnd(callId: "0")
-  -- handler runs --
-BridgeToolCallResult(callId: "0", result: "Hello, World!")
-BridgeStepFinished(stepId: "greet")
+BridgeCallStarted(callId: "0")
+BridgeFunctionCallStart(callId: "0", name: "greet")
+BridgeFunctionCallArgs(callId: "0", delta: '{"name":"World"}')
+BridgeFunctionCallEnd(callId: "0")
+  -- handler runs (may emit BridgeFunctionEmit one or more times) --
+BridgeFunctionCallResult(callId: "0", result: "Hello, World!")
+BridgeCallFinished(callId: "0")
 ```
 
-| Event | Description |
-|-------|-------------|
-| `BridgeStepStarted` | A host function call step begins |
-| `BridgeToolCallStart` | Function name identified |
-| `BridgeToolCallArgs` | Arguments as JSON delta |
-| `BridgeToolCallEnd` | Arguments complete |
-| `BridgeToolCallResult` | Handler result (or error message) |
-| `BridgeStepFinished` | Step complete |
+| Event | Description | Key fields |
+|-------|-------------|------------|
+| `BridgeCallStarted` | A host function call begins (wraps the call) | `callId` |
+| `BridgeFunctionCallStart` | Function name resolved | `callId`, `name` |
+| `BridgeFunctionCallArgs` | One JSON delta of the arguments stream | `callId`, `delta` |
+| `BridgeFunctionCallEnd` | Arguments complete; handler about to run | `callId` |
+| `BridgeFunctionEmit` | Handler emitted intermediate text via `HostContext.emit` (zero or more) | `callId`, `text` |
+| `BridgeFunctionCallResult` | Handler result (or error string) | `callId`, `result` |
+| `BridgeCallFinished` | Host function call complete (wraps the call) | `callId` |
 
-### Text Events (Print Capture)
+### OS Call Events
 
-Python `print()` calls are intercepted by the bridge. Output is buffered
-and flushed as text events at the end of execution:
+Python access to `pathlib`, `os`, `datetime`, etc. flows through an
+`OsCallHandler` you register on the runtime; each access emits an
+`OsCall` event pair regardless of whether you registered a handler:
 
-| Event | Description |
-|-------|-------------|
-| `BridgeTextStart` | Text output block begins |
-| `BridgeTextContent` | Text content delta |
-| `BridgeTextEnd` | Text output block ends |
+| Event | Description | Key fields |
+|-------|-------------|------------|
+| `BridgeOsCallStart` | Python triggered an OS-level operation | `callId`, `operationName`, `argumentSummary` |
+| `BridgeOsCallResult` | Operation completed (or rejected if no handler registered) | `callId`, `result`, `durationMs` |
 
-The bridge overrides Python's `print()` with a preamble that routes
-output through an internal `__console_write__` host function. This
-ensures print output is captured as bridge events rather than lost to
-stdout.
+### Child Runtime Events
+
+When `SandboxExtension` spawns child interpreters, the parent stream
+re-emits each child's events wrapped in `BridgeChildEvent`:
+
+| Event | Description | Key fields |
+|-------|-------------|------------|
+| `BridgeChildEvent` | An event from a child runtime, attributed to its origin | `childHandle`, `inner` |
+
+`inner` is itself a `BridgeEvent` — pattern-match it the same way you
+match top-level events.
 
 ### Listening to Events
 
-Use pattern matching to handle events:
+Use pattern matching on the sealed class to handle events:
 
 ```dart
 await for (final event in bridge.execute(code)) {
   switch (event) {
     case BridgeRunStarted(:final threadId, :final runId):
       print('Started: thread=$threadId run=$runId');
-    case BridgeToolCallStart(:final callId, :final name):
+    case BridgeFunctionCallStart(:final callId, :final name):
       print('Calling: $name (call $callId)');
-    case BridgeToolCallResult(:final callId, :final result):
+    case BridgeFunctionCallResult(:final callId, :final result):
       print('Result: $result (call $callId)');
-    case BridgeTextContent(:final delta):
-      print('Output: $delta');
+    case BridgeFunctionEmit(:final callId, :final text):
+      print('Mid-call text from $callId: $text');
     case BridgeRunFinished(:final value, :final printOutput):
       print('Done: value=$value output=$printOutput');
-    case BridgeRunError(:final message):
-      print('Error: $message');
+    case BridgeRunError(:final message, :final printOutput):
+      print('Error: $message (output before error: $printOutput)');
     default:
       break;
   }
