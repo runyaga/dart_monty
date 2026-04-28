@@ -157,11 +157,21 @@ children (grandchildren).
 | **Child depth** | `maxDepth:` on `SandboxExtension` | Cap on grandchild → great-grandchild recursion |
 | **Per-child VFS** | `childVfsStrategy:` (`isolated` default, `shared`, `none`) | Whether children inherit the parent's VFS or get their own |
 
-**Not constrained**: per-call instruction count independent of
-wall-clock time (the interpreter runs on the host thread for native
-backends and a Worker thread for WASM); CPU usage by the host
-process itself; non-Python work the host does in handlers you
-expose (those run on the host with full host privileges).
+### What the sandbox does NOT constrain
+
+The sandbox boundary is around the *Python interpreter*, not around
+the host (Dart) process. Anything the host does in response to a
+host-function call runs **outside** the sandbox with full host
+privileges. This is a security-relevant distinction worth reading
+carefully before exposing host functions to user-authored Python.
+
+| Dimension | Why it's not constrained |
+|---|---|
+| **Host functions you expose** | The Dart code that backs a host function runs on the host thread with full host-process privileges. If you register a host function that performs network I/O, file writes, subprocess execution, etc., the Python caller can drive that from inside the sandbox. The sandbox does not, and cannot, restrict what your own host code does. **Audit every host function you expose like you would audit user-supplied input running in your own process.** |
+| **CPU usage of the host process itself** | The interpreter runs on the host thread for native backends and a Worker thread for WASM. A tight Python loop counts against `MontyLimits(timeoutMs:)` (wall-clock) but the host's overall CPU draw is unbounded. |
+| **Per-call instruction count independent of wall-clock time** | There is no explicit instruction-budget mechanism — only wall-clock and memory caps. |
+| **Network** | The sandbox has no built-in network constraint because the Python stdlib has no `requests`/`urllib`/`http`. **Network access only exists if you register a host function for it**, and once you do, see the host-functions row above. |
+| **Filesystem (when an `OsCallHandler` is registered)** | The same applies to `OsCallHandler`. The sandbox blocks all filesystem access by default; *if* you register a handler, the handler runs with host privileges. Use `sandboxedFsHandler` or `readOnlyHandler` to keep the host code itself confined to a chosen subtree. |
 
 See [Sandbox Architecture](../deep-dives/sandbox-architecture.md) for the
 full deep dive on the parent↔child runtime topology.

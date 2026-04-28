@@ -1,10 +1,16 @@
 # Installation
 
-Both `dart_monty` and `dart_monty_core` install from GitHub via
-`git:` deps. **Do not run `dart pub add dart_monty`** — pub.dev's
-`dart_monty` is the legacy 0.11.0 with a different API (no
-`Monty.exec`, no `MontyRuntime`); the current code lives only on
-GitHub for now.
+> ## ⚠️ Do **not** run `dart pub add dart_monty`
+>
+> pub.dev's `dart_monty` is the **legacy 0.11.0** with a completely
+> different API — no `Monty.exec`, no `MontyRuntime`, no
+> `Monty.typeCheck`. The short `dart pub add` form silently succeeds
+> against that legacy package and you'll spend time debugging an API
+> mismatch that has nothing to do with your code.
+>
+> Install via `git:` deps as shown below. Both `dart_monty` **and**
+> `dart_monty_core` must be listed explicitly — see "Why both
+> packages?" after the snippet.
 
 ```yaml
 # pubspec.yaml
@@ -19,10 +25,71 @@ dependencies:
       ref: main
 ```
 
-Both packages must be listed under `git:` — without an explicit
-`dart_monty_core` entry, pub will resolve the transitive dep from
-pub.dev and the APIs won't match. For local worktree development
-swap `git:` for `path:`.
+**Why both packages?** `dart_monty` depends on `dart_monty_core`. If
+you list only `dart_monty` under `git:`, pub will resolve the
+transitive `dart_monty_core` dependency from **pub.dev**, where it
+either does not exist or resolves to an old version that does not
+match the current API. The build succeeds and then fails at
+runtime with confusing import errors. Listing both as `git:` deps
+forces pub to resolve them together.
+
+For local worktree development swap `git:` for `path:` on **both**
+entries — see "Local worktree development" below.
+
+## Local worktree development
+
+When using `path:` deps that point at local worktrees, pub still
+resolves `dart_monty`'s transitive dependency on `dart_monty_core`.
+If `dart_monty`'s pubspec pins `dart_monty_core` via `git:` while
+your top-level pubspec uses a `path:`, pub fails the resolution
+with a constraint conflict. Override the transitive resolution
+with `dependency_overrides`:
+
+```yaml
+# pubspec.yaml — local development
+dependencies:
+  dart_monty:
+    path: /absolute/path/to/dart_monty
+  dart_monty_core:
+    path: /absolute/path/to/dart_monty_core
+
+dependency_overrides:
+  dart_monty_core:
+    path: /absolute/path/to/dart_monty_core
+```
+
+The `dependency_overrides` block is the canonical Dart workaround
+for "I want this transitive dep to come from somewhere else than
+the publishing pubspec says." It only takes effect when the package
+is the entry-point (your app), not when published.
+
+## Verifying the install
+
+After `dart pub get` succeeds, write a minimal smoke test to confirm
+both the FFI binary and the API surface work:
+
+```dart
+// bin/smoke.dart (or lib/main.dart)
+import 'package:dart_monty/dart_monty.dart';
+
+Future<void> main() async {
+  final errors = await Monty.typeCheck('2 + 2');
+  print('typeCheck errors: ${errors.length}');  // expect 0
+  final result = await Monty.exec('2 + 2');
+  print('exec result: ${result.value}');         // expect MontyInt(4)
+}
+```
+
+```bash
+$ dart run bin/smoke.dart
+typeCheck errors: 0
+exec result: MontyInt(4)
+```
+
+If either output line is missing or different, see the
+troubleshooting section in `AGENTS.md`. The most common cause is
+a missing Rust toolchain on first `pub get` — `hook/build.dart`
+needs `cargo` and `rustc` on `$PATH`.
 
 ## Platform Requirements
 
