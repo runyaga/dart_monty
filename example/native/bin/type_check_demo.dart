@@ -37,6 +37,7 @@ Future<void> _check(String code, {String? prefixCode}) async {
   final errors = await Monty.typeCheck(code, prefixCode: prefixCode);
   if (errors.isEmpty) {
     print('  OK — no diagnostics.');
+
     return;
   }
   for (final e in errors) {

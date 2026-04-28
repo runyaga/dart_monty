@@ -16,7 +16,8 @@ Future<void> main() async {
 
   // Handle errors.
   final bad = await Monty.exec('1 / 0');
-  if (bad.isError) {
-    print('Error: ${bad.error!.message}');
+  final err = bad.error;
+  if (err != null) {
+    print('Error: ${err.message}');
   }
 }
