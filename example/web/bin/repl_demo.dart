@@ -1,5 +1,9 @@
 // Standalone JS-compiled demo, not a package:test file.
 // ignore_for_file: avoid_print, lines_longer_than_80_chars, avoid_catches_without_on_clauses, cast_nullable_to_non_nullable, invalid_null_aware_operator
+// ignore_for_file: prefer-async-await
+// .then-chains in the JSFunction map below are the established JS-interop
+// idiom across web demos (cf. agent_demo.dart). Rewriting to async/await
+// would diverge from the project pattern.
 /// Interactive REPL Session Demo — MontyRuntime + real plugins in the browser.
 ///
 /// Compiled to JS, exposes window.ReplSessionDemo to HTML.
@@ -34,7 +38,11 @@ external void _jsOnToolCall(JSString jsonPayload);
 // State
 // ---------------------------------------------------------------------------
 
-late MontyRuntime _session;
+MontyRuntime _session = _newSession();
+
+MontyRuntime _newSession() => MontyRuntime(
+  extensions: [JinjaTemplateExtension(), MessageBusExtension()],
+);
 
 // ---------------------------------------------------------------------------
 // API
@@ -44,6 +52,7 @@ late MontyRuntime _session;
 Future<String> _apiRun(String code) async {
   try {
     final result = await _session.execute(code).result;
+
     return jsonEncode(_resultToJson(result));
   } catch (e) {
     return jsonEncode({'ok': false, 'error': e.toString()});
@@ -97,6 +106,7 @@ Future<String> _apiReset() async {
   try {
     await _session.dispose();
     _createSession();
+
     return jsonEncode({'ok': true});
   } catch (e) {
     return jsonEncode({'ok': false, 'error': e.toString()});
@@ -107,14 +117,9 @@ Future<String> _apiReset() async {
 // Session factory
 // ---------------------------------------------------------------------------
 
+// SandboxExtension is FFI-only and cannot be used in a web build.
 void _createSession() {
-  final tmpl = JinjaTemplateExtension();
-  final msgBus = MessageBusExtension();
-
-  // SandboxExtension is FFI-only and cannot be used in a web build.
-  _session = MontyRuntime(
-    extensions: [tmpl, msgBus],
-  );
+  _session = _newSession();
 }
 
 // ---------------------------------------------------------------------------
@@ -130,6 +135,7 @@ Map<String, dynamic> _resultToJson(MontyResult result) {
       'print_output': result.printOutput,
     };
   }
+
   return {
     'ok': true,
     'value': result.value?.dartValue,
@@ -170,6 +176,7 @@ Map<String, dynamic>? _eventToJson(BridgeEvent event) {
           : event.result,
     };
   }
+
   return null;
 }
 
@@ -177,10 +184,8 @@ Map<String, dynamic>? _eventToJson(BridgeEvent event) {
 // Main
 // ---------------------------------------------------------------------------
 
-Future<void> main() async {
+void main() {
   print('[ReplSessionDemo] Starting...');
-
-  _createSession();
 
   // Expose API to window
   final api = <String, JSFunction>{
