@@ -157,13 +157,18 @@ children (grandchildren).
 | **Child depth** | `maxDepth:` on `SandboxExtension` | Cap on grandchild → great-grandchild recursion |
 | **Per-child VFS** | `childVfsStrategy:` (`isolated` default, `shared`, `none`) | Whether children inherit the parent's VFS or get their own |
 
-### What the sandbox does NOT constrain
+### Security boundary — what the sandbox does NOT constrain
 
-The sandbox boundary is around the *Python interpreter*, not around
-the host (Dart) process. Anything the host does in response to a
-host-function call runs **outside** the sandbox with full host
-privileges. This is a security-relevant distinction worth reading
-carefully before exposing host functions to user-authored Python.
+> **Host functions run with full host-process privileges.** The
+> sandbox boundary is around the *Python interpreter*, not around
+> your Dart process. Anything the host does in response to a
+> host-function call — file I/O, network requests, subprocess
+> execution — runs **outside** the sandbox. The Python caller can
+> drive any host function you expose, so audit every one as if its
+> arguments came from an attacker.
+
+This is a security-relevant distinction worth reading carefully
+before exposing host functions to user-authored Python.
 
 | Dimension | Why it's not constrained |
 |---|---|
