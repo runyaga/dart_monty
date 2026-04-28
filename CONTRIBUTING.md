@@ -66,6 +66,100 @@ Run these checks after every code change:
 3. `dart test` — must pass all tests
 4. Maintain 90%+ line coverage (enforced by CI and pre-push hooks)
 
+## Bug Triage
+
+Before filing a bug against `dart_monty`, walk it down the stack to
+locate the layer where it actually lives. Filing at the wrong layer
+costs time and obscures real upstream issues.
+
+### The stack
+
+```
+dart_monty (this repo)               <- bridge, runtime, extensions, host fns
+    |
+dart_monty_core (Dart wrapper)       <- Monty / MontyRepl / MontyResult, JSON
+    |                                   value envelopes (__type: dataclass, …)
+dart_monty_core (Rust shim)          <- native/src/convert.rs etc. — JSON ↔
+    |                                   typed MontyObject conversion
+pydantic/monty (Rust upstream)       <- the interpreter itself, MontyObject
+                                        enum, externals, REPL
+```
+
+A bug surfaces in `dart_monty`. Walk **down**, layer by layer, until
+the bug stops reproducing. The lowest layer where it still reproduces
+is where to file.
+
+### Triage workflow
+
+1. **Slim the reproducer.** Strip the failing case to the smallest
+   self-contained Dart program that uses only `package:dart_monty`. No
+   plugins, no extensions, no HTTP, no HostContext gymnastics — just
+   the suspect code path. Save it as `/tmp/reproducer.dart`.
+
+2. **Reproduce against `dart_monty_core` directly.** Skip
+   `dart_monty`'s bridge by replacing `MontyRuntime`/`HostFunction`
+   with `Monty(code).run(externalFunctions: ...)` or `MontyRepl`. Add
+   only `package:dart_monty_core/dart_monty_core.dart` to the
+   reproducer:
+
+   ```dart
+   import 'package:dart_monty_core/dart_monty_core.dart';
+
+   Future<void> main() async {
+     // … the same logic, but through Monty/MontyRepl, not MontyRuntime
+   }
+   ```
+
+   - **Reproduces here too** → bug is at the `dart_monty_core` Dart
+     layer or below. Continue to step 3.
+   - **Does not reproduce** → bug is in `dart_monty`'s bridge / runtime
+     / extensions. File on **this** repo with the slim reproducer.
+
+3. **Reproduce against the Rust shim directly (`dart_monty_core` Rust
+   side).** If the bug involves JSON envelope handling
+   (`__type: dataclass`, `__type: bytes`, etc.), inspect the symmetric
+   pair in `dart_monty_core/native/src/convert.rs` —
+   `monty_object_to_json` and `json_to_monty_object`. Diff the two: if
+   one path normalises a field the other path doesn't, you've found
+   the asymmetry. A failing fixture at the shim layer is enough; you
+   don't have to write Rust to triage.
+
+   - **Reproduces with symmetric envelopes** → continue to step 4.
+   - **Asymmetry in `convert.rs`** → file on **`dart_monty_core`**
+     against the Rust shim.
+
+4. **Reproduce against `pydantic/monty` upstream.** This is the highest
+   bar; do it when steps 1–3 didn't localise the bug. A small
+   Rust binary that pulls in `monty = { git = ..., tag = "v0.0.17" }`
+   and exercises the typed `MontyObject` API directly tells you
+   whether upstream is the source. If the bug only shows when a JSON
+   envelope is involved, it's almost never an upstream-Rust bug —
+   pydantic/monty doesn't see the JSON, only the typed `MontyObject`
+   variants.
+
+   - **Reproduces against pydantic/monty** → file upstream at
+     <https://github.com/pydantic/monty>.
+   - **Does not reproduce** → the bug is in `dart_monty_core`'s shim
+     or wrapper. File on `dart_monty_core` with the layered evidence.
+
+### What goes in the bug report
+
+Whichever layer you file at:
+
+- the slim reproducer (one file, no external services, deterministic);
+- the layers you tried and which ones reproduced or didn't (show your
+  work — saves the next person 30 minutes);
+- the file:line trace of the relevant code path on each layer
+  (`grep -n` output is fine).
+
+### Why this matters
+
+Filing a "dart_monty bug" that's actually a `dart_monty_core` Rust
+shim asymmetry routes the wrong people to the wrong code. Filing a
+"dart_monty_core bug" that's actually upstream pydantic/monty
+behaviour wastes a wrap-side fix attempt that won't hold. The triage
+walk costs 5–15 minutes; misrouting costs hours per side.
+
 ## CI
 
 GitHub Actions run on every push and PR to `main`. Docs-only changes
