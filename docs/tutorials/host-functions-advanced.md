@@ -32,7 +32,7 @@ import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty_bridge/dart_monty_bridge.dart';
 
 final extension = SandboxExtension(
-  platformFactory: () async => Monty(),
+  platformFactory: () async => createPlatformMonty(),
   maxChildren: 16,      // Max concurrent children (default: 16)
   maxDepth: 3,          // Max recursion depth (default: 3)
   currentDepth: 0,      // This extension's depth level (default: 0)
@@ -159,13 +159,13 @@ recursion can go:
 
 ```dart
 SandboxExtension(
-  platformFactory: () async => Monty(),
+  platformFactory: () async => createPlatformMonty(),
   maxDepth: 3,
   currentDepth: 0,
   childExtensionCoordinatorFactory: (context) async {
     final registry = ExtensionCoordinator();
     registry.register(SandboxExtension(
-      platformFactory: () async => Monty(),
+      platformFactory: () async => createPlatformMonty(),
       maxDepth: 3,
       currentDepth: 1,  // One level deeper
     ));
@@ -194,7 +194,7 @@ give children access to host functions:
 
 ```dart
 SandboxExtension(
-  platformFactory: () async => Monty(),
+  platformFactory: () async => createPlatformMonty(),
   childExtensionCoordinatorFactory: (context) async {
     final registry = ExtensionCoordinator();
     registry.register(MathExtension());
@@ -222,7 +222,7 @@ inherit extensions from `parentExtensions` that opt in via
 
 ```dart
 SandboxExtension(
-  platformFactory: () async => Monty(),
+  platformFactory: () async => createPlatformMonty(),
   parentExtensions: registry.extensions,  // Pass parent's extension list
 )
 ```
@@ -237,7 +237,7 @@ The `sandboxBaseDir` parameter enables per-child working directories:
 
 ```dart
 SandboxExtension(
-  platformFactory: () async => Monty(),
+  platformFactory: () async => createPlatformMonty(),
   sandboxBaseDir: '/data',
   parentExtensions: registry.extensions,
 )
@@ -261,7 +261,7 @@ prompt content from `ChildSpawnContext`:
 
 ```dart
 SandboxExtension(
-  platformFactory: () async => Monty(),
+  platformFactory: () async => createPlatformMonty(),
   sandboxBaseDir: '/data',
   systemPromptBuilder: (context) =>
       'You are child ${context.childId}. '
@@ -428,7 +428,7 @@ Future<(MontyBridge, ExtensionCoordinator)> createSession() async {
     ..register(StorageExtension())  // Fresh instance per session
     ..register(MathExtension());
 
-  final bridge = MontyBridge(platform: Monty());
+  final bridge = MontyBridge(platform: createPlatformMonty());
   await registry.attachTo(bridge);
 
   return (bridge, registry);

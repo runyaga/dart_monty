@@ -24,34 +24,31 @@ void main() {
   // ---------------------------------------------------------------------------
 
   group('2a — print output', () {
-    test('raw MontySession captures print() in result.printOutput', () async {
-      // Run print("hello") via dart_monty_core's MontySession directly —
-      // no bridge preamble, no __console_write__ injection, no overriding
-      // print. If MontyResult.printOutput is populated here, Monty captures
-      // prints natively and the bridge's print preamble is adding unnecessary
-      // overhead (and injecting 5 extra lines that distort line numbers).
-      final session = MontySession();
+    test('raw MontyRepl captures print() in result.printOutput', () async {
+      // Confirms Monty captures print() output natively into
+      // MontyResult.printOutput — the dart_monty bridge does not inject any
+      // preamble or override print(); it just surfaces core's printOutput.
+      final session = MontyRepl();
       try {
-        final result = await session.run('print("hello from monty")');
-        // Document what we observe:
+        final result = await session.feedRun('print("hello from monty")');
         expect(
           result.printOutput,
           isNotNull,
           reason:
               'Monty captures print() output natively in '
-              'MontyResult.printOutput without any bridge preamble.',
+              'MontyResult.printOutput.',
         );
         expect(result.printOutput, contains('hello from monty'));
       } finally {
-        session.dispose();
+        await session.dispose();
       }
     });
 
     test(
-      'PlatformBridge also captures print() — consistent with raw session',
+      'MontyRuntime also captures print() — consistent with raw session',
       () async {
-        // If the raw session test above passes, this confirms the bridge
-        // is not introducing a duplicate or conflicting capture path.
+        // The bridge passes printOutput through unchanged; this verifies
+        // it does not lose or duplicate the captured stdout.
         final session = MontyRuntime();
         try {
           final result = await session
@@ -66,26 +63,24 @@ void main() {
   });
 
   // ---------------------------------------------------------------------------
-  // 2c. Exception line numbers with bridge preamble
+  // 2c. Exception line numbers
   // ---------------------------------------------------------------------------
 
   group('2c — exception line numbers', () {
     test('NameError on line 1 of user code reports line 1', () async {
-      // PlatformBridge injects a print-override preamble (~5 lines)
-      // before user code, then subtracts _preambleLineCount from exception
-      // line numbers. This test verifies the adjustment is correct.
+      // The bridge injects no preamble; line numbers from core should
+      // come through unchanged.
       final session = MontyRuntime();
       try {
         final result = await session.execute('undefined_variable_xyz').result;
         expect(result.error, isNotNull);
-        expect(result.error!.excType, 'NameError');
-        // Line 1 of user code should report as line 1, not line 6
+        expect(result.excType, 'NameError');
         expect(
           result.error!.lineNumber,
           1,
           reason:
-              'The bridge preamble line count adjustment must correctly map '
-              'exception lines back to user code lines.',
+              'Line 1 of user code must surface as line 1 — the bridge '
+              'must not perturb core line numbers.',
         );
       } finally {
         await session.dispose();
@@ -112,15 +107,15 @@ void main() {
 
   group('2d — last expression capture', () {
     test(
-      'raw MontySession: expression result without captureLastExpression',
+      'raw MontyRepl: expression result without captureLastExpression',
       () async {
         // dart_monty_core's captureLastExpression wraps the last expression as
         // `__r = (expr); __r`. This test checks whether that wrapper is needed,
         // or whether Monty returns the last expression natively.
-        final session = MontySession();
+        final session = MontyRepl();
         try {
           // Run bare expression with NO captureLastExpression wrapping
-          final result = await session.run('1 + 1');
+          final result = await session.feedRun('1 + 1');
           // Document the result:
           expect(
             result.value,
@@ -131,23 +126,23 @@ void main() {
           );
           expect((result.value as MontyInt).value, 2);
         } finally {
-          session.dispose();
+          await session.dispose();
         }
       },
     );
 
-    test('raw MontySession: assignment statement returns MontyNone', () async {
+    test('raw MontyRepl: assignment statement returns MontyNone', () async {
       // Assignments are statements, not expressions — they should return None.
-      final session = MontySession();
+      final session = MontyRepl();
       try {
-        final result = await session.run('x = 42');
+        final result = await session.feedRun('x = 42');
         expect(
           result.value,
           isA<MontyNone>(),
           reason: 'Assignment statement has no return value — MontyNone.',
         );
       } finally {
-        session.dispose();
+        await session.dispose();
       }
     });
   });

@@ -38,3 +38,9 @@ cd "$EXAMPLE"
 dart pub get
 echo ""
 DART_MONTY_LIB_PATH="$LIB_PATH" dart run bin/main.dart
+
+echo ""
+echo "--- Type-check demo (platform-agnostic) ---"
+cd "$ROOT"
+dart pub get >/dev/null
+DART_MONTY_LIB_PATH="$LIB_PATH" dart run example/type_check_demo.dart

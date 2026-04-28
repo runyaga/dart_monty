@@ -29,9 +29,9 @@ print(result.value); // 4
 
 ```dart
 final repl = MontyRepl();
-await repl.feed('x = 42');
-await repl.feed('def double(n): return n * 2');
-final r = await repl.feed('double(x)');
+await repl.feedRun('x = 42');
+await repl.feedRun('def double(n): return n * 2');
+final r = await repl.feedRun('double(x)');
 print(r.value); // MontyInt(84)
 ```
 
@@ -41,9 +41,9 @@ print(r.value); // MontyInt(84)
 final session = MontyRuntime(
   extensions: [JinjaTemplateExtension(), MessageBusExtension()],
 );
-final r = await session.run(
+final r = await session.execute(
   "tmpl_render(template='Hello {{ name }}!', context={'name': 'World'})",
-);
+).result;
 print(r.value); // 'Hello World!'
 ```
 

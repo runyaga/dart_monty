@@ -246,7 +246,7 @@ Python print("hello") → Monty PrintWriter::Collect → MontyHandle.print_outpu
 **Dart API:**
 
 ```dart
-final result = await monty.run('print("hello")\n42');
+final result = await Monty.exec('print("hello")\n42');
 print(result.value);        // 42
 print(result.printOutput);  // "hello\n"
 ```

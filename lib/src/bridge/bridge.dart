@@ -14,7 +14,7 @@ import 'package:dart_monty_core/dart_monty_core.dart';
 /// calls to registered [HostFunction] handlers, and emits [BridgeEvent]s.
 ///
 /// ```dart
-/// final bridge = MontyBridge(platform: MontyFfi());
+/// final bridge = MontyBridge(platform: createPlatformMonty());
 /// bridge.registerOs(defaultSandboxOsHandler());
 /// bridge.register(myHostFunction);
 /// final events = bridge.execute('result = my_function()');

@@ -4,8 +4,7 @@
 /// import 'package:dart_monty/dart_monty.dart';
 /// import 'package:dart_monty_core/dart_monty_core.dart';
 ///
-/// final monty = Monty();
-/// final result = await monty.exec('2 + 2');
+/// final result = await Monty.exec('2 + 2');
 /// print(result.value); // MontyInt(4)
 /// ```
 library;

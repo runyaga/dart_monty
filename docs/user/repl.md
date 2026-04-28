@@ -3,29 +3,28 @@
 ## Overview
 
 The REPL provides stateful Python execution where variables, functions,
-classes, and closures persist natively across calls. Unlike `MontySession`
-which serializes state to JSON between calls (losing non-serializable
-objects), the REPL maintains a persistent Rust heap — everything
-survives.
+classes, and closures persist natively across calls. The REPL maintains
+a persistent Rust heap — everything survives, including non-serialisable
+objects.
 
 ## Three API Levels
 
 ### 1. MontyRepl — Low-Level
 
-Direct access to `feed()` (run to completion) and
+Direct access to `feedRun()` (run to completion) and
 `feedStart()`/`resume()` (suspend at host function calls).
 
 ```dart
 final repl = MontyRepl();
 
 // Run to completion
-final result = await repl.feed('x = 42');
-final r2 = await repl.feed('x + 1');
+final result = await repl.feedRun('x = 42');
+final r2 = await repl.feedRun('x + 1');
 print(r2.value); // MontyInt(43)
 
 // Functions persist
-await repl.feed('def double(n):\n    return n * 2');
-final r3 = await repl.feed('double(21)');
+await repl.feedRun('def double(n):\n    return n * 2');
+final r3 = await repl.feedRun('double(21)');
 print(r3.value); // MontyInt(42)
 
 await repl.dispose();
@@ -62,20 +61,20 @@ final session = MontyRuntime(
     JinjaTemplateExtension(),
     MessageBusExtension(),
     SandboxExtension(
-      platformFactory: () async => MontyFfi(),
+      platformFactory: () async => createPlatformMonty(),
     ),
   ],
 );
 
 // Python calls tmpl_render() -> real Dart Jinja engine
-final r = await session.run(
+final r = await session.execute(
   "tmpl_render(template='Hello {{ name }}!', context={'name': 'World'})",
-);
+).result;
 print(r.value); // MontyString('Hello World!')
 
 // State persists — x is still 42
-await session.run('x = 42');
-final r2 = await session.run('x + 1');
+await session.execute('x = 42').result;
+final r2 = await session.execute('x + 1').result;
 print(r2.value); // MontyInt(43)
 
 // Event stream for real-time visibility
@@ -166,18 +165,15 @@ The REPL works on both FFI (native) and WASM (browser):
   and message bus extensions. Sandbox support requires multi-session
   Workers (see issue #280)
 
-## Comparison with MontySession
+## Comparison with `Monty` / `Monty.exec`
 
-**MontySession** serializes state to JSON between calls:
+**`Monty(code)` and `Monty.exec`** run in a fresh interpreter every call —
+state from earlier calls does not persist. Use them for one-shot or
+parameterised re-runs of the same program.
 
-- Functions, classes, closures are lost
-- Non-serializable objects are lost
-- State wrapping via code generation (`__restore_state__`/`__persist_state__`)
-
-**MontyRepl** maintains a native Rust heap:
+**`MontyRepl`** maintains a native Rust heap across calls:
 
 - Functions, classes, closures persist
 - All heap objects survive across calls
-- No serialization overhead
 - Continuation detection for REPL UIs
-- Direct feedStart/resume for host function dispatch
+- Direct `feedStart`/`resume` for host function dispatch

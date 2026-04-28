@@ -31,17 +31,48 @@ await session.dispose();
 
 ## Monty (Low-level)
 
-The `Monty` class provides a simple stateful REPL wrapper from `dart_monty_core`.
+`Monty` from `dart_monty_core` is the low-level execution surface. It has
+three shapes:
 
 ```dart
-final monty = Monty();
-final r = await monty.run('import pathlib; x=1');
-await monty.dispose();
+// One-shot, stateless.
+final result = await Monty.exec('2 + 2');
+
+// Compiled-program holder — re-run with different inputs.
+final program = Monty('x * 2');
+final r1 = await program.run(inputs: {'x': 21});
+final r2 = await program.run(inputs: {'x': 100});
+
+// Stateful REPL — variables, functions, classes persist across calls.
+final repl = MontyRepl();
+await repl.feedRun('x = 42');
+final r3 = await repl.feedRun('x + 1');
+await repl.dispose();
 ```
 
-One-shot execution:
+Each `Monty(code).run(...)` call runs in a fresh interpreter — state from
+earlier calls does not persist. Use `MontyRepl` when you need accumulated
+state.
+
+### Static type checking
+
+`Monty.typeCheck` analyses code without executing it:
+
 ```dart
-final result = await Monty.exec('2 + 2');
+final errors = await Monty.typeCheck('x: int = "not an int"');
+for (final e in errors) {
+  print('${e.path}:${e.line}:${e.column} ${e.code}: ${e.message}');
+}
+```
+
+`prefixCode` lets you declare input or external-function shapes so the
+checker knows their types:
+
+```dart
+final errors = await Monty.typeCheck(
+  'result: str = fetch("https://example.com")',
+  prefixCode: 'def fetch(url: str) -> str: ...',
+);
 ```
 
 ## Host Functions

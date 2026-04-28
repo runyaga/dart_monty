@@ -117,7 +117,7 @@ See [Architecture Overview](docs/architecture/overview.md) for details.
 - Run `dart format` before committing.
 - Keep `lib/src/platform/` pure Dart (no Flutter).
 - All JSON keys at the C FFI boundary must be `snake_case`.
-- **Dispose:** `MontyFfi` and `MontyNative` must be disposed to avoid leaks.
+- **Dispose:** `MontyRepl` and `MontyRuntime` must be disposed to avoid leaks.
 
 ## Commit Messages
 
