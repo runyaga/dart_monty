@@ -65,31 +65,64 @@ is the entry-point (your app), not when published.
 
 ## Verifying the install
 
-After `dart pub get` succeeds, write a minimal smoke test to confirm
-both the FFI binary and the API surface work:
+After `dart pub get` succeeds, run the three-tier smoke test below.
+Each tier adds one capability, so a failure tells you which part of
+the stack is broken. Don't stop at tier 1 — `2 + 2` proves the FFI
+binary loads, but you haven't actually exercised the bridge layer,
+the type checker, or extensions until tiers 2 and 3 also pass.
 
 ```dart
 // bin/smoke.dart (or lib/main.dart)
 import 'package:dart_monty/dart_monty.dart';
+// Required for tier 3 — extensions live in the bridge library, not
+// dart_monty.dart. Importing both is correct and idiomatic.
+import 'package:dart_monty/dart_monty_bridge.dart';
 
 Future<void> main() async {
-  final errors = await Monty.typeCheck('2 + 2');
-  print('typeCheck errors: ${errors.length}');  // expect 0
-  final result = await Monty.exec('2 + 2');
-  print('exec result: ${result.value}');         // expect MontyInt(4)
+  // ── Tier 1: one-shot exec (proves FFI loads + interpreter runs) ──
+  final r1 = await Monty.exec('2 + 2');
+  print('tier 1 exec result: ${r1.value}');  // expect MontyInt(4)
+
+  // ── Tier 2: typeCheck with prefixCode stub (proves type checker
+  // works AND that you understand the prefixCode requirement for
+  // host-named symbols — see api-reference.md > Static type checking)
+  const prefix = 'def fetch(url: str) -> str: return ""';
+  final errs = await Monty.typeCheck(
+    'result: str = fetch("https://example.com")',
+    prefixCode: prefix,
+  );
+  print('tier 2 typeCheck errors: ${errs.length}');  // expect 0
+
+  // ── Tier 3: MontyRuntime + extension (proves bridge wiring) ──
+  final runtime = MontyRuntime(extensions: [JinjaTemplateExtension()]);
+  final r3 = await runtime
+      .execute("tmpl_render(template='Hello {{ name }}!', "
+               "context={'name': 'World'})")
+      .result;
+  print('tier 3 runtime+extension: ${r3.value}');  // expect MontyString("Hello World!")
+  await runtime.dispose();
 }
 ```
 
 ```bash
 $ dart run bin/smoke.dart
-typeCheck errors: 0
-exec result: MontyInt(4)
+tier 1 exec result: MontyInt(4)
+tier 2 typeCheck errors: 0
+tier 3 runtime+extension: MontyString("Hello World!")
 ```
 
-If either output line is missing or different, see the
-troubleshooting section in `AGENTS.md`. The most common cause is
-a missing Rust toolchain on first `pub get` — `hook/build.dart`
-needs `cargo` and `rustc` on `$PATH`.
+If a tier fails, the failure tells you exactly where to look:
+
+- **Tier 1 fails:** the FFI binary didn't compile or load. Most
+  common cause is a missing Rust toolchain on first `pub get` —
+  `hook/build.dart` needs `cargo` and `rustc` on `$PATH`. See
+  the troubleshooting section in `AGENTS.md`.
+- **Tier 2 fails with `unresolved-reference: fetch`:** you forgot
+  the `prefixCode:` argument or used `def fetch(...): ...` (Ellipsis)
+  for the body. See api-reference.md > Static type checking.
+- **Tier 3 fails to compile (`JinjaTemplateExtension` undefined):**
+  you're missing the `import 'package:dart_monty/dart_monty_bridge.dart';`
+  line. Extensions are not exported from `dart_monty.dart`.
 
 ## Platform Requirements
 
