@@ -60,8 +60,82 @@ dependency_overrides:
 
 The `dependency_overrides` block is the canonical Dart workaround
 for "I want this transitive dep to come from somewhere else than
-the publishing pubspec says." It only takes effect when the package
-is the entry-point (your app), not when published.
+the publishing pubspec says." **It only takes effect when this
+package is the entry-point (your app)**, not when consumed as a
+library by some other package — pub silently ignores
+`dependency_overrides` blocks in transitive pubspecs.
+
+## Consuming a third-party `dart_monty` extension
+
+If you depend on a Dart package that itself uses `dart_monty` (for
+example, a fictional `dart_monty_dataframe` extension), you cannot
+just add the extension to your dependencies and expect things to
+work. Until `dart_monty` 0.20.0 ships on pub.dev, every consumer
+must declare top-level `dependency_overrides` for **both**
+`dart_monty` and `dart_monty_core` — even if the extension's own
+pubspec already has them.
+
+```yaml
+# your app's pubspec.yaml
+name: my_app
+dependencies:
+  dart_monty_dataframe:
+    git:
+      url: https://github.com/example/dart_monty_dataframe.git
+      ref: main
+
+# REQUIRED — without these, pub will either fail with a source
+# conflict ("dart_monty_core from git" vs "dart_monty_core from
+# path") or silently resolve `dart_monty` to pub.dev's legacy
+# 0.11.0 (different API, no `Monty.exec`).
+dependency_overrides:
+  dart_monty:
+    git:
+      url: https://github.com/runyaga/dart_monty.git
+      ref: main
+  dart_monty_core:
+    git:
+      url: https://github.com/runyaga/dart_monty_core.git
+      ref: main
+```
+
+**Why this is required.** The extension's pubspec lists
+`dart_monty: { git: ... }` as a transitive dep. Pub's resolver
+treats the extension as a *library* in your project, not as the
+entry point — so even if the extension's pubspec contains its own
+`dependency_overrides` block, **pub ignores it** (overrides only
+apply on the root pubspec). Without your own top-level override,
+pub either fails with a source-mismatch error or silently picks
+the wrong version.
+
+For local worktree development, swap `git:` for `path:` on **all**
+three entries (the dataframe-style direct dep AND both overrides):
+
+```yaml
+dependencies:
+  dart_monty_dataframe:
+    path: /absolute/path/to/dart_monty_dataframe
+
+dependency_overrides:
+  dart_monty:
+    path: /absolute/path/to/dart_monty
+  dart_monty_core:
+    path: /absolute/path/to/dart_monty_core
+```
+
+After `dart pub get`, verify the resolved versions explicitly:
+
+```bash
+$ dart pub deps --no-dev | grep -E "dart_monty\b|dart_monty_core"
+├── dart_monty 0.20.0
+│   ├── dart_monty_core...
+├── dart_monty_core 0.17.0
+```
+
+If you see `dart_monty 0.11.x`, your override didn't take and pub
+fell back to pub.dev — re-check that the override block is at the
+top level, not inside `dependencies`, and that you spelled both
+package names correctly.
 
 ## Verifying the install
 
