@@ -47,21 +47,8 @@ swap `git:` for `path:`.
   Other triples (32-bit ARM, musl libc, BSDs, …) are not built by
   the hook today.
 
-- **iOS/Android:** Not yet shipped. The supported mobile path is
-  `dart_monty` (this package) consuming `dart_monty_core`'s prebuilt
-  Android (4 ABIs) and iOS xcframework artefacts, planned for the
-  0.17.1 release (see "Artefacts shipped per release" in
-  `dart_monty_core`'s `AGENTS.md`). Until then, mobile is not
-  available through `dart_monty` — if you absolutely need it now and
-  are willing to compile the native crate and wire it into your
-  Flutter project's iOS / Android plugin yourself, that path is
-  documented as exercise-for-the-reader in `dart_monty_core`'s
-  README ("Mobile is not handled by this package's build hook").
-
-  | OS / arch | Triple | Status |
-  |---|---|---|
-  | Android (arm64-v8a, armeabi-v7a, x86_64, x86) | `aarch64-linux-android` etc. | Planned for 0.17.1 |
-  | iOS (universal) | xcframework | Planned for 0.17.1 |
+- **iOS/Android:** Not yet supported. Planned once the FFI/WASM
+  story stabilises.
 
 ### Flutter Web
 
