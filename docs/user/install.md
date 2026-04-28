@@ -32,6 +32,21 @@ swap `git:` for `path:`.
   (built by `dart_monty_core`'s `hook/build.dart`) is compiled
   automatically when you run `dart pub get` — requires a working
   Rust toolchain (cargo + rustc).
+
+  Supported host triples in v0.17.0:
+
+  | OS / arch | Triple |
+  |---|---|
+  | macOS arm64 | `aarch64-apple-darwin` |
+  | macOS x86_64 | `x86_64-apple-darwin` |
+  | Linux arm64 | `aarch64-unknown-linux-gnu` |
+  | Linux x86_64 | `x86_64-unknown-linux-gnu` |
+  | Windows arm64 | `aarch64-pc-windows-msvc` |
+  | Windows x86_64 | `x86_64-pc-windows-msvc` |
+
+  Other triples (32-bit ARM, musl libc, BSDs, …) are not built by
+  the hook today.
+
 - **iOS/Android:** Not yet supported. Planned once the FFI/WASM
   story stabilises.
 
