@@ -29,13 +29,27 @@ functions in place of classes.** Curated stdlib: `json`, `math`,
 **Pre-flight every script:**
 
 ```dart
+// For self-contained scripts (no host functions, no extension functions):
 final errors = await Monty.typeCheck(userCode);
 if (errors.isNotEmpty) return; // reject before runtime.execute
 final result = await runtime.execute(userCode).result;
+
+// For scripts that call host functions or extension functions, you
+// MUST stub them in prefixCode — otherwise typeCheck reports
+// `unresolved-reference` for every host name and rejects the script:
+const prefixCode = '''
+def tmpl_render(template: str, context: dict) -> str: return ""
+def msg_send(name: str, message) -> None: return None
+# ...one stub per host function on the runtime
+''';
+final errors2 = await Monty.typeCheck(userCode, prefixCode: prefixCode);
 ```
 
 See [`docs/tutorials/llm-prompt-rules.md`](docs/tutorials/llm-prompt-rules.md)
-for the full constraint list and rationale.
+for the full constraint list, and
+[`docs/user/api-reference.md#static-type-checking`](docs/user/api-reference.md)
+for the full prefixCode rules (body must be a real return statement,
+not Ellipsis).
 
 ## Quick Start
 

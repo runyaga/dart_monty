@@ -146,6 +146,13 @@ children (grandchildren).
 
 ### What the sandbox actually constrains
 
+> **Where to apply limits with `MontyRuntime`.** `MontyRuntime` does
+> not accept a `limits` parameter — see [Resource Limits with
+> MontyRuntime](api-reference.md#resource-limits-with-montyruntime)
+> in the API reference. The mechanisms below describe the full
+> constraint surface; how to wire them onto a `MontyRuntime` lives
+> in api-reference.md.
+
 | Dimension | Mechanism | Limit / behaviour |
 |---|---|---|
 | **Memory** | `MontyLimits(memoryBytes:)` on parent or per-child | Hard cap; raises `MontyResourceError.MemoryLimitExceeded` on overflow |
