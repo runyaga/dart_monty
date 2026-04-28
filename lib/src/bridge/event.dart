@@ -31,6 +31,7 @@ class BridgeRunFinished extends BridgeEvent {
     required this.threadId,
     required this.runId,
     this.value,
+    this.montyValue,
     this.printOutput,
   });
 
@@ -40,8 +41,17 @@ class BridgeRunFinished extends BridgeEvent {
   /// Run identifier.
   final String runId;
 
-  /// The Python return value (when execution completed successfully).
+  /// The Python return value as a plain Dart value (collections
+  /// recursively unwrapped). Loses `__type` envelopes — a Python
+  /// dataclass returns as a `Map<String, Object?>` here. Suitable for
+  /// telemetry and UI display.
   final Object? value;
+
+  /// The Python return value as a typed [MontyValue], preserving
+  /// `__type` envelopes (e.g. `MontyDataclass`, `MontyNamedTuple`).
+  /// Use this when downstream code needs to distinguish typed values
+  /// from plain dicts.
+  final MontyValue? montyValue;
 
   /// Captured print output (when available).
   final String? printOutput;

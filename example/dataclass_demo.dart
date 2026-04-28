@@ -1,27 +1,22 @@
 // Printing to stdout is expected in an example.
 // ignore_for_file: avoid_print
-// User/Order classes appear first for readability; the MontyCallback
-// signature is `Future<Object?>` per the typedef, so the lambdas can't
+// User/Order classes lead the file for readability; MontyCallback's
+// signature is `Future<Object?>` per the typedef so the lambdas can't
 // be sync.
 // ignore_for_file: prefer-match-file-name, avoid-unnecessary-futures
-/// Dataclass hydration — Python `@dataclass` values returned through
-/// dart_monty round-trip into typed Dart objects via
-/// `MontyDataclass.hydrate(factory)`.
+/// Dataclass hydration through `MontyRuntime` — Python `@dataclass`
+/// values returned from a registered `HostFunction` round-trip into
+/// typed Dart objects via `MontyDataclass.hydrate(factory)`.
 ///
 /// Works on every backend dart_monty_core ships (native FFI, WASM,
-/// dart2js) — the dataclass envelope is platform-agnostic.
-///
-/// This demo uses `Monty.exec` with `externalFunctions:` because the
-/// `MontyRuntime` + `HostFunction` bridge path currently coerces the
-/// dataclass envelope to `MontyDict` on the way back (see issue
-/// referenced in the README). When that lands, this demo will be
-/// expanded with a bridge-side variant.
+/// dart2js) — the bridge surface is platform-agnostic.
 ///
 /// Run:
 ///   dart run example/dataclass_demo.dart
 library;
 
 import 'package:dart_monty/dart_monty.dart';
+import 'package:dart_monty/dart_monty_bridge.dart';
 
 // ── User-defined Dart classes the demo hydrates into. ───────────────────────
 
@@ -51,7 +46,7 @@ class Order {
   String toString() => 'Order(id=$id, total=$total)';
 }
 
-// ── Helper: build the dataclass envelope returned from a Dart callback. ─────
+// ── Helper: build the dataclass envelope returned from a HostFunction. ──────
 
 Map<String, Object?> _dataclass({
   required String name,
@@ -67,55 +62,52 @@ Map<String, Object?> _dataclass({
 };
 
 Future<void> main() async {
-  await _readingFields();
-  await _hydrateOne();
+  await _bridgeRoundTrip();
   await _hydrateRegistry();
 }
 
-// ── 1. Read fields directly off MontyDataclass. ─────────────────────────────
-Future<void> _readingFields() async {
-  print('── reading fields ──');
+// ── 1. HostFunction returns a dataclass envelope; MontyRuntime preserves
+//      the typed MontyDataclass through to MontyResult.value.
+Future<void> _bridgeRoundTrip() async {
+  print('── bridge round-trip ──');
 
-  final r = await Monty.exec(
-    'make_user("alice", 30)',
-    externalFunctions: {
-      'make_user': (args) async => _dataclass(
-        name: 'User',
-        typeId: 1,
-        attrs: {'name': args['_0']! as String, 'age': args['_1']! as int},
+  final runtime = MontyRuntime()
+    ..register(
+      HostFunction(
+        schema: const HostFunctionSchema(
+          name: 'make_user',
+          description: 'Construct a User dataclass.',
+          params: [
+            HostParam(name: 'name', type: HostParamType.string),
+            HostParam(name: 'age', type: HostParamType.integer),
+          ],
+        ),
+        handler: (args, _) async => _dataclass(
+          name: 'User',
+          typeId: 1,
+          attrs: {'name': args['name'], 'age': args['age']},
+        ),
       ),
-    },
-  );
+    );
 
-  final dc = r.value as MontyDataclass;
-  print('  name:      ${dc.name}');                // User
-  print('  fields:    ${dc.fieldNames}');          // [name, age]
-  print('  frozen:    ${dc.frozen}');              // false
-  print('  dartAttrs: ${dc.dartAttrs}');           // {name: alice, age: 30}
+  final result = await runtime.execute(
+    'make_user(name="alice", age=30)',
+  ).result;
+  final dc = result.value as MontyDataclass;
+
+  print('  type:     ${dc.name}');                  // User
+  print('  fields:   ${dc.fieldNames}');            // [name, age]
+  print('  attrs:    ${dc.dartAttrs}');             // {name: alice, age: 30}
+
+  final user = dc.hydrate(User.fromAttrs);
+  print('  hydrated: $user');                       // User(name=alice, age=30)
+
+  await runtime.dispose();
 }
 
-// ── 2. Hydrate into a user-supplied Dart class via a factory. ───────────────
-Future<void> _hydrateOne() async {
-  print('\n── hydrate (one type) ──');
-
-  final r = await Monty.exec(
-    'make_user("bob", 42)',
-    externalFunctions: {
-      'make_user': (args) async => _dataclass(
-        name: 'User',
-        typeId: 1,
-        attrs: {'name': args['_0']! as String, 'age': args['_1']! as int},
-      ),
-    },
-  );
-
-  final user = (r.value as MontyDataclass).hydrate(User.fromAttrs);
-  print('  $user');                                // User(name=bob, age=42)
-}
-
-// ── 3. Caller-side registry dispatching multiple dataclass types. ───────────
+// ── 2. Registry pattern dispatching multiple dataclass types by name. ───────
 Future<void> _hydrateRegistry() async {
-  print('\n── hydrate (registry) ──');
+  print('\n── registry dispatch ──');
 
   final factories = <String, Object Function(Map<String, Object?>)>{
     'User': User.fromAttrs,
@@ -129,28 +121,39 @@ Future<void> _hydrateRegistry() async {
     return factory == null ? value : factory(value.dartAttrs);
   }
 
-  final externalFunctions = <String, MontyCallback>{
-    'make_user': (_) async => _dataclass(
-      name: 'User',
-      typeId: 1,
-      attrs: {'name': 'carol', 'age': 7},
-    ),
-    'make_order': (_) async => _dataclass(
-      name: 'Order',
-      typeId: 2,
-      attrs: {'id': 99, 'total': 12.5},
-    ),
-  };
+  final runtime = MontyRuntime()
+    ..register(
+      HostFunction(
+        schema: const HostFunctionSchema(
+          name: 'make_user',
+          description: 'Construct a User.',
+        ),
+        handler: (_, _) async => _dataclass(
+          name: 'User',
+          typeId: 1,
+          attrs: {'name': 'carol', 'age': 7},
+        ),
+      ),
+    )
+    ..register(
+      HostFunction(
+        schema: const HostFunctionSchema(
+          name: 'make_order',
+          description: 'Construct an Order.',
+        ),
+        handler: (_, _) async => _dataclass(
+          name: 'Order',
+          typeId: 2,
+          attrs: {'id': 99, 'total': 12.5},
+        ),
+      ),
+    );
 
-  final ru = await Monty.exec(
-    'make_user()',
-    externalFunctions: externalFunctions,
-  );
-  final ro = await Monty.exec(
-    'make_order()',
-    externalFunctions: externalFunctions,
-  );
+  final ru = await runtime.execute('make_user()').result;
+  final ro = await runtime.execute('make_order()').result;
 
   print('  ${hydrate(ru.value)}'); // User(name=carol, age=7)
   print('  ${hydrate(ro.value)}'); // Order(id=99, total=12.5)
+
+  await runtime.dispose();
 }
