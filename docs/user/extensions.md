@@ -294,3 +294,12 @@ await session.dispose();
 
 See the [host functions guide](../tutorials/host-functions-intro.md) for
 how to create your own extensions with custom host functions.
+
+For higher-level extensions that ship a Python wrapper layer on top of
+host functions (like a dataframe extension exposing `df_load_csv` over
+low-level `df_host_load_csv` host functions), see [Shipping Python
+wrapper code with an
+extension](../tutorials/host-functions-intermediate.md#shipping-python-wrapper-code-with-an-extension)
+in the intermediate guide. That section covers the
+`pythonPreamble` + `typeCheckPrefix` convention, the consumer-side
+prepend pattern, and shared-vs-sandbox-mode semantics.
