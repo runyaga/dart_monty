@@ -16,6 +16,28 @@ rules in the system prompt or as an uploaded reference file.
 > reference](../user/api-reference.md#static-type-checking) for
 > what it actually catches and what it doesn't.
 
+## What typeCheck catches vs what only runtime catches
+
+| Feature | typeCheck | runtime | Notes |
+|---|---|---|---|
+| Type mismatch (`x: int = "hi"`) | ✅ catches | n/a | Resolved at the analyser. |
+| Unresolved name | ✅ catches | n/a | Stub host functions in `prefixCode`. |
+| `class` definition | ❌ silent | ❌ `NotImplementedError` | Not yet supported by the parser. |
+| `match` / `case` | ❌ silent | ❌ `NotImplementedError` | Use `if` / `elif`. |
+| `yield` (generators) | ❌ silent | ❌ `NotImplementedError` | Return a list. |
+| `del` | ❌ silent | ❌ `NotImplementedError` | Just stop using the name. |
+| walrus (`:=`) | ✅ passes | ✅ runs | **Supported** despite older docs claiming otherwise. |
+| Chained assignment (`a = b = 1`) | ✅ passes | ✅ runs | **Supported.** |
+| Decorators (`@foo`) | ✅ passes | ✅ runs | **Supported.** |
+| Logic errors / infinite loops | ❌ silent | depends | Use `MontyLimits(timeoutMs:)` to bound. |
+| Unknown host function | ❌ silent (without `prefixCode`) | ❌ `RuntimeError: Unknown function` | Always stub. |
+
+**Bottom line.** typeCheck is a name-and-type resolver. Subset
+violations (the four `NotImplementedError` rows above) only surface
+at runtime as `result.error`. Always run BOTH stages, and inspect
+`result.error` after `runtime.execute` to catch what typeCheck
+missed.
+
 ## Core Rules
 
 1. **All host functions return JSON strings.** Always `json.loads()` the result.
@@ -35,8 +57,12 @@ rules in the system prompt or as an uploaded reference file.
     of available functions. If a function isn't shown by `help()`, it does
     not exist. Do NOT invent functions like `bb_dump()`, `oracle()`, or
     `confirm()` — they will raise `RuntimeError: Unknown function`.
-13. **Write top-level code, not function definitions.** Do not use
-    `def main():` or `return`. The last expression is the return value.
+13. **Don't wrap your script in `def main(): return …` and call it.**
+    Just write the code at the top level — the last expression is
+    the script's return value. **Helper functions are fine.** Define
+    them with `def` and call them from the top level. The rule is
+    "don't bury your script body inside one outer function," not
+    "don't use `def`."
 14. **Use `print()` for progress and debugging.** Print output is captured
     separately from the return value. Use `print()` to show intermediate
     steps, then put the final result as the last expression:
