@@ -17,6 +17,8 @@ related functions into a namespaced, lifecycle-managed unit.
 |--------|---------|
 | `namespace` | Unique prefix for all function names (e.g., `storage_`) |
 | `functions` | List of `HostFunction`s this extension provides |
+| `pythonPreamble` | (Convention) Python wrapper source that consumers prepend to user code. Empty by default. See "Shipping Python wrapper code with an extension" below. |
+| `typeCheckPrefix` | (Convention) Pure-declaration stubs of host functions, suitable for `Monty.typeCheck(prefixCode: ...)`. Empty by default. |
 | `osContribution` | Prefix map for declarative OS call interception |
 | `childPolicy` | How the extension propagates to child sandboxes |
 | `priority` | Attachment order (higher priority attaches first) |
@@ -145,10 +147,17 @@ def df_host_to_records(handle: int): return []
 
 ### Consumer pattern: prepend the preamble
 
-Consumers concatenate the preamble to user code before `runtime.execute`. The
-extension class does not auto-inject — `MontyExtension.onAttach` deliberately
-does not feed Python source into the interpreter, to keep the extension API
-decoupled from runtime internals.
+> **⚠ The extension does NOT auto-inject the preamble.** Calling
+> `runtime.execute(userCode)` directly will fail with
+> `RuntimeError('Unknown function df_load_csv')` — the host functions
+> exist but the Python wrappers that call them aren't in scope.
+> **You must prepend `ext.pythonPreamble` to the code yourself**
+> before each `execute()` (see the example below). This is by design:
+> `MontyExtension.onAttach` deliberately does not feed Python source
+> into the interpreter, keeping the extension API decoupled from
+> runtime internals.
+
+Consumers concatenate the preamble to user code before `runtime.execute`:
 
 ```dart
 import 'package:dart_monty/dart_monty.dart';

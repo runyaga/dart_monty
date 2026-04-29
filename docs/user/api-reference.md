@@ -22,6 +22,35 @@ print(r.value); // 43
 await session.dispose();
 ```
 
+### What `execute()` returns
+
+`runtime.execute(code)` returns an `ExecutionHandle`, **not** a
+`Future<MontyResult>` and **not** a `Stream<BridgeEvent>`. The handle
+exposes:
+
+- **`.result`** — `Future<MontyResult>` for the final value. Most
+  callers use this: `final r = await runtime.execute(code).result;`.
+- **`.events`** — `Stream<BridgeEvent>` for streaming progress
+  (host-function calls, OS calls, intermediate emits). Use this when
+  you want a UI to update mid-call. See
+  [host-functions-beginner.md](../tutorials/host-functions-beginner.md#the-bridgeevent-stream)
+  for the full event taxonomy.
+- **`.cancel()`** — abort an in-flight execution.
+
+`MontyResult` (returned by `.result`) carries:
+
+- **`.value`** — the Python return value as a plain Dart object
+  (collections recursively unwrapped). A Python dataclass returns as
+  `Map<String, Object?>`.
+- **`.montyValue`** — the typed `MontyValue` form, preserving
+  `__type` envelopes (e.g. `MontyDataclass`, `MontyNamedTuple`). Use
+  this when downstream code needs to distinguish typed values from
+  plain dicts.
+- **`.printOutput`** — captured `print()` output as a `String?`.
+- **`.error`** — `MontyException?` if the script raised; `null`
+  on success. **Errors come back as a field on the result, not as a
+  thrown exception.**
+
 ### Execution Modes
 
 - **Shared Mode** (default): One interpreter persists across all calls.
