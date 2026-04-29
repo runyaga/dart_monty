@@ -15,32 +15,44 @@ Sandboxed Python interpreter for Dart and Flutter. Run Python from native, web, 
 ## Monty is a Python *subset*
 
 Before you write any code, know that Monty does **not** support a
-chunk of regular Python. Hitting one of these features at runtime
-raises a typed error, but it's much friendlier to gate your code
-through `Monty.typeCheck` first.
+chunk of regular Python. Subset violations surface at **runtime**
+as `MontyException: NotImplementedError: The monty syntax parser
+does not yet support …`, **not** as typeCheck errors —
+typeCheck is a name-and-type resolver, not a subset enforcer.
 
-**Not supported:**
+**Not supported (fail at runtime, NOT caught by typeCheck):**
 
 - `class` keyword (no user-defined classes — use dicts + module-level
   functions in their place)
-- Decorators (`@foo`) and `@dataclass`
 - Generators (`yield`, `yield from`)
-- `match` / `case`, `del`, walrus (`:=`), chained assignment
+- `match` / `case`
+- `del`
 - `open()`, `eval()`, `exec()`, `locals()`, `globals()`
 - `os`, `sys`, `subprocess`, `shutil`, `requests`, `urllib`, `http`
 - `threading`, `multiprocessing`, `asyncio`
 - Arbitrary `import` — stdlib is curated to `json`, `math`, `re`,
   `pathlib`, `datetime`, `collections`
 
-**Pre-flight every script:**
+**Actually supported (despite older docs claiming otherwise):**
+walrus (`:=`), chained assignment (`a = b = 1`), decorators
+(`@foo`). All three pass typeCheck AND execute end-to-end.
+
+**Pre-flight every script with the dual-validation loop:**
 
 ```dart
+// 1. typeCheck for type errors and unresolved names.
 final errors = await Monty.typeCheck(userCode);
 if (errors.isNotEmpty) {
-  // Reject before runtime.execute(...).
   return errors.map((e) => '${e.path}:${e.line}: ${e.message}').toList();
 }
+
+// 2. Execute and inspect result.error for the NotImplementedError
+//    that signals an unsupported-feature surprise typeCheck missed.
 final result = await runtime.execute(userCode).result;
+if (result.error != null) {
+  // Surface result.error.message — likely a subset violation.
+  return [result.error!.message];
+}
 ```
 
 See [LLM prompt rules](tutorials/llm-prompt-rules.md) for the full

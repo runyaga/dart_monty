@@ -3,15 +3,18 @@
 When an LLM generates Python code for the Monty sandbox, include these
 rules in the system prompt or as an uploaded reference file.
 
-> **Pre-flight every generated script with `Monty.typeCheck` before
-> running it.** `Monty.typeCheck(userCode, prefixCode: ...)` catches
-> subset violations as typed errors, with line/column info that you
-> can either fix automatically or feed back to the model — far
-> cheaper than a runtime failure deep inside `runtime.execute(...)`.
-> See [the Monty.typeCheck section in the API
-> reference](../user/api-reference.md#static-type-checking) for the
-> full rules (especially: stub all host-function names in
-> `prefixCode` with real `return` statements, not Ellipsis bodies).
+> **typeCheck catches type errors and unresolved names. It does
+> NOT catch subset violations.** `class`, `match`/`case`, `yield`,
+> and `del` all pass `Monty.typeCheck` with 0 errors but fail at
+> `runtime.execute(...)` with a `MontyException: NotImplementedError:
+> The monty syntax parser does not yet support …`. Use the
+> dual-validation loop: typeCheck for type/name errors, then
+> execute and inspect `result.error` for the
+> `NotImplementedError` that signals an unsupported-feature
+> surprise. Don't trust typeCheck alone as a subset gate. See
+> [the Monty.typeCheck section in the API
+> reference](../user/api-reference.md#static-type-checking) for
+> what it actually catches and what it doesn't.
 
 ## Core Rules
 
@@ -19,14 +22,14 @@ rules in the system prompt or as an uploaded reference file.
 2. `import json` at the top of every program.
 3. The last expression is the return value.
 4. Return code in a `` ```monty``` `` fenced code block. No explanation outside it.
-5. **Use `=` for assignment, NOT `:=`.** The walrus operator is not supported.
+5. **Walrus (`:=`) IS supported** despite older docs claiming otherwise. Use freely or stick to plain `=` — both work.
 6. **No `open()`, `eval()`, `exec()`.** Use `Path().read_text()` for files.
 7. **No dot attribute access on dicts.** Use `d["key"]` not `d.key`.
 8. **`enumerate()` has no `start` kwarg.** Use `enumerate(x)` and add offset manually:
    `for i, v in enumerate(items): day = i + 1`
 9. **No `%` string formatting.** Use f-strings or `str()` + concatenation:
    `f"Got {count} items"` or `"Got " + str(count) + " items"`
-10. **No chained assignment.** `a = b = 1` is not supported. Use `a = 1` then `b = 1`.
+10. **Chained assignment (`a = b = 1`) IS supported.** Use freely; older docs incorrectly listed it as unsupported.
 11. **No `locals()`, `globals()`, `eval()`, `exec()`.** These are not available.
 12. **Only call functions that exist.** Call `help()` first to see the list
     of available functions. If a function isn't shown by `help()`, it does

@@ -15,34 +15,69 @@ Sandboxed Python interpreter for Dart and Flutter. Run Python from native, web, 
 ## Monty is a Python *subset*
 
 Before writing code, know that Monty does **not** support a chunk
-of regular Python. Hitting one of these features at runtime raises
-a typed error — gate your code through `Monty.typeCheck` first.
+of regular Python. Subset violations surface at **runtime** as
+`MontyException: NotImplementedError: The monty syntax parser does
+not yet support …`. They do **NOT** surface as typeCheck errors —
+typeCheck is a name-and-type resolver, not a subset enforcer (see
+"What typeCheck actually catches" below).
 
-**Not supported:** `class`, decorators (`@foo`, `@dataclass`),
-generators (`yield`), `match`/`case`, `del`, walrus (`:=`), chained
-assignment; `open()`/`eval()`/`exec()`/`locals()`/`globals()`;
-`os`/`sys`/`subprocess`/`shutil`; `requests`/`urllib`/`http`;
-`threading`/`multiprocessing`/`asyncio`. **Use dicts + module-level
-functions in place of classes.** Curated stdlib: `json`, `math`,
-`re`, `pathlib`, `datetime`, `collections`.
+**Not supported (will fail at runtime):** `class`, generators
+(`yield`), `match`/`case`, `del`; `open()`/`eval()`/`exec()`/
+`locals()`/`globals()`; `os`/`sys`/`subprocess`/`shutil`;
+`requests`/`urllib`/`http`; `threading`/`multiprocessing`/`asyncio`.
+**Use dicts + module-level functions in place of classes.** Curated
+stdlib: `json`, `math`, `re`, `pathlib`, `datetime`, `collections`.
 
-**Pre-flight every script:**
+**Actually supported (despite older docs claiming otherwise):**
+walrus (`:=`), chained assignment (`a = b = 1`), decorators
+(`@foo`). These all pass `typeCheck` AND execute end-to-end. Use
+freely.
+
+### What typeCheck actually catches
+
+`Monty.typeCheck(code, prefixCode: ...)` runs Monty's static
+type-and-name analyser. It catches:
+
+- **Type mismatches** between declarations and assignments
+  (e.g. `x: int = "hi"`).
+- **Unresolved references** — names used but never defined or
+  declared in `prefixCode`.
+
+It does **NOT** catch:
+
+- Subset violations (`class`, `match`, `yield`, `del`, etc.) —
+  those pass typeCheck silently and only fail at `runtime.execute`
+  with a `NotImplementedError`.
+- Logic errors, infinite loops, resource overruns.
+
+The recommended **dual-validation loop** is therefore:
 
 ```dart
-// For self-contained scripts (no host functions, no extension functions):
-final errors = await Monty.typeCheck(userCode);
-if (errors.isNotEmpty) return; // reject before runtime.execute
-final result = await runtime.execute(userCode).result;
+// 1. Pre-flight typeCheck for type errors and unresolved names.
+final errors = await Monty.typeCheck(userCode, prefixCode: prefixCode);
+if (errors.isNotEmpty) return;
 
-// For scripts that call host functions or extension functions, you
-// MUST stub them in prefixCode — otherwise typeCheck reports
-// `unresolved-reference` for every host name and rejects the script:
+// 2. Execute. Inspect result.error for the NotImplementedError
+//    that signals an unsupported-feature surprise typeCheck missed.
+final result = await runtime.execute(userCode).result;
+if (result.error != null) {
+  // result.error is a MontyException; check if it's a subset
+  // violation vs a runtime data error.
+  return;
+}
+```
+
+If your script calls host functions or extension functions, you
+MUST stub them in `prefixCode` — otherwise typeCheck reports
+`unresolved-reference` for every host name:
+
+```dart
 const prefixCode = '''
 def tmpl_render(template: str, context: dict) -> str: return ""
 def msg_send(name: str, message) -> None: return None
 # ...one stub per host function on the runtime
 ''';
-final errors2 = await Monty.typeCheck(userCode, prefixCode: prefixCode);
+final errors = await Monty.typeCheck(userCode, prefixCode: prefixCode);
 ```
 
 See [`docs/tutorials/llm-prompt-rules.md`](docs/tutorials/llm-prompt-rules.md)

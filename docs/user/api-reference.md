@@ -109,7 +109,8 @@ state.
 
 ### Static type checking
 
-`Monty.typeCheck` analyses code without executing it:
+`Monty.typeCheck` analyses code without executing it. **It is a
+type-and-name resolver, NOT a subset-feature gate.**
 
 ```dart
 final errors = await Monty.typeCheck('x: int = "not an int"');
@@ -117,6 +118,45 @@ for (final e in errors) {
   print('${e.path}:${e.line}:${e.column} ${e.code}: ${e.message}');
 }
 ```
+
+#### What typeCheck catches
+
+- **Type mismatches** between declarations and assignments
+  (e.g. `x: int = "hi"`).
+- **Unresolved references** — names used but never defined or
+  declared in `prefixCode`.
+
+#### What typeCheck does NOT catch
+
+> **Subset violations pass typeCheck silently.** `class`,
+> `match`/`case`, `yield`, and `del` all return 0 errors from
+> `typeCheck` and only surface at `runtime.execute` time as
+> `MontyException: NotImplementedError: The monty syntax parser
+> does not yet support …`. If you treat typeCheck as a complete
+> pre-flight gate, your script will still hit this surprise at
+> runtime.
+
+The recommended pattern is the **dual-validation loop**:
+
+```dart
+// 1. typeCheck — catches type errors and unresolved names.
+final errs = await Monty.typeCheck(userCode, prefixCode: prefixCode);
+if (errs.isNotEmpty) return;
+
+// 2. Execute — surfaces subset violations as result.error.
+final result = await runtime.execute(userCode).result;
+if (result.error != null) {
+  // Likely NotImplementedError: subset feature used (class/match/yield/del).
+  return;
+}
+```
+
+This split is by design: typeCheck runs in an isolated analysis
+heap with no host functions registered, so it can't safely execute
+arbitrary code paths to discover subset violations. The runtime
+parser is the authoritative subset enforcer.
+
+
 
 `prefixCode` declares input or external-function shapes so the
 checker knows their types:
