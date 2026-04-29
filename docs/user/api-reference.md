@@ -167,7 +167,8 @@ final errors = await Monty.typeCheck(
 
 ## Host Functions
 
-Expose Dart code to Python:
+Expose Dart code to Python. Handler signature is
+`Future<Object?> Function(Map<String, Object?> args, HostContext ctx)`:
 
 ```dart
 HostFunction(
@@ -176,9 +177,20 @@ HostFunction(
     description: 'Fetch URL content.',
     params: [HostParam(name: 'url', type: HostParamType.string)],
   ),
-  handler: (args, ctx) async => http.read(Uri.parse(args.str('url'))),
+  // args is a plain Map<String, Object?> — access by key + cast.
+  // There is no `args.str(...)` / `args.int(...)` helper.
+  handler: (args, ctx) async {
+    final url = args['url'] as String;
+    return http.read(Uri.parse(url));
+  },
 )
 ```
+
+The schema's `HostParamType` is for Python-side validation (rejects
+mistyped input before your handler runs); the handler still has to
+cast each value in Dart because `Map<String, Object?>` is dynamic on
+the Dart side. Use `args['name'] as String`, `args['n'] as num`,
+`args['items'] as List`, etc.
 
 ## Extensions
 

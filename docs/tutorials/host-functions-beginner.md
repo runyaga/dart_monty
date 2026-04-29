@@ -107,7 +107,7 @@ HostFunction(
       HostParam(name: 'b', type: HostParamType.number),
     ],
   ),
-  handler: (args) async {
+  handler: (args, ctx) async {
     final a = args['a'] as num;
     final b = args['b'] as num;
     if (b == 0) throw ArgumentError('Division by zero');
