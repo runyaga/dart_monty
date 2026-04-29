@@ -47,6 +47,10 @@ with `dependency_overrides`:
 
 ```yaml
 # pubspec.yaml — local development
+name: my_app
+publish_to: none  # required when any dep is a path: dep — pub
+                  # forbids publishing a package with path: deps,
+                  # so this opts out of the publish path entirely.
 dependencies:
   dart_monty:
     path: /absolute/path/to/dart_monty
@@ -57,6 +61,13 @@ dependency_overrides:
   dart_monty_core:
     path: /absolute/path/to/dart_monty_core
 ```
+
+> **`publish_to: none` is required for any pubspec that uses
+> `path:` deps.** Without it, `dart pub get` warns with
+> `'Packages with this dependency cannot be published'` and the
+> package becomes un-publishable. For applications and library
+> sandboxes (which never publish to pub.dev), this is harmless —
+> just declare it explicitly.
 
 The `dependency_overrides` block is the canonical Dart workaround
 for "I want this transitive dep to come from somewhere else than

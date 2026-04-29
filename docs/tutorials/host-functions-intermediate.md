@@ -91,6 +91,43 @@ By convention, an extension that ships Python code exposes two getters:
   with no host functions registered, so eager calls to `df_host_*` would fail
   at import time.
 
+> **`typeCheckPrefix` stub bodies must be real return statements, not
+> Ellipsis.** Monty's Python subset rejects `def f(...): ...` with an
+> empty-body error. Use `return ""` for `str`, `return 0` for `int`,
+> `return None` for `None`, `return []` for `list`, etc. The value
+> never executes — it just satisfies Monty's parser. See
+> [api-reference.md > Static type
+> checking](../user/api-reference.md#static-type-checking) for the
+> full callout.
+
+### Recommended package layout
+
+By convention, ship the Python wrapper as a top-level asset in your
+package's `lib/python/` directory, then inline its contents verbatim
+into the Dart-side `pythonPreamble` constant:
+
+```
+dart_monty_<your-extension>/
+├── lib/
+│   ├── dart_monty_<your-extension>.dart   # exports
+│   ├── python/
+│   │   └── <your-extension>.py            # the canonical wrapper
+│   └── src/
+│       └── <your-extension>_extension.dart  # MontyExtension subclass
+│           # `pythonPreamble` returns a `const String _pythonWrapper = '''
+│           # ...mirrored from lib/python/<your-extension>.py
+│           # '''` — keep the two in sync.
+├── example/
+└── pubspec.yaml
+```
+
+Why mirror the file twice? The `lib/python/` source-of-truth is what
+your tests, type-checkers, and editors operate on. The inlined Dart
+constant is what the runtime actually feeds to the interpreter (no
+asset-loading step required, no extra dart-side dependency on the
+file system). Treat the `.py` file as primary; regenerate the const
+from it (a script, a build step, or just `cat` + paste).
+
 ```dart
 import 'package:dart_monty/dart_monty_bridge.dart';
 
