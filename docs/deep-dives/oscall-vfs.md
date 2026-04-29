@@ -56,7 +56,19 @@ graph TD
 ### Examples
 
 ```dart
-// Default handler provides a sandboxed native FS on desktop/mobile
+// Default handler provides a sandboxed native FS on desktop/mobile.
+// Concretely:
+//   - Reads/writes outside the scratch / worktree subtree → EPERM
+//     (PathAccessException).
+//   - Reads of credential-bearing dirs (~/.ssh, ~/.aws, ~/.claude,
+//     and the harness's own .env) → EPERM even when the file
+//     doesn't exist.
+//   - Public system paths (/etc/hosts, /usr/share/zoneinfo) →
+//     readable. Calibration data, not a deny target.
+//   - Network calls have no built-in primitive — you must register
+//     a host function to expose any network at all.
+// Set DART_MONTY_OS_PROFILE=strict to refuse start when the
+// platform sandbox-exec/bwrap binary is missing.
 final session = MontyRuntime(os: defaultOsHandler());
 
 // In-memory VFS with prepopulated files

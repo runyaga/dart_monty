@@ -80,7 +80,7 @@ dependencies:
 
 ```dart
 final result = await Monty.exec('2 + 2');
-print(result.value); // 4
+print(result.value); // MontyInt(4) — typed wrapper; see API reference for unwrap idioms
 ```
 
 **Stateful REPL**

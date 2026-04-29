@@ -137,7 +137,7 @@ dart_monty_core                      (low-level core engine package)
 | Web | dart_monty_core (WASM) | Supported | WASM via Worker |
 | iOS | dart_monty_core (FFI) | Planned (M9) | `.a` static |
 | Android | dart_monty_core (FFI) | Planned (M9) | `.so` via NDK |
-| Windows | dart_monty_core (FFI) | Planned (M9) | `.dll` via MSVC |
+| Windows | dart_monty_core (FFI) | Supported | `.dll` via MSVC |
 
 ## Choosing the Right API
 

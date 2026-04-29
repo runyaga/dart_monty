@@ -157,7 +157,7 @@ For simple, stateless execution, use the static `Monty.exec()` method:
 ```dart
 Future<void> main() async {
   final result = await Monty.exec('2 + 2');
-  print(result.value); // 4
+  print(result.value); // MontyInt(4) — typed wrapper; pattern-match or use .toJson() for plain Dart values
 }
 ```
 
@@ -197,6 +197,43 @@ Future<void> main() async {
   await runtime.dispose();
 }
 ```
+
+## Security model
+
+What the sandbox does and does not constrain. **Read this before
+exposing host functions to user-authored Python.**
+
+- **Python execution.** The interpreter runs in a Rust-side
+  sandbox. `MontyLimits(memoryBytes:, timeoutMs:)` enforces hard
+  caps on the script — out-of-memory and timeout violations
+  surface as typed errors (`MontyError.memoryExceeded`,
+  `MontyError.timeoutExceeded`), NOT Dart-side OOMs or hangs.
+- **Filesystem reads.** Without an `OsCallHandler`, ALL filesystem
+  access from Python fails. `sandboxedFsHandler(root: ...)` and
+  `readOnlyHandler(root: ...)` confine reads/writes to a chosen
+  subtree — these are recommended defaults if you need to expose
+  any filesystem at all.
+- **Network.** No built-in network primitive in Monty's curated
+  stdlib. **Network access only exists if you register a host
+  function for it** — and once you do, that host function runs
+  with full host-process privileges.
+- **Host functions.** `runtime.register(HostFunction(...))` runs
+  on the host thread with full host privileges. The Python caller
+  drives any host function you expose, so audit each one as if
+  its arguments came from an attacker. The sandbox cannot, and
+  will not, restrict what your own host code does.
+- **Children (sandbox extension).** `sandbox_spawn` children
+  inherit only built-in extension functions (`tmpl_render`,
+  `msg_send`, `sandbox_spawn`, etc.). Custom functions registered
+  via `runtime.register(HostFunction(...))` do **not** propagate
+  — wrap them in a `MontyExtension` if children need them.
+- **Environment redaction.** When the harness or a downstream
+  tool spawns the persona's subprocess, the env is filtered to a
+  curated allow-list — provider API keys (`*_KEY`, `*_TOKEN`,
+  etc.) are stripped. Driver code paths inherit this discipline.
+
+For the full deep dive, see
+[`docs/deep-dives/sandbox-architecture.md`](docs/deep-dives/sandbox-architecture.md).
 
 ## Examples
 

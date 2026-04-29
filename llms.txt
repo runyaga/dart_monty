@@ -1,0 +1,53 @@
+# dart_monty — index for LLM/agent consumers
+
+Higher-level Dart wrapper around `dart_monty_core` (the Rust-backed
+sandboxed Python interpreter). Adds a Bridge, Extensions, host
+functions, and a runtime that orchestrates them. If you're driving
+this package from an LLM agent, start with these files in order:
+
+## Quick start
+
+- `README.md` — overview, install path (GitHub-only, NOT pub.dev),
+  three-tier smoke test, security model
+- `docs/index.md` — same surface as the README in mkdocs form
+- `docs/user/install.md` — full install + verifying-the-install
+  recipe
+- `docs/user/api-reference.md` — `Monty`, `MontyRuntime`,
+  `Monty.typeCheck`, `MontyResult`
+
+## Subset rules (read first to avoid runtime surprises)
+
+- README's "Monty is a Python *subset*" section enumerates what's
+  allowed, what isn't, and what `typeCheck` catches before runtime.
+- `docs/architecture/overview.md` — module structure, supported
+  platforms, FFI vs WASM dispatch.
+
+## Going further
+
+- `docs/user/repl.md` — stateful interactive execution
+- `docs/user/extensions.md` — Template, MessageBus, Sandbox extensions
+- `docs/deep-dives/oscall-vfs.md` — VFS + filesystem sandbox boundary
+- `docs/deep-dives/sandbox-architecture.md` — parent ↔ child runtime
+  topology
+- `docs/contributor/setup.md` — build and test the package
+
+## Examples
+
+- `example/example.dart` — minimal `Monty.exec` one-shots
+- `example/type_check_demo.dart` — pre-flight type checking
+- `example/dataclass_demo.dart` — stateful round-trip with
+  `MontyRuntime.execute`
+
+## What's NOT on the doc surface
+
+`lib/src/**`, `test/**`, `tool/**`, `hook/**`, and `native/**` are
+implementation detail. If your question requires reading them, that
+indicates a doc gap — file an issue or open a PR adding the missing
+explanation to `docs/`.
+
+## Companion package
+
+`dart_monty_core` is the underlying FFI engine. If you only need
+`Monty.exec`, `MontyLimits`, `Monty.typeCheck`, and `MontyResult`
+without bridge/extensions, `dart_monty_core` alone is sufficient
+— see its own `llms.txt` for the lower-level surface.
