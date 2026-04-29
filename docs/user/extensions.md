@@ -188,6 +188,93 @@ before exposing host functions to user-authored Python.
 See [Sandbox Architecture](../deep-dives/sandbox-architecture.md) for the
 full deep dive on the parent↔child runtime topology.
 
+### What sandbox children inherit (and what they don't)
+
+> **`runtime.register(HostFunction(...))` does NOT propagate to
+> sandbox children.** Children only see host functions provided by
+> `MontyExtension` instances on the parent's `extensions: [...]`
+> list — never functions registered directly on the parent's
+> runtime.
+
+If a child script calls a custom host function it expected to find
+because you registered it on the parent, it fails at runtime with
+`RuntimeError: Unknown function <name>`. This is by design, not a
+bug — but it surprises everyone the first time.
+
+**Why the asymmetry.** Each child interpreter is a fresh
+`MontyPlatform` with its own bridge and its own host-function
+registry. The parent's bridge is not the child's bridge. The
+sandbox is, after all, a *sandbox* — children are isolated from
+the parent's runtime state by default.
+
+`MontyExtension` is the **formal mechanism** for declaring that a
+piece of host functionality crosses the sandbox boundary. Each
+extension exposes:
+
+- `childPolicy` — declares how it propagates: `clone` (fresh
+  instance per child), `reuse` (single instance shared with all
+  children), or `none` (parent-only).
+- `createChildInstance(ChildSpawnContext)` — the factory that
+  produces the child's instance.
+
+When a child spawns, `SandboxExtension` walks the parent's
+extension list, calls each extension's `createChildInstance(...)`
+per its `childPolicy`, and registers the resulting host functions
+on the child's bridge. Functions registered via bare
+`runtime.register(HostFunction(...))` are not in this graph — they
+have no `childPolicy`, no factory, no opinion about propagation —
+so the child has no way to pick them up.
+
+**The workaround**: wrap the host function in a `MontyExtension`
+subclass and register it via `extensions:`, not via
+`runtime.register(...)`:
+
+```dart
+class MyHostFn extends MontyExtension {
+  @override
+  String get namespace => 'app';
+
+  @override
+  ChildPolicy get childPolicy => ChildPolicy.clone;
+
+  @override
+  MontyExtension createChildInstance(ChildSpawnContext ctx) =>
+      MyHostFn();
+
+  @override
+  List<HostFunction> get functions => [
+        HostFunction(
+          schema: const HostFunctionSchema(
+            name: 'app_query',
+            description: 'Query the host application state.',
+            params: [HostParam(name: 'key', type: HostParamType.string)],
+          ),
+          handler: (args, ctx) async {
+            // ... implementation ...
+            return 'value';
+          },
+        ),
+      ];
+}
+
+// Now `app_query` is available in BOTH parent and child interpreters:
+final runtime = MontyRuntime(
+  extensions: [MyHostFn(), SandboxExtension(...)],
+);
+```
+
+If you can't wrap into a `MontyExtension` (e.g., the function
+closes over runtime state you don't want to clone), the alternative
+is to compute the value in the parent and pass it into the child's
+`code` argument at spawn time:
+
+```python
+# Python (running on the parent runtime)
+data = app_query(key='users')   # parent has access
+h = sandbox_spawn(code=f'data = {data!r}\n# ... child uses data ...')
+result = sandbox_await(h)
+```
+
 ### Sandbox Functions
 
 **`sandbox_spawn(code, timeout_ms=None, memory_bytes=None)`** —

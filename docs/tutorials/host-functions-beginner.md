@@ -116,6 +116,12 @@ HostFunction(
 )
 ```
 
+> **Handlers must be `async`.** The `HostFunctionHandler` typedef is
+> `Future<Object?> Function(Map<String, Object?>, HostContext)` — the
+> bridge awaits every handler invocation. A synchronous closure
+> compiles but fails at registration time. If your implementation is
+> truly sync, wrap it: `handler: (args, ctx) async => mySyncFn(args)`.
+
 If Python calls `divide(10, 0)`, it gets a Python exception with the
 message `"Division by zero"`. The bridge logs the error with stack trace
 via `struct_log` and emits a `BridgeToolCallResult` with the error

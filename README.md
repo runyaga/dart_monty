@@ -216,7 +216,7 @@ server), see `example/native/run.sh` and `example/web/run.sh`.
 ## Documentation
 
 - [**Installation**](docs/user/install.md) — Add to your project
-- [**Overview**](docs/help.md) — API summary and quick start
+- [**API reference**](docs/user/api-reference.md) — `Monty`, `MontyRuntime`, `Monty.typeCheck`, host functions
 - [**Architecture**](docs/architecture/overview.md) — Module structure and internals
 - [**REPL Guide**](docs/user/repl.md) — Stateful interactive execution
 - [**Extensions**](docs/user/extensions.md) — Template, MessageBus, Sandbox

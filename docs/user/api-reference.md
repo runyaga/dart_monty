@@ -184,7 +184,7 @@ final errors = await Monty.typeCheck(
 > # Built-in extension functions
 > def tmpl_render(template: str, context: dict) -> str: return ""
 > def msg_send(name: str, message) -> None: return None
-> def msg_recv(name: str, timeout_ms: int = None) -> object: return None
+> def msg_recv(name: str, timeout_ms: int | None = None) -> object: return None
 >
 > # Your host functions (one stub per HostFunction registered on the runtime)
 > def fetch(url: str) -> str: return ""
@@ -201,6 +201,13 @@ final errors = await Monty.typeCheck(
 > `int`, `return None` for `None`, `return []` for `list`, etc. The
 > value is never executed (the real implementation runs at
 > `runtime.execute(...)` time); it just satisfies Monty's parser.
+>
+> **Default values must match the parameter type.** `def fetch(timeout_ms:
+> int = None)` is rejected — `None` is not an `int`. If a parameter
+> is genuinely optional, declare it as `int | None = None` (or use
+> `Optional[int]` if you prefer). For required parameters, omit the
+> default. The same rule applies to every typed parameter in
+> `prefixCode` stubs.
 >
 > Rule of thumb: if a name is in scope at `runtime.execute(...)` time
 > but not in the standard Monty stdlib (`json`, `math`, `re`,

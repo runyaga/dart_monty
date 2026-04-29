@@ -182,6 +182,38 @@ def df_host_to_records(handle: int): return []
 > the base `MontyExtension` class — they're a convention. Add them as plain
 > getters; consumers of your extension look for those exact names.
 
+> **Watch out for Dart string interpolation.** The Python wrapper
+> source you inline into a Dart `const String` is parsed by the
+> Dart compiler as a string literal. If the Python contains
+> `${expression}` (Python f-strings, JS-style template syntax in
+> strings, etc.), Dart treats it as Dart interpolation and tries
+> to resolve `expression` in the surrounding Dart scope — usually
+> a compile error, sometimes worse: silent corruption.
+>
+> Two safe options:
+>
+> 1. **Use Dart raw strings** with `r'''...'''` so `$` is literal:
+>
+>    ```dart
+>    const String _pythonWrapperSource = r'''
+>    def df_select(df, *cols):
+>        return f"{df['name']}: {df['amount']}"   # safe — Dart sees no $
+>    ''';
+>    ```
+>
+> 2. **Escape every `$`** as `\$` if you must mix Dart interpolation
+>    with Python f-strings:
+>
+>    ```dart
+>    const String _pythonWrapperSource = '''
+>    def df_select(df):
+>        return f"\${df['name']}"
+>    ''';
+>    ```
+>
+> Prefer option 1 (raw string). It's idiomatic for embedded Python
+> sources and removes a class of bug entirely.
+
 ### Consumer pattern: prepend the preamble
 
 > **⚠ The extension does NOT auto-inject the preamble.** Calling
