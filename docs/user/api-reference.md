@@ -39,13 +39,15 @@ exposes:
 
 `MontyResult` (returned by `.result`) carries:
 
-- **`.value`** — the Python return value as a plain Dart object
-  (collections recursively unwrapped). A Python dataclass returns as
-  `Map<String, Object?>`.
-- **`.montyValue`** — the typed `MontyValue` form, preserving
-  `__type` envelopes (e.g. `MontyDataclass`, `MontyNamedTuple`). Use
-  this when downstream code needs to distinguish typed values from
-  plain dicts.
+- **`.value`** — the Python return value as a typed `MontyValue`
+  subtype: `MontyString`, `MontyInt`, `MontyList`, `MontyDict`, etc.
+  Pattern-match on the type or call `.toJson()` to get a plain
+  Dart `Object?`. **It is NOT plain Dart automatically** — older
+  docs claimed `.value` was unwrapped; that's wrong, you must
+  unwrap explicitly.
+- **`.montyValue`** — alias for `.value`. Both expose the same
+  typed wrapper. Use whichever name reads better at the call
+  site.
 - **`.printOutput`** — captured `print()` output as a `String?`.
 - **`.error`** — `MontyException?` if the script raised; `null`
   on success. **Errors come back as a field on the result, not as a

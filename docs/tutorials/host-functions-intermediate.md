@@ -267,11 +267,17 @@ hooks.
 ### Multi-extension preambles
 
 When a `MontyRuntime` has multiple extensions, concatenate every extension's
-preamble in registration order. A small helper makes this readable:
+preamble in registration order. **`MontyRuntime` does not expose a public
+`extensions` getter** — keep the list yourself at construction time:
 
 ```dart
-String composedPreamble(MontyRuntime runtime) {
-  final exts = runtime.extensions ?? const <MontyExtension>[];
+final exts = <MontyExtension>[
+  DataframeExtension(),
+  ChartExtension(),
+];
+final runtime = MontyRuntime(extensions: exts);
+
+String composedPreamble(List<MontyExtension> exts) {
   final parts = <String>[];
   for (final e in exts) {
     final pre = (e as dynamic).pythonPreamble as String? ?? '';
@@ -280,7 +286,8 @@ String composedPreamble(MontyRuntime runtime) {
   return parts.join('\n');
 }
 
-final fullCode = '${composedPreamble(runtime)}\n\n$userCode';
+final fullCode = '${composedPreamble(exts)}\n\n$userCode';
+final result = await runtime.execute(fullCode).result;
 ```
 
 The cast handles the convention-not-API distinction: extensions that don't
