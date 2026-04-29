@@ -63,6 +63,62 @@ served with:
 GitHub Pages cannot set these headers; a standard hosting target
 (nginx, Cloudflare Workers, S3+CloudFront with edge functions) can.
 
+### Local development serving command
+
+For dev / smoke-testing the Flutter Web build locally, the simplest
+COI-compliant server is a 30-line Python script. Save as
+`tools/serve_coi.py` and run from your `build/web/` directory:
+
+```python
+# tools/serve_coi.py — minimal COOP/COEP-enabled static server.
+import http.server, socketserver, sys
+
+class COIHandler(http.server.SimpleHTTPRequestHandler):
+    def end_headers(self):
+        self.send_header("Cross-Origin-Opener-Policy", "same-origin")
+        self.send_header("Cross-Origin-Embedder-Policy", "require-corp")
+        self.send_header("Cross-Origin-Resource-Policy", "same-origin")
+        super().end_headers()
+
+port = int(sys.argv[1]) if len(sys.argv) > 1 else 8000
+with socketserver.TCPServer(("", port), COIHandler) as httpd:
+    print(f"Serving build/web/ at http://localhost:{port}/ with COI headers")
+    httpd.serve_forever()
+```
+
+```bash
+flutter build web
+cd build/web && python3 ../../tools/serve_coi.py 8000
+# open http://localhost:8000/ in Chrome — DevTools Network tab should
+# show all three COI response headers on every asset.
+```
+
+For nginx in production:
+
+```nginx
+location / {
+    add_header Cross-Origin-Opener-Policy   "same-origin";
+    add_header Cross-Origin-Embedder-Policy "require-corp";
+    try_files $uri $uri/ /index.html;
+}
+```
+
+For Cloudflare Workers / Pages, add the headers via a Worker or
+`_headers` file. The minimal `_headers`:
+
+```
+/*
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Embedder-Policy: require-corp
+```
+
+> **How to verify it's working.** Open Chrome DevTools → Console.
+> If you see `SharedArrayBuffer is not defined` or
+> `crossOriginIsolated === false`, the headers aren't reaching the
+> browser. Check the Network tab — every response (including the
+> top-level HTML) must carry both COOP and COEP headers, otherwise
+> the page falls out of the cross-origin-isolated state.
+
 ## Plain Dart web (no Flutter)
 
 Without Flutter's asset bundler, copy the three asset files from the
