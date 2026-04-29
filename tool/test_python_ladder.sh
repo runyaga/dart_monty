@@ -1,13 +1,18 @@
 #!/usr/bin/env bash
 # =============================================================================
-# M3C Gate Script — Python Compatibility Ladder
+# Python Compatibility Ladder — WASM gate
 # =============================================================================
-# Runs all 34 fixtures on both native FFI and web WASM paths.
-# Reports per-tier pass/fail.
+# Builds the example/web ladder showcase, runs all tier_*.json fixtures in
+# headless Chrome, and compares results against known_failures.txt.
+# Reports per-tier pass/fail; exits 1 on any new failure.
 #
 # Usage: bash tool/test_python_ladder.sh [--verbose|-v]
-#   --verbose / -v   Print individual test names and LADDER_RESULT lines.
-#                    Default: one summary line per platform.
+#   --verbose / -v   Print every LADDER_RESULT line from the browser.
+#                    Default: one summary line.
+#
+# Note: the previous version of this script also ran an FFI-side ladder
+# via a `python_ladder_runner.dart` that no longer exists in the tree.
+# Native conformance is covered by the oracle suite in dart_monty_core.
 # =============================================================================
 set -euo pipefail
 
@@ -20,222 +25,115 @@ for arg in "$@"; do
 done
 
 ROOT="$(git rev-parse --show-toplevel)"
-SPIKE="$ROOT/spike/web_test"
-KNOWN_FAILURES="$ROOT/test/fixtures/python_ladder/known_failures.txt"
+EXAMPLE="$ROOT/example/web"
+WEB_DIR="$EXAMPLE/web"
+FIXTURES_SRC="$ROOT/test/fixtures/python_ladder"
+KNOWN_FAILURES="$FIXTURES_SRC/known_failures.txt"
 
-# Load known failures (strip comments and blank lines)
+# Load known failures (strip comments + blanks).
 KNOWN_FAILURE_LIST=""
 if [ -f "$KNOWN_FAILURES" ]; then
-  KNOWN_FAILURE_LIST=$(grep -v '^\s*#' "$KNOWN_FAILURES" | grep -v '^\s*$' | sed 's/\s*#.*//' || true)
+  KNOWN_FAILURE_LIST=$(grep -v '^\s*#' "$KNOWN_FAILURES" \
+    | grep -v '^\s*$' \
+    | sed 's/\s*#.*//' \
+    || true)
 fi
 
-# Check if a failure key is in the known list.
-# Usage: is_known_failure "tier_07_advanced.json:test_name"
 is_known_failure() {
   echo "$KNOWN_FAILURE_LIST" | grep -qxF "$1" 2>/dev/null
 }
 
-# Track new vs known failures for final reporting
 NEW_FAILURES=()
 KNOWN_HITS=()
 KNOWN_NOW_PASSING=()
 
-# Check web LADDER_RESULT lines against known failures.
-# Sets NEW_FAILURES array with any unknown failures.
-# Args: $1 = variable containing LADDER_RESULT lines
-check_ladder_results() {
-  local results="$1"
-  local label="$2"
-  local total=0
-  local passed=0
-  local failed=0
-
-  while IFS= read -r line; do
-    # Extract id and ok from LADDER_RESULT:{"id":N,"ok":true/false,...}
-    local id ok
-    id=$(echo "$line" | grep -o '"id":[0-9]*' | head -1 | sed 's/"id"://' || true)
-    ok=$(echo "$line" | grep -o '"ok":\(true\|false\)' | head -1 | sed 's/"ok"://' || true)
-
-    if [ -z "$id" ] || [ -z "$ok" ]; then
-      continue
-    fi
-
-    total=$((total + 1))
-
-    if [ "$ok" = "false" ]; then
-      failed=$((failed + 1))
-      local error
-      error=$(echo "$line" | grep -o '"error":"[^"]*"' | head -1 | sed 's/"error":"//;s/"$//' || true)
-      NEW_FAILURES+=("$label:#$id ${error:-unknown error}")
-    else
-      passed=$((passed + 1))
-    fi
-  done <<< "$results"
-
-  echo "  $label $total fixtures — $passed passed, $failed failed"
-}
-
-# Print final failure report
-report_failures() {
-  if [ ${#KNOWN_NOW_PASSING[@]} -gt 0 ]; then
-    echo ""
-    echo "  NOTICE: Known failures now PASSING (remove from known_failures.txt):"
-    for item in "${KNOWN_NOW_PASSING[@]}"; do
-      echo "    ✓ $item"
-    done
-  fi
-
-  if [ ${#KNOWN_HITS[@]} -gt 0 ]; then
-    echo ""
-    echo "  Known failures (pre-existing, not blocking):"
-    for item in "${KNOWN_HITS[@]}"; do
-      echo "    ~ $item"
-    done
-  fi
-
-  if [ ${#NEW_FAILURES[@]} -gt 0 ]; then
-    echo ""
-    echo "  NEW FAILURES (not in known_failures.txt — these block the gate):"
-    for item in "${NEW_FAILURES[@]}"; do
-      echo "    ✗ $item"
-    done
-    echo ""
-    echo "  To acknowledge a pre-existing upstream issue, add to:"
-    echo "    $KNOWN_FAILURES"
-    return 1
-  fi
-
-  return 0
-}
-
-if $VERBOSE; then
-  echo "=== M3C Gate: Python Compatibility Ladder ==="
-  echo ""
-fi
-
-# -------------------------------------------------------
-# Step 1: (native library managed by dart_monty_core hook/build.dart)
-# -------------------------------------------------------
-# dart_monty no longer owns the Rust crate. The native library is built
-# or downloaded by dart_monty_core's hook/build.dart when dart test runs.
-
-# -------------------------------------------------------
-# Step 2: Run native ladder tests
-# -------------------------------------------------------
+echo "=== Python Compatibility Ladder (WASM gate) ==="
 echo ""
-cd "$ROOT"
-NATIVE_LOG=$(mktemp)
+
+# ── Step 1: Build the ladder showcase ──────────────────────────────────
 if $VERBOSE; then
-  echo "--- Native ladder tests (dart test --tags=ladder) ---"
-  dart test --run-skipped --tags=ladder test/ffi/integration/ 2>&1 | tee "$NATIVE_LOG"
+  echo "--- Building example/web ladder showcase ---"
+fi
+cd "$EXAMPLE"
+dart pub get >/dev/null
+
+# Locate dart_monty_core's committed assets — same logic as
+# example/web/run.sh.
+if [ -n "${DART_MONTY_CORE_DIR:-}" ] && [ -d "$DART_MONTY_CORE_DIR/lib/assets" ]; then
+  CORE_ASSETS="$DART_MONTY_CORE_DIR/lib/assets"
 else
-  dart test --run-skipped --tags=ladder test/ffi/integration/ >"$NATIVE_LOG" 2>&1
+  CORE_ASSETS_GLOB="$(dart pub cache dir)/hosted/pub.dev/dart_monty_core-"*/lib/assets
+  CORE_ASSETS=""
+  for d in $CORE_ASSETS_GLOB; do
+    if [ -d "$d" ]; then CORE_ASSETS="$d"; break; fi
+  done
+  if [ -z "$CORE_ASSETS" ]; then
+    # git: deps land under ~/.pub-cache/git/<pkg>-<sha>/lib/assets.
+    CORE_ASSETS=$(find "$HOME/.pub-cache/git" -maxdepth 3 -type d \
+      -name 'dart_monty_core-*' 2>/dev/null \
+      | head -1)
+    [ -n "$CORE_ASSETS" ] && CORE_ASSETS="$CORE_ASSETS/lib/assets"
+  fi
 fi
 
-# Extract summary — last line matching "N tests passed" or "N: ..." pattern
-NATIVE_SUMMARY=$(grep -oE '[0-9]+ tests? passed' "$NATIVE_LOG" | tail -1 || true)
-if [ -z "$NATIVE_SUMMARY" ]; then
-  NATIVE_SUMMARY=$(tail -1 "$NATIVE_LOG")
+if [ ! -d "$CORE_ASSETS" ]; then
+  echo "FATAL: dart_monty_core assets not found." >&2
+  echo "  Set DART_MONTY_CORE_DIR to a local checkout, or run" >&2
+  echo "  'dart pub get' in $EXAMPLE first." >&2
+  exit 1
 fi
-rm -f "$NATIVE_LOG"
-echo "  FFI   $NATIVE_SUMMARY"
 
-# -------------------------------------------------------
-# Step 3: Build web bundle
-# -------------------------------------------------------
-echo ""
-if $VERBOSE; then
-  echo "--- Building web bundle ---"
-fi
-cd "$SPIKE"
-# --force: @pydantic/monty-wasm32-wasi declares cpu:wasm32 but the WASM binary
-# is architecture-independent. Without --force, npm refuses on ARM64 hosts.
-# See: https://github.com/runyaga/monty/issues/4
-npm install --force >/dev/null 2>&1
+cp "$CORE_ASSETS/dart_monty_core_bridge.js" "$WEB_DIR/"
+cp "$CORE_ASSETS/dart_monty_core_worker.js" "$WEB_DIR/"
+cp "$CORE_ASSETS/dart_monty_core_native.wasm" "$WEB_DIR/"
 
-npx esbuild web/monty_worker_src.js \
-  --bundle \
-  --format=esm \
-  --outfile=web/monty_worker.js \
-  --platform=browser \
-  --external:'*.wasm' \
-  --log-level=warning \
+mkdir -p "$WEB_DIR/fixtures"
+cp "$FIXTURES_SRC"/tier_*.json "$WEB_DIR/fixtures/"
+
+dart compile js bin/ladder_showcase.dart \
+  -o "$WEB_DIR/ladder_showcase.dart.js" \
   >/dev/null 2>&1
 
-cp node_modules/@pydantic/monty-wasm32-wasi/monty.wasm32-wasi.wasm web/ 2>/dev/null || true
-
-npx esbuild web/monty_glue.js \
-  --bundle \
-  --format=iife \
-  --outfile=web/monty_bundle.js \
-  --platform=browser \
-  --log-level=warning \
-  >/dev/null 2>&1
-
-# -------------------------------------------------------
-# Step 4: Compile ladder runner to JS
-# -------------------------------------------------------
-dart pub get >/dev/null 2>&1
-dart compile js bin/ladder_runner.dart -o web/ladder_runner.dart.js >/dev/null 2>&1
-
-# -------------------------------------------------------
-# Step 5: Copy fixtures to web/fixtures/
-# -------------------------------------------------------
-mkdir -p web/fixtures
-cp "$ROOT"/test/fixtures/python_ladder/tier_*.json web/fixtures/
-
-# -------------------------------------------------------
-# Step 6: Serve and run headless Chrome
-# -------------------------------------------------------
-if $VERBOSE; then
-  echo "--- Web ladder tests (headless Chrome) ---"
-fi
-
+# ── Step 2: Serve with COOP/COEP headers ───────────────────────────────
 SERVE_PORT=8098
 SERVE_PID=""
-
 cleanup() {
   if [ -n "$SERVE_PID" ]; then
     kill "$SERVE_PID" 2>/dev/null || true
     wait "$SERVE_PID" 2>/dev/null || true
   fi
+  rm -f \
+    "$WEB_DIR/dart_monty_core_bridge.js" \
+    "$WEB_DIR/dart_monty_core_worker.js" \
+    "$WEB_DIR/dart_monty_core_native.wasm" \
+    "$WEB_DIR/ladder_showcase.dart.js" \
+    "$WEB_DIR/ladder_showcase.dart.js.deps" \
+    "$WEB_DIR/ladder_showcase.dart.js.map"
+  rm -rf "$WEB_DIR/fixtures"
 }
 trap cleanup EXIT
 
 python3 -c "
-import http.server
-import functools
-
-class COOPCOEPHandler(http.server.SimpleHTTPRequestHandler):
+import http.server, functools
+class H(http.server.SimpleHTTPRequestHandler):
     def end_headers(self):
         self.send_header('Cross-Origin-Opener-Policy', 'same-origin')
         self.send_header('Cross-Origin-Embedder-Policy', 'require-corp')
         self.send_header('Access-Control-Allow-Origin', '*')
         self.send_header('Cache-Control', 'no-store')
         super().end_headers()
-
     def guess_type(self, path):
-        if path.endswith('.mjs'):
-            return 'application/javascript'
-        if path.endswith('.wasm'):
-            return 'application/wasm'
+        if path.endswith('.mjs'): return 'application/javascript'
+        if path.endswith('.wasm'): return 'application/wasm'
         return super().guess_type(path)
-
-    def log_message(self, fmt, *args):
-        pass
-
-handler = functools.partial(COOPCOEPHandler, directory='web')
-server = http.server.HTTPServer(('127.0.0.1', $SERVE_PORT), handler)
-server.serve_forever()
+    def log_message(self, *a): pass
+handler = functools.partial(H, directory='$WEB_DIR')
+http.server.HTTPServer(('127.0.0.1', $SERVE_PORT), handler).serve_forever()
 " &
 SERVE_PID=$!
 sleep 1
 
-if $VERBOSE; then
-  echo "  Server running on http://127.0.0.1:$SERVE_PORT (PID $SERVE_PID)"
-fi
-
-# Detect Chrome
+# ── Step 3: Headless Chrome ────────────────────────────────────────────
 CHROME=""
 if command -v google-chrome-stable &>/dev/null; then
   CHROME="google-chrome-stable"
@@ -249,57 +147,77 @@ fi
 
 if [ -z "$CHROME" ]; then
   echo "  WASM  SKIPPED (Chrome not found)"
-  echo ""
-  if ! $VERBOSE; then echo "  (--verbose / -v for details)"; fi
-  echo "=== Ladder: PASSED (FFI only — rerun with Chrome for WASM) ==="
+  echo "=== Ladder: SKIPPED (no Chrome) ==="
   exit 0
 fi
 
 CONSOLE_LOG=$(mktemp)
-
-timeout 60 "$CHROME" \
+timeout 90 "$CHROME" \
   --headless=new \
   --disable-gpu \
   --no-sandbox \
   --disable-dev-shm-usage \
   --enable-logging=stderr \
   --v=0 \
-  "http://127.0.0.1:$SERVE_PORT/ladder_runner.html" \
+  "http://127.0.0.1:$SERVE_PORT/ladder.html" \
   2>"$CONSOLE_LOG" || true
 
-WEB_RESULTS=$(grep -o 'LADDER_RESULT:{.*}' "$CONSOLE_LOG" 2>/dev/null || true)
+WEB_RESULTS=$(grep -o 'LADDER_RESULT:{[^}]*}' "$CONSOLE_LOG" 2>/dev/null || true)
+rm -f "$CONSOLE_LOG"
 
 if [ -z "$WEB_RESULTS" ]; then
   echo "  WASM  INCONCLUSIVE (no LADDER_RESULT lines from Chrome)"
-  if $VERBOSE; then
-    grep -i "CONSOLE" "$CONSOLE_LOG" | head -30 || echo "  (no console output)"
+  echo "=== Ladder: INCONCLUSIVE ==="
+  exit 1
+fi
+
+# ── Step 4: Parse + compare against known_failures.txt ─────────────────
+TOTAL=0
+PASSED=0
+while IFS= read -r line; do
+  TOTAL=$((TOTAL + 1))
+  TIER=$(echo "$line" | sed -E 's/.*"tier"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/')
+  NAME=$(echo "$line" | sed -E 's/.*"name"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/')
+  OK=$(echo "$line" | sed -E 's/.*"ok"[[:space:]]*:[[:space:]]*(true|false).*/\1/')
+  KEY="$TIER:$NAME"
+
+  if [ "$OK" = "true" ]; then
+    PASSED=$((PASSED + 1))
+    if is_known_failure "$KEY"; then
+      KNOWN_NOW_PASSING+=("$KEY")
+    fi
+  else
+    if is_known_failure "$KEY"; then
+      KNOWN_HITS+=("$KEY")
+    else
+      NEW_FAILURES+=("$KEY")
+    fi
   fi
-  rm -f "$CONSOLE_LOG"
-  echo ""
-  if ! $VERBOSE; then echo "  (--verbose / -v for details)"; fi
-  echo "=== Ladder: PASSED (FFI only — WASM inconclusive) ==="
-  exit 0
-fi
 
-if $VERBOSE; then
-  echo ""
-  echo "--- WASM LADDER_RESULT lines ---"
-  echo "$WEB_RESULTS" | while IFS= read -r line; do
-    echo "  $line"
-  done
-fi
+  if $VERBOSE; then echo "  $line"; fi
+done <<< "$WEB_RESULTS"
 
-rm -f "$CONSOLE_LOG"
+echo "  WASM  $PASSED/$TOTAL passed"
 
-check_ladder_results "$WEB_RESULTS" "WASM"
-
-if report_failures; then
+if [ "${#NEW_FAILURES[@]}" -gt 0 ]; then
   echo ""
-  if ! $VERBOSE; then echo "  (--verbose / -v for details)"; fi
-  echo "=== Ladder: PASSED ==="
-else
+  echo "  NEW failures (not in known_failures.txt):"
+  for f in "${NEW_FAILURES[@]}"; do echo "    $f"; done
   echo ""
-  if ! $VERBOSE; then echo "  (--verbose / -v for details)"; fi
   echo "=== Ladder: FAILED ==="
   exit 1
 fi
+
+if [ "${#KNOWN_NOW_PASSING[@]}" -gt 0 ]; then
+  echo ""
+  echo "  KNOWN failures now passing (remove from known_failures.txt):"
+  for k in "${KNOWN_NOW_PASSING[@]}"; do echo "    $k"; done
+fi
+
+if $VERBOSE && [ "${#KNOWN_HITS[@]}" -gt 0 ]; then
+  echo ""
+  echo "  KNOWN failures still failing (expected):"
+  for k in "${KNOWN_HITS[@]}"; do echo "    $k"; done
+fi
+
+echo "=== Ladder: PASSED ==="

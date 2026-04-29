@@ -12,7 +12,6 @@ analyzer:
     - 'build/**'
     - 'native/**'
     - 'main/**'
-    - 'spike/**'
     - 'struct_log/**'
 
   language:

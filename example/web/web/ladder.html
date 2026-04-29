@@ -220,7 +220,42 @@
       currentTierBody = body;
     }
 
+    // Tier-number → fixture-filename mapping. Kept in sync with
+    // bin/ladder_showcase.dart's _tierFiles so headless harnesses
+    // (tool/test_python_ladder.sh) can match against
+    // test/fixtures/python_ladder/known_failures.txt.
+    const TIER_FILES = {
+      1: 'tier_01_expressions.json',
+      2: 'tier_02_variables.json',
+      3: 'tier_03_control_flow.json',
+      4: 'tier_04_functions.json',
+      5: 'tier_05_errors.json',
+      6: 'tier_06_external_fns.json',
+      7: 'tier_07_advanced.json',
+      8: 'tier_08_kwargs.json',
+      9: 'tier_09_exceptions.json',
+      10: 'tier_10_math_module.json',
+      11: 'tier_11_re_module.json',
+      12: 'tier_12_monty_008_features.json',
+      13: 'tier_13_async.json',
+      15: 'tier_15_script_name.json',
+      16: 'tier_16_memory_growth.json',
+      17: 'tier_17_json_module.json',
+      18: 'tier_18_datetime_module.json',
+      19: 'tier_19_lifecycle_errors.json',
+    };
+
     function reportResult(tier, id, name, code, status, detail) {
+      // Machine-readable line for headless harnesses. Quote strings
+      // through JSON.stringify so embedded quotes / unicode survive.
+      const tierFile = TIER_FILES[tier] || ('tier_' + String(tier).padStart(2, '0') + '_unknown.json');
+      console.log('LADDER_RESULT:' + JSON.stringify({
+        tier: tierFile,
+        name: name,
+        ok: status === 'pass',
+        status: status,
+      }));
+
       const card = document.createElement('div');
       card.className = 'test-card ' + status;
 
