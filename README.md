@@ -8,7 +8,7 @@
 [![Pages](https://github.com/runyaga/dart_monty/actions/workflows/pages.yaml/badge.svg)](https://runyaga.github.io/dart_monty/)
 [![codecov](https://codecov.io/gh/runyaga/dart_monty/graph/badge.svg)](https://codecov.io/gh/runyaga/dart_monty)
 
-[Live Demo](https://runyaga.github.io/dart_monty/) | [Documentation](https://runyaga.github.io/dart_monty/help.html) | [GitHub](https://github.com/runyaga/dart_monty)
+[Live Demo](https://runyaga.github.io/dart_monty/) | [Documentation](https://github.com/runyaga/dart_monty/tree/main/docs) | [GitHub](https://github.com/runyaga/dart_monty)
 
 Sandboxed Python interpreter for Dart and Flutter. Run Python from native, web, and mobile — one package, every platform.
 
