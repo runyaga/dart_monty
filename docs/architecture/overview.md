@@ -159,4 +159,4 @@ The `MontyRuntime` and `PlatformBridge` serve two audiences simultaneously:
 This dual-audience pattern means you register a tool once and get both a
 callable Python function and an LLM-compatible tool definition.
 
-For the `OsCallHandler` layer, see [../deep-dives/oscall-vfs.md](../deep-dives/oscall-vfs.md).
+For the `OsCallHandler` layer, see [OsCall / VFS Layer](../deep-dives/oscall-vfs.md).
