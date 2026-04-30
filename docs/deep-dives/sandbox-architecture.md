@@ -34,7 +34,8 @@ graph TD
     F --> G
     G --> H
 
-    style F fill:#ccf,stroke:#333,stroke-width:2px,color:#000
+    classDef bridge fill:#ccf,stroke:#333,stroke-width:2px,color:#000
+    class C,F bridge
 ```
 
 ### Cross-platform Support
