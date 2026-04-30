@@ -14,38 +14,26 @@ Sandboxed Python interpreter for Dart and Flutter. Run Python from native, web, 
 
 ## Quick Start
 
-### Install (from GitHub)
+### Install
 
-Both packages install from GitHub via `git:` deps. **Do not use
-`dart pub add dart_monty`** — pub.dev's `dart_monty` is the legacy
-0.11.0 with a different API; the current code (with `Monty.exec`,
-`MontyRuntime`, etc.) lives only on GitHub for now.
+```sh
+dart pub add dart_monty
+```
 
-You must list **both** packages explicitly under `git:` — without
-the explicit `dart_monty_core` entry, pub will resolve it from
-pub.dev and the APIs won't match:
+The low-level bindings (`dart_monty_core`) are pulled in transitively.
+
+On Flutter, add the asset stanza so the bundler includes
+`dart_monty_core`'s WASM/JS bridge files (plain-Dart consumers can
+skip this):
 
 ```yaml
-# pubspec.yaml
-dependencies:
-  dart_monty:
-    git:
-      url: https://github.com/runyaga/dart_monty.git
-      ref: main
-  dart_monty_core:
-    git:
-      url: https://github.com/runyaga/dart_monty_core.git
-      ref: main
-
-# Flutter only — instructs the asset bundler to include
-# dart_monty_core's WASM/JS bridge files. Plain-Dart consumers
-# ignore this stanza.
 flutter:
   assets:
     - package: dart_monty_core
 ```
 
-For local development against a worktree, swap `git:` for `path:`:
+For local development against a worktree, override with `path:`
+deps:
 
 ```yaml
 dependencies:
@@ -141,7 +129,8 @@ server), see `example/native/run.sh` and `example/web/run.sh`.
 - [**Architecture**](docs/architecture/overview.md) — Module structure and internals
 - [**REPL Guide**](docs/user/repl.md) — Stateful interactive execution
 - [**Extensions**](docs/user/extensions.md) — Template, MessageBus, Sandbox
-- [**Contributor Setup**](docs/contributor/setup.md) — Build and test the library
+- [**Contributing**](CONTRIBUTING.md) — Build, run tests, gate scripts, release process
+- [**Contributor Setup**](docs/contributor/setup.md) — Toolchain install (Rust, Dart, Python)
 
 ## License
 
