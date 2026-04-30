@@ -1,5 +1,6 @@
 site_name: dart_monty
 site_description: Pure Dart bindings for Monty, a restricted sandboxed Python interpreter built in Rust.
+site_url: https://runyaga.github.io/dart_monty/
 theme:
   name: material
   palette:
