@@ -31,6 +31,28 @@ markdown_extensions:
 extra_css:
   - extra.css
 
+# Generates llms.txt + llms-full.txt at site root from the nav/sections
+# below. Install: pip install -r requirements-docs.txt
+plugins:
+  - search
+  - llmstxt:
+      markdown_description: |
+        High-level Dart/Flutter bindings for sandboxed Python scripting.
+        Builds on dart_monty_core (the low-level FFI/WASM glue) with a
+        runtime, extension API (Jinja, MessageBus, Sandbox), Flutter web
+        bridge auto-loading, OS-call composition, and host-function
+        dispatch with typed schemas.
+
+        IMPORTANT: Monty does NOT support `class`, decorators (`@foo`),
+        generators (`yield`), `match`/`case`, `del`, or arbitrary
+        imports. Use dicts + module-level functions in place of classes.
+        Stdlib: `math`, `re`, `json`, `datetime`, `pathlib`.
+
+        Run `Monty.typeCheck(code)` before `runtime.execute(code)` to
+        catch subset violations as typed errors before runtime — the
+        supported development loop.
+      full_output: llms-full.txt
+
 nav:
   - Overview: index.md
   - User Guide:
@@ -63,5 +85,4 @@ nav:
   - Contributing:
       - Development Setup: contributor/setup.md
       - Testing: contributor/testing.md
-      - Native Build: contributor/native-build.md
 
