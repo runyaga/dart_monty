@@ -17,6 +17,33 @@ dart analyze --fatal-infos
 dart test
 ```
 
+## Working Against a Local `dart_monty_core` Checkout
+
+When iterating on `dart_monty` and `dart_monty_core` together
+(rather than against the pub.dev release), wire up both halves:
+
+1. **Pub resolution** — create `pubspec_overrides.yaml` (gitignored) at
+   the repo root pointing pub at your local checkout:
+
+   ```yaml
+   dependency_overrides:
+     dart_monty_core:
+       path: /path/to/dart_monty_core
+   ```
+
+   The same file is needed in `example/web/pubspec_overrides.yaml`
+   for the ladder gate to resolve.
+
+2. **Asset staging** — for the `example/web/run.sh` and
+   `tool/test_python_ladder.sh` scripts (which copy `dart_monty_core`'s
+   bridge JS / WASM into the example), set `DART_MONTY_CORE_DIR`:
+
+   ```bash
+   export DART_MONTY_CORE_DIR=/path/to/dart_monty_core
+   ```
+
+   Without it, the scripts fall back to the pub cache.
+
 ## Running Examples
 
 ### Native (desktop)
@@ -38,13 +65,6 @@ headers.
 
 ```bash
 bash example/web/run.sh
-```
-
-To point the script at an in-progress `dart_monty_core` checkout
-(instead of the pub cache), set `DART_MONTY_CORE_DIR`:
-
-```bash
-DART_MONTY_CORE_DIR=/path/to/dart_monty_core bash example/web/run.sh
 ```
 
 ## Gate Scripts
