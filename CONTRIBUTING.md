@@ -53,8 +53,8 @@ DART_MONTY_CORE_DIR=/path/to/dart_monty_core bash example/web/run.sh
 bash tool/gate.sh                        # Run ALL quality checks
 bash tool/test_platform_interface.sh     # Platform interface
 bash tool/test_ffi.sh                    # FFI tests
-bash tool/test_python_ladder.sh          # Python ladder (all backends)
-bash tool/test_cross_path_parity.sh      # JSONL parity diff
+bash tool/test_python_ladder.sh          # Python ladder (WASM, headless Chrome)
+bash tool/test_snapshot_portability.sh   # Native snapshot round-trip
 ```
 
 ## Code Quality

@@ -63,6 +63,3 @@ ci-review/
 **/*.dart.js
 **/*.dart.js.deps
 **/*.dart.js.map
-spike/web_test/web/monty_bundle.js
-spike/web_test/web/monty_worker.js
-spike/web_test/web/fixtures/
