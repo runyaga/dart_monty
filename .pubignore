@@ -2,9 +2,13 @@ build/
 coverage/
 docs/
 tool/
-test/fixtures/
+test/
+example/
+assets/
 PLAN.md
 spike/
 native/
 .github/
 pre-release-plan.md
+js/
+.venv_mkdocs/
