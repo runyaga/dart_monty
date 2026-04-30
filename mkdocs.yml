@@ -52,6 +52,40 @@ plugins:
         catch subset violations as typed errors before runtime — the
         supported development loop.
       full_output: llms-full.txt
+      sections:
+        Overview:
+          - index.md
+          - landing.md
+        User Guide:
+          - user/install.md
+          - user/deployment.md
+          - user/repl.md
+          - user/extensions.md
+          - user/api-reference.md
+        Tutorials:
+          - tutorials/host-functions-intro.md
+          - tutorials/host-functions-beginner.md
+          - tutorials/host-functions-intermediate.md
+          - tutorials/host-functions-advanced.md
+          - tutorials/bridge-middleware.md
+          - tutorials/llm-prompt-rules.md
+        Deep Dives:
+          - architecture/overview.md
+          - deep-dives/sandbox-architecture.md
+          - deep-dives/oscall-vfs.md
+          - deep-dives/error-hierarchy.md
+          - deep-dives/extension-system.md
+          - deep-dives/bridge-concurrency.md
+        Technical Reference:
+          - reference/native-crate.md
+          - reference/monty-rust-api.md
+          - reference/ffi-handle-lifecycle.md
+          - reference/bridge-integration.md
+          - reference/internals.md
+          - reference/api-coverage-plan.md
+        Contributing:
+          - contributor/setup.md
+          - contributor/testing.md
 
 nav:
   - Overview: index.md
