@@ -14,8 +14,8 @@ The functional API uses composable handlers instead of a class hierarchy.
 graph TD
     subgraph "Python Code"
         direction LR
-        A("Path('/file.txt').read_text()") --> B{OsCall};
-        C("Path('/new.txt').write_text(...)") --> B;
+        A["Path('/file.txt').read_text()"] --> B{OsCall};
+        C["Path('/new.txt').write_text(...)"] --> B;
     end
 
     subgraph "OsCallHandler"
@@ -25,12 +25,12 @@ graph TD
 
     subgraph Filesystems
         direction TB
-        D -- "Write" --> E[Scratch (MemoryFS)];
-        D -- "Read" --> F[Base (ReadOnly)];
+        D -- "Write" --> E["Scratch (MemoryFS)"];
+        D -- "Read" --> F["Base (ReadOnly)"];
         F --> G[Real FS];
     end
 
-    style E fill:#ccf,stroke:#333,stroke-width:2px;
+    style E fill:#ccf,stroke:#333,stroke-width:2px,color:#000;
 ```
 
 ### Core Handlers
