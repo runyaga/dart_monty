@@ -308,21 +308,21 @@ Map<String, dynamic> _eventToMap(BridgeEvent event) {
       'callId': callId,
     },
     BridgeFunctionCallStart(:final callId, :final name) => {
-      'type': 'ToolCallStart',
+      'type': 'FunctionCallStart',
       'callId': callId,
       'name': name,
     },
     BridgeFunctionCallArgs(:final callId, :final delta) => {
-      'type': 'ToolCallArgs',
+      'type': 'FunctionCallArgs',
       'callId': callId,
       'delta': delta,
     },
     BridgeFunctionCallEnd(:final callId) => {
-      'type': 'ToolCallEnd',
+      'type': 'FunctionCallEnd',
       'callId': callId,
     },
     BridgeFunctionCallResult(:final callId, :final result) => {
-      'type': 'ToolCallResult',
+      'type': 'FunctionCallResult',
       'callId': callId,
       'result': result,
     },

@@ -118,7 +118,7 @@ HostFunction(
 
 If Python calls `divide(10, 0)`, it gets a Python exception with the
 message `"Division by zero"`. The bridge logs the error with stack trace
-via `struct_log` and emits a `BridgeToolCallResult` with the error
+via `struct_log` and emits a `BridgeFunctionCallResult` with the error
 message.
 
 You do not need to catch exceptions yourself for error propagation --
@@ -143,21 +143,21 @@ Each host function call emits a sequence of tool call events:
 
 ```text
 BridgeStepStarted(stepId: "greet")
-BridgeToolCallStart(callId: "0", name: "greet")
-BridgeToolCallArgs(callId: "0", delta: '{"name":"World"}')
-BridgeToolCallEnd(callId: "0")
+BridgeFunctionCallStart(callId: "0", name: "greet")
+BridgeFunctionCallArgs(callId: "0", delta: '{"name":"World"}')
+BridgeFunctionCallEnd(callId: "0")
   -- handler runs --
-BridgeToolCallResult(callId: "0", result: "Hello, World!")
+BridgeFunctionCallResult(callId: "0", result: "Hello, World!")
 BridgeStepFinished(stepId: "greet")
 ```
 
 | Event | Description |
 |-------|-------------|
 | `BridgeStepStarted` | A host function call step begins |
-| `BridgeToolCallStart` | Function name identified |
-| `BridgeToolCallArgs` | Arguments as JSON delta |
-| `BridgeToolCallEnd` | Arguments complete |
-| `BridgeToolCallResult` | Handler result (or error message) |
+| `BridgeFunctionCallStart` | Function name identified |
+| `BridgeFunctionCallArgs` | Arguments as JSON delta |
+| `BridgeFunctionCallEnd` | Arguments complete |
+| `BridgeFunctionCallResult` | Handler result (or error message) |
 | `BridgeStepFinished` | Step complete |
 
 ### Text Events (Print Capture)
@@ -185,9 +185,9 @@ await for (final event in bridge.execute(code)) {
   switch (event) {
     case BridgeRunStarted(:final threadId, :final runId):
       print('Started: thread=$threadId run=$runId');
-    case BridgeToolCallStart(:final callId, :final name):
+    case BridgeFunctionCallStart(:final callId, :final name):
       print('Calling: $name (call $callId)');
-    case BridgeToolCallResult(:final callId, :final result):
+    case BridgeFunctionCallResult(:final callId, :final result):
       print('Result: $result (call $callId)');
     case BridgeTextContent(:final delta):
       print('Output: $delta');

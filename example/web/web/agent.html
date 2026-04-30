@@ -501,10 +501,10 @@ x</textarea>
       // Visual indicator: Python blocked on msg_recv / unblocked
       const pushBtn = document.getElementById('dartPushBtn');
       const waitingBanner = document.getElementById('waitingBanner');
-      if (event.type === 'ToolCallStart' && event.name === 'msg_recv') {
+      if (event.type === 'FunctionCallStart' && event.name === 'msg_recv') {
         if (waitingBanner) { waitingBanner.style.display = 'flex'; }
         if (pushBtn) { pushBtn.disabled = false; pushBtn.style.opacity = '1'; pushBtn.style.animation = 'pulse 1s infinite'; }
-      } else if (event.type === 'ToolCallResult' || event.type === 'RunFinished' || event.type === 'RunError') {
+      } else if (event.type === 'FunctionCallResult' || event.type === 'RunFinished' || event.type === 'RunError') {
         if (waitingBanner) { waitingBanner.style.display = 'none'; }
         if (pushBtn) { pushBtn.disabled = true; pushBtn.style.opacity = '0.4'; pushBtn.style.animation = ''; }
       }
@@ -532,7 +532,7 @@ x</textarea>
     function getEventTypeClass(type) {
       if (type === 'RunError') return 'event-type-error';
       if (type.startsWith('Run')) return 'event-type-run';
-      if (type.startsWith('Tool')) return 'event-type-tool';
+      if (type.startsWith('FunctionCall')) return 'event-type-tool';
       if (type.startsWith('OsCall')) return 'event-type-os';
       if (type.startsWith('Text')) return 'event-type-text';
       if (type.startsWith('Step')) return 'event-type-step';
@@ -547,9 +547,9 @@ x</textarea>
         case 'RunStarted': return 'thread=' + event.threadId;
         case 'RunFinished': return event.value ? 'value=' + event.value : 'done';
         case 'RunError': return event.message;
-        case 'ToolCallStart': return event.name + '()';
-        case 'ToolCallArgs': return event.delta;
-        case 'ToolCallResult': return event.result;
+        case 'FunctionCallStart': return event.name + '()';
+        case 'FunctionCallArgs': return event.delta;
+        case 'FunctionCallResult': return event.result;
         case 'OsCallStart': return event.operationName + (event.argumentSummary ? ' ' + event.argumentSummary : '');
         case 'OsCallResult': return event.result + (event.durationMs != null ? ' [' + event.durationMs + 'ms]' : '');
         case 'TextContent': return event.delta;

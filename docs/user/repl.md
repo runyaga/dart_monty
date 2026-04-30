@@ -80,7 +80,7 @@ print(r2.value); // MontyInt(43)
 // Event stream for real-time visibility
 final events = session.execute('tmpl_render(...)');
 await for (final event in events) {
-  // BridgeToolCallStart, BridgeToolCallResult, etc.
+  // BridgeFunctionCallStart, BridgeFunctionCallResult, etc.
 }
 
 await session.dispose();

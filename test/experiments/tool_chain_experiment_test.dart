@@ -277,7 +277,7 @@ send_message(msg=msg)
     tearDown(() => h.dispose());
 
     test(
-      'runWithEvents captures BridgeToolCallStart for each tool call',
+      'runWithEvents captures BridgeFunctionCallStart for each tool call',
       () async {
         final (:result, :events) = await h.runWithEvents('probe()');
 
