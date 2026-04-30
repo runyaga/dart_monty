@@ -219,7 +219,7 @@ native-asset hook toolchain.)
      are exhaustive
 3. **Update version** in `pubspec.yaml`
 4. **Update CHANGELOG** — rename `## Unreleased` to the version heading
-   (e.g. `## 0.20.0`)
+   (e.g. `## 0.17.0`)
 5. **Commit and push** the version bump and CHANGELOG update to `main`
 6. **Run local dry-run:**
 
