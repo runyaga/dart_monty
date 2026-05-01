@@ -393,8 +393,9 @@ Future<void> _refreshState() async {
   }
   final lines = <String>['_st = {}'];
   for (final name in _trackedNames) {
-    lines.add("try: _st[${jsonEncode(name)}] = repr($name)");
-    lines.add('except: pass');
+    lines
+      ..add('try: _st[${jsonEncode(name)}] = repr($name)')
+      ..add('except: pass');
   }
   lines.add('_st');
   final probe = lines.join('\n');
