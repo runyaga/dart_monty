@@ -1,13 +1,35 @@
 # Installation
 
-Both `dart_monty` and `dart_monty_core` install from GitHub via
-`git:` deps. **Do not run `dart pub add dart_monty`** — pub.dev's
-`dart_monty` is the legacy 0.11.0 with a different API (no
-`Monty.exec`, no `MontyRuntime`); the current code lives only on
-GitHub for now.
+Install both `dart_monty` (the API) and `dart_monty_core` (the
+package that owns the native/WASM build outputs) from pub.dev:
+
+```bash
+dart pub add dart_monty dart_monty_core
+```
+
+Or in `pubspec.yaml`:
 
 ```yaml
-# pubspec.yaml
+dependencies:
+  dart_monty: ^0.17.0
+  dart_monty_core: ^0.17.0
+```
+
+Both must be listed directly. `dart_monty_core` is already a
+transitive dependency of `dart_monty`, but Flutter's asset bundler
+does not chase transitive references — `flutter.assets` entries must
+name the package that physically owns the files (see
+[Flutter Web](#flutter-web) below). Listing `dart_monty_core`
+explicitly also keeps the two versions in lockstep.
+
+For local worktree development, swap the version constraints for
+`path:` deps.
+
+## Bleeding edge (git main)
+
+Use this only if you need an unreleased fix on `main`:
+
+```yaml
 dependencies:
   dart_monty:
     git:
@@ -19,10 +41,8 @@ dependencies:
       ref: main
 ```
 
-Both packages must be listed under `git:` — without an explicit
-`dart_monty_core` entry, pub will resolve the transitive dep from
-pub.dev and the APIs won't match. For local worktree development
-swap `git:` for `path:`.
+Pin both — without an explicit `dart_monty_core` git entry, pub will
+resolve the transitive dep from pub.dev and the APIs may drift.
 
 ## Platform Requirements
 
@@ -46,16 +66,10 @@ package that owns the files.
 ```yaml
 # pubspec.yaml
 dependencies:
-  dart_monty:
-    git:
-      url: https://github.com/runyaga/dart_monty.git
-      ref: main
+  dart_monty: ^0.17.0
   # Required — Flutter's asset bundler needs this listed directly.
   # Do not remove; it is not redundant with dart_monty.
-  dart_monty_core:
-    git:
-      url: https://github.com/runyaga/dart_monty_core.git
-      ref: main
+  dart_monty_core: ^0.17.0
 
 # Flutter only — instructs the asset bundler to include
 # dart_monty_core's WASM/JS bridge files. Plain-Dart consumers
@@ -96,9 +110,9 @@ Without Flutter's asset bundler, copy the three asset files from the
 `<script>` tag:
 
 ```bash
-# dart_monty_core is git-installed, so its assets live under the
-# git pub cache (not the pub.dev hosted cache).
-CORE_ASSETS=$(dart pub cache dir)/git/dart_monty_core-*/lib/assets
+# Pub.dev install — assets live under the hosted cache.
+# (For a git-installed dart_monty_core, swap `hosted/pub.dev` for `git`.)
+CORE_ASSETS=$(dart pub cache dir)/hosted/pub.dev/dart_monty_core-*/lib/assets
 cp $CORE_ASSETS/dart_monty_core_bridge.js web/
 cp $CORE_ASSETS/dart_monty_core_worker.js web/
 cp $CORE_ASSETS/dart_monty_core_native.wasm web/
