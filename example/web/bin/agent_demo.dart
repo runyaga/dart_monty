@@ -37,6 +37,7 @@ external void _jsOnReady();
 
 MontyRuntime? _session;
 bool _initialized = false;
+bool _suppressEvents = false;
 
 // ---------------------------------------------------------------------------
 // Host functions — demo tools callable from Python
@@ -242,10 +243,12 @@ Future<String> _execute(String code) async {
       events.add(eventMap);
 
       // Notify HTML UI in real-time.
-      try {
-        _jsOnEvent(jsonEncode(eventMap).toJS);
-      } on Object catch (_) {
-        // _onEvent not defined — OK in headless mode.
+      if (!_suppressEvents) {
+        try {
+          _jsOnEvent(jsonEncode(eventMap).toJS);
+        } on Object catch (_) {
+          // _onEvent not defined — OK in headless mode.
+        }
       }
 
       // Capture terminal events.
@@ -257,6 +260,9 @@ Future<String> _execute(String code) async {
         printOutput = event.printOutput;
       }
     }
+
+    if (resultError == null) _learnNames(code);
+    await _refreshState();
 
     return jsonEncode({
       'ok': resultError == null,
@@ -360,8 +366,58 @@ Map<String, dynamic> _eventToMap(BridgeEvent event) {
 // State & schemas accessors
 // ---------------------------------------------------------------------------
 
-String _getState() {
-  return '{}';
+// Monty's Python doesn't expose globals()/dir()/vars(), so we track names
+// assigned at the top level of executed code ourselves and probe their
+// current repr() with a per-name try/except dict-build expression.
+final _trackedNames = <String>{};
+String _stateCache = '{}';
+
+// Top-level `name = expr` lines (no leading whitespace, single LHS, not `==`).
+final _assignmentPattern = RegExp(r'^([a-zA-Z_]\w*)\s*=(?!=)', multiLine: true);
+
+void _learnNames(String code) {
+  for (final m in _assignmentPattern.allMatches(code)) {
+    _trackedNames.add(m.group(1)!);
+  }
+}
+
+// Returns the cached snapshot synchronously so the State Panel can render
+// without awaiting. The cache is refreshed after every [_execute] call and
+// after [_clearState].
+String _getState() => _stateCache;
+
+Future<void> _refreshState() async {
+  if (_session == null || _trackedNames.isEmpty) {
+    _stateCache = '{}';
+    return;
+  }
+  final lines = <String>['_st = {}'];
+  for (final name in _trackedNames) {
+    lines.add("try: _st[${jsonEncode(name)}] = repr($name)");
+    lines.add('except: pass');
+  }
+  lines.add('_st');
+  final probe = lines.join('\n');
+  _suppressEvents = true;
+  try {
+    final handle = _session!.execute(probe);
+    handle.result.ignore();
+    Object? value;
+    await for (final ev in handle.events) {
+      if (ev is BridgeRunFinished) value = ev.value;
+    }
+    if (value is Map) {
+      // Drop names that no longer resolve so the panel stays accurate.
+      _trackedNames.retainAll(value.keys.cast<String>());
+      _stateCache = jsonEncode(value);
+    } else {
+      _stateCache = '{}';
+    }
+  } on Object catch (_) {
+    _stateCache = '{}';
+  } finally {
+    _suppressEvents = false;
+  }
 }
 
 String _getSchemas() {
@@ -380,6 +436,8 @@ String _getSchemas() {
 
 void _clearState() {
   _session?.clearState();
+  _trackedNames.clear();
+  _stateCache = '{}';
 }
 
 Future<void> _dispose() async {
