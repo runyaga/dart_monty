@@ -77,12 +77,16 @@ bool _isOsCall(String? fn) {
 Future<Object?> _handleOsCall(Map<String, dynamic> state) async {
   final op = state['functionName'] as String;
   final rawArgs = (state['args'] as List?) ?? const [];
-  final args = List<Object?>.from(rawArgs);
+  // Unwrap typed JSON wrappers (e.g. {__type:'path', value:'…'} → String) so
+  // handlers see the same dartValue payloads they get from the REPL flow.
+  final args = rawArgs.map((a) => MontyValue.fromJson(a).dartValue).toList();
 
   Map<String, Object?>? kwargs;
   final rawKwargs = state['kwargs'] as Map<String, dynamic>?;
   if (rawKwargs != null) {
-    kwargs = Map<String, Object?>.from(rawKwargs);
+    kwargs = rawKwargs.map(
+      (k, v) => MapEntry(k, MontyValue.fromJson(v).dartValue),
+    );
   }
 
   final sw = Stopwatch()..start();
@@ -101,7 +105,7 @@ Future<Object?> _handleOsCall(Map<String, dynamic> state) async {
   // Log the os_call for the UI.
   final logEntry = {
     'op': op,
-    'args': rawArgs.map((a) => a.toString()).toList(),
+    'args': args.map((a) => a.toString()).toList(),
     'result': _summarize(result),
     'durationMs': sw.elapsedMilliseconds,
   };
