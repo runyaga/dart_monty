@@ -1,3 +1,25 @@
+## 0.18.0
+
+Requires `dart_monty_core` 0.18.0 — see its changelog for `MontyCallback`,
+`.args`, and `inputs:` details.
+
+### Breaking
+
+- **`MontyRuntime(useFutures: true)` removed.** Set `dispatch: DispatchMode.future`
+  on each `HostFunction` that Python should be able to `await` instead.
+- **`MontyCallback`/`.args` rename** — inherited from `dart_monty_core` 0.18.0;
+  update all handler signatures and `MontyPending`/`MontyOsCall` field accesses.
+
+### Added
+
+- **`DispatchMode.future`** on `HostFunction` — makes a handler `await`-able from
+  Python; `asyncio.gather` over multiple such functions runs them concurrently.
+- **`execute(inputs:)`** — inject Dart values as Python variables for one call.
+- **`buildRunScriptFunction`** — `HostFunction` factory that runs a named Python
+  script.
+- **`HostContext.parent` / `subExecute`** — safe sub-execution from inside a
+  handler; direct `runtime.execute()` re-entrancy is guarded.
+
 ## 0.17.0
 
 - Low-level bindings have been factored into a separate package,
