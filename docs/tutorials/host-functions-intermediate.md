@@ -144,7 +144,27 @@ session.execute(script);
 ext.dispatch({'action': 'quit'});
 ```
 
+## What's on `ctx`
+
+Every handler signature is `(args, ctx) async`. `ctx` is a `HostContext`
+exposing the platform plumbing your handler may need:
+
+| Field | Purpose |
+|-------|---------|
+| `emit(BridgeEvent)` / `emitText(String)` | Push events into the execution stream — progress, intermediate results, custom events |
+| `executionId` | Unique ID for this tool call; correlate with `BridgeFunctionEmit` and other per-call events |
+| `cancelToken` | Cooperative cancellation signal — race long-running work against `cancelToken.future` to bail when `ExecutionHandle.cancel()` fires |
+| `os` | Currently-registered `OsCallHandler`, for handlers that want to invoke OS primitives directly without routing through Python |
+| `parent` | Narrow `HostParentRef?` view of the owning runtime — `emitChildEvent` for child-spawning extensions, `schemas` for tool introspection. Deliberately **does not** expose `execute()` (that would deadlock the bridge). |
+| `subExecute` | Closure that runs a sub-script in a fresh Monty interpreter. Use when you need to drive another Python execution from inside your handler — see [Inputs, run_script, and Sub-Execution](inputs-and-sub-scripts.md). |
+
+The `parent` / `subExecute` split is intentional: nested
+`execute()` on the same bridge would always deadlock (`_isExecuting`
+stays true through dispatch), so the API offers `subExecute` for the
+safe path and a narrower `HostParentRef` for everything else.
+
 ## Next Steps
 
 The [Advanced guide](host-functions-advanced.md) covers deep-dives into
-`SandboxExtension` and complex production patterns.
+`SandboxExtension` and complex production patterns. For sub-scripting,
+see [Inputs, `run_script`, and Sub-Execution](inputs-and-sub-scripts.md).

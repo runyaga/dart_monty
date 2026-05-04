@@ -75,6 +75,25 @@ final errors = await Monty.typeCheck(
 );
 ```
 
+## Per-call inputs
+
+`MontyRuntime.execute(code, inputs: {…})` injects Python variables
+before user code runs:
+
+```dart
+await runtime
+    .execute('f"{greeting}, {name}!"', inputs: {
+      'greeting': 'hello',
+      'name': 'Alice',
+    })
+    .result;
+```
+
+Convertible types: `bool`, `int`, `double`, `String`, `List`, `Map`,
+and `MontyNone()`. Dart `null` throws `MontyInternalError` (use
+`MontyNone()` for Python `None`); unsupported types throw
+`ArgumentError`. Both are synchronous — the script never starts.
+
 ## Host Functions
 
 Expose Dart code to Python:
@@ -89,6 +108,32 @@ HostFunction(
   handler: (args, ctx) async => http.read(Uri.parse(args.str('url'))),
 )
 ```
+
+`ctx` (`HostContext`) exposes:
+
+| Field | Purpose |
+|-------|---------|
+| `emit` / `emitText` | Push `BridgeEvent`s mid-call (progress, custom events) |
+| `executionId` | Per-call ID for event correlation |
+| `cancelToken` | Cooperative cancellation for long-running work |
+| `os` | Active `OsCallHandler`, for direct OS-primitive calls |
+| `parent: HostParentRef?` | Narrow view of the owning runtime — `emitChildEvent`, `schemas`. **No `execute()`** (would deadlock). |
+| `subExecute` | Run a sub-script in a fresh interpreter. See `buildRunScriptFunction` and the [tutorial](../tutorials/inputs-and-sub-scripts.md). |
+
+### `buildRunScriptFunction`
+
+Convenience builder for a `run_script` host function — Python calls
+`run_script('foo.py', inputs={…})` and gets back the sub-script's
+last-expression value:
+
+```dart
+runtime.register(buildRunScriptFunction((path) async {
+  return await File(path).readAsString();
+}));
+```
+
+See the [Inputs, `run_script`, and Sub-Execution tutorial](../tutorials/inputs-and-sub-scripts.md)
+for the full story.
 
 ## Extensions
 
