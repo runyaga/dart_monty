@@ -160,9 +160,8 @@ before upgrading.
 
 We expect to stabilise the API and adopt semver when the package goes into
 production — roughly 1–3 months from now. If you are planning to depend on
-this package, please let us know (open an issue or email
-[alan@enfoldsystems.com](mailto:alan@enfoldsystems.com)) so we can factor
-your use-case into the stabilisation work.
+this package, please open an issue so we can factor your use-case into the
+stabilisation work.
 
 ## License
 
