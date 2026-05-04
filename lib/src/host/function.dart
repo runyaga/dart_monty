@@ -8,9 +8,9 @@ import 'package:meta/meta.dart';
 /// How the bridge dispatches calls to a [HostFunction].
 enum DispatchMode {
   /// Bridge awaits the handler's Future before resuming Python. Python
-  /// sees a plain value at the call site. Required for synchronous-
-  /// blocking semantics (e.g. `el_recv` blocks until Dart dispatches)
-  /// and for FIFO ordering invariants (e.g. MessageBus).
+  /// sees a plain value at the call site. Use for functions with
+  /// FIFO ordering invariants (e.g. MessageBus) or simple request-
+  /// response handlers that don't benefit from concurrency.
   sync,
 
   /// Bridge launches the handler unawaited, replies with

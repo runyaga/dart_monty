@@ -34,6 +34,7 @@ void main() {
           handler: (_, _) async {
             throw StateError('async kaboom');
           },
+          dispatch: DispatchMode.future,
         ),
       );
 
