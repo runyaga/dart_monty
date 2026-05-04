@@ -98,6 +98,34 @@ jobs:
           path: coverage/lcov.info
           retention-days: 1
 
+  # ---------------------------------------------------------------------------
+  # Example smoke tests — every example/*.dart must compile and exit 0.
+  # Installs Rust so dart_monty_core's native-asset hook can compile the dylib.
+  # ---------------------------------------------------------------------------
+  test-examples:
+    name: Example smoke tests
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: pub-${{ runner.os }}-${{ hashFiles('pubspec.yaml') }}
+          restore-keys: pub-${{ runner.os }}-
+      - run: dart pub get
+      - name: Run example smoke tests
+        run: |
+          dart test test/integration/example_smoke_test.dart \
+            -p vm --run-skipped --tags=example --reporter=expanded
+
   patch-coverage:
     name: Patch coverage gate (70%)
     if: github.event_name == 'pull_request'

@@ -90,21 +90,40 @@ Future<void> main() async {
 }
 ```
 
-**3. Runtime with extensions**
+**3. Runtime with host functions and extensions**
 
-For more advanced use cases, create a `MontyRuntime` to manage extensions and sessions:
+`MontyRuntime` manages host functions, extensions, and long-lived sessions.
+Register `HostFunction`s to expose Dart callbacks to Python:
 
 ```dart
 Future<void> main() async {
-  final runtime = MontyRuntime(
-    extensions: [JinjaTemplateExtension(), MessageBusExtension()],
-  );
+  final runtime = MontyRuntime()
+    ..register(HostFunction(
+      schema: const HostFunctionSchema(
+        name: 'fetch',
+        params: [HostParam(name: 'url', type: HostParamType.string)],
+      ),
+      // DispatchMode.future lets Python `await fetch(url)` directly.
+      // asyncio.gather over multiple calls runs them concurrently.
+      dispatch: DispatchMode.future,
+      handler: (args, _) async => httpClient.get(args['url']! as String),
+    ));
+
   final result = await runtime.execute(
-    "tmpl_render(template='Hello {{ name }}!', context={'name': 'World'})",
+    'await fetch(base_url)',
+    inputs: {'base_url': 'https://example.com/api'},
   ).result;
-  print(result.value); // 'Hello World!'
+  print(result.value);
   await runtime.dispose();
 }
+```
+
+For plugin-style wiring, pass `extensions`:
+
+```dart
+final runtime = MontyRuntime(
+  extensions: [JinjaTemplateExtension(), MessageBusExtension()],
+);
 ```
 
 ## Examples
@@ -131,6 +150,18 @@ server), see `example/native/run.sh` and `example/web/run.sh`.
 - [**Extensions**](docs/user/extensions.md) — Template, MessageBus, Sandbox
 - [**Contributing**](CONTRIBUTING.md) — Build, run tests, gate scripts, release process
 - [**Contributor Setup**](docs/contributor/setup.md) — Toolchain install (Rust, Dart, Python)
+
+## Stability and versioning
+
+This package does **not** follow semantic versioning. Breaking changes can
+land in any release. The [CHANGELOG](CHANGELOG.md) is kept up-to-date with
+every breaking change, so pin to a specific version and read the changelog
+before upgrading.
+
+We expect to stabilise the API and adopt semver when the package goes into
+production — roughly 1–3 months from now. If you are planning to depend on
+this package, please open an issue so we can factor your use-case into the
+stabilisation work.
 
 ## License
 
