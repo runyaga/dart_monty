@@ -580,16 +580,18 @@ result
       expect(session.coordinator, isNull);
     });
 
-    test('shared mode: registered extensions are visible on coordinator',
-        () async {
-      final ext = JinjaTemplateExtension();
-      final session = MontyRuntime(extensions: [ext]);
-      addTearDown(session.dispose);
-      expect(
-        session.coordinator!.extensions.map((e) => e.namespace),
-        contains('tmpl'),
-      );
-    });
+    test(
+      'shared mode: registered extensions are visible on coordinator',
+      () async {
+        final ext = JinjaTemplateExtension();
+        final session = MontyRuntime(extensions: [ext]);
+        addTearDown(session.dispose);
+        expect(
+          session.coordinator!.extensions.map((e) => e.namespace),
+          contains('tmpl'),
+        );
+      },
+    );
 
     test('clearState() produces a new non-null coordinator', () async {
       final session = MontyRuntime();
@@ -599,6 +601,139 @@ result
       final after = session.coordinator;
       expect(after, isNotNull);
       expect(after, isNot(same(before)));
+    });
+  });
+
+  group('MontyRuntime.execute inputs injection', () {
+    late MontyRuntime session;
+
+    setUp(() {
+      session = MontyRuntime();
+    });
+
+    tearDown(() async {
+      await session.dispose();
+    });
+
+    test('string input is visible as a Python variable', () async {
+      final result = await session
+          .execute('greeting', inputs: {'greeting': 'hello'})
+          .result;
+
+      expect(result.value.dartValue, 'hello');
+    });
+
+    test('int input is visible as a Python variable', () async {
+      final result = await session.execute('x * 2', inputs: {'x': 21}).result;
+
+      expect(result.value.dartValue, 42);
+    });
+
+    test('multiple inputs are all visible', () async {
+      final result = await session
+          .execute(
+            'f"{say}, {target}!"',
+            inputs: {'say': 'hi', 'target': 'alan'},
+          )
+          .result;
+
+      expect(result.value.dartValue, 'hi, alan!');
+    });
+
+    test('null inputs param is a no-op', () async {
+      final result = await session.execute('1 + 1').result;
+
+      expect(result.value.dartValue, 2);
+    });
+
+    test('shared mode: injected inputs persist as Python globals', () async {
+      // In shared mode, inputsToCode() prepends `temp = 99` as an assignment,
+      // so `temp` lives in the module globals and remains visible on the next
+      // execute() call — which is expected shared-interpreter behaviour.
+      await session.execute('pass', inputs: {'temp': 99}).result;
+      final result = await session.execute('temp').result;
+
+      expect(result.error, isNull);
+      expect(result.value.dartValue, 99);
+    });
+
+    test('sandbox mode: inputs injected per call', () async {
+      final sandbox = MontyRuntime(sandbox: true);
+      addTearDown(sandbox.dispose);
+
+      final r1 = await sandbox
+          .execute('name', inputs: {'name': 'alice'})
+          .result;
+      final r2 = await sandbox.execute('name', inputs: {'name': 'bob'}).result;
+
+      expect(r1.value.dartValue, 'alice');
+      expect(r2.value.dartValue, 'bob');
+    });
+
+    // inputs is a named (kwargs-only) Dart parameter — no positional form
+    // exists in the API. The tests below confirm the named-only contract
+    // is enforced end-to-end.
+    test('inputs named param: omitting inputs is valid', () async {
+      final result = await session.execute('7 * 6').result;
+
+      expect(result.error, isNull);
+      expect(result.value.dartValue, 42);
+    });
+
+    test('inputs named param: null inputs is a no-op', () async {
+      // Explicitly passing `inputs: null` is the contract under test here;
+      // the redundant-default lint would defeat the test's purpose.
+      // ignore: avoid_redundant_argument_values
+      final result = await session.execute('1 + 1', inputs: null).result;
+
+      expect(result.error, isNull);
+      expect(result.value.dartValue, 2);
+    });
+  });
+
+  group('MontyRuntime.execute return-value semantics', () {
+    late MontyRuntime session;
+
+    setUp(() {
+      session = MontyRuntime();
+    });
+
+    tearDown(() async {
+      await session.dispose();
+    });
+
+    test('last expression is captured as result value', () async {
+      final result = await session.execute('x + 1', inputs: {'x': 41}).result;
+
+      expect(result.error, isNull);
+      expect(result.value.dartValue, 42);
+    });
+
+    test(
+      'assignment statement yields MontyNone — not the assigned value',
+      () async {
+        final result = await session.execute('x = 42').result;
+
+        expect(result.error, isNull);
+        // Assignment is a statement; no last-expression value.
+        expect(result.value.dartValue, isNull);
+      },
+    );
+
+    test('expression after assignment is the result', () async {
+      final result = await session.execute('x = 7\nx * 6').result;
+
+      expect(result.error, isNull);
+      expect(result.value.dartValue, 42);
+    });
+
+    test('module-level return yields the return value', () async {
+      // pydantic-monty treats module-level `return` as a valid return
+      // statement — it returns the value rather than raising SyntaxError.
+      final result = await session.execute('return 42').result;
+
+      expect(result.error, isNull);
+      expect(result.value.dartValue, 42);
     });
   });
 

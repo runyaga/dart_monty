@@ -1,8 +1,7 @@
 import 'package:dart_monty/src/bridge/logger.dart';
 import 'package:dart_monty/src/extension/attach_context.dart';
 import 'package:dart_monty/src/extension/coordinator.dart';
-import 'package:dart_monty/src/extensions/sandbox.dart'
-    show SandboxExtension;
+import 'package:dart_monty/src/extensions/sandbox.dart' show SandboxExtension;
 import 'package:dart_monty/src/host/function.dart';
 import 'package:dart_monty/src/os_call/os_handlers.dart';
 import 'package:dart_monty/src/runtime/backend_kind.dart';

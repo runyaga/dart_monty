@@ -208,14 +208,21 @@ class MontyRuntime implements MontyRuntimeRef {
   /// execution without mutating session state. Children spawned during the
   /// call inherit the override via `HostContext.os` and `spawnChild`.
   @override
-  ExecutionHandle execute(String code, {OsCallHandler? os}) {
+  ExecutionHandle execute(
+    String code, {
+    OsCallHandler? os,
+    Map<String, Object?>? inputs,
+  }) {
     if (_disposed) throw StateError('MontyRuntime has been disposed');
+    final effective = inputs != null && inputs.isNotEmpty
+        ? '${inputsToCode(inputs)}\n$code'
+        : code;
 
     if (_sandbox) {
-      return _executeSandboxed(code, osOverride: os);
+      return _executeSandboxed(effective, osOverride: os);
     }
 
-    return _executeShared(code, osOverride: os);
+    return _executeShared(effective, osOverride: os);
   }
 
   /// Invokes a registered host function directly from Dart — useful for
@@ -457,14 +464,15 @@ class MontyRuntime implements MontyRuntimeRef {
 
   HostFunction _applyDescription(HostFunction fn) {
     if (_descriptionProvider == null) return fn;
-    final desc = _descriptionProvider(fn.schema.name);
+    final schema = fn.schema;
+    final desc = _descriptionProvider(schema.name);
     if (desc == null) return fn;
 
     return HostFunction(
       schema: HostFunctionSchema(
-        name: fn.schema.name,
+        name: schema.name,
         description: desc,
-        params: fn.schema.params,
+        params: schema.params,
       ),
       ffiHandler: fn.ffiHandler,
       wasmHandler: fn.wasmHandler,

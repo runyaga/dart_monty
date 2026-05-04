@@ -18,7 +18,22 @@ abstract interface class MontyRuntimeRef {
   ///
   /// Passing [os] overrides the runtime's session OS handler for this one
   /// call. Children spawned during the execution inherit the override.
-  ExecutionHandle execute(String code, {OsCallHandler? os});
+  ///
+  /// [inputs] injects per-invocation Python variables before [code] runs.
+  /// Each key becomes a top-level Python variable — mirrors `MontyRepl.feedRun`
+  /// so the API is consistent across the stack.
+  ///
+  /// ```dart
+  /// runtime.execute(code, inputs: {'greeting': 'hello', 'name': 'Alice'});
+  /// ```
+  /// ```python
+  /// print(f"{greeting}, {name}!")
+  /// ```
+  ExecutionHandle execute(
+    String code, {
+    OsCallHandler? os,
+    Map<String, Object?>? inputs,
+  });
 
   /// Emits [event] on this runtime's broadcast `events` stream wrapped as a
   /// [BridgeChildEvent] tagged with [childHandle].
