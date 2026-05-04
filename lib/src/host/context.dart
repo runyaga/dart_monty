@@ -5,6 +5,14 @@ import 'package:dart_monty/src/runtime/runtime_ref.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:meta/meta.dart';
 
+/// Signature of [HostContext.subExecute] — runs Python [code] in a fresh
+/// Monty interpreter and returns its [MontyResult].
+///
+/// Optional [inputs] are injected as top-level Python variables before
+/// [code] runs (same semantics as `MontyRuntime.execute(inputs:)`).
+typedef HostSubExecutor =
+    Future<MontyResult> Function(String code, {Map<String, Object?>? inputs});
+
 /// Context passed to every [HostFunctionHandler] invocation.
 ///
 /// Gives handlers:
@@ -14,7 +22,13 @@ import 'package:meta/meta.dart';
 /// - [cancelToken] — cooperative cancellation signal for long-running work
 /// - [os] — the currently-registered OS handler, for handlers that want to
 ///   call OS primitives directly without routing through Python
-/// - [runtime] — the owning runtime, for sub-executions (nullable in tests)
+/// - [parent] — narrow view of the owning runtime ([HostParentRef]) for
+///   event forwarding and schema introspection. Deliberately does NOT
+///   expose `execute()` — calling that from a host function would deadlock
+///   the bridge.
+/// - [subExecute] — runs a sub-script in a fresh Monty interpreter, safely.
+///   The parent runtime is busy holding the bridge lock; this path uses
+///   `Monty(code).run()` and therefore does not contend with it.
 @immutable
 class HostContext {
   /// Creates a [HostContext].
@@ -23,7 +37,8 @@ class HostContext {
     required this.executionId,
     CancelToken? cancelToken,
     this.os,
-    this.runtime,
+    this.parent,
+    this.subExecute,
   }) : cancelToken = cancelToken ?? CancelToken();
 
   /// Emits an arbitrary [BridgeEvent] during a handler invocation.
@@ -55,11 +70,32 @@ class HostContext {
   /// pure-Dart host functions).
   final OsCallHandler? os;
 
-  /// The owning runtime that dispatched this tool call.
+  /// Narrow view of the owning runtime — event forwarding and schema
+  /// introspection only.
   ///
-  /// `null` in test contexts where no full runtime is wired up. Handlers that
-  /// need to drive sub-executions should null-check before calling.
-  final MontyRuntimeRef? runtime;
+  /// `null` in test contexts where no full runtime is wired up. Deliberately
+  /// typed as [HostParentRef] (not `MontyRuntimeRef`) so handlers cannot
+  /// accidentally call `execute()` and deadlock the bridge — use
+  /// [subExecute] for sub-runs.
+  final HostParentRef? parent;
+
+  /// Runs a sub-script in a fresh Monty interpreter and returns its result.
+  ///
+  /// Safe to call from inside a host function handler — uses an independent
+  /// execution context so it does not contend with the caller's bridge lock.
+  /// Each call gets a brand-new interpreter; variables from the caller's
+  /// session are not visible, and sub-script state does not leak back.
+  ///
+  /// `null` in test contexts where no dispatch layer wires it.
+  ///
+  /// ```dart
+  /// final result = await ctx.subExecute!(
+  ///   'n * 2',
+  ///   inputs: {'n': 21},
+  /// );
+  /// // result.value.dartValue == 42
+  /// ```
+  final HostSubExecutor? subExecute;
 
   /// Emits a [BridgeFunctionEmit] text event — convenience over calling [emit]
   /// directly for the common streaming-progress use case.
