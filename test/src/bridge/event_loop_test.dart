@@ -46,7 +46,7 @@ void main() {
           ..enqueueProgress(
             const MontyPending(
               functionName: 'el_recv',
-              arguments: [],
+              args: [],
               callId: 1,
             ),
           )
@@ -95,7 +95,7 @@ void main() {
           ..enqueueProgress(
             const MontyPending(
               functionName: 'el_emit',
-              arguments: [
+              args: [
                 MontyDict({'type': MontyString('form')}),
               ],
               callId: 1,
@@ -108,7 +108,7 @@ void main() {
           ..enqueueProgress(
             const MontyPending(
               functionName: 'el_recv',
-              arguments: [],
+              args: [],
               callId: 2,
             ),
           )
@@ -142,7 +142,7 @@ void main() {
         ..enqueueProgress(
           const MontyPending(
             functionName: 'el_recv',
-            arguments: [],
+            args: [],
             callId: 1,
           ),
         )
@@ -153,7 +153,7 @@ void main() {
         ..enqueueProgress(
           const MontyPending(
             functionName: 'el_recv',
-            arguments: [],
+            args: [],
             callId: 2,
           ),
         )
@@ -164,7 +164,7 @@ void main() {
         ..enqueueProgress(
           const MontyPending(
             functionName: 'el_recv',
-            arguments: [],
+            args: [],
             callId: 3,
           ),
         )
@@ -199,7 +199,7 @@ void main() {
         ..enqueueProgress(
           const MontyPending(
             functionName: 'el_recv',
-            arguments: [],
+            args: [],
             callId: 1,
           ),
         )
@@ -210,7 +210,7 @@ void main() {
         ..enqueueProgress(
           const MontyPending(
             functionName: 'el_recv',
-            arguments: [],
+            args: [],
             callId: 2,
           ),
         )
@@ -257,7 +257,7 @@ void main() {
         ..enqueueProgress(
           const MontyPending(
             functionName: 'el_emit',
-            arguments: [
+            args: [
               MontyDict({
                 'type': MontyString('counter'),
                 'value': MontyInt(0),
@@ -285,7 +285,7 @@ void main() {
         ..enqueueProgress(
           const MontyPending(
             functionName: 'el_emit',
-            arguments: [
+            args: [
               MontyDict({'version': MontyInt(1)}),
             ],
             callId: 1,
@@ -297,7 +297,7 @@ void main() {
         ..enqueueProgress(
           const MontyPending(
             functionName: 'el_emit',
-            arguments: [
+            args: [
               MontyDict({'version': MontyInt(2)}),
             ],
             callId: 2,
@@ -335,7 +335,7 @@ void main() {
           ..enqueueProgress(
             const MontyPending(
               functionName: 'el_recv',
-              arguments: [],
+              args: [],
               callId: 1,
             ),
           )
@@ -382,7 +382,7 @@ void main() {
         ..enqueueProgress(
           const MontyPending(
             functionName: 'el_recv',
-            arguments: [],
+            args: [],
             callId: 1,
           ),
         )
@@ -448,7 +448,7 @@ void main() {
           ..enqueueProgress(
             const MontyPending(
               functionName: 'el_recv',
-              arguments: [],
+              args: [],
               callId: 1,
             ),
           )
@@ -491,7 +491,7 @@ void main() {
           ..enqueueProgress(
             const MontyPending(
               functionName: 'el_recv',
-              arguments: [],
+              args: [],
               callId: 1,
             ),
           )
@@ -537,7 +537,7 @@ void main() {
         ..enqueueProgress(
           const MontyPending(
             functionName: 'el_emit',
-            arguments: [
+            args: [
               MontyDict({'type': MontyString('label')}),
             ],
             callId: 1,
@@ -601,7 +601,7 @@ void main() {
           ..enqueueProgress(
             const MontyPending(
               functionName: 'el_recv',
-              arguments: [],
+              args: [],
               callId: 1,
             ),
           )
@@ -649,7 +649,7 @@ void main() {
           ..enqueueProgress(
             const MontyPending(
               functionName: 'el_recv',
-              arguments: [],
+              args: [],
               callId: 1,
             ),
           )
@@ -709,7 +709,7 @@ void main() {
         ..enqueueProgress(
           const MontyPending(
             functionName: 'el_recv',
-            arguments: [],
+            args: [],
             callId: 1,
           ),
         )
@@ -777,7 +777,7 @@ void main() {
           ..enqueueProgress(
             const MontyPending(
               functionName: 'el_recv',
-              arguments: [],
+              args: [],
               callId: 1,
             ),
           )
@@ -814,7 +814,7 @@ void main() {
         ..enqueueProgress(
           const MontyPending(
             functionName: 'el_emit',
-            arguments: [
+            args: [
               MontyDict({'type': MontyString('event')}),
             ],
             callId: 1,

@@ -70,7 +70,7 @@ class HostFunctionSchema {
   /// Throws [ArgumentError] if required params are missing or types mismatch.
   Map<String, Object?> mapAndValidate(MontyPending pending) {
     final raw = <String, Object?>{};
-    final positionalArgs = pending.arguments;
+    final positionalArgs = pending.args;
 
     // Reject extra positional args.
     if (positionalArgs.length > params.length) {

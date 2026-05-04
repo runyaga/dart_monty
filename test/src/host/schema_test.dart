@@ -223,7 +223,7 @@ void main() {
     test('maps positional args by schema order', () {
       const pending = MontyPending(
         functionName: 'greet',
-        arguments: [MontyString('Alice'), MontyInt(3)],
+        args: [MontyString('Alice'), MontyInt(3)],
       );
 
       final result = schema.mapAndValidate(pending);
@@ -233,7 +233,7 @@ void main() {
     test('applies default for missing optional positional arg', () {
       const pending = MontyPending(
         functionName: 'greet',
-        arguments: [MontyString('Bob')],
+        args: [MontyString('Bob')],
       );
 
       final result = schema.mapAndValidate(pending);
@@ -243,7 +243,7 @@ void main() {
     test('throws FormatException for extra positional args', () {
       const pending = MontyPending(
         functionName: 'greet',
-        arguments: [MontyString('A'), MontyInt(1), MontyString('extra')],
+        args: [MontyString('A'), MontyInt(1), MontyString('extra')],
       );
 
       expect(() => schema.mapAndValidate(pending), throwsFormatException);
@@ -252,7 +252,7 @@ void main() {
     test('kwargs overlay positional args', () {
       const pending = MontyPending(
         functionName: 'greet',
-        arguments: [MontyString('Alice')],
+        args: [MontyString('Alice')],
         kwargs: {'count': MontyInt(5)},
       );
 
@@ -263,7 +263,7 @@ void main() {
     test('throws FormatException for unknown kwargs', () {
       const pending = MontyPending(
         functionName: 'greet',
-        arguments: [MontyString('Alice')],
+        args: [MontyString('Alice')],
         kwargs: {'unknown_key': MontyInt(1)},
       );
 
@@ -271,7 +271,7 @@ void main() {
     });
 
     test('throws FormatException when required param is missing', () {
-      const pending = MontyPending(functionName: 'greet', arguments: []);
+      const pending = MontyPending(functionName: 'greet', args: []);
 
       expect(() => schema.mapAndValidate(pending), throwsFormatException);
     });
@@ -279,7 +279,7 @@ void main() {
     test('validates type of positional args', () {
       const pending = MontyPending(
         functionName: 'greet',
-        arguments: [MontyInt(42)],
+        args: [MontyInt(42)],
       );
 
       expect(() => schema.mapAndValidate(pending), throwsFormatException);
@@ -288,7 +288,7 @@ void main() {
     test('works with no params schema', () {
       const emptySchema = HostFunctionSchema(name: 'ping', description: 'Ping');
 
-      const pending = MontyPending(functionName: 'ping', arguments: []);
+      const pending = MontyPending(functionName: 'ping', args: []);
 
       final result = emptySchema.mapAndValidate(pending);
       expect(result, isEmpty);

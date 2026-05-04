@@ -20,44 +20,44 @@ import 'package:dart_monty/dart_monty_bridge.dart';
 
 /// A sync host fn — returns its result without ever yielding the event loop.
 HostFunction syncFetch(void Function() onCall) => HostFunction(
-      schema: const HostFunctionSchema(
-        name: 'fetch',
-        description: 'Sync fetch — adds 1 to its argument.',
-        params: [HostParam(name: 'value', type: HostParamType.integer)],
-      ),
-      handler: (args, _) async {
-        onCall();
-        return (args['value']! as int) + 1;
-      },
-    );
+  schema: const HostFunctionSchema(
+    name: 'fetch',
+    description: 'Sync fetch — adds 1 to its argument.',
+    params: [HostParam(name: 'value', type: HostParamType.integer)],
+  ),
+  handler: (args, _) async {
+    onCall();
+    return (args['value']! as int) + 1;
+  },
+);
 
 /// An async host fn — actually awaits a Future before returning.
 HostFunction asyncFetch(void Function() onCall) => HostFunction(
-      schema: const HostFunctionSchema(
-        name: 'fetch',
-        description: 'Async fetch — awaits Future.delayed, then adds 1.',
-        params: [HostParam(name: 'value', type: HostParamType.integer)],
-      ),
-      handler: (args, _) async {
-        await Future<void>.delayed(Duration.zero);
-        onCall();
-        return (args['value']! as int) + 1;
-      },
-    );
+  schema: const HostFunctionSchema(
+    name: 'fetch',
+    description: 'Async fetch — awaits Future.delayed, then adds 1.',
+    params: [HostParam(name: 'value', type: HostParamType.integer)],
+  ),
+  handler: (args, _) async {
+    await Future<void>.delayed(Duration.zero);
+    onCall();
+    return (args['value']! as int) + 1;
+  },
+);
 
 /// A slow async host fn — sleeps `delay` before returning, so we can see
 /// `asyncio.gather` flatten wall-clock time when `useFutures: true`.
 HostFunction slowFetch(Duration delay) => HostFunction(
-      schema: const HostFunctionSchema(
-        name: 'slow',
-        description: 'Sleeps then returns its argument times 10.',
-        params: [HostParam(name: 'n', type: HostParamType.integer)],
-      ),
-      handler: (args, _) async {
-        await Future<void>.delayed(delay);
-        return (args['n']! as int) * 10;
-      },
-    );
+  schema: const HostFunctionSchema(
+    name: 'slow',
+    description: 'Sleeps then returns its argument times 10.',
+    params: [HostParam(name: 'n', type: HostParamType.integer)],
+  ),
+  handler: (args, _) async {
+    await Future<void>.delayed(delay);
+    return (args['n']! as int) * 10;
+  },
+);
 
 Future<void> main() async {
   print('=== dart_monty async/sync matrix — Web (WASM) demo ===');
