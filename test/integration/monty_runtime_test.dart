@@ -2,6 +2,7 @@
 library;
 
 import 'package:dart_monty/dart_monty_bridge.dart';
+import 'package:dart_monty_core/dart_monty_core.dart' show MontyInternalError;
 import 'package:test/test.dart';
 
 /// Integration tests for MontyRuntime — requires the native Monty
@@ -678,6 +679,25 @@ result
 
       expect(result.error, isNull);
       expect(result.value.dartValue, 42);
+    });
+
+    test('Dart null value in inputs throws MontyInternalError', () {
+      // Dart null is not a valid Python literal — use MontyNone() for
+      // Python None. The encoder throws MontyInternalError (extends Error,
+      // not Exception, so it can't be swallowed by `on Exception`).
+      expect(
+        () => session.execute('x', inputs: {'x': null}),
+        throwsA(isA<MontyInternalError>()),
+      );
+    });
+
+    test('unsupported value type in inputs throws ArgumentError', () {
+      // toPythonLiteral rejects arbitrary Dart objects (DateTime, custom
+      // classes, etc.) — only the documented set is convertible.
+      expect(
+        () => session.execute('x', inputs: {'x': Object()}),
+        throwsA(isA<ArgumentError>()),
+      );
     });
 
     test('inputs named param: null inputs is a no-op', () async {
