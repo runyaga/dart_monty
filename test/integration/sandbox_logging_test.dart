@@ -47,7 +47,6 @@ void main() {
 
   MontyBridge createBridge() => MontyBridge(
     platform: createPlatform(),
-    useFutures: false,
     logger: StructLogBridgeLogger.root(LogManager.instance),
   );
 

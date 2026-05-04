@@ -28,8 +28,7 @@ void main() {
 
   MontyPlatform createPlatform() => MontyFfi(bindings: bindings);
 
-  MontyBridge createBridge() =>
-      MontyBridge(platform: createPlatform(), useFutures: false);
+  MontyBridge createBridge() => MontyBridge(platform: createPlatform());
 
   /// Spawns a child via plugin handler and awaits it, expecting a
   /// [ChildSandboxException]. Returns the caught exception.

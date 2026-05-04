@@ -43,8 +43,7 @@ void main() {
 
   String spawn(String childCode) => 'sandbox_spawn(code="$childCode")';
 
-  MontyBridge createBridge() =>
-      MontyBridge(platform: createPlatform(), useFutures: false);
+  MontyBridge createBridge() => MontyBridge(platform: createPlatform());
 
   Future<MontyBridge> createBridgeWithMessageBus() async {
     final bridge = createBridge();
@@ -66,7 +65,7 @@ void main() {
     final bridge = await createBridgeWithMessageBus();
 
     // Child blocks on msg_recv until the parent sends, then returns the value.
-    // useFutures: false on child bridges (#212) — direct call, no await.
+    // Child bridge dispatch is sync by default — direct call, no await.
     const childCode = r'msg_recv(name=\"inbox\")';
 
     final result = await run(
@@ -91,7 +90,7 @@ void main() {
     // and replies with a rich result — demonstrating first-class Dart
     // objects (maps, lists, ints, strings, bools) flowing both directions,
     // unlike print() which only returns flat strings.
-    // useFutures: false on child bridges (#212) — direct calls, no await.
+    // Child bridge dispatch is sync by default — direct calls, no await.
     final childCode = [
       r'task = msg_recv(name=\"work\")',
       r'items = task[\"items\"]',
@@ -126,7 +125,7 @@ void main() {
 
     // Each worker receives a value on its input channel, doubles it, and
     // sends the result on its output channel.
-    // useFutures: false on child bridges (#212) — direct calls, no await.
+    // Child bridge dispatch is sync by default — direct calls, no await.
     String workerCode(String inCh, String outCh) {
       final recvLine = 'task = msg_recv(name=\\"$inCh\\")';
       const doubleLine = r'doubled = task[\"value\"] * 2';

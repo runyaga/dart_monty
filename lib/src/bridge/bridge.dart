@@ -24,7 +24,6 @@ abstract class MontyBridge implements AttachContext {
   factory MontyBridge({
     required MontyPlatform platform,
     MontyLimits? limits,
-    bool useFutures,
     BridgeLogger? logger,
     MontyInterceptor? interceptor,
   }) = PlatformBridge;

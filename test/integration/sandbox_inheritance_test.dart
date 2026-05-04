@@ -44,11 +44,7 @@ void main() {
   /// Python expression: `sandbox_spawn(code="[childCode]")`.
   String spawn(String childCode) => 'sandbox_spawn(code="$childCode")';
 
-  // Parent bridge uses useFutures: false for simpler test code.
-  // Child bridges (created by SandboxExtension) also use useFutures: false
-  // (see #212 — prevents unawaited Future leaking as Python coroutine).
-  MontyBridge createBridge() =>
-      MontyBridge(platform: createPlatform(), useFutures: false);
+  MontyBridge createBridge() => MontyBridge(platform: createPlatform());
 
   // ---------------------------------------------------------------------------
   // Baseline: child sandboxs work without plugins
@@ -63,8 +59,7 @@ void main() {
         );
       await registry.attachTo(bridge);
 
-      // Host functions are called synchronously from Python — the parent
-      // bridge has useFutures: false.
+      // Host functions are called synchronously (DispatchMode.sync default).
       final result = await run(
         bridge,
         'h = ${spawn("2 + 3")}\n'
@@ -130,7 +125,7 @@ void main() {
         );
       await registry.attachTo(bridge);
 
-      // Child bridge uses useFutures: false (#212) — direct calls.
+      // Child bridge dispatch is sync by default — direct calls.
       const cc = r'greeter_hello(name=\"child\")';
       final result = await run(
         bridge,
@@ -180,7 +175,7 @@ void main() {
       await registry.attachTo(bridge);
 
       // Each child increments its own counter independently.
-      // useFutures: false — direct calls, no async/await needed.
+      // Dispatch is sync (DispatchMode.sync default) — direct calls, no async/await needed.
       final cc = ['counter_increment()', 'counter_get()'].join(r'\n');
       final result = await run(
         bridge,

@@ -3,14 +3,11 @@
 //
 // Layer 4 takes a different code path than Layer 2/3 (which go through
 // dart_monty_core's `MontyRepl.feedRun` → `_driveLoop`). MontyRuntime
-// builds a `PlatformBridge` and uses `dispatchToolCallAsFuture` directly
-// when `useFutures: true` is set on the runtime constructor and the
-// platform implements `MontyFutureCapable`. This test pins the cell-by-cell
-// contract from that surface.
+// builds a `PlatformBridge` that is always futures-capable; per-fn
+// `DispatchMode` selects sync vs future dispatch for each call.
 //
-// Both `ffi_runtime_async_matrix_test.dart` calls
-// [runRuntimeAsyncMatrixTests] (FFI only — dart_monty has no WASM-tagged
-// integration suite).
+// `ffi_runtime_async_matrix_test.dart` calls [runRuntimeAsyncMatrixTests]
+// (FFI only — dart_monty has no WASM-tagged integration suite).
 
 import 'dart:async';
 
@@ -44,6 +41,21 @@ void runRuntimeAsyncMatrixTests() {
 
         return (args['value']! as int) + 1;
       },
+    );
+
+    HostFunction fetchAsyncFuture(int Function() onCall) => HostFunction(
+      schema: const HostFunctionSchema(
+        name: 'fetch',
+        description: 'async fetch (future-mode)',
+        params: [HostParam(name: 'value', type: HostParamType.integer)],
+      ),
+      handler: (args, _) async {
+        await Future<void>.delayed(Duration.zero);
+        onCall();
+
+        return (args['value']! as int) + 1;
+      },
+      dispatch: DispatchMode.future,
     );
 
     // matrix-cell: (sync Dart) × (sync Python)
@@ -107,59 +119,68 @@ await doubled(3)
     });
 
     // matrix-cell: (async Dart) × (Python `await ext()`) — the key cell.
-    // Requires `MontyRuntime(useFutures: true)`.
-    test('cell 5a: useFutures=true wires Python `await fetch(x)`', () async {
-      var calls = 0;
-      final runtime = MontyRuntime(useFutures: true)
-        ..register(fetchAsync(() => calls++));
-      addTearDown(runtime.dispose);
+    // Handler declares DispatchMode.future so the bridge uses resumeAsFuture.
+    test(
+      'cell 5a: DispatchMode.future wires Python `await fetch(x)`',
+      () async {
+        var calls = 0;
+        final runtime = MontyRuntime()
+          ..register(fetchAsyncFuture(() => calls++));
+        addTearDown(runtime.dispose);
 
-      final r = await runtime.execute('await fetch(7)').result;
+        final r = await runtime.execute('await fetch(7)').result;
 
-      expect(r.error, isNull);
-      expect(r.value.dartValue, 8);
-      expect(calls, 1);
-    });
+        expect(r.error, isNull);
+        expect(r.value.dartValue, 8);
+        expect(calls, 1);
+      },
+    );
 
-    test('cell 5b: useFutures=true + asyncio.gather over externals', () async {
-      final fired = <int>[];
-      final runtime = MontyRuntime(useFutures: true)
-        ..register(
-          HostFunction(
-            schema: const HostFunctionSchema(
-              name: 'fetch',
-              description: 'parallel fetch',
-              params: [HostParam(name: 'n', type: HostParamType.integer)],
+    test(
+      'cell 5b: DispatchMode.future + asyncio.gather over externals',
+      () async {
+        final fired = <int>[];
+        final runtime = MontyRuntime()
+          ..register(
+            HostFunction(
+              schema: const HostFunctionSchema(
+                name: 'fetch',
+                description: 'parallel fetch',
+                params: [HostParam(name: 'n', type: HostParamType.integer)],
+              ),
+              handler: (args, _) async {
+                final n = args['n']! as int;
+                fired.add(n);
+                await Future<void>.delayed(Duration.zero);
+
+                return n * 10;
+              },
+              dispatch: DispatchMode.future,
             ),
-            handler: (args, _) async {
-              final n = args['n']! as int;
-              fired.add(n);
-              await Future<void>.delayed(Duration.zero);
+          );
+        addTearDown(runtime.dispose);
 
-              return n * 10;
-            },
-          ),
-        );
-      addTearDown(runtime.dispose);
-
-      final r = await runtime.execute('''
+        final r = await runtime.execute('''
 import asyncio
 results = await asyncio.gather(fetch(1), fetch(2), fetch(3))
 results
 ''').result;
 
-      expect(r.error, isNull);
-      expect(r.value.dartValue, [10, 20, 30]);
-      // Concurrent dispatch — all three callbacks fire (in some order)
-      // before gather yields.
-      expect(fired.toSet(), {1, 2, 3});
-      expect(fired, hasLength(3));
-    });
+        expect(r.error, isNull);
+        expect(r.value.dartValue, [10, 20, 30]);
+        // Concurrent dispatch — all three callbacks fire (in some order)
+        // before gather yields.
+        expect(fired.toSet(), {1, 2, 3});
+        expect(fired, hasLength(3));
+      },
+    );
 
-    // Default-off back-compat: `MontyRuntime()` (no useFutures flag) leaves
-    // Python `await ext()` raising TypeError, exactly as before this PR.
+    // Back-compat: handler with default DispatchMode.sync leaves Python
+    // `await ext()` raising TypeError — same observable failure as before,
+    // now because the handler declared sync rather than because a runtime
+    // flag was unset.
     test(
-      'useFutures=false: Python `await ext()` still raises TypeError',
+      'DispatchMode.sync (default): Python `await ext()` raises TypeError',
       () async {
         final runtime = MontyRuntime()..register(fetchAsync(() => 0));
         addTearDown(runtime.dispose);
@@ -171,12 +192,12 @@ results
       },
     );
 
-    // useFutures + inputs interplay — confirm the new flag composes with
-    // the existing inputs: parameter.
+    // DispatchMode.future + inputs interplay — confirm per-fn dispatch
+    // composes with the existing inputs: parameter.
     test(
-      'useFutures + inputs: inputs visible inside awaited external script',
+      'DispatchMode.future + inputs: inputs visible inside awaited external',
       () async {
-        final runtime = MontyRuntime(useFutures: true)
+        final runtime = MontyRuntime()
           ..register(
             HostFunction(
               schema: const HostFunctionSchema(
@@ -189,6 +210,7 @@ results
 
                 return 'hello, ${args['name']}';
               },
+              dispatch: DispatchMode.future,
             ),
           );
         addTearDown(runtime.dispose);
@@ -206,12 +228,12 @@ results
     );
 
     // asyncio.gather demonstrates wall-clock parallelism — sleep-heavy
-    // handlers run concurrently rather than sequentially when
-    // useFutures: true.
-    test('useFutures=true: gather of slow handlers takes ~one delay, '
+    // handlers run concurrently rather than sequentially when declared
+    // DispatchMode.future.
+    test('DispatchMode.future: gather of slow handlers takes ~one delay, '
         'not sum-of-delays', () async {
       const delayMs = 200;
-      final runtime = MontyRuntime(useFutures: true)
+      final runtime = MontyRuntime()
         ..register(
           HostFunction(
             schema: const HostFunctionSchema(
@@ -226,6 +248,7 @@ results
 
               return args['n'];
             },
+            dispatch: DispatchMode.future,
           ),
         );
       addTearDown(runtime.dispose);
@@ -247,7 +270,7 @@ await asyncio.gather(slow(1), slow(2), slow(3))
         lessThan(delayMs * 2),
         reason:
             'gather should run handlers concurrently under '
-            'useFutures: true; took ${sw.elapsedMilliseconds}ms',
+            'DispatchMode.future; took ${sw.elapsedMilliseconds}ms',
       );
     });
   });

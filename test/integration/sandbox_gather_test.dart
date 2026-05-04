@@ -28,8 +28,7 @@ void main() {
 
   MontyPlatform createPlatform() => MontyFfi(bindings: bindings);
 
-  MontyBridge createBridge() =>
-      MontyBridge(platform: createPlatform(), useFutures: false);
+  MontyBridge createBridge() => MontyBridge(platform: createPlatform());
 
   group('sandbox_gather with real FFI', () {
     test(
