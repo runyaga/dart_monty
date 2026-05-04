@@ -29,3 +29,13 @@ dependencies:
 
 dev_dependencies:
   very_good_analysis: ^10.0.0
+
+# dart_monty_core 0.17.0 (pub.dev) predates the inputs/MontyInternalError/
+# MontyNone work merged in dart_monty_core#99. Point at main until the next
+# core release. dependency_overrides apply to this repo's builds only —
+# downstream consumers still see the pub.dev `^0.17.0` constraint above.
+dependency_overrides:
+  dart_monty_core:
+    git:
+      url: https://github.com/runyaga/dart_monty_core.git
+      ref: main
