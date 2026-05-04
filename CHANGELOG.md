@@ -1,13 +1,13 @@
-## 0.18.0
+## 0.17.1
 
-Requires `dart_monty_core` 0.18.0 — see its changelog for `MontyCallback`,
+Requires `dart_monty_core` 0.17.1 — see its changelog for `MontyCallback`,
 `.args`, and `inputs:` details.
 
 ### Breaking
 
 - **`MontyRuntime(useFutures: true)` removed.** Set `dispatch: DispatchMode.future`
   on each `HostFunction` that Python should be able to `await` instead.
-- **`MontyCallback`/`.args` rename** — inherited from `dart_monty_core` 0.18.0;
+- **`MontyCallback`/`.args` rename** — inherited from `dart_monty_core` 0.17.1;
   update all handler signatures and `MontyPending`/`MontyOsCall` field accesses.
 
 ### Added
