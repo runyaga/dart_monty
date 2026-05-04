@@ -151,6 +151,19 @@ server), see `example/native/run.sh` and `example/web/run.sh`.
 - [**Contributing**](CONTRIBUTING.md) — Build, run tests, gate scripts, release process
 - [**Contributor Setup**](docs/contributor/setup.md) — Toolchain install (Rust, Dart, Python)
 
+## Stability and versioning
+
+This package does **not** follow semantic versioning. Breaking changes can
+land in any release. The [CHANGELOG](CHANGELOG.md) is kept up-to-date with
+every breaking change, so pin to a specific version and read the changelog
+before upgrading.
+
+We expect to stabilise the API and adopt semver when the package goes into
+production — roughly 1–3 months from now. If you are planning to depend on
+this package, please let us know (open an issue or email
+[alan@enfoldsystems.com](mailto:alan@enfoldsystems.com)) so we can factor
+your use-case into the stabilisation work.
+
 ## License
 
 MIT License. See [LICENSE](LICENSE).
