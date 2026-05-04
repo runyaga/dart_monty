@@ -134,6 +134,7 @@ class MontyRuntime implements MontyRuntimeRef {
       StreamController<BridgeEvent>.broadcast();
 
   /// All registered tool schemas — feed these to an LLM as tool definitions.
+  @override
   List<HostFunctionSchema> get schemas =>
       (_sharedBridge ?? _schemaBridge)?.schemas ?? [];
 

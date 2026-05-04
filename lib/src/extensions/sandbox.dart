@@ -526,7 +526,7 @@ class SandboxExtension extends MontyExtension
       completer: completer,
       childId: id,
       stream: stream,
-      parent: ctx.runtime,
+      parent: ctx.parent,
     );
 
     _children[id] = _ChildHandle(
@@ -684,7 +684,7 @@ class SandboxExtension extends MontyExtension
     required Completer<Object?> completer,
     required int childId,
     required Stream<BridgeEvent> stream,
-    required MontyRuntimeRef? parent,
+    required HostParentRef? parent,
   }) {
     String? errorMessage;
     MontyException? errorException;

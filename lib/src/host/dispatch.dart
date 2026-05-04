@@ -42,6 +42,14 @@ class _PendingFuture {
 // Top-level helpers shared by HostDispatch dispatch methods.
 // ---------------------------------------------------------------------------
 
+/// Default [HostSubExecutor] wired into every [HostContext]. Runs [code]
+/// in a fresh Monty interpreter via `Monty(code).run()` so host functions
+/// can drive sub-executions without contending with the caller's bridge lock.
+Future<MontyResult> _defaultSubExecute(
+  String code, {
+  Map<String, Object?>? inputs,
+}) => Monty(code).run(inputs: inputs);
+
 /// Invokes [fn] through [interceptor], or calls the handler directly when
 /// [fn] is infra or no interceptor is registered.
 Future<Object?> _invoke(
@@ -272,7 +280,8 @@ class HostDispatch {
       emit: sink,
       executionId: name,
       os: osHandler,
-      runtime: _runtime,
+      parent: _runtime,
+      subExecute: _defaultSubExecute,
     );
 
     return _invoke(_interceptor, fn, name, validatedArgs, ctx);
@@ -337,7 +346,8 @@ class HostDispatch {
       emit: controller.add,
       executionId: callId,
       os: osHandler,
-      runtime: _runtime,
+      parent: _runtime,
+      subExecute: _defaultSubExecute,
     );
     final Object? result;
     try {
@@ -397,7 +407,8 @@ class HostDispatch {
       emit: controller.add,
       executionId: callId,
       os: osHandler,
-      runtime: _runtime,
+      parent: _runtime,
+      subExecute: _defaultSubExecute,
     );
     final Future<Object?> handlerFuture;
     try {

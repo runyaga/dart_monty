@@ -120,5 +120,40 @@ void main() {
       expect(result.error, isNull);
       expect(result.value.dartValue, 'hello, alice!');
     });
+
+    // Schema-level validation: HostFunctionSchema.mapAndValidate +
+    // HostParam.validate throw FormatException on bad arg shape, which
+    // dispatch.dart routes back to Python as a script error.
+    group('invalid arguments surface as Python errors', () {
+      test('wrong type for path (int instead of str)', () async {
+        final result = await runtime.execute('run_script(123)').result;
+
+        expect(result.isError, isTrue);
+      });
+
+      test('wrong type for inputs (str instead of dict/map)', () async {
+        vfs['greet.py'] = 'f"hi {name}"';
+        final result = await runtime
+            .execute('run_script("greet.py", inputs="oops")')
+            .result;
+
+        expect(result.isError, isTrue);
+      });
+
+      test('missing required path arg', () async {
+        final result = await runtime.execute('run_script()').result;
+
+        expect(result.isError, isTrue);
+      });
+
+      test('unknown kwarg rejected', () async {
+        vfs['greet.py'] = 'f"hi {name}"';
+        final result = await runtime
+            .execute('run_script("greet.py", typo={"name": "alice"})')
+            .result;
+
+        expect(result.isError, isTrue);
+      });
+    });
   });
 }
