@@ -77,8 +77,8 @@ final errors = await Monty.typeCheck(
 
 ## Per-call inputs
 
-`MontyRuntime.execute(code, inputs: {…})` and `Hhg.run(code, inputs: {…})`
-inject Python variables before user code runs:
+`MontyRuntime.execute(code, inputs: {…})` injects Python variables
+before user code runs:
 
 ```dart
 await runtime

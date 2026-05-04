@@ -33,8 +33,8 @@ final r = await runtime
 // r.value.dartValue == 'hello, Alice!'
 ```
 
-The same parameter is on `Hhg.run(code, inputs: …)` and on
-`buildRunScriptFunction`'s sub-script invocation.
+The same parameter rides through `buildRunScriptFunction`'s sub-script
+invocation and through `HostContext.subExecute`.
 
 ### Convertible types
 
