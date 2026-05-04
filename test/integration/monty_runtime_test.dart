@@ -602,6 +602,74 @@ result
     });
   });
 
+  group('MontyRuntime.execute inputs injection', () {
+    late MontyRuntime session;
+
+    setUp(() {
+      session = MontyRuntime();
+    });
+
+    tearDown(() async {
+      await session.dispose();
+    });
+
+    test('string input is visible as a Python variable', () async {
+      final result = await session
+          .execute('greeting', inputs: {'greeting': 'hello'})
+          .result;
+
+      expect(result.value.dartValue, 'hello');
+    });
+
+    test('int input is visible as a Python variable', () async {
+      final result = await session
+          .execute('x * 2', inputs: {'x': 21})
+          .result;
+
+      expect(result.value.dartValue, 42);
+    });
+
+    test('multiple inputs are all visible', () async {
+      final result = await session
+          .execute(
+            'f"{say}, {target}!"',
+            inputs: {'say': 'hi', 'target': 'alan'},
+          )
+          .result;
+
+      expect(result.value.dartValue, 'hi, alan!');
+    });
+
+    test('null inputs param is a no-op', () async {
+      final result = await session.execute('1 + 1').result;
+
+      expect(result.value.dartValue, 2);
+    });
+
+    test('inputs do not bleed into the next execute() call', () async {
+      await session.execute('pass', inputs: {'temp': 99}).result;
+      final result = await session.execute('temp').result;
+
+      // temp is not re-injected; Python raises NameError.
+      expect(result.error, isNotNull);
+    });
+
+    test('sandbox mode: inputs injected per call', () async {
+      final sandbox = MontyRuntime(sandbox: true);
+      addTearDown(sandbox.dispose);
+
+      final r1 = await sandbox
+          .execute('name', inputs: {'name': 'alice'})
+          .result;
+      final r2 = await sandbox
+          .execute('name', inputs: {'name': 'bob'})
+          .result;
+
+      expect(r1.value.dartValue, 'alice');
+      expect(r2.value.dartValue, 'bob');
+    });
+  });
+
   group('MontyRuntime.descriptionProvider', () {
     test('overrides function description on registered extension', () async {
       final session = MontyRuntime(

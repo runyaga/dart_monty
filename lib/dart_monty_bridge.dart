@@ -17,6 +17,7 @@ export 'src/extensions/defaults.dart';
 export 'src/extensions/event_loop.dart';
 export 'src/extensions/jinja_template.dart';
 export 'src/extensions/message_bus.dart';
+export 'src/extensions/run_script.dart';
 export 'src/extensions/sandbox.dart';
 export 'src/host/args.dart';
 export 'src/host/context.dart';

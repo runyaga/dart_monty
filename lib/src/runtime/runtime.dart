@@ -208,14 +208,21 @@ class MontyRuntime implements MontyRuntimeRef {
   /// execution without mutating session state. Children spawned during the
   /// call inherit the override via `HostContext.os` and `spawnChild`.
   @override
-  ExecutionHandle execute(String code, {OsCallHandler? os}) {
+  ExecutionHandle execute(
+    String code, {
+    OsCallHandler? os,
+    Map<String, Object?>? inputs,
+  }) {
     if (_disposed) throw StateError('MontyRuntime has been disposed');
+    final effective = inputs != null && inputs.isNotEmpty
+        ? '${inputsToCode(inputs)}\n$code'
+        : code;
 
     if (_sandbox) {
-      return _executeSandboxed(code, osOverride: os);
+      return _executeSandboxed(effective, osOverride: os);
     }
 
-    return _executeShared(code, osOverride: os);
+    return _executeShared(effective, osOverride: os);
   }
 
   /// Invokes a registered host function directly from Dart — useful for
