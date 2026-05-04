@@ -30,11 +30,10 @@ dependencies:
 dev_dependencies:
   very_good_analysis: ^10.0.0
 
-# dart_monty_core PR #105 (feat/args-kwargs-callback) changes MontyCallback to
-# (List<Object?> args, Map<String, Object?>? kwargs). Drop this block once
-# #105 merges and a release ships.
+# dart_monty_core#105 merged to main but not yet released on pub.dev.
+# Drop this block once 0.18.0 ships and bump dart_monty_core: ^0.18.0 above.
 dependency_overrides:
   dart_monty_core:
     git:
       url: https://github.com/runyaga/dart_monty_core.git
-      ref: feat/args-kwargs-callback
+      ref: main
