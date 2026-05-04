@@ -90,21 +90,40 @@ Future<void> main() async {
 }
 ```
 
-**3. Runtime with extensions**
+**3. Runtime with host functions and extensions**
 
-For more advanced use cases, create a `MontyRuntime` to manage extensions and sessions:
+`MontyRuntime` manages host functions, extensions, and long-lived sessions.
+Register `HostFunction`s to expose Dart callbacks to Python:
 
 ```dart
 Future<void> main() async {
-  final runtime = MontyRuntime(
-    extensions: [JinjaTemplateExtension(), MessageBusExtension()],
-  );
+  final runtime = MontyRuntime()
+    ..register(HostFunction(
+      schema: const HostFunctionSchema(
+        name: 'fetch',
+        params: [HostParam(name: 'url', type: HostParamType.string)],
+      ),
+      // DispatchMode.future lets Python `await fetch(url)` directly.
+      // asyncio.gather over multiple calls runs them concurrently.
+      dispatch: DispatchMode.future,
+      handler: (args, _) async => httpClient.get(args['url']! as String),
+    ));
+
   final result = await runtime.execute(
-    "tmpl_render(template='Hello {{ name }}!', context={'name': 'World'})",
+    'await fetch(base_url)',
+    inputs: {'base_url': 'https://example.com/api'},
   ).result;
-  print(result.value); // 'Hello World!'
+  print(result.value);
   await runtime.dispose();
 }
+```
+
+For plugin-style wiring, pass `extensions`:
+
+```dart
+final runtime = MontyRuntime(
+  extensions: [JinjaTemplateExtension(), MessageBusExtension()],
+);
 ```
 
 ## Examples
