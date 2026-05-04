@@ -251,3 +251,46 @@ Inside `mainScript`, Python can call `run_script('helper.py', inputs={…})`
 to dispatch into a separate file, with the helper's own injected
 inputs. Each helper runs in its own fresh interpreter via `subExecute`
 — no deadlock, no leakage, no surprises.
+
+## Sync vs async handlers
+
+A `HostFunctionHandler` always returns `Future<Object?>`, but how the
+bridge dispatches it depends on `MontyRuntime(useFutures: …)`:
+
+- **`MontyRuntime()` (default, `useFutures: false`)** — handlers are
+  awaited inline before the bridge resumes Python. Python sees the
+  resolved value as a plain object. This is the simplest mental model:
+  one host call → one round-trip → one Python `resume`. **Limitation:**
+  Python `await ext()` against the host function raises
+  `TypeError: 'str' object can't be awaited` — by the time Python
+  evaluates `await`, the value is already a plain `str`/`int`, not a
+  future.
+
+- **`MontyRuntime(useFutures: true)`** — handlers are launched as
+  unawaited futures and the bridge replies with `resumeAsFuture()`.
+  Python keeps running, can fire more host calls in parallel
+  (`asyncio.gather` parallelises across externals), and the bridge
+  batch-resolves them when Python actually suspends on a value.
+  Concurrent dispatch is the whole point. **Trade-off:** handlers can
+  race over shared state, so be deliberate about flipping the flag for
+  any runtime whose handlers are stateful.
+
+```dart
+// Default (serial, simple): bare calls only — `await fetch(x)` would fail.
+await MontyRuntime().execute('result = fetch(7)\nresult').result;
+
+// Futures mode: Python `await fetch(x)` works, gather parallelises.
+await MontyRuntime(useFutures: true).execute('''
+import asyncio
+results = await asyncio.gather(fetch(1), fetch(2), fetch(3))
+results
+''').result;
+```
+
+For the cell-by-cell contract — every combination of (Dart sync vs
+async) × (Python bare call vs `await`) × API layer × backend — see
+[dart_monty_core's async-matrix deep dive][async-matrix] and the
+matrix test bodies (Layer 4 lives at
+`test/integration/_runtime_async_matrix_body.dart` in this repo).
+
+[async-matrix]: https://github.com/runyaga/dart_monty_core/blob/main/docs/deep-dives/async-matrix.md

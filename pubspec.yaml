@@ -30,12 +30,17 @@ dependencies:
 dev_dependencies:
   very_good_analysis: ^10.0.0
 
-# dart_monty_core 0.17.0 (pub.dev) predates the inputs/MontyInternalError/
-# MontyNone work merged in dart_monty_core#99. Point at main until the next
-# core release. dependency_overrides apply to this repo's builds only —
-# downstream consumers still see the pub.dev `^0.17.0` constraint above.
+# Pointing at dart_monty_core PR #102 (feat/futures-driveloop-and-matrix)
+# which:
+#   1. promotes `ReplPlatform` to implement `MontyFutureCapable` (via PR #101
+#      that #102 stacks on), so `useFutures: true` here actually engages the
+#      bridge's futures dispatch path
+#   2. wires `_driveLoop`'s MontyResolveFutures case so Monty.run /
+#      MontyRepl.feedRun work too
+# Pinned to the SHA so the override stays stable through branch deletion.
+# Drop and bump dart_monty_core: ^0.x.y once #102 lands and a release ships.
 dependency_overrides:
   dart_monty_core:
     git:
       url: https://github.com/runyaga/dart_monty_core.git
-      ref: main
+      ref: 458b01e2b8b6c8457ff1e0ee00c90514b2e6fc64

@@ -446,30 +446,82 @@ await registry1.disposeAll();
 Each extension instance maintains its own state. Two `StorageExtension`
 instances do not share data.
 
-## Futures Batching
+## Futures Batching (`MontyRuntime(useFutures: true)`)
 
-When `useFutures: true` (the default) and the platform implements
-`MontyFutureCapable`, the bridge dispatches host function calls as
-futures. This enables concurrent handler execution within a single
-Python execution:
+By default `MontyRuntime` dispatches host functions **serially**: each
+call awaits its handler before resuming Python. Set `useFutures: true`
+on the constructor to flip the bridge into the futures-batching path —
+host calls dispatch concurrently within a single Python execution, and
+Python's `await ext()` against a Dart-registered handler returns the
+resolved value instead of raising `TypeError`.
 
-1. Python calls a host function.
-2. Instead of blocking until the handler completes, the bridge calls
-   `resumeAsFuture()` to tell the platform "this call is pending."
-3. Python continues executing. If it calls more host functions before
-   using the return value, those are also dispatched as futures.
-4. When Python actually **reads** a return value from a host function
-   call (e.g., assigns it to a variable, passes it to another function,
-   or uses it in an expression), the Monty runtime needs the concrete
-   result. At that point the platform emits `MontyResolveFutures` with
-   the list of pending call IDs.
-5. The bridge awaits all pending handler futures and feeds the results
-   back in a batch.
+```dart
+final runtime = MontyRuntime(useFutures: true)
+  ..register(slowHostFn);
 
-This is transparent to the Python code and the handler implementations.
-It only affects execution ordering: handlers may run concurrently if
-the platform supports futures.
+await runtime.execute('''
+import asyncio
+results = await asyncio.gather(slow(1), slow(2), slow(3))
+''').result;
+// All three host calls dispatch concurrently; total wall time ≈ one delay,
+// not three.
+```
 
-If a handler throws synchronously (before returning a `Future`), the
-bridge catches it immediately and feeds the error back via
-`resumeWithError()` to avoid deadlocking the platform.
+What changes when `useFutures: true`:
+
+1. Python calls a host function. The bridge dispatches it via
+   `dispatchToolCallAsFuture` — the handler is launched as an unawaited
+   `Future` and registered in `_pendingFutures`. The platform is
+   resumed via `resumeAsFuture()` so Python keeps running.
+2. If Python calls more host functions before suspending, those are
+   also dispatched as futures, in parallel with earlier ones.
+3. When Python's interpreter actually needs the concrete result of a
+   host call (any `await fn()` or implicit await inside `asyncio.gather`),
+   the platform emits `MontyResolveFutures` with the list of pending
+   call IDs.
+4. The bridge awaits each registered future, collects values into
+   `results` and per-call exceptions into `errors`, then feeds the
+   batch back via `(_platform as MontyFutureCapable).resolveFutures(
+   results, errors: errors)`.
+
+This is transparent to handler implementations — they're written the
+same way regardless of the flag. The only difference is execution
+ordering.
+
+### When to leave the flag off (the default)
+
+- Your handlers don't benefit from concurrency (sync values, fast pure
+  computations).
+- Your handlers mutate shared state and you need the legacy serial-
+  dispatch guarantee. Concurrent dispatch lets handlers race against
+  each other; serialising at the dispatch boundary is the simplest way
+  to avoid that.
+- You want bit-for-bit back-compat with pre-flag behaviour.
+
+### When to flip it on
+
+- Your script uses Python `await ext()` against a Dart-registered host
+  function (the only way to express "this call is async" inside
+  Python). Without `useFutures: true`, that line raises
+  `TypeError: 'str' object can't be awaited` because the eager dispatch
+  path returns a plain value.
+- Your handlers do real I/O (HTTP, file, sub-process) and you want
+  `asyncio.gather` to actually parallelise — sequential dispatch costs
+  you the sum of all handler latencies.
+
+### Error handling
+
+`useFutures: true` collects per-call errors into the `errors` map and
+hands them to `resolveFutures`. The pydantic-monty engine surfaces a
+failed future as a script termination (`MontyScriptError`) with the
+error message verbatim — Python's own `try / except RuntimeError`
+around `await fn()` does **not** catch it today. If you want recovery
+semantics, do the catching Dart-side inside the handler and return a
+sentinel value.
+
+For the cell-by-cell contract across every (Dart × Python × API layer
+× backend) combination, see
+[dart_monty_core's async-matrix deep dive][async-matrix] and the
+matrix tests in `test/integration/_runtime_async_matrix_body.dart`.
+
+[async-matrix]: https://github.com/runyaga/dart_monty_core/blob/main/docs/deep-dives/async-matrix.md
