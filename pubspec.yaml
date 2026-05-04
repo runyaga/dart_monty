@@ -30,17 +30,12 @@ dependencies:
 dev_dependencies:
   very_good_analysis: ^10.0.0
 
-# Pointing at dart_monty_core PR #102 (feat/futures-driveloop-and-matrix)
-# which:
-#   1. promotes `ReplPlatform` to implement `MontyFutureCapable` (via PR #101
-#      that #102 stacks on), so `useFutures: true` here actually engages the
-#      bridge's futures dispatch path
-#   2. wires `_driveLoop`'s MontyResolveFutures case so Monty.run /
-#      MontyRepl.feedRun work too
-# Pinned to the SHA so the override stays stable through branch deletion.
-# Drop and bump dart_monty_core: ^0.x.y once #102 lands and a release ships.
+# dart_monty_core's futures end-to-end work (#102, includes
+# ReplPlatform implements MontyFutureCapable + _driveLoop wiring) lives
+# on main but predates the next release. Drop this block once a
+# dart_monty_core release ships with #102 and bump the version pin above.
 dependency_overrides:
   dart_monty_core:
     git:
       url: https://github.com/runyaga/dart_monty_core.git
-      ref: 458b01e2b8b6c8457ff1e0ee00c90514b2e6fc64
+      ref: main
