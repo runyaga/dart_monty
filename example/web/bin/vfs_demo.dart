@@ -155,8 +155,7 @@ Future<Map<String, dynamic>> _runWithVfs(String code) async {
         state = _parse(
           (await _bridgeResumeWithError(
             jsonEncode(e.toString()).toJS,
-          ).toDart)
-              .toDart,
+          ).toDart).toDart,
         );
       }
     } else {
@@ -266,8 +265,8 @@ Future<void> main() async {
   // Expose API to HTML.
   final api = <String, JSFunction>{
     'run': ((JSString code) => _apiRun(
-          code.toDart,
-        ).then((r) => r.toJS).toJS).toJS,
+      code.toDart,
+    ).then((r) => r.toJS).toJS).toJS,
     'mountFile': ((JSString path, JSString content) {
       unawaited(_mountFile(path.toDart, content.toDart));
     }).toJS,

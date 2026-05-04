@@ -290,9 +290,9 @@ class PlatformBridge implements MontyBridge, AttachContext {
   ) async {
     final callId = _host.nextId;
     final opName = osCall.operationName;
-    final argSummary = osCall.arguments.isEmpty
+    final argSummary = osCall.args.isEmpty
         ? null
-        : osCall.arguments.map((a) => a.dartValue).join(', ');
+        : osCall.args.map((a) => a.dartValue).join(', ');
 
     controller.add(
       BridgeOsCallStart(
@@ -314,7 +314,7 @@ class PlatformBridge implements MontyBridge, AttachContext {
 
     final sw = Stopwatch()..start();
     try {
-      final args = osCall.arguments.map((v) => v.dartValue).toList();
+      final args = osCall.args.map((v) => v.dartValue).toList();
       final kwargs = osCall.kwargs?.map((k, v) => MapEntry(k, v.dartValue));
       final result = await handler(opName, args, kwargs);
       sw.stop();

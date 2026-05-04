@@ -20,44 +20,75 @@ import 'package:dart_monty/dart_monty_bridge.dart';
 
 /// A sync host fn — returns its result without ever yielding the event loop.
 HostFunction syncFetch(void Function() onCall) => HostFunction(
-      schema: const HostFunctionSchema(
-        name: 'fetch',
-        description: 'Sync fetch — adds 1 to its argument.',
-        params: [HostParam(name: 'value', type: HostParamType.integer)],
-      ),
-      handler: (args, _) async {
-        onCall();
-        return (args['value']! as int) + 1;
-      },
-    );
+  schema: const HostFunctionSchema(
+    name: 'fetch',
+    description: 'Sync fetch — adds 1 to its argument.',
+    params: [HostParam(name: 'value', type: HostParamType.integer)],
+  ),
+  handler: (args, _) async {
+    onCall();
+    return (args['value']! as int) + 1;
+  },
+);
 
 /// An async host fn — actually awaits a Future before returning.
 HostFunction asyncFetch(void Function() onCall) => HostFunction(
-      schema: const HostFunctionSchema(
-        name: 'fetch',
-        description: 'Async fetch — awaits Future.delayed, then adds 1.',
-        params: [HostParam(name: 'value', type: HostParamType.integer)],
-      ),
-      handler: (args, _) async {
-        await Future<void>.delayed(Duration.zero);
-        onCall();
-        return (args['value']! as int) + 1;
-      },
-    );
+  schema: const HostFunctionSchema(
+    name: 'fetch',
+    description: 'Async fetch — awaits Future.delayed, then adds 1.',
+    params: [HostParam(name: 'value', type: HostParamType.integer)],
+  ),
+  handler: (args, _) async {
+    await Future<void>.delayed(Duration.zero);
+    onCall();
+    return (args['value']! as int) + 1;
+  },
+);
 
 /// A slow async host fn — sleeps `delay` before returning, so we can see
-/// `asyncio.gather` flatten wall-clock time when `useFutures: true`.
+/// `asyncio.gather` flatten wall-clock time.
 HostFunction slowFetch(Duration delay) => HostFunction(
-      schema: const HostFunctionSchema(
-        name: 'slow',
-        description: 'Sleeps then returns its argument times 10.',
-        params: [HostParam(name: 'n', type: HostParamType.integer)],
-      ),
-      handler: (args, _) async {
-        await Future<void>.delayed(delay);
-        return (args['n']! as int) * 10;
-      },
-    );
+  schema: const HostFunctionSchema(
+    name: 'slow',
+    description: 'Sleeps then returns its argument times 10.',
+    params: [HostParam(name: 'n', type: HostParamType.integer)],
+  ),
+  handler: (args, _) async {
+    await Future<void>.delayed(delay);
+    return (args['n']! as int) * 10;
+  },
+);
+
+/// Like [asyncFetch] but declared [DispatchMode.future] so Python can
+/// directly `await` it.
+HostFunction asyncFetchFuture(void Function() onCall) => HostFunction(
+  schema: const HostFunctionSchema(
+    name: 'fetch',
+    description: 'Async fetch (future-mode) — awaits Future.delayed, adds 1.',
+    params: [HostParam(name: 'value', type: HostParamType.integer)],
+  ),
+  handler: (args, _) async {
+    await Future<void>.delayed(Duration.zero);
+    onCall();
+    return (args['value']! as int) + 1;
+  },
+  dispatch: DispatchMode.future,
+);
+
+/// Like [slowFetch] but declared [DispatchMode.future] so `asyncio.gather`
+/// can run multiple calls concurrently.
+HostFunction slowFetchFuture(Duration delay) => HostFunction(
+  schema: const HostFunctionSchema(
+    name: 'slow',
+    description: 'Sleeps then returns its argument times 10 (future-mode).',
+    params: [HostParam(name: 'n', type: HostParamType.integer)],
+  ),
+  handler: (args, _) async {
+    await Future<void>.delayed(delay);
+    return (args['n']! as int) * 10;
+  },
+  dispatch: DispatchMode.future,
+);
 
 Future<void> main() async {
   print('=== dart_monty async/sync matrix — Web (WASM) demo ===');
@@ -141,14 +172,14 @@ await doubled(3)
   //
   //     result = await fetch(7)
   //
-  // For this to work the bridge must hand Python a coroutine/future
-  // object, not a value. That requires `useFutures: true`.
+  // For this to work the fn must be declared DispatchMode.future so the
+  // bridge hands Python a coroutine object rather than a plain value.
   //
-  // First we show the default (`useFutures: false`) raises TypeError —
+  // Step 1 shows the default (DispatchMode.sync) raises TypeError —
   // Python can't await an int.
-  // Then we re-run with `useFutures: true` and it just works.
+  // Step 2 uses DispatchMode.future and it just works.
   print('── Cell 5a: async Dart × Python `await ext()` ──');
-  print('  Step 1 — useFutures: false (the default):');
+  print('  Step 1 — DispatchMode.sync (the default):');
   {
     final runtime = MontyRuntime()..register(asyncFetch(() {}));
     final r = await runtime.execute('await fetch(7)').result;
@@ -160,11 +191,10 @@ await doubled(3)
     }
     await runtime.dispose();
   }
-  print('  Step 2 — useFutures: true:');
+  print('  Step 2 — DispatchMode.future:');
   {
     var calls = 0;
-    final runtime = MontyRuntime(useFutures: true)
-      ..register(asyncFetch(() => calls++));
+    final runtime = MontyRuntime()..register(asyncFetchFuture(() => calls++));
     final r = await runtime.execute('await fetch(7)').result;
     print('    Python: await fetch(7)');
     print(
@@ -175,14 +205,14 @@ await doubled(3)
   }
   print('');
 
-  // ── Cell 5b: asyncio.gather + useFutures: true ───────────────────────
+  // ── Cell 5b: asyncio.gather + DispatchMode.future ────────────────────
   // The pay-off cell. Three host calls each sleep 200ms. With
-  // `useFutures: true`, asyncio.gather runs them concurrently — wall
+  // DispatchMode.future, asyncio.gather runs them concurrently — wall
   // clock should be ~200ms, NOT ~600ms.
-  print('── Cell 5b: asyncio.gather + useFutures: true ──');
+  print('── Cell 5b: asyncio.gather + DispatchMode.future ──');
   {
     const delay = Duration(milliseconds: 200);
-    final runtime = MontyRuntime(useFutures: true)..register(slowFetch(delay));
+    final runtime = MontyRuntime()..register(slowFetchFuture(delay));
     final sw = Stopwatch()..start();
     final r = await runtime.execute('''
 import asyncio

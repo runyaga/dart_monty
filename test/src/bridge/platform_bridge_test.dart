@@ -44,7 +44,7 @@ void main() {
         ..enqueueProgress(
           const MontyPending(
             functionName: 'slow_fail',
-            arguments: [],
+            args: [],
             callId: 1,
           ),
         )
@@ -91,7 +91,7 @@ void main() {
           ..enqueueProgress(
             const MontyPending(
               functionName: 'explode',
-              arguments: [],
+              args: [],
               callId: 1,
             ),
           )
@@ -138,7 +138,7 @@ void main() {
 
       mock
         ..enqueueProgress(
-          const MontyPending(functionName: 'greet', arguments: []),
+          const MontyPending(functionName: 'greet', args: []),
         )
         ..enqueueProgress(
           const MontyComplete(
@@ -179,7 +179,7 @@ void main() {
         ..enqueueProgress(
           const MontyPending(
             functionName: 'greet',
-            arguments: [],
+            args: [],
             kwargs: {'who': MontyString('world')},
           ),
         )
@@ -211,7 +211,7 @@ void main() {
       );
 
       syncMock
-        ..enqueueProgress(const MontyPending(functionName: 'fn', arguments: []))
+        ..enqueueProgress(const MontyPending(functionName: 'fn', args: []))
         ..enqueueProgress(
           const MontyComplete(
             result: MontyResult(value: MontyNone(), usage: _usage),
@@ -240,7 +240,7 @@ void main() {
       );
 
       syncMock
-        ..enqueueProgress(const MontyPending(functionName: 'fn', arguments: []))
+        ..enqueueProgress(const MontyPending(functionName: 'fn', args: []))
         ..enqueueProgress(
           const MontyComplete(
             result: MontyResult(value: MontyNone(), usage: _usage),
@@ -265,7 +265,7 @@ void main() {
       );
 
       mock
-        ..enqueueProgress(const MontyPending(functionName: 'fn', arguments: []))
+        ..enqueueProgress(const MontyPending(functionName: 'fn', args: []))
         ..enqueueProgress(
           const MontyComplete(
             result: MontyResult(value: MontyNone(), usage: _usage),
@@ -301,7 +301,7 @@ void main() {
         ..enqueueProgress(
           const MontyPending(
             functionName: 'async_fn',
-            arguments: [],
+            args: [],
             callId: 1,
           ),
         )
@@ -337,7 +337,7 @@ void main() {
       );
 
       mock
-        ..enqueueProgress(const MontyPending(functionName: 'fn', arguments: []))
+        ..enqueueProgress(const MontyPending(functionName: 'fn', args: []))
         ..enqueueProgress(
           const MontyComplete(
             result: MontyResult(value: MontyNone(), usage: _usage),
@@ -355,7 +355,7 @@ void main() {
         ..enqueueProgress(
           const MontyOsCall(
             operationName: 'Path.read_text',
-            arguments: [MontyString('/etc/passwd')],
+            args: [MontyString('/etc/passwd')],
             callId: 1,
           ),
         )
@@ -402,7 +402,7 @@ void main() {
         ..enqueueProgress(
           const MontyOsCall(
             operationName: 'os.getenv',
-            arguments: [MontyString('APP_ENV')],
+            args: [MontyString('APP_ENV')],
             callId: 1,
           ),
         )
@@ -438,7 +438,7 @@ void main() {
         ..enqueueProgress(
           const MontyOsCall(
             operationName: 'Path.write_text',
-            arguments: [MontyString('/tmp/out'), MontyString('data')],
+            args: [MontyString('/tmp/out'), MontyString('data')],
             callId: 1,
           ),
         )
@@ -878,7 +878,7 @@ void main() {
         ),
       );
       throwingMock.enqueueProgress(
-        const MontyPending(functionName: 'noop', arguments: []),
+        const MontyPending(functionName: 'noop', args: []),
       );
 
       final events = await b.execute('noop()').toList();
@@ -907,7 +907,7 @@ void main() {
           ),
         );
         throwingMock.enqueueProgress(
-          const MontyPending(functionName: 'noop', arguments: []),
+          const MontyPending(functionName: 'noop', args: []),
         );
 
         final events = await b.execute('noop()').toList();
@@ -939,7 +939,7 @@ void main() {
         );
         throwingMock
           ..enqueueProgress(
-            const MontyPending(functionName: 'noop', arguments: []),
+            const MontyPending(functionName: 'noop', args: []),
           )
           ..throwAfterResumes = 0;
 
@@ -1014,7 +1014,7 @@ void main() {
     test('unknown function in pending resumes with error', () async {
       mock
         ..enqueueProgress(
-          const MontyPending(functionName: 'not_registered', arguments: []),
+          const MontyPending(functionName: 'not_registered', args: []),
         )
         ..enqueueProgress(
           const MontyComplete(
@@ -1056,7 +1056,7 @@ void main() {
       // Call without required param — mapAndValidate throws FormatException.
       syncMock
         ..enqueueProgress(
-          const MontyPending(functionName: 'need_param', arguments: []),
+          const MontyPending(functionName: 'need_param', args: []),
         )
         ..enqueueProgress(
           const MontyComplete(
@@ -1085,7 +1085,7 @@ void main() {
         ..enqueueProgress(
           const MontyPending(
             functionName: 'need_param',
-            arguments: [],
+            args: [],
             callId: 1,
           ),
         )
@@ -1154,7 +1154,7 @@ void main() {
           ..enqueueProgress(
             const MontyPending(
               functionName: 'greet',
-              arguments: [],
+              args: [],
               callId: 1,
             ),
           )
@@ -1208,7 +1208,7 @@ void main() {
           ..enqueueProgress(
             const MontyPending(
               functionName: 'count',
-              arguments: [MontyInt(1)],
+              args: [MontyInt(1)],
               kwargs: {'n': MontyInt(1)},
               callId: 1,
             ),
@@ -1216,7 +1216,7 @@ void main() {
           ..enqueueProgress(
             const MontyPending(
               functionName: 'count',
-              arguments: [MontyInt(2)],
+              args: [MontyInt(2)],
               kwargs: {'n': MontyInt(2)},
               callId: 2,
             ),
@@ -1224,7 +1224,7 @@ void main() {
           ..enqueueProgress(
             const MontyPending(
               functionName: 'count',
-              arguments: [MontyInt(3)],
+              args: [MontyInt(3)],
               kwargs: {'n': MontyInt(3)},
               callId: 3,
             ),

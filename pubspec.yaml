@@ -30,10 +30,8 @@ dependencies:
 dev_dependencies:
   very_good_analysis: ^10.0.0
 
-# dart_monty_core's futures end-to-end work (#102, includes
-# ReplPlatform implements MontyFutureCapable + _driveLoop wiring) lives
-# on main but predates the next release. Drop this block once a
-# dart_monty_core release ships with #102 and bump the version pin above.
+# dart_monty_core#105 merged to main but not yet released on pub.dev.
+# Drop this block once 0.18.0 ships and bump dart_monty_core: ^0.18.0 above.
 dependency_overrides:
   dart_monty_core:
     git:

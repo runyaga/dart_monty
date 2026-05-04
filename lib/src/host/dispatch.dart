@@ -259,7 +259,7 @@ class HostDispatch {
     if (fn == null) throw ArgumentError('Unknown host function: $name');
     final pending = MontyPending(
       functionName: name,
-      arguments: const [],
+      args: const [],
       kwargs: args.map((k, v) => MapEntry(k, MontyValue.fromJson(v))),
     );
     final validatedArgs = fn.schema.mapAndValidate(pending);
