@@ -605,7 +605,6 @@ class SandboxExtension extends MontyExtension
       bridge = PlatformBridge(
         platform: platform,
         limits: limits,
-        useFutures: false,
         logger: logger.child('child.${spawnContext.childId}'),
       );
       logger.debug(

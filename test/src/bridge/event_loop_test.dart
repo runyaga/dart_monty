@@ -695,7 +695,6 @@ void main() {
       final syncPlugin = EventLoopExtension();
       final syncBridge = PlatformBridge(
         platform: syncMock,
-        useFutures: false,
       );
       await syncPlugin.onAttach(syncBridge);
       for (final fn in syncPlugin.functions) {
@@ -850,7 +849,6 @@ void main() {
         final lockMock = MockMontyPlatform();
         final lockBridge = PlatformBridge(
           platform: lockMock,
-          useFutures: false,
         );
         addTearDown(lockBridge.dispose);
 

@@ -169,6 +169,7 @@ class EventLoopExtension extends MontyExtension
             'Pause execution until an event is dispatched from the host.',
       ),
       handler: _handleRecv,
+      dispatch: DispatchMode.future,
     ),
     HostFunction(
       schema: const HostFunctionSchema(
@@ -183,6 +184,7 @@ class EventLoopExtension extends MontyExtension
         ],
       ),
       handler: _handleEmit,
+      dispatch: DispatchMode.future,
     ),
   ];
 

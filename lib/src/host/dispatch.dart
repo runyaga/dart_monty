@@ -4,7 +4,8 @@ import 'dart:convert';
 import 'package:dart_monty/src/bridge/event.dart';
 import 'package:dart_monty/src/bridge/logger.dart';
 import 'package:dart_monty/src/host/context.dart';
-import 'package:dart_monty/src/host/function.dart';
+import 'package:dart_monty/src/host/function.dart'
+    show DispatchMode, HostFunction;
 import 'package:dart_monty/src/host/function_surface.dart';
 import 'package:dart_monty/src/host/schema.dart';
 import 'package:dart_monty/src/runtime/runtime_ref.dart';
@@ -304,7 +305,10 @@ class HostDispatch {
     if (fn != null) {
       _log.trace('Host function call', attributes: {'name': name});
 
-      return futuresCapable
+      final useFutureDispatch =
+          fn.dispatch == DispatchMode.future && futuresCapable;
+
+      return useFutureDispatch
           ? dispatchToolCallAsFuture(fn, pending, controller)
           : dispatchToolCall(fn, pending, controller);
     }

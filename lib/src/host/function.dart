@@ -5,6 +5,21 @@ import 'package:dart_monty/src/host/schema.dart';
 import 'package:dart_monty/src/runtime/backend_kind.dart';
 import 'package:meta/meta.dart';
 
+/// How the bridge dispatches calls to a [HostFunction].
+enum DispatchMode {
+  /// Bridge awaits the handler's Future before resuming Python. Python
+  /// sees a plain value at the call site. Use for functions with
+  /// FIFO ordering invariants (e.g. MessageBus) or simple request-
+  /// response handlers that don't benefit from concurrency.
+  sync,
+
+  /// Bridge launches the handler unawaited, replies with
+  /// `resumeAsFuture()`, batch-resolves via `resolveFutures` when
+  /// Python suspends. Enables `asyncio.gather` parallelism and
+  /// `await ext()` from Python.
+  future,
+}
+
 /// Async handler that receives validated named arguments and a [HostContext].
 typedef HostFunctionHandler =
     Future<Object?> Function(Map<String, Object?> args, HostContext ctx);
@@ -30,6 +45,11 @@ class HostFunction {
   /// child sandboxes spawned from the parent runtime. Defaults to
   /// [ChildPropagation.exclude] — children see only extension
   /// functions, not ad-hoc functions registered via `extraFunctions:`.
+  ///
+  /// [dispatch] controls whether the bridge dispatches this function
+  /// synchronously (default [DispatchMode.sync]) or as a deferred future
+  /// ([DispatchMode.future]). Use [DispatchMode.future] only for handlers
+  /// that benefit from concurrency (network I/O, `asyncio.gather` patterns).
   const HostFunction({
     required this.schema,
     HostFunctionHandler? handler,
@@ -38,6 +58,7 @@ class HostFunction {
     this.isInfra = false,
     this.surfaces = const {FunctionSurface.python},
     this.childPropagation = ChildPropagation.exclude,
+    this.dispatch = DispatchMode.sync,
   }) : ffiHandler = ffiHandler ?? handler,
        wasmHandler = wasmHandler ?? handler;
 
@@ -70,6 +91,13 @@ class HostFunction {
   /// `ExtensionCoordinator.attachTo` — extension-provided functions are
   /// governed by [MontyExtension.childPolicy] instead.
   final ChildPropagation childPropagation;
+
+  /// How the bridge dispatches calls to this function.
+  ///
+  /// Defaults to [DispatchMode.sync] — the bridge awaits the handler before
+  /// resuming Python. Set to [DispatchMode.future] for handlers that benefit
+  /// from concurrent dispatch (e.g. network I/O, `asyncio.gather` callers).
+  final DispatchMode dispatch;
 
   /// The handler for the current backend, or `null` if not available.
   ///

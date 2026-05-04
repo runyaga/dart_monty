@@ -44,7 +44,6 @@ void main() {
       final platform = createPlatformMonty();
       final bridge = PlatformBridge(
         platform: platform,
-        useFutures: false,
       )..register(_httpGetFn());
 
       for (var i = 1; i <= 3; i++) {
@@ -66,7 +65,6 @@ void main() {
       final platform = createPlatformMonty();
       final bridge = PlatformBridge(
         platform: platform,
-        useFutures: false,
       )..register(_httpGetFn());
 
       for (var i = 1; i <= 3; i++) {

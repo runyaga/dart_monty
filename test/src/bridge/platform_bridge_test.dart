@@ -34,6 +34,7 @@ void main() {
           handler: (_, _) async {
             throw StateError('async kaboom');
           },
+          dispatch: DispatchMode.future,
         ),
       );
 
@@ -197,7 +198,7 @@ void main() {
       final syncMock = MockMontyPlatform();
       final syncBridge = MontyBridge(
         platform: syncMock,
-        useFutures: false,
+
         interceptor: (name, args, next) async => 'blocked',
       );
       addTearDown(syncBridge.dispose);
@@ -226,7 +227,7 @@ void main() {
       final syncMock = MockMontyPlatform();
       final syncBridge = MontyBridge(
         platform: syncMock,
-        useFutures: false,
+
         interceptor: (name, args, next) => throw StateError('Access denied'),
       );
       addTearDown(syncBridge.dispose);
@@ -863,7 +864,7 @@ void main() {
       );
       final b = MontyBridge(
         platform: throwingMock,
-        useFutures: false,
+
         logger: const NullBridgeLogger(),
       );
       addTearDown(b.dispose);
@@ -894,7 +895,7 @@ void main() {
         );
         final b = MontyBridge(
           platform: throwingMock,
-          useFutures: false,
+
           logger: const NullBridgeLogger(),
         );
         addTearDown(b.dispose);
@@ -925,7 +926,7 @@ void main() {
         final throwingMock = _PrintThenThrowPlatform();
         final b = MontyBridge(
           platform: throwingMock,
-          useFutures: false,
+
           logger: const NullBridgeLogger(),
         );
         addTearDown(b.dispose);
@@ -1036,7 +1037,7 @@ void main() {
       final syncMock = MockMontyPlatform();
       final syncBridge = MontyBridge(
         platform: syncMock,
-        useFutures: false,
+
         logger: const NullBridgeLogger(),
       );
       addTearDown(syncBridge.dispose);
@@ -1102,12 +1103,11 @@ void main() {
 
   group('ResolveFutures without futures-capable platform', () {
     test('resumes with null when not futures-capable and no pending', () async {
-      // MontyBridge with useFutures: false — ResolveFutures just resumes
-      // with null.
+      // Non-futures-capable platform — ResolveFutures just resumes with null.
       final syncMock = MockMontyPlatform();
       final syncBridge = MontyBridge(
         platform: syncMock,
-        useFutures: false,
+
         logger: const NullBridgeLogger(),
       );
       addTearDown(syncBridge.dispose);
@@ -1137,7 +1137,7 @@ void main() {
       () async {
         // Platform throws when resume() is called with 'hello'.
         final failMock = _ResumeFailsPlatform()..failOnValue = 'hello';
-        final failBridge = MontyBridge(platform: failMock, useFutures: false)
+        final failBridge = MontyBridge(platform: failMock)
           ..register(
             HostFunction(
               schema: const HostFunctionSchema(
@@ -1187,7 +1187,7 @@ void main() {
       () async {
         // Fail when resuming with value '3' (the 3rd call).
         final failMock = _ResumeFailsPlatform()..failOnValue = '3';
-        final failBridge = MontyBridge(platform: failMock, useFutures: false)
+        final failBridge = MontyBridge(platform: failMock)
           ..register(
             HostFunction(
               schema: const HostFunctionSchema(

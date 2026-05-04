@@ -73,7 +73,6 @@ class MontyRuntime implements MontyRuntimeRef {
     BridgeLogger? logger,
     MontyInterceptor? interceptor,
     bool sandbox = false,
-    bool useFutures = false,
     DescriptionProvider? descriptionProvider,
   }) : assert(
          os == null || osHandlers == null,
@@ -84,7 +83,6 @@ class MontyRuntime implements MontyRuntimeRef {
        _logger = logger,
        _interceptor = interceptor,
        _sandbox = sandbox,
-       _useFutures = useFutures,
        _descriptionProvider = descriptionProvider {
     if (!sandbox) {
       // Shared mode: create persistent REPL-backed interpreter.
@@ -94,7 +92,6 @@ class MontyRuntime implements MontyRuntimeRef {
       _sharedPlatform = ReplPlatform(repl: _sharedRepl!);
       _sharedBridge = PlatformBridge(
         platform: _sharedPlatform!,
-        useFutures: _useFutures,
         logger: logger,
         interceptor: interceptor,
         runtime: this,
@@ -117,7 +114,6 @@ class MontyRuntime implements MontyRuntimeRef {
   final BridgeLogger? _logger;
   final MontyInterceptor? _interceptor;
   final bool _sandbox;
-  final bool _useFutures;
   final DescriptionProvider? _descriptionProvider;
 
   // Shared mode state.
@@ -293,7 +289,6 @@ class MontyRuntime implements MontyRuntimeRef {
       _sharedPlatform = ReplPlatform(repl: _sharedRepl!);
       _sharedBridge = PlatformBridge(
         platform: _sharedPlatform!,
-        useFutures: _useFutures,
         logger: _logger,
         runtime: this,
       );
@@ -452,7 +447,6 @@ class MontyRuntime implements MontyRuntimeRef {
   PlatformBridge _buildBridge({MontyPlatform? platform}) {
     final b = PlatformBridge(
       platform: platform ?? ReplPlatform(repl: MontyRepl()),
-      useFutures: _useFutures,
       logger: _logger,
       interceptor: _interceptor,
       runtime: this,
@@ -483,6 +477,7 @@ class MontyRuntime implements MontyRuntimeRef {
       isInfra: fn.isInfra,
       surfaces: fn.surfaces,
       childPropagation: fn.childPropagation,
+      dispatch: fn.dispatch,
     );
   }
 }

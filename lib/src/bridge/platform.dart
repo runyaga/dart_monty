@@ -117,13 +117,11 @@ class PlatformBridge implements MontyBridge, AttachContext {
   PlatformBridge({
     required MontyPlatform platform,
     MontyLimits? limits,
-    bool useFutures = true,
     BridgeLogger? logger,
     MontyInterceptor? interceptor,
     MontyRuntimeRef? runtime,
   }) : _platform = platform,
        _limits = limits,
-       _useFutures = useFutures,
        log = logger ?? StructLogBridgeLogger.root(LogManager.instance),
        _host = HostDispatch(
          platform: platform,
@@ -138,7 +136,6 @@ class PlatformBridge implements MontyBridge, AttachContext {
 
   final MontyPlatform _platform;
   final MontyLimits? _limits;
-  final bool _useFutures;
   final HostDispatch _host;
 
   OsCallHandler? _osHandler;
@@ -363,7 +360,7 @@ class PlatformBridge implements MontyBridge, AttachContext {
     controller.add(BridgeRunStarted(threadId: threadId, runId: runId));
 
     final externalFunctions = _host.schemas.map((s) => s.name).toList();
-    final futuresCapable = _useFutures && _platform is MontyFutureCapable;
+    final futuresCapable = _platform is MontyFutureCapable;
     _host.clearPendingFutures();
 
     try {
