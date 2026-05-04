@@ -2,6 +2,11 @@ import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:test/test.dart';
 
+// Shared no-op emit callback for structural tests that never emit events.
+// Pulled out so the inline lambdas don't trip DCM's no-empty-block rule.
+// ignore: no-empty-block
+void _ignoreEvent(BridgeEvent _) {}
+
 void main() {
   group('HostContext.parent', () {
     test('typed as HostParentRef — no execute() at compile time', () {
@@ -10,7 +15,7 @@ void main() {
       // The only way to drive a sub-script from a host function is
       // ctx.subExecute. If a future refactor re-introduced execute() on
       // HostParentRef, this test's compile-time guarantee would break.
-      final ctx = HostContext(emit: (_) {}, executionId: 'test');
+      final ctx = HostContext(emit: _ignoreEvent, executionId: 'test');
 
       expect(ctx.parent, isNull);
       // Parent surface area:
@@ -25,7 +30,7 @@ void main() {
     });
 
     test('subExecute is null on a bare HostContext (test fixture)', () {
-      final ctx = HostContext(emit: (_) {}, executionId: 'test');
+      final ctx = HostContext(emit: _ignoreEvent, executionId: 'test');
 
       expect(ctx.subExecute, isNull);
     });
@@ -39,7 +44,7 @@ void main() {
         }) => Monty(code).run(inputs: inputs);
 
         final ctx = HostContext(
-          emit: (_) {},
+          emit: _ignoreEvent,
           executionId: 'test',
           subExecute: wired,
         );
