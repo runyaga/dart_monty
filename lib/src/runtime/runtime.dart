@@ -464,14 +464,15 @@ class MontyRuntime implements MontyRuntimeRef {
 
   HostFunction _applyDescription(HostFunction fn) {
     if (_descriptionProvider == null) return fn;
-    final desc = _descriptionProvider(fn.schema.name);
+    final schema = fn.schema;
+    final desc = _descriptionProvider(schema.name);
     if (desc == null) return fn;
 
     return HostFunction(
       schema: HostFunctionSchema(
-        name: fn.schema.name,
+        name: schema.name,
         description: desc,
-        params: fn.schema.params,
+        params: schema.params,
       ),
       ffiHandler: fn.ffiHandler,
       wasmHandler: fn.wasmHandler,

@@ -90,7 +90,8 @@ void main() {
         final result = await runtime.execute('run_script("assign.py")').result;
 
         expect(result.error, isNull);
-        // Assignment is a statement; no last-expression value — run_script returns None.
+        // Assignment is a statement; no last-expression value — run_script
+        // returns None.
         expect(result.value.dartValue, isNull);
       },
     );
@@ -105,8 +106,9 @@ void main() {
     });
 
     // Both kwargs and positional forms work for host-function params:
-    // run_script("foo.py", inputs={"k":"v"}) and run_script("foo.py", {"k":"v"})
-    // are equivalent — pydantic-monty maps positional args to schema params
+    // run_script("foo.py", inputs={"k":"v"}) and
+    // run_script("foo.py", {"k":"v"}) are equivalent — pydantic-monty
+    // maps positional args to schema params
     // by index. The kwargs-only contract lives at the *Dart* API level: the
     // `inputs` param is a Dart named parameter with no positional form.
     test('positional dict is equivalent to inputs= kwarg form', () async {

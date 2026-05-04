@@ -63,14 +63,15 @@ enum ChildVfsStrategy {
 /// unchanged when [provider] is `null` or returns `null` for the function name.
 HostFunction _enrichFunction(HostFunction fn, DescriptionProvider? provider) {
   if (provider == null) return fn;
-  final desc = provider(fn.schema.name);
+  final schema = fn.schema;
+  final desc = provider(schema.name);
   if (desc == null) return fn;
 
   return HostFunction(
     schema: HostFunctionSchema(
-      name: fn.schema.name,
+      name: schema.name,
       description: desc,
-      params: fn.schema.params,
+      params: schema.params,
     ),
     ffiHandler: fn.ffiHandler,
     wasmHandler: fn.wasmHandler,

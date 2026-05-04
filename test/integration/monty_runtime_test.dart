@@ -681,6 +681,9 @@ result
     });
 
     test('inputs named param: null inputs is a no-op', () async {
+      // Explicitly passing `inputs: null` is the contract under test here;
+      // the redundant-default lint would defeat the test's purpose.
+      // ignore: avoid_redundant_argument_values
       final result = await session.execute('1 + 1', inputs: null).result;
 
       expect(result.error, isNull);
