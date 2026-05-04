@@ -65,9 +65,7 @@ void main() {
     });
 
     test('missing file surfaces as Python exception', () async {
-      final result = await runtime
-          .execute('run_script("missing.py")')
-          .result;
+      final result = await runtime.execute('run_script("missing.py")').result;
 
       expect(result.isError, isTrue);
     });

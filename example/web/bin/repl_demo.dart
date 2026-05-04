@@ -41,8 +41,8 @@ external void _jsOnToolCall(JSString jsonPayload);
 MontyRuntime _session = _newSession();
 
 MontyRuntime _newSession() => MontyRuntime(
-  extensions: [JinjaTemplateExtension(), MessageBusExtension()],
-);
+      extensions: [JinjaTemplateExtension(), MessageBusExtension()],
+    );
 
 // ---------------------------------------------------------------------------
 // API
@@ -68,7 +68,8 @@ Future<String> _apiExecute(String code) async {
       if (map != null) {
         events.add(map);
         // Notify HTML of tool calls in real-time
-        if (event is BridgeFunctionCallStart || event is BridgeFunctionCallResult) {
+        if (event is BridgeFunctionCallStart ||
+            event is BridgeFunctionCallResult) {
           try {
             _jsOnToolCall(jsonEncode(map).toJS);
           } on Object catch (_) {}
@@ -190,11 +191,11 @@ void main() {
   // Expose API to window
   final api = <String, JSFunction>{
     'run': ((JSString code) => _apiRun(
-      code.toDart,
-    ).then((r) => r.toJS).toJS).toJS,
+          code.toDart,
+        ).then((r) => r.toJS).toJS).toJS,
     'execute': ((JSString code) => _apiExecute(
-      code.toDart,
-    ).then((r) => r.toJS).toJS).toJS,
+          code.toDart,
+        ).then((r) => r.toJS).toJS).toJS,
     'reset': (() => _apiReset().then((r) => r.toJS).toJS).toJS,
   }.jsify();
   _replSessionDemo = api as JSObject;

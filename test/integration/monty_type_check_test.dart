@@ -46,8 +46,7 @@ void main() {
       expect(withStub, isEmpty);
     });
 
-    test('real type errors surface even when prefixCode is supplied',
-        () async {
+    test('real type errors surface even when prefixCode is supplied', () async {
       const stub = 'def fetch(url: str) -> str: return ""';
       final errors = await Monty.typeCheck(
         'result: int = fetch("https://example.com")',

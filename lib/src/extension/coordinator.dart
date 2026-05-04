@@ -538,9 +538,7 @@ class ExtensionCoordinator {
         final fnName = fn.schema.name;
         final desc = fn.schema.description;
         buffer.writeln(
-          desc != null
-              ? '- `$fnName($params)`: $desc'
-              : '- `$fnName($params)`',
+          desc != null ? '- `$fnName($params)`: $desc' : '- `$fnName($params)`',
         );
       }
       buffer.writeln();

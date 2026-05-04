@@ -77,6 +77,7 @@ HostFunction buildRunScriptFunction(
         final msg = result.error?.message ?? 'unknown error';
         throw Exception('run_script("$path") failed: $msg');
       }
+
       return result.value.dartValue;
     },
   );

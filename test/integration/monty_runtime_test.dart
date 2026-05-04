@@ -580,16 +580,18 @@ result
       expect(session.coordinator, isNull);
     });
 
-    test('shared mode: registered extensions are visible on coordinator',
-        () async {
-      final ext = JinjaTemplateExtension();
-      final session = MontyRuntime(extensions: [ext]);
-      addTearDown(session.dispose);
-      expect(
-        session.coordinator!.extensions.map((e) => e.namespace),
-        contains('tmpl'),
-      );
-    });
+    test(
+      'shared mode: registered extensions are visible on coordinator',
+      () async {
+        final ext = JinjaTemplateExtension();
+        final session = MontyRuntime(extensions: [ext]);
+        addTearDown(session.dispose);
+        expect(
+          session.coordinator!.extensions.map((e) => e.namespace),
+          contains('tmpl'),
+        );
+      },
+    );
 
     test('clearState() produces a new non-null coordinator', () async {
       final session = MontyRuntime();
@@ -622,9 +624,7 @@ result
     });
 
     test('int input is visible as a Python variable', () async {
-      final result = await session
-          .execute('x * 2', inputs: {'x': 21})
-          .result;
+      final result = await session.execute('x * 2', inputs: {'x': 21}).result;
 
       expect(result.value.dartValue, 42);
     });
@@ -661,9 +661,7 @@ result
       final r1 = await sandbox
           .execute('name', inputs: {'name': 'alice'})
           .result;
-      final r2 = await sandbox
-          .execute('name', inputs: {'name': 'bob'})
-          .result;
+      final r2 = await sandbox.execute('name', inputs: {'name': 'bob'}).result;
 
       expect(r1.value.dartValue, 'alice');
       expect(r2.value.dartValue, 'bob');
