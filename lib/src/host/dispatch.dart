@@ -307,6 +307,7 @@ class HostDispatch {
 
       final useFutureDispatch =
           fn.dispatch == DispatchMode.future && futuresCapable;
+
       return useFutureDispatch
           ? dispatchToolCallAsFuture(fn, pending, controller)
           : dispatchToolCall(fn, pending, controller);
