@@ -30,12 +30,11 @@ dependencies:
 dev_dependencies:
   very_good_analysis: ^10.0.0
 
-# dart_monty_core's futures end-to-end work (#102, includes
-# ReplPlatform implements MontyFutureCapable + _driveLoop wiring) lives
-# on main but predates the next release. Drop this block once a
-# dart_monty_core release ships with #102 and bump the version pin above.
+# dart_monty_core PR #105 (feat/args-kwargs-callback) changes MontyCallback to
+# (List<Object?> args, Map<String, Object?>? kwargs). Drop this block once
+# #105 merges and a release ships.
 dependency_overrides:
   dart_monty_core:
     git:
       url: https://github.com/runyaga/dart_monty_core.git
-      ref: main
+      ref: feat/args-kwargs-callback
