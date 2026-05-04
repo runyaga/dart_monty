@@ -29,11 +29,3 @@ dependencies:
 
 dev_dependencies:
   very_good_analysis: ^10.0.0
-
-# dart_monty_core 0.17.1 not yet released on pub.dev.
-# Drop this block once 0.17.1 ships and bump dart_monty_core: ^0.17.1 above.
-dependency_overrides:
-  dart_monty_core:
-    git:
-      url: https://github.com/runyaga/dart_monty_core.git
-      ref: main
