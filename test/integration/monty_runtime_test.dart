@@ -646,12 +646,15 @@ result
       expect(result.value.dartValue, 2);
     });
 
-    test('inputs do not bleed into the next execute() call', () async {
+    test('shared mode: injected inputs persist as Python globals', () async {
+      // In shared mode, inputsToCode() prepends `temp = 99` as an assignment,
+      // so `temp` lives in the module globals and remains visible on the next
+      // execute() call — which is expected shared-interpreter behaviour.
       await session.execute('pass', inputs: {'temp': 99}).result;
       final result = await session.execute('temp').result;
 
-      // temp is not re-injected; Python raises NameError.
-      expect(result.error, isNotNull);
+      expect(result.error, isNull);
+      expect(result.value.dartValue, 99);
     });
 
     test('sandbox mode: inputs injected per call', () async {
@@ -665,6 +668,69 @@ result
 
       expect(r1.value.dartValue, 'alice');
       expect(r2.value.dartValue, 'bob');
+    });
+
+    // inputs is a named (kwargs-only) Dart parameter — no positional form
+    // exists in the API. The tests below confirm the named-only contract
+    // is enforced end-to-end.
+    test('inputs named param: omitting inputs is valid', () async {
+      final result = await session.execute('7 * 6').result;
+
+      expect(result.error, isNull);
+      expect(result.value.dartValue, 42);
+    });
+
+    test('inputs named param: null inputs is a no-op', () async {
+      final result = await session.execute('1 + 1', inputs: null).result;
+
+      expect(result.error, isNull);
+      expect(result.value.dartValue, 2);
+    });
+  });
+
+  group('MontyRuntime.execute return-value semantics', () {
+    late MontyRuntime session;
+
+    setUp(() {
+      session = MontyRuntime();
+    });
+
+    tearDown(() async {
+      await session.dispose();
+    });
+
+    test('last expression is captured as result value', () async {
+      final result = await session.execute('x + 1', inputs: {'x': 41}).result;
+
+      expect(result.error, isNull);
+      expect(result.value.dartValue, 42);
+    });
+
+    test(
+      'assignment statement yields MontyNone — not the assigned value',
+      () async {
+        final result = await session.execute('x = 42').result;
+
+        expect(result.error, isNull);
+        // Assignment is a statement; no last-expression value.
+        expect(result.value.dartValue, isNull);
+      },
+    );
+
+    test('expression after assignment is the result', () async {
+      final result = await session.execute('x = 7\nx * 6').result;
+
+      expect(result.error, isNull);
+      expect(result.value.dartValue, 42);
+    });
+
+    test('module-level return yields the return value', () async {
+      // pydantic-monty treats module-level `return` as a valid return
+      // statement — it returns the value rather than raising SyntaxError.
+      final result = await session.execute('return 42').result;
+
+      expect(result.error, isNull);
+      expect(result.value.dartValue, 42);
     });
   });
 

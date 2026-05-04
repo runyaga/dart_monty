@@ -4,6 +4,7 @@ import 'package:dart_monty/src/host/function.dart';
 import 'package:dart_monty/src/host/param.dart';
 import 'package:dart_monty/src/host/param_type.dart';
 import 'package:dart_monty/src/host/schema.dart';
+import 'package:dart_monty_core/dart_monty_core.dart';
 
 /// Builds a `run_script` [HostFunction] that Python code can call to execute
 /// another script file and receive its last-expression value.
@@ -60,11 +61,6 @@ HostFunction buildRunScriptFunction(
           ? rawInputs.map((k, v) => MapEntry(k.toString(), v as Object?))
           : null;
 
-      final runtime = ctx.runtime;
-      if (runtime == null) {
-        throw StateError('run_script: no runtime available in this context');
-      }
-
       final String code;
       try {
         code = await readFile(path);
@@ -72,7 +68,10 @@ HostFunction buildRunScriptFunction(
         throw Exception('run_script: could not read "$path": $e');
       }
 
-      final result = await runtime.execute(code, inputs: inputs).result;
+      // Use a fresh Monty execution so the sub-script does not contend with
+      // the caller's bridge lock (the bridge serialises executions; nested
+      // ctx.runtime.execute() calls would deadlock).
+      final result = await Monty(code).run(inputs: inputs);
       if (result.isError) {
         final msg = result.error?.message ?? 'unknown error';
         throw Exception('run_script("$path") failed: $msg');

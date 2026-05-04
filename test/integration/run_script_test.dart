@@ -80,5 +80,43 @@ void main() {
 
       expect(result.value.dartValue, 42);
     });
+
+    // Return-value semantics: run_script captures the last expression of
+    // the sub-script. Assignment statements yield None (dartValue == null).
+    test(
+      'sub-script assignment statement yields None — not the assigned value',
+      () async {
+        vfs['assign.py'] = 'x = 99';
+        final result = await runtime.execute('run_script("assign.py")').result;
+
+        expect(result.error, isNull);
+        // Assignment is a statement; no last-expression value — run_script returns None.
+        expect(result.value.dartValue, isNull);
+      },
+    );
+
+    test('sub-script module-level return yields the return value', () async {
+      // pydantic-monty treats module-level `return` as a valid return.
+      vfs['ret.py'] = 'return 99';
+      final result = await runtime.execute('run_script("ret.py")').result;
+
+      expect(result.error, isNull);
+      expect(result.value.dartValue, 99);
+    });
+
+    // Both kwargs and positional forms work for host-function params:
+    // run_script("foo.py", inputs={"k":"v"}) and run_script("foo.py", {"k":"v"})
+    // are equivalent — pydantic-monty maps positional args to schema params
+    // by index. The kwargs-only contract lives at the *Dart* API level: the
+    // `inputs` param is a Dart named parameter with no positional form.
+    test('positional dict is equivalent to inputs= kwarg form', () async {
+      vfs['greet.py'] = 'f"hello, {name}!"';
+      final result = await runtime
+          .execute('run_script("greet.py", {"name": "alice"})')
+          .result;
+
+      expect(result.error, isNull);
+      expect(result.value.dartValue, 'hello, alice!');
+    });
   });
 }
