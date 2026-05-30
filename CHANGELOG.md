@@ -1,3 +1,11 @@
+## 0.18.0
+
+Requires `dart_monty_core` 0.18.1 (monty v0.0.18). See its changelog for the
+new `open()`/file I/O, the `MontyFileHandle` value, and typed OS exceptions
+(`except FileNotFoundError:` / `PermissionError:` now work). No `dart_monty`
+API changes — the 0.18.x additions are additive and surface automatically
+through the existing `OsCallHandler` / runtime.
+
 ## 0.17.1
 
 Requires `dart_monty_core` 0.17.1 — see its changelog for `MontyCallback`,
