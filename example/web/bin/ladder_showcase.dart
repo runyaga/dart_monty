@@ -163,6 +163,20 @@ bool _valuesMatch(Object? actual, Object? expected) {
   return '$actual' == '$expected';
 }
 
+/// Emits a machine-readable result line to the browser console for the
+/// headless ladder gate (tool/test_python_ladder.sh). `tier` is the fixture
+/// FILE name (e.g. `tier_07_advanced.json`) so the key matches
+/// known_failures.txt (`tier_file:test_name`). `ok` is false only for hard
+/// failures — warn/xfail/xpass/skip count as passing for the gate.
+void _emitLadderResult(String tierFile, String name, String status) {
+  final tier = tierFile.split('/').last;
+  // print() is the headless gate's transport (dart2js -> console.log).
+  // ignore: avoid_print
+  print(
+    'LADDER_RESULT:${jsonEncode({'tier': tier, 'name': name, 'ok': status != 'fail'})}',
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Runner
 // ---------------------------------------------------------------------------
@@ -209,6 +223,7 @@ Future<void> main() async {
             'skip'.toJS,
             'Skipped (native only)'.toJS,
           );
+          _emitLadderResult(_tierFiles[tierIdx], name, 'skip');
           continue;
         }
 
@@ -235,6 +250,7 @@ Future<void> main() async {
           status.toJS,
           detail.toJS,
         );
+        _emitLadderResult(_tierFiles[tierIdx], name, status);
       }
     } on Object catch (e) {
       totalFailed++;
@@ -246,6 +262,7 @@ Future<void> main() async {
         'fail'.toJS,
         'Failed to load ${_tierFiles[tierIdx]}: $e'.toJS,
       );
+      _emitLadderResult(_tierFiles[tierIdx], 'Tier load error', 'fail');
     }
   }
 
@@ -258,6 +275,11 @@ Future<void> main() async {
     totalXfailed.toJS,
     totalXpassed.toJS,
   );
+
+  // Completion marker for the headless gate — lets it distinguish a finished
+  // run from a Chrome crash/timeout that emitted only partial results.
+  // ignore: avoid_print
+  print('LADDER_DONE:${jsonEncode({'total': totalTests})}');
 }
 
 // ---------------------------------------------------------------------------
