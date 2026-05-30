@@ -36,6 +36,16 @@ abstract final class PathOp {
   /// `Path.write_bytes`
   static const writeBytes = 'Path.write_bytes';
 
+  /// `Path.append_text` (`open(..., 'a')` then write)
+  static const appendText = 'Path.append_text';
+
+  /// `Path.append_bytes` (`open(..., 'ab')` then write)
+  static const appendBytes = 'Path.append_bytes';
+
+  /// `Open` — the `open()` builtin's OS-call (no `Path.` prefix). Carries
+  /// `[path, mode]`; the host returns a `MontyFileHandle`.
+  static const open = 'Open';
+
   /// `Path.mkdir`
   static const mkdir = 'Path.mkdir';
 

@@ -8,6 +8,10 @@ export 'package:dart_monty_core/dart_monty_core.dart' show OsCallHandler;
 /// responsible for that group. Longest prefix wins. Unmatched operations are
 /// routed to [fallback], or throw [UnsupportedError] if none is configured.
 ///
+/// The bare `Open` op (Python's `open()`, which carries no `Path.` prefix) is
+/// routed to the `'Path.'` handler when one is registered — `open()` is a
+/// filesystem operation, so callers wire it the same way they wire `Path.*`.
+///
 /// ```dart
 /// final os = composeOsHandlers({
 ///   'Path.': fsHandler(MemoryFileSystem()),
@@ -21,8 +25,14 @@ OsCallHandler composeOsHandlers(
 }) {
   final sortedPrefixes = handlers.keys.toList()
     ..sort((a, b) => b.length.compareTo(a.length));
+  final pathHandler = handlers['Path.'];
 
   return (operation, args, kwargs) {
+    // `open()` is a filesystem op without a `Path.` prefix — route it to the
+    // filesystem handler so handlers don't each register a separate 'Open' key.
+    if (operation == 'Open' && pathHandler != null) {
+      return pathHandler(operation, args, kwargs);
+    }
     for (final prefix in sortedPrefixes) {
       if (operation.startsWith(prefix)) {
         return handlers[prefix]!(operation, args, kwargs);

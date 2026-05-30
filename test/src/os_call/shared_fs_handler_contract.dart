@@ -49,7 +49,7 @@ void runFsHandlerContract(
       final result = await handler('Path.read_bytes', [
         '$rootPath/data.bin',
       ], null);
-      expect(result, [72, 105]);
+      expect((result! as MontyBytes).value, [72, 105]);
     });
 
     test('write_text returns int (content length)', () async {
@@ -70,7 +70,7 @@ void runFsHandlerContract(
       expect(result, 3);
     });
 
-    test('read_bytes returns List<int>', () async {
+    test('read_bytes returns typed MontyBytes', () async {
       await handler('Path.write_bytes', [
         '$rootPath/bytes.bin',
         <int>[65, 66, 67],
@@ -78,8 +78,8 @@ void runFsHandlerContract(
       final result = await handler('Path.read_bytes', [
         '$rootPath/bytes.bin',
       ], null);
-      expect(result, isA<List<int>>());
-      expect(result, [65, 66, 67]);
+      expect(result, isA<MontyBytes>());
+      expect((result! as MontyBytes).value, [65, 66, 67]);
     });
 
     // -- Directory --

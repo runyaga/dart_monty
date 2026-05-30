@@ -327,6 +327,22 @@ class PlatformBridge implements MontyBridge, AttachContext {
       );
 
       return await _platform.resume(result);
+    } on OsCallException catch (e) {
+      // Deliver the handler's typed Python exception (FileNotFoundError,
+      // PermissionError, …) so scripts can `except` it; core falls back to
+      // RuntimeError when no type is given.
+      sw.stop();
+      controller.add(
+        BridgeOsCallResult(
+          callId: callId,
+          result: 'Error: ${e.message}',
+          durationMs: sw.elapsedMilliseconds,
+        ),
+      );
+      final type = e.pythonExceptionType;
+      return type != null
+          ? _platform.resumeWithException(type, e.message)
+          : _platform.resumeWithError(e.message);
     } on Object catch (e, st) {
       sw.stop();
       log.error(

@@ -4,6 +4,8 @@
 /// event loop support, and a plugin system for modular host function bundles.
 library;
 
+export 'package:dart_monty_core/dart_monty_core.dart'
+    show OsCallException, OsCallNotHandledException;
 export 'src/bridge/bridge.dart';
 export 'src/bridge/event.dart';
 export 'src/bridge/logger.dart';
@@ -31,7 +33,6 @@ export 'src/host/schema.dart';
 export 'src/os_call/default_os_handler.dart';
 export 'src/os_call/fs_decorators.dart';
 export 'src/os_call/fs_handlers.dart';
-export 'src/os_call/os_call_exception.dart';
 export 'src/os_call/os_handlers.dart';
 export 'src/os_call/path_op.dart';
 export 'src/os_call/platform_handlers.dart';

@@ -9,13 +9,12 @@
 /// ```
 library;
 
-// Execution engine — provided by dart_monty_core.
-// OsCallException is intentionally hidden: dart_monty keeps its own richer
-// subclass hierarchy (OsCallPermissionError, OsCallFileNotFoundError).
-export 'package:dart_monty_core/dart_monty_core.dart' hide OsCallException;
+// Execution engine — provided by dart_monty_core. dart_monty reuses core's
+// OsCallException (carrying `pythonExceptionType`) rather than a parallel
+// hierarchy, so handlers throw one type and core delivers the typed exception.
+export 'package:dart_monty_core/dart_monty_core.dart';
 
 // dart_monty bridge/plugin layer
-export 'src/os_call/os_call_exception.dart';
 export 'src/runtime/runtime.dart';
 export 'src/runtime/runtime_ref.dart';
 export 'src/runtime/value_x.dart';

@@ -34,7 +34,13 @@ void main() {
     test('read_text on missing file throws', () async {
       expect(
         () => handler('Path.read_text', ['/sandbox/missing.txt'], null),
-        throwsA(isA<OsCallFileNotFoundError>()),
+        throwsA(
+          isA<OsCallException>().having(
+            (e) => e.pythonExceptionType,
+            'pythonExceptionType',
+            'FileNotFoundError',
+          ),
+        ),
       );
     });
 
@@ -50,14 +56,26 @@ void main() {
     test('iterdir on missing dir throws', () {
       expect(
         () => handler('Path.iterdir', ['/sandbox/nope'], null),
-        throwsA(isA<OsCallFileNotFoundError>()),
+        throwsA(
+          isA<OsCallException>().having(
+            (e) => e.pythonExceptionType,
+            'pythonExceptionType',
+            'FileNotFoundError',
+          ),
+        ),
       );
     });
 
     test('unlink on missing file throws', () {
       expect(
         () => handler('Path.unlink', ['/sandbox/ghost.txt'], null),
-        throwsA(isA<OsCallFileNotFoundError>()),
+        throwsA(
+          isA<OsCallException>().having(
+            (e) => e.pythonExceptionType,
+            'pythonExceptionType',
+            'FileNotFoundError',
+          ),
+        ),
       );
     });
 

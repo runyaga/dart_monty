@@ -1,10 +1,9 @@
 // ignore_for_file: avoid-unsafe-collection-methods, avoid-non-null-assertion
 // ignore_for_file: avoid-unnecessary-futures, newline-before-return
-import 'package:dart_monty/src/os_call/os_call_exception.dart';
 import 'package:dart_monty/src/os_call/os_handlers.dart';
 import 'package:dart_monty/src/os_call/path_op.dart';
 import 'package:dart_monty_core/dart_monty_core.dart'
-    show MontyPath, OsCallHandler;
+    show MontyBytes, MontyPath, OsCallException, OsCallHandler, resolveOpenCall;
 import 'package:file/file.dart';
 import 'package:file/memory.dart';
 
@@ -20,6 +19,27 @@ import 'package:file/memory.dart';
 OsCallHandler fsHandler(FileSystem fs) {
   return (operation, args, kwargs) async {
     switch (operation) {
+      case PathOp.open:
+        // Core owns the open() mode→effect mapping; supply this FileSystem's
+        // primitives. The engine then drives reads/writes via the Path.* ops.
+        final path = osArgString(args.first);
+        final mode = args.length > 1 ? osArgString(args[1]) : 'r';
+        return resolveOpenCall(
+          path,
+          mode,
+          exists: (p) => fs.typeSync(p) == FileSystemEntityType.file,
+          isDirectory: (p) => fs.typeSync(p) == FileSystemEntityType.directory,
+          truncate: (p) => fs.file(p)
+            ..parent.createSync(recursive: true)
+            ..writeAsStringSync(''),
+          createIfMissing: (p) {
+            final f = fs.file(p);
+            if (!f.existsSync()) {
+              f.parent.createSync(recursive: true);
+              f.createSync();
+            }
+          },
+        );
       case PathOp.exists:
         return fs.typeSync(osArgString(args.first)) !=
             FileSystemEntityType.notFound;
@@ -36,16 +56,24 @@ OsCallHandler fsHandler(FileSystem fs) {
         final path = osArgString(args.first);
         final file = fs.file(path);
         if (!file.existsSync()) {
-          throw OsCallFileNotFoundError(operation, 'No such file: $path');
+          throw OsCallException(
+            'No such file: $path',
+            pythonExceptionType: 'FileNotFoundError',
+          );
         }
         return file.readAsStringSync();
       case PathOp.readBytes:
         final path = osArgString(args.first);
         final file = fs.file(path);
         if (!file.existsSync()) {
-          throw OsCallFileNotFoundError(operation, 'No such file: $path');
+          throw OsCallException(
+            'No such file: $path',
+            pythonExceptionType: 'FileNotFoundError',
+          );
         }
-        return file.readAsBytesSync().toList();
+        // Typed bytes (not a bare list) so binary `open(...,'rb').read()`
+        // buffers correctly.
+        return MontyBytes(file.readAsBytesSync());
       case PathOp.writeText:
         final path = osArgString(args.first);
         final content = osArgString(args[1]);
@@ -60,6 +88,20 @@ OsCallHandler fsHandler(FileSystem fs) {
           ..parent.createSync(recursive: true)
           ..writeAsBytesSync(bytes);
         return bytes.length;
+      case PathOp.appendText:
+        final path = osArgString(args.first);
+        final content = osArgString(args[1]);
+        fs.file(path)
+          ..parent.createSync(recursive: true)
+          ..writeAsStringSync(content, mode: FileMode.append);
+        return content.length;
+      case PathOp.appendBytes:
+        final path = osArgString(args.first);
+        final bytes = (args[1]! as List).cast<int>();
+        fs.file(path)
+          ..parent.createSync(recursive: true)
+          ..writeAsBytesSync(bytes, mode: FileMode.append);
+        return bytes.length;
       case PathOp.mkdir:
         final path = osArgString(args.first);
         final parents = kwargs?['parents'] as bool? ?? false;
@@ -68,7 +110,10 @@ OsCallHandler fsHandler(FileSystem fs) {
         final exists = dir.existsSync();
         if (existOk && exists) return null;
         if (!parents && exists) {
-          throw OsCallException(operation, 'Directory exists: $path');
+          throw OsCallException(
+            'Directory exists: $path',
+            pythonExceptionType: 'FileExistsError',
+          );
         }
         dir.createSync(recursive: parents);
         return null;
@@ -76,7 +121,10 @@ OsCallHandler fsHandler(FileSystem fs) {
         final path = osArgString(args.first);
         final file = fs.file(path);
         if (!file.existsSync()) {
-          throw OsCallFileNotFoundError(operation, 'No such file: $path');
+          throw OsCallException(
+            'No such file: $path',
+            pythonExceptionType: 'FileNotFoundError',
+          );
         }
         file.deleteSync();
         return null;
@@ -84,7 +132,10 @@ OsCallHandler fsHandler(FileSystem fs) {
         final path = osArgString(args.first);
         final dir = fs.directory(path);
         if (!dir.existsSync()) {
-          throw OsCallFileNotFoundError(operation, 'No such directory: $path');
+          throw OsCallException(
+            'No such directory: $path',
+            pythonExceptionType: 'FileNotFoundError',
+          );
         }
         dir.deleteSync();
         return null;
@@ -97,9 +148,9 @@ OsCallHandler fsHandler(FileSystem fs) {
         final path = osArgString(args.first);
         final dir = fs.directory(path);
         if (!dir.existsSync()) {
-          throw OsCallFileNotFoundError(
-            operation,
+          throw OsCallException(
             'No such directory: $path',
+            pythonExceptionType: 'FileNotFoundError',
           );
         }
         return dir.listSync().map((e) => MontyPath(e.path)).toList();

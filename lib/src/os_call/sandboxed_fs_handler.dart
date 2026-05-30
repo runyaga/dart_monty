@@ -2,17 +2,16 @@
 // ignore_for_file: avoid-unnecessary-futures, newline-before-return
 import 'dart:io';
 
-import 'package:dart_monty/src/os_call/os_call_exception.dart';
 import 'package:dart_monty/src/os_call/os_handlers.dart';
 import 'package:dart_monty/src/os_call/path_op.dart';
 import 'package:dart_monty_core/dart_monty_core.dart'
-    show MontyPath, OsCallHandler;
+    show MontyBytes, MontyPath, OsCallException, OsCallHandler, resolveOpenCall;
 import 'package:path/path.dart' as p;
 
 /// Handler for `Path.*` operations against the real filesystem, restricted to
 /// [root]. Paths that escape the sandbox (via `../`, absolute paths outside
-/// root, or symlinks pointing outside) are rejected with
-/// [OsCallPermissionError].
+/// root, or symlinks pointing outside) are rejected with a typed
+/// `PermissionError` (`OsCallException`).
 ///
 /// ```dart
 /// final tmp = Directory.systemTemp.createTempSync('monty_');
@@ -29,7 +28,10 @@ OsCallHandler sandboxedFsHandler({required Directory root}) {
         ? p.normalize(pythonPath)
         : p.normalize(p.join(rootExact, pythonPath));
     if (joined != rootExact && !joined.startsWith(rootWithSep)) {
-      throw OsCallPermissionError(op, 'Path escapes sandbox: $pythonPath');
+      throw OsCallException(
+        'Path escapes sandbox: $pythonPath',
+        pythonExceptionType: 'PermissionError',
+      );
     }
     return joined;
   }
@@ -40,9 +42,9 @@ OsCallHandler sandboxedFsHandler({required Directory root}) {
     if (type != FileSystemEntityType.notFound) {
       final resolved = File(safe).resolveSymbolicLinksSync();
       if (resolved != rootExact && !resolved.startsWith(rootWithSep)) {
-        throw OsCallPermissionError(
-          op,
+        throw OsCallException(
           'Symlink escapes sandbox: $pythonPath -> $resolved',
+          pythonExceptionType: 'PermissionError',
         );
       }
       return resolved;
@@ -52,6 +54,47 @@ OsCallHandler sandboxedFsHandler({required Directory root}) {
 
   return (operation, args, kwargs) async {
     switch (operation) {
+      case PathOp.open:
+        // Keep the Python path on the handle (no host-path leak); each
+        // callback re-validates it through safePath.
+        final pythonPath = osArgString(args.first);
+        final mode = args.length > 1 ? osArgString(args[1]) : 'r';
+        return resolveOpenCall(
+          pythonPath,
+          mode,
+          exists: (p) =>
+              FileSystemEntity.typeSync(safePath(operation, p)) ==
+              FileSystemEntityType.file,
+          isDirectory: (p) =>
+              FileSystemEntity.typeSync(safePath(operation, p)) ==
+              FileSystemEntityType.directory,
+          truncate: (p) {
+            File(safePath(operation, p))
+              ..parent.createSync(recursive: true)
+              ..writeAsStringSync('');
+          },
+          createIfMissing: (p) {
+            final f = File(safePath(operation, p));
+            if (!f.existsSync()) {
+              f.parent.createSync(recursive: true);
+              f.createSync();
+            }
+          },
+        );
+      case PathOp.appendText:
+        final safe = safePath(operation, osArgString(args.first));
+        final content = osArgString(args[1]);
+        File(safe)
+          ..parent.createSync(recursive: true)
+          ..writeAsStringSync(content, mode: FileMode.append);
+        return content.length;
+      case PathOp.appendBytes:
+        final safe = safePath(operation, osArgString(args.first));
+        final bytes = (args[1]! as List).cast<int>();
+        File(safe)
+          ..parent.createSync(recursive: true)
+          ..writeAsBytesSync(bytes, mode: FileMode.append);
+        return bytes.length;
       case PathOp.exists:
         return FileSystemEntity.typeSync(
               safePath(operation, osArgString(args.first)),
@@ -78,9 +121,11 @@ OsCallHandler sandboxedFsHandler({required Directory root}) {
           safeResolved(operation, osArgString(args.first)),
         ).readAsStringSync();
       case PathOp.readBytes:
-        return File(
-          safeResolved(operation, osArgString(args.first)),
-        ).readAsBytesSync().toList();
+        return MontyBytes(
+          File(
+            safeResolved(operation, osArgString(args.first)),
+          ).readAsBytesSync(),
+        );
       case PathOp.writeText:
         final safe = safePath(operation, osArgString(args.first));
         final content = osArgString(args[1]);

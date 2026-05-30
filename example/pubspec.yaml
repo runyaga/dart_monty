@@ -8,3 +8,11 @@ environment:
 dependencies:
   dart_monty:
     path: ../
+
+# dependency_overrides do not transit through path: deps, so the examples need
+# their own core override until dart_monty_core 0.18.1 ships to pub.dev.
+dependency_overrides:
+  dart_monty_core:
+    git:
+      url: https://github.com/runyaga/dart_monty_core.git
+      ref: followups/open-primitive
