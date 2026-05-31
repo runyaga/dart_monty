@@ -81,6 +81,10 @@ dart compile js bin/vfs_demo.dart -o "$WEB_DIR/vfs_demo.dart.js"
 echo "  Compiled: web/vfs_demo.dart.js"
 dart compile js bin/repl_demo.dart -o "$WEB_DIR/repl_demo.dart.js"
 echo "  Compiled: web/repl_demo.dart.js"
+dart compile js bin/agent_demo.dart -o "$WEB_DIR/agent_demo.dart.js"
+echo "  Compiled: web/agent_demo.dart.js"
+dart compile js bin/async_matrix_demo.dart -o "$WEB_DIR/async_matrix_demo.dart.js"
+echo "  Compiled: web/async_matrix_demo.dart.js"
 
 # ── Step 5: Start COOP/COEP server ──────────────────────────────────────
 PORT=8088
@@ -107,7 +111,13 @@ cleanup() {
         "$WEB_DIR/vfs_demo.dart.js.map" \
         "$WEB_DIR/repl_demo.dart.js" \
         "$WEB_DIR/repl_demo.dart.js.deps" \
-        "$WEB_DIR/repl_demo.dart.js.map"
+        "$WEB_DIR/repl_demo.dart.js.map" \
+        "$WEB_DIR/agent_demo.dart.js" \
+        "$WEB_DIR/agent_demo.dart.js.deps" \
+        "$WEB_DIR/agent_demo.dart.js.map" \
+        "$WEB_DIR/async_matrix_demo.dart.js" \
+        "$WEB_DIR/async_matrix_demo.dart.js.deps" \
+        "$WEB_DIR/async_matrix_demo.dart.js.map"
   rm -rf "$WEB_DIR/fixtures"
 }
 trap cleanup EXIT
@@ -141,6 +151,8 @@ echo "  Demo:       http://localhost:$PORT/demo.html"
 echo "  Ladder:     http://localhost:$PORT/ladder.html"
 echo "  Visualizer: http://localhost:$PORT/visualizer.html"
 echo "  VFS:        http://localhost:$PORT/vfs.html"
+echo "  Agent:      http://localhost:$PORT/agent.html"
+echo "  Async:      http://localhost:$PORT/async_matrix.html"
 echo "  Press Ctrl+C to stop."
 echo ""
 
