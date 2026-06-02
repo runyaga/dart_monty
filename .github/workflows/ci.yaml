@@ -126,6 +126,33 @@ jobs:
           dart test test/integration/example_smoke_test.dart \
             -p vm --run-skipped --tags=example --reporter=expanded
 
+  # ---------------------------------------------------------------------------
+  # WASM / Chrome — dart_monty's open()/file-I/O + overlay handler logic must
+  # compile to dart2js and run in a real browser, mirroring dart_monty_core's
+  # WASM gate. The handlers run directly here (MemoryFileSystem, no dart:io and
+  # no engine), so plain `dart test -p chrome` is the gate; the end-to-end
+  # Python open() flow is covered by dart_monty_core's WASM fixture corpus.
+  # ---------------------------------------------------------------------------
+  test-wasm:
+    name: WASM/Chrome tests
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+      - uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: pub-${{ runner.os }}-${{ hashFiles('pubspec.yaml') }}
+          restore-keys: pub-${{ runner.os }}-
+      - run: dart pub get
+      - name: Run WASM/Chrome tests (dart2js in headless Chrome)
+        run: dart test -p chrome test/experiments/*_wasm_test.dart --reporter=expanded
+
   patch-coverage:
     name: Patch coverage gate (70%)
     if: github.event_name == 'pull_request'
