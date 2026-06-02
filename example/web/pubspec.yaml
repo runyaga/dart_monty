@@ -12,11 +12,10 @@ dependencies:
   web: ^1.1.1
 
 # Mirror the override from ../../pubspec.yaml — dependency_overrides do not
-# transit through path: deps, so the example needs its own copy until the
-# next dart_monty_core release ships with #99 (inputsToCode + MontyNone +
-# MontyInternalError exports).
+# transit through path: deps, so the example needs its own copy until
+# dart_monty_core 0.18.1 (monty v0.0.18) ships to pub.dev.
 dependency_overrides:
   dart_monty_core:
     git:
       url: https://github.com/runyaga/dart_monty_core.git
-      ref: main
+      ref: followups/open-primitive

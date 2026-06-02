@@ -1,32 +1,47 @@
 // ignore_for_file: avoid-unsafe-collection-methods, avoid-non-null-assertion
 // ignore_for_file: avoid-unnecessary-futures, newline-before-return
-import 'package:dart_monty/src/os_call/os_call_exception.dart';
 import 'package:dart_monty/src/os_call/path_op.dart';
 import 'package:dart_monty_core/dart_monty_core.dart'
-    show MontyPath, OsCallHandler;
+    show MontyPath, OsCallException, OsCallHandler;
 
 /// Write operations blocked by [readOnlyHandler].
 const Set<String> _writeOps = {
   PathOp.writeText,
   PathOp.writeBytes,
+  PathOp.appendText,
+  PathOp.appendBytes,
   PathOp.mkdir,
   PathOp.unlink,
   PathOp.rmdir,
   PathOp.rename,
 };
 
+/// Whether a thrown error is a typed `FileNotFoundError` from a handler.
+bool _isNotFound(Object e) =>
+    e is OsCallException && e.pythonExceptionType == 'FileNotFoundError';
+
+/// Whether an `Open` call requests a write/append mode (`w`/`a` families).
+bool _opensForWrite(String operation, List<Object?> args) {
+  if (operation != PathOp.open) return false;
+  final mode = args.length > 1 && args[1] is String ? args[1]! as String : 'r';
+  return mode != 'r' && mode != 'rb';
+}
+
 /// Wraps an [OsCallHandler] and blocks write operations.
 ///
 /// Read operations, environment access, and datetime pass through unchanged.
-/// Write operations throw [OsCallPermissionError].
+/// Writes — including `open(..., 'w'/'a')` — throw a typed `PermissionError`.
 ///
 /// ```dart
 /// final ro = readOnlyHandler(fsHandler(const LocalFileSystem()));
 /// ```
 OsCallHandler readOnlyHandler(OsCallHandler inner) {
   return (operation, args, kwargs) {
-    if (_writeOps.contains(operation)) {
-      throw OsCallPermissionError(operation, 'Read-only filesystem');
+    if (_writeOps.contains(operation) || _opensForWrite(operation, args)) {
+      throw const OsCallException(
+        'Read-only filesystem',
+        pythonExceptionType: 'PermissionError',
+      );
     }
     return inner(operation, args, kwargs);
   };
@@ -65,7 +80,8 @@ OsCallHandler overlayFsHandler({
   ) async {
     try {
       return await scratch(op, args, kwargs);
-    } on OsCallFileNotFoundError {
+    } on OsCallException catch (e) {
+      if (!_isNotFound(e)) rethrow;
       return base(op, args, kwargs);
     }
   }
@@ -95,7 +111,8 @@ OsCallHandler overlayFsHandler({
           if (seen.add(entry.value)) merged.add(entry);
         }
       }
-    } on OsCallFileNotFoundError {
+    } on OsCallException catch (e) {
+      if (!_isNotFound(e)) rethrow;
       // Scratch dir doesn't exist — that's fine.
     }
 
@@ -106,11 +123,15 @@ OsCallHandler overlayFsHandler({
           if (seen.add(entry.value)) merged.add(entry);
         }
       }
-    } on OsCallFileNotFoundError {
+    } on OsCallException catch (e) {
+      if (!_isNotFound(e)) rethrow;
       if (merged.isEmpty) {
         final path = args.isNotEmpty ? args.first : '';
         final pathStr = path is String ? path : '';
-        throw OsCallFileNotFoundError(op, 'No such directory: $pathStr');
+        throw OsCallException(
+          'No such directory: $pathStr',
+          pythonExceptionType: 'FileNotFoundError',
+        );
       }
     }
 
@@ -124,12 +145,13 @@ OsCallHandler overlayFsHandler({
   ) async {
     try {
       return await scratch(op, args, kwargs);
-    } on OsCallFileNotFoundError {
+    } on OsCallException catch (e) {
+      if (!_isNotFound(e)) rethrow;
       final existsInBase = await base(PathOp.exists, args, kwargs);
       if (existsInBase == true) {
-        throw OsCallPermissionError(
-          op,
+        throw const OsCallException(
           'Cannot delete base-layer file (read-only)',
+          pythonExceptionType: 'PermissionError',
         );
       }
       rethrow;
@@ -138,8 +160,14 @@ OsCallHandler overlayFsHandler({
 
   return (operation, args, kwargs) {
     return switch (operation) {
+      PathOp.open =>
+        _opensForWrite(operation, args)
+            ? scratch(operation, args, kwargs)
+            : readWithFallback(operation, args, kwargs),
       PathOp.writeText ||
       PathOp.writeBytes ||
+      PathOp.appendText ||
+      PathOp.appendBytes ||
       PathOp.mkdir ||
       PathOp.rename => scratch(operation, args, kwargs),
       PathOp.readText ||
@@ -166,7 +194,7 @@ OsCallHandler overlayFsHandler({
 /// fsHandler(baseFs).readOnly().overlayWith(scratch)
 /// ```
 extension DecoratorHandlers on OsCallHandler {
-  /// Wraps this handler so write operations throw [OsCallPermissionError].
+  /// Wraps this handler so write operations throw a typed PermissionError.
   OsCallHandler readOnly() => readOnlyHandler(this);
 
   /// Uses this handler as the read-only base of a copy-on-write overlay.

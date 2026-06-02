@@ -35,6 +35,12 @@ external JSPromise<JSString> _bridgeResume(JSString valueJson);
 @JS('DartMontyBridge.resumeWithError')
 external JSPromise<JSString> _bridgeResumeWithError(JSString errorJson);
 
+@JS('DartMontyBridge.resumeWithException')
+external JSPromise<JSString> _bridgeResumeWithException(
+  JSString excTypeJson,
+  JSString errorJson,
+);
+
 // ---------------------------------------------------------------------------
 // JS interop — expose API to HTML
 // ---------------------------------------------------------------------------
@@ -70,6 +76,7 @@ Map<String, dynamic> _parse(String json) =>
 bool _isOsCall(String? fn) {
   if (fn == null) return false;
   return fn.startsWith('Path.') ||
+      fn == 'Open' || // open() builtin (no Path. prefix)
       fn.startsWith('date.') ||
       fn.startsWith('datetime.');
 }
@@ -92,7 +99,8 @@ Future<Object?> _handleOsCall(Map<String, dynamic> state) async {
   final sw = Stopwatch()..start();
   Object? result;
 
-  if (op.startsWith('Path.')) {
+  if (op.startsWith('Path.') || op == 'Open') {
+    // `open()` emits the prefix-less `Open` OS-call; fsHandler services it.
     result = await _fs(op, args, kwargs);
   } else if (op.startsWith('date.') || op.startsWith('datetime.')) {
     result = await _time(op, args, kwargs);
@@ -150,6 +158,19 @@ Future<Map<String, dynamic>> _runWithVfs(String code) async {
         final result = await _handleOsCall(state);
         state = _parse(
           (await _bridgeResume(jsonEncode(result).toJS).toDart).toDart,
+        );
+      } on OsCallException catch (e) {
+        // Deliver the handler's typed Python exception (e.g. FileNotFoundError)
+        // so the script can `except` it; fall back to RuntimeError otherwise.
+        final type = e.pythonExceptionType;
+        state = _parse(
+          (await (type != null
+                  ? _bridgeResumeWithException(
+                      jsonEncode(type).toJS,
+                      jsonEncode(e.message).toJS,
+                    )
+                  : _bridgeResumeWithError(jsonEncode(e.message).toJS))
+              .toDart).toDart,
         );
       } on Object catch (e) {
         state = _parse(
@@ -221,14 +242,23 @@ Future<List<Map<String, dynamic>>> _collectFiles() async {
       for (final entry in entries) {
         final type = _vfs.typeSync(entry);
         if (type == FileSystemEntityType.file) {
-          final content = _vfs.file(entry).readAsStringSync();
+          // Binary files (e.g. blob.bin with 0xff) aren't valid UTF-8, so read
+          // bytes first and only decode as text when it round-trips cleanly —
+          // a binary file must not abort the whole VFS walk.
+          final bytes = _vfs.file(entry).readAsBytesSync();
+          String? text;
+          try {
+            text = utf8.decode(bytes);
+          } on FormatException {
+            text = null; // binary
+          }
           files.add({
             'path': entry,
             'type': 'file',
-            'size': content.length,
-            'preview': content.length > 200
-                ? '${content.substring(0, 197)}...'
-                : content,
+            'size': bytes.length,
+            'preview': text == null
+                ? '<binary ${bytes.length}B>'
+                : (text.length > 200 ? '${text.substring(0, 197)}...' : text),
           });
         } else if (type == FileSystemEntityType.directory) {
           files.add({'path': entry, 'type': 'dir'});

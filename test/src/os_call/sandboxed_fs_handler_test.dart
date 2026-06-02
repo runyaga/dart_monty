@@ -48,7 +48,13 @@ void main() {
           () => handler('Path.read_text', [
             '$rootPath/../../../etc/passwd',
           ], null),
-          throwsA(isA<OsCallPermissionError>()),
+          throwsA(
+            isA<OsCallException>().having(
+              (e) => e.pythonExceptionType,
+              'pythonExceptionType',
+              'PermissionError',
+            ),
+          ),
         );
       });
 
@@ -57,14 +63,26 @@ void main() {
           () => handler('Path.read_text', [
             '$rootPath/sub/../../etc/passwd',
           ], null),
-          throwsA(isA<OsCallPermissionError>()),
+          throwsA(
+            isA<OsCallException>().having(
+              (e) => e.pythonExceptionType,
+              'pythonExceptionType',
+              'PermissionError',
+            ),
+          ),
         );
       });
 
       test('absolute path outside root is rejected', () {
         expect(
           () => handler('Path.read_text', ['/etc/passwd'], null),
-          throwsA(isA<OsCallPermissionError>()),
+          throwsA(
+            isA<OsCallException>().having(
+              (e) => e.pythonExceptionType,
+              'pythonExceptionType',
+              'PermissionError',
+            ),
+          ),
         );
       });
 
@@ -83,7 +101,13 @@ void main() {
           () => handler('Path.read_text', [
             '${rootPath}evil/secret.txt',
           ], null),
-          throwsA(isA<OsCallPermissionError>()),
+          throwsA(
+            isA<OsCallException>().having(
+              (e) => e.pythonExceptionType,
+              'pythonExceptionType',
+              'PermissionError',
+            ),
+          ),
         );
       });
 
@@ -97,7 +121,13 @@ void main() {
           () => handler('Path.read_text', [
             '$rootPath/escape_link',
           ], null),
-          throwsA(isA<OsCallPermissionError>()),
+          throwsA(
+            isA<OsCallException>().having(
+              (e) => e.pythonExceptionType,
+              'pythonExceptionType',
+              'PermissionError',
+            ),
+          ),
         );
       });
 
@@ -119,7 +149,13 @@ void main() {
           () => handler('Path.read_text', [
             '$rootPath/chain_link',
           ], null),
-          throwsA(isA<OsCallPermissionError>()),
+          throwsA(
+            isA<OsCallException>().having(
+              (e) => e.pythonExceptionType,
+              'pythonExceptionType',
+              'PermissionError',
+            ),
+          ),
         );
       });
 
@@ -135,7 +171,13 @@ void main() {
           () => handler('Path.resolve', [
             '$rootPath/resolve_link',
           ], null),
-          throwsA(isA<OsCallPermissionError>()),
+          throwsA(
+            isA<OsCallException>().having(
+              (e) => e.pythonExceptionType,
+              'pythonExceptionType',
+              'PermissionError',
+            ),
+          ),
         );
       });
 
@@ -156,7 +198,13 @@ void main() {
             '/tmp/escape.txt',
             'pwned',
           ], null),
-          throwsA(isA<OsCallPermissionError>()),
+          throwsA(
+            isA<OsCallException>().having(
+              (e) => e.pythonExceptionType,
+              'pythonExceptionType',
+              'PermissionError',
+            ),
+          ),
         );
       });
 
@@ -168,7 +216,13 @@ void main() {
             '$rootPath/src.txt',
             '/tmp/escaped.txt',
           ], null),
-          throwsA(isA<OsCallPermissionError>()),
+          throwsA(
+            isA<OsCallException>().having(
+              (e) => e.pythonExceptionType,
+              'pythonExceptionType',
+              'PermissionError',
+            ),
+          ),
         );
       });
     });

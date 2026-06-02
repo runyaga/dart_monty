@@ -143,14 +143,26 @@ void main() {
     test('unlink base-only file throws PermissionError', () {
       expect(
         () => overlay('Path.unlink', ['/project/readme.md'], null),
-        throwsA(isA<OsCallPermissionError>()),
+        throwsA(
+          isA<OsCallException>().having(
+            (e) => e.pythonExceptionType,
+            'pythonExceptionType',
+            'PermissionError',
+          ),
+        ),
       );
     });
 
     test('rmdir base-only dir throws PermissionError', () {
       expect(
         () => overlay('Path.rmdir', ['/project/src'], null),
-        throwsA(isA<OsCallPermissionError>()),
+        throwsA(
+          isA<OsCallException>().having(
+            (e) => e.pythonExceptionType,
+            'pythonExceptionType',
+            'PermissionError',
+          ),
+        ),
       );
     });
 

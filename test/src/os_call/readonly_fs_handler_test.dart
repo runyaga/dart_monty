@@ -59,7 +59,13 @@ void main() {
     test('write_text throws PermissionError', () {
       expect(
         () => ro('Path.write_text', ['/data/new.txt', 'blocked'], null),
-        throwsA(isA<OsCallPermissionError>()),
+        throwsA(
+          isA<OsCallException>().having(
+            (e) => e.pythonExceptionType,
+            'pythonExceptionType',
+            'PermissionError',
+          ),
+        ),
       );
     });
 
@@ -69,28 +75,52 @@ void main() {
           '/data/new.bin',
           <int>[1],
         ], null),
-        throwsA(isA<OsCallPermissionError>()),
+        throwsA(
+          isA<OsCallException>().having(
+            (e) => e.pythonExceptionType,
+            'pythonExceptionType',
+            'PermissionError',
+          ),
+        ),
       );
     });
 
     test('mkdir throws PermissionError', () {
       expect(
         () => ro('Path.mkdir', ['/data/newdir'], null),
-        throwsA(isA<OsCallPermissionError>()),
+        throwsA(
+          isA<OsCallException>().having(
+            (e) => e.pythonExceptionType,
+            'pythonExceptionType',
+            'PermissionError',
+          ),
+        ),
       );
     });
 
     test('unlink throws PermissionError', () {
       expect(
         () => ro('Path.unlink', ['/data/hello.txt'], null),
-        throwsA(isA<OsCallPermissionError>()),
+        throwsA(
+          isA<OsCallException>().having(
+            (e) => e.pythonExceptionType,
+            'pythonExceptionType',
+            'PermissionError',
+          ),
+        ),
       );
     });
 
     test('rmdir throws PermissionError', () {
       expect(
         () => ro('Path.rmdir', ['/data'], null),
-        throwsA(isA<OsCallPermissionError>()),
+        throwsA(
+          isA<OsCallException>().having(
+            (e) => e.pythonExceptionType,
+            'pythonExceptionType',
+            'PermissionError',
+          ),
+        ),
       );
     });
 
@@ -100,7 +130,13 @@ void main() {
           '/data/hello.txt',
           '/data/moved.txt',
         ], null),
-        throwsA(isA<OsCallPermissionError>()),
+        throwsA(
+          isA<OsCallException>().having(
+            (e) => e.pythonExceptionType,
+            'pythonExceptionType',
+            'PermissionError',
+          ),
+        ),
       );
     });
   });

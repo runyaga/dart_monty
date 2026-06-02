@@ -22,26 +22,33 @@ FIXTURES_SRC="$ROOT/test/fixtures/python_ladder"
 echo "=== dart_monty Web Example ==="
 
 # ── Step 1: Locate dart_monty_core assets ────────────────────────────────
-if [ -n "${DART_MONTY_CORE_DIR:-}" ] && [ -d "$DART_MONTY_CORE_DIR/assets" ]; then
-  CORE_ASSETS="$DART_MONTY_CORE_DIR/assets"
+cd "$EXAMPLE"
+dart pub get >/dev/null
+if [ -n "${DART_MONTY_CORE_DIR:-}" ] && [ -d "$DART_MONTY_CORE_DIR/lib/assets" ]; then
+  CORE_ASSETS="$DART_MONTY_CORE_DIR/lib/assets"
   echo "--- Using DART_MONTY_CORE_DIR: $CORE_ASSETS ---"
 else
-  # dart_monty_core commits assets to git, so any pub-resolved copy has
-  # them. Pull from the resolved package's asset dir.
-  cd "$EXAMPLE"
-  dart pub get >/dev/null
-  CORE_ASSETS="$(dart pub cache dir)/hosted/pub.dev/dart_monty_core-"*/assets
-  # The glob above may expand to multiple paths; take the first existing one.
-  for d in $CORE_ASSETS; do
-    if [ -d "$d" ]; then CORE_ASSETS="$d"; break; fi
-  done
+  # Resolve dart_monty_core's root from package_config.json (works for path,
+  # git, and hosted deps; `dart pub cache dir` was removed in newer SDKs).
+  CORE_ROOT=$(python3 - <<'PY'
+import json, urllib.parse
+try:
+    cfg = json.load(open(".dart_tool/package_config.json"))
+except OSError:
+    raise SystemExit(0)
+for p in cfg.get("packages", []):
+    if p["name"] == "dart_monty_core":
+        print(urllib.parse.unquote(urllib.parse.urlparse(p["rootUri"]).path))
+        break
+PY
+)
+  CORE_ASSETS="${CORE_ROOT%/}/lib/assets"
   if [ ! -d "$CORE_ASSETS" ]; then
-    echo "FATAL: could not locate dart_monty_core assets." >&2
-    echo "  Set DART_MONTY_CORE_DIR to a local checkout, or run" >&2
-    echo "  'bash tool/prebuild.sh' in a dart_monty_core checkout first." >&2
+    echo "FATAL: could not locate dart_monty_core assets ($CORE_ASSETS)." >&2
+    echo "  Set DART_MONTY_CORE_DIR to a local checkout." >&2
     exit 1
   fi
-  echo "--- Using pub cache: $CORE_ASSETS ---"
+  echo "--- Using resolved core: $CORE_ASSETS ---"
 fi
 
 # ── Step 2: Copy assets to web dir ───────────────────────────────────────
@@ -74,6 +81,10 @@ dart compile js bin/vfs_demo.dart -o "$WEB_DIR/vfs_demo.dart.js"
 echo "  Compiled: web/vfs_demo.dart.js"
 dart compile js bin/repl_demo.dart -o "$WEB_DIR/repl_demo.dart.js"
 echo "  Compiled: web/repl_demo.dart.js"
+dart compile js bin/agent_demo.dart -o "$WEB_DIR/agent_demo.dart.js"
+echo "  Compiled: web/agent_demo.dart.js"
+dart compile js bin/async_matrix_demo.dart -o "$WEB_DIR/async_matrix_demo.dart.js"
+echo "  Compiled: web/async_matrix_demo.dart.js"
 
 # ── Step 5: Start COOP/COEP server ──────────────────────────────────────
 PORT=8088
@@ -100,7 +111,13 @@ cleanup() {
         "$WEB_DIR/vfs_demo.dart.js.map" \
         "$WEB_DIR/repl_demo.dart.js" \
         "$WEB_DIR/repl_demo.dart.js.deps" \
-        "$WEB_DIR/repl_demo.dart.js.map"
+        "$WEB_DIR/repl_demo.dart.js.map" \
+        "$WEB_DIR/agent_demo.dart.js" \
+        "$WEB_DIR/agent_demo.dart.js.deps" \
+        "$WEB_DIR/agent_demo.dart.js.map" \
+        "$WEB_DIR/async_matrix_demo.dart.js" \
+        "$WEB_DIR/async_matrix_demo.dart.js.deps" \
+        "$WEB_DIR/async_matrix_demo.dart.js.map"
   rm -rf "$WEB_DIR/fixtures"
 }
 trap cleanup EXIT
@@ -134,6 +151,8 @@ echo "  Demo:       http://localhost:$PORT/demo.html"
 echo "  Ladder:     http://localhost:$PORT/ladder.html"
 echo "  Visualizer: http://localhost:$PORT/visualizer.html"
 echo "  VFS:        http://localhost:$PORT/vfs.html"
+echo "  Agent:      http://localhost:$PORT/agent.html"
+echo "  Async:      http://localhost:$PORT/async_matrix.html"
 echo "  Press Ctrl+C to stop."
 echo ""
 

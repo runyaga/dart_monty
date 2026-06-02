@@ -62,18 +62,22 @@ dart pub get >/dev/null
 if [ -n "${DART_MONTY_CORE_DIR:-}" ] && [ -d "$DART_MONTY_CORE_DIR/lib/assets" ]; then
   CORE_ASSETS="$DART_MONTY_CORE_DIR/lib/assets"
 else
-  CORE_ASSETS_GLOB="$(dart pub cache dir)/hosted/pub.dev/dart_monty_core-"*/lib/assets
-  CORE_ASSETS=""
-  for d in $CORE_ASSETS_GLOB; do
-    if [ -d "$d" ]; then CORE_ASSETS="$d"; break; fi
-  done
-  if [ -z "$CORE_ASSETS" ]; then
-    # git: deps land under ~/.pub-cache/git/<pkg>-<sha>/lib/assets.
-    CORE_ASSETS=$(find "$HOME/.pub-cache/git" -maxdepth 3 -type d \
-      -name 'dart_monty_core-*' 2>/dev/null \
-      | head -1)
-    [ -n "$CORE_ASSETS" ] && CORE_ASSETS="$CORE_ASSETS/lib/assets"
-  fi
+  # Resolve dart_monty_core's root from package_config.json — works for path,
+  # git, and hosted deps uniformly (`dart pub cache dir` was removed in newer
+  # SDKs). Run from $EXAMPLE so this reads the example's resolution.
+  CORE_ROOT=$(python3 - <<'PY'
+import json, urllib.parse
+try:
+    cfg = json.load(open(".dart_tool/package_config.json"))
+except OSError:
+    raise SystemExit(0)
+for p in cfg.get("packages", []):
+    if p["name"] == "dart_monty_core":
+        print(urllib.parse.unquote(urllib.parse.urlparse(p["rootUri"]).path))
+        break
+PY
+)
+  CORE_ASSETS="${CORE_ROOT%/}/lib/assets"
 fi
 
 if [ ! -d "$CORE_ASSETS" ]; then
@@ -163,10 +167,21 @@ timeout 90 "$CHROME" \
   2>"$CONSOLE_LOG" || true
 
 WEB_RESULTS=$(grep -o 'LADDER_RESULT:{[^}]*}' "$CONSOLE_LOG" 2>/dev/null || true)
+DONE_LINE=$(grep -o 'LADDER_DONE:{[^}]*}' "$CONSOLE_LOG" 2>/dev/null | head -1 || true)
 rm -f "$CONSOLE_LOG"
 
-if [ -z "$WEB_RESULTS" ]; then
-  echo "  WASM  INCONCLUSIVE (no LADDER_RESULT lines from Chrome)"
+if [ -z "$WEB_RESULTS" ] || [ -z "$DONE_LINE" ]; then
+  echo "  WASM  INCONCLUSIVE (no results or no completion marker from Chrome)"
+  echo "=== Ladder: INCONCLUSIVE ==="
+  exit 1
+fi
+
+# Guard against a Chrome crash/timeout mid-run: the number of result lines
+# must match the total the showcase reported on completion.
+EXPECTED_TOTAL=$(echo "$DONE_LINE" | sed -E 's/.*"total"[[:space:]]*:[[:space:]]*([0-9]+).*/\1/')
+ACTUAL_COUNT=$(printf '%s\n' "$WEB_RESULTS" | grep -c .)
+if [ "$ACTUAL_COUNT" != "$EXPECTED_TOTAL" ]; then
+  echo "  WASM  INCONCLUSIVE (got $ACTUAL_COUNT results, expected $EXPECTED_TOTAL)"
   echo "=== Ladder: INCONCLUSIVE ==="
   exit 1
 fi

@@ -8,3 +8,4 @@ environment:
 dependencies:
   dart_monty:
     path: ../
+  file: ^7.0.0

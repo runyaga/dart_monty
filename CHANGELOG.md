@@ -1,3 +1,28 @@
+## 0.18.0
+
+Requires `dart_monty_core` 0.18.1 (monty v0.0.18).
+
+### Breaking
+
+- **`OsCallException` is now `dart_monty_core`'s.** The parallel
+  `OsCallException(operation, message)` plus `OsCallFileNotFoundError` /
+  `OsCallPermissionError` subclasses are gone. Handlers throw
+  `OsCallException(message, pythonExceptionType: 'FileNotFoundError')` instead,
+  and that type is delivered to Python — so `except FileNotFoundError:` /
+  `except PermissionError:` now work (previously every OS error surfaced as
+  `RuntimeError`). Catch sites that matched the old subclasses should switch to
+  `OsCallException` and check `pythonExceptionType`.
+
+### Added
+
+- **`open()` / file I/O.** The filesystem handlers (`fsHandler`,
+  `memoryFsHandler`, `sandboxedFsHandler`, and the read-only/overlay
+  decorators) service Python's `open()` — read/write/append, binary mode, and
+  `with open(...) as f:`. The bare `Open` OS-call routes to whatever handler
+  backs `Path.*`; core's `resolveOpenCall` owns the open() semantics, so the
+  handlers just supply their filesystem primitives. `read_bytes` now returns
+  typed bytes so binary reads buffer correctly. See `example/file_io_demo.dart`.
+
 ## 0.17.1
 
 Requires `dart_monty_core` 0.17.1 — see its changelog for `MontyCallback`,

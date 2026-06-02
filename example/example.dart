@@ -26,9 +26,9 @@ Future<void> main() async {
   // Feed the result of one Monty run into the next as a named Python variable.
   final squares = await Monty('[x**2 for x in range(10)]').run();
 
-  final total = await Monty('sum(squares)').run(
-    inputs: {'squares': squares.value.dartValue},
-  );
+  final total = await Monty(
+    'sum(squares)',
+  ).run(inputs: {'squares': squares.value.dartValue});
   print('sum of squares 0–9² = ${total.value.dartValue}'); // 285
 
   // ── 3. HostFunction + DispatchMode.future ────────────────────────────────
