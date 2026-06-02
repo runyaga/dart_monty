@@ -58,19 +58,21 @@ void main() {
       expect((bytes! as MontyBytes).value, 'ab'.codeUnits);
     });
 
-    test('read-only handler rejects Open for write with PermissionError',
-        () async {
-      final h = fsHandler(MemoryFileSystem()).readOnly();
-      await expectLater(
-        () => h('Open', ['/x.txt', 'w'], null),
-        throwsA(
-          isA<OsCallException>().having(
-            (e) => e.pythonExceptionType,
-            'pythonExceptionType',
-            'PermissionError',
+    test(
+      'read-only handler rejects Open for write with PermissionError',
+      () async {
+        final h = fsHandler(MemoryFileSystem()).readOnly();
+        await expectLater(
+          () => h('Open', ['/x.txt', 'w'], null),
+          throwsA(
+            isA<OsCallException>().having(
+              (e) => e.pythonExceptionType,
+              'pythonExceptionType',
+              'PermissionError',
+            ),
           ),
-        ),
-      );
-    });
+        );
+      },
+    );
   });
 }

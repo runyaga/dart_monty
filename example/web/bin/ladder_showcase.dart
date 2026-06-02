@@ -170,11 +170,14 @@ bool _valuesMatch(Object? actual, Object? expected) {
 /// failures — warn/xfail/xpass/skip count as passing for the gate.
 void _emitLadderResult(String tierFile, String name, String status) {
   final tier = tierFile.split('/').last;
+  final payload = jsonEncode({
+    'tier': tier,
+    'name': name,
+    'ok': status != 'fail',
+  });
   // print() is the headless gate's transport (dart2js -> console.log).
   // ignore: avoid_print
-  print(
-    'LADDER_RESULT:${jsonEncode({'tier': tier, 'name': name, 'ok': status != 'fail'})}',
-  );
+  print('LADDER_RESULT:$payload');
 }
 
 // ---------------------------------------------------------------------------

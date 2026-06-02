@@ -11,8 +11,10 @@
 //
 // Run: dart run example/file_io_demo.dart
 
-// Printing to stdout is expected in an example.
-// ignore_for_file: avoid_print
+// Printing to stdout is expected in an example. The embedded Python source
+// uses intentional `\\n` / `\\xNN` escapes (Dart-escaped so Python sees the
+// real escape), so raw strings would corrupt them.
+// ignore_for_file: avoid_print, use_raw_strings
 
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';

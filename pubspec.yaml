@@ -29,12 +29,3 @@ dependencies:
 
 dev_dependencies:
   very_good_analysis: ^10.0.0
-
-# dart_monty_core 0.18.1 (monty v0.0.18: open()/file I/O + typed OS
-# exceptions) is not yet published to pub.dev. Until it is, resolve it from
-# the branch carrying those changes. Drop this block once 0.18.1 ships.
-dependency_overrides:
-  dart_monty_core:
-    git:
-      url: https://github.com/runyaga/dart_monty_core.git
-      ref: followups/open-primitive
