@@ -19,7 +19,7 @@ if [ ! -f "$PACKAGE_CONFIG" ]; then
 fi
 
 # Resolve dart_monty_core's root from the package config.
-CORE_ROOT=$(python3 - <<'EOF'
+CORE_ROOT=$(python3 - "$PACKAGE_CONFIG" <<'EOF'
 import json, sys
 with open(sys.argv[1]) as f:
     cfg = json.load(f)
@@ -32,9 +32,23 @@ for pkg in cfg['packages']:
 print('ERROR: dart_monty_core not found in package_config.json', file=sys.stderr)
 sys.exit(1)
 EOF
-"$PACKAGE_CONFIG")
+)
 
 NATIVE="$CORE_ROOT/native"
+
+# Only gate a LOCAL checkout. When dart_monty_core comes from pub.dev the
+# resolved root is inside ~/.pub-cache: that crate is already published and
+# immutable from here, so linting it is wasted work and it would litter the
+# pub cache with a target/ directory. This gate is for the path-override dev
+# workflow, where the Rust source is actually ours to fix.
+case "$CORE_ROOT" in
+  */.pub-cache/*)
+    echo "SKIP: dart_monty_core resolves to the pub cache ($CORE_ROOT)"
+    echo "  (published dependency — nothing here to gate; use a path override"
+    echo "   in pubspec_overrides.yaml to lint a local dart_monty_core checkout)"
+    exit 0
+    ;;
+esac
 
 if [ ! -d "$NATIVE" ]; then
   echo "SKIP: dart_monty_core/native/ not found at $NATIVE"
