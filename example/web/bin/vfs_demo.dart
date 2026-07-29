@@ -165,18 +165,20 @@ Future<Map<String, dynamic>> _runWithVfs(String code) async {
         final type = e.pythonExceptionType;
         state = _parse(
           (await (type != null
-                  ? _bridgeResumeWithException(
-                      jsonEncode(type).toJS,
-                      jsonEncode(e.message).toJS,
-                    )
-                  : _bridgeResumeWithError(jsonEncode(e.message).toJS))
-              .toDart).toDart,
+                      ? _bridgeResumeWithException(
+                          jsonEncode(type).toJS,
+                          jsonEncode(e.message).toJS,
+                        )
+                      : _bridgeResumeWithError(jsonEncode(e.message).toJS))
+                  .toDart)
+              .toDart,
         );
       } on Object catch (e) {
         state = _parse(
           (await _bridgeResumeWithError(
             jsonEncode(e.toString()).toJS,
-          ).toDart).toDart,
+          ).toDart)
+              .toDart,
         );
       }
     } else {
@@ -295,8 +297,8 @@ Future<void> main() async {
   // Expose API to HTML.
   final api = <String, JSFunction>{
     'run': ((JSString code) => _apiRun(
-      code.toDart,
-    ).then((r) => r.toJS).toJS).toJS,
+          code.toDart,
+        ).then((r) => r.toJS).toJS).toJS,
     'mountFile': ((JSString path, JSString content) {
       unawaited(_mountFile(path.toDart, content.toDart));
     }).toJS,
