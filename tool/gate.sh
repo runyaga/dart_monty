@@ -52,7 +52,9 @@ skip_check() {
 # -------------------------------------------------------
 # 1. Dart Format
 # -------------------------------------------------------
-run_check "dart format" dart format --set-exit-if-changed .
+# --output=none is REQUIRED: without it `dart format` rewrites files even
+# with --set-exit-if-changed, so the "check" silently mutates the tree.
+run_check "dart format" dart format --output=none --set-exit-if-changed .
 
 # -------------------------------------------------------
 # 2. Dart Analyze
