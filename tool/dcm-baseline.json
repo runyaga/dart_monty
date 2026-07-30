@@ -1,0 +1,20 @@
+{
+  "by_file": {
+    "lib/src/bridge/platform.dart": 1,
+    "lib/src/os_call/sandboxed_fs_handler.dart": 1,
+    "lib/src/web/ensure_initialized.dart": 1,
+    "lib/src/web/ensure_initialized_stub.dart": 3,
+    "lib/src/web/ensure_initialized_web.dart": 3
+  },
+  "by_rule": {
+    "avoid-missing-completer-stack-trace": 1,
+    "avoid-non-null-assertion": 1,
+    "avoid-redundant-async": 1,
+    "avoid-unnecessary-futures": 1,
+    "avoid-unused-parameters": 1,
+    "newline-before-return": 2,
+    "no-empty-block": 1,
+    "prefer-match-file-name": 1
+  },
+  "total": 9
+}

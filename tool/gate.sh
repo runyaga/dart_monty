@@ -107,7 +107,10 @@ run_advisory() {
 
 if command -v dcm &>/dev/null; then
   # Blocking: 98 lint rules, must be zero issues
-  run_check "dcm analyze" dcm analyze lib
+  # Ratchet, not a clean run: `dcm analyze lib` has 9 pre-existing issues, so a
+  # zero-issue gate could never pass and a raw count hides new issues behind
+  # net improvements. Fails only on NEW issues above tool/dcm-baseline.json.
+  run_check "dcm ratchet" bash tool/dcm_ratchet.sh
   # Advisory: report but don't fail gate (known false positives / pre-existing)
   run_advisory "dcm calculate-metrics" dcm calculate-metrics lib
   run_advisory "dcm check-unused-code" dcm check-unused-code lib

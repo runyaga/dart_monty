@@ -39,16 +39,27 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: DCM analyze (blocking)
-        continue-on-error: true
-        run: >-
-          dcm analyze lib
-          --ci-key=${{ secrets.DCM_CI_KEY }}
-          --email=${{ secrets.DCM_EMAIL }}
+      # Ratchet, not a clean run. `dcm analyze lib` has 9 pre-existing issues, so a
+      # zero-issue gate could never go green -- which is why this step carried
+      # continue-on-error and could not fail at all. The ratchet fails on any NEW
+      # issue above tool/dcm-baseline.json and is therefore both blocking and
+      # satisfiable. Regenerate deliberately: bash tool/dcm_ratchet.sh --update
+      - name: DCM ratchet (blocking)
+        run: bash tool/dcm_ratchet.sh
+        env:
+          DCM_CI_KEY: ${{ secrets.DCM_CI_KEY }}
+          DCM_EMAIL: ${{ secrets.DCM_EMAIL }}
 
-      - name: DCM metrics (blocking)
+      # Labelled "(blocking)" but carried continue-on-error, i.e. it was advisory
+      # and said otherwise. It genuinely fails today (exit 2) on pre-existing
+      # debt: methods of 84/82/66/58 lines against a 50 threshold, cyclomatic
+      # complexity 13 against 10, and two classes with 17 methods against 15.
+      # Making it truly blocking means paying that down first, so for now the
+      # label matches the behaviour. Ratcheting it the way dcm analyze is
+      # ratcheted is the obvious follow-up.
+      - name: DCM metrics (advisory)
         if: always()
-        continue-on-error: true  # Pre-existing violations in FsProvider/SandboxPlugin/BaseMontyPlatform pending Phase 4
+        continue-on-error: true
         run: >-
           dcm calculate-metrics lib
           --fatal-level=high
@@ -58,7 +69,7 @@ jobs:
 
       - name: DCM check-unused-code (advisory)
         if: always()
-        continue-on-error: true
+        continue-on-error: true  # advisory by design (matches tool/gate.sh)
         run: >-
           dcm check-unused-code lib
           --ci-key=${{ secrets.DCM_CI_KEY }}
@@ -66,7 +77,7 @@ jobs:
 
       - name: DCM check-parameters (advisory)
         if: always()
-        continue-on-error: true
+        continue-on-error: true  # advisory by design (matches tool/gate.sh)
         run: >-
           dcm check-parameters lib
           --ci-key=${{ secrets.DCM_CI_KEY }}
@@ -74,7 +85,6 @@ jobs:
 
       - name: Upload to DCM dashboard
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        continue-on-error: true
         run: >-
           dcm run lib
           --all
