@@ -19,7 +19,7 @@ void main() {
   group('open() handler on current platform', () {
     test('Open w returns a MontyFileHandle and truncates', () async {
       final h = fsHandler(MemoryFileSystem());
-      final result = await h('Open', ['/out.txt', 'w'], null);
+      final result = await h('open', ['/out.txt', 'w'], null);
       expect(result, isA<MontyFileHandle>());
       expect((result! as MontyFileHandle).mode, 'w');
 
@@ -31,14 +31,14 @@ void main() {
       final fs = MemoryFileSystem();
       fs.file('/a.txt').writeAsStringSync('hi');
       final h = fsHandler(fs);
-      final result = await h('Open', ['/a.txt', 'r'], null);
+      final result = await h('open', ['/a.txt', 'r'], null);
       expect((result! as MontyFileHandle).path, '/a.txt');
     });
 
     test('Open r on a missing file throws a typed FileNotFoundError', () async {
       final h = fsHandler(MemoryFileSystem());
       await expectLater(
-        () => h('Open', ['/nope.txt', 'r'], null),
+        () => h('open', ['/nope.txt', 'r'], null),
         throwsA(
           isA<OsCallException>().having(
             (e) => e.pythonExceptionType,
@@ -63,7 +63,7 @@ void main() {
       () async {
         final h = fsHandler(MemoryFileSystem()).readOnly();
         await expectLater(
-          () => h('Open', ['/x.txt', 'w'], null),
+          () => h('open', ['/x.txt', 'w'], null),
           throwsA(
             isA<OsCallException>().having(
               (e) => e.pythonExceptionType,

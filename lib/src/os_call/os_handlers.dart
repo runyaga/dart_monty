@@ -1,3 +1,4 @@
+import 'package:dart_monty/src/os_call/path_op.dart';
 import 'package:dart_monty_core/dart_monty_core.dart' show OsCallHandler;
 
 export 'package:dart_monty_core/dart_monty_core.dart' show OsCallHandler;
@@ -29,8 +30,11 @@ OsCallHandler composeOsHandlers(
 
   return (operation, args, kwargs) {
     // `open()` is a filesystem op without a `Path.` prefix — route it to the
-    // filesystem handler so handlers don't each register a separate 'Open' key.
-    if (operation == 'Open' && pathHandler != null) {
+    // filesystem handler so handlers don't each register a separate key for it.
+    // Compare against the constant, never a literal: monty v0.0.19 renamed this
+    // op from `'Open'` to `'open'`, and the failure is silent — a stale literal
+    // stops matching and falls through with no error.
+    if (operation == PathOp.open && pathHandler != null) {
       return pathHandler(operation, args, kwargs);
     }
     for (final prefix in sortedPrefixes) {

@@ -5,6 +5,30 @@ void main() {
   OsCallHandler stubHandler(String tag) =>
       (operation, args, kwargs) async => tag;
 
+  // monty v0.0.19 renamed this op from 'Open' to 'open' (#576). The break is
+  // SILENT: a handler still keyed on the old spelling stops matching and falls
+  // through with no error, so nothing fails loudly if this regresses. These two
+  // tests are that loud failure.
+  group('the open() op name (monty v0.0.19 rename)', () {
+    test('PathOp.open is lowercase "open", not "Open"', () {
+      expect(PathOp.open, 'open');
+    });
+
+    test('composeOsHandlers routes "open" to the Path. handler', () async {
+      final handler = composeOsHandlers({
+        'Path.': stubHandler('fs'),
+        'os.': stubHandler('env'),
+      });
+      expect(await handler('open', ['/a.txt', 'r'], null), 'fs');
+
+      // The old name must NOT route -- it falls through to the fallback.
+      final withFallback = composeOsHandlers({
+        'Path.': stubHandler('fs'),
+      }, fallback: stubHandler('fallback'));
+      expect(await withFallback('Open', ['/a.txt', 'r'], null), 'fallback');
+    });
+  });
+
   group('composeOsHandlers()', () {
     test('routes Path.* to filesystem handler', () async {
       final handler = composeOsHandlers({
