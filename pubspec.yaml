@@ -15,16 +15,7 @@ environment:
 
 dependencies:
   collection: ^1.18.0
-  # 0.19 integration branch: dart_monty_core 0.19.0 is NOT published, so CI
-  # cannot resolve it from pub.dev. Track the branch directly so PRs against
-  # this line get real CI against the code they target.
-  #
-  # Revert to `dart_monty_core: ^0.19.0` before merging to main — a git
-  # dependency cannot be published to pub.dev.
-  dart_monty_core:
-    git:
-      url: https://github.com/runyaga/dart_monty_core.git
-      ref: feat/monty-019-p1a
+  dart_monty_core: ^0.18.1
   dinja: ^1.0.0
   file: ^7.0.0
   meta: ^1.11.0
@@ -38,3 +29,19 @@ dependencies:
 
 dev_dependencies:
   very_good_analysis: ^10.0.0
+
+# 0.19 integration branch ONLY. dart_monty_core 0.19.0 is not published, so CI
+# would otherwise resolve ^0.18.1 and test this line against a dependency it
+# does not target.
+#
+# This is a `dependency_overrides` and NOT a `dependencies` entry on purpose:
+# `dart analyze --fatal-infos` rejects a git dependency in a publishable
+# package (`invalid_dependency`), and overrides are ignored on publish.
+#
+# DELETE THIS BLOCK before merging to main or releasing, and move the
+# `dart_monty_core` constraint above to ^0.19.0.
+dependency_overrides:
+  dart_monty_core:
+    git:
+      url: https://github.com/runyaga/dart_monty_core.git
+      ref: feat/monty-019-p1a
