@@ -26,8 +26,22 @@ void main() {
       expect(result.minute, isA<int>());
       expect(result.second, isA<int>());
       expect(result.microsecond, isA<int>());
-      expect(result.offsetSeconds, isA<int>());
-      expect(result.timezoneName, isA<String>());
+      // No timezone argument means NAIVE: monty's `DateTimeNow(None)` contract
+      // and CPython's `datetime.now()` both say no offset and no zone name.
+      expect(result.offsetSeconds, isNull);
+      expect(result.timezoneName, isNull);
+    });
+
+    test('datetime.now(tz) returns an aware MontyDateTime in that zone',
+        () async {
+      final handler = timeHandler();
+      const tz = MontyTimeZone(offsetSeconds: 0, name: 'UTC');
+      final result =
+          (await handler('datetime.now', [tz.toJson()], null))!
+              as MontyDateTime;
+
+      expect(result.offsetSeconds, 0);
+      expect(result.timezoneName, 'UTC');
     });
 
     test('injected clock is used (frozen time)', () async {
@@ -73,14 +87,22 @@ void main() {
       expect(result.day, lessThanOrEqualTo(after.day));
     });
 
-    test('timezone offset populated correctly', () async {
+    test('requested zone is applied to the instant, not relabelled',
+        () async {
       final frozen = DateTime(2026, 6, 15, 12);
       final handler = timeHandler(clock: () => frozen);
 
+      // Ask for UTC: the SAME instant must come back at offset 0, i.e. the
+      // frozen local time converted to UTC — not the local wall clock
+      // relabelled 'UTC'.
+      const utc = MontyTimeZone(offsetSeconds: 0, name: 'UTC');
       final result =
-          (await handler('datetime.now', const [], null))! as MontyDateTime;
-      expect(result.offsetSeconds, frozen.timeZoneOffset.inSeconds);
-      expect(result.timezoneName, frozen.timeZoneName);
+          (await handler('datetime.now', [utc.toJson()], null))!
+              as MontyDateTime;
+      expect(result.offsetSeconds, 0);
+      expect(result.timezoneName, 'UTC');
+      expect(result.hour, frozen.toUtc().hour);
+      expect(result.minute, frozen.toUtc().minute);
     });
   });
 }
