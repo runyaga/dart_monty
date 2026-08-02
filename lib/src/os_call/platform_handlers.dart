@@ -1,6 +1,7 @@
 // ignore_for_file: avoid-unsafe-collection-methods
 // ignore_for_file: avoid-unnecessary-futures, newline-before-return
 import 'package:dart_monty/src/os_call/os_handlers.dart';
+import 'package:dart_monty_core/dart_monty_core.dart';
 
 /// Handler for `date.*` and `datetime.*` operations.
 ///
@@ -17,24 +18,26 @@ OsCallHandler timeHandler({DateTime Function()? clock}) {
   return (operation, args, kwargs) async {
     final t = now();
     return switch (operation) {
-      'date.today' => {
-        '__type': 'date',
-        'year': t.year,
-        'month': t.month,
-        'day': t.day,
-      },
-      'datetime.now' => {
-        '__type': 'datetime',
-        'year': t.year,
-        'month': t.month,
-        'day': t.day,
-        'hour': t.hour,
-        'minute': t.minute,
-        'second': t.second,
-        'microsecond': t.microsecond,
-        'offset_seconds': t.timeZoneOffset.inSeconds,
-        'timezone_name': t.timeZoneName,
-      },
+      // dart_monty_core 0.19 stopped honouring host-authored `__type` maps:
+      // they arrive in Python as plain dicts, so `date.today().year` raised
+      // AttributeError with no error at the boundary. Returning a MontyValue
+      // subclass is the documented replacement (core CHANGELOG, 0.19.0
+      // Breaking).
+      'date.today' => MontyDate(year: t.year, month: t.month, day: t.day),
+      // Constructed explicitly rather than handing `t` to MontyValue.fromDart:
+      // that arm calls .toUtc() and leaves offsetSeconds/timezoneName null,
+      // which would silently drop both fields this handler has always emitted.
+      'datetime.now' => MontyDateTime(
+        year: t.year,
+        month: t.month,
+        day: t.day,
+        hour: t.hour,
+        minute: t.minute,
+        second: t.second,
+        microsecond: t.microsecond,
+        offsetSeconds: t.timeZoneOffset.inSeconds,
+        timezoneName: t.timeZoneName,
+      ),
       _ => throw UnsupportedError('Unsupported datetime operation: $operation'),
     };
   };

@@ -1,57 +1,50 @@
 import 'package:dart_monty/dart_monty_bridge.dart';
+import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:test/test.dart';
 
 void main() {
   group('timeHandler', () {
-    test('date.today returns date map with __type', () async {
+    test('date.today returns a MontyDate', () async {
       final handler = timeHandler();
       final result =
-          (await handler('date.today', const [], null))!
-              as Map<String, Object?>;
+          (await handler('date.today', const [], null))! as MontyDate;
 
-      expect(result['__type'], 'date');
-      expect(result['year'], isA<int>());
-      expect(result['month'], isA<int>());
-      expect(result['day'], isA<int>());
-      expect(result.containsKey('hour'), isFalse);
+      expect(result.year, isA<int>());
+      expect(result.month, isA<int>());
+      expect(result.day, isA<int>());
     });
 
-    test('datetime.now returns datetime map with __type', () async {
+    test('datetime.now returns a MontyDateTime', () async {
       final handler = timeHandler();
       final result =
-          (await handler('datetime.now', const [], null))!
-              as Map<String, Object?>;
+          (await handler('datetime.now', const [], null))! as MontyDateTime;
 
-      expect(result['__type'], 'datetime');
-      expect(result['year'], isA<int>());
-      expect(result['month'], isA<int>());
-      expect(result['day'], isA<int>());
-      expect(result['hour'], isA<int>());
-      expect(result['minute'], isA<int>());
-      expect(result['second'], isA<int>());
-      expect(result['microsecond'], isA<int>());
-      expect(result['offset_seconds'], isA<int>());
-      expect(result['timezone_name'], isA<String>());
+      expect(result.year, isA<int>());
+      expect(result.month, isA<int>());
+      expect(result.day, isA<int>());
+      expect(result.hour, isA<int>());
+      expect(result.minute, isA<int>());
+      expect(result.second, isA<int>());
+      expect(result.microsecond, isA<int>());
+      expect(result.offsetSeconds, isA<int>());
+      expect(result.timezoneName, isA<String>());
     });
 
     test('injected clock is used (frozen time)', () async {
       final frozen = DateTime(2026, 3, 15, 10, 30, 45, 123, 456);
       final handler = timeHandler(clock: () => frozen);
 
-      final date =
-          (await handler('date.today', const [], null))!
-              as Map<String, Object?>;
-      expect(date['year'], 2026);
-      expect(date['month'], 3);
-      expect(date['day'], 15);
+      final date = (await handler('date.today', const [], null))! as MontyDate;
+      expect(date.year, 2026);
+      expect(date.month, 3);
+      expect(date.day, 15);
 
       final dt =
-          (await handler('datetime.now', const [], null))!
-              as Map<String, Object?>;
-      expect(dt['year'], 2026);
-      expect(dt['hour'], 10);
-      expect(dt['minute'], 30);
-      expect(dt['second'], 45);
+          (await handler('datetime.now', const [], null))! as MontyDateTime;
+      expect(dt.year, 2026);
+      expect(dt.hour, 10);
+      expect(dt.minute, 30);
+      expect(dt.second, 45);
     });
 
     test('unknown date/datetime operation throws', () {
@@ -71,14 +64,13 @@ void main() {
       final handler = timeHandler();
       final before = DateTime.now();
       final result =
-          (await handler('datetime.now', const [], null))!
-              as Map<String, Object?>;
+          (await handler('datetime.now', const [], null))! as MontyDateTime;
       final after = DateTime.now();
 
-      expect(result['year'], before.year);
+      expect(result.year, before.year);
       // Day should be within the range of the test run.
-      expect(result['day'], greaterThanOrEqualTo(before.day));
-      expect(result['day'], lessThanOrEqualTo(after.day));
+      expect(result.day, greaterThanOrEqualTo(before.day));
+      expect(result.day, lessThanOrEqualTo(after.day));
     });
 
     test('timezone offset populated correctly', () async {
@@ -86,10 +78,9 @@ void main() {
       final handler = timeHandler(clock: () => frozen);
 
       final result =
-          (await handler('datetime.now', const [], null))!
-              as Map<String, Object?>;
-      expect(result['offset_seconds'], frozen.timeZoneOffset.inSeconds);
-      expect(result['timezone_name'], frozen.timeZoneName);
+          (await handler('datetime.now', const [], null))! as MontyDateTime;
+      expect(result.offsetSeconds, frozen.timeZoneOffset.inSeconds);
+      expect(result.timezoneName, frozen.timeZoneName);
     });
   });
 }

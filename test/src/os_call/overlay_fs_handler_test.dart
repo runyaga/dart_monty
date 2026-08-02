@@ -182,8 +182,9 @@ void main() {
 
       final result = await overlayWithTime('date.today', const [], null);
 
-      expect(result, isA<Map<String, Object?>>());
-      expect((result! as Map)['__type'], 'date');
+      // timeHandler returns a typed MontyDate since dart_monty_core 0.19;
+      // a hand-built `{'__type': 'date'}` Map would decode as a plain dict.
+      expect(result, isA<MontyDate>());
     });
   });
 }
