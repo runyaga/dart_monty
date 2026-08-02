@@ -33,14 +33,28 @@ void main() {
           schema: const HostFunctionSchema(
             name: 'make_user',
             description: 'Construct a User dataclass.',
-            params: [HostParam(name: 'name', type: HostParamType.string)],
+            params: [
+              HostParam(name: 'name', type: HostParamType.string),
+              HostParam(name: 'age', type: HostParamType.integer),
+            ],
           ),
-          handler: (args, _) async => dc,
+          handler: (args, kwargs) async {
+            // The demo does `args['age']! as int`. If `age` is absent on this
+            // platform the `!` throws, the host call fails, `user` never binds,
+            // and the demo reads MontyNone two calls later. Print, do not throw.
+            print('DIAG args=$args');
+            print('DIAG kwargs=$kwargs');
+            final age = args['age'];
+            final nm = args['name'];
+            print('DIAG age=$age type=${age.runtimeType}');
+            print('DIAG name=$nm type=${nm.runtimeType}');
+            return dc;
+          },
         ),
       );
 
     // Layer 2: does the assignment succeed? dataclass_demo ignores this error.
-    final r1 = await runtime.execute('user = make_user(name="alice")').result;
+    final r1 = await runtime.execute('user = make_user(name="alice", age=30)').result;
     print('DIAG assign error=${r1.error}');
 
     // Layer 3: what does Python think it received?
