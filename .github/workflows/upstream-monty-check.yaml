@@ -1,4 +1,4 @@
-name: Upstream monty check
+name: Upstream dart_monty_core check
 
 on:
   schedule:
@@ -15,93 +15,190 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Check for new monty releases
+      - name: Check for new dart_monty_core releases
         id: check
         run: |
-          # Rust crate: latest release tag on pydantic/monty
-          LATEST_TAG=$(gh api repos/pydantic/monty/releases/latest --jq '.tag_name' 2>/dev/null || echo "unknown")
-          # Strip leading 'v' to get version number
-          LATEST_VERSION="${LATEST_TAG#v}"
+          set -euo pipefail
 
-          # Current version from our Cargo.toml branch name (e.g., "runyaga/0.0.9" -> "0.0.9")
-          CURRENT_BRANCH=$(grep -oP 'branch = "\K[^"]*' native/Cargo.toml || echo "")
-          CURRENT_VERSION="${CURRENT_BRANCH##*/}"
-
-          # Fallback: check for rev-based pinning (legacy)
-          if [ -z "$CURRENT_VERSION" ]; then
-            CURRENT_VERSION=$(grep -oP 'rev = "\K[^"]*' native/Cargo.toml || echo "unknown")
+          # --- Input validation: a missing/unreadable file must FAIL the job. ---
+          PUBSPEC="pubspec.yaml"
+          if [ ! -f "$PUBSPEC" ]; then
+            echo "::error::Required input file '$PUBSPEC' not found in the repository." >&2
+            exit 1
+          fi
+          if [ ! -r "$PUBSPEC" ]; then
+            echo "::error::Required input file '$PUBSPEC' exists but is not readable." >&2
+            exit 1
           fi
 
-          echo "latest_tag=$LATEST_TAG" >> "$GITHUB_OUTPUT"
+          # --- Declared constraint: the `dart_monty_core:` line under `dependencies:` in pubspec.yaml. ---
+          # Extract the bare constraint, fail loudly if it is absent.
+          DECLARED_CONSTRAINT=$(awk '
+            /^dependencies:[[:space:]]*$/ { in_deps = 1; next }
+            /^[a-z_]+:[[:space:]]*$/ { in_deps = 0 }
+            in_deps && /^[[:space:]]*dart_monty_core:[[:space:]]+/ {
+              line = $0
+              sub(/^[[:space:]]*dart_monty_core:[[:space:]]+/, "", line)
+              sub(/[[:space:]]+.*$/, "", line)
+              # Strip a leading comment marker if any slipped in
+              sub(/^#/, "", line)
+              print line
+              found = 1
+              exit
+            }
+            END { if (!found) exit 1 }
+          ' "$PUBSPEC") || {
+            echo "::error::No 'dart_monty_core:' dependency declaration found under 'dependencies:' in $PUBSPEC." >&2
+            exit 1
+          }
+          if [ -z "$DECLARED_CONSTRAINT" ]; then
+            echo "::error::'dart_monty_core:' declaration found in $PUBSPEC but its version constraint is empty." >&2
+            exit 1
+          fi
+          echo "Declared dart_monty_core constraint: $DECLARED_CONSTRAINT"
+
+          # --- Latest published version from pub.dev (JSON, field .latest.version). ---
+          PUBDEV_JSON=$(curl -fsS https://pub.dev/api/packages/dart_monty_core) || {
+            echo "::error::Failed to fetch https://pub.dev/api/packages/dart_monty_core" >&2
+            exit 1
+          }
+          LATEST_VERSION=$(printf '%s' "$PUBDEV_JSON" | sed -n 's/.*"latest"[[:space:]]*:[[:space:]]*{[[:space:]]*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+          if [ -z "$LATEST_VERSION" ]; then
+            echo "::error::Could not parse .latest.version from the pub.dev response." >&2
+            exit 1
+          fi
+          echo "Latest published dart_monty_core: $LATEST_VERSION"
+
+          echo "declared_constraint=$DECLARED_CONSTRAINT" >> "$GITHUB_OUTPUT"
           echo "latest_version=$LATEST_VERSION" >> "$GITHUB_OUTPUT"
-          echo "current_version=$CURRENT_VERSION" >> "$GITHUB_OUTPUT"
 
-          if [ "$LATEST_VERSION" != "$CURRENT_VERSION" ] && [ "$LATEST_VERSION" != "unknown" ]; then
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-            echo "::notice::New monty release detected: $LATEST_TAG (current: $CURRENT_VERSION)"
+          # --- Decide whether the latest published version is covered by the declared constraint. ---
+          #
+          # This job only needs to know if the declared constraint ADMITS the published version.
+          # It does not compile or run any Dart, so it deliberately does NOT depend on the Dart
+          # toolchain being present. The comparison is done in portable POSIX shell so the result
+          # is the same whether or not `dart` is on PATH.
+          #
+          # Supported constraint forms (the only forms this package uses):
+          #   ^x.y.z  ->  caret range (see admits_caret for the 0.y.z narrow case)
+          #   x.y.z   ->  exact version
+          #
+          # Semver semantics implemented:
+          #   ^0.y.z admits  >= 0.y.z  and  < 0.(y+1).0   (narrow: same minor)
+          #   ^x.y.z admits  >= x.y.z  and  < (x+1).0.0   (wide, when x >= 1)
+          # CHANGED="true" means the constraint does NOT admit the published version.
+
+          constraint_admits() {
+            # $1 = constraint, $2 = published version. Return 0 if admitted, 1 otherwise.
+            local constraint="$1" published="$2"
+
+            # Caret constraint?
+            if [ "${constraint#\^}" != "$constraint" ]; then
+              local base="${constraint#\^}"; base="${base#v}"
+              local pub="${published#v}"
+
+              # Split "major.minor.patch" by parameter expansion (no heredoc, set -u safe).
+              # Strip any pre-release/build suffix from the patch field first.
+              local brest prest
+              local bmaj="${base%%.*}";       brest="${base#*.}"
+              local bmin="${brest%%.*}";      brest="${brest#*.}"
+              local bpat="${brest%%.*}";      bpat="${bpat%%-*}"
+              local pmaj="${pub%%.*}";        prest="${pub#*.}"
+              local pmin="${prest%%.*}";      prest="${prest#*.}"
+              local ppat="${prest%%.*}";      ppat="${ppat%%-*}"
+
+              # Reject anything that is not a non-negative integer so arithmetic never
+              # silently misbehaves on a malformed version.
+              for v in "$bmaj" "$bmin" "$bpat" "$pmaj" "$pmin" "$ppat"; do
+                case "$v" in
+                  ''|*[!0-9]*) return 2 ;;
+                esac
+              done
+
+              # published must be >= base
+              if   [ "$pmaj" -lt "$bmaj" ]; then return 1; fi
+              if   [ "$pmaj" -eq "$bmaj" ]; then
+                if   [ "$pmin" -lt "$bmin" ]; then return 1; fi
+                if   [ "$pmin" -eq "$bmin" ] && [ "$ppat" -lt "$bpat" ]; then return 1; fi
+              fi
+
+              # published must be < upper bound
+              if [ "$bmaj" -eq 0 ]; then
+                # narrow caret: < 0.(bmin+1).0
+                [ "$pmaj" -ne 0 ] && return 1
+                [ "$pmin" -ge $((bmin + 1)) ] && return 1
+                return 0
+              else
+                # wide caret: < (bmaj+1).0.0
+                [ "$pmaj" -ge $((bmaj + 1)) ] && return 1
+                return 0
+              fi
+            else
+              # Bare version: exact match only.
+              [ "${constraint#v}" = "${published#v}" ]
+              return $?
+            fi
+          }
+
+          # `set -e` aborts on any non-zero return, so run the checker with `set +e` to
+          # capture its exit code explicitly (0 = admitted, 1 = not admitted, 2 = parse error).
+          set +e
+          constraint_admits "$DECLARED_CONSTRAINT" "$LATEST_VERSION"
+          ADMITS_RC=$?
+          set -e
+          if [ "$ADMITS_RC" -eq 2 ]; then
+            echo "::error::Could not parse semver fields from constraint '$DECLARED_CONSTRAINT' or version '$LATEST_VERSION'." >&2
+            exit 1
+          fi
+          if [ "$ADMITS_RC" -eq 0 ]; then
+            CHANGED="false"
           else
-            echo "::notice::monty is up to date ($CURRENT_VERSION)"
+            CHANGED="true"
           fi
 
-          # NPM: latest version of @pydantic/monty
-          NPM_LATEST=$(npm view @pydantic/monty version 2>/dev/null || echo "unknown")
-          NPM_CURRENT=$(jq -r '.dependencies["@pydantic/monty"] // "none"' package.json | tr -d '^~')
-          echo "npm_latest=$NPM_LATEST" >> "$GITHUB_OUTPUT"
-          echo "npm_current=$NPM_CURRENT" >> "$GITHUB_OUTPUT"
-          if [ "$NPM_LATEST" != "$NPM_CURRENT" ] && [ "$NPM_LATEST" != "unknown" ]; then
-            echo "npm_changed=true" >> "$GITHUB_OUTPUT"
+          echo "changed=$CHANGED" >> "$GITHUB_OUTPUT"
+          if [ "$CHANGED" = "true" ]; then
+            echo "::notice::dart_monty_core $LATEST_VERSION is not satisfied by declared constraint $DECLARED_CONSTRAINT."
+          else
+            echo "::notice::dart_monty_core is up to date (constraint $DECLARED_CONSTRAINT covers $LATEST_VERSION)."
           fi
-        env:
-          GH_TOKEN: ${{ secrets.MONTY_USER_PAT }}
 
-      - name: Open issue for new monty release
+      - name: Open issue for new dart_monty_core release
         if: steps.check.outputs.changed == 'true'
         run: |
-          # Don't create duplicate issues
-          EXISTING=$(gh issue list --search "monty ${{ steps.check.outputs.latest_tag }} in:title" --state open --json number --jq '.[0].number' || echo "")
+          # Don't create duplicate issues: search for an existing open issue first.
+          EXISTING=$(gh issue list \
+            --search "dart_monty_core ${{ steps.check.outputs.latest_version }} in:title" \
+            --state open \
+            --json number \
+            --jq '.[0].number' || echo "")
           if [ -n "$EXISTING" ]; then
             echo "Issue #$EXISTING already exists, skipping."
             exit 0
           fi
+
           gh issue create \
-            --title "chore(native): new upstream monty release ${{ steps.check.outputs.latest_tag }}" \
+            --title "chore(deps): dart_monty_core ${{ steps.check.outputs.latest_version }} available (constraint ${{ steps.check.outputs.declared_constraint }})" \
             --label "chore" \
             --body "$(cat <<BODY
-          A new upstream monty release has been detected.
+          A new published version of the `dart_monty_core` package has been detected on pub.dev.
+
+          This repository (`dart_monty`) does **not** own the Rust crate or the WASM asset pins —
+          those live in `dart_monty_core`. This repo only declares a version constraint on the
+          `dart_monty_core` package in `pubspec.yaml`.
 
           | | Version |
           |---|---|
-          | **Latest** | ${{ steps.check.outputs.latest_tag }} |
-          | **Current** | ${{ steps.check.outputs.current_version }} |
+          | **Latest published** | ${{ steps.check.outputs.latest_version }} |
+          | **Declared constraint** | ${{ steps.check.outputs.declared_constraint }} |
 
-          **Release notes:** https://github.com/pydantic/monty/releases/tag/${{ steps.check.outputs.latest_tag }}
+          **pub.dev:** https://pub.dev/packages/dart_monty_core/versions/${{ steps.check.outputs.latest_version }}
 
           ### Upgrade steps
-          1. Update \`runyaga/monty\` fork branch
-          2. Update \`native/Cargo.toml\` branch pin
-          3. Update \`native/NATIVE_LIB_VERSION\`
-          4. Rebuild and run ladder tests
-          5. Check for new \`MontyObject\` variants in \`convert.rs\`
-          6. Un-xfail any ladder tests that now pass
+          1. Bump the `dart_monty_core:` constraint in `pubspec.yaml` to cover `${{ steps.check.outputs.latest_version }}`.
+          2. Run `dart pub get`.
+          3. Re-run this repo's gates (`bash tool/gate.sh`).
           BODY
           )"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Create PR for NPM update
-        if: steps.check.outputs.npm_changed == 'true'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          BRANCH="chore/bump-monty-npm-${{ steps.check.outputs.npm_latest }}"
-          git checkout -b "$BRANCH"
-          npm install "@pydantic/monty@${{ steps.check.outputs.npm_latest }}" \
-                      "@pydantic/monty-wasm32-wasi@${{ steps.check.outputs.npm_latest }}"
-          git add package.json package-lock.json
-          git commit -m "chore: bump @pydantic/monty to ${{ steps.check.outputs.npm_latest }}"
-          git push -u origin "$BRANCH"
-          gh pr create \
-            --title "chore(wasm): bump @pydantic/monty to ${{ steps.check.outputs.npm_latest }}" \
-            --body "Upstream @pydantic/monty NPM has a new version. CI will verify compatibility."
-        env:
-          GH_TOKEN: ${{ secrets.MONTY_USER_PAT }}
