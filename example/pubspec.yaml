@@ -9,3 +9,18 @@ dependencies:
   dart_monty:
     path: ../
   file: ^7.0.0
+
+# 0.19 integration branch ONLY — see the matching block in ../pubspec.yaml.
+#
+# `dependency_overrides` do NOT propagate from the parent package, so without
+# this the examples resolve dart_monty_core from pub.dev (0.18.1) while the root
+# package uses the 0.19 branch. That is not a theoretical mismatch: it made
+# `example_smoke_test` run dataclass_demo against 0.18.1 and fail with
+# `MontyNone`, while every other job passed.
+#
+# DELETE THIS BLOCK when ../pubspec.yaml's override goes.
+dependency_overrides:
+  dart_monty_core:
+    git:
+      url: https://github.com/runyaga/dart_monty_core.git
+      ref: feat/monty-019-p1a
