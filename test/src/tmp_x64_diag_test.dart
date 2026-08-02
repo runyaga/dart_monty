@@ -41,7 +41,7 @@ void main() {
           handler: (args, kwargs) async {
             // The demo does `args['age']! as int`. If `age` is absent on this
             // platform the `!` throws, the host call fails, `user` never binds,
-            // and the demo reads MontyNone two calls later. Print, do not throw.
+            // and the demo reads MontyNone later. Print, do not throw.
             print('DIAG args=$args');
             print('DIAG kwargs=$kwargs');
             final age = args['age'];
@@ -54,7 +54,9 @@ void main() {
       );
 
     // Layer 2: does the assignment succeed? dataclass_demo ignores this error.
-    final r1 = await runtime.execute('user = make_user(name="alice", age=30)').result;
+    final r1 = await runtime
+        .execute('user = make_user(name="alice", age=30)')
+        .result;
     print('DIAG assign error=${r1.error}');
 
     // Layer 3: what does Python think it received?
