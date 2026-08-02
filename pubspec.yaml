@@ -15,7 +15,16 @@ environment:
 
 dependencies:
   collection: ^1.18.0
-  dart_monty_core: ^0.18.1
+  # 0.19 integration branch: dart_monty_core 0.19.0 is NOT published, so CI
+  # cannot resolve it from pub.dev. Track the branch directly so PRs against
+  # this line get real CI against the code they target.
+  #
+  # Revert to `dart_monty_core: ^0.19.0` before merging to main — a git
+  # dependency cannot be published to pub.dev.
+  dart_monty_core:
+    git:
+      url: https://github.com/runyaga/dart_monty_core.git
+      ref: feat/monty-019-p1a
   dinja: ^1.0.0
   file: ^7.0.0
   meta: ^1.11.0
