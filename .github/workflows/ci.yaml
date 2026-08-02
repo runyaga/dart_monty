@@ -58,7 +58,11 @@ jobs:
   test:
     name: Dart test
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # 30, not 15: dart_monty_core is a git dependency on this branch, so its
+    # native asset is compiled from source rather than coming prebuilt from the
+    # pub.dev archive. A cold cargo build of the ruff/ty crate tree does not fit
+    # in 15 minutes.
+    timeout-minutes: 30
     needs: [changes]
     if: needs.changes.outputs.code == 'true'
     steps:
@@ -140,7 +144,9 @@ jobs:
     needs: [changes]
     if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # See the `test` job: the git dependency means cargo builds core from
+    # source, which does not fit in 15 minutes cold.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: dart-lang/setup-dart@v1

@@ -38,15 +38,21 @@ class User {
   String toString() => 'User(name=$name, age=$age)';
 }
 
-Map<String, Object?> _userEnvelope({required String name, required int age}) =>
-    {
-      '__type': 'dataclass',
-      'name': 'User',
-      'type_id': 1,
-      'field_names': ['name', 'age'],
-      'attrs': {'name': name, 'age': age},
-      'frozen': false,
-    };
+// Say it with the type, not with a hand-built envelope.
+//
+// dart_monty_core 0.19 routes host callback returns through
+// `MontyValue.encodeForWire`, so a Map spelling `{'__type': 'dataclass', ...}`
+// by hand is no longer honoured as a dataclass — it arrives in Python as a
+// plain dict, `user.name` reads as null, and the cast below throws. Returning a
+// `MontyDataclass` is the documented replacement (core CHANGELOG, 0.19.0
+// Breaking).
+MontyDataclass _userValue({required String name, required int age}) =>
+    MontyDataclass(
+      name: 'User',
+      typeId: 1,
+      fieldNames: const ['name', 'age'],
+      attrs: {'name': MontyString(name), 'age': MontyInt(age)},
+    );
 
 Future<void> main() async {
   final runtime = MontyRuntime()
@@ -60,7 +66,7 @@ Future<void> main() async {
             HostParam(name: 'age', type: HostParamType.integer),
           ],
         ),
-        handler: (args, _) async => _userEnvelope(
+        handler: (args, _) async => _userValue(
           name: args['name']! as String,
           age: args['age']! as int,
         ),

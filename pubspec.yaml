@@ -29,3 +29,19 @@ dependencies:
 
 dev_dependencies:
   very_good_analysis: ^10.0.0
+
+# 0.19 integration branch ONLY. dart_monty_core 0.19.0 is not published, so CI
+# would otherwise resolve ^0.18.1 and test this line against a dependency it
+# does not target.
+#
+# This is a `dependency_overrides` and NOT a `dependencies` entry on purpose:
+# `dart analyze --fatal-infos` rejects a git dependency in a publishable
+# package (`invalid_dependency`), and overrides are ignored on publish.
+#
+# DELETE THIS BLOCK before merging to main or releasing, and move the
+# `dart_monty_core` constraint above to ^0.19.0.
+dependency_overrides:
+  dart_monty_core:
+    git:
+      url: https://github.com/runyaga/dart_monty_core.git
+      ref: feat/monty-019-p1a
