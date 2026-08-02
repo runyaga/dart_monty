@@ -1,4 +1,6 @@
 @TestOn('vm')
+// Diagnostic prints are the entire point of this throwaway file.
+// ignore_for_file: avoid_print
 library;
 
 import 'dart:io';
