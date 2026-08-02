@@ -9,7 +9,13 @@ on:
       - 'dcm_options.yaml'
       - 'analysis_options.yaml'
   pull_request:
-    branches: [main, 'feat/**']
+  # No `branches:` filter — a PR gets CI whatever it targets.
+  #
+  # This previously read `branches: [main, 'feat/**']`, which silently gave
+  # ZERO test jobs to any PR based on another branch. #441 merged having run
+  # only `label` and `trufflehog`: its "CLEAN / mergeable" status was not
+  # evidence of anything. Stacked PRs are normal here, so enumerating prefixes
+  # would just move the gap; not filtering closes it.
     paths:
       - 'lib/**/*.dart'
       - 'test/**/*.dart'
