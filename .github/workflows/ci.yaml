@@ -70,9 +70,6 @@ jobs:
       - uses: dart-lang/setup-dart@v1
         with:
           sdk: 3.11.4
-      # Core's build hook shells out to cargo; without this every run pays a
-      # full cold build of the ruff/ty crate tree.
-      - uses: Swatinem/rust-cache@v2
       - uses: actions/cache@v4
         with:
           path: ~/.pub-cache
@@ -155,7 +152,6 @@ jobs:
       - uses: dart-lang/setup-dart@v1
         with:
           sdk: 3.11.4
-      - uses: Swatinem/rust-cache@v2
       - uses: actions/cache@v4
         with:
           path: ~/.pub-cache
