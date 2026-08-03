@@ -78,19 +78,20 @@ void main() {
       );
       expect(v['hour'], frozen.hour);
       expect(v['minute'], frozen.minute);
-      // The pre-0.19 handler emitted offset_seconds/timezone_name. Converting
-      // via a bare Dart DateTime would drop both (MontyValue.fromDart calls
-      // .toUtc(), leaving offsetSeconds/timezoneName null), so pin that the
-      // datetime is tz-aware and carries this machine's zone name.
+      // NAIVE, deliberately. An earlier version of this test asserted the
+      // opposite — that the datetime came back tz-aware — which pinned a
+      // divergence from monty's `DateTimeNow(None)` contract and from CPython
+      // as though it were the goal. Awareness is now requested explicitly with
+      // `datetime.now(tz)`; see time_handler_tz_test.dart.
       expect(
         v['naive'],
-        isFalse,
-        reason: 'offsetSeconds must not be silently dropped',
+        isTrue,
+        reason: 'datetime.now() with no argument is naive',
       );
       expect(
-        v['tz']! as String,
-        contains(frozen.timeZoneName),
-        reason: 'timezoneName must survive the boundary',
+        v['tz'],
+        'None',
+        reason: 'a naive datetime carries no zone',
       );
     });
   });

@@ -24,23 +24,71 @@ OsCallHandler timeHandler({DateTime Function()? clock}) {
       // subclass is the documented replacement (core CHANGELOG, 0.19.0
       // Breaking).
       'date.today' => MontyDate(year: t.year, month: t.month, day: t.day),
-      // Constructed explicitly rather than handing `t` to MontyValue.fromDart:
-      // that arm calls .toUtc() and leaves offsetSeconds/timezoneName null,
-      // which would silently drop both fields this handler has always emitted.
-      'datetime.now' => MontyDateTime(
-        year: t.year,
-        month: t.month,
-        day: t.day,
-        hour: t.hour,
-        minute: t.minute,
-        second: t.second,
-        microsecond: t.microsecond,
-        offsetSeconds: t.timeZoneOffset.inSeconds,
-        timezoneName: t.timeZoneName,
-      ),
+      'datetime.now' => _datetimeNow(t, _requestedZone(args)),
       _ => throw UnsupportedError('Unsupported datetime operation: $operation'),
     };
   };
+}
+
+/// The timezone `datetime.now(tz)` asked for, or `null` for `datetime.now()`.
+///
+/// monty passes the requested zone positionally: `DateTimeNow` projects it into
+/// `args[0]`, `None` when the call was naive. Arguments reach a handler already
+/// lowered to `dartValue`, so a zone arrives as the wire map
+/// `{'__type': 'timezone', …}`; [MontyValue.fromJson] turns that back into the
+/// typed value rather than making this function key into a raw map.
+MontyTimeZone? _requestedZone(List<Object?> args) {
+  if (args.isEmpty || args.first == null) return null;
+  final decoded = MontyValue.fromJson(args.first);
+  if (decoded is MontyTimeZone) return decoded;
+  if (decoded is MontyNone) return null;
+  // Loudly, not silently: monty only ever sends None or a timezone here, so
+  // anything else means the contract changed and guessing would hide it.
+  throw ArgumentError.value(
+    args.first,
+    'args[0]',
+    'datetime.now expects a timezone or None, got ${decoded.runtimeType}',
+  );
+}
+
+/// Answers `datetime.now(tz)` the way monty specifies.
+///
+/// `tz == null` is **naive**: local wall-clock, and no offset or zone name.
+/// Returning an aware value here diverges from CPython and from monty's own
+/// contract ("`None` for a naive result", `OsFunctionCall::DateTimeNow`).
+///
+/// `tz != null` is **aware**: the same instant expressed in the requested zone,
+/// carrying its offset and name — mirroring upstream's reference embedder
+/// (`dispatch_datetime_now`, monty `crates/monty-datatest/src/main.rs`).
+///
+/// Built explicitly rather than via [MontyValue.fromDart], whose `DateTime` arm
+/// calls `.toUtc()` and leaves offset and name null — correct for neither case.
+MontyDateTime _datetimeNow(DateTime t, MontyTimeZone? tz) {
+  if (tz == null) {
+    return MontyDateTime(
+      year: t.year,
+      month: t.month,
+      day: t.day,
+      hour: t.hour,
+      minute: t.minute,
+      second: t.second,
+      microsecond: t.microsecond,
+    );
+  }
+  // Shift the instant, do not relabel the wall clock: an offset applied to UTC
+  // is what makes `datetime.now(timezone.utc)` the same moment as `now()`.
+  final shifted = t.toUtc().add(Duration(seconds: tz.offsetSeconds));
+  return MontyDateTime(
+    year: shifted.year,
+    month: shifted.month,
+    day: shifted.day,
+    hour: shifted.hour,
+    minute: shifted.minute,
+    second: shifted.second,
+    microsecond: shifted.microsecond,
+    offsetSeconds: tz.offsetSeconds,
+    timezoneName: tz.name,
+  );
 }
 
 /// Handler for `os.*` environment operations using a provided map.

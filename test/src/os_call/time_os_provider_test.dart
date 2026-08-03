@@ -26,9 +26,25 @@ void main() {
       expect(result.minute, isA<int>());
       expect(result.second, isA<int>());
       expect(result.microsecond, isA<int>());
-      expect(result.offsetSeconds, isA<int>());
-      expect(result.timezoneName, isA<String>());
+      // No timezone argument means NAIVE: monty's `DateTimeNow(None)` contract
+      // and CPython's `datetime.now()` both say no offset and no zone name.
+      expect(result.offsetSeconds, isNull);
+      expect(result.timezoneName, isNull);
     });
+
+    test(
+      'datetime.now(tz) returns an aware MontyDateTime in that zone',
+      () async {
+        final handler = timeHandler();
+        const tz = MontyTimeZone(offsetSeconds: 0, name: 'UTC');
+        final result =
+            (await handler('datetime.now', [tz.toJson()], null))!
+                as MontyDateTime;
+
+        expect(result.offsetSeconds, 0);
+        expect(result.timezoneName, 'UTC');
+      },
+    );
 
     test('injected clock is used (frozen time)', () async {
       final frozen = DateTime(2026, 3, 15, 10, 30, 45, 123, 456);
@@ -73,14 +89,28 @@ void main() {
       expect(result.day, lessThanOrEqualTo(after.day));
     });
 
-    test('timezone offset populated correctly', () async {
+    test('requested zone is applied to the instant, not relabelled', () async {
       final frozen = DateTime(2026, 6, 15, 12);
       final handler = timeHandler(clock: () => frozen);
 
+      // A NON-ZERO offset, deliberately. Requesting UTC (offset 0) makes this
+      // test tautological on a UTC host — `frozen.hour == frozen.toUtc().hour`
+      // there, so a handler that ignored the zone and returned the unshifted
+      // wall clock would still pass. Verified: with the shift removed, the UTC
+      // version passed under TZ=UTC and only failed under TZ=America/Chicago.
+      // GitHub runners are UTC, so that test could not have caught the bug it
+      // was written for.
+      const plusFour = MontyTimeZone(offsetSeconds: 4 * 3600, name: 'UTC+04');
       final result =
-          (await handler('datetime.now', const [], null))! as MontyDateTime;
-      expect(result.offsetSeconds, frozen.timeZoneOffset.inSeconds);
-      expect(result.timezoneName, frozen.timeZoneName);
+          (await handler('datetime.now', [plusFour.toJson()], null))!
+              as MontyDateTime;
+      expect(result.offsetSeconds, 4 * 3600);
+      expect(result.timezoneName, 'UTC+04');
+      // The instant, shifted into +04:00 — independent of the host's zone.
+      final expected = frozen.toUtc().add(const Duration(hours: 4));
+      expect(result.hour, expected.hour);
+      expect(result.minute, expected.minute);
+      expect(result.day, expected.day);
     });
   });
 }
