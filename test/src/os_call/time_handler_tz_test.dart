@@ -46,7 +46,7 @@ void main() {
       expect(v['minute'], frozen.minute);
     });
 
-    test('timezone.utc yields an AWARE datetime at offset 0', () async {
+    test('a requested zone shifts the instant', () async {
       final session = newSession();
       addTearDown(session.dispose);
 
@@ -54,8 +54,13 @@ void main() {
           .execute(
             // NB: monty's timezone implements no utcoffset(); repr is the
             // observable surface, so assert on that.
-            'from datetime import datetime, timezone\n'
-            'u = datetime.now(timezone.utc)\n'
+            // A NON-ZERO offset on purpose. Requesting UTC makes this
+            // tautological on a UTC host, where the unshifted local wall clock
+            // already equals the UTC one — measured: with the shift removed,
+            // the UTC form passed under TZ=UTC and failed only under
+            // TZ=America/Chicago. GitHub runners are UTC.
+            'from datetime import datetime, timezone, timedelta\n'
+            'u = datetime.now(timezone(timedelta(hours=4)))\n'
             '{"naive": u.tzinfo is None, "hour": u.hour, '
             '"minute": u.minute, "tz": repr(u.tzinfo)}',
           )
@@ -64,15 +69,10 @@ void main() {
       expect(r.error, isNull);
       final v = r.value.dartValue! as Map<String, Object?>;
       expect(v['naive'], isFalse, reason: 'datetime.now(tz) must be aware');
-      // Requested UTC, so the zone must be UTC — not the host's local zone.
-      expect(
-        v['tz']! as String,
-        anyOf(contains('timezone.utc'), contains('timedelta(0)')),
-        reason: 'requested UTC, got ${v['tz']}',
-      );
-      // The same instant, expressed in UTC — not the local wall clock.
-      expect(v['hour'], frozen.toUtc().hour);
-      expect(v['minute'], frozen.toUtc().minute);
+      // The instant shifted into +04:00, independent of the host's zone.
+      final expected = frozen.toUtc().add(const Duration(hours: 4));
+      expect(v['hour'], expected.hour);
+      expect(v['minute'], expected.minute);
     });
 
     test('date.today is unaffected', () async {

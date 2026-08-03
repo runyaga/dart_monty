@@ -93,17 +93,24 @@ void main() {
       final frozen = DateTime(2026, 6, 15, 12);
       final handler = timeHandler(clock: () => frozen);
 
-      // Ask for UTC: the SAME instant must come back at offset 0, i.e. the
-      // frozen local time converted to UTC — not the local wall clock
-      // relabelled 'UTC'.
-      const utc = MontyTimeZone(offsetSeconds: 0, name: 'UTC');
+      // A NON-ZERO offset, deliberately. Requesting UTC (offset 0) makes this
+      // test tautological on a UTC host — `frozen.hour == frozen.toUtc().hour`
+      // there, so a handler that ignored the zone and returned the unshifted
+      // wall clock would still pass. Verified: with the shift removed, the UTC
+      // version passed under TZ=UTC and only failed under TZ=America/Chicago.
+      // GitHub runners are UTC, so that test could not have caught the bug it
+      // was written for.
+      const plusFour = MontyTimeZone(offsetSeconds: 4 * 3600, name: 'UTC+04');
       final result =
-          (await handler('datetime.now', [utc.toJson()], null))!
+          (await handler('datetime.now', [plusFour.toJson()], null))!
               as MontyDateTime;
-      expect(result.offsetSeconds, 0);
-      expect(result.timezoneName, 'UTC');
-      expect(result.hour, frozen.toUtc().hour);
-      expect(result.minute, frozen.toUtc().minute);
+      expect(result.offsetSeconds, 4 * 3600);
+      expect(result.timezoneName, 'UTC+04');
+      // The instant, shifted into +04:00 — independent of the host's zone.
+      final expected = frozen.toUtc().add(const Duration(hours: 4));
+      expect(result.hour, expected.hour);
+      expect(result.minute, expected.minute);
+      expect(result.day, expected.day);
     });
   });
 }
