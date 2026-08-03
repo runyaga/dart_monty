@@ -45,15 +45,38 @@ void main() {
       );
     });
 
-    test('declining with no fallback still reports unhandled', () async {
+    test('an exhausted composer DECLINES, so composers nest', () async {
+      // A composer is itself an OsCallHandler, and this codebase nests them:
+      // coordinator.dart composes with another handler as `fallback`, and
+      // `defaultOsHandler()` is itself a composer. If an exhausted composer
+      // threw instead of declining, an inner one would abort the outer's
+      // routing rather than letting it try the next candidate.
+      final inner = composeOsHandlers({
+        'date.': (operation, args, kwargs) async => 'inner-handled',
+      });
+      final outer = composeOsHandlers(
+        {'os.': inner},
+        fallback: (operation, args, kwargs) async => 'outer-fallback',
+      );
+
+      // `os.getenv` matches the outer's 'os.' prefix and is routed to `inner`,
+      // which has no handler for it. That is a decline, not a failure, so the
+      // outer's fallback must get a turn.
+      expect(await outer('os.getenv', const [], null), 'outer-fallback');
+    });
+
+    test('declining with no fallback reports unhandled', () async {
       final os = composeOsHandlers({
         'date.': (operation, args, kwargs) async =>
             throw const OsCallNotHandledException('date.'),
       });
 
+      // Not UnsupportedError: an unhandled op is a decline, which the runtime
+      // renders as monty's own "not supported in this environment" rather than
+      // a Dart-flavoured RuntimeError.
       await expectLater(
         os('date.today', const [], null),
-        throwsA(isA<UnsupportedError>()),
+        throwsA(isA<OsCallNotHandledException>()),
       );
     });
   });

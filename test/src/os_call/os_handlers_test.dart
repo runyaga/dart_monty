@@ -50,12 +50,15 @@ void main() {
       expect(result, 'env');
     });
 
-    test('unknown prefix throws UnsupportedError', () {
+    test('unknown prefix declines', () {
       final handler = composeOsHandlers({'Path.': stubHandler('fs')});
 
+      // A composer with nothing to route to DECLINES rather than failing, so it
+      // can be nested inside another composer and so the runtime renders
+      // monty's own "not supported in this environment" error.
       expect(
         () => handler('socket.connect', const [], null),
-        throwsUnsupportedError,
+        throwsA(isA<OsCallNotHandledException>()),
       );
     });
 
@@ -92,12 +95,12 @@ void main() {
       expect(await handler('datetime.now', const [], null), 'shared');
     });
 
-    test('empty prefix map throws on any call', () {
+    test('empty prefix map declines any call', () {
       final handler = composeOsHandlers({});
 
       expect(
         () => handler('Path.exists', const [], null),
-        throwsUnsupportedError,
+        throwsA(isA<OsCallNotHandledException>()),
       );
     });
 
