@@ -32,17 +32,19 @@ void main() {
       expect(result.timezoneName, isNull);
     });
 
-    test('datetime.now(tz) returns an aware MontyDateTime in that zone',
-        () async {
-      final handler = timeHandler();
-      const tz = MontyTimeZone(offsetSeconds: 0, name: 'UTC');
-      final result =
-          (await handler('datetime.now', [tz.toJson()], null))!
-              as MontyDateTime;
+    test(
+      'datetime.now(tz) returns an aware MontyDateTime in that zone',
+      () async {
+        final handler = timeHandler();
+        const tz = MontyTimeZone(offsetSeconds: 0, name: 'UTC');
+        final result =
+            (await handler('datetime.now', [tz.toJson()], null))!
+                as MontyDateTime;
 
-      expect(result.offsetSeconds, 0);
-      expect(result.timezoneName, 'UTC');
-    });
+        expect(result.offsetSeconds, 0);
+        expect(result.timezoneName, 'UTC');
+      },
+    );
 
     test('injected clock is used (frozen time)', () async {
       final frozen = DateTime(2026, 3, 15, 10, 30, 45, 123, 456);
@@ -87,8 +89,7 @@ void main() {
       expect(result.day, lessThanOrEqualTo(after.day));
     });
 
-    test('requested zone is applied to the instant, not relabelled',
-        () async {
+    test('requested zone is applied to the instant, not relabelled', () async {
       final frozen = DateTime(2026, 6, 15, 12);
       final handler = timeHandler(clock: () => frozen);
 
