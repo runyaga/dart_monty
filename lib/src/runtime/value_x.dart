@@ -46,11 +46,33 @@ extension MontyValueX on MontyValue {
     _ => null,
   };
 
-  /// Returns entries if this is [MontyDict], otherwise `null`.
+  /// Returns entries if this is a [MontyDict] whose keys are ALL strings,
+  /// otherwise `null`.
+  ///
+  /// The string-key requirement is not new. Before `dart_monty_core` merged
+  /// `MontyPairsDict` into `MontyDict`, a dict with any non-string key was a
+  /// different Dart type, so this accessor — which only ever matched
+  /// `MontyDict` — already answered `null` for it. Keeping the signature and
+  /// the `null` keeps that contract through the merge, rather than widening a
+  /// convenience accessor and making every caller handle `MontyValue` keys.
+  ///
+  /// Reach for `MontyDict.entries` directly when the general keyspace matters.
   Map<String, MontyValue>? asMap() => switch (this) {
-    MontyDict(:final entries) => entries,
+    MontyDict(:final entries) => _asStringKeyed(entries),
     _ => null,
   };
+
+  static Map<String, MontyValue>? _asStringKeyed(
+    Map<MontyValue, MontyValue> entries,
+  ) {
+    final out = <String, MontyValue>{};
+    for (final MapEntry(:key, :value) in entries.entries) {
+      if (key is! MontyString) return null;
+      out[key.value] = value;
+    }
+
+    return out;
+  }
 
   /// Returns raw bytes if this is [MontyBytes], otherwise `null`.
   List<int>? asBytes() => switch (this) {

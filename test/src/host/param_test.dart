@@ -95,6 +95,46 @@ void main() {
         expect(() => param.validate('not a map'), throwsFormatException);
       });
 
+      test('accepts a dynamically-keyed map whose keys are all strings', () {
+        // The shape a Python dict actually arrives in since dart_monty_core
+        // merged MontyPairsDict into MontyDict: `dartValue` lowers it as
+        // Map<Object?, Object?>, which is NOT a Map<String, Object?> even when
+        // every key is a String. Rejecting it broke every map-typed host
+        // parameter -- el_emit among them -- at the boundary rather than in
+        // the sandbox.
+        const param = HostParam(name: 'x', type: HostParamType.map);
+        final wire = <Object?, Object?>{'type': 'counter', 'value': 0};
+
+        final out = param.validate(wire);
+
+        expect(out, isA<Map<String, Object?>>());
+        expect(out, {'type': 'counter', 'value': 0});
+      });
+
+      test('rejects a map with a non-string key, and names it', () {
+        // Narrowed, not widened: dropping the offending entry would hand the
+        // handler a map missing something the caller supplied.
+        const param = HostParam(name: 'x', type: HostParamType.map);
+        final wire = <Object?, Object?>{'ok': 1, 2: 'two'};
+
+        expect(
+          () => param.validate(wire),
+          throwsA(
+            isA<FormatException>().having(
+              (e) => e.message,
+              'message',
+              allOf(contains('map keys must be strings'), contains('2')),
+            ),
+          ),
+        );
+      });
+
+      test('an empty dynamically-keyed map is accepted, not rejected', () {
+        const param = HostParam(name: 'x', type: HostParamType.map);
+
+        expect(param.validate(<Object?, Object?>{}), isEmpty);
+      });
+
       test('passes through any value for any type', () {
         const param = HostParam(name: 'x', type: HostParamType.any);
         expect(param.validate('string'), 'string');

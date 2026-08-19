@@ -66,10 +66,8 @@ Future<void> main() async {
             HostParam(name: 'age', type: HostParamType.integer),
           ],
         ),
-        handler: (args, _) async => _userValue(
-          name: args['name']! as String,
-          age: args['age']! as int,
-        ),
+        handler: (args, _) async =>
+            _userValue(name: args['name']! as String, age: args['age']! as int),
       ),
     );
 

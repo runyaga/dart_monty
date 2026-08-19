@@ -115,9 +115,50 @@ class HostParam {
       HostParamType.number => _coerceNumber(value),
       HostParamType.boolean => _expectType<bool>(value),
       HostParamType.list => _expectType<List<Object?>>(value),
-      HostParamType.map => _expectType<Map<String, Object?>>(value),
+      HostParamType.map => _expectStringKeyedMap(value),
       HostParamType.any => value,
     };
+  }
+
+  /// Accepts any map whose keys are all strings, and narrows it.
+  ///
+  /// This was `_expectType<Map<String, Object?>>`, which stopped working when
+  /// `dart_monty_core` merged `MontyPairsDict` into `MontyDict`: a Python dict
+  /// now lowers through `dartValue` as `Map<Object?, Object?>`, because the
+  /// key space is `MontyValue` and only the VALUES of those keys are known to
+  /// be strings. A `Map<Object?, Object?>` is not a `Map<String, Object?>` even
+  /// when every key is in fact a String, so the old check rejected every map
+  /// argument. The failure surfaced at the host boundary, reading
+  /// `expected Map[String, Object?], got _Map[Object?, Object?]`.
+  ///
+  /// Narrowing rather than widening the parameter type keeps
+  /// `HostParamType.map` meaning what its handlers already assume. A
+  /// non-string key is still a rejection, and names the offending key:
+  /// silently dropping it would hand the handler a map missing an entry
+  /// the caller supplied.
+  Map<String, Object?> _expectStringKeyedMap(Object? value) {
+    if (value is Map<String, Object?>) return value;
+    if (value is Map) {
+      final out = <String, Object?>{};
+      for (final entry in value.entries) {
+        final key = entry.key;
+        if (key is! String) {
+          throw FormatException(
+            'Parameter "$name": map keys must be strings, got '
+            '${key.runtimeType} ($key)',
+            value,
+          );
+        }
+        out[key] = entry.value;
+      }
+
+      return out;
+    }
+    throw FormatException(
+      'Parameter "$name": expected Map<String, Object?>, '
+      'got ${value.runtimeType}',
+      value,
+    );
   }
 
   T _expectType<T>(Object? value) {

@@ -39,7 +39,7 @@ void main() {
           .result;
 
       expect(r.error, isNull);
-      final v = r.value.dartValue! as Map<String, Object?>;
+      final v = r.value.dartValue! as Map<Object?, Object?>;
       expect(v['naive'], isTrue, reason: 'datetime.now() must be naive');
       // Naive means LOCAL wall clock, so the frozen local fields come through.
       expect(v['hour'], frozen.hour);
@@ -67,7 +67,7 @@ void main() {
           .result;
 
       expect(r.error, isNull);
-      final v = r.value.dartValue! as Map<String, Object?>;
+      final v = r.value.dartValue! as Map<Object?, Object?>;
       expect(v['naive'], isFalse, reason: 'datetime.now(tz) must be aware');
       // The instant shifted into +04:00, independent of the host's zone.
       final expected = frozen.toUtc().add(const Duration(hours: 4));
@@ -88,7 +88,7 @@ void main() {
           .result;
 
       expect(r.error, isNull);
-      final v = r.value.dartValue! as Map<String, Object?>;
+      final v = r.value.dartValue! as Map<Object?, Object?>;
       expect(v['y'], frozen.year);
       expect(v['m'], frozen.month);
       expect(v['d'], frozen.day);

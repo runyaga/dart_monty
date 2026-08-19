@@ -43,7 +43,7 @@ void main() {
           .result;
 
       expect(result.error, isNull, reason: 'attribute access must not raise');
-      final v = result.value.dartValue! as Map<String, Object?>;
+      final v = result.value.dartValue! as Map<Object?, Object?>;
       expect(v['type'], 'date', reason: 'must be a date, not a dict');
       expect(v['year'], frozen.year);
       expect(v['month'], frozen.month);
@@ -68,7 +68,7 @@ void main() {
           .result;
 
       expect(result.error, isNull);
-      final v = result.value.dartValue! as Map<String, Object?>;
+      final v = result.value.dartValue! as Map<Object?, Object?>;
       // monty reports the qualified name here ('datetime.datetime') while
       // `date` reports the bare 'date' — assert what it actually emits.
       expect(
