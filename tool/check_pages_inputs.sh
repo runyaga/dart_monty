@@ -103,6 +103,35 @@ for href in $(grep -ohE 'href="[^"]+\.html"' example/web/web/*.html 2>/dev/null 
   miss "a demo page links to $href, which is neither a sibling page nor docs/${href%.html}.md"
 done
 
+# EVERY relative .md link inside docs/ must resolve.
+#
+# The guard above reads the DEMO pages' href targets. It does not read links
+# BETWEEN docs, and that is where a live 404 was hiding:
+# docs/deep-dives/bridge-concurrency.md linked to lifecycles.md, a document that
+# was never written, and https://runyaga.github.io/dart_monty/deep-dives/lifecycles.html
+# returned 404 on the deployed site.
+#
+# `mkdocs build --strict` would catch this, and does — but it is unusable here:
+# `use_directory_urls: false` makes `.html` links correct while --strict
+# resolves them against `.md` source names, so it reports 26 false failures
+# alongside the one real link. A gate that is wrong 26 times out of 27 gets
+# switched off. This checks only the unambiguous case: a relative .md target
+# that does not exist on disk.
+python3 - <<'PYCHECK' || RC=1
+import re, os, glob, sys
+bad = []
+for f in glob.glob('docs/**/*.md', recursive=True):
+    for m in re.finditer(r'\]\(([^)#:]+\.md)(?:#[^)]*)?\)', open(f).read()):
+        t = os.path.normpath(os.path.join(os.path.dirname(f), m.group(1)))
+        if not os.path.exists(t):
+            bad.append((f, m.group(1)))
+for f, link in bad:
+    print(f"FAIL: {f} links to {link}, which does not exist")
+if bad:
+    print("      A dead docs link 404s on the published site; the deploy stays green.")
+sys.exit(1 if bad else 0)
+PYCHECK
+
 # every bin/*.dart pages.yaml compiles must exist
 for f in $(grep -oE 'bin/[a-z_]+\.dart' .github/workflows/pages.yaml | sort -u); do
   [ -f "example/web/$f" ] || miss "pages.yaml compiles example/web/$f, which does not exist"
