@@ -67,7 +67,7 @@ fi
 if ! command -v dcm >/dev/null 2>&1; then
   if [ "${DCM_SUITE_ALLOW_MISSING:-0}" = "1" ]; then
     echo "dcm not installed — SKIPPING (DCM_SUITE_ALLOW_MISSING=1)"
-    exit 0
+    exit 77
   fi
   echo "FAIL: dcm is not installed, so the suite ratchet cannot run."
   echo "  Install:  brew tap CQLabs/dcm && brew install dcm"
@@ -84,7 +84,7 @@ fi
 if [ -z "${DCM_CI_KEY:-}" ] || [ -z "${DCM_EMAIL:-}" ]; then
   if [ "${DCM_SUITE_ALLOW_MISSING:-0}" = "1" ]; then
     echo "DCM credentials absent — SKIPPING (DCM_SUITE_ALLOW_MISSING=1)"
-    exit 0
+    exit 77
   fi
   echo "FAIL: DCM_CI_KEY and DCM_EMAIL are not both set, so dcm cannot run."
   echo "  export DCM_CI_KEY=...   # the CI key, NOT a license-key"

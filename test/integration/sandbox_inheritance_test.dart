@@ -21,7 +21,7 @@ void main() {
   late NativeBindingsFfi bindings;
 
   setUpAll(() {
-    bindings = NativeBindingsFfi();
+    bindings = const NativeBindingsFfi();
   });
 
   MontyPlatform createPlatform() => MontyFfi(bindings: bindings);

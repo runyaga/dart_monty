@@ -26,7 +26,7 @@ void main() {
   late LogLevel previousLevel;
 
   setUpAll(() {
-    bindings = NativeBindingsFfi();
+    bindings = const NativeBindingsFfi();
   });
 
   setUp(() {

@@ -30,11 +30,25 @@ run_check() {
   echo "========================================"
   echo "  $name"
   echo "========================================"
+  # EXIT 77 MEANS "DID NOT RUN", AND IT IS NOT A PASS.
+  #
+  # This was binary -- exit 0 PASSED, anything else FAILED -- so a check that
+  # deliberately skipped itself reported PASSED. With the DCM licence quota
+  # exhausted that mattered: `DCM_ALLOW_MISSING=1 bash tool/gate.sh` would print
+  # PASSED for two ratchets that had verified none of the 253 findings they
+  # own. A skip is still green -- it is an opted-in decision, not a failure --
+  # but it has to be VISIBLE as a skip, or the summary lies by omission.
   if "$@"; then
     echo "  -> PASSED"
   else
-    echo "  -> FAILED"
-    FAILED+=("$name")
+    local rc=$?
+    if [ "$rc" -eq 77 ]; then
+      echo "  -> SKIPPED (did not run, checked nothing)"
+      SKIPPED+=("$name — did not run, checked nothing")
+    else
+      echo "  -> FAILED"
+      FAILED+=("$name")
+    fi
   fi
 }
 

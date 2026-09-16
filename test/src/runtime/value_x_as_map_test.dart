@@ -28,10 +28,12 @@ void main() {
       // The case that used to be a different Dart type. One non-string key is
       // enough: a partial map would silently drop entries, which is worse than
       // saying "not a string-keyed dict".
-      final v = MontyDict({
-        const MontyString('a'): const MontyInt(1),
-        const MontyInt(2): const MontyString('b'),
-      });
+      // 0.23: MontyDict holds PAIRS, not a Map. A map literal cannot express a
+      // non-string key here any more, which is the point of the merge.
+      const v = MontyDict([
+        (MontyString('a'), MontyInt(1)),
+        (MontyInt(2), MontyString('b')),
+      ]);
 
       expect(v.asMap(), isNull);
     });

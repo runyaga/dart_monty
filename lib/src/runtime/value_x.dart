@@ -56,23 +56,18 @@ extension MontyValueX on MontyValue {
   /// the `null` keeps that contract through the merge, rather than widening a
   /// convenience accessor and making every caller handle `MontyValue` keys.
   ///
-  /// Reach for `MontyDict.entries` directly when the general keyspace matters.
+  /// Reach for `MontyDict.pairs` directly when the general keyspace matters.
+  ///
+  /// 0.23 merged `MontyPairsDict` into `MontyDict` and replaced `entries` with
+  /// `pairs` plus `asStringMap`, which returns `null` unless EVERY key is a
+  /// string. That is precisely the contract the hand-rolled `_asStringKeyed`
+  /// helper below used to implement, so the helper is deleted rather than
+  /// ported: the core now owns the rule, and one implementation of it cannot
+  /// drift from the other.
   Map<String, MontyValue>? asMap() => switch (this) {
-    MontyDict(:final entries) => _asStringKeyed(entries),
+    final MontyDict d => d.asStringMap,
     _ => null,
   };
-
-  static Map<String, MontyValue>? _asStringKeyed(
-    Map<MontyValue, MontyValue> entries,
-  ) {
-    final out = <String, MontyValue>{};
-    for (final MapEntry(:key, :value) in entries.entries) {
-      if (key is! MontyString) return null;
-      out[key.value] = value;
-    }
-
-    return out;
-  }
 
   /// Returns raw bytes if this is [MontyBytes], otherwise `null`.
   List<int>? asBytes() => switch (this) {

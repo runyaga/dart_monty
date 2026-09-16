@@ -69,11 +69,11 @@ void main() {
 
       expect(result.error, isNull);
       final v = result.value.dartValue! as Map<Object?, Object?>;
-      // monty reports the qualified name here ('datetime.datetime') while
-      // `date` reports the bare 'date' — assert what it actually emits.
+      // 0.23 emits the BARE name here ('datetime'), matching what `date`
+      // already did; before 0.23 it was the qualified 'datetime.datetime'.
       expect(
         v['type'],
-        'datetime.datetime',
+        'datetime',
         reason: 'must be a datetime, not a dict',
       );
       expect(v['hour'], frozen.hour);
