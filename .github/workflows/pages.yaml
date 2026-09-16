@@ -33,7 +33,15 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: runyaga/dart_monty_core
-          ref: main
+          # MUST MATCH pubspec.yaml and example/pubspec.yaml; the gate's
+          # tool/check_core_ref.sh fails if the three disagree.
+          #
+          # This said `main`, which is 315 commits behind integration/0.23 and
+          # has ZERO occurrences of `asStringMap` — so the Pages build compiled
+          # the demos against a core that cannot satisfy this package. Pages
+          # serves the LAST GOOD BUILD when a build fails, so that presented as
+          # a stale site rather than a red build.
+          ref: integration/0.23
           path: dart_monty_core
 
       # ── Compile Dart to JS ───────────────────────────────────────────

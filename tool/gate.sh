@@ -79,6 +79,12 @@ run_check "dart analyze" dart analyze --fatal-infos
 # 3. Dart Doc Validate Links
 # -------------------------------------------------------
 run_check "dart doc --validate-links" dart doc --validate-links .
+# Three files declare the dart_monty_core ref and nothing compared them:
+# example/pubspec.yaml sat 197 commits behind while the root was on 0.23, so
+# the examples compiled this package against a core with no `asStringMap`.
+# The local gate cannot see it — it never resolves example/ — which is why
+# the guard checks the DECLARATIONS rather than waiting for a build.
+run_check "core ref agreement" bash tool/check_core_ref.sh
 
 # -------------------------------------------------------
 # 4. Pymarkdown (all markdown files)
