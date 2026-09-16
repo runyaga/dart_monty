@@ -253,10 +253,20 @@ jobs:
           grep -q 'ref: "integration/0.23"' pubspec.lock \
             || { echo "FAIL: example/web resolved dart_monty_core from somewhere else"; \
                  sed -n '/dart_monty_core:/,/^  [a-z]/p' pubspec.lock; exit 1; }
+          # COUNT, don't just loop. The glob compiles whatever happens to be
+          # there, so deleting an entrypoint would leave this step green having
+          # compiled one fewer — and the step NAME would still claim seven. A
+          # count in a name asserts nothing; this does.
+          n=0
           for f in bin/*.dart; do
             echo "--- $f"
             dart compile js "$f" -o "/tmp/$(basename "${f%.dart}").js" --no-source-maps
+            n=$((n+1))
           done
+          echo "compiled $n entrypoint(s)"
+          [ "$n" -eq 7 ] || { echo "FAIL: expected 7 web entrypoints, compiled $n."; \
+            echo "  Adding one is fine — raise this number in the same commit."; \
+            echo "  Losing one silently is the failure this catches."; exit 1; }
 
   # ---------------------------------------------------------------------------
   # WASM / Chrome — dart_monty's open()/file-I/O + overlay handler logic must
