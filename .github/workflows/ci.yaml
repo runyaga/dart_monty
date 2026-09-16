@@ -70,11 +70,12 @@ jobs:
           run dart doc --validate-links .
           run bash tool/check_workflows_valid.sh
           run bash tool/check_pages_inputs.sh
+          run bash tool/check_page_versions.sh
 
           # The counter catches a DELETED invocation line; it cannot catch a
           # missing script, because `run` increments before executing. The exit
           # code catches that one. Both are needed.
-          [ "$RAN" -eq 4 ] || { echo "FAIL: expected 4 checks, ran $RAN"; RC=1; }
+          [ "$RAN" -eq 5 ] || { echo "FAIL: expected 5 checks, ran $RAN"; RC=1; }
           echo "ran $RAN checks, rc=$RC"
 
           # REQUIRED, not decoration. Setting RC=1 in a variable and falling off

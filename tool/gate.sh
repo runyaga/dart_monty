@@ -97,6 +97,12 @@ run_check "workflows valid" bash tool/check_workflows_valid.sh
 # the last good build — so it reads as "the site is stale", not "the site is
 # broken". The live site was last built 2026-06-02.
 run_check "pages inputs" bash tool/check_pages_inputs.sh
+# The site is the one artefact a user meets without a pubspec in front of
+# them, so "the demo is broken" and "the demo is old" are indistinguishable
+# without a version on the page. Hand-written and CHECKED, not injected: a
+# placeholder that stops matching fails silently, which is exactly how a
+# __BUILD_DATE__ sed sat in pages.yaml substituting nothing.
+run_check "page versions" bash tool/check_page_versions.sh
 
 # -------------------------------------------------------
 # 4. Pymarkdown (all markdown files)

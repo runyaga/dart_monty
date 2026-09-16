@@ -169,6 +169,14 @@
 <section class="hero" style="border: none;">
   <div class="container">
     <h1><span>dart_monty</span></h1>
+    <!-- VERSION BADGE. Hand-written on purpose, and asserted by
+         tool/check_page_versions.sh against pubspec.yaml and the
+         dart_monty_core ref. Build-time injection was tried here and
+         removed: a placeholder that stops matching fails SILENTLY, which
+         is how a `sed s/__BUILD_DATE__/.../` sat in pages.yaml doing
+         nothing at all. A check that fails loudly beats a substitution
+         that cannot. -->
+    <p class="version-badge">v0.18.0 &middot; dart_monty_core integration/0.23</p>
     <p>Sandboxed Python interpreter for Dart and Flutter.
        Run Python from native, web, and mobile — one package, every platform.</p>
     <div class="hero-tags">
