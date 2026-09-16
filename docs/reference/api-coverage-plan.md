@@ -1,11 +1,15 @@
 # dart_monty API Coverage Plan
 
-> **Fork notice:** dart_monty currently builds against [`runyaga/monty`](https://github.com/runyaga/monty) (branch `runyaga/main`), a fork of [`pydantic/monty`](https://github.com/pydantic/monty). The fork carries patches required for embedding that are not yet upstream.
+> **Upstream, not a fork.** dart_monty builds on `dart_monty_core`, which pins
+> [`pydantic/monty`](https://github.com/pydantic/monty) directly — verified in
+> `native/Cargo.toml`, where all three crates read
+> `git = "https://github.com/pydantic/monty.git", tag = "v0.0.23"`.
 >
-> | Patch | Upstream PR | Status |
-> |-------|-------------|--------|
-> | Fix partial future resolution panics in mixed `asyncio.gather()` | [pydantic/monty#251](https://github.com/pydantic/monty/pull/251) | Awaiting review |
-> | `cpu: wasm32` restriction in `monty-wasm32-wasi` npm package | [runyaga/monty#4](https://github.com/runyaga/monty/issues/4) | Open issue |
+> An earlier `runyaga/monty` fork carried embedding patches that were not yet
+> upstream. That fork is no longer used and should not be updated; anything
+> telling you to "update the `runyaga/monty` fork branch" is stale. The
+> CHANGELOG entry recording the original migration TO the fork stays as history —
+> it describes what happened, not what is true now.
 
 
 
