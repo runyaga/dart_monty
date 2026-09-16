@@ -66,6 +66,23 @@ if grep -E '^[^#]*sed[^#]*__BUILD_DATE__' .github/workflows/pages.yaml >/dev/nul
     || noop "pages.yaml seds for __BUILD_DATE__ but no file under docs/ contains it"
 fi
 
+# EVERY entrypoint the SITE loads must be compiled by pages.yaml.
+#
+# This is the check that would have caught a live 404. pages.yaml compiled six
+# of the seven entrypoints; async_matrix.html and index.html both reference
+# async_matrix_demo.dart.js; every .dart.js is gitignored, so nothing filled the
+# gap on a fresh checkout. Measured against the deployed site:
+#   main.dart.js 200, repl_demo.dart.js 200, visualizer.dart.js 200,
+#   async_matrix_demo.dart.js 404 — while async_matrix.html itself returned 200.
+# A page that loads and a script that does not is exactly the failure Pages
+# hides, because the HTML still deploys.
+for js in $(grep -rhoE 'src="[a-z_]+\.dart\.js"' example/web/web/*.html 2>/dev/null \
+            | sed 's/src="//; s/"//' | sort -u); do
+  entry="bin/${js%.js}"
+  grep -q "$entry" .github/workflows/pages.yaml \
+    || miss "the site loads $js but pages.yaml never compiles $entry"
+done
+
 # every bin/*.dart pages.yaml compiles must exist
 for f in $(grep -oE 'bin/[a-z_]+\.dart' .github/workflows/pages.yaml | sort -u); do
   [ -f "example/web/$f" ] || miss "pages.yaml compiles example/web/$f, which does not exist"

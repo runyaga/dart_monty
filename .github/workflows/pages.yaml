@@ -77,6 +77,15 @@ jobs:
       - name: Compile repl_demo.dart
         working-directory: example/web
         run: dart compile js bin/repl_demo.dart -o web/repl_demo.dart.js
+      # MISSING UNTIL NOW, and the site has been serving a 404 for it.
+      # async_matrix.html and index.html both <script src="async_matrix_demo.dart.js">,
+      # this workflow compiled six of the seven entrypoints, and every .dart.js is
+      # gitignored — so nothing filled the gap on a fresh checkout. Verified live:
+      #   main.dart.js 200, repl_demo.dart.js 200, visualizer.dart.js 200,
+      #   async_matrix_demo.dart.js 404, while async_matrix.html itself was 200.
+      - name: Compile async_matrix_demo.dart
+        working-directory: example/web
+        run: dart compile js bin/async_matrix_demo.dart -o web/async_matrix_demo.dart.js
 
       # ── Build MkDocs ────────────────────────────────────────────────
       - uses: actions/setup-python@v5
