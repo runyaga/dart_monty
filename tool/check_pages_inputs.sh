@@ -132,6 +132,27 @@ if bad:
 sys.exit(1 if bad else 0)
 PYCHECK
 
+# THE llms.txt SURFACE IS PUBLISHED AND UNGUARDED.
+#
+# The `llmstxt` mkdocs plugin emits 29 live endpoints — llms.txt, llms-full.txt,
+# and a raw `.md` for every page. All 29 return HTTP 200 today; measured
+# 2026-09-16 while researching the Zensical migration (issue #451). Nothing in
+# this repo asserts they exist, so removing the plugin, or a docs tool that does
+# not implement it, drops the entire surface SILENTLY: the build still exits 0,
+# the HTML is unchanged, and only fetching one of the 29 reveals it.
+#
+# That is precisely how Zensical would break this today — it builds this
+# mkdocs.yml clean, emits the identical HTML set, and prints NOTHING about the
+# 29 it does not produce.
+#
+# The plugin must stay declared in BOTH places or the surface is gone.
+if ! grep -qE '^\s*-\s*llmstxt:' mkdocs.yml 2>/dev/null; then
+  noop "mkdocs.yml no longer declares the llmstxt plugin — llms.txt, llms-full.txt and 27 raw .md endpoints stop being published"
+fi
+if ! grep -qE '^\s*mkdocs-llmstxt' requirements-docs.txt 2>/dev/null; then
+  miss "requirements-docs.txt does not pin mkdocs-llmstxt; the plugin mkdocs.yml declares will not install"
+fi
+
 # every bin/*.dart pages.yaml compiles must exist
 for f in $(grep -oE 'bin/[a-z_]+\.dart' .github/workflows/pages.yaml | sort -u); do
   [ -f "example/web/$f" ] || miss "pages.yaml compiles example/web/$f, which does not exist"
