@@ -152,8 +152,17 @@ jobs:
         run: dart test --coverage=coverage
       - name: Generate LCOV
         run: |
-          dart pub global activate coverage
-          dart pub global run coverage:format_coverage \
+          # A hitmap must exist, or format_coverage emits an empty tracefile and
+          # the gate below has nothing to measure. Fail at the cause.
+          if ! ls coverage/*.json >/dev/null 2>&1; then
+            echo "FAIL: no coverage hitmap JSON under coverage/ — `dart test"
+            echo "  --coverage` produced nothing to format."
+            exit 1
+          fi
+          # `dart run`, not `pub global activate`: activate resolves the latest
+          # coverage package from pub.dev on every run, so the tool that
+          # produces the number is unpinned while the number is gated.
+          dart run coverage:format_coverage \
             --lcov --in=coverage --out=coverage/lcov.info --report-on=lib
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
@@ -167,6 +176,10 @@ jobs:
         with:
           name: lcov-dart
           path: coverage/lcov.info
+          # Does not close a hole — it stops a green step reporting an upload
+          # of nothing, which is how a missing tracefile reaches the next job
+          # looking like a present one.
+          if-no-files-found: error
           retention-days: 1
 
   # ---------------------------------------------------------------------------
@@ -256,7 +269,12 @@ jobs:
         run: dart test -p chrome test/experiments/*_wasm_test.dart --reporter=expanded
 
   patch-coverage:
-    name: Patch coverage gate (70%)
+    # NAMED FOR WHAT IT ENFORCES. This said "(70%)" while running
+    # `--fail-under=50`, so every reader of a green tick was told a threshold
+    # that was not applied. Raising 50 -> 70 is a policy change that can fail
+    # real PRs and is left as a deliberate decision; renaming is free and makes
+    # the claim true today.
+    name: Patch coverage gate (50%)
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -278,10 +296,23 @@ jobs:
       - name: Check patch coverage
         run: |
           sudo apt-get update && sudo apt-get install -y lcov
-          # Skip gate when tracefile is empty (no unit tests yet).
+          # AN EMPTY TRACEFILE IS A FAILURE, NOT A SKIP.
+          #
+          # This read "skipping patch coverage gate; exit 0" — written when there
+          # were no unit tests. There are now, and `-s` tests the file's
+          # EMPTINESS, not its cause: it fires on any route to an empty
+          # tracefile — --report-on matching nothing, a collector change, an
+          # interrupted write — and every one of them silently turns this gate
+          # into a no-op that reports success.
+          #
+          # Asserted rather than deleted: dropping the branch would leave the
+          # contract to whatever `lcov --remove` happens to do with an empty
+          # file, which is outsourcing a gate to a tool's incidental behaviour.
           if [ ! -s coverage/lcov.info ]; then
-            echo "Coverage tracefile is empty — skipping patch coverage gate."
-            exit 0
+            echo "FAIL: coverage/lcov.info is empty — the coverage step produced"
+            echo "  nothing, so this gate would verify nothing. That is a broken"
+            echo "  pipeline, not a reason to pass."
+            exit 1
           fi
           lcov --remove coverage/lcov.info \
             --ignore-errors unused \
