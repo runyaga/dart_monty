@@ -83,7 +83,7 @@ run_check "dart doc --validate-links" dart doc --validate-links .
 # pubspec.yaml's dependency_overrides — and nothing compared them until they
 # drifted 315 commits apart. Pages serves the last good build on failure, so
 # the drift read as "the site is stale", not "the site cannot be rebuilt".
-run_check "pages core ref" bash tool/check_pages_core_ref.sh
+run_check "core ref agreement" bash tool/check_core_ref.sh
 
 # -------------------------------------------------------
 # 4. Pymarkdown (all markdown files)
