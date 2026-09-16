@@ -178,7 +178,29 @@ OsCallHandler sandboxedFsHandler({required Directory root}) {
         dir.createSync(recursive: parents);
         return null;
       case PathOp.unlink:
-        File(safeResolved(operation, osArgString(args.first))).deleteSync();
+        // DELETE THE LINK ENTRY, NOT WHAT IT POINTS AT.
+        //
+        // `safeResolved` returns the RESOLVED path, so passing it straight to
+        // `File.deleteSync()` removed the target and left the symlink behind --
+        // precisely inverted from CPython, and data loss: a script removing an
+        // alias destroyed the real file. Measured before this change, with
+        // `alias` a symlink to `real.txt`, both inside the root:
+        //
+        //   unlink alias -> no exception
+        //   target still exists : false   (CPython: true)
+        //   link  still exists  : true    (CPython: false)
+        //
+        // Resolution is still used for CONTAINMENT -- a link leaving the
+        // sandbox is rejected before anything is removed -- but the deletion
+        // targets the lexical path, which is the entry the caller named.
+        final unlinkPath = osArgString(args.first);
+        safeResolved(operation, unlinkPath); // containment check only
+        final unlinkAt = safePath(operation, unlinkPath);
+        if (FileSystemEntity.isLinkSync(unlinkAt)) {
+          Link(unlinkAt).deleteSync();
+        } else {
+          File(unlinkAt).deleteSync();
+        }
         return null;
       case PathOp.rmdir:
         Directory(

@@ -203,6 +203,49 @@ void main() {
         expect(File('${outsideDir.path}/brand_new.txt').existsSync(), isFalse);
       });
 
+      test('unlink removes the LINK, not what it points at', () async {
+        // CPython's Path.unlink() removes the link entry and leaves the target.
+        // This handler resolved first and deleted the TARGET, leaving a
+        // dangling link -- inverted, and data loss for anyone removing an
+        // alias. Both paths are inside the root, so this tests unlink's
+        // semantics rather than its containment guard.
+        final target = File('$rootPath/real.txt')..writeAsStringSync('KEEP ME');
+        Link('$rootPath/alias').createSync(target.path);
+
+        await handler('Path.unlink', ['$rootPath/alias'], null);
+
+        expect(
+          target.existsSync(),
+          isTrue,
+          reason: 'unlink must not delete the symlink target',
+        );
+        expect(
+          Link('$rootPath/alias').existsSync(),
+          isFalse,
+          reason: 'unlink must remove the link entry itself',
+        );
+      });
+
+      test(
+        'unlink through a symlink leaving the sandbox is still rejected',
+        () {
+          // Containment must survive the semantics change above.
+          final outsideDir = Directory.systemTemp.createTempSync(
+            'monty_outside_u_',
+          );
+          addTearDown(() => outsideDir.deleteSync(recursive: true));
+          final victim = File('${outsideDir.path}/victim.txt')
+            ..writeAsStringSync('do not delete');
+          Link('$rootPath/u_link').createSync(victim.path);
+
+          expect(
+            () => handler('Path.unlink', ['$rootPath/u_link'], null),
+            throwsA(isA<OsCallException>()),
+          );
+          expect(victim.existsSync(), isTrue);
+        },
+      );
+
       test('ordinary writes inside the sandbox still succeed', () async {
         // The other direction: hardening the guard must not break legitimate
         // use. A fix that rejects everything would pass the tests above.
