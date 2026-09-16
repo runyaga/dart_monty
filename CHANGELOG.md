@@ -1,3 +1,41 @@
+## 0.23.0
+
+Requires `dart_monty_core` 0.23 (monty v0.0.23), consumed from the
+`integration/0.23` branch until that release is published.
+
+The version jumps 0.18.0 -> 0.23.0 rather than 0.19.0 so that dart_monty and
+dart_monty_core state the same number. They are released together and pinned to
+each other; two different numbers on one line made "which core does this
+dart_monty want" a question you had to open `pubspec.yaml` to answer, and the
+published page said `v0.18.0 - dart_monty_core integration/0.23`, which reads
+like a mismatch rather than a pairing.
+
+### Changed
+
+- `dart_monty_core` is pinned to `integration/0.23` in `pubspec.yaml`,
+  `example/pubspec.yaml`, `example/web/pubspec.yaml` and `pages.yaml`;
+  `tool/check_core_ref.sh` requires all four to agree.
+
+### Fixed
+
+- The example smoke test ran its children from the repo root, where each one
+  republished the native asset this process had mmap'd, killing the test runner
+  with SIGBUS/SIGSEGV/SIGABRT. They now run inside `example/`
+  (dart_monty_core#161, dart-lang/sdk#62361).
+- `el_recv()` is an async host function, so monty returns a coroutine from it.
+  The event-loop and signals experiment scripts called it bare and failed with
+  `TypeError: 'coroutine' object is not subscriptable`; they now `await` it.
+
+### CI
+
+- `ci.yaml` and `pages.yaml` fire on `integration/**`, not `main` alone. Six
+  commits had previously run TruffleHog and nothing else.
+- New `test-integration` job runs the 26 integration-tagged files -- including
+  13 of the 14 that exercise real `dart_monty_core` through FFI -- which no
+  pipeline ran before (#452).
+- DCM runs on the host; the container skips it visibly rather than failing on a
+  version mismatch it cannot resolve.
+
 ## 0.18.0
 
 Requires `dart_monty_core` 0.18.1 (monty v0.0.18).

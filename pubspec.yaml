@@ -1,6 +1,6 @@
 name: dart_monty
 description: Script your Dart/Flutter app with sandboxed Python — runtime extensions, Flutter glue, and FFI/WASM asset loading on top of dart_monty_core.
-version: 0.18.0
+version: 0.23.0
 homepage: https://github.com/runyaga/dart_monty
 repository: https://github.com/runyaga/dart_monty
 issue_tracker: https://github.com/runyaga/dart_monty/issues
