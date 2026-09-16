@@ -1,4 +1,5 @@
 {
+  "_dcm_version": "1.39.0",
   "by_file": {
     "lib/src/bridge/platform.dart": 1,
     "lib/src/os_call/sandboxed_fs_handler.dart": 1,
