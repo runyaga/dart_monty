@@ -21,7 +21,8 @@ import 'dart:io';
 
 import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:dart_monty/src/os_call/sandboxed_fs_handler.dart';
-import 'package:dart_monty_core/dart_monty_core.dart' show MontyPath;
+import 'package:dart_monty_core/dart_monty_core.dart'
+    show MontyPath, OsCallNotHandledException;
 import 'package:test/test.dart';
 
 void main() {
@@ -324,6 +325,20 @@ void main() {
         expect(
           await handler('Path.absolute', ['$rootPath/f.txt'], null),
           isA<MontyPath>(),
+        );
+      });
+
+      test('an unknown op DECLINES, it does not throw UnsupportedError', () {
+        // composeOsHandlers treats OsCallNotHandledException as "not mine", so
+        // a sibling handler -- or the call's documented default -- can answer.
+        // Throwing UnsupportedError defeated that twice: no sibling got the
+        // chance, and the Dart type name leaked into the sandbox as
+        //   RuntimeError: Unsupported operation: Unsupported path
+        //   operation: ...
+        expect(
+          () => handler('Path.stat', ['$rootPath/any.txt'], null),
+          throwsA(isA<OsCallNotHandledException>()),
+          reason: 'unknown ops must decline so composition still works',
         );
       });
 

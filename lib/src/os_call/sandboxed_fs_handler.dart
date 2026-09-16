@@ -5,7 +5,13 @@ import 'dart:io';
 import 'package:dart_monty/src/os_call/os_handlers.dart';
 import 'package:dart_monty/src/os_call/path_op.dart';
 import 'package:dart_monty_core/dart_monty_core.dart'
-    show MontyBytes, MontyPath, OsCallException, OsCallHandler, resolveOpenCall;
+    show
+        MontyBytes,
+        MontyPath,
+        OsCallException,
+        OsCallHandler,
+        OsCallNotHandledException,
+        resolveOpenCall;
 import 'package:path/path.dart' as p;
 
 /// Handler for `Path.*` operations against the real filesystem, restricted to
@@ -251,7 +257,19 @@ OsCallHandler sandboxedFsHandler({required Directory root}) {
       case PathOp.absolute:
         return MontyPath(safePath(operation, osArgString(args.first)));
     }
-    throw UnsupportedError('Unsupported path operation: $operation');
+    // DECLINE, DO NOT FAIL. `composeOsHandlers` treats
+    // OsCallNotHandledException as "not mine" so the next handler -- or the
+    // call's documented default -- can answer; its own doc says so. Throwing
+    // UnsupportedError instead defeated that protocol twice over: a composed
+    // sibling never got the chance to handle the op, and the Dart type name
+    // leaked into the sandbox. Measured before this change:
+    //
+    //   Path('a.txt').stat().st_size
+    //     -> RuntimeError: Unsupported operation: Unsupported path operation:
+    //        Path.stat
+    //
+    // Same leak class as the bridge arm fixed in 64fb4c8.
+    throw OsCallNotHandledException(operation);
   };
 }
 

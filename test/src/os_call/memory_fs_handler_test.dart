@@ -16,7 +16,8 @@
 //   - Dart-side introspection via the held MemoryFileSystem reference
 
 import 'package:dart_monty/dart_monty_bridge.dart';
-import 'package:dart_monty_core/dart_monty_core.dart' show MontyPath;
+import 'package:dart_monty_core/dart_monty_core.dart'
+    show MontyPath, OsCallNotHandledException;
 import 'package:file/memory.dart';
 import 'package:test/test.dart';
 
@@ -157,5 +158,13 @@ void main() {
 
     expect(await handler('Path.resolve', ['/f.txt'], null), isA<MontyPath>());
     expect(await handler('Path.absolute', ['/f.txt'], null), isA<MontyPath>());
+  });
+
+  test('an unknown op DECLINES, it does not throw UnsupportedError', () {
+    final handler = fsHandler(MemoryFileSystem());
+    expect(
+      () => handler('Path.stat', ['/a.txt'], null),
+      throwsA(isA<OsCallNotHandledException>()),
+    );
   });
 }
