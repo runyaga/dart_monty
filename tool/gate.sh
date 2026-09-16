@@ -79,6 +79,11 @@ run_check "dart analyze" dart analyze --fatal-infos
 # 3. Dart Doc Validate Links
 # -------------------------------------------------------
 run_check "dart doc --validate-links" dart doc --validate-links .
+# Two copies of one fact — the dart_monty_core ref in pages.yaml and in
+# pubspec.yaml's dependency_overrides — and nothing compared them until they
+# drifted 315 commits apart. Pages serves the last good build on failure, so
+# the drift read as "the site is stale", not "the site cannot be rebuilt".
+run_check "pages core ref" bash tool/check_pages_core_ref.sh
 
 # -------------------------------------------------------
 # 4. Pymarkdown (all markdown files)

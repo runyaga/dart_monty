@@ -33,7 +33,16 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: runyaga/dart_monty_core
-          ref: main
+          # MUST MATCH the ref in pubspec.yaml's dependency_overrides, and
+          # tool/check_pages_core_ref.sh fails the gate if it does not.
+          #
+          # This said `main`, which is 315 commits behind integration/0.23 and
+          # contains ZERO occurrences of `asStringMap` -- the 0.23 API this
+          # package now depends on. So the Pages build compiled the package
+          # against a core that cannot satisfy it. The site kept serving the
+          # last good build (2026-06-02), which is why the breakage read as
+          # "Pages is stale" rather than "Pages cannot build".
+          ref: integration/0.23
           path: dart_monty_core
 
       # ── Compile Dart to JS ───────────────────────────────────────────
