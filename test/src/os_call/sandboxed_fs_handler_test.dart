@@ -342,6 +342,121 @@ void main() {
         );
       });
 
+      group("rename follows CPython's outcome matrix", () {
+        // Was `File(old).renameSync(new)` -- four lines that always treated
+        // the source as a FILE. Renaming a DIRECTORY failed outright, and
+        // every error arrived as a bare RuntimeError carrying a Dart message.
+        // dart_monty_core implements the same matrix and cites the fixtures
+        // that assert each message (memory_mounted_os_handler.dart:594-605).
+
+        test('missing source -> FileNotFoundError', () {
+          expect(
+            () => handler('Path.rename', [
+              '$rootPath/nope.txt',
+              '$rootPath/b.txt',
+            ], null),
+            throwsA(
+              isA<OsCallException>().having(
+                (e) => e.pythonExceptionType,
+                'type',
+                'FileNotFoundError',
+              ),
+            ),
+          );
+        });
+
+        test('file -> existing file overwrites SILENTLY', () async {
+          File('$rootPath/s.txt').writeAsStringSync('new');
+          File('$rootPath/t.txt').writeAsStringSync('old');
+          await handler('Path.rename', [
+            '$rootPath/s.txt',
+            '$rootPath/t.txt',
+          ], null);
+          expect(File('$rootPath/t.txt').readAsStringSync(), 'new');
+          expect(File('$rootPath/s.txt').existsSync(), isFalse);
+        });
+
+        test('file -> directory raises IsADirectoryError', () {
+          File('$rootPath/s2.txt').writeAsStringSync('x');
+          Directory('$rootPath/d2').createSync();
+          expect(
+            () => handler('Path.rename', [
+              '$rootPath/s2.txt',
+              '$rootPath/d2',
+            ], null),
+            throwsA(
+              isA<OsCallException>().having(
+                (e) => e.pythonExceptionType,
+                'type',
+                'IsADirectoryError',
+              ),
+            ),
+          );
+        });
+
+        test(
+          'directory -> missing MOVES (this used to fail outright)',
+          () async {
+            Directory('$rootPath/sd').createSync();
+            File('$rootPath/sd/inner.txt').writeAsStringSync('keep');
+            await handler('Path.rename', [
+              '$rootPath/sd',
+              '$rootPath/dd',
+            ], null);
+            expect(Directory('$rootPath/dd').existsSync(), isTrue);
+            expect(File('$rootPath/dd/inner.txt').readAsStringSync(), 'keep');
+          },
+        );
+
+        test('directory -> file raises NotADirectoryError', () {
+          Directory('$rootPath/sd2').createSync();
+          File('$rootPath/f2.txt').writeAsStringSync('x');
+          expect(
+            () => handler('Path.rename', [
+              '$rootPath/sd2',
+              '$rootPath/f2.txt',
+            ], null),
+            throwsA(
+              isA<OsCallException>().having(
+                (e) => e.pythonExceptionType,
+                'type',
+                'NotADirectoryError',
+              ),
+            ),
+          );
+        });
+
+        test('directory -> NON-EMPTY directory raises [Errno 39]', () {
+          Directory('$rootPath/sd3').createSync();
+          Directory('$rootPath/dd3').createSync();
+          File('$rootPath/dd3/occupied.txt').writeAsStringSync('x');
+          expect(
+            () => handler('Path.rename', [
+              '$rootPath/sd3',
+              '$rootPath/dd3',
+            ], null),
+            throwsA(
+              isA<OsCallException>().having(
+                (e) => e.message,
+                'message',
+                contains('Errno 39'),
+              ),
+            ),
+          );
+        });
+
+        test('directory -> EMPTY directory replaces it', () async {
+          Directory('$rootPath/sd4').createSync();
+          File('$rootPath/sd4/x.txt').writeAsStringSync('v');
+          Directory('$rootPath/dd4').createSync();
+          await handler('Path.rename', [
+            '$rootPath/sd4',
+            '$rootPath/dd4',
+          ], null);
+          expect(File('$rootPath/dd4/x.txt').readAsStringSync(), 'v');
+        });
+      });
+
       test('ordinary writes inside the sandbox still succeed', () async {
         // The other direction: hardening the guard must not break legitimate
         // use. A fix that rejects everything would pass the tests above.

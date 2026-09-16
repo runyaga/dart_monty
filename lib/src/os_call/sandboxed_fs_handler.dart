@@ -237,8 +237,78 @@ OsCallHandler sandboxedFsHandler({required Directory root}) {
         Directory(rmdirAt).deleteSync();
         return null;
       case PathOp.rename:
-        final oldSafe = safeResolved(operation, osArgString(args.first));
-        final newSafe = safePath(operation, osArgString(args[1]));
+        // CPython's rename is four errors and one SILENT OVERWRITE, depending
+        // on what sits at each end. This was `File(old).renameSync(new)` —
+        // four lines that always treated the source as a FILE, so renaming a
+        // DIRECTORY failed outright and every error surfaced as a bare
+        // RuntimeError carrying a Dart message. Measured before this change:
+        //
+        //   src      dst             CPython              was
+        //   -------  --------------  -------------------  ------------
+        //   missing  -               FileNotFoundError    RuntimeError
+        //   file     missing         move                 ok
+        //   file     file            silent OVERWRITE     ok
+        //   file     dir             IsADirectoryError    RuntimeError
+        //   dir      missing         move                 RuntimeError
+        //   dir      file            NotADirectoryError   RuntimeError
+        //   dir      non-empty dir   [Errno 39]           RuntimeError
+        //   dir      empty dir       move, replacing it   RuntimeError
+        //
+        // dart_monty_core implements the same matrix and cites the fixtures
+        // that assert each message (memory_mounted_os_handler.dart:594-605).
+        final srcArg = osArgString(args.first);
+        final dstArg = osArgString(args[1]);
+        final oldSafe = safeResolved(operation, srcArg);
+        final newSafe = safePath(operation, dstArg);
+        final srcType = FileSystemEntity.typeSync(oldSafe);
+        final dstType = FileSystemEntity.typeSync(newSafe);
+
+        if (srcType == FileSystemEntityType.notFound) {
+          throw OsCallException(
+            "[Errno 2] No such file or directory: '$srcArg'",
+            pythonExceptionType: 'FileNotFoundError',
+          );
+        }
+        if (srcType == FileSystemEntityType.directory) {
+          switch (dstType) {
+            case FileSystemEntityType.file:
+              throw OsCallException(
+                "[Errno 20] Not a directory: '$dstArg'",
+                pythonExceptionType: 'NotADirectoryError',
+              );
+            case FileSystemEntityType.directory:
+              final target = Directory(newSafe);
+              if (target.listSync().isNotEmpty) {
+                throw OsCallException(
+                  "[Errno 39] Directory not empty: '$dstArg'",
+                  pythonExceptionType: 'OSError',
+                );
+              }
+              target.deleteSync();
+            case FileSystemEntityType.notFound:
+            case FileSystemEntityType.link:
+            case FileSystemEntityType.unixDomainSock:
+            case FileSystemEntityType.pipe:
+              break;
+          }
+          Directory(oldSafe).renameSync(newSafe);
+          return newSafe;
+        }
+        if (dstType == FileSystemEntityType.directory) {
+          throw OsCallException(
+            "[Errno 21] Is a directory: '$dstArg'",
+            pythonExceptionType: 'IsADirectoryError',
+          );
+        }
+        // file -> file is a SILENT overwrite; POSIX semantics, and what
+        // File.renameSync already does.
+        // RETURN TYPE DELIBERATELY UNCHANGED. This returns the new path as a
+        // String, as it always has. Three implementations disagree about what
+        // rename should return -- CPython gives the new Path, dart_monty_core
+        // returns null (memory_mounted_os_handler.dart), and this returns a
+        // String -- and picking one is a contract decision, not part of fixing
+        // the outcome matrix. Changing it here would have swapped one
+        // divergence for another.
         File(oldSafe).renameSync(newSafe);
         return newSafe;
       case PathOp.iterdir:
