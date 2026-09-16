@@ -219,6 +219,14 @@ jobs:
           key: pub-${{ runner.os }}-${{ hashFiles('pubspec.yaml') }}
           restore-keys: pub-${{ runner.os }}-
       - run: dart pub get
+      - name: Resolve nested packages
+        # `dart pub get` above resolves the root and example/, but NOT
+        # example/web/ — and `dart analyze` at the root analyses it anyway,
+        # against no package_config. That is how this job failed with 21
+        # unresolved-URI errors (run 35144138978's predecessor 35144134742)
+        # while tool/gate.sh was green on a laptop whose tree still carried
+        # example/web's resolution from an earlier run.
+        run: bash tool/resolve_packages.sh
       - name: Analyze
         run: dart analyze --fatal-infos
       - name: dart format

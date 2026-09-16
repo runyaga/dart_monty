@@ -64,6 +64,17 @@ skip_check() {
 }
 
 # -------------------------------------------------------
+# 0. Resolve nested packages
+# -------------------------------------------------------
+# BEFORE format and analyze, because both of them read example/ and
+# example/web/ and the root `dart pub get` resolves only the first of those.
+# CI run 35144134742 failed with 21 unresolved-URI errors in example/web while
+# this gate was green on a laptop — the laptop had example/web resolved from an
+# earlier run. Reproduced on a pristine clone. A gate whose result depends on
+# leftover state is not a gate.
+run_check "resolve nested packages" bash tool/resolve_packages.sh
+
+# -------------------------------------------------------
 # 1. Dart Format
 # -------------------------------------------------------
 # --output=none is REQUIRED: without it `dart format` rewrites files even
