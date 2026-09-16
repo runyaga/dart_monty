@@ -13,7 +13,7 @@ import 'package:test/test.dart';
 void main() {
   group('MontyValue.asMap', () {
     test('returns the entries of an all-string-keyed dict', () {
-      final v = MontyDict.ofStrings(const {
+      final v = MontyDict(const {
         'a': MontyInt(1),
         'b': MontyString('two'),
       });
@@ -28,10 +28,13 @@ void main() {
       // The case that used to be a different Dart type. One non-string key is
       // enough: a partial map would silently drop entries, which is worse than
       // saying "not a string-keyed dict".
-      final v = MontyDict({
-        const MontyString('a'): const MontyInt(1),
-        const MontyInt(2): const MontyString('b'),
-      });
+      // In dart_monty_core ≥0.19, MontyDict is always string-keyed.
+      // Non-string keys decode as MontyPairsDict, which this convenience API
+      // doesn't support.
+      final v = MontyPairsDict(const [
+        (MontyString('a'), MontyInt(1)),
+        (MontyInt(2), MontyString('b')),
+      ]);
 
       expect(v.asMap(), isNull);
     });
@@ -44,7 +47,7 @@ void main() {
     test('an empty dict is an empty map, not null', () {
       // Vacuously all-string-keyed. Answering null here would make "no entries"
       // indistinguishable from "wrong shape".
-      expect(MontyDict.ofStrings(const {}).asMap(), isEmpty);
+      expect(MontyDict(const {}).asMap(), isEmpty);
     });
   });
 }

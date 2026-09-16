@@ -96,7 +96,7 @@ void main() {
             MontyPending(
               functionName: 'el_emit',
               args: [
-                MontyDict.ofStrings(const {'type': MontyString('form')}),
+                MontyDict(const {'type': MontyString('form')}),
               ],
               callId: 1,
             ),
@@ -258,7 +258,7 @@ void main() {
           MontyPending(
             functionName: 'el_emit',
             args: [
-              MontyDict.ofStrings(const {
+              MontyDict(const {
                 'type': MontyString('counter'),
                 'value': MontyInt(0),
               }),
@@ -286,7 +286,7 @@ void main() {
           MontyPending(
             functionName: 'el_emit',
             args: [
-              MontyDict.ofStrings(const {'version': MontyInt(1)}),
+              MontyDict(const {'version': MontyInt(1)}),
             ],
             callId: 1,
           ),
@@ -298,7 +298,7 @@ void main() {
           MontyPending(
             functionName: 'el_emit',
             args: [
-              MontyDict.ofStrings(const {'version': MontyInt(2)}),
+              MontyDict(const {'version': MontyInt(2)}),
             ],
             callId: 2,
           ),
@@ -538,7 +538,7 @@ void main() {
           MontyPending(
             functionName: 'el_emit',
             args: [
-              MontyDict.ofStrings(const {'type': MontyString('label')}),
+              MontyDict(const {'type': MontyString('label')}),
             ],
             callId: 1,
           ),
@@ -815,7 +815,7 @@ void main() {
           MontyPending(
             functionName: 'el_emit',
             args: [
-              MontyDict.ofStrings(const {'type': MontyString('event')}),
+              MontyDict(const {'type': MontyString('event')}),
             ],
             callId: 1,
           ),

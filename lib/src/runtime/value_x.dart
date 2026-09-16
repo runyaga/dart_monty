@@ -63,15 +63,11 @@ extension MontyValueX on MontyValue {
   };
 
   static Map<String, MontyValue>? _asStringKeyed(
-    Map<MontyValue, MontyValue> entries,
+    Map<String, MontyValue> entries,
   ) {
-    final out = <String, MontyValue>{};
-    for (final MapEntry(:key, :value) in entries.entries) {
-      if (key is! MontyString) return null;
-      out[key.value] = value;
-    }
-
-    return out;
+    // Note: MontyDict is already string-keyed in dart_monty_core ≥0.19.
+    // This helper remains so the public contract of `asMap()` stays the same.
+    return Map.unmodifiable(entries);
   }
 
   /// Returns raw bytes if this is [MontyBytes], otherwise `null`.
