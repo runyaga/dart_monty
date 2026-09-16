@@ -30,7 +30,25 @@ REF="$(awk '/^dependency_overrides:/,0' pubspec.yaml \
 [ -n "$REF" ] || { echo "FAIL: could not read the dart_monty_core ref from pubspec.yaml"; exit 1; }
 
 RC=0
-for page in example/web/web/index.html docs/index.md; do
+N=0
+# DISCOVERED, NOT ENUMERATED. This read
+#     for page in example/web/web/index.html docs/index.md
+# -- exactly two files by name -- and so could not see that SEVEN of the eight
+# published demo pages stated no version at all. Measured 2026-09-16: a reader
+# landing on vfs.html saw "(0.18)" feature labels and nothing else, and had no
+# way to tell whether the demo was current. That is precisely the failure this
+# check exists to prevent, and the check was structurally blind to it.
+#
+# Every tracked .html under example/web/web/ is deployed, so every one of them
+# must carry the badge. Adding a ninth page now fails here until it does, rather
+# than shipping unversioned.
+PAGES="$(git ls-files 'example/web/web/*.html') docs/index.md"
+[ -n "$(git ls-files 'example/web/web/*.html')" ] || {
+  echo "FAIL: no published pages matched example/web/web/*.html."
+  echo "  A glob that stopped matching would make this check verify nothing."
+  exit 1; }
+for page in $PAGES; do
+  N=$((N+1))
   [ -f "$page" ] || { echo "FAIL: $page is missing"; RC=1; continue; }
   grep -q "$VER" "$page" || {
     echo "FAIL: $page does not state dart_monty version $VER"
@@ -42,5 +60,5 @@ for page in example/web/web/index.html docs/index.md; do
     RC=1; }
 done
 
-[ "$RC" = "0" ] && echo "PASS — both published pages state v$VER against $REF"
+[ "$RC" = "0" ] && echo "PASS — $N published page(s) state v$VER against $REF"
 exit $RC
