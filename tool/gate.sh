@@ -114,6 +114,7 @@ run_check "pages inputs" bash tool/check_pages_inputs.sh
 # placeholder that stops matching fails silently, which is exactly how a
 # __BUILD_DATE__ sed sat in pages.yaml substituting nothing.
 run_check "page versions" bash tool/check_page_versions.sh
+run_check "html escaping" bash tool/check_html_escaping.sh
 # Every published demo must actually RUN. Measured 2026-09-16: the four native
 # examples were executed, the seven web entrypoints were COMPILED AND NEVER
 # RUN, and the eight published pages were exercised by nothing at all. A demo

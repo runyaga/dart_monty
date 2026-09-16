@@ -373,7 +373,7 @@ files = sorted([p.name for p in Path('/sandbox/data').iterdir()], key=str)
       if (_callCount === 1) el.innerHTML = '';
       const div = document.createElement('div');
       div.className = 'oscall-entry';
-      div.innerHTML = `<span class="oscall-op">${entry.op}</span><span class="oscall-args">${(entry.args||[]).join(', ')}</span><span class="oscall-time">${entry.durationMs}ms</span>`;
+      div.innerHTML = `<span class="oscall-op">${escapeHtml(entry.op)}</span><span class="oscall-args">${escapeHtml((entry.args||[]).join(', '))}</span><span class="oscall-time">${entry.durationMs}ms</span>`;
       el.appendChild(div);
       el.scrollTop = el.scrollHeight;
     };
@@ -426,16 +426,16 @@ files = sorted([p.name for p in Path('/sandbox/data').iterdir()], key=str)
         console.log('[VFS] Result:', result);
 
         if (result.ok) {
-          output.innerHTML = `<div class="output-value">${formatValue(result.value)}</div>\n<div class="output-info">${result.osCallLog.length} OS calls</div>`;
+          output.innerHTML = `<div class="output-value">${escapeHtml(formatValue(result.value))}</div>\n<div class="output-info">${result.osCallLog.length} OS calls</div>`;
         } else {
-          output.innerHTML = `<div class="output-error">${result.error}</div>`;
+          output.innerHTML = `<div class="output-error">${escapeHtml(result.error)}</div>`;
         }
         renderFiles(result.files || []);
         status.textContent = result.ok ? 'Done' : 'Error';
         status.className = result.ok ? 'ready' : 'error';
       } catch (e) {
         console.error('[VFS] Run error:', e);
-        output.innerHTML = `<div class="output-error">${e}</div>`;
+        output.innerHTML = `<div class="output-error">${escapeHtml(e)}</div>`;
         status.textContent = 'Error';
         status.className = 'error';
       }
@@ -460,11 +460,11 @@ files = sorted([p.name for p in Path('/sandbox/data').iterdir()], key=str)
         if (f.type !== 'file') continue;
         const div = document.createElement('div');
         div.className = 'file-entry';
-        div.innerHTML = `<span class="file-icon">\ud83d\udcc4</span>${f.path}<span class="file-size">${f.size}B</span>`;
+        div.innerHTML = `<span class="file-icon">\ud83d\udcc4</span>${escapeHtml(f.path)}<span class="file-size">${f.size}B</span>`;
         div.onclick = () => {
           document.querySelectorAll('.file-entry').forEach(e => e.classList.remove('selected'));
           div.classList.add('selected');
-          output.innerHTML = `<div class="output-info">${f.path} (${f.size} bytes)</div>\n<div class="output-value">${escapeHtml(f.preview)}</div>`;
+          output.innerHTML = `<div class="output-info">${escapeHtml(f.path)} (${f.size} bytes)</div>\n<div class="output-value">${escapeHtml(f.preview)}</div>`;
         };
         fileTree.appendChild(div);
       }
