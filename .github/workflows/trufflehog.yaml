@@ -20,7 +20,15 @@ jobs:
         with:
           fetch-depth: 0
       - name: TruffleHog scan
-        uses: trufflesecurity/trufflehog@main
+        # PINNED TO A SHA, not @main. Measured 2026-09-16: @main resolved to
+        # 4ecb5c6 — thirteen days of UNRELEASED commits past the latest release
+        # v3.97.4 (363923b, 2026-09-03). A secret scanner is exactly the action
+        # least suitable for tracking someone else's HEAD: it runs on every
+        # push, reads the whole repo, and a mutable ref means the code doing
+        # that is whatever landed upstream this morning.
+        #
+        # SHA rather than the tag, because a tag can be moved.
+        uses: trufflesecurity/trufflehog@363923b901c911a9164f50b6c423f47c15372b1c # v3.97.4
         with:
           extra_args: --only-verified
 
