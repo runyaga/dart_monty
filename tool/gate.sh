@@ -79,14 +79,18 @@ run_check "dart analyze" dart analyze --fatal-infos
 # 3. Dart Doc Validate Links
 # -------------------------------------------------------
 run_check "dart doc --validate-links" dart doc --validate-links .
-# Two copies of one fact — the dart_monty_core ref in pages.yaml and in
-# pubspec.yaml's dependency_overrides — and nothing compared them until they
-# drifted 315 commits apart. Pages serves the last good build on failure, so
-# the drift read as "the site is stale", not "the site cannot be rebuilt".
+# FOUR files declare the dart_monty_core ref and nothing compared them:
+# example/pubspec.yaml sat 197 commits behind while the root was on 0.23, so the
+# examples compiled this package against a core with no `asStringMap`, and
+# pages.yaml sat 315 behind. The local gate cannot see either — it never
+# resolves example/ or example/web — which is why the guard checks the
+# DECLARATIONS rather than waiting for a build. It discovers the files rather
+# than listing them, because its predecessor listed two and passed green on a
+# tree with a 197-commit disagreement.
 run_check "core ref agreement" bash tool/check_core_ref.sh
-# actionlint over every workflow. Ported from dart_monty_core, where it
-# exists because a malformed workflow does not fail — it silently stops
-# running, and a job that never starts reports nothing at all.
+# actionlint over every workflow. Ported from dart_monty_core, where it exists
+# because a malformed workflow does not fail — it silently stops running, and a
+# job that never starts reports nothing at all.
 run_check "workflows valid" bash tool/check_workflows_valid.sh
 
 # -------------------------------------------------------
