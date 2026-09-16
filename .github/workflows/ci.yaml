@@ -161,9 +161,14 @@ jobs:
         run: |
           # A hitmap must exist, or format_coverage emits an empty tracefile and
           # the gate below has nothing to measure. Fail at the cause.
-          if ! ls coverage/*.json >/dev/null 2>&1; then
-            echo "FAIL: no coverage hitmap JSON under coverage/ — `dart test"
-            echo "  --coverage` produced nothing to format."
+          # RECURSIVE. `dart test --coverage=coverage` writes hitmaps NESTED, as
+          # coverage/test/**/<name>.vm.json — never at the top level. A
+          # `coverage/*.json` glob matches nothing even on a perfectly healthy
+          # run, which is how the first version of this guard failed a green
+          # build. Measured: 0 files at the top level, 1 recursively.
+          if [ -z "$(find coverage -name '*.json' -print -quit 2>/dev/null)" ]; then
+            echo 'FAIL: no coverage hitmap JSON under coverage/ — dart test'
+            echo '  --coverage produced nothing to format.'
             exit 1
           fi
           # `dart run`, not `pub global activate`: activate resolves the latest
