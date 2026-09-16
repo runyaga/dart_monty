@@ -242,14 +242,30 @@ class PageLoad {
   }
 }
 
-/// Reads the example dropdown out of the LIVE DOM of a demo page.
+/// Reads a demo page's whole boot state in ONE round trip.
+///
+/// ONE PROBE, NOT TWO, and that is a bug fix rather than a tidy-up. The boot
+/// signal and the example-runner hook are set by DIFFERENT SCRIPTS — the
+/// compiled Dart bundle raises `__montyDemoReady`, the page's own trailing
+/// inline script defines `__montyRunExample` — so "ready" does not imply "the
+/// rest of the page has finished wiring up". Sampling them separately, and
+/// treating the first sighting of `ready` as the end of the load, made the
+/// harness read a half-wired page.
+///
+/// MEASURED, CI run 35145633046: agent.html reported `ready: agent_demo` at
+/// 1295ms with `__montyRunExample` still undefined, and all 22 of its examples
+/// failed as "never run" on a runner where the same page boots in ~300ms
+/// locally. The page was fine. The harness looked too early.
 ///
 /// Every `<option value>` that is not the empty placeholder is an example the
 /// page offers, so this is the set the gate must run. Written as one JS
 /// expression rather than assembled in Dart so that what runs in the browser
 /// is readable as JavaScript.
-const _discoverExamplesJs = '''
+const _bootProbeJs = '''
 JSON.stringify({
+  ready: window.__montyDemoReady ?? null,
+  error: window.__montyDemoError ?? null,
+  readyState: document.readyState,
   hasRunner: typeof window.__montyRunExample === 'function',
   keys: Array.from(document.querySelectorAll('select option[value]'))
           .map(o => o.value)
@@ -494,12 +510,31 @@ class Chrome {
         sessionId: sessionId,
       );
 
+      // WAIT FOR A COMPLETE BOOT STATE, not for the first sign of life.
+      //
+      // The page is ready when it has raised its signal, the document has
+      // finished loading, AND — if it offers examples — the hook that runs
+      // them exists. Those come from different scripts, so any one of them
+      // arriving first says nothing about the others. Polling an explicit
+      // condition, never a fixed sleep: a slower machine waits longer and
+      // still passes; a page that never finishes wiring up fails at [timeout]
+      // naming the part that is missing.
       final deadline = DateTime.now().add(timeout);
+      var readyState = '<unknown>';
       while (DateTime.now().isBefore(deadline)) {
-        final probe = await _probeSignals(sessionId);
-        ready = probe?['ready'] as String?;
-        error = probe?['error'] as String?;
-        if (ready != null || error != null) break;
+        final probe = await _probeBoot(sessionId);
+        if (probe != null) {
+          ready = probe['ready'] as String?;
+          error = probe['error'] as String?;
+          readyState = '${probe['readyState']}';
+          hasRunner = probe['hasRunner'] as bool? ?? false;
+          exampleKeys
+            ..clear()
+            ..addAll(_uniqueStrings(probe['keys'] as List<dynamic>?));
+        }
+        if (error != null) break;
+        final wiredUp = exampleKeys.isEmpty || hasRunner;
+        if (ready != null && readyState == 'complete' && wiredUp) break;
         await Future<void>.delayed(const Duration(milliseconds: 200));
       }
 
@@ -507,17 +542,12 @@ class Chrome {
       //
       // agent.html and vfs.html each carry a dropdown of self-contained
       // examples; the page can come up clean while one of those examples is
-      // broken. So once the page is ready, every example it offers is SELECTED
-      // AND RUN through the page's own UI, and the page's own rendering of the
-      // outcome is what counts.
-      if (ready != null && error == null) {
-        final discovered = await _discoverExamples(sessionId);
-        hasRunner = discovered.hasRunner;
-        exampleKeys.addAll(discovered.keys);
-        if (hasRunner) {
-          for (final key in exampleKeys) {
-            examples.add(await _runExample(sessionId, key));
-          }
+      // broken. So once the page is wired up, every example it offers is
+      // SELECTED AND RUN through the page's own UI, and the page's own
+      // rendering of the outcome is what counts.
+      if (ready != null && error == null && hasRunner) {
+        for (final key in exampleKeys) {
+          examples.add(await _runExample(sessionId, key));
         }
       }
     } finally {
@@ -546,25 +576,26 @@ class Chrome {
     );
   }
 
-  Future<({bool hasRunner, List<String> keys})> _discoverExamples(
-    String sessionId,
-  ) async {
-    // READ THE LIVE DOM, not the source file: an example added by script is
-    // as published as one written into the HTML, and the gate must see both.
-    // The test cross-checks this against a static parse of the page source, so
-    // a selector that stops matching cannot quietly reduce coverage.
-    final value = await _evaluateString(
-      sessionId,
-      _discoverExamplesJs,
-    );
-    if (value == null) return (hasRunner: false, keys: const <String>[]);
-    final decoded = jsonDecode(value) as Map<String, dynamic>;
-    final keys = <String>[];
-    for (final key in decoded['keys'] as List<dynamic>) {
-      final text = key as String;
-      if (!keys.contains(text)) keys.add(text);
+  Future<Map<String, dynamic>?> _probeBoot(String sessionId) async {
+    // A page that reloads itself (coi-serviceworker does, once, when the
+    // origin is not cross-origin isolated) destroys the execution context
+    // mid-probe. That is a transient, not a failure — poll again.
+    try {
+      final value = await _evaluateString(sessionId, _bootProbeJs);
+      if (value == null) return null;
+      return jsonDecode(value) as Map<String, dynamic>;
+    } on Object catch (_) {
+      return null;
     }
-    return (hasRunner: decoded['hasRunner'] as bool, keys: keys);
+  }
+
+  static List<String> _uniqueStrings(List<dynamic>? raw) {
+    final out = <String>[];
+    for (final entry in raw ?? const <dynamic>[]) {
+      final text = entry as String;
+      if (!out.contains(text)) out.add(text);
+    }
+    return out;
   }
 
   Future<ExampleRun> _runExample(String sessionId, String key) async {
@@ -632,23 +663,6 @@ class Chrome {
       throw StateError('evaluate threw: ${jsonEncode(details)}');
     }
     return (result['result'] as Map<String, dynamic>?)?['value'] as String?;
-  }
-
-  Future<Map<String, dynamic>?> _probeSignals(String sessionId) async {
-    // A page that reloads itself (coi-serviceworker does, once, when the
-    // origin is not cross-origin isolated) destroys the execution context
-    // mid-probe. That is a transient, not a failure — poll again.
-    try {
-      final value = await _evaluateString(
-        sessionId,
-        'JSON.stringify({ready: window.__montyDemoReady ?? null, '
-        'error: window.__montyDemoError ?? null})',
-      );
-      if (value == null) return null;
-      return jsonDecode(value) as Map<String, dynamic>;
-    } on Object catch (_) {
-      return null;
-    }
   }
 }
 
