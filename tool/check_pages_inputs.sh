@@ -83,6 +83,26 @@ for js in $(grep -rhoE 'src="[a-z_]+\.dart\.js"' example/web/web/*.html 2>/dev/n
     || miss "the site loads $js but pages.yaml never compiles $entry"
 done
 
+# EVERY local .html link on the demo pages must have a source.
+#
+# The demo shell links both to sibling pages (repl.html) and INTO the mkdocs
+# output (user/repl.html <- docs/user/repl.md). Remove a doc from docs/, or drop
+# it from the mkdocs nav, and the link 404s on a site that still deploys green —
+# the same shape as the async_matrix_demo.dart.js 404 this file already caught.
+#
+# Deliberately static: it resolves a link to a SOURCE rather than fetching the
+# deployed page. dart_monty_core's tool/check_pages.sh does build and serve and
+# is strictly better; a full mkdocs + dart2js build was judged too heavy for
+# this gate. So this closes the cheap half of that gap and no more — it cannot
+# see a broken mkdocs nav that still renders the file, or a link that resolves
+# to a page which itself fails to build.
+for href in $(grep -ohE 'href="[^"]+\.html"' example/web/web/*.html 2>/dev/null \
+              | sed 's/href="//; s/"//; s|^\./||' | sort -u); do
+  [ -f "example/web/web/$href" ] && continue
+  [ -f "docs/${href%.html}.md" ] && continue
+  miss "a demo page links to $href, which is neither a sibling page nor docs/${href%.html}.md"
+done
+
 # every bin/*.dart pages.yaml compiles must exist
 for f in $(grep -oE 'bin/[a-z_]+\.dart' .github/workflows/pages.yaml | sort -u); do
   [ -f "example/web/$f" ] || miss "pages.yaml compiles example/web/$f, which does not exist"
