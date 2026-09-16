@@ -48,7 +48,7 @@ jobs:
       # ── Compile Dart to JS ───────────────────────────────────────────
       - uses: dart-lang/setup-dart@v1
         with:
-          sdk: stable
+          sdk: 3.11.4
       - name: Cache Pub packages
         uses: actions/cache@v4
         with:

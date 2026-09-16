@@ -196,6 +196,35 @@ jobs:
         run: |
           dart test test/integration/example_smoke_test.dart \
             -p vm --run-skipped --tags=example --reporter=expanded
+      # ---------------------------------------------------------------------
+      # Compile-only smoke for the web demos — SEVEN entrypoints
+      # ---------------------------------------------------------------------
+      # pages.yaml compiles six of these, and only on push to main. So
+      # async_matrix_demo.dart is compiled by NOTHING before merge, and the
+      # other six are first compiled on a deploy path that hides its own
+      # failure: GitHub Pages keeps serving the last good build, so a broken
+      # compile reads as "the site is stale" rather than "the site is broken".
+      # Measured: the live site was last built 2026-06-02.
+      #
+      # example/web declares its own dart_monty_core override because
+      # `dependency_overrides` do NOT propagate through a path dependency —
+      # without it this compiles against pub.dev's published core and proves
+      # nothing about the 0.23 migration.
+      - name: Compile web demos (7 entrypoints, compile-only)
+        working-directory: example/web
+        run: |
+          set -euo pipefail
+          dart pub get
+          # Confirm we are compiling against the intended core, not pub.dev. A
+          # green compile against the wrong core is the failure this step exists
+          # to prevent, so it is asserted rather than assumed.
+          grep -q 'ref: "integration/0.23"' pubspec.lock \
+            || { echo "FAIL: example/web resolved dart_monty_core from somewhere else"; \
+                 sed -n '/dart_monty_core:/,/^  [a-z]/p' pubspec.lock; exit 1; }
+          for f in bin/*.dart; do
+            echo "--- $f"
+            dart compile js "$f" -o "/tmp/$(basename "${f%.dart}").js" --no-source-maps
+          done
 
   # ---------------------------------------------------------------------------
   # WASM / Chrome — dart_monty's open()/file-I/O + overlay handler logic must
