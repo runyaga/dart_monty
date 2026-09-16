@@ -241,9 +241,15 @@ OsCallHandler sandboxedFsHandler({required Directory root}) {
           safe,
         ).listSync().map((e) => MontyPath(e.path)).toList();
       case PathOp.resolve:
-        return safeResolved(operation, osArgString(args.first));
+        // A Path, not a str — CPython's resolve()/absolute() return
+        // pathlib.Path. Returning a bare String meant Python got a `str`, so
+        // `.name`, `.parent`, `.suffix` on the result raised AttributeError.
+        // dart_monty_core hit exactly this and records it at
+        // memory_mounted_os_handler.dart:461-470. `iterdir` in this same
+        // switch already returns MontyPath; these two did not.
+        return MontyPath(safeResolved(operation, osArgString(args.first)));
       case PathOp.absolute:
-        return safePath(operation, osArgString(args.first));
+        return MontyPath(safePath(operation, osArgString(args.first)));
     }
     throw UnsupportedError('Unsupported path operation: $operation');
   };

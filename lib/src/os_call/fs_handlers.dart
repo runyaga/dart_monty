@@ -155,14 +155,22 @@ OsCallHandler fsHandler(FileSystem fs) {
         }
         return dir.listSync().map((e) => MontyPath(e.path)).toList();
       case PathOp.resolve:
+        // A Path, not a str — CPython's resolve()/absolute() return
+        // pathlib.Path. Returning a bare String meant Python got a `str`, so
+        // `.name`, `.parent`, `.suffix` on the result raised AttributeError.
+        // dart_monty_core hit exactly this and records it at
+        // memory_mounted_os_handler.dart:461-470. `iterdir` in this same
+        // switch already returns MontyPath; these two did not.
         final path = osArgString(args.first);
         final file = fs.file(fs.path.join(fs.currentDirectory.path, path));
         if (file.existsSync()) {
-          return file.resolveSymbolicLinksSync();
+          return MontyPath(file.resolveSymbolicLinksSync());
         }
-        return fs.path.normalize(fs.path.absolute(path));
+        return MontyPath(fs.path.normalize(fs.path.absolute(path)));
       case PathOp.absolute:
-        return fs.path.normalize(fs.path.absolute(osArgString(args.first)));
+        return MontyPath(
+          fs.path.normalize(fs.path.absolute(osArgString(args.first))),
+        );
     }
     throw UnsupportedError('Unsupported path operation: $operation');
   };

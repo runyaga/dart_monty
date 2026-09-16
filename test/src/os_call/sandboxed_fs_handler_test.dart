@@ -21,6 +21,7 @@ import 'dart:io';
 
 import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:dart_monty/src/os_call/sandboxed_fs_handler.dart';
+import 'package:dart_monty_core/dart_monty_core.dart' show MontyPath;
 import 'package:test/test.dart';
 
 void main() {
@@ -307,6 +308,24 @@ void main() {
           expect(appended, 5, reason: 'append_text must count codepoints');
         },
       );
+
+      test('resolve/absolute return MontyPath, not a bare String', () async {
+        // CPython's resolve()/absolute() return pathlib.Path. A bare String
+        // gives Python a `str`, so `.name` / `.parent` / `.suffix` on the
+        // result raise AttributeError. dart_monty_core records hitting exactly
+        // this at memory_mounted_os_handler.dart:461-470. `iterdir` in the same
+        // switch already returned MontyPath; these two did not.
+        File('$rootPath/f.txt').writeAsStringSync('x');
+
+        expect(
+          await handler('Path.resolve', ['$rootPath/f.txt'], null),
+          isA<MontyPath>(),
+        );
+        expect(
+          await handler('Path.absolute', ['$rootPath/f.txt'], null),
+          isA<MontyPath>(),
+        );
+      });
 
       test('ordinary writes inside the sandbox still succeed', () async {
         // The other direction: hardening the guard must not break legitimate

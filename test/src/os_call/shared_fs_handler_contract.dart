@@ -221,20 +221,31 @@ void runFsHandlerContract(
 
     // -- Path operations --
 
-    test('Path.resolve returns a path string', () async {
+    // A MontyPath, not a String. CPython's resolve()/absolute() return
+    // pathlib.Path, and returning a bare str made ordinary Python fail:
+    //
+    //   Path('a.txt').resolve().name
+    //     -> AttributeError: 'str' object has no attribute 'name'
+    //
+    // Measured through a real backend, before and after. This contract
+    // previously asserted isA<String>(), which codified that defect.
+    // dart_monty_core records hitting the same thing at
+    // memory_mounted_os_handler.dart:461-470, and `Path.iterdir` in these
+    // handlers already returned MontyPath.
+    test('Path.resolve returns a MontyPath', () async {
       final result = await handler('Path.resolve', [
         '$rootPath/any.txt',
       ], null);
-      expect(result, isA<String>());
-      expect(result! as String, contains('any.txt'));
+      expect(result, isA<MontyPath>());
+      expect((result! as MontyPath).value, contains('any.txt'));
     });
 
-    test('Path.absolute returns a path string', () async {
+    test('Path.absolute returns a MontyPath', () async {
       final result = await handler('Path.absolute', [
         '$rootPath/any.txt',
       ], null);
-      expect(result, isA<String>());
-      expect(result! as String, contains('any.txt'));
+      expect(result, isA<MontyPath>());
+      expect((result! as MontyPath).value, contains('any.txt'));
     });
   });
 }
