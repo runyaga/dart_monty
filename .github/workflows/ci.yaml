@@ -349,6 +349,13 @@ jobs:
       # ---------------------------------------------------------------------
       # Compile-only smoke for the web demos — SEVEN entrypoints
       # ---------------------------------------------------------------------
+      # COMPILE-ONLY IS NOT COVERAGE, and this step no longer pretends to be:
+      # the `test-demo-pages` job below compiles the same seven entrypoints and
+      # then RUNS every one of them in headless Chrome. This stays because it is
+      # the cheap, fast-failing half — a syntax error surfaces here in seconds
+      # without a browser, a site assembly or a native-asset build — and because
+      # it is where the resolved-core-ref assertion has always lived.
+      #
       # pages.yaml compiles six of these, and only on push to main. So
       # async_matrix_demo.dart is compiled by NOTHING before merge, and the
       # other six are first compiled on a deploy path that hides its own
@@ -385,6 +392,68 @@ jobs:
           [ "$n" -eq 7 ] || { echo "FAIL: expected 7 web entrypoints, compiled $n."; \
             echo "  Adding one is fine — raise this number in the same commit."; \
             echo "  Losing one silently is the failure this catches."; exit 1; }
+
+  # ---------------------------------------------------------------------------
+  # test-demo-pages — every published demo must actually RUN
+  # ---------------------------------------------------------------------------
+  # Measured 2026-09-16 on integration/0.23, before this job existed:
+  #
+  #   example/*.dart            4   EXECUTED   (test-examples, above)
+  #   example/web/bin/*.dart    7   COMPILED ONLY — the step above runs
+  #                                 `dart compile js` per file and throws the
+  #                                 output away
+  #   example/web/web/*.html    8   NOT EXERCISED AT ALL — no job loaded one
+  #
+  # Compiling is not running. A demo that compiles can still throw on load, 404
+  # its own `.dart.js`, or fail to boot WASM — and async_matrix_demo.dart.js DID
+  # 404 on the live site while async_matrix.html returned 200, with every check
+  # green and the site stale since 2026-06-02. GitHub Pages hides a failed build
+  # by serving the last good one, so the deploy can never be the thing that
+  # catches this. This job assembles the site the way pages.yaml does, serves
+  # it, and drives headless Chrome at every page.
+  #
+  # Rust, like test-examples: dart_monty_core is a git dependency on this
+  # branch, so `dart test` runs its build hook and compiles the native asset
+  # from source rather than unpacking it from pub.dev.
+  #
+  # DEMO_PAGES_STRICT=1 — tool/check_demo_pages.sh exits 77 (a visible gate
+  # skip) when no browser is installed, which is right for a laptop and wrong
+  # here. ubuntu-latest ships Chrome, and the test-wasm job below already
+  # depends on that; if it ever stops being true this must go RED, not quietly
+  # check nothing.
+  test-demo-pages:
+    name: Demo pages boot (headless Chrome)
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: 3.11.4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: pub-${{ runner.os }}-${{ hashFiles('pubspec.yaml') }}
+          restore-keys: pub-${{ runner.os }}-
+      - run: dart pub get
+      - name: Every published page loads, boots, and resolves its assets
+        env:
+          DEMO_PAGES_STRICT: '1'
+        run: bash tool/check_demo_pages.sh
+      - name: Upload the assembled site on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: demo-site
+          # The compiled bundles are what a failure is usually about, so they
+          # have to come back with the log rather than being rebuilt by hand.
+          path: build/demo-site
+          retention-days: 3
+          if-no-files-found: error
 
   # ---------------------------------------------------------------------------
   # WASM / Chrome — dart_monty's open()/file-I/O + overlay handler logic must

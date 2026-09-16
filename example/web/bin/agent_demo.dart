@@ -17,6 +17,7 @@ import 'dart:js_interop';
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:file/memory.dart';
+import 'package:web_example/demo_ready.dart';
 
 // ---------------------------------------------------------------------------
 // JS interop — expose API to HTML
@@ -496,10 +497,14 @@ Future<void> main() async {
   final ok = await _init();
   if (!ok) {
     print('AGENT_DEMO_ERROR: init failed');
+    montyDemoFailed('agent_demo', 'session init failed');
     return;
   }
 
   print('AgentDemo ready');
+  // The session above already booted the WASM worker, so reaching here means
+  // the engine came up — not merely that main() was entered.
+  montyDemoReady('agent_demo');
   try {
     _jsOnReady();
   } on Object catch (_) {

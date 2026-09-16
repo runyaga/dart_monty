@@ -13,6 +13,8 @@ library;
 import 'dart:convert';
 import 'dart:js_interop';
 
+import 'package:web_example/demo_ready.dart';
+
 // ---------------------------------------------------------------------------
 // JS interop bindings for window.DartMontyBridge
 // ---------------------------------------------------------------------------
@@ -188,6 +190,7 @@ Future<void> main() async {
   final ok = (await _montyInit().toDart).toDart;
   if (!ok) {
     _reportInit(false.toJS, 'Failed to initialize Monty WASM Worker'.toJS);
+    montyDemoFailed('ladder_showcase', 'DartMontyBridge.init() returned false');
 
     return;
   }
@@ -283,6 +286,9 @@ Future<void> main() async {
   // run from a Chrome crash/timeout that emitted only partial results.
   // ignore: avoid_print
   print('LADDER_DONE:${jsonEncode({'total': totalTests})}');
+  // Raised after every tier fixture has run, so the signal carries the same
+  // weight as LADDER_DONE above.
+  montyDemoReady('ladder_showcase');
 }
 
 // ---------------------------------------------------------------------------

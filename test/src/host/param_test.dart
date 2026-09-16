@@ -236,6 +236,64 @@ void main() {
     });
   });
 
+  group('HostParam.validate and the explicit-null sentinel', () {
+    // REGRESSION. The published agent.html `workerpool` demo failed with
+    // `Required parameter "message" is null`: it queues
+    // `msg_send(name='tasks', message=None)` shutdown sentinels, which is the
+    // documented worker-pool idiom, and `_handleSend` has always passed a null
+    // payload straight through to the bus. Validation rejected the call before
+    // the handler saw it, because "absent" and "explicitly null" were the same
+    // question here.
+    test('required any-typed param accepts an explicitly supplied null', () {
+      const param = HostParam(name: 'message', type: HostParamType.any);
+      expect(param.validate(null), isNull);
+    });
+
+    test('required any-typed param still rejects being omitted', () {
+      const param = HostParam(name: 'message', type: HostParamType.any);
+      expect(
+        () => param.validate(null, isPresent: false),
+        throwsA(
+          isA<FormatException>().having(
+            (e) => e.message,
+            'message',
+            contains('is missing'),
+          ),
+        ),
+      );
+    });
+
+    test('required typed param still rejects a null value', () {
+      // null is not a String, however it arrived.
+      const param = HostParam(name: 'name', type: HostParamType.string);
+      expect(
+        () => param.validate(null),
+        throwsA(
+          isA<FormatException>().having(
+            (e) => e.message,
+            'message',
+            contains('is null'),
+          ),
+        ),
+      );
+      expect(
+        () => param.validate(null, isPresent: false),
+        throwsFormatException,
+      );
+    });
+
+    test('optional param falls back to its default for a null', () {
+      const param = HostParam(
+        name: 'count',
+        type: HostParamType.integer,
+        isRequired: false,
+        defaultValue: 7,
+      );
+      expect(param.validate(null), 7);
+      expect(param.validate(null, isPresent: false), 7);
+    });
+  });
+
   group('HostParamType', () {
     test('jsonSchemaType for each type', () {
       expect(HostParamType.string.jsonSchemaType, 'string');

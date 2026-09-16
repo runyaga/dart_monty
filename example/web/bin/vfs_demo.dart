@@ -18,6 +18,7 @@ import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:dart_monty/monty_backend_spi.dart';
 import 'package:file/file.dart';
 import 'package:file/memory.dart';
+import 'package:web_example/demo_ready.dart';
 
 // ---------------------------------------------------------------------------
 // JS interop — WASM bridge (static method API on window.DartMontyBridge)
@@ -75,8 +76,15 @@ Map<String, dynamic> _parse(String json) =>
 
 bool _isOsCall(String? fn) {
   if (fn == null) return false;
+  // PathOp.open, NEVER THE LITERAL. monty v0.0.19 renamed this op from 'Open'
+  // to 'open' and the break is SILENT — a stale literal simply stops matching
+  // and falls through. This file carried `fn == 'Open'` and three published
+  // examples (open, binary, errors) failed on the live site with
+  // "Unhandled os_call: open" while the page around them booted perfectly
+  // clean. lib/src/os_call/path_op.dart warns about exactly this; the
+  // library's own composeOsHandlers compares against the constant.
   return fn.startsWith('Path.') ||
-      fn == 'Open' || // open() builtin (no Path. prefix)
+      fn == PathOp.open || // open() builtin (no Path. prefix)
       fn.startsWith('date.') ||
       fn.startsWith('datetime.');
 }
@@ -99,8 +107,8 @@ Future<Object?> _handleOsCall(Map<String, dynamic> state) async {
   final sw = Stopwatch()..start();
   Object? result;
 
-  if (op.startsWith('Path.') || op == 'Open') {
-    // `open()` emits the prefix-less `Open` OS-call; fsHandler services it.
+  if (op.startsWith('Path.') || op == PathOp.open) {
+    // `open()` emits the prefix-less `open` OS-call; fsHandler services it.
     result = await _fs(op, args, kwargs);
   } else if (op.startsWith('date.') || op.startsWith('datetime.')) {
     result = await _time(op, args, kwargs);
@@ -310,10 +318,13 @@ Future<void> main() async {
   final ok = (await _bridgeInit().toDart).toDart;
   if (!ok) {
     print('VFS_DEMO_ERROR: WASM init failed');
+    montyDemoFailed('vfs_demo', 'DartMontyBridge.init() returned false');
     return;
   }
 
   print('VFS Demo ready');
+  // Raised after DartMontyBridge.init() succeeded, so the WASM worker is up.
+  montyDemoReady('vfs_demo');
   try {
     _jsOnReady();
   } on Object catch (_) {

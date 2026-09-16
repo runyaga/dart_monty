@@ -5,3 +5,5 @@ tags:
     skip: "Skipped by default (slow). Run: dart test --run-skipped --tags=ladder"
   example:
     skip: "Skipped by default (boots FFI dylib). Run: dart test --run-skipped --tags=example"
+  demo:
+    skip: "Skipped by default (builds the site + drives headless Chrome). Run: bash tool/check_demo_pages.sh"

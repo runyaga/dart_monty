@@ -103,6 +103,14 @@ run_check "pages inputs" bash tool/check_pages_inputs.sh
 # placeholder that stops matching fails silently, which is exactly how a
 # __BUILD_DATE__ sed sat in pages.yaml substituting nothing.
 run_check "page versions" bash tool/check_page_versions.sh
+# Every published demo must actually RUN. Measured 2026-09-16: the four native
+# examples were executed, the seven web entrypoints were COMPILED AND NEVER
+# RUN, and the eight published pages were exercised by nothing at all. A demo
+# that compiles can still throw on load, 404 its own .dart.js, or fail to boot
+# WASM — and async_matrix_demo.dart.js did 404 on the live site while its page
+# returned 200. This assembles the site and drives headless Chrome at every
+# page. Exits 77 (a VISIBLE skip) when no browser is installed.
+run_check "demo pages boot" bash tool/check_demo_pages.sh
 
 # -------------------------------------------------------
 # 4. Pymarkdown (all markdown files)

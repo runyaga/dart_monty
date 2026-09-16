@@ -783,6 +783,66 @@ x</textarea>
       workerpool: '9 tasks queued on a shared channel. 3 parallel workers pull from it until they receive a None sentinel. Tasks distribute across workers automatically.',
     };
 
+
+    // ---------------------------------------------------------------------
+    // THE GATE'S HANDLE ON THIS PAGE'S EXAMPLES
+    // ---------------------------------------------------------------------
+    // "The page booted with no console errors" is not enough. Every example in
+    // the dropdown is a demo in its own right, and one of them can be broken
+    // while the page around it is perfectly healthy — which is exactly the
+    // state vfs.html's open() example was found in on the live site.
+    //
+    // So the gate drives the REAL UI: it selects the option (firing the same
+    // change handler a user would, mounts and all), clicks Run, and then reads
+    // THIS PAGE'S OWN rendering of the outcome. A demo that catches its own
+    // error and paints it red is a FAILURE here, which a console-error check
+    // could never see.
+    //
+    // The gate discovers the key set from the <option> elements at runtime, so
+    // adding an example covers it automatically; this function only has to
+    // know how to run one and how to read the verdict.
+    window.__montyRunExample = async function (key) {
+      const sel = $('examples');
+      // CLEARED FIRST, or an unknown key silently re-runs whatever the last
+      // example left behind. Observed while falsifying this gate: a new
+      // <option value="brandnew"> with no code behind it PASSED, because the
+      // editor still held the previous example's source. An example that
+      // cannot be loaded must fail, not inherit a green from its neighbour.
+      editor.value = '';
+      sel.value = key;
+      sel.dispatchEvent(new Event('change'));
+      if (!editor.value) {
+        return JSON.stringify({ ok: false, status: 'no-code',
+          detail: 'selecting "' + key + '" loaded no code into the editor' });
+      }
+      // THE PAGE'S OWN INSTRUCTIONS ARE PART OF THE DEMO. `dartpush`
+      // deliberately blocks at msg_recv until a human clicks "Push →", and the
+      // page arms that button precisely when Python is waiting. Watching for
+      // the button to arm and clicking it is doing what the example tells the
+      // reader to do — the alternative was leaving the one example that needs a
+      // second interaction permanently uncovered.
+      const running = run();
+      const pushBtn = $('dartPushBtn');
+      let pushed = false;
+      const armed = setInterval(function () {
+        if (!pushed && pushBtn && !pushBtn.disabled) {
+          pushed = true;
+          pushBtn.onclick();
+        }
+      }, 100);
+      try {
+        await running;
+      } finally {
+        clearInterval(armed);
+      }
+      const errEl = resultArea.querySelector('.result-error');
+      return JSON.stringify({
+        ok: status.textContent === 'Done' && !errEl,
+        status: status.textContent,
+        detail: (errEl ? errEl.textContent : resultArea.textContent || '').slice(0, 500),
+      });
+    };
+
     $('examples').onchange = function() {
       const key = this.value;
       if (key && examples[key]) {

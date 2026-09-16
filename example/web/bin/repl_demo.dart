@@ -15,11 +15,13 @@
 ///     -o example/web/web/repl_demo.dart.js
 library;
 
+import 'dart:async' show unawaited;
 import 'dart:convert';
 import 'dart:js_interop';
 
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
+import 'package:web_example/demo_ready.dart';
 
 // ---------------------------------------------------------------------------
 // JS interop — expose API to HTML
@@ -207,5 +209,34 @@ void main() {
     _jsOnReady();
   } catch (_) {
     print('[ReplSessionDemo] Ready (no _onReady callback)');
+  }
+
+  // THE ONLY DEMO WHOSE main() DOES NOT BOOT THE ENGINE.
+  //
+  // Every other entrypoint awaits DartMontyBridge.init() (or an equivalent)
+  // before it is usable, so "main() returned" is proof the WASM worker came
+  // up. This one is lazy by design: MontyRuntime initialises on the first
+  // execute(), which here is a button click. A gate that stopped at "main()
+  // returned" would therefore report green for a repl whose engine cannot
+  // start at all.
+  //
+  // So the boot signal is raised behind ONE real evaluation. It is unawaited
+  // and touches no DOM, so the page behaves exactly as before for a human;
+  // what changes is that the gate's green now means Python evaluated.
+  unawaited(_signalBootReady());
+}
+
+/// Runs one Python expression so the boot signal means the engine works.
+Future<void> _signalBootReady() async {
+  try {
+    final result = await _session.execute('2 + 2').result;
+    final value = result.value?.dartValue;
+    if (value == 4) {
+      montyDemoReady('repl_demo');
+    } else {
+      montyDemoFailed('repl_demo', 'boot probe 2 + 2 evaluated to $value');
+    }
+  } on Object catch (e) {
+    montyDemoFailed('repl_demo', 'boot probe threw: $e');
   }
 }

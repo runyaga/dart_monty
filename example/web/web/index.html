@@ -457,11 +457,17 @@ cp dart_monty_core/assets/dart_monty_core_native.wasm web/</pre>
   </div>
 </footer>
 
-</body>
-</html>
->
-  </div>
-</footer>
+<!-- BOOT SIGNAL. index.html is the one published page that loads no
+     compiled Dart, so it has no montyDemoReady() to raise (see
+     example/web/lib/demo_ready.dart). Its equivalent proof is this: the
+     browser parsed the document all the way to the end of <body> and ran
+     this script. Combined with the gate's other two assertions for this page
+     -- zero uncaught exceptions and zero failed same-origin requests -- that
+     is the whole of what a script-free page can be said to "boot".
+
+     It sits here rather than in <head> on purpose: in <head> it would fire
+     before the document was parsed and would assert nothing at all. -->
+<script>window.__montyDemoReady = 'index';</script>
 
 </body>
 </html>

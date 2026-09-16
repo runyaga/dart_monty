@@ -17,6 +17,7 @@
 library;
 
 import 'package:dart_monty/dart_monty_bridge.dart';
+import 'package:web_example/demo_ready.dart';
 
 /// A sync host fn — returns its result without ever yielding the event loop.
 HostFunction syncFetch(void Function() onCall) => HostFunction(
@@ -235,4 +236,6 @@ results
 
   print('=== Done. ===');
   print('EXAMPLE_DONE');
+  // After all six matrix cells have executed, not before.
+  montyDemoReady('async_matrix_demo');
 }

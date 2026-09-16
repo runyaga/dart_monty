@@ -14,6 +14,8 @@ library;
 import 'dart:convert';
 import 'dart:js_interop';
 
+import 'package:web_example/demo_ready.dart';
+
 // JS interop bindings for window.DartMontyBridge
 @JS('DartMontyBridge.init')
 external JSPromise<JSBoolean> _bridgeInit();
@@ -46,6 +48,7 @@ Future<void> main() async {
   if (!ok) {
     print('ERROR: Failed to initialize Monty WASM Worker');
     print('EXAMPLE_DONE');
+    montyDemoFailed('main', 'DartMontyBridge.init() returned false');
     return;
   }
   print('Worker initialized.');
@@ -137,4 +140,8 @@ result
   print('');
   print('=== All examples complete ===');
   print('EXAMPLE_DONE');
+  // Raised only after every example above has actually run, so the gate's
+  // green means "this demo executed Python in the browser", not "the script
+  // parsed".
+  montyDemoReady('main');
 }

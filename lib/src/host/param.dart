@@ -98,13 +98,37 @@ class HostParam {
 
   /// Validates and optionally coerces [value].
   ///
+  /// [isPresent] says whether the caller SUPPLIED this parameter at all, which
+  /// is not the same question as whether its value is null — see below.
+  ///
   /// Returns the validated (possibly coerced) value.
   /// Throws [FormatException] if validation fails.
-  Object? validate(Object? value) {
+  Object? validate(Object? value, {bool isPresent = true}) {
     if (value == null) {
-      if (isRequired) {
+      // ABSENT AND EXPLICITLY NULL ARE DIFFERENT THINGS, and conflating them
+      // broke a published demo.
+      //
+      // `HostParamType.any` means any value, and in Python `None` IS a value.
+      // The message-bus worker-pool idiom depends on that: producers queue
+      // `msg_send(name='tasks', message=None)` sentinels and each worker
+      // loops on `msg_recv` until it pulls one. `_handleSend` has always
+      // accepted a null payload — it reads `args['message']` straight through
+      // to the bus — but this check rejected the call before the handler ever
+      // saw it, with `Required parameter "message" is null`. Measured on the
+      // published agent.html demo: the `workerpool` example, which the page
+      // ships and documents, failed with exactly that message.
+      //
+      // So: a required parameter that was NOT SUPPLIED is still an error, and
+      // a required typed parameter that was supplied as null is still an error
+      // (null is not a String). A required `any` parameter supplied as null is
+      // a legitimate null, and is passed through.
+      if (isRequired && !isPresent) {
+        throw FormatException('Required parameter "$name" is missing', value);
+      }
+      if (isRequired && type != HostParamType.any) {
         throw FormatException('Required parameter "$name" is null', value);
       }
+      if (isRequired) return null;
 
       return defaultValue;
     }

@@ -493,6 +493,47 @@ files = sorted([p.name for p in Path('/sandbox/data').iterdir()], key=str)
       errors: `from pathlib import Path\n\n# monty 0.0.18 delivers OS errors as their real Python class, so you can\n# 'except' them by type instead of catching a generic RuntimeError.\nresults = {}\n\n# Missing file -> FileNotFoundError\ntry:\n    open('/sandbox/nope.txt')\nexcept FileNotFoundError as e:\n    results['missing'] = type(e).__name__\n\n# Opening a directory as a file -> IsADirectoryError\nPath('/sandbox/adir').mkdir(parents=True)\nPath('/sandbox/adir/x.txt').write_text('x')\ntry:\n    open('/sandbox/adir')\nexcept IsADirectoryError as e:\n    results['is_a_dir'] = type(e).__name__\n\nresults`,
     };
 
+
+    // ---------------------------------------------------------------------
+    // THE GATE'S HANDLE ON THIS PAGE'S EXAMPLES
+    // ---------------------------------------------------------------------
+    // "The page booted with no console errors" is not enough. Every example in
+    // the dropdown is a demo in its own right, and one of them can be broken
+    // while the page around it is perfectly healthy — which is exactly the
+    // state vfs.html's open() example was found in on the live site.
+    //
+    // So the gate drives the REAL UI: it selects the option (firing the same
+    // change handler a user would, mounts and all), clicks Run, and then reads
+    // THIS PAGE'S OWN rendering of the outcome. A demo that catches its own
+    // error and paints it red is a FAILURE here, which a console-error check
+    // could never see.
+    //
+    // The gate discovers the key set from the <option> elements at runtime, so
+    // adding an example covers it automatically; this function only has to
+    // know how to run one and how to read the verdict.
+    window.__montyRunExample = async function (key) {
+      const sel = $('examples');
+      // CLEARED FIRST, or an unknown key silently re-runs whatever the last
+      // example left behind. Observed while falsifying this gate: a new
+      // <option value="brandnew"> with no code behind it PASSED, because the
+      // editor still held the previous example's source. An example that
+      // cannot be loaded must fail, not inherit a green from its neighbour.
+      editor.value = '';
+      sel.value = key;
+      sel.dispatchEvent(new Event('change'));
+      if (!editor.value) {
+        return JSON.stringify({ ok: false, status: 'no-code',
+          detail: 'selecting "' + key + '" loaded no code into the editor' });
+      }
+      await run();
+      const errEl = output.querySelector('.output-error');
+      return JSON.stringify({
+        ok: status.textContent === 'Done' && !errEl,
+        status: status.textContent,
+        detail: (errEl ? errEl.textContent : output.textContent || '').slice(0, 500),
+      });
+    };
+
     $('examples').onchange = function() {
       const key = this.value;
       if (key && examples[key]) {
