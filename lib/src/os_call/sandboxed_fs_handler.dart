@@ -203,9 +203,32 @@ OsCallHandler sandboxedFsHandler({required Directory root}) {
         }
         return null;
       case PathOp.rmdir:
-        Directory(
-          safeResolved(operation, osArgString(args.first)),
-        ).deleteSync();
+        // SAME SHAPE AS unlink, SAME INVERSION. `safeResolved` returns the
+        // RESOLVED path, so `rmdir` on a symlink-to-a-directory followed the
+        // link and deleted the REAL directory, leaving the link behind.
+        // Measured before this change, with `dirlink` -> `realdir`, both
+        // inside the root and realdir EMPTY:
+        //
+        //   rmdir dirlink       -> no exception   (CPython: NotADirectoryError)
+        //   real dir still exists : false         (CPython: true)
+        //   link still exists     : true
+        //
+        // A first probe hid this by leaving a file in realdir: the delete then
+        // failed with "directory not empty", which looks like correct refusal
+        // and is not.
+        //
+        // CPython raises NotADirectoryError for rmdir on a symlink, even when
+        // it points at a directory -- the link is not itself a directory.
+        final rmdirPath = osArgString(args.first);
+        safeResolved(operation, rmdirPath); // containment check only
+        final rmdirAt = safePath(operation, rmdirPath);
+        if (FileSystemEntity.isLinkSync(rmdirAt)) {
+          throw OsCallException(
+            'Not a directory: $rmdirPath',
+            pythonExceptionType: 'NotADirectoryError',
+          );
+        }
+        Directory(rmdirAt).deleteSync();
         return null;
       case PathOp.rename:
         final oldSafe = safeResolved(operation, osArgString(args.first));

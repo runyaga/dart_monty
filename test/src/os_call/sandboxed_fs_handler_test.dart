@@ -246,6 +246,42 @@ void main() {
         },
       );
 
+      test('rmdir on a symlink raises NotADirectoryError, deletes nothing', () {
+        // Same resolve-then-act shape as unlink. CPython raises
+        // NotADirectoryError for rmdir on a symlink even when it points at a
+        // directory -- the link is not itself a directory. Before the fix this
+        // followed the link and removed the REAL directory.
+        //
+        // realdir is EMPTY on purpose: leaving a file in it makes the delete
+        // fail with "directory not empty", which masks the bug behind what
+        // looks like a correct refusal.
+        final real = Directory('$rootPath/realdir')..createSync();
+        Link('$rootPath/dirlink').createSync(real.path);
+
+        expect(
+          () => handler('Path.rmdir', ['$rootPath/dirlink'], null),
+          throwsA(
+            isA<OsCallException>().having(
+              (e) => e.pythonExceptionType,
+              'pythonExceptionType',
+              'NotADirectoryError',
+            ),
+          ),
+        );
+        expect(
+          real.existsSync(),
+          isTrue,
+          reason: 'rmdir on a link must not remove the directory it points at',
+        );
+      });
+
+      test('rmdir still removes an ordinary empty directory', () async {
+        // The other direction: the guard above must not break real rmdir.
+        final d = Directory('$rootPath/plaindir')..createSync();
+        await handler('Path.rmdir', ['$rootPath/plaindir'], null);
+        expect(d.existsSync(), isFalse);
+      });
+
       test('ordinary writes inside the sandbox still succeed', () async {
         // The other direction: hardening the guard must not break legitimate
         // use. A fix that rejects everything would pass the tests above.
