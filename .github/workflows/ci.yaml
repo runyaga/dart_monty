@@ -1,6 +1,19 @@
 name: CI
 
 on:
+  # Manual re-run, ANY branch. Without it the only way to make CI evaluate a
+  # branch is to open a PR for it — so work that is not ready for review cannot
+  # be validated at all, and a branch pushed on its own gets nothing but
+  # trufflehog. Measured 2026-09-16: `feat/monty-023` carried a full
+  # dart_monty_core 0.23 migration (493 tests passing locally) and had run ZERO
+  # ci.yaml jobs, because a push to a non-main branch matches no trigger here.
+  #
+  # dart_monty_core added this for the same reason and it is what let its
+  # integration/0.23 branch be validated without a PR.
+  #
+  # NOTE: GitHub only offers workflow_dispatch for workflows present on the
+  # DEFAULT branch, so this does nothing until it reaches `main`.
+  workflow_dispatch:
   push:
     branches: [main]
   pull_request:
