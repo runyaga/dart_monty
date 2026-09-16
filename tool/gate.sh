@@ -84,6 +84,10 @@ run_check "dart doc --validate-links" dart doc --validate-links .
 # drifted 315 commits apart. Pages serves the last good build on failure, so
 # the drift read as "the site is stale", not "the site cannot be rebuilt".
 run_check "core ref agreement" bash tool/check_core_ref.sh
+# actionlint over every workflow. Ported from dart_monty_core, where it
+# exists because a malformed workflow does not fail — it silently stops
+# running, and a job that never starts reports nothing at all.
+run_check "workflows valid" bash tool/check_workflows_valid.sh
 
 # -------------------------------------------------------
 # 4. Pymarkdown (all markdown files)

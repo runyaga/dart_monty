@@ -35,6 +35,52 @@ permissions:
   pull-requests: write
 
 jobs:
+  # ---------------------------------------------------------------------------
+  # gate — run the checks this repo WRITES but did not run
+  # ---------------------------------------------------------------------------
+  # Measured 2026-09-16: FOUR of the eleven checks in tool/gate.sh ran in a CI
+  # job; SEVEN ran only on a developer's laptop — including the core-ref drift
+  # guard written the same day for the bug that broke the Pages build. A check
+  # that runs nowhere is a check that is one forgotten `bash tool/gate.sh` away
+  # from being decorative.
+  #
+  # NO `needs:` AND NO `if:` ON PURPOSE. This job must not be switchable off by
+  # a paths filter: a PR that touches only docs can still break a workflow file
+  # or a dependency ref, which is exactly what these three checks read.
+  #
+  # `dart analyze` and `dart format` are deliberately NOT duplicated here — the
+  # `test` job already runs them.
+  gate:
+    name: gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+      - run: dart pub get
+      - name: Checks that otherwise run nowhere
+        run: |
+          set -uo pipefail
+          RC=0; RAN=0
+          run(){ RAN=$((RAN+1)); if "$@"; then echo "OK:   $*"; else echo "FAIL: $*"; RC=1; fi; }
+
+          run bash tool/check_core_ref.sh
+          run dart doc --validate-links .
+          run bash tool/check_workflows_valid.sh
+
+          # The counter catches a DELETED invocation line; it cannot catch a
+          # missing script, because `run` increments before executing. The exit
+          # code catches that one. Both are needed.
+          [ "$RAN" -eq 3 ] || { echo "FAIL: expected 3 checks, ran $RAN"; RC=1; }
+          echo "ran $RAN checks, rc=$RC"
+
+          # REQUIRED, not decoration. Setting RC=1 in a variable and falling off
+          # the end of the script exits 0 — a gate that prints FAIL: and reports
+          # success. Same shape as the `continue-on-error: true` this repo
+          # already had to delete from its format check.
+          exit $RC
   changes:
     name: Detect changes
     runs-on: ubuntu-latest
