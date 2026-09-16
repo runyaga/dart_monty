@@ -92,6 +92,11 @@ run_check "core ref agreement" bash tool/check_core_ref.sh
 # because a malformed workflow does not fail — it silently stops running, and a
 # job that never starts reports nothing at all.
 run_check "workflows valid" bash tool/check_workflows_valid.sh
+# Pages copies from five locations and compiles seven entrypoints. A missing
+# one fails the DEPLOY, and GitHub Pages hides that by continuing to serve
+# the last good build — so it reads as "the site is stale", not "the site is
+# broken". The live site was last built 2026-06-02.
+run_check "pages inputs" bash tool/check_pages_inputs.sh
 
 # -------------------------------------------------------
 # 4. Pymarkdown (all markdown files)

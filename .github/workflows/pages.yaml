@@ -96,11 +96,22 @@ jobs:
           mkdir -p site/assets
           cp -r docs/assets/* site/assets/
 
-      # ── Stamp build date ─────────────────────────────────────────────
-      - name: Stamp build date into HTML
-        run: |
-          stamp="$(date -u +'%Y-%m-%d %H:%M UTC')"
-          sed -i "s/__BUILD_DATE__/$stamp/g" site/index.html
+      # A "Stamp build date into HTML" step lived here and did NOTHING.
+      #
+      #     sed -i "s/__BUILD_DATE__/$stamp/g" site/index.html
+      #
+      # `__BUILD_DATE__` appeared in this workflow and NOWHERE ELSE in the
+      # repository — not in docs/, not in any template. Confirmed against the
+      # live site: neither a literal placeholder nor a rendered date appears in
+      # the 16,298 bytes it serves. The sed matched nothing, exited 0, and
+      # reported success on every deploy.
+      #
+      # Removed rather than repaired. Deleting a step that has never had an
+      # observable effect changes nothing; ADDING the placeholder would put a
+      # new user-visible element on the site, which is a product decision and
+      # not one to smuggle in as a bug fix. If a build date is wanted, add it
+      # deliberately — tool/check_pages_inputs.sh will then hold the placeholder
+      # and the sed together.
 
       # ── Deploy ───────────────────────────────────────────────────────
       - uses: actions/configure-pages@v5
