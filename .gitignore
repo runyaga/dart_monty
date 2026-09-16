@@ -63,3 +63,11 @@ ci-review/
 **/*.dart.js
 **/*.dart.js.deps
 **/*.dart.js.map
+
+# Zensical migration scratch — build outputs and the two pinned venvs.
+# Both builders write here during the parallel comparison (issue #451 step 4).
+out-mk/
+out-zen/
+mkdocs-zen.yml
+.venv-zen/
+.venv-mk/

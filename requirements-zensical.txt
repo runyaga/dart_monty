@@ -1,0 +1,5 @@
+# EXACT pin, not a bound. Zensical is 0.0.x — PyPI classifies it
+# `Development Status :: 3 - Alpha`, 62 releases, the latest of which was three
+# days old when this was written. A `>=` bound on a project moving that fast is
+# an unpinned dependency wearing a constraint.
+zensical==0.0.62

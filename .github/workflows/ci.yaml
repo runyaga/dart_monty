@@ -36,6 +36,75 @@ permissions:
 
 jobs:
   # ---------------------------------------------------------------------------
+  # docs-zensical — parallel build, NOT a cutover
+  # ---------------------------------------------------------------------------
+  # Material for MkDocs is EOL 2027-05-05 and MkDocs 2.0 will run neither it nor
+  # any plugin (see issue #451). This job builds the docs with BOTH tools on
+  # every PR and fails if they disagree, so the migration soaks under real
+  # changes before pages.yaml is switched over.
+  #
+  # It lives in ci.yaml, not pages.yaml: pages.yaml triggers only on push-to-main
+  # and workflow_dispatch, so it CANNOT run on a pull request.
+  #
+  # Every assertion below is on an exit code, not on the job's colour. A green
+  # run proves nothing if the comparison step is incapable of failing.
+  docs-zensical:
+    name: docs · mkdocs vs zensical
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install both toolchains, pinned
+        run: |
+          set -euo pipefail
+          python -m venv .venv-mk  && .venv-mk/bin/pip  install -q -r requirements-docs.lock
+          python -m venv .venv-zen && .venv-zen/bin/pip install -q -r requirements-zensical.txt
+          .venv-zen/bin/zensical --version
+
+      - name: Build with both
+        run: |
+          set -euo pipefail
+          .venv-mk/bin/mkdocs build -d out-mk
+          # `zensical build` has NO -d flag — it errors with "No such option".
+          # The output dir must come from site_dir: in a config passed via -f.
+          sed 's|^site_dir:.*||' mkdocs.yml > mkdocs-zen.yml
+          echo "site_dir: out-zen" >> mkdocs-zen.yml
+          .venv-zen/bin/zensical build -f mkdocs-zen.yml --strict
+
+      - name: HTML path sets must be identical
+        run: |
+          set -euo pipefail
+          # Roots stripped, or the comparison can never match.
+          diff <(cd out-mk  && find . -name '*.html' | sort) \
+               <(cd out-zen && find . -name '*.html' | sort)
+          echo "html pages: $(find out-mk -name '*.html' | wc -l)"
+
+      - name: The llms.txt surface must survive
+        run: |
+          set -euo pipefail
+          # MEASURED 2026-09-16: zensical drops llms.txt, llms-full.txt and 27
+          # raw .md files, prints NOTHING about it, and exits 0. Until issue
+          # #451 step 6 is decided, mkdocs remains the producer of those 29
+          # endpoints and this asserts they are still produced.
+          test -s out-mk/llms.txt
+          test -s out-mk/llms-full.txt
+          n=$(find out-mk -name '*.md' | wc -l)
+          echo "raw .md endpoints: $n"
+          [ "$n" -eq 27 ] || { echo "FAIL: expected 27 raw .md endpoints, found $n"; exit 1; }
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: docs-build-comparison
+          path: |
+            out-mk
+            out-zen
+          retention-days: 3
+          if-no-files-found: error
+  # ---------------------------------------------------------------------------
   # gate — run the checks this repo WRITES but did not run
   # ---------------------------------------------------------------------------
   # Measured 2026-09-16: FOUR of the eleven checks in tool/gate.sh ran in a CI

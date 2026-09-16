@@ -92,7 +92,15 @@ jobs:
         with:
           python-version: '3.x'
       - name: Install MkDocs dependencies
-        run: pip install -r requirements-docs.txt
+        # The LOCK, not requirements-docs.txt. That file carries only lower
+        # bounds (`mkdocs>=1.6`), so installing it makes every deploy a fresh
+        # resolution — and makes rollback a fresh resolution too, rather than a
+        # return to a known state. requirements-docs.txt stays as the
+        # human-edited source of bounds; requirements-docs.lock is what runs.
+        # Verified 2026-09-16 on python 3.12: a clean install of the lock
+        # reproduces `pip freeze` identically and builds 29 html + 27 .md +
+        # llms.txt (3189 B) + llms-full.txt (187567 B). See issue #451 step 1.
+        run: pip install -r requirements-docs.lock
       - name: Build documentation
         run: mkdocs build
       # ── Assemble site ────────────────────────────────────────────────

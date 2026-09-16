@@ -55,6 +55,25 @@ ladder=$(ls test/fixtures/python_ladder/tier_*.json 2>/dev/null | wc -l | tr -d 
 [ -d docs/assets ] && [ -n "$(ls -A docs/assets 2>/dev/null)" ] \
   || miss "docs/assets/ is missing or empty"
 
+# pip install -r <file>
+# pages.yaml installs a REQUIREMENTS FILE before it builds; if that file is
+# gone the deploy fails and the site silently serves the last good build, the
+# same failure mode as a missing copy source. This matters more since the
+# install moved from requirements-docs.txt (bounds) to requirements-docs.lock:
+# issue #451 §5 calls out the deletion-order trap explicitly — the lock must
+# not be removed while pages.yaml still installs it. The filename is READ OUT
+# OF pages.yaml rather than hardcoded, so switching files can never leave this
+# check asserting the existence of one nothing installs.
+reqs=$(grep -oE 'pip install -r [A-Za-z0-9._/-]+' .github/workflows/pages.yaml \
+       | awk '{print $NF}' | sort -u)
+if [ -z "$reqs" ]; then
+  noop "pages.yaml no longer runs 'pip install -r <file>'; this check now verifies nothing"
+else
+  for r in $reqs; do
+    [ -s "$r" ] || miss "pages.yaml installs $r, which is missing or empty"
+  done
+fi
+
 # If a __BUILD_DATE__ stamp step is ever reintroduced, the placeholder must
 # exist in a SOURCE file or the sed is a silent no-op — which is exactly what
 # was removed from pages.yaml. Hold the two together from the start.

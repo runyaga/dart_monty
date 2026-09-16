@@ -3,6 +3,10 @@ site_description: Pure Dart bindings for Monty, a restricted sandboxed Python in
 site_url: https://runyaga.github.io/dart_monty/
 theme:
   name: material
+  # Zensical defaults to a `modern` skin; this keeps the Material look the
+  # site has today. Verified not to affect the MkDocs build, so it is safe
+  # to carry before any cutover.
+  variant: classic
   palette:
     - scheme: slate
       primary: custom
