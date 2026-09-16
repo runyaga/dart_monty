@@ -282,6 +282,32 @@ void main() {
         expect(d.existsSync(), isFalse);
       });
 
+      test(
+        'write_text/append_text return CODEPOINTS, not UTF-16 units',
+        () async {
+          // CPython's Path.write_text() returns the number of CHARACTERS.
+          // Dart's String.length is UTF-16 code units, so anything outside the
+          // BMP counts twice. The two agree for ASCII, which is why this hid.
+          // dart_monty_core fixed the same bug and documents it at
+          // memory_mounted_os_handler.dart:730 (_codepointCount).
+          const text = 'hi \u{1F600}!'; // 'hi ' + emoji + '!'
+          expect(text.length, 6, reason: 'UTF-16 code units');
+          expect(text.runes.length, 5, reason: "what CPython's len() returns");
+
+          final written = await handler('Path.write_text', [
+            '$rootPath/emoji.txt',
+            text,
+          ], null);
+          expect(written, 5, reason: 'write_text must count codepoints');
+
+          final appended = await handler('Path.append_text', [
+            '$rootPath/emoji.txt',
+            text,
+          ], null);
+          expect(appended, 5, reason: 'append_text must count codepoints');
+        },
+      );
+
       test('ordinary writes inside the sandbox still succeed', () async {
         // The other direction: hardening the guard must not break legitimate
         // use. A fix that rejects everything would pass the tests above.

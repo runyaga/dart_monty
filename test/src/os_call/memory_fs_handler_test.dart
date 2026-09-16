@@ -134,4 +134,18 @@ void main() {
       expect(await h2('Path.exists', ['/a.txt'], null), isFalse);
     });
   });
+
+  test('write_text/append_text return CODEPOINTS, not UTF-16 units', () async {
+    // Same defect as the sandboxed handler had: String.length counts UTF-16
+    // code units, CPython's len() counts characters. They agree for ASCII.
+    final fs = MemoryFileSystem();
+    final handler = fsHandler(fs);
+    const text = 'hi \u{1F600}!';
+
+    expect(text.length, 6, reason: 'UTF-16 code units');
+    expect(text.runes.length, 5, reason: "what CPython's len() returns");
+
+    expect(await handler('Path.write_text', ['/a.txt', text], null), 5);
+    expect(await handler('Path.append_text', ['/a.txt', text], null), 5);
+  });
 }

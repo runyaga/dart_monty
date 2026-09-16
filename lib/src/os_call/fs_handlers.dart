@@ -80,7 +80,7 @@ OsCallHandler fsHandler(FileSystem fs) {
         fs.file(path)
           ..parent.createSync(recursive: true)
           ..writeAsStringSync(content);
-        return content.length;
+        return _codepointCount(content);
       case PathOp.writeBytes:
         final path = osArgString(args.first);
         final bytes = (args[1]! as List).cast<int>();
@@ -94,7 +94,7 @@ OsCallHandler fsHandler(FileSystem fs) {
         fs.file(path)
           ..parent.createSync(recursive: true)
           ..writeAsStringSync(content, mode: FileMode.append);
-        return content.length;
+        return _codepointCount(content);
       case PathOp.appendBytes:
         final path = osArgString(args.first);
         final bytes = (args[1]! as List).cast<int>();
@@ -179,3 +179,18 @@ OsCallHandler fsHandler(FileSystem fs) {
 /// bridge.registerOs(composeOsHandlers({'Path.': fsHandler(fs), ...}));
 /// ```
 OsCallHandler memoryFsHandler() => fsHandler(MemoryFileSystem());
+
+/// Codepoints, not UTF-16 code units — what CPython's `len()` counts.
+///
+/// `Path.write_text()` and `Path.append_text()` return the number of CHARACTERS
+/// written. Dart's `String.length` is UTF-16 code units, so anything outside
+/// the BMP — an emoji, most CJK extension blocks — counts twice. Measured:
+/// `'hi \u{1F600}!'` has `String.length == 6` and `runes.length == 5`, and
+/// CPython's `len()` is 5.
+///
+/// The three lengths in play agree for ASCII, which is exactly why this hid.
+/// dart_monty_core fixed the same bug in its own handler and documents it at
+/// `memory_mounted_os_handler.dart:730` (`_codepointCount`); that helper is
+/// private to core, so this is the same one-liner rather than a reach into
+/// `lib/src/`.
+int _codepointCount(String text) => text.runes.length;
