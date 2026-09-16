@@ -35,8 +35,45 @@ if ! command -v dcm >/dev/null 2>&1; then
   exit 1
 fi
 
+# DCM IS COMMERCIAL, and 1.39.0 refuses outright where 1.37.0 ran a free tier:
+# `dcm analyze lib --reporter=json` printed "DCM is not activated" and no JSON,
+# so this script died on a bare json.decoder.JSONDecodeError with the reason
+# thrown away by `2>/dev/null`. Measured on the 1.37.0 -> 1.39.0 upgrade.
+#
+# dcm only consults the credentials when it believes it is on CI, so CI=true is
+# set ALONGSIDE them, not instead of them.
+if [ -z "${DCM_CI_KEY:-}" ] || [ -z "${DCM_EMAIL:-}" ]; then
+  if [ "${DCM_RATCHET_ALLOW_MISSING:-0}" = "1" ]; then
+    echo "DCM credentials absent — SKIPPING (DCM_RATCHET_ALLOW_MISSING=1)"
+    exit 0
+  fi
+  echo "FAIL: DCM_CI_KEY and DCM_EMAIL are not both set, so dcm cannot run."
+  echo "    export DCM_CI_KEY=...   # the CI key, NOT a license-key"
+  echo "    export DCM_EMAIL=...    # the purchase email"
+  echo "  To run the gate without a licence, skipping this deliberately:"
+  echo "    DCM_ALLOW_MISSING=1 bash tool/gate.sh"
+  exit 1
+fi
+
 TMP=$(mktemp)
-dcm analyze lib --reporter=json > "$TMP" 2>/dev/null
+ERR=$(mktemp)
+# stderr is CAPTURED, not discarded. A gate that hides why it failed is barely
+# better than one that cannot fail -- this script previously surfaced a licence
+# error as a Python traceback about column 1 of an empty file.
+CI=true dcm analyze lib --reporter=json \
+  --ci-key="$DCM_CI_KEY" --email="$DCM_EMAIL" > "$TMP" 2>"$ERR"
+DCM_RC=$?
+
+if [ ! -s "$TMP" ] || ! python3 -c "import json,sys;json.load(open(sys.argv[1]))" "$TMP" 2>/dev/null; then
+  echo "FAIL: \`dcm analyze --reporter=json\` produced no parseable JSON (exit $DCM_RC)."
+  echo "  This is the gate failing to RUN, which is not the same as it passing."
+  echo "  dcm version: $(dcm --version 2>&1 | head -1)"
+  echo "  --- first 10 lines of stderr ---"
+  head -10 "$ERR" | sed 's/^/    /'
+  rm -f "$TMP" "$ERR"
+  exit 1
+fi
+rm -f "$ERR"
 
 BASELINE="$BASELINE" UPDATE="$UPDATE" TMP="$TMP" python3 - <<'PY'
 import json, os, sys, collections

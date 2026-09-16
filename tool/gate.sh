@@ -111,12 +111,24 @@ if command -v dcm &>/dev/null; then
   # zero-issue gate could never pass and a raw count hides new issues behind
   # net improvements. Fails only on NEW issues above tool/dcm-baseline.json.
   run_check "dcm ratchet" bash tool/dcm_ratchet.sh
-  # Advisory: report but don't fail gate (known false positives / pre-existing)
-  run_advisory "dcm calculate-metrics" dcm calculate-metrics lib
-  run_advisory "dcm check-unused-code" dcm check-unused-code lib
-  run_advisory "dcm check-unused-files" dcm check-unused-files lib
-  run_advisory "dcm check-dependencies" dcm check-dependencies .
-  run_advisory "dcm check-parameters" dcm check-parameters lib
+  # BLOCKING, baselined. These five used to be `run_advisory` -- report, never
+  # fail -- and two more (check-exports-completeness,
+  # check-unnecessarily-public-code) were not run at all. Measured 2026-09-15,
+  # the unenforced total was 244:
+  #
+  #     calculate-metrics                 29      advisory
+  #     check-parameters                  45      advisory
+  #     check-unused-code                  7      advisory
+  #     check-dependencies                 6      advisory
+  #     check-unused-files                 3      advisory
+  #     check-exports-completeness         4      NOT RUN
+  #     check-unnecessarily-public-code  150      NOT RUN
+  #
+  # An advisory check is a check whose output nobody reads twice. Ratcheted
+  # instead: a new rule, a per-rule increase, a new file or a per-file increase
+  # fails; reducing is always allowed but must be CAPTURED, or the count drifts
+  # back up while the gate stays green.
+  run_check "dcm suite ratchet" bash tool/dcm_suite_ratchet.sh
 
   # Upload to DCM dashboard (main branch only, requires DCM_PROJECT_KEY)
   if [[ "${DCM_PROJECT_KEY:-}" != "" ]]; then
@@ -139,8 +151,29 @@ if command -v dcm &>/dev/null; then
       echo "  DCM dashboard: skipped (not on main, branch=$CURRENT_BRANCH)"
     fi
   fi
+elif [ "${DCM_ALLOW_MISSING:-0}" = "1" ]; then
+  # DELIBERATE opt-out, and it is loud. DCM is now the enforcement mechanism for
+  # 253 findings across eight checks (9 lint + 244 suite), so `dcm` being absent
+  # means this gate verified none of them. That is a decision the caller makes
+  # explicitly, never one the gate makes on the caller's behalf.
+  skip_check "dcm" "dcm absent, SKIPPED ON PURPOSE (DCM_ALLOW_MISSING=1) — 253 findings unchecked"
 else
-  skip_check "dcm" "dcm not installed (commercial license required)"
+  # NOT a skip. `if command -v dcm` used to fall through to skip_check here, so
+  # a machine without dcm got a green gate that had checked nothing DCM-related
+  # -- and dcm is commercial, so that is the common case for a new contributor
+  # rather than an exotic one. A gate that decides on its own to check nothing
+  # is not a gate.
+  echo ""
+  echo "FAIL: dcm is not installed, and it now enforces 253 findings"
+  echo "      (tool/dcm-baseline.json 9 + tool/dcm-suite-baseline.json 244)."
+  echo "  Install:  brew tap CQLabs/dcm && brew install dcm"
+  echo "  dcm is NOT a pub package — 'dart pub global activate dcm' cannot work."
+  echo "  It also needs credentials, because it is commercial:"
+  echo "    export DCM_CI_KEY=...   # the CI key, NOT a license-key"
+  echo "    export DCM_EMAIL=...    # the purchase email"
+  echo "  To run the gate anyway, knowing it then checks none of those 253:"
+  echo "    DCM_ALLOW_MISSING=1 bash tool/gate.sh"
+  FAILED+=("dcm not installed")
 fi
 
 # -------------------------------------------------------
