@@ -149,7 +149,14 @@ jobs:
         # AGENTS.md documented it as a hard requirement.
         run: dart format --output=none --set-exit-if-changed lib/ test/ tool/
       - name: Test
-        run: dart test --coverage=coverage
+        run: |
+          # A SUITE THAT REGISTERS NOTHING PRINTS SUCCESS AND EXITS 0.
+          # Floor calibrated from the green run 35065400002 (493 observed),
+          # set below it so ordinary churn does not trip it. Raise the floor
+          # when the suite grows; never lower it to make a run pass.
+          set -o pipefail
+          dart test --coverage=coverage 2>&1 | tee /tmp/unit.log
+          bash tool/assert_test_count.sh /tmp/unit.log 450 unit
       - name: Generate LCOV
         run: |
           # A hitmap must exist, or format_coverage emits an empty tracefile and
@@ -207,8 +214,14 @@ jobs:
       - run: dart pub get
       - name: Run example smoke tests
         run: |
+          # Floor 4, not 3: there are exactly four example/*.dart files and each
+          # must smoke. With a suite this small a floor below the observed count
+          # permits silently losing 25% of it. Deleting an example is therefore a
+          # deliberate floor edit, which is the intent.
+          set -o pipefail
           dart test test/integration/example_smoke_test.dart \
-            -p vm --run-skipped --tags=example --reporter=expanded
+            -p vm --run-skipped --tags=example --reporter=expanded 2>&1 | tee /tmp/example.log
+          bash tool/assert_test_count.sh /tmp/example.log 4 example
       # ---------------------------------------------------------------------
       # Compile-only smoke for the web demos — SEVEN entrypoints
       # ---------------------------------------------------------------------
@@ -266,7 +279,15 @@ jobs:
           restore-keys: pub-${{ runner.os }}-
       - run: dart pub get
       - name: Run WASM/Chrome tests (dart2js in headless Chrome)
-        run: dart test -p chrome test/experiments/*_wasm_test.dart --reporter=expanded
+        run: |
+          # A SUITE THAT REGISTERS NOTHING PRINTS SUCCESS AND EXITS 0.
+          # Floor calibrated from the green run 35065400002 (9 observed),
+          # set below it so ordinary churn does not trip it. Raise the floor
+          # when the suite grows; never lower it to make a run pass.
+          set -o pipefail
+          dart test -p chrome test/experiments/*_wasm_test.dart \
+            --reporter=expanded 2>&1 | tee /tmp/wasm.log
+          bash tool/assert_test_count.sh /tmp/wasm.log 8 wasm
 
   patch-coverage:
     # NAMED FOR WHAT IT ENFORCES. This said "(70%)" while running
