@@ -36,19 +36,48 @@ OsCallHandler sandboxedFsHandler({required Directory root}) {
     return joined;
   }
 
+  // RESOLVE THE NEAREST EXISTING ANCESTOR, not just the path itself.
+  //
+  // The old form resolved only when the path ALREADY EXISTED and fell back to
+  // the lexical check otherwise. That is exactly backwards for the operations
+  // that matter: creating a file under a symlinked parent has a target that
+  // does not exist yet, so it took the lexical path and escaped. Measured
+  // before this change, with `escape` a symlink inside the root pointing out
+  // of it:
+  //
+  //   writeText escape/pwned.txt          -> NO EXCEPTION, file written OUTSIDE
+  //   mkdir     escape/newdir             -> NO EXCEPTION
+  //   writeText <root>/escape/pwned2.txt  -> NO EXCEPTION, file written OUTSIDE
+  //
+  // Walking up to the nearest existing ancestor closes both shapes: writing
+  // THROUGH an existing symlink, and creating a new entry UNDER a symlinked
+  // directory. A path whose ancestors are all inside the root cannot leave it.
   String safeResolved(String op, String pythonPath) {
     final safe = safePath(op, pythonPath);
-    final type = FileSystemEntity.typeSync(safe, followLinks: false);
-    if (type != FileSystemEntityType.notFound) {
-      final resolved = File(safe).resolveSymbolicLinksSync();
-      if (resolved != rootExact && !resolved.startsWith(rootWithSep)) {
-        throw OsCallException(
-          'Symlink escapes sandbox: $pythonPath -> $resolved',
-          pythonExceptionType: 'PermissionError',
-        );
-      }
-      return resolved;
+
+    // The deepest ancestor that exists on disk. For an existing path that is
+    // the path itself; for a new file it is the directory it lands in.
+    var probe = safe;
+    while (FileSystemEntity.typeSync(probe, followLinks: false) ==
+        FileSystemEntityType.notFound) {
+      final parent = p.dirname(probe);
+      if (parent == probe) return safe; // reached the filesystem root
+      probe = parent;
     }
+
+    final resolvedAncestor = Directory(probe).resolveSymbolicLinksSync();
+    if (resolvedAncestor != rootExact &&
+        !resolvedAncestor.startsWith(rootWithSep)) {
+      throw OsCallException(
+        'Symlink escapes sandbox: $pythonPath -> $resolvedAncestor',
+        pythonExceptionType: 'PermissionError',
+      );
+    }
+
+    // The path itself resolves only when it exists; otherwise return the
+    // lexical form, whose every existing ancestor was just proven contained.
+    if (probe == safe) return resolvedAncestor;
+
     return safe;
   }
 
@@ -63,18 +92,18 @@ OsCallHandler sandboxedFsHandler({required Directory root}) {
           pythonPath,
           mode,
           exists: (p) =>
-              FileSystemEntity.typeSync(safePath(operation, p)) ==
+              FileSystemEntity.typeSync(safeResolved(operation, p)) ==
               FileSystemEntityType.file,
           isDirectory: (p) =>
-              FileSystemEntity.typeSync(safePath(operation, p)) ==
+              FileSystemEntity.typeSync(safeResolved(operation, p)) ==
               FileSystemEntityType.directory,
           truncate: (p) {
-            File(safePath(operation, p))
+            File(safeResolved(operation, p))
               ..parent.createSync(recursive: true)
               ..writeAsStringSync('');
           },
           createIfMissing: (p) {
-            final f = File(safePath(operation, p));
+            final f = File(safeResolved(operation, p));
             if (!f.existsSync()) {
               f.parent.createSync(recursive: true);
               f.createSync();
@@ -82,14 +111,14 @@ OsCallHandler sandboxedFsHandler({required Directory root}) {
           },
         );
       case PathOp.appendText:
-        final safe = safePath(operation, osArgString(args.first));
+        final safe = safeResolved(operation, osArgString(args.first));
         final content = osArgString(args[1]);
         File(safe)
           ..parent.createSync(recursive: true)
           ..writeAsStringSync(content, mode: FileMode.append);
         return content.length;
       case PathOp.appendBytes:
-        final safe = safePath(operation, osArgString(args.first));
+        final safe = safeResolved(operation, osArgString(args.first));
         final bytes = (args[1]! as List).cast<int>();
         File(safe)
           ..parent.createSync(recursive: true)
@@ -127,21 +156,21 @@ OsCallHandler sandboxedFsHandler({required Directory root}) {
           ).readAsBytesSync(),
         );
       case PathOp.writeText:
-        final safe = safePath(operation, osArgString(args.first));
+        final safe = safeResolved(operation, osArgString(args.first));
         final content = osArgString(args[1]);
         final file = File(safe);
         file.parent.createSync(recursive: true);
         file.writeAsStringSync(content);
         return content.length;
       case PathOp.writeBytes:
-        final safe = safePath(operation, osArgString(args.first));
+        final safe = safeResolved(operation, osArgString(args.first));
         final bytes = (args[1]! as List).cast<int>();
         final file = File(safe);
         file.parent.createSync(recursive: true);
         file.writeAsBytesSync(bytes);
         return bytes.length;
       case PathOp.mkdir:
-        final safe = safePath(operation, osArgString(args.first));
+        final safe = safeResolved(operation, osArgString(args.first));
         final parents = kwargs?['parents'] as bool? ?? false;
         final existOk = kwargs?['exist_ok'] as bool? ?? false;
         final dir = Directory(safe);
@@ -152,7 +181,9 @@ OsCallHandler sandboxedFsHandler({required Directory root}) {
         File(safeResolved(operation, osArgString(args.first))).deleteSync();
         return null;
       case PathOp.rmdir:
-        Directory(safePath(operation, osArgString(args.first))).deleteSync();
+        Directory(
+          safeResolved(operation, osArgString(args.first)),
+        ).deleteSync();
         return null;
       case PathOp.rename:
         final oldSafe = safeResolved(operation, osArgString(args.first));
