@@ -14,6 +14,7 @@ library;
 
 import 'dart:io';
 
+import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
 /// Examples that currently fail or hang on `main`. Add entries here for known
@@ -45,7 +46,27 @@ void main() {
             markTestSkipped(skipReason);
             return;
           }
-          final result = await Process.run('dart', ['run', ex]);
+          // RUN INSIDE example/, NOT THE REPO ROOT.
+          //
+          // `example/` is its own package, so dartdev publishes the native
+          // asset into `example/.dart_tool/lib/` -- a file THIS process never
+          // maps. Run from the repo root instead and each child republishes
+          // `<root>/.dart_tool/lib/libdart_monty_core_native.so` by
+          // delete-then-copy while the test runner has it mmap'd, which
+          // invalidates the mapping and kills the runner with
+          // SIGBUS/SIGSEGV/SIGABRT (dart_monty_core#161, dart-lang/sdk#62361).
+          // Measured: 0/4 crashes from here against a 5/5 baseline from the
+          // root, with all 15 examples producing identical exit codes and
+          // output either way.
+          //
+          // These children need EXCLUSIVE use of `example/.dart_tool/lib`:
+          // they must stay sequential with each other, and nothing else may
+          // publish there concurrently.
+          final result = await Process.run(
+            'dart',
+            ['run', p.basename(ex)],
+            workingDirectory: p.join(Directory.current.path, 'example'),
+          );
           expect(
             result.exitCode,
             equals(0),

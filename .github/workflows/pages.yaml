@@ -2,7 +2,18 @@ name: GitHub Pages
 
 on:
   push:
-    branches: [main]
+    # Same reasoning as ci.yaml: an integration line must publish its own docs,
+    # or the only way to see them is to merge to main first. The live site was
+    # last built 2026-06-02 for exactly this reason.
+    #
+    # CONSEQUENCE, STATED PLAINLY: a push to integration/** now DEPLOYS to the
+    # live GitHub Pages site. There is one Pages environment per repository, so
+    # whichever branch pushes last is what visitors see. That is the intended
+    # trade while 0.23 is the line being prepared; it is not a per-branch
+    # preview, and it will need revisiting if two integration lines ever run
+    # concurrently. The `concurrency` group below is keyed on github.ref, so
+    # two branches will not race a single deploy -- they will alternate.
+    branches: [main, 'integration/**']
   workflow_dispatch:
 
 concurrency:

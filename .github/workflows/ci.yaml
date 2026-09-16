@@ -15,7 +15,14 @@ on:
   # DEFAULT branch, so this does nothing until it reaches `main`.
   workflow_dispatch:
   push:
-    branches: [main]
+    # `integration/**` IS A RELEASE LINE, NOT A TOPIC BRANCH. Measured
+    # 2026-09-16: integration/0.23 carried the entire dart_monty_core 0.23
+    # migration -- a green local gate, 493 tests -- and had run exactly ONE
+    # workflow, TruffleHog, because a push to a non-main branch matched no
+    # trigger here. workflow_dispatch could not rescue it either: GitHub only
+    # offers dispatch for workflows present on the DEFAULT branch, and main's
+    # copy does not declare it. There was no button to press.
+    branches: [main, 'integration/**']
   pull_request:
   # No `branches:` filter — a PR gets CI whatever it targets.
   #
@@ -269,6 +276,47 @@ jobs:
   # Example smoke tests — every example/*.dart must compile and exit 0.
   # Installs Rust so dart_monty_core's native-asset hook can compile the dylib.
   # ---------------------------------------------------------------------------
+  test-integration:
+    name: Integration tests (real dart_monty_core via FFI)
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    # 30, not 20: dart_monty_core is a git dependency on this branch, so the
+    # native asset is compiled from source rather than unpacked from pub.dev.
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: 3.11.4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: pub-${{ runner.os }}-${{ hashFiles('pubspec.yaml') }}
+          restore-keys: pub-${{ runner.os }}-
+      - run: dart pub get
+      - name: Run integration tests
+        # THE TAG WAS DECLARED AND EXERCISED BY NOTHING. `dart_test.yaml` skips
+        # `integration` by default, and until now the only `--tags=` in any
+        # workflow was `--tags=example`. Measured 2026-09-16: 26 of 62 test
+        # files ran in no pipeline at all -- including 13 of the 14 files that
+        # drive real dart_monty_core through FFI. The 0.23 migration's only
+        # real-backend evidence was produced by tests nothing ran (#452).
+        #
+        # Default parallelism, deliberately: the suite was verified twice at
+        # `+301` under default `-j` after the example_smoke working-directory
+        # fix, so there is no need to serialise and lose the time.
+        run: |
+          set -o pipefail
+          dart test --run-skipped --tags=integration \
+            --reporter=expanded 2>&1 | tee /tmp/integration.log
+          # A suite that registers nothing prints success and exits 0. Floor set
+          # below the observed 301 so ordinary churn does not trip it; raise it
+          # when the suite grows, never lower it to make a run pass.
+          bash tool/assert_test_count.sh /tmp/integration.log 290 integration
+
   test-examples:
     name: Example smoke tests
     needs: [changes]

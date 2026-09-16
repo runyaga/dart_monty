@@ -43,7 +43,7 @@ void main() {
       final cap = SignalCapture(el.channelStateSignal);
       el.dispatch({'pre': true}); // pre-queue so no wait needed
 
-      await h.run('el_recv()');
+      await h.run('await el_recv()');
 
       cap.dispose();
 
@@ -144,7 +144,7 @@ msg_recv(name='pipe')
       final history = <bool>[];
       final cleanup = effect(() => history.add(isWaiting.value));
 
-      const script = 'el_recv()';
+      const script = 'await el_recv()';
       final handle = h.runtime.execute(script);
 
       await _untilWaiting(el);
