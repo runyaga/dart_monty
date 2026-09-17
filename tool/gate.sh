@@ -52,6 +52,57 @@ run_check() {
   fi
 }
 
+# Helper: run a test check WITH A FLOOR under how many tests must register.
+#
+# A SUITE THAT REGISTERS NOTHING PRINTS SUCCESS AND EXITS 0. ci.yaml has
+# guarded that since its four `assert_test_count.sh` calls (unit 450,
+# integration 290, example 4, wasm 8). THIS GATE DID NOT — measured
+# 2026-09-17, `grep -c assert_test_count tool/gate.sh` was 0 — so the run that
+# is the precondition for every commit here would have gone green on a suite
+# that registered zero tests. Same gap, same fix, as dart_monty_core bedbd87.
+#
+# The floor is set UNDER the observed count so ordinary churn does not trip
+# it. Raise it when the suite grows; never lower it to make a run pass.
+run_test_check() {
+  local name="$1"
+  local min="$2"
+  shift 2
+  local log
+  log="$(mktemp)"
+  echo ""
+  echo "========================================"
+  echo "  $name"
+  echo "========================================"
+  # RUN IT INSIDE A CONDITIONAL. This script is `set -e`, so a bare failing
+  # pipeline ABORTS the gate instead of recording FAILED — measured: a suite
+  # that exits 79 ("no tests ran") killed the whole run at rc 79, skipping
+  # every later check and printing no summary. `set -e` is suspended inside an
+  # `if` condition, which is why the original run_check has always used one.
+  local rc=0
+  if "$@" 2>&1 | tee "$log"; then
+    rc=0
+  else
+    rc=$?
+  fi
+  if [ "$rc" -eq 0 ]; then
+    # Only when the suite itself passed. Layering a count complaint on top of
+    # a real failure buries the diagnosis.
+    if bash tool/assert_test_count.sh "$log" "$min" "$name"; then
+      echo "  -> PASSED"
+    else
+      echo "  -> FAILED"
+      FAILED+=("$name")
+    fi
+  elif [ "$rc" -eq 77 ]; then
+    echo "  -> SKIPPED (did not run, checked nothing)"
+    SKIPPED+=("$name — did not run, checked nothing")
+  else
+    echo "  -> FAILED"
+    FAILED+=("$name")
+  fi
+  rm -f "$log"
+}
+
 # Helper: skip a check
 skip_check() {
   local name="$1"
@@ -283,7 +334,8 @@ fi
 # -------------------------------------------------------
 # 7. Dart Tests (unit)
 # -------------------------------------------------------
-run_check "dart test" dart test
+# Floor 500: 530 tests observed locally 2026-09-17.
+run_test_check "dart test" 500 dart test
 
 # -------------------------------------------------------
 # 8. Rust Gate — skip if no cargo
