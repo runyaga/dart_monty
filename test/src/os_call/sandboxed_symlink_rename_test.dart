@@ -70,6 +70,47 @@ void main() {
     );
   });
 
+  test('rename onto an INTERNAL symlink raises NotADirectoryError', () async {
+    // Containment PASSES here — the link points inside the root — so the
+    // rename reaches the destination-type switch. Before this was fixed, the
+    // link arm fell through to `Directory(...).renameSync(...)` and the OS
+    // failure escaped as a RAW dart:io FileSystemException:
+    //
+    //     FileSystemException: Rename failed ... (OS Error: Not a directory,
+    //     errno = 20)
+    //
+    // A raw FileSystemException past the OS-call boundary is the leak class
+    // fs_handlers.dart:192 records ("same leak class as the bridge arm fixed
+    // in 64fb4c8"): Python sees a Dart error instead of the OSError CPython
+    // would raise for the same call.
+    Directory('$rootPath/target').createSync();
+    File('$rootPath/target/existing.txt').writeAsStringSync('TARGET');
+    Link('$rootPath/alias_in').createSync('$rootPath/target');
+    Directory('$rootPath/src').createSync();
+
+    await expectLater(
+      handler('Path.rename', ['$rootPath/src', '$rootPath/alias_in'], null),
+      throwsA(
+        isA<OsCallException>()
+            .having(
+              (e) => e.pythonExceptionType,
+              'pythonExceptionType',
+              'NotADirectoryError',
+            )
+            .having((e) => e.message, 'message', contains('Errno 20')),
+      ),
+    );
+
+    // os.rename does not follow the final symlink, so the link and its target
+    // are both untouched.
+    expect(
+      FileSystemEntity.typeSync('$rootPath/alias_in', followLinks: false),
+      FileSystemEntityType.link,
+    );
+    expect(File('$rootPath/target/existing.txt').readAsStringSync(), 'TARGET');
+    expect(Directory('$rootPath/src').existsSync(), isTrue);
+  });
+
   test(
     'the source survives, so a refused rename is not a silent delete',
     () async {

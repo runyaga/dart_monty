@@ -451,7 +451,13 @@ void _assertDirRenameTarget({
   required FileSystemEntityType dstType,
 }) {
   switch (dstType) {
+    // A SYMLINK IS NOT A DIRECTORY. `dstType` uses followLinks: false, so a
+    // link destination used to fall through to renameSync and leak a raw
+    // FileSystemException (ENOTDIR) past the OS-call boundary. CPython raises
+    // NotADirectoryError here, which the file arm already produces. Measured
+    // and pinned in test/src/os_call/sandboxed_symlink_rename_test.dart.
     case FileSystemEntityType.file:
+    case FileSystemEntityType.link:
       throw OsCallException(
         "[Errno 20] Not a directory: '$dstArg'",
         pythonExceptionType: 'NotADirectoryError',
@@ -469,7 +475,6 @@ void _assertDirRenameTarget({
         );
       }
     case FileSystemEntityType.notFound:
-    case FileSystemEntityType.link:
     case FileSystemEntityType.unixDomainSock:
     case FileSystemEntityType.pipe:
       break;
