@@ -259,7 +259,23 @@ OsCallHandler sandboxedFsHandler({required Directory root}) {
         final srcArg = osArgString(args.first);
         final dstArg = osArgString(args[1]);
         final oldSafe = safeResolved(operation, srcArg);
-        final newSafe = safePath(operation, dstArg);
+        // safeResolved, NOT safePath. The destination was lexical-only, so
+        // with `escape` a symlink pointing out of the root,
+        // `rename('src.txt', 'escape/leaked.txt')` moved the file OUTSIDE the
+        // sandbox — measured, "landed outside? true". Every other write path
+        // in this file was routed through safeResolved; rename's destination
+        // was missed.
+        final newSafe = safeResolved(operation, dstArg);
+
+        // SELF-RENAME IS A NO-OP, and getting this wrong destroys data.
+        // POSIX: if the two names refer to the same existing entry, rename
+        // succeeds and changes nothing. Without this guard the empty-directory
+        // branch below deleted the "target" — which IS the source — and then
+        // failed to move it. Measured: `rename('d', 'd')` left
+        // `dir still exists? false`.
+        if (oldSafe == newSafe) {
+          return newSafe;
+        }
         final srcType = FileSystemEntity.typeSync(oldSafe);
         final dstType = FileSystemEntity.typeSync(newSafe);
 
@@ -277,14 +293,17 @@ OsCallHandler sandboxedFsHandler({required Directory root}) {
                 pythonExceptionType: 'NotADirectoryError',
               );
             case FileSystemEntityType.directory:
-              final target = Directory(newSafe);
-              if (target.listSync().isNotEmpty) {
+              // Report the non-empty case ourselves so the message matches
+              // CPython, then let native rename(2) do the replacement. It
+              // replaces an empty target ATOMICALLY; deleting first and
+              // renaming after is not atomic, and a failure between the two
+              // leaves the target gone and the source in place.
+              if (Directory(newSafe).listSync().isNotEmpty) {
                 throw OsCallException(
                   "[Errno 39] Directory not empty: '$dstArg'",
                   pythonExceptionType: 'OSError',
                 );
               }
-              target.deleteSync();
             case FileSystemEntityType.notFound:
             case FileSystemEntityType.link:
             case FileSystemEntityType.unixDomainSock:

@@ -237,7 +237,22 @@ Future<String> _apiRun(String code) async {
 
   return jsonEncode({
     'ok': result['ok'],
-    if (result['value'] != null) 'value': result['value'],
+    // DECODE THE WIRE ENVELOPE. `MontyValue.toJson()` means toWireJson() --
+    // its own doc says "JSON compatible with the Rust side" -- so passing it
+    // straight to the page printed the transport form:
+    //
+    //   {"__type":"dict","value":{"bytes":[0,1,2,255],...}}
+    //
+    // pydantic-monty 0.0.23, the reference, returns a plain dict for the same
+    // script: {'bytes': [0, 1, 2, 255], 'len': 4, 'type': "<class 'bytes'>"},
+    // and core's `.dartValue` matches it exactly. Only this display path
+    // leaked the envelope.
+    //
+    // This is the SAME unwrap already used for os-call arguments above
+    // ("so handlers see the same dartValue payloads they get from the REPL
+    // flow") -- it was applied to the inputs and not to the result.
+    if (result['value'] != null)
+      'value': MontyValue.fromJson(result['value']).dartValue,
     if (result['error'] != null) 'error': result['error'],
     'osCallLog': _osCallLog,
     'files': files,

@@ -445,6 +445,44 @@ void main() {
           );
         });
 
+        test(
+          'self-rename of an EMPTY directory is a NO-OP, not deletion',
+          () async {
+            // POSIX: if both names refer to the same existing entry, rename
+            // succeeds and changes nothing. The first version of the matrix
+            // treated the destination as a distinct empty directory, deleted it
+            // -- which IS the source -- and then failed to move it. Measured:
+            // `dir still exists? false`. Data loss, worse than the four-line
+            // implementation it replaced.
+            Directory('$rootPath/same').createSync();
+            await handler('Path.rename', [
+              '$rootPath/same',
+              '$rootPath/same',
+            ], null);
+            expect(Directory('$rootPath/same').existsSync(), isTrue);
+          },
+        );
+
+        test('destination is symlink-checked, not lexical-only', () {
+          // rename's DESTINATION used safePath (lexical only) while every
+          // other write path used safeResolved. With `escape` a symlink out of
+          // the root, `rename('src.txt', 'escape/leaked.txt')` moved the file
+          // OUTSIDE the sandbox -- measured, "landed outside? true".
+          final outside = Directory.systemTemp.createTempSync('monty_out_ren_');
+          addTearDown(() => outside.deleteSync(recursive: true));
+          Link('$rootPath/escape').createSync(outside.path);
+          File('$rootPath/src.txt').writeAsStringSync('SECRET');
+
+          expect(
+            () => handler('Path.rename', [
+              '$rootPath/src.txt',
+              '$rootPath/escape/leaked.txt',
+            ], null),
+            throwsA(isA<OsCallException>()),
+          );
+          expect(File('${outside.path}/leaked.txt').existsSync(), isFalse);
+        });
+
         test('directory -> EMPTY directory replaces it', () async {
           Directory('$rootPath/sd4').createSync();
           File('$rootPath/sd4/x.txt').writeAsStringSync('v');
