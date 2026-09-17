@@ -609,9 +609,26 @@ jobs:
             echo "FAIL: lcov produced an empty merged tracefile."
             exit 1
           fi
-          echo "unit        : $(grep -c '^DA:' coverage/lcov.info) DA records"
-          echo "integration : $(grep -c '^DA:' coverage-integration/lcov.info) DA records"
-          echo "merged      : $(grep -c '^DA:' merged.info) DA records"
+          # COVERED lines, not DA records. `grep -c '^DA:'` counts every
+          # instrumented line whether hit or not, so all three tracefiles
+          # report the SAME number by construction — measured on run
+          # 35252740172, which printed "1898 / 1898 / 1898" and would have
+          # printed it for a merge that did nothing at all. A diagnostic that
+          # cannot distinguish success from failure is worse than none.
+          #
+          # `^DA:<line>,<hits>` with hits not starting 0 is a covered line.
+          covered() { grep -cE '^DA:[0-9]+,[1-9]' "$1" || true; }
+          u=$(covered coverage/lcov.info)
+          i=$(covered coverage-integration/lcov.info)
+          m=$(covered merged.info)
+          echo "covered lines — unit: $u  integration: $i  merged: $m"
+          if [ "$m" -lt "$u" ] || [ "$m" -lt "$i" ]; then
+            echo "FAIL: the merge LOST coverage ($m < unit $u or integration $i)."
+            echo "  A union cannot cover fewer lines than either input. This is"
+            echo "  lcov misbehaving or the wrong operator, not a smaller number"
+            echo "  to accept."
+            exit 1
+          fi
       - name: Upload merged lcov artifact
         if: always()
         uses: actions/upload-artifact@v7
