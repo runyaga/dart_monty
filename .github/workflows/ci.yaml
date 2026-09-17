@@ -92,15 +92,26 @@ jobs:
       - name: The llms.txt surface must survive
         run: |
           set -euo pipefail
-          # MEASURED 2026-09-16: zensical drops llms.txt, llms-full.txt and 27
+          # MEASURED 2026-09-16: zensical drops llms.txt, llms-full.txt and the
           # raw .md files, prints NOTHING about it, and exits 0. Until issue
-          # #451 step 6 is decided, mkdocs remains the producer of those 29
+          # #451 step 6 is decided, mkdocs remains the producer of those
           # endpoints and this asserts they are still produced.
+          #
+          # THIS IS A FLOOR, NOT A FINGERPRINT. It was `-eq 27` and broke the
+          # moment a page was added (docs/architecture/core-boundary.md in
+          # 055179e -> 28 found, expected 27, CI red for two commits). An exact
+          # count turns "we added documentation" into a build failure, which
+          # teaches contributors to delete the check rather than the page.
+          #
+          # `-lt` still catches what this exists to catch: zensical silently
+          # dropping the raw .md surface would send the count toward zero, not
+          # past the floor. Raise the floor when the doc set grows
+          # substantially; never lower it to make a run pass.
           test -s out-mk/llms.txt
           test -s out-mk/llms-full.txt
           n=$(find out-mk -name '*.md' | wc -l)
-          echo "raw .md endpoints: $n"
-          [ "$n" -eq 27 ] || { echo "FAIL: expected 27 raw .md endpoints, found $n"; exit 1; }
+          echo "raw .md endpoints: $n (floor 27)"
+          [ "$n" -ge 27 ] || { echo "FAIL: expected at least 27 raw .md endpoints, found $n"; exit 1; }
 
       - uses: actions/upload-artifact@v4
         if: always()
