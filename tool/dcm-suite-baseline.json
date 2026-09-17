@@ -1,6 +1,6 @@
 {
   "_dcm_version": "1.39.0",
-  "_grand_total": 247,
+  "_grand_total": 245,
   "checks": {
     "calculate-metrics": {
       "by_file": {
@@ -30,13 +30,13 @@
       "by_file": {
         "example/pubspec.yaml": 2,
         "example/web/pubspec.yaml": 1,
-        "pubspec.yaml": 3
+        "pubspec.yaml": 1
       },
       "by_rule": {
-        "promotion-dependency-issue": 4,
+        "promotion-dependency-issue": 2,
         "unused-dependency-issue": 2
       },
-      "total": 6
+      "total": 4
     },
     "check-exports-completeness": {
       "by_file": {},

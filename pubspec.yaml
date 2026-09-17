@@ -14,7 +14,6 @@ environment:
   sdk: ^3.10.0
 
 dependencies:
-  collection: ^1.18.0
   dart_monty_core: ^0.18.1
   dinja: ^1.0.0
   file: ^7.0.0
@@ -22,16 +21,28 @@ dependencies:
   path: ^1.8.0
   signals_core: ^6.2.0
   struct_log: ^0.3.0
-  test: ^1.25.0
   # Used by DartMonty.ensureInitialized() on web for dynamic <script>
   # injection of the dart_monty_core bridge. No-op on native targets.
   web: ^1.1.0
 
 dev_dependencies:
+  # `collection` and `test` were REGULAR dependencies, which made every
+  # consumer of this package pull the test framework into their own
+  # dependency graph. Neither is imported anywhere under lib/ -- measured,
+  # zero files -- and `lib/dart_monty_testing.dart`, the one public surface
+  # that could plausibly need `test`, only re-exports from dart_monty_core.
+  # `collection` has a single user, test/integration/demo_page_boot_test.dart.
+  collection: ^1.18.0
   # Declared, not `pub global activate`d: activate resolves the latest
   # coverage package from pub.dev on every CI run, which leaves the tool
   # that PRODUCES the coverage number unpinned while the number is gated.
+  #
+  # `dcm check-dependencies` reports this as "coverage is not used" and that
+  # is a FALSE POSITIVE, kept rather than silenced: it is used as a BINARY,
+  # `dart run coverage:format_coverage` (.github/workflows/ci.yaml:275), not
+  # as a Dart import, so there is nothing for a source scan to find.
   coverage: ^1.15.0
+  test: ^1.25.0
   very_good_analysis: ^10.0.0
 
 # 0.19 integration branch ONLY. dart_monty_core 0.19.0 is not published, so CI
