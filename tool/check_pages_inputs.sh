@@ -177,5 +177,36 @@ for f in $(grep -oE 'bin/[a-z_]+\.dart' .github/workflows/pages.yaml | sort -u);
   [ -f "example/web/$f" ] || miss "pages.yaml compiles example/web/$f, which does not exist"
 done
 
-[ "$RC" = "0" ] && echo "PASS — every path pages.yaml copies or compiles exists"
+# THE SETS THIS CHECK ITERATES MUST NOT BE EMPTY.
+#
+# Every assertion above is a `for` over a list extracted by grep, and a `for`
+# over nothing succeeds. If example/web/web/ is renamed, or pages.yaml stops
+# spelling `bin/*.dart`, every loop body is skipped and this prints PASS
+# having verified nothing -- while the published site breaks in exactly the
+# way the header describes, silently, because Pages keeps serving the last
+# good build.
+#
+# Measured 2026-09-17: 1 requirements file, 7 dart.js sources, 26 hrefs,
+# 7 bin/*.dart entrypoints. Floors sit under those so ordinary churn does not
+# trip them. Raise when the site grows; never lower to make a run pass.
+N_REQS=$(grep -oE 'pip install -r [A-Za-z0-9._/-]+' .github/workflows/pages.yaml | wc -l | tr -d ' ')
+N_JS=$(grep -rhoE 'src="[a-z_]+\.dart\.js"' example/web/web/*.html 2>/dev/null | wc -l | tr -d ' ')
+N_HREF=$(grep -ohE 'href="[^"]+\.html"' example/web/web/*.html 2>/dev/null | wc -l | tr -d ' ')
+N_BIN=$(grep -oE 'bin/[a-z_]+\.dart' .github/workflows/pages.yaml | sort -u | wc -l | tr -d ' ')
+
+set_floor() {  # set_floor <label> <got> <min> <what it is extracted from>
+  if [ "${2:-0}" -lt "$3" ]; then
+    echo "FAIL: extracted only ${2:-0} $1 (expected >= $3), from $4."
+    echo "  The extraction stopped matching. Every check above iterates these"
+    echo "  sets, and a loop over nothing succeeds — this would report PASS"
+    echo "  having verified nothing."
+    RC=1
+  fi
+}
+set_floor "requirements file(s)"  "$N_REQS" 1  ".github/workflows/pages.yaml"
+set_floor "dart.js source(s)"     "$N_JS"   5  "example/web/web/*.html"
+set_floor "href(s)"               "$N_HREF" 15 "example/web/web/*.html"
+set_floor "bin/*.dart entry(s)"   "$N_BIN"  5  ".github/workflows/pages.yaml"
+
+[ "$RC" = "0" ] && echo "PASS — every path pages.yaml copies or compiles exists ($N_REQS reqs / $N_JS dart.js / $N_HREF hrefs / $N_BIN entrypoints checked)"
 exit $RC
