@@ -364,6 +364,18 @@ jobs:
             exit 1
           fi
           echo "integration lcov lines: $(wc -l < coverage-integration/lcov.info)"
+      - name: Upload integration coverage to Codecov
+        # A SECOND FLAG, not a replacement. The unit job uploads with
+        # `flags: dart`; Codecov combines reports across flags, so the project
+        # figure becomes the union instead of the unit-only 82.19% it has been
+        # reporting. Without this the patch gate below would judge on merged
+        # coverage while the Codecov badge kept showing the smaller number —
+        # two answers to the same question, which is worse than one wrong one.
+        uses: codecov/codecov-action@v7
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage-integration/lcov.info
+          flags: integration
       - name: Upload integration lcov artifact
         if: always()
         uses: actions/upload-artifact@v7
