@@ -21,9 +21,11 @@ fi
 
 FAILED=()
 SKIPPED=()
+RAN=0
 
 # Helper: run a check, track failures
 run_check() {
+  RAN=$((RAN + 1))
   local name="$1"
   shift
   echo ""
@@ -64,6 +66,7 @@ run_check() {
 # The floor is set UNDER the observed count so ordinary churn does not trip
 # it. Raise it when the suite grows; never lower it to make a run pass.
 run_test_check() {
+  RAN=$((RAN + 1))
   local name="$1"
   local min="$2"
   shift 2
@@ -105,6 +108,7 @@ run_test_check() {
 
 # Helper: skip a check
 skip_check() {
+  RAN=$((RAN + 1))
   local name="$1"
   local reason="$2"
   echo ""
@@ -311,7 +315,13 @@ elif [ "${DCM_ALLOW_MISSING:-0}" = "1" ]; then
   # 253 findings across eight checks (9 lint + 244 suite), so `dcm` being absent
   # means this gate verified none of them. That is a decision the caller makes
   # explicitly, never one the gate makes on the caller's behalf.
-  skip_check "dcm" "dcm absent, SKIPPED ON PURPOSE (DCM_ALLOW_MISSING=1) — 253 findings unchecked"
+  # TWO LINES, because two ratchets are being skipped. This was a single
+  # "dcm" entry, which under-reported the summary (one line for two checks)
+  # AND made the number of checks this gate runs depend on which arm was
+  # taken — 2 everywhere else, 1 here — so the step_count guard below could
+  # not be exact. Naming both fixes the report and the count together.
+  skip_check "dcm ratchet"       "dcm absent, SKIPPED ON PURPOSE (DCM_ALLOW_MISSING=1) — findings unchecked"
+  skip_check "dcm suite ratchet" "dcm absent, SKIPPED ON PURPOSE (DCM_ALLOW_MISSING=1) — findings unchecked"
 else
   # NOT a skip. `if command -v dcm` used to fall through to skip_check here, so
   # a machine without dcm got a green gate that had checked nothing DCM-related
@@ -384,6 +394,33 @@ if [ ${#FAILED[@]} -gt 0 ]; then
   exit 1
 fi
 
+# THE GATE MUST RUN EVERY CHECK IT HAS.
+#
+# PASSED is decided by FAILED[] being empty. A check that stops being INVOKED
+# never appends to FAILED, so it cannot fail — the gate passes having verified
+# less, and nothing in the summary says so. A run_check line lost to a merge,
+# a conditional arm that reports nothing, an early return: all silent.
+#
+# EXACT, not a floor: a floor lets checks disappear one at a time, which is
+# the drift this exists to stop. Adding or removing one is deliberate and gets
+# a deliberate edit here. Ported from dart_monty_core c3f2c98.
+EXPECT_CHECKS=18
+if [ "$RAN" != "$EXPECT_CHECKS" ]; then
+  echo ""
+  echo "  FAILED: ran $RAN checks, expected $EXPECT_CHECKS"
+  if [ "$RAN" -lt "$EXPECT_CHECKS" ]; then
+    echo "    A check stopped running. The gate cannot fail on a check it"
+    echo "    never invoked, so this would otherwise be PASSED while"
+    echo "    verifying less than it did yesterday."
+  else
+    echo "    A check was added. Raise EXPECT_CHECKS in tool/gate.sh in the"
+    echo "    same commit, so the next person inherits the new number."
+  fi
+  echo ""
+  echo "  GATE: FAILED"
+  exit 1
+fi
+
 echo ""
-echo "  GATE: PASSED (${#SKIPPED[@]} skipped)"
+echo "  GATE: PASSED ($RAN checks, ${#SKIPPED[@]} skipped)"
 exit 0
