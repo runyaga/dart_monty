@@ -88,6 +88,32 @@ OsCallHandler sandboxedFsHandler({required Directory root}) {
   }
 
   return (operation, args, kwargs) async {
+    // EVERY ARM BELOW READS `args.first`. GUARD IT ONCE, HERE.
+    //
+    // All 18 `Path.*` arms take a path as their first argument, and each one
+    // read it with `args.first` — which throws `StateError` on an empty list.
+    // `StateError` is an `Error`, not an `Exception`, so it is NOT caught by
+    // `on Exception` handlers and escapes the OS-call protocol entirely
+    // instead of becoming a Python-visible error.
+    //
+    // Core does the opposite and is the model here
+    // (`memory_mounted_os_handler.dart:256-257`):
+    //
+    //     final rawPath = args.firstOrNull;
+    //     if (rawPath is! String) return notMine(op, args, kwargs);
+    //
+    // A malformed call is "not mine", not a crash: declining lets a composed
+    // sibling answer, or lets `osCallNoHandlerDefault` produce the refusal the
+    // call documents. Throwing gave neither a chance — the same protocol
+    // mistake `9269e61` fixed for unknown OPERATIONS, in the argument path.
+    //
+    // Deliberately `firstOrNull is! String` and not just an emptiness check:
+    // a non-String first argument reaches `osArgString`, which throws a Dart
+    // `ArgumentError` whose type name would leak into the sandbox.
+    if (args.firstOrNull is! String) {
+      throw OsCallNotHandledException(operation);
+    }
+
     switch (operation) {
       case PathOp.open:
         // Keep the Python path on the handle (no host-path leak); each

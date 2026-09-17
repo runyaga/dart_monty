@@ -76,6 +76,7 @@ plugins:
           - tutorials/llm-prompt-rules.md
         Deep Dives:
           - architecture/overview.md
+          - architecture/core-boundary.md
           - deep-dives/sandbox-architecture.md
           - deep-dives/oscall-vfs.md
           - deep-dives/error-hierarchy.md
@@ -109,6 +110,7 @@ nav:
       - LLM Prompt Rules: tutorials/llm-prompt-rules.md
   - Deep Dives:
       - Architecture Overview: architecture/overview.md
+      - The dart_monty_core Boundary: architecture/core-boundary.md
       - Sandbox Architecture: deep-dives/sandbox-architecture.md
       - OsCall / VFS Layer: deep-dives/oscall-vfs.md
       - Error Hierarchy: deep-dives/error-hierarchy.md

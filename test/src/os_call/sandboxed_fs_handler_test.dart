@@ -507,6 +507,35 @@ void main() {
           );
         });
 
+        test('an EMPTY argument list declines, it does not crash', () {
+          // Every arm read `args.first`, which throws StateError on an empty
+          // list. StateError is an Error, not an Exception, so it escaped the
+          // OS-call protocol instead of becoming a Python-visible refusal.
+          // Core declines instead (memory_mounted_os_handler.dart:256-257).
+          for (final op in [
+            'Path.exists',
+            'Path.read_text',
+            'Path.unlink',
+            'Path.rename',
+            'Path.iterdir',
+          ]) {
+            expect(
+              () => handler(op, const [], null),
+              throwsA(isA<OsCallNotHandledException>()),
+              reason: '$op with no args must decline, not throw StateError',
+            );
+          }
+        });
+
+        test('a NON-STRING first argument declines too', () {
+          // Otherwise it reaches osArgString, which throws a Dart
+          // ArgumentError whose type name leaks into the sandbox.
+          expect(
+            () => handler('Path.exists', const [42], null),
+            throwsA(isA<OsCallNotHandledException>()),
+          );
+        });
+
         test('query ops do not see through a symlink out of the root', () {
           // exists / is_file / is_dir / iterdir used the LEXICAL safePath, so
           // with `escape` a symlink pointing out of the root the guest could
