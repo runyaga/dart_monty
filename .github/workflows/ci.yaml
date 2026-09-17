@@ -558,26 +558,23 @@ jobs:
             --reporter=expanded 2>&1 | tee /tmp/wasm.log
           bash tool/assert_test_count.sh /tmp/wasm.log 8 wasm
 
-  patch-coverage:
-    # NAMED FOR WHAT IT ENFORCES. This said "(70%)" while running
-    # `--fail-under=50`, so every reader of a green tick was told a threshold
-    # that was not applied. Raising 50 -> 70 is a policy change that can fail
-    # real PRs and is left as a deliberate decision; renaming is free and makes
-    # the claim true today.
-    name: Patch coverage gate (50%)
-    if: github.event_name == 'pull_request'
+  coverage-merge:
+    # RUNS ON PUSHES TOO, deliberately. The merge used to live inside
+    # patch-coverage, which is `if: github.event_name == 'pull_request'`, so
+    # `lcov --add-tracefile` was SKIPPED on every push and had never actually
+    # executed — a step that has only ever been skipped is not a step that
+    # passes. Splitting it out means each push exercises the real command and a
+    # breakage surfaces on the commit that caused it rather than on somebody's
+    # next pull request.
+    #
+    # Same shape as dart_monty_core's `coverage-merge` job, which is gated on
+    # code changing rather than on the event being a PR.
+    name: Coverage (merged unit + integration)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [test, test-integration]
     steps:
       - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-python@v7
-        with:
-          python-version: "3.12"
-      - name: Install diff-cover
-        run: pip install diff-cover
       - name: Download unit lcov artifact
         uses: actions/download-artifact@v8
         with:
@@ -588,6 +585,65 @@ jobs:
         with:
           name: lcov-integration
           path: coverage-integration
+      - name: Merge tracefiles
+        run: |
+          sudo apt-get update && sudo apt-get install -y lcov
+          # REFUSE rather than degrade. Falling back to one tracefile would
+          # silently restore the unit-only measurement this merge exists to
+          # replace, and a gate that quietly measures less is the failure this
+          # repo keeps finding.
+          for f in coverage/lcov.info coverage-integration/lcov.info; do
+            if [ ! -s "$f" ]; then
+              echo "FAIL: $f is missing or empty. Merging without it would"
+              echo "  judge that suite's lines as uncovered."
+              exit 1
+            fi
+          done
+          # `--ignore-errors unused` ONLY: `inconsistent` and `corrupt` are
+          # lcov 2.x categories, and an unknown category is itself an error.
+          lcov --add-tracefile coverage/lcov.info \
+            --add-tracefile coverage-integration/lcov.info \
+            --ignore-errors unused \
+            -o merged.info
+          if [ ! -s merged.info ]; then
+            echo "FAIL: lcov produced an empty merged tracefile."
+            exit 1
+          fi
+          echo "unit        : $(grep -c '^DA:' coverage/lcov.info) DA records"
+          echo "integration : $(grep -c '^DA:' coverage-integration/lcov.info) DA records"
+          echo "merged      : $(grep -c '^DA:' merged.info) DA records"
+      - name: Upload merged lcov artifact
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: lcov-merged
+          path: merged.info
+
+  patch-coverage:
+    # NAMED FOR WHAT IT ENFORCES. This said "(70%)" while running
+    # `--fail-under=50`, so every reader of a green tick was told a threshold
+    # that was not applied. Raising 50 -> 70 is a policy change that can fail
+    # real PRs and is left as a deliberate decision; renaming is free and makes
+    # the claim true today.
+    name: Patch coverage gate (50%)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [coverage-merge]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install diff-cover
+        run: pip install diff-cover
+      - name: Download merged tracefile
+        uses: actions/download-artifact@v8
+        with:
+          name: lcov-merged
+          path: coverage
       - name: Check patch coverage
         run: |
           sudo apt-get update && sudo apt-get install -y lcov
@@ -603,41 +659,22 @@ jobs:
           # Asserted rather than deleted: dropping the branch would leave the
           # contract to whatever `lcov --remove` happens to do with an empty
           # file, which is outsourcing a gate to a tool's incidental behaviour.
-          if [ ! -s coverage/lcov.info ]; then
-            echo "FAIL: coverage/lcov.info is empty — the coverage step produced"
-            echo "  nothing, so this gate would verify nothing. That is a broken"
-            echo "  pipeline, not a reason to pass."
+          # THE MERGED TRACEFILE, produced by the coverage-merge job.
+          #
+          # The merge used to happen HERE, and this job is
+          # `if: github.event_name == 'pull_request'` — so `lcov
+          # --add-tracefile` was skipped on every push and had never actually
+          # run. It now lives in coverage-merge, which runs on pushes too, so
+          # the command is exercised on the commit that changes it rather than
+          # on somebody's next PR.
+          if [ ! -s coverage/merged.info ]; then
+            echo "FAIL: coverage/merged.info is missing or empty."
+            echo "  The coverage-merge job produced nothing, so this gate would"
+            echo "  verify nothing. That is a broken pipeline, not a pass."
             exit 1
           fi
-          # MERGE UNIT AND INTEGRATION BEFORE JUDGING THE PATCH.
-          #
-          # This gate used coverage/lcov.info alone, which is the UNIT job's
-          # output. Code exercised only by the integration suite therefore read
-          # as uncovered, and a PR could fail a 50% patch gate its own tests
-          # satisfy. Measured on this tree: 178 lines are integration-only,
-          # 82.19% unit against 91.57% merged.
-          #
-          # REFUSE rather than degrade if either input is missing. Falling back
-          # to one file would silently restore the old behaviour, and a gate
-          # that quietly measures less is the failure this repo keeps finding.
-          if [ ! -s coverage-integration/lcov.info ]; then
-            echo "FAIL: coverage-integration/lcov.info is missing or empty."
-            echo "  Merging only the unit tracefile would judge integration-"
-            echo "  tested lines as uncovered, which is what this merge exists"
-            echo "  to stop. Fix the integration coverage step."
-            exit 1
-          fi
-          # `--ignore-errors unused` ONLY, matching the proven invocation
-          # below. `inconsistent` and `corrupt` are lcov 2.x categories and an
-          # unknown category is itself an error, so adding them to a command
-          # that has never run on this runner would risk failing for the
-          # reason it was meant to tolerate.
-          lcov --add-tracefile coverage/lcov.info \
-            --add-tracefile coverage-integration/lcov.info \
-            --ignore-errors unused \
-            -o merged-coverage.info
-          echo "merged: $(wc -l < merged-coverage.info) lines from unit + integration"
-          lcov --remove merged-coverage.info \
+          echo "merged tracefile: $(grep -c '^DA:' coverage/merged.info) DA records"
+          lcov --remove coverage/merged.info \
             --ignore-errors unused \
             '*/generated/*' \
             -o filtered-coverage.info
