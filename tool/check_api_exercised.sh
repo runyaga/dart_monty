@@ -144,7 +144,28 @@ for pat in ('test/integration/**/*.dart', 'example/*.dart', 'example/*/bin/*.dar
     real_files.extend(
         p for p in pathlib.Path('.').glob(pat) if '.dart_tool' not in str(p)
     )
-corpus = {p: p.read_text(errors='replace') for p in real_files}
+# COMMENTS ARE NOT CALLS.
+#
+# The match is textual — `.name(` anywhere in a corpus file. A doc comment
+# that QUOTES the call it is describing therefore satisfied the check without
+# any code running. Caught 2026-09-17 while closing dart_monty's last gap: a
+# new test's header comment contained `parent?.emitChildEvent(childHandle,
+# event)` as prose, and that alone flipped the entry point to "exercised"
+# before the test body was even considered.
+#
+# That is the same class of defect this check exists to find — something that
+# looks like coverage and is not — so strip line and block comments before
+# searching. Strings are left alone: a call written inside a string literal is
+# vanishingly rare next to a call quoted in a comment, which is routine.
+_LINE_COMMENT = re.compile(r'//[^\n]*')
+_BLOCK_COMMENT = re.compile(r'/\*.*?\*/', re.S)
+
+def _strip_comments(text):
+    return _LINE_COMMENT.sub('', _BLOCK_COMMENT.sub('', text))
+
+corpus = {
+    p: _strip_comments(p.read_text(errors='replace')) for p in real_files
+}
 
 if len(corpus) < 25:
     print(f'FAIL: the real-backend surface is only {len(corpus)} files.')

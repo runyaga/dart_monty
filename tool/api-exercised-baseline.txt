@@ -2,8 +2,6 @@
 # One name per line, reason after a #. Empty is the goal.
 #
 # Ported from dart_monty_core, where the same check found six gaps the moment
-# it stopped reading a hard-coded file list. Here it finds two, and both have
-# measured reasons rather than "hard to test".
+# it stopped reading a hard-coded file list. It found two here; one is closed.
 
 ensureInitialized  # Flutter Web entry point. On native it is a no-op stub (lib/src/web/ensure_initialized_stub.dart); on web it injects a <script> for the core bridge. This repo's demos are dart2js/dart2wasm, not Flutter, so nothing in the corpus can reach it — example/web/web/index.html:425 documents it for consumers and no Dart file calls it.
-emitChildEvent     # Reached only through SandboxExtension, at sandbox.dart:696 `parent?.emitChildEvent(...)`, where `parent` arrives via HostContext. test/src/bridge/monty_runtime_child_events_test.dart calls it DIRECTLY on a runtime, which proves the method works but not that the sandbox path wires it. Closing this needs a spawn-a-child integration test that asserts BridgeChildEvent on the parent's `events` stream.
