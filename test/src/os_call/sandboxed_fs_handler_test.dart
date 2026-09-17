@@ -463,6 +463,53 @@ void main() {
           },
         );
 
+        test('query ops do not see through a symlink out of the root', () {
+          // exists / is_file / is_dir / iterdir used the LEXICAL safePath, so
+          // with `escape` a symlink pointing out of the root the guest could
+          // probe and ENUMERATE the host filesystem. Measured before the fix:
+          //   exists escape/secret.txt -> true;  iterdir escape -> real names.
+          // No op here creates a symlink, so this needs one already inside the
+          // root -- which is what a mounted directory is.
+          final outside = Directory.systemTemp.createTempSync('monty_out_q_');
+          addTearDown(() => outside.deleteSync(recursive: true));
+          File('${outside.path}/secret.txt').writeAsStringSync('TOPSECRET');
+          Directory('${outside.path}/secretdir').createSync();
+          Link('$rootPath/escape').createSync(outside.path);
+
+          for (final op in ['Path.exists', 'Path.is_file', 'Path.is_dir']) {
+            expect(
+              () => handler(op, ['$rootPath/escape/secret.txt'], null),
+              throwsA(isA<OsCallException>()),
+              reason: '$op leaked through the symlink',
+            );
+          }
+          expect(
+            () => handler('Path.iterdir', ['$rootPath/escape'], null),
+            throwsA(isA<OsCallException>()),
+          );
+          // The negative oracle is closed too: a NON-existent path outside
+          // must refuse, not answer false.
+          expect(
+            () => handler('Path.exists', ['$rootPath/escape/nope.txt'], null),
+            throwsA(isA<OsCallException>()),
+          );
+        });
+
+        test('is_symlink still answers for a link INSIDE the root', () async {
+          // The fix must not over-refuse. A symlink that lives in the sandbox
+          // is a legitimate thing to ask about even when it points outside:
+          // CPython says True and the link itself is contained. Containment is
+          // checked on the PARENT, which is what gets traversed.
+          final outside = Directory.systemTemp.createTempSync('monty_out_s_');
+          addTearDown(() => outside.deleteSync(recursive: true));
+          Link('$rootPath/mylink').createSync(outside.path);
+
+          expect(
+            await handler('Path.is_symlink', ['$rootPath/mylink'], null),
+            isTrue,
+          );
+        });
+
         test('destination is symlink-checked, not lexical-only', () {
           // rename's DESTINATION used safePath (lexical only) while every
           // other write path used safeResolved. With `escape` a symlink out of

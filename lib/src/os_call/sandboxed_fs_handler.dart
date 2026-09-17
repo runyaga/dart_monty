@@ -130,24 +130,50 @@ OsCallHandler sandboxedFsHandler({required Directory root}) {
           ..parent.createSync(recursive: true)
           ..writeAsBytesSync(bytes, mode: FileMode.append);
         return bytes.length;
+      // THE QUERY OPS ARE A FILESYSTEM ORACLE IF THEY ARE NOT RESOLVED.
+      //
+      // These four and `iterdir` were the last operands still on the LEXICAL
+      // `safePath`. The write paths were all moved to `safeResolved`; these
+      // were left because they do not create anything -- but reading is the
+      // whole point of an oracle. Measured 2026-09-17 with `escape` a symlink
+      // inside the root pointing out of it:
+      //
+      //   exists  escape/secret.txt  -> true
+      //   is_file escape/secret.txt  -> true
+      //   is_dir  escape/secretdir   -> true
+      //   exists  escape/nothere.txt -> false   <- a working negative, so the
+      //                                            guest can probe host paths
+      //
+      // The guest cannot CREATE the symlink (no op in this handler makes one),
+      // so this needs a link already inside the root -- a mounted directory or
+      // a convenience link. That bounds it; it does not remove it.
       case PathOp.exists:
         return FileSystemEntity.typeSync(
-              safePath(operation, osArgString(args.first)),
+              safeResolved(operation, osArgString(args.first)),
             ) !=
             FileSystemEntityType.notFound;
       case PathOp.isFile:
         return FileSystemEntity.typeSync(
-              safePath(operation, osArgString(args.first)),
+              safeResolved(operation, osArgString(args.first)),
             ) ==
             FileSystemEntityType.file;
       case PathOp.isDir:
         return FileSystemEntity.typeSync(
-              safePath(operation, osArgString(args.first)),
+              safeResolved(operation, osArgString(args.first)),
             ) ==
             FileSystemEntityType.directory;
       case PathOp.isSymlink:
+        // NOT the same shape as the three above. `is_symlink` must stat the
+        // link ITSELF (followLinks: false), and a symlink inside the root is a
+        // legitimate thing to ask about even when it points outside -- CPython
+        // answers True and the link is in the sandbox. So the containment
+        // check goes on the PARENT, which is the part that gets traversed,
+        // and the stat still runs on the unresolved path. Same split the
+        // `unlink` and `rmdir` arms already use.
+        final symlinkArg = osArgString(args.first);
+        safeResolved(operation, p.dirname(symlinkArg)); // traversal check only
         return FileSystemEntity.typeSync(
-              safePath(operation, osArgString(args.first)),
+              safePath(operation, symlinkArg),
               followLinks: false,
             ) ==
             FileSystemEntityType.link;
@@ -331,7 +357,10 @@ OsCallHandler sandboxedFsHandler({required Directory root}) {
         File(oldSafe).renameSync(newSafe);
         return newSafe;
       case PathOp.iterdir:
-        final safe = safePath(operation, osArgString(args.first));
+        // The worst of the five: it does not just answer yes/no, it ENUMERATES.
+        // Measured, listing through `escape` returned the real names of every
+        // entry in the directory outside the root.
+        final safe = safeResolved(operation, osArgString(args.first));
         return Directory(
           safe,
         ).listSync().map((e) => MontyPath(e.path)).toList();
