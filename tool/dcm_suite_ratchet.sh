@@ -110,7 +110,19 @@ if ! dcm_activated && { [ -z "${DCM_CI_KEY:-}" ] || [ -z "${DCM_EMAIL:-}" ]; }; 
   echo "  export DCM_EMAIL=...    # the purchase email"
   echo "  To run the gate without a licence, skipping this deliberately and"
   echo "  knowing it then checks nothing:"
-  echo "    DCM_SUITE_ALLOW_MISSING=1 bash tool/gate.sh"
+  # NAME THE UMBRELLA, NOT THIS SCRIPT'S OWN VARIABLE. The gate runs TWO dcm
+  # ratchets and DCM_SUITE_ALLOW_MISSING skips only this one, so the remedy
+  # printed here used to leave the gate failing on the other. Measured with a
+  # dcm shim that reports "not activated", credentials unset:
+  #
+  #   DCM_SUITE_ALLOW_MISSING=1 bash tool/gate.sh -> GATE: FAILED (dcm ratchet)
+  #   DCM_ALLOW_MISSING=1       bash tool/gate.sh -> GATE: PASSED, 4 skipped
+  #
+  # gate.sh exports both specific names when DCM_ALLOW_MISSING is set, so the
+  # umbrella is the only spelling that does what this sentence promises.
+  # DCM_SUITE_ALLOW_MISSING is still honoured, and is still the right thing to
+  # print for a DIRECT invocation of this script -- see the branch above.
+  echo "    DCM_ALLOW_MISSING=1 bash tool/gate.sh"
   exit 1
 fi
 
