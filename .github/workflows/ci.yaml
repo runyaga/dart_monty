@@ -113,7 +113,7 @@ jobs:
           echo "raw .md endpoints: $n (floor 27)"
           [ "$n" -ge 27 ] || { echo "FAIL: expected at least 27 raw .md endpoints, found $n"; exit 1; }
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: docs-build-comparison
@@ -282,7 +282,7 @@ jobs:
           flags: dart
       - name: Upload lcov artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: lcov-dart
           path: coverage/lcov.info
@@ -466,7 +466,7 @@ jobs:
         run: bash tool/check_demo_pages.sh
       - name: Upload the assembled site on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: demo-site
           # The compiled bundles are what a failure is usually about, so they
