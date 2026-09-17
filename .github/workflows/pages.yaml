@@ -34,14 +34,14 @@ jobs:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # ── Checkout dart_monty_core for its committed assets ─────────────
       # Assets live in dart_monty_core/lib/assets/ (under lib/ so Flutter
       # can resolve them via packages/dart_monty_core/...). Committed to
       # git (Mode A). No cargo/node build step is required — just check
       # out the repo and copy the files.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           repository: runyaga/dart_monty_core
           # MUST MATCH pubspec.yaml, example/pubspec.yaml and
@@ -61,7 +61,7 @@ jobs:
         with:
           sdk: 3.11.4
       - name: Cache Pub packages
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.pub-cache
           key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.yaml') }}
