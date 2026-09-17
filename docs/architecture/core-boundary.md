@@ -32,18 +32,27 @@ the architecture.
 
 ## How much of this package overlaps core
 
-`lib/src/` — 7,485 lines:
+`lib/src/` — **7,511 lines across seven directories plus one top-level file**:
 
 | subsystem | files | lines | core counterpart |
 |---|---:|---:|---|
+| `extensions/` | 6 | **1,988** | none |
 | `host/` | 9 | 1,188 | none |
+| **`os_call/`** | 11 | **1,218** | **`core/lib/src/mount/`, 1,865 lines** |
 | `bridge/` | 5 | 1,014 | none, except the driver loop (below) |
 | `extension/` | 4 | 984 | none |
 | `runtime/` | 9 | 883 | partial — adapters over `MontyRepl` |
-| **`os_call/`** | 11 | **1,192** | **`core/lib/src/mount/`, 1,865 lines** |
+| `web/` | 3 | 91 | none |
+| `introspection_functions.dart` | 1 | 145 | none |
 
-**One subsystem out of five overlaps — 15% of the implementation.** The rest is
-the layer's reason for existing.
+**One directory out of seven overlaps core — 16% of the implementation.** The
+rest is the layer's reason for existing.
+
+> **Note the two similarly named directories.** `extension/` (984 lines) is the
+> extension *mechanism* — `MontyExtension`, `ExtensionCoordinator`. `extensions/`
+> (1,988 lines) is the shipped *batteries* built on it, and is the single
+> largest unit in the package. An earlier revision of this document listed only
+> the former and undercounted the package.
 
 ## The one thing core cannot currently support
 
