@@ -148,7 +148,37 @@ OsCallHandler fsHandler(FileSystem fs) {
       case PathOp.rename:
         final oldPath = osArgString(args.first);
         final newPath = osArgString(args[1]);
-        fs.file(oldPath).renameSync(newPath);
+        // MAP THE OS ERROR, do not let dart:io through. `renameSync` was
+        // called bare, so every failure escaped as a raw FileSystemException
+        // and Python saw a Dart error instead of an OSError — the leak class
+        // recorded at the bottom of this function, and the same one fixed in
+        // the sandboxed handler for symlink destinations. `iterdir` directly
+        // below has always mapped its failure; rename never did.
+        //
+        // Measured 2026-09-17 on a LocalFileSystem: missing source -> errno 2,
+        // and the directory cases -> errno 21. Note 21 (EISDIR) arrives even
+        // for "rename a directory onto a file", where CPython raises
+        // NotADirectoryError, because this handler renames through
+        // `fs.file()` regardless of the entry's real type. That divergence is
+        // NOT fixed here — this change stops the leak and reports what the OS
+        // actually said; making the file/directory dispatch match CPython is a
+        // separate behavioural change.
+        try {
+          fs.file(oldPath).renameSync(newPath);
+        } on FileSystemException catch (e) {
+          final os = e.osError;
+          throw OsCallException(
+            '[Errno ${os?.errorCode}] ${os?.message ?? e.message}: '
+            "'$oldPath' -> '$newPath'",
+            pythonExceptionType: switch (os?.errorCode) {
+              2 => 'FileNotFoundError',
+              13 => 'PermissionError',
+              20 => 'NotADirectoryError',
+              21 => 'IsADirectoryError',
+              _ => 'OSError',
+            },
+          );
+        }
         return newPath;
       case PathOp.iterdir:
         final path = osArgString(args.first);
