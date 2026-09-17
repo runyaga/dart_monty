@@ -1,5 +1,6 @@
 // ignore_for_file: avoid-unsafe-collection-methods, avoid-non-null-assertion
 // ignore_for_file: avoid-unnecessary-futures, newline-before-return
+import 'package:dart_monty/src/os_call/os_error_mapping.dart';
 import 'package:dart_monty/src/os_call/os_handlers.dart';
 import 'package:dart_monty/src/os_call/path_op.dart';
 import 'package:dart_monty_core/dart_monty_core.dart'
@@ -22,7 +23,9 @@ import 'package:file/memory.dart';
 /// ```dart
 /// final handler = fsHandler(MemoryFileSystem());
 /// ```
-OsCallHandler fsHandler(FileSystem fs) {
+OsCallHandler fsHandler(FileSystem fs) => mapIoErrors(_rawFsHandler(fs));
+
+OsCallHandler _rawFsHandler(FileSystem fs) {
   return (operation, args, kwargs) async {
     switch (operation) {
       case PathOp.open:

@@ -2,6 +2,7 @@
 // ignore_for_file: avoid-unnecessary-futures, newline-before-return
 import 'dart:io';
 
+import 'package:dart_monty/src/os_call/os_error_mapping.dart';
 import 'package:dart_monty/src/os_call/os_handlers.dart';
 import 'package:dart_monty/src/os_call/path_op.dart';
 import 'package:dart_monty_core/dart_monty_core.dart'
@@ -23,7 +24,10 @@ import 'package:path/path.dart' as p;
 /// final tmp = Directory.systemTemp.createTempSync('monty_');
 /// final handler = sandboxedFsHandler(root: tmp);
 /// ```
-OsCallHandler sandboxedFsHandler({required Directory root}) {
+OsCallHandler sandboxedFsHandler({required Directory root}) =>
+    mapIoErrors(_rawSandboxedFsHandler(root: root));
+
+OsCallHandler _rawSandboxedFsHandler({required Directory root}) {
   final rootExact = root.resolveSymbolicLinksSync();
   final rootWithSep = rootExact.endsWith(Platform.pathSeparator)
       ? rootExact
