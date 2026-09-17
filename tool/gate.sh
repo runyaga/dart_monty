@@ -123,6 +123,12 @@ run_check "html escaping" bash tool/check_html_escaping.sh
 # returned 200. This assembles the site and drives headless Chrome at every
 # page. Exits 77 (a VISIBLE skip) when no browser is installed.
 run_check "demo pages boot" bash tool/check_demo_pages.sh
+# Ported from dart_monty_core. It asks one question of every public entry
+# point in lib/dart_monty.dart's export closure: does ANY file that runs
+# against a real backend call it? A unit test against a mock does not count —
+# that is the whole point, and in core the same check found six entry points
+# green on a mock and unproven on FFI/WASM.
+run_check "api exercised" bash tool/check_api_exercised.sh
 
 # -------------------------------------------------------
 # 4. Pymarkdown (all markdown files)
