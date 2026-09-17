@@ -81,12 +81,31 @@ fi
 # real reason -- "DCM is not activated" -- ends up buried in a stderr tail.
 # dcm only consults the credentials when it believes it is on CI, so CI=true is
 # set ALONGSIDE them, not instead of them.
-if [ -z "${DCM_CI_KEY:-}" ] || [ -z "${DCM_EMAIL:-}" ]; then
+# LOCAL ACTIVATION IS THE PRIMARY PATH; CI CREDENTIALS ARE THE FALLBACK.
+#
+# `dcm activate --license-key=...` registers a SEAT on this machine, and an
+# activated dcm needs no CI key, no email and no CI=true. The GitHub CI path is
+# not supported by this project, so demanding those credentials refused the only
+# path that is. Measured 2026-09-17 on an activated host, with DCM_CI_KEY,
+# DCM_EMAIL and CI all explicitly unset: this script exited 1 while
+# `dcm analyze lib --reporter=json` ran normally.
+#
+# Order matters: the CI key carries a MONTHLY RUN BUDGET and dies with "CI key
+# limit for this month has been exceeded"; a seat does not. Preferring the seat
+# spends the budget only when there is no seat.
+#
+# Ported from dart_monty_core 2e03bc2, where the same guard blocked the same
+# path.
+dcm_activated() { dcm license 2>/dev/null | grep -q '^DCM License:'; }
+
+if ! dcm_activated && { [ -z "${DCM_CI_KEY:-}" ] || [ -z "${DCM_EMAIL:-}" ]; }; then
   if [ "${DCM_SUITE_ALLOW_MISSING:-0}" = "1" ]; then
     echo "DCM credentials absent — SKIPPING (DCM_SUITE_ALLOW_MISSING=1)"
     exit 77
   fi
-  echo "FAIL: DCM_CI_KEY and DCM_EMAIL are not both set, so dcm cannot run."
+  echo "FAIL: dcm is not activated here and no CI credentials are set."
+  echo "  PREFERRED — activate a seat on this machine:"
+  echo "    dcm activate --license-key=\$DCM_KEY   # DCM_KEY lives in ~/dev/.env"
   echo "  export DCM_CI_KEY=...   # the CI key, NOT a license-key"
   echo "  export DCM_EMAIL=...    # the purchase email"
   echo "  To run the gate without a licence, skipping this deliberately and"
@@ -111,10 +130,18 @@ fi
 WORK=$(mktemp -d)
 trap 'rm -rf "$WORK"' EXIT INT TERM
 
+# Auth shape decided once, outside the loop: an activated seat needs neither
+# CI=true nor the credential flags, and passing empty ones makes dcm look for a
+# licence it does not need.
+DCM_ENV=(); DCM_AUTH=()
+if [ -n "${DCM_CI_KEY:-}" ] && [ -n "${DCM_EMAIL:-}" ]; then
+  DCM_ENV=(env CI=true)
+  DCM_AUTH=(--ci-key="$DCM_CI_KEY" --email="$DCM_EMAIL")
+fi
+
 for spec in "${CHECKS[@]}"; do
   cmd="${spec%%:*}"; tgt="${spec##*:}"
-  CI=true dcm "$cmd" "$tgt" --reporter=json \
-    --ci-key="$DCM_CI_KEY" --email="$DCM_EMAIL" \
+  "${DCM_ENV[@]}" dcm "$cmd" "$tgt" --reporter=json "${DCM_AUTH[@]}" \
     > "$WORK/$cmd.json" 2>"$WORK/$cmd.err"
   if [ ! -s "$WORK/$cmd.json" ] || ! python3 -c "import json,sys;json.load(open(sys.argv[1]))" "$WORK/$cmd.json" 2>/dev/null; then
     echo "FAIL: \`dcm $cmd $tgt --reporter=json\` produced no parseable JSON."

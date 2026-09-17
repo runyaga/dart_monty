@@ -1,15 +1,17 @@
 {
   "_dcm_version": "1.39.0",
-  "_grand_total": 244,
+  "_grand_total": 247,
   "checks": {
     "calculate-metrics": {
       "by_file": {
-        "lib/src/bridge/platform.dart": 4,
+        "lib/src/bridge/platform.dart": 5,
         "lib/src/extension/coordinator.dart": 3,
         "lib/src/extensions/event_loop.dart": 1,
         "lib/src/extensions/run_script.dart": 1,
         "lib/src/extensions/sandbox.dart": 6,
         "lib/src/host/dispatch.dart": 2,
+        "lib/src/host/param.dart": 1,
+        "lib/src/host/schema.dart": 1,
         "lib/src/os_call/fs_decorators.dart": 3,
         "lib/src/os_call/fs_handlers.dart": 2,
         "lib/src/os_call/os_handlers.dart": 1,
@@ -17,35 +19,29 @@
         "lib/src/runtime/runtime.dart": 4
       },
       "by_rule": {
-        "cyclomatic-complexity": 8,
-        "lines-of-code": 15,
+        "cyclomatic-complexity": 10,
+        "lines-of-code": 16,
         "number-of-methods": 4,
         "number-of-parameters": 2
       },
-      "total": 29
+      "total": 32
     },
     "check-dependencies": {
       "by_file": {
         "example/pubspec.yaml": 2,
         "example/web/pubspec.yaml": 1,
-        "pubspec.yaml": 2
+        "pubspec.yaml": 3
       },
       "by_rule": {
-        "promotion-dependency-issue": 3,
+        "promotion-dependency-issue": 4,
         "unused-dependency-issue": 2
       },
-      "total": 5
+      "total": 6
     },
     "check-exports-completeness": {
-      "by_file": {
-        "../dart_monty_core/lib/src/platform/core_bindings.dart": 2,
-        "../dart_monty_core/lib/src/platform/wire_json.dart": 1,
-        "../dart_monty_core/lib/src/repl/repl_bindings.dart": 1
-      },
-      "by_rule": {
-        "exports-issue": 4
-      },
-      "total": 4
+      "by_file": {},
+      "by_rule": {},
+      "total": 0
     },
     "check-parameters": {
       "by_file": {
@@ -58,7 +54,7 @@
         "lib/src/extensions/sandbox.dart": 5,
         "lib/src/host/context.dart": 5,
         "lib/src/host/dispatch.dart": 4,
-        "lib/src/host/param.dart": 9,
+        "lib/src/host/param.dart": 10,
         "lib/src/host/schema.dart": 2,
         "lib/src/os_call/platform_handlers.dart": 1,
         "lib/src/runtime/runtime.dart": 2
@@ -66,9 +62,9 @@
       "by_rule": {
         "never-passed-parameter-issue": 7,
         "unnecessary-nullable-parameter-issue": 9,
-        "unnecessary-optional-parameter-issue": 29
+        "unnecessary-optional-parameter-issue": 30
       },
-      "total": 45
+      "total": 46
     },
     "check-unnecessarily-public-code": {
       "by_file": {
@@ -96,13 +92,13 @@
         "lib/src/runtime/execution_handle.dart": 6,
         "lib/src/runtime/runtime.dart": 9,
         "lib/src/runtime/runtime_state.dart": 1,
-        "lib/src/runtime/value_x.dart": 8,
+        "lib/src/runtime/value_x.dart": 9,
         "lib/src/web/ensure_initialized.dart": 1
       },
       "by_rule": {
-        "unnecessarily-public-issue": 151
+        "unnecessarily-public-issue": 152
       },
-      "total": 151
+      "total": 152
     },
     "check-unused-code": {
       "by_file": {
@@ -112,12 +108,13 @@
         "lib/src/os_call/default_os_handler_stub.dart": 1,
         "lib/src/os_call/default_os_handler_web.dart": 1,
         "lib/src/os_call/fs_decorators.dart": 1,
-        "lib/src/os_call/sandboxed_fs_handler.dart": 1
+        "lib/src/os_call/sandboxed_fs_handler.dart": 1,
+        "lib/src/runtime/value_x.dart": 1
       },
       "by_rule": {
-        "unused-code-issue": 7
+        "unused-code-issue": 8
       },
-      "total": 7
+      "total": 8
     },
     "check-unused-files": {
       "by_file": {

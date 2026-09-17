@@ -363,30 +363,11 @@ OsCallHandler sandboxedFsHandler({required Directory root}) {
           return newSafe;
         }
         if (srcType == FileSystemEntityType.directory) {
-          switch (dstType) {
-            case FileSystemEntityType.file:
-              throw OsCallException(
-                "[Errno 20] Not a directory: '$dstArg'",
-                pythonExceptionType: 'NotADirectoryError',
-              );
-            case FileSystemEntityType.directory:
-              // Report the non-empty case ourselves so the message matches
-              // CPython, then let native rename(2) do the replacement. It
-              // replaces an empty target ATOMICALLY; deleting first and
-              // renaming after is not atomic, and a failure between the two
-              // leaves the target gone and the source in place.
-              if (Directory(newSafe).listSync().isNotEmpty) {
-                throw OsCallException(
-                  "[Errno 39] Directory not empty: '$dstArg'",
-                  pythonExceptionType: 'OSError',
-                );
-              }
-            case FileSystemEntityType.notFound:
-            case FileSystemEntityType.link:
-            case FileSystemEntityType.unixDomainSock:
-            case FileSystemEntityType.pipe:
-              break;
-          }
+          _assertDirRenameTarget(
+            dstArg: dstArg,
+            newSafe: newSafe,
+            dstType: dstType,
+          );
           Directory(oldSafe).renameSync(newSafe);
           return newSafe;
         }
@@ -456,3 +437,41 @@ OsCallHandler sandboxedFsHandler({required Directory root}) {
 /// private to core, so this is the same one-liner rather than a reach into
 /// `lib/src/`.
 int _codepointCount(String text) => text.runes.length;
+
+/// Raises the CPython error for renaming a DIRECTORY onto [dstType], or
+/// returns normally when the rename may proceed.
+///
+/// Extracted from `sandboxedFsHandler` because inlining it put the
+/// `Directory(...).listSync()` check five blocks deep -- handler body, the
+/// `rename` case, the is-a-directory branch, this switch, and the emptiness
+/// test -- which is one past the nesting threshold. The logic is unchanged.
+void _assertDirRenameTarget({
+  required String dstArg,
+  required String newSafe,
+  required FileSystemEntityType dstType,
+}) {
+  switch (dstType) {
+    case FileSystemEntityType.file:
+      throw OsCallException(
+        "[Errno 20] Not a directory: '$dstArg'",
+        pythonExceptionType: 'NotADirectoryError',
+      );
+    case FileSystemEntityType.directory:
+      // Report the non-empty case ourselves so the message matches CPython,
+      // then let native rename(2) do the replacement. It replaces an empty
+      // target ATOMICALLY; deleting first and renaming after is not atomic,
+      // and a failure between the two leaves the target gone and the source
+      // in place.
+      if (Directory(newSafe).listSync().isNotEmpty) {
+        throw OsCallException(
+          "[Errno 39] Directory not empty: '$dstArg'",
+          pythonExceptionType: 'OSError',
+        );
+      }
+    case FileSystemEntityType.notFound:
+    case FileSystemEntityType.link:
+    case FileSystemEntityType.unixDomainSock:
+    case FileSystemEntityType.pipe:
+      break;
+  }
+}
