@@ -335,12 +335,41 @@ jobs:
         # fix, so there is no need to serialise and lose the time.
         run: |
           set -o pipefail
+          # --coverage ADDED 2026-09-17. This suite ran without it, so its
+          # coverage reached nothing: the lcov uploaded to Codecov and consumed
+          # by the patch-coverage gate below was UNIT-ONLY. Measured on this
+          # tree, 178 lines are covered by integration tests and by nothing
+          # else — 82.19% unit-only against 91.57% for the union — so a PR
+          # adding code that only integration exercises was judged uncovered
+          # and could fail a gate its tests actually satisfy.
           dart test --run-skipped --tags=integration \
+            --coverage=coverage-integration \
             --reporter=expanded 2>&1 | tee /tmp/integration.log
           # A suite that registers nothing prints success and exits 0. Floor set
           # below the observed 301 so ordinary churn does not trip it; raise it
           # when the suite grows, never lower it to make a run pass.
           bash tool/assert_test_count.sh /tmp/integration.log 290 integration
+      - name: Generate integration LCOV
+        run: |
+          set -o pipefail
+          # Same hitmap hazard as the unit job: format_coverage emits an empty
+          # tracefile rather than failing when handed nothing, so refuse here
+          # instead of uploading a file that silently lowers the merged number.
+          dart run coverage:format_coverage \
+            --lcov --in=coverage-integration \
+            --out=coverage-integration/lcov.info --report-on=lib
+          if [ ! -s coverage-integration/lcov.info ]; then
+            echo "FAIL: integration lcov is empty. Merging it would REMOVE"
+            echo "  coverage from the patch gate rather than add it."
+            exit 1
+          fi
+          echo "integration lcov lines: $(wc -l < coverage-integration/lcov.info)"
+      - name: Upload integration lcov artifact
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: lcov-integration
+          path: coverage-integration/lcov.info
 
   test-examples:
     name: Example smoke tests
@@ -527,7 +556,7 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [test]
+    needs: [test, test-integration]
     steps:
       - uses: actions/checkout@v7
         with:
@@ -537,11 +566,16 @@ jobs:
           python-version: "3.12"
       - name: Install diff-cover
         run: pip install diff-cover
-      - name: Download lcov artifact
+      - name: Download unit lcov artifact
         uses: actions/download-artifact@v8
         with:
           name: lcov-dart
           path: coverage
+      - name: Download integration lcov artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: lcov-integration
+          path: coverage-integration
       - name: Check patch coverage
         run: |
           sudo apt-get update && sudo apt-get install -y lcov
@@ -563,7 +597,35 @@ jobs:
             echo "  pipeline, not a reason to pass."
             exit 1
           fi
-          lcov --remove coverage/lcov.info \
+          # MERGE UNIT AND INTEGRATION BEFORE JUDGING THE PATCH.
+          #
+          # This gate used coverage/lcov.info alone, which is the UNIT job's
+          # output. Code exercised only by the integration suite therefore read
+          # as uncovered, and a PR could fail a 50% patch gate its own tests
+          # satisfy. Measured on this tree: 178 lines are integration-only,
+          # 82.19% unit against 91.57% merged.
+          #
+          # REFUSE rather than degrade if either input is missing. Falling back
+          # to one file would silently restore the old behaviour, and a gate
+          # that quietly measures less is the failure this repo keeps finding.
+          if [ ! -s coverage-integration/lcov.info ]; then
+            echo "FAIL: coverage-integration/lcov.info is missing or empty."
+            echo "  Merging only the unit tracefile would judge integration-"
+            echo "  tested lines as uncovered, which is what this merge exists"
+            echo "  to stop. Fix the integration coverage step."
+            exit 1
+          fi
+          # `--ignore-errors unused` ONLY, matching the proven invocation
+          # below. `inconsistent` and `corrupt` are lcov 2.x categories and an
+          # unknown category is itself an error, so adding them to a command
+          # that has never run on this runner would risk failing for the
+          # reason it was meant to tolerate.
+          lcov --add-tracefile coverage/lcov.info \
+            --add-tracefile coverage-integration/lcov.info \
+            --ignore-errors unused \
+            -o merged-coverage.info
+          echo "merged: $(wc -l < merged-coverage.info) lines from unit + integration"
+          lcov --remove merged-coverage.info \
             --ignore-errors unused \
             '*/generated/*' \
             -o filtered-coverage.info
