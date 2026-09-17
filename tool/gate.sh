@@ -177,6 +177,29 @@ run_advisory() {
 # ratchets own 253 findings between them and a skipped run has verified none.
 dcm_in_container() { [ -e /run/.containerenv ] || [ -e /.dockerenv ]; }
 
+# ONE NAME FOR ONE DECISION. There were three: this file honoured
+# DCM_ALLOW_MISSING, tool/dcm_ratchet.sh honoured DCM_RATCHET_ALLOW_MISSING and
+# tool/dcm_suite_ratchet.sh honoured DCM_SUITE_ALLOW_MISSING -- and the
+# DCM_ALLOW_MISSING branch below is an `elif` reached ONLY when `dcm` is absent.
+#
+# So in the common blocked case -- dcm installed but the licence expired or the
+# CI-key quota exhausted -- control took the `command -v dcm` branch, ran the
+# ratchets, and DCM_ALLOW_MISSING did nothing at all. Measured 2026-09-17
+# against "CI key limit for this month has been exceeded":
+#
+#     bash tool/gate.sh                      -> FAILED (dcm ratchet, dcm suite)
+#     DCM_ALLOW_MISSING=1 bash tool/gate.sh  -> FAILED, identically, rc=1
+#
+# That is the variable dcm_ratchet.sh:73 PRINTS as the remedy, from inside a
+# branch gated on a different one. Following the instruction the gate gives you
+# could not work. Forwarding it is the fix: the opt-out stays deliberate and
+# stays loud -- each ratchet still reports its own SKIP and "checked nothing" --
+# but the documented name now reaches the scripts that act on it.
+if [ "${DCM_ALLOW_MISSING:-0}" = "1" ]; then
+  export DCM_RATCHET_ALLOW_MISSING=1
+  export DCM_SUITE_ALLOW_MISSING=1
+fi
+
 if dcm_in_container; then
   skip_check "dcm ratchet"       "DCM runs on the host: bash tool/dcm_host_gate.sh"
   skip_check "dcm suite ratchet" "DCM runs on the host: bash tool/dcm_host_gate.sh"
