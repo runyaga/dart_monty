@@ -463,6 +463,50 @@ void main() {
           },
         );
 
+        test('renaming a symlink moves the LINK, not its target', () async {
+          // safeResolved resolves an existing path to its TARGET, so renaming
+          // through it renamed the wrong thing. Measured before the fix, with
+          // `alias` -> `real.txt`, both inside the root:
+          //   link gone? false | real.txt there? false | moved is link? false
+          // i.e. the target was moved and the dangling link survived. CPython
+          // renames the link ENTRY.
+          File('$rootPath/real.txt').writeAsStringSync('REAL');
+          Link('$rootPath/alias').createSync('$rootPath/real.txt');
+
+          await handler('Path.rename', [
+            '$rootPath/alias',
+            '$rootPath/moved',
+          ], null);
+
+          expect(
+            File('$rootPath/real.txt').existsSync(),
+            isTrue,
+            reason: 'the target must not move',
+          );
+          expect(
+            Link('$rootPath/alias').existsSync(),
+            isFalse,
+            reason: 'the link entry must be gone',
+          );
+          expect(
+            FileSystemEntity.isLinkSync('$rootPath/moved'),
+            isTrue,
+            reason: 'the moved entry must still be a link',
+          );
+        });
+
+        test('self-rename of a MISSING path raises, not returns', () {
+          // The self-rename guard used to run before the existence check, so
+          // rename('ghost','ghost') RETURNED the path. CPython raises.
+          expect(
+            () => handler('Path.rename', [
+              '$rootPath/ghost',
+              '$rootPath/ghost',
+            ], null),
+            throwsA(isA<OsCallException>()),
+          );
+        });
+
         test('query ops do not see through a symlink out of the root', () {
           // exists / is_file / is_dir / iterdir used the LEXICAL safePath, so
           // with `escape` a symlink pointing out of the root the guest could

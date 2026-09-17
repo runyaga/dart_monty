@@ -168,8 +168,14 @@ OsCallHandler sandboxedFsHandler({required Directory root}) {
         // legitimate thing to ask about even when it points outside -- CPython
         // answers True and the link is in the sandbox. So the containment
         // check goes on the PARENT, which is the part that gets traversed,
-        // and the stat still runs on the unresolved path. Same split the
-        // `unlink` and `rmdir` arms already use.
+        // and the stat still runs on the unresolved path.
+        //
+        // NOT the same as `unlink`/`rmdir`/`rename`: those check containment on
+        // their FULL resolved operand and only the OPERATION uses the lexical
+        // path. Here even the containment check is narrowed to the parent,
+        // because resolving the full path would refuse a legitimate in-sandbox
+        // link. An earlier version of this comment claimed the split was
+        // identical; it is not.
         final symlinkArg = osArgString(args.first);
         safeResolved(operation, p.dirname(symlinkArg)); // traversal check only
         return FileSystemEntity.typeSync(
@@ -284,32 +290,51 @@ OsCallHandler sandboxedFsHandler({required Directory root}) {
         // that assert each message (memory_mounted_os_handler.dart:594-605).
         final srcArg = osArgString(args.first);
         final dstArg = osArgString(args[1]);
-        final oldSafe = safeResolved(operation, srcArg);
-        // safeResolved, NOT safePath. The destination was lexical-only, so
-        // with `escape` a symlink pointing out of the root,
-        // `rename('src.txt', 'escape/leaked.txt')` moved the file OUTSIDE the
-        // sandbox — measured, "landed outside? true". Every other write path
-        // in this file was routed through safeResolved; rename's destination
-        // was missed.
-        final newSafe = safeResolved(operation, dstArg);
+        // CONTAINMENT on the RESOLVED path, OPERATION on the entry the caller
+        // named. Same split `unlink` and `rmdir` use above, and it is required
+        // for the same reason: `safeResolved` resolves an existing path to its
+        // TARGET, so renaming through it renamed the wrong thing. Measured,
+        // with `alias` a symlink to `real.txt` and both inside the root:
+        //
+        //   rename('alias', 'moved')
+        //     -> link gone?           false   (the symlink survived)
+        //     -> real.txt still there? false   (its TARGET was moved)
+        //     -> moved is a link?      false   (a plain file appeared)
+        //
+        // CPython renames the LINK ENTRY and leaves the target alone. Checking
+        // containment on the resolved path still refuses a link that points
+        // out of the sandbox, which is what the destination fix was for.
+        safeResolved(operation, srcArg); // containment only
+        safeResolved(operation, dstArg); // containment only
+        final oldSafe = safePath(operation, srcArg);
+        final newSafe = safePath(operation, dstArg);
 
-        // SELF-RENAME IS A NO-OP, and getting this wrong destroys data.
-        // POSIX: if the two names refer to the same existing entry, rename
-        // succeeds and changes nothing. Without this guard the empty-directory
-        // branch below deleted the "target" — which IS the source — and then
-        // failed to move it. Measured: `rename('d', 'd')` left
-        // `dir still exists? false`.
-        if (oldSafe == newSafe) {
-          return newSafe;
-        }
-        final srcType = FileSystemEntity.typeSync(oldSafe);
-        final dstType = FileSystemEntity.typeSync(newSafe);
+        // followLinks: false for the SAME reason -- the matrix below is about
+        // the entries being renamed, not about what they point at.
+        final srcType = FileSystemEntity.typeSync(oldSafe, followLinks: false);
+        final dstType = FileSystemEntity.typeSync(newSafe, followLinks: false);
 
+        // MISSING SOURCE IS CHECKED BEFORE SELF-RENAME, not after. The
+        // self-rename guard used to come first, so `rename('ghost','ghost')`
+        // on a path that does not exist RETURNED THE PATH instead of raising.
+        // Measured: `rename(ghost,ghost) -> RETURNED <path>`, where CPython
+        // raises FileNotFoundError.
         if (srcType == FileSystemEntityType.notFound) {
           throw OsCallException(
             "[Errno 2] No such file or directory: '$srcArg'",
             pythonExceptionType: 'FileNotFoundError',
           );
+        }
+
+        // SELF-RENAME IS A NO-OP, and getting this wrong destroys data.
+        // POSIX: if the two names refer to the same EXISTING entry, rename
+        // succeeds and changes nothing. Without this the empty-directory
+        // branch below deleted the "target" -- which IS the source -- and then
+        // failed to move it. Measured: `rename('d','d')` left
+        // `dir still exists? false`. It sits after the existence check so a
+        // missing path still raises.
+        if (oldSafe == newSafe) {
+          return newSafe;
         }
         if (srcType == FileSystemEntityType.directory) {
           switch (dstType) {
