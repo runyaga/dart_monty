@@ -7,8 +7,9 @@
 ///
 /// `MontyRuntime` keeps Python state across `execute()` calls, so a
 /// dataclass produced by one call remains a live Python object on the
-/// next call. The bridge round-trip preserves the typed
-/// `MontyDataclass` so the Dart side can hydrate it into a user class.
+/// next call. The bridge round-trip preserves the typed value so the Dart side
+/// can hydrate it into a user class — `MontyClassInstance` since core 0.23,
+/// which made `MontyDataclass` encode-only.
 ///
 /// Core's `dart_monty_core/example/10_dataclasses.dart` covers the
 /// per-call hydration mechanics with `Monty(code).run`. This demo
@@ -38,15 +39,21 @@ class User {
   String toString() => 'User(name=$name, age=$age)';
 }
 
-Map<String, Object?> _userEnvelope({required String name, required int age}) =>
-    {
-      '__type': 'dataclass',
-      'name': 'User',
-      'type_id': 1,
-      'field_names': ['name', 'age'],
-      'attrs': {'name': name, 'age': age},
-      'frozen': false,
-    };
+// Say it with the type, not with a hand-built envelope.
+//
+// dart_monty_core 0.19 routes host callback returns through
+// `MontyValue.encodeForWire`, so a Map spelling `{'__type': 'dataclass', ...}`
+// by hand is no longer honoured as a dataclass — it arrives in Python as a
+// plain dict, `user.name` reads as null, and the cast below throws. Returning a
+// `MontyDataclass` is the documented replacement (core CHANGELOG, 0.19.0
+// Breaking).
+MontyDataclass _userValue({required String name, required int age}) =>
+    MontyDataclass(
+      name: 'User',
+      typeId: 1,
+      fieldNames: const ['name', 'age'],
+      attrs: {'name': MontyString(name), 'age': MontyInt(age)},
+    );
 
 Future<void> main() async {
   final runtime = MontyRuntime()
@@ -60,10 +67,8 @@ Future<void> main() async {
             HostParam(name: 'age', type: HostParamType.integer),
           ],
         ),
-        handler: (args, _) async => _userEnvelope(
-          name: args['name']! as String,
-          age: args['age']! as int,
-        ),
+        handler: (args, _) async =>
+            _userValue(name: args['name']! as String, age: args['age']! as int),
       ),
     );
 
@@ -79,19 +84,21 @@ Future<void> main() async {
   print('── 2. user.name ──');
   print('   value: ${nameResult.value.dartValue}'); // alice
 
-  // 3. Return the whole dataclass. The bridge preserves the typed
-  //    MontyDataclass through to the result so the host can hydrate.
+  // 3. Return the whole dataclass. dart_monty_core 0.23 made MontyDataclass
+  //    ENCODE-ONLY: monty v0.0.23 dropped the dataclass variant, so every class
+  //    instance now decodes as MontyClassInstance. Read `classType.isDataclass`
+  //    to tell a dataclass from a plain class. `hydrate` is unchanged.
   final fullResult = await runtime.execute('user').result;
-  final dc = fullResult.value as MontyDataclass;
+  final dc = fullResult.value as MontyClassInstance;
   print('── 3. user ──');
-  // Expected: typed = MontyDataclass, hydrated = User(name=alice, age=30)
+  // Expected: typed = MontyClassInstance, hydrated = User(name=alice, age=30)
   print('   typed:    ${dc.runtimeType}');
   print('   hydrated: ${dc.hydrate(User.fromAttrs)}');
 
   // 4. Replace the binding and confirm subsequent reads see the new one.
   await runtime.execute('user = make_user(name="bob", age=42)').result;
   final replaced = await runtime.execute('user').result;
-  final replacedDc = replaced.value as MontyDataclass;
+  final replacedDc = replaced.value as MontyClassInstance;
   print('── 4. after re-binding ──');
   // Expected: User(name=bob, age=42)
   print('   hydrated: ${replacedDc.hydrate(User.fromAttrs)}');

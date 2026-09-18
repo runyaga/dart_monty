@@ -102,7 +102,14 @@ class HostFunctionSchema {
     // Validate all params
     final validated = <String, Object?>{};
     for (final param in params) {
-      validated[param.name] = param.validate(raw[param.name]);
+      // `containsKey`, not a null check: `raw` holds only the arguments the
+      // caller actually supplied, so this is the one place that can tell
+      // "message omitted" from "message=None". HostParam.validate needs the
+      // difference — see the comment there.
+      validated[param.name] = param.validate(
+        raw[param.name],
+        isPresent: raw.containsKey(param.name),
+      );
     }
 
     return validated;

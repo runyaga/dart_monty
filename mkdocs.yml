@@ -3,6 +3,10 @@ site_description: Pure Dart bindings for Monty, a restricted sandboxed Python in
 site_url: https://runyaga.github.io/dart_monty/
 theme:
   name: material
+  # Zensical defaults to a `modern` skin; this keeps the Material look the
+  # site has today. Verified not to affect the MkDocs build, so it is safe
+  # to carry before any cutover.
+  variant: classic
   palette:
     - scheme: slate
       primary: custom
@@ -72,6 +76,7 @@ plugins:
           - tutorials/llm-prompt-rules.md
         Deep Dives:
           - architecture/overview.md
+          - architecture/core-boundary.md
           - deep-dives/sandbox-architecture.md
           - deep-dives/oscall-vfs.md
           - deep-dives/error-hierarchy.md
@@ -105,6 +110,7 @@ nav:
       - LLM Prompt Rules: tutorials/llm-prompt-rules.md
   - Deep Dives:
       - Architecture Overview: architecture/overview.md
+      - The dart_monty_core Boundary: architecture/core-boundary.md
       - Sandbox Architecture: deep-dives/sandbox-architecture.md
       - OsCall / VFS Layer: deep-dives/oscall-vfs.md
       - Error Hierarchy: deep-dives/error-hierarchy.md

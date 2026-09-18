@@ -46,9 +46,26 @@ extension MontyValueX on MontyValue {
     _ => null,
   };
 
-  /// Returns entries if this is [MontyDict], otherwise `null`.
+  /// Returns entries if this is a [MontyDict] whose keys are ALL strings,
+  /// otherwise `null`.
+  ///
+  /// The string-key requirement is not new. Before `dart_monty_core` merged
+  /// `MontyPairsDict` into `MontyDict`, a dict with any non-string key was a
+  /// different Dart type, so this accessor — which only ever matched
+  /// `MontyDict` — already answered `null` for it. Keeping the signature and
+  /// the `null` keeps that contract through the merge, rather than widening a
+  /// convenience accessor and making every caller handle `MontyValue` keys.
+  ///
+  /// Reach for `MontyDict.pairs` directly when the general keyspace matters.
+  ///
+  /// 0.23 merged `MontyPairsDict` into `MontyDict` and replaced `entries` with
+  /// `pairs` plus `asStringMap`, which returns `null` unless EVERY key is a
+  /// string. That is precisely the contract the hand-rolled `_asStringKeyed`
+  /// helper below used to implement, so the helper is deleted rather than
+  /// ported: the core now owns the rule, and one implementation of it cannot
+  /// drift from the other.
   Map<String, MontyValue>? asMap() => switch (this) {
-    MontyDict(:final entries) => entries,
+    final MontyDict d => d.asStringMap,
     _ => null,
   };
 

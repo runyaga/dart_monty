@@ -273,6 +273,7 @@
   <header>
     <a href="index.html" style="color:#565f89;text-decoration:none;font-size:13px;">&larr; Home</a>
     <h1>VFS Playground</h1>
+    <span class="version-badge" style="color:#565f89;font-size:12px;margin-left:10px;white-space:nowrap;">v0.23.0 &middot; dart_monty_core v0.23.0</span>
     <span class="tag tag-wasm">WASM</span>
     <span class="tag tag-vfs">VFS</span>
     <select id="examples">
@@ -282,9 +283,9 @@
       <option value="pipeline">Data Pipeline</option>
       <option value="datetime">Date &amp; Time</option>
       <option value="explorer">File Explorer</option>
-      <option value="open">open() &amp; with (0.18)</option>
-      <option value="binary">Binary I/O (0.18)</option>
-      <option value="errors">Typed Errors (0.18)</option>
+      <option value="open">open() &amp; with (since 0.18)</option>
+      <option value="binary">Binary I/O (since 0.18)</option>
+      <option value="errors">Typed Errors (since 0.18)</option>
     </select>
     <span id="status">Initializing WASM...</span>
   </header>
@@ -372,7 +373,7 @@ files = sorted([p.name for p in Path('/sandbox/data').iterdir()], key=str)
       if (_callCount === 1) el.innerHTML = '';
       const div = document.createElement('div');
       div.className = 'oscall-entry';
-      div.innerHTML = `<span class="oscall-op">${entry.op}</span><span class="oscall-args">${(entry.args||[]).join(', ')}</span><span class="oscall-time">${entry.durationMs}ms</span>`;
+      div.innerHTML = `<span class="oscall-op">${escapeHtml(entry.op)}</span><span class="oscall-args">${escapeHtml((entry.args||[]).join(', '))}</span><span class="oscall-time">${entry.durationMs}ms</span>`;
       el.appendChild(div);
       el.scrollTop = el.scrollHeight;
     };
@@ -425,16 +426,16 @@ files = sorted([p.name for p in Path('/sandbox/data').iterdir()], key=str)
         console.log('[VFS] Result:', result);
 
         if (result.ok) {
-          output.innerHTML = `<div class="output-value">${formatValue(result.value)}</div>\n<div class="output-info">${result.osCallLog.length} OS calls</div>`;
+          output.innerHTML = `<div class="output-value">${escapeHtml(formatValue(result.value))}</div>\n<div class="output-info">${result.osCallLog.length} OS calls</div>`;
         } else {
-          output.innerHTML = `<div class="output-error">${result.error}</div>`;
+          output.innerHTML = `<div class="output-error">${escapeHtml(result.error)}</div>`;
         }
         renderFiles(result.files || []);
         status.textContent = result.ok ? 'Done' : 'Error';
         status.className = result.ok ? 'ready' : 'error';
       } catch (e) {
         console.error('[VFS] Run error:', e);
-        output.innerHTML = `<div class="output-error">${e}</div>`;
+        output.innerHTML = `<div class="output-error">${escapeHtml(e)}</div>`;
         status.textContent = 'Error';
         status.className = 'error';
       }
@@ -459,11 +460,11 @@ files = sorted([p.name for p in Path('/sandbox/data').iterdir()], key=str)
         if (f.type !== 'file') continue;
         const div = document.createElement('div');
         div.className = 'file-entry';
-        div.innerHTML = `<span class="file-icon">\ud83d\udcc4</span>${f.path}<span class="file-size">${f.size}B</span>`;
+        div.innerHTML = `<span class="file-icon">\ud83d\udcc4</span>${escapeHtml(f.path)}<span class="file-size">${f.size}B</span>`;
         div.onclick = () => {
           document.querySelectorAll('.file-entry').forEach(e => e.classList.remove('selected'));
           div.classList.add('selected');
-          output.innerHTML = `<div class="output-info">${f.path} (${f.size} bytes)</div>\n<div class="output-value">${escapeHtml(f.preview)}</div>`;
+          output.innerHTML = `<div class="output-info">${escapeHtml(f.path)} (${f.size} bytes)</div>\n<div class="output-value">${escapeHtml(f.preview)}</div>`;
         };
         fileTree.appendChild(div);
       }
@@ -490,6 +491,47 @@ files = sorted([p.name for p in Path('/sandbox/data').iterdir()], key=str)
       open: `# open() with buffered read/write + context managers (monty 0.0.18)\n\n# Write via a 'with' block — the file closes automatically at block exit\nwith open('/sandbox/notes.txt', 'w') as f:\n    n1 = f.write('line 1\\n')\n    n2 = f.write('line 2\\n')\n    inside = f.closed\nafter = f.closed\n\n# Append mode preserves existing content\nwith open('/sandbox/notes.txt', 'a') as f:\n    f.write('appended\\n')\n\n# Read it back\ntext = open('/sandbox/notes.txt').read()\n\n{'chars_written': [n1, n2], 'closed_inside': inside, 'closed_after': after, 'text': text}`,
       binary: `# Binary mode (wb / rb) round-trips raw bytes — including 0xff\nwith open('/sandbox/blob.bin', 'wb') as f:\n    f.write(b'\\x00\\x01\\x02\\xff')\n\nwith open('/sandbox/blob.bin', 'rb') as f:\n    data = f.read()\n\n{'bytes': list(data), 'len': len(data), 'type': str(type(data))}`,
       errors: `from pathlib import Path\n\n# monty 0.0.18 delivers OS errors as their real Python class, so you can\n# 'except' them by type instead of catching a generic RuntimeError.\nresults = {}\n\n# Missing file -> FileNotFoundError\ntry:\n    open('/sandbox/nope.txt')\nexcept FileNotFoundError as e:\n    results['missing'] = type(e).__name__\n\n# Opening a directory as a file -> IsADirectoryError\nPath('/sandbox/adir').mkdir(parents=True)\nPath('/sandbox/adir/x.txt').write_text('x')\ntry:\n    open('/sandbox/adir')\nexcept IsADirectoryError as e:\n    results['is_a_dir'] = type(e).__name__\n\nresults`,
+    };
+
+
+    // ---------------------------------------------------------------------
+    // THE GATE'S HANDLE ON THIS PAGE'S EXAMPLES
+    // ---------------------------------------------------------------------
+    // "The page booted with no console errors" is not enough. Every example in
+    // the dropdown is a demo in its own right, and one of them can be broken
+    // while the page around it is perfectly healthy — which is exactly the
+    // state vfs.html's open() example was found in on the live site.
+    //
+    // So the gate drives the REAL UI: it selects the option (firing the same
+    // change handler a user would, mounts and all), clicks Run, and then reads
+    // THIS PAGE'S OWN rendering of the outcome. A demo that catches its own
+    // error and paints it red is a FAILURE here, which a console-error check
+    // could never see.
+    //
+    // The gate discovers the key set from the <option> elements at runtime, so
+    // adding an example covers it automatically; this function only has to
+    // know how to run one and how to read the verdict.
+    window.__montyRunExample = async function (key) {
+      const sel = $('examples');
+      // CLEARED FIRST, or an unknown key silently re-runs whatever the last
+      // example left behind. Observed while falsifying this gate: a new
+      // <option value="brandnew"> with no code behind it PASSED, because the
+      // editor still held the previous example's source. An example that
+      // cannot be loaded must fail, not inherit a green from its neighbour.
+      editor.value = '';
+      sel.value = key;
+      sel.dispatchEvent(new Event('change'));
+      if (!editor.value) {
+        return JSON.stringify({ ok: false, status: 'no-code',
+          detail: 'selecting "' + key + '" loaded no code into the editor' });
+      }
+      await run();
+      const errEl = output.querySelector('.output-error');
+      return JSON.stringify({
+        ok: status.textContent === 'Done' && !errEl,
+        status: status.textContent,
+        detail: (errEl ? errEl.textContent : output.textContent || '').slice(0, 500),
+      });
     };
 
     $('examples').onchange = function() {

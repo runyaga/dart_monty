@@ -93,10 +93,10 @@ void main() {
         mock
           // First call: el_emit
           ..enqueueProgress(
-            const MontyPending(
+            MontyPending(
               functionName: 'el_emit',
               args: [
-                MontyDict({'type': MontyString('form')}),
+                MontyDict.ofStrings(const {'type': MontyString('form')}),
               ],
               callId: 1,
             ),
@@ -255,10 +255,10 @@ void main() {
     test('stores value in lastEmitted', () async {
       mock
         ..enqueueProgress(
-          const MontyPending(
+          MontyPending(
             functionName: 'el_emit',
             args: [
-              MontyDict({
+              MontyDict.ofStrings(const {
                 'type': MontyString('counter'),
                 'value': MontyInt(0),
               }),
@@ -283,10 +283,10 @@ void main() {
     test('lastEmitted tracks most recent value', () async {
       mock
         ..enqueueProgress(
-          const MontyPending(
+          MontyPending(
             functionName: 'el_emit',
             args: [
-              MontyDict({'version': MontyInt(1)}),
+              MontyDict.ofStrings(const {'version': MontyInt(1)}),
             ],
             callId: 1,
           ),
@@ -295,10 +295,10 @@ void main() {
           const MontyResolveFutures(pendingCallIds: [1]),
         )
         ..enqueueProgress(
-          const MontyPending(
+          MontyPending(
             functionName: 'el_emit',
             args: [
-              MontyDict({'version': MontyInt(2)}),
+              MontyDict.ofStrings(const {'version': MontyInt(2)}),
             ],
             callId: 2,
           ),
@@ -535,10 +535,10 @@ void main() {
     test('lastEmittedSignal updates when el_emit is called', () async {
       mock
         ..enqueueProgress(
-          const MontyPending(
+          MontyPending(
             functionName: 'el_emit',
             args: [
-              MontyDict({'type': MontyString('label')}),
+              MontyDict.ofStrings(const {'type': MontyString('label')}),
             ],
             callId: 1,
           ),
@@ -812,10 +812,10 @@ void main() {
       // invariant end-to-end.
       mock
         ..enqueueProgress(
-          const MontyPending(
+          MontyPending(
             functionName: 'el_emit',
             args: [
-              MontyDict({'type': MontyString('event')}),
+              MontyDict.ofStrings(const {'type': MontyString('event')}),
             ],
             callId: 1,
           ),

@@ -1,6 +1,6 @@
 name: dart_monty
 description: Script your Dart/Flutter app with sandboxed Python — runtime extensions, Flutter glue, and FFI/WASM asset loading on top of dart_monty_core.
-version: 0.18.0
+version: 0.23.0
 homepage: https://github.com/runyaga/dart_monty
 repository: https://github.com/runyaga/dart_monty
 issue_tracker: https://github.com/runyaga/dart_monty/issues
@@ -14,7 +14,6 @@ environment:
   sdk: ^3.10.0
 
 dependencies:
-  collection: ^1.18.0
   dart_monty_core: ^0.18.1
   dinja: ^1.0.0
   file: ^7.0.0
@@ -22,10 +21,47 @@ dependencies:
   path: ^1.8.0
   signals_core: ^6.2.0
   struct_log: ^0.3.0
-  test: ^1.25.0
   # Used by DartMonty.ensureInitialized() on web for dynamic <script>
   # injection of the dart_monty_core bridge. No-op on native targets.
   web: ^1.1.0
 
 dev_dependencies:
+  # `collection` and `test` were REGULAR dependencies, which made every
+  # consumer of this package pull the test framework into their own
+  # dependency graph. Neither is imported anywhere under lib/ -- measured,
+  # zero files -- and `lib/dart_monty_testing.dart`, the one public surface
+  # that could plausibly need `test`, only re-exports from dart_monty_core.
+  # `collection` has a single user, test/integration/demo_page_boot_test.dart.
+  collection: ^1.18.0
+  # Declared, not `pub global activate`d: activate resolves the latest
+  # coverage package from pub.dev on every CI run, which leaves the tool
+  # that PRODUCES the coverage number unpinned while the number is gated.
+  #
+  # `dcm check-dependencies` reports this as "coverage is not used" and that
+  # is a FALSE POSITIVE, kept rather than silenced: it is used as a BINARY,
+  # `dart run coverage:format_coverage` (.github/workflows/ci.yaml:275), not
+  # as a Dart import, so there is nothing for a source scan to find.
+  coverage: ^1.15.0
+  test: ^1.25.0
   very_good_analysis: ^10.0.0
+
+# Pinned to the dart_monty_core v0.23.0 TAG, not a branch. A tag is immutable,
+# so a rebuild months from now resolves the same core this line was tested
+# against; `integration/0.23` would keep moving underneath it.
+#
+# dart_monty_core 0.23.0 is tagged but NOT on pub.dev — the latest published
+# there is 0.18.1 — so CI would otherwise resolve `^0.18.1` and test this line
+# against a core it does not target.
+#
+# This is a `dependency_overrides` and NOT a `dependencies` entry on purpose:
+# `dart analyze --fatal-infos` rejects a git dependency in a publishable
+# package (`invalid_dependency`), and overrides are ignored on publish.
+#
+# THIS PACKAGE CANNOT BE PUBLISHED WHILE THIS BLOCK EXISTS. When
+# dart_monty_core 0.23.0 is published, delete this block and move the
+# `dart_monty_core` constraint above to ^0.23.0.
+dependency_overrides:
+  dart_monty_core:
+    git:
+      url: https://github.com/runyaga/dart_monty_core.git
+      ref: v0.23.0

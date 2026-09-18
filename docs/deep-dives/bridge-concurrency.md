@@ -138,7 +138,5 @@ library does not.
 
 ## See also
 
-- [Lifecycles](lifecycles.md) — construction, attach, dispose
-  ordering for `MontyRuntime` and its extensions.
 - [Extension system](extension-system.md) — how extensions see
   execution events.

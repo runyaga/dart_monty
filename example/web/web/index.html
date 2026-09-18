@@ -169,6 +169,14 @@
 <section class="hero" style="border: none;">
   <div class="container">
     <h1><span>dart_monty</span></h1>
+    <!-- VERSION BADGE. Hand-written on purpose, and asserted by
+         tool/check_page_versions.sh against pubspec.yaml and the
+         dart_monty_core ref. Build-time injection was tried here and
+         removed: a placeholder that stops matching fails SILENTLY, which
+         is how a `sed s/__BUILD_DATE__/.../` sat in pages.yaml doing
+         nothing at all. A check that fails loudly beats a substitution
+         that cannot. -->
+    <p class="version-badge">v0.23.0 &middot; dart_monty_core v0.23.0</p>
     <p>Sandboxed Python interpreter for Dart and Flutter.
        Run Python from native, web, and mobile — one package, every platform.</p>
     <div class="hero-tags">
@@ -449,11 +457,17 @@ cp dart_monty_core/assets/dart_monty_core_native.wasm web/</pre>
   </div>
 </footer>
 
-</body>
-</html>
->
-  </div>
-</footer>
+<!-- BOOT SIGNAL. index.html is the one published page that loads no
+     compiled Dart, so it has no montyDemoReady() to raise (see
+     example/web/lib/demo_ready.dart). Its equivalent proof is this: the
+     browser parsed the document all the way to the end of <body> and ran
+     this script. Combined with the gate's other two assertions for this page
+     -- zero uncaught exceptions and zero failed same-origin requests -- that
+     is the whole of what a script-free page can be said to "boot".
+
+     It sits here rather than in <head> on purpose: in <head> it would fire
+     before the document was parsed and would assert nothing at all. -->
+<script>window.__montyDemoReady = 'index';</script>
 
 </body>
 </html>

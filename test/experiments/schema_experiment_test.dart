@@ -211,7 +211,7 @@ void main() {
     test('Python dict → Dart Map', () async {
       final r = await h.run("{'key': 'value', 'n': 7}");
       expect(r.value.dartValue, isA<Map<String, Object?>>());
-      final m = r.value.dartValue! as Map<String, Object?>;
+      final m = r.value.dartValue! as Map<Object?, Object?>;
       expect(m['key'], 'value');
       expect(m['n'], 7);
     });

@@ -10,3 +10,18 @@ dependencies:
     path: ../..
   file: ^7.0.0
   web: ^1.1.1
+
+# `dependency_overrides` do NOT propagate from a path dependency, so without this
+# dart_monty_core resolves TRANSITIVELY FROM PUB.DEV (measured: source hosted,
+# sha256 2b685a95…) while the package under test is on 0.23. Compiling the web
+# demos against a published core proves nothing about the migration — a green
+# compile against the wrong core is the exact failure the compile gate exists to
+# prevent.
+#
+# Must name the same ref as pubspec.yaml, example/pubspec.yaml and
+# pages.yaml; tool/check_core_ref.sh fails the gate if they disagree.
+dependency_overrides:
+  dart_monty_core:
+    git:
+      url: https://github.com/runyaga/dart_monty_core.git
+      ref: v0.23.0

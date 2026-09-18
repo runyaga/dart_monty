@@ -1,9 +1,16 @@
 // ignore_for_file: avoid-unsafe-collection-methods, avoid-non-null-assertion
 // ignore_for_file: avoid-unnecessary-futures, newline-before-return
+import 'package:dart_monty/src/os_call/os_error_mapping.dart';
 import 'package:dart_monty/src/os_call/os_handlers.dart';
 import 'package:dart_monty/src/os_call/path_op.dart';
 import 'package:dart_monty_core/dart_monty_core.dart'
-    show MontyBytes, MontyPath, OsCallException, OsCallHandler, resolveOpenCall;
+    show
+        MontyBytes,
+        MontyPath,
+        OsCallException,
+        OsCallHandler,
+        OsCallNotHandledException,
+        resolveOpenCall;
 import 'package:file/file.dart';
 import 'package:file/memory.dart';
 
@@ -16,7 +23,9 @@ import 'package:file/memory.dart';
 /// ```dart
 /// final handler = fsHandler(MemoryFileSystem());
 /// ```
-OsCallHandler fsHandler(FileSystem fs) {
+OsCallHandler fsHandler(FileSystem fs) => mapIoErrors(_rawFsHandler(fs));
+
+OsCallHandler _rawFsHandler(FileSystem fs) {
   return (operation, args, kwargs) async {
     switch (operation) {
       case PathOp.open:
@@ -80,7 +89,7 @@ OsCallHandler fsHandler(FileSystem fs) {
         fs.file(path)
           ..parent.createSync(recursive: true)
           ..writeAsStringSync(content);
-        return content.length;
+        return _codepointCount(content);
       case PathOp.writeBytes:
         final path = osArgString(args.first);
         final bytes = (args[1]! as List).cast<int>();
@@ -94,7 +103,7 @@ OsCallHandler fsHandler(FileSystem fs) {
         fs.file(path)
           ..parent.createSync(recursive: true)
           ..writeAsStringSync(content, mode: FileMode.append);
-        return content.length;
+        return _codepointCount(content);
       case PathOp.appendBytes:
         final path = osArgString(args.first);
         final bytes = (args[1]! as List).cast<int>();
@@ -142,7 +151,37 @@ OsCallHandler fsHandler(FileSystem fs) {
       case PathOp.rename:
         final oldPath = osArgString(args.first);
         final newPath = osArgString(args[1]);
-        fs.file(oldPath).renameSync(newPath);
+        // MAP THE OS ERROR, do not let dart:io through. `renameSync` was
+        // called bare, so every failure escaped as a raw FileSystemException
+        // and Python saw a Dart error instead of an OSError — the leak class
+        // recorded at the bottom of this function, and the same one fixed in
+        // the sandboxed handler for symlink destinations. `iterdir` directly
+        // below has always mapped its failure; rename never did.
+        //
+        // Measured 2026-09-17 on a LocalFileSystem: missing source -> errno 2,
+        // and the directory cases -> errno 21. Note 21 (EISDIR) arrives even
+        // for "rename a directory onto a file", where CPython raises
+        // NotADirectoryError, because this handler renames through
+        // `fs.file()` regardless of the entry's real type. That divergence is
+        // NOT fixed here — this change stops the leak and reports what the OS
+        // actually said; making the file/directory dispatch match CPython is a
+        // separate behavioural change.
+        try {
+          fs.file(oldPath).renameSync(newPath);
+        } on FileSystemException catch (e) {
+          final os = e.osError;
+          throw OsCallException(
+            '[Errno ${os?.errorCode}] ${os?.message ?? e.message}: '
+            "'$oldPath' -> '$newPath'",
+            pythonExceptionType: switch (os?.errorCode) {
+              2 => 'FileNotFoundError',
+              13 => 'PermissionError',
+              20 => 'NotADirectoryError',
+              21 => 'IsADirectoryError',
+              _ => 'OSError',
+            },
+          );
+        }
         return newPath;
       case PathOp.iterdir:
         final path = osArgString(args.first);
@@ -155,16 +194,36 @@ OsCallHandler fsHandler(FileSystem fs) {
         }
         return dir.listSync().map((e) => MontyPath(e.path)).toList();
       case PathOp.resolve:
+        // A Path, not a str — CPython's resolve()/absolute() return
+        // pathlib.Path. Returning a bare String meant Python got a `str`, so
+        // `.name`, `.parent`, `.suffix` on the result raised AttributeError.
+        // dart_monty_core hit exactly this and records it at
+        // memory_mounted_os_handler.dart:461-470. `iterdir` in this same
+        // switch already returns MontyPath; these two did not.
         final path = osArgString(args.first);
         final file = fs.file(fs.path.join(fs.currentDirectory.path, path));
         if (file.existsSync()) {
-          return file.resolveSymbolicLinksSync();
+          return MontyPath(file.resolveSymbolicLinksSync());
         }
-        return fs.path.normalize(fs.path.absolute(path));
+        return MontyPath(fs.path.normalize(fs.path.absolute(path)));
       case PathOp.absolute:
-        return fs.path.normalize(fs.path.absolute(osArgString(args.first)));
+        return MontyPath(
+          fs.path.normalize(fs.path.absolute(osArgString(args.first))),
+        );
     }
-    throw UnsupportedError('Unsupported path operation: $operation');
+    // DECLINE, DO NOT FAIL. `composeOsHandlers` treats
+    // OsCallNotHandledException as "not mine" so the next handler -- or the
+    // call's documented default -- can answer; its own doc says so. Throwing
+    // UnsupportedError instead defeated that protocol twice over: a composed
+    // sibling never got the chance to handle the op, and the Dart type name
+    // leaked into the sandbox. Measured before this change:
+    //
+    //   Path('a.txt').stat().st_size
+    //     -> RuntimeError: Unsupported operation: Unsupported path operation:
+    //        Path.stat
+    //
+    // Same leak class as the bridge arm fixed in 64fb4c8.
+    throw OsCallNotHandledException(operation);
   };
 }
 
@@ -179,3 +238,18 @@ OsCallHandler fsHandler(FileSystem fs) {
 /// bridge.registerOs(composeOsHandlers({'Path.': fsHandler(fs), ...}));
 /// ```
 OsCallHandler memoryFsHandler() => fsHandler(MemoryFileSystem());
+
+/// Codepoints, not UTF-16 code units — what CPython's `len()` counts.
+///
+/// `Path.write_text()` and `Path.append_text()` return the number of CHARACTERS
+/// written. Dart's `String.length` is UTF-16 code units, so anything outside
+/// the BMP — an emoji, most CJK extension blocks — counts twice. Measured:
+/// `'hi \u{1F600}!'` has `String.length == 6` and `runes.length == 5`, and
+/// CPython's `len()` is 5.
+///
+/// The three lengths in play agree for ASCII, which is exactly why this hid.
+/// dart_monty_core fixed the same bug in its own handler and documents it at
+/// `memory_mounted_os_handler.dart:730` (`_codepointCount`); that helper is
+/// private to core, so this is the same one-liner rather than a reach into
+/// `lib/src/`.
+int _codepointCount(String text) => text.runes.length;

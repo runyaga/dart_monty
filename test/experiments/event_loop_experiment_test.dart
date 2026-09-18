@@ -36,7 +36,7 @@ void main() {
 
     test('Python receives dispatched event via el_recv', () async {
       const script = '''
-event = el_recv()
+event = await el_recv()
 event['action']
 ''';
 
@@ -95,8 +95,8 @@ event['action']
         ..dispatch({'seq': 1});
 
       final result = await h.run('''
-a = el_recv()
-b = el_recv()
+a = await el_recv()
+b = await el_recv()
 [a['seq'], b['seq']]
 ''');
 
@@ -125,7 +125,7 @@ b = el_recv()
       const script = '''
 total = 0
 for _ in range(3):
-    event = el_recv()
+    event = await el_recv()
     total += event['n']
 total
 ''';
@@ -150,7 +150,7 @@ total
 
       const script = '''
 for i in range(3):
-    event = el_recv()
+    event = await el_recv()
     el_emit(value={'round': event['round']})
 ''';
 
@@ -197,7 +197,7 @@ for i in range(3):
 
     test('script error transitions to Completed, not stuck Waiting', () async {
       const script = '''
-el_recv()
+await el_recv()
 undefined_var_that_errors
 ''';
 
@@ -215,7 +215,7 @@ undefined_var_that_errors
       final h2 = MontyHarness(extensions: [el2]);
       await h2.setup();
 
-      const script = 'el_recv()';
+      const script = 'await el_recv()';
       final handle = h2.runtime.execute(script);
 
       await _untilWaiting(el2);
@@ -255,7 +255,7 @@ undefined_var_that_errors
         final cap = SignalCapture(el.channelStateSignal);
 
         const script = '''
-el_recv()
+await el_recv()
 ''';
 
         final handle = h.runtime.execute(script);
@@ -297,7 +297,7 @@ el_recv()
     test('FauxUi sees BridgeRunStarted and BridgeRunFinished', () async {
       el.dispatch({'skip': true});
 
-      await h.run('el_recv()');
+      await h.run('await el_recv()');
 
       ui
         ..assertContains<BridgeRunStarted>()

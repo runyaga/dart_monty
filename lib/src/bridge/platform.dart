@@ -313,8 +313,10 @@ class PlatformBridge implements MontyBridge, AttachContext {
     }
 
     final sw = Stopwatch()..start();
+    // Hoisted out of the try: the OsCallNotHandledException arm below needs
+    // `args` to build the call's default refusal via osCallNoHandlerDefault.
+    final args = osCall.args.map((v) => v.dartValue).toList();
     try {
-      final args = osCall.args.map((v) => v.dartValue).toList();
       final kwargs = osCall.kwargs?.map((k, v) => MapEntry(k, v.dartValue));
       final result = await handler(opName, args, kwargs);
       sw.stop();
@@ -327,6 +329,36 @@ class PlatformBridge implements MontyBridge, AttachContext {
       );
 
       return await _platform.resume(result);
+    } on OsCallNotHandledException catch (e) {
+      // DECLINING IS NOT FAILING, and this arm was missing entirely.
+      //
+      // `composeOsHandlers` lets a handler decline an operation it does not
+      // own by throwing OsCallNotHandledException, so the next handler -- or
+      // the documented default -- can answer. Core's MontyRepl._handleOsCall
+      // has this arm; this bridge, which its own doc comment says "mirrors the
+      // shape of MontyRepl._handleOsCall", did not. A decline therefore
+      // escaped as an unhandled exception instead of producing the call's
+      // default refusal.
+      //
+      // NOT `resumeWithError`, and NOT `resumeNotFound`: core's comment
+      // explains that resumeNotFound is the external-FUNCTION verb and reports
+      // a bare name, so declining `Path.read_text` would surface as
+      //   NameError: name 'Path.read_text' is not defined
+      // turning a sandbox refusal into a missing-function message.
+      sw.stop();
+      final fallback = osCallNoHandlerDefault(e.fnName ?? opName, args);
+      controller.add(
+        BridgeOsCallResult(
+          callId: callId,
+          result: 'Declined: ${fallback.message}',
+          durationMs: sw.elapsedMilliseconds,
+        ),
+      );
+
+      return _platform.resumeWithException(
+        fallback.excType,
+        fallback.message,
+      );
     } on OsCallException catch (e) {
       // Deliver the handler's typed Python exception (FileNotFoundError,
       // PermissionError, …) so scripts can `except` it; core falls back to

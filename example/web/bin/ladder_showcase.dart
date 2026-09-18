@@ -13,6 +13,8 @@ library;
 import 'dart:convert';
 import 'dart:js_interop';
 
+import 'package:web_example/demo_ready.dart';
+
 // ---------------------------------------------------------------------------
 // JS interop bindings for window.DartMontyBridge
 // ---------------------------------------------------------------------------
@@ -188,6 +190,7 @@ Future<void> main() async {
   final ok = (await _montyInit().toDart).toDart;
   if (!ok) {
     _reportInit(false.toJS, 'Failed to initialize Monty WASM Worker'.toJS);
+    montyDemoFailed('ladder_showcase', 'DartMontyBridge.init() returned false');
 
     return;
   }
@@ -283,6 +286,9 @@ Future<void> main() async {
   // run from a Chrome crash/timeout that emitted only partial results.
   // ignore: avoid_print
   print('LADDER_DONE:${jsonEncode({'total': totalTests})}');
+  // Raised after every tier fixture has run, so the signal carries the same
+  // weight as LADDER_DONE above.
+  montyDemoReady('ladder_showcase');
 }
 
 // ---------------------------------------------------------------------------
@@ -351,8 +357,7 @@ Future<Map<String, dynamic>> _runExpectError(
 
   return {
     'status': 'warn',
-    'detail':
-        'Expected error but got value: ${result['value']}'
+    'detail': 'Expected error but got value: ${result['value']}'
         ' — WASM Monty may handle this differently than CPython',
   };
 }
@@ -503,7 +508,8 @@ Future<Map<String, dynamic>> _runAsync(Map<String, dynamic> fixture) async {
     (await _montyResolveFutures(
       jsonEncode(results).toJS,
       jsonEncode(errors).toJS,
-    ).toDart).toDart,
+    ).toDart)
+        .toDart,
   );
 
   if (result['ok'] != true) {
@@ -545,8 +551,7 @@ Map<String, dynamic> _compareResult(
 
     return {
       'status': 'warn',
-      'detail':
-          'Value: $str'
+      'detail': 'Value: $str'
           ' — expected to contain "$expectedContains"'
           ' (WASM Monty behavioral difference)',
     };
@@ -561,8 +566,7 @@ Map<String, dynamic> _compareResult(
 
     return {
       'status': 'warn',
-      'detail':
-          'Value: $actual'
+      'detail': 'Value: $actual'
           ' — expected (sorted): $expected'
           ' (WASM Monty behavioral difference)',
     };
@@ -574,8 +578,7 @@ Map<String, dynamic> _compareResult(
 
   return {
     'status': 'warn',
-    'detail':
-        'Value: $actual'
+    'detail': 'Value: $actual'
         ' — expected: $expected'
         ' (WASM Monty behavioral difference)',
   };

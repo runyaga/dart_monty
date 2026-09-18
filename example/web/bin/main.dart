@@ -14,6 +14,8 @@ library;
 import 'dart:convert';
 import 'dart:js_interop';
 
+import 'package:web_example/demo_ready.dart';
+
 // JS interop bindings for window.DartMontyBridge
 @JS('DartMontyBridge.init')
 external JSPromise<JSBoolean> _bridgeInit();
@@ -46,6 +48,7 @@ Future<void> main() async {
   if (!ok) {
     print('ERROR: Failed to initialize Monty WASM Worker');
     print('EXAMPLE_DONE');
+    montyDemoFailed('main', 'DartMontyBridge.init() returned false');
     return;
   }
   print('Worker initialized.');
@@ -70,7 +73,8 @@ def fib(n):
 fib(10)
 '''
           .toJS,
-    ).toDart).toDart,
+    ).toDart)
+        .toDart,
   );
   print('  fib(10) = ${r['value']}');
 
@@ -93,14 +97,16 @@ fib(10)
     (await _bridgeStart(
       'fetch("https://example.com")'.toJS,
       '["fetch"]'.toJS,
-    ).toDart).toDart,
+    ).toDart)
+        .toDart,
   );
   print('  start() → state=${r['state']}, fn=${r['functionName']}');
 
   r = _parse(
     (await _bridgeResume(
       jsonEncode('<html>Hello from Dart!</html>').toJS,
-    ).toDart).toDart,
+    ).toDart)
+        .toDart,
   );
   print('  resume() → state=${r['state']}, value=${r['value']}');
 
@@ -118,18 +124,24 @@ result
 '''
           .toJS,
       '["fetch"]'.toJS,
-    ).toDart).toDart,
+    ).toDart)
+        .toDart,
   );
   print('  start() → state=${r['state']}');
 
   r = _parse(
     (await _bridgeResumeWithError(
       jsonEncode('network timeout').toJS,
-    ).toDart).toDart,
+    ).toDart)
+        .toDart,
   );
   print('  resumeWithError() → value=${r['value']}');
 
   print('');
   print('=== All examples complete ===');
   print('EXAMPLE_DONE');
+  // Raised only after every example above has actually run, so the gate's
+  // green means "this demo executed Python in the browser", not "the script
+  // parsed".
+  montyDemoReady('main');
 }

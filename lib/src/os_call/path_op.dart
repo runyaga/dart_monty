@@ -42,9 +42,15 @@ abstract final class PathOp {
   /// `Path.append_bytes` (`open(..., 'ab')` then write)
   static const appendBytes = 'Path.append_bytes';
 
-  /// `Open` — the `open()` builtin's OS-call (no `Path.` prefix). Carries
+  /// `open` — the `open()` builtin's OS-call (no `Path.` prefix). Carries
   /// `[path, mode]`; the host returns a `MontyFileHandle`.
-  static const open = 'Open';
+  ///
+  /// **Renamed in monty v0.0.19: was `'Open'`.** It was the only capitalised,
+  /// undotted op, so the new spelling is consistent with `Path.*`, `os.*`,
+  /// `date.*` and `datetime.*`. The break is silent — a handler still matching
+  /// `'Open'` simply stops matching and falls through, with no error — so
+  /// always compare against this constant rather than a string literal.
+  static const open = 'open';
 
   /// `Path.mkdir`
   static const mkdir = 'Path.mkdir';

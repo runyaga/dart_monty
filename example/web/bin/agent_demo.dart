@@ -17,6 +17,7 @@ import 'dart:js_interop';
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:file/memory.dart';
+import 'package:web_example/demo_ready.dart';
 
 // ---------------------------------------------------------------------------
 // JS interop — expose API to HTML
@@ -283,10 +284,10 @@ Future<String> _execute(String code) async {
 Map<String, dynamic> _eventToMap(BridgeEvent event) {
   return switch (event) {
     BridgeRunStarted(:final threadId, :final runId) => {
-      'type': 'RunStarted',
-      'threadId': threadId,
-      'runId': runId,
-    },
+        'type': 'RunStarted',
+        'threadId': threadId,
+        'runId': runId,
+      },
     BridgeRunFinished(
       :final threadId,
       :final runId,
@@ -301,37 +302,37 @@ Map<String, dynamic> _eventToMap(BridgeEvent event) {
         if (printOutput != null) 'printOutput': printOutput,
       },
     BridgeRunError(:final message, :final printOutput) => {
-      'type': 'RunError',
-      'message': message,
-      if (printOutput != null) 'printOutput': printOutput,
-    },
+        'type': 'RunError',
+        'message': message,
+        if (printOutput != null) 'printOutput': printOutput,
+      },
     BridgeCallStarted(:final callId) => {
-      'type': 'CallStarted',
-      'callId': callId,
-    },
+        'type': 'CallStarted',
+        'callId': callId,
+      },
     BridgeCallFinished(:final callId) => {
-      'type': 'CallFinished',
-      'callId': callId,
-    },
+        'type': 'CallFinished',
+        'callId': callId,
+      },
     BridgeFunctionCallStart(:final callId, :final name) => {
-      'type': 'FunctionCallStart',
-      'callId': callId,
-      'name': name,
-    },
+        'type': 'FunctionCallStart',
+        'callId': callId,
+        'name': name,
+      },
     BridgeFunctionCallArgs(:final callId, :final delta) => {
-      'type': 'FunctionCallArgs',
-      'callId': callId,
-      'delta': delta,
-    },
+        'type': 'FunctionCallArgs',
+        'callId': callId,
+        'delta': delta,
+      },
     BridgeFunctionCallEnd(:final callId) => {
-      'type': 'FunctionCallEnd',
-      'callId': callId,
-    },
+        'type': 'FunctionCallEnd',
+        'callId': callId,
+      },
     BridgeFunctionCallResult(:final callId, :final result) => {
-      'type': 'FunctionCallResult',
-      'callId': callId,
-      'result': result,
-    },
+        'type': 'FunctionCallResult',
+        'callId': callId,
+        'result': result,
+      },
     BridgeOsCallStart(
       :final callId,
       :final operationName,
@@ -344,21 +345,21 @@ Map<String, dynamic> _eventToMap(BridgeEvent event) {
         if (argumentSummary != null) 'argumentSummary': argumentSummary,
       },
     BridgeOsCallResult(:final callId, :final result, :final durationMs) => {
-      'type': 'OsCallResult',
-      'callId': callId,
-      'result': result,
-      if (durationMs != null) 'durationMs': durationMs,
-    },
+        'type': 'OsCallResult',
+        'callId': callId,
+        'result': result,
+        if (durationMs != null) 'durationMs': durationMs,
+      },
     BridgeFunctionEmit(:final callId, :final text) => {
-      'type': 'FunctionEmit',
-      'callId': callId,
-      'text': text,
-    },
+        'type': 'FunctionEmit',
+        'callId': callId,
+        'text': text,
+      },
     BridgeChildEvent(:final childHandle, :final inner) => {
-      'type': 'ChildEvent',
-      'childHandle': childHandle,
-      'inner': _eventToMap(inner),
-    },
+        'type': 'ChildEvent',
+        'childHandle': childHandle,
+        'inner': _eventToMap(inner),
+      },
   };
 }
 
@@ -456,8 +457,8 @@ Future<void> main() async {
   final api = <String, JSFunction>{
     'init': (() => _init().then((ok) => ok.toJS).toJS).toJS,
     'execute': ((JSString code) => _execute(
-      code.toDart,
-    ).then((r) => r.toJS).toJS).toJS,
+          code.toDart,
+        ).then((r) => r.toJS).toJS).toJS,
     'getState': (() => _getState().toJS).toJS,
     'getSchemas': (() => _getSchemas().toJS).toJS,
     'clearState': _clearState.toJS,
@@ -496,10 +497,14 @@ Future<void> main() async {
   final ok = await _init();
   if (!ok) {
     print('AGENT_DEMO_ERROR: init failed');
+    montyDemoFailed('agent_demo', 'session init failed');
     return;
   }
 
   print('AgentDemo ready');
+  // The session above already booted the WASM worker, so reaching here means
+  // the engine came up — not merely that main() was entered.
+  montyDemoReady('agent_demo');
   try {
     _jsOnReady();
   } on Object catch (_) {

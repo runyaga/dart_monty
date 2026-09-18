@@ -21,7 +21,8 @@ enum HostParamType {
   /// Any type — passes through validation without type checking.
   ///
   /// Used for parameters like filter values that accept str, int, float, etc.
-  any;
+  any
+  ;
 
   /// JSON Schema type name for display and serialization.
   ///

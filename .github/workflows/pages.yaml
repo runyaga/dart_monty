@@ -2,7 +2,18 @@ name: GitHub Pages
 
 on:
   push:
-    branches: [main]
+    # Same reasoning as ci.yaml: an integration line must publish its own docs,
+    # or the only way to see them is to merge to main first. The live site was
+    # last built 2026-06-02 for exactly this reason.
+    #
+    # CONSEQUENCE, STATED PLAINLY: a push to integration/** now DEPLOYS to the
+    # live GitHub Pages site. There is one Pages environment per repository, so
+    # whichever branch pushes last is what visitors see. That is the intended
+    # trade while 0.23 is the line being prepared; it is not a per-branch
+    # preview, and it will need revisiting if two integration lines ever run
+    # concurrently. The `concurrency` group below is keyed on github.ref, so
+    # two branches will not race a single deploy -- they will alternate.
+    branches: [main, 'integration/**']
   workflow_dispatch:
 
 concurrency:
@@ -23,25 +34,35 @@ jobs:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # ── Checkout dart_monty_core for its committed assets ─────────────
       # Assets live in dart_monty_core/lib/assets/ (under lib/ so Flutter
       # can resolve them via packages/dart_monty_core/...). Committed to
       # git (Mode A). No cargo/node build step is required — just check
       # out the repo and copy the files.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           repository: runyaga/dart_monty_core
-          ref: main
+          # MUST MATCH pubspec.yaml, example/pubspec.yaml and
+          # example/web/pubspec.yaml; tool/check_core_ref.sh fails the gate if
+          # the four disagree.
+          #
+          # This said `main`, which was then 315 commits behind the 0.23 line
+          # and had ZERO occurrences of `asStringMap` — so the Pages build
+          # compiled the demos against a core that cannot satisfy this package.
+          # Pages serves the LAST GOOD BUILD when a build fails, so that
+          # presented as a stale site rather than a red build. It now names the
+          # immutable v0.23.0 tag, which cannot drift the way a branch does.
+          ref: v0.23.0
           path: dart_monty_core
 
       # ── Compile Dart to JS ───────────────────────────────────────────
       - uses: dart-lang/setup-dart@v1
         with:
-          sdk: stable
+          sdk: 3.11.4
       - name: Cache Pub packages
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.pub-cache
           key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.yaml') }}
@@ -68,13 +89,30 @@ jobs:
       - name: Compile repl_demo.dart
         working-directory: example/web
         run: dart compile js bin/repl_demo.dart -o web/repl_demo.dart.js
+      # MISSING UNTIL NOW, and the site has been serving a 404 for it.
+      # async_matrix.html and index.html both <script src="async_matrix_demo.dart.js">,
+      # this workflow compiled six of the seven entrypoints, and every .dart.js is
+      # gitignored — so nothing filled the gap on a fresh checkout. Verified live:
+      #   main.dart.js 200, repl_demo.dart.js 200, visualizer.dart.js 200,
+      #   async_matrix_demo.dart.js 404, while async_matrix.html itself was 200.
+      - name: Compile async_matrix_demo.dart
+        working-directory: example/web
+        run: dart compile js bin/async_matrix_demo.dart -o web/async_matrix_demo.dart.js
 
       # ── Build MkDocs ────────────────────────────────────────────────
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.x'
       - name: Install MkDocs dependencies
-        run: pip install -r requirements-docs.txt
+        # The LOCK, not requirements-docs.txt. That file carries only lower
+        # bounds (`mkdocs>=1.6`), so installing it makes every deploy a fresh
+        # resolution — and makes rollback a fresh resolution too, rather than a
+        # return to a known state. requirements-docs.txt stays as the
+        # human-edited source of bounds; requirements-docs.lock is what runs.
+        # Verified 2026-09-16 on python 3.12: a clean install of the lock
+        # reproduces `pip freeze` identically and builds 29 html + 27 .md +
+        # llms.txt (3189 B) + llms-full.txt (187567 B). See issue #451 step 1.
+        run: pip install -r requirements-docs.lock
       - name: Build documentation
         run: mkdocs build
       # ── Assemble site ────────────────────────────────────────────────
@@ -87,16 +125,27 @@ jobs:
           mkdir -p site/assets
           cp -r docs/assets/* site/assets/
 
-      # ── Stamp build date ─────────────────────────────────────────────
-      - name: Stamp build date into HTML
-        run: |
-          stamp="$(date -u +'%Y-%m-%d %H:%M UTC')"
-          sed -i "s/__BUILD_DATE__/$stamp/g" site/index.html
+      # A "Stamp build date into HTML" step lived here and did NOTHING.
+      #
+      #     sed -i "s/__BUILD_DATE__/$stamp/g" site/index.html
+      #
+      # `__BUILD_DATE__` appeared in this workflow and NOWHERE ELSE in the
+      # repository — not in docs/, not in any template. Confirmed against the
+      # live site: neither a literal placeholder nor a rendered date appears in
+      # the 16,298 bytes it serves. The sed matched nothing, exited 0, and
+      # reported success on every deploy.
+      #
+      # Removed rather than repaired. Deleting a step that has never had an
+      # observable effect changes nothing; ADDING the placeholder would put a
+      # new user-visible element on the site, which is a product decision and
+      # not one to smuggle in as a bug fix. If a build date is wanted, add it
+      # deliberately — tool/check_pages_inputs.sh will then hold the placeholder
+      # and the sed together.
 
       # ── Deploy ───────────────────────────────────────────────────────
-      - uses: actions/configure-pages@v5
+      - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
       - id: deploy
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5

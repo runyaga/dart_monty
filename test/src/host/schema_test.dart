@@ -240,6 +240,55 @@ void main() {
       expect(result, {'name': 'Bob', 'count': 1});
     });
 
+    test('an explicitly passed None reaches an any-typed param', () {
+      // The agent.html `workerpool` demo's shutdown sentinel, at the layer
+      // that broke it: msg_send(name='tasks', message=None).
+      const sendSchema = HostFunctionSchema(
+        name: 'msg_send',
+        description: 'Send a message on a named channel.',
+        params: [
+          HostParam(name: 'name', type: HostParamType.string),
+          HostParam(name: 'message', type: HostParamType.any),
+        ],
+      );
+      const pending = MontyPending(
+        functionName: 'msg_send',
+        args: [MontyString('tasks')],
+        kwargs: {'message': MontyNone()},
+      );
+
+      expect(sendSchema.mapAndValidate(pending), {
+        'name': 'tasks',
+        'message': null,
+      });
+    });
+
+    test('omitting the any-typed param is still an error', () {
+      const sendSchema = HostFunctionSchema(
+        name: 'msg_send',
+        description: 'Send a message on a named channel.',
+        params: [
+          HostParam(name: 'name', type: HostParamType.string),
+          HostParam(name: 'message', type: HostParamType.any),
+        ],
+      );
+      const pending = MontyPending(
+        functionName: 'msg_send',
+        args: [MontyString('tasks')],
+      );
+
+      expect(
+        () => sendSchema.mapAndValidate(pending),
+        throwsA(
+          isA<FormatException>().having(
+            (e) => e.message,
+            'message',
+            contains('is missing'),
+          ),
+        ),
+      );
+    });
+
     test('throws FormatException for extra positional args', () {
       const pending = MontyPending(
         functionName: 'greet',

@@ -9,6 +9,8 @@ import 'dart:convert';
 import 'dart:js_interop';
 import 'dart:math';
 
+import 'package:web_example/demo_ready.dart';
+
 // ---------------------------------------------------------------------------
 // JS interop — DartMontyBridge
 // ---------------------------------------------------------------------------
@@ -169,10 +171,16 @@ Future<void> main() async {
   final ok = (await _bridgeInit().toDart).toDart;
   if (!ok) {
     _onError('Failed to initialize Monty WASM Worker'.toJS);
+    montyDemoFailed('visualizer', 'DartMontyBridge.init() returned false');
     return;
   }
 
   _onReady();
+  // visualizer.dart had NO observable boot signal of any kind before this —
+  // it calls a JS callback and then blocks forever in _waitForStart(). A
+  // headless gate could not distinguish "booted and waiting" from "died on
+  // load", which is precisely the blind spot this contract closes.
+  montyDemoReady('visualizer');
 
   while (true) {
     final configJson = (await _waitForStart().toDart).toDart;

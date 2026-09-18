@@ -1,10 +1,36 @@
 name: CI
 
 on:
+  # Manual re-run, ANY branch. Without it the only way to make CI evaluate a
+  # branch is to open a PR for it — so work that is not ready for review cannot
+  # be validated at all, and a branch pushed on its own gets nothing but
+  # trufflehog. Measured 2026-09-16: `feat/monty-023` carried a full
+  # dart_monty_core 0.23 migration (493 tests passing locally) and had run ZERO
+  # ci.yaml jobs, because a push to a non-main branch matches no trigger here.
+  #
+  # dart_monty_core added this for the same reason and it is what let its
+  # integration/0.23 branch be validated without a PR.
+  #
+  # NOTE: GitHub only offers workflow_dispatch for workflows present on the
+  # DEFAULT branch, so this does nothing until it reaches `main`.
+  workflow_dispatch:
   push:
-    branches: [main]
+    # `integration/**` IS A RELEASE LINE, NOT A TOPIC BRANCH. Measured
+    # 2026-09-16: integration/0.23 carried the entire dart_monty_core 0.23
+    # migration -- a green local gate, 493 tests -- and had run exactly ONE
+    # workflow, TruffleHog, because a push to a non-main branch matched no
+    # trigger here. workflow_dispatch could not rescue it either: GitHub only
+    # offers dispatch for workflows present on the DEFAULT branch, and main's
+    # copy does not declare it. There was no button to press.
+    branches: [main, 'integration/**']
   pull_request:
-    branches: [main, 'feat/**']
+  # No `branches:` filter — a PR gets CI whatever it targets.
+  #
+  # This previously read `branches: [main, 'feat/**']`, which silently gave
+  # ZERO test jobs to any PR based on another branch. #441 merged having run
+  # only `label` and `trufflehog`: its "CLEAN / mergeable" status was not
+  # evidence of anything. Stacked PRs are normal here, so enumerating prefixes
+  # would just move the gap; not filtering closes it.
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -16,6 +42,140 @@ permissions:
   pull-requests: write
 
 jobs:
+  # ---------------------------------------------------------------------------
+  # docs-zensical — parallel build, NOT a cutover
+  # ---------------------------------------------------------------------------
+  # Material for MkDocs is EOL 2027-05-05 and MkDocs 2.0 will run neither it nor
+  # any plugin (see issue #451). This job builds the docs with BOTH tools on
+  # every PR and fails if they disagree, so the migration soaks under real
+  # changes before pages.yaml is switched over.
+  #
+  # It lives in ci.yaml, not pages.yaml: pages.yaml triggers only on push-to-main
+  # and workflow_dispatch, so it CANNOT run on a pull request.
+  #
+  # Every assertion below is on an exit code, not on the job's colour. A green
+  # run proves nothing if the comparison step is incapable of failing.
+  docs-zensical:
+    name: docs · mkdocs vs zensical
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Install both toolchains, pinned
+        run: |
+          set -euo pipefail
+          python -m venv .venv-mk  && .venv-mk/bin/pip  install -q -r requirements-docs.lock
+          python -m venv .venv-zen && .venv-zen/bin/pip install -q -r requirements-zensical.txt
+          .venv-zen/bin/zensical --version
+
+      - name: Build with both
+        run: |
+          set -euo pipefail
+          .venv-mk/bin/mkdocs build -d out-mk
+          # `zensical build` has NO -d flag — it errors with "No such option".
+          # The output dir must come from site_dir: in a config passed via -f.
+          sed 's|^site_dir:.*||' mkdocs.yml > mkdocs-zen.yml
+          echo "site_dir: out-zen" >> mkdocs-zen.yml
+          .venv-zen/bin/zensical build -f mkdocs-zen.yml --strict
+
+      - name: HTML path sets must be identical
+        run: |
+          set -euo pipefail
+          # Roots stripped, or the comparison can never match.
+          diff <(cd out-mk  && find . -name '*.html' | sort) \
+               <(cd out-zen && find . -name '*.html' | sort)
+          echo "html pages: $(find out-mk -name '*.html' | wc -l)"
+
+      - name: The llms.txt surface must survive
+        run: |
+          set -euo pipefail
+          # MEASURED 2026-09-16: zensical drops llms.txt, llms-full.txt and the
+          # raw .md files, prints NOTHING about it, and exits 0. Until issue
+          # #451 step 6 is decided, mkdocs remains the producer of those
+          # endpoints and this asserts they are still produced.
+          #
+          # THIS IS A FLOOR, NOT A FINGERPRINT. It was `-eq 27` and broke the
+          # moment a page was added (docs/architecture/core-boundary.md in
+          # 055179e -> 28 found, expected 27, CI red for two commits). An exact
+          # count turns "we added documentation" into a build failure, which
+          # teaches contributors to delete the check rather than the page.
+          #
+          # `-lt` still catches what this exists to catch: zensical silently
+          # dropping the raw .md surface would send the count toward zero, not
+          # past the floor. Raise the floor when the doc set grows
+          # substantially; never lower it to make a run pass.
+          test -s out-mk/llms.txt
+          test -s out-mk/llms-full.txt
+          n=$(find out-mk -name '*.md' | wc -l)
+          echo "raw .md endpoints: $n (floor 27)"
+          [ "$n" -ge 27 ] || { echo "FAIL: expected at least 27 raw .md endpoints, found $n"; exit 1; }
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: docs-build-comparison
+          path: |
+            out-mk
+            out-zen
+          retention-days: 3
+          if-no-files-found: error
+  # ---------------------------------------------------------------------------
+  # gate — run the checks this repo WRITES but did not run
+  # ---------------------------------------------------------------------------
+  # Measured 2026-09-16: FOUR of the eleven checks in tool/gate.sh ran in a CI
+  # job; SEVEN ran only on a developer's laptop — including the core-ref drift
+  # guard written the same day for the bug that broke the Pages build. A check
+  # that runs nowhere is a check that is one forgotten `bash tool/gate.sh` away
+  # from being decorative.
+  #
+  # NO `needs:` AND NO `if:` ON PURPOSE. This job must not be switchable off by
+  # a paths filter: a PR that touches only docs can still break a workflow file
+  # or a dependency ref, which is exactly what these three checks read.
+  #
+  # `dart analyze` and `dart format` are deliberately NOT duplicated here — the
+  # `test` job already runs them.
+  gate:
+    name: gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: 3.11.4
+      - run: dart pub get
+      - name: Checks that otherwise run nowhere
+        run: |
+          set -uo pipefail
+          RC=0; RAN=0
+          run(){ RAN=$((RAN+1)); if "$@"; then echo "OK:   $*"; else echo "FAIL: $*"; RC=1; fi; }
+
+          run bash tool/check_core_ref.sh
+          run dart doc --validate-links .
+          run bash tool/check_workflows_valid.sh
+          run bash tool/check_pages_inputs.sh
+          run bash tool/check_page_versions.sh
+          run bash tool/check_html_escaping.sh
+          # ADDED 2026-09-17. tool/check_api_exercised.sh landed in 4b5c7b4
+          # wired into tool/gate.sh ONLY, so a PR that broke it passed CI —
+          # the check existed and CI never ran it. dart_monty_core has run its
+          # copy in CI since the check was written; this was the asymmetry.
+          run bash tool/check_api_exercised.sh
+
+          # The counter catches a DELETED invocation line; it cannot catch a
+          # missing script, because `run` increments before executing. The exit
+          # code catches that one. Both are needed.
+          [ "$RAN" -eq 7 ] || { echo "FAIL: expected 7 checks, ran $RAN"; RC=1; }
+          echo "ran $RAN checks, rc=$RC"
+
+          # REQUIRED, not decoration. Setting RC=1 in a variable and falling off
+          # the end of the script exits 0 — a gate that prints FAIL: and reports
+          # success. Same shape as the `continue-on-error: true` this repo
+          # already had to delete from its format check.
+          exit $RC
   changes:
     name: Detect changes
     runs-on: ubuntu-latest
@@ -23,8 +183,8 @@ jobs:
     outputs:
       code: ${{ steps.filter.outputs.code }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
+      - uses: actions/checkout@v7
+      - uses: dorny/paths-filter@v4
         id: filter
         with:
           filters: |
@@ -43,8 +203,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - run: pip install pymarkdownlnt
@@ -58,50 +218,171 @@ jobs:
   test:
     name: Dart test
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # 30, not 15: dart_monty_core is a git dependency on this branch, so its
+    # native asset is compiled from source rather than coming prebuilt from the
+    # pub.dev archive. A cold cargo build of the ruff/ty crate tree does not fit
+    # in 15 minutes.
+    timeout-minutes: 30
     needs: [changes]
     if: needs.changes.outputs.code == 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dart-lang/setup-dart@v1
         with:
-          sdk: stable
-      - uses: actions/cache@v4
+          sdk: 3.11.4
+      - uses: actions/cache@v6
         with:
           path: ~/.pub-cache
           key: pub-${{ runner.os }}-${{ hashFiles('pubspec.yaml') }}
           restore-keys: pub-${{ runner.os }}-
       - run: dart pub get
+      - name: Resolve nested packages
+        # `dart pub get` above resolves the root and example/, but NOT
+        # example/web/ — and `dart analyze` at the root analyses it anyway,
+        # against no package_config. That is how this job failed with 21
+        # unresolved-URI errors (run 35144138978's predecessor 35144134742)
+        # while tool/gate.sh was green on a laptop whose tree still carried
+        # example/web's resolution from an earlier run.
+        run: bash tool/resolve_packages.sh
       - name: Analyze
         run: dart analyze --fatal-infos
       - name: dart format
-        continue-on-error: true
-        run: dart format --set-exit-if-changed lib/ test/ tool/
+        # `continue-on-error: true` was removed: it neutralised
+        # --set-exit-if-changed, so this gate could never fail CI while
+        # AGENTS.md documented it as a hard requirement.
+        run: dart format --output=none --set-exit-if-changed lib/ test/ tool/
       - name: Test
-        run: dart test --coverage=coverage
+        run: |
+          # A SUITE THAT REGISTERS NOTHING PRINTS SUCCESS AND EXITS 0.
+          # Floor calibrated from the green run 35065400002 (493 observed),
+          # set below it so ordinary churn does not trip it. Raise the floor
+          # when the suite grows; never lower it to make a run pass.
+          set -o pipefail
+          dart test --coverage=coverage 2>&1 | tee /tmp/unit.log
+          bash tool/assert_test_count.sh /tmp/unit.log 450 unit
       - name: Generate LCOV
         run: |
-          dart pub global activate coverage
-          dart pub global run coverage:format_coverage \
+          # A hitmap must exist, or format_coverage emits an empty tracefile and
+          # the gate below has nothing to measure. Fail at the cause.
+          # RECURSIVE. `dart test --coverage=coverage` writes hitmaps NESTED, as
+          # coverage/test/**/<name>.vm.json — never at the top level. A
+          # `coverage/*.json` glob matches nothing even on a perfectly healthy
+          # run, which is how the first version of this guard failed a green
+          # build. Measured: 0 files at the top level, 1 recursively.
+          if [ -z "$(find coverage -name '*.json' -print -quit 2>/dev/null)" ]; then
+            echo 'FAIL: no coverage hitmap JSON under coverage/ — dart test'
+            echo '  --coverage produced nothing to format.'
+            exit 1
+          fi
+          # `dart run`, not `pub global activate`: activate resolves the latest
+          # coverage package from pub.dev on every run, so the tool that
+          # produces the number is unpinned while the number is gated.
+          dart run coverage:format_coverage \
             --lcov --in=coverage --out=coverage/lcov.info --report-on=lib
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage/lcov.info
           flags: dart
       - name: Upload lcov artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: lcov-dart
           path: coverage/lcov.info
+          # Does not close a hole — it stops a green step reporting an upload
+          # of nothing, which is how a missing tracefile reaches the next job
+          # looking like a present one.
+          if-no-files-found: error
           retention-days: 1
 
   # ---------------------------------------------------------------------------
   # Example smoke tests — every example/*.dart must compile and exit 0.
   # Installs Rust so dart_monty_core's native-asset hook can compile the dylib.
   # ---------------------------------------------------------------------------
+  test-integration:
+    name: Integration tests (real dart_monty_core via FFI)
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    # 30, not 20: dart_monty_core is a git dependency on this branch, so the
+    # native asset is compiled from source rather than unpacked from pub.dev.
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: 3.11.4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/cache@v6
+        with:
+          path: ~/.pub-cache
+          key: pub-${{ runner.os }}-${{ hashFiles('pubspec.yaml') }}
+          restore-keys: pub-${{ runner.os }}-
+      - run: dart pub get
+      - name: Run integration tests
+        # THE TAG WAS DECLARED AND EXERCISED BY NOTHING. `dart_test.yaml` skips
+        # `integration` by default, and until now the only `--tags=` in any
+        # workflow was `--tags=example`. Measured 2026-09-16: 26 of 62 test
+        # files ran in no pipeline at all -- including 13 of the 14 files that
+        # drive real dart_monty_core through FFI. The 0.23 migration's only
+        # real-backend evidence was produced by tests nothing ran (#452).
+        #
+        # Default parallelism, deliberately: the suite was verified twice at
+        # `+301` under default `-j` after the example_smoke working-directory
+        # fix, so there is no need to serialise and lose the time.
+        run: |
+          set -o pipefail
+          # --coverage ADDED 2026-09-17. This suite ran without it, so its
+          # coverage reached nothing: the lcov uploaded to Codecov and consumed
+          # by the patch-coverage gate below was UNIT-ONLY. Measured on this
+          # tree, 178 lines are covered by integration tests and by nothing
+          # else — 82.19% unit-only against 91.57% for the union — so a PR
+          # adding code that only integration exercises was judged uncovered
+          # and could fail a gate its tests actually satisfy.
+          dart test --run-skipped --tags=integration \
+            --coverage=coverage-integration \
+            --reporter=expanded 2>&1 | tee /tmp/integration.log
+          # A suite that registers nothing prints success and exits 0. Floor set
+          # below the observed 301 so ordinary churn does not trip it; raise it
+          # when the suite grows, never lower it to make a run pass.
+          bash tool/assert_test_count.sh /tmp/integration.log 290 integration
+      - name: Generate integration LCOV
+        run: |
+          set -o pipefail
+          # Same hitmap hazard as the unit job: format_coverage emits an empty
+          # tracefile rather than failing when handed nothing, so refuse here
+          # instead of uploading a file that silently lowers the merged number.
+          dart run coverage:format_coverage \
+            --lcov --in=coverage-integration \
+            --out=coverage-integration/lcov.info --report-on=lib
+          if [ ! -s coverage-integration/lcov.info ]; then
+            echo "FAIL: integration lcov is empty. Merging it would REMOVE"
+            echo "  coverage from the patch gate rather than add it."
+            exit 1
+          fi
+          echo "integration lcov lines: $(wc -l < coverage-integration/lcov.info)"
+      - name: Upload integration coverage to Codecov
+        # A SECOND FLAG, not a replacement. The unit job uploads with
+        # `flags: dart`; Codecov combines reports across flags, so the project
+        # figure becomes the union instead of the unit-only 82.19% it has been
+        # reporting. Without this the patch gate below would judge on merged
+        # coverage while the Codecov badge kept showing the smaller number —
+        # two answers to the same question, which is worse than one wrong one.
+        uses: codecov/codecov-action@v7
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage-integration/lcov.info
+          flags: integration
+      - name: Upload integration lcov artifact
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: lcov-integration
+          path: coverage-integration/lcov.info
+
   test-examples:
     name: Example smoke tests
     needs: [changes]
@@ -109,13 +390,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dart-lang/setup-dart@v1
         with:
-          sdk: stable
+          sdk: 3.11.4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: ~/.pub-cache
           key: pub-${{ runner.os }}-${{ hashFiles('pubspec.yaml') }}
@@ -123,8 +404,145 @@ jobs:
       - run: dart pub get
       - name: Run example smoke tests
         run: |
+          # Floor 4, not 3: there are exactly four example/*.dart files and each
+          # must smoke. With a suite this small a floor below the observed count
+          # permits silently losing 25% of it. Deleting an example is therefore a
+          # deliberate floor edit, which is the intent.
+          set -o pipefail
           dart test test/integration/example_smoke_test.dart \
-            -p vm --run-skipped --tags=example --reporter=expanded
+            -p vm --run-skipped --tags=example --reporter=expanded 2>&1 | tee /tmp/example.log
+          bash tool/assert_test_count.sh /tmp/example.log 4 example
+      # ---------------------------------------------------------------------
+      # Compile-only smoke for the web demos — SEVEN entrypoints
+      # ---------------------------------------------------------------------
+      # COMPILE-ONLY IS NOT COVERAGE, and this step no longer pretends to be:
+      # the `test-demo-pages` job below compiles the same seven entrypoints and
+      # then RUNS every one of them in headless Chrome. This stays because it is
+      # the cheap, fast-failing half — a syntax error surfaces here in seconds
+      # without a browser, a site assembly or a native-asset build — and because
+      # it is where the resolved-core-ref assertion has always lived.
+      #
+      # pages.yaml compiles six of these, and only on push to main. So
+      # async_matrix_demo.dart is compiled by NOTHING before merge, and the
+      # other six are first compiled on a deploy path that hides its own
+      # failure: GitHub Pages keeps serving the last good build, so a broken
+      # compile reads as "the site is stale" rather than "the site is broken".
+      # Measured: the live site was last built 2026-06-02.
+      #
+      # example/web declares its own dart_monty_core override because
+      # `dependency_overrides` do NOT propagate through a path dependency —
+      # without it this compiles against pub.dev's published core and proves
+      # nothing about the 0.23 migration.
+      - name: Compile web demos (7 entrypoints, compile-only)
+        working-directory: example/web
+        run: |
+          set -euo pipefail
+          dart pub get
+          # Confirm we are compiling against the intended core, not pub.dev. A
+          # green compile against the wrong core is the failure this step exists
+          # to prevent, so it is asserted rather than assumed.
+          #
+          # THE EXPECTED REF IS READ FROM pubspec.yaml, NOT WRITTEN HERE. It was
+          # hardcoded as `integration/0.23`, which made this a FIFTH copy of the
+          # core ref -- and one tool/check_core_ref.sh structurally cannot see,
+          # because that script matches lines that BEGIN with `ref:` and this was
+          # a grep pattern inside a shell block. Measured 2026-09-17: the pin
+          # moved to the v0.23.0 tag, all four copies that script checks moved
+          # with it, this one did not, and `Example smoke tests` failed with
+          # "resolved dart_monty_core from somewhere else" while the resolution
+          # was in fact correct. Deriving it removes the copy rather than
+          # updating it.
+          EXPECTED_REF="$(awk '
+            /dart_monty_core/ {c=40; next}
+            c && /^[[:space:]]*(#|$)/ {next}
+            c && /^[[:space:]]*ref:[[:space:]]*/ {
+              sub(/^[[:space:]]*ref:[[:space:]]*/,""); sub(/[[:space:]]*$/,""); print; exit
+            }
+            c {c--}' pubspec.yaml)"
+          [ -n "$EXPECTED_REF" ] \
+            || { echo "FAIL: no dart_monty_core ref found in example/web/pubspec.yaml"; \
+                 echo "  A gate that cannot find what it compares is broken, not passing."; exit 1; }
+          echo "expecting dart_monty_core ref: $EXPECTED_REF"
+          grep -q "ref: \"$EXPECTED_REF\"" pubspec.lock \
+            || { echo "FAIL: example/web resolved dart_monty_core from somewhere else"; \
+                 echo "  expected ref: $EXPECTED_REF"; \
+                 sed -n '/dart_monty_core:/,/^  [a-z]/p' pubspec.lock; exit 1; }
+          # COUNT, don't just loop. The glob compiles whatever happens to be
+          # there, so deleting an entrypoint would leave this step green having
+          # compiled one fewer — and the step NAME would still claim seven. A
+          # count in a name asserts nothing; this does.
+          n=0
+          for f in bin/*.dart; do
+            echo "--- $f"
+            dart compile js "$f" -o "/tmp/$(basename "${f%.dart}").js" --no-source-maps
+            n=$((n+1))
+          done
+          echo "compiled $n entrypoint(s)"
+          [ "$n" -eq 7 ] || { echo "FAIL: expected 7 web entrypoints, compiled $n."; \
+            echo "  Adding one is fine — raise this number in the same commit."; \
+            echo "  Losing one silently is the failure this catches."; exit 1; }
+
+  # ---------------------------------------------------------------------------
+  # test-demo-pages — every published demo must actually RUN
+  # ---------------------------------------------------------------------------
+  # Measured 2026-09-16 on integration/0.23, before this job existed:
+  #
+  #   example/*.dart            4   EXECUTED   (test-examples, above)
+  #   example/web/bin/*.dart    7   COMPILED ONLY — the step above runs
+  #                                 `dart compile js` per file and throws the
+  #                                 output away
+  #   example/web/web/*.html    8   NOT EXERCISED AT ALL — no job loaded one
+  #
+  # Compiling is not running. A demo that compiles can still throw on load, 404
+  # its own `.dart.js`, or fail to boot WASM — and async_matrix_demo.dart.js DID
+  # 404 on the live site while async_matrix.html returned 200, with every check
+  # green and the site stale since 2026-06-02. GitHub Pages hides a failed build
+  # by serving the last good one, so the deploy can never be the thing that
+  # catches this. This job assembles the site the way pages.yaml does, serves
+  # it, and drives headless Chrome at every page.
+  #
+  # Rust, like test-examples: dart_monty_core is a git dependency on this
+  # branch, so `dart test` runs its build hook and compiles the native asset
+  # from source rather than unpacking it from pub.dev.
+  #
+  # DEMO_PAGES_STRICT=1 — tool/check_demo_pages.sh exits 77 (a visible gate
+  # skip) when no browser is installed, which is right for a laptop and wrong
+  # here. ubuntu-latest ships Chrome, and the test-wasm job below already
+  # depends on that; if it ever stops being true this must go RED, not quietly
+  # check nothing.
+  test-demo-pages:
+    name: Demo pages boot (headless Chrome)
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: 3.11.4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/cache@v6
+        with:
+          path: ~/.pub-cache
+          key: pub-${{ runner.os }}-${{ hashFiles('pubspec.yaml') }}
+          restore-keys: pub-${{ runner.os }}-
+      - run: dart pub get
+      - name: Every published page loads, boots, and resolves its assets
+        env:
+          DEMO_PAGES_STRICT: '1'
+        run: bash tool/check_demo_pages.sh
+      - name: Upload the assembled site on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: demo-site
+          # The compiled bundles are what a failure is usually about, so they
+          # have to come back with the log rather than being rebuilt by hand.
+          path: build/demo-site
+          retention-days: 3
+          if-no-files-found: error
 
   # ---------------------------------------------------------------------------
   # WASM / Chrome — dart_monty's open()/file-I/O + overlay handler logic must
@@ -138,50 +556,165 @@ jobs:
     needs: [changes]
     if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # See the `test` job: the git dependency means cargo builds core from
+    # source, which does not fit in 15 minutes cold.
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dart-lang/setup-dart@v1
         with:
-          sdk: stable
-      - uses: actions/cache@v4
+          sdk: 3.11.4
+      - uses: actions/cache@v6
         with:
           path: ~/.pub-cache
           key: pub-${{ runner.os }}-${{ hashFiles('pubspec.yaml') }}
           restore-keys: pub-${{ runner.os }}-
       - run: dart pub get
       - name: Run WASM/Chrome tests (dart2js in headless Chrome)
-        run: dart test -p chrome test/experiments/*_wasm_test.dart --reporter=expanded
+        run: |
+          # A SUITE THAT REGISTERS NOTHING PRINTS SUCCESS AND EXITS 0.
+          # Floor calibrated from the green run 35065400002 (9 observed),
+          # set below it so ordinary churn does not trip it. Raise the floor
+          # when the suite grows; never lower it to make a run pass.
+          set -o pipefail
+          dart test -p chrome test/experiments/*_wasm_test.dart \
+            --reporter=expanded 2>&1 | tee /tmp/wasm.log
+          bash tool/assert_test_count.sh /tmp/wasm.log 8 wasm
+
+  coverage-merge:
+    # RUNS ON PUSHES TOO, deliberately. The merge used to live inside
+    # patch-coverage, which is `if: github.event_name == 'pull_request'`, so
+    # `lcov --add-tracefile` was SKIPPED on every push and had never actually
+    # executed — a step that has only ever been skipped is not a step that
+    # passes. Splitting it out means each push exercises the real command and a
+    # breakage surfaces on the commit that caused it rather than on somebody's
+    # next pull request.
+    #
+    # Same shape as dart_monty_core's `coverage-merge` job, which is gated on
+    # code changing rather than on the event being a PR.
+    name: Coverage (merged unit + integration)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [test, test-integration]
+    steps:
+      - uses: actions/checkout@v7
+      - name: Download unit lcov artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: lcov-dart
+          path: coverage
+      - name: Download integration lcov artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: lcov-integration
+          path: coverage-integration
+      - name: Merge tracefiles
+        run: |
+          sudo apt-get update && sudo apt-get install -y lcov
+          # REFUSE rather than degrade. Falling back to one tracefile would
+          # silently restore the unit-only measurement this merge exists to
+          # replace, and a gate that quietly measures less is the failure this
+          # repo keeps finding.
+          for f in coverage/lcov.info coverage-integration/lcov.info; do
+            if [ ! -s "$f" ]; then
+              echo "FAIL: $f is missing or empty. Merging without it would"
+              echo "  judge that suite's lines as uncovered."
+              exit 1
+            fi
+          done
+          # `--ignore-errors unused` ONLY: `inconsistent` and `corrupt` are
+          # lcov 2.x categories, and an unknown category is itself an error.
+          lcov --add-tracefile coverage/lcov.info \
+            --add-tracefile coverage-integration/lcov.info \
+            --ignore-errors unused \
+            -o merged.info
+          if [ ! -s merged.info ]; then
+            echo "FAIL: lcov produced an empty merged tracefile."
+            exit 1
+          fi
+          # COVERED lines, not DA records. `grep -c '^DA:'` counts every
+          # instrumented line whether hit or not, so all three tracefiles
+          # report the SAME number by construction — measured on run
+          # 35252740172, which printed "1898 / 1898 / 1898" and would have
+          # printed it for a merge that did nothing at all. A diagnostic that
+          # cannot distinguish success from failure is worse than none.
+          #
+          # `^DA:<line>,<hits>` with hits not starting 0 is a covered line.
+          covered() { grep -cE '^DA:[0-9]+,[1-9]' "$1" || true; }
+          u=$(covered coverage/lcov.info)
+          i=$(covered coverage-integration/lcov.info)
+          m=$(covered merged.info)
+          echo "covered lines — unit: $u  integration: $i  merged: $m"
+          if [ "$m" -lt "$u" ] || [ "$m" -lt "$i" ]; then
+            echo "FAIL: the merge LOST coverage ($m < unit $u or integration $i)."
+            echo "  A union cannot cover fewer lines than either input. This is"
+            echo "  lcov misbehaving or the wrong operator, not a smaller number"
+            echo "  to accept."
+            exit 1
+          fi
+      - name: Upload merged lcov artifact
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: lcov-merged
+          path: merged.info
 
   patch-coverage:
-    name: Patch coverage gate (70%)
+    # NAMED FOR WHAT IT ENFORCES. This said "(70%)" while running
+    # `--fail-under=50`, so every reader of a green tick was told a threshold
+    # that was not applied. Raising 50 -> 70 is a policy change that can fail
+    # real PRs and is left as a deliberate decision; renaming is free and makes
+    # the claim true today.
+    name: Patch coverage gate (50%)
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [test]
+    needs: [coverage-merge]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - name: Install diff-cover
         run: pip install diff-cover
-      - name: Download lcov artifact
-        uses: actions/download-artifact@v4
+      - name: Download merged tracefile
+        uses: actions/download-artifact@v8
         with:
-          name: lcov-dart
+          name: lcov-merged
           path: coverage
       - name: Check patch coverage
         run: |
           sudo apt-get update && sudo apt-get install -y lcov
-          # Skip gate when tracefile is empty (no unit tests yet).
-          if [ ! -s coverage/lcov.info ]; then
-            echo "Coverage tracefile is empty — skipping patch coverage gate."
-            exit 0
+          # AN EMPTY TRACEFILE IS A FAILURE, NOT A SKIP.
+          #
+          # This read "skipping patch coverage gate; exit 0" — written when there
+          # were no unit tests. There are now, and `-s` tests the file's
+          # EMPTINESS, not its cause: it fires on any route to an empty
+          # tracefile — --report-on matching nothing, a collector change, an
+          # interrupted write — and every one of them silently turns this gate
+          # into a no-op that reports success.
+          #
+          # Asserted rather than deleted: dropping the branch would leave the
+          # contract to whatever `lcov --remove` happens to do with an empty
+          # file, which is outsourcing a gate to a tool's incidental behaviour.
+          # THE MERGED TRACEFILE, produced by the coverage-merge job.
+          #
+          # The merge used to happen HERE, and this job is
+          # `if: github.event_name == 'pull_request'` — so `lcov
+          # --add-tracefile` was skipped on every push and had never actually
+          # run. It now lives in coverage-merge, which runs on pushes too, so
+          # the command is exercised on the commit that changes it rather than
+          # on somebody's next PR.
+          if [ ! -s coverage/merged.info ]; then
+            echo "FAIL: coverage/merged.info is missing or empty."
+            echo "  The coverage-merge job produced nothing, so this gate would"
+            echo "  verify nothing. That is a broken pipeline, not a pass."
+            exit 1
           fi
-          lcov --remove coverage/lcov.info \
+          echo "merged tracefile: $(grep -c '^DA:' coverage/merged.info) DA records"
+          lcov --remove coverage/merged.info \
             --ignore-errors unused \
             '*/generated/*' \
             -o filtered-coverage.info
