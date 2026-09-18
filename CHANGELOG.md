@@ -1,7 +1,8 @@
 ## 0.23.0
 
-Requires `dart_monty_core` 0.23 (monty v0.0.23), consumed from the
-`integration/0.23` branch until that release is published.
+Requires `dart_monty_core` 0.23 (monty v0.0.23), consumed from the `v0.23.0`
+git tag. That release is tagged but not on pub.dev, so the pin stays a git ref
+and this package is not publishable until it is.
 
 The version jumps 0.18.0 -> 0.23.0 rather than 0.19.0 so that dart_monty and
 dart_monty_core state the same number. They are released together and pinned to
@@ -12,9 +13,10 @@ like a mismatch rather than a pairing.
 
 ### Changed
 
-- `dart_monty_core` is pinned to `integration/0.23` in `pubspec.yaml`,
+- `dart_monty_core` is pinned to the `v0.23.0` tag in `pubspec.yaml`,
   `example/pubspec.yaml`, `example/web/pubspec.yaml` and `pages.yaml`;
-  `tool/check_core_ref.sh` requires all four to agree.
+  `tool/check_core_ref.sh` requires all four to agree. It was an
+  `integration/0.23` branch ref until that line was merged and tagged.
 
 ### Fixed
 

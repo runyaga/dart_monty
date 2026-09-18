@@ -45,18 +45,23 @@ dev_dependencies:
   test: ^1.25.0
   very_good_analysis: ^10.0.0
 
-# 0.19 integration branch ONLY. dart_monty_core 0.19.0 is not published, so CI
-# would otherwise resolve ^0.18.1 and test this line against a dependency it
-# does not target.
+# Pinned to the dart_monty_core v0.23.0 TAG, not a branch. A tag is immutable,
+# so a rebuild months from now resolves the same core this line was tested
+# against; `integration/0.23` would keep moving underneath it.
+#
+# dart_monty_core 0.23.0 is tagged but NOT on pub.dev — the latest published
+# there is 0.18.1 — so CI would otherwise resolve `^0.18.1` and test this line
+# against a core it does not target.
 #
 # This is a `dependency_overrides` and NOT a `dependencies` entry on purpose:
 # `dart analyze --fatal-infos` rejects a git dependency in a publishable
 # package (`invalid_dependency`), and overrides are ignored on publish.
 #
-# DELETE THIS BLOCK before merging to main or releasing, and move the
-# `dart_monty_core` constraint above to ^0.19.0.
+# THIS PACKAGE CANNOT BE PUBLISHED WHILE THIS BLOCK EXISTS. When
+# dart_monty_core 0.23.0 is published, delete this block and move the
+# `dart_monty_core` constraint above to ^0.23.0.
 dependency_overrides:
   dart_monty_core:
     git:
       url: https://github.com/runyaga/dart_monty_core.git
-      ref: integration/0.23
+      ref: v0.23.0

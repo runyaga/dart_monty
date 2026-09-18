@@ -48,12 +48,13 @@ jobs:
           # example/web/pubspec.yaml; tool/check_core_ref.sh fails the gate if
           # the four disagree.
           #
-          # This said `main`, which is 315 commits behind integration/0.23 and
-          # has ZERO occurrences of `asStringMap` — so the Pages build compiled
-          # the demos against a core that cannot satisfy this package. Pages
-          # serves the LAST GOOD BUILD when a build fails, so that presented as
-          # a stale site rather than a red build.
-          ref: integration/0.23
+          # This said `main`, which was then 315 commits behind the 0.23 line
+          # and had ZERO occurrences of `asStringMap` — so the Pages build
+          # compiled the demos against a core that cannot satisfy this package.
+          # Pages serves the LAST GOOD BUILD when a build fails, so that
+          # presented as a stale site rather than a red build. It now names the
+          # immutable v0.23.0 tag, which cannot drift the way a branch does.
+          ref: v0.23.0
           path: dart_monty_core
 
       # ── Compile Dart to JS ───────────────────────────────────────────
