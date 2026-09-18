@@ -8,7 +8,7 @@
 [![Pages](https://github.com/runyaga/dart_monty/actions/workflows/pages.yaml/badge.svg)](https://runyaga.github.io/dart_monty/)
 [![codecov](https://codecov.io/gh/runyaga/dart_monty/graph/badge.svg)](https://codecov.io/gh/runyaga/dart_monty)
 
-**dart_monty v0.23.0** &middot; built against `dart_monty_core` `integration/0.23`
+**dart_monty v0.23.0** &middot; built against `dart_monty_core` `v0.23.0`
 
 [Live Demo](https://runyaga.github.io/dart_monty/) | [Documentation](https://runyaga.github.io/dart_monty/) | [GitHub](https://github.com/runyaga/dart_monty)
 

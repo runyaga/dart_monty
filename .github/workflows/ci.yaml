@@ -441,8 +441,31 @@ jobs:
           # Confirm we are compiling against the intended core, not pub.dev. A
           # green compile against the wrong core is the failure this step exists
           # to prevent, so it is asserted rather than assumed.
-          grep -q 'ref: "integration/0.23"' pubspec.lock \
+          #
+          # THE EXPECTED REF IS READ FROM pubspec.yaml, NOT WRITTEN HERE. It was
+          # hardcoded as `integration/0.23`, which made this a FIFTH copy of the
+          # core ref -- and one tool/check_core_ref.sh structurally cannot see,
+          # because that script matches lines that BEGIN with `ref:` and this was
+          # a grep pattern inside a shell block. Measured 2026-09-17: the pin
+          # moved to the v0.23.0 tag, all four copies that script checks moved
+          # with it, this one did not, and `Example smoke tests` failed with
+          # "resolved dart_monty_core from somewhere else" while the resolution
+          # was in fact correct. Deriving it removes the copy rather than
+          # updating it.
+          EXPECTED_REF="$(awk '
+            /dart_monty_core/ {c=40; next}
+            c && /^[[:space:]]*(#|$)/ {next}
+            c && /^[[:space:]]*ref:[[:space:]]*/ {
+              sub(/^[[:space:]]*ref:[[:space:]]*/,""); sub(/[[:space:]]*$/,""); print; exit
+            }
+            c {c--}' pubspec.yaml)"
+          [ -n "$EXPECTED_REF" ] \
+            || { echo "FAIL: no dart_monty_core ref found in example/web/pubspec.yaml"; \
+                 echo "  A gate that cannot find what it compares is broken, not passing."; exit 1; }
+          echo "expecting dart_monty_core ref: $EXPECTED_REF"
+          grep -q "ref: \"$EXPECTED_REF\"" pubspec.lock \
             || { echo "FAIL: example/web resolved dart_monty_core from somewhere else"; \
+                 echo "  expected ref: $EXPECTED_REF"; \
                  sed -n '/dart_monty_core:/,/^  [a-z]/p' pubspec.lock; exit 1; }
           # COUNT, don't just loop. The glob compiles whatever happens to be
           # there, so deleting an entrypoint would leave this step green having
