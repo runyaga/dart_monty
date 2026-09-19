@@ -8,3 +8,23 @@ environment:
 dependencies:
   dart_monty:
     path: ../..
+
+# dart_monty_core resolves TRANSITIVELY FROM PUB.DEV without this, because
+# `dependency_overrides` do NOT propagate from the parent package into a
+# sub-package that has its own pubspec. Measured 2026-09-18 on main: this
+# package resolved dart_monty_core 0.18.1 from pub.dev against a dart_monty
+# that requires the 0.23 API, and failed to compile with
+#   platform.dart:349:24: The method 'osCallNoHandlerDefault' isn't defined
+#   for the type 'PlatformBridge'.
+# It had been broken since the 0.19 line and nothing said so: no CI job runs
+# this package, example_smoke_test.dart excludes /native/ by glob, and
+# tool/check_core_ref.sh could not see it because that gate requires PRESENT
+# refs to agree and this file named none.
+#
+# MUST MATCH the ref in pubspec.yaml, example/pubspec.yaml,
+# example/web/pubspec.yaml and .github/workflows/pages.yaml.
+dependency_overrides:
+  dart_monty_core:
+    git:
+      url: https://github.com/runyaga/dart_monty_core.git
+      ref: v0.23.0
