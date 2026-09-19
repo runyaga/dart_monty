@@ -195,6 +195,16 @@ jobs:
               - 'hook/**'
               - 'tool/**'
               - 'pubspec.*'
+              # dart_test.yaml DECIDES WHICH TESTS RUN, so leaving it out made
+              # the five jobs gated on `code` skippable by the one edit most
+              # able to disable them. A PR adding `skip:` to a tag changed no
+              # listed path, so `code` was false, so test, test-integration,
+              # test-examples, test-demo-pages and test-wasm were all skipped
+              # and the run reported green. analysis_options.yaml is the same
+              # shape for the analyzer. dart_monty_core's filter already lists
+              # both; this one did not.
+              - 'dart_test.yaml'
+              - 'analysis_options.yaml'
               - '.github/**'
               - '!**.md'
 
