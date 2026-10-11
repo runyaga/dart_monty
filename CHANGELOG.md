@@ -1,3 +1,12 @@
+## Unreleased
+
+### Fixed
+
+- `timeHandler`: `datetime.now()` and `datetime.now(tz)` dropped the
+  milliseconds. Python's `datetime.microsecond` is the whole sub-second part,
+  but the handler copied Dart's `DateTime.microsecond`, which holds only the
+  part below one millisecond, so 12:34:56.123456 reached Python as `.000456`.
+
 ## 0.23.0
 
 Requires `dart_monty_core` 0.23 (monty v0.0.23), consumed from the `v0.23.0`
