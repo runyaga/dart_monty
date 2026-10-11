@@ -12,16 +12,15 @@
 //
 // So these drive Python `sandbox_spawn(...)` on FFI and watch the PARENT's
 // stream.
+@TestOn('vm')
 @Tags(['integration'])
 library;
 
 import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:dart_monty/monty_backend_spi.dart';
-import 'package:dart_monty_core/src/ffi/monty_ffi.dart';
-import 'package:dart_monty_core/src/ffi/native_bindings_ffi.dart';
 import 'package:test/test.dart';
 
-MontyPlatform _platform() => MontyFfi(bindings: const NativeBindingsFfi());
+MontyPlatform _platform() => createPlatformMonty();
 
 MontyRuntime _runtimeWithSandbox() => MontyRuntime(
   extensions: [SandboxExtension(platformFactory: () async => _platform())],

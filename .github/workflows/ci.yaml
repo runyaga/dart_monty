@@ -188,11 +188,14 @@ jobs:
           # the check existed and CI never ran it. dart_monty_core has run its
           # copy in CI since the check was written; this was the asymmetry.
           run bash tool/check_api_exercised.sh
+          # dart_monty_core's src/ is outside its semver, and the analyzer's
+          # implementation_imports skips test/ and `export` (core#165).
+          run bash tool/check_no_core_src_imports.sh
 
           # The counter catches a DELETED invocation line; it cannot catch a
           # missing script, because `run` increments before executing. The exit
           # code catches that one. Both are needed.
-          [ "$RAN" -eq 7 ] || { echo "FAIL: expected 7 checks, ran $RAN"; RC=1; }
+          [ "$RAN" -eq 8 ] || { echo "FAIL: expected 8 checks, ran $RAN"; RC=1; }
           echo "ran $RAN checks, rc=$RC"
 
           # REQUIRED, not decoration. Setting RC=1 in a variable and falling off

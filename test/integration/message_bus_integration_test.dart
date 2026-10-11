@@ -1,10 +1,9 @@
+@TestOn('vm')
 @Tags(['integration'])
 library;
 
 import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:dart_monty/monty_backend_spi.dart';
-import 'package:dart_monty_core/src/ffi/monty_ffi.dart';
-import 'package:dart_monty_core/src/ffi/native_bindings_ffi.dart';
 import 'package:test/test.dart';
 
 /// Integration tests for MessageBusExtension parent↔child communication.
@@ -18,13 +17,7 @@ import 'package:test/test.dart';
 ///   test/integration/message_bus_integration_test.dart
 /// ```
 void main() {
-  late NativeBindingsFfi bindings;
-
-  setUpAll(() {
-    bindings = const NativeBindingsFfi();
-  });
-
-  MontyPlatform createPlatform() => MontyFfi(bindings: bindings);
+  MontyPlatform createPlatform() => createPlatformMonty();
 
   /// Executes [code] on a bridge and returns the final value or throws.
   Future<Object?> run(MontyBridge bridge, String code) async {
