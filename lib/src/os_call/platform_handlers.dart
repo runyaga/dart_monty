@@ -72,7 +72,7 @@ MontyDateTime _datetimeNow(DateTime t, MontyTimeZone? tz) {
       hour: t.hour,
       minute: t.minute,
       second: t.second,
-      microsecond: t.microsecond,
+      microsecond: _subSecondMicros(t),
     );
   }
   // Shift the instant, do not relabel the wall clock: an offset applied to UTC
@@ -85,11 +85,16 @@ MontyDateTime _datetimeNow(DateTime t, MontyTimeZone? tz) {
     hour: shifted.hour,
     minute: shifted.minute,
     second: shifted.second,
-    microsecond: shifted.microsecond,
+    microsecond: _subSecondMicros(shifted),
     offsetSeconds: tz.offsetSeconds,
     timezoneName: tz.name,
   );
 }
+
+/// Python's `datetime.microsecond`: the whole sub-second part of [t].
+///
+/// Dart's `DateTime.microsecond` holds only the part below one millisecond.
+int _subSecondMicros(DateTime t) => t.millisecond * 1000 + t.microsecond;
 
 /// Handler for `os.*` environment operations using a provided map.
 ///

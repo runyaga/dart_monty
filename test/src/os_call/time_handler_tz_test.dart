@@ -94,4 +94,20 @@ void main() {
       expect(v['d'], frozen.day);
     });
   });
+
+  test('datetime.now() reaches Python with the full sub-second part', () async {
+    final precise = DateTime(2024, 3, 15, 12, 34, 56, 123, 456);
+    final handler = timeHandler(clock: () => precise);
+    final session = MontyRuntime(
+      osHandlers: {'date.': handler, 'datetime.': handler},
+    );
+    addTearDown(session.dispose);
+
+    final r = await session
+        .execute('from datetime import datetime\ndatetime.now().microsecond')
+        .result;
+
+    expect(r.error, isNull);
+    expect(r.value.dartValue, 123456);
+  });
 }
