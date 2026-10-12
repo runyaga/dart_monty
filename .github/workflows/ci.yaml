@@ -169,7 +169,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: dart-lang/setup-dart@v1
         with:
-          sdk: 3.11.4
+          sdk: 3.13.5
       - run: dart pub get
       - name: Checks that otherwise run nowhere
         run: |
@@ -191,11 +191,14 @@ jobs:
           # dart_monty_core's src/ is outside its semver, and the analyzer's
           # implementation_imports skips test/ and `export` (core#165).
           run bash tool/check_no_core_src_imports.sh
+          # One Dart SDK across every workflow pin: dart format output differs
+          # between SDK releases, so mismatched pins mean format wars.
+          run bash tool/check_sdk_pin.sh
 
           # The counter catches a DELETED invocation line; it cannot catch a
           # missing script, because `run` increments before executing. The exit
           # code catches that one. Both are needed.
-          [ "$RAN" -eq 8 ] || { echo "FAIL: expected 8 checks, ran $RAN"; RC=1; }
+          [ "$RAN" -eq 9 ] || { echo "FAIL: expected 9 checks, ran $RAN"; RC=1; }
           echo "ran $RAN checks, rc=$RC"
 
           # REQUIRED, not decoration. Setting RC=1 in a variable and falling off
@@ -299,7 +302,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: dart-lang/setup-dart@v1
         with:
-          sdk: 3.11.4
+          sdk: 3.13.5
       - run: dart pub get
       - name: Key the cache on what was resolved
         id: key
@@ -374,7 +377,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: dart-lang/setup-dart@v1
         with:
-          sdk: 3.11.4
+          sdk: 3.13.5
       - name: Restore the native lib the `native` job built
         if: needs.native.outputs.key != ''
         uses: actions/cache/restore@v6
@@ -467,7 +470,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: dart-lang/setup-dart@v1
         with:
-          sdk: 3.11.4
+          sdk: 3.13.5
       - name: Restore the native lib the `native` job built
         if: needs.native.outputs.key != ''
         uses: actions/cache/restore@v6
@@ -595,7 +598,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: dart-lang/setup-dart@v1
         with:
-          sdk: 3.11.4
+          sdk: 3.13.5
       - name: Restore the native lib the `native` job built
         if: needs.native.outputs.key != ''
         uses: actions/cache/restore@v6

@@ -20,8 +20,8 @@ jobs:
           # PINNED. This is the PUBLISH path: whatever SDK runs here decides what
           # is uploaded to pub.dev, and `stable` silently changes under us on
           # every Dart release. Every other job in this repo already pins
-          # 3.11.4; publishing was the one that did not.
-          sdk: 3.11.4
+          # the same SDK; publishing was the one that did not.
+          sdk: 3.13.5
       - run: dart pub get
       - name: Analyze
         run: dart analyze --fatal-infos
