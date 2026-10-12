@@ -62,16 +62,25 @@ jobs:
   # ---------------------------------------------------------------------------
   # Material for MkDocs is EOL 2027-05-05 and MkDocs 2.0 will run neither it nor
   # any plugin (see issue #451). This job builds the docs with BOTH tools on
-  # every PR and fails if they disagree, so the migration soaks under real
-  # changes before pages.yaml is switched over.
+  # every PR that changes the docs and fails if they disagree, so the migration
+  # soaks under real changes before pages.yaml is switched over.
   #
   # It lives in ci.yaml, not pages.yaml: pages.yaml triggers only on push-to-main
   # and workflow_dispatch, so it CANNOT run on a pull request.
   #
   # Every assertion below is on an exit code, not on the job's colour. A green
   # run proves nothing if the comparison step is incapable of failing.
+  #
+  # PATH-FILTERED to its real inputs (the `docs` output of `changes`): the two
+  # builds read docs/, mkdocs.yml and the two pinned requirement files, and
+  # nothing else in the tree. Both toolchains are pinned, so with unchanged
+  # inputs a rebuild can only reproduce the last result. It used to run on
+  # every event, including PRs that touch only lib/ or test/. This workflow
+  # file is in the filter too, so an edit to this job still exercises it.
   docs-zensical:
     name: docs · mkdocs vs zensical
+    needs: [changes]
+    if: needs.changes.outputs.docs == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -197,6 +206,7 @@ jobs:
     timeout-minutes: 2
     outputs:
       code: ${{ steps.filter.outputs.code }}
+      docs: ${{ steps.filter.outputs.docs }}
     steps:
       - uses: actions/checkout@v7
       - uses: dorny/paths-filter@v4
@@ -222,6 +232,12 @@ jobs:
               - 'analysis_options.yaml'
               - '.github/**'
               - '!**.md'
+            docs:
+              - 'docs/**'
+              - 'mkdocs.yml'
+              - 'requirements-docs.lock'
+              - 'requirements-zensical.txt'
+              - '.github/workflows/ci.yaml'
 
   markdown:
     name: Markdown lint
