@@ -6,4 +6,5 @@
 /// ```
 library;
 
-export 'package:dart_monty_core/src/platform/mock_monty_platform.dart';
+export 'package:dart_monty_core/dart_monty_core_testing.dart'
+    show MockCallHistory, MockMontyPlatform;

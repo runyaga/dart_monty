@@ -184,6 +184,11 @@ run_check "demo pages boot" bash tool/check_demo_pages.sh
 # that is the whole point, and in core the same check found six entry points
 # green on a mock and unproven on FFI/WASM.
 run_check "api exercised" bash tool/check_api_exercised.sh
+# dart_monty_core's src/ is outside its semver, and the analyzer cannot guard
+# it: `implementation_imports` does not apply to test/ and ignores `export`
+# (core#165, measured both ways). So a grep does, over lib/ AND test/, and it
+# passes only on grep's "no match" status -- a scan error is not a pass.
+run_check "no core src imports" bash tool/check_no_core_src_imports.sh
 
 # -------------------------------------------------------
 # 4. Pymarkdown (all markdown files)
@@ -404,7 +409,7 @@ fi
 # EXACT, not a floor: a floor lets checks disappear one at a time, which is
 # the drift this exists to stop. Adding or removing one is deliberate and gets
 # a deliberate edit here. Ported from dart_monty_core c3f2c98.
-EXPECT_CHECKS=18
+EXPECT_CHECKS=19
 if [ "$RAN" != "$EXPECT_CHECKS" ]; then
   echo ""
   echo "  FAILED: ran $RAN checks, expected $EXPECT_CHECKS"

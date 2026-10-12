@@ -1,10 +1,9 @@
+@TestOn('vm')
 @Tags(['integration'])
 library;
 
 import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:dart_monty/monty_backend_spi.dart';
-import 'package:dart_monty_core/src/ffi/monty_ffi.dart';
-import 'package:dart_monty_core/src/ffi/native_bindings_ffi.dart';
 import 'package:struct_log/struct_log.dart';
 import 'package:test/test.dart';
 
@@ -21,13 +20,8 @@ final _testCtx = HostContext(emit: (_) {}, executionId: 'test');
 ///   test/integration/sandbox_logging_test.dart
 /// ```
 void main() {
-  late NativeBindingsFfi bindings;
   late MemorySink sink;
   late LogLevel previousLevel;
-
-  setUpAll(() {
-    bindings = const NativeBindingsFfi();
-  });
 
   setUp(() {
     sink = MemorySink();
@@ -43,7 +37,7 @@ void main() {
       ..minimumLevel = previousLevel;
   });
 
-  MontyPlatform createPlatform() => MontyFfi(bindings: bindings);
+  MontyPlatform createPlatform() => createPlatformMonty();
 
   MontyBridge createBridge() => MontyBridge(
     platform: createPlatform(),
