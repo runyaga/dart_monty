@@ -474,6 +474,24 @@ jobs:
           # below the observed 301 so ordinary churn does not trip it; raise it
           # when the suite grows, never lower it to make a run pass.
           bash tool/assert_test_count.sh /tmp/integration.log 290 integration
+      # MOVED HERE FROM THE DELETED `test-examples` JOB. The run above already
+      # executes these four tests (example_smoke_test.dart is tagged both
+      # `integration` and `example`), so a whole job — checkout, SDK, cache,
+      # a native build — existed to re-run them. This step keeps the EXACT
+      # command and its floor of 4, which the integration floor (290 of ~314)
+      # cannot express: losing one example would not move it. Sequential, in
+      # this job's tree, so no second process republishes .dart_tool/lib while
+      # the first has it mapped.
+      - name: Run example smoke tests
+        run: |
+          # Floor 4, not 3: there are exactly four example/*.dart files and each
+          # must smoke. With a suite this small a floor below the observed count
+          # permits silently losing 25% of it. Deleting an example is therefore a
+          # deliberate floor edit, which is the intent.
+          set -o pipefail
+          dart test test/integration/example_smoke_test.dart \
+            -p vm --run-skipped --tags=example --reporter=expanded 2>&1 | tee /tmp/example.log
+          bash tool/assert_test_count.sh /tmp/example.log 4 example
       - name: Generate integration LCOV
         run: |
           set -o pipefail
@@ -508,114 +526,15 @@ jobs:
           name: lcov-integration
           path: coverage-integration/lcov.info
 
-  test-examples:
-    name: Example smoke tests
-    needs: [changes, native]
-    # `!cancelled()`: a failed `native` job must not SKIP this one (a skip
-    # reads as green). Without its cache the hook just builds from source.
-    if: ${{ !cancelled() && needs.changes.outputs.code == 'true' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v7
-      - uses: dart-lang/setup-dart@v1
-        with:
-          sdk: 3.11.4
-      - name: Restore the native lib the `native` job built
-        if: needs.native.outputs.key != ''
-        uses: actions/cache/restore@v6
-        with:
-          path: ${{ env.NATIVE_CACHE_PATHS }}
-          key: ${{ needs.native.outputs.key }}
-      - run: dart pub get
-      - name: Run example smoke tests
-        run: |
-          # Floor 4, not 3: there are exactly four example/*.dart files and each
-          # must smoke. With a suite this small a floor below the observed count
-          # permits silently losing 25% of it. Deleting an example is therefore a
-          # deliberate floor edit, which is the intent.
-          set -o pipefail
-          dart test test/integration/example_smoke_test.dart \
-            -p vm --run-skipped --tags=example --reporter=expanded 2>&1 | tee /tmp/example.log
-          bash tool/assert_test_count.sh /tmp/example.log 4 example
-      # ---------------------------------------------------------------------
-      # Compile-only smoke for the web demos — SEVEN entrypoints
-      # ---------------------------------------------------------------------
-      # COMPILE-ONLY IS NOT COVERAGE, and this step no longer pretends to be:
-      # the `test-demo-pages` job below compiles the same seven entrypoints and
-      # then RUNS every one of them in headless Chrome. This stays because it is
-      # the cheap, fast-failing half — a syntax error surfaces here in seconds
-      # without a browser, a site assembly or a native-asset build — and because
-      # it is where the resolved-core-ref assertion has always lived.
-      #
-      # pages.yaml compiles six of these, and only on push to main. So
-      # async_matrix_demo.dart is compiled by NOTHING before merge, and the
-      # other six are first compiled on a deploy path that hides its own
-      # failure: GitHub Pages keeps serving the last good build, so a broken
-      # compile reads as "the site is stale" rather than "the site is broken".
-      # Measured: the live site was last built 2026-06-02.
-      #
-      # example/web declares its own dart_monty_core override because
-      # `dependency_overrides` do NOT propagate through a path dependency —
-      # without it this compiles against pub.dev's published core and proves
-      # nothing about the 0.23 migration.
-      - name: Compile web demos (7 entrypoints, compile-only)
-        working-directory: example/web
-        run: |
-          set -euo pipefail
-          dart pub get
-          # Confirm we are compiling against the intended core, not pub.dev. A
-          # green compile against the wrong core is the failure this step exists
-          # to prevent, so it is asserted rather than assumed.
-          #
-          # THE EXPECTED REF IS READ FROM pubspec.yaml, NOT WRITTEN HERE. It was
-          # hardcoded as `integration/0.23`, which made this a FIFTH copy of the
-          # core ref -- and one tool/check_core_ref.sh structurally cannot see,
-          # because that script matches lines that BEGIN with `ref:` and this was
-          # a grep pattern inside a shell block. Measured 2026-09-17: the pin
-          # moved to the v0.23.0 tag, all four copies that script checks moved
-          # with it, this one did not, and `Example smoke tests` failed with
-          # "resolved dart_monty_core from somewhere else" while the resolution
-          # was in fact correct. Deriving it removes the copy rather than
-          # updating it.
-          EXPECTED_REF="$(awk '
-            /dart_monty_core/ {c=40; next}
-            c && /^[[:space:]]*(#|$)/ {next}
-            c && /^[[:space:]]*ref:[[:space:]]*/ {
-              sub(/^[[:space:]]*ref:[[:space:]]*/,""); sub(/[[:space:]]*$/,""); print; exit
-            }
-            c {c--}' pubspec.yaml)"
-          [ -n "$EXPECTED_REF" ] \
-            || { echo "FAIL: no dart_monty_core ref found in example/web/pubspec.yaml"; \
-                 echo "  A gate that cannot find what it compares is broken, not passing."; exit 1; }
-          echo "expecting dart_monty_core ref: $EXPECTED_REF"
-          grep -q "ref: \"$EXPECTED_REF\"" pubspec.lock \
-            || { echo "FAIL: example/web resolved dart_monty_core from somewhere else"; \
-                 echo "  expected ref: $EXPECTED_REF"; \
-                 sed -n '/dart_monty_core:/,/^  [a-z]/p' pubspec.lock; exit 1; }
-          # COUNT, don't just loop. The glob compiles whatever happens to be
-          # there, so deleting an entrypoint would leave this step green having
-          # compiled one fewer — and the step NAME would still claim seven. A
-          # count in a name asserts nothing; this does.
-          n=0
-          for f in bin/*.dart; do
-            echo "--- $f"
-            dart compile js "$f" -o "/tmp/$(basename "${f%.dart}").js" --no-source-maps
-            n=$((n+1))
-          done
-          echo "compiled $n entrypoint(s)"
-          [ "$n" -eq 7 ] || { echo "FAIL: expected 7 web entrypoints, compiled $n."; \
-            echo "  Adding one is fine — raise this number in the same commit."; \
-            echo "  Losing one silently is the failure this catches."; exit 1; }
-
   # ---------------------------------------------------------------------------
   # test-demo-pages — every published demo must actually RUN
   # ---------------------------------------------------------------------------
   # Measured 2026-09-16 on integration/0.23, before this job existed:
   #
-  #   example/*.dart            4   EXECUTED   (test-examples, above)
-  #   example/web/bin/*.dart    7   COMPILED ONLY — the step above runs
-  #                                 `dart compile js` per file and throws the
+  #   example/*.dart            4   EXECUTED   (then test-examples; now a
+  #                                 step in test-integration)
+  #   example/web/bin/*.dart    7   COMPILED ONLY — test-examples ran
+  #                                 `dart compile js` per file and threw the
   #                                 output away
   #   example/web/web/*.html    8   NOT EXERCISED AT ALL — no job loaded one
   #
@@ -656,6 +575,65 @@ jobs:
           path: ${{ env.NATIVE_CACHE_PATHS }}
           key: ${{ needs.native.outputs.key }}
       - run: dart pub get
+      # MOVED HERE FROM THE DELETED `test-examples` JOB, minus its compile loop.
+      #
+      # That loop ran `dart compile js bin/<x>.dart --no-source-maps` for each
+      # entrypoint and threw the output away; tool/check_demo_pages.sh, the
+      # next step IN THIS JOB and under the same `code` filter, compiles the
+      # same discovered entrypoints with the same flags, fails on any compile
+      # error and asserts built == discovered, then RUNS them. What the loop
+      # carried that the script does not is kept below verbatim: the
+      # resolved-core-ref assertion (against example/web/pubspec.yaml's own
+      # ref) and the hard-coded entrypoint count of 7.
+      #
+      # example/web declares its own dart_monty_core override because
+      # `dependency_overrides` do NOT propagate through a path dependency —
+      # without it the demos compile against pub.dev's published core and
+      # prove nothing about the 0.23 migration.
+      - name: Web demos resolve the intended core, and there are 7 entrypoints
+        working-directory: example/web
+        run: |
+          set -euo pipefail
+          dart pub get
+          # Confirm we are compiling against the intended core, not pub.dev. A
+          # green compile against the wrong core is the failure this step exists
+          # to prevent, so it is asserted rather than assumed.
+          #
+          # THE EXPECTED REF IS READ FROM pubspec.yaml, NOT WRITTEN HERE. It was
+          # hardcoded as `integration/0.23`, which made this a FIFTH copy of the
+          # core ref -- and one tool/check_core_ref.sh structurally cannot see,
+          # because that script matches lines that BEGIN with `ref:` and this was
+          # a grep pattern inside a shell block. Measured 2026-09-17: the pin
+          # moved to the v0.23.0 tag, all four copies that script checks moved
+          # with it, this one did not, and `Example smoke tests` failed with
+          # "resolved dart_monty_core from somewhere else" while the resolution
+          # was in fact correct. Deriving it removes the copy rather than
+          # updating it.
+          EXPECTED_REF="$(awk '
+            /dart_monty_core/ {c=40; next}
+            c && /^[[:space:]]*(#|$)/ {next}
+            c && /^[[:space:]]*ref:[[:space:]]*/ {
+              sub(/^[[:space:]]*ref:[[:space:]]*/,""); sub(/[[:space:]]*$/,""); print; exit
+            }
+            c {c--}' pubspec.yaml)"
+          [ -n "$EXPECTED_REF" ] \
+            || { echo "FAIL: no dart_monty_core ref found in example/web/pubspec.yaml"; \
+                 echo "  A gate that cannot find what it compares is broken, not passing."; exit 1; }
+          echo "expecting dart_monty_core ref: $EXPECTED_REF"
+          grep -q "ref: \"$EXPECTED_REF\"" pubspec.lock \
+            || { echo "FAIL: example/web resolved dart_monty_core from somewhere else"; \
+                 echo "  expected ref: $EXPECTED_REF"; \
+                 sed -n '/dart_monty_core:/,/^  [a-z]/p' pubspec.lock; exit 1; }
+          # COUNT, don't glob-and-trust. Deleting an entrypoint would otherwise
+          # leave the site check green having compiled one fewer. A count in a
+          # name asserts nothing; this does.
+          n=0
+          for f in bin/*.dart; do echo "--- $f"; n=$((n+1)); done
+          echo "found $n entrypoint(s)"
+          [ "$n" -eq 7 ] || { echo "FAIL: expected 7 web entrypoints, found $n."; \
+            echo "  Adding one is fine — raise this number in the same commit."; \
+            echo "  Losing one silently is the failure this catches."; exit 1; }
+
       - name: Every published page loads, boots, and resolves its assets
         env:
           DEMO_PAGES_STRICT: '1'

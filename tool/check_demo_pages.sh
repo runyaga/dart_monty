@@ -175,9 +175,13 @@ echo "--- dart compile js ($NENTRY entrypoints) ---"
 built=0
 for entry in $ENTRYPOINTS; do
   base=$(basename "${entry%.dart}")
-  ( cd "$WEB" && dart compile js "bin/$base.dart" \
-      -o "../../$SITE/$base.dart.js" --no-source-maps ) >/dev/null \
-    || fail "dart compile js $entry"
+  # Quiet on success, but the compiler's own output on failure: CI's separate
+  # compile-only loop (which printed it) was folded into this script's job.
+  if ! out=$( cd "$WEB" && dart compile js "bin/$base.dart" \
+      -o "../../$SITE/$base.dart.js" --no-source-maps 2>&1 ); then
+    echo "$out" | sed 's/^/    /'
+    fail "dart compile js $entry"
+  fi
   built=$((built + 1))
 done
 # COUNT, don't just loop: the loop compiles whatever happens to be there, so
