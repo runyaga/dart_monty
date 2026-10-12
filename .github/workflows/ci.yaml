@@ -309,7 +309,14 @@ jobs:
           for p in json.load(open(".dart_tool/package_config.json"))["packages"]:
               if p["name"] == "dart_monty_core": print(urllib.parse.urlparse(p["rootUri"]).path)')
           [ -d "$core/native" ] || { echo "FAIL: resolved dart_monty_core has no native/ dir ($core)"; exit 1; }
-          rustc_v=$(cd "$core/native" && rustc -V | awk '{print $2 "-" $3}' | tr -d '()')
+          # The CHANNEL the hook's cargo will use comes from core's
+          # native/rust-toolchain.toml; `rustc +<channel>` asks that exact
+          # toolchain. Plain `rustc -V` inside native/ would give the same
+          # answer but first makes rustup download the file's 12 extra
+          # targets (measured: 25 s), which this key does not need.
+          channel=$(sed -nE 's/^[[:space:]]*channel[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/p' "$core/native/rust-toolchain.toml")
+          [ -n "$channel" ] || { echo "FAIL: no channel in $core/native/rust-toolchain.toml"; exit 1; }
+          rustc_v=$(rustc +"$channel" -V | awk '{print $2 "-" $3}' | tr -d '()')
           dart_v=$(dart --version 2>&1 | awk '{print $4}')
           [ -n "$rustc_v" ] && [ -n "$dart_v" ] || { echo "FAIL: rustc='$rustc_v' dart='$dart_v'"; exit 1; }
           key="native-v1-${RUNNER_OS}-${RUNNER_ARCH}-core-${sha}-rustc-${rustc_v}-dart-${dart_v}"
