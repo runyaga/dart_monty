@@ -53,8 +53,8 @@ jobs:
           # compiled the demos against a core that cannot satisfy this package.
           # Pages serves the LAST GOOD BUILD when a build fails, so that
           # presented as a stale site rather than a red build. It now names the
-          # immutable v0.23.0 tag, which cannot drift the way a branch does.
-          ref: v0.23.0
+          # immutable v0.23.1 tag, which cannot drift the way a branch does.
+          ref: v0.23.1
           path: dart_monty_core
 
       # ── Compile Dart to JS ───────────────────────────────────────────
