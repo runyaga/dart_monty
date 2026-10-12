@@ -41,6 +41,21 @@ permissions:
   contents: read
   pull-requests: write
 
+env:
+  # What the `native` job saves and the test jobs restore. ONE definition on
+  # purpose: the path list is part of a cache entry's version, so a consumer
+  # whose list differs by a single line silently misses.
+  #
+  # ~/.pub-cache holds dart_monty_core's git checkout, and the hook runs
+  # `cargo build` INSIDE it, so the ~400 MiB native target dir lives there.
+  # The cargo dirs hold monty/ruff's git sources and the crates.io downloads
+  # that cargo must re-fetch before it can even decide the build is fresh.
+  NATIVE_CACHE_PATHS: |
+    ~/.pub-cache
+    ~/.cargo/registry/index
+    ~/.cargo/registry/cache
+    ~/.cargo/git/db
+
 jobs:
   # ---------------------------------------------------------------------------
   # docs-zensical — parallel build, NOT a cutover
@@ -225,6 +240,96 @@ jobs:
           --disable-rules MD013,MD024,MD033,MD036,MD041,MD060
           scan docs/*.md
 
+  # ---------------------------------------------------------------------------
+  # native — build dart_monty_core's native lib ONCE, share it with every job
+  # ---------------------------------------------------------------------------
+  # dart_monty_core is a git `dependency_overrides`, so its build hook runs
+  # `cargo build --locked --release --lib` inside ~/.pub-cache (~5 min cold).
+  # Every job that runs `dart test` triggers that hook, including the
+  # chrome-only WASM suite. Measured on cold run 38155736475: FIVE jobs built
+  # the same lib in parallel (~5-6 min each, 34.3 billed minutes), all five
+  # missed the cache, and four of them then failed to save it ("Unable to
+  # reserve cache ... another job may be creating this cache").
+  #
+  # So this job is the ONLY writer of the native cache. On a hit it only looks
+  # the key up (no download) and finishes; on a miss it builds and saves. The
+  # test jobs `needs:` it and use actions/cache/restore, so a cold build is
+  # paid once per key instead of once per job. If the restore misses anyway
+  # (eviction between the two jobs, a failed save) the hook simply builds from
+  # source in that job, which is exactly what every job did before this.
+  #
+  # THE KEY NAMES WHAT CHANGES THE ARTEFACT, not what is convenient to hash.
+  # The old key, hashFiles('pubspec.yaml'), changed on every version bump and
+  # did NOT change when the image's rustc did (a hit that cargo then rebuilt
+  # from scratch, without re-saving). Same-key entries are immutable, so
+  # anything that must invalidate the build has to be IN the key:
+  #   - runner OS/arch
+  #   - the RESOLVED core commit (pubspec.lock), not the ref string
+  #   - `rustc -V` as seen from the core's native/ dir (rust-toolchain.toml)
+  #   - the Dart SDK version
+  # `v1` is a generation: bump it to force a rebuild without touching inputs.
+  native:
+    name: Native lib (build once, share)
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      key: ${{ steps.key.outputs.key }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: 3.11.4
+      - run: dart pub get
+      - name: Key the cache on what was resolved
+        id: key
+        run: |
+          set -euo pipefail
+          sha=$(awk '/^  dart_monty_core:/ {f=1} f && /resolved-ref:/ {print $2; exit}' pubspec.lock)
+          [[ "$sha" =~ ^[0-9a-f]{40}$ ]] \
+            || { echo "FAIL: no resolved dart_monty_core commit in pubspec.lock (got '$sha')"; exit 1; }
+          core=$(python3 -c 'import json,sys,urllib.parse
+          for p in json.load(open(".dart_tool/package_config.json"))["packages"]:
+              if p["name"] == "dart_monty_core": print(urllib.parse.urlparse(p["rootUri"]).path)')
+          [ -d "$core/native" ] || { echo "FAIL: resolved dart_monty_core has no native/ dir ($core)"; exit 1; }
+          rustc_v=$(cd "$core/native" && rustc -V | awk '{print $2 "-" $3}' | tr -d '()')
+          dart_v=$(dart --version 2>&1 | awk '{print $4}')
+          [ -n "$rustc_v" ] && [ -n "$dart_v" ] || { echo "FAIL: rustc='$rustc_v' dart='$dart_v'"; exit 1; }
+          key="native-v1-${RUNNER_OS}-${RUNNER_ARCH}-core-${sha}-rustc-${rustc_v}-dart-${dart_v}"
+          echo "key=$key" >> "$GITHUB_OUTPUT"
+          echo "core=$core" >> "$GITHUB_OUTPUT"
+          echo "native cache key: $key"
+      - name: Is this exact build already cached?
+        id: probe
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ env.NATIVE_CACHE_PATHS }}
+          key: ${{ steps.key.outputs.key }}
+          lookup-only: true
+      - name: Build the native lib (runs dart_monty_core's build hook)
+        if: steps.probe.outputs.cache-hit != 'true'
+        env:
+          CORE: ${{ steps.key.outputs.core }}
+        run: |
+          set -euo pipefail
+          # `dart pub get` does NOT run build hooks; running any program in
+          # this package does. An empty main is the smallest such program.
+          mkdir -p .dart_tool/ci
+          echo 'void main() {}' > .dart_tool/ci/build_hooks.dart
+          dart run .dart_tool/ci/build_hooks.dart
+          # Saving a cache WITHOUT the lib would turn every consumer into a
+          # cold build that reports a cache hit. Refuse instead.
+          lib=$(find "$CORE/native/target" -name libdart_monty_core_native.so -size +0 | head -1)
+          [ -n "$lib" ] || { echo "FAIL: the hook ran but no libdart_monty_core_native.so is under $CORE/native/target"; exit 1; }
+          ls -la "$lib"
+      - name: Save (this job is the only writer of this key)
+        if: steps.probe.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ env.NATIVE_CACHE_PATHS }}
+          key: ${{ steps.key.outputs.key }}
+
   test:
     name: Dart test
     runs-on: ubuntu-latest
@@ -233,18 +338,21 @@ jobs:
     # pub.dev archive. A cold cargo build of the ruff/ty crate tree does not fit
     # in 15 minutes.
     timeout-minutes: 30
-    needs: [changes]
-    if: needs.changes.outputs.code == 'true'
+    needs: [changes, native]
+    # `!cancelled()`: a failed `native` job must not SKIP this one (a skip
+    # reads as green). Without its cache the hook just builds from source.
+    if: ${{ !cancelled() && needs.changes.outputs.code == 'true' }}
     steps:
       - uses: actions/checkout@v7
       - uses: dart-lang/setup-dart@v1
         with:
           sdk: 3.11.4
-      - uses: actions/cache@v6
+      - name: Restore the native lib the `native` job built
+        if: needs.native.outputs.key != ''
+        uses: actions/cache/restore@v6
         with:
-          path: ~/.pub-cache
-          key: pub-${{ runner.os }}-${{ hashFiles('pubspec.yaml') }}
-          restore-keys: pub-${{ runner.os }}-
+          path: ${{ env.NATIVE_CACHE_PATHS }}
+          key: ${{ needs.native.outputs.key }}
       - run: dart pub get
       - name: Resolve nested packages
         # `dart pub get` above resolves the root and example/, but NOT
@@ -319,8 +427,10 @@ jobs:
   # cargo target dir lives inside ~/.pub-cache, which it never looked at.
   test-integration:
     name: Integration tests (real dart_monty_core via FFI)
-    needs: [changes]
-    if: needs.changes.outputs.code == 'true'
+    needs: [changes, native]
+    # `!cancelled()`: a failed `native` job must not SKIP this one (a skip
+    # reads as green). Without its cache the hook just builds from source.
+    if: ${{ !cancelled() && needs.changes.outputs.code == 'true' }}
     runs-on: ubuntu-latest
     # 30, not 20: dart_monty_core is a git dependency on this branch, so the
     # native asset is compiled from source rather than unpacked from pub.dev.
@@ -330,11 +440,12 @@ jobs:
       - uses: dart-lang/setup-dart@v1
         with:
           sdk: 3.11.4
-      - uses: actions/cache@v6
+      - name: Restore the native lib the `native` job built
+        if: needs.native.outputs.key != ''
+        uses: actions/cache/restore@v6
         with:
-          path: ~/.pub-cache
-          key: pub-${{ runner.os }}-${{ hashFiles('pubspec.yaml') }}
-          restore-keys: pub-${{ runner.os }}-
+          path: ${{ env.NATIVE_CACHE_PATHS }}
+          key: ${{ needs.native.outputs.key }}
       - run: dart pub get
       - name: Run integration tests
         # THE TAG WAS DECLARED AND EXERCISED BY NOTHING. `dart_test.yaml` skips
@@ -399,8 +510,10 @@ jobs:
 
   test-examples:
     name: Example smoke tests
-    needs: [changes]
-    if: needs.changes.outputs.code == 'true'
+    needs: [changes, native]
+    # `!cancelled()`: a failed `native` job must not SKIP this one (a skip
+    # reads as green). Without its cache the hook just builds from source.
+    if: ${{ !cancelled() && needs.changes.outputs.code == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -408,11 +521,12 @@ jobs:
       - uses: dart-lang/setup-dart@v1
         with:
           sdk: 3.11.4
-      - uses: actions/cache@v6
+      - name: Restore the native lib the `native` job built
+        if: needs.native.outputs.key != ''
+        uses: actions/cache/restore@v6
         with:
-          path: ~/.pub-cache
-          key: pub-${{ runner.os }}-${{ hashFiles('pubspec.yaml') }}
-          restore-keys: pub-${{ runner.os }}-
+          path: ${{ env.NATIVE_CACHE_PATHS }}
+          key: ${{ needs.native.outputs.key }}
       - run: dart pub get
       - name: Run example smoke tests
         run: |
@@ -524,8 +638,10 @@ jobs:
   # check nothing.
   test-demo-pages:
     name: Demo pages boot (headless Chrome)
-    needs: [changes]
-    if: needs.changes.outputs.code == 'true'
+    needs: [changes, native]
+    # `!cancelled()`: a failed `native` job must not SKIP this one (a skip
+    # reads as green). Without its cache the hook just builds from source.
+    if: ${{ !cancelled() && needs.changes.outputs.code == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -533,11 +649,12 @@ jobs:
       - uses: dart-lang/setup-dart@v1
         with:
           sdk: 3.11.4
-      - uses: actions/cache@v6
+      - name: Restore the native lib the `native` job built
+        if: needs.native.outputs.key != ''
+        uses: actions/cache/restore@v6
         with:
-          path: ~/.pub-cache
-          key: pub-${{ runner.os }}-${{ hashFiles('pubspec.yaml') }}
-          restore-keys: pub-${{ runner.os }}-
+          path: ${{ env.NATIVE_CACHE_PATHS }}
+          key: ${{ needs.native.outputs.key }}
       - run: dart pub get
       - name: Every published page loads, boots, and resolves its assets
         env:
@@ -563,8 +680,10 @@ jobs:
   # ---------------------------------------------------------------------------
   test-wasm:
     name: WASM/Chrome tests
-    needs: [changes]
-    if: needs.changes.outputs.code == 'true'
+    needs: [changes, native]
+    # `!cancelled()`: a failed `native` job must not SKIP this one (a skip
+    # reads as green). Without its cache the hook just builds from source.
+    if: ${{ !cancelled() && needs.changes.outputs.code == 'true' }}
     runs-on: ubuntu-latest
     # See the `test` job: the git dependency means cargo builds core from
     # source, which does not fit in 15 minutes cold.
@@ -574,11 +693,12 @@ jobs:
       - uses: dart-lang/setup-dart@v1
         with:
           sdk: 3.11.4
-      - uses: actions/cache@v6
+      - name: Restore the native lib the `native` job built
+        if: needs.native.outputs.key != ''
+        uses: actions/cache/restore@v6
         with:
-          path: ~/.pub-cache
-          key: pub-${{ runner.os }}-${{ hashFiles('pubspec.yaml') }}
-          restore-keys: pub-${{ runner.os }}-
+          path: ${{ env.NATIVE_CACHE_PATHS }}
+          key: ${{ needs.native.outputs.key }}
       - run: dart pub get
       - name: Run WASM/Chrome tests (dart2js in headless Chrome)
         run: |
