@@ -302,7 +302,9 @@ jobs:
         id: key
         run: |
           set -euo pipefail
-          sha=$(awk '/^  dart_monty_core:/ {f=1} f && /resolved-ref:/ {print $2; exit}' pubspec.lock)
+          # pub quotes resolved-ref when the sha starts with a digit (YAML would
+          # otherwise read it as a number), so strip quotes before checking it.
+          sha=$(awk '/^  dart_monty_core:/ {f=1} f && /resolved-ref:/ {gsub(/"/, "", $2); print $2; exit}' pubspec.lock)
           [[ "$sha" =~ ^[0-9a-f]{40}$ ]] \
             || { echo "FAIL: no resolved dart_monty_core commit in pubspec.lock (got '$sha')"; exit 1; }
           core=$(python3 -c 'import json,sys,urllib.parse
