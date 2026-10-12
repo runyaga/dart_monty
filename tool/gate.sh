@@ -129,6 +129,11 @@ skip_check() {
 # leftover state is not a gate.
 run_check "resolve nested packages" bash tool/resolve_packages.sh
 
+# The SDK must match CI's pin BEFORE formatting: dart format output differs
+# between SDK releases (unversioned dart_style fixes), so a mismatch here is
+# the cause of a format failure in CI, not a style problem.
+run_check "sdk pin" bash tool/check_sdk_pin.sh
+
 # -------------------------------------------------------
 # 1. Dart Format
 # -------------------------------------------------------
@@ -409,7 +414,7 @@ fi
 # EXACT, not a floor: a floor lets checks disappear one at a time, which is
 # the drift this exists to stop. Adding or removing one is deliberate and gets
 # a deliberate edit here. Ported from dart_monty_core c3f2c98.
-EXPECT_CHECKS=19
+EXPECT_CHECKS=20
 if [ "$RAN" != "$EXPECT_CHECKS" ]; then
   echo ""
   echo "  FAILED: ran $RAN checks, expected $EXPECT_CHECKS"
