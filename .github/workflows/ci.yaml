@@ -41,22 +41,46 @@ permissions:
   contents: read
   pull-requests: write
 
+env:
+  # What the `native` job saves and the test jobs restore. ONE definition on
+  # purpose: the path list is part of a cache entry's version, so a consumer
+  # whose list differs by a single line silently misses.
+  #
+  # ~/.pub-cache holds dart_monty_core's git checkout, and the hook runs
+  # `cargo build` INSIDE it, so the ~400 MiB native target dir lives there.
+  # The cargo dirs hold monty/ruff's git sources and the crates.io downloads
+  # that cargo must re-fetch before it can even decide the build is fresh.
+  NATIVE_CACHE_PATHS: |
+    ~/.pub-cache
+    ~/.cargo/registry/index
+    ~/.cargo/registry/cache
+    ~/.cargo/git/db
+
 jobs:
   # ---------------------------------------------------------------------------
   # docs-zensical — parallel build, NOT a cutover
   # ---------------------------------------------------------------------------
   # Material for MkDocs is EOL 2027-05-05 and MkDocs 2.0 will run neither it nor
   # any plugin (see issue #451). This job builds the docs with BOTH tools on
-  # every PR and fails if they disagree, so the migration soaks under real
-  # changes before pages.yaml is switched over.
+  # every PR that changes the docs and fails if they disagree, so the migration
+  # soaks under real changes before pages.yaml is switched over.
   #
   # It lives in ci.yaml, not pages.yaml: pages.yaml triggers only on push-to-main
   # and workflow_dispatch, so it CANNOT run on a pull request.
   #
   # Every assertion below is on an exit code, not on the job's colour. A green
   # run proves nothing if the comparison step is incapable of failing.
+  #
+  # PATH-FILTERED to its real inputs (the `docs` output of `changes`): the two
+  # builds read docs/, mkdocs.yml and the two pinned requirement files, and
+  # nothing else in the tree. Both toolchains are pinned, so with unchanged
+  # inputs a rebuild can only reproduce the last result. It used to run on
+  # every event, including PRs that touch only lib/ or test/. This workflow
+  # file is in the filter too, so an edit to this job still exercises it.
   docs-zensical:
     name: docs · mkdocs vs zensical
+    needs: [changes]
+    if: needs.changes.outputs.docs == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -182,6 +206,7 @@ jobs:
     timeout-minutes: 2
     outputs:
       code: ${{ steps.filter.outputs.code }}
+      docs: ${{ steps.filter.outputs.docs }}
     steps:
       - uses: actions/checkout@v7
       - uses: dorny/paths-filter@v4
@@ -207,6 +232,12 @@ jobs:
               - 'analysis_options.yaml'
               - '.github/**'
               - '!**.md'
+            docs:
+              - 'docs/**'
+              - 'mkdocs.yml'
+              - 'requirements-docs.lock'
+              - 'requirements-zensical.txt'
+              - '.github/workflows/ci.yaml'
 
   markdown:
     name: Markdown lint
@@ -225,6 +256,103 @@ jobs:
           --disable-rules MD013,MD024,MD033,MD036,MD041,MD060
           scan docs/*.md
 
+  # ---------------------------------------------------------------------------
+  # native — build dart_monty_core's native lib ONCE, share it with every job
+  # ---------------------------------------------------------------------------
+  # dart_monty_core is a git `dependency_overrides`, so its build hook runs
+  # `cargo build --locked --release --lib` inside ~/.pub-cache (~5 min cold).
+  # Every job that runs `dart test` triggers that hook, including the
+  # chrome-only WASM suite. Measured on cold run 38155736475: FIVE jobs built
+  # the same lib in parallel (~5-6 min each, 34.3 billed minutes), all five
+  # missed the cache, and four of them then failed to save it ("Unable to
+  # reserve cache ... another job may be creating this cache").
+  #
+  # So this job is the ONLY writer of the native cache. On a hit it only looks
+  # the key up (no download) and finishes; on a miss it builds and saves. The
+  # test jobs `needs:` it and use actions/cache/restore, so a cold build is
+  # paid once per key instead of once per job. If the restore misses anyway
+  # (eviction between the two jobs, a failed save) the hook simply builds from
+  # source in that job, which is exactly what every job did before this.
+  #
+  # THE KEY NAMES WHAT CHANGES THE ARTEFACT, not what is convenient to hash.
+  # The old key, hashFiles('pubspec.yaml'), changed on every version bump and
+  # did NOT change when the image's rustc did (a hit that cargo then rebuilt
+  # from scratch, without re-saving). Same-key entries are immutable, so
+  # anything that must invalidate the build has to be IN the key:
+  #   - runner OS/arch
+  #   - the RESOLVED core commit (pubspec.lock), not the ref string
+  #   - `rustc -V` as seen from the core's native/ dir (rust-toolchain.toml)
+  #   - the Dart SDK version
+  # `v1` is a generation: bump it to force a rebuild without touching inputs.
+  native:
+    name: Native lib (build once, share)
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      key: ${{ steps.key.outputs.key }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: 3.11.4
+      - run: dart pub get
+      - name: Key the cache on what was resolved
+        id: key
+        run: |
+          set -euo pipefail
+          sha=$(awk '/^  dart_monty_core:/ {f=1} f && /resolved-ref:/ {print $2; exit}' pubspec.lock)
+          [[ "$sha" =~ ^[0-9a-f]{40}$ ]] \
+            || { echo "FAIL: no resolved dart_monty_core commit in pubspec.lock (got '$sha')"; exit 1; }
+          core=$(python3 -c 'import json,sys,urllib.parse
+          for p in json.load(open(".dart_tool/package_config.json"))["packages"]:
+              if p["name"] == "dart_monty_core": print(urllib.parse.urlparse(p["rootUri"]).path)')
+          [ -d "$core/native" ] || { echo "FAIL: resolved dart_monty_core has no native/ dir ($core)"; exit 1; }
+          # The CHANNEL the hook's cargo will use comes from core's
+          # native/rust-toolchain.toml; `rustc +<channel>` asks that exact
+          # toolchain. Plain `rustc -V` inside native/ would give the same
+          # answer but first makes rustup download the file's 12 extra
+          # targets (measured: 25 s), which this key does not need.
+          channel=$(sed -nE 's/^[[:space:]]*channel[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/p' "$core/native/rust-toolchain.toml")
+          [ -n "$channel" ] || { echo "FAIL: no channel in $core/native/rust-toolchain.toml"; exit 1; }
+          rustc_v=$(rustc +"$channel" -V | awk '{print $2 "-" $3}' | tr -d '()')
+          dart_v=$(dart --version 2>&1 | awk '{print $4}')
+          [ -n "$rustc_v" ] && [ -n "$dart_v" ] || { echo "FAIL: rustc='$rustc_v' dart='$dart_v'"; exit 1; }
+          key="native-v1-${RUNNER_OS}-${RUNNER_ARCH}-core-${sha}-rustc-${rustc_v}-dart-${dart_v}"
+          echo "key=$key" >> "$GITHUB_OUTPUT"
+          echo "core=$core" >> "$GITHUB_OUTPUT"
+          echo "native cache key: $key"
+      - name: Is this exact build already cached?
+        id: probe
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ env.NATIVE_CACHE_PATHS }}
+          key: ${{ steps.key.outputs.key }}
+          lookup-only: true
+      - name: Build the native lib (runs dart_monty_core's build hook)
+        if: steps.probe.outputs.cache-hit != 'true'
+        env:
+          CORE: ${{ steps.key.outputs.core }}
+        run: |
+          set -euo pipefail
+          # `dart pub get` does NOT run build hooks; running any program in
+          # this package does. An empty main is the smallest such program.
+          mkdir -p .dart_tool/ci
+          echo 'void main() {}' > .dart_tool/ci/build_hooks.dart
+          dart run .dart_tool/ci/build_hooks.dart
+          # Saving a cache WITHOUT the lib would turn every consumer into a
+          # cold build that reports a cache hit. Refuse instead.
+          lib=$(find "$CORE/native/target" -name libdart_monty_core_native.so -size +0 | head -1)
+          [ -n "$lib" ] || { echo "FAIL: the hook ran but no libdart_monty_core_native.so is under $CORE/native/target"; exit 1; }
+          ls -la "$lib"
+      - name: Save (this job is the only writer of this key)
+        if: steps.probe.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ env.NATIVE_CACHE_PATHS }}
+          key: ${{ steps.key.outputs.key }}
+
   test:
     name: Dart test
     runs-on: ubuntu-latest
@@ -233,18 +361,21 @@ jobs:
     # pub.dev archive. A cold cargo build of the ruff/ty crate tree does not fit
     # in 15 minutes.
     timeout-minutes: 30
-    needs: [changes]
-    if: needs.changes.outputs.code == 'true'
+    needs: [changes, native]
+    # `!cancelled()`: a failed `native` job must not SKIP this one (a skip
+    # reads as green). Without its cache the hook just builds from source.
+    if: ${{ !cancelled() && needs.changes.outputs.code == 'true' }}
     steps:
       - uses: actions/checkout@v7
       - uses: dart-lang/setup-dart@v1
         with:
           sdk: 3.11.4
-      - uses: actions/cache@v6
+      - name: Restore the native lib the `native` job built
+        if: needs.native.outputs.key != ''
+        uses: actions/cache/restore@v6
         with:
-          path: ~/.pub-cache
-          key: pub-${{ runner.os }}-${{ hashFiles('pubspec.yaml') }}
-          restore-keys: pub-${{ runner.os }}-
+          path: ${{ env.NATIVE_CACHE_PATHS }}
+          key: ${{ needs.native.outputs.key }}
       - run: dart pub get
       - name: Resolve nested packages
         # `dart pub get` above resolves the root and example/, but NOT
@@ -308,13 +439,21 @@ jobs:
           retention-days: 1
 
   # ---------------------------------------------------------------------------
-  # Example smoke tests — every example/*.dart must compile and exit 0.
-  # Installs Rust so dart_monty_core's native-asset hook can compile the dylib.
+  # Integration tests — real dart_monty_core through FFI.
   # ---------------------------------------------------------------------------
+  # NO dtolnay/rust-toolchain AND NO Swatinem/rust-cache, deliberately.
+  # Measured on run 38155736475: dtolnay reported "stable-x86_64-unknown-linux-gnu
+  # unchanged - rustc 1.99.0", i.e. the image already had it, and the `test` and
+  # `test-wasm` jobs built the same native lib without it. rust-cache saved a
+  # 1.3 KiB entry keyed `...-da39a3ee` (the hash of nothing): this repo has no
+  # Cargo workspace, its `cargo metadata` failed with exit 101, and the real
+  # cargo target dir lives inside ~/.pub-cache, which it never looked at.
   test-integration:
     name: Integration tests (real dart_monty_core via FFI)
-    needs: [changes]
-    if: needs.changes.outputs.code == 'true'
+    needs: [changes, native]
+    # `!cancelled()`: a failed `native` job must not SKIP this one (a skip
+    # reads as green). Without its cache the hook just builds from source.
+    if: ${{ !cancelled() && needs.changes.outputs.code == 'true' }}
     runs-on: ubuntu-latest
     # 30, not 20: dart_monty_core is a git dependency on this branch, so the
     # native asset is compiled from source rather than unpacked from pub.dev.
@@ -324,13 +463,12 @@ jobs:
       - uses: dart-lang/setup-dart@v1
         with:
           sdk: 3.11.4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      - uses: actions/cache@v6
+      - name: Restore the native lib the `native` job built
+        if: needs.native.outputs.key != ''
+        uses: actions/cache/restore@v6
         with:
-          path: ~/.pub-cache
-          key: pub-${{ runner.os }}-${{ hashFiles('pubspec.yaml') }}
-          restore-keys: pub-${{ runner.os }}-
+          path: ${{ env.NATIVE_CACHE_PATHS }}
+          key: ${{ needs.native.outputs.key }}
       - run: dart pub get
       - name: Run integration tests
         # THE TAG WAS DECLARED AND EXERCISED BY NOTHING. `dart_test.yaml` skips
@@ -359,6 +497,24 @@ jobs:
           # below the observed 301 so ordinary churn does not trip it; raise it
           # when the suite grows, never lower it to make a run pass.
           bash tool/assert_test_count.sh /tmp/integration.log 290 integration
+      # MOVED HERE FROM THE DELETED `test-examples` JOB. The run above already
+      # executes these four tests (example_smoke_test.dart is tagged both
+      # `integration` and `example`), so a whole job — checkout, SDK, cache,
+      # a native build — existed to re-run them. This step keeps the EXACT
+      # command and its floor of 4, which the integration floor (290 of ~314)
+      # cannot express: losing one example would not move it. Sequential, in
+      # this job's tree, so no second process republishes .dart_tool/lib while
+      # the first has it mapped.
+      - name: Run example smoke tests
+        run: |
+          # Floor 4, not 3: there are exactly four example/*.dart files and each
+          # must smoke. With a suite this small a floor below the observed count
+          # permits silently losing 25% of it. Deleting an example is therefore a
+          # deliberate floor edit, which is the intent.
+          set -o pipefail
+          dart test test/integration/example_smoke_test.dart \
+            -p vm --run-skipped --tags=example --reporter=expanded 2>&1 | tee /tmp/example.log
+          bash tool/assert_test_count.sh /tmp/example.log 4 example
       - name: Generate integration LCOV
         run: |
           set -o pipefail
@@ -393,57 +549,72 @@ jobs:
           name: lcov-integration
           path: coverage-integration/lcov.info
 
-  test-examples:
-    name: Example smoke tests
-    needs: [changes]
-    if: needs.changes.outputs.code == 'true'
+  # ---------------------------------------------------------------------------
+  # test-demo-pages — every published demo must actually RUN
+  # ---------------------------------------------------------------------------
+  # Measured 2026-09-16 on integration/0.23, before this job existed:
+  #
+  #   example/*.dart            4   EXECUTED   (then test-examples; now a
+  #                                 step in test-integration)
+  #   example/web/bin/*.dart    7   COMPILED ONLY — test-examples ran
+  #                                 `dart compile js` per file and threw the
+  #                                 output away
+  #   example/web/web/*.html    8   NOT EXERCISED AT ALL — no job loaded one
+  #
+  # Compiling is not running. A demo that compiles can still throw on load, 404
+  # its own `.dart.js`, or fail to boot WASM — and async_matrix_demo.dart.js DID
+  # 404 on the live site while async_matrix.html returned 200, with every check
+  # green and the site stale since 2026-06-02. GitHub Pages hides a failed build
+  # by serving the last good one, so the deploy can never be the thing that
+  # catches this. This job assembles the site the way pages.yaml does, serves
+  # it, and drives headless Chrome at every page.
+  #
+  # dart_monty_core is a git dependency on this branch, so `dart test` runs its
+  # build hook and compiles the native asset from source rather than unpacking
+  # it from pub.dev. The runner image's own rustup `stable` does that build.
+  #
+  # DEMO_PAGES_STRICT=1 — tool/check_demo_pages.sh exits 77 (a visible gate
+  # skip) when no browser is installed, which is right for a laptop and wrong
+  # here. ubuntu-latest ships Chrome, and the WASM/Chrome step in this job
+  # already depends on that; if it ever stops being true this must go RED, not
+  # quietly check nothing.
+  test-demo-pages:
+    name: Demo pages + WASM/Chrome tests (headless Chrome)
+    needs: [changes, native]
+    # `!cancelled()`: a failed `native` job must not SKIP this one (a skip
+    # reads as green). Without its cache the hook just builds from source.
+    if: ${{ !cancelled() && needs.changes.outputs.code == 'true' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
       - uses: dart-lang/setup-dart@v1
         with:
           sdk: 3.11.4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      - uses: actions/cache@v6
+      - name: Restore the native lib the `native` job built
+        if: needs.native.outputs.key != ''
+        uses: actions/cache/restore@v6
         with:
-          path: ~/.pub-cache
-          key: pub-${{ runner.os }}-${{ hashFiles('pubspec.yaml') }}
-          restore-keys: pub-${{ runner.os }}-
-      - run: dart pub get
-      - name: Run example smoke tests
-        run: |
-          # Floor 4, not 3: there are exactly four example/*.dart files and each
-          # must smoke. With a suite this small a floor below the observed count
-          # permits silently losing 25% of it. Deleting an example is therefore a
-          # deliberate floor edit, which is the intent.
-          set -o pipefail
-          dart test test/integration/example_smoke_test.dart \
-            -p vm --run-skipped --tags=example --reporter=expanded 2>&1 | tee /tmp/example.log
-          bash tool/assert_test_count.sh /tmp/example.log 4 example
-      # ---------------------------------------------------------------------
-      # Compile-only smoke for the web demos — SEVEN entrypoints
-      # ---------------------------------------------------------------------
-      # COMPILE-ONLY IS NOT COVERAGE, and this step no longer pretends to be:
-      # the `test-demo-pages` job below compiles the same seven entrypoints and
-      # then RUNS every one of them in headless Chrome. This stays because it is
-      # the cheap, fast-failing half — a syntax error surfaces here in seconds
-      # without a browser, a site assembly or a native-asset build — and because
-      # it is where the resolved-core-ref assertion has always lived.
+          path: ${{ env.NATIVE_CACHE_PATHS }}
+          key: ${{ needs.native.outputs.key }}
+      - id: pubget
+        run: dart pub get
+      # MOVED HERE FROM THE DELETED `test-examples` JOB, minus its compile loop.
       #
-      # pages.yaml compiles six of these, and only on push to main. So
-      # async_matrix_demo.dart is compiled by NOTHING before merge, and the
-      # other six are first compiled on a deploy path that hides its own
-      # failure: GitHub Pages keeps serving the last good build, so a broken
-      # compile reads as "the site is stale" rather than "the site is broken".
-      # Measured: the live site was last built 2026-06-02.
+      # That loop ran `dart compile js bin/<x>.dart --no-source-maps` for each
+      # entrypoint and threw the output away; tool/check_demo_pages.sh, the
+      # next step IN THIS JOB and under the same `code` filter, compiles the
+      # same discovered entrypoints with the same flags, fails on any compile
+      # error and asserts built == discovered, then RUNS them. What the loop
+      # carried that the script does not is kept below verbatim: the
+      # resolved-core-ref assertion (against example/web/pubspec.yaml's own
+      # ref) and the hard-coded entrypoint count of 7.
       #
       # example/web declares its own dart_monty_core override because
       # `dependency_overrides` do NOT propagate through a path dependency —
-      # without it this compiles against pub.dev's published core and proves
-      # nothing about the 0.23 migration.
-      - name: Compile web demos (7 entrypoints, compile-only)
+      # without it the demos compile against pub.dev's published core and
+      # prove nothing about the 0.23 migration.
+      - name: Web demos resolve the intended core, and there are 7 entrypoints
         working-directory: example/web
         run: |
           set -euo pipefail
@@ -477,72 +648,43 @@ jobs:
             || { echo "FAIL: example/web resolved dart_monty_core from somewhere else"; \
                  echo "  expected ref: $EXPECTED_REF"; \
                  sed -n '/dart_monty_core:/,/^  [a-z]/p' pubspec.lock; exit 1; }
-          # COUNT, don't just loop. The glob compiles whatever happens to be
-          # there, so deleting an entrypoint would leave this step green having
-          # compiled one fewer — and the step NAME would still claim seven. A
-          # count in a name asserts nothing; this does.
+          # COUNT, don't glob-and-trust. Deleting an entrypoint would otherwise
+          # leave the site check green having compiled one fewer. A count in a
+          # name asserts nothing; this does.
           n=0
-          for f in bin/*.dart; do
-            echo "--- $f"
-            dart compile js "$f" -o "/tmp/$(basename "${f%.dart}").js" --no-source-maps
-            n=$((n+1))
-          done
-          echo "compiled $n entrypoint(s)"
-          [ "$n" -eq 7 ] || { echo "FAIL: expected 7 web entrypoints, compiled $n."; \
+          for f in bin/*.dart; do echo "--- $f"; n=$((n+1)); done
+          echo "found $n entrypoint(s)"
+          [ "$n" -eq 7 ] || { echo "FAIL: expected 7 web entrypoints, found $n."; \
             echo "  Adding one is fine — raise this number in the same commit."; \
             echo "  Losing one silently is the failure this catches."; exit 1; }
 
-  # ---------------------------------------------------------------------------
-  # test-demo-pages — every published demo must actually RUN
-  # ---------------------------------------------------------------------------
-  # Measured 2026-09-16 on integration/0.23, before this job existed:
-  #
-  #   example/*.dart            4   EXECUTED   (test-examples, above)
-  #   example/web/bin/*.dart    7   COMPILED ONLY — the step above runs
-  #                                 `dart compile js` per file and throws the
-  #                                 output away
-  #   example/web/web/*.html    8   NOT EXERCISED AT ALL — no job loaded one
-  #
-  # Compiling is not running. A demo that compiles can still throw on load, 404
-  # its own `.dart.js`, or fail to boot WASM — and async_matrix_demo.dart.js DID
-  # 404 on the live site while async_matrix.html returned 200, with every check
-  # green and the site stale since 2026-06-02. GitHub Pages hides a failed build
-  # by serving the last good one, so the deploy can never be the thing that
-  # catches this. This job assembles the site the way pages.yaml does, serves
-  # it, and drives headless Chrome at every page.
-  #
-  # Rust, like test-examples: dart_monty_core is a git dependency on this
-  # branch, so `dart test` runs its build hook and compiles the native asset
-  # from source rather than unpacking it from pub.dev.
-  #
-  # DEMO_PAGES_STRICT=1 — tool/check_demo_pages.sh exits 77 (a visible gate
-  # skip) when no browser is installed, which is right for a laptop and wrong
-  # here. ubuntu-latest ships Chrome, and the test-wasm job below already
-  # depends on that; if it ever stops being true this must go RED, not quietly
-  # check nothing.
-  test-demo-pages:
-    name: Demo pages boot (headless Chrome)
-    needs: [changes]
-    if: needs.changes.outputs.code == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v7
-      - uses: dart-lang/setup-dart@v1
-        with:
-          sdk: 3.11.4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      - uses: actions/cache@v6
-        with:
-          path: ~/.pub-cache
-          key: pub-${{ runner.os }}-${{ hashFiles('pubspec.yaml') }}
-          restore-keys: pub-${{ runner.os }}-
-      - run: dart pub get
       - name: Every published page loads, boots, and resolves its assets
         env:
           DEMO_PAGES_STRICT: '1'
         run: bash tool/check_demo_pages.sh
+      # MOVED HERE FROM THE DELETED `test-wasm` JOB, which paid a full setup
+      # and a native-hook run (339 s on cold run 38155736475, although this
+      # suite never loads the native lib) to run one command. Same command,
+      # same floor of 8, sequential after the demo pages so no two `dart`
+      # processes share this tree's .dart_tool. `!cancelled()` so a demo-page
+      # failure does not hide this suite's own result.
+      #
+      # WASM / Chrome — dart_monty's open()/file-I/O + overlay handler logic must
+      # compile to dart2js and run in a real browser, mirroring dart_monty_core's
+      # WASM gate. The handlers run directly here (MemoryFileSystem, no dart:io and
+      # no engine), so plain `dart test -p chrome` is the gate; the end-to-end
+      # Python open() flow is covered by dart_monty_core's WASM fixture corpus.
+      - name: Run WASM/Chrome tests (dart2js in headless Chrome)
+        if: ${{ !cancelled() && steps.pubget.outcome == 'success' }}
+        run: |
+          # A SUITE THAT REGISTERS NOTHING PRINTS SUCCESS AND EXITS 0.
+          # Floor calibrated from the green run 35065400002 (9 observed),
+          # set below it so ordinary churn does not trip it. Raise the floor
+          # when the suite grows; never lower it to make a run pass.
+          set -o pipefail
+          dart test -p chrome test/experiments/*_wasm_test.dart \
+            --reporter=expanded 2>&1 | tee /tmp/wasm.log
+          bash tool/assert_test_count.sh /tmp/wasm.log 8 wasm
       - name: Upload the assembled site on failure
         if: failure()
         uses: actions/upload-artifact@v7
@@ -553,43 +695,6 @@ jobs:
           path: build/demo-site
           retention-days: 3
           if-no-files-found: error
-
-  # ---------------------------------------------------------------------------
-  # WASM / Chrome — dart_monty's open()/file-I/O + overlay handler logic must
-  # compile to dart2js and run in a real browser, mirroring dart_monty_core's
-  # WASM gate. The handlers run directly here (MemoryFileSystem, no dart:io and
-  # no engine), so plain `dart test -p chrome` is the gate; the end-to-end
-  # Python open() flow is covered by dart_monty_core's WASM fixture corpus.
-  # ---------------------------------------------------------------------------
-  test-wasm:
-    name: WASM/Chrome tests
-    needs: [changes]
-    if: needs.changes.outputs.code == 'true'
-    runs-on: ubuntu-latest
-    # See the `test` job: the git dependency means cargo builds core from
-    # source, which does not fit in 15 minutes cold.
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v7
-      - uses: dart-lang/setup-dart@v1
-        with:
-          sdk: 3.11.4
-      - uses: actions/cache@v6
-        with:
-          path: ~/.pub-cache
-          key: pub-${{ runner.os }}-${{ hashFiles('pubspec.yaml') }}
-          restore-keys: pub-${{ runner.os }}-
-      - run: dart pub get
-      - name: Run WASM/Chrome tests (dart2js in headless Chrome)
-        run: |
-          # A SUITE THAT REGISTERS NOTHING PRINTS SUCCESS AND EXITS 0.
-          # Floor calibrated from the green run 35065400002 (9 observed),
-          # set below it so ordinary churn does not trip it. Raise the floor
-          # when the suite grows; never lower it to make a run pass.
-          set -o pipefail
-          dart test -p chrome test/experiments/*_wasm_test.dart \
-            --reporter=expanded 2>&1 | tee /tmp/wasm.log
-          bash tool/assert_test_count.sh /tmp/wasm.log 8 wasm
 
   coverage-merge:
     # RUNS ON PUSHES TOO, deliberately. The merge used to live inside
