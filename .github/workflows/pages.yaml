@@ -34,14 +34,14 @@ jobs:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       # ── Checkout dart_monty_core for its committed assets ─────────────
       # Assets live in dart_monty_core/lib/assets/ (under lib/ so Flutter
       # can resolve them via packages/dart_monty_core/...). Committed to
       # git (Mode A). No cargo/node build step is required — just check
       # out the repo and copy the files.
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: runyaga/dart_monty_core
           # MUST MATCH pubspec.yaml, example/pubspec.yaml and
@@ -58,11 +58,11 @@ jobs:
           path: dart_monty_core
 
       # ── Compile Dart to JS ───────────────────────────────────────────
-      - uses: dart-lang/setup-dart@v1
+      - uses: dart-lang/setup-dart@6afc89df92d6eb3834022f73cd65adc8cdfcb92d # v1
         with:
           sdk: 3.13.5
       - name: Cache Pub packages
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ~/.pub-cache
           key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.yaml') }}
@@ -100,7 +100,7 @@ jobs:
         run: dart compile js bin/async_matrix_demo.dart -o web/async_matrix_demo.dart.js
 
       # ── Build MkDocs ────────────────────────────────────────────────
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: '3.x'
       - name: Install MkDocs dependencies
@@ -143,9 +143,9 @@ jobs:
       # and the sed together.
 
       # ── Deploy ───────────────────────────────────────────────────────
-      - uses: actions/configure-pages@v6
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6
+      - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
         with:
           path: site
       - id: deploy
-        uses: actions/deploy-pages@v5
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5

@@ -84,8 +84,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: '3.12'
       - name: Install both toolchains, pinned
@@ -137,7 +137,7 @@ jobs:
           echo "raw .md endpoints: $n (floor 27)"
           [ "$n" -ge 27 ] || { echo "FAIL: expected at least 27 raw .md endpoints, found $n"; exit 1; }
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always()
         with:
           name: docs-build-comparison
@@ -166,8 +166,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
-      - uses: actions/checkout@v7
-      - uses: dart-lang/setup-dart@v1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: dart-lang/setup-dart@6afc89df92d6eb3834022f73cd65adc8cdfcb92d # v1
         with:
           sdk: 3.13.5
       - run: dart pub get
@@ -180,6 +180,8 @@ jobs:
           run bash tool/check_core_ref.sh
           run dart doc --validate-links .
           run bash tool/check_workflows_valid.sh
+          # Every third-party `uses:` pinned to a 40-hex commit SHA.
+          run bash tool/check_action_pins.sh
           run bash tool/check_pages_inputs.sh
           run bash tool/check_page_versions.sh
           run bash tool/check_html_escaping.sh
@@ -198,7 +200,7 @@ jobs:
           # The counter catches a DELETED invocation line; it cannot catch a
           # missing script, because `run` increments before executing. The exit
           # code catches that one. Both are needed.
-          [ "$RAN" -eq 9 ] || { echo "FAIL: expected 9 checks, ran $RAN"; RC=1; }
+          [ "$RAN" -eq 10 ] || { echo "FAIL: expected 10 checks, ran $RAN"; RC=1; }
           echo "ran $RAN checks, rc=$RC"
 
           # REQUIRED, not decoration. Setting RC=1 in a variable and falling off
@@ -214,8 +216,8 @@ jobs:
       code: ${{ steps.filter.outputs.code }}
       docs: ${{ steps.filter.outputs.docs }}
     steps:
-      - uses: actions/checkout@v7
-      - uses: dorny/paths-filter@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
         id: filter
         with:
           filters: |
@@ -250,8 +252,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.12"
       - run: pip install pymarkdownlnt
@@ -299,8 +301,8 @@ jobs:
     outputs:
       key: ${{ steps.key.outputs.key }}
     steps:
-      - uses: actions/checkout@v7
-      - uses: dart-lang/setup-dart@v1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: dart-lang/setup-dart@6afc89df92d6eb3834022f73cd65adc8cdfcb92d # v1
         with:
           sdk: 3.13.5
       - run: dart pub get
@@ -333,7 +335,7 @@ jobs:
           echo "native cache key: $key"
       - name: Is this exact build already cached?
         id: probe
-        uses: actions/cache/restore@v6
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ${{ env.NATIVE_CACHE_PATHS }}
           key: ${{ steps.key.outputs.key }}
@@ -356,7 +358,7 @@ jobs:
           ls -la "$lib"
       - name: Save (this job is the only writer of this key)
         if: steps.probe.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v6
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ${{ env.NATIVE_CACHE_PATHS }}
           key: ${{ steps.key.outputs.key }}
@@ -374,13 +376,13 @@ jobs:
     # reads as green). Without its cache the hook just builds from source.
     if: ${{ !cancelled() && needs.changes.outputs.code == 'true' }}
     steps:
-      - uses: actions/checkout@v7
-      - uses: dart-lang/setup-dart@v1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: dart-lang/setup-dart@6afc89df92d6eb3834022f73cd65adc8cdfcb92d # v1
         with:
           sdk: 3.13.5
       - name: Restore the native lib the `native` job built
         if: needs.native.outputs.key != ''
-        uses: actions/cache/restore@v6
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ${{ env.NATIVE_CACHE_PATHS }}
           key: ${{ needs.native.outputs.key }}
@@ -429,14 +431,14 @@ jobs:
           dart run coverage:format_coverage \
             --lcov --in=coverage --out=coverage/lcov.info --report-on=lib
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v7
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage/lcov.info
           flags: dart
       - name: Upload lcov artifact
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: lcov-dart
           path: coverage/lcov.info
@@ -467,13 +469,13 @@ jobs:
     # native asset is compiled from source rather than unpacked from pub.dev.
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v7
-      - uses: dart-lang/setup-dart@v1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: dart-lang/setup-dart@6afc89df92d6eb3834022f73cd65adc8cdfcb92d # v1
         with:
           sdk: 3.13.5
       - name: Restore the native lib the `native` job built
         if: needs.native.outputs.key != ''
-        uses: actions/cache/restore@v6
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ${{ env.NATIVE_CACHE_PATHS }}
           key: ${{ needs.native.outputs.key }}
@@ -545,14 +547,14 @@ jobs:
         # reporting. Without this the patch gate below would judge on merged
         # coverage while the Codecov badge kept showing the smaller number —
         # two answers to the same question, which is worse than one wrong one.
-        uses: codecov/codecov-action@v7
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage-integration/lcov.info
           flags: integration
       - name: Upload integration lcov artifact
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: lcov-integration
           path: coverage-integration/lcov.info
@@ -595,13 +597,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v7
-      - uses: dart-lang/setup-dart@v1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: dart-lang/setup-dart@6afc89df92d6eb3834022f73cd65adc8cdfcb92d # v1
         with:
           sdk: 3.13.5
       - name: Restore the native lib the `native` job built
         if: needs.native.outputs.key != ''
-        uses: actions/cache/restore@v6
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ${{ env.NATIVE_CACHE_PATHS }}
           key: ${{ needs.native.outputs.key }}
@@ -695,7 +697,7 @@ jobs:
           bash tool/assert_test_count.sh /tmp/wasm.log 8 wasm
       - name: Upload the assembled site on failure
         if: failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: demo-site
           # The compiled bundles are what a failure is usually about, so they
@@ -720,14 +722,14 @@ jobs:
     timeout-minutes: 10
     needs: [test, test-integration]
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Download unit lcov artifact
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: lcov-dart
           path: coverage
       - name: Download integration lcov artifact
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: lcov-integration
           path: coverage-integration
@@ -777,7 +779,7 @@ jobs:
           fi
       - name: Upload merged lcov artifact
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: lcov-merged
           path: merged.info
@@ -794,16 +796,16 @@ jobs:
     timeout-minutes: 10
     needs: [coverage-merge]
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.12"
       - name: Install diff-cover
         run: pip install diff-cover
       - name: Download merged tracefile
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: lcov-merged
           path: coverage

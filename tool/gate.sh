@@ -163,6 +163,9 @@ run_check "core ref agreement" bash tool/check_core_ref.sh
 # because a malformed workflow does not fail — it silently stops running, and a
 # job that never starts reports nothing at all.
 run_check "workflows valid" bash tool/check_workflows_valid.sh
+# A tag or branch pin (`@v7`) is a pointer the action's owner can move; the
+# next run executes whatever it points at, with this repo's token.
+run_check "action pins" bash tool/check_action_pins.sh
 # Pages copies from five locations and compiles seven entrypoints. A missing
 # one fails the DEPLOY, and GitHub Pages hides that by continuing to serve
 # the last good build — so it reads as "the site is stale", not "the site is
@@ -414,7 +417,7 @@ fi
 # EXACT, not a floor: a floor lets checks disappear one at a time, which is
 # the drift this exists to stop. Adding or removing one is deliberate and gets
 # a deliberate edit here. Ported from dart_monty_core c3f2c98.
-EXPECT_CHECKS=20
+EXPECT_CHECKS=21
 if [ "$RAN" != "$EXPECT_CHECKS" ]; then
   echo ""
   echo "  FAILED: ran $RAN checks, expected $EXPECT_CHECKS"
