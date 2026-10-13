@@ -66,7 +66,7 @@ print(r.value); // 'Hello World!'
 - [**Installation**](user/install.md) — Add to your project
 - [**Architecture**](architecture/overview.md) — Module structure and internals
 - [**REPL Guide**](user/repl.md) — Stateful interactive execution
-- [**Extensions**](user/extensions.md) — Template, MessageBus, Sandbox
+- [**Extensions**](user/extensions.md) — MessageBus, Sandbox
 - [**Tutorials**](tutorials/host-functions-intro.md) — Bridge functions and LLM rules
 - [**Testing**](contributor/testing.md) — Run tests and quality gates
 - [**Contributor Setup**](contributor/setup.md) — Build and test the library

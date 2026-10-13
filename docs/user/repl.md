@@ -159,8 +159,8 @@ visible in `help()` without restarting.
 The REPL works on both FFI (native) and WASM (browser):
 
 - **FFI**: Full support including `SandboxExtension` with grandchildren
-- **WASM**: Full support for `MontyRepl`, `MontyRuntime`, template
-  and message bus extensions. Sandbox support requires multi-session
+- **WASM**: Full support for `MontyRepl`, `MontyRuntime` and the
+  message bus extension. Sandbox support requires multi-session
   Workers (see issue #280)
 
 ## Comparison with `Monty` / `Monty.exec`
