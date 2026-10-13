@@ -350,7 +350,7 @@ class SandboxExtension extends MontyExtension {
   final String? sandboxBaseDir;
 
   final Map<int, _ChildHandle> _children = {};
-  final Signal<Map<int, ChildState>> _childrenState =
+  final Signal<Map<int, ChildState>> _childrenSignal =
       signal<Map<int, ChildState>>(const {});
   int _nextId = 0;
   bool _disposed = false;
@@ -362,7 +362,7 @@ class SandboxExtension extends MontyExtension {
   /// ```dart
   /// effect(() => print(extension.childrenSignal.value));
   /// ```
-  ReadonlySignal<Map<int, ChildState>> get childrenSignal => _childrenState;
+  ReadonlySignal<Map<int, ChildState>> get childrenSignal => _childrenSignal;
 
   /// Reactive count of children still in [ChildRunning] state.
   ///
@@ -370,7 +370,7 @@ class SandboxExtension extends MontyExtension {
   ReadonlySignal<int> get aliveCountSignal => _aliveCountSignal;
 
   late final Computed<int> _aliveCountSignal = computed(
-    () => _childrenState.value.values.whereType<ChildRunning>().length,
+    () => _childrenSignal.value.values.whereType<ChildRunning>().length,
   );
 
   @override
@@ -449,9 +449,9 @@ class SandboxExtension extends MontyExtension {
       }
     }
     _children.clear();
-    _childrenState.value = const <int, ChildState>{};
+    _childrenSignal.value = const <int, ChildState>{};
     await super.onDispose();
-    _childrenState.dispose();
+    _childrenSignal.dispose();
   }
 
   Future<Object?> _handleSpawn(
@@ -787,7 +787,7 @@ class SandboxExtension extends MontyExtension {
 
   /// Snapshots all children's current [ChildState] into [childrenSignal].
   void _updateChildrenSignal() {
-    _childrenState.value = {
+    _childrenSignal.value = {
       for (final entry in _children.entries) entry.key: entry.value.state.value,
     };
   }
