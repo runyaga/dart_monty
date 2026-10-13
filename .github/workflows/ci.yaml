@@ -36,10 +36,10 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Read-only. No job posts checks or comments; a job that needs more grants it
+# on itself (tool/check_workflow_tokens.py rejects writes here).
 permissions:
-  checks: write
   contents: read
-  pull-requests: write
 
 env:
   # What the `native` job saves and the test jobs restore. ONE definition on
@@ -85,6 +85,8 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: '3.12'
@@ -167,6 +169,8 @@ jobs:
     timeout-minutes: 8
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
       - uses: dart-lang/setup-dart@6afc89df92d6eb3834022f73cd65adc8cdfcb92d # v1
         with:
           sdk: 3.13.5
@@ -182,6 +186,9 @@ jobs:
           run bash tool/check_workflows_valid.sh
           # Every third-party `uses:` pinned to a 40-hex commit SHA.
           run bash tool/check_action_pins.sh
+          # A read-only top-level `permissions:` in every workflow, and
+          # `persist-credentials: false` on every checkout.
+          run python3 -I tool/check_workflow_tokens.py
           run bash tool/check_pages_inputs.sh
           run bash tool/check_page_versions.sh
           run bash tool/check_html_escaping.sh
@@ -200,7 +207,7 @@ jobs:
           # The counter catches a DELETED invocation line; it cannot catch a
           # missing script, because `run` increments before executing. The exit
           # code catches that one. Both are needed.
-          [ "$RAN" -eq 10 ] || { echo "FAIL: expected 10 checks, ran $RAN"; RC=1; }
+          [ "$RAN" -eq 11 ] || { echo "FAIL: expected 11 checks, ran $RAN"; RC=1; }
           echo "ran $RAN checks, rc=$RC"
 
           # REQUIRED, not decoration. Setting RC=1 in a variable and falling off
@@ -215,8 +222,14 @@ jobs:
     outputs:
       code: ${{ steps.filter.outputs.code }}
       docs: ${{ steps.filter.outputs.docs }}
+    # paths-filter lists a pull request's files through the API.
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
         id: filter
         with:
@@ -253,6 +266,8 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.12"
@@ -302,6 +317,8 @@ jobs:
       key: ${{ steps.key.outputs.key }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
       - uses: dart-lang/setup-dart@6afc89df92d6eb3834022f73cd65adc8cdfcb92d # v1
         with:
           sdk: 3.13.5
@@ -377,6 +394,8 @@ jobs:
     if: ${{ !cancelled() && needs.changes.outputs.code == 'true' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
       - uses: dart-lang/setup-dart@6afc89df92d6eb3834022f73cd65adc8cdfcb92d # v1
         with:
           sdk: 3.13.5
@@ -470,6 +489,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
       - uses: dart-lang/setup-dart@6afc89df92d6eb3834022f73cd65adc8cdfcb92d # v1
         with:
           sdk: 3.13.5
@@ -598,6 +619,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
       - uses: dart-lang/setup-dart@6afc89df92d6eb3834022f73cd65adc8cdfcb92d # v1
         with:
           sdk: 3.13.5
@@ -723,6 +746,8 @@ jobs:
     needs: [test, test-integration]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
       - name: Download unit lcov artifact
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
@@ -798,6 +823,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          persist-credentials: false
           fetch-depth: 0
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:

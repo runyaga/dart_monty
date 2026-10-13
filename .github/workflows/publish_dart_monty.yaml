@@ -5,16 +5,20 @@ on:
     tags:
       - 'v[0-9]*.[0-9]*.[0-9]*'
 
-permissions:
-  id-token: write
+permissions: {}
 
 jobs:
   publish:
     name: Publish to pub.dev
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # pub.dev authenticates the upload with the job's OIDC token.
+    permissions:
+      id-token: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
       - uses: dart-lang/setup-dart@6afc89df92d6eb3834022f73cd65adc8cdfcb92d # v1
         with:
           # PINNED. This is the PUBLISH path: whatever SDK runs here decides what

@@ -166,6 +166,10 @@ run_check "workflows valid" bash tool/check_workflows_valid.sh
 # A tag or branch pin (`@v7`) is a pointer the action's owner can move; the
 # next run executes whatever it points at, with this repo's token.
 run_check "action pins" bash tool/check_action_pins.sh
+# A workflow without a top-level `permissions:` gets the repository's default
+# token; a checkout without `persist-credentials: false` leaves that token in
+# .git/config for every later step to read.
+run_check "workflow tokens" python3 -I tool/check_workflow_tokens.py
 # Pages copies from five locations and compiles seven entrypoints. A missing
 # one fails the DEPLOY, and GitHub Pages hides that by continuing to serve
 # the last good build — so it reads as "the site is stale", not "the site is
@@ -417,7 +421,7 @@ fi
 # EXACT, not a floor: a floor lets checks disappear one at a time, which is
 # the drift this exists to stop. Adding or removing one is deliberate and gets
 # a deliberate edit here. Ported from dart_monty_core c3f2c98.
-EXPECT_CHECKS=21
+EXPECT_CHECKS=22
 if [ "$RAN" != "$EXPECT_CHECKS" ]; then
   echo ""
   echo "  FAILED: ran $RAN checks, expected $EXPECT_CHECKS"
