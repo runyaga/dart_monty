@@ -22,19 +22,24 @@ concurrency:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 jobs:
   deploy:
     name: Deploy
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # deploy-pages publishes with an OIDC token: pages + id-token.
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       # ── Checkout dart_monty_core for its committed assets ─────────────
       # Assets live in dart_monty_core/lib/assets/ (under lib/ so Flutter
@@ -56,6 +61,7 @@ jobs:
           # immutable v0.23.1 tag, which cannot drift the way a branch does.
           ref: v0.23.1
           path: dart_monty_core
+          persist-credentials: false
 
       # ── Compile Dart to JS ───────────────────────────────────────────
       - uses: dart-lang/setup-dart@6afc89df92d6eb3834022f73cd65adc8cdfcb92d # v1

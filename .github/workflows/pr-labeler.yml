@@ -4,12 +4,14 @@ on:
   pull_request_target:
     types: [opened, edited]
 
-permissions:
-  pull-requests: write
+permissions: {}
 
 jobs:
   label:
     runs-on: ubuntu-latest
+    # Adds and removes labels on the pull request.
+    permissions:
+      pull-requests: write
     steps:
       - uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:

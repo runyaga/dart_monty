@@ -7,13 +7,18 @@ on:
 
 permissions:
   contents: read
-  issues: write
 
 jobs:
   check-upstream:
     runs-on: ubuntu-latest
+    # `gh issue list/create` (GH_TOKEN) opens the upgrade issue.
+    permissions:
+      contents: read
+      issues: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: Check for new dart_monty_core releases
         id: check
