@@ -7,7 +7,7 @@
 /// Interactive REPL Session Demo — MontyRuntime + real plugins in the browser.
 ///
 /// Compiled to JS, exposes window.ReplSessionDemo to HTML.
-/// All host function dispatch (template, message bus) runs in
+/// All host function dispatch (message bus) runs in
 /// compiled Dart — no JS host functions needed.
 ///
 /// Build:
@@ -43,7 +43,7 @@ external void _jsOnToolCall(JSString jsonPayload);
 MontyRuntime _session = _newSession();
 
 MontyRuntime _newSession() => MontyRuntime(
-      extensions: [JinjaTemplateExtension(), MessageBusExtension()],
+      extensions: [MessageBusExtension()],
     );
 
 // ---------------------------------------------------------------------------

@@ -1,76 +1,12 @@
 # Built-in Extensions
 
-dart_monty ships three extensions that provide host functions to
+dart_monty ships extensions that provide host functions to
 sandboxed Python code. All extensions work with `MontyRuntime`.
 
 | Extension | Functions | Description |
 |--------|-----------|-------------|
-| **TemplateExtension** | `tmpl_render` | Jinja2 template rendering |
 | **MessageBusExtension** | `msg_send`, `msg_recv`, `msg_peek`, `msg_close`, `msg_stats` | In-memory named channels |
 | **SandboxExtension** | `sandbox_spawn`, `sandbox_await`, `sandbox_gather`, `sandbox_free` | Isolated child interpreters |
-
-## TemplateExtension
-
-**Class:** `JinjaTemplateExtension`
-**Namespace:** `tmpl`
-
-Renders Jinja2 templates using the [dinja](https://pub.dev/packages/dinja)
-Dart package. Supports `{{ variables }}`, `{% for %}` loops,
-`{% if %}` conditionals, and filters.
-
-### Functions
-
-**`tmpl_render(template, context)`**
-
-Render a Jinja2 template string with a context dict.
-
-```python
-# Basic variable substitution
-tmpl_render(template='Hello {{ name }}!', context={'name': 'World'})
-# -> 'Hello World!'
-
-# For loop
-tmpl_render(
-    template='{% for item in items %}{{ item }} {% endfor %}',
-    context={'items': ['Alice', 'Bob', 'Charlie']}
-)
-# -> 'Alice Bob Charlie '
-
-# Conditional
-tmpl_render(
-    template='{% if admin %}Admin{% else %}Guest{% endif %}',
-    context={'admin': True}
-)
-# -> 'Admin'
-```
-
-### Typical Pattern
-
-Compute data in Python, render with the host template engine:
-
-```python
-scores = [85, 92, 78, 95, 88]
-report = {
-    'avg': sum(scores) / len(scores),
-    'top': max(scores),
-    'n': len(scores),
-}
-tmpl_render(
-    template='{{ n }} students, avg={{ avg }}, top={{ top }}',
-    context=report,
-)
-# -> '5 students, avg=87.6, top=95'
-```
-
-### Configuration
-
-```dart
-JinjaTemplateExtension(
-  maxInputSize: 512 * 1024,  // 512 KB default
-)
-```
-
----
 
 ## MessageBusExtension
 
@@ -222,18 +158,15 @@ SandboxExtension(
 ```dart
 final session = MontyRuntime(
   extensions: [
-    JinjaTemplateExtension(),
     MessageBusExtension(),
     SandboxExtension(
       platformFactory: () async => createPlatformMonty(),
-      parentExtensions: [JinjaTemplateExtension()],
     ),
   ],
 );
 
 // All extension functions are now available in Python
 await session.execute("help()").result;  // lists all functions
-await session.execute("tmpl_render(template='{{ x }}', context={'x': 1})").result;
 await session.execute("msg_send('ch', 'hello')").result;
 await session.execute("h = sandbox_spawn(code='42')").result;
 

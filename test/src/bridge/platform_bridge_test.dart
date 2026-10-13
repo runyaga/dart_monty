@@ -114,145 +114,8 @@ void main() {
     );
   });
 
-  group('MontyInterceptor', () {
-    test('interceptor is called on tool dispatch', () async {
-      final log = <String>[];
-
-      final b = MontyBridge(
-        platform: mock,
-        interceptor: (name, args, next) async {
-          log.add('before:$name');
-          final result = await next();
-          log.add('after:$name');
-          return result;
-        },
-      );
-      addTearDown(b.dispose);
-
-      b.register(
-        HostFunction(
-          schema: const HostFunctionSchema(name: 'greet', description: ''),
-          handler: (_, _) async => 'hello',
-        ),
-      );
-
-      mock
-        ..enqueueProgress(
-          const MontyPending(functionName: 'greet', args: []),
-        )
-        ..enqueueProgress(
-          const MontyComplete(
-            result: MontyResult(value: MontyNone(), usage: _usage),
-          ),
-        );
-
-      await b.execute('greet()').toList();
-      expect(log, ['before:greet', 'after:greet']);
-    });
-
-    test('interceptor receives function name and args', () async {
-      String? capturedName;
-      Map<String, Object?>? capturedArgs;
-
-      final b = MontyBridge(
-        platform: mock,
-        interceptor: (name, args, next) {
-          capturedName = name;
-          capturedArgs = args;
-          return next();
-        },
-      );
-      addTearDown(b.dispose);
-
-      b.register(
-        HostFunction(
-          schema: const HostFunctionSchema(
-            name: 'greet',
-            description: '',
-            params: [HostParam(name: 'who', type: HostParamType.string)],
-          ),
-          handler: (args, _) async => 'hello ${args['who']}',
-        ),
-      );
-
-      mock
-        ..enqueueProgress(
-          const MontyPending(
-            functionName: 'greet',
-            args: [],
-            kwargs: {'who': MontyString('world')},
-          ),
-        )
-        ..enqueueProgress(
-          const MontyComplete(
-            result: MontyResult(value: MontyNone(), usage: _usage),
-          ),
-        );
-
-      await b.execute('greet(who="world")').toList();
-      expect(capturedName, 'greet');
-      expect(capturedArgs, {'who': 'world'});
-    });
-
-    test('interceptor can short-circuit by not calling next', () async {
-      final syncMock = MockMontyPlatform();
-      final syncBridge = MontyBridge(
-        platform: syncMock,
-
-        interceptor: (name, args, next) async => 'blocked',
-      );
-      addTearDown(syncBridge.dispose);
-
-      syncBridge.register(
-        HostFunction(
-          schema: const HostFunctionSchema(name: 'fn', description: ''),
-          handler: (_, _) async => fail('should not be called'),
-        ),
-      );
-
-      syncMock
-        ..enqueueProgress(const MontyPending(functionName: 'fn', args: []))
-        ..enqueueProgress(
-          const MontyComplete(
-            result: MontyResult(value: MontyNone(), usage: _usage),
-          ),
-        );
-
-      final events = await syncBridge.execute('fn()').toList();
-      final result = events.whereType<BridgeFunctionCallResult>().first;
-      expect(result.result, 'blocked');
-    });
-
-    test('interceptor can throw to reject a call', () async {
-      final syncMock = MockMontyPlatform();
-      final syncBridge = MontyBridge(
-        platform: syncMock,
-
-        interceptor: (name, args, next) => throw StateError('Access denied'),
-      );
-      addTearDown(syncBridge.dispose);
-
-      syncBridge.register(
-        HostFunction(
-          schema: const HostFunctionSchema(name: 'fn', description: ''),
-          handler: (_, _) async => fail('should not be called'),
-        ),
-      );
-
-      syncMock
-        ..enqueueProgress(const MontyPending(functionName: 'fn', args: []))
-        ..enqueueProgress(
-          const MontyComplete(
-            result: MontyResult(value: MontyNone(), usage: _usage),
-          ),
-        );
-
-      final events = await syncBridge.execute('fn()').toList();
-      final result = events.whereType<BridgeFunctionCallResult>().first;
-      expect(result.result, contains('Access denied'));
-    });
-
-    test('no interceptor = fast path (handler called directly)', () async {
+  group('tool dispatch', () {
+    test('calls the registered handler', () async {
       var called = false;
       bridge.register(
         HostFunction(
@@ -274,78 +137,6 @@ void main() {
 
       await bridge.execute('fn()').toList();
       expect(called, isTrue);
-    });
-
-    test('interceptor works on futures path', () async {
-      final log = <String>[];
-
-      final b = MontyBridge(
-        platform: mock,
-        interceptor: (name, args, next) async {
-          log.add('before:$name');
-          final result = await next();
-          log.add('after:$name');
-          return result;
-        },
-      );
-      addTearDown(b.dispose);
-
-      b.register(
-        HostFunction(
-          schema: const HostFunctionSchema(name: 'async_fn', description: ''),
-          handler: (_, _) async => 'result',
-        ),
-      );
-
-      mock
-        ..enqueueProgress(
-          const MontyPending(
-            functionName: 'async_fn',
-            args: [],
-            callId: 1,
-          ),
-        )
-        ..enqueueProgress(const MontyResolveFutures(pendingCallIds: [1]))
-        ..enqueueProgress(
-          const MontyComplete(
-            result: MontyResult(value: MontyNone(), usage: _usage),
-          ),
-        );
-
-      await b.execute('await async_fn()').toList();
-      expect(log, ['before:async_fn', 'after:async_fn']);
-    });
-
-    test('isInfra: true bypasses interceptor', () async {
-      var interceptorCalled = false;
-
-      final b = MontyBridge(
-        platform: mock,
-        interceptor: (name, args, next) async {
-          interceptorCalled = true;
-          return next();
-        },
-      );
-      addTearDown(b.dispose);
-
-      b.register(
-        HostFunction(
-          schema: const HostFunctionSchema(name: 'fn', description: ''),
-          handler: (_, _) async => 'infra result',
-          isInfra: true,
-        ),
-      );
-
-      mock
-        ..enqueueProgress(const MontyPending(functionName: 'fn', args: []))
-        ..enqueueProgress(
-          const MontyComplete(
-            result: MontyResult(value: MontyNone(), usage: _usage),
-          ),
-        );
-
-      await b.execute('fn()').toList();
-      expect(interceptorCalled, isFalse);
     });
   });
 
@@ -484,18 +275,10 @@ void main() {
   });
 
   group('invokeHostFunction', () {
-    test('routes through interceptor with correct name and args', () async {
-      String? capturedName;
+    test('calls the handler with the validated args', () async {
       Map<String, Object?>? capturedArgs;
 
-      final b = MontyBridge(
-        platform: mock,
-        interceptor: (name, args, next) {
-          capturedName = name;
-          capturedArgs = args;
-          return next();
-        },
-      );
+      final b = MontyBridge(platform: mock);
       addTearDown(b.dispose);
 
       b.register(
@@ -505,14 +288,17 @@ void main() {
             description: '',
             params: [HostParam(name: 'who', type: HostParamType.string)],
           ),
-          handler: (args, _) async => 'hello ${args['who']}',
+          handler: (args, _) async {
+            capturedArgs = args;
+
+            return 'hello ${args['who']}';
+          },
         ),
       );
 
       final result = await b.invokeHostFunction('greet', {'who': 'world'});
 
       expect(result, 'hello world');
-      expect(capturedName, 'greet');
       expect(capturedArgs, {'who': 'world'});
     });
 
@@ -606,32 +392,6 @@ void main() {
       },
     );
 
-    test('isInfra: true bypasses interceptor on direct invoke', () async {
-      var interceptorCalled = false;
-
-      final b = MontyBridge(
-        platform: mock,
-        interceptor: (name, args, next) async {
-          interceptorCalled = true;
-          return next();
-        },
-      );
-      addTearDown(b.dispose);
-
-      b.register(
-        HostFunction(
-          schema: const HostFunctionSchema(name: 'fn', description: ''),
-          handler: (_, _) async => 'result',
-          isInfra: true,
-        ),
-      );
-
-      final result = await b.invokeHostFunction('fn', {});
-
-      expect(result, 'result');
-      expect(interceptorCalled, isFalse);
-    });
-
     test('validates arguments via mapAndValidate', () {
       bridge.register(
         HostFunction(
@@ -722,74 +482,6 @@ void main() {
       expect((received[0] as BridgeFunctionEmit).text, 'one');
       expect((received[1] as BridgeFunctionEmit).text, 'two');
       expect((received[0] as BridgeFunctionEmit).callId, 'streamer');
-    });
-
-    test('with onEvent — interceptor still wraps the call', () async {
-      var interceptorRan = false;
-      final b = MontyBridge(
-        platform: mock,
-        interceptor: (name, args, next) async {
-          interceptorRan = true;
-          return next();
-        },
-      );
-      addTearDown(b.dispose);
-
-      b.register(
-        HostFunction(
-          schema: const HostFunctionSchema(name: 'streamer', description: ''),
-          handler: (_, ctx) async {
-            ctx.emitText('mid');
-            return 'ok';
-          },
-        ),
-      );
-
-      final received = <BridgeEvent>[];
-      final result = await b.invokeHostFunction(
-        'streamer',
-        const {},
-        onEvent: received.add,
-      );
-
-      expect(result, 'ok');
-      expect(interceptorRan, isTrue);
-      expect(received, hasLength(1));
-      expect((received.single as BridgeFunctionEmit).text, 'mid');
-    });
-
-    test('with onEvent — infra bypasses interceptor; events deliver', () async {
-      var interceptorRan = false;
-      final b = MontyBridge(
-        platform: mock,
-        interceptor: (name, args, next) async {
-          interceptorRan = true;
-          return next();
-        },
-      );
-      addTearDown(b.dispose);
-
-      b.register(
-        HostFunction(
-          schema: const HostFunctionSchema(name: 'infra_fn', description: ''),
-          isInfra: true,
-          handler: (_, ctx) async {
-            ctx.emitText('infra');
-            return null;
-          },
-        ),
-      );
-
-      final received = <BridgeEvent>[];
-      await b.invokeHostFunction(
-        'infra_fn',
-        const {},
-        onEvent: received.add,
-      );
-
-      expect(interceptorRan, isFalse);
-      expect(received, hasLength(1));
-      expect((received.single as BridgeFunctionEmit).text, 'infra');
     });
 
     test(

@@ -5,9 +5,7 @@ import 'package:dart_monty/src/bridge/logger.dart';
 import 'package:dart_monty/src/bridge/platform.dart';
 import 'package:dart_monty/src/extension/coordinator.dart';
 import 'package:dart_monty/src/extension/extension.dart';
-import 'package:dart_monty/src/host/dispatch.dart';
 import 'package:dart_monty/src/host/function.dart';
-import 'package:dart_monty/src/host/function_surface.dart';
 import 'package:dart_monty/src/host/schema.dart';
 import 'package:dart_monty/src/os_call/os_handlers.dart';
 import 'package:dart_monty/src/runtime/execution_handle.dart';
@@ -71,9 +69,7 @@ class MontyRuntime implements MontyRuntimeRef {
     Map<String, OsCallHandler>? osHandlers,
     List<MontyExtension>? extensions,
     BridgeLogger? logger,
-    MontyInterceptor? interceptor,
     bool sandbox = false,
-    DescriptionProvider? descriptionProvider,
   }) : assert(
          os == null || osHandlers == null,
          'Pass either os or osHandlers, not both.',
@@ -81,9 +77,7 @@ class MontyRuntime implements MontyRuntimeRef {
        _os = os ?? (osHandlers != null ? composeOsHandlers(osHandlers) : null),
        _extensions = extensions,
        _logger = logger,
-       _interceptor = interceptor,
-       _sandbox = sandbox,
-       _descriptionProvider = descriptionProvider {
+       _sandbox = sandbox {
     if (!sandbox) {
       // Shared mode: create persistent REPL-backed interpreter.
       // ReplPlatform retains all state (variables, functions, classes) natively
@@ -93,7 +87,6 @@ class MontyRuntime implements MontyRuntimeRef {
       _sharedBridge = PlatformBridge(
         platform: _sharedPlatform!,
         logger: logger,
-        interceptor: interceptor,
         runtime: this,
       );
       // OS registration is deferred to the first execute() call via
@@ -112,9 +105,7 @@ class MontyRuntime implements MontyRuntimeRef {
   final OsCallHandler? _os;
   final List<MontyExtension>? _extensions;
   final BridgeLogger? _logger;
-  final MontyInterceptor? _interceptor;
   final bool _sandbox;
-  final DescriptionProvider? _descriptionProvider;
 
   // Shared mode state.
   MontyRepl? _sharedRepl;
@@ -136,12 +127,6 @@ class MontyRuntime implements MontyRuntimeRef {
   @override
   List<HostFunctionSchema> get schemas =>
       (_sharedBridge ?? _schemaBridge)?.schemas ?? [];
-
-  /// Schemas for functions that declare [FunctionSurface.llm].
-  ///
-  /// Feed these to an LLM as tool definitions.
-  List<HostFunctionSchema> get exposedSchemas =>
-      (_sharedBridge ?? _schemaBridge)?.exposedSchemas ?? [];
 
   /// Broadcast stream of all [BridgeEvent]s emitted across every execution,
   /// including child executions spawned via extensions such as
@@ -174,9 +159,6 @@ class MontyRuntime implements MontyRuntimeRef {
   ///
   /// Always `null` in sandbox mode — each `execute()` call owns its own
   /// transient coordinator that is disposed when the call finishes.
-  ///
-  /// Consumers (e.g. `MontyRuntimeExtension`) use this to subscribe to inner
-  /// extension state via [ExtensionCoordinator.statefulObservations].
   ExtensionCoordinator? get coordinator => _sharedRegistry;
 
   /// Registers an additional host function.
@@ -184,11 +166,10 @@ class MontyRuntime implements MontyRuntimeRef {
   /// In sandbox mode, the function is registered on every fresh bridge.
   void register(HostFunction function) {
     if (_disposed) throw StateError('MontyRuntime has been disposed');
-    final fn = _applyDescription(function);
     if (_sharedBridge != null) {
-      _sharedBridge!.register(fn);
+      _sharedBridge!.register(function);
     }
-    _extraFunctions.add(fn);
+    _extraFunctions.add(function);
   }
 
   /// Executes Python [code] with state persistence and full tool access.
@@ -228,11 +209,6 @@ class MontyRuntime implements MontyRuntimeRef {
   /// Invokes a registered host function directly from Dart — useful for
   /// exercising tools without routing through Python.
   ///
-  /// Routes through the same [MontyInterceptor] chain as Python-originated
-  /// tool calls, so access policies, logging middleware, and rate limiters
-  /// apply uniformly regardless of call origin. Infra functions still bypass
-  /// the interceptor.
-  ///
   /// Shared mode only — in sandbox mode each execution owns its own bridge
   /// and there is no persistent registry to invoke against. Callers that
   /// need Dart-side invocation should use shared mode.
@@ -262,7 +238,6 @@ class MontyRuntime implements MontyRuntimeRef {
       await _sharedRegistry!.attachTo(
         _sharedBridge!,
         baseOs: _os,
-        descriptionProvider: _descriptionProvider,
       );
       _sharedAttached = true;
     }
@@ -336,7 +311,6 @@ class MontyRuntime implements MontyRuntimeRef {
             await _sharedRegistry!.attachTo(
               _sharedBridge!,
               baseOs: _os,
-              descriptionProvider: _descriptionProvider,
             );
             _sharedAttached = true;
           }
@@ -399,7 +373,6 @@ class MontyRuntime implements MontyRuntimeRef {
           await registry.attachTo(
             b,
             baseOs: osOverride ?? _os,
-            descriptionProvider: _descriptionProvider,
           );
           final collected = <BridgeEvent>[];
           await for (final event in b.execute(code)) {
@@ -448,7 +421,6 @@ class MontyRuntime implements MontyRuntimeRef {
     final b = PlatformBridge(
       platform: platform ?? ReplPlatform(repl: MontyRepl()),
       logger: _logger,
-      interceptor: _interceptor,
       runtime: this,
     );
 
@@ -458,26 +430,5 @@ class MontyRuntime implements MontyRuntimeRef {
     _extraFunctions.forEach(b.register);
 
     return b;
-  }
-
-  HostFunction _applyDescription(HostFunction fn) {
-    if (_descriptionProvider == null) return fn;
-    final schema = fn.schema;
-    final desc = _descriptionProvider(schema.name);
-    if (desc == null) return fn;
-
-    return HostFunction(
-      schema: HostFunctionSchema(
-        name: schema.name,
-        description: desc,
-        params: schema.params,
-      ),
-      ffiHandler: fn.ffiHandler,
-      wasmHandler: fn.wasmHandler,
-      isInfra: fn.isInfra,
-      surfaces: fn.surfaces,
-      childPropagation: fn.childPropagation,
-      dispatch: fn.dispatch,
-    );
   }
 }

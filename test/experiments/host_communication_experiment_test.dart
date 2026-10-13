@@ -1,8 +1,8 @@
 // G7: Dart↔host communication experiments.
 //
 // Covers MontyRuntime.invoke() from Dart, ctx.emitText(), HostContext fields,
-// clearState(), state persistence across execute() calls, Jinja templates,
-// and composition of Jinja + MessageBus.
+// clearState(), state persistence across execute() calls, and per-execute
+// execution ids.
 //
 // Run with:
 //   dart test --tags=integration \
@@ -43,7 +43,7 @@ void main() {
       expect(result, 7);
     });
 
-    test('invoke() routes through interceptor — call is recorded', () async {
+    test('invoke() goes through the recorder — call is recorded', () async {
       await h.runtime.invoke('add', {'a': 1, 'b': 1});
       h.assertCalled('add', args: {'a': 1, 'b': 1});
     });
@@ -149,90 +149,6 @@ void main() {
       final result = await h.run('fresh');
       expect(result.error, isNull);
       expect(result.value.dartValue, 2);
-    });
-  });
-
-  // ---------------------------------------------------------------------------
-  // G7-5: Jinja template rendering
-  // ---------------------------------------------------------------------------
-
-  group('G7-5: JinjaTemplateExtension', () {
-    late MontyHarness h;
-
-    setUp(() async {
-      h = MontyHarness(extensions: [JinjaTemplateExtension()]);
-      await h.setup();
-    });
-
-    tearDown(() => h.dispose());
-
-    test('tmpl_render substitutes a variable', () async {
-      final result = await h.run('''
-tmpl_render(template='Hello, {{ name }}!', context={'name': 'Alice'})
-''');
-
-      expect(result.error, isNull);
-      expect(result.value.dartValue, 'Hello, Alice!');
-    });
-
-    test('tmpl_render supports for loops', () async {
-      final result = await h.run('''
-tmpl_render(
-    template='{% for item in items %}{{ item }} {% endfor %}',
-    context={'items': ['a', 'b', 'c']}
-)
-''');
-
-      expect(result.error, isNull);
-      expect((result.value.dartValue! as String).trim(), 'a b c');
-    });
-
-    test('tmpl_render supports if conditionals', () async {
-      final result = await h.run('''
-tmpl_render(
-    template='{% if flag %}yes{% else %}no{% endif %}',
-    context={'flag': True}
-)
-''');
-
-      expect(result.error, isNull);
-      expect(result.value.dartValue, 'yes');
-    });
-  });
-
-  // ---------------------------------------------------------------------------
-  // G7-6: Jinja + MessageBus composition
-  // ---------------------------------------------------------------------------
-
-  group('G7-6: Jinja + MessageBus composition', () {
-    late MontyHarness h;
-    late MessageBus bus;
-
-    setUp(() async {
-      bus = MessageBus();
-      h = MontyHarness(
-        extensions: [
-          JinjaTemplateExtension(),
-          MessageBusExtension(bus: bus),
-        ],
-      );
-      await h.setup();
-    });
-
-    tearDown(() => h.dispose());
-
-    test('Python renders template then sends result on bus', () async {
-      await h.run('''
-rendered = tmpl_render(
-    template='Dear {{ name }}, your order {{ id }} is ready.',
-    context={'name': 'Bob', 'id': 'ORD-42'}
-)
-msg_send(name='notifications', message=rendered)
-''');
-
-      final msg = (await bus.recv('notifications'))! as String;
-      expect(msg, contains('Bob'));
-      expect(msg, contains('ORD-42'));
     });
   });
 

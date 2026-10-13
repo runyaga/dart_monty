@@ -6,22 +6,10 @@ import 'package:dart_monty/src/bridge/logger.dart';
 import 'package:dart_monty/src/host/context.dart';
 import 'package:dart_monty/src/host/function.dart'
     show DispatchMode, HostFunction;
-import 'package:dart_monty/src/host/function_surface.dart';
 import 'package:dart_monty/src/host/schema.dart';
 import 'package:dart_monty/src/runtime/runtime_ref.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:meta/meta.dart';
-
-/// Intercepts a host function call before the handler runs.
-///
-/// Called only for non-infra functions. [next] invokes the actual handler.
-/// Return a value or throw to short-circuit the handler.
-typedef MontyInterceptor =
-    Future<Object?> Function(
-      String name,
-      Map<String, Object?> args,
-      Future<Object?> Function() next,
-    );
 
 // ---------------------------------------------------------------------------
 // Internal tracking for the futures (WASM) dispatch path.
@@ -50,20 +38,6 @@ Future<MontyResult> _defaultSubExecute(
   String code, {
   Map<String, Object?>? inputs,
 }) => Monty(code).run(inputs: inputs);
-
-/// Invokes [fn] through [interceptor], or calls the handler directly when
-/// [fn] is infra or no interceptor is registered.
-Future<Object?> _invoke(
-  MontyInterceptor? interceptor,
-  HostFunction fn,
-  String name,
-  Map<String, Object?> args,
-  HostContext ctx,
-) {
-  if (interceptor == null || fn.isInfra) return fn.handler!(args, ctx);
-
-  return interceptor(name, args, () => fn.handler!(args, ctx));
-}
 
 /// Validates [pending] arguments against [fn]'s schema and emits the
 /// `BridgeFunctionCallArgs`/`BridgeFunctionCallEnd` events on success.
@@ -151,8 +125,8 @@ Future<void> _logDeferredError(
 // HostDispatch — function registry + tool dispatch.
 // ---------------------------------------------------------------------------
 
-/// Manages host function registration, the interceptor, and tool call dispatch
-/// for a `PlatformBridge`.
+/// Manages host function registration and tool call dispatch for a
+/// `PlatformBridge`.
 ///
 /// This is an internal implementation-detail class — it is not part of the
 /// public `MontyBridge` API. Callers access it through the bridge's delegation
@@ -166,11 +140,9 @@ class HostDispatch {
   HostDispatch({
     required MontyPlatform platform,
     required BridgeLogger log,
-    MontyInterceptor? interceptor,
     MontyRuntimeRef? runtime,
   }) : _platform = platform,
        _log = log,
-       _interceptor = interceptor,
        _runtime = runtime;
 
   /// Current OS call handler — mirrored from the owning bridge so handlers
@@ -179,7 +151,6 @@ class HostDispatch {
 
   final MontyPlatform _platform;
   final BridgeLogger _log;
-  final MontyInterceptor? _interceptor;
   final MontyRuntimeRef? _runtime;
 
   final Map<String, HostFunction> _functions = {};
@@ -202,12 +173,6 @@ class HostDispatch {
   /// All registered function schemas.
   List<HostFunctionSchema> get schemas =>
       _functions.values.map((f) => f.schema).toList(growable: false);
-
-  /// Schemas for functions that declare [FunctionSurface.llm].
-  List<HostFunctionSchema> get exposedSchemas => _functions.values
-      .where((f) => f.surfaces.contains(FunctionSurface.llm))
-      .map((f) => f.schema)
-      .toList(growable: false);
 
   /// All registered function schemas, grouped by category.
   Map<String, List<HostFunctionSchema>> get schemasByCategory {
@@ -239,8 +204,6 @@ class HostDispatch {
   void unregister(String name) => _functions.remove(name);
 
   /// Invokes a registered host function by [name] directly from Dart.
-  ///
-  /// Infra functions bypass the interceptor; all others go through it.
   ///
   /// When [onEvent] is provided, any [BridgeEvent] the handler emits via
   /// `HostContext.emit` / `HostContext.emitText` is delivered to the callback
@@ -285,7 +248,7 @@ class HostDispatch {
       subExecute: _defaultSubExecute,
     );
 
-    return _invoke(_interceptor, fn, name, validatedArgs, ctx);
+    return fn.handler!(validatedArgs, ctx);
   }
 
   // ---------------------------------------------------------------------------
@@ -355,7 +318,7 @@ class HostDispatch {
     );
     final Object? result;
     try {
-      result = await _invoke(_interceptor, fn, stepName, args, ctx);
+      result = await fn.handler!(args, ctx);
     } on Object catch (e, st) {
       _log.error(
         'Host handler error',
@@ -416,7 +379,7 @@ class HostDispatch {
     );
     final Future<Object?> handlerFuture;
     try {
-      handlerFuture = _invoke(_interceptor, fn, stepName, args, ctx);
+      handlerFuture = fn.handler!(args, ctx);
     } on Object catch (e, st) {
       _log.error(
         'Host handler threw synchronously',

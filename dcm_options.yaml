@@ -212,10 +212,7 @@ dcm:
     # --- Async & Type Safety ---
     - avoid-nested-futures
     - avoid-nested-streams-and-futures
-    - prefer-return-await:
-        exclude:
-          # Future.value() return in try/catch — already resolved, no async gap
-          - "lib/src/extensions/jinja_template.dart"
+    - prefer-return-await
     - avoid-type-casts
     - avoid-inferrable-type-arguments
     - avoid-unnecessary-futures

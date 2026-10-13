@@ -4,29 +4,12 @@ import 'package:dart_monty/src/bridge/bridge.dart';
 import 'package:dart_monty/src/bridge/logger.dart';
 import 'package:dart_monty/src/extension/attach_context.dart';
 import 'package:dart_monty/src/extension/extension.dart';
-import 'package:dart_monty/src/extension/stateful.dart';
 import 'package:dart_monty/src/host/function.dart';
-import 'package:dart_monty/src/host/schema.dart';
 import 'package:dart_monty/src/introspection_functions.dart';
 import 'package:dart_monty/src/os_call/fs_decorators.dart';
 import 'package:dart_monty/src/os_call/fs_handlers.dart';
 import 'package:dart_monty/src/os_call/os_handlers.dart';
 import 'package:dart_monty/src/runtime/backend_kind.dart';
-import 'package:signals_core/signals_core.dart';
-
-/// Provides a human-readable description for a named host function.
-///
-/// Return `null` to leave the function's existing description unchanged.
-/// Return a non-null string to override or supply the description —
-/// typically used by callers that want to inject LLM-optimised prose
-/// without embedding it in the core function definition.
-///
-/// ```dart
-/// MontyRuntime(
-///   descriptionProvider: (name) => myDescriptions[name],
-/// )
-/// ```
-typedef DescriptionProvider = String? Function(String functionName);
 
 /// How a child sandbox's `Path.` handler is derived from the parent's.
 ///
@@ -59,41 +42,15 @@ enum ChildVfsStrategy {
 // Top-level helpers used by ExtensionCoordinator.attachTo.
 // ---------------------------------------------------------------------------
 
-/// Returns [fn] with its schema description overridden by [provider], or [fn]
-/// unchanged when [provider] is `null` or returns `null` for the function name.
-HostFunction _enrichFunction(HostFunction fn, DescriptionProvider? provider) {
-  if (provider == null) return fn;
-  final schema = fn.schema;
-  final desc = provider(schema.name);
-  if (desc == null) return fn;
-
-  return HostFunction(
-    schema: HostFunctionSchema(
-      name: schema.name,
-      description: desc,
-      params: schema.params,
-    ),
-    ffiHandler: fn.ffiHandler,
-    wasmHandler: fn.wasmHandler,
-    isInfra: fn.isInfra,
-    surfaces: fn.surfaces,
-    childPropagation: fn.childPropagation,
-  );
-}
-
 /// Injects scoped loggers and registers all extension functions with [bridge].
 void _attachExtensionFunctions(
   List<MontyExtension> attachOrder,
   MontyBridge bridge,
-  DescriptionProvider? descriptionProvider,
 ) {
   for (final ext in attachOrder) {
     ext.logger = bridge.logger.child(ext.namespace);
     for (final fn in ext.functions) {
-      bridge.register(
-        _enrichFunction(fn, descriptionProvider),
-        category: ext.namespace,
-      );
+      bridge.register(fn, category: ext.namespace);
     }
   }
 }
@@ -150,13 +107,9 @@ void _attachExtraFunctions(
   List<HostFunction> extraFunctions,
   MontyBridge bridge,
   BridgeLogger log,
-  DescriptionProvider? descriptionProvider,
 ) {
   for (final fn in extraFunctions) {
-    bridge.register(
-      _enrichFunction(fn, descriptionProvider),
-      category: 'extra',
-    );
+    bridge.register(fn, category: 'extra');
   }
   log.debug(
     'Registered extra functions',
@@ -354,7 +307,6 @@ class ExtensionCoordinator {
     List<HostFunction>? extraFunctions,
     bool enableIntrospection = true,
     OsCallHandler? baseOs,
-    DescriptionProvider? descriptionProvider,
   }) async {
     if (_attached) {
       throw StateError(
@@ -377,7 +329,7 @@ class ExtensionCoordinator {
     // (e.g. SandboxExtension) can reach it during lifecycle hooks.
     _injectCoordinators(attachOrder, this);
 
-    _attachExtensionFunctions(attachOrder, bridge, descriptionProvider);
+    _attachExtensionFunctions(attachOrder, bridge);
     _logExtensionsRegistered(attachOrder, _log);
     final contributions = _collectOsContributions(attachOrder);
     _osContributions = contributions;
@@ -385,7 +337,7 @@ class ExtensionCoordinator {
     _applyOsContributions(bridge, contributions, baseOs);
     if (extraFunctions != null && extraFunctions.isNotEmpty) {
       _extraFunctions = List.unmodifiable(extraFunctions);
-      _attachExtraFunctions(extraFunctions, bridge, _log, descriptionProvider);
+      _attachExtraFunctions(extraFunctions, bridge, _log);
     }
 
     final errors = await _runExtensionOnAttaches(attachOrder, bridge, _log);
@@ -546,20 +498,6 @@ class ExtensionCoordinator {
     }
 
     return buffer.toString().trimRight();
-  }
-
-  /// Returns one `(namespace, signal)` pair per extension that mixes in
-  /// [StatefulExtension].
-  ///
-  /// Consumers (e.g., an ag-ui session adapter) use these pairs to subscribe
-  /// to extension state and emit `STATE_SNAPSHOT` + `STATE_DELTA` frames keyed
-  /// as `extension.<namespace>`.
-  Iterable<(String, ReadonlySignal<Object?>)> statefulObservations() sync* {
-    for (final ext in _extensions) {
-      if (ext is HasStateSignal) {
-        yield (ext.namespace, ext.stateSignalAsObject);
-      }
-    }
   }
 
   /// Builds a composed child [OsCallHandler] from the parent's captured

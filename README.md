@@ -122,7 +122,7 @@ For plugin-style wiring, pass `extensions`:
 
 ```dart
 final runtime = MontyRuntime(
-  extensions: [JinjaTemplateExtension(), MessageBusExtension()],
+  extensions: [MessageBusExtension(), EventLoopExtension()],
 );
 ```
 
@@ -147,7 +147,7 @@ server), see `example/native/run.sh` and `example/web/run.sh`.
 - [**Overview**](docs/help.md) — API summary and quick start
 - [**Architecture**](docs/architecture/overview.md) — Module structure and internals
 - [**REPL Guide**](docs/user/repl.md) — Stateful interactive execution
-- [**Extensions**](docs/user/extensions.md) — Template, MessageBus, Sandbox
+- [**Extensions**](docs/user/extensions.md) — MessageBus, Sandbox
 - [**Contributing**](CONTRIBUTING.md) — Build, run tests, gate scripts, release process
 - [**Contributor Setup**](docs/contributor/setup.md) — Toolchain install (Rust, Dart, Python)
 

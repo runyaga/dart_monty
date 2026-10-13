@@ -4,13 +4,11 @@ import 'package:dart_monty/src/bridge/event.dart';
 import 'package:dart_monty/src/bridge/platform.dart';
 import 'package:dart_monty/src/extension/coordinator.dart';
 import 'package:dart_monty/src/extension/extension.dart';
-import 'package:dart_monty/src/extension/stateful.dart';
 import 'package:dart_monty/src/host/args.dart';
 import 'package:dart_monty/src/host/context.dart';
 import 'package:dart_monty/src/host/function.dart';
 import 'package:dart_monty/src/host/param.dart';
 import 'package:dart_monty/src/host/param_type.dart';
-import 'package:dart_monty/src/host/render_hint.dart';
 import 'package:dart_monty/src/host/schema.dart';
 import 'package:dart_monty/src/runtime/backend_kind.dart';
 import 'package:dart_monty/src/runtime/runtime_ref.dart';
@@ -123,13 +121,6 @@ final class ChildDisposed extends ChildState {
 /// Factory that creates a fresh [MontyPlatform] for each child sandbox.
 typedef MontyPlatformFactory = Future<MontyPlatform> Function();
 
-/// Builds a system prompt fragment from infrastructure context.
-///
-/// Called during [SandboxExtension._handleSpawn] to produce static,
-/// infrastructure-level prompt content (e.g., child identity, workspace path).
-/// Return `null` to skip the builder layer for a given child.
-typedef ChildSystemPromptBuilder = String? Function(ChildSpawnContext context);
-
 /// Tracks a spawned child interpreter.
 class _ChildHandle {
   _ChildHandle({
@@ -185,7 +176,6 @@ const _spawnSchema = HostFunctionSchema(
       name: 'code',
       type: HostParamType.string,
       description: 'Python code to execute.',
-      renderAs: ParamRenderHint.python,
     ),
     HostParam(
       name: 'timeout_ms',
@@ -313,8 +303,7 @@ const _gatherSchema = HostFunctionSchema(
 ///
 /// `SandboxExtension` MUST be attached through an [ExtensionCoordinator] —
 /// it uses the parent coordinator to compose the child.
-class SandboxExtension extends MontyExtension
-    with StatefulExtension<Map<int, ChildState>> {
+class SandboxExtension extends MontyExtension {
   /// Creates a [SandboxExtension].
   ///
   /// [platformFactory] creates a fresh [MontyPlatform] for each child.
@@ -332,10 +321,7 @@ class SandboxExtension extends MontyExtension
     this.currentDepth = 0,
     this.childLimits,
     this.sandboxBaseDir,
-    this.systemPromptBuilder,
-  }) {
-    setInitialState(const {});
-  }
+  });
 
   /// Creates a fresh [MontyPlatform] for each child.
   final MontyPlatformFactory platformFactory;
@@ -363,14 +349,9 @@ class SandboxExtension extends MontyExtension
   /// `FsExtension.createChildInstance`) are responsible for creation.
   final String? sandboxBaseDir;
 
-  /// Optional builder for static, infrastructure-level system prompt content.
-  ///
-  /// Called once per child spawn with the [ChildSpawnContext]. The returned
-  /// string (if non-null) is prepended before any runtime `system_prompt`
-  /// argument from `sandbox_spawn`.
-  final ChildSystemPromptBuilder? systemPromptBuilder;
-
   final Map<int, _ChildHandle> _children = {};
+  final Signal<Map<int, ChildState>> _childrenSignal =
+      signal<Map<int, ChildState>>(const {});
   int _nextId = 0;
   bool _disposed = false;
 
@@ -381,7 +362,7 @@ class SandboxExtension extends MontyExtension
   /// ```dart
   /// effect(() => print(extension.childrenSignal.value));
   /// ```
-  ReadonlySignal<Map<int, ChildState>> get childrenSignal => stateSignal;
+  ReadonlySignal<Map<int, ChildState>> get childrenSignal => _childrenSignal;
 
   /// Reactive count of children still in [ChildRunning] state.
   ///
@@ -389,7 +370,7 @@ class SandboxExtension extends MontyExtension
   ReadonlySignal<int> get aliveCountSignal => _aliveCountSignal;
 
   late final Computed<int> _aliveCountSignal = computed(
-    () => state.values.whereType<ChildRunning>().length,
+    () => _childrenSignal.value.values.whereType<ChildRunning>().length,
   );
 
   @override
@@ -468,8 +449,9 @@ class SandboxExtension extends MontyExtension
       }
     }
     _children.clear();
-    state = const <int, ChildState>{};
+    _childrenSignal.value = const <int, ChildState>{};
     await super.onDispose();
+    _childrenSignal.dispose();
   }
 
   Future<Object?> _handleSpawn(
@@ -644,13 +626,12 @@ class SandboxExtension extends MontyExtension
     String? runtimePrompt,
     OsCallHandler? parentOsOverride,
   ) async {
-    final childPrompt = _buildChildSystemPrompt(spawnContext, runtimePrompt);
     try {
       final childCoordinator = await coordinator.spawnChild(
         context: spawnContext,
         bridge: bridge,
         vfsStrategy: childVfsStrategy,
-        childSystemPromptPrefix: childPrompt,
+        childSystemPromptPrefix: runtimePrompt,
         baseOs: parentOsOverride,
       );
       logger.debug(
@@ -804,26 +785,11 @@ class SandboxExtension extends MontyExtension
     }
   }
 
-  /// Snapshots all children's current [ChildState] into [stateSignal].
+  /// Snapshots all children's current [ChildState] into [childrenSignal].
   void _updateChildrenSignal() {
-    state = {
+    _childrenSignal.value = {
       for (final entry in _children.entries) entry.key: entry.value.state.value,
     };
-  }
-
-  /// Concatenates builder + runtime prompt layers.
-  ///
-  /// Returns `null` when both layers are absent.
-  String? _buildChildSystemPrompt(
-    ChildSpawnContext context,
-    String? runtimeFragment,
-  ) {
-    final builderFragment = systemPromptBuilder?.call(context);
-    if (builderFragment == null && runtimeFragment == null) return null;
-
-    final parts = <String>[?builderFragment, ?runtimeFragment];
-
-    return parts.join('\n\n');
   }
 
   Future<Object?> _handleAwait(

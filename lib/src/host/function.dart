@@ -1,6 +1,5 @@
 import 'package:dart_monty/src/extension/extension.dart' show MontyExtension;
 import 'package:dart_monty/src/host/context.dart';
-import 'package:dart_monty/src/host/function_surface.dart';
 import 'package:dart_monty/src/host/schema.dart';
 import 'package:dart_monty/src/runtime/backend_kind.dart';
 import 'package:meta/meta.dart';
@@ -24,7 +23,7 @@ enum DispatchMode {
 typedef HostFunctionHandler =
     Future<Object?> Function(Map<String, Object?> args, HostContext ctx);
 
-/// A host function: schema + per-backend handlers + optional infra flag.
+/// A host function: schema + per-backend handlers.
 @immutable
 class HostFunction {
   /// Creates a [HostFunction].
@@ -37,9 +36,6 @@ class HostFunction {
   /// When only one backend slot is populated, `AttachContext.register()`
   /// silently skips the function on the other backend — no
   /// `supportedBackends` declaration required.
-  ///
-  /// Set [isInfra] to `true` for orchestration builtins that should bypass
-  /// the interceptor (e.g. introspection, internal routing).
   ///
   /// [childPropagation] controls whether this function is visible inside
   /// child sandboxes spawned from the parent runtime. Defaults to
@@ -55,8 +51,6 @@ class HostFunction {
     HostFunctionHandler? handler,
     HostFunctionHandler? ffiHandler,
     HostFunctionHandler? wasmHandler,
-    this.isInfra = false,
-    this.surfaces = const {FunctionSurface.python},
     this.childPropagation = ChildPropagation.exclude,
     this.dispatch = DispatchMode.sync,
   }) : ffiHandler = ffiHandler ?? handler,
@@ -74,15 +68,6 @@ class HostFunction {
   ///
   /// `null` means this function is not registered on the WASM backend.
   final HostFunctionHandler? wasmHandler;
-
-  /// When `true`, calls to this function bypass the interceptor.
-  final bool isInfra;
-
-  /// Which surfaces this function is visible on.
-  ///
-  /// Defaults to `{FunctionSurface.python}`. Add [FunctionSurface.llm] to
-  /// expose the schema via `MontyRuntime.exposedSchemas`.
-  final Set<FunctionSurface> surfaces;
 
   /// Whether this function is visible inside child sandboxes spawned from
   /// the runtime it is attached to.

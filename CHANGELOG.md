@@ -1,5 +1,39 @@
 ## Unreleased
 
+### Breaking
+
+Eight features that nothing used have been moved out of this package. There
+is no deprecation period and no replacement API.
+
+- **`JinjaTemplateExtension`** (`tmpl_render`) and
+  `defaultMaxTemplateInputSize` are gone, and with them the `dinja`
+  dependency.
+- **`defaultExtensions()`** is gone. List the extensions you want explicitly,
+  e.g. `[MessageBusExtension(), EventLoopExtension()]`.
+- **`StatefulExtension`** and **`HasStateSignal`** are gone, as is
+  `ExtensionCoordinator.statefulObservations()`. `EventLoopExtension` and
+  `SandboxExtension` keep `channelStateSignal` / `childrenSignal`; they no
+  longer expose `state`, `stateSignal`, `stateSignalAsObject` or
+  `setInitialState`.
+- **`MontyInterceptor`** is gone: the `interceptor` parameter of
+  `MontyRuntime`, `MontyBridge` and `PlatformBridge` is removed, and so is
+  `HostFunction.isInfra`, which only selected functions that skipped the
+  interceptor. Host functions are always called directly.
+- **`DescriptionProvider`** is gone, with the `descriptionProvider` parameter
+  of `MontyRuntime` and `ExtensionCoordinator.attachTo`. Put the description
+  in the function's `HostFunctionSchema`.
+- **`FunctionSurface`** is gone, with `HostFunction.surfaces` and
+  `exposedSchemas` on `MontyRuntime`, `MontyBridge` and `PlatformBridge`. Use
+  `schemas`.
+- **`ParamRenderHint`** is gone, with `HostParam.renderAs` and
+  `HostParam.renderHintFrom`. `HostParam.toJsonSchema()` no longer emits
+  `x-render-as` or `x-render-hint-from`.
+- **`ChildSystemPromptBuilder`** is gone, with
+  `SandboxExtension.systemPromptBuilder`. A child's system prompt is now only
+  the `system_prompt` argument of `sandbox_spawn`.
+
+The published web demos no longer show template rendering.
+
 ### Fixed
 
 - `timeHandler`: `datetime.now()` and `datetime.now(tz)` dropped the

@@ -2,7 +2,7 @@
 ///
 /// Wires up a complete MontyRuntime with:
 ///   - In-memory VFS (Dart writes files; Python reads via pathlib.Path)
-///   - Intercepting tool call layer (records every call + result)
+///   - Recording tool wrapper (records every registered tool's call + result)
 ///   - Per-tool fault injection (override result, force throw, add delay)
 ///   - Script priming (execute setup Python before the experiment starts)
 ///   - `SignalCapture<T>` — records every signal value change via effect()
@@ -233,7 +233,7 @@ class MontyHarness {
         description: description,
         params: params,
       ),
-      handler: handler,
+      handler: (args, ctx) => _record(name, args, () => handler(args, ctx)),
     );
     _tools.add(fn);
     _runtime?.register(fn);
@@ -268,11 +268,9 @@ class MontyHarness {
 
   /// Creates and primes the runtime. Must be called before [run].
   Future<void> setup() async {
-    final interceptor = _buildInterceptor();
     _runtime = MontyRuntime(
       osHandlers: {'Path.': fsHandler(_fs)},
       extensions: _extensions,
-      interceptor: interceptor,
       sandbox: _sandbox,
     );
     _tools.forEach(_runtime!.register);
@@ -409,37 +407,41 @@ class MontyHarness {
     }
   }
 
-  MontyInterceptor _buildInterceptor() {
-    return (name, args, next) async {
-      final record = ToolCallRecord(
-        name: name,
-        args: args,
-        startedAt: DateTime.now(),
-      );
-      _calls.add(record);
+  /// Records the call to tool [name] and applies any injected fault before
+  /// (or instead of) running [next].
+  Future<Object?> _record(
+    String name,
+    Map<String, Object?> args,
+    Future<Object?> Function() next,
+  ) async {
+    final record = ToolCallRecord(
+      name: name,
+      args: args,
+      startedAt: DateTime.now(),
+    );
+    _calls.add(record);
 
-      final fault = _faults[name];
-      try {
-        if (fault != null) {
-          if (fault.delay != null) await Future<void>.delayed(fault.delay!);
-          if (fault.throws != null) throw fault.throws!;
-          record
-            ..result = fault.override
-            ..duration = DateTime.now().difference(record.startedAt);
-          return fault.override;
-        }
-        final result = await next();
+    final fault = _faults[name];
+    try {
+      if (fault != null) {
+        if (fault.delay != null) await Future<void>.delayed(fault.delay!);
+        if (fault.throws != null) throw fault.throws!;
         record
-          ..result = result
+          ..result = fault.override
           ..duration = DateTime.now().difference(record.startedAt);
-        return result;
-      } catch (e) {
-        record
-          ..error = e
-          ..duration = DateTime.now().difference(record.startedAt);
-        rethrow;
+        return fault.override;
       }
-    };
+      final result = await next();
+      record
+        ..result = result
+        ..duration = DateTime.now().difference(record.startedAt);
+      return result;
+    } catch (e) {
+      record
+        ..error = e
+        ..duration = DateTime.now().difference(record.startedAt);
+      rethrow;
+    }
   }
 
   String _fmtArgs(Map<String, Object?> args) =>

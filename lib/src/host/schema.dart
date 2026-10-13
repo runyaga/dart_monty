@@ -12,8 +12,7 @@ class HostFunctionSchema {
   /// Creates a [HostFunctionSchema].
   ///
   /// [description] is optional. Infrastructure functions (e.g. `help`) may
-  /// omit it. Runtimes that expose functions to an LLM can inject descriptions
-  /// at registration time via `MontyRuntime`'s `descriptionProvider`.
+  /// omit it.
   const HostFunctionSchema({
     required this.name,
     this.description,

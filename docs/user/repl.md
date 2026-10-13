@@ -58,7 +58,6 @@ extension dispatch. All registered extensions work automatically.
 ```dart
 final session = MontyRuntime(
   extensions: [
-    JinjaTemplateExtension(),
     MessageBusExtension(),
     SandboxExtension(
       platformFactory: () async => createPlatformMonty(),
@@ -66,9 +65,9 @@ final session = MontyRuntime(
   ],
 );
 
-// Python calls tmpl_render() -> real Dart Jinja engine
+// Python calls msg_send() / msg_recv() -> the Dart message bus
 final r = await session.execute(
-  "tmpl_render(template='Hello {{ name }}!', context={'name': 'World'})",
+  "msg_send(name='q', message='Hello World!')\nmsg_recv(name='q')",
 ).result;
 print(r.value); // MontyString('Hello World!')
 
@@ -78,7 +77,7 @@ final r2 = await session.execute('x + 1').result;
 print(r2.value); // MontyInt(43)
 
 // Event stream for real-time visibility
-final events = session.execute('tmpl_render(...)');
+final events = session.execute("msg_send(name='q', message='hi')");
 await for (final event in events) {
   // BridgeFunctionCallStart, BridgeFunctionCallResult, etc.
 }
@@ -138,17 +137,16 @@ visible. Results are organized by extension category.
 ```python
 >>> help()
 # Returns JSON listing all functions by extension category:
-# {"tools": {"tmpl": [{"name": "tmpl_render", ...}],
-#            "msg": [{"name": "msg_send", ...}, ...],
+# {"tools": {"msg": [{"name": "msg_send", ...}, ...],
 #            "sandbox": [{"name": "sandbox_spawn", ...}, ...]}}
 
->>> help('tmpl_render')
+>>> help('msg_send')
 # Returns schema detail:
-# {"name": "tmpl_render",
-#  "description": "Render a Jinja2 template...",
-#  "params": [{"name": "template", "type": "string", ...}, ...]}
+# {"name": "msg_send",
+#  "description": "Send a message on a named channel.",
+#  "params": [{"name": "name", "type": "string", ...}, ...]}
 
->>> help('render')
+>>> help('send')
 # Bare name — auto-disambiguates if unique, lists candidates if not
 ```
 
@@ -161,8 +159,8 @@ visible in `help()` without restarting.
 The REPL works on both FFI (native) and WASM (browser):
 
 - **FFI**: Full support including `SandboxExtension` with grandchildren
-- **WASM**: Full support for `MontyRepl`, `MontyRuntime`, template
-  and message bus extensions. Sandbox support requires multi-session
+- **WASM**: Full support for `MontyRepl`, `MontyRuntime` and the
+  message bus extension. Sandbox support requires multi-session
   Workers (see issue #280)
 
 ## Comparison with `Monty` / `Monty.exec`

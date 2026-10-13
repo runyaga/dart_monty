@@ -4,7 +4,6 @@ import 'package:dart_monty/src/bridge/event.dart';
 import 'package:dart_monty/src/bridge/platform.dart';
 import 'package:dart_monty/src/extension/attach_context.dart';
 import 'package:dart_monty/src/extension/extension.dart';
-import 'package:dart_monty/src/extension/stateful.dart';
 import 'package:dart_monty/src/host/args.dart';
 import 'package:dart_monty/src/host/context.dart';
 import 'package:dart_monty/src/host/function.dart';
@@ -116,13 +115,13 @@ final class EventLoopDisposed extends EventLoopState {
 ///   if (state is EventLoopWaiting) showInputField();
 /// });
 /// ```
-class EventLoopExtension extends MontyExtension
-    with StatefulExtension<EventLoopState> {
+class EventLoopExtension extends MontyExtension {
   /// Creates an [EventLoopExtension] initialized at [EventLoopIdle].
-  EventLoopExtension() {
-    setInitialState(const EventLoopIdle());
-  }
+  EventLoopExtension();
 
+  final Signal<EventLoopState> _state = signal<EventLoopState>(
+    const EventLoopIdle(),
+  );
   final Signal<Map<String, Object?>?> _lastEmitted =
       signal<Map<String, Object?>?>(null);
   final _eventQueue = <Map<String, Object?>>[];
@@ -143,7 +142,7 @@ class EventLoopExtension extends MontyExtension
   /// effect(() => print(plugin.channelStateSignal.value));
   /// ```
   /// Use [channelState] for non-reactive reads.
-  ReadonlySignal<EventLoopState> get channelStateSignal => stateSignal;
+  ReadonlySignal<EventLoopState> get channelStateSignal => _state;
 
   /// Reactive last-emitted value.
   ///
@@ -152,13 +151,13 @@ class EventLoopExtension extends MontyExtension
   ReadonlySignal<Map<String, Object?>?> get lastEmittedSignal => _lastEmitted;
 
   /// Current channel state.
-  EventLoopState get channelState => state;
+  EventLoopState get channelState => _state.value;
 
   /// The most recent value passed to `el_emit`, or `null` if none yet.
   Map<String, Object?>? get lastEmitted => _lastEmitted.value;
 
   /// Whether Python is currently paused at `el_recv()`.
-  bool get isWaiting => state is EventLoopWaiting;
+  bool get isWaiting => _state.value is EventLoopWaiting;
 
   @override
   List<HostFunction> get functions => [
@@ -210,17 +209,17 @@ class EventLoopExtension extends MontyExtension
     // Clear stale queued events only when re-executing after a completed run.
     // Events dispatched while idle (before the first execute) are intentional
     // pre-dispatch and must not be discarded.
-    if (state is EventLoopCompleted) {
+    if (_state.value is EventLoopCompleted) {
       _eventQueue.clear();
     }
-    state = const EventLoopExecuting();
+    _state.value = const EventLoopExecuting();
 
     return stream.map((event) {
       if (event is BridgeRunFinished || event is BridgeRunError) {
         // Guard on the plain bool, not the signal, to avoid reading a
         // disposed signal when onDispose() races with the stream tail.
         if (!_disposed) {
-          final current = state;
+          final current = _state.value;
           // Clean up orphaned completer when the script finishes while Python
           // is still paused at el_recv() (e.g. script errored mid-execution).
           if (current is EventLoopWaiting) {
@@ -229,7 +228,7 @@ class EventLoopExtension extends MontyExtension
               StackTrace.current,
             );
           }
-          state = const EventLoopCompleted();
+          _state.value = const EventLoopCompleted();
         }
       }
 
@@ -245,7 +244,7 @@ class EventLoopExtension extends MontyExtension
   /// Throws [StateError] if the plugin has been disposed or if the previous
   /// execution has already completed. Call `execute` again before dispatching.
   void dispatch(Map<String, Object?> event) {
-    switch (state) {
+    switch (_state.value) {
       case EventLoopDisposed():
         throw StateError('Cannot dispatch events on a disposed plugin');
       case EventLoopCompleted():
@@ -258,7 +257,7 @@ class EventLoopExtension extends MontyExtension
           'Dispatching event (resuming)',
           attributes: {'eventKeys': '${event.keys.toList()}'},
         );
-        state = const EventLoopExecuting();
+        _state.value = const EventLoopExecuting();
         completer.complete(event);
       case EventLoopIdle() || EventLoopExecuting():
         logger.trace(
@@ -273,7 +272,7 @@ class EventLoopExtension extends MontyExtension
   Future<void> onDispose() async {
     if (_disposed) return;
     _disposed = true;
-    final current = state;
+    final current = _state.value;
     if (current is EventLoopWaiting) {
       current.completer.completeError(
         StateError('EventLoopExtension disposed while waiting for event'),
@@ -281,9 +280,10 @@ class EventLoopExtension extends MontyExtension
       );
     }
     _eventQueue.clear();
-    state = const EventLoopDisposed();
+    _state.value = const EventLoopDisposed();
     _lastEmitted.dispose();
     await super.onDispose();
+    _state.dispose();
   }
 
   Future<Object?> _handleRecv(
@@ -297,7 +297,7 @@ class EventLoopExtension extends MontyExtension
 
     // No events queued — park in waiting state with the live completer.
     final completer = Completer<Map<String, Object?>>();
-    state = EventLoopWaiting(completer);
+    _state.value = EventLoopWaiting(completer);
     logger.trace('Waiting for event');
 
     return completer.future;

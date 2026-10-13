@@ -5,6 +5,8 @@ import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:test/test.dart';
 
+import 'template_stub_extension.dart';
+
 /// Integration tests for MontyRuntime with plugins — requires native FFI.
 ///
 /// Run with:
@@ -13,50 +15,6 @@ import 'package:test/test.dart';
 ///   test/bridge/integration/agent_plugin_integration_test.dart
 /// ```
 void main() {
-  // ---------------------------------------------------------------------------
-  // Template plugin
-  // ---------------------------------------------------------------------------
-
-  group('MontyRuntime + JinjaTemplateExtension', () {
-    late MontyRuntime session;
-
-    setUp(() {
-      session = MontyRuntime(extensions: [JinjaTemplateExtension()]);
-    });
-
-    tearDown(() async {
-      await session.dispose();
-    });
-
-    test('tmpl_render with variables', () async {
-      final result = await session.execute('''
-tmpl_render(template='Hello {{ name }}!', context={'name': 'Alice'})
-''').result;
-
-      expect(result.value.dartValue, 'Hello Alice!');
-    });
-
-    test('tmpl_render with loop', () async {
-      final result = await session.execute('''
-tmpl_render(
-    template='{% for x in items %}{{ x }} {% endfor %}',
-    context={'items': ['a', 'b', 'c']})
-''').result;
-
-      expect(result.value.dartValue, 'a b c ');
-    });
-
-    test('tmpl_render with conditional', () async {
-      final result = await session.execute('''
-tmpl_render(
-    template='{% if n > 10 %}big{% else %}small{% endif %}',
-    context={'n': 42})
-''').result;
-
-      expect(result.value.dartValue, 'big');
-    });
-  });
-
   // ---------------------------------------------------------------------------
   // Message bus plugin
   // ---------------------------------------------------------------------------
@@ -118,7 +76,7 @@ msg_send(name='q', message=2)
         'date.': timeHandler(),
         'datetime.': timeHandler(),
       };
-      final tmpl = JinjaTemplateExtension();
+      final tmpl = TemplateStubExtension();
       final msg = MessageBusExtension();
       final extensions = <MontyExtension>[
         tmpl,
@@ -202,7 +160,7 @@ sandbox_free(handle=h)
         'date.': timeHandler(),
         'datetime.': timeHandler(),
       };
-      final tmpl = JinjaTemplateExtension();
+      final tmpl = TemplateStubExtension();
       final msg = MessageBusExtension();
       final extensions = <MontyExtension>[
         tmpl,

@@ -209,19 +209,18 @@ final r = await repl.feed('double(x)');
 print(r.value); <span style="color:var(--text-dim)">// MontyInt(84)</span></pre>
 
     <h3>Session with Plugins</h3>
-<pre><span style="color:var(--text-dim)">// Full plugin dispatch — template, messaging, sandboxing</span>
-final session = ReplSession(
-  plugins: [
-    DinjaTemplatePlugin(),
-    MessageBusPlugin(),
-    SandboxPlugin(platformFactory: () async => MontyFfi()),
+<pre><span style="color:var(--text-dim)">// Full plugin dispatch — messaging, sandboxing</span>
+final session = MontyRuntime(
+  extensions: [
+    MessageBusExtension(),
+    SandboxExtension(platformFactory: () async => createPlatformMonty()),
   ],
 );
 
-final r = await session.run(
-  "tmpl_render(template='Hello {{ name }}!', context={'name': 'World'})",
-);
-print(r.value); <span style="color:var(--text-dim)">// 'Hello World!'</span></pre>
+final r = await session.execute(
+  "msg_send(name='q', message='hi')\nmsg_recv(name='q')",
+).result;
+print(r.value.dartValue); <span style="color:var(--text-dim)">// 'hi'</span></pre>
   </div>
 </section>
 
@@ -272,11 +271,6 @@ print(r.value); <span style="color:var(--text-dim)">// 'Hello World!'</span></pr
     </p>
 
     <div class="card-grid">
-      <div class="card">
-        <h3>TemplatePlugin</h3>
-        <p>Jinja2 template rendering. Variables, loops, conditionals, filters.</p>
-        <div class="fn">tmpl_render(template, context)</div>
-      </div>
       <div class="card">
         <h3>MessageBusPlugin</h3>
         <p>In-memory named message channels. Send, receive, peek, stats.</p>
@@ -374,7 +368,7 @@ dart_monty_core (backends)
     <div class="demo-grid">
       <a href="repl.html" class="demo-link">
         <h4>REPL</h4>
-        <p>Interactive Python REPL with real plugins (template, message bus).</p>
+        <p>Interactive Python REPL with a real plugin (message bus).</p>
       </a>
       <a href="demo.html" class="demo-link">
         <h4>Basic Execution</h4>
@@ -437,7 +431,7 @@ cp dart_monty_core/assets/dart_monty_core_native.wasm web/</pre>
     <ul style="padding-left: 20px; color: var(--text-dim);">
       <li><a href="landing.html">Overview</a> — Quick start and API overview</li>
       <li><a href="user/repl.html">REPL Guide</a> — Stateful interactive execution</li>
-      <li><a href="user/extensions.html">Plugins</a> — Template, MessageBus, Sandbox</li>
+      <li><a href="user/extensions.html">Plugins</a> — MessageBus, Sandbox</li>
       <li><a href="architecture/overview.html">Architecture</a> — Module structure and internals</li>
       <li><a href="deep-dives/sandbox-architecture.html">Sandbox</a> — Child spawning, grandchildren, limits</li>
       <li><a href="tutorials/host-functions-intro.html">Host Functions Guide</a> — Writing custom plugins</li>
