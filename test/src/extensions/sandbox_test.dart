@@ -141,19 +141,6 @@ void main() {
           );
         expect(registry.extensions, hasLength(1));
       });
-
-      test('sandbox_spawn.code declares python render hint', () {
-        final plugin = SandboxExtension(
-          platformFactory: () async => MockMontyPlatform(),
-        );
-        final spawn = plugin.functions.firstWhere(
-          (f) => f.schema.name == 'sandbox_spawn',
-        );
-        final schema = spawn.schema.toJsonSchema();
-        final properties = schema['properties']! as Map<String, Object?>;
-        final code = properties['code']! as Map<String, Object?>;
-        expect(code['x-render-as'], 'python');
-      });
     });
 
     group('sandbox_spawn', () {
@@ -1490,9 +1477,9 @@ void main() {
         final spawn = _findHandler(plugin, 'sandbox_spawn');
         await spawn({'code': '1'});
 
-        // Observe the signal up to the moment dispose fires; the mixin
-        // disposes stateSignal in super.onDispose(), so reading after dispose
-        // would hit a disposed signal.
+        // Observe the signal up to the moment dispose fires; onDispose()
+        // disposes the children signal, so reading after dispose would hit a
+        // disposed signal.
         final observed = <Map<int, ChildState>>[];
         final sub = effect(() {
           observed.add(Map.from(plugin.childrenSignal.value));

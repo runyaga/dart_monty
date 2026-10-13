@@ -2,9 +2,7 @@ import 'package:dart_monty/src/bridge/event.dart';
 import 'package:dart_monty/src/bridge/logger.dart';
 import 'package:dart_monty/src/bridge/platform.dart';
 import 'package:dart_monty/src/extension/attach_context.dart';
-import 'package:dart_monty/src/host/dispatch.dart';
 import 'package:dart_monty/src/host/function.dart';
-import 'package:dart_monty/src/host/function_surface.dart' show FunctionSurface;
 import 'package:dart_monty/src/host/schema.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 
@@ -25,7 +23,6 @@ abstract class MontyBridge implements AttachContext {
     required MontyPlatform platform,
     MontyLimits? limits,
     BridgeLogger? logger,
-    MontyInterceptor? interceptor,
   }) = PlatformBridge;
 
   /// Logger for this bridge instance.
@@ -37,9 +34,6 @@ abstract class MontyBridge implements AttachContext {
   /// All registered function schemas.
   @override
   List<HostFunctionSchema> get schemas;
-
-  /// Schemas for functions that declare [FunctionSurface.llm].
-  List<HostFunctionSchema> get exposedSchemas;
 
   /// All registered function schemas, grouped by category.
   Map<String, List<HostFunctionSchema>> get schemasByCategory;
@@ -54,9 +48,6 @@ abstract class MontyBridge implements AttachContext {
   void unregister(String name);
 
   /// Invokes a registered host function by [name] directly from Dart.
-  ///
-  /// Infra functions (where [HostFunction.isInfra] is `true`) bypass the
-  /// interceptor. All others go through it.
   ///
   /// When [onEvent] is provided, any [BridgeEvent] the handler emits via
   /// `HostContext.emit` / `HostContext.emitText` is delivered to the callback

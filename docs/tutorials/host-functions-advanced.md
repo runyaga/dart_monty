@@ -53,7 +53,6 @@ final extension = SandboxExtension(
 | `currentDepth` | `int` | `0` | This extension's current depth in the recursion tree |
 | `childLimits` | `MontyLimits?` | `null` | Default resource limits for all children |
 | `sandboxBaseDir` | `String?` | `null` | Base directory for per-child working directories |
-| `systemPromptBuilder` | `ChildSystemPromptBuilder?` | `null` | Builds static system prompt from child context |
 
 ### Host Functions Provided
 
@@ -251,34 +250,8 @@ are responsible for creating and managing it.
 
 ## Child System Prompts
 
-`SandboxExtension` supports injecting custom system prompts into child
-sandboxes via two layers:
-
-### Layer 1: Infrastructure Builder (static, from Dart)
-
-The `systemPromptBuilder` callback produces static, infrastructure-level
-prompt content from `ChildSpawnContext`:
-
-```dart
-SandboxExtension(
-  platformFactory: () async => createPlatformMonty(),
-  sandboxBaseDir: '/data',
-  systemPromptBuilder: (context) =>
-      'You are child ${context.childId}. '
-      'Your workspace is ${context.workingDirectory}. '
-      'Do not access other children\'s data.',
-)
-```
-
-- Computed from `ChildSpawnContext` (childId, workingDirectory)
-- Infrastructure truths that should never be wrong
-- Cannot be prompt-injected by the parent LLM
-- Return `null` to skip the builder layer for a specific child
-
-### Layer 2: Parent LLM Fragment (dynamic, from Python)
-
 The `system_prompt` parameter on `sandbox_spawn` lets the parent LLM
-inject role-specific instructions at runtime:
+inject role-specific instructions into a child at runtime:
 
 ```python
 h = sandbox_spawn(
@@ -287,29 +260,10 @@ h = sandbox_spawn(
 )
 ```
 
-- Role assignment, task-specific instructions
-- The parent LLM's planning decision at runtime
-- Optional -- omit if the parent doesn't need to customize
-
-### Concatenation Order
-
-When both layers are present, the builder output comes first
-(infrastructure truth), then the runtime fragment (role assignment),
-separated by a blank line:
-
-```text
-You are child 0. Your workspace is /data/.sandboxes/child_0.
-
-You are the validator. Check results for correctness.
-```
-
-### How It Works
-
-The concatenated prompt is injected into the child's
-`ExtensionCoordinator.systemPromptPrefix` **after** registry construction.
-This setter-based approach guarantees prompt injection regardless of
-whether the registry was built by inheritance or a custom factory --
-factories cannot accidentally forget to wire the prompt.
+The prompt is set as the child's `ExtensionCoordinator.systemPromptPrefix`
+**after** registry construction, so it is applied however the child's
+extensions were assembled. It is optional; omit it if the parent does not
+need to customize the child.
 
 If no extensions exist but a prompt is provided, an empty `ExtensionCoordinator`
 is created automatically so the prompt (and introspection builtins) are

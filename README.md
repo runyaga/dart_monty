@@ -122,7 +122,7 @@ For plugin-style wiring, pass `extensions`:
 
 ```dart
 final runtime = MontyRuntime(
-  extensions: [JinjaTemplateExtension(), MessageBusExtension()],
+  extensions: [MessageBusExtension(), EventLoopExtension()],
 );
 ```
 

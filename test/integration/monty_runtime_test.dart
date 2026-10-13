@@ -5,6 +5,8 @@ import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:dart_monty_core/dart_monty_core.dart' show MontyInternalError;
 import 'package:test/test.dart';
 
+import 'template_stub_extension.dart';
+
 /// Integration tests for MontyRuntime — requires the native Monty
 /// library.
 ///
@@ -482,7 +484,7 @@ result
 
     test('execute().events attaches plugins without prior execute()', () async {
       final session = MontyRuntime(
-        extensions: [JinjaTemplateExtension()],
+        extensions: [TemplateStubExtension()],
       );
       addTearDown(session.dispose);
 
@@ -503,18 +505,8 @@ result
   });
 
   group('MontyRuntime.invoke', () {
-    test('invokes a registered host function and runs interceptor', () async {
-      var interceptorCalls = 0;
-      String? seenName;
-      Map<String, Object?>? seenArgs;
-      final session = MontyRuntime(
-        interceptor: (name, args, next) {
-          interceptorCalls++;
-          seenName = name;
-          seenArgs = args;
-          return next();
-        },
-      );
+    test('invokes a registered host function', () async {
+      final session = MontyRuntime();
       addTearDown(session.dispose);
       session.register(
         HostFunction(
@@ -530,9 +522,6 @@ result
       final result = await session.invoke('shout', const {'msg': 'hi'});
 
       expect(result, 'HI');
-      expect(interceptorCalls, 1);
-      expect(seenName, 'shout');
-      expect(seenArgs, const {'msg': 'hi'});
     });
 
     test('sandbox mode throws UnsupportedError', () async {
@@ -584,7 +573,7 @@ result
     test(
       'shared mode: registered extensions are visible on coordinator',
       () async {
-        final ext = JinjaTemplateExtension();
+        final ext = TemplateStubExtension();
         final session = MontyRuntime(extensions: [ext]);
         addTearDown(session.dispose);
         expect(
@@ -754,31 +743,6 @@ result
 
       expect(result.error, isNull);
       expect(result.value.dartValue, 42);
-    });
-  });
-
-  group('MontyRuntime.descriptionProvider', () {
-    test('overrides function description on registered extension', () async {
-      final session = MontyRuntime(
-        extensions: [JinjaTemplateExtension()],
-        descriptionProvider: (name) => 'custom: $name',
-      );
-      addTearDown(session.dispose);
-      await session.execute('pass').result;
-      final schema = session.schemas.firstWhere((s) => s.name == 'tmpl_render');
-      expect(schema.description, 'custom: tmpl_render');
-    });
-
-    test('null return from provider leaves description unchanged', () async {
-      final session = MontyRuntime(
-        extensions: [JinjaTemplateExtension()],
-        descriptionProvider: (_) => null,
-      );
-      addTearDown(session.dispose);
-      await session.execute('pass').result;
-      final schema = session.schemas.firstWhere((s) => s.name == 'tmpl_render');
-      expect(schema.description, isNotEmpty);
-      expect(schema.description, isNot(startsWith('custom:')));
     });
   });
 }

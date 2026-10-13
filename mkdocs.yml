@@ -44,7 +44,7 @@ plugins:
       markdown_description: |
         High-level Dart/Flutter bindings for sandboxed Python scripting.
         Builds on dart_monty_core (the low-level FFI/WASM glue) with a
-        runtime, extension API (Jinja, MessageBus, Sandbox), Flutter web
+        runtime, extension API (MessageBus, Sandbox), Flutter web
         bridge auto-loading, OS-call composition, and host-function
         dispatch with typed schemas.
 

@@ -17,6 +17,8 @@ import 'dart:io';
 import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:test/test.dart';
 
+import 'template_stub_extension.dart';
+
 void main() {
   test(
     'FFI plugin matrix — 30 experiments in one session',
@@ -29,7 +31,7 @@ void main() {
                 'date.': timeHandler(),
                 'datetime.': timeHandler(),
               },
-              extensions: [JinjaTemplateExtension(), MessageBusExtension()],
+              extensions: [TemplateStubExtension(), MessageBusExtension()],
             )
             ..register(
               HostFunction(

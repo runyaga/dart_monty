@@ -53,10 +53,10 @@ print(r.value); // MontyInt(84)
 
 ```dart
 final session = MontyRuntime(
-  extensions: [JinjaTemplateExtension(), MessageBusExtension()],
+  extensions: [MessageBusExtension()],
 );
 final r = await session.execute(
-  "tmpl_render(template='Hello {{ name }}!', context={'name': 'World'})",
+  "msg_send(name='q', message='Hello World!')\nmsg_recv(name='q')",
 ).result;
 print(r.value); // 'Hello World!'
 ```

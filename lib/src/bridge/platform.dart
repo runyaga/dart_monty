@@ -118,7 +118,6 @@ class PlatformBridge implements MontyBridge, AttachContext {
     required MontyPlatform platform,
     MontyLimits? limits,
     BridgeLogger? logger,
-    MontyInterceptor? interceptor,
     MontyRuntimeRef? runtime,
   }) : _platform = platform,
        _limits = limits,
@@ -126,7 +125,6 @@ class PlatformBridge implements MontyBridge, AttachContext {
        _host = HostDispatch(
          platform: platform,
          log: logger ?? StructLogBridgeLogger.root(LogManager.instance),
-         interceptor: interceptor,
          runtime: runtime,
        );
 
@@ -171,9 +169,6 @@ class PlatformBridge implements MontyBridge, AttachContext {
 
   @override
   List<HostFunctionSchema> get schemas => _host.schemas;
-
-  @override
-  List<HostFunctionSchema> get exposedSchemas => _host.exposedSchemas;
 
   @override
   Map<String, List<HostFunctionSchema>> get schemasByCategory =>

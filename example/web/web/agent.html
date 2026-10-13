@@ -374,7 +374,6 @@
       <option value="kvstore">Key-Value Store</option>
       <option value="fetch">HTTP Fetch</option>
       <option value="filesystem">Filesystem I/O</option>
-      <option value="template">Jinja Templates</option>
       <option value="msgbus">Message Bus</option>
       <option value="sandbox">Child Sandboxes</option>
       <option value="gather">Parallel Sandbox Gather</option>
@@ -382,7 +381,6 @@
       <option value="output">Sandbox Print Capture</option>
       <option value="lifecycle">Sandbox Lifecycle</option>
       <option value="error">Sandbox Error Handling</option>
-      <option value="crossplug">Cross-Plugin (tmpl in child)</option>
       <option value="pipeline">Producer/Consumer Pipeline</option>
       <option value="bidir">Bidirectional Parent↔Child</option>
       <option value="childfs">Child Filesystem Isolation</option>
@@ -474,7 +472,7 @@ x</textarea>
           <p style="margin-bottom: 12px;"><strong style="color: var(--accent);">AgentSession</strong> combines a Monty bridge, host functions, OS providers, and variable persistence into one API.</p>
           <p style="margin-bottom: 12px; color: var(--text-dim);"><strong style="color: var(--cyan);">Stateful:</strong> Variables defined in one execution persist to the next. Click "Clear State" to reset.</p>
           <p style="margin-bottom: 12px; color: var(--text-dim);"><strong style="color: var(--purple);">Host Functions:</strong> Python can call Dart-defined tools: <code style="color: var(--purple);">echo(msg)</code>, <code style="color: var(--purple);">add_numbers(a, b)</code>, <code style="color: var(--purple);">get_time()</code>.</p>
-          <p style="margin-bottom: 12px; color: var(--text-dim);"><strong style="color: var(--orange);">Plugins:</strong> <code style="color: var(--orange);">tmpl_render()</code> (Jinja2 templates), <code style="color: var(--orange);">msg_send()/msg_recv()</code> (message channels), <code style="color: var(--orange);">sandbox_spawn()/sandbox_await()</code> (child interpreters).</p>
+          <p style="margin-bottom: 12px; color: var(--text-dim);"><strong style="color: var(--orange);">Plugins:</strong> <code style="color: var(--orange);">msg_send()/msg_recv()</code> (message channels), <code style="color: var(--orange);">sandbox_spawn()/sandbox_await()</code> (child interpreters).</p>
           <p style="margin-bottom: 12px; color: var(--text-dim);"><strong style="color: var(--green);">Filesystem:</strong> pathlib works via MemoryFsProvider: <code style="color: var(--green);">Path('/sandbox/f.txt').write_text(...)</code></p>
           <p style="color: var(--text-dim);"><strong style="color: var(--yellow);">Events:</strong> Every bridge event streams in real-time to the Events panel.</p>
         </div>
@@ -721,7 +719,6 @@ x</textarea>
 
       filesystem: "# IN-MEMORY VIRTUAL FILESYSTEM\n# pathlib works normally but all I/O goes to memory.\n# No real disk access. Files persist within the session.\nfrom pathlib import Path\n\n# Write two files\nPath('/data').mkdir(parents=True, exist_ok=True)\nPath('/data/hello.txt').write_text('hello world')\nPath('/data/nums.csv').write_text('a,b\\n1,2\\n3,4')\n\n# Prove they exist and contain what we wrote\n{\n    'hello': Path('/data/hello.txt').read_text(),\n    'csv': Path('/data/nums.csv').read_text(),\n    'files_exist': [p.name for p in Path('/data').iterdir()]\n}",
 
-      template: "# JINJA2 TEMPLATES (DinjaTemplatePlugin)\n# tmpl_render() renders Jinja2 templates in Dart.\n\n# Variable substitution\ngreeting = tmpl_render(\n    template='Hello {{ name }} from {{ place }}!',\n    context={'name': 'Alice', 'place': 'Monty'}\n)\n\n# For loop\nitems = tmpl_render(\n    template='{% for x in items %}[{{ x }}] {% endfor %}',\n    context={'items': ['a', 'b', 'c']}\n)\n\n# Conditional\ngrade = tmpl_render(\n    template='{% if s > 90 %}A{% elif s > 80 %}B{% else %}C{% endif %}',\n    context={'s': 95}\n)\n\n{'greeting': greeting, 'items': items, 'grade': grade}",
 
       msgbus: "# MESSAGE BUS — FIFO channels\n# Prove: ordering is preserved, peek doesn't consume,\n# queue empties after drain.\n\nmsg_send(name='q', message='first')\nmsg_send(name='q', message='second')\nmsg_send(name='q', message='third')\n\n# Peek sees front of queue WITHOUT consuming\npeeked = msg_peek(name='q')\n\n# Recv consumes in order\nr1 = msg_recv(name='q')\nr2 = msg_recv(name='q')\nr3 = msg_recv(name='q')\n\n# Queue is now empty\nafter_drain = msg_peek(name='q')\n\n{\n    'peeked_without_consuming': peeked,\n    'recv_order': [r1, r2, r3],\n    'empty_after_drain': after_drain,\n    'fifo_correct': [r1, r2, r3] == ['first', 'second', 'third']\n}",
 
@@ -737,7 +734,6 @@ x</textarea>
 
       error: "# ERROR PROPAGATION — parent survives child crash\n\nparent_state = 'running'\n\n# Child crashes with ZeroDivisionError\nh = sandbox_spawn(code='1 / 0')\ntry:\n    r = sandbox_await(handle=h)\n    crashed = False\nexcept Exception as e:\n    r = str(e)\n    crashed = True\n\n# Prove: parent is still alive and can do math\nproof = 40 + 2\n\n{\n    'child_crashed': crashed,\n    'error': r,\n    'parent_still_works': proof,\n    'parent_state': parent_state\n}",
 
-      crossplug: "# CROSS-PLUGIN INHERITANCE\n# Children inherit plugins. Prove: both parent and child\n# can render templates.\n\nparent_tmpl = tmpl_render(\n    template='parent: {{ x }}', context={'x': 1}\n)\n\nh = sandbox_spawn(code='''\nchild_tmpl = tmpl_render(\n    template=\"child: {{ x }}\", context={\"x\": 2}\n)\nchild_tmpl\n''')\nchild_tmpl = sandbox_await(handle=h)\n\n{\n    'parent_rendered': parent_tmpl,\n    'child_rendered': child_tmpl,\n    'both_have_plugin': True\n}",
 
       pipeline: "# PRODUCER/CONSUMER — children talk via shared bus\n# Prove: consumer received exactly what producer sent.\n\nproducer = sandbox_spawn(code='''\nsent = []\nfor i in range(3):\n    msg_send(name=\"pipe\", message=f\"item-{i}\")\n    sent.append(f\"item-{i}\")\n{\"role\": \"producer\", \"sent\": sent}\n''')\n\nconsumer = sandbox_spawn(code='''\nreceived = []\nfor i in range(3):\n    received.append(msg_recv(name=\"pipe\"))\n{\"role\": \"consumer\", \"received\": received}\n''')\n\np = sandbox_await(handle=producer)\nc = sandbox_await(handle=consumer)\n\n{\n    'producer': p,\n    'consumer': c,\n    'data_matches': p['sent'] == c['received']\n}",
 
@@ -745,7 +741,7 @@ x</textarea>
 
       childfs: "# FILESYSTEM ISOLATION\n# Prove: parent, child A, child B each have their own VFS.\n# None can see the others' files.\nfrom pathlib import Path\n\nPath('/data/parent.txt').write_text('parent data')\n\n# Child A checks for parent's file, writes its own\na = sandbox_spawn(code='''\nfrom pathlib import Path\ncan_see_parent = Path(\"/data/parent.txt\").exists()\nPath(\"/child_a.txt\").write_text(\"from child A\")\n{\"parent_visible\": can_see_parent, \"wrote\": Path(\"/child_a.txt\").read_text()}\n''')\n\n# Child B checks for child A's file, writes its own\nb = sandbox_spawn(code='''\nfrom pathlib import Path\ncan_see_sibling = Path(\"/child_a.txt\").exists()\nPath(\"/child_b.txt\").write_text(\"from child B\")\n{\"sibling_visible\": can_see_sibling, \"wrote\": Path(\"/child_b.txt\").read_text()}\n''')\n\na_r = sandbox_await(handle=a)\nb_r = sandbox_await(handle=b)\n\n# Parent checks for children's files\n{\n    'child_a': a_r,\n    'child_b': b_r,\n    'parent_sees_child_a': Path('/child_a.txt').exists(),\n    'parent_sees_child_b': Path('/child_b.txt').exists(),\n    'parent_file_intact': Path('/data/parent.txt').read_text()\n}",
 
-      combined: "# EVERYTHING TOGETHER\nfrom pathlib import Path\n\n# 1. Template rendering\ngreeting = tmpl_render(\n    template='{{ name }} scored {{ score }}',\n    context={'name': 'Alice', 'score': 95}\n)\n\n# 2. Send to bus and write to VFS\nmsg_send(name='results', message=greeting)\nPath('/report.txt').write_text(greeting)\n\n# 3. Read back from both\nfrom_vfs = Path('/report.txt').read_text()\nfrom_bus = msg_recv(name='results')\n\n# 4. Dart host functions\ntotal = add_numbers(100, 200)\n\n# Prove: all four systems return consistent data\n{\n    'template': greeting,\n    'from_vfs': from_vfs,\n    'from_bus': from_bus,\n    'all_match': greeting == from_vfs == from_bus,\n    'host_fn': total\n}",
+      combined: "# EVERYTHING TOGETHER\nfrom pathlib import Path\n\n# 1. Build a value\nname, score = 'Alice', 95\ngreeting = f'{name} scored {score}'\n\n# 2. Send to bus and write to VFS\nmsg_send(name='results', message=greeting)\nPath('/report.txt').write_text(greeting)\n\n# 3. Read back from both\nfrom_vfs = Path('/report.txt').read_text()\nfrom_bus = msg_recv(name='results')\n\n# 4. Dart host functions\ntotal = add_numbers(100, 200)\n\n# Prove: all three systems return consistent data\n{\n    'greeting': greeting,\n    'from_vfs': from_vfs,\n    'from_bus': from_bus,\n    'all_match': greeting == from_vfs == from_bus,\n    'host_fn': total\n}",
 
       // --- MessageBus v0.20 examples ---
 
@@ -764,7 +760,6 @@ x</textarea>
       kvstore: 'Persistent key-value store backed by Dart. Data survives across execute() calls.',
       fetch: 'Simulated HTTP fetch — demonstrates host functions returning complex JSON structures.',
       filesystem: 'Python pathlib backed by an in-memory VFS. Write and read files without touching the host disk.',
-      template: 'Jinja2 template rendering via DinjaTemplatePlugin. Supports variables, loops, and conditionals.',
       msgbus: 'Named message channels with FIFO ordering. Send, receive, peek (non-blocking), and get channel stats.',
       sandbox: 'Spawn 3 isolated child interpreters, each in its own WASM Worker. Await their results independently.',
       gather: 'Spawn 3 children in parallel WASM Workers. sandbox_gather waits for all at once and returns attributed results with handle, value, and output.',
@@ -772,11 +767,10 @@ x</textarea>
       output: 'Children capture print() output separately. sandbox_get_output retrieves it after the child completes.',
       lifecycle: 'Full handle lifecycle: spawn, check if alive, await result, then free the handle to release resources.',
       error: 'Child errors propagate cleanly as ChildSandboxException. Parent catches it without crashing.',
-      crossplug: 'Children inherit plugins from the parent. This child uses tmpl_render() inside its own sandbox.',
       pipeline: 'Two children communicate through a shared message bus — producer writes items, consumer reads and transforms them.',
       bidir: 'Parent sends a work task via message bus, child processes it and sends the result back. Full round-trip.',
       childfs: 'Each child gets its own isolated VFS. Children write files independently; parent filesystem is unaffected.',
-      combined: 'Everything together: templates, message bus, filesystem, and host functions in a single execution.',
+      combined: 'Everything together: message bus, filesystem, and host functions in a single execution.',
       dartpush: 'Step 1: click Execute — Python blocks on msg_recv and a red banner appears. Step 2: click Push → — Python receives your JSON instantly and the result shows what arrived. Both sides share the same MessageChannel object in Dart.',
       msgstats: 'msg_stats() returns a live ChannelSnapshot: queue depth, send/recv counts, peak depth, closed flag. Powered by the new reactive MessageChannel.',
       drain: 'Producer sends items then calls msg_close(). Consumer loops msg_recv() until None — the idiomatic end-of-stream signal for message channels.',

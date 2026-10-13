@@ -399,7 +399,7 @@ const _msgStatsSchema = HostFunctionSchema(
 /// Other extensions should invoke message-bus operations through the bridge
 /// (`ctx.invoke('msg_send', {...})` / `ctx.invoke('msg_recv', {...})`) rather
 /// than holding a direct reference to the plugin. This keeps extension
-/// boundaries narrow and goes through the same interceptor path as Python
+/// boundaries narrow and goes through the same dispatch path as Python
 /// callers.
 class MessageBusExtension extends MontyExtension {
   /// Creates a [MessageBusExtension].

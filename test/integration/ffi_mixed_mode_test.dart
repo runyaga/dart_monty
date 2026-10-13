@@ -18,6 +18,8 @@ import 'dart:io';
 import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:test/test.dart';
 
+import 'template_stub_extension.dart';
+
 // ---------------------------------------------------------------------------
 // Host function factories (same as matrix test)
 // ---------------------------------------------------------------------------
@@ -205,7 +207,7 @@ void main() {
 
   group('H. Plugin combos across execute calls', () {
     test('H1. Template across 5 execute calls', () async {
-      final s = MontyRuntime(extensions: [JinjaTemplateExtension()]);
+      final s = MontyRuntime(extensions: [TemplateStubExtension()]);
       addTearDown(s.dispose);
       await s.execute('name = "World"').result;
       await s.execute('greeting = tmpl_render("Hi {{n}}", {"n": name})').result;
@@ -233,7 +235,7 @@ void main() {
     test('H3. FS + Template across calls', () async {
       final s = MontyRuntime(
         osHandlers: {'Path.': memoryFsHandler()},
-        extensions: [JinjaTemplateExtension()],
+        extensions: [TemplateStubExtension()],
       );
       addTearDown(s.dispose);
       await s.execute('''
@@ -257,7 +259,7 @@ content = Path("/data.txt").read_text()
       'H4. HTTP + Template + MsgBus across calls',
       () async {
         final s = MontyRuntime(
-          extensions: [JinjaTemplateExtension(), MessageBusExtension()],
+          extensions: [TemplateStubExtension(), MessageBusExtension()],
         )..register(httpFn());
         addTearDown(s.dispose);
         await s.execute('data = http_fn()').result;

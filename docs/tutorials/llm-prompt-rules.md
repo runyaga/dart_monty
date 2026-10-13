@@ -75,7 +75,7 @@ Monty is a **restricted Python interpreter**. It is NOT full CPython.
 | Make HTTP requests | `soliplex_new_thread()` or custom host fn |
 | Read/write files | `pathlib.Path` (in-memory only) |
 | Store key-value data | `msg_send()`/`msg_recv()` channels |
-| Render templates | `tmpl_render()` |
+| Build strings | f-strings |
 | Get current time | `datetime.datetime.now()` (if configured) |
 | Run shell commands | Not possible — use host functions |
 
@@ -164,14 +164,6 @@ t2 = json.loads(soliplex_reply_thread("server", "room", thread_id, "More"))
 response2 = t2["response"]
 ```
 
-### Template rendering
-
-```python
-# tmpl_render returns a string directly (NOT JSON)
-rendered = tmpl_render("Hello {{ name }}!", {"name": "World"})
-# rendered == "Hello World!" — no json.loads() needed
-```
-
 ### Message bus
 
 ```python
@@ -206,12 +198,6 @@ cached = json.loads(Path("/cache/data.json").read_text())
 | `soliplex_upload_to_thread(server, room_id, thread_id, filename, content)` | JSON `{uploaded, thread_id}` | Upload to thread |
 | `soliplex_get_mcp_token(server, room_id)` | JSON `{mcp_token}` | MCP access token |
 | `soliplex_get_documents(server, room_id)` | JSON `[{id, title, uri}]` | RAG documents |
-
-### Template Engine (Jinja2-style)
-
-| Function | Returns | Description |
-|----------|---------|-------------|
-| `tmpl_render(template, context)` | String (NOT JSON) | Render template with variables |
 
 ### Message Bus (FIFO queues)
 
@@ -263,14 +249,9 @@ for s in servers:
 Path("/cache").mkdir(parents=True, exist_ok=True)
 Path("/cache/report.json").write_text(json.dumps(report))
 
-# 3. Template
-summary = tmpl_render(
-    "Found {{ total }} skilled rooms across {{ servers }} servers",
-    {
-        "total": sum(len(v) for v in report.values()),
-        "servers": len(report),
-    },
-)
+# 3. Summarise
+total = sum(len(v) for v in report.values())
+summary = f"Found {total} skilled rooms across {len(report)} servers"
 
 # 4. Message bus
 msg_send("reports", summary)

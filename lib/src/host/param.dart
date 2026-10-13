@@ -1,14 +1,10 @@
 import 'package:dart_monty/src/host/param_type.dart';
-import 'package:dart_monty/src/host/render_hint.dart';
 import 'package:meta/meta.dart';
 
 /// Describes a single parameter of a host function.
 @immutable
 class HostParam {
   /// Creates a [HostParam].
-  ///
-  /// [renderAs] and [renderHintFrom] are mutually exclusive. When
-  /// neither is supplied the value renders as [ParamRenderHint.plain].
   const HostParam({
     required this.name,
     required this.type,
@@ -16,12 +12,7 @@ class HostParam {
     this.description,
     this.defaultValue,
     this.jsonSchemaOverride,
-    this.renderAs,
-    this.renderHintFrom,
-  }) : assert(
-         renderAs == null || renderHintFrom == null,
-         'HostParam: renderAs and renderHintFrom are mutually exclusive.',
-       );
+  });
 
   /// Parameter name (used as the key in the validated args map).
   final String name;
@@ -52,31 +43,10 @@ class HostParam {
   /// arguments that fail runtime validation.
   final Map<String, Object?>? jsonSchemaOverride;
 
-  /// Advisory hint for how the value should be rendered in activity-log
-  /// tiles and other developer-facing surfaces.
-  ///
-  /// Use this when the render style is fixed at schema time — e.g.
-  /// `sandbox_spawn.code` is always Python.
-  final ParamRenderHint? renderAs;
-
-  /// Name of a sibling parameter whose runtime value determines the
-  /// render hint.
-  ///
-  /// Use this for polymorphic tools where the hint depends on another
-  /// arg — e.g. `execute_script(language="python", script="...")` sets
-  /// `renderHintFrom: 'language'` on `script`. Consumers resolve the
-  /// sibling's string value via `ParamRenderHint.values.byName` and fall
-  /// back to [ParamRenderHint.plain] if the value is unrecognized.
-  final String? renderHintFrom;
-
   /// Returns a JSON Schema property definition for this parameter.
   ///
-  /// If [jsonSchemaOverride] is set, returns it as-is. Otherwise
-  /// generates a schema from [type] and [description]. In both cases
-  /// [renderAs] and [renderHintFrom] are appended as `x-render-as` and
-  /// `x-render-hint-from` extension keys so downstream consumers
-  /// (activity-log UIs, MCP clients that want to fence code blocks) can
-  /// read the hint without special-casing the override path.
+  /// If [jsonSchemaOverride] is set, returns a copy of it. Otherwise
+  /// generates a schema from [type] and [description].
   Map<String, Object?> toJsonSchema() {
     final schema = jsonSchemaOverride != null
         ? <String, Object?>{...jsonSchemaOverride!}
@@ -90,8 +60,6 @@ class HostParam {
       }
       if (description != null) schema['description'] = description;
     }
-    if (renderAs != null) schema['x-render-as'] = renderAs!.name;
-    if (renderHintFrom != null) schema['x-render-hint-from'] = renderHintFrom;
 
     return schema;
   }

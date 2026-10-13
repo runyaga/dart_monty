@@ -43,7 +43,7 @@ external void _jsOnToolCall(JSString jsonPayload);
 MontyRuntime _session = _newSession();
 
 MontyRuntime _newSession() => MontyRuntime(
-      extensions: [JinjaTemplateExtension(), MessageBusExtension()],
+      extensions: [MessageBusExtension()],
     );
 
 // ---------------------------------------------------------------------------

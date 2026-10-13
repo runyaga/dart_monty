@@ -67,7 +67,6 @@ MontyRuntime.execute(code)
 - New tool routing rules
 - New argument validation
 - New future-tracking strategies
-- The interceptor chain
 
 **Add new loop behavior → `PlatformBridge._run` (`platform.dart`)**
 - New `MontyProgress` variant handling

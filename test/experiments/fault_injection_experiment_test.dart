@@ -1,4 +1,4 @@
-// Experiment: fault injection through the harness interceptor.
+// Experiment: fault injection through the harness tool recorder.
 //
 // Exercises what happens when host functions fail, return unexpected types,
 // are slow, or are denied. Python must handle these correctly — or reveal

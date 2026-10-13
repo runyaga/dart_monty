@@ -10,7 +10,7 @@ tools, extensions, and OS-level interception.
 
 ```dart
 final session = MontyRuntime(
-  extensions: [JinjaTemplateExtension()],
+  extensions: [MessageBusExtension()],
   osHandlers: {'Path.': memoryFsHandler()},
 );
 
@@ -141,7 +141,6 @@ Group related tools into namespaced units.
 
 | Extension | Description |
 |-----------|-------------|
-| `JinjaTemplateExtension` | Jinja2 template rendering |
 | `MessageBusExtension` | In-memory message channels |
 | `SandboxExtension` | Recursive child interpreters |
 | `EventLoopExtension` | Long-running coroutine exchange |

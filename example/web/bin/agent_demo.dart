@@ -193,12 +193,10 @@ Future<bool> _init() async {
       'datetime.': timeHandler(),
     });
 
-    final tmplPlugin = JinjaTemplateExtension();
     final msgPlugin = MessageBusExtension();
     _msgBus = msgPlugin.bus;
 
     final extensions = <MontyExtension>[
-      tmplPlugin,
       msgPlugin,
       SandboxExtension(
         platformFactory: () async => ReplPlatform(repl: MontyRepl()),

@@ -55,7 +55,6 @@ List<HostFunction> buildIntrospectionFunctions(MontyBridge bridge) {
 
         return _handleHelp(schemas, name);
       },
-      isInfra: true,
     ),
   ];
 }
