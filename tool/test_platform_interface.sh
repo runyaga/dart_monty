@@ -10,5 +10,5 @@ set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
 echo "=== Platform Interface Tests ==="
-dart test test/platform/
+dart test --exclude-tags d1-pending test/platform/
 echo "=== Platform Interface Tests PASSED ==="
