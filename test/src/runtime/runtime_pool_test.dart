@@ -26,12 +26,14 @@ void main() {
   Future<MontyRuntime> start({
     bool sandbox = false,
     OsHandler? os,
+    Map<String, OsHandler>? osHandlers,
     List<MontyExtension>? extensions,
   }) async {
     final runtime = await startRuntimeWith(
       checkout: checkout,
       closePool: () async => poolCloses++,
       os: os,
+      osHandlers: osHandlers,
       extensions: extensions,
       sandbox: sandbox,
     );
@@ -338,6 +340,92 @@ void main() {
       await handle.cancel();
     });
   });
+  group('construction', () {
+    test('rejects both os and osHandlers', () {
+      Never handler(String n, List<MontyValue> a, Map<String, MontyValue> k) =>
+          throw const OsCallNotHandledException();
+
+      expect(
+        () => MontyRuntime.start(os: handler, osHandlers: {'os.': handler}),
+        throwsA(isA<AssertionError>()),
+      );
+    });
+
+    test('composes osHandlers by prefix', () async {
+      final seen = <String>[];
+      final runtime = await start(
+        osHandlers: {
+          'os.': (name, args, kwargs) {
+            seen.add(name);
+
+            return const MontyString('v');
+          },
+        },
+      );
+      sessions.single
+        ..willCallOs('os.getenv', args: const [MontyString('A'), MontyNone()])
+        ..willReturn(const MontyNone());
+
+      await runtime.execute('a').result;
+
+      expect(seen, ['os.getenv']);
+    });
+  });
+
+  group('dispose', () {
+    test('rethrows an extension onDispose error after releasing the session '
+        'and the pool', () async {
+      final runtime = await start(extensions: [_FailingDispose()]);
+
+      await expectLater(runtime.dispose(), throwsStateError);
+
+      expect(sessions.single.isClosed, isTrue);
+      expect(poolCloses, 1);
+      await runtime.dispose();
+      expect(poolCloses, 1);
+    });
+  });
+
+  group('HostContext.parent', () {
+    test("schemas are the runtime's", () async {
+      List<String>? seen;
+      final runtime = await start()
+        ..register(_echo)
+        ..register(
+          HostFunction(
+            schema: const HostFunctionSchema(name: 'peek', description: ''),
+            handler: (args, ctx) async {
+              seen = ctx.parent!.schemas.map((s) => s.name).toList();
+
+              return null;
+            },
+          ),
+        );
+      sessions.single
+        ..willCall('peek')
+        ..willReturn(const MontyNone());
+
+      await runtime.execute('peek()').result;
+
+      expect(seen, runtime.schemas.map((s) => s.name).toList());
+      expect(seen, containsAll(['echo', 'peek']));
+    });
+  });
+}
+
+/// An extension whose `onDispose` throws.
+final class _FailingDispose extends MontyExtension {
+  @override
+  String get namespace => 'failing';
+
+  @override
+  List<HostFunction> get functions => const [];
+
+  @override
+  Future<void> onDispose() async {
+    await super.onDispose();
+    throw StateError('onDispose failed');
+  }
 }
 
 /// A host function that returns its `value` argument.
