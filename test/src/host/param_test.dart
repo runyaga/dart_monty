@@ -253,4 +253,53 @@ void main() {
       expect(HostParamType.values, hasLength(7));
     });
   });
+
+  group('jsonSchemaOverride', () {
+    const override = {
+      'type': 'string',
+      'enum': ['a', 'b'],
+    };
+    const param = HostParam(
+      name: 'mode',
+      type: HostParamType.integer,
+      jsonSchemaOverride: override,
+    );
+
+    test('toJsonSchema returns a copy of it', () {
+      final schema = param.toJsonSchema()..['type'] = 'changed';
+
+      expect(schema, isNot(same(override)));
+      expect(param.toJsonSchema(), override);
+    });
+
+    test('validation still uses type', () {
+      expect(param.validate(3), 3);
+      expect(() => param.validate('a'), throwsFormatException);
+    });
+  });
+
+  test('missing and None name the parameter', () {
+    const param = HostParam(name: 'x', type: HostParamType.string);
+
+    expect(
+      () => param.validate(null, isPresent: false),
+      throwsA(
+        isA<FormatException>().having(
+          (e) => e.message,
+          'message',
+          'Required parameter "x" is missing',
+        ),
+      ),
+    );
+    expect(
+      () => param.validate(null),
+      throwsA(
+        isA<FormatException>().having(
+          (e) => e.message,
+          'message',
+          'Required parameter "x" is null',
+        ),
+      ),
+    );
+  });
 }

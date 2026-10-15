@@ -1,5 +1,6 @@
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
+import 'package:dart_monty/src/host/schema.dart' show mapAndValidate;
 import 'package:test/test.dart';
 
 void main() {
@@ -224,7 +225,7 @@ void main() {
       const args = <MontyValue>[MontyString('Alice'), MontyInt(3)];
       const kwargs = <String, MontyValue>{};
 
-      final result = schema.mapAndValidate(args, kwargs);
+      final result = mapAndValidate(schema, args, kwargs);
       expect(result, {'name': 'Alice', 'count': 3});
     });
 
@@ -232,7 +233,7 @@ void main() {
       const args = <MontyValue>[MontyString('Bob')];
       const kwargs = <String, MontyValue>{};
 
-      final result = schema.mapAndValidate(args, kwargs);
+      final result = mapAndValidate(schema, args, kwargs);
       expect(result, {'name': 'Bob', 'count': 1});
     });
 
@@ -250,7 +251,7 @@ void main() {
       const args = <MontyValue>[MontyString('tasks')];
       const kwargs = <String, MontyValue>{'message': MontyNone()};
 
-      expect(sendSchema.mapAndValidate(args, kwargs), {
+      expect(mapAndValidate(sendSchema, args, kwargs), {
         'name': 'tasks',
         'message': null,
       });
@@ -269,7 +270,7 @@ void main() {
       const kwargs = <String, MontyValue>{};
 
       expect(
-        () => sendSchema.mapAndValidate(args, kwargs),
+        () => mapAndValidate(sendSchema, args, kwargs),
         throwsA(
           isA<FormatException>().having(
             (e) => e.message,
@@ -288,14 +289,14 @@ void main() {
       ];
       const kwargs = <String, MontyValue>{};
 
-      expect(() => schema.mapAndValidate(args, kwargs), throwsFormatException);
+      expect(() => mapAndValidate(schema, args, kwargs), throwsFormatException);
     });
 
     test('kwargs overlay positional args', () {
       const args = <MontyValue>[MontyString('Alice')];
       const kwargs = <String, MontyValue>{'count': MontyInt(5)};
 
-      final result = schema.mapAndValidate(args, kwargs);
+      final result = mapAndValidate(schema, args, kwargs);
       expect(result, {'name': 'Alice', 'count': 5});
     });
 
@@ -303,21 +304,56 @@ void main() {
       const args = <MontyValue>[MontyString('Alice')];
       const kwargs = <String, MontyValue>{'unknown_key': MontyInt(1)};
 
-      expect(() => schema.mapAndValidate(args, kwargs), throwsFormatException);
+      expect(() => mapAndValidate(schema, args, kwargs), throwsFormatException);
     });
 
     test('throws FormatException when required param is missing', () {
       const args = <MontyValue>[];
       const kwargs = <String, MontyValue>{};
 
-      expect(() => schema.mapAndValidate(args, kwargs), throwsFormatException);
+      expect(() => mapAndValidate(schema, args, kwargs), throwsFormatException);
     });
 
     test('validates type of positional args', () {
       const args = <MontyValue>[MontyInt(42)];
       const kwargs = <String, MontyValue>{};
 
-      expect(() => schema.mapAndValidate(args, kwargs), throwsFormatException);
+      expect(() => mapAndValidate(schema, args, kwargs), throwsFormatException);
+    });
+
+    test('a keyword replaces the positional argument of the same name', () {
+      const args = <MontyValue>[MontyString('Alice'), MontyInt(3)];
+      const kwargs = <String, MontyValue>{'name': MontyString('Bob')};
+
+      expect(mapAndValidate(schema, args, kwargs), {'name': 'Bob', 'count': 3});
+    });
+
+    test('names the function and both counts for extra positionals', () {
+      const args = <MontyValue>[MontyString('A'), MontyInt(1), MontyInt(2)];
+
+      expect(
+        () => mapAndValidate(schema, args, const {}),
+        throwsA(
+          isA<FormatException>().having(
+            (e) => e.message,
+            'message',
+            'greet: expected at most 2 positional argument(s), got 3',
+          ),
+        ),
+      );
+    });
+
+    test('names the function and the key for an unknown keyword', () {
+      expect(
+        () => mapAndValidate(schema, const [], const {'typo': MontyInt(1)}),
+        throwsA(
+          isA<FormatException>().having(
+            (e) => e.message,
+            'message',
+            'greet: unknown keyword argument "typo"',
+          ),
+        ),
+      );
     });
 
     test('works with no params schema', () {
@@ -326,7 +362,7 @@ void main() {
       const args = <MontyValue>[];
       const kwargs = <String, MontyValue>{};
 
-      final result = emptySchema.mapAndValidate(args, kwargs);
+      final result = mapAndValidate(emptySchema, args, kwargs);
       expect(result, isEmpty);
     });
   });

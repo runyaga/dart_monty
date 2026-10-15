@@ -33,7 +33,6 @@ void main() {
 
     test(
       'returns last expression from sub-script',
-      tags: 'd1-pending',
       () async {
         vfs['greet.py'] = 'f"hello, {name}!"';
         final result = await runtime
@@ -46,14 +45,14 @@ void main() {
       },
     );
 
-    test('sub-script with no inputs still runs', tags: 'd1-pending', () async {
+    test('sub-script with no inputs still runs', () async {
       vfs['add.py'] = '1 + 2';
       final result = await runtime.execute('run_script("add.py")').result;
 
       expect(result.dartValue, 3);
     });
 
-    test('multiple inputs are all injected', tags: 'd1-pending', () async {
+    test('multiple inputs are all injected', () async {
       vfs['fmt.py'] = 'f"{say}, {target}!"';
       final result = await runtime
           .execute(
@@ -66,7 +65,6 @@ void main() {
 
     test(
       'sub-script error surfaces as Python exception',
-      tags: 'd1-pending',
       () async {
         vfs['bad.py'] = '1 / 0';
         await expectLater(
@@ -75,6 +73,75 @@ void main() {
         );
       },
     );
+
+    test('a failing sub-script names the path and its message', () async {
+      vfs['bad.py'] = 'raise ValueError("no good")';
+      final result = await runtime.execute('''
+try:
+    run_script("bad.py")
+    r = None
+except Exception as e:
+    r = (type(e).__name__, str(e))
+r
+''').result;
+
+      expect(result.dartValue, [
+        'RuntimeError',
+        'Exception: run_script("bad.py") failed: no good',
+      ]);
+    });
+
+    test('a tuple result reaches the caller as a tuple', () async {
+      vfs['pair.py'] = '(1, "a")';
+      final result = await runtime
+          .execute('t = run_script("pair.py")\n(type(t).__name__, t[1])')
+          .result;
+
+      expect(result.dartValue, ['tuple', 'a']);
+    });
+
+    test("the sub-script cannot see the caller's variables", () async {
+      vfs['peek.py'] = 'secret';
+      await expectLater(
+        runtime.execute('secret = 1\nrun_script("peek.py")').result,
+        throwsA(
+          isA<MontyError>().having(
+            (e) => e.exception.message,
+            'message',
+            contains('run_script("peek.py") failed'),
+          ),
+        ),
+      );
+    });
+
+    test("the sub-script's globals do not leak back", () async {
+      vfs['set.py'] = 'leak = 5\nleak';
+      final result = await runtime.execute('''
+run_script("set.py")
+try:
+    leak
+    r = "leaked"
+except NameError:
+    r = "isolated"
+r
+''').result;
+
+      expect(result.dartValue, 'isolated');
+    });
+
+    test("the sub-script gets none of the caller's host functions", () async {
+      vfs['nested.py'] = 'run_script("nested.py")';
+      await expectLater(
+        runtime.execute('run_script("nested.py")').result,
+        throwsA(
+          isA<MontyError>().having(
+            (e) => e.exception.message,
+            'message',
+            allOf(contains('failed'), contains('run_script')),
+          ),
+        ),
+      );
+    });
 
     test('missing file surfaces as Python exception', () async {
       await expectLater(
@@ -85,7 +152,6 @@ void main() {
 
     test(
       'return value is usable in caller script',
-      tags: 'd1-pending',
       () async {
         vfs['double.py'] = 'n * 2';
         final result = await runtime
@@ -102,7 +168,6 @@ void main() {
     // the sub-script. Assignment statements yield None (dartValue == null).
     test(
       'sub-script assignment statement yields None — not the assigned value',
-      tags: 'd1-pending',
       () async {
         vfs['assign.py'] = 'x = 99';
         final result = await runtime.execute('run_script("assign.py")').result;
@@ -115,7 +180,6 @@ void main() {
 
     test(
       'sub-script module-level return yields the return value',
-      tags: 'd1-pending',
       () async {
         // pydantic-monty treats module-level `return` as a valid return.
         vfs['ret.py'] = 'return 99';
@@ -133,7 +197,6 @@ void main() {
     // `inputs` param is a Dart named parameter with no positional form.
     test(
       'positional dict is equivalent to inputs= kwarg form',
-      tags: 'd1-pending',
       () async {
         vfs['greet.py'] = 'f"hello, {name}!"';
         final result = await runtime
@@ -180,5 +243,30 @@ void main() {
         );
       });
     });
+  });
+
+  test('a sub-execution waits for a free worker, bounded by the '
+      "pool's checkoutTimeout", () async {
+    // One worker, held by the runtime: the sub-execution's checkout times
+    // out instead of hanging.
+    final small = await startTestPool(
+      maxProcesses: 1,
+      checkoutTimeout: const Duration(milliseconds: 200),
+    );
+    addTearDown(small.close);
+    final runtime = (await MontyRuntime.start(pool: small))
+      ..register(buildRunScriptFunction((path) => '1'));
+    addTearDown(runtime.dispose);
+
+    await expectLater(
+      runtime.execute('run_script("one.py")').result,
+      throwsA(
+        isA<MontyError>().having(
+          (e) => e.exception.message,
+          'message',
+          contains('TimeoutException'),
+        ),
+      ),
+    );
   });
 }

@@ -83,7 +83,7 @@ class StructLogBridgeLogger implements BridgeLogger {
 
   @override
   BridgeLogger child(String name) {
-    if (_disposed) return const NullBridgeLogger();
+    if (_disposed) return BridgeLogger.silent;
     final child = StructLogBridgeLogger(
       _logManager.getLogger('${_logger.name}.$name'),
       _logManager,

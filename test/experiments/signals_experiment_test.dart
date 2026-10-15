@@ -13,6 +13,7 @@
 library;
 
 import 'package:dart_monty/dart_monty_bridge.dart';
+import 'package:dart_monty/src/extensions/event_loop.dart';
 import 'package:signals_core/signals_core.dart';
 import 'package:test/test.dart';
 

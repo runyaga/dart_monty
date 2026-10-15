@@ -6,6 +6,7 @@ import 'package:dart_monty/src/bridge/session_bridge.dart';
 import 'package:dart_monty/src/extension/coordinator.dart';
 import 'package:dart_monty/src/extension/extension.dart';
 import 'package:dart_monty/src/extensions/sandbox.dart';
+import 'package:dart_monty/src/host/dispatch.dart' show RuntimeSubExecutor;
 import 'package:dart_monty/src/host/function.dart';
 import 'package:dart_monty/src/host/schema.dart';
 import 'package:dart_monty/src/os_call/os_handlers.dart';
@@ -32,6 +33,12 @@ int defaultPoolSize(List<MontyExtension>? extensions) {
 
   return (sandbox?.maxChildren ?? 0) + 2;
 }
+
+/// The shared-mode [ExtensionCoordinator] of [runtime]; `null` in sandbox
+/// mode, where each `execute()` owns a transient one. Internal to dm.
+@visibleForTesting
+ExtensionCoordinator? runtimeCoordinator(MontyRuntime runtime) =>
+    runtime._sharedRegistry;
 
 /// Starts a [MontyRuntime] whose sessions come from [checkout] instead of a
 /// pool; [closePool] runs once when the runtime is disposed.
@@ -129,6 +136,12 @@ class MontyRuntime implements MontyRuntimeRef {
 
   // The executions not yet settled; dispose closes their sessions.
   final Set<_Execution> _live = {};
+  // The sessions of the sub-executions in progress; dispose and clearState
+  // close them.
+  final Set<MontySession> _subSessions = {};
+  // Counts clearState calls; a sub-execution's checkout that arrives after
+  // one is closed unfed.
+  int _generation = 0;
   final List<HostFunction> _extraFunctions = [];
   final StreamController<BridgeEvent> _eventsController =
       StreamController<BridgeEvent>.broadcast();
@@ -216,12 +229,6 @@ class MontyRuntime implements MontyRuntimeRef {
 
   /// Whether this session creates a fresh interpreter per `execute()`.
   bool get isSandboxMode => _sandbox;
-
-  /// The shared [ExtensionCoordinator] for this runtime.
-  ///
-  /// Non-null in shared mode (the default). Always `null` in sandbox mode —
-  /// each `execute()` call owns its own transient coordinator.
-  ExtensionCoordinator? get coordinator => _sharedRegistry;
 
   /// Registers an additional host function.
   ///
@@ -349,6 +356,7 @@ class MontyRuntime implements MontyRuntimeRef {
         ..token.cancel();
       await run.session?.close();
     }
+    await _closeSubSessions();
     final bridge = _sharedBridge;
     try {
       await _attachSettled();
@@ -364,6 +372,76 @@ class MontyRuntime implements MontyRuntimeRef {
   // ---------------------------------------------------------------------------
   // Executions
   // ---------------------------------------------------------------------------
+
+  /// Runs [code] on a second session checked out of the pool, with
+  /// default limits, [inputs] bound as globals by the feed, no OS handler
+  /// and no host functions; the session is closed afterwards. Every
+  /// `HostContext.subExecute` of this runtime's bridges, with
+  /// [cancelToken] the calling execution's and [generation] the
+  /// [clearState] count when the calling bridge was built.
+  ///
+  /// Completes with the feed's [MontyValue]; fails with its [MontyError],
+  /// or with the checkout's error (a pool's `checkoutTimeout` included).
+  /// [dispose], [clearState] and a cancel of [cancelToken] close a running
+  /// sub-execution's session, so its feed fails; a checkout that arrives
+  /// after one of them is closed unfed, and this fails with [StateError].
+  Future<MontyValue> _subExecute(
+    String code, {
+    required int generation,
+    Map<String, Object?>? inputs,
+    CancelToken? cancelToken,
+  }) async {
+    String? stopped() {
+      if (_disposed) return 'MontyRuntime has been disposed';
+      if (cancelToken?.isCancelled ?? false) {
+        return 'The execution was cancelled';
+      }
+      if (generation != _generation) return 'The runtime state was cleared';
+
+      return null;
+    }
+
+    if (stopped() case final reason?) throw StateError(reason);
+    final values = _inputValues(inputs);
+    final session = await _checkout();
+    if (stopped() case final reason?) {
+      await session.close();
+      throw StateError(reason);
+    }
+    _subSessions.add(session);
+    Future<void> closeOnCancel(CancelToken token) async {
+      await token.future;
+      if (_subSessions.contains(session)) await session.close();
+    }
+
+    if (cancelToken != null) unawaited(closeOnCancel(cancelToken));
+    try {
+      return await session.feedRun(code, inputs: values);
+    } finally {
+      _subSessions.remove(session);
+      await session.close();
+    }
+  }
+
+  /// The sub-executor of a bridge built now: its sub-executions stop at the
+  /// next [clearState], even one that starts after it.
+  RuntimeSubExecutor _subExecutor() {
+    final generation = _generation;
+
+    return (code, {inputs, cancelToken}) => _subExecute(
+      code,
+      inputs: inputs,
+      cancelToken: cancelToken,
+      generation: generation,
+    );
+  }
+
+  /// Closes the session of every sub-execution in progress.
+  Future<void> _closeSubSessions() async {
+    for (final session in [..._subSessions]) {
+      await session.close();
+    }
+  }
 
   /// Runs [body] for [run], completing its result with the value or the
   /// error, then closing its event stream.
@@ -466,6 +544,7 @@ class MontyRuntime implements MontyRuntimeRef {
       session: session,
       logger: _logger,
       runtime: this,
+      subExecute: _subExecutor(),
     );
     _extraFunctions.forEach(bridge.register);
     final registry = ExtensionCoordinator();
@@ -536,6 +615,7 @@ class MontyRuntime implements MontyRuntimeRef {
       session: session,
       logger: _logger,
       runtime: this,
+      subExecute: _subExecutor(),
     );
     _extraFunctions.forEach(bridge.register);
     _sharedBridge = bridge;
@@ -567,6 +647,8 @@ class MontyRuntime implements MontyRuntimeRef {
     }
     if (_disposed) throw StateError('MontyRuntime has been disposed');
 
+    _generation++;
+    await _closeSubSessions();
     final bridge = _sharedBridge!;
     final registry = _sharedRegistry!;
     try {

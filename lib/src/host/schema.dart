@@ -59,58 +59,61 @@ class HostFunctionSchema {
       if (required.isNotEmpty) 'required': required,
     };
   }
+}
 
-  /// Maps positional [args] and keyword [kwargs] to a named parameter map.
-  ///
-  /// 1. Positional args are matched to [params] by order.
-  /// 2. Keyword args (`kwargs`) overlay by name.
-  /// 3. Each param is validated via [HostParam.validate].
-  ///
-  /// Throws [FormatException] if required params are missing or types mismatch.
-  Map<String, Object?> mapAndValidate(
-    List<MontyValue> args,
-    Map<String, MontyValue> kwargs,
-  ) {
-    final raw = <String, Object?>{};
-    final positionalArgs = args;
+/// Maps a call's positional [args] and keyword [kwargs], as
+/// `MontyHostFunction.fn` receives them, to [schema]'s named parameters.
+///
+/// 1. Positional args are matched to `params` by order.
+/// 2. Keyword args (`kwargs`) overlay by name.
+/// 3. Each param is validated via [HostParam.validate].
+///
+/// Throws [FormatException] if required params are missing or types mismatch.
+Map<String, Object?> mapAndValidate(
+  HostFunctionSchema schema,
+  List<MontyValue> args,
+  Map<String, MontyValue> kwargs,
+) {
+  final HostFunctionSchema(:name, :params) = schema;
+  final raw = <String, Object?>{};
+  final positionalArgs = args;
 
-    // Reject extra positional args.
-    if (positionalArgs.length > params.length) {
-      throw FormatException(
-        '$name: expected at most ${params.length} positional argument(s), '
-        'got ${positionalArgs.length}',
-      );
-    }
-
-    // Positional args → named params by schema order
-    for (var i = 0; i < params.length && i < positionalArgs.length; i++) {
-      raw[params[i].name] = positionalArgs[i].dartValue;
-    }
-
-    // Kwargs overlay — reject unknown keys.
-    final paramNames = params.map((p) => p.name).toSet();
-    for (final key in kwargs.keys) {
-      if (!paramNames.contains(key)) {
-        throw FormatException('$name: unknown keyword argument "$key"');
-      }
-    }
-    for (final entry in kwargs.entries) {
-      raw[entry.key] = entry.value.dartValue;
-    }
-
-    // Validate all params
-    final validated = <String, Object?>{};
-    for (final param in params) {
-      // `containsKey`, not a null check: `raw` holds only the arguments the
-      // caller actually supplied, so this is the one place that can tell
-      // "message omitted" from "message=None". HostParam.validate needs the
-      // difference — see the comment there.
-      validated[param.name] = param.validate(
-        raw[param.name],
-        isPresent: raw.containsKey(param.name),
-      );
-    }
-
-    return validated;
+  // Reject extra positional args.
+  if (positionalArgs.length > params.length) {
+    throw FormatException(
+      '$name: expected at most ${params.length} positional argument(s), '
+      'got ${positionalArgs.length}',
+    );
   }
+
+  // Positional args → named params by schema order
+  for (var i = 0; i < params.length && i < positionalArgs.length; i++) {
+    raw[params[i].name] = positionalArgs[i].dartValue;
+  }
+
+  // Kwargs overlay — reject unknown keys.
+  final paramNames = params.map((p) => p.name).toSet();
+  for (final key in kwargs.keys) {
+    if (!paramNames.contains(key)) {
+      throw FormatException('$name: unknown keyword argument "$key"');
+    }
+  }
+  for (final entry in kwargs.entries) {
+    raw[entry.key] = entry.value.dartValue;
+  }
+
+  // Validate all params
+  final validated = <String, Object?>{};
+  for (final param in params) {
+    // `containsKey`, not a null check: `raw` holds only the arguments the
+    // caller actually supplied, so this is the one place that can tell
+    // "message omitted" from "message=None". HostParam.validate needs the
+    // difference — see the comment there.
+    validated[param.name] = param.validate(
+      raw[param.name],
+      isPresent: raw.containsKey(param.name),
+    );
+  }
+
+  return validated;
 }

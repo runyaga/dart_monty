@@ -4,6 +4,8 @@ library;
 
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
+import 'package:dart_monty/src/bridge/struct_log_logger.dart';
+import 'package:dart_monty/src/extension/coordinator.dart';
 import 'package:struct_log/struct_log.dart';
 import 'package:test/test.dart';
 

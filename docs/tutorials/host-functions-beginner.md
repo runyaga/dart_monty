@@ -70,8 +70,8 @@ require exact matches.
 ## Argument Mapping
 
 When Python calls a host function, Monty provides positional arguments
-and optional keyword arguments. The schema's `mapAndValidate()` method
-maps them to a named parameter map:
+and optional keyword arguments. dm maps them, by the schema,
+to a named parameter map:
 
 ```text
 Python: fetch_data("https://example.com", timeout=10)

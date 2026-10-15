@@ -37,10 +37,9 @@ class HostFunction {
   /// silently skips the function on the other backend — no
   /// `supportedBackends` declaration required.
   ///
-  /// [childPropagation] controls whether this function is visible inside
-  /// child sandboxes spawned from the parent runtime. Defaults to
-  /// [ChildPropagation.exclude] — children see only extension
-  /// functions, not ad-hoc functions registered via `extraFunctions:`.
+  /// A child sandbox never sees a function registered this way; children
+  /// get only the functions of extensions their [MontyExtension.childPolicy]
+  /// admits.
   ///
   /// [dispatch] controls whether the bridge dispatches this function
   /// synchronously (default [DispatchMode.sync]) or as a deferred future
@@ -51,7 +50,6 @@ class HostFunction {
     HostFunctionHandler? handler,
     HostFunctionHandler? ffiHandler,
     HostFunctionHandler? wasmHandler,
-    this.childPropagation = ChildPropagation.exclude,
     this.dispatch = DispatchMode.sync,
   }) : ffiHandler = ffiHandler ?? handler,
        wasmHandler = wasmHandler ?? handler;
@@ -69,14 +67,6 @@ class HostFunction {
   /// `null` means this function is not registered on the WASM backend.
   final HostFunctionHandler? wasmHandler;
 
-  /// Whether this function is visible inside child sandboxes spawned from
-  /// the runtime it is attached to.
-  ///
-  /// Only applies to functions registered via the `extraFunctions:` slot on
-  /// `ExtensionCoordinator.attachTo` — extension-provided functions are
-  /// governed by [MontyExtension.childPolicy] instead.
-  final ChildPropagation childPropagation;
-
   /// How the bridge dispatches calls to this function.
   ///
   /// Defaults to [DispatchMode.sync] — the bridge awaits the handler before
@@ -90,15 +80,4 @@ class HostFunction {
   /// no implementation for the running backend.
   HostFunctionHandler? get handler =>
       currentBackendKind == MontyBackendKind.ffi ? ffiHandler : wasmHandler;
-}
-
-/// Whether an ad-hoc [HostFunction] registered via `extraFunctions:` should
-/// be re-registered inside child sandboxes.
-enum ChildPropagation {
-  /// Do not forward this function to children. The default — children get
-  /// a clean surface and cannot accidentally inherit parent-only tools.
-  exclude,
-
-  /// Re-register this function on every spawned child coordinator.
-  inherit,
 }

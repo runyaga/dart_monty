@@ -13,13 +13,6 @@ import 'package:dart_monty/src/runtime/runtime_ref.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:meta/meta.dart';
 
-/// Default [HostSubExecutor] wired into every [HostContext]: a sub-execution
-/// on a second session, built in D1-6.
-Future<MontyValue> _defaultSubExecute(
-  String code, {
-  Map<String, Object?>? inputs,
-}) => throw UnimplementedError('D1-6');
-
 /// The most characters [_argsJson] or [_resultText] writes before it gives
 /// up: a list shared at each level of a value expands at every use, so a
 /// small value can have an enormous text.
@@ -195,6 +188,15 @@ String _argsJson(Map<String, Object?> args) {
       : sink.text;
 }
 
+/// The runtime's sub-executor: [HostSubExecutor] plus the token of the
+/// call that runs it, so a cancelled execution stops its sub-executions.
+typedef RuntimeSubExecutor =
+    Future<MontyValue> Function(
+      String code, {
+      Map<String, Object?>? inputs,
+      CancelToken? cancelToken,
+    });
+
 // ---------------------------------------------------------------------------
 // HostDispatch — function registry + tool dispatch.
 // ---------------------------------------------------------------------------
@@ -213,8 +215,10 @@ class HostDispatch {
   HostDispatch({
     required BridgeLogger log,
     MontyRuntimeRef? runtime,
+    RuntimeSubExecutor? subExecute,
   }) : _log = log,
-       _runtime = runtime;
+       _runtime = runtime,
+       _subExecute = subExecute;
 
   /// Current OS call handler — mirrored from the owning bridge so handlers
   /// receive it via [HostContext.os]. Updated by the bridge's `registerOs`.
@@ -222,6 +226,9 @@ class HostDispatch {
 
   final BridgeLogger _log;
   final MontyRuntimeRef? _runtime;
+
+  /// The runtime's sub-executor, or none.
+  final RuntimeSubExecutor? _subExecute;
 
   final Map<String, HostFunction> _functions = {};
   final Map<String, Set<String>> _categoryIndex = {};
@@ -289,7 +296,8 @@ class HostDispatch {
   }) {
     final fn = _functions[name];
     if (fn == null) throw ArgumentError('Unknown host function: $name');
-    final validatedArgs = fn.schema.mapAndValidate(
+    final validatedArgs = mapAndValidate(
+      fn.schema,
       const [],
       args.map((k, v) => MapEntry(k, MontyValue.fromDart(v))),
     );
@@ -312,7 +320,7 @@ class HostDispatch {
       executionId: name,
       os: osHandler,
       parent: _runtime,
-      subExecute: _defaultSubExecute,
+      subExecute: _subExecuteFor(null),
     );
 
     return fn.handler!(validatedArgs, ctx);
@@ -355,6 +363,17 @@ class HostDispatch {
     };
   }
 
+  /// A handler's [HostContext.subExecute]: the runtime's, bound to
+  /// [cancelToken], the token of the call's execution (none for a direct
+  /// invocation).
+  HostSubExecutor? _subExecuteFor(CancelToken? cancelToken) {
+    final subExecute = _subExecute;
+    if (subExecute == null) return null;
+
+    return (code, {inputs}) =>
+        subExecute(code, inputs: inputs, cancelToken: cancelToken);
+  }
+
   /// One call of [fn] from Python, with its events.
   ///
   /// Emits [BridgeCallStarted] and [BridgeFunctionCallStart], then either
@@ -394,7 +413,7 @@ class HostDispatch {
 
     final Map<String, Object?> validated;
     try {
-      validated = fn.schema.mapAndValidate(args, kwargs);
+      validated = mapAndValidate(fn.schema, args, kwargs);
     } on Object catch (e) {
       final text = fail(e);
       _log.warning(
@@ -412,7 +431,7 @@ class HostDispatch {
       cancelToken: cancelToken,
       os: os,
       parent: _runtime,
-      subExecute: _defaultSubExecute,
+      subExecute: _subExecuteFor(cancelToken),
     );
     final Object? result;
     final MontyValue value;

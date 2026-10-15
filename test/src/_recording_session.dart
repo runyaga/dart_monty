@@ -1,0 +1,109 @@
+import 'dart:async';
+import 'dart:typed_data';
+
+import 'package:dart_monty_core/dart_monty_core.dart';
+
+/// One `feedRun` a [RecordingSession] saw.
+final class RecordedFeed {
+  /// A feed of [code] with these arguments.
+  const RecordedFeed(this.code, this.inputs, this.externalLookup, this.os);
+
+  /// The code fed.
+  final String code;
+
+  /// The feed's `inputs`.
+  final Map<String, MontyValue>? inputs;
+
+  /// The feed's `externalLookup`.
+  final Map<String, MontyValue>? externalLookup;
+
+  /// The feed's `os` handler.
+  final OsHandler? os;
+}
+
+/// A session that records each `feedRun`'s arguments and whether it was
+/// closed, and passes every call to [inner].
+final class RecordingSession implements MontySession {
+  /// Records the calls made on [inner].
+  RecordingSession(this.inner);
+
+  /// The session every call goes to.
+  final MontySession inner;
+
+  /// The feeds, in order.
+  final List<RecordedFeed> feeds = [];
+
+  /// Whether [close] was called.
+  bool closed = false;
+
+  @override
+  int? get workerPid => inner.workerPid;
+
+  @override
+  Future<MontyValue> feedRun(
+    String code, {
+    Map<String, MontyValue>? inputs,
+    Map<String, MontyValue>? externalLookup,
+    FutureOr<void> Function(String stream, String text)? printCallback,
+    String? cwd,
+    OsHandler? os,
+    bool skipTypeCheck = false,
+  }) {
+    feeds.add(RecordedFeed(code, inputs, externalLookup, os));
+
+    return inner.feedRun(
+      code,
+      inputs: inputs,
+      externalLookup: externalLookup,
+      printCallback: printCallback,
+      cwd: cwd,
+      os: os,
+      skipTypeCheck: skipTypeCheck,
+    );
+  }
+
+  @override
+  Future<MontySnapshot> feedStart(
+    String code, {
+    Map<String, MontyValue>? inputs,
+    Map<String, MontyValue>? externalLookup,
+    FutureOr<void> Function(String stream, String text)? printCallback,
+    String? cwd,
+    OsHandler? os,
+    bool skipTypeCheck = false,
+  }) => inner.feedStart(
+    code,
+    inputs: inputs,
+    externalLookup: externalLookup,
+    printCallback: printCallback,
+    cwd: cwd,
+    os: os,
+    skipTypeCheck: skipTypeCheck,
+  );
+
+  @override
+  Future<void> loadSession(Uint8List state) => inner.loadSession(state);
+
+  @override
+  Future<MontySnapshot> loadSnapshot(
+    Uint8List state, {
+    Map<String, MontyValue>? externalLookup,
+    FutureOr<void> Function(String stream, String text)? printCallback,
+    OsHandler? os,
+  }) => inner.loadSnapshot(
+    state,
+    externalLookup: externalLookup,
+    printCallback: printCallback,
+    os: os,
+  );
+
+  @override
+  Future<Uint8List> dump() => inner.dump();
+
+  @override
+  Future<void> close() {
+    closed = true;
+
+    return inner.close();
+  }
+}

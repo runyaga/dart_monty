@@ -601,15 +601,15 @@ class SandboxExtension extends MontyExtension {
   /// extensions are composed via [MontyExtension.createChildInstance]; the
   /// child OS handler follows [childVfsStrategy].
   ///
-  /// Relies on [MontyExtension.coordinator] being injected — i.e., this
-  /// extension must be attached through an [ExtensionCoordinator].
+  /// Relies on [coordinatorOf] — i.e., this extension must be attached
+  /// through an [ExtensionCoordinator].
   Future<ExtensionCoordinator> _wireChildExtensions(
     ChildSpawnContext spawnContext,
     MontyBridge bridge,
     OsHandler? parentOsOverride,
   ) async {
     try {
-      final childCoordinator = await coordinator.spawnChild(
+      final childCoordinator = await coordinatorOf(this).spawnChild(
         context: spawnContext,
         bridge: bridge,
         vfsStrategy: childVfsStrategy,

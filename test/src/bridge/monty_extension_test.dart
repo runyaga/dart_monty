@@ -94,21 +94,28 @@ void main() {
       expect(plugin.osContribution, isNull);
     });
 
-    test(
-      'accessing coordinator before attachTo throws LateInitializationError',
-      () {
-        final plugin = _TestExtension(namespace: 'ns', functions: []);
-        // LateInitializationError is a subtype of Error.
-        expect(() => plugin.coordinator, throwsA(isA<Error>()));
-      },
-    );
+    test("SandboxExtension's own policy is exclude", () {
+      expect(SandboxExtension().childPolicy, ChildPolicy.exclude);
+    });
+
+    test('supportedBackends defaults to both kinds', () {
+      expect(
+        _TestExtension(namespace: 'ns', functions: []).supportedBackends,
+        {MontyBackendKind.ffi, MontyBackendKind.wasm},
+      );
+    });
+
+    test('logger is BridgeLogger.silent before attach', () {
+      final plugin = _TestExtension(namespace: 'ns', functions: []);
+      expect(plugin.logger, same(BridgeLogger.silent));
+    });
   });
 }
 
 /// Minimal [MontyBridge] for lifecycle tests — not exercised.
 class _NoOpBridge implements MontyBridge {
   @override
-  BridgeLogger get logger => const NullBridgeLogger();
+  BridgeLogger get logger => BridgeLogger.silent;
 
   @override
   List<HostFunctionSchema> get schemas => [];
