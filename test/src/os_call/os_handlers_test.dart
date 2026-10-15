@@ -1,4 +1,5 @@
-import 'package:dart_monty/dart_monty_bridge.dart';
+import 'package:dart_monty/src/os_call/os_handlers.dart';
+import 'package:dart_monty/src/os_call/path_op.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:test/test.dart';
 
@@ -6,7 +7,7 @@ import '_os_call.dart';
 
 void main() {
   OsHandler stubHandler(String tag) =>
-      (operation, args, kwargs) async => MontyString(tag);
+      (operation, args, kwargs) => MontyString(tag);
 
   // monty v0.0.19 renamed this op from 'Open' to 'open' (#576). The break is
   // SILENT: a handler still keyed on the old spelling stops matching and falls
@@ -62,15 +63,12 @@ void main() {
     });
 
     test('unknown prefix declines', () {
-      final handler = dartCall(composeOsHandlers({'Path.': stubHandler('fs')}));
+      final handler = composeOsHandlers({'Path.': stubHandler('fs')});
 
       // A composer with nothing to route to DECLINES rather than failing, so it
       // can be nested inside another composer and so the runtime renders
       // monty's own "not supported in this environment" error.
-      expect(
-        () => handler('socket.connect', const [], null),
-        throwsA(isA<OsCallNotHandledException>()),
-      );
+      expectSyncDecline(() => rawCall(handler, 'socket.connect'));
     });
 
     test('custom fallback handler receives unknown operations', () async {
@@ -113,12 +111,9 @@ void main() {
     });
 
     test('empty prefix map declines any call', () {
-      final handler = dartCall(composeOsHandlers({}));
+      final handler = composeOsHandlers({});
 
-      expect(
-        () => handler('Path.exists', const [], null),
-        throwsA(isA<OsCallNotHandledException>()),
-      );
+      expectSyncDecline(() => rawCall(handler, 'Path.exists'));
     });
 
     test('longest prefix match wins', () async {

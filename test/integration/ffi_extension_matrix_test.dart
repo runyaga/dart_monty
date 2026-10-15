@@ -29,8 +29,6 @@ void main() {
           (await MontyRuntime.start(
               osHandlers: {
                 'Path.': memoryFsHandler(),
-                'date.': timeHandler(),
-                'datetime.': timeHandler(),
               },
               extensions: [TemplateStubExtension(), MessageBusExtension()],
             ))

@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:dart_monty_core/dart_monty_core.dart';
+import 'package:test/test.dart' show fail;
 
 /// An [OsHandler] seen through plain Dart values, so handler-level tests read
 /// as they did before the handlers took [MontyValue]s.
@@ -44,3 +47,35 @@ Object? lowerOsResult(MontyValue value) => switch (value) {
   },
   _ => value,
 };
+
+/// Calls [handler] with plain Dart arguments and returns exactly what it
+/// returns: no `async`, so a synchronous throw stays synchronous and a
+/// synchronous answer stays a [MontyValue].
+FutureOr<MontyValue> rawCall(
+  OsHandler handler,
+  String operation, [
+  List<Object?> args = const [],
+  Map<String, Object?> kwargs = const {},
+]) => handler(
+  operation,
+  [for (final a in args) MontyValue.fromDart(a)],
+  {for (final e in kwargs.entries) e.key: MontyValue.fromDart(e.value)},
+);
+
+/// Fails unless [call] throws [OsCallNotHandledException] synchronously.
+///
+/// A returned `Future` that fails with it is a failure here: core raises
+/// `TypeError` for it instead of declining.
+void expectSyncDecline(FutureOr<Object?> Function() call) {
+  Object? result;
+  try {
+    result = call();
+  } on OsCallNotHandledException {
+    return;
+  }
+  if (result is Future<Object?>) {
+    result.ignore();
+    fail('returned a Future instead of throwing the decline synchronously');
+  }
+  fail('answered $result instead of declining');
+}
