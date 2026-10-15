@@ -8,8 +8,8 @@ import 'package:test/test.dart';
 
 import '../_throwing_session.dart';
 
-/// Tests that drive [MontyBridge.execute], which D1-2 (events, OS calls,
-/// errors) and D1-3 (host-call dispatch) rebuild on core's feed.
+/// Tests of host-call dispatch from [MontyBridge.execute], which D1-3
+/// rebuilds on core's feed (D1-2 built the run, OS-call and error events).
 const _pending = 'd1-pending';
 
 /// The [ExternalException]s the host answered with, in order.
@@ -143,7 +143,6 @@ void main() {
   group('MontyOsCall handling', () {
     test(
       'declines (the worker answers) when no handler registered',
-      tags: _pending,
       () async {
         fake
           ..willCallOs('Path.read_text', args: [const MontyPath('/etc/passwd')])
@@ -157,16 +156,16 @@ void main() {
 
         // With no handler the call is declined: the worker computes the
         // default (PermissionError naming the path), so the recorded answer
-        // is not_handled (null). Which events a worker-answered call emits
-        // is D1-2's (REQ-events-and-print).
+        // is not_handled (null), and the call emits no OS events.
         expect(fake.answers, hasLength(1));
         expect(fake.answers.single.answer, isNull);
+        expect(events.whereType<BridgeOsCallStart>(), isEmpty);
+        expect(events.whereType<BridgeOsCallResult>(), isEmpty);
       },
     );
 
     test(
       'invokes registered handler and resumes with result',
-      tags: _pending,
       () async {
         bridge.registerOs((operation, args, kwargs) async {
           if (operation == 'os.getenv') {
@@ -199,7 +198,7 @@ void main() {
       },
     );
 
-    test('handler exception resumes with error', tags: _pending, () async {
+    test('handler exception resumes with error', () async {
       bridge.registerOs((operation, args, kwargs) async {
         throw StateError('disk on fire');
       });
@@ -523,22 +522,14 @@ void main() {
     });
   });
 
-  group('error handling in _run', tags: _pending, () {
+  group('error handling in _run', () {
     test('MontyError thrown during execution emits BridgeRunError', () async {
-      // The worker dies after the host answers noop: the feed throws
-      // MontyCrashedError (a MontyError).
+      // The worker dies: the feed throws MontyCrashedError (a MontyError).
+      // A crash after a host-function answer is the #274 group's (D1-3).
       final b = MontyBridge(session: fake, logger: BridgeLogger.silent);
       addTearDown(b.dispose);
 
-      b.register(
-        HostFunction(
-          schema: const HostFunctionSchema(name: 'noop', description: ''),
-          handler: (_, _) async => null,
-        ),
-      );
-      fake
-        ..willCall('noop')
-        ..willCrash();
+      fake.willCrash();
 
       final events = await b.execute('noop()').toList();
       final errors = events.whereType<BridgeRunError>().toList();
@@ -570,15 +561,7 @@ void main() {
         final b = MontyBridge(session: fake, logger: BridgeLogger.silent);
         addTearDown(b.dispose);
 
-        b.register(
-          HostFunction(
-            schema: const HostFunctionSchema(name: 'noop', description: ''),
-            handler: (_, _) async => null,
-          ),
-        );
-        fake
-          ..willCall('noop')
-          ..willCrash();
+        fake.willCrash();
 
         final events = await b.execute('noop()').toList();
         final errors = events.whereType<BridgeRunError>().toList();
@@ -614,7 +597,6 @@ void main() {
 
     test(
       'execute while already executing throws StateError',
-      tags: _pending,
       () async {
         // Start one execution.
         fake.willReturn(const MontyNone());
@@ -647,7 +629,7 @@ void main() {
     });
   });
 
-  group('unknown function handling', tags: _pending, () {
+  group('unknown function handling', () {
     test('unknown function raises NameError in the sandbox', () async {
       // A name absent from the feed's externals is a NameError raised by
       // the worker; the host never answers it (D1-3).
@@ -802,5 +784,399 @@ void main() {
         failBridge.dispose();
       },
     );
+  });
+
+  // D1-2: the bridge spine. One execute is one feedRun on the session; dm
+  // builds the events itself.
+  group('execute on the session (D1-2)', () {
+    test(
+      'starts with BridgeRunStarted and ends with BridgeRunFinished',
+      () async {
+        fake.willReturn(const MontyInt(7));
+
+        final events = await bridge.execute('7').toList();
+
+        expect(events.first, isA<BridgeRunStarted>());
+        expect(events.last, isA<BridgeRunFinished>());
+        expect(events, hasLength(2));
+        final started = events.first as BridgeRunStarted;
+        final finished = events.last as BridgeRunFinished;
+        // Thread and run ids come from the bridge's counter, from '0'.
+        expect(started.threadId, '0');
+        expect(started.runId, '1');
+        expect(finished.threadId, '0');
+        expect(finished.runId, '1');
+        expect(fake.feeds, ['7']);
+      },
+    );
+
+    test(
+      'BridgeRunFinished carries the MontyValue and its dartValue',
+      () async {
+        const result = MontyList([MontyInt(1), MontyString('a')]);
+        fake.willReturn(result);
+
+        final events = await bridge.execute('[1, "a"]').toList();
+        final finished = events.whereType<BridgeRunFinished>().single;
+
+        expect(finished.montyValue, result);
+        expect(finished.value, [1, 'a']);
+      },
+    );
+
+    test(
+      'collects print output of both streams onto BridgeRunFinished',
+      () async {
+        fake
+          ..willPrint('out ')
+          ..willPrint('err', stream: 'stderr')
+          ..willPrint('\n')
+          ..willReturn(const MontyNone());
+
+        final events = await bridge.execute('print("x")').toList();
+
+        expect(
+          events.whereType<BridgeRunFinished>().single.printOutput,
+          'out err\n',
+        );
+        // No event per print fragment: only the two run events.
+        expect(events, hasLength(2));
+      },
+    );
+
+    test('a run without print output has a null printOutput', () async {
+      fake.willReturn(const MontyNone());
+
+      final events = await bridge.execute('None').toList();
+
+      expect(events.whereType<BridgeRunFinished>().single.printOutput, isNull);
+    });
+
+    test('a Python failure ends the stream with one BridgeRunError', () async {
+      fake
+        ..willPrint('before\n')
+        ..willRaise('ValueError', message: 'bad input');
+
+      // The stream itself does not error.
+      final events = await bridge.execute('raise ValueError()').toList();
+
+      expect(events.first, isA<BridgeRunStarted>());
+      expect(events.last, isA<BridgeRunError>());
+      expect(events.whereType<BridgeRunError>(), hasLength(1));
+      expect(events.whereType<BridgeRunFinished>(), isEmpty);
+      final error = events.last as BridgeRunError;
+      expect(error.exception, isA<MontyRuntimeError>());
+      expect(error.exception!.exception.excType, 'ValueError');
+      expect(error.message, 'ValueError: bad input');
+      // Print text collected before the failure stays attached.
+      expect(error.printOutput, 'before\n');
+    });
+
+    test('a worker crash ends the run with BridgeRunError', () async {
+      fake.willCrash();
+
+      final events = await bridge.execute('1').toList();
+
+      final error = events.whereType<BridgeRunError>().single;
+      expect(error.exception, isA<MontyCrashedError>());
+      expect(events.last, same(error));
+    });
+
+    test('a failure that is not a MontyError fails the result with the '
+        'original throw', () async {
+      final original = StateError('session gone');
+      final b = MontyBridge(
+        session: ThrowingSession(original),
+        logger: BridgeLogger.silent,
+      );
+      addTearDown(b.dispose);
+
+      final events = await b.execute('1').toList();
+
+      final error = events.whereType<BridgeRunError>().single;
+      expect(error.exception, isNull);
+      expect(error.message, original.toString());
+      expect(() => extractBridgeResult(events), throwsA(same(original)));
+    });
+
+    test('constructing a bridge and reading schemas feeds nothing', () {
+      final session = FakeMontySession();
+      final b = MontyBridge(session: session)
+        ..register(
+          HostFunction(
+            schema: const HostFunctionSchema(name: 'f', description: ''),
+            handler: (_, _) async => null,
+          ),
+        );
+      addTearDown(b.dispose);
+
+      expect(b.schemas.map((s) => s.name), ['f']);
+      expect(session.feeds, isEmpty);
+    });
+
+    test(
+      'stream wrappers apply in order, the last registered outermost',
+      () async {
+        final b = MontyBridge(session: fake) as SessionBridge;
+        addTearDown(b.dispose);
+        final order = <String>[];
+        b
+          ..addStreamWrapper((code, stream) {
+            order.add('first');
+            return stream.map((e) {
+              order.add('inner:${e.runtimeType}');
+              return e;
+            });
+          })
+          ..addStreamWrapper((code, stream) {
+            order.add('second');
+            return stream.map((e) {
+              order.add('outer:${e.runtimeType}');
+              return e;
+            });
+          });
+        fake.willReturn(const MontyNone());
+
+        await b.execute('None').toList();
+
+        expect(order, [
+          'first',
+          'second',
+          'inner:BridgeRunStarted',
+          'outer:BridgeRunStarted',
+          'inner:BridgeRunFinished',
+          'outer:BridgeRunFinished',
+        ]);
+      },
+    );
+
+    test('a failed execute does not free a later run when it ends', () async {
+      final b =
+          MontyBridge(session: fake, logger: BridgeLogger.silent)
+              as SessionBridge;
+      addTearDown(b.dispose);
+      var wrapperCalls = 0;
+      b.addStreamWrapper((code, stream) {
+        if (wrapperCalls++ == 0) throw StateError('wrapper failure');
+        return stream;
+      });
+      final gate = Completer<void>();
+      fake
+        ..willReturn(const MontyNone())
+        ..willHold(gate.future)
+        ..willReturn(const MontyNone());
+
+      // The wrapper fails the first execute; its feed still runs.
+      expect(() => b.execute('first'), throwsStateError);
+      final second = b.execute('second').toList();
+      // Let the first feed end while the second is held.
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(fake.feeds, contains('first'));
+
+      expect(() => b.execute('third'), throwsStateError);
+
+      gate.complete();
+      expect((await second).last, isA<BridgeRunFinished>());
+    });
+
+    test('the bridge can run again after a run ends', () async {
+      fake
+        ..willReturn(const MontyInt(1))
+        ..willReturn(const MontyInt(2));
+
+      final first = await bridge.execute('1').toList();
+      final second = await bridge.execute('2').toList();
+
+      expect(first.whereType<BridgeRunFinished>().single.value, 1);
+      expect(second.whereType<BridgeRunFinished>().single.value, 2);
+      // The counter runs on across executions.
+      expect((second.first as BridgeRunStarted).threadId, '2');
+    });
+  });
+
+  group('OS calls on the session (D1-2)', () {
+    test('a host-answered call emits OsCallStart then OsCallResult', () async {
+      bridge.registerOs((name, args, kwargs) => const MontyString('v'));
+      fake
+        ..willCallOs(
+          'os.getenv',
+          args: [const MontyString('HOME'), const MontyNone()],
+        )
+        ..willReturn(const MontyNone());
+
+      final events = await bridge.execute('os.getenv("HOME")').toList();
+
+      final calls = events
+          .where((e) => e is BridgeOsCallStart || e is BridgeOsCallResult)
+          .toList();
+      expect(calls, hasLength(2));
+      final start = calls[0] as BridgeOsCallStart;
+      final result = calls[1] as BridgeOsCallResult;
+      expect(start.operationName, 'os.getenv');
+      // Positional arguments' dartValues joined with ', '.
+      expect(start.argumentSummary, 'HOME, null');
+      expect(result.callId, start.callId);
+      expect(result.result, 'v');
+      expect(result.durationMs, isNotNull);
+      expect(_returnAnswers(fake), [const MontyString('v')]);
+      // The OS events sit between the run events.
+      expect(events.first, isA<BridgeRunStarted>());
+      expect(events.last, isA<BridgeRunFinished>());
+    });
+
+    test('a call with no arguments has a null argumentSummary', () async {
+      bridge.registerOs((name, args, kwargs) => const MontyDict([]));
+      fake
+        ..willCallOs('os.environ')
+        ..willReturn(const MontyNone());
+
+      final events = await bridge.execute('os.environ').toList();
+
+      expect(
+        events.whereType<BridgeOsCallStart>().single.argumentSummary,
+        isNull,
+      );
+    });
+
+    test('a None answer reports an empty result', () async {
+      bridge.registerOs((name, args, kwargs) => const MontyNone());
+      fake
+        ..willCallOs(
+          'os.getenv',
+          args: [const MontyString('X'), const MontyNone()],
+        )
+        ..willReturn(const MontyNone());
+
+      final events = await bridge.execute('os.getenv("X")').toList();
+
+      expect(events.whereType<BridgeOsCallResult>().single.result, '');
+    });
+
+    test(
+      'an asynchronous handler is awaited and its result reported',
+      () async {
+        bridge.registerOs((name, args, kwargs) async {
+          await Future<void>.delayed(const Duration(milliseconds: 20));
+          return const MontyString('late');
+        });
+        fake
+          ..willCallOs(
+            'os.getenv',
+            args: [const MontyString('X'), const MontyNone()],
+          )
+          ..willReturn(const MontyNone());
+
+        final events = await bridge.execute('os.getenv("X")').toList();
+
+        final result = events.whereType<BridgeOsCallResult>().single;
+        expect(result.result, 'late');
+        expect(result.durationMs, greaterThanOrEqualTo(15));
+        expect(_returnAnswers(fake), [const MontyString('late')]);
+      },
+    );
+
+    test(
+      'a synchronous decline is passed on and reported as Declined',
+      () async {
+        bridge.registerOs(
+          (name, args, kwargs) => throw const OsCallNotHandledException(),
+        );
+        fake
+          ..willCallOs('Path.read_text', args: [const MontyPath('/etc/passwd')])
+          ..willCatch()
+          ..willReturn(const MontyNone());
+
+        final events = await bridge
+            .execute('Path("/etc/passwd").read_text()')
+            .toList();
+
+        // Declined: the worker computes the default, so the answer is
+        // not_handled (null).
+        expect(fake.answers.single.answer, isNull);
+        final result = events.whereType<BridgeOsCallResult>().single;
+        expect(result.result, 'Declined');
+        expect(
+          result.callId,
+          events.whereType<BridgeOsCallStart>().single.callId,
+        );
+      },
+    );
+
+    test('an ExternalException selects the Python type; result names its '
+        'message', () async {
+      bridge.registerOs(
+        (name, args, kwargs) =>
+            throw const ExternalException('FileNotFoundError', 'no such file'),
+      );
+      fake
+        ..willCallOs('Path.read_text', args: [const MontyPath('/missing')])
+        ..willCatch()
+        ..willReturn(const MontyNone());
+
+      final events = await bridge
+          .execute('Path("/missing").read_text()')
+          .toList();
+
+      expect(_errorAnswers(fake), [
+        const ExternalException('FileNotFoundError', 'no such file'),
+      ]);
+      expect(
+        events.whereType<BridgeOsCallResult>().single.result,
+        'Error: no such file',
+      );
+    });
+
+    test('any other throw is reported as Error: <error>', () async {
+      final boom = StateError('disk on fire');
+      bridge.registerOs((name, args, kwargs) => throw boom);
+      fake
+        ..willCallOs(
+          'Path.write_text',
+          args: [const MontyPath('/o'), const MontyString('d')],
+        )
+        ..willCatch()
+        ..willReturn(const MontyNone());
+
+      final events = await bridge.execute('w()').toList();
+
+      expect(
+        events.whereType<BridgeOsCallResult>().single.result,
+        'Error: $boom',
+      );
+      expect(_errorAnswers(fake).single.message, contains('disk on fire'));
+    });
+
+    test('with no handler, OS calls emit no events and are declined', () async {
+      fake
+        ..willCallOs(
+          'os.getenv',
+          args: [const MontyString('X'), const MontyNone()],
+        )
+        ..willCatch()
+        ..willReturn(const MontyNone());
+
+      final events = await bridge.execute('os.getenv("X")').toList();
+
+      expect(events.whereType<BridgeOsCallStart>(), isEmpty);
+      expect(events.whereType<BridgeOsCallResult>(), isEmpty);
+      expect(fake.answers.single.answer, isNull);
+      expect(events.last, isA<BridgeRunFinished>());
+    });
+
+    test('AttachContext.registerOs replaces the handler set before', () async {
+      (bridge as AttachContext)
+        ..registerOs((name, args, kwargs) => const MontyString('A'))
+        ..registerOs((name, args, kwargs) => const MontyString('B'));
+      fake
+        ..willCallOs(
+          'os.getenv',
+          args: [const MontyString('X'), const MontyNone()],
+        )
+        ..willReturn(const MontyNone());
+
+      await bridge.execute('os.getenv("X")').toList();
+
+      expect(_returnAnswers(fake), [const MontyString('B')]);
+    });
   });
 }
