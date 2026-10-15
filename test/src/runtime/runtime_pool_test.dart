@@ -137,6 +137,33 @@ void main() {
       expect(sessions.single.feeds, ['first']);
     });
 
+    test('a second execute while the first is still attaching the '
+        'extensions runs nothing', () async {
+      final gate = Completer<void>();
+      final slow = _SlowAttach(gate.future);
+      final runtime = await start(extensions: [slow]);
+      sessions.single.willReturn(const MontyInt(1));
+
+      final first = runtime.execute('first');
+      final second = runtime.execute('second');
+      final refused = expectLater(
+        second.result,
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            'Bridge is already executing',
+          ),
+        ),
+      );
+      gate.complete();
+
+      await refused;
+      expect(await first.result, const MontyInt(1));
+      expect(sessions.single.feeds, ['first']);
+      expect(slow.attaches, 1);
+    });
+
     test('invoke runs no Python', () async {
       final runtime = await start()
         ..register(_echo);
@@ -411,6 +438,27 @@ void main() {
       expect(seen, containsAll(['echo', 'peek']));
     });
   });
+}
+
+/// An extension whose `onAttach` waits for [gate].
+final class _SlowAttach extends MontyExtension {
+  _SlowAttach(this.gate);
+
+  final Future<void> gate;
+  int attaches = 0;
+
+  @override
+  String get namespace => 'slow';
+
+  @override
+  List<HostFunction> get functions => const [];
+
+  @override
+  Future<void> onAttach(AttachContext ctx) async {
+    await super.onAttach(ctx);
+    attaches++;
+    await gate;
+  }
 }
 
 /// An extension whose `onDispose` throws.
