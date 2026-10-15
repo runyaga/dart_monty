@@ -145,7 +145,7 @@ void main() {
       'declines (the worker answers) when no handler registered',
       () async {
         fake
-          ..willCallOs('Path.read_text', args: [const MontyPath('/etc/passwd')])
+          ..willCallOs('Path.read_text', args: [MontyPath('/etc/passwd')])
           ..willCatch()
           ..willReturn(const MontyNone());
 
@@ -206,7 +206,7 @@ void main() {
       fake
         ..willCallOs(
           'Path.write_text',
-          args: const [MontyPath('/tmp/out'), MontyString('data')],
+          args: [MontyPath('/tmp/out'), const MontyString('data')],
         )
         ..willCatch()
         ..willReturn(const MontyNone());
@@ -1158,7 +1158,7 @@ void main() {
           (name, args, kwargs) => throw const OsCallNotHandledException(),
         );
         fake
-          ..willCallOs('Path.read_text', args: [const MontyPath('/etc/passwd')])
+          ..willCallOs('Path.read_text', args: [MontyPath('/etc/passwd')])
           ..willCatch()
           ..willReturn(const MontyNone());
 
@@ -1185,7 +1185,7 @@ void main() {
             throw const ExternalException('FileNotFoundError', 'no such file'),
       );
       fake
-        ..willCallOs('Path.read_text', args: [const MontyPath('/missing')])
+        ..willCallOs('Path.read_text', args: [MontyPath('/missing')])
         ..willCatch()
         ..willReturn(const MontyNone());
 
@@ -1208,7 +1208,7 @@ void main() {
       fake
         ..willCallOs(
           'Path.write_text',
-          args: [const MontyPath('/o'), const MontyString('d')],
+          args: [MontyPath('/o'), const MontyString('d')],
         )
         ..willCatch()
         ..willReturn(const MontyNone());

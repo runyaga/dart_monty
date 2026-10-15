@@ -29,7 +29,7 @@ void main() {
 
     test('E6a: read from base layer', () async {
       final result = await overlay('Path.read_text', [
-        const MontyPath('/base/readme.md'),
+        MontyPath('/base/readme.md'),
       ], const {});
       // Experiment test: output is the observable result.
       // ignore: avoid_print
@@ -39,11 +39,11 @@ void main() {
 
     test('E6b: write goes to scratch, base unchanged', () async {
       await overlay('Path.write_text', [
-        const MontyPath('/base/readme.md'),
+        MontyPath('/base/readme.md'),
         const MontyString('modified'),
       ], const {});
       final result = await overlay('Path.read_text', [
-        const MontyPath('/base/readme.md'),
+        MontyPath('/base/readme.md'),
       ], const {});
       // Experiment test: output is the observable result.
       // ignore: avoid_print
@@ -53,11 +53,11 @@ void main() {
 
     test('E6c: new file in scratch, not in base', () async {
       await overlay('Path.write_text', [
-        const MontyPath('/new/file.txt'),
+        MontyPath('/new/file.txt'),
         const MontyString('new'),
       ], const {});
       final exists = await overlay('Path.exists', [
-        const MontyPath('/new/file.txt'),
+        MontyPath('/new/file.txt'),
       ], const {});
       // Experiment test: output is the observable result.
       // ignore: avoid_print
@@ -71,11 +71,11 @@ void main() {
         final h1 = memoryFsHandler();
         final h2 = memoryFsHandler();
         await h1('Path.write_text', [
-          const MontyPath('/x.txt'),
+          MontyPath('/x.txt'),
           const MontyString('h1 data'),
         ], const {});
         final h2Sees = await h2('Path.exists', [
-          const MontyPath('/x.txt'),
+          MontyPath('/x.txt'),
         ], const {});
         // Experiment test: output is the observable result.
         // ignore: avoid_print

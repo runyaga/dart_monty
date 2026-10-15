@@ -17,13 +17,10 @@ final class ThrowingSession implements MontySession {
   @override
   Future<MontyValue> feedRun(
     String code, {
-    Map<String, Object>? inputs,
-    Map<
-      String,
-      FutureOr<MontyValue> Function(List<MontyValue>, Map<String, MontyValue>)
-    >?
-    externals,
+    Map<String, MontyValue>? inputs,
+    Map<String, MontyValue>? externalLookup,
     FutureOr<void> Function(String stream, String text)? printCallback,
+    String? cwd,
     OsHandler? os,
     bool skipTypeCheck = false,
   }) async {
@@ -34,13 +31,10 @@ final class ThrowingSession implements MontySession {
   @override
   Future<MontySnapshot> feedStart(
     String code, {
-    Map<String, Object>? inputs,
-    Map<
-      String,
-      FutureOr<MontyValue> Function(List<MontyValue>, Map<String, MontyValue>)
-    >?
-    externals,
+    Map<String, MontyValue>? inputs,
+    Map<String, MontyValue>? externalLookup,
     FutureOr<void> Function(String stream, String text)? printCallback,
+    String? cwd,
     OsHandler? os,
     bool skipTypeCheck = false,
   }) async {
@@ -54,11 +48,7 @@ final class ThrowingSession implements MontySession {
   @override
   Future<MontySnapshot> loadSnapshot(
     Uint8List state, {
-    Map<
-      String,
-      FutureOr<MontyValue> Function(List<MontyValue>, Map<String, MontyValue>)
-    >?
-    externals,
+    Map<String, MontyValue>? externalLookup,
     FutureOr<void> Function(String stream, String text)? printCallback,
     OsHandler? os,
   }) async => throw UnsupportedError('loadSnapshot');
@@ -90,13 +80,10 @@ final class OsProbeSession extends ThrowingSession {
   @override
   Future<MontyValue> feedRun(
     String code, {
-    Map<String, Object>? inputs,
-    Map<
-      String,
-      FutureOr<MontyValue> Function(List<MontyValue>, Map<String, MontyValue>)
-    >?
-    externals,
+    Map<String, MontyValue>? inputs,
+    Map<String, MontyValue>? externalLookup,
     FutureOr<void> Function(String stream, String text)? printCallback,
+    String? cwd,
     OsHandler? os,
     bool skipTypeCheck = false,
   }) async {
