@@ -201,7 +201,7 @@ class SessionBridge implements MontyBridge {
     try {
       final value = await session.feedRun(
         code,
-        externals: _externals(),
+        externalLookup: _externals(),
         printCallback: printed.call,
         os: os == null ? null : _reportingOs(os, emit),
       );
@@ -240,13 +240,12 @@ class SessionBridge implements MontyBridge {
 
   /// The host functions passed to the feed: each registered name, answered
   /// by D1-3's dispatch.
-  Map<
-    String,
-    FutureOr<MontyValue> Function(List<MontyValue>, Map<String, MontyValue>)
-  >
-  _externals() => {
+  Map<String, MontyValue> _externals() => {
     for (final schema in _host.schemas)
-      schema.name: (_, _) => throw UnimplementedError('D1-3'),
+      schema.name: MontyHostFunction(
+        schema.name,
+        (_, _) => throw UnimplementedError('D1-3'),
+      ),
   };
 
   /// [handler] wrapped to report each call it receives: a

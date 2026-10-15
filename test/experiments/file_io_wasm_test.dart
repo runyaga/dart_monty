@@ -20,7 +20,7 @@ void main() {
     test('Open w returns a MontyFileHandle and truncates', () async {
       final h = fsHandler(MemoryFileSystem());
       final result = await h('open', [
-        const MontyPath('/out.txt'),
+        MontyPath('/out.txt'),
         const MontyString('w'),
       ], const {});
       expect(result, isA<MontyFileHandle>());
@@ -29,7 +29,7 @@ void main() {
       // The truncate effect created the (empty) file.
       expect(
         (await h('Path.exists', [
-          const MontyPath('/out.txt'),
+          MontyPath('/out.txt'),
         ], const {})).dartValue,
         isTrue,
       );
@@ -40,7 +40,7 @@ void main() {
       fs.file('/a.txt').writeAsStringSync('hi');
       final h = fsHandler(fs);
       final result = await h('open', [
-        const MontyPath('/a.txt'),
+        MontyPath('/a.txt'),
         const MontyString('r'),
       ], const {});
       expect((result as MontyFileHandle).path, '/a.txt');
@@ -50,7 +50,7 @@ void main() {
       final h = fsHandler(MemoryFileSystem());
       await expectLater(
         () => h('open', [
-          const MontyPath('/nope.txt'),
+          MontyPath('/nope.txt'),
           const MontyString('r'),
         ], const {}),
         throwsA(
@@ -66,15 +66,15 @@ void main() {
     test('append_text + read_bytes round-trip (typed MontyBytes)', () async {
       final h = fsHandler(MemoryFileSystem());
       await h('Path.append_text', [
-        const MontyPath('/log.txt'),
+        MontyPath('/log.txt'),
         const MontyString('a'),
       ], const {});
       await h('Path.append_text', [
-        const MontyPath('/log.txt'),
+        MontyPath('/log.txt'),
         const MontyString('b'),
       ], const {});
       final bytes = await h('Path.read_bytes', [
-        const MontyPath('/log.txt'),
+        MontyPath('/log.txt'),
       ], const {});
       expect(bytes, isA<MontyBytes>());
       expect((bytes as MontyBytes).value, 'ab'.codeUnits);
@@ -86,7 +86,7 @@ void main() {
         final h = fsHandler(MemoryFileSystem()).readOnly();
         await expectLater(
           () => h('open', [
-            const MontyPath('/x.txt'),
+            MontyPath('/x.txt'),
             const MontyString('w'),
           ], const {}),
           throwsA(
