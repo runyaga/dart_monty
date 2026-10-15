@@ -94,6 +94,17 @@ void main() {
       expect(plugin.osContribution, isNull);
     });
 
+    test("SandboxExtension's own policy is exclude", () {
+      expect(SandboxExtension().childPolicy, ChildPolicy.exclude);
+    });
+
+    test('supportedBackends defaults to both kinds', () {
+      expect(
+        _TestExtension(namespace: 'ns', functions: []).supportedBackends,
+        {MontyBackendKind.ffi, MontyBackendKind.wasm},
+      );
+    });
+
     test('logger is BridgeLogger.silent before attach', () {
       final plugin = _TestExtension(namespace: 'ns', functions: []);
       expect(plugin.logger, same(BridgeLogger.silent));

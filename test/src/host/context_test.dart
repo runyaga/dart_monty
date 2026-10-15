@@ -82,4 +82,12 @@ void main() {
       expect(parent, isNull);
     });
   });
+
+  test('without a cancelToken a context holds a fresh, live one', () {
+    final a = HostContext(emit: (_) {}, executionId: 'a');
+    final b = HostContext(emit: (_) {}, executionId: 'b');
+
+    expect(a.cancelToken.isCancelled, isFalse);
+    expect(a.cancelToken, isNot(same(b.cancelToken)));
+  });
 }

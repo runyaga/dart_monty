@@ -206,9 +206,15 @@ void main() {
     final result = runtime.execute('probe()').result;
     unawaited(result.then((_) {}, onError: (_) {}));
     await entered.future;
-    while (sessions.length < 2) {
+    // Wait for the sub-execution's feed to start, so dispose meets it
+    // running rather than just checked out.
+    for (var i = 0; i < 1000 && sessions.length < 2; i++) {
       await Future<void>.delayed(Duration.zero);
     }
+    for (var i = 0; i < 1000 && sessions[1].feeds.isEmpty; i++) {
+      await Future<void>.delayed(Duration.zero);
+    }
+    expect(sessions[1].feeds, hasLength(1));
 
     await runtime.dispose();
 

@@ -75,6 +75,27 @@ change that brings it back.
   checks out a new one. **`dispose()`** releases the session and an owned
   pool even when an extension's `onDispose` throws, then rethrows.
 - `MontyRuntimeRef` and `currentBackendKind` are no longer exported.
+- **`HostContext.subExecute`** runs on a second session checked out of the
+  runtime's pool, with default limits, the inputs bound by the feed, no OS
+  handler and no host functions; the session is closed afterwards, and on
+  `dispose`. A checkout that waits past the pool's `checkoutTimeout` fails
+  with `TimeoutException`. A bridge built on a bare session gives handlers
+  no `subExecute`, so `run_script` raises its `StateError` there.
+  `run_script` returns the sub-script's value as it is (a tuple stays a
+  tuple).
+- **`HostFunction.childPropagation`** and `ChildPropagation` are gone: a
+  function registered on a runtime never reaches a child sandbox.
+  `HostFunctionSchema.mapAndValidate` and the `HostArgs` extension are no
+  longer exported.
+- **`MontyExtension.coordinator`** and **`MontyRuntime.coordinator`** are
+  gone, and `ExtensionCoordinator`, `StructLogBridgeLogger`,
+  `NullBridgeLogger` and `UnsupportedBackendError` are no longer exported.
+  Use `BridgeLogger.silent` to silence logging; a `null` logger is still
+  dm's struct_log logger. An unsupported backend still fails attachment
+  with an `Error`.
+- **`EventLoopExtension`** no longer exposes `channelState` or
+  `channelStateSignal`, and `EventLoopState` and its variants are no longer
+  exported; use `isWaiting`.
 
 Eight features that nothing used have been moved out of this package. There
 is no deprecation period and no replacement API.
@@ -86,7 +107,7 @@ is no deprecation period and no replacement API.
   e.g. `[MessageBusExtension(), EventLoopExtension()]`.
 - **`StatefulExtension`** and **`HasStateSignal`** are gone, as is
   `ExtensionCoordinator.statefulObservations()`. `EventLoopExtension` and
-  `SandboxExtension` keep `channelStateSignal` / `childrenSignal`; they no
+  `SandboxExtension` keeps `childrenSignal`; they no
   longer expose `state`, `stateSignal`, `stateSignalAsObject` or
   `setInitialState`.
 - **`MontyInterceptor`** is gone: the `interceptor` parameter of
@@ -109,6 +130,11 @@ is no deprecation period and no replacement API.
 The published web demos no longer show template rendering.
 
 ### Fixed
+
+- Extensions of equal `priority` attach in registration order even when more
+  than 32 are registered, where `List.sort` is not stable.
+- A child spawn that fails part-way (a `createChildInstance` throws) disposes
+  the clones it already made instead of leaking them.
 
 - `timeHandler`: `datetime.now()` and `datetime.now(tz)` dropped the
   milliseconds. Python's `datetime.microsecond` is the whole sub-second part,

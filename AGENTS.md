@@ -50,10 +50,10 @@ that directory does not exist.
 `oracle_ffi_test.dart` and `wasm_fixture_test.dart` are **not in this repo** —
 they are `dart_monty_core`'s conformance suites. Run them there.
 
-Known-red, unrelated to any upgrade: 14 tests in
-`test/experiments/event_loop_experiment_test.dart` fail with
-`TimeoutException: EventLoopExtension never reached Waiting state` (file last
-touched 2026-04-24). Everything else in the integration suite passes.
+The whole integration suite passes, `event_loop_experiment_test.dart`
+included. A test that waits for the event loop to reach `el_recv` polls one
+event-loop turn at a time (see `_until` in `test/src/bridge/event_loop_test.dart`)
+rather than awaiting a single zero delay.
 
 ### JS compilation (dart2js)
 

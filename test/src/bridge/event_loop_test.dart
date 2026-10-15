@@ -774,6 +774,52 @@ void main() {
       expect(_dart(_returnAnswers(fake).single), {'fresh': true});
     });
 
+    test('a run that ends with el_recv pending fails that call', () async {
+      // el_recv is a coroutine: the script calls it and finishes without
+      // awaiting, leaving the call pending.
+      fake
+        ..willCall('el_recv')
+        ..willReturn(const MontyNone());
+      final done = bridge.execute('el_recv()').toList();
+      await _until(() => plugin.isWaiting);
+      final pending =
+          (plugin.channelState as EventLoopWaiting).completer.future;
+      final failure = pending.then<Object?>(
+        (_) => null,
+        onError: (Object e) => e,
+      );
+
+      await done;
+
+      expect(await failure, isA<StateError>());
+      expect(plugin.channelState, const EventLoopCompleted());
+    });
+
+    test('a pending el_recv failed by dispose reaches Python as a '
+        'RuntimeError', () async {
+      fake
+        ..willCall('el_recv')
+        ..willAwait([0])
+        ..willCatch()
+        ..willReturn(const MontyNone());
+      final done = bridge.execute('el_recv()').toList();
+      await _until(() => plugin.isWaiting);
+
+      await plugin.onDispose();
+      await done;
+
+      final answer = fake.answers
+          .map((a) => a.answer)
+          .whereType<ExternalException>()
+          .single;
+      expect(
+        answer,
+        isA<ExternalException>()
+            .having((e) => e.excType, 'excType', 'RuntimeError')
+            .having((e) => e.message, 'message', contains('disposed')),
+      );
+    });
+
     test('namespace is el, with el_recv() and el_emit(value: map)', () {
       expect(plugin.namespace, 'el');
       final [recv, emit] = plugin.functions;
