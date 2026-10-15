@@ -18,27 +18,29 @@ Future<MontyValue> _defaultSubExecute(
   Map<String, Object?>? inputs,
 }) => throw UnimplementedError('D1-6');
 
-/// The most characters [_argsJson] writes before it gives up.
-const int _argsJsonLimit = 1 << 20;
+/// The most characters [_argsJson] or [_resultText] writes before it gives
+/// up: a list shared at each level of a value expands at every use, so a
+/// small value can have an enormous text.
+const int _textLimit = 1 << 20;
 
-/// Thrown by [_BoundedSink] once its limit is passed.
+/// Thrown once a bounded writer passes [_textLimit].
 final class _TooLong implements Exception {
   const _TooLong();
+
+  @override
+  String toString() => 'over $_textLimit characters';
 }
 
-/// A string sink that throws [_TooLong] once more than [limit] characters
-/// were added, so an encoder writing into it stops there.
+/// A string sink that throws [_TooLong] once more than [_textLimit]
+/// characters were added, so an encoder writing into it stops there.
 final class _BoundedSink implements Sink<String> {
-  _BoundedSink(this.limit);
-
-  final int limit;
   final StringBuffer _buffer = StringBuffer();
 
   String get text => _buffer.toString();
 
   @override
   void add(String data) {
-    if (_buffer.length + data.length > limit) throw const _TooLong();
+    if (_buffer.length + data.length > _textLimit) throw const _TooLong();
     _buffer.write(data);
   }
 
@@ -46,28 +48,116 @@ final class _BoundedSink implements Sink<String> {
   void close() {}
 }
 
-/// [args] as JSON for [BridgeFunctionCallArgs.delta]: a value JSON has no
-/// form for is written as its `toString()`.
-///
-/// Never throws. Arguments whose JSON would pass [_argsJsonLimit]
-/// characters (a list shared many times over expands at each use) or that
-/// hold a cycle are written as a JSON string saying so, and the call goes
-/// on.
-String _argsJson(Map<String, Object?> args) {
-  final sink = _BoundedSink(_argsJsonLimit);
+/// Writes [value] to [out] as its `toString()` reads for a [List], a [Set]
+/// or a [Map] (a container already being written is `[...]` or `{...}`, as
+/// Dart writes it), and as its `toString()` otherwise. Throws [_TooLong] as
+/// soon as [out] passes [_textLimit], so the work is bounded too.
+void _writeText(Object? value, StringBuffer out, List<Object> open) {
+  void put(String text) {
+    if (out.length + text.length > _textLimit) throw const _TooLong();
+    out.write(text);
+  }
+
+  if (value == null || (value is! List && value is! Set && value is! Map)) {
+    put('$value');
+
+    return;
+  }
+  if (open.any((o) => identical(o, value))) {
+    put(value is List ? '[...]' : '{...}');
+
+    return;
+  }
+  open.add(value);
+  var first = true;
+  void separate() {
+    if (!first) put(', ');
+    first = false;
+  }
+
+  switch (value) {
+    case final List<Object?> list:
+      put('[');
+      for (final e in list) {
+        separate();
+        _writeText(e, out, open);
+      }
+      put(']');
+    case final Set<Object?> set:
+      put('{');
+      for (final e in set) {
+        separate();
+        _writeText(e, out, open);
+      }
+      put('}');
+    case final Map<Object?, Object?> map:
+      put('{');
+      for (final MapEntry(:key, value: v) in map.entries) {
+        separate();
+        _writeText(key, out, open);
+        put(': ');
+        _writeText(v, out, open);
+      }
+      put('}');
+  }
+  open.removeLast();
+}
+
+/// [result] as [BridgeFunctionCallResult.result]: its `toString()`, `''`
+/// for null. Past [_textLimit] characters it is cut there and says so.
+String _resultText(Object? result) {
+  if (result == null) return '';
+  final out = StringBuffer();
   try {
-    JsonEncoder((o) => '$o').startChunkedConversion(sink)
+    _writeText(result, out, []);
+  } on _TooLong {
+    out.write('... (cut at $_textLimit characters)');
+  }
+
+  return out.toString();
+}
+
+/// [args] as JSON for [BridgeFunctionCallArgs.delta]: a value JSON has no
+/// form for is written as its text ([_writeText]).
+///
+/// Never throws. Arguments whose JSON would pass [_textLimit] characters,
+/// or that hold a cycle, are written as a JSON string saying so, and the
+/// call goes on.
+String _argsJson(Map<String, Object?> args) {
+  final sink = _BoundedSink();
+  // A value's own text past the limit: the encoder would wrap a throw from
+  // here in an Error, so it is recorded instead.
+  var valueTooLong = false;
+  try {
+    JsonEncoder((o) {
+        final out = StringBuffer();
+        try {
+          _writeText(o, out, []);
+        } on _TooLong {
+          valueTooLong = true;
+        }
+
+        return out.toString();
+      }).startChunkedConversion(sink)
       ..add(args)
       ..close();
-
-    return sink.text;
-  } on _TooLong {
-    return jsonEncode(
-      'arguments not shown: over $_argsJsonLimit characters of JSON',
-    );
+  } on _TooLong catch (e) {
+    return jsonEncode('arguments not shown: $e of JSON');
   } on Object catch (e) {
-    return jsonEncode('arguments not shown: ${e.runtimeType}');
+    // The encoder wraps a throw made while writing a converted value.
+    final tooLong =
+        valueTooLong ||
+        (e is JsonUnsupportedObjectError && e.cause is _TooLong);
+
+    return jsonEncode(
+      'arguments not shown: '
+      '${tooLong ? '${const _TooLong()} of JSON' : e.runtimeType}',
+    );
   }
+
+  return valueTooLong
+      ? jsonEncode('arguments not shown: ${const _TooLong()} of JSON')
+      : sink.text;
 }
 
 // ---------------------------------------------------------------------------
@@ -284,7 +374,7 @@ class HostDispatch {
     emit(
       BridgeFunctionCallResult(
         callId: callId,
-        result: result?.toString() ?? '',
+        result: _resultText(result),
       ),
     );
     emit(BridgeCallFinished(callId: callId));

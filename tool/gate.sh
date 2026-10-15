@@ -363,7 +363,7 @@ fi
 # 7. Dart Tests (unit)
 # -------------------------------------------------------
 # Floor 500: 530 tests observed locally 2026-09-17.
-# D1 branch: floor re-measured on the active tests (551); D1-Z restores 500.
+# D1 branch: floor re-measured on the active tests (552); D1-Z restores 500.
 run_test_check "dart test" 542 dart test --exclude-tags d1-pending
 
 # -------------------------------------------------------
