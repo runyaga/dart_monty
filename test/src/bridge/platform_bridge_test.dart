@@ -1021,6 +1021,23 @@ void main() {
       );
     }, timeout: const Timeout(Duration(seconds: 20)));
 
+    test('a deeply nested result is written without deep recursion', () async {
+      Object? nested = <Object?>[];
+      for (var i = 0; i < 100000; i++) {
+        nested = <Object?>[nested];
+      }
+      bridge.register(_fnX((_, _) async => nested));
+      fake
+        ..willCall('fn', kwargs: {'x': const MontyInt(1)})
+        ..willReturn(const MontyNone());
+
+      final events = await bridge.execute('fn(x=1)').toList();
+
+      final text = events.whereType<BridgeFunctionCallResult>().single.result;
+      expect(text, '${'[' * 100001}${']' * 100001}');
+      expect(events.last, isA<BridgeRunFinished>());
+    });
+
     test('ids come from one counter across calls and runs', () async {
       bridge.register(_fnX((args, _) async => args['x']));
       fake

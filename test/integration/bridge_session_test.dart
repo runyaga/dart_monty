@@ -337,6 +337,41 @@ void main() {
       );
     }, timeout: const Timeout(Duration(seconds: 20)));
 
+    test('a thrown value whose text would be huge is cut in the event and '
+        'the Python exception', () async {
+      bridge.register(
+        HostFunction(
+          schema: const HostFunctionSchema(
+            name: 'throw_back',
+            description: '',
+            params: [HostParam(name: 'v', type: HostParamType.list)],
+          ),
+          // ignore: only_throw_errors – a thrown value, as a handler may.
+          handler: (args, _) async => throw args['v']!,
+        ),
+      );
+
+      final events = await bridge
+          .execute(
+            'x = []\nfor _ in range(30):\n    x = [x, x]\n'
+            'try:\n    throw_back(x)\n    out = "none"\n'
+            'except RuntimeError as e:\n    out = str(e)[-40:]\nout',
+          )
+          .toList();
+
+      expect(
+        (events.last as BridgeRunFinished).value,
+        endsWith('(cut at 1048576 characters)'),
+      );
+      expect(
+        events.whereType<BridgeFunctionCallResult>().single.result,
+        allOf(
+          startsWith('Error: [[['),
+          endsWith('(cut at 1048576 characters)'),
+        ),
+      );
+    }, timeout: const Timeout(Duration(seconds: 20)));
+
     test('asyncio.sleep runs alongside a future-mode call', () async {
       bridge.register(
         fn('later', (args, _) async {
