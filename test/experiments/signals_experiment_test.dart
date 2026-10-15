@@ -49,7 +49,6 @@ void main() {
         expect(cap.values.any((s) => s is EventLoopExecuting), isTrue);
         expect(cap.values.last, isA<EventLoopCompleted>());
       },
-      tags: 'd1-pending',
     );
 
     test('calling dispose() on SignalCapture stops recording', () {
@@ -103,7 +102,6 @@ msg_send(name='q', message='c')
         final counts = cap.values.map((s) => s.sendCount).toList();
         expect(counts.last, 3);
       },
-      tags: 'd1-pending',
     );
 
     test(
@@ -125,7 +123,6 @@ msg_recv(name='pipe')
         final depths = cap.values.map((s) => s.queueDepth).toList();
         expect(depths.last, 0);
       },
-      tags: 'd1-pending',
     );
   });
 
@@ -165,7 +162,6 @@ msg_recv(name='pipe')
 
         expect(history, containsAll([true, false]));
       },
-      tags: 'd1-pending',
     );
   });
 
@@ -283,7 +279,6 @@ el_emit(value={'tick': 2})
             .toList();
         expect(emitCalls, hasLength(2));
       },
-      tags: 'd1-pending',
     );
   });
 
@@ -319,7 +314,6 @@ el_emit(value={'tick': 2})
           ..assertContains<BridgeFunctionCallStart>()
           ..assertContains<BridgeRunFinished>();
       },
-      tags: 'd1-pending',
     );
 
     test(
@@ -329,7 +323,6 @@ el_emit(value={'tick': 2})
 
         ui.assertAbsent<BridgeFunctionCallStart>(); // no tool calls
       },
-      tags: 'd1-pending',
     );
   });
 } // end main

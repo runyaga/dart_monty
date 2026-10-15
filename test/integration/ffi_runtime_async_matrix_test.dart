@@ -1,5 +1,5 @@
 // FFI binding for the Layer 4 `MontyRuntime.execute` async/sync matrix.
-@Tags(['integration', 'd1-pending'])
+@Tags(['integration'])
 library;
 
 import 'package:test/test.dart';

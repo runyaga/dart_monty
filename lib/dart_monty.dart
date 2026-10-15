@@ -16,6 +16,6 @@ library;
 export 'package:dart_monty_core/dart_monty_core.dart';
 
 // dart_monty bridge/plugin layer
-export 'src/runtime/runtime.dart';
-export 'src/runtime/runtime_ref.dart';
+export 'src/runtime/runtime.dart' show MontyRuntime;
+export 'src/runtime/runtime_ref.dart' show HostParentRef;
 export 'src/runtime/value_x.dart';

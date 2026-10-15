@@ -8,6 +8,7 @@ import 'package:dart_monty/src/host/context.dart';
 import 'package:dart_monty/src/host/function.dart'
     show DispatchMode, HostFunction;
 import 'package:dart_monty/src/host/schema.dart';
+import 'package:dart_monty/src/runtime/execution_handle.dart';
 import 'package:dart_monty/src/runtime/runtime_ref.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:meta/meta.dart';
@@ -329,15 +330,30 @@ class HostDispatch {
   /// completes. A [DispatchMode.sync] function is unmarked: core awaits the
   /// handler and Python sees the value at the call site. A name not in the
   /// map is Python's `NameError`, raised by the worker without reaching dm.
-  Map<String, MontyValue> externals(void Function(BridgeEvent) emit) => {
-    for (final MapEntry(key: name, value: fn) in _functions.entries)
-      name: MontyHostFunction(name, switch (fn.dispatch) {
-        DispatchMode.sync => (args, kwargs) => _call(fn, args, kwargs, emit),
-        DispatchMode.future => coroutine(
-          (args, kwargs) => _call(fn, args, kwargs, emit),
-        ),
-      }),
-  };
+  ///
+  /// Each call's [HostContext] carries [os] (the run's OS handler) and
+  /// [cancelToken] (the run's token; a fresh one when null).
+  Map<String, MontyValue> externals(
+    void Function(BridgeEvent) emit, {
+    OsHandler? os,
+    CancelToken? cancelToken,
+  }) {
+    Future<MontyValue> call(
+      HostFunction fn,
+      List<MontyValue> args,
+      Map<String, MontyValue> kwargs,
+    ) => _call(fn, args, kwargs, emit, os: os, cancelToken: cancelToken);
+
+    return {
+      for (final MapEntry(key: name, value: fn) in _functions.entries)
+        name: MontyHostFunction(name, switch (fn.dispatch) {
+          DispatchMode.sync => (args, kwargs) => call(fn, args, kwargs),
+          DispatchMode.future => coroutine(
+            (args, kwargs) => call(fn, args, kwargs),
+          ),
+        }),
+    };
+  }
 
   /// One call of [fn] from Python, with its events.
   ///
@@ -357,8 +373,10 @@ class HostDispatch {
     HostFunction fn,
     List<MontyValue> args,
     Map<String, MontyValue> kwargs,
-    void Function(BridgeEvent) emit,
-  ) async {
+    void Function(BridgeEvent) emit, {
+    required OsHandler? os,
+    required CancelToken? cancelToken,
+  }) async {
     final name = fn.schema.name;
     final callId = nextId;
     _log.trace('Host function call', attributes: {'name': name});
@@ -391,7 +409,8 @@ class HostDispatch {
     final ctx = HostContext(
       emit: emit,
       executionId: callId,
-      os: osHandler,
+      cancelToken: cancelToken,
+      os: os,
       parent: _runtime,
       subExecute: _defaultSubExecute,
     );

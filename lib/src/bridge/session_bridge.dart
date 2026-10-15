@@ -8,6 +8,7 @@ import 'package:dart_monty/src/bridge/struct_log_logger.dart';
 import 'package:dart_monty/src/host/dispatch.dart';
 import 'package:dart_monty/src/host/function.dart';
 import 'package:dart_monty/src/host/schema.dart';
+import 'package:dart_monty/src/runtime/execution_handle.dart';
 import 'package:dart_monty/src/runtime/runtime_ref.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:meta/meta.dart';
@@ -46,7 +47,12 @@ class SessionBridge implements MontyBridge {
        );
 
   /// The session this bridge runs code on.
-  final MontySession session;
+  ///
+  /// A shared-mode runtime replaces it with a fresh checkout after a cancel
+  /// closed the one before; the functions and extensions stay registered.
+  @internal
+  // ignore: dispose-class-fields, the runtime that checked it out closes it.
+  MontySession session;
 
   @override
   final BridgeLogger logger;
@@ -125,7 +131,18 @@ class SessionBridge implements MontyBridge {
   }
 
   @override
-  Stream<BridgeEvent> execute(String code) {
+  Stream<BridgeEvent> execute(String code) => executeWith(code);
+
+  /// [execute], with the feed's [inputs], an [os] handler in place of the
+  /// registered one for this run only, and the [cancelToken] each host
+  /// function call of the run sees as `HostContext.cancelToken`.
+  @internal
+  Stream<BridgeEvent> executeWith(
+    String code, {
+    Map<String, MontyValue>? inputs,
+    OsHandler? os,
+    CancelToken? cancelToken,
+  }) {
     if (_isDisposed) throw StateError('Bridge has been disposed');
     if (_activeRun != null) throw StateError('Bridge is already executing');
     logger.debug('Executing code', attributes: {'codeLength': code.length});
@@ -151,7 +168,13 @@ class SessionBridge implements MontyBridge {
     }
 
     unawaited(
-      _run(code, controller).whenComplete(() {
+      _run(
+        code,
+        controller,
+        inputs: inputs,
+        os: os ?? _currentOsHandler,
+        cancelToken: cancelToken,
+      ).whenComplete(() {
         release();
         unawaited(controller.close());
       }),
@@ -178,8 +201,11 @@ class SessionBridge implements MontyBridge {
   /// meanwhile) reports nothing.
   Future<void> _run(
     String code,
-    StreamController<BridgeEvent> controller,
-  ) async {
+    StreamController<BridgeEvent> controller, {
+    required Map<String, MontyValue>? inputs,
+    required OsHandler? os,
+    required CancelToken? cancelToken,
+  }) async {
     var ended = false;
     void emit(BridgeEvent event) {
       if (ended) return;
@@ -197,11 +223,15 @@ class SessionBridge implements MontyBridge {
     emit(BridgeRunStarted(threadId: threadId, runId: runId));
 
     final printed = CollectString();
-    final os = _currentOsHandler;
     try {
       final value = await session.feedRun(
         code,
-        externalLookup: _host.externals(emit),
+        inputs: inputs,
+        externalLookup: _host.externals(
+          emit,
+          os: os,
+          cancelToken: cancelToken,
+        ),
         printCallback: printed.call,
         os: os == null ? null : _reportingOs(os, emit),
       );

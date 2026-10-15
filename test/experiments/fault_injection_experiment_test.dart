@@ -7,7 +7,7 @@
 // Run with:
 //   dart test --tags=integration --run-skipped \
 //     test/experiment/examples/fault_injection_experiment_test.dart
-@Tags(['integration', 'd1-pending'])
+@Tags(['integration'])
 library;
 
 import 'package:dart_monty/dart_monty.dart';

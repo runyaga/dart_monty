@@ -3,7 +3,7 @@
 //
 // Layer 4 takes a different code path than Layer 2/3 (which go through
 // a raw `MontySession.feedRun`); per-fn `DispatchMode` selects sync vs
-// future dispatch for each call. Stubbed until D1-3/D1-4 (d1-pending).
+// future dispatch for each call.
 //
 // `ffi_runtime_async_matrix_test.dart` calls [runRuntimeAsyncMatrixTests]
 // (FFI only — dart_monty has no WASM-tagged integration suite).
@@ -14,8 +14,14 @@ import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:test/test.dart';
 
+import '_worker.dart';
+
 void runRuntimeAsyncMatrixTests() {
   group('MontyRuntime.execute async/sync matrix', () {
+    late Monty pool;
+    setUpAll(() async => pool = await startTestPool());
+    tearDownAll(() => pool.close());
+
     HostFunction fetchSync(int Function() onCall) => HostFunction(
       schema: const HostFunctionSchema(
         name: 'fetch',
@@ -61,7 +67,7 @@ void runRuntimeAsyncMatrixTests() {
     // matrix-cell: (sync Dart) × (sync Python)
     test('cell 1: sync handler + bare Python call', () async {
       var calls = 0;
-      final runtime = (await MontyRuntime.start())
+      final runtime = (await MontyRuntime.start(pool: pool))
         ..register(fetchSync(() => calls++));
       addTearDown(runtime.dispose);
 
@@ -74,7 +80,7 @@ void runRuntimeAsyncMatrixTests() {
     // matrix-cell: (async Dart) × (sync Python)
     test('cell 2: async handler + bare Python call', () async {
       var calls = 0;
-      final runtime = (await MontyRuntime.start())
+      final runtime = (await MontyRuntime.start(pool: pool))
         ..register(fetchAsync(() => calls++));
       addTearDown(runtime.dispose);
 
@@ -87,7 +93,7 @@ void runRuntimeAsyncMatrixTests() {
     // matrix-cell: (sync Dart) × (Python local async coroutine, no Dart await)
     test('cell 3: sync handler + Python local coroutine', () async {
       var calls = 0;
-      final runtime = (await MontyRuntime.start())
+      final runtime = (await MontyRuntime.start(pool: pool))
         ..register(fetchSync(() => calls++));
       addTearDown(runtime.dispose);
 
@@ -104,7 +110,7 @@ await doubled(3)
     // matrix-cell: (async Dart) × (Python local coroutine)
     test('cell 4: async handler + Python local coroutine', () async {
       var calls = 0;
-      final runtime = (await MontyRuntime.start())
+      final runtime = (await MontyRuntime.start(pool: pool))
         ..register(fetchAsync(() => calls++));
       addTearDown(runtime.dispose);
 
@@ -124,7 +130,7 @@ await doubled(3)
       'cell 5a: DispatchMode.future wires Python `await fetch(x)`',
       () async {
         var calls = 0;
-        final runtime = (await MontyRuntime.start())
+        final runtime = (await MontyRuntime.start(pool: pool))
           ..register(fetchAsyncFuture(() => calls++));
         addTearDown(runtime.dispose);
 
@@ -139,7 +145,7 @@ await doubled(3)
       'cell 5b: DispatchMode.future + asyncio.gather over externals',
       () async {
         final fired = <int>[];
-        final runtime = (await MontyRuntime.start())
+        final runtime = (await MontyRuntime.start(pool: pool))
           ..register(
             HostFunction(
               schema: const HostFunctionSchema(
@@ -180,7 +186,7 @@ results
     test(
       'DispatchMode.sync (default): Python `await ext()` raises TypeError',
       () async {
-        final runtime = (await MontyRuntime.start())
+        final runtime = (await MontyRuntime.start(pool: pool))
           ..register(fetchAsync(() => 0));
         addTearDown(runtime.dispose);
 
@@ -202,7 +208,7 @@ results
     test(
       'DispatchMode.future + inputs: inputs visible inside awaited external',
       () async {
-        final runtime = (await MontyRuntime.start())
+        final runtime = (await MontyRuntime.start(pool: pool))
           ..register(
             HostFunction(
               schema: const HostFunctionSchema(
@@ -238,7 +244,7 @@ results
         'not sum-of-delays', () async {
       const delayMs = 200;
       final sw = Stopwatch();
-      final runtime = (await MontyRuntime.start())
+      final runtime = (await MontyRuntime.start(pool: pool))
         ..register(
           HostFunction(
             schema: const HostFunctionSchema(

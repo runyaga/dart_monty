@@ -57,6 +57,24 @@ change that brings it back.
   raises `NameError` instead of `RuntimeError: Unknown function`. Validation
   and handler failures still raise `RuntimeError`; a handler that throws an
   `ExternalException` raises that exception's type.
+- **`MontyRuntime.start(pool:)`** runs on a core `Monty` pool. With a `pool`
+  the caller sizes and closes it; without one the runtime starts its own,
+  with room for a root execution, a sub-execution and a `SandboxExtension`'s
+  `maxChildren`, and closes it on `dispose`. That default pool finds the
+  worker by core's discovery; until the worker ships with core, pass a pool
+  started with `workerLocation`. Shared mode holds one session for the
+  runtime's life; sandbox mode checks one out per `execute` and closes it.
+  `execute(inputs:)` binds globals through the feed instead of a code prefix,
+  and `execute(os:)` is that feed's OS handler.
+- **`ExecutionHandle.cancel`** closes the execution's busy session: a running
+  turn fails with `MontyCrashedError`, a pending host call fails at once. In
+  shared mode the next `execute` runs on a fresh session, without the old
+  globals. Cancel also cancels the `HostContext.cancelToken` of the
+  execution's host calls; after the execution ends it does nothing.
+- **`clearState()`** disposes the extensions, closes the held session and
+  checks out a new one. **`dispose()`** releases the session and an owned
+  pool even when an extension's `onDispose` throws, then rethrows.
+- `MontyRuntimeRef` and `currentBackendKind` are no longer exported.
 
 Eight features that nothing used have been moved out of this package. There
 is no deprecation period and no replacement API.

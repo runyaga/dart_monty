@@ -3,18 +3,24 @@
 // monty v0.0.18's open() routes its `Open` OS-call to the filesystem handler
 // backing `Path.*` (here memoryFsHandler / a read-only fsHandler), and OS
 // errors reach Python as their real class.
-@Tags(['integration', 'd1-pending'])
+@Tags(['integration'])
 library;
 
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:file/memory.dart';
 import 'package:test/test.dart';
+import '_worker.dart';
 
 void main() {
+  late Monty pool;
+  setUpAll(() async => pool = await startTestPool());
+  tearDownAll(() => pool.close());
+
   group('open() / file I/O', () {
     test('write, with open(...), append, and read back', () async {
       final rt = await MontyRuntime.start(
+        pool: pool,
         osHandlers: {'Path.': memoryFsHandler()},
       );
       addTearDown(rt.dispose);
@@ -38,6 +44,7 @@ text
 
     test('binary round-trip is byte-faithful', () async {
       final rt = await MontyRuntime.start(
+        pool: pool,
         osHandlers: {'Path.': memoryFsHandler()},
       );
       addTearDown(rt.dispose);
@@ -54,6 +61,7 @@ list(data)
 
     test('open() returns a MontyFileHandle', () async {
       final rt = await MontyRuntime.start(
+        pool: pool,
         osHandlers: {'Path.': memoryFsHandler()},
       );
       addTearDown(rt.dispose);
@@ -66,6 +74,7 @@ list(data)
 
     test('missing file raises a catchable FileNotFoundError', () async {
       final rt = await MontyRuntime.start(
+        pool: pool,
         osHandlers: {'Path.': memoryFsHandler()},
       );
       addTearDown(rt.dispose);
@@ -87,6 +96,7 @@ out
         final roFs = MemoryFileSystem();
         roFs.file('/secret.txt').writeAsStringSync('sk-1');
         final rt = await MontyRuntime.start(
+          pool: pool,
           osHandlers: {'Path.': fsHandler(roFs).readOnly()},
         );
         addTearDown(rt.dispose);

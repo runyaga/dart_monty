@@ -7,7 +7,7 @@
 // Run with:
 //   dart test --tags=integration --run-skipped \
 //     test/experiment/examples/tool_chain_experiment_test.dart
-@Tags(['integration', 'd1-pending'])
+@Tags(['integration'])
 library;
 
 import 'dart:convert';

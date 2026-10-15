@@ -17,17 +17,25 @@
 library;
 
 import 'package:dart_monty/dart_monty_bridge.dart';
+import 'package:dart_monty_core/dart_monty_core.dart' show Monty;
 import 'package:test/test.dart';
+import '_worker.dart';
 
 Future<MontyRuntime> _runtimeWithSandbox() =>
-    MontyRuntime.start(extensions: [SandboxExtension()]);
+    MontyRuntime.start(pool: pool, extensions: [SandboxExtension()]);
 
 /// Child events are delivered asynchronously relative to `execute().result`,
 /// so settle the microtask/event queue before asserting on them.
 Future<void> _settle() =>
     Future<void>.delayed(const Duration(milliseconds: 300));
 
+/// The pool every runtime in this file checks out from.
+late Monty pool;
+
 void main() {
+  setUpAll(() async => pool = await startTestPool());
+  tearDownAll(() => pool.close());
+
   group('emitChildEvent through a real sandbox spawn (FFI)', () {
     test(
       "a spawned child's events reach the parent stream",
@@ -132,7 +140,6 @@ void main() {
         expect(result.dartValue, 2);
         expect(children, isEmpty);
       },
-      tags: 'd1-pending',
     );
 
     test('the direct call and the sandbox path wrap identically', () async {

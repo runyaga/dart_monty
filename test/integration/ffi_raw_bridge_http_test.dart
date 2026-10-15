@@ -9,6 +9,7 @@ library;
 import 'dart:io';
 
 import 'package:dart_monty/dart_monty_bridge.dart';
+import 'package:dart_monty_core/dart_monty_core.dart' show Monty;
 import 'package:test/test.dart';
 
 import '_worker.dart';
@@ -38,7 +39,13 @@ HostFunction _httpGetFn() => HostFunction(
 
 const _url = 'https://demo.toughserv.com/api/v1/installation/versions';
 
+/// The pool the runtime tests check out from.
+late Monty pool;
+
 void main() {
+  setUpAll(() async => pool = await startTestPool());
+  tearDownAll(() => pool.close());
+
   test(
     'MontyBridge.execute — 3 sequential HTTP calls',
     () async {
@@ -88,7 +95,8 @@ void main() {
   test(
     'MontyRuntime shared mode (no sandbox) — 3 sequential HTTP calls',
     () async {
-      final session = (await MontyRuntime.start())..register(_httpGetFn());
+      final session = (await MontyRuntime.start(pool: pool))
+        ..register(_httpGetFn());
 
       for (var i = 1; i <= 3; i++) {
         final result = await session.execute('http_get("$_url")').result;
@@ -99,13 +107,12 @@ void main() {
       await session.dispose();
     },
     timeout: const Timeout(Duration(seconds: 60)),
-    tags: 'd1-pending',
   );
 
   test(
     'MontyRuntime sandbox mode — 3 sequential HTTP calls',
     () async {
-      final session = (await MontyRuntime.start(sandbox: true))
+      final session = (await MontyRuntime.start(pool: pool, sandbox: true))
         ..register(_httpGetFn());
 
       for (var i = 1; i <= 3; i++) {
@@ -117,6 +124,5 @@ void main() {
       await session.dispose();
     },
     timeout: const Timeout(Duration(seconds: 60)),
-    tags: 'd1-pending',
   );
 }

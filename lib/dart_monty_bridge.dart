@@ -29,8 +29,9 @@ export 'src/os_call/fs_handlers.dart';
 export 'src/os_call/platform_handlers.dart' show envHandler;
 export 'src/os_call/sandboxed_fs_handler_stub.dart'
     if (dart.library.io) 'src/os_call/sandboxed_fs_handler.dart';
-export 'src/runtime/backend_kind.dart';
+export 'src/runtime/backend_kind.dart'
+    show MontyBackendKind, UnsupportedBackendError;
 export 'src/runtime/execution_handle.dart';
-export 'src/runtime/runtime.dart';
-export 'src/runtime/runtime_ref.dart';
+export 'src/runtime/runtime.dart' show MontyRuntime;
+export 'src/runtime/runtime_ref.dart' show HostParentRef;
 export 'src/runtime/runtime_state.dart';
