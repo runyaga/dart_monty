@@ -16,12 +16,19 @@ void main() {
   late int poolCloses;
   // When set, a checkout waits for it before it hands out a session.
   Completer<void>? checkoutGate;
+  // When set, a checkout waits while this many sessions are open.
+  int? slots;
   // When set, scripts each session as it is checked out.
   void Function(FakeMontySession session)? onCheckout;
 
   /// A checkout that hands out the next scripted session.
   Future<MontySession> checkout({ResourceLimits? limits}) async {
     await checkoutGate?.future;
+    final limit = slots;
+    while (limit != null &&
+        sessions.where((s) => !s.isClosed).length >= limit) {
+      await Future<void>.delayed(const Duration(milliseconds: 1));
+    }
     final session = FakeMontySession();
     onCheckout?.call(session);
     sessions.add(session);
@@ -53,6 +60,7 @@ void main() {
     poolCloses = 0;
     checkoutGate = null;
     onCheckout = null;
+    slots = null;
   });
 
   group('default pool', () {
@@ -626,6 +634,36 @@ void main() {
       await clearing;
 
       expect(await invoked, 'v');
+    });
+
+    test('after a cancel, an execute during a clearState takes no second '
+        'checkout', () async {
+      slots = 1;
+      final runtime = await start();
+      sessions.single.willHold(Completer<void>().future);
+      final cancelled = runtime.execute('loop()');
+      await Future<void>.delayed(Duration.zero);
+      final crashed = expectLater(
+        cancelled.result,
+        throwsA(isA<MontyCrashedError>()),
+      );
+      await cancelled.cancel();
+      await crashed;
+
+      final gate = checkoutGate = Completer<void>();
+      onCheckout = (s) => s.willReturn(const MontyInt(4));
+      final clearing = runtime.clearState();
+      await Future<void>.delayed(Duration.zero);
+      final next = runtime.execute('x');
+      await Future<void>.delayed(Duration.zero);
+      gate.complete();
+
+      await clearing;
+      expect(
+        await next.result.timeout(const Duration(seconds: 5)),
+        const MontyInt(4),
+      );
+      expect(sessions, hasLength(2));
     });
 
     test(
