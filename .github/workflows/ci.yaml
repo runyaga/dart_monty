@@ -402,6 +402,14 @@ jobs:
           # `coverage/*.json` glob matches nothing even on a perfectly healthy
           # run, which is how the first version of this guard failed a green
           # build. Measured: 0 files at the top level, 1 recursively.
+          # A suite whose tests were all skipped writes `{}` as its hitmap, and
+          # coverage 1.16 (main's last run resolved 1.15.1) rejects that file
+          # with a FormatException instead of ignoring it. Measured:
+          # format_coverage 1.16.0 on a `{}` hitmap exits 255. An empty object
+          # carries no coverage, so dropping it changes no number.
+          find coverage -name '*.json' -size -3c | while read -r f; do
+            if [ "$(cat "$f")" = '{}' ]; then rm -v "$f"; fi
+          done
           if [ -z "$(find coverage -name '*.json' -print -quit 2>/dev/null)" ]; then
             echo 'FAIL: no coverage hitmap JSON under coverage/ — dart test'
             echo '  --coverage produced nothing to format.'
@@ -515,6 +523,14 @@ jobs:
           # Same hitmap hazard as the unit job: format_coverage emits an empty
           # tracefile rather than failing when handed nothing, so refuse here
           # instead of uploading a file that silently lowers the merged number.
+          # A suite whose tests were all skipped writes `{}` as its hitmap, and
+          # coverage 1.16 (main's last run resolved 1.15.1) rejects that file
+          # with a FormatException instead of ignoring it. Measured:
+          # format_coverage 1.16.0 on a `{}` hitmap exits 255. An empty object
+          # carries no coverage, so dropping it changes no number.
+          find coverage-integration -name '*.json' -size -3c | while read -r f; do
+            if [ "$(cat "$f")" = '{}' ]; then rm -v "$f"; fi
+          done
           dart run coverage:format_coverage \
             --lcov --in=coverage-integration \
             --out=coverage-integration/lcov.info --report-on=lib
