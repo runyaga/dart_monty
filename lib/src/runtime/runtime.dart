@@ -427,6 +427,8 @@ class MontyRuntime implements MontyRuntimeRef {
     OsHandler? os,
     Map<String, MontyValue>? values,
   ) async {
+    // A clearState in progress brings its own session: no re-checkout.
+    await _clearingDone(run);
     if (_sharedStale) {
       final fresh = await _checkoutFor(run, _checkoutLive);
       // ignore: no-equal-nested-conditions, the await above may change it.
@@ -609,11 +611,11 @@ class MontyRuntime implements MontyRuntimeRef {
     }
   }
 
-  /// The shared bridge, with the extensions attached, once a clearState in
-  /// progress has ended; [run], when given, stops the wait.
-  Future<SessionBridge> _attachShared([_Execution? run]) async {
-    final clearing = _clearing;
-    if (clearing != null) {
+  /// Returns once no clearState is in progress, each one that starts during
+  /// the wait included; [run], when given and stopped, ends the wait with
+  /// [StateError].
+  Future<void> _clearingDone(_Execution? run) async {
+    for (var clearing = _clearing; clearing != null; clearing = _clearing) {
       final stopped = await Future.any<bool>([
         _settled(clearing),
         if (run != null) _stoppedTrue(run),
@@ -622,6 +624,14 @@ class MontyRuntime implements MontyRuntimeRef {
         throw StateError('The execution was cancelled before it started');
       }
     }
+  }
+
+  /// The shared bridge, with the extensions attached, once no clearState is
+  /// in progress; [run], when given, stops the wait.
+  Future<SessionBridge> _attachShared([_Execution? run]) async {
+    await _clearingDone(run);
+    // From here to the attachment's start nothing awaits, so a clearState
+    // that starts later sees the attachment and waits for it.
     if (_disposed) throw StateError('MontyRuntime has been disposed');
     final bridge = _sharedBridge!;
     await (_sharedAttach ??= _sharedRegistry!.attachTo(bridge, baseOs: _os));
