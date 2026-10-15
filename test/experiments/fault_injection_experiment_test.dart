@@ -66,7 +66,8 @@ result
         ..registerTool('stable_op', (args, ctx) async => 42)
         ..injectFault('risky_op', ToolFault.throws(Exception('boom')));
 
-      await h.run('risky_op()'); // error — recorded
+      // The host error reaches Python as an uncaught exception.
+      await expectLater(h.run('risky_op()'), throwsA(isA<MontyError>()));
 
       final r = await h.run('stable_op()');
       expect(r.dartValue, 42);
@@ -299,7 +300,10 @@ log_event(event='end', seq=2)
 
     test('failed calls have error recorded', () async {
       h.injectFault('log_event', ToolFault.throws(Exception('boom')));
-      await h.run("log_event(event='fail')");
+      await expectLater(
+        h.run("log_event(event='fail')"),
+        throwsA(isA<MontyError>()),
+      );
 
       final calls = h.callsTo('log_event');
       expect(calls.first.succeeded, isFalse);
