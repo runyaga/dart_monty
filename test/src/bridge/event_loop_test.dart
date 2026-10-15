@@ -525,8 +525,17 @@ void main() {
       final syncPlugin = EventLoopExtension();
       final syncBridge = SessionBridge(session: syncMock);
       await syncPlugin.onAttach(syncBridge);
+      // Each function registered as an unmarked (sync-mode) copy, so the
+      // call is answered in place rather than through the futures protocol.
       for (final fn in syncPlugin.functions) {
-        syncBridge.register(fn, category: syncPlugin.namespace);
+        syncBridge.register(
+          HostFunction(
+            schema: fn.schema,
+            ffiHandler: fn.ffiHandler,
+            wasmHandler: fn.wasmHandler,
+          ),
+          category: syncPlugin.namespace,
+        );
       }
       addTearDown(() async {
         await syncPlugin.onDispose();
