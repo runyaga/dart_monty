@@ -458,6 +458,29 @@ void main() {
       expect(held.feeds, ['boom', 'x']);
     });
 
+    test('a crash of a session clearState already replaced keeps the new '
+        'one', () async {
+      final runtime = await start();
+      sessions.single.willHold(Completer<void>().future);
+      final running = runtime.execute('loop()');
+      await Future<void>.delayed(Duration.zero);
+      final failed = expectLater(
+        running.result,
+        throwsA(isA<MontyCrashedError>()),
+      );
+
+      // clearState closes the busy session, whose feed then fails.
+      await runtime.clearState();
+      await failed;
+      final cleared = sessions.last;
+
+      expect(sessions, hasLength(2));
+      cleared.willReturn(const MontyInt(7));
+      expect(await runtime.execute('x').result, const MontyInt(7));
+      expect(sessions, hasLength(2));
+      expect(cleared.isClosed, isFalse);
+    });
+
     test('the replacement keeps the attached extensions and does not count '
         'as a clearState', () async {
       final ext = _CountingExtension();
