@@ -51,6 +51,7 @@ class SessionBridge implements MontyBridge {
   /// A shared-mode runtime replaces it with a fresh checkout after a cancel
   /// closed the one before; the functions and extensions stay registered.
   @internal
+  // ignore: dispose-class-fields, the runtime that checked it out closes it.
   MontySession session;
 
   @override

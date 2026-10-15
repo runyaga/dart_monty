@@ -30,7 +30,7 @@ typedef RuntimeCheckout =
 int defaultPoolSize(List<MontyExtension>? extensions) {
   final sandbox = extensions?.whereType<SandboxExtension>().firstOrNull;
 
-  return 2 + (sandbox?.maxChildren ?? 0);
+  return (sandbox?.maxChildren ?? 0) + 2;
 }
 
 /// Starts a [MontyRuntime] whose sessions come from [checkout] instead of a
@@ -176,49 +176,6 @@ class MontyRuntime implements MontyRuntimeRef {
       if (owned) await monty.close();
       rethrow;
     }
-  }
-
-  static Future<MontyRuntime> _start({
-    required RuntimeCheckout checkout,
-    required Future<void> Function()? closePool,
-    required OsHandler? os,
-    required Map<String, OsHandler>? osHandlers,
-    required List<MontyExtension>? extensions,
-    required BridgeLogger? logger,
-    required bool sandbox,
-  }) async {
-    assert(
-      os == null || osHandlers == null,
-      'Pass either os or osHandlers, not both.',
-    );
-    final runtime = MontyRuntime._(
-      checkout: checkout,
-      closePool: closePool,
-      os: os ?? (osHandlers != null ? composeOsHandlers(osHandlers) : null),
-      extensions: extensions,
-      logger: logger,
-      sandbox: sandbox,
-    );
-    if (!sandbox) await runtime._openShared();
-
-    return runtime;
-  }
-
-  /// Checks out the held session and builds its bridge and coordinator.
-  Future<void> _openShared() async {
-    final session = await _checkout();
-    final bridge = SessionBridge(
-      session: session,
-      logger: _logger,
-      runtime: this,
-    );
-    _extraFunctions.forEach(bridge.register);
-    final registry = ExtensionCoordinator();
-    _extensions?.forEach(registry.register);
-    _sharedBridge = bridge;
-    _sharedRegistry = registry;
-    _sharedAttached = false;
-    _sharedStale = false;
   }
 
   /// All registered tool schemas — feed these to an LLM as tool definitions.
@@ -513,6 +470,51 @@ class MontyRuntime implements MontyRuntimeRef {
     if (error != null) Error.throwWithStackTrace(error, stackTrace!);
 
     return value!;
+  }
+
+  /// Builds the runtime over [checkout]; a shared-mode one checks out its
+  /// session first.
+  static Future<MontyRuntime> _start({
+    required RuntimeCheckout checkout,
+    required Future<void> Function()? closePool,
+    required OsHandler? os,
+    required Map<String, OsHandler>? osHandlers,
+    required List<MontyExtension>? extensions,
+    required BridgeLogger? logger,
+    required bool sandbox,
+  }) async {
+    assert(
+      os == null || osHandlers == null,
+      'Pass either os or osHandlers, not both.',
+    );
+    final runtime = MontyRuntime._(
+      checkout: checkout,
+      closePool: closePool,
+      os: os ?? (osHandlers != null ? composeOsHandlers(osHandlers) : null),
+      extensions: extensions,
+      logger: logger,
+      sandbox: sandbox,
+    );
+    if (!sandbox) await runtime._openShared();
+
+    return runtime;
+  }
+
+  /// Checks out the held session and builds its bridge and coordinator.
+  Future<void> _openShared() async {
+    final session = await _checkout();
+    final bridge = SessionBridge(
+      session: session,
+      logger: _logger,
+      runtime: this,
+    );
+    _extraFunctions.forEach(bridge.register);
+    final registry = ExtensionCoordinator();
+    _extensions?.forEach(registry.register);
+    _sharedBridge = bridge;
+    _sharedRegistry = registry;
+    _sharedAttached = false;
+    _sharedStale = false;
   }
 
   /// The shared bridge, with the extensions attached.
