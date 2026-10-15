@@ -6,16 +6,16 @@ import 'package:meta/meta.dart';
 
 /// How the bridge dispatches calls to a [HostFunction].
 enum DispatchMode {
-  /// Bridge awaits the handler's Future before resuming Python. Python
-  /// sees a plain value at the call site. Use for functions with
-  /// FIFO ordering invariants (e.g. MessageBus) or simple request-
-  /// response handlers that don't benefit from concurrency.
+  /// The session awaits the handler's Future before Python continues.
+  /// Python sees a plain value at the call site, as from a `def`. Use for
+  /// functions with FIFO ordering invariants (e.g. MessageBus) or simple
+  /// request-response handlers that don't benefit from concurrency.
   sync,
 
-  /// Bridge launches the handler unawaited, replies with
-  /// `resumeAsFuture()`, batch-resolves via `resolveFutures` when
-  /// Python suspends. Enables `asyncio.gather` parallelism and
-  /// `await ext()` from Python.
+  /// The handler is core's `coroutine`, as an `async def` host function:
+  /// Python gets an awaitable, settled when the handler's Future
+  /// completes. Enables `asyncio.gather` parallelism and `await ext()`
+  /// from Python.
   future,
 }
 

@@ -1,7 +1,11 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:dart_monty/src/bridge/event.dart';
 import 'package:dart_monty/src/bridge/logger.dart';
 import 'package:dart_monty/src/host/context.dart';
-import 'package:dart_monty/src/host/function.dart' show HostFunction;
+import 'package:dart_monty/src/host/function.dart'
+    show DispatchMode, HostFunction;
 import 'package:dart_monty/src/host/schema.dart';
 import 'package:dart_monty/src/runtime/runtime_ref.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
@@ -135,5 +139,109 @@ class HostDispatch {
     );
 
     return fn.handler!(validatedArgs, ctx);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Calls from Python.
+  // ---------------------------------------------------------------------------
+
+  /// The registered functions as a feed's `externalLookup`, each wrapped so
+  /// its calls emit their events through [emit].
+  ///
+  /// A [DispatchMode.future] function is marked with core's [coroutine]: a
+  /// call is a coroutine in the sandbox, settled when its handler's future
+  /// completes. A [DispatchMode.sync] function is unmarked: core awaits the
+  /// handler and Python sees the value at the call site. A name not in the
+  /// map is Python's `NameError`, raised by the worker without reaching dm.
+  Map<String, MontyValue> externals(void Function(BridgeEvent) emit) => {
+    for (final MapEntry(key: name, value: fn) in _functions.entries)
+      name: MontyHostFunction(name, switch (fn.dispatch) {
+        DispatchMode.sync => (args, kwargs) => _call(fn, args, kwargs, emit),
+        DispatchMode.future => coroutine(
+          (args, kwargs) => _call(fn, args, kwargs, emit),
+        ),
+      }),
+  };
+
+  /// One call of [fn] from Python, with its events.
+  ///
+  /// Emits [BridgeCallStarted] and [BridgeFunctionCallStart], then either
+  /// [BridgeFunctionCallArgs] (the validated arguments as JSON) and
+  /// [BridgeFunctionCallEnd], the handler's own events, and the result, or,
+  /// when validation fails, the result alone. The result is
+  /// [BridgeFunctionCallResult] (the value's `toString()`, `''` for null, or
+  /// `Error: <error>`) followed by [BridgeCallFinished].
+  ///
+  /// The value reaches Python through [MontyValue.fromDart]. A failure,
+  /// validation's or the handler's (a value [MontyValue.fromDart] refuses
+  /// included), is thrown as `ExternalException('RuntimeError', text)`,
+  /// except a handler's own [ExternalException], which is thrown as it is.
+  Future<MontyValue> _call(
+    HostFunction fn,
+    List<MontyValue> args,
+    Map<String, MontyValue> kwargs,
+    void Function(BridgeEvent) emit,
+  ) async {
+    final name = fn.schema.name;
+    final callId = nextId;
+    _log.trace('Host function call', attributes: {'name': name});
+    emit(BridgeCallStarted(callId: callId));
+    emit(BridgeFunctionCallStart(callId: callId, name: name));
+    void fail(Object error) {
+      emit(BridgeFunctionCallResult(callId: callId, result: 'Error: $error'));
+      emit(BridgeCallFinished(callId: callId));
+    }
+
+    final Map<String, Object?> validated;
+    try {
+      validated = fn.schema.mapAndValidate(args, kwargs);
+    } on Object catch (e) {
+      _log.warning(
+        'Argument validation failed',
+        attributes: {'function': name, 'error': '$e'},
+      );
+      fail(e);
+      throw ExternalException('RuntimeError', '$e');
+    }
+    emit(
+      BridgeFunctionCallArgs(
+        callId: callId,
+        delta: jsonEncode(validated, toEncodable: (o) => '$o'),
+      ),
+    );
+    emit(BridgeFunctionCallEnd(callId: callId));
+
+    final ctx = HostContext(
+      emit: emit,
+      executionId: callId,
+      os: osHandler,
+      parent: _runtime,
+      subExecute: _defaultSubExecute,
+    );
+    final Object? result;
+    final MontyValue value;
+    try {
+      result = await fn.handler!(validated, ctx);
+      value = MontyValue.fromDart(result);
+    } on Object catch (e, st) {
+      _log.error(
+        'Host handler error',
+        error: e,
+        stackTrace: st,
+        attributes: {'function': name},
+      );
+      fail(e);
+      if (e is ExternalException) rethrow;
+      throw ExternalException('RuntimeError', '$e');
+    }
+    emit(
+      BridgeFunctionCallResult(
+        callId: callId,
+        result: result?.toString() ?? '',
+      ),
+    );
+    emit(BridgeCallFinished(callId: callId));
+
+    return value;
   }
 }
