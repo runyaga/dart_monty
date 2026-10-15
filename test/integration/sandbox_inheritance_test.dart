@@ -1,5 +1,5 @@
 @TestOn('vm')
-@Tags(['integration', 'd1-pending'])
+@Tags(['integration'])
 library;
 
 import 'package:dart_monty/dart_monty.dart';
@@ -55,7 +55,7 @@ void main() {
   // Baseline: child sandboxs work without plugins
   // ---------------------------------------------------------------------------
 
-  group('baseline (no plugins)', () {
+  group('baseline (no plugins)', tags: 'd1-pending', () {
     test('child sandbox computes and returns value', () async {
       final bridge = await createBridge();
       final registry = ExtensionCoordinator()
@@ -116,91 +116,103 @@ void main() {
       bridge.dispose();
     });
 
-    test('child inherits plugin via createChildInstance', () async {
-      final bridge = await createBridge();
-      final greeter = _GreeterExtension();
-      final registry = ExtensionCoordinator()
-        ..register(greeter)
-        ..register(
-          SandboxExtension(),
+    test(
+      'child inherits plugin via createChildInstance',
+      tags: 'd1-pending',
+      () async {
+        final bridge = await createBridge();
+        final greeter = _GreeterExtension();
+        final registry = ExtensionCoordinator()
+          ..register(greeter)
+          ..register(
+            SandboxExtension(),
+          );
+        await registry.attachTo(bridge);
+
+        // Child bridge dispatch is sync by default — direct calls.
+        const cc = r'greeter_hello(name=\"child\")';
+        final result = await run(
+          bridge,
+          'h = ${spawn(cc)}\n'
+          'sandbox_await(handle=h)',
         );
-      await registry.attachTo(bridge);
 
-      // Child bridge dispatch is sync by default — direct calls.
-      const cc = r'greeter_hello(name=\"child\")';
-      final result = await run(
-        bridge,
-        'h = ${spawn(cc)}\n'
-        'sandbox_await(handle=h)',
-      );
+        expect(result, 'Hello, child!');
+        bridge.dispose();
+      },
+    );
 
-      expect(result, 'Hello, child!');
-      bridge.dispose();
-    });
+    test(
+      'child without inheritable plugins errors on call',
+      tags: 'd1-pending',
+      () async {
+        final bridge = await createBridge();
+        final registry = ExtensionCoordinator()
+          ..register(
+            SandboxExtension(),
+          );
+        await registry.attachTo(bridge);
 
-    test('child without inheritable plugins errors on call', () async {
-      final bridge = await createBridge();
-      final registry = ExtensionCoordinator()
-        ..register(
-          SandboxExtension(),
+        // Child calls greeter_hello — not available (no inheritance).
+        const cc = r'greeter_hello(name=\"test\")';
+        final result = await run(
+          bridge,
+          'h = ${spawn(cc)}\n'
+          'try:\n'
+          '    sandbox_await(handle=h)\n'
+          '    result = "should_not_reach"\n'
+          'except:\n'
+          '    result = "error_caught"\n'
+          'result',
         );
-      await registry.attachTo(bridge);
 
-      // Child calls greeter_hello — not available (no inheritance).
-      const cc = r'greeter_hello(name=\"test\")';
-      final result = await run(
-        bridge,
-        'h = ${spawn(cc)}\n'
-        'try:\n'
-        '    sandbox_await(handle=h)\n'
-        '    result = "should_not_reach"\n'
-        'except:\n'
-        '    result = "error_caught"\n'
-        'result',
-      );
+        expect(result, 'error_caught');
+        bridge.dispose();
+      },
+    );
 
-      expect(result, 'error_caught');
-      bridge.dispose();
-    });
+    test(
+      'multiple children get independent plugin instances',
+      tags: 'd1-pending',
+      () async {
+        final bridge = await createBridge();
+        final counter = _CounterExtension();
+        final registry = ExtensionCoordinator()
+          ..register(counter)
+          ..register(
+            SandboxExtension(),
+          );
+        await registry.attachTo(bridge);
 
-    test('multiple children get independent plugin instances', () async {
-      final bridge = await createBridge();
-      final counter = _CounterExtension();
-      final registry = ExtensionCoordinator()
-        ..register(counter)
-        ..register(
-          SandboxExtension(),
+        // Each child increments its own counter independently.
+        // Dispatch is sync (DispatchMode.sync default) — direct calls, no async/await needed.
+        final cc = ['counter_increment()', 'counter_get()'].join(r'\n');
+        final result = await run(
+          bridge,
+          'h1 = ${spawn(cc)}\n'
+          'h2 = ${spawn(cc)}\n'
+          'r1 = sandbox_await(handle=h1)\n'
+          'r2 = sandbox_await(handle=h2)\n'
+          '[r1, r2]',
         );
-      await registry.attachTo(bridge);
 
-      // Each child increments its own counter independently.
-      // Dispatch is sync (DispatchMode.sync default) — direct calls, no async/await needed.
-      final cc = ['counter_increment()', 'counter_get()'].join(r'\n');
-      final result = await run(
-        bridge,
-        'h1 = ${spawn(cc)}\n'
-        'h2 = ${spawn(cc)}\n'
-        'r1 = sandbox_await(handle=h1)\n'
-        'r2 = sandbox_await(handle=h2)\n'
-        '[r1, r2]',
-      );
+        final results = result! as List;
+        // Each child has its own counter starting at 0.
+        expect(results[0], 1);
+        expect(results[1], 1);
 
-      final results = result! as List;
-      // Each child has its own counter starting at 0.
-      expect(results[0], 1);
-      expect(results[1], 1);
-
-      // Parent counter untouched.
-      expect(counter.count, 0);
-      bridge.dispose();
-    });
+        // Parent counter untouched.
+        expect(counter.count, 0);
+        bridge.dispose();
+      },
+    );
   });
 
   // ---------------------------------------------------------------------------
   // ChildSpawnContext threading
   // ---------------------------------------------------------------------------
 
-  group('ChildSpawnContext threading', () {
+  group('ChildSpawnContext threading', tags: 'd1-pending', () {
     test(
       'child receives context with working directory via real FFI',
       () async {

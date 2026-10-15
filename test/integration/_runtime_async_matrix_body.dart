@@ -237,6 +237,7 @@ results
     test('DispatchMode.future: gather of slow handlers takes ~one delay, '
         'not sum-of-delays', () async {
       const delayMs = 200;
+      final sw = Stopwatch();
       final runtime = (await MontyRuntime.start())
         ..register(
           HostFunction(
@@ -246,6 +247,9 @@ results
               params: [HostParam(name: 'n', type: HostParamType.integer)],
             ),
             handler: (args, _) async {
+              // Timed from the first handler start, so worker start-up and
+              // the feed's own overhead are not counted.
+              if (!sw.isRunning) sw.start();
               await Future<void>.delayed(
                 const Duration(milliseconds: delayMs),
               );
@@ -257,7 +261,6 @@ results
         );
       addTearDown(runtime.dispose);
 
-      final sw = Stopwatch()..start();
       final r = await runtime.execute('''
 import asyncio
 await asyncio.gather(slow(1), slow(2), slow(3))
@@ -265,9 +268,10 @@ await asyncio.gather(slow(1), slow(2), slow(3))
       sw.stop();
 
       expect(r.dartValue, [1, 2, 3]);
-      // Sequential would be ~3*delayMs (600ms). Concurrent is ~delayMs
-      // plus dispatch overhead. Use 2x delay as the upper bound — well
-      // below the sequential lower bound and well above any noise.
+      // Sequential would be ~3*delayMs (600ms) from the first handler
+      // start. Concurrent is ~delayMs plus the feed's settling. Use 2x
+      // delay as the upper bound: below the sequential lower bound and
+      // above the noise.
       expect(
         sw.elapsedMilliseconds,
         lessThan(delayMs * 2),

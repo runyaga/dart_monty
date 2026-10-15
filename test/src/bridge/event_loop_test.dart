@@ -85,7 +85,6 @@ void main() {
 
     test(
       'events queued while Python busy are delivered on next recv',
-      tags: _pending,
       () async {
         // First recv returns queued event, second waits for dispatch.
         fake
@@ -119,7 +118,6 @@ void main() {
 
     test(
       'multiple queued events delivered in FIFO order',
-      tags: _pending,
       () async {
         fake
           // First el_recv — will consume first queued event.
@@ -190,7 +188,7 @@ void main() {
   });
 
   group('emit', () {
-    test('stores value in lastEmitted', tags: _pending, () async {
+    test('stores value in lastEmitted', () async {
       fake
         ..willCall(
           'el_emit',
@@ -209,7 +207,7 @@ void main() {
       expect(plugin.lastEmitted, {'type': 'counter', 'value': 0});
     });
 
-    test('lastEmitted tracks most recent value', tags: _pending, () async {
+    test('lastEmitted tracks most recent value', () async {
       fake
         ..willCall(
           'el_emit',
@@ -397,7 +395,6 @@ void main() {
 
     test(
       'lastEmittedSignal updates when el_emit is called',
-      tags: _pending,
       () async {
         fake
           ..willCall(
@@ -586,7 +583,6 @@ void main() {
 
     test(
       'dispatch is allowed after re-execute following completion',
-      tags: _pending,
       () async {
         // First execution completes.
         fake.willReturn(const MontyNone());
@@ -615,7 +611,7 @@ void main() {
       },
     );
 
-    test('el_emit does not cause execution error', tags: _pending, () async {
+    test('el_emit does not cause execution error', () async {
       // Structural property: _handleEmit only updates a signal.
       // No callback path exists that could throw and propagate to
       // an exception answer to the call. This test verifies that

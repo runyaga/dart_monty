@@ -1,7 +1,7 @@
 /// Tests raw bridge.execute() with HTTP host functions.
 /// No MontyRuntime state wrapping — isolates whether the bug is in state
 /// wrapping or in the FFI/bridge layer itself.
-@Tags(['integration', 'd1-pending'])
+@Tags(['integration'])
 library;
 
 // Integration test uses print for progress output.
@@ -99,6 +99,7 @@ void main() {
       await session.dispose();
     },
     timeout: const Timeout(Duration(seconds: 60)),
+    tags: 'd1-pending',
   );
 
   test(
@@ -116,5 +117,6 @@ void main() {
       await session.dispose();
     },
     timeout: const Timeout(Duration(seconds: 60)),
+    tags: 'd1-pending',
   );
 }
