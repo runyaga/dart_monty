@@ -20,9 +20,12 @@ void main() {
   int? slots;
   // When set, scripts each session as it is checked out.
   void Function(FakeMontySession session)? onCheckout;
+  // The limits of each checkout, in order.
+  late List<ResourceLimits?> checkoutLimits;
 
   /// A checkout that hands out the next scripted session.
   Future<MontySession> checkout({ResourceLimits? limits}) async {
+    checkoutLimits.add(limits);
     await checkoutGate?.future;
     final limit = slots;
     while (limit != null &&
@@ -41,6 +44,7 @@ void main() {
     OsHandler? os,
     Map<String, OsHandler>? osHandlers,
     List<MontyExtension>? extensions,
+    ResourceLimits? limits,
   }) async {
     final runtime = await startRuntimeWith(
       checkout: checkout,
@@ -49,6 +53,7 @@ void main() {
       osHandlers: osHandlers,
       extensions: extensions,
       sandbox: sandbox,
+      limits: limits,
     );
     addTearDown(runtime.dispose);
 
@@ -57,6 +62,7 @@ void main() {
 
   setUp(() {
     sessions = [];
+    checkoutLimits = [];
     poolCloses = 0;
     checkoutGate = null;
     onCheckout = null;
@@ -268,6 +274,169 @@ void main() {
       await runtime.execute('b').result;
 
       expect(seen, ['override', 'runtime']);
+    });
+  });
+
+  group('root-session limits', () {
+    const limits = ResourceLimits(
+      maxFeedDuration: Duration(milliseconds: 200),
+      maxMemory: 1 << 20,
+    );
+
+    test('shared mode checks out the held session with them', () async {
+      await start(limits: limits);
+
+      expect(checkoutLimits, [limits]);
+    });
+
+    test('a clearState and a replacement check out with them too', () async {
+      final runtime = await start(limits: limits);
+      await runtime.clearState();
+      sessions.last.willCrash();
+      await expectLater(
+        runtime.execute('boom').result,
+        throwsA(isA<MontyCrashedError>()),
+      );
+      final next = runtime.execute('x');
+      await Future<void>.delayed(Duration.zero);
+      sessions.last.willReturn(const MontyNone());
+      await next.result;
+
+      expect(checkoutLimits, [limits, limits, limits]);
+    });
+
+    test('sandbox mode checks out each execution with them', () async {
+      final runtime = await start(sandbox: true, limits: limits);
+      onCheckout = (s) => s.willReturn(const MontyNone());
+      await runtime.execute('a').result;
+      await runtime.execute('b').result;
+
+      expect(checkoutLimits, [limits, limits]);
+    });
+
+    test('a sub-execution keeps the default limits', () async {
+      final runtime = await start(limits: limits);
+      runtime.register(
+        HostFunction(
+          schema: const HostFunctionSchema(name: 'sub', description: 'sub'),
+          handler: (_, context) => context.subExecute!('1'),
+        ),
+      );
+      onCheckout = (s) => s.willReturn(const MontyInt(1));
+      sessions.single
+        ..willCall('sub')
+        ..willReturn(const MontyNone());
+      await runtime.execute('sub()').result;
+
+      expect(checkoutLimits, [limits, null]);
+    });
+
+    test('without limits every checkout has none', () async {
+      final runtime = await start();
+      await runtime.clearState();
+
+      expect(checkoutLimits, [null, null]);
+    });
+  });
+
+  group('shared session replacement', () {
+    Future<void> failsWith(
+      MontyRuntime runtime,
+      Matcher matcher,
+    ) => expectLater(runtime.execute('boom').result, throwsA(matcher));
+
+    Future<MontyValue> nextValue(MontyRuntime runtime) async {
+      final next = runtime.execute('x');
+      await Future<void>.delayed(Duration.zero);
+      sessions.last.willReturn(const MontyInt(7));
+
+      return next.result;
+    }
+
+    test('a worker crash closes the held session, and the next execute runs '
+        'on a fresh checkout', () async {
+      final runtime = await start();
+      final held = sessions.single..willCrash();
+
+      await failsWith(runtime, isA<MontyCrashedError>());
+
+      expect(held.isClosed, isTrue);
+      expect(await nextValue(runtime), const MontyInt(7));
+      expect(sessions, hasLength(2));
+      expect(sessions.last.feeds, ['x']);
+    });
+
+    for (final type in ['MemoryError', 'TimeoutError']) {
+      test('a $type ends the held session: the next execute runs on a '
+          'fresh checkout', () async {
+        final runtime = await start();
+        final held = sessions.single..willRaise(type, message: 'limit');
+
+        await failsWith(
+          runtime,
+          isA<MontyError>().having(
+            (e) => e.exception.excType,
+            'excType',
+            type,
+          ),
+        );
+
+        expect(held.isClosed, isTrue);
+        expect(await nextValue(runtime), const MontyInt(7));
+        expect(sessions, hasLength(2));
+      });
+    }
+
+    test('an ordinary Python error keeps the held session', () async {
+      final runtime = await start();
+      final held = sessions.single..willRaise('ZeroDivisionError');
+
+      await failsWith(runtime, isA<MontyRuntimeError>());
+
+      expect(held.isClosed, isFalse);
+      held.willReturn(const MontyInt(7));
+      expect(await runtime.execute('x').result, const MontyInt(7));
+      expect(sessions, hasLength(1));
+      expect(held.feeds, ['boom', 'x']);
+    });
+
+    test('the replacement keeps the attached extensions and does not count '
+        'as a clearState', () async {
+      final ext = _CountingExtension();
+      final runtime = await start(extensions: [ext]);
+      sessions.single.willCrash();
+      await failsWith(runtime, isA<MontyCrashedError>());
+      await nextValue(runtime);
+
+      expect(ext.attaches, 1);
+      expect(ext.disposes, 0);
+      expect(runtime.schemas.map((s) => s.name), contains('counted_fn'));
+    });
+
+    test('a sub-executor built before the crash still runs', () async {
+      final runtime = await start();
+      runtime.register(
+        HostFunction(
+          schema: const HostFunctionSchema(name: 'sub', description: 'sub'),
+          handler: (_, context) => context.subExecute!('1'),
+        ),
+      );
+      sessions.single.willCrash();
+      await failsWith(runtime, isA<MontyCrashedError>());
+
+      onCheckout = (s) {
+        if (sessions.length == 1) {
+          s
+            ..willCall('sub')
+            ..willReturn(const MontyNone());
+        } else {
+          s.willReturn(const MontyInt(1));
+        }
+      };
+      await runtime.execute('sub()').result;
+
+      expect(sessions, hasLength(3));
+      expect(sessions.last.feeds, ['1']);
     });
   });
 
@@ -810,3 +979,32 @@ final _echo = HostFunction(
   ),
   handler: (args, _) async => args['value'],
 );
+
+/// Counts its attachments and disposals, and registers one function.
+final class _CountingExtension extends MontyExtension {
+  int attaches = 0;
+  int disposes = 0;
+
+  @override
+  String get namespace => 'counted';
+
+  @override
+  List<HostFunction> get functions => [
+    HostFunction(
+      schema: const HostFunctionSchema(name: 'counted_fn', description: 'c'),
+      handler: (_, _) async => null,
+    ),
+  ];
+
+  @override
+  Future<void> onAttach(AttachContext ctx) async {
+    await super.onAttach(ctx);
+    attaches++;
+  }
+
+  @override
+  Future<void> onDispose() async {
+    await super.onDispose();
+    disposes++;
+  }
+}

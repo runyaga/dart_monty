@@ -54,6 +54,7 @@ Future<MontyRuntime> startRuntimeWith({
   List<MontyExtension>? extensions,
   BridgeLogger? logger,
   bool sandbox = false,
+  ResourceLimits? limits,
 }) => MontyRuntime._start(
   checkout: checkout,
   closePool: closePool,
@@ -62,6 +63,7 @@ Future<MontyRuntime> startRuntimeWith({
   extensions: extensions,
   logger: logger,
   sandbox: sandbox,
+  limits: limits,
 );
 
 /// High-level agent session — stateful Python execution with tools and
@@ -96,12 +98,14 @@ class MontyRuntime implements MontyRuntimeRef {
     required List<MontyExtension>? extensions,
     required BridgeLogger? logger,
     required bool sandbox,
+    required ResourceLimits? limits,
   }) : _checkout = checkout,
        _closePool = closePool,
        _os = os,
        _extensions = extensions,
        _logger = logger,
-       _sandbox = sandbox;
+       _sandbox = sandbox,
+       _limits = limits;
 
   /// How long a checkout from the runtime's default pool waits for a free
   /// worker before it fails with [TimeoutException].
@@ -113,6 +117,7 @@ class MontyRuntime implements MontyRuntimeRef {
   final List<MontyExtension>? _extensions;
   final BridgeLogger? _logger;
   final bool _sandbox;
+  final ResourceLimits? _limits;
 
   // Shared mode: the held session, its bridge and the coordinator.
   SessionBridge? _sharedBridge;
@@ -124,8 +129,8 @@ class MontyRuntime implements MontyRuntimeRef {
   // Shared mode: the clearState in progress; the next one waits for it.
   Future<void>? _clearing;
 
-  // Shared mode: a cancel closed the held session; the next execution
-  // checks out a fresh one.
+  // Shared mode: a cancel, a crash or a limit closed the held session; the
+  // next execution checks out a fresh one.
   bool _sharedStale = false;
 
   // Shared mode: the execution in progress, which holds the bridge.
@@ -163,6 +168,19 @@ class MontyRuntime implements MontyRuntimeRef {
   /// [os] is the OS handler of every feed; [osHandlers] is composed into
   /// one. Pass at most one of them. Extensions attach at the first
   /// `execute()` or [invoke], not here.
+  ///
+  /// [limits] are the resource limits of the sessions the runtime runs
+  /// `execute()` on: the held session in shared mode (and each one that
+  /// replaces it), each execution's session in sandbox mode. A
+  /// sub-execution's session keeps the default limits. Null keeps
+  /// upstream's defaults.
+  ///
+  /// In shared mode a feed that ends the held session replaces it: a
+  /// [MontyCrashedError] (the worker died or was killed), or a `MemoryError`
+  /// or `TimeoutError`, which a memory or time limit raises and after which
+  /// upstream says to discard the session. The session is closed, and the
+  /// next `execute()` checks out a fresh one, with empty globals; the
+  /// extensions stay attached, and it is not a [clearState].
   static Future<MontyRuntime> start({
     Monty? pool,
     OsHandler? os,
@@ -170,6 +188,7 @@ class MontyRuntime implements MontyRuntimeRef {
     List<MontyExtension>? extensions,
     BridgeLogger? logger,
     bool sandbox = false,
+    ResourceLimits? limits,
   }) async {
     assert(
       os == null || osHandlers == null,
@@ -192,6 +211,7 @@ class MontyRuntime implements MontyRuntimeRef {
         extensions: extensions,
         logger: logger,
         sandbox: sandbox,
+        limits: limits,
       );
     } on Object {
       if (owned) await monty.close();
@@ -519,17 +539,32 @@ class MontyRuntime implements MontyRuntimeRef {
       }
     }
     final bridge = await _attachShared(run);
-    await _hold(run, bridge.session);
+    final session = bridge.session;
+    await _hold(run, session);
 
-    return _drive(
-      run,
-      bridge.executeWith(
-        code,
-        inputs: values,
-        os: os,
-        cancelToken: run.token,
-      ),
-    );
+    try {
+      return await _drive(
+        run,
+        bridge.executeWith(
+          code,
+          inputs: values,
+          os: os,
+          cancelToken: run.token,
+        ),
+      );
+    } on MontyError catch (e) {
+      if (_endsSession(e)) await _retire(session);
+      rethrow;
+    }
+  }
+
+  /// Closes [session] when it is still the held one, so the next execution
+  /// checks out a fresh one; the bridge, its extensions and the clearState
+  /// count stay.
+  Future<void> _retire(MontySession session) async {
+    if (!identical(session, _sharedBridge?.session)) return;
+    _sharedStale = true;
+    await session.close();
   }
 
   Future<MontyValue> _runSandboxed(
@@ -538,7 +573,7 @@ class MontyRuntime implements MontyRuntimeRef {
     OsHandler? os,
     Map<String, MontyValue>? values,
   ) async {
-    final session = await _checkoutFor(run, _checkout);
+    final session = await _checkoutFor(run, _checkoutRoot);
     await _hold(run, session);
     final bridge = SessionBridge(
       session: session,
@@ -587,6 +622,7 @@ class MontyRuntime implements MontyRuntimeRef {
     required List<MontyExtension>? extensions,
     required BridgeLogger? logger,
     required bool sandbox,
+    required ResourceLimits? limits,
   }) async {
     assert(
       os == null || osHandlers == null,
@@ -599,6 +635,7 @@ class MontyRuntime implements MontyRuntimeRef {
       extensions: extensions,
       logger: logger,
       sandbox: sandbox,
+      limits: limits,
     );
     if (!sandbox) await runtime._openShared();
 
@@ -624,10 +661,13 @@ class MontyRuntime implements MontyRuntimeRef {
     _sharedStale = false;
   }
 
+  /// A checkout of a root session, with the runtime's limits.
+  Future<MontySession> _checkoutRoot() => _checkout(limits: _limits);
+
   /// A checkout for the shared mode; one that completes after [dispose] is
   /// closed, and throws [StateError].
   Future<MontySession> _checkoutLive() async {
-    final session = await _checkout();
+    final session = await _checkoutRoot();
     if (_disposed) {
       await session.close();
       throw StateError('MontyRuntime has been disposed');
@@ -776,6 +816,15 @@ Future<void> _closeOnArrival(Future<MontySession> pending) async {
   }
   await session.close();
 }
+
+/// Whether [error] leaves its session unusable: a dead worker, or a memory
+/// or time limit, after which upstream says to discard the session.
+bool _endsSession(MontyError error) =>
+    error is MontyCrashedError ||
+    switch (error.exception.excType) {
+      'MemoryError' || 'TimeoutError' => true,
+      _ => false,
+    };
 
 /// [inputs] as the feed's values, each through [MontyValue.fromDart].
 Map<String, MontyValue>? _inputValues(Map<String, Object?>? inputs) =>
