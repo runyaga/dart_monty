@@ -65,20 +65,27 @@ abstract class MontyBridge implements AttachContext {
     void Function(BridgeEvent)? onEvent,
   });
 
-  /// Registers an [OsHandler] for OS-level calls (pathlib, os, datetime).
+  /// Registers an [OsHandler] for OS-level calls (pathlib, os, datetime),
+  /// replacing the one registered before.
   ///
-  /// When Python code triggers an OS call and a handler is registered, the
-  /// bridge passes it to the session's feed.
+  /// The bridge passes the handler to each feed, wrapped to emit
+  /// [BridgeOsCallStart] and [BridgeOsCallResult] for every call it
+  /// receives. With no handler, the bridge passes none, and the worker
+  /// answers each OS call with its default. Calls the worker answers itself
+  /// (mounts, the OS policy) never reach the handler and emit no events.
   @override
   void registerOs(OsHandler handler);
 
-  /// Executes [code] and returns a stream of lifecycle events.
+  /// Executes [code] as one feed on the session and returns a stream of
+  /// lifecycle events:
+  /// 1. [BridgeRunStarted];
+  /// 2. the call events of each host-function and OS call the host answers;
+  /// 3. [BridgeRunFinished] or [BridgeRunError], carrying the print text
+  ///    collected during the run as `printOutput`.
   ///
-  /// Events follow the bridge lifecycle:
-  /// 1. [BridgeRunStarted]
-  /// 2. Per external function call: Step/ToolCall events + handler execution
-  /// 3. Buffered print output flushed as Text events
-  /// 4. [BridgeRunFinished] or [BridgeRunError]
+  /// A Python or worker failure ends the stream with [BridgeRunError]; the
+  /// stream itself does not error. Throws [StateError] if the bridge is
+  /// disposed or another execution is in progress.
   Stream<BridgeEvent> execute(String code);
 
   /// Releases resources.

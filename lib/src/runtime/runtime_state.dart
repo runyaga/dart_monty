@@ -1,9 +1,12 @@
 import 'package:dart_monty/src/bridge/event.dart';
+import 'package:dart_monty/src/bridge/run_failure.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 
 /// Extracts the terminal value from a completed bridge event list.
 ///
-/// A [BridgeRunError] carrying a [MontyError] throws that error. Throws
+/// A [BridgeRunError] carrying a [MontyError] throws that error. One the
+/// bridge emitted for any other throw rethrows that throw; any other
+/// [BridgeRunError] throws [StateError] with its message. Throws
 /// [StateError] if no [BridgeRunFinished]/[BridgeRunError] event exists.
 MontyValue extractBridgeResult(List<BridgeEvent> events) {
   for (final event in events.reversed) {
@@ -16,8 +19,10 @@ MontyValue extractBridgeResult(List<BridgeEvent> events) {
     if (event is BridgeRunError) {
       final exception = event.exception;
       if (exception != null) throw exception;
-      // A failure that is not a MontyError is D1-2's (Q19/Q40).
-      throw UnimplementedError('D1-2');
+      if (runFailureOf(event) case (final error, final stackTrace)) {
+        Error.throwWithStackTrace(error, stackTrace);
+      }
+      throw StateError(event.message);
     }
   }
 

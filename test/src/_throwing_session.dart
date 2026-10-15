@@ -69,3 +69,41 @@ final class ThrowingSession implements MontySession {
   @override
   Future<void> close() async {}
 }
+
+/// A session whose feed makes one OS call, [name] with [args], through the
+/// `os` handler it is given, records what that handler returned in
+/// [returned], awaits it, and completes with [MontyNone].
+final class OsProbeSession extends ThrowingSession {
+  /// A session whose feed calls the OS function [name] once.
+  OsProbeSession(this.name, [this.args = const []])
+    : super(StateError('feedStart is not scripted'));
+
+  /// The OS function the feed calls.
+  final String name;
+
+  /// Its positional arguments.
+  final List<MontyValue> args;
+
+  /// What the `os` handler returned, before it was awaited.
+  FutureOr<MontyValue>? returned;
+
+  @override
+  Future<MontyValue> feedRun(
+    String code, {
+    Map<String, Object>? inputs,
+    Map<
+      String,
+      FutureOr<MontyValue> Function(List<MontyValue>, Map<String, MontyValue>)
+    >?
+    externals,
+    FutureOr<void> Function(String stream, String text)? printCallback,
+    OsHandler? os,
+    bool skipTypeCheck = false,
+  }) async {
+    final answer = os!(name, args, const {});
+    returned = answer;
+    await answer;
+
+    return const MontyNone();
+  }
+}

@@ -41,8 +41,6 @@ void main() {
           throwsA(predicate((e) => '$e'.contains('kaboom'))),
         );
       },
-      // A failure that is not a MontyError: D1-2 (Q19/Q40).
-      tags: 'd1-pending',
     );
 
     test('throws BridgeRunError.exception when present', () async {

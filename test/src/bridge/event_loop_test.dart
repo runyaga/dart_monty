@@ -309,7 +309,7 @@ void main() {
   });
 
   group('channelState transitions', () {
-    test('idle -> executing -> completed', tags: _pending, () async {
+    test('idle -> executing -> completed', () async {
       expect(plugin.channelState, const EventLoopIdle());
 
       fake.willReturn(const MontyNone());
@@ -571,7 +571,6 @@ void main() {
   group('lifecycle and ownership', () {
     test(
       'dispatch throws StateError when plugin is completed',
-      tags: _pending,
       () async {
         fake.willReturn(const MontyNone());
 
@@ -648,7 +647,6 @@ void main() {
   group('bridge locking regression', () {
     test(
       'wrapper exception resets _isExecuting immediately (not after _run)',
-      tags: _pending,
       () async {
         // Regression: without the try-catch in SessionBridge.execute(),
         // a synchronously-throwing wrapper leaves _isExecuting = true until
@@ -727,7 +725,6 @@ void main() {
   group('ExtensionCoordinator integration', () {
     test(
       'ExtensionCoordinator.attachTo wires stream wrapper',
-      tags: _pending,
       () async {
         final mock2 = FakeMontySession()..willReturn(const MontyNone());
         final plugin2 = EventLoopExtension();
