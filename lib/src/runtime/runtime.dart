@@ -347,6 +347,7 @@ class MontyRuntime implements MontyRuntimeRef {
     final bridge = _sharedBridge!;
     final registry = _sharedRegistry!;
     try {
+      await _attachSettled();
       await registry.disposeAll();
     } finally {
       bridge.dispose();
@@ -367,12 +368,13 @@ class MontyRuntime implements MontyRuntimeRef {
     _disposed = true;
     for (final run in [..._live]) {
       run
-        ..cancelled = true
+        ..stop()
         ..token.cancel();
       await run.session?.close();
     }
     final bridge = _sharedBridge;
     try {
+      await _attachSettled();
       await _sharedRegistry?.disposeAll();
     } finally {
       bridge?.dispose();
@@ -420,7 +422,7 @@ class MontyRuntime implements MontyRuntimeRef {
   Future<void> _cancel(_Execution run) async {
     run.token.cancel();
     if (run.finished || run.cancelled) return;
-    run.cancelled = true;
+    run.stop();
     final session = run.session;
     if (session != null) await _closeBusy(run, session);
   }
@@ -448,11 +450,25 @@ class MontyRuntime implements MontyRuntimeRef {
     OsHandler? os,
     Map<String, MontyValue>? values,
   ) async {
-    final bridge = await _attachShared();
     if (_sharedStale) {
-      bridge.session = await _checkoutLive();
-      _sharedStale = false;
+      final fresh = await _checkoutFor(run, _checkoutLive);
+      if (_sharedStale && _clearing == null) {
+        _sharedBridge!.session = fresh;
+        _sharedStale = false;
+      } else {
+        // A clearState replaced the session meanwhile.
+        await fresh.close();
+      }
     }
+    final clearing = _clearing;
+    if (clearing != null) {
+      try {
+        await clearing;
+      } on Object {
+        // clearState reports its own failure.
+      }
+    }
+    final bridge = await _attachShared();
     await _hold(run, bridge.session);
 
     return _drive(
@@ -472,7 +488,7 @@ class MontyRuntime implements MontyRuntimeRef {
     OsHandler? os,
     Map<String, MontyValue>? values,
   ) async {
-    final session = await _checkout();
+    final session = await _checkoutFor(run, _checkout);
     await _hold(run, session);
     final bridge = SessionBridge(
       session: session,
@@ -568,6 +584,38 @@ class MontyRuntime implements MontyRuntimeRef {
     return session;
   }
 
+  /// [checkout]'s session for [run]. When [run] is stopped first, this
+  /// throws at once, and the session is closed when it arrives: a waiting
+  /// checkout cannot be withdrawn.
+  Future<MontySession> _checkoutFor(
+    _Execution run,
+    Future<MontySession> Function() checkout,
+  ) async {
+    final pending = checkout();
+    final session = await Future.any<MontySession?>([
+      pending,
+      run.stopped.future.then((_) => null),
+    ]);
+    if (session == null) {
+      unawaited(pending.then((s) => s.close(), onError: (Object _) {}));
+      throw StateError('The execution was cancelled before it started');
+    }
+
+    return session;
+  }
+
+  /// Waits for an attachment in progress, whatever its outcome, so the
+  /// extensions are disposed only after they attached.
+  Future<void> _attachSettled() async {
+    final attach = _sharedAttach;
+    if (attach == null) return;
+    try {
+      await attach;
+    } on Object {
+      // The execution or invoke that started it reports the failure.
+    }
+  }
+
   /// The shared bridge, with the extensions attached.
   Future<SessionBridge> _attachShared() async {
     final bridge = _sharedBridge!;
@@ -610,4 +658,13 @@ final class _Execution {
   MontySession? session;
   bool cancelled = false;
   bool finished = false;
+
+  /// Completes when the execution is cancelled or its runtime disposed.
+  final Completer<void> stopped = Completer<void>();
+
+  /// Marks the execution cancelled and completes [stopped].
+  void stop() {
+    cancelled = true;
+    if (!stopped.isCompleted) stopped.complete();
+  }
 }
