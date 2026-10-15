@@ -387,12 +387,12 @@ jobs:
       - name: Test
         run: |
           # A SUITE THAT REGISTERS NOTHING PRINTS SUCCESS AND EXITS 0.
-          # D1 branch: re-measured on D1-1's active tests (423 observed, 354
-          # more tagged d1-pending) and set just below. D1-Z restores a floor
+          # D1 branch: re-measured on D1-2's active tests (459 observed, the
+          # rest tagged d1-pending) and set just below. D1-Z restores a floor
           # at or above main's 450. Never lower it to make a run pass.
           set -o pipefail
           dart test --coverage=coverage --exclude-tags d1-pending 2>&1 | tee /tmp/unit.log
-          bash tool/assert_test_count.sh /tmp/unit.log 415 unit
+          bash tool/assert_test_count.sh /tmp/unit.log 451 unit
       - name: Generate LCOV
         run: |
           # A hitmap must exist, or format_coverage emits an empty tracefile and
@@ -493,10 +493,10 @@ jobs:
             --coverage=coverage-integration \
             --reporter=expanded 2>&1 | tee /tmp/integration.log
           # A suite that registers nothing prints success and exits 0.
-          # D1 branch: re-measured on D1-1's active tests (22 observed; the
+          # D1 branch: re-measured on D1-2's active tests (31 observed; the
           # rest are d1-pending) and set just below. D1-Z restores a floor at
           # or above main's 290. Never lower it to make a run pass.
-          bash tool/assert_test_count.sh /tmp/integration.log 20 integration
+          bash tool/assert_test_count.sh /tmp/integration.log 29 integration
       # MOVED HERE FROM THE DELETED `test-examples` JOB. The run above already
       # executes these four tests (example_smoke_test.dart is tagged both
       # `integration` and `example`), so a whole job — checkout, SDK, cache,
