@@ -183,6 +183,7 @@ class MontyRuntime implements MontyRuntimeRef {
   /// replaces the session too. The session is closed, and the next
   /// `execute()` checks out a fresh one, with empty globals; the extensions
   /// stay attached, and it is not a [clearState].
+  // ignore: number-of-parameters, the public options of a runtime.
   static Future<MontyRuntime> start({
     Monty? pool,
     OsHandler? os,
