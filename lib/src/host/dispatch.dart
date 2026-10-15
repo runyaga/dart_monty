@@ -230,17 +230,6 @@ class HostDispatch {
   /// The runtime's sub-executor, or none.
   final RuntimeSubExecutor? _subExecute;
 
-  /// A handler's [HostContext.subExecute]: the runtime's, bound to
-  /// [cancelToken], the token of the call's execution (none for a direct
-  /// invocation).
-  HostSubExecutor? _subExecuteFor(CancelToken? cancelToken) {
-    final subExecute = _subExecute;
-    if (subExecute == null) return null;
-
-    return (code, {inputs}) =>
-        subExecute(code, inputs: inputs, cancelToken: cancelToken);
-  }
-
   final Map<String, HostFunction> _functions = {};
   final Map<String, Set<String>> _categoryIndex = {};
 
@@ -372,6 +361,17 @@ class HostDispatch {
           ),
         }),
     };
+  }
+
+  /// A handler's [HostContext.subExecute]: the runtime's, bound to
+  /// [cancelToken], the token of the call's execution (none for a direct
+  /// invocation).
+  HostSubExecutor? _subExecuteFor(CancelToken? cancelToken) {
+    final subExecute = _subExecute;
+    if (subExecute == null) return null;
+
+    return (code, {inputs}) =>
+        subExecute(code, inputs: inputs, cancelToken: cancelToken);
   }
 
   /// One call of [fn] from Python, with its events.

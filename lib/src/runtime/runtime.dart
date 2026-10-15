@@ -391,13 +391,16 @@ class MontyRuntime implements MontyRuntimeRef {
     Map<String, Object?>? inputs,
     CancelToken? cancelToken,
   }) async {
-    String? stopped() => _disposed
-        ? 'MontyRuntime has been disposed'
-        : (cancelToken?.isCancelled ?? false)
-        ? 'The execution was cancelled'
-        : generation != _generation
-        ? 'The runtime state was cleared'
-        : null;
+    String? stopped() {
+      if (_disposed) return 'MontyRuntime has been disposed';
+      if (cancelToken?.isCancelled ?? false) {
+        return 'The execution was cancelled';
+      }
+      if (generation != _generation) return 'The runtime state was cleared';
+
+      return null;
+    }
+
     if (stopped() case final reason?) throw StateError(reason);
     final values = _inputValues(inputs);
     final session = await _checkout();
@@ -406,11 +409,12 @@ class MontyRuntime implements MontyRuntimeRef {
       throw StateError(reason);
     }
     _subSessions.add(session);
-    unawaited(
-      cancelToken?.future.then((_) {
-        if (_subSessions.contains(session)) return session.close();
-      }),
-    );
+    Future<void> closeOnCancel(CancelToken token) async {
+      await token.future;
+      if (_subSessions.contains(session)) await session.close();
+    }
+
+    if (cancelToken != null) unawaited(closeOnCancel(cancelToken));
     try {
       return await session.feedRun(code, inputs: values);
     } finally {
