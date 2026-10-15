@@ -540,8 +540,6 @@ class MontyRuntime implements MontyRuntimeRef {
       if (!_eventsController.isClosed) _eventsController.add(event);
       run.events.add(event);
     }
-    run.session = null;
-
     return extractBridgeResult(collected);
   }
 }
