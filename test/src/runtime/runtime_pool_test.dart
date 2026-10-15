@@ -667,6 +667,29 @@ void main() {
     });
 
     test(
+      'a clearState right after a first invoke waits for its attachment',
+      () async {
+        final gate = Completer<void>();
+        final log = <String>[];
+        final runtime = await start(extensions: [_Logged(gate.future, log)]);
+        final invoked = runtime
+            .invoke('missing', const {})
+            .then<Object?>(
+              (_) => null,
+              onError: (Object e) => e,
+            );
+        final clearing = runtime.clearState();
+        await Future<void>.delayed(Duration.zero);
+
+        gate.complete();
+        await clearing;
+        await invoked;
+
+        expect(log.take(3), ['attach start', 'attach end', 'dispose']);
+      },
+    );
+
+    test(
       'execute and invoke on first use attach the extensions once',
       () async {
         final gate = Completer<void>();
