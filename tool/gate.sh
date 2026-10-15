@@ -189,8 +189,9 @@ run_check "html escaping" bash tool/check_html_escaping.sh
 # WASM — and async_matrix_demo.dart.js did 404 on the live site while its page
 # returned 200. This assembles the site and drives headless Chrome at every
 # page. Exits 77 (a VISIBLE skip) when no browser is installed.
-# D1 branch: the example packages are ported in D1-10, which restores this.
-skip_check "demo pages boot" "D1 branch: examples ported in D1-10"
+# D1 branch: agent.html's sandbox examples need SandboxExtension's child
+# checkout (D1-8); D1-8 restores this.
+skip_check "demo pages boot" "D1 branch: sandbox examples need D1-8"
 # Ported from dart_monty_core. It asks one question of every public entry
 # point in lib/dart_monty.dart's export closure: does ANY file that runs
 # against a real backend call it? A unit test against a mock does not count —
@@ -383,8 +384,7 @@ fi
 if [[ "$DART_ONLY" == true ]]; then
   skip_check "Python ladder parity" "--dart-only flag"
 else
-  # D1 branch: the ladder builds example/web, ported in D1-10.
-  skip_check "Python ladder parity" "D1 branch: examples ported in D1-10"
+  run_check "Python ladder parity" bash tool/test_python_ladder.sh
 fi
 
 # -------------------------------------------------------

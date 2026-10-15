@@ -13,9 +13,6 @@ analyzer:
     - 'native/**'
     - 'main/**'
     - 'struct_log/**'
-    # D1 branch only: the example packages are ported to core 0.110 in D1-10,
-    # which removes this exclusion; D1-Z asserts it is gone.
-    - 'example/**'
 
   language:
     strict-casts: true

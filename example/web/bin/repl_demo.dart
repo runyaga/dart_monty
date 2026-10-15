@@ -1,5 +1,5 @@
 // Standalone JS-compiled demo, not a package:test file.
-// ignore_for_file: avoid_print, lines_longer_than_80_chars, avoid_catches_without_on_clauses, cast_nullable_to_non_nullable, invalid_null_aware_operator
+// ignore_for_file: avoid_print, lines_longer_than_80_chars, avoid_catches_without_on_clauses, cast_nullable_to_non_nullable
 // ignore_for_file: prefer-async-await
 // .then-chains in the JSFunction map below are the established JS-interop
 // idiom across web demos (cf. agent_demo.dart). Rewriting to async/await
@@ -21,6 +21,7 @@ import 'dart:js_interop';
 
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
+import 'package:web_example/demo_pool.dart';
 import 'package:web_example/demo_ready.dart';
 
 // ---------------------------------------------------------------------------
@@ -40,9 +41,10 @@ external void _jsOnToolCall(JSString jsonPayload);
 // State
 // ---------------------------------------------------------------------------
 
-MontyRuntime _session = _newSession();
+late final MontyRuntime _session;
 
-MontyRuntime _newSession() => MontyRuntime(
+Future<MontyRuntime> _newSession() async => MontyRuntime.start(
+      pool: await startDemoPool(),
       extensions: [MessageBusExtension()],
     );
 
@@ -51,12 +53,41 @@ MontyRuntime _newSession() => MontyRuntime(
 // ---------------------------------------------------------------------------
 
 /// Run Python code and return JSON result.
+///
+/// Printed text arrives on the execution's terminal event; the value, or
+/// the Python error, on its result.
 Future<String> _apiRun(String code) async {
+  final handle = _session.execute(code);
+  String? printOutput;
+  final events = handle.events.listen((event) {
+    switch (event) {
+      case BridgeRunFinished(printOutput: final text?):
+      case BridgeRunError(printOutput: final text?):
+        printOutput = text;
+      default:
+    }
+  });
   try {
-    final result = await _session.execute(code).result;
+    final value = await handle.result;
+    await events.asFuture<void>();
 
-    return jsonEncode(_resultToJson(result));
+    return jsonEncode({
+      'ok': true,
+      'value': value.dartValue,
+      'print_output': printOutput,
+    });
+  } on MontyError catch (e) {
+    await events.asFuture<void>();
+
+    return jsonEncode({
+      'ok': false,
+      'error': '${e.exception.excType}: ${e.exception.message ?? ''}',
+      'excType': e.exception.excType,
+      'print_output': printOutput,
+    });
   } catch (e) {
+    await events.cancel();
+
     return jsonEncode({'ok': false, 'error': e.toString()});
   }
 }
@@ -104,11 +135,11 @@ Future<String> _apiExecute(String code) async {
   }
 }
 
-/// Reset the session (dispose + recreate).
+/// Reset the session: clears every Python global and re-attaches the
+/// extensions on the next run.
 Future<String> _apiReset() async {
   try {
-    await _session.dispose();
-    _createSession();
+    await _session.clearState();
 
     return jsonEncode({'ok': true});
   } catch (e) {
@@ -117,34 +148,8 @@ Future<String> _apiReset() async {
 }
 
 // ---------------------------------------------------------------------------
-// Session factory
-// ---------------------------------------------------------------------------
-
-// SandboxExtension is FFI-only and cannot be used in a web build.
-void _createSession() {
-  _session = _newSession();
-}
-
-// ---------------------------------------------------------------------------
 // JSON helpers
 // ---------------------------------------------------------------------------
-
-Map<String, dynamic> _resultToJson(MontyResult result) {
-  if (!result.ok) {
-    return {
-      'ok': false,
-      'error': result.error?.message ?? 'Unknown error',
-      'excType': result.excType,
-      'print_output': result.printOutput,
-    };
-  }
-
-  return {
-    'ok': true,
-    'value': result.value?.dartValue,
-    'print_output': result.printOutput,
-  };
-}
 
 Map<String, dynamic>? _eventToJson(BridgeEvent event) {
   if (event is BridgeRunStarted) {
@@ -187,8 +192,16 @@ Map<String, dynamic>? _eventToJson(BridgeEvent event) {
 // Main
 // ---------------------------------------------------------------------------
 
-void main() {
+Future<void> main() async {
   print('[ReplSessionDemo] Starting...');
+
+  try {
+    _session = await _newSession();
+  } on Object catch (e) {
+    montyDemoFailed('repl_demo', 'could not start the runtime: $e');
+
+    return;
+  }
 
   // Expose API to window
   final api = <String, JSFunction>{
@@ -211,26 +224,16 @@ void main() {
     print('[ReplSessionDemo] Ready (no _onReady callback)');
   }
 
-  // THE ONLY DEMO WHOSE main() DOES NOT BOOT THE ENGINE.
-  //
-  // Every other entrypoint awaits DartMontyBridge.init() (or an equivalent)
-  // before it is usable, so "main() returned" is proof the WASM worker came
-  // up. This one is lazy by design: MontyRuntime initialises on the first
-  // execute(), which here is a button click. A gate that stopped at "main()
-  // returned" would therefore report green for a repl whose engine cannot
-  // start at all.
-  //
-  // So the boot signal is raised behind ONE real evaluation. It is unawaited
-  // and touches no DOM, so the page behaves exactly as before for a human;
-  // what changes is that the gate's green now means Python evaluated.
+  // The boot signal is raised behind ONE real evaluation, so the gate's
+  // green means Python evaluated, not merely that main() returned. It is
+  // unawaited and touches no DOM, so the page behaves the same for a human.
   unawaited(_signalBootReady());
 }
 
 /// Runs one Python expression so the boot signal means the engine works.
 Future<void> _signalBootReady() async {
   try {
-    final result = await _session.execute('2 + 2').result;
-    final value = result.value?.dartValue;
+    final value = (await _session.execute('2 + 2').result).dartValue;
     if (value == 4) {
       montyDemoReady('repl_demo');
     } else {

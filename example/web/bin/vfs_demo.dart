@@ -3,10 +3,14 @@
 /// Interactive VFS Demo — shows Python↔VFS round-trip in the browser.
 ///
 /// Compiled to JS, exposes functions to the HTML UI via window.VfsDemo.
+/// Each run feeds the code to a fresh session whose OS handler is an
+/// in-memory filesystem (`fsHandler` over a `MemoryFileSystem`); every OS
+/// call it answers is logged to the page. Clock calls (`date.today`,
+/// `datetime.now`) are answered by the session's own OS policy.
 ///
 /// Build:
-///   dart compile js test/wasm/integration/vfs_demo.dart \
-///     -o test/wasm/integration/web/vfs_demo.dart.js
+///   dart compile js example/web/bin/vfs_demo.dart \
+///     -o example/web/web/vfs_demo.dart.js
 library;
 
 import 'dart:async' show unawaited;
@@ -15,32 +19,10 @@ import 'dart:js_interop';
 
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
-import 'package:dart_monty/monty_backend_spi.dart';
 import 'package:file/file.dart';
 import 'package:file/memory.dart';
+import 'package:web_example/demo_pool.dart';
 import 'package:web_example/demo_ready.dart';
-
-// ---------------------------------------------------------------------------
-// JS interop — WASM bridge (static method API on window.DartMontyBridge)
-// ---------------------------------------------------------------------------
-
-@JS('DartMontyBridge.init')
-external JSPromise<JSBoolean> _bridgeInit();
-
-@JS('DartMontyBridge.start')
-external JSPromise<JSString> _bridgeStart(JSString code);
-
-@JS('DartMontyBridge.resume')
-external JSPromise<JSString> _bridgeResume(JSString valueJson);
-
-@JS('DartMontyBridge.resumeWithError')
-external JSPromise<JSString> _bridgeResumeWithError(JSString errorJson);
-
-@JS('DartMontyBridge.resumeWithException')
-external JSPromise<JSString> _bridgeResumeWithException(
-  JSString excTypeJson,
-  JSString errorJson,
-);
 
 // ---------------------------------------------------------------------------
 // JS interop — expose API to HTML
@@ -62,67 +44,29 @@ external void _jsOnFilesChanged(JSString filesJson);
 // State
 // ---------------------------------------------------------------------------
 
+late final Monty _pool;
 FileSystem _vfs = MemoryFileSystem();
-OsCallHandler _fs = fsHandler(_vfs);
-OsCallHandler _time = timeHandler();
+OsHandler _fs = fsHandler(_vfs);
 final _osCallLog = <Map<String, dynamic>>[];
 
 // ---------------------------------------------------------------------------
 // Core logic
 // ---------------------------------------------------------------------------
 
-Map<String, dynamic> _parse(String json) =>
-    jsonDecode(json) as Map<String, dynamic>;
-
-bool _isOsCall(String? fn) {
-  if (fn == null) return false;
-  // PathOp.open, NEVER THE LITERAL. monty v0.0.19 renamed this op from 'Open'
-  // to 'open' and the break is SILENT — a stale literal simply stops matching
-  // and falls through. This file carried `fn == 'Open'` and three published
-  // examples (open, binary, errors) failed on the live site with
-  // "Unhandled os_call: open" while the page around them booted perfectly
-  // clean. lib/src/os_call/path_op.dart warns about exactly this; the
-  // library's own composeOsHandlers compares against the constant.
-  return fn.startsWith('Path.') ||
-      fn == PathOp.open || // open() builtin (no Path. prefix)
-      fn.startsWith('date.') ||
-      fn.startsWith('datetime.');
-}
-
-Future<Object?> _handleOsCall(Map<String, dynamic> state) async {
-  final op = state['functionName'] as String;
-  final rawArgs = (state['args'] as List?) ?? const [];
-  // Unwrap typed JSON wrappers (e.g. {__type:'path', value:'…'} → String) so
-  // handlers see the same dartValue payloads they get from the REPL flow.
-  final args = rawArgs.map((a) => MontyValue.fromJson(a).dartValue).toList();
-
-  Map<String, Object?>? kwargs;
-  final rawKwargs = state['kwargs'] as Map<String, dynamic>?;
-  if (rawKwargs != null) {
-    kwargs = rawKwargs.map(
-      (k, v) => MapEntry(k, MontyValue.fromJson(v).dartValue),
-    );
-  }
-
+/// [_fs], logging each call it answers to the page.
+Future<MontyValue> _loggedOsCall(
+  String op,
+  List<MontyValue> args,
+  Map<String, MontyValue> kwargs,
+) async {
   final sw = Stopwatch()..start();
-  Object? result;
-
-  if (op.startsWith('Path.') || op == PathOp.open) {
-    // `open()` emits the prefix-less `open` OS-call; fsHandler services it.
-    result = await _fs(op, args, kwargs);
-  } else if (op.startsWith('date.') || op.startsWith('datetime.')) {
-    result = await _time(op, args, kwargs);
-  } else {
-    throw UnsupportedError('Unhandled os_call: $op');
-  }
-
+  final result = await _fs(op, args, kwargs);
   sw.stop();
 
-  // Log the os_call for the UI.
   final logEntry = {
     'op': op,
-    'args': args.map((a) => a.toString()).toList(),
-    'result': _summarize(result),
+    'args': args.map((a) => '${a.dartValue}').toList(),
+    'result': _summarize(result.dartValue),
     'durationMs': sw.elapsedMilliseconds,
   };
   _osCallLog.add(logEntry);
@@ -143,58 +87,30 @@ String _summarize(Object? value) {
   return s.length > 80 ? '${s.substring(0, 77)}...' : s;
 }
 
-Future<Map<String, dynamic>> _runWithVfs(String code) async {
+/// Runs [code] on a fresh session over a fresh VFS holding the staged
+/// files; the value, or the Python error as text.
+Future<({Object? value, String? error})> _runWithVfs(String code) async {
   _osCallLog.clear();
   _vfs = MemoryFileSystem();
   _fs = fsHandler(_vfs);
-  _time = timeHandler();
 
   // Mount any pre-staged files (set by mountFile before run).
   for (final entry in _stagedFiles.entries) {
     _writeVfsFile(entry.key, entry.value);
   }
 
-  var state = _parse((await _bridgeStart(code.toJS).toDart).toDart);
+  try {
+    final value = await _pool.withSession(
+      (session) => session.feedRun(code, os: _loggedOsCall),
+    );
 
-  while (state['state'] != 'complete') {
-    if (state['ok'] != true) return state;
-
-    if (state['state'] == 'os_call' ||
-        (state['state'] == 'pending' &&
-            _isOsCall(state['functionName'] as String?))) {
-      try {
-        final result = await _handleOsCall(state);
-        state = _parse(
-          (await _bridgeResume(jsonEncode(result).toJS).toDart).toDart,
-        );
-      } on OsCallException catch (e) {
-        // Deliver the handler's typed Python exception (e.g. FileNotFoundError)
-        // so the script can `except` it; fall back to RuntimeError otherwise.
-        final type = e.pythonExceptionType;
-        state = _parse(
-          (await (type != null
-                      ? _bridgeResumeWithException(
-                          jsonEncode(type).toJS,
-                          jsonEncode(e.message).toJS,
-                        )
-                      : _bridgeResumeWithError(jsonEncode(e.message).toJS))
-                  .toDart)
-              .toDart,
-        );
-      } on Object catch (e) {
-        state = _parse(
-          (await _bridgeResumeWithError(
-            jsonEncode(e.toString()).toJS,
-          ).toDart)
-              .toDart,
-        );
-      }
-    } else {
-      return {'ok': false, 'error': 'Unexpected state: ${state['state']}'};
-    }
+    return (value: value.dartValue, error: null);
+  } on MontyError catch (e) {
+    return (
+      value: null,
+      error: '${e.exception.excType}: ${e.exception.message ?? ''}',
+    );
   }
-
-  return state;
 }
 
 // ---------------------------------------------------------------------------
@@ -235,28 +151,16 @@ Future<String> _apiRun(String code) async {
   // Collect VFS file tree after execution.
   final files = await _collectFiles();
 
-  return jsonEncode({
-    'ok': result['ok'],
-    // DECODE THE WIRE ENVELOPE. `MontyValue.toJson()` means toWireJson() --
-    // its own doc says "JSON compatible with the Rust side" -- so passing it
-    // straight to the page printed the transport form:
-    //
-    //   {"__type":"dict","value":{"bytes":[0,1,2,255],...}}
-    //
-    // pydantic-monty 0.0.23, the reference, returns a plain dict for the same
-    // script: {'bytes': [0, 1, 2, 255], 'len': 4, 'type': "<class 'bytes'>"},
-    // and core's `.dartValue` matches it exactly. Only this display path
-    // leaked the envelope.
-    //
-    // This is the SAME unwrap already used for os-call arguments above
-    // ("so handlers see the same dartValue payloads they get from the REPL
-    // flow") -- it was applied to the inputs and not to the result.
-    if (result['value'] != null)
-      'value': MontyValue.fromJson(result['value']).dartValue,
-    if (result['error'] != null) 'error': result['error'],
-    'osCallLog': _osCallLog,
-    'files': files,
-  });
+  return jsonEncode(
+    {
+      'ok': result.error == null,
+      if (result.value != null) 'value': result.value,
+      if (result.error != null) 'error': result.error,
+      'osCallLog': _osCallLog,
+      'files': files,
+    },
+    toEncodable: (value) => '$value',
+  );
 }
 
 Future<List<Map<String, dynamic>>> _collectFiles() async {
@@ -302,9 +206,12 @@ Future<List<Map<String, dynamic>>> _collectFiles() async {
 
 Future<List<String>> _listDir(String path) async {
   try {
-    final r = await _fs('Path.iterdir', [path], null);
-    if (r is List) {
-      return r.map((e) => e is MontyPath ? e.value : e.toString()).toList();
+    final r = await _fs('Path.iterdir', [MontyPath(path)], const {});
+    if (r is MontyList) {
+      return [
+        for (final e in r.items)
+          if (e is MontyPath) e.value else '${e.dartValue}',
+      ];
     }
     return [];
   } on Object catch (_) {
@@ -329,16 +236,16 @@ Future<void> main() async {
   }.jsify();
   _vfsDemo = api! as JSObject;
 
-  // Initialize WASM bridge (static method API).
-  final ok = (await _bridgeInit().toDart).toDart;
-  if (!ok) {
-    print('VFS_DEMO_ERROR: WASM init failed');
-    montyDemoFailed('vfs_demo', 'DartMontyBridge.init() returned false');
+  try {
+    _pool = await startDemoPool();
+  } on Object catch (e) {
+    print('VFS_DEMO_ERROR: worker start failed: $e');
+    montyDemoFailed('vfs_demo', 'Monty.start failed: $e');
     return;
   }
 
   print('VFS Demo ready');
-  // Raised after DartMontyBridge.init() succeeded, so the WASM worker is up.
+  // Raised after the worker pool started.
   montyDemoReady('vfs_demo');
   try {
     _jsOnReady();

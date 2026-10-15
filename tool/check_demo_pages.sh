@@ -189,7 +189,7 @@ done
 [ "$built" -eq "$NENTRY" ] || fail "compiled $built of $NENTRY entrypoints"
 echo "compiled $built entrypoint(s)"
 
-# The committed WASM assets, from the RESOLVED dart_monty_core — not a
+# The committed worker assets, from the RESOLVED dart_monty_core — not a
 # hardcoded pub-cache path, and not `main`. pages.yaml copies these from a
 # checkout of the ref named in pubspec.yaml; reading the resolution is the
 # local equivalent and cannot drift from what $WEB actually compiled against.
@@ -204,7 +204,9 @@ PY
 )
 [ -n "$CORE" ] && [ -d "$CORE/lib/assets" ] \
   || fail "could not resolve dart_monty_core assets from $WEB/.dart_tool/package_config.json"
-for asset in dart_monty_core_bridge.js dart_monty_core_worker.js dart_monty_core_native.wasm; do
+# Core's browser worker: the pages pass workerLocation '.', so the two files
+# sit next to them (example/web/lib/demo_pool.dart).
+for asset in dart_monty_core_worker.js dart_monty_core_worker.wasm; do
   cp "$CORE/lib/assets/$asset" "$SITE/" || fail "missing $CORE/lib/assets/$asset"
 done
 cp test/fixtures/python_ladder/tier_*.json "$SITE/fixtures/" \
