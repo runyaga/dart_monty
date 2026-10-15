@@ -1,5 +1,6 @@
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
+import 'package:dart_monty_core/dart_monty_core_testing.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -30,9 +31,17 @@ void main() {
       expect(event.printOutput, isNull);
     });
 
-    test('BridgeRunError stores message and optional fields', () {
-      const exception = MontyException(message: 'err');
-      const event = BridgeRunError(
+    test('BridgeRunError stores message and optional fields', () async {
+      final session = FakeMontySession()
+        ..willRaise('ValueError', message: 'err');
+      late final MontyError exception;
+      try {
+        await session.feedRun('raise ValueError("err")');
+        fail('the scripted feed must raise');
+      } on MontyError catch (e) {
+        exception = e;
+      }
+      final event = BridgeRunError(
         message: 'fail',
         printOutput: 'output',
         exception: exception,

@@ -7,19 +7,14 @@
 //   dart test -p vm --tags=integration \
 //     test/experiment/examples/sandbox_experiment_test.dart
 @TestOn('vm')
-@Tags(['integration'])
+@Tags(['integration', 'd1-pending'])
 library;
 
 import 'package:dart_monty/dart_monty_bridge.dart';
-import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:signals_core/signals_core.dart';
 import 'package:test/test.dart';
 
 import 'harness.dart';
-
-// Builds a fresh ReplPlatform for each sandbox child.
-MontyPlatformFactory _replFactory() =>
-    () async => ReplPlatform(repl: MontyRepl());
 
 void main() {
   // ---------------------------------------------------------------------------
@@ -31,7 +26,7 @@ void main() {
     late SandboxExtension sandbox;
 
     setUp(() async {
-      sandbox = SandboxExtension(platformFactory: _replFactory());
+      sandbox = SandboxExtension();
       h = MontyHarness(extensions: [sandbox]);
       await h.setup();
     });
@@ -44,8 +39,7 @@ handle = sandbox_spawn(code="1 + 1")
 sandbox_await(handle=handle)
 ''');
 
-      expect(result.error, isNull);
-      expect(result.value.dartValue, 2);
+      expect(result.dartValue, 2);
     });
 
     test('child is ChildCompleted in childrenSignal after await', () async {
@@ -80,7 +74,7 @@ v
     late SandboxExtension sandbox;
 
     setUp(() async {
-      sandbox = SandboxExtension(platformFactory: _replFactory());
+      sandbox = SandboxExtension();
       h = MontyHarness(extensions: [sandbox]);
       await h.setup();
     });
@@ -96,8 +90,7 @@ r2 = sandbox_await(handle=h2)
 [r1, r2]
 ''');
 
-      expect(result.error, isNull);
-      final list = result.value.dartValue! as List;
+      final list = result.dartValue! as List;
       expect(list, containsAll([2, 20]));
     });
 
@@ -109,8 +102,7 @@ h3 = sandbox_spawn(code="3")
 sandbox_await_all(handles=[h1, h2, h3])
 ''');
 
-      expect(result.error, isNull);
-      expect(result.value.dartValue, [1, 2, 3]);
+      expect(result.dartValue, [1, 2, 3]);
     });
 
     test('aliveCountSignal tracks running children', () async {
@@ -138,7 +130,7 @@ sandbox_await_all(handles=[h1, h2])
     late SandboxExtension sandbox;
 
     setUp(() async {
-      sandbox = SandboxExtension(platformFactory: _replFactory());
+      sandbox = SandboxExtension();
       h = MontyHarness(extensions: [sandbox]);
       await h.setup();
     });
@@ -173,7 +165,7 @@ except Exception:
       final failed = sandbox.childrenSignal.value.values
           .whereType<ChildFailed>()
           .first;
-      expect(failed.exception?.excType, contains('ValueError'));
+      expect(failed.exception?.exception.excType, contains('ValueError'));
     });
 
     test('parent continues after child failure', () async {
@@ -186,8 +178,7 @@ except Exception:
 "parent survived"
 ''');
 
-      expect(result.error, isNull);
-      expect(result.value.dartValue, 'parent survived');
+      expect(result.dartValue, 'parent survived');
     });
   });
 
@@ -200,7 +191,7 @@ except Exception:
     late SandboxExtension sandbox;
 
     setUp(() async {
-      sandbox = SandboxExtension(platformFactory: _replFactory());
+      sandbox = SandboxExtension();
       h = MontyHarness(extensions: [sandbox]);
       await h.setup();
     });
@@ -214,8 +205,7 @@ sandbox_await(handle=h1)
 sandbox_get_output(handle=h1)
 ''');
 
-      expect(result.error, isNull);
-      final output = result.value.dartValue as String?;
+      final output = result.dartValue as String?;
       expect(output, contains('hello'));
       expect(output, contains('world'));
     });
@@ -227,8 +217,7 @@ results = sandbox_gather(handles=[h1])
 results[0]
 ''');
 
-      expect(result.error, isNull);
-      final entry = result.value.dartValue! as Map;
+      final entry = result.dartValue! as Map;
       expect(entry['value'], 42);
       expect(entry['output'] as String, contains('log line'));
     });
@@ -243,7 +232,7 @@ results[0]
     late SandboxExtension sandbox;
 
     setUp(() async {
-      sandbox = SandboxExtension(platformFactory: _replFactory());
+      sandbox = SandboxExtension();
       h = MontyHarness(extensions: [sandbox]);
       await h.setup();
     });
@@ -258,8 +247,7 @@ sandbox_await(handle=h1)
 sandbox_is_alive(handle=h1)
 ''');
 
-      expect(result.error, isNull);
-      expect(result.value.dartValue, false);
+      expect(result.dartValue, false);
     });
   });
 
@@ -273,7 +261,7 @@ sandbox_is_alive(handle=h1)
     late FauxUi ui;
 
     setUp(() async {
-      sandbox = SandboxExtension(platformFactory: _replFactory());
+      sandbox = SandboxExtension();
       h = MontyHarness(extensions: [sandbox]);
       await h.setup();
       ui = FauxUi(h.runtime);
@@ -306,7 +294,7 @@ sandbox_await(handle=h1)
     late SandboxExtension sandbox;
 
     setUp(() async {
-      sandbox = SandboxExtension(platformFactory: _replFactory());
+      sandbox = SandboxExtension();
       h = MontyHarness(extensions: [sandbox]);
       await h.setup();
     });

@@ -1,11 +1,12 @@
 import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:test/test.dart';
+import '_os_call.dart';
 
 void main() {
   group('timeHandler', () {
     test('date.today returns a MontyDate', () async {
-      final handler = timeHandler();
+      final handler = dartCall(timeHandler());
       final result =
           (await handler('date.today', const [], null))! as MontyDate;
 
@@ -15,7 +16,7 @@ void main() {
     });
 
     test('datetime.now returns a MontyDateTime', () async {
-      final handler = timeHandler();
+      final handler = dartCall(timeHandler());
       final result =
           (await handler('datetime.now', const [], null))! as MontyDateTime;
 
@@ -35,11 +36,10 @@ void main() {
     test(
       'datetime.now(tz) returns an aware MontyDateTime in that zone',
       () async {
-        final handler = timeHandler();
+        final handler = dartCall(timeHandler());
         const tz = MontyTimeZone(offsetSeconds: 0, name: 'UTC');
         final result =
-            (await handler('datetime.now', [tz.toJson()], null))!
-                as MontyDateTime;
+            (await handler('datetime.now', [tz], null))! as MontyDateTime;
 
         expect(result.offsetSeconds, 0);
         expect(result.timezoneName, 'UTC');
@@ -48,7 +48,7 @@ void main() {
 
     test('injected clock is used (frozen time)', () async {
       final frozen = DateTime(2026, 3, 15, 10, 30, 45, 123, 456);
-      final handler = timeHandler(clock: () => frozen);
+      final handler = dartCall(timeHandler(clock: () => frozen));
 
       final date = (await handler('date.today', const [], null))! as MontyDate;
       expect(date.year, 2026);
@@ -64,7 +64,7 @@ void main() {
     });
 
     test('unknown date/datetime operation throws', () {
-      final handler = timeHandler();
+      final handler = dartCall(timeHandler());
 
       expect(
         () => handler('date.yesterday', const [], null),
@@ -77,7 +77,7 @@ void main() {
     });
 
     test('default clock uses DateTime.now', () async {
-      final handler = timeHandler();
+      final handler = dartCall(timeHandler());
       final before = DateTime.now();
       final result =
           (await handler('datetime.now', const [], null))! as MontyDateTime;
@@ -91,7 +91,7 @@ void main() {
 
     test('requested zone is applied to the instant, not relabelled', () async {
       final frozen = DateTime(2026, 6, 15, 12);
-      final handler = timeHandler(clock: () => frozen);
+      final handler = dartCall(timeHandler(clock: () => frozen));
 
       // A NON-ZERO offset, deliberately. Requesting UTC (offset 0) makes this
       // test tautological on a UTC host — `frozen.hour == frozen.toUtc().hour`
@@ -102,8 +102,7 @@ void main() {
       // was written for.
       const plusFour = MontyTimeZone(offsetSeconds: 4 * 3600, name: 'UTC+04');
       final result =
-          (await handler('datetime.now', [plusFour.toJson()], null))!
-              as MontyDateTime;
+          (await handler('datetime.now', [plusFour], null))! as MontyDateTime;
       expect(result.offsetSeconds, 4 * 3600);
       expect(result.timezoneName, 'UTC+04');
       // The instant, shifted into +04:00 — independent of the host's zone.

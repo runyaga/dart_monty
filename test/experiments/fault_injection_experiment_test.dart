@@ -7,9 +7,10 @@
 // Run with:
 //   dart test --tags=integration --run-skipped \
 //     test/experiment/examples/fault_injection_experiment_test.dart
-@Tags(['integration'])
+@Tags(['integration', 'd1-pending'])
 library;
 
+import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:test/test.dart';
 
@@ -34,18 +35,16 @@ void main() {
     test('injected throw surfaces as Python error, session survives', () async {
       h.injectFault('risky_op', ToolFault.throws(Exception('db_timeout')));
 
-      final r = await h.run('risky_op()');
-      expect(
-        r.error,
-        isNotNull,
+      await expectLater(
+        h.run('risky_op()'),
+        throwsA(isA<MontyError>()),
         reason: 'Injected throw must surface as a Python-level error',
       );
 
       // Session must survive — clear the fault and retry.
       h.clearFault('risky_op');
       final r2 = await h.run('risky_op()');
-      expect(r2.error, isNull);
-      expect(r2.value.dartValue, 'success');
+      expect(r2.dartValue, 'success');
     });
 
     test('Python try/except catches injected error', () async {
@@ -59,12 +58,7 @@ except Exception as e:
 result
 ''');
 
-      expect(
-        r.error,
-        isNull,
-        reason: 'Python try/except should handle the injected error',
-      );
-      expect(r.value.dartValue.toString(), contains('caught'));
+      expect(r.dartValue.toString(), contains('caught'));
     });
 
     test('error in one tool does not block unrelated tools', () async {
@@ -75,8 +69,7 @@ result
       await h.run('risky_op()'); // error — recorded
 
       final r = await h.run('stable_op()');
-      expect(r.error, isNull);
-      expect(r.value.dartValue, 42);
+      expect(r.dartValue, 42);
 
       h
         ..assertCalled('risky_op')
@@ -112,8 +105,7 @@ result
       );
 
       final r = await h.run("fetch_price(symbol='AAPL')['price']");
-      expect(r.error, isNull);
-      expect(r.value.dartValue, 0.01);
+      expect(r.dartValue, 0.01);
 
       h.assertCalled('fetch_price', args: {'symbol': 'AAPL'});
     });
@@ -125,7 +117,7 @@ result
 p = fetch_price(symbol='X')
 p is None
 ''');
-      expect(r.value.dartValue, true);
+      expect(r.dartValue, true);
     });
 
     test('clear fault — real handler runs again', () async {
@@ -134,7 +126,7 @@ p is None
 
       h.clearFault('fetch_price');
       final r = await h.run("fetch_price(symbol='X')['price']");
-      expect(r.value.dartValue, 99.99);
+      expect(r.dartValue, 99.99);
     });
   });
 
@@ -166,8 +158,7 @@ p is None
       final r = await h.run('slow_api()');
       sw.stop();
 
-      expect(r.error, isNull);
-      expect(r.value.dartValue, 'delayed_ok');
+      expect(r.dartValue, 'delayed_ok');
       expect(sw.elapsedMilliseconds, greaterThanOrEqualTo(100));
     });
   });
@@ -198,16 +189,14 @@ c = step_c()
 
     test('no faults — chain succeeds end to end', () async {
       final r = await h.run(chain);
-      expect(r.error, isNull);
-      expect(r.value.dartValue, ['a_ok', 'b_ok', 'c_ok']);
+      expect(r.dartValue, ['a_ok', 'b_ok', 'c_ok']);
     });
 
     test('fault on step_a — step_b and step_c still called', () async {
       h.injectFault('step_a', ToolFault.returns('a_override'));
 
       final r = await h.run(chain);
-      expect(r.error, isNull);
-      expect(r.value.dartValue, ['a_override', 'b_ok', 'c_ok']);
+      expect(r.dartValue, ['a_override', 'b_ok', 'c_ok']);
       h
         ..assertCallCount('step_a', 1)
         ..assertCallCount('step_b', 1)
@@ -217,10 +206,9 @@ c = step_c()
     test('throw on step_b — step_c is NOT called (error propagates)', () async {
       h.injectFault('step_b', ToolFault.throws(Exception('b_fail')));
 
-      final r = await h.run(chain);
-      expect(
-        r.error,
-        isNotNull,
+      await expectLater(
+        h.run(chain),
+        throwsA(isA<MontyError>()),
         reason: 'Uncaught tool error must propagate to Python',
       );
       h
@@ -243,8 +231,7 @@ c = step_c()
 [a, b, c]
 ''');
 
-      expect(r.error, isNull);
-      expect(r.value.dartValue, ['a_ok', 'b_fallback', 'c_ok']);
+      expect(r.dartValue, ['a_ok', 'b_fallback', 'c_ok']);
       h
         ..assertCalled('step_a')
         ..assertCalled('step_b')

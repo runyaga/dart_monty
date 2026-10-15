@@ -1,4 +1,7 @@
+// Runs Python through MontyRuntime.execute, which D1-4 rebuilds; D1-5
+// settles the clock (DM1: the worker's system clock, timeHandler deleted).
 @TestOn('vm')
+@Tags(['d1-pending'])
 library;
 
 // Engine-backed: MontyRuntime boots the FFI engine. dart_monty's chrome job
@@ -28,7 +31,7 @@ void main() {
 
   group('timeHandler returns typed values across the boundary', () {
     test('date.today() is a Python date, and .year is an int', () async {
-      final session = MontyRuntime(
+      final session = await MontyRuntime.start(
         osHandlers: {'date.': time, 'datetime.': time},
       );
       addTearDown(session.dispose);
@@ -41,9 +44,7 @@ void main() {
             '"day": d.day}',
           )
           .result;
-
-      expect(result.error, isNull, reason: 'attribute access must not raise');
-      final v = result.value.dartValue! as Map<Object?, Object?>;
+      final v = result.dartValue! as Map<Object?, Object?>;
       expect(v['type'], 'date', reason: 'must be a date, not a dict');
       expect(v['year'], frozen.year);
       expect(v['month'], frozen.month);
@@ -51,7 +52,7 @@ void main() {
     });
 
     test('datetime.now() is a Python datetime and keeps its offset', () async {
-      final session = MontyRuntime(
+      final session = await MontyRuntime.start(
         osHandlers: {'date.': time, 'datetime.': time},
       );
       addTearDown(session.dispose);
@@ -66,9 +67,7 @@ void main() {
             '"naive": n.tzinfo is None, "tz": repr(n.tzinfo)}',
           )
           .result;
-
-      expect(result.error, isNull);
-      final v = result.value.dartValue! as Map<Object?, Object?>;
+      final v = result.dartValue! as Map<Object?, Object?>;
       // 0.23 emits the BARE name here ('datetime'), matching what `date`
       // already did; before 0.23 it was the qualified 'datetime.datetime'.
       expect(

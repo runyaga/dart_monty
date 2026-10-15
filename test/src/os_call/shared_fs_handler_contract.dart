@@ -1,7 +1,9 @@
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:test/test.dart';
 
-/// Runs the shared FS handler contract against any [OsCallHandler].
+import '_os_call.dart';
+
+/// Runs the shared FS handler contract against any [OsHandler].
 ///
 /// Both the memory-backed `fsHandler(MemoryFileSystem())` and
 /// `sandboxedFsHandler(root:)` must pass this identical suite, proving
@@ -13,14 +15,14 @@ import 'package:test/test.dart';
 /// [cleanUp] is called in tearDown to release resources.
 void runFsHandlerContract(
   String name, {
-  required Future<OsCallHandler> Function() createHandler,
+  required Future<OsHandler> Function() createHandler,
   required String rootPath,
   Future<void> Function()? cleanUp,
 }) {
-  late OsCallHandler handler;
+  late DartOsCall handler;
 
   setUp(() async {
-    handler = await createHandler();
+    handler = dartCall(await createHandler());
   });
 
   tearDown(() async {

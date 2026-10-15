@@ -11,7 +11,7 @@ import 'package:test/test.dart';
 void main() {
   group('MontyRuntime.emitChildEvent', () {
     test('wraps event in BridgeChildEvent tagged with handle', () async {
-      final runtime = MontyRuntime(sandbox: true);
+      final runtime = await MontyRuntime.start(sandbox: true);
       final captured = <BridgeEvent>[];
       final sub = runtime.events.listen(captured.add);
 
@@ -36,7 +36,7 @@ void main() {
     });
 
     test('is a no-op after dispose', () async {
-      final runtime = MontyRuntime(sandbox: true);
+      final runtime = await MontyRuntime.start(sandbox: true);
       final captured = <BridgeEvent>[];
       final sub = runtime.events.listen(captured.add);
       await runtime.dispose();

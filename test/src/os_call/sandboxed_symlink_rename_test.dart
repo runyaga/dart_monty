@@ -15,23 +15,25 @@ library;
 
 import 'dart:io';
 
-import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:dart_monty/src/os_call/sandboxed_fs_handler.dart';
+import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:test/test.dart';
+
+import '_os_call.dart';
 
 void main() {
   late Directory root;
   late String rootPath;
   late Directory outside;
   late String outsidePath;
-  late OsCallHandler handler;
+  late DartOsCall handler;
 
   setUp(() {
     root = Directory.systemTemp.createTempSync('monty_symlink_root_');
     rootPath = root.resolveSymbolicLinksSync();
     outside = Directory.systemTemp.createTempSync('monty_symlink_outside_');
     outsidePath = outside.resolveSymbolicLinksSync();
-    handler = sandboxedFsHandler(root: root);
+    handler = dartCall(sandboxedFsHandler(root: root));
   });
 
   tearDown(() {
@@ -47,7 +49,7 @@ void main() {
 
     await expectLater(
       handler('Path.rename', ['$rootPath/src', '$rootPath/alias'], null),
-      throwsA(isA<OsCallException>()),
+      throwsA(isA<ExternalException>()),
     );
 
     // The refusal has to be real, not just an exception: nothing outside may
@@ -91,10 +93,10 @@ void main() {
     await expectLater(
       handler('Path.rename', ['$rootPath/src', '$rootPath/alias_in'], null),
       throwsA(
-        isA<OsCallException>()
+        isA<ExternalException>()
             .having(
-              (e) => e.pythonExceptionType,
-              'pythonExceptionType',
+              (e) => e.excType,
+              'excType',
               'NotADirectoryError',
             )
             .having((e) => e.message, 'message', contains('Errno 20')),
@@ -120,7 +122,7 @@ void main() {
 
       await expectLater(
         handler('Path.rename', ['$rootPath/src', '$rootPath/alias'], null),
-        throwsA(isA<OsCallException>()),
+        throwsA(isA<ExternalException>()),
       );
 
       // The destructive failure mode for a rename is deleting the target first

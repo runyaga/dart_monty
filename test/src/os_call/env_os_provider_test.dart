@@ -1,12 +1,15 @@
 import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:test/test.dart';
+import '_os_call.dart';
 
 void main() {
   group('envHandler', () {
-    late OsCallHandler handler;
+    late DartOsCall handler;
 
     setUp(() {
-      handler = envHandler(const {'APP_ENV': 'production', 'DEBUG': '0'});
+      handler = dartCall(
+        envHandler(const {'APP_ENV': 'production', 'DEBUG': '0'}),
+      );
     });
 
     test('os.getenv returns value from provided map', () async {
@@ -34,8 +37,9 @@ void main() {
     test('os.environ returns full map', () async {
       final result = await handler('os.environ', const [], null);
 
-      expect(result, isA<Map<String, String>>());
-      final map = result! as Map<String, String>;
+      // A MontyDict now; dartCall lowers a str-keyed dict to this map.
+      expect(result, isA<Map<String, Object?>>());
+      final map = result! as Map<String, Object?>;
       expect(map['APP_ENV'], 'production');
       expect(map['DEBUG'], '0');
       expect(map.length, 2);
@@ -44,7 +48,7 @@ void main() {
     test('provided map does not leak host Platform.environment', () async {
       // The handler only exposes the injected map.
       final result = await handler('os.environ', const [], null);
-      final map = result! as Map<String, String>;
+      final map = result! as Map<String, Object?>;
 
       // Should not contain typical host-only env vars.
       expect(map.containsKey('HOME'), isFalse);

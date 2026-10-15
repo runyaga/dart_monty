@@ -1,27 +1,35 @@
 import 'dart:async';
-import 'dart:collection';
 
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
-import 'package:dart_monty/dart_monty_testing.dart';
+import 'package:dart_monty/src/bridge/session_bridge.dart';
+import 'package:dart_monty_core/dart_monty_core_testing.dart';
 import 'package:signals_core/signals_core.dart';
 import 'package:test/test.dart';
 
-const _usage = MontyResourceUsage(
-  memoryBytesUsed: 1024,
-  timeElapsedMs: 10,
-  stackDepthUsed: 5,
-);
+/// Tests that run Python through the bridge: the event loop's behaviour on
+/// the new runtime is D1-9's (the bridge's execute is D1-2's).
+const _pending = 'd1-pending';
+
+/// The values the host answered with, in order: a settled future's value
+/// or a call's return value.
+List<Object> _returnAnswers(FakeMontySession session) => [
+  for (final a in session.answers)
+    if (a.answer case ExternalReturnValue(:final value)) value,
+];
+
+/// The answer [value] as plain Dart data.
+Object? _dart(Object value) => (value as MontyValue).dartValue;
 
 void main() {
-  late MockMontyPlatform mock;
-  late PlatformBridge bridge;
+  late FakeMontySession fake;
+  late SessionBridge bridge;
   late EventLoopExtension plugin;
 
   setUp(() async {
-    mock = MockMontyPlatform();
+    fake = FakeMontySession();
     plugin = EventLoopExtension();
-    bridge = PlatformBridge(platform: mock);
+    bridge = SessionBridge(session: fake);
     await plugin.onAttach(bridge);
     for (final fn in plugin.functions) {
       bridge.register(fn, category: plugin.namespace);
@@ -36,28 +44,17 @@ void main() {
   group('recv and dispatch', () {
     test(
       'recv pauses, dispatch resumes with correct data',
+      tags: _pending,
       () async {
         // Python calls el_recv(), bridge handler creates Completer.
         // We use the sync (non-futures) path for simplicity: the bridge
         // awaits the handler inline, so we dispatch during that await.
 
         // Sequence: start -> Pending(el_recv) -> resume -> Complete
-        mock
-          ..enqueueProgress(
-            const MontyPending(
-              functionName: 'el_recv',
-              args: [],
-              callId: 1,
-            ),
-          )
-          ..enqueueProgress(
-            const MontyResolveFutures(pendingCallIds: [1]),
-          )
-          ..enqueueProgress(
-            const MontyComplete(
-              result: MontyResult(value: MontyNone(), usage: _usage),
-            ),
-          );
+        fake
+          ..willCall('el_recv')
+          ..willAwait([0])
+          ..willReturn(const MontyNone());
 
         final events = <BridgeEvent>[];
         final stream = bridge.execute('el_recv()');
@@ -76,11 +73,11 @@ void main() {
 
         expect(plugin.channelState, const EventLoopCompleted());
 
-        // Verify the result was passed through resolveFutures.
-        final resolvedResults = mock.history.lastResolveFuturesResults;
-        expect(resolvedResults, isNotNull);
-        expect(resolvedResults![1], isA<Map<String, dynamic>>());
-        final resultMap = resolvedResults[1]! as Map<String, dynamic>;
+        // Verify the result settled the awaited future.
+        final resolvedResults = _returnAnswers(fake);
+        expect(resolvedResults, hasLength(1));
+        expect(_dart(resolvedResults.single), isA<Map<String, Object?>>());
+        final resultMap = _dart(resolvedResults.single)! as Map;
         expect(resultMap['type'], 'button_press');
         expect(resultMap['id'], 'ok');
       },
@@ -88,38 +85,22 @@ void main() {
 
     test(
       'events queued while Python busy are delivered on next recv',
+      tags: _pending,
       () async {
         // First recv returns queued event, second waits for dispatch.
-        mock
+        fake
           // First call: el_emit
-          ..enqueueProgress(
-            MontyPending(
-              functionName: 'el_emit',
-              args: [
-                MontyDict.ofStrings(const {'type': MontyString('form')}),
-              ],
-              callId: 1,
-            ),
+          ..willCall(
+            'el_emit',
+            args: [
+              const MontyDict([(MontyString('type'), MontyString('form'))]),
+            ],
           )
-          ..enqueueProgress(
-            const MontyResolveFutures(pendingCallIds: [1]),
-          )
+          ..willAwait([0])
           // Second call: el_recv (will get queued event)
-          ..enqueueProgress(
-            const MontyPending(
-              functionName: 'el_recv',
-              args: [],
-              callId: 2,
-            ),
-          )
-          ..enqueueProgress(
-            const MontyResolveFutures(pendingCallIds: [2]),
-          )
-          ..enqueueProgress(
-            const MontyComplete(
-              result: MontyResult(value: MontyNone(), usage: _usage),
-            ),
-          );
+          ..willCall('el_recv')
+          ..willAwait([1])
+          ..willReturn(const MontyNone());
 
         // Queue an event BEFORE execution starts.
         plugin.dispatch({'type': 'early_click'});
@@ -128,100 +109,56 @@ void main() {
 
         // The queued event should have been returned immediately by
         // el_recv, no waiting needed.
-        final resolvedResults = mock.history.resolveFuturesResultsList;
+        final resolvedResults = _returnAnswers(fake);
         expect(resolvedResults, hasLength(2));
-        // Second resolve (recv) should contain the queued event.
-        final waitResult = resolvedResults[1][2]! as Map<String, dynamic>;
+        // Second answer (recv) should contain the queued event.
+        final waitResult = _dart(resolvedResults[1])! as Map;
         expect(waitResult['type'], 'early_click');
       },
     );
 
-    test('multiple queued events delivered in FIFO order', () async {
-      mock
-        // First el_recv — will consume first queued event.
-        ..enqueueProgress(
-          const MontyPending(
-            functionName: 'el_recv',
-            args: [],
-            callId: 1,
-          ),
-        )
-        ..enqueueProgress(
-          const MontyResolveFutures(pendingCallIds: [1]),
-        )
-        // Second el_recv — will consume second queued event.
-        ..enqueueProgress(
-          const MontyPending(
-            functionName: 'el_recv',
-            args: [],
-            callId: 2,
-          ),
-        )
-        ..enqueueProgress(
-          const MontyResolveFutures(pendingCallIds: [2]),
-        )
-        // Third el_recv — will consume third queued event.
-        ..enqueueProgress(
-          const MontyPending(
-            functionName: 'el_recv',
-            args: [],
-            callId: 3,
-          ),
-        )
-        ..enqueueProgress(
-          const MontyResolveFutures(pendingCallIds: [3]),
-        )
-        ..enqueueProgress(
-          const MontyComplete(
-            result: MontyResult(value: MontyNone(), usage: _usage),
-          ),
-        );
+    test(
+      'multiple queued events delivered in FIFO order',
+      tags: _pending,
+      () async {
+        fake
+          // First el_recv — will consume first queued event.
+          ..willCall('el_recv')
+          ..willAwait([0])
+          // Second el_recv — will consume second queued event.
+          ..willCall('el_recv')
+          ..willAwait([1])
+          // Third el_recv — will consume third queued event.
+          ..willCall('el_recv')
+          ..willAwait([2])
+          ..willReturn(const MontyNone());
 
-      // Queue 3 events BEFORE execution starts.
-      plugin
-        ..dispatch({'order': 1})
-        ..dispatch({'order': 2})
-        ..dispatch({'order': 3});
+        // Queue 3 events BEFORE execution starts.
+        plugin
+          ..dispatch({'order': 1})
+          ..dispatch({'order': 2})
+          ..dispatch({'order': 3});
 
-      await bridge.execute('loop').toList();
+        await bridge.execute('loop').toList();
 
-      // All three resolves should contain events in FIFO order.
-      final results = mock.history.resolveFuturesResultsList;
-      expect(results, hasLength(3));
-      expect((results[0][1]! as Map)['order'], 1);
-      expect((results[1][2]! as Map)['order'], 2);
-      expect((results[2][3]! as Map)['order'], 3);
-    });
+        // All three resolves should contain events in FIFO order.
+        final results = _returnAnswers(fake);
+        expect(results, hasLength(3));
+        expect((_dart(results[0])! as Map)['order'], 1);
+        expect((_dart(results[1])! as Map)['order'], 2);
+        expect((_dart(results[2])! as Map)['order'], 3);
+      },
+    );
 
-    test('multiple sequential wait/dispatch cycles', () async {
-      mock
+    test('multiple sequential wait/dispatch cycles', tags: _pending, () async {
+      fake
         // First el_recv
-        ..enqueueProgress(
-          const MontyPending(
-            functionName: 'el_recv',
-            args: [],
-            callId: 1,
-          ),
-        )
-        ..enqueueProgress(
-          const MontyResolveFutures(pendingCallIds: [1]),
-        )
+        ..willCall('el_recv')
+        ..willAwait([0])
         // Second el_recv
-        ..enqueueProgress(
-          const MontyPending(
-            functionName: 'el_recv',
-            args: [],
-            callId: 2,
-          ),
-        )
-        ..enqueueProgress(
-          const MontyResolveFutures(pendingCallIds: [2]),
-        )
-        ..enqueueProgress(
-          const MontyComplete(
-            result: MontyResult(value: MontyNone(), usage: _usage),
-          ),
-        );
+        ..willCall('el_recv')
+        ..willAwait([1])
+        ..willReturn(const MontyNone());
 
       final stream = bridge.execute('loop');
       final sub = stream.listen((_) {});
@@ -243,74 +180,52 @@ void main() {
       expect(plugin.channelState, const EventLoopCompleted());
 
       // Both resolves should have the correct events.
-      expect(mock.history.resolveFuturesResultsList, hasLength(2));
-      final first = mock.history.resolveFuturesResultsList[0][1]! as Map;
+      final answers = _returnAnswers(fake);
+      expect(answers, hasLength(2));
+      final first = _dart(answers[0])! as Map;
       expect(first['cycle'], 1);
-      final second = mock.history.resolveFuturesResultsList[1][2]! as Map;
+      final second = _dart(answers[1])! as Map;
       expect(second['cycle'], 2);
     });
   });
 
   group('emit', () {
-    test('stores value in lastEmitted', () async {
-      mock
-        ..enqueueProgress(
-          MontyPending(
-            functionName: 'el_emit',
-            args: [
-              MontyDict.ofStrings(const {
-                'type': MontyString('counter'),
-                'value': MontyInt(0),
-              }),
-            ],
-            callId: 1,
-          ),
+    test('stores value in lastEmitted', tags: _pending, () async {
+      fake
+        ..willCall(
+          'el_emit',
+          args: [
+            const MontyDict([
+              (MontyString('type'), MontyString('counter')),
+              (MontyString('value'), MontyInt(0)),
+            ]),
+          ],
         )
-        ..enqueueProgress(
-          const MontyResolveFutures(pendingCallIds: [1]),
-        )
-        ..enqueueProgress(
-          const MontyComplete(
-            result: MontyResult(value: MontyNone(), usage: _usage),
-          ),
-        );
+        ..willAwait([0])
+        ..willReturn(const MontyNone());
 
       await bridge.execute('el_emit(value)').toList();
 
       expect(plugin.lastEmitted, {'type': 'counter', 'value': 0});
     });
 
-    test('lastEmitted tracks most recent value', () async {
-      mock
-        ..enqueueProgress(
-          MontyPending(
-            functionName: 'el_emit',
-            args: [
-              MontyDict.ofStrings(const {'version': MontyInt(1)}),
-            ],
-            callId: 1,
-          ),
+    test('lastEmitted tracks most recent value', tags: _pending, () async {
+      fake
+        ..willCall(
+          'el_emit',
+          args: [
+            const MontyDict([(MontyString('version'), MontyInt(1))]),
+          ],
         )
-        ..enqueueProgress(
-          const MontyResolveFutures(pendingCallIds: [1]),
+        ..willAwait([0])
+        ..willCall(
+          'el_emit',
+          args: [
+            const MontyDict([(MontyString('version'), MontyInt(2))]),
+          ],
         )
-        ..enqueueProgress(
-          MontyPending(
-            functionName: 'el_emit',
-            args: [
-              MontyDict.ofStrings(const {'version': MontyInt(2)}),
-            ],
-            callId: 2,
-          ),
-        )
-        ..enqueueProgress(
-          const MontyResolveFutures(pendingCallIds: [2]),
-        )
-        ..enqueueProgress(
-          const MontyComplete(
-            result: MontyResult(value: MontyNone(), usage: _usage),
-          ),
-        );
+        ..willAwait([1])
+        ..willReturn(const MontyNone());
 
       await bridge.execute('code').toList();
 
@@ -330,27 +245,12 @@ void main() {
 
     test(
       'script error while waiting cleans up orphaned Completer',
+      tags: _pending,
       () async {
-        mock
-          ..enqueueProgress(
-            const MontyPending(
-              functionName: 'el_recv',
-              args: [],
-              callId: 1,
-            ),
-          )
-          ..enqueueProgress(
-            const MontyResolveFutures(pendingCallIds: [1]),
-          )
-          ..enqueueProgress(
-            const MontyComplete(
-              result: MontyResult(
-                value: MontyNone(),
-                error: MontyException(message: 'kaboom'),
-                usage: _usage,
-              ),
-            ),
-          );
+        fake
+          ..willCall('el_recv')
+          ..willAwait([0])
+          ..willRaise('RuntimeError', message: 'kaboom');
 
         final events = <BridgeEvent>[];
         final stream = bridge.execute('el_recv()');
@@ -362,7 +262,7 @@ void main() {
 
         // Simulate the pending Completer being resolved with an error by
         // the bridge when the script errors — we dispatch to unblock the
-        // mock's ResolveFutures step so the Complete(error) event can
+        // fake's ResolveFutures step so the Complete(error) event can
         // flow through.
         plugin.dispatch({'type': 'unblock'});
 
@@ -377,57 +277,42 @@ void main() {
       },
     );
 
-    test('dispose while waiting completes with error', () async {
-      mock
-        ..enqueueProgress(
-          const MontyPending(
-            functionName: 'el_recv',
-            args: [],
-            callId: 1,
-          ),
-        )
-        ..enqueueProgress(
-          const MontyResolveFutures(pendingCallIds: [1]),
-        )
-        ..enqueueProgress(
-          const MontyComplete(
-            result: MontyResult(
-              value: MontyNone(),
-              error: MontyException(
-                message: 'Bridge disposed while waiting for event',
-              ),
-              usage: _usage,
-            ),
-          ),
-        );
+    test(
+      'dispose while waiting completes with error',
+      tags: _pending,
+      () async {
+        fake
+          ..willCall('el_recv')
+          ..willAwait([0])
+          ..willRaise(
+            'RuntimeError',
+            message: 'Bridge disposed while waiting for event',
+          );
 
-      final events = <BridgeEvent>[];
-      final stream = bridge.execute('el_recv()');
-      final sub = stream.listen(events.add);
+        final events = <BridgeEvent>[];
+        final stream = bridge.execute('el_recv()');
+        final sub = stream.listen(events.add);
 
-      // Let bridge reach recv.
-      await Future<void>.delayed(Duration.zero);
-      expect(plugin.isWaiting, isTrue);
+        // Let bridge reach recv.
+        await Future<void>.delayed(Duration.zero);
+        expect(plugin.isWaiting, isTrue);
 
-      // Dispose while waiting.
-      await plugin.onDispose();
-      expect(plugin.channelState, const EventLoopDisposed());
+        // Dispose while waiting.
+        await plugin.onDispose();
+        expect(plugin.channelState, const EventLoopDisposed());
 
-      // The execution stream should finish (possibly with an error event).
-      await sub.asFuture<void>();
-      await sub.cancel();
-    });
+        // The execution stream should finish (possibly with an error event).
+        await sub.asFuture<void>();
+        await sub.cancel();
+      },
+    );
   });
 
   group('channelState transitions', () {
-    test('idle -> executing -> completed', () async {
+    test('idle -> executing -> completed', tags: _pending, () async {
       expect(plugin.channelState, const EventLoopIdle());
 
-      mock.enqueueProgress(
-        const MontyComplete(
-          result: MontyResult(value: MontyNone(), usage: _usage),
-        ),
-      );
+      fake.willReturn(const MontyNone());
 
       final stream = bridge.execute('42');
 
@@ -441,25 +326,14 @@ void main() {
 
     test(
       'idle -> executing -> waiting -> executing -> completed',
+      tags: _pending,
       () async {
         expect(plugin.channelState, const EventLoopIdle());
 
-        mock
-          ..enqueueProgress(
-            const MontyPending(
-              functionName: 'el_recv',
-              args: [],
-              callId: 1,
-            ),
-          )
-          ..enqueueProgress(
-            const MontyResolveFutures(pendingCallIds: [1]),
-          )
-          ..enqueueProgress(
-            const MontyComplete(
-              result: MontyResult(value: MontyNone(), usage: _usage),
-            ),
-          );
+        fake
+          ..willCall('el_recv')
+          ..willAwait([0])
+          ..willReturn(const MontyNone());
 
         final stream = bridge.execute('el_recv()');
         final sub = stream.listen((_) {});
@@ -486,23 +360,12 @@ void main() {
   group('signals', () {
     test(
       'channelStateSignal reflects transitions through waiting',
+      tags: _pending,
       () async {
-        mock
-          ..enqueueProgress(
-            const MontyPending(
-              functionName: 'el_recv',
-              args: [],
-              callId: 1,
-            ),
-          )
-          ..enqueueProgress(
-            const MontyResolveFutures(pendingCallIds: [1]),
-          )
-          ..enqueueProgress(
-            const MontyComplete(
-              result: MontyResult(value: MontyNone(), usage: _usage),
-            ),
-          );
+        fake
+          ..willCall('el_recv')
+          ..willAwait([0])
+          ..willReturn(const MontyNone());
 
         final states = <EventLoopState>[];
         final cleanup = effect(
@@ -532,38 +395,33 @@ void main() {
       },
     );
 
-    test('lastEmittedSignal updates when el_emit is called', () async {
-      mock
-        ..enqueueProgress(
-          MontyPending(
-            functionName: 'el_emit',
+    test(
+      'lastEmittedSignal updates when el_emit is called',
+      tags: _pending,
+      () async {
+        fake
+          ..willCall(
+            'el_emit',
             args: [
-              MontyDict.ofStrings(const {'type': MontyString('label')}),
+              const MontyDict([(MontyString('type'), MontyString('label'))]),
             ],
-            callId: 1,
-          ),
-        )
-        ..enqueueProgress(
-          const MontyResolveFutures(pendingCallIds: [1]),
-        )
-        ..enqueueProgress(
-          const MontyComplete(
-            result: MontyResult(value: MontyNone(), usage: _usage),
-          ),
+          )
+          ..willAwait([0])
+          ..willReturn(const MontyNone());
+
+        final emitted = <Map<String, dynamic>?>[];
+        final cleanup = effect(
+          () => emitted.add(plugin.lastEmittedSignal.value),
         );
 
-      final emitted = <Map<String, dynamic>?>[];
-      final cleanup = effect(
-        () => emitted.add(plugin.lastEmittedSignal.value),
-      );
+        await bridge.execute('el_emit(value)').toList();
+        cleanup();
 
-      await bridge.execute('el_emit(value)').toList();
-      cleanup();
-
-      // Initial null + one update from emit.
-      expect(emitted.where((e) => e != null), hasLength(1));
-      expect(emitted.last?['type'], 'label');
-    });
+        // Initial null + one update from emit.
+        expect(emitted.where((e) => e != null), hasLength(1));
+        expect(emitted.last?['type'], 'label');
+      },
+    );
   });
 
   group('host function registration', () {
@@ -575,14 +433,18 @@ void main() {
   });
 
   group('execute error paths', () {
-    test('plugin state stays idle when execute() throws StateError', () {
-      bridge.dispose();
-      expect(plugin.channelState, const EventLoopIdle());
-      expect(() => bridge.execute('1'), throwsStateError);
-      // onAttach was called but _wrapStream was never called — state remains
-      // idle
-      expect(plugin.channelState, const EventLoopIdle());
-    });
+    test(
+      'plugin state stays idle when execute() throws StateError',
+
+      () {
+        bridge.dispose();
+        expect(plugin.channelState, const EventLoopIdle());
+        expect(() => bridge.execute('1'), throwsStateError);
+        // onAttach was called but _wrapStream was never called — state remains
+        // idle
+        expect(plugin.channelState, const EventLoopIdle());
+      },
+    );
 
     test('execute after plugin dispose throws', () async {
       await plugin.onDispose();
@@ -592,33 +454,16 @@ void main() {
 
     test(
       'orphaned completer cleaned up when script finishes with error',
+      tags: _pending,
       () async {
         // Scenario: Python calls el_recv and the handler waits, then
         // when the event is dispatched the resolveFutures step triggers
         // an error Complete, which flows through the execute() stream.map
         // where the orphaned completer should be cleaned up.
-        mock
-          ..enqueueProgress(
-            const MontyPending(
-              functionName: 'el_recv',
-              args: [],
-              callId: 1,
-            ),
-          )
-          ..enqueueProgress(
-            const MontyResolveFutures(pendingCallIds: [1]),
-          )
-          ..enqueueProgress(
-            const MontyComplete(
-              result: MontyResult(
-                value: MontyNone(),
-                error: MontyException(
-                  message: 'script died unexpectedly',
-                ),
-                usage: _usage,
-              ),
-            ),
-          );
+        fake
+          ..willCall('el_recv')
+          ..willAwait([0])
+          ..willRaise('RuntimeError', message: 'script died unexpectedly');
 
         final events = <BridgeEvent>[];
         final stream = bridge.execute('el_recv()');
@@ -644,27 +489,12 @@ void main() {
 
     test(
       'run error while waiting cleans up orphaned completer',
+      tags: _pending,
       () async {
-        mock
-          ..enqueueProgress(
-            const MontyPending(
-              functionName: 'el_recv',
-              args: [],
-              callId: 1,
-            ),
-          )
-          ..enqueueProgress(
-            const MontyResolveFutures(pendingCallIds: [1]),
-          )
-          ..enqueueProgress(
-            const MontyComplete(
-              result: MontyResult(
-                value: MontyNone(),
-                error: MontyException(message: 'script crashed'),
-                usage: _usage,
-              ),
-            ),
-          );
+        fake
+          ..willCall('el_recv')
+          ..willAwait([0])
+          ..willRaise('RuntimeError', message: 'script crashed');
 
         final events = <BridgeEvent>[];
         final stream = bridge.execute('el_recv()');
@@ -689,13 +519,11 @@ void main() {
     );
   });
 
-  group('WASM fallback (sync-only platform)', () {
-    test('el_recv works with sync-only platform', () async {
-      final syncMock = _SyncOnlyMockPlatform();
+  group('sync answer (unmarked handler)', () {
+    test('el_recv works when answered in place', tags: _pending, () async {
+      final syncMock = FakeMontySession();
       final syncPlugin = EventLoopExtension();
-      final syncBridge = PlatformBridge(
-        platform: syncMock,
-      );
+      final syncBridge = SessionBridge(session: syncMock);
       await syncPlugin.onAttach(syncBridge);
       for (final fn in syncPlugin.functions) {
         syncBridge.register(fn, category: syncPlugin.namespace);
@@ -706,18 +534,8 @@ void main() {
       });
 
       syncMock
-        ..enqueueProgress(
-          const MontyPending(
-            functionName: 'el_recv',
-            args: [],
-            callId: 1,
-          ),
-        )
-        ..enqueueProgress(
-          const MontyComplete(
-            result: MontyResult(value: MontyNone(), usage: _usage),
-          ),
-        );
+        ..willCall('el_recv')
+        ..willReturn(const MontyNone());
 
       final stream = syncBridge.execute('el_recv()');
       final sub = stream.listen((_) {});
@@ -732,63 +550,47 @@ void main() {
       await sub.cancel();
 
       expect(syncPlugin.channelState, const EventLoopCompleted());
-      // Sync path uses resume() not resumeAsFuture().
-      expect(
-        syncMock.lastResumeReturnValue,
-        isA<Map<String, dynamic>>(),
-      );
-      final result = syncMock.lastResumeReturnValue! as Map<String, dynamic>;
+      // An unmarked handler is answered in place, not through a future.
+      final answers = _returnAnswers(syncMock);
+      expect(answers, hasLength(1));
+      expect(_dart(answers.single), isA<Map<String, Object?>>());
+      final result = _dart(answers.single)! as Map;
       expect(result['type'], 'sync_click');
     });
   });
 
   group('lifecycle and ownership', () {
-    test('dispatch throws StateError when plugin is completed', () async {
-      mock.enqueueProgress(
-        const MontyComplete(
-          result: MontyResult(value: MontyNone(), usage: _usage),
-        ),
-      );
+    test(
+      'dispatch throws StateError when plugin is completed',
+      tags: _pending,
+      () async {
+        fake.willReturn(const MontyNone());
 
-      await bridge.execute('code').toList();
-      expect(plugin.channelState, const EventLoopCompleted());
+        await bridge.execute('code').toList();
+        expect(plugin.channelState, const EventLoopCompleted());
 
-      expect(
-        () => plugin.dispatch({'type': 'too_late'}),
-        throwsStateError,
-      );
-    });
+        expect(
+          () => plugin.dispatch({'type': 'too_late'}),
+          throwsStateError,
+        );
+      },
+    );
 
     test(
       'dispatch is allowed after re-execute following completion',
+      tags: _pending,
       () async {
         // First execution completes.
-        mock.enqueueProgress(
-          const MontyComplete(
-            result: MontyResult(value: MontyNone(), usage: _usage),
-          ),
-        );
+        fake.willReturn(const MontyNone());
 
         await bridge.execute('code').toList();
         expect(plugin.channelState, const EventLoopCompleted());
 
         // Second execution starts — state transitions back to executing.
-        mock
-          ..enqueueProgress(
-            const MontyPending(
-              functionName: 'el_recv',
-              args: [],
-              callId: 1,
-            ),
-          )
-          ..enqueueProgress(
-            const MontyResolveFutures(pendingCallIds: [1]),
-          )
-          ..enqueueProgress(
-            const MontyComplete(
-              result: MontyResult(value: MontyNone(), usage: _usage),
-            ),
-          );
+        fake
+          ..willCall('el_recv')
+          ..willAwait([0])
+          ..willReturn(const MontyNone());
 
         final stream = bridge.execute('el_recv()');
         final sub = stream.listen((_) {});
@@ -805,51 +607,47 @@ void main() {
       },
     );
 
-    test('el_emit does not cause execution error', () async {
+    test('el_emit does not cause execution error', tags: _pending, () async {
       // Structural property: _handleEmit only updates a signal.
       // No callback path exists that could throw and propagate to
-      // PlatformBridge.resumeWithError(). This test verifies that
+      // an exception answer to the call. This test verifies that
       // invariant end-to-end.
-      mock
-        ..enqueueProgress(
-          MontyPending(
-            functionName: 'el_emit',
-            args: [
-              MontyDict.ofStrings(const {'type': MontyString('event')}),
-            ],
-            callId: 1,
-          ),
+      fake
+        ..willCall(
+          'el_emit',
+          args: [
+            const MontyDict([(MontyString('type'), MontyString('event'))]),
+          ],
         )
-        ..enqueueProgress(
-          const MontyResolveFutures(pendingCallIds: [1]),
-        )
-        ..enqueueProgress(
-          const MontyComplete(
-            result: MontyResult(value: MontyNone(), usage: _usage),
-          ),
-        );
+        ..willAwait([0])
+        ..willReturn(const MontyNone());
 
       final events = await bridge.execute('el_emit(value)').toList();
 
       expect(events.whereType<BridgeRunFinished>(), isNotEmpty);
       expect(events.whereType<BridgeRunError>(), isEmpty);
-      expect(mock.history.resumeErrorMessages, isEmpty);
+      expect(
+        [
+          for (final a in fake.answers)
+            if (a.answer is ExternalException) a,
+        ],
+        isEmpty,
+      );
     });
   });
 
   group('bridge locking regression', () {
     test(
       'wrapper exception resets _isExecuting immediately (not after _run)',
+      tags: _pending,
       () async {
-        // Regression: without the try-catch in PlatformBridge.execute(),
+        // Regression: without the try-catch in SessionBridge.execute(),
         // a synchronously-throwing wrapper leaves _isExecuting = true until
         // _run's whenComplete fires. The very next execute() call (before any
         // microtask yields) would throw 'Bridge is already executing' even
         // though the first call failed before producing a valid stream.
-        final lockMock = MockMontyPlatform();
-        final lockBridge = PlatformBridge(
-          platform: lockMock,
-        );
+        final lockMock = FakeMontySession();
+        final lockBridge = SessionBridge(session: lockMock);
         addTearDown(lockBridge.dispose);
 
         var wrapperCalls = 0;
@@ -865,16 +663,8 @@ void main() {
         // Enqueue one completion for the background _run that the first
         // (failed) execute() starts, and one for the successful re-execute.
         lockMock
-          ..enqueueProgress(
-            const MontyComplete(
-              result: MontyResult(value: MontyNone(), usage: _usage),
-            ),
-          )
-          ..enqueueProgress(
-            const MontyComplete(
-              result: MontyResult(value: MontyNone(), usage: _usage),
-            ),
-          );
+          ..willReturn(const MontyNone())
+          ..willReturn(const MontyNone());
 
         // First call: wrapper throws synchronously.
         expect(() => lockBridge.execute('first'), throwsStateError);
@@ -926,78 +716,23 @@ void main() {
   });
 
   group('ExtensionCoordinator integration', () {
-    test('ExtensionCoordinator.attachTo wires stream wrapper', () async {
-      final mock2 = MockMontyPlatform()
-        ..enqueueProgress(
-          const MontyComplete(
-            result: MontyResult(value: MontyNone(), usage: _usage),
-          ),
-        );
-      final plugin2 = EventLoopExtension();
-      final registry = ExtensionCoordinator()..register(plugin2);
-      final bridge2 = PlatformBridge(platform: mock2);
-      await registry.attachTo(bridge2);
+    test(
+      'ExtensionCoordinator.attachTo wires stream wrapper',
+      tags: _pending,
+      () async {
+        final mock2 = FakeMontySession()..willReturn(const MontyNone());
+        final plugin2 = EventLoopExtension();
+        final registry = ExtensionCoordinator()..register(plugin2);
+        final bridge2 = SessionBridge(session: mock2);
+        await registry.attachTo(bridge2);
 
-      final events = await bridge2.execute('pass').toList();
-      expect(events.whereType<BridgeRunFinished>(), hasLength(1));
-      expect(plugin2.channelState, const EventLoopCompleted());
+        final events = await bridge2.execute('pass').toList();
+        expect(events.whereType<BridgeRunFinished>(), hasLength(1));
+        expect(plugin2.channelState, const EventLoopCompleted());
 
-      await registry.disposeAll();
-      bridge2.dispose();
-    });
+        await registry.disposeAll();
+        bridge2.dispose();
+      },
+    );
   });
-}
-
-/// Mock platform that does NOT implement [MontyFutureCapable].
-///
-/// Used to test that EventLoopExtension falls back to synchronous behaviour
-/// when the platform does not support futures (WASM).
-class _SyncOnlyMockPlatform extends MontyPlatform {
-  final Queue<MontyProgress> _progressQueue = Queue<MontyProgress>();
-  final List<Object?> resumeReturnValues = [];
-  final List<String> resumeErrorMessages = [];
-
-  Object? get lastResumeReturnValue =>
-      resumeReturnValues.isEmpty ? null : resumeReturnValues.last;
-
-  void enqueueProgress(MontyProgress progress) {
-    _progressQueue.add(progress);
-  }
-
-  @override
-  Future<MontyProgress> start(
-    String code, {
-    List<String>? externalFunctions,
-    MontyLimits? limits,
-    String? scriptName,
-  }) async => _dequeueProgress();
-
-  @override
-  Future<MontyProgress> resume(Object? returnValue) async {
-    resumeReturnValues.add(returnValue);
-    return _dequeueProgress();
-  }
-
-  @override
-  Future<MontyProgress> resumeWithError(String errorMessage) async {
-    resumeErrorMessages.add(errorMessage);
-    return _dequeueProgress();
-  }
-
-  @override
-  Future<MontyResult> run(
-    String code, {
-    MontyLimits? limits,
-    String? scriptName,
-  }) async => throw UnimplementedError();
-
-  @override
-  Future<void> dispose() async {}
-
-  MontyProgress _dequeueProgress() {
-    if (_progressQueue.isEmpty) {
-      throw StateError('No progress enqueued.');
-    }
-    return _progressQueue.removeFirst();
-  }
 }

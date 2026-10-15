@@ -1,10 +1,12 @@
 @TestOn('vm')
-@Tags(['integration'])
+@Tags(['integration', 'd1-pending'])
 library;
 
+import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
-import 'package:dart_monty/monty_backend_spi.dart';
 import 'package:test/test.dart';
+
+import '_worker.dart';
 
 /// Integration tests for MessageBusExtension parent↔child communication.
 ///
@@ -17,7 +19,10 @@ import 'package:test/test.dart';
 ///   test/integration/message_bus_integration_test.dart
 /// ```
 void main() {
-  MontyPlatform createPlatform() => createPlatformMonty();
+  late Monty pool;
+
+  setUpAll(() async => pool = await startTestPool());
+  tearDownAll(() => pool.close());
 
   /// Executes [code] on a bridge and returns the final value or throws.
   Future<Object?> run(MontyBridge bridge, String code) async {
@@ -36,15 +41,16 @@ void main() {
 
   String spawn(String childCode) => 'sandbox_spawn(code="$childCode")';
 
-  MontyBridge createBridge() => MontyBridge(platform: createPlatform());
+  Future<MontyBridge> createBridge() async =>
+      MontyBridge(session: await pool.checkout());
 
   Future<MontyBridge> createBridgeWithMessageBus() async {
-    final bridge = createBridge();
+    final bridge = await createBridge();
     final msgBus = MessageBusExtension();
     final registry = ExtensionCoordinator()
       ..register(msgBus)
       ..register(
-        SandboxExtension(platformFactory: () async => createPlatform()),
+        SandboxExtension(),
       );
     await registry.attachTo(bridge);
     return bridge;

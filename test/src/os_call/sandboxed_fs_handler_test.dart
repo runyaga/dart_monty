@@ -19,22 +19,22 @@ library;
 
 import 'dart:io';
 
-import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:dart_monty/src/os_call/sandboxed_fs_handler.dart';
 import 'package:dart_monty_core/dart_monty_core.dart'
-    show MontyPath, OsCallNotHandledException;
+    show ExternalException, MontyPath, OsCallNotHandledException;
 import 'package:test/test.dart';
+import '_os_call.dart';
 
 void main() {
   late Directory root;
   late String rootPath;
-  late OsCallHandler handler;
+  late DartOsCall handler;
 
   setUp(() {
     root = Directory.systemTemp.createTempSync('monty_sandbox_test_');
     // Resolve symlinks so paths match on macOS (/var -> /private/var).
     rootPath = root.resolveSymbolicLinksSync();
-    handler = sandboxedFsHandler(root: root);
+    handler = dartCall(sandboxedFsHandler(root: root));
   });
 
   tearDown(() {
@@ -51,9 +51,9 @@ void main() {
             '$rootPath/../../../etc/passwd',
           ], null),
           throwsA(
-            isA<OsCallException>().having(
-              (e) => e.pythonExceptionType,
-              'pythonExceptionType',
+            isA<ExternalException>().having(
+              (e) => e.excType,
+              'excType',
               'PermissionError',
             ),
           ),
@@ -66,9 +66,9 @@ void main() {
             '$rootPath/sub/../../etc/passwd',
           ], null),
           throwsA(
-            isA<OsCallException>().having(
-              (e) => e.pythonExceptionType,
-              'pythonExceptionType',
+            isA<ExternalException>().having(
+              (e) => e.excType,
+              'excType',
               'PermissionError',
             ),
           ),
@@ -79,9 +79,9 @@ void main() {
         expect(
           () => handler('Path.read_text', ['/etc/passwd'], null),
           throwsA(
-            isA<OsCallException>().having(
-              (e) => e.pythonExceptionType,
-              'pythonExceptionType',
+            isA<ExternalException>().having(
+              (e) => e.excType,
+              'excType',
               'PermissionError',
             ),
           ),
@@ -104,9 +104,9 @@ void main() {
             '${rootPath}evil/secret.txt',
           ], null),
           throwsA(
-            isA<OsCallException>().having(
-              (e) => e.pythonExceptionType,
-              'pythonExceptionType',
+            isA<ExternalException>().having(
+              (e) => e.excType,
+              'excType',
               'PermissionError',
             ),
           ),
@@ -124,9 +124,9 @@ void main() {
             '$rootPath/escape_link',
           ], null),
           throwsA(
-            isA<OsCallException>().having(
-              (e) => e.pythonExceptionType,
-              'pythonExceptionType',
+            isA<ExternalException>().having(
+              (e) => e.excType,
+              'excType',
               'PermissionError',
             ),
           ),
@@ -168,9 +168,9 @@ void main() {
           expect(
             () => handler(op, args, null),
             throwsA(
-              isA<OsCallException>().having(
-                (e) => e.pythonExceptionType,
-                'pythonExceptionType',
+              isA<ExternalException>().having(
+                (e) => e.excType,
+                'excType',
                 'PermissionError',
               ),
             ),
@@ -200,7 +200,7 @@ void main() {
             '$rootPath/new_link/brand_new.txt',
             'ESCAPED',
           ], null),
-          throwsA(isA<OsCallException>()),
+          throwsA(isA<ExternalException>()),
         );
         expect(File('${outsideDir.path}/brand_new.txt').existsSync(), isFalse);
       });
@@ -242,7 +242,7 @@ void main() {
 
           expect(
             () => handler('Path.unlink', ['$rootPath/u_link'], null),
-            throwsA(isA<OsCallException>()),
+            throwsA(isA<ExternalException>()),
           );
           expect(victim.existsSync(), isTrue);
         },
@@ -263,9 +263,9 @@ void main() {
         expect(
           () => handler('Path.rmdir', ['$rootPath/dirlink'], null),
           throwsA(
-            isA<OsCallException>().having(
-              (e) => e.pythonExceptionType,
-              'pythonExceptionType',
+            isA<ExternalException>().having(
+              (e) => e.excType,
+              'excType',
               'NotADirectoryError',
             ),
           ),
@@ -356,8 +356,8 @@ void main() {
               '$rootPath/b.txt',
             ], null),
             throwsA(
-              isA<OsCallException>().having(
-                (e) => e.pythonExceptionType,
+              isA<ExternalException>().having(
+                (e) => e.excType,
                 'type',
                 'FileNotFoundError',
               ),
@@ -385,8 +385,8 @@ void main() {
               '$rootPath/d2',
             ], null),
             throwsA(
-              isA<OsCallException>().having(
-                (e) => e.pythonExceptionType,
+              isA<ExternalException>().having(
+                (e) => e.excType,
                 'type',
                 'IsADirectoryError',
               ),
@@ -417,8 +417,8 @@ void main() {
               '$rootPath/f2.txt',
             ], null),
             throwsA(
-              isA<OsCallException>().having(
-                (e) => e.pythonExceptionType,
+              isA<ExternalException>().having(
+                (e) => e.excType,
                 'type',
                 'NotADirectoryError',
               ),
@@ -436,7 +436,7 @@ void main() {
               '$rootPath/dd3',
             ], null),
             throwsA(
-              isA<OsCallException>().having(
+              isA<ExternalException>().having(
                 (e) => e.message,
                 'message',
                 contains('Errno 39'),
@@ -503,7 +503,7 @@ void main() {
               '$rootPath/ghost',
               '$rootPath/ghost',
             ], null),
-            throwsA(isA<OsCallException>()),
+            throwsA(isA<ExternalException>()),
           );
         });
 
@@ -552,19 +552,19 @@ void main() {
           for (final op in ['Path.exists', 'Path.is_file', 'Path.is_dir']) {
             expect(
               () => handler(op, ['$rootPath/escape/secret.txt'], null),
-              throwsA(isA<OsCallException>()),
+              throwsA(isA<ExternalException>()),
               reason: '$op leaked through the symlink',
             );
           }
           expect(
             () => handler('Path.iterdir', ['$rootPath/escape'], null),
-            throwsA(isA<OsCallException>()),
+            throwsA(isA<ExternalException>()),
           );
           // The negative oracle is closed too: a NON-existent path outside
           // must refuse, not answer false.
           expect(
             () => handler('Path.exists', ['$rootPath/escape/nope.txt'], null),
-            throwsA(isA<OsCallException>()),
+            throwsA(isA<ExternalException>()),
           );
         });
 
@@ -598,7 +598,7 @@ void main() {
               '$rootPath/src.txt',
               '$rootPath/escape/leaked.txt',
             ], null),
-            throwsA(isA<OsCallException>()),
+            throwsA(isA<ExternalException>()),
           );
           expect(File('${outside.path}/leaked.txt').existsSync(), isFalse);
         });
@@ -642,9 +642,9 @@ void main() {
             '$rootPath/chain_link',
           ], null),
           throwsA(
-            isA<OsCallException>().having(
-              (e) => e.pythonExceptionType,
-              'pythonExceptionType',
+            isA<ExternalException>().having(
+              (e) => e.excType,
+              'excType',
               'PermissionError',
             ),
           ),
@@ -664,9 +664,9 @@ void main() {
             '$rootPath/resolve_link',
           ], null),
           throwsA(
-            isA<OsCallException>().having(
-              (e) => e.pythonExceptionType,
-              'pythonExceptionType',
+            isA<ExternalException>().having(
+              (e) => e.excType,
+              'excType',
               'PermissionError',
             ),
           ),
@@ -691,9 +691,9 @@ void main() {
             'pwned',
           ], null),
           throwsA(
-            isA<OsCallException>().having(
-              (e) => e.pythonExceptionType,
-              'pythonExceptionType',
+            isA<ExternalException>().having(
+              (e) => e.excType,
+              'excType',
               'PermissionError',
             ),
           ),
@@ -709,9 +709,9 @@ void main() {
             '/tmp/escaped.txt',
           ], null),
           throwsA(
-            isA<OsCallException>().having(
-              (e) => e.pythonExceptionType,
-              'pythonExceptionType',
+            isA<ExternalException>().having(
+              (e) => e.excType,
+              'excType',
               'PermissionError',
             ),
           ),

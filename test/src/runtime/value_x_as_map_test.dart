@@ -13,10 +13,10 @@ import 'package:test/test.dart';
 void main() {
   group('MontyValue.asMap', () {
     test('returns the entries of an all-string-keyed dict', () {
-      final v = MontyDict.ofStrings(const {
-        'a': MontyInt(1),
-        'b': MontyString('two'),
-      });
+      const v = MontyDict([
+        (MontyString('a'), MontyInt(1)),
+        (MontyString('b'), MontyString('two')),
+      ]);
 
       expect(
         v.asMap(),
@@ -46,7 +46,7 @@ void main() {
     test('an empty dict is an empty map, not null', () {
       // Vacuously all-string-keyed. Answering null here would make "no entries"
       // indistinguishable from "wrong shape".
-      expect(MontyDict.ofStrings(const {}).asMap(), isEmpty);
+      expect(const MontyDict([]).asMap(), isEmpty);
     });
   });
 }

@@ -7,11 +7,12 @@
 // Run with:
 //   dart test --tags=integration \
 //     test/experiment/examples/event_loop_experiment_test.dart
-@Tags(['integration'])
+@Tags(['integration', 'd1-pending'])
 library;
 
 import 'dart:async';
 
+import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:test/test.dart';
 
@@ -51,8 +52,7 @@ event['action']
       el.dispatch({'action': 'ping'});
 
       final result = await handle.result;
-      expect(result.error, isNull);
-      expect(result.value.dartValue, 'ping');
+      expect(result.dartValue, 'ping');
     });
 
     test('el_emit pushes value to lastEmittedSignal', () async {
@@ -65,9 +65,8 @@ event['action']
     });
 
     test('state is EventLoopCompleted after execution finishes', () async {
-      final result = await h.run('1 + 1');
+      await h.run('1 + 1');
 
-      expect(result.error, isNull);
       expect(el.channelState, isA<EventLoopCompleted>());
     });
   });
@@ -100,8 +99,7 @@ b = await el_recv()
 [a['seq'], b['seq']]
 ''');
 
-      expect(result.error, isNull);
-      expect(result.value.dartValue, [0, 1]);
+      expect(result.dartValue, [0, 1]);
     });
   });
 
@@ -138,8 +136,7 @@ total
       }
 
       final result = await handle.result;
-      expect(result.error, isNull);
-      expect(result.value.dartValue, 6); // 1+2+3
+      expect(result.dartValue, 6); // 1+2+3
     });
 
     test('el_emit fires each round — lastEmittedSignal updates', () async {
@@ -205,8 +202,8 @@ undefined_var_that_errors
       await _untilWaiting(el);
       el.dispatch({'ok': true});
 
-      final result = await handle.result;
-      expect(result.error, isNotNull); // Python errored
+      // Python errored.
+      await expectLater(handle.result, throwsA(isA<MontyError>()));
       expect(el.channelState, isA<EventLoopCompleted>());
     });
 
@@ -224,12 +221,14 @@ undefined_var_that_errors
       await h2.dispose();
 
       // Result future should have resolved (with error).
-      final result = await handle.result;
+      var failed = false;
+      try {
+        await handle.result;
+      } on MontyError {
+        failed = true;
+      }
       // The script never completed normally — error captured
-      expect(
-        result.error != null || el2.channelState is EventLoopDisposed,
-        isTrue,
-      );
+      expect(failed || el2.channelState is EventLoopDisposed, isTrue);
     });
   });
 

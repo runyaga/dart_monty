@@ -17,17 +17,18 @@
 
 import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:dart_monty_core/dart_monty_core.dart'
-    show MontyPath, OsCallNotHandledException;
+    show ExternalException, MontyPath, OsCallNotHandledException;
 import 'package:file/memory.dart';
 import 'package:test/test.dart';
+import '_os_call.dart';
 
 void main() {
   late MemoryFileSystem fs;
-  late OsCallHandler handler;
+  late DartOsCall handler;
 
   setUp(() {
     fs = MemoryFileSystem();
-    handler = fsHandler(fs);
+    handler = dartCall(fsHandler(fs));
   });
 
   group('memory fsHandler', () {
@@ -37,9 +38,9 @@ void main() {
       expect(
         () => handler('Path.read_text', ['/sandbox/missing.txt'], null),
         throwsA(
-          isA<OsCallException>().having(
-            (e) => e.pythonExceptionType,
-            'pythonExceptionType',
+          isA<ExternalException>().having(
+            (e) => e.excType,
+            'excType',
             'FileNotFoundError',
           ),
         ),
@@ -51,7 +52,7 @@ void main() {
 
       expect(
         () => handler('Path.mkdir', ['/sandbox/dir'], null),
-        throwsA(isA<OsCallException>()),
+        throwsA(isA<ExternalException>()),
       );
     });
 
@@ -59,9 +60,9 @@ void main() {
       expect(
         () => handler('Path.iterdir', ['/sandbox/nope'], null),
         throwsA(
-          isA<OsCallException>().having(
-            (e) => e.pythonExceptionType,
-            'pythonExceptionType',
+          isA<ExternalException>().having(
+            (e) => e.excType,
+            'excType',
             'FileNotFoundError',
           ),
         ),
@@ -72,9 +73,9 @@ void main() {
       expect(
         () => handler('Path.unlink', ['/sandbox/ghost.txt'], null),
         throwsA(
-          isA<OsCallException>().having(
-            (e) => e.pythonExceptionType,
-            'pythonExceptionType',
+          isA<ExternalException>().having(
+            (e) => e.excType,
+            'excType',
             'FileNotFoundError',
           ),
         ),
@@ -128,8 +129,8 @@ void main() {
     });
 
     test('memoryFsHandler() returns a fresh handler each call', () async {
-      final h1 = memoryFsHandler();
-      final h2 = memoryFsHandler();
+      final h1 = dartCall(memoryFsHandler());
+      final h2 = dartCall(memoryFsHandler());
 
       await h1('Path.write_text', ['/a.txt', 'from h1'], null);
       // h2 should not see h1's file — fresh in-memory FS per factory call.
@@ -141,7 +142,7 @@ void main() {
     // Same defect as the sandboxed handler had: String.length counts UTF-16
     // code units, CPython's len() counts characters. They agree for ASCII.
     final fs = MemoryFileSystem();
-    final handler = fsHandler(fs);
+    final handler = dartCall(fsHandler(fs));
     const text = 'hi \u{1F600}!';
 
     expect(text.length, 6, reason: 'UTF-16 code units');
@@ -153,7 +154,7 @@ void main() {
 
   test('resolve/absolute return MontyPath, not a bare String', () async {
     final fs = MemoryFileSystem();
-    final handler = fsHandler(fs);
+    final handler = dartCall(fsHandler(fs));
     fs.file('/f.txt').createSync(recursive: true);
 
     expect(await handler('Path.resolve', ['/f.txt'], null), isA<MontyPath>());
@@ -161,7 +162,7 @@ void main() {
   });
 
   test('an unknown op DECLINES, it does not throw UnsupportedError', () {
-    final handler = fsHandler(MemoryFileSystem());
+    final handler = dartCall(fsHandler(MemoryFileSystem()));
     expect(
       () => handler('Path.stat', ['/a.txt'], null),
       throwsA(isA<OsCallNotHandledException>()),

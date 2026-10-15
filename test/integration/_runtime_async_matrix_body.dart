@@ -2,15 +2,15 @@
 // matrix.
 //
 // Layer 4 takes a different code path than Layer 2/3 (which go through
-// dart_monty_core's `MontyRepl.feedRun` → `_driveLoop`). MontyRuntime
-// builds a `PlatformBridge` that is always futures-capable; per-fn
-// `DispatchMode` selects sync vs future dispatch for each call.
+// a raw `MontySession.feedRun`); per-fn `DispatchMode` selects sync vs
+// future dispatch for each call. Stubbed until D1-3/D1-4 (d1-pending).
 //
 // `ffi_runtime_async_matrix_test.dart` calls [runRuntimeAsyncMatrixTests]
 // (FFI only — dart_monty has no WASM-tagged integration suite).
 
 import 'dart:async';
 
+import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:test/test.dart';
 
@@ -61,33 +61,34 @@ void runRuntimeAsyncMatrixTests() {
     // matrix-cell: (sync Dart) × (sync Python)
     test('cell 1: sync handler + bare Python call', () async {
       var calls = 0;
-      final runtime = MontyRuntime()..register(fetchSync(() => calls++));
+      final runtime = (await MontyRuntime.start())
+        ..register(fetchSync(() => calls++));
       addTearDown(runtime.dispose);
 
       final r = await runtime.execute('fetch(7)').result;
 
-      expect(r.error, isNull);
-      expect(r.value.dartValue, 8);
+      expect(r.dartValue, 8);
       expect(calls, 1);
     });
 
     // matrix-cell: (async Dart) × (sync Python)
     test('cell 2: async handler + bare Python call', () async {
       var calls = 0;
-      final runtime = MontyRuntime()..register(fetchAsync(() => calls++));
+      final runtime = (await MontyRuntime.start())
+        ..register(fetchAsync(() => calls++));
       addTearDown(runtime.dispose);
 
       final r = await runtime.execute('fetch(7)').result;
 
-      expect(r.error, isNull);
-      expect(r.value.dartValue, 8);
+      expect(r.dartValue, 8);
       expect(calls, 1);
     });
 
     // matrix-cell: (sync Dart) × (Python local async coroutine, no Dart await)
     test('cell 3: sync handler + Python local coroutine', () async {
       var calls = 0;
-      final runtime = MontyRuntime()..register(fetchSync(() => calls++));
+      final runtime = (await MontyRuntime.start())
+        ..register(fetchSync(() => calls++));
       addTearDown(runtime.dispose);
 
       final r = await runtime.execute('''
@@ -96,15 +97,15 @@ async def doubled(n):
 await doubled(3)
 ''').result;
 
-      expect(r.error, isNull);
-      expect(r.value.dartValue, 8);
+      expect(r.dartValue, 8);
       expect(calls, 1);
     });
 
     // matrix-cell: (async Dart) × (Python local coroutine)
     test('cell 4: async handler + Python local coroutine', () async {
       var calls = 0;
-      final runtime = MontyRuntime()..register(fetchAsync(() => calls++));
+      final runtime = (await MontyRuntime.start())
+        ..register(fetchAsync(() => calls++));
       addTearDown(runtime.dispose);
 
       final r = await runtime.execute('''
@@ -113,8 +114,7 @@ async def doubled(n):
 await doubled(3)
 ''').result;
 
-      expect(r.error, isNull);
-      expect(r.value.dartValue, 8);
+      expect(r.dartValue, 8);
       expect(calls, 1);
     });
 
@@ -124,14 +124,13 @@ await doubled(3)
       'cell 5a: DispatchMode.future wires Python `await fetch(x)`',
       () async {
         var calls = 0;
-        final runtime = MontyRuntime()
+        final runtime = (await MontyRuntime.start())
           ..register(fetchAsyncFuture(() => calls++));
         addTearDown(runtime.dispose);
 
         final r = await runtime.execute('await fetch(7)').result;
 
-        expect(r.error, isNull);
-        expect(r.value.dartValue, 8);
+        expect(r.dartValue, 8);
         expect(calls, 1);
       },
     );
@@ -140,7 +139,7 @@ await doubled(3)
       'cell 5b: DispatchMode.future + asyncio.gather over externals',
       () async {
         final fired = <int>[];
-        final runtime = MontyRuntime()
+        final runtime = (await MontyRuntime.start())
           ..register(
             HostFunction(
               schema: const HostFunctionSchema(
@@ -166,8 +165,7 @@ results = await asyncio.gather(fetch(1), fetch(2), fetch(3))
 results
 ''').result;
 
-        expect(r.error, isNull);
-        expect(r.value.dartValue, [10, 20, 30]);
+        expect(r.dartValue, [10, 20, 30]);
         // Concurrent dispatch — all three callbacks fire (in some order)
         // before gather yields.
         expect(fired.toSet(), {1, 2, 3});
@@ -182,13 +180,20 @@ results
     test(
       'DispatchMode.sync (default): Python `await ext()` raises TypeError',
       () async {
-        final runtime = MontyRuntime()..register(fetchAsync(() => 0));
+        final runtime = (await MontyRuntime.start())
+          ..register(fetchAsync(() => 0));
         addTearDown(runtime.dispose);
 
-        final r = await runtime.execute('await fetch(7)').result;
-
-        expect(r.error, isNotNull);
-        expect(r.error?.excType, equals('TypeError'));
+        await expectLater(
+          runtime.execute('await fetch(7)').result,
+          throwsA(
+            isA<MontyError>().having(
+              (e) => e.exception.excType,
+              'excType',
+              'TypeError',
+            ),
+          ),
+        );
       },
     );
 
@@ -197,7 +202,7 @@ results
     test(
       'DispatchMode.future + inputs: inputs visible inside awaited external',
       () async {
-        final runtime = MontyRuntime()
+        final runtime = (await MontyRuntime.start())
           ..register(
             HostFunction(
               schema: const HostFunctionSchema(
@@ -222,8 +227,7 @@ results
             )
             .result;
 
-        expect(r.error, isNull);
-        expect(r.value.dartValue, 'hello, alice');
+        expect(r.dartValue, 'hello, alice');
       },
     );
 
@@ -233,7 +237,7 @@ results
     test('DispatchMode.future: gather of slow handlers takes ~one delay, '
         'not sum-of-delays', () async {
       const delayMs = 200;
-      final runtime = MontyRuntime()
+      final runtime = (await MontyRuntime.start())
         ..register(
           HostFunction(
             schema: const HostFunctionSchema(
@@ -260,8 +264,7 @@ await asyncio.gather(slow(1), slow(2), slow(3))
 ''').result;
       sw.stop();
 
-      expect(r.error, isNull);
-      expect(r.value.dartValue, [1, 2, 3]);
+      expect(r.dartValue, [1, 2, 3]);
       // Sequential would be ~3*delayMs (600ms). Concurrent is ~delayMs
       // plus dispatch overhead. Use 2x delay as the upper bound — well
       // below the sequential lower bound and well above any noise.

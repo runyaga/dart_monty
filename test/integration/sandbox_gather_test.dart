@@ -1,10 +1,12 @@
 @TestOn('vm')
-@Tags(['integration'])
+@Tags(['integration', 'd1-pending'])
 library;
 
+import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
-import 'package:dart_monty/monty_backend_spi.dart';
 import 'package:test/test.dart';
+
+import '_worker.dart';
 
 final _testCtx = HostContext(emit: (_) {}, executionId: 'test');
 
@@ -19,18 +21,22 @@ final _testCtx = HostContext(emit: (_) {}, executionId: 'test');
 ///   test/integration/sandbox_gather_test.dart
 /// ```
 void main() {
-  MontyPlatform createPlatform() => createPlatformMonty();
+  late Monty pool;
 
-  MontyBridge createBridge() => MontyBridge(platform: createPlatform());
+  setUpAll(() async => pool = await startTestPool());
+  tearDownAll(() => pool.close());
+
+  Future<MontyBridge> createBridge() async =>
+      MontyBridge(session: await pool.checkout());
 
   group('sandbox_gather with real FFI', () {
     test(
       'attributes print output and return value to correct worker',
       () async {
-        final bridge = createBridge();
+        final bridge = await createBridge();
         final registry = ExtensionCoordinator()
           ..register(
-            SandboxExtension(platformFactory: () async => createPlatform()),
+            SandboxExtension(),
           );
         await registry.attachTo(bridge);
 
@@ -82,10 +88,10 @@ void main() {
     );
 
     test('gather preserves requested handle order', () async {
-      final bridge = createBridge();
+      final bridge = await createBridge();
       final registry = ExtensionCoordinator()
         ..register(
-          SandboxExtension(platformFactory: () async => createPlatform()),
+          SandboxExtension(),
         );
       await registry.attachTo(bridge);
 
@@ -116,10 +122,10 @@ void main() {
     });
 
     test('gather with silent worker returns null output', () async {
-      final bridge = createBridge();
+      final bridge = await createBridge();
       final registry = ExtensionCoordinator()
         ..register(
-          SandboxExtension(platformFactory: () async => createPlatform()),
+          SandboxExtension(),
         );
       await registry.attachTo(bridge);
 
@@ -152,10 +158,10 @@ void main() {
     });
 
     test('gather propagates child failure as ChildSandboxException', () async {
-      final bridge = createBridge();
+      final bridge = await createBridge();
       final registry = ExtensionCoordinator()
         ..register(
-          SandboxExtension(platformFactory: () async => createPlatform()),
+          SandboxExtension(),
         );
       await registry.attachTo(bridge);
 
@@ -190,10 +196,10 @@ void main() {
     test(
       'gather results are machine-parseable for downstream tooling',
       () async {
-        final bridge = createBridge();
+        final bridge = await createBridge();
         final registry = ExtensionCoordinator()
           ..register(
-            SandboxExtension(platformFactory: () async => createPlatform()),
+            SandboxExtension(),
           );
         await registry.attachTo(bridge);
 

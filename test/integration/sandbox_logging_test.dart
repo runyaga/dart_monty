@@ -1,11 +1,13 @@
 @TestOn('vm')
-@Tags(['integration'])
+@Tags(['integration', 'd1-pending'])
 library;
 
+import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
-import 'package:dart_monty/monty_backend_spi.dart';
 import 'package:struct_log/struct_log.dart';
 import 'package:test/test.dart';
+
+import '_worker.dart';
 
 final _testCtx = HostContext(emit: (_) {}, executionId: 'test');
 
@@ -37,19 +39,22 @@ void main() {
       ..minimumLevel = previousLevel;
   });
 
-  MontyPlatform createPlatform() => createPlatformMonty();
+  late Monty pool;
 
-  MontyBridge createBridge() => MontyBridge(
-    platform: createPlatform(),
+  setUpAll(() async => pool = await startTestPool());
+  tearDownAll(() => pool.close());
+
+  Future<MontyBridge> createBridge() async => MontyBridge(
+    session: await pool.checkout(),
     logger: StructLogBridgeLogger.root(LogManager.instance),
   );
 
   group('sandbox logging with real FFI', () {
     test('spawn + await logs full lifecycle', () async {
-      final bridge = createBridge();
+      final bridge = await createBridge();
       final registry = ExtensionCoordinator()
         ..register(
-          SandboxExtension(platformFactory: () async => createPlatform()),
+          SandboxExtension(),
         );
       await registry.attachTo(bridge);
 
@@ -83,10 +88,10 @@ void main() {
     });
 
     test('failed child logs error details', () async {
-      final bridge = createBridge();
+      final bridge = await createBridge();
       final registry = ExtensionCoordinator()
         ..register(
-          SandboxExtension(platformFactory: () async => createPlatform()),
+          SandboxExtension(),
         );
       await registry.attachTo(bridge);
 
@@ -118,10 +123,10 @@ void main() {
     });
 
     test('dispose logs child counts', () async {
-      final bridge = createBridge();
+      final bridge = await createBridge();
       final registry = ExtensionCoordinator()
         ..register(
-          SandboxExtension(platformFactory: () async => createPlatform()),
+          SandboxExtension(),
         );
       await registry.attachTo(bridge);
 
