@@ -6,7 +6,11 @@
 // ignores `package:` URIs (core's own exports are core's business).
 import 'dart:io';
 
+import 'package:dart_monty/dart_monty_bridge.dart'
+    show OsCallNotHandledException, OsHandler;
 import 'package:test/test.dart';
+
+import '_os_call.dart';
 
 const _internal = ['composeOsHandlers', 'osArgString', 'PathOp', 'timeHandler'];
 
@@ -94,12 +98,12 @@ void main() {
   });
 
   test('OsHandler and the decline exception stay public', () {
-    final all = <String>{
-      for (final lib in libs) File(lib).readAsStringSync(),
-    }.join('\n');
+    // Compile-time: this file imports only the public library, and the names
+    // below must resolve through it.
+    OsHandler decline() =>
+        (operation, args, kwargs) => throw const OsCallNotHandledException();
 
-    expect(all, contains('OsCallNotHandledException'));
-    expect(all, matches(RegExp(r'\bOsHandler\b')));
+    expectSyncDecline(() => rawCall(decline(), 'Path.exists'));
   });
 
   test('the default handler is chosen by conditional import', () {

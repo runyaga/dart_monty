@@ -62,7 +62,7 @@ void main() {
       expect(Directory(path).existsSync(), isTrue);
     });
 
-    test('an empty kwargs map is accepted, never null', () {
+    test('an empty kwargs map is accepted', () {
       final handler = defaultOsHandler();
 
       expect(

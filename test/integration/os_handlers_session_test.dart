@@ -190,6 +190,18 @@ p.write_text('hi')
       expect(out, startsWith('TypeError'));
     });
 
+    test('an uncaught handler failure ends the run with that error', () async {
+      bridge.registerOs(
+        (name, args, kwargs) =>
+            throw const ExternalException('FileNotFoundError', 'gone'),
+      );
+
+      final events = await bridge.execute("open('/x.txt').read()").toList();
+
+      final error = events.last as BridgeRunError;
+      expect(error.message, 'FileNotFoundError: gone');
+    });
+
     test('another throw is Exception with its text', () async {
       bridge.registerOs((name, args, kwargs) => throw StateError('boom'));
 
