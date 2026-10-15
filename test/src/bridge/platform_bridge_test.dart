@@ -602,9 +602,20 @@ void main() {
         fake.willReturn(const MontyNone());
         final stream = bridge.execute('1');
         // Try starting another before the first completes.
-        expect(() => bridge.execute('2'), throwsStateError);
+        expect(
+          () => bridge.execute('2'),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              'Bridge is already executing',
+            ),
+          ),
+        );
         // Drain the first stream so cleanup happens.
         await stream.toList();
+        // The rejected code was never fed.
+        expect(fake.feeds, ['1']);
       },
     );
   });
@@ -897,6 +908,29 @@ void main() {
       expect(error.exception, isNull);
       expect(error.message, original.toString());
       expect(() => extractBridgeResult(events), throwsA(same(original)));
+    });
+
+    test('logger, register(category:) and schemasByCategory', () {
+      final log = _RecordingLogger();
+      HostFunction fn(String name) => HostFunction(
+        schema: HostFunctionSchema(name: name, description: ''),
+        handler: (_, _) async => null,
+      );
+      final b = MontyBridge(session: FakeMontySession(), logger: log)
+        ..register(fn('a'), category: 'files')
+        ..register(fn('b'));
+      addTearDown(b.dispose);
+
+      expect(b.logger, same(log));
+      expect(
+        b.schemasByCategory.map(
+          (k, v) => MapEntry(k, [for (final s in v) s.name]),
+        ),
+        {
+          'files': ['a'],
+          'uncategorized': ['b'],
+        },
+      );
     });
 
     test('constructing a bridge and reading schemas feeds nothing', () {

@@ -111,10 +111,32 @@ void main() {
 
     expect(
       (events.last as BridgeRunFinished).value,
-      startsWith('PermissionError'),
+      allOf(startsWith('PermissionError'), contains('/nope.txt')),
     );
     expect(events.whereType<BridgeOsCallResult>().single.result, 'Declined');
   });
+
+  test(
+    'a declined non-filesystem call raises the worker RuntimeError',
+    () async {
+      bridge.registerOs(
+        (name, args, kwargs) => throw const OsCallNotHandledException(),
+      );
+
+      final events = await bridge
+          .execute(_tryCatch('os.getenv("HOME")'))
+          .toList();
+
+      expect(
+        (events.last as BridgeRunFinished).value,
+        allOf(
+          startsWith('RuntimeError'),
+          contains('is not supported in this environment'),
+        ),
+      );
+      expect(events.whereType<BridgeOsCallResult>().single.result, 'Declined');
+    },
+  );
 
   test('a host handler answers and its call is reported', () async {
     bridge.registerOs((name, args, kwargs) {
