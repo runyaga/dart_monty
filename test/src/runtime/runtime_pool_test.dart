@@ -7,6 +7,8 @@ import 'package:dart_monty/src/runtime/runtime.dart'
 import 'package:dart_monty_core/dart_monty_core_testing.dart';
 import 'package:test/test.dart';
 
+import '../_recording_session.dart';
+
 /// Tests of how `MontyRuntime` uses its sessions: which it checks out, when
 /// it closes them, and how cancel closes a busy one. The sessions are
 /// core's scripted `FakeMontySession`s, supplied through the runtime's
@@ -274,6 +276,62 @@ void main() {
       await runtime.execute('b').result;
 
       expect(seen, ['override', 'runtime']);
+    });
+  });
+
+  group('inputs', () {
+    late RecordingSession recorded;
+
+    Future<MontyRuntime> startRecorded() async {
+      final runtime = await startRuntimeWith(
+        checkout: ({limits}) async => recorded = RecordingSession(
+          FakeMontySession()..willReturn(const MontyNone()),
+        ),
+      );
+      addTearDown(runtime.dispose);
+
+      return runtime;
+    }
+
+    test('omitted, null or empty bind nothing', () async {
+      for (final inputs in <Map<String, Object?>?>[null, {}]) {
+        final runtime = await startRecorded();
+        await runtime.execute('pass', inputs: inputs).result;
+
+        expect(recorded.feeds.single.inputs ?? const {}, isEmpty);
+        expect(recorded.feeds.single.code, 'pass');
+      }
+      final runtime = await startRecorded();
+      await runtime.execute('pass').result;
+      expect(recorded.feeds.single.inputs ?? const {}, isEmpty);
+    });
+
+    test('a Dart value is bound through MontyValue.fromDart, null as None, '
+        'and a MontyValue unchanged', () async {
+      const tuple = MontyTuple([MontyInt(1), MontyString('a')]);
+      final runtime = await startRecorded();
+
+      await runtime
+          .execute('x', inputs: {'n': 1, 'none': null, 't': tuple})
+          .result;
+
+      final inputs = recorded.feeds.single.inputs!;
+      expect(inputs['n'], const MontyInt(1));
+      expect(inputs['none'], const MontyNone());
+      expect(inputs['t'], same(tuple));
+      expect(recorded.feeds.single.code, 'x');
+    });
+
+    test('a value fromDart refuses is an ArgumentError from execute, before '
+        'any feed', () async {
+      final runtime = await startRecorded();
+
+      expect(
+        () => runtime.execute('x', inputs: {'x': Object()}),
+        throwsArgumentError,
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(recorded.feeds, isEmpty);
     });
   });
 

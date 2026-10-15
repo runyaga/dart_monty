@@ -160,6 +160,29 @@ void main() {
     });
   });
 
+  test("each library exports only its own sources and core's main "
+      'library: no test double, fake pool or core testing library', () {
+    for (final uri in [main, bridgeLib]) {
+      final targets = {
+        for (final dependency in _library(uri).libraryDependencies)
+          if (dependency.isExport) '${dependency.targetLibrary?.uri}',
+      };
+      expect(
+        targets.where(
+          (t) =>
+              !t.startsWith('package:dart_monty/src/') &&
+              t != 'package:dart_monty_core/dart_monty_core.dart',
+        ),
+        isEmpty,
+        reason: uri,
+      );
+      expect(
+        _exported(_library(uri)).keys,
+        isNot(contains('FakeMontySession')),
+      );
+    }
+  });
+
   test('names D1 makes private are not public', () {
     expect(
       public.intersection({
