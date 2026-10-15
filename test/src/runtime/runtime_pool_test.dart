@@ -16,11 +16,14 @@ void main() {
   late int poolCloses;
   // When set, a checkout waits for it before it hands out a session.
   Completer<void>? checkoutGate;
+  // When set, scripts each session as it is checked out.
+  void Function(FakeMontySession session)? onCheckout;
 
   /// A checkout that hands out the next scripted session.
   Future<MontySession> checkout({ResourceLimits? limits}) async {
     await checkoutGate?.future;
     final session = FakeMontySession();
+    onCheckout?.call(session);
     sessions.add(session);
 
     return session;
@@ -49,6 +52,7 @@ void main() {
     sessions = [];
     poolCloses = 0;
     checkoutGate = null;
+    onCheckout = null;
   });
 
   group('default pool', () {
@@ -494,6 +498,87 @@ void main() {
       expect(sessions, isEmpty);
     });
 
+    test('cancel settles an execution still waiting for its checkout, and '
+        'closes the session when it arrives', () async {
+      final runtime = await start(sandbox: true);
+      final gate = checkoutGate = Completer<void>();
+      final handle = runtime.execute('x');
+      await Future<void>.delayed(Duration.zero);
+      final failed = expectLater(handle.result, throwsStateError);
+
+      await handle.cancel();
+      await failed;
+
+      gate.complete();
+      await Future<void>.delayed(Duration.zero);
+      expect(sessions.single.isClosed, isTrue);
+    });
+
+    test(
+      'dispose settles an execution still waiting for its checkout',
+      () async {
+        final runtime = await start(sandbox: true);
+        final gate = checkoutGate = Completer<void>();
+        final handle = runtime.execute('x');
+        await Future<void>.delayed(Duration.zero);
+        final failed = expectLater(handle.result, throwsStateError);
+
+        await runtime.dispose();
+        await failed;
+        gate.complete();
+      },
+    );
+
+    test('a post-cancel checkout that loses to clearState is closed', () async {
+      final runtime = await start();
+      sessions.single.willHold(Completer<void>().future);
+      final cancelled = runtime.execute('loop()');
+      await Future<void>.delayed(Duration.zero);
+      final crashed = expectLater(
+        cancelled.result,
+        throwsA(isA<MontyCrashedError>()),
+      );
+      await cancelled.cancel();
+      await crashed;
+
+      final gate = checkoutGate = Completer<void>();
+      onCheckout = (s) => s.willReturn(const MontyInt(5));
+      final next = runtime.execute('x');
+      await Future<void>.delayed(Duration.zero);
+      final clearing = runtime.clearState();
+      await Future<void>.delayed(Duration.zero);
+      gate.complete();
+
+      await clearing;
+      expect(await next.result, const MontyInt(5));
+      await runtime.dispose();
+      expect(sessions, hasLength(3));
+      expect(sessions.every((s) => s.isClosed), isTrue);
+    });
+
+    test('dispose waits for an attachment in progress before disposing the '
+        'extensions', () async {
+      final gate = Completer<void>();
+      final log = <String>[];
+      final runtime = await start(extensions: [_Logged(gate.future, log)]);
+      final outcome = runtime
+          .execute('x')
+          .result
+          .then<Object?>(
+            (_) => null,
+            onError: (Object e) => e,
+          );
+      await Future<void>.delayed(Duration.zero);
+
+      final disposing = runtime.dispose();
+      await Future<void>.delayed(Duration.zero);
+      gate.complete();
+      await disposing;
+      await outcome;
+
+      expect(log, ['attach start', 'attach end', 'dispose']);
+    });
+
     test(
       'execute and invoke on first use attach the extensions once',
       () async {
@@ -559,6 +644,35 @@ final class _SlowAttach extends MontyExtension {
     await super.onAttach(ctx);
     attaches++;
     await gate;
+  }
+}
+
+/// An extension that logs its attach and dispose; attaching waits for
+/// [gate].
+final class _Logged extends MontyExtension {
+  _Logged(this.gate, this.log);
+
+  final Future<void> gate;
+  final List<String> log;
+
+  @override
+  String get namespace => 'logged';
+
+  @override
+  List<HostFunction> get functions => const [];
+
+  @override
+  Future<void> onAttach(AttachContext ctx) async {
+    await super.onAttach(ctx);
+    log.add('attach start');
+    await gate;
+    log.add('attach end');
+  }
+
+  @override
+  Future<void> onDispose() async {
+    await super.onDispose();
+    log.add('dispose');
   }
 }
 
