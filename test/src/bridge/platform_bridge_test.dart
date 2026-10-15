@@ -950,7 +950,7 @@ void main() {
       },
     );
 
-    test('a failed execute does not free a later run when it ends', () async {
+    test('a wrapper that throws feeds nothing and frees the bridge', () async {
       final b =
           MontyBridge(session: fake, logger: BridgeLogger.silent)
               as SessionBridge;
@@ -960,23 +960,65 @@ void main() {
         if (wrapperCalls++ == 0) throw StateError('wrapper failure');
         return stream;
       });
-      final gate = Completer<void>();
+      fake.willReturn(const MontyInt(2));
+
+      expect(() => b.execute('first'), throwsStateError);
+      final events = await b.execute('second').toList();
+
+      expect(fake.feeds, ['second']);
+      expect(events.last, isA<BridgeRunFinished>());
+    });
+
+    test('events are logged as emitted, without a listener', () async {
+      final log = _RecordingLogger();
+      final b = MontyBridge(session: fake, logger: log);
+      addTearDown(b.dispose);
+      fake.willReturn(const MontyNone());
+
+      // Nobody listens to the stream.
+      b.execute('None');
+      for (var i = 0; i < 50 && !log.messages.contains('run finished'); i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+      }
+
+      expect(log.messages, containsAllInOrder(['run started', 'run finished']));
+    });
+
+    test('BridgeRunError.exception is the MontyError the feed threw', () async {
+      final error = await _montyError();
+      final b = MontyBridge(
+        session: ThrowingSession(error),
+        logger: BridgeLogger.silent,
+      );
+      addTearDown(b.dispose);
+
+      final events = await b.execute('1').toList();
+
+      expect(events.whereType<BridgeRunError>().single.exception, same(error));
+    });
+
+    test('print text over the collector cap fails the run', () async {
+      // core's default CollectString cap is 10 MiB; dm sets none of its own.
       fake
-        ..willReturn(const MontyNone())
-        ..willHold(gate.future)
+        ..willPrint('x' * (10 * 1024 * 1024 + 1))
         ..willReturn(const MontyNone());
 
-      // The wrapper fails the first execute; its feed still runs.
-      expect(() => b.execute('first'), throwsStateError);
-      final second = b.execute('second').toList();
-      // Let the first feed end while the second is held.
-      await Future<void>.delayed(const Duration(milliseconds: 20));
-      expect(fake.feeds, contains('first'));
+      final events = await bridge.execute('print(...)').toList();
 
-      expect(() => b.execute('third'), throwsStateError);
+      expect(events.last, isA<BridgeRunError>());
+    });
 
-      gate.complete();
-      expect((await second).last, isA<BridgeRunFinished>());
+    test('print text at the collector cap is collected whole', () async {
+      fake
+        ..willPrint('x' * (10 * 1024 * 1024))
+        ..willReturn(const MontyNone());
+
+      final events = await bridge.execute('print(...)').toList();
+
+      expect(
+        (events.last as BridgeRunFinished).printOutput,
+        hasLength(10 * 1024 * 1024),
+      );
     });
 
     test('the bridge can run again after a run ends', () async {
@@ -1163,6 +1205,63 @@ void main() {
       expect(events.last, isA<BridgeRunFinished>());
     });
 
+    test('a synchronous answer reaches the session synchronously', () async {
+      final probe = OsProbeSession('os.getenv', const [
+        MontyString('X'),
+        MontyNone(),
+      ]);
+      final b = MontyBridge(session: probe, logger: BridgeLogger.silent)
+        ..registerOs((name, args, kwargs) => const MontyString('now'));
+      addTearDown(b.dispose);
+
+      await b.execute('os.getenv("X")').toList();
+
+      expect(probe.returned, const MontyString('now'));
+      expect(probe.returned, isNot(isA<Future<Object?>>()));
+    });
+
+    test(
+      'a handler that settles after its feed ended reports nothing',
+      () async {
+        final pending = Completer<MontyValue>();
+        final called = Completer<void>();
+        final log = _RecordingLogger();
+        final bridge = MontyBridge(session: fake, logger: log);
+        addTearDown(bridge.dispose);
+        bridge.registerOs((name, args, kwargs) {
+          called.complete();
+          return pending.future;
+        });
+        fake
+          ..willCallOs(
+            'os.getenv',
+            args: [const MontyString('X'), const MontyNone()],
+          )
+          ..willReturn(const MontyNone());
+
+        final events = <BridgeEvent>[];
+        final done = bridge
+            .execute('os.getenv("X")')
+            .listen(events.add)
+            .asFuture<void>();
+        await called.future;
+        // Closing the session ends the feed while the handler is pending.
+        await fake.close();
+        await done;
+        final terminal = events.last;
+
+        pending.complete(const MontyString('late'));
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+
+        expect(terminal, isA<BridgeRunError>());
+        expect(events.last, same(terminal));
+        expect(events.whereType<BridgeOsCallResult>(), isEmpty);
+        // Nothing is reported or logged for the late answer.
+        expect(log.messages, isNot(contains('os result')));
+        expect(log.messages, isNot(contains('OS call handler error')));
+      },
+    );
+
     test('AttachContext.registerOs replaces the handler set before', () async {
       (bridge as AttachContext)
         ..registerOs((name, args, kwargs) => const MontyString('A'))
@@ -1179,4 +1278,54 @@ void main() {
       expect(_returnAnswers(fake), [const MontyString('B')]);
     });
   });
+}
+
+/// A [BridgeLogger] that records each message.
+final class _RecordingLogger implements BridgeLogger {
+  final List<String> messages = [];
+
+  @override
+  void trace(String message, {Map<String, Object?>? attributes}) =>
+      messages.add(message);
+
+  @override
+  void debug(String message, {Map<String, Object?>? attributes}) =>
+      messages.add(message);
+
+  @override
+  void info(String message, {Map<String, Object?>? attributes}) =>
+      messages.add(message);
+
+  @override
+  void warning(
+    String message, {
+    Object? error,
+    StackTrace? stackTrace,
+    Map<String, Object?>? attributes,
+  }) => messages.add(message);
+
+  @override
+  void error(
+    String message, {
+    Object? error,
+    StackTrace? stackTrace,
+    Map<String, Object?>? attributes,
+  }) => messages.add(message);
+
+  @override
+  BridgeLogger child(String name) => this;
+
+  @override
+  void close() {}
+}
+
+/// A real [MontyError], raised by a scripted fake session.
+Future<MontyError> _montyError() async {
+  final session = FakeMontySession()..willRaise('ValueError', message: 'v');
+  try {
+    await session.feedRun('raise ValueError()');
+  } on MontyError catch (e) {
+    return e;
+  }
+  throw StateError('the scripted feed did not raise');
 }

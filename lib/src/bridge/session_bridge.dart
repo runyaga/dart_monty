@@ -137,6 +137,19 @@ class SessionBridge implements MontyBridge {
       if (identical(_activeRun, run)) _activeRun = null;
     }
 
+    // The wrappers are applied before the feed starts: one that throws
+    // frees the bridge at once, and the session is never fed.
+    var stream = controller.stream;
+    try {
+      for (final wrap in _streamWrappers) {
+        stream = wrap(code, stream);
+      }
+    } on Object {
+      release();
+      unawaited(controller.close());
+      rethrow;
+    }
+
     unawaited(
       _run(code, controller).whenComplete(() {
         release();
@@ -144,24 +157,7 @@ class SessionBridge implements MontyBridge {
       }),
     );
 
-    // A wrapper that throws frees the bridge at once, so the next execute
-    // can run. _run is already running and closes the controller itself,
-    // so the controller is not closed here.
-    try {
-      var stream = controller.stream.map((event) {
-        _logEvent(event);
-
-        return event;
-      });
-      for (final wrap in _streamWrappers) {
-        stream = wrap(code, stream);
-      }
-
-      return stream;
-    } on Object {
-      release();
-      rethrow;
-    }
+    return stream;
   }
 
   @override
@@ -175,13 +171,30 @@ class SessionBridge implements MontyBridge {
   /// Runs [code] as one feed on [session], adding its events to
   /// [controller]: [BridgeRunStarted] first, then the OS-call events, then
   /// [BridgeRunFinished] or [BridgeRunError].
+  ///
+  /// Each event is logged when it is emitted, whether or not the stream is
+  /// listened to. Nothing is emitted after the terminal event: an OS
+  /// handler that settles after its feed ended (the session was closed
+  /// meanwhile) reports nothing.
   Future<void> _run(
     String code,
     StreamController<BridgeEvent> controller,
   ) async {
+    var ended = false;
+    void emit(BridgeEvent event) {
+      if (ended) return;
+      _logEvent(event);
+      controller.add(event);
+    }
+
+    void end(BridgeEvent event) {
+      emit(event);
+      ended = true;
+    }
+
     final threadId = _host.nextId;
     final runId = _host.nextId;
-    controller.add(BridgeRunStarted(threadId: threadId, runId: runId));
+    emit(BridgeRunStarted(threadId: threadId, runId: runId));
 
     final printed = CollectString();
     final os = _currentOsHandler;
@@ -190,9 +203,9 @@ class SessionBridge implements MontyBridge {
         code,
         externals: _externals(),
         printCallback: printed.call,
-        os: os == null ? null : _reportingOs(os, controller.add),
+        os: os == null ? null : _reportingOs(os, emit),
       );
-      controller.add(
+      end(
         BridgeRunFinished(
           threadId: threadId,
           runId: runId,
@@ -207,7 +220,7 @@ class SessionBridge implements MontyBridge {
         e.exception.message ?? '',
       );
       logger.warning('Python error', attributes: {'error': message});
-      controller.add(
+      end(
         BridgeRunError(
           message: message,
           printOutput: _printed(printed),
@@ -221,7 +234,7 @@ class SessionBridge implements MontyBridge {
         printOutput: _printed(printed),
       );
       recordRunFailure(event, e, st);
-      controller.add(event);
+      end(event);
     }
   }
 
@@ -297,12 +310,16 @@ class SessionBridge implements MontyBridge {
         fail(e, st);
       }
 
+      // Only the handler's own failure is reported as an error.
       Future<MontyValue> settle(Future<MontyValue> pending) async {
+        final MontyValue value;
         try {
-          return answer(await pending);
+          value = await pending;
         } on Object catch (e, st) {
           fail(e, st);
         }
+
+        return answer(value);
       }
 
       return result is Future<MontyValue> ? settle(result) : answer(result);

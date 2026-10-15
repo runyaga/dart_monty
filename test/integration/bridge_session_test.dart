@@ -65,6 +65,20 @@ void main() {
     );
   });
 
+  test('a type-check rejection ends the run with MontyTypingError', () async {
+    final checked = await pool.checkout(typeCheck: true);
+    addTearDown(checked.close);
+    final b = MontyBridge(session: checked, logger: BridgeLogger.silent);
+    addTearDown(b.dispose);
+
+    final events = await b.execute('x: int = "not an int"').toList();
+
+    expect(
+      events.whereType<BridgeRunError>().single.exception,
+      isA<MontyTypingError>(),
+    );
+  });
+
   test('with no OS handler a filesystem call takes the worker default', () {
     return expectLater(
       _caught(bridge, "open('/nope.txt').read()"),
