@@ -291,33 +291,6 @@ class MontyRuntime implements MontyRuntimeRef {
     );
   }
 
-  /// Runs [code] on a second session checked out of the pool, with
-  /// default limits, [inputs] bound as globals by the feed, no OS handler
-  /// and no host functions; the session is closed afterwards, and by
-  /// [dispose]. Every `HostContext.subExecute` of this runtime's bridges.
-  ///
-  /// Completes with the feed's [MontyValue]; fails with its [MontyError],
-  /// or with the checkout's error (a pool's `checkoutTimeout` included).
-  Future<MontyValue> _subExecute(
-    String code, {
-    Map<String, Object?>? inputs,
-  }) async {
-    if (_disposed) throw StateError('MontyRuntime has been disposed');
-    final values = _inputValues(inputs);
-    final session = await _checkout();
-    if (_disposed) {
-      await session.close();
-      throw StateError('MontyRuntime has been disposed');
-    }
-    _subSessions.add(session);
-    try {
-      return await session.feedRun(code, inputs: values);
-    } finally {
-      _subSessions.remove(session);
-      await session.close();
-    }
-  }
-
   /// Invokes a registered host function directly from Dart — useful for
   /// exercising tools without routing through Python. No Python runs.
   ///
@@ -396,6 +369,33 @@ class MontyRuntime implements MontyRuntimeRef {
   // ---------------------------------------------------------------------------
   // Executions
   // ---------------------------------------------------------------------------
+
+  /// Runs [code] on a second session checked out of the pool, with
+  /// default limits, [inputs] bound as globals by the feed, no OS handler
+  /// and no host functions; the session is closed afterwards, and by
+  /// [dispose]. Every `HostContext.subExecute` of this runtime's bridges.
+  ///
+  /// Completes with the feed's [MontyValue]; fails with its [MontyError],
+  /// or with the checkout's error (a pool's `checkoutTimeout` included).
+  Future<MontyValue> _subExecute(
+    String code, {
+    Map<String, Object?>? inputs,
+  }) async {
+    if (_disposed) throw StateError('MontyRuntime has been disposed');
+    final values = _inputValues(inputs);
+    final session = await _checkout();
+    if (_disposed) {
+      await session.close();
+      throw StateError('MontyRuntime has been disposed');
+    }
+    _subSessions.add(session);
+    try {
+      return await session.feedRun(code, inputs: values);
+    } finally {
+      _subSessions.remove(session);
+      await session.close();
+    }
+  }
 
   /// Runs [body] for [run], completing its result with the value or the
   /// error, then closing its event stream.
