@@ -36,6 +36,10 @@ final class RecordingSession implements MontySession {
   /// Whether [close] was called.
   bool closed = false;
 
+  /// When set, a failing `feedRun` reports its error only once this
+  /// completes.
+  Future<void>? holdFailure;
+
   @override
   int? get workerPid => inner.workerPid;
 
@@ -51,7 +55,7 @@ final class RecordingSession implements MontySession {
   }) {
     feeds.add(RecordedFeed(code, inputs, externalLookup, os));
 
-    return inner.feedRun(
+    final fed = inner.feedRun(
       code,
       inputs: inputs,
       externalLookup: externalLookup,
@@ -60,6 +64,13 @@ final class RecordingSession implements MontySession {
       os: os,
       skipTypeCheck: skipTypeCheck,
     );
+    final hold = holdFailure;
+    if (hold == null) return fed;
+
+    return fed.catchError((Object e, StackTrace st) async {
+      await hold;
+      Error.throwWithStackTrace(e, st);
+    });
   }
 
   @override

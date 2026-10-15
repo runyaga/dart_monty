@@ -176,11 +176,13 @@ class MontyRuntime implements MontyRuntimeRef {
   /// upstream's defaults.
   ///
   /// In shared mode a feed that ends the held session replaces it: a
-  /// [MontyCrashedError] (the worker died or was killed), or a `MemoryError`
-  /// or `TimeoutError`, which a memory or time limit raises and after which
-  /// upstream says to discard the session. The session is closed, and the
-  /// next `execute()` checks out a fresh one, with empty globals; the
-  /// extensions stay attached, and it is not a [clearState].
+  /// [MontyCrashedError] (the worker died or was killed), or an uncaught
+  /// `MemoryError` or `TimeoutError`, which a memory or time limit raises
+  /// and after which upstream says to discard the session. The type decides,
+  /// not what raised it: the code's own uncaught `raise TimeoutError()`
+  /// replaces the session too. The session is closed, and the next
+  /// `execute()` checks out a fresh one, with empty globals; the extensions
+  /// stay attached, and it is not a [clearState].
   static Future<MontyRuntime> start({
     Monty? pool,
     OsHandler? os,

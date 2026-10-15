@@ -101,6 +101,8 @@ final class _Plugin extends MontyExtension {
 final class _Tools {
   final calls = <(String, Map<String, Object?>)>[];
   Exception? markerFailure;
+  // The map_sleep_ms calls in the order they finished.
+  final slept = <int>[];
 
   List<MontyExtension> get extensions => [
     _Plugin('narrate', [
@@ -141,6 +143,7 @@ final class _Tools {
         (args, _) async {
           final ms = args['ms']! as int;
           await Future<void>.delayed(Duration(milliseconds: ms));
+          slept.add(ms);
 
           return ms;
         },
@@ -365,12 +368,15 @@ void main() {
     final json = await runPythonTool(
       runtime,
       'import asyncio\n'
-      'await asyncio.gather(map_sleep_ms(ms=100), map_sleep_ms(ms=101), '
-      'map_sleep_ms(ms=102))',
+      'await asyncio.gather(map_sleep_ms(ms=140), map_sleep_ms(ms=100), '
+      'map_sleep_ms(ms=60))',
     );
     watch.stop();
 
-    expect(_decode(json)['value'], [100, 101, 102]);
+    // They finish shortest first; the results stay in request order.
+    expect(tools.slept, [60, 100, 140]);
+    expect(_decode(json)['value'], [140, 100, 60]);
+    // Overlapped: one after another would take 300 ms.
     expect(watch.elapsedMilliseconds, lessThan(250));
   });
 

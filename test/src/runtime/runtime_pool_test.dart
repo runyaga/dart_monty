@@ -481,6 +481,41 @@ void main() {
       expect(cleared.isClosed, isFalse);
     });
 
+    test('a crash reported after clearState installed its session keeps that '
+        'session', () async {
+      final release = Completer<void>();
+      final checkouts = <RecordingSession>[];
+      final runtime = await startRuntimeWith(
+        checkout: ({limits}) async {
+          final session = RecordingSession(FakeMontySession());
+          checkouts.add(session);
+
+          return session;
+        },
+      );
+      addTearDown(runtime.dispose);
+      final first = checkouts.single..holdFailure = release.future;
+      (first.inner as FakeMontySession).willHold(Completer<void>().future);
+      final running = runtime.execute('loop()');
+      await Future<void>.delayed(Duration.zero);
+      final failed = expectLater(
+        running.result,
+        throwsA(isA<MontyCrashedError>()),
+      );
+
+      // clearState kills the busy session and installs a new one; only then
+      // does the old feed report its crash.
+      await runtime.clearState();
+      expect(checkouts, hasLength(2));
+      release.complete();
+      await failed;
+
+      (checkouts.last.inner as FakeMontySession).willReturn(const MontyInt(7));
+      expect(await runtime.execute('x').result, const MontyInt(7));
+      expect(checkouts, hasLength(2));
+      expect(first.feeds.map((f) => f.code), ['loop()']);
+    });
+
     test('the replacement keeps the attached extensions and does not count '
         'as a clearState', () async {
       final ext = _CountingExtension();

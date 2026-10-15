@@ -91,6 +91,9 @@ JSArray<JSNumber> _toJsArray(List<dynamic> list) {
 // Sort runner
 // ---------------------------------------------------------------------------
 
+/// Room for every step of the largest sort the page offers.
+const _sortLimits = ResourceLimits(maxSuspensions: 100000);
+
 Future<void> _runSort(
   Monty pool,
   String algorithm,
@@ -103,8 +106,10 @@ Future<void> _runSort(
   _onSortStarted(name.toJS, size.toJS);
 
   try {
-    // The session closes when the sort ends, a suspended one included.
-    await pool.withSession((session) async {
+    // The session closes when the sort ends, a suspended one included. Each
+    // comparison and swap is a host call, so the session needs more than the
+    // default 1000 suspensions: a 100-element bubble sort makes about 10,000.
+    await pool.withSession(limits: _sortLimits, (session) async {
       var snapshot = await session.feedStart(code);
       while (snapshot is! MontyComplete) {
         if (snapshot is! FunctionSnapshot ||
@@ -127,7 +132,11 @@ Future<void> _runSort(
 
         _onStep(_toJsArray(stepArr), i.toJS, j.toJS, action.toJS);
 
-        if (action == 'done') return;
+        if (action == 'done') {
+          _onDone(_toJsArray(stepArr));
+
+          return;
+        }
 
         final currentSpeed = _getSpeed().toDartInt;
         await Future<void>.delayed(Duration(milliseconds: currentSpeed));

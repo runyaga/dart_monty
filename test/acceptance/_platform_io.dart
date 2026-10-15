@@ -46,11 +46,13 @@ void countWorkers() {}
 /// check instead of passing it.
 Future<int?> liveWorkers() async {
   if (Platform.isWindows) return null;
+  // `-f`: Linux truncates a process name to 15 characters, so `-x` with
+  // the 17-character executable name never matches there.
   final out = await Process.run('pgrep', [
     '-P',
     '$pid',
-    '-x',
-    'dart_monty_worker',
+    '-f',
+    r'(^|/)dart_monty_worker( |$)',
   ]);
   // pgrep exits 1 when nothing matches.
   if (out.exitCode > 1) throw StateError('pgrep failed: ${out.stderr}');
