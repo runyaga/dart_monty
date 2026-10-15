@@ -13,13 +13,6 @@ import 'package:dart_monty/src/runtime/runtime_ref.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:meta/meta.dart';
 
-/// Default [HostSubExecutor] wired into every [HostContext]: a sub-execution
-/// on a second session, built in D1-6.
-Future<MontyValue> _defaultSubExecute(
-  String code, {
-  Map<String, Object?>? inputs,
-}) => throw UnimplementedError('D1-6');
-
 /// The most characters [_argsJson] or [_resultText] writes before it gives
 /// up: a list shared at each level of a value expands at every use, so a
 /// small value can have an enormous text.
@@ -289,7 +282,8 @@ class HostDispatch {
   }) {
     final fn = _functions[name];
     if (fn == null) throw ArgumentError('Unknown host function: $name');
-    final validatedArgs = fn.schema.mapAndValidate(
+    final validatedArgs = mapAndValidate(
+      fn.schema,
       const [],
       args.map((k, v) => MapEntry(k, MontyValue.fromDart(v))),
     );
@@ -312,7 +306,7 @@ class HostDispatch {
       executionId: name,
       os: osHandler,
       parent: _runtime,
-      subExecute: _defaultSubExecute,
+      subExecute: _runtime?.subExecute,
     );
 
     return fn.handler!(validatedArgs, ctx);
@@ -394,7 +388,7 @@ class HostDispatch {
 
     final Map<String, Object?> validated;
     try {
-      validated = fn.schema.mapAndValidate(args, kwargs);
+      validated = mapAndValidate(fn.schema, args, kwargs);
     } on Object catch (e) {
       final text = fail(e);
       _log.warning(
@@ -412,7 +406,7 @@ class HostDispatch {
       cancelToken: cancelToken,
       os: os,
       parent: _runtime,
-      subExecute: _defaultSubExecute,
+      subExecute: _runtime?.subExecute,
     );
     final Object? result;
     final MontyValue value;

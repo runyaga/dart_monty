@@ -74,6 +74,12 @@ final class _RuntimeRef implements MontyRuntimeRef {
 
   @override
   List<HostFunctionSchema> get schemas => const [];
+
+  @override
+  Future<MontyValue> subExecute(
+    String code, {
+    Map<String, Object?>? inputs,
+  }) async => MontyString('sub:$code');
 }
 
 void main() {
@@ -1082,6 +1088,34 @@ void main() {
       await b.execute('fn(x=1)').toList();
 
       expect(parent, same(runtime));
+    });
+
+    test("a handler's subExecute is its runtime's, on both paths", () async {
+      final b = SessionBridge(
+        session: fake,
+        runtime: _RuntimeRef(),
+        logger: BridgeLogger.silent,
+      );
+      addTearDown(b.dispose);
+      final seen = <MontyValue>[];
+      b.register(
+        _fnX((args, ctx) async {
+          seen.add(await ctx.subExecute!('code ${args['x']}'));
+
+          return null;
+        }),
+      );
+      fake
+        ..willCall('fn', kwargs: {'x': const MontyInt(1)})
+        ..willReturn(const MontyNone());
+
+      await b.execute('fn(x=1)').toList();
+      await b.invokeHostFunction('fn', {'x': 2});
+
+      expect(seen, [
+        const MontyString('sub:code 1'),
+        const MontyString('sub:code 2'),
+      ]);
     });
 
     test('a null result is None and an empty result text', () async {

@@ -24,12 +24,15 @@ import 'package:dart_monty_core/dart_monty_core.dart'
 /// greeting = run_script('greet.py', inputs={'name': 'Alice'})
 /// ```
 ///
-/// The sub-script runs in a fresh session (via `ctx.subExecute`), so it does
-/// NOT share state or registered host functions with the caller. Its last
-/// expression's `dartValue` becomes the return value.
+/// The sub-script runs through `ctx.subExecute`, on a second session checked
+/// out of the runtime's pool while the caller stays suspended, so it shares
+/// no state and no registered host functions with the caller. Its
+/// last-expression [MontyValue] is returned to Python as it is.
 ///
-/// Throws a Python-visible exception if [readFile] fails, no sub-executor is
-/// available, or the sub-script raises an error.
+/// Fails with [StateError] when the context has no `subExecute` (a bare
+/// test context), with `run_script: could not read "<path>": <error>` when
+/// [readFile] throws, and with `run_script("<path>") failed: <message>`,
+/// the [MontyError]'s `exception.message`, when the sub-script raises.
 HostFunction buildRunScriptFunction(
   FutureOr<String> Function(String path) readFile,
 ) {
@@ -85,7 +88,7 @@ HostFunction buildRunScriptFunction(
         throw Exception('run_script("$path") failed: $msg');
       }
 
-      return result.dartValue;
+      return result;
     },
   );
 }

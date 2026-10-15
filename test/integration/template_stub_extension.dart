@@ -1,4 +1,5 @@
 import 'package:dart_monty/dart_monty_bridge.dart';
+import 'package:dart_monty/src/host/args.dart';
 
 /// A second extension for integration tests that combine extensions.
 ///

@@ -129,6 +129,8 @@ class MontyRuntime implements MontyRuntimeRef {
 
   // The executions not yet settled; dispose closes their sessions.
   final Set<_Execution> _live = {};
+  // The sessions of the sub-executions in progress; dispose closes them.
+  final Set<MontySession> _subSessions = {};
   final List<HostFunction> _extraFunctions = [];
   final StreamController<BridgeEvent> _eventsController =
       StreamController<BridgeEvent>.broadcast();
@@ -289,6 +291,27 @@ class MontyRuntime implements MontyRuntimeRef {
     );
   }
 
+  @override
+  Future<MontyValue> subExecute(
+    String code, {
+    Map<String, Object?>? inputs,
+  }) async {
+    if (_disposed) throw StateError('MontyRuntime has been disposed');
+    final values = _inputValues(inputs);
+    final session = await _checkout();
+    if (_disposed) {
+      await session.close();
+      throw StateError('MontyRuntime has been disposed');
+    }
+    _subSessions.add(session);
+    try {
+      return await session.feedRun(code, inputs: values);
+    } finally {
+      _subSessions.remove(session);
+      await session.close();
+    }
+  }
+
   /// Invokes a registered host function directly from Dart — useful for
   /// exercising tools without routing through Python. No Python runs.
   ///
@@ -348,6 +371,9 @@ class MontyRuntime implements MontyRuntimeRef {
         ..stop()
         ..token.cancel();
       await run.session?.close();
+    }
+    for (final session in [..._subSessions]) {
+      await session.close();
     }
     final bridge = _sharedBridge;
     try {

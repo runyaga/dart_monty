@@ -758,22 +758,18 @@ void main() {
       });
     });
 
-    group('spawnChild — extraFunctions childPropagation', () {
-      HostFunction extraFn(
-        String name, {
-        ChildPropagation propagation = ChildPropagation.exclude,
-      }) => HostFunction(
-        schema: HostFunctionSchema(name: name, description: ''),
-        handler: (args, _) async => null,
-        childPropagation: propagation,
-      );
-
-      test('excludes extras by default from child surface', () async {
+    group('spawnChild — extraFunctions', () {
+      test('an extra function never reaches a child', () async {
         final parentBridge = _MockBridge();
         registry.register(_TestExtension(namespace: 'ns', functions: []));
         await registry.attachTo(
           parentBridge,
-          extraFunctions: [extraFn('parent_only')],
+          extraFunctions: [
+            HostFunction(
+              schema: const HostFunctionSchema(name: 'parent_only'),
+              handler: (args, _) async => null,
+            ),
+          ],
         );
 
         final childBridge = _MockBridge();
@@ -784,39 +780,6 @@ void main() {
 
         expect(parentBridge.registeredNames, contains('parent_only'));
         expect(childBridge.registeredNames, isNot(contains('parent_only')));
-      });
-
-      test('propagates inherit-tagged extras to child surface', () async {
-        final parentBridge = _MockBridge();
-        registry.register(_TestExtension(namespace: 'ns', functions: []));
-        await registry.attachTo(
-          parentBridge,
-          extraFunctions: [
-            extraFn(
-              'shared_tool',
-              propagation: ChildPropagation.inherit,
-            ),
-            extraFn('parent_only'),
-          ],
-        );
-
-        final childBridge = _MockBridge();
-        await registry.spawnChild(
-          context: const ChildSpawnContext(childId: 2),
-          bridge: childBridge,
-        );
-
-        expect(childBridge.registeredNames, contains('shared_tool'));
-        expect(childBridge.registeredNames, isNot(contains('parent_only')));
-      });
-
-      test('defaults to exclude when childPropagation is not specified', () {
-        final fn = HostFunction(
-          schema: const HostFunctionSchema(name: 'x', description: ''),
-          handler: (args, _) async => null,
-        );
-
-        expect(fn.childPropagation, ChildPropagation.exclude);
       });
     });
   });

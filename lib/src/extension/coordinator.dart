@@ -231,11 +231,6 @@ class ExtensionCoordinator {
   /// handler.
   OsHandler? _baseOs;
 
-  /// The `extraFunctions` passed to [attachTo], captured so that [spawnChild]
-  /// can forward entries tagged [ChildPropagation.inherit] to the
-  /// child coordinator.
-  List<HostFunction> _extraFunctions = const [];
-
   static final RegExp _validNamespace = RegExp(r'^[a-z][a-z0-9_]*$');
   static const int _maxNamespaceLength = 32;
   static const Set<String> _reservedNamespaces = {'introspection', 'extra'};
@@ -328,7 +323,6 @@ class ExtensionCoordinator {
     _baseOs = baseOs;
     _applyOsContributions(bridge, contributions, baseOs);
     if (extraFunctions != null && extraFunctions.isNotEmpty) {
-      _extraFunctions = List.unmodifiable(extraFunctions);
       _attachExtraFunctions(extraFunctions, bridge, _log);
     }
 
@@ -436,16 +430,7 @@ class ExtensionCoordinator {
       vfsStrategy,
       baseOsOverride: baseOs,
     );
-    final inheritedExtras = _extraFunctions
-        .where(
-          (fn) => fn.childPropagation == ChildPropagation.inherit,
-        )
-        .toList(growable: false);
-    await child.attachTo(
-      bridge,
-      baseOs: childBaseOs,
-      extraFunctions: inheritedExtras.isEmpty ? null : inheritedExtras,
-    );
+    await child.attachTo(bridge, baseOs: childBaseOs);
 
     return child;
   }
