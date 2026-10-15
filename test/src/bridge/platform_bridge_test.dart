@@ -10,7 +10,6 @@ import '../_throwing_session.dart';
 
 /// Tests of host-call dispatch from [MontyBridge.execute], which D1-3
 /// rebuilds on core's feed (D1-2 built the run, OS-call and error events).
-const _pending = 'd1-pending';
 
 /// The [ExternalException]s the host answered with, in order.
 List<ExternalException> _errorAnswers(FakeMontySession session) => [
@@ -23,6 +22,58 @@ List<Object> _returnAnswers(FakeMontySession session) => [
   for (final a in session.answers)
     if (a.answer case ExternalReturnValue(:final value)) value,
 ];
+
+/// [event] as one line: its type without the `Bridge` prefix and its ids
+/// and payload, for comparing event sequences.
+String _line(BridgeEvent event) => switch (event) {
+  BridgeRunStarted(:final threadId, :final runId) =>
+    'RunStarted $threadId $runId',
+  BridgeCallStarted(:final callId) => 'CallStarted $callId',
+  BridgeFunctionCallStart(:final callId, :final name) =>
+    'FunctionCallStart $callId $name',
+  BridgeFunctionCallArgs(:final callId, :final delta) =>
+    'FunctionCallArgs $callId $delta',
+  BridgeFunctionCallEnd(:final callId) => 'FunctionCallEnd $callId',
+  BridgeFunctionEmit(:final callId, :final text) =>
+    'FunctionEmit $callId $text',
+  BridgeFunctionCallResult(:final callId, :final result) =>
+    'FunctionCallResult $callId $result',
+  BridgeCallFinished(:final callId) => 'CallFinished $callId',
+  BridgeRunFinished() => 'RunFinished',
+  BridgeRunError(:final message) => 'RunError $message',
+  _ => '${event.runtimeType}',
+};
+
+/// A host function `fn` taking one integer `x`, answered by [handler].
+HostFunction _fnX(
+  HostFunctionHandler handler, {
+  String name = 'fn',
+  DispatchMode dispatch = DispatchMode.sync,
+}) => HostFunction(
+  schema: HostFunctionSchema(
+    name: name,
+    description: '',
+    params: const [HostParam(name: 'x', type: HostParamType.integer)],
+  ),
+  handler: handler,
+  dispatch: dispatch,
+);
+
+/// A runtime reference that only identifies itself.
+final class _RuntimeRef implements MontyRuntimeRef {
+  @override
+  ExecutionHandle execute(
+    String code, {
+    OsHandler? os,
+    Map<String, Object?>? inputs,
+  }) => throw UnimplementedError('not used');
+
+  @override
+  void emitChildEvent(String childHandle, BridgeEvent event) {}
+
+  @override
+  List<HostFunctionSchema> get schemas => const [];
+}
 
 void main() {
   late FakeMontySession fake;
@@ -38,7 +89,7 @@ void main() {
   });
 
   // P0: deferred host handler errors must not be swallowed silently.
-  group('deferred async error logging', tags: _pending, () {
+  group('deferred async error logging', () {
     test('does not swallow deferred host handler errors', () async {
       bridge.register(
         HostFunction(
@@ -82,7 +133,7 @@ void main() {
   });
 
   // P0 safety fix: synchronous handler throw in futures path must not deadlock.
-  group('sync throw safety (#101)', tags: _pending, () {
+  group('sync throw safety (#101)', () {
     test(
       '_dispatchToolCallAsFuture catches synchronous handler throw',
       () async {
@@ -95,30 +146,40 @@ void main() {
               description: 'Throws synchronously.',
             ),
             handler: (_, _) => throw StateError('sync boom'),
+            dispatch: DispatchMode.future,
           ),
         );
 
-        // Sequence: Python calls explode, the host answers with an
-        // exception, Python catches it and the feed ends.
+        // Sequence: Python calls explode (a coroutine) and awaits it; the
+        // failed coroutine settles the await, Python catches it and the
+        // feed ends.
+        final id = fake.willCall('explode');
         fake
-          ..willCall('explode')
+          ..willAwait([id])
           ..willCatch()
           ..willReturn(const MontyNone());
 
-        final events = await bridge.execute('explode()').toList();
+        final events = await bridge.execute('await explode()').toList();
 
         // Bridge should have emitted a BridgeRunFinished (not deadlocked).
         expect(events.whereType<BridgeRunFinished>(), hasLength(1));
 
-        // The sync error should have been answered as an exception.
-        final errors = _errorAnswers(fake);
-        expect(errors, hasLength(1));
-        expect(errors.first.message, contains('sync boom'));
+        // The sync throw settled the call's future as an exception.
+        final settled = [
+          for (final a in fake.answers)
+            if (a.batch != null && a.answer is ExternalException) a,
+        ];
+        expect(settled, hasLength(1));
+        expect(settled.single.callId, id);
+        expect(
+          (settled.single.answer! as ExternalException).message,
+          contains('sync boom'),
+        );
       },
     );
   });
 
-  group('tool dispatch', tags: _pending, () {
+  group('tool dispatch', () {
     test('calls the registered handler', () async {
       var called = false;
       bridge.register(
@@ -657,7 +718,7 @@ void main() {
     });
   });
 
-  group('argument validation error in _dispatchToolCall', tags: _pending, () {
+  group('argument validation error in _dispatchToolCall', () {
     test('FormatException from mapAndValidate resumes with error', () async {
       final syncSession = FakeMontySession();
       final syncBridge = MontyBridge(
@@ -697,6 +758,7 @@ void main() {
             params: [HostParam(name: 'x', type: HostParamType.integer)],
           ),
           handler: (_, _) async => null,
+          dispatch: DispatchMode.future,
         ),
       );
 
@@ -715,7 +777,7 @@ void main() {
   // Regression: a failure after a host answer must not cause StateError
   // (#274). The worker dying after an answer is the 0.110 form of the old
   // "resume() throws" case.
-  group('failure after an answer (#274)', tags: _pending, () {
+  group('failure after an answer (#274)', () {
     test(
       'handler succeeds but the worker then dies — emits BridgeRunError',
       () async {
@@ -795,6 +857,435 @@ void main() {
         failBridge.dispose();
       },
     );
+  });
+
+  // D1-3: host calls on core's feed. Each registered function is a
+  // MontyHostFunction in the feed's externalLookup, wrapped so its calls
+  // emit dm's call events; a future-mode function is a core coroutine.
+  group('host calls on the session (D1-3)', () {
+    test('a call emits its events in order under one call id', () async {
+      HostContext? seen;
+      bridge.register(
+        _fnX((args, ctx) async {
+          seen = ctx;
+          ctx.emitText('working');
+
+          return 'x=${args['x']}';
+        }),
+      );
+      fake
+        ..willCall('fn', kwargs: {'x': const MontyInt(1)})
+        ..willReturn(const MontyNone());
+
+      final events = await bridge.execute('fn(x=1)').toList();
+
+      expect(events.map(_line), [
+        'RunStarted 0 1',
+        'CallStarted 2',
+        'FunctionCallStart 2 fn',
+        'FunctionCallArgs 2 {"x":1}',
+        'FunctionCallEnd 2',
+        'FunctionEmit 2 working',
+        'FunctionCallResult 2 x=1',
+        'CallFinished 2',
+        'RunFinished',
+      ]);
+      expect(seen!.executionId, '2');
+      expect(seen!.parent, isNull);
+      expect(_returnAnswers(fake), [const MontyString('x=1')]);
+    });
+
+    test('the Args event is the validated arguments: positional mapped, '
+        'defaults filled', () async {
+      Map<String, Object?>? got;
+      bridge.register(
+        HostFunction(
+          schema: const HostFunctionSchema(
+            name: 'fn',
+            description: '',
+            params: [
+              HostParam(name: 'x', type: HostParamType.integer),
+              HostParam(
+                name: 'y',
+                type: HostParamType.string,
+                isRequired: false,
+                defaultValue: 'dflt',
+              ),
+            ],
+          ),
+          handler: (args, _) async {
+            got = args;
+
+            return null;
+          },
+        ),
+      );
+      fake
+        ..willCall('fn', args: [const MontyInt(1)])
+        ..willReturn(const MontyNone());
+
+      final events = await bridge.execute('fn(1)').toList();
+
+      expect(got, {'x': 1, 'y': 'dflt'});
+      expect(
+        events.whereType<BridgeFunctionCallArgs>().single.delta,
+        '{"x":1,"y":"dflt"}',
+      );
+    });
+
+    test('arguments JSON cannot encode are shown as a note, and the call '
+        'goes on', () async {
+      final cyclic = <Object?>[];
+      cyclic.add(cyclic);
+      bridge.register(
+        HostFunction(
+          schema: HostFunctionSchema(
+            name: 'fn',
+            description: '',
+            params: [
+              const HostParam(name: 'x', type: HostParamType.integer),
+              HostParam(
+                name: 'y',
+                type: HostParamType.list,
+                isRequired: false,
+                defaultValue: cyclic,
+              ),
+            ],
+          ),
+          handler: (_, _) async => 'ran',
+        ),
+      );
+      fake
+        ..willCall('fn', kwargs: {'x': const MontyInt(1)})
+        ..willReturn(const MontyNone());
+
+      final events = await bridge.execute('fn(x=1)').toList();
+
+      expect(
+        events.whereType<BridgeFunctionCallArgs>().single.delta,
+        '"arguments not shown: JsonCyclicError"',
+      );
+      expect(events.map(_line).toList().sublist(4), [
+        'FunctionCallEnd 2',
+        'FunctionCallResult 2 ran',
+        'CallFinished 2',
+        'RunFinished',
+      ]);
+      expect(_returnAnswers(fake), [const MontyString('ran')]);
+    });
+
+    test('a value JSON has no form for is written with bounded work', () async {
+      // A list shared at each of 30 levels: about 2^30 lists once
+      // expanded. Under a non-string key JSON writes it as text.
+      Object? shared = <Object?>[];
+      for (var i = 0; i < 30; i++) {
+        shared = <Object?>[shared, shared];
+      }
+      bridge.register(
+        HostFunction(
+          schema: HostFunctionSchema(
+            name: 'fn',
+            description: '',
+            params: [
+              const HostParam(name: 'x', type: HostParamType.integer),
+              HostParam(
+                name: 'y',
+                type: HostParamType.map,
+                isRequired: false,
+                defaultValue: {0: shared},
+              ),
+            ],
+          ),
+          handler: (_, _) async => [
+            1,
+            'a',
+            null,
+            <Object?, Object?>{2: 3},
+          ],
+        ),
+      );
+      fake
+        ..willCall('fn', kwargs: {'x': const MontyInt(1)})
+        ..willReturn(const MontyNone());
+
+      final events = await bridge.execute('fn(x=1)').toList();
+
+      expect(
+        events.whereType<BridgeFunctionCallArgs>().single.delta,
+        startsWith('"arguments not shown: over '),
+      );
+      // A small result reads as its toString().
+      expect(
+        events.whereType<BridgeFunctionCallResult>().single.result,
+        '[1, a, null, {2: 3}]',
+      );
+    }, timeout: const Timeout(Duration(seconds: 20)));
+
+    test('a deeply nested result is written without deep recursion', () async {
+      Object? nested = <Object?>[];
+      for (var i = 0; i < 100000; i++) {
+        nested = <Object?>[nested];
+      }
+      bridge.register(_fnX((_, _) async => nested));
+      fake
+        ..willCall('fn', kwargs: {'x': const MontyInt(1)})
+        ..willReturn(const MontyNone());
+
+      final events = await bridge.execute('fn(x=1)').toList();
+
+      final text = events.whereType<BridgeFunctionCallResult>().single.result;
+      expect(text, '${'[' * 100001}${']' * 100001}');
+      expect(events.last, isA<BridgeRunFinished>());
+    });
+
+    test('ids come from one counter across calls and runs', () async {
+      bridge.register(_fnX((args, _) async => args['x']));
+      fake
+        ..willCall('fn', kwargs: {'x': const MontyInt(1)})
+        ..willCall('fn', kwargs: {'x': const MontyInt(2)})
+        ..willReturn(const MontyNone());
+      final first = await bridge.execute('fn(x=1); fn(x=2)').toList();
+      fake.willReturn(const MontyNone());
+      final second = await bridge.execute('pass').toList();
+
+      expect(
+        [
+          for (final e in first)
+            if (e is BridgeCallStarted) e.callId,
+        ],
+        ['2', '3'],
+      );
+      expect(_line(second.first), 'RunStarted 4 5');
+    });
+
+    test('a handler gets the runtime as its parent', () async {
+      final runtime = _RuntimeRef();
+      final b = SessionBridge(
+        session: fake,
+        runtime: runtime,
+        logger: BridgeLogger.silent,
+      );
+      addTearDown(b.dispose);
+      HostParentRef? parent;
+      b.register(
+        _fnX((_, ctx) async {
+          parent = ctx.parent;
+
+          return null;
+        }),
+      );
+      fake
+        ..willCall('fn', kwargs: {'x': const MontyInt(1)})
+        ..willReturn(const MontyNone());
+
+      await b.execute('fn(x=1)').toList();
+
+      expect(parent, same(runtime));
+    });
+
+    test('a null result is None and an empty result text', () async {
+      bridge.register(_fnX((_, _) async => null));
+      fake
+        ..willCall('fn', kwargs: {'x': const MontyInt(1)})
+        ..willReturn(const MontyNone());
+
+      final events = await bridge.execute('fn(x=1)').toList();
+
+      expect(
+        events.whereType<BridgeFunctionCallResult>().single.result,
+        isEmpty,
+      );
+      expect(_returnAnswers(fake), [const MontyNone()]);
+    });
+
+    test('a result reaches Python through MontyValue.fromDart', () async {
+      final result = {
+        'a': [1, 2.5, null, true],
+        'b': 'text',
+      };
+      bridge.register(_fnX((_, _) async => result));
+      fake
+        ..willCall('fn', kwargs: {'x': const MontyInt(1)})
+        ..willReturn(const MontyNone());
+
+      await bridge.execute('fn(x=1)').toList();
+
+      expect(_returnAnswers(fake), [MontyValue.fromDart(result)]);
+    });
+
+    test('a validation failure skips the handler and raises '
+        'RuntimeError', () async {
+      var called = false;
+      bridge.register(
+        _fnX((_, _) async {
+          called = true;
+
+          return null;
+        }),
+      );
+      fake
+        ..willCall('fn')
+        ..willCatch()
+        ..willReturn(const MontyNone());
+
+      final events = await bridge.execute('fn()').toList();
+
+      expect(called, isFalse);
+      final lines = events.map(_line).toList();
+      expect(lines.sublist(1, 3), ['CallStarted 2', 'FunctionCallStart 2 fn']);
+      expect(lines[3], startsWith('FunctionCallResult 2 Error: '));
+      expect(lines[3], contains('Required parameter "x" is missing'));
+      expect(lines.sublist(4), ['CallFinished 2', 'RunFinished']);
+      final error = _errorAnswers(fake).single;
+      expect(error.excType, 'RuntimeError');
+      expect(error.message, contains('Required parameter "x" is missing'));
+    });
+
+    test('a handler throw raises RuntimeError with its text', () async {
+      bridge.register(_fnX((_, _) async => throw StateError('boom')));
+      fake
+        ..willCall('fn', kwargs: {'x': const MontyInt(1)})
+        ..willCatch()
+        ..willReturn(const MontyNone());
+
+      final events = await bridge.execute('fn(x=1)').toList();
+
+      expect(events.map(_line).toList().sublist(5), [
+        'FunctionCallResult 2 Error: Bad state: boom',
+        'CallFinished 2',
+        'RunFinished',
+      ]);
+      expect(
+        _errorAnswers(fake),
+        [const ExternalException('RuntimeError', 'Bad state: boom')],
+      );
+    });
+
+    test("a handler's own ExternalException is raised as it is", () async {
+      const raised = ExternalException('ValueError', 'bad value');
+      bridge.register(_fnX((_, _) async => throw raised));
+      fake
+        ..willCall('fn', kwargs: {'x': const MontyInt(1)})
+        ..willCatch()
+        ..willReturn(const MontyNone());
+
+      await bridge.execute('fn(x=1)').toList();
+
+      expect(_errorAnswers(fake), [raised]);
+    });
+
+    test('a host function cannot decline: OsCallNotHandledException is a '
+        'RuntimeError', () async {
+      bridge.register(
+        _fnX((_, _) async => throw const OsCallNotHandledException()),
+      );
+      fake
+        ..willCall('fn', kwargs: {'x': const MontyInt(1)})
+        ..willCatch()
+        ..willReturn(const MontyNone());
+
+      await bridge.execute('fn(x=1)').toList();
+
+      expect(_errorAnswers(fake), [
+        const ExternalException('RuntimeError', 'OsCallNotHandledException()'),
+      ]);
+    });
+
+    test('a value MontyValue.fromDart refuses raises RuntimeError', () async {
+      bridge.register(_fnX((_, _) async => Object()));
+      fake
+        ..willCall('fn', kwargs: {'x': const MontyInt(1)})
+        ..willCatch()
+        ..willReturn(const MontyNone());
+
+      final events = await bridge.execute('fn(x=1)').toList();
+
+      expect(_errorAnswers(fake).single.excType, 'RuntimeError');
+      expect(
+        events.whereType<BridgeFunctionCallResult>().single.result,
+        startsWith('Error: '),
+      );
+    });
+
+    test(
+      'a sync-mode call is answered with its value at the call site',
+      () async {
+        bridge.register(_fnX((args, _) async => args['x']));
+        fake
+          ..willCall('fn', kwargs: {'x': const MontyInt(7)})
+          ..willReturn(const MontyNone());
+
+        await bridge.execute('fn(x=7)').toList();
+
+        final answer = fake.answers.single;
+        expect(answer.batch, isNull);
+        expect(answer.answer, const ExternalReturnValue(MontyInt(7)));
+      },
+    );
+
+    test('a future-mode call is a coroutine: settled through the futures '
+        'protocol, its result events emitted when it completes', () async {
+      final gate = Completer<Object?>();
+      var started = false;
+      bridge.register(
+        _fnX((_, _) {
+          started = true;
+
+          return gate.future;
+        }, dispatch: DispatchMode.future),
+      );
+      final id = fake.willCall('fn', kwargs: {'x': const MontyInt(1)});
+      fake
+        ..willAwait([id])
+        ..willReturn(const MontyNone());
+
+      final events = <BridgeEvent>[];
+      final done = bridge.execute('await fn(x=1)').forEach(events.add);
+      for (var i = 0; i < 100 && !started; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 1));
+      }
+      expect(started, isTrue);
+      expect(events.whereType<BridgeFunctionCallResult>(), isEmpty);
+
+      gate.complete('late');
+      await done;
+
+      expect(events.map(_line).toList().sublist(5), [
+        'FunctionCallResult 2 late',
+        'CallFinished 2',
+        'RunFinished',
+      ]);
+      // The call is answered with a pending future at once, and settled
+      // in a futures batch when the handler completes.
+      final [pending, settled] = fake.answers;
+      expect(pending.batch, isNull);
+      expect(pending.answer, isA<ExternalFuture>());
+      expect(settled.batch, isNotNull);
+      expect(settled.callId, id);
+      expect(settled.answer, const ExternalReturnValue(MontyString('late')));
+    });
+
+    test('a function with no handler on this backend is not passed to the '
+        'feed', () async {
+      bridge.register(
+        const HostFunction(
+          schema: HostFunctionSchema(name: 'absent', description: ''),
+        ),
+      );
+      // The worker raises NameError for the name; the rest is dropped.
+      fake
+        ..willCall('absent')
+        ..willReturn(const MontyNone());
+
+      final events = await bridge.execute('absent()').toList();
+      final error = events.whereType<BridgeRunError>().single;
+
+      expect(error.exception?.exception.excType, 'NameError');
+      // The session answers "not found" itself: no dm code runs, so no call
+      // events are emitted.
+      expect([for (final a in fake.answers) a.answer], [null]);
+      expect(events.whereType<BridgeCallStarted>(), isEmpty);
+    });
   });
 
   // D1-2: the bridge spine. One execute is one feedRun on the session; dm

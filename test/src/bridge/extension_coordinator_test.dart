@@ -1,5 +1,6 @@
 import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
+import 'package:dart_monty_core/dart_monty_core_testing.dart';
 import 'package:test/test.dart';
 
 /// Minimal test plugin with configurable namespace and functions.
@@ -30,6 +31,38 @@ void main() {
 
   setUp(() {
     registry = ExtensionCoordinator();
+  });
+
+  test('AttachContext.schemas lists every registered function, and none '
+      'without a handler on this backend (D1-3)', () async {
+    final bridge = MontyBridge(
+      session: FakeMontySession(),
+      logger: BridgeLogger.silent,
+    );
+    addTearDown(bridge.dispose);
+    List<String>? seen;
+    registry
+      ..register(
+        _TestExtension(
+          namespace: 'alpha',
+          functions: [
+            _fn('alpha_one'),
+            const HostFunction(
+              schema: HostFunctionSchema(name: 'alpha_none', description: ''),
+            ),
+          ],
+        ),
+      )
+      ..register(
+        _SchemaProbe(
+          [_fn('probe_one')],
+          (host) => seen = [for (final s in host.schemas) s.name],
+        ),
+      );
+
+    await registry.attachTo(bridge, enableIntrospection: false);
+
+    expect(seen, unorderedEquals(['alpha_one', 'probe_one']));
   });
 
   group('ExtensionCoordinator', () {
@@ -935,4 +968,23 @@ class _MockBridge implements MontyBridge {
 
   @override
   void dispose() {}
+}
+
+/// An extension that reports [AttachContext.schemas] from its `onAttach`.
+class _SchemaProbe extends MontyExtension {
+  _SchemaProbe(this.functions, this.onSchemas);
+
+  @override
+  final List<HostFunction> functions;
+
+  final void Function(AttachContext host) onSchemas;
+
+  @override
+  String get namespace => 'probe';
+
+  @override
+  Future<void> onAttach(AttachContext host) async {
+    await super.onAttach(host);
+    onSchemas(host);
+  }
 }

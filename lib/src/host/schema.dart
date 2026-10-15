@@ -66,7 +66,7 @@ class HostFunctionSchema {
   /// 2. Keyword args (`kwargs`) overlay by name.
   /// 3. Each param is validated via [HostParam.validate].
   ///
-  /// Throws [ArgumentError] if required params are missing or types mismatch.
+  /// Throws [FormatException] if required params are missing or types mismatch.
   Map<String, Object?> mapAndValidate(
     List<MontyValue> args,
     Map<String, MontyValue> kwargs,
