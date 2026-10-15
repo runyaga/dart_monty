@@ -18,12 +18,12 @@ void main() {
     MontyRuntime? s1;
     MontyRuntime? s2;
     try {
-      s1 = MontyRuntime();
+      s1 = await MontyRuntime.start();
       // Experiment test: output is the observable result.
       // ignore: avoid_print
       print('E3 RESULT: runtime 1 constructed OK');
 
-      s2 = MontyRuntime();
+      s2 = await MontyRuntime.start();
       // Experiment test: output is the observable result.
       // ignore: avoid_print
       print('E3 RESULT: runtime 2 constructed OK — both alive simultaneously');
@@ -42,7 +42,7 @@ void main() {
 
   test('E3b: sequential sessions (dispose before constructing next)', () async {
     try {
-      final s1 = MontyRuntime();
+      final s1 = await MontyRuntime.start();
       // Experiment test: output is the observable result.
       // ignore: avoid_print
       print('E3b RESULT: runtime 1 constructed OK');
@@ -51,7 +51,7 @@ void main() {
       // ignore: avoid_print
       print('E3b RESULT: runtime 1 disposed OK');
 
-      final s2 = MontyRuntime();
+      final s2 = await MontyRuntime.start();
       // Experiment test: output is the observable result.
       // ignore: avoid_print
       print('E3b RESULT: runtime 2 constructed OK after dispose');

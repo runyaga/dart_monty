@@ -46,14 +46,7 @@ void main() {
   group('ExecutionHandle', () {
     test('exposes events, result, executionId, and cancel', () async {
       final token = CancelToken();
-      const stubResult = MontyResult(
-        value: MontyNone(),
-        usage: MontyResourceUsage(
-          memoryBytesUsed: 0,
-          timeElapsedMs: 0,
-          stackDepthUsed: 0,
-        ),
-      );
+      const stubResult = MontyNone();
       final handle = ExecutionHandle(
         events: const Stream<BridgeEvent>.empty(),
         result: Future.value(stubResult),

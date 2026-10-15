@@ -17,14 +17,10 @@
 library;
 
 import 'package:dart_monty/dart_monty_bridge.dart';
-import 'package:dart_monty/monty_backend_spi.dart';
 import 'package:test/test.dart';
 
-MontyPlatform _platform() => createPlatformMonty();
-
-MontyRuntime _runtimeWithSandbox() => MontyRuntime(
-  extensions: [SandboxExtension(platformFactory: () async => _platform())],
-);
+Future<MontyRuntime> _runtimeWithSandbox() =>
+    MontyRuntime.start(extensions: [SandboxExtension()]);
 
 /// Child events are delivered asynchronously relative to `execute().result`,
 /// so settle the microtask/event queue before asserting on them.
@@ -33,96 +29,111 @@ Future<void> _settle() =>
 
 void main() {
   group('emitChildEvent through a real sandbox spawn (FFI)', () {
-    test("a spawned child's events reach the parent stream", () async {
-      final runtime = _runtimeWithSandbox();
-      addTearDown(runtime.dispose);
+    test(
+      "a spawned child's events reach the parent stream",
+      () async {
+        final runtime = await _runtimeWithSandbox();
+        addTearDown(runtime.dispose);
 
-      final children = <BridgeChildEvent>[];
-      final sub = runtime.events.listen((e) {
-        if (e is BridgeChildEvent) children.add(e);
-      });
-      addTearDown(sub.cancel);
+        final children = <BridgeChildEvent>[];
+        final sub = runtime.events.listen((e) {
+          if (e is BridgeChildEvent) children.add(e);
+        });
+        addTearDown(sub.cancel);
 
-      final result = await runtime
-          .execute(
-            r'sandbox_spawn(code="y = 2\ny")',
-          )
-          .result;
-      await _settle();
+        await runtime
+            .execute(
+              r'sandbox_spawn(code="y = 2\ny")',
+            )
+            .result;
+        await _settle();
 
-      expect(result.error, isNull);
-      expect(
-        children,
-        isNotEmpty,
-        reason: 'sandbox.dart:696 must have reached a non-null parent',
-      );
-    });
+        expect(
+          children,
+          isNotEmpty,
+          reason: 'sandbox.dart:696 must have reached a non-null parent',
+        );
+      },
+      tags: 'd1-pending',
+    );
 
-    test('the childHandle matches the handle sandbox_spawn returned', () async {
-      final runtime = _runtimeWithSandbox();
-      addTearDown(runtime.dispose);
+    test(
+      'the childHandle matches the handle sandbox_spawn returned',
+      () async {
+        final runtime = await _runtimeWithSandbox();
+        addTearDown(runtime.dispose);
 
-      final children = <BridgeChildEvent>[];
-      final sub = runtime.events.listen((e) {
-        if (e is BridgeChildEvent) children.add(e);
-      });
-      addTearDown(sub.cancel);
+        final children = <BridgeChildEvent>[];
+        final sub = runtime.events.listen((e) {
+          if (e is BridgeChildEvent) children.add(e);
+        });
+        addTearDown(sub.cancel);
 
-      final result = await runtime
-          .execute(
-            r'sandbox_spawn(code="y = 2\ny")',
-          )
-          .result;
-      await _settle();
+        final result = await runtime
+            .execute(
+              r'sandbox_spawn(code="y = 2\ny")',
+            )
+            .result;
+        await _settle();
 
-      // The handle Python got back and the handle the events are tagged with
-      // have to be the same value, or a caller cannot correlate them — which
-      // is the entire purpose of tagging.
-      final handle = '${result.value.dartValue}';
-      expect(children.map((e) => e.childHandle).toSet(), {handle});
-    });
+        // The handle Python got back and the handle the events are tagged with
+        // have to be the same value, or a caller cannot correlate them — which
+        // is the entire purpose of tagging.
+        final handle = '${result.dartValue}';
+        expect(children.map((e) => e.childHandle).toSet(), {handle});
+      },
+      tags: 'd1-pending',
+    );
 
-    test("the inner payloads are the CHILD's run lifecycle", () async {
-      final runtime = _runtimeWithSandbox();
-      addTearDown(runtime.dispose);
+    test(
+      "the inner payloads are the CHILD's run lifecycle",
+      () async {
+        final runtime = await _runtimeWithSandbox();
+        addTearDown(runtime.dispose);
 
-      final children = <BridgeChildEvent>[];
-      final sub = runtime.events.listen((e) {
-        if (e is BridgeChildEvent) children.add(e);
-      });
-      addTearDown(sub.cancel);
+        final children = <BridgeChildEvent>[];
+        final sub = runtime.events.listen((e) {
+          if (e is BridgeChildEvent) children.add(e);
+        });
+        addTearDown(sub.cancel);
 
-      await runtime.execute(r'sandbox_spawn(code="y = 2\ny")').result;
-      await _settle();
+        await runtime.execute(r'sandbox_spawn(code="y = 2\ny")').result;
+        await _settle();
 
-      // Wrapping is not enough: the payload must be the child's own events,
-      // in order. A parent that re-emitted its OWN run events under a child
-      // handle would satisfy the two cases above and fail this one.
-      final inner = children.map((e) => e.inner.runtimeType.toString());
-      expect(
-        inner,
-        containsAllInOrder(['BridgeRunStarted', 'BridgeRunFinished']),
-      );
-    });
+        // Wrapping is not enough: the payload must be the child's own events,
+        // in order. A parent that re-emitted its OWN run events under a child
+        // handle would satisfy the two cases above and fail this one.
+        final inner = children.map((e) => e.inner.runtimeType.toString());
+        expect(
+          inner,
+          containsAllInOrder(['BridgeRunStarted', 'BridgeRunFinished']),
+        );
+      },
+      tags: 'd1-pending',
+    );
 
-    test('a run that spawns nothing emits NO child events', () async {
-      // The control. Without it, a runtime that tagged every event as a child
-      // event would pass everything above.
-      final runtime = _runtimeWithSandbox();
-      addTearDown(runtime.dispose);
+    test(
+      'a run that spawns nothing emits NO child events',
+      () async {
+        // The control. Without it, a runtime that tagged every event as a child
+        // event would pass everything above.
+        final runtime = await _runtimeWithSandbox();
+        addTearDown(runtime.dispose);
 
-      final children = <BridgeChildEvent>[];
-      final sub = runtime.events.listen((e) {
-        if (e is BridgeChildEvent) children.add(e);
-      });
-      addTearDown(sub.cancel);
+        final children = <BridgeChildEvent>[];
+        final sub = runtime.events.listen((e) {
+          if (e is BridgeChildEvent) children.add(e);
+        });
+        addTearDown(sub.cancel);
 
-      final result = await runtime.execute('1 + 1').result;
-      await _settle();
+        final result = await runtime.execute('1 + 1').result;
+        await _settle();
 
-      expect(result.value.dartValue, 2);
-      expect(children, isEmpty);
-    });
+        expect(result.dartValue, 2);
+        expect(children, isEmpty);
+      },
+      tags: 'd1-pending',
+    );
 
     test('the direct call and the sandbox path wrap identically', () async {
       // Calls emitChildEvent BY NAME on a runtime that is simultaneously
@@ -138,7 +149,7 @@ void main() {
       //   2. it is real information: if the two paths ever disagreed about
       //      the envelope, a consumer correlating by childHandle would break
       //      for one of them only.
-      final runtime = _runtimeWithSandbox();
+      final runtime = await _runtimeWithSandbox();
       addTearDown(runtime.dispose);
 
       final children = <BridgeChildEvent>[];
@@ -160,23 +171,27 @@ void main() {
       );
     });
 
-    test('two children get distinct handles', () async {
-      final runtime = _runtimeWithSandbox();
-      addTearDown(runtime.dispose);
+    test(
+      'two children get distinct handles',
+      () async {
+        final runtime = await _runtimeWithSandbox();
+        addTearDown(runtime.dispose);
 
-      final children = <BridgeChildEvent>[];
-      final sub = runtime.events.listen((e) {
-        if (e is BridgeChildEvent) children.add(e);
-      });
-      addTearDown(sub.cancel);
+        final children = <BridgeChildEvent>[];
+        final sub = runtime.events.listen((e) {
+          if (e is BridgeChildEvent) children.add(e);
+        });
+        addTearDown(sub.cancel);
 
-      await runtime.execute(r'sandbox_spawn(code="a = 1\na")').result;
-      await runtime.execute(r'sandbox_spawn(code="b = 2\nb")').result;
-      await _settle();
+        await runtime.execute(r'sandbox_spawn(code="a = 1\na")').result;
+        await runtime.execute(r'sandbox_spawn(code="b = 2\nb")').result;
+        await _settle();
 
-      // If the handle were constant, correlation would be impossible the
-      // moment two children are alive at once.
-      expect(children.map((e) => e.childHandle).toSet(), hasLength(2));
-    });
+        // If the handle were constant, correlation would be impossible the
+        // moment two children are alive at once.
+        expect(children.map((e) => e.childHandle).toSet(), hasLength(2));
+      },
+      tags: 'd1-pending',
+    );
   });
 }

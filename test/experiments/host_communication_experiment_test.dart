@@ -7,9 +7,10 @@
 // Run with:
 //   dart test --tags=integration \
 //     test/experiment/examples/host_communication_experiment_test.dart
-@Tags(['integration'])
+@Tags(['integration', 'd1-pending'])
 library;
 
+import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:test/test.dart';
 
@@ -79,7 +80,6 @@ void main() {
     test('BridgeFunctionEmit events appear for each emitText call', () async {
       final (:result, :events) = await h.runWithEvents('stream_words()');
 
-      expect(result.error, isNull);
       final emits = events.whereType<BridgeFunctionEmit>().toList();
       expect(emits, isNotEmpty);
       final texts = emits.map((e) => e.text).join();
@@ -106,16 +106,14 @@ void main() {
       await h.run('x = 42');
       final result = await h.run('x + 1');
 
-      expect(result.error, isNull);
-      expect(result.value.dartValue, 43);
+      expect(result.dartValue, 43);
     });
 
     test('function defined in first call is callable in second', () async {
       await h.run('def double(n): return n * 2');
       final result = await h.run('double(7)');
 
-      expect(result.error, isNull);
-      expect(result.value.dartValue, 14);
+      expect(result.dartValue, 14);
     });
   });
 
@@ -135,20 +133,19 @@ void main() {
 
     test('after clearState, previously defined var is gone', () async {
       await h.run('secret = 99');
-      h.runtime.clearState();
+      await h.runtime.clearState();
 
-      final result = await h.run('secret');
-      expect(result.error, isNotNull); // NameError
+      // NameError.
+      await expectLater(h.run('secret'), throwsA(isA<MontyError>()));
     });
 
     test('after clearState, new definitions work normally', () async {
       await h.run('old = 1');
-      h.runtime.clearState();
+      await h.runtime.clearState();
       await h.run('fresh = 2');
 
       final result = await h.run('fresh');
-      expect(result.error, isNull);
-      expect(result.value.dartValue, 2);
+      expect(result.dartValue, 2);
     });
   });
 

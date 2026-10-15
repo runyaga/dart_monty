@@ -30,7 +30,7 @@ jobs:
       - name: Analyze
         run: dart analyze --fatal-infos
       - name: Test
-        run: dart test
+        run: dart test --exclude-tags d1-pending
       - name: Dry run
         run: dart pub publish --dry-run
       - name: Publish

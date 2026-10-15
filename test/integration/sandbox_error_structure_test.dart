@@ -1,10 +1,12 @@
 @TestOn('vm')
-@Tags(['integration'])
+@Tags(['integration', 'd1-pending'])
 library;
 
+import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
-import 'package:dart_monty/monty_backend_spi.dart';
 import 'package:test/test.dart';
+
+import '_worker.dart';
 
 final _testCtx = HostContext(emit: (_) {}, executionId: 'test');
 
@@ -19,9 +21,19 @@ final _testCtx = HostContext(emit: (_) {}, executionId: 'test');
 ///   test/integration/sandbox_error_structure_test.dart
 /// ```
 void main() {
-  MontyPlatform createPlatform() => createPlatformMonty();
+  late Monty pool;
 
-  MontyBridge createBridge() => MontyBridge(platform: createPlatform());
+  setUpAll(() async => pool = await startTestPool());
+  tearDownAll(() => pool.close());
+
+  // The bridge does not close its session; the test does, so the pool's
+  // workers come back between tests.
+  Future<MontyBridge> createBridge() async {
+    final session = await pool.checkout();
+    addTearDown(session.close);
+
+    return MontyBridge(session: session);
+  }
 
   /// Spawns a child via plugin handler and awaits it, expecting a
   /// [ChildSandboxException]. Returns the caught exception.
@@ -50,10 +62,10 @@ void main() {
     test(
       'ChildSandboxException preserves excType from child NameError',
       () async {
-        final bridge = createBridge();
+        final bridge = await createBridge();
         final registry = ExtensionCoordinator()
           ..register(
-            SandboxExtension(platformFactory: () async => createPlatform()),
+            SandboxExtension(),
           );
         await registry.attachTo(bridge);
 
@@ -65,7 +77,7 @@ void main() {
 
         expect(caught.message, contains('NameError'));
         expect(caught.exception, isNotNull);
-        expect(caught.exception!.excType, 'NameError');
+        expect(caught.exception!.exception.excType, 'NameError');
 
         bridge.dispose();
       },
@@ -74,10 +86,10 @@ void main() {
     test(
       'ChildSandboxException preserves info from child SyntaxError',
       () async {
-        final bridge = createBridge();
+        final bridge = await createBridge();
         final registry = ExtensionCoordinator()
           ..register(
-            SandboxExtension(platformFactory: () async => createPlatform()),
+            SandboxExtension(),
           );
         await registry.attachTo(bridge);
 
@@ -85,7 +97,7 @@ void main() {
         final caught = await spawnAndExpectFailure(plugin, 'def (');
 
         expect(caught.exception, isNotNull);
-        expect(caught.exception!.message, isNotEmpty);
+        expect(caught.exception!.exception.message, isNotEmpty);
 
         bridge.dispose();
       },

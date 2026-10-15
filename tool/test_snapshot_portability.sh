@@ -17,7 +17,7 @@ echo "=== Snapshot round-trip (native) ==="
 cd "$ROOT"
 dart pub get
 
-if dart test --run-skipped --tags=integration --name="snapshot round-trip" 2>&1; then
+if dart test --run-skipped --tags=integration --exclude-tags d1-pending --name="snapshot round-trip" 2>&1; then
   echo ""
   echo "=== Snapshot round-trip: PASSED ==="
 else

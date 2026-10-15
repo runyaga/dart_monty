@@ -20,11 +20,11 @@ abstract interface class AttachContext {
   /// functions at attach time (fail loudly if a dependency is missing).
   List<HostFunctionSchema> get schemas;
 
-  /// Registers an [OsCallHandler] imperatively.
+  /// Registers an [OsHandler] imperatively.
   ///
   /// Most extensions should prefer the declarative
   /// [MontyExtension.osContribution] path, which participates in
   /// `ExtensionCoordinator`'s prefix merging and
   /// collision checks. Use [registerOs] only when no declarative path works.
-  void registerOs(OsCallHandler handler);
+  void registerOs(OsHandler handler);
 }

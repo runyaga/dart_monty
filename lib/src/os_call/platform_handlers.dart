@@ -1,5 +1,6 @@
 // ignore_for_file: avoid-unsafe-collection-methods
 // ignore_for_file: avoid-unnecessary-futures, newline-before-return
+import 'package:dart_monty/src/os_call/lowered_os_handler.dart';
 import 'package:dart_monty/src/os_call/os_handlers.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 
@@ -13,7 +14,7 @@ import 'package:dart_monty_core/dart_monty_core.dart';
 /// final time = timeHandler(clock: () => DateTime(2026, 1, 1));
 /// composeOsHandlers({'date.': time, 'datetime.': time});
 /// ```
-OsCallHandler timeHandler({DateTime Function()? clock}) {
+OsHandler timeHandler({DateTime Function()? clock}) {
   final now = clock ?? DateTime.now;
   return (operation, args, kwargs) async {
     final t = now();
@@ -33,21 +34,17 @@ OsCallHandler timeHandler({DateTime Function()? clock}) {
 /// The timezone `datetime.now(tz)` asked for, or `null` for `datetime.now()`.
 ///
 /// monty passes the requested zone positionally: `DateTimeNow` projects it into
-/// `args[0]`, `None` when the call was naive. Arguments reach a handler already
-/// lowered to `dartValue`, so a zone arrives as the wire map
-/// `{'__type': 'timezone', …}`; [MontyValue.fromJson] turns that back into the
-/// typed value rather than making this function key into a raw map.
-MontyTimeZone? _requestedZone(List<Object?> args) {
-  if (args.isEmpty || args.first == null) return null;
-  final decoded = MontyValue.fromJson(args.first);
-  if (decoded is MontyTimeZone) return decoded;
-  if (decoded is MontyNone) return null;
+/// `args[0]`, `None` when the call was naive.
+MontyTimeZone? _requestedZone(List<MontyValue> args) {
+  final first = args.firstOrNull;
+  if (first == null || first is MontyNone) return null;
+  if (first is MontyTimeZone) return first;
   // Loudly, not silently: monty only ever sends None or a timezone here, so
   // anything else means the contract changed and guessing would hide it.
   throw ArgumentError.value(
-    args.first,
+    first,
     'args[0]',
-    'datetime.now expects a timezone or None, got ${decoded.runtimeType}',
+    'datetime.now expects a timezone or None, got ${first.runtimeType}',
   );
 }
 
@@ -104,8 +101,8 @@ int _subSecondMicros(DateTime t) => t.millisecond * 1000 + t.microsecond;
 /// ```dart
 /// envHandler({'APP_ENV': 'production', 'DEBUG': '0'});
 /// ```
-OsCallHandler envHandler(Map<String, String> environment) {
-  return (operation, args, kwargs) async {
+OsHandler envHandler(Map<String, String> environment) {
+  return loweredOsHandler((operation, args, kwargs) async {
     return switch (operation) {
       'os.getenv' =>
         environment[osArgString(args.first)] ??
@@ -113,5 +110,5 @@ OsCallHandler envHandler(Map<String, String> environment) {
       'os.environ' => Map<String, String>.unmodifiable(environment),
       _ => throw UnsupportedError('Unsupported env operation: $operation'),
     };
-  };
+  });
 }

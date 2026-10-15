@@ -24,7 +24,8 @@ abstract interface class MontyRuntimeRef implements HostParentRef {
   /// call. Children spawned during the execution inherit the override.
   ///
   /// [inputs] injects per-invocation Python variables before [code] runs.
-  /// Each key becomes a top-level Python variable — mirrors `MontyRepl.feedRun`
+  /// Each key becomes a top-level Python variable — mirrors
+  /// `MontySession.feedRun`
   /// so the API is consistent across the stack.
   ///
   /// ```dart
@@ -35,7 +36,7 @@ abstract interface class MontyRuntimeRef implements HostParentRef {
   /// ```
   ExecutionHandle execute(
     String code, {
-    OsCallHandler? os,
+    OsHandler? os,
     Map<String, Object?>? inputs,
   });
 }
@@ -46,7 +47,7 @@ abstract interface class MontyRuntimeRef implements HostParentRef {
 /// Deliberately omits `execute()` — calling it from a host function would
 /// deadlock the bridge (the outer execution still holds the bridge lock).
 /// Use `ctx.subExecute` for sub-executions; it runs in a fresh interpreter
-/// via `Monty(code).run()` and therefore does not contend with the lock.
+/// on its own session and therefore does not contend with the lock.
 abstract interface class HostParentRef {
   /// Emits [event] on the parent runtime's broadcast `events` stream wrapped
   /// as a `BridgeChildEvent` tagged with [childHandle].

@@ -268,18 +268,17 @@ class MontyHarness {
 
   /// Creates and primes the runtime. Must be called before [run].
   Future<void> setup() async {
-    _runtime = MontyRuntime(
+    _runtime = await MontyRuntime.start(
       osHandlers: {'Path.': fsHandler(_fs)},
       extensions: _extensions,
       sandbox: _sandbox,
     );
     _tools.forEach(_runtime!.register);
     for (final code in _primeCode) {
-      final r = await _runtime!.execute(code).result;
-      if (r.error != null) {
-        throw StateError(
-          'Priming code failed: ${r.error!.message}\n\n$code',
-        );
+      try {
+        await _runtime!.execute(code).result;
+      } on MontyError catch (e) {
+        throw StateError('Priming code failed: $e\n\n$code');
       }
     }
   }
@@ -300,13 +299,13 @@ class MontyHarness {
   /// Execute Python code and return the final result.
   ///
   /// All tool calls are recorded in [calls].
-  Future<MontyResult> run(String code) {
+  Future<MontyValue> run(String code) {
     _assertSetup();
     return _runtime!.execute(code).result;
   }
 
   /// Execute Python code and collect all bridge events + final result.
-  Future<({MontyResult result, List<BridgeEvent> events})> runWithEvents(
+  Future<({MontyValue result, List<BridgeEvent> events})> runWithEvents(
     String code,
   ) async {
     _assertSetup();
@@ -319,7 +318,7 @@ class MontyHarness {
   /// Execute Python from a file in the VFS.
   ///
   /// The file content is read by Dart and passed to [run].
-  Future<MontyResult> runFile(String virtualPath) {
+  Future<MontyValue> runFile(String virtualPath) {
     final content = _fs.file(virtualPath).readAsStringSync();
     return run(content);
   }

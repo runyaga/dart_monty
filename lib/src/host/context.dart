@@ -6,12 +6,12 @@ import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:meta/meta.dart';
 
 /// Signature of [HostContext.subExecute] — runs Python [code] in a fresh
-/// Monty interpreter and returns its [MontyResult].
+/// session and returns its value; a Python failure throws [MontyError].
 ///
 /// Optional [inputs] are injected as top-level Python variables before
 /// [code] runs (same semantics as `MontyRuntime.execute(inputs:)`).
 typedef HostSubExecutor =
-    Future<MontyResult> Function(String code, {Map<String, Object?>? inputs});
+    Future<MontyValue> Function(String code, {Map<String, Object?>? inputs});
 
 /// Context passed to every [HostFunctionHandler] invocation.
 ///
@@ -26,9 +26,8 @@ typedef HostSubExecutor =
 ///   event forwarding and schema introspection. Deliberately does NOT
 ///   expose `execute()` — calling that from a host function would deadlock
 ///   the bridge.
-/// - [subExecute] — runs a sub-script in a fresh Monty interpreter, safely.
-///   The parent runtime is busy holding the bridge lock; this path uses
-///   `Monty(code).run()` and therefore does not contend with it.
+/// - [subExecute] — runs a sub-script in a fresh session, safely: it does
+///   not contend with the parent runtime's bridge lock.
 @immutable
 class HostContext {
   /// Creates a [HostContext].
@@ -68,7 +67,7 @@ class HostContext {
   /// invoke other OS primitives without routing through Python can call this
   /// directly. `null` when no handler is registered (bridges used purely for
   /// pure-Dart host functions).
-  final OsCallHandler? os;
+  final OsHandler? os;
 
   /// Narrow view of the owning runtime — event forwarding and schema
   /// introspection only.
@@ -89,11 +88,11 @@ class HostContext {
   /// `null` in test contexts where no dispatch layer wires it.
   ///
   /// ```dart
-  /// final result = await ctx.subExecute!(
+  /// final value = await ctx.subExecute!(
   ///   'n * 2',
   ///   inputs: {'n': 21},
   /// );
-  /// // result.value.dartValue == 42
+  /// // value.dartValue == 42
   /// ```
   final HostSubExecutor? subExecute;
 

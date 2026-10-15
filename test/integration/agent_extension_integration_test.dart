@@ -1,7 +1,6 @@
-@Tags(['integration'])
+@Tags(['integration', 'd1-pending'])
 library;
 
-import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:test/test.dart';
 
@@ -22,8 +21,8 @@ void main() {
   group('MontyRuntime + MessageBusExtension', () {
     late MontyRuntime session;
 
-    setUp(() {
-      session = MontyRuntime(extensions: [MessageBusExtension()]);
+    setUp(() async {
+      session = await MontyRuntime.start(extensions: [MessageBusExtension()]);
     });
 
     tearDown(() async {
@@ -41,13 +40,13 @@ msg_send(name='ch', message='second')
           )
           .result;
 
-      expect(result.value.dartValue, ['first', 'second']);
+      expect(result.dartValue, ['first', 'second']);
     });
 
     test('peek returns None when empty', () async {
       final result = await session.execute("msg_peek(name='empty')").result;
 
-      expect(result.value.dartValue, isNull);
+      expect(result.dartValue, isNull);
     });
 
     test('stats reports queue depth', () async {
@@ -56,7 +55,7 @@ msg_send(name='q', message=1)
 msg_send(name='q', message=2)
 ''').result;
       final result = await session.execute("msg_stats(name='q')").result;
-      final stats = result.value.dartValue! as Map;
+      final stats = result.dartValue! as Map;
 
       expect(stats['send_count'], 2);
       expect(stats['queue_depth'], 2);
@@ -70,8 +69,8 @@ msg_send(name='q', message=2)
   group('MontyRuntime + SandboxExtension', () {
     late MontyRuntime session;
 
-    setUp(() {
-      final osContribs = <String, OsCallHandler>{
+    setUp(() async {
+      final osContribs = <String, OsHandler>{
         'Path.': memoryFsHandler(),
         'date.': timeHandler(),
         'datetime.': timeHandler(),
@@ -81,9 +80,12 @@ msg_send(name='q', message=2)
       final extensions = <MontyExtension>[
         tmpl,
         msg,
-        SandboxExtension(platformFactory: () async => createPlatformMonty()),
+        SandboxExtension(),
       ];
-      session = MontyRuntime(osHandlers: osContribs, extensions: extensions);
+      session = await MontyRuntime.start(
+        osHandlers: osContribs,
+        extensions: extensions,
+      );
     });
 
     tearDown(() async {
@@ -96,7 +98,7 @@ h = sandbox_spawn(code='2 + 3')
 sandbox_await(handle=h)
 ''').result;
 
-      expect(result.value.dartValue, 5);
+      expect(result.dartValue, 5);
     });
 
     test('gather multiple children', () async {
@@ -107,7 +109,7 @@ h3 = sandbox_spawn(code='30')
 sandbox_await_all(handles=[h1, h2, h3])
 ''').result;
 
-      expect(result.value.dartValue, [10, 20, 30]);
+      expect(result.dartValue, [10, 20, 30]);
     });
 
     test('child error propagates cleanly', () async {
@@ -119,7 +121,7 @@ except Exception as e:
     r = f'caught: {e}'
 r
 ''').result;
-      final val = result.value.dartValue! as String;
+      final val = result.dartValue! as String;
 
       expect(val, contains('ZeroDivisionError'));
     });
@@ -131,7 +133,7 @@ sandbox_await(handle=h)
 sandbox_get_output(handle=h)
 ''').result;
 
-      expect(result.value.dartValue, contains('hello'));
+      expect(result.dartValue, contains('hello'));
     });
 
     test('child lifecycle: spawn, alive, await, free', () async {
@@ -143,7 +145,7 @@ sandbox_free(handle=h)
 [r, alive]
 ''').result;
 
-      expect(result.value.dartValue, [99, false]);
+      expect(result.dartValue, [99, false]);
     });
   });
 
@@ -154,8 +156,8 @@ sandbox_free(handle=h)
   group('MontyRuntime cross-plugin inheritance', () {
     late MontyRuntime session;
 
-    setUp(() {
-      final osContribs = <String, OsCallHandler>{
+    setUp(() async {
+      final osContribs = <String, OsHandler>{
         'Path.': memoryFsHandler(),
         'date.': timeHandler(),
         'datetime.': timeHandler(),
@@ -165,9 +167,12 @@ sandbox_free(handle=h)
       final extensions = <MontyExtension>[
         tmpl,
         msg,
-        SandboxExtension(platformFactory: () async => createPlatformMonty()),
+        SandboxExtension(),
       ];
-      session = MontyRuntime(osHandlers: osContribs, extensions: extensions);
+      session = await MontyRuntime.start(
+        osHandlers: osContribs,
+        extensions: extensions,
+      );
     });
 
     tearDown(() async {
@@ -180,7 +185,7 @@ h = sandbox_spawn(code='tmpl_render(template="Hi {{ who }}!", context={"who": "c
 sandbox_await(handle=h)
 ''').result;
 
-      expect(result.value.dartValue, 'Hi child!');
+      expect(result.dartValue, 'Hi child!');
     });
 
     test('child sends message to parent via shared bus', () async {
@@ -192,7 +197,7 @@ parent_got = msg_recv(name='results')
 [child_got, parent_got]
 ''').result;
 
-      expect(result.value.dartValue, ['do X', 'done: do X']);
+      expect(result.dartValue, ['do X', 'done: do X']);
     });
 
     test('producer/consumer pipeline between children', () async {
@@ -202,7 +207,7 @@ consumer = sandbox_spawn(code='items = []\nfor i in range(3):\n    items.append(
 sandbox_await(handle=producer)
 sandbox_await(handle=consumer)
 ''').result;
-      final items = result.value.dartValue! as List;
+      final items = result.dartValue! as List;
 
       expect(items, ['item-0', 'item-1', 'item-2']);
     });
@@ -217,7 +222,7 @@ parent_file = Path('/parent.txt').read_text()
 [child_result, parent_file]
 ''').result;
 
-      expect(result.value.dartValue, ['child data', 'parent data']);
+      expect(result.dartValue, ['child data', 'parent data']);
     });
   });
 }

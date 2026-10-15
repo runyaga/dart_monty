@@ -4,6 +4,8 @@ import 'package:dart_monty/src/host/function.dart';
 import 'package:dart_monty/src/host/param.dart';
 import 'package:dart_monty/src/host/param_type.dart';
 import 'package:dart_monty/src/host/schema.dart';
+import 'package:dart_monty_core/dart_monty_core.dart'
+    show MontyError, MontyValue;
 
 /// Builds a `run_script` [HostFunction] that Python code can call to execute
 /// another script file and receive its last-expression value.
@@ -22,10 +24,9 @@ import 'package:dart_monty/src/host/schema.dart';
 /// greeting = run_script('greet.py', inputs={'name': 'Alice'})
 /// ```
 ///
-/// The sub-script runs in a fresh Monty interpreter (via `ctx.subExecute`),
-/// so it does NOT share state or registered host functions with the caller.
-/// Its last expression becomes the return value — exactly what
-/// `MontyResult.value.dartValue` would return.
+/// The sub-script runs in a fresh session (via `ctx.subExecute`), so it does
+/// NOT share state or registered host functions with the caller. Its last
+/// expression's `dartValue` becomes the return value.
 ///
 /// Throws a Python-visible exception if [readFile] fails, no sub-executor is
 /// available, or the sub-script raises an error.
@@ -76,13 +77,15 @@ HostFunction buildRunScriptFunction(
         throw Exception('run_script: could not read "$path": $e');
       }
 
-      final result = await subExecute(code, inputs: inputs);
-      if (result.isError) {
-        final msg = result.error?.message ?? 'unknown error';
+      final MontyValue result;
+      try {
+        result = await subExecute(code, inputs: inputs);
+      } on MontyError catch (e) {
+        final msg = e.exception.message ?? 'unknown error';
         throw Exception('run_script("$path") failed: $msg');
       }
 
-      return result.value.dartValue;
+      return result.dartValue;
     },
   );
 }

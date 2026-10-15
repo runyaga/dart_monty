@@ -312,7 +312,7 @@ class _FakeBridge implements MontyBridge {
   }
 
   @override
-  void registerOs(OsCallHandler handler) {}
+  void registerOs(OsHandler handler) {}
 
   @override
   Stream<BridgeEvent> execute(String code) => const Stream.empty();

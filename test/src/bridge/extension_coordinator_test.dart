@@ -1,4 +1,5 @@
 import 'package:dart_monty/dart_monty_bridge.dart';
+import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:test/test.dart';
 
 /// Minimal test plugin with configurable namespace and functions.
@@ -724,146 +725,6 @@ void main() {
       });
     });
 
-    group('generateSystemPrompt', () {
-      test('empty registry returns empty string', () {
-        expect(registry.generateSystemPrompt(), isEmpty);
-      });
-
-      test('single plugin with functions produces expected markdown', () {
-        registry.register(
-          _TestExtension(
-            namespace: 'sqlite',
-            systemPromptContext: 'SQLite operations.',
-            functions: [
-              HostFunction(
-                schema: const HostFunctionSchema(
-                  name: 'sqlite_query',
-                  description: 'Run a query.',
-                  params: [
-                    HostParam(
-                      name: 'sql',
-                      type: HostParamType.string,
-                      description: 'SQL string.',
-                    ),
-                  ],
-                ),
-                handler: (args, _) async => null,
-              ),
-            ],
-          ),
-        );
-
-        final prompt = registry.generateSystemPrompt();
-
-        expect(prompt, contains('### sqlite'));
-        expect(prompt, contains('SQLite operations.'));
-        expect(prompt, contains('`sqlite_query(sql: string)`'));
-        expect(prompt, contains('Run a query.'));
-      });
-
-      test('optional params show ? suffix', () {
-        registry.register(
-          _TestExtension(
-            namespace: 'demo',
-            functions: [
-              HostFunction(
-                schema: const HostFunctionSchema(
-                  name: 'demo_opt',
-                  description: 'Has optional.',
-                  params: [
-                    HostParam(
-                      name: 'limit',
-                      type: HostParamType.integer,
-                      isRequired: false,
-                    ),
-                  ],
-                ),
-                handler: (args, _) async => null,
-              ),
-            ],
-          ),
-        );
-
-        final prompt = registry.generateSystemPrompt();
-
-        expect(prompt, contains('limit?: integer'));
-      });
-
-      test('systemPromptPrefix prepends before plugin sections', () {
-        registry
-          ..systemPromptPrefix = 'You are child 0. Workspace: /child_0.'
-          ..register(
-            _TestExtension(
-              namespace: 'alpha',
-              systemPromptContext: 'Alpha operations.',
-              functions: [_fn('alpha_one')],
-            ),
-          );
-
-        final prompt = registry.generateSystemPrompt();
-
-        expect(prompt, startsWith('You are child 0.'));
-        expect(
-          prompt.indexOf('child 0'),
-          lessThan(prompt.indexOf('### alpha')),
-        );
-      });
-
-      test('null systemPromptPrefix produces no prefix', () {
-        registry.register(
-          _TestExtension(namespace: 'ns', functions: [_fn('ns_one')]),
-        );
-
-        final prompt = registry.generateSystemPrompt();
-
-        expect(prompt, startsWith('### ns'));
-      });
-
-      test('empty systemPromptPrefix produces no prefix', () {
-        registry
-          ..systemPromptPrefix = ''
-          ..register(
-            _TestExtension(namespace: 'ns', functions: [_fn('ns_one')]),
-          );
-
-        final prompt = registry.generateSystemPrompt();
-
-        expect(prompt, startsWith('### ns'));
-      });
-
-      test('systemPromptPrefix alone (no plugins) returns prefix', () {
-        registry.systemPromptPrefix = 'You are the validator.';
-
-        final prompt = registry.generateSystemPrompt();
-
-        expect(prompt, contains('You are the validator.'));
-      });
-
-      test('multiple plugins produce sections in registration order', () {
-        registry
-          ..register(
-            _TestExtension(
-              namespace: 'alpha',
-              systemPromptContext: 'Alpha stuff.',
-              functions: [_fn('alpha_one')],
-            ),
-          )
-          ..register(
-            _TestExtension(
-              namespace: 'beta',
-              systemPromptContext: 'Beta stuff.',
-              functions: [_fn('beta_one')],
-            ),
-          );
-
-        final prompt = registry.generateSystemPrompt();
-        final alphaIdx = prompt.indexOf('### alpha');
-        final betaIdx = prompt.indexOf('### beta');
-
-        expect(alphaIdx, lessThan(betaIdx));
-      });
-    });
-
     group('spawnChild — extraFunctions childPropagation', () {
       HostFunction extraFn(
         String name, {
@@ -968,18 +829,18 @@ class _LifecycleExtension extends MontyExtension {
   }
 }
 
-/// Fake [OsCallHandler] — resolves to nothing, never actually invoked in tests.
-Future<Object?> _fakeOsHandler(
+/// Fake [OsHandler] — resolves to nothing, never actually invoked in tests.
+Future<MontyValue> _fakeOsHandler(
   String operation,
-  List<Object?> args,
-  Map<String, Object?>? kwargs,
+  List<MontyValue> args,
+  Map<String, MontyValue> kwargs,
 ) => throw UnimplementedError();
 
 /// Plugin with a configurable [osContribution] for OS prefix merging tests.
 class _OsContribExtension extends MontyExtension {
   _OsContribExtension({
     required this.namespace,
-    required Map<String, OsCallHandler>? contribution,
+    required Map<String, OsHandler>? contribution,
   }) : _contribution = contribution;
 
   @override
@@ -988,10 +849,10 @@ class _OsContribExtension extends MontyExtension {
   @override
   List<HostFunction> get functions => [];
 
-  final Map<String, OsCallHandler>? _contribution;
+  final Map<String, OsHandler>? _contribution;
 
   @override
-  Map<String, OsCallHandler>? get osContribution => _contribution;
+  Map<String, OsHandler>? get osContribution => _contribution;
 }
 
 /// Extension that captures its [coordinator] reference during [onAttach].
@@ -1055,10 +916,10 @@ class _MockBridge implements MontyBridge {
   @override
   void unregister(String name) {}
 
-  OsCallHandler? capturedOs;
+  OsHandler? capturedOs;
 
   @override
-  void registerOs(OsCallHandler handler) {
+  void registerOs(OsHandler handler) {
     capturedOs = handler;
   }
 

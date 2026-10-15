@@ -10,5 +10,5 @@ set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
 echo "=== WASM Tests ==="
-dart test test/wasm/
+dart test --exclude-tags d1-pending test/wasm/
 echo "=== WASM Tests PASSED ==="

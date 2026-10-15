@@ -4,12 +4,14 @@
 //              dart test -p chrome test/experiments/e6_overlay_fs_wasm_test.dart
 
 import 'package:dart_monty/dart_monty_bridge.dart';
+import 'package:dart_monty_core/dart_monty_core.dart'
+    show MontyPath, MontyString;
 import 'package:file/memory.dart';
 import 'package:test/test.dart';
 
 void main() {
   group('E6: overlayFsHandler on current platform', () {
-    late OsCallHandler overlay;
+    late OsHandler overlay;
 
     setUp(() {
       final baseFs = MemoryFileSystem();
@@ -26,29 +28,41 @@ void main() {
     });
 
     test('E6a: read from base layer', () async {
-      final result = await overlay('Path.read_text', ['/base/readme.md'], null);
+      final result = await overlay('Path.read_text', [
+        const MontyPath('/base/readme.md'),
+      ], const {});
       // Experiment test: output is the observable result.
       // ignore: avoid_print
       print('E6a RESULT: read_text = $result');
-      expect(result, 'base content');
+      expect(result.dartValue, 'base content');
     });
 
     test('E6b: write goes to scratch, base unchanged', () async {
-      await overlay('Path.write_text', ['/base/readme.md', 'modified'], null);
-      final result = await overlay('Path.read_text', ['/base/readme.md'], null);
+      await overlay('Path.write_text', [
+        const MontyPath('/base/readme.md'),
+        const MontyString('modified'),
+      ], const {});
+      final result = await overlay('Path.read_text', [
+        const MontyPath('/base/readme.md'),
+      ], const {});
       // Experiment test: output is the observable result.
       // ignore: avoid_print
       print('E6b RESULT: after write, read_text = $result');
-      expect(result, 'modified');
+      expect(result.dartValue, 'modified');
     });
 
     test('E6c: new file in scratch, not in base', () async {
-      await overlay('Path.write_text', ['/new/file.txt', 'new'], null);
-      final exists = await overlay('Path.exists', ['/new/file.txt'], null);
+      await overlay('Path.write_text', [
+        const MontyPath('/new/file.txt'),
+        const MontyString('new'),
+      ], const {});
+      final exists = await overlay('Path.exists', [
+        const MontyPath('/new/file.txt'),
+      ], const {});
       // Experiment test: output is the observable result.
       // ignore: avoid_print
       print('E6c RESULT: new file exists = $exists');
-      expect(exists, isTrue);
+      expect(exists.dartValue, isTrue);
     });
 
     test(
@@ -56,12 +70,17 @@ void main() {
       () async {
         final h1 = memoryFsHandler();
         final h2 = memoryFsHandler();
-        await h1('Path.write_text', ['/x.txt', 'h1 data'], null);
-        final h2Sees = await h2('Path.exists', ['/x.txt'], null);
+        await h1('Path.write_text', [
+          const MontyPath('/x.txt'),
+          const MontyString('h1 data'),
+        ], const {});
+        final h2Sees = await h2('Path.exists', [
+          const MontyPath('/x.txt'),
+        ], const {});
         // Experiment test: output is the observable result.
         // ignore: avoid_print
         print('E6d RESULT: h2 sees h1 file = $h2Sees (expected: false)');
-        expect(h2Sees, isFalse);
+        expect(h2Sees.dartValue, isFalse);
       },
     );
   });

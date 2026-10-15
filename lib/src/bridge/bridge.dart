@@ -1,6 +1,6 @@
 import 'package:dart_monty/src/bridge/event.dart';
 import 'package:dart_monty/src/bridge/logger.dart';
-import 'package:dart_monty/src/bridge/platform.dart';
+import 'package:dart_monty/src/bridge/session_bridge.dart';
 import 'package:dart_monty/src/extension/attach_context.dart';
 import 'package:dart_monty/src/host/function.dart';
 import 'package:dart_monty/src/host/schema.dart';
@@ -8,22 +8,22 @@ import 'package:dart_monty_core/dart_monty_core.dart';
 
 /// Bridge for LLM-generated Python calling registered Dart host functions.
 ///
-/// Executes Python code in the Monty sandbox, dispatches external function
+/// Executes Python code on a [MontySession], dispatches external function
 /// calls to registered [HostFunction] handlers, and emits [BridgeEvent]s.
 ///
 /// ```dart
-/// final bridge = MontyBridge(platform: createPlatformMonty());
-/// bridge.registerOs(defaultSandboxOsHandler());
+/// final session = await monty.checkout();
+/// final bridge = MontyBridge(session: session);
+/// bridge.registerOs(defaultOsHandler());
 /// bridge.register(myHostFunction);
 /// final events = bridge.execute('result = my_function()');
 /// ```
 abstract class MontyBridge implements AttachContext {
-  /// Creates a bridge backed by [platform].
+  /// Creates a bridge that runs its code on [session].
   factory MontyBridge({
-    required MontyPlatform platform,
-    MontyLimits? limits,
+    required MontySession session,
     BridgeLogger? logger,
-  }) = PlatformBridge;
+  }) = SessionBridge;
 
   /// Logger for this bridge instance.
   ///
@@ -65,13 +65,12 @@ abstract class MontyBridge implements AttachContext {
     void Function(BridgeEvent)? onEvent,
   });
 
-  /// Registers an [OsCallHandler] for OS-level calls (pathlib, os, datetime).
+  /// Registers an [OsHandler] for OS-level calls (pathlib, os, datetime).
   ///
   /// When Python code triggers an OS call and a handler is registered, the
-  /// bridge invokes it and resumes Python with the result. When no handler
-  /// is registered, the bridge resumes with a `PermissionError`.
+  /// bridge passes it to the session's feed.
   @override
-  void registerOs(OsCallHandler handler);
+  void registerOs(OsHandler handler);
 
   /// Executes [code] and returns a stream of lifecycle events.
   ///

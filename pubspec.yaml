@@ -20,9 +20,6 @@ dependencies:
   path: ^1.8.0
   signals_core: ^6.2.0
   struct_log: ^0.3.0
-  # Used by DartMonty.ensureInitialized() on web for dynamic <script>
-  # injection of the dart_monty_core bridge. No-op on native targets.
-  web: ^1.1.0
 
 dev_dependencies:
   # `collection` and `test` were REGULAR dependencies, which made every
@@ -63,4 +60,4 @@ dependency_overrides:
   dart_monty_core:
     git:
       url: https://github.com/runyaga/dart_monty_core.git
-      ref: v0.23.1
+      ref: cccd5faf4ea14b918f0070aaf9bf305aa931c88e

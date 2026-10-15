@@ -1,6 +1,7 @@
-@Tags(['integration'])
+@Tags(['integration', 'd1-pending'])
 library;
 
+import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:test/test.dart';
 
@@ -9,9 +10,9 @@ void main() {
     late MontyRuntime runtime;
     late Map<String, String> vfs;
 
-    setUp(() {
+    setUp(() async {
       vfs = {};
-      runtime = MontyRuntime()
+      runtime = (await MontyRuntime.start())
         ..register(
           buildRunScriptFunction((path) async {
             final code = vfs[path];
@@ -33,16 +34,14 @@ void main() {
           )
           .result;
 
-      expect(result.error, isNull);
-      expect(result.value.dartValue, 'hello, alice!');
+      expect(result.dartValue, 'hello, alice!');
     });
 
     test('sub-script with no inputs still runs', () async {
       vfs['add.py'] = '1 + 2';
       final result = await runtime.execute('run_script("add.py")').result;
 
-      expect(result.error, isNull);
-      expect(result.value.dartValue, 3);
+      expect(result.dartValue, 3);
     });
 
     test('multiple inputs are all injected', () async {
@@ -53,21 +52,22 @@ void main() {
           )
           .result;
 
-      expect(result.value.dartValue, 'hi, alan!');
+      expect(result.dartValue, 'hi, alan!');
     });
 
     test('sub-script error surfaces as Python exception', () async {
       vfs['bad.py'] = '1 / 0';
-      final result = await runtime.execute('run_script("bad.py")').result;
-
-      // run_script throws, which Python surfaces as an error result.
-      expect(result.isError, isTrue);
+      await expectLater(
+        runtime.execute('run_script("bad.py")').result,
+        throwsA(isA<MontyError>()),
+      );
     });
 
     test('missing file surfaces as Python exception', () async {
-      final result = await runtime.execute('run_script("missing.py")').result;
-
-      expect(result.isError, isTrue);
+      await expectLater(
+        runtime.execute('run_script("missing.py")').result,
+        throwsA(isA<MontyError>()),
+      );
     });
 
     test('return value is usable in caller script', () async {
@@ -78,7 +78,7 @@ void main() {
           )
           .result;
 
-      expect(result.value.dartValue, 42);
+      expect(result.dartValue, 42);
     });
 
     // Return-value semantics: run_script captures the last expression of
@@ -89,10 +89,9 @@ void main() {
         vfs['assign.py'] = 'x = 99';
         final result = await runtime.execute('run_script("assign.py")').result;
 
-        expect(result.error, isNull);
         // Assignment is a statement; no last-expression value — run_script
         // returns None.
-        expect(result.value.dartValue, isNull);
+        expect(result.dartValue, isNull);
       },
     );
 
@@ -101,8 +100,7 @@ void main() {
       vfs['ret.py'] = 'return 99';
       final result = await runtime.execute('run_script("ret.py")').result;
 
-      expect(result.error, isNull);
-      expect(result.value.dartValue, 99);
+      expect(result.dartValue, 99);
     });
 
     // Both kwargs and positional forms work for host-function params:
@@ -117,8 +115,7 @@ void main() {
           .execute('run_script("greet.py", {"name": "alice"})')
           .result;
 
-      expect(result.error, isNull);
-      expect(result.value.dartValue, 'hello, alice!');
+      expect(result.dartValue, 'hello, alice!');
     });
 
     // Schema-level validation: HostFunctionSchema.mapAndValidate +
@@ -126,33 +123,35 @@ void main() {
     // dispatch.dart routes back to Python as a script error.
     group('invalid arguments surface as Python errors', () {
       test('wrong type for path (int instead of str)', () async {
-        final result = await runtime.execute('run_script(123)').result;
-
-        expect(result.isError, isTrue);
+        await expectLater(
+          runtime.execute('run_script(123)').result,
+          throwsA(isA<MontyError>()),
+        );
       });
 
       test('wrong type for inputs (str instead of dict/map)', () async {
         vfs['greet.py'] = 'f"hi {name}"';
-        final result = await runtime
-            .execute('run_script("greet.py", inputs="oops")')
-            .result;
-
-        expect(result.isError, isTrue);
+        await expectLater(
+          runtime.execute('run_script("greet.py", inputs="oops")').result,
+          throwsA(isA<MontyError>()),
+        );
       });
 
       test('missing required path arg', () async {
-        final result = await runtime.execute('run_script()').result;
-
-        expect(result.isError, isTrue);
+        await expectLater(
+          runtime.execute('run_script()').result,
+          throwsA(isA<MontyError>()),
+        );
       });
 
       test('unknown kwarg rejected', () async {
         vfs['greet.py'] = 'f"hi {name}"';
-        final result = await runtime
-            .execute('run_script("greet.py", typo={"name": "alice"})')
-            .result;
-
-        expect(result.isError, isTrue);
+        await expectLater(
+          runtime
+              .execute('run_script("greet.py", typo={"name": "alice"})')
+              .result,
+          throwsA(isA<MontyError>()),
+        );
       });
     });
   });

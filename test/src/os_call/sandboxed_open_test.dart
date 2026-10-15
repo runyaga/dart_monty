@@ -23,21 +23,23 @@ library;
 
 import 'dart:io';
 
-import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:dart_monty/src/os_call/sandboxed_fs_handler.dart';
+import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:test/test.dart';
+
+import '_os_call.dart';
 
 void main() {
   late Directory root;
   late String rootPath;
-  late OsCallHandler handler;
+  late DartOsCall handler;
 
   setUp(() {
     root = Directory.systemTemp.createTempSync('monty_sandbox_open_');
     // Resolve symlinks or macOS /var -> /private/var breaks containment
     // comparisons before the code under test is reached.
     rootPath = root.resolveSymbolicLinksSync();
-    handler = sandboxedFsHandler(root: root);
+    handler = dartCall(sandboxedFsHandler(root: root));
   });
 
   tearDown(() => root.deleteSync(recursive: true));
@@ -78,7 +80,7 @@ void main() {
       // containment has to hold in every one of them.
       expect(
         () => handler('open', ['$rootPath/../escape.txt', 'w'], null),
-        throwsA(isA<OsCallException>()),
+        throwsA(isA<ExternalException>()),
       );
       expect(
         File('${File(rootPath).parent.path}/escape.txt').existsSync(),
@@ -89,7 +91,7 @@ void main() {
     test('open refuses an absolute path outside the root', () {
       expect(
         () => handler('open', ['/etc/passwd', 'r'], null),
-        throwsA(isA<OsCallException>()),
+        throwsA(isA<ExternalException>()),
       );
     });
   });
@@ -107,7 +109,7 @@ void main() {
     test('a relative path with .. still cannot escape', () {
       expect(
         () => handler('Path.write_text', ['../outside.txt', 'x'], null),
-        throwsA(isA<OsCallException>()),
+        throwsA(isA<ExternalException>()),
       );
     });
   });

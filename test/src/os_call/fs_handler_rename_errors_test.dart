@@ -15,18 +15,21 @@ library;
 import 'dart:io';
 
 import 'package:dart_monty/dart_monty_bridge.dart';
+import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:file/local.dart';
 import 'package:test/test.dart';
+
+import '_os_call.dart';
 
 void main() {
   late Directory root;
   late String rootPath;
-  late OsCallHandler handler;
+  late DartOsCall handler;
 
   setUp(() {
     root = Directory.systemTemp.createTempSync('monty_fsh_rename_');
     rootPath = root.resolveSymbolicLinksSync();
-    handler = fsHandler(const LocalFileSystem());
+    handler = dartCall(fsHandler(const LocalFileSystem()));
   });
 
   tearDown(() => root.deleteSync(recursive: true));
@@ -39,8 +42,8 @@ void main() {
   /// mangled to `\${...}`, every case here passed, and the message was
   /// useless. So match a DIGIT after Errno, and the paths.
   Matcher throwsOsCall(String type, {String? pathFragment}) => throwsA(
-    isA<OsCallException>()
-        .having((e) => e.pythonExceptionType, 'pythonExceptionType', type)
+    isA<ExternalException>()
+        .having((e) => e.excType, 'excType', type)
         .having(
           (e) => e.message,
           'message',
@@ -84,7 +87,7 @@ void main() {
 
     await expectLater(
       handler('Path.rename', ['$rootPath/src', '$rootPath/alias'], null),
-      throwsA(isA<OsCallException>()),
+      throwsA(isA<ExternalException>()),
     );
     expect(
       FileSystemEntity.typeSync('$rootPath/alias', followLinks: false),

@@ -2,14 +2,15 @@ import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:file/memory.dart';
 import 'package:test/test.dart';
+import '_os_call.dart';
 
 void main() {
   group('overlayFsHandler', () {
     late MemoryFileSystem baseFs;
     late MemoryFileSystem scratchFs;
-    late OsCallHandler base;
-    late OsCallHandler scratch;
-    late OsCallHandler overlay;
+    late OsHandler base;
+    late OsHandler scratch;
+    late DartOsCall overlay;
 
     setUp(() {
       baseFs = MemoryFileSystem();
@@ -24,7 +25,7 @@ void main() {
 
       base = fsHandler(baseFs);
       scratch = fsHandler(scratchFs);
-      overlay = overlayFsHandler(base: base, scratch: scratch);
+      overlay = dartCall(overlayFsHandler(base: base, scratch: scratch));
     });
 
     // -- Reads fall through to base --
@@ -144,9 +145,9 @@ void main() {
       expect(
         () => overlay('Path.unlink', ['/project/readme.md'], null),
         throwsA(
-          isA<OsCallException>().having(
-            (e) => e.pythonExceptionType,
-            'pythonExceptionType',
+          isA<ExternalException>().having(
+            (e) => e.excType,
+            'excType',
             'PermissionError',
           ),
         ),
@@ -157,9 +158,9 @@ void main() {
       expect(
         () => overlay('Path.rmdir', ['/project/src'], null),
         throwsA(
-          isA<OsCallException>().having(
-            (e) => e.pythonExceptionType,
-            'pythonExceptionType',
+          isA<ExternalException>().having(
+            (e) => e.excType,
+            'excType',
             'PermissionError',
           ),
         ),
@@ -175,9 +176,11 @@ void main() {
         'Path.': base,
         'date.': time,
       });
-      final overlayWithTime = overlayFsHandler(
-        base: baseWithTime,
-        scratch: scratch,
+      final overlayWithTime = dartCall(
+        overlayFsHandler(
+          base: baseWithTime,
+          scratch: scratch,
+        ),
       );
 
       final result = await overlayWithTime('date.today', const [], null);

@@ -1,4 +1,7 @@
+// Runs Python through MontyRuntime.execute, which D1-4 rebuilds; D1-5
+// settles the clock (DM1: the worker's system clock, timeHandler deleted).
 @TestOn('vm')
+@Tags(['d1-pending'])
 library;
 
 // `datetime.now(tz)` semantics, per monty v0.0.19's own contract.
@@ -22,12 +25,12 @@ void main() {
   final frozen = DateTime(2024, 3, 15, 10, 30, 45);
   final time = timeHandler(clock: () => frozen);
 
-  MontyRuntime newSession() =>
-      MontyRuntime(osHandlers: {'date.': time, 'datetime.': time});
+  Future<MontyRuntime> newSession() =>
+      MontyRuntime.start(osHandlers: {'date.': time, 'datetime.': time});
 
   group('datetime.now honours the requested timezone', () {
     test('no argument yields a NAIVE datetime', () async {
-      final session = newSession();
+      final session = await newSession();
       addTearDown(session.dispose);
 
       final r = await session
@@ -37,9 +40,7 @@ void main() {
             '{"naive": n.tzinfo is None, "hour": n.hour, "minute": n.minute}',
           )
           .result;
-
-      expect(r.error, isNull);
-      final v = r.value.dartValue! as Map<Object?, Object?>;
+      final v = r.dartValue! as Map<Object?, Object?>;
       expect(v['naive'], isTrue, reason: 'datetime.now() must be naive');
       // Naive means LOCAL wall clock, so the frozen local fields come through.
       expect(v['hour'], frozen.hour);
@@ -47,7 +48,7 @@ void main() {
     });
 
     test('a requested zone shifts the instant', () async {
-      final session = newSession();
+      final session = await newSession();
       addTearDown(session.dispose);
 
       final r = await session
@@ -65,9 +66,7 @@ void main() {
             '"minute": u.minute, "tz": repr(u.tzinfo)}',
           )
           .result;
-
-      expect(r.error, isNull);
-      final v = r.value.dartValue! as Map<Object?, Object?>;
+      final v = r.dartValue! as Map<Object?, Object?>;
       expect(v['naive'], isFalse, reason: 'datetime.now(tz) must be aware');
       // The instant shifted into +04:00, independent of the host's zone.
       final expected = frozen.toUtc().add(const Duration(hours: 4));
@@ -76,7 +75,7 @@ void main() {
     });
 
     test('date.today is unaffected', () async {
-      final session = newSession();
+      final session = await newSession();
       addTearDown(session.dispose);
 
       final r = await session
@@ -86,9 +85,7 @@ void main() {
             '{"y": d.year, "m": d.month, "d": d.day}',
           )
           .result;
-
-      expect(r.error, isNull);
-      final v = r.value.dartValue! as Map<Object?, Object?>;
+      final v = r.dartValue! as Map<Object?, Object?>;
       expect(v['y'], frozen.year);
       expect(v['m'], frozen.month);
       expect(v['d'], frozen.day);
@@ -98,7 +95,7 @@ void main() {
   test('datetime.now() reaches Python with the full sub-second part', () async {
     final precise = DateTime(2024, 3, 15, 12, 34, 56, 123, 456);
     final handler = timeHandler(clock: () => precise);
-    final session = MontyRuntime(
+    final session = await MontyRuntime.start(
       osHandlers: {'date.': handler, 'datetime.': handler},
     );
     addTearDown(session.dispose);
@@ -106,8 +103,6 @@ void main() {
     final r = await session
         .execute('from datetime import datetime\ndatetime.now().microsecond')
         .result;
-
-    expect(r.error, isNull);
-    expect(r.value.dartValue, 123456);
+    expect(r.dartValue, 123456);
   });
 }

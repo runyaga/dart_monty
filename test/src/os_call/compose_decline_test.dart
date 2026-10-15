@@ -1,42 +1,54 @@
 import 'package:dart_monty/dart_monty_bridge.dart';
+import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:test/test.dart';
 
+import '_os_call.dart';
+
 // `OsCallNotHandledException` exists so a handler can DECLINE an operation it
-// does not implement — core's doc: "Thrown by an `OsCallHandler` to decline
+// does not implement — core's doc: "Thrown by an `OsHandler` to decline
 // the requested OS call." For declining to mean anything, the composer must
 // treat it as "not mine" and keep routing, rather than let it escape.
 void main() {
   group('composeOsHandlers treats a decline as not-handled', () {
     test('a declining prefix handler falls through to the fallback', () async {
-      final os = composeOsHandlers(
-        {
-          'date.': (operation, args, kwargs) async =>
-              throw const OsCallNotHandledException('date.'),
-        },
-        fallback: (operation, args, kwargs) async => 'from-fallback',
+      final os = dartCall(
+        composeOsHandlers(
+          {
+            'date.': (operation, args, kwargs) async =>
+                throw const OsCallNotHandledException(),
+          },
+          fallback: (operation, args, kwargs) async =>
+              const MontyString('from-fallback'),
+        ),
       );
 
       expect(await os('date.today', const [], null), 'from-fallback');
     });
 
     test('a shorter matching prefix gets a turn after a decline', () async {
-      final os = composeOsHandlers({
-        // Longest prefix wins first, then declines.
-        'date.today': (operation, args, kwargs) async =>
-            throw const OsCallNotHandledException('date.today'),
-        'date.': (operation, args, kwargs) async => 'from-shorter-prefix',
-      });
+      final os = dartCall(
+        composeOsHandlers({
+          // Longest prefix wins first, then declines.
+          'date.today': (operation, args, kwargs) async =>
+              throw const OsCallNotHandledException(),
+          'date.': (operation, args, kwargs) async =>
+              const MontyString('from-shorter-prefix'),
+        }),
+      );
 
       expect(await os('date.today', const [], null), 'from-shorter-prefix');
     });
 
     test('a genuine error is NOT swallowed', () async {
-      final os = composeOsHandlers(
-        {
-          'date.': (operation, args, kwargs) async =>
-              throw StateError('a real bug'),
-        },
-        fallback: (operation, args, kwargs) async => 'from-fallback',
+      final os = dartCall(
+        composeOsHandlers(
+          {
+            'date.': (operation, args, kwargs) async =>
+                throw StateError('a real bug'),
+          },
+          fallback: (operation, args, kwargs) async =>
+              const MontyString('from-fallback'),
+        ),
       );
 
       await expectLater(
@@ -46,17 +58,21 @@ void main() {
     });
 
     test('an exhausted composer DECLINES, so composers nest', () async {
-      // A composer is itself an OsCallHandler, and this codebase nests them:
+      // A composer is itself an OsHandler, and this codebase nests them:
       // coordinator.dart composes with another handler as `fallback`, and
       // `defaultOsHandler()` is itself a composer. If an exhausted composer
       // threw instead of declining, an inner one would abort the outer's
       // routing rather than letting it try the next candidate.
       final inner = composeOsHandlers({
-        'date.': (operation, args, kwargs) async => 'inner-handled',
+        'date.': (operation, args, kwargs) async =>
+            const MontyString('inner-handled'),
       });
-      final outer = composeOsHandlers(
-        {'os.': inner},
-        fallback: (operation, args, kwargs) async => 'outer-fallback',
+      final outer = dartCall(
+        composeOsHandlers(
+          {'os.': inner},
+          fallback: (operation, args, kwargs) async =>
+              const MontyString('outer-fallback'),
+        ),
       );
 
       // `os.getenv` matches the outer's 'os.' prefix and is routed to `inner`,
@@ -66,10 +82,12 @@ void main() {
     });
 
     test('declining with no fallback reports unhandled', () async {
-      final os = composeOsHandlers({
-        'date.': (operation, args, kwargs) async =>
-            throw const OsCallNotHandledException('date.'),
-      });
+      final os = dartCall(
+        composeOsHandlers({
+          'date.': (operation, args, kwargs) async =>
+              throw const OsCallNotHandledException(),
+        }),
+      );
 
       // Not UnsupportedError: an unhandled op is a decline, which the runtime
       // renders as monty's own "not supported in this environment" rather than

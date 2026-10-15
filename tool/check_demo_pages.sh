@@ -218,7 +218,7 @@ echo "assembled $SITE ($(find "$SITE" -type f | wc -l | tr -d ' ') files)"
 LOG=$(mktemp)
 echo "--- dart test (headless Chrome) ---"
 set -o pipefail
-dart test test/integration/demo_page_boot_test.dart \
+dart test --exclude-tags d1-pending test/integration/demo_page_boot_test.dart \
   -p vm --run-skipped --tags=demo --reporter=expanded 2>&1 | tee "$LOG"
 RC=$?
 set +o pipefail

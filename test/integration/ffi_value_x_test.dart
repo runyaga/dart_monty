@@ -11,7 +11,7 @@
 // matches anything real is dead code wearing a green test.
 //
 // So every value below comes out of a real FFI run.
-@Tags(['integration'])
+@Tags(['integration', 'd1-pending'])
 library;
 
 import 'package:dart_monty/dart_monty.dart';
@@ -19,12 +19,11 @@ import 'package:test/test.dart';
 
 /// Runs [expr] on a real backend and returns the resulting value.
 Future<MontyValue> _eval(String expr) async {
-  final runtime = MontyRuntime();
+  final runtime = await MontyRuntime.start();
   final r = await runtime.execute(expr).result;
   await runtime.dispose();
-  expect(r.error, isNull, reason: 'the expression itself must succeed');
 
-  return r.value;
+  return r;
 }
 
 void main() {

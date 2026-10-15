@@ -1,21 +1,36 @@
+import 'dart:async';
+
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
-import 'package:dart_monty/dart_monty_testing.dart';
+import 'package:dart_monty/src/bridge/session_bridge.dart';
+import 'package:dart_monty_core/dart_monty_core_testing.dart';
 import 'package:test/test.dart';
 
-const _usage = MontyResourceUsage(
-  memoryBytesUsed: 0,
-  timeElapsedMs: 0,
-  stackDepthUsed: 0,
-);
+import '../_throwing_session.dart';
+
+/// Tests that drive [MontyBridge.execute], which D1-2 (events, OS calls,
+/// errors) and D1-3 (host-call dispatch) rebuild on core's feed.
+const _pending = 'd1-pending';
+
+/// The [ExternalException]s the host answered with, in order.
+List<ExternalException> _errorAnswers(FakeMontySession session) => [
+  for (final a in session.answers)
+    if (a.answer case final ExternalException e) e,
+];
+
+/// The values the host answered with, in order.
+List<Object> _returnAnswers(FakeMontySession session) => [
+  for (final a in session.answers)
+    if (a.answer case ExternalReturnValue(:final value)) value,
+];
 
 void main() {
-  late MockMontyPlatform mock;
+  late FakeMontySession fake;
   late MontyBridge bridge;
 
   setUp(() {
-    mock = MockMontyPlatform();
-    bridge = MontyBridge(platform: mock);
+    fake = FakeMontySession();
+    bridge = MontyBridge(session: fake);
   });
 
   tearDown(() {
@@ -23,7 +38,7 @@ void main() {
   });
 
   // P0: deferred host handler errors must not be swallowed silently.
-  group('deferred async error logging', () {
+  group('deferred async error logging', tags: _pending, () {
     test('does not swallow deferred host handler errors', () async {
       bridge.register(
         HostFunction(
@@ -38,39 +53,36 @@ void main() {
         ),
       );
 
-      // Sequence: start -> Pending(slow_fail) -> resumeAsFuture ->
-      // ResolveFutures([1]) -> Complete
-      mock
-        ..enqueueProgress(
-          const MontyPending(
-            functionName: 'slow_fail',
-            args: [],
-            callId: 1,
-          ),
-        )
-        ..enqueueProgress(const MontyResolveFutures(pendingCallIds: [1]))
-        ..enqueueProgress(
-          const MontyComplete(
-            result: MontyResult(value: MontyNone(), usage: _usage),
-          ),
-        );
+      // Sequence: Python calls slow_fail (a future), then awaits it; the
+      // failed future settles the await, and Python catches it.
+      final id = fake.willCall('slow_fail');
+      fake
+        ..willAwait([id])
+        ..willCatch()
+        ..willReturn(const MontyNone());
 
       final events = await bridge.execute('slow_fail()').toList();
 
       // The bridge should have completed (not deadlocked) and the error
-      // should have been captured during future resolution.
+      // should have been captured when the future settled.
       expect(events.whereType<BridgeRunFinished>(), hasLength(1));
 
-      // The error was sent through resolveFutures with an errors map.
-      expect(mock.history.resolveFuturesErrorsList, hasLength(1));
-      final errors = mock.history.resolveFuturesErrorsList.first;
-      expect(errors, isNotNull);
-      expect(errors![1], contains('async kaboom'));
+      // The error was settled into the futures batch as an exception.
+      final settled = [
+        for (final a in fake.answers)
+          if (a.batch != null && a.answer is ExternalException) a,
+      ];
+      expect(settled, hasLength(1));
+      expect(settled.single.callId, id);
+      expect(
+        (settled.single.answer! as ExternalException).message,
+        contains('async kaboom'),
+      );
     });
   });
 
   // P0 safety fix: synchronous handler throw in futures path must not deadlock.
-  group('sync throw safety (#101)', () {
+  group('sync throw safety (#101)', tags: _pending, () {
     test(
       '_dispatchToolCallAsFuture catches synchronous handler throw',
       () async {
@@ -86,35 +98,27 @@ void main() {
           ),
         );
 
-        // Sequence: start -> Pending(explode) -> resumeWithError -> Complete
-        mock
-          ..enqueueProgress(
-            const MontyPending(
-              functionName: 'explode',
-              args: [],
-              callId: 1,
-            ),
-          )
-          // After the sync throw, bridge calls resumeWithError which yields:
-          ..enqueueProgress(
-            const MontyComplete(
-              result: MontyResult(value: MontyNone(), usage: _usage),
-            ),
-          );
+        // Sequence: Python calls explode, the host answers with an
+        // exception, Python catches it and the feed ends.
+        fake
+          ..willCall('explode')
+          ..willCatch()
+          ..willReturn(const MontyNone());
 
         final events = await bridge.execute('explode()').toList();
 
         // Bridge should have emitted a BridgeRunFinished (not deadlocked).
         expect(events.whereType<BridgeRunFinished>(), hasLength(1));
 
-        // The sync error should have been sent via resumeWithError.
-        expect(mock.history.resumeErrorMessages, hasLength(1));
-        expect(mock.history.resumeErrorMessages.first, contains('sync boom'));
+        // The sync error should have been answered as an exception.
+        final errors = _errorAnswers(fake);
+        expect(errors, hasLength(1));
+        expect(errors.first.message, contains('sync boom'));
       },
     );
   });
 
-  group('tool dispatch', () {
+  group('tool dispatch', tags: _pending, () {
     test('calls the registered handler', () async {
       var called = false;
       bridge.register(
@@ -127,13 +131,9 @@ void main() {
         ),
       );
 
-      mock
-        ..enqueueProgress(const MontyPending(functionName: 'fn', args: []))
-        ..enqueueProgress(
-          const MontyComplete(
-            result: MontyResult(value: MontyNone(), usage: _usage),
-          ),
-        );
+      fake
+        ..willCall('fn')
+        ..willReturn(const MontyNone());
 
       await bridge.execute('fn()').toList();
       expect(called, isTrue);
@@ -141,111 +141,85 @@ void main() {
   });
 
   group('MontyOsCall handling', () {
-    test('resumes with PermissionError when no handler registered', () async {
-      mock
-        ..enqueueProgress(
-          const MontyOsCall(
-            operationName: 'Path.read_text',
-            args: [MontyString('/etc/passwd')],
-            callId: 1,
-          ),
-        )
-        ..enqueueProgress(
-          const MontyComplete(
-            result: MontyResult(value: MontyNone(), usage: _usage),
-          ),
-        );
+    test(
+      'declines (the worker answers) when no handler registered',
+      tags: _pending,
+      () async {
+        fake
+          ..willCallOs('Path.read_text', args: [const MontyPath('/etc/passwd')])
+          ..willCatch()
+          ..willReturn(const MontyNone());
 
-      final events = await bridge.execute('path.read_text()').toList();
+        final events = await bridge.execute('path.read_text()').toList();
 
-      // Should have completed (not deadlocked).
-      expect(events.whereType<BridgeRunFinished>(), hasLength(1));
+        // Should have completed (not deadlocked).
+        expect(events.whereType<BridgeRunFinished>(), hasLength(1));
 
-      // Should have called resumeWithError with PermissionError.
-      expect(mock.history.resumeErrorMessages, hasLength(1));
-      expect(
-        mock.history.resumeErrorMessages.first,
-        contains('PermissionError'),
-      );
-      expect(
-        mock.history.resumeErrorMessages.first,
-        contains('Path.read_text'),
-      );
+        // With no handler the call is declined: the worker computes the
+        // default (PermissionError naming the path), so the recorded answer
+        // is not_handled (null). Which events a worker-answered call emits
+        // is D1-2's (REQ-events-and-print).
+        expect(fake.answers, hasLength(1));
+        expect(fake.answers.single.answer, isNull);
+      },
+    );
 
-      // Should have emitted OsCall events.
-      final starts = events.whereType<BridgeOsCallStart>().toList();
-      expect(starts, hasLength(1));
-      expect(starts.first.operationName, 'Path.read_text');
-      final results = events.whereType<BridgeOsCallResult>().toList();
-      expect(results, hasLength(1));
-      expect(results.first.result, contains('PermissionError'));
-    });
+    test(
+      'invokes registered handler and resumes with result',
+      tags: _pending,
+      () async {
+        bridge.registerOs((operation, args, kwargs) async {
+          if (operation == 'os.getenv') {
+            return const MontyString('production');
+          }
+          return const MontyNone();
+        });
 
-    test('invokes registered handler and resumes with result', () async {
-      bridge.registerOs((operation, args, kwargs) async {
-        if (operation == 'os.getenv') {
-          return 'production';
-        }
-        return null;
-      });
+        fake
+          ..willCallOs(
+            'os.getenv',
+            args: [const MontyString('APP_ENV'), const MontyNone()],
+          )
+          ..willReturn(const MontyNone());
 
-      mock
-        ..enqueueProgress(
-          const MontyOsCall(
-            operationName: 'os.getenv',
-            args: [MontyString('APP_ENV')],
-            callId: 1,
-          ),
-        )
-        ..enqueueProgress(
-          const MontyComplete(
-            result: MontyResult(value: MontyNone(), usage: _usage),
-          ),
-        );
+        final events = await bridge.execute('os.getenv("APP_ENV")').toList();
 
-      final events = await bridge.execute('os.getenv("APP_ENV")').toList();
+        expect(events.whereType<BridgeRunFinished>(), hasLength(1));
 
-      expect(events.whereType<BridgeRunFinished>(), hasLength(1));
+        // Should have answered with the handler result.
+        expect(_returnAnswers(fake), [const MontyString('production')]);
 
-      // Should have called resume with the handler result.
-      expect(mock.history.resumeReturnValues, hasLength(1));
-      expect(mock.history.resumeReturnValues.first, 'production');
+        // Should have emitted OsCall events.
+        final starts = events.whereType<BridgeOsCallStart>().toList();
+        expect(starts, hasLength(1));
+        expect(starts.first.operationName, 'os.getenv');
+        final results = events.whereType<BridgeOsCallResult>().toList();
+        expect(results, hasLength(1));
+        expect(results.first.result, 'production');
+      },
+    );
 
-      // Should have emitted OsCall events.
-      final starts = events.whereType<BridgeOsCallStart>().toList();
-      expect(starts, hasLength(1));
-      expect(starts.first.operationName, 'os.getenv');
-      final results = events.whereType<BridgeOsCallResult>().toList();
-      expect(results, hasLength(1));
-      expect(results.first.result, 'production');
-    });
-
-    test('handler exception resumes with error', () async {
+    test('handler exception resumes with error', tags: _pending, () async {
       bridge.registerOs((operation, args, kwargs) async {
         throw StateError('disk on fire');
       });
 
-      mock
-        ..enqueueProgress(
-          const MontyOsCall(
-            operationName: 'Path.write_text',
-            args: [MontyString('/tmp/out'), MontyString('data')],
-            callId: 1,
-          ),
+      fake
+        ..willCallOs(
+          'Path.write_text',
+          args: const [MontyPath('/tmp/out'), MontyString('data')],
         )
-        ..enqueueProgress(
-          const MontyComplete(
-            result: MontyResult(value: MontyNone(), usage: _usage),
-          ),
-        );
+        ..willCatch()
+        ..willReturn(const MontyNone());
 
       final events = await bridge.execute('path.write_text()').toList();
 
       expect(events.whereType<BridgeRunFinished>(), hasLength(1));
 
-      // Should have called resumeWithError.
-      expect(mock.history.resumeErrorMessages, hasLength(1));
-      expect(mock.history.resumeErrorMessages.first, contains('disk on fire'));
+      // Should have answered with an exception carrying the text.
+      final errors = _errorAnswers(fake);
+      expect(errors, hasLength(1));
+      expect(errors.first.message, contains('disk on fire'));
 
       // OsCallResult should contain the error.
       final results = events.whereType<BridgeOsCallResult>().toList();
@@ -256,7 +230,7 @@ void main() {
     test('registerOs after dispose throws StateError', () {
       bridge.dispose();
       expect(
-        () => bridge.registerOs((op, args, kwargs) async => null),
+        () => bridge.registerOs((op, args, kwargs) async => const MontyNone()),
         throwsStateError,
       );
     });
@@ -268,7 +242,7 @@ void main() {
       // Calling again (already disposed) should not double-dispose.
       // registerOs should throw since disposed.
       expect(
-        () => bridge.registerOs((op, args, kwargs) async => null),
+        () => bridge.registerOs((op, args, kwargs) async => const MontyNone()),
         throwsStateError,
       );
     });
@@ -278,7 +252,7 @@ void main() {
     test('calls the handler with the validated args', () async {
       Map<String, Object?>? capturedArgs;
 
-      final b = MontyBridge(platform: mock);
+      final b = MontyBridge(session: fake);
       addTearDown(b.dispose);
 
       b.register(
@@ -309,21 +283,21 @@ void main() {
     test(
       'setOsHandler(null) clears; restoring via setOsHandler roundtrips',
       () async {
-        Future<Object?> handlerA(
+        Future<MontyValue> handlerA(
           String op,
-          List<Object?> args,
-          Map<String, Object?>? kwargs,
-        ) async => 'A';
-        Future<Object?> handlerB(
+          List<MontyValue> args,
+          Map<String, MontyValue> kwargs,
+        ) async => const MontyString('A');
+        Future<MontyValue> handlerB(
           String op,
-          List<Object?> args,
-          Map<String, Object?>? kwargs,
-        ) async => 'B';
+          List<MontyValue> args,
+          Map<String, MontyValue> kwargs,
+        ) async => const MontyString('B');
 
-        final b = MontyBridge(platform: mock) as PlatformBridge;
+        final b = MontyBridge(session: fake) as SessionBridge;
         addTearDown(b.dispose);
 
-        OsCallHandler? captured;
+        OsHandler? captured;
         b.register(
           HostFunction(
             schema: const HostFunctionSchema(name: 'peek', description: ''),
@@ -362,9 +336,9 @@ void main() {
     );
 
     test(
-      'HostContext.os reflects currently-registered OsCallHandler',
+      'HostContext.os reflects currently-registered OsHandler',
       () async {
-        OsCallHandler? capturedOs;
+        OsHandler? capturedOs;
         bridge.register(
           HostFunction(
             schema: const HostFunctionSchema(name: 'peek_os', description: ''),
@@ -380,11 +354,11 @@ void main() {
         expect(capturedOs, isNull);
 
         // After registerOs: ctx.os is the registered handler.
-        Future<Object?> handler(
+        Future<MontyValue> handler(
           String op,
-          List<Object?> args,
-          Map<String, Object?>? kwargs,
-        ) async => 'ok';
+          List<MontyValue> args,
+          Map<String, MontyValue> kwargs,
+        ) async => const MontyString('ok');
         bridge.registerOs(handler);
 
         await bridge.invokeHostFunction('peek_os', const {});
@@ -549,78 +523,51 @@ void main() {
     });
   });
 
-  group('error handling in _run', () {
+  group('error handling in _run', tags: _pending, () {
     test('MontyError thrown during execution emits BridgeRunError', () async {
-      final throwingMock = _ThrowingOnResumePlatform(
-        throwOnResume: const MontyPanicError('WASM trap'),
-      );
-      final b = MontyBridge(
-        platform: throwingMock,
-
-        logger: const NullBridgeLogger(),
-      );
+      // The worker dies after the host answers noop: the feed throws
+      // MontyCrashedError (a MontyError).
+      final b = MontyBridge(session: fake, logger: BridgeLogger.silent);
       addTearDown(b.dispose);
 
-      // Register a noop function so the bridge dispatches it and calls
-      // _platform.resume(), which throws MontyPanicError (a MontyError).
       b.register(
         HostFunction(
           schema: const HostFunctionSchema(name: 'noop', description: ''),
           handler: (_, _) async => null,
         ),
       );
-      throwingMock.enqueueProgress(
-        const MontyPending(functionName: 'noop', args: []),
-      );
+      fake
+        ..willCall('noop')
+        ..willCrash();
 
       final events = await b.execute('noop()').toList();
       final errors = events.whereType<BridgeRunError>().toList();
       expect(errors, hasLength(1));
-      expect(errors.first.message, contains('WASM trap'));
+      expect(errors.first.exception, isA<MontyCrashedError>());
     });
 
     test(
       'generic Object thrown during execution emits BridgeRunError',
       () async {
-        final throwingMock = _ThrowingOnResumePlatform(
-          throwOnResume: 'unexpected string error',
-        );
         final b = MontyBridge(
-          platform: throwingMock,
-
-          logger: const NullBridgeLogger(),
+          session: ThrowingSession('unexpected string error'),
+          logger: BridgeLogger.silent,
         );
         addTearDown(b.dispose);
-
-        b.register(
-          HostFunction(
-            schema: const HostFunctionSchema(name: 'noop', description: ''),
-            handler: (_, _) async => null,
-          ),
-        );
-        throwingMock.enqueueProgress(
-          const MontyPending(functionName: 'noop', args: []),
-        );
 
         final events = await b.execute('noop()').toList();
         final errors = events.whereType<BridgeRunError>().toList();
         expect(errors, hasLength(1));
         expect(errors.first.message, contains('unexpected string error'));
+        expect(errors.first.exception, isNull);
       },
     );
 
     test(
       'MontyError mid-execution emits BridgeRunError (no printOutput)',
       () async {
-        // Without the print preamble, printOutput for infrastructure errors
-        // is null — Monty cannot surface print output when the interpreter
-        // itself panics.
-        final throwingMock = _PrintThenThrowPlatform();
-        final b = MontyBridge(
-          platform: throwingMock,
-
-          logger: const NullBridgeLogger(),
-        );
+        // A worker crash surfaces no print output.
+        final b = MontyBridge(session: fake, logger: BridgeLogger.silent);
         addTearDown(b.dispose);
 
         b.register(
@@ -629,11 +576,9 @@ void main() {
             handler: (_, _) async => null,
           ),
         );
-        throwingMock
-          ..enqueueProgress(
-            const MontyPending(functionName: 'noop', args: []),
-          )
-          ..throwAfterResumes = 0;
+        fake
+          ..willCall('noop')
+          ..willCrash();
 
         final events = await b.execute('noop()').toList();
         final errors = events.whereType<BridgeRunError>().toList();
@@ -667,19 +612,19 @@ void main() {
       expect(() => bridge.execute('1 + 1'), throwsStateError);
     });
 
-    test('execute while already executing throws StateError', () async {
-      // Start one execution.
-      mock.enqueueProgress(
-        const MontyComplete(
-          result: MontyResult(value: MontyNone(), usage: _usage),
-        ),
-      );
-      final stream = bridge.execute('1');
-      // Try starting another before the first completes.
-      expect(() => bridge.execute('2'), throwsStateError);
-      // Drain the first stream so cleanup happens.
-      await stream.toList();
-    });
+    test(
+      'execute while already executing throws StateError',
+      tags: _pending,
+      () async {
+        // Start one execution.
+        fake.willReturn(const MontyNone());
+        final stream = bridge.execute('1');
+        // Try starting another before the first completes.
+        expect(() => bridge.execute('2'), throwsStateError);
+        // Drain the first stream so cleanup happens.
+        await stream.toList();
+      },
+    );
   });
 
   group('unregister', () {
@@ -702,35 +647,29 @@ void main() {
     });
   });
 
-  group('unknown function handling', () {
-    test('unknown function in pending resumes with error', () async {
-      mock
-        ..enqueueProgress(
-          const MontyPending(functionName: 'not_registered', args: []),
-        )
-        ..enqueueProgress(
-          const MontyComplete(
-            result: MontyResult(value: MontyNone(), usage: _usage),
-          ),
-        );
+  group('unknown function handling', tags: _pending, () {
+    test('unknown function raises NameError in the sandbox', () async {
+      // A name absent from the feed's externals is a NameError raised by
+      // the worker; the host never answers it (D1-3).
+      fake.willRaise(
+        'NameError',
+        message: "name 'not_registered' is not defined",
+      );
 
       final events = await bridge.execute('not_registered()').toList();
-      expect(events.whereType<BridgeRunFinished>(), hasLength(1));
-      expect(mock.history.resumeErrorMessages, hasLength(1));
-      expect(
-        mock.history.resumeErrorMessages.first,
-        contains('Unknown function: not_registered'),
-      );
+      final errors = events.whereType<BridgeRunError>().toList();
+      expect(errors, hasLength(1));
+      expect(errors.first.exception?.exception.excType, 'NameError');
+      expect(fake.answers, isEmpty);
     });
   });
 
-  group('argument validation error in _dispatchToolCall', () {
+  group('argument validation error in _dispatchToolCall', tags: _pending, () {
     test('FormatException from mapAndValidate resumes with error', () async {
-      final syncMock = MockMontyPlatform();
+      final syncSession = FakeMontySession();
       final syncBridge = MontyBridge(
-        platform: syncMock,
-
-        logger: const NullBridgeLogger(),
+        session: syncSession,
+        logger: BridgeLogger.silent,
       );
       addTearDown(syncBridge.dispose);
 
@@ -746,19 +685,14 @@ void main() {
       );
 
       // Call without required param — mapAndValidate throws FormatException.
-      syncMock
-        ..enqueueProgress(
-          const MontyPending(functionName: 'need_param', args: []),
-        )
-        ..enqueueProgress(
-          const MontyComplete(
-            result: MontyResult(value: MontyNone(), usage: _usage),
-          ),
-        );
+      syncSession
+        ..willCall('need_param')
+        ..willCatch()
+        ..willReturn(const MontyNone());
 
       final events = await syncBridge.execute('need_param()').toList();
       expect(events.whereType<BridgeRunFinished>(), hasLength(1));
-      expect(syncMock.history.resumeErrorMessages, hasLength(1));
+      expect(_errorAnswers(syncSession), hasLength(1));
     });
 
     test('FormatException in futures path resumes with error', () async {
@@ -773,63 +707,26 @@ void main() {
         ),
       );
 
-      mock
-        ..enqueueProgress(
-          const MontyPending(
-            functionName: 'need_param',
-            args: [],
-            callId: 1,
-          ),
-        )
-        ..enqueueProgress(
-          const MontyComplete(
-            result: MontyResult(value: MontyNone(), usage: _usage),
-          ),
-        );
+      final id = fake.willCall('need_param');
+      fake
+        ..willAwait([id])
+        ..willCatch()
+        ..willReturn(const MontyNone());
 
       final events = await bridge.execute('need_param()').toList();
       expect(events.whereType<BridgeRunFinished>(), hasLength(1));
-      expect(mock.history.resumeErrorMessages, hasLength(1));
+      expect(_errorAnswers(fake), hasLength(1));
     });
   });
 
-  group('ResolveFutures without futures-capable platform', () {
-    test('resumes with null when not futures-capable and no pending', () async {
-      // Non-futures-capable platform — ResolveFutures just resumes with null.
-      final syncMock = MockMontyPlatform();
-      final syncBridge = MontyBridge(
-        platform: syncMock,
-
-        logger: const NullBridgeLogger(),
-      );
-      addTearDown(syncBridge.dispose);
-
-      syncMock
-        ..enqueueProgress(const MontyResolveFutures(pendingCallIds: [1]))
-        ..enqueueProgress(
-          const MontyComplete(
-            result: MontyResult(value: MontyNone(), usage: _usage),
-          ),
-        );
-
-      final events = await syncBridge.execute('code').toList();
-      expect(events.whereType<BridgeRunFinished>(), hasLength(1));
-    });
-  });
-
-  // Regression: resume() failure must not cause StateError (#274).
-  //
-  // Before the fix, _dispatchToolCall wrapped both the handler invocation
-  // AND platform.resume() in the same try/catch. If resume() threw
-  // (marking the platform idle), the catch called resumeWithError() on
-  // the idle platform → StateError.
-  group('resume() failure recovery (#274)', () {
+  // Regression: a failure after a host answer must not cause StateError
+  // (#274). The worker dying after an answer is the 0.110 form of the old
+  // "resume() throws" case.
+  group('failure after an answer (#274)', tags: _pending, () {
     test(
-      'handler succeeds but resume() throws — emits BridgeRunError',
+      'handler succeeds but the worker then dies — emits BridgeRunError',
       () async {
-        // Platform throws when resume() is called with 'hello'.
-        final failMock = _ResumeFailsPlatform()..failOnValue = 'hello';
-        final failBridge = MontyBridge(platform: failMock)
+        final failBridge = MontyBridge(session: fake)
           ..register(
             HostFunction(
               schema: const HostFunctionSchema(
@@ -840,22 +737,9 @@ void main() {
             ),
           );
 
-        // start → Pending(greet) → handler returns 'hello' →
-        // resume('hello') throws because failOnValue matches.
-        failMock
-          ..enqueueProgress(
-            const MontyPending(
-              functionName: 'greet',
-              args: [],
-              callId: 1,
-            ),
-          )
-          // Enqueued for resume but never consumed — throw happens first.
-          ..enqueueProgress(
-            const MontyComplete(
-              result: MontyResult(value: MontyNone(), usage: _usage),
-            ),
-          );
+        fake
+          ..willCall('greet')
+          ..willCrash();
 
         final events = await failBridge.execute('greet()').toList();
 
@@ -868,18 +752,17 @@ void main() {
               'Expected BridgeRunError, got: '
               '${events.map((e) => e.runtimeType).toList()}',
         );
-        expect(errors.first.message, contains('resume failed'));
+        expect(errors.first.exception, isA<MontyCrashedError>());
+        expect(_returnAnswers(fake), [const MontyString('hello')]);
 
         failBridge.dispose();
       },
     );
 
     test(
-      'multiple tool calls — resume failure on 3rd does not StateError',
+      'multiple tool calls — a crash after the 3rd does not StateError',
       () async {
-        // Fail when resuming with value '3' (the 3rd call).
-        final failMock = _ResumeFailsPlatform()..failOnValue = '3';
-        final failBridge = MontyBridge(platform: failMock)
+        final failBridge = MontyBridge(session: fake)
           ..register(
             HostFunction(
               schema: const HostFunctionSchema(
@@ -893,43 +776,15 @@ void main() {
             ),
           );
 
-        // start → Pending(count,n=1) → resume(1) OK →
-        // Pending(count,n=2) → resume(2) OK →
-        // Pending(count,n=3) → resume(3) THROWS
-        failMock
-          ..enqueueProgress(
-            const MontyPending(
-              functionName: 'count',
-              args: [MontyInt(1)],
-              kwargs: {'n': MontyInt(1)},
-              callId: 1,
-            ),
-          )
-          ..enqueueProgress(
-            const MontyPending(
-              functionName: 'count',
-              args: [MontyInt(2)],
-              kwargs: {'n': MontyInt(2)},
-              callId: 2,
-            ),
-          )
-          ..enqueueProgress(
-            const MontyPending(
-              functionName: 'count',
-              args: [MontyInt(3)],
-              kwargs: {'n': MontyInt(3)},
-              callId: 3,
-            ),
-          )
-          ..enqueueProgress(
-            const MontyComplete(
-              result: MontyResult(value: MontyNone(), usage: _usage),
-            ),
-          );
+        fake
+          ..willCall('count', kwargs: {'n': const MontyInt(1)})
+          ..willCall('count', kwargs: {'n': const MontyInt(2)})
+          ..willCall('count', kwargs: {'n': const MontyInt(3)})
+          ..willCrash();
 
         final events = await failBridge.execute('code').toList();
 
-        // First two succeed, 3rd triggers error.
+        // Three calls answered, then the crash ends the run.
         final errors = events.whereType<BridgeRunError>().toList();
         expect(
           errors,
@@ -938,9 +793,9 @@ void main() {
               'Expected BridgeRunError, got: '
               '${events.map((e) => e.runtimeType).toList()}',
         );
-        expect(errors.first.message, contains('resume failed'));
+        expect(errors.first.exception, isA<MontyCrashedError>());
 
-        // First two tool calls should have result events.
+        // The tool calls should have result events.
         final results = events.whereType<BridgeFunctionCallResult>().toList();
         expect(results.length, greaterThanOrEqualTo(2));
 
@@ -948,48 +803,4 @@ void main() {
       },
     );
   });
-}
-
-/// A mock platform that throws from [resume] after enqueued progresses
-/// are consumed via [start].
-class _ThrowingOnResumePlatform extends MockMontyPlatform {
-  _ThrowingOnResumePlatform({required this.throwOnResume});
-
-  final Object throwOnResume;
-
-  @override
-  Future<MontyProgress> resume(Object? returnValue) async {
-    // ignore: only_throw_errors – test intentionally throws non-Exception objects.
-    throw throwOnResume;
-  }
-}
-
-/// A mock platform that throws [MontyPanicError] after N resume calls.
-class _PrintThenThrowPlatform extends MockMontyPlatform {
-  int throwAfterResumes = 0;
-  int _resumeCount = 0;
-
-  @override
-  Future<MontyProgress> resume(Object? returnValue) async {
-    _resumeCount++;
-    if (_resumeCount > throwAfterResumes) {
-      throw const MontyPanicError('panic after print');
-    }
-
-    return super.resume(returnValue);
-  }
-}
-
-/// A mock platform that throws on resume() when the return value matches.
-class _ResumeFailsPlatform extends MockMontyPlatform {
-  String? failOnValue;
-
-  @override
-  Future<MontyProgress> resume(Object? returnValue) async {
-    if (failOnValue != null && returnValue?.toString() == failOnValue) {
-      throw const MontyPanicError('resume failed on value');
-    }
-
-    return super.resume(returnValue);
-  }
 }

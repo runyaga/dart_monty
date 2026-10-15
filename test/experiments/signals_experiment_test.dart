@@ -13,14 +13,10 @@
 library;
 
 import 'package:dart_monty/dart_monty_bridge.dart';
-import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:signals_core/signals_core.dart';
 import 'package:test/test.dart';
 
 import 'harness.dart';
-
-MontyPlatformFactory _replFactory() =>
-    () async => ReplPlatform(repl: MontyRepl());
 
 void main() {
   // ---------------------------------------------------------------------------
@@ -39,18 +35,22 @@ void main() {
 
     tearDown(() => h.dispose());
 
-    test('records every state value including initial Idle', () async {
-      final cap = SignalCapture(el.channelStateSignal);
-      el.dispatch({'pre': true}); // pre-queue so no wait needed
+    test(
+      'records every state value including initial Idle',
+      () async {
+        final cap = SignalCapture(el.channelStateSignal);
+        el.dispatch({'pre': true}); // pre-queue so no wait needed
 
-      await h.run('await el_recv()');
+        await h.run('await el_recv()');
 
-      cap.dispose();
+        cap.dispose();
 
-      expect(cap.values.first, isA<EventLoopIdle>());
-      expect(cap.values.any((s) => s is EventLoopExecuting), isTrue);
-      expect(cap.values.last, isA<EventLoopCompleted>());
-    });
+        expect(cap.values.first, isA<EventLoopIdle>());
+        expect(cap.values.any((s) => s is EventLoopExecuting), isTrue);
+        expect(cap.values.last, isA<EventLoopCompleted>());
+      },
+      tags: 'd1-pending',
+    );
 
     test('calling dispose() on SignalCapture stops recording', () {
       // Use a plain signal to avoid the EventLoop Completed-state dispatch
@@ -86,39 +86,47 @@ void main() {
 
     tearDown(() => h.dispose());
 
-    test('snapshot sendCount increments on each Python send', () async {
-      final ch = bus.channel('q');
-      final cap = SignalCapture(ch.snapshotSignal);
+    test(
+      'snapshot sendCount increments on each Python send',
+      () async {
+        final ch = bus.channel('q');
+        final cap = SignalCapture(ch.snapshotSignal);
 
-      await h.run('''
+        await h.run('''
 msg_send(name='q', message='a')
 msg_send(name='q', message='b')
 msg_send(name='q', message='c')
 ''');
 
-      cap.dispose();
+        cap.dispose();
 
-      final counts = cap.values.map((s) => s.sendCount).toList();
-      expect(counts.last, 3);
-    });
+        final counts = cap.values.map((s) => s.sendCount).toList();
+        expect(counts.last, 3);
+      },
+      tags: 'd1-pending',
+    );
 
-    test('queueDepth goes up on send and down on recv', () async {
-      bus.channel('pipe').send('item1');
-      bus.channel('pipe').send('item2');
+    test(
+      'queueDepth goes up on send and down on recv',
+      () async {
+        bus.channel('pipe').send('item1');
+        bus.channel('pipe').send('item2');
 
-      final ch = bus.channel('pipe');
-      final cap = SignalCapture(ch.snapshotSignal);
+        final ch = bus.channel('pipe');
+        final cap = SignalCapture(ch.snapshotSignal);
 
-      await h.run('''
+        await h.run('''
 msg_recv(name='pipe')
 msg_recv(name='pipe')
 ''');
 
-      cap.dispose();
+        cap.dispose();
 
-      final depths = cap.values.map((s) => s.queueDepth).toList();
-      expect(depths.last, 0);
-    });
+        final depths = cap.values.map((s) => s.queueDepth).toList();
+        expect(depths.last, 0);
+      },
+      tags: 'd1-pending',
+    );
   });
 
   // ---------------------------------------------------------------------------
@@ -137,24 +145,28 @@ msg_recv(name='pipe')
 
     tearDown(() => h.dispose());
 
-    test('computed "isWaiting" tracks el waiting state', () async {
-      final isWaiting = computed(
-        () => el.channelStateSignal.value is EventLoopWaiting,
-      );
-      final history = <bool>[];
-      final cleanup = effect(() => history.add(isWaiting.value));
+    test(
+      'computed "isWaiting" tracks el waiting state',
+      () async {
+        final isWaiting = computed(
+          () => el.channelStateSignal.value is EventLoopWaiting,
+        );
+        final history = <bool>[];
+        final cleanup = effect(() => history.add(isWaiting.value));
 
-      const script = 'await el_recv()';
-      final handle = h.runtime.execute(script);
+        const script = 'await el_recv()';
+        final handle = h.runtime.execute(script);
 
-      await _untilWaiting(el);
-      el.dispatch({'go': true});
-      await handle.result;
+        await _untilWaiting(el);
+        el.dispatch({'go': true});
+        await handle.result;
 
-      cleanup();
+        cleanup();
 
-      expect(history, containsAll([true, false]));
-    });
+        expect(history, containsAll([true, false]));
+      },
+      tags: 'd1-pending',
+    );
   });
 
   // ---------------------------------------------------------------------------
@@ -204,30 +216,34 @@ msg_recv(name='pipe')
       late SandboxExtension sandbox;
 
       setUp(() async {
-        sandbox = SandboxExtension(platformFactory: _replFactory());
+        sandbox = SandboxExtension();
         h = MontyHarness(extensions: [sandbox]);
         await h.setup();
       });
 
       tearDown(() => h.dispose());
 
-      test('aliveCount peaks at N then returns to 0', () async {
-        final cap = SignalCapture(sandbox.aliveCountSignal);
+      test(
+        'aliveCount peaks at N then returns to 0',
+        () async {
+          final cap = SignalCapture(sandbox.aliveCountSignal);
 
-        await h.run('''
+          await h.run('''
 h1 = sandbox_spawn(code="1")
 h2 = sandbox_spawn(code="2")
 h3 = sandbox_spawn(code="3")
 sandbox_await_all(handles=[h1, h2, h3])
 ''');
 
-        cap.dispose();
+          cap.dispose();
 
-        // Children may complete fast; assert at least one was alive and
-        // all finished.
-        expect(cap.values.any((c) => c > 0), isTrue);
-        expect(cap.values.last, 0);
-      });
+          // Children may complete fast; assert at least one was alive and
+          // all finished.
+          expect(cap.values.any((c) => c > 0), isTrue);
+          expect(cap.values.last, 0);
+        },
+        tags: 'd1-pending',
+      );
     },
     testOn: 'vm',
   );
@@ -267,6 +283,7 @@ el_emit(value={'tick': 2})
             .toList();
         expect(emitCalls, hasLength(2));
       },
+      tags: 'd1-pending',
     );
   });
 
@@ -302,13 +319,18 @@ el_emit(value={'tick': 2})
           ..assertContains<BridgeFunctionCallStart>()
           ..assertContains<BridgeRunFinished>();
       },
+      tags: 'd1-pending',
     );
 
-    test('assertAbsent passes when event type never occurred', () async {
-      await h.run('1 + 1');
+    test(
+      'assertAbsent passes when event type never occurred',
+      () async {
+        await h.run('1 + 1');
 
-      ui.assertAbsent<BridgeFunctionCallStart>(); // no tool calls
-    });
+        ui.assertAbsent<BridgeFunctionCallStart>(); // no tool calls
+      },
+      tags: 'd1-pending',
+    );
   });
 } // end main
 

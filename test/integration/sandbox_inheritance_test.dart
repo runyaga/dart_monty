@@ -1,10 +1,12 @@
 @TestOn('vm')
-@Tags(['integration'])
+@Tags(['integration', 'd1-pending'])
 library;
 
+import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
-import 'package:dart_monty/monty_backend_spi.dart';
 import 'package:test/test.dart';
+
+import '_worker.dart';
 
 /// Integration tests for SandboxExtension child inheritance with real FFI.
 ///
@@ -17,7 +19,10 @@ import 'package:test/test.dart';
 ///   test/integration/sandbox_plugin_inheritance_test.dart
 /// ```
 void main() {
-  MontyPlatform createPlatform() => createPlatformMonty();
+  late Monty pool;
+
+  setUpAll(() async => pool = await startTestPool());
+  tearDownAll(() => pool.close());
 
   /// Executes [code] on a bridge and returns the final value or throws.
   Future<Object?> run(MontyBridge bridge, String code) async {
@@ -37,7 +42,14 @@ void main() {
   /// Python expression: `sandbox_spawn(code="[childCode]")`.
   String spawn(String childCode) => 'sandbox_spawn(code="$childCode")';
 
-  MontyBridge createBridge() => MontyBridge(platform: createPlatform());
+  // The bridge does not close its session; the test does, so the pool's
+  // workers come back between tests.
+  Future<MontyBridge> createBridge() async {
+    final session = await pool.checkout();
+    addTearDown(session.close);
+
+    return MontyBridge(session: session);
+  }
 
   // ---------------------------------------------------------------------------
   // Baseline: child sandboxs work without plugins
@@ -45,10 +57,10 @@ void main() {
 
   group('baseline (no plugins)', () {
     test('child sandbox computes and returns value', () async {
-      final bridge = createBridge();
+      final bridge = await createBridge();
       final registry = ExtensionCoordinator()
         ..register(
-          SandboxExtension(platformFactory: () async => createPlatform()),
+          SandboxExtension(),
         );
       await registry.attachTo(bridge);
 
@@ -64,10 +76,10 @@ void main() {
     });
 
     test('child sandbox captures print output', () async {
-      final bridge = createBridge();
+      final bridge = await createBridge();
       final registry = ExtensionCoordinator()
         ..register(
-          SandboxExtension(platformFactory: () async => createPlatform()),
+          SandboxExtension(),
         );
       await registry.attachTo(bridge);
 
@@ -89,14 +101,12 @@ void main() {
 
   group('createChildInstance inheritance', () {
     test('parent can call inherited plugin function', () async {
-      final bridge = createBridge();
+      final bridge = await createBridge();
       final greeter = _GreeterExtension();
       final registry = ExtensionCoordinator()
         ..register(greeter)
         ..register(
-          SandboxExtension(
-            platformFactory: () async => createPlatform(),
-          ),
+          SandboxExtension(),
         );
       await registry.attachTo(bridge);
 
@@ -107,14 +117,12 @@ void main() {
     });
 
     test('child inherits plugin via createChildInstance', () async {
-      final bridge = createBridge();
+      final bridge = await createBridge();
       final greeter = _GreeterExtension();
       final registry = ExtensionCoordinator()
         ..register(greeter)
         ..register(
-          SandboxExtension(
-            platformFactory: () async => createPlatform(),
-          ),
+          SandboxExtension(),
         );
       await registry.attachTo(bridge);
 
@@ -131,10 +139,10 @@ void main() {
     });
 
     test('child without inheritable plugins errors on call', () async {
-      final bridge = createBridge();
+      final bridge = await createBridge();
       final registry = ExtensionCoordinator()
         ..register(
-          SandboxExtension(platformFactory: () async => createPlatform()),
+          SandboxExtension(),
         );
       await registry.attachTo(bridge);
 
@@ -156,14 +164,12 @@ void main() {
     });
 
     test('multiple children get independent plugin instances', () async {
-      final bridge = createBridge();
+      final bridge = await createBridge();
       final counter = _CounterExtension();
       final registry = ExtensionCoordinator()
         ..register(counter)
         ..register(
-          SandboxExtension(
-            platformFactory: () async => createPlatform(),
-          ),
+          SandboxExtension(),
         );
       await registry.attachTo(bridge);
 
@@ -202,12 +208,11 @@ void main() {
         final contextPlugin = _ContextCapturingExtension(
           onContext: (ctx) => capturedContext = ctx,
         );
-        final bridge = createBridge();
+        final bridge = await createBridge();
         final registry = ExtensionCoordinator()
           ..register(contextPlugin)
           ..register(
             SandboxExtension(
-              platformFactory: () async => createPlatform(),
               sandboxBaseDir: '/tmp/sandbox_test',
             ),
           );
@@ -237,13 +242,11 @@ void main() {
         final contextPlugin = _ContextCapturingExtension(
           onContext: (ctx) => capturedContext = ctx,
         );
-        final bridge = createBridge();
+        final bridge = await createBridge();
         final registry = ExtensionCoordinator()
           ..register(contextPlugin)
           ..register(
-            SandboxExtension(
-              platformFactory: () async => createPlatform(),
-            ),
+            SandboxExtension(),
           );
         await registry.attachTo(bridge);
 

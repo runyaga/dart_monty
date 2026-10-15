@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:dart_monty/src/bridge/event.dart';
-import 'package:dart_monty/src/bridge/platform.dart';
+import 'package:dart_monty/src/bridge/session_bridge.dart';
 import 'package:dart_monty/src/extension/attach_context.dart';
 import 'package:dart_monty/src/extension/extension.dart';
 import 'package:dart_monty/src/host/args.dart';
@@ -197,7 +197,7 @@ class EventLoopExtension extends MontyExtension {
   @override
   Future<void> onAttach(AttachContext ctx) async {
     await super.onAttach(ctx);
-    if (ctx is PlatformBridge) {
+    if (ctx is SessionBridge) {
       ctx.addStreamWrapper(_wrapStream);
     }
   }

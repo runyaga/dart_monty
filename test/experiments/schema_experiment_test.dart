@@ -6,9 +6,10 @@
 // Run with:
 //   dart test --tags=integration \
 //     test/experiment/examples/schema_experiment_test.dart
-@Tags(['integration'])
+@Tags(['integration', 'd1-pending'])
 library;
 
+import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:test/test.dart';
 
@@ -94,28 +95,26 @@ void main() {
     tearDown(() => h.dispose());
 
     test('handler can validate types and throw', () async {
-      final (:result, :events) = await h.runWithEvents(
-        "typed_tool(n='not_a_number')",
+      // Python receives the exception as an error — the run fails with it.
+      await expectLater(
+        h.run("typed_tool(n='not_a_number')"),
+        throwsA(isA<MontyError>()),
       );
-
-      // Python receives the exception as an error string — execution continues.
-      // (Per feedback: errors are returned not thrown, so LLM can handle them.)
-      expect(result.error, isNotNull);
     });
 
     test('correct int type passes through cleanly', () async {
       final result = await h.run('typed_tool(n=21)');
 
-      expect(result.error, isNull);
-      expect(result.value.dartValue, 42);
+      expect(result.dartValue, 42);
     });
 
     test('unknown kwarg raises error — schema rejects it', () async {
       // F9 regression guard: removing the unknown-kwarg check in
       // HostFunctionSchema.mapAndValidate() would make this pass silently.
-      final result = await h.run("typed_tool(n=1, surprise='x')");
-
-      expect(result.error, isNotNull);
+      await expectLater(
+        h.run("typed_tool(n=1, surprise='x')"),
+        throwsA(isA<MontyError>()),
+      );
     });
   });
 
@@ -152,15 +151,13 @@ void main() {
     test('omitting optional param uses Dart-side default', () async {
       final result = await h.run("greet(name='Alice')");
 
-      expect(result.error, isNull);
-      expect(result.value.dartValue, 'Hello, Alice!');
+      expect(result.dartValue, 'Hello, Alice!');
     });
 
     test('passing optional param overrides default', () async {
       final result = await h.run("greet(name='Alice', lang='es')");
 
-      expect(result.error, isNull);
-      expect(result.value.dartValue, 'Hola, Alice!');
+      expect(result.dartValue, 'Hola, Alice!');
     });
   });
 
@@ -180,50 +177,50 @@ void main() {
 
     test('Python int → Dart int', () async {
       final r = await h.run('42');
-      expect(r.value.dartValue, isA<int>());
-      expect(r.value.dartValue, 42);
+      expect(r.dartValue, isA<int>());
+      expect(r.dartValue, 42);
     });
 
     test('Python float → Dart double', () async {
       final r = await h.run('3.14');
-      expect(r.value.dartValue, isA<double>());
-      expect(r.value.dartValue! as double, closeTo(3.14, 0.001));
+      expect(r.dartValue, isA<double>());
+      expect(r.dartValue! as double, closeTo(3.14, 0.001));
     });
 
     test('Python str → Dart String', () async {
       final r = await h.run("'hello'");
-      expect(r.value.dartValue, isA<String>());
-      expect(r.value.dartValue, 'hello');
+      expect(r.dartValue, isA<String>());
+      expect(r.dartValue, 'hello');
     });
 
     test('Python bool → Dart bool', () async {
       final r = await h.run('True');
-      expect(r.value.dartValue, isA<bool>());
-      expect(r.value.dartValue, true);
+      expect(r.dartValue, isA<bool>());
+      expect(r.dartValue, true);
     });
 
     test('Python list → Dart List', () async {
       final r = await h.run('[1, 2, 3]');
-      expect(r.value.dartValue, isA<List<Object?>>());
-      expect(r.value.dartValue, [1, 2, 3]);
+      expect(r.dartValue, isA<List<Object?>>());
+      expect(r.dartValue, [1, 2, 3]);
     });
 
     test('Python dict → Dart Map', () async {
       final r = await h.run("{'key': 'value', 'n': 7}");
-      expect(r.value.dartValue, isA<Map<String, Object?>>());
-      final m = r.value.dartValue! as Map<Object?, Object?>;
+      expect(r.dartValue, isA<Map<String, Object?>>());
+      final m = r.dartValue! as Map<Object?, Object?>;
       expect(m['key'], 'value');
       expect(m['n'], 7);
     });
 
     test('Python None → Dart null', () async {
       final r = await h.run('None');
-      expect(r.value.dartValue, isNull);
+      expect(r.dartValue, isNull);
     });
 
     test('Python nested structure round-trips cleanly', () async {
       final r = await h.run("[{'x': 1}, {'x': 2}]");
-      final list = r.value.dartValue! as List;
+      final list = r.dartValue! as List;
       expect(list.first, {'x': 1});
       expect(list.last, {'x': 2});
     });

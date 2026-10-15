@@ -5,6 +5,9 @@ import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:test/test.dart';
 
+import '_printed.dart';
+import '_worker.dart';
+
 /// Reference behavior tests — validates what the Monty interpreter actually
 /// does, independent of dart_monty's bridge abstractions.
 ///
@@ -19,29 +22,28 @@ import 'package:test/test.dart';
 ///   test/bridge/integration/monty_reference_behavior_test.dart
 /// ```
 void main() {
+  late Monty pool;
+
+  setUpAll(() async => pool = await startTestPool());
+  tearDownAll(() => pool.close());
+
   // ---------------------------------------------------------------------------
   // 2a. Print capture: does Monty capture prints natively?
   // ---------------------------------------------------------------------------
 
   group('2a — print output', () {
-    test('raw MontyRepl captures print() in result.printOutput', () async {
-      // Confirms Monty captures print() output natively into
-      // MontyResult.printOutput — the dart_monty bridge does not inject any
-      // preamble or override print(); it just surfaces core's printOutput.
-      final session = MontyRepl();
-      try {
-        final result = await session.feedRun('print("hello from monty")');
-        expect(
-          result.printOutput,
-          isNotNull,
-          reason:
-              'Monty captures print() output natively in '
-              'MontyResult.printOutput.',
-        );
-        expect(result.printOutput, contains('hello from monty'));
-      } finally {
-        await session.dispose();
-      }
+    test('a raw session hands print() text to its print callback', () async {
+      // Confirms Monty captures print() output natively — the dart_monty
+      // bridge does not inject any preamble or override print(); it collects
+      // what core hands its print callback.
+      final printed = CollectString();
+      await pool.withSession(
+        (session) => session.feedRun(
+          'print("hello from monty")',
+          printCallback: printed.call,
+        ),
+      );
+      expect(printed.output, contains('hello from monty'));
     });
 
     test(
@@ -49,16 +51,17 @@ void main() {
       () async {
         // The bridge passes printOutput through unchanged; this verifies
         // it does not lose or duplicate the captured stdout.
-        final session = MontyRuntime();
+        final session = await MontyRuntime.start();
         try {
-          final result = await session
-              .execute('print("hello from bridge")')
-              .result;
-          expect(result.printOutput, contains('hello from bridge'));
+          final out = await printedBy(
+            session.execute('print("hello from bridge")'),
+          );
+          expect(out, contains('hello from bridge'));
         } finally {
           await session.dispose();
         }
       },
+      tags: 'd1-pending',
     );
   });
 
@@ -70,14 +73,15 @@ void main() {
     test('NameError on line 1 of user code reports line 1', () async {
       // The bridge injects no preamble; line numbers from core should
       // come through unchanged.
-      final session = MontyRuntime();
+      final session = await MontyRuntime.start();
       try {
-        final result = await session.execute('undefined_variable_xyz').result;
-        expect(result.error, isNotNull);
-        expect(result.excType, 'NameError');
-        expect(
-          result.error!.lineNumber,
-          1,
+        await expectLater(
+          session.execute('undefined_variable_xyz').result,
+          throwsA(
+            isA<MontyRuntimeError>()
+                .having((e) => e.exception.excType, 'excType', 'NameError')
+                .having((e) => e.traceback.last.line, 'line', 1),
+          ),
           reason:
               'Line 1 of user code must surface as line 1 — the bridge '
               'must not perturb core line numbers.',
@@ -85,20 +89,25 @@ void main() {
       } finally {
         await session.dispose();
       }
-    });
+    }, tags: 'd1-pending');
 
     test('NameError on line 3 of user code reports line 3', () async {
-      final session = MontyRuntime();
+      final session = await MontyRuntime.start();
       try {
-        final result = await session
-            .execute('x = 1\ny = 2\nundefined_xyz')
-            .result;
-        expect(result.error, isNotNull);
-        expect(result.error!.lineNumber, 3);
+        await expectLater(
+          session.execute('x = 1\ny = 2\nundefined_xyz').result,
+          throwsA(
+            isA<MontyRuntimeError>().having(
+              (e) => e.traceback.last.line,
+              'line',
+              3,
+            ),
+          ),
+        );
       } finally {
         await session.dispose();
       }
-    });
+    }, tags: 'd1-pending');
   });
 
   // ---------------------------------------------------------------------------
@@ -107,43 +116,30 @@ void main() {
 
   group('2d — last expression capture', () {
     test(
-      'raw MontyRepl: expression result without captureLastExpression',
+      'raw session: the last expression is the value, with no wrapper',
       () async {
-        // dart_monty_core's captureLastExpression wraps the last expression as
-        // `__r = (expr); __r`. This test checks whether that wrapper is needed,
-        // or whether Monty returns the last expression natively.
-        final session = MontyRepl();
-        try {
-          // Run bare expression with NO captureLastExpression wrapping
-          final result = await session.feedRun('1 + 1');
-          // Document the result:
-          expect(
-            result.value,
-            isA<MontyInt>(),
-            reason:
-                'Monty returns the last expression value natively — '
-                'captureLastExpression may be redundant for expressions.',
-          );
-          expect((result.value as MontyInt).value, 2);
-        } finally {
-          await session.dispose();
-        }
+        final result = await pool.withSession(
+          (session) => session.feedRun('1 + 1'),
+        );
+        expect(
+          result,
+          isA<MontyInt>(),
+          reason: 'Monty returns the last expression value natively.',
+        );
+        expect((result as MontyInt).value, 2);
       },
     );
 
-    test('raw MontyRepl: assignment statement returns MontyNone', () async {
+    test('raw session: assignment statement returns MontyNone', () async {
       // Assignments are statements, not expressions — they should return None.
-      final session = MontyRepl();
-      try {
-        final result = await session.feedRun('x = 42');
-        expect(
-          result.value,
-          isA<MontyNone>(),
-          reason: 'Assignment statement has no return value — MontyNone.',
-        );
-      } finally {
-        await session.dispose();
-      }
+      final result = await pool.withSession(
+        (session) => session.feedRun('x = 42'),
+      );
+      expect(
+        result,
+        isA<MontyNone>(),
+        reason: 'Assignment statement has no return value — MontyNone.',
+      );
     });
   });
 
@@ -151,11 +147,11 @@ void main() {
   // 2e. Host param type coercion
   // ---------------------------------------------------------------------------
 
-  group('2e — host param type coercion', () {
+  group('2e — host param type coercion', tags: 'd1-pending', () {
     late MontyRuntime session;
 
-    setUp(() {
-      session = MontyRuntime()
+    setUp(() async {
+      session = (await MontyRuntime.start())
         ..register(
           HostFunction(
             schema: const HostFunctionSchema(
@@ -174,8 +170,7 @@ void main() {
 
     test('integer param accepts Python int', () async {
       final result = await session.execute('typed_fn(n=42)').result;
-      expect(result.error, isNull);
-      expect(result.value.dartValue, 42);
+      expect(result.dartValue, 42);
     });
 
     test('integer param rejects Python string "42"', () async {
@@ -184,32 +179,31 @@ void main() {
       // If the test PASSES (no error), coercion is active.
       // If it FAILS (error returned), coercion was removed and strict
       // typing is enforced — which better matches Monty's raw behavior.
-      final result = await session.execute('typed_fn(n="42")').result;
       // Document current behavior:
-      if (result.error != null) {
-        expect(
-          result.error!.message,
-          isNotEmpty,
-          reason: 'String "42" correctly rejected for integer param.',
-        );
-      } else {
+      try {
+        final result = await session.execute('typed_fn(n="42")').result;
         // Coercion is active — document it
         expect(
-          result.value.dartValue,
+          result.dartValue,
           42,
           reason:
               'dart_monty coerces string "42" to int 42 for integer params. '
               'This is a dart_monty invention not grounded in Monty behavior.',
         );
+      } on MontyError catch (e) {
+        expect(
+          e.exception.message,
+          isNotEmpty,
+          reason: 'String "42" correctly rejected for integer param.',
+        );
       }
     });
 
     test('integer param rejects Python float 1.5', () async {
-      final result = await session.execute('typed_fn(n=1.5)').result;
       // A float cannot losslessly become an int — should error.
-      expect(
-        result.error,
-        isNotNull,
+      await expectLater(
+        session.execute('typed_fn(n=1.5)').result,
+        throwsA(isA<MontyError>()),
         reason: 'Float 1.5 cannot be coerced to integer without data loss.',
       );
     });

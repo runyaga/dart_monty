@@ -3,7 +3,7 @@ import 'package:dart_monty/src/os_call/fs_handlers.dart';
 import 'package:dart_monty/src/os_call/os_handlers.dart';
 import 'package:dart_monty/src/os_call/platform_handlers.dart';
 
-/// Default [OsCallHandler] on web platforms.
+/// Default [OsHandler] on web platforms.
 ///
 /// Composes:
 /// - `Path.*` → [memoryFsHandler] (in-memory VFS)
@@ -11,7 +11,7 @@ import 'package:dart_monty/src/os_call/platform_handlers.dart';
 ///
 /// No `os.*` environment access on web (no `dart:io`). Any `os.getenv` or
 /// `os.environ` call resumes Python with a `PermissionError`.
-OsCallHandler defaultOsHandler() {
+OsHandler defaultOsHandler() {
   final time = timeHandler();
   return composeOsHandlers({
     'Path.': memoryFsHandler(),
