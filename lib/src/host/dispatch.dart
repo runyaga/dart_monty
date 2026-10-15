@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:convert';
 
 import 'package:dart_monty/src/bridge/event.dart';
@@ -48,74 +49,107 @@ final class _BoundedSink implements Sink<String> {
   void close() {}
 }
 
-/// Writes [value] to [out] as its `toString()` reads for a [List], a [Set]
+/// A value still to write ([_writeText]).
+final class _Value {
+  const _Value(this.value);
+
+  final Object? value;
+}
+
+/// A map entry still to write ([_writeText]).
+final class _Entry {
+  const _Entry(this.key, this.value);
+
+  final Object? key;
+  final Object? value;
+}
+
+/// A container being written ([_writeText]): its remaining items.
+final class _Open {
+  _Open(this.container, this.items, this.close);
+
+  final Object container;
+  final Iterator<Object?> items;
+  final String close;
+  bool first = true;
+}
+
+/// Writes [root] to [out] as its `toString()` reads for a [List], a [Set]
 /// or a [Map] (a container already being written is `[...]` or `{...}`, as
-/// Dart writes it), and as its `toString()` otherwise. Throws [_TooLong] as
-/// soon as [out] passes [_textLimit], so the work is bounded too.
-void _writeText(Object? value, StringBuffer out, List<Object> open) {
+/// Dart writes it), and as its own `toString()` otherwise. Iterative, so
+/// nesting depth costs no call stack; throws [_TooLong] as soon as [out]
+/// would pass [_textLimit], so the work is bounded by the output. An
+/// object's own `toString()` (not a list, set or map) is called as it is.
+void _writeText(Object? root, StringBuffer out) {
   void put(String text) {
     if (out.length + text.length > _textLimit) throw const _TooLong();
     out.write(text);
   }
 
-  if (value == null || (value is! List && value is! Set && value is! Map)) {
-    put('$value');
-
-    return;
+  final open = HashSet<Object>.identity();
+  // Literal strings, values, entries and open containers, last on top.
+  final todo = <Object>[_Value(root)];
+  while (todo.isNotEmpty) {
+    switch (todo.removeLast()) {
+      case final String literal:
+        put(literal);
+      case _Entry(:final key, :final value):
+        todo
+          ..add(_Value(value))
+          ..add(': ')
+          ..add(_Value(key));
+      case _Value(:final value):
+        final (opening, items, closing) = switch (value) {
+          final List<Object?> l => ('[', l.iterator, ']'),
+          final Set<Object?> s => ('{', s.iterator, '}'),
+          final Map<Object?, Object?> m => (
+            '{',
+            m.entries.map((e) => _Entry(e.key, e.value)).iterator,
+            '}',
+          ),
+          _ => (null, null, null),
+        };
+        if (opening == null || items == null || closing == null) {
+          put('$value');
+        } else if (!open.add(value!)) {
+          put('$opening...$closing');
+        } else {
+          put(opening);
+          todo.add(_Open(value, items, closing));
+        }
+      case final _Open frame:
+        if (!frame.items.moveNext()) {
+          open.remove(frame.container);
+          put(frame.close);
+          continue;
+        }
+        final item = frame.items.current;
+        todo
+          ..add(frame)
+          ..add(item is _Entry ? item : _Value(item));
+        if (!frame.first) todo.add(', ');
+        frame.first = false;
+    }
   }
-  if (open.any((o) => identical(o, value))) {
-    put(value is List ? '[...]' : '{...}');
-
-    return;
-  }
-  open.add(value);
-  var first = true;
-  void separate() {
-    if (!first) put(', ');
-    first = false;
-  }
-
-  switch (value) {
-    case final List<Object?> list:
-      put('[');
-      for (final e in list) {
-        separate();
-        _writeText(e, out, open);
-      }
-      put(']');
-    case final Set<Object?> set:
-      put('{');
-      for (final e in set) {
-        separate();
-        _writeText(e, out, open);
-      }
-      put('}');
-    case final Map<Object?, Object?> map:
-      put('{');
-      for (final MapEntry(:key, value: v) in map.entries) {
-        separate();
-        _writeText(key, out, open);
-        put(': ');
-        _writeText(v, out, open);
-      }
-      put('}');
-  }
-  open.removeLast();
 }
 
-/// [result] as [BridgeFunctionCallResult.result]: its `toString()`, `''`
-/// for null. Past [_textLimit] characters it is cut there and says so.
-String _resultText(Object? result) {
-  if (result == null) return '';
+/// [value]'s text ([_writeText]), cut at [_textLimit] characters with a
+/// note saying so.
+String _boundedText(Object? value) {
   final out = StringBuffer();
   try {
-    _writeText(result, out, []);
+    _writeText(value, out);
   } on _TooLong {
     out.write('... (cut at $_textLimit characters)');
   }
 
   return out.toString();
 }
+
+/// [result] as [BridgeFunctionCallResult.result]: its text
+/// ([_boundedText]), `''` for null.
+String _resultText(Object? result) =>
+    result == null ? '' : _boundedText(result);
 
 /// [args] as JSON for [BridgeFunctionCallArgs.delta]: a value JSON has no
 /// form for is written as its text ([_writeText]).
@@ -132,7 +166,7 @@ String _argsJson(Map<String, Object?> args) {
     JsonEncoder((o) {
         final out = StringBuffer();
         try {
-          _writeText(o, out, []);
+          _writeText(o, out);
         } on _TooLong {
           valueTooLong = true;
         }
@@ -311,8 +345,9 @@ class HostDispatch {
   /// [BridgeFunctionCallArgs] (the validated arguments as JSON) and
   /// [BridgeFunctionCallEnd], the handler's own events, and the result, or,
   /// when validation fails, the result alone. The result is
-  /// [BridgeFunctionCallResult] (the value's `toString()`, `''` for null, or
-  /// `Error: <error>`) followed by [BridgeCallFinished].
+  /// [BridgeFunctionCallResult] (the value's text, `''` for null, or
+  /// `Error: <error>`, each bounded as [_boundedText]) followed by
+  /// [BridgeCallFinished].
   ///
   /// The value reaches Python through [MontyValue.fromDart]. A failure,
   /// validation's or the handler's (a value [MontyValue.fromDart] refuses
@@ -329,21 +364,26 @@ class HostDispatch {
     _log.trace('Host function call', attributes: {'name': name});
     emit(BridgeCallStarted(callId: callId));
     emit(BridgeFunctionCallStart(callId: callId, name: name));
-    void fail(Object error) {
-      emit(BridgeFunctionCallResult(callId: callId, result: 'Error: $error'));
+    // A failure's text is bounded once, and the log, the event and the
+    // Python exception all use it.
+    String fail(Object error) {
+      final text = _boundedText(error);
+      emit(BridgeFunctionCallResult(callId: callId, result: 'Error: $text'));
       emit(BridgeCallFinished(callId: callId));
+
+      return text;
     }
 
     final Map<String, Object?> validated;
     try {
       validated = fn.schema.mapAndValidate(args, kwargs);
     } on Object catch (e) {
+      final text = fail(e);
       _log.warning(
         'Argument validation failed',
-        attributes: {'function': name, 'error': '$e'},
+        attributes: {'function': name, 'error': text},
       );
-      fail(e);
-      throw ExternalException('RuntimeError', '$e');
+      throw ExternalException('RuntimeError', text);
     }
     emit(BridgeFunctionCallArgs(callId: callId, delta: _argsJson(validated)));
     emit(BridgeFunctionCallEnd(callId: callId));
@@ -361,15 +401,15 @@ class HostDispatch {
       result = await fn.handler!(validated, ctx);
       value = MontyValue.fromDart(result);
     } on Object catch (e, st) {
+      final text = fail(e);
       _log.error(
         'Host handler error',
-        error: e,
+        error: text,
         stackTrace: st,
-        attributes: {'function': name},
+        attributes: {'function': name, 'type': '${e.runtimeType}'},
       );
-      fail(e);
       if (e is ExternalException) rethrow;
-      throw ExternalException('RuntimeError', '$e');
+      throw ExternalException('RuntimeError', text);
     }
     emit(
       BridgeFunctionCallResult(
