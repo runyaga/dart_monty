@@ -141,19 +141,28 @@ Future<List<(String, Object)>> _runExtensionOnAttaches(
   return errors;
 }
 
-/// Injects [coordinator] into each extension's
-/// [MontyExtension.coordinator] field.
+/// The coordinator each extension was last attached through.
+final Expando<ExtensionCoordinator> _owners = Expando('coordinator');
+
+/// The coordinator [extension] was last attached through, for extensions
+/// that spawn children (`SandboxExtension`). Internal to dm.
 ///
-/// Called before [_runExtensionOnAttaches] so that
-/// [MontyExtension.coordinator]
-/// is available inside [MontyExtension.onAttach] (used by extensions that
-/// spawn children or drive lifecycle operations).
+/// Throws [StateError] when [extension] was never attached.
+ExtensionCoordinator coordinatorOf(MontyExtension extension) =>
+    _owners[extension] ??
+    (throw StateError(
+      'Extension "${extension.namespace}" is not attached to a runtime.',
+    ));
+
+/// Records [coordinator] as the owner of each extension in [attachOrder],
+/// before [_runExtensionOnAttaches], so [coordinatorOf] works inside
+/// [MontyExtension.onAttach].
 void _injectCoordinators(
   List<MontyExtension> attachOrder,
   ExtensionCoordinator coordinator,
 ) {
   for (final ext in attachOrder) {
-    ext.coordinator = coordinator;
+    _owners[ext] = coordinator;
   }
 }
 
@@ -215,7 +224,7 @@ class ExtensionCoordinator {
   List<MontyExtension>? _attachOrder;
   final Set<String> _namespaces = {};
   final Set<String> _functionNames = {};
-  BridgeLogger _log = const NullBridgeLogger();
+  BridgeLogger _log = BridgeLogger.silent;
   bool _attached = false;
 
   /// The extension OS contributions resolved during [attachTo], keyed by
@@ -285,10 +294,9 @@ class ExtensionCoordinator {
   ///
   /// ## Coordinator injection
   ///
-  /// [MontyExtension.coordinator] is set to this coordinator before
-  /// [MontyExtension.onAttach] is called, so extensions that need to spawn
-  /// children or drive lifecycle operations can reach for it from inside
-  /// [MontyExtension.onAttach].
+  /// [coordinatorOf] returns this coordinator for each extension before
+  /// [MontyExtension.onAttach] is called, so extensions that spawn children
+  /// can reach for it from inside [MontyExtension.onAttach].
   Future<void> attachTo(
     MontyBridge bridge, {
     List<HostFunction>? extraFunctions,
@@ -306,10 +314,16 @@ class ExtensionCoordinator {
 
     _checkSupportedBackends(_extensions, _log);
 
-    // Sort by descending priority; stable sort preserves insertion order for
-    // equal priorities. High-priority extensions attach first, dispose last.
-    final attachOrder = [..._extensions]
-      ..sort((a, b) => b.priority.compareTo(a.priority));
+    // Descending priority, registration order among equals: the index
+    // breaks ties, as List.sort is not stable. High-priority extensions
+    // attach first and dispose last.
+    final ranked = [..._extensions.indexed]
+      ..sort((a, b) {
+        final byPriority = b.$2.priority.compareTo(a.$2.priority);
+
+        return byPriority != 0 ? byPriority : a.$1.compareTo(b.$1);
+      });
+    final attachOrder = [for (final (_, ext) in ranked) ext];
     _attachOrder = attachOrder;
 
     // Inject coordinator before onAttach so extensions that spawn children
@@ -409,21 +423,29 @@ class ExtensionCoordinator {
     }
 
     final child = ExtensionCoordinator();
-    for (final ext in _extensions) {
-      switch (ext.childPolicy) {
-        case ChildPolicy.exclude:
-          continue;
-        case ChildPolicy.inherit:
-          child.register(ext);
-        case ChildPolicy.clone:
-          final instance = ext.createChildInstance(context);
-          assert(
-            !identical(instance, ext),
-            'createChildInstance() must return a new instance, not `this`. '
-            'Use ChildPolicy.inherit if the extension should be shared.',
-          );
-          child.register(instance);
+    // The clones made so far; a failure part-way disposes them.
+    final clones = <MontyExtension>[];
+    try {
+      for (final ext in _extensions) {
+        switch (ext.childPolicy) {
+          case ChildPolicy.exclude:
+            continue;
+          case ChildPolicy.inherit:
+            child.register(ext);
+          case ChildPolicy.clone:
+            final instance = ext.createChildInstance(context);
+            assert(
+              !identical(instance, ext),
+              'createChildInstance() must return a new instance, not `this`. '
+              'Use ChildPolicy.inherit if the extension should be shared.',
+            );
+            clones.add(instance);
+            child.register(instance);
+        }
       }
+    } on Object {
+      await _disposeQuietly(clones);
+      rethrow;
     }
 
     final childBaseOs = _composeChildBaseOs(
@@ -433,6 +455,20 @@ class ExtensionCoordinator {
     await child.attachTo(bridge, baseOs: childBaseOs);
 
     return child;
+  }
+
+  /// Disposes [extensions], in reverse, logging each failure.
+  Future<void> _disposeQuietly(List<MontyExtension> extensions) async {
+    for (final ext in extensions.reversed) {
+      try {
+        await ext.onDispose();
+      } on Object catch (e) {
+        _log.warning(
+          'Extension dispose failed',
+          attributes: {'namespace': ext.namespace, 'error': '$e'},
+        );
+      }
+    }
   }
 
   /// Builds a composed child [OsHandler] from the parent's captured

@@ -5,6 +5,8 @@ import 'dart:async';
 
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
+import 'package:dart_monty/src/extension/coordinator.dart';
+import 'package:dart_monty/src/runtime/runtime.dart' show runtimeCoordinator;
 import 'package:test/test.dart';
 
 import '_worker.dart';
@@ -664,25 +666,25 @@ result
     test('shared mode: non-null after construction', () async {
       final session = await MontyRuntime.start(pool: pool);
       addTearDown(session.dispose);
-      expect(session.coordinator, isNotNull);
+      expect(runtimeCoordinator(session), isNotNull);
     });
 
     test('shared mode: is ExtensionCoordinator', () async {
       final session = await MontyRuntime.start(pool: pool);
       addTearDown(session.dispose);
-      expect(session.coordinator, isA<ExtensionCoordinator>());
+      expect(runtimeCoordinator(session), isA<ExtensionCoordinator>());
     });
 
     test('shared mode: stable reference across repeated access', () async {
       final session = await MontyRuntime.start(pool: pool);
       addTearDown(session.dispose);
-      expect(session.coordinator, same(session.coordinator));
+      expect(runtimeCoordinator(session), same(runtimeCoordinator(session)));
     });
 
     test('sandbox mode: null', () async {
       final session = await MontyRuntime.start(pool: pool, sandbox: true);
       addTearDown(session.dispose);
-      expect(session.coordinator, isNull);
+      expect(runtimeCoordinator(session), isNull);
     });
 
     test(
@@ -692,7 +694,7 @@ result
         final session = await MontyRuntime.start(pool: pool, extensions: [ext]);
         addTearDown(session.dispose);
         expect(
-          session.coordinator!.extensions.map((e) => e.namespace),
+          runtimeCoordinator(session)!.extensions.map((e) => e.namespace),
           contains('tmpl'),
         );
       },
@@ -703,9 +705,9 @@ result
       () async {
         final session = await MontyRuntime.start(pool: pool);
         addTearDown(session.dispose);
-        final before = session.coordinator;
+        final before = runtimeCoordinator(session);
         await session.clearState();
-        final after = session.coordinator;
+        final after = runtimeCoordinator(session);
         expect(after, isNotNull);
         expect(after, isNot(same(before)));
       },

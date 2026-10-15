@@ -33,6 +33,12 @@ int defaultPoolSize(List<MontyExtension>? extensions) {
   return (sandbox?.maxChildren ?? 0) + 2;
 }
 
+/// The shared-mode [ExtensionCoordinator] of [runtime]; `null` in sandbox
+/// mode, where each `execute()` owns a transient one. Internal to dm.
+@visibleForTesting
+ExtensionCoordinator? runtimeCoordinator(MontyRuntime runtime) =>
+    runtime._sharedRegistry;
+
 /// Starts a [MontyRuntime] whose sessions come from [checkout] instead of a
 /// pool; [closePool] runs once when the runtime is disposed.
 ///
@@ -218,12 +224,6 @@ class MontyRuntime implements MontyRuntimeRef {
 
   /// Whether this session creates a fresh interpreter per `execute()`.
   bool get isSandboxMode => _sandbox;
-
-  /// The shared [ExtensionCoordinator] for this runtime.
-  ///
-  /// Non-null in shared mode (the default). Always `null` in sandbox mode —
-  /// each `execute()` call owns its own transient coordinator.
-  ExtensionCoordinator? get coordinator => _sharedRegistry;
 
   /// Registers an additional host function.
   ///

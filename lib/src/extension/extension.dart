@@ -1,7 +1,5 @@
 import 'package:dart_monty/src/bridge/logger.dart';
 import 'package:dart_monty/src/extension/attach_context.dart';
-import 'package:dart_monty/src/extension/coordinator.dart';
-import 'package:dart_monty/src/extensions/sandbox.dart' show SandboxExtension;
 import 'package:dart_monty/src/host/function.dart';
 import 'package:dart_monty/src/os_call/os_handlers.dart';
 import 'package:dart_monty/src/runtime/backend_kind.dart';
@@ -72,18 +70,9 @@ class ChildSpawnContext {
 /// Each extension declares a unique [namespace], a set of [functions], and
 /// optional lifecycle hooks ([onAttach], [onDispose]).
 ///
-/// ## Coordinator injection
-///
-/// After `ExtensionCoordinator.attachTo` runs, [coordinator] is set to the
-/// owning coordinator. Extensions that need to spawn children or drive
-/// lifecycle operations reach for it directly (see [SandboxExtension]).
-///
 /// Cross-extension communication goes through the bridge — invoke another
 /// extension's function via `MontyRuntime.invoke(name, args)` rather than
 /// holding a reference to a peer extension.
-///
-/// Accessing [coordinator] before `attachTo` is called throws a
-/// `LateInitializationError`.
 ///
 /// ## OS contributions
 ///
@@ -105,9 +94,9 @@ abstract class MontyExtension {
 
   /// Backends this extension supports.
   ///
-  /// `ExtensionCoordinator.attachTo` checks [currentBackendKind] against this
-  /// set and throws [UnsupportedBackendError] before any script runs if the
-  /// extension declares it cannot operate on the current backend.
+  /// Attaching checks the current backend against this set and throws an
+  /// [Error] before any script runs if the extension declares it cannot
+  /// operate on the current backend.
   ///
   /// Defaults to all backends. Override to `{MontyBackendKind.ffi}` or
   /// `{MontyBackendKind.wasm}` if the extension depends on capabilities that
@@ -120,9 +109,9 @@ abstract class MontyExtension {
 
   /// Attachment priority — higher values attach first and dispose last.
   ///
-  /// `ExtensionCoordinator.attachTo` sorts extensions in descending priority
-  /// order before calling [onAttach]. Equal-priority extensions preserve
-  /// insertion order (stable sort). Default is `0`.
+  /// Attaching runs [onAttach] in descending priority order; extensions of
+  /// equal priority attach in registration order, and dispose in the
+  /// reverse of the attach order. Default is `0`.
   ///
   /// Use a positive value to run [onAttach] early (e.g., a logging/tracing
   /// extension that other extensions depend on). Use a negative value to run
@@ -135,19 +124,8 @@ abstract class MontyExtension {
   /// Extensions should use this for all logging — never create loggers
   /// independently via `LogManager.instance.getLogger()`.
   ///
-  /// Defaults to [NullBridgeLogger] (silent) until the coordinator sets it.
-  BridgeLogger logger = const NullBridgeLogger();
-
-  /// The owning coordinator, injected during [ExtensionCoordinator.attachTo].
-  ///
-  /// Extensions that spawn children or drive lifecycle operations reach for
-  /// this field directly (see `SandboxExtension`). For cross-extension calls,
-  /// prefer `MontyRuntime.invoke(name, args)` over holding references to
-  /// peer extensions.
-  ///
-  /// Accessing this field before `attachTo` has been called throws a
-  /// `LateInitializationError`.
-  late ExtensionCoordinator coordinator;
+  /// Defaults to [BridgeLogger.silent] until the coordinator sets it.
+  BridgeLogger logger = BridgeLogger.silent;
 
   /// Human-readable description for LLM system prompt.
   ///

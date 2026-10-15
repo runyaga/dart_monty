@@ -1,4 +1,5 @@
 import 'package:dart_monty/dart_monty_bridge.dart';
+import 'package:dart_monty/src/extension/coordinator.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:dart_monty_core/dart_monty_core_testing.dart';
 import 'package:test/test.dart';
@@ -543,11 +544,9 @@ void main() {
           },
         );
 
-        test('accessing coordinator before attachTo throws', () {
+        test('coordinatorOf before attachTo throws StateError', () {
           final plugin = _LifecycleExtension(namespace: 'lc', functions: []);
-          // Accessing an uninitialised late field throws
-          // LateInitializationError, a subtype of Error.
-          expect(() => plugin.coordinator, throwsA(isA<Error>()));
+          expect(() => coordinatorOf(plugin), throwsStateError);
         });
       });
 
@@ -782,6 +781,169 @@ void main() {
         expect(childBridge.registeredNames, isNot(contains('parent_only')));
       });
     });
+
+    group('D1 contract', () {
+      test(
+        'equal priorities keep registration order past insertion-sort size',
+        () async {
+          final attached = <String>[];
+          final disposed = <String>[];
+          // 40 extensions: List.sort switches from insertion sort (stable)
+          // to quicksort (not stable) above 32 elements.
+          for (var i = 0; i < 40; i++) {
+            registry.register(
+              _LifecycleExtension(
+                namespace: 'e$i',
+                functions: [],
+                priority: i.isOdd ? 1 : 0,
+                onAttachCallback: () => attached.add('e$i'),
+                onDisposeCallback: () => disposed.add('e$i'),
+              ),
+            );
+          }
+
+          await registry.attachTo(_MockBridge());
+          await registry.disposeAll();
+
+          final expected = [
+            for (var i = 1; i < 40; i += 2) 'e$i',
+            for (var i = 0; i < 40; i += 2) 'e$i',
+          ];
+          expect(attached, expected);
+          expect(disposed, expected.reversed.toList());
+        },
+      );
+
+      test('a child: exclude absent, inherit shared, clone fresh', () async {
+        final inherit = _PolicyExtension('inh', ChildPolicy.inherit);
+        final clone = _PolicyExtension('cln', ChildPolicy.clone);
+        registry
+          ..register(_PolicyExtension('exc', ChildPolicy.exclude))
+          ..register(inherit)
+          ..register(clone);
+        await registry.attachTo(_MockBridge());
+
+        final child = await registry.spawnChild(
+          context: const ChildSpawnContext(childId: 1),
+          bridge: _MockBridge(),
+        );
+
+        final [first, second] = child.extensions;
+        expect(first, same(inherit));
+        expect(second, isNot(same(clone)));
+        expect(second.namespace, 'cln');
+        expect(coordinatorOf(second), same(child));
+      });
+
+      test(
+        'a clone made before a failing createChildInstance is disposed',
+        () async {
+          final ok = _PolicyExtension('ok', ChildPolicy.clone);
+          registry
+            ..register(ok)
+            ..register(
+              _PolicyExtension(
+                'bad',
+                ChildPolicy.clone,
+                onClone: () => throw StateError('no clone'),
+              ),
+            );
+          await registry.attachTo(_MockBridge());
+
+          await expectLater(
+            registry.spawnChild(
+              context: const ChildSpawnContext(childId: 1),
+              bridge: _MockBridge(),
+            ),
+            throwsStateError,
+          );
+
+          expect(ok.clones.single.disposed, isTrue);
+        },
+      );
+
+      test('a clone extension without createChildInstance fails the spawn '
+          'with UnsupportedError', () async {
+        registry.register(_TestCloneWithoutFactory());
+        await registry.attachTo(_MockBridge());
+
+        await expectLater(
+          registry.spawnChild(
+            context: const ChildSpawnContext(childId: 1),
+            bridge: _MockBridge(),
+          ),
+          throwsUnsupportedError,
+        );
+      });
+
+      test("each extension's logger is the bridge logger's child, set "
+          'before any onAttach', () async {
+        final bridge = _LoggingBridge();
+        BridgeLogger? seenByFirst;
+        final first = _LifecycleExtension(namespace: 'aa', functions: []);
+        registry
+          ..register(
+            _LifecycleExtension(
+              namespace: 'zz',
+              functions: [],
+              priority: 1,
+              onAttachCallback: () => seenByFirst = first.logger,
+            ),
+          )
+          ..register(first);
+
+        await registry.attachTo(bridge);
+
+        expect(bridge.children, containsAll(['aa', 'zz']));
+        expect(seenByFirst, same(bridge.childNamed('aa')));
+      });
+
+      test('an unsupported backend fails attach with an Error before any '
+          'onAttach', () async {
+        var attachedFirst = false;
+        registry
+          ..register(
+            _LifecycleExtension(
+              namespace: 'ok',
+              functions: [],
+              priority: 1,
+              onAttachCallback: () => attachedFirst = true,
+            ),
+          )
+          ..register(_WasmOnlyExtension());
+
+        await expectLater(
+          registry.attachTo(_MockBridge()),
+          throwsA(
+            isA<Error>().having((e) => '$e', 'text', contains('"wasmonly"')),
+          ),
+        );
+        expect(attachedFirst, isFalse);
+      });
+
+      test('a failing onDispose during attach cleanup wins over the attach '
+          'failure', () async {
+        registry.register(
+          _LifecycleExtension(
+            namespace: 'boom',
+            functions: [],
+            onAttachCallback: () => throw StateError('attach'),
+            onDisposeCallback: () => throw StateError('dispose'),
+          ),
+        );
+
+        await expectLater(
+          registry.attachTo(_MockBridge()),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              contains('failed to dispose'),
+            ),
+          ),
+        );
+      });
+    });
   });
 }
 
@@ -851,7 +1013,8 @@ class _OsContribExtension extends MontyExtension {
   Map<String, OsHandler>? get osContribution => _contribution;
 }
 
-/// Extension that captures its [coordinator] reference during [onAttach].
+/// Extension that captures its coordinator ([coordinatorOf]) during
+/// [onAttach].
 ///
 /// Used to verify that `ExtensionCoordinator` injects the coordinator before
 /// the first [onAttach] call.
@@ -869,7 +1032,7 @@ class _RegistryCapturingExtension extends MontyExtension {
   @override
   Future<void> onAttach(AttachContext host) async {
     await super.onAttach(host);
-    capturedCoordinator = coordinator;
+    capturedCoordinator = coordinatorOf(this);
   }
 }
 
@@ -880,7 +1043,7 @@ class _MockBridge implements MontyBridge {
   final _categoryIndex = <String, Set<String>>{};
 
   @override
-  BridgeLogger get logger => const NullBridgeLogger();
+  BridgeLogger get logger => BridgeLogger.silent;
 
   @override
   List<HostFunctionSchema> get schemas =>
@@ -950,4 +1113,120 @@ class _SchemaProbe extends MontyExtension {
     await super.onAttach(host);
     onSchemas(host);
   }
+}
+
+/// An extension with [policy]; as a clone factory it records each clone,
+/// or runs [onClone] instead when given.
+class _PolicyExtension extends MontyExtension {
+  _PolicyExtension(this.namespace, this.policy, {this.onClone});
+
+  @override
+  final String namespace;
+
+  final ChildPolicy policy;
+  final MontyExtension Function()? onClone;
+  final List<_PolicyExtension> clones = [];
+  bool disposed = false;
+
+  @override
+  List<HostFunction> get functions => [];
+
+  @override
+  ChildPolicy get childPolicy => policy;
+
+  @override
+  MontyExtension createChildInstance(ChildSpawnContext context) {
+    final make = onClone;
+    if (make != null) return make();
+    final clone = _PolicyExtension(namespace, policy);
+    clones.add(clone);
+
+    return clone;
+  }
+
+  @override
+  Future<void> onDispose() async {
+    await super.onDispose();
+    disposed = true;
+  }
+}
+
+/// A clone-policy extension that does not override createChildInstance.
+class _TestCloneWithoutFactory extends MontyExtension {
+  @override
+  String get namespace => 'nofactory';
+
+  @override
+  List<HostFunction> get functions => [];
+
+  @override
+  ChildPolicy get childPolicy => ChildPolicy.clone;
+}
+
+/// An extension that runs on the web backend only.
+class _WasmOnlyExtension extends MontyExtension {
+  @override
+  String get namespace => 'wasmonly';
+
+  @override
+  List<HostFunction> get functions => [];
+
+  @override
+  Set<MontyBackendKind> get supportedBackends => const {MontyBackendKind.wasm};
+}
+
+/// A logger that names its children and records them.
+final class _NamedLogger implements BridgeLogger {
+  _NamedLogger(this.name, this.children);
+
+  final String name;
+  final Map<String, BridgeLogger> children;
+
+  @override
+  void trace(String message, {Map<String, Object?>? attributes}) {}
+
+  @override
+  void debug(String message, {Map<String, Object?>? attributes}) {}
+
+  @override
+  void info(String message, {Map<String, Object?>? attributes}) {}
+
+  @override
+  void warning(
+    String message, {
+    Object? error,
+    StackTrace? stackTrace,
+    Map<String, Object?>? attributes,
+  }) {}
+
+  @override
+  void error(
+    String message, {
+    Object? error,
+    StackTrace? stackTrace,
+    Map<String, Object?>? attributes,
+  }) {}
+
+  @override
+  BridgeLogger child(String name) =>
+      children[name] = _NamedLogger(name, children);
+
+  @override
+  void close() {}
+}
+
+/// A [_MockBridge] whose logger records the children made from it.
+class _LoggingBridge extends _MockBridge {
+  final Map<String, BridgeLogger> _children = {};
+
+  late final BridgeLogger _logger = _NamedLogger('root', _children);
+
+  @override
+  BridgeLogger get logger => _logger;
+
+  /// The names of the children made from [logger].
+  Iterable<String> get children => _children.keys;
+
+  /// The child named [name].
+  BridgeLogger? childNamed(String name) => _children[name];
 }

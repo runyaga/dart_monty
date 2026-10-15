@@ -1,13 +1,13 @@
 /// Minimal structured logging interface for the Monty ecosystem.
 ///
-/// Default implementation: `StructLogBridgeLogger` in `dart_monty_bridge`
-/// (backed by struct_log, works on FFI and WASM).
+/// A `null` logger selects dm's default, backed by struct_log under the
+/// root name `monty` (works on FFI and WASM); [silent] discards everything.
 ///
 /// Override: implement this interface to bring your own logging framework.
-/// See `NullBridgeLogger` for a silent no-op implementation.
 abstract interface class BridgeLogger {
-  /// A logger that discards everything.
-  static const BridgeLogger silent = NullBridgeLogger();
+  /// A logger that discards everything: [child] returns it, and [close]
+  /// does nothing.
+  static const BridgeLogger silent = _SilentBridgeLogger();
 
   /// Logs a trace-level message (finest granularity).
   void trace(String message, {Map<String, Object?>? attributes});
@@ -49,14 +49,9 @@ abstract interface class BridgeLogger {
   void close();
 }
 
-/// A logger that silently discards all messages.
-///
-/// Use this to explicitly silence logging, or as a safe default when
-/// no logging is configured.
-class NullBridgeLogger implements BridgeLogger {
-  /// Creates a null logger. Use [const NullBridgeLogger()] for zero
-  /// allocation.
-  const NullBridgeLogger();
+/// [BridgeLogger.silent]: discards all messages.
+final class _SilentBridgeLogger implements BridgeLogger {
+  const _SilentBridgeLogger();
 
   @override
   void trace(String message, {Map<String, Object?>? attributes}) {}
