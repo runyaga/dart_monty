@@ -22,7 +22,10 @@ on:
     # trigger here. workflow_dispatch could not rescue it either: GitHub only
     # offers dispatch for workflows present on the DEFAULT branch, and main's
     # copy does not declare it. There was no button to press.
-    branches: [main, 'integration/**']
+    # `d1/core-0.110` is the D1 release line (the dart_monty_core 0.110 port);
+    # its stacked PRs merge into it, so a push there must run CI too. D1-Z
+    # removes it with the branch.
+    branches: [main, 'integration/**', 'd1/core-0.110']
   pull_request:
   # No `branches:` filter — a PR gets CI whatever it targets.
   #
