@@ -217,18 +217,16 @@ undefined_var_that_errors
 
       await _untilWaiting(el2);
 
-      // Dispose while waiting — should complete completer with error.
+      // Dispose while waiting closes the running session: the pending host
+      // call fails at once, so the result fails with StateError.
+      final outcome = handle.result.then<Object?>(
+        (_) => null,
+        onError: (Object e) => e,
+      );
       await h2.dispose();
 
-      // Result future should have resolved (with error).
-      var failed = false;
-      try {
-        await handle.result;
-      } on MontyError {
-        failed = true;
-      }
-      // The script never completed normally — error captured
-      expect(failed || el2.channelState is EventLoopDisposed, isTrue);
+      expect(await outcome, isA<StateError>());
+      expect(el2.channelState, isA<EventLoopDisposed>());
     });
   });
 
