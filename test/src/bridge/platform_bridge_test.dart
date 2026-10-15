@@ -974,6 +974,53 @@ void main() {
       expect(_returnAnswers(fake), [const MontyString('ran')]);
     });
 
+    test('a value JSON has no form for is written with bounded work', () async {
+      // A list shared at each of 30 levels: about 2^30 lists once
+      // expanded. Under a non-string key JSON writes it as text.
+      Object? shared = <Object?>[];
+      for (var i = 0; i < 30; i++) {
+        shared = <Object?>[shared, shared];
+      }
+      bridge.register(
+        HostFunction(
+          schema: HostFunctionSchema(
+            name: 'fn',
+            description: '',
+            params: [
+              const HostParam(name: 'x', type: HostParamType.integer),
+              HostParam(
+                name: 'y',
+                type: HostParamType.map,
+                isRequired: false,
+                defaultValue: {0: shared},
+              ),
+            ],
+          ),
+          handler: (_, _) async => [
+            1,
+            'a',
+            null,
+            <Object?, Object?>{2: 3},
+          ],
+        ),
+      );
+      fake
+        ..willCall('fn', kwargs: {'x': const MontyInt(1)})
+        ..willReturn(const MontyNone());
+
+      final events = await bridge.execute('fn(x=1)').toList();
+
+      expect(
+        events.whereType<BridgeFunctionCallArgs>().single.delta,
+        startsWith('"arguments not shown: over '),
+      );
+      // A small result reads as its toString().
+      expect(
+        events.whereType<BridgeFunctionCallResult>().single.result,
+        '[1, a, null, {2: 3}]',
+      );
+    }, timeout: const Timeout(Duration(seconds: 20)));
+
     test('ids come from one counter across calls and runs', () async {
       bridge.register(_fnX((args, _) async => args['x']));
       fake

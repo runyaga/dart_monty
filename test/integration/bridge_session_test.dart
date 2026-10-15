@@ -313,6 +313,30 @@ void main() {
       );
     }, timeout: const Timeout(Duration(seconds: 20)));
 
+    test('a result whose text would be huge is cut, and Python gets the '
+        'value', () async {
+      bridge.register(
+        HostFunction(
+          schema: const HostFunctionSchema(
+            name: 'echo',
+            description: '',
+            params: [HostParam(name: 'v', type: HostParamType.list)],
+          ),
+          handler: (args, _) async => args['v'],
+        ),
+      );
+
+      final events = await bridge
+          .execute('x = []\nfor _ in range(30):\n    x = [x, x]\nlen(echo(x))')
+          .toList();
+
+      expect((events.last as BridgeRunFinished).value, 2);
+      expect(
+        events.whereType<BridgeFunctionCallResult>().single.result,
+        endsWith('... (cut at 1048576 characters)'),
+      );
+    }, timeout: const Timeout(Duration(seconds: 20)));
+
     test('asyncio.sleep runs alongside a future-mode call', () async {
       bridge.register(
         fn('later', (args, _) async {
