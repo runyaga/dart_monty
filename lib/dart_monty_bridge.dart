@@ -13,7 +13,7 @@ export 'src/bridge/struct_log_logger.dart';
 export 'src/extension/attach_context.dart' show AttachContext;
 export 'src/extension/coordinator.dart';
 export 'src/extension/extension.dart';
-export 'src/extensions/event_loop.dart';
+export 'src/extensions/event_loop.dart' show EventLoopExtension;
 export 'src/extensions/message_bus.dart';
 export 'src/extensions/run_script.dart';
 export 'src/extensions/sandbox.dart';

@@ -3,13 +3,21 @@ import 'dart:async';
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:dart_monty/src/bridge/session_bridge.dart';
+import 'package:dart_monty/src/extensions/event_loop.dart';
+import 'package:dart_monty/src/runtime/runtime.dart' show startRuntimeWith;
 import 'package:dart_monty_core/dart_monty_core_testing.dart';
 import 'package:signals_core/signals_core.dart';
 import 'package:test/test.dart';
 
-/// Tests that run Python through the bridge: the event loop's behaviour on
-/// the new runtime is D1-9's (the bridge's execute is D1-2's).
-const _pending = 'd1-pending';
+/// Waits, one event-loop turn at a time, until [condition] holds; fails
+/// after [turns] turns. No timer: each turn is a zero-duration delay.
+Future<void> _until(bool Function() condition, {int turns = 1000}) async {
+  for (var i = 0; i < turns; i++) {
+    if (condition()) return;
+    await Future<void>.delayed(Duration.zero);
+  }
+  fail('condition not reached after $turns event-loop turns');
+}
 
 /// The values the host answered with, in order: a settled future's value
 /// or a call's return value.
@@ -44,7 +52,6 @@ void main() {
   group('recv and dispatch', () {
     test(
       'recv pauses, dispatch resumes with correct data',
-      tags: _pending,
       () async {
         // Python calls el_recv(), bridge handler creates Completer.
         // We use the sync (non-futures) path for simplicity: the bridge
@@ -61,8 +68,7 @@ void main() {
         final sub = stream.listen(events.add);
 
         // Give the bridge time to reach the recv handler.
-        await Future<void>.delayed(Duration.zero);
-
+        await _until(() => plugin.isWaiting);
         expect(plugin.channelState, isA<EventLoopWaiting>());
 
         // Dispatch a value.
@@ -148,7 +154,7 @@ void main() {
       },
     );
 
-    test('multiple sequential wait/dispatch cycles', tags: _pending, () async {
+    test('multiple sequential wait/dispatch cycles', () async {
       fake
         // First el_recv
         ..willCall('el_recv')
@@ -162,14 +168,11 @@ void main() {
       final sub = stream.listen((_) {});
 
       // Wait for first recv.
-      await Future<void>.delayed(Duration.zero);
-      expect(plugin.isWaiting, isTrue);
+      await _until(() => plugin.isWaiting);
       plugin.dispatch({'cycle': 1});
 
       // Wait for second recv.
-      await Future<void>.delayed(Duration.zero);
-      await Future<void>.delayed(Duration.zero);
-      expect(plugin.isWaiting, isTrue);
+      await _until(() => plugin.isWaiting);
       plugin.dispatch({'cycle': 2});
 
       await sub.asFuture<void>();
@@ -243,7 +246,6 @@ void main() {
 
     test(
       'script error while waiting cleans up orphaned Completer',
-      tags: _pending,
       () async {
         fake
           ..willCall('el_recv')
@@ -255,8 +257,7 @@ void main() {
         final sub = stream.listen(events.add);
 
         // Let bridge reach recv.
-        await Future<void>.delayed(Duration.zero);
-        expect(plugin.isWaiting, isTrue);
+        await _until(() => plugin.isWaiting);
 
         // Simulate the pending Completer being resolved with an error by
         // the bridge when the script errors — we dispatch to unblock the
@@ -277,7 +278,6 @@ void main() {
 
     test(
       'dispose while waiting completes with error',
-      tags: _pending,
       () async {
         fake
           ..willCall('el_recv')
@@ -292,8 +292,7 @@ void main() {
         final sub = stream.listen(events.add);
 
         // Let bridge reach recv.
-        await Future<void>.delayed(Duration.zero);
-        expect(plugin.isWaiting, isTrue);
+        await _until(() => plugin.isWaiting);
 
         // Dispose while waiting.
         await plugin.onDispose();
@@ -324,7 +323,6 @@ void main() {
 
     test(
       'idle -> executing -> waiting -> executing -> completed',
-      tags: _pending,
       () async {
         expect(plugin.channelState, const EventLoopIdle());
 
@@ -337,7 +335,7 @@ void main() {
         final sub = stream.listen((_) {});
 
         // Let it reach recv.
-        await Future<void>.delayed(Duration.zero);
+        await _until(() => plugin.isWaiting);
         expect(plugin.channelState, isA<EventLoopWaiting>());
 
         plugin.dispatch({'type': 'click'});
@@ -358,7 +356,6 @@ void main() {
   group('signals', () {
     test(
       'channelStateSignal reflects transitions through waiting',
-      tags: _pending,
       () async {
         fake
           ..willCall('el_recv')
@@ -373,7 +370,7 @@ void main() {
         final stream = bridge.execute('el_recv()');
         final sub = stream.listen((_) {});
 
-        await Future<void>.delayed(Duration.zero);
+        await _until(() => plugin.isWaiting);
 
         plugin.dispatch({'type': 'tap'});
 
@@ -451,7 +448,6 @@ void main() {
 
     test(
       'orphaned completer cleaned up when script finishes with error',
-      tags: _pending,
       () async {
         // Scenario: Python calls el_recv and the handler waits, then
         // when the event is dispatched the resolveFutures step triggers
@@ -467,8 +463,7 @@ void main() {
         final sub = stream.listen(events.add);
 
         // Let bridge reach recv.
-        await Future<void>.delayed(Duration.zero);
-        expect(plugin.isWaiting, isTrue);
+        await _until(() => plugin.isWaiting);
 
         // Dispatch event to unblock the completer and let the error flow.
         plugin.dispatch({'type': 'trigger'});
@@ -486,7 +481,6 @@ void main() {
 
     test(
       'run error while waiting cleans up orphaned completer',
-      tags: _pending,
       () async {
         fake
           ..willCall('el_recv')
@@ -497,8 +491,7 @@ void main() {
         final stream = bridge.execute('el_recv()');
         final sub = stream.listen(events.add);
 
-        await Future<void>.delayed(Duration.zero);
-        expect(plugin.isWaiting, isTrue);
+        await _until(() => plugin.isWaiting);
 
         // Dispatch to unblock, then the error Complete flows through.
         plugin.dispatch({'type': 'unblock'});
@@ -517,7 +510,7 @@ void main() {
   });
 
   group('sync answer (unmarked handler)', () {
-    test('el_recv works when answered in place', tags: _pending, () async {
+    test('el_recv works when answered in place', () async {
       final syncMock = FakeMontySession();
       final syncPlugin = EventLoopExtension();
       final syncBridge = SessionBridge(session: syncMock);
@@ -547,8 +540,7 @@ void main() {
       final sub = stream.listen((_) {});
 
       // Let it reach the handler.
-      await Future<void>.delayed(Duration.zero);
-      expect(syncPlugin.isWaiting, isTrue);
+      await _until(() => syncPlugin.isWaiting);
 
       syncPlugin.dispatch({'type': 'sync_click'});
 
@@ -598,7 +590,7 @@ void main() {
 
         final stream = bridge.execute('el_recv()');
         final sub = stream.listen((_) {});
-        await Future<void>.delayed(Duration.zero);
+        await _until(() => plugin.isWaiting);
 
         // Plugin is now waiting — dispatch must not throw.
         expect(
@@ -736,5 +728,122 @@ void main() {
         bridge2.dispose();
       },
     );
+  });
+
+  group('D1 contract', () {
+    test(
+      'dispatch while waiting resumes and clears isWaiting at once',
+      () async {
+        fake
+          ..willCall('el_recv')
+          ..willAwait([0])
+          ..willReturn(const MontyNone());
+        final done = bridge.execute('el_recv()').toList();
+        await _until(() => plugin.isWaiting);
+
+        plugin.dispatch({'k': 1});
+
+        expect(plugin.isWaiting, isFalse);
+        await done;
+        expect(_dart(_returnAnswers(fake).single), {'k': 1});
+      },
+    );
+
+    test('a new execution after a completed one discards the queue', () async {
+      final gate = Completer<void>();
+      fake
+        // First feed: holds, then finishes without reading the queue.
+        ..willHold(gate.future)
+        ..willReturn(const MontyNone())
+        // Second feed: waits at el_recv.
+        ..willCall('el_recv')
+        ..willAwait([0])
+        ..willReturn(const MontyNone());
+      final first = bridge.execute('first').toList();
+      await _until(() => plugin.channelState is EventLoopExecuting);
+      plugin.dispatch({'stale': true});
+      gate.complete();
+      await first;
+
+      final second = bridge.execute('el_recv()').toList();
+      await _until(() => plugin.isWaiting);
+      plugin.dispatch({'fresh': true});
+      await second;
+
+      expect(_dart(_returnAnswers(fake).single), {'fresh': true});
+    });
+
+    test('namespace is el, with el_recv() and el_emit(value: map)', () {
+      expect(plugin.namespace, 'el');
+      final [recv, emit] = plugin.functions;
+      expect(recv.schema.name, 'el_recv');
+      expect(recv.schema.params, isEmpty);
+      expect(recv.dispatch, DispatchMode.future);
+      expect(emit.schema.name, 'el_emit');
+      final [value] = emit.schema.params;
+      expect(
+        (value.name, value.type, value.isRequired),
+        ('value', HostParamType.map, true),
+      );
+      expect(emit.dispatch, DispatchMode.future);
+    });
+
+    test('lastEmitted is null until the first el_emit', () {
+      expect(plugin.lastEmitted, isNull);
+      expect(plugin.lastEmittedSignal.value, isNull);
+    });
+
+    test('childPolicy is clone, and a child shares no queue', () async {
+      expect(plugin.childPolicy, ChildPolicy.clone);
+      plugin.dispatch({'parent': 1});
+      final child =
+          plugin.createChildInstance(const ChildSpawnContext(childId: 1))
+              as EventLoopExtension;
+      addTearDown(child.onDispose);
+      final childFake = FakeMontySession()
+        ..willCall('el_recv')
+        ..willAwait([0])
+        ..willReturn(const MontyNone());
+      final childBridge = SessionBridge(session: childFake);
+      addTearDown(childBridge.dispose);
+      await child.onAttach(childBridge);
+      for (final fn in child.functions) {
+        childBridge.register(fn, category: child.namespace);
+      }
+
+      final done = childBridge.execute('el_recv()').toList();
+      // The parent's queued value does not reach the child.
+      await _until(() => child.isWaiting);
+      child.dispatch({'child': 1});
+      await done;
+
+      expect(_dart(_returnAnswers(childFake).single), {'child': 1});
+      expect(child.lastEmitted, isNull);
+    });
+
+    test('onDispose is idempotent and disposes both signals', () async {
+      await plugin.onDispose();
+      await plugin.onDispose();
+
+      expect(plugin.channelState, const EventLoopDisposed());
+      expect(plugin.lastEmittedSignal.disposed, isTrue);
+      expect(plugin.channelStateSignal.disposed, isTrue);
+    });
+
+    test('a runtime whose extension is disposed fails its execution', () async {
+      final ext = EventLoopExtension();
+      final runtime = await startRuntimeWith(
+        checkout: ({limits}) async => FakeMontySession(),
+        extensions: [ext],
+      );
+      addTearDown(runtime.dispose);
+      await runtime.invoke('el_emit', {'value': <String, Object?>{}});
+      await ext.onDispose();
+
+      await expectLater(
+        runtime.execute('1').result,
+        throwsA(isA<StateError>()),
+      );
+    });
   });
 }

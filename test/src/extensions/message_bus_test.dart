@@ -483,4 +483,185 @@ void main() {
       expect(msg, {'count': 42, 'status': 'done'});
     });
   });
+
+  group('D1 contract', () {
+    test('ChannelSnapshot.empty is open with every counter 0', () {
+      const e = ChannelSnapshot.empty;
+      expect(
+        (e.isClosed, e.queueDepth, e.sendCount, e.recvCount, e.peakQueueDepth),
+        (false, 0, 0, 0, 0),
+      );
+    });
+
+    test('peakQueueDepth is never lowered by a later, smaller queue', () {
+      final ch = MessageChannel()
+        ..send(1)
+        ..send(2)
+        ..send(3);
+      unawaited(ch.recv());
+      unawaited(ch.recv());
+      ch.send(4);
+
+      expect(ch.snapshot.queueDepth, 2);
+      expect(ch.snapshot.peakQueueDepth, 3);
+    });
+
+    test('each send completes only the oldest waiter, the one supplied', () {
+      final ch = MessageChannel();
+      final mine = Completer<Object?>();
+      final first = ch.recv(waiter: mine);
+      final second = ch.recv();
+      var secondDone = false;
+      unawaited(second.then((_) => secondDone = true));
+
+      ch.send('a');
+
+      expect(mine.isCompleted, isTrue);
+      expect(first, completion('a'));
+      return Future<void>.delayed(Duration.zero, () {
+        expect(secondDone, isFalse);
+      });
+    });
+
+    test('close keeps queued messages readable', () async {
+      final ch = MessageChannel()
+        ..send('kept')
+        ..close();
+
+      expect(await ch.recv(), 'kept');
+      expect(await ch.recv(), isNull);
+    });
+
+    test('peek and removeWaiter create no channel; the others do', () {
+      final bus = MessageBus();
+      addTearDown(bus.dispose);
+
+      expect(bus.peek('p'), isNull);
+      bus.removeWaiter('w', Completer<Object?>());
+      expect(bus.channelsSignal.value.keys, isEmpty);
+
+      bus
+        ..send('s', 1)
+        ..close('c');
+      unawaited(bus.recv('r'));
+      expect(bus.channelsSignal.value.keys, unorderedEquals(['s', 'c', 'r']));
+    });
+
+    test('MessageBus.dispose disposes every signal', () {
+      final bus = MessageBus();
+      final ch = bus.channel('a');
+
+      bus.dispose();
+
+      expect(ch.snapshotSignal.disposed, isTrue);
+      expect(bus.channelsSignal.disposed, isTrue);
+    });
+
+    test('without a bus the extension makes its own; bus returns it', () {
+      final shared = MessageBus();
+      addTearDown(shared.dispose);
+
+      expect(MessageBusExtension(bus: shared).bus, same(shared));
+      expect(MessageBusExtension().bus, isNot(same(shared)));
+    });
+
+    test('registers the five functions with their parameters', () {
+      final params = {
+        for (final f in plugin.functions)
+          f.schema.name: [
+            for (final p in f.schema.params) (p.name, p.isRequired),
+          ],
+      };
+      expect(params, {
+        'msg_send': [('name', true), ('message', true)],
+        'msg_recv': [('name', true), ('timeout_ms', false)],
+        'msg_peek': [('name', true)],
+        'msg_close': [('name', true)],
+        'msg_stats': [('name', true)],
+      });
+    });
+
+    test('msg_send returns None', () async {
+      expect(await findHandler('msg_send')({'name': 'c', 'message': 1}), null);
+    });
+
+    test('msg_recv without timeout_ms starts no timer', () async {
+      final timers = <Duration>[];
+      final spec = ZoneSpecification(
+        createTimer: (self, parent, zone, duration, f) {
+          timers.add(duration);
+
+          return parent.createTimer(zone, duration, f);
+        },
+      );
+      final recv = findHandler('msg_recv');
+
+      final pending = runZoned(
+        () => recv({'name': 'slow'}),
+        zoneSpecification: spec,
+      );
+      final timed = runZoned(
+        () => recv({'name': 'timed', 'timeout_ms': 60000}),
+        zoneSpecification: spec,
+      );
+      plugin.bus
+        ..send('slow', 'ok')
+        ..send('timed', 'ok');
+
+      expect(await pending, 'ok');
+      expect(await timed, 'ok');
+      // Only the call that asked for a timeout started a timer.
+      expect(timers, [const Duration(minutes: 1)]);
+    });
+
+    test('msg_peek returns the front message and creates no channel', () async {
+      final peek = findHandler('msg_peek');
+
+      expect(await peek({'name': 'none'}), isNull);
+      expect(plugin.bus.channelOrNull('none'), isNull);
+      plugin.bus.send('q', 'front');
+      expect(await peek({'name': 'q'}), 'front');
+    });
+
+    test('msg_close creates and closes an absent channel', () async {
+      await findHandler('msg_close')({'name': 'new'});
+
+      expect(plugin.bus.channelOrNull('new')?.isClosed, isTrue);
+    });
+
+    test('msg_stats of an unknown channel', () async {
+      final stats = await findHandler('msg_stats')({'name': 'none'});
+
+      expect(stats, {
+        'exists': false,
+        'closed': false,
+        'queue_depth': 0,
+        'send_count': 0,
+        'recv_count': 0,
+        'peak_queue_depth': 0,
+      });
+    });
+
+    test('an expired msg_recv removes its waiter and names the time', () async {
+      final recv = findHandler('msg_recv');
+
+      await expectLater(
+        recv({'name': 'ch', 'timeout_ms': 5}),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            'msg_recv timed out after 5ms',
+          ),
+        ),
+      );
+      // The waiter is gone: the next send queues instead of vanishing.
+      plugin.bus.send('ch', 'later');
+      expect(plugin.bus.channel('ch').snapshot.queueDepth, 1);
+    });
+
+    test('childPolicy is clone', () {
+      expect(plugin.childPolicy, ChildPolicy.clone);
+    });
+  });
 }
