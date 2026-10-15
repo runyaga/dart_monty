@@ -146,25 +146,35 @@ void main() {
               description: 'Throws synchronously.',
             ),
             handler: (_, _) => throw StateError('sync boom'),
+            dispatch: DispatchMode.future,
           ),
         );
 
-        // Sequence: Python calls explode, the host answers with an
-        // exception, Python catches it and the feed ends.
+        // Sequence: Python calls explode (a coroutine) and awaits it; the
+        // failed coroutine settles the await, Python catches it and the
+        // feed ends.
+        final id = fake.willCall('explode');
         fake
-          ..willCall('explode')
+          ..willAwait([id])
           ..willCatch()
           ..willReturn(const MontyNone());
 
-        final events = await bridge.execute('explode()').toList();
+        final events = await bridge.execute('await explode()').toList();
 
         // Bridge should have emitted a BridgeRunFinished (not deadlocked).
         expect(events.whereType<BridgeRunFinished>(), hasLength(1));
 
-        // The sync error should have been answered as an exception.
-        final errors = _errorAnswers(fake);
-        expect(errors, hasLength(1));
-        expect(errors.first.message, contains('sync boom'));
+        // The sync throw settled the call's future as an exception.
+        final settled = [
+          for (final a in fake.answers)
+            if (a.batch != null && a.answer is ExternalException) a,
+        ];
+        expect(settled, hasLength(1));
+        expect(settled.single.callId, id);
+        expect(
+          (settled.single.answer! as ExternalException).message,
+          contains('sync boom'),
+        );
       },
     );
   });
@@ -883,6 +893,85 @@ void main() {
       expect(seen!.executionId, '2');
       expect(seen!.parent, isNull);
       expect(_returnAnswers(fake), [const MontyString('x=1')]);
+    });
+
+    test('the Args event is the validated arguments: positional mapped, '
+        'defaults filled', () async {
+      Map<String, Object?>? got;
+      bridge.register(
+        HostFunction(
+          schema: const HostFunctionSchema(
+            name: 'fn',
+            description: '',
+            params: [
+              HostParam(name: 'x', type: HostParamType.integer),
+              HostParam(
+                name: 'y',
+                type: HostParamType.string,
+                isRequired: false,
+                defaultValue: 'dflt',
+              ),
+            ],
+          ),
+          handler: (args, _) async {
+            got = args;
+
+            return null;
+          },
+        ),
+      );
+      fake
+        ..willCall('fn', args: [const MontyInt(1)])
+        ..willReturn(const MontyNone());
+
+      final events = await bridge.execute('fn(1)').toList();
+
+      expect(got, {'x': 1, 'y': 'dflt'});
+      expect(
+        events.whereType<BridgeFunctionCallArgs>().single.delta,
+        '{"x":1,"y":"dflt"}',
+      );
+    });
+
+    test('arguments JSON cannot encode are shown as a note, and the call '
+        'goes on', () async {
+      final cyclic = <Object?>[];
+      cyclic.add(cyclic);
+      bridge.register(
+        HostFunction(
+          schema: HostFunctionSchema(
+            name: 'fn',
+            description: '',
+            params: [
+              const HostParam(name: 'x', type: HostParamType.integer),
+              HostParam(
+                name: 'y',
+                type: HostParamType.list,
+                isRequired: false,
+                defaultValue: cyclic,
+              ),
+            ],
+          ),
+          handler: (_, _) async => 'ran',
+        ),
+      );
+      fake
+        ..willCall('fn', kwargs: {'x': const MontyInt(1)})
+        ..willReturn(const MontyNone());
+
+      final events = await bridge.execute('fn(x=1)').toList();
+
+      expect(
+        events.whereType<BridgeFunctionCallArgs>().single.delta,
+        '"arguments not shown: JsonCyclicError"',
+      );
+      expect(events.map(_line).toList().sublist(4), [
+        'FunctionCallEnd 2',
+        'FunctionCallResult 2 ran',
+        'CallFinished 2',
+        'RunFinished',
+      ]);
+      expect(_returnAnswers(fake), [const MontyString('ran')]);
     });
 
     test('ids come from one counter across calls and runs', () async {

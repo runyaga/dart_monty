@@ -287,6 +287,32 @@ void main() {
       expect(started, 3);
     });
 
+    test('arguments whose JSON would be huge are shown as a note, and the '
+        'call goes on', () async {
+      // 31 distinct lists, each shared twice by the next: about 2^30 lists
+      // once expanded.
+      bridge.register(
+        HostFunction(
+          schema: const HostFunctionSchema(
+            name: 'take',
+            description: '',
+            params: [HostParam(name: 'v', type: HostParamType.list)],
+          ),
+          handler: (_, _) async => 'ran',
+        ),
+      );
+
+      final events = await bridge
+          .execute('x = []\nfor _ in range(30):\n    x = [x, x]\ntake(x)')
+          .toList();
+
+      expect((events.last as BridgeRunFinished).value, 'ran');
+      expect(
+        events.whereType<BridgeFunctionCallArgs>().single.delta,
+        startsWith('"arguments not shown: over '),
+      );
+    }, timeout: const Timeout(Duration(seconds: 20)));
+
     test('asyncio.sleep runs alongside a future-mode call', () async {
       bridge.register(
         fn('later', (args, _) async {
