@@ -135,11 +135,8 @@ OsHandler overlayFsHandler({
     } on ExternalException catch (e) {
       if (!_isNotFound(e)) rethrow;
       if (merged.isEmpty) {
-        final pathStr = switch (args.firstOrNull) {
-          MontyPath(:final value) => value,
-          MontyString(:final value) => value,
-          _ => '',
-        };
+        final path = args.firstOrNull?.dartValue;
+        final pathStr = path is String ? path : '';
         throw ExternalException(
           'FileNotFoundError',
           'No such directory: $pathStr',

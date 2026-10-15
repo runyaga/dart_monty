@@ -21,7 +21,7 @@ class SessionBridge implements MontyBridge {
     required this.session,
     BridgeLogger? logger,
     MontyRuntimeRef? runtime,
-  }) : log = logger ?? StructLogBridgeLogger.root(LogManager.instance),
+  }) : logger = logger ?? StructLogBridgeLogger.root(LogManager.instance),
        _host = HostDispatch(
          log: logger ?? StructLogBridgeLogger.root(LogManager.instance),
          runtime: runtime,
@@ -30,13 +30,12 @@ class SessionBridge implements MontyBridge {
   /// The session this bridge runs code on.
   final MontySession session;
 
-  /// Logger for this bridge instance.
-  @protected
-  final BridgeLogger log;
+  @override
+  final BridgeLogger logger;
 
   final HostDispatch _host;
 
-  OsHandler? _osHandler;
+  OsHandler? _currentOsHandler;
 
   bool _isDisposed = false;
 
@@ -53,9 +52,6 @@ class SessionBridge implements MontyBridge {
   ) {
     _streamWrappers.add(wrapper);
   }
-
-  @override
-  BridgeLogger get logger => log;
 
   @override
   List<HostFunctionSchema> get schemas => _host.schemas;
@@ -79,7 +75,7 @@ class SessionBridge implements MontyBridge {
   @override
   void registerOs(OsHandler handler) {
     if (_isDisposed) throw StateError('Bridge has been disposed');
-    _osHandler = handler;
+    _currentOsHandler = handler;
     _host.osHandler = handler;
   }
 
@@ -88,13 +84,13 @@ class SessionBridge implements MontyBridge {
   @internal
   void setOsHandler(OsHandler? handler) {
     if (_isDisposed) return;
-    _osHandler = handler;
+    _currentOsHandler = handler;
     _host.osHandler = handler;
   }
 
   /// The currently-registered OS handler, if any.
   @internal
-  OsHandler? get currentOsHandler => _osHandler;
+  OsHandler? get currentOsHandler => _currentOsHandler;
 
   @override
   Future<Object?> invokeHostFunction(
@@ -117,8 +113,8 @@ class SessionBridge implements MontyBridge {
   @override
   void dispose() {
     _isDisposed = true;
-    _osHandler = null;
+    _currentOsHandler = null;
     _host.osHandler = null;
-    log.close();
+    logger.close();
   }
 }

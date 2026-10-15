@@ -55,33 +55,6 @@ class MontyRuntime implements MontyRuntimeRef {
   /// worker before it fails.
   static const Duration defaultCheckoutTimeout = Duration(seconds: 30);
 
-  /// Starts an agent session.
-  ///
-  /// When [sandbox] is true, each `execute()` call runs on a fresh session;
-  /// state does not persist between calls. When [sandbox] is false (default),
-  /// one session is reused across all calls.
-  ///
-  /// [pool] supplies the sessions; without one the runtime starts its own.
-  static Future<MontyRuntime> start({
-    OsHandler? os,
-    Map<String, OsHandler>? osHandlers,
-    List<MontyExtension>? extensions,
-    BridgeLogger? logger,
-    bool sandbox = false,
-    Monty? pool,
-  }) async {
-    assert(
-      os == null || osHandlers == null,
-      'Pass either os or osHandlers, not both.',
-    );
-
-    return MontyRuntime._(
-      os: os ?? (osHandlers != null ? composeOsHandlers(osHandlers) : null),
-      extensions: extensions,
-      sandbox: sandbox,
-    );
-  }
-
   // Read by execute() and clearState(), which D1-4 builds.
   // ignore: unused_field, kept for D1-4 rather than dropped and re-added.
   final OsHandler? _os;
@@ -95,6 +68,34 @@ class MontyRuntime implements MontyRuntimeRef {
   final List<HostFunction> _extraFunctions = [];
   final StreamController<BridgeEvent> _eventsController =
       StreamController<BridgeEvent>.broadcast();
+
+  /// Starts an agent session.
+  ///
+  /// When [sandbox] is true, each `execute()` call runs on a fresh session;
+  /// state does not persist between calls. When [sandbox] is false (default),
+  /// one session is reused across all calls.
+  ///
+  /// The sessions come from a [Monty] pool, which D1-4 adds.
+  // ignore: avoid-unnecessary-futures, start checks out a session from D1-4.
+  static Future<MontyRuntime> start({
+    OsHandler? os,
+    Map<String, OsHandler>? osHandlers,
+    List<MontyExtension>? extensions,
+    // ignore: avoid-unused-parameters, the bridges D1-4 builds log here.
+    BridgeLogger? logger,
+    bool sandbox = false,
+  }) async {
+    assert(
+      os == null || osHandlers == null,
+      'Pass either os or osHandlers, not both.',
+    );
+
+    return MontyRuntime._(
+      os: os ?? (osHandlers != null ? composeOsHandlers(osHandlers) : null),
+      extensions: extensions,
+      sandbox: sandbox,
+    );
+  }
 
   /// All registered tool schemas — feed these to an LLM as tool definitions.
   @override
@@ -158,10 +159,14 @@ class MontyRuntime implements MontyRuntimeRef {
   /// - [StateError] if the runtime is disposed.
   /// - [UnsupportedError] if called on a sandbox-mode runtime.
   /// - [ArgumentError] if [name] is not registered.
+  // ignore: avoid-unnecessary-futures, D1-4 awaits the attach here.
   Future<Object?> invoke(
     String name,
+    // ignore: avoid-unused-parameters, D1-4 passes it to the bridge.
     Map<String, Object?> args, {
+    // ignore: avoid-unused-parameters, D1-4 passes it to the bridge.
     void Function(BridgeEvent)? onEvent,
+    // ignore: avoid-redundant-async, keeps the throws asynchronous.
   }) async {
     if (_disposed) throw StateError('MontyRuntime has been disposed');
     if (_sandbox) {
@@ -176,6 +181,7 @@ class MontyRuntime implements MontyRuntimeRef {
 
   /// Clears all persisted Python state: closes the shared session and
   /// checks out a new one. A no-op in sandbox mode.
+  // ignore: avoid-unnecessary-futures, D1-4 closes and re-checks out here.
   Future<void> clearState() async {
     if (_disposed) throw StateError('MontyRuntime has been disposed');
     if (_sandbox) return;

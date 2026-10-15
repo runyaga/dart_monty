@@ -9,11 +9,12 @@ change that brings it back.
 
 - **`dart_monty_testing.dart`** and **`monty_backend_spi.dart`** are gone.
   Tests script `FakeMontySession` from `dart_monty_core_testing.dart`.
-- **`DartMonty.ensureInitialized`** is gone: the web needs no init call.
+- **`DartMonty.ensureInitialized`** is gone: the web needs no init call. The
+  `web` dependency goes with it.
 - **`PlatformBridge`** is gone. `MontyBridge({required MontySession session,
   BridgeLogger? logger})` replaces `MontyBridge(platform:, limits:)`.
-- **`MontyRuntime(...)`** is now **`await MontyRuntime.start(...)`**, with an
-  optional `Monty pool`; `MontyRuntime.defaultCheckoutTimeout` is 30 s.
+- **`MontyRuntime(...)`** is now **`await MontyRuntime.start(...)`**;
+  `MontyRuntime.defaultCheckoutTimeout` is 30 s.
   `clearState()` returns a `Future`.
 - **`ExtensionCoordinator.generateSystemPrompt`**, `systemPromptPrefix` and
   the `sandbox_spawn(system_prompt=)` parameter are gone;
