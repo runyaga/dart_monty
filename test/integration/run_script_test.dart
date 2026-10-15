@@ -1,18 +1,23 @@
-@Tags(['integration', 'd1-pending'])
+@Tags(['integration'])
 library;
 
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:test/test.dart';
+import '_worker.dart';
 
 void main() {
+  late Monty pool;
+  setUpAll(() async => pool = await startTestPool());
+  tearDownAll(() => pool.close());
+
   group('buildRunScriptFunction', () {
     late MontyRuntime runtime;
     late Map<String, String> vfs;
 
     setUp(() async {
       vfs = {};
-      runtime = (await MontyRuntime.start())
+      runtime = (await MontyRuntime.start(pool: pool))
         ..register(
           buildRunScriptFunction((path) async {
             final code = vfs[path];
@@ -26,25 +31,29 @@ void main() {
       await runtime.dispose();
     });
 
-    test('returns last expression from sub-script', () async {
-      vfs['greet.py'] = 'f"hello, {name}!"';
-      final result = await runtime
-          .execute(
-            'run_script("greet.py", inputs={"name": "alice"})',
-          )
-          .result;
+    test(
+      'returns last expression from sub-script',
+      tags: 'd1-pending',
+      () async {
+        vfs['greet.py'] = 'f"hello, {name}!"';
+        final result = await runtime
+            .execute(
+              'run_script("greet.py", inputs={"name": "alice"})',
+            )
+            .result;
 
-      expect(result.dartValue, 'hello, alice!');
-    });
+        expect(result.dartValue, 'hello, alice!');
+      },
+    );
 
-    test('sub-script with no inputs still runs', () async {
+    test('sub-script with no inputs still runs', tags: 'd1-pending', () async {
       vfs['add.py'] = '1 + 2';
       final result = await runtime.execute('run_script("add.py")').result;
 
       expect(result.dartValue, 3);
     });
 
-    test('multiple inputs are all injected', () async {
+    test('multiple inputs are all injected', tags: 'd1-pending', () async {
       vfs['fmt.py'] = 'f"{say}, {target}!"';
       final result = await runtime
           .execute(
@@ -55,13 +64,17 @@ void main() {
       expect(result.dartValue, 'hi, alan!');
     });
 
-    test('sub-script error surfaces as Python exception', () async {
-      vfs['bad.py'] = '1 / 0';
-      await expectLater(
-        runtime.execute('run_script("bad.py")').result,
-        throwsA(isA<MontyError>()),
-      );
-    });
+    test(
+      'sub-script error surfaces as Python exception',
+      tags: 'd1-pending',
+      () async {
+        vfs['bad.py'] = '1 / 0';
+        await expectLater(
+          runtime.execute('run_script("bad.py")').result,
+          throwsA(isA<MontyError>()),
+        );
+      },
+    );
 
     test('missing file surfaces as Python exception', () async {
       await expectLater(
@@ -70,21 +83,26 @@ void main() {
       );
     });
 
-    test('return value is usable in caller script', () async {
-      vfs['double.py'] = 'n * 2';
-      final result = await runtime
-          .execute(
-            'x = run_script("double.py", inputs={"n": 21})\nx',
-          )
-          .result;
+    test(
+      'return value is usable in caller script',
+      tags: 'd1-pending',
+      () async {
+        vfs['double.py'] = 'n * 2';
+        final result = await runtime
+            .execute(
+              'x = run_script("double.py", inputs={"n": 21})\nx',
+            )
+            .result;
 
-      expect(result.dartValue, 42);
-    });
+        expect(result.dartValue, 42);
+      },
+    );
 
     // Return-value semantics: run_script captures the last expression of
     // the sub-script. Assignment statements yield None (dartValue == null).
     test(
       'sub-script assignment statement yields None — not the assigned value',
+      tags: 'd1-pending',
       () async {
         vfs['assign.py'] = 'x = 99';
         final result = await runtime.execute('run_script("assign.py")').result;
@@ -95,13 +113,17 @@ void main() {
       },
     );
 
-    test('sub-script module-level return yields the return value', () async {
-      // pydantic-monty treats module-level `return` as a valid return.
-      vfs['ret.py'] = 'return 99';
-      final result = await runtime.execute('run_script("ret.py")').result;
+    test(
+      'sub-script module-level return yields the return value',
+      tags: 'd1-pending',
+      () async {
+        // pydantic-monty treats module-level `return` as a valid return.
+        vfs['ret.py'] = 'return 99';
+        final result = await runtime.execute('run_script("ret.py")').result;
 
-      expect(result.dartValue, 99);
-    });
+        expect(result.dartValue, 99);
+      },
+    );
 
     // Both kwargs and positional forms work for host-function params:
     // run_script("foo.py", inputs={"k":"v"}) and
@@ -109,14 +131,18 @@ void main() {
     // maps positional args to schema params
     // by index. The kwargs-only contract lives at the *Dart* API level: the
     // `inputs` param is a Dart named parameter with no positional form.
-    test('positional dict is equivalent to inputs= kwarg form', () async {
-      vfs['greet.py'] = 'f"hello, {name}!"';
-      final result = await runtime
-          .execute('run_script("greet.py", {"name": "alice"})')
-          .result;
+    test(
+      'positional dict is equivalent to inputs= kwarg form',
+      tags: 'd1-pending',
+      () async {
+        vfs['greet.py'] = 'f"hello, {name}!"';
+        final result = await runtime
+            .execute('run_script("greet.py", {"name": "alice"})')
+            .result;
 
-      expect(result.dartValue, 'hello, alice!');
-    });
+        expect(result.dartValue, 'hello, alice!');
+      },
+    );
 
     // Schema-level validation: HostFunctionSchema.mapAndValidate +
     // HostParam.validate throw FormatException on bad arg shape, which

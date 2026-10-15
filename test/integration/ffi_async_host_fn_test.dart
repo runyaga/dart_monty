@@ -8,18 +8,24 @@
 /// ```bash
 /// dart test --run-skipped --tags=integration test/bridge/integration/ffi_async_host_fn_test.dart
 /// ```
-@Tags(['integration', 'd1-pending'])
+@Tags(['integration'])
 library;
 
 import 'dart:io';
 
 import 'package:dart_monty/dart_monty_bridge.dart';
+import 'package:dart_monty_core/dart_monty_core.dart' show Monty;
 import 'package:test/test.dart';
+import '_worker.dart';
 
 void main() {
+  late Monty pool;
+  setUpAll(() async => pool = await startTestPool());
+  tearDownAll(() => pool.close());
+
   group('FFI async host function regression (#271)', () {
     test('sync host function — two sequential calls work', () async {
-      final session = await MontyRuntime.start();
+      final session = await MontyRuntime.start(pool: pool);
       addTearDown(session.dispose);
 
       session.register(
@@ -40,7 +46,7 @@ void main() {
     });
 
     test('async host function with short delay — two calls', () async {
-      final session = await MontyRuntime.start();
+      final session = await MontyRuntime.start(pool: pool);
       addTearDown(session.dispose);
 
       session.register(
@@ -65,7 +71,7 @@ void main() {
     });
 
     test('async host function with 1s delay — two calls', () async {
-      final session = await MontyRuntime.start();
+      final session = await MontyRuntime.start(pool: pool);
       addTearDown(session.dispose);
 
       session.register(
@@ -92,7 +98,7 @@ void main() {
     test(
       'async host function with real HTTP — two calls',
       () async {
-        final session = await MontyRuntime.start();
+        final session = await MontyRuntime.start(pool: pool);
         addTearDown(session.dispose);
 
         session.register(
@@ -146,7 +152,7 @@ void main() {
     test(
       'sandbox mode — async HTTP — two calls',
       () async {
-        final session = await MontyRuntime.start(sandbox: true);
+        final session = await MontyRuntime.start(pool: pool, sandbox: true);
         addTearDown(session.dispose);
 
         session.register(
@@ -195,7 +201,7 @@ void main() {
       timeout: const Timeout(Duration(seconds: 30)),
     );
     test('file I/O — two calls', () async {
-      final session = await MontyRuntime.start();
+      final session = await MontyRuntime.start(pool: pool);
       addTearDown(session.dispose);
 
       session.register(
@@ -221,7 +227,7 @@ void main() {
     });
 
     test('process I/O — two calls', () async {
-      final session = await MontyRuntime.start();
+      final session = await MontyRuntime.start(pool: pool);
       addTearDown(session.dispose);
 
       session.register(
@@ -246,7 +252,7 @@ void main() {
     });
 
     test('socket listen — two calls', () async {
-      final session = await MontyRuntime.start();
+      final session = await MontyRuntime.start(pool: pool);
       addTearDown(session.dispose);
 
       session.register(
@@ -275,7 +281,7 @@ void main() {
     test(
       'http but return small string — two calls',
       () async {
-        final session = await MontyRuntime.start();
+        final session = await MontyRuntime.start(pool: pool);
         addTearDown(session.dispose);
 
         session.register(
@@ -324,7 +330,7 @@ void main() {
     test(
       'http returning large string — two calls',
       () async {
-        final session = await MontyRuntime.start();
+        final session = await MontyRuntime.start(pool: pool);
         addTearDown(session.dispose);
 
         session.register(

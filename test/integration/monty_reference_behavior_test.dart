@@ -51,7 +51,7 @@ void main() {
       () async {
         // The bridge passes printOutput through unchanged; this verifies
         // it does not lose or duplicate the captured stdout.
-        final session = await MontyRuntime.start();
+        final session = await MontyRuntime.start(pool: pool);
         try {
           final out = await printedBy(
             session.execute('print("hello from bridge")'),
@@ -61,7 +61,6 @@ void main() {
           await session.dispose();
         }
       },
-      tags: 'd1-pending',
     );
   });
 
@@ -73,7 +72,7 @@ void main() {
     test('NameError on line 1 of user code reports line 1', () async {
       // The bridge injects no preamble; line numbers from core should
       // come through unchanged.
-      final session = await MontyRuntime.start();
+      final session = await MontyRuntime.start(pool: pool);
       try {
         await expectLater(
           session.execute('undefined_variable_xyz').result,
@@ -89,10 +88,10 @@ void main() {
       } finally {
         await session.dispose();
       }
-    }, tags: 'd1-pending');
+    });
 
     test('NameError on line 3 of user code reports line 3', () async {
-      final session = await MontyRuntime.start();
+      final session = await MontyRuntime.start(pool: pool);
       try {
         await expectLater(
           session.execute('x = 1\ny = 2\nundefined_xyz').result,
@@ -107,7 +106,7 @@ void main() {
       } finally {
         await session.dispose();
       }
-    }, tags: 'd1-pending');
+    });
   });
 
   // ---------------------------------------------------------------------------
@@ -147,11 +146,11 @@ void main() {
   // 2e. Host param type coercion
   // ---------------------------------------------------------------------------
 
-  group('2e — host param type coercion', tags: 'd1-pending', () {
+  group('2e — host param type coercion', () {
     late MontyRuntime session;
 
     setUp(() async {
-      session = (await MontyRuntime.start())
+      session = (await MontyRuntime.start(pool: pool))
         ..register(
           HostFunction(
             schema: const HostFunctionSchema(

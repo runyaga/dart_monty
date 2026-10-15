@@ -3,18 +3,23 @@
 //
 // On core 0.110 a decline is a synchronous throw of OsCallNotHandledException,
 // and the worker computes the default: PermissionError for a filesystem call.
-@Tags(['integration', 'd1-pending'])
+@Tags(['integration'])
 library;
 
 import 'package:dart_monty/dart_monty.dart';
-import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:test/test.dart';
+import '_worker.dart';
 
 void main() {
+  late Monty pool;
+  setUpAll(() async => pool = await startTestPool());
+  tearDownAll(() => pool.close());
+
   test(
     'a declining OS handler yields the call default, not a Dart type name',
     () async {
       final rt = await MontyRuntime.start(
+        pool: pool,
         os: (op, args, kwargs) => throw const OsCallNotHandledException(),
       );
       addTearDown(rt.dispose);

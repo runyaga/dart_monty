@@ -5,7 +5,7 @@
 /// then verifies the next session works correctly with HTTP host functions.
 /// Before the fix, this would SEGFAULT because a stale GC finalizer freed
 /// a live handle whose address matched a previously-freed one.
-@Tags(['integration', 'd1-pending'])
+@Tags(['integration'])
 library;
 
 // Integration test uses print for progress output.
@@ -13,7 +13,9 @@ library;
 import 'dart:io';
 
 import 'package:dart_monty/dart_monty_bridge.dart';
+import 'package:dart_monty_core/dart_monty_core.dart' show Monty;
 import 'package:test/test.dart';
+import '_worker.dart';
 
 HostFunction _httpFn() => HostFunction(
   schema: const HostFunctionSchema(
@@ -47,19 +49,23 @@ HostFunction _syncFn() => HostFunction(
 );
 
 void main() {
+  late Monty pool;
+  setUpAll(() async => pool = await startTestPool());
+  tearDownAll(() => pool.close());
+
   group('NativeFinalizer handle race (#271)', () {
     test(
       'create/dispose 5 sessions then HTTP on 6th',
       () async {
         // Create and dispose 5 sessions to trigger GC finalizer race.
         for (var i = 0; i < 5; i++) {
-          final s = (await MontyRuntime.start())..register(_syncFn());
+          final s = (await MontyRuntime.start(pool: pool))..register(_syncFn());
           await s.execute('sync_fn()').result;
           await s.dispose();
         }
 
         // 6th session with HTTP — crashed before the fix.
-        final s = (await MontyRuntime.start())..register(_httpFn());
+        final s = (await MontyRuntime.start(pool: pool))..register(_httpFn());
         final r = await s.execute('http_fn()').result;
         await s.dispose();
         print('  result: ${r.dartValue}');
@@ -72,7 +78,7 @@ void main() {
       'create/dispose 10 sessions with HTTP each',
       () async {
         for (var i = 0; i < 10; i++) {
-          final s = (await MontyRuntime.start())..register(_httpFn());
+          final s = (await MontyRuntime.start(pool: pool))..register(_httpFn());
           final r = await s.execute('http_fn()').result;
           await s.dispose();
           expect(r.dartValue, isA<String>());
@@ -86,7 +92,7 @@ void main() {
       'interleaved sync and HTTP sessions',
       () async {
         for (var i = 0; i < 10; i++) {
-          final s = (await MontyRuntime.start())
+          final s = (await MontyRuntime.start(pool: pool))
             ..register(_syncFn())
             ..register(_httpFn());
           if (i.isEven) {
@@ -106,12 +112,12 @@ void main() {
       () async {
         // Rapid lifecycle without using the session — tests GC pressure.
         for (var i = 0; i < 20; i++) {
-          final s = (await MontyRuntime.start())..register(_syncFn());
+          final s = (await MontyRuntime.start(pool: pool))..register(_syncFn());
           await s.dispose();
         }
 
         // Then one real session with HTTP.
-        final s = (await MontyRuntime.start())..register(_httpFn());
+        final s = (await MontyRuntime.start(pool: pool))..register(_httpFn());
         final r = await s.execute('http_fn()').result;
         await s.dispose();
         print('  survived 20 rapid dispose + 1 HTTP');
@@ -123,7 +129,7 @@ void main() {
     test(
       'sandbox mode: 10 execute calls with HTTP',
       () async {
-        final s = (await MontyRuntime.start(sandbox: true))
+        final s = (await MontyRuntime.start(pool: pool, sandbox: true))
           ..register(_httpFn());
         for (var i = 0; i < 10; i++) {
           final r = await s.execute('http_fn()').result;

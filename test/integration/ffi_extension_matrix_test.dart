@@ -7,7 +7,7 @@
 /// ```bash
 /// dart test --run-skipped --tags=integration test/bridge/integration/ffi_plugin_matrix_test.dart
 /// ```
-@Tags(['integration', 'd1-pending'])
+@Tags(['integration'])
 library;
 
 // Integration test uses print for output and nullable casts for brevity.
@@ -15,18 +15,24 @@ library;
 import 'dart:io';
 
 import 'package:dart_monty/dart_monty_bridge.dart';
-import 'package:dart_monty_core/dart_monty_core.dart' show MontyError;
+import 'package:dart_monty_core/dart_monty_core.dart' show Monty, MontyError;
 import 'package:test/test.dart';
 
+import '_worker.dart';
 import 'template_stub_extension.dart';
 
 void main() {
+  late Monty pool;
+  setUpAll(() async => pool = await startTestPool());
+  tearDownAll(() => pool.close());
+
   test(
     'FFI plugin matrix — 30 experiments in one session',
     () async {
       final kv = <String, String>{};
       final session =
           (await MontyRuntime.start(
+              pool: pool,
               osHandlers: {
                 'Path.': memoryFsHandler(),
               },

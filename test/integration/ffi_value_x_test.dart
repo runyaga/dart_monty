@@ -11,22 +11,29 @@
 // matches anything real is dead code wearing a green test.
 //
 // So every value below comes out of a real FFI run.
-@Tags(['integration', 'd1-pending'])
+@Tags(['integration'])
 library;
 
 import 'package:dart_monty/dart_monty.dart';
 import 'package:test/test.dart';
+import '_worker.dart';
 
 /// Runs [expr] on a real backend and returns the resulting value.
 Future<MontyValue> _eval(String expr) async {
-  final runtime = await MontyRuntime.start();
+  final runtime = await MontyRuntime.start(pool: pool);
   final r = await runtime.execute(expr).result;
   await runtime.dispose();
 
   return r;
 }
 
+/// The pool every runtime in this file checks out from.
+late Monty pool;
+
 void main() {
+  setUpAll(() async => pool = await startTestPool());
+  tearDownAll(() => pool.close());
+
   group('MontyValueX on engine-produced values', () {
     test('asString matches a Python str and nothing else', () async {
       expect((await _eval('"hello"')).asString(), 'hello');

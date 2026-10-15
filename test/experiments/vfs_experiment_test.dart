@@ -6,7 +6,7 @@
 // Run with:
 //   dart test --tags=integration \
 //     test/experiment/examples/vfs_experiment_test.dart
-@Tags(['integration', 'd1-pending'])
+@Tags(['integration'])
 library;
 
 import 'package:dart_monty/dart_monty_bridge.dart';

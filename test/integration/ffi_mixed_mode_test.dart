@@ -8,7 +8,7 @@
 /// ```bash
 /// dart test --run-skipped --tags=integration test/bridge/integration/ffi_mixed_mode_test.dart --name "G1"
 /// ```
-@Tags(['integration', 'd1-pending'])
+@Tags(['integration'])
 library;
 
 // Integration test uses print for output and nullable casts for brevity.
@@ -16,11 +16,11 @@ library;
 import 'dart:io';
 
 import 'package:dart_monty/dart_monty_bridge.dart';
-import 'package:dart_monty_core/dart_monty_core.dart' show MontyError;
+import 'package:dart_monty_core/dart_monty_core.dart' show Monty, MontyError;
 import 'package:test/test.dart';
 
 import '_printed.dart';
-
+import '_worker.dart';
 import 'template_stub_extension.dart';
 
 // ---------------------------------------------------------------------------
@@ -100,13 +100,17 @@ HostFunction accumFn() {
 }
 
 void main() {
+  late Monty pool;
+  setUpAll(() async => pool = await startTestPool());
+  tearDownAll(() => pool.close());
+
   // ========================================================================
   // G. Shared mode — stress tests
   // ========================================================================
 
   group('G. Shared mode stress', () {
     test('G1. 20 sequential sync execute calls', () async {
-      final s = (await MontyRuntime.start())..register(syncFn());
+      final s = (await MontyRuntime.start(pool: pool))..register(syncFn());
       addTearDown(s.dispose);
       for (var i = 0; i < 20; i++) {
         final r = await s.execute('sync_fn()').result;
@@ -118,7 +122,7 @@ void main() {
     test(
       'G2. 10 sequential delay execute calls',
       () async {
-        final s = (await MontyRuntime.start())..register(delayFn());
+        final s = (await MontyRuntime.start(pool: pool))..register(delayFn());
         addTearDown(s.dispose);
         for (var i = 0; i < 10; i++) {
           final r = await s.execute('delay_fn()').result;
@@ -132,7 +136,7 @@ void main() {
     test(
       'G3. 10 sequential http execute calls',
       () async {
-        final s = (await MontyRuntime.start())..register(httpFn());
+        final s = (await MontyRuntime.start(pool: pool))..register(httpFn());
         addTearDown(s.dispose);
         var passed = 0;
         for (var i = 0; i < 10; i++) {
@@ -146,7 +150,7 @@ void main() {
     );
 
     test('G4. counter host fn persists Dart-side state', () async {
-      final s = (await MontyRuntime.start())..register(counterFn());
+      final s = (await MontyRuntime.start(pool: pool))..register(counterFn());
       addTearDown(s.dispose);
       for (var i = 1; i <= 5; i++) {
         final r = await s.execute('counter()').result;
@@ -156,7 +160,7 @@ void main() {
     });
 
     test('G5. accum host fn builds up across execute calls', () async {
-      final s = (await MontyRuntime.start())..register(accumFn());
+      final s = (await MontyRuntime.start(pool: pool))..register(accumFn());
       addTearDown(s.dispose);
       await s.execute('accum("a")').result;
       await s.execute('accum("b")').result;
@@ -166,7 +170,7 @@ void main() {
     });
 
     test('G6. state accumulation: build list across 10 calls', () async {
-      final s = (await MontyRuntime.start())..register(syncFn());
+      final s = (await MontyRuntime.start(pool: pool))..register(syncFn());
       addTearDown(s.dispose);
       await s.execute('items = []').result;
       for (var i = 0; i < 10; i++) {
@@ -178,7 +182,7 @@ void main() {
     });
 
     test('G7. error recovery: bad call then good call', () async {
-      final s = (await MontyRuntime.start())..register(syncFn());
+      final s = (await MontyRuntime.start(pool: pool))..register(syncFn());
       addTearDown(s.dispose);
       await s.execute('x = 42').result;
       // Raises.
@@ -194,7 +198,7 @@ void main() {
     test(
       'G8. error recovery: bad http then good sync',
       () async {
-        final s = (await MontyRuntime.start())
+        final s = (await MontyRuntime.start(pool: pool))
           ..register(syncFn())
           ..register(httpFn());
         addTearDown(s.dispose);
@@ -218,7 +222,10 @@ void main() {
 
   group('H. Plugin combos across execute calls', () {
     test('H1. Template across 5 execute calls', () async {
-      final s = await MontyRuntime.start(extensions: [TemplateStubExtension()]);
+      final s = await MontyRuntime.start(
+        pool: pool,
+        extensions: [TemplateStubExtension()],
+      );
       addTearDown(s.dispose);
       await s.execute('name = "World"').result;
       await s.execute('greeting = tmpl_render("Hi {{n}}", {"n": name})').result;
@@ -232,7 +239,10 @@ void main() {
     });
 
     test('H2. MessageBus across execute calls', () async {
-      final s = await MontyRuntime.start(extensions: [MessageBusExtension()]);
+      final s = await MontyRuntime.start(
+        pool: pool,
+        extensions: [MessageBusExtension()],
+      );
       addTearDown(s.dispose);
       await s.execute('msg_send("q", "first")').result;
       await s.execute('msg_send("q", "second")').result;
@@ -245,6 +255,7 @@ void main() {
 
     test('H3. FS + Template across calls', () async {
       final s = await MontyRuntime.start(
+        pool: pool,
         osHandlers: {'Path.': memoryFsHandler()},
         extensions: [TemplateStubExtension()],
       );
@@ -270,6 +281,7 @@ content = Path("/data.txt").read_text()
       'H4. HTTP + Template + MsgBus across calls',
       () async {
         final s = (await MontyRuntime.start(
+          pool: pool,
           extensions: [TemplateStubExtension(), MessageBusExtension()],
         ))..register(httpFn());
         addTearDown(s.dispose);
@@ -290,7 +302,7 @@ content = Path("/data.txt").read_text()
     test(
       'H5. HTTP + counter across calls',
       () async {
-        final s = (await MontyRuntime.start())
+        final s = (await MontyRuntime.start(pool: pool))
           ..register(httpFn())
           ..register(counterFn());
         addTearDown(s.dispose);
@@ -311,6 +323,7 @@ content = Path("/data.txt").read_text()
         final kv = <String, String>{};
         final s =
             (await MontyRuntime.start(
+                pool: pool,
                 osHandlers: {'Path.': memoryFsHandler()},
               ))
               ..register(httpFn())
@@ -371,21 +384,21 @@ cached = Path("/cache.txt").read_text()
 
   group('I. Edge cases', () {
     test('I1. empty execute', () async {
-      final s = await MontyRuntime.start();
+      final s = await MontyRuntime.start(pool: pool);
       addTearDown(s.dispose);
       final r = await s.execute('pass').result;
       print('  I1: ${r.dartValue} (None)');
     });
 
     test('I2. execute with only comments', () async {
-      final s = await MontyRuntime.start();
+      final s = await MontyRuntime.start(pool: pool);
       addTearDown(s.dispose);
       final r = await s.execute('# just a comment').result;
       print('  I2: ${r.dartValue}');
     });
 
     test('I3. large string return', () async {
-      final s = await MontyRuntime.start();
+      final s = await MontyRuntime.start(pool: pool);
       addTearDown(s.dispose);
       final r = await s.execute('"x" * 100000').result;
       final v = r.dartValue as String;
@@ -394,7 +407,7 @@ cached = Path("/cache.txt").read_text()
     });
 
     test('I4. large list return', () async {
-      final s = await MontyRuntime.start();
+      final s = await MontyRuntime.start(pool: pool);
       addTearDown(s.dispose);
       final r = await s.execute('list(range(1000))').result;
       final v = r.dartValue as List;
@@ -403,7 +416,7 @@ cached = Path("/cache.txt").read_text()
     });
 
     test('I5. nested dict return', () async {
-      final s = await MontyRuntime.start();
+      final s = await MontyRuntime.start(pool: pool);
       addTearDown(s.dispose);
       final r = await s.execute('{"a": {"b": {"c": 42}}}').result;
       final v = r.dartValue as Map;
@@ -412,7 +425,7 @@ cached = Path("/cache.txt").read_text()
     });
 
     test('I6. host fn returning None', () async {
-      final s = (await MontyRuntime.start())
+      final s = (await MontyRuntime.start(pool: pool))
         ..register(
           HostFunction(
             schema: const HostFunctionSchema(
@@ -432,7 +445,7 @@ x is None
     });
 
     test('I7. host fn returning large string', () async {
-      final s = (await MontyRuntime.start())
+      final s = (await MontyRuntime.start(pool: pool))
         ..register(
           HostFunction(
             schema: const HostFunctionSchema(
@@ -449,7 +462,7 @@ x is None
     });
 
     test('I8. host fn exception propagates to Python', () async {
-      final s = (await MontyRuntime.start())
+      final s = (await MontyRuntime.start(pool: pool))
         ..register(
           HostFunction(
             schema: const HostFunctionSchema(
@@ -473,7 +486,7 @@ result
     });
 
     test('I9. print output captured', () async {
-      final s = await MontyRuntime.start();
+      final s = await MontyRuntime.start(pool: pool);
       addTearDown(s.dispose);
       final out = await printedBy(s.execute('print("hello from monty")'));
       print('  I9: printOutput = "$out"');
@@ -481,7 +494,7 @@ result
     });
 
     test('I10. multiple prints across execute calls', () async {
-      final s = await MontyRuntime.start();
+      final s = await MontyRuntime.start(pool: pool);
       addTearDown(s.dispose);
       final out1 = await printedBy(s.execute('print("line1")'));
       final out2 = await printedBy(s.execute('print("line2")'));

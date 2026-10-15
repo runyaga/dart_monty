@@ -1,9 +1,11 @@
-@Tags(['integration', 'd1-pending'])
+@Tags(['integration'])
 library;
 
 import 'package:dart_monty/dart_monty_bridge.dart';
+import 'package:dart_monty_core/dart_monty_core.dart' show Monty;
 import 'package:test/test.dart';
 
+import '_worker.dart';
 import 'template_stub_extension.dart';
 
 /// Integration tests for MontyRuntime with plugins — requires native FFI.
@@ -14,6 +16,10 @@ import 'template_stub_extension.dart';
 ///   test/bridge/integration/agent_plugin_integration_test.dart
 /// ```
 void main() {
+  late Monty pool;
+  setUpAll(() async => pool = await startTestPool());
+  tearDownAll(() => pool.close());
+
   // ---------------------------------------------------------------------------
   // Message bus plugin
   // ---------------------------------------------------------------------------
@@ -22,7 +28,10 @@ void main() {
     late MontyRuntime session;
 
     setUp(() async {
-      session = await MontyRuntime.start(extensions: [MessageBusExtension()]);
+      session = await MontyRuntime.start(
+        pool: pool,
+        extensions: [MessageBusExtension()],
+      );
     });
 
     tearDown(() async {
@@ -66,7 +75,7 @@ msg_send(name='q', message=2)
   // Sandbox plugin — child spawning
   // ---------------------------------------------------------------------------
 
-  group('MontyRuntime + SandboxExtension', () {
+  group('MontyRuntime + SandboxExtension', tags: 'd1-pending', () {
     late MontyRuntime session;
 
     setUp(() async {
@@ -81,6 +90,7 @@ msg_send(name='q', message=2)
         SandboxExtension(),
       ];
       session = await MontyRuntime.start(
+        pool: pool,
         osHandlers: osContribs,
         extensions: extensions,
       );
@@ -151,7 +161,7 @@ sandbox_free(handle=h)
   // Cross-plugin: templates inside children
   // ---------------------------------------------------------------------------
 
-  group('MontyRuntime cross-plugin inheritance', () {
+  group('MontyRuntime cross-plugin inheritance', tags: 'd1-pending', () {
     late MontyRuntime session;
 
     setUp(() async {
@@ -166,6 +176,7 @@ sandbox_free(handle=h)
         SandboxExtension(),
       ];
       session = await MontyRuntime.start(
+        pool: pool,
         osHandlers: osContribs,
         extensions: extensions,
       );

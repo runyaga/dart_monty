@@ -1,10 +1,13 @@
 @Tags(['integration'])
 library;
 
+import 'dart:async';
+
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:test/test.dart';
 
+import '_worker.dart';
 import 'template_stub_extension.dart';
 
 /// Integration tests for MontyRuntime — requires the native Monty
@@ -15,11 +18,15 @@ import 'template_stub_extension.dart';
 /// dart test --run-skipped --tags=integration test/bridge/integration/monty_runtime_test.dart
 /// ```
 void main() {
+  late Monty pool;
+  setUpAll(() async => pool = await startTestPool());
+  tearDownAll(() => pool.close());
+
   group('MontyRuntime stateful execution', () {
     late MontyRuntime session;
 
     setUp(() async {
-      session = await MontyRuntime.start();
+      session = await MontyRuntime.start(pool: pool);
     });
 
     tearDown(() async {
@@ -33,7 +40,6 @@ void main() {
 
         expect(result.dartValue, 4);
       },
-      tags: 'd1-pending',
     );
 
     test(
@@ -45,7 +51,6 @@ void main() {
 
         expect(result.dartValue, 126);
       },
-      tags: 'd1-pending',
     );
 
     test(
@@ -56,7 +61,6 @@ void main() {
 
         expect(result.dartValue, 'MONTY');
       },
-      tags: 'd1-pending',
     );
 
     test(
@@ -68,7 +72,6 @@ void main() {
 
         expect(result.dartValue, 10);
       },
-      tags: 'd1-pending',
     );
 
     test(
@@ -79,7 +82,6 @@ void main() {
 
         expect(result.dartValue, true);
       },
-      tags: 'd1-pending',
     );
 
     test(
@@ -92,7 +94,6 @@ void main() {
           throwsA(isA<MontyError>()),
         );
       },
-      tags: 'd1-pending',
     );
 
     test(
@@ -103,7 +104,6 @@ void main() {
 
         expect(result.dartValue, [1, 2.5, 'hello', true]);
       },
-      tags: 'd1-pending',
     );
 
     // Regression: augmented assignment previously caused SyntaxError because
@@ -118,7 +118,6 @@ void main() {
         final val = await session.execute('x').result;
         expect(val.dartValue, 11);
       },
-      tags: 'd1-pending',
     );
 
     // Regression: functions were previously coerced to their string repr by the
@@ -131,7 +130,6 @@ void main() {
 
         expect(result.dartValue, 7);
       },
-      tags: 'd1-pending',
     );
   });
 
@@ -139,7 +137,7 @@ void main() {
     late MontyRuntime session;
 
     setUp(() async {
-      session = await MontyRuntime.start();
+      session = await MontyRuntime.start(pool: pool);
     });
 
     tearDown(() async {
@@ -164,7 +162,6 @@ void main() {
 
         expect(result.dartValue, 42);
       },
-      tags: 'd1-pending',
     );
 
     test(
@@ -185,7 +182,6 @@ void main() {
 
         expect(result.dartValue, 15);
       },
-      tags: 'd1-pending',
     );
 
     test(
@@ -205,7 +201,6 @@ void main() {
 
         expect(names, contains('my_tool'));
       },
-      tags: 'd1-pending',
     );
   });
 
@@ -215,6 +210,7 @@ void main() {
     setUp(() async {
       // Use memory filesystem for these tests (not LocalFileSystem)
       session = await MontyRuntime.start(
+        pool: pool,
         osHandlers: {'Path.': memoryFsHandler()},
       );
     });
@@ -241,7 +237,6 @@ void main() {
 
         expect(result.dartValue, 'hello from agent');
       },
-      tags: 'd1-pending',
     );
 
     test(
@@ -272,7 +267,6 @@ void main() {
 
         expect(result.dartValue, 1);
       },
-      tags: 'd1-pending',
     );
 
     test(
@@ -289,7 +283,6 @@ void main() {
 
         expect(result.dartValue, true);
       },
-      tags: 'd1-pending',
     );
   });
 
@@ -297,7 +290,7 @@ void main() {
     late MontyRuntime session;
 
     setUp(() async {
-      session = await MontyRuntime.start();
+      session = await MontyRuntime.start(pool: pool);
     });
 
     tearDown(() async {
@@ -312,7 +305,6 @@ void main() {
           throwsA(isA<MontyError>()),
         );
       },
-      tags: 'd1-pending',
     );
 
     test(
@@ -328,7 +320,6 @@ void main() {
 
         expect(result.dartValue, 42);
       },
-      tags: 'd1-pending',
     );
 
     test('execute after dispose throws', () async {
@@ -345,7 +336,7 @@ void main() {
     late MontyRuntime session;
 
     setUp(() async {
-      session = await MontyRuntime.start(sandbox: true);
+      session = await MontyRuntime.start(pool: pool, sandbox: true);
     });
 
     tearDown(() async {
@@ -359,7 +350,6 @@ void main() {
 
         expect(result.dartValue, 4);
       },
-      tags: 'd1-pending',
     );
 
     test('isSandboxMode is true', () {
@@ -377,7 +367,6 @@ void main() {
           throwsA(isA<MontyError>()),
         );
       },
-      tags: 'd1-pending',
     );
 
     test(
@@ -389,7 +378,6 @@ void main() {
         expect(r1.dartValue, 4);
         expect(r2.dartValue, 6);
       },
-      tags: 'd1-pending',
     );
 
     test(
@@ -415,7 +403,6 @@ void main() {
 
         expect(result.dartValue, 42);
       },
-      tags: 'd1-pending',
     );
 
     test(
@@ -437,7 +424,6 @@ void main() {
 
         expect(result.dartValue, 'Hello, World!');
       },
-      tags: 'd1-pending',
     );
 
     test(
@@ -456,7 +442,6 @@ result
 
         expect(result.dartValue, 'gone');
       },
-      tags: 'd1-pending',
     );
 
     test(
@@ -471,7 +456,6 @@ result
         final result = await session.execute('1 + 1').result;
         expect(result.dartValue, 2);
       },
-      tags: 'd1-pending',
     );
 
     test(
@@ -482,7 +466,6 @@ result
           expect(r.dartValue, i * 2);
         }
       },
-      tags: 'd1-pending',
     );
   });
 
@@ -496,7 +479,10 @@ result
         // Without the fix, _onDisposeCalled stays false after dispose().
         // With the fix, disposeAll() propagates to each plugin's onDispose().
         final plugin = _TrackingExtension();
-        final session = await MontyRuntime.start(extensions: [plugin]);
+        final session = await MontyRuntime.start(
+          pool: pool,
+          extensions: [plugin],
+        );
 
         await session.execute('pass').result; // triggers attachTo
         await session.dispose();
@@ -507,7 +493,6 @@ result
           reason: 'plugin.onDispose must be called when session is disposed',
         );
       },
-      tags: 'd1-pending',
     );
 
     test('dispose() calls onDispose even without prior execute()', () async {
@@ -515,7 +500,10 @@ result
       // still have onDispose called — disposeAll() iterates _extensions when
       // _attachOrder is null, so this works once disposeAll() is invoked.
       final plugin = _TrackingExtension();
-      final session = await MontyRuntime.start(extensions: [plugin]);
+      final session = await MontyRuntime.start(
+        pool: pool,
+        extensions: [plugin],
+      );
 
       await session.dispose();
 
@@ -534,6 +522,7 @@ result
         // success or error.
         final plugin = _TrackingExtension();
         final session = await MontyRuntime.start(
+          pool: pool,
           sandbox: true,
           extensions: [plugin],
         );
@@ -550,7 +539,6 @@ result
               'each sandboxed execute() must dispose its per-call coordinator',
         );
       },
-      tags: 'd1-pending',
     );
 
     test(
@@ -560,6 +548,7 @@ result
         // Python raises an exception.
         final plugin = _TrackingExtension();
         final session = await MontyRuntime.start(
+          pool: pool,
           sandbox: true,
           extensions: [plugin],
         );
@@ -576,7 +565,6 @@ result
           reason: 'registry must be disposed even when Python raises',
         );
       },
-      tags: 'd1-pending',
     );
   });
 
@@ -584,7 +572,7 @@ result
     test(
       'execute().events emits events',
       () async {
-        final session = await MontyRuntime.start();
+        final session = await MontyRuntime.start(pool: pool);
 
         // First execute to ensure attached
         await session.execute('pass').result;
@@ -596,13 +584,13 @@ result
 
         await session.dispose();
       },
-      tags: 'd1-pending',
     );
 
     test(
       'execute().events attaches plugins without prior execute()',
       () async {
         final session = await MontyRuntime.start(
+          pool: pool,
           extensions: [TemplateStubExtension()],
         );
         addTearDown(session.dispose);
@@ -622,7 +610,6 @@ result
         final finished = events.whereType<BridgeRunFinished>().single;
         expect(finished.value, 'Hello test!');
       },
-      tags: 'd1-pending',
     );
   });
 
@@ -630,7 +617,7 @@ result
     test(
       'invokes a registered host function',
       () async {
-        final session = await MontyRuntime.start();
+        final session = await MontyRuntime.start(pool: pool);
         addTearDown(session.dispose);
         session.register(
           HostFunction(
@@ -647,11 +634,10 @@ result
 
         expect(result, 'HI');
       },
-      tags: 'd1-pending',
     );
 
     test('sandbox mode throws UnsupportedError', () async {
-      final session = await MontyRuntime.start(sandbox: true);
+      final session = await MontyRuntime.start(pool: pool, sandbox: true);
       addTearDown(session.dispose);
 
       await expectLater(
@@ -663,7 +649,7 @@ result
     test(
       'unknown function throws ArgumentError',
       () async {
-        final session = await MontyRuntime.start();
+        final session = await MontyRuntime.start(pool: pool);
         addTearDown(session.dispose);
 
         await expectLater(
@@ -671,31 +657,30 @@ result
           throwsArgumentError,
         );
       },
-      tags: 'd1-pending',
     );
   });
 
   group('MontyRuntime.coordinator', () {
     test('shared mode: non-null after construction', () async {
-      final session = await MontyRuntime.start();
+      final session = await MontyRuntime.start(pool: pool);
       addTearDown(session.dispose);
       expect(session.coordinator, isNotNull);
     });
 
     test('shared mode: is ExtensionCoordinator', () async {
-      final session = await MontyRuntime.start();
+      final session = await MontyRuntime.start(pool: pool);
       addTearDown(session.dispose);
       expect(session.coordinator, isA<ExtensionCoordinator>());
     });
 
     test('shared mode: stable reference across repeated access', () async {
-      final session = await MontyRuntime.start();
+      final session = await MontyRuntime.start(pool: pool);
       addTearDown(session.dispose);
       expect(session.coordinator, same(session.coordinator));
     });
 
     test('sandbox mode: null', () async {
-      final session = await MontyRuntime.start(sandbox: true);
+      final session = await MontyRuntime.start(pool: pool, sandbox: true);
       addTearDown(session.dispose);
       expect(session.coordinator, isNull);
     });
@@ -704,7 +689,7 @@ result
       'shared mode: registered extensions are visible on coordinator',
       () async {
         final ext = TemplateStubExtension();
-        final session = await MontyRuntime.start(extensions: [ext]);
+        final session = await MontyRuntime.start(pool: pool, extensions: [ext]);
         addTearDown(session.dispose);
         expect(
           session.coordinator!.extensions.map((e) => e.namespace),
@@ -716,7 +701,7 @@ result
     test(
       'clearState() produces a new non-null coordinator',
       () async {
-        final session = await MontyRuntime.start();
+        final session = await MontyRuntime.start(pool: pool);
         addTearDown(session.dispose);
         final before = session.coordinator;
         await session.clearState();
@@ -724,7 +709,6 @@ result
         expect(after, isNotNull);
         expect(after, isNot(same(before)));
       },
-      tags: 'd1-pending',
     );
   });
 
@@ -732,7 +716,7 @@ result
     late MontyRuntime session;
 
     setUp(() async {
-      session = await MontyRuntime.start();
+      session = await MontyRuntime.start(pool: pool);
     });
 
     tearDown(() async {
@@ -748,7 +732,6 @@ result
 
         expect(result.dartValue, 'hello');
       },
-      tags: 'd1-pending',
     );
 
     test(
@@ -758,7 +741,6 @@ result
 
         expect(result.dartValue, 42);
       },
-      tags: 'd1-pending',
     );
 
     test(
@@ -773,7 +755,6 @@ result
 
         expect(result.dartValue, 'hi, alan!');
       },
-      tags: 'd1-pending',
     );
 
     test(
@@ -783,7 +764,6 @@ result
 
         expect(result.dartValue, 2);
       },
-      tags: 'd1-pending',
     );
 
     test(
@@ -797,13 +777,12 @@ result
 
         expect(result.dartValue, 99);
       },
-      tags: 'd1-pending',
     );
 
     test(
       'sandbox mode: inputs injected per call',
       () async {
-        final sandbox = await MontyRuntime.start(sandbox: true);
+        final sandbox = await MontyRuntime.start(pool: pool, sandbox: true);
         addTearDown(sandbox.dispose);
 
         final r1 = await sandbox
@@ -816,7 +795,6 @@ result
         expect(r1.dartValue, 'alice');
         expect(r2.dartValue, 'bob');
       },
-      tags: 'd1-pending',
     );
 
     // inputs is a named (kwargs-only) Dart parameter — no positional form
@@ -829,7 +807,6 @@ result
 
         expect(result.dartValue, 42);
       },
-      tags: 'd1-pending',
     );
 
     test(
@@ -840,7 +817,6 @@ result
 
         expect(result, isA<MontyNone>());
       },
-      tags: 'd1-pending',
     );
 
     test(
@@ -853,7 +829,6 @@ result
           throwsA(isA<ArgumentError>()),
         );
       },
-      tags: 'd1-pending',
     );
 
     test(
@@ -866,7 +841,6 @@ result
 
         expect(result.dartValue, 2);
       },
-      tags: 'd1-pending',
     );
   });
 
@@ -874,7 +848,7 @@ result
     late MontyRuntime session;
 
     setUp(() async {
-      session = await MontyRuntime.start();
+      session = await MontyRuntime.start(pool: pool);
     });
 
     tearDown(() async {
@@ -888,7 +862,6 @@ result
 
         expect(result.dartValue, 42);
       },
-      tags: 'd1-pending',
     );
 
     test(
@@ -899,7 +872,6 @@ result
         // Assignment is a statement; no last-expression value.
         expect(result.dartValue, isNull);
       },
-      tags: 'd1-pending',
     );
 
     test(
@@ -909,7 +881,6 @@ result
 
         expect(result.dartValue, 42);
       },
-      tags: 'd1-pending',
     );
 
     test(
@@ -921,7 +892,157 @@ result
 
         expect(result.dartValue, 42);
       },
-      tags: 'd1-pending',
+    );
+  });
+
+  group('MontyRuntime on a pool (D1)', () {
+    test('a caller pool stays open after dispose', () async {
+      final runtime = await MontyRuntime.start(pool: pool);
+      await runtime.dispose();
+
+      final session = await pool.checkout();
+      addTearDown(session.close);
+      expect(await session.feedRun('1 + 1'), const MontyInt(2));
+    });
+
+    test('a checkout past the pool checkoutTimeout throws '
+        'TimeoutException', () async {
+      final small = await startTestPool(
+        maxProcesses: 1,
+        checkoutTimeout: const Duration(milliseconds: 300),
+      );
+      addTearDown(small.close);
+      final holder = await MontyRuntime.start(pool: small);
+      addTearDown(holder.dispose);
+
+      await expectLater(
+        MontyRuntime.start(pool: small),
+        throwsA(isA<TimeoutException>()),
+      );
+    });
+
+    test('executionIds count from exec-0 per runtime', () async {
+      final runtime = await MontyRuntime.start(pool: pool);
+      addTearDown(runtime.dispose);
+
+      final first = runtime.execute('1');
+      await first.result;
+      final second = runtime.execute('2');
+      await second.result;
+
+      expect([first.executionId, second.executionId], ['exec-0', 'exec-1']);
+    });
+
+    test('the handle events close on error, and a late subscriber misses '
+        'earlier events', () async {
+      final runtime = await MontyRuntime.start(pool: pool);
+      addTearDown(runtime.dispose);
+
+      final handle = runtime.execute('1 / 0');
+      final early = handle.events.toList();
+      await expectLater(handle.result, throwsA(isA<MontyError>()));
+      final events = await early;
+
+      expect(events.first, isA<BridgeRunStarted>());
+      expect(events.last, isA<BridgeRunError>());
+      expect(await handle.events.toList(), isEmpty);
+    });
+
+    test('runtime events carry every execution', () async {
+      final runtime = await MontyRuntime.start(pool: pool, sandbox: true);
+      addTearDown(runtime.dispose);
+      final seen = <BridgeEvent>[];
+      final sub = runtime.events.listen(seen.add);
+      addTearDown(sub.cancel);
+
+      await runtime.execute('1').result;
+      await runtime.execute('2').result;
+
+      expect(seen.whereType<BridgeRunFinished>().map((e) => e.value), [1, 2]);
+    });
+
+    test('cancel kills a running loop: MontyCrashedError, then the next '
+        'execute runs on a fresh session without the old globals', () async {
+      final runtime = await MontyRuntime.start(pool: pool);
+      addTearDown(runtime.dispose);
+      await runtime.execute('kept = 1').result;
+
+      final handle = runtime.execute('while True:\n    pass');
+      final failed = expectLater(
+        handle.result,
+        throwsA(isA<MontyCrashedError>()),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+      await handle.cancel();
+      await failed;
+
+      expect(await runtime.execute('1 + 1').result, const MontyInt(2));
+      await expectLater(
+        runtime.execute('kept').result,
+        throwsA(isA<MontyError>()),
+      );
+    });
+
+    test('shared mode: extensions attach once; clearState disposes them and '
+        'the next execute attaches them again', () async {
+      final ext = _TrackingExtension();
+      final runtime = await MontyRuntime.start(pool: pool, extensions: [ext]);
+      addTearDown(runtime.dispose);
+      expect(ext.attachCount, 0);
+
+      await runtime.execute('a = 1').result;
+      await runtime.execute('a').result;
+      expect(ext.attachCount, 1);
+
+      await runtime.clearState();
+      expect(ext.disposeCount, 1);
+      await runtime.execute('2').result;
+      expect(ext.attachCount, 2);
+    });
+
+    test('sandbox mode: extensions attach before and dispose after each '
+        'execute', () async {
+      final ext = _TrackingExtension();
+      final runtime = await MontyRuntime.start(
+        pool: pool,
+        sandbox: true,
+        extensions: [ext],
+      );
+      addTearDown(runtime.dispose);
+
+      await runtime.execute('1').result;
+      await runtime.execute('2').result;
+
+      expect((ext.attachCount, ext.disposeCount), (2, 2));
+    });
+
+    test('shared schemas include extension functions once attached', () async {
+      final runtime = await MontyRuntime.start(
+        pool: pool,
+        extensions: [TemplateStubExtension()],
+      );
+      addTearDown(runtime.dispose);
+      expect(
+        runtime.schemas.map((s) => s.name),
+        isNot(contains('tmpl_render')),
+      );
+
+      await runtime.execute('pass').result;
+
+      expect(runtime.schemas.map((s) => s.name), contains('tmpl_render'));
+    });
+
+    test(
+      'register, invoke, execute and clearState throw after dispose',
+      () async {
+        final runtime = await MontyRuntime.start(pool: pool);
+        await runtime.dispose();
+
+        expect(() => runtime.register(_noop), throwsStateError);
+        expect(() => runtime.execute('1'), throwsStateError);
+        await expectLater(runtime.invoke('noop', const {}), throwsStateError);
+        await expectLater(runtime.clearState(), throwsStateError);
+      },
     );
   });
 }
@@ -930,10 +1051,24 @@ result
 // Test helpers
 // ---------------------------------------------------------------------------
 
-/// Plugin that records how many times [onDispose] was called.
+/// A host function that does nothing.
+final _noop = HostFunction(
+  schema: const HostFunctionSchema(name: 'noop', description: ''),
+  handler: (args, _) async => null,
+);
+
+/// Plugin that records how many times it was attached and disposed.
+
 class _TrackingExtension extends MontyExtension {
   bool onDisposeCalled = false;
   int disposeCount = 0;
+  int attachCount = 0;
+
+  @override
+  Future<void> onAttach(AttachContext ctx) async {
+    await super.onAttach(ctx);
+    attachCount++;
+  }
 
   @override
   String get namespace => 'track';

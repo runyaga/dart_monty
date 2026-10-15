@@ -10,10 +10,40 @@ import 'package:dart_monty/src/os_call/os_handlers.dart';
 import 'package:dart_monty/src/runtime/execution_handle.dart';
 import 'package:dart_monty/src/runtime/runtime_ref.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
+import 'package:meta/meta.dart';
 
 // ---------------------------------------------------------------------------
 // MontyRuntime
 // ---------------------------------------------------------------------------
+
+/// Checks out a session from a runtime's pool, with [limits] when given.
+typedef RuntimeCheckout =
+    Future<MontySession> Function({ResourceLimits? limits});
+
+/// The `maxProcesses` of the pool [MontyRuntime.start] starts when it is
+/// given none.
+@visibleForTesting
+int defaultPoolSize(List<MontyExtension>? extensions) =>
+    throw UnimplementedError('D1-4');
+
+/// Starts a [MontyRuntime] whose sessions come from [checkout] instead of a
+/// pool; [closePool] runs once when the runtime is disposed.
+@visibleForTesting
+Future<MontyRuntime> startRuntimeWith({
+  required RuntimeCheckout checkout,
+  Future<void> Function()? closePool,
+  OsHandler? os,
+  Map<String, OsHandler>? osHandlers,
+  List<MontyExtension>? extensions,
+  BridgeLogger? logger,
+  bool sandbox = false,
+}) => MontyRuntime.start(
+  os: os,
+  osHandlers: osHandlers,
+  extensions: extensions,
+  logger: logger,
+  sandbox: sandbox,
+);
 
 /// High-level agent session — stateful Python execution with tools and
 /// extensions.
@@ -78,6 +108,8 @@ class MontyRuntime implements MontyRuntimeRef {
   /// The sessions come from a [Monty] pool, which D1-4 adds.
   // ignore: avoid-unnecessary-futures, start checks out a session from D1-4.
   static Future<MontyRuntime> start({
+    // ignore: avoid-unused-parameters, D1-4 checks out from it.
+    Monty? pool,
     OsHandler? os,
     Map<String, OsHandler>? osHandlers,
     List<MontyExtension>? extensions,

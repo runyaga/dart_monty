@@ -7,7 +7,7 @@
 // Run with:
 //   dart test --tags=integration \
 //     test/experiment/examples/event_loop_experiment_test.dart
-@Tags(['integration', 'd1-pending'])
+@Tags(['integration'])
 library;
 
 import 'dart:async';
