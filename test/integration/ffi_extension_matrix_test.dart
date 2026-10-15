@@ -15,6 +15,7 @@ library;
 import 'dart:io';
 
 import 'package:dart_monty/dart_monty_bridge.dart';
+import 'package:dart_monty_core/dart_monty_core.dart' show MontyError;
 import 'package:test/test.dart';
 
 import 'template_stub_extension.dart';
@@ -185,7 +186,10 @@ kv_get("name")
         print('  B3. list accumulation: PASS');
 
         await session.execute('safe_val = 42').result;
-        await session.execute('1/0').result;
+        await expectLater(
+          session.execute('1/0').result,
+          throwsA(isA<MontyError>()),
+        );
         r = await session.execute('safe_val').result;
         expect(r.dartValue, 42);
         print('  B4. error recovery: PASS');

@@ -1,11 +1,12 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:dart_monty/src/bridge/session_bridge.dart';
 import 'package:dart_monty_core/dart_monty_core_testing.dart';
 import 'package:test/test.dart';
+
+import '../_throwing_session.dart';
 
 /// Tests that drive [MontyBridge.execute], which D1-2 (events, OS calls,
 /// errors) and D1-3 (host-call dispatch) rebuild on core's feed.
@@ -549,7 +550,7 @@ void main() {
       'generic Object thrown during execution emits BridgeRunError',
       () async {
         final b = MontyBridge(
-          session: _ThrowingSession('unexpected string error'),
+          session: ThrowingSession('unexpected string error'),
           logger: BridgeLogger.silent,
         );
         addTearDown(b.dispose);
@@ -802,69 +803,4 @@ void main() {
       },
     );
   });
-}
-
-/// A session whose feeds throw [error], which is not a [MontyError].
-final class _ThrowingSession implements MontySession {
-  _ThrowingSession(this.error);
-
-  final Object error;
-
-  @override
-  int? get workerPid => null;
-
-  @override
-  Future<MontyValue> feedRun(
-    String code, {
-    Map<String, Object>? inputs,
-    Map<
-      String,
-      FutureOr<MontyValue> Function(List<MontyValue>, Map<String, MontyValue>)
-    >?
-    externals,
-    FutureOr<void> Function(String stream, String text)? printCallback,
-    OsHandler? os,
-    bool skipTypeCheck = false,
-  }) async {
-    // ignore: only_throw_errors – the test needs a non-Exception throw.
-    throw error;
-  }
-
-  @override
-  Future<MontySnapshot> feedStart(
-    String code, {
-    Map<String, Object>? inputs,
-    Map<
-      String,
-      FutureOr<MontyValue> Function(List<MontyValue>, Map<String, MontyValue>)
-    >?
-    externals,
-    FutureOr<void> Function(String stream, String text)? printCallback,
-    OsHandler? os,
-    bool skipTypeCheck = false,
-  }) async {
-    // ignore: only_throw_errors – the test needs a non-Exception throw.
-    throw error;
-  }
-
-  @override
-  Future<void> loadSession(Uint8List state) async {}
-
-  @override
-  Future<MontySnapshot> loadSnapshot(
-    Uint8List state, {
-    Map<
-      String,
-      FutureOr<MontyValue> Function(List<MontyValue>, Map<String, MontyValue>)
-    >?
-    externals,
-    FutureOr<void> Function(String stream, String text)? printCallback,
-    OsHandler? os,
-  }) async => throw UnsupportedError('loadSnapshot');
-
-  @override
-  Future<Uint8List> dump() async => Uint8List(0);
-
-  @override
-  Future<void> close() async {}
 }

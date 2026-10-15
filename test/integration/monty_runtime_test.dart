@@ -324,7 +324,11 @@ void main() {
       'error does not break state',
       () async {
         await session.execute('x = 42').result;
-        await session.execute('1 / 0').result; // error, but x should survive
+        // Raises; x must survive it.
+        await expectLater(
+          session.execute('1 / 0').result,
+          throwsA(isA<MontyError>()),
+        );
         final result = await session.execute('x').result;
 
         expect(result.dartValue, 42);
@@ -566,7 +570,10 @@ result
         );
         addTearDown(session.dispose);
 
-        await session.execute('raise ValueError("boom")').result;
+        await expectLater(
+          session.execute('raise ValueError("boom")').result,
+          throwsA(isA<MontyError>()),
+        );
 
         expect(
           plugin.disposeCount,

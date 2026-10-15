@@ -16,6 +16,7 @@ library;
 import 'dart:io';
 
 import 'package:dart_monty/dart_monty_bridge.dart';
+import 'package:dart_monty_core/dart_monty_core.dart' show MontyError;
 import 'package:test/test.dart';
 
 import '_printed.dart';
@@ -180,7 +181,11 @@ void main() {
       final s = (await MontyRuntime.start())..register(syncFn());
       addTearDown(s.dispose);
       await s.execute('x = 42').result;
-      await s.execute('1/0').result; // error
+      // Raises.
+      await expectLater(
+        s.execute('1/0').result,
+        throwsA(isA<MontyError>()),
+      );
       final r = await s.execute('x').result;
       print('  G7: x = ${r.dartValue} (survived error)');
       expect(r.dartValue, 42);
@@ -194,7 +199,11 @@ void main() {
           ..register(httpFn());
         addTearDown(s.dispose);
         await s.execute('data = http_fn()').result;
-        await s.execute('1/0').result; // error
+        // Raises.
+        await expectLater(
+          s.execute('1/0').result,
+          throwsA(isA<MontyError>()),
+        );
         final r = await s.execute('len(data)').result;
         print('  G8: len(data) = ${r.dartValue}');
         expect(r.dartValue as int, greaterThan(0));

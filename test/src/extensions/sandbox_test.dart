@@ -7,6 +7,8 @@ import 'package:signals_core/signals_core.dart';
 import 'package:struct_log/struct_log.dart';
 import 'package:test/test.dart';
 
+import '../_throwing_session.dart';
+
 /// Tests that spawn a child: children check out of the runtime's pool in
 /// D1-8, so a spawn throws UnimplementedError('D1-8') until then.
 const _pending = 'd1-pending';
@@ -17,13 +19,13 @@ final _testCtx = HostContext(emit: (_) {}, executionId: 'test');
 ///
 /// D1-8's child seam supplies children's sessions; it takes these scripts.
 /// Until then they are recorded here, against the extension they belong to.
-final Expando<FakeMontySession Function()> _childScripts = Expando(
+final Expando<MontySession Function()> _childScripts = Expando(
   'childScripts',
 );
 
 /// A [SandboxExtension] whose children run the sessions [children] makes.
 SandboxExtension _sandbox({
-  FakeMontySession Function()? children,
+  MontySession Function()? children,
   ChildVfsStrategy childVfsStrategy = ChildVfsStrategy.isolated,
   int maxChildren = 16,
   int maxDepth = 3,
@@ -245,9 +247,13 @@ void main() {
           // Give the bridge time to call start().
           await Future<void>.delayed(Duration.zero);
 
-          // D1-8: limits are recorded by the child seam. It must see
-          // ResourceLimits(maxFeedDuration: 5000 ms, maxMemory: 1048576).
           expect(mock.feeds.single, '1');
+          // The limits are a checkout parameter, recorded by D1-8's child
+          // seam; until that seam exists this test cannot pass.
+          fail(
+            'D1-8: assert the child checkout got ResourceLimits( '
+            'maxFeedDuration: 5000 ms, maxMemory: 1048576)',
+          );
         },
       );
 
@@ -958,12 +964,12 @@ void main() {
         'infrastructure error produces null exception field',
         tags: _pending,
         () async {
-          // A child checkout that throws a non-MontyError error.
+          // A child session whose feed throws a non-MontyError error.
           // The bridge catches it via `on Object` and emits BridgeRunError
-          // without a MontyException.
+          // without a MontyError.
           final plugin = await _attachedPlugin(
             _sandbox(
-              children: () => throw StateError('infra boom'),
+              children: () => ThrowingSession(StateError('infra boom')),
             ),
           );
           final spawn = _findHandler(plugin, 'sandbox_spawn');
