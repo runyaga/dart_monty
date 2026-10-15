@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:dart_monty/src/bridge/bridge.dart';
 import 'package:dart_monty/src/bridge/event.dart';
 import 'package:dart_monty/src/bridge/logger.dart';
+import 'package:dart_monty/src/bridge/run_failure.dart';
 import 'package:dart_monty/src/bridge/struct_log_logger.dart';
 import 'package:dart_monty/src/host/dispatch.dart';
 import 'package:dart_monty/src/host/function.dart';
@@ -10,10 +13,25 @@ import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:meta/meta.dart';
 import 'package:struct_log/struct_log.dart';
 
+/// `excType: message` for [BridgeRunError.message], or the message alone
+/// when the type is empty.
+String _composeMessage(String excType, String message) =>
+    excType.isEmpty ? message : '$excType: $message';
+
+/// The collected print text, or null when nothing was printed.
+String? _printed(CollectString collector) {
+  final text = collector.output;
+
+  return text.isEmpty ? null : text;
+}
+
 /// The [MontyBridge] implementation: runs its code on a [MontySession].
 ///
-/// Registration, the OS handler and direct invocation work; running code
-/// ([execute]) is not built yet (D1-2).
+/// Each [execute] is one `feedRun` on the session. Core has no event stream,
+/// so the bridge builds its own: it wraps the [OsHandler] it passes to the
+/// feed, and collects print text through the feed's print callback. Calls
+/// the worker answers itself (mounts, the OS policy, the default for a
+/// declined call) never reach the bridge and emit no events.
 @internal
 class SessionBridge implements MontyBridge {
   /// Creates a bridge over [session].
@@ -37,10 +55,13 @@ class SessionBridge implements MontyBridge {
 
   OsHandler? _currentOsHandler;
 
+  /// The execution in progress, or null: a token per [execute].
+  Object? _activeRun;
   bool _isDisposed = false;
 
   // Stream wrappers registered by extensions that override
-  // wrapExecuteStream. Applied in registration order (first = outermost).
+  // wrapExecuteStream. Each wraps the stream the one before it returned, so
+  // the last registered is outermost.
   final List<Stream<BridgeEvent> Function(String, Stream<BridgeEvent>)>
   _streamWrappers = [];
 
@@ -106,8 +127,41 @@ class SessionBridge implements MontyBridge {
   @override
   Stream<BridgeEvent> execute(String code) {
     if (_isDisposed) throw StateError('Bridge has been disposed');
+    if (_activeRun != null) throw StateError('Bridge is already executing');
+    logger.debug('Executing code', attributes: {'codeLength': code.length});
 
-    throw UnimplementedError('D1-2');
+    final controller = StreamController<BridgeEvent>();
+    final run = Object();
+    _activeRun = run;
+    void release() {
+      if (identical(_activeRun, run)) _activeRun = null;
+    }
+
+    unawaited(
+      _run(code, controller).whenComplete(() {
+        release();
+        unawaited(controller.close());
+      }),
+    );
+
+    // A wrapper that throws frees the bridge at once, so the next execute
+    // can run. _run is already running and closes the controller itself,
+    // so the controller is not closed here.
+    try {
+      var stream = controller.stream.map((event) {
+        _logEvent(event);
+
+        return event;
+      });
+      for (final wrap in _streamWrappers) {
+        stream = wrap(code, stream);
+      }
+
+      return stream;
+    } on Object {
+      release();
+      rethrow;
+    }
   }
 
   @override
@@ -116,5 +170,193 @@ class SessionBridge implements MontyBridge {
     _currentOsHandler = null;
     _host.osHandler = null;
     logger.close();
+  }
+
+  /// Runs [code] as one feed on [session], adding its events to
+  /// [controller]: [BridgeRunStarted] first, then the OS-call events, then
+  /// [BridgeRunFinished] or [BridgeRunError].
+  Future<void> _run(
+    String code,
+    StreamController<BridgeEvent> controller,
+  ) async {
+    final threadId = _host.nextId;
+    final runId = _host.nextId;
+    controller.add(BridgeRunStarted(threadId: threadId, runId: runId));
+
+    final printed = CollectString();
+    final os = _currentOsHandler;
+    try {
+      final value = await session.feedRun(
+        code,
+        externals: _externals(),
+        printCallback: printed.call,
+        os: os == null ? null : _reportingOs(os, controller.add),
+      );
+      controller.add(
+        BridgeRunFinished(
+          threadId: threadId,
+          runId: runId,
+          value: value.dartValue,
+          montyValue: value,
+          printOutput: _printed(printed),
+        ),
+      );
+    } on MontyError catch (e) {
+      final message = _composeMessage(
+        e.exception.excType,
+        e.exception.message ?? '',
+      );
+      logger.warning('Python error', attributes: {'error': message});
+      controller.add(
+        BridgeRunError(
+          message: message,
+          printOutput: _printed(printed),
+          exception: e,
+        ),
+      );
+    } on Object catch (e, st) {
+      logger.error('Bridge infrastructure error', error: e, stackTrace: st);
+      final event = BridgeRunError(
+        message: '$e',
+        printOutput: _printed(printed),
+      );
+      recordRunFailure(event, e, st);
+      controller.add(event);
+    }
+  }
+
+  /// The host functions passed to the feed: each registered name, answered
+  /// by D1-3's dispatch.
+  Map<
+    String,
+    FutureOr<MontyValue> Function(List<MontyValue>, Map<String, MontyValue>)
+  >
+  _externals() => {
+    for (final schema in _host.schemas)
+      schema.name: (_, _) => throw UnimplementedError('D1-3'),
+  };
+
+  /// [handler] wrapped to report each call it receives: a
+  /// [BridgeOsCallStart], then a [BridgeOsCallResult] with the same call id
+  /// when the answer is known.
+  ///
+  /// A synchronous throw stays synchronous, so a decline
+  /// ([OsCallNotHandledException]) still declines; it is reported as
+  /// `'Declined'`. A synchronous answer stays synchronous too.
+  OsHandler _reportingOs(OsHandler handler, void Function(BridgeEvent) emit) {
+    return (name, args, kwargs) {
+      final callId = _host.nextId;
+      emit(
+        BridgeOsCallStart(
+          callId: callId,
+          operationName: name,
+          argumentSummary: args.isEmpty
+              ? null
+              : args.map((a) => a.dartValue).join(', '),
+        ),
+      );
+      final sw = Stopwatch()..start();
+      void report(String result) {
+        sw.stop();
+        emit(
+          BridgeOsCallResult(
+            callId: callId,
+            result: result,
+            durationMs: sw.elapsedMilliseconds,
+          ),
+        );
+      }
+
+      Never fail(Object error, StackTrace stackTrace) {
+        logger.error(
+          'OS call handler error',
+          error: error,
+          stackTrace: stackTrace,
+          attributes: {'op': name},
+        );
+        report(switch (error) {
+          ExternalException(:final message) => 'Error: ${message ?? ''}',
+          _ => 'Error: $error',
+        });
+        Error.throwWithStackTrace(error, stackTrace);
+      }
+
+      MontyValue answer(MontyValue value) {
+        report(value.dartValue?.toString() ?? '');
+
+        return value;
+      }
+
+      final FutureOr<MontyValue> result;
+      try {
+        result = handler(name, args, kwargs);
+      } on OsCallNotHandledException {
+        report('Declined');
+        rethrow;
+      } on Object catch (e, st) {
+        fail(e, st);
+      }
+
+      Future<MontyValue> settle(Future<MontyValue> pending) async {
+        try {
+          return answer(await pending);
+        } on Object catch (e, st) {
+          fail(e, st);
+        }
+      }
+
+      return result is Future<MontyValue> ? settle(result) : answer(result);
+    };
+  }
+
+  /// Maps [BridgeEvent]s to [BridgeLogger] calls, so a consumer tailing the
+  /// logger sees the execution without subscribing to the stream: trace for
+  /// OS calls, debug for host-function calls, info for the run lifecycle,
+  /// warning for run errors.
+  void _logEvent(BridgeEvent event) {
+    switch (event) {
+      case BridgeRunStarted(:final threadId, :final runId):
+        logger.info(
+          'run started',
+          attributes: {'threadId': threadId, 'runId': runId},
+        );
+      case BridgeRunFinished(:final threadId, :final runId):
+        logger.info(
+          'run finished',
+          attributes: {'threadId': threadId, 'runId': runId},
+        );
+      case BridgeRunError(:final message, :final exception):
+        logger.warning(
+          'run error',
+          attributes: {'message': message},
+          error: exception,
+        );
+      case BridgeFunctionCallStart(:final callId, :final name):
+        logger.debug(
+          'tool call',
+          attributes: {'callId': callId, 'name': name},
+        );
+      case BridgeFunctionCallResult(:final callId):
+        logger.debug('tool result', attributes: {'callId': callId});
+      case BridgeOsCallStart(:final callId, :final operationName):
+        logger.trace(
+          'os call',
+          attributes: {'callId': callId, 'op': operationName},
+        );
+      case BridgeOsCallResult(:final callId, :final durationMs):
+        logger.trace(
+          'os result',
+          attributes: {'callId': callId, 'durationMs': ?durationMs},
+        );
+      case BridgeCallStarted() ||
+          BridgeCallFinished() ||
+          BridgeFunctionCallArgs() ||
+          BridgeFunctionCallEnd() ||
+          BridgeFunctionEmit() ||
+          BridgeChildEvent():
+        // Step boundaries, argument deltas, emissions and child events:
+        // logging them would duplicate the stream.
+        break;
+    }
   }
 }

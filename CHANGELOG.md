@@ -29,6 +29,17 @@ change that brings it back.
   `MontyValue` and fail with `MontyError`; `BridgeRunError.exception` and
   `ChildFailed.exception` are `MontyError`.
 - **`BridgeLogger.silent`** is the silent logger.
+- **`MontyBridge.execute`** runs each execution as one `feedRun` on the
+  session. Print text is collected with core's `CollectString` and attached
+  to the run's terminal event. With no OS handler registered, OS calls take
+  the worker's default (`PermissionError` for a filesystem call,
+  `RuntimeError` for any other) instead of dm's `PermissionError`, and emit
+  no events. A declined call reports `BridgeOsCallResult.result`
+  `'Declined'`. Calls the worker answers itself (the OS policy's clock and
+  sleep, mounts) emit no events.
+- A run that fails with a throw that is not a `MontyError` emits
+  `BridgeRunError(exception: null)`, and `extractBridgeResult` rethrows the
+  original throw.
 
 Eight features that nothing used have been moved out of this package. There
 is no deprecation period and no replacement API.
