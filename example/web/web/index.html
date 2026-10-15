@@ -406,26 +406,21 @@ dart_monty_core (backends)
     <h3>Install</h3>
 <pre>dart pub add dart_monty</pre>
 
-    <h3>Native (FFI)</h3>
-    <p>Works out of the box on macOS, Linux, and Windows.
-       The Rust native library is built automatically via Dart's
-       native assets hook.</p>
+    <h3>Native</h3>
+    <p>Python runs in <code>dart_monty_core</code>'s worker process, found
+       by core's discovery or passed to <code>Monty.start</code> as
+       <code>workerLocation</code>.</p>
 
-    <h3>Web (WASM)</h3>
-    <p>Flutter consumers depend on both <code>dart_monty</code> and
-       <code>dart_monty_core</code>, list
-       <code>- package: dart_monty_core</code> under
-       <code>flutter.assets</code>, and call
-       <code>await DartMonty.ensureInitialized()</code> before first
-       use. See the <a href="https://github.com/runyaga/dart_monty#flutter-web">
-       README</a> for the full pattern.</p>
-    <p>Plain-Dart-web consumers copy the assets manually:</p>
-<pre>cp dart_monty_core/assets/dart_monty_core_bridge.js web/
-cp dart_monty_core/assets/dart_monty_core_worker.js web/
-cp dart_monty_core/assets/dart_monty_core_native.wasm web/</pre>
-    <p>Serve with <code>Cross-Origin-Opener-Policy: same-origin</code>
-       and <code>Cross-Origin-Embedder-Policy: require-corp</code> headers
-       (required for SharedArrayBuffer).</p>
+    <h3>Web</h3>
+    <p>Python runs in a Web Worker built from core's
+       <code>dart_monty_core_worker.js</code> and
+       <code>dart_monty_core_worker.wasm</code>. Flutter web builds ship
+       them as core's package assets; plain-Dart-web consumers copy them
+       from core's <code>lib/assets/</code> to
+       <code>web/packages/dart_monty_core/assets/</code>, or anywhere else
+       named by <code>workerLocation</code>:</p>
+<pre>cp dart_monty_core/lib/assets/dart_monty_core_worker.js web/
+cp dart_monty_core/lib/assets/dart_monty_core_worker.wasm web/</pre>
 
     <h3>Documentation</h3>
     <ul style="padding-left: 20px; color: var(--text-dim);">

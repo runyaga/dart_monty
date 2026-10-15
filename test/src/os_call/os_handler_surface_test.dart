@@ -6,8 +6,8 @@
 // ignores `package:` URIs (core's own exports are core's business).
 import 'dart:io';
 
-import 'package:dart_monty/dart_monty_bridge.dart'
-    show OsCallNotHandledException, OsHandler;
+import 'package:dart_monty/dart_monty.dart' show OsCallNotHandledException;
+import 'package:dart_monty/dart_monty_bridge.dart' show OsHandler;
 import 'package:test/test.dart';
 
 import '_os_call.dart';
@@ -98,8 +98,8 @@ void main() {
   });
 
   test('OsHandler and the decline exception stay public', () {
-    // Compile-time: this file imports only the public library, and the names
-    // below must resolve through it.
+    // Compile-time: this file imports only the public libraries, and the
+    // names below must resolve through them.
     OsHandler decline() =>
         (operation, args, kwargs) => throw const OsCallNotHandledException();
 

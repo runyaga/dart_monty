@@ -11,12 +11,14 @@
 ///     -o example/web/web/agent_demo.dart.js
 library;
 
+import 'dart:async' show unawaited;
 import 'dart:convert';
 import 'dart:js_interop';
 
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:file/memory.dart';
+import 'package:web_example/demo_pool.dart';
 import 'package:web_example/demo_ready.dart';
 
 // ---------------------------------------------------------------------------
@@ -36,6 +38,7 @@ external void _jsOnReady();
 // State
 // ---------------------------------------------------------------------------
 
+Monty? _pool;
 MontyRuntime? _session;
 bool _initialized = false;
 bool _suppressEvents = false;
@@ -183,29 +186,29 @@ MessageBus? _msgBus;
 // Initialization
 // ---------------------------------------------------------------------------
 
+/// The most children the demo's sandbox runs at once.
+const _maxChildren = 4;
+
 Future<bool> _init() async {
   if (_initialized) return true;
 
   try {
-    final os = composeOsHandlers({
-      'Path.': fsHandler(MemoryFileSystem()),
-      'date.': timeHandler(),
-      'datetime.': timeHandler(),
-    });
-
     final msgPlugin = MessageBusExtension();
     _msgBus = msgPlugin.bus;
 
-    final extensions = <MontyExtension>[
-      msgPlugin,
-      SandboxExtension(
-        platformFactory: () async => ReplPlatform(repl: MontyRepl()),
-      ),
-    ];
-
-    _session = MontyRuntime(os: os, extensions: extensions);
-
-    _demoHostFunctions.forEach(_session!.register);
+    // Room for the held session, a sub-execution and every child.
+    final pool = await startDemoPool(maxProcesses: _maxChildren + 2);
+    _pool = pool;
+    final session = await MontyRuntime.start(
+      pool: pool,
+      osHandlers: {'Path.': fsHandler(MemoryFileSystem())},
+      extensions: [
+        msgPlugin,
+        SandboxExtension(maxChildren: _maxChildren),
+      ],
+    );
+    _demoHostFunctions.forEach(session.register);
+    _session = session;
 
     _initialized = true;
     return true;
@@ -435,14 +438,17 @@ String _getSchemas() {
 }
 
 void _clearState() {
-  _session?.clearState();
+  final session = _session;
+  if (session != null) unawaited(session.clearState());
   _trackedNames.clear();
   _stateCache = '{}';
 }
 
 Future<void> _dispose() async {
   await _session?.dispose();
+  await _pool?.close();
   _session = null;
+  _pool = null;
   _initialized = false;
 }
 

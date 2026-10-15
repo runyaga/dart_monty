@@ -87,9 +87,8 @@ if [ ! -d "$CORE_ASSETS" ]; then
   exit 1
 fi
 
-cp "$CORE_ASSETS/dart_monty_core_bridge.js" "$WEB_DIR/"
 cp "$CORE_ASSETS/dart_monty_core_worker.js" "$WEB_DIR/"
-cp "$CORE_ASSETS/dart_monty_core_native.wasm" "$WEB_DIR/"
+cp "$CORE_ASSETS/dart_monty_core_worker.wasm" "$WEB_DIR/"
 
 mkdir -p "$WEB_DIR/fixtures"
 cp "$FIXTURES_SRC"/tier_*.json "$WEB_DIR/fixtures/"
@@ -107,9 +106,8 @@ cleanup() {
     wait "$SERVE_PID" 2>/dev/null || true
   fi
   rm -f \
-    "$WEB_DIR/dart_monty_core_bridge.js" \
     "$WEB_DIR/dart_monty_core_worker.js" \
-    "$WEB_DIR/dart_monty_core_native.wasm" \
+    "$WEB_DIR/dart_monty_core_worker.wasm" \
     "$WEB_DIR/ladder_showcase.dart.js" \
     "$WEB_DIR/ladder_showcase.dart.js.deps" \
     "$WEB_DIR/ladder_showcase.dart.js.map"

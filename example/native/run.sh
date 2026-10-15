@@ -2,45 +2,30 @@
 # =============================================================================
 # Native Example Runner
 # =============================================================================
-# Builds the Rust native library (if needed) and runs the Dart example.
+# Runs the native Dart examples. Python runs in dart_monty_core's worker
+# process; set DART_MONTY_WORKER to a worker executable, or leave it unset
+# for core's own discovery.
 #
 # Usage: bash example/native/run.sh
 # =============================================================================
 set -euo pipefail
 
 ROOT="$(git rev-parse --show-toplevel)"
-NATIVE="$ROOT/native"
 EXAMPLE="$ROOT/example/native"
 
 echo "=== dart_monty Native Example ==="
 
-# Detect platform library extension
-case "$(uname -s)" in
-  Darwin*) LIB_EXT="dylib" ;;
-  Linux*)  LIB_EXT="so" ;;
-  *)       LIB_EXT="so" ;;
-esac
-
-LIB_PATH="$NATIVE/target/release/libdart_monty_native.$LIB_EXT"
-
-# ── Step 1: Build Rust library (if missing) ──────────────────────────────
-if [ ! -f "$LIB_PATH" ]; then
-  echo ""
-  echo "--- Building native library ---"
-  cd "$NATIVE"
-  cargo build --release
-  echo "  Built: $LIB_PATH"
-fi
-
-# ── Step 2: Run Dart example ─────────────────────────────────────────────
-echo ""
 cd "$EXAMPLE"
 dart pub get
 echo ""
-DART_MONTY_LIB_PATH="$LIB_PATH" dart run bin/main.dart
+dart run bin/main.dart
 
 echo ""
-echo "--- Type-check demo (platform-agnostic) ---"
-cd "$ROOT"
+echo "--- Async/sync matrix demo ---"
+dart run bin/async_matrix_demo.dart
+
+echo ""
+echo "--- Type-check demo ---"
+cd "$ROOT/example"
 dart pub get >/dev/null
-DART_MONTY_LIB_PATH="$LIB_PATH" dart run example/type_check_demo.dart
+dart run type_check_demo.dart

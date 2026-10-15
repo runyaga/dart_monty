@@ -1,141 +1,45 @@
 // Printing to stdout is expected in an example.
-// JS interop declarations may declare optional params the Dart side never
-// passes — that is intentional and not dead code.
-// ignore_for_file: avoid_print, unused_element_parameter
-/// Web WASM example — run Python from Dart in the browser.
+// ignore_for_file: avoid_print
+/// Web example — run Python from Dart in the browser.
 ///
 /// This is a standalone Dart script compiled to JS, not a package:test file.
-/// It uses dart:js_interop directly to call the DartMontyBridge.
+/// Python runs in dart_monty_core's Web Worker; the demo drives one session
+/// with `feedRun`, and steps through host calls with `feedStart`.
 ///
 /// Build & run:
 ///   bash run.sh
 library;
 
-import 'dart:convert';
-import 'dart:js_interop';
-
+import 'package:dart_monty/dart_monty.dart';
+import 'package:web_example/demo_pool.dart';
 import 'package:web_example/demo_ready.dart';
-
-// JS interop bindings for window.DartMontyBridge
-@JS('DartMontyBridge.init')
-external JSPromise<JSBoolean> _bridgeInit();
-
-@JS('DartMontyBridge.run')
-external JSPromise<JSString> _bridgeRun(JSString code, [JSString? limitsJson]);
-
-@JS('DartMontyBridge.start')
-external JSPromise<JSString> _bridgeStart(
-  JSString code, [
-  JSString? extFnsJson,
-  JSString? limitsJson,
-]);
-
-@JS('DartMontyBridge.resume')
-external JSPromise<JSString> _bridgeResume(JSString valueJson);
-
-@JS('DartMontyBridge.resumeWithError')
-external JSPromise<JSString> _bridgeResumeWithError(JSString errorJson);
-
-Map<String, dynamic> _parse(String json) =>
-    jsonDecode(json) as Map<String, dynamic>;
 
 Future<void> main() async {
   print('=== dart_monty Web Example ===');
   print('');
 
-  // Initialize the WASM Worker
-  final ok = (await _bridgeInit().toDart).toDart;
-  if (!ok) {
-    print('ERROR: Failed to initialize Monty WASM Worker');
+  final Monty pool;
+  try {
+    pool = await startDemoPool();
+  } on Object catch (e) {
+    print('ERROR: Failed to start the Monty worker: $e');
     print('EXAMPLE_DONE');
-    montyDemoFailed('main', 'DartMontyBridge.init() returned false');
+    montyDemoFailed('main', 'Monty.start failed: $e');
+
     return;
   }
   print('Worker initialized.');
 
-  // ── 1. Simple expression ──────────────────────────────────────────────
-  print('');
-  print('── Simple expression ──');
-  var r = _parse((await _bridgeRun('2 + 2'.toJS).toDart).toDart);
-  print('  2 + 2 = ${r['value']}');
+  try {
+    await pool.withSession(_examples);
+  } on Object catch (e) {
+    print('ERROR: $e');
+    montyDemoFailed('main', '$e');
 
-  // ── 2. Multi-line code ────────────────────────────────────────────────
-  print('');
-  print('── Multi-line code ──');
-  r = _parse(
-    (await _bridgeRun(
-      '''
-def fib(n):
-    a, b = 0, 1
-    for _ in range(n):
-        a, b = b, a + b
-    return a
-fib(10)
-'''
-          .toJS,
-    ).toDart)
-        .toDart,
-  );
-  print('  fib(10) = ${r['value']}');
-
-  // ── 3. String result ──────────────────────────────────────────────────
-  print('');
-  print('── String result ──');
-  r = _parse((await _bridgeRun('"hello " * 3'.toJS).toDart).toDart);
-  print('  "hello " * 3 = ${r['value']}');
-
-  // ── 4. Error handling ─────────────────────────────────────────────────
-  print('');
-  print('── Error handling ──');
-  r = _parse((await _bridgeRun('1 / 0'.toJS).toDart).toDart);
-  print('  1/0 → error: ${r['error']}');
-
-  // ── 5. Iterative execution ────────────────────────────────────────────
-  print('');
-  print('── Iterative execution ──');
-  r = _parse(
-    (await _bridgeStart(
-      'fetch("https://example.com")'.toJS,
-      '["fetch"]'.toJS,
-    ).toDart)
-        .toDart,
-  );
-  print('  start() → state=${r['state']}, fn=${r['functionName']}');
-
-  r = _parse(
-    (await _bridgeResume(
-      jsonEncode('<html>Hello from Dart!</html>').toJS,
-    ).toDart)
-        .toDart,
-  );
-  print('  resume() → state=${r['state']}, value=${r['value']}');
-
-  // ── 6. Error injection ────────────────────────────────────────────────
-  print('');
-  print('── Error injection ──');
-  r = _parse(
-    (await _bridgeStart(
-      '''
-try:
-    data = fetch("https://fail.example.com")
-except Exception as e:
-    result = f"caught: {e}"
-result
-'''
-          .toJS,
-      '["fetch"]'.toJS,
-    ).toDart)
-        .toDart,
-  );
-  print('  start() → state=${r['state']}');
-
-  r = _parse(
-    (await _bridgeResumeWithError(
-      jsonEncode('network timeout').toJS,
-    ).toDart)
-        .toDart,
-  );
-  print('  resumeWithError() → value=${r['value']}');
+    return;
+  } finally {
+    await pool.close();
+  }
 
   print('');
   print('=== All examples complete ===');
@@ -144,4 +48,74 @@ result
   // green means "this demo executed Python in the browser", not "the script
   // parsed".
   montyDemoReady('main');
+}
+
+Future<void> _examples(MontySession session) async {
+  // ── 1. Simple expression ──────────────────────────────────────────────
+  print('');
+  print('── Simple expression ──');
+  final sum = await session.feedRun('2 + 2');
+  print('  2 + 2 = ${sum.dartValue}');
+
+  // ── 2. Multi-line code ────────────────────────────────────────────────
+  print('');
+  print('── Multi-line code ──');
+  final fib = await session.feedRun('''
+def fib(n):
+    a, b = 0, 1
+    for _ in range(n):
+        a, b = b, a + b
+    return a
+fib(10)
+''');
+  print('  fib(10) = ${fib.dartValue}');
+
+  // ── 3. String result ──────────────────────────────────────────────────
+  print('');
+  print('── String result ──');
+  final hello = await session.feedRun('"hello " * 3');
+  print('  "hello " * 3 = ${hello.dartValue}');
+
+  // ── 4. Error handling ─────────────────────────────────────────────────
+  print('');
+  print('── Error handling ──');
+  try {
+    await session.feedRun('1 / 0');
+  } on MontyError catch (e) {
+    print('  1/0 → error: ${e.exception.excType}: ${e.exception.message}');
+  }
+
+  // ── 5. Iterative execution ────────────────────────────────────────────
+  print('');
+  print('── Iterative execution ──');
+  var snapshot = await session.feedStart('fetch("https://example.com")');
+  if (snapshot is FunctionSnapshot) {
+    print('  feedStart() → suspended on ${snapshot.functionName}');
+    snapshot = await snapshot.resume(
+      const ExternalReturnValue(MontyString('<html>Hello from Dart!</html>')),
+    );
+  }
+  if (snapshot is MontyComplete) {
+    print('  resume() → complete, value=${snapshot.output.dartValue}');
+  }
+
+  // ── 6. Error injection ────────────────────────────────────────────────
+  print('');
+  print('── Error injection ──');
+  snapshot = await session.feedStart('''
+try:
+    data = fetch("https://fail.example.com")
+except Exception as e:
+    result = f"caught: {e}"
+result
+''');
+  if (snapshot is FunctionSnapshot) {
+    print('  feedStart() → suspended on ${snapshot.functionName}');
+    snapshot = await snapshot.resume(
+      const ExternalException('RuntimeError', 'network timeout'),
+    );
+  }
+  if (snapshot is MontyComplete) {
+    print('  resume(ExternalException) → value=${snapshot.output.dartValue}');
+  }
 }

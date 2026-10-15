@@ -1,3 +1,5 @@
+// Internal and used by tests only: not exported (REQ values-and-inputs-10).
+// ignore_for_file: unused-files
 import 'package:dart_monty_core/dart_monty_core.dart';
 
 /// Typed accessors on [MontyValue] — avoid `.dartValue` casts at call sites.

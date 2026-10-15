@@ -5,7 +5,7 @@
 library;
 
 export 'package:dart_monty_core/dart_monty_core.dart'
-    show OsCallNotHandledException, OsHandler;
+    show ExternalException, OsHandler;
 export 'src/bridge/bridge.dart';
 export 'src/bridge/event.dart';
 export 'src/bridge/logger.dart';
@@ -31,4 +31,3 @@ export 'src/runtime/backend_kind.dart' show MontyBackendKind;
 export 'src/runtime/execution_handle.dart';
 export 'src/runtime/runtime.dart' show MontyRuntime;
 export 'src/runtime/runtime_ref.dart' show HostParentRef;
-export 'src/runtime/runtime_state.dart';
