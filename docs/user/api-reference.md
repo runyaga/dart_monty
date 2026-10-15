@@ -147,7 +147,7 @@ Group related tools into namespaced units.
 
 ## OS Call Handlers
 
-Intercept Python `pathlib`, `os`, and `datetime` calls.
+Intercept Python `pathlib` and `os` calls. The clock is answered by the worker, not by a handler.
 
 | Handler | Description |
 |---------|-------------|
@@ -156,7 +156,7 @@ Intercept Python `pathlib`, `os`, and `datetime` calls.
 | `sandboxedFsHandler(root)`| Restricted native FS |
 | `readOnlyHandler(child)` | Blocks write operations |
 | `overlayFsHandler()` | Copy-on-write overlay |
-| `composeOsHandlers({})` | Prefix-based dispatch |
+| `envHandler(map)` | `os.*` over a given environment map |
 
 ## Core Types
 

@@ -72,8 +72,6 @@ msg_send(name='q', message=2)
     setUp(() async {
       final osContribs = <String, OsHandler>{
         'Path.': memoryFsHandler(),
-        'date.': timeHandler(),
-        'datetime.': timeHandler(),
       };
       final tmpl = TemplateStubExtension();
       final msg = MessageBusExtension();
@@ -159,8 +157,6 @@ sandbox_free(handle=h)
     setUp(() async {
       final osContribs = <String, OsHandler>{
         'Path.': memoryFsHandler(),
-        'date.': timeHandler(),
-        'datetime.': timeHandler(),
       };
       final tmpl = TemplateStubExtension();
       final msg = MessageBusExtension();

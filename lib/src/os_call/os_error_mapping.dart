@@ -1,7 +1,8 @@
 import 'dart:io';
 
+import 'package:dart_monty/src/os_call/sync_or_async.dart';
 import 'package:dart_monty_core/dart_monty_core.dart'
-    show ExternalException, OsHandler;
+    show ExternalException, MontyValue, OsHandler;
 
 /// Maps a dart:io [FileSystemException] to the [ExternalException] CPython
 /// would raise for the same syscall.
@@ -71,12 +72,17 @@ ExternalException _mapFileSystemException(
 /// two-path message -- throw ExternalException and pass straight through, and
 /// OsCallNotHandledException still reaches `composeOsHandlers` so a sibling
 /// handler can answer. Broadening this catch would silently undo all three.
+///
+/// Not `async`: a decline thrown by [inner] stays a synchronous throw, which is
+/// the only form core honours. A `Future` [inner] returns is mapped when it
+/// fails.
 OsHandler mapIoErrors(OsHandler inner) {
-  return (operation, args, kwargs) async {
-    try {
-      return await inner(operation, args, kwargs);
-    } on FileSystemException catch (e) {
-      throw _mapFileSystemException(e, operation: operation);
-    }
-  };
+  return (operation, args, kwargs) => recoverFrom<MontyValue>(
+    () => inner(operation, args, kwargs),
+    test: (e) => e is FileSystemException,
+    onError: (e, _) => throw _mapFileSystemException(
+      e as FileSystemException,
+      operation: operation,
+    ),
+  );
 }

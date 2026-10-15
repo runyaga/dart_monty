@@ -214,13 +214,8 @@ void main() {
 
     setUp(() async {
       // Use memory filesystem for these tests (not LocalFileSystem)
-      final time = timeHandler();
       session = await MontyRuntime.start(
-        osHandlers: {
-          'Path.': memoryFsHandler(),
-          'date.': time,
-          'datetime.': time,
-        },
+        osHandlers: {'Path.': memoryFsHandler()},
       );
     });
 

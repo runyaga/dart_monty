@@ -12,16 +12,16 @@ import 'package:file/local.dart';
 /// Composes:
 /// - `Path.*` → [fsHandler] with [LocalFileSystem]
 /// - `os.*`   → [envHandler] with full host environment
-/// - `date.*`, `datetime.*` → [timeHandler]
+///
+/// The clock is not routed here: under the worker's default `OsPolicy` it is
+/// answered in the worker (upstream's `system` clock), and any `date.*`,
+/// `datetime.*` or `time.*` call that does reach this handler is declined.
 ///
 /// **Native:** Full read/write access to the host filesystem. For restricted
 /// access, use [sandboxedFsHandler] instead.
 OsHandler defaultOsHandler() {
-  final time = timeHandler();
   return composeOsHandlers({
     'Path.': fsHandler(const LocalFileSystem()),
     'os.': envHandler(Platform.environment),
-    'date.': time,
-    'datetime.': time,
   });
 }

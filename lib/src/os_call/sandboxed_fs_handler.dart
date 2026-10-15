@@ -92,7 +92,7 @@ OsHandler _rawSandboxedFsHandler({required Directory root}) {
     return safe;
   }
 
-  return loweredOsHandler((operation, args, kwargs) async {
+  return loweredOsHandler((operation, args, kwargs) {
     // EVERY ARM BELOW READS `args.first`. GUARD IT ONCE, HERE.
     //
     // All 18 `Path.*` arms take a path as their first argument, and each one

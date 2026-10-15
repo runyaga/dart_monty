@@ -1,4 +1,5 @@
 import 'package:dart_monty/dart_monty_bridge.dart';
+import 'package:dart_monty/src/os_call/os_handlers.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:file/memory.dart';
 import 'package:test/test.dart';
@@ -170,24 +171,21 @@ void main() {
     // -- Non-path operations delegate to base --
 
     test('non-path operations delegate to base', () async {
-      // Compose with time handler on base
-      final time = timeHandler();
-      final baseWithTime = composeOsHandlers({
+      // Compose an environment handler on base.
+      final baseWithEnv = composeOsHandlers({
         'Path.': base,
-        'date.': time,
+        'os.': envHandler(const {'K': 'v'}),
       });
-      final overlayWithTime = dartCall(
+      final overlayWithEnv = dartCall(
         overlayFsHandler(
-          base: baseWithTime,
+          base: baseWithEnv,
           scratch: scratch,
         ),
       );
 
-      final result = await overlayWithTime('date.today', const [], null);
+      final result = await overlayWithEnv('os.getenv', ['K'], null);
 
-      // timeHandler returns a typed MontyDate since dart_monty_core 0.19;
-      // a hand-built `{'__type': 'date'}` Map would decode as a plain dict.
-      expect(result, isA<MontyDate>());
+      expect(result, 'v');
     });
   });
 }

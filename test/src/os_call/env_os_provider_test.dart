@@ -55,11 +55,11 @@ void main() {
       expect(map.containsKey('PATH'), isFalse);
     });
 
-    test('unknown os.* operation throws', () {
-      expect(
-        () => handler('os.listdir', const [], null),
-        throwsUnsupportedError,
-      );
+    test('unknown os.* operation DECLINES synchronously', () {
+      final raw = envHandler(const {'APP_ENV': 'production'});
+
+      expectSyncDecline(() => rawCall(raw, 'os.listdir'));
+      expectSyncDecline(() => rawCall(raw, 'os.urandom', [8]));
     });
   });
 }

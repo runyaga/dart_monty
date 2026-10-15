@@ -25,6 +25,16 @@ change that brings it back.
   instead of `OsCallHandler`, and raise `ExternalException(excType, message)`
   instead of `OsCallException`. `HostFunctionSchema.mapAndValidate` takes
   `(args, kwargs)`.
+- **`timeHandler`** is gone, with the `date.*` and `datetime.*` routing in
+  `defaultOsHandler()`: the worker answers the clock with upstream's `system`
+  clock (UTC), so clock calls never reach a handler. `composeOsHandlers`,
+  `osArgString` and `PathOp` are no longer exported.
+- **OS-call declines are synchronous.** `fsHandler`, `memoryFsHandler`,
+  `sandboxedFsHandler`, `readOnlyHandler`, `overlayFsHandler` and the composer
+  decline with `throw const OsCallNotHandledException()` and answer
+  synchronously; a returned `Future` that fails with it no longer declines
+  (core raises `TypeError`). `envHandler` declines an unknown `os.*` operation
+  instead of throwing `UnsupportedError`.
 - **`ExecutionHandle.result`** and `HostContext.subExecute` complete with a
   `MontyValue` and fail with `MontyError`; `BridgeRunError.exception` and
   `ChildFailed.exception` are `MontyError`.
