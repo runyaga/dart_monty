@@ -438,15 +438,7 @@ class MontyRuntime implements MontyRuntimeRef {
         await fresh.close();
       }
     }
-    final clearing = _clearing;
-    if (clearing != null) {
-      try {
-        await clearing;
-      } on Object {
-        // clearState reports its own failure.
-      }
-    }
-    final bridge = await _attachShared();
+    final bridge = await _attachShared(run);
     await _hold(run, bridge.session);
 
     return _drive(
@@ -617,8 +609,20 @@ class MontyRuntime implements MontyRuntimeRef {
     }
   }
 
-  /// The shared bridge, with the extensions attached.
-  Future<SessionBridge> _attachShared() async {
+  /// The shared bridge, with the extensions attached, once a clearState in
+  /// progress has ended; [run], when given, stops the wait.
+  Future<SessionBridge> _attachShared([_Execution? run]) async {
+    final clearing = _clearing;
+    if (clearing != null) {
+      final stopped = await Future.any<bool>([
+        _settled(clearing),
+        if (run != null) _stoppedTrue(run),
+      ]);
+      if (stopped) {
+        throw StateError('The execution was cancelled before it started');
+      }
+    }
+    if (_disposed) throw StateError('MontyRuntime has been disposed');
     final bridge = _sharedBridge!;
     await (_sharedAttach ??= _sharedRegistry!.attachTo(bridge, baseOs: _os));
 
@@ -640,6 +644,24 @@ class MontyRuntime implements MontyRuntimeRef {
 
     return extractBridgeResult(collected);
   }
+}
+
+/// False once [future] has ended, either way.
+Future<bool> _settled(Future<void> future) async {
+  try {
+    await future;
+  } on Object {
+    // Its own caller reports the failure.
+  }
+
+  return false;
+}
+
+/// True once [run] is stopped.
+Future<bool> _stoppedTrue(_Execution run) async {
+  await run.stopped.future;
+
+  return true;
 }
 
 /// Null once [run] is stopped.
