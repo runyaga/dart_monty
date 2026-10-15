@@ -14,9 +14,12 @@ import 'package:test/test.dart';
 void main() {
   late List<FakeMontySession> sessions;
   late int poolCloses;
+  // When set, a checkout waits for it before it hands out a session.
+  Completer<void>? checkoutGate;
 
   /// A checkout that hands out the next scripted session.
   Future<MontySession> checkout({ResourceLimits? limits}) async {
+    await checkoutGate?.future;
     final session = FakeMontySession();
     sessions.add(session);
 
@@ -45,6 +48,7 @@ void main() {
   setUp(() {
     sessions = [];
     poolCloses = 0;
+    checkoutGate = null;
   });
 
   group('default pool', () {
@@ -411,6 +415,103 @@ void main() {
       await runtime.dispose();
       expect(poolCloses, 1);
     });
+  });
+
+  group('races', () {
+    test('dispose closes a running sandbox execution', () async {
+      final runtime = await start(sandbox: true);
+      final handle = runtime.execute('loop()');
+      await Future<void>.delayed(Duration.zero);
+      sessions.single.willHold(Completer<void>().future);
+      await Future<void>.delayed(Duration.zero);
+      final failed = expectLater(
+        handle.result,
+        throwsA(isA<MontyCrashedError>()),
+      );
+
+      await runtime.dispose();
+
+      await failed;
+      expect(sessions.single.isClosed, isTrue);
+    });
+
+    test(
+      'a clearState checkout that completes after dispose is closed',
+      () async {
+        final runtime = await start();
+        final gate = checkoutGate = Completer<void>();
+        final clearing = runtime.clearState();
+        await Future<void>.delayed(Duration.zero);
+        await runtime.dispose();
+
+        gate.complete();
+        await expectLater(clearing, throwsStateError);
+
+        expect(sessions, hasLength(2));
+        expect(sessions.every((s) => s.isClosed), isTrue);
+      },
+    );
+
+    test('concurrent clearState calls leak no session', () async {
+      final runtime = await start();
+
+      await Future.wait([runtime.clearState(), runtime.clearState()]);
+      await runtime.dispose();
+
+      expect(sessions, hasLength(3));
+      expect(sessions.every((s) => s.isClosed), isTrue);
+    });
+
+    test('a paused events listener does not hold the result', () async {
+      final runtime = await start();
+      sessions.single.willReturn(const MontyInt(1));
+      final handle = runtime.execute('1');
+      final sub = handle.events.listen((_) {})..pause();
+      addTearDown(sub.cancel);
+
+      expect(
+        await handle.result.timeout(const Duration(seconds: 5)),
+        const MontyInt(1),
+      );
+      sessions.single.willReturn(const MontyInt(2));
+      expect(
+        await runtime.execute('2').result.timeout(const Duration(seconds: 5)),
+        const MontyInt(2),
+      );
+    });
+
+    test('an extension that fails registration takes no checkout', () async {
+      await expectLater(
+        start(
+          extensions: [
+            _SlowAttach(Future.value()),
+            _SlowAttach(Future.value()),
+          ],
+        ),
+        throwsStateError,
+      );
+
+      expect(sessions, isEmpty);
+    });
+
+    test(
+      'execute and invoke on first use attach the extensions once',
+      () async {
+        final gate = Completer<void>();
+        final slow = _SlowAttach(gate.future);
+        final runtime = await start(extensions: [slow])
+          ..register(_echo);
+        sessions.single.willReturn(const MontyNone());
+
+        final run = runtime.execute('x');
+        final invoked = runtime.invoke('echo', const {'value': 'v'});
+        gate.complete();
+
+        expect(await invoked, 'v');
+        await run.result;
+        expect(slow.attaches, 1);
+      },
+    );
   });
 
   group('HostContext.parent', () {
