@@ -719,6 +719,10 @@ jobs:
       # assets are core's committed ones, served under packages/.
       - name: Acceptance suite (Chrome and Firefox, dart2js and dart2wasm)
         if: ${{ !cancelled() && steps.pubget.outcome == 'success' }}
+        env:
+          # package:test starts Firefox without -headless; the runner has no
+          # display.
+          MOZ_HEADLESS: '1'
         run: |
           set -o pipefail
           dart test test/acceptance -p chrome,firefox -c dart2js,dart2wasm \
