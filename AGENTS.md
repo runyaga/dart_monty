@@ -23,6 +23,16 @@ dart test                                 # All unit tests (VM)
 dart test --run-skipped --tags=integration  # Integration suite (slow)
 ```
 
+### Acceptance suite (the agent loop, A1-A9)
+```bash
+# VM: a worker process at an explicit location (core's tool/build_worker.sh)
+DART_MONTY_WORKER=<path>/dart_monty_worker \
+  dart test test/acceptance --run-skipped --tags acceptance
+# Browsers: a Web Worker from core's committed assets, served under packages/
+dart test test/acceptance -p chrome,firefox -c dart2js,dart2wasm \
+  --run-skipped --tags acceptance
+```
+
 ### FFI integration tests
 
 **There is no Rust crate in this repo.** The native library, the oracle binary

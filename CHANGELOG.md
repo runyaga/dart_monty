@@ -97,6 +97,22 @@ change that brings it back.
   `channelStateSignal`, and `EventLoopState` and its variants are no longer
   exported; use `isWaiting`.
 
+- **`MontyRuntime.start(limits:)`** sets the `ResourceLimits` of the
+  sessions `execute()` runs on: the held session (and each one that replaces
+  it) in shared mode, each execution's session in sandbox mode.
+  Sub-executions keep the defaults.
+- In shared mode a feed that fails with **`MontyCrashedError`**, or with a
+  `MemoryError` or `TimeoutError` (what a memory or time limit raises),
+  closes the held session, and the next `execute()` runs on a fresh one with
+  empty globals. The extensions stay attached; it is not a `clearState()`.
+- **`MontyValueX`** is no longer exported. Read values with `dartValue` or a
+  pattern on core's `MontyValue` subtypes.
+- **`dart_monty_bridge.dart`** re-exports core's `ExternalException` and
+  `OsHandler`, and no longer `OsCallNotHandledException`, which stays public
+  through `dart_monty.dart`. `extractBridgeResult` is no longer exported.
+- A host function returns a dataclass-like value as core's `ClassInstance`;
+  `example/dataclass_demo.dart` shows it.
+
 Eight features that nothing used have been moved out of this package. There
 is no deprecation period and no replacement API.
 
