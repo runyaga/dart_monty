@@ -579,6 +579,55 @@ void main() {
       expect(log, ['attach start', 'attach end', 'dispose']);
     });
 
+    test('cancel settles an execution waiting for a clearState', () async {
+      final runtime = await start();
+      final gate = checkoutGate = Completer<void>();
+      final clearing = runtime.clearState();
+      final handle = runtime.execute('x');
+      await Future<void>.delayed(Duration.zero);
+      final failed = expectLater(handle.result, throwsStateError);
+
+      await handle.cancel();
+      await failed;
+
+      gate.complete();
+      await clearing;
+    });
+
+    test('dispose settles an execution waiting for a clearState', () async {
+      final runtime = await start();
+      final gate = checkoutGate = Completer<void>();
+      final clearing = runtime.clearState().then<Object?>(
+        (_) => null,
+        onError: (Object e) => e,
+      );
+      final handle = runtime.execute('x');
+      await Future<void>.delayed(Duration.zero);
+      final failed = expectLater(handle.result, throwsStateError);
+
+      await runtime.dispose();
+      await failed;
+
+      gate.complete();
+      await clearing;
+      expect(sessions.every((s) => s.isClosed), isTrue);
+    });
+
+    test('invoke during a clearState runs on the cleared runtime', () async {
+      final runtime = await start()
+        ..register(_echo);
+      final gate = checkoutGate = Completer<void>();
+      final clearing = runtime.clearState();
+      // The old bridge is disposed; the new checkout waits on the gate.
+      await Future<void>.delayed(Duration.zero);
+      final invoked = runtime.invoke('echo', const {'value': 'v'});
+
+      gate.complete();
+      await clearing;
+
+      expect(await invoked, 'v');
+    });
+
     test(
       'execute and invoke on first use attach the extensions once',
       () async {
