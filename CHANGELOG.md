@@ -50,6 +50,13 @@ change that brings it back.
 - A run that fails with a throw that is not a `MontyError` emits
   `BridgeRunError(exception: null)`, and `extractBridgeResult` rethrows the
   original throw.
+- Host functions are passed to the feed as core `MontyHostFunction` values.
+  A `DispatchMode.future` function is a core `coroutine`; a
+  `DispatchMode.sync` one is awaited and Python sees its value. A call to an
+  unregistered name, or to a function with no handler on this backend, now
+  raises `NameError` instead of `RuntimeError: Unknown function`. Validation
+  and handler failures still raise `RuntimeError`; a handler that throws an
+  `ExternalException` raises that exception's type.
 
 Eight features that nothing used have been moved out of this package. There
 is no deprecation period and no replacement API.
