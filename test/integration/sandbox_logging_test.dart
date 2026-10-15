@@ -44,10 +44,17 @@ void main() {
   setUpAll(() async => pool = await startTestPool());
   tearDownAll(() => pool.close());
 
-  Future<MontyBridge> createBridge() async => MontyBridge(
-    session: await pool.checkout(),
-    logger: StructLogBridgeLogger.root(LogManager.instance),
-  );
+  // The bridge does not close its session; the test does, so the pool's
+  // workers come back between tests.
+  Future<MontyBridge> createBridge() async {
+    final session = await pool.checkout();
+    addTearDown(session.close);
+
+    return MontyBridge(
+      session: session,
+      logger: StructLogBridgeLogger.root(LogManager.instance),
+    );
+  }
 
   group('sandbox logging with real FFI', () {
     test('spawn + await logs full lifecycle', () async {

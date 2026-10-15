@@ -43,7 +43,9 @@ void main() {
     'MontyBridge.execute — 3 sequential HTTP calls',
     () async {
       final pool = await startTestPool();
+      addTearDown(pool.close);
       final session = await pool.checkout();
+      addTearDown(session.close);
       final bridge = MontyBridge(session: session)..register(_httpGetFn());
 
       for (var i = 1; i <= 3; i++) {
@@ -64,7 +66,9 @@ void main() {
     'MontyBridge.execute — 3 sequential HTTP calls, value extraction',
     () async {
       final pool = await startTestPool();
+      addTearDown(pool.close);
       final session = await pool.checkout();
+      addTearDown(session.close);
       final bridge = MontyBridge(session: session)..register(_httpGetFn());
 
       for (var i = 1; i <= 3; i++) {

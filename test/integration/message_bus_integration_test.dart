@@ -41,8 +41,14 @@ void main() {
 
   String spawn(String childCode) => 'sandbox_spawn(code="$childCode")';
 
-  Future<MontyBridge> createBridge() async =>
-      MontyBridge(session: await pool.checkout());
+  // The bridge does not close its session; the test does, so the pool's
+  // workers come back between tests.
+  Future<MontyBridge> createBridge() async {
+    final session = await pool.checkout();
+    addTearDown(session.close);
+
+    return MontyBridge(session: session);
+  }
 
   Future<MontyBridge> createBridgeWithMessageBus() async {
     final bridge = await createBridge();
