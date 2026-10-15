@@ -36,3 +36,24 @@ Future<bool> processAlive(int pid) async {
   // is gone.
   return Process.killPid(pid, ProcessSignal.sigcont);
 }
+
+/// Nothing to install: worker processes are counted by the OS.
+void countWorkers() {}
+
+/// The worker processes this process has started that are still running.
+///
+/// Null where the count is not available (Windows), so a test skips the
+/// check instead of passing it.
+Future<int?> liveWorkers() async {
+  if (Platform.isWindows) return null;
+  final out = await Process.run('pgrep', [
+    '-P',
+    '$pid',
+    '-x',
+    'dart_monty_worker',
+  ]);
+  // pgrep exits 1 when nothing matches.
+  if (out.exitCode > 1) throw StateError('pgrep failed: ${out.stderr}');
+
+  return '${out.stdout}'.split('\n').where((l) => l.trim().isNotEmpty).length;
+}

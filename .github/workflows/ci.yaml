@@ -717,9 +717,8 @@ jobs:
           dart test test/acceptance -p chrome,firefox -c dart2js,dart2wasm \
             --run-skipped --tags acceptance --exclude-tags d1-pending \
             --reporter=expanded 2>&1 | tee /tmp/acceptance-web.log
-          # 11 tests in each of the 4 cells; the twelfth (a process id) is
-          # VM-only and skips.
-          bash tool/assert_test_count.sh /tmp/acceptance-web.log 44 acceptance-web
+          # 12 tests in each of the 4 cells.
+          bash tool/assert_test_count.sh /tmp/acceptance-web.log 48 acceptance-web
       - name: Upload the assembled site on failure
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7

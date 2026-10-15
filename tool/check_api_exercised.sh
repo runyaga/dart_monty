@@ -80,13 +80,15 @@ SOURCES = _export_closure('lib/dart_monty.dart')
 # Refuse rather than check a set that collapsed. If an `export` rename or a
 # moved file shrinks the closure, every entry point silently disappears and
 # this reports a clean pass over nothing.
-if len(SOURCES) < 4:
+# The closure is exactly dart_monty.dart, runtime.dart and runtime_ref.dart
+# since D1-11 made value_x.dart internal; anything less has stopped resolving.
+if len(SOURCES) < 3:
     print(f'FAIL: the public export closure is only {len(SOURCES)} file(s).')
-    print('  Expected 4+. A closure that stopped resolving would examine')
+    print('  Expected 3+. A closure that stopped resolving would examine')
     print('  almost nothing and still print PASS.')
     print('  NOTE the floor is low BECAUSE this package is a thin facade: it')
     print('  re-exports dart_monty_core rather than redeclaring it, so its own')
-    print('  closure is 5 files against core\'s 33. Raise this floor if that')
+    print('  closure is 3 files against core\'s 33. Raise this floor if that')
     print('  stops being true.')
     sys.exit(1)
 # A public method declaration at class-member indentation. `_private` and

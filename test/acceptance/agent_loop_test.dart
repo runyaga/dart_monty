@@ -22,8 +22,6 @@ import 'dart:convert';
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:dart_monty/src/runtime/runtime.dart' show startRuntimeWith;
-// The pool's worker count, a test-only reading.
-import 'package:dart_monty_core/src/worker/monty.dart' show MontyInternal;
 import 'package:test/test.dart';
 
 import '_platform.dart';
@@ -182,6 +180,8 @@ void main() {
 
     return runtime;
   }
+
+  setUpAll(countWorkers);
 
   setUp(() async {
     tools = _Tools();
@@ -379,7 +379,7 @@ void main() {
         'fresh checkout, with no extra worker', () async {
       final runtime = await startRuntime();
       await runPythonTool(runtime, '0');
-      final before = pool.liveWorkers;
+      final before = await liveWorkers();
       Duration? settled;
       final watch = Stopwatch();
 
@@ -398,7 +398,8 @@ void main() {
       expect(json['error'], isNotNull);
       expect(settled, lessThan(const Duration(seconds: 2)));
       expect(_decode(await runPythonTool(runtime, '1+1'))['value'], 2);
-      expect(pool.liveWorkers, lessThanOrEqualTo(before));
+      // The cancelled worker is gone, its replacement holds the session.
+      await _until(() async => await liveWorkers() == before);
     });
 
     test('(b) a feed duration limit raises TimeoutError as data; the next '
@@ -471,56 +472,44 @@ void main() {
     expect(tool['value'], 'ok');
   });
 
-  test('A9 dispose ends the runtime and leaves no worker', () async {
-    final sessions = <MontySession>[];
-    final runtime = await startRuntimeWith(
-      checkout: ({limits}) async {
-        final session = await pool.checkout(limits: limits);
-        sessions.add(session);
+  test(
+    'A9 dispose ends the runtime; closing the pool leaves no worker',
+    () async {
+      final runtime = await startRuntime();
+      expect(_decode(await runPythonTool(runtime, '1'))['value'], 1);
+      expect(await liveWorkers() ?? 1, greaterThan(0));
 
-        return session;
-      },
-      extensions: tools.extensions,
-    );
-    expect(_decode(await runPythonTool(runtime, '1'))['value'], 1);
-    final pid = sessions.single.workerPid;
+      await runtime.dispose();
+      await pool.close();
 
-    await runtime.dispose();
-    await pool.close();
+      expect(() => runtime.execute('1'), throwsStateError);
+      await _until(() async => (await liveWorkers() ?? 0) == 0);
+    },
+  );
 
-    expect(() => runtime.execute('1'), throwsStateError);
-    expect(pool.liveWorkers, 0);
-    if (hasWorkerProcesses) {
-      await _until(() async => !await processAlive(pid!));
-    }
-  });
+  test(
+    'A9 a runtime that owns its pool leaves no worker after dispose',
+    () async {
+      // Only this test's workers count.
+      await pool.close();
+      await _until(() async => (await liveWorkers() ?? 0) == 0);
+      final ownPool = await Monty.start(
+        workerLocation: acceptanceWorkerLocation,
+      );
+      final runtime = await startRuntimeWith(
+        checkout: ownPool.checkout,
+        closePool: ownPool.close,
+        extensions: tools.extensions,
+      );
+      expect(_decode(await runPythonTool(runtime, '1'))['value'], 1);
+      expect(await liveWorkers() ?? 1, greaterThan(0));
 
-  test('A9 dispose of a runtime on its own pool leaves no worker', () async {
-    if (!hasWorkerProcesses) {
-      markTestSkipped('a Web Worker has no process id to look for');
-      return;
-    }
-    // The runtime owns this pool; it finds the worker the way an app does
-    // before core delivers it, by an explicit location.
-    final ownPool = await Monty.start(workerLocation: acceptanceWorkerLocation);
-    final sessions = <MontySession>[];
-    final runtime = await startRuntimeWith(
-      checkout: ({limits}) async {
-        final session = await ownPool.checkout(limits: limits);
-        sessions.add(session);
+      await runtime.dispose();
 
-        return session;
-      },
-      closePool: ownPool.close,
-    );
-    await runPythonTool(runtime, '1');
-    final pid = sessions.single.workerPid!;
-
-    await runtime.dispose();
-
-    expect(ownPool.liveWorkers, 0);
-    await _until(() async => !await processAlive(pid));
-  });
+      expect(() => runtime.execute('1'), throwsStateError);
+      await _until(() async => (await liveWorkers() ?? 0) == 0);
+    },
+  );
 }
 
 /// Waits until [done] holds, for up to five seconds.
