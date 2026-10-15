@@ -333,29 +333,6 @@ class MontyRuntime implements MontyRuntimeRef {
     }
   }
 
-  /// One [clearState], after [previous] has ended either way.
-  Future<void> _clear(Future<void>? previous) async {
-    if (previous != null) {
-      try {
-        await previous;
-      } on Object {
-        // The earlier call reports its own failure.
-      }
-    }
-    if (_disposed) throw StateError('MontyRuntime has been disposed');
-
-    final bridge = _sharedBridge!;
-    final registry = _sharedRegistry!;
-    try {
-      await _attachSettled();
-      await registry.disposeAll();
-    } finally {
-      bridge.dispose();
-      await bridge.session.close();
-      await _openShared();
-    }
-  }
-
   /// Releases all resources: closes the session of every execution still
   /// running (its result fails as for a cancel), disposes the extensions,
   /// closes the held session, closes the pool when the runtime started it
@@ -452,6 +429,7 @@ class MontyRuntime implements MontyRuntimeRef {
   ) async {
     if (_sharedStale) {
       final fresh = await _checkoutFor(run, _checkoutLive);
+      // ignore: no-equal-nested-conditions, the await above may change it.
       if (_sharedStale && _clearing == null) {
         _sharedBridge!.session = fresh;
         _sharedStale = false;
@@ -584,6 +562,29 @@ class MontyRuntime implements MontyRuntimeRef {
     return session;
   }
 
+  /// One [clearState], after [previous] has ended either way.
+  Future<void> _clear(Future<void>? previous) async {
+    if (previous != null) {
+      try {
+        await previous;
+      } on Object {
+        // The earlier call reports its own failure.
+      }
+    }
+    if (_disposed) throw StateError('MontyRuntime has been disposed');
+
+    final bridge = _sharedBridge!;
+    final registry = _sharedRegistry!;
+    try {
+      await _attachSettled();
+      await registry.disposeAll();
+    } finally {
+      bridge.dispose();
+      await bridge.session.close();
+      await _openShared();
+    }
+  }
+
   /// [checkout]'s session for [run]. When [run] is stopped first, this
   /// throws at once, and the session is closed when it arrives: a waiting
   /// checkout cannot be withdrawn.
@@ -594,10 +595,10 @@ class MontyRuntime implements MontyRuntimeRef {
     final pending = checkout();
     final session = await Future.any<MontySession?>([
       pending,
-      run.stopped.future.then((_) => null),
+      _whenStopped(run),
     ]);
     if (session == null) {
-      unawaited(pending.then((s) => s.close(), onError: (Object _) {}));
+      unawaited(_closeOnArrival(pending));
       throw StateError('The execution was cancelled before it started');
     }
 
@@ -636,8 +637,27 @@ class MontyRuntime implements MontyRuntimeRef {
       if (!_eventsController.isClosed) _eventsController.add(event);
       run.events.add(event);
     }
+
     return extractBridgeResult(collected);
   }
+}
+
+/// Null once [run] is stopped.
+Future<MontySession?> _whenStopped(_Execution run) async {
+  await run.stopped.future;
+
+  return null;
+}
+
+/// Closes [pending]'s session when it arrives.
+Future<void> _closeOnArrival(Future<MontySession> pending) async {
+  final MontySession session;
+  try {
+    session = await pending;
+  } on Object {
+    return; // The checkout failed: there is nothing to close.
+  }
+  await session.close();
 }
 
 /// [inputs] as the feed's values, each through [MontyValue.fromDart].
