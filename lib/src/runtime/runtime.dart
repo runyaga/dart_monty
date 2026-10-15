@@ -291,8 +291,14 @@ class MontyRuntime implements MontyRuntimeRef {
     );
   }
 
-  @override
-  Future<MontyValue> subExecute(
+  /// Runs [code] on a second session checked out of the pool, with
+  /// default limits, [inputs] bound as globals by the feed, no OS handler
+  /// and no host functions; the session is closed afterwards, and by
+  /// [dispose]. Every `HostContext.subExecute` of this runtime's bridges.
+  ///
+  /// Completes with the feed's [MontyValue]; fails with its [MontyError],
+  /// or with the checkout's error (a pool's `checkoutTimeout` included).
+  Future<MontyValue> _subExecute(
     String code, {
     Map<String, Object?>? inputs,
   }) async {
@@ -492,6 +498,7 @@ class MontyRuntime implements MontyRuntimeRef {
       session: session,
       logger: _logger,
       runtime: this,
+      subExecute: _subExecute,
     );
     _extraFunctions.forEach(bridge.register);
     final registry = ExtensionCoordinator();
@@ -562,6 +569,7 @@ class MontyRuntime implements MontyRuntimeRef {
       session: session,
       logger: _logger,
       runtime: this,
+      subExecute: _subExecute,
     );
     _extraFunctions.forEach(bridge.register);
     _sharedBridge = bridge;

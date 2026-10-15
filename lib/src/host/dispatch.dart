@@ -206,8 +206,10 @@ class HostDispatch {
   HostDispatch({
     required BridgeLogger log,
     MontyRuntimeRef? runtime,
+    HostSubExecutor? subExecute,
   }) : _log = log,
-       _runtime = runtime;
+       _runtime = runtime,
+       _subExecute = subExecute;
 
   /// Current OS call handler — mirrored from the owning bridge so handlers
   /// receive it via [HostContext.os]. Updated by the bridge's `registerOs`.
@@ -215,6 +217,9 @@ class HostDispatch {
 
   final BridgeLogger _log;
   final MontyRuntimeRef? _runtime;
+
+  /// Every handler's [HostContext.subExecute]: the runtime's, or none.
+  final HostSubExecutor? _subExecute;
 
   final Map<String, HostFunction> _functions = {};
   final Map<String, Set<String>> _categoryIndex = {};
@@ -306,7 +311,7 @@ class HostDispatch {
       executionId: name,
       os: osHandler,
       parent: _runtime,
-      subExecute: _runtime?.subExecute,
+      subExecute: _subExecute,
     );
 
     return fn.handler!(validatedArgs, ctx);
@@ -406,7 +411,7 @@ class HostDispatch {
       cancelToken: cancelToken,
       os: os,
       parent: _runtime,
-      subExecute: _runtime?.subExecute,
+      subExecute: _subExecute,
     );
     final Object? result;
     final MontyValue value;

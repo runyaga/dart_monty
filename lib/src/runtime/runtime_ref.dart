@@ -39,15 +39,6 @@ abstract interface class MontyRuntimeRef implements HostParentRef {
     OsHandler? os,
     Map<String, Object?>? inputs,
   });
-
-  /// Runs [code] on a second session checked out of the runtime's pool,
-  /// with default limits, [inputs] bound as globals by the feed, no OS
-  /// handler and no host functions; the session is closed afterwards.
-  ///
-  /// Completes with the feed's [MontyValue]; fails with its [MontyError],
-  /// or with the checkout's error (a pool's `checkoutTimeout` included).
-  /// Every [HostContext.subExecute] a dispatch builds calls this.
-  Future<MontyValue> subExecute(String code, {Map<String, Object?>? inputs});
 }
 
 /// The narrow slice of the parent runtime exposed to host function handlers

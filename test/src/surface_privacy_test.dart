@@ -98,7 +98,10 @@ void main() {
       isNot(contains('mapAndValidate')),
     );
     expect(_members(bridge.MontyExtension), isNot(contains('coordinator')));
-    expect(_members(dm.MontyRuntime), isNot(contains('coordinator')));
+    expect(
+      _members(dm.MontyRuntime),
+      isNot(anyOf(contains('coordinator'), contains('subExecute'))),
+    );
     expect(
       _members(bridge.EventLoopExtension),
       isNot(anyOf(contains('channelState'), contains('channelStateSignal'))),

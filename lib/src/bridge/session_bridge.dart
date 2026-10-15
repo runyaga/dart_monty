@@ -5,6 +5,7 @@ import 'package:dart_monty/src/bridge/event.dart';
 import 'package:dart_monty/src/bridge/logger.dart';
 import 'package:dart_monty/src/bridge/run_failure.dart';
 import 'package:dart_monty/src/bridge/struct_log_logger.dart';
+import 'package:dart_monty/src/host/context.dart';
 import 'package:dart_monty/src/host/dispatch.dart';
 import 'package:dart_monty/src/host/function.dart';
 import 'package:dart_monty/src/host/schema.dart';
@@ -35,15 +36,18 @@ String? _printed(CollectString collector) {
 /// declined call) never reach the bridge and emit no events.
 @internal
 class SessionBridge implements MontyBridge {
-  /// Creates a bridge over [session].
+  /// Creates a bridge over [session]; [subExecute] is every handler's
+  /// [HostContext.subExecute] (none when null).
   SessionBridge({
     required this.session,
     BridgeLogger? logger,
     MontyRuntimeRef? runtime,
+    HostSubExecutor? subExecute,
   }) : logger = logger ?? StructLogBridgeLogger.root(LogManager.instance),
        _host = HostDispatch(
          log: logger ?? StructLogBridgeLogger.root(LogManager.instance),
          runtime: runtime,
+         subExecute: subExecute,
        );
 
   /// The session this bridge runs code on.

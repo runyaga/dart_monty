@@ -74,12 +74,6 @@ final class _RuntimeRef implements MontyRuntimeRef {
 
   @override
   List<HostFunctionSchema> get schemas => const [];
-
-  @override
-  Future<MontyValue> subExecute(
-    String code, {
-    Map<String, Object?>? inputs,
-  }) async => MontyString('sub:$code');
 }
 
 void main() {
@@ -1090,11 +1084,12 @@ void main() {
       expect(parent, same(runtime));
     });
 
-    test("a handler's subExecute is its runtime's, on both paths", () async {
+    test("a handler's subExecute is the bridge's, on both paths", () async {
       final b = SessionBridge(
         session: fake,
         runtime: _RuntimeRef(),
         logger: BridgeLogger.silent,
+        subExecute: (code, {inputs}) async => MontyString('sub:$code'),
       );
       addTearDown(b.dispose);
       final seen = <MontyValue>[];

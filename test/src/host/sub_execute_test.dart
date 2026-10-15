@@ -254,11 +254,46 @@ void main() {
     expect(seen, isNull);
   });
 
-  test('a disposed runtime refuses a sub-execution', () async {
-    final runtime = await startRuntimeWith(checkout: checkout);
-    await runtime.dispose();
+  test('a checkout that arrives after dispose is closed, and fails', () async {
+    final gate = Completer<void>();
+    final entered = Completer<void>();
+    Object? caught;
+    final runtime = await startRuntimeWith(
+      checkout: ({limits}) async {
+        if (sessions.isNotEmpty) {
+          entered.complete();
+          await gate.future;
+        }
 
-    await expectLater(runtime.subExecute('1'), throwsStateError);
-    expect(sessions, hasLength(1));
+        return checkout(limits: limits);
+      },
+    );
+    runtime.register(
+      HostFunction(
+        schema: const HostFunctionSchema(name: 'probe'),
+        handler: (args, ctx) async {
+          try {
+            await ctx.subExecute!('1');
+          } on Object catch (e) {
+            caught = e;
+          }
+
+          return null;
+        },
+      ),
+    );
+    final result = runtime.execute('probe()').result;
+    unawaited(result.then((_) {}, onError: (_) {}));
+    await entered.future;
+
+    await runtime.dispose();
+    gate.complete();
+    for (var i = 0; i < 1000 && caught == null; i++) {
+      await Future<void>.delayed(Duration.zero);
+    }
+
+    expect(caught, isA<StateError>());
+    expect(sessions[1].closed, isTrue);
+    expect(sessions[1].feeds, isEmpty);
   });
 }

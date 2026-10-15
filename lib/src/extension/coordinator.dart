@@ -457,9 +457,9 @@ class ExtensionCoordinator {
     return child;
   }
 
-  /// Disposes [extensions], in reverse, logging each failure.
-  Future<void> _disposeQuietly(List<MontyExtension> extensions) async {
-    for (final ext in extensions.reversed) {
+  /// Disposes [made], in reverse, logging each failure.
+  Future<void> _disposeQuietly(List<MontyExtension> made) async {
+    for (final ext in made.reversed) {
       try {
         await ext.onDispose();
       } on Object catch (e) {
