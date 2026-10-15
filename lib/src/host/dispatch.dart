@@ -18,6 +18,58 @@ Future<MontyValue> _defaultSubExecute(
   Map<String, Object?>? inputs,
 }) => throw UnimplementedError('D1-6');
 
+/// The most characters [_argsJson] writes before it gives up.
+const int _argsJsonLimit = 1 << 20;
+
+/// Thrown by [_BoundedSink] once its limit is passed.
+final class _TooLong implements Exception {
+  const _TooLong();
+}
+
+/// A string sink that throws [_TooLong] once more than [limit] characters
+/// were added, so an encoder writing into it stops there.
+final class _BoundedSink implements Sink<String> {
+  _BoundedSink(this.limit);
+
+  final int limit;
+  final StringBuffer _buffer = StringBuffer();
+
+  String get text => _buffer.toString();
+
+  @override
+  void add(String data) {
+    if (_buffer.length + data.length > limit) throw const _TooLong();
+    _buffer.write(data);
+  }
+
+  @override
+  void close() {}
+}
+
+/// [args] as JSON for [BridgeFunctionCallArgs.delta]: a value JSON has no
+/// form for is written as its `toString()`.
+///
+/// Never throws. Arguments whose JSON would pass [_argsJsonLimit]
+/// characters (a list shared many times over expands at each use) or that
+/// hold a cycle are written as a JSON string saying so, and the call goes
+/// on.
+String _argsJson(Map<String, Object?> args) {
+  final sink = _BoundedSink(_argsJsonLimit);
+  try {
+    JsonEncoder((o) => '$o').startChunkedConversion(sink)
+      ..add(args)
+      ..close();
+
+    return sink.text;
+  } on _TooLong {
+    return jsonEncode(
+      'arguments not shown: over $_argsJsonLimit characters of JSON',
+    );
+  } on Object catch (e) {
+    return jsonEncode('arguments not shown: ${e.runtimeType}');
+  }
+}
+
 // ---------------------------------------------------------------------------
 // HostDispatch — function registry + tool dispatch.
 // ---------------------------------------------------------------------------
@@ -203,12 +255,7 @@ class HostDispatch {
       fail(e);
       throw ExternalException('RuntimeError', '$e');
     }
-    emit(
-      BridgeFunctionCallArgs(
-        callId: callId,
-        delta: jsonEncode(validated, toEncodable: (o) => '$o'),
-      ),
-    );
+    emit(BridgeFunctionCallArgs(callId: callId, delta: _argsJson(validated)));
     emit(BridgeFunctionCallEnd(callId: callId));
 
     final ctx = HostContext(
