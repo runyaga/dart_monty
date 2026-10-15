@@ -1,6 +1,9 @@
 // ignore_for_file: avoid-unsafe-collection-methods, avoid-non-null-assertion
 // ignore_for_file: avoid-unnecessary-futures, newline-before-return
+import 'dart:async';
+
 import 'package:dart_monty/src/os_call/path_op.dart';
+import 'package:dart_monty/src/os_call/sync_or_async.dart';
 import 'package:dart_monty_core/dart_monty_core.dart'
     show
         ExternalException,
@@ -82,90 +85,106 @@ OsHandler overlayFsHandler({
   required OsHandler base,
   required OsHandler scratch,
 }) {
-  Future<MontyValue> readWithFallback(
-    String op,
-    List<MontyValue> args,
-    Map<String, MontyValue> kwargs,
-  ) async {
-    try {
-      return await scratch(op, args, kwargs);
-    } on ExternalException catch (e) {
-      if (!_isNotFound(e)) rethrow;
-      return base(op, args, kwargs);
-    }
-  }
+  // None of the helpers below is `async`: a decline thrown by a layer must
+  // stay a synchronous throw (the only form core honours), and a layer's
+  // synchronous answer must stay synchronous. `recoverFrom` and `thenOrNow`
+  // go asynchronous only when a layer returns a `Future`.
 
-  Future<MontyValue> queryWithFallback(
+  FutureOr<MontyValue> readWithFallback(
     String op,
     List<MontyValue> args,
     Map<String, MontyValue> kwargs,
-  ) async {
-    final scratchResult = await scratch(op, args, kwargs);
-    if (scratchResult case MontyBool(value: true)) return scratchResult;
-    return base(op, args, kwargs);
-  }
+  ) => recoverFrom<MontyValue>(
+    () => scratch(op, args, kwargs),
+    test: _isNotFound,
+    onError: (_, _) => base(op, args, kwargs),
+  );
 
-  Future<MontyValue> mergedIterdir(
+  FutureOr<MontyValue> queryWithFallback(
     String op,
     List<MontyValue> args,
     Map<String, MontyValue> kwargs,
-  ) async {
+  ) => thenOrNow<MontyValue, MontyValue>(
+    scratch(op, args, kwargs),
+    (scratchResult) => scratchResult is MontyBool && scratchResult.value
+        ? scratchResult
+        : base(op, args, kwargs),
+  );
+
+  FutureOr<MontyValue> mergedIterdir(
+    String op,
+    List<MontyValue> args,
+    Map<String, MontyValue> kwargs,
+  ) {
     final seen = <String>{};
     final merged = <MontyPath>[];
 
-    try {
-      final scratchEntries = await scratch(op, args, kwargs);
-      if (scratchEntries case MontyList(:final items)) {
+    void addEntries(MontyValue entries) {
+      if (entries case MontyList(:final items)) {
         for (final entry in items.whereType<MontyPath>()) {
           if (seen.add(entry.value)) merged.add(entry);
         }
       }
-    } on ExternalException catch (e) {
-      if (!_isNotFound(e)) rethrow;
-      // Scratch dir doesn't exist — that's fine.
     }
 
-    try {
-      final baseEntries = await base(op, args, kwargs);
-      if (baseEntries case MontyList(:final items)) {
-        for (final entry in items.whereType<MontyPath>()) {
-          if (seen.add(entry.value)) merged.add(entry);
-        }
-      }
-    } on ExternalException catch (e) {
-      if (!_isNotFound(e)) rethrow;
-      if (merged.isEmpty) {
-        final path = args.firstOrNull?.dartValue;
-        final pathStr = path is String ? path : '';
-        throw ExternalException(
-          'FileNotFoundError',
-          'No such directory: $pathStr',
-        );
-      }
-    }
+    // A missing scratch directory is fine: only the base layer contributes.
+    FutureOr<void> fromScratch() => thenOrNow<MontyValue, void>(
+      recoverFrom<MontyValue>(
+        () => scratch(op, args, kwargs),
+        test: _isNotFound,
+        onError: (_, _) => const MontyList([]),
+      ),
+      addEntries,
+    );
 
-    return MontyList(merged);
+    // A missing base directory is an error only when scratch had nothing.
+    FutureOr<MontyValue> fromBase() => thenOrNow<MontyValue, MontyValue>(
+      recoverFrom<MontyValue>(
+        () => base(op, args, kwargs),
+        test: _isNotFound,
+        onError: (_, _) {
+          if (merged.isEmpty) {
+            final path = args.firstOrNull?.dartValue;
+            final pathStr = path is String ? path : '';
+            throw ExternalException(
+              'FileNotFoundError',
+              'No such directory: $pathStr',
+            );
+          }
+
+          return const MontyList([]);
+        },
+      ),
+      (baseEntries) {
+        addEntries(baseEntries);
+
+        return MontyList(merged);
+      },
+    );
+
+    return thenOrNow<void, MontyValue>(fromScratch(), (_) => fromBase());
   }
 
-  Future<MontyValue> deleteFromScratch(
+  FutureOr<MontyValue> deleteFromScratch(
     String op,
     List<MontyValue> args,
     Map<String, MontyValue> kwargs,
-  ) async {
-    try {
-      return await scratch(op, args, kwargs);
-    } on ExternalException catch (e) {
-      if (!_isNotFound(e)) rethrow;
-      final existsInBase = await base(PathOp.exists, args, kwargs);
-      if (existsInBase case MontyBool(value: true)) {
-        throw const ExternalException(
-          'PermissionError',
-          'Cannot delete base-layer file (read-only)',
-        );
-      }
-      rethrow;
-    }
-  }
+  ) => recoverFrom<MontyValue>(
+    () => scratch(op, args, kwargs),
+    test: _isNotFound,
+    onError: (notFound, stack) => thenOrNow<MontyValue, MontyValue>(
+      base(PathOp.exists, args, kwargs),
+      (existsInBase) {
+        if (existsInBase case MontyBool(value: true)) {
+          throw const ExternalException(
+            'PermissionError',
+            'Cannot delete base-layer file (read-only)',
+          );
+        }
+        Error.throwWithStackTrace(notFound, stack);
+      },
+    ),
+  );
 
   return (operation, args, kwargs) {
     return switch (operation) {

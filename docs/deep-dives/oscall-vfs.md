@@ -37,11 +37,11 @@ graph TD
 - **`fsHandler(FileSystem)`**: Handles `Path.*` calls using a `package:file` `FileSystem`.
 - **`memoryFsHandler()`**: A pre-wired VFS backed by `MemoryFileSystem`.
 - **`sandboxedFsHandler({required Directory root})`**: Restricts native FS access to a root directory.
-- **`readOnlyHandler(OsCallHandler)`**: A decorator that blocks write operations.
+- **`readOnlyHandler(OsHandler)`**: A decorator that blocks write operations.
 - **`overlayFsHandler({base, scratch})`**: A copy-on-write layer. Reads from `base`, writes to `scratch`.
 - **`envHandler(Map<String, String>)`**: Handles `os.environ` access.
-- **`timeHandler()`**: Handles `date` and `datetime` calls.
-- **`composeOsHandlers(Map<String, OsCallHandler>)`**: The core dispatcher. It matches call prefixes (like `'Path.'`) and delegates to the appropriate child handler.
+- `date` and `datetime` calls are not handler calls: under the default `OsPolicy` the worker answers them with upstream's `system` clock.
+- `defaultOsHandler()` composes the handlers above by call prefix (`'Path.'`, `'os.'`); an operation none of them takes is declined by a synchronous `throw const OsCallNotHandledException()`, and the worker answers with its own default. The composer itself is internal.
 
 ## Filesystem Modes
 

@@ -5,7 +5,7 @@
 library;
 
 export 'package:dart_monty_core/dart_monty_core.dart'
-    show OsCallNotHandledException;
+    show OsCallNotHandledException, OsHandler;
 export 'src/bridge/bridge.dart';
 export 'src/bridge/event.dart';
 export 'src/bridge/logger.dart';
@@ -26,9 +26,7 @@ export 'src/host/schema.dart';
 export 'src/os_call/default_os_handler.dart';
 export 'src/os_call/fs_decorators.dart';
 export 'src/os_call/fs_handlers.dart';
-export 'src/os_call/os_handlers.dart';
-export 'src/os_call/path_op.dart';
-export 'src/os_call/platform_handlers.dart';
+export 'src/os_call/platform_handlers.dart' show envHandler;
 export 'src/os_call/sandboxed_fs_handler_stub.dart'
     if (dart.library.io) 'src/os_call/sandboxed_fs_handler.dart';
 export 'src/runtime/backend_kind.dart';

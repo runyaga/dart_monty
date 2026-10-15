@@ -27,7 +27,7 @@ import 'package:file/memory.dart';
 OsHandler fsHandler(FileSystem fs) => mapIoErrors(_rawFsHandler(fs));
 
 OsHandler _rawFsHandler(FileSystem fs) {
-  return loweredOsHandler((operation, args, kwargs) async {
+  return loweredOsHandler((operation, args, kwargs) {
     switch (operation) {
       case PathOp.open:
         // Core owns the open() mode→effect mapping; supply this FileSystem's
