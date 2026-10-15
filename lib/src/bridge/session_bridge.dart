@@ -42,7 +42,7 @@ class SessionBridge implements MontyBridge {
     required this.session,
     BridgeLogger? logger,
     MontyRuntimeRef? runtime,
-    HostSubExecutor? subExecute,
+    RuntimeSubExecutor? subExecute,
   }) : logger = logger ?? StructLogBridgeLogger.root(LogManager.instance),
        _host = HostDispatch(
          log: logger ?? StructLogBridgeLogger.root(LogManager.instance),

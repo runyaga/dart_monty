@@ -188,6 +188,15 @@ String _argsJson(Map<String, Object?> args) {
       : sink.text;
 }
 
+/// The runtime's sub-executor: [HostSubExecutor] plus the token of the
+/// call that runs it, so a cancelled execution stops its sub-executions.
+typedef RuntimeSubExecutor =
+    Future<MontyValue> Function(
+      String code, {
+      Map<String, Object?>? inputs,
+      CancelToken? cancelToken,
+    });
+
 // ---------------------------------------------------------------------------
 // HostDispatch — function registry + tool dispatch.
 // ---------------------------------------------------------------------------
@@ -206,7 +215,7 @@ class HostDispatch {
   HostDispatch({
     required BridgeLogger log,
     MontyRuntimeRef? runtime,
-    HostSubExecutor? subExecute,
+    RuntimeSubExecutor? subExecute,
   }) : _log = log,
        _runtime = runtime,
        _subExecute = subExecute;
@@ -218,8 +227,19 @@ class HostDispatch {
   final BridgeLogger _log;
   final MontyRuntimeRef? _runtime;
 
-  /// Every handler's [HostContext.subExecute]: the runtime's, or none.
-  final HostSubExecutor? _subExecute;
+  /// The runtime's sub-executor, or none.
+  final RuntimeSubExecutor? _subExecute;
+
+  /// A handler's [HostContext.subExecute]: the runtime's, bound to
+  /// [cancelToken], the token of the call's execution (none for a direct
+  /// invocation).
+  HostSubExecutor? _subExecuteFor(CancelToken? cancelToken) {
+    final subExecute = _subExecute;
+    if (subExecute == null) return null;
+
+    return (code, {inputs}) =>
+        subExecute(code, inputs: inputs, cancelToken: cancelToken);
+  }
 
   final Map<String, HostFunction> _functions = {};
   final Map<String, Set<String>> _categoryIndex = {};
@@ -311,7 +331,7 @@ class HostDispatch {
       executionId: name,
       os: osHandler,
       parent: _runtime,
-      subExecute: _subExecute,
+      subExecute: _subExecuteFor(null),
     );
 
     return fn.handler!(validatedArgs, ctx);
@@ -411,7 +431,7 @@ class HostDispatch {
       cancelToken: cancelToken,
       os: os,
       parent: _runtime,
-      subExecute: _subExecute,
+      subExecute: _subExecuteFor(cancelToken),
     );
     final Object? result;
     final MontyValue value;

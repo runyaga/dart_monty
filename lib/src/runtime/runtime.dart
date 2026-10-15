@@ -135,8 +135,12 @@ class MontyRuntime implements MontyRuntimeRef {
 
   // The executions not yet settled; dispose closes their sessions.
   final Set<_Execution> _live = {};
-  // The sessions of the sub-executions in progress; dispose closes them.
+  // The sessions of the sub-executions in progress; dispose and clearState
+  // close them.
   final Set<MontySession> _subSessions = {};
+  // Counts clearState calls; a sub-execution's checkout that arrives after
+  // one is closed unfed.
+  int _generation = 0;
   final List<HostFunction> _extraFunctions = [];
   final StreamController<BridgeEvent> _eventsController =
       StreamController<BridgeEvent>.broadcast();
@@ -351,9 +355,7 @@ class MontyRuntime implements MontyRuntimeRef {
         ..token.cancel();
       await run.session?.close();
     }
-    for (final session in [..._subSessions]) {
-      await session.close();
-    }
+    await _closeSubSessions();
     final bridge = _sharedBridge;
     try {
       await _attachSettled();
@@ -372,27 +374,52 @@ class MontyRuntime implements MontyRuntimeRef {
 
   /// Runs [code] on a second session checked out of the pool, with
   /// default limits, [inputs] bound as globals by the feed, no OS handler
-  /// and no host functions; the session is closed afterwards, and by
-  /// [dispose]. Every `HostContext.subExecute` of this runtime's bridges.
+  /// and no host functions; the session is closed afterwards. Every
+  /// `HostContext.subExecute` of this runtime's bridges, with
+  /// [cancelToken] the calling execution's.
   ///
   /// Completes with the feed's [MontyValue]; fails with its [MontyError],
   /// or with the checkout's error (a pool's `checkoutTimeout` included).
+  /// [dispose], [clearState] and a cancel of [cancelToken] close a running
+  /// sub-execution's session, so its feed fails; a checkout that arrives
+  /// after one of them is closed unfed, and this fails with [StateError].
   Future<MontyValue> _subExecute(
     String code, {
     Map<String, Object?>? inputs,
+    CancelToken? cancelToken,
   }) async {
-    if (_disposed) throw StateError('MontyRuntime has been disposed');
+    final generation = _generation;
+    String? stopped() => _disposed
+        ? 'MontyRuntime has been disposed'
+        : (cancelToken?.isCancelled ?? false)
+        ? 'The execution was cancelled'
+        : generation != _generation
+        ? 'The runtime state was cleared'
+        : null;
+    if (stopped() case final reason?) throw StateError(reason);
     final values = _inputValues(inputs);
     final session = await _checkout();
-    if (_disposed) {
+    if (stopped() case final reason?) {
       await session.close();
-      throw StateError('MontyRuntime has been disposed');
+      throw StateError(reason);
     }
     _subSessions.add(session);
+    unawaited(
+      cancelToken?.future.then((_) {
+        if (_subSessions.contains(session)) return session.close();
+      }),
+    );
     try {
       return await session.feedRun(code, inputs: values);
     } finally {
       _subSessions.remove(session);
+      await session.close();
+    }
+  }
+
+  /// Closes the session of every sub-execution in progress.
+  Future<void> _closeSubSessions() async {
+    for (final session in [..._subSessions]) {
       await session.close();
     }
   }
@@ -601,6 +628,8 @@ class MontyRuntime implements MontyRuntimeRef {
     }
     if (_disposed) throw StateError('MontyRuntime has been disposed');
 
+    _generation++;
+    await _closeSubSessions();
     final bridge = _sharedBridge!;
     final registry = _sharedRegistry!;
     try {

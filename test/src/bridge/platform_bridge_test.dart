@@ -1089,7 +1089,8 @@ void main() {
         session: fake,
         runtime: _RuntimeRef(),
         logger: BridgeLogger.silent,
-        subExecute: (code, {inputs}) async => MontyString('sub:$code'),
+        subExecute: (code, {inputs, cancelToken}) async =>
+            MontyString('sub:$code'),
       );
       addTearDown(b.dispose);
       final seen = <MontyValue>[];

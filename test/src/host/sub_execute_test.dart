@@ -296,4 +296,146 @@ void main() {
     expect(sessions[1].closed, isTrue);
     expect(sessions[1].feeds, isEmpty);
   });
+
+  group('the caller ends first', () {
+    /// Polls one event-loop turn at a time until [condition] holds.
+    Future<void> until(bool Function() condition) async {
+      for (var i = 0; i < 1000 && !condition(); i++) {
+        await Future<void>.delayed(Duration.zero);
+      }
+      expect(condition(), isTrue);
+    }
+
+    /// A runtime whose `probe` runs a sub-execution held by [feedGate]
+    /// (when given) after a checkout held by [checkoutGate] (when given);
+    /// [caught] receives what the sub-execution threw.
+    Future<(MontyRuntime, ExecutionHandle)> holdSub({
+      required void Function(Object) caught,
+      Completer<void>? checkoutGate,
+      Completer<void>? feedGate,
+    }) async {
+      if (feedGate != null) {
+        script[1] = (sub) => sub
+          ..willHold(feedGate.future)
+          ..willReturn(const MontyNone());
+      }
+      final runtime = await startRuntimeWith(
+        checkout: ({limits}) async {
+          if (sessions.isNotEmpty) await checkoutGate?.future;
+
+          return checkout(limits: limits);
+        },
+      );
+      addTearDown(runtime.dispose);
+      runtime.register(
+        HostFunction(
+          schema: const HostFunctionSchema(name: 'probe'),
+          handler: (args, ctx) async {
+            try {
+              await ctx.subExecute!('1');
+            } on Object catch (e) {
+              caught(e);
+            }
+
+            return null;
+          },
+        ),
+      );
+      final handle = runtime.execute('probe()');
+      unawaited(handle.result.then((_) {}, onError: (_) {}));
+
+      return (runtime, handle);
+    }
+
+    test('dispose closes a sub-execution started by invoke', () async {
+      final gate = Completer<void>();
+      addTearDown(() => gate.isCompleted ? null : gate.complete());
+      script[0] = (_) {};
+      script[1] = (sub) => sub
+        ..willHold(gate.future)
+        ..willReturn(const MontyNone());
+      final runtime = await start((ctx) => ctx.subExecute!('1'));
+      final invoked = runtime.invoke('probe', {});
+      unawaited(invoked.then((_) {}, onError: (_) {}));
+      await until(() => sessions.length > 1 && sessions[1].feeds.isNotEmpty);
+
+      await runtime.dispose();
+
+      expect(sessions[1].closed, isTrue);
+    });
+
+    test('a cancel closes a running sub-execution', () async {
+      final gate = Completer<void>();
+      addTearDown(() => gate.isCompleted ? null : gate.complete());
+      Object? error;
+      final (_, handle) = await holdSub(
+        feedGate: gate,
+        caught: (e) => error = e,
+      );
+      await until(() => sessions.length > 1 && sessions[1].feeds.isNotEmpty);
+
+      await handle.cancel();
+
+      await until(() => sessions[1].closed);
+      await until(() => error != null);
+    });
+
+    test('a checkout that arrives after a cancel is closed unfed', () async {
+      final gate = Completer<void>();
+      Object? error;
+      final (_, handle) = await holdSub(
+        checkoutGate: gate,
+        caught: (e) => error = e,
+      );
+      // The root's checkout is done; the sub-execution's waits on the gate.
+      await until(
+        () => (sessions.first.inner as FakeMontySession).feeds.isNotEmpty,
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      await handle.cancel();
+      gate.complete();
+
+      await until(() => error != null);
+      expect(error, isA<StateError>());
+      expect(sessions[1].closed, isTrue);
+      expect(sessions[1].feeds, isEmpty);
+    });
+
+    test('clearState closes a running sub-execution', () async {
+      final gate = Completer<void>();
+      addTearDown(() => gate.isCompleted ? null : gate.complete());
+      final (runtime, _) = await holdSub(feedGate: gate, caught: (_) {});
+      await until(() => sessions.length > 1 && sessions[1].feeds.isNotEmpty);
+
+      final clearing = runtime.clearState();
+
+      await until(() => sessions[1].closed);
+      gate.complete();
+      await clearing;
+    });
+
+    test('a checkout that arrives after clearState is closed unfed', () async {
+      final gate = Completer<void>();
+      Object? error;
+      final (runtime, _) = await holdSub(
+        checkoutGate: gate,
+        caught: (e) => error = e,
+      );
+      await until(
+        () => (sessions.first.inner as FakeMontySession).feeds.isNotEmpty,
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      final clearing = runtime.clearState();
+      await Future<void>.delayed(Duration.zero);
+      gate.complete();
+      await clearing;
+
+      await until(() => error != null);
+      expect(error, isA<StateError>());
+      final sub = sessions.where((s) => s.feeds.isEmpty && s.closed);
+      expect(sub, isNotEmpty);
+    });
+  });
 }
