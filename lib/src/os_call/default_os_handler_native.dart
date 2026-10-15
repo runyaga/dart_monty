@@ -7,7 +7,7 @@ import 'package:dart_monty/src/os_call/platform_handlers.dart';
 import 'package:dart_monty/src/os_call/sandboxed_fs_handler.dart';
 import 'package:file/local.dart';
 
-/// Default [OsCallHandler] on native (`dart:io`) platforms.
+/// Default [OsHandler] on native (`dart:io`) platforms.
 ///
 /// Composes:
 /// - `Path.*` → [fsHandler] with [LocalFileSystem]
@@ -16,7 +16,7 @@ import 'package:file/local.dart';
 ///
 /// **Native:** Full read/write access to the host filesystem. For restricted
 /// access, use [sandboxedFsHandler] instead.
-OsCallHandler defaultOsHandler() {
+OsHandler defaultOsHandler() {
   final time = timeHandler();
   return composeOsHandlers({
     'Path.': fsHandler(const LocalFileSystem()),

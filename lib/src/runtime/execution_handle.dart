@@ -7,14 +7,9 @@ import 'package:dart_monty_core/dart_monty_core.dart';
 ///
 /// Exposes the full lifecycle of one execution in a single value:
 /// - [events]: broadcast stream of this execution's `BridgeEvent`s.
-/// - [result]: resolves with the final [MontyResult] (or errors).
-/// - [cancel]: requests cooperative cancellation.
+/// - [result]: resolves with the final [MontyValue] (or errors).
+/// - [cancel]: requests cancellation.
 /// - [executionId]: correlate per-execution events with telemetry.
-///
-/// Replaces the pre-Step-8 split API where `execute()` returned
-/// `Future<MontyResult>` and `executeStream()` returned
-/// `Stream<BridgeEvent>` — callers that needed both had to run the
-/// execution twice or reach around the runtime.
 class ExecutionHandle {
   /// Creates an [ExecutionHandle].
   const ExecutionHandle({
@@ -31,9 +26,9 @@ class ExecutionHandle {
   /// synchronously after obtaining the handle to see the full sequence.
   final Stream<BridgeEvent> events;
 
-  /// Completes with the final [MontyResult] when the execution finishes,
+  /// Completes with the final [MontyValue] when the execution finishes,
   /// or an error if the execution failed.
-  final Future<MontyResult> result;
+  final Future<MontyValue> result;
 
   /// Stable identifier for this execution. Used to correlate events and
   /// telemetry across the ownership tree.

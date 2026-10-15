@@ -1,15 +1,16 @@
 // ignore_for_file: avoid-unsafe-collection-methods, avoid-non-null-assertion
 // ignore_for_file: avoid-unnecessary-futures, newline-before-return
+import 'package:dart_monty/src/os_call/lowered_os_handler.dart';
 import 'package:dart_monty/src/os_call/os_error_mapping.dart';
 import 'package:dart_monty/src/os_call/os_handlers.dart';
 import 'package:dart_monty/src/os_call/path_op.dart';
 import 'package:dart_monty_core/dart_monty_core.dart'
     show
+        ExternalException,
         MontyBytes,
         MontyPath,
-        OsCallException,
-        OsCallHandler,
         OsCallNotHandledException,
+        OsHandler,
         resolveOpenCall;
 import 'package:file/file.dart';
 import 'package:file/memory.dart';
@@ -23,10 +24,10 @@ import 'package:file/memory.dart';
 /// ```dart
 /// final handler = fsHandler(MemoryFileSystem());
 /// ```
-OsCallHandler fsHandler(FileSystem fs) => mapIoErrors(_rawFsHandler(fs));
+OsHandler fsHandler(FileSystem fs) => mapIoErrors(_rawFsHandler(fs));
 
-OsCallHandler _rawFsHandler(FileSystem fs) {
-  return (operation, args, kwargs) async {
+OsHandler _rawFsHandler(FileSystem fs) {
+  return loweredOsHandler((operation, args, kwargs) async {
     switch (operation) {
       case PathOp.open:
         // Core owns the open() mode→effect mapping; supply this FileSystem's
@@ -65,20 +66,14 @@ OsCallHandler _rawFsHandler(FileSystem fs) {
         final path = osArgString(args.first);
         final file = fs.file(path);
         if (!file.existsSync()) {
-          throw OsCallException(
-            'No such file: $path',
-            pythonExceptionType: 'FileNotFoundError',
-          );
+          throw ExternalException('FileNotFoundError', 'No such file: $path');
         }
         return file.readAsStringSync();
       case PathOp.readBytes:
         final path = osArgString(args.first);
         final file = fs.file(path);
         if (!file.existsSync()) {
-          throw OsCallException(
-            'No such file: $path',
-            pythonExceptionType: 'FileNotFoundError',
-          );
+          throw ExternalException('FileNotFoundError', 'No such file: $path');
         }
         // Typed bytes (not a bare list) so binary `open(...,'rb').read()`
         // buffers correctly.
@@ -113,16 +108,13 @@ OsCallHandler _rawFsHandler(FileSystem fs) {
         return bytes.length;
       case PathOp.mkdir:
         final path = osArgString(args.first);
-        final parents = kwargs?['parents'] as bool? ?? false;
-        final existOk = kwargs?['exist_ok'] as bool? ?? false;
+        final parents = kwargs['parents'] as bool? ?? false;
+        final existOk = kwargs['exist_ok'] as bool? ?? false;
         final dir = fs.directory(path);
         final exists = dir.existsSync();
         if (existOk && exists) return null;
         if (!parents && exists) {
-          throw OsCallException(
-            'Directory exists: $path',
-            pythonExceptionType: 'FileExistsError',
-          );
+          throw ExternalException('FileExistsError', 'Directory exists: $path');
         }
         dir.createSync(recursive: parents);
         return null;
@@ -130,10 +122,7 @@ OsCallHandler _rawFsHandler(FileSystem fs) {
         final path = osArgString(args.first);
         final file = fs.file(path);
         if (!file.existsSync()) {
-          throw OsCallException(
-            'No such file: $path',
-            pythonExceptionType: 'FileNotFoundError',
-          );
+          throw ExternalException('FileNotFoundError', 'No such file: $path');
         }
         file.deleteSync();
         return null;
@@ -141,9 +130,9 @@ OsCallHandler _rawFsHandler(FileSystem fs) {
         final path = osArgString(args.first);
         final dir = fs.directory(path);
         if (!dir.existsSync()) {
-          throw OsCallException(
+          throw ExternalException(
+            'FileNotFoundError',
             'No such directory: $path',
-            pythonExceptionType: 'FileNotFoundError',
           );
         }
         dir.deleteSync();
@@ -170,16 +159,16 @@ OsCallHandler _rawFsHandler(FileSystem fs) {
           fs.file(oldPath).renameSync(newPath);
         } on FileSystemException catch (e) {
           final os = e.osError;
-          throw OsCallException(
-            '[Errno ${os?.errorCode}] ${os?.message ?? e.message}: '
-            "'$oldPath' -> '$newPath'",
-            pythonExceptionType: switch (os?.errorCode) {
+          throw ExternalException(
+            switch (os?.errorCode) {
               2 => 'FileNotFoundError',
               13 => 'PermissionError',
               20 => 'NotADirectoryError',
               21 => 'IsADirectoryError',
               _ => 'OSError',
             },
+            '[Errno ${os?.errorCode}] ${os?.message ?? e.message}: '
+            "'$oldPath' -> '$newPath'",
           );
         }
         return newPath;
@@ -187,9 +176,9 @@ OsCallHandler _rawFsHandler(FileSystem fs) {
         final path = osArgString(args.first);
         final dir = fs.directory(path);
         if (!dir.existsSync()) {
-          throw OsCallException(
+          throw ExternalException(
+            'FileNotFoundError',
             'No such directory: $path',
-            pythonExceptionType: 'FileNotFoundError',
           );
         }
         return dir.listSync().map((e) => MontyPath(e.path)).toList();
@@ -223,11 +212,11 @@ OsCallHandler _rawFsHandler(FileSystem fs) {
     //        Path.stat
     //
     // Same leak class as the bridge arm fixed in 64fb4c8.
-    throw OsCallNotHandledException(operation);
-  };
+    throw const OsCallNotHandledException();
+  });
 }
 
-/// Fresh in-memory VFS [OsCallHandler] — works on all platforms.
+/// Fresh in-memory VFS [OsHandler] — works on all platforms.
 ///
 /// For tests or hosts that need to pre-populate or read back files, hold the
 /// [MemoryFileSystem] yourself and pass it to [fsHandler]:
@@ -237,7 +226,7 @@ OsCallHandler _rawFsHandler(FileSystem fs) {
 ///   ..file('/sandbox/config.json').writeAsStringSync('{"k": 1}');
 /// bridge.registerOs(composeOsHandlers({'Path.': fsHandler(fs), ...}));
 /// ```
-OsCallHandler memoryFsHandler() => fsHandler(MemoryFileSystem());
+OsHandler memoryFsHandler() => fsHandler(MemoryFileSystem());
 
 /// Codepoints, not UTF-16 code units — what CPython's `len()` counts.
 ///

@@ -1,4 +1,4 @@
-/// Platform-aware default `OsCallHandler`.
+/// Platform-aware default `OsHandler`.
 ///
 /// Uses conditional imports to select the right implementation:
 /// - Native (`dart:io`): `LocalFileSystem` + host environment + datetime

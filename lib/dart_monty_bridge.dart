@@ -5,11 +5,10 @@
 library;
 
 export 'package:dart_monty_core/dart_monty_core.dart'
-    show OsCallException, OsCallNotHandledException;
+    show OsCallNotHandledException;
 export 'src/bridge/bridge.dart';
 export 'src/bridge/event.dart';
 export 'src/bridge/logger.dart';
-export 'src/bridge/platform.dart';
 export 'src/bridge/struct_log_logger.dart';
 export 'src/extension/attach_context.dart' show AttachContext;
 export 'src/extension/coordinator.dart';

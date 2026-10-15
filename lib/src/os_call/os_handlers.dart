@@ -1,10 +1,10 @@
 import 'package:dart_monty/src/os_call/path_op.dart';
 import 'package:dart_monty_core/dart_monty_core.dart'
-    show OsCallHandler, OsCallNotHandledException;
+    show OsCallNotHandledException, OsHandler;
 
-export 'package:dart_monty_core/dart_monty_core.dart' show OsCallHandler;
+export 'package:dart_monty_core/dart_monty_core.dart' show OsHandler;
 
-/// Composes multiple [OsCallHandler]s by operation-name prefix.
+/// Composes multiple [OsHandler]s by operation-name prefix.
 ///
 /// Each key maps a prefix (e.g., `'Path.'`, `'os.'`, `'date.'`) to the handler
 /// responsible for that group. Longest prefix wins. Unmatched operations are
@@ -23,9 +23,9 @@ export 'package:dart_monty_core/dart_monty_core.dart' show OsCallHandler;
 ///   'datetime.': timeHandler(),
 /// });
 /// ```
-OsCallHandler composeOsHandlers(
-  Map<String, OsCallHandler> handlers, {
-  OsCallHandler? fallback,
+OsHandler composeOsHandlers(
+  Map<String, OsHandler> handlers, {
+  OsHandler? fallback,
 }) {
   final sortedPrefixes = handlers.keys.toList()
     ..sort((a, b) => b.length.compareTo(a.length));
@@ -62,7 +62,7 @@ OsCallHandler composeOsHandlers(
       }
     }
     if (fallback != null) return fallback(operation, args, kwargs);
-    // DECLINE, do not fail. A composer is itself an `OsCallHandler` and this
+    // DECLINE, do not fail. A composer is itself an `OsHandler` and this
     // codebase nests them — `coordinator.dart` composes with another handler as
     // `fallback`, and `defaultOsHandler()` is a composer. Throwing here aborted
     // an outer composer's routing instead of letting it try the next candidate.
@@ -71,7 +71,7 @@ OsCallHandler composeOsHandlers(
     // renders a decline as monty's own "'<op>' is not supported in this
     // environment", where an escaping Dart error becomes a RuntimeError
     // carrying a Dart-flavoured message.
-    throw OsCallNotHandledException(operation);
+    throw const OsCallNotHandledException();
   };
 }
 

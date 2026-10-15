@@ -72,12 +72,12 @@ class BridgeRunError extends BridgeEvent {
   /// Captured print output before the error (when available).
   final String? printOutput;
 
-  /// The original [MontyException] when the error originated from Python.
+  /// The original [MontyError] when the error originated from Python.
   ///
-  /// Preserves structured fields (filename, lineNumber, excType, traceback)
-  /// that are lost in the [message] string. Null when the error is not a
+  /// Preserves structured fields (`exception.excType`, the traceback) that
+  /// are lost in the [message] string. Null when the error is not a
   /// Python exception (e.g. infrastructure errors).
-  final MontyException? exception;
+  final MontyError? exception;
 }
 
 /// A host function call started (wraps start through result).

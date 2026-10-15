@@ -2,6 +2,33 @@
 
 ### Breaking
 
+dart_monty now builds on dart_monty_core 0.110 (the worker API). This first
+step ports the types; behaviour that core no longer provides is rebuilt by the
+following D1 changes, and until then it throws `UnimplementedError` naming the
+change that brings it back.
+
+- **`dart_monty_testing.dart`** and **`monty_backend_spi.dart`** are gone.
+  Tests script `FakeMontySession` from `dart_monty_core_testing.dart`.
+- **`DartMonty.ensureInitialized`** is gone: the web needs no init call.
+- **`PlatformBridge`** is gone. `MontyBridge({required MontySession session,
+  BridgeLogger? logger})` replaces `MontyBridge(platform:, limits:)`.
+- **`MontyRuntime(...)`** is now **`await MontyRuntime.start(...)`**, with an
+  optional `Monty pool`; `MontyRuntime.defaultCheckoutTimeout` is 30 s.
+  `clearState()` returns a `Future`.
+- **`ExtensionCoordinator.generateSystemPrompt`**, `systemPromptPrefix` and
+  the `sandbox_spawn(system_prompt=)` parameter are gone;
+  `MontyExtension.systemPromptContext` stays.
+- **`SandboxExtension`** no longer takes `platformFactory`; `childLimits` is a
+  `ResourceLimits`.
+- OS handlers are core's **`OsHandler`** (`MontyValue` arguments and result)
+  instead of `OsCallHandler`, and raise `ExternalException(excType, message)`
+  instead of `OsCallException`. `HostFunctionSchema.mapAndValidate` takes
+  `(args, kwargs)`.
+- **`ExecutionHandle.result`** and `HostContext.subExecute` complete with a
+  `MontyValue` and fail with `MontyError`; `BridgeRunError.exception` and
+  `ChildFailed.exception` are `MontyError`.
+- **`BridgeLogger.silent`** is the silent logger.
+
 Eight features that nothing used have been moved out of this package. There
 is no deprecation period and no replacement API.
 

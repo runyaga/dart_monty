@@ -60,16 +60,19 @@ class HostFunctionSchema {
     };
   }
 
-  /// Maps positional + keyword args from [pending] to a named parameter map.
+  /// Maps positional [args] and keyword [kwargs] to a named parameter map.
   ///
   /// 1. Positional args are matched to [params] by order.
   /// 2. Keyword args (`kwargs`) overlay by name.
   /// 3. Each param is validated via [HostParam.validate].
   ///
   /// Throws [ArgumentError] if required params are missing or types mismatch.
-  Map<String, Object?> mapAndValidate(MontyPending pending) {
+  Map<String, Object?> mapAndValidate(
+    List<MontyValue> args,
+    Map<String, MontyValue> kwargs,
+  ) {
     final raw = <String, Object?>{};
-    final positionalArgs = pending.args;
+    final positionalArgs = args;
 
     // Reject extra positional args.
     if (positionalArgs.length > params.length) {
@@ -85,17 +88,14 @@ class HostFunctionSchema {
     }
 
     // Kwargs overlay — reject unknown keys.
-    final kwargs = pending.kwargs;
-    if (kwargs != null) {
-      final paramNames = params.map((p) => p.name).toSet();
-      for (final key in kwargs.keys) {
-        if (!paramNames.contains(key)) {
-          throw FormatException('$name: unknown keyword argument "$key"');
-        }
+    final paramNames = params.map((p) => p.name).toSet();
+    for (final key in kwargs.keys) {
+      if (!paramNames.contains(key)) {
+        throw FormatException('$name: unknown keyword argument "$key"');
       }
-      for (final entry in kwargs.entries) {
-        raw[entry.key] = entry.value.dartValue;
-      }
+    }
+    for (final entry in kwargs.entries) {
+      raw[entry.key] = entry.value.dartValue;
     }
 
     // Validate all params

@@ -6,6 +6,9 @@
 /// Override: implement this interface to bring your own logging framework.
 /// See `NullBridgeLogger` for a silent no-op implementation.
 abstract interface class BridgeLogger {
+  /// A logger that discards everything.
+  static const BridgeLogger silent = NullBridgeLogger();
+
   /// Logs a trace-level message (finest granularity).
   void trace(String message, {Map<String, Object?>? attributes});
 

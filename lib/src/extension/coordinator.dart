@@ -162,11 +162,11 @@ void _injectCoordinators(
 ///
 /// Throws [StateError] if two extensions return the same prefix key from
 /// [MontyExtension.osContribution].
-Map<String, OsCallHandler> _collectOsContributions(
+Map<String, OsHandler> _collectOsContributions(
   List<MontyExtension> attachOrder,
 ) {
   // prefix → (owning namespace, handler)
-  final merged = <String, (String, OsCallHandler)>{};
+  final merged = <String, (String, OsHandler)>{};
 
   for (final ext in attachOrder) {
     final contrib = ext.osContribution;
@@ -193,8 +193,8 @@ Map<String, OsCallHandler> _collectOsContributions(
 /// on [bridge]. No-op when there are no contributions and [baseOs] is `null`.
 void _applyOsContributions(
   MontyBridge bridge,
-  Map<String, OsCallHandler> contributions,
-  OsCallHandler? baseOs,
+  Map<String, OsHandler> contributions,
+  OsHandler? baseOs,
 ) {
   if (contributions.isEmpty && baseOs == null) return;
 
@@ -211,14 +211,6 @@ void _applyOsContributions(
 /// by an underscore (e.g., namespace `sqlite` requires functions named
 /// `sqlite_query`, `sqlite_execute`, etc.).
 class ExtensionCoordinator {
-  /// Optional text prepended before extension sections in the system prompt.
-  ///
-  /// Set by `SandboxExtension._handleSpawn` after coordinator construction to
-  /// inject per-child system prompt content. Using a public field (rather
-  /// than a constructor param) guarantees injection regardless of whether
-  /// the coordinator was built by inheritance or a custom factory.
-  String? systemPromptPrefix;
-
   final List<MontyExtension> _extensions = [];
   List<MontyExtension>? _attachOrder;
   final Set<String> _namespaces = {};
@@ -232,12 +224,12 @@ class ExtensionCoordinator {
   /// Captured so that [spawnChild] can re-compose a child handler per
   /// [ChildVfsStrategy] (swapping only the `Path.` entry) instead of
   /// opaquely delegating to the already-composed parent handler.
-  Map<String, OsCallHandler>? _osContributions;
+  Map<String, OsHandler>? _osContributions;
 
   /// The `baseOs` passed to [attachTo], if any. Used as the fallback for any
   /// prefix that no extension claims when [spawnChild] composes a child
   /// handler.
-  OsCallHandler? _baseOs;
+  OsHandler? _baseOs;
 
   /// The `extraFunctions` passed to [attachTo], captured so that [spawnChild]
   /// can forward entries tagged [ChildPropagation.inherit] to the
@@ -306,7 +298,7 @@ class ExtensionCoordinator {
     MontyBridge bridge, {
     List<HostFunction>? extraFunctions,
     bool enableIntrospection = true,
-    OsCallHandler? baseOs,
+    OsHandler? baseOs,
   }) async {
     if (_attached) {
       throw StateError(
@@ -413,8 +405,7 @@ class ExtensionCoordinator {
     required ChildSpawnContext context,
     required MontyBridge bridge,
     ChildVfsStrategy vfsStrategy = ChildVfsStrategy.isolated,
-    String? childSystemPromptPrefix,
-    OsCallHandler? baseOs,
+    OsHandler? baseOs,
   }) async {
     if (!_attached) {
       throw StateError(
@@ -441,7 +432,6 @@ class ExtensionCoordinator {
       }
     }
 
-    child.systemPromptPrefix = childSystemPromptPrefix;
     final childBaseOs = _composeChildBaseOs(
       vfsStrategy,
       baseOsOverride: baseOs,
@@ -460,56 +450,16 @@ class ExtensionCoordinator {
     return child;
   }
 
-  /// Auto-generates an LLM system prompt from extension schemas.
-  ///
-  /// Each extension produces a markdown section with its namespace as heading,
-  /// optional [MontyExtension.systemPromptContext], and a list of functions.
-  String generateSystemPrompt() {
-    final buffer = StringBuffer();
-
-    if (systemPromptPrefix != null && systemPromptPrefix!.isNotEmpty) {
-      buffer
-        ..writeln(systemPromptPrefix)
-        ..writeln();
-    }
-
-    for (final ext in _extensions) {
-      buffer.writeln('### ${ext.namespace}');
-      final context = ext.systemPromptContext;
-      if (context != null && context.isNotEmpty) {
-        buffer.writeln(context);
-      }
-      for (final fn in ext.functions) {
-        final params = fn.schema.params
-            .map(
-              (p) =>
-                  '${p.name}'
-                  '${p.isRequired ? '' : '?'}'
-                  ': ${p.type.jsonSchemaType}',
-            )
-            .join(', ');
-        final fnName = fn.schema.name;
-        final desc = fn.schema.description;
-        buffer.writeln(
-          desc != null ? '- `$fnName($params)`: $desc' : '- `$fnName($params)`',
-        );
-      }
-      buffer.writeln();
-    }
-
-    return buffer.toString().trimRight();
-  }
-
-  /// Builds a composed child [OsCallHandler] from the parent's captured
+  /// Builds a composed child [OsHandler] from the parent's captured
   /// contributions and [strategy]. Returns `null` when the parent has no OS
   /// state at all (nothing to inherit).
   ///
   /// When [baseOsOverride] is non-null it replaces the parent's captured
   /// `_baseOs` as the fallback — callers use this to propagate a
   /// per-execution OS override into child composition.
-  OsCallHandler? _composeChildBaseOs(
+  OsHandler? _composeChildBaseOs(
     ChildVfsStrategy strategy, {
-    OsCallHandler? baseOsOverride,
+    OsHandler? baseOsOverride,
   }) {
     final parentOs = _osContributions;
     final parentBase = baseOsOverride ?? _baseOs;

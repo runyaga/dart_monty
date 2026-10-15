@@ -94,7 +94,7 @@ class ChildSpawnContext {
 ///
 /// ```dart
 /// @override
-/// Map<String, OsCallHandler>? get osContribution => {
+/// Map<String, OsHandler>? get osContribution => {
 ///   'Path.': _myFsHandler,
 ///   'os.getcwd': _myFsHandler,
 /// };
@@ -158,12 +158,12 @@ abstract class MontyExtension {
   /// OS call prefix contributions for this extension.
   ///
   /// Each key is an operation-name prefix (e.g., `'Path.'`, `'os.'`); the
-  /// value is the [OsCallHandler] that handles those operations.
+  /// value is the [OsHandler] that handles those operations.
   ///
   /// `ExtensionCoordinator.attachTo` merges contributions from all extensions
   /// and throws [StateError] if two extensions claim the same prefix. Returns
   /// `null` (the default) if this extension does not intercept OS calls.
-  Map<String, OsCallHandler>? get osContribution => null;
+  Map<String, OsHandler>? get osContribution => null;
 
   /// Host functions this extension provides.
   List<HostFunction> get functions;
