@@ -1,3 +1,7 @@
+// A composer must stay synchronous: core honours an OsCallNotHandledException
+// only as a synchronous throw, so the handlers' results are returned as they
+// are, never awaited. `prefer-return-await` would force an `async` frame.
+// ignore_for_file: prefer-return-await
 import 'package:dart_monty/src/os_call/path_op.dart';
 import 'package:dart_monty_core/dart_monty_core.dart'
     show OsCallNotHandledException, OsHandler;

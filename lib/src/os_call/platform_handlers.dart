@@ -1,3 +1,4 @@
+// ignore_for_file: avoid-unsafe-collection-methods
 import 'package:dart_monty/src/os_call/lowered_os_handler.dart';
 import 'package:dart_monty/src/os_call/os_handlers.dart';
 

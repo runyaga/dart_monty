@@ -94,7 +94,7 @@ OsHandler overlayFsHandler({
     String op,
     List<MontyValue> args,
     Map<String, MontyValue> kwargs,
-  ) => recoverFrom<MontyValue>(
+  ) => recoverFrom(
     () => scratch(op, args, kwargs),
     test: _isNotFound,
     onError: (_, _) => base(op, args, kwargs),
@@ -128,8 +128,8 @@ OsHandler overlayFsHandler({
     }
 
     // A missing scratch directory is fine: only the base layer contributes.
-    FutureOr<void> fromScratch() => thenOrNow<MontyValue, void>(
-      recoverFrom<MontyValue>(
+    FutureOr<void> fromScratch() => thenOrNow(
+      recoverFrom(
         () => scratch(op, args, kwargs),
         test: _isNotFound,
         onError: (_, _) => const MontyList([]),
@@ -139,7 +139,7 @@ OsHandler overlayFsHandler({
 
     // A missing base directory is an error only when scratch had nothing.
     FutureOr<MontyValue> fromBase() => thenOrNow<MontyValue, MontyValue>(
-      recoverFrom<MontyValue>(
+      recoverFrom(
         () => base(op, args, kwargs),
         test: _isNotFound,
         onError: (_, _) {
@@ -169,7 +169,7 @@ OsHandler overlayFsHandler({
     String op,
     List<MontyValue> args,
     Map<String, MontyValue> kwargs,
-  ) => recoverFrom<MontyValue>(
+  ) => recoverFrom(
     () => scratch(op, args, kwargs),
     test: _isNotFound,
     onError: (notFound, stack) => thenOrNow<MontyValue, MontyValue>(
