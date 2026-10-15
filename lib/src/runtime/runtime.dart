@@ -629,7 +629,10 @@ class MontyRuntime implements MontyRuntimeRef {
   /// The shared bridge, with the extensions attached, once no clearState is
   /// in progress; [run], when given, stops the wait.
   Future<SessionBridge> _attachShared([_Execution? run]) async {
-    await _clearingDone(run);
+    // Re-checked with no await before the attachment starts.
+    while (_clearing != null) {
+      await _clearingDone(run);
+    }
     // From here to the attachment's start nothing awaits, so a clearState
     // that starts later sees the attachment and waits for it.
     if (_disposed) throw StateError('MontyRuntime has been disposed');
