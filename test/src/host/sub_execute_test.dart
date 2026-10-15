@@ -364,6 +364,47 @@ void main() {
       expect(sessions[1].closed, isTrue);
     });
 
+    for (final viaInvoke in [false, true]) {
+      test(
+        'a handler that calls subExecute after clearState is refused '
+        '(${viaInvoke ? 'invoke' : 'execute'})',
+        () async {
+          final resume = Completer<void>();
+          final paused = Completer<void>();
+          Object? error;
+          script[0] = viaInvoke
+              ? (_) {}
+              : (root) => root
+                  ..willCall('probe')
+                  ..willReturn(const MontyNone());
+          final runtime = await start((ctx) async {
+            paused.complete();
+            await resume.future;
+            try {
+              await ctx.subExecute!('1');
+            } on Object catch (e) {
+              error = e;
+            }
+
+            return null;
+          });
+          final call = viaInvoke
+              ? runtime.invoke('probe', {})
+              : runtime.execute('probe()').result;
+          unawaited(call.then((_) {}, onError: (_) {}));
+          await paused.future;
+
+          await runtime.clearState();
+          final before = sessions.length;
+          resume.complete();
+          await until(() => error != null);
+
+          expect(error, isA<StateError>());
+          expect(sessions, hasLength(before));
+        },
+      );
+    }
+
     test('a cancel closes a running sub-execution', () async {
       final gate = Completer<void>();
       addTearDown(() => gate.isCompleted ? null : gate.complete());

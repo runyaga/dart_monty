@@ -6,6 +6,7 @@ import 'package:dart_monty/src/bridge/session_bridge.dart';
 import 'package:dart_monty/src/extension/coordinator.dart';
 import 'package:dart_monty/src/extension/extension.dart';
 import 'package:dart_monty/src/extensions/sandbox.dart';
+import 'package:dart_monty/src/host/dispatch.dart' show RuntimeSubExecutor;
 import 'package:dart_monty/src/host/function.dart';
 import 'package:dart_monty/src/host/schema.dart';
 import 'package:dart_monty/src/os_call/os_handlers.dart';
@@ -376,7 +377,8 @@ class MontyRuntime implements MontyRuntimeRef {
   /// default limits, [inputs] bound as globals by the feed, no OS handler
   /// and no host functions; the session is closed afterwards. Every
   /// `HostContext.subExecute` of this runtime's bridges, with
-  /// [cancelToken] the calling execution's.
+  /// [cancelToken] the calling execution's and [generation] the
+  /// [clearState] count when the calling bridge was built.
   ///
   /// Completes with the feed's [MontyValue]; fails with its [MontyError],
   /// or with the checkout's error (a pool's `checkoutTimeout` included).
@@ -385,10 +387,10 @@ class MontyRuntime implements MontyRuntimeRef {
   /// after one of them is closed unfed, and this fails with [StateError].
   Future<MontyValue> _subExecute(
     String code, {
+    required int generation,
     Map<String, Object?>? inputs,
     CancelToken? cancelToken,
   }) async {
-    final generation = _generation;
     String? stopped() => _disposed
         ? 'MontyRuntime has been disposed'
         : (cancelToken?.isCancelled ?? false)
@@ -415,6 +417,19 @@ class MontyRuntime implements MontyRuntimeRef {
       _subSessions.remove(session);
       await session.close();
     }
+  }
+
+  /// The sub-executor of a bridge built now: its sub-executions stop at the
+  /// next [clearState], even one that starts after it.
+  RuntimeSubExecutor _subExecutor() {
+    final generation = _generation;
+
+    return (code, {inputs, cancelToken}) => _subExecute(
+      code,
+      inputs: inputs,
+      cancelToken: cancelToken,
+      generation: generation,
+    );
   }
 
   /// Closes the session of every sub-execution in progress.
@@ -525,7 +540,7 @@ class MontyRuntime implements MontyRuntimeRef {
       session: session,
       logger: _logger,
       runtime: this,
-      subExecute: _subExecute,
+      subExecute: _subExecutor(),
     );
     _extraFunctions.forEach(bridge.register);
     final registry = ExtensionCoordinator();
@@ -596,7 +611,7 @@ class MontyRuntime implements MontyRuntimeRef {
       session: session,
       logger: _logger,
       runtime: this,
-      subExecute: _subExecute,
+      subExecute: _subExecutor(),
     );
     _extraFunctions.forEach(bridge.register);
     _sharedBridge = bridge;
