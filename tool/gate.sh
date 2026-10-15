@@ -190,8 +190,8 @@ run_check "html escaping" bash tool/check_html_escaping.sh
 # returned 200. This assembles the site and drives headless Chrome at every
 # page. Exits 77 (a VISIBLE skip) when no browser is installed.
 # D1 branch: agent.html's sandbox examples need SandboxExtension's child
-# checkout (D1-8); D1-8 restores this.
-skip_check "demo pages boot" "D1 branch: sandbox examples need D1-8"
+# checkout (D1-8); the boot test tags those d1-pending until then.
+run_check "demo pages boot" bash tool/check_demo_pages.sh
 # Ported from dart_monty_core. It asks one question of every public entry
 # point in lib/dart_monty.dart's export closure: does ANY file that runs
 # against a real backend call it? A unit test against a mock does not count —

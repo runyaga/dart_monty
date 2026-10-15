@@ -230,9 +230,13 @@ set +o pipefail
 # adding a ninth page or a thirty-first example raises it in the same commit
 # that adds it: one test per page, one per entrypoint, ONE PER EXAMPLE, plus
 # the coverage assertion.
-FLOOR=$((NPAGES + NENTRY + NEXAMPLES + 1))
+# D1 branch: the sandbox examples that test/integration/demo_page_boot_test.dart
+# tags d1-pending (11, all on agent.html) do not run until D1-8 rebuilds
+# sandbox children; D1-8 sets this to 0 and D1-Z removes it.
+NPENDING=11
+FLOOR=$((NPAGES + NENTRY + NEXAMPLES + 1 - NPENDING))
 bash tool/assert_test_count.sh "$LOG" "$FLOOR" demo || RC=1
 
 [ "$RC" = "0" ] || fail "the published demos do not all boot (see above)"
 echo "PASS — $NPAGES page(s) booted, $NENTRY entrypoint(s) executed and"
-echo "       $NEXAMPLES selectable example(s) ran green in $CHROME"
+echo "       $((NEXAMPLES - NPENDING)) selectable example(s) ran green in $CHROME ($NPENDING pending D1-8)"

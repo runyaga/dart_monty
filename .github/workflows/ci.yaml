@@ -44,13 +44,6 @@ concurrency:
 permissions:
   contents: read
 
-env:
-  # D1 branch only: the example packages (example/, example/native/,
-  # example/web/) are not ported to core 0.110 until D1-10, so the steps that
-  # build or run them are off. D1-10 deletes this switch and every `if:` that
-  # reads it; D1-Z asserts it is gone.
-  D1_EXAMPLES: 'off'
-
 jobs:
   # ---------------------------------------------------------------------------
   # docs-zensical — parallel build, NOT a cutover
@@ -487,16 +480,16 @@ jobs:
           # and could fail a gate its tests actually satisfy.
           #
           # D1 branch: `--run-skipped` would also run the d1-pending stubs, so
-          # they are excluded by tag, and so is `example` until D1-10.
+          # they are excluded by tag.
           dart test --run-skipped --tags=integration \
-            --exclude-tags d1-pending,example \
+            --exclude-tags d1-pending \
             --coverage=coverage-integration \
             --reporter=expanded 2>&1 | tee /tmp/integration.log
           # A suite that registers nothing prints success and exits 0.
-          # D1 branch: re-measured on D1-B's active tests (307 observed locally; the
+          # D1 branch: re-measured on D1-B's active tests (311 observed locally; the
           # rest are d1-pending) and set just below. D1-Z restores a floor at
           # or above main's 290. Never lower it to make a run pass.
-          bash tool/assert_test_count.sh /tmp/integration.log 305 integration
+          bash tool/assert_test_count.sh /tmp/integration.log 308 integration
       # The agent-loop acceptance suite (A1-A9) on the worker process: the
       # tool round trip, Python errors as data, state and clearState, host
       # tools, concurrent async tools, cancel and limits, a worker crash, and
@@ -526,8 +519,6 @@ jobs:
       # this job's tree, so no second process republishes .dart_tool/lib while
       # the first has it mapped.
       - name: Run example smoke tests
-        # Off on the D1 branch until D1-10 ports the examples.
-        if: env.D1_EXAMPLES == 'on'
         run: |
           # Floor 4, not 3: there are exactly four example/*.dart files and each
           # must smoke. With a suite this small a floor below the observed count
@@ -645,8 +636,6 @@ jobs:
       # without it the demos compile against pub.dev's published core and
       # prove nothing about the 0.23 migration.
       - name: Web demos resolve the intended core, and there are 7 entrypoints
-        # Off on the D1 branch until D1-10 ports the examples.
-        if: env.D1_EXAMPLES == 'on'
         working-directory: example/web
         run: |
           set -euo pipefail
@@ -691,8 +680,6 @@ jobs:
             echo "  Losing one silently is the failure this catches."; exit 1; }
 
       - name: Every published page loads, boots, and resolves its assets
-        # Off on the D1 branch until D1-10 ports the examples.
-        if: env.D1_EXAMPLES == 'on'
         env:
           DEMO_PAGES_STRICT: '1'
         run: bash tool/check_demo_pages.sh
