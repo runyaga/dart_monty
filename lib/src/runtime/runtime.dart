@@ -110,7 +110,12 @@ class MontyRuntime implements MontyRuntimeRef {
   // Shared mode: the held session, its bridge and the coordinator.
   SessionBridge? _sharedBridge;
   ExtensionCoordinator? _sharedRegistry;
-  bool _sharedAttached = false;
+  // Shared mode: the attachment of the extensions, once started; every
+  // first use awaits the same one.
+  Future<void>? _sharedAttach;
+
+  // Shared mode: the clearState in progress; the next one waits for it.
+  Future<void>? _clearing;
 
   // Shared mode: a cancel closed the held session; the next execution
   // checks out a fresh one.
@@ -121,6 +126,9 @@ class MontyRuntime implements MontyRuntimeRef {
 
   bool _disposed = false;
   int _nextExecutionId = 0;
+
+  // The executions not yet settled; dispose closes their sessions.
+  final Set<_Execution> _live = {};
   final List<HostFunction> _extraFunctions = [];
   final StreamController<BridgeEvent> _eventsController =
       StreamController<BridgeEvent>.broadcast();
@@ -252,6 +260,7 @@ class MontyRuntime implements MontyRuntimeRef {
     if (_disposed) throw StateError('MontyRuntime has been disposed');
     final values = _inputValues(inputs);
     final run = _Execution('exec-${_nextExecutionId++}');
+    _live.add(run);
 
     if (_sandbox) {
       unawaited(_settle(run, () => _runSandboxed(run, code, os, values)));
@@ -315,6 +324,26 @@ class MontyRuntime implements MontyRuntimeRef {
     if (_disposed) throw StateError('MontyRuntime has been disposed');
     if (_sandbox) return;
 
+    final next = _clear(_clearing);
+    _clearing = next;
+    try {
+      await next;
+    } finally {
+      if (identical(_clearing, next)) _clearing = null;
+    }
+  }
+
+  /// One [clearState], after [previous] has ended either way.
+  Future<void> _clear(Future<void>? previous) async {
+    if (previous != null) {
+      try {
+        await previous;
+      } on Object {
+        // The earlier call reports its own failure.
+      }
+    }
+    if (_disposed) throw StateError('MontyRuntime has been disposed');
+
     final bridge = _sharedBridge!;
     final registry = _sharedRegistry!;
     try {
@@ -326,15 +355,22 @@ class MontyRuntime implements MontyRuntimeRef {
     }
   }
 
-  /// Releases all resources: disposes the extensions, closes the held
-  /// session, closes the pool when the runtime started it (a caller's pool
-  /// stays open), and closes [events]. Idempotent.
+  /// Releases all resources: closes the session of every execution still
+  /// running (its result fails as for a cancel), disposes the extensions,
+  /// closes the held session, closes the pool when the runtime started it
+  /// (a caller's pool stays open), and closes [events]. Idempotent.
   ///
   /// An extension whose `onDispose` throws makes `dispose` throw that error
   /// after the rest is released.
   Future<void> dispose() async {
     if (_disposed) return;
     _disposed = true;
+    for (final run in [..._live]) {
+      run
+        ..cancelled = true
+        ..token.cancel();
+      await run.session?.close();
+    }
     final bridge = _sharedBridge;
     try {
       await _sharedRegistry?.disposeAll();
@@ -351,7 +387,7 @@ class MontyRuntime implements MontyRuntimeRef {
   // ---------------------------------------------------------------------------
 
   /// Runs [body] for [run], completing its result with the value or the
-  /// error and closing its event stream first.
+  /// error, then closing its event stream.
   Future<void> _settle(
     _Execution run,
     Future<MontyValue> Function() body,
@@ -368,13 +404,15 @@ class MontyRuntime implements MontyRuntimeRef {
       run
         ..session = null
         ..finished = true;
-      await run.events.close();
+      _live.remove(run);
     }
     if (error != null) {
       run.result.completeError(error, stackTrace);
     } else {
       run.result.complete(value);
     }
+    // Not awaited: a paused listener holds close() until it resumes.
+    unawaited(run.events.close());
   }
 
   /// Cancels [run]: flips its token and, while its feed is running, closes
@@ -412,7 +450,7 @@ class MontyRuntime implements MontyRuntimeRef {
   ) async {
     final bridge = await _attachShared();
     if (_sharedStale) {
-      bridge.session = await _checkout();
+      bridge.session = await _checkoutLive();
       _sharedStale = false;
     }
     await _hold(run, bridge.session);
@@ -435,6 +473,7 @@ class MontyRuntime implements MontyRuntimeRef {
     Map<String, MontyValue>? values,
   ) async {
     final session = await _checkout();
+    await _hold(run, session);
     final bridge = SessionBridge(
       session: session,
       logger: _logger,
@@ -448,7 +487,6 @@ class MontyRuntime implements MontyRuntimeRef {
     try {
       _extensions?.forEach(registry.register);
       await registry.attachTo(bridge, baseOs: os ?? _os);
-      await _hold(run, session);
       value = await _drive(
         run,
         bridge.executeWith(code, inputs: values, cancelToken: run.token),
@@ -502,28 +540,38 @@ class MontyRuntime implements MontyRuntimeRef {
 
   /// Checks out the held session and builds its bridge and coordinator.
   Future<void> _openShared() async {
-    final session = await _checkout();
+    // Registration validates the extensions before a worker is taken.
+    final registry = ExtensionCoordinator();
+    _extensions?.forEach(registry.register);
+    final session = await _checkoutLive();
     final bridge = SessionBridge(
       session: session,
       logger: _logger,
       runtime: this,
     );
     _extraFunctions.forEach(bridge.register);
-    final registry = ExtensionCoordinator();
-    _extensions?.forEach(registry.register);
     _sharedBridge = bridge;
     _sharedRegistry = registry;
-    _sharedAttached = false;
+    _sharedAttach = null;
     _sharedStale = false;
+  }
+
+  /// A checkout for the shared mode; one that completes after [dispose] is
+  /// closed, and throws [StateError].
+  Future<MontySession> _checkoutLive() async {
+    final session = await _checkout();
+    if (_disposed) {
+      await session.close();
+      throw StateError('MontyRuntime has been disposed');
+    }
+
+    return session;
   }
 
   /// The shared bridge, with the extensions attached.
   Future<SessionBridge> _attachShared() async {
     final bridge = _sharedBridge!;
-    if (!_sharedAttached) {
-      await _sharedRegistry!.attachTo(bridge, baseOs: _os);
-      _sharedAttached = true;
-    }
+    await (_sharedAttach ??= _sharedRegistry!.attachTo(bridge, baseOs: _os));
 
     return bridge;
   }
