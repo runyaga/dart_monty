@@ -151,6 +151,13 @@ is no deprecation period and no replacement API.
 
 The published web demos no longer show template rendering.
 
+### Changed
+
+- The package version is `0.110.0-dev.2`, matching `dart_monty_core`. The
+  `dart_monty_core` constraint is `^0.110.0-dev.2`, resolved from the commit
+  behind that core's `v0.110.0-dev.2` tag, and every published demo page shows
+  both.
+
 ### Fixed
 
 - Extensions of equal `priority` attach in registration order even when more

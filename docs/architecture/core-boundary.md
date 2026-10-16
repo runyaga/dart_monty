@@ -1,7 +1,7 @@
 # Core and dart_monty ownership
 
 `dart_monty` pins the complete M6 core at
-`1bdd9b502e85dd7e17a96736f25346dae48a62b4`. All five YAML references, browser
+`7c554161bdb07bd8526e399086505805983b3372`. All five YAML references, browser
 asset links and examples agree on that commit.
 
 Core owns sessions, worker transport, values, OSAccess memory files, host mounts
