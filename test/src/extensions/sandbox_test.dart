@@ -29,7 +29,6 @@ final Expando<MontySession Function()> _childScripts = Expando(
 /// A [SandboxExtension] whose children run the sessions [children] makes.
 SandboxExtension _sandbox({
   MontySession Function()? children,
-  ChildVfsStrategy childVfsStrategy = ChildVfsStrategy.isolated,
   int maxChildren = 16,
   int maxDepth = 3,
   int currentDepth = 0,
@@ -37,7 +36,6 @@ SandboxExtension _sandbox({
   String? sandboxBaseDir,
 }) {
   final extension = SandboxExtension(
-    childVfsStrategy: childVfsStrategy,
     maxChildren: maxChildren,
     maxDepth: maxDepth,
     currentDepth: currentDepth,

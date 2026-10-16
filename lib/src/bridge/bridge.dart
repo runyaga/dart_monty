@@ -14,7 +14,7 @@ import 'package:dart_monty_core/dart_monty_core.dart';
 /// ```dart
 /// final session = await monty.checkout();
 /// final bridge = MontyBridge(session: session);
-/// bridge.registerOs(defaultOsHandler());
+/// bridge.registerOs(OSAccess().call);
 /// bridge.register(myHostFunction);
 /// final events = bridge.execute('result = my_function()');
 /// ```

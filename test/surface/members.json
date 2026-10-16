@@ -62,9 +62,6 @@
   "BridgeLogger.close": "void close ( )",
   "AttachContext.schemas": "List < HostFunctionSchema > get schemas",
   "AttachContext.registerOs": "void registerOs ( OsHandler handler )",
-  "ChildVfsStrategy.isolated": "isolated",
-  "ChildVfsStrategy.shared": "shared",
-  "ChildVfsStrategy.overlay": "overlay",
   "ChildPolicy.clone": "clone",
   "ChildPolicy.inherit": "inherit",
   "ChildPolicy.exclude": "exclude",
@@ -109,8 +106,7 @@
   "ChildFailed.exception": "final MontyError ? exception ;",
   "ChildFailed.printOutput": "final String ? printOutput ;",
   "ChildDisposed.new": "const ChildDisposed ( )",
-  "SandboxExtension.new": "SandboxExtension ( { this . childVfsStrategy = ChildVfsStrategy . isolated , this . maxChildren = 16 , this . maxDepth = 3 , this . currentDepth = 0 , this . childLimits , this . sandboxBaseDir , } )",
-  "SandboxExtension.childVfsStrategy": "final ChildVfsStrategy childVfsStrategy ;",
+  "SandboxExtension.new": "SandboxExtension ( { this . maxChildren = 16 , this . maxDepth = 3 , this . currentDepth = 0 , this . childLimits , this . sandboxBaseDir , this . writeBytesLimit = 8388608 , this . memoryUsageLimit = 8388608 , } )",
   "SandboxExtension.maxChildren": "final int maxChildren ;",
   "SandboxExtension.maxDepth": "final int maxDepth ;",
   "SandboxExtension.currentDepth": "final int currentDepth ;",
@@ -161,8 +157,6 @@
   "HostFunctionSchema.description": "final String ? description ;",
   "HostFunctionSchema.params": "final List < HostParam > params ;",
   "HostFunctionSchema.toJsonSchema": "Map < String , Object ? > toJsonSchema ( )",
-  "DecoratorHandlers.readOnly": "OsHandler readOnly ( )",
-  "DecoratorHandlers.overlayWith": "OsHandler overlayWith ( OsHandler scratch )",
   "MontyBackendKind.ffi": "ffi",
   "MontyBackendKind.wasm": "wasm",
   "ExecutionHandle.new": "const ExecutionHandle ( { required this . events , required this . result , required this . executionId , required Future < void > Function ( ) cancel , } ) : _cancel = cancel",
@@ -186,5 +180,7 @@
   "MontyRuntime.clearState": "Future < void > clearState ( )",
   "MontyRuntime.dispose": "Future < void > dispose ( )",
   "HostParentRef.emitChildEvent": "void emitChildEvent ( String childHandle , BridgeEvent event )",
-  "HostParentRef.schemas": "List < HostFunctionSchema > get schemas"
+  "HostParentRef.schemas": "List < HostFunctionSchema > get schemas",
+  "SandboxExtension.writeBytesLimit": "final int ? writeBytesLimit ;",
+  "SandboxExtension.memoryUsageLimit": "final int ? memoryUsageLimit ;"
 }

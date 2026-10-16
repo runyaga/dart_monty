@@ -242,7 +242,7 @@ void main() {
     test('H3. FS + Template across calls', () async {
       final s = await MontyRuntime.start(
         pool: pool,
-        osHandlers: {'Path.': memoryFsHandler()},
+        osHandlers: {'Path.': OSAccess().call},
         extensions: [TemplateStubExtension()],
       );
       addTearDown(s.dispose);
@@ -308,7 +308,7 @@ content = Path("/data.txt").read_text()
         final kv = <String, String>{};
         final s = (await MontyRuntime.start(
           pool: pool,
-          osHandlers: {'Path.': memoryFsHandler()},
+          osHandlers: {'Path.': OSAccess().call},
         ))..register(httpFn());
         kvStubFunctions(kv, storedResult: 'ok').forEach(s.register);
         addTearDown(s.dispose);

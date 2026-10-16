@@ -8,7 +8,6 @@ environment:
 dependencies:
   dart_monty:
     path: ../
-  file: ^7.0.0
 
 dev_dependencies:
   dart_monty_core: ^0.18.1
@@ -27,4 +26,4 @@ dependency_overrides:
   dart_monty_core:
     git:
       url: https://github.com/runyaga/dart_monty_core.git
-      ref: 4a4d80d7c65c5f721c47a3e42d36187a271d6ef6
+      ref: 1bdd9b502e85dd7e17a96736f25346dae48a62b4

@@ -8,6 +8,7 @@ import 'package:dart_monty/src/extension/coordinator.dart';
 import 'package:dart_monty/src/runtime/runtime.dart' show runtimeCoordinator;
 import 'package:dart_monty_core/dart_monty_core.dart'
     show MontyCrashedError, MontyInt, MontyString;
+import 'package:dart_monty_core/dart_monty_core.dart' show OSAccess;
 import 'package:test/test.dart';
 
 import '_worker.dart';
@@ -215,7 +216,7 @@ void main() {
       // Use memory filesystem for these tests (not LocalFileSystem)
       session = await MontyRuntime.start(
         pool: pool,
-        osHandlers: {'Path.': memoryFsHandler()},
+        osHandlers: {'Path.': OSAccess().call},
       );
     });
 
@@ -229,6 +230,7 @@ void main() {
         await session
             .execute(
               'from pathlib import Path\n'
+              'Path("/data").mkdir(exist_ok=True)\n'
               'Path("/data/test.txt").write_text("hello from agent")',
             )
             .result;

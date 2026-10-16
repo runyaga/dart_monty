@@ -268,17 +268,17 @@ jobs:
           scan docs/*.md
 
   # ---------------------------------------------------------------------------
-  # worker — build dart_monty_core's worker executable ONCE, share it
+  # worker — build dart_monty_core's worker and mount library ONCE, share them
   # ---------------------------------------------------------------------------
-  # Core 0.110 runs Python in a worker process. Until core ships a prebuilt
-  # worker (M4), dm's CI builds it from the pinned core commit with core's own
+  # A commit pin has no release worker assets, so dm's CI builds the worker
+  # and native mount library from the pinned core commit with core's own
   # tool/build_worker.sh, and the jobs that start one pass its path to the
   # tests as DART_MONTY_WORKER, which the test helper hands to the pool as
   # `workerLocation` (test/integration/_worker.dart).
   #
   # The cache is keyed on the pinned core commit and the runner, so only a
-  # repin pays the cold build (about 4 minutes). The executable then travels
-  # to the other jobs as an artifact.
+  # repin pays the cold build (about 4 minutes). Both binaries then travel
+  # to the other jobs as one artifact.
   #
   # This job replaces `native`, which built the deleted in-process engine
   # through core's build hook. Core's hook now builds nothing unless the root
@@ -326,7 +326,7 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: .core/lib/src/bin/linux-x64
-          key: worker-v1-${{ runner.os }}-${{ runner.arch }}-core-${{ steps.ref.outputs.ref }}
+          key: worker-v2-${{ runner.os }}-${{ runner.arch }}-core-${{ steps.ref.outputs.ref }}
       - name: Build the worker (core's tool/build_worker.sh)
         if: steps.cache.outputs.cache-hit != 'true'
         working-directory: .core
@@ -338,13 +338,17 @@ jobs:
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: .core/lib/src/bin/linux-x64
-          key: worker-v1-${{ runner.os }}-${{ runner.arch }}-core-${{ steps.ref.outputs.ref }}
-      - name: The worker exists and is executable
-        run: test -x .core/lib/src/bin/linux-x64/dart_monty_worker
+          key: worker-v2-${{ runner.os }}-${{ runner.arch }}-core-${{ steps.ref.outputs.ref }}
+      - name: The worker and native mount library exist
+        run: |
+          test -x .core/lib/src/bin/linux-x64/dart_monty_worker
+          test -s .core/lib/src/bin/linux-x64/libdart_monty_worker.so
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: dart_monty_worker-linux-x64
-          path: .core/lib/src/bin/linux-x64/dart_monty_worker
+          path: |
+            .core/lib/src/bin/linux-x64/dart_monty_worker
+            .core/lib/src/bin/linux-x64/libdart_monty_worker.so
           if-no-files-found: error
           retention-days: 1
 
@@ -352,7 +356,7 @@ jobs:
     name: Dart test
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: [changes]
+    needs: [changes, worker]
     if: needs.changes.outputs.code == 'true'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -361,7 +365,35 @@ jobs:
       - uses: dart-lang/setup-dart@6afc89df92d6eb3834022f73cd65adc8cdfcb92d # v1
         with:
           sdk: 3.13.5
+      - name: Download the worker the `worker` job built
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: dart_monty_worker-linux-x64
+          path: .worker
+      # Artifacts do not keep the executable bit.
+      - name: Point the tests at the worker
+        run: |
+          chmod +x .worker/dart_monty_worker
+          echo "DART_MONTY_WORKER=$PWD/.worker/dart_monty_worker" >> "$GITHUB_ENV"
       - run: dart pub get
+      - name: Install the shared worker and mount library in the resolved core package
+        # NativeMountBindings has no environment override: its fallback loads
+        # libdart_monty_worker.so beside the package's worker executable.
+        # Installing both also serves tests that use core's default discovery.
+        run: |
+          python3 - <<'PYWORKER'
+          import json, pathlib, shutil, urllib.parse
+
+          config = pathlib.Path('.dart_tool/package_config.json').resolve()
+          packages = json.loads(config.read_text())['packages']
+          core = next(p for p in packages if p['name'] == 'dart_monty_core')
+          uri = urllib.parse.urljoin(config.as_uri(), core['rootUri'])
+          root = pathlib.Path(urllib.parse.unquote(urllib.parse.urlparse(uri).path))
+          dest = root / 'lib/src/bin/linux-x64'
+          dest.mkdir(parents=True, exist_ok=True)
+          for name in ('dart_monty_worker', 'libdart_monty_worker.so'):
+              shutil.copy2(pathlib.Path('.worker') / name, dest / name)
+          PYWORKER
       - name: Resolve nested packages
         # `dart pub get` above resolves the root and example/, but NOT
         # example/web/ — and `dart analyze` at the root analyses it anyway,
@@ -458,6 +490,24 @@ jobs:
           chmod +x .worker/dart_monty_worker
           echo "DART_MONTY_WORKER=$PWD/.worker/dart_monty_worker" >> "$GITHUB_ENV"
       - run: dart pub get
+      - name: Install the shared worker and mount library in the resolved core package
+        # NativeMountBindings has no environment override: its fallback loads
+        # libdart_monty_worker.so beside the package's worker executable.
+        # Installing both also serves tests that use core's default discovery.
+        run: |
+          python3 - <<'PYWORKER'
+          import json, pathlib, shutil, urllib.parse
+
+          config = pathlib.Path('.dart_tool/package_config.json').resolve()
+          packages = json.loads(config.read_text())['packages']
+          core = next(p for p in packages if p['name'] == 'dart_monty_core')
+          uri = urllib.parse.urljoin(config.as_uri(), core['rootUri'])
+          root = pathlib.Path(urllib.parse.unquote(urllib.parse.urlparse(uri).path))
+          dest = root / 'lib/src/bin/linux-x64'
+          dest.mkdir(parents=True, exist_ok=True)
+          for name in ('dart_monty_worker', 'libdart_monty_worker.so'):
+              shutil.copy2(pathlib.Path('.worker') / name, dest / name)
+          PYWORKER
       - name: Run integration tests
         # THE TAG WAS DECLARED AND EXERCISED BY NOTHING. `dart_test.yaml` skips
         # `integration` by default, and until now the only `--tags=` in any

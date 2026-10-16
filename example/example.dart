@@ -68,15 +68,16 @@ a + b
     print('gather result = ${gathered.dartValue}'); // 30
 
     // ── 4. VFS — sandboxed in-memory filesystem ─────────────────────────────
-    // Python pathlib.Path reads and writes an isolated MemoryFileSystem.
+    // Python pathlib.Path reads and writes an isolated OSAccess namespace.
     // The host filesystem is never accessed; VFS state persists across calls.
     final vfs = await MontyRuntime.start(
       pool: pool,
-      osHandlers: {'Path.': memoryFsHandler()},
+      osHandlers: {'Path.': OSAccess().call},
     );
 
     await vfs.execute('''
 from pathlib import Path
+Path('/tmp').mkdir(exist_ok=True)
 Path('/tmp/msg.txt').write_text('Hello from Python!')
 ''').result;
 

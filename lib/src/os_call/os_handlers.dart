@@ -22,12 +22,6 @@ export 'package:dart_monty_core/dart_monty_core.dart' show OsHandler;
 /// routed to the `'Path.'` handler when one is registered — `open()` is a
 /// filesystem operation, so callers wire it the same way they wire `Path.*`.
 ///
-/// ```dart
-/// final os = composeOsHandlers({
-///   'Path.': fsHandler(MemoryFileSystem()),
-///   'os.': envHandler(const {}),
-/// });
-/// ```
 OsHandler composeOsHandlers(
   Map<String, OsHandler> handlers, {
   OsHandler? fallback,
@@ -72,9 +66,3 @@ OsHandler composeOsHandlers(
     throw const OsCallNotHandledException();
   };
 }
-
-/// Extracts a string argument from a positional slot.
-///
-/// Accepts `String` values (a lowered `MontyPath` or `MontyString`).
-String osArgString(Object? arg) =>
-    arg is String ? arg : throw ArgumentError('Expected string, got: $arg');

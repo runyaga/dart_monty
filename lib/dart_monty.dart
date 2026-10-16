@@ -43,7 +43,6 @@ export 'src/bridge/event.dart'
         BridgeRunStarted;
 export 'src/bridge/logger.dart' show BridgeLogger;
 export 'src/extension/attach_context.dart' show AttachContext;
-export 'src/extension/coordinator.dart' show ChildVfsStrategy;
 export 'src/extension/extension.dart'
     show ChildPolicy, ChildSpawnContext, MontyExtension;
 export 'src/extensions/event_loop.dart' show EventLoopExtension;
@@ -63,17 +62,6 @@ export 'src/host/function.dart'
 export 'src/host/param.dart' show HostParam;
 export 'src/host/param_type.dart' show HostParamType;
 export 'src/host/schema.dart' show HostFunctionSchema;
-export 'src/os_call/default_os_handler.dart' show defaultOsHandler;
-export 'src/os_call/fs_decorators.dart'
-    show DecoratorHandlers, overlayFsHandler, readOnlyHandler;
-export 'src/os_call/fs_handlers.dart' show fsHandler, memoryFsHandler;
-export 'src/os_call/platform_handlers.dart' show envHandler;
-export 'src/os_call/sandboxed_fs_handler_stub.dart'
-    if (dart.library.io) 'src/os_call/sandboxed_fs_handler.dart'
-    show
-        // The web stub deliberately exports no disk handler.
-        // ignore: undefined_shown_name
-        sandboxedFsHandler;
 export 'src/runtime/backend_kind.dart' show MontyBackendKind;
 export 'src/runtime/execution_handle.dart' show CancelToken, ExecutionHandle;
 export 'src/runtime/runtime.dart' show MontyRuntime;

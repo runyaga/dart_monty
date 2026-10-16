@@ -17,7 +17,6 @@ import 'dart:js_interop';
 
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
-import 'package:file/memory.dart';
 import 'package:web_example/demo_pool.dart';
 import 'package:web_example/demo_ready.dart';
 
@@ -195,7 +194,7 @@ Future<bool> _init() async {
     _pool = pool;
     final session = await MontyRuntime.start(
       pool: pool,
-      osHandlers: {'Path.': fsHandler(MemoryFileSystem())},
+      os: OSAccess().call,
       extensions: [SandboxExtension(maxChildren: _maxChildren)],
     );
     _demoHostFunctions.forEach(session.register);

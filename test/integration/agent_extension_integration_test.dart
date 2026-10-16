@@ -2,6 +2,7 @@
 library;
 
 import 'package:dart_monty/dart_monty.dart';
+import 'package:dart_monty_core/dart_monty_core.dart' show OSAccess;
 import 'package:test/test.dart';
 
 import '_worker.dart';
@@ -29,7 +30,7 @@ void main() {
 
     setUp(() async {
       final osContribs = <String, OsHandler>{
-        'Path.': memoryFsHandler(),
+        'Path.': OSAccess().call,
       };
       final tmpl = TemplateStubExtension();
       final probe = SharedProbeExtension();
@@ -115,7 +116,7 @@ sandbox_free(handle=h)
 
     setUp(() async {
       final osContribs = <String, OsHandler>{
-        'Path.': memoryFsHandler(),
+        'Path.': OSAccess().call,
       };
       final tmpl = TemplateStubExtension();
       final probe = SharedProbeExtension();

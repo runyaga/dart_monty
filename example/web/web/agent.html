@@ -363,7 +363,7 @@
   <header>
     <a href="index.html" style="color:#565f89;text-decoration:none;font-size:13px;">&larr; Home</a>
     <h1>AgentSession Demo</h1>
-    <span class="version-badge" style="color:#565f89;font-size:12px;margin-left:10px;white-space:nowrap;">v0.23.0 &middot; dart_monty_core 4a4d80d7c65c5f721c47a3e42d36187a271d6ef6</span>
+    <span class="version-badge" style="color:#565f89;font-size:12px;margin-left:10px;white-space:nowrap;">v0.23.0 &middot; dart_monty_core 1bdd9b502e85dd7e17a96736f25346dae48a62b4</span>
     <span class="tag tag-agent">Agent</span>
     <span class="tag tag-wasm">WASM</span>
     <span class="tag tag-stateful">Stateful</span>
@@ -451,7 +451,7 @@ x</textarea>
           <p style="margin-bottom: 12px; color: var(--text-dim);"><strong style="color: var(--cyan);">Stateful:</strong> Variables defined in one execution persist to the next. Click "Clear State" to reset.</p>
           <p style="margin-bottom: 12px; color: var(--text-dim);"><strong style="color: var(--purple);">Host Functions:</strong> Python can call Dart-defined tools: <code style="color: var(--purple);">echo(msg)</code>, <code style="color: var(--purple);">add_numbers(a, b)</code>, <code style="color: var(--purple);">get_time()</code>.</p>
           <p style="margin-bottom: 12px; color: var(--text-dim);"><strong style="color: var(--orange);">Plugins:</strong> <code style="color: var(--orange);">sandbox_spawn()/sandbox_await()</code> (child interpreters).</p>
-          <p style="margin-bottom: 12px; color: var(--text-dim);"><strong style="color: var(--green);">Filesystem:</strong> pathlib works via MemoryFsProvider: <code style="color: var(--green);">Path('/sandbox/f.txt').write_text(...)</code></p>
+          <p style="margin-bottom: 12px; color: var(--text-dim);"><strong style="color: var(--green);">Filesystem:</strong> pathlib and open() read and write in memory: <code style="color: var(--green);">Path('/f.txt').write_text(...)</code></p>
           <p style="color: var(--text-dim);"><strong style="color: var(--yellow);">Events:</strong> Every bridge event streams in real-time to the Events panel.</p>
         </div>
       </div>

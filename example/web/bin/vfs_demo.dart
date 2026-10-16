@@ -4,12 +4,13 @@
 ///
 /// Compiled to JS, exposes functions to the HTML UI via window.VfsDemo.
 /// Each run feeds the code to a fresh session whose OS handler is an
-/// in-memory filesystem (`fsHandler` over a `MemoryFileSystem`); every OS
-/// call it answers is logged to the page. Clock calls (`date.today`,
-/// `datetime.now`) are answered by the session's own OS policy.
+/// in-memory filesystem (core `OSAccess` and `MemoryFile`); every OS
+/// call it answers is logged to the page. Each run starts with /sandbox
+/// available, even when no files have been staged.
 ///
 /// Build:
-///   dart compile js example/web/bin/vfs_demo.dart \
+///   dart compile js --packages=example/web/.dart_tool/package_config.json \
+///     example/web/bin/vfs_demo.dart \
 ///     -o example/web/web/vfs_demo.dart.js
 library;
 
@@ -18,12 +19,12 @@ import 'dart:convert';
 import 'dart:js_interop';
 
 import 'package:dart_monty/dart_monty.dart';
-import 'package:dart_monty_core/dart_monty_core.dart' show MontyList, MontyPath;
+import 'package:dart_monty_core/dart_monty_core.dart'
+    show MontyBool, MontyBytes, MontyList, MontyPath, MontyString, OSAccess;
 
-import 'package:file/file.dart';
-import 'package:file/memory.dart';
 import 'package:web_example/demo_pool.dart';
 import 'package:web_example/demo_ready.dart';
+import 'package:web_example/demo_vfs.dart';
 
 // ---------------------------------------------------------------------------
 // JS interop — expose API to HTML
@@ -46,8 +47,8 @@ external void _jsOnFilesChanged(JSString filesJson);
 // ---------------------------------------------------------------------------
 
 late final Monty _pool;
-FileSystem _vfs = MemoryFileSystem();
-OsHandler _fs = fsHandler(_vfs);
+OSAccess _vfs = OSAccess();
+OsHandler _fs = _vfs.call;
 final _osCallLog = <Map<String, dynamic>>[];
 
 // ---------------------------------------------------------------------------
@@ -92,13 +93,8 @@ String _summarize(Object? value) {
 /// files; the value, or the Python error as text.
 Future<({Object? value, String? error})> _runWithVfs(String code) async {
   _osCallLog.clear();
-  _vfs = MemoryFileSystem();
-  _fs = fsHandler(_vfs);
-
-  // Mount any pre-staged files (set by mountFile before run).
-  for (final entry in _stagedFiles.entries) {
-    _writeVfsFile(entry.key, entry.value);
-  }
+  _vfs = await createDemoVfs(_stagedFiles);
+  _fs = _vfs.call;
 
   try {
     final value = await _pool.withSession(
@@ -120,15 +116,20 @@ Future<({Object? value, String? error})> _runWithVfs(String code) async {
 
 final _stagedFiles = <String, String>{};
 
-void _writeVfsFile(String path, String content) {
-  _vfs.file(path)
-    ..parent.createSync(recursive: true)
-    ..writeAsStringSync(content);
+Future<void> _writeVfsFile(String path, String content) async {
+  final parent = path.substring(0, path.lastIndexOf('/'));
+  await _vfs.call(
+    'Path.mkdir',
+    [MontyPath(parent.isEmpty ? '/' : parent)],
+    {'parents': const MontyBool(true), 'exist_ok': const MontyBool(true)},
+  );
+  await _vfs
+      .call('Path.write_text', [MontyPath(path), MontyString(content)], {});
 }
 
 Future<void> _mountFile(String path, String content) async {
   _stagedFiles[path] = content;
-  _writeVfsFile(path, content);
+  await _writeVfsFile(path, content);
   // Refresh VFS panel immediately.
   final files = await _collectFiles();
   try {
@@ -170,12 +171,15 @@ Future<List<Map<String, dynamic>>> _collectFiles() async {
     try {
       final entries = await _listDir(dirPath);
       for (final entry in entries) {
-        final type = _vfs.typeSync(entry);
-        if (type == FileSystemEntityType.file) {
+        final isFile = await _vfs.call('Path.is_file', [MontyPath(entry)], {});
+        if (isFile == const MontyBool(true)) {
           // Binary files (e.g. blob.bin with 0xff) aren't valid UTF-8, so read
           // bytes first and only decode as text when it round-trips cleanly —
           // a binary file must not abort the whole VFS walk.
-          final bytes = _vfs.file(entry).readAsBytesSync();
+          final bytes =
+              (await _vfs.call('Path.read_bytes', [MontyPath(entry)], {})
+                      as MontyBytes)
+                  .value;
           String? text;
           try {
             text = utf8.decode(bytes);
@@ -190,7 +194,7 @@ Future<List<Map<String, dynamic>>> _collectFiles() async {
                 ? '<binary ${bytes.length}B>'
                 : (text.length > 200 ? '${text.substring(0, 197)}...' : text),
           });
-        } else if (type == FileSystemEntityType.directory) {
+        } else {
           files.add({'path': entry, 'type': 'dir'});
           await walk(entry);
         }

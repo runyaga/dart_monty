@@ -9,7 +9,6 @@ dependencies:
   dart_monty:
     path: ../..
   dart_monty_core: ^0.18.1
-  file: ^7.0.0
   web: ^1.1.1
 
 # `dependency_overrides` do NOT propagate from a path dependency, so without this
@@ -25,4 +24,4 @@ dependency_overrides:
   dart_monty_core:
     git:
       url: https://github.com/runyaga/dart_monty_core.git
-      ref: 4a4d80d7c65c5f721c47a3e42d36187a271d6ef6
+      ref: 1bdd9b502e85dd7e17a96736f25346dae48a62b4

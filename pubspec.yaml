@@ -15,7 +15,6 @@ environment:
 
 dependencies:
   dart_monty_core: ^0.18.1
-  file: ^7.0.0
   meta: ^1.11.0
   path: ^1.8.0
   signals_core: ^6.2.0
@@ -61,5 +60,5 @@ dependency_overrides:
   dart_monty_core:
     git:
       url: https://github.com/runyaga/dart_monty_core.git
-      # The commit of the tag v0.110.0-dev.1; CI requires a full SHA.
-      ref: 4a4d80d7c65c5f721c47a3e42d36187a271d6ef6
+      # Complete M6 surface (F-1/F-2/R-1..R-3); CI requires a full SHA.
+      ref: 1bdd9b502e85dd7e17a96736f25346dae48a62b4

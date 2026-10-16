@@ -101,7 +101,7 @@ Future<MontyRuntime> startRuntimeWith({
 /// final pool = await Monty.start(workerLocation: workerPath);
 /// final runtime = await MontyRuntime.start(
 ///   pool: pool,
-///   os: defaultOsHandler(),
+///   os: OSAccess().call,
 /// );
 /// await runtime.execute('x = 42').result;
 /// final value = await runtime.execute('x + 1').result; // MontyInt(43)

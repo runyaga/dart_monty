@@ -54,6 +54,7 @@ final class RecordingSession implements MontySession {
     FutureOr<void> Function(String stream, String text)? printCallback,
     String? cwd,
     OsHandler? os,
+    List<MountDir>? mount,
     bool skipTypeCheck = false,
   }) {
     feeds.add(RecordedFeed(code, inputs, externalLookup, os));
@@ -65,6 +66,7 @@ final class RecordingSession implements MontySession {
       printCallback: printCallback,
       cwd: cwd,
       os: os,
+      mount: mount,
       skipTypeCheck: skipTypeCheck,
     );
     final hold = holdFailure;
@@ -83,6 +85,7 @@ final class RecordingSession implements MontySession {
     FutureOr<void> Function(String stream, String text)? printCallback,
     String? cwd,
     OsHandler? os,
+    List<MountDir>? mount,
     bool skipTypeCheck = false,
   }) => inner.feedStart(
     code,
@@ -91,6 +94,7 @@ final class RecordingSession implements MontySession {
     printCallback: printCallback,
     cwd: cwd,
     os: os,
+    mount: mount,
     skipTypeCheck: skipTypeCheck,
   );
 
@@ -103,11 +107,13 @@ final class RecordingSession implements MontySession {
     Map<String, MontyValue>? externalLookup,
     FutureOr<void> Function(String stream, String text)? printCallback,
     OsHandler? os,
+    List<MountDir>? mount,
   }) => inner.loadSnapshot(
     state,
     externalLookup: externalLookup,
     printCallback: printCallback,
     os: os,
+    mount: mount,
   );
 
   @override

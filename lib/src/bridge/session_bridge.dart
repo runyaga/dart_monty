@@ -150,6 +150,7 @@ class SessionBridge implements MontyBridge {
     Map<String, MontyValue>? inputs,
     OsHandler? os,
     CancelToken? cancelToken,
+    String? cwd,
   }) {
     if (_isDisposed) throw StateError('Bridge has been disposed');
     if (_activeRun != null) throw StateError('Bridge is already executing');
@@ -173,6 +174,7 @@ class SessionBridge implements MontyBridge {
         inputs: inputs,
         os: os ?? _currentOsHandler,
         cancelToken: cancelToken,
+        cwd: cwd,
       ).whenComplete(() {
         release();
         unawaited(controller.close());
@@ -204,6 +206,7 @@ class SessionBridge implements MontyBridge {
     required Map<String, MontyValue>? inputs,
     required OsHandler? os,
     required CancelToken? cancelToken,
+    required String? cwd,
   }) async {
     var ended = false;
     void emit(BridgeEvent event) {
@@ -228,6 +231,7 @@ class SessionBridge implements MontyBridge {
           printed,
           threadId,
           runId,
+          cwd,
         ), emit),
       );
     } on MontyError catch (e) {
@@ -242,12 +246,13 @@ class SessionBridge implements MontyBridge {
     Map<String, MontyValue>? inputs,
     OsHandler? os,
     CancelToken? cancelToken,
-    (CollectString, String, String) run,
+    (CollectString, String, String, String?) run,
     void Function(BridgeEvent) emit,
   ) async {
-    final (printed, threadId, runId) = run;
+    final (printed, threadId, runId, cwd) = run;
     final value = await session.feedRun(
       code,
+      cwd: cwd,
       inputs: inputs,
       externalLookup: _host.externals(
         emit,

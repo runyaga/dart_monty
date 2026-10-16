@@ -59,7 +59,7 @@ jobs:
           # Pages serves the LAST GOOD BUILD when a build fails, so that
           # presented as a stale site rather than a red build. It now names the
           # pinned core commit (a SHA, which cannot drift the way a branch does).
-          ref: 4a4d80d7c65c5f721c47a3e42d36187a271d6ef6
+          ref: 1bdd9b502e85dd7e17a96736f25346dae48a62b4
           path: dart_monty_core
           persist-credentials: false
 

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:dart_monty/src/bridge/bridge.dart';
 import 'package:dart_monty/src/bridge/event.dart';
+import 'package:dart_monty/src/bridge/session_bridge.dart';
 import 'package:dart_monty/src/extension/coordinator.dart';
 import 'package:dart_monty/src/extension/extension.dart';
 import 'package:dart_monty/src/host/args.dart';
@@ -14,8 +15,8 @@ import 'package:dart_monty/src/runtime/backend_kind.dart';
 import 'package:dart_monty/src/runtime/runtime.dart'
     show MontyRuntime, runtimeLimits;
 import 'package:dart_monty/src/runtime/runtime_ref.dart';
+import 'package:dart_monty/src/workspace/workspace.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
-import 'package:path/path.dart' as p;
 import 'package:signals_core/signals_core.dart';
 
 /// Exception thrown when a child sandbox fails or is disposed.
@@ -128,6 +129,7 @@ class _ChildHandle {
     required this.completer,
     required this.subscription,
     required this.coordinator,
+    required this.workspace,
   });
 
   final MontyBridge bridge;
@@ -135,6 +137,7 @@ class _ChildHandle {
   final Completer<MontyValue> completer;
   final StreamSubscription<BridgeEvent> subscription;
   final ExtensionCoordinator coordinator;
+  final Workspace workspace;
 
   /// Reactive lifecycle state — starts as [ChildRunning].
   final Signal<ChildState> state = signal(const ChildRunning());
@@ -158,6 +161,7 @@ class _ChildHandle {
     await subscription.cancel();
     bridge.dispose();
     await session.close();
+    await workspace.dispose();
   }
 }
 
@@ -188,6 +192,31 @@ const _spawnSchema = HostFunctionSchema(
       isRequired: false,
       description: 'Memory limit in bytes.',
     ),
+    HostParam(
+      name: 'files',
+      type: HostParamType.map,
+      isRequired: false,
+      description: 'Child-relative destination to absolute parent source.',
+    ),
+    HostParam(
+      name: 'ro_files',
+      type: HostParamType.map,
+      isRequired: false,
+      description:
+          'Read-only child-relative destination to absolute parent source.',
+    ),
+    HostParam(
+      name: 'write_bytes_limit',
+      type: HostParamType.integer,
+      isRequired: false,
+      description: 'Reduce the cumulative workspace write byte limit.',
+    ),
+    HostParam(
+      name: 'memory_usage_limit',
+      type: HostParamType.integer,
+      isRequired: false,
+      description: 'Reduce retained workspace content plus entry bytes.',
+    ),
   ],
 );
 
@@ -201,6 +230,14 @@ const _awaitSchema = HostFunctionSchema(
       name: 'handle',
       type: HostParamType.integer,
       description: 'Handle returned by sandbox_spawn.',
+    ),
+    HostParam(
+      name: 'collect',
+      type: HostParamType.map,
+      isRequired: false,
+      description:
+          'Child-relative source to absolute parent destination. '
+          'Explicit and repeatable.',
     ),
   ],
 );
@@ -290,32 +327,42 @@ const _gatherSchema = HostFunctionSchema(
 /// Child extensions and OS handlers are inherited from the parent
 /// [ExtensionCoordinator] via [ExtensionCoordinator.spawnChild]. Extensions
 /// opt into inheritance by overriding [MontyExtension.createChildInstance];
-/// the child's filesystem visibility is controlled by [childVfsStrategy].
+/// each child receives an independent memory workspace at `/work`.
 ///
 /// `SandboxExtension` MUST be attached through an [ExtensionCoordinator] —
 /// it uses the parent coordinator to compose the child.
 class SandboxExtension extends MontyExtension {
   /// Creates a [SandboxExtension].
   ///
-  /// [childVfsStrategy] selects how the child's `Path.` handler relates to
-  /// the parent's — defaults to [ChildVfsStrategy.isolated].
-  /// [maxChildren] limits concurrent children (default: 16).
+  /// [maxChildren] limits admitted, unfreed children (default: 16), including
+  /// completed and failed handles retained for collection.
   /// [maxDepth] limits recursion depth if children also have SandboxExtension
   /// (default: 3). Set [currentDepth] when creating nested plugins.
   /// [childLimits] sets resource limits for child interpreters.
   SandboxExtension({
-    this.childVfsStrategy = ChildVfsStrategy.isolated,
     this.maxChildren = 16,
     this.maxDepth = 3,
     this.currentDepth = 0,
     this.childLimits,
     this.sandboxBaseDir,
-  });
+    this.writeBytesLimit = 8388608,
+    this.memoryUsageLimit = 8388608,
+  }) {
+    reduceWorkspaceCap(writeBytesLimit, null);
+    reduceWorkspaceCap(memoryUsageLimit, null);
+    if (maxChildren < 0) throw ArgumentError.value(maxChildren, 'maxChildren');
+  }
 
-  /// How the child's `Path.` handler is derived from the parent's.
-  final ChildVfsStrategy childVfsStrategy;
+  /// Cumulative accepted workspace write bytes; explicit null is unbounded.
+  // ignore: unnecessarily-public-code, approved public D4a cap field.
+  final int? writeBytesLimit;
 
-  /// Maximum number of concurrent children.
+  /// Retained content plus 64 bytes per entry; explicit null is unbounded.
+  // ignore: unnecessarily-public-code, approved public D4a cap field.
+  final int? memoryUsageLimit;
+
+  /// Maximum admitted, unfreed children, including completed and failed
+  /// handles.
   final int maxChildren;
 
   /// Maximum recursion depth for nested sandbox plugins.
@@ -327,13 +374,12 @@ class SandboxExtension extends MontyExtension {
   /// Resource limits applied to child interpreters.
   final ResourceLimits? childLimits;
 
-  /// Base directory for per-child sandbox working directories.
-  ///
-  /// When non-null, each child receives a [ChildSpawnContext] with
-  /// `workingDirectory` set to `$sandboxBaseDir/.sandboxes/child_$id`.
-  /// The directory is **not** created by this extension — consumers (e.g.,
-  /// `FsExtension.createChildInstance`) are responsible for creation.
+  /// Reserved for owned native backing, pending D4b.
+  /// Memory children always use the virtual cwd `/work`.
   final String? sandboxBaseDir;
+
+  final WorkspaceTransfers _transfers = WorkspaceTransfers();
+  int _pendingSpawns = 0;
 
   final Map<int, _ChildHandle> _children = {};
   final Signal<Map<int, ChildState>> _childrenSignal =
@@ -392,6 +438,7 @@ class SandboxExtension extends MontyExtension {
   Future<void> onDispose() async {
     if (_disposed) return;
     _disposed = true;
+    await _transfers.dispose();
 
     final aliveCount = _children.values.where((c) => c.isAlive).length;
     logger.info(
@@ -402,9 +449,18 @@ class SandboxExtension extends MontyExtension {
       },
     );
 
+    await _disposeChildren();
+    _children.clear();
+    _childrenSignal.value = const <int, ChildState>{};
+    await super.onDispose();
+    _childrenSignal.dispose();
+  }
+
+  Future<void> _disposeChildren() async {
     // Tear down all living children.
     for (final entry in _children.entries) {
       final child = entry.value;
+      await child.workspace.dispose();
       if (!child.isAlive) continue;
 
       try {
@@ -432,10 +488,6 @@ class SandboxExtension extends MontyExtension {
         );
       }
     }
-    _children.clear();
-    _childrenSignal.value = const <int, ChildState>{};
-    await super.onDispose();
-    _childrenSignal.dispose();
   }
 
   Future<MontyValue> _handleSpawn(
@@ -450,21 +502,41 @@ class SandboxExtension extends MontyExtension {
     final id = _nextId++;
     final spawnContext = ChildSpawnContext(
       childId: id,
-      workingDirectory: sandboxBaseDir != null
-          ? p.join(sandboxBaseDir!, '.sandboxes', 'child_$id')
-          : null,
+      workingDirectory: '/work',
     );
 
-    final (
-      session,
-      bridge,
-      childCoordinator,
-    ) = await _createChildSessionAndBridge(
-      spawnContext,
-      limits,
-      code.length,
-      ctx.os,
-    );
+    _pendingSpawns++;
+    Workspace? workspace;
+    late (MontySession, MontyBridge, ExtensionCoordinator) created;
+    try {
+      workspace = await _transfers.copyIn(
+        parent: ctx.os,
+        files: workspaceMapping(args['files']),
+        roFiles: workspaceMapping(args['ro_files']),
+        writeBytesLimit: reduceWorkspaceCap(
+          writeBytesLimit,
+          args.intArgOrNull('write_bytes_limit'),
+        ),
+        memoryUsageLimit: reduceWorkspaceCap(
+          memoryUsageLimit,
+          args.intArgOrNull('memory_usage_limit'),
+        ),
+      );
+      if (_disposed) throw StateError('SandboxExtension is disposed.');
+      created = await _createChildSessionAndBridge(
+        spawnContext,
+        limits,
+        code.length,
+        ctx.os,
+        workspace,
+      );
+    } on Object {
+      await workspace?.dispose();
+      rethrow;
+    } finally {
+      _pendingSpawns--;
+    }
+    final (session, bridge, childCoordinator) = created;
 
     // Post-await disposed check — the extension may have been disposed while
     // _createChildSessionAndBridge was in flight.
@@ -472,6 +544,7 @@ class SandboxExtension extends MontyExtension {
       bridge.dispose();
       await session.close();
       await childCoordinator.disposeAll();
+      await workspace.dispose();
       throw StateError('SandboxExtension was disposed during child spawn.');
     }
 
@@ -482,7 +555,7 @@ class SandboxExtension extends MontyExtension {
       attributes: {'childId': id, 'depth': currentDepth},
     );
 
-    final stream = bridge.execute(code);
+    final stream = (bridge as SessionBridge).executeWith(code, cwd: '/work');
     final subscription = _setupChildListener(
       bridge: bridge,
       session: session,
@@ -499,6 +572,7 @@ class SandboxExtension extends MontyExtension {
       completer: completer,
       subscription: subscription,
       coordinator: childCoordinator,
+      workspace: workspace,
     );
     _updateChildrenSignal();
 
@@ -515,7 +589,7 @@ class SandboxExtension extends MontyExtension {
       );
       throw StateError('Maximum sandbox recursion depth ($maxDepth) exceeded.');
     }
-    final aliveCount = _children.values.where((c) => c.isAlive).length;
+    final aliveCount = _children.length + _pendingSpawns;
     if (aliveCount >= maxChildren) {
       logger.warning(
         'Spawn rejected: concurrency limit',
@@ -558,6 +632,7 @@ class SandboxExtension extends MontyExtension {
     ResourceLimits? limits,
     int codeLength,
     OsHandler? parentOsOverride,
+    Workspace workspace,
   ) async {
     MontySession? session;
     MontyBridge? bridge;
@@ -590,6 +665,7 @@ class SandboxExtension extends MontyExtension {
         spawnContext,
         bridge,
         parentOsOverride,
+        workspace,
       );
     } on Object {
       if (bridge != null) bridge.dispose();
@@ -604,7 +680,7 @@ class SandboxExtension extends MontyExtension {
   /// Creates and attaches a child [ExtensionCoordinator] by delegating to
   /// [ExtensionCoordinator.spawnChild] on the parent coordinator. Child
   /// extensions are composed via [MontyExtension.createChildInstance]; the
-  /// child OS handler follows [childVfsStrategy].
+  /// child OS handler owns its independent workspace.
   ///
   /// Relies on [coordinatorOf] — i.e., this extension must be attached
   /// through an [ExtensionCoordinator].
@@ -612,12 +688,13 @@ class SandboxExtension extends MontyExtension {
     ChildSpawnContext spawnContext,
     MontyBridge bridge,
     OsHandler? parentOsOverride,
+    Workspace workspace,
   ) async {
     try {
       final childCoordinator = await coordinatorOf(this).spawnChild(
         context: spawnContext,
         bridge: bridge,
-        vfsStrategy: childVfsStrategy,
+        workspace: workspace,
         baseOs: parentOsOverride,
       );
       logger.debug(
@@ -788,7 +865,13 @@ class SandboxExtension extends MontyExtension {
       throw ArgumentError.value(handle, 'handle', 'Unknown child handle.');
     }
 
-    return child.completer.future;
+    final result = await child.completer.future;
+    await _transfers.collect(
+      child.workspace,
+      workspaceMapping(args['collect']),
+    );
+
+    return result;
   }
 
   Future<MontyValue> _handleAwaitAll(
@@ -828,7 +911,7 @@ class SandboxExtension extends MontyExtension {
   Future<MontyValue> _handleFree(
     Map<String, MontyValue> args,
     HostContext ctx,
-  ) {
+  ) async {
     final handle = args.intArg('handle');
     final child = _children[handle];
     if (child == null) {
@@ -839,11 +922,12 @@ class SandboxExtension extends MontyExtension {
         'Child $handle is still running. Await it before freeing.',
       );
     }
+    await child.workspace.dispose();
     _children.remove(handle);
     _updateChildrenSignal();
     logger.debug('Child freed', attributes: {'childId': handle});
 
-    return Future.value(const MontyNone());
+    return const MontyNone();
   }
 
   Future<MontyValue> _handleGetOutput(

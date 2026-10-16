@@ -9,9 +9,11 @@ required.
 tools, extensions, and OS-level interception.
 
 ```dart
+import 'package:dart_monty_core/dart_monty_core.dart' show OSAccess;
+
 final session = await MontyRuntime.start(
   extensions: [EventLoopExtension()],
-  osHandlers: {'Path.': memoryFsHandler()},
+  osHandlers: {'Path.': OSAccess().call},
 );
 
 // Variables persist natively across calls
@@ -130,14 +132,18 @@ Group related tools into namespaced units.
 
 Intercept Python `pathlib` and `os` calls. The clock is answered by the worker, not by a handler.
 
-| Handler | Description |
-|---------|-------------|
-| `fsHandler(FileSystem)` | Generic Path.* handler |
-| `memoryFsHandler()` | Ephemeral in-memory VFS |
-| `sandboxedFsHandler(root)`| Restricted native FS |
-| `readOnlyHandler(child)` | Blocks write operations |
-| `overlayFsHandler()` | Copy-on-write overlay |
-| `envHandler(map)` | `os.*` over a given environment map |
+Import `OSAccess` and `MemoryFile` directly from
+`package:dart_monty_core/dart_monty_core.dart`. Register `OSAccess.call` with
+`registerOs`, or use its callback in `osHandlers`. `OSAccess(files: [...],
+environ: {...})` supplies memory files and environment values. Create parent
+directories before writing new files.
+
+Sandbox memory workspaces default to `/work` and 8 MiB each for cumulative
+write bytes and retained logical memory. `SandboxExtension(writeBytesLimit:,
+memoryUsageLimit:)` accepts explicit null to opt out of a counter. Negative
+values are rejected. See [workspace policy](../deep-dives/oscall-vfs.md).
+Native sandbox backing (`sandboxBaseDir`) is pending D4b; child checkout remains
+pending D5. The transfer schema is available for preparation, not live children.
 
 ## Core Types
 

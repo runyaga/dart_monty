@@ -36,9 +36,7 @@ void main() {
                   )
                   as List<dynamic>)
               .cast<String>()
-              .toSet()
-            ..remove('DecoratorHandlers');
-      if (compiler != 'kernel') names.remove('sandboxedFsHandler');
+              .toSet();
       final source = File('${temp.path}/positive.dart')
         ..writeAsStringSync('''
 import 'package:dart_monty/dart_monty.dart' as dm;
@@ -48,15 +46,13 @@ void main() {
   final dm.MontyValue value = const MontyInt(42);
   print([none.dartValue, value, ${names.map((n) => 'dm.$n').join(', ')}]);
 }
-dm.OsHandler decorate(dm.OsHandler handler) =>
-    dm.DecoratorHandlers(handler).readOnly();
 ''');
       final result = await _compile(source, temp, compiler);
       expect(result.exitCode, 0, reason: '${result.stdout}${result.stderr}');
     });
   }
 
-  group('every D2 deleted name, member and library', () {
+  group('every D4a deleted name, member and library', () {
     setUpAll(() async {
       final controlDir = Directory.systemTemp.createTempSync('dm-control-');
       try {
@@ -99,7 +95,13 @@ void main() { ${entry['body']} }
             );
         expect(errors, isNotEmpty, reason: output);
         for (final error in errors) {
-          expect(error, startsWith('${source.path}:'), reason: output);
+          final location = RegExp(r'^(.*):\d+:\d+: Error:').firstMatch(error);
+          expect(location, isNotNull, reason: output);
+          expect(
+            File(location!.group(1)!).absolute.uri.normalizePath(),
+            source.absolute.uri.normalizePath(),
+            reason: output,
+          );
           if (error.contains('Error when reading') ||
               error.contains('Not found:')) {
             expect(entry['missing_library'], isNotNull, reason: output);
