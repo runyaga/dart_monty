@@ -1,0 +1,119 @@
+@Tags(['integration'])
+library;
+
+import 'dart:async';
+
+import 'package:dart_monty/dart_monty.dart';
+import 'package:dart_monty/src/runtime/runtime.dart' show startRuntimeWith;
+import 'package:dart_monty_core/dart_monty_core.dart';
+import 'package:dart_monty_core/dart_monty_core_testing.dart';
+import 'package:test/test.dart';
+
+import '../acceptance/_platform.dart';
+
+void main() {
+  test('D5-finite-subexecute', () async {
+    const budget = Duration(milliseconds: 100);
+    final pool = await Monty.start(
+      workerLocation: acceptanceWorkerLocation,
+      maxProcesses: 1,
+      checkoutTimeout: budget,
+    );
+    addTearDown(pool.close);
+    final runtime = await MontyRuntime.start(
+      pool: pool,
+      limits: const ResourceLimits(maxFeedDuration: Duration(seconds: 2)),
+    );
+    addTearDown(runtime.dispose);
+    runtime.register(
+      HostFunction(
+        schema: const HostFunctionSchema(name: 'nested'),
+        handler: (_, ctx) => ctx.subExecute!('42'),
+      ),
+    );
+    final watch = Stopwatch()..start();
+    await expectLater(
+      runtime.invoke('nested', {}),
+      throwsA(isA<TimeoutException>()),
+    );
+    watch.stop();
+    expect(watch.elapsed, greaterThanOrEqualTo(budget));
+    expect(watch.elapsed, lessThan(budget + const Duration(seconds: 3)));
+    expect(await runtime.execute('40 + 2').result, const MontyInt(42));
+    await runtime.dispose();
+    // Disposal must release the held slot without closing this caller pool.
+    final fresh = await pool.checkout(
+      limits: const ResourceLimits(maxFeedDuration: Duration(seconds: 2)),
+    );
+    addTearDown(fresh.close);
+    expect(await fresh.feedRun('6 * 7'), const MontyInt(42));
+  });
+
+  // The runtime's existing late-subexecution path is testable. The matching
+  // late *child* checkout is still blocked by D1-8.
+  test('D5-timeout-late-close-subexecute', () async {
+    final lateSession = _LateSession();
+    final arrived = Completer<MontySession>();
+    final requested = Completer<void>();
+    final token = Completer<CancelToken>();
+    final settled = Completer<void>();
+    var checkouts = 0;
+    const limits = ResourceLimits(maxFeedDuration: Duration(seconds: 2));
+    final runtime = await startRuntimeWith(
+      limits: limits,
+      checkout: ({limits}) async {
+        checkouts++;
+        if (checkouts == 1) {
+          return FakeMontySession()
+            ..willCall('nested')
+            ..willReturn(const MontyInt(42));
+        }
+        expect(limits?.maxFeedDuration, const Duration(seconds: 2));
+        requested.complete();
+
+        return arrived.future;
+      },
+    );
+    addTearDown(runtime.dispose);
+    runtime.register(
+      HostFunction(
+        schema: const HostFunctionSchema(name: 'nested'),
+        handler: (_, ctx) {
+          token.complete(ctx.cancelToken);
+
+          return ctx.subExecute!('42').whenComplete(settled.complete);
+        },
+      ),
+    );
+    final run = runtime.execute('nested()');
+    final refused = expectLater(run.result, throwsStateError);
+    await requested.future;
+    final cancelled = run.cancel();
+    await (await token.future).future;
+    arrived.complete(lateSession);
+    await cancelled;
+    await refused;
+    await settled.future;
+    expect(checkouts, 2);
+    expect(lateSession.closes, 1);
+    expect(lateSession.unexpectedCalls, 0);
+    await runtime.dispose();
+    expect(lateSession.closes, 1);
+  });
+}
+
+// A late session must only be closed; any other interface call is a failure.
+final class _LateSession implements MontySession {
+  int closes = 0;
+  int unexpectedCalls = 0;
+
+  @override
+  Future<void> close() async => closes++;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) {
+    unexpectedCalls++;
+
+    return super.noSuchMethod(invocation);
+  }
+}
