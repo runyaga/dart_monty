@@ -57,7 +57,7 @@ requested tag selectors".
 `oracle_ffi_test.dart` and `wasm_fixture_test.dart` are **not in this repo** —
 they are `dart_monty_core`'s conformance suites. Run them there.
 
-The whole integration suite passes, `event_loop_experiment_test.dart`
+The whole integration suite passes, `event_loop_extension_test.dart`
 included. A test that waits for the event loop to reach `el_recv` polls one
 event-loop turn at a time (see `_until` in `test/src/bridge/event_loop_test.dart`)
 rather than awaiting a single zero delay.

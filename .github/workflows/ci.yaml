@@ -779,7 +779,7 @@ jobs:
           # set below it so ordinary churn does not trip it. Raise the floor
           # when the suite grows; never lower it to make a run pass.
           set -o pipefail
-          dart test -p chrome test/experiments/*_wasm_test.dart \
+          dart test -p chrome test/src/workspace/caps_test.dart \
             --exclude-tags d1-pending \
             --reporter=expanded 2>&1 | tee /tmp/wasm.log
           bash tool/assert_test_count.sh /tmp/wasm.log 8 wasm

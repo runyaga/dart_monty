@@ -5,14 +5,14 @@
 //
 // Run with:
 //   dart test --tags=integration \
-//     test/experiment/examples/vfs_experiment_test.dart
+//     test/integration/vfs_oscall_test.dart
 @Tags(['integration'])
 library;
 
 import 'package:dart_monty/dart_monty.dart';
 import 'package:test/test.dart';
 
-import 'harness.dart';
+import '_monty_harness.dart';
 
 void main() {
   // ---------------------------------------------------------------------------

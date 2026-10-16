@@ -8,7 +8,7 @@
 //
 // Run with:
 //   dart test --tags=integration \
-//     test/experiment/examples/signals_experiment_test.dart
+//     test/experiments/signals_experiment_test.dart
 //
 // Sandbox tests require vm; others work on both backends.
 @Tags(['integration'])
@@ -20,7 +20,7 @@ import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:signals_core/signals_core.dart';
 import 'package:test/test.dart';
 
-import 'harness.dart';
+import '../integration/_monty_harness.dart';
 
 void main() {
   // ---------------------------------------------------------------------------
