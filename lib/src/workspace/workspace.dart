@@ -3,10 +3,16 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:dart_monty/src/workspace/disk_backing.dart';
+import 'package:dart_monty/src/workspace/disk_backing_stub.dart'
+    if (dart.library.io) 'package:dart_monty/src/workspace/disk_backing_io.dart';
+import 'package:dart_monty/src/workspace/persistent_transfer.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:path/path.dart' as p;
 
 part 'workspace_transfers.dart';
+part 'workspace_driver.dart';
+part 'workspace_unicode.dart';
 
 /// Private memory backing retained until its admitted collections settle.
 final class Workspace {
@@ -18,6 +24,7 @@ final class Workspace {
     int? writeBytesLimit = 8388608,
     int? memoryUsageLimit = 8388608,
     OsHandler? parent,
+    String? sandboxBaseDir,
   }) : _writeLimit = writeBytesLimit,
        _memoryLimit = memoryUsageLimit,
        _parent = parent,
@@ -43,9 +50,18 @@ final class Workspace {
     _memoryUsage = _size(entries);
     _checkMemory(_memoryUsage);
     _access = _fromEntries(entries);
+    if (sandboxBaseDir != null) {
+      _disk = createDiskBacking(sandboxBaseDir, entries);
+    }
   }
 
   /// Cumulative accepted guest payload ceiling; null explicitly opts out.
+  DiskBacking? _disk;
+  Future<Monty>? _transferPool;
+  Future<void> _transferDone = Future<void>.value();
+  MontySession? _execution;
+  Completer<void>? _executionDone;
+
   final int? _writeLimit;
 
   /// Retained content plus 64 bytes per workspace entry; null opts out.
@@ -70,7 +86,19 @@ final class Workspace {
 
   /// Routes filesystem calls exclusively here and other calls to contributions.
   OsHandler compose(OsHandler nonFilesystem) => (name, args, kwargs) {
-    if (_filesystem(name)) return call(name, args, kwargs);
+    if (_filesystem(name)) {
+      if (_disk != null) {
+        final path = _operationPath(args.firstOrNull);
+        if (name == 'Path.is_symlink' && path == '/') {
+          return const MontyBool(false);
+        }
+        if (!_inside(path)) throw const OsCallNotHandledException();
+
+        return _persistentCall(name, args, kwargs);
+      }
+
+      return call(name, args, kwargs);
+    }
 
     return nonFilesystem(name, args, kwargs);
   };
@@ -152,18 +180,43 @@ final class Workspace {
   }
 
   void _checkProtected(String path) {
-    if (_protected.any(
-      (root) =>
-          root == path ||
-          p.posix.isWithin(root, path) ||
-          p.posix.isWithin(path, root),
-    )) {
+    if (_protected.any((root) => _protectedOverlap(path, root))) {
       throw ExternalException(
         'PermissionError',
         "[Errno 30] Read-only file system: '$path'",
       );
     }
   }
+
+  bool _protectedOverlap(String path, String root) {
+    if (_disk == null) {
+      return root == path ||
+          p.posix.isWithin(root, path) ||
+          p.posix.isWithin(path, root);
+    }
+    final parts = path.split('/');
+    final protectedParts = root.split('/');
+    var candidate = '';
+    var protected = '';
+    var index = 0;
+    for (final (part, protectedPart) in _pairedComponents(
+      parts,
+      protectedParts,
+    )) {
+      candidate = _appendComponent(candidate, part, index);
+      protected = _appendComponent(protected, protectedPart, index);
+      if (!_sameComponent(part, protectedPart) &&
+          !(_disk?.sameHostEntry(candidate, protected) ?? false)) {
+        return false;
+      }
+      index++;
+    }
+
+    return true;
+  }
+
+  bool _sameComponent(String left, String right) =>
+      _canonicalComponent(left) == _canonicalComponent(right);
 
   void _checkMemory(int retained) {
     final memoryCap = _memoryLimit;
@@ -177,6 +230,7 @@ final class Workspace {
 
   void _lease() {
     if (_freeing) throw StateError('Workspace is disposed');
+    if (_execution != null) throw StateError('Workspace is running');
     if (_leased) throw StateError('Workspace is being collected');
     _leased = true;
     _leaseDone = Completer<void>();
@@ -189,12 +243,31 @@ final class Workspace {
   }
 
   Future<void> _finishDisposal() async {
-    await _leaseDone?.future;
-    _access = OSAccess();
-    _parent = null;
-    _protected.clear();
-    _memoryUsage = 0;
-    _writeBytes = 0;
+    try {
+      try {
+        await _execution?.close();
+      } finally {
+        await _executionDone?.future;
+        await _leaseDone?.future;
+        await _transferDone;
+        await cleanupWorkspace([
+          () async {
+            await (await _transferPool)?.close();
+          },
+          () {
+            _disk?.dispose();
+          },
+        ]);
+      }
+    } finally {
+      _disk = null;
+      _transferPool = null;
+      _access = OSAccess();
+      _parent = null;
+      _protected.clear();
+      _memoryUsage = 0;
+      _writeBytes = 0;
+    }
   }
 }
 
@@ -218,6 +291,19 @@ int? reduceWorkspaceCap(int? host, int? guest) {
 
 bool _filesystem(String name) => name == 'open' || name.startsWith('Path.');
 bool _inside(String path) => path == '/work' || path.startsWith('/work/');
+String _appendComponent(String path, String component, int index) =>
+    index == 0 ? '/' : p.posix.join(path, component);
+Iterable<(String, String)> _pairedComponents(
+  Iterable<String> left,
+  Iterable<String> right,
+) sync* {
+  final lefts = left.iterator;
+  final rights = right.iterator;
+  while (lefts.moveNext() && rights.moveNext()) {
+    yield (lefts.current, rights.current);
+  }
+}
+
 String _operationPath(MontyValue? value) {
   final text = switch (value) {
     MontyString(:final value) || MontyPath(:final value) => value,

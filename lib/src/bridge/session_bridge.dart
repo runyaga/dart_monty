@@ -11,6 +11,7 @@ import 'package:dart_monty/src/host/function.dart';
 import 'package:dart_monty/src/host/schema.dart';
 import 'package:dart_monty/src/runtime/execution_handle.dart';
 import 'package:dart_monty/src/runtime/runtime_ref.dart';
+import 'package:dart_monty/src/workspace/workspace.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:meta/meta.dart';
 import 'package:struct_log/struct_log.dart';
@@ -59,6 +60,12 @@ class SessionBridge implements MontyBridge {
   @internal
   // ignore: dispose-class-fields, the runtime that checked it out closes it.
   MontySession session;
+
+  /// Internal child driver; ordinary bridge executions use core feedRun.
+  @internal
+  // The child owns backing beyond bridge completion, until explicit free.
+  // ignore: dispose-class-fields
+  Workspace? workspace;
 
   @override
   final BridgeLogger logger;
@@ -250,7 +257,8 @@ class SessionBridge implements MontyBridge {
     void Function(BridgeEvent) emit,
   ) async {
     final (printed, threadId, runId, cwd) = run;
-    final value = await session.feedRun(
+    final feed = workspace?.driver(session) ?? session.feedRun;
+    final value = await feed(
       code,
       cwd: cwd,
       inputs: inputs,

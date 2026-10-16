@@ -138,12 +138,13 @@ Import `OSAccess` and `MemoryFile` directly from
 environ: {...})` supplies memory files and environment values. Create parent
 directories before writing new files.
 
-Sandbox memory workspaces default to `/work` and 8 MiB each for cumulative
+Sandbox workspaces default to `/work` and 8 MiB each for cumulative
 write bytes and retained logical memory. `SandboxExtension(writeBytesLimit:,
 memoryUsageLimit:)` accepts explicit null to opt out of a counter. Negative
 values are rejected. See [workspace policy](../deep-dives/oscall-vfs.md).
-Native sandbox backing (`sandboxBaseDir`) is pending D4b; child checkout remains
-pending D5. The transfer schema is available for preparation, not live children.
+On VM, `sandboxBaseDir` selects a fresh owned native directory retained until
+free/disposal. Web refuses host backing; omit the option for memory workspaces.
+D4b tests these helpers directly; live child checkout remains pending D5.
 
 ## Core Types
 

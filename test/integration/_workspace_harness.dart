@@ -19,10 +19,9 @@ class WorkspaceHarness {
   }
 
   Future<Object?> run(Workspace workspace, String code) async =>
-      (await session.feedRun(
+      (await workspace.driver(session)(
         'from pathlib import Path\n$code',
         cwd: '/work',
-        os: workspace.call,
       )).dartValue;
   Future<String> caught(Workspace workspace, String code) async =>
       (await run(

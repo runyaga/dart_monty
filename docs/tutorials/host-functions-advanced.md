@@ -232,21 +232,20 @@ on the child's bridge. Extensions that return `null` are excluded.
 
 ### Per-Child Filesystem Isolation
 
-The `sandboxBaseDir` parameter enables per-child working directories:
+The `sandboxBaseDir` option selects owned native backing on VM. The configuration
+is prepared in D4b; live sandbox child execution requires D5:
 
 ```dart
 SandboxExtension(
-  platformFactory: () async => createPlatformMonty(),
   sandboxBaseDir: '/data',
-  parentExtensions: registry.extensions,
 )
 ```
 
-When set, each child's `ChildSpawnContext.workingDirectory` is computed
-as `$sandboxBaseDir/.sandboxes/child_$id` (e.g.,
-`/data/.sandboxes/child_0`). The directory is **not** created by
-`SandboxExtension` -- consumers (e.g., an `FsExtension.createChildInstance`)
-are responsible for creating and managing it.
+The package creates a fresh private directory below `/data`, seeds its inputs,
+and retains it after completion and collection until free or parent disposal.
+Consumers do not create or delete that directory. `ChildSpawnContext.workingDirectory`
+remains the virtual path `/work`; no host path is exposed to Python. Omit
+`sandboxBaseDir` for portable memory backing. Browsers refuse host directories.
 
 ## Child System Prompts
 

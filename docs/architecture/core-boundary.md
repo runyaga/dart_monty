@@ -16,8 +16,10 @@ collection, read-only protection, caps and disposal leases; it uses public
 conditional filesystem exports remain in dm.
 
 `OSAccess` is a memory namespace; `MountDir` is native host backing. They are
-different facilities. Native child backing and bounded native transfer adapters
-are pending D4b. Child checkout remains the D1-8 stub until D5. The six public
+different facilities. D4b supplies owned native backing, a private driver over
+public snapshots, and bounded persistent transfer sessions. Conditional imports
+keep native helpers out of web builds. Child checkout remains the D1-8 stub
+until D5. The six public
 child state/error names remain until that migration.
 
 See [workspace policy](../deep-dives/oscall-vfs.md) for the current transfer and
