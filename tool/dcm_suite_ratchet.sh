@@ -188,9 +188,13 @@ def count(path):
             # package's, not this repo's: `check-exports-completeness` reports
             # core's @internal wrappedValue against core's file for any dm
             # barrel that re-exports core, and dm cannot change it.
-            if raw.startswith('..') or os.path.isabs(raw):
+            # Resolved against the repo root, so `../<this-repo>/lib/x.dart`
+            # and an absolute path into this repo still count.
+            root = os.path.realpath(os.getcwd())
+            resolved = os.path.realpath(os.path.join(root, raw))
+            if resolved != root and not resolved.startswith(root + os.sep):
                 continue
-            p = raw.split('dart_monty/')[-1]
+            p = os.path.relpath(resolved, root)
             for iss in rec['issues']:
                 rules[iss.get('id', '?')] += 1
                 files[p] += 1
