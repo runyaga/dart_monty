@@ -52,7 +52,6 @@ Source-of-truth references for the internal contract surface.
 - [FFI Handle Lifecycle](reference/ffi-handle-lifecycle.html)
 - [Bridge Integration](reference/bridge-integration.html)
 - [Internals](reference/internals.html)
-- [API Coverage Plan](reference/api-coverage-plan.html)
 
 ## Contributing
 
