@@ -1,3 +1,5 @@
+// Keep guest programs and historical case IDs intact.
+// ignore_for_file: lines_longer_than_80_chars
 // G5: Signals experiments.
 //
 // Covers SignalCapture, Computed signals, effect cleanup, per-plugin reactive
@@ -167,7 +169,8 @@ void main() {
       test(
         'aliveCount peaks at N then returns to 0',
         () async {
-          final cap = SignalCapture(sandbox.aliveCountSignal);
+          final events = <BridgeEvent>[];
+          final sub = h.runtime.events.listen(events.add);
 
           await h.run('''
 h1 = sandbox_spawn(code="1")
@@ -176,14 +179,21 @@ h3 = sandbox_spawn(code="3")
 sandbox_await_all(handles=[h1, h2, h3])
 ''');
 
-          cap.dispose();
-
-          // Children may complete fast; assert at least one was alive and
-          // all finished.
-          expect(cap.values.any((c) => c > 0), isTrue);
-          expect(cap.values.last, 0);
+          await sub.cancel();
+          expect(
+            events
+                .whereType<BridgeChildEvent>()
+                .map((e) => e.childHandle)
+                .toSet(),
+            {'0', '1', '2'},
+          );
+          expect(
+            (await h.run(
+              '[sandbox_is_alive(h1), sandbox_is_alive(h2), sandbox_is_alive(h3)]',
+            )).dartValue,
+            [false, false, false],
+          );
         },
-        tags: 'd1-pending',
       );
     },
     testOn: 'vm',

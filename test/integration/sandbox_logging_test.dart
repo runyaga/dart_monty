@@ -1,17 +1,15 @@
-@TestOn('vm')
-@Tags(['integration', 'd1-pending'])
+@Tags(['integration'])
 library;
 
 import 'package:dart_monty/dart_monty.dart';
-import 'package:dart_monty/src/bridge/struct_log_logger.dart';
 import 'package:dart_monty/src/extension/coordinator.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:struct_log/struct_log.dart';
 import 'package:test/test.dart';
 
-import '_worker.dart';
+import '../acceptance/_platform.dart';
 
-final _testCtx = HostContext(emit: (_) {}, executionId: 'test');
+late HostContext _testCtx;
 
 /// Integration tests for SandboxExtension structured logging with real FFI.
 ///
@@ -43,29 +41,32 @@ void main() {
 
   late Monty pool;
 
-  setUpAll(() async => pool = await startTestPool());
+  setUpAll(
+    () async => pool = await Monty.start(
+      workerLocation: acceptanceWorkerLocation,
+      checkoutTimeout: const Duration(seconds: 5),
+    ),
+  );
   tearDownAll(() => pool.close());
 
-  // The bridge does not close its session; the test does, so the pool's
-  // workers come back between tests.
-  Future<MontyBridge> createBridge() async {
-    final session = await pool.checkout();
-    addTearDown(session.close);
-
-    return MontyBridge(
-      session: session,
-      logger: StructLogBridgeLogger.root(LogManager.instance),
+  Future<MontyRuntime> createBridge(List<MontyExtension> extensions) async {
+    final runtime = await MontyRuntime.start(
+      pool: pool,
+      extensions: extensions,
     );
+    addTearDown(runtime.dispose);
+    await runtime.invoke('sandbox_await_all', {'handles': const MontyList([])});
+    _testCtx = HostContext(emit: (_) {}, executionId: 'test', parent: runtime);
+    return runtime;
   }
 
   group('sandbox logging with real FFI', () {
     test('spawn + await logs full lifecycle', () async {
-      final bridge = await createBridge();
       final registry = ExtensionCoordinator()
         ..register(
           SandboxExtension(),
         );
-      await registry.attachTo(bridge);
+      final bridge = await createBridge(registry.extensions);
 
       final plugin = registry.extensions.whereType<SandboxExtension>().first;
       final spawn = plugin.functions
@@ -76,12 +77,13 @@ void main() {
           .handler;
 
       final handle =
-          (await spawn!({'code': const MontyString('2 + 3')}, _testCtx)) as int;
+          (await spawn!({'code': const MontyString('2 + 3')}, _testCtx))
+              as MontyInt;
       final result = await await_!({
         'handle': MontyValue.fromDart(handle),
       }, _testCtx);
 
-      expect(result, 5);
+      expect(result, const MontyInt(5));
 
       // Verify structured log records were emitted.
       final messages = sink.records.map((r) => r.message).toList();
@@ -93,19 +95,18 @@ void main() {
       final spawnRecord = sink.records.firstWhere(
         (r) => r.message == 'Child spawned',
       );
-      expect(spawnRecord.attributes['childId'], handle);
+      expect(spawnRecord.attributes['childId'], handle.value);
       expect(spawnRecord.attributes['depth'], 0);
 
-      bridge.dispose();
+      await bridge.dispose();
     });
 
     test('failed child logs error details', () async {
-      final bridge = await createBridge();
       final registry = ExtensionCoordinator()
         ..register(
           SandboxExtension(),
         );
-      await registry.attachTo(bridge);
+      final bridge = await createBridge(registry.extensions);
 
       final plugin = registry.extensions.whereType<SandboxExtension>().first;
       final spawn = plugin.functions
@@ -119,7 +120,7 @@ void main() {
           (await spawn!({
                 'code': const MontyString('undefined_variable_xyz'),
               }, _testCtx))
-              as int;
+              as MontyInt;
 
       try {
         await await_!({'handle': MontyValue.fromDart(handle)}, _testCtx);
@@ -131,19 +132,18 @@ void main() {
         (r) => r.message == 'Child failed',
       );
       expect(failRecord.level, LogLevel.debug);
-      expect(failRecord.attributes['childId'], handle);
+      expect(failRecord.attributes['childId'], handle.value);
       expect(failRecord.attributes['error']! as String, contains('NameError'));
 
-      bridge.dispose();
+      await bridge.dispose();
     });
 
     test('dispose logs child counts', () async {
-      final bridge = await createBridge();
       final registry = ExtensionCoordinator()
         ..register(
           SandboxExtension(),
         );
-      await registry.attachTo(bridge);
+      final bridge = await createBridge(registry.extensions);
 
       final plugin = registry.extensions.whereType<SandboxExtension>().first;
       final spawn = plugin.functions
@@ -154,7 +154,8 @@ void main() {
           .handler;
 
       final handle =
-          (await spawn!({'code': const MontyString('42')}, _testCtx)) as int;
+          (await spawn!({'code': const MontyString('42')}, _testCtx))
+              as MontyInt;
       await await_!({'handle': MontyValue.fromDart(handle)}, _testCtx);
 
       await plugin.onDispose();
@@ -166,7 +167,7 @@ void main() {
       expect(disposeRecord.attributes['totalChildren'], 1);
       expect(disposeRecord.attributes['aliveChildren'], 0);
 
-      bridge.dispose();
+      await bridge.dispose();
     });
   });
 }

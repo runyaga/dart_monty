@@ -6,7 +6,13 @@ import 'package:dart_monty_core/dart_monty_core.dart';
 /// One `feedRun` a [RecordingSession] saw.
 final class RecordedFeed {
   /// A feed of [code] with these arguments.
-  const RecordedFeed(this.code, this.inputs, this.externalLookup, this.os);
+  const RecordedFeed(
+    this.code,
+    this.inputs,
+    this.externalLookup,
+    this.os,
+    this.cwd,
+  );
 
   /// The code fed.
   final String code;
@@ -19,6 +25,9 @@ final class RecordedFeed {
 
   /// The feed's `os` handler.
   final OsHandler? os;
+
+  /// Requested working directory.
+  final String? cwd;
 }
 
 /// A session that records each `feedRun`'s arguments and whether it was
@@ -35,6 +44,12 @@ final class RecordingSession implements MontySession {
 
   /// Whether [close] was called.
   bool closed = false;
+
+  /// Every close attempt, including duplicates.
+  int closeCalls = 0;
+
+  /// Optional close fault after the wrapped session closes.
+  Error? closeError;
 
   /// When set, a failing `feedRun` reports its error only once this
   /// completes.
@@ -57,7 +72,7 @@ final class RecordingSession implements MontySession {
     List<MountDir>? mount,
     bool skipTypeCheck = false,
   }) {
-    feeds.add(RecordedFeed(code, inputs, externalLookup, os));
+    feeds.add(RecordedFeed(code, inputs, externalLookup, os, cwd));
 
     final fed = inner.feedRun(
       code,
@@ -124,9 +139,10 @@ final class RecordingSession implements MontySession {
   Future<Uint8List> dump() => inner.dump();
 
   @override
-  Future<void> close() {
+  Future<void> close() async {
+    closeCalls++;
     closed = true;
-
-    return inner.close();
+    await inner.close();
+    if (closeError case final error?) throw error;
   }
 }

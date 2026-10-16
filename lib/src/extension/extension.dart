@@ -56,6 +56,7 @@ class ChildSpawnContext {
 
   /// Virtual child working directory, `/work` for sandbox children.
   /// Native backing through `sandboxBaseDir` is pending D4b.
+  // ignore: unnecessarily-public-code, consumed by external clone-policy extensions.
   final String? workingDirectory;
 }
 
@@ -97,9 +98,8 @@ abstract class MontyExtension {
   /// operate on the current backend.
   ///
   /// Defaults to all backends. Override to `{MontyBackendKind.ffi}` or
-  /// `{MontyBackendKind.wasm}` if the extension depends on capabilities that
-  /// only exist on one backend (e.g., `SandboxExtension` needs `dart:io` + a
-  /// second interpreter instance, which crashes the parent session on WASM).
+  /// `{MontyBackendKind.wasm}` for backend-specific capabilities. Sandbox
+  /// children use independent sessions on both backends.
   Set<MontyBackendKind> get supportedBackends => const {
     MontyBackendKind.ffi,
     MontyBackendKind.wasm,

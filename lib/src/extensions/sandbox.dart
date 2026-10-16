@@ -12,8 +12,9 @@ import 'package:dart_monty/src/host/param.dart';
 import 'package:dart_monty/src/host/param_type.dart';
 import 'package:dart_monty/src/host/schema.dart';
 import 'package:dart_monty/src/runtime/backend_kind.dart';
+import 'package:dart_monty/src/runtime/execution_handle.dart';
 import 'package:dart_monty/src/runtime/runtime.dart'
-    show MontyRuntime, runtimeLimits;
+    show MontyRuntime, captureChildContext, runtimeLimits;
 import 'package:dart_monty/src/runtime/runtime_ref.dart';
 import 'package:dart_monty/src/workspace/workspace.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
@@ -24,9 +25,9 @@ import 'package:signals_core/signals_core.dart';
 /// Preserves the [childId] and, when the failure originated from a Python
 /// exception, the full [exception] with structured fields (filename,
 /// lineNumber, excType, traceback).
-class ChildSandboxException implements Exception {
-  /// Creates a [ChildSandboxException].
-  const ChildSandboxException({
+class _ChildSandboxException implements Exception {
+  /// Creates a [_ChildSandboxException].
+  const _ChildSandboxException({
     required this.childId,
     required this.message,
     this.exception,
@@ -48,54 +49,40 @@ class ChildSandboxException implements Exception {
 }
 
 // ---------------------------------------------------------------------------
-// ChildState — sealed lifecycle state for spawned children.
+// _ChildState — sealed lifecycle state for spawned children.
 // ---------------------------------------------------------------------------
 
-/// The lifecycle state of a spawned child sandbox.
-///
-/// Subscribe to [SandboxExtension.childrenSignal] for reactive observation:
-/// ```dart
-/// effect(() {
-///   for (final entry in extension.childrenSignal.value.entries) {
-///     switch (entry.value) {
-///       case ChildRunning(): // still executing
-///       case ChildCompleted(:final value): // finished with value
-///       case ChildFailed(:final message): // finished with error
-///       case ChildDisposed(): // cancelled or parent disposed
-///     }
-///   }
-/// });
-/// ```
-sealed class ChildState {
-  /// Creates a [ChildState].
-  const ChildState();
+/// Private lifecycle state of a retained child.
+sealed class _ChildState {
+  /// Creates a [_ChildState].
+  const _ChildState();
 }
 
 /// The child is still executing.
-final class ChildRunning extends ChildState {
-  /// Creates a [ChildRunning].
-  const ChildRunning();
+final class _ChildRunning extends _ChildState {
+  /// Creates a [_ChildRunning].
+  const _ChildRunning();
 }
 
 /// The child finished successfully.
-final class ChildCompleted extends ChildState {
-  /// Creates a [ChildCompleted].
-  const ChildCompleted({required this.value, this.printOutput});
+final class _ChildCompleted extends _ChildState {
+  /// Creates a [_ChildCompleted].
+  const _ChildCompleted({required this.value, required this.printOutput});
 
-  /// The Python return value (JSON-decoded), or `null`.
-  final Object? value;
+  /// The typed Python return value.
+  final MontyValue value;
 
   /// Captured `print()` output, or `null` if the child produced none.
   final String? printOutput;
 }
 
 /// The child finished with an error.
-final class ChildFailed extends ChildState {
-  /// Creates a [ChildFailed].
-  const ChildFailed({
+final class _ChildFailed extends _ChildState {
+  /// Creates a [_ChildFailed].
+  const _ChildFailed({
     required this.message,
-    this.exception,
-    this.printOutput,
+    required this.exception,
+    required this.printOutput,
   });
 
   /// Human-readable error description.
@@ -112,9 +99,9 @@ final class ChildFailed extends ChildState {
 
 /// The child was cancelled or the parent extension was disposed
 /// before completion.
-final class ChildDisposed extends ChildState {
-  /// Creates a [ChildDisposed].
-  const ChildDisposed();
+final class _ChildDisposed extends _ChildState {
+  /// Creates a [_ChildDisposed].
+  const _ChildDisposed();
 }
 
 // ---------------------------------------------------------------------------
@@ -127,7 +114,7 @@ class _ChildHandle {
     required this.bridge,
     required this.session,
     required this.completer,
-    required this.subscription,
+    required this.finish,
     required this.coordinator,
     required this.workspace,
   });
@@ -135,32 +122,50 @@ class _ChildHandle {
   final MontyBridge bridge;
   final MontySession session;
   final Completer<MontyValue> completer;
-  final StreamSubscription<BridgeEvent> subscription;
+  StreamSubscription<BridgeEvent>? subscription;
+  final void Function() finish;
   final ExtensionCoordinator coordinator;
   final Workspace workspace;
 
-  /// Reactive lifecycle state — starts as [ChildRunning].
-  final Signal<ChildState> state = signal(const ChildRunning());
+  /// Reactive lifecycle state — starts as [_ChildRunning].
+  final Signal<_ChildState> state = signal(const _ChildRunning());
+  Future<void>? _cleanup;
+
+  Future<void>? _release;
 
   /// Whether the child is still executing.
-  bool get isAlive => state.value is ChildRunning;
+  bool get isAlive => state.value is _ChildRunning;
 
   /// Captured `print()` output from a completed child, or `null`.
   String? get printOutput => switch (state.value) {
-    ChildCompleted(printOutput: final output) ||
-    ChildFailed(printOutput: final output) => output,
+    _ChildCompleted(printOutput: final output) ||
+    _ChildFailed(printOutput: final output) => output,
     _ => null,
   };
 
-  Future<void> cancel() async {
-    state.value = const ChildDisposed();
-    // Dispose plugins FIRST — this unblocks pending handler Futures
-    // (e.g., an extension completes pending calls with StateError).
-    // The bridge/stream must still be alive to deliver the resulting errors.
-    await coordinator.disposeAll();
-    await subscription.cancel();
-    bridge.dispose();
-    await session.close();
+  Future<void> cleanup() => _cleanup ??= _cleanupExecution();
+
+  Future<void> release() => _release ??= _releaseAll();
+
+  Future<void> _cleanupExecution() async {
+    finish();
+    // Every resource gets an attempt, even when an earlier owner throws.
+    for (final close in <FutureOr<void> Function()>[
+      coordinator.disposeAll,
+      () => subscription?.cancel(),
+      bridge.dispose,
+      session.close,
+    ]) {
+      try {
+        await close();
+      } on Object {
+        /* terminal result remains primary */
+      }
+    }
+  }
+
+  Future<void> _releaseAll() async {
+    await cleanup();
     await workspace.dispose();
   }
 }
@@ -271,8 +276,8 @@ const _isAliveSchema = HostFunctionSchema(
 const _freeSchema = HostFunctionSchema(
   name: 'sandbox_free',
   description:
-      'Release a completed child handle and free its resources. '
-      'Raises an error if the child is still running.',
+      'Release a child handle and free its resources. '
+      'Cancels a running child; repeated release is harmless.',
   params: [
     HostParam(
       name: 'handle',
@@ -371,7 +376,9 @@ class SandboxExtension extends MontyExtension {
   /// Current recursion depth.
   final int currentDepth;
 
-  /// Resource limits applied to child interpreters.
+  /// Independent per-child limits. Omission selects the owning runtime's
+  /// complete limits object, preserving null fields. Guest timeout and memory
+  /// settings may only reduce the selected ceilings.
   final ResourceLimits? childLimits;
 
   /// Reserved for owned native backing, pending D4b.
@@ -380,30 +387,14 @@ class SandboxExtension extends MontyExtension {
 
   final WorkspaceTransfers _transfers = WorkspaceTransfers();
   int _pendingSpawns = 0;
+  final Set<Future<void>> _spawns = {};
+  Future<void>? _disposeFuture;
 
   final Map<int, _ChildHandle> _children = {};
-  final Signal<Map<int, ChildState>> _childrenSignal =
-      signal<Map<int, ChildState>>(const {});
+  final Signal<Map<int, _ChildState>> _childrenSignal =
+      signal<Map<int, _ChildState>>(const {});
   int _nextId = 0;
   bool _disposed = false;
-
-  /// Reactive snapshot of every child's [ChildState], keyed by handle.
-  ///
-  /// Updated whenever a child transitions state (spawn, complete, fail, free,
-  /// or dispose). Subscribe via `effect` for reactive UI or monitoring:
-  /// ```dart
-  /// effect(() => print(extension.childrenSignal.value));
-  /// ```
-  ReadonlySignal<Map<int, ChildState>> get childrenSignal => _childrenSignal;
-
-  /// Reactive count of children still in [ChildRunning] state.
-  ///
-  /// Derived from [childrenSignal]; updates automatically.
-  ReadonlySignal<int> get aliveCountSignal => _aliveCountSignal;
-
-  late final Computed<int> _aliveCountSignal = computed(
-    () => _childrenSignal.value.values.whereType<ChildRunning>().length,
-  );
 
   @override
   String get namespace => 'sandbox';
@@ -435,58 +426,47 @@ class SandboxExtension extends MontyExtension {
   ];
 
   @override
-  Future<void> onDispose() async {
-    if (_disposed) return;
+  // ignore: must_call_super, _dispose calls super once inside the joined future.
+  Future<void> onDispose() => _disposeFuture ??= _dispose();
+
+  Future<void> _dispose() async {
     _disposed = true;
-    await _transfers.dispose();
-
-    final aliveCount = _children.values.where((c) => c.isAlive).length;
-    logger.info(
-      'Disposing SandboxExtension',
-      attributes: {
-        'totalChildren': _children.length,
-        'aliveChildren': aliveCount,
-      },
+    _logChild(
+      () => logger.info(
+        'Disposing SandboxExtension',
+        attributes: {
+          'totalChildren': _children.length,
+          'aliveChildren': _children.values
+              .where((child) => child.isAlive)
+              .length,
+        },
+      ),
     );
-
-    await _disposeChildren();
+    await _transfers.dispose();
+    await Future.wait(_spawns.toList());
+    await Future.wait(
+      _children.entries.map((entry) async {
+        await _cancelChild(entry.key, entry.value);
+        await entry.value.release();
+      }),
+    );
     _children.clear();
-    _childrenSignal.value = const <int, ChildState>{};
+    _childrenSignal.value = const <int, _ChildState>{};
     await super.onDispose();
     _childrenSignal.dispose();
   }
 
-  Future<void> _disposeChildren() async {
-    // Tear down all living children.
-    for (final entry in _children.entries) {
-      final child = entry.value;
-      await child.workspace.dispose();
-      if (!child.isAlive) continue;
-
-      try {
-        await child.cancel();
-      } on Object catch (e, st) {
-        // Best-effort logging -- don't let a sink failure break the loop.
-        try {
-          logger.warning(
-            'Error tearing down child during dispose',
-            error: e,
-            stackTrace: st,
-            attributes: {'childId': entry.key},
-          );
-        } on Object {
-          // Sink failure -- nothing we can do.
-        }
-      }
-      if (!child.completer.isCompleted) {
-        child.completer.completeError(
-          ChildSandboxException(
-            childId: entry.key,
-            message: 'disposed with parent',
-          ),
-          StackTrace.current,
-        );
-      }
+  Future<void> _cancelChild(int id, _ChildHandle child) async {
+    if (child.isAlive) {
+      child.state.value = const _ChildDisposed();
+      _updateChildrenSignal();
+    }
+    await child.cleanup();
+    if (!child.completer.isCompleted) {
+      child.completer.completeError(
+        _ChildSandboxException(childId: id, message: 'disposed with parent'),
+        StackTrace.current,
+      );
     }
   }
 
@@ -505,9 +485,18 @@ class SandboxExtension extends MontyExtension {
       workingDirectory: '/work',
     );
 
+    final parent = ctx.parent;
+    if (parent is! MontyRuntime) {
+      throw StateError('SandboxExtension requires an owning MontyRuntime');
+    }
+    final execution = captureChildContext(parent, ctx, limits);
     _pendingSpawns++;
+    final spawning = Completer<void>();
+    _spawns.add(spawning.future);
     Workspace? workspace;
-    late (MontySession, MontyBridge, ExtensionCoordinator) created;
+    MontySession? session;
+    SessionBridge? bridge;
+    ExtensionCoordinator? childCoordinator;
     try {
       workspace = await _transfers.copyIn(
         parent: ctx.os,
@@ -522,85 +511,125 @@ class SandboxExtension extends MontyExtension {
           args.intArgOrNull('memory_usage_limit'),
         ),
       );
-      if (_disposed) throw StateError('SandboxExtension is disposed.');
-      created = await _createChildSessionAndBridge(
-        spawnContext,
-        limits,
-        code.length,
-        ctx.os,
+      if (_disposed || !execution.isValid) {
+        throw StateError('Child origin is disposed');
+      }
+      try {
+        session = await execution.checkout();
+      } on Object catch (error, stack) {
+        logger.error(
+          'Child session checkout failed',
+          error: error,
+          stackTrace: stack,
+          attributes: {'phase': 'checkout'},
+        );
+        rethrow;
+      }
+      if (_disposed || !execution.isValid) {
+        throw StateError('Child origin is disposed');
+      }
+      bridge = SessionBridge(
+        session: session,
+        runtime: parent,
+        subExecute: execution.subExecute,
+        logger: logger.child('child.$id'),
+      );
+      _logChild(
+        () => logger.debug(
+          'Child bridge created',
+          attributes: {'codeLength': code.length},
+        ),
+      );
+      childCoordinator = await coordinatorOf(this).spawnChild(
+        context: spawnContext,
+        bridge: bridge,
+        workspace: workspace,
+        baseOs: ctx.os,
+      );
+      if (_disposed || !execution.isValid) {
+        throw StateError('Child origin is disposed');
+      }
+      final completer = Completer<MontyValue>();
+      completer.future.ignore();
+      final child = _ChildHandle(
+        bridge: bridge,
+        session: session,
+        completer: completer,
+        coordinator: childCoordinator,
+        workspace: workspace,
+        finish: execution.finish,
+      );
+      final stream = bridge.executeWith(
+        code,
+        cwd: '/work',
+        cancelToken: execution.token,
+      );
+      _children[id] = child;
+      child.subscription = _setupChildListener(
+        childId: id,
+        stream: stream,
+        emit: execution.emit,
+      );
+      _updateChildrenSignal();
+      unawaited(_watchCancellation(id, child, execution.token));
+      _logChild(
+        () => logger.info(
+          'Child spawned',
+          attributes: {'childId': id, 'depth': currentDepth},
+        ),
+      );
+
+      return MontyInt(id);
+    } on Object {
+      execution.finish();
+      await _closeUnpublishedChild(
+        childCoordinator,
+        bridge,
+        session,
         workspace,
       );
-    } on Object {
-      await workspace?.dispose();
       rethrow;
     } finally {
       _pendingSpawns--;
+      _spawns.remove(spawning.future);
+      spawning.complete();
     }
-    final (session, bridge, childCoordinator) = created;
+  }
 
-    // Post-await disposed check — the extension may have been disposed while
-    // _createChildSessionAndBridge was in flight.
-    if (_disposed) {
-      bridge.dispose();
-      await session.close();
-      await childCoordinator.disposeAll();
-      await workspace.dispose();
-      throw StateError('SandboxExtension was disposed during child spawn.');
-    }
-
-    final completer = Completer<MontyValue>();
-    completer.future.ignore();
-    logger.info(
-      'Child spawned',
-      attributes: {'childId': id, 'depth': currentDepth},
-    );
-
-    final stream = (bridge as SessionBridge).executeWith(code, cwd: '/work');
-    final subscription = _setupChildListener(
-      bridge: bridge,
-      session: session,
-      coordinator: childCoordinator,
-      completer: completer,
-      childId: id,
-      stream: stream,
-      parent: ctx.parent,
-    );
-
-    _children[id] = _ChildHandle(
-      bridge: bridge,
-      session: session,
-      completer: completer,
-      subscription: subscription,
-      coordinator: childCoordinator,
-      workspace: workspace,
-    );
-    _updateChildrenSignal();
-
-    return MontyInt(id);
+  Future<void> _watchCancellation(
+    int id,
+    _ChildHandle child,
+    CancelToken token,
+  ) async {
+    await Future.any([token.future, _settledChild(child.completer.future)]);
+    if (child.isAlive && token.isCancelled) await _cancelChild(id, child);
   }
 
   /// Throws if the extension is disposed or resource limits are exceeded.
   void _validateSpawnRequest() {
     if (_disposed) throw StateError('SandboxExtension is disposed.');
     if (currentDepth >= maxDepth) {
-      logger.warning(
-        'Spawn rejected: depth limit',
-        attributes: {'currentDepth': currentDepth, 'maxDepth': maxDepth},
+      _logChild(
+        () => logger.warning(
+          'Spawn rejected: depth limit',
+          attributes: {'currentDepth': currentDepth, 'maxDepth': maxDepth},
+        ),
       );
       throw StateError('Maximum sandbox recursion depth ($maxDepth) exceeded.');
     }
     final aliveCount = _children.length + _pendingSpawns;
     if (aliveCount >= maxChildren) {
-      logger.warning(
-        'Spawn rejected: concurrency limit',
-        attributes: {'alive': aliveCount, 'maxChildren': maxChildren},
+      _logChild(
+        () => logger.warning(
+          'Spawn rejected: concurrency limit',
+          attributes: {'alive': aliveCount, 'maxChildren': maxChildren},
+        ),
       );
       throw StateError('Maximum concurrent children ($maxChildren) reached.');
     }
   }
 
-  /// Parses optional timeout/memory overrides from [args] and merges with
-  /// [childLimits].
+  /// Selects whole-object limits, then applies guest reductions.
   ResourceLimits? _buildChildLimits(
     Map<String, MontyValue> args,
     HostParentRef? parent,
@@ -618,203 +647,82 @@ class SandboxExtension extends MontyExtension {
     );
   }
 
-  /// Checks out the child's session with [limits]; built in D1-8.
-  Future<MontySession> _checkoutChildSession(ResourceLimits? limits) =>
-      throw UnimplementedError('D1-8');
-
-  /// Checks out the child session, creates its bridge, wires extensions, and
-  /// attaches the coordinator.
-  ///
-  /// Disposes all partially-created resources on failure.
-  Future<(MontySession, MontyBridge, ExtensionCoordinator)>
-  _createChildSessionAndBridge(
-    ChildSpawnContext spawnContext,
-    ResourceLimits? limits,
-    int codeLength,
-    OsHandler? parentOsOverride,
-    Workspace workspace,
-  ) async {
-    MontySession? session;
-    MontyBridge? bridge;
-    ExtensionCoordinator? childCoordinator;
-    try {
-      try {
-        session = await _checkoutChildSession(limits);
-      } on Object catch (e, st) {
-        logger.error(
-          'Child session checkout failed',
-          error: e,
-          stackTrace: st,
-          attributes: {'phase': 'checkout'},
-        );
-        rethrow;
-      }
-      bridge = MontyBridge(
-        session: session,
-        logger: logger.child('child.${spawnContext.childId}'),
-      );
-      logger.debug(
-        'Child bridge created',
-        attributes: {
-          'codeLength': codeLength,
-          if (limits != null) 'limits': _formatLimits(limits),
-        },
-      );
-
-      childCoordinator = await _wireChildExtensions(
-        spawnContext,
-        bridge,
-        parentOsOverride,
-        workspace,
-      );
-    } on Object {
-      if (bridge != null) bridge.dispose();
-      if (session != null) await session.close();
-      if (childCoordinator != null) await childCoordinator.disposeAll();
-      rethrow;
-    }
-
-    return (session, bridge, childCoordinator);
-  }
-
-  /// Creates and attaches a child [ExtensionCoordinator] by delegating to
-  /// [ExtensionCoordinator.spawnChild] on the parent coordinator. Child
-  /// extensions are composed via [MontyExtension.createChildInstance]; the
-  /// child OS handler owns its independent workspace.
-  ///
-  /// Relies on [coordinatorOf] — i.e., this extension must be attached
-  /// through an [ExtensionCoordinator].
-  Future<ExtensionCoordinator> _wireChildExtensions(
-    ChildSpawnContext spawnContext,
-    MontyBridge bridge,
-    OsHandler? parentOsOverride,
-    Workspace workspace,
-  ) async {
-    try {
-      final childCoordinator = await coordinatorOf(this).spawnChild(
-        context: spawnContext,
-        bridge: bridge,
-        workspace: workspace,
-        baseOs: parentOsOverride,
-      );
-      logger.debug(
-        'Child extensions attached',
-        attributes: {'extensionCount': childCoordinator.extensions.length},
-      );
-
-      return childCoordinator;
-    } on Object catch (e, st) {
-      logger.error(
-        'Child extension inheritance failed',
-        error: e,
-        stackTrace: st,
-        attributes: {'phase': 'spawnChild'},
-      );
-      rethrow;
-    }
-  }
-
-  /// Subscribes to [stream] and wires completion/error handling for a child.
-  ///
-  /// When [parent] is non-null, every child event is also re-emitted on the
-  /// parent runtime's broadcast `events` stream wrapped in a
-  /// [BridgeChildEvent] tagged with the child's integer id — giving
-  /// observers a single attributed ordering across the ownership tree.
   StreamSubscription<BridgeEvent> _setupChildListener({
-    required MontyBridge bridge,
-    required MontySession session,
-    required ExtensionCoordinator coordinator,
-    required Completer<MontyValue> completer,
     required int childId,
     required Stream<BridgeEvent> stream,
-    required HostParentRef? parent,
+    required void Function(String, BridgeEvent) emit,
   }) {
-    String? errorMessage;
-    MontyError? errorException;
+    String? error;
+    MontyError? exception;
     MontyValue value = const MontyNone();
-    String? printOutput;
-    final childHandle = '$childId';
+    String? output;
 
     return stream.listen(
       (event) {
-        parent?.emitChildEvent(childHandle, event);
+        emit('$childId', event);
         if (event is BridgeRunError) {
-          errorMessage = event.message;
-          errorException = event.exception;
-          printOutput ??= event.printOutput;
+          error = event.message;
+          exception = event.exception;
+          output = event.printOutput;
         } else if (event is BridgeRunFinished) {
           value = event.montyValue ?? const MontyNone();
-          printOutput = event.printOutput;
+          output = event.printOutput;
         }
       },
       onDone: () => unawaited(
         _onChildDone(
           childId,
-          bridge,
-          session,
-          coordinator,
-          completer,
-          errorMessage: errorMessage,
-          errorException: errorException,
+          errorMessage: error,
+          errorException: exception,
           value: value,
-          printOutput: printOutput,
+          printOutput: output,
         ),
       ),
-      onError: (Object error, StackTrace stackTrace) =>
-          _onChildStreamError(childId, completer, error, stackTrace),
+      onError: (Object streamError, StackTrace stack) => unawaited(
+        _onChildDone(
+          childId,
+          errorMessage: streamError.toString(),
+          errorException: null,
+          value: const MontyNone(),
+          printOutput: output,
+        ),
+      ),
     );
   }
 
   Future<void> _onChildDone(
-    int childId,
-    MontyBridge bridge,
-    MontySession session,
-    ExtensionCoordinator coordinator,
-    Completer<MontyValue> completer, {
+    int childId, {
     required String? errorMessage,
     required MontyError? errorException,
     required MontyValue value,
     required String? printOutput,
   }) async {
     final child = _children[childId];
-    if (child == null) return;
-
-    final finalState = errorMessage != null
-        ? ChildFailed(
+    if (child == null || !child.isAlive) return;
+    child.state.value = errorMessage != null
+        ? _ChildFailed(
             message: errorMessage,
             exception: errorException,
             printOutput: printOutput,
           )
-        : ChildCompleted(value: value, printOutput: printOutput);
-
-    child.state.value = finalState;
+        : _ChildCompleted(value: value, printOutput: printOutput);
     _updateChildrenSignal();
-
-    try {
-      await coordinator.disposeAll();
-      bridge.dispose();
-      await session.close();
-    } on Object catch (e, st) {
-      logger.warning(
-        'Child cleanup error (swallowed)',
-        error: e,
-        stackTrace: st,
-        attributes: {'childId': childId},
-      );
-    }
-
-    if (completer.isCompleted) return;
-
+    await child.cleanup();
+    if (child.completer.isCompleted) return;
     if (errorMessage != null) {
-      final truncated = errorMessage.length > 200
-          ? '${errorMessage.substring(0, 200)}\u2026'
-          : errorMessage;
-      logger.debug(
-        'Child failed',
-        attributes: {'childId': childId, 'error': truncated},
+      _logChild(
+        () => logger.debug(
+          'Child failed',
+          attributes: {
+            'childId': childId,
+            'error': errorMessage.length > 200
+                ? '${errorMessage.substring(0, 200)}…'
+                : errorMessage,
+          },
+        ),
       );
-      completer.completeError(
-        ChildSandboxException(
+      child.completer.completeError(
+        _ChildSandboxException(
           childId: childId,
           message: errorMessage,
           exception: errorException,
@@ -822,33 +730,14 @@ class SandboxExtension extends MontyExtension {
         StackTrace.current,
       );
     } else {
-      logger.info('Child completed', attributes: {'childId': childId});
-      completer.complete(value);
+      _logChild(
+        () => logger.info('Child completed', attributes: {'childId': childId}),
+      );
+      child.completer.complete(value);
     }
   }
 
-  void _onChildStreamError(
-    int childId,
-    Completer<MontyValue> completer,
-    Object error,
-    StackTrace stackTrace,
-  ) {
-    final child = _children[childId];
-    if (child != null) {
-      child.state.value = ChildFailed(message: error.toString());
-      _updateChildrenSignal();
-    }
-    logger.error(
-      'Child stream error',
-      error: error,
-      attributes: {'childId': childId},
-    );
-    if (!completer.isCompleted) {
-      completer.completeError(error, stackTrace);
-    }
-  }
-
-  /// Snapshots all children's current [ChildState] into [childrenSignal].
+  /// Snapshots all children's current [_ChildState] into the private signal.
   void _updateChildrenSignal() {
     _childrenSignal.value = {
       for (final entry in _children.entries) entry.key: entry.value.state.value,
@@ -914,18 +803,14 @@ class SandboxExtension extends MontyExtension {
   ) async {
     final handle = args.intArg('handle');
     final child = _children[handle];
-    if (child == null) {
-      throw ArgumentError.value(handle, 'handle', 'Unknown child handle.');
-    }
-    if (child.isAlive) {
-      throw StateError(
-        'Child $handle is still running. Await it before freeing.',
-      );
-    }
-    await child.workspace.dispose();
+    if (child == null) return const MontyNone();
+    await _cancelChild(handle, child);
+    await child.release();
     _children.remove(handle);
     _updateChildrenSignal();
-    logger.debug('Child freed', attributes: {'childId': handle});
+    _logChild(
+      () => logger.debug('Child freed', attributes: {'childId': handle}),
+    );
 
     return const MontyNone();
   }
@@ -1013,16 +898,38 @@ void _checkReduction(int? requested, int? ceiling, String name) {
   }
 }
 
-/// The fields of [limits] that are set, for a log line.
-String _formatLimits(ResourceLimits limits) => [
-  if (limits.maxFeedDuration != null)
-    'maxFeedDuration: ${limits.maxFeedDuration}',
-  if (limits.maxTurnDuration != null)
-    'maxTurnDuration: ${limits.maxTurnDuration}',
-  if (limits.maxMemory != null) 'maxMemory: ${limits.maxMemory}',
-  if (limits.gcInterval != null) 'gcInterval: ${limits.gcInterval}',
-  if (limits.maxRecursionDepth != null)
-    'maxRecursionDepth: ${limits.maxRecursionDepth}',
-  if (limits.maxSuspensions != null) 'maxSuspensions: ${limits.maxSuspensions}',
-  if (limits.maxTotalSleep != null) 'maxTotalSleep: ${limits.maxTotalSleep}',
-].join(', ');
+Future<void> _settledChild(Future<MontyValue> future) async {
+  try {
+    await future;
+  } on Object {
+    /* The await/gather caller observes this error. */
+  }
+}
+
+void _logChild(void Function() write) {
+  try {
+    write();
+  } on Object {
+    /* Logging cannot interrupt child ownership. */
+  }
+}
+
+Future<void> _closeUnpublishedChild(
+  ExtensionCoordinator? childCoordinator,
+  SessionBridge? bridge,
+  MontySession? session,
+  Workspace? workspace,
+) async {
+  for (final close in <FutureOr<void> Function()>[
+    () => childCoordinator?.disposeAll(),
+    () => bridge?.dispose(),
+    () => session?.close(),
+    () => workspace?.dispose(),
+  ]) {
+    try {
+      await close();
+    } on Object {
+      /* preserve spawn error */
+    }
+  }
+}

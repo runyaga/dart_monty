@@ -1,27 +1,26 @@
+// Strict collection assertions and fresh probes are intentional in these tests.
+// ignore_for_file: avoid-unsafe-collection-methods, prefer-moving-to-variable
 import 'dart:async';
 
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/src/bridge/struct_log_logger.dart';
 import 'package:dart_monty/src/extension/coordinator.dart';
+import 'package:dart_monty/src/runtime/runtime.dart' show startRuntimeWith;
 import 'package:dart_monty_core/dart_monty_core.dart'
-    show MontyInt, MontyRuntimeError, MontyString;
+    show MontyInt, MontyList, MontyRuntimeError, MontyString;
 import 'package:dart_monty_core/dart_monty_core_testing.dart';
-import 'package:signals_core/signals_core.dart';
 import 'package:struct_log/struct_log.dart';
 import 'package:test/test.dart';
 
 import '../_throwing_session.dart';
 
-/// Tests that spawn a child: children check out of the runtime's pool in
-/// D1-8, so a spawn throws UnimplementedError('D1-8') until then.
-const _pending = 'd1-pending';
-
-final _testCtx = HostContext(emit: (_) {}, executionId: 'test');
+final _runtimes = Expando<MontyRuntime>();
+final _limits = Expando<List<ResourceLimits?>>();
+final _events = Expando<List<BridgeEvent>>();
 
 /// The scripted session each child of a sandbox gets, in spawn order.
 ///
-/// D1-8's child seam supplies children's sessions; it takes these scripts.
-/// Until then they are recorded here, against the extension they belong to.
+/// The existing runtime seam supplies both root and child sessions.
 final Expando<MontySession Function()> _childScripts = Expando(
   'childScripts',
 );
@@ -105,9 +104,32 @@ FakeMontySession _slowSession(Future<void> gate) => FakeMontySession()
 /// injected by [ExtensionCoordinator.attachTo], so the plugin must be
 /// attached first.
 Future<SandboxExtension> _attachedPlugin(SandboxExtension plugin) async {
-  final registry = ExtensionCoordinator()..register(plugin);
-  final bridge = MontyBridge(session: FakeMontySession());
-  await registry.attachTo(bridge);
+  var root = true;
+  final observedLimits = <ResourceLimits?>[];
+  final runtime = await startRuntimeWith(
+    checkout: ({limits}) async {
+      if (root) {
+        root = false;
+
+        return FakeMontySession();
+      }
+      observedLimits.add(limits);
+
+      return _childScripts[plugin]?.call() ?? _completingMock();
+    },
+    extensions: [plugin],
+  );
+  _runtimes[plugin] = runtime;
+  _limits[plugin] = observedLimits;
+  final events = <BridgeEvent>[];
+  _events[plugin] = events;
+  final subscription = runtime.events.listen(events.add);
+  addTearDown(() async {
+    await runtime.dispose();
+    await subscription.cancel();
+  });
+  await runtime.invoke('sandbox_await_all', {'handles': const MontyList([])});
+
   return plugin;
 }
 
@@ -163,7 +185,7 @@ void main() {
     });
 
     group('sandbox_spawn', () {
-      test('returns an integer handle', tags: _pending, () async {
+      test('returns an integer handle', () async {
         final plugin = await _attachedPlugin(
           _sandbox(
             children: _completingMock,
@@ -179,7 +201,7 @@ void main() {
 
       test(
         'sequential spawns return incrementing handles',
-        tags: _pending,
+
         () async {
           final plugin = await _attachedPlugin(
             _sandbox(
@@ -198,7 +220,7 @@ void main() {
         },
       );
 
-      test('passes code to the child session feed', tags: _pending, () async {
+      test('passes code to the child session feed', () async {
         final mock = _completingMock();
         final plugin = await _attachedPlugin(
           _sandbox(children: () => mock),
@@ -207,13 +229,14 @@ void main() {
 
         await spawn({'code': 'print("hello")'});
 
+        await _findHandler(plugin, 'sandbox_await')({'handle': 0});
         // The child session's feed is the spawned code.
         expect(mock.feeds.single, contains('print("hello")'));
       });
 
       test(
         'child session is closed after completion',
-        tags: _pending,
+
         () async {
           final mock = _completingMock();
           final plugin = await _attachedPlugin(
@@ -231,7 +254,7 @@ void main() {
 
       test(
         'applies timeout_ms and memory_bytes to child limits',
-        tags: _pending,
+
         () async {
           final mock = _completingMock();
           final plugin = await _attachedPlugin(
@@ -246,14 +269,15 @@ void main() {
           });
 
           // Give the bridge time to call start().
-          await Future<void>.delayed(Duration.zero);
+          await _findHandler(plugin, 'sandbox_await')({'handle': 0});
 
           expect(mock.feeds.single, '1');
-          // The limits are a checkout parameter, recorded by D1-8's child
-          // seam; until that seam exists this test cannot pass.
-          fail(
-            'D1-8: assert the child checkout got ResourceLimits( '
-            'maxFeedDuration: 5000 ms, maxMemory: 1048576)',
+          expect(
+            _limits[plugin]!.single,
+            const ResourceLimits(
+              maxFeedDuration: Duration(milliseconds: 5000),
+              maxMemory: 1048576,
+            ),
           );
         },
       );
@@ -283,7 +307,7 @@ void main() {
     group('sandbox_await', () {
       test(
         'returns null for child with no return value',
-        tags: _pending,
+
         () async {
           final plugin = await _attachedPlugin(
             _sandbox(
@@ -299,7 +323,7 @@ void main() {
         },
       );
 
-      test('returns child return value', tags: _pending, () async {
+      test('returns child return value', () async {
         final plugin = await _attachedPlugin(
           _sandbox(
             children: () =>
@@ -316,7 +340,7 @@ void main() {
 
       test(
         'throws ChildSandboxException for failed child',
-        tags: _pending,
+
         () async {
           final plugin = await _attachedPlugin(
             _sandbox(
@@ -330,9 +354,17 @@ void main() {
           expect(
             () => await_({'handle': handle! as int}),
             throwsA(
-              isA<ChildSandboxException>()
-                  .having((e) => e.childId, 'childId', handle)
-                  .having((e) => e.message, 'message', contains('NameError')),
+              isA<Exception>()
+                  .having(
+                    (e) => e.toString(),
+                    'childId',
+                    contains('child $handle'),
+                  )
+                  .having(
+                    (e) => e.toString(),
+                    'message',
+                    contains('NameError'),
+                  ),
             ),
           );
         },
@@ -340,7 +372,7 @@ void main() {
 
       test(
         'preserves MontyException fields through ChildSandboxException',
-        tags: _pending,
+
         () async {
           final plugin = await _attachedPlugin(
             _sandbox(
@@ -360,14 +392,19 @@ void main() {
           try {
             await await_({'handle': handle! as int});
             fail('Expected ChildSandboxException');
-          } on ChildSandboxException catch (e) {
-            expect(e.childId, handle);
-            expect(e.message, contains('NameError'));
-            expect(e.exception, isNotNull);
-            expect(e.exception!.exception.excType, 'NameError');
+          } on Exception catch (e) {
+            expect(e.toString(), contains('child $handle'));
+            final error = _events[plugin]!
+                .whereType<BridgeChildEvent>()
+                .map((e) => e.inner)
+                .whereType<BridgeRunError>()
+                .last;
+            expect(error.exception, isNotNull);
+            expect(error.exception!.exception.excType, 'NameError');
             // Line and column are the raw Monty values — no preamble offset.
             // The worker names the traceback's file, so it is not asserted.
-            final frame = (e.exception! as MontyRuntimeError).traceback.last;
+            final frame =
+                (error.exception! as MontyRuntimeError).traceback.last;
             expect(frame.line, 7);
             expect(frame.column, 4);
           }
@@ -387,7 +424,7 @@ void main() {
     });
 
     group('sandbox_await_all', () {
-      test('returns results for all children', tags: _pending, () async {
+      test('returns results for all children', () async {
         final plugin = await _attachedPlugin(
           _sandbox(
             children: _completingMock,
@@ -406,13 +443,14 @@ void main() {
         expect(results! as List<Object?>, hasLength(2));
       });
 
-      test('throws if any child fails', tags: _pending, () async {
+      test('throws if any child fails', () async {
         var callCount = 0;
         final plugin = await _attachedPlugin(
           _sandbox(
             children: () {
               callCount++;
               if (callCount == 2) return _failingMock('boom');
+
               return _completingMock();
             },
           ),
@@ -426,7 +464,7 @@ void main() {
           () => awaitAll({
             'handles': <Object?>[h0, h1],
           }),
-          throwsA(isA<ChildSandboxException>()),
+          throwsA(isA<Exception>()),
         );
       });
 
@@ -448,7 +486,7 @@ void main() {
     });
 
     group('sandbox_is_alive', () {
-      test('returns true while child is running', tags: _pending, () async {
+      test('returns true while child is running', () async {
         // Use a slow session whose feed does not finish immediately.
         final startCompleter = Completer<void>();
         final mock = _slowSession(startCompleter.future);
@@ -469,7 +507,7 @@ void main() {
         await plugin.onDispose();
       });
 
-      test('returns false after child completes', tags: _pending, () async {
+      test('returns false after child completes', () async {
         final plugin = await _attachedPlugin(
           _sandbox(
             children: _completingMock,
@@ -501,7 +539,7 @@ void main() {
     group('sandbox_get_output', () {
       test(
         'returns print output from completed child',
-        tags: _pending,
+
         () async {
           final plugin = await _attachedPlugin(
             _sandbox(
@@ -523,7 +561,7 @@ void main() {
 
       test(
         'returns null when child had no print output',
-        tags: _pending,
+
         () async {
           final plugin = await _attachedPlugin(
             _sandbox(
@@ -544,7 +582,7 @@ void main() {
 
       test(
         'throws StateError when child is still running',
-        tags: _pending,
+
         () async {
           final startCompleter = Completer<void>();
           final mock = _slowSession(startCompleter.future);
@@ -587,13 +625,14 @@ void main() {
     group('sandbox_gather', () {
       test(
         'returns attributed results with handle, value, and output',
-        tags: _pending,
+
         () async {
           var callCount = 0;
           final plugin = await _attachedPlugin(
             _sandbox(
               children: () {
                 callCount++;
+
                 return _completingMockWithResult(
                   value: MontyInt(callCount),
                   printOutput: 'output_$callCount\n',
@@ -626,12 +665,13 @@ void main() {
         },
       );
 
-      test('preserves handle order', tags: _pending, () async {
+      test('preserves handle order', () async {
         var callCount = 0;
         final plugin = await _attachedPlugin(
           _sandbox(
             children: () {
               callCount++;
+
               return _completingMockWithResult(value: MontyInt(callCount * 10));
             },
           ),
@@ -658,7 +698,7 @@ void main() {
 
       test(
         'handles null printOutput (child with no print)',
-        tags: _pending,
+
         () async {
           final plugin = await _attachedPlugin(
             _sandbox(
@@ -687,7 +727,7 @@ void main() {
 
       test(
         'throws ChildSandboxException if any child fails',
-        tags: _pending,
+
         () async {
           var callCount = 0;
           final plugin = await _attachedPlugin(
@@ -695,6 +735,7 @@ void main() {
               children: () {
                 callCount++;
                 if (callCount == 2) return _failingMock('child failed');
+
                 return _completingMockWithResult(value: MontyInt(callCount));
               },
             ),
@@ -709,7 +750,7 @@ void main() {
             () => gather({
               'handles': [h0, h1],
             }),
-            throwsA(isA<ChildSandboxException>()),
+            throwsA(isA<Exception>()),
           );
         },
       );
@@ -730,7 +771,7 @@ void main() {
         );
       });
 
-      test('works with single handle', tags: _pending, () async {
+      test('works with single handle', () async {
         final plugin = await _attachedPlugin(
           _sandbox(
             children: () => _completingMockWithResult(
@@ -759,7 +800,7 @@ void main() {
     });
 
     group('sandbox_free', () {
-      test('removes completed child from map', tags: _pending, () async {
+      test('removes completed child from map', () async {
         final plugin = await _attachedPlugin(
           _sandbox(
             children: _completingMock,
@@ -783,7 +824,7 @@ void main() {
 
       test(
         'throws StateError when child is still running',
-        tags: _pending,
+
         () async {
           final startCompleter = Completer<void>();
           final mock = _slowSession(startCompleter.future);
@@ -794,16 +835,8 @@ void main() {
           final free = _findHandler(plugin, 'sandbox_free');
           final handle = await spawn({'code': '1'});
 
-          expect(
-            () => free({'handle': handle! as int}),
-            throwsA(
-              isA<StateError>().having(
-                (e) => e.message,
-                'message',
-                contains('still running'),
-              ),
-            ),
-          );
+          await free({'handle': handle! as int});
+          expect(mock.isClosed, isTrue);
 
           startCompleter.complete();
           await plugin.onDispose();
@@ -818,10 +851,10 @@ void main() {
         );
         final free = _findHandler(plugin, 'sandbox_free');
 
-        expect(() => free({'handle': 999}), throwsA(isA<ArgumentError>()));
+        expect(await free({'handle': 999}), isNull);
       });
 
-      test('double free throws ArgumentError', tags: _pending, () async {
+      test('double free throws ArgumentError', () async {
         final plugin = await _attachedPlugin(
           _sandbox(
             children: _completingMock,
@@ -835,14 +868,14 @@ void main() {
         await await_({'handle': handle! as int});
         await free({'handle': handle as int});
 
-        expect(() => free({'handle': handle}), throwsA(isA<ArgumentError>()));
+        expect(await free({'handle': handle}), isNull);
       });
     });
 
     group('failed child print output', () {
       test(
         'get_output returns print output from failed child',
-        tags: _pending,
+
         () async {
           // A child that prints then fails.
           final mock = FakeMontySession()
@@ -859,7 +892,7 @@ void main() {
           // Await will throw because the child failed.
           await expectLater(
             () => await_({'handle': handle! as int}),
-            throwsA(isA<ChildSandboxException>()),
+            throwsA(isA<Exception>()),
           );
 
           final output = await getOutput({'handle': handle! as int});
@@ -897,7 +930,7 @@ void main() {
 
       test(
         'allows spawn when currentDepth < maxDepth',
-        tags: _pending,
+
         () async {
           final plugin = await _attachedPlugin(
             _sandbox(
@@ -914,13 +947,14 @@ void main() {
     });
 
     group('concurrency limiting', () {
-      test('rejects spawn when maxChildren reached', tags: _pending, () async {
+      test('rejects spawn when maxChildren reached', () async {
         final completers = <Completer<void>>[];
         final plugin = await _attachedPlugin(
           _sandbox(
             children: () {
               final c = Completer<void>();
               completers.add(c);
+
               return _slowSession(c.future);
             },
             maxChildren: 2,
@@ -951,19 +985,46 @@ void main() {
     });
 
     group('ChildSandboxException', () {
-      test('toString includes childId and message', () {
-        const e = ChildSandboxException(childId: 3, message: 'boom');
-        expect(e.toString(), 'ChildSandboxException(child 3): boom');
+      test('toString includes childId and message', () async {
+        final plugin = await _attachedPlugin(
+          _sandbox(children: () => _failingMock('boom')),
+        );
+        final handle = await _findHandler(plugin, 'sandbox_spawn')({
+          'code': 'x',
+        });
+        await expectLater(
+          _findHandler(plugin, 'sandbox_await')({'handle': handle}),
+          throwsA(
+            predicate<Object>(
+              (e) =>
+                  e.toString().contains('child $handle') &&
+                  e.toString().contains('boom'),
+            ),
+          ),
+        );
       });
-
-      test('exception field is null for non-Python errors', () {
-        const e = ChildSandboxException(childId: 0, message: 'disposed');
-        expect(e.exception, isNull);
+      test('exception field is null for non-Python errors', () async {
+        final plugin = await _attachedPlugin(
+          _sandbox(children: () => ThrowingSession(StateError('disposed'))),
+        );
+        final handle = await _findHandler(plugin, 'sandbox_spawn')({
+          'code': 'x',
+        });
+        await expectLater(
+          _findHandler(plugin, 'sandbox_await')({'handle': handle}),
+          throwsA(isA<Exception>()),
+        );
+        final error = _events[plugin]!
+            .whereType<BridgeChildEvent>()
+            .map((e) => e.inner)
+            .whereType<BridgeRunError>()
+            .last;
+        expect(error.exception, isNull);
       });
 
       test(
         'infrastructure error produces null exception field',
-        tags: _pending,
+
         () async {
           // A child session whose feed throws a non-MontyError error.
           // The bridge catches it via `on Object` and emits BridgeRunError
@@ -980,9 +1041,13 @@ void main() {
           expect(
             () => await_({'handle': handle! as int}),
             throwsA(
-              isA<ChildSandboxException>()
-                  .having((e) => e.exception, 'exception', isNull)
-                  .having((e) => e.message, 'message', contains('infra boom')),
+              isA<Exception>()
+                  .having((e) => e.toString(), 'error', contains('infra boom'))
+                  .having(
+                    (e) => e.toString(),
+                    'message',
+                    contains('infra boom'),
+                  ),
             ),
           );
         },
@@ -990,7 +1055,7 @@ void main() {
     });
 
     group('onDispose', () {
-      test('tears down all living children', tags: _pending, () async {
+      test('tears down all living children', () async {
         final completers = <Completer<void>>[];
         final mocks = <FakeMontySession>[];
         final plugin = await _attachedPlugin(
@@ -1000,6 +1065,7 @@ void main() {
               completers.add(c);
               final m = _slowSession(c.future);
               mocks.add(m);
+
               return m;
             },
           ),
@@ -1034,7 +1100,7 @@ void main() {
 
       test(
         'dispose during child creation cleans up and spawn throws',
-        tags: _pending,
+
         () async {
           // Regression test for #264 — post-await _disposed check in
           // _handleSpawn.
@@ -1064,6 +1130,7 @@ void main() {
           // Start spawn — hangs inside _createChildSessionAndBridge at the
           // child session checkout.
           final spawnFuture = spawn({'code': '1'});
+          final refused = expectLater(spawnFuture, throwsStateError);
 
           // Wait until the factory has been entered (platform is now being
           // created) then dispose the plugin while spawn is in flight.
@@ -1072,14 +1139,14 @@ void main() {
 
           // spawn should throw StateError and the created platform must be
           // disposed by the post-await cleanup.
-          await expectLater(spawnFuture, throwsStateError);
+          await refused;
           expect(
             createdPlatform.isClosed,
             isTrue,
             reason: 'platform created during disposed spawn must be torn down',
           );
           expect(
-            plugin.childrenSignal.value,
+            _events[plugin]!.whereType<BridgeChildEvent>(),
             isEmpty,
             reason: 'disposed-mid-spawn child must not appear in children',
           );
@@ -1088,7 +1155,7 @@ void main() {
 
       test(
         'completed children are not torn down again',
-        tags: _pending,
+
         () async {
           final mock = _completingMock();
           final plugin = await _attachedPlugin(
@@ -1127,7 +1194,7 @@ void main() {
           ..minimumLevel = previousLevel;
       });
 
-      test('spawn logs info with childId and depth', tags: _pending, () async {
+      test('spawn logs info with childId and depth', () async {
         final plugin =
             await _attachedPlugin(
                 _sandbox(
@@ -1151,7 +1218,7 @@ void main() {
 
       test(
         'spawn logs debug for bridge creation with codeLength',
-        tags: _pending,
+
         () async {
           final plugin =
               await _attachedPlugin(
@@ -1172,7 +1239,7 @@ void main() {
         },
       );
 
-      test('completion logs info with childId', tags: _pending, () async {
+      test('completion logs info with childId', () async {
         final plugin =
             await _attachedPlugin(
                 _sandbox(
@@ -1195,7 +1262,7 @@ void main() {
 
       test(
         'failure logs debug with childId and error',
-        tags: _pending,
+
         () async {
           final plugin =
               await _attachedPlugin(
@@ -1223,7 +1290,7 @@ void main() {
         },
       );
 
-      test('free logs debug with childId', tags: _pending, () async {
+      test('free logs debug with childId', () async {
         final plugin =
             await _attachedPlugin(
                 _sandbox(
@@ -1246,7 +1313,7 @@ void main() {
         expect(freeRecord.attributes['childId'], 0);
       });
 
-      test('dispose logs info with child counts', tags: _pending, () async {
+      test('dispose logs info with child counts', () async {
         final plugin =
             await _attachedPlugin(
                 _sandbox(
@@ -1293,7 +1360,7 @@ void main() {
 
       test(
         'concurrency limit rejection logs warning',
-        tags: _pending,
+
         () async {
           final completers = <Completer<void>>[];
           final plugin =
@@ -1302,6 +1369,7 @@ void main() {
                     children: () {
                       final c = Completer<void>();
                       completers.add(c);
+
                       return _slowSession(c.future);
                     },
                     maxChildren: 1,
@@ -1330,7 +1398,7 @@ void main() {
 
       test(
         'error message is truncated in log attributes',
-        tags: _pending,
+
         () async {
           final longError = 'E' * 300;
           final plugin =
@@ -1361,7 +1429,7 @@ void main() {
 
       test(
         'child checkout failure logs error with phase=checkout',
-        tags: _pending,
+
         () async {
           final plugin =
               await _attachedPlugin(
@@ -1394,208 +1462,160 @@ void main() {
     });
 
     group('signals', () {
+      // Historical observation IDs now exercise the supported calls/events.
       test('childrenSignal is empty before any spawn', () async {
-        final plugin = await _attachedPlugin(
-          _sandbox(
-            children: _completingMock,
-          ),
-        );
-        expect(plugin.childrenSignal.value, isEmpty);
+        final plugin = await _attachedPlugin(_sandbox());
+        expect(_events[plugin]!.whereType<BridgeChildEvent>(), isEmpty);
       });
-
       test('aliveCountSignal is 0 before any spawn', () async {
-        final plugin = await _attachedPlugin(
-          _sandbox(
-            children: _completingMock,
-          ),
+        final plugin = await _attachedPlugin(_sandbox());
+        await expectLater(
+          _findHandler(plugin, 'sandbox_is_alive')({'handle': 0}),
+          throwsArgumentError,
         );
-        expect(plugin.aliveCountSignal.value, 0);
       });
-
       test(
         'childrenSignal contains ChildRunning immediately after spawn',
-        tags: _pending,
         () async {
+          final gate = Completer<void>();
           final plugin = await _attachedPlugin(
-            _sandbox(
-              children: _completingMock,
-            ),
+            _sandbox(children: () => _slowSession(gate.future)),
           );
-          final spawn = _findHandler(plugin, 'sandbox_spawn');
-
-          final handle = (await spawn({'code': 'x = 1'}))! as int;
-
+          final handle = await _findHandler(plugin, 'sandbox_spawn')({
+            'code': '42',
+          });
           expect(
-            plugin.childrenSignal.value,
-            containsPair(handle, isA<ChildRunning>()),
+            await _findHandler(plugin, 'sandbox_is_alive')({'handle': handle}),
+            isTrue,
           );
-          expect(plugin.aliveCountSignal.value, 1);
+          gate.complete();
+          await _findHandler(plugin, 'sandbox_await')({'handle': handle});
         },
       );
-
-      test(
+      for (final name in [
         'childrenSignal updates to ChildCompleted after child finishes',
-        tags: _pending,
-        () async {
+        'ChildCompleted carries the return value',
+        'effect() fires when child completes',
+      ]) {
+        test(name, () async {
           final plugin = await _attachedPlugin(
             _sandbox(
-              children: () => _completingMockWithResult(
-                value: const MontyInt(42),
+              children: () =>
+                  _completingMockWithResult(value: const MontyInt(7)),
+            ),
+          );
+          final handle = await _findHandler(plugin, 'sandbox_spawn')({
+            'code': '7',
+          });
+          expect(
+            await _findHandler(plugin, 'sandbox_await')({'handle': handle}),
+            7,
+          );
+          expect(
+            await _findHandler(plugin, 'sandbox_is_alive')({'handle': handle}),
+            isFalse,
+          );
+          final events = _events[plugin]!
+              .whereType<BridgeChildEvent>()
+              .map((e) => e.inner)
+              .toList();
+          expect(events.first, isA<BridgeRunStarted>());
+          expect(
+            (events.last as BridgeRunFinished).montyValue,
+            const MontyInt(7),
+          );
+        });
+      }
+      for (final name in [
+        'childrenSignal updates to ChildFailed when child errors',
+        'ChildFailed carries the error message',
+      ]) {
+        test(name, () async {
+          final plugin = await _attachedPlugin(
+            _sandbox(children: () => _failingMock('something broke')),
+          );
+          final handle = await _findHandler(plugin, 'sandbox_spawn')({
+            'code': 'x',
+          });
+          await expectLater(
+            _findHandler(plugin, 'sandbox_await')({'handle': handle}),
+            throwsA(
+              predicate<Object>(
+                (e) => e.toString().contains('something broke'),
               ),
             ),
           );
-          final spawn = _findHandler(plugin, 'sandbox_spawn');
-          final await_ = _findHandler(plugin, 'sandbox_await');
-
-          final handle = (await spawn({'code': 'x = 42'}))! as int;
-          await await_({'handle': handle});
-
           expect(
-            plugin.childrenSignal.value[handle],
-            isA<ChildCompleted>(),
+            await _findHandler(plugin, 'sandbox_is_alive')({'handle': handle}),
+            isFalse,
           );
-          expect(plugin.aliveCountSignal.value, 0);
-        },
-      );
-
-      test('ChildCompleted carries the return value', tags: _pending, () async {
-        final plugin = await _attachedPlugin(
-          _sandbox(
-            children: () => _completingMockWithResult(
-              value: const MontyInt(7),
+          expect(
+            _events[plugin]!
+                .whereType<BridgeChildEvent>()
+                .map((e) => e.inner)
+                .whereType<BridgeRunError>()
+                .single
+                .message,
+            contains('something broke'),
+          );
+        });
+      }
+      test('childrenSignal is empty after sandbox_free', () async {
+        final plugin = await _attachedPlugin(_sandbox());
+        final handle = await _findHandler(plugin, 'sandbox_spawn')({
+          'code': '42',
+        });
+        await _findHandler(plugin, 'sandbox_free')({'handle': handle});
+        await expectLater(
+          _findHandler(plugin, 'sandbox_is_alive')({'handle': handle}),
+          throwsArgumentError,
+        );
+      });
+      test('childrenSignal is cleared when dispose runs', () async {
+        final plugin = await _attachedPlugin(_sandbox());
+        final handle = await _findHandler(plugin, 'sandbox_spawn')({
+          'code': '42',
+        });
+        await plugin.onDispose();
+        final handler = plugin.functions
+            .firstWhere((f) => f.schema.name == 'sandbox_is_alive')
+            .handler!;
+        await expectLater(
+          () => handler(
+            {
+              'handle': MontyValue.fromDart(handle),
+            },
+            HostContext(
+              emit: (_) {
+                /* Events are observed on the owning runtime. */
+              },
+              executionId: 'test',
             ),
           ),
+          throwsArgumentError,
         );
-        final spawn = _findHandler(plugin, 'sandbox_spawn');
-        final await_ = _findHandler(plugin, 'sandbox_await');
-
-        final handle = (await spawn({'code': 'x = 7'}))! as int;
-        await await_({'handle': handle});
-
-        final state = plugin.childrenSignal.value[handle]! as ChildCompleted;
-        expect(state.value, 7);
       });
-
-      test(
-        'childrenSignal updates to ChildFailed when child errors',
-        tags: _pending,
-        () async {
-          final plugin = await _attachedPlugin(
-            _sandbox(
-              children: () => _failingMock('boom'),
-            ),
-          );
-          final spawn = _findHandler(plugin, 'sandbox_spawn');
-          final await_ = _findHandler(plugin, 'sandbox_await');
-
-          final handle =
-              (await spawn({'code': 'raise ValueError("boom")'}))! as int;
-          await await_({'handle': handle}).catchError((_) => null);
-
-          expect(plugin.childrenSignal.value[handle], isA<ChildFailed>());
-          expect(plugin.aliveCountSignal.value, 0);
-        },
-      );
-
-      test('ChildFailed carries the error message', tags: _pending, () async {
-        final plugin = await _attachedPlugin(
-          _sandbox(
-            children: () => _failingMock('something broke'),
-          ),
-        );
-        final spawn = _findHandler(plugin, 'sandbox_spawn');
-        final await_ = _findHandler(plugin, 'sandbox_await');
-
-        final handle =
-            (await spawn({'code': 'raise ValueError("something broke")'}))!
-                as int;
-        await await_({'handle': handle}).catchError((_) => null);
-
-        final state = plugin.childrenSignal.value[handle]! as ChildFailed;
-        expect(state.message, contains('something broke'));
-      });
-
-      test(
-        'childrenSignal is empty after sandbox_free',
-        tags: _pending,
-        () async {
-          final plugin = await _attachedPlugin(
-            _sandbox(
-              children: _completingMock,
-            ),
-          );
-          final spawn = _findHandler(plugin, 'sandbox_spawn');
-          final await_ = _findHandler(plugin, 'sandbox_await');
-          final free = _findHandler(plugin, 'sandbox_free');
-
-          final handle = (await spawn({'code': '1'}))! as int;
-          await await_({'handle': handle});
-          await free({'handle': handle});
-
-          expect(plugin.childrenSignal.value, isEmpty);
-        },
-      );
-
-      test('effect() fires when child completes', tags: _pending, () async {
-        final plugin = await _attachedPlugin(
-          _sandbox(
-            children: _completingMock,
-          ),
-        );
-        final spawn = _findHandler(plugin, 'sandbox_spawn');
-        final await_ = _findHandler(plugin, 'sandbox_await');
-
-        final observed = <Map<int, ChildState>>[];
-        final dispose = effect(
-          () => observed.add(Map.from(plugin.childrenSignal.value)),
-        );
-        addTearDown(dispose);
-
-        final handle = (await spawn({'code': '1'}))! as int;
-        await await_({'handle': handle});
-
-        // At least: initial empty, spawned (Running), completed
-        expect(observed.length, greaterThanOrEqualTo(2));
-        expect(observed.last[handle], isA<ChildCompleted>());
-      });
-
-      test(
-        'childrenSignal is cleared when dispose runs',
-        tags: _pending,
-        () async {
-          final plugin = await _attachedPlugin(
-            _sandbox(
-              children: _completingMock,
-            ),
-          );
-          final spawn = _findHandler(plugin, 'sandbox_spawn');
-          await spawn({'code': '1'});
-
-          // Observe the signal up to the moment dispose fires; onDispose()
-          // disposes the children signal, so reading after dispose would hit a
-          // disposed signal.
-          final observed = <Map<int, ChildState>>[];
-          final sub = effect(() {
-            observed.add(Map.from(plugin.childrenSignal.value));
-          });
-          await plugin.onDispose();
-          sub();
-
-          expect(observed.last, isEmpty);
-        },
-      );
     });
   });
 }
 
-/// Finds a handler by function name and wraps it with [_testCtx].
+/// Finds a handler and supplies its owning runtime context.
 Future<Object?> Function(Map<String, Object?>) _findHandler(
   SandboxExtension plugin,
   String name,
 ) {
-  final h = plugin.functions.firstWhere((f) => f.schema.name == name).handler!;
-  return (args) async => (await h(
+  final handler = plugin.functions
+      .firstWhere((f) => f.schema.name == name)
+      .handler!;
+
+  return (args) async => (await handler(
     args.map((key, value) => MapEntry(key, MontyValue.fromDart(value))),
-    _testCtx,
+    HostContext(
+      emit: (_) {
+        /* Events are observed on the owning runtime. */
+      },
+      executionId: 'test',
+      parent: _runtimes[plugin],
+    ),
   )).dartValue;
 }

@@ -12,13 +12,12 @@
 //
 // So these drive Python `sandbox_spawn(...)` on FFI and watch the PARENT's
 // stream.
-@TestOn('vm')
 @Tags(['integration'])
 library;
 
 import 'package:dart_monty/dart_monty.dart';
 import 'package:test/test.dart';
-import '_worker.dart';
+import '../acceptance/_platform.dart';
 
 Future<MontyRuntime> _runtimeWithSandbox() =>
     MontyRuntime.start(pool: pool, extensions: [SandboxExtension()]);
@@ -32,7 +31,12 @@ Future<void> _settle() =>
 late Monty pool;
 
 void main() {
-  setUpAll(() async => pool = await startTestPool());
+  setUpAll(
+    () async => pool = await Monty.start(
+      workerLocation: acceptanceWorkerLocation,
+      checkoutTimeout: const Duration(seconds: 5),
+    ),
+  );
   tearDownAll(() => pool.close());
 
   group('emitChildEvent through a real sandbox spawn (FFI)', () {
@@ -61,7 +65,6 @@ void main() {
           reason: 'sandbox.dart:696 must have reached a non-null parent',
         );
       },
-      tags: 'd1-pending',
     );
 
     test(
@@ -89,7 +92,6 @@ void main() {
         final handle = '${result.dartValue}';
         expect(children.map((e) => e.childHandle).toSet(), {handle});
       },
-      tags: 'd1-pending',
     );
 
     test(
@@ -116,7 +118,6 @@ void main() {
           containsAllInOrder(['BridgeRunStarted', 'BridgeRunFinished']),
         );
       },
-      tags: 'd1-pending',
     );
 
     test(
@@ -197,7 +198,6 @@ void main() {
         // moment two children are alive at once.
         expect(children.map((e) => e.childHandle).toSet(), hasLength(2));
       },
-      tags: 'd1-pending',
     );
   });
 }

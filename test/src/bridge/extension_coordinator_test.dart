@@ -678,7 +678,7 @@ void main() {
         await registry.disposeAll();
         await registry.disposeAll();
 
-        expect(count, 2); // Called twice — plugin must be idempotent.
+        expect(count, 1); // Both callers join the same owner cleanup.
       });
 
       test('disposes all plugins even if one throws', () async {
@@ -860,6 +860,44 @@ void main() {
           expect(ok.clones.single.disposed, isTrue);
         },
       );
+
+      test('rejected duplicate clone is disposed exactly once', () async {
+        final first = _PolicyExtension('duplicate', ChildPolicy.clone);
+        final second = _PolicyExtension('duplicate', ChildPolicy.clone);
+        final clones = [first, second];
+        registry
+          ..register(
+            _PolicyExtension(
+              'first',
+              ChildPolicy.clone,
+              onClone: () => first,
+            ),
+          )
+          ..register(
+            _PolicyExtension(
+              'second',
+              ChildPolicy.clone,
+              onClone: () => second,
+            ),
+          );
+        await registry.attachTo(_MockBridge());
+        addTearDown(registry.disposeAll);
+
+        await expectLater(
+          registry.spawnChild(
+            context: const ChildSpawnContext(childId: 1),
+            bridge: _MockBridge(),
+          ),
+          throwsA(
+            isA<StateError>().having(
+              (error) => error.message,
+              'message',
+              contains('already registered'),
+            ),
+          ),
+        );
+        expect(clones.map((clone) => clone.disposals), [1, 1]);
+      });
 
       test('a clone extension without createChildInstance fails the spawn '
           'with UnsupportedError', () async {
@@ -1126,6 +1164,7 @@ class _PolicyExtension extends MontyExtension {
   final MontyExtension Function()? onClone;
   final List<_PolicyExtension> clones = [];
   bool disposed = false;
+  int disposals = 0;
 
   @override
   List<HostFunction> get functions => [];
@@ -1147,6 +1186,7 @@ class _PolicyExtension extends MontyExtension {
   Future<void> onDispose() async {
     await super.onDispose();
     disposed = true;
+    disposals++;
   }
 }
 

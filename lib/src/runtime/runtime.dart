@@ -6,6 +6,7 @@ import 'package:dart_monty/src/bridge/session_bridge.dart';
 import 'package:dart_monty/src/extension/coordinator.dart';
 import 'package:dart_monty/src/extension/extension.dart';
 import 'package:dart_monty/src/extensions/sandbox.dart';
+import 'package:dart_monty/src/host/context.dart';
 import 'package:dart_monty/src/host/dispatch.dart' show RuntimeSubExecutor;
 import 'package:dart_monty/src/host/function.dart';
 import 'package:dart_monty/src/host/schema.dart';
@@ -45,6 +46,90 @@ ExtensionCoordinator? runtimeCoordinator(MontyRuntime runtime) =>
 /// Configured per-session limits, for internal child runtime construction.
 // ignore: unnecessarily-public-code, internal cross-library access only.
 ResourceLimits? runtimeLimits(MontyRuntime runtime) => runtime._limits;
+
+/// Captures the originating execution before child preparation first awaits.
+/// Internal library hand-off; deliberately absent from the facade.
+// ignore: library_private_types_in_public_api, unnecessarily-public-code, internal hand-off, not exported.
+_ChildExecutionContext captureChildContext(
+  MontyRuntime runtime,
+  HostContext context,
+  ResourceLimits? limits,
+) => _ChildExecutionContext(runtime, context, limits);
+
+final class _ChildExecutionContext {
+  _ChildExecutionContext(this.runtime, this.context, this.limits)
+    : generation = runtime._generation,
+      origin = runtime._live
+          .where((run) => identical(run.token, context.cancelToken))
+          .firstOrNull {
+    unawaited(_watchOrigin());
+  }
+
+  final MontyRuntime runtime;
+
+  final HostContext context;
+  final ResourceLimits? limits;
+  final int generation;
+  final _Execution? origin;
+  final CancelToken token = CancelToken();
+  final Completer<void> _finished = Completer<void>();
+  Future<MontySession> checkout() async {
+    if (!isValid) throw StateError('Child origin is no longer live');
+    final session = await runtime._checkout(limits: limits);
+    if (!isValid) {
+      await session.close();
+      throw StateError('Child origin ended during checkout');
+    }
+
+    return session;
+  }
+
+  Future<MontyValue> subExecute(
+    String code, {
+    Map<String, MontyValue>? inputs,
+    CancelToken? cancelToken,
+  }) {
+    assert(
+      cancelToken == null || identical(cancelToken, token),
+      'Child sub-execution must use its child token',
+    );
+
+    return runtime._subExecute(
+      code,
+      generation: generation,
+      inputs: inputs,
+      cancelToken: token,
+      limits: limits,
+    );
+  }
+
+  void emit(String handle, BridgeEvent event) {
+    final wrapped = BridgeChildEvent(childHandle: handle, inner: event);
+    final run = origin;
+    if (run != null && !run.events.isClosed) run.events.add(wrapped);
+    runtime.emitChildEvent(handle, event);
+  }
+
+  void finish() {
+    if (!_finished.isCompleted) _finished.complete();
+    token.cancel();
+  }
+
+  Future<void> _watchOrigin() async {
+    await Future.any([
+      context.cancelToken.future,
+      runtime._lifetime.future,
+      _finished.future,
+    ]);
+    if (!_finished.isCompleted) token.cancel();
+  }
+
+  bool get isValid =>
+      !runtime._disposed &&
+      generation == runtime._generation &&
+      !context.cancelToken.isCancelled &&
+      !token.isCancelled;
+}
 
 /// Starts a [MontyRuntime] whose sessions come from [checkout] instead of a
 /// pool; [closePool] runs once when the runtime is disposed.
@@ -153,6 +238,8 @@ class MontyRuntime implements MontyRuntimeRef {
   Object? _sharedRun;
 
   bool _disposed = false;
+  Future<void>? _disposal;
+  final CancelToken _lifetime = CancelToken();
   int _nextExecutionId = 0;
 
   // The executions not yet settled; dispose closes their sessions.
@@ -164,6 +251,7 @@ class MontyRuntime implements MontyRuntimeRef {
   // one is closed unfed.
   int _generation = 0;
   final List<HostFunction> _extraFunctions = [];
+  // ignore: dispose-class-fields, closed by the joined _dispose future.
   final StreamController<BridgeEvent> _eventsController =
       StreamController<BridgeEvent>.broadcast();
 
@@ -175,6 +263,9 @@ class MontyRuntime implements MontyRuntimeRef {
   /// [SandboxExtension] in [extensions], and a [defaultCheckoutTimeout];
   /// [dispose] closes it. That pool finds the worker by core's own
   /// discovery, which throws [StateError] when it finds none.
+  ///
+  /// An injected pool must have a finite `checkoutTimeout` for bounded
+  /// child, sub-execution and transfer acquisition. No timeout is inferred.
   ///
   /// When [sandbox] is false (default), the runtime checks out one session
   /// before the future completes and runs every `execute()` on it. When
@@ -188,7 +279,7 @@ class MontyRuntime implements MontyRuntimeRef {
   /// [limits] are the resource limits of the sessions the runtime runs
   /// `execute()` on: the held session in shared mode (and each one that
   /// replaces it), each execution's session in sandbox mode. A
-  /// sub-execution's session keeps the default limits. Null keeps
+  /// sub-execution inherits the same configured limits. Null keeps
   /// upstream's defaults.
   ///
   /// In shared mode a feed that ends the held session replaces it: a
@@ -382,26 +473,38 @@ class MontyRuntime implements MontyRuntimeRef {
   ///
   /// An extension whose `onDispose` throws makes `dispose` throw that error
   /// after the rest is released.
-  Future<void> dispose() async {
-    if (_disposed) return;
+  Future<void> dispose() {
+    final pending = _disposal;
+    if (pending != null) return pending;
+    if (_disposed) return Future.value();
+
+    return _disposal = _dispose();
+  }
+
+  Future<void> _dispose() async {
     _disposed = true;
+    _lifetime.cancel();
+    final cleanup = _DisposalCleanup();
     for (final run in [..._live]) {
       run
         ..stop()
         ..token.cancel();
-      await run.session?.close();
+      await cleanup.closeSession(run.session);
     }
-    await _closeSubSessions();
+    for (final session in [..._subSessions]) {
+      _subSessions.remove(session);
+      await cleanup.closeSession(session);
+    }
     final bridge = _sharedBridge;
-    try {
-      await _attachSettled();
-      await _sharedRegistry?.disposeAll();
-    } finally {
-      bridge?.dispose();
-      await bridge?.session.close();
-      await _closePool?.call();
-      await _eventsController.close();
-    }
+    await cleanup.attempt(_attachSettled);
+    await cleanup.attempt(() => _sharedRegistry?.disposeAll());
+    await cleanup.attempt(() => bridge?.dispose());
+    await cleanup.closeSession(bridge?.session);
+    await cleanup.attempt(() => _closePool?.call());
+    await cleanup.attempt(_eventsController.close);
+    // Concurrent callers join cleanup; later calls retain the no-op contract.
+    _disposal = null;
+    cleanup.throwIfFailed();
   }
 
   // ---------------------------------------------------------------------------
@@ -424,38 +527,40 @@ class MontyRuntime implements MontyRuntimeRef {
   Future<MontyValue> _subExecute(
     String code, {
     required int generation,
-    Map<String, MontyValue>? inputs,
-    CancelToken? cancelToken,
+    required ResourceLimits? limits,
+    required Map<String, MontyValue>? inputs,
+    required CancelToken? cancelToken,
   }) async {
-    String? stopped() {
-      if (_disposed) return 'MontyRuntime has been disposed';
-      if (cancelToken?.isCancelled ?? false) {
-        return 'The execution was cancelled';
-      }
-      if (generation != _generation) return 'The runtime state was cleared';
-
-      return null;
+    if (_subExecutionStopReason(generation, cancelToken) case final reason?) {
+      throw StateError(reason);
     }
-
-    if (stopped() case final reason?) throw StateError(reason);
-    final session = await _checkout(limits: _limits);
-    if (stopped() case final reason?) {
+    final session = await _checkout(limits: limits);
+    if (_subExecutionStopReason(generation, cancelToken) case final reason?) {
       await session.close();
       throw StateError(reason);
     }
     _subSessions.add(session);
     Future<void> closeOnCancel(CancelToken token) async {
       await token.future;
-      if (_subSessions.contains(session)) await session.close();
+      if (_subSessions.remove(session)) await session.close();
     }
 
     if (cancelToken != null) unawaited(closeOnCancel(cancelToken));
     try {
       return await session.feedRun(code, inputs: inputs);
     } finally {
-      _subSessions.remove(session);
-      await session.close();
+      if (_subSessions.remove(session)) await session.close();
     }
+  }
+
+  String? _subExecutionStopReason(int generation, CancelToken? cancelToken) {
+    if (_disposed) return 'MontyRuntime has been disposed';
+    if (cancelToken?.isCancelled ?? false) {
+      return 'The execution was cancelled';
+    }
+    if (generation != _generation) return 'The runtime state was cleared';
+
+    return null;
   }
 
   /// The sub-executor of a bridge built now: its sub-executions stop at the
@@ -468,12 +573,14 @@ class MontyRuntime implements MontyRuntimeRef {
       inputs: inputs,
       cancelToken: cancelToken,
       generation: generation,
+      limits: _limits,
     );
   }
 
   /// Closes the session of every sub-execution in progress.
   Future<void> _closeSubSessions() async {
     for (final session in [..._subSessions]) {
+      _subSessions.remove(session);
       await session.close();
     }
   }
@@ -492,6 +599,7 @@ class MontyRuntime implements MontyRuntimeRef {
     } on Object catch (e, st) {
       error = e;
       stackTrace = st;
+      run.token.cancel();
     } finally {
       run
         ..session = null
@@ -614,6 +722,7 @@ class MontyRuntime implements MontyRuntimeRef {
     } on Object catch (e, st) {
       error = e;
       stackTrace = st;
+      run.token.cancel();
     } finally {
       run.session = null;
       try {
@@ -848,5 +957,33 @@ final class _Execution {
   void stop() {
     cancelled = true;
     if (!stopped.isCompleted) stopped.complete();
+  }
+}
+
+/// Attempts independent runtime releases while retaining the first failure.
+final class _DisposalCleanup {
+  final Set<MontySession> _closed = Set.identity();
+  Object? _failure;
+  StackTrace? _failureStack;
+
+  Future<void> attempt(FutureOr<void> Function() close) async {
+    try {
+      await close();
+    } on Object catch (error, stack) {
+      _failure ??= error;
+      _failureStack ??= stack;
+    }
+  }
+
+  Future<void> closeSession(MontySession? session) async {
+    if (session != null && _closed.add(session)) {
+      await attempt(session.close);
+    }
+  }
+
+  void throwIfFailed() {
+    if (_failure case final error?) {
+      Error.throwWithStackTrace(error, _failureStack!);
+    }
   }
 }

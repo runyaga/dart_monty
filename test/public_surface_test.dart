@@ -1,4 +1,4 @@
-// Exact D4a surface: typedefs and extension names are declarations too.
+// Exact D5 surface: typedefs and extension names are declarations too.
 @TestOn('vm')
 library;
 
@@ -22,11 +22,11 @@ void main() {
           .toSet();
 
   for (final web in [false, true]) {
-    test('exact D4a exported names (${web ? "browser" : "native"})', () {
+    test('exact D5 exported names (${web ? "browser" : "native"})', () {
       final names = inventory.exported(facade, web: web).keys.toSet();
       final golden = {...expected};
       expect(names, golden);
-      expect(names, hasLength(51));
+      expect(names, hasLength(45));
     });
   }
 
@@ -49,14 +49,14 @@ void main() {
             )
             as Map<String, dynamic>;
     expect(memberSignatures(declarations), golden);
-    expect(golden, hasLength(184));
+    expect(golden, hasLength(167));
     final headers =
         jsonDecode(
               File('test/surface/declarations.json').readAsStringSync(),
             )
             as Map<String, dynamic>;
     expect(declarationSignatures(declarations), headers);
-    expect(headers, hasLength(42));
+    expect(headers, hasLength(36));
   });
 
   test('M6 dependency exports exactly 68 main names on both platforms', () {

@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:collection';
 
 import 'package:dart_monty/src/bridge/bridge.dart';
 import 'package:dart_monty/src/bridge/logger.dart';
 import 'package:dart_monty/src/extension/attach_context.dart';
 import 'package:dart_monty/src/extension/extension.dart';
+import 'package:dart_monty/src/extensions/sandbox.dart';
 import 'package:dart_monty/src/host/function.dart';
 import 'package:dart_monty/src/introspection_functions.dart';
 import 'package:dart_monty/src/os_call/os_handlers.dart';
@@ -18,9 +20,12 @@ import 'package:dart_monty/src/workspace/workspace.dart';
 void _attachExtensionFunctions(
   List<MontyExtension> attachOrder,
   MontyBridge bridge,
+  Set<MontyExtension> borrowed,
 ) {
   for (final ext in attachOrder) {
-    ext.logger = bridge.logger.child(ext.namespace);
+    if (!borrowed.contains(ext)) {
+      ext.logger = bridge.logger.child(ext.namespace);
+    }
     for (final fn in ext.functions) {
       bridge.register(fn, category: ext.namespace);
     }
@@ -198,6 +203,11 @@ class ExtensionCoordinator {
   final Set<String> _functionNames = {};
   BridgeLogger _log = BridgeLogger.silent;
   bool _attached = false;
+  final Set<MontyExtension> _borrowed = Set.identity();
+  final Map<MontyExtension, int> _leases = Map.identity();
+  final Map<MontyExtension, Completer<void>> _leaseWaiters = Map.identity();
+  final List<void Function()> _releaseLeases = [];
+  Future<void>? _disposing;
 
   /// The extension OS contributions resolved during [attachTo], keyed by
   /// prefix.
@@ -217,6 +227,7 @@ class ExtensionCoordinator {
   static const Set<String> _reservedNamespaces = {'introspection', 'extra'};
 
   /// Registered extensions in insertion order (unmodifiable).
+  // ignore: unnecessarily-public-code, internal coordinator tests inspect ownership.
   List<MontyExtension> get extensions => UnmodifiableListView(_extensions);
 
   /// Validates [extension] namespace and function names, then registers it.
@@ -300,9 +311,10 @@ class ExtensionCoordinator {
 
     // Inject coordinator before onAttach so extensions that spawn children
     // (e.g. SandboxExtension) can reach it during lifecycle hooks.
-    _injectCoordinators(attachOrder, this);
+    final owned = attachOrder.where((ext) => !_borrowed.contains(ext)).toList();
+    _injectCoordinators(owned, this);
 
-    _attachExtensionFunctions(attachOrder, bridge);
+    _attachExtensionFunctions(attachOrder, bridge, _borrowed);
     _logExtensionsRegistered(attachOrder, _log);
     final contributions = _collectOsContributions(attachOrder);
     _osContributions = contributions;
@@ -312,7 +324,11 @@ class ExtensionCoordinator {
       _attachExtraFunctions(extraFunctions, bridge, _log);
     }
 
-    final errors = await _runExtensionOnAttaches(attachOrder, bridge, _log);
+    final errors = await _runExtensionOnAttaches(
+      owned,
+      bridge,
+      _log,
+    );
 
     if (enableIntrospection) {
       for (final fn in buildIntrospectionFunctions(bridge)) {
@@ -336,34 +352,14 @@ class ExtensionCoordinator {
     );
   }
 
-  /// Disposes all extensions in reverse registration order.
+  /// Settles sandbox owners first, then disposes the remaining extensions
+  /// in reverse attachment order (registration order if not yet attached).
   ///
   /// All extensions are disposed even if some throw — errors are collected and
   /// thrown as a single [StateError] after all extensions have been disposed.
   /// Safe to call multiple times — each extension's [MontyExtension.onDispose]
   /// must be idempotent.
-  Future<void> disposeAll() async {
-    final errors = <(String, Object)>[];
-    // Reverse registration order so later-registered extensions dispose first.
-    final disposeOrder = (_attachOrder ?? _extensions).reversed;
-    for (final ext in disposeOrder) {
-      try {
-        await ext.onDispose();
-      } on Object catch (e) {
-        _log.warning(
-          'Extension dispose failed',
-          attributes: {'namespace': ext.namespace, 'error': '$e'},
-        );
-        errors.add((ext.namespace, e));
-      }
-    }
-    if (errors.isNotEmpty) {
-      final summary = errors.map((e) => '${e.$1}: ${e.$2}').join('; ');
-      throw StateError(
-        '${errors.length} extension(s) failed to dispose: $summary',
-      );
-    }
-  }
+  Future<void> disposeAll() => _disposing ??= _disposeAll();
 
   /// Builds a child [ExtensionCoordinator] seeded from this (parent)
   /// coordinator and attaches it to [bridge].
@@ -388,7 +384,7 @@ class ExtensionCoordinator {
     Workspace? workspace,
     OsHandler? baseOs,
   }) async {
-    if (!_attached) {
+    if (!_attached || _disposing != null) {
       throw StateError(
         'ExtensionCoordinator.spawnChild() called before attachTo(). '
         'A parent coordinator must be attached before spawning children.',
@@ -396,15 +392,16 @@ class ExtensionCoordinator {
     }
 
     final child = ExtensionCoordinator();
-    // The clones made so far; a failure part-way disposes them.
-    final clones = <MontyExtension>[];
+    // Registration may reject a fresh clone before the child owns it.
+    MontyExtension? pendingClone;
+
     try {
       for (final ext in _extensions) {
         switch (ext.childPolicy) {
           case ChildPolicy.exclude:
             continue;
           case ChildPolicy.inherit:
-            child.register(ext);
+            _borrowInstance(ext, child);
           case ChildPolicy.clone:
             final instance = ext.createChildInstance(context);
             assert(
@@ -412,12 +409,14 @@ class ExtensionCoordinator {
               'createChildInstance() must return a new instance, not `this`. '
               'Use ChildPolicy.inherit if the extension should be shared.',
             );
-            clones.add(instance);
+
+            pendingClone = instance;
             child.register(instance);
+            pendingClone = null;
         }
       }
     } on Object {
-      await _disposeQuietly(clones);
+      await child._disposeFailedSpawn(pendingClone);
       rethrow;
     }
 
@@ -426,7 +425,7 @@ class ExtensionCoordinator {
       childWorkspace,
       baseOsOverride: baseOs,
     );
-    await child.attachTo(bridge, baseOs: childBaseOs);
+    await child._attachChildTo(bridge, childBaseOs);
     bridge.registerOs(
       childWorkspace.compose(
         composeOsHandlers(
@@ -439,24 +438,96 @@ class ExtensionCoordinator {
     return child;
   }
 
-  /// Disposes [made], in reverse, logging each failure.
-  Future<void> _disposeQuietly(List<MontyExtension> made) async {
-    for (final ext in made.reversed) {
+  Future<void> _disposeFailedSpawn(MontyExtension? pendingClone) async {
+    try {
+      await pendingClone?.onDispose();
+    } on Object {
+      /* Preserve the registration error and continue cleaning up. */
+    }
+    try {
+      await disposeAll();
+    } on Object {
+      /* Preserve the factory or registration error. */
+    }
+  }
+
+  Future<void> _attachChildTo(MontyBridge bridge, OsHandler baseOs) async {
+    try {
+      await attachTo(bridge, baseOs: baseOs);
+    } on Object {
       try {
+        await disposeAll();
+      } on Object {
+        /* preserve attachment error */
+      }
+      rethrow;
+    }
+  }
+
+  void _borrowInstance(MontyExtension ext, ExtensionCoordinator child) {
+    final owner = coordinatorOf(ext);
+    if (owner._disposing != null) {
+      throw StateError('Extension owner is disposing');
+    }
+    child.register(ext);
+    child._borrowed.add(ext);
+    owner._leases[ext] = (owner._leases[ext] ?? 0) + 1;
+    child._releaseLeases.add(() {
+      final left = owner._leases[ext]! - 1;
+      owner._leases[ext] = left;
+      if (left == 0) owner._leaseWaiters.remove(ext)?.complete();
+    });
+  }
+
+  Future<void> _disposeAll() async {
+    final errors = <(String, Object)>[];
+    // Reverse registration order so later-registered extensions dispose first.
+    final disposeOrder = (_attachOrder ?? _extensions).reversed;
+    final owned = disposeOrder
+        .where((ext) => !_borrowed.contains(ext))
+        .toList();
+    Future<void> dispose(MontyExtension ext) async {
+      try {
+        if ((_leases[ext] ?? 0) > 0) {
+          await (_leaseWaiters[ext] ??= Completer<void>()).future;
+        }
         await ext.onDispose();
       } on Object catch (e) {
-        _log.warning(
-          'Extension dispose failed',
-          attributes: {'namespace': ext.namespace, 'error': '$e'},
-        );
+        try {
+          _log.warning(
+            'Extension dispose failed',
+            attributes: {'namespace': ext.namespace, 'error': '$e'},
+          );
+        } on Object {
+          /* Continue disposing even when a logging sink fails. */
+        }
+        errors.add((ext.namespace, e));
       }
+    }
+
+    // Sandbox teardown settles admitted transfers and releases child/workspace
+    // leases. Captured OS providers must remain alive until that finishes,
+    // regardless of registration order or attachment priority.
+    await Future.wait(owned.whereType<SandboxExtension>().map(dispose));
+    await Future.wait(
+      owned.where((ext) => ext is! SandboxExtension).map(dispose),
+    );
+    for (final release in _releaseLeases) {
+      release();
+    }
+    _releaseLeases.clear();
+    if (errors.isNotEmpty) {
+      final summary = errors.map((e) => '${e.$1}: ${e.$2}').join('; ');
+      throw StateError(
+        '${errors.length} extension(s) failed to dispose: $summary',
+      );
     }
   }
 
   /// Child filesystem calls never reach the parent's fallback.
   OsHandler _composeChildBaseOs(
     Workspace workspace, {
-    OsHandler? baseOsOverride,
+    required OsHandler? baseOsOverride,
   }) {
     final nonFilesystem = composeOsHandlers({
       for (final entry in (_osContributions ?? <String, OsHandler>{}).entries)

@@ -1,17 +1,21 @@
-@TestOn('vm')
-@Tags(['integration', 'd1-pending'])
+@Tags(['integration'])
 library;
 
 import 'package:dart_monty/dart_monty.dart';
 import 'package:test/test.dart';
 
-import '_worker.dart';
+import '../acceptance/_platform.dart';
 import 'shared_probe_extension.dart';
 
 void main() {
   late Monty pool;
   late MontyRuntime runtime;
-  setUpAll(() async => pool = await startTestPool());
+  setUpAll(
+    () async => pool = await Monty.start(
+      workerLocation: acceptanceWorkerLocation,
+      checkoutTimeout: const Duration(seconds: 5),
+    ),
+  );
   tearDownAll(() => pool.close());
   setUp(() async {
     runtime = await MontyRuntime.start(

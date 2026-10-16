@@ -44,7 +44,7 @@ import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty_core/dart_monty_core.dart'
     show MontyBool, MontyPath, MontyString, OSAccess;
 import 'package:signals_core/signals_core.dart';
-import '../integration/_worker.dart';
+import '../acceptance/_platform.dart';
 
 /// A recorded tool call — name, args, result or error, timing.
 class ToolCallRecord {
@@ -284,7 +284,10 @@ class MontyHarness {
 
   /// Creates and primes the runtime. Must be called before [run].
   Future<void> setup() async {
-    final pool = _pool = await startTestPool();
+    final pool = _pool = await Monty.start(
+      workerLocation: acceptanceWorkerLocation,
+      checkoutTimeout: const Duration(seconds: 5),
+    );
     _runtime = await MontyRuntime.start(
       pool: pool,
       osHandlers: {'Path.': _fs.call},

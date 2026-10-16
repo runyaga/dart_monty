@@ -42,8 +42,9 @@ class SessionBridge implements MontyBridge {
     required this.session,
     // ignore: unnecessary-optional-parameters, tests build a bridge without a logger.
     BridgeLogger? logger,
-    // ignore: unnecessary-nullable-parameters, standalone MontyBridge has no runtime.
+    // ignore: unnecessary-nullable-parameters, unnecessary-optional-parameters, redirecting MontyBridge factory omits runtime.
     MontyRuntimeRef? runtime,
+    // ignore: unnecessary-nullable-parameters, unnecessary-optional-parameters, redirecting MontyBridge factory omits subExecute.
     RuntimeSubExecutor? subExecute,
   }) : logger = logger ?? StructLogBridgeLogger.root(LogManager.instance),
        _host = HostDispatch(

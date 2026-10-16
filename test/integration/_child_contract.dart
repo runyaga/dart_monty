@@ -82,3 +82,15 @@ final class ChildContractExtension extends MontyExtension {
     if (throwOnDispose) throw StateError('dispose $namespace');
   }
 }
+
+/// Invokes one of the seven sandbox functions through the runtime.
+Future<MontyValue> spawnChild(MontyRuntime runtime, String code) =>
+    runtime.invoke('sandbox_spawn', {'code': MontyString(code)});
+
+/// Waits for a retained handle.
+Future<MontyValue> awaitChild(MontyRuntime runtime, MontyValue handle) =>
+    runtime.invoke('sandbox_await', {'handle': handle});
+
+/// Releases a retained or running handle.
+Future<MontyValue> freeChild(MontyRuntime runtime, MontyValue handle) =>
+    runtime.invoke('sandbox_free', {'handle': handle});

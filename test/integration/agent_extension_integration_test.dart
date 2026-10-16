@@ -5,7 +5,7 @@ import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty_core/dart_monty_core.dart' show OSAccess;
 import 'package:test/test.dart';
 
-import '_worker.dart';
+import '../acceptance/_platform.dart';
 import 'shared_probe_extension.dart';
 import 'template_stub_extension.dart';
 
@@ -18,14 +18,19 @@ import 'template_stub_extension.dart';
 /// ```
 void main() {
   late Monty pool;
-  setUpAll(() async => pool = await startTestPool());
+  setUpAll(
+    () async => pool = await Monty.start(
+      workerLocation: acceptanceWorkerLocation,
+      checkoutTimeout: const Duration(seconds: 5),
+    ),
+  );
   tearDownAll(() => pool.close());
 
   // ---------------------------------------------------------------------------
   // Sandbox plugin — child spawning
   // ---------------------------------------------------------------------------
 
-  group('MontyRuntime + SandboxExtension', tags: 'd1-pending', () {
+  group('MontyRuntime + SandboxExtension', () {
     late MontyRuntime session;
 
     setUp(() async {
@@ -111,7 +116,7 @@ sandbox_free(handle=h)
   // Cross-plugin: templates inside children
   // ---------------------------------------------------------------------------
 
-  group('MontyRuntime cross-plugin inheritance', tags: 'd1-pending', () {
+  group('MontyRuntime cross-plugin inheritance', () {
     late MontyRuntime session;
 
     setUp(() async {
@@ -171,7 +176,7 @@ sandbox_await(handle=consumer)
       final result = await session.execute(r'''
 from pathlib import Path
 Path('/parent.txt').write_text('parent data')
-h = sandbox_spawn(code='from pathlib import Path\nPath("/child.txt").write_text("child data")\nPath("/child.txt").read_text()')
+h = sandbox_spawn(code='from pathlib import Path\nPath("/work/child.txt").write_text("child data")\nPath("/work/child.txt").read_text()')
 child_result = sandbox_await(handle=h)
 parent_file = Path('/parent.txt').read_text()
 [child_result, parent_file]

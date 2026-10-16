@@ -71,3 +71,6 @@ out-zen/
 mkdocs-zen.yml
 .venv-zen/
 .venv-mk/
+
+# Local quality-gate logs
+.gate-logs/
