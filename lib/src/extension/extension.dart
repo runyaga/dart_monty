@@ -55,7 +55,7 @@ class ChildSpawnContext {
   final int childId;
 
   /// Virtual child working directory, `/work` for sandbox children.
-  /// Native backing through `sandboxBaseDir` is pending D4b.
+  /// Native backing stays private; this never contains a host path.
   final String? workingDirectory;
 }
 

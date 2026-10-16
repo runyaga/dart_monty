@@ -8,7 +8,9 @@ import 'package:test/test.dart';
 
 import '../../integration/_workspace_harness.dart';
 
-void main() {
+void main() => registerBoundsTests();
+
+void registerBoundsTests({String? Function()? backing}) {
   final h = WorkspaceHarness()..install();
   late WorkspaceTransfers transfers;
   setUp(() {
@@ -34,7 +36,7 @@ void main() {
     }
     expect(() => reduceWorkspaceCap(2, 3), throwsArgumentError);
     expect(reduceWorkspaceCap(null, 3), 3);
-    final w = Workspace();
+    final w = Workspace(sandboxBaseDir: backing?.call());
     addTearDown(w.dispose);
     expect(await h.run(w, "Path('.').is_dir()"), true);
   });
@@ -47,6 +49,7 @@ void main() {
       ],
     );
     final w = await transfers.copyIn(
+      sandboxBaseDir: backing?.call(),
       parent: parent.call,
       files: {'a': '/a', 'b': '/b'},
       memoryUsageLimit: null,
@@ -55,6 +58,7 @@ void main() {
     expect(await h.run(w, "Path('b').stat().st_size"), 4194304);
     await expectLater(
       transfers.copyIn(
+        sandboxBaseDir: backing?.call(),
         parent: parent.call,
         files: {'a': '/a', 'b': '/b', 'c': '/c'},
         memoryUsageLimit: null,
@@ -62,6 +66,7 @@ void main() {
       throwsA(isA<ExternalException>()),
     );
     final huge = Workspace(
+      sandboxBaseDir: backing?.call(),
       files: {'a': Uint8List(4194304), 'b': Uint8List(4194305)},
       memoryUsageLimit: null,
       parent: parent.call,
@@ -79,6 +84,7 @@ void main() {
   test('B-transfer-aliases', () async {
     final parent = OSAccess(files: [MemoryFile('/a', Uint8List(4194304))]);
     final w = await transfers.copyIn(
+      sandboxBaseDir: backing?.call(),
       parent: parent.call,
       files: {'a': '/a', 'b': '/a'},
       memoryUsageLimit: null,
@@ -87,6 +93,7 @@ void main() {
     expect(await h.run(w, "Path('a').stat().st_size"), 4194304);
     await expectLater(
       transfers.copyIn(
+        sandboxBaseDir: backing?.call(),
         parent: parent.call,
         files: {'a': '/a', 'b': '/a', 'c': '/a'},
         memoryUsageLimit: null,
@@ -99,6 +106,7 @@ void main() {
       files: [for (var i = 0; i < 4096; i++) MemoryFile('/d/f$i', '')],
     );
     final w = await transfers.copyIn(
+      sandboxBaseDir: backing?.call(),
       parent: parent.call,
       files: {for (var i = 0; i < 4096; i++) 'f$i': '/d/f$i'},
       memoryUsageLimit: null,
@@ -108,6 +116,7 @@ void main() {
     // Selected root directory also counts: 4096 descendants + root = 4097.
     await expectLater(
       transfers.copyIn(
+        sandboxBaseDir: backing?.call(),
         parent: parent.call,
         files: {'d': '/d'},
         memoryUsageLimit: null,
@@ -119,6 +128,7 @@ void main() {
     final path = '/root/${List.filled(31, 'd').join('/')}/a';
     final parent = OSAccess(files: [MemoryFile(path, 'x')]);
     final w = await transfers.copyIn(
+      sandboxBaseDir: backing?.call(),
       parent: parent.call,
       files: {'root': '/root'},
     );
@@ -128,29 +138,67 @@ void main() {
       files: [MemoryFile('/root/d${path.substring(5)}', 'x')],
     );
     await expectLater(
-      transfers.copyIn(parent: deeper.call, files: {'root': '/root'}),
+      transfers.copyIn(
+        sandboxBaseDir: backing?.call(),
+        parent: deeper.call,
+        files: {'root': '/root'},
+      ),
       throwsA(isA<ExternalException>()),
     );
   });
   test('B-transfer-path', () async {
+    if (backing != null) {
+      // Host NAME_MAX/PATH_MAX can be lower than the virtual transfer limit.
+      // Exercise the exact boundary on a memory destination from native data.
+      final parent = OSAccess();
+      final w = Workspace(
+        sandboxBaseDir: backing(),
+        files: {'a': 'x'},
+        parent: parent.call,
+      );
+      addTearDown(w.dispose);
+      final destination = '/${'a' * 4095}';
+      await transfers.collect(w, {'a': destination});
+      await expectLater(
+        transfers.collect(w, {'a': '${destination}a'}),
+        throwsA(isA<ExternalException>()),
+      );
+      expect(
+        parent.call('Path.read_text', [MontyPath(destination)], {}),
+        const MontyString('x'),
+      );
+      return;
+    }
     final name = 'a' * 4090;
     final parent = OSAccess(files: [MemoryFile('/a', 'x')]);
-    final w = await transfers.copyIn(parent: parent.call, files: {name: '/a'});
+    final w = await transfers.copyIn(
+      sandboxBaseDir: backing?.call(),
+      parent: parent.call,
+      files: {name: '/a'},
+    );
     addTearDown(w.dispose);
     expect(await h.run(w, "len(list(Path('.').iterdir()))"), 1);
     await expectLater(
-      transfers.copyIn(parent: parent.call, files: {'${name}a': '/a'}),
+      transfers.copyIn(
+        sandboxBaseDir: backing?.call(),
+        parent: parent.call,
+        files: {'${name}a': '/a'},
+      ),
       throwsA(isA<ExternalException>()),
     );
   });
   test('B-transfer-symlink', () async {
     var descended = false;
     final parent = OSAccess(files: [MemoryFile('/root/a', 'x')]);
-    final w = await transfers.copyIn(parent: parent.call);
+    final w = await transfers.copyIn(
+      sandboxBaseDir: backing?.call(),
+      parent: parent.call,
+    );
     addTearDown(w.dispose);
     expect(await h.run(w, "Path('.').is_dir()"), true);
     await expectLater(
       transfers.copyIn(
+        sandboxBaseDir: backing?.call(),
         parent: (name, args, kwargs) {
           if (name == 'Path.is_symlink') return const MontyBool(true);
           descended = true;
@@ -164,11 +212,16 @@ void main() {
   });
   test('B-transfer-growth', () async {
     final parent = OSAccess(files: [MemoryFile('/a', 'x')]);
-    final w = await transfers.copyIn(parent: parent.call, files: {'a': '/a'});
+    final w = await transfers.copyIn(
+      sandboxBaseDir: backing?.call(),
+      parent: parent.call,
+      files: {'a': '/a'},
+    );
     addTearDown(w.dispose);
     expect(await h.run(w, "Path('a').read_text()"), 'x');
     await expectLater(
       transfers.copyIn(
+        sandboxBaseDir: backing?.call(),
         parent: (name, args, kwargs) {
           if (name == 'Path.stat') return StatResult.fileStat(0);
           return parent.call(name, args, kwargs);
@@ -184,6 +237,7 @@ void main() {
     );
     var writes = 0;
     final w = await transfers.copyIn(
+      sandboxBaseDir: backing?.call(),
       parent: (name, args, kwargs) {
         if (name == 'Path.is_symlink' && args.first.dartValue == '/out/b') {
           return const MontyBool(true);
@@ -216,6 +270,7 @@ void main() {
     final release = Completer<void>();
     final parent = OSAccess(files: [MemoryFile('/a', 'x')]);
     final w = await transfers.copyIn(
+      sandboxBaseDir: backing?.call(),
       parent: (name, args, kwargs) async {
         if (name == 'Path.write_bytes') {
           entered.complete();
@@ -231,6 +286,7 @@ void main() {
     await entered.future;
     var reads = 0;
     final copying = transfers.copyIn(
+      sandboxBaseDir: backing?.call(),
       parent: (name, args, kwargs) {
         reads++;
         return parent.call(name, args, kwargs);
@@ -253,6 +309,7 @@ void main() {
     final parent = OSAccess(files: [MemoryFile('/a', Uint8List(8388608))]);
     var reject = true;
     Future<Workspace> copy() => transfers.copyIn(
+      sandboxBaseDir: backing?.call(),
       parent: (name, args, kwargs) {
         if (name == 'Path.read_bytes' && reject) {
           throw const ExternalException('OSError', 'failed read');

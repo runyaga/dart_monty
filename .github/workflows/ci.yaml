@@ -508,6 +508,34 @@ jobs:
           for name in ('dart_monty_worker', 'libdart_monty_worker.so'):
               shutil.copy2(pathlib.Path('.worker') / name, dest / name)
           PYWORKER
+      - name: D4b root hook and real native workspace gates
+        run: |
+          set -euo pipefail
+          python3 tool/configure_native_ci.py
+          dart pub get
+          dart test -p vm --run-skipped --reporter json \
+            test/integration/native_workspace_driver_test.dart \
+            test/integration/native_workspace_review_test.dart \
+            test/integration/native_workspace_identity_test.dart \
+            | tee build/d4b-native.jsonl
+          python3 tool/verify_d4b_tests.py native build/d4b-native.jsonl
+          python3 tool/record_native_asset.py
+          dart test -p vm --run-skipped --reporter json \
+            test/integration/native_workspace_policy_test.dart \
+            | tee build/d4b-native-policy.jsonl
+          python3 tool/verify_d4b_tests.py native-policy build/d4b-native-policy.jsonl
+          python3 tool/d4b_mutations.py
+      - name: Preserve D4b native identity and mutation evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: d4b-native-evidence
+          path: |
+            build/d4b-native-identity.json
+            build/d4b-native.jsonl
+            build/d4b-native-policy.jsonl
+            build/d4b-mutations/
+          if-no-files-found: error
       - name: Run integration tests
         # THE TAG WAS DECLARED AND EXERCISED BY NOTHING. `dart_test.yaml` skips
         # `integration` by default, and until now the only `--tags=` in any
@@ -807,6 +835,28 @@ jobs:
             test/integration/child_os_policy_test.dart \
             --run-skipped --tags integration \
             --reporter=expanded 2>&1 | tee /tmp/d5-preparation-web.log
+      - name: D4b native mount refusal (both browsers and compilers)
+        if: ${{ !cancelled() && steps.pubget.outcome == 'success' }}
+        env:
+          MOZ_HEADLESS: '1'
+        run: |
+          set -euo pipefail
+          mkdir -p build/d4b-web
+          for browser in chrome firefox; do
+            for compiler in dart2js dart2wasm; do
+              log="build/d4b-web/$browser-$compiler.jsonl"
+              dart test -p "$browser" -c "$compiler" --run-skipped --reporter json \
+                test/integration/native_workspace_refusal_test.dart | tee "$log"
+              python3 tool/verify_d4b_tests.py browser "$log"
+            done
+          done
+      - name: Preserve D4b browser refusal evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: d4b-browser-evidence
+          path: build/d4b-web/
+          if-no-files-found: error
       - name: Upload the assembled site on failure
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7

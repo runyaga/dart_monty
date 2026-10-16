@@ -90,15 +90,15 @@ def mutants():
            "_checkedPath(e.value.startsWith('/') ? e.value : '/${e.value}', absolute: true)")],
          TRANSFERS, 'T1-absolute-cwd'),
         ('D4a-PARTIAL-STAGING', TRANSFER,
-         [('await stage.read(workspace.call, source, destination);',
-           "await stage.read(workspace.call, source, destination);\n"
+         [('await stage.read(sourceReader, source, destination);',
+           "await stage.read(sourceReader, source, destination);\n"
            "for (final e in stage.entries) { if (e.bytes case final bytes?) "
            "await parent('Path.write_bytes', [MontyPath(e.destination), MontyBytes(bytes)], {}); }")],
          TRANSFERS, 'D4a-staging-failure'),
         ('D4a-PARENT-FALLTHROUGH', WORKSPACE,
-         [('if (_filesystem(name)) return call(name, args, kwargs);',
-           'if (_filesystem(name)) { try { return call(name, args, kwargs); } '
-           'on OsCallNotHandledException { } }')],
+         [('return call(name, args, kwargs);',
+           'try { return call(name, args, kwargs); } '
+           'on OsCallNotHandledException { return nonFilesystem(name, args, kwargs); }')],
          MIGRATION, 'D4a-no-parent-fs-fallthrough'),
         ('D4a-OLD-STRATEGY-PARAMETER', 'lib/src/extensions/sandbox.dart',
          [('SandboxExtension({', 'SandboxExtension({Object? childVfsStrategy,')],

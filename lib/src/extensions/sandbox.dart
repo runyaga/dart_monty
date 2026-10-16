@@ -157,11 +157,13 @@ class _ChildHandle {
     // Dispose plugins FIRST — this unblocks pending handler Futures
     // (e.g., an extension completes pending calls with StateError).
     // The bridge/stream must still be alive to deliver the resulting errors.
-    await coordinator.disposeAll();
-    await subscription.cancel();
-    bridge.dispose();
-    await session.close();
-    await workspace.dispose();
+    await cleanupWorkspace([
+      coordinator.disposeAll,
+      subscription.cancel,
+      bridge.dispose,
+      session.close,
+      workspace.dispose,
+    ]);
   }
 }
 
@@ -374,8 +376,9 @@ class SandboxExtension extends MontyExtension {
   /// Resource limits applied to child interpreters.
   final ResourceLimits? childLimits;
 
-  /// Reserved for owned native backing, pending D4b.
-  /// Memory children always use the virtual cwd `/work`.
+  /// Opts into a fresh owned native directory per child (VM only).
+  /// Backing survives completion and collection until free or disposal.
+  /// Children always use the virtual cwd `/work`; null selects memory.
   final String? sandboxBaseDir;
 
   final WorkspaceTransfers _transfers = WorkspaceTransfers();
@@ -511,6 +514,7 @@ class SandboxExtension extends MontyExtension {
     try {
       workspace = await _transfers.copyIn(
         parent: ctx.os,
+        sandboxBaseDir: sandboxBaseDir,
         files: workspaceMapping(args['files']),
         roFiles: workspaceMapping(args['ro_files']),
         writeBytesLimit: reduceWorkspaceCap(
@@ -653,6 +657,7 @@ class SandboxExtension extends MontyExtension {
         session: session,
         logger: logger.child('child.${spawnContext.childId}'),
       );
+      (bridge as SessionBridge).workspace = workspace;
       logger.debug(
         'Child bridge created',
         attributes: {
@@ -791,9 +796,11 @@ class SandboxExtension extends MontyExtension {
     _updateChildrenSignal();
 
     try {
-      await coordinator.disposeAll();
-      bridge.dispose();
-      await session.close();
+      await cleanupWorkspace([
+        coordinator.disposeAll,
+        bridge.dispose,
+        session.close,
+      ]);
     } on Object catch (e, st) {
       logger.warning(
         'Child cleanup error (swallowed)',
