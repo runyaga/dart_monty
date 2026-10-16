@@ -1,6 +1,5 @@
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/src/host/args.dart';
-import 'package:dart_monty_core/dart_monty_core.dart';
 
 /// A second extension for integration tests that combine extensions.
 ///

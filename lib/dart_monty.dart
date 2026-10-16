@@ -11,7 +11,7 @@
 library;
 
 export 'package:dart_monty_core/dart_monty_core.dart'
-        // Keep the order of the approved nine-name facade.
+        // Keep the order of the approved 18-name facade.
         // ignore: combinators_ordering
         show
         Monty,
@@ -22,7 +22,16 @@ export 'package:dart_monty_core/dart_monty_core.dart'
         ResourceLimits,
         OsHandler,
         OsCallNotHandledException,
-        ExternalException;
+        ExternalException,
+        OSAccess,
+        MontyBool,
+        MontyInt,
+        MontyFloat,
+        MontyString,
+        MontyList,
+        MontyTuple,
+        MontyDict,
+        MontyBytes;
 
 export 'src/bridge/bridge.dart' show MontyBridge;
 export 'src/bridge/event.dart'

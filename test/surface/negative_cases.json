@@ -159,20 +159,6 @@
   },
   {
     "phase": "D2",
-    "id": "core-surface-MontyBool",
-    "body": "MontyBool? value;",
-    "inventory": "core-surface.tsv",
-    "symbol": "MontyBool"
-  },
-  {
-    "phase": "D2",
-    "id": "core-surface-MontyBytes",
-    "body": "MontyBytes? value;",
-    "inventory": "core-surface.tsv",
-    "symbol": "MontyBytes"
-  },
-  {
-    "phase": "D2",
     "id": "core-surface-MontyClassProxy",
     "body": "MontyClassProxy? value;",
     "inventory": "core-surface.tsv",
@@ -222,13 +208,6 @@
   },
   {
     "phase": "D2",
-    "id": "core-surface-MontyDict",
-    "body": "MontyDict? value;",
-    "inventory": "core-surface.tsv",
-    "symbol": "MontyDict"
-  },
-  {
-    "phase": "D2",
     "id": "core-surface-MontyEllipsis",
     "body": "MontyEllipsis? value;",
     "inventory": "core-surface.tsv",
@@ -250,13 +229,6 @@
   },
   {
     "phase": "D2",
-    "id": "core-surface-MontyFloat",
-    "body": "MontyFloat? value;",
-    "inventory": "core-surface.tsv",
-    "symbol": "MontyFloat"
-  },
-  {
-    "phase": "D2",
     "id": "core-surface-MontyFrozenSet",
     "body": "MontyFrozenSet? value;",
     "inventory": "core-surface.tsv",
@@ -268,20 +240,6 @@
     "body": "MontyHostFunction? value;",
     "inventory": "core-surface.tsv",
     "symbol": "MontyHostFunction"
-  },
-  {
-    "phase": "D2",
-    "id": "core-surface-MontyInt",
-    "body": "MontyInt? value;",
-    "inventory": "core-surface.tsv",
-    "symbol": "MontyInt"
-  },
-  {
-    "phase": "D2",
-    "id": "core-surface-MontyList",
-    "body": "MontyList? value;",
-    "inventory": "core-surface.tsv",
-    "symbol": "MontyList"
   },
   {
     "phase": "D2",
@@ -341,13 +299,6 @@
   },
   {
     "phase": "D2",
-    "id": "core-surface-MontyString",
-    "body": "MontyString? value;",
-    "inventory": "core-surface.tsv",
-    "symbol": "MontyString"
-  },
-  {
-    "phase": "D2",
     "id": "core-surface-MontySyntaxError",
     "body": "MontySyntaxError? value;",
     "inventory": "core-surface.tsv",
@@ -373,13 +324,6 @@
     "body": "MontyTimeZone? value;",
     "inventory": "core-surface.tsv",
     "symbol": "MontyTimeZone"
-  },
-  {
-    "phase": "D2",
-    "id": "core-surface-MontyTuple",
-    "body": "MontyTuple? value;",
-    "inventory": "core-surface.tsv",
-    "symbol": "MontyTuple"
   },
   {
     "phase": "D2",

@@ -52,7 +52,7 @@ Each parameter is defined with `HostParam`:
 ## HostParamType
 
 Handlers take `Map<String, MontyValue>` and return `Future<MontyValue>`.
-Import core values from `package:dart_monty_core/dart_monty_core.dart`.
+The value types come from `package:dart_monty/dart_monty.dart`.
 
 | `HostParamType` | Accepted core values |
 |---|---|

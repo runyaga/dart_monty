@@ -1,5 +1,4 @@
 import 'package:dart_monty/dart_monty.dart';
-import 'package:dart_monty_core/dart_monty_core.dart';
 
 /// String KV handlers shared by the network matrices and offline regression.
 List<HostFunction> kvStubFunctions(

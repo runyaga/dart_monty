@@ -19,8 +19,7 @@ import 'dart:convert';
 import 'dart:js_interop';
 
 import 'package:dart_monty/dart_monty.dart';
-import 'package:dart_monty_core/dart_monty_core.dart'
-    show MontyBool, MontyBytes, MontyList, MontyPath, MontyString, OSAccess;
+import 'package:dart_monty_core/dart_monty_core.dart' show MontyPath;
 
 import 'package:web_example/demo_pool.dart';
 import 'package:web_example/demo_ready.dart';
@@ -123,8 +122,11 @@ Future<void> _writeVfsFile(String path, String content) async {
     [MontyPath(parent.isEmpty ? '/' : parent)],
     {'parents': const MontyBool(true), 'exist_ok': const MontyBool(true)},
   );
-  await _vfs
-      .call('Path.write_text', [MontyPath(path), MontyString(content)], {});
+  await _vfs.call(
+    'Path.write_text',
+    [MontyPath(path), MontyString(content)],
+    {},
+  );
 }
 
 Future<void> _mountFile(String path, String content) async {
@@ -232,8 +234,8 @@ Future<void> main() async {
   // Expose API to HTML.
   final api = <String, JSFunction>{
     'run': ((JSString code) => _apiRun(
-          code.toDart,
-        ).then((r) => r.toJS).toJS).toJS,
+      code.toDart,
+    ).then((r) => r.toJS).toJS).toJS,
     'mountFile': ((JSString path, JSString content) {
       unawaited(_mountFile(path.toDart, content.toDart));
     }).toJS,

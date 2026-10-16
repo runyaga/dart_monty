@@ -12,6 +12,8 @@ import 'package:dart_monty_core/dart_monty_core.dart';
 /// calls to registered [HostFunction] handlers, and emits [BridgeEvent]s.
 ///
 /// ```dart
+/// import 'package:dart_monty/dart_monty.dart';
+///
 /// final session = await monty.checkout();
 /// final bridge = MontyBridge(session: session);
 /// bridge.registerOs(OSAccess().call);

@@ -19,7 +19,6 @@ library;
 import 'dart:io';
 
 import 'package:dart_monty/dart_monty.dart';
-import 'package:dart_monty_core/dart_monty_core.dart';
 
 /// A sync host fn — returns its result without ever yielding the event loop.
 HostFunction syncFetch(void Function() onCall) => HostFunction(

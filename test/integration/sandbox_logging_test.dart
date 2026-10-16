@@ -3,7 +3,6 @@ library;
 
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/src/extension/coordinator.dart';
-import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:struct_log/struct_log.dart';
 import 'package:test/test.dart';
 

@@ -19,7 +19,6 @@ No imports, no setup -- just call the function.
 
 ```dart
 import 'package:dart_monty/dart_monty.dart';
-import 'package:dart_monty_core/dart_monty_core.dart' show MontyString;
 
 Future<void> main() async {
   final runtime = MontyRuntime();

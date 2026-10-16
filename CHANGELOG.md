@@ -1,5 +1,12 @@
 ## Unreleased
 
+### Added
+
+- The facade exports `OSAccess`, `MontyBool`, `MontyInt`, `MontyFloat`,
+  `MontyString`, `MontyList`, `MontyTuple`, `MontyDict`, and `MontyBytes` so a
+  host function can be written from the dm import alone. The facade has 54
+  names.
+
 ### Breaking
 
 dart_monty now builds on dart_monty_core 0.110 (the worker API). This first

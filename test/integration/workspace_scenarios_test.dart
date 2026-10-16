@@ -5,7 +5,6 @@ library;
 import 'dart:typed_data';
 
 import 'package:dart_monty/dart_monty.dart';
-import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:test/test.dart';
 
 import '_child_contract.dart';

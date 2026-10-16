@@ -1,7 +1,5 @@
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/src/host/schema.dart' show mapAndValidate;
-import 'package:dart_monty_core/dart_monty_core.dart'
-    show MontyInt, MontyString;
 import 'package:test/test.dart';
 
 void main() {

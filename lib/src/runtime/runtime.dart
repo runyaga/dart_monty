@@ -183,6 +183,8 @@ Future<MontyRuntime> startRuntimeWith({
 /// session, closed after it. State does not persist between calls.
 ///
 /// ```dart
+/// import 'package:dart_monty/dart_monty.dart';
+///
 /// final pool = await Monty.start(workerLocation: workerPath);
 /// final runtime = await MontyRuntime.start(
 ///   pool: pool,

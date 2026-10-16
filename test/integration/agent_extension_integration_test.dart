@@ -2,7 +2,6 @@
 library;
 
 import 'package:dart_monty/dart_monty.dart';
-import 'package:dart_monty_core/dart_monty_core.dart' show OSAccess;
 import 'package:test/test.dart';
 
 import '../acceptance/_platform.dart';

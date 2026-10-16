@@ -9,7 +9,7 @@ required.
 tools, extensions, and OS-level interception.
 
 ```dart
-import 'package:dart_monty_core/dart_monty_core.dart' show OSAccess;
+import 'package:dart_monty/dart_monty.dart';
 
 final session = await MontyRuntime.start(
   extensions: [EventLoopExtension()],
@@ -132,9 +132,9 @@ Group related tools into namespaced units.
 
 Intercept Python `pathlib` and `os` calls. The clock is answered by the worker, not by a handler.
 
-Import `OSAccess` and `MemoryFile` directly from
-`package:dart_monty_core/dart_monty_core.dart`. Register `OSAccess.call` with
-`registerOs`, or use its callback in `osHandlers`. `OSAccess(files: [...],
+`OSAccess` comes from `package:dart_monty/dart_monty.dart`. Import `MemoryFile`
+directly from `package:dart_monty_core/dart_monty_core.dart`. Register
+`OSAccess.call` with `registerOs`, or use its callback in `osHandlers`. `OSAccess(files: [...],
 environ: {...})` supplies memory files and environment values. Create parent
 directories before writing new files.
 
