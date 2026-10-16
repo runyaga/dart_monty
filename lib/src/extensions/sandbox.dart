@@ -361,7 +361,8 @@ class SandboxExtension extends MontyExtension {
   // ignore: unnecessarily-public-code, approved public D4a cap field.
   final int? memoryUsageLimit;
 
-  /// Maximum admitted, unfreed children, including completed and failed handles.
+  /// Maximum admitted, unfreed children, including completed and failed
+  /// handles.
   final int maxChildren;
 
   /// Maximum recursion depth for nested sandbox plugins.
