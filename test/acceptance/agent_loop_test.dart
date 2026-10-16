@@ -22,7 +22,7 @@ import 'dart:convert';
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/src/runtime/runtime.dart' show startRuntimeWith;
 import 'package:dart_monty_core/dart_monty_core.dart'
-    show MontyCrashedError, MontyInt, MontyRuntimeError;
+    show MontyCrashedError, MontyInt, MontyRuntimeError, MontyString;
 import 'package:test/test.dart';
 
 import '_platform.dart';
@@ -118,9 +118,12 @@ final class _Tools {
           ),
         ],
         (args, _) async {
-          calls.add(('narrate_say', args));
+          calls.add((
+            'narrate_say',
+            args.map((key, value) => MapEntry(key, value.dartValue)),
+          ));
 
-          return 'ok';
+          return const MontyString('ok');
         },
       ),
     ]),
@@ -132,21 +135,24 @@ final class _Tools {
           HostParam(name: 'lng', type: HostParamType.number),
         ],
         (args, _) async {
-          calls.add(('map_add_marker', args));
+          calls.add((
+            'map_add_marker',
+            args.map((key, value) => MapEntry(key, value.dartValue)),
+          ));
           if (markerFailure case final failure?) throw failure;
 
-          return 'marker-1';
+          return const MontyString('marker-1');
         },
       ),
       _tool(
         'map_sleep_ms',
         const [HostParam(name: 'ms', type: HostParamType.integer)],
         (args, _) async {
-          final ms = args['ms']! as int;
+          final ms = (args['ms']! as MontyInt).value;
           await Future<void>.delayed(Duration(milliseconds: ms));
           slept.add(ms);
 
-          return ms;
+          return MontyValue.fromDart(ms);
         },
         dispatch: DispatchMode.future,
       ),
@@ -156,14 +162,17 @@ final class _Tools {
         'http_get_json',
         const [HostParam(name: 'url', type: HostParamType.string)],
         (args, _) async {
-          calls.add(('http_get_json', args));
+          calls.add((
+            'http_get_json',
+            args.map((key, value) => MapEntry(key, value.dartValue)),
+          ));
           await Future<void>.delayed(const Duration(milliseconds: 50));
 
-          return {
+          return MontyValue.fromDart({
             'msg': 'm',
             'n': 3,
             'xs': [1.5, null],
-          };
+          });
         },
       ),
     ]),

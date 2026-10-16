@@ -1,4 +1,5 @@
 import 'package:dart_monty/dart_monty.dart';
+import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:test/test.dart';
 
 import '../../integration/shared_probe_extension.dart';
@@ -36,12 +37,14 @@ void main() {
       executionId: 'test',
     );
     await child.functions.firstOrNull!.handler!({
-      'name': 'answer',
-      'value': 42,
+      'name': const MontyString('answer'),
+      'value': const MontyInt(42),
     }, context);
     expect(
-      await child.functions.lastOrNull!.handler!({'name': 'answer'}, context),
-      42,
+      await child.functions.lastOrNull!.handler!({
+        'name': const MontyString('answer'),
+      }, context),
+      const MontyInt(42),
     );
     expect(child.pending.isCompleted, isFalse);
   });

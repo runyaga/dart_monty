@@ -162,7 +162,7 @@ void main() {
                 HostParam(name: 'n', type: HostParamType.integer),
               ],
             ),
-            handler: (args, _) async => args['n'],
+            handler: (args, _) async => args['n']!,
           ),
         );
     });

@@ -11,6 +11,7 @@
 library;
 
 import 'package:dart_monty/dart_monty.dart';
+import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:test/test.dart';
 
 import 'harness.dart';
@@ -25,7 +26,10 @@ void main() {
 
     setUp(() async {
       h = MontyHarness()
-        ..registerTool('risky_op', (args, ctx) async => 'success');
+        ..registerTool(
+          'risky_op',
+          (args, ctx) async => const MontyString('success'),
+        );
       await h.setup();
     });
 
@@ -62,7 +66,7 @@ result
 
     test('error in one tool does not block unrelated tools', () async {
       h
-        ..registerTool('stable_op', (args, ctx) async => 42)
+        ..registerTool('stable_op', (args, ctx) async => const MontyInt(42))
         ..injectFault('risky_op', ToolFault.throws(Exception('boom')));
 
       // The host error reaches Python as an uncaught exception.
@@ -88,7 +92,8 @@ result
       h = MontyHarness()
         ..registerTool(
           'fetch_price',
-          (args, ctx) async => {'price': 99.99, 'currency': 'USD'},
+          (args, ctx) async =>
+              MontyValue.fromDart({'price': 99.99, 'currency': 'USD'}),
           params: [
             const HostParam(name: 'symbol', type: HostParamType.string),
           ],
@@ -139,7 +144,10 @@ p is None
 
     setUp(() async {
       h = MontyHarness()
-        ..registerTool('slow_api', (args, ctx) async => 'response');
+        ..registerTool(
+          'slow_api',
+          (args, ctx) async => const MontyString('response'),
+        );
       await h.setup();
     });
 
@@ -172,9 +180,12 @@ p is None
 
     setUp(() async {
       h = MontyHarness()
-        ..registerTool('step_a', (args, ctx) async => 'a_ok')
-        ..registerTool('step_b', (args, ctx) async => 'b_ok')
-        ..registerTool('step_c', (args, ctx) async => 'c_ok');
+        ..registerTool('step_a', (args, ctx) async => const MontyString('a_ok'))
+        ..registerTool('step_b', (args, ctx) async => const MontyString('b_ok'))
+        ..registerTool(
+          'step_c',
+          (args, ctx) async => const MontyString('c_ok'),
+        );
       await h.setup();
     });
 
@@ -250,7 +261,7 @@ c = step_c()
       h = MontyHarness()
         ..registerTool(
           'log_event',
-          (args, ctx) async => null,
+          (args, ctx) async => const MontyNone(),
           params: [
             const HostParam(name: 'event', type: HostParamType.string),
             const HostParam(

@@ -74,7 +74,10 @@ void main() {
         expect(plugin.channelState, isA<EventLoopWaiting>());
 
         // Dispatch a value.
-        plugin.dispatch({'type': 'button_press', 'id': 'ok'});
+        plugin.dispatch(
+          MontyValue.fromDart({'type': 'button_press', 'id': 'ok'})
+              as MontyDict,
+        );
 
         await sub.asFuture<void>();
         await sub.cancel();
@@ -110,7 +113,9 @@ void main() {
           ..willReturn(const MontyNone());
 
         // Queue an event BEFORE execution starts.
-        plugin.dispatch({'type': 'early_click'});
+        plugin.dispatch(
+          MontyValue.fromDart({'type': 'early_click'}) as MontyDict,
+        );
 
         await bridge.execute('code').toList();
 
@@ -141,9 +146,9 @@ void main() {
 
         // Queue 3 events BEFORE execution starts.
         plugin
-          ..dispatch({'order': 1})
-          ..dispatch({'order': 2})
-          ..dispatch({'order': 3});
+          ..dispatch(MontyValue.fromDart({'order': 1}) as MontyDict)
+          ..dispatch(MontyValue.fromDart({'order': 2}) as MontyDict)
+          ..dispatch(MontyValue.fromDart({'order': 3}) as MontyDict);
 
         await bridge.execute('loop').toList();
 
@@ -171,11 +176,11 @@ void main() {
 
       // Wait for first recv.
       await _until(() => plugin.isWaiting);
-      plugin.dispatch({'cycle': 1});
+      plugin.dispatch(MontyValue.fromDart({'cycle': 1}) as MontyDict);
 
       // Wait for second recv.
       await _until(() => plugin.isWaiting);
-      plugin.dispatch({'cycle': 2});
+      plugin.dispatch(MontyValue.fromDart({'cycle': 2}) as MontyDict);
 
       await sub.asFuture<void>();
       await sub.cancel();
@@ -209,7 +214,7 @@ void main() {
 
       await bridge.execute('el_emit(value)').toList();
 
-      expect(plugin.lastEmitted, {'type': 'counter', 'value': 0});
+      expect(plugin.lastEmitted!.dartValue, {'type': 'counter', 'value': 0});
     });
 
     test('lastEmitted tracks most recent value', () async {
@@ -232,7 +237,7 @@ void main() {
 
       await bridge.execute('code').toList();
 
-      expect(plugin.lastEmitted, {'version': 2});
+      expect(plugin.lastEmitted!.dartValue, {'version': 2});
     });
   });
 
@@ -241,7 +246,9 @@ void main() {
       await plugin.onDispose();
 
       expect(
-        () => plugin.dispatch({'type': 'click'}),
+        () => plugin.dispatch(
+          MontyValue.fromDart({'type': 'click'}) as MontyDict,
+        ),
         throwsStateError,
       );
     });
@@ -265,7 +272,9 @@ void main() {
         // the bridge when the script errors — we dispatch to unblock the
         // fake's ResolveFutures step so the Complete(error) event can
         // flow through.
-        plugin.dispatch({'type': 'unblock'});
+        plugin.dispatch(
+          MontyValue.fromDart({'type': 'unblock'}) as MontyDict,
+        );
 
         await sub.asFuture<void>();
         await sub.cancel();
@@ -340,7 +349,7 @@ void main() {
         await _until(() => plugin.isWaiting);
         expect(plugin.channelState, isA<EventLoopWaiting>());
 
-        plugin.dispatch({'type': 'click'});
+        plugin.dispatch(MontyValue.fromDart({'type': 'click'}) as MontyDict);
         expect(plugin.channelState, const EventLoopExecuting());
 
         await sub.asFuture<void>();
@@ -374,7 +383,7 @@ void main() {
 
         await _until(() => plugin.isWaiting);
 
-        plugin.dispatch({'type': 'tap'});
+        plugin.dispatch(MontyValue.fromDart({'type': 'tap'}) as MontyDict);
 
         await sub.asFuture<void>();
         await sub.cancel();
@@ -405,7 +414,7 @@ void main() {
           ..willAwait([0])
           ..willReturn(const MontyNone());
 
-        final emitted = <Map<String, dynamic>?>[];
+        final emitted = <MontyDict?>[];
         final cleanup = effect(
           () => emitted.add(plugin.lastEmittedSignal.value),
         );
@@ -415,7 +424,7 @@ void main() {
 
         // Initial null + one update from emit.
         expect(emitted.where((e) => e != null), hasLength(1));
-        expect(emitted.last?['type'], 'label');
+        expect((emitted.last!.dartValue! as Map)['type'], 'label');
       },
     );
   });
@@ -468,7 +477,9 @@ void main() {
         await _until(() => plugin.isWaiting);
 
         // Dispatch event to unblock the completer and let the error flow.
-        plugin.dispatch({'type': 'trigger'});
+        plugin.dispatch(
+          MontyValue.fromDart({'type': 'trigger'}) as MontyDict,
+        );
 
         await sub.asFuture<void>();
         await sub.cancel();
@@ -496,7 +507,9 @@ void main() {
         await _until(() => plugin.isWaiting);
 
         // Dispatch to unblock, then the error Complete flows through.
-        plugin.dispatch({'type': 'unblock'});
+        plugin.dispatch(
+          MontyValue.fromDart({'type': 'unblock'}) as MontyDict,
+        );
 
         await sub.asFuture<void>();
         await sub.cancel();
@@ -544,7 +557,9 @@ void main() {
       // Let it reach the handler.
       await _until(() => syncPlugin.isWaiting);
 
-      syncPlugin.dispatch({'type': 'sync_click'});
+      syncPlugin.dispatch(
+        MontyValue.fromDart({'type': 'sync_click'}) as MontyDict,
+      );
 
       await sub.asFuture<void>();
       await sub.cancel();
@@ -569,7 +584,9 @@ void main() {
         expect(plugin.channelState, const EventLoopCompleted());
 
         expect(
-          () => plugin.dispatch({'type': 'too_late'}),
+          () => plugin.dispatch(
+            MontyValue.fromDart({'type': 'too_late'}) as MontyDict,
+          ),
           throwsStateError,
         );
       },
@@ -596,7 +613,9 @@ void main() {
 
         // Plugin is now waiting — dispatch must not throw.
         expect(
-          () => plugin.dispatch({'type': 'ok'}),
+          () => plugin.dispatch(
+            MontyValue.fromDart({'type': 'ok'}) as MontyDict,
+          ),
           returnsNormally,
         );
 
@@ -743,7 +762,7 @@ void main() {
         final done = bridge.execute('el_recv()').toList();
         await _until(() => plugin.isWaiting);
 
-        plugin.dispatch({'k': 1});
+        plugin.dispatch(MontyValue.fromDart({'k': 1}) as MontyDict);
 
         expect(plugin.isWaiting, isFalse);
         await done;
@@ -763,13 +782,13 @@ void main() {
         ..willReturn(const MontyNone());
       final first = bridge.execute('first').toList();
       await _until(() => plugin.channelState is EventLoopExecuting);
-      plugin.dispatch({'stale': true});
+      plugin.dispatch(MontyValue.fromDart({'stale': true}) as MontyDict);
       gate.complete();
       await first;
 
       final second = bridge.execute('el_recv()').toList();
       await _until(() => plugin.isWaiting);
-      plugin.dispatch({'fresh': true});
+      plugin.dispatch(MontyValue.fromDart({'fresh': true}) as MontyDict);
       await second;
 
       expect(_dart(_returnAnswers(fake).single), {'fresh': true});
@@ -843,7 +862,7 @@ void main() {
 
     test('childPolicy is clone, and a child shares no queue', () async {
       expect(plugin.childPolicy, ChildPolicy.clone);
-      plugin.dispatch({'parent': 1});
+      plugin.dispatch(MontyValue.fromDart({'parent': 1}) as MontyDict);
       final child =
           plugin.createChildInstance(const ChildSpawnContext(childId: 1))
               as EventLoopExtension;
@@ -862,7 +881,7 @@ void main() {
       final done = childBridge.execute('el_recv()').toList();
       // The parent's queued value does not reach the child.
       await _until(() => child.isWaiting);
-      child.dispatch({'child': 1});
+      child.dispatch(MontyValue.fromDart({'child': 1}) as MontyDict);
       await done;
 
       expect(_dart(_returnAnswers(childFake).single), {'child': 1});
@@ -885,7 +904,9 @@ void main() {
         extensions: [ext],
       );
       addTearDown(runtime.dispose);
-      await runtime.invoke('el_emit', {'value': <String, Object?>{}});
+      await runtime.invoke('el_emit', {
+        'value': MontyValue.fromDart(<String, Object?>{}),
+      });
       await ext.onDispose();
 
       await expectLater(

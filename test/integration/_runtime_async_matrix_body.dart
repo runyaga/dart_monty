@@ -11,6 +11,7 @@
 import 'dart:async';
 
 import 'package:dart_monty/dart_monty.dart';
+import 'package:dart_monty_core/dart_monty_core.dart';
 
 import 'package:test/test.dart';
 
@@ -31,7 +32,7 @@ void runRuntimeAsyncMatrixTests() {
       handler: (args, _) async {
         onCall();
 
-        return (args['value']! as int) + 1;
+        return MontyValue.fromDart(((args['value']! as MontyInt).value) + 1);
       },
     );
 
@@ -45,7 +46,7 @@ void runRuntimeAsyncMatrixTests() {
         await Future<void>.delayed(Duration.zero);
         onCall();
 
-        return (args['value']! as int) + 1;
+        return MontyValue.fromDart(((args['value']! as MontyInt).value) + 1);
       },
     );
 
@@ -59,7 +60,7 @@ void runRuntimeAsyncMatrixTests() {
         await Future<void>.delayed(Duration.zero);
         onCall();
 
-        return (args['value']! as int) + 1;
+        return MontyValue.fromDart(((args['value']! as MontyInt).value) + 1);
       },
       dispatch: DispatchMode.future,
     );
@@ -154,11 +155,11 @@ await doubled(3)
                 params: [HostParam(name: 'n', type: HostParamType.integer)],
               ),
               handler: (args, _) async {
-                final n = args['n']! as int;
+                final n = (args['n']! as MontyInt).value;
                 fired.add(n);
                 await Future<void>.delayed(Duration.zero);
 
-                return n * 10;
+                return MontyValue.fromDart(n * 10);
               },
               dispatch: DispatchMode.future,
             ),
@@ -219,7 +220,9 @@ results
               handler: (args, _) async {
                 await Future<void>.delayed(Duration.zero);
 
-                return 'hello, ${args['name']}';
+                return MontyString(
+                  'hello, ${(args['name']! as MontyString).value}',
+                );
               },
               dispatch: DispatchMode.future,
             ),
@@ -260,7 +263,7 @@ results
                 const Duration(milliseconds: delayMs),
               );
 
-              return args['n'];
+              return args['n']!;
             },
             dispatch: DispatchMode.future,
           ),

@@ -8,6 +8,7 @@ environment:
 dependencies:
   dart_monty:
     path: ../..
+  dart_monty_core: ^0.18.1
 
 # dart_monty_core resolves TRANSITIVELY FROM PUB.DEV without this, because
 # `dependency_overrides` do NOT propagate from the parent package into a

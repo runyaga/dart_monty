@@ -59,9 +59,9 @@ abstract class MontyBridge implements AttachContext {
   /// Callback exceptions are logged and swallowed; they never fail the call.
   ///
   /// Throws [ArgumentError] if [name] is not registered.
-  Future<Object?> invokeHostFunction(
+  Future<MontyValue> invokeHostFunction(
     String name,
-    Map<String, Object?> args, {
+    Map<String, MontyValue> args, {
     void Function(BridgeEvent)? onEvent,
   });
 

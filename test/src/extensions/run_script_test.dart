@@ -1,5 +1,6 @@
 import 'package:dart_monty/dart_monty.dart';
-import 'package:dart_monty_core/dart_monty_core.dart' show MontyInt, MontyTuple;
+import 'package:dart_monty_core/dart_monty_core.dart'
+    show MontyInt, MontyString, MontyTuple;
 
 import 'package:dart_monty_core/dart_monty_core_testing.dart';
 import 'package:test/test.dart';
@@ -54,12 +55,12 @@ void main() {
     final calls = <(String, Map<String, Object?>?)>[];
 
     final value = await fn.handler!({
-      'path': 'a.py',
-      'inputs': {'n': 1},
+      'path': const MontyString('a.py'),
+      'inputs': MontyValue.fromDart({'n': 1}),
     }, _ctx(calls));
 
     expect(calls.single.$1, 'source of a.py');
-    expect(calls.single.$2, {'n': 1});
+    expect(calls.single.$2, {'n': const MontyInt(1)});
     expect(value, const MontyInt(7));
   });
 
@@ -67,7 +68,7 @@ void main() {
     const tuple = MontyTuple([MontyInt(1), MontyInt(2)]);
 
     final value = await fn.handler!(
-      {'path': 'a.py'},
+      {'path': const MontyString('a.py')},
       _ctx([], answer: () async => tuple),
     );
 
@@ -77,7 +78,7 @@ void main() {
   test('passes null inputs when none are given', () async {
     final calls = <(String, Map<String, Object?>?)>[];
 
-    await fn.handler!({'path': 'a.py'}, _ctx(calls));
+    await fn.handler!({'path': const MontyString('a.py')}, _ctx(calls));
 
     expect(calls.single.$2, isNull);
   });
@@ -86,7 +87,7 @@ void main() {
     final bare = HostContext(emit: (_) {}, executionId: 'test');
 
     await expectLater(
-      fn.handler!({'path': 'a.py'}, bare),
+      fn.handler!({'path': const MontyString('a.py')}, bare),
       throwsA(isA<StateError>()),
     );
   });
@@ -97,7 +98,7 @@ void main() {
     );
 
     await expectLater(
-      failing.handler!({'path': 'x.py'}, _ctx([])),
+      failing.handler!({'path': const MontyString('x.py')}, _ctx([])),
       throwsA(
         isA<Exception>().having(
           (e) => '$e',
@@ -114,7 +115,7 @@ void main() {
 
     await expectLater(
       fn.handler!({
-        'path': 'x.py',
+        'path': const MontyString('x.py'),
       }, _ctx([], answer: () => Future.error(error))),
       throwsA(
         isA<Exception>().having(

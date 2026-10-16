@@ -17,6 +17,7 @@
 library;
 
 import 'package:dart_monty/dart_monty.dart';
+import 'package:dart_monty_core/dart_monty_core.dart';
 
 import 'package:web_example/demo_pool.dart';
 import 'package:web_example/demo_ready.dart';
@@ -30,7 +31,8 @@ HostFunction syncFetch(void Function() onCall) => HostFunction(
       ),
       handler: (args, _) async {
         onCall();
-        return (args['value']! as int) + 1;
+
+        return MontyValue.fromDart(((args['value']! as MontyInt).value) + 1);
       },
     );
 
@@ -44,7 +46,8 @@ HostFunction asyncFetch(void Function() onCall) => HostFunction(
       handler: (args, _) async {
         await Future<void>.delayed(Duration.zero);
         onCall();
-        return (args['value']! as int) + 1;
+
+        return MontyValue.fromDart(((args['value']! as MontyInt).value) + 1);
       },
     );
 
@@ -58,7 +61,8 @@ HostFunction slowFetch(Duration delay) => HostFunction(
       ),
       handler: (args, _) async {
         await Future<void>.delayed(delay);
-        return (args['n']! as int) * 10;
+
+        return MontyValue.fromDart(((args['n']! as MontyInt).value) * 10);
       },
     );
 
@@ -74,7 +78,8 @@ HostFunction asyncFetchFuture(void Function() onCall) => HostFunction(
       handler: (args, _) async {
         await Future<void>.delayed(Duration.zero);
         onCall();
-        return (args['value']! as int) + 1;
+
+        return MontyValue.fromDart(((args['value']! as MontyInt).value) + 1);
       },
       dispatch: DispatchMode.future,
     );
@@ -89,7 +94,8 @@ HostFunction slowFetchFuture(Duration delay) => HostFunction(
       ),
       handler: (args, _) async {
         await Future<void>.delayed(delay);
-        return (args['n']! as int) * 10;
+
+        return MontyValue.fromDart(((args['n']! as MontyInt).value) * 10);
       },
       dispatch: DispatchMode.future,
     );
@@ -231,8 +237,7 @@ await doubled(3)
     final r = await runtime.execute('await fetch(7)').result;
     print('    Python: await fetch(7)');
     print(
-      '    → value = ${r.dartValue}, '
-      'callback fired $calls time(s).',
+      '    → value = ${r.dartValue}, ' 'callback fired $calls time(s).',
     );
     await runtime.dispose();
   }

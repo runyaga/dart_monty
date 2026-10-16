@@ -4,6 +4,7 @@
 library;
 
 import 'package:dart_monty/dart_monty.dart';
+import 'package:dart_monty_core/dart_monty_core.dart';
 
 import 'package:test/test.dart';
 
@@ -30,8 +31,10 @@ void main() {
               HostParam(name: 'age', type: HostParamType.integer),
             ],
           ),
-          handler: (args, _) async =>
-              userInstance(args['name']! as String, args['age']! as int),
+          handler: (args, _) async => userInstance(
+            (args['name']! as MontyString).value,
+            (args['age']! as MontyInt).value,
+          ),
         ),
       );
     addTearDown(runtime.dispose);

@@ -122,7 +122,7 @@ void main() {
             type: HostParamType.integer,
             description: 'Max results',
             isRequired: false,
-            defaultValue: 10,
+            defaultValue: MontyInt(10),
           ),
           HostParam(
             name: 'verbose',
@@ -217,7 +217,7 @@ void main() {
           name: 'count',
           type: HostParamType.integer,
           isRequired: false,
-          defaultValue: 1,
+          defaultValue: MontyInt(1),
         ),
       ],
     );
@@ -227,7 +227,10 @@ void main() {
       const kwargs = <String, MontyValue>{};
 
       final result = mapAndValidate(schema, args, kwargs);
-      expect(result, {'name': 'Alice', 'count': 3});
+      expect(result, {
+        'name': const MontyString('Alice'),
+        'count': const MontyInt(3),
+      });
     });
 
     test('applies default for missing optional positional arg', () {
@@ -235,15 +238,17 @@ void main() {
       const kwargs = <String, MontyValue>{};
 
       final result = mapAndValidate(schema, args, kwargs);
-      expect(result, {'name': 'Bob', 'count': 1});
+      expect(result, {
+        'name': const MontyString('Bob'),
+        'count': const MontyInt(1),
+      });
     });
 
     test('an explicitly passed None reaches an any-typed param', () {
-      // The agent.html `workerpool` demo's shutdown sentinel, at the layer
-      // that broke it: msg_send(name='tasks', message=None).
+      // Explicit None must survive argument mapping into a host handler.
       const sendSchema = HostFunctionSchema(
-        name: 'msg_send',
-        description: 'Send a message on a named channel.',
+        name: 'store_value',
+        description: 'Store a named value.',
         params: [
           HostParam(name: 'name', type: HostParamType.string),
           HostParam(name: 'message', type: HostParamType.any),
@@ -253,15 +258,15 @@ void main() {
       const kwargs = <String, MontyValue>{'message': MontyNone()};
 
       expect(mapAndValidate(sendSchema, args, kwargs), {
-        'name': 'tasks',
-        'message': null,
+        'name': const MontyString('tasks'),
+        'message': const MontyNone(),
       });
     });
 
     test('omitting the any-typed param is still an error', () {
       const sendSchema = HostFunctionSchema(
-        name: 'msg_send',
-        description: 'Send a message on a named channel.',
+        name: 'store_value',
+        description: 'Store a named value.',
         params: [
           HostParam(name: 'name', type: HostParamType.string),
           HostParam(name: 'message', type: HostParamType.any),
@@ -298,7 +303,10 @@ void main() {
       const kwargs = <String, MontyValue>{'count': MontyInt(5)};
 
       final result = mapAndValidate(schema, args, kwargs);
-      expect(result, {'name': 'Alice', 'count': 5});
+      expect(result, {
+        'name': const MontyString('Alice'),
+        'count': const MontyInt(5),
+      });
     });
 
     test('throws FormatException for unknown kwargs', () {
@@ -326,7 +334,10 @@ void main() {
       const args = <MontyValue>[MontyString('Alice'), MontyInt(3)];
       const kwargs = <String, MontyValue>{'name': MontyString('Bob')};
 
-      expect(mapAndValidate(schema, args, kwargs), {'name': 'Bob', 'count': 3});
+      expect(mapAndValidate(schema, args, kwargs), {
+        'name': const MontyString('Bob'),
+        'count': const MontyInt(3),
+      });
     });
 
     test('names the function and both counts for extra positionals', () {

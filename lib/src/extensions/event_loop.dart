@@ -4,12 +4,12 @@ import 'package:dart_monty/src/bridge/event.dart';
 import 'package:dart_monty/src/bridge/session_bridge.dart';
 import 'package:dart_monty/src/extension/attach_context.dart';
 import 'package:dart_monty/src/extension/extension.dart';
-import 'package:dart_monty/src/host/args.dart';
 import 'package:dart_monty/src/host/context.dart';
 import 'package:dart_monty/src/host/function.dart';
 import 'package:dart_monty/src/host/param.dart';
 import 'package:dart_monty/src/host/param_type.dart';
 import 'package:dart_monty/src/host/schema.dart';
+import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:signals_core/signals_core.dart';
 
 /// State of the event loop channel lifecycle; internal to dm (read it
@@ -43,7 +43,7 @@ final class EventLoopWaiting extends EventLoopState {
   EventLoopWaiting(this.completer);
 
   /// The pending completer that will resume Python when fulfilled.
-  final Completer<Map<String, Object?>> completer;
+  final Completer<MontyDict> completer;
 }
 
 /// Script completed (normally or with error).
@@ -100,7 +100,9 @@ final class EventLoopDisposed extends EventLoopState {
 /// final ext = EventLoopExtension();
 /// final session = MontyRuntime(extensions: [ext]);
 /// session.executeStream(script);
-/// ext.dispatch({'action': 'increment'});
+/// ext.dispatch(const MontyDict([
+///   (MontyString('action'), MontyString('increment')),
+/// ]));
 /// ```
 ///
 /// This extension registers a stream wrapper in [onAttach] to track execution
@@ -121,9 +123,8 @@ class EventLoopExtension extends MontyExtension {
   final Signal<EventLoopState> _state = signal<EventLoopState>(
     const EventLoopIdle(),
   );
-  final Signal<Map<String, Object?>?> _lastEmitted =
-      signal<Map<String, Object?>?>(null);
-  final _eventQueue = <Map<String, Object?>>[];
+  final Signal<MontyDict?> _lastEmitted = signal<MontyDict?>(null);
+  final _eventQueue = <MontyDict>[];
   bool _disposed = false;
 
   @override
@@ -138,10 +139,10 @@ class EventLoopExtension extends MontyExtension {
   ///
   /// Updates whenever Python calls `el_emit`. Use [lastEmitted] for
   /// non-reactive reads, or subscribe via [effect] to react to each emission.
-  ReadonlySignal<Map<String, Object?>?> get lastEmittedSignal => _lastEmitted;
+  ReadonlySignal<MontyDict?> get lastEmittedSignal => _lastEmitted;
 
   /// The most recent value passed to `el_emit`, or `null` if none yet.
-  Map<String, Object?>? get lastEmitted => _lastEmitted.value;
+  MontyDict? get lastEmitted => _lastEmitted.value;
 
   /// Whether Python is currently paused at `el_recv()`.
   bool get isWaiting => _state.value is EventLoopWaiting;
@@ -230,7 +231,7 @@ class EventLoopExtension extends MontyExtension {
   ///
   /// Throws [StateError] if the plugin has been disposed or if the previous
   /// execution has already completed. Call `execute` again before dispatching.
-  void dispatch(Map<String, Object?> event) {
+  void dispatch(MontyDict event) {
     switch (_state.value) {
       case EventLoopDisposed():
         throw StateError('Cannot dispatch events on a disposed plugin');
@@ -242,14 +243,18 @@ class EventLoopExtension extends MontyExtension {
       case EventLoopWaiting(:final completer):
         logger.trace(
           'Dispatching event (resuming)',
-          attributes: {'eventKeys': '${event.keys.toList()}'},
+          attributes: {
+            'eventKeys': '${event.pairs.map((pair) => pair.$1).toList()}',
+          },
         );
         _state.value = const EventLoopExecuting();
         completer.complete(event);
       case EventLoopIdle() || EventLoopExecuting():
         logger.trace(
           'Dispatching event (queued)',
-          attributes: {'eventKeys': '${event.keys.toList()}'},
+          attributes: {
+            'eventKeys': '${event.pairs.map((pair) => pair.$1).toList()}',
+          },
         );
         _eventQueue.add(event);
     }
@@ -273,8 +278,8 @@ class EventLoopExtension extends MontyExtension {
     _state.dispose();
   }
 
-  Future<Object?> _handleRecv(
-    Map<String, Object?> args,
+  Future<MontyValue> _handleRecv(
+    Map<String, MontyValue> args,
     HostContext ctx,
   ) async {
     // If events are already queued, return the first one immediately.
@@ -283,18 +288,21 @@ class EventLoopExtension extends MontyExtension {
     }
 
     // No events queued — park in waiting state with the live completer.
-    final completer = Completer<Map<String, Object?>>();
+    final completer = Completer<MontyDict>();
     _state.value = EventLoopWaiting(completer);
     logger.trace('Waiting for event');
 
     return completer.future;
   }
 
-  Future<Object?> _handleEmit(Map<String, Object?> args, HostContext ctx) {
-    final value = args.mapArg('value');
+  Future<MontyValue> _handleEmit(
+    Map<String, MontyValue> args,
+    HostContext ctx,
+  ) {
+    final value = args['value']! as MontyDict;
     _lastEmitted.value = value;
 
-    return Future.value();
+    return Future.value(const MontyNone());
   }
 }
 

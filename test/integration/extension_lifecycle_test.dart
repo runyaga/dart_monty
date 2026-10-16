@@ -3,6 +3,7 @@ library;
 
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/src/extension/coordinator.dart';
+import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:struct_log/struct_log.dart';
 import 'package:test/test.dart';
 
@@ -78,10 +79,15 @@ void main() {
 
   test('direct invocation and Python share the same extension state', () async {
     expect(await _run(bridge, 'lifecycle_store("python")'), 'python');
-    expect(await bridge.invokeHostFunction('lifecycle_read', {}), 'python');
     expect(
-      await bridge.invokeHostFunction('lifecycle_store', {'value': 'dart'}),
-      'dart',
+      await bridge.invokeHostFunction('lifecycle_read', {}),
+      const MontyString('python'),
+    );
+    expect(
+      await bridge.invokeHostFunction('lifecycle_store', {
+        'value': const MontyString('dart'),
+      }),
+      const MontyString('dart'),
     );
     expect(await _run(bridge, 'lifecycle_read()'), 'dart');
     expect(probe.stores, 2);
@@ -91,7 +97,9 @@ void main() {
     expect(await _run(bridge, 'lifecycle_store(3)'), 3);
     bridge.unregister('lifecycle_store');
     expect(
-      () => bridge.invokeHostFunction('lifecycle_store', {'value': 4}),
+      () => bridge.invokeHostFunction('lifecycle_store', {
+        'value': const MontyInt(4),
+      }),
       throwsArgumentError,
     );
     expect(await _run(bridge, 'lifecycle_read()'), 3);
@@ -121,10 +129,10 @@ void main() {
     final events = <BridgeEvent>[];
     final result = await bridge.invokeHostFunction(
       'lifecycle_emit',
-      {'text': 'dart'},
+      {'text': const MontyString('dart')},
       onEvent: events.add,
     );
-    expect(result, 4);
+    expect(result, const MontyInt(4));
     final emitted = _only(events.whereType<BridgeFunctionEmit>());
     expect(emitted.text, 'dart');
     expect(emitted.callId, 'lifecycle_emit');
@@ -135,10 +143,10 @@ void main() {
     () async {
       final result = await bridge.invokeHostFunction(
         'lifecycle_emit',
-        {'text': 'dart'},
+        {'text': const MontyString('dart')},
         onEvent: (_) => throw StateError('sink failed'),
       );
-      expect(result, 4);
+      expect(result, const MontyInt(4));
       expect(await _run(bridge, 'lifecycle_emit("still working")'), 13);
     },
   );
@@ -146,7 +154,10 @@ void main() {
   test('required any accepts Python None as a supplied value', () async {
     expect(await _run(bridge, 'lifecycle_store(None)'), isNull);
     expect(probe.stores, 1);
-    expect(await bridge.invokeHostFunction('lifecycle_read', {}), isNull);
+    expect(
+      await bridge.invokeHostFunction('lifecycle_read', {}),
+      const MontyNone(),
+    );
   });
 
   test(
@@ -295,8 +306,8 @@ void main() {
 
     test('pre-dispatched events reach Python in FIFO order', () async {
       loop
-        ..dispatch({'value': 1})
-        ..dispatch({'value': 2});
+        ..dispatch(const MontyDict([(MontyString('value'), MontyInt(1))]))
+        ..dispatch(const MontyDict([(MontyString('value'), MontyInt(2))]));
       expect(
         await _run(bridge, '[await el_recv(), await el_recv()]'),
         [
@@ -315,9 +326,12 @@ void main() {
           'event = await el_recv()\nawait el_emit(event)\nevent',
         );
         await _untilWaiting(loop);
-        loop.dispatch({'value': 42});
+        loop.dispatch(const MontyDict([(MontyString('value'), MontyInt(42))]));
         expect(await result, {'value': 42});
-        expect(loop.lastEmitted, {'value': 42});
+        expect(
+          loop.lastEmitted,
+          const MontyDict([(MontyString('value'), MontyInt(42))]),
+        );
         expect(loop.isWaiting, isFalse);
       },
     );
@@ -326,10 +340,17 @@ void main() {
       'dispatch rejects completed runs and accepts a new waiting run',
       () async {
         expect(await _run(bridge, 'lifecycle_store(1)'), 1);
-        expect(() => loop.dispatch({'stale': true}), throwsStateError);
+        expect(
+          () => loop.dispatch(
+            const MontyDict([(MontyString('stale'), MontyBool(true))]),
+          ),
+          throwsStateError,
+        );
         final result = _run(bridge, 'await el_recv()');
         await _untilWaiting(loop);
-        loop.dispatch({'fresh': true});
+        loop.dispatch(
+          const MontyDict([(MontyString('fresh'), MontyBool(true))]),
+        );
         expect(await result, {'fresh': true});
       },
     );

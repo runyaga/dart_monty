@@ -48,10 +48,12 @@ void main() {
         .firstWhere((f) => f.schema.name == 'sandbox_await')
         .handler;
 
-    final handle = (await spawnHandler!({'code': code}, _testCtx))! as int;
+    final handle =
+        (await spawnHandler!({'code': MontyValue.fromDart(code)}, _testCtx))
+            as int;
 
     try {
-      await awaitHandler!({'handle': handle}, _testCtx);
+      await awaitHandler!({'handle': MontyValue.fromDart(handle)}, _testCtx);
       fail('Expected ChildSandboxException');
     } on ChildSandboxException catch (e) {
       return e;

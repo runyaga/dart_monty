@@ -4,6 +4,7 @@ library;
 
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/src/extension/coordinator.dart';
+import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:test/test.dart';
 
 import '_worker.dart';
@@ -304,7 +305,8 @@ class _GreeterExtension extends MontyExtension {
           ),
         ],
       ),
-      handler: (args, _) async => 'Hello, ${args['name']}!',
+      handler: (args, _) async =>
+          MontyString('Hello, ${(args['name']! as MontyString).value}!'),
     ),
   ];
 
@@ -333,14 +335,14 @@ class _CounterExtension extends MontyExtension {
         name: 'counter_increment',
         description: 'Increment the counter.',
       ),
-      handler: (args, _) async => ++count,
+      handler: (args, _) async => MontyValue.fromDart(++count),
     ),
     HostFunction(
       schema: const HostFunctionSchema(
         name: 'counter_get',
         description: 'Get the current counter value.',
       ),
-      handler: (args, _) async => count,
+      handler: (args, _) async => MontyValue.fromDart(count),
     ),
   ];
 

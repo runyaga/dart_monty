@@ -19,6 +19,7 @@ No imports, no setup -- just call the function.
 
 ```dart
 import 'package:dart_monty/dart_monty.dart';
+import 'package:dart_monty_core/dart_monty_core.dart' show MontyString;
 
 Future<void> main() async {
   final runtime = MontyRuntime();
@@ -33,8 +34,8 @@ Future<void> main() async {
       ],
     ),
     handler: (args, ctx) async {
-      final name = args['name'] as String;
-      return 'Hello, $name!';
+      final name = (args['name']! as MontyString).value;
+      return MontyString('Hello, $name!');
     },
   ));
 

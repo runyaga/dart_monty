@@ -730,6 +730,18 @@ jobs:
             --reporter=expanded 2>&1 | tee /tmp/acceptance-web.log
           # 12 tests in each of the 4 cells.
           bash tool/assert_test_count.sh /tmp/acceptance-web.log 48 acceptance-web
+      - name: D3 typed host and sub-execution contracts (browser compilers)
+        if: ${{ !cancelled() && steps.pubget.outcome == 'success' }}
+        env:
+          MOZ_HEADLESS: '1'
+        run: |
+          set -o pipefail
+          dart test -p chrome,firefox -c dart2js,dart2wasm \
+            test/integration/typed_host_contract_test.dart \
+            test/integration/sub_execution_limits_test.dart \
+            test/integration/child_limit_selection_test.dart \
+            --run-skipped --tags integration --exclude-tags d1-pending \
+            --reporter=expanded 2>&1 | tee /tmp/d3-contracts-web.log
       - name: Upload the assembled site on failure
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7

@@ -69,13 +69,13 @@ class HostFunctionSchema {
 /// 3. Each param is validated via [HostParam.validate].
 ///
 /// Throws [FormatException] if required params are missing or types mismatch.
-Map<String, Object?> mapAndValidate(
+Map<String, MontyValue> mapAndValidate(
   HostFunctionSchema schema,
   List<MontyValue> args,
   Map<String, MontyValue> kwargs,
 ) {
   final HostFunctionSchema(:name, :params) = schema;
-  final raw = <String, Object?>{};
+  final raw = <String, MontyValue>{};
   final positionalArgs = args;
 
   // Reject extra positional args.
@@ -88,7 +88,7 @@ Map<String, Object?> mapAndValidate(
 
   // Positional args → named params by schema order
   for (var i = 0; i < params.length && i < positionalArgs.length; i++) {
-    raw[params[i].name] = positionalArgs[i].dartValue;
+    raw[params[i].name] = positionalArgs[i];
   }
 
   // Kwargs overlay — reject unknown keys.
@@ -99,11 +99,11 @@ Map<String, Object?> mapAndValidate(
     }
   }
   for (final entry in kwargs.entries) {
-    raw[entry.key] = entry.value.dartValue;
+    raw[entry.key] = entry.value;
   }
 
   // Validate all params
-  final validated = <String, Object?>{};
+  final validated = <String, MontyValue>{};
   for (final param in params) {
     // `containsKey`, not a null check: `raw` holds only the arguments the
     // caller actually supplied, so this is the one place that can tell
@@ -116,4 +116,11 @@ Map<String, Object?> mapAndValidate(
   }
 
   return validated;
+}
+
+/// Rejects an invalid configured default when its function is registered.
+void validateDefaults(HostFunctionSchema schema) {
+  for (final param in schema.params) {
+    if (param.defaultValue case final value?) param.validate(value);
+  }
 }

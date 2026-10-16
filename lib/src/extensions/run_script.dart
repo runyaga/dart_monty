@@ -5,7 +5,7 @@ import 'package:dart_monty/src/host/param.dart';
 import 'package:dart_monty/src/host/param_type.dart';
 import 'package:dart_monty/src/host/schema.dart';
 import 'package:dart_monty_core/dart_monty_core.dart'
-    show MontyError, MontyValue;
+    show MontyDict, MontyError, MontyString, MontyValue;
 
 /// Builds a `run_script` [HostFunction] that Python code can call to execute
 /// another script file and receive its last-expression value.
@@ -59,11 +59,9 @@ HostFunction buildRunScriptFunction(
       ],
     ),
     handler: (args, ctx) async {
-      final path = args['path']! as String;
+      final path = (args['path']! as MontyString).value;
       final rawInputs = args['inputs'];
-      final inputs = rawInputs is Map
-          ? rawInputs.map((k, v) => MapEntry(k.toString(), v as Object?))
-          : null;
+      final inputs = rawInputs is MontyDict ? _scriptInputs(rawInputs) : null;
 
       final subExecute = ctx.subExecute;
       if (subExecute == null) {
@@ -92,3 +90,60 @@ HostFunction buildRunScriptFunction(
     },
   );
 }
+
+/// Variable names are Python identifiers, never stringified dict keys.
+Map<String, MontyValue> _scriptInputs(MontyDict inputs) {
+  final result = <String, MontyValue>{};
+  for (final (key, value) in inputs.pairs) {
+    if (key is! MontyString ||
+        !_variableName.hasMatch(key.value) ||
+        _keywords.contains(key.value)) {
+      throw ArgumentError('run_script inputs require string variable names');
+    }
+    result[key.value] = value;
+  }
+
+  return result;
+}
+
+final _variableName = RegExp(
+  r'^[_\p{XID_Start}]\p{XID_Continue}*$',
+  unicode: true,
+);
+const _keywords = {
+  'False',
+  'None',
+  'True',
+  'and',
+  'as',
+  'assert',
+  'async',
+  'await',
+  'break',
+  'class',
+  'continue',
+  'def',
+  'del',
+  'elif',
+  'else',
+  'except',
+  'finally',
+  'for',
+  'from',
+  'global',
+  'if',
+  'import',
+  'in',
+  'is',
+  'lambda',
+  'nonlocal',
+  'not',
+  'or',
+  'pass',
+  'raise',
+  'return',
+  'try',
+  'while',
+  'with',
+  'yield',
+};

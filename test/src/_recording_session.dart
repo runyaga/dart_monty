@@ -40,6 +40,9 @@ final class RecordingSession implements MontySession {
   /// completes.
   Future<void>? holdFailure;
 
+  /// The error raised by the most recent failing feed, before wrapping by dm.
+  Object? feedError;
+
   @override
   int? get workerPid => inner.workerPid;
 
@@ -65,10 +68,9 @@ final class RecordingSession implements MontySession {
       skipTypeCheck: skipTypeCheck,
     );
     final hold = holdFailure;
-    if (hold == null) return fed;
-
     return fed.catchError((Object e, StackTrace st) async {
-      await hold;
+      feedError = e;
+      if (hold != null) await hold;
       Error.throwWithStackTrace(e, st);
     });
   }

@@ -1,6 +1,6 @@
 {
   "_dcm_version": "1.39.0",
-  "_grand_total": 167,
+  "_grand_total": 156,
   "checks": {
     "calculate-metrics": {
       "by_file": {
@@ -14,15 +14,15 @@
         "lib/src/os_call/fs_handlers.dart": 2,
         "lib/src/os_call/os_handlers.dart": 1,
         "lib/src/os_call/sandboxed_fs_handler.dart": 2,
-        "lib/src/runtime/runtime.dart": 3
+        "lib/src/runtime/runtime.dart": 2
       },
       "by_rule": {
         "cyclomatic-complexity": 6,
-        "lines-of-code": 15,
+        "lines-of-code": 14,
         "number-of-methods": 2,
         "number-of-parameters": 2
       },
-      "total": 25
+      "total": 24
     },
     "check-dependencies": {
       "by_file": {
@@ -47,20 +47,20 @@
         "lib/src/bridge/struct_log_logger.dart": 1,
         "lib/src/extension/coordinator.dart": 6,
         "lib/src/extension/extension.dart": 1,
-        "lib/src/extensions/sandbox.dart": 5,
+        "lib/src/extensions/sandbox.dart": 2,
         "lib/src/host/context.dart": 3,
-        "lib/src/host/dispatch.dart": 3,
+        "lib/src/host/dispatch.dart": 2,
         "lib/src/host/function.dart": 4,
-        "lib/src/host/param.dart": 9,
+        "lib/src/host/param.dart": 4,
         "lib/src/host/schema.dart": 2,
         "lib/src/runtime/runtime.dart": 2
       },
       "by_rule": {
         "never-passed-parameter-issue": 7,
-        "unnecessary-nullable-parameter-issue": 8,
-        "unnecessary-optional-parameter-issue": 24
+        "unnecessary-nullable-parameter-issue": 4,
+        "unnecessary-optional-parameter-issue": 19
       },
-      "total": 39
+      "total": 30
     },
     "check-unnecessarily-public-code": {
       "by_file": {
@@ -71,7 +71,7 @@
         "lib/src/extensions/sandbox.dart": 21,
         "lib/src/host/context.dart": 4,
         "lib/src/host/function.dart": 2,
-        "lib/src/host/param.dart": 2,
+        "lib/src/host/param.dart": 1,
         "lib/src/host/schema.dart": 1,
         "lib/src/introspection_functions.dart": 1,
         "lib/src/os_call/default_os_handler_native.dart": 1,
@@ -84,9 +84,9 @@
         "lib/src/runtime/value_x.dart": 9
       },
       "by_rule": {
-        "unnecessarily-public-issue": 94
+        "unnecessarily-public-issue": 93
       },
-      "total": 94
+      "total": 93
     },
     "check-unused-code": {
       "by_file": {

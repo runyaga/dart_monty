@@ -42,6 +42,10 @@ int defaultPoolSize(List<MontyExtension>? extensions) {
 ExtensionCoordinator? runtimeCoordinator(MontyRuntime runtime) =>
     runtime._sharedRegistry;
 
+/// Configured per-session limits, for internal child runtime construction.
+// ignore: unnecessarily-public-code, internal cross-library access only.
+ResourceLimits? runtimeLimits(MontyRuntime runtime) => runtime._limits;
+
 /// Starts a [MontyRuntime] whose sessions come from [checkout] instead of a
 /// pool; [closePool] runs once when the runtime is disposed.
 ///
@@ -271,6 +275,7 @@ class MontyRuntime implements MontyRuntimeRef {
   /// In sandbox mode, the function is registered on every fresh bridge.
   void register(HostFunction function) {
     if (_disposed) throw StateError('MontyRuntime has been disposed');
+    validateDefaults(function.schema);
     _sharedBridge?.register(function);
     _extraFunctions.add(function);
   }
@@ -315,13 +320,7 @@ class MontyRuntime implements MontyRuntimeRef {
       );
     } else {
       _sharedRun = run;
-      unawaited(
-        _settle(run, () => _runShared(run, code, os, values)).whenComplete(
-          () {
-            if (identical(_sharedRun, run)) _sharedRun = null;
-          },
-        ),
-      );
+      unawaited(_settle(run, () => _runShared(run, code, os, values)));
     }
 
     return ExecutionHandle(
@@ -342,9 +341,9 @@ class MontyRuntime implements MontyRuntimeRef {
   /// - [StateError] if the runtime is disposed.
   /// - [UnsupportedError] if called on a sandbox-mode runtime.
   /// - [ArgumentError] if [name] is not registered.
-  Future<Object?> invoke(
+  Future<MontyValue> invoke(
     String name,
-    Map<String, Object?> args, {
+    Map<String, MontyValue> args, {
     void Function(BridgeEvent)? onEvent,
   }) async {
     if (_disposed) throw StateError('MontyRuntime has been disposed');
@@ -410,7 +409,8 @@ class MontyRuntime implements MontyRuntimeRef {
   // ---------------------------------------------------------------------------
 
   /// Runs [code] on a second session checked out of the pool, with
-  /// default limits, [inputs] bound as globals by the feed, no OS handler
+  /// the runtime's configured limits, [inputs] bound as globals by the feed,
+  /// no OS handler
   /// and no host functions; the session is closed afterwards. Every
   /// `HostContext.subExecute` of this runtime's bridges, with
   /// [cancelToken] the calling execution's and [generation] the
@@ -424,7 +424,7 @@ class MontyRuntime implements MontyRuntimeRef {
   Future<MontyValue> _subExecute(
     String code, {
     required int generation,
-    Map<String, Object?>? inputs,
+    Map<String, MontyValue>? inputs,
     CancelToken? cancelToken,
   }) async {
     String? stopped() {
@@ -438,8 +438,7 @@ class MontyRuntime implements MontyRuntimeRef {
     }
 
     if (stopped() case final reason?) throw StateError(reason);
-    final values = _inputValues(inputs);
-    final session = await _checkout();
+    final session = await _checkout(limits: _limits);
     if (stopped() case final reason?) {
       await session.close();
       throw StateError(reason);
@@ -452,7 +451,7 @@ class MontyRuntime implements MontyRuntimeRef {
 
     if (cancelToken != null) unawaited(closeOnCancel(cancelToken));
     try {
-      return await session.feedRun(code, inputs: values);
+      return await session.feedRun(code, inputs: inputs);
     } finally {
       _subSessions.remove(session);
       await session.close();
@@ -498,6 +497,9 @@ class MontyRuntime implements MontyRuntimeRef {
         ..session = null
         ..finished = true;
       _live.remove(run);
+      // Result and event listeners may immediately execute again. Release
+      // only this run's slot before either completion becomes observable.
+      if (identical(_sharedRun, run)) _sharedRun = null;
     }
     if (error != null) {
       run.result.completeError(error, stackTrace);

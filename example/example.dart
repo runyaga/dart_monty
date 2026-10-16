@@ -20,6 +20,7 @@
 import 'dart:io';
 
 import 'package:dart_monty/dart_monty.dart';
+import 'package:dart_monty_core/dart_monty_core.dart';
 
 Future<void> main() async {
   final worker = Platform.environment['DART_MONTY_WORKER'];
@@ -54,7 +55,8 @@ Future<void> main() async {
           description: 'Simulates an async fetch — returns n × 10.',
           params: [HostParam(name: 'n', type: HostParamType.integer)],
         ),
-        handler: (args, _) async => (args['n']! as int) * 10,
+        handler: (args, _) async =>
+            MontyValue.fromDart(((args['n']! as MontyInt).value) * 10),
       ),
     );
 

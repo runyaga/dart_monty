@@ -1,0 +1,32 @@
+{
+  "lib/src/host/function.dart": [
+    "typedef HostFunctionHandler = Future<MontyValue> Function(Map<String, MontyValue> args, HostContext ctx);"
+  ],
+  "lib/src/host/context.dart": [
+    "typedef HostSubExecutor = Future<MontyValue> Function(String code, {Map<String, MontyValue>? inputs});"
+  ],
+  "lib/src/host/param.dart": [
+    "const HostParam({ required this.name, required this.type, this.isRequired = true, this.description, this.defaultValue, this.jsonSchemaOverride, });",
+    "final MontyValue? defaultValue;",
+    "MontyValue validate(MontyValue? value, {bool isPresent = true})"
+  ],
+  "lib/src/host/schema.dart": [
+    "Map<String, MontyValue> mapAndValidate( HostFunctionSchema schema, List<MontyValue> args, Map<String, MontyValue> kwargs, )"
+  ],
+  "lib/src/runtime/runtime.dart": [
+    "Future<MontyValue> invoke( String name, Map<String, MontyValue> args, { void Function(BridgeEvent)? onEvent, })",
+    "ExecutionHandle execute( String code, { OsHandler? os, Map<String, Object?>? inputs, })"
+  ],
+  "lib/src/bridge/bridge.dart": [
+    "Future<MontyValue> invokeHostFunction( String name, Map<String, MontyValue> args, { void Function(BridgeEvent)? onEvent, });"
+  ],
+  "lib/src/bridge/session_bridge.dart": [
+    "Future<MontyValue> invokeHostFunction( String name, Map<String, MontyValue> args, { void Function(BridgeEvent)? onEvent, })"
+  ],
+  "lib/src/extensions/event_loop.dart": [
+    "void dispatch(MontyDict event)",
+    "MontyDict? get lastEmitted",
+    "ReadonlySignal<MontyDict?> get lastEmittedSignal",
+    "final Completer<MontyDict> completer;"
+  ]
+}

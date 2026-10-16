@@ -14,6 +14,7 @@ library;
 
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/src/extensions/event_loop.dart';
+import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:signals_core/signals_core.dart';
 import 'package:test/test.dart';
 
@@ -40,7 +41,9 @@ void main() {
       'records every state value including initial Idle',
       () async {
         final cap = SignalCapture(el.channelStateSignal);
-        el.dispatch({'pre': true}); // pre-queue so no wait needed
+        el.dispatch(
+          MontyValue.fromDart({'pre': true}) as MontyDict,
+        ); // pre-queue so no wait needed
 
         await h.run('await el_recv()');
 
@@ -97,7 +100,7 @@ void main() {
         final handle = h.runtime.execute(script);
 
         await _untilWaiting(el);
-        el.dispatch({'go': true});
+        el.dispatch(MontyValue.fromDart({'go': true}) as MontyDict);
         await handle.result;
 
         cleanup();
@@ -233,7 +236,8 @@ el_emit(value={'tick': 2})
     late FauxUi ui;
 
     setUp(() async {
-      h = MontyHarness()..registerTool('ping', (a, c) async => 'pong');
+      h = MontyHarness()
+        ..registerTool('ping', (a, c) async => const MontyString('pong'));
       await h.setup();
       ui = FauxUi(h.runtime);
     });

@@ -1,4 +1,5 @@
 import 'package:dart_monty/dart_monty.dart';
+import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:test/test.dart';
 
 import '../../integration/_worker.dart';
@@ -61,7 +62,10 @@ void main() {
           subExecute: wired,
         );
 
-        final r = await ctx.subExecute!('x * 2', inputs: {'x': 21});
+        final r = await ctx.subExecute!(
+          'x * 2',
+          inputs: {'x': const MontyInt(21)},
+        );
         expect(r.dartValue, 42);
       },
       // Needs the native runtime bound via FFI/WASM harness; the structural

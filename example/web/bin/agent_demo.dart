@@ -16,6 +16,7 @@ import 'dart:convert';
 import 'dart:js_interop';
 
 import 'package:dart_monty/dart_monty.dart';
+import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:file/memory.dart';
 import 'package:web_example/demo_pool.dart';
 import 'package:web_example/demo_ready.dart';
@@ -46,7 +47,7 @@ bool _suppressEvents = false;
 // Host functions — demo tools callable from Python
 // ---------------------------------------------------------------------------
 
-final _demoHostFunctions = <HostFunction>[
+final _demoHostFunctions = [
   HostFunction(
     schema: const HostFunctionSchema(
       name: 'echo',
@@ -60,8 +61,9 @@ final _demoHostFunctions = <HostFunction>[
       ],
     ),
     handler: (args, _) async {
-      final msg = args['msg']! as String;
-      return msg.toUpperCase();
+      final msg = (args['msg']! as MontyString).value;
+
+      return MontyValue.fromDart(msg.toUpperCase());
     },
   ),
   HostFunction(
@@ -82,9 +84,10 @@ final _demoHostFunctions = <HostFunction>[
       ],
     ),
     handler: (args, _) async {
-      final a = args['a']! as num;
-      final b = args['b']! as num;
-      return a + b;
+      final a = args['a']!.dartValue! as num;
+      final b = args['b']!.dartValue! as num;
+
+      return MontyValue.fromDart(a + b);
     },
   ),
   HostFunction(
@@ -93,7 +96,7 @@ final _demoHostFunctions = <HostFunction>[
       description: 'Returns the current time as an ISO 8601 string.',
     ),
     handler: (_, __) async {
-      return DateTime.now().toIso8601String();
+      return MontyValue.fromDart(DateTime.now().toIso8601String());
     },
   ),
 
@@ -108,8 +111,9 @@ final _demoHostFunctions = <HostFunction>[
       ],
     ),
     handler: (args, _) async {
-      _kvStore[args['key']! as String] = args['value'];
-      return null;
+      _kvStore[(args['key']! as MontyString).value] = args['value'];
+
+      return const MontyNone();
     },
   ),
   HostFunction(
@@ -119,7 +123,7 @@ final _demoHostFunctions = <HostFunction>[
       params: [HostParam(name: 'key', type: HostParamType.string)],
     ),
     handler: (args, _) async {
-      return _kvStore[args['key']! as String];
+      return MontyValue.fromDart(_kvStore[(args['key']! as MontyString).value]);
     },
   ),
   HostFunction(
@@ -128,7 +132,7 @@ final _demoHostFunctions = <HostFunction>[
       description: 'List all keys in the key-value store.',
     ),
     handler: (_, __) async {
-      return _kvStore.keys.toList();
+      return MontyValue.fromDart(_kvStore.keys.toList());
     },
   ),
 
@@ -140,19 +144,22 @@ final _demoHostFunctions = <HostFunction>[
       params: [HostParam(name: 'url', type: HostParamType.string)],
     ),
     handler: (args, _) async {
-      final url = args['url']! as String;
+      final url = (args['url']! as MontyString).value;
       // Simulated API responses
       if (url.contains('users')) {
-        return [
+        return MontyValue.fromDart([
           {'name': 'Alice', 'age': 30, 'role': 'engineer'},
           {'name': 'Bob', 'age': 25, 'role': 'designer'},
           {'name': 'Charlie', 'age': 35, 'role': 'manager'},
-        ];
+        ]);
       }
       if (url.contains('weather')) {
-        return {'city': 'San Francisco', 'temp': 68, 'condition': 'sunny'};
+        return MontyValue.fromDart(
+          {'city': 'San Francisco', 'temp': 68, 'condition': 'sunny'},
+        );
       }
-      return {'error': 'Unknown endpoint', 'url': url};
+
+      return MontyValue.fromDart({'error': 'Unknown endpoint', 'url': url});
     },
   ),
 
@@ -165,7 +172,7 @@ final _demoHostFunctions = <HostFunction>[
     ),
     handler: (args, _) async {
       // The event will be visible in the bridge events panel
-      return null;
+      return const MontyNone();
     },
   ),
 ];
@@ -195,9 +202,11 @@ Future<bool> _init() async {
     _session = session;
 
     _initialized = true;
+
     return true;
   } on Object catch (e) {
     print('AgentDemo init error: $e');
+
     return false;
   }
 }
@@ -371,9 +380,10 @@ String _getState() => _stateCache;
 Future<void> _refreshState() async {
   if (_session == null || _trackedNames.isEmpty) {
     _stateCache = '{}';
+
     return;
   }
-  final lines = <String>['_st = {}'];
+  final lines = ['_st = {}'];
   for (final name in _trackedNames) {
     lines
       ..add('try: _st[${jsonEncode(name)}] = repr($name)')
@@ -414,6 +424,7 @@ String _getSchemas() {
         },
       )
       .toList();
+
   return jsonEncode(schemas);
 }
 
@@ -456,6 +467,7 @@ Future<void> main() async {
   if (!ok) {
     print('AGENT_DEMO_ERROR: init failed');
     montyDemoFailed('agent_demo', 'session init failed');
+
     return;
   }
 

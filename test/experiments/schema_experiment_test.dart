@@ -10,6 +10,7 @@
 library;
 
 import 'package:dart_monty/dart_monty.dart';
+import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:test/test.dart';
 
 import 'harness.dart';
@@ -26,7 +27,7 @@ void main() {
       h = MontyHarness()
         ..registerTool(
           'search',
-          (a, c) async => [],
+          (a, c) async => MontyValue.fromDart([]),
           description: 'Search for items',
           params: [
             const HostParam(
@@ -42,7 +43,7 @@ void main() {
             ),
           ],
         )
-        ..registerTool('noop', (a, c) async => null);
+        ..registerTool('noop', (a, c) async => const MontyNone());
       await h.setup();
     });
 
@@ -80,9 +81,9 @@ void main() {
         ..registerTool(
           'typed_tool',
           (args, ctx) async {
-            final n = args['n'];
+            final n = args['n']!.dartValue;
             if (n is! int) throw ArgumentError('n must be int, got $n');
-            return n * 2;
+            return MontyInt(n * 2);
           },
           params: [
             const HostParam(name: 'n', type: HostParamType.integer),
@@ -129,9 +130,11 @@ void main() {
         ..registerTool(
           'greet',
           (args, ctx) async {
-            final name = args['name']! as String;
-            final lang = args['lang'] as String? ?? 'en';
-            return lang == 'es' ? 'Hola, $name!' : 'Hello, $name!';
+            final name = (args['name']! as MontyString).value;
+            final lang = args['lang']!.dartValue as String? ?? 'en';
+            return MontyValue.fromDart(
+              lang == 'es' ? 'Hola, $name!' : 'Hello, $name!',
+            );
           },
           params: [
             const HostParam(name: 'name', type: HostParamType.string),

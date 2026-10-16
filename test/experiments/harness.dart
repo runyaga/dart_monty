@@ -18,7 +18,9 @@
 /// final h = MontyHarness()
 ///   ..registerTool(
 ///     'get_weather',
-///     (args, ctx) async => {'temp': 22, 'city': args['city']},
+///     (args, ctx) async => MontyValue.fromDart({
+///       'temp': 22, 'city': args['city'],
+///     }),
 ///   )
 ///   ..writeFile('/data/config.json', '{"env": "test"}')
 ///   ..prime('from pathlib import Path');
@@ -416,14 +418,14 @@ class MontyHarness {
 
   /// Records the call to tool [name] and applies any injected fault before
   /// (or instead of) running [next].
-  Future<Object?> _record(
+  Future<MontyValue> _record(
     String name,
-    Map<String, Object?> args,
-    Future<Object?> Function() next,
+    Map<String, MontyValue> args,
+    Future<MontyValue> Function() next,
   ) async {
     final record = ToolCallRecord(
       name: name,
-      args: args,
+      args: args.map((key, value) => MapEntry(key, value.dartValue)),
       startedAt: DateTime.now(),
     );
     _calls.add(record);
@@ -436,11 +438,11 @@ class MontyHarness {
         record
           ..result = fault.override
           ..duration = DateTime.now().difference(record.startedAt);
-        return fault.override;
+        return MontyValue.fromDart(fault.override);
       }
       final result = await next();
       record
-        ..result = result
+        ..result = result.dartValue
         ..duration = DateTime.now().difference(record.startedAt);
       return result;
     } catch (e) {

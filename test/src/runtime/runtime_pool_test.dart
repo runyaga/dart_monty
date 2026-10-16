@@ -199,7 +199,10 @@ void main() {
       final runtime = await start()
         ..register(_echo);
 
-      expect(await runtime.invoke('echo', const {'value': 'hi'}), 'hi');
+      expect(
+        await runtime.invoke('echo', const {'value': MontyString('hi')}),
+        const MontyString('hi'),
+      );
       expect(sessions.single.feeds, isEmpty);
     });
   });
@@ -379,7 +382,7 @@ void main() {
       expect(checkoutLimits, [limits, limits]);
     });
 
-    test('a sub-execution keeps the default limits', () async {
+    test('a sub-execution inherits the configured limits', () async {
       final runtime = await start(limits: limits);
       runtime.register(
         HostFunction(
@@ -393,7 +396,7 @@ void main() {
         ..willReturn(const MontyNone());
       await runtime.execute('sub()').result;
 
-      expect(checkoutLimits, [limits, null]);
+      expect(checkoutLimits, [limits, limits]);
     });
 
     test('without limits every checkout has none', () async {
@@ -602,7 +605,7 @@ void main() {
               await release.future;
               finished = true;
 
-              return 'late';
+              return const MontyString('late');
             },
           ),
         );
@@ -920,12 +923,14 @@ void main() {
       final clearing = runtime.clearState();
       // The old bridge is disposed; the new checkout waits on the gate.
       await Future<void>.delayed(Duration.zero);
-      final invoked = runtime.invoke('echo', const {'value': 'v'});
+      final invoked = runtime.invoke('echo', const {
+        'value': MontyString('v'),
+      });
 
       gate.complete();
       await clearing;
 
-      expect(await invoked, 'v');
+      expect(await invoked, const MontyString('v'));
     });
 
     test('after a cancel, an execute during a clearState takes no second '
@@ -991,10 +996,12 @@ void main() {
         sessions.single.willReturn(const MontyNone());
 
         final run = runtime.execute('x');
-        final invoked = runtime.invoke('echo', const {'value': 'v'});
+        final invoked = runtime.invoke('echo', const {
+          'value': MontyString('v'),
+        });
         gate.complete();
 
-        expect(await invoked, 'v');
+        expect(await invoked, const MontyString('v'));
         await run.result;
         expect(slow.attaches, 1);
       },
@@ -1012,7 +1019,7 @@ void main() {
             handler: (args, ctx) async {
               seen = ctx.parent!.schemas.map((s) => s.name).toList();
 
-              return null;
+              return const MontyNone();
             },
           ),
         );
@@ -1100,7 +1107,7 @@ final _echo = HostFunction(
     description: '',
     params: [HostParam(name: 'value', type: HostParamType.string)],
   ),
-  handler: (args, _) async => args['value'],
+  handler: (args, _) async => args['value']!,
 );
 
 /// Counts its attachments and disposals, and registers one function.
@@ -1115,7 +1122,7 @@ final class _CountingExtension extends MontyExtension {
   List<HostFunction> get functions => [
     HostFunction(
       schema: const HostFunctionSchema(name: 'counted_fn', description: 'c'),
-      handler: (_, _) async => null,
+      handler: (_, _) async => const MontyNone(),
     ),
   ];
 

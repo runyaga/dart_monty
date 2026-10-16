@@ -10,14 +10,16 @@
 @Tags(['integration'])
 library;
 
-// Integration test uses print for output and nullable casts for brevity.
-// ignore_for_file: avoid_print, cast_nullable_to_non_nullable
 import 'dart:io';
 
 import 'package:dart_monty/dart_monty.dart';
+// Integration test uses print for output and nullable casts for brevity.
+// ignore_for_file: avoid_print
+import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:test/test.dart';
 
 import '_worker.dart';
+import 'kv_stub_functions.dart';
 import 'template_stub_extension.dart';
 
 void main() {
@@ -43,7 +45,7 @@ void main() {
                   name: 'sync_fn',
                   description: 'Returns immediately',
                 ),
-                handler: (_, _) async => 'sync_ok',
+                handler: (_, _) async => const MontyString('sync_ok'),
               ),
             )
             ..register(
@@ -57,7 +59,7 @@ void main() {
                     const Duration(milliseconds: 200),
                   );
 
-                  return 'delay_ok';
+                  return const MontyString('delay_ok');
                 },
               ),
             )
@@ -81,42 +83,14 @@ void main() {
                         .transform(const SystemEncoding().decoder)
                         .join();
 
-                    return body.substring(0, 30);
+                    return MontyValue.fromDart(body.substring(0, 30));
                   } finally {
                     client.close();
                   }
                 },
               ),
-            )
-            ..register(
-              HostFunction(
-                schema: const HostFunctionSchema(
-                  name: 'kv_set',
-                  description: 'Set',
-                  params: [
-                    HostParam(name: 'k', type: HostParamType.string),
-                    HostParam(name: 'v', type: HostParamType.string),
-                  ],
-                ),
-                handler: (a, _) async {
-                  kv[a['k']! as String] = a['v']! as String;
-
-                  return 'stored';
-                },
-              ),
-            )
-            ..register(
-              HostFunction(
-                schema: const HostFunctionSchema(
-                  name: 'kv_get',
-                  description: 'Get',
-                  params: [
-                    HostParam(name: 'k', type: HostParamType.string),
-                  ],
-                ),
-                handler: (a, _) async => kv[a['k']! as String],
-              ),
             );
+      kvStubFunctions(kv, storedResult: 'stored').forEach(session.register);
 
       try {
         // ── A. Single execute, N host calls ──────────────────────────
@@ -178,7 +152,7 @@ kv_get("name")
 
         await session.execute('hdata = http_fn()').result;
         r = await session.execute('len(hdata)').result;
-        expect(r.dartValue as int, greaterThan(0));
+        expect(r.dartValue! as int, greaterThan(0));
         print('  B2. state persists (http): PASS');
 
         await session.execute('items = []').result;
@@ -226,7 +200,7 @@ kv_set("all", r1 + "_" + r2)
 r4 = kv_get("all")
 [r1, r2, len(r3), r4]
 ''').result;
-        final c3 = r.dartValue as List;
+        final c3 = r.dartValue! as List;
         expect(c3[0], 'sync_ok');
         expect(c3[3], 'sync_ok_delay_ok');
         print('  C3. all 5 fns: PASS');
@@ -256,7 +230,7 @@ rendered = tmpl_render("Got {{ n }}", {"n": len(data)})
 kv_set("log", rendered)
 kv_get("log")
 ''').result;
-        expect(r.dartValue as String, startsWith('Got '));
+        expect(r.dartValue! as String, startsWith('Got '));
         print('  D4. template+kv+http: PASS');
 
         r = await session.execute('''
@@ -270,7 +244,7 @@ kv_set("ch", e)
 f = kv_get("ch")
 [a, b, len(c), d, e, f]
 ''').result;
-        final d5 = r.dartValue as List;
+        final d5 = r.dartValue! as List;
         expect(d5[0], 'sync_ok');
         expect(d5[4], 'sync_ok-delay_ok');
         print('  D5. ALL plugins+fns: PASS');
@@ -291,7 +265,7 @@ data = http_fn()
 Path("/data.json").write_text(data)
 len(Path("/data.json").read_text())
 ''').result;
-        expect(r.dartValue as int, greaterThan(0));
+        expect(r.dartValue! as int, greaterThan(0));
         print('  E2. http→fs: PASS');
 
         r = await session.execute('''
@@ -304,23 +278,23 @@ log = kv_get("log2")
 saved = Path("/raw.txt").read_text()
 [log, len(saved)]
 ''').result;
-        final e3 = r.dartValue as List;
+        final e3 = r.dartValue! as List;
         expect(e3[0] as String, startsWith('Saved '));
         print('  E3. fs+template+kv+http: PASS');
 
         // ── F. Edge cases ────────────────────────────────────────────
 
         r = await session.execute('"x" * 100000').result;
-        expect((r.dartValue as String).length, 100000);
+        expect((r.dartValue! as String).length, 100000);
         print('  F1. large string (100K): PASS');
 
         r = await session.execute('list(range(1000))').result;
-        expect((r.dartValue as List).length, 1000);
+        expect((r.dartValue! as List).length, 1000);
         print('  F2. large list (1000): PASS');
 
         r = await session.execute('{"a": {"b": {"c": 42}}}').result;
         expect(
-          ((r.dartValue as Map)['a'] as Map)['b'],
+          ((r.dartValue! as Map)['a'] as Map)['b'],
           {'c': 42},
         );
         print('  F3. nested dict: PASS');
@@ -342,7 +316,7 @@ for i in range(5):
     results.append(len(http_fn()))
 results
 ''').result;
-        expect((r.dartValue as List).length, 5);
+        expect((r.dartValue! as List).length, 5);
         print('  F5. http × 5 loop: PASS');
 
         print('\n  ALL 25 EXPERIMENTS PASSED ✅');

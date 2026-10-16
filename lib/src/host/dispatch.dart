@@ -94,6 +94,13 @@ void _writeText(Object? root, StringBuffer out) {
           ..add(_Value(key));
       case _Value(:final value):
         final (opening, items, closing) = switch (value) {
+          MontyList(:final items) ||
+          MontyTuple(:final items) => ('[', items.iterator, ']'),
+          MontyDict(:final pairs) => (
+            '{',
+            pairs.map((pair) => _Entry(pair.$1, pair.$2)).iterator,
+            '}',
+          ),
           final List<Object?> l => ('[', l.iterator, ']'),
           final Set<Object?> s => ('{', s.iterator, '}'),
           final Map<Object?, Object?> m => (
@@ -104,7 +111,7 @@ void _writeText(Object? root, StringBuffer out) {
           _ => (null, null, null),
         };
         if (opening == null || items == null || closing == null) {
-          put('$value');
+          put('${value is MontyValue ? value.dartValue : value}');
         } else if (!open.add(value!)) {
           put('$opening...$closing');
         } else {
@@ -129,7 +136,7 @@ void _writeText(Object? root, StringBuffer out) {
 
 /// [value]'s text ([_writeText]), cut at [_textLimit] characters with a
 /// note saying so.
-String _boundedText(Object? value) {
+String _boundedText(Object value) {
   final out = StringBuffer();
   try {
     _writeText(value, out);
@@ -142,8 +149,8 @@ String _boundedText(Object? value) {
 
 /// [result] as [BridgeFunctionCallResult.result]: its text
 /// ([_boundedText]), `''` for null.
-String _resultText(Object? result) =>
-    result == null ? '' : _boundedText(result);
+String _resultText(MontyValue result) =>
+    result is MontyNone ? '' : _boundedText(result);
 
 /// [args] as JSON for [BridgeFunctionCallArgs.delta]: a value JSON has no
 /// form for is written as its text ([_writeText]).
@@ -151,7 +158,7 @@ String _resultText(Object? result) =>
 /// Never throws. Arguments whose JSON would pass [_textLimit] characters,
 /// or that hold a cycle, are written as a JSON string saying so, and the
 /// call goes on.
-String _argsJson(Map<String, Object?> args) {
+String _argsJson(Map<String, MontyValue> args) {
   final sink = _BoundedSink();
   // A value's own text past the limit: the encoder would wrap a throw from
   // here in an Error, so it is recorded instead.
@@ -167,7 +174,7 @@ String _argsJson(Map<String, Object?> args) {
 
         return out.toString();
       }).startChunkedConversion(sink)
-      ..add(args)
+      ..add(args.map((key, value) => MapEntry(key, value.dartValue)))
       ..close();
   } on _TooLong catch (e) {
     return jsonEncode('arguments not shown: $e of JSON');
@@ -193,7 +200,7 @@ String _argsJson(Map<String, Object?> args) {
 typedef RuntimeSubExecutor =
     Future<MontyValue> Function(
       String code, {
-      Map<String, Object?>? inputs,
+      Map<String, MontyValue>? inputs,
       CancelToken? cancelToken,
     });
 
@@ -271,6 +278,7 @@ class HostDispatch {
   /// current backend — no `supportedBackends` declaration required.
   void register(HostFunction function, {String? category}) {
     if (function.handler == null) return;
+    validateDefaults(function.schema);
     final name = function.schema.name;
     _functions[name] = function;
     (_categoryIndex[category ?? 'uncategorized'] ??= {}).add(name);
@@ -289,9 +297,9 @@ class HostDispatch {
   /// direct invocations.
   ///
   /// Callback exceptions are logged via the bridge logger and swallowed.
-  Future<Object?> invokeHostFunction(
+  Future<MontyValue> invokeHostFunction(
     String name,
-    Map<String, Object?> args, {
+    Map<String, MontyValue> args, {
     void Function(BridgeEvent)? onEvent,
   }) {
     final fn = _functions[name];
@@ -299,7 +307,7 @@ class HostDispatch {
     final validatedArgs = mapAndValidate(
       fn.schema,
       const [],
-      args.map((k, v) => MapEntry(k, MontyValue.fromDart(v))),
+      args,
     );
     void sink(BridgeEvent event) {
       if (onEvent == null) return;
@@ -374,7 +382,7 @@ class HostDispatch {
         subExecute(code, inputs: inputs, cancelToken: cancelToken);
   }
 
-  Map<String, Object?> _validateCall(
+  Map<String, MontyValue> _validateCall(
     HostFunction fn,
     List<MontyValue> args,
     Map<String, MontyValue> kwargs,
@@ -402,9 +410,8 @@ class HostDispatch {
   /// `Error: <error>`, each bounded as [_boundedText]) followed by
   /// [BridgeCallFinished].
   ///
-  /// The value reaches Python through [MontyValue.fromDart]. A failure,
-  /// validation's or the handler's (a value [MontyValue.fromDart] refuses
-  /// included), is thrown as `ExternalException('RuntimeError', text)`,
+  /// The core value reaches Python unchanged. A validation or handler
+  /// failure is thrown as `ExternalException('RuntimeError', text)`,
   /// except a handler's own [ExternalException], which is thrown as it is.
   Future<MontyValue> _call(
     HostFunction fn,
@@ -434,8 +441,8 @@ class HostDispatch {
     emit(BridgeFunctionCallEnd(callId: callId));
 
     final ctx = _contextFor(callId, emit, os, cancelToken);
-    final (result, value) = await _invokeCall(fn, validated, ctx, fail);
-    emit(BridgeFunctionCallResult(callId: callId, result: _resultText(result)));
+    final value = await _invokeCall(fn, validated, ctx, fail);
+    emit(BridgeFunctionCallResult(callId: callId, result: _resultText(value)));
     emit(BridgeCallFinished(callId: callId));
 
     return value;
@@ -455,17 +462,15 @@ class HostDispatch {
     subExecute: _subExecuteFor(cancelToken),
   );
 
-  Future<(Object?, MontyValue)> _invokeCall(
+  Future<MontyValue> _invokeCall(
     HostFunction fn,
-    Map<String, Object?> validated,
+    Map<String, MontyValue> validated,
     HostContext ctx,
     String Function(Object) fail,
   ) async {
-    final Object? result;
     final MontyValue value;
     try {
-      result = await fn.handler!(validated, ctx);
-      value = MontyValue.fromDart(result);
+      value = await fn.handler!(validated, ctx);
     } on Object catch (e, st) {
       final text = fail(e);
       _log.error(
@@ -478,6 +483,6 @@ class HostDispatch {
       throw ExternalException('RuntimeError', text);
     }
 
-    return (result, value);
+    return value;
   }
 }

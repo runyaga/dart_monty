@@ -1,9 +1,13 @@
 import 'package:dart_monty/dart_monty.dart';
+import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:test/test.dart';
 
-Future<Object?> _a(Map<String, Object?> args, HostContext ctx) async => 'a';
-Future<Object?> _b(Map<String, Object?> args, HostContext ctx) async => 'b';
-Future<Object?> _c(Map<String, Object?> args, HostContext ctx) async => 'c';
+Future<MontyValue> _a(Map<String, MontyValue> args, HostContext ctx) async =>
+    const MontyString('a');
+Future<MontyValue> _b(Map<String, MontyValue> args, HostContext ctx) async =>
+    const MontyString('b');
+Future<MontyValue> _c(Map<String, MontyValue> args, HostContext ctx) async =>
+    const MontyString('c');
 
 const _schema = HostFunctionSchema(name: 'f');
 
