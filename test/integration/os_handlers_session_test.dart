@@ -5,7 +5,6 @@
 @Tags(['integration'])
 library;
 
-
 import 'package:dart_monty/dart_monty.dart';
 import 'package:test/test.dart';
 

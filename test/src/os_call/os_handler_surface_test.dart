@@ -104,5 +104,4 @@ void main() {
 
     expectSyncDecline(() => rawCall(decline(), 'Path.exists'));
   });
-
 }
