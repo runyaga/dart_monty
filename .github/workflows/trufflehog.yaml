@@ -48,8 +48,10 @@ jobs:
     steps:
       - name: Notify Slack on failure
         if: env.SLACK_WEBHOOK_URL != ''
-        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a # v2.1.1
+        uses: slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d # v4.0.0
         with:
+          webhook: ${{ env.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
           payload: |
             {
               "channel": "#dart_monty",
