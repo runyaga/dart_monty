@@ -95,7 +95,13 @@ void main() { ${entry['body']} }
             );
         expect(errors, isNotEmpty, reason: output);
         for (final error in errors) {
-          expect(error, startsWith('${source.path}:'), reason: output);
+          final location = RegExp(r'^(.*):\d+:\d+: Error:').firstMatch(error);
+          expect(location, isNotNull, reason: output);
+          expect(
+            File(location!.group(1)!).absolute.uri.normalizePath(),
+            source.absolute.uri.normalizePath(),
+            reason: output,
+          );
           if (error.contains('Error when reading') ||
               error.contains('Not found:')) {
             expect(entry['missing_library'], isNotNull, reason: output);
