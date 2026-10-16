@@ -334,7 +334,8 @@ const _gatherSchema = HostFunctionSchema(
 class SandboxExtension extends MontyExtension {
   /// Creates a [SandboxExtension].
   ///
-  /// [maxChildren] limits concurrent children (default: 16).
+  /// [maxChildren] limits admitted, unfreed children (default: 16), including
+  /// completed and failed handles retained for collection.
   /// [maxDepth] limits recursion depth if children also have SandboxExtension
   /// (default: 3). Set [currentDepth] when creating nested plugins.
   /// [childLimits] sets resource limits for child interpreters.
@@ -360,7 +361,7 @@ class SandboxExtension extends MontyExtension {
   // ignore: unnecessarily-public-code, approved public D4a cap field.
   final int? memoryUsageLimit;
 
-  /// Maximum number of concurrent children.
+  /// Maximum admitted, unfreed children, including completed and failed handles.
   final int maxChildren;
 
   /// Maximum recursion depth for nested sandbox plugins.

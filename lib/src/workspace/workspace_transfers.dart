@@ -164,6 +164,9 @@ final class WorkspaceTransfers {
       await _noLinks(parent, destination);
       await stage.read(workspace.call, source, destination);
     }
+    for (final entry in stage.entries) {
+      await _noLinks(parent, entry.destination);
+    }
     // All reads and destination validation have succeeded. Parent failures
     // may leave earlier writes, intentionally without rollback promises.
     for (final entry in stage.entries) {
