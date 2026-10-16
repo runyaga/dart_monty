@@ -1,0 +1,723 @@
+[
+  {
+    "phase": "D2",
+    "id": "removed-bridge-barrel",
+    "body": "",
+    "imports": "import 'package:dart_monty/dart_monty_bridge.dart';\n",
+    "missing_library": "dart_monty_bridge.dart"
+  },
+  {
+    "phase": "D2",
+    "id": "core-surface-ClassInstance",
+    "body": "ClassInstance? value;",
+    "inventory": "core-surface.tsv",
+    "symbol": "ClassInstance"
+  },
+  {
+    "phase": "D2",
+    "id": "core-surface-ClassType",
+    "body": "ClassType? value;",
+    "inventory": "core-surface.tsv",
+    "symbol": "ClassType"
+  },
+  {
+    "phase": "D2",
+    "id": "core-surface-CollectStreams",
+    "body": "CollectStreams? value;",
+    "inventory": "core-surface.tsv",
+    "symbol": "CollectStreams"
+  },
+  {
+    "phase": "D2",
+    "id": "core-surface-CollectString",
+    "body": "CollectString? value;",
+    "inventory": "core-surface.tsv",
+    "symbol": "CollectString"
+  },
+  {
+    "phase": "D2",
+    "id": "core-surface-ExternalFuture",
+    "body": "ExternalFuture? value;",
+    "inventory": "core-surface.tsv",
+    "symbol": "ExternalFuture"
+  },
+  {
+    "phase": "D2",
+    "id": "core-surface-ExternalResult",
+    "body": "ExternalResult? value;",
+    "inventory": "core-surface.tsv",
+    "symbol": "ExternalResult"
+  },
+  {
+    "phase": "D2",
+    "id": "core-surface-ExternalReturnValue",
+    "body": "ExternalReturnValue? value;",
+    "inventory": "core-surface.tsv",
+    "symbol": "ExternalReturnValue"
+  },
+  {
+    "phase": "D2",
+    "id": "core-surface-ExternalSettledResult",
+    "body": "ExternalSettledResult? value;",
+    "inventory": "core-surface.tsv",
+    "symbol": "ExternalSettledResult"
+  },
+  {
+    "phase": "D2",
+    "id": "core-surface-Frame",
+    "body": "Frame? value;",
+    "inventory": "core-surface.tsv",
+    "symbol": "Frame"
+  },
+  {
+    "phase": "D2",
+    "id": "core-surface-FunctionSnapshot",
+    "body": "FunctionSnapshot? value;",
+    "inventory": "core-surface.tsv",
+    "symbol": "FunctionSnapshot"
+  },
+  {
+    "phase": "D2",
+    "id": "core-surface-FutureSnapshot",
+    "body": "FutureSnapshot? value;",
+    "inventory": "core-surface.tsv",
+    "symbol": "FutureSnapshot"
+  },
+  {
+    "phase": "D2",
+    "id": "core-surface-HostClass",
+    "body": "HostClass? value;",
+    "inventory": "core-surface.tsv",
+    "symbol": "HostClass"
+  },
+  {
+    "phase": "D2",
+    "id": "core-surface-MontyBigInt",
+    "body": "MontyBigInt? value;",
+    "inventory": "core-surface.tsv",
+    "symbol": "MontyBigInt"
+  },
+  {
+    "phase": "D2",
+    "id": "core-surface-MontyBool",
+    "body": "MontyBool? value;",
+    "inventory": "core-surface.tsv",
+    "symbol": "MontyBool"
+  },
+  {
+    "phase": "D2",
+    "id": "core-surface-MontyBytes",
+    "body": "MontyBytes? value;",
+    "inventory": "core-surface.tsv",
+    "symbol": "MontyBytes"
+  },
+  {
+    "phase": "D2",
+    "id": "core-surface-MontyClassProxy",
+    "body": "MontyClassProxy? value;",
+    "inventory": "core-surface.tsv",
+    "symbol": "MontyClassProxy"
+  },
+  {
+    "phase": "D2",
+    "id": "core-surface-MontyClassTypeProxy",
+    "body": "MontyClassTypeProxy? value;",
+    "inventory": "core-surface.tsv",
+    "symbol": "MontyClassTypeProxy"
+  },
+  {
+    "phase": "D2",
+    "id": "core-surface-MontyComplete",
+    "body": "MontyComplete? value;",
+    "inventory": "core-surface.tsv",
+    "symbol": "MontyComplete"
+  },
+  {
+    "phase": "D2",
+    "id": "core-surface-MontyComplex",
+    "body": "MontyComplex? value;",
+    "inventory": "core-surface.tsv",
+    "symbol": "MontyComplex"
+  },
+  {
+    "phase": "D2",
+    "id": "core-surface-MontyCrashedError",
+    "body": "MontyCrashedError? value;",
+    "inventory": "core-surface.tsv",
+    "symbol": "MontyCrashedError"
+  },
+  {
+    "phase": "D2",
+    "id": "core-surface-MontyDate",
+    "body": "MontyDate? value;",
+    "inventory": "core-surface.tsv",
+    "symbol": "MontyDate"
+  },
+  {
+    "phase": "D2",
+    "id": "core-surface-MontyDateTime",
+    "body": "MontyDateTime? value;",
+    "inventory": "core-surface.tsv",
+    "symbol": "MontyDateTime"
+  },
+  {
+    "phase": "D2",
+    "id": "core-surface-MontyDict",
+    "body": "MontyDict? value;",
+    "inventory": "core-surface.tsv",
+    "symbol": "MontyDict"
+  },
+  {
+    "phase": "D2",
+    "id": "core-surface-MontyEllipsis",
+    "body": "MontyEllipsis? value;",
+    "inventory": "core-surface.tsv",
+    "symbol": "MontyEllipsis"
+  },
+  {
+    "phase": "D2",
+    "id": "core-surface-MontyExceptionValue",
+    "body": "MontyExceptionValue? value;",
+    "inventory": "core-surface.tsv",
+    "symbol": "MontyExceptionValue"
+  },
+  {
+    "phase": "D2",
+    "id": "core-surface-MontyFileHandle",
+    "body": "MontyFileHandle? value;",
+    "inventory": "core-surface.tsv",
+    "symbol": "MontyFileHandle"
+  },
+  {
+    "phase": "D2",
+    "id": "core-surface-MontyFloat",
+    "body": "MontyFloat? value;",
+    "inventory": "core-surface.tsv",
+    "symbol": "MontyFloat"
+  },
+  {
+    "phase": "D2",
+    "id": "core-surface-MontyFrozenSet",
+    "body": "MontyFrozenSet? value;",
+    "inventory": "core-surface.tsv",
+    "symbol": "MontyFrozenSet"
+  },
+  {
+    "phase": "D2",
+    "id": "core-surface-MontyHostFunction",
+    "body": "MontyHostFunction? value;",
+    "inventory": "core-surface.tsv",
+    "symbol": "MontyHostFunction"
+  },
+  {
+    "phase": "D2",
+    "id": "core-surface-MontyInt",
+    "body": "MontyInt? value;",
+    "inventory": "core-surface.tsv",
+    "symbol": "MontyInt"
+  },
+  {
+    "phase": "D2",
+    "id": "core-surface-MontyList",
+    "body": "MontyList? value;",
+    "inventory": "core-surface.tsv",
+    "symbol": "MontyList"
+  },
+  {
+    "phase": "D2",
+    "id": "core-surface-MontyMemoryFile",
+    "body": "MontyMemoryFile? value;",
+    "inventory": "core-surface.tsv",
+    "symbol": "MontyMemoryFile"
+  },
+  {
+    "phase": "D2",
+    "id": "core-surface-MontyNamedTuple",
+    "body": "MontyNamedTuple? value;",
+    "inventory": "core-surface.tsv",
+    "symbol": "MontyNamedTuple"
+  },
+  {
+    "phase": "D2",
+    "id": "core-surface-MontyNotImplemented",
+    "body": "MontyNotImplemented? value;",
+    "inventory": "core-surface.tsv",
+    "symbol": "MontyNotImplemented"
+  },
+  {
+    "phase": "D2",
+    "id": "core-surface-MontyPath",
+    "body": "MontyPath? value;",
+    "inventory": "core-surface.tsv",
+    "symbol": "MontyPath"
+  },
+  {
+    "phase": "D2",
+    "id": "core-surface-MontyRuntimeError",
+    "body": "MontyRuntimeError? value;",
+    "inventory": "core-surface.tsv",
+    "symbol": "MontyRuntimeError"
+  },
+  {
+    "phase": "D2",
+    "id": "core-surface-MontySet",
+    "body": "MontySet? value;",
+    "inventory": "core-surface.tsv",
+    "symbol": "MontySet"
+  },
+  {
+    "phase": "D2",
+    "id": "core-surface-MontySnapshot",
+    "body": "MontySnapshot? value;",
+    "inventory": "core-surface.tsv",
+    "symbol": "MontySnapshot"
+  },
+  {
+    "phase": "D2",
+    "id": "core-surface-MontyStdTypeProxy",
+    "body": "MontyStdTypeProxy? value;",
+    "inventory": "core-surface.tsv",
+    "symbol": "MontyStdTypeProxy"
+  },
+  {
+    "phase": "D2",
+    "id": "core-surface-MontyString",
+    "body": "MontyString? value;",
+    "inventory": "core-surface.tsv",
+    "symbol": "MontyString"
+  },
+  {
+    "phase": "D2",
+    "id": "core-surface-MontySyntaxError",
+    "body": "MontySyntaxError? value;",
+    "inventory": "core-surface.tsv",
+    "symbol": "MontySyntaxError"
+  },
+  {
+    "phase": "D2",
+    "id": "core-surface-MontyTime",
+    "body": "MontyTime? value;",
+    "inventory": "core-surface.tsv",
+    "symbol": "MontyTime"
+  },
+  {
+    "phase": "D2",
+    "id": "core-surface-MontyTimeDelta",
+    "body": "MontyTimeDelta? value;",
+    "inventory": "core-surface.tsv",
+    "symbol": "MontyTimeDelta"
+  },
+  {
+    "phase": "D2",
+    "id": "core-surface-MontyTimeZone",
+    "body": "MontyTimeZone? value;",
+    "inventory": "core-surface.tsv",
+    "symbol": "MontyTimeZone"
+  },
+  {
+    "phase": "D2",
+    "id": "core-surface-MontyTuple",
+    "body": "MontyTuple? value;",
+    "inventory": "core-surface.tsv",
+    "symbol": "MontyTuple"
+  },
+  {
+    "phase": "D2",
+    "id": "core-surface-MontyTypingError",
+    "body": "MontyTypingError? value;",
+    "inventory": "core-surface.tsv",
+    "symbol": "MontyTypingError"
+  },
+  {
+    "phase": "D2",
+    "id": "core-surface-MountDir",
+    "body": "MountDir? value;",
+    "inventory": "core-surface.tsv",
+    "symbol": "MountDir"
+  },
+  {
+    "phase": "D2",
+    "id": "core-surface-MountMode",
+    "body": "MountMode? value;",
+    "inventory": "core-surface.tsv",
+    "symbol": "MountMode"
+  },
+  {
+    "phase": "D2",
+    "id": "core-surface-NameLookupSnapshot",
+    "body": "NameLookupSnapshot? value;",
+    "inventory": "core-surface.tsv",
+    "symbol": "NameLookupSnapshot"
+  },
+  {
+    "phase": "D2",
+    "id": "core-surface-OsPolicy",
+    "body": "OsPolicy? value;",
+    "inventory": "core-surface.tsv",
+    "symbol": "OsPolicy"
+  },
+  {
+    "phase": "D2",
+    "id": "core-surface-RandomSeed",
+    "body": "RandomSeed? value;",
+    "inventory": "core-surface.tsv",
+    "symbol": "RandomSeed"
+  },
+  {
+    "phase": "D2",
+    "id": "core-surface-SourceRange",
+    "body": "SourceRange? value;",
+    "inventory": "core-surface.tsv",
+    "symbol": "SourceRange"
+  },
+  {
+    "phase": "D2",
+    "id": "core-surface-TimeZone",
+    "body": "TimeZone? value;",
+    "inventory": "core-surface.tsv",
+    "symbol": "TimeZone"
+  },
+  {
+    "phase": "D2",
+    "id": "core-surface-VfsBytes",
+    "body": "VfsBytes? value;",
+    "inventory": "core-surface.tsv",
+    "symbol": "VfsBytes"
+  },
+  {
+    "phase": "D2",
+    "id": "core-surface-VfsContent",
+    "body": "VfsContent? value;",
+    "inventory": "core-surface.tsv",
+    "symbol": "VfsContent"
+  },
+  {
+    "phase": "D2",
+    "id": "core-surface-VfsFile",
+    "body": "VfsFile? value;",
+    "inventory": "core-surface.tsv",
+    "symbol": "VfsFile"
+  },
+  {
+    "phase": "D2",
+    "id": "core-surface-VfsText",
+    "body": "VfsText? value;",
+    "inventory": "core-surface.tsv",
+    "symbol": "VfsText"
+  },
+  {
+    "phase": "D2",
+    "id": "core-surface-coroutine",
+    "body": "final member = coroutine;",
+    "inventory": "core-surface.tsv",
+    "symbol": "coroutine"
+  },
+  {
+    "phase": "D2",
+    "id": "core-surface-memoryMountedOsHandler",
+    "body": "final member = memoryMountedOsHandler;",
+    "inventory": "core-surface.tsv",
+    "symbol": "memoryMountedOsHandler"
+  },
+  {
+    "phase": "D2",
+    "id": "core-surface-resolveOpenCall",
+    "body": "final member = resolveOpenCall;",
+    "inventory": "core-surface.tsv",
+    "symbol": "resolveOpenCall"
+  },
+  {
+    "phase": "D2",
+    "id": "core-surface-runMontyWorkerIfChild",
+    "body": "final member = runMontyWorkerIfChild;",
+    "inventory": "core-surface.tsv",
+    "symbol": "runMontyWorkerIfChild"
+  },
+  {
+    "phase": "D2",
+    "id": "public-names-ChannelSnapshot",
+    "body": "ChannelSnapshot? value;",
+    "inventory": "public-names.tsv",
+    "symbol": "ChannelSnapshot"
+  },
+  {
+    "phase": "D2",
+    "id": "public-names-MessageBus",
+    "body": "MessageBus? value;",
+    "inventory": "public-names.tsv",
+    "symbol": "MessageBus"
+  },
+  {
+    "phase": "D2",
+    "id": "public-names-MessageBusExtension",
+    "body": "MessageBusExtension? value;",
+    "inventory": "public-names.tsv",
+    "symbol": "MessageBusExtension"
+  },
+  {
+    "phase": "D2",
+    "id": "public-names-MessageChannel",
+    "body": "MessageChannel? value;",
+    "inventory": "public-names.tsv",
+    "symbol": "MessageChannel"
+  },
+  {
+    "phase": "D2",
+    "id": "public-members-ChannelSnapshot.copyWith",
+    "body": "void probe(ChannelSnapshot value) { final member = value.copyWith; }",
+    "inventory": "public-members.tsv",
+    "symbol": "ChannelSnapshot.copyWith"
+  },
+  {
+    "phase": "D2",
+    "id": "public-members-ChannelSnapshot.empty",
+    "body": "void probe(ChannelSnapshot value) { final member = value.empty; }",
+    "inventory": "public-members.tsv",
+    "symbol": "ChannelSnapshot.empty"
+  },
+  {
+    "phase": "D2",
+    "id": "public-members-ChannelSnapshot.isClosed",
+    "body": "void probe(ChannelSnapshot value) { final member = value.isClosed; }",
+    "inventory": "public-members.tsv",
+    "symbol": "ChannelSnapshot.isClosed"
+  },
+  {
+    "phase": "D2",
+    "id": "public-members-ChannelSnapshot.new",
+    "body": "final constructor = ChannelSnapshot.new;",
+    "inventory": "public-members.tsv",
+    "symbol": "ChannelSnapshot.new"
+  },
+  {
+    "phase": "D2",
+    "id": "public-members-ChannelSnapshot.peakQueueDepth",
+    "body": "void probe(ChannelSnapshot value) { final member = value.peakQueueDepth; }",
+    "inventory": "public-members.tsv",
+    "symbol": "ChannelSnapshot.peakQueueDepth"
+  },
+  {
+    "phase": "D2",
+    "id": "public-members-ChannelSnapshot.queueDepth",
+    "body": "void probe(ChannelSnapshot value) { final member = value.queueDepth; }",
+    "inventory": "public-members.tsv",
+    "symbol": "ChannelSnapshot.queueDepth"
+  },
+  {
+    "phase": "D2",
+    "id": "public-members-ChannelSnapshot.recvCount",
+    "body": "void probe(ChannelSnapshot value) { final member = value.recvCount; }",
+    "inventory": "public-members.tsv",
+    "symbol": "ChannelSnapshot.recvCount"
+  },
+  {
+    "phase": "D2",
+    "id": "public-members-ChannelSnapshot.sendCount",
+    "body": "void probe(ChannelSnapshot value) { final member = value.sendCount; }",
+    "inventory": "public-members.tsv",
+    "symbol": "ChannelSnapshot.sendCount"
+  },
+  {
+    "phase": "D2",
+    "id": "public-members-ChannelSnapshot.toString",
+    "body": "void probe(ChannelSnapshot value) { final member = value.toString; }",
+    "inventory": "public-members.tsv",
+    "symbol": "ChannelSnapshot.toString"
+  },
+  {
+    "phase": "D2",
+    "id": "public-members-MessageBus.channel",
+    "body": "void probe(MessageBus value) { final member = value.channel; }",
+    "inventory": "public-members.tsv",
+    "symbol": "MessageBus.channel"
+  },
+  {
+    "phase": "D2",
+    "id": "public-members-MessageBus.channelOrNull",
+    "body": "void probe(MessageBus value) { final member = value.channelOrNull; }",
+    "inventory": "public-members.tsv",
+    "symbol": "MessageBus.channelOrNull"
+  },
+  {
+    "phase": "D2",
+    "id": "public-members-MessageBus.channelsSignal",
+    "body": "void probe(MessageBus value) { final member = value.channelsSignal; }",
+    "inventory": "public-members.tsv",
+    "symbol": "MessageBus.channelsSignal"
+  },
+  {
+    "phase": "D2",
+    "id": "public-members-MessageBus.close",
+    "body": "void probe(MessageBus value) { final member = value.close; }",
+    "inventory": "public-members.tsv",
+    "symbol": "MessageBus.close"
+  },
+  {
+    "phase": "D2",
+    "id": "public-members-MessageBus.dispose",
+    "body": "void probe(MessageBus value) { final member = value.dispose; }",
+    "inventory": "public-members.tsv",
+    "symbol": "MessageBus.dispose"
+  },
+  {
+    "phase": "D2",
+    "id": "public-members-MessageBus.new",
+    "body": "final constructor = MessageBus.new;",
+    "inventory": "public-members.tsv",
+    "symbol": "MessageBus.new"
+  },
+  {
+    "phase": "D2",
+    "id": "public-members-MessageBus.peek",
+    "body": "void probe(MessageBus value) { final member = value.peek; }",
+    "inventory": "public-members.tsv",
+    "symbol": "MessageBus.peek"
+  },
+  {
+    "phase": "D2",
+    "id": "public-members-MessageBus.recv",
+    "body": "void probe(MessageBus value) { final member = value.recv; }",
+    "inventory": "public-members.tsv",
+    "symbol": "MessageBus.recv"
+  },
+  {
+    "phase": "D2",
+    "id": "public-members-MessageBus.removeWaiter",
+    "body": "void probe(MessageBus value) { final member = value.removeWaiter; }",
+    "inventory": "public-members.tsv",
+    "symbol": "MessageBus.removeWaiter"
+  },
+  {
+    "phase": "D2",
+    "id": "public-members-MessageBus.send",
+    "body": "void probe(MessageBus value) { final member = value.send; }",
+    "inventory": "public-members.tsv",
+    "symbol": "MessageBus.send"
+  },
+  {
+    "phase": "D2",
+    "id": "public-members-MessageBusExtension.bus",
+    "body": "void probe(MessageBusExtension value) { final member = value.bus; }",
+    "inventory": "public-members.tsv",
+    "symbol": "MessageBusExtension.bus"
+  },
+  {
+    "phase": "D2",
+    "id": "public-members-MessageBusExtension.childPolicy",
+    "body": "void probe(MessageBusExtension value) { final member = value.childPolicy; }",
+    "inventory": "public-members.tsv",
+    "symbol": "MessageBusExtension.childPolicy"
+  },
+  {
+    "phase": "D2",
+    "id": "public-members-MessageBusExtension.createChildInstance",
+    "body": "void probe(MessageBusExtension value) { final member = value.createChildInstance; }",
+    "inventory": "public-members.tsv",
+    "symbol": "MessageBusExtension.createChildInstance"
+  },
+  {
+    "phase": "D2",
+    "id": "public-members-MessageBusExtension.functions",
+    "body": "void probe(MessageBusExtension value) { final member = value.functions; }",
+    "inventory": "public-members.tsv",
+    "symbol": "MessageBusExtension.functions"
+  },
+  {
+    "phase": "D2",
+    "id": "public-members-MessageBusExtension.namespace",
+    "body": "void probe(MessageBusExtension value) { final member = value.namespace; }",
+    "inventory": "public-members.tsv",
+    "symbol": "MessageBusExtension.namespace"
+  },
+  {
+    "phase": "D2",
+    "id": "public-members-MessageBusExtension.new",
+    "body": "final constructor = MessageBusExtension.new;",
+    "inventory": "public-members.tsv",
+    "symbol": "MessageBusExtension.new"
+  },
+  {
+    "phase": "D2",
+    "id": "public-members-MessageBusExtension.onDispose",
+    "body": "void probe(MessageBusExtension value) { final member = value.onDispose; }",
+    "inventory": "public-members.tsv",
+    "symbol": "MessageBusExtension.onDispose"
+  },
+  {
+    "phase": "D2",
+    "id": "public-members-MessageBusExtension.systemPromptContext",
+    "body": "void probe(MessageBusExtension value) { final member = value.systemPromptContext; }",
+    "inventory": "public-members.tsv",
+    "symbol": "MessageBusExtension.systemPromptContext"
+  },
+  {
+    "phase": "D2",
+    "id": "public-members-MessageChannel.close",
+    "body": "void probe(MessageChannel value) { final member = value.close; }",
+    "inventory": "public-members.tsv",
+    "symbol": "MessageChannel.close"
+  },
+  {
+    "phase": "D2",
+    "id": "public-members-MessageChannel.dispose",
+    "body": "void probe(MessageChannel value) { final member = value.dispose; }",
+    "inventory": "public-members.tsv",
+    "symbol": "MessageChannel.dispose"
+  },
+  {
+    "phase": "D2",
+    "id": "public-members-MessageChannel.isClosed",
+    "body": "void probe(MessageChannel value) { final member = value.isClosed; }",
+    "inventory": "public-members.tsv",
+    "symbol": "MessageChannel.isClosed"
+  },
+  {
+    "phase": "D2",
+    "id": "public-members-MessageChannel.new",
+    "body": "final constructor = MessageChannel.new;",
+    "inventory": "public-members.tsv",
+    "symbol": "MessageChannel.new"
+  },
+  {
+    "phase": "D2",
+    "id": "public-members-MessageChannel.peek",
+    "body": "void probe(MessageChannel value) { final member = value.peek; }",
+    "inventory": "public-members.tsv",
+    "symbol": "MessageChannel.peek"
+  },
+  {
+    "phase": "D2",
+    "id": "public-members-MessageChannel.recv",
+    "body": "void probe(MessageChannel value) { final member = value.recv; }",
+    "inventory": "public-members.tsv",
+    "symbol": "MessageChannel.recv"
+  },
+  {
+    "phase": "D2",
+    "id": "public-members-MessageChannel.removeWaiter",
+    "body": "void probe(MessageChannel value) { final member = value.removeWaiter; }",
+    "inventory": "public-members.tsv",
+    "symbol": "MessageChannel.removeWaiter"
+  },
+  {
+    "phase": "D2",
+    "id": "public-members-MessageChannel.send",
+    "body": "void probe(MessageChannel value) { final member = value.send; }",
+    "inventory": "public-members.tsv",
+    "symbol": "MessageChannel.send"
+  },
+  {
+    "phase": "D2",
+    "id": "public-members-MessageChannel.snapshot",
+    "body": "void probe(MessageChannel value) { final member = value.snapshot; }",
+    "inventory": "public-members.tsv",
+    "symbol": "MessageChannel.snapshot"
+  },
+  {
+    "phase": "D2",
+    "id": "public-members-MessageChannel.snapshotSignal",
+    "body": "void probe(MessageChannel value) { final member = value.snapshotSignal; }",
+    "inventory": "public-members.tsv",
+    "symbol": "MessageChannel.snapshotSignal"
+  }
+]

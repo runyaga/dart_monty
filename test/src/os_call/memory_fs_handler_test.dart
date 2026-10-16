@@ -15,9 +15,10 @@
 //   - Implicit intermediate directory creation on write_text
 //   - Dart-side introspection via the held MemoryFileSystem reference
 
-import 'package:dart_monty/dart_monty_bridge.dart';
+import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty_core/dart_monty_core.dart'
     show ExternalException, MontyPath, OsCallNotHandledException;
+
 import 'package:file/memory.dart';
 import 'package:test/test.dart';
 import '_os_call.dart';

@@ -11,6 +11,9 @@
 library;
 
 import 'package:dart_monty/dart_monty.dart';
+import 'package:dart_monty_core/dart_monty_core.dart'
+    show ExternalReturnValue, FunctionSnapshot, MontyComplete, MontyString;
+
 import 'package:web_example/demo_pool.dart';
 import 'package:web_example/demo_ready.dart';
 

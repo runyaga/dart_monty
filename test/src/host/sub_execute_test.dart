@@ -1,9 +1,15 @@
 import 'dart:async';
 
 import 'package:dart_monty/dart_monty.dart';
-import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:dart_monty/src/bridge/session_bridge.dart';
 import 'package:dart_monty/src/runtime/runtime.dart' show startRuntimeWith;
+import 'package:dart_monty_core/dart_monty_core.dart'
+    show
+        ExternalReturnValue,
+        ExternalSettledResult,
+        MontyInt,
+        MontyString,
+        MontyTuple;
 import 'package:dart_monty_core/dart_monty_core_testing.dart';
 import 'package:test/test.dart';
 

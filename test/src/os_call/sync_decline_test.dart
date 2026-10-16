@@ -7,7 +7,7 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:dart_monty/dart_monty_bridge.dart';
+import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/src/os_call/os_error_mapping.dart';
 import 'package:dart_monty/src/os_call/os_handlers.dart';
 import 'package:dart_monty/src/os_call/path_op.dart';

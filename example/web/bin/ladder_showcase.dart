@@ -14,6 +14,22 @@ import 'dart:convert';
 import 'dart:js_interop';
 
 import 'package:dart_monty/dart_monty.dart';
+import 'package:dart_monty_core/dart_monty_core.dart'
+    show
+        ExternalFuture,
+        ExternalResult,
+        ExternalReturnValue,
+        ExternalSettledResult,
+        FunctionSnapshot,
+        FutureSnapshot,
+        MontyComplete,
+        MontyDict,
+        MontyFrozenSet,
+        MontyList,
+        MontySet,
+        MontyTuple,
+        NameLookupSnapshot;
+
 import 'package:web_example/demo_pool.dart';
 import 'package:web_example/demo_ready.dart';
 
@@ -340,10 +356,7 @@ String _describe(MontyError error) =>
     '${error.exception.excType}: ${error.exception.message ?? ''}';
 
 /// The status of a fixture that failed with [error].
-Map<String, dynamic> _onError(
-  MontyError error,
-  Map<String, dynamic> fixture,
-) {
+Map<String, dynamic> _onError(MontyError error, Map<String, dynamic> fixture) {
   if (fixture['expectError'] as bool? ?? false) {
     return {
       'status': 'pass',

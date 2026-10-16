@@ -74,7 +74,7 @@ Monty is a **restricted Python interpreter**. It is NOT full CPython.
 |----------------|----------|
 | Make HTTP requests | `soliplex_new_thread()` or custom host fn |
 | Read/write files | `pathlib.Path` (in-memory only) |
-| Store key-value data | `msg_send()`/`msg_recv()` channels |
+| Store key-value data | Python dictionaries |
 | Build strings | f-strings |
 | Get current time | `datetime.datetime.now()` (if configured) |
 | Run shell commands | Not possible — use host functions |
@@ -164,14 +164,6 @@ t2 = json.loads(soliplex_reply_thread("server", "room", thread_id, "More"))
 response2 = t2["response"]
 ```
 
-### Message bus
-
-```python
-# msg_send returns None, msg_recv blocks until message available
-msg_send("channel", "data")
-result = msg_recv("channel")  # -> "data"
-```
-
 ### Filesystem
 
 ```python
@@ -198,14 +190,6 @@ cached = json.loads(Path("/cache/data.json").read_text())
 | `soliplex_upload_to_thread(server, room_id, thread_id, filename, content)` | JSON `{uploaded, thread_id}` | Upload to thread |
 | `soliplex_get_mcp_token(server, room_id)` | JSON `{mcp_token}` | MCP access token |
 | `soliplex_get_documents(server, room_id)` | JSON `[{id, title, uri}]` | RAG documents |
-
-### Message Bus (FIFO queues)
-
-| Function | Returns | Description |
-|----------|---------|-------------|
-| `msg_send(channel, message)` | None | Send to channel |
-| `msg_recv(channel)` | String | Receive (blocks) |
-| `msg_peek(channel)` | String or None | Peek (non-blocking) |
 
 ### Filesystem (in-memory sandbox)
 
@@ -253,9 +237,6 @@ Path("/cache/report.json").write_text(json.dumps(report))
 total = sum(len(v) for v in report.values())
 summary = f"Found {total} skilled rooms across {len(report)} servers"
 
-# 4. Message bus
-msg_send("reports", summary)
-
-# 5. Return
-{"summary": msg_recv("reports"), "report": report}
+# 4. Return
+{"summary": summary, "report": report}
 ```

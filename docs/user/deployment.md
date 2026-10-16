@@ -13,43 +13,11 @@ and native applications.
 
 ## Flutter Web
 
-```yaml
-# pubspec.yaml — install both packages from GitHub
-dependencies:
-  dart_monty:
-    git:
-      url: https://github.com/runyaga/dart_monty.git
-      ref: main
-  dart_monty_core:
-    git:
-      url: https://github.com/runyaga/dart_monty_core.git
-      ref: main
-
-flutter:
-  assets:
-    - package: dart_monty_core
-```
-
-```dart
-// main.dart
-import 'package:dart_monty/dart_monty.dart';
-import 'package:flutter/widgets.dart';
-
-Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await DartMonty.ensureInitialized();
-  runApp(const MyApp());
-}
-```
-
-Flutter bundles `dart_monty_core`'s declared `flutter.assets`
-automatically — no consumer-side redeclaration is needed.
-`DartMonty.ensureInitialized()` injects
-`assets/packages/dart_monty_core/lib/assets/dart_monty_core_bridge.js` into
-`document.head` at runtime, awaits load, and verifies
-`window.DartMontyBridge` is defined. No manual `<script>` tag in
-`web/index.html` is required; `--base-href` is honoured
-automatically.
+Bundle the worker assets declared by core's `flutter.assets` stanza as
+described in [installation](install.md#flutter-web). Core's asset-path probe
+finds the Flutter asset base before trying the plain Dart package path.
+Start a pool with `Monty.start`; no separate initialization call is needed.
+Core remains pure Dart.
 
 ### Required security headers
 
@@ -65,25 +33,9 @@ GitHub Pages cannot set these headers; a standard hosting target
 
 ## Plain Dart web (no Flutter)
 
-Without Flutter's asset bundler, copy the three asset files from the
-`dart_monty_core` pub cache into your own `web/` directory and add a
-`<script>` tag:
-
-```bash
-CORE_ASSETS=$(dart pub cache dir)/hosted/pub.dev/dart_monty_core-*/assets
-cp $CORE_ASSETS/dart_monty_core_bridge.js   web/
-cp $CORE_ASSETS/dart_monty_core_worker.js   web/
-cp $CORE_ASSETS/dart_monty_core_native.wasm web/
-```
-
-```html
-<!-- web/index.html -->
-<script src="dart_monty_core_bridge.js"></script>
-```
-
-The synchronous `<script>` tag sets `window.DartMontyBridge` before
-Dart starts, so `DartMonty.ensureInitialized()` sees the bridge as
-already loaded and returns immediately.
+Serve `dart_monty_core_worker.js` and `dart_monty_core_worker.wasm` from
+core's `lib/assets` directory at `packages/dart_monty_core/assets`.
+Alternatively, pass their directory URL as `workerLocation` to `Monty.start`.
 
 ## Native (FFI)
 

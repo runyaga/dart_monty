@@ -15,8 +15,7 @@ library;
 // ignore_for_file: avoid_print, cast_nullable_to_non_nullable
 import 'dart:io';
 
-import 'package:dart_monty/dart_monty_bridge.dart';
-import 'package:dart_monty_core/dart_monty_core.dart' show Monty, MontyError;
+import 'package:dart_monty/dart_monty.dart';
 import 'package:test/test.dart';
 
 import '_printed.dart';
@@ -238,21 +237,6 @@ void main() {
       expect(r.dartValue, ['Hi World', 'Hi Alice']);
     });
 
-    test('H2. MessageBus across execute calls', () async {
-      final s = await MontyRuntime.start(
-        pool: pool,
-        extensions: [MessageBusExtension()],
-      );
-      addTearDown(s.dispose);
-      await s.execute('msg_send("q", "first")').result;
-      await s.execute('msg_send("q", "second")').result;
-      final r1 = await s.execute('msg_recv("q")').result;
-      final r2 = await s.execute('msg_recv("q")').result;
-      print('  H2: ${r1.dartValue}, ${r2.dartValue}');
-      expect(r1.dartValue, 'first');
-      expect(r2.dartValue, 'second');
-    });
-
     test('H3. FS + Template across calls', () async {
       final s = await MontyRuntime.start(
         pool: pool,
@@ -278,11 +262,11 @@ content = Path("/data.txt").read_text()
     });
 
     test(
-      'H4. HTTP + Template + MsgBus across calls',
+      'H4. HTTP + Template across calls',
       () async {
         final s = (await MontyRuntime.start(
           pool: pool,
-          extensions: [TemplateStubExtension(), MessageBusExtension()],
+          extensions: [TemplateStubExtension()],
         ))..register(httpFn());
         addTearDown(s.dispose);
         await s.execute('data = http_fn()').result;
@@ -291,8 +275,7 @@ content = Path("/data.txt").read_text()
               'report = tmpl_render("Got {{n}} bytes", {"n": len(data)})',
             )
             .result;
-        await s.execute('msg_send("log", report)').result;
-        final r = await s.execute('msg_recv("log")').result;
+        final r = await s.execute('report').result;
         print('  H4: ${r.dartValue}');
         expect(r.dartValue as String, startsWith('Got '));
       },

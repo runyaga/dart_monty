@@ -1,11 +1,11 @@
 @Tags(['integration'])
 library;
 
-import 'package:dart_monty/dart_monty_bridge.dart';
-import 'package:dart_monty_core/dart_monty_core.dart' show Monty;
+import 'package:dart_monty/dart_monty.dart';
 import 'package:test/test.dart';
 
 import '_worker.dart';
+import 'shared_probe_extension.dart';
 import 'template_stub_extension.dart';
 
 /// Integration tests for MontyRuntime with plugins — requires native FFI.
@@ -21,57 +21,6 @@ void main() {
   tearDownAll(() => pool.close());
 
   // ---------------------------------------------------------------------------
-  // Message bus plugin
-  // ---------------------------------------------------------------------------
-
-  group('MontyRuntime + MessageBusExtension', () {
-    late MontyRuntime session;
-
-    setUp(() async {
-      session = await MontyRuntime.start(
-        pool: pool,
-        extensions: [MessageBusExtension()],
-      );
-    });
-
-    tearDown(() async {
-      await session.dispose();
-    });
-
-    test('send and receive FIFO', () async {
-      await session.execute('''
-msg_send(name='ch', message='first')
-msg_send(name='ch', message='second')
-''').result;
-      final result = await session
-          .execute(
-            "[msg_recv(name='ch'), msg_recv(name='ch')]",
-          )
-          .result;
-
-      expect(result.dartValue, ['first', 'second']);
-    });
-
-    test('peek returns None when empty', () async {
-      final result = await session.execute("msg_peek(name='empty')").result;
-
-      expect(result.dartValue, isNull);
-    });
-
-    test('stats reports queue depth', () async {
-      await session.execute('''
-msg_send(name='q', message=1)
-msg_send(name='q', message=2)
-''').result;
-      final result = await session.execute("msg_stats(name='q')").result;
-      final stats = result.dartValue! as Map;
-
-      expect(stats['send_count'], 2);
-      expect(stats['queue_depth'], 2);
-    });
-  });
-
-  // ---------------------------------------------------------------------------
   // Sandbox plugin — child spawning
   // ---------------------------------------------------------------------------
 
@@ -83,10 +32,10 @@ msg_send(name='q', message=2)
         'Path.': memoryFsHandler(),
       };
       final tmpl = TemplateStubExtension();
-      final msg = MessageBusExtension();
+      final probe = SharedProbeExtension();
       final extensions = <MontyExtension>[
         tmpl,
-        msg,
+        probe,
         SandboxExtension(),
       ];
       session = await MontyRuntime.start(
@@ -169,10 +118,10 @@ sandbox_free(handle=h)
         'Path.': memoryFsHandler(),
       };
       final tmpl = TemplateStubExtension();
-      final msg = MessageBusExtension();
+      final probe = SharedProbeExtension();
       final extensions = <MontyExtension>[
         tmpl,
-        msg,
+        probe,
         SandboxExtension(),
       ];
       session = await MontyRuntime.start(
@@ -195,28 +144,26 @@ sandbox_await(handle=h)
       expect(result.dartValue, 'Hi child!');
     });
 
-    test('child sends message to parent via shared bus', () async {
+    test('child shares external extension state with parent', () async {
       final result = await session.execute(r'''
-msg_send(name='tasks', message='do X')
-h = sandbox_spawn(code='task = msg_recv(name="tasks")\nmsg_send(name="results", message=f"done: {task}")\ntask')
+probe_put(name='tasks', value='do X')
+h = sandbox_spawn(code='task = probe_get(name="tasks")\nprobe_put(name="results", value=f"done: {task}")\ntask')
 child_got = sandbox_await(handle=h)
-parent_got = msg_recv(name='results')
+parent_got = probe_get(name='results')
 [child_got, parent_got]
 ''').result;
 
       expect(result.dartValue, ['do X', 'done: do X']);
     });
 
-    test('producer/consumer pipeline between children', () async {
-      final result = await session.execute(r'''
-producer = sandbox_spawn(code='for i in range(3):\n    msg_send(name="pipe", message=f"item-{i}")\n"done"')
-consumer = sandbox_spawn(code='items = []\nfor i in range(3):\n    items.append(msg_recv(name="pipe"))\nitems')
+    test('sibling clones share external extension state', () async {
+      final result = await session.execute('''
+producer = sandbox_spawn(code='probe_put(name="item", value="shared")')
 sandbox_await(handle=producer)
+consumer = sandbox_spawn(code='probe_get(name="item")')
 sandbox_await(handle=consumer)
 ''').result;
-      final items = result.dartValue! as List;
-
-      expect(items, ['item-0', 'item-1', 'item-2']);
+      expect(result.dartValue, 'shared');
     });
 
     test('child writes to isolated filesystem', () async {

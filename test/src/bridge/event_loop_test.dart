@@ -1,11 +1,12 @@
 import 'dart:async';
 
 import 'package:dart_monty/dart_monty.dart';
-import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:dart_monty/src/bridge/session_bridge.dart';
 import 'package:dart_monty/src/extension/coordinator.dart';
 import 'package:dart_monty/src/extensions/event_loop.dart';
 import 'package:dart_monty/src/runtime/runtime.dart' show startRuntimeWith;
+import 'package:dart_monty_core/dart_monty_core.dart'
+    show ExternalReturnValue, MontyDict, MontyInt, MontyString;
 import 'package:dart_monty_core/dart_monty_core_testing.dart';
 import 'package:signals_core/signals_core.dart';
 import 'package:test/test.dart';

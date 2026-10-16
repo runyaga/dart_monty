@@ -22,7 +22,6 @@ around.
 | `ExtensionCoordinator` | 0 |
 | `SandboxExtension` | 0 |
 | `ChildSpawnContext` | 0 |
-| `MessageBus` | 0 |
 | `HostFunction` | 0 |
 | `BridgeEvent` | 0 |
 

@@ -4,10 +4,10 @@
 // .then-chains in the JSFunction map below are the established JS-interop
 // idiom across web demos (cf. agent_demo.dart). Rewriting to async/await
 // would diverge from the project pattern.
-/// Interactive REPL Session Demo — MontyRuntime + real plugins in the browser.
+/// Interactive REPL Session Demo — MontyRuntime in the browser.
 ///
 /// Compiled to JS, exposes window.ReplSessionDemo to HTML.
-/// All host function dispatch (message bus) runs in
+/// All runtime dispatch runs in
 /// compiled Dart — no JS host functions needed.
 ///
 /// Build:
@@ -20,7 +20,6 @@ import 'dart:convert';
 import 'dart:js_interop';
 
 import 'package:dart_monty/dart_monty.dart';
-import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:web_example/demo_pool.dart';
 import 'package:web_example/demo_ready.dart';
 
@@ -43,10 +42,8 @@ external void _jsOnToolCall(JSString jsonPayload);
 
 late final MontyRuntime _session;
 
-Future<MontyRuntime> _newSession() async => MontyRuntime.start(
-      pool: await startDemoPool(),
-      extensions: [MessageBusExtension()],
-    );
+Future<MontyRuntime> _newSession() async =>
+    MontyRuntime.start(pool: await startDemoPool());
 
 // ---------------------------------------------------------------------------
 // API
@@ -170,10 +167,7 @@ Map<String, dynamic>? _eventToJson(BridgeEvent event) {
     };
   }
   if (event is BridgeFunctionCallStart) {
-    return {
-      'type': 'tool_call_start',
-      'function': event.name,
-    };
+    return {'type': 'tool_call_start', 'function': event.name};
   }
   if (event is BridgeFunctionCallResult) {
     return {

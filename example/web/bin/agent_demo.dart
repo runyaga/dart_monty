@@ -16,7 +16,6 @@ import 'dart:convert';
 import 'dart:js_interop';
 
 import 'package:dart_monty/dart_monty.dart';
-import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:file/memory.dart';
 import 'package:web_example/demo_pool.dart';
 import 'package:web_example/demo_ready.dart';
@@ -117,9 +116,7 @@ final _demoHostFunctions = <HostFunction>[
     schema: const HostFunctionSchema(
       name: 'kv_get',
       description: 'Retrieve a value from the key-value store.',
-      params: [
-        HostParam(name: 'key', type: HostParamType.string),
-      ],
+      params: [HostParam(name: 'key', type: HostParamType.string)],
     ),
     handler: (args, _) async {
       return _kvStore[args['key']! as String];
@@ -140,9 +137,7 @@ final _demoHostFunctions = <HostFunction>[
     schema: const HostFunctionSchema(
       name: 'fetch_json',
       description: 'Fetch JSON data from a URL (simulated).',
-      params: [
-        HostParam(name: 'url', type: HostParamType.string),
-      ],
+      params: [HostParam(name: 'url', type: HostParamType.string)],
     ),
     handler: (args, _) async {
       final url = args['url']! as String;
@@ -166,9 +161,7 @@ final _demoHostFunctions = <HostFunction>[
     schema: const HostFunctionSchema(
       name: 'log',
       description: 'Log a message to the events panel.',
-      params: [
-        HostParam(name: 'msg', type: HostParamType.string),
-      ],
+      params: [HostParam(name: 'msg', type: HostParamType.string)],
     ),
     handler: (args, _) async {
       // The event will be visible in the bridge events panel
@@ -178,9 +171,6 @@ final _demoHostFunctions = <HostFunction>[
 ];
 
 final _kvStore = <String, Object?>{};
-
-/// Shared bus — accessible to Python via MessageBusExtension and to Dart.
-MessageBus? _msgBus;
 
 // ---------------------------------------------------------------------------
 // Initialization
@@ -193,19 +183,13 @@ Future<bool> _init() async {
   if (_initialized) return true;
 
   try {
-    final msgPlugin = MessageBusExtension();
-    _msgBus = msgPlugin.bus;
-
     // Room for the held session, a sub-execution and every child.
     final pool = await startDemoPool(maxProcesses: _maxChildren + 2);
     _pool = pool;
     final session = await MontyRuntime.start(
       pool: pool,
       osHandlers: {'Path.': fsHandler(MemoryFileSystem())},
-      extensions: [
-        msgPlugin,
-        SandboxExtension(maxChildren: _maxChildren),
-      ],
+      extensions: [SandboxExtension(maxChildren: _maxChildren)],
     );
     _demoHostFunctions.forEach(session.register);
     _session = session;
@@ -274,11 +258,7 @@ Future<String> _execute(String code) async {
       'events': events,
     });
   } on Object catch (e) {
-    return jsonEncode({
-      'ok': false,
-      'error': e.toString(),
-      'events': events,
-    });
+    return jsonEncode({'ok': false, 'error': e.toString(), 'events': events});
   }
 }
 
@@ -467,32 +447,6 @@ Future<void> main() async {
     'getSchemas': (() => _getSchemas().toJS).toJS,
     'clearState': _clearState.toJS,
     'dispose': (() => _dispose().then((_) => null).toJS).toJS,
-    // Dart-side MessageBus access — push data to any channel from JS.
-    // Python code calling msg_recv() on the same channel will unblock
-    // immediately when Dart pushes, because they share the same MessageBus.
-    'dartPush': ((JSString channel, JSString messageJson) {
-      try {
-        final msg = jsonDecode(messageJson.toDart);
-        _msgBus?.send(channel.toDart, msg);
-        return true.toJS;
-      } on Object catch (e) {
-        print('dartPush error: $e');
-        return false.toJS;
-      }
-    }).toJS,
-    // Returns current ChannelSnapshot as JSON for the given channel.
-    'dartChannelStats': ((JSString channel) {
-      final ch = _msgBus?.channelOrNull(channel.toDart);
-      if (ch == null) return 'null'.toJS;
-      final s = ch.snapshot;
-      return jsonEncode({
-        'isClosed': s.isClosed,
-        'queueDepth': s.queueDepth,
-        'sendCount': s.sendCount,
-        'recvCount': s.recvCount,
-        'peakQueueDepth': s.peakQueueDepth,
-      }).toJS;
-    }).toJS,
   }.jsify();
   // jsify() returns JSObject? but we know our non-empty map produces one.
   _agentDemo = api! as JSObject;

@@ -7,7 +7,7 @@
 import 'dart:io';
 
 import 'package:dart_monty/dart_monty.dart' show OsCallNotHandledException;
-import 'package:dart_monty/dart_monty_bridge.dart' show OsHandler;
+import 'package:dart_monty/dart_monty.dart' show OsHandler;
 import 'package:test/test.dart';
 
 import '_os_call.dart';
@@ -66,7 +66,7 @@ void main() {
       .toList();
 
   test('there are public libraries to scan', () {
-    expect(libs, contains('lib/dart_monty_bridge.dart'));
+    expect(libs, contains('lib/dart_monty.dart'));
   });
 
   for (final name in _internal) {

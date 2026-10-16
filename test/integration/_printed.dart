@@ -3,7 +3,7 @@
 /// `BridgeRunFinished.printOutput`.
 library;
 
-import 'package:dart_monty/dart_monty_bridge.dart';
+import 'package:dart_monty/dart_monty.dart';
 
 /// Waits for [handle] to finish and returns the print text its
 /// `BridgeRunFinished` event carried.

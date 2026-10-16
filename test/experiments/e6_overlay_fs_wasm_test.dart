@@ -3,9 +3,10 @@
 // Run on both: dart test -p vm test/experiments/e6_overlay_fs_wasm_test.dart
 //              dart test -p chrome test/experiments/e6_overlay_fs_wasm_test.dart
 
-import 'package:dart_monty/dart_monty_bridge.dart';
+import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty_core/dart_monty_core.dart'
     show MontyPath, MontyString;
+
 import 'package:file/memory.dart';
 import 'package:test/test.dart';
 

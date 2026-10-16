@@ -8,6 +8,7 @@ environment:
 dependencies:
   dart_monty:
     path: ../..
+  dart_monty_core: ^0.18.1
   file: ^7.0.0
   web: ^1.1.1
 

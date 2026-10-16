@@ -9,15 +9,15 @@ required.
 tools, extensions, and OS-level interception.
 
 ```dart
-final session = MontyRuntime(
-  extensions: [MessageBusExtension()],
+final session = await MontyRuntime.start(
+  extensions: [EventLoopExtension()],
   osHandlers: {'Path.': memoryFsHandler()},
 );
 
 // Variables persist natively across calls
 await session.execute('x = 42').result;
 final r = await session.execute('x + 1').result;
-print(r.value); // 43
+print(r.dartValue); // 43
 
 await session.dispose();
 ```
@@ -31,49 +31,29 @@ await session.dispose();
 
 ## Monty (Low-level)
 
-`Monty` from `dart_monty_core` is the low-level execution surface. It has
-three shapes:
+`Monty` owns a pool; `MontySession` owns stateful Python execution.
 
 ```dart
-// One-shot, stateless.
-final result = await Monty.exec('2 + 2');
-
-// Compiled-program holder — re-run with different inputs.
-final program = Monty('x * 2');
-final r1 = await program.run(inputs: {'x': 21});
-final r2 = await program.run(inputs: {'x': 100});
-
-// Stateful REPL — variables, functions, classes persist across calls.
-final repl = MontyRepl();
-await repl.feedRun('x = 42');
-final r3 = await repl.feedRun('x + 1');
-await repl.dispose();
+await Monty.withPool((pool) async {
+  final session = await pool.checkout(typeCheck: true);
+  try {
+    await session.feedRun('x: int = 42');
+    final result = await session.feedRun('x + 1');
+    print(result.dartValue); // 43
+  } finally {
+    await session.close();
+  }
+});
 ```
 
-Each `Monty(code).run(...)` call runs in a fresh interpreter — state from
-earlier calls does not persist. Use `MontyRepl` when you need accumulated
-state.
+### Session type checking
 
-### Static type checking
-
-`Monty.typeCheck` analyses code without executing it:
-
-```dart
-final errors = await Monty.typeCheck('x: int = "not an int"');
-for (final e in errors) {
-  print('${e.path}:${e.line}:${e.column} ${e.code}: ${e.message}');
-}
-```
-
-`prefixCode` lets you declare input or external-function shapes so the
-checker knows their types:
-
-```dart
-final errors = await Monty.typeCheck(
-  'result: str = fetch("https://example.com")',
-  prefixCode: 'def fetch(url: str) -> str: ...',
-);
-```
+`checkout(typeCheck: true)` checks each feed before executing it. Rejected
+code throws `MontyTypingError`; import that error from
+`package:dart_monty_core/dart_monty_core.dart`. Use `typeCheckStubs` on checkout
+to declare external names, for example `def fetch(url: str) -> str: ...`.
+The [type-checking demo](../../example/type_check_demo.dart) shows clean code,
+type errors, and host function declarations.
 
 ## Per-call inputs
 
@@ -141,7 +121,6 @@ Group related tools into namespaced units.
 
 | Extension | Description |
 |-----------|-------------|
-| `MessageBusExtension` | In-memory message channels |
 | `SandboxExtension` | Recursive child interpreters |
 | `EventLoopExtension` | Long-running coroutine exchange |
 

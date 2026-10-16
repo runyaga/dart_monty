@@ -22,6 +22,7 @@ dependencies:
   struct_log: ^0.3.0
 
 dev_dependencies:
+  analyzer: ^14.5.0
   # `collection` and `test` were REGULAR dependencies, which made every
   # consumer of this package pull the test framework into their own
   # dependency graph. Neither is imported anywhere under lib/ -- measured,

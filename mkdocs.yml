@@ -44,7 +44,7 @@ plugins:
       markdown_description: |
         High-level Dart/Flutter bindings for sandboxed Python scripting.
         Builds on dart_monty_core (the low-level FFI/WASM glue) with a
-        runtime, extension API (MessageBus, Sandbox), Flutter web
+        runtime, extension API (EventLoop, Sandbox), Flutter web
         bridge auto-loading, OS-call composition, and host-function
         dispatch with typed schemas.
 
@@ -53,7 +53,7 @@ plugins:
         imports. Use dicts + module-level functions in place of classes.
         Stdlib: `math`, `re`, `json`, `datetime`, `pathlib`.
 
-        Run `Monty.typeCheck(code)` before `runtime.execute(code)` to
+        Use a session from `checkout(typeCheck: true)` to
         catch subset violations as typed errors before runtime — the
         supported development loop.
       full_output: llms-full.txt

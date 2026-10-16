@@ -1,4 +1,4 @@
-import 'package:dart_monty/dart_monty_bridge.dart';
+import 'package:dart_monty/dart_monty.dart';
 import 'package:test/test.dart';
 
 Future<Object?> _a(Map<String, Object?> args, HostContext ctx) async => 'a';

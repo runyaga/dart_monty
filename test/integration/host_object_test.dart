@@ -4,7 +4,7 @@
 library;
 
 import 'package:dart_monty/dart_monty.dart';
-import 'package:dart_monty/dart_monty_bridge.dart';
+
 import 'package:test/test.dart';
 
 import '../src/_user.dart';

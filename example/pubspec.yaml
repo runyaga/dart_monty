@@ -10,6 +10,10 @@ dependencies:
     path: ../
   file: ^7.0.0
 
+dev_dependencies:
+  dart_monty_core: ^0.18.1
+  very_good_analysis: ^10.0.0
+
 # 0.19 integration branch ONLY — see the matching block in ../pubspec.yaml.
 #
 # `dependency_overrides` do NOT propagate from the parent package, so without
