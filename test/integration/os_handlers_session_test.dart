@@ -213,6 +213,7 @@ p.write_text('hi')
 
 String _tryCatch(String expr) =>
     '''
+import os
 from pathlib import Path
 try:
     $expr
