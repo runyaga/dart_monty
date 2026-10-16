@@ -4,6 +4,9 @@
 // no file reachable through an `export` of a `lib/*.dart` library may declare
 // them. The scan follows `export` directives, honours `show`/`hide`, and
 // ignores `package:` URIs (core's own exports are core's business).
+@TestOn('vm')
+library;
+
 import 'dart:io';
 
 import 'package:dart_monty/dart_monty.dart' show OsCallNotHandledException;

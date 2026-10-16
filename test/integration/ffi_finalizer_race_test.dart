@@ -6,6 +6,7 @@
 /// Before the fix, this would SEGFAULT because a stale GC finalizer freed
 /// a live handle whose address matched a previously-freed one.
 @Tags(['integration'])
+@TestOn('vm')
 library;
 
 import 'dart:io';

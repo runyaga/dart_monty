@@ -2,6 +2,7 @@
 /// No MontyRuntime state wrapping — isolates whether the bug is in state
 /// wrapping or in the FFI/bridge layer itself.
 @Tags(['integration'])
+@TestOn('vm')
 library;
 
 import 'dart:io';

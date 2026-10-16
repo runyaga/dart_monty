@@ -9,6 +9,7 @@
 /// dart test --run-skipped --tags=integration test/bridge/integration/ffi_mixed_mode_test.dart --name "G1"
 /// ```
 @Tags(['integration'])
+@TestOn('vm')
 library;
 
 import 'dart:io';

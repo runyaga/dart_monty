@@ -2,7 +2,7 @@ import 'package:dart_monty/src/workspace/workspace.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:test/test.dart';
 
-import '_workspace_pool_web.dart' if (dart.library.io) '_worker.dart';
+import '_worker.dart';
 
 class WorkspaceHarness {
   late Monty pool;
