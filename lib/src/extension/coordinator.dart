@@ -439,10 +439,17 @@ class ExtensionCoordinator {
   }
 
   Future<void> _disposeFailedSpawn(MontyExtension? pendingClone) async {
-    try {
-      await pendingClone?.onDispose();
-    } on Object {
-      /* Preserve the registration error and continue cleaning up. */
+    // `register` can fail while producing its diagnostic log after the clone
+    // has been added. In that case, `disposeAll` below owns its cleanup.
+    final isOwned =
+        pendingClone != null &&
+        _extensions.any((extension) => identical(extension, pendingClone));
+    if (!isOwned) {
+      try {
+        await pendingClone?.onDispose();
+      } on Object {
+        /* Preserve the registration error and continue cleaning up. */
+      }
     }
     try {
       await disposeAll();

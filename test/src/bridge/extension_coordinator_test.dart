@@ -899,6 +899,25 @@ void main() {
         expect(clones.map((clone) => clone.disposals), [1, 1]);
       });
 
+      test(
+        'a clone owned before logging fails is disposed exactly once',
+        () async {
+          final clone = _LoggingFailureClone();
+          registry.register(_CloneFactoryExtension(clone));
+          await registry.attachTo(_MockBridge());
+
+          await expectLater(
+            registry.spawnChild(
+              context: const ChildSpawnContext(childId: 1),
+              bridge: _MockBridge(),
+            ),
+            throwsStateError,
+          );
+
+          expect(clone.disposals, 1);
+        },
+      );
+
       test('a clone extension without createChildInstance fails the spawn '
           'with UnsupportedError', () async {
         registry.register(_TestCloneWithoutFactory());
@@ -1200,6 +1219,46 @@ class _TestCloneWithoutFactory extends MontyExtension {
 
   @override
   ChildPolicy get childPolicy => ChildPolicy.clone;
+}
+
+/// Produces a clone whose third `functions` read fails in `register`'s log.
+class _CloneFactoryExtension extends MontyExtension {
+  _CloneFactoryExtension(this.clone);
+
+  final _LoggingFailureClone clone;
+
+  @override
+  String get namespace => 'factory';
+
+  @override
+  List<HostFunction> get functions => [];
+
+  @override
+  ChildPolicy get childPolicy => ChildPolicy.clone;
+
+  @override
+  MontyExtension createChildInstance(ChildSpawnContext context) => clone;
+}
+
+class _LoggingFailureClone extends MontyExtension {
+  int disposals = 0;
+  var _functionsReads = 0;
+
+  @override
+  String get namespace => 'clone';
+
+  @override
+  List<HostFunction> get functions {
+    if (++_functionsReads == 3) throw StateError('logging failed');
+
+    return [];
+  }
+
+  @override
+  Future<void> onDispose() async {
+    await super.onDispose();
+    disposals++;
+  }
 }
 
 /// An extension that runs on the web backend only.
