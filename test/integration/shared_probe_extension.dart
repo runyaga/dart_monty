@@ -1,17 +1,19 @@
 import 'dart:async';
 
 import 'package:dart_monty/dart_monty.dart';
+import 'package:dart_monty_core/dart_monty_core.dart';
 
 /// A test-local extension with shared state and per-instance ownership.
 final class SharedProbeExtension extends MontyExtension {
   /// Creates a root fixture or a clone sharing the same backing state.
-  SharedProbeExtension({Map<String, Object?>? values}) : values = values ?? {} {
+  SharedProbeExtension({Map<String, MontyValue>? values})
+    : values = values ?? {} {
     // Tests may inspect ownership without awaiting this operation.
     pending.future.ignore();
   }
 
   /// State survives the disposal of an individual clone.
-  final Map<String, Object?> values;
+  final Map<String, MontyValue> values;
 
   /// An operation owned only by this instance, for teardown assertions.
   final pending = Completer<void>();
@@ -38,9 +40,9 @@ final class SharedProbeExtension extends MontyExtension {
         ],
       ),
       handler: (args, _) async {
-        values[args['name']! as String] = args['value'];
+        values[(args['name']! as MontyString).value] = args['value']!;
 
-        return null;
+        return const MontyNone();
       },
     ),
     HostFunction(
@@ -49,7 +51,8 @@ final class SharedProbeExtension extends MontyExtension {
         description: 'Read a fixture value',
         params: [HostParam(name: 'name', type: HostParamType.string)],
       ),
-      handler: (args, _) async => values[args['name']],
+      handler: (args, _) async =>
+          values[(args['name']! as MontyString).value] ?? const MontyNone(),
     ),
   ];
 

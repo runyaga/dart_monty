@@ -11,6 +11,7 @@
 library;
 
 import 'package:dart_monty/dart_monty.dart';
+import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:test/test.dart';
 
 import 'harness.dart';
@@ -27,7 +28,9 @@ void main() {
       h = MontyHarness()
         ..registerTool(
           'add',
-          (args, ctx) async => (args['a']! as int) + (args['b']! as int),
+          (args, ctx) async => MontyValue.fromDart(
+            ((args['a']! as MontyInt).value) + ((args['b']! as MontyInt).value),
+          ),
           params: [
             const HostParam(name: 'a', type: HostParamType.integer),
             const HostParam(name: 'b', type: HostParamType.integer),
@@ -39,17 +42,26 @@ void main() {
     tearDown(() => h.dispose());
 
     test('invoke() returns handler result without Python', () async {
-      final result = await h.runtime.invoke('add', {'a': 3, 'b': 4});
-      expect(result, 7);
+      final result = await h.runtime.invoke('add', {
+        'a': const MontyInt(3),
+        'b': const MontyInt(4),
+      });
+      expect(result, const MontyInt(7));
     });
 
     test('invoke() goes through the recorder — call is recorded', () async {
-      await h.runtime.invoke('add', {'a': 1, 'b': 1});
+      await h.runtime.invoke('add', {
+        'a': const MontyInt(1),
+        'b': const MontyInt(1),
+      });
       h.assertCalled('add', args: {'a': 1, 'b': 1});
     });
 
     test('invoke() and Python calls share the same recorder', () async {
-      await h.runtime.invoke('add', {'a': 10, 'b': 0});
+      await h.runtime.invoke('add', {
+        'a': const MontyInt(10),
+        'b': const MontyInt(0),
+      });
       await h.run('add(a=5, b=3)');
 
       h.assertCallCount('add', 2);
@@ -69,7 +81,7 @@ void main() {
           ctx
             ..emitText('Hello ')
             ..emitText('world');
-          return 'done';
+          return const MontyString('done');
         });
       await h.setup();
     });
@@ -160,7 +172,7 @@ void main() {
       h = MontyHarness()
         ..registerTool('capture_id', (args, ctx) async {
           execIds.add(ctx.executionId);
-          return ctx.executionId;
+          return MontyValue.fromDart(ctx.executionId);
         });
       await h.setup();
     });

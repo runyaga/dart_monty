@@ -7,7 +7,7 @@ import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/src/extension/coordinator.dart';
 import 'package:dart_monty/src/runtime/runtime.dart' show runtimeCoordinator;
 import 'package:dart_monty_core/dart_monty_core.dart'
-    show MontyCrashedError, MontyInt;
+    show MontyCrashedError, MontyInt, MontyString;
 import 'package:test/test.dart';
 
 import '_worker.dart';
@@ -157,7 +157,8 @@ void main() {
               description: 'Doubles a number',
               params: [HostParam(name: 'n', type: HostParamType.integer)],
             ),
-            handler: (args, _) async => (args['n']! as int) * 2,
+            handler: (args, _) async =>
+                MontyValue.fromDart(((args['n']! as MontyInt).value) * 2),
           ),
         );
 
@@ -176,7 +177,7 @@ void main() {
               name: 'get_data',
               description: 'Returns sample data',
             ),
-            handler: (_, _) async => [1, 2, 3, 4, 5],
+            handler: (_, _) async => MontyValue.fromDart([1, 2, 3, 4, 5]),
           ),
         );
 
@@ -196,7 +197,7 @@ void main() {
               name: 'my_tool',
               description: 'A custom tool',
             ),
-            handler: (_, _) async => null,
+            handler: (_, _) async => const MontyNone(),
           ),
         );
 
@@ -398,7 +399,8 @@ void main() {
                 ),
               ],
             ),
-            handler: (args, _) async => (args['n']! as int) * 2,
+            handler: (args, _) async =>
+                MontyValue.fromDart(((args['n']! as MontyInt).value) * 2),
           ),
         );
 
@@ -418,7 +420,8 @@ void main() {
               description: 'Returns greeting',
               params: [HostParam(name: 'name', type: HostParamType.string)],
             ),
-            handler: (args, _) async => 'Hello, ${args['name']}!',
+            handler: (args, _) async =>
+                MontyString('Hello, ${(args['name']! as MontyString).value}!'),
           ),
         );
 
@@ -629,13 +632,17 @@ result
               description: '',
               params: [HostParam(name: 'msg', type: HostParamType.string)],
             ),
-            handler: (args, _) async => (args['msg']! as String).toUpperCase(),
+            handler: (args, _) async => MontyValue.fromDart(
+              (args['msg']! as MontyString).value.toUpperCase(),
+            ),
           ),
         );
 
-        final result = await session.invoke('shout', const {'msg': 'hi'});
+        final result = await session.invoke('shout', const {
+          'msg': MontyString('hi'),
+        });
 
-        expect(result, 'HI');
+        expect(result, const MontyString('HI'));
       },
     );
 
@@ -1057,7 +1064,7 @@ result
 /// A host function that does nothing.
 final _noop = HostFunction(
   schema: const HostFunctionSchema(name: 'noop', description: ''),
-  handler: (args, _) async => null,
+  handler: (args, _) async => const MontyNone(),
 );
 
 /// Plugin that records how many times it was attached and disposed.

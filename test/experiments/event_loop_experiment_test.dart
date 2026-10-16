@@ -14,6 +14,7 @@ import 'dart:async';
 
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/src/extensions/event_loop.dart';
+import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:test/test.dart';
 
 import 'harness.dart';
@@ -49,7 +50,7 @@ event['action']
       expect(el.isWaiting, isTrue);
 
       // Dispatch wakes Python.
-      el.dispatch({'action': 'ping'});
+      el.dispatch(MontyValue.fromDart({'action': 'ping'}) as MontyDict);
 
       final result = await handle.result;
       expect(result.dartValue, 'ping');
@@ -61,7 +62,7 @@ event['action']
       await h.run(script);
 
       expect(el.lastEmitted, isNotNull);
-      expect(el.lastEmitted!['status'], 'ready');
+      expect((el.lastEmitted!.dartValue! as Map)['status'], 'ready');
     });
 
     test('state is EventLoopCompleted after execution finishes', () async {
@@ -90,8 +91,8 @@ event['action']
     test('events dispatched before el_recv are returned immediately', () async {
       // Dispatch before Python runs — goes to queue.
       el
-        ..dispatch({'seq': 0})
-        ..dispatch({'seq': 1});
+        ..dispatch(MontyValue.fromDart({'seq': 0}) as MontyDict)
+        ..dispatch(MontyValue.fromDart({'seq': 1}) as MontyDict);
 
       final result = await h.run('''
 a = await el_recv()
@@ -132,7 +133,7 @@ total
 
       for (var i = 1; i <= 3; i++) {
         await _untilWaiting(el);
-        el.dispatch({'n': i});
+        el.dispatch(MontyValue.fromDart({'n': i}) as MontyDict);
       }
 
       final result = await handle.result;
@@ -142,7 +143,9 @@ total
     test('el_emit fires each round — lastEmittedSignal updates', () async {
       final emitted = <Map<String, Object?>>[];
       final cleanup = el.lastEmittedSignal.subscribe((v) {
-        if (v != null) emitted.add(v);
+        if (v != null) {
+          emitted.add(Map<String, Object?>.from(v.dartValue! as Map));
+        }
       });
 
       const script = '''
@@ -155,7 +158,7 @@ for i in range(3):
 
       for (var i = 0; i < 3; i++) {
         await _untilWaiting(el);
-        el.dispatch({'round': i});
+        el.dispatch(MontyValue.fromDart({'round': i}) as MontyDict);
       }
 
       await handle.result;
@@ -187,7 +190,7 @@ for i in range(3):
       expect(el.channelState, isA<EventLoopCompleted>());
 
       expect(
-        () => el.dispatch({'x': 1}),
+        () => el.dispatch(MontyValue.fromDart({'x': 1}) as MontyDict),
         throwsA(isA<StateError>()),
       );
     });
@@ -200,7 +203,7 @@ undefined_var_that_errors
 
       final handle = h.runtime.execute(script);
       await _untilWaiting(el);
-      el.dispatch({'ok': true});
+      el.dispatch(MontyValue.fromDart({'ok': true}) as MontyDict);
 
       // Python errored.
       await expectLater(handle.result, throwsA(isA<MontyError>()));
@@ -257,7 +260,7 @@ await el_recv()
 
         final handle = h.runtime.execute(script);
         await _untilWaiting(el);
-        el.dispatch({'go': true});
+        el.dispatch(MontyValue.fromDart({'go': true}) as MontyDict);
         await handle.result;
 
         cap.dispose();
@@ -292,7 +295,7 @@ await el_recv()
     });
 
     test('FauxUi sees BridgeRunStarted and BridgeRunFinished', () async {
-      el.dispatch({'skip': true});
+      el.dispatch(MontyValue.fromDart({'skip': true}) as MontyDict);
 
       await h.run('await el_recv()');
 
@@ -338,7 +341,10 @@ el_emit(value={'n': 3})
       // cap.values[0] is null (initial), then 3 updates.
       final nonNull = cap.values.where((v) => v != null).toList();
       expect(nonNull, hasLength(3));
-      expect(nonNull.map((e) => e!['n']), orderedEquals([1, 2, 3]));
+      expect(
+        nonNull.map((e) => (e!.dartValue! as Map)['n']),
+        orderedEquals([1, 2, 3]),
+      );
     });
   });
 

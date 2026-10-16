@@ -1,5 +1,6 @@
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/src/host/args.dart';
+import 'package:dart_monty_core/dart_monty_core.dart';
 
 /// A second extension for integration tests that combine extensions.
 ///
@@ -35,13 +36,18 @@ class TemplateStubExtension extends MontyExtension {
   MontyExtension createChildInstance(ChildSpawnContext context) =>
       TemplateStubExtension();
 
-  Future<Object?> _render(Map<String, Object?> args, HostContext ctx) async {
+  Future<MontyValue> _render(
+    Map<String, MontyValue> args,
+    HostContext ctx,
+  ) async {
     final template = args.str('template');
-    final context = args.mapArg('context');
+    final context = args['context']!.dartValue! as Map<Object?, Object?>;
 
-    return template.replaceAllMapped(
-      _placeholder,
-      (m) => '${context[m[1]]}',
+    return MontyString(
+      template.replaceAllMapped(
+        _placeholder,
+        (m) => '${context[m[1]]}',
+      ),
     );
   }
 }

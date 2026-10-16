@@ -4,6 +4,7 @@ library;
 
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/src/extension/coordinator.dart';
+import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:test/test.dart';
 
 import '_worker.dart';
@@ -56,16 +57,25 @@ void main() {
 
         // Spawn 3 workers with distinct print output and return values.
         final h0 =
-            (await spawn!({'code': 'print("worker-A")\n42'}, _testCtx))! as int;
+            (await spawn!({
+                  'code': const MontyString('print("worker-A")\n42'),
+                }, _testCtx))
+                as int;
         final h1 =
-            (await spawn({'code': 'print("worker-B")\n99'}, _testCtx))! as int;
+            (await spawn({
+                  'code': const MontyString('print("worker-B")\n99'),
+                }, _testCtx))
+                as int;
         final h2 =
-            (await spawn({'code': 'print("worker-C")\n7'}, _testCtx))! as int;
+            (await spawn({
+                  'code': const MontyString('print("worker-C")\n7'),
+                }, _testCtx))
+                as int;
 
         final results =
             (await gather!({
-                  'handles': [h0, h1, h2],
-                }, _testCtx))!
+                  'handles': MontyValue.fromDart([h0, h1, h2]),
+                }, _testCtx))
                 as List<Object?>;
 
         expect(results, hasLength(3));
@@ -109,14 +119,16 @@ void main() {
           .firstWhere((f) => f.schema.name == 'sandbox_gather')
           .handler;
 
-      final h0 = (await spawn!({'code': '10'}, _testCtx))! as int;
-      final h1 = (await spawn({'code': '20'}, _testCtx))! as int;
+      final h0 =
+          (await spawn!({'code': const MontyString('10')}, _testCtx)) as int;
+      final h1 =
+          (await spawn({'code': const MontyString('20')}, _testCtx)) as int;
 
       // Request in reverse order.
       final results =
           (await gather!({
-                'handles': [h1, h0],
-              }, _testCtx))!
+                'handles': MontyValue.fromDart([h1, h0]),
+              }, _testCtx))
               as List<Object?>;
 
       expect((results[0]! as Map)['handle'], h1);
@@ -145,13 +157,17 @@ void main() {
 
       // One worker prints, the other does not.
       final hLoud =
-          (await spawn!({'code': 'print("hello")\n1'}, _testCtx))! as int;
-      final hSilent = (await spawn({'code': '2'}, _testCtx))! as int;
+          (await spawn!({
+                'code': const MontyString('print("hello")\n1'),
+              }, _testCtx))
+              as int;
+      final hSilent =
+          (await spawn({'code': const MontyString('2')}, _testCtx)) as int;
 
       final results =
           (await gather!({
-                'handles': [hLoud, hSilent],
-              }, _testCtx))!
+                'handles': MontyValue.fromDart([hLoud, hSilent]),
+              }, _testCtx))
               as List<Object?>;
 
       final rLoud = results[0]! as Map<String, Object?>;
@@ -179,13 +195,17 @@ void main() {
           .firstWhere((f) => f.schema.name == 'sandbox_gather')
           .handler;
 
-      final hGood = (await spawn!({'code': '1'}, _testCtx))! as int;
+      final hGood =
+          (await spawn!({'code': const MontyString('1')}, _testCtx)) as int;
       final hBad =
-          (await spawn({'code': 'undefined_variable_xyz'}, _testCtx))! as int;
+          (await spawn({
+                'code': const MontyString('undefined_variable_xyz'),
+              }, _testCtx))
+              as int;
 
       expect(
         () => gather!({
-          'handles': [hGood, hBad],
+          'handles': MontyValue.fromDart([hGood, hBad]),
         }, _testCtx),
         throwsA(
           isA<ChildSandboxException>().having(
@@ -219,16 +239,21 @@ void main() {
 
         final h0 =
             (await spawn!({
-                  'code': 'print("line1")\nprint("line2")\n100',
-                }, _testCtx))!
+                  'code': const MontyString(
+                    'print("line1")\nprint("line2")\n100',
+                  ),
+                }, _testCtx))
                 as int;
         final h1 =
-            (await spawn({'code': 'print("only")\n200'}, _testCtx))! as int;
+            (await spawn({
+                  'code': const MontyString('print("only")\n200'),
+                }, _testCtx))
+                as int;
 
         final results =
             (await gather!({
-                  'handles': [h0, h1],
-                }, _testCtx))!
+                  'handles': MontyValue.fromDart([h0, h1]),
+                }, _testCtx))
                 as List<Object?>;
 
         // Verify every result has exactly the expected keys.

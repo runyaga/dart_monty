@@ -38,7 +38,7 @@ void main() {
   /// A shared-mode runtime with the host function `probe`, whose handler
   /// runs [body] with its context.
   Future<MontyRuntime> start(
-    Future<Object?> Function(HostContext ctx) body, {
+    Future<MontyValue> Function(HostContext ctx) body, {
     OsHandler? os,
   }) async {
     final runtime = await startRuntimeWith(checkout: checkout, os: os)
@@ -88,7 +88,7 @@ void main() {
     final runtime = await start((ctx) async {
       seen = await ctx.subExecute!('(1, "a")');
 
-      return null;
+      return const MontyNone();
     });
 
     await runtime.execute('probe()').result;
@@ -99,7 +99,10 @@ void main() {
   test('binds inputs through the feed, each through fromDart', () async {
     script[1] = (sub) => sub.willReturn(const MontyInt(42));
     final runtime = await start(
-      (ctx) => ctx.subExecute!('n * 2', inputs: {'n': 21, 's': 'x'}),
+      (ctx) => ctx.subExecute!(
+        'n * 2',
+        inputs: {'n': const MontyInt(21), 's': const MontyString('x')},
+      ),
     );
 
     await runtime.execute('probe()').result;
@@ -135,7 +138,7 @@ void main() {
       subClosedInHandler = sessions[1].closed;
       rootOpenInHandler = !sessions[0].closed;
 
-      return null;
+      return const MontyNone();
     });
 
     await runtime.execute('probe()').result;
@@ -154,7 +157,7 @@ void main() {
         caught = e;
       }
 
-      return null;
+      return const MontyNone();
     });
 
     await runtime.execute('probe()').result;
@@ -188,7 +191,7 @@ void main() {
             caught = e;
           }
 
-          return null;
+          return const MontyNone();
         },
       ),
     );
@@ -250,7 +253,7 @@ void main() {
         handler: (args, ctx) async {
           seen = ctx.subExecute;
 
-          return null;
+          return const MontyNone();
         },
       ),
     );
@@ -284,7 +287,7 @@ void main() {
             caught = e;
           }
 
-          return null;
+          return const MontyNone();
         },
       ),
     );
@@ -343,7 +346,7 @@ void main() {
               caught(e);
             }
 
-            return null;
+            return const MontyNone();
           },
         ),
       );
@@ -392,7 +395,7 @@ void main() {
               error = e;
             }
 
-            return null;
+            return const MontyNone();
           });
           final call = viaInvoke
               ? runtime.invoke('probe', {})

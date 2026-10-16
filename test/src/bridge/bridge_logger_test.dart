@@ -69,7 +69,7 @@ void main() {
       ..register(
         HostFunction(
           schema: const HostFunctionSchema(name: 'f'),
-          handler: (args, ctx) async => null,
+          handler: (args, ctx) async => const MontyNone(),
         ),
       );
     await bridge.execute('f()').toList();

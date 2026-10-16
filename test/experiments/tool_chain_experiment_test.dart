@@ -13,6 +13,7 @@ library;
 import 'dart:convert';
 
 import 'package:dart_monty/dart_monty.dart';
+import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:test/test.dart';
 
 import 'harness.dart';
@@ -29,7 +30,11 @@ void main() {
       h = MontyHarness()
         ..registerTool(
           'get_weather',
-          (args, ctx) async => {'temp': 22, 'city': args['city'], 'unit': 'C'},
+          (args, ctx) async => MontyValue.fromDart({
+            'temp': 22,
+            'city': args['city'],
+            'unit': 'C',
+          }),
           description: 'Returns weather for a city',
           params: [const HostParam(name: 'city', type: HostParamType.string)],
         );
@@ -86,15 +91,19 @@ results = [get_weather(city=c)['temp'] for c in cities]
       h = MontyHarness()
         ..registerTool(
           'db_get',
-          (args, ctx) async =>
-              db[args['key']! as String] ?? <String, Object?>{},
+          (args, ctx) async => MontyValue.fromDart(
+            db[(args['key']! as MontyString).value] ?? <String, Object?>{},
+          ),
           params: [const HostParam(name: 'key', type: HostParamType.string)],
         )
         ..registerTool(
           'send_offer',
           (args, ctx) async {
-            log.add('offer:${args['user']}:${args['offer']}');
-            return true;
+            log.add(
+              'offer:${(args['user']! as MontyString).value}:'
+              '${(args['offer']! as MontyString).value}',
+            );
+            return const MontyBool(true);
           },
           params: [
             const HostParam(name: 'user', type: HostParamType.string),
@@ -104,8 +113,8 @@ results = [get_weather(city=c)['temp'] for c in cities]
         ..registerTool(
           'send_upsell',
           (args, ctx) async {
-            log.add('upsell:${args['user']}');
-            return true;
+            log.add('upsell:${(args['user']! as MontyString).value}');
+            return const MontyBool(true);
           },
           params: [const HostParam(name: 'user', type: HostParamType.string)],
         );
@@ -181,7 +190,10 @@ for uid in ['user:alice', 'user:bob']:
         )
         ..registerTool(
           'apply_discount',
-          (args, ctx) async => 'discount:${args['offer']}:${args['user']}',
+          (args, ctx) async => MontyValue.fromDart(
+            'discount:${(args['offer']! as MontyString).value}:'
+            '${(args['user']! as MontyString).value}',
+          ),
           params: [
             const HostParam(name: 'offer', type: HostParamType.string),
             const HostParam(name: 'user', type: HostParamType.string),
@@ -233,7 +245,9 @@ def greet_user(name, lang='en'):
 ''')
         ..registerTool(
           'send_message',
-          (args, ctx) async => 'sent:${args['msg']}',
+          (args, ctx) async => MontyValue.fromDart(
+            'sent:${(args['msg']! as MontyString).value}',
+          ),
           params: [const HostParam(name: 'msg', type: HostParamType.string)],
         )
         ..prime('from pathlib import Path');
@@ -265,7 +279,8 @@ send_message(msg=msg)
     late MontyHarness h;
 
     setUp(() async {
-      h = MontyHarness()..registerTool('probe', (args, ctx) async => 'ok');
+      h = MontyHarness()
+        ..registerTool('probe', (args, ctx) async => const MontyString('ok'));
       await h.setup();
     });
 

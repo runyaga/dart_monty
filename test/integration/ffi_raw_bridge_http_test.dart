@@ -4,11 +4,12 @@
 @Tags(['integration'])
 library;
 
-// Integration test uses print for progress output.
-// ignore_for_file: avoid_print
 import 'dart:io';
 
 import 'package:dart_monty/dart_monty.dart';
+// Integration test uses print for progress output.
+// ignore_for_file: avoid_print
+import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:test/test.dart';
 
 import '_worker.dart';
@@ -20,7 +21,7 @@ HostFunction _httpGetFn() => HostFunction(
     params: [HostParam(name: 'url', type: HostParamType.string)],
   ),
   handler: (args, _) async {
-    final url = args['url']! as String;
+    final url = (args['url']! as MontyString).value;
     final client = HttpClient();
     try {
       final request = await client.getUrl(Uri.parse(url));
@@ -29,7 +30,7 @@ HostFunction _httpGetFn() => HostFunction(
           .transform(const SystemEncoding().decoder)
           .join();
 
-      return body.substring(0, 50);
+      return MontyValue.fromDart(body.substring(0, 50));
     } finally {
       client.close();
     }

@@ -8,12 +8,14 @@
 @Tags(['integration'])
 library;
 
-// Integration test uses print for progress output.
-// ignore_for_file: avoid_print
 import 'dart:io';
 
 import 'package:dart_monty/dart_monty.dart';
+// Integration test uses print for progress output.
+// ignore_for_file: avoid_print
+import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:test/test.dart';
+
 import '_worker.dart';
 
 HostFunction _httpFn() => HostFunction(
@@ -32,7 +34,7 @@ HostFunction _httpFn() => HostFunction(
       final resp = await req.close();
       final body = await resp.transform(const SystemEncoding().decoder).join();
 
-      return body.substring(0, 30);
+      return MontyValue.fromDart(body.substring(0, 30));
     } finally {
       client.close();
     }
@@ -44,7 +46,7 @@ HostFunction _syncFn() => HostFunction(
     name: 'sync_fn',
     description: 'Returns immediately',
   ),
-  handler: (_, _) async => 'ok',
+  handler: (_, _) async => const MontyString('ok'),
 );
 
 void main() {

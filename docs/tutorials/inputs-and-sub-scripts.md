@@ -198,17 +198,16 @@ HostFunction myEvalFn() {
       if (subExecute == null) {
         throw StateError('evaluate: no subExecute wired into HostContext');
       }
-      final code = args['code']! as String;
+      final code = (args['code']! as MontyString).value;
       final rawInputs = args['inputs'];
-      final inputs = rawInputs is Map
-          ? rawInputs.map((k, v) => MapEntry(k.toString(), v as Object?))
-          : null;
-
-      final result = await subExecute(code, inputs: inputs);
-      if (result.isError) {
-        throw Exception('evaluate failed: ${result.error?.message}');
+      final inputs = <String, MontyValue>{};
+      if (rawInputs is MontyDict) {
+        for (final (key, value) in rawInputs.pairs) {
+          if (key is! MontyString) throw ArgumentError('Expected variable name');
+          inputs[key.value] = value;
+        }
       }
-      return result.value.dartValue;
+      return subExecute(code, inputs: inputs);
     },
   );
 }
@@ -254,38 +253,20 @@ inputs. Each helper runs in its own fresh interpreter via `subExecute`
 
 ## Sync vs async handlers
 
-A `HostFunctionHandler` always returns `Future<Object?>`, but how the
-bridge dispatches it depends on `MontyRuntime(useFutures: …)`:
+A `HostFunctionHandler` always returns `Future<MontyValue>`. Set dispatch
+on each `HostFunction`: `DispatchMode.sync` awaits the handler and returns
+a plain Python value; `DispatchMode.future` exposes an awaitable that works
+with `await` and `asyncio.gather`.
 
-- **`MontyRuntime()` (default, `useFutures: false`)** — handlers are
-  awaited inline before the bridge resumes Python. Python sees the
-  resolved value as a plain object. This is the simplest mental model:
-  one host call → one round-trip → one Python `resume`. **Limitation:**
-  Python `await ext()` against the host function raises
-  `TypeError: 'str' object can't be awaited` — by the time Python
-  evaluates `await`, the value is already a plain `str`/`int`, not a
-  future.
+Every sub-execution inherits all seven configured `ResourceLimits` from its
+owning runtime. These are per-session ceilings, not a shared remaining
+budget. A child selects `childLimits ?? owningRuntimeLimits` as a whole
+object, including null fields. Use a finite `checkoutTimeout` on injected
+pools: nested execution requires a second available session.
 
-- **`MontyRuntime(useFutures: true)`** — handlers are launched as
-  unawaited futures and the bridge replies with `resumeAsFuture()`.
-  Python keeps running, can fire more host calls in parallel
-  (`asyncio.gather` parallelises across externals), and the bridge
-  batch-resolves them when Python actually suspends on a value.
-  Concurrent dispatch is the whole point. **Trade-off:** handlers can
-  race over shared state, so be deliberate about flipping the flag for
-  any runtime whose handlers are stateful.
-
-```dart
-// Default (serial, simple): bare calls only — `await fetch(x)` would fail.
-await MontyRuntime().execute('result = fetch(7)\nresult').result;
-
-// Futures mode: Python `await fetch(x)` works, gather parallelises.
-await MontyRuntime(useFutures: true).execute('''
-import asyncio
-results = await asyncio.gather(fetch(1), fetch(2), fetch(3))
-results
-''').result;
-```
+`run_script.inputs` accepts a `MontyDict` with string Python variable names
+and preserves its values. Non-string keys, invalid identifiers, and
+keywords are rejected; no keys are stringified.
 
 For the cell-by-cell contract — every combination of (Dart sync vs
 async) × (Python bare call vs `await`) × API layer × backend — see

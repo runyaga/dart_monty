@@ -40,7 +40,13 @@ void main() {
         ..willCall('twice', kwargs: {'n': const MontyInt(21)})
         ..willReturn(const MontyInt(42));
       final bridge = MontyBridge(session: session, logger: BridgeLogger.silent)
-        ..register(_fn('twice', (args, _) async => (args['n']! as int) * 2));
+        ..register(
+          _fn(
+            'twice',
+            (args, _) async =>
+                MontyValue.fromDart(((args['n']! as MontyInt).value) * 2),
+          ),
+        );
       addTearDown(bridge.dispose);
 
       final events = await bridge.execute('twice(n=21)').toList();
@@ -74,7 +80,7 @@ void main() {
         ..willCall('give', kwargs: {'n': const MontyInt(0)})
         ..willReturn(const MontyNone());
       final bridge = MontyBridge(session: session)
-        ..register(_fn('give', (_, _) async => result));
+        ..register(_fn('give', (_, _) async => MontyValue.fromDart(result)));
       addTearDown(bridge.dispose);
       await bridge.execute('give(n=0)').drain<void>();
 

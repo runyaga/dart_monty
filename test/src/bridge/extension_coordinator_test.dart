@@ -23,7 +23,7 @@ class _TestExtension extends MontyExtension {
 
 HostFunction _fn(String name) => HostFunction(
   schema: HostFunctionSchema(name: name, description: ''),
-  handler: (args, _) async => null,
+  handler: (args, _) async => const MontyNone(),
 );
 
 void main() {
@@ -765,7 +765,7 @@ void main() {
           extraFunctions: [
             HostFunction(
               schema: const HostFunctionSchema(name: 'parent_only'),
-              handler: (args, _) async => null,
+              handler: (args, _) async => const MontyNone(),
             ),
           ],
         );
@@ -1085,9 +1085,9 @@ class _MockBridge implements MontyBridge {
   Stream<BridgeEvent> execute(String code) => const Stream.empty();
 
   @override
-  Future<Object?> invokeHostFunction(
+  Future<MontyValue> invokeHostFunction(
     String name,
-    Map<String, Object?> args, {
+    Map<String, MontyValue> args, {
     void Function(BridgeEvent)? onEvent,
   }) => throw UnimplementedError();
 

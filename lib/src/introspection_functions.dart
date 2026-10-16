@@ -5,6 +5,7 @@ import 'package:dart_monty/src/host/function.dart';
 import 'package:dart_monty/src/host/param.dart';
 import 'package:dart_monty/src/host/param_type.dart';
 import 'package:dart_monty/src/host/schema.dart';
+import 'package:dart_monty_core/dart_monty_core.dart';
 
 /// Category name for introspection builtins.
 const introspectionCategory = 'introspection';
@@ -49,11 +50,14 @@ List<HostFunction> buildIntrospectionFunctions(MontyBridge bridge) {
     HostFunction(
       schema: helpSchema,
       handler: (args, _) async {
-        final name = args['name'] as String?;
+        final name = switch (args['name']) {
+          MontyString(:final value) => value,
+          _ => null,
+        };
         final schemas = bridge.schemasByCategory;
-        if (name == null) return _handleListAll(schemas);
+        if (name == null) return MontyString(_handleListAll(schemas));
 
-        return _handleHelp(schemas, name);
+        return MontyString(_handleHelp(schemas, name));
       },
     ),
   ];

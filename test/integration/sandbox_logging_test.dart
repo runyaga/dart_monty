@@ -5,6 +5,7 @@ library;
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/src/bridge/struct_log_logger.dart';
 import 'package:dart_monty/src/extension/coordinator.dart';
+import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:struct_log/struct_log.dart';
 import 'package:test/test.dart';
 
@@ -74,8 +75,11 @@ void main() {
           .firstWhere((f) => f.schema.name == 'sandbox_await')
           .handler;
 
-      final handle = (await spawn!({'code': '2 + 3'}, _testCtx))! as int;
-      final result = await await_!({'handle': handle}, _testCtx);
+      final handle =
+          (await spawn!({'code': const MontyString('2 + 3')}, _testCtx)) as int;
+      final result = await await_!({
+        'handle': MontyValue.fromDart(handle),
+      }, _testCtx);
 
       expect(result, 5);
 
@@ -112,10 +116,13 @@ void main() {
           .handler;
 
       final handle =
-          (await spawn!({'code': 'undefined_variable_xyz'}, _testCtx))! as int;
+          (await spawn!({
+                'code': const MontyString('undefined_variable_xyz'),
+              }, _testCtx))
+              as int;
 
       try {
-        await await_!({'handle': handle}, _testCtx);
+        await await_!({'handle': MontyValue.fromDart(handle)}, _testCtx);
       } on Exception {
         // Expected.
       }
@@ -146,8 +153,9 @@ void main() {
           .firstWhere((f) => f.schema.name == 'sandbox_await')
           .handler;
 
-      final handle = (await spawn!({'code': '42'}, _testCtx))! as int;
-      await await_!({'handle': handle}, _testCtx);
+      final handle =
+          (await spawn!({'code': const MontyString('42')}, _testCtx)) as int;
+      await await_!({'handle': MontyValue.fromDart(handle)}, _testCtx);
 
       await plugin.onDispose();
 

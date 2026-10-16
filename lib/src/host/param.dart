@@ -1,4 +1,5 @@
 import 'package:dart_monty/src/host/param_type.dart';
+import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:meta/meta.dart';
 
 /// Describes a single parameter of a host function.
@@ -27,7 +28,7 @@ class HostParam {
   final String? description;
 
   /// Default value when the argument is absent and not required.
-  final Object? defaultValue;
+  final MontyValue? defaultValue;
 
   /// Optional full JSON Schema override for this parameter.
   ///
@@ -44,6 +45,8 @@ class HostParam {
   final Map<String, Object?>? jsonSchemaOverride;
 
   /// Returns a JSON Schema property definition for this parameter.
+  /// A map is advertised as a JSON object, but runtime dict keys may be any
+  /// core-valid key. JSON Schema is not a reversible core value encoding.
   ///
   /// If [jsonSchemaOverride] is set, returns a copy of it. Otherwise
   /// generates a schema from [type] and [description].
@@ -64,125 +67,45 @@ class HostParam {
     return schema;
   }
 
-  /// Validates and optionally coerces [value].
-  ///
-  /// [isPresent] says whether the caller SUPPLIED this parameter at all, which
-  /// is not the same question as whether its value is null — see below.
-  ///
-  /// Returns the validated (possibly coerced) value.
-  /// Throws [FormatException] if validation fails.
-  Object? validate(Object? value, {bool isPresent = true}) {
+  /// Validates a core value without conversion.
+  /// Presence is independent of None.
+  MontyValue validate(MontyValue? value, {bool isPresent = true}) {
+    if (!isPresent) {
+      if (isRequired) {
+        throw FormatException('Required parameter "$name" is missing');
+      }
+
+      return defaultValue ?? const MontyNone();
+    }
     if (value == null) {
-      // ABSENT AND EXPLICITLY NULL ARE DIFFERENT THINGS, and conflating them
-      // broke a published demo.
-      //
-      // `HostParamType.any` means any value, and in Python `None` IS a value.
-      // The message-bus worker-pool idiom depends on that: producers queue
-      // `msg_send(name='tasks', message=None)` sentinels and each worker
-      // loops on `msg_recv` until it pulls one. `_handleSend` has always
-      // accepted a null payload — it reads `args['message']` straight through
-      // to the bus — but this check rejected the call before the handler ever
-      // saw it, with `Required parameter "message" is null`. Measured on the
-      // published agent.html demo: the `workerpool` example, which the page
-      // ships and documents, failed with exactly that message.
-      //
-      // So: a required parameter that was NOT SUPPLIED is still an error, and
-      // a required typed parameter that was supplied as null is still an error
-      // (null is not a String). A required `any` parameter supplied as null is
-      // a legitimate null, and is passed through.
-      if (isRequired && !isPresent) {
-        throw FormatException('Required parameter "$name" is missing', value);
-      }
-      if (isRequired && type != HostParamType.any) {
-        throw FormatException('Required parameter "$name" is null', value);
-      }
-      if (isRequired) return null;
-
-      return defaultValue;
+      throw ArgumentError.value(
+        value,
+        name,
+        'Present arguments must be MontyValue',
+      );
     }
-
-    return switch (type) {
-      HostParamType.string => _expectType<String>(value),
-      HostParamType.integer => _coerceInt(value),
-      HostParamType.number => _coerceNumber(value),
-      HostParamType.boolean => _expectType<bool>(value),
-      HostParamType.list => _expectType<List<Object?>>(value),
-      HostParamType.map => _expectStringKeyedMap(value),
-      HostParamType.any => value,
+    if (value is MontyNone && (!isRequired || type == HostParamType.any)) {
+      return value;
+    }
+    if (value is MontyNone) {
+      throw FormatException('Required parameter "$name" is null');
+    }
+    final accepted = switch (type) {
+      HostParamType.string => value is MontyString,
+      HostParamType.integer => value is MontyInt || value is MontyBigInt,
+      HostParamType.number =>
+        value is MontyInt || value is MontyBigInt || value is MontyFloat,
+      HostParamType.boolean => value is MontyBool,
+      HostParamType.list => value is MontyList,
+      HostParamType.map => value is MontyDict,
+      HostParamType.any => true,
     };
-  }
-
-  /// Accepts any map whose keys are all strings, and narrows it.
-  ///
-  /// This was `_expectType<Map<String, Object?>>`, which stopped working when
-  /// `dart_monty_core` merged `MontyPairsDict` into `MontyDict`: a Python dict
-  /// now lowers through `dartValue` as `Map<Object?, Object?>`, because the
-  /// key space is `MontyValue` and only the VALUES of those keys are known to
-  /// be strings. A `Map<Object?, Object?>` is not a `Map<String, Object?>` even
-  /// when every key is in fact a String, so the old check rejected every map
-  /// argument. The failure surfaced at the host boundary, reading
-  /// `expected Map[String, Object?], got _Map[Object?, Object?]`.
-  ///
-  /// Narrowing rather than widening the parameter type keeps
-  /// `HostParamType.map` meaning what its handlers already assume. A
-  /// non-string key is still a rejection, and names the offending key:
-  /// silently dropping it would hand the handler a map missing an entry
-  /// the caller supplied.
-  Map<String, Object?> _expectStringKeyedMap(Object? value) {
-    if (value is Map<String, Object?>) return value;
-    if (value is Map) {
-      final out = <String, Object?>{};
-      for (final entry in value.entries) {
-        final key = entry.key;
-        if (key is! String) {
-          throw FormatException(
-            'Parameter "$name": map keys must be strings, got '
-            '${key.runtimeType} ($key)',
-            value,
-          );
-        }
-        out[key] = entry.value;
-      }
-
-      return out;
+    if (!accepted) {
+      throw FormatException(
+        'Parameter "$name": expected ${type.name}, got ${value.runtimeType}',
+      );
     }
-    throw FormatException(
-      'Parameter "$name": expected Map<String, Object?>, '
-      'got ${value.runtimeType}',
-      value,
-    );
-  }
 
-  T _expectType<T>(Object? value) {
-    if (value is T) return value;
-    throw FormatException(
-      'Parameter "$name": expected $T, got ${value.runtimeType}',
-      value,
-    );
-  }
-
-  /// Accepts only Dart [int] for integer params.
-  ///
-  /// Floats (even whole-number floats like 1.0) and strings are rejected —
-  /// Monty maps Python `int` to Dart `int` directly. Accepting floats would
-  /// silently truncate (1.5 → 1), masking type errors at the Python call site.
-  int _coerceInt(Object? value) {
-    if (value is int) return value;
-    throw FormatException(
-      'Parameter "$name": expected int, got ${value.runtimeType}',
-      value,
-    );
-  }
-
-  /// Accepts any Dart [num] (int or double) for number params.
-  ///
-  /// Strings are not coerced — Monty maps Python numeric types to Dart [num]
-  /// directly. A string argument indicates a Python-side type error.
-  num _coerceNumber(Object? value) {
-    if (value is num) return value;
-    throw FormatException(
-      'Parameter "$name": expected num, got ${value.runtimeType}',
-      value,
-    );
+    return value;
   }
 }

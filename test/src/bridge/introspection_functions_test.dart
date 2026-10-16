@@ -9,7 +9,7 @@ import 'package:dart_monty/src/host/param.dart';
 import 'package:dart_monty/src/host/param_type.dart';
 import 'package:dart_monty/src/host/schema.dart';
 import 'package:dart_monty/src/introspection_functions.dart';
-import 'package:dart_monty/src/os_call/os_handlers.dart';
+import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:test/test.dart';
 
 final _testCtx = HostContext(emit: (_) {}, executionId: 'test');
@@ -34,7 +34,7 @@ void main() {
                   ),
                 ],
               ),
-              handler: (_, _) async => null,
+              handler: (_, _) async => const MontyNone(),
             ),
             category: 'storage',
           )
@@ -44,7 +44,7 @@ void main() {
                 name: 'storage_set',
                 description: 'Set a value in storage.',
               ),
-              handler: (_, _) async => null,
+              handler: (_, _) async => const MontyNone(),
             ),
             category: 'storage',
           )
@@ -54,7 +54,7 @@ void main() {
                 name: 'cache_get',
                 description: 'Get a value from cache.',
               ),
-              handler: (_, _) async => null,
+              handler: (_, _) async => const MontyNone(),
             ),
             category: 'cache',
           )
@@ -64,7 +64,7 @@ void main() {
                 name: 'cache_clear',
                 description: 'Clear the cache.',
               ),
-              handler: (_, _) async => null,
+              handler: (_, _) async => const MontyNone(),
             ),
             category: 'cache',
           );
@@ -77,8 +77,10 @@ void main() {
       Future<String> callHelp([String? name]) async {
         final fns = buildIntrospectionFunctions(bridge);
         final helpFn = fns.firstWhere((f) => f.schema.name == 'help');
-        final result = await helpFn.handler!({'name': name}, _testCtx);
-        return result! as String;
+        final result = await helpFn.handler!({
+          'name': MontyValue.fromDart(name),
+        }, _testCtx);
+        return (result as MontyString).value;
       }
 
       test('no args returns full function listing', () async {
@@ -196,14 +198,17 @@ void main() {
                 name: 'db_utils_query',
                 description: 'Run a DB query.',
               ),
-              handler: (_, _) async => null,
+              handler: (_, _) async => const MontyNone(),
             ),
             category: 'db_utils',
           );
         final fns = buildIntrospectionFunctions(b);
         final helpFn = fns.firstWhere((f) => f.schema.name == 'help');
-        final result = await helpFn.handler!({'name': 'query'}, _testCtx);
-        final decoded = jsonDecode(result! as String) as Map<String, Object?>;
+        final result = await helpFn.handler!({
+          'name': const MontyString('query'),
+        }, _testCtx);
+        final decoded =
+            jsonDecode((result as MontyString).value) as Map<String, Object?>;
 
         expect(decoded['name'], 'db_utils_query');
       });
@@ -232,13 +237,16 @@ void main() {
                 name: 'late_fn',
                 description: 'Registered late.',
               ),
-              handler: (_, _) async => null,
+              handler: (_, _) async => const MontyNone(),
             ),
             category: 'late',
           );
 
-          final result = await helpFn.handler!({'name': 'late_fn'}, _testCtx);
-          final decoded = jsonDecode(result! as String) as Map<String, Object?>;
+          final result = await helpFn.handler!({
+            'name': const MontyString('late_fn'),
+          }, _testCtx);
+          final decoded =
+              jsonDecode((result as MontyString).value) as Map<String, Object?>;
 
           expect(decoded['name'], 'late_fn');
           expect(decoded['description'], 'Registered late.');
@@ -257,13 +265,14 @@ void main() {
               name: 'late_fn',
               description: 'Registered late.',
             ),
-            handler: (_, _) async => null,
+            handler: (_, _) async => const MontyNone(),
           ),
           category: 'late',
         );
 
         final result = await helpFn.handler!({}, _testCtx);
-        final decoded = jsonDecode(result! as String) as Map<String, Object?>;
+        final decoded =
+            jsonDecode((result as MontyString).value) as Map<String, Object?>;
         final tools = decoded['tools']! as Map<String, Object?>;
 
         expect(tools, contains('late'));
@@ -318,9 +327,9 @@ class _FakeBridge implements MontyBridge {
   Stream<BridgeEvent> execute(String code) => const Stream.empty();
 
   @override
-  Future<Object?> invokeHostFunction(
+  Future<MontyValue> invokeHostFunction(
     String name,
-    Map<String, Object?> args, {
+    Map<String, MontyValue> args, {
     void Function(BridgeEvent)? onEvent,
   }) => throw UnimplementedError();
 

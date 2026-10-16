@@ -11,11 +11,12 @@
 @Tags(['integration'])
 library;
 
-// Integration test uses print for output and nullable casts for brevity.
-// ignore_for_file: avoid_print, cast_nullable_to_non_nullable
 import 'dart:io';
 
 import 'package:dart_monty/dart_monty.dart';
+// Integration test uses print for output and nullable casts for brevity.
+// ignore_for_file: avoid_print
+import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:test/test.dart';
 
 import '_printed.dart';
@@ -31,7 +32,7 @@ HostFunction syncFn() => HostFunction(
     name: 'sync_fn',
     description: 'Returns immediately',
   ),
-  handler: (_, ctx) async => 'sync_ok',
+  handler: (_, ctx) async => const MontyString('sync_ok'),
 );
 
 HostFunction delayFn() => HostFunction(
@@ -42,7 +43,7 @@ HostFunction delayFn() => HostFunction(
   handler: (_, _) async {
     await Future<void>.delayed(const Duration(milliseconds: 200));
 
-    return 'delay_ok';
+    return const MontyString('delay_ok');
   },
 );
 
@@ -62,7 +63,7 @@ HostFunction httpFn() => HostFunction(
       final resp = await req.close();
       final body = await resp.transform(const SystemEncoding().decoder).join();
 
-      return body.substring(0, 30);
+      return MontyValue.fromDart(body.substring(0, 30));
     } finally {
       client.close();
     }
@@ -77,7 +78,7 @@ HostFunction counterFn() {
       name: 'counter',
       description: 'Increments and returns a counter',
     ),
-    handler: (_, _) async => ++count,
+    handler: (_, _) async => MontyValue.fromDart(++count),
   );
 }
 
@@ -91,9 +92,9 @@ HostFunction accumFn() {
       params: [HostParam(name: 'item', type: HostParamType.string)],
     ),
     handler: (args, _) async {
-      items.add(args['item']! as String);
+      items.add((args['item']! as MontyString).value);
 
-      return items.length;
+      return MontyValue.fromDart(items.length);
     },
   );
 }
@@ -209,7 +210,7 @@ void main() {
         );
         final r = await s.execute('len(data)').result;
         print('  G8: len(data) = ${r.dartValue}');
-        expect(r.dartValue as int, greaterThan(0));
+        expect(r.dartValue! as int, greaterThan(0));
       },
       timeout: const Timeout(Duration(seconds: 15)),
     );
@@ -277,7 +278,7 @@ content = Path("/data.txt").read_text()
             .result;
         final r = await s.execute('report').result;
         print('  H4: ${r.dartValue}');
-        expect(r.dartValue as String, startsWith('Got '));
+        expect(r.dartValue! as String, startsWith('Got '));
       },
       timeout: const Timeout(Duration(seconds: 15)),
     );
@@ -323,7 +324,7 @@ content = Path("/data.txt").read_text()
                   handler: (a, _) async {
                     kv[a['k']! as String] = a['v']! as String;
 
-                    return 'ok';
+                    return const MontyString('ok');
                   },
                 ),
               )
@@ -336,7 +337,8 @@ content = Path("/data.txt").read_text()
                       HostParam(name: 'k', type: HostParamType.string),
                     ],
                   ),
-                  handler: (a, _) async => kv[a['k']! as String],
+                  handler: (a, _) async =>
+                      MontyValue.fromDart(kv[a['k']! as String]),
                 ),
               );
         addTearDown(s.dispose);
@@ -353,7 +355,7 @@ cached = Path("/cache.txt").read_text()
 ''').result;
         final r = await s.execute('[kv_get("cached"), len(cached)]').result;
         print('  H6: ${r.dartValue}');
-        final list = r.dartValue as List;
+        final list = r.dartValue! as List;
         expect(list[0], 'true');
         expect(list[1] as int, greaterThan(0));
       },
@@ -384,7 +386,7 @@ cached = Path("/cache.txt").read_text()
       final s = await MontyRuntime.start(pool: pool);
       addTearDown(s.dispose);
       final r = await s.execute('"x" * 100000').result;
-      final v = r.dartValue as String;
+      final v = r.dartValue! as String;
       print('  I3: ${v.length} chars');
       expect(v.length, 100000);
     });
@@ -393,7 +395,7 @@ cached = Path("/cache.txt").read_text()
       final s = await MontyRuntime.start(pool: pool);
       addTearDown(s.dispose);
       final r = await s.execute('list(range(1000))').result;
-      final v = r.dartValue as List;
+      final v = r.dartValue! as List;
       print('  I4: ${v.length} items');
       expect(v.length, 1000);
     });
@@ -402,7 +404,7 @@ cached = Path("/cache.txt").read_text()
       final s = await MontyRuntime.start(pool: pool);
       addTearDown(s.dispose);
       final r = await s.execute('{"a": {"b": {"c": 42}}}').result;
-      final v = r.dartValue as Map;
+      final v = r.dartValue! as Map;
       print('  I5: $v');
       expect((v['a'] as Map)['b'], {'c': 42});
     });
@@ -415,7 +417,7 @@ cached = Path("/cache.txt").read_text()
               name: 'returns_none',
               description: 'Returns null',
             ),
-            handler: (_, _) async => null,
+            handler: (_, _) async => const MontyNone(),
           ),
         );
       addTearDown(s.dispose);
@@ -435,7 +437,7 @@ x is None
               name: 'big_string',
               description: 'Returns 50KB string',
             ),
-            handler: (_, _) async => 'x' * 50000,
+            handler: (_, _) async => MontyValue.fromDart('x' * 50000),
           ),
         );
       addTearDown(s.dispose);

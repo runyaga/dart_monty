@@ -2,6 +2,7 @@ import 'package:dart_monty/src/extension/extension.dart' show MontyExtension;
 import 'package:dart_monty/src/host/context.dart';
 import 'package:dart_monty/src/host/schema.dart';
 import 'package:dart_monty/src/runtime/backend_kind.dart';
+import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:meta/meta.dart';
 
 /// How the bridge dispatches calls to a [HostFunction].
@@ -21,7 +22,7 @@ enum DispatchMode {
 
 /// Async handler that receives validated named arguments and a [HostContext].
 typedef HostFunctionHandler =
-    Future<Object?> Function(Map<String, Object?> args, HostContext ctx);
+    Future<MontyValue> Function(Map<String, MontyValue> args, HostContext ctx);
 
 /// A host function: schema + per-backend handlers.
 @immutable

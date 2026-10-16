@@ -77,7 +77,10 @@ Future<void> main() async {
         ],
       ),
       handler: (args, _) async => _userValue(
-        User(name: args['name']! as String, age: args['age']! as int),
+        User(
+          name: (args['name']! as MontyString).value,
+          age: (args['age']! as MontyInt).value,
+        ),
       ),
     ),
   );

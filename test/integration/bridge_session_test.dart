@@ -232,7 +232,13 @@ void main() {
 
     test('a sync-mode call returns its value at the call site, with its '
         'events', () async {
-      bridge.register(fn('inc', (args, _) async => (args['x']! as int) + 1));
+      bridge.register(
+        fn(
+          'inc',
+          (args, _) async =>
+              MontyValue.fromDart(((args['x']! as MontyInt).value) + 1),
+        ),
+      );
 
       final events = await bridge.execute('inc(x=20) * 2').toList();
 
@@ -258,9 +264,9 @@ void main() {
       bridge.register(
         fn(
           'data',
-          (_, _) async => {
+          (_, _) async => MontyValue.fromDart({
             'a': [1, 2.5, null, true],
-          },
+          }),
         ),
       );
 
@@ -280,7 +286,7 @@ void main() {
           if (++started == 3) allStarted.complete();
           await allStarted.future;
 
-          return args['x'];
+          return args['x']!;
         }, dispatch: DispatchMode.future),
       );
 
@@ -304,7 +310,7 @@ void main() {
             description: '',
             params: [HostParam(name: 'v', type: HostParamType.list)],
           ),
-          handler: (_, _) async => 'ran',
+          handler: (_, _) async => const MontyString('ran'),
         ),
       );
 
@@ -328,7 +334,7 @@ void main() {
             description: '',
             params: [HostParam(name: 'v', type: HostParamType.list)],
           ),
-          handler: (args, _) async => args['v'],
+          handler: (args, _) async => args['v']!,
         ),
       );
 
@@ -383,7 +389,7 @@ void main() {
         fn('later', (args, _) async {
           await Future<void>.delayed(const Duration(milliseconds: 10));
 
-          return args['x'];
+          return args['x']!;
         }, dispatch: DispatchMode.future),
       );
 
@@ -433,7 +439,7 @@ void main() {
         fn('need', (_, _) async {
           called = true;
 
-          return null;
+          return const MontyNone();
         }),
       );
 

@@ -128,9 +128,9 @@ class SessionBridge implements MontyBridge {
   OsHandler? get currentOsHandler => _currentOsHandler;
 
   @override
-  Future<Object?> invokeHostFunction(
+  Future<MontyValue> invokeHostFunction(
     String name,
-    Map<String, Object?> args, {
+    Map<String, MontyValue> args, {
     void Function(BridgeEvent)? onEvent,
   }) {
     if (_isDisposed) throw StateError('Bridge has been disposed');

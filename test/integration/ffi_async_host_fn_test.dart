@@ -14,7 +14,9 @@ library;
 import 'dart:io';
 
 import 'package:dart_monty/dart_monty.dart';
+import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:test/test.dart';
+
 import '_worker.dart';
 
 void main() {
@@ -33,7 +35,7 @@ void main() {
             name: 'fast_fn',
             description: 'Returns immediately',
           ),
-          handler: (_, _) async => 'fast',
+          handler: (_, _) async => const MontyString('fast'),
         ),
       );
 
@@ -57,7 +59,7 @@ void main() {
           handler: (_, _) async {
             await Future<void>.delayed(const Duration(milliseconds: 100));
 
-            return 'done';
+            return const MontyString('done');
           },
         ),
       );
@@ -82,7 +84,7 @@ void main() {
           handler: (_, _) async {
             await Future<void>.delayed(const Duration(seconds: 1));
 
-            return 'done';
+            return const MontyString('done');
           },
         ),
       );
@@ -110,7 +112,7 @@ void main() {
               ],
             ),
             handler: (args, _) async {
-              final url = args['url']! as String;
+              final url = (args['url']! as MontyString).value;
               final client = HttpClient();
               try {
                 final request = await client.getUrl(Uri.parse(url));
@@ -121,7 +123,7 @@ void main() {
                     )
                     .join();
 
-                return body.substring(0, 50);
+                return MontyValue.fromDart(body.substring(0, 50));
               } finally {
                 client.close();
               }
@@ -164,7 +166,7 @@ void main() {
               ],
             ),
             handler: (args, _) async {
-              final url = args['url']! as String;
+              final url = (args['url']! as MontyString).value;
               final client = HttpClient();
               try {
                 final request = await client.getUrl(Uri.parse(url));
@@ -175,7 +177,7 @@ void main() {
                     )
                     .join();
 
-                return body.substring(0, 50);
+                return MontyValue.fromDart(body.substring(0, 50));
               } finally {
                 client.close();
               }
@@ -213,7 +215,7 @@ void main() {
             final file = File('/etc/hosts');
             final content = await file.readAsString();
 
-            return content.substring(0, 20);
+            return MontyValue.fromDart(content.substring(0, 20));
           },
         ),
       );
@@ -238,7 +240,7 @@ void main() {
           handler: (_, _) async {
             final result = await Process.run('echo', ['hello']);
 
-            return (result.stdout as String).trim();
+            return MontyValue.fromDart((result.stdout as String).trim());
           },
         ),
       );
@@ -265,7 +267,7 @@ void main() {
             final port = server.port;
             await server.close();
 
-            return 'port:$port';
+            return MontyString('port:$port');
           },
         ),
       );
@@ -293,7 +295,7 @@ void main() {
               ],
             ),
             handler: (args, _) async {
-              final url = args['url']! as String;
+              final url = (args['url']! as MontyString).value;
               final client = HttpClient();
               try {
                 final request = await client.getUrl(Uri.parse(url));
@@ -301,7 +303,7 @@ void main() {
                 // Drain the body without reading it
                 await response.drain<void>();
 
-                return response.statusCode;
+                return MontyValue.fromDart(response.statusCode);
               } finally {
                 client.close();
               }
@@ -342,7 +344,7 @@ void main() {
               ],
             ),
             handler: (args, _) async {
-              final url = args['url']! as String;
+              final url = (args['url']! as MontyString).value;
               final client = HttpClient();
               try {
                 final request = await client.getUrl(Uri.parse(url));
@@ -351,7 +353,7 @@ void main() {
                     .transform(const SystemEncoding().decoder)
                     .join();
 
-                return body;
+                return MontyValue.fromDart(body);
               } finally {
                 client.close();
               }

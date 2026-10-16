@@ -200,7 +200,7 @@ void main() {
           schema: const HostFunctionSchema(name: 'fn', description: ''),
           handler: (_, _) async {
             called = true;
-            return 'ok';
+            return const MontyString('ok');
           },
         ),
       );
@@ -338,15 +338,17 @@ void main() {
           handler: (args, _) async {
             capturedArgs = args;
 
-            return 'hello ${args['who']}';
+            return MontyValue.fromDart('hello ${args['who']!.dartValue}');
           },
         ),
       );
 
-      final result = await b.invokeHostFunction('greet', {'who': 'world'});
+      final result = await b.invokeHostFunction('greet', {
+        'who': const MontyString('world'),
+      });
 
-      expect(result, 'hello world');
-      expect(capturedArgs, {'who': 'world'});
+      expect(result, const MontyString('hello world'));
+      expect(capturedArgs, {'who': const MontyString('world')});
     });
 
     test('unknown function throws ArgumentError', () {
@@ -376,7 +378,7 @@ void main() {
             schema: const HostFunctionSchema(name: 'peek', description: ''),
             handler: (_, ctx) async {
               captured = ctx.os;
-              return null;
+              return const MontyNone();
             },
           ),
         );
@@ -417,7 +419,7 @@ void main() {
             schema: const HostFunctionSchema(name: 'peek_os', description: ''),
             handler: (_, ctx) async {
               capturedOs = ctx.os;
-              return null;
+              return const MontyNone();
             },
           ),
         );
@@ -447,7 +449,7 @@ void main() {
             description: '',
             params: [HostParam(name: 'name', type: HostParamType.string)],
           ),
-          handler: (_, _) async => null,
+          handler: (_, _) async => const MontyNone(),
         ),
       );
 
@@ -465,14 +467,14 @@ void main() {
             description: '',
             params: [HostParam(name: 'n', type: HostParamType.integer)],
           ),
-          handler: (args, _) async => args['n'],
+          handler: (args, _) async => args['n']!,
         ),
       );
 
       // Strings are no longer coerced — Monty maps Python int → Dart int
       // directly, so a string argument indicates a Python-side type error.
       expect(
-        () => bridge.invokeHostFunction('add', {'n': '42'}),
+        () => bridge.invokeHostFunction('add', {'n': const MontyString('42')}),
         throwsFormatException,
       );
     });
@@ -493,14 +495,14 @@ void main() {
             ctx
               ..emitText('progress 1')
               ..emitText('progress 2');
-            return 'done';
+            return const MontyString('done');
           },
         ),
       );
 
       final result = await bridge.invokeHostFunction('streamer', const {});
 
-      expect(result, 'done');
+      expect(result, const MontyString('done'));
     });
 
     test('with onEvent — handler emissions surface in order', () async {
@@ -511,7 +513,7 @@ void main() {
             ctx
               ..emitText('one')
               ..emitText('two');
-            return 'done';
+            return const MontyString('done');
           },
         ),
       );
@@ -523,7 +525,7 @@ void main() {
         onEvent: received.add,
       );
 
-      expect(result, 'done');
+      expect(result, const MontyString('done'));
       expect(received, hasLength(2));
       expect(received[0], isA<BridgeFunctionEmit>());
       expect((received[0] as BridgeFunctionEmit).text, 'one');
@@ -548,7 +550,7 @@ void main() {
                   argumentSummary: "'HOME'",
                 ),
               );
-              return null;
+              return const MontyNone();
             },
           ),
         );
@@ -576,7 +578,7 @@ void main() {
             ctx
               ..emitText('first')
               ..emitText('second');
-            return 'done';
+            return const MontyString('done');
           },
         ),
       );
@@ -591,7 +593,7 @@ void main() {
         },
       );
 
-      expect(result, 'done');
+      expect(result, const MontyString('done'));
       expect(callCount, 2);
     });
   });
@@ -652,7 +654,7 @@ void main() {
         () => bridge.register(
           HostFunction(
             schema: const HostFunctionSchema(name: 'fn', description: ''),
-            handler: (_, _) async => null,
+            handler: (_, _) async => const MontyNone(),
           ),
         ),
         throwsStateError,
@@ -699,7 +701,7 @@ void main() {
       bridge.register(
         HostFunction(
           schema: const HostFunctionSchema(name: 'temp', description: ''),
-          handler: (_, _) async => null,
+          handler: (_, _) async => const MontyNone(),
         ),
       );
       expect(bridge.schemas.map((s) => s.name), contains('temp'));
@@ -747,7 +749,7 @@ void main() {
             description: '',
             params: [HostParam(name: 'x', type: HostParamType.integer)],
           ),
-          handler: (_, _) async => null,
+          handler: (_, _) async => const MontyNone(),
         ),
       );
 
@@ -770,7 +772,7 @@ void main() {
             description: '',
             params: [HostParam(name: 'x', type: HostParamType.integer)],
           ),
-          handler: (_, _) async => null,
+          handler: (_, _) async => const MontyNone(),
           dispatch: DispatchMode.future,
         ),
       );
@@ -801,7 +803,7 @@ void main() {
                 name: 'greet',
                 description: 'Returns hello',
               ),
-              handler: (_, _) async => 'hello',
+              handler: (_, _) async => const MontyString('hello'),
             ),
           );
 
@@ -840,7 +842,7 @@ void main() {
                   HostParam(name: 'n', type: HostParamType.integer),
                 ],
               ),
-              handler: (args, _) async => args['n'],
+              handler: (args, _) async => args['n']!,
             ),
           );
 
@@ -883,7 +885,7 @@ void main() {
           seen = ctx;
           ctx.emitText('working');
 
-          return 'x=${args['x']}';
+          return MontyValue.fromDart('x=${args['x']!.dartValue}');
         }),
       );
       fake
@@ -922,14 +924,14 @@ void main() {
                 name: 'y',
                 type: HostParamType.string,
                 isRequired: false,
-                defaultValue: 'dflt',
+                defaultValue: MontyString('dflt'),
               ),
             ],
           ),
           handler: (args, _) async {
             got = args;
 
-            return null;
+            return const MontyNone();
           },
         ),
       );
@@ -939,7 +941,7 @@ void main() {
 
       final events = await bridge.execute('fn(1)').toList();
 
-      expect(got, {'x': 1, 'y': 'dflt'});
+      expect(got, {'x': const MontyInt(1), 'y': const MontyString('dflt')});
       expect(
         events.whereType<BridgeFunctionCallArgs>().single.delta,
         '{"x":1,"y":"dflt"}',
@@ -948,8 +950,9 @@ void main() {
 
     test('arguments JSON cannot encode are shown as a note, and the call '
         'goes on', () async {
-      final cyclic = <Object?>[];
-      cyclic.add(cyclic);
+      final items = <MontyValue>[];
+      final cyclic = MontyList(items);
+      items.add(cyclic);
       bridge.register(
         HostFunction(
           schema: HostFunctionSchema(
@@ -965,7 +968,7 @@ void main() {
               ),
             ],
           ),
-          handler: (_, _) async => 'ran',
+          handler: (_, _) async => const MontyString('ran'),
         ),
       );
       fake
@@ -976,7 +979,7 @@ void main() {
 
       expect(
         events.whereType<BridgeFunctionCallArgs>().single.delta,
-        '"arguments not shown: JsonCyclicError"',
+        '"arguments not shown: StateError"',
       );
       expect(events.map(_line).toList().sublist(4), [
         'FunctionCallEnd 2',
@@ -1005,16 +1008,16 @@ void main() {
                 name: 'y',
                 type: HostParamType.map,
                 isRequired: false,
-                defaultValue: {0: shared},
+                defaultValue: MontyValue.fromDart({0: shared}),
               ),
             ],
           ),
-          handler: (_, _) async => [
+          handler: (_, _) async => MontyValue.fromDart([
             1,
             'a',
             null,
             <Object?, Object?>{2: 3},
-          ],
+          ]),
         ),
       );
       fake
@@ -1039,7 +1042,7 @@ void main() {
       for (var i = 0; i < 100000; i++) {
         nested = <Object?>[nested];
       }
-      bridge.register(_fnX((_, _) async => nested));
+      bridge.register(_fnX((_, _) async => MontyValue.fromDart(nested)));
       fake
         ..willCall('fn', kwargs: {'x': const MontyInt(1)})
         ..willReturn(const MontyNone());
@@ -1052,7 +1055,7 @@ void main() {
     });
 
     test('ids come from one counter across calls and runs', () async {
-      bridge.register(_fnX((args, _) async => args['x']));
+      bridge.register(_fnX((args, _) async => args['x']!));
       fake
         ..willCall('fn', kwargs: {'x': const MontyInt(1)})
         ..willCall('fn', kwargs: {'x': const MontyInt(2)})
@@ -1084,7 +1087,7 @@ void main() {
         _fnX((_, ctx) async {
           parent = ctx.parent;
 
-          return null;
+          return const MontyNone();
         }),
       );
       fake
@@ -1108,9 +1111,9 @@ void main() {
       final seen = <MontyValue>[];
       b.register(
         _fnX((args, ctx) async {
-          seen.add(await ctx.subExecute!('code ${args['x']}'));
+          seen.add(await ctx.subExecute!('code ${args['x']!.dartValue}'));
 
-          return null;
+          return const MontyNone();
         }),
       );
       fake
@@ -1118,7 +1121,7 @@ void main() {
         ..willReturn(const MontyNone());
 
       await b.execute('fn(x=1)').toList();
-      await b.invokeHostFunction('fn', {'x': 2});
+      await b.invokeHostFunction('fn', {'x': const MontyInt(2)});
 
       expect(seen, [
         const MontyString('sub:code 1'),
@@ -1127,7 +1130,7 @@ void main() {
     });
 
     test('a null result is None and an empty result text', () async {
-      bridge.register(_fnX((_, _) async => null));
+      bridge.register(_fnX((_, _) async => const MontyNone()));
       fake
         ..willCall('fn', kwargs: {'x': const MontyInt(1)})
         ..willReturn(const MontyNone());
@@ -1146,7 +1149,7 @@ void main() {
         'a': [1, 2.5, null, true],
         'b': 'text',
       };
-      bridge.register(_fnX((_, _) async => result));
+      bridge.register(_fnX((_, _) async => MontyValue.fromDart(result)));
       fake
         ..willCall('fn', kwargs: {'x': const MontyInt(1)})
         ..willReturn(const MontyNone());
@@ -1163,7 +1166,7 @@ void main() {
         _fnX((_, _) async {
           called = true;
 
-          return null;
+          return const MontyNone();
         }),
       );
       fake
@@ -1235,7 +1238,7 @@ void main() {
     });
 
     test('a value MontyValue.fromDart refuses raises RuntimeError', () async {
-      bridge.register(_fnX((_, _) async => Object()));
+      bridge.register(_fnX((_, _) async => MontyValue.fromDart(Object())));
       fake
         ..willCall('fn', kwargs: {'x': const MontyInt(1)})
         ..willCatch()
@@ -1253,7 +1256,7 @@ void main() {
     test(
       'a sync-mode call is answered with its value at the call site',
       () async {
-        bridge.register(_fnX((args, _) async => args['x']));
+        bridge.register(_fnX((args, _) async => args['x']!));
         fake
           ..willCall('fn', kwargs: {'x': const MontyInt(7)})
           ..willReturn(const MontyNone());
@@ -1268,7 +1271,7 @@ void main() {
 
     test('a future-mode call is a coroutine: settled through the futures '
         'protocol, its result events emitted when it completes', () async {
-      final gate = Completer<Object?>();
+      final gate = Completer<MontyValue>();
       var started = false;
       bridge.register(
         _fnX((_, _) {
@@ -1290,7 +1293,7 @@ void main() {
       expect(started, isTrue);
       expect(events.whereType<BridgeFunctionCallResult>(), isEmpty);
 
-      gate.complete('late');
+      gate.complete(const MontyString('late'));
       await done;
 
       expect(events.map(_line).toList().sublist(5), [
@@ -1448,7 +1451,7 @@ void main() {
       final log = _RecordingLogger();
       HostFunction fn(String name) => HostFunction(
         schema: HostFunctionSchema(name: name, description: ''),
-        handler: (_, _) async => null,
+        handler: (_, _) async => const MontyNone(),
       );
       final b = MontyBridge(session: FakeMontySession(), logger: log)
         ..register(fn('a'), category: 'files')
@@ -1473,7 +1476,7 @@ void main() {
         ..register(
           HostFunction(
             schema: const HostFunctionSchema(name: 'f', description: ''),
-            handler: (_, _) async => null,
+            handler: (_, _) async => const MontyNone(),
           ),
         );
       addTearDown(b.dispose);

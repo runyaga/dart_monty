@@ -1,6 +1,6 @@
 # Host Functions -- Beginner
 
-This guide covers typed parameter schemas, argument validation and
+This guide covers typed parameter schemas, argument validation without
 coercion, error handling in handlers, and the `BridgeEvent` stream.
 
 **Prerequisites:** Read the [Intro guide](host-functions-intro.md) first.
@@ -20,7 +20,7 @@ const schema = HostFunctionSchema(
       name: 'timeout',
       type: HostParamType.integer,
       isRequired: false,
-      defaultValue: 30,
+      defaultValue: MontyInt(30),
       description: 'Request timeout in seconds.',
     ),
   ],
@@ -29,9 +29,10 @@ const schema = HostFunctionSchema(
 
 The schema serves two purposes:
 
-1. **Runtime validation** -- the bridge validates and coerces arguments
+1. **Runtime validation** -- the bridge validates core values
    before calling your handler. If Python passes wrong types, the bridge
-   raises a `FormatException` back to Python before your code runs.
+   raises a Python `RuntimeError` before your handler or middleware runs.
+   Direct Dart invocation reports `FormatException`.
 2. **JSON Schema export** -- `schema.toJsonSchema()` produces a standard
    JSON Schema object for tool discovery (e.g., MCP integration).
 
@@ -45,27 +46,36 @@ Each parameter is defined with `HostParam`:
 | `type` | `HostParamType` | required | Expected type |
 | `isRequired` | `bool` | `true` | Whether the caller must supply a value |
 | `description` | `String?` | `null` | Human-readable description for JSON Schema |
-| `defaultValue` | `Object?` | `null` | Value used when argument is absent and not required |
+| `defaultValue` | `MontyValue?` | `null` | Value used when argument is absent and not required |
 | `jsonSchemaOverride` | `Map<String, Object?>?` | `null` | Full JSON Schema override for complex types |
 
 ## HostParamType
 
-The type system maps Python types to Dart types with automatic coercion:
+Handlers take `Map<String, MontyValue>` and return `Future<MontyValue>`.
+Import core values from `package:dart_monty_core/dart_monty_core.dart`.
 
-| `HostParamType` | Python type | Dart type | Coercion |
-|-----------------|-------------|-----------|----------|
-| `string` | `str` | `String` | Exact match only |
-| `integer` | `int` | `int` | Accepts `num` (truncates) and numeric `String` |
-| `number` | `float` | `num` | Accepts `int`, `double`, and numeric `String` |
-| `boolean` | `bool` | `bool` | Exact match only |
-| `list` | `list` | `List<Object?>` | Exact match only |
-| `map` | `dict` | `Map<String, Object?>` | Exact match only |
-| `any` | any | `Object?` | Passes through without type checking |
+| `HostParamType` | Accepted core values |
+|---|---|
+| `string` | `MontyString` |
+| `integer` | `MontyInt`, `MontyBigInt` |
+| `number` | `MontyInt`, `MontyBigInt`, `MontyFloat` |
+| `boolean` | `MontyBool` |
+| `list` | `MontyList` (tuples remain distinct) |
+| `map` | `MontyDict`, with any core-valid keys |
+| `any` | Any `MontyValue`, including `MontyNone` and proxies |
 
-The `integer` and `number` types perform smart coercion. If Python sends
-a float where you declared `integer`, the bridge truncates it to `int`.
-If Python sends a numeric string, the bridge parses it. All other types
-require exact matches.
+Validation preserves the original value and shared children. There is no
+numeric coercion: `1.0` and `True` are rejected for `integer`. Big integers
+and negative zero retain their kind. Iterate `MontyDict.pairs` to retain
+non-string keys. The advertised JSON schema still describes a map as an
+`object`; it is not a core value encoding or a restriction to string keys.
+
+Optional omission selects the exact `defaultValue` instance, or
+`const MontyNone()` if no default was configured. Explicit `MontyNone`
+never selects another default. Required parameters reject omission even
+when a default exists; required `any` accepts explicit None, while required
+typed parameters reject it. `validate(null, isPresent: true)` is an
+`ArgumentError`. Defaults are validated at registration.
 
 ## Argument Mapping
 
@@ -89,7 +99,7 @@ Schema maps to: {"url": "https://example.com", "timeout": 10}
   `FormatException`.
 - Unknown keyword argument names raise a `FormatException`.
 - Missing required parameters raise a `FormatException`.
-- Absent optional parameters receive their `defaultValue`.
+- Absent optional parameters receive their `defaultValue` or `MontyNone`.
 
 ## Error Handling in Handlers
 
@@ -107,11 +117,11 @@ HostFunction(
       HostParam(name: 'b', type: HostParamType.number),
     ],
   ),
-  handler: (args) async {
-    final a = args['a'] as num;
-    final b = args['b'] as num;
+  handler: (args, ctx) async {
+    final a = args['a']!.dartValue! as num;
+    final b = args['b']!.dartValue! as num;
     if (b == 0) throw ArgumentError('Division by zero');
-    return a / b;
+    return MontyFloat(a / b);
   },
 )
 ```

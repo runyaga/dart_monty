@@ -85,7 +85,9 @@ HostFunction(
     description: 'Fetch URL content.',
     params: [HostParam(name: 'url', type: HostParamType.string)],
   ),
-  handler: (args, ctx) async => http.read(Uri.parse(args.str('url'))),
+  handler: (args, ctx) async => MontyString(
+    await http.read(Uri.parse((args['url']! as MontyString).value)),
+  ),
 )
 ```
 

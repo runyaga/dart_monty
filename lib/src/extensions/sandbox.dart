@@ -11,6 +11,8 @@ import 'package:dart_monty/src/host/param.dart';
 import 'package:dart_monty/src/host/param_type.dart';
 import 'package:dart_monty/src/host/schema.dart';
 import 'package:dart_monty/src/runtime/backend_kind.dart';
+import 'package:dart_monty/src/runtime/runtime.dart'
+    show MontyRuntime, runtimeLimits;
 import 'package:dart_monty/src/runtime/runtime_ref.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:path/path.dart' as p;
@@ -130,7 +132,7 @@ class _ChildHandle {
 
   final MontyBridge bridge;
   final MontySession session;
-  final Completer<Object?> completer;
+  final Completer<MontyValue> completer;
   final StreamSubscription<BridgeEvent> subscription;
   final ExtensionCoordinator coordinator;
 
@@ -436,14 +438,14 @@ class SandboxExtension extends MontyExtension {
     _childrenSignal.dispose();
   }
 
-  Future<Object?> _handleSpawn(
-    Map<String, Object?> args,
+  Future<MontyValue> _handleSpawn(
+    Map<String, MontyValue> args,
     HostContext ctx,
   ) async {
     _validateSpawnRequest();
 
     final code = args.str('code');
-    final limits = _buildChildLimits(args);
+    final limits = _buildChildLimits(args, ctx.parent);
 
     final id = _nextId++;
     final spawnContext = ChildSpawnContext(
@@ -473,7 +475,7 @@ class SandboxExtension extends MontyExtension {
       throw StateError('SandboxExtension was disposed during child spawn.');
     }
 
-    final completer = Completer<Object?>();
+    final completer = Completer<MontyValue>();
     completer.future.ignore();
     logger.info(
       'Child spawned',
@@ -500,7 +502,7 @@ class SandboxExtension extends MontyExtension {
     );
     _updateChildrenSignal();
 
-    return id;
+    return MontyInt(id);
   }
 
   /// Throws if the extension is disposed or resource limits are exceeded.
@@ -525,17 +527,20 @@ class SandboxExtension extends MontyExtension {
 
   /// Parses optional timeout/memory overrides from [args] and merges with
   /// [childLimits].
-  ResourceLimits? _buildChildLimits(Map<String, Object?> args) {
+  ResourceLimits? _buildChildLimits(
+    Map<String, MontyValue> args,
+    HostParentRef? parent,
+  ) {
+    final effective =
+        childLimits ?? (parent is MontyRuntime ? runtimeLimits(parent) : null);
     final timeoutMs = args.intArgOrNull('timeout_ms');
     final memoryBytes = args.intArgOrNull('memory_bytes');
-    if (timeoutMs == null && memoryBytes == null) return childLimits;
+    if (timeoutMs == null && memoryBytes == null) return effective;
 
-    return ResourceLimits(
-      maxFeedDuration: timeoutMs != null
-          ? Duration(milliseconds: timeoutMs)
-          : childLimits?.maxFeedDuration,
-      maxMemory: memoryBytes ?? childLimits?.maxMemory,
-      maxRecursionDepth: childLimits?.maxRecursionDepth,
+    return _reduceLimits(
+      effective ?? const ResourceLimits(),
+      timeoutMs,
+      memoryBytes,
     );
   }
 
@@ -642,14 +647,14 @@ class SandboxExtension extends MontyExtension {
     required MontyBridge bridge,
     required MontySession session,
     required ExtensionCoordinator coordinator,
-    required Completer<Object?> completer,
+    required Completer<MontyValue> completer,
     required int childId,
     required Stream<BridgeEvent> stream,
     required HostParentRef? parent,
   }) {
     String? errorMessage;
     MontyError? errorException;
-    Object? value;
+    MontyValue value = const MontyNone();
     String? printOutput;
     final childHandle = '$childId';
 
@@ -661,7 +666,7 @@ class SandboxExtension extends MontyExtension {
           errorException = event.exception;
           printOutput ??= event.printOutput;
         } else if (event is BridgeRunFinished) {
-          value = event.value;
+          value = event.montyValue ?? const MontyNone();
           printOutput = event.printOutput;
         }
       },
@@ -688,11 +693,11 @@ class SandboxExtension extends MontyExtension {
     MontyBridge bridge,
     MontySession session,
     ExtensionCoordinator coordinator,
-    Completer<Object?> completer, {
-    String? errorMessage,
-    MontyError? errorException,
-    Object? value,
-    String? printOutput,
+    Completer<MontyValue> completer, {
+    required String? errorMessage,
+    required MontyError? errorException,
+    required MontyValue value,
+    required String? printOutput,
   }) async {
     final child = _children[childId];
     if (child == null) return;
@@ -747,7 +752,7 @@ class SandboxExtension extends MontyExtension {
 
   void _onChildStreamError(
     int childId,
-    Completer<Object?> completer,
+    Completer<MontyValue> completer,
     Object error,
     StackTrace stackTrace,
   ) {
@@ -773,8 +778,8 @@ class SandboxExtension extends MontyExtension {
     };
   }
 
-  Future<Object?> _handleAwait(
-    Map<String, Object?> args,
+  Future<MontyValue> _handleAwait(
+    Map<String, MontyValue> args,
     HostContext ctx,
   ) async {
     final handle = args.intArg('handle');
@@ -786,13 +791,16 @@ class SandboxExtension extends MontyExtension {
     return child.completer.future;
   }
 
-  Future<Object?> _handleAwaitAll(
-    Map<String, Object?> args,
+  Future<MontyValue> _handleAwaitAll(
+    Map<String, MontyValue> args,
     HostContext ctx,
   ) async {
-    final handles = args.listOf<num>('handles').map((n) => n.toInt()).toList();
+    final handles = args
+        .listArg('handles')
+        .map((n) => (n as MontyInt).value)
+        .toList();
 
-    final futures = <Future<Object?>>[];
+    final futures = <Future<MontyValue>>[];
     for (final handle in handles) {
       final child = _children[handle];
       if (child == null) {
@@ -801,20 +809,26 @@ class SandboxExtension extends MontyExtension {
       futures.add(child.completer.future);
     }
 
-    return Future.wait(futures);
+    return MontyList(await Future.wait(futures));
   }
 
-  Future<Object?> _handleIsAlive(Map<String, Object?> args, HostContext ctx) {
+  Future<MontyValue> _handleIsAlive(
+    Map<String, MontyValue> args,
+    HostContext ctx,
+  ) {
     final handle = args.intArg('handle');
     final child = _children[handle];
     if (child == null) {
       throw ArgumentError.value(handle, 'handle', 'Unknown child handle.');
     }
 
-    return Future.value(child.isAlive);
+    return Future.value(MontyBool(child.isAlive));
   }
 
-  Future<Object?> _handleFree(Map<String, Object?> args, HostContext ctx) {
+  Future<MontyValue> _handleFree(
+    Map<String, MontyValue> args,
+    HostContext ctx,
+  ) {
     final handle = args.intArg('handle');
     final child = _children[handle];
     if (child == null) {
@@ -829,10 +843,13 @@ class SandboxExtension extends MontyExtension {
     _updateChildrenSignal();
     logger.debug('Child freed', attributes: {'childId': handle});
 
-    return Future.value();
+    return Future.value(const MontyNone());
   }
 
-  Future<Object?> _handleGetOutput(Map<String, Object?> args, HostContext ctx) {
+  Future<MontyValue> _handleGetOutput(
+    Map<String, MontyValue> args,
+    HostContext ctx,
+  ) {
     final handle = args.intArg('handle');
     final child = _children[handle];
     if (child == null) {
@@ -844,16 +861,19 @@ class SandboxExtension extends MontyExtension {
       );
     }
 
-    return Future.value(child.printOutput);
+    return Future.value(MontyValue.fromDart(child.printOutput));
   }
 
-  Future<Object?> _handleGather(
-    Map<String, Object?> args,
+  Future<MontyValue> _handleGather(
+    Map<String, MontyValue> args,
     HostContext ctx,
   ) async {
-    final handles = args.listOf<num>('handles').map((n) => n.toInt()).toList();
+    final handles = args
+        .listArg('handles')
+        .map((n) => (n as MontyInt).value)
+        .toList();
 
-    final futures = <Future<Object?>>[];
+    final futures = <Future<MontyValue>>[];
     for (final handle in handles) {
       final child = _children[handle];
       if (child == null) {
@@ -873,7 +893,39 @@ class SandboxExtension extends MontyExtension {
       });
     }
 
-    return results;
+    return MontyValue.fromDart(results);
+  }
+}
+
+/// Applies guest reductions to the already selected child limits.
+ResourceLimits _reduceLimits(
+  ResourceLimits effective,
+  int? timeoutMs,
+  int? memoryBytes,
+) {
+  final timeout = timeoutMs == null ? null : Duration(milliseconds: timeoutMs);
+  _checkReduction(
+    timeout?.inMicroseconds,
+    effective.maxFeedDuration?.inMicroseconds,
+    'timeout_ms',
+  );
+  _checkReduction(memoryBytes, effective.maxMemory, 'memory_bytes');
+
+  return ResourceLimits(
+    maxFeedDuration: timeout ?? effective.maxFeedDuration,
+    maxMemory: memoryBytes ?? effective.maxMemory,
+    maxRecursionDepth: effective.maxRecursionDepth,
+    maxTurnDuration: effective.maxTurnDuration,
+    gcInterval: effective.gcInterval,
+    maxSuspensions: effective.maxSuspensions,
+    maxTotalSleep: effective.maxTotalSleep,
+  );
+}
+
+void _checkReduction(int? requested, int? ceiling, String name) {
+  if (requested == null) return;
+  if (requested < 0 || (ceiling != null && requested > ceiling)) {
+    throw ArgumentError('$name must only reduce the configured limit');
   }
 }
 

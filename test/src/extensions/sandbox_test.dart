@@ -1596,5 +1596,8 @@ Future<Object?> Function(Map<String, Object?>) _findHandler(
   String name,
 ) {
   final h = plugin.functions.firstWhere((f) => f.schema.name == name).handler!;
-  return (args) => h(args, _testCtx);
+  return (args) async => (await h(
+    args.map((key, value) => MapEntry(key, MontyValue.fromDart(value))),
+    _testCtx,
+  )).dartValue;
 }

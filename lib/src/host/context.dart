@@ -11,7 +11,7 @@ import 'package:meta/meta.dart';
 /// Optional [inputs] are injected as top-level Python variables before
 /// [code] runs (same semantics as `MontyRuntime.execute(inputs:)`).
 typedef HostSubExecutor =
-    Future<MontyValue> Function(String code, {Map<String, Object?>? inputs});
+    Future<MontyValue> Function(String code, {Map<String, MontyValue>? inputs});
 
 /// Context passed to every [HostFunctionHandler] invocation.
 ///

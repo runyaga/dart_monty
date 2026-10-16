@@ -1,4 +1,5 @@
 import 'package:dart_monty/dart_monty.dart';
+import 'package:dart_monty_core/dart_monty_core.dart';
 
 /// A public extension implemented entirely outside the package's library.
 final class LifecycleProbeExtension extends MontyExtension {
@@ -12,7 +13,7 @@ final class LifecycleProbeExtension extends MontyExtension {
   AttachContext? attachedTo;
 
   /// Last value stored by either Python or a direct Dart invocation.
-  Object? value;
+  MontyValue? value;
 
   /// Number of successful store calls.
   int stores = 0;
@@ -37,12 +38,12 @@ final class LifecycleProbeExtension extends MontyExtension {
         value = args['value'];
         stores++;
 
-        return value;
+        return value!;
       },
     ),
     HostFunction(
       schema: const HostFunctionSchema(name: 'lifecycle_read'),
-      handler: (_, _) async => value,
+      handler: (_, _) async => value ?? const MontyNone(),
     ),
     HostFunction(
       schema: const HostFunctionSchema(
@@ -61,10 +62,10 @@ final class LifecycleProbeExtension extends MontyExtension {
         params: [HostParam(name: 'text', type: HostParamType.string)],
       ),
       handler: (args, ctx) async {
-        final text = args['text']! as String;
+        final text = (args['text']! as MontyString).value;
         ctx.emitText(text);
 
-        return text.length;
+        return MontyInt(text.length);
       },
     ),
     HostFunction(
@@ -73,7 +74,7 @@ final class LifecycleProbeExtension extends MontyExtension {
         params: [HostParam(name: 'level', type: HostParamType.string)],
       ),
       handler: (args, _) async {
-        final level = args['level']! as String;
+        final level = (args['level']! as MontyString).value;
         final scoped = logger.child('handler');
         final attributes = <String, Object?>{'level': level};
         switch (level) {
@@ -91,7 +92,7 @@ final class LifecycleProbeExtension extends MontyExtension {
             throw ArgumentError.value(level, 'level');
         }
 
-        return level;
+        return MontyString(level);
       },
     ),
   ];

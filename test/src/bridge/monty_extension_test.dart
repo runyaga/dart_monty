@@ -27,7 +27,7 @@ void main() {
           name: 'do_thing',
           description: 'Does a thing.',
         ),
-        handler: (args, _) async => null,
+        handler: (args, _) async => const MontyNone(),
       );
 
       final plugin = _TestExtension(
@@ -136,9 +136,9 @@ class _NoOpBridge implements MontyBridge {
   Stream<BridgeEvent> execute(String code) => const Stream.empty();
 
   @override
-  Future<Object?> invokeHostFunction(
+  Future<MontyValue> invokeHostFunction(
     String name,
-    Map<String, Object?> args, {
+    Map<String, MontyValue> args, {
     void Function(BridgeEvent)? onEvent,
   }) => throw UnimplementedError();
 

@@ -28,7 +28,7 @@ related functions into a namespaced, lifecycle-managed unit.
 
 ```dart
 class StorageExtension extends MontyExtension {
-  final Map<String, Object?> _store = {};
+  final Map<String, MontyValue> _store = {};
 
   @override
   String get namespace => 'storage';
@@ -41,7 +41,8 @@ class StorageExtension extends MontyExtension {
         description: 'Get a value by key.',
         params: [HostParam(name: 'key', type: HostParamType.string)],
       ),
-      handler: (args, ctx) async => _store[args['key']],
+      handler: (args, ctx) async =>
+          _store[(args['key']! as MontyString).value] ?? const MontyNone(),
     ),
   ];
 
@@ -141,7 +142,7 @@ final session = MontyRuntime(extensions: [ext]);
 ext.lastEmittedSignal.subscribe((v) => print('Python: $v'));
 session.execute(script);
 
-ext.dispatch({'action': 'quit'});
+ext.dispatch(const MontyDict([(MontyString('action'), MontyString('quit'))]));
 ```
 
 ## What's on `ctx`
