@@ -3,7 +3,7 @@
   "source_head": "c4de4e45696fb778741f6b9527f0e896be1ecb56",
   "base": "e7da021",
   "core_pin": "1bdd9b502e85dd7e17a96736f25346dae48a62b4",
-  "worker": "/private/tmp/claude-501/w/dart_monty_worker_m6",
+  "worker": "<core-checkout>/lib/src/bin/macos-arm64/dart_monty_worker",
   "notes": [
     "Runs were split into short commands. Unchanged suites retain their earlier passing results; changed cases were rerun.",
     "Browser compilation ran; no browser execution was permitted.",

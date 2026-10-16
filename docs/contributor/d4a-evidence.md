@@ -4,7 +4,7 @@ Validated on 2026-10-16 in `d4a/workspace-repin`, based on dm `e7da021`.
 Core is pinned to `1bdd9b502e85dd7e17a96736f25346dae48a62b4`. The local,
 ignored override resolves to the clean, read-only `../d4-core` checkout at that
 commit. VM runs use
-`DART_MONTY_WORKER=/private/tmp/claude-501/w/dart_monty_worker_m6`.
+`DART_MONTY_WORKER=<core-checkout>/lib/src/bin/macos-arm64/dart_monty_worker`.
 
 The resumed clone contained `c0f6802` (red-first tests), `45c9d11` (atomic
 repin/removal/implementation), and `db48dda` (evidence hardening). There was no
