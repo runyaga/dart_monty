@@ -88,7 +88,7 @@ This flag tells dart2js to use the same `.dart_tool/package_config.json` that
 ### Browser tests
 Name the files explicitly; a bare `dart test -p chrome --run-skipped` tries to
 load every `test/integration/*.dart` file for chrome and several cannot compile
-there. The CI `web` job lists the browser suites and the compilers
+there. The CI `test-demo-pages` job lists the browser suites and the compilers
 (`dart2js`, `dart2wasm`). The WASM fixture and oracle suites belong to
 `dart_monty_core`; run them there.
 
