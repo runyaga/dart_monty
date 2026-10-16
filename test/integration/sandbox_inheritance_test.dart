@@ -218,6 +218,22 @@ void main() {
           );
         final bridge = await createBridge(registry.extensions);
 
+        if (!hasWorkerProcesses) {
+          // A browser has no native workspace backing: a base directory is
+          // refused instead of silently falling back to memory.
+          await expectLater(
+            run(bridge, 'h = ${spawn("2 + 2")}\nsandbox_await(handle=h)'),
+            throwsA(
+              predicate(
+                (e) => e.toString().contains('unavailable on web'),
+              ),
+            ),
+          );
+          await bridge.dispose();
+
+          return;
+        }
+
         final result = await run(
           bridge,
           'h = ${spawn("2 + 2")}\n'
