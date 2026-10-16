@@ -1,5 +1,4 @@
 // Child programs intentionally contain complete filesystem scenarios.
-// ignore_for_file: lines_longer_than_80
 @Tags(['integration'])
 library;
 
