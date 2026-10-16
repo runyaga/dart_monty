@@ -58,6 +58,7 @@ Future<MontyRuntime> startRuntimeWith({
   BridgeLogger? logger,
   bool sandbox = false,
   ResourceLimits? limits,
+  // ignore: avoid-redundant-async, the assert must fail the Future, not throw.
 }) async {
   assert(
     os == null || osHandlers == null,

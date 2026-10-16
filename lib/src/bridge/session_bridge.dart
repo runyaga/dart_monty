@@ -357,7 +357,7 @@ void _logEvent(BridgeLogger logger, BridgeEvent event) {
 
 /// Reports OS calls while preserving synchronous answers and declines.
 final class _OsReporter {
-  _OsReporter(this._host, this._logger, this._emit);
+  const _OsReporter(this._host, this._logger, this._emit);
 
   final HostDispatch _host;
   final BridgeLogger _logger;
@@ -453,5 +453,6 @@ BridgeRunError _infrastructureError(
   logger.error('Bridge infrastructure error', error: e, stackTrace: st);
   final event = BridgeRunError(message: '$e', printOutput: _printed(printed));
   recordRunFailure(event, e, st);
+
   return event;
 }

@@ -109,6 +109,10 @@ final class RecordingSession implements MontySession {
   );
 
   @override
+  Future<void> installDependencies(List<String> requirements) =>
+      inner.installDependencies(requirements);
+
+  @override
   Future<Uint8List> dump() => inner.dump();
 
   @override

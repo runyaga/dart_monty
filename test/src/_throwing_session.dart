@@ -54,6 +54,9 @@ final class ThrowingSession implements MontySession {
   }) async => throw UnsupportedError('loadSnapshot');
 
   @override
+  Future<void> installDependencies(List<String> requirements) async {}
+
+  @override
   Future<Uint8List> dump() async => Uint8List(0);
 
   @override
