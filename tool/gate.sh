@@ -427,7 +427,7 @@ fi
 # EXACT, not a floor: a floor lets checks disappear one at a time, which is
 # the drift this exists to stop. Adding or removing one is deliberate and gets
 # a deliberate edit here. Ported from dart_monty_core c3f2c98.
-EXPECT_CHECKS=22
+EXPECT_CHECKS=23
 if [ "$RAN" != "$EXPECT_CHECKS" ]; then
   echo ""
   echo "  FAILED: ran $RAN checks, expected $EXPECT_CHECKS"
