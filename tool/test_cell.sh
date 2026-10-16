@@ -7,7 +7,7 @@
 #
 # A cell fails when dart test fails, when fewer tests ran than the floor,
 # when more tests were skipped than the recorded allowance, when fewer suite
-# files loaded than the minimum, when two tests share a suite and name, or when the run printed no result at all.
+# files ran tests than the minimum, when two tests share a suite and name, or when the run printed no result at all.
 # Extra arguments go to both dart test invocations.
 set -uo pipefail
 
@@ -54,7 +54,7 @@ for suite in integration acceptance portable; do
   python3 -I - "$log" "$floor" "$allow" "$cell/$suite" "$rc" "$nsuites" <<'PY' || status=1
 import json, sys
 log, floor, allow, label, rc, min_suites = sys.argv[1], int(sys.argv[2]), int(sys.argv[3]), sys.argv[4], int(sys.argv[5]), int(sys.argv[6])
-suites, tests, seen, dups = {}, {}, set(), []
+suites, tests, seen, dups, active = {}, {}, set(), [], set()
 passed = skipped = failed = 0
 done_ok = None
 for line in open(log, errors="replace"):
@@ -73,6 +73,7 @@ for line in open(log, errors="replace"):
         if key in seen:
             dups.append(key)
         seen.add(key)
+        active.add(key[0])
         if e.get("skipped"):
             skipped += 1
         elif e.get("result") == "success":
@@ -81,7 +82,7 @@ for line in open(log, errors="replace"):
             failed += 1
     elif t == "done":
         done_ok = e.get("success")
-print(f"{label}: {passed} passed, {skipped} skipped, {failed} failed, {len(set(suites.values()))} suites (floor {floor}, skips allowed {allow}, suites at least {min_suites})")
+print(f"{label}: {passed} passed, {skipped} skipped, {failed} failed, {len(active)} suites with tests (floor {floor}, skips allowed {allow}, suites with tests at least {min_suites})")
 errs = []
 if rc != 0:
     errs.append(f"dart test exited {rc}")
@@ -89,8 +90,8 @@ if done_ok is None:
     errs.append("no done event in the report")
 if done_ok is False:
     errs.append("the done event reports failure")
-if len(set(suites.values())) < min_suites:
-    errs.append(f"{len(set(suites.values()))} suites is under the minimum of {min_suites}")
+if len(active) < min_suites:
+    errs.append(f"{len(active)} suites with tests is under the minimum of {min_suites}")
 if failed:
     errs.append(f"{failed} failing tests")
 if passed < floor:
