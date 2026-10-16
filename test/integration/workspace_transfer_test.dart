@@ -158,7 +158,8 @@ void main() {
             addTearDown(w.dispose);
             await h.pool.withSession(
               (child) => child.feedRun(
-                "from pathlib import Path\nPath('in').write_text('independent')",
+                'from pathlib import Path\n'
+                "Path('in').write_text('independent')",
                 cwd: '/work',
                 os: w.call,
               ),
