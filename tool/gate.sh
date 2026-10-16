@@ -189,8 +189,6 @@ run_check "html escaping" bash tool/check_html_escaping.sh
 # WASM — and async_matrix_demo.dart.js did 404 on the live site while its page
 # returned 200. This assembles the site and drives headless Chrome at every
 # page. Exits 77 (a VISIBLE skip) when no browser is installed.
-# D1 branch: agent.html's sandbox examples need SandboxExtension's child
-# checkout (D1-8); the boot test tags those d1-pending until then.
 run_check "demo pages boot" bash tool/check_demo_pages.sh
 # Ported from dart_monty_core. It asks one question of every public entry
 # point in lib/dart_monty.dart's export closure: does ANY file that runs
@@ -365,7 +363,7 @@ fi
 # -------------------------------------------------------
 # Floor 500: 530 tests observed locally 2026-09-17.
 # D1 branch: floor re-measured on the active tests (706); D1-Z restores 500.
-run_test_check "dart test" 700 dart test --exclude-tags d1-pending
+run_test_check "dart test" 700 dart test
 
 # -------------------------------------------------------
 # 8. Rust Gate — skip if no cargo

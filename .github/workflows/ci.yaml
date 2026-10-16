@@ -412,11 +412,9 @@ jobs:
       - name: Test
         run: |
           # A SUITE THAT REGISTERS NOTHING PRINTS SUCCESS AND EXITS 0.
-          # D1 branch: re-measured on D1-B's active tests (706 observed, the
-          # rest tagged d1-pending) and set just below. D1-Z restores a floor
-          # at or above main's 450. Never lower it to make a run pass.
+          # Never lower the floor to make a run pass.
           set -o pipefail
-          dart test --coverage=coverage --exclude-tags d1-pending 2>&1 | tee /tmp/unit.log
+          dart test --coverage=coverage 2>&1 | tee /tmp/unit.log
           bash tool/assert_test_count.sh /tmp/unit.log 700 unit
       - name: Generate LCOV
         run: |
@@ -548,16 +546,11 @@ jobs:
           # adding code that only integration exercises was judged uncovered
           # and could fail a gate its tests actually satisfy.
           #
-          # D1 branch: `--run-skipped` would also run the d1-pending stubs, so
-          # they are excluded by tag.
           dart test --run-skipped --tags=integration \
-            --exclude-tags d1-pending \
             --coverage=coverage-integration \
             --reporter=expanded 2>&1 | tee /tmp/integration.log
           # A suite that registers nothing prints success and exits 0.
-          # D1 branch: re-measured on D1-B's active tests (316 observed locally; the
-          # rest are d1-pending) and set just below. D1-Z restores a floor at
-          # or above main's 290. Never lower it to make a run pass.
+          # Never lower the floor to make a run pass.
           bash tool/assert_test_count.sh /tmp/integration.log 312 integration
       # The agent-loop acceptance suite (A1-A9) on the worker process: the
       # tool round trip, Python errors as data, state and clearState, host
@@ -568,7 +561,6 @@ jobs:
         run: |
           set -o pipefail
           dart test test/acceptance -p vm --run-skipped --tags acceptance \
-            --exclude-tags d1-pending \
             --reporter=expanded 2>&1 | tee /tmp/acceptance-vm.log
           # 12 tests today: A1-A9 with A5 and A7 in two parts and A9 in two.
           bash tool/assert_test_count.sh /tmp/acceptance-vm.log 12 acceptance-vm
@@ -602,7 +594,7 @@ jobs:
           # deliberate floor edit, which is the intent.
           set -o pipefail
           dart test test/integration/example_smoke_test.dart \
-            -p vm --run-skipped --tags=example --exclude-tags d1-pending --reporter=expanded 2>&1 | tee /tmp/example.log
+            -p vm --run-skipped --tags=example --reporter=expanded 2>&1 | tee /tmp/example.log
           bash tool/assert_test_count.sh /tmp/example.log 4 example
       - name: Generate integration LCOV
         run: |
@@ -780,7 +772,6 @@ jobs:
           # when the suite grows; never lower it to make a run pass.
           set -o pipefail
           dart test -p chrome test/src/workspace/caps_test.dart \
-            --exclude-tags d1-pending \
             --reporter=expanded 2>&1 | tee /tmp/wasm.log
           bash tool/assert_test_count.sh /tmp/wasm.log 8 wasm
       # The agent-loop acceptance suite (A1-A9) on a Web Worker, in Chrome
@@ -795,7 +786,7 @@ jobs:
         run: |
           set -o pipefail
           dart test test/acceptance -p chrome,firefox -c dart2js,dart2wasm \
-            --run-skipped --tags acceptance --exclude-tags d1-pending \
+            --run-skipped --tags acceptance \
             --reporter=expanded 2>&1 | tee /tmp/acceptance-web.log
           # 12 tests in each of the 4 cells.
           bash tool/assert_test_count.sh /tmp/acceptance-web.log 48 acceptance-web
@@ -809,9 +800,9 @@ jobs:
             test/integration/typed_host_contract_test.dart \
             test/integration/sub_execution_limits_test.dart \
             test/integration/child_limit_selection_test.dart \
-            --run-skipped --tags integration --exclude-tags d1-pending \
+            --run-skipped --tags integration \
             --reporter=expanded 2>&1 | tee /tmp/d3-contracts-web.log
-      - name: Child sandbox contracts (browser compilers)
+      - name: Child sandbox contracts, deferred child suites and workspace scenarios (browser compilers)
         if: ${{ !cancelled() && steps.pubget.outcome == 'success' }}
         env:
           MOZ_HEADLESS: '1'
@@ -824,8 +815,19 @@ jobs:
             test/integration/inherited_extension_ownership_test.dart \
             test/integration/injected_pool_timeout_test.dart \
             test/integration/child_os_policy_test.dart \
-            --run-skipped --tags integration \
-            --reporter=expanded 2>&1 | tee /tmp/d5-preparation-web.log
+            test/integration/workspace_scenarios_test.dart \
+            test/experiments/sandbox_experiment_test.dart \
+            test/experiments/signals_experiment_test.dart \
+            test/integration/agent_extension_integration_test.dart \
+            test/integration/external_extension_inheritance_test.dart \
+            test/integration/ffi_child_events_test.dart \
+            test/integration/sandbox_error_structure_test.dart \
+            test/integration/sandbox_gather_test.dart \
+            test/integration/sandbox_inheritance_test.dart \
+            test/integration/sandbox_logging_test.dart \
+            test/src/extensions/sandbox_test.dart \
+            --run-skipped \
+            --reporter=expanded 2>&1 | tee /tmp/child-contracts-web.log
       - name: Native mount refusal (both browsers and compilers)
         if: ${{ !cancelled() && steps.pubget.outcome == 'success' }}
         env:

@@ -9,5 +9,3 @@ tags:
     skip: "Skipped by default (boots FFI dylib). Run: dart test --run-skipped --tags=example"
   demo:
     skip: "Skipped by default (builds the site + drives headless Chrome). Run: bash tool/check_demo_pages.sh"
-  d1-pending:
-    skip: "Behaviour not yet rebuilt on dart_monty_core 0.110 (D1 branch); each stub names its D1 row. Excluded from every CI run with --exclude-tags d1-pending."
