@@ -73,13 +73,14 @@ Each child gets:
 
 ## Workspace ownership
 
-Each child receives an independent memory namespace with cwd `/work`.
+Each child receives an independent namespace with cwd `/work`. Memory is the
+default; `sandboxBaseDir` selects an owned native directory on VM.
 `files` and `ro_files` map child-relative destinations to absolute parent
 sources; `collect` on `sandbox_await` maps child-relative sources to absolute
 parent destinations. Copies are explicit snapshots, and collections are
 repeatable. Filesystem calls outside `/work` decline synchronously to core;
 they never fall through to the parent filesystem.
 
-D4a provides these helpers and the schema. Child checkout is still the D1-8
-stub until D5. Native backing through `sandboxBaseDir` is pending D4b.
+D4a provides the workspace schema, D4b provides the native backing, and D5
+wires either backing into live child execution.
 See [workspace policy](oscall-vfs.md) for caps, transfer bounds and disposal.

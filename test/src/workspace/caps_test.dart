@@ -6,15 +6,19 @@ import 'package:test/test.dart';
 
 import '../../integration/_workspace_harness.dart';
 
-void main() {
+void main() => registerCapsTests();
+
+void registerCapsTests({String? Function()? backing}) {
   final h = WorkspaceHarness()..install();
   late Workspace w;
   setUp(() {
-    w = Workspace();
+    w = Workspace(sandboxBaseDir: backing?.call());
+    addTearDown(w.dispose);
   });
   tearDown(() => w.dispose());
   test('D4a-caps-seed-retained', () async {
     w = Workspace(
+      sandboxBaseDir: backing?.call(),
       files: {
         'a': 'é',
         'd/b': Uint8List.fromList([1, 2, 3]),
@@ -56,7 +60,7 @@ void main() {
     expect(w.memoryUsage, 192);
   });
   test('D4a-caps-write-lifetime', () async {
-    w = Workspace(writeBytesLimit: 3);
+    w = Workspace(sandboxBaseDir: backing?.call(), writeBytesLimit: 3);
     await h.run(w, "Path('a').write_text('ab')\nPath('a').unlink()");
     expect(
       await h.caught(w, "Path('a').write_text('cd')"),
@@ -66,7 +70,7 @@ void main() {
     expect(w.memoryUsage, 64);
   });
   test('D4a-caps-cap-owner', () async {
-    w = Workspace(memoryUsageLimit: 128);
+    w = Workspace(sandboxBaseDir: backing?.call(), memoryUsageLimit: 128);
     expect(
       await h.caught(w, "Path('a').write_text('x')"),
       'MemoryError: Workspace memory limit exceeded',
@@ -81,7 +85,7 @@ void main() {
     );
   });
   test('D4a-caps-cap-rejection', () async {
-    w = Workspace(writeBytesLimit: 2);
+    w = Workspace(sandboxBaseDir: backing?.call(), writeBytesLimit: 2);
     await h.run(w, "Path('a').write_text('ab')");
     await h.caught(w, "Path('a').write_text('c')");
     expect(await h.run(w, "Path('a').read_text()"), 'ab');
@@ -99,7 +103,7 @@ void main() {
     expect(w.writeBytes, 1);
   });
   test('D4a-caps-feed-boundary', () async {
-    w = Workspace(writeBytesLimit: 3);
+    w = Workspace(sandboxBaseDir: backing?.call(), writeBytesLimit: 3);
     await h.run(w, "Path('a').write_text('ab')");
     expect(
       await h.caught(w, "Path('a').write_text('cd')"),
@@ -108,7 +112,11 @@ void main() {
     expect(w.writeBytes, 2);
   });
   test('D4a-caps-read-only', () async {
-    w = Workspace(files: {'ro/a': 'x'}, readOnly: {'ro'});
+    w = Workspace(
+      sandboxBaseDir: backing?.call(),
+      files: {'ro/a': 'x'},
+      readOnly: {'ro'},
+    );
     expect(await h.run(w, "Path('ro/a').read_text()"), 'x');
     for (final code in [
       "Path('ro/a').write_text('z')",
@@ -134,13 +142,18 @@ void main() {
     expect(w.memoryUsage, 198);
   });
   test('D4a-caps-seed-and-overwrite', () async {
-    w = Workspace(files: {'a': 'seed'});
+    w = Workspace(sandboxBaseDir: backing?.call(), files: {'a': 'seed'});
     await h.run(w, "Path('a').write_text('é')");
     expect(w.memoryUsage, 130);
     expect(w.writeBytes, 2);
   });
   test('D4a-caps-validation-order', () async {
-    w = Workspace(files: {'ro': 'x'}, readOnly: {'ro'}, writeBytesLimit: 0);
+    w = Workspace(
+      sandboxBaseDir: backing?.call(),
+      files: {'ro': 'x'},
+      readOnly: {'ro'},
+      writeBytesLimit: 0,
+    );
     expect(
       await h.caught(w, "Path('ro').write_text('x')"),
       startsWith('PermissionError:'),
@@ -152,7 +165,7 @@ void main() {
     expect(w.writeBytes, 0);
   });
   test('D4a-caps-accepted-vs-rejected', () async {
-    w = Workspace(memoryUsageLimit: 194);
+    w = Workspace(sandboxBaseDir: backing?.call(), memoryUsageLimit: 194);
     await h.run(
       w,
       "Path('a').write_text('x')\nPath('b').write_text('y')\n"
@@ -166,7 +179,10 @@ void main() {
     expect(w.writeBytes, 2);
   });
   test('D4a-caps-workspace-lifetime', () async {
-    final other = Workspace(writeBytesLimit: 1);
+    final other = Workspace(
+      sandboxBaseDir: backing?.call(),
+      writeBytesLimit: 1,
+    );
     addTearDown(other.dispose);
     await h.run(w, "Path('a').write_text('ab')");
     await h.run(other, "Path('a').write_text('x')");

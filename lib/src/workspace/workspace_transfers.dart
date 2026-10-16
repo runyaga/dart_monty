@@ -89,6 +89,8 @@ final class WorkspaceTransfers {
   Future<Workspace> copyIn({
     // ignore: unnecessary-optional-parameters, tests cover omission and defaults.
     OsHandler? parent,
+    // ignore: unnecessary-optional-parameters, memory tests omit native backing.
+    String? sandboxBaseDir,
     // ignore: unnecessary-optional-parameters, tests cover omission and defaults.
     Map<String, String> files = const {},
     // ignore: unnecessary-optional-parameters, tests cover omission and defaults.
@@ -120,7 +122,7 @@ final class WorkspaceTransfers {
       return _copiedWorkspace(stage, readonly, parent, (
         writeBytesLimit,
         memoryUsageLimit,
-      ));
+      ), sandboxBaseDir);
     });
   }
 
@@ -159,10 +161,19 @@ final class WorkspaceTransfers {
     OsHandler parent,
     List<(String, String)> mappings,
   ) async {
+    final disk = workspace._disk;
+    final sourceReader = disk == null
+        ? workspace.call
+        : _fromEntries(
+            await disk.snapshot(
+              maxBytes: _transferBytes,
+              roots: mappings.map((e) => e.$1),
+            ),
+          ).call;
     final stage = _Stage();
     for (final (source, destination) in mappings) {
       await _noLinks(parent, destination);
-      await stage.read(workspace.call, source, destination);
+      await stage.read(sourceReader, source, destination);
     }
     for (final entry in stage.entries) {
       await _noLinks(parent, entry.destination);
@@ -330,6 +341,7 @@ Workspace _copiedWorkspace(
   List<(String, String)> readOnlyPaths,
   OsHandler? parent,
   (int?, int?) caps,
+  String? sandboxBaseDir,
 ) {
   final (writeBytesLimit, memoryUsageLimit) = caps;
 
@@ -350,5 +362,6 @@ Workspace _copiedWorkspace(
     writeBytesLimit: writeBytesLimit,
     memoryUsageLimit: memoryUsageLimit,
     parent: parent,
+    sandboxBaseDir: sandboxBaseDir,
   );
 }

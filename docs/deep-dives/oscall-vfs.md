@@ -55,8 +55,10 @@ escaping and overlapping destination paths are refused before transfer.
 The originating `HostContext.os` callback is captured for collection. Nonempty
 transfers without a live parent callback fail explicitly; a new mount table
 cannot serve as a proxy for a suspended parent's overlay. Consumers must supply
-a callback that owns the live namespace or refuses access. Native separate
-session adapters are pending D4b.
+a callback that owns the live namespace or refuses access. Private native
+transfer sessions support persistent backing only: overlay-covered paths and
+read-only destination writes refuse before checkout. Acquisition and execution
+are bounded; the suspended parent session is never recursively driven.
 
 Each copy or collection is independently limited to 8 MiB staged content,
 4,096 entry occurrences, depth 32 below a selected root and 4,096 UTF-8 bytes
@@ -72,6 +74,31 @@ a write failure may leave earlier destination writes and retains the child for
 retry. An admitted collection holds a lease: disposal refuses new leases and
 waits for that collection before releasing memory and its captured callback.
 
-Native sandbox backing through `sandboxBaseDir` is pending D4b. Actual child
-checkout remains the D1-8 stub until D5; D4a tests the prepared composition with
-real core sessions directly. The public child state names remain until D5.
+On VM, `sandboxBaseDir` creates a fresh owned directory beneath the configured
+base. The private disk driver supplies core's read-write `MountDir`, intercepts
+public filesystem snapshots before mount dispatch, and applies the same dm
+lifetime counters and read-only rules. Surfaced sleeps use a local OSAccess wait;
+core alone charges the session sleep budget. Future-mode callbacks keep their
+concurrent settlement behavior.
+
+Native read-only checks fold case and conservatively treat unequal path
+components as possible aliases when either contains non-ASCII characters.
+This refuses Unicode normalization aliases on every platform without a Unicode
+library. It can also refuse distinct Unicode sibling names; separate ASCII
+parent directories remain independent. Memory workspaces keep exact spelling
+comparisons.
+
+Execution mounts close when the feed settles. Backing survives session close
+and repeated collection until explicit free/disposal. Collection streams bounded
+host listings and reads selected files within the shared transfer ceilings;
+symlinks refuse before traversal. Disposal cancels execution, waits for admitted
+leases, and attempts independent cleanup even when another close fails. Only
+owned directories are deleted; the configured base remains.
+Each owned directory contains a random ownership marker outside its mounted
+`work` subdirectory. Cleanup verifies the marker and ancestor paths before
+deleting entries. If the base or owned directory was replaced, cleanup refuses
+deletion and reports the retained backing path for host recovery.
+
+Web builds refuse native backing with UnsupportedError; omit sandboxBaseDir for
+memory workspaces. D5 wires the prepared workspace into live child sessions;
+child state and error details remain private.

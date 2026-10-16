@@ -332,7 +332,8 @@ const _gatherSchema = HostFunctionSchema(
 /// Child extensions and OS handlers are inherited from the parent
 /// [ExtensionCoordinator] via [ExtensionCoordinator.spawnChild]. Extensions
 /// opt into inheritance by overriding [MontyExtension.createChildInstance];
-/// each child receives an independent memory workspace at `/work`.
+/// each child receives an independent workspace at `/work`, backed by memory
+/// or by an owned native directory when [sandboxBaseDir] is set.
 ///
 /// `SandboxExtension` MUST be attached through an [ExtensionCoordinator] —
 /// it uses the parent coordinator to compose the child.
@@ -381,8 +382,9 @@ class SandboxExtension extends MontyExtension {
   /// settings may only reduce the selected ceilings.
   final ResourceLimits? childLimits;
 
-  /// Reserved for owned native backing, pending D4b.
-  /// Memory children always use the virtual cwd `/work`.
+  /// Opts into a fresh owned native directory per child (VM only).
+  /// Backing survives completion and collection until free or disposal.
+  /// Children always use the virtual cwd `/work`; null selects memory.
   final String? sandboxBaseDir;
 
   final WorkspaceTransfers _transfers = WorkspaceTransfers();
@@ -500,6 +502,7 @@ class SandboxExtension extends MontyExtension {
     try {
       workspace = await _transfers.copyIn(
         parent: ctx.os,
+        sandboxBaseDir: sandboxBaseDir,
         files: workspaceMapping(args['files']),
         roFiles: workspaceMapping(args['ro_files']),
         writeBytesLimit: reduceWorkspaceCap(
@@ -533,7 +536,7 @@ class SandboxExtension extends MontyExtension {
         runtime: parent,
         subExecute: execution.subExecute,
         logger: logger.child('child.$id'),
-      );
+      )..workspace = workspace;
       _logChild(
         () => logger.debug(
           'Child bridge created',
