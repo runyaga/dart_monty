@@ -524,8 +524,7 @@ jobs:
             test/integration/native_workspace_policy_test.dart \
             | tee build/d4b-native-policy.jsonl
           python3 tool/verify_d4b_tests.py native-policy build/d4b-native-policy.jsonl
-          python3 tool/d4b_mutations.py
-      - name: Preserve D4b native identity and mutation evidence
+      - name: Preserve D4b native identity evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
@@ -534,7 +533,6 @@ jobs:
             build/d4b-native-identity.json
             build/d4b-native.jsonl
             build/d4b-native-policy.jsonl
-            build/d4b-mutations/
           if-no-files-found: error
       - name: Run integration tests
         # THE TAG WAS DECLARED AND EXERCISED BY NOTHING. `dart_test.yaml` skips
