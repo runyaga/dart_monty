@@ -30,6 +30,9 @@ final class Workspace {
     }
     for (final file in files.entries) {
       final path = _childPath(file.key);
+      if (path == '/work') {
+        throw _transferError('regular file cannot replace workspace root');
+      }
       _addParents(entries, path);
       entries[path] = switch (file.value) {
         final String text => Uint8List.fromList(utf8.encode(text)),

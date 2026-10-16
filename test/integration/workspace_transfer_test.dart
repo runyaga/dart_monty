@@ -35,6 +35,53 @@ void main() {
         .toList();
     expect((events.last as BridgeRunFinished).value, ['/work', true]);
   });
+  for (final readOnly in [false, true]) {
+    for (final destination in ['.', './', './.', 'a/..']) {
+      test('D4a-root-file-$readOnly-$destination', () async {
+        final calls = <String>[];
+        final mapping = {destination: '/parent/in'};
+        await expectLater(
+          transfers.copyIn(
+            parent: (name, args, kwargs) {
+              calls.add(name);
+
+              return parent.call(name, args, kwargs);
+            },
+            files: readOnly ? {} : mapping,
+            roFiles: readOnly ? mapping : {},
+          ),
+          throwsA(isA<ExternalException>()),
+        );
+        expect(
+          calls,
+          everyElement(
+            isIn(['Path.is_symlink', 'Path.stat', 'Path.read_bytes']),
+          ),
+        );
+        expect(
+          (await parent.call('Path.read_text', [
+            MontyPath('/parent/in'),
+          ], {})).dartValue,
+          'source',
+        );
+      });
+    }
+    for (final destination in ['.', './', './.']) {
+      test('D4a-root-directory-$readOnly-$destination', () async {
+        final mapping = {destination: '/parent'};
+        final w = await transfers.copyIn(
+          parent: parent.call,
+          files: readOnly ? {} : mapping,
+          roFiles: readOnly ? mapping : {},
+        );
+        addTearDown(w.dispose);
+        expect(
+          await h.run(w, "(Path('.').is_dir(), Path('in').read_text())"),
+          [true, 'source'],
+        );
+      });
+    }
+  }
   test('D4a-captured-context', () async {
     final w = await transfers.copyIn(
       parent: parent.call,
@@ -283,7 +330,7 @@ collect_output()
       false,
     );
   });
-  const invalid = {
+  final invalid = {
     'negative-write-cap': 'write_bytes_limit=-1',
     'increased-write-cap': 'write_bytes_limit=8388609',
     'negative-memory-cap': 'memory_usage_limit=-1',
@@ -294,6 +341,10 @@ collect_output()
     'conflicting-inputs':
         "files={'d': '/parent/in'}, ro_files={'d/a': '/parent/in'}",
     'non-string-path': "files={'a': 42}",
+    for (final parameter in ['files', 'ro_files'])
+      for (final destination in ['.', './', './.', 'a/..'])
+        'root-file-$parameter-$destination':
+            "$parameter={'$destination': '/parent/in'}",
   };
   for (final entry in invalid.entries) {
     test('D4a-schema-${entry.key}', () async {

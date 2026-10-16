@@ -20,6 +20,12 @@ TRANSFERS = 'test/integration/workspace_transfer_test.dart'
 
 def mutants():
     cases = [
+        ('D4a-ROOT-FILE', WORKSPACE,
+         [("if (path == '/work') {", "if (false) {")],
+         TRANSFERS, 'D4a-root-file'),
+        ('D4a-ROOT-FILE-CHECKOUT', WORKSPACE,
+         [("if (path == '/work') {", "if (false) {")],
+         TRANSFERS, 'D4a-schema-root-file'),
         ('D4a-REFUND', WORKSPACE,
          [('_writeBytes = nextWrites;', "_writeBytes = name == 'Path.unlink' ? 0 : nextWrites;")],
          CAPS, 'D4a-caps-write-lifetime'),
