@@ -187,10 +187,12 @@ All code jobs run in parallel except where noted:
 - **Worker**: builds `dart_monty_worker` once and shares it as an artifact
 - **Gate**: pins, workflow checks, format and analyze
 - **Dart test**: unit tests with a coverage gate
-- **Integration tests**: the integration and acceptance suites on the VM
-  with the native worker
-- **Demo pages and browser tests**: the published pages and the browser
-  cells in headless Chrome and Firefox
+- **Integration tests**: the VM cell, with the native worker
+- **Demo pages**: the published pages in headless Chrome, plus the
+  workspace caps tests
+- **Browser cell** (matrix): the integration and acceptance suites in
+  `chrome-dart2js`, `chrome-dart2wasm`, `firefox-dart2js` and
+  `firefox-dart2wasm`, each held to its floor in `tool/test_floors.tsv`
 - **Coverage merge and patch coverage**: unit plus integration coverage
   against the patch
 - **Markdown** — pymarkdown scan (always runs, even on docs-only changes)
