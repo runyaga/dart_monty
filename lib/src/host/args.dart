@@ -18,9 +18,6 @@ extension HostArgs on Map<String, Object?> {
   /// Throws [TypeError] if the value is missing or not a [String].
   String str(String key) => this[key]! as String;
 
-  /// Returns the optional [String] value for [key], or `null` if absent.
-  String? strOrNull(String key) => this[key] as String?;
-
   /// Returns the required [int] value for [key].
   ///
   /// Accepts any [num] (converts via [num.toInt]).

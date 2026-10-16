@@ -157,6 +157,10 @@ void main() {
 
     test('re-exports only ExternalException and OsHandler from core', () {
       expect(_coreShow(bridgeLib), {'ExternalException', 'OsHandler'});
+      expect(
+        _exported(_library(bridgeLib)).keys,
+        isNot(contains('wrappedValue')),
+      );
     });
   });
 

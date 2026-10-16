@@ -214,8 +214,8 @@ class HostDispatch {
   /// [log] is used for warning/error messages emitted during dispatch.
   HostDispatch({
     required BridgeLogger log,
-    MontyRuntimeRef? runtime,
-    RuntimeSubExecutor? subExecute,
+    required MontyRuntimeRef? runtime,
+    required RuntimeSubExecutor? subExecute,
   }) : _log = log,
        _runtime = runtime,
        _subExecute = subExecute;
@@ -343,8 +343,8 @@ class HostDispatch {
   /// [cancelToken] (the run's token; a fresh one when null).
   Map<String, MontyValue> externals(
     void Function(BridgeEvent) emit, {
-    OsHandler? os,
-    CancelToken? cancelToken,
+    required OsHandler? os,
+    required CancelToken? cancelToken,
   }) {
     Future<MontyValue> call(
       HostFunction fn,
@@ -372,6 +372,24 @@ class HostDispatch {
 
     return (code, {inputs}) =>
         subExecute(code, inputs: inputs, cancelToken: cancelToken);
+  }
+
+  Map<String, Object?> _validateCall(
+    HostFunction fn,
+    List<MontyValue> args,
+    Map<String, MontyValue> kwargs,
+    String Function(Object) fail,
+  ) {
+    try {
+      return mapAndValidate(fn.schema, args, kwargs);
+    } on Object catch (e) {
+      final text = fail(e);
+      _log.warning(
+        'Argument validation failed',
+        attributes: {'function': fn.schema.name, 'error': text},
+      );
+      throw ExternalException('RuntimeError', text);
+    }
   }
 
   /// One call of [fn] from Python, with its events.
@@ -411,28 +429,38 @@ class HostDispatch {
       return text;
     }
 
-    final Map<String, Object?> validated;
-    try {
-      validated = mapAndValidate(fn.schema, args, kwargs);
-    } on Object catch (e) {
-      final text = fail(e);
-      _log.warning(
-        'Argument validation failed',
-        attributes: {'function': name, 'error': text},
-      );
-      throw ExternalException('RuntimeError', text);
-    }
+    final validated = _validateCall(fn, args, kwargs, fail);
     emit(BridgeFunctionCallArgs(callId: callId, delta: _argsJson(validated)));
     emit(BridgeFunctionCallEnd(callId: callId));
 
-    final ctx = HostContext(
-      emit: emit,
-      executionId: callId,
-      cancelToken: cancelToken,
-      os: os,
-      parent: _runtime,
-      subExecute: _subExecuteFor(cancelToken),
-    );
+    final ctx = _contextFor(callId, emit, os, cancelToken);
+    final (result, value) = await _invokeCall(fn, validated, ctx, fail);
+    emit(BridgeFunctionCallResult(callId: callId, result: _resultText(result)));
+    emit(BridgeCallFinished(callId: callId));
+
+    return value;
+  }
+
+  HostContext _contextFor(
+    String callId,
+    void Function(BridgeEvent) emit,
+    OsHandler? os,
+    CancelToken? cancelToken,
+  ) => HostContext(
+    emit: emit,
+    executionId: callId,
+    cancelToken: cancelToken,
+    os: os,
+    parent: _runtime,
+    subExecute: _subExecuteFor(cancelToken),
+  );
+
+  Future<(Object?, MontyValue)> _invokeCall(
+    HostFunction fn,
+    Map<String, Object?> validated,
+    HostContext ctx,
+    String Function(Object) fail,
+  ) async {
     final Object? result;
     final MontyValue value;
     try {
@@ -444,19 +472,12 @@ class HostDispatch {
         'Host handler error',
         error: text,
         stackTrace: st,
-        attributes: {'function': name, 'type': '${e.runtimeType}'},
+        attributes: {'function': fn.schema.name, 'type': '${e.runtimeType}'},
       );
       if (e is ExternalException) rethrow;
       throw ExternalException('RuntimeError', text);
     }
-    emit(
-      BridgeFunctionCallResult(
-        callId: callId,
-        result: _resultText(result),
-      ),
-    );
-    emit(BridgeCallFinished(callId: callId));
 
-    return value;
+    return (result, value);
   }
 }

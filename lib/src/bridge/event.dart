@@ -31,6 +31,7 @@ class BridgeRunFinished extends BridgeEvent {
     required this.threadId,
     required this.runId,
     this.value,
+    // ignore: unnecessary-optional-parameters, unnecessary-nullable-parameters, callers may construct events without a typed value.
     this.montyValue,
     this.printOutput,
   });
@@ -164,6 +165,7 @@ class BridgeOsCallStart extends BridgeEvent {
   const BridgeOsCallStart({
     required this.callId,
     required this.operationName,
+    // ignore: unnecessary-optional-parameters, summaries are optional in the public event API.
     this.argumentSummary,
   });
 
@@ -203,6 +205,7 @@ class BridgeOsCallResult extends BridgeEvent {
   const BridgeOsCallResult({
     required this.callId,
     required this.result,
+    // ignore: unnecessary-optional-parameters, unnecessary-nullable-parameters, public events may have no timing (bridge_event_test).
     this.durationMs,
   });
 

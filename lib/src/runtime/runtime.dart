@@ -21,13 +21,14 @@ import 'package:meta/meta.dart';
 // ---------------------------------------------------------------------------
 
 /// Checks out a session from a runtime's pool, with [limits] when given.
-typedef RuntimeCheckout =
+typedef _RuntimeCheckout =
     Future<MontySession> Function({ResourceLimits? limits});
 
 /// The `maxProcesses` of the pool [MontyRuntime.start] starts when it is
 /// given none: a root execution, a sub-execution, and the `maxChildren` of
 /// the [SandboxExtension] among [extensions] (none without one).
 @visibleForTesting
+// ignore: unnecessarily-public-code, pool sizing is asserted by runtime tests.
 int defaultPoolSize(List<MontyExtension>? extensions) {
   final sandbox = extensions?.whereType<SandboxExtension>().firstOrNull;
 
@@ -37,6 +38,7 @@ int defaultPoolSize(List<MontyExtension>? extensions) {
 /// The shared-mode [ExtensionCoordinator] of [runtime]; `null` in sandbox
 /// mode, where each `execute()` owns a transient one. Internal to dm.
 @visibleForTesting
+// ignore: unnecessarily-public-code, unused-code, integration tests inspect coordinator identity.
 ExtensionCoordinator? runtimeCoordinator(MontyRuntime runtime) =>
     runtime._sharedRegistry;
 
@@ -46,8 +48,9 @@ ExtensionCoordinator? runtimeCoordinator(MontyRuntime runtime) =>
 /// The seam for tests that script sessions (core's `FakeMontySession`).
 /// The other parameters are [MontyRuntime.start]'s.
 @visibleForTesting
+// ignore: unnecessarily-public-code, unused-code, number-of-parameters, test seam mirrors MontyRuntime.start options.
 Future<MontyRuntime> startRuntimeWith({
-  required RuntimeCheckout checkout,
+  required Future<MontySession> Function({ResourceLimits? limits}) checkout,
   Future<void> Function()? closePool,
   OsHandler? os,
   Map<String, OsHandler>? osHandlers,
@@ -55,16 +58,24 @@ Future<MontyRuntime> startRuntimeWith({
   BridgeLogger? logger,
   bool sandbox = false,
   ResourceLimits? limits,
-}) => MontyRuntime._start(
-  checkout: checkout,
-  closePool: closePool,
-  os: os,
-  osHandlers: osHandlers,
-  extensions: extensions,
-  logger: logger,
-  sandbox: sandbox,
-  limits: limits,
-);
+}) async {
+  assert(
+    os == null || osHandlers == null,
+    'Pass either os or osHandlers, not both.',
+  );
+
+  return MontyRuntime._start(
+    MontyRuntime._(
+      checkout: checkout,
+      closePool: closePool,
+      os: os ?? (osHandlers != null ? composeOsHandlers(osHandlers) : null),
+      extensions: extensions,
+      logger: logger,
+      sandbox: sandbox,
+      limits: limits,
+    ),
+  );
+}
 
 /// High-level agent session — stateful Python execution with tools and
 /// extensions.
@@ -92,7 +103,7 @@ Future<MontyRuntime> startRuntimeWith({
 /// ```
 class MontyRuntime implements MontyRuntimeRef {
   MontyRuntime._({
-    required RuntimeCheckout checkout,
+    required _RuntimeCheckout checkout,
     required Future<void> Function()? closePool,
     required OsHandler? os,
     required List<MontyExtension>? extensions,
@@ -111,7 +122,7 @@ class MontyRuntime implements MontyRuntimeRef {
   /// worker before it fails with [TimeoutException].
   static const Duration defaultCheckoutTimeout = Duration(seconds: 30);
 
-  final RuntimeCheckout _checkout;
+  final _RuntimeCheckout _checkout;
   final Future<void> Function()? _closePool;
   final OsHandler? _os;
   final List<MontyExtension>? _extensions;
@@ -207,14 +218,15 @@ class MontyRuntime implements MontyRuntimeRef {
 
     try {
       return await _start(
-        checkout: monty.checkout,
-        closePool: owned ? monty.close : null,
-        os: os,
-        osHandlers: osHandlers,
-        extensions: extensions,
-        logger: logger,
-        sandbox: sandbox,
-        limits: limits,
+        MontyRuntime._(
+          checkout: monty.checkout,
+          closePool: owned ? monty.close : null,
+          os: os ?? (osHandlers != null ? composeOsHandlers(osHandlers) : null),
+          extensions: extensions,
+          logger: logger,
+          sandbox: sandbox,
+          limits: limits,
+        ),
       );
     } on Object {
       if (owned) await monty.close();
@@ -615,32 +627,10 @@ class MontyRuntime implements MontyRuntimeRef {
     return value!;
   }
 
-  /// Builds the runtime over [checkout]; a shared-mode one checks out its
+  /// Initializes [runtime]; a shared-mode one checks out its
   /// session first.
-  static Future<MontyRuntime> _start({
-    required RuntimeCheckout checkout,
-    required Future<void> Function()? closePool,
-    required OsHandler? os,
-    required Map<String, OsHandler>? osHandlers,
-    required List<MontyExtension>? extensions,
-    required BridgeLogger? logger,
-    required bool sandbox,
-    required ResourceLimits? limits,
-  }) async {
-    assert(
-      os == null || osHandlers == null,
-      'Pass either os or osHandlers, not both.',
-    );
-    final runtime = MontyRuntime._(
-      checkout: checkout,
-      closePool: closePool,
-      os: os ?? (osHandlers != null ? composeOsHandlers(osHandlers) : null),
-      extensions: extensions,
-      logger: logger,
-      sandbox: sandbox,
-      limits: limits,
-    );
-    if (!sandbox) await runtime._openShared();
+  static Future<MontyRuntime> _start(MontyRuntime runtime) async {
+    if (!runtime._sandbox) await runtime._openShared();
 
     return runtime;
   }
