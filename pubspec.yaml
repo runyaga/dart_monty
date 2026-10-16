@@ -22,12 +22,10 @@ dependencies:
 
 dev_dependencies:
   analyzer: ^14.5.0
-  # `collection` and `test` were REGULAR dependencies, which made every
-  # consumer of this package pull the test framework into their own
-  # dependency graph. Neither is imported anywhere under lib/ -- measured,
-  # zero files -- and `lib/dart_monty_testing.dart`, the one public surface
-  # that could plausibly need `test`, only re-exports from dart_monty_core.
-  # `collection` has a single user, test/integration/demo_page_boot_test.dart.
+  # `collection` and `test` are dev dependencies so that consumers do not pull
+  # the test framework into their own dependency graph. Nothing under lib/
+  # imports either. `collection` has a single user,
+  # test/integration/demo_page_boot_test.dart.
   collection: ^1.18.0
   # Declared, not `pub global activate`d: activate resolves the latest
   # coverage package from pub.dev on every CI run, which leaves the tool
@@ -45,9 +43,8 @@ dev_dependencies:
 # cannot move, so a rebuild months from now resolves the same core this line was
 # tested against. CI requires a full SHA here, so the tag name is not used.
 #
-# dart_monty_core 0.110.0-dev.2 is tagged but is not on pub.dev, so without this
-# override CI would resolve the `dart_monty_core` constraint above from pub.dev
-# and test against a core this line does not target.
+# dart_monty_core 0.110.0-dev.2 is tagged but is not on pub.dev, so the
+# `dart_monty_core` constraint above cannot resolve without this override.
 #
 # The pin is an override and not a `dependencies` entry because
 # `dart analyze --fatal-infos` rejects a git dependency in a publishable

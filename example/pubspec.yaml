@@ -15,10 +15,9 @@ dev_dependencies:
 
 # Same pin as ../pubspec.yaml, which see.
 #
-# `dependency_overrides` do not propagate from the parent package, so without
-# this block the examples resolve dart_monty_core from pub.dev while the root
-# package uses the pinned commit. That mismatch once made `example_smoke_test`
-# run dataclass_demo against an older core and fail with `MontyNone`.
+# `dependency_overrides` do not propagate from the parent package, and
+# dart_monty_core 0.110.0-dev.2 is not on pub.dev, so the constraint above
+# cannot resolve without this block.
 #
 # Delete this block when ../pubspec.yaml's override goes.
 dependency_overrides:

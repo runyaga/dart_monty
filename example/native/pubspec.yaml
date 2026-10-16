@@ -10,11 +10,9 @@ dependencies:
     path: ../..
   dart_monty_core: ^0.110.0-dev.2
 
-# Without this block dart_monty_core resolves from pub.dev, because
 # `dependency_overrides` do not propagate from the parent package into a
-# sub-package with its own pubspec. That once pulled an old core against a newer
-# dart_monty and failed to compile in platform.dart. No CI job builds this
-# package, so a stale pin here is only caught by tool/check_core_ref.sh.
+# sub-package with its own pubspec, and dart_monty_core 0.110.0-dev.2 is not on
+# pub.dev, so the constraint above cannot resolve without this block.
 #
 # MUST MATCH the ref in pubspec.yaml, example/pubspec.yaml,
 # example/web/pubspec.yaml and .github/workflows/pages.yaml.
