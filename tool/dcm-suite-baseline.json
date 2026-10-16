@@ -1,12 +1,10 @@
 {
   "_dcm_version": "1.39.0",
-  "_grand_total": 248,
+  "_grand_total": 221,
   "checks": {
     "calculate-metrics": {
       "by_file": {
-        "lib/src/bridge/platform.dart": 5,
         "lib/src/extension/coordinator.dart": 3,
-        "lib/src/extensions/event_loop.dart": 1,
         "lib/src/extensions/run_script.dart": 1,
         "lib/src/extensions/sandbox.dart": 6,
         "lib/src/host/dispatch.dart": 2,
@@ -19,12 +17,12 @@
         "lib/src/runtime/runtime.dart": 3
       },
       "by_rule": {
-        "cyclomatic-complexity": 10,
-        "lines-of-code": 16,
-        "number-of-methods": 3,
+        "cyclomatic-complexity": 6,
+        "lines-of-code": 15,
+        "number-of-methods": 2,
         "number-of-parameters": 2
       },
-      "total": 31
+      "total": 25
     },
     "check-dependencies": {
       "by_file": {
@@ -45,40 +43,36 @@
     },
     "check-parameters": {
       "by_file": {
-        "lib/src/bridge/event.dart": 5,
-        "lib/src/bridge/platform.dart": 1,
+        "lib/src/bridge/event.dart": 3,
         "lib/src/bridge/struct_log_logger.dart": 1,
         "lib/src/extension/coordinator.dart": 6,
         "lib/src/extension/extension.dart": 1,
         "lib/src/extensions/message_bus.dart": 5,
         "lib/src/extensions/sandbox.dart": 5,
-        "lib/src/host/context.dart": 5,
+        "lib/src/host/context.dart": 3,
         "lib/src/host/dispatch.dart": 3,
-        "lib/src/host/function.dart": 5,
+        "lib/src/host/function.dart": 4,
         "lib/src/host/param.dart": 9,
         "lib/src/host/schema.dart": 2,
-        "lib/src/os_call/platform_handlers.dart": 1,
         "lib/src/runtime/runtime.dart": 2
       },
       "by_rule": {
-        "never-passed-parameter-issue": 9,
-        "unnecessary-nullable-parameter-issue": 11,
-        "unnecessary-optional-parameter-issue": 31
+        "never-passed-parameter-issue": 7,
+        "unnecessary-nullable-parameter-issue": 10,
+        "unnecessary-optional-parameter-issue": 27
       },
-      "total": 51
+      "total": 44
     },
     "check-unnecessarily-public-code": {
       "by_file": {
         "lib/src/bridge/event.dart": 12,
         "lib/src/bridge/struct_log_logger.dart": 1,
-        "lib/src/extension/coordinator.dart": 2,
         "lib/src/extension/extension.dart": 1,
         "lib/src/extensions/event_loop.dart": 20,
         "lib/src/extensions/message_bus.dart": 34,
         "lib/src/extensions/run_script.dart": 1,
-        "lib/src/extensions/sandbox.dart": 30,
-        "lib/src/host/context.dart": 5,
-        "lib/src/host/dispatch.dart": 2,
+        "lib/src/extensions/sandbox.dart": 27,
+        "lib/src/host/context.dart": 4,
         "lib/src/host/function.dart": 2,
         "lib/src/host/param.dart": 2,
         "lib/src/host/schema.dart": 1,
@@ -89,16 +83,14 @@
         "lib/src/os_call/fs_decorators.dart": 4,
         "lib/src/os_call/sandboxed_fs_handler.dart": 1,
         "lib/src/runtime/backend_kind.dart": 3,
-        "lib/src/runtime/execution_handle.dart": 6,
+        "lib/src/runtime/execution_handle.dart": 4,
         "lib/src/runtime/runtime.dart": 8,
-        "lib/src/runtime/runtime_state.dart": 1,
-        "lib/src/runtime/value_x.dart": 9,
-        "lib/src/web/ensure_initialized.dart": 1
+        "lib/src/runtime/value_x.dart": 9
       },
       "by_rule": {
-        "unnecessarily-public-issue": 150
+        "unnecessarily-public-issue": 138
       },
-      "total": 150
+      "total": 138
     },
     "check-unused-code": {
       "by_file": {
@@ -119,14 +111,12 @@
     },
     "check-unused-files": {
       "by_file": {
-        "lib/dart_monty.dart": 1,
-        "lib/dart_monty_testing.dart": 1,
-        "lib/monty_backend_spi.dart": 1
+        "lib/dart_monty.dart": 1
       },
       "by_rule": {
-        "unused-file-issue": 3
+        "unused-file-issue": 1
       },
-      "total": 3
+      "total": 1
     }
   }
 }
