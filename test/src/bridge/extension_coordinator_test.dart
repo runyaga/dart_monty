@@ -1,4 +1,7 @@
 import 'package:dart_monty/dart_monty_bridge.dart';
+import 'package:dart_monty/src/extension/coordinator.dart';
+import 'package:dart_monty_core/dart_monty_core.dart';
+import 'package:dart_monty_core/dart_monty_core_testing.dart';
 import 'package:test/test.dart';
 
 /// Minimal test plugin with configurable namespace and functions.
@@ -29,6 +32,38 @@ void main() {
 
   setUp(() {
     registry = ExtensionCoordinator();
+  });
+
+  test('AttachContext.schemas lists every registered function, and none '
+      'without a handler on this backend (D1-3)', () async {
+    final bridge = MontyBridge(
+      session: FakeMontySession(),
+      logger: BridgeLogger.silent,
+    );
+    addTearDown(bridge.dispose);
+    List<String>? seen;
+    registry
+      ..register(
+        _TestExtension(
+          namespace: 'alpha',
+          functions: [
+            _fn('alpha_one'),
+            const HostFunction(
+              schema: HostFunctionSchema(name: 'alpha_none', description: ''),
+            ),
+          ],
+        ),
+      )
+      ..register(
+        _SchemaProbe(
+          [_fn('probe_one')],
+          (host) => seen = [for (final s in host.schemas) s.name],
+        ),
+      );
+
+    await registry.attachTo(bridge, enableIntrospection: false);
+
+    expect(seen, unorderedEquals(['alpha_one', 'probe_one']));
   });
 
   group('ExtensionCoordinator', () {
@@ -509,11 +544,9 @@ void main() {
           },
         );
 
-        test('accessing coordinator before attachTo throws', () {
+        test('coordinatorOf before attachTo throws StateError', () {
           final plugin = _LifecycleExtension(namespace: 'lc', functions: []);
-          // Accessing an uninitialised late field throws
-          // LateInitializationError, a subtype of Error.
-          expect(() => plugin.coordinator, throwsA(isA<Error>()));
+          expect(() => coordinatorOf(plugin), throwsStateError);
         });
       });
 
@@ -724,162 +757,18 @@ void main() {
       });
     });
 
-    group('generateSystemPrompt', () {
-      test('empty registry returns empty string', () {
-        expect(registry.generateSystemPrompt(), isEmpty);
-      });
-
-      test('single plugin with functions produces expected markdown', () {
-        registry.register(
-          _TestExtension(
-            namespace: 'sqlite',
-            systemPromptContext: 'SQLite operations.',
-            functions: [
-              HostFunction(
-                schema: const HostFunctionSchema(
-                  name: 'sqlite_query',
-                  description: 'Run a query.',
-                  params: [
-                    HostParam(
-                      name: 'sql',
-                      type: HostParamType.string,
-                      description: 'SQL string.',
-                    ),
-                  ],
-                ),
-                handler: (args, _) async => null,
-              ),
-            ],
-          ),
-        );
-
-        final prompt = registry.generateSystemPrompt();
-
-        expect(prompt, contains('### sqlite'));
-        expect(prompt, contains('SQLite operations.'));
-        expect(prompt, contains('`sqlite_query(sql: string)`'));
-        expect(prompt, contains('Run a query.'));
-      });
-
-      test('optional params show ? suffix', () {
-        registry.register(
-          _TestExtension(
-            namespace: 'demo',
-            functions: [
-              HostFunction(
-                schema: const HostFunctionSchema(
-                  name: 'demo_opt',
-                  description: 'Has optional.',
-                  params: [
-                    HostParam(
-                      name: 'limit',
-                      type: HostParamType.integer,
-                      isRequired: false,
-                    ),
-                  ],
-                ),
-                handler: (args, _) async => null,
-              ),
-            ],
-          ),
-        );
-
-        final prompt = registry.generateSystemPrompt();
-
-        expect(prompt, contains('limit?: integer'));
-      });
-
-      test('systemPromptPrefix prepends before plugin sections', () {
-        registry
-          ..systemPromptPrefix = 'You are child 0. Workspace: /child_0.'
-          ..register(
-            _TestExtension(
-              namespace: 'alpha',
-              systemPromptContext: 'Alpha operations.',
-              functions: [_fn('alpha_one')],
-            ),
-          );
-
-        final prompt = registry.generateSystemPrompt();
-
-        expect(prompt, startsWith('You are child 0.'));
-        expect(
-          prompt.indexOf('child 0'),
-          lessThan(prompt.indexOf('### alpha')),
-        );
-      });
-
-      test('null systemPromptPrefix produces no prefix', () {
-        registry.register(
-          _TestExtension(namespace: 'ns', functions: [_fn('ns_one')]),
-        );
-
-        final prompt = registry.generateSystemPrompt();
-
-        expect(prompt, startsWith('### ns'));
-      });
-
-      test('empty systemPromptPrefix produces no prefix', () {
-        registry
-          ..systemPromptPrefix = ''
-          ..register(
-            _TestExtension(namespace: 'ns', functions: [_fn('ns_one')]),
-          );
-
-        final prompt = registry.generateSystemPrompt();
-
-        expect(prompt, startsWith('### ns'));
-      });
-
-      test('systemPromptPrefix alone (no plugins) returns prefix', () {
-        registry.systemPromptPrefix = 'You are the validator.';
-
-        final prompt = registry.generateSystemPrompt();
-
-        expect(prompt, contains('You are the validator.'));
-      });
-
-      test('multiple plugins produce sections in registration order', () {
-        registry
-          ..register(
-            _TestExtension(
-              namespace: 'alpha',
-              systemPromptContext: 'Alpha stuff.',
-              functions: [_fn('alpha_one')],
-            ),
-          )
-          ..register(
-            _TestExtension(
-              namespace: 'beta',
-              systemPromptContext: 'Beta stuff.',
-              functions: [_fn('beta_one')],
-            ),
-          );
-
-        final prompt = registry.generateSystemPrompt();
-        final alphaIdx = prompt.indexOf('### alpha');
-        final betaIdx = prompt.indexOf('### beta');
-
-        expect(alphaIdx, lessThan(betaIdx));
-      });
-    });
-
-    group('spawnChild — extraFunctions childPropagation', () {
-      HostFunction extraFn(
-        String name, {
-        ChildPropagation propagation = ChildPropagation.exclude,
-      }) => HostFunction(
-        schema: HostFunctionSchema(name: name, description: ''),
-        handler: (args, _) async => null,
-        childPropagation: propagation,
-      );
-
-      test('excludes extras by default from child surface', () async {
+    group('spawnChild — extraFunctions', () {
+      test('an extra function never reaches a child', () async {
         final parentBridge = _MockBridge();
         registry.register(_TestExtension(namespace: 'ns', functions: []));
         await registry.attachTo(
           parentBridge,
-          extraFunctions: [extraFn('parent_only')],
+          extraFunctions: [
+            HostFunction(
+              schema: const HostFunctionSchema(name: 'parent_only'),
+              handler: (args, _) async => null,
+            ),
+          ],
         );
 
         final childBridge = _MockBridge();
@@ -891,38 +780,168 @@ void main() {
         expect(parentBridge.registeredNames, contains('parent_only'));
         expect(childBridge.registeredNames, isNot(contains('parent_only')));
       });
+    });
 
-      test('propagates inherit-tagged extras to child surface', () async {
-        final parentBridge = _MockBridge();
-        registry.register(_TestExtension(namespace: 'ns', functions: []));
-        await registry.attachTo(
-          parentBridge,
-          extraFunctions: [
-            extraFn(
-              'shared_tool',
-              propagation: ChildPropagation.inherit,
-            ),
-            extraFn('parent_only'),
-          ],
+    group('D1 contract', () {
+      test(
+        'equal priorities keep registration order past insertion-sort size',
+        () async {
+          final attached = <String>[];
+          final disposed = <String>[];
+          // 40 extensions: List.sort switches from insertion sort (stable)
+          // to quicksort (not stable) above 32 elements.
+          for (var i = 0; i < 40; i++) {
+            registry.register(
+              _LifecycleExtension(
+                namespace: 'e$i',
+                functions: [],
+                priority: i.isOdd ? 1 : 0,
+                onAttachCallback: () => attached.add('e$i'),
+                onDisposeCallback: () => disposed.add('e$i'),
+              ),
+            );
+          }
+
+          await registry.attachTo(_MockBridge());
+          await registry.disposeAll();
+
+          final expected = [
+            for (var i = 1; i < 40; i += 2) 'e$i',
+            for (var i = 0; i < 40; i += 2) 'e$i',
+          ];
+          expect(attached, expected);
+          expect(disposed, expected.reversed.toList());
+        },
+      );
+
+      test('a child: exclude absent, inherit shared, clone fresh', () async {
+        final inherit = _PolicyExtension('inh', ChildPolicy.inherit);
+        final clone = _PolicyExtension('cln', ChildPolicy.clone);
+        registry
+          ..register(_PolicyExtension('exc', ChildPolicy.exclude))
+          ..register(inherit)
+          ..register(clone);
+        await registry.attachTo(_MockBridge());
+
+        final child = await registry.spawnChild(
+          context: const ChildSpawnContext(childId: 1),
+          bridge: _MockBridge(),
         );
 
-        final childBridge = _MockBridge();
-        await registry.spawnChild(
-          context: const ChildSpawnContext(childId: 2),
-          bridge: childBridge,
-        );
-
-        expect(childBridge.registeredNames, contains('shared_tool'));
-        expect(childBridge.registeredNames, isNot(contains('parent_only')));
+        final [first, second] = child.extensions;
+        expect(first, same(inherit));
+        expect(second, isNot(same(clone)));
+        expect(second.namespace, 'cln');
+        expect(coordinatorOf(second), same(child));
       });
 
-      test('defaults to exclude when childPropagation is not specified', () {
-        final fn = HostFunction(
-          schema: const HostFunctionSchema(name: 'x', description: ''),
-          handler: (args, _) async => null,
+      test(
+        'a clone made before a failing createChildInstance is disposed',
+        () async {
+          final ok = _PolicyExtension('ok', ChildPolicy.clone);
+          registry
+            ..register(ok)
+            ..register(
+              _PolicyExtension(
+                'bad',
+                ChildPolicy.clone,
+                onClone: () => throw StateError('no clone'),
+              ),
+            );
+          await registry.attachTo(_MockBridge());
+
+          await expectLater(
+            registry.spawnChild(
+              context: const ChildSpawnContext(childId: 1),
+              bridge: _MockBridge(),
+            ),
+            throwsStateError,
+          );
+
+          expect(ok.clones.single.disposed, isTrue);
+        },
+      );
+
+      test('a clone extension without createChildInstance fails the spawn '
+          'with UnsupportedError', () async {
+        registry.register(_TestCloneWithoutFactory());
+        await registry.attachTo(_MockBridge());
+
+        await expectLater(
+          registry.spawnChild(
+            context: const ChildSpawnContext(childId: 1),
+            bridge: _MockBridge(),
+          ),
+          throwsUnsupportedError,
+        );
+      });
+
+      test("each extension's logger is the bridge logger's child, set "
+          'before any onAttach', () async {
+        final bridge = _LoggingBridge();
+        BridgeLogger? seenByFirst;
+        final first = _LifecycleExtension(namespace: 'aa', functions: []);
+        registry
+          ..register(
+            _LifecycleExtension(
+              namespace: 'zz',
+              functions: [],
+              priority: 1,
+              onAttachCallback: () => seenByFirst = first.logger,
+            ),
+          )
+          ..register(first);
+
+        await registry.attachTo(bridge);
+
+        expect(bridge.children, containsAll(['aa', 'zz']));
+        expect(seenByFirst, same(bridge.childNamed('aa')));
+      });
+
+      test('an unsupported backend fails attach with an Error before any '
+          'onAttach', () async {
+        var attachedFirst = false;
+        registry
+          ..register(
+            _LifecycleExtension(
+              namespace: 'ok',
+              functions: [],
+              priority: 1,
+              onAttachCallback: () => attachedFirst = true,
+            ),
+          )
+          ..register(_WasmOnlyExtension());
+
+        await expectLater(
+          registry.attachTo(_MockBridge()),
+          throwsA(
+            isA<Error>().having((e) => '$e', 'text', contains('"wasmonly"')),
+          ),
+        );
+        expect(attachedFirst, isFalse);
+      });
+
+      test('a failing onDispose during attach cleanup wins over the attach '
+          'failure', () async {
+        registry.register(
+          _LifecycleExtension(
+            namespace: 'boom',
+            functions: [],
+            onAttachCallback: () => throw StateError('attach'),
+            onDisposeCallback: () => throw StateError('dispose'),
+          ),
         );
 
-        expect(fn.childPropagation, ChildPropagation.exclude);
+        await expectLater(
+          registry.attachTo(_MockBridge()),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              contains('failed to dispose'),
+            ),
+          ),
+        );
       });
     });
   });
@@ -968,18 +987,18 @@ class _LifecycleExtension extends MontyExtension {
   }
 }
 
-/// Fake [OsCallHandler] — resolves to nothing, never actually invoked in tests.
-Future<Object?> _fakeOsHandler(
+/// Fake [OsHandler] — resolves to nothing, never actually invoked in tests.
+Future<MontyValue> _fakeOsHandler(
   String operation,
-  List<Object?> args,
-  Map<String, Object?>? kwargs,
+  List<MontyValue> args,
+  Map<String, MontyValue> kwargs,
 ) => throw UnimplementedError();
 
 /// Plugin with a configurable [osContribution] for OS prefix merging tests.
 class _OsContribExtension extends MontyExtension {
   _OsContribExtension({
     required this.namespace,
-    required Map<String, OsCallHandler>? contribution,
+    required Map<String, OsHandler>? contribution,
   }) : _contribution = contribution;
 
   @override
@@ -988,13 +1007,14 @@ class _OsContribExtension extends MontyExtension {
   @override
   List<HostFunction> get functions => [];
 
-  final Map<String, OsCallHandler>? _contribution;
+  final Map<String, OsHandler>? _contribution;
 
   @override
-  Map<String, OsCallHandler>? get osContribution => _contribution;
+  Map<String, OsHandler>? get osContribution => _contribution;
 }
 
-/// Extension that captures its [coordinator] reference during [onAttach].
+/// Extension that captures its coordinator ([coordinatorOf]) during
+/// [onAttach].
 ///
 /// Used to verify that `ExtensionCoordinator` injects the coordinator before
 /// the first [onAttach] call.
@@ -1012,7 +1032,7 @@ class _RegistryCapturingExtension extends MontyExtension {
   @override
   Future<void> onAttach(AttachContext host) async {
     await super.onAttach(host);
-    capturedCoordinator = coordinator;
+    capturedCoordinator = coordinatorOf(this);
   }
 }
 
@@ -1023,7 +1043,7 @@ class _MockBridge implements MontyBridge {
   final _categoryIndex = <String, Set<String>>{};
 
   @override
-  BridgeLogger get logger => const NullBridgeLogger();
+  BridgeLogger get logger => BridgeLogger.silent;
 
   @override
   List<HostFunctionSchema> get schemas =>
@@ -1055,10 +1075,10 @@ class _MockBridge implements MontyBridge {
   @override
   void unregister(String name) {}
 
-  OsCallHandler? capturedOs;
+  OsHandler? capturedOs;
 
   @override
-  void registerOs(OsCallHandler handler) {
+  void registerOs(OsHandler handler) {
     capturedOs = handler;
   }
 
@@ -1074,4 +1094,139 @@ class _MockBridge implements MontyBridge {
 
   @override
   void dispose() {}
+}
+
+/// An extension that reports [AttachContext.schemas] from its `onAttach`.
+class _SchemaProbe extends MontyExtension {
+  _SchemaProbe(this.functions, this.onSchemas);
+
+  @override
+  final List<HostFunction> functions;
+
+  final void Function(AttachContext host) onSchemas;
+
+  @override
+  String get namespace => 'probe';
+
+  @override
+  Future<void> onAttach(AttachContext host) async {
+    await super.onAttach(host);
+    onSchemas(host);
+  }
+}
+
+/// An extension with [policy]; as a clone factory it records each clone,
+/// or runs [onClone] instead when given.
+class _PolicyExtension extends MontyExtension {
+  _PolicyExtension(this.namespace, this.policy, {this.onClone});
+
+  @override
+  final String namespace;
+
+  final ChildPolicy policy;
+  final MontyExtension Function()? onClone;
+  final List<_PolicyExtension> clones = [];
+  bool disposed = false;
+
+  @override
+  List<HostFunction> get functions => [];
+
+  @override
+  ChildPolicy get childPolicy => policy;
+
+  @override
+  MontyExtension createChildInstance(ChildSpawnContext context) {
+    final make = onClone;
+    if (make != null) return make();
+    final clone = _PolicyExtension(namespace, policy);
+    clones.add(clone);
+
+    return clone;
+  }
+
+  @override
+  Future<void> onDispose() async {
+    await super.onDispose();
+    disposed = true;
+  }
+}
+
+/// A clone-policy extension that does not override createChildInstance.
+class _TestCloneWithoutFactory extends MontyExtension {
+  @override
+  String get namespace => 'nofactory';
+
+  @override
+  List<HostFunction> get functions => [];
+
+  @override
+  ChildPolicy get childPolicy => ChildPolicy.clone;
+}
+
+/// An extension that runs on the web backend only.
+class _WasmOnlyExtension extends MontyExtension {
+  @override
+  String get namespace => 'wasmonly';
+
+  @override
+  List<HostFunction> get functions => [];
+
+  @override
+  Set<MontyBackendKind> get supportedBackends => const {MontyBackendKind.wasm};
+}
+
+/// A logger that names its children and records them.
+final class _NamedLogger implements BridgeLogger {
+  _NamedLogger(this.name, this.children);
+
+  final String name;
+  final Map<String, BridgeLogger> children;
+
+  @override
+  void trace(String message, {Map<String, Object?>? attributes}) {}
+
+  @override
+  void debug(String message, {Map<String, Object?>? attributes}) {}
+
+  @override
+  void info(String message, {Map<String, Object?>? attributes}) {}
+
+  @override
+  void warning(
+    String message, {
+    Object? error,
+    StackTrace? stackTrace,
+    Map<String, Object?>? attributes,
+  }) {}
+
+  @override
+  void error(
+    String message, {
+    Object? error,
+    StackTrace? stackTrace,
+    Map<String, Object?>? attributes,
+  }) {}
+
+  @override
+  BridgeLogger child(String name) =>
+      children[name] = _NamedLogger(name, children);
+
+  @override
+  void close() {}
+}
+
+/// A [_MockBridge] whose logger records the children made from it.
+class _LoggingBridge extends _MockBridge {
+  final Map<String, BridgeLogger> _children = {};
+
+  late final BridgeLogger _logger = _NamedLogger('root', _children);
+
+  @override
+  BridgeLogger get logger => _logger;
+
+  /// The names of the children made from [logger].
+  Iterable<String> get children => _children.keys;
+
+  /// The child named [name].
+  BridgeLogger? childNamed(String name) => _children[name];
 }

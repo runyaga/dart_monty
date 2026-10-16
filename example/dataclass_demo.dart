@@ -1,36 +1,32 @@
 // Printing to stdout is expected in an example.
 // ignore_for_file: avoid_print
-// User leads the file for readability; MontyCallback's signature is
-// `Future<Object?>` per the typedef so the lambda can't be sync.
-// ignore_for_file: prefer-match-file-name, avoid-unnecessary-futures
-/// Stateful dataclass round-trip through `MontyRuntime`.
+// User leads the file for readability.
+// ignore_for_file: prefer-match-file-name
+/// A dataclass-like host value that persists across `execute()` calls.
 ///
-/// `MontyRuntime` keeps Python state across `execute()` calls, so a
-/// dataclass produced by one call remains a live Python object on the
-/// next call. The bridge round-trip preserves the typed value so the Dart side
-/// can hydrate it into a user class — `MontyClassInstance` since core 0.23,
-/// which made `MontyDataclass` encode-only.
+/// A host function returns a Dart `User` wrapped in core's [ClassInstance],
+/// described by a [HostClass] marked as a dataclass. Python sees an object
+/// whose fields read as ordinary attributes. Because `MontyRuntime` keeps
+/// one session across `execute()` calls, the object bound by one call is
+/// still a live Python object on the next.
 ///
-/// Core's `dart_monty_core/example/10_dataclasses.dart` covers the
-/// per-call hydration mechanics with `Monty(code).run`. This demo
-/// shows the part `MontyRuntime` adds: durable state across calls,
-/// observable through ordinary Python attribute access in user code.
+/// An instance the sandbox hands back decodes to the same [ClassInstance],
+/// so `dartValue` is the original Dart `User`: no rebuilding from fields.
 ///
-/// Works on every backend dart_monty_core ships (native FFI, WASM,
-/// dart2js).
+/// Core's `example/10_dataclasses.dart` covers the other direction: a
+/// dataclass defined in Python reaching Dart as a `MontyClassProxy`.
 ///
 /// Run:
 ///   dart run example/dataclass_demo.dart
 library;
+
+import 'dart:io';
 
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
 
 class User {
   const User({required this.name, required this.age});
-
-  factory User.fromAttrs(Map<String, Object?> a) =>
-      User(name: a['name']! as String, age: a['age']! as int);
 
   final String name;
   final int age;
@@ -39,69 +35,88 @@ class User {
   String toString() => 'User(name=$name, age=$age)';
 }
 
-// Say it with the type, not with a hand-built envelope.
-//
-// dart_monty_core 0.19 routes host callback returns through
-// `MontyValue.encodeForWire`, so a Map spelling `{'__type': 'dataclass', ...}`
-// by hand is no longer honoured as a dataclass — it arrives in Python as a
-// plain dict, `user.name` reads as null, and the cast below throws. Returning a
-// `MontyDataclass` is the documented replacement (core CHANGELOG, 0.19.0
-// Breaking).
-MontyDataclass _userValue({required String name, required int age}) =>
-    MontyDataclass(
-      name: 'User',
-      typeId: 1,
-      fieldNames: const ['name', 'age'],
-      attrs: {'name': MontyString(name), 'age': MontyInt(age)},
-    );
+/// `User` as a Python dataclass with two fields.
+const _userClass = HostClass<User>(
+  'User',
+  isDataclass: true,
+  instance: (
+    fields: {'name': _name, 'age': _age},
+    properties: <String, Object Function(User)>{},
+    methods: <String, Never>{},
+  ),
+);
+
+// A field's value crosses as a MontyValue.
+Object _name(User u) => MontyString(u.name);
+Object _age(User u) => MontyInt(u.age);
+
+final ClassType<User> _userType = ClassType(_userClass);
+
+/// [user] as a session value whose fields cross eagerly.
+ClassInstance<User> _userValue(User user) => ClassInstance(
+  user,
+  classType: _userType,
+  policies: (eagerAttrs: 'all', lazyAttrs: null, allowedMethods: null),
+);
 
 Future<void> main() async {
-  final runtime = MontyRuntime()
-    ..register(
-      HostFunction(
-        schema: const HostFunctionSchema(
-          name: 'make_user',
-          description: 'Construct a User dataclass.',
-          params: [
-            HostParam(name: 'name', type: HostParamType.string),
-            HostParam(name: 'age', type: HostParamType.integer),
-          ],
-        ),
-        handler: (args, _) async =>
-            _userValue(name: args['name']! as String, age: args['age']! as int),
+  final worker = Platform.environment['DART_MONTY_WORKER'];
+  final pool = await Monty.start(
+    workerLocation: worker == null || worker.isEmpty ? null : worker,
+  );
+  final runtime = await MontyRuntime.start(pool: pool);
+  runtime.register(
+    HostFunction(
+      schema: const HostFunctionSchema(
+        name: 'make_user',
+        description: 'Construct a User dataclass.',
+        params: [
+          HostParam(name: 'name', type: HostParamType.string),
+          HostParam(name: 'age', type: HostParamType.integer),
+        ],
       ),
-    );
+      handler: (args, _) async => _userValue(
+        User(name: args['name']! as String, age: args['age']! as int),
+      ),
+    ),
+  );
 
-  // 1. Construct and bind the dataclass in Python state. The assignment
-  //    has no return value, but `user` now lives in the runtime's heap.
-  await runtime.execute('user = make_user(name="alice", age=30)').result;
-  print('── 1. user = make_user(...) ──');
+  try {
+    // 1. Construct and bind the object in Python state. The assignment has
+    //    no return value, but `user` now lives in the session's heap.
+    await runtime.execute('user = make_user(name="alice", age=30)').result;
+    print('── 1. user = make_user(...) ──');
 
-  // 2. Access an attribute on a *later* execute call. This only works
-  //    because `user` survived as a real Python object — not a serialized
-  //    envelope rebuilt from JSON each call.
-  final nameResult = await runtime.execute('user.name').result;
-  print('── 2. user.name ──');
-  print('   value: ${nameResult.value.dartValue}'); // alice
+    // 2. Access an attribute on a *later* execute call. This only works
+    //    because `user` survived as a live Python object.
+    final name = await runtime.execute('user.name').result;
+    print('── 2. user.name ──');
+    print('   value: ${name.dartValue}'); // alice
+    _check(name == const MontyString('alice'), 'user.name');
 
-  // 3. Return the whole dataclass. dart_monty_core 0.23 made MontyDataclass
-  //    ENCODE-ONLY: monty v0.0.23 dropped the dataclass variant, so every class
-  //    instance now decodes as MontyClassInstance. Read `classType.isDataclass`
-  //    to tell a dataclass from a plain class. `hydrate` is unchanged.
-  final fullResult = await runtime.execute('user').result;
-  final dc = fullResult.value as MontyClassInstance;
-  print('── 3. user ──');
-  // Expected: typed = MontyClassInstance, hydrated = User(name=alice, age=30)
-  print('   typed:    ${dc.runtimeType}');
-  print('   hydrated: ${dc.hydrate(User.fromAttrs)}');
+    // 3. Return the whole object. It decodes to the ClassInstance the host
+    //    sent, so dartValue is the Dart User itself.
+    final full = await runtime.execute('user').result;
+    print('── 3. user ──');
+    // Expected: typed = ClassInstance<User>, value = User(name=alice, age=30)
+    print('   typed: ${full.runtimeType}');
+    print('   value: ${full.dartValue}');
+    _check(full.dartValue is User, 'user is a User');
 
-  // 4. Replace the binding and confirm subsequent reads see the new one.
-  await runtime.execute('user = make_user(name="bob", age=42)').result;
-  final replaced = await runtime.execute('user').result;
-  final replacedDc = replaced.value as MontyClassInstance;
-  print('── 4. after re-binding ──');
-  // Expected: User(name=bob, age=42)
-  print('   hydrated: ${replacedDc.hydrate(User.fromAttrs)}');
+    // 4. Replace the binding and confirm later reads see the new one.
+    await runtime.execute('user = make_user(name="bob", age=42)').result;
+    final replaced = await runtime.execute('user').result;
+    print('── 4. after re-binding ──');
+    // Expected: User(name=bob, age=42)
+    print('   value: ${replaced.dartValue}');
+    final age = await runtime.execute('user.age + 1').result;
+    _check(age == const MontyInt(43), 'user.age + 1');
+  } finally {
+    await runtime.dispose();
+    await pool.close();
+  }
+}
 
-  await runtime.dispose();
+void _check(bool ok, String what) {
+  if (!ok) throw StateError('unexpected result: $what');
 }

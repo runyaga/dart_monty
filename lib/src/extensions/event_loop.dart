@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:dart_monty/src/bridge/event.dart';
-import 'package:dart_monty/src/bridge/platform.dart';
+import 'package:dart_monty/src/bridge/session_bridge.dart';
 import 'package:dart_monty/src/extension/attach_context.dart';
 import 'package:dart_monty/src/extension/extension.dart';
 import 'package:dart_monty/src/host/args.dart';
@@ -12,7 +12,8 @@ import 'package:dart_monty/src/host/param_type.dart';
 import 'package:dart_monty/src/host/schema.dart';
 import 'package:signals_core/signals_core.dart';
 
-/// State of the event loop channel lifecycle.
+/// State of the event loop channel lifecycle; internal to dm (read it
+/// through [EventLoopChannel]).
 ///
 /// Sealed — use exhaustive pattern matching to handle all states.
 /// [EventLoopWaiting] carries the live [Completer] so that the state
@@ -107,13 +108,11 @@ final class EventLoopDisposed extends EventLoopState {
 ///
 /// ## Reactive observation
 ///
-/// Channel state and emitted values are exposed as signals:
+/// [isWaiting] says whether Python waits at `el_recv()`; emitted values are
+/// exposed as a signal:
 ///
 /// ```dart
-/// effect(() {
-///   final state = plugin.channelStateSignal.value;
-///   if (state is EventLoopWaiting) showInputField();
-/// });
+/// effect(() => showLabel(plugin.lastEmittedSignal.value));
 /// ```
 class EventLoopExtension extends MontyExtension {
   /// Creates an [EventLoopExtension] initialized at [EventLoopIdle].
@@ -135,23 +134,11 @@ class EventLoopExtension extends MontyExtension {
       'Cooperative event loop: el_recv() pauses until the host dispatches '
       'an event; el_emit(value) sends a value back to the host.';
 
-  /// Reactive channel state.
-  ///
-  /// Subscribe via [effect] for reactive state changes:
-  /// ```dart
-  /// effect(() => print(plugin.channelStateSignal.value));
-  /// ```
-  /// Use [channelState] for non-reactive reads.
-  ReadonlySignal<EventLoopState> get channelStateSignal => _state;
-
   /// Reactive last-emitted value.
   ///
   /// Updates whenever Python calls `el_emit`. Use [lastEmitted] for
   /// non-reactive reads, or subscribe via [effect] to react to each emission.
   ReadonlySignal<Map<String, Object?>?> get lastEmittedSignal => _lastEmitted;
-
-  /// Current channel state.
-  EventLoopState get channelState => _state.value;
 
   /// The most recent value passed to `el_emit`, or `null` if none yet.
   Map<String, Object?>? get lastEmitted => _lastEmitted.value;
@@ -197,7 +184,7 @@ class EventLoopExtension extends MontyExtension {
   @override
   Future<void> onAttach(AttachContext ctx) async {
     await super.onAttach(ctx);
-    if (ctx is PlatformBridge) {
+    if (ctx is SessionBridge) {
       ctx.addStreamWrapper(_wrapStream);
     }
   }
@@ -309,4 +296,14 @@ class EventLoopExtension extends MontyExtension {
 
     return Future.value();
   }
+}
+
+/// The channel state of an [EventLoopExtension]. Internal to dm: the public
+/// barrel exports only [EventLoopExtension].
+extension EventLoopChannel on EventLoopExtension {
+  /// Current channel state.
+  EventLoopState get channelState => _state.value;
+
+  /// Reactive channel state.
+  ReadonlySignal<EventLoopState> get channelStateSignal => _state;
 }

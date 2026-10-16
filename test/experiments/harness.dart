@@ -42,6 +42,7 @@ import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:file/memory.dart';
 import 'package:signals_core/signals_core.dart';
+import '../integration/_worker.dart';
 
 /// A recorded tool call — name, args, result or error, timing.
 class ToolCallRecord {
@@ -266,26 +267,33 @@ class MontyHarness {
   // Setup / teardown
   // ---------------------------------------------------------------------------
 
+  /// The pool [setup] starts for the runtime; [dispose] closes it.
+  Monty? _pool;
+
   /// Creates and primes the runtime. Must be called before [run].
   Future<void> setup() async {
-    _runtime = MontyRuntime(
+    final pool = _pool = await startTestPool();
+    _runtime = await MontyRuntime.start(
+      pool: pool,
       osHandlers: {'Path.': fsHandler(_fs)},
       extensions: _extensions,
       sandbox: _sandbox,
     );
     _tools.forEach(_runtime!.register);
     for (final code in _primeCode) {
-      final r = await _runtime!.execute(code).result;
-      if (r.error != null) {
-        throw StateError(
-          'Priming code failed: ${r.error!.message}\n\n$code',
-        );
+      try {
+        await _runtime!.execute(code).result;
+      } on MontyError catch (e) {
+        throw StateError('Priming code failed: $e\n\n$code');
       }
     }
   }
 
-  /// Disposes the runtime. Call in tearDown.
-  Future<void> dispose() => _runtime?.dispose() ?? Future.value();
+  /// Disposes the runtime and closes its pool. Call in tearDown.
+  Future<void> dispose() async {
+    await _runtime?.dispose();
+    await _pool?.close();
+  }
 
   // ---------------------------------------------------------------------------
   // Execution
@@ -300,13 +308,13 @@ class MontyHarness {
   /// Execute Python code and return the final result.
   ///
   /// All tool calls are recorded in [calls].
-  Future<MontyResult> run(String code) {
+  Future<MontyValue> run(String code) {
     _assertSetup();
     return _runtime!.execute(code).result;
   }
 
   /// Execute Python code and collect all bridge events + final result.
-  Future<({MontyResult result, List<BridgeEvent> events})> runWithEvents(
+  Future<({MontyValue result, List<BridgeEvent> events})> runWithEvents(
     String code,
   ) async {
     _assertSetup();
@@ -319,7 +327,7 @@ class MontyHarness {
   /// Execute Python from a file in the VFS.
   ///
   /// The file content is read by Dart and passed to [run].
-  Future<MontyResult> runFile(String virtualPath) {
+  Future<MontyValue> runFile(String virtualPath) {
     final content = _fs.file(virtualPath).readAsStringSync();
     return run(content);
   }

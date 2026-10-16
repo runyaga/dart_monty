@@ -28,12 +28,13 @@ import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:file/memory.dart';
 import 'package:test/test.dart';
+import '_os_call.dart';
 
 void main() {
   group('overlay listing when a layer is missing', () {
     late MemoryFileSystem baseFs;
     late MemoryFileSystem scratchFs;
-    late OsCallHandler overlay;
+    late DartOsCall overlay;
 
     setUp(() {
       baseFs = MemoryFileSystem();
@@ -46,9 +47,11 @@ void main() {
         ..parent.createSync(recursive: true)
         ..writeAsStringSync('s');
 
-      overlay = overlayFsHandler(
-        base: fsHandler(baseFs),
-        scratch: fsHandler(scratchFs),
+      overlay = dartCall(
+        overlayFsHandler(
+          base: fsHandler(baseFs),
+          scratch: fsHandler(scratchFs),
+        ),
       );
     });
 
@@ -83,9 +86,9 @@ void main() {
       await expectLater(
         overlay('Path.iterdir', ['/nowhere'], null),
         throwsA(
-          isA<OsCallException>().having(
-            (e) => e.pythonExceptionType,
-            'pythonExceptionType',
+          isA<ExternalException>().having(
+            (e) => e.excType,
+            'excType',
             'FileNotFoundError',
           ),
         ),
@@ -96,7 +99,7 @@ void main() {
   group('overlay open() routes by mode', () {
     late MemoryFileSystem baseFs;
     late MemoryFileSystem scratchFs;
-    late OsCallHandler overlay;
+    late DartOsCall overlay;
 
     setUp(() {
       baseFs = MemoryFileSystem();
@@ -104,9 +107,11 @@ void main() {
         ..parent.createSync(recursive: true)
         ..writeAsStringSync('from base');
       scratchFs = MemoryFileSystem();
-      overlay = overlayFsHandler(
-        base: fsHandler(baseFs),
-        scratch: fsHandler(scratchFs),
+      overlay = dartCall(
+        overlayFsHandler(
+          base: fsHandler(baseFs),
+          scratch: fsHandler(scratchFs),
+        ),
       );
     });
 
@@ -145,7 +150,9 @@ void main() {
         ..writeAsStringSync('base');
       final scratchFs = MemoryFileSystem();
 
-      final overlay = fsHandler(baseFs).overlayWith(fsHandler(scratchFs));
+      final overlay = dartCall(
+        fsHandler(baseFs).overlayWith(fsHandler(scratchFs)),
+      );
 
       // Reads see base...
       final read = await overlay('Path.read_text', ['/p/f.txt'], null);
@@ -163,7 +170,7 @@ void main() {
         ..parent.createSync(recursive: true)
         ..writeAsStringSync('x');
 
-      final ro = fsHandler(fs).readOnly();
+      final ro = dartCall(fsHandler(fs).readOnly());
 
       expect(await ro('Path.read_text', ['/p/f.txt'], null), 'x');
 
@@ -174,9 +181,9 @@ void main() {
       expect(
         () => ro('Path.write_text', ['/p/f.txt', 'nope'], null),
         throwsA(
-          isA<OsCallException>().having(
-            (e) => e.pythonExceptionType,
-            'pythonExceptionType',
+          isA<ExternalException>().having(
+            (e) => e.excType,
+            'excType',
             'PermissionError',
           ),
         ),

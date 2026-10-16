@@ -1,13 +1,13 @@
 // Printing to stdout is expected in an example.
 // ignore_for_file: avoid_print
-/// Async / sync matrix demo — FFI (native).
+/// Async / sync matrix demo — native.
 ///
 /// Walks through the six cells of the (Dart × Python) async/sync matrix
 /// from a user's perspective. Each cell prints what it's doing so a
 /// developer skimming the source can learn the matrix in five minutes.
 ///
-/// Prerequisites:
-///   cd native && cargo build --release   # one-time, from repo root
+/// Python runs in core's native worker process, found by core's
+/// discovery or named by DART_MONTY_WORKER.
 ///
 /// Run from the repo root:
 ///   dart run example/native/bin/async_matrix_demo.dart
@@ -16,6 +16,9 @@
 ///   dart_monty_core/docs/deep-dives/async-matrix.md
 library;
 
+import 'dart:io';
+
+import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
 
 /// A sync host fn — returns its result without ever yielding the event loop.
@@ -90,9 +93,29 @@ HostFunction slowFetchFuture(Duration delay) => HostFunction(
   dispatch: DispatchMode.future,
 );
 
+/// The pool every cell's runtime runs on; DART_MONTY_WORKER names the
+/// worker executable when set.
+late final Monty _pool;
+
+/// A runtime on [_pool] with [function] registered.
+Future<MontyRuntime> _runtime(HostFunction function) async =>
+    (await MontyRuntime.start(pool: _pool))..register(function);
+
 Future<void> main() async {
+  final worker = Platform.environment['DART_MONTY_WORKER'];
+  _pool = await Monty.start(
+    workerLocation: worker == null || worker.isEmpty ? null : worker,
+  );
+  try {
+    await _cells();
+  } finally {
+    await _pool.close();
+  }
+}
+
+Future<void> _cells() async {
   print('═══════════════════════════════════════════════════════════════');
-  print(' dart_monty async/sync matrix — FFI demo');
+  print(' dart_monty async/sync matrix — native demo');
   print('═══════════════════════════════════════════════════════════════');
   print('');
   print('Each cell exercises one (Dart handler shape) × (Python call shape)');
@@ -105,10 +128,10 @@ Future<void> main() async {
   print('── Cell 1: sync Dart × bare Python ────────────────────────────');
   {
     var calls = 0;
-    final runtime = MontyRuntime()..register(syncFetch(() => calls++));
+    final runtime = await _runtime(syncFetch(() => calls++));
     final r = await runtime.execute('fetch(7)').result;
     print('  Python: fetch(7)');
-    print('  → value = ${r.value.dartValue}, callback fired $calls time(s).');
+    print('  → value = ${r.dartValue}, callback fired $calls time(s).');
     await runtime.dispose();
   }
   print('');
@@ -120,23 +143,23 @@ Future<void> main() async {
   print('── Cell 2: async Dart × bare Python ───────────────────────────');
   {
     var calls = 0;
-    final runtime = MontyRuntime()..register(asyncFetch(() => calls++));
+    final runtime = await _runtime(asyncFetch(() => calls++));
     final r = await runtime.execute('fetch(7)').result;
     print('  Python: fetch(7)   (handler awaits Future.delayed first)');
-    print('  → value = ${r.value.dartValue}, callback fired $calls time(s).');
+    print('  → value = ${r.dartValue}, callback fired $calls time(s).');
     await runtime.dispose();
   }
   print('');
 
   // ── Cell 3: sync Dart × Python local coroutine ───────────────────────
   // Now Python wraps the call in a coroutine. The `await doubled(3)` is
-  // a Python-local await — it does NOT cross the FFI boundary as a
+  // a Python-local await — it does NOT cross the worker boundary as a
   // future. fetch() is still called bare from inside the coroutine.
   // No MontyResolveFutures involved.
   print('── Cell 3: sync Dart × Python local coroutine ─────────────────');
   {
     var calls = 0;
-    final runtime = MontyRuntime()..register(syncFetch(() => calls++));
+    final runtime = await _runtime(syncFetch(() => calls++));
     final r = await runtime.execute('''
 async def doubled(n):
     return fetch(n) * 2
@@ -144,7 +167,7 @@ await doubled(3)
 ''').result;
     print('  Python: async def doubled(n): return fetch(n) * 2');
     print('          await doubled(3)');
-    print('  → value = ${r.value.dartValue}, callback fired $calls time(s).');
+    print('  → value = ${r.dartValue}, callback fired $calls time(s).');
     await runtime.dispose();
   }
   print('');
@@ -156,7 +179,7 @@ await doubled(3)
   print('── Cell 4: async Dart × Python local coroutine ────────────────');
   {
     var calls = 0;
-    final runtime = MontyRuntime()..register(asyncFetch(() => calls++));
+    final runtime = await _runtime(asyncFetch(() => calls++));
     final r = await runtime.execute('''
 async def doubled(n):
     return fetch(n) * 2
@@ -164,7 +187,7 @@ await doubled(3)
 ''').result;
     print('  Python: async def doubled(n): return fetch(n) * 2');
     print('          await doubled(3)   (handler is async Dart)');
-    print('  → value = ${r.value.dartValue}, callback fired $calls time(s).');
+    print('  → value = ${r.dartValue}, callback fired $calls time(s).');
     await runtime.dispose();
   }
   print('');
@@ -183,24 +206,25 @@ await doubled(3)
   print('── Cell 5a: async Dart × Python `await ext()` ─────────────────');
   print('  Step 1 — DispatchMode.sync (the default):');
   {
-    final runtime = MontyRuntime()..register(asyncFetch(() {}));
-    final r = await runtime.execute('await fetch(7)').result;
-    if (r.isError) {
-      print('    Python raised ${r.error?.excType}: ${r.error?.message}');
+    final runtime = await _runtime(asyncFetch(() {}));
+    try {
+      final r = await runtime.execute('await fetch(7)').result;
+      print('    unexpectedly succeeded: ${r.dartValue}');
+    } on MontyError catch (e) {
+      final exc = e.exception;
+      print('    Python raised ${exc.excType}: ${exc.message}');
       print('    (Expected — int is not awaitable.)');
-    } else {
-      print('    unexpectedly succeeded: ${r.value.dartValue}');
     }
     await runtime.dispose();
   }
   print('  Step 2 — DispatchMode.future:');
   {
     var calls = 0;
-    final runtime = MontyRuntime()..register(asyncFetchFuture(() => calls++));
+    final runtime = await _runtime(asyncFetchFuture(() => calls++));
     final r = await runtime.execute('await fetch(7)').result;
     print('    Python: await fetch(7)');
     print(
-      '    → value = ${r.value.dartValue}, '
+      '    → value = ${r.dartValue}, '
       'callback fired $calls time(s).',
     );
     await runtime.dispose();
@@ -214,7 +238,7 @@ await doubled(3)
   print('── Cell 5b: asyncio.gather + DispatchMode.future ───────────────');
   {
     const delay = Duration(milliseconds: 200);
-    final runtime = MontyRuntime()..register(slowFetchFuture(delay));
+    final runtime = await _runtime(slowFetchFuture(delay));
     final sw = Stopwatch()..start();
     final r = await runtime.execute('''
 import asyncio
@@ -224,7 +248,7 @@ results
     sw.stop();
     print('  Python: await asyncio.gather(slow(1), slow(2), slow(3))');
     print('          (each handler sleeps ${delay.inMilliseconds}ms)');
-    print('  → value      = ${r.value.dartValue}');
+    print('  → value      = ${r.dartValue}');
     print('  → wall clock = ${sw.elapsedMilliseconds}ms');
     print(
       '    (sequential would be ~${delay.inMilliseconds * 3}ms; '

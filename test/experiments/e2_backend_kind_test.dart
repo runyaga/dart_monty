@@ -3,6 +3,9 @@
 //              dart test -p chrome test/experiments/e2_backend_kind_test.dart
 
 import 'package:dart_monty/dart_monty_bridge.dart';
+import 'package:dart_monty/src/runtime/backend_kind.dart'
+    show currentBackendKind;
+import 'package:dart_monty_core/dart_monty_core.dart' show MontyString;
 import 'package:test/test.dart';
 
 void main() {
@@ -35,19 +38,21 @@ void main() {
 
     if (kind == MontyBackendKind.ffi) {
       // FFI: os.getenv should work
-      final result = await handler('os.getenv', ['PATH'], {});
+      final result = await handler('os.getenv', [
+        const MontyString('PATH'),
+      ], const {});
       // Experiment test: output is the observable result.
       // ignore: avoid_print
       print(
         'E2b RESULT FFI: os.getenv(PATH) = '
-        '${result != null ? "<set>" : "null"}',
+        '${result.dartValue != null ? "<set>" : "null"}',
       );
-      expect(result, isNotNull);
+      expect(result.dartValue, isNotNull);
     } else {
       // WASM: os.getenv should throw or return PermissionError to Python
       // (the handler has no 'os.' prefix — will throw UnsupportedError)
       try {
-        await handler('os.getenv', ['PATH'], {});
+        await handler('os.getenv', [const MontyString('PATH')], const {});
         // Experiment test: output is the observable result.
         // ignore: avoid_print
         print('E2b RESULT WASM: os.getenv unexpectedly succeeded');

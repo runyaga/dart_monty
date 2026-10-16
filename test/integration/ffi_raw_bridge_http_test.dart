@@ -1,4 +1,4 @@
-/// Tests raw bridge.execute() and Monty.run() with HTTP host functions.
+/// Tests raw bridge.execute() with HTTP host functions.
 /// No MontyRuntime state wrapping — isolates whether the bug is in state
 /// wrapping or in the FFI/bridge layer itself.
 @Tags(['integration'])
@@ -8,9 +8,11 @@ library;
 // ignore_for_file: avoid_print
 import 'dart:io';
 
-import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
+import 'package:dart_monty_core/dart_monty_core.dart' show Monty;
 import 'package:test/test.dart';
+
+import '_worker.dart';
 
 HostFunction _httpGetFn() => HostFunction(
   schema: const HostFunctionSchema(
@@ -37,14 +39,21 @@ HostFunction _httpGetFn() => HostFunction(
 
 const _url = 'https://demo.toughserv.com/api/v1/installation/versions';
 
+/// The pool the runtime tests check out from.
+late Monty pool;
+
 void main() {
+  setUpAll(() async => pool = await startTestPool());
+  tearDownAll(() => pool.close());
+
   test(
-    'PlatformBridge.execute — 3 sequential HTTP calls',
+    'MontyBridge.execute — 3 sequential HTTP calls',
     () async {
-      final platform = createPlatformMonty();
-      final bridge = PlatformBridge(
-        platform: platform,
-      )..register(_httpGetFn());
+      final pool = await startTestPool();
+      addTearDown(pool.close);
+      final session = await pool.checkout();
+      addTearDown(session.close);
+      final bridge = MontyBridge(session: session)..register(_httpGetFn());
 
       for (var i = 1; i <= 3; i++) {
         final events = await bridge.execute('http_get("$_url")').toList();
@@ -54,18 +63,20 @@ void main() {
       }
 
       bridge.dispose();
-      await platform.dispose();
+      await session.close();
+      await pool.close();
     },
     timeout: const Timeout(Duration(seconds: 60)),
   );
 
   test(
-    'PlatformBridge.execute — 3 sequential HTTP calls, value extraction',
+    'MontyBridge.execute — 3 sequential HTTP calls, value extraction',
     () async {
-      final platform = createPlatformMonty();
-      final bridge = PlatformBridge(
-        platform: platform,
-      )..register(_httpGetFn());
+      final pool = await startTestPool();
+      addTearDown(pool.close);
+      final session = await pool.checkout();
+      addTearDown(session.close);
+      final bridge = MontyBridge(session: session)..register(_httpGetFn());
 
       for (var i = 1; i <= 3; i++) {
         final events = await bridge.execute('http_get("$_url")').toList();
@@ -75,7 +86,8 @@ void main() {
       }
 
       bridge.dispose();
-      await platform.dispose();
+      await session.close();
+      await pool.close();
     },
     timeout: const Timeout(Duration(seconds: 60)),
   );
@@ -83,12 +95,13 @@ void main() {
   test(
     'MontyRuntime shared mode (no sandbox) — 3 sequential HTTP calls',
     () async {
-      final session = MontyRuntime()..register(_httpGetFn());
+      final session = (await MontyRuntime.start(pool: pool))
+        ..register(_httpGetFn());
 
       for (var i = 1; i <= 3; i++) {
         final result = await session.execute('http_get("$_url")').result;
-        print('  session.execute call $i: ${result.value.dartValue}');
-        expect(result.value.dartValue, isA<String>());
+        print('  session.execute call $i: ${result.dartValue}');
+        expect(result.dartValue, isA<String>());
       }
 
       await session.dispose();
@@ -99,12 +112,13 @@ void main() {
   test(
     'MontyRuntime sandbox mode — 3 sequential HTTP calls',
     () async {
-      final session = MontyRuntime(sandbox: true)..register(_httpGetFn());
+      final session = (await MontyRuntime.start(pool: pool, sandbox: true))
+        ..register(_httpGetFn());
 
       for (var i = 1; i <= 3; i++) {
         final result = await session.execute('http_get("$_url")').result;
-        print('  sandbox.execute call $i: ${result.value.dartValue}');
-        expect(result.value.dartValue, isA<String>());
+        print('  sandbox.execute call $i: ${result.dartValue}');
+        expect(result.dartValue, isA<String>());
       }
 
       await session.dispose();

@@ -1,5 +1,14 @@
 import 'package:dart_monty/dart_monty_bridge.dart';
+import 'package:dart_monty/src/runtime/runtime.dart' show startRuntimeWith;
+import 'package:dart_monty_core/dart_monty_core_testing.dart';
 import 'package:test/test.dart';
+
+/// A sandbox-mode runtime over scripted sessions; it checks out none until
+/// it executes.
+Future<MontyRuntime> _start() => startRuntimeWith(
+  checkout: ({limits}) async => FakeMontySession(),
+  sandbox: true,
+);
 
 /// Unit tests for `MontyRuntime.emitChildEvent`.
 ///
@@ -11,7 +20,7 @@ import 'package:test/test.dart';
 void main() {
   group('MontyRuntime.emitChildEvent', () {
     test('wraps event in BridgeChildEvent tagged with handle', () async {
-      final runtime = MontyRuntime(sandbox: true);
+      final runtime = await _start();
       final captured = <BridgeEvent>[];
       final sub = runtime.events.listen(captured.add);
 
@@ -36,7 +45,7 @@ void main() {
     });
 
     test('is a no-op after dispose', () async {
-      final runtime = MontyRuntime(sandbox: true);
+      final runtime = await _start();
       final captured = <BridgeEvent>[];
       final sub = runtime.events.listen(captured.add);
       await runtime.dispose();

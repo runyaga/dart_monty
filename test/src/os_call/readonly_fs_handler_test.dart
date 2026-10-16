@@ -2,12 +2,13 @@ import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:file/memory.dart';
 import 'package:test/test.dart';
+import '_os_call.dart';
 
 void main() {
   group('readOnlyHandler', () {
     late MemoryFileSystem fs;
-    late OsCallHandler inner;
-    late OsCallHandler ro;
+    late OsHandler inner;
+    late DartOsCall ro;
 
     setUp(() {
       fs = MemoryFileSystem();
@@ -16,7 +17,7 @@ void main() {
         ..writeAsStringSync('hello world');
 
       inner = fsHandler(fs);
-      ro = readOnlyHandler(inner);
+      ro = dartCall(readOnlyHandler(inner));
     });
 
     // -- Reads pass through --
@@ -60,9 +61,9 @@ void main() {
       expect(
         () => ro('Path.write_text', ['/data/new.txt', 'blocked'], null),
         throwsA(
-          isA<OsCallException>().having(
-            (e) => e.pythonExceptionType,
-            'pythonExceptionType',
+          isA<ExternalException>().having(
+            (e) => e.excType,
+            'excType',
             'PermissionError',
           ),
         ),
@@ -76,9 +77,9 @@ void main() {
           <int>[1],
         ], null),
         throwsA(
-          isA<OsCallException>().having(
-            (e) => e.pythonExceptionType,
-            'pythonExceptionType',
+          isA<ExternalException>().having(
+            (e) => e.excType,
+            'excType',
             'PermissionError',
           ),
         ),
@@ -89,9 +90,9 @@ void main() {
       expect(
         () => ro('Path.mkdir', ['/data/newdir'], null),
         throwsA(
-          isA<OsCallException>().having(
-            (e) => e.pythonExceptionType,
-            'pythonExceptionType',
+          isA<ExternalException>().having(
+            (e) => e.excType,
+            'excType',
             'PermissionError',
           ),
         ),
@@ -102,9 +103,9 @@ void main() {
       expect(
         () => ro('Path.unlink', ['/data/hello.txt'], null),
         throwsA(
-          isA<OsCallException>().having(
-            (e) => e.pythonExceptionType,
-            'pythonExceptionType',
+          isA<ExternalException>().having(
+            (e) => e.excType,
+            'excType',
             'PermissionError',
           ),
         ),
@@ -115,9 +116,9 @@ void main() {
       expect(
         () => ro('Path.rmdir', ['/data'], null),
         throwsA(
-          isA<OsCallException>().having(
-            (e) => e.pythonExceptionType,
-            'pythonExceptionType',
+          isA<ExternalException>().having(
+            (e) => e.excType,
+            'excType',
             'PermissionError',
           ),
         ),
@@ -131,9 +132,9 @@ void main() {
           '/data/moved.txt',
         ], null),
         throwsA(
-          isA<OsCallException>().having(
-            (e) => e.pythonExceptionType,
-            'pythonExceptionType',
+          isA<ExternalException>().having(
+            (e) => e.excType,
+            'excType',
             'PermissionError',
           ),
         ),

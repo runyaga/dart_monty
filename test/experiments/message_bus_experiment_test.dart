@@ -79,8 +79,7 @@ task = msg_recv(name='tasks')
 task['job']
 ''');
 
-      expect(result.error, isNull);
-      expect(result.value.dartValue, 'compress');
+      expect(result.dartValue, 'compress');
     });
 
     test('Dart sends concurrently with Python msg_recv blocking', () async {
@@ -92,8 +91,7 @@ task['job']
       bus.send('async_ch', {'token': 'hello'});
 
       final result = await runFuture;
-      expect(result.error, isNull);
-      final msg = result.value.dartValue! as Map;
+      final msg = result.dartValue! as Map;
       expect(msg['token'], 'hello');
     });
   });
@@ -125,8 +123,7 @@ r = msg_recv(name='peekable')
 [p, r]
 ''');
 
-      expect(result.error, isNull);
-      expect(result.value.dartValue, ['first', 'first']);
+      expect(result.dartValue, ['first', 'first']);
       // Queue should still have 'second'.
       expect(bus.peek('peekable'), 'second');
     });
@@ -134,8 +131,7 @@ r = msg_recv(name='peekable')
     test('msg_peek on empty channel returns None', () async {
       final result = await h.run("msg_peek(name='empty_ch')");
 
-      expect(result.error, isNull);
-      expect(result.value.dartValue, isNull);
+      expect(result.dartValue, isNull);
     });
   });
 
@@ -160,8 +156,7 @@ r = msg_recv(name='peekable')
 
       final result = await h.run("msg_recv(name='done')");
 
-      expect(result.error, isNull);
-      expect(result.value.dartValue, isNull);
+      expect(result.dartValue, isNull);
     });
 
     test('close unblocks Python waiting on recv', () async {
@@ -172,8 +167,7 @@ r = msg_recv(name='peekable')
       bus.close('drain');
 
       final result = await runFuture;
-      expect(result.error, isNull);
-      expect(result.value.dartValue, isNull);
+      expect(result.dartValue, isNull);
     });
   });
 

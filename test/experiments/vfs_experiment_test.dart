@@ -34,8 +34,7 @@ void main() {
     test('Python reads Dart-written file via pathlib.Path', () async {
       final result = await h.run("Path('/data/greet.txt').read_text()");
 
-      expect(result.error, isNull);
-      expect(result.value.dartValue, 'Hello from Dart');
+      expect(result.dartValue, 'Hello from Dart');
     });
 
     test('Python reads JSON-encoded file and parses it', () async {
@@ -47,8 +46,7 @@ cfg = json.loads(Path('/config/params.json').read_text())
 cfg['rate']
 ''');
 
-      expect(result.error, isNull);
-      expect(result.value.dartValue! as double, closeTo(3.14, 0.001));
+      expect(result.dartValue! as double, closeTo(3.14, 0.001));
     });
 
     test('Python reads multiple files in a loop', () async {
@@ -60,8 +58,7 @@ cfg['rate']
 [Path(f'/items/item_{i}.txt').read_text() for i in range(3)]
 ''');
 
-      expect(result.error, isNull);
-      expect(result.value.dartValue, ['item 0', 'item 1', 'item 2']);
+      expect(result.dartValue, ['item 0', 'item 1', 'item 2']);
     });
   });
 
@@ -84,15 +81,13 @@ cfg['rate']
     test('exists() returns True for written file', () async {
       final result = await h.run("Path('/present.txt').exists()");
 
-      expect(result.error, isNull);
-      expect(result.value.dartValue, true);
+      expect(result.dartValue, true);
     });
 
     test('exists() returns False for absent file', () async {
       final result = await h.run("Path('/not_there.txt').exists()");
 
-      expect(result.error, isNull);
-      expect(result.value.dartValue, false);
+      expect(result.dartValue, false);
     });
   });
 
@@ -117,7 +112,6 @@ cfg['rate']
         "Path('/os_test.txt').read_text()",
       );
 
-      expect(result.error, isNull);
       final osCalls = events.whereType<BridgeOsCallStart>().toList();
       expect(osCalls, isNotEmpty);
       expect(osCalls.any((e) => e.operationName.contains('read')), isTrue);
@@ -128,7 +122,6 @@ cfg['rate']
         "Path('/os_test.txt').exists()",
       );
 
-      expect(result.error, isNull);
       final starts = events.whereType<BridgeOsCallStart>().length;
       final results = events.whereType<BridgeOsCallResult>().length;
       expect(results, greaterThanOrEqualTo(starts));
@@ -154,8 +147,8 @@ cfg['rate']
       final r1 = await h1.run("Path('/shared.txt').read_text()");
       final r2 = await h2.run("Path('/shared.txt').read_text()");
 
-      expect(r1.value.dartValue, 'harness-one');
-      expect(r2.value.dartValue, 'harness-two');
+      expect(r1.dartValue, 'harness-one');
+      expect(r2.dartValue, 'harness-two');
 
       await h1.dispose();
       await h2.dispose();
@@ -169,8 +162,7 @@ cfg['rate']
       h.writeFile('/late.txt', 'late write');
       final result = await h.run("Path('/late.txt').read_text()");
 
-      expect(result.error, isNull);
-      expect(result.value.dartValue, 'late write');
+      expect(result.dartValue, 'late write');
 
       await h.dispose();
     });

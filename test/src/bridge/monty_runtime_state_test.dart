@@ -1,82 +1,22 @@
 import 'package:dart_monty/src/bridge/event.dart';
 import 'package:dart_monty/src/runtime/runtime_state.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
+import 'package:dart_monty_core/dart_monty_core_testing.dart';
 import 'package:test/test.dart';
 
-MontyException _exception({
-  String message = 'err',
-  int? lineNumber,
-  List<MontyStackFrame> traceback = const [],
-}) => MontyException(
-  message: message,
-  lineNumber: lineNumber,
-  traceback: traceback,
-);
-
-MontyStackFrame _frame(int startLine, {int? endLine}) => MontyStackFrame(
-  filename: 'main.py',
-  startLine: startLine,
-  startColumn: 0,
-  endLine: endLine,
-  frameName: 'test',
-);
+/// A real [MontyError] with [message]: errors have no public constructor, so
+/// one is raised by a scripted fake session.
+Future<MontyError> _error(String message) async {
+  final session = FakeMontySession()..willRaise('ValueError', message: message);
+  try {
+    await session.feedRun('raise ValueError()');
+  } on MontyError catch (e) {
+    return e;
+  }
+  throw StateError('the scripted feed did not raise');
+}
 
 void main() {
-  group('adjustRestoreOffset', () {
-    test('zero offset returns exception unchanged', () {
-      final e = _exception(lineNumber: 5);
-      expect(adjustRestoreOffset(e, 0), same(e));
-    });
-
-    test('negative offset returns exception unchanged', () {
-      final e = _exception(lineNumber: 5);
-      expect(adjustRestoreOffset(e, -1), same(e));
-    });
-
-    test('adjusts lineNumber by offset', () {
-      final e = _exception(lineNumber: 6);
-      final adjusted = adjustRestoreOffset(e, 2);
-      expect(adjusted.lineNumber, 4);
-    });
-
-    test('lineNumber clamps to 1 when offset exceeds line', () {
-      final e = _exception(lineNumber: 2);
-      final adjusted = adjustRestoreOffset(e, 5);
-      expect(adjusted.lineNumber, 1);
-    });
-
-    test('null lineNumber stays null', () {
-      final e = _exception();
-      final adjusted = adjustRestoreOffset(e, 3);
-      expect(adjusted.lineNumber, isNull);
-    });
-
-    test('filters traceback frames at or below offset', () {
-      final e = _exception(
-        lineNumber: 5,
-        traceback: [_frame(1), _frame(3), _frame(5)],
-      );
-      final adjusted = adjustRestoreOffset(e, 2);
-      expect(adjusted.traceback.length, 2);
-      expect(adjusted.traceback[0].startLine, 1); // 3 - 2 = 1
-      expect(adjusted.traceback[1].startLine, 3); // 5 - 2 = 3
-    });
-
-    test('adjusts frame endLine when present', () {
-      final frame = _frame(4, endLine: 6);
-      final e = _exception(lineNumber: 4, traceback: [frame]);
-      final adjusted = adjustRestoreOffset(e, 2);
-      expect(adjusted.traceback.first.endLine, 4); // 6 - 2
-    });
-
-    test('null frame endLine stays null', () {
-      final frame = _frame(4);
-      final e = _exception(lineNumber: 4, traceback: [frame]);
-      final adjusted = adjustRestoreOffset(e, 2);
-      expect(adjusted.traceback.first.endLine, isNull);
-    });
-  });
-
   group('extractBridgeResult', () {
     test('returns value from BridgeRunFinished', () {
       final events = <BridgeEvent>[
@@ -86,36 +26,30 @@ void main() {
           value: 42,
         ),
       ];
-      final result = extractBridgeResult(events, 0);
-      expect(result.value.dartValue, 42);
-      expect(result.error, isNull);
+      final result = extractBridgeResult(events);
+      expect(result.dartValue, 42);
     });
 
-    test('returns error from BridgeRunError', () {
-      final events = <BridgeEvent>[
-        const BridgeRunError(message: 'kaboom'),
-      ];
-      final result = extractBridgeResult(events, 0);
-      expect(result.error, isNotNull);
-      expect(result.error!.message, 'kaboom');
-    });
+    test(
+      'fails with the message of a BridgeRunError without an exception',
+      () {
+        final events = <BridgeEvent>[
+          const BridgeRunError(message: 'kaboom'),
+        ];
+        expect(
+          () => extractBridgeResult(events),
+          throwsA(predicate((e) => '$e'.contains('kaboom'))),
+        );
+      },
+    );
 
-    test('uses BridgeRunError.exception when present', () {
-      const exc = MontyException(message: 'typed', lineNumber: 3);
+    test('throws BridgeRunError.exception when present', () async {
+      final exc = await _error('typed');
       final events = <BridgeEvent>[
-        const BridgeRunError(message: 'kaboom', exception: exc),
+        BridgeRunError(message: 'kaboom', exception: exc),
       ];
-      final result = extractBridgeResult(events, 0);
-      expect(result.error!.message, 'typed');
-    });
-
-    test('applies restoreOffset to exception lineNumber', () {
-      const exc = MontyException(message: 'err', lineNumber: 5);
-      final events = <BridgeEvent>[
-        const BridgeRunError(message: 'err', exception: exc),
-      ];
-      final result = extractBridgeResult(events, 2);
-      expect(result.error!.lineNumber, 3);
+      expect(() => extractBridgeResult(events), throwsA(same(exc)));
+      expect(exc.exception.message, 'typed');
     });
 
     test('uses last terminal event when multiple events present', () {
@@ -123,40 +57,31 @@ void main() {
         const BridgeRunFinished(threadId: 't', runId: 'r', value: 1),
         const BridgeRunFinished(threadId: 't', runId: 'r', value: 99),
       ];
-      final result = extractBridgeResult(events, 0);
-      expect(result.value.dartValue, 99);
+      final result = extractBridgeResult(events);
+      expect(result.dartValue, 99);
     });
 
     test('preserves typed MontyValue (regression for #384)', () {
-      // event.value is the dartValue (a Map for MontyDataclass) which
-      // would normally re-parse as MontyDict via fromDart. The
-      // montyValue field carries the typed value through losslessly.
-      const dataclass = MontyDataclass(
-        name: 'User',
-        typeId: 1,
-        fieldNames: ['name', 'age'],
-        attrs: {
-          'name': MontyString('alice'),
-          'age': MontyInt(30),
-        },
-      );
+      // event.value is the dartValue (a List for a tuple), which would
+      // re-parse as MontyList via fromDart. The montyValue field carries the
+      // typed value through losslessly.
+      const tuple = MontyTuple([MontyString('alice'), MontyInt(30)]);
       final events = <BridgeEvent>[
         BridgeRunFinished(
           threadId: 't',
           runId: 'r',
-          value: dataclass.dartValue,
-          montyValue: dataclass,
+          value: tuple.dartValue,
+          montyValue: tuple,
         ),
       ];
-      final result = extractBridgeResult(events, 0);
-      expect(result.value, isA<MontyDataclass>());
-      expect((result.value as MontyDataclass).name, 'User');
+      final result = extractBridgeResult(events);
+      expect(result, isA<MontyTuple>());
+      expect(result, tuple);
     });
 
     test('falls back to fromDart when montyValue absent', () {
       // External bridge implementations that don't set montyValue
-      // still get a MontyDict from a Map event.value — backwards
-      // compatible behaviour.
+      // still get a MontyDict from a Map event.value.
       final events = <BridgeEvent>[
         const BridgeRunFinished(
           threadId: 't',
@@ -164,25 +89,13 @@ void main() {
           value: {'k': 1},
         ),
       ];
-      final result = extractBridgeResult(events, 0);
-      expect(result.value, isA<MontyDict>());
-    });
-
-    test('preserves printOutput from BridgeRunFinished', () {
-      final events = <BridgeEvent>[
-        const BridgeRunFinished(
-          threadId: 't',
-          runId: 'r',
-          printOutput: 'hello\n',
-        ),
-      ];
-      final result = extractBridgeResult(events, 0);
-      expect(result.printOutput, 'hello\n');
+      final result = extractBridgeResult(events);
+      expect(result, isA<MontyDict>());
     });
 
     test('throws StateError when no terminal event', () {
       expect(
-        () => extractBridgeResult([], 0),
+        () => extractBridgeResult([]),
         throwsA(isA<StateError>()),
       );
     });

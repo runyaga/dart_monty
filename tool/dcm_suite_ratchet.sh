@@ -182,7 +182,19 @@ def count(path):
         for rec in value:
             if not isinstance(rec, dict) or 'issues' not in rec:
                 continue
-            p = rec.get('path', '?').split('dart_monty/')[-1]
+            raw = rec.get('path', '?')
+            # A finding located in ANOTHER package (a path that leaves the repo,
+            # e.g. a pinned dart_monty_core under the pub cache) is that
+            # package's, not this repo's: `check-exports-completeness` reports
+            # core's @internal wrappedValue against core's file for any dm
+            # barrel that re-exports core, and dm cannot change it.
+            # Resolved against the repo root, so `../<this-repo>/lib/x.dart`
+            # and an absolute path into this repo still count.
+            root = os.path.realpath(os.getcwd())
+            resolved = os.path.realpath(os.path.join(root, raw))
+            if resolved != root and not resolved.startswith(root + os.sep):
+                continue
+            p = os.path.relpath(resolved, root)
             for iss in rec['issues']:
                 rules[iss.get('id', '?')] += 1
                 files[p] += 1

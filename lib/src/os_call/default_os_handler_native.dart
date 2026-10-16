@@ -7,21 +7,21 @@ import 'package:dart_monty/src/os_call/platform_handlers.dart';
 import 'package:dart_monty/src/os_call/sandboxed_fs_handler.dart';
 import 'package:file/local.dart';
 
-/// Default [OsCallHandler] on native (`dart:io`) platforms.
+/// Default [OsHandler] on native (`dart:io`) platforms.
 ///
 /// Composes:
 /// - `Path.*` → [fsHandler] with [LocalFileSystem]
 /// - `os.*`   → [envHandler] with full host environment
-/// - `date.*`, `datetime.*` → [timeHandler]
+///
+/// The clock is not routed here: under the worker's default `OsPolicy` it is
+/// answered in the worker (upstream's `system` clock), and any `date.*`,
+/// `datetime.*` or `time.*` call that does reach this handler is declined.
 ///
 /// **Native:** Full read/write access to the host filesystem. For restricted
 /// access, use [sandboxedFsHandler] instead.
-OsCallHandler defaultOsHandler() {
-  final time = timeHandler();
+OsHandler defaultOsHandler() {
   return composeOsHandlers({
     'Path.': fsHandler(const LocalFileSystem()),
     'os.': envHandler(Platform.environment),
-    'date.': time,
-    'datetime.': time,
   });
 }

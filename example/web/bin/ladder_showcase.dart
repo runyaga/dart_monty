@@ -13,35 +13,12 @@ library;
 import 'dart:convert';
 import 'dart:js_interop';
 
+import 'package:dart_monty/dart_monty.dart';
+import 'package:web_example/demo_pool.dart';
 import 'package:web_example/demo_ready.dart';
 
-// ---------------------------------------------------------------------------
-// JS interop bindings for window.DartMontyBridge
-// ---------------------------------------------------------------------------
-
-@JS('DartMontyBridge.init')
-external JSPromise<JSBoolean> _montyInit();
-
-@JS('DartMontyBridge.run')
-external JSPromise<JSString> _montyRun(JSString code);
-
-@JS('DartMontyBridge.start')
-external JSPromise<JSString> _montyStart(JSString code, [JSString? extFnsJson]);
-
-@JS('DartMontyBridge.resume')
-external JSPromise<JSString> _montyResume(JSString valueJson);
-
-@JS('DartMontyBridge.resumeWithError')
-external JSPromise<JSString> _montyResumeWithError(JSString errorJson);
-
-@JS('DartMontyBridge.resumeAsFuture')
-external JSPromise<JSString> _montyResumeAsFuture();
-
-@JS('DartMontyBridge.resolveFutures')
-external JSPromise<JSString> _montyResolveFutures(
-  JSString resultsJson,
-  JSString errorsJson,
-);
+/// The pool every fixture runs on, each on a fresh session.
+late final Monty _pool;
 
 // ---------------------------------------------------------------------------
 // JS fetch interop
@@ -135,9 +112,6 @@ const _tierLabels = [
 // Helpers
 // ---------------------------------------------------------------------------
 
-Map<String, dynamic> _parse(String json) =>
-    jsonDecode(json) as Map<String, dynamic>;
-
 Future<String> _fetchText(String url) async {
   final response = await _jsFetch(url.toJS).toDart;
 
@@ -187,10 +161,11 @@ void _emitLadderResult(String tierFile, String name, String status) {
 // ---------------------------------------------------------------------------
 
 Future<void> main() async {
-  final ok = (await _montyInit().toDart).toDart;
-  if (!ok) {
-    _reportInit(false.toJS, 'Failed to initialize Monty WASM Worker'.toJS);
-    montyDemoFailed('ladder_showcase', 'DartMontyBridge.init() returned false');
+  try {
+    _pool = await startDemoPool();
+  } on Object catch (e) {
+    _reportInit(false.toJS, 'Failed to start the Monty worker: $e'.toJS);
+    montyDemoFailed('ladder_showcase', 'Monty.start failed: $e');
 
     return;
   }
@@ -332,203 +307,179 @@ Future<Map<String, dynamic>> _runFixture(Map<String, dynamic> fixture) async {
   return result;
 }
 
-Future<Map<String, dynamic>> _runSimple(Map<String, dynamic> fixture) async {
-  final code = fixture['code'] as String;
-  final result = _parse((await _montyRun(code.toJS).toDart).toDart);
+/// Runs [body] on a fresh session, named by the fixture's `scriptName`.
+Future<T> _onSession<T>(
+  Map<String, dynamic> fixture,
+  Future<T> Function(MontySession session) body,
+) =>
+    _pool.withSession(
+      body,
+      scriptName: fixture['scriptName'] as String? ?? 'main.py',
+    );
 
-  if (result['ok'] != true) {
-    return {'status': 'fail', 'detail': 'Bridge error: ${result['error']}'};
+/// [value] in the fixtures' JSON shape: tuples and sets tagged with
+/// `__type`, containers converted element by element.
+Object? _shape(MontyValue value) => switch (value) {
+      MontyList(:final items) => [for (final item in items) _shape(item)],
+      MontyTuple(:final items) => {
+          '__type': 'tuple',
+          'value': [for (final item in items) _shape(item)],
+        },
+      MontySet(:final items) || MontyFrozenSet(:final items) => {
+          '__type': 'set',
+          'value': [for (final item in items) _shape(item)],
+        },
+      MontyDict(:final pairs) => {
+          for (final (key, item) in pairs) '${key.dartValue}': _shape(item),
+        },
+      _ => value.dartValue,
+    };
+
+/// A Python error as the fixtures' detail text: its type and message.
+String _describe(MontyError error) =>
+    '${error.exception.excType}: ${error.exception.message ?? ''}';
+
+/// The status of a fixture that failed with [error].
+Map<String, dynamic> _onError(
+  MontyError error,
+  Map<String, dynamic> fixture,
+) {
+  if (fixture['expectError'] as bool? ?? false) {
+    return {
+      'status': 'pass',
+      'detail': 'Error (expected): ${_describe(error)}',
+    };
   }
 
-  final actual = result['value'];
+  return {'status': 'fail', 'detail': 'Python error: ${_describe(error)}'};
+}
 
-  return _compareResult(actual, fixture);
+Future<Map<String, dynamic>> _runSimple(Map<String, dynamic> fixture) async {
+  final code = fixture['code'] as String;
+  try {
+    final value = await _onSession(fixture, (s) => s.feedRun(code));
+
+    return _compareResult(_shape(value), fixture);
+  } on MontyError catch (e) {
+    return {'status': 'fail', 'detail': 'Python error: ${_describe(e)}'};
+  }
 }
 
 Future<Map<String, dynamic>> _runExpectError(
   Map<String, dynamic> fixture,
 ) async {
   final code = fixture['code'] as String;
-  final result = _parse((await _montyRun(code.toJS).toDart).toDart);
+  try {
+    final value = await _onSession(fixture, (s) => s.feedRun(code));
 
-  if (result['ok'] == false) {
-    return {'status': 'pass', 'detail': 'Error (expected): ${result['error']}'};
+    return {
+      'status': 'warn',
+      'detail': 'Expected error but got value: ${_shape(value)}'
+          ' — WASM Monty may handle this differently than CPython',
+    };
+  } on MontyError catch (e) {
+    return {'status': 'pass', 'detail': 'Error (expected): ${_describe(e)}'};
   }
-
-  return {
-    'status': 'warn',
-    'detail': 'Expected error but got value: ${result['value']}'
-        ' — WASM Monty may handle this differently than CPython',
-  };
 }
 
 Future<Map<String, dynamic>> _runIterative(Map<String, dynamic> fixture) async {
   final code = fixture['code'] as String;
-  final expectError = fixture['expectError'] as bool? ?? false;
-  final extFns = (fixture['externalFunctions'] as List).cast<String>();
-  final resumeValues = (fixture['resumeValues'] as List?)?.cast<Object>();
+  final resumeValues = (fixture['resumeValues'] as List?)?.cast<Object?>();
   final resumeErrors = (fixture['resumeErrors'] as List?)?.cast<String>();
+  final answers = <ExternalResult>[
+    if (resumeErrors != null)
+      for (final message in resumeErrors)
+        ExternalException('RuntimeError', message)
+    else if (resumeValues != null)
+      for (final value in resumeValues)
+        ExternalReturnValue(MontyValue.fromDart(value)),
+  ];
 
-  var result = _parse(
-    (await _montyStart(code.toJS, jsonEncode(extFns).toJS).toDart).toDart,
-  );
-
-  if (result['ok'] != true) {
-    if (expectError) {
-      return {
-        'status': 'pass',
-        'detail': 'Error (expected): ${result['error']}',
-      };
-    }
-
-    return {'status': 'fail', 'detail': 'Start failed: ${result['error']}'};
-  }
-
-  if (resumeErrors != null) {
-    for (final errorMsg in resumeErrors) {
-      if (result['state'] != 'pending') {
-        return {'status': 'fail', 'detail': 'Expected pending state'};
+  try {
+    return await _onSession(fixture, (session) async {
+      var snapshot = await session.feedStart(code);
+      for (final answer in answers) {
+        if (snapshot is! FunctionSnapshot) {
+          return {'status': 'fail', 'detail': 'Expected pending state'};
+        }
+        snapshot = await snapshot.resume(answer);
       }
-      result = _parse(
-        (await _montyResumeWithError(jsonEncode(errorMsg).toJS).toDart).toDart,
-      );
-    }
-  } else if (resumeValues != null) {
-    for (final value in resumeValues) {
-      if (result['state'] != 'pending') {
-        return {'status': 'fail', 'detail': 'Expected pending state'};
+      if (snapshot is! MontyComplete) {
+        return {
+          'status': 'fail',
+          'detail': 'Still suspended after every answer: $snapshot',
+        };
       }
-      result = _parse(
-        (await _montyResume(jsonEncode(value).toJS).toDart).toDart,
-      );
-    }
+
+      return _compareResult(_shape(snapshot.output), fixture);
+    });
+  } on MontyError catch (e) {
+    return _onError(e, fixture);
   }
-
-  if (result['ok'] != true) {
-    if (expectError) {
-      return {
-        'status': 'pass',
-        'detail': 'Error (expected): ${result['error']}',
-      };
-    }
-
-    return {'status': 'fail', 'detail': 'Bridge error: ${result['error']}'};
-  }
-
-  final actual = result['value'];
-
-  return _compareResult(actual, fixture);
 }
 
 Future<Map<String, dynamic>> _runAsync(Map<String, dynamic> fixture) async {
   final code = fixture['code'] as String;
-  final expectError = fixture['expectError'] as bool? ?? false;
-  final extFns = (fixture['externalFunctions'] as List).cast<String>();
   final asyncResumeMap =
       (fixture['asyncResumeMap'] as Map<String, dynamic>?) ?? {};
   final asyncErrorMap =
       (fixture['asyncErrorMap'] as Map<String, dynamic>?) ?? {};
 
-  var result = _parse(
-    (await _montyStart(code.toJS, jsonEncode(extFns).toJS).toDart).toDart,
-  );
+  try {
+    return await _onSession(fixture, (session) async {
+      // Answer every call with a future, recording the call order so the
+      // fixture's indices map to the actual call ids, and settle each wait
+      // with the fixture's answers for the calls it waits on.
+      final callIdByIndex = <int, int>{};
+      ExternalSettledResult? answerFor(int callId) {
+        final index = callIdByIndex.entries
+            .firstWhere(
+              (e) => e.value == callId,
+              orElse: () => const MapEntry(-1, -1),
+            )
+            .key;
+        if (asyncResumeMap['$index'] case final Object? value?) {
+          return ExternalReturnValue(MontyValue.fromDart(value));
+        }
+        if (asyncErrorMap['$index'] case final Object? message?) {
+          return ExternalException('RuntimeError', '$message');
+        }
 
-  if (result['ok'] != true) {
-    if (expectError) {
-      return {
-        'status': 'pass',
-        'detail': 'Error (expected): ${result['error']}',
-      };
-    }
-
-    return {'status': 'fail', 'detail': 'Start failed: ${result['error']}'};
-  }
-
-  // Collect pending calls, converting each to a future.
-  // Track call order so we can map fixture indices to actual callIds.
-  final callIdByIndex = <int, int>{};
-  var callIndex = 0;
-
-  while (result['state'] == 'pending') {
-    final callId = result['callId'] as int;
-    callIdByIndex[callIndex] = callId;
-    callIndex++;
-
-    result = _parse((await _montyResumeAsFuture().toDart).toDart);
-
-    if (result['ok'] != true) {
-      if (expectError) {
-        return {
-          'status': 'pass',
-          'detail': 'Error (expected): ${result['error']}',
-        };
+        return null;
       }
 
-      return {
-        'status': 'fail',
-        'detail': 'resumeAsFuture failed: ${result['error']}',
-      };
-    }
+      var snapshot = await session.feedStart(code);
+      while (snapshot is! MontyComplete) {
+        switch (snapshot) {
+          case final FunctionSnapshot call:
+            callIdByIndex[callIdByIndex.length] = call.callId;
+            snapshot = await call.resume(const ExternalFuture());
+          case final FutureSnapshot wait:
+            final results = <int, ExternalSettledResult>{
+              for (final id in wait.pendingCallIds)
+                if (answerFor(id) case final result?) id: result,
+            };
+            if (results.isEmpty) {
+              return {
+                'status': 'fail',
+                'detail': 'No answer for pending calls ${wait.pendingCallIds}',
+              };
+            }
+            snapshot = await wait.resume(results);
+          case NameLookupSnapshot() || MontyComplete():
+            return {
+              'status': 'fail',
+              'detail': 'Unexpected suspension: $snapshot',
+            };
+        }
+      }
+      final settled = snapshot;
+
+      return _compareResult(_shape(settled.output), fixture);
+    });
+  } on MontyError catch (e) {
+    return _onError(e, fixture);
   }
-
-  if (result['state'] != 'resolve_futures') {
-    if (result['state'] == 'complete') {
-      final actual = result['value'];
-
-      return _compareResult(actual, fixture);
-    }
-
-    return {
-      'status': 'fail',
-      'detail': 'Expected resolve_futures state, got: ${result['state']}',
-    };
-  }
-
-  // Build results/errors maps keyed by actual callId.
-  final results = <String, dynamic>{};
-  final errors = <String, dynamic>{};
-
-  for (final entry in asyncResumeMap.entries) {
-    final fixtureIndex = int.parse(entry.key);
-    final callId = callIdByIndex[fixtureIndex];
-    if (callId != null) {
-      results['$callId'] = entry.value;
-    }
-  }
-
-  for (final entry in asyncErrorMap.entries) {
-    final fixtureIndex = int.parse(entry.key);
-    final callId = callIdByIndex[fixtureIndex];
-    if (callId != null) {
-      errors['$callId'] = entry.value;
-    }
-  }
-
-  result = _parse(
-    (await _montyResolveFutures(
-      jsonEncode(results).toJS,
-      jsonEncode(errors).toJS,
-    ).toDart)
-        .toDart,
-  );
-
-  if (result['ok'] != true) {
-    if (expectError) {
-      return {
-        'status': 'pass',
-        'detail': 'Error (expected): ${result['error']}',
-      };
-    }
-
-    return {
-      'status': 'fail',
-      'detail': 'resolveFutures failed: ${result['error']}',
-    };
-  }
-
-  final actual = result['value'];
-
-  return _compareResult(actual, fixture);
 }
 
 // ---------------------------------------------------------------------------

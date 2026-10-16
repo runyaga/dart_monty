@@ -278,7 +278,7 @@ class _FakeBridge implements MontyBridge {
   final Map<String, Set<String>> _categoryIndex = {};
 
   @override
-  BridgeLogger get logger => const NullBridgeLogger();
+  BridgeLogger get logger => BridgeLogger.silent;
 
   @override
   List<HostFunctionSchema> get schemas =>
@@ -312,7 +312,7 @@ class _FakeBridge implements MontyBridge {
   }
 
   @override
-  void registerOs(OsCallHandler handler) {}
+  void registerOs(OsHandler handler) {}
 
   @override
   Stream<BridgeEvent> execute(String code) => const Stream.empty();

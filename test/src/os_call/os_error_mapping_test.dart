@@ -2,7 +2,7 @@
 //
 // Audited by driving every PathOp against a failing condition. Nine of ten
 // read/delete/list operations already mapped their failures to
-// OsCallException; the write family mapped none — in fsHandler AND in the
+// ExternalException; the write family mapped none — in fsHandler AND in the
 // sandboxed handler:
 //
 //     write_text  write_bytes  append_text  append_bytes
@@ -24,6 +24,8 @@ import 'package:dart_monty/src/os_call/sandboxed_fs_handler.dart';
 import 'package:file/local.dart';
 import 'package:test/test.dart';
 
+import '_os_call.dart';
+
 void main() {
   late Directory root;
   late String rootPath;
@@ -37,9 +39,11 @@ void main() {
   tearDown(() => root.deleteSync(recursive: true));
 
   for (final handlerName in ['fsHandler', 'sandboxed']) {
-    OsCallHandler build() => handlerName == 'fsHandler'
-        ? fsHandler(const LocalFileSystem())
-        : sandboxedFsHandler(root: root);
+    DartOsCall build() => dartCall(
+      handlerName == 'fsHandler'
+          ? fsHandler(const LocalFileSystem())
+          : sandboxedFsHandler(root: root),
+    );
 
     group('$handlerName maps write failures', () {
       for (final op in [
@@ -54,10 +58,10 @@ void main() {
           await expectLater(
             build()(op, ['$rootPath/adir', payload], null),
             throwsA(
-              isA<OsCallException>()
+              isA<ExternalException>()
                   .having(
-                    (e) => e.pythonExceptionType,
-                    'pythonExceptionType',
+                    (e) => e.excType,
+                    'excType',
                     'IsADirectoryError',
                   )
                   // A real errno, not an un-interpolated template.
@@ -98,9 +102,9 @@ void main() {
           await expectLater(
             build()('Path.read_text', ['$rootPath/ghost.txt'], null),
             throwsA(
-              isA<OsCallException>().having(
-                (e) => e.pythonExceptionType,
-                'pythonExceptionType',
+              isA<ExternalException>().having(
+                (e) => e.excType,
+                'excType',
                 'FileNotFoundError',
               ),
             ),

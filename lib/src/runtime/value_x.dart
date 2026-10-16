@@ -1,3 +1,5 @@
+// Internal and used by tests only: not exported (REQ values-and-inputs-10).
+// ignore_for_file: unused-files
 import 'package:dart_monty_core/dart_monty_core.dart';
 
 /// Typed accessors on [MontyValue] — avoid `.dartValue` casts at call sites.
@@ -58,16 +60,21 @@ extension MontyValueX on MontyValue {
   ///
   /// Reach for `MontyDict.pairs` directly when the general keyspace matters.
   ///
-  /// 0.23 merged `MontyPairsDict` into `MontyDict` and replaced `entries` with
-  /// `pairs` plus `asStringMap`, which returns `null` unless EVERY key is a
-  /// string. That is precisely the contract the hand-rolled `_asStringKeyed`
-  /// helper below used to implement, so the helper is deleted rather than
-  /// ported: the core now owns the rule, and one implementation of it cannot
-  /// drift from the other.
-  Map<String, MontyValue>? asMap() => switch (this) {
-    final MontyDict d => d.asStringMap,
-    _ => null,
-  };
+  /// Core 0.110 has no `asStringMap`, so the rule is applied here over
+  /// `MontyDict.pairs`.
+  Map<String, MontyValue>? asMap() {
+    if (this case MontyDict(:final pairs)) {
+      final map = <String, MontyValue>{};
+      for (final (key, value) in pairs) {
+        if (key is! MontyString) return null;
+        map[key.value] = value;
+      }
+
+      return map;
+    }
+
+    return null;
+  }
 
   /// Returns raw bytes if this is [MontyBytes], otherwise `null`.
   List<int>? asBytes() => switch (this) {

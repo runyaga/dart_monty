@@ -2,8 +2,9 @@
 # =============================================================================
 # Web Example Runner
 # =============================================================================
-# Stages the dart_monty_core WASM/JS bridge assets next to the compiled
-# Dart demo, then starts a COOP/COEP server.
+# Stages dart_monty_core's browser worker (dart_monty_core_worker.js and
+# .wasm) next to the compiled Dart demos, which load it from the page's own
+# directory, then starts a local server.
 #
 # Usage:
 #   bash example/web/run.sh
@@ -54,9 +55,8 @@ fi
 # ── Step 2: Copy assets to web dir ───────────────────────────────────────
 echo ""
 echo "--- Copying assets ---"
-cp "$CORE_ASSETS/dart_monty_core_bridge.js" "$WEB_DIR/"
 cp "$CORE_ASSETS/dart_monty_core_worker.js" "$WEB_DIR/"
-cp "$CORE_ASSETS/dart_monty_core_native.wasm" "$WEB_DIR/"
+cp "$CORE_ASSETS/dart_monty_core_worker.wasm" "$WEB_DIR/"
 echo "  Assets copied."
 
 # ── Step 3: Copy fixture files for ladder showcase ───────────────────────
@@ -94,9 +94,8 @@ cleanup() {
     wait "$SERVER_PID" 2>/dev/null || true
   fi
   # Clean up copied files
-  rm -f "$WEB_DIR/dart_monty_core_bridge.js" \
-        "$WEB_DIR/dart_monty_core_worker.js" \
-        "$WEB_DIR/dart_monty_core_native.wasm" \
+  rm -f        "$WEB_DIR/dart_monty_core_worker.js" \
+        "$WEB_DIR/dart_monty_core_worker.wasm" \
         "$WEB_DIR/main.dart.js" \
         "$WEB_DIR/main.dart.js.deps" \
         "$WEB_DIR/main.dart.js.map" \

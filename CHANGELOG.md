@@ -2,6 +2,117 @@
 
 ### Breaking
 
+dart_monty now builds on dart_monty_core 0.110 (the worker API). This first
+step ports the types; behaviour that core no longer provides is rebuilt by the
+following D1 changes, and until then it throws `UnimplementedError` naming the
+change that brings it back.
+
+- **`dart_monty_testing.dart`** and **`monty_backend_spi.dart`** are gone.
+  Tests script `FakeMontySession` from `dart_monty_core_testing.dart`.
+- **`DartMonty.ensureInitialized`** is gone: the web needs no init call. The
+  `web` dependency goes with it.
+- **`PlatformBridge`** is gone. `MontyBridge({required MontySession session,
+  BridgeLogger? logger})` replaces `MontyBridge(platform:, limits:)`.
+- **`MontyRuntime(...)`** is now **`await MontyRuntime.start(...)`**;
+  `MontyRuntime.defaultCheckoutTimeout` is 30 s.
+  `clearState()` returns a `Future`.
+- **`ExtensionCoordinator.generateSystemPrompt`**, `systemPromptPrefix` and
+  the `sandbox_spawn(system_prompt=)` parameter are gone;
+  `MontyExtension.systemPromptContext` stays.
+- **`SandboxExtension`** no longer takes `platformFactory`; `childLimits` is a
+  `ResourceLimits`.
+- OS handlers are core's **`OsHandler`** (`MontyValue` arguments and result)
+  instead of `OsCallHandler`, and raise `ExternalException(excType, message)`
+  instead of `OsCallException`. `HostFunctionSchema.mapAndValidate` takes
+  `(args, kwargs)`.
+- **`timeHandler`** is gone, with the `date.*` and `datetime.*` routing in
+  `defaultOsHandler()`: the worker answers the clock with upstream's `system`
+  clock (UTC), so clock calls never reach a handler. `composeOsHandlers`,
+  `osArgString` and `PathOp` are no longer exported.
+- **OS-call declines are synchronous.** `fsHandler`, `memoryFsHandler`,
+  `sandboxedFsHandler`, `readOnlyHandler`, `overlayFsHandler` and the composer
+  decline with `throw const OsCallNotHandledException()` and answer
+  synchronously; a returned `Future` that fails with it no longer declines
+  (core raises `TypeError`). `envHandler` declines an unknown `os.*` operation
+  instead of throwing `UnsupportedError`.
+- **`ExecutionHandle.result`** and `HostContext.subExecute` complete with a
+  `MontyValue` and fail with `MontyError`; `BridgeRunError.exception` and
+  `ChildFailed.exception` are `MontyError`.
+- **`BridgeLogger.silent`** is the silent logger.
+- **`MontyBridge.execute`** runs each execution as one `feedRun` on the
+  session. Print text is collected with core's `CollectString` and attached
+  to the run's terminal event. With no OS handler registered, OS calls take
+  the worker's default (`PermissionError` for a filesystem call,
+  `RuntimeError` for any other) instead of dm's `PermissionError`, and emit
+  no events. A declined call reports `BridgeOsCallResult.result`
+  `'Declined'`. Calls the worker answers itself (the OS policy's clock and
+  sleep, mounts) emit no events.
+- A run that fails with a throw that is not a `MontyError` emits
+  `BridgeRunError(exception: null)`, and `extractBridgeResult` rethrows the
+  original throw.
+- Host functions are passed to the feed as core `MontyHostFunction` values.
+  A `DispatchMode.future` function is a core `coroutine`; a
+  `DispatchMode.sync` one is awaited and Python sees its value. A call to an
+  unregistered name, or to a function with no handler on this backend, now
+  raises `NameError` instead of `RuntimeError: Unknown function`. Validation
+  and handler failures still raise `RuntimeError`; a handler that throws an
+  `ExternalException` raises that exception's type.
+- **`MontyRuntime.start(pool:)`** runs on a core `Monty` pool. With a `pool`
+  the caller sizes and closes it; without one the runtime starts its own,
+  with room for a root execution, a sub-execution and a `SandboxExtension`'s
+  `maxChildren`, and closes it on `dispose`. That default pool finds the
+  worker by core's discovery; until the worker ships with core, pass a pool
+  started with `workerLocation`. Shared mode holds one session for the
+  runtime's life; sandbox mode checks one out per `execute` and closes it.
+  `execute(inputs:)` binds globals through the feed instead of a code prefix,
+  and `execute(os:)` is that feed's OS handler.
+- **`ExecutionHandle.cancel`** closes the execution's busy session: a running
+  turn fails with `MontyCrashedError`, a pending host call fails at once. In
+  shared mode the next `execute` runs on a fresh session, without the old
+  globals. Cancel also cancels the `HostContext.cancelToken` of the
+  execution's host calls; after the execution ends it does nothing.
+- **`clearState()`** disposes the extensions, closes the held session and
+  checks out a new one. **`dispose()`** releases the session and an owned
+  pool even when an extension's `onDispose` throws, then rethrows.
+- `MontyRuntimeRef` and `currentBackendKind` are no longer exported.
+- **`HostContext.subExecute`** runs on a second session checked out of the
+  runtime's pool, with default limits, the inputs bound by the feed, no OS
+  handler and no host functions; the session is closed afterwards, and on
+  `dispose`. A checkout that waits past the pool's `checkoutTimeout` fails
+  with `TimeoutException`. A bridge built on a bare session gives handlers
+  no `subExecute`, so `run_script` raises its `StateError` there.
+  `run_script` returns the sub-script's value as it is (a tuple stays a
+  tuple).
+- **`HostFunction.childPropagation`** and `ChildPropagation` are gone: a
+  function registered on a runtime never reaches a child sandbox.
+  `HostFunctionSchema.mapAndValidate` and the `HostArgs` extension are no
+  longer exported.
+- **`MontyExtension.coordinator`** and **`MontyRuntime.coordinator`** are
+  gone, and `ExtensionCoordinator`, `StructLogBridgeLogger`,
+  `NullBridgeLogger` and `UnsupportedBackendError` are no longer exported.
+  Use `BridgeLogger.silent` to silence logging; a `null` logger is still
+  dm's struct_log logger. An unsupported backend still fails attachment
+  with an `Error`.
+- **`EventLoopExtension`** no longer exposes `channelState` or
+  `channelStateSignal`, and `EventLoopState` and its variants are no longer
+  exported; use `isWaiting`.
+
+- **`MontyRuntime.start(limits:)`** sets the `ResourceLimits` of the
+  sessions `execute()` runs on: the held session (and each one that replaces
+  it) in shared mode, each execution's session in sandbox mode.
+  Sub-executions keep the defaults.
+- In shared mode a feed that fails with **`MontyCrashedError`**, or with a
+  `MemoryError` or `TimeoutError` (what a memory or time limit raises),
+  closes the held session, and the next `execute()` runs on a fresh one with
+  empty globals. The extensions stay attached; it is not a `clearState()`.
+- **`MontyValueX`** is no longer exported. Read values with `dartValue` or a
+  pattern on core's `MontyValue` subtypes.
+- **`dart_monty_bridge.dart`** re-exports core's `ExternalException` and
+  `OsHandler`, and no longer `OsCallNotHandledException`, which stays public
+  through `dart_monty.dart`. `extractBridgeResult` is no longer exported.
+- A host function returns a dataclass-like value as core's `ClassInstance`;
+  `example/dataclass_demo.dart` shows it.
+
 Eight features that nothing used have been moved out of this package. There
 is no deprecation period and no replacement API.
 
@@ -12,7 +123,7 @@ is no deprecation period and no replacement API.
   e.g. `[MessageBusExtension(), EventLoopExtension()]`.
 - **`StatefulExtension`** and **`HasStateSignal`** are gone, as is
   `ExtensionCoordinator.statefulObservations()`. `EventLoopExtension` and
-  `SandboxExtension` keep `channelStateSignal` / `childrenSignal`; they no
+  `SandboxExtension` keeps `childrenSignal`; they no
   longer expose `state`, `stateSignal`, `stateSignalAsObject` or
   `setInitialState`.
 - **`MontyInterceptor`** is gone: the `interceptor` parameter of
@@ -35,6 +146,11 @@ is no deprecation period and no replacement API.
 The published web demos no longer show template rendering.
 
 ### Fixed
+
+- Extensions of equal `priority` attach in registration order even when more
+  than 32 are registered, where `List.sort` is not stable.
+- A child spawn that fails part-way (a `createChildInstance` throws) disposes
+  the clones it already made instead of leaking them.
 
 - `timeHandler`: `datetime.now()` and `datetime.now(tz)` dropped the
   milliseconds. Python's `datetime.microsecond` is the whole sub-second part,

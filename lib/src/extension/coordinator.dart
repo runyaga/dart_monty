@@ -141,19 +141,28 @@ Future<List<(String, Object)>> _runExtensionOnAttaches(
   return errors;
 }
 
-/// Injects [coordinator] into each extension's
-/// [MontyExtension.coordinator] field.
+/// The coordinator each extension was last attached through.
+final Expando<ExtensionCoordinator> _owners = Expando('coordinator');
+
+/// The coordinator [extension] was last attached through, for extensions
+/// that spawn children (`SandboxExtension`). Internal to dm.
 ///
-/// Called before [_runExtensionOnAttaches] so that
-/// [MontyExtension.coordinator]
-/// is available inside [MontyExtension.onAttach] (used by extensions that
-/// spawn children or drive lifecycle operations).
+/// Throws [StateError] when [extension] was never attached.
+ExtensionCoordinator coordinatorOf(MontyExtension extension) =>
+    _owners[extension] ??
+    (throw StateError(
+      'Extension "${extension.namespace}" is not attached to a runtime.',
+    ));
+
+/// Records [coordinator] as the owner of each extension in [attachOrder],
+/// before [_runExtensionOnAttaches], so [coordinatorOf] works inside
+/// [MontyExtension.onAttach].
 void _injectCoordinators(
   List<MontyExtension> attachOrder,
   ExtensionCoordinator coordinator,
 ) {
   for (final ext in attachOrder) {
-    ext.coordinator = coordinator;
+    _owners[ext] = coordinator;
   }
 }
 
@@ -162,11 +171,11 @@ void _injectCoordinators(
 ///
 /// Throws [StateError] if two extensions return the same prefix key from
 /// [MontyExtension.osContribution].
-Map<String, OsCallHandler> _collectOsContributions(
+Map<String, OsHandler> _collectOsContributions(
   List<MontyExtension> attachOrder,
 ) {
   // prefix → (owning namespace, handler)
-  final merged = <String, (String, OsCallHandler)>{};
+  final merged = <String, (String, OsHandler)>{};
 
   for (final ext in attachOrder) {
     final contrib = ext.osContribution;
@@ -193,8 +202,8 @@ Map<String, OsCallHandler> _collectOsContributions(
 /// on [bridge]. No-op when there are no contributions and [baseOs] is `null`.
 void _applyOsContributions(
   MontyBridge bridge,
-  Map<String, OsCallHandler> contributions,
-  OsCallHandler? baseOs,
+  Map<String, OsHandler> contributions,
+  OsHandler? baseOs,
 ) {
   if (contributions.isEmpty && baseOs == null) return;
 
@@ -211,19 +220,11 @@ void _applyOsContributions(
 /// by an underscore (e.g., namespace `sqlite` requires functions named
 /// `sqlite_query`, `sqlite_execute`, etc.).
 class ExtensionCoordinator {
-  /// Optional text prepended before extension sections in the system prompt.
-  ///
-  /// Set by `SandboxExtension._handleSpawn` after coordinator construction to
-  /// inject per-child system prompt content. Using a public field (rather
-  /// than a constructor param) guarantees injection regardless of whether
-  /// the coordinator was built by inheritance or a custom factory.
-  String? systemPromptPrefix;
-
   final List<MontyExtension> _extensions = [];
   List<MontyExtension>? _attachOrder;
   final Set<String> _namespaces = {};
   final Set<String> _functionNames = {};
-  BridgeLogger _log = const NullBridgeLogger();
+  BridgeLogger _log = BridgeLogger.silent;
   bool _attached = false;
 
   /// The extension OS contributions resolved during [attachTo], keyed by
@@ -232,17 +233,12 @@ class ExtensionCoordinator {
   /// Captured so that [spawnChild] can re-compose a child handler per
   /// [ChildVfsStrategy] (swapping only the `Path.` entry) instead of
   /// opaquely delegating to the already-composed parent handler.
-  Map<String, OsCallHandler>? _osContributions;
+  Map<String, OsHandler>? _osContributions;
 
   /// The `baseOs` passed to [attachTo], if any. Used as the fallback for any
   /// prefix that no extension claims when [spawnChild] composes a child
   /// handler.
-  OsCallHandler? _baseOs;
-
-  /// The `extraFunctions` passed to [attachTo], captured so that [spawnChild]
-  /// can forward entries tagged [ChildPropagation.inherit] to the
-  /// child coordinator.
-  List<HostFunction> _extraFunctions = const [];
+  OsHandler? _baseOs;
 
   static final RegExp _validNamespace = RegExp(r'^[a-z][a-z0-9_]*$');
   static const int _maxNamespaceLength = 32;
@@ -298,15 +294,14 @@ class ExtensionCoordinator {
   ///
   /// ## Coordinator injection
   ///
-  /// [MontyExtension.coordinator] is set to this coordinator before
-  /// [MontyExtension.onAttach] is called, so extensions that need to spawn
-  /// children or drive lifecycle operations can reach for it from inside
-  /// [MontyExtension.onAttach].
+  /// [coordinatorOf] returns this coordinator for each extension before
+  /// [MontyExtension.onAttach] is called, so extensions that spawn children
+  /// can reach for it from inside [MontyExtension.onAttach].
   Future<void> attachTo(
     MontyBridge bridge, {
     List<HostFunction>? extraFunctions,
     bool enableIntrospection = true,
-    OsCallHandler? baseOs,
+    OsHandler? baseOs,
   }) async {
     if (_attached) {
       throw StateError(
@@ -319,10 +314,16 @@ class ExtensionCoordinator {
 
     _checkSupportedBackends(_extensions, _log);
 
-    // Sort by descending priority; stable sort preserves insertion order for
-    // equal priorities. High-priority extensions attach first, dispose last.
-    final attachOrder = [..._extensions]
-      ..sort((a, b) => b.priority.compareTo(a.priority));
+    // Descending priority, registration order among equals: the index
+    // breaks ties, as List.sort is not stable. High-priority extensions
+    // attach first and dispose last.
+    final ranked = [..._extensions.indexed]
+      ..sort((a, b) {
+        final byPriority = b.$2.priority.compareTo(a.$2.priority);
+
+        return byPriority != 0 ? byPriority : a.$1.compareTo(b.$1);
+      });
+    final attachOrder = [for (final (_, ext) in ranked) ext];
     _attachOrder = attachOrder;
 
     // Inject coordinator before onAttach so extensions that spawn children
@@ -336,7 +337,6 @@ class ExtensionCoordinator {
     _baseOs = baseOs;
     _applyOsContributions(bridge, contributions, baseOs);
     if (extraFunctions != null && extraFunctions.isNotEmpty) {
-      _extraFunctions = List.unmodifiable(extraFunctions);
       _attachExtraFunctions(extraFunctions, bridge, _log);
     }
 
@@ -413,8 +413,7 @@ class ExtensionCoordinator {
     required ChildSpawnContext context,
     required MontyBridge bridge,
     ChildVfsStrategy vfsStrategy = ChildVfsStrategy.isolated,
-    String? childSystemPromptPrefix,
-    OsCallHandler? baseOs,
+    OsHandler? baseOs,
   }) async {
     if (!_attached) {
       throw StateError(
@@ -424,92 +423,64 @@ class ExtensionCoordinator {
     }
 
     final child = ExtensionCoordinator();
-    for (final ext in _extensions) {
-      switch (ext.childPolicy) {
-        case ChildPolicy.exclude:
-          continue;
-        case ChildPolicy.inherit:
-          child.register(ext);
-        case ChildPolicy.clone:
-          final instance = ext.createChildInstance(context);
-          assert(
-            !identical(instance, ext),
-            'createChildInstance() must return a new instance, not `this`. '
-            'Use ChildPolicy.inherit if the extension should be shared.',
-          );
-          child.register(instance);
+    // The clones made so far; a failure part-way disposes them.
+    final clones = <MontyExtension>[];
+    try {
+      for (final ext in _extensions) {
+        switch (ext.childPolicy) {
+          case ChildPolicy.exclude:
+            continue;
+          case ChildPolicy.inherit:
+            child.register(ext);
+          case ChildPolicy.clone:
+            final instance = ext.createChildInstance(context);
+            assert(
+              !identical(instance, ext),
+              'createChildInstance() must return a new instance, not `this`. '
+              'Use ChildPolicy.inherit if the extension should be shared.',
+            );
+            clones.add(instance);
+            child.register(instance);
+        }
       }
+    } on Object {
+      await _disposeQuietly(clones);
+      rethrow;
     }
 
-    child.systemPromptPrefix = childSystemPromptPrefix;
     final childBaseOs = _composeChildBaseOs(
       vfsStrategy,
       baseOsOverride: baseOs,
     );
-    final inheritedExtras = _extraFunctions
-        .where(
-          (fn) => fn.childPropagation == ChildPropagation.inherit,
-        )
-        .toList(growable: false);
-    await child.attachTo(
-      bridge,
-      baseOs: childBaseOs,
-      extraFunctions: inheritedExtras.isEmpty ? null : inheritedExtras,
-    );
+    await child.attachTo(bridge, baseOs: childBaseOs);
 
     return child;
   }
 
-  /// Auto-generates an LLM system prompt from extension schemas.
-  ///
-  /// Each extension produces a markdown section with its namespace as heading,
-  /// optional [MontyExtension.systemPromptContext], and a list of functions.
-  String generateSystemPrompt() {
-    final buffer = StringBuffer();
-
-    if (systemPromptPrefix != null && systemPromptPrefix!.isNotEmpty) {
-      buffer
-        ..writeln(systemPromptPrefix)
-        ..writeln();
-    }
-
-    for (final ext in _extensions) {
-      buffer.writeln('### ${ext.namespace}');
-      final context = ext.systemPromptContext;
-      if (context != null && context.isNotEmpty) {
-        buffer.writeln(context);
-      }
-      for (final fn in ext.functions) {
-        final params = fn.schema.params
-            .map(
-              (p) =>
-                  '${p.name}'
-                  '${p.isRequired ? '' : '?'}'
-                  ': ${p.type.jsonSchemaType}',
-            )
-            .join(', ');
-        final fnName = fn.schema.name;
-        final desc = fn.schema.description;
-        buffer.writeln(
-          desc != null ? '- `$fnName($params)`: $desc' : '- `$fnName($params)`',
+  /// Disposes [made], in reverse, logging each failure.
+  Future<void> _disposeQuietly(List<MontyExtension> made) async {
+    for (final ext in made.reversed) {
+      try {
+        await ext.onDispose();
+      } on Object catch (e) {
+        _log.warning(
+          'Extension dispose failed',
+          attributes: {'namespace': ext.namespace, 'error': '$e'},
         );
       }
-      buffer.writeln();
     }
-
-    return buffer.toString().trimRight();
   }
 
-  /// Builds a composed child [OsCallHandler] from the parent's captured
+  /// Builds a composed child [OsHandler] from the parent's captured
   /// contributions and [strategy]. Returns `null` when the parent has no OS
   /// state at all (nothing to inherit).
   ///
   /// When [baseOsOverride] is non-null it replaces the parent's captured
   /// `_baseOs` as the fallback — callers use this to propagate a
   /// per-execution OS override into child composition.
-  OsCallHandler? _composeChildBaseOs(
+  OsHandler? _composeChildBaseOs(
     ChildVfsStrategy strategy, {
-    OsCallHandler? baseOsOverride,
+    OsHandler? baseOsOverride,
   }) {
     final parentOs = _osContributions;
     final parentBase = baseOsOverride ?? _baseOs;

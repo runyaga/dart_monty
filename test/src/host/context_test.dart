@@ -2,6 +2,8 @@ import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:test/test.dart';
 
+import '../../integration/_worker.dart';
+
 // Shared no-op emit callback for structural tests that never emit events.
 // Pulled out so the inline lambdas don't trip DCM's no-empty-block rule.
 // ignore: no-empty-block
@@ -38,10 +40,21 @@ void main() {
     test(
       'subExecute closure runs Python and returns the result',
       () async {
-        Future<MontyResult> wired(
+        Future<MontyValue> wired(
           String code, {
           Map<String, Object?>? inputs,
-        }) => Monty(code).run(inputs: inputs);
+        }) => Monty.withPool(
+          workerLocation: workerLocation,
+          (monty) => monty.withSession(
+            (session) => session.feedRun(
+              code,
+              inputs: {
+                for (final e in (inputs ?? const <String, Object?>{}).entries)
+                  e.key: MontyValue.fromDart(e.value),
+              },
+            ),
+          ),
+        );
 
         final ctx = HostContext(
           emit: _ignoreEvent,
@@ -50,8 +63,7 @@ void main() {
         );
 
         final r = await ctx.subExecute!('x * 2', inputs: {'x': 21});
-        expect(r.error, isNull);
-        expect(r.value.dartValue, 42);
+        expect(r.dartValue, 42);
       },
       // Needs the native runtime bound via FFI/WASM harness; the structural
       // tests in this group cover the design surface on every platform.
@@ -69,5 +81,13 @@ void main() {
       // parent.execute('1 + 1');  // <- would not compile (good!)
       expect(parent, isNull);
     });
+  });
+
+  test('without a cancelToken a context holds a fresh, live one', () {
+    final a = HostContext(emit: (_) {}, executionId: 'a');
+    final b = HostContext(emit: (_) {}, executionId: 'b');
+
+    expect(a.cancelToken.isCancelled, isFalse);
+    expect(a.cancelToken, isNot(same(b.cancelToken)));
   });
 }

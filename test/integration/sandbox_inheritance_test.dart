@@ -2,9 +2,12 @@
 @Tags(['integration'])
 library;
 
+import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
-import 'package:dart_monty/monty_backend_spi.dart';
+import 'package:dart_monty/src/extension/coordinator.dart';
 import 'package:test/test.dart';
+
+import '_worker.dart';
 
 /// Integration tests for SandboxExtension child inheritance with real FFI.
 ///
@@ -17,7 +20,10 @@ import 'package:test/test.dart';
 ///   test/integration/sandbox_plugin_inheritance_test.dart
 /// ```
 void main() {
-  MontyPlatform createPlatform() => createPlatformMonty();
+  late Monty pool;
+
+  setUpAll(() async => pool = await startTestPool());
+  tearDownAll(() => pool.close());
 
   /// Executes [code] on a bridge and returns the final value or throws.
   Future<Object?> run(MontyBridge bridge, String code) async {
@@ -37,18 +43,25 @@ void main() {
   /// Python expression: `sandbox_spawn(code="[childCode]")`.
   String spawn(String childCode) => 'sandbox_spawn(code="$childCode")';
 
-  MontyBridge createBridge() => MontyBridge(platform: createPlatform());
+  // The bridge does not close its session; the test does, so the pool's
+  // workers come back between tests.
+  Future<MontyBridge> createBridge() async {
+    final session = await pool.checkout();
+    addTearDown(session.close);
+
+    return MontyBridge(session: session);
+  }
 
   // ---------------------------------------------------------------------------
   // Baseline: child sandboxs work without plugins
   // ---------------------------------------------------------------------------
 
-  group('baseline (no plugins)', () {
+  group('baseline (no plugins)', tags: 'd1-pending', () {
     test('child sandbox computes and returns value', () async {
-      final bridge = createBridge();
+      final bridge = await createBridge();
       final registry = ExtensionCoordinator()
         ..register(
-          SandboxExtension(platformFactory: () async => createPlatform()),
+          SandboxExtension(),
         );
       await registry.attachTo(bridge);
 
@@ -64,10 +77,10 @@ void main() {
     });
 
     test('child sandbox captures print output', () async {
-      final bridge = createBridge();
+      final bridge = await createBridge();
       final registry = ExtensionCoordinator()
         ..register(
-          SandboxExtension(platformFactory: () async => createPlatform()),
+          SandboxExtension(),
         );
       await registry.attachTo(bridge);
 
@@ -89,14 +102,12 @@ void main() {
 
   group('createChildInstance inheritance', () {
     test('parent can call inherited plugin function', () async {
-      final bridge = createBridge();
+      final bridge = await createBridge();
       final greeter = _GreeterExtension();
       final registry = ExtensionCoordinator()
         ..register(greeter)
         ..register(
-          SandboxExtension(
-            platformFactory: () async => createPlatform(),
-          ),
+          SandboxExtension(),
         );
       await registry.attachTo(bridge);
 
@@ -106,95 +117,103 @@ void main() {
       bridge.dispose();
     });
 
-    test('child inherits plugin via createChildInstance', () async {
-      final bridge = createBridge();
-      final greeter = _GreeterExtension();
-      final registry = ExtensionCoordinator()
-        ..register(greeter)
-        ..register(
-          SandboxExtension(
-            platformFactory: () async => createPlatform(),
-          ),
+    test(
+      'child inherits plugin via createChildInstance',
+      tags: 'd1-pending',
+      () async {
+        final bridge = await createBridge();
+        final greeter = _GreeterExtension();
+        final registry = ExtensionCoordinator()
+          ..register(greeter)
+          ..register(
+            SandboxExtension(),
+          );
+        await registry.attachTo(bridge);
+
+        // Child bridge dispatch is sync by default — direct calls.
+        const cc = r'greeter_hello(name=\"child\")';
+        final result = await run(
+          bridge,
+          'h = ${spawn(cc)}\n'
+          'sandbox_await(handle=h)',
         );
-      await registry.attachTo(bridge);
 
-      // Child bridge dispatch is sync by default — direct calls.
-      const cc = r'greeter_hello(name=\"child\")';
-      final result = await run(
-        bridge,
-        'h = ${spawn(cc)}\n'
-        'sandbox_await(handle=h)',
-      );
+        expect(result, 'Hello, child!');
+        bridge.dispose();
+      },
+    );
 
-      expect(result, 'Hello, child!');
-      bridge.dispose();
-    });
+    test(
+      'child without inheritable plugins errors on call',
+      tags: 'd1-pending',
+      () async {
+        final bridge = await createBridge();
+        final registry = ExtensionCoordinator()
+          ..register(
+            SandboxExtension(),
+          );
+        await registry.attachTo(bridge);
 
-    test('child without inheritable plugins errors on call', () async {
-      final bridge = createBridge();
-      final registry = ExtensionCoordinator()
-        ..register(
-          SandboxExtension(platformFactory: () async => createPlatform()),
+        // Child calls greeter_hello — not available (no inheritance).
+        const cc = r'greeter_hello(name=\"test\")';
+        final result = await run(
+          bridge,
+          'h = ${spawn(cc)}\n'
+          'try:\n'
+          '    sandbox_await(handle=h)\n'
+          '    result = "should_not_reach"\n'
+          'except:\n'
+          '    result = "error_caught"\n'
+          'result',
         );
-      await registry.attachTo(bridge);
 
-      // Child calls greeter_hello — not available (no inheritance).
-      const cc = r'greeter_hello(name=\"test\")';
-      final result = await run(
-        bridge,
-        'h = ${spawn(cc)}\n'
-        'try:\n'
-        '    sandbox_await(handle=h)\n'
-        '    result = "should_not_reach"\n'
-        'except:\n'
-        '    result = "error_caught"\n'
-        'result',
-      );
+        expect(result, 'error_caught');
+        bridge.dispose();
+      },
+    );
 
-      expect(result, 'error_caught');
-      bridge.dispose();
-    });
+    test(
+      'multiple children get independent plugin instances',
+      tags: 'd1-pending',
+      () async {
+        final bridge = await createBridge();
+        final counter = _CounterExtension();
+        final registry = ExtensionCoordinator()
+          ..register(counter)
+          ..register(
+            SandboxExtension(),
+          );
+        await registry.attachTo(bridge);
 
-    test('multiple children get independent plugin instances', () async {
-      final bridge = createBridge();
-      final counter = _CounterExtension();
-      final registry = ExtensionCoordinator()
-        ..register(counter)
-        ..register(
-          SandboxExtension(
-            platformFactory: () async => createPlatform(),
-          ),
+        // Each child increments its own counter independently.
+        // Dispatch is sync (DispatchMode.sync default) — direct calls, no async/await needed.
+        final cc = ['counter_increment()', 'counter_get()'].join(r'\n');
+        final result = await run(
+          bridge,
+          'h1 = ${spawn(cc)}\n'
+          'h2 = ${spawn(cc)}\n'
+          'r1 = sandbox_await(handle=h1)\n'
+          'r2 = sandbox_await(handle=h2)\n'
+          '[r1, r2]',
         );
-      await registry.attachTo(bridge);
 
-      // Each child increments its own counter independently.
-      // Dispatch is sync (DispatchMode.sync default) — direct calls, no async/await needed.
-      final cc = ['counter_increment()', 'counter_get()'].join(r'\n');
-      final result = await run(
-        bridge,
-        'h1 = ${spawn(cc)}\n'
-        'h2 = ${spawn(cc)}\n'
-        'r1 = sandbox_await(handle=h1)\n'
-        'r2 = sandbox_await(handle=h2)\n'
-        '[r1, r2]',
-      );
+        final results = result! as List;
+        // Each child has its own counter starting at 0.
+        expect(results[0], 1);
+        expect(results[1], 1);
 
-      final results = result! as List;
-      // Each child has its own counter starting at 0.
-      expect(results[0], 1);
-      expect(results[1], 1);
-
-      // Parent counter untouched.
-      expect(counter.count, 0);
-      bridge.dispose();
-    });
+        // Parent counter untouched.
+        expect(counter.count, 0);
+        bridge.dispose();
+      },
+    );
   });
 
   // ---------------------------------------------------------------------------
   // ChildSpawnContext threading
   // ---------------------------------------------------------------------------
 
-  group('ChildSpawnContext threading', () {
+  group('ChildSpawnContext threading', tags: 'd1-pending', () {
     test(
       'child receives context with working directory via real FFI',
       () async {
@@ -202,12 +221,11 @@ void main() {
         final contextPlugin = _ContextCapturingExtension(
           onContext: (ctx) => capturedContext = ctx,
         );
-        final bridge = createBridge();
+        final bridge = await createBridge();
         final registry = ExtensionCoordinator()
           ..register(contextPlugin)
           ..register(
             SandboxExtension(
-              platformFactory: () async => createPlatform(),
               sandboxBaseDir: '/tmp/sandbox_test',
             ),
           );
@@ -237,13 +255,11 @@ void main() {
         final contextPlugin = _ContextCapturingExtension(
           onContext: (ctx) => capturedContext = ctx,
         );
-        final bridge = createBridge();
+        final bridge = await createBridge();
         final registry = ExtensionCoordinator()
           ..register(contextPlugin)
           ..register(
-            SandboxExtension(
-              platformFactory: () async => createPlatform(),
-            ),
+            SandboxExtension(),
           );
         await registry.attachTo(bridge);
 

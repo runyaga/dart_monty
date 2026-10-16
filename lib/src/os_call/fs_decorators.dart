@@ -1,8 +1,18 @@
 // ignore_for_file: avoid-unsafe-collection-methods, avoid-non-null-assertion
 // ignore_for_file: avoid-unnecessary-futures, newline-before-return
+import 'dart:async';
+
 import 'package:dart_monty/src/os_call/path_op.dart';
+import 'package:dart_monty/src/os_call/sync_or_async.dart';
 import 'package:dart_monty_core/dart_monty_core.dart'
-    show MontyPath, OsCallException, OsCallHandler;
+    show
+        ExternalException,
+        MontyBool,
+        MontyList,
+        MontyPath,
+        MontyString,
+        MontyValue,
+        OsHandler;
 
 /// Write operations blocked by [readOnlyHandler].
 const Set<String> _writeOps = {
@@ -18,16 +28,21 @@ const Set<String> _writeOps = {
 
 /// Whether a thrown error is a typed `FileNotFoundError` from a handler.
 bool _isNotFound(Object e) =>
-    e is OsCallException && e.pythonExceptionType == 'FileNotFoundError';
+    e is ExternalException && e.excType == 'FileNotFoundError';
 
 /// Whether an `Open` call requests a write/append mode (`w`/`a` families).
-bool _opensForWrite(String operation, List<Object?> args) {
+bool _opensForWrite(String operation, List<MontyValue> args) {
   if (operation != PathOp.open) return false;
-  final mode = args.length > 1 && args[1] is String ? args[1]! as String : 'r';
+  final mode = args.length > 1
+      ? switch (args[1]) {
+          MontyString(:final value) => value,
+          _ => 'r',
+        }
+      : 'r';
   return mode != 'r' && mode != 'rb';
 }
 
-/// Wraps an [OsCallHandler] and blocks write operations.
+/// Wraps an [OsHandler] and blocks write operations.
 ///
 /// Read operations, environment access, and datetime pass through unchanged.
 /// Writes — including `open(..., 'w'/'a')` — throw a typed `PermissionError`.
@@ -35,13 +50,10 @@ bool _opensForWrite(String operation, List<Object?> args) {
 /// ```dart
 /// final ro = readOnlyHandler(fsHandler(const LocalFileSystem()));
 /// ```
-OsCallHandler readOnlyHandler(OsCallHandler inner) {
+OsHandler readOnlyHandler(OsHandler inner) {
   return (operation, args, kwargs) {
     if (_writeOps.contains(operation) || _opensForWrite(operation, args)) {
-      throw const OsCallException(
-        'Read-only filesystem',
-        pythonExceptionType: 'PermissionError',
-      );
+      throw const ExternalException('PermissionError', 'Read-only filesystem');
     }
     return inner(operation, args, kwargs);
   };
@@ -69,94 +81,110 @@ OsCallHandler readOnlyHandler(OsCallHandler inner) {
 /// - `unlink/rmdir` on base-only file — throws (no whiteout support)
 /// - `rename` — only works within scratch layer
 /// - `resolve/absolute` — delegates to base (path resolution)
-OsCallHandler overlayFsHandler({
-  required OsCallHandler base,
-  required OsCallHandler scratch,
+OsHandler overlayFsHandler({
+  required OsHandler base,
+  required OsHandler scratch,
 }) {
-  Future<Object?> readWithFallback(
-    String op,
-    List<Object?> args,
-    Map<String, Object?>? kwargs,
-  ) async {
-    try {
-      return await scratch(op, args, kwargs);
-    } on OsCallException catch (e) {
-      if (!_isNotFound(e)) rethrow;
-      return base(op, args, kwargs);
-    }
-  }
+  // None of the helpers below is `async`: a decline thrown by a layer must
+  // stay a synchronous throw (the only form core honours), and a layer's
+  // synchronous answer must stay synchronous. `recoverFrom` and `thenOrNow`
+  // go asynchronous only when a layer returns a `Future`.
 
-  Future<Object?> queryWithFallback(
+  FutureOr<MontyValue> readWithFallback(
     String op,
-    List<Object?> args,
-    Map<String, Object?>? kwargs,
-  ) async {
-    final scratchResult = await scratch(op, args, kwargs);
-    if (scratchResult == true) return true;
-    return base(op, args, kwargs);
-  }
+    List<MontyValue> args,
+    Map<String, MontyValue> kwargs,
+  ) => recoverFrom(
+    () => scratch(op, args, kwargs),
+    test: _isNotFound,
+    onError: (_, _) => base(op, args, kwargs),
+  );
 
-  Future<Object?> mergedIterdir(
+  FutureOr<MontyValue> queryWithFallback(
     String op,
-    List<Object?> args,
-    Map<String, Object?>? kwargs,
-  ) async {
+    List<MontyValue> args,
+    Map<String, MontyValue> kwargs,
+  ) => thenOrNow<MontyValue, MontyValue>(
+    scratch(op, args, kwargs),
+    (scratchResult) => scratchResult is MontyBool && scratchResult.value
+        ? scratchResult
+        : base(op, args, kwargs),
+  );
+
+  FutureOr<MontyValue> mergedIterdir(
+    String op,
+    List<MontyValue> args,
+    Map<String, MontyValue> kwargs,
+  ) {
     final seen = <String>{};
     final merged = <MontyPath>[];
 
-    try {
-      final scratchEntries = await scratch(op, args, kwargs);
-      if (scratchEntries is List<MontyPath>) {
-        for (final entry in scratchEntries) {
+    void addEntries(MontyValue entries) {
+      if (entries case MontyList(:final items)) {
+        for (final entry in items.whereType<MontyPath>()) {
           if (seen.add(entry.value)) merged.add(entry);
         }
       }
-    } on OsCallException catch (e) {
-      if (!_isNotFound(e)) rethrow;
-      // Scratch dir doesn't exist — that's fine.
     }
 
-    try {
-      final baseEntries = await base(op, args, kwargs);
-      if (baseEntries is List<MontyPath>) {
-        for (final entry in baseEntries) {
-          if (seen.add(entry.value)) merged.add(entry);
-        }
-      }
-    } on OsCallException catch (e) {
-      if (!_isNotFound(e)) rethrow;
-      if (merged.isEmpty) {
-        final path = args.isNotEmpty ? args.first : '';
-        final pathStr = path is String ? path : '';
-        throw OsCallException(
-          'No such directory: $pathStr',
-          pythonExceptionType: 'FileNotFoundError',
-        );
-      }
-    }
+    // A missing scratch directory is fine: only the base layer contributes.
+    FutureOr<void> fromScratch() => thenOrNow(
+      recoverFrom(
+        () => scratch(op, args, kwargs),
+        test: _isNotFound,
+        onError: (_, _) => const MontyList([]),
+      ),
+      addEntries,
+    );
 
-    return merged;
+    // A missing base directory is an error only when scratch had nothing.
+    FutureOr<MontyValue> fromBase() => thenOrNow<MontyValue, MontyValue>(
+      recoverFrom(
+        () => base(op, args, kwargs),
+        test: _isNotFound,
+        onError: (_, _) {
+          if (merged.isEmpty) {
+            final path = args.firstOrNull?.dartValue;
+            final pathStr = path is String ? path : '';
+            throw ExternalException(
+              'FileNotFoundError',
+              'No such directory: $pathStr',
+            );
+          }
+
+          return const MontyList([]);
+        },
+      ),
+      (baseEntries) {
+        addEntries(baseEntries);
+
+        return MontyList(merged);
+      },
+    );
+
+    return thenOrNow<void, MontyValue>(fromScratch(), (_) => fromBase());
   }
 
-  Future<Object?> deleteFromScratch(
+  FutureOr<MontyValue> deleteFromScratch(
     String op,
-    List<Object?> args,
-    Map<String, Object?>? kwargs,
-  ) async {
-    try {
-      return await scratch(op, args, kwargs);
-    } on OsCallException catch (e) {
-      if (!_isNotFound(e)) rethrow;
-      final existsInBase = await base(PathOp.exists, args, kwargs);
-      if (existsInBase == true) {
-        throw const OsCallException(
-          'Cannot delete base-layer file (read-only)',
-          pythonExceptionType: 'PermissionError',
-        );
-      }
-      rethrow;
-    }
-  }
+    List<MontyValue> args,
+    Map<String, MontyValue> kwargs,
+  ) => recoverFrom(
+    () => scratch(op, args, kwargs),
+    test: _isNotFound,
+    onError: (notFound, stack) => thenOrNow<MontyValue, MontyValue>(
+      base(PathOp.exists, args, kwargs),
+      (existsInBase) {
+        if (existsInBase case MontyBool(value: true)) {
+          throw const ExternalException(
+            'PermissionError',
+            'Cannot delete base-layer file (read-only)',
+          );
+        }
+        Error.throwWithStackTrace(notFound, stack);
+      },
+    ),
+  );
 
   return (operation, args, kwargs) {
     return switch (operation) {
@@ -184,7 +212,7 @@ OsCallHandler overlayFsHandler({
   };
 }
 
-/// Fluent composition helpers for [OsCallHandler].
+/// Fluent composition helpers for [OsHandler].
 ///
 /// ```dart
 /// // Instead of:
@@ -193,13 +221,13 @@ OsCallHandler overlayFsHandler({
 /// // Write:
 /// fsHandler(baseFs).readOnly().overlayWith(scratch)
 /// ```
-extension DecoratorHandlers on OsCallHandler {
+extension DecoratorHandlers on OsHandler {
   /// Wraps this handler so write operations throw a typed PermissionError.
-  OsCallHandler readOnly() => readOnlyHandler(this);
+  OsHandler readOnly() => readOnlyHandler(this);
 
   /// Uses this handler as the read-only base of a copy-on-write overlay.
   ///
   /// Writes go to [scratch]; reads fall through to this handler on miss.
-  OsCallHandler overlayWith(OsCallHandler scratch) =>
+  OsHandler overlayWith(OsHandler scratch) =>
       overlayFsHandler(base: this, scratch: scratch);
 }

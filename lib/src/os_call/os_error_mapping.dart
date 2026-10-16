@@ -1,10 +1,11 @@
 import 'dart:io';
 
+import 'package:dart_monty/src/os_call/sync_or_async.dart';
 import 'package:dart_monty_core/dart_monty_core.dart'
-    show OsCallException, OsCallHandler;
+    show ExternalException, MontyValue, OsHandler;
 
-/// Maps a dart:io [FileSystemException] to the [OsCallException] CPython would
-/// raise for the same syscall.
+/// Maps a dart:io [FileSystemException] to the [ExternalException] CPython
+/// would raise for the same syscall.
 ///
 /// WHY THIS EXISTS. A raw `FileSystemException` escaping an OS-call handler
 /// reaches Python as a Dart error rather than an OSError — the leak class
@@ -41,24 +42,24 @@ const _pythonTypeByErrno = {
   21: 'IsADirectoryError',
 };
 
-OsCallException _mapFileSystemException(
+ExternalException _mapFileSystemException(
   FileSystemException e, {
   required String operation,
 }) {
   final os = e.osError;
 
-  return OsCallException(
-    '[Errno ${os?.errorCode}] ${os?.message ?? e.message}: '
-    "'${e.path ?? operation}'",
+  return ExternalException(
     // Anything not in the table keeps the OS's message under a plain
     // OSError, which is what CPython does for errnos it has no dedicated
     // subclass for.
-    pythonExceptionType: _pythonTypeByErrno[os?.errorCode] ?? 'OSError',
+    _pythonTypeByErrno[os?.errorCode] ?? 'OSError',
+    '[Errno ${os?.errorCode}] ${os?.message ?? e.message}: '
+    "'${e.path ?? operation}'",
   );
 }
 
 /// Wraps [inner] so any dart:io [FileSystemException] escaping it becomes the
-/// [OsCallException] CPython would raise.
+/// [ExternalException] CPython would raise.
 ///
 /// A COMBINATOR, not a try/catch inside each handler, for two reasons. It keeps
 /// the handler bodies byte-identical -- wrapping in place indents the whole
@@ -68,15 +69,20 @@ OsCallException _mapFileSystemException(
 ///
 /// It catches FileSystemException ONLY. Arms that already choose a specific
 /// python type -- the FileNotFoundError refusals in both handlers, rename's
-/// two-path message -- throw OsCallException and pass straight through, and
+/// two-path message -- throw ExternalException and pass straight through, and
 /// OsCallNotHandledException still reaches `composeOsHandlers` so a sibling
 /// handler can answer. Broadening this catch would silently undo all three.
-OsCallHandler mapIoErrors(OsCallHandler inner) {
-  return (operation, args, kwargs) async {
-    try {
-      return await inner(operation, args, kwargs);
-    } on FileSystemException catch (e) {
-      throw _mapFileSystemException(e, operation: operation);
-    }
-  };
+///
+/// Not `async`: a decline thrown by [inner] stays a synchronous throw, which is
+/// the only form core honours. A `Future` [inner] returns is mapped when it
+/// fails.
+OsHandler mapIoErrors(OsHandler inner) {
+  return (operation, args, kwargs) => recoverFrom<MontyValue>(
+    () => inner(operation, args, kwargs),
+    test: (e) => e is FileSystemException,
+    onError: (e, _) => throw _mapFileSystemException(
+      e as FileSystemException,
+      operation: operation,
+    ),
+  );
 }

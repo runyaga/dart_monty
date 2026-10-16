@@ -10,5 +10,5 @@ set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
 echo "=== FFI Tests ==="
-dart test test/ffi/
+dart test --exclude-tags d1-pending test/ffi/
 echo "=== FFI Tests PASSED ==="

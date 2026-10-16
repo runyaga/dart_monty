@@ -2,32 +2,33 @@
 // ignore_for_file: avoid-unnecessary-futures, newline-before-return
 import 'dart:io';
 
+import 'package:dart_monty/src/os_call/lowered_os_handler.dart';
 import 'package:dart_monty/src/os_call/os_error_mapping.dart';
 import 'package:dart_monty/src/os_call/os_handlers.dart';
 import 'package:dart_monty/src/os_call/path_op.dart';
 import 'package:dart_monty_core/dart_monty_core.dart'
     show
+        ExternalException,
         MontyBytes,
         MontyPath,
-        OsCallException,
-        OsCallHandler,
         OsCallNotHandledException,
+        OsHandler,
         resolveOpenCall;
 import 'package:path/path.dart' as p;
 
 /// Handler for `Path.*` operations against the real filesystem, restricted to
 /// [root]. Paths that escape the sandbox (via `../`, absolute paths outside
 /// root, or symlinks pointing outside) are rejected with a typed
-/// `PermissionError` (`OsCallException`).
+/// `PermissionError` (`ExternalException`).
 ///
 /// ```dart
 /// final tmp = Directory.systemTemp.createTempSync('monty_');
 /// final handler = sandboxedFsHandler(root: tmp);
 /// ```
-OsCallHandler sandboxedFsHandler({required Directory root}) =>
+OsHandler sandboxedFsHandler({required Directory root}) =>
     mapIoErrors(_rawSandboxedFsHandler(root: root));
 
-OsCallHandler _rawSandboxedFsHandler({required Directory root}) {
+OsHandler _rawSandboxedFsHandler({required Directory root}) {
   final rootExact = root.resolveSymbolicLinksSync();
   final rootWithSep = rootExact.endsWith(Platform.pathSeparator)
       ? rootExact
@@ -38,9 +39,9 @@ OsCallHandler _rawSandboxedFsHandler({required Directory root}) {
         ? p.normalize(pythonPath)
         : p.normalize(p.join(rootExact, pythonPath));
     if (joined != rootExact && !joined.startsWith(rootWithSep)) {
-      throw OsCallException(
+      throw ExternalException(
+        'PermissionError',
         'Path escapes sandbox: $pythonPath',
-        pythonExceptionType: 'PermissionError',
       );
     }
     return joined;
@@ -78,9 +79,9 @@ OsCallHandler _rawSandboxedFsHandler({required Directory root}) {
     final resolvedAncestor = Directory(probe).resolveSymbolicLinksSync();
     if (resolvedAncestor != rootExact &&
         !resolvedAncestor.startsWith(rootWithSep)) {
-      throw OsCallException(
+      throw ExternalException(
+        'PermissionError',
         'Symlink escapes sandbox: $pythonPath -> $resolvedAncestor',
-        pythonExceptionType: 'PermissionError',
       );
     }
 
@@ -91,7 +92,7 @@ OsCallHandler _rawSandboxedFsHandler({required Directory root}) {
     return safe;
   }
 
-  return (operation, args, kwargs) async {
+  return loweredOsHandler((operation, args, kwargs) {
     // EVERY ARM BELOW READS `args.first`. GUARD IT ONCE, HERE.
     //
     // All 18 `Path.*` arms take a path as their first argument, and each one
@@ -107,7 +108,7 @@ OsCallHandler _rawSandboxedFsHandler({required Directory root}) {
     //     if (rawPath is! String) return notMine(op, args, kwargs);
     //
     // A malformed call is "not mine", not a crash: declining lets a composed
-    // sibling answer, or lets `osCallNoHandlerDefault` produce the refusal the
+    // sibling answer, or lets the worker produce the refusal the
     // call documents. Throwing gave neither a chance — the same protocol
     // mistake `9269e61` fixed for unknown OPERATIONS, in the argument path.
     //
@@ -115,7 +116,7 @@ OsCallHandler _rawSandboxedFsHandler({required Directory root}) {
     // a non-String first argument reaches `osArgString`, which throws a Dart
     // `ArgumentError` whose type name would leak into the sandbox.
     if (args.firstOrNull is! String) {
-      throw OsCallNotHandledException(operation);
+      throw const OsCallNotHandledException();
     }
 
     switch (operation) {
@@ -239,8 +240,8 @@ OsCallHandler _rawSandboxedFsHandler({required Directory root}) {
         return bytes.length;
       case PathOp.mkdir:
         final safe = safeResolved(operation, osArgString(args.first));
-        final parents = kwargs?['parents'] as bool? ?? false;
-        final existOk = kwargs?['exist_ok'] as bool? ?? false;
+        final parents = kwargs['parents'] as bool? ?? false;
+        final existOk = kwargs['exist_ok'] as bool? ?? false;
         final dir = Directory(safe);
         if (existOk && dir.existsSync()) return null;
         dir.createSync(recursive: parents);
@@ -291,9 +292,9 @@ OsCallHandler _rawSandboxedFsHandler({required Directory root}) {
         safeResolved(operation, rmdirPath); // containment check only
         final rmdirAt = safePath(operation, rmdirPath);
         if (FileSystemEntity.isLinkSync(rmdirAt)) {
-          throw OsCallException(
+          throw ExternalException(
+            'NotADirectoryError',
             'Not a directory: $rmdirPath',
-            pythonExceptionType: 'NotADirectoryError',
           );
         }
         Directory(rmdirAt).deleteSync();
@@ -350,9 +351,9 @@ OsCallHandler _rawSandboxedFsHandler({required Directory root}) {
         // Measured: `rename(ghost,ghost) -> RETURNED <path>`, where CPython
         // raises FileNotFoundError.
         if (srcType == FileSystemEntityType.notFound) {
-          throw OsCallException(
+          throw ExternalException(
+            'FileNotFoundError',
             "[Errno 2] No such file or directory: '$srcArg'",
-            pythonExceptionType: 'FileNotFoundError',
           );
         }
 
@@ -376,9 +377,9 @@ OsCallHandler _rawSandboxedFsHandler({required Directory root}) {
           return newSafe;
         }
         if (dstType == FileSystemEntityType.directory) {
-          throw OsCallException(
+          throw ExternalException(
+            'IsADirectoryError',
             "[Errno 21] Is a directory: '$dstArg'",
-            pythonExceptionType: 'IsADirectoryError',
           );
         }
         // file -> file is a SILENT overwrite; POSIX semantics, and what
@@ -423,8 +424,8 @@ OsCallHandler _rawSandboxedFsHandler({required Directory root}) {
     //        Path.stat
     //
     // Same leak class as the bridge arm fixed in 64fb4c8.
-    throw OsCallNotHandledException(operation);
-  };
+    throw const OsCallNotHandledException();
+  });
 }
 
 /// Codepoints, not UTF-16 code units — what CPython's `len()` counts.
@@ -462,9 +463,9 @@ void _assertDirRenameTarget({
     // and pinned in test/src/os_call/sandboxed_symlink_rename_test.dart.
     case FileSystemEntityType.file:
     case FileSystemEntityType.link:
-      throw OsCallException(
+      throw ExternalException(
+        'NotADirectoryError',
         "[Errno 20] Not a directory: '$dstArg'",
-        pythonExceptionType: 'NotADirectoryError',
       );
     case FileSystemEntityType.directory:
       // Report the non-empty case ourselves so the message matches CPython,
@@ -473,9 +474,9 @@ void _assertDirRenameTarget({
       // and a failure between the two leaves the target gone and the source
       // in place.
       if (Directory(newSafe).listSync().isNotEmpty) {
-        throw OsCallException(
+        throw ExternalException(
+          'OSError',
           "[Errno 39] Directory not empty: '$dstArg'",
-          pythonExceptionType: 'OSError',
         );
       }
     case FileSystemEntityType.notFound:

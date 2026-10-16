@@ -1,7 +1,7 @@
 import 'dart:async';
 
+import 'package:dart_monty/src/bridge/bridge.dart';
 import 'package:dart_monty/src/bridge/event.dart';
-import 'package:dart_monty/src/bridge/platform.dart';
 import 'package:dart_monty/src/extension/coordinator.dart';
 import 'package:dart_monty/src/extension/extension.dart';
 import 'package:dart_monty/src/host/args.dart';
@@ -35,10 +35,10 @@ class ChildSandboxException implements Exception {
   /// Human-readable error message.
   final String message;
 
-  /// The original [MontyException] when the error originated from Python.
+  /// The original [MontyError] when the error originated from Python.
   ///
   /// Null for disposal and non-Python errors.
-  final MontyException? exception;
+  final MontyError? exception;
 
   @override
   String toString() => 'ChildSandboxException(child $childId): $message';
@@ -98,10 +98,10 @@ final class ChildFailed extends ChildState {
   /// Human-readable error description.
   final String message;
 
-  /// The original [MontyException] when the error came from Python.
+  /// The original [MontyError] when the error came from Python.
   ///
   /// Null for non-Python failures.
-  final MontyException? exception;
+  final MontyError? exception;
 
   /// Captured `print()` output, or `null` if the child produced none.
   final String? printOutput;
@@ -118,21 +118,18 @@ final class ChildDisposed extends ChildState {
 // Factory typedefs
 // ---------------------------------------------------------------------------
 
-/// Factory that creates a fresh [MontyPlatform] for each child sandbox.
-typedef MontyPlatformFactory = Future<MontyPlatform> Function();
-
 /// Tracks a spawned child interpreter.
 class _ChildHandle {
   _ChildHandle({
     required this.bridge,
-    required this.platform,
+    required this.session,
     required this.completer,
     required this.subscription,
     required this.coordinator,
   });
 
-  final PlatformBridge bridge;
-  final MontyPlatform platform;
+  final MontyBridge bridge;
+  final MontySession session;
   final Completer<Object?> completer;
   final StreamSubscription<BridgeEvent> subscription;
   final ExtensionCoordinator coordinator;
@@ -158,7 +155,7 @@ class _ChildHandle {
     await coordinator.disposeAll();
     await subscription.cancel();
     bridge.dispose();
-    await platform.dispose();
+    await session.close();
   }
 }
 
@@ -188,14 +185,6 @@ const _spawnSchema = HostFunctionSchema(
       type: HostParamType.integer,
       isRequired: false,
       description: 'Memory limit in bytes.',
-    ),
-    HostParam(
-      name: 'system_prompt',
-      type: HostParamType.string,
-      isRequired: false,
-      description:
-          'Custom system prompt fragment for the child. '
-          'Appended after the infrastructure builder prompt.',
     ),
   ],
 );
@@ -287,8 +276,8 @@ const _gatherSchema = HostFunctionSchema(
 /// Extension that spawns Python scripts in separate Monty interpreter
 /// instances.
 ///
-/// Each child gets its own [MontyPlatform] (via [platformFactory]) and
-/// [PlatformBridge]. The parent Python script can spawn children with
+/// Each child gets its own [MontySession] and [MontyBridge]. The parent
+/// Python script can spawn children with
 /// `sandbox_spawn(code)` and await their results with `sandbox_await(handle)`.
 ///
 /// Children are sandboxed: each has its own interpreter state.
@@ -306,7 +295,6 @@ const _gatherSchema = HostFunctionSchema(
 class SandboxExtension extends MontyExtension {
   /// Creates a [SandboxExtension].
   ///
-  /// [platformFactory] creates a fresh [MontyPlatform] for each child.
   /// [childVfsStrategy] selects how the child's `Path.` handler relates to
   /// the parent's — defaults to [ChildVfsStrategy.isolated].
   /// [maxChildren] limits concurrent children (default: 16).
@@ -314,7 +302,6 @@ class SandboxExtension extends MontyExtension {
   /// (default: 3). Set [currentDepth] when creating nested plugins.
   /// [childLimits] sets resource limits for child interpreters.
   SandboxExtension({
-    required this.platformFactory,
     this.childVfsStrategy = ChildVfsStrategy.isolated,
     this.maxChildren = 16,
     this.maxDepth = 3,
@@ -322,9 +309,6 @@ class SandboxExtension extends MontyExtension {
     this.childLimits,
     this.sandboxBaseDir,
   });
-
-  /// Creates a fresh [MontyPlatform] for each child.
-  final MontyPlatformFactory platformFactory;
 
   /// How the child's `Path.` handler is derived from the parent's.
   final ChildVfsStrategy childVfsStrategy;
@@ -339,7 +323,7 @@ class SandboxExtension extends MontyExtension {
   final int currentDepth;
 
   /// Resource limits applied to child interpreters.
-  final MontyLimits? childLimits;
+  final ResourceLimits? childLimits;
 
   /// Base directory for per-child sandbox working directories.
   ///
@@ -378,9 +362,7 @@ class SandboxExtension extends MontyExtension {
 
   /// Supported on both FFI and WASM backends.
   ///
-  /// On WASM, each child gets its own [MontyRepl] with a unique `replId`
-  /// inside the shared Worker — multiple concurrent children coexist without
-  /// conflicting.
+  /// Each child runs on its own session.
   @override
   Set<MontyBackendKind> get supportedBackends => const {
     MontyBackendKind.ffi,
@@ -461,7 +443,6 @@ class SandboxExtension extends MontyExtension {
     _validateSpawnRequest();
 
     final code = args.str('code');
-    final runtimePrompt = args.strOrNull('system_prompt');
     final limits = _buildChildLimits(args);
 
     final id = _nextId++;
@@ -473,22 +454,21 @@ class SandboxExtension extends MontyExtension {
     );
 
     final (
-      platform,
+      session,
       bridge,
       childCoordinator,
-    ) = await _createChildPlatformAndBridge(
+    ) = await _createChildSessionAndBridge(
       spawnContext,
       limits,
-      runtimePrompt,
       code.length,
       ctx.os,
     );
 
     // Post-await disposed check — the extension may have been disposed while
-    // _createChildPlatformAndBridge was in flight.
+    // _createChildSessionAndBridge was in flight.
     if (_disposed) {
       bridge.dispose();
-      await platform.dispose();
+      await session.close();
       await childCoordinator.disposeAll();
       throw StateError('SandboxExtension was disposed during child spawn.');
     }
@@ -503,7 +483,7 @@ class SandboxExtension extends MontyExtension {
     final stream = bridge.execute(code);
     final subscription = _setupChildListener(
       bridge: bridge,
-      platform: platform,
+      session: session,
       coordinator: childCoordinator,
       completer: completer,
       childId: id,
@@ -513,7 +493,7 @@ class SandboxExtension extends MontyExtension {
 
     _children[id] = _ChildHandle(
       bridge: bridge,
-      platform: platform,
+      session: session,
       completer: completer,
       subscription: subscription,
       coordinator: childCoordinator,
@@ -545,72 +525,75 @@ class SandboxExtension extends MontyExtension {
 
   /// Parses optional timeout/memory overrides from [args] and merges with
   /// [childLimits].
-  MontyLimits? _buildChildLimits(Map<String, Object?> args) {
+  ResourceLimits? _buildChildLimits(Map<String, Object?> args) {
     final timeoutMs = args.intArgOrNull('timeout_ms');
     final memoryBytes = args.intArgOrNull('memory_bytes');
     if (timeoutMs == null && memoryBytes == null) return childLimits;
 
-    return MontyLimits(
-      timeoutMs: timeoutMs ?? childLimits?.timeoutMs,
-      memoryBytes: memoryBytes ?? childLimits?.memoryBytes,
-      stackDepth: childLimits?.stackDepth,
+    return ResourceLimits(
+      maxFeedDuration: timeoutMs != null
+          ? Duration(milliseconds: timeoutMs)
+          : childLimits?.maxFeedDuration,
+      maxMemory: memoryBytes ?? childLimits?.maxMemory,
+      maxRecursionDepth: childLimits?.maxRecursionDepth,
     );
   }
 
-  /// Creates the child platform, bridge, wires extensions, and attaches the
-  /// coordinator.
+  /// Checks out the child's session with [limits]; built in D1-8.
+  Future<MontySession> _checkoutChildSession(ResourceLimits? limits) =>
+      throw UnimplementedError('D1-8');
+
+  /// Checks out the child session, creates its bridge, wires extensions, and
+  /// attaches the coordinator.
   ///
   /// Disposes all partially-created resources on failure.
-  Future<(MontyPlatform, PlatformBridge, ExtensionCoordinator)>
-  _createChildPlatformAndBridge(
+  Future<(MontySession, MontyBridge, ExtensionCoordinator)>
+  _createChildSessionAndBridge(
     ChildSpawnContext spawnContext,
-    MontyLimits? limits,
-    String? runtimePrompt,
+    ResourceLimits? limits,
     int codeLength,
-    OsCallHandler? parentOsOverride,
+    OsHandler? parentOsOverride,
   ) async {
-    MontyPlatform? platform;
-    PlatformBridge? bridge;
+    MontySession? session;
+    MontyBridge? bridge;
     ExtensionCoordinator? childCoordinator;
     try {
       try {
-        platform = await platformFactory();
+        session = await _checkoutChildSession(limits);
       } on Object catch (e, st) {
         logger.error(
-          'Child platform creation failed',
+          'Child session checkout failed',
           error: e,
           stackTrace: st,
-          attributes: {'phase': 'platform'},
+          attributes: {'phase': 'checkout'},
         );
         rethrow;
       }
-      bridge = PlatformBridge(
-        platform: platform,
-        limits: limits,
+      bridge = MontyBridge(
+        session: session,
         logger: logger.child('child.${spawnContext.childId}'),
       );
       logger.debug(
         'Child bridge created',
         attributes: {
           'codeLength': codeLength,
-          if (limits != null) 'limits': limits.toString(),
+          if (limits != null) 'limits': _formatLimits(limits),
         },
       );
 
       childCoordinator = await _wireChildExtensions(
         spawnContext,
         bridge,
-        runtimePrompt,
         parentOsOverride,
       );
     } on Object {
       if (bridge != null) bridge.dispose();
-      if (platform != null) await platform.dispose();
+      if (session != null) await session.close();
       if (childCoordinator != null) await childCoordinator.disposeAll();
       rethrow;
     }
 
-    return (platform, bridge, childCoordinator);
+    return (session, bridge, childCoordinator);
   }
 
   /// Creates and attaches a child [ExtensionCoordinator] by delegating to
@@ -618,20 +601,18 @@ class SandboxExtension extends MontyExtension {
   /// extensions are composed via [MontyExtension.createChildInstance]; the
   /// child OS handler follows [childVfsStrategy].
   ///
-  /// Relies on [MontyExtension.coordinator] being injected — i.e., this
-  /// extension must be attached through an [ExtensionCoordinator].
+  /// Relies on [coordinatorOf] — i.e., this extension must be attached
+  /// through an [ExtensionCoordinator].
   Future<ExtensionCoordinator> _wireChildExtensions(
     ChildSpawnContext spawnContext,
-    PlatformBridge bridge,
-    String? runtimePrompt,
-    OsCallHandler? parentOsOverride,
+    MontyBridge bridge,
+    OsHandler? parentOsOverride,
   ) async {
     try {
-      final childCoordinator = await coordinator.spawnChild(
+      final childCoordinator = await coordinatorOf(this).spawnChild(
         context: spawnContext,
         bridge: bridge,
         vfsStrategy: childVfsStrategy,
-        childSystemPromptPrefix: runtimePrompt,
         baseOs: parentOsOverride,
       );
       logger.debug(
@@ -658,8 +639,8 @@ class SandboxExtension extends MontyExtension {
   /// [BridgeChildEvent] tagged with the child's integer id — giving
   /// observers a single attributed ordering across the ownership tree.
   StreamSubscription<BridgeEvent> _setupChildListener({
-    required PlatformBridge bridge,
-    required MontyPlatform platform,
+    required MontyBridge bridge,
+    required MontySession session,
     required ExtensionCoordinator coordinator,
     required Completer<Object?> completer,
     required int childId,
@@ -667,7 +648,7 @@ class SandboxExtension extends MontyExtension {
     required HostParentRef? parent,
   }) {
     String? errorMessage;
-    MontyException? errorException;
+    MontyError? errorException;
     Object? value;
     String? printOutput;
     final childHandle = '$childId';
@@ -688,7 +669,7 @@ class SandboxExtension extends MontyExtension {
         _onChildDone(
           childId,
           bridge,
-          platform,
+          session,
           coordinator,
           completer,
           errorMessage: errorMessage,
@@ -704,12 +685,12 @@ class SandboxExtension extends MontyExtension {
 
   Future<void> _onChildDone(
     int childId,
-    PlatformBridge bridge,
-    MontyPlatform platform,
+    MontyBridge bridge,
+    MontySession session,
     ExtensionCoordinator coordinator,
     Completer<Object?> completer, {
     String? errorMessage,
-    MontyException? errorException,
+    MontyError? errorException,
     Object? value,
     String? printOutput,
   }) async {
@@ -730,7 +711,7 @@ class SandboxExtension extends MontyExtension {
     try {
       await coordinator.disposeAll();
       bridge.dispose();
-      await platform.dispose();
+      await session.close();
     } on Object catch (e, st) {
       logger.warning(
         'Child cleanup error (swallowed)',
@@ -895,3 +876,17 @@ class SandboxExtension extends MontyExtension {
     return results;
   }
 }
+
+/// The fields of [limits] that are set, for a log line.
+String _formatLimits(ResourceLimits limits) => [
+  if (limits.maxFeedDuration != null)
+    'maxFeedDuration: ${limits.maxFeedDuration}',
+  if (limits.maxTurnDuration != null)
+    'maxTurnDuration: ${limits.maxTurnDuration}',
+  if (limits.maxMemory != null) 'maxMemory: ${limits.maxMemory}',
+  if (limits.gcInterval != null) 'gcInterval: ${limits.gcInterval}',
+  if (limits.maxRecursionDepth != null)
+    'maxRecursionDepth: ${limits.maxRecursionDepth}',
+  if (limits.maxSuspensions != null) 'maxSuspensions: ${limits.maxSuspensions}',
+  if (limits.maxTotalSleep != null) 'maxTotalSleep: ${limits.maxTotalSleep}',
+].join(', ');

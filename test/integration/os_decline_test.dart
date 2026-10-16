@@ -1,25 +1,26 @@
 // A host OS handler that DECLINES must produce the call's documented default,
 // not leak the Dart exception's class name into Python.
 //
-// WHY THIS IS AN INTEGRATION TEST AND NOT A UNIT TEST. The decline path ends in
-// `resumeWithException`, and `MockMontyPlatform` does not implement that method
-// at all — it has `resume`, `resumeWithError` and `resumeAsFuture` only. A
-// mock-based test cannot reach this arm; it stalls with the run never
-// finishing. That gap also means the pre-existing typed-exception arm
-// (`on OsCallException` -> resumeWithException) has no mock coverage either.
+// On core 0.110 a decline is a synchronous throw of OsCallNotHandledException,
+// and the worker computes the default: PermissionError for a filesystem call.
 @Tags(['integration'])
 library;
 
 import 'package:dart_monty/dart_monty.dart';
-import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:test/test.dart';
+import '_worker.dart';
 
 void main() {
+  late Monty pool;
+  setUpAll(() async => pool = await startTestPool());
+  tearDownAll(() => pool.close());
+
   test(
     'a declining OS handler yields the call default, not a Dart type name',
     () async {
-      final rt = MontyRuntime(
-        os: (op, args, kwargs) async => throw OsCallNotHandledException(op),
+      final rt = await MontyRuntime.start(
+        pool: pool,
+        os: (op, args, kwargs) => throw const OsCallNotHandledException(),
       );
       addTearDown(rt.dispose);
 
@@ -32,7 +33,7 @@ except Exception as e:
 out
 ''');
       final result = await handle.result;
-      final out = result.value.dartValue! as String;
+      final out = result.dartValue! as String;
 
       // Before the fix this was:
       //   RuntimeError: OsCallNotHandledException(open)
@@ -45,9 +46,7 @@ out
       expect(
         out,
         startsWith('PermissionError'),
-        reason:
-            'osCallNoHandlerDefault refuses an unhandled open() with '
-            'PermissionError',
+        reason: 'the worker refuses a declined open() with PermissionError',
       );
     },
   );

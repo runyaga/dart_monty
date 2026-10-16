@@ -12,6 +12,7 @@ library;
 
 import 'dart:convert';
 
+import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:test/test.dart';
 
@@ -44,18 +45,15 @@ w = get_weather(city='London')
 w['temp']
 ''');
 
-      expect(result.error, isNull);
-      expect(result.value.dartValue, 22);
+      expect(result.dartValue, 22);
       h.assertCalled('get_weather', args: {'city': 'London'});
     });
 
     test('Python error does not block subsequent calls', () async {
-      final r1 = await h.run('undefined_var');
-      expect(r1.error, isNotNull);
+      await expectLater(h.run('undefined_var'), throwsA(isA<MontyError>()));
 
       final r2 = await h.run("get_weather(city='Paris')['temp']");
-      expect(r2.error, isNull);
-      expect(r2.value.dartValue, 22);
+      expect(r2.dartValue, 22);
     });
 
     test('tool called multiple times — all recorded', () async {
@@ -198,7 +196,7 @@ for uid in ['user:alice', 'user:bob']:
     tearDown(() => h.dispose());
 
     test('Python reads config from VFS and drives tool call', () async {
-      final result = await h.run('''
+      await h.run('''
 import json
 config = json.loads(Path('/config/rules.json').read_text())
 threshold = config['discount_threshold']
@@ -207,7 +205,6 @@ if balance >= threshold:
     apply_discount(offer=config['premium_offer'], user='alice')
 ''');
 
-      expect(result.error, isNull);
       h.assertCalled(
         'apply_discount',
         args: {
@@ -252,12 +249,11 @@ def greet_user(name, lang='en'):
       await h.runFile('/scripts/greet.py');
 
       // Now greet_user is defined in the session — call it and forward result.
-      final result = await h.run('''
+      await h.run('''
 msg = greet_user('World', lang='es')
 send_message(msg=msg)
 ''');
 
-      expect(result.error, isNull);
       h.assertCalled('send_message', args: {'msg': 'Hola, World!'});
     });
   });
@@ -281,7 +277,6 @@ send_message(msg=msg)
       () async {
         final (:result, :events) = await h.runWithEvents('probe()');
 
-        expect(result.error, isNull);
         final starts = events.whereType<BridgeFunctionCallStart>().toList();
         expect(starts.map((e) => e.name), contains('probe'));
       },
@@ -291,7 +286,7 @@ send_message(msg=msg)
       final (:result, :events) = await h.runWithEvents('1 + 1');
 
       expect(events.whereType<BridgeRunFinished>(), isNotEmpty);
-      expect(result.value.dartValue, 2);
+      expect(result.dartValue, 2);
     });
   });
 }

@@ -1,71 +1,84 @@
-// Integration test for Monty.typeCheck via the FFI backend.
+// Integration test for type checking on core 0.110: a session checked out
+// with `typeCheck: true` rejects a snippet the check fails with
+// MontyTypingError, and runs one it passes.
 //
-// Run: dart test --run-skipped --tags=integration -p vm \
-//        test/integration/monty_type_check_test.dart
-//
-// WASM coverage for Monty.typeCheck lives in dart_monty_core's own test
-// suite (the JS bridge + worker round-trip). dart_monty re-exports the
-// symbol unchanged, so we only need to confirm it dispatches correctly
-// through the FFI path.
+// Run: DART_MONTY_WORKER=<worker> dart test --run-skipped \
+//        --tags=integration -p vm test/integration/monty_type_check_test.dart
 @Tags(['integration'])
 library;
 
 import 'package:dart_monty/dart_monty.dart';
 import 'package:test/test.dart';
 
+import '_worker.dart';
+
 void main() {
-  group('Monty.typeCheck', () {
-    test('returns no diagnostics for clean code', () async {
-      final errors = await Monty.typeCheck('x: int = 1\ny: str = "hello"');
-      expect(errors, isEmpty);
+  late Monty pool;
+
+  setUpAll(() async => pool = await startTestPool());
+  tearDownAll(() => pool.close());
+
+  /// Feeds [code] on a fresh type-checking session; returns the typing
+  /// error's diagnostics, or null when the snippet passed the check. A
+  /// snippet that passes then runs, so a runtime error (a stub has no
+  /// body to call) still counts as passing.
+  Future<String?> typeCheck(
+    String code, {
+    String? stubs,
+    String scriptName = 'main.py',
+  }) => pool.withSession(
+    (session) async {
+      try {
+        await session.feedRun(code);
+
+        return null;
+      } on MontyTypingError catch (e) {
+        return e.display();
+      } on MontyRuntimeError {
+        return null;
+      }
+    },
+    typeCheck: true,
+    typeCheckStubs: stubs,
+    scriptName: scriptName,
+  );
+
+  group('type checking', () {
+    test('passes clean code', () async {
+      expect(await typeCheck('x: int = 1\ny: str = "hello"'), isNull);
     });
 
-    test('flags type-incompatible assignment', () async {
-      final errors = await Monty.typeCheck('x: int = "not an int"');
-      expect(errors, isNotEmpty);
-      final first = errors.first;
-      expect(first.line, 1);
-      expect(first.code, isNotEmpty);
-      expect(first.message, isNotEmpty);
+    test('flags a type-incompatible assignment', () async {
+      final diagnostics = await typeCheck('x: int = "not an int"');
+      expect(diagnostics, isNotNull);
+      expect(diagnostics, contains('invalid-assignment'));
     });
 
-    test('prefixCode declarations are visible to the checker', () async {
-      const stub = 'def fetch(url: str) -> str: return ""';
+    test('stub declarations are visible to the checker', () async {
+      const stub = 'def fetch(url: str) -> str: ...';
+      const code = 'result: str = fetch("https://example.com")';
 
-      // Without prefixCode, fetch is unresolved and surfaces a diagnostic.
-      final without = await Monty.typeCheck(
-        'result: str = fetch("https://example.com")',
-      );
-      expect(without, isNotEmpty);
-
-      // With prefixCode, the snippet type-checks cleanly.
-      final withStub = await Monty.typeCheck(
-        'result: str = fetch("https://example.com")',
-        prefixCode: stub,
-      );
-      expect(withStub, isEmpty);
+      // Without the stub, fetch is unresolved and surfaces a diagnostic.
+      expect(await typeCheck(code), isNotNull);
+      // With it, the snippet type-checks cleanly.
+      expect(await typeCheck(code, stubs: stub), isNull);
     });
 
-    test('real type errors surface even when prefixCode is supplied', () async {
-      const stub = 'def fetch(url: str) -> str: return ""';
-      final errors = await Monty.typeCheck(
+    test('real type errors surface even with stubs', () async {
+      const stub = 'def fetch(url: str) -> str: ...';
+      final diagnostics = await typeCheck(
         'result: int = fetch("https://example.com")',
-        prefixCode: stub,
+        stubs: stub,
       );
-      expect(errors, isNotEmpty);
-      // Line 2 because prefixCode shifts user code down by one line worth
-      // of the stub — but the diagnostic tracks the user-code position;
-      // confirm the column reflects the assignment, not the stub line.
-      expect(errors.any((e) => e.code.contains('assignment')), isTrue);
+      expect(diagnostics, contains('invalid-assignment'));
     });
 
-    test('scriptName surfaces in diagnostic path', () async {
-      final errors = await Monty.typeCheck(
+    test('scriptName surfaces in the diagnostics', () async {
+      final diagnostics = await typeCheck(
         'x: int = "oops"',
         scriptName: 'agent.py',
       );
-      expect(errors, isNotEmpty);
-      expect(errors.first.path, contains('agent.py'));
+      expect(diagnostics, contains('agent.py'));
     });
   });
 }

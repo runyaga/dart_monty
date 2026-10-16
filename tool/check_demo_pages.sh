@@ -189,7 +189,7 @@ done
 [ "$built" -eq "$NENTRY" ] || fail "compiled $built of $NENTRY entrypoints"
 echo "compiled $built entrypoint(s)"
 
-# The committed WASM assets, from the RESOLVED dart_monty_core — not a
+# The committed worker assets, from the RESOLVED dart_monty_core — not a
 # hardcoded pub-cache path, and not `main`. pages.yaml copies these from a
 # checkout of the ref named in pubspec.yaml; reading the resolution is the
 # local equivalent and cannot drift from what $WEB actually compiled against.
@@ -204,7 +204,9 @@ PY
 )
 [ -n "$CORE" ] && [ -d "$CORE/lib/assets" ] \
   || fail "could not resolve dart_monty_core assets from $WEB/.dart_tool/package_config.json"
-for asset in dart_monty_core_bridge.js dart_monty_core_worker.js dart_monty_core_native.wasm; do
+# Core's browser worker: the pages pass workerLocation '.', so the two files
+# sit next to them (example/web/lib/demo_pool.dart).
+for asset in dart_monty_core_worker.js dart_monty_core_worker.wasm; do
   cp "$CORE/lib/assets/$asset" "$SITE/" || fail "missing $CORE/lib/assets/$asset"
 done
 cp test/fixtures/python_ladder/tier_*.json "$SITE/fixtures/" \
@@ -218,7 +220,7 @@ echo "assembled $SITE ($(find "$SITE" -type f | wc -l | tr -d ' ') files)"
 LOG=$(mktemp)
 echo "--- dart test (headless Chrome) ---"
 set -o pipefail
-dart test test/integration/demo_page_boot_test.dart \
+dart test --exclude-tags d1-pending test/integration/demo_page_boot_test.dart \
   -p vm --run-skipped --tags=demo --reporter=expanded 2>&1 | tee "$LOG"
 RC=$?
 set +o pipefail
@@ -228,9 +230,13 @@ set +o pipefail
 # adding a ninth page or a thirty-first example raises it in the same commit
 # that adds it: one test per page, one per entrypoint, ONE PER EXAMPLE, plus
 # the coverage assertion.
-FLOOR=$((NPAGES + NENTRY + NEXAMPLES + 1))
+# D1 branch: the sandbox examples that test/integration/demo_page_boot_test.dart
+# tags d1-pending (11, all on agent.html) do not run until D1-8 rebuilds
+# sandbox children; D1-8 sets this to 0 and D1-Z removes it.
+NPENDING=11
+FLOOR=$((NPAGES + NENTRY + NEXAMPLES + 1 - NPENDING))
 bash tool/assert_test_count.sh "$LOG" "$FLOOR" demo || RC=1
 
 [ "$RC" = "0" ] || fail "the published demos do not all boot (see above)"
 echo "PASS — $NPAGES page(s) booted, $NENTRY entrypoint(s) executed and"
-echo "       $NEXAMPLES selectable example(s) ran green in $CHROME"
+echo "       $((NEXAMPLES - NPENDING)) selectable example(s) ran green in $CHROME ($NPENDING pending D1-8)"

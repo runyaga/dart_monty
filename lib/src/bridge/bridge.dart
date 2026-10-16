@@ -1,6 +1,6 @@
 import 'package:dart_monty/src/bridge/event.dart';
 import 'package:dart_monty/src/bridge/logger.dart';
-import 'package:dart_monty/src/bridge/platform.dart';
+import 'package:dart_monty/src/bridge/session_bridge.dart';
 import 'package:dart_monty/src/extension/attach_context.dart';
 import 'package:dart_monty/src/host/function.dart';
 import 'package:dart_monty/src/host/schema.dart';
@@ -8,22 +8,22 @@ import 'package:dart_monty_core/dart_monty_core.dart';
 
 /// Bridge for LLM-generated Python calling registered Dart host functions.
 ///
-/// Executes Python code in the Monty sandbox, dispatches external function
+/// Executes Python code on a [MontySession], dispatches external function
 /// calls to registered [HostFunction] handlers, and emits [BridgeEvent]s.
 ///
 /// ```dart
-/// final bridge = MontyBridge(platform: createPlatformMonty());
-/// bridge.registerOs(defaultSandboxOsHandler());
+/// final session = await monty.checkout();
+/// final bridge = MontyBridge(session: session);
+/// bridge.registerOs(defaultOsHandler());
 /// bridge.register(myHostFunction);
 /// final events = bridge.execute('result = my_function()');
 /// ```
 abstract class MontyBridge implements AttachContext {
-  /// Creates a bridge backed by [platform].
+  /// Creates a bridge that runs its code on [session].
   factory MontyBridge({
-    required MontyPlatform platform,
-    MontyLimits? limits,
+    required MontySession session,
     BridgeLogger? logger,
-  }) = PlatformBridge;
+  }) = SessionBridge;
 
   /// Logger for this bridge instance.
   ///
@@ -65,21 +65,27 @@ abstract class MontyBridge implements AttachContext {
     void Function(BridgeEvent)? onEvent,
   });
 
-  /// Registers an [OsCallHandler] for OS-level calls (pathlib, os, datetime).
+  /// Registers an [OsHandler] for OS-level calls (pathlib, os, datetime),
+  /// replacing the one registered before.
   ///
-  /// When Python code triggers an OS call and a handler is registered, the
-  /// bridge invokes it and resumes Python with the result. When no handler
-  /// is registered, the bridge resumes with a `PermissionError`.
+  /// The bridge passes the handler to each feed, wrapped to emit
+  /// [BridgeOsCallStart] and [BridgeOsCallResult] for every call it
+  /// receives. With no handler, the bridge passes none, and the worker
+  /// answers each OS call with its default. Calls the worker answers itself
+  /// (mounts, the OS policy) never reach the handler and emit no events.
   @override
-  void registerOs(OsCallHandler handler);
+  void registerOs(OsHandler handler);
 
-  /// Executes [code] and returns a stream of lifecycle events.
+  /// Executes [code] as one feed on the session and returns a stream of
+  /// lifecycle events:
+  /// 1. [BridgeRunStarted];
+  /// 2. the call events of each host-function and OS call the host answers;
+  /// 3. [BridgeRunFinished] or [BridgeRunError], carrying the print text
+  ///    collected during the run as `printOutput`.
   ///
-  /// Events follow the bridge lifecycle:
-  /// 1. [BridgeRunStarted]
-  /// 2. Per external function call: Step/ToolCall events + handler execution
-  /// 3. Buffered print output flushed as Text events
-  /// 4. [BridgeRunFinished] or [BridgeRunError]
+  /// A Python or worker failure ends the stream with [BridgeRunError]; the
+  /// stream itself does not error. Throws [StateError] if the bridge is
+  /// disposed or another execution is in progress.
   Stream<BridgeEvent> execute(String code);
 
   /// Releases resources.

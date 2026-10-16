@@ -16,13 +16,30 @@
 // real escape), so raw strings would corrupt them.
 // ignore_for_file: avoid_print, use_raw_strings
 
+import 'dart:io';
+
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:file/memory.dart';
 
 Future<void> main() async {
+  final worker = Platform.environment['DART_MONTY_WORKER'];
+  final pool = await Monty.start(
+    workerLocation: worker == null || worker.isEmpty ? null : worker,
+  );
+  try {
+    await _demo(pool);
+  } finally {
+    await pool.close();
+  }
+}
+
+Future<void> _demo(Monty pool) async {
   // open() read/write/append + with open() ──────────────────────────────────
-  final fs = MontyRuntime(osHandlers: {'Path.': memoryFsHandler()});
+  final fs = await MontyRuntime.start(
+    pool: pool,
+    osHandlers: {'Path.': memoryFsHandler()},
+  );
 
   await fs.execute('''
 with open('/notes.txt', 'w') as f:
@@ -38,7 +55,7 @@ text = f.read()
 f.close()
 text
 ''').result;
-  print('read back:\n${(read.value.dartValue! as String).trimRight()}');
+  print('read back:\n${(read.dartValue! as String).trimRight()}');
 
   // Binary round-trip — package:file is byte-faithful ─────────────────────────
   final bin = await fs.execute('''
@@ -48,12 +65,11 @@ with open('/blob.bin', 'rb') as f:
     data = f.read()
 list(data)
 ''').result;
-  print('binary round-trip: ${bin.value.dartValue}'); // [0, 1, 2, 255]
+  print('binary round-trip: ${bin.dartValue}'); // [0, 1, 2, 255]
 
   // The returned file object is a MontyFileHandle ─────────────────────────────
   final handle = await fs.execute("open('/notes.txt')").result;
-  final v = handle.value;
-  if (v is MontyFileHandle) {
+  if (handle case final MontyFileHandle v) {
     print('handle: path=${v.path} mode=${v.mode}');
   }
 
@@ -66,14 +82,17 @@ except FileNotFoundError as e:
     out = f'caught {type(e).__name__}'
 out
 ''').result;
-  print('missing file: ${missing.value.dartValue}'); // caught FileNotFoundError
+  print('missing file: ${missing.dartValue}'); // caught FileNotFoundError
 
   await fs.dispose();
 
   // Typed PermissionError from a read-only handler ────────────────────────────
   final roFs = MemoryFileSystem();
   roFs.file('/secret.txt').writeAsStringSync('sk-1');
-  final ro = MontyRuntime(osHandlers: {'Path.': fsHandler(roFs).readOnly()});
+  final ro = await MontyRuntime.start(
+    pool: pool,
+    osHandlers: {'Path.': fsHandler(roFs).readOnly()},
+  );
   final denied = await ro.execute('''
 try:
     open('/secret.txt', 'w')
@@ -82,6 +101,6 @@ except PermissionError:
     out = 'caught PermissionError'
 out
 ''').result;
-  print('read-only write: ${denied.value.dartValue}'); // caught PermissionError
+  print('read-only write: ${denied.dartValue}'); // caught PermissionError
   await ro.dispose();
 }

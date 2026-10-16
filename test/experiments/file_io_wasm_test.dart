@@ -11,7 +11,7 @@
 
 import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:dart_monty_core/dart_monty_core.dart'
-    show MontyBytes, MontyFileHandle;
+    show ExternalException, MontyBytes, MontyFileHandle, MontyPath, MontyString;
 import 'package:file/memory.dart';
 import 'package:test/test.dart';
 
@@ -19,30 +19,44 @@ void main() {
   group('open() handler on current platform', () {
     test('Open w returns a MontyFileHandle and truncates', () async {
       final h = fsHandler(MemoryFileSystem());
-      final result = await h('open', ['/out.txt', 'w'], null);
+      final result = await h('open', [
+        MontyPath('/out.txt'),
+        const MontyString('w'),
+      ], const {});
       expect(result, isA<MontyFileHandle>());
-      expect((result! as MontyFileHandle).mode, 'w');
+      expect((result as MontyFileHandle).mode, 'w');
 
       // The truncate effect created the (empty) file.
-      expect(await h('Path.exists', ['/out.txt'], null), isTrue);
+      expect(
+        (await h('Path.exists', [
+          MontyPath('/out.txt'),
+        ], const {})).dartValue,
+        isTrue,
+      );
     });
 
     test('Open r on an existing file returns a read handle', () async {
       final fs = MemoryFileSystem();
       fs.file('/a.txt').writeAsStringSync('hi');
       final h = fsHandler(fs);
-      final result = await h('open', ['/a.txt', 'r'], null);
-      expect((result! as MontyFileHandle).path, '/a.txt');
+      final result = await h('open', [
+        MontyPath('/a.txt'),
+        const MontyString('r'),
+      ], const {});
+      expect((result as MontyFileHandle).path, '/a.txt');
     });
 
     test('Open r on a missing file throws a typed FileNotFoundError', () async {
       final h = fsHandler(MemoryFileSystem());
       await expectLater(
-        () => h('open', ['/nope.txt', 'r'], null),
+        () => h('open', [
+          MontyPath('/nope.txt'),
+          const MontyString('r'),
+        ], const {}),
         throwsA(
-          isA<OsCallException>().having(
-            (e) => e.pythonExceptionType,
-            'pythonExceptionType',
+          isA<ExternalException>().having(
+            (e) => e.excType,
+            'excType',
             'FileNotFoundError',
           ),
         ),
@@ -51,11 +65,19 @@ void main() {
 
     test('append_text + read_bytes round-trip (typed MontyBytes)', () async {
       final h = fsHandler(MemoryFileSystem());
-      await h('Path.append_text', ['/log.txt', 'a'], null);
-      await h('Path.append_text', ['/log.txt', 'b'], null);
-      final bytes = await h('Path.read_bytes', ['/log.txt'], null);
+      await h('Path.append_text', [
+        MontyPath('/log.txt'),
+        const MontyString('a'),
+      ], const {});
+      await h('Path.append_text', [
+        MontyPath('/log.txt'),
+        const MontyString('b'),
+      ], const {});
+      final bytes = await h('Path.read_bytes', [
+        MontyPath('/log.txt'),
+      ], const {});
       expect(bytes, isA<MontyBytes>());
-      expect((bytes! as MontyBytes).value, 'ab'.codeUnits);
+      expect((bytes as MontyBytes).value, 'ab'.codeUnits);
     });
 
     test(
@@ -63,11 +85,14 @@ void main() {
       () async {
         final h = fsHandler(MemoryFileSystem()).readOnly();
         await expectLater(
-          () => h('open', ['/x.txt', 'w'], null),
+          () => h('open', [
+            MontyPath('/x.txt'),
+            const MontyString('w'),
+          ], const {}),
           throwsA(
-            isA<OsCallException>().having(
-              (e) => e.pythonExceptionType,
-              'pythonExceptionType',
+            isA<ExternalException>().having(
+              (e) => e.excType,
+              'excType',
               'PermissionError',
             ),
           ),

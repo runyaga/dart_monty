@@ -14,12 +14,18 @@ library;
 import 'dart:io';
 
 import 'package:dart_monty/dart_monty_bridge.dart';
+import 'package:dart_monty_core/dart_monty_core.dart' show Monty;
 import 'package:test/test.dart';
+import '_worker.dart';
 
 void main() {
+  late Monty pool;
+  setUpAll(() async => pool = await startTestPool());
+  tearDownAll(() => pool.close());
+
   group('FFI async host function regression (#271)', () {
     test('sync host function — two sequential calls work', () async {
-      final session = MontyRuntime();
+      final session = await MontyRuntime.start(pool: pool);
       addTearDown(session.dispose);
 
       session.register(
@@ -33,14 +39,14 @@ void main() {
       );
 
       final r1 = await session.execute('fast_fn()').result;
-      expect(r1.value.dartValue, 'fast');
+      expect(r1.dartValue, 'fast');
 
       final r2 = await session.execute('fast_fn()').result;
-      expect(r2.value.dartValue, 'fast');
+      expect(r2.dartValue, 'fast');
     });
 
     test('async host function with short delay — two calls', () async {
-      final session = MontyRuntime();
+      final session = await MontyRuntime.start(pool: pool);
       addTearDown(session.dispose);
 
       session.register(
@@ -58,14 +64,14 @@ void main() {
       );
 
       final r1 = await session.execute('delay_100ms()').result;
-      expect(r1.value.dartValue, 'done');
+      expect(r1.dartValue, 'done');
 
       final r2 = await session.execute('delay_100ms()').result;
-      expect(r2.value.dartValue, 'done');
+      expect(r2.dartValue, 'done');
     });
 
     test('async host function with 1s delay — two calls', () async {
-      final session = MontyRuntime();
+      final session = await MontyRuntime.start(pool: pool);
       addTearDown(session.dispose);
 
       session.register(
@@ -83,16 +89,16 @@ void main() {
       );
 
       final r1 = await session.execute('delay_1s()').result;
-      expect(r1.value.dartValue, 'done');
+      expect(r1.dartValue, 'done');
 
       final r2 = await session.execute('delay_1s()').result;
-      expect(r2.value.dartValue, 'done');
+      expect(r2.dartValue, 'done');
     });
 
     test(
       'async host function with real HTTP — two calls',
       () async {
-        final session = MontyRuntime();
+        final session = await MontyRuntime.start(pool: pool);
         addTearDown(session.dispose);
 
         session.register(
@@ -129,8 +135,8 @@ void main() {
               'http_get("https://demo.toughserv.com/api/v1/installation/versions")',
             )
             .result;
-        expect(r1.value.dartValue, isA<String>());
-        expect(r1.value.dartValue, isNotEmpty);
+        expect(r1.dartValue, isA<String>());
+        expect(r1.dartValue, isNotEmpty);
 
         // This is the call that crashes on #271
         final r2 = await session
@@ -138,7 +144,7 @@ void main() {
               'http_get("https://demo.toughserv.com/api/v1/installation/versions")',
             )
             .result;
-        expect(r2.value.dartValue, isA<String>());
+        expect(r2.dartValue, isA<String>());
       },
       timeout: const Timeout(Duration(seconds: 30)),
     );
@@ -146,7 +152,7 @@ void main() {
     test(
       'sandbox mode — async HTTP — two calls',
       () async {
-        final session = MontyRuntime(sandbox: true);
+        final session = await MontyRuntime.start(pool: pool, sandbox: true);
         addTearDown(session.dispose);
 
         session.register(
@@ -183,19 +189,19 @@ void main() {
               'http_get("https://demo.toughserv.com/api/v1/installation/versions")',
             )
             .result;
-        expect(r1.value.dartValue, isA<String>());
+        expect(r1.dartValue, isA<String>());
 
         final r2 = await session
             .execute(
               'http_get("https://demo.toughserv.com/api/v1/installation/versions")',
             )
             .result;
-        expect(r2.value.dartValue, isA<String>());
+        expect(r2.dartValue, isA<String>());
       },
       timeout: const Timeout(Duration(seconds: 30)),
     );
     test('file I/O — two calls', () async {
-      final session = MontyRuntime();
+      final session = await MontyRuntime.start(pool: pool);
       addTearDown(session.dispose);
 
       session.register(
@@ -214,14 +220,14 @@ void main() {
       );
 
       final r1 = await session.execute('read_file()').result;
-      expect(r1.value.dartValue, isA<String>());
+      expect(r1.dartValue, isA<String>());
 
       final r2 = await session.execute('read_file()').result;
-      expect(r2.value.dartValue, isA<String>());
+      expect(r2.dartValue, isA<String>());
     });
 
     test('process I/O — two calls', () async {
-      final session = MontyRuntime();
+      final session = await MontyRuntime.start(pool: pool);
       addTearDown(session.dispose);
 
       session.register(
@@ -239,14 +245,14 @@ void main() {
       );
 
       final r1 = await session.execute('run_cmd()').result;
-      expect(r1.value.dartValue, 'hello');
+      expect(r1.dartValue, 'hello');
 
       final r2 = await session.execute('run_cmd()').result;
-      expect(r2.value.dartValue, 'hello');
+      expect(r2.dartValue, 'hello');
     });
 
     test('socket listen — two calls', () async {
-      final session = MontyRuntime();
+      final session = await MontyRuntime.start(pool: pool);
       addTearDown(session.dispose);
 
       session.register(
@@ -266,16 +272,16 @@ void main() {
       );
 
       final r1 = await session.execute('socket_test()').result;
-      expect(r1.value.dartValue, startsWith('port:'));
+      expect(r1.dartValue, startsWith('port:'));
 
       final r2 = await session.execute('socket_test()').result;
-      expect(r2.value.dartValue, startsWith('port:'));
+      expect(r2.dartValue, startsWith('port:'));
     });
 
     test(
       'http but return small string — two calls',
       () async {
-        final session = MontyRuntime();
+        final session = await MontyRuntime.start(pool: pool);
         addTearDown(session.dispose);
 
         session.register(
@@ -309,14 +315,14 @@ void main() {
               'http_tiny("https://demo.toughserv.com/api/v1/installation/versions")',
             )
             .result;
-        expect(r1.value.dartValue, 200);
+        expect(r1.dartValue, 200);
 
         final r2 = await session
             .execute(
               'http_tiny("https://demo.toughserv.com/api/v1/installation/versions")',
             )
             .result;
-        expect(r2.value.dartValue, 200);
+        expect(r2.dartValue, 200);
       },
       timeout: const Timeout(Duration(seconds: 30)),
     );
@@ -324,7 +330,7 @@ void main() {
     test(
       'http returning large string — two calls',
       () async {
-        final session = MontyRuntime();
+        final session = await MontyRuntime.start(pool: pool);
         addTearDown(session.dispose);
 
         session.register(
@@ -359,7 +365,7 @@ void main() {
               'http_large("https://demo.toughserv.com/api/v1/installation/versions")',
             )
             .result;
-        final v1 = r1.value.dartValue! as String;
+        final v1 = r1.dartValue! as String;
         expect(v1.length, greaterThan(10));
 
         final r2 = await session
@@ -367,7 +373,7 @@ void main() {
               'http_large("https://demo.toughserv.com/api/v1/installation/versions")',
             )
             .result;
-        expect(r2.value.dartValue, isA<String>());
+        expect(r2.dartValue, isA<String>());
       },
       timeout: const Timeout(Duration(seconds: 30)),
     );

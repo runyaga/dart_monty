@@ -10,11 +10,19 @@ import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:file/memory.dart';
 import 'package:test/test.dart';
+import '_worker.dart';
 
 void main() {
+  late Monty pool;
+  setUpAll(() async => pool = await startTestPool());
+  tearDownAll(() => pool.close());
+
   group('open() / file I/O', () {
     test('write, with open(...), append, and read back', () async {
-      final rt = MontyRuntime(osHandlers: {'Path.': memoryFsHandler()});
+      final rt = await MontyRuntime.start(
+        pool: pool,
+        osHandlers: {'Path.': memoryFsHandler()},
+      );
       addTearDown(rt.dispose);
 
       await rt.execute(r'''
@@ -31,12 +39,14 @@ text = f.read()
 f.close()
 text
 ''').result;
-      expect(r.error, isNull);
-      expect(r.value.dartValue, 'a\nb\nc\n');
+      expect(r.dartValue, 'a\nb\nc\n');
     });
 
     test('binary round-trip is byte-faithful', () async {
-      final rt = MontyRuntime(osHandlers: {'Path.': memoryFsHandler()});
+      final rt = await MontyRuntime.start(
+        pool: pool,
+        osHandlers: {'Path.': memoryFsHandler()},
+      );
       addTearDown(rt.dispose);
 
       final r = await rt.execute(r'''
@@ -46,22 +56,27 @@ with open('/b.bin', 'rb') as f:
     data = f.read()
 list(data)
 ''').result;
-      expect(r.error, isNull);
-      expect(r.value.dartValue, [0, 1, 2, 255]);
+      expect(r.dartValue, [0, 1, 2, 255]);
     });
 
     test('open() returns a MontyFileHandle', () async {
-      final rt = MontyRuntime(osHandlers: {'Path.': memoryFsHandler()});
+      final rt = await MontyRuntime.start(
+        pool: pool,
+        osHandlers: {'Path.': memoryFsHandler()},
+      );
       addTearDown(rt.dispose);
 
       await rt.execute("open('/x.txt', 'w').write('hi')").result;
       final r = await rt.execute("open('/x.txt')").result;
-      expect(r.value, isA<MontyFileHandle>());
-      expect((r.value as MontyFileHandle).mode, 'r');
+      expect(r, isA<MontyFileHandle>());
+      expect((r as MontyFileHandle).mode, 'r');
     });
 
     test('missing file raises a catchable FileNotFoundError', () async {
-      final rt = MontyRuntime(osHandlers: {'Path.': memoryFsHandler()});
+      final rt = await MontyRuntime.start(
+        pool: pool,
+        osHandlers: {'Path.': memoryFsHandler()},
+      );
       addTearDown(rt.dispose);
 
       final r = await rt.execute('''
@@ -72,8 +87,7 @@ except FileNotFoundError:
     out = 'caught'
 out
 ''').result;
-      expect(r.error, isNull);
-      expect(r.value.dartValue, 'caught');
+      expect(r.dartValue, 'caught');
     });
 
     test(
@@ -81,7 +95,8 @@ out
       () async {
         final roFs = MemoryFileSystem();
         roFs.file('/secret.txt').writeAsStringSync('sk-1');
-        final rt = MontyRuntime(
+        final rt = await MontyRuntime.start(
+          pool: pool,
           osHandlers: {'Path.': fsHandler(roFs).readOnly()},
         );
         addTearDown(rt.dispose);
@@ -94,8 +109,7 @@ except PermissionError:
     out = 'caught'
 out
 ''').result;
-        expect(r.error, isNull);
-        expect(r.value.dartValue, 'caught');
+        expect(r.dartValue, 'caught');
       },
     );
   });
