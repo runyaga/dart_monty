@@ -830,35 +830,35 @@
     "symbol": "SandboxExtension.childVfsStrategy"
   },
   {
-    "id": "D5-private-ChildState",
+    "id": "private-ChildState",
     "body": "print(ChildState);"
   },
   {
-    "id": "D5-private-ChildRunning",
+    "id": "private-ChildRunning",
     "body": "print(ChildRunning);"
   },
   {
-    "id": "D5-private-ChildCompleted",
+    "id": "private-ChildCompleted",
     "body": "print(ChildCompleted);"
   },
   {
-    "id": "D5-private-ChildFailed",
+    "id": "private-ChildFailed",
     "body": "print(ChildFailed);"
   },
   {
-    "id": "D5-private-ChildDisposed",
+    "id": "private-ChildDisposed",
     "body": "print(ChildDisposed);"
   },
   {
-    "id": "D5-private-ChildSandboxException",
+    "id": "private-ChildSandboxException",
     "body": "print(ChildSandboxException);"
   },
   {
-    "id": "D5-private-childrenSignal",
+    "id": "private-childrenSignal",
     "body": "print(SandboxExtension().childrenSignal);"
   },
   {
-    "id": "D5-private-aliveCountSignal",
+    "id": "private-aliveCountSignal",
     "body": "print(SandboxExtension().aliveCountSignal);"
   }
 ]

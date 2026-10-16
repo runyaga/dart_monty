@@ -37,7 +37,7 @@ Future<MontyValue> _spawn(MontyRuntime runtime, String field, int value) =>
     });
 
 void main() {
-  test('D5-seven-limits', () async {
+  test('a child receives all seven limits', () async {
     const selected = ResourceLimits(
       maxFeedDuration: Duration(seconds: 11),
       maxTurnDuration: Duration(seconds: 3),
@@ -78,7 +78,7 @@ void main() {
     );
   });
 
-  test('D5-guest-reduce', () async {
+  test('a child can reduce its inherited limits', () async {
     final observed = <ResourceLimits?>[];
     final runtime = await startRuntimeWith(
       checkout: ({limits}) async {
@@ -108,52 +108,62 @@ void main() {
     );
   });
   for (final sleep in [false, true]) {
-    test(sleep ? 'D5-total-sleep' : 'D5-suspensions', () async {
-      final pool = await childContractPool();
-      final sessions = <RecordingSession>[];
-      final runtime = await startRuntimeWith(
-        checkout: ({limits}) async {
-          final session = RecordingSession(await pool.checkout(limits: limits));
-          sessions.add(session);
+    test(
+      sleep
+          ? 'a child enforces its total sleep limit'
+          : 'a child enforces its suspension limit',
+      () async {
+        final pool = await childContractPool();
+        final sessions = <RecordingSession>[];
+        final runtime = await startRuntimeWith(
+          checkout: ({limits}) async {
+            final session = RecordingSession(
+              await pool.checkout(limits: limits),
+            );
+            sessions.add(session);
 
-          return session;
-        },
-        extensions: [
-          SandboxExtension(
-            childLimits: sleep
-                ? const ResourceLimits(maxTotalSleep: Duration.zero)
-                : const ResourceLimits(maxSuspensions: 2),
+            return session;
+          },
+          extensions: [
+            SandboxExtension(
+              childLimits: sleep
+                  ? const ResourceLimits(maxTotalSleep: Duration.zero)
+                  : const ResourceLimits(maxSuspensions: 2),
+            ),
+          ],
+        );
+        addTearDown(runtime.dispose);
+        final handle = await spawnChild(
+          runtime,
+          sleep
+              ? 'import time; time.sleep(0.001); 42'
+              : 'import time; time.sleep(0); time.sleep(0); time.sleep(0); 42',
+        );
+        await expectLater(
+          awaitChild(runtime, handle),
+          throwsA(isA<Exception>()),
+        );
+        expect(
+          sessions[1].feedError,
+          isA<MontyError>().having(
+            (e) => e.exception.message,
+            'limit error',
+            contains(sleep ? 'sleep limit exceeded' : 'suspension limit'),
           ),
-        ],
-      );
-      addTearDown(runtime.dispose);
-      final handle = await spawnChild(
-        runtime,
-        sleep
-            ? 'import time; time.sleep(0.001); 42'
-            : 'import time; time.sleep(0); time.sleep(0); time.sleep(0); 42',
-      );
-      await expectLater(awaitChild(runtime, handle), throwsA(isA<Exception>()));
-      expect(
-        sessions[1].feedError,
-        isA<MontyError>().having(
-          (e) => e.exception.message,
-          'limit error',
-          contains(sleep ? 'sleep limit exceeded' : 'suspension limit'),
-        ),
-      );
-      expect(sessions[1].closeCalls, 1);
-      expect(
-        await awaitChild(runtime, await spawnChild(runtime, '42')),
-        const MontyInt(42),
-      );
-    });
+        );
+        expect(sessions[1].closeCalls, 1);
+        expect(
+          await awaitChild(runtime, await spawnChild(runtime, '42')),
+          const MontyInt(42),
+        );
+      },
+    );
   }
 
   for (final mixed in [false, true]) {
     for (final explicit in [false, true]) {
       test(
-        'D5-${explicit ? "explicit-independent" : "omitted-whole-object"} mixed=$mixed',
+        '${explicit ? "explicit limits stay independent" : "omitted limits preserve the whole owner limit"} mixed=$mixed',
         () async {
           final selected = ResourceLimits(
             maxFeedDuration: const Duration(seconds: 11),
@@ -211,7 +221,7 @@ void main() {
     }
   }
 
-  test('D5-omitted-whole-object-precheckout', () async {
+  test('omitted limits reject invalid owner limits before checkout', () async {
     for (final owner in [
       const ResourceLimits(
         maxFeedDuration: Duration(milliseconds: 100),
@@ -233,7 +243,7 @@ void main() {
     }
   });
 
-  test('D5-explicit-independent-precheckout', () async {
+  test('explicit limits reject invalid values before checkout', () async {
     const owner = ResourceLimits(
       maxFeedDuration: Duration(milliseconds: 10),
       maxMemory: 20,
@@ -252,7 +262,7 @@ void main() {
     );
   });
 
-  test('D5-guest-reject-precheckout', () async {
+  test('child limits reject guest escalation before checkout', () async {
     final finite = await _runtime(
       null,
       const ResourceLimits(

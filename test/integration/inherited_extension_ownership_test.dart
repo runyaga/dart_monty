@@ -11,7 +11,7 @@ import 'package:test/test.dart';
 import '_child_contract.dart';
 
 void main() {
-  test('D5-borrow-two-children', () async {
+  test('two children borrow an inherited extension', () async {
     final pool = await childContractPool();
     final parentBridge = await childContractBridge(pool);
     final borrowed = ChildContractExtension(
@@ -63,7 +63,7 @@ void main() {
   });
 
   // Clone and exclude ownership are independent of borrowed instance leases.
-  test('D5-clone-exclude', () async {
+  test('children own their clones and skip excluded extensions', () async {
     final pool = await childContractPool();
     final parentBridge = await childContractBridge(pool);
     final cloneable = ChildContractExtension('owned');

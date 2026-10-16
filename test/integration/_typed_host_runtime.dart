@@ -66,7 +66,8 @@ void registerTypedHostRuntimeTests() {
     for (final mode in DispatchMode.values) {
       for (final explicitSlot in [false, true]) {
         test(
-          'D3-default-identity $type $mode explicit=$explicitSlot',
+          'default values preserve identity for $type $mode '
+          'explicit=$explicitSlot',
           () async {
             final runtime = await start();
             final sentinel = _sentinel(type);
@@ -146,73 +147,79 @@ void registerTypedHostRuntimeTests() {
 
   for (final sandbox in [false, true]) {
     for (final mode in DispatchMode.values) {
-      test('D3-zone-token sandbox=$sandbox $mode', () async {
-        final runtime = await start(sandbox: sandbox);
-        final tokens = <CancelToken>[];
-        final key = Object();
-        final marker = Object();
-        runtime.register(
-          HostFunction(
-            schema: const HostFunctionSchema(name: 'probe'),
-            dispatch: mode,
-            handler: (_, ctx) async {
-              expect(Zone.current[key], same(marker));
-              tokens.add(ctx.cancelToken);
-              return const MontyNone();
-            },
-          ),
-        );
-        for (var run = 0; run < 2; run++) {
-          await runZoned(
-            () => runtime
-                .execute('${_call(mode, '')}\n${_call(mode, '')}')
-                .result,
-            zoneValues: {key: marker},
+      test(
+        'cancel tokens are scoped to one execution sandbox=$sandbox $mode',
+        () async {
+          final runtime = await start(sandbox: sandbox);
+          final tokens = <CancelToken>[];
+          final key = Object();
+          final marker = Object();
+          runtime.register(
+            HostFunction(
+              schema: const HostFunctionSchema(name: 'probe'),
+              dispatch: mode,
+              handler: (_, ctx) async {
+                expect(Zone.current[key], same(marker));
+                tokens.add(ctx.cancelToken);
+                return const MontyNone();
+              },
+            ),
           );
-        }
-        expect(tokens, hasLength(4));
-        expect(identical(tokens[0], tokens[1]), isTrue);
-        expect(identical(tokens[2], tokens[3]), isTrue);
-        expect(identical(tokens[0], tokens[2]), isFalse);
-      });
+          for (var run = 0; run < 2; run++) {
+            await runZoned(
+              () => runtime
+                  .execute('${_call(mode, '')}\n${_call(mode, '')}')
+                  .result,
+              zoneValues: {key: marker},
+            );
+          }
+          expect(tokens, hasLength(4));
+          expect(identical(tokens[0], tokens[1]), isTrue);
+          expect(identical(tokens[2], tokens[3]), isTrue);
+          expect(identical(tokens[0], tokens[2]), isFalse);
+        },
+      );
     }
   }
 
-  test('D3-shared-concurrent-cancel-reuse', () async {
-    final sessions = <RecordingSession>[];
-    final runtime = await startRuntimeWith(
-      checkout: ({limits}) async {
-        final session = RecordingSession(await pool.checkout(limits: limits));
-        sessions.add(session);
+  test(
+    'shared mode recovers after concurrent cancellation',
+    () async {
+      final sessions = <RecordingSession>[];
+      final runtime = await startRuntimeWith(
+        checkout: ({limits}) async {
+          final session = RecordingSession(await pool.checkout(limits: limits));
+          sessions.add(session);
 
-        return session;
-      },
-    );
-    addTearDown(runtime.dispose);
-    final entered = Completer<void>();
-    runtime.register(
-      HostFunction(
-        schema: const HostFunctionSchema(name: 'probe'),
-        handler: (_, ctx) async {
-          entered.complete();
-          await ctx.cancelToken.future;
-          return const MontyNone();
+          return session;
         },
-      ),
-    );
-    final first = runtime.execute('probe()');
-    // Closing an active core session settles its feed with StateError.
-    final failed = expectLater(first.result, throwsStateError);
-    await entered.future;
-    await expectLater(runtime.execute('2').result, throwsStateError);
-    await first.cancel();
-    await failed;
-    expect(sessions.single.closed, isTrue);
-    expect(await runtime.execute('42').result, const MontyInt(42));
-  });
+      );
+      addTearDown(runtime.dispose);
+      final entered = Completer<void>();
+      runtime.register(
+        HostFunction(
+          schema: const HostFunctionSchema(name: 'probe'),
+          handler: (_, ctx) async {
+            entered.complete();
+            await ctx.cancelToken.future;
+            return const MontyNone();
+          },
+        ),
+      );
+      final first = runtime.execute('probe()');
+      // Closing an active core session settles its feed with StateError.
+      final failed = expectLater(first.result, throwsStateError);
+      await entered.future;
+      await expectLater(runtime.execute('2').result, throwsStateError);
+      await first.cancel();
+      await failed;
+      expect(sessions.single.closed, isTrue);
+      expect(await runtime.execute('42').result, const MontyInt(42));
+    },
+  );
 
   for (final mode in DispatchMode.values) {
-    test('D3-handler-errors-and-validation $mode', () async {
+    test('handler errors and validation failures propagate $mode', () async {
       final runtime = await start();
       final middleware = _BoundCall((args, _) async {
         if (args['x'] == const MontyInt(1)) throw StateError('ordinary');
@@ -263,7 +270,7 @@ void registerTypedHostRuntimeTests() {
       expect(await runtime.execute('42').result, const MontyInt(42));
     });
 
-    test('D3-invalid-return $mode', () async {
+    test('invalid handler returns are rejected $mode', () async {
       final runtime = await start();
       runtime.register(
         HostFunction(
@@ -286,7 +293,7 @@ void registerTypedHostRuntimeTests() {
       expect(await runtime.execute('42').result, const MontyInt(42));
     });
 
-    test('D3-numeric-kinds-and-dict-sharing $mode', () async {
+    test('numeric values and dictionaries retain their kinds $mode', () async {
       final runtime = await start();
       final seen = <MontyValue>[];
       runtime.register(
@@ -322,7 +329,7 @@ void registerTypedHostRuntimeTests() {
     });
   }
 
-  test('D3-event-dict', () async {
+  test('event dictionaries reach the event loop', () async {
     final eventLoop = EventLoopExtension();
     final runtime = await MontyRuntime.start(
       pool: pool,
@@ -338,7 +345,7 @@ void registerTypedHostRuntimeTests() {
     expect(eventLoop.lastEmittedSignal.value, same(eventLoop.lastEmitted));
   });
 
-  test('D3-run-script-key', () async {
+  test('runScript is registered under its schema key', () async {
     final runtime = await start();
     runtime.register(buildRunScriptFunction((_) => '42'));
     for (final inputs in [

@@ -12,7 +12,7 @@ import 'package:test/test.dart';
 import '_typed_host_runtime.dart';
 
 void main() {
-  test('D3-absent-default-none', () {
+  test('an absent default is None', () {
     const param = HostParam(
       name: 'x',
       type: HostParamType.string,
@@ -22,7 +22,7 @@ void main() {
     expect(() => param.validate(null), throwsArgumentError);
   });
 
-  test('D3-explicit-none', () {
+  test('an explicit None is retained', () {
     const param = HostParam(
       name: 'x',
       type: HostParamType.string,
@@ -36,7 +36,7 @@ void main() {
     );
   });
 
-  test('D3-bigint-dict', () {
+  test('dictionary values keep the identity of a shared list', () {
     const child = MontyList([MontyInt(1)]);
     const value = MontyDict([
       (MontyInt(1), child),
@@ -65,7 +65,7 @@ void main() {
     MontyPath('/x'),
   ];
   for (final type in HostParamType.values) {
-    test('D3-matrix $type', () {
+    test('host parameter validation covers $type', () {
       final param = HostParam(name: 'x', type: type);
       for (final value in values) {
         final accepted = switch (type) {
@@ -86,7 +86,7 @@ void main() {
       }
     });
     for (final required in [false, true]) {
-      test('D3-default-registration $type required=$required', () async {
+      test('default registration accepts $type required=$required', () async {
         final bridge = MontyBridge(session: FakeMontySession());
         addTearDown(bridge.dispose);
         final param = HostParam(
@@ -123,7 +123,7 @@ void main() {
     }
   }
 
-  test('D3-invalid-default-is-rejected-at-registration', () {
+  test('invalid defaults are rejected at registration', () {
     final bridge = MontyBridge(session: FakeMontySession());
     addTearDown(bridge.dispose);
     expect(
@@ -146,7 +146,7 @@ void main() {
     );
   });
 
-  test('D3-required-default-does-not-satisfy-omission', () {
+  test('a required default does not satisfy omission', () {
     const param = HostParam(
       name: 'x',
       type: HostParamType.integer,

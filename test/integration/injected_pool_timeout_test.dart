@@ -19,55 +19,60 @@ const _timerJitter = Duration(milliseconds: 20);
 
 void main() {
   for (final transfer in [false, true]) {
-    test(transfer ? 'D5-finite-transfer' : 'D5-finite-child', () async {
-      const budget = Duration(milliseconds: 100);
-      const limits = ResourceLimits(maxFeedDuration: Duration(seconds: 2));
-      final pool = await Monty.start(
-        workerLocation: acceptanceWorkerLocation,
-        maxProcesses: 1,
-        checkoutTimeout: budget,
-      );
-      addTearDown(pool.close);
-      var transfers = 0;
-      final runtime = await MontyRuntime.start(
-        pool: pool,
-        limits: limits,
-        extensions: [SandboxExtension()],
-        os: (_, _, _) async {
-          transfers++;
-          // A caller adapter acquires its own finite session; the held root
-          // cannot recursively serve the requested transfer.
-          final session = await pool.checkout(limits: limits);
-          try {
-            return await session.feedRun('42');
-          } finally {
-            await session.close();
-          }
-        },
-      );
-      addTearDown(runtime.dispose);
-      final watch = Stopwatch()..start();
-      await expectLater(
-        runtime.invoke('sandbox_spawn', {
-          'code': const MontyString('42'),
-          if (transfer)
-            'files': const MontyDict([
-              (MontyString('input'), MontyString('/parent/input')),
-            ]),
-        }),
-        throwsA(isA<TimeoutException>()),
-      );
-      expect(watch.elapsed, greaterThanOrEqualTo(budget - _timerJitter));
-      expect(watch.elapsed, lessThan(budget + const Duration(seconds: 3)));
-      expect(transfers, transfer ? 1 : 0);
-      await runtime.dispose();
-      final fresh = await pool.checkout(limits: limits);
-      expect(await fresh.feedRun('42'), const MontyInt(42));
-      await fresh.close();
-    });
+    test(
+      transfer
+          ? 'a finite transfer checkout times out'
+          : 'a finite child checkout times out',
+      () async {
+        const budget = Duration(milliseconds: 100);
+        const limits = ResourceLimits(maxFeedDuration: Duration(seconds: 2));
+        final pool = await Monty.start(
+          workerLocation: acceptanceWorkerLocation,
+          maxProcesses: 1,
+          checkoutTimeout: budget,
+        );
+        addTearDown(pool.close);
+        var transfers = 0;
+        final runtime = await MontyRuntime.start(
+          pool: pool,
+          limits: limits,
+          extensions: [SandboxExtension()],
+          os: (_, _, _) async {
+            transfers++;
+            // A caller adapter acquires its own finite session; the held root
+            // cannot recursively serve the requested transfer.
+            final session = await pool.checkout(limits: limits);
+            try {
+              return await session.feedRun('42');
+            } finally {
+              await session.close();
+            }
+          },
+        );
+        addTearDown(runtime.dispose);
+        final watch = Stopwatch()..start();
+        await expectLater(
+          runtime.invoke('sandbox_spawn', {
+            'code': const MontyString('42'),
+            if (transfer)
+              'files': const MontyDict([
+                (MontyString('input'), MontyString('/parent/input')),
+              ]),
+          }),
+          throwsA(isA<TimeoutException>()),
+        );
+        expect(watch.elapsed, greaterThanOrEqualTo(budget - _timerJitter));
+        expect(watch.elapsed, lessThan(budget + const Duration(seconds: 3)));
+        expect(transfers, transfer ? 1 : 0);
+        await runtime.dispose();
+        final fresh = await pool.checkout(limits: limits);
+        expect(await fresh.feedRun('42'), const MontyInt(42));
+        await fresh.close();
+      },
+    );
   }
 
-  test('D5-timeout-late-close', () async {
+  test('a late child checkout closes after timeout', () async {
     final session = _LateSession();
     final arrived = Completer<MontySession>();
     final requested = Completer<void>();
@@ -92,7 +97,7 @@ void main() {
     expect(session.unexpectedCalls, 0);
   });
 
-  test('D5-finite-subexecute', () async {
+  test('a finite sub-execution checkout times out', () async {
     const budget = Duration(milliseconds: 100);
     final pool = await Monty.start(
       workerLocation: acceptanceWorkerLocation,
@@ -130,7 +135,7 @@ void main() {
   });
 
   // Both child checkout and sub-execution must close a late session once.
-  test('D5-timeout-late-close-subexecute', () async {
+  test('a late sub-execution checkout closes after timeout', () async {
     final lateSession = _LateSession();
     final arrived = Completer<MontySession>();
     final requested = Completer<void>();

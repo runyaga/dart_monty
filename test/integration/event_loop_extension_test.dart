@@ -1,4 +1,4 @@
-// G3-G4: EventLoop extension experiments.
+// EventLoop extension experiments.
 //
 // Covers the cooperative coroutine pattern: el_recv/el_emit, multi-round
 // dispatch, state machine transitions, channelStateSignal, lastEmittedSignal,
@@ -20,10 +20,10 @@ import '_monty_harness.dart';
 
 void main() {
   // ---------------------------------------------------------------------------
-  // G3-1: Basic dispatch → el_recv round-trip
+  // Basic el_recv / el_emit round-trip.
   // ---------------------------------------------------------------------------
 
-  group('G3-1: basic el_recv / el_emit round-trip', () {
+  group('basic el_recv / el_emit round-trip', () {
     late MontyHarness h;
     late EventLoopExtension el;
 
@@ -72,10 +72,10 @@ event['action']
   });
 
   // ---------------------------------------------------------------------------
-  // G3-2: Pre-dispatch — queue before el_recv
+  // Pre-dispatch queuing.
   // ---------------------------------------------------------------------------
 
-  group('G3-2: pre-dispatch queuing', () {
+  group('pre-dispatch queuing', () {
     late MontyHarness h;
     late EventLoopExtension el;
 
@@ -104,10 +104,10 @@ b = await el_recv()
   });
 
   // ---------------------------------------------------------------------------
-  // G3-3: Multi-round — el_recv called multiple times
+  // Multi-round exchange.
   // ---------------------------------------------------------------------------
 
-  group('G3-3: multi-round exchange', () {
+  group('multi-round exchange', () {
     late MontyHarness h;
     late EventLoopExtension el;
 
@@ -169,10 +169,10 @@ for i in range(3):
   });
 
   // ---------------------------------------------------------------------------
-  // G3-4: Error cases
+  // EventLoop error cases.
   // ---------------------------------------------------------------------------
 
-  group('G3-4: EventLoop error cases', () {
+  group('EventLoop error cases', () {
     late MontyHarness h;
     late EventLoopExtension el;
 
@@ -233,10 +233,10 @@ undefined_var_that_errors
   });
 
   // ---------------------------------------------------------------------------
-  // G4-1: channelStateSignal — SignalCapture
+  // channelStateSignal transitions via SignalCapture.
   // ---------------------------------------------------------------------------
 
-  group('G4-1: channelStateSignal transitions via SignalCapture', () {
+  group('channelStateSignal transitions via SignalCapture', () {
     late MontyHarness h;
     late EventLoopExtension el;
 
@@ -273,10 +273,10 @@ await el_recv()
   });
 
   // ---------------------------------------------------------------------------
-  // G4-2: FauxUi + EventLoop — BridgeRunStarted + BridgeRunFinished
+  // FauxUi observes the full run lifecycle.
   // ---------------------------------------------------------------------------
 
-  group('G4-2: FauxUi observes full run lifecycle', () {
+  group('FauxUi observes full run lifecycle', () {
     late MontyHarness h;
     late EventLoopExtension el;
     late FauxUi ui;
@@ -312,10 +312,10 @@ await el_recv()
   });
 
   // ---------------------------------------------------------------------------
-  // G4-3: lastEmittedSignal reactive subscription
+  // lastEmittedSignal reactive subscription.
   // ---------------------------------------------------------------------------
 
-  group('G4-3: lastEmittedSignal reactive', () {
+  group('lastEmittedSignal reactive', () {
     late MontyHarness h;
     late EventLoopExtension el;
 

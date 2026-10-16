@@ -906,7 +906,7 @@ result
     );
   });
 
-  group('MontyRuntime on a pool (D1)', () {
+  group('MontyRuntime on a pool', () {
     test('a caller pool stays open after dispose', () async {
       final runtime = await MontyRuntime.start(pool: pool);
       await runtime.dispose();

@@ -16,7 +16,7 @@ import '_child_contract.dart';
 const _script = 'import time, random\n[time.time(), random.random()]';
 
 void main() {
-  test('D5-system-child', () async {
+  test('a system child bypasses inherited OS callbacks', () async {
     var calls = 0;
     final runtime = await MontyRuntime.start(
       pool: await childContractPool(),
@@ -40,7 +40,7 @@ void main() {
   });
 
   // Also exercise inherited callbacks through a directly attached coordinator.
-  test('D5-system-child-coordinator', () async {
+  test('a system child coordinator bypasses inherited OS callbacks', () async {
     final pool = await childContractPool();
     final parent = ExtensionCoordinator();
     addTearDown(parent.disposeAll);
@@ -70,7 +70,7 @@ void main() {
     expect(events.whereType<BridgeOsCallStart>(), isEmpty);
   });
 
-  test('D5-direct-authoritative', () async {
+  test('a direct child OS policy is authoritative', () async {
     final pool = await childContractPool();
     final draws = <double>[];
     for (final entropy in [0, 0, 1]) {
