@@ -232,6 +232,30 @@ values
   });
 
   test('N6-independent-cleanup', () async {
+    final w = Workspace(sandboxBaseDir: base.path);
+    final calls = <String>[];
+    await expectLater(
+      cleanupWorkspace([
+        () {
+          calls.add('extension');
+          throw StateError('extension close');
+        },
+        () async {
+          calls.add('session');
+          await session.close();
+          throw StateError('session close');
+        },
+        () {
+          calls.add('workspace');
+          return w.dispose();
+        },
+      ]),
+      throwsStateError,
+    );
+    expect(calls, ['extension', 'session', 'workspace']);
+    expect(base.listSync(), isEmpty);
+    await w.dispose();
+    session = await pool.checkout();
     final recording = _MountRecordingSession(session);
     final active = Workspace(sandboxBaseDir: base.path);
     final entered = Completer<void>();
