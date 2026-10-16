@@ -6,7 +6,7 @@
 //
 // Run with:
 //   dart test --tags=integration --run-skipped \
-//     test/experiment/examples/fault_injection_experiment_test.dart
+//     test/integration/host_function_faults_test.dart
 @Tags(['integration'])
 library;
 
@@ -14,7 +14,7 @@ import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:test/test.dart';
 
-import 'harness.dart';
+import '_monty_harness.dart';
 
 void main() {
   // ---------------------------------------------------------------------------

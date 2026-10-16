@@ -5,7 +5,7 @@
 //
 // Run with:
 //   dart test -p vm --tags=integration \
-//     test/experiment/examples/sandbox_experiment_test.dart
+//     test/experiments/sandbox_experiment_test.dart
 @Tags(['integration'])
 library;
 
@@ -13,7 +13,7 @@ import 'package:dart_monty/dart_monty.dart';
 
 import 'package:test/test.dart';
 
-import 'harness.dart';
+import '../integration/_monty_harness.dart';
 
 void main() {
   // ---------------------------------------------------------------------------

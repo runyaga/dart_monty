@@ -6,7 +6,7 @@
 //
 // Run with:
 //   dart test --tags=integration \
-//     test/experiment/examples/event_loop_experiment_test.dart
+//     test/integration/event_loop_extension_test.dart
 @Tags(['integration'])
 library;
 
@@ -17,7 +17,7 @@ import 'package:dart_monty/src/extensions/event_loop.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:test/test.dart';
 
-import 'harness.dart';
+import '_monty_harness.dart';
 
 void main() {
   // ---------------------------------------------------------------------------
