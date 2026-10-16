@@ -21,6 +21,7 @@ import 'package:test/test.dart';
 
 import '_printed.dart';
 import '_worker.dart';
+import 'kv_stub_functions.dart';
 import 'template_stub_extension.dart';
 
 // ---------------------------------------------------------------------------
@@ -305,42 +306,11 @@ content = Path("/data.txt").read_text()
       'H6. FS + HTTP + KV across calls',
       () async {
         final kv = <String, String>{};
-        final s =
-            (await MontyRuntime.start(
-                pool: pool,
-                osHandlers: {'Path.': memoryFsHandler()},
-              ))
-              ..register(httpFn())
-              ..register(
-                HostFunction(
-                  schema: const HostFunctionSchema(
-                    name: 'kv_set',
-                    description: 'Set',
-                    params: [
-                      HostParam(name: 'k', type: HostParamType.string),
-                      HostParam(name: 'v', type: HostParamType.string),
-                    ],
-                  ),
-                  handler: (a, _) async {
-                    kv[a['k']! as String] = a['v']! as String;
-
-                    return const MontyString('ok');
-                  },
-                ),
-              )
-              ..register(
-                HostFunction(
-                  schema: const HostFunctionSchema(
-                    name: 'kv_get',
-                    description: 'Get',
-                    params: [
-                      HostParam(name: 'k', type: HostParamType.string),
-                    ],
-                  ),
-                  handler: (a, _) async =>
-                      MontyValue.fromDart(kv[a['k']! as String]),
-                ),
-              );
+        final s = (await MontyRuntime.start(
+          pool: pool,
+          osHandlers: {'Path.': memoryFsHandler()},
+        ))..register(httpFn());
+        kvStubFunctions(kv, storedResult: 'ok').forEach(s.register);
         addTearDown(s.dispose);
 
         await s.execute('data = http_fn()').result;

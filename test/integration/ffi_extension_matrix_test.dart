@@ -19,6 +19,7 @@ import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:test/test.dart';
 
 import '_worker.dart';
+import 'kv_stub_functions.dart';
 import 'template_stub_extension.dart';
 
 void main() {
@@ -88,37 +89,8 @@ void main() {
                   }
                 },
               ),
-            )
-            ..register(
-              HostFunction(
-                schema: const HostFunctionSchema(
-                  name: 'kv_set',
-                  description: 'Set',
-                  params: [
-                    HostParam(name: 'k', type: HostParamType.string),
-                    HostParam(name: 'v', type: HostParamType.string),
-                  ],
-                ),
-                handler: (a, _) async {
-                  kv[a['k']! as String] = a['v']! as String;
-
-                  return const MontyString('stored');
-                },
-              ),
-            )
-            ..register(
-              HostFunction(
-                schema: const HostFunctionSchema(
-                  name: 'kv_get',
-                  description: 'Get',
-                  params: [
-                    HostParam(name: 'k', type: HostParamType.string),
-                  ],
-                ),
-                handler: (a, _) async =>
-                    MontyValue.fromDart(kv[a['k']! as String]),
-              ),
             );
+      kvStubFunctions(kv, storedResult: 'stored').forEach(session.register);
 
       try {
         // ── A. Single execute, N host calls ──────────────────────────
