@@ -178,6 +178,39 @@ void main() {
       throwsA(isA<ExternalException>()),
     );
   });
+  test('B-collect-descendant-symlink', () async {
+    final parent = OSAccess(
+      files: [MemoryFile('/out/a', 'original'), MemoryFile('/out/b', 'target')],
+    );
+    var writes = 0;
+    final w = await transfers.copyIn(
+      parent: (name, args, kwargs) {
+        if (name == 'Path.is_symlink' && args.first.dartValue == '/out/b') {
+          return const MontyBool(true);
+        }
+        if (name == 'Path.mkdir' || name == 'Path.write_bytes') writes++;
+
+        return parent.call(name, args, kwargs);
+      },
+    );
+    addTearDown(w.dispose);
+    await h.run(
+      w,
+      "Path('d').mkdir()\nPath('d/a').write_text('new')\n"
+      "Path('d/b').write_text('new')",
+    );
+    await expectLater(
+      transfers.collect(w, {'d': '/out'}),
+      throwsA(isA<ExternalException>()),
+    );
+    expect(writes, 0);
+    expect(
+      (await parent.call('Path.read_text', [
+        MontyPath('/out/a'),
+      ], {})).dartValue,
+      'original',
+    );
+  });
   test('B-transfer-serial', () async {
     final entered = Completer<void>();
     final release = Completer<void>();
