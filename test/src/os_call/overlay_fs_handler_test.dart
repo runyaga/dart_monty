@@ -1,4 +1,4 @@
-import 'package:dart_monty/dart_monty_bridge.dart';
+import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/src/os_call/os_handlers.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:file/memory.dart';

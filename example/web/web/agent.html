@@ -374,23 +374,13 @@
       <option value="kvstore">Key-Value Store</option>
       <option value="fetch">HTTP Fetch</option>
       <option value="filesystem">Filesystem I/O</option>
-      <option value="msgbus">Message Bus</option>
       <option value="sandbox">Child Sandboxes</option>
       <option value="gather">Parallel Sandbox Gather</option>
       <option value="asyncgather">asyncio.gather</option>
       <option value="output">Sandbox Print Capture</option>
       <option value="lifecycle">Sandbox Lifecycle</option>
       <option value="error">Sandbox Error Handling</option>
-      <option value="pipeline">Producer/Consumer Pipeline</option>
-      <option value="bidir">Bidirectional Parent↔Child</option>
       <option value="childfs">Child Filesystem Isolation</option>
-      <option value="combined">Combined Demo</option>
-      <optgroup label="MessageBus: new in v0.20">
-        <option value="dartpush">Dart → Python Live Push</option>
-        <option value="msgstats">Channel Telemetry (msg_stats)</option>
-        <option value="drain">End-of-Stream Drain</option>
-        <option value="workerpool">Worker Pool (N workers, shared queue)</option>
-      </optgroup>
     </select>
     <span id="status">Initializing WASM...</span>
   </header>
@@ -413,19 +403,7 @@ x = 42
 greeting = "hello"
 x</textarea>
       </div>
-      <div id="waitingBanner">⏸ Python is blocked on msg_recv — <span class="arrow">click Push → to unblock it</span></div>
-      <div id="dartPushBar" style="padding:6px 10px;background:var(--surface2);border-top:1px solid var(--border);display:flex;gap:6px;align-items:center;">
-        <span style="font-size:11px;color:var(--cyan);font-weight:600;white-space:nowrap;">Dart →</span>
-        <input id="dartPushChannel" type="text" value="dart_input" placeholder="channel"
-          style="font-family:var(--mono);font-size:12px;padding:3px 7px;background:var(--surface);border:1px solid var(--border);border-radius:4px;color:var(--text);width:100px;">
-        <input id="dartPushMessage" type="text" value='{"greeting":"hello from Dart","n":42}' placeholder='{"key":"value"}'
-          style="font-family:var(--mono);font-size:12px;padding:3px 7px;background:var(--surface);border:1px solid var(--border);border-radius:4px;color:var(--text);flex:1;">
-        <button id="dartPushBtn" disabled
-          style="font-size:12px;padding:3px 10px;background:var(--accent);border:none;border-radius:4px;color:#1a1b26;font-weight:600;cursor:pointer;white-space:nowrap;opacity:0.4;">
-          Push →
-        </button>
-        <span id="dartPushFeedback" style="font-size:11px;color:var(--text-dim);white-space:nowrap;"></span>
-      </div>
+
     </div>
 
     <!-- Top-right: Result + State -->
@@ -472,7 +450,7 @@ x</textarea>
           <p style="margin-bottom: 12px;"><strong style="color: var(--accent);">AgentSession</strong> combines a Monty bridge, host functions, OS providers, and variable persistence into one API.</p>
           <p style="margin-bottom: 12px; color: var(--text-dim);"><strong style="color: var(--cyan);">Stateful:</strong> Variables defined in one execution persist to the next. Click "Clear State" to reset.</p>
           <p style="margin-bottom: 12px; color: var(--text-dim);"><strong style="color: var(--purple);">Host Functions:</strong> Python can call Dart-defined tools: <code style="color: var(--purple);">echo(msg)</code>, <code style="color: var(--purple);">add_numbers(a, b)</code>, <code style="color: var(--purple);">get_time()</code>.</p>
-          <p style="margin-bottom: 12px; color: var(--text-dim);"><strong style="color: var(--orange);">Plugins:</strong> <code style="color: var(--orange);">msg_send()/msg_recv()</code> (message channels), <code style="color: var(--orange);">sandbox_spawn()/sandbox_await()</code> (child interpreters).</p>
+          <p style="margin-bottom: 12px; color: var(--text-dim);"><strong style="color: var(--orange);">Plugins:</strong> <code style="color: var(--orange);">sandbox_spawn()/sandbox_await()</code> (child interpreters).</p>
           <p style="margin-bottom: 12px; color: var(--text-dim);"><strong style="color: var(--green);">Filesystem:</strong> pathlib works via MemoryFsProvider: <code style="color: var(--green);">Path('/sandbox/f.txt').write_text(...)</code></p>
           <p style="color: var(--text-dim);"><strong style="color: var(--yellow);">Events:</strong> Every bridge event streams in real-time to the Events panel.</p>
         </div>
@@ -496,17 +474,6 @@ x</textarea>
       if (!el || !countEl) return;
       countEl.textContent = _eventCount;
       if (_eventCount === 1) el.innerHTML = '';
-
-      // Visual indicator: Python blocked on msg_recv / unblocked
-      const pushBtn = document.getElementById('dartPushBtn');
-      const waitingBanner = document.getElementById('waitingBanner');
-      if (event.type === 'FunctionCallStart' && event.name === 'msg_recv') {
-        if (waitingBanner) { waitingBanner.style.display = 'flex'; }
-        if (pushBtn) { pushBtn.disabled = false; pushBtn.style.opacity = '1'; pushBtn.style.animation = 'pulse 1s infinite'; }
-      } else if (event.type === 'FunctionCallResult' || event.type === 'RunFinished' || event.type === 'RunError') {
-        if (waitingBanner) { waitingBanner.style.display = 'none'; }
-        if (pushBtn) { pushBtn.disabled = true; pushBtn.style.opacity = '0.4'; pushBtn.style.animation = ''; }
-      }
 
       const div = document.createElement('div');
       div.className = 'event-entry';
@@ -719,7 +686,6 @@ x</textarea>
       filesystem: "# IN-MEMORY VIRTUAL FILESYSTEM\n# pathlib works normally but all I/O goes to memory.\n# No real disk access. Files persist within the session.\nfrom pathlib import Path\n\n# Write two files\nPath('/data').mkdir(parents=True, exist_ok=True)\nPath('/data/hello.txt').write_text('hello world')\nPath('/data/nums.csv').write_text('a,b\\n1,2\\n3,4')\n\n# Prove they exist and contain what we wrote\n{\n    'hello': Path('/data/hello.txt').read_text(),\n    'csv': Path('/data/nums.csv').read_text(),\n    'files_exist': [p.name for p in Path('/data').iterdir()]\n}",
 
 
-      msgbus: "# MESSAGE BUS — FIFO channels\n# Prove: ordering is preserved, peek doesn't consume,\n# queue empties after drain.\n\nmsg_send(name='q', message='first')\nmsg_send(name='q', message='second')\nmsg_send(name='q', message='third')\n\n# Peek sees front of queue WITHOUT consuming\npeeked = msg_peek(name='q')\n\n# Recv consumes in order\nr1 = msg_recv(name='q')\nr2 = msg_recv(name='q')\nr3 = msg_recv(name='q')\n\n# Queue is now empty\nafter_drain = msg_peek(name='q')\n\n{\n    'peeked_without_consuming': peeked,\n    'recv_order': [r1, r2, r3],\n    'empty_after_drain': after_drain,\n    'fifo_correct': [r1, r2, r3] == ['first', 'second', 'third']\n}",
 
       sandbox: "# CHILD SANDBOXES — isolated interpreters\n# Each child runs in its own WASM Worker with separate\n# memory and state. Prove it: parent's variable is\n# invisible to children.\n\nsecret = 'parent_only'\n\n# Child tries to access parent's variable\nh1 = sandbox_spawn(code='''\ntry:\n    x = secret\n    saw_parent = True\nexcept NameError:\n    saw_parent = False\n{\"saw_parent_var\": saw_parent, \"computed\": 2 + 3}\n''')\n\n# Second child does independent work\nh2 = sandbox_spawn(code='import math\\nmath.factorial(5)')\n\nr1 = sandbox_await(handle=h1)\nr2 = sandbox_await(handle=h2)\n\n{\n    'child_1': r1,\n    'child_2_factorial': r2,\n    'parent_secret_intact': secret\n}",
 
@@ -734,23 +700,15 @@ x</textarea>
       error: "# ERROR PROPAGATION — parent survives child crash\n\nparent_state = 'running'\n\n# Child crashes with ZeroDivisionError\nh = sandbox_spawn(code='1 / 0')\ntry:\n    r = sandbox_await(handle=h)\n    crashed = False\nexcept Exception as e:\n    r = str(e)\n    crashed = True\n\n# Prove: parent is still alive and can do math\nproof = 40 + 2\n\n{\n    'child_crashed': crashed,\n    'error': r,\n    'parent_still_works': proof,\n    'parent_state': parent_state\n}",
 
 
-      pipeline: "# PRODUCER/CONSUMER — children talk via shared bus\n# Prove: consumer received exactly what producer sent.\n\nproducer = sandbox_spawn(code='''\nsent = []\nfor i in range(3):\n    msg_send(name=\"pipe\", message=f\"item-{i}\")\n    sent.append(f\"item-{i}\")\n{\"role\": \"producer\", \"sent\": sent}\n''')\n\nconsumer = sandbox_spawn(code='''\nreceived = []\nfor i in range(3):\n    received.append(msg_recv(name=\"pipe\"))\n{\"role\": \"consumer\", \"received\": received}\n''')\n\np = sandbox_await(handle=producer)\nc = sandbox_await(handle=consumer)\n\n{\n    'producer': p,\n    'consumer': c,\n    'data_matches': p['sent'] == c['received']\n}",
 
-      bidir: "# BIDIRECTIONAL — parent sends task, child replies\n# Prove: full round-trip through the message bus.\n\ntask = {'op': 'square', 'value': 7}\nmsg_send(name='work', message=task)\n\nworker = sandbox_spawn(code='''\ntask = msg_recv(name=\"work\")\nanswer = task[\"value\"] ** 2\nmsg_send(name=\"done\", message={\"answer\": answer})\nanswer\n''')\n\nchild_answer = sandbox_await(handle=worker)\nreply = msg_recv(name='done')\n\n{\n    'sent_value': task['value'],\n    'child_computed': child_answer,\n    'bus_reply': reply,\n    'round_trip_correct': child_answer == task['value'] ** 2\n}",
 
       childfs: "# FILESYSTEM ISOLATION\n# Prove: parent, child A, child B each have their own VFS.\n# None can see the others' files.\nfrom pathlib import Path\n\nPath('/data/parent.txt').write_text('parent data')\n\n# Child A checks for parent's file, writes its own\na = sandbox_spawn(code='''\nfrom pathlib import Path\ncan_see_parent = Path(\"/data/parent.txt\").exists()\nPath(\"/child_a.txt\").write_text(\"from child A\")\n{\"parent_visible\": can_see_parent, \"wrote\": Path(\"/child_a.txt\").read_text()}\n''')\n\n# Child B checks for child A's file, writes its own\nb = sandbox_spawn(code='''\nfrom pathlib import Path\ncan_see_sibling = Path(\"/child_a.txt\").exists()\nPath(\"/child_b.txt\").write_text(\"from child B\")\n{\"sibling_visible\": can_see_sibling, \"wrote\": Path(\"/child_b.txt\").read_text()}\n''')\n\na_r = sandbox_await(handle=a)\nb_r = sandbox_await(handle=b)\n\n# Parent checks for children's files\n{\n    'child_a': a_r,\n    'child_b': b_r,\n    'parent_sees_child_a': Path('/child_a.txt').exists(),\n    'parent_sees_child_b': Path('/child_b.txt').exists(),\n    'parent_file_intact': Path('/data/parent.txt').read_text()\n}",
 
-      combined: "# EVERYTHING TOGETHER\nfrom pathlib import Path\n\n# 1. Build a value\nname, score = 'Alice', 95\ngreeting = f'{name} scored {score}'\n\n# 2. Send to bus and write to VFS\nmsg_send(name='results', message=greeting)\nPath('/report.txt').write_text(greeting)\n\n# 3. Read back from both\nfrom_vfs = Path('/report.txt').read_text()\nfrom_bus = msg_recv(name='results')\n\n# 4. Dart host functions\ntotal = add_numbers(100, 200)\n\n# Prove: all three systems return consistent data\n{\n    'greeting': greeting,\n    'from_vfs': from_vfs,\n    'from_bus': from_bus,\n    'all_match': greeting == from_vfs == from_bus,\n    'host_fn': total\n}",
 
-      // --- MessageBus v0.20 examples ---
 
-      dartpush: "# DART \u2192 PYTHON LIVE PUSH\n#\n# STEP 1: Click Execute. Python starts and immediately\n#         blocks at msg_recv — the red banner appears.\n# STEP 2: Click Push \u2192 in the bar below.\n#         Python receives your JSON and finishes.\n#\n# Why this works: both sides use the SAME MessageChannel\n# object in Dart. Push calls channel.send() from Dart;\n# msg_recv() is waiting on the same channel from Python.\n\npayload = msg_recv(name='dart_input')\n\n{\n    'received': payload,\n    'type': type(payload).__name__,\n    'note': 'this value was pushed from Dart'\n}",
 
-      msgstats: "# CHANNEL TELEMETRY — msg_stats()\n# Answers: is my queue backing up? Did any messages get lost?\n\nbefore = msg_stats(name='work')\nprint(f\"before:    exists={before['exists']}, depth={before['queue_depth']}\")\n\n# Fast producer: queues 5 tasks without waiting\nproducer = sandbox_spawn(code='''\nfor i in range(5):\n    msg_send(name=\"work\", message=i)\n''')\nsandbox_await(handle=producer)\n\nbacked_up = msg_stats(name='work')\nprint(f\"backed_up: depth={backed_up['queue_depth']}, sent={backed_up['send_count']}\")\n\n# Drain all messages\nwhile msg_peek(name='work') is not None:\n    msg_recv(name='work')\n\ndrained = msg_stats(name='work')\nprint(f\"drained:   depth={drained['queue_depth']}, peak={drained['peak_queue_depth']}, recvd={drained['recv_count']}\")\n\n# peak_queue_depth is the high-water mark — survives draining\nbacked_up['send_count'] == drained['recv_count']  # nothing lost",
 
-      drain: "# END-OF-STREAM DRAIN PATTERN\n# Producer sends N items then closes the channel.\n# Consumer reads until msg_recv returns None (channel closed + empty).\n# This is the idiomatic way to signal end-of-stream.\n\nproducer = sandbox_spawn(code='''\nfor item in ['alpha', 'beta', 'gamma', 'delta']:\n    msg_send(name=\"stream\", message=item)\nmsg_close(name=\"stream\")  # <-- signals end-of-stream\n{\"sent\": 4}\n''')\n\n# Consumer drains until channel closed+empty\nreceived = []\nwhile True:\n    item = msg_recv(name='stream', timeout_ms=5000)\n    if item is None:   # None == channel closed and empty\n        break\n    received.append(item)\n\nproducer_result = sandbox_await(handle=producer)\nstats = msg_stats(name='stream')\n\n{\n    'producer': producer_result,\n    'received': received,\n    'count': len(received),\n    'channel_closed': stats['closed'],\n    'correct_order': received == ['alpha', 'beta', 'gamma', 'delta'],\n}",
 
-      workerpool: "# WORKER POOL — shared task queue, N parallel workers\n# 9 tasks queued on 'tasks'. 3 workers each pull until\n# they receive a None sentinel (shutdown signal).\n# Tasks distribute non-deterministically across workers.\n\n# Queue tasks then sentinels\nfor i in range(9):\n    msg_send(name='tasks', message={'id': i, 'v': i * i})\nfor _ in range(3):\n    msg_send(name='tasks', message=None)  # shutdown sentinels\n\n# Spawn 3 workers — they pull from the shared queue\ndef worker_code(wid):\n    return f'''\nresults = []\nwhile True:\n    task = msg_recv(name=\"tasks\")\n    if task is None: break\n    results.append({{\"w\": {wid}, \"id\": task[\"id\"], \"sq\": task[\"v\"]}})\n{{\"worker\": {wid}, \"done\": results}}\n'''\n\nh1 = sandbox_spawn(code=worker_code(1))\nh2 = sandbox_spawn(code=worker_code(2))\nh3 = sandbox_spawn(code=worker_code(3))\n\nr1 = sandbox_await(handle=h1)\nr2 = sandbox_await(handle=h2)\nr3 = sandbox_await(handle=h3)\n\nall_results = r1['done'] + r2['done'] + r3['done']\nall_results.sort(key=lambda x: x['id'])\n\n{\n    'total_tasks': len(all_results),\n    'all_ids_present': [t['id'] for t in all_results] == list(range(9)),\n    'all_squares_correct': all(t['sq'] == t['id']**2 for t in all_results),\n    'w1_count': len(r1['done']),\n    'w2_count': len(r2['done']),\n    'w3_count': len(r3['done']),\n    'queue_stats': msg_stats(name='tasks'),\n}",
     };
 
     const descriptions = {
@@ -759,21 +717,13 @@ x</textarea>
       kvstore: 'Persistent key-value store backed by Dart. Data survives across execute() calls.',
       fetch: 'Simulated HTTP fetch — demonstrates host functions returning complex JSON structures.',
       filesystem: 'Python pathlib backed by an in-memory VFS. Write and read files without touching the host disk.',
-      msgbus: 'Named message channels with FIFO ordering. Send, receive, peek (non-blocking), and get channel stats.',
       sandbox: 'Spawn 3 isolated child interpreters, each in its own WASM Worker. Await their results independently.',
       gather: 'Spawn 3 children in parallel WASM Workers. sandbox_gather waits for all at once and returns attributed results with handle, value, and output.',
       asyncgather: 'Python asyncio.gather within a single interpreter. Multiple host function calls dispatched as futures and resolved concurrently by the bridge.',
       output: 'Children capture print() output separately. sandbox_get_output retrieves it after the child completes.',
       lifecycle: 'Full handle lifecycle: spawn, check if alive, await result, then free the handle to release resources.',
       error: 'Child errors propagate cleanly as ChildSandboxException. Parent catches it without crashing.',
-      pipeline: 'Two children communicate through a shared message bus — producer writes items, consumer reads and transforms them.',
-      bidir: 'Parent sends a work task via message bus, child processes it and sends the result back. Full round-trip.',
       childfs: 'Each child gets its own isolated VFS. Children write files independently; parent filesystem is unaffected.',
-      combined: 'Everything together: message bus, filesystem, and host functions in a single execution.',
-      dartpush: 'Step 1: click Execute — Python blocks on msg_recv and a red banner appears. Step 2: click Push → — Python receives your JSON instantly and the result shows what arrived. Both sides share the same MessageChannel object in Dart.',
-      msgstats: 'msg_stats() returns a live ChannelSnapshot: queue depth, send/recv counts, peak depth, closed flag. Powered by the new reactive MessageChannel.',
-      drain: 'Producer sends items then calls msg_close(). Consumer loops msg_recv() until None — the idiomatic end-of-stream signal for message channels.',
-      workerpool: '9 tasks queued on a shared channel. 3 parallel workers pull from it until they receive a None sentinel. Tasks distribute across workers automatically.',
     };
 
 
@@ -808,26 +758,7 @@ x</textarea>
         return JSON.stringify({ ok: false, status: 'no-code',
           detail: 'selecting "' + key + '" loaded no code into the editor' });
       }
-      // THE PAGE'S OWN INSTRUCTIONS ARE PART OF THE DEMO. `dartpush`
-      // deliberately blocks at msg_recv until a human clicks "Push →", and the
-      // page arms that button precisely when Python is waiting. Watching for
-      // the button to arm and clicking it is doing what the example tells the
-      // reader to do — the alternative was leaving the one example that needs a
-      // second interaction permanently uncovered.
-      const running = run();
-      const pushBtn = $('dartPushBtn');
-      let pushed = false;
-      const armed = setInterval(function () {
-        if (!pushed && pushBtn && !pushBtn.disabled) {
-          pushed = true;
-          pushBtn.onclick();
-        }
-      }, 100);
-      try {
-        await running;
-      } finally {
-        clearInterval(armed);
-      }
+      await run();
       const errEl = resultArea.querySelector('.result-error');
       return JSON.stringify({
         ok: status.textContent === 'Done' && !errEl,
@@ -871,29 +802,6 @@ x</textarea>
 
     runBtn.onclick = run;
 
-    // Dart Push — calls AgentDemo.dartPush(channel, messageJson) which
-    // calls MessageBus.send() directly, unblocking any Python msg_recv()
-    // waiting on the same channel.
-    $('dartPushBtn').onclick = function() {
-      const ch = $('dartPushChannel').value.trim();
-      const msg = $('dartPushMessage').value.trim();
-      const fb = $('dartPushFeedback');
-      if (!window.AgentDemo || !ch) {
-        fb.textContent = 'not ready';
-        fb.style.color = 'var(--red)';
-        return;
-      }
-      try {
-        JSON.parse(msg); // validate JSON before sending
-        window.AgentDemo.dartPush(ch, msg);
-        fb.textContent = '\u2713 pushed to ' + ch;
-        fb.style.color = 'var(--green)';
-      } catch (e) {
-        fb.textContent = 'invalid JSON';
-        fb.style.color = 'var(--red)';
-      }
-      setTimeout(() => { fb.textContent = ''; }, 2500);
-    };
   </script>
 </body>
 </html>

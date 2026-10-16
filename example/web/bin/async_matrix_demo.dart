@@ -17,7 +17,7 @@
 library;
 
 import 'package:dart_monty/dart_monty.dart';
-import 'package:dart_monty/dart_monty_bridge.dart';
+
 import 'package:web_example/demo_pool.dart';
 import 'package:web_example/demo_ready.dart';
 

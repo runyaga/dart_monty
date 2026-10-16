@@ -13,6 +13,14 @@ import 'dart:js_interop';
 import 'dart:math';
 
 import 'package:dart_monty/dart_monty.dart';
+import 'package:dart_monty_core/dart_monty_core.dart'
+    show
+        ExternalReturnValue,
+        FunctionSnapshot,
+        FutureSnapshot,
+        MontyComplete,
+        NameLookupSnapshot;
+
 import 'package:web_example/demo_pool.dart';
 import 'package:web_example/demo_ready.dart';
 

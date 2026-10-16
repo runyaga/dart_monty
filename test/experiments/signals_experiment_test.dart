@@ -1,7 +1,7 @@
 // G5: Signals experiments.
 //
 // Covers SignalCapture, Computed signals, effect cleanup, per-plugin reactive
-// signals (channelStateSignal, snapshotSignal, childrenSignal), and FauxUi
+// signals (channelStateSignal, childrenSignal), and FauxUi
 // signal-wiring patterns.
 //
 // Run with:
@@ -12,7 +12,7 @@
 @Tags(['integration'])
 library;
 
-import 'package:dart_monty/dart_monty_bridge.dart';
+import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/src/extensions/event_loop.dart';
 import 'package:signals_core/signals_core.dart';
 import 'package:test/test.dart';
@@ -66,65 +66,6 @@ void main() {
 
       expect(cap.values, [0, 1, 2]);
     });
-  });
-
-  // ---------------------------------------------------------------------------
-  // G5-2: SignalCapture on MessageBus.snapshotSignal
-  // ---------------------------------------------------------------------------
-
-  group('G5-2: SignalCapture on MessageBus channel snapshotSignal', () {
-    late MontyHarness h;
-    late MessageBusExtension busExt;
-    late MessageBus bus;
-
-    setUp(() async {
-      bus = MessageBus();
-      busExt = MessageBusExtension(bus: bus);
-      h = MontyHarness(extensions: [busExt]);
-      await h.setup();
-    });
-
-    tearDown(() => h.dispose());
-
-    test(
-      'snapshot sendCount increments on each Python send',
-      () async {
-        final ch = bus.channel('q');
-        final cap = SignalCapture(ch.snapshotSignal);
-
-        await h.run('''
-msg_send(name='q', message='a')
-msg_send(name='q', message='b')
-msg_send(name='q', message='c')
-''');
-
-        cap.dispose();
-
-        final counts = cap.values.map((s) => s.sendCount).toList();
-        expect(counts.last, 3);
-      },
-    );
-
-    test(
-      'queueDepth goes up on send and down on recv',
-      () async {
-        bus.channel('pipe').send('item1');
-        bus.channel('pipe').send('item2');
-
-        final ch = bus.channel('pipe');
-        final cap = SignalCapture(ch.snapshotSignal);
-
-        await h.run('''
-msg_recv(name='pipe')
-msg_recv(name='pipe')
-''');
-
-        cap.dispose();
-
-        final depths = cap.values.map((s) => s.queueDepth).toList();
-        expect(depths.last, 0);
-      },
-    );
   });
 
   // ---------------------------------------------------------------------------

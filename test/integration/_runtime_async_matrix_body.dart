@@ -11,7 +11,7 @@
 import 'dart:async';
 
 import 'package:dart_monty/dart_monty.dart';
-import 'package:dart_monty/dart_monty_bridge.dart';
+
 import 'package:test/test.dart';
 
 import '_worker.dart';
@@ -268,7 +268,6 @@ results
       addTearDown(runtime.dispose);
 
       final r = await runtime.execute('''
-import asyncio
 await asyncio.gather(slow(1), slow(2), slow(3))
 ''').result;
       sw.stop();

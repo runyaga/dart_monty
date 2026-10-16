@@ -1,7 +1,6 @@
 // What a consumer's test reaches through the public API: a MontyBridge over
 // core's FakeMontySession, with no worker.
 import 'package:dart_monty/dart_monty.dart';
-import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:dart_monty_core/dart_monty_core_testing.dart';
 import 'package:test/test.dart';

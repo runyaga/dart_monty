@@ -24,7 +24,7 @@
 // A directory listing that silently returns empty instead of raising, or an
 // `open(...,'w')` that lands in the read-only base, are both failures a
 // happy-path suite cannot see.
-import 'package:dart_monty/dart_monty_bridge.dart';
+import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:file/memory.dart';
 import 'package:test/test.dart';

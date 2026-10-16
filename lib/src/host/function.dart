@@ -8,7 +8,7 @@ import 'package:meta/meta.dart';
 enum DispatchMode {
   /// The session awaits the handler's Future before Python continues.
   /// Python sees a plain value at the call site, as from a `def`. Use for
-  /// functions with FIFO ordering invariants (e.g. MessageBus) or simple
+  /// functions with FIFO ordering invariants or simple
   /// request-response handlers that don't benefit from concurrency.
   sync,
 

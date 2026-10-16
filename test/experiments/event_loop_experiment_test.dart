@@ -13,7 +13,6 @@ library;
 import 'dart:async';
 
 import 'package:dart_monty/dart_monty.dart';
-import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:dart_monty/src/extensions/event_loop.dart';
 import 'package:test/test.dart';
 

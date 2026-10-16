@@ -7,8 +7,9 @@
 // enforced by the type system is now enforced by a check, so it needs a test
 // where it previously needed none.
 
-import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/src/runtime/value_x.dart';
+import 'package:dart_monty_core/dart_monty_core.dart'
+    show MontyDict, MontyInt, MontyString;
 import 'package:test/test.dart';
 
 void main() {

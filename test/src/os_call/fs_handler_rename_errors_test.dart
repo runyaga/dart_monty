@@ -14,7 +14,7 @@ library;
 
 import 'dart:io';
 
-import 'package:dart_monty/dart_monty_bridge.dart';
+import 'package:dart_monty/dart_monty.dart';
 import 'package:file/local.dart';
 import 'package:test/test.dart';
 

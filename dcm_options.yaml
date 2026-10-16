@@ -67,13 +67,9 @@ dcm:
           - "lib/src/bridge/platform.dart"
           - "lib/src/host/schema.dart"
           - "lib/src/introspection_functions.dart"
-          - "lib/src/extensions/message_bus.dart"
           - "lib/src/extensions/sandbox.dart"
     - avoid-missing-completer-stack-trace
-    - avoid-uncaught-future-errors:
-        exclude:
-          # Future is drained via unawaited(future.catchError)
-          - "lib/src/extensions/message_bus.dart"
+    - avoid-uncaught-future-errors
     - avoid-recursive-calls
     - avoid-contradictory-expressions
     - avoid-self-assignment

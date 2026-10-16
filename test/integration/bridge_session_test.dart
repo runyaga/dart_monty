@@ -6,7 +6,13 @@ library;
 import 'dart:async';
 
 import 'package:dart_monty/dart_monty.dart';
-import 'package:dart_monty/dart_monty_bridge.dart';
+import 'package:dart_monty_core/dart_monty_core.dart'
+    show
+        MontyInt,
+        MontyRuntimeError,
+        MontyString,
+        MontySyntaxError,
+        MontyTypingError;
 import 'package:test/test.dart';
 
 import '_worker.dart';

@@ -14,8 +14,7 @@ library;
 // ignore_for_file: avoid_print, cast_nullable_to_non_nullable
 import 'dart:io';
 
-import 'package:dart_monty/dart_monty_bridge.dart';
-import 'package:dart_monty_core/dart_monty_core.dart' show Monty, MontyError;
+import 'package:dart_monty/dart_monty.dart';
 import 'package:test/test.dart';
 
 import '_worker.dart';
@@ -36,7 +35,7 @@ void main() {
               osHandlers: {
                 'Path.': memoryFsHandler(),
               },
-              extensions: [TemplateStubExtension(), MessageBusExtension()],
+              extensions: [TemplateStubExtension()],
             ))
             ..register(
               HostFunction(
@@ -243,32 +242,22 @@ r4 = kv_get("all")
         print('  D1. template: PASS');
 
         r = await session.execute('''
-msg_send("ch1", "hello")
-msg_send("ch1", "world")
-r1 = msg_recv("ch1")
-r2 = msg_recv("ch1")
-[r1, r2]
-''').result;
-        expect(r.dartValue, ['hello', 'world']);
-        print('  D2. msgbus: PASS');
-
-        r = await session.execute('''
 a = sync_fn()
 b = tmpl_render("R: {{ v }}", {"v": a})
-msg_send("res", b)
-msg_recv("res")
+kv_set("res", b)
+kv_get("res")
 ''').result;
         expect(r.dartValue, 'R: sync_ok');
-        print('  D3. template+msgbus+sync: PASS');
+        print('  D3. template+kv+sync: PASS');
 
         r = await session.execute('''
 data = http_fn()
 rendered = tmpl_render("Got {{ n }}", {"n": len(data)})
-msg_send("log", rendered)
-msg_recv("log")
+kv_set("log", rendered)
+kv_get("log")
 ''').result;
         expect(r.dartValue as String, startsWith('Got '));
-        print('  D4. template+msgbus+http: PASS');
+        print('  D4. template+kv+http: PASS');
 
         r = await session.execute('''
 a = sync_fn()
@@ -277,8 +266,8 @@ c = http_fn()
 kv_set("combo", a)
 d = kv_get("combo")
 e = tmpl_render("{{ a }}-{{ b }}", {"a": a, "b": b})
-msg_send("ch", e)
-f = msg_recv("ch")
+kv_set("ch", e)
+f = kv_get("ch")
 [a, b, len(c), d, e, f]
 ''').result;
         final d5 = r.dartValue as List;
@@ -310,14 +299,14 @@ from pathlib import Path
 data = http_fn()
 Path("/raw.txt").write_text(data)
 rendered = tmpl_render("Saved {{ n }}", {"n": len(data)})
-msg_send("log2", rendered)
-log = msg_recv("log2")
+kv_set("log2", rendered)
+log = kv_get("log2")
 saved = Path("/raw.txt").read_text()
 [log, len(saved)]
 ''').result;
         final e3 = r.dartValue as List;
         expect(e3[0] as String, startsWith('Saved '));
-        print('  E3. fs+template+msgbus+http: PASS');
+        print('  E3. fs+template+kv+http: PASS');
 
         // ── F. Edge cases ────────────────────────────────────────────
 

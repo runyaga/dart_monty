@@ -23,4 +23,5 @@ dependency_overrides:
   dart_monty_core:
     git:
       url: https://github.com/runyaga/dart_monty_core.git
-      ref: 4a4d80d7c65c5f721c47a3e42d36187a271d6ef6
+      ref: 4a4d80d7c65c5f721c47a3e42d36187a271d6ef6dev_dependencies:
+  dart_monty_core: any

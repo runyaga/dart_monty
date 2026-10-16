@@ -150,7 +150,7 @@ class _ChildHandle {
   Future<void> cancel() async {
     state.value = const ChildDisposed();
     // Dispose plugins FIRST — this unblocks pending handler Futures
-    // (e.g., MessageBusExtension completes waiters with StateError).
+    // (e.g., an extension completes pending calls with StateError).
     // The bridge/stream must still be alive to deliver the resulting errors.
     await coordinator.disposeAll();
     await subscription.cancel();

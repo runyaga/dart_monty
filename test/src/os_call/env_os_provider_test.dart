@@ -1,4 +1,5 @@
-import 'package:dart_monty/dart_monty_bridge.dart';
+import 'package:dart_monty/dart_monty.dart';
+
 import 'package:test/test.dart';
 import '_os_call.dart';
 

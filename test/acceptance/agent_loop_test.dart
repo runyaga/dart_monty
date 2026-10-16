@@ -20,8 +20,9 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:dart_monty/dart_monty.dart';
-import 'package:dart_monty/dart_monty_bridge.dart';
 import 'package:dart_monty/src/runtime/runtime.dart' show startRuntimeWith;
+import 'package:dart_monty_core/dart_monty_core.dart'
+    show MontyCrashedError, MontyInt, MontyRuntimeError;
 import 'package:test/test.dart';
 
 import '_platform.dart';

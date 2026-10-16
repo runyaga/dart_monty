@@ -10,7 +10,7 @@
 @Tags(['integration', 'd1-pending'])
 library;
 
-import 'package:dart_monty/dart_monty_bridge.dart';
+import 'package:dart_monty/dart_monty.dart';
 import 'package:signals_core/signals_core.dart';
 import 'package:test/test.dart';
 

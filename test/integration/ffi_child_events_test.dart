@@ -16,8 +16,7 @@
 @Tags(['integration'])
 library;
 
-import 'package:dart_monty/dart_monty_bridge.dart';
-import 'package:dart_monty_core/dart_monty_core.dart' show Monty;
+import 'package:dart_monty/dart_monty.dart';
 import 'package:test/test.dart';
 import '_worker.dart';
 
