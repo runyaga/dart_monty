@@ -71,10 +71,15 @@ Each child gets:
 
 `SandboxExtension` relies on its parent `ExtensionCoordinator` to build the child's environment. It calls `coordinator.spawnChild()`, which iterates through all registered extensions and calls `MontyExtension.createChildInstance()` on each one, allowing them to be cloned for the child.
 
-## Filesystem Inheritance (VFS)
+## Workspace ownership
 
-The `childVfsStrategy` enum controls how a child's filesystem relates to its parent's:
+Each child receives an independent memory namespace with cwd `/work`.
+`files` and `ro_files` map child-relative destinations to absolute parent
+sources; `collect` on `sandbox_await` maps child-relative sources to absolute
+parent destinations. Copies are explicit snapshots, and collections are
+repeatable. Filesystem calls outside `/work` decline synchronously to core;
+they never fall through to the parent filesystem.
 
-- **`ChildVfsStrategy.isolated`** (default): Each child gets a fresh, empty `memoryFsHandler()`. No access to the parent's filesystem.
-- **`ChildVfsStrategy.shared`**: The child shares the parent's `Path.*` handler. This is useful for shared workspaces but removes filesystem isolation.
-- **`ChildVfsStrategy.none`**: The child has no filesystem access at all. Any `Path.*` operations will fail.
+D4a provides these helpers and the schema. Child checkout is still the D1-8
+stub until D5. Native backing through `sandboxBaseDir` is pending D4b.
+See [workspace policy](oscall-vfs.md) for caps, transfer bounds and disposal.

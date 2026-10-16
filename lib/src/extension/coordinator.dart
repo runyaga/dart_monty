@@ -384,6 +384,7 @@ class ExtensionCoordinator {
   Future<ExtensionCoordinator> spawnChild({
     required ChildSpawnContext context,
     required MontyBridge bridge,
+    // ignore: unnecessary-nullable-parameters, unnecessary-optional-parameters, standalone coordinator tests omit workspace.
     Workspace? workspace,
     OsHandler? baseOs,
   }) async {

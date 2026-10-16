@@ -206,8 +206,11 @@ void main() {
     );
     await expectLater(transfers.collect(w, {'a': '/second'}), throwsStateError);
     await Future<void>.delayed(Duration.zero);
-    expect(reads, 0);
-    release.complete();
+    try {
+      expect(reads, 0);
+    } finally {
+      release.complete();
+    }
     await collecting;
     final copy = await copying;
     addTearDown(copy.dispose);

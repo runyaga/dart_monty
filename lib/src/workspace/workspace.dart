@@ -15,10 +15,12 @@ final class Workspace {
     Map<String, Object> files = const {},
     Set<String> directories = const {},
     Set<String> readOnly = const {},
-    this.writeBytesLimit = 8388608,
-    this.memoryUsageLimit = 8388608,
+    int? writeBytesLimit = 8388608,
+    int? memoryUsageLimit = 8388608,
     OsHandler? parent,
-  }) : _parent = parent,
+  }) : _writeLimit = writeBytesLimit,
+       _memoryLimit = memoryUsageLimit,
+       _parent = parent,
        _protected = readOnly.map(_childPath).toSet() {
     _validateCap(writeBytesLimit);
     _validateCap(memoryUsageLimit);
@@ -41,10 +43,10 @@ final class Workspace {
   }
 
   /// Cumulative accepted guest payload ceiling; null explicitly opts out.
-  final int? writeBytesLimit;
+  final int? _writeLimit;
 
   /// Retained content plus 64 bytes per workspace entry; null opts out.
-  final int? memoryUsageLimit;
+  final int? _memoryLimit;
   OsHandler? _parent;
   final Set<String> _protected;
   OSAccess _access = OSAccess();
@@ -56,19 +58,22 @@ final class Workspace {
   Future<void>? _disposal;
 
   /// Accepted payload bytes across feeds, never refunded by deletion.
+  // ignore: unnecessarily-public-code, real-session tests inspect this internal policy boundary.
   int get writeBytes => _writeBytes;
 
   /// Retained logical bytes, including /work itself but not OSAccess's root.
+  // ignore: unnecessarily-public-code, real-session tests inspect this internal policy boundary.
   int get memoryUsage => _memoryUsage;
 
   /// Routes filesystem calls exclusively here and other calls to contributions.
-  OsHandler compose(OsHandler? nonFilesystem) => (name, args, kwargs) {
+  OsHandler compose(OsHandler nonFilesystem) => (name, args, kwargs) {
     if (_filesystem(name)) return call(name, args, kwargs);
-    if (nonFilesystem != null) return nonFilesystem(name, args, kwargs);
-    throw const OsCallNotHandledException();
+
+    return nonFilesystem(name, args, kwargs);
   };
 
   /// Synchronous routing is essential: an asynchronous throw is not a decline.
+  // ignore: unnecessarily-public-code, real-session tests inspect this internal policy boundary.
   MontyValue call(
     String name,
     List<MontyValue> args,
@@ -91,12 +96,30 @@ final class Workspace {
     if (!_mutates(name, args)) {
       return _sync(_access, name, normalized, kwargs);
     }
+
+    return _mutate(name, normalized, kwargs, path, target);
+  }
+
+  /// Refuses new leases immediately; admitted collection may finish its writes.
+  Future<void> dispose() {
+    _freeing = true;
+
+    return _disposal ??= _finishDisposal();
+  }
+
+  MontyValue _mutate(
+    String name,
+    List<MontyValue> args,
+    Map<String, MontyValue> kwargs,
+    String path,
+    String? target,
+  ) {
     if (_leased) throw StateError('Workspace is being collected');
     _checkProtected(path);
     if (target != null) _checkProtected(target);
     final payload = _payload(name, args);
     final nextWrites = _writeBytes + payload;
-    final writeCap = writeBytesLimit;
+    final writeCap = _writeLimit;
     if (writeCap != null && nextWrites > writeCap) {
       throw const ExternalException(
         'OSError',
@@ -115,7 +138,7 @@ final class Workspace {
     // failures, including partially applied directory operations, discard it.
     // No live namespace or counter changes until both caps accept the result.
     final candidate = _fromEntries(_snapshot(_access));
-    final result = _sync(candidate, name, normalized, kwargs);
+    final result = _sync(candidate, name, args, kwargs);
     final retained = _size(_snapshot(candidate));
     _checkMemory(retained);
     _access = candidate;
@@ -123,13 +146,6 @@ final class Workspace {
     _writeBytes = nextWrites;
 
     return result;
-  }
-
-  /// Refuses new leases immediately; admitted collection may finish its writes.
-  Future<void> dispose() {
-    _freeing = true;
-
-    return _disposal ??= _finishDisposal();
   }
 
   void _checkProtected(String path) {
@@ -147,7 +163,7 @@ final class Workspace {
   }
 
   void _checkMemory(int retained) {
-    final memoryCap = memoryUsageLimit;
+    final memoryCap = _memoryLimit;
     if (memoryCap != null && retained > memoryCap) {
       throw const ExternalException(
         'MemoryError',
@@ -209,25 +225,24 @@ String _operationPath(MontyValue? value) {
   return p.posix.normalize(text);
 }
 
-bool _mutates(String name, List<MontyValue> args) => switch (name) {
-  'Path.write_text' ||
-  'Path.write_bytes' ||
-  'Path.append_text' ||
-  'Path.append_bytes' ||
-  'Path.mkdir' ||
-  'Path.unlink' ||
-  'Path.rmdir' ||
-  'Path.rename' => true,
-  'open' => switch (args.elementAtOrNull(1)) {
-    MontyString(:final value) =>
-      value.contains('w') ||
-          value.contains('a') ||
-          value.contains('x') ||
-          value.contains('+'),
-    _ => false,
-  },
-  _ => false,
+const _mutatingCalls = {
+  'Path.write_text',
+  'Path.write_bytes',
+  'Path.append_text',
+  'Path.append_bytes',
+  'Path.mkdir',
+  'Path.unlink',
+  'Path.rmdir',
+  'Path.rename',
 };
+
+bool _mutates(String name, List<MontyValue> args) {
+  if (_mutatingCalls.contains(name)) return true;
+  if (name != 'open') return false;
+  final mode = args.elementAtOrNull(1);
+
+  return mode is MontyString && ['w', 'a', 'x', '+'].any(mode.value.contains);
+}
 
 int _payload(String name, List<MontyValue> args) {
   if (!name.startsWith('Path.write_') && !name.startsWith('Path.append_')) {

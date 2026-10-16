@@ -3,7 +3,7 @@ library;
 
 import 'dart:async';
 
-import 'package:dart_monty/src/bridge/event.dart';
+import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/src/bridge/session_bridge.dart';
 import 'package:dart_monty/src/workspace/workspace.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
@@ -143,27 +143,55 @@ void main() {
     );
   });
   test('T1-absolute-cwd', () async {
-    await h.session.feedRun("import os\nos.chdir('/parent')", os: parent.call);
-    final w = await transfers.copyIn(
-      parent: parent.call,
-      files: {'in': '/parent/in'},
-    );
-    addTearDown(w.dispose);
-    await h.run(w, "Path('in').write_text('independent')");
-    await h.session.feedRun("import os\nos.chdir('/')", os: parent.call);
-    await transfers.collect(w, {'in': '/parent/out'});
-    expect(
-      (await parent.call('Path.read_text', [
-        MontyPath('/parent/in'),
-      ], {})).dartValue,
-      'source',
-    );
+    final bridge = SessionBridge(session: h.session)..registerOs(parent.call);
+    addTearDown(bridge.dispose);
+    Workspace? captured;
+    bridge
+      ..register(
+        HostFunction(
+          schema: const HostFunctionSchema(name: 'copy_inputs'),
+          handler: (_, ctx) async {
+            final w = captured = await transfers.copyIn(
+              parent: ctx.os,
+              files: {'in': '/parent/in'},
+            );
+            addTearDown(w.dispose);
+            await h.pool.withSession(
+              (child) => child.feedRun(
+                "from pathlib import Path\nPath('in').write_text('independent')",
+                cwd: '/work',
+                os: w.call,
+              ),
+            );
+            return const MontyNone();
+          },
+        ),
+      )
+      ..register(
+        HostFunction(
+          schema: const HostFunctionSchema(name: 'collect_output'),
+          handler: (_, _) async {
+            await transfers.collect(captured!, {'in': '/parent/out'});
+            return const MontyNone();
+          },
+        ),
+      );
+    final events = await bridge.execute("""
+import os
+from pathlib import Path
+os.chdir('/parent')
+copy_inputs()
+os.chdir('/')
+collect_output()
+(Path('/parent/in').read_text(), Path('/parent/out').read_text())
+""").toList();
+    expect((events.last as BridgeRunFinished).value, ['source', 'independent']);
     await expectLater(
       transfers.copyIn(parent: parent.call, files: {'in': 'parent/in'}),
       throwsA(isA<ExternalException>()),
     );
     await expectLater(
-      transfers.collect(w, {'in': 'relative'}),
+      transfers.collect(captured!, {'in': 'relative'}),
       throwsA(isA<ExternalException>()),
     );
   });
@@ -194,14 +222,23 @@ void main() {
     );
     addTearDown(w.dispose);
     await h.run(w, "Path('in').write_text('result')");
-    await transfers.collect(w, {'in': '/parent/out'});
-    expect(
-      await h.session.feedRun(
-        "Path('/parent/out').read_text()",
-        os: parent.call,
+    final bridge = SessionBridge(session: h.session)..registerOs(parent.call);
+    addTearDown(bridge.dispose);
+    bridge.register(
+      HostFunction(
+        schema: const HostFunctionSchema(name: 'collect_live'),
+        handler: (_, _) async {
+          await transfers.collect(w, {'in': '/parent/out'});
+          return const MontyNone();
+        },
       ),
-      const MontyString('result'),
     );
+    final events = await bridge
+        .execute(
+          "collect_live()\nPath('/parent/out').read_text()",
+        )
+        .toList();
+    expect((events.last as BridgeRunFinished).value, 'result');
   });
   test('T5-dispose-order', () async {
     final admitted = Completer<void>();
@@ -223,8 +260,11 @@ void main() {
       disposed = true;
     });
     await Future<void>.delayed(Duration.zero);
-    expect(disposed, false);
-    release.complete();
+    try {
+      expect(disposed, false);
+    } finally {
+      release.complete();
+    }
     await collecting;
     await disposing;
     expect(w.memoryUsage, 0);
@@ -239,4 +279,42 @@ void main() {
       false,
     );
   });
+  const invalid = {
+    'negative-write-cap': 'write_bytes_limit=-1',
+    'increased-write-cap': 'write_bytes_limit=8388609',
+    'negative-memory-cap': 'memory_usage_limit=-1',
+    'increased-memory-cap': 'memory_usage_limit=8388609',
+    'relative-parent': "files={'a': 'parent/in'}",
+    'absolute-child': "files={'/a': '/parent/in'}",
+    'escaping-child': "files={'../a': '/parent/in'}",
+    'conflicting-inputs':
+        "files={'d': '/parent/in'}, ro_files={'d/a': '/parent/in'}",
+    'non-string-path': "files={'a': 42}",
+  };
+  for (final entry in invalid.entries) {
+    test('D4a-schema-${entry.key}', () async {
+      final runtime = await MontyRuntime.start(
+        pool: h.pool,
+        os: parent.call,
+        extensions: [SandboxExtension()],
+      );
+      addTearDown(runtime.dispose);
+      await expectLater(
+        runtime.execute("sandbox_spawn('1', ${entry.value})").result,
+        throwsA(
+          isA<MontyError>().having(
+            (e) => e.toString(),
+            'pre-checkout failure',
+            isNot(contains('D1-8')),
+          ),
+        ),
+      );
+      expect(
+        (await parent.call('Path.read_text', [
+          MontyPath('/parent/in'),
+        ], {})).dartValue,
+        'source',
+      );
+    });
+  }
 }

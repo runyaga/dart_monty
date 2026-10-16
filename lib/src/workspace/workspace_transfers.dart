@@ -84,11 +84,18 @@ final class WorkspaceTransfers {
   bool _disposed = false;
 
   /// Stages every source before publishing an independent workspace.
+  // Optional defaults are exercised directly by real-session policy tests.
+  // ignore: unnecessary-optional-parameters
   Future<Workspace> copyIn({
+    // ignore: unnecessary-optional-parameters, tests cover omission and defaults.
     OsHandler? parent,
+    // ignore: unnecessary-optional-parameters, tests cover omission and defaults.
     Map<String, String> files = const {},
+    // ignore: unnecessary-optional-parameters, tests cover omission and defaults.
     Map<String, String> roFiles = const {},
+    // ignore: unnecessary-optional-parameters, tests cover omission and defaults.
     int? writeBytesLimit = 8388608,
+    // ignore: unnecessary-optional-parameters, tests cover omission and defaults.
     int? memoryUsageLimit = 8388608,
   }) async {
     _validateCap(writeBytesLimit);
@@ -110,24 +117,10 @@ final class WorkspaceTransfers {
         await stage.read(parent ?? _missingParent, source, child);
       }
 
-      return Workspace(
-        files: {
-          for (final entry in stage.entries)
-            p.posix.relative(entry.destination, from: '/work'): ?entry.bytes,
-        },
-        directories: {
-          for (final entry in stage.entries)
-            if (entry.bytes == null)
-              p.posix.relative(entry.destination, from: '/work'),
-        },
-        readOnly: {
-          for (final (child, _) in readonly)
-            p.posix.relative(child, from: '/work'),
-        },
-        writeBytesLimit: writeBytesLimit,
-        memoryUsageLimit: memoryUsageLimit,
-        parent: parent,
-      );
+      return _copiedWorkspace(stage, readonly, parent, (
+        writeBytesLimit,
+        memoryUsageLimit,
+      ));
     });
   }
 
@@ -148,28 +141,7 @@ final class WorkspaceTransfers {
     await _run(workspace, () async {
       workspace._lease();
       try {
-        final stage = _Stage();
-        for (final (source, destination) in mappings) {
-          await _noLinks(parent ?? _missingParent, destination);
-          await stage.read(workspace.call, source, destination);
-        }
-        // All reads and destination validation have succeeded. Parent failures
-        // may leave earlier writes, intentionally without rollback promises.
-        for (final entry in stage.entries) {
-          await (parent ?? _missingParent)(
-            entry.bytes == null ? 'Path.mkdir' : 'Path.write_bytes',
-            [
-              MontyPath(entry.destination),
-              if (entry.bytes case final bytes?) MontyBytes(bytes),
-            ],
-            entry.bytes == null
-                ? {
-                    'parents': const MontyBool(true),
-                    'exist_ok': const MontyBool(true),
-                  }
-                : {},
-          );
-        }
+        await _collect(workspace, parent ?? _missingParent, mappings);
       } finally {
         workspace._release();
       }
@@ -180,6 +152,35 @@ final class WorkspaceTransfers {
   Future<void> dispose() async {
     _disposed = true;
     await _tail;
+  }
+
+  Future<void> _collect(
+    Workspace workspace,
+    OsHandler parent,
+    List<(String, String)> mappings,
+  ) async {
+    final stage = _Stage();
+    for (final (source, destination) in mappings) {
+      await _noLinks(parent, destination);
+      await stage.read(workspace.call, source, destination);
+    }
+    // All reads and destination validation have succeeded. Parent failures
+    // may leave earlier writes, intentionally without rollback promises.
+    for (final entry in stage.entries) {
+      await parent(
+        entry.bytes == null ? 'Path.mkdir' : 'Path.write_bytes',
+        [
+          MontyPath(entry.destination),
+          if (entry.bytes case final bytes?) MontyBytes(bytes),
+        ],
+        entry.bytes == null
+            ? {
+                'parents': const MontyBool(true),
+                'exist_ok': const MontyBool(true),
+              }
+            : {},
+      );
+    }
   }
 
   Future<T> _run<T>(Object key, Future<T> Function() operation) {
@@ -244,46 +245,55 @@ final class _Stage {
     await _noLinks(source, path);
     final stat = await source('Path.stat', [MontyPath(path)], {});
     if (stat is! MontyNamedTuple) throw _transferError('unknown source size');
-    int field(String name) {
-      final index = stat.fieldNames.indexOf(name);
-      final invalid = _transferError('unknown source metadata');
-      if (index < 0) throw invalid;
-      final value = stat.values.elementAtOrNull(index);
-      if (value is! MontyInt) throw invalid;
-
-      return value.value;
-    }
-
-    final mode = field('st_mode') & 0xF000;
+    final mode = _statField(stat, 'st_mode') & 0xF000;
     if (mode == 0x4000) {
-      final identity = (field('st_dev'), field('st_ino'));
-      if (identity.$2 != 0 && !_identities.add(identity)) {
-        throw _transferError('repeated directory identity');
-      }
-      entries.add(_StagedEntry(destination, null));
-      final listing = await source('Path.iterdir', [MontyPath(path)], {});
-      if (listing is! MontyList ||
-          listing.items.length > _transferEntries - _count) {
-        throw _transferError('entry limit exceeded');
-      }
-      final seen = <String>{};
-      for (final item in listing.items) {
-        final child = _operationPath(item);
-        if (p.posix.dirname(child) != path || !seen.add(child)) {
-          throw _transferError('invalid directory listing');
-        }
-        await read(
-          source,
-          child,
-          p.posix.join(destination, p.posix.basename(child)),
-          depth + 1,
-        );
-      }
+      await _directory(source, path, destination, depth, stat);
 
       return;
     }
     if (mode != 0x8000) throw _transferError('source is not a regular file');
-    final reserved = field('st_size');
+    await _file(source, path, destination, stat);
+  }
+
+  Future<void> _directory(
+    OsHandler source,
+    String path,
+    String destination,
+    int depth,
+    MontyNamedTuple stat,
+  ) async {
+    final identity = (_statField(stat, 'st_dev'), _statField(stat, 'st_ino'));
+    if (identity.$2 != 0 && !_identities.add(identity)) {
+      throw _transferError('repeated directory identity');
+    }
+    entries.add(_StagedEntry(destination, null));
+    final listing = await source('Path.iterdir', [MontyPath(path)], {});
+    if (listing is! MontyList ||
+        listing.items.length > _transferEntries - _count) {
+      throw _transferError('entry limit exceeded');
+    }
+    final seen = <String>{};
+    for (final item in listing.items) {
+      final child = _operationPath(item);
+      if (p.posix.dirname(child) != path || !seen.add(child)) {
+        throw _transferError('invalid directory listing');
+      }
+      await read(
+        source,
+        child,
+        p.posix.join(destination, p.posix.basename(child)),
+        depth + 1,
+      );
+    }
+  }
+
+  Future<void> _file(
+    OsHandler source,
+    String path,
+    String destination,
+    MontyNamedTuple stat,
+  ) async {
+    final reserved = _statField(stat, 'st_size');
     if (reserved < 0 || reserved > _transferBytes - _bytes) {
       throw _transferError('byte limit exceeded');
     }
@@ -301,3 +311,41 @@ MontyValue _missingParent(
   List<MontyValue> args,
   Map<String, MontyValue> kwargs,
 ) => throw _transferError('missing live parent OS adapter');
+
+int _statField(MontyNamedTuple stat, String name) {
+  final index = stat.fieldNames.indexOf(name);
+  final invalid = _transferError('unknown source metadata');
+  if (index < 0) throw invalid;
+  final value = stat.values.elementAtOrNull(index);
+  if (value is! MontyInt) throw invalid;
+
+  return value.value;
+}
+
+Workspace _copiedWorkspace(
+  _Stage stage,
+  List<(String, String)> readOnlyPaths,
+  OsHandler? parent,
+  (int?, int?) caps,
+) {
+  final (writeBytesLimit, memoryUsageLimit) = caps;
+
+  return Workspace(
+    files: {
+      for (final entry in stage.entries)
+        p.posix.relative(entry.destination, from: '/work'): ?entry.bytes,
+    },
+    directories: {
+      for (final entry in stage.entries)
+        if (entry.bytes == null)
+          p.posix.relative(entry.destination, from: '/work'),
+    },
+    readOnly: {
+      for (final (child, _) in readOnlyPaths)
+        p.posix.relative(child, from: '/work'),
+    },
+    writeBytesLimit: writeBytesLimit,
+    memoryUsageLimit: memoryUsageLimit,
+    parent: parent,
+  );
+}

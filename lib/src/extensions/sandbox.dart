@@ -353,9 +353,11 @@ class SandboxExtension extends MontyExtension {
   }
 
   /// Cumulative accepted workspace write bytes; explicit null is unbounded.
+  // ignore: unnecessarily-public-code, approved public D4a cap field.
   final int? writeBytesLimit;
 
   /// Retained content plus 64 bytes per entry; explicit null is unbounded.
+  // ignore: unnecessarily-public-code, approved public D4a cap field.
   final int? memoryUsageLimit;
 
   /// Maximum number of concurrent children.
@@ -445,13 +447,19 @@ class SandboxExtension extends MontyExtension {
       },
     );
 
+    await _disposeChildren();
+    _children.clear();
+    _childrenSignal.value = const <int, ChildState>{};
+    await super.onDispose();
+    _childrenSignal.dispose();
+  }
+
+  Future<void> _disposeChildren() async {
     // Tear down all living children.
     for (final entry in _children.entries) {
       final child = entry.value;
-      if (!child.isAlive) {
-        await child.workspace.dispose();
-        continue;
-      }
+      await child.workspace.dispose();
+      if (!child.isAlive) continue;
 
       try {
         await child.cancel();
@@ -478,10 +486,6 @@ class SandboxExtension extends MontyExtension {
         );
       }
     }
-    _children.clear();
-    _childrenSignal.value = const <int, ChildState>{};
-    await super.onDispose();
-    _childrenSignal.dispose();
   }
 
   Future<MontyValue> _handleSpawn(

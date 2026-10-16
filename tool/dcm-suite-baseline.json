@@ -1,40 +1,37 @@
 {
   "_dcm_version": "1.39.0",
-  "_grand_total": 156,
+  "_grand_total": 137,
   "checks": {
     "calculate-metrics": {
       "by_file": {
-        "lib/src/extension/coordinator.dart": 3,
+        "lib/src/extension/coordinator.dart": 2,
         "lib/src/extensions/run_script.dart": 1,
         "lib/src/extensions/sandbox.dart": 6,
         "lib/src/host/dispatch.dart": 2,
         "lib/src/host/param.dart": 1,
         "lib/src/host/schema.dart": 1,
-        "lib/src/os_call/fs_decorators.dart": 3,
-        "lib/src/os_call/fs_handlers.dart": 2,
         "lib/src/os_call/os_handlers.dart": 1,
-        "lib/src/os_call/sandboxed_fs_handler.dart": 2,
         "lib/src/runtime/runtime.dart": 2
       },
       "by_rule": {
-        "cyclomatic-complexity": 6,
-        "lines-of-code": 14,
+        "cyclomatic-complexity": 2,
+        "lines-of-code": 10,
         "number-of-methods": 2,
         "number-of-parameters": 2
       },
-      "total": 24
+      "total": 16
     },
     "check-dependencies": {
       "by_file": {
-        "example/pubspec.yaml": 2,
+        "example/pubspec.yaml": 1,
         "example/web/pubspec.yaml": 1,
         "pubspec.yaml": 1
       },
       "by_rule": {
-        "promotion-dependency-issue": 2,
+        "promotion-dependency-issue": 1,
         "unused-dependency-issue": 2
       },
-      "total": 4
+      "total": 3
     },
     "check-exports-completeness": {
       "by_file": {},
@@ -45,7 +42,7 @@
       "by_file": {
         "lib/src/bridge/event.dart": 3,
         "lib/src/bridge/struct_log_logger.dart": 1,
-        "lib/src/extension/coordinator.dart": 6,
+        "lib/src/extension/coordinator.dart": 5,
         "lib/src/extension/extension.dart": 1,
         "lib/src/extensions/sandbox.dart": 2,
         "lib/src/host/context.dart": 3,
@@ -58,9 +55,9 @@
       "by_rule": {
         "never-passed-parameter-issue": 7,
         "unnecessary-nullable-parameter-issue": 4,
-        "unnecessary-optional-parameter-issue": 19
+        "unnecessary-optional-parameter-issue": 18
       },
-      "total": 30
+      "total": 29
     },
     "check-unnecessarily-public-code": {
       "by_file": {
@@ -68,38 +65,31 @@
         "lib/src/bridge/struct_log_logger.dart": 1,
         "lib/src/extension/extension.dart": 1,
         "lib/src/extensions/event_loop.dart": 20,
-        "lib/src/extensions/sandbox.dart": 21,
+        "lib/src/extensions/sandbox.dart": 20,
         "lib/src/host/context.dart": 4,
         "lib/src/host/function.dart": 2,
         "lib/src/host/param.dart": 1,
         "lib/src/host/schema.dart": 1,
         "lib/src/introspection_functions.dart": 1,
-        "lib/src/os_call/default_os_handler_native.dart": 1,
-        "lib/src/os_call/default_os_handler_web.dart": 1,
-        "lib/src/os_call/fs_decorators.dart": 2,
-        "lib/src/os_call/sandboxed_fs_handler.dart": 1,
         "lib/src/runtime/backend_kind.dart": 3,
         "lib/src/runtime/execution_handle.dart": 4,
         "lib/src/runtime/runtime.dart": 8,
         "lib/src/runtime/value_x.dart": 9
       },
       "by_rule": {
-        "unnecessarily-public-issue": 93
+        "unnecessarily-public-issue": 87
       },
-      "total": 93
+      "total": 87
     },
     "check-unused-code": {
       "by_file": {
         "lib/src/extensions/event_loop.dart": 1,
-        "lib/src/os_call/default_os_handler_native.dart": 1,
-        "lib/src/os_call/default_os_handler_web.dart": 1,
-        "lib/src/os_call/sandboxed_fs_handler.dart": 1,
         "lib/src/runtime/value_x.dart": 1
       },
       "by_rule": {
-        "unused-code-issue": 5
+        "unused-code-issue": 2
       },
-      "total": 5
+      "total": 2
     },
     "check-unused-files": {
       "by_file": {},

@@ -227,10 +227,11 @@ class SessionBridge implements MontyBridge {
     final printed = CollectString();
     try {
       end(
-        await _feed(code, inputs, os, cancelToken, cwd, (
+        await _feed(code, inputs, os, cancelToken, (
           printed,
           threadId,
           runId,
+          cwd,
         ), emit),
       );
     } on MontyError catch (e) {
@@ -245,11 +246,10 @@ class SessionBridge implements MontyBridge {
     Map<String, MontyValue>? inputs,
     OsHandler? os,
     CancelToken? cancelToken,
-    String? cwd,
-    (CollectString, String, String) run,
+    (CollectString, String, String, String?) run,
     void Function(BridgeEvent) emit,
   ) async {
-    final (printed, threadId, runId) = run;
+    final (printed, threadId, runId, cwd) = run;
     final value = await session.feedRun(
       code,
       cwd: cwd,

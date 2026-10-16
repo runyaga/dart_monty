@@ -230,6 +230,7 @@ void main() {
         await session
             .execute(
               'from pathlib import Path\n'
+              'Path("/data").mkdir(exist_ok=True)\n'
               'Path("/data/test.txt").write_text("hello from agent")',
             )
             .result;

@@ -48,6 +48,7 @@ enum ChildPolicy {
 /// that the consumer can use for per-child filesystem isolation.
 class ChildSpawnContext {
   /// Creates a [ChildSpawnContext].
+  // ignore: unnecessary-nullable-parameters, public D1 signature retains optional cwd.
   const ChildSpawnContext({required this.childId, this.workingDirectory});
 
   /// Unique identifier for this child within the parent `SandboxExtension`.
