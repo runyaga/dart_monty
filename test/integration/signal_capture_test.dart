@@ -1,16 +1,7 @@
-// Keep guest programs and historical case IDs intact.
+// Guest programs keep their long lines.
 // ignore_for_file: lines_longer_than_80_chars
-// G5: Signals experiments.
-//
-// Covers SignalCapture, Computed signals, effect cleanup, per-plugin reactive
-// signals (channelStateSignal, childrenSignal), and FauxUi
-// signal-wiring patterns.
-//
-// Run with:
-//   dart test --tags=integration \
-//     test/experiments/signals_experiment_test.dart
-//
-// Sandbox tests require vm; others work on both backends.
+// SignalCapture, computed signals and effect cleanup over EventLoopExtension
+// and SandboxExtension signals, plus FauxUi event sequences.
 @Tags(['integration'])
 library;
 
@@ -20,14 +11,14 @@ import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:signals_core/signals_core.dart';
 import 'package:test/test.dart';
 
-import '../integration/_monty_harness.dart';
+import '_monty_harness.dart';
 
 void main() {
   // ---------------------------------------------------------------------------
-  // G5-1: SignalCapture basic — EventLoop channelStateSignal
+  // SignalCapture basic — EventLoop channelStateSignal
   // ---------------------------------------------------------------------------
 
-  group('G5-1: SignalCapture on EventLoop.channelStateSignal', () {
+  group('SignalCapture on EventLoop.channelStateSignal', () {
     late MontyHarness h;
     late EventLoopExtension el;
 
@@ -74,10 +65,10 @@ void main() {
   });
 
   // ---------------------------------------------------------------------------
-  // G5-3: Computed signal derived from plugin state
+  // Computed signal derived from plugin state
   // ---------------------------------------------------------------------------
 
-  group('G5-3: Computed signal derived from EventLoop state', () {
+  group('Computed signal derived from EventLoop state', () {
     late MontyHarness h;
     late EventLoopExtension el;
 
@@ -113,10 +104,10 @@ void main() {
   });
 
   // ---------------------------------------------------------------------------
-  // G5-4: effect() cleanup — verify no memory leak
+  // effect() cleanup — verify no memory leak
   // ---------------------------------------------------------------------------
 
-  group('G5-4: effect cleanup', () {
+  group('effect cleanup', () {
     test('effect removed after cleanup does not track further changes', () {
       final s = signal(0);
       final log = <int>[];
@@ -149,11 +140,11 @@ void main() {
   });
 
   // ---------------------------------------------------------------------------
-  // G5-5: SignalCapture on aliveCountSignal (sandbox)
+  // SignalCapture on aliveCountSignal (sandbox)
   // ---------------------------------------------------------------------------
 
   group(
-    'G5-5: SignalCapture on SandboxExtension.aliveCountSignal',
+    'SignalCapture on SandboxExtension.aliveCountSignal',
     () {
       late MontyHarness h;
       late SandboxExtension sandbox;
@@ -199,10 +190,10 @@ sandbox_await_all(handles=[h1, h2, h3])
   );
 
   // ---------------------------------------------------------------------------
-  // G5-6: FauxUi BridgeFunctionEmit — el_emit surfaced in events
+  // FauxUi BridgeFunctionEmit — el_emit surfaced in events
   // ---------------------------------------------------------------------------
 
-  group('G5-6: FauxUi sees BridgeFunctionEmit from el_emit', () {
+  group('FauxUi sees BridgeFunctionEmit from el_emit', () {
     late MontyHarness h;
     late EventLoopExtension el;
     late FauxUi ui;
@@ -237,10 +228,10 @@ el_emit(value={'tick': 2})
   });
 
   // ---------------------------------------------------------------------------
-  // G5-7: FauxUi assertEventSequence with matchers
+  // FauxUi assertEventSequence with matchers
   // ---------------------------------------------------------------------------
 
-  group('G5-7: FauxUi.assertEventSequence', () {
+  group('FauxUi.assertEventSequence', () {
     late MontyHarness h;
     late FauxUi ui;
 

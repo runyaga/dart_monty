@@ -1,6 +1,6 @@
 # Developer Setup
 
-Everything needed to build, test, and contribute to dart\_monty.
+Everything needed to build, test, and contribute to dart\_monty. The package has no Rust or native code of its own. The worker, native library and Web Worker assets come from `dart_monty_core`.
 
 ## Required Tools
 
@@ -28,40 +28,6 @@ brew install --cask flutter
 
 Verify: `flutter --version`
 
-### Rust (via rustup)
-
-Required from M2 onward. The project pins the toolchain in
-`native/rust-toolchain.toml` (stable channel + wasm32 target).
-
-```bash
-# Install rustup
-brew install rustup
-
-# Initialize with stable toolchain
-rustup default stable
-
-# WASM target (installed automatically by rust-toolchain.toml)
-rustup target add wasm32-wasip1-threads
-```
-
-Verify: `rustc --version` (>= 1.91)
-
-**Important:** Do **not** install Homebrew's standalone `rust` formula
-(`brew install rust`). It conflicts with rustup by placing a stale
-`rustc`/`cargo` in `/opt/homebrew/bin/` that shadows rustup's managed
-toolchain. If you have it installed, remove it:
-
-```bash
-brew uninstall rust
-```
-
-Ensure `~/.cargo/bin` is in your PATH (rustup installs proxy binaries
-there). Add to `~/.zprofile`:
-
-```bash
-export PATH="$HOME/.cargo/bin:$PATH"
-```
-
 ### Python 3
 
 Used for developer scripts and linting tools.
@@ -70,7 +36,7 @@ Used for developer scripts and linting tools.
 brew install python@3.12
 ```
 
-Verify: `python3 --version` (>= 3.10)
+Verify: `python3 --version` (>= 3.12)
 
 ### pre-commit
 
@@ -131,17 +97,6 @@ brew install dcm
 
 Verify: `dcm --version`
 
-### cargo-tarpaulin (optional)
-
-Rust code coverage. Required for the M2 coverage gate in CI.
-Optional locally — CI runs it.
-
-```bash
-cargo install cargo-tarpaulin
-```
-
-Verify: `cargo tarpaulin --version`
-
 ## LSP / Editor Setup
 
 ### Dart / Flutter
@@ -151,50 +106,43 @@ Verify: `cargo tarpaulin --version`
   extensions. The Dart Analysis Server starts automatically.
 - **Neovim / other:** Use `dart language-server` or `analysis_server`.
 
-### Rust
-
-- **VS Code:** Install
-  [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer).
-  Open `native/` as a workspace folder for best results.
-- **Neovim:** `rust-analyzer` via mason or manual install.
-
-Configure `rust-analyzer` to use the `native/` directory:
-
-```json
-{
-  "rust-analyzer.linkedProjects": ["native/Cargo.toml"]
-}
-```
-
 ## Quick Verification
 
 After installing everything, run these from the repo root:
 
 ```bash
-# Dart
+dart pub get
 dart format --set-exit-if-changed .
-python3 tool/analyze_packages.py
-cd packages/dart_monty_platform_interface && dart pub get && dart test && cd ../..
-
-# Rust
-cd native && cargo fmt --check && cargo clippy -- -D warnings && cargo test && cd ..
-
-# Full gate scripts
-bash tool/test_rust.sh
+dart analyze --fatal-infos
+dart test
 ```
+
+The integration and acceptance suites need a worker. On the VM, build
+`dart_monty_worker` with `dart_monty_core`'s `tool/build_worker.sh` and point
+`DART_MONTY_WORKER` at it. In a browser, the suites use `dart_monty_core`'s
+committed Web Worker assets and need Chrome or Firefox.
+
+```bash
+DART_MONTY_WORKER=<path>/dart_monty_worker \
+  bash tool/test_cell.sh vm
+bash tool/test_cell.sh chrome-dart2js
+```
+
+`tool/test_cell.sh` takes one of `vm`, `chrome-dart2js`, `chrome-dart2wasm`,
+`firefox-dart2js` and `firefox-dart2wasm`. It runs the integration and
+acceptance suites for that cell and fails when fewer tests ran than the floor
+in `tool/test_floors.tsv`.
 
 ## Tool Summary
 
-| Tool | Version | Purpose | Required From |
-|------|---------|---------|---------------|
-| Dart SDK | >= 3.10 | Dart compilation, analysis, testing | M1 |
-| Flutter SDK | (optional) | Flutter-specific integration tests | — |
-| Rust (rustup) | >= 1.91 | Native + WASM compilation | M2 |
-| Python 3 | >= 3.10 | Developer scripts, linting | M1 |
-| pre-commit | any | Git hook automation | M1 |
-| pymarkdown | any | Markdown linting | M1 |
-| gitleaks | any | Secret scanning | M1 |
-| DCM | any | Dart code metrics (optional locally) | M1 |
-| cargo-tarpaulin | any | Rust coverage (optional locally) | M2 |
-| Node.js | >= 18 | WASM smoke tests (future) | M3 |
-| Chrome | headless | Browser integration tests (future) | M3 |
+| Tool | Version | Purpose |
+|------|---------|---------|
+| Dart SDK | >= 3.10 (CI pins 3.13.5) | Compilation, analysis, tests |
+| Flutter SDK | optional | Flutter-specific integration tests |
+| Chrome | current | Browser cells (`chrome-dart2js`, `chrome-dart2wasm`) |
+| Firefox | current | Browser cells (`firefox-dart2js`, `firefox-dart2wasm`) |
+| Python 3 | >= 3.12 | Developer scripts, linting |
+| pre-commit | any | Git hook automation |
+| pymarkdown | any | Markdown linting |
+| gitleaks | any | Secret scanning |
+| DCM | any | Dart code metrics (optional locally) |
