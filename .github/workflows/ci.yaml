@@ -742,6 +742,21 @@ jobs:
             test/integration/child_limit_selection_test.dart \
             --run-skipped --tags integration --exclude-tags d1-pending \
             --reporter=expanded 2>&1 | tee /tmp/d3-contracts-web.log
+      - name: D5 preparation contracts (browser compilers)
+        if: ${{ !cancelled() && steps.pubget.outcome == 'success' }}
+        env:
+          MOZ_HEADLESS: '1'
+        run: |
+          set -o pipefail
+          dart test -p chrome,firefox -c dart2js,dart2wasm \
+            test/integration/child_context_test.dart \
+            test/integration/child_limits_test.dart \
+            test/integration/child_lifecycle_test.dart \
+            test/integration/inherited_extension_ownership_test.dart \
+            test/integration/injected_pool_timeout_test.dart \
+            test/integration/child_os_policy_test.dart \
+            --run-skipped --tags integration \
+            --reporter=expanded 2>&1 | tee /tmp/d5-preparation-web.log
       - name: Upload the assembled site on failure
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
