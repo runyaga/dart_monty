@@ -15,7 +15,7 @@ brew install dart-sdk
 brew install --cask flutter
 ```
 
-Verify: `dart --version` (>= 3.12)
+Verify: `dart --version` (>= 3.10)
 
 ### Flutter SDK (optional)
 
