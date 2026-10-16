@@ -12,34 +12,23 @@ void main() {
     maxFeedDuration: Duration(milliseconds: 1),
     maxMemory: 100,
   );
-  for (final childLimits in [null, const ResourceLimits()]) {
-    test('D3-child-limit-selection explicit=${childLimits != null}', () async {
-      final runtime = await startRuntimeWith(
-        checkout: ({limits}) async => FakeMontySession(),
-        limits: owning,
-        extensions: [SandboxExtension(childLimits: childLimits)],
-      );
-      addTearDown(runtime.dispose);
-      for (final override in ['timeout_ms', 'memory_bytes']) {
-        final call = runtime.invoke('sandbox_spawn', {
+  // Accepted explicit limits remain a D5-A gap until child checkout uses the
+  // runtime seam. Rejection must not depend on the current checkout stub.
+  test('D3-child-limit-selection omitted rejects owner escalation', () async {
+    final runtime = await startRuntimeWith(
+      checkout: ({limits}) async => FakeMontySession(),
+      limits: owning,
+      extensions: [SandboxExtension()],
+    );
+    addTearDown(runtime.dispose);
+    for (final override in ['timeout_ms', 'memory_bytes']) {
+      await expectLater(
+        runtime.invoke('sandbox_spawn', {
           'code': const MontyString('42'),
           override: const MontyInt(200),
-        });
-        // Child execution remains D1-8. Reaching that stub proves explicit
-        // null fields did not fall back field-by-field to the owner's caps.
-        await expectLater(
-          call,
-          childLimits == null
-              ? throwsArgumentError
-              : throwsA(
-                  isA<UnimplementedError>().having(
-                    (e) => e.message,
-                    'stub',
-                    'D1-8',
-                  ),
-                ),
-        );
-      }
-    });
-  }
+        }),
+        throwsArgumentError,
+      );
+    }
+  });
 }

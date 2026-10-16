@@ -7,12 +7,8 @@ import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:dart_monty_core/dart_monty_core_testing.dart';
 import 'package:test/test.dart';
 
-// Like D3-child-limit-selection, reaching the exact D1-8 stub proves only
-// pre-checkout validation. It is not evidence of checkout or enforcement.
-Matcher get _reachesCheckout => throwsA(
-  isA<UnimplementedError>().having((e) => e.message, 'checkout stub', 'D1-8'),
-);
-
+// Accepted limits cannot be observed through the runtime checkout seam yet.
+// Keep rejection witnesses here; accepted selection/reduction remains D5-A.
 Future<MontyRuntime> _runtime(
   ResourceLimits? owner,
   ResourceLimits? child,
@@ -47,10 +43,12 @@ void main() {
         _spawn(runtime, 'memory_bytes', 201),
         throwsArgumentError,
       );
-      await expectLater(
-        _spawn(runtime, 'timeout_ms', 101),
-        owner.maxFeedDuration == null ? _reachesCheckout : throwsArgumentError,
-      );
+      if (owner.maxFeedDuration != null) {
+        await expectLater(
+          _spawn(runtime, 'timeout_ms', 101),
+          throwsArgumentError,
+        );
+      }
     }
   });
 
@@ -59,17 +57,6 @@ void main() {
       maxFeedDuration: Duration(milliseconds: 10),
       maxMemory: 20,
     );
-    for (final child in [
-      const ResourceLimits(),
-      const ResourceLimits(
-        maxFeedDuration: Duration(milliseconds: 100),
-        maxMemory: 200,
-      ),
-    ]) {
-      final runtime = await _runtime(owner, child);
-      await expectLater(_spawn(runtime, 'timeout_ms', 100), _reachesCheckout);
-      await expectLater(_spawn(runtime, 'memory_bytes', 200), _reachesCheckout);
-    }
     final stricter = await _runtime(
       owner,
       const ResourceLimits(
@@ -84,7 +71,7 @@ void main() {
     );
   });
 
-  test('D5-guest-reduce-precheckout', () async {
+  test('D5-guest-reject-precheckout', () async {
     final finite = await _runtime(
       null,
       const ResourceLimits(
@@ -96,12 +83,8 @@ void main() {
     for (final field in ['timeout_ms', 'memory_bytes']) {
       for (final runtime in [finite, unlimited]) {
         await expectLater(_spawn(runtime, field, -1), throwsArgumentError);
-        for (final value in [0, 50, 100]) {
-          await expectLater(_spawn(runtime, field, value), _reachesCheckout);
-        }
       }
       await expectLater(_spawn(finite, field, 101), throwsArgumentError);
-      await expectLater(_spawn(unlimited, field, 101), _reachesCheckout);
     }
   });
 }
