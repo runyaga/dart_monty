@@ -54,9 +54,6 @@ dart test test/integration/ffi_file_io_test.dart \
 `--run-skipped`. `dart test --tags=ffi` exits 79 with "No tests match the
 requested tag selectors".
 
-`tool/test_ffi.sh` is currently **broken**: it runs `dart test test/ffi/`, and
-that directory does not exist.
-
 `oracle_ffi_test.dart` and `wasm_fixture_test.dart` are **not in this repo** —
 they are `dart_monty_core`'s conformance suites. Run them there.
 
@@ -88,30 +85,12 @@ checkout. Symptoms:
 This flag tells dart2js to use the same `.dart_tool/package_config.json` that
 `dart pub get` writes, which respects path overrides.
 
-### WASM fixture tests (requires Chrome + built WASM/JS)
-```bash
-# Full build + test (npm, cargo wasm32-wasip1, dart compile js):
-bash tool/test_wasm.sh
-
-# Skip rebuild when assets are already current:
-bash tool/test_wasm.sh --skip-build
-
-# NOTE: a bare `dart test -p chrome --run-skipped --tags=wasm` does NOT work —
-# it tries to load every test/integration/*.dart file for chrome and several
-# cannot compile there. Use tool/test_wasm.sh, or name the files explicitly.
-
-# Run the standalone wasm_runner.dart (headless Chrome, no dart test):
-# This uses a custom runner that prints FIXTURE_RESULT/FIXTURE_DONE lines.
-# See tool/test_wasm.sh for the full pipeline — it compiles wasm_runner.dart
-# to JS, serves it, and parses the output from Chrome.
-```
-
-### WASM oracle test
-`wasm_fixture_test.dart` lives in **`dart_monty_core`**, not here. Run it from
-that repo (`bash tool/test_wasm.sh` for the fixture corpus, or
-`bash tool/test_wasm_unit.sh` for the `-p chrome` package:test suites).
-
-This repo's own WASM coverage is `bash tool/test_wasm.sh`.
+### Browser tests
+Name the files explicitly; a bare `dart test -p chrome --run-skipped` tries to
+load every `test/integration/*.dart` file for chrome and several cannot compile
+there. The CI `web` job lists the browser suites and the compilers
+(`dart2js`, `dart2wasm`). The WASM fixture and oracle suites belong to
+`dart_monty_core`; run them there.
 
 ### Rust tests and linting
 **Not applicable here — this repo has no Rust crate.** `cargo test`,

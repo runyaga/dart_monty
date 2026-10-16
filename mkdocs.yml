@@ -88,7 +88,6 @@ plugins:
           - reference/ffi-handle-lifecycle.md
           - reference/bridge-integration.md
           - reference/internals.md
-          - reference/api-coverage-plan.md
         Contributing:
           - contributor/setup.md
           - contributor/testing.md
@@ -122,7 +121,6 @@ nav:
       - FFI Handle Lifecycle: reference/ffi-handle-lifecycle.md
       - Bridge Integration: reference/bridge-integration.md
       - Internals: reference/internals.md
-      - API Coverage Plan: reference/api-coverage-plan.md
   - Contributing:
       - Development Setup: contributor/setup.md
       - Testing: contributor/testing.md

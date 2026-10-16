@@ -8,7 +8,7 @@
 //
 // Run: dart test -p vm   test/experiments/e3_two_sessions_test.dart
 //      dart test -p chrome test/experiments/e3_two_sessions_test.dart
-//      (WASM with Python runtime: bash tool/test_wasm.sh after adding @Tags)
+//      (a WASM run with the Python runtime needs the core web assets)
 
 import 'package:dart_monty/dart_monty.dart';
 import 'package:test/test.dart';

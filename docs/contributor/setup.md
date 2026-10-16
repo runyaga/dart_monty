@@ -180,7 +180,6 @@ cd packages/dart_monty_platform_interface && dart pub get && dart test && cd ../
 cd native && cargo fmt --check && cargo clippy -- -D warnings && cargo test && cd ..
 
 # Full gate scripts
-bash tool/test_platform_interface.sh
 bash tool/test_rust.sh
 ```
 
