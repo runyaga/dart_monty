@@ -1,6 +1,3 @@
-// Each bridge factory call must acquire a distinct session. Collection
-// access deliberately fails fast when an expected event/clone is absent.
-// ignore_for_file: prefer-moving-to-variable, avoid-unsafe-collection-methods
 @Tags(['integration'])
 library;
 

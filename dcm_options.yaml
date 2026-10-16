@@ -42,9 +42,6 @@ dcm:
     rules:
       - "**/*.g.dart"
       - "**/*.freezed.dart"
-      # Tests use different conventions: repeated invocations, .first/.last for
-      # fail-fast assertions, member ordering that follows test readability, etc.
-      - "test/**"
 
   # ---------------------------------------------------------------------------
   # Rules

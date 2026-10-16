@@ -1,8 +1,5 @@
 // Keep guest programs and historical case IDs intact.
 // ignore_for_file: lines_longer_than_80_chars
-// Each bridge factory call must acquire a distinct session. Collection
-// access deliberately fails fast when an expected event/clone is absent.
-// ignore_for_file: prefer-moving-to-variable, avoid-unsafe-collection-methods
 @Tags(['integration'])
 library;
 
