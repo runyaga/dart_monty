@@ -8,7 +8,6 @@ import 'package:dart_monty/src/extension/coordinator.dart';
 import 'package:dart_monty/src/runtime/runtime.dart' show runtimeCoordinator;
 import 'package:dart_monty_core/dart_monty_core.dart'
     show MontyCrashedError, MontyInt, MontyString;
-import 'package:dart_monty_core/dart_monty_core.dart' show OSAccess;
 import 'package:test/test.dart';
 
 import '_worker.dart';

@@ -17,88 +17,86 @@
 library;
 
 import 'package:dart_monty/dart_monty.dart';
-import 'package:dart_monty_core/dart_monty_core.dart';
 
 import 'package:web_example/demo_pool.dart';
 import 'package:web_example/demo_ready.dart';
 
 /// A sync host fn — returns its result without ever yielding the event loop.
 HostFunction syncFetch(void Function() onCall) => HostFunction(
-      schema: const HostFunctionSchema(
-        name: 'fetch',
-        description: 'Sync fetch — adds 1 to its argument.',
-        params: [HostParam(name: 'value', type: HostParamType.integer)],
-      ),
-      handler: (args, _) async {
-        onCall();
+  schema: const HostFunctionSchema(
+    name: 'fetch',
+    description: 'Sync fetch — adds 1 to its argument.',
+    params: [HostParam(name: 'value', type: HostParamType.integer)],
+  ),
+  handler: (args, _) async {
+    onCall();
 
-        return MontyValue.fromDart(((args['value']! as MontyInt).value) + 1);
-      },
-    );
+    return MontyValue.fromDart(((args['value']! as MontyInt).value) + 1);
+  },
+);
 
 /// An async host fn — actually awaits a Future before returning.
 HostFunction asyncFetch(void Function() onCall) => HostFunction(
-      schema: const HostFunctionSchema(
-        name: 'fetch',
-        description: 'Async fetch — awaits Future.delayed, then adds 1.',
-        params: [HostParam(name: 'value', type: HostParamType.integer)],
-      ),
-      handler: (args, _) async {
-        await Future<void>.delayed(Duration.zero);
-        onCall();
+  schema: const HostFunctionSchema(
+    name: 'fetch',
+    description: 'Async fetch — awaits Future.delayed, then adds 1.',
+    params: [HostParam(name: 'value', type: HostParamType.integer)],
+  ),
+  handler: (args, _) async {
+    await Future<void>.delayed(Duration.zero);
+    onCall();
 
-        return MontyValue.fromDart(((args['value']! as MontyInt).value) + 1);
-      },
-    );
+    return MontyValue.fromDart(((args['value']! as MontyInt).value) + 1);
+  },
+);
 
 /// A slow async host fn — sleeps `delay` before returning, so we can see
 /// `asyncio.gather` flatten wall-clock time.
 HostFunction slowFetch(Duration delay) => HostFunction(
-      schema: const HostFunctionSchema(
-        name: 'slow',
-        description: 'Sleeps then returns its argument times 10.',
-        params: [HostParam(name: 'n', type: HostParamType.integer)],
-      ),
-      handler: (args, _) async {
-        await Future<void>.delayed(delay);
+  schema: const HostFunctionSchema(
+    name: 'slow',
+    description: 'Sleeps then returns its argument times 10.',
+    params: [HostParam(name: 'n', type: HostParamType.integer)],
+  ),
+  handler: (args, _) async {
+    await Future<void>.delayed(delay);
 
-        return MontyValue.fromDart(((args['n']! as MontyInt).value) * 10);
-      },
-    );
+    return MontyValue.fromDart(((args['n']! as MontyInt).value) * 10);
+  },
+);
 
 /// Like [asyncFetch] but declared [DispatchMode.future] so Python can
 /// directly `await` it.
 HostFunction asyncFetchFuture(void Function() onCall) => HostFunction(
-      schema: const HostFunctionSchema(
-        name: 'fetch',
-        description:
-            'Async fetch (future-mode) — awaits Future.delayed, adds 1.',
-        params: [HostParam(name: 'value', type: HostParamType.integer)],
-      ),
-      handler: (args, _) async {
-        await Future<void>.delayed(Duration.zero);
-        onCall();
+  schema: const HostFunctionSchema(
+    name: 'fetch',
+    description: 'Async fetch (future-mode) — awaits Future.delayed, adds 1.',
+    params: [HostParam(name: 'value', type: HostParamType.integer)],
+  ),
+  handler: (args, _) async {
+    await Future<void>.delayed(Duration.zero);
+    onCall();
 
-        return MontyValue.fromDart(((args['value']! as MontyInt).value) + 1);
-      },
-      dispatch: DispatchMode.future,
-    );
+    return MontyValue.fromDart(((args['value']! as MontyInt).value) + 1);
+  },
+  dispatch: DispatchMode.future,
+);
 
 /// Like [slowFetch] but declared [DispatchMode.future] so `asyncio.gather`
 /// can run multiple calls concurrently.
 HostFunction slowFetchFuture(Duration delay) => HostFunction(
-      schema: const HostFunctionSchema(
-        name: 'slow',
-        description: 'Sleeps then returns its argument times 10 (future-mode).',
-        params: [HostParam(name: 'n', type: HostParamType.integer)],
-      ),
-      handler: (args, _) async {
-        await Future<void>.delayed(delay);
+  schema: const HostFunctionSchema(
+    name: 'slow',
+    description: 'Sleeps then returns its argument times 10 (future-mode).',
+    params: [HostParam(name: 'n', type: HostParamType.integer)],
+  ),
+  handler: (args, _) async {
+    await Future<void>.delayed(delay);
 
-        return MontyValue.fromDart(((args['n']! as MontyInt).value) * 10);
-      },
-      dispatch: DispatchMode.future,
-    );
+    return MontyValue.fromDart(((args['n']! as MontyInt).value) * 10);
+  },
+  dispatch: DispatchMode.future,
+);
 
 /// The pool every cell's runtime runs on: core's worker in a Web Worker.
 late final Monty _pool;
@@ -237,7 +235,8 @@ await doubled(3)
     final r = await runtime.execute('await fetch(7)').result;
     print('    Python: await fetch(7)');
     print(
-      '    → value = ${r.dartValue}, ' 'callback fired $calls time(s).',
+      '    → value = ${r.dartValue}, '
+      'callback fired $calls time(s).',
     );
     await runtime.dispose();
   }

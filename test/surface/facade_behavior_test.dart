@@ -9,7 +9,7 @@ void main() {
     expect(value, const MontyNone());
   });
 
-  test('all nine core facade names resolve on this backend', () {
+  test('all 18 core facade names resolve on this backend', () {
     expect([
       Monty,
       MontySession,
@@ -20,6 +20,15 @@ void main() {
       OsHandler,
       OsCallNotHandledException,
       ExternalException,
-    ], hasLength(9));
+      OSAccess,
+      MontyBool,
+      MontyInt,
+      MontyFloat,
+      MontyString,
+      MontyList,
+      MontyTuple,
+      MontyDict,
+      MontyBytes,
+    ], hasLength(18));
   });
 }

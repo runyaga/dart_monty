@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:dart_monty/dart_monty.dart';
-import 'package:dart_monty_core/dart_monty_core.dart';
 
 /// A test-local extension with shared state and per-instance ownership.
 final class SharedProbeExtension extends MontyExtension {

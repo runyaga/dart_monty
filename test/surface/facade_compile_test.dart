@@ -40,10 +40,9 @@ void main() {
       final source = File('${temp.path}/positive.dart')
         ..writeAsStringSync('''
 import 'package:dart_monty/dart_monty.dart' as dm;
-import 'package:dart_monty_core/dart_monty_core.dart' show MontyInt;
 void main() {
   final dm.MontyValue none = const dm.MontyNone();
-  final dm.MontyValue value = const MontyInt(42);
+  final dm.MontyValue value = const dm.MontyInt(42);
   print([none.dartValue, value, ${names.map((n) => 'dm.$n').join(', ')}]);
 }
 ''');
@@ -52,7 +51,7 @@ void main() {
     });
   }
 
-  group('every D4a deleted name, member and library', () {
+  group('removed names, members, and libraries fail to compile', () {
     setUpAll(() async {
       final controlDir = Directory.systemTemp.createTempSync('dm-control-');
       try {

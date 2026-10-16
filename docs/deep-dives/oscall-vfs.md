@@ -5,7 +5,7 @@ Import memory filesystem primitives from core's public library:
 ```dart
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty_core/dart_monty_core.dart'
-    show OSAccess, MemoryFile;
+    show MemoryFile;
 
 final access = OSAccess(
   files: [MemoryFile('/data/input.txt', 'hello')],

@@ -1,5 +1,4 @@
 import 'package:dart_monty/dart_monty.dart';
-import 'package:dart_monty_core/dart_monty_core.dart';
 
 /// A public extension implemented entirely outside the package's library.
 final class LifecycleProbeExtension extends MontyExtension {

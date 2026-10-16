@@ -1,4 +1,4 @@
-// Exact D5 surface: typedefs and extension names are declarations too.
+// The facade surface includes typedefs and extension names.
 @TestOn('vm')
 library;
 
@@ -22,16 +22,17 @@ void main() {
           .toSet();
 
   for (final web in [false, true]) {
-    test('exact D5 exported names (${web ? "browser" : "native"})', () {
+    test('facade exports exact names (${web ? "browser" : "native"})', () {
       final names = inventory.exported(facade, web: web).keys.toSet();
       final golden = {...expected};
       expect(names, golden);
-      expect(names, hasLength(45));
+      expect(names, hasLength(54));
     });
   }
 
-  test('exact retained dm member signatures', () {
+  test('facade declarations retain their member signatures', () {
     final declarations = inventory.exported(facade, web: false);
+    // Core declarations re-exported by the facade have their own contract.
     [
       'Monty',
       'MontySession',
@@ -42,6 +43,15 @@ void main() {
       'OsHandler',
       'OsCallNotHandledException',
       'ExternalException',
+      'OSAccess',
+      'MontyBool',
+      'MontyInt',
+      'MontyFloat',
+      'MontyString',
+      'MontyList',
+      'MontyTuple',
+      'MontyDict',
+      'MontyBytes',
     ].forEach(declarations.remove);
     final golden =
         jsonDecode(
@@ -59,7 +69,7 @@ void main() {
     expect(headers, hasLength(36));
   });
 
-  test('M6 dependency exports exactly 68 main names on both platforms', () {
+  test('core public surface has 68 names on both platforms', () {
     final core = inventory.resolve(
       facade,
       'package:dart_monty_core/dart_monty_core.dart',

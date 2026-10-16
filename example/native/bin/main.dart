@@ -12,7 +12,6 @@ library;
 import 'dart:io';
 
 import 'package:dart_monty/dart_monty.dart';
-import 'package:dart_monty_core/dart_monty_core.dart';
 
 Future<void> main() async {
   final worker = Platform.environment['DART_MONTY_WORKER'];

@@ -17,7 +17,6 @@ import 'dart:io';
 import 'package:dart_monty/dart_monty.dart';
 // Integration test uses print for output and nullable casts for brevity.
 // ignore_for_file: avoid_print
-import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:test/test.dart';
 
 import '_printed.dart';

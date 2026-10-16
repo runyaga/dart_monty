@@ -1,4 +1,6 @@
-import 'package:dart_monty_core/dart_monty_core.dart';
+import 'package:dart_monty/dart_monty.dart';
+import 'package:dart_monty_core/dart_monty_core.dart'
+    show MemoryFile, MontyPath;
 
 /// A fresh demo filesystem with the staged files and a writable sandbox.
 Future<OSAccess> createDemoVfs(Map<String, String> stagedFiles) async {
