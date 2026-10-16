@@ -10,6 +10,8 @@ import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:test/test.dart';
 
 import '_workspace_harness.dart';
+import '_workspace_overlay_web.dart'
+    if (dart.library.io) '_workspace_overlay_io.dart';
 
 void main() {
   final h = WorkspaceHarness()..install();
@@ -197,6 +199,7 @@ collect_output()
     );
   });
   test('T2-overlay-rejection', () async {
+    await checkNativeOverlayRejection(h, transfers);
     // A mount-only parent has no captured live callback. Sharing a fresh
     // mount table is deliberately not an adapter. D4b owns native adapters.
     final overlay = OSAccess(files: [MemoryFile('/overlay/only', 'live')]);
