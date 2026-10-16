@@ -231,7 +231,7 @@ values
     );
   });
 
-  test('N6-active-mount-cleanup', () async {
+  test('N6-independent-cleanup', () async {
     final recording = _MountRecordingSession(session);
     final active = Workspace(sandboxBaseDir: base.path);
     final entered = Completer<void>();
