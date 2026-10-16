@@ -12,4 +12,9 @@ Future<void> checkNativeOverlayRejection(
     () => MountDir(hostPath: '/host', virtualPath: '/overlay'),
     throwsUnsupportedError,
   );
+  await expectLater(
+    transfers.copyIn(files: {'in': '/overlay/only'}),
+    throwsA(isA<ExternalException>()),
+  );
+  expect(await h.session.feedRun('1 + 1'), const MontyInt(2));
 }

@@ -34,13 +34,14 @@ Future<void> checkNativeOverlayRejection(
           ),
         );
         expect(fresh, const MontyBool(false));
+        final rejectsTransfer = throwsA(isA<ExternalException>());
         await expectLater(
           transfers.copyIn(files: {'in': '/overlay/only'}),
-          throwsA(isA<ExternalException>()),
+          rejectsTransfer,
         );
         await expectLater(
           transfers.collect(output, {'out': '/overlay/out'}),
-          throwsA(isA<ExternalException>()),
+          rejectsTransfer,
         );
 
         return const MontyNone();
