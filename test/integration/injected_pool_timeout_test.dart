@@ -15,6 +15,9 @@ import 'package:test/test.dart';
 import '../acceptance/_platform.dart';
 import '_child_contract.dart';
 
+// Browser timer granularity can report a timeout slightly early.
+const _timerJitter = Duration(milliseconds: 20);
+
 void main() {
   for (final transfer in [false, true]) {
     test(transfer ? 'D5-finite-transfer' : 'D5-finite-child', () async {
@@ -55,7 +58,7 @@ void main() {
         }),
         throwsA(isA<TimeoutException>()),
       );
-      expect(watch.elapsed, greaterThanOrEqualTo(budget));
+      expect(watch.elapsed, greaterThanOrEqualTo(budget - _timerJitter));
       expect(watch.elapsed, lessThan(budget + const Duration(seconds: 3)));
       expect(transfers, transfer ? 1 : 0);
       await runtime.dispose();
@@ -115,7 +118,7 @@ void main() {
       throwsA(isA<TimeoutException>()),
     );
     watch.stop();
-    expect(watch.elapsed, greaterThanOrEqualTo(budget));
+    expect(watch.elapsed, greaterThanOrEqualTo(budget - _timerJitter));
     expect(watch.elapsed, lessThan(budget + const Duration(seconds: 3)));
     expect(await runtime.execute('40 + 2').result, const MontyInt(42));
     await runtime.dispose();
