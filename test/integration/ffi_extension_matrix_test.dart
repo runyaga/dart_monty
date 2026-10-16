@@ -8,6 +8,7 @@
 /// dart test --run-skipped --tags=integration test/bridge/integration/ffi_plugin_matrix_test.dart
 /// ```
 @Tags(['integration'])
+@TestOn('vm')
 library;
 
 import 'dart:io';

@@ -10,6 +10,7 @@
 // Run: dart test -p vm --run-skipped --tags=example
 
 @Tags(['integration', 'example'])
+@TestOn('vm')
 library;
 
 import 'dart:io';

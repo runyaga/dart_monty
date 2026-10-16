@@ -33,6 +33,7 @@
 // and this file needs an ASSEMBLED SITE that only tool/check_demo_pages.sh
 // builds. Carrying the `integration` tag would break that job on every run.
 @Tags(['demo'])
+@TestOn('vm')
 @Timeout(Duration(minutes: 20))
 library;
 

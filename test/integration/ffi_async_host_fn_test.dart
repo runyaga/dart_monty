@@ -9,6 +9,7 @@
 /// dart test --run-skipped --tags=integration test/bridge/integration/ffi_async_host_fn_test.dart
 /// ```
 @Tags(['integration'])
+@TestOn('vm')
 library;
 
 import 'dart:io';

@@ -1,5 +1,8 @@
 // Strict collection assertions and fresh probes are intentional in these tests.
 // ignore_for_file: avoid-unsafe-collection-methods, prefer-moving-to-variable
+@Tags(['cell'])
+library;
+
 import 'dart:async';
 
 import 'package:dart_monty/dart_monty.dart';

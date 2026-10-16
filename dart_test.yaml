@@ -1,4 +1,6 @@
 tags:
+  cell:
+    description: Runs in the default unit run and again in every platform cell (tool/test_cell.sh).
   integration:
     skip: "Skipped by default (slow). Run: dart test --run-skipped --tags=integration"
   ladder:
