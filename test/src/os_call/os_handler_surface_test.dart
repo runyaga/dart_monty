@@ -90,7 +90,6 @@ void main() {
     // Guards the scan itself: it must flag the internal files.
     for (final (file, name) in [
       ('lib/src/os_call/os_handlers.dart', 'composeOsHandlers'),
-      ('lib/src/os_call/os_handlers.dart', 'osArgString'),
       ('lib/src/os_call/path_op.dart', 'PathOp'),
     ]) {
       expect(_declares(File(file).readAsStringSync(), name), isTrue);
@@ -106,23 +105,4 @@ void main() {
     expectSyncDecline(() => rawCall(decline(), 'Path.exists'));
   });
 
-  test('the default handler is chosen by conditional import', () {
-    final text = File(
-      'lib/src/os_call/default_os_handler.dart',
-    ).readAsStringSync();
-
-    expect(
-      text,
-      contains("export 'default_os_handler_stub.dart'"),
-      reason: 'the stub is the unconditional branch',
-    );
-    expect(
-      text,
-      contains("if (dart.library.io) 'default_os_handler_native.dart'"),
-    );
-    expect(
-      text,
-      contains("if (dart.library.js_interop) 'default_os_handler_web.dart'"),
-    );
-  });
 }

@@ -35,7 +35,7 @@ void main() {
           (await MontyRuntime.start(
               pool: pool,
               osHandlers: {
-                'Path.': memoryFsHandler(),
+                'Path.': OSAccess().call,
               },
               extensions: [TemplateStubExtension()],
             ))

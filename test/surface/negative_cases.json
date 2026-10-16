@@ -1,5 +1,65 @@
 [
   {
+    "phase": "D3",
+    "id": "legacy-handler",
+    "body": "HostFunctionHandler h = (Map<String, Object?> a, HostContext c) async => Object();"
+  },
+  {
+    "phase": "D3",
+    "id": "nullable-handler",
+    "body": "HostFunctionHandler h = (a, c) async => null;"
+  },
+  {
+    "phase": "D3",
+    "id": "raw-default",
+    "body": "final p = HostParam(name: 'x', type: HostParamType.integer, defaultValue: 1);"
+  },
+  {
+    "phase": "D3",
+    "id": "raw-event",
+    "body": "EventLoopExtension().dispatch(<String, Object?>{});"
+  },
+  {
+    "phase": "D3",
+    "id": "raw-invoke",
+    "body": "void f(MontyRuntime r) { r.invoke('f', <String, Object?>{'x': 1}); }"
+  },
+  {
+    "phase": "D3",
+    "id": "raw-sub-input",
+    "body": "void f(HostSubExecutor s) { s('x', inputs: <String, Object?>{'x': 1}); }"
+  },
+  {
+    "phase": "D4a",
+    "id": "old-strategy",
+    "body": "final v = SandboxExtension().childVfsStrategy;"
+  },
+  {
+    "phase": "D4a",
+    "id": "wrong-cap",
+    "body": "SandboxExtension(writeBytesLimit: 1.5);"
+  },
+  {
+    "phase": "D4a",
+    "id": "unplanned-transfer-parameter",
+    "body": "SandboxExtension(parentTransfer: null);"
+  },
+  {
+    "phase": "D3",
+    "id": "raw-validate",
+    "body": "HostParam(name: 'x', type: HostParamType.any).validate(1);"
+  },
+  {
+    "phase": "D3",
+    "id": "raw-bridge-invoke",
+    "body": "void probe(MontyBridge b) { b.invokeHostFunction('f', <String, Object?>{'x': 1}); }"
+  },
+  {
+    "phase": "D4a",
+    "id": "old-strategy-parameter",
+    "body": "void probe(dynamic strategy) { SandboxExtension(childVfsStrategy: strategy); }"
+  },
+  {
     "phase": "D2",
     "id": "removed-bridge-barrel",
     "body": "",
@@ -441,6 +501,20 @@
     "symbol": "ChannelSnapshot"
   },
   {
+    "phase": "D4a",
+    "id": "public-names-ChildVfsStrategy",
+    "body": "ChildVfsStrategy? value;",
+    "inventory": "public-names.tsv",
+    "symbol": "ChildVfsStrategy"
+  },
+  {
+    "phase": "D4a",
+    "id": "public-names-DecoratorHandlers",
+    "body": "void probe(OsHandler h) { final member = DecoratorHandlers(h).readOnly; }",
+    "inventory": "public-names.tsv",
+    "symbol": "DecoratorHandlers"
+  },
+  {
     "phase": "D2",
     "id": "public-names-MessageBus",
     "body": "MessageBus? value;",
@@ -460,6 +534,55 @@
     "body": "MessageChannel? value;",
     "inventory": "public-names.tsv",
     "symbol": "MessageChannel"
+  },
+  {
+    "phase": "D4a",
+    "id": "public-names-defaultOsHandler",
+    "body": "final member = defaultOsHandler;",
+    "inventory": "public-names.tsv",
+    "symbol": "defaultOsHandler"
+  },
+  {
+    "phase": "D4a",
+    "id": "public-names-envHandler",
+    "body": "final member = envHandler;",
+    "inventory": "public-names.tsv",
+    "symbol": "envHandler"
+  },
+  {
+    "phase": "D4a",
+    "id": "public-names-fsHandler",
+    "body": "final member = fsHandler;",
+    "inventory": "public-names.tsv",
+    "symbol": "fsHandler"
+  },
+  {
+    "phase": "D4a",
+    "id": "public-names-memoryFsHandler",
+    "body": "final member = memoryFsHandler;",
+    "inventory": "public-names.tsv",
+    "symbol": "memoryFsHandler"
+  },
+  {
+    "phase": "D4a",
+    "id": "public-names-overlayFsHandler",
+    "body": "final member = overlayFsHandler;",
+    "inventory": "public-names.tsv",
+    "symbol": "overlayFsHandler"
+  },
+  {
+    "phase": "D4a",
+    "id": "public-names-readOnlyHandler",
+    "body": "final member = readOnlyHandler;",
+    "inventory": "public-names.tsv",
+    "symbol": "readOnlyHandler"
+  },
+  {
+    "phase": "D4a",
+    "id": "public-names-sandboxedFsHandler",
+    "body": "final member = sandboxedFsHandler;",
+    "inventory": "public-names.tsv",
+    "symbol": "sandboxedFsHandler"
   },
   {
     "phase": "D2",
@@ -523,6 +646,41 @@
     "body": "void probe(ChannelSnapshot value) { final member = value.toString; }",
     "inventory": "public-members.tsv",
     "symbol": "ChannelSnapshot.toString"
+  },
+  {
+    "phase": "D4a",
+    "id": "public-members-ChildVfsStrategy.isolated",
+    "body": "final member = ChildVfsStrategy.isolated;",
+    "inventory": "public-members.tsv",
+    "symbol": "ChildVfsStrategy.isolated"
+  },
+  {
+    "phase": "D4a",
+    "id": "public-members-ChildVfsStrategy.overlay",
+    "body": "final member = ChildVfsStrategy.overlay;",
+    "inventory": "public-members.tsv",
+    "symbol": "ChildVfsStrategy.overlay"
+  },
+  {
+    "phase": "D4a",
+    "id": "public-members-ChildVfsStrategy.shared",
+    "body": "final member = ChildVfsStrategy.shared;",
+    "inventory": "public-members.tsv",
+    "symbol": "ChildVfsStrategy.shared"
+  },
+  {
+    "phase": "D4a",
+    "id": "public-members-DecoratorHandlers.overlayWith",
+    "body": "void probe(OsHandler h) { final member = DecoratorHandlers(h).overlayWith; }",
+    "inventory": "public-members.tsv",
+    "symbol": "DecoratorHandlers.overlayWith"
+  },
+  {
+    "phase": "D4a",
+    "id": "public-members-DecoratorHandlers.readOnly",
+    "body": "void probe(OsHandler h) { final member = DecoratorHandlers(h).readOnly; }",
+    "inventory": "public-members.tsv",
+    "symbol": "DecoratorHandlers.readOnly"
   },
   {
     "phase": "D2",
@@ -719,5 +877,12 @@
     "body": "void probe(MessageChannel value) { final member = value.snapshotSignal; }",
     "inventory": "public-members.tsv",
     "symbol": "MessageChannel.snapshotSignal"
+  },
+  {
+    "phase": "D4a",
+    "id": "public-members-SandboxExtension.childVfsStrategy",
+    "body": "void probe(SandboxExtension value) { final member = value.childVfsStrategy; }",
+    "inventory": "public-members.tsv",
+    "symbol": "SandboxExtension.childVfsStrategy"
   }
 ]

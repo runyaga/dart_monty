@@ -72,7 +72,7 @@ a + b
     // The host filesystem is never accessed; VFS state persists across calls.
     final vfs = await MontyRuntime.start(
       pool: pool,
-      osHandlers: {'Path.': memoryFsHandler()},
+      osHandlers: {'Path.': OSAccess().call},
     );
 
     await vfs.execute('''

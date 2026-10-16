@@ -16,7 +16,9 @@ final class SurfaceInventory {
     for (final package in json['packages'] as List<dynamic>) {
       final entry = package as Map<String, dynamic>;
       _packages[entry['name'] as String] = config.uri
-          .resolve(entry['rootUri'] as String)
+          .resolve(
+            '${(entry['rootUri'] as String).replaceFirst(RegExp(r'/$'), "")}/',
+          )
           .resolve(entry['packageUri'] as String? ?? 'lib/');
     }
   }

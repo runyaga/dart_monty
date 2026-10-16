@@ -1,16 +1,17 @@
 // Integration: open()/file I/O and typed OS exceptions through MontyRuntime.
 //
 // monty v0.0.18's open() routes its `Open` OS-call to the filesystem handler
-// backing `Path.*` (here memoryFsHandler / a read-only fsHandler), and OS
+// backing `Path.*` (here OSAccess with application policy), and OS
 // errors reach Python as their real class.
 @Tags(['integration'])
 library;
 
 import 'package:dart_monty/dart_monty.dart';
-import 'package:dart_monty_core/dart_monty_core.dart' show MontyFileHandle;
-
-import 'package:file/memory.dart';
+import 'package:dart_monty_core/dart_monty_core.dart'
+    show MemoryFile, MontyFileHandle;
+import 'package:dart_monty_core/dart_monty_core.dart' show OSAccess;
 import 'package:test/test.dart';
+
 import '_worker.dart';
 
 void main() {
@@ -22,7 +23,7 @@ void main() {
     test('write, with open(...), append, and read back', () async {
       final rt = await MontyRuntime.start(
         pool: pool,
-        osHandlers: {'Path.': memoryFsHandler()},
+        osHandlers: {'Path.': OSAccess().call},
       );
       addTearDown(rt.dispose);
 
@@ -46,7 +47,7 @@ text
     test('binary round-trip is byte-faithful', () async {
       final rt = await MontyRuntime.start(
         pool: pool,
-        osHandlers: {'Path.': memoryFsHandler()},
+        osHandlers: {'Path.': OSAccess().call},
       );
       addTearDown(rt.dispose);
 
@@ -63,7 +64,7 @@ list(data)
     test('open() returns a MontyFileHandle', () async {
       final rt = await MontyRuntime.start(
         pool: pool,
-        osHandlers: {'Path.': memoryFsHandler()},
+        osHandlers: {'Path.': OSAccess().call},
       );
       addTearDown(rt.dispose);
 
@@ -76,7 +77,7 @@ list(data)
     test('missing file raises a catchable FileNotFoundError', () async {
       final rt = await MontyRuntime.start(
         pool: pool,
-        osHandlers: {'Path.': memoryFsHandler()},
+        osHandlers: {'Path.': OSAccess().call},
       );
       addTearDown(rt.dispose);
 
@@ -94,11 +95,23 @@ out
     test(
       'write to a read-only handler raises a catchable PermissionError',
       () async {
-        final roFs = MemoryFileSystem();
-        roFs.file('/secret.txt').writeAsStringSync('sk-1');
+        final roFs = OSAccess(files: [MemoryFile('/secret.txt', 'sk-1')]);
         final rt = await MontyRuntime.start(
           pool: pool,
-          osHandlers: {'Path.': fsHandler(roFs).readOnly()},
+          osHandlers: {
+            'Path.': (name, args, kwargs) {
+              if (name == 'open' &&
+                  args.length > 1 &&
+                  args[1].dartValue != 'r') {
+                throw const ExternalException(
+                  'PermissionError',
+                  'Read-only application '
+                      'data',
+                );
+              }
+              return roFs.call(name, args, kwargs);
+            },
+          },
         );
         addTearDown(rt.dispose);
 

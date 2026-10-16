@@ -24,8 +24,6 @@
   "ChildSandboxException",
   "ChildSpawnContext",
   "ChildState",
-  "ChildVfsStrategy",
-  "DecoratorHandlers",
   "DispatchMode",
   "EventLoopExtension",
   "ExecutionHandle",
@@ -51,12 +49,5 @@
   "OsHandler",
   "ResourceLimits",
   "SandboxExtension",
-  "buildRunScriptFunction",
-  "defaultOsHandler",
-  "envHandler",
-  "fsHandler",
-  "memoryFsHandler",
-  "overlayFsHandler",
-  "readOnlyHandler",
-  "sandboxedFsHandler"
+  "buildRunScriptFunction"
 ]

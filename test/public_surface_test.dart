@@ -1,4 +1,4 @@
-// Exact D2 surface: typedefs and extension names are declarations too.
+// Exact D4a surface: typedefs and extension names are declarations too.
 @TestOn('vm')
 library;
 
@@ -22,12 +22,11 @@ void main() {
           .toSet();
 
   for (final web in [false, true]) {
-    test('exact D2 exported names (${web ? "browser" : "native"})', () {
+    test('exact D4a exported names (${web ? "browser" : "native"})', () {
       final names = inventory.exported(facade, web: web).keys.toSet();
       final golden = {...expected};
-      if (web) golden.remove('sandboxedFsHandler');
       expect(names, golden);
-      expect(names, hasLength(web ? 59 : 60));
+      expect(names, hasLength(51));
     });
   }
 
@@ -50,14 +49,30 @@ void main() {
             )
             as Map<String, dynamic>;
     expect(memberSignatures(declarations), golden);
-    expect(golden, hasLength(188));
+    expect(golden, hasLength(184));
     final headers =
         jsonDecode(
               File('test/surface/declarations.json').readAsStringSync(),
             )
             as Map<String, dynamic>;
     expect(declarationSignatures(declarations), headers);
-    expect(headers, hasLength(51));
+    expect(headers, hasLength(42));
+  });
+
+  test('M6 dependency exports exactly 68 main names on both platforms', () {
+    final core = inventory.resolve(
+      facade,
+      'package:dart_monty_core/dart_monty_core.dart',
+    );
+    final golden =
+        (jsonDecode(File('test/surface/core-m6-names.json').readAsStringSync())
+                as List<dynamic>)
+            .cast<String>()
+            .toSet();
+    expect(golden, hasLength(68));
+    for (final web in [false, true]) {
+      expect(inventory.exported(core, web: web).keys.toSet(), golden);
+    }
   });
 
   test('MontyNone is usable through the facade', () {

@@ -6,37 +6,9 @@ import 'package:dart_monty/src/extension/attach_context.dart';
 import 'package:dart_monty/src/extension/extension.dart';
 import 'package:dart_monty/src/host/function.dart';
 import 'package:dart_monty/src/introspection_functions.dart';
-import 'package:dart_monty/src/os_call/fs_decorators.dart';
-import 'package:dart_monty/src/os_call/fs_handlers.dart';
 import 'package:dart_monty/src/os_call/os_handlers.dart';
 import 'package:dart_monty/src/runtime/backend_kind.dart';
-
-/// How a child sandbox's `Path.` handler is derived from the parent's.
-///
-/// Passed to [ExtensionCoordinator.spawnChild] to control filesystem visibility
-/// between parent and child. All strategies forward non-`Path.` prefixes
-/// (`os.`, `date.`, `datetime.`, etc.) to the parent unchanged.
-enum ChildVfsStrategy {
-  /// Fresh in-memory filesystem. Parent's `Path.` is invisible to the child.
-  ///
-  /// This is the safe default and matches the pre-M1 `SandboxExtension`
-  /// behavior.
-  isolated,
-
-  /// Child shares the parent's `Path.` handler directly.
-  ///
-  /// Reads and writes are immediately visible to the parent. Use when the
-  /// child intentionally extends the parent's workspace (e.g., a coordinated
-  /// build step).
-  shared,
-
-  /// Child reads from the parent's `Path.` but writes go to a fresh
-  /// in-memory scratch layer. Copy-on-write.
-  ///
-  /// Parent is never modified. Use for transient sub-scripts that should see
-  /// the parent's files but whose changes should not escape.
-  overlay,
-}
+import 'package:dart_monty/src/workspace/workspace.dart';
 
 // ---------------------------------------------------------------------------
 // Top-level helpers used by ExtensionCoordinator.attachTo.
@@ -231,7 +203,7 @@ class ExtensionCoordinator {
   /// prefix.
   ///
   /// Captured so that [spawnChild] can re-compose a child handler per
-  /// [ChildVfsStrategy] (swapping only the `Path.` entry) instead of
+  /// its private workspace (including bare `open`) instead of
   /// opaquely delegating to the already-composed parent handler.
   Map<String, OsHandler>? _osContributions;
 
@@ -401,7 +373,7 @@ class ExtensionCoordinator {
   /// [MontyExtension.createChildInstance] for a fresh instance, `inherit`
   /// re-registers the parent instance, and `exclude` skips the extension
   /// entirely. The resulting coordinator is attached to [bridge] with an OS
-  /// handler composed per [vfsStrategy] (see [ChildVfsStrategy]).
+  /// handler confined to the supplied workspace.
   ///
   /// Non-`Path.` OS prefixes (e.g., `os.`, `date.`, `datetime.`) are
   /// forwarded to the parent unchanged, and the parent's [attachTo] `baseOs`
@@ -412,7 +384,7 @@ class ExtensionCoordinator {
   Future<ExtensionCoordinator> spawnChild({
     required ChildSpawnContext context,
     required MontyBridge bridge,
-    ChildVfsStrategy vfsStrategy = ChildVfsStrategy.isolated,
+    Workspace? workspace,
     OsHandler? baseOs,
   }) async {
     if (!_attached) {
@@ -448,11 +420,20 @@ class ExtensionCoordinator {
       rethrow;
     }
 
+    final childWorkspace = workspace ?? Workspace();
     final childBaseOs = _composeChildBaseOs(
-      vfsStrategy,
+      childWorkspace,
       baseOsOverride: baseOs,
     );
     await child.attachTo(bridge, baseOs: childBaseOs);
+    bridge.registerOs(
+      childWorkspace.compose(
+        composeOsHandlers(
+          child._osContributions ?? {},
+          fallback: childBaseOs,
+        ),
+      ),
+    );
 
     return child;
   }
@@ -471,41 +452,17 @@ class ExtensionCoordinator {
     }
   }
 
-  /// Builds a composed child [OsHandler] from the parent's captured
-  /// contributions and [strategy]. Returns `null` when the parent has no OS
-  /// state at all (nothing to inherit).
-  ///
-  /// When [baseOsOverride] is non-null it replaces the parent's captured
-  /// `_baseOs` as the fallback — callers use this to propagate a
-  /// per-execution OS override into child composition.
-  OsHandler? _composeChildBaseOs(
-    ChildVfsStrategy strategy, {
+  /// Child filesystem calls never reach the parent's fallback.
+  OsHandler _composeChildBaseOs(
+    Workspace workspace, {
     OsHandler? baseOsOverride,
   }) {
-    final parentOs = _osContributions;
-    final parentBase = baseOsOverride ?? _baseOs;
-    if ((parentOs == null || parentOs.isEmpty) && parentBase == null) {
-      return null;
-    }
+    final nonFilesystem = composeOsHandlers({
+      for (final entry in (_osContributions ?? <String, OsHandler>{}).entries)
+        if (entry.key != 'Path.' && entry.key != 'open') entry.key: entry.value,
+    }, fallback: baseOsOverride ?? _baseOs);
 
-    final parentPath = parentOs?['Path.'];
-    final childPath = switch (strategy) {
-      ChildVfsStrategy.isolated => memoryFsHandler(),
-      ChildVfsStrategy.shared => parentPath ?? memoryFsHandler(),
-      ChildVfsStrategy.overlay =>
-        parentPath == null
-            ? memoryFsHandler()
-            : overlayFsHandler(base: parentPath, scratch: memoryFsHandler()),
-    };
-
-    final childHandlers = {
-      if (parentOs != null)
-        for (final entry in parentOs.entries)
-          if (entry.key != 'Path.') entry.key: entry.value,
-      'Path.': childPath,
-    };
-
-    return composeOsHandlers(childHandlers, fallback: parentBase);
+    return workspace.compose(nonFilesystem);
   }
 
   void _validateNamespace(String namespace) {

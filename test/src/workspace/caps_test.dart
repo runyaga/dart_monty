@@ -50,7 +50,8 @@ void main() {
   test('D4a-caps-mkdir-parents', () async {
     await h.run(
       w,
-      "Path('d/e').mkdir(parents=True)\nPath('d/e').mkdir(parents=True, exist_ok=True)",
+      "Path('d/e').mkdir(parents=True)\n"
+      "Path('d/e').mkdir(parents=True, exist_ok=True)",
     );
     expect(w.memoryUsage, 192);
   });
@@ -154,7 +155,8 @@ void main() {
     w = Workspace(memoryUsageLimit: 194);
     await h.run(
       w,
-      "Path('a').write_text('x')\nPath('b').write_text('y')\nPath('a').rename('b')",
+      "Path('a').write_text('x')\nPath('b').write_text('y')\n"
+      "Path('a').rename('b')",
     );
     expect(w.memoryUsage, 129);
     expect(w.writeBytes, 2);
@@ -173,7 +175,7 @@ void main() {
     await w.dispose();
     expect(w.memoryUsage, 0);
     expect(
-      () => w.call('Path.exists', [const MontyPath('/work/a')], {}),
+      () => w.call('Path.exists', [MontyPath('/work/a')], {}),
       throwsStateError,
     );
   });

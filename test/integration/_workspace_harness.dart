@@ -27,7 +27,9 @@ class WorkspaceHarness {
   Future<String> caught(Workspace workspace, String code) async =>
       (await run(
             workspace,
-            'try:\n    $code\n    result = "ok"\nexcept Exception as e:\n    result = type(e).__name__ + ": " + str(e)\nresult',
+            'try:\n    $code\n    result = "ok"\n'
+            'except Exception as e:\n'
+            '    result = type(e).__name__ + ": " + str(e)\nresult',
           ))!
           as String;
 }

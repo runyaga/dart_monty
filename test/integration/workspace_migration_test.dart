@@ -27,7 +27,7 @@ void main() {
   });
   test('D4a-sync-decline', () async {
     expect(
-      () => w.call('Path.read_text', [const MontyPath('/outside')], {}),
+      () => w.call('Path.read_text', [MontyPath('/outside')], {}),
       throwsA(isA<OsCallNotHandledException>()),
     );
     expect(

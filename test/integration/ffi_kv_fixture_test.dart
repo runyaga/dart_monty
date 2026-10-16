@@ -20,7 +20,7 @@ void main() {
       final kv = <String, String>{};
       final session = await MontyRuntime.start(
         pool: pool,
-        osHandlers: {'Path.': memoryFsHandler()},
+        osHandlers: {'Path.': OSAccess().call},
         extensions: [TemplateStubExtension()],
       );
       addTearDown(session.dispose);

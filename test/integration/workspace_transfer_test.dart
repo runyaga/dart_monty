@@ -3,8 +3,8 @@ library;
 
 import 'dart:async';
 
-import 'package:dart_monty/src/bridge/session_bridge.dart';
 import 'package:dart_monty/src/bridge/event.dart';
+import 'package:dart_monty/src/bridge/session_bridge.dart';
 import 'package:dart_monty/src/workspace/workspace.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:test/test.dart';
@@ -26,7 +26,8 @@ void main() {
     addTearDown(bridge.dispose);
     final events = await bridge
         .executeWith(
-          "import os\nfrom pathlib import Path\n(os.getcwd(), Path('.').is_dir())",
+          'import os\nfrom pathlib import Path\n'
+          "(os.getcwd(), Path('.').is_dir())",
           cwd: '/work',
         )
         .toList();
@@ -44,13 +45,13 @@ void main() {
     await transfers.collect(w, {'in': '/parent/out'});
     expect(
       (await original.call('Path.read_text', [
-        const MontyPath('/parent/out'),
+        MontyPath('/parent/out'),
       ], {})).dartValue,
       'child',
     );
     expect(
       (await parent.call('Path.exists', [
-        const MontyPath('/parent/out'),
+        MontyPath('/parent/out'),
       ], {})).dartValue,
       false,
     );
@@ -96,7 +97,7 @@ void main() {
     );
     expect(
       (await parent.call('Path.exists', [
-        const MontyPath('/parent/a'),
+        MontyPath('/parent/a'),
       ], {})).dartValue,
       false,
     );
@@ -117,7 +118,8 @@ void main() {
     addTearDown(w.dispose);
     await h.run(
       w,
-      "Path('a').write_text('one')\nPath('b').write_text('two')\nPath('a').rename('renamed')",
+      "Path('a').write_text('one')\nPath('b').write_text('two')\n"
+      "Path('a').rename('renamed')",
     );
     const selection = {'renamed': '/parent/a', 'b': '/parent/b'};
     await expectLater(
@@ -126,7 +128,7 @@ void main() {
     );
     expect(
       (await parent.call('Path.read_text', [
-        const MontyPath('/parent/a'),
+        MontyPath('/parent/a'),
       ], {})).dartValue,
       'one',
     );
@@ -135,7 +137,7 @@ void main() {
     await transfers.collect(w, selection);
     expect(
       (await parent.call('Path.read_text', [
-        const MontyPath('/parent/b'),
+        MontyPath('/parent/b'),
       ], {})).dartValue,
       'two',
     );
@@ -152,7 +154,7 @@ void main() {
     await transfers.collect(w, {'in': '/parent/out'});
     expect(
       (await parent.call('Path.read_text', [
-        const MontyPath('/parent/in'),
+        MontyPath('/parent/in'),
       ], {})).dartValue,
       'source',
     );
@@ -170,7 +172,8 @@ void main() {
     // mount table is deliberately not an adapter. D4b owns native adapters.
     final overlay = OSAccess(files: [MemoryFile('/overlay/only', 'live')]);
     await h.session.feedRun(
-      "from pathlib import Path\nPath('/overlay/only').write_text('suspended state')",
+      'from pathlib import Path\n'
+      "Path('/overlay/only').write_text('suspended state')",
       os: overlay.call,
     );
     await expectLater(
@@ -179,7 +182,7 @@ void main() {
     );
     expect(
       (await overlay.call('Path.read_text', [
-        const MontyPath('/overlay/only'),
+        MontyPath('/overlay/only'),
       ], {})).dartValue,
       'suspended state',
     );
@@ -231,7 +234,7 @@ void main() {
     );
     expect(
       (await parent.call('Path.exists', [
-        const MontyPath('/parent/b'),
+        MontyPath('/parent/b'),
       ], {})).dartValue,
       false,
     );

@@ -41,7 +41,8 @@ library;
 import 'dart:async';
 
 import 'package:dart_monty/dart_monty.dart';
-import 'package:file/memory.dart';
+import 'package:dart_monty_core/dart_monty_core.dart'
+    show MontyBool, MontyPath, MontyString, OSAccess;
 import 'package:signals_core/signals_core.dart';
 import '../integration/_worker.dart';
 
@@ -202,11 +203,11 @@ class MontyHarness {
     bool sandbox = false,
   }) : _extensions = extensions ?? [],
        _sandbox = sandbox,
-       _fs = MemoryFileSystem();
+       _fs = OSAccess();
 
   final List<MontyExtension> _extensions;
   final bool _sandbox;
-  final MemoryFileSystem _fs;
+  final OSAccess _fs;
 
   final List<HostFunction> _tools = [];
   final Map<String, ToolFault> _faults = {};
@@ -246,9 +247,19 @@ class MontyHarness {
   /// Python can read it with:
   ///   `from pathlib import Path; Path('/data/x.txt').read_text()`
   void writeFile(String virtualPath, String content) {
-    final file = _fs.file(virtualPath);
-    file.parent.createSync(recursive: true);
-    file.writeAsStringSync(content);
+    final parent = virtualPath.substring(0, virtualPath.lastIndexOf('/'));
+    final created = _fs.call(
+      'Path.mkdir',
+      [MontyPath(parent.isEmpty ? '/' : parent)],
+      {'parents': const MontyBool(true), 'exist_ok': const MontyBool(true)},
+    );
+    final written = _fs.call('Path.write_text', [
+      MontyPath(virtualPath),
+      MontyString(content),
+    ], {});
+    if (created is Future || written is Future) {
+      throw StateError('Expected synchronous memory operations');
+    }
   }
 
   /// Queue Python code to execute once during [setup()], before experiments.
@@ -276,7 +287,7 @@ class MontyHarness {
     final pool = _pool = await startTestPool();
     _runtime = await MontyRuntime.start(
       pool: pool,
-      osHandlers: {'Path.': fsHandler(_fs)},
+      osHandlers: {'Path.': _fs.call},
       extensions: _extensions,
       sandbox: _sandbox,
     );
@@ -329,7 +340,10 @@ class MontyHarness {
   ///
   /// The file content is read by Dart and passed to [run].
   Future<MontyValue> runFile(String virtualPath) {
-    final content = _fs.file(virtualPath).readAsStringSync();
+    final content =
+        (_fs.call('Path.read_text', [MontyPath(virtualPath)], {})
+                as MontyString)
+            .value;
     return run(content);
   }
 

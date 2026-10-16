@@ -19,9 +19,9 @@
 import 'dart:io';
 
 import 'package:dart_monty/dart_monty.dart';
-import 'package:dart_monty_core/dart_monty_core.dart' show MontyFileHandle;
-
-import 'package:file/memory.dart';
+import 'package:dart_monty_core/dart_monty_core.dart'
+    show MemoryFile, MontyFileHandle;
+import 'package:dart_monty_core/dart_monty_core.dart' show OSAccess;
 
 Future<void> main() async {
   final worker = Platform.environment['DART_MONTY_WORKER'];
@@ -39,7 +39,7 @@ Future<void> _demo(Monty pool) async {
   // open() read/write/append + with open() ──────────────────────────────────
   final fs = await MontyRuntime.start(
     pool: pool,
-    osHandlers: {'Path.': memoryFsHandler()},
+    osHandlers: {'Path.': OSAccess().call},
   );
 
   await fs.execute('''
@@ -58,7 +58,7 @@ text
 ''').result;
   print('read back:\n${(read.dartValue! as String).trimRight()}');
 
-  // Binary round-trip — package:file is byte-faithful ─────────────────────────
+  // Binary round-trip — OSAccess preserves bytes ─────────────────────────
   final bin = await fs.execute('''
 with open('/blob.bin', 'wb') as f:
     f.write(b'\\x00\\x01\\x02\\xff')
@@ -88,11 +88,20 @@ out
   await fs.dispose();
 
   // Typed PermissionError from a read-only handler ────────────────────────────
-  final roFs = MemoryFileSystem();
-  roFs.file('/secret.txt').writeAsStringSync('sk-1');
+  final roFs = OSAccess(files: [MemoryFile('/secret.txt', 'sk-1')]);
   final ro = await MontyRuntime.start(
     pool: pool,
-    osHandlers: {'Path.': fsHandler(roFs).readOnly()},
+    osHandlers: {
+      'Path.': (name, args, kwargs) {
+        if (name == 'open' && args.length > 1 && args[1].dartValue != 'r') {
+          throw const ExternalException(
+            'PermissionError',
+            'Read-only application data',
+          );
+        }
+        return roFs.call(name, args, kwargs);
+      },
+    },
   );
   final denied = await ro.execute('''
 try:

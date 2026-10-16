@@ -22,6 +22,7 @@ final class ThrowingSession implements MontySession {
     FutureOr<void> Function(String stream, String text)? printCallback,
     String? cwd,
     OsHandler? os,
+    List<MountDir>? mount,
     bool skipTypeCheck = false,
   }) async {
     // ignore: only_throw_errors – the test needs a non-Exception throw.
@@ -36,6 +37,7 @@ final class ThrowingSession implements MontySession {
     FutureOr<void> Function(String stream, String text)? printCallback,
     String? cwd,
     OsHandler? os,
+    List<MountDir>? mount,
     bool skipTypeCheck = false,
   }) async {
     // ignore: only_throw_errors – the test needs a non-Exception throw.
@@ -51,6 +53,7 @@ final class ThrowingSession implements MontySession {
     Map<String, MontyValue>? externalLookup,
     FutureOr<void> Function(String stream, String text)? printCallback,
     OsHandler? os,
+    List<MountDir>? mount,
   }) async => throw UnsupportedError('loadSnapshot');
 
   @override
@@ -88,6 +91,7 @@ final class OsProbeSession extends ThrowingSession {
     FutureOr<void> Function(String stream, String text)? printCallback,
     String? cwd,
     OsHandler? os,
+    List<MountDir>? mount,
     bool skipTypeCheck = false,
   }) async {
     final answer = os!(name, args, const {});

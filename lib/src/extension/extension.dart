@@ -53,11 +53,8 @@ class ChildSpawnContext {
   /// Unique identifier for this child within the parent `SandboxExtension`.
   final int childId;
 
-  /// Per-child working directory path, or `null` if the parent did not
-  /// configure `SandboxExtension.sandboxBaseDir`.
-  ///
-  /// This is a computed path string only — actual directory creation is the
-  /// consumer's responsibility (e.g., in `FsExtension.createChildInstance`).
+  /// Virtual child working directory, `/work` for sandbox children.
+  /// Native backing through `sandboxBaseDir` is pending D4b.
   final String? workingDirectory;
 }
 
