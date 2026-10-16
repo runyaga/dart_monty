@@ -1,11 +1,6 @@
-// G1-G2: Sandbox extension experiments — FFI only.
-//
-// Covers child lifecycle, parallel execution, error propagation, output
-// capture, signals (childrenSignal / aliveCountSignal), gather, and limits.
-//
-// Run with:
-//   dart test -p vm --tags=integration \
-//     test/experiments/sandbox_experiment_test.dart
+// SandboxExtension children: spawn and await, parallel children, error
+// propagation, output capture, liveness, child events and the childrenSignal
+// transitions.
 @Tags(['integration'])
 library;
 
@@ -13,14 +8,14 @@ import 'package:dart_monty/dart_monty.dart';
 
 import 'package:test/test.dart';
 
-import '../integration/_monty_harness.dart';
+import '_monty_harness.dart';
 
 void main() {
   // ---------------------------------------------------------------------------
-  // G1-1: Basic spawn → await round-trip
+  // Basic spawn → await round-trip
   // ---------------------------------------------------------------------------
 
-  group('G1-1: sandbox basic spawn + await', () {
+  group('sandbox basic spawn + await', () {
     late MontyHarness h;
     late SandboxExtension sandbox;
 
@@ -71,10 +66,10 @@ v
   });
 
   // ---------------------------------------------------------------------------
-  // G1-2: Parallel children
+  // Parallel children
   // ---------------------------------------------------------------------------
 
-  group('G1-2: parallel children', () {
+  group('parallel children', () {
     late MontyHarness h;
     late SandboxExtension sandbox;
 
@@ -133,10 +128,10 @@ sandbox_await_all(handles=[h1, h2])
   });
 
   // ---------------------------------------------------------------------------
-  // G1-3: Error propagation
+  // Error propagation
   // ---------------------------------------------------------------------------
 
-  group('G1-3: child error propagation', () {
+  group('child error propagation', () {
     late MontyHarness h;
     late SandboxExtension sandbox;
 
@@ -204,10 +199,10 @@ except Exception:
   });
 
   // ---------------------------------------------------------------------------
-  // G1-4: Output capture
+  // Output capture
   // ---------------------------------------------------------------------------
 
-  group('G1-4: print output capture', () {
+  group('print output capture', () {
     late MontyHarness h;
     late SandboxExtension sandbox;
 
@@ -245,10 +240,10 @@ results[0]
   });
 
   // ---------------------------------------------------------------------------
-  // G1-5: sandbox_is_alive
+  // sandbox_is_alive
   // ---------------------------------------------------------------------------
 
-  group('G1-5: sandbox_is_alive', () {
+  group('sandbox_is_alive', () {
     late MontyHarness h;
     late SandboxExtension sandbox;
 
@@ -273,10 +268,10 @@ sandbox_is_alive(handle=h1)
   });
 
   // ---------------------------------------------------------------------------
-  // G2-1: childrenSignal + FauxUi — BridgeChildEvent integration
+  // childrenSignal + FauxUi — BridgeChildEvent integration
   // ---------------------------------------------------------------------------
 
-  group('G2-1: FauxUi observes BridgeChildEvent from sandbox children', () {
+  group('FauxUi observes BridgeChildEvent from sandbox children', () {
     late MontyHarness h;
     late SandboxExtension sandbox;
     late FauxUi ui;
@@ -307,10 +302,10 @@ sandbox_await(handle=h1)
   });
 
   // ---------------------------------------------------------------------------
-  // G2-2: SignalCapture on childrenSignal
+  // SignalCapture on childrenSignal
   // ---------------------------------------------------------------------------
 
-  group('G2-2: SignalCapture on childrenSignal', () {
+  group('SignalCapture on childrenSignal', () {
     late MontyHarness h;
     late SandboxExtension sandbox;
 
