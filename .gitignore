@@ -57,8 +57,6 @@ test.py
 .env
 .env.*
 .venv/
-# CI review artifacts (all generated — regenerate with tool/metrics.sh)
-ci-review/
 # Compiled JS artifacts (built by dart compile js or npm run bundle)
 **/*.dart.js
 **/*.dart.js.deps

@@ -107,9 +107,15 @@ change that brings it back.
   empty globals. The extensions stay attached; it is not a `clearState()`.
 - **`MontyValueX`** is no longer exported. Read values with `dartValue` or a
   pattern on core's `MontyValue` subtypes.
-- **`dart_monty_bridge.dart`** re-exports core's `ExternalException` and
-  `OsHandler`, and no longer `OsCallNotHandledException`, which stays public
-  through `dart_monty.dart`. `extractBridgeResult` is no longer exported.
+- **The only library entry point is `package:dart_monty/dart_monty.dart`.**
+  The former `dart_monty_bridge.dart` entry point is gone. Core types are
+  re-exported only for these nine names: `Monty`, `MontySession`,
+  `MontyValue`, `MontyNone`, `MontyError`, `ResourceLimits`, `OsHandler`,
+  `OsCallNotHandledException` and `ExternalException`. Import any other core
+  type from `package:dart_monty_core/dart_monty_core.dart`.
+  `extractBridgeResult` is no longer exported.
+- The message bus moved to the extras package. No compatibility alias and no
+  extras dependency is added to dart_monty.
 - A host function returns a dataclass-like value as core's `ClassInstance`;
   `example/dataclass_demo.dart` shows it.
 
