@@ -1,10 +1,15 @@
-vm	integration	312	0
-vm	acceptance	12	0
-chrome-dart2js	integration	495	0
-chrome-dart2js	acceptance	12	0
-chrome-dart2wasm	integration	495	0
-chrome-dart2wasm	acceptance	12	0
-firefox-dart2js	integration	495	0
-firefox-dart2js	acceptance	12	0
-firefox-dart2wasm	integration	495	0
-firefox-dart2wasm	acceptance	12	0
+vm	integration	312	0	1
+vm	acceptance	12	0	1
+vm	portable	65	0	1
+chrome-dart2js	integration	495	0	70
+chrome-dart2js	acceptance	12	0	1
+chrome-dart2js	portable	65	0	1
+chrome-dart2wasm	integration	495	0	70
+chrome-dart2wasm	acceptance	12	0	1
+chrome-dart2wasm	portable	65	0	1
+firefox-dart2js	integration	495	0	70
+firefox-dart2js	acceptance	12	0	1
+firefox-dart2js	portable	65	0	1
+firefox-dart2wasm	integration	495	0	70
+firefox-dart2wasm	acceptance	12	0	1
+firefox-dart2wasm	portable	65	0	1
