@@ -6,7 +6,7 @@ asset links and examples agree on that commit.
 
 Core owns sessions, worker transport, values, OSAccess memory files, host mounts
 and OS-call defaults. Applications import those primitives from core's public
-library. dm exports nine selected core names and 42 dm names (51 total after
+library. dm exports nine selected core names and 36 dm names (45 total after
 D4a), and imports no core implementation libraries.
 
 The bridge drives public session feeds and reports host events. Extensions own
@@ -19,8 +19,7 @@ conditional filesystem exports remain in dm.
 different facilities. D4b supplies owned native backing, a private driver over
 public snapshots, and bounded persistent transfer sessions. Conditional imports
 keep native helpers out of web builds. Child checkout remains the D1-8 stub
-until D5. The six public
-child state/error names remain until that migration.
+until D5. D5 keeps child state and error implementation details private.
 
 See [workspace policy](../deep-dives/oscall-vfs.md) for the current transfer and
 accounting contract. Surface goldens and compiler fixtures enforce the facade;

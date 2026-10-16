@@ -1,3 +1,5 @@
+// Keep guest programs and historical case IDs intact.
+// ignore_for_file: lines_longer_than_80_chars
 // Each bridge factory call must acquire a distinct session. Collection
 // access deliberately fails fast when an expected event/clone is absent.
 // ignore_for_file: prefer-moving-to-variable, avoid-unsafe-collection-methods
@@ -6,14 +8,95 @@ library;
 
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/src/extension/coordinator.dart';
+import 'package:dart_monty/src/runtime/runtime.dart' show startRuntimeWith;
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:test/test.dart';
 
+import '../src/_recording_session.dart';
 import '_child_contract.dart';
 
 void main() {
-  // Preparation subset of G2. The coordinator can forward a supplied context;
-  // runtime-owned child checkout and /work selection remain D5-A gaps.
+  test('D5-context-checkout', () async {
+    final pool = await childContractPool();
+    final sessions = <RecordingSession>[];
+    final extension = ChildContractExtension('probe');
+    final runtime = await startRuntimeWith(
+      checkout: ({limits}) async {
+        final session = RecordingSession(await pool.checkout(limits: limits));
+        sessions.add(session);
+
+        return session;
+      },
+      extensions: [extension, SandboxExtension()],
+    );
+    addTearDown(runtime.dispose);
+    runtime.register(
+      HostFunction(
+        schema: const HostFunctionSchema(name: 'raw_parent'),
+        handler: (_, _) async => const MontyInt(9),
+      ),
+    );
+    final run = runtime.execute(
+      'parent_global = 17\nh = sandbox_spawn("import os; [os.getcwd(), probe_id()]")\nsandbox_await(h)',
+    );
+    final events = run.events.toList();
+    expect(
+      await run.result,
+      const MontyList([MontyString('/work'), MontyInt(0)]),
+    );
+    expect(
+      (await events)
+          .whereType<BridgeChildEvent>()
+          .map((e) => e.childHandle)
+          .toSet(),
+      {'0'},
+    );
+    expect(sessions, hasLength(2));
+    expect(sessions[1].feeds.single.cwd, '/work');
+    expect(sessions[1].closeCalls, 1);
+    expect(extension.clones.single.context?.workingDirectory, '/work');
+    for (final name in ['parent_global', 'raw_parent()']) {
+      final handle = await spawnChild(runtime, name);
+      await expectLater(
+        awaitChild(runtime, handle),
+        throwsA(predicate<Object>((e) => e.toString().contains('NameError'))),
+      );
+    }
+  });
+
+  test('D5-child-subexecute', () async {
+    final pool = await childContractPool();
+    final observed = <ResourceLimits?>[];
+    final sessions = <RecordingSession>[];
+    const selected = ResourceLimits(
+      maxFeedDuration: Duration(seconds: 3),
+      maxSuspensions: 7,
+      gcInterval: 123,
+    );
+    final runtime = await startRuntimeWith(
+      checkout: ({limits}) async {
+        observed.add(limits);
+        final session = RecordingSession(await pool.checkout(limits: limits));
+        sessions.add(session);
+
+        return session;
+      },
+      extensions: [
+        _SubExtension(),
+        SandboxExtension(childLimits: selected),
+      ],
+    );
+    addTearDown(runtime.dispose);
+    final handle = await spawnChild(runtime, 'nested_run()');
+    expect(await awaitChild(runtime, handle), const MontyInt(42));
+    expect(sessions, hasLength(3));
+    expect(observed[1], same(selected));
+    expect(observed[2], same(selected));
+    expect(sessions[1].closeCalls, 1);
+    expect(sessions[2].closeCalls, 1);
+  });
+
+  // Coordinator isolation complements the live checkout witness above.
   test('D5-context-coordinator-isolation', () async {
     final pool = await childContractPool();
     final parentBridge = await childContractBridge(pool);
@@ -57,4 +140,21 @@ void main() {
       const MontyList([MontyInt(7), MontyString('execution')]),
     );
   });
+}
+
+final class _SubExtension extends MontyExtension {
+  @override
+  String get namespace => 'nested';
+  @override
+  ChildPolicy get childPolicy => ChildPolicy.clone;
+  @override
+  MontyExtension createChildInstance(ChildSpawnContext context) =>
+      _SubExtension();
+  @override
+  List<HostFunction> get functions => [
+    HostFunction(
+      schema: const HostFunctionSchema(name: 'nested_run'),
+      handler: (_, ctx) => ctx.subExecute!('40 + 2'),
+    ),
+  ];
 }

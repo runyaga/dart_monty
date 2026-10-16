@@ -47,15 +47,7 @@ export 'src/extension/extension.dart'
     show ChildPolicy, ChildSpawnContext, MontyExtension;
 export 'src/extensions/event_loop.dart' show EventLoopExtension;
 export 'src/extensions/run_script.dart' show buildRunScriptFunction;
-export 'src/extensions/sandbox.dart'
-    show
-        ChildCompleted,
-        ChildDisposed,
-        ChildFailed,
-        ChildRunning,
-        ChildSandboxException,
-        ChildState,
-        SandboxExtension;
+export 'src/extensions/sandbox.dart' show SandboxExtension;
 export 'src/host/context.dart' show HostContext, HostSubExecutor;
 export 'src/host/function.dart'
     show DispatchMode, HostFunction, HostFunctionHandler;

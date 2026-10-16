@@ -12,8 +12,58 @@ import 'package:test/test.dart';
 import '_child_contract.dart';
 
 void main() {
-  // Borrowed instances/leases remain a gap. Clone and exclude already work
-  // through the internal coordinator, independently of sandbox checkout.
+  test('D5-borrow-two-children', () async {
+    final pool = await childContractPool();
+    final parentBridge = await childContractBridge(pool);
+    final borrowed = ChildContractExtension(
+      'borrowed',
+      childPolicy: ChildPolicy.inherit,
+    );
+    final parent = ExtensionCoordinator()..register(borrowed);
+    await parent.attachTo(parentBridge);
+    final ownerLogger = borrowed.logger;
+    final children = <ExtensionCoordinator>[];
+    final bridges = <MontyBridge>[];
+    for (var id = 0; id < 2; id++) {
+      final bridge = await childContractBridge(pool);
+      bridges.add(bridge);
+      children.add(
+        await parent.spawnChild(
+          context: ChildSpawnContext(childId: id),
+          bridge: bridge,
+        ),
+      );
+      expect(coordinatorOf(borrowed), same(parent));
+      expect(borrowed.logger, same(ownerLogger));
+    }
+    await children.first.disposeAll();
+    expect(borrowed.disposals, 0);
+    expect(
+      await bridges[1].invokeHostFunction('borrowed_id', {}),
+      const MontyInt(-1),
+    );
+    expect(
+      await parentBridge.invokeHostFunction('borrowed_id', {}),
+      const MontyInt(-1),
+    );
+    var disposed = false;
+    Future<void> disposeParent() async {
+      await parent.disposeAll();
+      disposed = true;
+    }
+
+    final disposing = disposeParent();
+    await Future<void>.delayed(Duration.zero);
+    expect(disposed, isFalse);
+    expect(borrowed.disposals, 0);
+    await children[1].disposeAll();
+    await disposing;
+    expect(borrowed.disposals, 1);
+    await parent.disposeAll();
+    expect(borrowed.disposals, 1);
+  });
+
+  // Clone and exclude ownership are independent of borrowed instance leases.
   test('D5-clone-exclude', () async {
     final pool = await childContractPool();
     final parentBridge = await childContractBridge(pool);

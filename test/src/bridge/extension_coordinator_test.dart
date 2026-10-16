@@ -678,7 +678,7 @@ void main() {
         await registry.disposeAll();
         await registry.disposeAll();
 
-        expect(count, 2); // Called twice — plugin must be idempotent.
+        expect(count, 1); // Both callers join the same owner cleanup.
       });
 
       test('disposes all plugins even if one throws', () async {
@@ -858,6 +858,63 @@ void main() {
           );
 
           expect(ok.clones.single.disposed, isTrue);
+        },
+      );
+
+      test('rejected duplicate clone is disposed exactly once', () async {
+        final first = _PolicyExtension('duplicate', ChildPolicy.clone);
+        final second = _PolicyExtension('duplicate', ChildPolicy.clone);
+        final clones = [first, second];
+        registry
+          ..register(
+            _PolicyExtension(
+              'first',
+              ChildPolicy.clone,
+              onClone: () => first,
+            ),
+          )
+          ..register(
+            _PolicyExtension(
+              'second',
+              ChildPolicy.clone,
+              onClone: () => second,
+            ),
+          );
+        await registry.attachTo(_MockBridge());
+        addTearDown(registry.disposeAll);
+
+        await expectLater(
+          registry.spawnChild(
+            context: const ChildSpawnContext(childId: 1),
+            bridge: _MockBridge(),
+          ),
+          throwsA(
+            isA<StateError>().having(
+              (error) => error.message,
+              'message',
+              contains('already registered'),
+            ),
+          ),
+        );
+        expect(clones.map((clone) => clone.disposals), [1, 1]);
+      });
+
+      test(
+        'a clone owned before logging fails is disposed exactly once',
+        () async {
+          final clone = _LoggingFailureClone();
+          registry.register(_CloneFactoryExtension(clone));
+          await registry.attachTo(_MockBridge());
+
+          await expectLater(
+            registry.spawnChild(
+              context: const ChildSpawnContext(childId: 1),
+              bridge: _MockBridge(),
+            ),
+            throwsStateError,
+          );
+
+          expect(clone.disposals, 1);
         },
       );
 
@@ -1126,6 +1183,7 @@ class _PolicyExtension extends MontyExtension {
   final MontyExtension Function()? onClone;
   final List<_PolicyExtension> clones = [];
   bool disposed = false;
+  int disposals = 0;
 
   @override
   List<HostFunction> get functions => [];
@@ -1147,6 +1205,7 @@ class _PolicyExtension extends MontyExtension {
   Future<void> onDispose() async {
     await super.onDispose();
     disposed = true;
+    disposals++;
   }
 }
 
@@ -1160,6 +1219,46 @@ class _TestCloneWithoutFactory extends MontyExtension {
 
   @override
   ChildPolicy get childPolicy => ChildPolicy.clone;
+}
+
+/// Produces a clone whose third `functions` read fails in `register`'s log.
+class _CloneFactoryExtension extends MontyExtension {
+  _CloneFactoryExtension(this.clone);
+
+  final _LoggingFailureClone clone;
+
+  @override
+  String get namespace => 'factory';
+
+  @override
+  List<HostFunction> get functions => [];
+
+  @override
+  ChildPolicy get childPolicy => ChildPolicy.clone;
+
+  @override
+  MontyExtension createChildInstance(ChildSpawnContext context) => clone;
+}
+
+class _LoggingFailureClone extends MontyExtension {
+  int disposals = 0;
+  var _functionsReads = 0;
+
+  @override
+  String get namespace => 'clone';
+
+  @override
+  List<HostFunction> get functions {
+    if (++_functionsReads == 3) throw StateError('logging failed');
+
+    return [];
+  }
+
+  @override
+  Future<void> onDispose() async {
+    await super.onDispose();
+    disposals++;
+  }
 }
 
 /// An extension that runs on the web backend only.

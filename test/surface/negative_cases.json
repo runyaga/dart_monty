@@ -884,5 +884,37 @@
     "body": "void probe(SandboxExtension value) { final member = value.childVfsStrategy; }",
     "inventory": "public-members.tsv",
     "symbol": "SandboxExtension.childVfsStrategy"
+  },
+  {
+    "id": "D5-private-ChildState",
+    "body": "print(ChildState);"
+  },
+  {
+    "id": "D5-private-ChildRunning",
+    "body": "print(ChildRunning);"
+  },
+  {
+    "id": "D5-private-ChildCompleted",
+    "body": "print(ChildCompleted);"
+  },
+  {
+    "id": "D5-private-ChildFailed",
+    "body": "print(ChildFailed);"
+  },
+  {
+    "id": "D5-private-ChildDisposed",
+    "body": "print(ChildDisposed);"
+  },
+  {
+    "id": "D5-private-ChildSandboxException",
+    "body": "print(ChildSandboxException);"
+  },
+  {
+    "id": "D5-private-childrenSignal",
+    "body": "print(SandboxExtension().childrenSignal);"
+  },
+  {
+    "id": "D5-private-aliveCountSignal",
+    "body": "print(SandboxExtension().aliveCountSignal);"
   }
 ]

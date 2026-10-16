@@ -81,7 +81,6 @@ parent destinations. Copies are explicit snapshots, and collections are
 repeatable. Filesystem calls outside `/work` decline synchronously to core;
 they never fall through to the parent filesystem.
 
-D4a provides these helpers and the schema. Child checkout is still the D1-8
-stub until D5. D4b tests native backing directly with real core sessions;
-end-to-end sandbox child execution still requires D5.
+D4a provides the workspace schema, D4b provides the native backing, and D5
+wires either backing into live child execution.
 See [workspace policy](oscall-vfs.md) for caps, transfer bounds and disposal.

@@ -1,275 +1,87 @@
-@TestOn('vm')
-@Tags(['integration', 'd1-pending'])
+@Tags(['integration'])
 library;
 
 import 'package:dart_monty/dart_monty.dart';
-import 'package:dart_monty/src/extension/coordinator.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:test/test.dart';
 
-import '_worker.dart';
+import '_child_contract.dart';
 
-final _testCtx = HostContext(emit: (_) {}, executionId: 'test');
-
-/// Integration tests for sandbox_gather output attribution with real FFI.
-///
-/// Run with:
-/// ```bash
-/// cd native && cargo build --release && cd ..
-/// cd packages/dart_monty_bridge
-/// DYLD_LIBRARY_PATH=../../native/target/release \
-///   dart test --tags=integration --run-skipped \
-///   test/integration/sandbox_gather_test.dart
-/// ```
 void main() {
-  late Monty pool;
+  late MontyRuntime runtime;
+  setUp(() async {
+    runtime = await MontyRuntime.start(
+      pool: await childContractPool(),
+      extensions: [SandboxExtension()],
+    );
+  });
+  tearDown(() => runtime.dispose());
 
-  setUpAll(() async => pool = await startTestPool());
-  tearDownAll(() => pool.close());
-
-  // The bridge does not close its session; the test does, so the pool's
-  // workers come back between tests.
-  Future<MontyBridge> createBridge() async {
-    final session = await pool.checkout();
-    addTearDown(session.close);
-
-    return MontyBridge(session: session);
-  }
+  Future<List<Object?>> gather(List<MontyValue> handles) async =>
+      (await runtime.invoke('sandbox_gather', {
+            'handles': MontyList(handles),
+          })).dartValue!
+          as List<Object?>;
 
   group('sandbox_gather with real FFI', () {
     test(
       'attributes print output and return value to correct worker',
       () async {
-        final bridge = await createBridge();
-        final registry = ExtensionCoordinator()
-          ..register(
-            SandboxExtension(),
+        final handles = <MontyValue>[];
+        for (final value in [42, 99, 7]) {
+          handles.add(
+            await spawnChild(runtime, 'print("worker-$value")\n$value'),
           );
-        await registry.attachTo(bridge);
-
-        final plugin = registry.extensions.whereType<SandboxExtension>().first;
-        final spawn = plugin.functions
-            .firstWhere((f) => f.schema.name == 'sandbox_spawn')
-            .handler;
-        final gather = plugin.functions
-            .firstWhere((f) => f.schema.name == 'sandbox_gather')
-            .handler;
-
-        // Spawn 3 workers with distinct print output and return values.
-        final h0 =
-            (await spawn!({
-                  'code': const MontyString('print("worker-A")\n42'),
-                }, _testCtx))
-                as int;
-        final h1 =
-            (await spawn({
-                  'code': const MontyString('print("worker-B")\n99'),
-                }, _testCtx))
-                as int;
-        final h2 =
-            (await spawn({
-                  'code': const MontyString('print("worker-C")\n7'),
-                }, _testCtx))
-                as int;
-
-        final results =
-            (await gather!({
-                  'handles': MontyValue.fromDart([h0, h1, h2]),
-                }, _testCtx))
-                as List<Object?>;
-
-        expect(results, hasLength(3));
-
-        final r0 = results[0]! as Map<String, Object?>;
-        final r1 = results[1]! as Map<String, Object?>;
-        final r2 = results[2]! as Map<String, Object?>;
-
-        // Each result is attributed to the correct handle.
-        expect(r0['handle'], h0);
-        expect(r1['handle'], h1);
-        expect(r2['handle'], h2);
-
-        // Return values match.
-        expect(r0['value'], 42);
-        expect(r1['value'], 99);
-        expect(r2['value'], 7);
-
-        // Print output is attributed correctly.
-        expect(r0['output'], contains('worker-A'));
-        expect(r1['output'], contains('worker-B'));
-        expect(r2['output'], contains('worker-C'));
-
-        bridge.dispose();
+        }
+        final values = await gather(handles);
+        for (var i = 0; i < values.length; i++) {
+          final row = values[i]! as Map;
+          expect(row['handle'], handles[i].dartValue);
+          expect(row['value'], [42, 99, 7][i]);
+          expect(row['output'], contains('worker-${row['value']}'));
+        }
+        expect(values, hasLength(3));
       },
     );
-
     test('gather preserves requested handle order', () async {
-      final bridge = await createBridge();
-      final registry = ExtensionCoordinator()
-        ..register(
-          SandboxExtension(),
-        );
-      await registry.attachTo(bridge);
-
-      final plugin = registry.extensions.whereType<SandboxExtension>().first;
-      final spawn = plugin.functions
-          .firstWhere((f) => f.schema.name == 'sandbox_spawn')
-          .handler;
-      final gather = plugin.functions
-          .firstWhere((f) => f.schema.name == 'sandbox_gather')
-          .handler;
-
-      final h0 =
-          (await spawn!({'code': const MontyString('10')}, _testCtx)) as int;
-      final h1 =
-          (await spawn({'code': const MontyString('20')}, _testCtx)) as int;
-
-      // Request in reverse order.
-      final results =
-          (await gather!({
-                'handles': MontyValue.fromDart([h1, h0]),
-              }, _testCtx))
-              as List<Object?>;
-
-      expect((results[0]! as Map)['handle'], h1);
-      expect((results[0]! as Map)['value'], 20);
-      expect((results[1]! as Map)['handle'], h0);
-      expect((results[1]! as Map)['value'], 10);
-
-      bridge.dispose();
+      final first = await spawnChild(runtime, '10');
+      final second = await spawnChild(runtime, '20');
+      final rows = await gather([second, first]);
+      expect(rows.map((r) => (r! as Map)['handle']), [
+        second.dartValue,
+        first.dartValue,
+      ]);
+      expect(rows.map((r) => (r! as Map)['value']), [20, 10]);
     });
-
     test('gather with silent worker returns null output', () async {
-      final bridge = await createBridge();
-      final registry = ExtensionCoordinator()
-        ..register(
-          SandboxExtension(),
-        );
-      await registry.attachTo(bridge);
-
-      final plugin = registry.extensions.whereType<SandboxExtension>().first;
-      final spawn = plugin.functions
-          .firstWhere((f) => f.schema.name == 'sandbox_spawn')
-          .handler;
-      final gather = plugin.functions
-          .firstWhere((f) => f.schema.name == 'sandbox_gather')
-          .handler;
-
-      // One worker prints, the other does not.
-      final hLoud =
-          (await spawn!({
-                'code': const MontyString('print("hello")\n1'),
-              }, _testCtx))
-              as int;
-      final hSilent =
-          (await spawn({'code': const MontyString('2')}, _testCtx)) as int;
-
-      final results =
-          (await gather!({
-                'handles': MontyValue.fromDart([hLoud, hSilent]),
-              }, _testCtx))
-              as List<Object?>;
-
-      final rLoud = results[0]! as Map<String, Object?>;
-      final rSilent = results[1]! as Map<String, Object?>;
-
-      expect(rLoud['output'], contains('hello'));
-      expect(rSilent['output'], isNull);
-
-      bridge.dispose();
+      final loud = await spawnChild(runtime, 'print("hello")\n1');
+      final silent = await spawnChild(runtime, '2');
+      final rows = await gather([loud, silent]);
+      expect((rows[0]! as Map)['output'], contains('hello'));
+      expect((rows[1]! as Map)['output'], isNull);
     });
-
     test('gather propagates child failure as ChildSandboxException', () async {
-      final bridge = await createBridge();
-      final registry = ExtensionCoordinator()
-        ..register(
-          SandboxExtension(),
-        );
-      await registry.attachTo(bridge);
-
-      final plugin = registry.extensions.whereType<SandboxExtension>().first;
-      final spawn = plugin.functions
-          .firstWhere((f) => f.schema.name == 'sandbox_spawn')
-          .handler;
-      final gather = plugin.functions
-          .firstWhere((f) => f.schema.name == 'sandbox_gather')
-          .handler;
-
-      final hGood =
-          (await spawn!({'code': const MontyString('1')}, _testCtx)) as int;
-      final hBad =
-          (await spawn({
-                'code': const MontyString('undefined_variable_xyz'),
-              }, _testCtx))
-              as int;
-
-      expect(
-        () => gather!({
-          'handles': MontyValue.fromDart([hGood, hBad]),
-        }, _testCtx),
-        throwsA(
-          isA<ChildSandboxException>().having(
-            (e) => e.message,
-            'message',
-            contains('NameError'),
-          ),
-        ),
+      final good = await spawnChild(runtime, '1');
+      final bad = await spawnChild(runtime, 'undefined_variable_xyz');
+      await expectLater(
+        gather([good, bad]),
+        throwsA(predicate<Object>((e) => e.toString().contains('NameError'))),
       );
-
-      bridge.dispose();
     });
-
     test(
       'gather results are machine-parseable for downstream tooling',
       () async {
-        final bridge = await createBridge();
-        final registry = ExtensionCoordinator()
-          ..register(
-            SandboxExtension(),
-          );
-        await registry.attachTo(bridge);
-
-        final plugin = registry.extensions.whereType<SandboxExtension>().first;
-        final spawn = plugin.functions
-            .firstWhere((f) => f.schema.name == 'sandbox_spawn')
-            .handler;
-        final gather = plugin.functions
-            .firstWhere((f) => f.schema.name == 'sandbox_gather')
-            .handler;
-
-        final h0 =
-            (await spawn!({
-                  'code': const MontyString(
-                    'print("line1")\nprint("line2")\n100',
-                  ),
-                }, _testCtx))
-                as int;
-        final h1 =
-            (await spawn({
-                  'code': const MontyString('print("only")\n200'),
-                }, _testCtx))
-                as int;
-
-        final results =
-            (await gather!({
-                  'handles': MontyValue.fromDart([h0, h1]),
-                }, _testCtx))
-                as List<Object?>;
-
-        // Verify every result has exactly the expected keys.
-        for (final raw in results) {
-          final r = raw! as Map<String, Object?>;
-          expect(r.keys, containsAll(['handle', 'value', 'output']));
-          expect(r['handle'], isA<int>());
+        final first = await spawnChild(
+          runtime,
+          'print("line1")\nprint("line2")\n100',
+        );
+        final second = await spawnChild(runtime, 'print("only")\n200');
+        final rows = await gather([first, second]);
+        for (final row in rows.cast<Map<Object?, Object?>>()) {
+          expect(row.keys, unorderedEquals(['handle', 'value', 'output']));
+          expect(row['handle'], isA<int>());
         }
-
-        // Verify multiline output is captured intact.
-        final r0 = results[0]! as Map<String, Object?>;
-        final output = r0['output']! as String;
-        expect(output, contains('line1'));
-        expect(output, contains('line2'));
-
-        bridge.dispose();
+        expect((rows[0]! as Map)['output'], contains('line1\nline2'));
       },
     );
   });

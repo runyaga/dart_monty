@@ -16,8 +16,30 @@ import '_child_contract.dart';
 const _script = 'import time, random\n[time.time(), random.random()]';
 
 void main() {
-  // G11 preparation: a manually checked-out session with inherited callbacks.
-  // The ordinary SandboxExtension checkout itself is still unimplemented.
+  test('D5-system-child', () async {
+    var calls = 0;
+    final runtime = await MontyRuntime.start(
+      pool: await childContractPool(),
+      extensions: [SandboxExtension()],
+      os: (_, _, _) {
+        calls++;
+        throw StateError('System policy must not call this handler');
+      },
+    );
+    addTearDown(runtime.dispose);
+    // A normal inherited non-filesystem callback is demonstrably installed.
+    final probe = await spawnChild(runtime, "import os; os.getenv('D5')");
+    await expectLater(awaitChild(runtime, probe), throwsA(isA<Exception>()));
+    expect(calls, 1);
+    final result =
+        await awaitChild(runtime, await spawnChild(runtime, _script))
+            as MontyList;
+    expect((result.items.first as MontyFloat).value, greaterThan(0));
+    expect((result.items[1] as MontyFloat).value, inInclusiveRange(0, 1));
+    expect(calls, 1);
+  });
+
+  // Also exercise inherited callbacks through a directly attached coordinator.
   test('D5-system-child-coordinator', () async {
     final pool = await childContractPool();
     final parent = ExtensionCoordinator();

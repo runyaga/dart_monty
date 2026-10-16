@@ -38,7 +38,7 @@ were demonstrated red before their fixes:
 | Fifteen disk parity scenarios | `P-01-read` through `P-15-open-exclusive` | Private driver matches core feedRun over the same upstream native mount implementation. This is not a fresh external Python-oracle run. |
 | Real native library and fake-session compatibility | Full native suite and `N-fake-native-mount`; artifact hashes below | Both real worker sessions and FakeMontySession touch real disk through the delivered mount library. Missing delivery fails construction. |
 | Hook configuration and CI artifact consumption | `.github/workflows/ci.yaml`, `tool/configure_native_ci.py`, `tool/record_native_asset.py` | Reuses D4a worker/library artifact installation; root opts into build_worker; exact IDs and mutant kills are required; both delivered artifacts and the actual hook JIT asset are fingerprinted and uploaded. Linux workflow execution remains outstanding. |
-| Facade and D5 boundary | Exact surface/member tests; minimal `sandbox.dart` selection and independent cleanup changes | Facade remains 51 names and 184 retained dm member signatures. No child-checkout implementation, floor, baseline, deferred manifest or gate.sh change. Live children remain D5. |
+| Facade and D5 boundary | Exact surface/member tests; minimal `sandbox.dart` selection and independent cleanup changes | D4b did not add facade names. Live children remain D5. |
 
 ## Gates and artifact identity
 
@@ -75,7 +75,7 @@ cases; the manifest is an identity inventory, not a lowered numeric floor.
 | CI helper fixtures | PASS: hook opt-in, matching artifacts, mismatch refusal, JIT asset fingerprint and missing-asset refusal. These fixtures do not substitute for Linux CI execution. |
 
 Local VM commands use
-`DART_MONTY_WORKER=/private/tmp/claude-501/w6/dart_monty_worker` and core's
+`DART_MONTY_WORKER=<worker>` and core's
 package-relative mount-library lookup. The root hook is not enabled locally,
 so no build writes were attempted in the read-only core checkout. CI explicitly
 enables the hook and requires its emitted asset in addition to the package
@@ -83,7 +83,7 @@ fallback artifacts.
 
 | Artifact | SHA-256 |
 | --- | --- |
-| `/private/tmp/claude-501/w6/dart_monty_worker` | `c31a22aff61405817ed0438fee871783e950d656a605d0ca89cf538264522b50` |
+| `<worker>` | `c31a22aff61405817ed0438fee871783e950d656a605d0ca89cf538264522b50` |
 | `../d4-core/lib/src/bin/macos-arm64/libdart_monty_worker.dylib` | `c7b0765684686bf15bd0c8b656db4b341a72f15a3617db783adb2311d322aaf4` |
 
 The installed Dart SDK was invoked directly with analytics suppressed, a

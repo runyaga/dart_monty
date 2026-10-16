@@ -112,15 +112,18 @@ DECL = re.compile(
 # So track type bodies by brace depth and only accept declarations inside one.
 TYPE_START = re.compile(
     r'^(?:final\s+|abstract\s+|base\s+|sealed\s+|interface\s+|mixin\s+)*'
-    r'(?:class|extension|mixin|enum)\b')
+    r'(?:class|extension|mixin|enum)\s+(\w+)')
 
 def _methods_in_types(text):
     """Yield method names declared directly inside a class/extension/mixin."""
     names, depth, in_type, type_depth = [], 0, False, 0
+    public_type = False
     for line in text.splitlines():
-        if not in_type and TYPE_START.match(line):
+        type_match = TYPE_START.match(line)
+        if not in_type and type_match:
             in_type, type_depth = True, depth
-        if in_type and depth == type_depth + 1:
+            public_type = not type_match.group(1).startswith('_')
+        if in_type and public_type and depth == type_depth + 1:
             m = DECL.match(line)
             if m:
                 names.append(m.group(1))

@@ -1,108 +1,52 @@
-@TestOn('vm')
-@Tags(['integration', 'd1-pending'])
+@Tags(['integration'])
 library;
 
 import 'package:dart_monty/dart_monty.dart';
-import 'package:dart_monty/src/extension/coordinator.dart';
 import 'package:test/test.dart';
 
-import '_worker.dart';
+import '_child_contract.dart';
 
-final _testCtx = HostContext(emit: (_) {}, executionId: 'test');
-
-/// Integration tests for child sandbox error structure preservation.
-///
-/// Run with:
-/// ```bash
-/// cd native && cargo build --release && cd ..
-/// cd packages/dart_monty_bridge
-/// DYLD_LIBRARY_PATH=../../native/target/release \
-///   dart test --tags=integration --run-skipped \
-///   test/integration/sandbox_error_structure_test.dart
-/// ```
 void main() {
-  late Monty pool;
-
-  setUpAll(() async => pool = await startTestPool());
-  tearDownAll(() => pool.close());
-
-  // The bridge does not close its session; the test does, so the pool's
-  // workers come back between tests.
-  Future<MontyBridge> createBridge() async {
-    final session = await pool.checkout();
-    addTearDown(session.close);
-
-    return MontyBridge(session: session);
-  }
-
-  /// Spawns a child via plugin handler and awaits it, expecting a
-  /// [ChildSandboxException]. Returns the caught exception.
-  Future<ChildSandboxException> spawnAndExpectFailure(
-    SandboxExtension plugin,
-    String code,
-  ) async {
-    final spawnHandler = plugin.functions
-        .firstWhere((f) => f.schema.name == 'sandbox_spawn')
-        .handler;
-    final awaitHandler = plugin.functions
-        .firstWhere((f) => f.schema.name == 'sandbox_await')
-        .handler;
-
-    final handle =
-        (await spawnHandler!({'code': MontyValue.fromDart(code)}, _testCtx))
-            as int;
-
-    try {
-      await awaitHandler!({'handle': MontyValue.fromDart(handle)}, _testCtx);
-      fail('Expected ChildSandboxException');
-    } on ChildSandboxException catch (e) {
-      return e;
-    }
-  }
-
   group('child error structure preservation', () {
-    test(
-      'ChildSandboxException preserves excType from child NameError',
-      () async {
-        final bridge = await createBridge();
-        final registry = ExtensionCoordinator()
-          ..register(
-            SandboxExtension(),
+    for (final syntax in [false, true]) {
+      test(
+        syntax
+            ? 'ChildSandboxException preserves info from child SyntaxError'
+            : 'ChildSandboxException preserves excType from child NameError',
+        () async {
+          final runtime = await MontyRuntime.start(
+            pool: await childContractPool(),
+            extensions: [SandboxExtension()],
           );
-        await registry.attachTo(bridge);
-
-        final plugin = registry.extensions.whereType<SandboxExtension>().first;
-        final caught = await spawnAndExpectFailure(
-          plugin,
-          'undefined_variable_xyz',
-        );
-
-        expect(caught.message, contains('NameError'));
-        expect(caught.exception, isNotNull);
-        expect(caught.exception!.exception.excType, 'NameError');
-
-        bridge.dispose();
-      },
-    );
-
-    test(
-      'ChildSandboxException preserves info from child SyntaxError',
-      () async {
-        final bridge = await createBridge();
-        final registry = ExtensionCoordinator()
-          ..register(
-            SandboxExtension(),
+          addTearDown(runtime.dispose);
+          final events = <BridgeEvent>[];
+          final sub = runtime.events.listen(events.add);
+          addTearDown(sub.cancel);
+          final handle = await spawnChild(
+            runtime,
+            syntax ? 'def (' : 'undefined_variable_xyz',
           );
-        await registry.attachTo(bridge);
-
-        final plugin = registry.extensions.whereType<SandboxExtension>().first;
-        final caught = await spawnAndExpectFailure(plugin, 'def (');
-
-        expect(caught.exception, isNotNull);
-        expect(caught.exception!.exception.message, isNotEmpty);
-
-        bridge.dispose();
-      },
-    );
+          await expectLater(
+            awaitChild(runtime, handle),
+            throwsA(
+              predicate<Object>(
+                (e) =>
+                    e.toString().contains(syntax ? 'SyntaxError' : 'NameError'),
+              ),
+            ),
+          );
+          final error = events
+              .whereType<BridgeChildEvent>()
+              .map((e) => e.inner)
+              .whereType<BridgeRunError>()
+              .single;
+          expect(
+            error.exception?.exception.excType,
+            syntax ? 'SyntaxError' : 'NameError',
+          );
+          expect(error.exception?.exception.message, isNotEmpty);
+        },
+      );
+    }
   });
 }

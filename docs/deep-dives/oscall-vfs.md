@@ -100,6 +100,5 @@ deleting entries. If the base or owned directory was replaced, cleanup refuses
 deletion and reports the retained backing path for host recovery.
 
 Web builds refuse native backing with UnsupportedError; omit sandboxBaseDir for
-memory workspaces. Actual child checkout remains the D1-8 stub until D5. D4b
-exercises the native helper with real core sessions directly; the public child
-state names remain until D5.
+memory workspaces. D5 wires the prepared workspace into live child sessions;
+child state and error details remain private.

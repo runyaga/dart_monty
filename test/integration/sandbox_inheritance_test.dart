@@ -1,4 +1,3 @@
-@TestOn('vm')
 @Tags(['integration'])
 library;
 
@@ -7,7 +6,7 @@ import 'package:dart_monty/src/extension/coordinator.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:test/test.dart';
 
-import '_worker.dart';
+import '../acceptance/_platform.dart';
 
 /// Integration tests for SandboxExtension child inheritance with real FFI.
 ///
@@ -22,48 +21,42 @@ import '_worker.dart';
 void main() {
   late Monty pool;
 
-  setUpAll(() async => pool = await startTestPool());
+  setUpAll(
+    () async => pool = await Monty.start(
+      workerLocation: acceptanceWorkerLocation,
+      checkoutTimeout: const Duration(seconds: 5),
+    ),
+  );
   tearDownAll(() => pool.close());
 
   /// Executes [code] on a bridge and returns the final value or throws.
-  Future<Object?> run(MontyBridge bridge, String code) async {
-    Object? result;
-    String? error;
-    await for (final event in bridge.execute(code)) {
-      if (event is BridgeRunFinished) {
-        result = event.value;
-      } else if (event is BridgeRunError) {
-        error = event.message;
-      }
-    }
-    if (error != null) throw Exception(error);
-    return result;
-  }
+  Future<Object?> run(MontyRuntime runtime, String code) async =>
+      (await runtime.execute(code).result).dartValue;
 
   /// Python expression: `sandbox_spawn(code="[childCode]")`.
   String spawn(String childCode) => 'sandbox_spawn(code="$childCode")';
 
-  // The bridge does not close its session; the test does, so the pool's
-  // workers come back between tests.
-  Future<MontyBridge> createBridge() async {
-    final session = await pool.checkout();
-    addTearDown(session.close);
-
-    return MontyBridge(session: session);
+  Future<MontyRuntime> createBridge(List<MontyExtension> extensions) async {
+    final runtime = await MontyRuntime.start(
+      pool: pool,
+      extensions: extensions,
+    );
+    addTearDown(runtime.dispose);
+    await runtime.invoke('sandbox_await_all', {'handles': const MontyList([])});
+    return runtime;
   }
 
   // ---------------------------------------------------------------------------
   // Baseline: child sandboxs work without plugins
   // ---------------------------------------------------------------------------
 
-  group('baseline (no plugins)', tags: 'd1-pending', () {
+  group('baseline (no plugins)', () {
     test('child sandbox computes and returns value', () async {
-      final bridge = await createBridge();
       final registry = ExtensionCoordinator()
         ..register(
           SandboxExtension(),
         );
-      await registry.attachTo(bridge);
+      final bridge = await createBridge(registry.extensions);
 
       // Host functions are called synchronously (DispatchMode.sync default).
       final result = await run(
@@ -73,16 +66,15 @@ void main() {
       );
 
       expect(result, 5);
-      bridge.dispose();
+      await bridge.dispose();
     });
 
     test('child sandbox captures print output', () async {
-      final bridge = await createBridge();
       final registry = ExtensionCoordinator()
         ..register(
           SandboxExtension(),
         );
-      await registry.attachTo(bridge);
+      final bridge = await createBridge(registry.extensions);
 
       final result = await run(
         bridge,
@@ -92,7 +84,7 @@ void main() {
       );
 
       expect(result, contains('42'));
-      bridge.dispose();
+      await bridge.dispose();
     });
   });
 
@@ -102,33 +94,31 @@ void main() {
 
   group('createChildInstance inheritance', () {
     test('parent can call inherited plugin function', () async {
-      final bridge = await createBridge();
       final greeter = _GreeterExtension();
       final registry = ExtensionCoordinator()
         ..register(greeter)
         ..register(
           SandboxExtension(),
         );
-      await registry.attachTo(bridge);
+      final bridge = await createBridge(registry.extensions);
 
       final result = await run(bridge, 'greeter_hello(name="parent")');
 
       expect(result, 'Hello, parent!');
-      bridge.dispose();
+      await bridge.dispose();
     });
 
     test(
       'child inherits plugin via createChildInstance',
-      tags: 'd1-pending',
+
       () async {
-        final bridge = await createBridge();
         final greeter = _GreeterExtension();
         final registry = ExtensionCoordinator()
           ..register(greeter)
           ..register(
             SandboxExtension(),
           );
-        await registry.attachTo(bridge);
+        final bridge = await createBridge(registry.extensions);
 
         // Child bridge dispatch is sync by default — direct calls.
         const cc = r'greeter_hello(name=\"child\")';
@@ -139,20 +129,19 @@ void main() {
         );
 
         expect(result, 'Hello, child!');
-        bridge.dispose();
+        await bridge.dispose();
       },
     );
 
     test(
       'child without inheritable plugins errors on call',
-      tags: 'd1-pending',
+
       () async {
-        final bridge = await createBridge();
         final registry = ExtensionCoordinator()
           ..register(
             SandboxExtension(),
           );
-        await registry.attachTo(bridge);
+        final bridge = await createBridge(registry.extensions);
 
         // Child calls greeter_hello — not available (no inheritance).
         const cc = r'greeter_hello(name=\"test\")';
@@ -168,22 +157,21 @@ void main() {
         );
 
         expect(result, 'error_caught');
-        bridge.dispose();
+        await bridge.dispose();
       },
     );
 
     test(
       'multiple children get independent plugin instances',
-      tags: 'd1-pending',
+
       () async {
-        final bridge = await createBridge();
         final counter = _CounterExtension();
         final registry = ExtensionCoordinator()
           ..register(counter)
           ..register(
             SandboxExtension(),
           );
-        await registry.attachTo(bridge);
+        final bridge = await createBridge(registry.extensions);
 
         // Each child increments its own counter independently.
         // Dispatch is sync (DispatchMode.sync default) — direct calls, no async/await needed.
@@ -204,7 +192,7 @@ void main() {
 
         // Parent counter untouched.
         expect(counter.count, 0);
-        bridge.dispose();
+        await bridge.dispose();
       },
     );
   });
@@ -213,7 +201,7 @@ void main() {
   // ChildSpawnContext threading
   // ---------------------------------------------------------------------------
 
-  group('ChildSpawnContext threading', tags: 'd1-pending', () {
+  group('ChildSpawnContext threading', () {
     test(
       'child receives context with working directory via real FFI',
       () async {
@@ -221,7 +209,6 @@ void main() {
         final contextPlugin = _ContextCapturingExtension(
           onContext: (ctx) => capturedContext = ctx,
         );
-        final bridge = await createBridge();
         final registry = ExtensionCoordinator()
           ..register(contextPlugin)
           ..register(
@@ -229,7 +216,7 @@ void main() {
               sandboxBaseDir: '/tmp/sandbox_test',
             ),
           );
-        await registry.attachTo(bridge);
+        final bridge = await createBridge(registry.extensions);
 
         final result = await run(
           bridge,
@@ -242,9 +229,9 @@ void main() {
         expect(capturedContext!.childId, 0);
         expect(
           capturedContext!.workingDirectory,
-          contains('.sandboxes/child_0'),
+          '/work',
         );
-        bridge.dispose();
+        await bridge.dispose();
       },
     );
 
@@ -255,13 +242,12 @@ void main() {
         final contextPlugin = _ContextCapturingExtension(
           onContext: (ctx) => capturedContext = ctx,
         );
-        final bridge = await createBridge();
         final registry = ExtensionCoordinator()
           ..register(contextPlugin)
           ..register(
             SandboxExtension(),
           );
-        await registry.attachTo(bridge);
+        final bridge = await createBridge(registry.extensions);
 
         final result = await run(
           bridge,
@@ -272,8 +258,8 @@ void main() {
         expect(result, 2);
         expect(capturedContext, isNotNull);
         expect(capturedContext!.childId, 0);
-        expect(capturedContext!.workingDirectory, isNull);
-        bridge.dispose();
+        expect(capturedContext!.workingDirectory, '/work');
+        await bridge.dispose();
       },
     );
   });

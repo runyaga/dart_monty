@@ -261,6 +261,7 @@ MontyValue _decline(
 ) => throw const OsCallNotHandledException();
 
 /// Attempts every cleanup independently, preserving the first failure.
+// ignore: unnecessarily-public-code, real-session tests exercise cleanup ordering directly.
 Future<void> cleanupWorkspace(
   List<FutureOr<void> Function()> operations,
 ) async {

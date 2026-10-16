@@ -232,8 +232,7 @@ on the child's bridge. Extensions that return `null` are excluded.
 
 ### Per-Child Filesystem Isolation
 
-The `sandboxBaseDir` option selects owned native backing on VM. The configuration
-is prepared in D4b; live sandbox child execution requires D5:
+The `sandboxBaseDir` option selects owned native backing on VM:
 
 ```dart
 SandboxExtension(

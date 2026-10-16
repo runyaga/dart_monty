@@ -8,7 +8,7 @@
     "lookup": "package fallback (root hook opt-in absent locally)",
     "artifacts": [
       {
-        "path": "/private/tmp/claude-501/w6/dart_monty_worker",
+        "path": "<worker>",
         "bytes": 22468160,
         "sha256": "c31a22aff61405817ed0438fee871783e950d656a605d0ca89cf538264522b50"
       },
@@ -28,7 +28,7 @@
       "/opt/homebrew/opt/coreutils/libexec/gnubin"
     ],
     "TMPDIR": "build/tmp",
-    "DART_MONTY_WORKER": "/private/tmp/claude-501/w6/dart_monty_worker",
+    "DART_MONTY_WORKER": "<worker>",
     "per_gate_wall_timeout_seconds": 55,
     "browsers_run": false
   },
@@ -8180,7 +8180,7 @@
     "environment": {
       "DART_MONTY_WORKER": "<core-checkout>/lib/src/bin/macos-arm64/dart_monty_worker",
       "dart": "/opt/homebrew/share/flutter/bin/cache/dart-sdk/bin/dart --suppress-analytics",
-      "TMPDIR": "/private/var/folders/np/1bncmd4s59g9d267ywt9fzzm0000gn/T/codex_run.U90Hzx",
+      "TMPDIR": "build/tmp",
       "browsers_run": false
     },
     "worker": {

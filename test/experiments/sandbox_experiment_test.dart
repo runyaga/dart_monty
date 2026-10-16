@@ -6,12 +6,11 @@
 // Run with:
 //   dart test -p vm --tags=integration \
 //     test/experiment/examples/sandbox_experiment_test.dart
-@TestOn('vm')
-@Tags(['integration', 'd1-pending'])
+@Tags(['integration'])
 library;
 
 import 'package:dart_monty/dart_monty.dart';
-import 'package:signals_core/signals_core.dart';
+
 import 'package:test/test.dart';
 
 import 'harness.dart';
@@ -48,8 +47,10 @@ handle = sandbox_spawn(code="42")
 sandbox_await(handle=handle)
 ''');
 
-      final states = sandbox.childrenSignal.value;
-      expect(states.values.whereType<ChildCompleted>(), isNotEmpty);
+      expect(
+        (await h.run('sandbox_is_alive(handle=handle)')).dartValue,
+        isFalse,
+      );
     });
 
     test('child value is accessible after free', () async {
@@ -61,7 +62,11 @@ v
 ''');
 
       // After free, handle removed from map
-      expect(sandbox.childrenSignal.value, isEmpty);
+      expect((await h.run('v')).dartValue, 'hello');
+      await expectLater(
+        h.run('sandbox_is_alive(handle=h1)'),
+        throwsA(isA<MontyError>()),
+      );
     });
   });
 
@@ -106,8 +111,8 @@ sandbox_await_all(handles=[h1, h2, h3])
     });
 
     test('aliveCountSignal tracks running children', () async {
-      final counts = <int>[];
-      final cleanup = effect(() => counts.add(sandbox.aliveCountSignal.value));
+      final events = <BridgeEvent>[];
+      final subscription = h.runtime.events.listen(events.add);
 
       await h.run('''
 h1 = sandbox_spawn(code="1")
@@ -115,9 +120,15 @@ h2 = sandbox_spawn(code="2")
 sandbox_await_all(handles=[h1, h2])
 ''');
 
-      cleanup();
-      expect(counts, contains(2)); // peak of 2 alive simultaneously
-      expect(counts.last, 0); // back to 0 after both complete
+      await subscription.cancel();
+      expect(
+        events.whereType<BridgeChildEvent>().map((e) => e.childHandle).toSet(),
+        {'0', '1'},
+      );
+      expect(
+        (await h.run('[sandbox_is_alive(h1), sandbox_is_alive(h2)]')).dartValue,
+        [false, false],
+      );
     });
   });
 
@@ -138,6 +149,9 @@ sandbox_await_all(handles=[h1, h2])
     tearDown(() => h.dispose());
 
     test('child Python error reaches parent as ChildFailed', () async {
+      final events = <BridgeEvent>[];
+      final sub = h.runtime.events.listen(events.add);
+      addTearDown(sub.cancel);
       await h.run('''
 h1 = sandbox_spawn(code="undefined_variable")
 try:
@@ -146,14 +160,19 @@ except Exception as e:
     str(e)
 ''');
 
-      final failed = sandbox.childrenSignal.value.values
-          .whereType<ChildFailed>()
+      final failed = events
+          .whereType<BridgeChildEvent>()
+          .map((e) => e.inner)
+          .whereType<BridgeRunError>()
           .toList();
       expect(failed, isNotEmpty);
       expect(failed.first.exception, isNotNull);
     });
 
     test('ChildFailed contains Python exception type', () async {
+      final events = <BridgeEvent>[];
+      final sub = h.runtime.events.listen(events.add);
+      addTearDown(sub.cancel);
       await h.run('''
 h1 = sandbox_spawn(code="raise ValueError('boom')")
 try:
@@ -162,8 +181,10 @@ except Exception:
     pass
 ''');
 
-      final failed = sandbox.childrenSignal.value.values
-          .whereType<ChildFailed>()
+      final failed = events
+          .whereType<BridgeChildEvent>()
+          .map((e) => e.inner)
+          .whereType<BridgeRunError>()
           .first;
       expect(failed.exception?.exception.excType, contains('ValueError'));
     });
@@ -302,18 +323,21 @@ sandbox_await(handle=h1)
     tearDown(() => h.dispose());
 
     test('captures every state transition in childrenSignal', () async {
-      final cap = SignalCapture(sandbox.childrenSignal);
+      final events = <BridgeEvent>[];
+      final sub = h.runtime.events.listen(events.add);
 
       await h.run('''
 h1 = sandbox_spawn(code="99")
 sandbox_await(handle=h1)
 ''');
 
-      cap.dispose();
-      // States: {} (initial) → {0: ChildRunning()} → {0: ChildCompleted()}
-      expect(cap.values.length, greaterThanOrEqualTo(2));
-      final finalState = cap.values.last;
-      expect(finalState.values.whereType<ChildCompleted>(), isNotEmpty);
+      await sub.cancel();
+      final childEvents = events
+          .whereType<BridgeChildEvent>()
+          .map((e) => e.inner)
+          .toList();
+      expect(childEvents.first, isA<BridgeRunStarted>());
+      expect(childEvents.last, isA<BridgeRunFinished>());
     });
   });
 } // end main

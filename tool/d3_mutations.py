@@ -52,7 +52,7 @@ def main():
     parser.add_argument('--real', action='store_true')
     args = parser.parse_args()
     original = RUNTIME.read_text()
-    needle = 'final session = await _checkout(limits: _limits);'
+    needle = 'final session = await _checkout(limits: limits);'
     assert original.count(needle) == 1
     field_pattern = 'D3-sub-seven-fields'
     report = [run(args.dart, 'baseline', field_pattern)]
@@ -63,7 +63,7 @@ def main():
         ('SUB-DROP-FIELD-' + field, [f for f in FIELDS if f != field])
         for field in FIELDS
     ]:
-        members = ', '.join(f'{f}: _limits?.{f}' for f in fields)
+        members = ', '.join(f'{f}: limits?.{f}' for f in fields)
         mutations[name] = f'final session = await _checkout(limits: ResourceLimits({members}));'
     try:
         for name, replacement in mutations.items():

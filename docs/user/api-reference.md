@@ -144,7 +144,7 @@ memoryUsageLimit:)` accepts explicit null to opt out of a counter. Negative
 values are rejected. See [workspace policy](../deep-dives/oscall-vfs.md).
 On VM, `sandboxBaseDir` selects a fresh owned native directory retained until
 free/disposal. Web refuses host backing; omit the option for memory workspaces.
-D4b tests these helpers directly; live child checkout remains pending D5.
+D5 uses either backing for live child checkout.
 
 ## Core Types
 

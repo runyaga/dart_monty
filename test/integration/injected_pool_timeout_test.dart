@@ -1,3 +1,6 @@
+// Collection access fails fast when an expected session is missing.
+// Fresh calls and repeated probes are deliberate lifecycle assertions.
+// ignore_for_file: avoid-unsafe-collection-methods, prefer-moving-to-variable
 @Tags(['integration'])
 library;
 
@@ -10,8 +13,86 @@ import 'package:dart_monty_core/dart_monty_core_testing.dart';
 import 'package:test/test.dart';
 
 import '../acceptance/_platform.dart';
+import '_child_contract.dart';
+
+// Browser timer granularity can report a timeout slightly early.
+const _timerJitter = Duration(milliseconds: 20);
 
 void main() {
+  for (final transfer in [false, true]) {
+    test(transfer ? 'D5-finite-transfer' : 'D5-finite-child', () async {
+      const budget = Duration(milliseconds: 100);
+      const limits = ResourceLimits(maxFeedDuration: Duration(seconds: 2));
+      final pool = await Monty.start(
+        workerLocation: acceptanceWorkerLocation,
+        maxProcesses: 1,
+        checkoutTimeout: budget,
+      );
+      addTearDown(pool.close);
+      var transfers = 0;
+      final runtime = await MontyRuntime.start(
+        pool: pool,
+        limits: limits,
+        extensions: [SandboxExtension()],
+        os: (_, _, _) async {
+          transfers++;
+          // A caller adapter acquires its own finite session; the held root
+          // cannot recursively serve the requested transfer.
+          final session = await pool.checkout(limits: limits);
+          try {
+            return await session.feedRun('42');
+          } finally {
+            await session.close();
+          }
+        },
+      );
+      addTearDown(runtime.dispose);
+      final watch = Stopwatch()..start();
+      await expectLater(
+        runtime.invoke('sandbox_spawn', {
+          'code': const MontyString('42'),
+          if (transfer)
+            'files': const MontyDict([
+              (MontyString('input'), MontyString('/parent/input')),
+            ]),
+        }),
+        throwsA(isA<TimeoutException>()),
+      );
+      expect(watch.elapsed, greaterThanOrEqualTo(budget - _timerJitter));
+      expect(watch.elapsed, lessThan(budget + const Duration(seconds: 3)));
+      expect(transfers, transfer ? 1 : 0);
+      await runtime.dispose();
+      final fresh = await pool.checkout(limits: limits);
+      expect(await fresh.feedRun('42'), const MontyInt(42));
+      await fresh.close();
+    });
+  }
+
+  test('D5-timeout-late-close', () async {
+    final session = _LateSession();
+    final arrived = Completer<MontySession>();
+    final requested = Completer<void>();
+    var checkouts = 0;
+    final runtime = await startRuntimeWith(
+      checkout: ({limits}) async {
+        if (checkouts++ == 0) return FakeMontySession();
+        requested.complete();
+
+        return arrived.future;
+      },
+      extensions: [SandboxExtension()],
+    );
+    final spawning = spawnChild(runtime, '42');
+    final refused = expectLater(spawning, throwsStateError);
+    await requested.future;
+    final disposal = runtime.dispose();
+    arrived.complete(session);
+    await disposal;
+    await refused;
+    expect(session.closes, 1);
+    expect(session.unexpectedCalls, 0);
+  });
+
   test('D5-finite-subexecute', () async {
     const budget = Duration(milliseconds: 100);
     final pool = await Monty.start(
@@ -37,7 +118,7 @@ void main() {
       throwsA(isA<TimeoutException>()),
     );
     watch.stop();
-    expect(watch.elapsed, greaterThanOrEqualTo(budget));
+    expect(watch.elapsed, greaterThanOrEqualTo(budget - _timerJitter));
     expect(watch.elapsed, lessThan(budget + const Duration(seconds: 3)));
     expect(await runtime.execute('40 + 2').result, const MontyInt(42));
     await runtime.dispose();
@@ -49,8 +130,7 @@ void main() {
     expect(await fresh.feedRun('6 * 7'), const MontyInt(42));
   });
 
-  // The runtime's existing late-subexecution path is testable. The matching
-  // late *child* checkout is still blocked by D1-8.
+  // Both child checkout and sub-execution must close a late session once.
   test('D5-timeout-late-close-subexecute', () async {
     final lateSession = _LateSession();
     final arrived = Completer<MontySession>();

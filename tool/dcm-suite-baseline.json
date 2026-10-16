@@ -1,12 +1,12 @@
 {
   "_dcm_version": "1.39.0",
-  "_grand_total": 137,
+  "_grand_total": 112,
   "checks": {
     "calculate-metrics": {
       "by_file": {
         "lib/src/extension/coordinator.dart": 2,
         "lib/src/extensions/run_script.dart": 1,
-        "lib/src/extensions/sandbox.dart": 6,
+        "lib/src/extensions/sandbox.dart": 2,
         "lib/src/host/dispatch.dart": 2,
         "lib/src/host/param.dart": 1,
         "lib/src/host/schema.dart": 1,
@@ -15,11 +15,10 @@
       },
       "by_rule": {
         "cyclomatic-complexity": 2,
-        "lines-of-code": 10,
-        "number-of-methods": 2,
-        "number-of-parameters": 2
+        "lines-of-code": 8,
+        "number-of-methods": 2
       },
-      "total": 16
+      "total": 12
     },
     "check-dependencies": {
       "by_file": {
@@ -42,22 +41,20 @@
       "by_file": {
         "lib/src/bridge/event.dart": 3,
         "lib/src/bridge/struct_log_logger.dart": 1,
-        "lib/src/extension/coordinator.dart": 5,
+        "lib/src/extension/coordinator.dart": 4,
         "lib/src/extension/extension.dart": 1,
-        "lib/src/extensions/sandbox.dart": 2,
         "lib/src/host/context.dart": 3,
         "lib/src/host/dispatch.dart": 2,
         "lib/src/host/function.dart": 4,
         "lib/src/host/param.dart": 4,
-        "lib/src/host/schema.dart": 2,
-        "lib/src/runtime/runtime.dart": 2
+        "lib/src/host/schema.dart": 2
       },
       "by_rule": {
         "never-passed-parameter-issue": 7,
-        "unnecessary-nullable-parameter-issue": 4,
-        "unnecessary-optional-parameter-issue": 18
+        "unnecessary-nullable-parameter-issue": 3,
+        "unnecessary-optional-parameter-issue": 14
       },
-      "total": 29
+      "total": 24
     },
     "check-unnecessarily-public-code": {
       "by_file": {
@@ -65,8 +62,8 @@
         "lib/src/bridge/struct_log_logger.dart": 1,
         "lib/src/extension/extension.dart": 1,
         "lib/src/extensions/event_loop.dart": 20,
-        "lib/src/extensions/sandbox.dart": 20,
-        "lib/src/host/context.dart": 4,
+        "lib/src/extensions/sandbox.dart": 5,
+        "lib/src/host/context.dart": 3,
         "lib/src/host/function.dart": 2,
         "lib/src/host/param.dart": 1,
         "lib/src/host/schema.dart": 1,
@@ -77,9 +74,9 @@
         "lib/src/runtime/value_x.dart": 9
       },
       "by_rule": {
-        "unnecessarily-public-issue": 87
+        "unnecessarily-public-issue": 71
       },
-      "total": 87
+      "total": 71
     },
     "check-unused-code": {
       "by_file": {
