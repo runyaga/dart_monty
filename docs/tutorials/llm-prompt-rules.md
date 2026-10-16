@@ -152,6 +152,7 @@ room = json.loads(soliplex_get_room("server", "id")) # -> dict
 ### Conversation flow
 
 ```python
+import json
 
 # Start
 t = json.loads(soliplex_new_thread("server", "room", "Hello"))
@@ -206,6 +207,7 @@ files with `Path()` — embed the data directly in your code instead.
 ## Complete Example
 
 ```monty
+import json
 from pathlib import Path
 
 # 1. Discover

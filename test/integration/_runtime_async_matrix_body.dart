@@ -268,6 +268,7 @@ results
       addTearDown(runtime.dispose);
 
       final r = await runtime.execute('''
+import asyncio
 await asyncio.gather(slow(1), slow(2), slow(3))
 ''').result;
       sw.stop();
