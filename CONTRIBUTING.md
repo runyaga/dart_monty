@@ -329,9 +329,6 @@ The `dart_monty` package is already configured. If reconfiguring:
   does not configure OIDC credentials. If the publish workflow uses Flutter,
   it must also include `dart-lang/setup-dart@v1` to enable `dart pub publish`
   with OIDC.
-- **FFI bindings are generated, not committed.** The publish workflow
-  includes `apt-get install libclang-dev` and `dart run ffigen` steps
-  because `dart_monty_bindings.dart` is gitignored.
 - **Sealed-class exhaustiveness.** Adding a variant to `MontyProgress` (or
   any sealed class) requires updating every `switch` on that type and all
   mock implementations.
