@@ -525,45 +525,12 @@ jobs:
             test/integration/native_workspace_policy_test.dart \
             2>&1 | tee /tmp/native-workspace-policy.log
           bash tool/assert_test_count.sh /tmp/native-workspace-policy.log 28 native-workspace-policy
-      - name: Run integration tests
-        # THE TAG WAS DECLARED AND EXERCISED BY NOTHING. `dart_test.yaml` skips
-        # `integration` by default, and until now the only `--tags=` in any
-        # workflow was `--tags=example`. Measured 2026-09-16: 26 of 62 test
-        # files ran in no pipeline at all -- including 13 of the 14 files that
-        # drive real dart_monty_core through FFI. The 0.23 migration's only
-        # real-backend evidence was produced by tests nothing ran (#452).
-        #
-        # Default parallelism, deliberately: the suite was verified twice at
-        # `+301` under default `-j` after the example_smoke working-directory
-        # fix, so there is no need to serialise and lose the time.
+      - name: Run the VM cell (integration and acceptance suites)
+        # tool/test_cell.sh runs both suites and holds each to its floor in
+        # tool/test_floors.tsv. --coverage feeds the integration LCOV below.
         run: |
           set -o pipefail
-          # --coverage ADDED 2026-09-17. This suite ran without it, so its
-          # coverage reached nothing: the lcov uploaded to Codecov and consumed
-          # by the patch-coverage gate below was UNIT-ONLY. Measured on this
-          # tree, 178 lines are covered by integration tests and by nothing
-          # else — 82.19% unit-only against 91.57% for the union — so a PR
-          # adding code that only integration exercises was judged uncovered
-          # and could fail a gate its tests actually satisfy.
-          #
-          dart test --run-skipped --tags=integration \
-            --coverage=coverage-integration \
-            --reporter=expanded 2>&1 | tee /tmp/integration.log
-          # A suite that registers nothing prints success and exits 0.
-          # Never lower the floor to make a run pass.
-          bash tool/assert_test_count.sh /tmp/integration.log 312 integration
-      # The agent-loop acceptance suite (A1-A9) on the worker process: the
-      # tool round trip, Python errors as data, state and clearState, host
-      # tools, concurrent async tools, cancel and limits, a worker crash, and
-      # dispose. The worker location is explicit (DART_MONTY_WORKER), as a
-      # desktop app passes one until core delivers the worker.
-      - name: Acceptance suite (VM, worker process)
-        run: |
-          set -o pipefail
-          dart test test/acceptance -p vm --run-skipped --tags acceptance \
-            --reporter=expanded 2>&1 | tee /tmp/acceptance-vm.log
-          # 12 tests today: A1-A9 with A5 and A7 in two parts and A9 in two.
-          bash tool/assert_test_count.sh /tmp/acceptance-vm.log 12 acceptance-vm
+          bash tool/test_cell.sh vm --coverage=coverage-integration 2>&1 | tee /tmp/cell-vm.log
       - name: No worker process outlives the test runs
         run: |
           # A9 on the whole job: dispose and pool close leave no worker.
@@ -774,74 +741,6 @@ jobs:
           dart test -p chrome test/src/workspace/caps_test.dart \
             --reporter=expanded 2>&1 | tee /tmp/wasm.log
           bash tool/assert_test_count.sh /tmp/wasm.log 8 wasm
-      # The agent-loop acceptance suite (A1-A9) on a Web Worker, in Chrome
-      # and Firefox, compiled with dart2js and with dart2wasm. The worker's
-      # assets are core's committed ones, served under packages/.
-      - name: Acceptance suite (Chrome and Firefox, dart2js and dart2wasm)
-        if: ${{ !cancelled() && steps.pubget.outcome == 'success' }}
-        env:
-          # package:test starts Firefox without -headless; the runner has no
-          # display.
-          MOZ_HEADLESS: '1'
-        run: |
-          set -o pipefail
-          dart test test/acceptance -p chrome,firefox -c dart2js,dart2wasm \
-            --run-skipped --tags acceptance \
-            --reporter=expanded 2>&1 | tee /tmp/acceptance-web.log
-          # 12 tests in each of the 4 cells.
-          bash tool/assert_test_count.sh /tmp/acceptance-web.log 48 acceptance-web
-      - name: Typed host and sub-execution contracts (browser compilers)
-        if: ${{ !cancelled() && steps.pubget.outcome == 'success' }}
-        env:
-          MOZ_HEADLESS: '1'
-        run: |
-          set -o pipefail
-          dart test -p chrome,firefox -c dart2js,dart2wasm \
-            test/integration/typed_host_contract_test.dart \
-            test/integration/sub_execution_limits_test.dart \
-            test/integration/child_limit_selection_test.dart \
-            --run-skipped --tags integration \
-            --reporter=expanded 2>&1 | tee /tmp/d3-contracts-web.log
-      - name: Child sandbox contracts, deferred child suites and workspace scenarios (browser compilers)
-        if: ${{ !cancelled() && steps.pubget.outcome == 'success' }}
-        env:
-          MOZ_HEADLESS: '1'
-        run: |
-          set -o pipefail
-          dart test -p chrome,firefox -c dart2js,dart2wasm \
-            test/integration/child_context_test.dart \
-            test/integration/child_limits_test.dart \
-            test/integration/child_lifecycle_test.dart \
-            test/integration/inherited_extension_ownership_test.dart \
-            test/integration/injected_pool_timeout_test.dart \
-            test/integration/child_os_policy_test.dart \
-            test/integration/workspace_scenarios_test.dart \
-            test/experiments/sandbox_experiment_test.dart \
-            test/experiments/signals_experiment_test.dart \
-            test/integration/agent_extension_integration_test.dart \
-            test/integration/external_extension_inheritance_test.dart \
-            test/integration/ffi_child_events_test.dart \
-            test/integration/sandbox_error_structure_test.dart \
-            test/integration/sandbox_gather_test.dart \
-            test/integration/sandbox_inheritance_test.dart \
-            test/integration/sandbox_logging_test.dart \
-            test/src/extensions/sandbox_test.dart \
-            --run-skipped \
-            --reporter=expanded 2>&1 | tee /tmp/child-contracts-web.log
-      - name: Native mount refusal (both browsers and compilers)
-        if: ${{ !cancelled() && steps.pubget.outcome == 'success' }}
-        env:
-          MOZ_HEADLESS: '1'
-        run: |
-          set -euo pipefail
-          for browser in chrome firefox; do
-            for compiler in dart2js dart2wasm; do
-              dart test -p "$browser" -c "$compiler" --run-skipped \
-                test/integration/native_workspace_refusal_test.dart \
-                2>&1 | tee "/tmp/native-refusal-$browser-$compiler.log"
-              bash tool/assert_test_count.sh "/tmp/native-refusal-$browser-$compiler.log" 1 "native-refusal-$browser-$compiler"
-            done
-          done
       - name: Upload the assembled site on failure
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
@@ -852,6 +751,35 @@ jobs:
           path: build/demo-site
           retention-days: 3
           if-no-files-found: error
+
+  test-browser-cells:
+    name: Browser cell ${{ matrix.cell }}
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        cell: [chrome-dart2js, chrome-dart2wasm, firefox-dart2js, firefox-dart2wasm]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: dart-lang/setup-dart@6afc89df92d6eb3834022f73cd65adc8cdfcb92d # v1
+        with:
+          sdk: 3.13.5
+      - run: dart pub get
+      # Integration and acceptance suites on a Web Worker from core's committed
+      # assets. Each cell is held to its own floor in tool/test_floors.tsv.
+      - name: Run the cell
+        env:
+          # package:test starts Firefox without -headless; the runner has no
+          # display.
+          MOZ_HEADLESS: '1'
+        run: |
+          set -o pipefail
+          bash tool/test_cell.sh "${{ matrix.cell }}" 2>&1 | tee "/tmp/cell-${{ matrix.cell }}.log"
 
   coverage-merge:
     # RUNS ON PUSHES TOO, deliberately. The merge used to live inside

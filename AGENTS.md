@@ -85,11 +85,14 @@ checkout. Symptoms:
 This flag tells dart2js to use the same `.dart_tool/package_config.json` that
 `dart pub get` writes, which respects path overrides.
 
-### Browser tests
-Name the files explicitly; a bare `dart test -p chrome --run-skipped` tries to
-load every `test/integration/*.dart` file for chrome and several cannot compile
-there. The CI `test-demo-pages` job lists the browser suites and the compilers
-(`dart2js`, `dart2wasm`). The WASM fixture and oracle suites belong to
+### Platform cells
+`tool/test_cell.sh <cell>` runs the integration and acceptance suites for one
+cell (`vm`, `chrome-dart2js`, `chrome-dart2wasm`, `firefox-dart2js`,
+`firefox-dart2wasm`) and holds each suite to its floor in
+`tool/test_floors.tsv`. Files that cannot run in a browser declare
+`@TestOn('vm')`; every other integration file runs in every cell. CI runs the
+browser cells in the `test-browser-cells` job and the VM cell in
+`test-integration`. The WASM fixture and oracle suites belong to
 `dart_monty_core`; run them there.
 
 ### Rust tests and linting
