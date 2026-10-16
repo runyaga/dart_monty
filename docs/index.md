@@ -53,10 +53,10 @@ print(r.value); // MontyInt(84)
 
 ```dart
 final session = MontyRuntime(
-  extensions: [MessageBusExtension()],
+  extensions: [EventLoopExtension()],
 );
 final r = await session.execute(
-  "msg_send(name='q', message='Hello World!')\nmsg_recv(name='q')",
+  "el_emit(event={'greeting': 'Hello World!'})",
 ).result;
 print(r.value); // 'Hello World!'
 ```
@@ -66,7 +66,7 @@ print(r.value); // 'Hello World!'
 - [**Installation**](user/install.md) — Add to your project
 - [**Architecture**](architecture/overview.md) — Module structure and internals
 - [**REPL Guide**](user/repl.md) — Stateful interactive execution
-- [**Extensions**](user/extensions.md) — MessageBus, Sandbox
+- [**Extensions**](user/extensions.md) — EventLoop, Sandbox
 - [**Tutorials**](tutorials/host-functions-intro.md) — Bridge functions and LLM rules
 - [**Testing**](contributor/testing.md) — Run tests and quality gates
 - [**Contributor Setup**](contributor/setup.md) — Build and test the library

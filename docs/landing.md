@@ -18,7 +18,7 @@ Practical, task-oriented docs for adding `dart_monty` to a project.
 - [Installation](user/install.html) — Add to your `pubspec.yaml`
 - [Deployment](user/deployment.html) — Native and web deployment notes
 - [REPL](user/repl.html) — Stateful interactive execution
-- [Extensions](user/extensions.html) — MessageBus, Sandbox
+- [Extensions](user/extensions.html) — EventLoop, Sandbox
 - [API Reference](user/api-reference.html) — Method-by-method summary
 
 ## Tutorials

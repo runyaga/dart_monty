@@ -22,7 +22,7 @@
 #                         ffi_/wasm_ pairs import -- `typeCheck`,
 #                         `resolveFutures` and `resumeAsFuture` live ONLY there
 #   example/**            smoke-run by tool/run_example_smoke.sh and by CI --
-#                         `clearState` and `detectContinuation` live only here
+#                         `clearState` lives only here
 #   packages/*/lib/**     the conformance runners, driven on real backends by
 #                         corpus_js / corpus_wasm / oracle_ffi -- this is the
 #                         only caller of `resumeWithException`

@@ -29,7 +29,7 @@ Use cases for child interpreters:
 
 ```dart
 import 'package:dart_monty/dart_monty.dart';
-import 'package:dart_monty_bridge/dart_monty_bridge.dart';
+import 'package:dart_monty/dart_monty.dart';
 
 final extension = SandboxExtension(
   platformFactory: () async => createPlatformMonty(),

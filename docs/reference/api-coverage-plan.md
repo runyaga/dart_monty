@@ -240,7 +240,7 @@ Type constructors: `bool`, `bytearray`, `bytes`, `complex`, `dict`,
 
 | Class | Methods |
 |-------|---------|
-| `Monty` | `create`, `run`, `start`, `dump`, `load`, `typeCheck(prefixCode?)`, `repr`, getters: `scriptName`, `inputs`, `externalFunctions` |
+| `Monty` | `create`, `run`, `start`, `dump`, `load`, `checkout(typeCheck: true)`, `repr`, getters: `scriptName`, `inputs`, `externalFunctions` |
 | `MontyRepl` | `create`, `feed`, `dump`, `load`, getter: `scriptName`, `repr` |
 | `MontySnapshot` | `resume`, `dump`, `load`, getters: `scriptName`, `functionName`, `args`, `kwargs`, `repr` |
 | `MontyComplete` | getter: `output`, `repr` |
@@ -304,7 +304,7 @@ monty_string_free, monty_bytes_free
 | **REPL API** | `MontyRepl`, `ReplProgress`, `feed()`, session persistence | Cannot build interactive Python consoles or incremental execution sessions |
 | **Async / Futures** | `RunProgress::ResolveFutures`, `FutureSnapshot`, `ExternalResult::Future` | Cannot support Python `async`/`await` or concurrent external calls |
 | **OS Calls** | `RunProgress::OsCall`, `OsFunction` (`GetEnviron`, `Getenv`) | Python `os.environ` / `os.getenv()` calls will fail |
-| **Type Checking** | JS: `Monty.typeCheck(prefixCode?)`, Rust: `monty-type-checking` crate | No static analysis before execution |
+| **Type Checking** | JS: `checkout(typeCheck: true)`, Rust: `monty-type-checking` crate | No static analysis before execution |
 | **Live Print Streaming** | `PrintWriter::Callback`, `PrintWriter::Stdout` | Print output only available after execution completes, not in real-time |
 
 ### 3.2 Missing Data Fidelity
@@ -418,7 +418,7 @@ These add entirely new capabilities.
 ### Tier 3 — Nice to Have
 
 1. **Type checking** — Expose static type checking (upstream JS:
-   `Monty.typeCheck(prefixCode?)`, Rust: `monty-type-checking` crate).
+   `checkout(typeCheck: true)`, Rust: `monty-type-checking` crate).
 
 2. **Rich MontyObject types** — Preserve `NamedTuple`, `Dataclass`,
    `Set`, `FrozenSet`, `Tuple`, `Bytes`, `Path` type identity through

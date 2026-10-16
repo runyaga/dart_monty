@@ -15,12 +15,8 @@ dependencies:
   dart_monty_core: ^0.17.0
 ```
 
-Both must be listed directly. `dart_monty_core` is already a
-transitive dependency of `dart_monty`, but Flutter's asset bundler
-does not chase transitive references — `flutter.assets` entries must
-name the package that physically owns the files (see
-[Flutter Web](#flutter-web) below). Listing `dart_monty_core`
-explicitly also keeps the two versions in lockstep.
+Import core directly when using concrete values, snapshots or other names
+outside the nine core names re-exported by `dart_monty`.
 
 For local worktree development, swap the version constraints for
 `path:` deps.
@@ -57,43 +53,19 @@ resolve the transitive dep from pub.dev and the APIs may drift.
 
 ### Flutter Web
 
-Flutter consumers depend on **both** `dart_monty` (the API) and
-`dart_monty_core` (the package whose pubspec physically declares the
-WASM/JS assets). Flutter's asset resolver does not chase transitive
-references — `- package: X` under `flutter.assets` must name the
-package that owns the files.
+Core declares its worker script and WASM module in its own `flutter.assets`
+stanza. Include those declared assets when bundling a Flutter application:
 
 ```yaml
-# pubspec.yaml
-dependencies:
-  dart_monty: ^0.17.0
-  # Required — Flutter's asset bundler needs this listed directly.
-  # Do not remove; it is not redundant with dart_monty.
-  dart_monty_core: ^0.17.0
-
-# Flutter only — instructs the asset bundler to include
-# dart_monty_core's WASM/JS bridge files. Plain-Dart consumers
-# ignore this stanza.
 flutter:
   assets:
     - package: dart_monty_core
 ```
 
-```dart
-// main.dart
-import 'package:dart_monty/dart_monty.dart';
-
-Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await DartMonty.ensureInitialized(); // loads bridge on web; no-op native
-  runApp(const MyApp());
-}
-```
-
-`DartMonty.ensureInitialized()` dynamically injects the
-`dart_monty_core` JS bridge into `document.head` and awaits load. No
-manual `<script>` tag in `web/index.html` is required;
-`--base-href` is honoured automatically.
+Core probes `assets/packages/dart_monty_core/lib/assets` first, followed by
+`packages/dart_monty_core/assets`. It loads the worker when the pool starts.
+There is no separate initialization API or bridge script to inject. Core
+remains pure Dart; its asset declaration adds no Flutter SDK dependency.
 
 **Security headers.** Serve your web app with:
 
@@ -105,23 +77,8 @@ zero-copy communication.)
 
 ### Plain Dart web (no Flutter)
 
-Without Flutter's asset bundler, copy the three asset files from the
-`dart_monty_core` package into your own `web/` dir and add a
-`<script>` tag:
-
-```bash
-# Pub.dev install — assets live under the hosted cache.
-# (For a git-installed dart_monty_core, swap `hosted/pub.dev` for `git`.)
-CORE_ASSETS=$(dart pub cache dir)/hosted/pub.dev/dart_monty_core-*/lib/assets
-cp $CORE_ASSETS/dart_monty_core_bridge.js web/
-cp $CORE_ASSETS/dart_monty_core_worker.js web/
-cp $CORE_ASSETS/dart_monty_core_native.wasm web/
-```
-
-```html
-<!-- web/index.html — must load before your compiled Dart app -->
-<script src="dart_monty_core_bridge.js"></script>
-```
-
-`dart_monty_core`'s own `packages/dart_monty_web/` is a working
-reference example for this pattern.
+Serve core's `lib/assets/dart_monty_core_worker.js` and
+`lib/assets/dart_monty_core_worker.wasm` together under
+`packages/dart_monty_core/assets`, or pass their directory URL as
+`workerLocation` to `Monty.start`. The worker script loads its sibling WASM
+module. No bridge script tag is needed.

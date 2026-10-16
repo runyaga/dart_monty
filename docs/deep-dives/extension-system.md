@@ -19,13 +19,13 @@ first principles through production patterns.
 ```text
 +--------------------------------------------------+
 |  ExtensionCoordinator + MontyExtension                    |  namespace validation,
-|  (dart_monty_bridge)                             |  lifecycle, introspection
+|  (dart_monty)                                    |  lifecycle, introspection
 +--------------------------------------------------+
 |  BridgeMiddleware + CallRole                     |  onion-style policy chain
-|  (dart_monty_bridge)                             |  (grounding, telemetry, ACL)
+|  (dart_monty)                                    |  (grounding, telemetry, ACL)
 +--------------------------------------------------+
 |  DefaultMontyBridge + HostFunction               |  dispatch loop, event
-|  (dart_monty_bridge)                             |  streaming, arg coercion
+|  (dart_monty)                                    |  streaming, arg coercion
 +--------------------------------------------------+
 |  MontyPlatform (start/resume/run)                |  raw platform interface
 |  (dart_monty_platform_interface)                 |

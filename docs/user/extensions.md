@@ -5,70 +5,7 @@ sandboxed Python code. All extensions work with `MontyRuntime`.
 
 | Extension | Functions | Description |
 |--------|-----------|-------------|
-| **MessageBusExtension** | `msg_send`, `msg_recv`, `msg_peek`, `msg_close`, `msg_stats` | In-memory named channels |
 | **SandboxExtension** | `sandbox_spawn`, `sandbox_await`, `sandbox_gather`, `sandbox_free` | Isolated child interpreters |
-
-## MessageBusExtension
-
-**Class:** `MessageBusExtension`
-**Namespace:** `msg`
-
-In-memory named message channels (FIFO queues). Useful for
-inter-process communication when combining multiple extensions
-or coordinating between parent and child sandboxes.
-
-### MessageBus Functions
-
-**`msg_send(name, message)`** — Send a message to a named channel.
-
-```python
-msg_send('tasks', {'id': 1, 'action': 'analyze'})
-```
-
-**`msg_recv(name, timeout_ms=None)`** — Receive the next message.
-Blocks until a message is available or timeout expires.
-
-```python
-task = msg_recv('tasks')
-# -> {'id': 1, 'action': 'analyze'}
-```
-
-**`msg_peek(name)`** — Check the next message without consuming it.
-Returns `None` if the channel is empty.
-
-```python
-msg_peek('tasks')  # -> {'id': 1, ...} or None
-```
-
-**`msg_close(name)`** — Close a channel. Subsequent `msg_recv`
-calls raise an error.
-
-```python
-msg_close('tasks')
-```
-
-**`msg_stats(name)`** — Get channel statistics.
-
-```python
-msg_stats('tasks')
-# -> {'pending': 2, 'delivered': 5, ...}
-```
-
-### MessageBus Pattern
-
-Log events from multiple operations:
-
-```python
-msg_send('audit', {'action': 'upload', 'file': 'data.csv'})
-msg_send('audit', {'action': 'query', 'room': 'analysis'})
-
-# Later: collect all audit entries
-logs = []
-while msg_peek('audit') is not None:
-    logs.append(msg_recv('audit'))
-```
-
----
 
 ## SandboxExtension
 
@@ -76,7 +13,7 @@ while msg_peek('audit') is not None:
 **Namespace:** `sandbox`
 
 Spawns Python scripts in isolated child interpreters. Each child
-gets its own `MontyPlatform` and `DefaultMontyBridge`. Children
+gets its own session and bridge. Children
 can inherit extensions from the parent and even spawn their own
 children (grandchildren).
 
@@ -140,13 +77,11 @@ for r in results:
 
 ```dart
 SandboxExtension(
-  platformFactory: () async => createPlatformMonty(),
-  parentExtensions: [tmpl, msgBus],  // children inherit these
   maxChildren: 16,       // concurrent child limit
   maxDepth: 3,           // grandchild recursion limit
-  childLimits: MontyLimits(
-    timeoutMs: 10000,
-    memoryBytes: 4 * 1024 * 1024,
+  childLimits: const ResourceLimits(
+    maxFeedDuration: Duration(seconds: 10),
+    maxMemory: 4 * 1024 * 1024,
   ),
 )
 ```
@@ -156,18 +91,14 @@ SandboxExtension(
 ## Using Extensions with MontyRuntime
 
 ```dart
-final session = MontyRuntime(
+final session = await MontyRuntime.start(
   extensions: [
-    MessageBusExtension(),
-    SandboxExtension(
-      platformFactory: () async => createPlatformMonty(),
-    ),
+    SandboxExtension(),
   ],
 );
 
 // All extension functions are now available in Python
 await session.execute("help()").result;  // lists all functions
-await session.execute("msg_send('ch', 'hello')").result;
 await session.execute("h = sandbox_spawn(code='42')").result;
 
 await session.dispose();

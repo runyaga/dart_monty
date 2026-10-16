@@ -74,7 +74,7 @@ Monty is a **restricted Python interpreter**. It is NOT full CPython.
 |----------------|----------|
 | Make HTTP requests | `soliplex_new_thread()` or custom host fn |
 | Read/write files | `pathlib.Path` (in-memory only) |
-| Store key-value data | `msg_send()`/`msg_recv()` channels |
+| Store key-value data | Python dictionaries |
 | Build strings | f-strings |
 | Get current time | `datetime.datetime.now()` (if configured) |
 | Run shell commands | Not possible — use host functions |
@@ -152,7 +152,6 @@ room = json.loads(soliplex_get_room("server", "id")) # -> dict
 ### Conversation flow
 
 ```python
-import json
 
 # Start
 t = json.loads(soliplex_new_thread("server", "room", "Hello"))
@@ -162,14 +161,6 @@ response = t["response"]
 # Continue (include thread_id)
 t2 = json.loads(soliplex_reply_thread("server", "room", thread_id, "More"))
 response2 = t2["response"]
-```
-
-### Message bus
-
-```python
-# msg_send returns None, msg_recv blocks until message available
-msg_send("channel", "data")
-result = msg_recv("channel")  # -> "data"
 ```
 
 ### Filesystem
@@ -199,14 +190,6 @@ cached = json.loads(Path("/cache/data.json").read_text())
 | `soliplex_get_mcp_token(server, room_id)` | JSON `{mcp_token}` | MCP access token |
 | `soliplex_get_documents(server, room_id)` | JSON `[{id, title, uri}]` | RAG documents |
 
-### Message Bus (FIFO queues)
-
-| Function | Returns | Description |
-|----------|---------|-------------|
-| `msg_send(channel, message)` | None | Send to channel |
-| `msg_recv(channel)` | String | Receive (blocks) |
-| `msg_peek(channel)` | String or None | Peek (non-blocking) |
-
 ### Filesystem (in-memory sandbox)
 
 Standard Python `pathlib.Path` — write, read, mkdir, exists. Files
@@ -223,7 +206,6 @@ files with `Path()` — embed the data directly in your code instead.
 ## Complete Example
 
 ```monty
-import json
 from pathlib import Path
 
 # 1. Discover
@@ -253,9 +235,6 @@ Path("/cache/report.json").write_text(json.dumps(report))
 total = sum(len(v) for v in report.values())
 summary = f"Found {total} skilled rooms across {len(report)} servers"
 
-# 4. Message bus
-msg_send("reports", summary)
-
-# 5. Return
-{"summary": msg_recv("reports"), "report": report}
+# 4. Return
+{"summary": summary, "report": report}
 ```

@@ -1,177 +1,51 @@
-# REPL — Stateful Interactive Execution
+# Stateful Interactive Execution
 
-## Overview
+Import `package:dart_monty/dart_monty.dart` for the runtime and session APIs.
+A session retains Python globals across feeds. Close sessions and dispose
+runtimes when finished.
 
-The REPL provides stateful Python execution where variables, functions,
-classes, and closures persist natively across calls. The REPL maintains
-a persistent Rust heap — everything survives, including non-serialisable
-objects.
-
-## Three API Levels
-
-### 1. MontyRepl — Low-Level
-
-Direct access to `feedRun()` (run to completion) and
-`feedStart()`/`resume()` (suspend at host function calls).
+## Sessions and type checking
 
 ```dart
-final repl = MontyRepl();
-
-// Run to completion
-final result = await repl.feedRun('x = 42');
-final r2 = await repl.feedRun('x + 1');
-print(r2.value); // MontyInt(43)
-
-// Functions persist
-await repl.feedRun('def double(n):\n    return n * 2');
-final r3 = await repl.feedRun('double(21)');
-print(r3.value); // MontyInt(42)
-
-await repl.dispose();
+await Monty.withPool((pool) async {
+  final session = await pool.checkout(typeCheck: true);
+  try {
+    await session.feedRun('x: int = 42');
+    final result = await session.feedRun('x + 1');
+    print(result.dartValue); // 43
+  } finally {
+    await session.close();
+  }
+});
 ```
 
-### 2. ReplPlatform — Bridge Adapter
+Each feed is checked before it executes. Import `MontyTypingError` directly
+from core's public library to catch type-checking failures. Checkout also
+accepts `typeCheckStubs` for host-provided function and input declarations.
 
-A 20-line adapter that plugs `MontyRepl` into `DefaultMontyBridge`.
-This enables the full extension dispatch system — middleware, events,
-schema validation — without changing any bridge code.
-
-```dart
-final repl = MontyRepl();
-final platform = ReplPlatform(repl: repl);
-final bridge = DefaultMontyBridge(platform: platform);
-
-// Register host functions on the bridge
-bridge.register(myHostFunction);
-
-// Bridge uses repl's feedStart/resume internally
-final events = bridge.execute(code);
-```
-
-You rarely use `ReplPlatform` directly — `MontyRuntime` wraps it.
-
-### 3. MontyRuntime — High-Level with Extensions
-
-The recommended API. Combines `MontyRepl` + `DefaultMontyBridge` +
-extension dispatch. All registered extensions work automatically.
+## Runtime with extensions
 
 ```dart
-final session = MontyRuntime(
-  extensions: [
-    MessageBusExtension(),
-    SandboxExtension(
-      platformFactory: () async => createPlatformMonty(),
-    ),
-  ],
+final runtime = await MontyRuntime.start(
+  extensions: [EventLoopExtension()],
 );
-
-// Python calls msg_send() / msg_recv() -> the Dart message bus
-final r = await session.execute(
-  "msg_send(name='q', message='Hello World!')\nmsg_recv(name='q')",
-).result;
-print(r.value); // MontyString('Hello World!')
-
-// State persists — x is still 42
-await session.execute('x = 42').result;
-final r2 = await session.execute('x + 1').result;
-print(r2.value); // MontyInt(43)
-
-// Event stream for real-time visibility
-final events = session.execute("msg_send(name='q', message='hi')");
-await for (final event in events) {
-  // BridgeFunctionCallStart, BridgeFunctionCallResult, etc.
-}
-
-await session.dispose();
-```
-
-## Continuation Detection
-
-The REPL can detect whether a source fragment is syntactically
-complete or needs more input — useful for building REPL UIs.
-
-```dart
-final mode = await repl.detectContinuation('def f():');
-// ReplContinuationMode.incompleteBlock — needs trailing blank line
-
-final mode2 = await repl.detectContinuation('x = (1 +');
-// ReplContinuationMode.incompleteImplicit — unclosed paren
-
-final mode3 = await repl.detectContinuation('x = 1');
-// ReplContinuationMode.complete — ready to execute
-```
-
-This maps to the `>>>` vs `...` prompt pattern in CPython's
-interactive interpreter.
-
-## Host Function Dispatch
-
-When Python calls a registered host function, the REPL suspends
-and returns `MontyPending` with the function name, arguments,
-and keyword arguments. The host resolves the call and resumes.
-
-```dart
-final progress = await repl.feedStart(
-  'result = fetch("https://example.com")',
-  externalFunctions: ['fetch'],
-);
-
-if (progress is MontyPending) {
-  print(progress.functionName); // 'fetch'
-  print(progress.arguments);    // [MontyString('https://...')]
-
-  // Resolve and resume
-  final done = await repl.resume('response body');
+try {
+  await runtime.execute('x = 42').result;
+  final handle = runtime.execute('x + 1');
+  final events = handle.events.toList();
+  print((await handle.result).dartValue); // 43
+  print(await events);
+} finally {
+  await runtime.dispose();
 }
 ```
 
-With `MontyRuntime`, this dispatch happens automatically through
-the extension system — you never call `feedStart`/`resume` directly.
+`MontyRuntime` dispatches registered host functions and exposes run/call events.
+For low-level snapshot handling, import the snapshot types directly from
+`package:dart_monty_core/dart_monty_core.dart`.
 
-## help() Function
+## Tool discovery
 
-The bridge provides a built-in `help()` host function that queries
-live bridge state — functions registered after initialization are
-visible. Results are organized by extension category.
-
-```python
->>> help()
-# Returns JSON listing all functions by extension category:
-# {"tools": {"msg": [{"name": "msg_send", ...}, ...],
-#            "sandbox": [{"name": "sandbox_spawn", ...}, ...]}}
-
->>> help('msg_send')
-# Returns schema detail:
-# {"name": "msg_send",
-#  "description": "Send a message on a named channel.",
-#  "params": [{"name": "name", "type": "string", ...}, ...]}
-
->>> help('send')
-# Bare name — auto-disambiguates if unique, lists candidates if not
-```
-
-The introspection is **live** — functions registered after bridge
-initialization (e.g. `EventLoopExtension`'s `el_recv`) are
-visible in `help()` without restarting.
-
-## Platform Support
-
-The REPL works on both FFI (native) and WASM (browser):
-
-- **FFI**: Full support including `SandboxExtension` with grandchildren
-- **WASM**: Full support for `MontyRepl`, `MontyRuntime` and the
-  message bus extension. Sandbox support requires multi-session
-  Workers (see issue #280)
-
-## Comparison with `Monty` / `Monty.exec`
-
-**`Monty(code)` and `Monty.exec`** run in a fresh interpreter every call —
-state from earlier calls does not persist. Use them for one-shot or
-parameterised re-runs of the same program.
-
-**`MontyRepl`** maintains a native Rust heap across calls:
-
-- Functions, classes, closures persist
-- All heap objects survive across calls
-- Continuation detection for REPL UIs
-- Direct `feedStart`/`resume` for host function dispatch
+The built-in `help()` host function reflects the current registered tools.
+`help('el_recv')` returns the event-loop receive schema when that extension
+is attached. Registrations are visible without restarting the runtime.
