@@ -8,8 +8,11 @@ environment:
 dependencies:
   dart_monty:
     path: ../
-  dart_monty_core: ^0.18.1
   file: ^7.0.0
+
+dev_dependencies:
+  dart_monty_core: ^0.18.1
+  very_good_analysis: ^10.0.0
 
 # 0.19 integration branch ONLY — see the matching block in ../pubspec.yaml.
 #
