@@ -15,7 +15,7 @@ brew install dart-sdk
 brew install --cask flutter
 ```
 
-Verify: `dart --version` (>= 3.10)
+Verify: `dart --version` (>= 3.12)
 
 ### Flutter SDK (optional)
 
@@ -36,7 +36,7 @@ Used for developer scripts and linting tools.
 brew install python@3.12
 ```
 
-Verify: `python3 --version` (>= 3.10)
+Verify: `python3 --version` (>= 3.12)
 
 ### pre-commit
 
@@ -141,7 +141,7 @@ in `tool/test_floors.tsv`.
 | Flutter SDK | optional | Flutter-specific integration tests |
 | Chrome | current | Browser cells (`chrome-dart2js`, `chrome-dart2wasm`) |
 | Firefox | current | Browser cells (`firefox-dart2js`, `firefox-dart2wasm`) |
-| Python 3 | >= 3.10 | Developer scripts, linting |
+| Python 3 | >= 3.12 | Developer scripts, linting |
 | pre-commit | any | Git hook automation |
 | pymarkdown | any | Markdown linting |
 | gitleaks | any | Secret scanning |

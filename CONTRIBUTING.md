@@ -47,7 +47,7 @@ When iterating on `dart_monty` and `dart_monty_core` together
 ### Native (desktop)
 
 Runs Python from Dart through the native worker from `dart_monty_core`.
-Its `hook/build.dart` provides the worker on `dart pub get`.
+See `docs/contributor/setup.md` for building it.
 
 ```bash
 bash example/native/run.sh
@@ -183,15 +183,15 @@ lint** job runs. This is handled by a `changes` detection job using
 
 All code jobs run in parallel except where noted:
 
-- **Changes** — detects code vs docs-only changes (always runs)
-- **Worker** — builds `dart_monty_worker` once and shares it as an artifact
-- **Gate** — pins, workflow checks, format and analyze
-- **Dart test** — unit tests with a coverage gate
-- **Integration tests** — the integration and acceptance suites on the VM
+- **Changes**: detects code vs docs-only changes (always runs)
+- **Worker**: builds `dart_monty_worker` once and shares it as an artifact
+- **Gate**: pins, workflow checks, format and analyze
+- **Dart test**: unit tests with a coverage gate
+- **Integration tests**: the integration and acceptance suites on the VM
   with the native worker
-- **Demo pages and browser tests** — the published pages and the browser
+- **Demo pages and browser tests**: the published pages and the browser
   cells in headless Chrome and Firefox
-- **Coverage merge and patch coverage** — unit plus integration coverage
+- **Coverage merge and patch coverage**: unit plus integration coverage
   against the patch
 - **Markdown** — pymarkdown scan (always runs, even on docs-only changes)
 - **TruffleHog** — verified secret scanning (separate workflow, all pushes)
@@ -206,20 +206,19 @@ A version tag triggers one workflow:
 
 - `publish_dart_monty.yaml` — publishes to pub.dev via OIDC
 
-Native artefacts live in `dart_monty_core` and are built by its own
-`hook/build.dart`. This repository has no native code and no release
-binaries.
+Native artefacts live in `dart_monty_core`. This repository has no native
+code and no release binaries.
 
 ### Pre-release checklist
 
 1. **Verify CI is green** on `main` — every job must pass before tagging:
    - **Dart analyze** — zero issues (`dart analyze --fatal-infos`)
    - **Dart tests** — all tests pass with 90%+ line coverage
-   - **Integration tests** — every platform cell passes with its floor
+   - **Integration tests**: every platform cell passes with its floor
      (`vm`, `chrome-dart2js`, `chrome-dart2wasm`, `firefox-dart2js`,
      `firefox-dart2wasm`)
-   - **Markdown, Security** — all must be green
-   - **DCM** — `bash tool/dcm_host_gate.sh` passes on the host
+   - **Markdown, Security**: all must be green
+   - **DCM**: `bash tool/dcm_host_gate.sh` passes on the host
 2. **Verify mock and sealed-class completeness** — if new abstract methods
    or sealed variants were added:
    - Update `MockMontyPlatform` in platform interface tests
@@ -253,8 +252,8 @@ This triggers `publish_dart_monty.yaml`, which publishes to pub.dev.
      "import sys,json; print(json.load(sys.stdin)['latest']['version'])"
    ```
 
-2. **Check GitHub Actions** — the publish workflow should show green
-3. **Test downstream** — create a fresh project and add `dart_monty` as a
+2. **Check GitHub Actions**: the publish workflow should show green
+3. **Test downstream**: create a fresh project and add `dart_monty` as a
    dependency to verify the published package resolves correctly:
 
    ```bash
