@@ -73,6 +73,14 @@ for r in results:
     print(f"Handle {r['handle']}: {r['value']}")
 ```
 
+### Browser memory
+
+A browser child is a Web Worker with its own workspace. Keep `files` and
+`ro_files` copy-in to about 1 MiB per child so that the memory 16 children add
+to a page stays within 320 MB. See
+[Browser memory](../deep-dives/sandbox-architecture.md#browser-memory) for the
+measurements.
+
 ### Sandbox Configuration
 
 ```dart
