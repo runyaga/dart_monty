@@ -261,7 +261,7 @@ MontyValue _decline(
 ) => throw const OsCallNotHandledException();
 
 /// Attempts every cleanup independently, preserving the first failure.
-Future<void> cleanupWorkspace(
+Future<void> _cleanupWorkspace(
   List<FutureOr<void> Function()> operations,
 ) async {
   Object? first;

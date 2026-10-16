@@ -250,7 +250,7 @@ final class Workspace {
         await _executionDone?.future;
         await _leaseDone?.future;
         await _transferDone;
-        await cleanupWorkspace([
+        await _cleanupWorkspace([
           () async {
             await (await _transferPool)?.close();
           },
