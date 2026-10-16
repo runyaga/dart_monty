@@ -802,7 +802,7 @@ jobs:
             test/integration/child_limit_selection_test.dart \
             --run-skipped --tags integration \
             --reporter=expanded 2>&1 | tee /tmp/d3-contracts-web.log
-      - name: Child sandbox contracts (browser compilers)
+      - name: Child sandbox contracts, deferred child suites and workspace scenarios (browser compilers)
         if: ${{ !cancelled() && steps.pubget.outcome == 'success' }}
         env:
           MOZ_HEADLESS: '1'
@@ -815,8 +815,19 @@ jobs:
             test/integration/inherited_extension_ownership_test.dart \
             test/integration/injected_pool_timeout_test.dart \
             test/integration/child_os_policy_test.dart \
-            --run-skipped --tags integration \
-            --reporter=expanded 2>&1 | tee /tmp/d5-preparation-web.log
+            test/integration/workspace_scenarios_test.dart \
+            test/experiments/sandbox_experiment_test.dart \
+            test/experiments/signals_experiment_test.dart \
+            test/integration/agent_extension_integration_test.dart \
+            test/integration/external_extension_inheritance_test.dart \
+            test/integration/ffi_child_events_test.dart \
+            test/integration/sandbox_error_structure_test.dart \
+            test/integration/sandbox_gather_test.dart \
+            test/integration/sandbox_inheritance_test.dart \
+            test/integration/sandbox_logging_test.dart \
+            test/src/extensions/sandbox_test.dart \
+            --run-skipped \
+            --reporter=expanded 2>&1 | tee /tmp/child-contracts-web.log
       - name: Native mount refusal (both browsers and compilers)
         if: ${{ !cancelled() && steps.pubget.outcome == 'success' }}
         env:
