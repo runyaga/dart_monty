@@ -302,6 +302,7 @@
       <div class="panel-body">
         <textarea id="editor" spellcheck="false">from pathlib import Path
 
+# Each run starts with an empty /sandbox plus any mounted files.
 # Write a file to the virtual filesystem
 Path('/sandbox/hello.txt').write_text('Hello from Python in WASM!')
 
@@ -336,7 +337,7 @@ files = sorted([p.name for p in Path('/sandbox/data').iterdir()], key=str)
         <span class="count" id="fileCount">0</span>
       </div>
       <div class="panel-body" id="fileTree">
-        <div class="empty-state">VFS is empty. Run code or mount files below.</div>
+        <div class="empty-state">Each run starts with a fresh /sandbox and your mounted files.</div>
       </div>
       <div class="mount-bar">
         <input type="text" id="mountPath" placeholder="/sandbox/input.csv" />
@@ -482,7 +483,7 @@ files = sorted([p.name for p in Path('/sandbox/data').iterdir()], key=str)
     };
 
     const examples = {
-      hello: `from pathlib import Path\n\n# Write a file to the virtual filesystem\nPath('/sandbox/hello.txt').write_text('Hello from Python in WASM!')\n\n# Read it back\ncontent = Path('/sandbox/hello.txt').read_text()\n\n# Create a directory and list it\nPath('/sandbox/data').mkdir(parents=True)\nPath('/sandbox/data/a.txt').write_text('alpha')\nPath('/sandbox/data/b.txt').write_text('beta')\nfiles = sorted([p.name for p in Path('/sandbox/data').iterdir()], key=str)\n\n{'content': content, 'files': files}`,
+      hello: `from pathlib import Path\n\n# Each run starts with an empty /sandbox plus any mounted files.\n# Write a file to the virtual filesystem\nPath('/sandbox/hello.txt').write_text('Hello from Python in WASM!')\n\n# Read it back\ncontent = Path('/sandbox/hello.txt').read_text()\n\n# Create a directory and list it\nPath('/sandbox/data').mkdir(parents=True)\nPath('/sandbox/data/a.txt').write_text('alpha')\nPath('/sandbox/data/b.txt').write_text('beta')\nfiles = sorted([p.name for p in Path('/sandbox/data').iterdir()], key=str)\n\n{'content': content, 'files': files}`,
       config: `import json\nfrom pathlib import Path\n\n# Read a config file injected from Dart/JS\n# (click Mount below to add /sandbox/config.json first)\nconfig = json.loads(Path('/sandbox/config.json').read_text())\n\n# Process it\nresult = {\n    'api_key': config.get('api_key', 'missing'),\n    'retries': config.get('retries', 0),\n    'debug': config.get('debug', False),\n}\nresult`,
       pipeline: `from pathlib import Path\n\n# Read CSV input (mount /sandbox/input.csv first, or use default)\ntry:\n    raw = Path('/sandbox/input.csv').read_text()\nexcept:\n    # Default data if not mounted\n    raw = 'name,score\\nalice,95\\nbob,87\\ncarol,92\\ndave,78'\n    Path('/sandbox/input.csv').write_text(raw)\n\n# Parse\nlines = raw.strip().split('\\n')\nheader = lines[0].split(',')\nrows = [l.split(',') for l in lines[1:]]\n\n# Compute\nscores = [int(r[1]) for r in rows]\navg = sum(scores) / len(scores)\ntop = max(rows, key=lambda r: int(r[1]))\n\n# Write summary\nsummary = f"Students: {len(rows)}\\nAverage: {avg:.1f}\\nTop: {top[0]} ({top[1]})"\nPath('/sandbox/summary.txt').write_text(summary)\n\n# Write sorted leaderboard\nranked = sorted(rows, key=lambda r: int(r[1]), reverse=True)\nboard = '\\n'.join(f"{i+1}. {r[0]}: {r[1]}" for i, r in enumerate(ranked))\nPath('/sandbox/leaderboard.txt').write_text(board)\n\n{'average': avg, 'top': top[0], 'files_written': 2}`,
       datetime: `from datetime import date, datetime\n\n# Get today's date (yields OsCall to host)\nd = date.today()\nprint(f"Today: {d.year}-{d.month:02d}-{d.day:02d}")\n\n# Get current datetime\ndt = datetime.now()\nprint(f"Now: {dt.year}-{dt.month:02d}-{dt.day:02d} {dt.hour:02d}:{dt.minute:02d}:{dt.second:02d}")\n\n{'date': str(d), 'datetime': str(dt)}`,

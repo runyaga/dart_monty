@@ -5,11 +5,12 @@
 /// Compiled to JS, exposes functions to the HTML UI via window.VfsDemo.
 /// Each run feeds the code to a fresh session whose OS handler is an
 /// in-memory filesystem (core `OSAccess` and `MemoryFile`); every OS
-/// call it answers is logged to the page. Clock calls (`date.today`,
-/// `datetime.now`) are answered by the session's own OS policy.
+/// call it answers is logged to the page. Each run starts with /sandbox
+/// available, even when no files have been staged.
 ///
 /// Build:
-///   dart compile js example/web/bin/vfs_demo.dart \
+///   dart compile js --packages=example/web/.dart_tool/package_config.json \
+///     example/web/bin/vfs_demo.dart \
 ///     -o example/web/web/vfs_demo.dart.js
 library;
 
@@ -19,17 +20,11 @@ import 'dart:js_interop';
 
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty_core/dart_monty_core.dart'
-    show
-        MemoryFile,
-        MontyBool,
-        MontyBytes,
-        MontyList,
-        MontyPath,
-        MontyString,
-        OSAccess;
+    show MontyBool, MontyBytes, MontyList, MontyPath, MontyString, OSAccess;
 
 import 'package:web_example/demo_pool.dart';
 import 'package:web_example/demo_ready.dart';
+import 'package:web_example/demo_vfs.dart';
 
 // ---------------------------------------------------------------------------
 // JS interop — expose API to HTML
@@ -98,9 +93,7 @@ String _summarize(Object? value) {
 /// files; the value, or the Python error as text.
 Future<({Object? value, String? error})> _runWithVfs(String code) async {
   _osCallLog.clear();
-  _vfs = OSAccess(
-    files: [for (final e in _stagedFiles.entries) MemoryFile(e.key, e.value)],
-  );
+  _vfs = await createDemoVfs(_stagedFiles);
   _fs = _vfs.call;
 
   try {

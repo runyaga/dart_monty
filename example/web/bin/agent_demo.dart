@@ -194,7 +194,7 @@ Future<bool> _init() async {
     _pool = pool;
     final session = await MontyRuntime.start(
       pool: pool,
-      osHandlers: {'Path.': OSAccess().call},
+      os: OSAccess().call,
       extensions: [SandboxExtension(maxChildren: _maxChildren)],
     );
     _demoHostFunctions.forEach(session.register);

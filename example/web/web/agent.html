@@ -451,7 +451,7 @@ x</textarea>
           <p style="margin-bottom: 12px; color: var(--text-dim);"><strong style="color: var(--cyan);">Stateful:</strong> Variables defined in one execution persist to the next. Click "Clear State" to reset.</p>
           <p style="margin-bottom: 12px; color: var(--text-dim);"><strong style="color: var(--purple);">Host Functions:</strong> Python can call Dart-defined tools: <code style="color: var(--purple);">echo(msg)</code>, <code style="color: var(--purple);">add_numbers(a, b)</code>, <code style="color: var(--purple);">get_time()</code>.</p>
           <p style="margin-bottom: 12px; color: var(--text-dim);"><strong style="color: var(--orange);">Plugins:</strong> <code style="color: var(--orange);">sandbox_spawn()/sandbox_await()</code> (child interpreters).</p>
-          <p style="margin-bottom: 12px; color: var(--text-dim);"><strong style="color: var(--green);">Filesystem:</strong> pathlib works via MemoryFsProvider: <code style="color: var(--green);">Path('/sandbox/f.txt').write_text(...)</code></p>
+          <p style="margin-bottom: 12px; color: var(--text-dim);"><strong style="color: var(--green);">Filesystem:</strong> pathlib and open() read and write in memory: <code style="color: var(--green);">Path('/f.txt').write_text(...)</code></p>
           <p style="color: var(--text-dim);"><strong style="color: var(--yellow);">Events:</strong> Every bridge event streams in real-time to the Events panel.</p>
         </div>
       </div>
