@@ -12,61 +12,69 @@
 
 [Live Demo](https://runyaga.github.io/dart_monty/) | [Documentation](https://runyaga.github.io/dart_monty/) | [GitHub](https://github.com/runyaga/dart_monty)
 
-Sandboxed Python interpreter for Dart and Flutter. Run Python from native, web, and mobile — one package, every platform.
+`dart_monty` provides sandboxed Python execution for Dart and Flutter.
 
 ## Quick Start
 
-Install both packages from GitHub (do **not** use `dart pub add` —
-pub.dev has a legacy `dart_monty` 0.11.0 with a different API):
-
-```yaml
-# pubspec.yaml
-dependencies:
-  dart_monty:
-    git:
-      url: https://github.com/runyaga/dart_monty.git
-      ref: main
-  dart_monty_core:
-    git:
-      url: https://github.com/runyaga/dart_monty_core.git
-      ref: main
-```
+Install the packages from their matching Git tags. See
+[Installation](user/install.md) for the dependency entries.
 
 **One-shot execution**
 
 ```dart
-final result = await Monty.exec('2 + 2');
-print(result.value); // 4
+import 'package:dart_monty/dart_monty.dart';
+
+Future<void> main() async {
+  final value = await Monty.withPool(
+    (pool) => pool.withSession((session) => session.feedRun('2 + 2')),
+  );
+  print(value.dartValue); // 4
+}
 ```
 
-**Stateful REPL**
+**Stateful session**
 
 ```dart
-final repl = MontyRepl();
-await repl.feedRun('x = 42');
-await repl.feedRun('def double(n): return n * 2');
-final r = await repl.feedRun('double(x)');
-print(r.value); // MontyInt(84)
+import 'package:dart_monty/dart_monty.dart';
+
+Future<void> main() async {
+  await Monty.withPool((pool) async {
+    final session = await pool.checkout();
+    try {
+      await session.feedRun('x = 42');
+      final value = await session.feedRun('x * 2');
+      print(value.dartValue); // 84
+    } finally {
+      await session.close();
+    }
+  });
+}
 ```
 
-**Session with extensions**
+**Runtime with extensions**
 
 ```dart
-final session = MontyRuntime(
-  extensions: [EventLoopExtension()],
-);
-final r = await session.execute(
-  "el_emit(event={'greeting': 'Hello World!'})",
-).result;
-print(r.value); // 'Hello World!'
+import 'package:dart_monty/dart_monty.dart';
+
+Future<void> main() async {
+  final runtime = await MontyRuntime.start(
+    extensions: [EventLoopExtension()],
+  );
+  try {
+    final value = await runtime.execute('1 + 1').result;
+    print(value.dartValue); // 2
+  } finally {
+    await runtime.dispose();
+  }
+}
 ```
 
 ## Documentation
 
-- [**Installation**](user/install.md) — Add to your project
-- [**Architecture**](architecture/overview.md) — Module structure and internals
-- [**REPL Guide**](user/repl.md) — Stateful interactive execution
-- [**Extensions**](user/extensions.md) — EventLoop, Sandbox
-- [**Tutorials**](tutorials/host-functions-intro.md) — Bridge functions and LLM rules
-- [**Testing**](contributor/testing.md) — Run tests and quality gates
-- [**Contributor Setup**](contributor/setup.md) — Build and test the library
+- [**Installation**](user/install.md): Add the packages to a project.
+- [**Architecture**](architecture/overview.md): Module structure and internals.
+- [**REPL Guide**](user/repl.md): Stateful interactive execution.
+- [**Extensions**](user/extensions.md): Event loop and sandbox extensions.
+- [**Tutorials**](tutorials/host-functions-intro.md): Host functions and LLM rules.
+- [**Testing**](contributor/testing.md): Test suites and quality gates.
+- [**Contributor Setup**](contributor/setup.md): Build and test the library.

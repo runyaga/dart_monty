@@ -7,6 +7,13 @@
   host function can be written from the dm import alone. The facade has 54
   names.
 
+### Fixed
+
+- The installation page lists the Git tag for `dart_monty`, the root
+  `dependency_overrides` entry for `dart_monty_core`, and the worker build
+  opt-in that native programs need. The user docs, tutorials and architecture
+  pages use the current API.
+
 ### Breaking
 
 dart_monty now builds on dart_monty_core 0.110 (the worker API). This first
