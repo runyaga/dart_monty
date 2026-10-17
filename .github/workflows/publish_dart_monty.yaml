@@ -10,6 +10,8 @@ permissions: {}
 jobs:
   publish:
     name: Publish to pub.dev
+    # Pre-release tags (any tag with a '-', such as v0.110.0-dev.2) mark milestones and are not published.
+    if: ${{ !contains(github.ref_name, '-') }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     # pub.dev authenticates the upload with the job's OIDC token.
