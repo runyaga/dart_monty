@@ -2,56 +2,49 @@
 
 ## Overview
 
-`SandboxExtension` spawns Python scripts in isolated child interpreters.
-Each child gets its own `MontyPlatform` and `PlatformBridge`, and an
-`ExtensionCoordinator` for inherited tools. The parent Python script
-controls children via host functions.
+`SandboxExtension` runs Python scripts in child interpreters. Each child owns
+a `MontySession`, a `MontyBridge`, an extension attachment, and a workspace.
+The parent Python script controls children through host functions.
 
 ### Architecture Diagram
 
-This diagram shows how a parent `MontyRuntime` spawns an isolated child session.
-
 ```mermaid
 graph TD
-    subgraph Parent Session
-        A(MontyRuntime)
-        B(ExtensionCoordinator)
-        C(PlatformBridge)
-        D[SandboxExtension]
+    subgraph Parent runtime
+        A[MontyRuntime]
+        B[MontyBridge]
+        C[SandboxExtension]
+        D[Parent extensions]
     end
 
-    subgraph Child Session
-        F(PlatformBridge)
-        G(ExtensionCoordinator)
-        H[Inherited Extension]
+    subgraph Child runtime
+        E[MontySession]
+        F[MontyBridge]
+        G[Child extensions]
+        H[Workspace at /work]
     end
 
     A --> B
-    B --> D
-    C -.-> D
-
-    D -- "sandbox_spawn()" creates --> F
-    F --> G
-    G --> H
-
-    classDef bridge fill:#ccf,stroke:#333,stroke-width:2px,color:#000
-    class C,F bridge
+    A --> D
+    C --> E
+    C --> F
+    D --> G
+    C --> H
+    F --> E
+    G --> F
+    H --> F
 ```
 
 ### Cross-platform Support
 
-`SandboxExtension` is fully supported on both native (FFI) and web (WASM).
-
-| | Native (FFI) | Web (WASM) |
-|---|---|---|
-| Child interpreter | Fresh `MontyFfi` instance | Fresh session in its own Web Worker |
-| Memory isolation | Separate Rust interpreter state | Separate Rust REPL heap |
-| Parallelism | Sequential (parent's event loop) | Concurrent (one Web Worker per child) |
+`SandboxExtension` supports the FFI and WASM backends. A child checks out a
+separate core session and receives an independent workspace. Core supplies the
+native-worker or Web Worker transport for that session.
 
 ## Host Functions
 
-- `sandbox_spawn(code, timeout_ms?, memory_bytes?, system_prompt?)`
-- `sandbox_await(handle)`
+- `sandbox_spawn(code, timeout_ms?, memory_bytes?, files?, ro_files?, write_bytes_limit?, memory_usage_limit?)`
+- `sandbox_await(handle, collect?)`
 - `sandbox_await_all(handles)`
 - `sandbox_gather(handles)`
 - `sandbox_is_alive(handle)`
@@ -60,16 +53,29 @@ graph TD
 
 ## Isolation Model
 
-Each child gets:
+Each child owns:
 
-- **Own `MontyPlatform`** — A fresh interpreter instance via the `platformFactory`.
-- **Own `PlatformBridge`** — An independent dispatch loop and event stream.
-- **Own `ExtensionCoordinator`** — A new coordinator with inherited extensions.
-- **Own VFS (optional)** — Filesystem access controlled by the `childVfsStrategy`.
+- A checked-out `MontySession` with independent interpreter state.
+- A `MontyBridge` that dispatches host calls and emits child events.
+- An extension attachment built from the parent extensions' child policies.
+- A workspace rooted at `/work`, backed by memory or an owned native directory.
+
+The child bridge uses the child's workspace when it composes OS handling.
+Workspace access does not expose the parent workspace unless `files` or
+`ro_files` copies selected parent sources into the child.
 
 ## Extension Inheritance
 
-`SandboxExtension` relies on its parent `ExtensionCoordinator` to build the child's environment. It calls `coordinator.spawnChild()`, which iterates through all registered extensions and calls `MontyExtension.createChildInstance()` on each one, allowing them to be cloned for the child.
+`SandboxExtension` asks its attached extension owner to create a child
+attachment. Every parent `MontyExtension` declares a `ChildPolicy`:
+
+- `ChildPolicy.exclude` keeps the extension out of the child.
+- `ChildPolicy.clone` calls `createChildInstance` with a `ChildSpawnContext`.
+- `ChildPolicy.inherit` attaches the parent instance to the child.
+
+`ChildSpawnContext` provides the child identifier and its virtual working
+directory. A cloned extension returns a distinct instance and receives its own
+attachment lifecycle.
 
 ## Workspace ownership
 
