@@ -42,12 +42,13 @@ Future<void> main() async {
 }
 ```
 
-`MontyRuntime.start` creates the runtime and attaches any supplied extensions.
-`register` adds a function to that runtime. `execute` returns an
+`MontyRuntime.start` creates the runtime. Supplied extensions attach when
+`execute` or `invoke` first uses the runtime. `register` adds a function to
+that runtime. `execute` returns an
 `ExecutionHandle`, whose `result` completes with the Python expression's
 `MontyValue`.
 
-## What Just Happened
+## How It Works
 
 The handler signature is `Future<MontyValue> Function(Map<String,
 MontyValue>, HostContext)`. Read each value through its concrete type, such as

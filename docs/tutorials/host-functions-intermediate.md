@@ -93,8 +93,8 @@ creates child sandboxes when its Python functions request them.
 ## EventLoopExtension
 
 `EventLoopExtension` supports a cooperative exchange. Python calls
-`el_emit(value)` to publish a `MontyDict` and calls `el_recv()` to wait for an
-event. Dart reads `lastEmitted` or `lastEmittedSignal` and supplies an event
+`el_emit(value)` to publish a `MontyDict` and awaits `el_recv()` to wait for
+an event. Dart reads `lastEmitted` or `lastEmittedSignal` and supplies an event
 through `dispatch`.
 
 ```dart
@@ -106,7 +106,7 @@ Future<void> main() async {
   try {
     final handle = runtime.execute('''
 el_emit({'status': 'ready'})
-event = el_recv()
+event = await el_recv()
 event['action']
 ''');
     while (!events.isWaiting) {
@@ -125,7 +125,7 @@ event['action']
 ## HostContext
 
 Handlers receive `HostContext` as their second argument. `executionId`
-identifies the execution. `cancelToken` signals cancellation. `emitText`
+identifies the host call. `cancelToken` signals cancellation. `emitText`
 adds text to the execution event stream. `os` exposes the registered
 `OsHandler`, `parent` exposes child-event forwarding and schemas, and
 `subExecute` runs a separate Python execution when the runtime provides it.

@@ -57,8 +57,8 @@ Handlers receive `Map<String, MontyValue>` and return `Future<MontyValue>`.
 | `HostParamType` | Value type |
 |---|---|
 | `string` | `MontyString` |
-| `integer` | `MontyInt` |
-| `number` | `MontyInt` or `MontyFloat` |
+| `integer` | `MontyInt` or `MontyBigInt` |
+| `number` | `MontyInt`, `MontyBigInt`, or `MontyFloat` |
 | `boolean` | `MontyBool` |
 | `list` | `MontyList` |
 | `map` | `MontyDict` |
@@ -75,6 +75,7 @@ failures reach Python as `RuntimeError`.
 
 ```dart
 import 'package:dart_monty/dart_monty.dart';
+import 'package:dart_monty_core/dart_monty_core.dart' show MontyBigInt;
 
 final divide = HostFunction(
   schema: const HostFunctionSchema(
@@ -85,14 +86,20 @@ final divide = HostFunction(
     ],
   ),
   handler: (args, _) async {
-    final a = (args['a']! as MontyInt).value;
-    final b = (args['b']! as MontyInt).value;
+    final a = _integerAsDouble(args['a']!);
+    final b = _integerAsDouble(args['b']!);
     if (b == 0) {
       throw const ExternalException('ValueError', 'Division by zero');
     }
     return MontyFloat(a / b);
   },
 );
+
+double _integerAsDouble(MontyValue value) => switch (value) {
+  MontyInt(:final value) => value.toDouble(),
+  MontyBigInt(:final value) => value.toDouble(),
+  _ => throw ArgumentError.value(value),
+};
 ```
 
 ## The BridgeEvent Stream
@@ -105,19 +112,21 @@ import 'package:dart_monty/dart_monty.dart';
 
 Future<void> printEvents(MontyRuntime runtime) async {
   final handle = runtime.execute('greet("World")');
-  await for (final event in handle.events) {
-    switch (event) {
-      case BridgeFunctionCallStart(:final name):
-        print('Calling $name');
-      case BridgeFunctionCallResult(:final result):
-        print('Result: $result');
-      case BridgeRunError(:final message):
-        print('Error: $message');
-      default:
-        break;
+  final eventsDone = () async {
+    await for (final event in handle.events) {
+      switch (event) {
+        case BridgeFunctionCallStart(:final name):
+          print('Calling $name');
+        case BridgeFunctionCallResult(:final result):
+          print('Result: $result');
+        case BridgeRunError(:final message):
+          print('Error: $message');
+        default:
+          break;
+      }
     }
-  }
-  await handle.result;
+  }();
+  await Future.wait<Object?>([eventsDone, handle.result]);
 }
 ```
 
