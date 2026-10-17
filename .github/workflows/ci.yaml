@@ -550,7 +550,7 @@ jobs:
             || { echo "FAIL: no dart_monty_core ref found in example/web/pubspec.yaml"; \
                  echo "  A gate that cannot find what it compares is broken, not passing."; exit 1; }
           echo "expecting dart_monty_core ref: $EXPECTED_REF"
-          grep -q "ref: \"$EXPECTED_REF\"" pubspec.lock \
+          grep -Eq "ref: \"?$EXPECTED_REF\"?\$" pubspec.lock \
             || { echo "FAIL: example/web resolved dart_monty_core from somewhere else"; \
                  echo "  expected ref: $EXPECTED_REF"; \
                  sed -n '/dart_monty_core:/,/^  [a-z]/p' pubspec.lock; exit 1; }
