@@ -20,6 +20,7 @@ export 'package:dart_monty_core/dart_monty_core.dart'
         MontyNone,
         MontyError,
         MontyCrashedError,
+        MontyTypingError,
         ResourceLimits,
         OsHandler,
         OsCallNotHandledException,

@@ -24,7 +24,12 @@ import 'package:meta/meta.dart';
 
 /// Checks out a session from a runtime's pool, with [limits] when given.
 typedef _RuntimeCheckout =
-    Future<MontySession> Function({ResourceLimits? limits});
+    Future<MontySession> Function({
+      ResourceLimits? limits,
+      bool typeCheck,
+      String? typeCheckStubs,
+      String? typeCheckFormat,
+    });
 
 /// The `maxProcesses` of the pool [MontyRuntime.start] starts when it is
 /// given none: a root execution, a sub-execution, and the `maxChildren` of
@@ -157,7 +162,13 @@ Future<MontyRuntime> startRuntimeWith({
 
   return MontyRuntime._start(
     MontyRuntime._(
-      checkout: checkout,
+      checkout:
+          ({
+            limits,
+            typeCheck = false,
+            typeCheckStubs,
+            typeCheckFormat,
+          }) => checkout(limits: limits),
       closePool: closePool,
       os: os ?? (osHandlers != null ? composeOsHandlers(osHandlers) : null),
       extensions: extensions,
@@ -203,7 +214,13 @@ class MontyRuntime implements MontyRuntimeRef {
     required BridgeLogger? logger,
     required bool sandbox,
     required ResourceLimits? limits,
-  }) : _checkout = checkout,
+    bool typeCheck = false,
+    String? typeCheckStubs,
+    String? typeCheckFormat,
+  }) : _typeCheck = typeCheck,
+       _typeCheckStubs = typeCheckStubs,
+       _typeCheckFormat = typeCheckFormat,
+       _checkout = checkout,
        _closePool = closePool,
        _os = os,
        _extensions = extensions,
@@ -222,6 +239,13 @@ class MontyRuntime implements MontyRuntimeRef {
   final BridgeLogger? _logger;
   final bool _sandbox;
   final ResourceLimits? _limits;
+
+  // Type checking of root checkouts: the held session, its replacements and
+  // restores, and each sandbox-mode execution. Sub-executions and children are
+  // not checked.
+  final bool _typeCheck;
+  final String? _typeCheckStubs;
+  final String? _typeCheckFormat;
 
   // Shared mode: the held session, its bridge and the coordinator.
   SessionBridge? _sharedBridge;
@@ -302,6 +326,9 @@ class MontyRuntime implements MontyRuntimeRef {
     BridgeLogger? logger,
     bool sandbox = false,
     ResourceLimits? limits,
+    bool typeCheck = false,
+    String? typeCheckStubs,
+    String? typeCheckFormat,
   }) async {
     assert(
       os == null || osHandlers == null,
@@ -325,6 +352,9 @@ class MontyRuntime implements MontyRuntimeRef {
           logger: logger,
           sandbox: sandbox,
           limits: limits,
+          typeCheck: typeCheck,
+          typeCheckStubs: typeCheckStubs,
+          typeCheckFormat: typeCheckFormat,
         ),
       );
     } on Object {
@@ -398,6 +428,7 @@ class MontyRuntime implements MontyRuntimeRef {
     String code, {
     OsHandler? os,
     Map<String, Object?>? inputs,
+    bool skipTypeCheck = false,
   }) {
     if (_disposed) throw StateError('MontyRuntime has been disposed');
     final values = _inputValues(inputs);
@@ -405,7 +436,9 @@ class MontyRuntime implements MontyRuntimeRef {
     _live.add(run);
 
     if (_sandbox) {
-      unawaited(_settle(run, () => _runSandboxed(run, code, os, values)));
+      unawaited(
+        _settle(run, () => _runSandboxed(run, code, os, values, skipTypeCheck)),
+      );
     } else if (_sharedRun != null) {
       unawaited(
         _settle(run, () async {
@@ -414,7 +447,9 @@ class MontyRuntime implements MontyRuntimeRef {
       );
     } else {
       _sharedRun = run;
-      unawaited(_settle(run, () => _runShared(run, code, os, values)));
+      unawaited(
+        _settle(run, () => _runShared(run, code, os, values, skipTypeCheck)),
+      );
     }
 
     return ExecutionHandle(
@@ -746,8 +781,9 @@ class MontyRuntime implements MontyRuntimeRef {
     _Execution run,
     String code,
     OsHandler? os,
-    Map<String, MontyValue>? values,
-  ) async {
+    Map<String, MontyValue>? values, [
+    bool skipTypeCheck = false,
+  ]) async {
     // A clearState in progress brings its own session: no re-checkout.
     await _clearingDone(run);
     if (_sharedStale) {
@@ -773,6 +809,7 @@ class MontyRuntime implements MontyRuntimeRef {
           inputs: values,
           os: os,
           cancelToken: run.token,
+          skipTypeCheck: skipTypeCheck,
         ),
       );
     } on MontyError catch (e) {
@@ -794,8 +831,9 @@ class MontyRuntime implements MontyRuntimeRef {
     _Execution run,
     String code,
     OsHandler? os,
-    Map<String, MontyValue>? values,
-  ) async {
+    Map<String, MontyValue>? values, [
+    bool skipTypeCheck = false,
+  ]) async {
     final session = await _checkoutFor(run, _checkoutRoot);
     await _hold(run, session);
     final bridge = SessionBridge(
@@ -814,7 +852,12 @@ class MontyRuntime implements MontyRuntimeRef {
       await registry.attachTo(bridge, baseOs: os ?? _os);
       value = await _drive(
         run,
-        bridge.executeWith(code, inputs: values, cancelToken: run.token),
+        bridge.executeWith(
+          code,
+          inputs: values,
+          cancelToken: run.token,
+          skipTypeCheck: skipTypeCheck,
+        ),
       );
     } on Object catch (e, st) {
       error = e;
@@ -864,7 +907,12 @@ class MontyRuntime implements MontyRuntimeRef {
   }
 
   /// A checkout of a root session, with the runtime's limits.
-  Future<MontySession> _checkoutRoot() => _checkout(limits: _limits);
+  Future<MontySession> _checkoutRoot() => _checkout(
+    limits: _limits,
+    typeCheck: _typeCheck,
+    typeCheckStubs: _typeCheckStubs,
+    typeCheckFormat: _typeCheckFormat,
+  );
 
   /// A checkout for the shared mode; one that completes after [dispose] is
   /// closed, and throws [StateError].

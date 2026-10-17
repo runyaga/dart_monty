@@ -159,6 +159,7 @@ class SessionBridge implements MontyBridge {
     OsHandler? os,
     CancelToken? cancelToken,
     String? cwd,
+    bool skipTypeCheck = false,
   }) {
     if (_isDisposed) throw StateError('Bridge has been disposed');
     if (_activeRun != null) throw StateError('Bridge is already executing');
@@ -183,6 +184,7 @@ class SessionBridge implements MontyBridge {
         os: os ?? _currentOsHandler,
         cancelToken: cancelToken,
         cwd: cwd,
+        skipTypeCheck: skipTypeCheck,
       ).whenComplete(() {
         release();
         unawaited(controller.close());
@@ -215,6 +217,7 @@ class SessionBridge implements MontyBridge {
     required OsHandler? os,
     required CancelToken? cancelToken,
     required String? cwd,
+    bool skipTypeCheck = false,
   }) async {
     var ended = false;
     void emit(BridgeEvent event) {
@@ -240,7 +243,7 @@ class SessionBridge implements MontyBridge {
           threadId,
           runId,
           cwd,
-        ), emit),
+        ), emit, skipTypeCheck: skipTypeCheck),
       );
     } on MontyError catch (e) {
       end(_pythonError(logger, e, printed));
@@ -255,22 +258,40 @@ class SessionBridge implements MontyBridge {
     OsHandler? os,
     CancelToken? cancelToken,
     (CollectString, String, String, String?) run,
-    void Function(BridgeEvent) emit,
-  ) async {
+    void Function(BridgeEvent) emit, {
+    bool skipTypeCheck = false,
+  }) async {
     final (printed, threadId, runId, cwd) = run;
-    final feed = workspace?.driver(session) ?? session.feedRun;
-    final value = await feed(
-      code,
-      cwd: cwd,
-      inputs: inputs,
-      externalLookup: _host.externals(
-        emit,
-        os: os,
-        cancelToken: cancelToken,
-      ),
-      printCallback: printed.call,
-      os: os == null ? null : _OsReporter(_host, logger, emit)._wrap(os),
+    final driver = workspace?.driver(session);
+    if (driver != null && skipTypeCheck) {
+      throw UnsupportedError('skipTypeCheck is not available with a workspace');
+    }
+    final externalLookup = _host.externals(
+      emit,
+      os: os,
+      cancelToken: cancelToken,
     );
+    final reporter = os == null
+        ? null
+        : _OsReporter(_host, logger, emit)._wrap(os);
+    final value = driver != null
+        ? await driver(
+            code,
+            cwd: cwd,
+            inputs: inputs,
+            externalLookup: externalLookup,
+            printCallback: printed.call,
+            os: reporter,
+          )
+        : await session.feedRun(
+            code,
+            cwd: cwd,
+            inputs: inputs,
+            externalLookup: externalLookup,
+            printCallback: printed.call,
+            os: reporter,
+            skipTypeCheck: skipTypeCheck,
+          );
 
     return BridgeRunFinished(
       threadId: threadId,
