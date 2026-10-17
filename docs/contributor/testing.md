@@ -15,12 +15,19 @@ This runs the default VM test selection. Tests tagged `integration` and
 
 ## Run integration tests
 
-Integration tests use the real core worker. Build or obtain
-`dart_monty_worker`, then set `DART_MONTY_WORKER` to its path on the VM.
+Integration tests use the prebuilt core worker that the build hook installs on
+the VM. Native workspace tests also need the root package to opt in to the
+worker library:
+
+```yaml
+hooks:
+  user_defines:
+    dart_monty_core:
+      build_worker: true
+```
 
 ```bash
-DART_MONTY_WORKER=<path>/dart_monty_worker \
-  dart test --run-skipped --tags=integration
+dart test --run-skipped --tags=integration
 ```
 
 The integration suite lives primarily in `test/integration/`. It exercises
@@ -33,8 +40,7 @@ The acceptance suite drives the package through a worker on the VM and through
 web worker assets in browser cells.
 
 ```bash
-DART_MONTY_WORKER=<path>/dart_monty_worker \
-  dart test test/acceptance --run-skipped --tags=acceptance
+dart test test/acceptance --run-skipped --tags=acceptance
 ```
 
 ## Run a platform cell
@@ -45,23 +51,24 @@ counts, participating suites, duplicate test identifiers, and runner output
 against `tool/test_floors.tsv`.
 
 ```bash
-DART_MONTY_WORKER=<path>/dart_monty_worker \
-  bash tool/test_cell.sh vm
+bash tool/test_cell.sh vm
 bash tool/test_cell.sh chrome-dart2js
 bash tool/test_cell.sh chrome-dart2wasm
 bash tool/test_cell.sh firefox-dart2js
 bash tool/test_cell.sh firefox-dart2wasm
 ```
 
-The VM cell needs `DART_MONTY_WORKER`. Chrome and Firefox cells need their
-respective browser executable. Browser cells compile with both `dart2js` and
-`dart2wasm`.
+The VM cell uses the prebuilt worker that core's hook installs. Its native
+workspace tests also need the root `build_worker: true` opt-in above. Set
+`DART_MONTY_WORKER` only to override the executable with a locally built
+worker. Chrome and Firefox cells need their respective browser executable.
+Browser cells compile with both `dart2js` and `dart2wasm`.
 
 ## CI test matrix
 
 CI runs the VM cell in the integration job and each browser cell in the
-browser-cell job. The worker job supplies the VM worker. The test workflow also
-runs the default suite, analysis, formatting, and focused checks.
+browser-cell job. Core's build hook supplies the VM worker. The test workflow
+also runs the default suite, analysis, formatting, and focused checks.
 
 ## Test locations
 

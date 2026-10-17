@@ -11,11 +11,8 @@ import '../acceptance/_platform.dart';
 ///
 /// Run with:
 /// ```bash
-/// cd native && cargo build --release && cd ..
-/// cd packages/dart_monty_bridge
-/// DYLD_LIBRARY_PATH=../../native/target/release \
-///   dart test --tags=integration --run-skipped \
-///   test/integration/sandbox_plugin_inheritance_test.dart
+/// dart test --tags=integration --run-skipped \
+///   test/integration/sandbox_inheritance_test.dart
 /// ```
 void main() {
   late Monty pool;

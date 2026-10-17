@@ -1,6 +1,6 @@
 # Installation
 
-`dart_monty` and `dart_monty_core` version `0.110.0-dev.2` resolve from
+`dart_monty` and `dart_monty_core` version `0.110.0-dev.3` resolve from
 their Git tags. `dart_monty_core` is not available from pub.dev, and
 `dependency_overrides` in a dependency's pubspec do not apply to your package,
 so the root pubspec overrides the core source:
@@ -10,17 +10,17 @@ dependencies:
   dart_monty:
     git:
       url: https://github.com/runyaga/dart_monty.git
-      ref: v0.110.0-dev.2
+      ref: v0.110.0-dev.3
 
 dependency_overrides:
   dart_monty_core:
     git:
       url: https://github.com/runyaga/dart_monty_core.git
-      ref: v0.110.0-dev.2
+      ref: v0.110.0-dev.3
 ```
 
 A package that imports core names directly also lists
-`dart_monty_core: ^0.110.0-dev.2` under `dependencies`.
+`dart_monty_core: ^0.110.0-dev.3` under `dependencies`.
 
 Run `dart pub get` after editing `pubspec.yaml`.
 
@@ -36,20 +36,13 @@ For local worktree development, use `path:` dependencies for both packages.
 
 ### Native (Desktop, Server, and Flutter)
 
-A native program needs a worker executable. Opt in to the build hook in the
-root pubspec and build with `dart build cli`:
+`dart pub get` resolves dependencies. `dart run`, `dart test`, and `dart build`
+invoke core's build hook. The hook installs the verified prebuilt worker for the
+host from the core release in a cache. A Rust toolchain is not required.
 
-```yaml
-hooks:
-  user_defines:
-    dart_monty_core:
-      build_worker: true
-```
-
-Call `runMontyWorkerIfChild(args)` from `package:dart_monty_core/dart_monty_core.dart`
-as the first statement of `main`. The hook compiles the worker library with a
-stable Rust toolchain (`cargo` and `rustc`) and a C linker. Alternatively pass
-the path of a prebuilt worker executable as `workerLocation` to `Monty.start`.
+Pass a worker executable through `workerLocation` to `Monty.start` when an
+explicit location is needed. `MountDir` needs the native mount library and the
+`dart_monty_core` `build_worker` hook opt-in in the root package.
 
 ### Flutter Web
 

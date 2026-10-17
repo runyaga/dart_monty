@@ -1,9 +1,7 @@
 /// Where the integration tests find core's native worker.
 ///
-/// Until core's M4 ships the worker as a build artifact, dm CI builds it
-/// with core's `tool/build_worker.sh` at the pinned core ref and exports
-/// its path as `DART_MONTY_WORKER`. Locally, point the same variable at a
-/// worker you built; unset, core searches its usual places.
+/// Core's build hook installs the prebuilt worker for the host. Set
+/// `DART_MONTY_WORKER` to override it with a locally built worker.
 library;
 
 import 'dart:io';

@@ -6,7 +6,7 @@ tags:
   ladder:
     skip: "Skipped by default (slow). Run: dart test --run-skipped --tags=ladder"
   acceptance:
-    skip: "Skipped by default (real worker). Run: dart test test/acceptance --run-skipped --tags=acceptance (DART_MONTY_WORKER on the VM; -p chrome,firefox -c dart2js,dart2wasm in a browser)"
+    skip: "Skipped by default (real worker). Run: dart test test/acceptance --run-skipped --tags=acceptance (-p chrome,firefox -c dart2js,dart2wasm in a browser)"
   example:
     skip: "Skipped by default (boots FFI dylib). Run: dart test --run-skipped --tags=example"
   demo:

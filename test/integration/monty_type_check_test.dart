@@ -2,8 +2,8 @@
 // with `typeCheck: true` rejects a snippet the check fails with
 // MontyTypingError, and runs one it passes.
 //
-// Run: DART_MONTY_WORKER=<worker> dart test --run-skipped \
-//        --tags=integration -p vm test/integration/monty_type_check_test.dart
+// Run: dart test --run-skipped --tags=integration -p vm
+//        test/integration/monty_type_check_test.dart
 @Tags(['integration'])
 library;
 
