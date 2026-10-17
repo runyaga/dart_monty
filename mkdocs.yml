@@ -83,9 +83,6 @@ plugins:
           - deep-dives/extension-system.md
           - deep-dives/bridge-concurrency.md
         Technical Reference:
-          - reference/native-crate.md
-          - reference/monty-rust-api.md
-          - reference/ffi-handle-lifecycle.md
           - reference/bridge-integration.md
           - reference/internals.md
         Contributing:
@@ -116,9 +113,6 @@ nav:
       - Extension System: deep-dives/extension-system.md
       - Bridge Concurrency: deep-dives/bridge-concurrency.md
   - Technical Reference:
-      - Native Crate (Rust): reference/native-crate.md
-      - Monty Rust API: reference/monty-rust-api.md
-      - FFI Handle Lifecycle: reference/ffi-handle-lifecycle.md
       - Bridge Integration: reference/bridge-integration.md
       - Internals: reference/internals.md
   - Contributing:

@@ -47,9 +47,6 @@ How the package works under the hood.
 
 Source-of-truth references for the internal contract surface.
 
-- [Native Crate (Rust)](reference/native-crate.html)
-- [Monty Rust API](reference/monty-rust-api.html)
-- [FFI Handle Lifecycle](reference/ffi-handle-lifecycle.html)
 - [Bridge Integration](reference/bridge-integration.html)
 - [Internals](reference/internals.html)
 
