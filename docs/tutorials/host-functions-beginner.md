@@ -1,19 +1,21 @@
-# Host Functions -- Beginner
+# Host Functions
 
-This guide covers typed parameter schemas, argument validation without
-coercion, error handling in handlers, and the `BridgeEvent` stream.
+This guide covers parameter schemas, typed arguments, errors, and execution
+events.
 
-**Prerequisites:** Read the [Intro guide](host-functions-intro.md) first.
+**Prerequisites:** Read the [Intro guide](host-functions-intro.md).
 
 ## HostFunctionSchema
 
-Every host function has a schema that declares its name, description,
-and parameters:
+Every host function has a schema with a name, optional description, and
+parameters.
 
 ```dart
-const schema = HostFunctionSchema(
+import 'package:dart_monty/dart_monty.dart';
+
+const fetchDataSchema = HostFunctionSchema(
   name: 'fetch_data',
-  description: 'Fetch JSON data from a URL.',
+  description: 'Fetches data for a URL.',
   params: [
     HostParam(name: 'url', type: HostParamType.string),
     HostParam(
@@ -21,283 +23,139 @@ const schema = HostFunctionSchema(
       type: HostParamType.integer,
       isRequired: false,
       defaultValue: MontyInt(30),
-      description: 'Request timeout in seconds.',
+      description: 'Timeout in seconds.',
     ),
   ],
 );
 ```
 
-The schema serves two purposes:
-
-1. **Runtime validation** -- the bridge validates core values
-   before calling your handler. If Python passes wrong types, the bridge
-   raises a Python `RuntimeError` before your handler or middleware runs.
-   Direct Dart invocation reports `FormatException`.
-2. **JSON Schema export** -- `schema.toJsonSchema()` produces a standard
-   JSON Schema object for tool discovery (e.g., MCP integration).
+`HostFunctionSchema.toJsonSchema()` exposes the parameter declaration as a
+JSON Schema object for code that discovers host functions.
 
 ## HostParam
 
-Each parameter is defined with `HostParam`:
+Each `HostParam` has these fields.
 
 | Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `name` | `String` | required | Parameter name (key in the args map) |
-| `type` | `HostParamType` | required | Expected type |
-| `isRequired` | `bool` | `true` | Whether the caller must supply a value |
-| `description` | `String?` | `null` | Human-readable description for JSON Schema |
-| `defaultValue` | `MontyValue?` | `null` | Value used when argument is absent and not required |
-| `jsonSchemaOverride` | `Map<String, Object?>?` | `null` | Full JSON Schema override for complex types |
+|---|---|---|---|
+| `name` | `String` | required | Key in the handler argument map |
+| `type` | `HostParamType` | required | Expected value kind |
+| `isRequired` | `bool` | `true` | Whether an argument is required |
+| `description` | `String?` | `null` | Schema description |
+| `defaultValue` | `MontyValue?` | `null` | Value for an omitted optional argument |
+| `jsonSchemaOverride` | `Map<String, Object?>?` | `null` | Schema for a complex parameter |
+
+Parameters map positional and keyword Python arguments to the parameter names
+in declaration order. An unknown argument, a missing required argument, or a
+value with the wrong `HostParamType` raises Python `RuntimeError` before the
+handler runs.
 
 ## HostParamType
 
-Handlers take `Map<String, MontyValue>` and return `Future<MontyValue>`.
-The value types come from `package:dart_monty/dart_monty.dart`.
+Handlers receive `Map<String, MontyValue>` and return `Future<MontyValue>`.
 
-| `HostParamType` | Accepted core values |
+| `HostParamType` | Value type |
 |---|---|
 | `string` | `MontyString` |
-| `integer` | `MontyInt`, `MontyBigInt` |
-| `number` | `MontyInt`, `MontyBigInt`, `MontyFloat` |
+| `integer` | `MontyInt` or `MontyBigInt` |
+| `number` | `MontyInt`, `MontyBigInt`, or `MontyFloat` |
 | `boolean` | `MontyBool` |
-| `list` | `MontyList` (tuples remain distinct) |
-| `map` | `MontyDict`, with any core-valid keys |
-| `any` | Any `MontyValue`, including `MontyNone` and proxies |
+| `list` | `MontyList` |
+| `map` | `MontyDict` |
+| `any` | Any `MontyValue` |
 
-Validation preserves the original value and shared children. There is no
-numeric coercion: `1.0` and `True` are rejected for `integer`. Big integers
-and negative zero retain their kind. Iterate `MontyDict.pairs` to retain
-non-string keys. The advertised JSON schema still describes a map as an
-`object`; it is not a core value encoding or a restriction to string keys.
-
-Optional omission selects the exact `defaultValue` instance, or
-`const MontyNone()` if no default was configured. Explicit `MontyNone`
-never selects another default. Required parameters reject omission even
-when a default exists; required `any` accepts explicit None, while required
-typed parameters reject it. `validate(null, isPresent: true)` is an
-`ArgumentError`. Defaults are validated at registration.
-
-## Argument Mapping
-
-When Python calls a host function, Monty provides positional arguments
-and optional keyword arguments. dm maps them, by the schema,
-to a named parameter map:
-
-```text
-Python: fetch_data("https://example.com", timeout=10)
-  positional: ["https://example.com"]
-  kwargs: {"timeout": 10}
-
-Schema maps to: {"url": "https://example.com", "timeout": 10}
-```
-
-**Rules:**
-
-- Positional arguments are matched to `params` by declaration order.
-- Keyword arguments overlay by name.
-- Extra positional arguments beyond the declared params raise a
-  `FormatException`.
-- Unknown keyword argument names raise a `FormatException`.
-- Missing required parameters raise a `FormatException`.
-- Absent optional parameters receive their `defaultValue` or `MontyNone`.
+Validation preserves the supplied value. Optional parameters receive their
+`defaultValue`, or `MontyNone` when no default is supplied. An explicit Python
+`None` is a `MontyNone` value.
 
 ## Error Handling in Handlers
 
-When your handler throws, the bridge catches the exception and sends it
-back to Python as a runtime error via `resumeWithError()`. Python sees a
-standard exception.
+Throw `ExternalException` to select the Python exception type. Other handler
+failures reach Python as `RuntimeError`.
 
 ```dart
-HostFunction(
+import 'package:dart_monty/dart_monty.dart';
+import 'package:dart_monty_core/dart_monty_core.dart' show MontyBigInt;
+
+final divide = HostFunction(
   schema: const HostFunctionSchema(
     name: 'divide',
-    description: 'Divide two numbers.',
     params: [
-      HostParam(name: 'a', type: HostParamType.number),
-      HostParam(name: 'b', type: HostParamType.number),
+      HostParam(name: 'a', type: HostParamType.integer),
+      HostParam(name: 'b', type: HostParamType.integer),
     ],
   ),
-  handler: (args, ctx) async {
-    final a = args['a']!.dartValue! as num;
-    final b = args['b']!.dartValue! as num;
-    if (b == 0) throw ArgumentError('Division by zero');
+  handler: (args, _) async {
+    final a = _integerAsDouble(args['a']!);
+    final b = _integerAsDouble(args['b']!);
+    if (b == 0) {
+      throw const ExternalException('ValueError', 'Division by zero');
+    }
     return MontyFloat(a / b);
   },
-)
+);
+
+double _integerAsDouble(MontyValue value) => switch (value) {
+  MontyInt(:final value) => value.toDouble(),
+  MontyBigInt(:final value) => value.toDouble(),
+  _ => throw ArgumentError.value(value),
+};
 ```
-
-If Python calls `divide(10, 0)`, it gets a Python exception with the
-message `"Division by zero"`. The bridge logs the error with stack trace
-via `struct_log` and emits a `BridgeFunctionCallResult` with the error
-message.
-
-You do not need to catch exceptions yourself for error propagation --
-the bridge does it automatically. Only catch if you need custom recovery.
 
 ## The BridgeEvent Stream
 
-`bridge.execute()` returns a `Stream<BridgeEvent>`. The events form a
-sealed class hierarchy describing the full execution lifecycle:
-
-### Lifecycle Events
-
-| Event | When | Key fields |
-|-------|------|------------|
-| `BridgeRunStarted` | Execution begins | `threadId`, `runId` |
-| `BridgeRunFinished` | Execution completes | `threadId`, `runId`, `value`, `printOutput` |
-| `BridgeRunError` | Execution fails | `message`, `printOutput` |
-
-### Tool Call Events
-
-Each host function call emits a sequence of tool call events:
-
-```text
-BridgeStepStarted(stepId: "greet")
-BridgeFunctionCallStart(callId: "0", name: "greet")
-BridgeFunctionCallArgs(callId: "0", delta: '{"name":"World"}')
-BridgeFunctionCallEnd(callId: "0")
-  -- handler runs --
-BridgeFunctionCallResult(callId: "0", result: "Hello, World!")
-BridgeStepFinished(stepId: "greet")
-```
-
-| Event | Description |
-|-------|-------------|
-| `BridgeStepStarted` | A host function call step begins |
-| `BridgeFunctionCallStart` | Function name identified |
-| `BridgeFunctionCallArgs` | Arguments as JSON delta |
-| `BridgeFunctionCallEnd` | Arguments complete |
-| `BridgeFunctionCallResult` | Handler result (or error message) |
-| `BridgeStepFinished` | Step complete |
-
-### Text Events (Print Capture)
-
-Python `print()` calls are intercepted by the bridge. Output is buffered
-and flushed as text events at the end of execution:
-
-| Event | Description |
-|-------|-------------|
-| `BridgeTextStart` | Text output block begins |
-| `BridgeTextContent` | Text content delta |
-| `BridgeTextEnd` | Text output block ends |
-
-The bridge overrides Python's `print()` with a preamble that routes
-output through an internal `__console_write__` host function. This
-ensures print output is captured as bridge events rather than lost to
-stdout.
-
-### Listening to Events
-
-Use pattern matching to handle events:
+`MontyRuntime.events` emits runtime events. Each `execute` call also returns
+an `ExecutionHandle` with an event stream for that execution.
 
 ```dart
-await for (final event in bridge.execute(code)) {
-  switch (event) {
-    case BridgeRunStarted(:final threadId, :final runId):
-      print('Started: thread=$threadId run=$runId');
-    case BridgeFunctionCallStart(:final callId, :final name):
-      print('Calling: $name (call $callId)');
-    case BridgeFunctionCallResult(:final callId, :final result):
-      print('Result: $result (call $callId)');
-    case BridgeTextContent(:final delta):
-      print('Output: $delta');
-    case BridgeRunFinished(:final value, :final printOutput):
-      print('Done: value=$value output=$printOutput');
-    case BridgeRunError(:final message):
-      print('Error: $message');
-    default:
-      break;
-  }
+import 'package:dart_monty/dart_monty.dart';
+
+Future<void> printEvents(MontyRuntime runtime) async {
+  final handle = runtime.execute('greet("World")');
+  final eventsDone = () async {
+    await for (final event in handle.events) {
+      switch (event) {
+        case BridgeFunctionCallStart(:final name):
+          print('Calling $name');
+        case BridgeFunctionCallResult(:final result):
+          print('Result: $result');
+        case BridgeRunError(:final message):
+          print('Error: $message');
+        default:
+          break;
+      }
+    }
+  }();
+  await Future.wait<Object?>([eventsDone, handle.result]);
 }
 ```
 
+`BridgeRunFinished` contains the run identifier, result fields, and captured
+`print` output. `BridgeRunError` contains an error message and an optional
+`MontyError` exception. `BridgeFunctionCallStart`, `BridgeFunctionCallArgs`,
+`BridgeFunctionCallEnd`, and `BridgeFunctionCallResult` describe a host call.
+
 ## JSON Schema Export
 
-`HostFunctionSchema.toJsonSchema()` produces a standard JSON Schema
-object compatible with MCP tool `inputSchema`:
+Use `jsonSchemaOverride` when the advertised schema needs nested properties,
+enums, or item declarations. Runtime validation still follows `type`.
 
 ```dart
-final schema = HostFunctionSchema(
-  name: 'search',
-  description: 'Search by query.',
-  params: [
-    HostParam(name: 'query', type: HostParamType.string),
-    HostParam(name: 'limit', type: HostParamType.integer, isRequired: false),
-  ],
-);
+import 'package:dart_monty/dart_monty.dart';
 
-print(schema.toJsonSchema());
-// {
-//   "type": "object",
-//   "properties": {
-//     "query": {"type": "string"},
-//     "limit": {"type": "integer"}
-//   },
-//   "required": ["query"]
-// }
-```
-
-For complex schemas (nested objects, enums, array item types), use
-`jsonSchemaOverride` on individual `HostParam`s:
-
-```dart
-HostParam(
+const filters = HostParam(
   name: 'filters',
   type: HostParamType.map,
   jsonSchemaOverride: {
     'type': 'object',
     'properties': {
       'status': {'type': 'string', 'enum': ['active', 'archived']},
-      'tags': {'type': 'array', 'items': {'type': 'string'}},
     },
   },
-)
+);
 ```
-
-**Note:** `jsonSchemaOverride` controls only the schema advertised to
-external consumers (e.g., LLMs via MCP). Runtime validation in
-`validate()` still uses the `type` field. Ensure the override is
-consistent with `type` to avoid mismatches.
-
-## MontyBridge Configuration
-
-`MontyBridge` accepts several constructor parameters:
-
-```dart
-MontyBridge(
-  platform: createPlatformMonty(), // Required: MontyPlatform backend
-  limits: MontyLimits(        // Optional: resource constraints
-    timeoutMs: 5000,
-    memoryBytes: 10 * 1024 * 1024,
-    stackDepth: 100,
-  ),
-  useFutures: true,           // Optional: enable futures batching (default: true)
-  logger: myLogger,           // Optional: custom Logger instance
-)
-```
-
-**Futures batching:** When `useFutures` is `true` and the platform
-supports `MontyFutureCapable`, host function calls are dispatched as
-futures and resolved in batches. This allows Python to issue multiple
-host function calls that execute concurrently on the Dart side. When
-`false`, each call blocks until its handler completes.
-
-## Unregistering Functions
-
-Functions can be removed at runtime:
-
-```dart
-bridge.register(myFunction);
-// ...later...
-bridge.unregister('my_function_name');
-```
-
-Both `register()` and `unregister()` throw `StateError` if the bridge
-has been disposed.
 
 ## Next Steps
 
-The [Intermediate guide](host-functions-intermediate.md) covers organizing
-functions into extensions with `MontyExtension` and `ExtensionCoordinator`, namespace
-validation, lifecycle hooks, introspection builtins, and the
-`EventLoopExtension` for bidirectional Python/Dart communication.
+The [Intermediate guide](host-functions-intermediate.md) covers extensions,
+OS handlers, child policies, and `EventLoopExtension`.

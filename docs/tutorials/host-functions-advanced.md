@@ -1,479 +1,145 @@
-# Host Functions -- Advanced
+# Host Functions - Advanced
 
-This guide covers the `SandboxExtension` for spawning child Python
-interpreters, depth and concurrency limits, resource limits per child,
-handle lifecycle management, and production patterns.
+This guide covers child Python executions, resource limits, async host
+functions, progress events, cancellation, and sub-execution.
 
 **Prerequisites:** Read the [Intermediate guide](host-functions-intermediate.md) first.
 
 ## SandboxExtension
 
-`SandboxExtension` is a `MontyExtension` that lets parent Python code spawn
-child Python scripts in separate Monty interpreter instances. Each child
-gets its own `MontyPlatform` and `DefaultMontyBridge` -- fully isolated
-interpreter state.
+`SandboxExtension` is a `MontyExtension` that exposes child Python execution
+to a parent script. Each child has an independent interpreter state and a
+`MontyBridge`.
 
-### Why Isolated Children
-
-Use cases for child interpreters:
-
-- **Parallel computation:** Fan out work across multiple interpreters
-  and collect results.
-- **Untrusted code execution:** Run user-supplied code in a constrained
-  child with strict resource limits.
-- **Recursive scripting:** A script spawns sub-scripts that may
-  themselves spawn further children (bounded by depth limits).
-- **Fault isolation:** A failing child does not crash the parent.
-
-### Creating an SandboxExtension
+Create the extension when starting the runtime:
 
 ```dart
-import 'package:dart_monty/dart_monty.dart';
-import 'package:dart_monty/dart_monty.dart';
-
-final extension = SandboxExtension(
-  platformFactory: () async => createPlatformMonty(),
-  maxChildren: 16,      // Max concurrent children (default: 16)
-  maxDepth: 3,          // Max recursion depth (default: 3)
-  currentDepth: 0,      // This extension's depth level (default: 0)
-  childLimits: MontyLimits(
-    timeoutMs: 5000,
-    memoryBytes: 10 * 1024 * 1024,
-  ),
+final runtime = await MontyRuntime.start(
+  extensions: [
+    SandboxExtension(
+      maxChildren: 16,
+      maxDepth: 3,
+      childLimits: const ResourceLimits(
+        maxFeedDuration: Duration(seconds: 5),
+        maxMemory: 10 * 1024 * 1024,
+      ),
+    ),
+  ],
 );
 ```
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `platformFactory` | `Future<MontyPlatform> Function()` | required | Creates a fresh platform for each child |
-| `childExtensionCoordinatorFactory` | `Future<ExtensionCoordinator?> Function(ChildSpawnContext)?` | `null` | Optional: provides extensions to children |
-| `parentExtensions` | `List<MontyExtension>` | `const []` | Parent extensions for automatic child inheritance |
-| `maxChildren` | `int` | `16` | Maximum concurrent living children |
-| `maxDepth` | `int` | `3` | Maximum recursion depth for nested SandboxExtensions |
-| `currentDepth` | `int` | `0` | This extension's current depth in the recursion tree |
-| `childLimits` | `MontyLimits?` | `null` | Default resource limits for all children |
-| `sandboxBaseDir` | `String?` | `null` | Base directory for per-child working directories |
+| `maxChildren` | `int` | `16` | Maximum admitted child handles |
+| `maxDepth` | `int` | `3` | Maximum depth for nested child execution |
+| `currentDepth` | `int` | `0` | Depth of this extension instance |
+| `childLimits` | `ResourceLimits?` | `null` | Limits selected for child sessions |
+| `sandboxBaseDir` | `String?` | `null` | Native backing directory for child workspaces on the VM |
+| `writeBytesLimit` | `int?` | `8388608` | Cumulative child workspace write limit |
+| `memoryUsageLimit` | `int?` | `8388608` | Retained child workspace content limit |
 
-### Host Functions Provided
+`ResourceLimits` supports `maxFeedDuration`, `maxTurnDuration`, `maxMemory`,
+`gcInterval`, `maxRecursionDepth`, `maxSuspensions`, and `maxTotalSleep`.
+When `childLimits` is absent, a child uses the runtime limits. A child may
+reduce `maxFeedDuration` with `timeout_ms` and `maxMemory` with `memory_bytes`.
 
-The extension registers these functions under the `sandbox` namespace:
+### Host functions provided
 
-| Function | Description | Parameters |
-|----------|-------------|------------|
-| `sandbox_spawn(code, timeout_ms?, memory_bytes?, system_prompt?)` | Spawn a child. Returns an integer handle. | `code`: string (required), `timeout_ms`: integer, `memory_bytes`: integer, `system_prompt`: string |
-| `sandbox_await(handle)` | Wait for a child to complete. Returns its result. | `handle`: integer |
-| `sandbox_await_all(handles)` | Wait for multiple children. Returns list of results. | `handles`: list |
-| `sandbox_is_alive(handle)` | Check if a child is still running. Returns boolean. | `handle`: integer |
-| `sandbox_free(handle)` | Release a completed child's handle. | `handle`: integer |
-| `sandbox_get_output(handle)` | Get a completed child's print output. | `handle`: integer |
-| `sandbox_gather(handles)` | Wait for multiple children. Returns list of dicts with handle, value, and output. | `handles`: list |
+The extension registers these Python functions:
 
-### Basic Usage from Python
+| Function | Description |
+|----------|-------------|
+| `sandbox_spawn(code, timeout_ms=?, memory_bytes=?, files=?, ro_files=?)` | Starts a child and returns an integer handle. |
+| `sandbox_await(handle, collect=?)` | Waits for a child and returns its value. |
+| `sandbox_await_all(handles)` | Waits for children and returns their values in handle order. |
+| `sandbox_is_alive(handle)` | Reports whether a child is executing. |
+| `sandbox_free(handle)` | Releases a handle and cancels its child when it is executing. |
+| `sandbox_get_output(handle)` | Returns captured `print()` output after completion. |
+| `sandbox_gather(handles)` | Returns dictionaries containing each handle, value, and output. |
 
-```python
-# Spawn two children
-h1 = sandbox_spawn("2 ** 10")
-h2 = sandbox_spawn("3 ** 7")
-
-# Wait for both
-results = sandbox_await_all([h1, h2])
-# results == [1024, 2187]
-
-# Clean up
-sandbox_free(h1)
-sandbox_free(h2)
-```
-
-### Handle Lifecycle
-
-Each `sandbox_spawn()` returns an integer handle. Handles follow a
-strict lifecycle:
-
-```text
-spawn  ->  alive  ->  completed  ->  freed
-```
-
-**Rules:**
-
-- `sandbox_await(handle)` blocks until the child completes or fails.
-  If the child failed, it raises an error with the child's error message.
-- `sandbox_free(handle)` releases the handle's resources. It throws
-  `StateError` if the child is still alive -- you must await first.
-- `sandbox_get_output(handle)` returns the child's captured `print()`
-  output as a string (or `null` if no output). Throws `StateError` if
-  the child is still running.
-- `sandbox_is_alive(handle)` returns `true` if the child is still
-  executing.
-- Unknown handles throw `ArgumentError`.
-
-**Warning:** You must call `sandbox_free()` on every completed
-handle. Handles are never garbage collected automatically.
-Failing to free handles causes a silent memory leak (the `_ChildHandle`
-and its captured output remain in memory) and will eventually exhaust
-`maxChildren`, preventing new children from being spawned.
-
-### Per-Child Resource Limits
-
-Children can override the default `childLimits` at spawn time:
+### Child execution from Python
 
 ```python
-# Use default limits from childLimits
-h1 = sandbox_spawn("expensive_computation()")
+first = sandbox_spawn(code='sum(range(1000))')
+second = sandbox_spawn(code='sum(range(2000))')
 
-# Override timeout for this specific child
-h2 = sandbox_spawn("slow_task()", timeout_ms=30000)
-
-# Override memory for this specific child
-h3 = sandbox_spawn("memory_heavy()", memory_bytes=50000000)
-
-# Override both
-h4 = sandbox_spawn("big_slow()", timeout_ms=60000, memory_bytes=100000000)
+results = sandbox_gather(handles=[first, second])
+sandbox_free(handle=first)
+sandbox_free(handle=second)
+results
 ```
 
-When `timeout_ms` or `memory_bytes` are specified at spawn time, they
-override the corresponding fields in `childLimits`. Unspecified fields
-fall back to the `childLimits` defaults. If `childLimits` is `null`
-and no per-child overrides are given, the child runs without resource
-constraints.
+Child handles remain admitted until `sandbox_free` releases them. Freeing an
+executing handle cancels its child. `sandbox_await` raises a Python error when
+the child fails.
 
-The `MontyLimits` fields that can be constrained:
+### Extension inheritance
 
-| Field | Description |
-|-------|-------------|
-| `timeoutMs` | Maximum execution time in milliseconds |
-| `memoryBytes` | Maximum memory usage in bytes |
-| `stackDepth` | Maximum Python call stack depth |
+Children receive independent instances from extensions that select
+`ChildPolicy.clone` and implement `createChildInstance`. Extensions selecting
+`ChildPolicy.inherit` share their instance with children, while
+`ChildPolicy.exclude` keeps an extension out of child runtimes.
+`SandboxExtension` uses `currentDepth` and `maxDepth` to bound nested child
+execution.
 
-Note that `stackDepth` is not overridable per-child from Python -- it
-uses the value from `childLimits`.
+## Async host functions
 
-## Depth and Concurrency Limits
-
-### Depth Limits
-
-If children also have `SandboxExtension` registered (via
-`childExtensionCoordinatorFactory`), they can spawn their own children. The
-`maxDepth` and `currentDepth` parameters control how deep this
-recursion can go:
+Set `dispatch` to `DispatchMode.future` when Python calls the function with
+`await`. A handler receives `HostContext`, which provides `emitText`, an
+execution-scoped `cancelToken`, and `subExecute` for an independent Python
+execution.
 
 ```dart
-SandboxExtension(
-  platformFactory: () async => createPlatformMonty(),
-  maxDepth: 3,
-  currentDepth: 0,
-  childExtensionCoordinatorFactory: (context) async {
-    final registry = ExtensionCoordinator();
-    registry.register(SandboxExtension(
-      platformFactory: () async => createPlatformMonty(),
-      maxDepth: 3,
-      currentDepth: 1,  // One level deeper
-    ));
-    return registry;
+HostFunction delayedEcho() => HostFunction(
+  schema: const HostFunctionSchema(
+    name: 'delayed_echo',
+    params: [HostParam(name: 'text', type: HostParamType.string)],
+  ),
+  dispatch: DispatchMode.future,
+  handler: (args, context) async {
+    context.emitText('starting');
+    await Future.any<void>([
+      Future<void>.delayed(const Duration(milliseconds: 10)),
+      context.cancelToken.future,
+    ]);
+    if (context.cancelToken.isCancelled) {
+      throw StateError('execution cancelled');
+    }
+    return args['text']!;
   },
-)
+);
+
+final runtime = await MontyRuntime.start();
+runtime.register(delayedEcho());
+final value = await runtime.execute('await delayed_echo("hello")').result;
+await runtime.dispose();
 ```
 
-When `currentDepth >= maxDepth`, `sandbox_spawn()` throws `StateError`
-with the message `"Maximum sandbox recursion depth (N) exceeded."`.
+`HostContext.emit` accepts any `BridgeEvent`. `emitText` creates a
+`BridgeFunctionEmit` event for progress text. `ExecutionHandle.cancel` signals
+the context token, and handlers decide how to stop their own pending work.
 
-### Concurrency Limits
+## Sub-execution from a host function
 
-`maxChildren` limits the number of **alive** children at any time.
-When the limit is reached, `sandbox_spawn()` throws `StateError` with
-the message `"Maximum concurrent children (N) reached."`.
-
-Freed children do not count against the limit. After
-`sandbox_free(handle)`, the slot is available for new children.
-
-## Providing Extensions to Children
-
-By default, children only get the introspection builtins (if a
-`ExtensionCoordinator` is attached). Use `childExtensionCoordinatorFactory` to
-give children access to host functions:
+`HostContext.subExecute` runs code in a fresh session. It returns a
+`MontyValue`, accepts optional `Map<String, MontyValue>` inputs, and does not
+share the caller's Python globals or registered host functions.
 
 ```dart
-SandboxExtension(
-  platformFactory: () async => createPlatformMonty(),
-  childExtensionCoordinatorFactory: (context) async {
-    final registry = ExtensionCoordinator();
-    registry.register(MathExtension());
-    registry.register(StorageExtension());
-    // Note: do NOT register SandboxExtension here unless you want
-    // recursive spawning (and remember to increment currentDepth)
-    return registry;
+HostFunction evaluate() => HostFunction(
+  schema: const HostFunctionSchema(
+    name: 'evaluate',
+    params: [HostParam(name: 'code', type: HostParamType.string)],
+  ),
+  handler: (args, context) async {
+    final subExecute = context.subExecute;
+    if (subExecute == null) throw StateError('sub-execution is unavailable');
+    final code = (args['code']! as MontyString).value;
+    return subExecute(code, inputs: {'n': const MontyInt(21)});
   },
-)
+);
 ```
 
-The factory receives a `ChildSpawnContext` with the child's `childId`
-and optional `workingDirectory` -- use these for per-child resource
-configuration.
-
-Return `null` from the factory to give children only introspection
-builtins (no extensions). If the factory itself is `null`, children get
-no extensions at all and no introspection.
-
-### Automatic Extension Inheritance
-
-When `childExtensionCoordinatorFactory` is `null`, children automatically
-inherit extensions from `parentExtensions` that opt in via
-`createChildInstance()`:
-
-```dart
-SandboxExtension(
-  platformFactory: () async => createPlatformMonty(),
-  parentExtensions: registry.extensions,  // Pass parent's extension list
-)
-```
-
-Each parent extension's `createChildInstance(context:)` is called with a
-`ChildSpawnContext`. Extensions that return a new instance are registered
-on the child's bridge. Extensions that return `null` are excluded.
-
-### Per-Child Filesystem Isolation
-
-The `sandboxBaseDir` option selects owned native backing on VM:
-
-```dart
-SandboxExtension(
-  sandboxBaseDir: '/data',
-)
-```
-
-The package creates a fresh private directory below `/data`, seeds its inputs,
-and retains it after completion and collection until free or parent disposal.
-Consumers do not create or delete that directory. `ChildSpawnContext.workingDirectory`
-remains the virtual path `/work`; no host path is exposed to Python. Omit
-`sandboxBaseDir` for portable memory backing. Browsers refuse host directories.
-
-## Child System Prompts
-
-The `system_prompt` parameter on `sandbox_spawn` lets the parent LLM
-inject role-specific instructions into a child at runtime:
-
-```python
-h = sandbox_spawn(
-    "analyze(data)",
-    system_prompt="You are the validator. Check results for correctness."
-)
-```
-
-The prompt is set as the child's `ExtensionCoordinator.systemPromptPrefix`
-**after** registry construction, so it is applied however the child's
-extensions were assembled. It is optional; omit it if the parent does not
-need to customize the child.
-
-If no extensions exist but a prompt is provided, an empty `ExtensionCoordinator`
-is created automatically so the prompt (and introspection builtins) are
-available to the child.
-
-## Disposal and Cleanup
-
-When `SandboxExtension.onDispose()` is called:
-
-1. All living children are torn down (disposed).
-2. Each child's completer is completed with a `StateError`.
-3. Unhandled async errors are suppressed (via `future.ignore()`).
-4. The children map is cleared.
-
-Disposal is idempotent -- calling `onDispose()` multiple times is safe.
-
-When a child completes (normally or with error), the extension performs
-best-effort cleanup: the child's bridge is disposed, its platform is
-disposed, and its extension registry (if any) is disposed. Cleanup errors
-are swallowed to avoid masking the child's actual result.
-
-## Production Patterns
-
-### Fan-Out / Fan-In
-
-```python
-# Fan out work
-handles = []
-items = ["task_a", "task_b", "task_c", "task_d"]
-i = 0
-while i < len(items):
-    h = sandbox_spawn('process("' + items[i] + '")')
-    handles.append(h)
-    i = i + 1
-
-# Fan in results
-results = sandbox_await_all(handles)
-
-# Clean up all handles
-i = 0
-while i < len(handles):
-    sandbox_free(handles[i])
-    i = i + 1
-```
-
-### Timeout with Fallback
-
-```python
-h = sandbox_spawn("slow_computation()", timeout_ms=5000)
-try:
-    result = sandbox_await(h)
-except:
-    # Child timed out or failed
-    result = "fallback_value"
-sandbox_free(h)
-```
-
-### Checking Progress
-
-```python
-h = sandbox_spawn("long_running_task()")
-
-# Poll periodically (in practice, do useful work between checks)
-while sandbox_is_alive(h):
-    # ... do other work ...
-    pass
-
-result = sandbox_await(h)
-output = sandbox_get_output(h)
-sandbox_free(h)
-```
-
-## Writing Custom Extensions for Production
-
-### Extension Design Checklist
-
-1. **Namespace:** Choose a short, descriptive namespace (e.g., `db`,
-   `http`, `auth`). It must match `[a-z][a-z0-9_]*` and be at most
-   32 characters.
-
-2. **Function naming:** All function names must start with
-   `{namespace}_`. Keep names descriptive but concise:
-   `db_query`, `db_execute`, `db_tables`.
-
-3. **System prompt context:** Provide `systemPromptContext` if your
-   extension needs explanation beyond what the function schemas convey.
-   This text goes into LLM system prompts via `generateSystemPrompt()`.
-
-4. **Lifecycle hooks:** Use `onRegister()` to initialize resources
-   (open connections, load configs). Use `onDispose()` to clean them
-   up. Both must be idempotent.
-
-5. **Error handling:** Let exceptions propagate naturally -- the bridge
-   converts them to Python errors. Only catch if you need custom
-   recovery or cleanup.
-
-6. **Parameter types:** Use the most specific `HostParamType` possible.
-   Reserve `any` for genuinely polymorphic parameters. Use
-   `jsonSchemaOverride` for complex types that `HostParamType` cannot
-   express.
-
-7. **Thread safety:** If your extension holds mutable state, consider
-   that `DefaultMontyBridge` processes one execution at a time (it
-   throws `StateError` on concurrent `execute()` calls), but futures
-   batching means multiple handlers can run concurrently within a
-   single execution.
-
-### Multi-Session Patterns
-
-When running multiple bridge sessions (e.g., one per user), each
-session needs its own instances:
-
-```dart
-Future<(MontyBridge, ExtensionCoordinator)> createSession() async {
-  final registry = ExtensionCoordinator()
-    ..register(StorageExtension())  // Fresh instance per session
-    ..register(MathExtension());
-
-  final bridge = MontyBridge(platform: createPlatformMonty());
-  await registry.attachTo(bridge);
-
-  return (bridge, registry);
-}
-
-// Each session is fully isolated
-final (bridge1, registry1) = await createSession();
-final (bridge2, registry2) = await createSession();
-
-// Dispose independently
-bridge1.dispose();
-await registry1.disposeAll();
-```
-
-Each extension instance maintains its own state. Two `StorageExtension`
-instances do not share data.
-
-## Futures Batching (`MontyRuntime(useFutures: true)`)
-
-By default `MontyRuntime` dispatches host functions **serially**: each
-call awaits its handler before resuming Python. Set `useFutures: true`
-on the constructor to flip the bridge into the futures-batching path —
-host calls dispatch concurrently within a single Python execution, and
-Python's `await ext()` against a Dart-registered handler returns the
-resolved value instead of raising `TypeError`.
-
-```dart
-final runtime = MontyRuntime(useFutures: true)
-  ..register(slowHostFn);
-
-await runtime.execute('''
-import asyncio
-results = await asyncio.gather(slow(1), slow(2), slow(3))
-''').result;
-// All three host calls dispatch concurrently; total wall time ≈ one delay,
-// not three.
-```
-
-What changes when `useFutures: true`:
-
-1. Python calls a host function. The bridge dispatches it via
-   `dispatchToolCallAsFuture` — the handler is launched as an unawaited
-   `Future` and registered in `_pendingFutures`. The platform is
-   resumed via `resumeAsFuture()` so Python keeps running.
-2. If Python calls more host functions before suspending, those are
-   also dispatched as futures, in parallel with earlier ones.
-3. When Python's interpreter actually needs the concrete result of a
-   host call (any `await fn()` or implicit await inside `asyncio.gather`),
-   the platform emits `MontyResolveFutures` with the list of pending
-   call IDs.
-4. The bridge awaits each registered future, collects values into
-   `results` and per-call exceptions into `errors`, then feeds the
-   batch back via `(_platform as MontyFutureCapable).resolveFutures(
-   results, errors: errors)`.
-
-This is transparent to handler implementations — they're written the
-same way regardless of the flag. The only difference is execution
-ordering.
-
-### When to leave the flag off (the default)
-
-- Your handlers don't benefit from concurrency (sync values, fast pure
-  computations).
-- Your handlers mutate shared state and you need the legacy serial-
-  dispatch guarantee. Concurrent dispatch lets handlers race against
-  each other; serialising at the dispatch boundary is the simplest way
-  to avoid that.
-- You want bit-for-bit back-compat with pre-flag behaviour.
-
-### When to flip it on
-
-- Your script uses Python `await ext()` against a Dart-registered host
-  function (the only way to express "this call is async" inside
-  Python). Without `useFutures: true`, that line raises
-  `TypeError: 'str' object can't be awaited` because the eager dispatch
-  path returns a plain value.
-- Your handlers do real I/O (HTTP, file, sub-process) and you want
-  `asyncio.gather` to actually parallelise — sequential dispatch costs
-  you the sum of all handler latencies.
-
-### Error handling
-
-`useFutures: true` collects per-call errors into the `errors` map and
-hands them to `resolveFutures`. The pydantic-monty engine surfaces a
-failed future as a script termination (`MontyScriptError`) with the
-error message verbatim — Python's own `try / except RuntimeError`
-around `await fn()` does **not** catch it today. If you want recovery
-semantics, do the catching Dart-side inside the handler and return a
-sentinel value.
-
-For the cell-by-cell contract across every (Dart × Python × API layer
-× backend) combination, see
-[dart_monty_core's async-matrix deep dive][async-matrix] and the
-matrix tests in `test/integration/_runtime_async_matrix_body.dart`.
-
-[async-matrix]: https://github.com/runyaga/dart_monty_core/blob/main/docs/deep-dives/async-matrix.md
+`subExecute` needs another available session from the runtime pool. Supply a
+pool with capacity for the parent execution and each concurrent child or
+sub-execution.

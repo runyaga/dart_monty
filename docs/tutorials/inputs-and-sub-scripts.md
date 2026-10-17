@@ -1,277 +1,104 @@
 # Inputs, `run_script`, and Sub-Execution
 
-This guide covers three closely-related features:
+This guide covers per-execution inputs, the `run_script` host function, and
+sub-execution from host functions.
 
-1. **`inputs:`** — inject per-call Python variables before code runs.
-2. **`run_script`** — call another script from Python and receive its
-   last-expression value.
-3. **`HostContext.subExecute`** — drive sub-executions from your own
-   host functions, safely.
-
-All three were introduced together because they solve the same problem
-from different angles: how to compose multiple Monty executions when
-the bridge serialises one run at a time.
-
-**Prerequisites:** [Host Functions — Intermediate](host-functions-intermediate.md).
+**Prerequisites:** [Host Functions - Intermediate](host-functions-intermediate.md).
 
 ---
 
-## `inputs:` — per-call variable injection
+## `inputs:` per-execution variable injection
 
-`MontyRuntime.execute` takes an optional `Map<String, Object?> inputs`.
-Each entry is converted to a Python literal and prepended to the code
-as an assignment statement, so the value lands as a top-level Python
-name *before* user code runs:
+`MontyRuntime.execute` accepts `Map<String, Object?>` inputs. Each value
+becomes a top-level Python variable before the code runs.
 
 ```dart
-final r = await runtime
-    .execute('f"{greeting}, {name}!"', inputs: {
-      'greeting': 'hello',
-      'name': 'Alice',
-    })
+final runtime = await MontyRuntime.start(
+  extensions: [SandboxExtension()],
+);
+final result = await runtime
+    .execute(
+      'f"{greeting}, {name}!"',
+      inputs: {'greeting': 'hello', 'name': 'Alice'},
+    )
     .result;
-// r.value.dartValue == 'hello, Alice!'
+print(result.dartValue);
+await runtime.dispose();
 ```
 
-The same parameter rides through `buildRunScriptFunction`'s sub-script
-invocation and through `HostContext.subExecute`.
+Input values support `bool`, `int`, `double`, `String`, `List`, `Map`, and
+`MontyNone()`, including nested lists and maps. Dart `null` and `MontyNone()`
+both become Python `None`.
 
-### Convertible types
+The default runtime retains Python globals between executions. Set
+`sandbox: true` on `MontyRuntime.start` to execute each call in a fresh
+session.
 
-`bool`, `int`, `double` (incl. `nan` / `inf`), `String`, `List`, `Map`,
-and `MontyNone()`. Lists and maps are converted recursively.
+## `run_script` calls another script
 
-### Two distinct error mechanisms
-
-Both are **synchronous** — the script never starts when the encoder
-rejects an input.
-
-| Bad input | Throws | Why |
-|---|---|---|
-| Dart `null` value | `MontyInternalError` | Use `MontyNone()` for Python `None`. `MontyInternalError` extends `Error` (not `Exception`), so it can't be silently swallowed by `on Exception` handlers. |
-| Unsupported type (`DateTime`, custom class, etc.) | `ArgumentError` | Convert to a supported type first. |
+`buildRunScriptFunction` creates a host function that loads source by path and
+runs it through `HostContext.subExecute`.
 
 ```dart
-runtime.execute('x', inputs: {'x': null});           // → MontyInternalError
-runtime.execute('x', inputs: {'x': DateTime.now()}); // → ArgumentError
-runtime.execute('x is None', inputs: {'x': const MontyNone()}); // OK
-```
-
-### Shared mode persistence
-
-In shared mode (the default), injected names land in the Python
-interpreter's globals — so they persist into subsequent calls on the
-same runtime. Sandbox mode (`MontyRuntime(sandbox: true)`) starts each
-call from a fresh interpreter, so injected names disappear after the
-call returns.
-
----
-
-## `run_script` — call another script from Python
-
-`buildRunScriptFunction(readFile)` builds a `HostFunction` that lets
-Python execute another script file by path:
-
-```dart
-final vfs = <String, String>{
+final scripts = <String, String>{
   'greet.py': 'f"hello, {name}!"',
-  'double.py': 'n * 2',
 };
 
-final runtime = MontyRuntime()
-  ..register(buildRunScriptFunction((path) async {
-    final code = vfs[path];
-    if (code == null) throw Exception('file not found: $path');
+final runtime = await MontyRuntime.start();
+runtime.register(
+  buildRunScriptFunction((path) {
+    final code = scripts[path];
+    if (code == null) throw StateError('script not found: $path');
     return code;
-  }));
+  }),
+);
+
+final result = await runtime
+    .execute('run_script("greet.py", inputs={"name": "Alice"})')
+    .result;
+print(result.dartValue);
+await runtime.dispose();
 ```
 
-From Python:
+The Python function takes a required string `path` and an optional map
+`inputs`. Its result is the sub-script's last expression. A sub-script runs in
+a fresh session, so its globals do not enter the caller's session and it does
+not receive the caller's host functions.
 
 ```python
 greeting = run_script('greet.py', inputs={'name': 'Alice'})
-# 'hello, Alice!'
-
-doubled = run_script('double.py', inputs={'n': 21})
-# 42
 ```
 
-The `readFile` callback is your wiring — point it at a `dart:io` read,
-a VFS, an HTTP fetch, or whatever script source you have. It runs
-synchronously from Python's perspective; awaitable Dart work in
-`readFile` is fine.
+`inputs` keys must be string Python identifiers that are not keywords. Invalid
+arguments and failures from the source loader surface as Python errors.
 
-### Return-value semantics
+## `HostContext.subExecute` from your own host function
 
-`run_script` returns whatever the sub-script's last expression
-evaluates to:
-
-| Sub-script content | `run_script(...)` returns |
-|---|---|
-| `n * 2` (last-expression) | the value (`42`) |
-| `x = 99` (statement only) | `None` |
-| `x = 7\nx * 6` (statement, then expression) | the expression value (`42`) |
-| `return 42` at module level | the return value (`42`) — pydantic-monty allows it |
-| Sub-script raises | the host function raises in Python; `result.isError == true` |
-
-### Argument shape
-
-`run_script` itself is just a host function with two params:
-
-| Param | Type | Required |
-|---|---|---|
-| `path` | `string` | yes |
-| `inputs` | `map` | no |
-
-Both kwargs and positional forms work — `run_script('foo.py', inputs={'k':'v'})`
-and `run_script('foo.py', {'k':'v'})` are equivalent because pydantic-monty
-maps positional args to schema params by index.
-
-Invalid arguments surface as Python errors (`result.isError == true`):
-
-| Misuse | Surfaces as |
-|---|---|
-| `run_script(123)` (wrong type) | Python error |
-| `run_script("f.py", inputs="oops")` (wrong type for `inputs`) | Python error |
-| `run_script()` (missing required `path`) | Python error |
-| `run_script("f.py", typo={…})` (unknown kwarg) | Python error |
-
----
-
-## `HostContext.subExecute` — sub-execution from your own host function
-
-Every host function handler receives a `HostContext`. Two of its fields
-are the wiring for sub-execution:
+Every host function handler receives `HostContext`. `subExecute` runs a
+sub-script in a fresh session and returns its `MontyValue` result. It is
+available on a runtime-backed handler.
 
 ```dart
-class HostContext {
-  // … emit, executionId, cancelToken, os …
-
-  /// Narrow view of the owning runtime — event forwarding + schema
-  /// introspection only. Deliberately does NOT expose `execute()`.
-  final HostParentRef? parent;
-
-  /// Runs a sub-script in a fresh Monty interpreter. Safe to call from
-  /// inside a handler — uses an independent execution context, so it
-  /// doesn't contend with the caller's bridge lock.
-  final HostSubExecutor? subExecute;
-}
+HostFunction doubleValue() => HostFunction(
+  schema: const HostFunctionSchema(
+    name: 'double_value',
+    params: [HostParam(name: 'value', type: HostParamType.integer)],
+  ),
+  handler: (args, context) async {
+    final subExecute = context.subExecute;
+    if (subExecute == null) throw StateError('sub-execution is unavailable');
+    return subExecute('value * 2', inputs: {'value': args['value']!});
+  },
+);
 ```
 
-### Why two fields?
+`HostContext.parent` provides event forwarding and function schemas.
+`HostContext.cancelToken` signals cancellation for the current execution.
+Use `subExecute` for nested Python work instead of calling the owning runtime
+from a host function.
 
-The bridge serialises executions: while a script is running,
-`_isExecuting` stays true through every host function dispatch.
-Calling `runtime.execute()` from inside a handler would always throw
-`StateError('Bridge is already executing')`.
+## Sync and async handlers
 
-So `HostContext` exposes only the safe surface:
-
-- **`parent: HostParentRef?`** — `emitChildEvent` (for
-  child-spawning extensions like `SandboxExtension` to forward events
-  to the parent's stream) and `schemas` (for tool introspection like
-  the `requires()` host function). Crucially, **no `execute()`** —
-  the misuse is impossible at compile time.
-- **`subExecute`** — runs sub-scripts via `Monty(code).run()` in a
-  fresh interpreter. No shared state with the caller, no bridge
-  contention, returns a `MontyResult`.
-
-### Building your own `run_script`-style function
-
-```dart
-HostFunction myEvalFn() {
-  return HostFunction(
-    schema: const HostFunctionSchema(
-      name: 'evaluate',
-      description: 'Run a snippet and return its last expression.',
-      params: [
-        HostParam(name: 'code', type: HostParamType.string),
-        HostParam(
-          name: 'inputs',
-          type: HostParamType.map,
-          isRequired: false,
-        ),
-      ],
-    ),
-    handler: (args, ctx) async {
-      final subExecute = ctx.subExecute;
-      if (subExecute == null) {
-        throw StateError('evaluate: no subExecute wired into HostContext');
-      }
-      final code = (args['code']! as MontyString).value;
-      final rawInputs = args['inputs'];
-      final inputs = <String, MontyValue>{};
-      if (rawInputs is MontyDict) {
-        for (final (key, value) in rawInputs.pairs) {
-          if (key is! MontyString) throw ArgumentError('Expected variable name');
-          inputs[key.value] = value;
-        }
-      }
-      return subExecute(code, inputs: inputs);
-    },
-  );
-}
-```
-
-### What you trade for safety
-
-`subExecute` runs in a **fresh interpreter** — variables, functions,
-imports from the caller are not visible to the sub-script. If you need
-the sub-script to see the caller's state, you have to inject it
-explicitly via `inputs:` (or accept that the sub-script can only call
-the same host functions, since those are wired through every Monty
-execution).
-
-This is by design: nested execution on the same Python interpreter is
-the deadlock scenario, so the API doesn't offer it.
-
----
-
-## Putting it together
-
-A typical pattern: the LLM generates a small helper script that
-needs to call back into a curated set of Dart functions. The IDE wires
-that pattern with three pieces:
-
-```dart
-final runtime = MontyRuntime()
-  // 1. Register the helpers — visible in both the main script and any
-  //    script run via run_script.
-  ..register(myEvalFn())
-  ..register(buildRunScriptFunction((path) => vfs.readFile(path)));
-
-// 2. Inject context into the main script before it runs.
-final r = await runtime
-    .execute(mainScript, inputs: {'session_id': sessionId})
-    .result;
-```
-
-Inside `mainScript`, Python can call `run_script('helper.py', inputs={…})`
-to dispatch into a separate file, with the helper's own injected
-inputs. Each helper runs in its own fresh interpreter via `subExecute`
-— no deadlock, no leakage, no surprises.
-
-## Sync vs async handlers
-
-A `HostFunctionHandler` always returns `Future<MontyValue>`. Set dispatch
-on each `HostFunction`: `DispatchMode.sync` awaits the handler and returns
-a plain Python value; `DispatchMode.future` exposes an awaitable that works
-with `await` and `asyncio.gather`.
-
-Every sub-execution inherits all seven configured `ResourceLimits` from its
-owning runtime. These are per-session ceilings, not a shared remaining
-budget. A child selects `childLimits ?? owningRuntimeLimits` as a whole
-object, including null fields. Use a finite `checkoutTimeout` on injected
-pools: nested execution requires a second available session.
-
-`run_script.inputs` accepts a `MontyDict` with string Python variable names
-and preserves its values. Non-string keys, invalid identifiers, and
-keywords are rejected; no keys are stringified.
-
-For the cell-by-cell contract — every combination of (Dart sync vs
-async) × (Python bare call vs `await`) × API layer × backend — see
-[dart_monty_core's async-matrix deep dive][async-matrix] and the
-matrix test bodies (Layer 4 lives at
-`test/integration/_runtime_async_matrix_body.dart` in this repo).
-
-[async-matrix]: https://github.com/runyaga/dart_monty_core/blob/main/docs/deep-dives/async-matrix.md
+`HostFunction` handlers return `Future<MontyValue>`. `DispatchMode.sync`
+exposes a regular Python call. `DispatchMode.future` exposes an awaitable for
+Python `await` and `asyncio.gather`.
