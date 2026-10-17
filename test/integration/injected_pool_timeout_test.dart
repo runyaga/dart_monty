@@ -1,6 +1,3 @@
-// Collection access fails fast when an expected session is missing.
-// Fresh calls and repeated probes are deliberate lifecycle assertions.
-// ignore_for_file: avoid-unsafe-collection-methods, prefer-moving-to-variable
 @Tags(['integration'])
 library;
 

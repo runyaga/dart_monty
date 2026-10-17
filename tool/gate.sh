@@ -281,6 +281,7 @@ fi
 if dcm_in_container; then
   skip_check "dcm ratchet"       "DCM runs on the host: bash tool/dcm_host_gate.sh"
   skip_check "dcm suite ratchet" "DCM runs on the host: bash tool/dcm_host_gate.sh"
+  skip_check "dcm test ratchet"  "DCM runs on the host: bash tool/dcm_host_gate.sh"
 elif command -v dcm &>/dev/null; then
   # Blocking: 98 lint rules, must be zero issues
   # Ratchet, not a clean run: `dcm analyze lib` has 9 pre-existing issues, so a
@@ -305,6 +306,9 @@ elif command -v dcm &>/dev/null; then
   # fails; reducing is always allowed but must be CAPTURED, or the count drifts
   # back up while the gate stays green.
   run_check "dcm suite ratchet" bash tool/dcm_suite_ratchet.sh
+  # test/ has its own baseline; strict, so a fixed finding is recorded at once.
+  run_check "dcm test ratchet" env DCM_RATCHET_TARGETS=test DCM_RATCHET_STRICT=1 \
+    DCM_RATCHET_BASELINE=tool/dcm-test-baseline.json bash tool/dcm_ratchet.sh
 
   # Upload to DCM dashboard (main branch only, requires DCM_PROJECT_KEY)
   if [[ "${DCM_PROJECT_KEY:-}" != "" ]]; then
@@ -339,6 +343,7 @@ elif [ "${DCM_ALLOW_MISSING:-0}" = "1" ]; then
   # not be exact. Naming both fixes the report and the count together.
   skip_check "dcm ratchet"       "dcm absent, SKIPPED ON PURPOSE (DCM_ALLOW_MISSING=1) — findings unchecked"
   skip_check "dcm suite ratchet" "dcm absent, SKIPPED ON PURPOSE (DCM_ALLOW_MISSING=1) — findings unchecked"
+  skip_check "dcm test ratchet"  "dcm absent, SKIPPED ON PURPOSE (DCM_ALLOW_MISSING=1) — findings unchecked"
 else
   # NOT a skip. `if command -v dcm` used to fall through to skip_check here, so
   # a machine without dcm got a green gate that had checked nothing DCM-related
@@ -422,7 +427,7 @@ fi
 # EXACT, not a floor: a floor lets checks disappear one at a time, which is
 # the drift this exists to stop. Adding or removing one is deliberate and gets
 # a deliberate edit here. Ported from dart_monty_core c3f2c98.
-EXPECT_CHECKS=22
+EXPECT_CHECKS=23
 if [ "$RAN" != "$EXPECT_CHECKS" ]; then
   echo ""
   echo "  FAILED: ran $RAN checks, expected $EXPECT_CHECKS"

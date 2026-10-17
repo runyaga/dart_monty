@@ -1,8 +1,5 @@
 // Keep guest programs and historical case IDs intact.
 // ignore_for_file: lines_longer_than_80_chars
-// Collection access fails fast when an expected session is missing.
-// Fresh calls and repeated probes are deliberate lifecycle assertions.
-// ignore_for_file: avoid-unsafe-collection-methods, prefer-moving-to-variable
 // Private seam witnesses use core's public fake sessions; real transfers run below.
 @Tags(['integration'])
 library;
