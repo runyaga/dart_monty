@@ -1,19 +1,15 @@
-# Host Functions -- Intro
+# Host Functions
 
-Host functions let Python code running inside Monty call Dart code.
-This is the core integration pattern: Python calls a function name,
-Monty pauses execution, Dart runs your handler, and the return value
-flows back into Python.
+Host functions let Python code running in Monty call Dart handlers. A host
+function has a `HostFunctionSchema` and a handler. The schema declares the
+function name and its parameters. The handler receives validated
+`MontyValue` arguments and returns a `MontyValue`.
 
 ## Why Host Functions Exist
 
-Monty is a sandboxed Python interpreter. It cannot access files, the
-network, or system APIs on its own. Host functions are the controlled
-gateway: you decide exactly which capabilities Python gets by
-registering named functions with the runtime.
-
-From Python's perspective, host functions look like built-in globals.
-No imports, no setup -- just call the function.
+Monty code receives application capabilities only through the functions and OS
+handlers that the runtime registers. A host function defines one named,
+typed Dart operation for Python code.
 
 ## Minimal Example
 
@@ -21,46 +17,43 @@ No imports, no setup -- just call the function.
 import 'package:dart_monty/dart_monty.dart';
 
 Future<void> main() async {
-  final runtime = MontyRuntime();
+  final runtime = await MontyRuntime.start();
+  try {
+    runtime.register(
+      HostFunction(
+        schema: const HostFunctionSchema(
+          name: 'greet',
+          description: 'Returns a greeting for a name.',
+          params: [HostParam(name: 'name', type: HostParamType.string)],
+        ),
+        handler: (args, context) async {
+          final name = (args['name']! as MontyString).value;
+          context.emitText('Greeting $name');
+          return MontyString('Hello, $name!');
+        },
+      ),
+    );
 
-  // Register a host function
-  runtime.register(HostFunction(
-    schema: const HostFunctionSchema(
-      name: 'greet',
-      description: 'Returns a greeting for the given name.',
-      params: [
-        HostParam(name: 'name', type: HostParamType.string),
-      ],
-    ),
-    handler: (args, ctx) async {
-      final name = (args['name']! as MontyString).value;
-      return MontyString('Hello, $name!');
-    },
-  ));
-
-  // Execute Python that calls the host function
-  final handle = runtime.execute('greet("World")');
-  final result = await handle.result;
-  print(result.value); // Hello, World!
-
-  await runtime.dispose();
+    final result = await runtime.execute('greet("World")').result;
+    print((result as MontyString).value);
+  } finally {
+    await runtime.dispose();
+  }
 }
 ```
 
+`MontyRuntime.start` creates the runtime and attaches any supplied extensions.
+`register` adds a function to that runtime. `execute` returns an
+`ExecutionHandle`, whose `result` completes with the Python expression's
+`MontyValue`.
+
 ## What Just Happened
 
-1. `MontyRuntime` manages the execution session, tool registry, and
-   bridge for you.
-2. `runtime.register()` tells the runtime about a function named `greet`
-   with one string parameter.
-3. `runtime.execute()` runs the Python code. When Python calls `greet("World")`,
-   execution pauses, Dart runs your handler with
-   `{'name': 'World'}`, and feeds the return value (`'Hello, World!'`)
-   back to Python.
-4. The `ExecutionHandle` provides a `result` future that completes with
-   the final return value of the Python expression.
+The handler signature is `Future<MontyValue> Function(Map<String,
+MontyValue>, HostContext)`. Read each value through its concrete type, such as
+`MontyString`, `MontyInt`, or `MontyDict`.
 
 ## Next Steps
 
-The [Beginner guide](host-functions-beginner.md) covers typed parameters,
-argument validation, error handling, and the `BridgeEvent` stream in detail.
+The [Beginner guide](host-functions-beginner.md) covers schemas, validation,
+errors, and execution events.

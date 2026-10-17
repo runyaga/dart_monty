@@ -1,32 +1,19 @@
-# Host Functions -- Intermediate
+# Host Functions
 
-This guide covers organizing host functions into extensions, the extension
-coordinator, namespace validation, lifecycle hooks, OS contributions,
-child policies, and the `EventLoopExtension`.
+This guide covers extensions, OS handlers, child policies, and
+`EventLoopExtension`.
 
-**Prerequisites:** Read the [Beginner guide](host-functions-beginner.md) first.
+**Prerequisites:** Read the [Beginner guide](host-functions-beginner.md).
 
 ## MontyExtension
 
-For anything beyond a handful of functions, use `MontyExtension` to group
-related functions into a namespaced, lifecycle-managed unit.
-
-### Key Members
-
-| Member | Purpose |
-|--------|---------|
-| `namespace` | Unique prefix for all function names (e.g., `storage_`) |
-| `functions` | List of `HostFunction`s this extension provides |
-| `osContribution` | Prefix map for declarative OS call interception |
-| `childPolicy` | How the extension propagates to child sandboxes |
-| `priority` | Attachment order (higher priority attaches first) |
-| `supportedBackends`| Which backends (FFI/WASM) this extension supports |
-| `onAttach(ctx)` | Lifecycle hook called during attachment |
-| `onDispose()` | Lifecycle hook called when the session ends |
-
-### Example Extension
+`MontyExtension` groups related `HostFunction` values. An extension declares a
+namespace, its functions, optional OS handler contributions, and lifecycle
+hooks. Pass extension instances to `MontyRuntime.start`.
 
 ```dart
+import 'package:dart_monty/dart_monty.dart';
+
 class StorageExtension extends MontyExtension {
   final Map<String, MontyValue> _store = {};
 
@@ -38,134 +25,112 @@ class StorageExtension extends MontyExtension {
     HostFunction(
       schema: const HostFunctionSchema(
         name: 'storage_get',
-        description: 'Get a value by key.',
         params: [HostParam(name: 'key', type: HostParamType.string)],
       ),
-      handler: (args, ctx) async =>
-          _store[(args['key']! as MontyString).value] ?? const MontyNone(),
+      handler: (args, _) async {
+        final key = (args['key']! as MontyString).value;
+        return _store[key] ?? const MontyNone();
+      },
     ),
   ];
+}
 
-  @override
-  Map<String, OsCallHandler>? get osContribution => {
-    'os.storage_size': (op, args, kwargs) async => _store.length,
-  };
-
-  @override
-  ChildPolicy get childPolicy => ChildPolicy.clone;
-
-  @override
-  MontyExtension createChildInstance(ChildSpawnContext context) =>
-      StorageExtension();
+Future<void> main() async {
+  final runtime = await MontyRuntime.start(
+    extensions: [StorageExtension()],
+  );
+  try {
+    await runtime.execute('storage_get("theme")').result;
+  } finally {
+    await runtime.dispose();
+  }
 }
 ```
 
-## ExtensionCoordinator
+`onAttach(AttachContext)` runs while the extension attaches. It can register
+OS handlers through `AttachContext.registerOs`. `onDispose()` runs when the
+runtime disposes. Extensions with equal priority attach in registration order.
 
-`ExtensionCoordinator` collects extensions, validates them, and wires them onto
-a bridge:
+## OS Contributions
 
-```dart
-final coordinator = ExtensionCoordinator()
-  ..register(StorageExtension())
-  ..register(MathExtension());
-
-await coordinator.attachTo(bridge);
-```
-
-### OS Contributions
-
-Extensions can intercept OS calls (like `pathlib` or `os`) declaratively
-via `osContribution`. The coordinator merges these from all extensions:
+An `OsHandler` receives an operation name, positional `MontyValue` arguments,
+and keyword `MontyValue` arguments. Return a `MontyValue`. Throw
+`ExternalException` to raise a selected Python exception type.
 
 ```dart
-@override
-Map<String, OsCallHandler> get osContribution => {
-  'Path.': _myHandler,
-  'os.': _myHandler,
-};
+import 'package:dart_monty/dart_monty.dart';
+
+MontyValue readOnlyPath(
+  String name,
+  List<MontyValue> args,
+  Map<String, MontyValue> kwargs,
+) {
+  if (name == 'open' && args.length > 1 && args[1].dartValue != 'r') {
+    throw const ExternalException('PermissionError', 'Read-only data');
+  }
+  throw const OsCallNotHandledException();
+}
+
+Future<void> main() async {
+  final runtime = await MontyRuntime.start(
+    osHandlers: {'Path.': readOnlyPath},
+  );
+  await runtime.dispose();
+}
 ```
 
-If two extensions claim the same prefix, `attachTo()` throws a `StateError`.
+Use `OSAccess().call` as a memory-backed handler for `Path.` operations.
+`MontyRuntime.start` accepts `os` for one handler and `osHandlers` for a
+prefix map.
 
-### Child Policies
+## Child Policies
 
-When a child sandbox is spawned (via `SandboxExtension`), the parent
-coordinator propagates extensions to the child based on their `childPolicy`:
-
-- **`ChildPolicy.exclude`** (default): The extension is not present in children.
-- **`ChildPolicy.inherit`**: The same instance is shared with the child.
-- **`ChildPolicy.clone`**: `createChildInstance()` is called to create a fresh
-  copy for the child.
+`ChildPolicy.exclude` keeps an extension out of child sandboxes.
+`ChildPolicy.inherit` shares its instance. `ChildPolicy.clone` creates a fresh
+instance through `createChildInstance(ChildSpawnContext)`. `SandboxExtension`
+creates child sandboxes when its Python functions request them.
 
 ## EventLoopExtension
 
-`EventLoopExtension` turns a one-shot `execute()` call into a long-running
-cooperative exchange.
-
-### Flow Diagram
-```mermaid
-sequenceDiagram
-    participant D as Dart
-    participant P as Python
-
-    D->>P: execute(script_with_loop)
-    loop Event Loop
-        P->>D: el_emit(state)
-        Note right of D: Dart UI updates
-        P-->>D: el_recv() (blocks)
-        Note left of P: Python is paused
-        D->>P: dispatch(event)
-        Note right of D: User action triggers dispatch
-    end
-    D->>P: dispatch({action: "quit"})
-    P-->>D: Loop breaks, script finishes
-```
-
-### The Pattern
-
-Python calls `el_recv()` to pause and `el_emit(value)` to push data back:
-
-```python
-while True:
-    el_emit({"status": "ready"})
-    event = el_recv() # Blocks until Dart calls dispatch()
-    if event["action"] == "quit": break
-```
-
-### Dart Side
+`EventLoopExtension` supports a cooperative exchange. Python calls
+`el_emit(value)` to publish a `MontyDict` and calls `el_recv()` to wait for an
+event. Dart reads `lastEmitted` or `lastEmittedSignal` and supplies an event
+through `dispatch`.
 
 ```dart
-final ext = EventLoopExtension();
-final session = MontyRuntime(extensions: [ext]);
+import 'package:dart_monty/dart_monty.dart';
 
-ext.lastEmittedSignal.subscribe((v) => print('Python: $v'));
-session.execute(script);
-
-ext.dispatch(const MontyDict([(MontyString('action'), MontyString('quit'))]));
+Future<void> main() async {
+  final events = EventLoopExtension();
+  final runtime = await MontyRuntime.start(extensions: [events]);
+  try {
+    final handle = runtime.execute('''
+el_emit({'status': 'ready'})
+event = el_recv()
+event['action']
+''');
+    while (!events.isWaiting) {
+      await Future<void>.delayed(Duration.zero);
+    }
+    events.dispatch(
+      const MontyDict([(MontyString('action'), MontyString('quit'))]),
+    );
+    await handle.result;
+  } finally {
+    await runtime.dispose();
+  }
+}
 ```
 
-## What's on `ctx`
+## HostContext
 
-Every handler signature is `(args, ctx) async`. `ctx` is a `HostContext`
-exposing the platform plumbing your handler may need:
-
-| Field | Purpose |
-|-------|---------|
-| `emit(BridgeEvent)` / `emitText(String)` | Push events into the execution stream — progress, intermediate results, custom events |
-| `executionId` | Unique ID for this tool call; correlate with `BridgeFunctionEmit` and other per-call events |
-| `cancelToken` | Cooperative cancellation signal — race long-running work against `cancelToken.future` to bail when `ExecutionHandle.cancel()` fires |
-| `os` | Currently-registered `OsCallHandler`, for handlers that want to invoke OS primitives directly without routing through Python |
-| `parent` | Narrow `HostParentRef?` view of the owning runtime — `emitChildEvent` for child-spawning extensions, `schemas` for tool introspection. Deliberately **does not** expose `execute()` (that would deadlock the bridge). |
-| `subExecute` | Closure that runs a sub-script in a fresh Monty interpreter. Use when you need to drive another Python execution from inside your handler — see [Inputs, run_script, and Sub-Execution](inputs-and-sub-scripts.md). |
-
-The `parent` / `subExecute` split is intentional: nested
-`execute()` on the same bridge would always deadlock (`_isExecuting`
-stays true through dispatch), so the API offers `subExecute` for the
-safe path and a narrower `HostParentRef` for everything else.
+Handlers receive `HostContext` as their second argument. `executionId`
+identifies the execution. `cancelToken` signals cancellation. `emitText`
+adds text to the execution event stream. `os` exposes the registered
+`OsHandler`, `parent` exposes child-event forwarding and schemas, and
+`subExecute` runs a separate Python execution when the runtime provides it.
 
 ## Next Steps
 
-The [Advanced guide](host-functions-advanced.md) covers deep-dives into
-`SandboxExtension` and complex production patterns. For sub-scripting,
-see [Inputs, `run_script`, and Sub-Execution](inputs-and-sub-scripts.md).
+The [Advanced guide](host-functions-advanced.md) covers `SandboxExtension`
+and larger host-function designs.
