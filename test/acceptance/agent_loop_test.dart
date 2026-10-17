@@ -8,8 +8,7 @@
 // dart2wasm). Only A8's fault injection uses the runtime's test hook.
 //
 // Run:
-//   DART_MONTY_WORKER=<worker> dart test test/acceptance --run-skipped \
-//     --tags acceptance
+//   dart test test/acceptance --run-skipped --tags acceptance
 //   dart test test/acceptance -p chrome,firefox -c dart2js,dart2wasm \
 //     --run-skipped --tags acceptance
 @Tags(['acceptance'])

@@ -2,9 +2,8 @@
 
 Everything needed to build, test, and contribute to dart_monty. The package
 contains Dart sources. The `dart_monty_core` dependency supplies web worker
-assets. Its build hook creates the mount-service code asset only when this
-package opts in with `build_worker: true`. CI builds the worker and native mount
-library separately with core's `tool/build_worker.sh`.
+assets and its build hook installs the verified prebuilt VM worker. The mount
+library for `MountDir` needs the root package opt-in.
 
 ## Required tools
 
@@ -65,14 +64,21 @@ dart test
 ```
 
 The default test run skips slow integration and acceptance tests. The VM cell
-needs a `dart_monty_worker` executable and its path in `DART_MONTY_WORKER`.
-Browser cells use web worker assets from the resolved core package.
+uses the prebuilt worker that core's hook installs. Browser cells use web
+worker assets from the resolved core package.
 
 ```bash
-DART_MONTY_WORKER=<path>/dart_monty_worker \
-  bash tool/test_cell.sh vm
+bash tool/test_cell.sh vm
 bash tool/test_cell.sh chrome-dart2js
 ```
 
 `tool/test_cell.sh` accepts `vm`, `chrome-dart2js`, `chrome-dart2wasm`,
 `firefox-dart2js`, and `firefox-dart2wasm`.
+
+To test an unreleased core commit, point `dependency_overrides` at that commit,
+run core's `tool/build_worker.sh`, and set `DART_MONTY_WORKER` for JIT tests.
+The `build_worker: true` opt-in builds the worker library for self-relaunch. If
+the bundled manifest has a target, the hook uses its listed release artifacts.
+If the manifest has no target, the opt-in builds only the library from source.
+A failed artifact download fails the build. The mount library needs the same
+opt-in.

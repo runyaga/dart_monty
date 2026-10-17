@@ -14,10 +14,7 @@ late HostContext _testCtx;
 ///
 /// Run with:
 /// ```bash
-/// cd native && cargo build --release && cd ..
-/// cd packages/dart_monty_bridge
-/// DYLD_LIBRARY_PATH=../../native/target/release \
-///   dart test --tags=integration --run-skipped \
+/// dart test --tags=integration --run-skipped \
 ///   test/integration/sandbox_logging_test.dart
 /// ```
 void main() {

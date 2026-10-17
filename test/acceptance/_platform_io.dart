@@ -3,19 +3,12 @@ library;
 
 import 'dart:io';
 
-/// Where the pool finds the worker: the executable named by
-/// `DART_MONTY_WORKER`. The suite does not rely on core's discovery, as a
-/// desktop app before core ships the worker passes an explicit location.
-String get acceptanceWorkerLocation {
+/// The locally built worker named by `DART_MONTY_WORKER`, or core's prebuilt
+/// worker when the variable is unset.
+String? get acceptanceWorkerLocation {
   final path = Platform.environment['DART_MONTY_WORKER'];
-  if (path == null || path.isEmpty) {
-    throw StateError(
-      'Set DART_MONTY_WORKER to the dart_monty_worker executable '
-      "(built by dart_monty_core's tool/build_worker.sh).",
-    );
-  }
 
-  return path;
+  return path == null || path.isEmpty ? null : path;
 }
 
 /// Whether workers are operating-system processes with ids.

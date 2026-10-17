@@ -7,6 +7,12 @@
   host function can be written from the dm import alone. The facade has 54
   names.
 
+### Changed
+
+- dart_monty and dart_monty_core are 0.110.0-dev.3. VM tests and native
+  programs use the prebuilt worker that core's build hook installs from the
+  core release, and CI uses that worker without building one.
+
 ### Fixed
 
 - The installation page lists the Git tag for `dart_monty`, the root

@@ -40,21 +40,21 @@ Alternatively, pass their directory URL as `workerLocation` to `Monty.start`.
 ## Native (FFI)
 
 For desktop / server / Flutter desktop / Flutter mobile targets,
-`dart_monty_core/hook/build.dart` compiles a platform-specific
-shared library at `pub get` time and registers it as a `CodeAsset`.
-Dart's native-assets toolchain bundles the library into your
-compiled output automatically — no manual copy step required.
+`dart_monty_core/hook/build.dart` installs the verified host worker from the
+core release during `dart run`, `dart test`, or `dart build`. Dart's
+native-assets toolchain bundles the mount library into compiled output when the
+root package opts in for `MountDir`.
 
 Requirements:
 
-- Rust toolchain (`cargo` + `rustc stable`) on the build machine.
-- `flutter pub get` or `dart pub get` triggers the build.
+- `dart pub get` resolves dependencies before a command that runs the hook.
 
 ### AOT-compiled standalone binaries
 
-When you produce a plain `dart compile exe` binary, the native
-assets hook still runs at build time and the dylib is referenced
-with an absolute path from the pub cache. For distribution, Dart's
-native-asset tooling handles the staging; see the
+When you produce a `dart compile exe` binary without `workerLocation`, call
+`runMontyWorkerIfChild(args)` first in `main` and opt in to `build_worker: true`
+so the binary bundles the worker library and relaunches itself as the worker.
+Dart's native-assets tooling handles mount library staging for an opted-in
+package. See the
 [Dart native-assets documentation](https://dart.dev/interop/c-interop/native-assets)
 for the current layout.

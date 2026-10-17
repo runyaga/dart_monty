@@ -162,7 +162,7 @@ echo "--- pub get ($WEB) ---"
 REF=$(awk '/^dependency_overrides:/,0' pubspec.yaml \
       | sed -nE 's/^[[:space:]]*ref:[[:space:]]*(.+)[[:space:]]*$/\1/p' | head -1)
 [ -n "$REF" ] || fail "could not read the dart_monty_core ref from pubspec.yaml"
-grep -q "ref: \"$REF\"" "$WEB/pubspec.lock" \
+grep -Eq "ref: \"?$REF\"?\$" "$WEB/pubspec.lock" \
   || fail "$WEB resolved dart_monty_core from somewhere other than $REF:
 $(sed -n '/dart_monty_core:/,/^  [a-z]/p' "$WEB/pubspec.lock" | sed 's/^/      /')"
 echo "core ref: $REF (declared and resolved)"
