@@ -80,12 +80,12 @@ attachment lifecycle.
 ## Workspace ownership
 
 Each child receives an independent namespace with cwd `/work`. Memory is the
-default; `sandboxBaseDir` selects an owned native directory on VM.
+default. `sandboxBaseDir` selects an owned native directory on VM.
 `files` and `ro_files` map child-relative destinations to absolute parent
-sources; `collect` on `sandbox_await` maps child-relative sources to absolute
+sources. `collect` on `sandbox_await` maps child-relative sources to absolute
 parent destinations. Copies are explicit snapshots, and collections are
-repeatable. Filesystem calls outside `/work` decline synchronously to core;
-they never fall through to the parent filesystem.
+repeatable. Filesystem calls outside `/work` decline synchronously to core and
+never fall through to the parent filesystem.
 
 See [workspace policy](oscall-vfs.md) for caps, transfer bounds and disposal.
 

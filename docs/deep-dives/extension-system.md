@@ -68,8 +68,8 @@ shares it.
 
 `HostFunction` combines a `HostFunctionSchema` with a handler. The schema
 describes the function name and `HostParam` values. The handler receives typed
-`MontyValue` arguments and returns a `MontyValue`, synchronously or through a
-future. `MontyRuntime.register` adds a function after startup.
+`MontyValue` arguments and returns a `Future<MontyValue>`. `MontyRuntime.register`
+adds a function after startup.
 
 Most applications pass extensions to `MontyRuntime.start`. The runtime
 attaches them before shared execution and disposes them when the runtime
