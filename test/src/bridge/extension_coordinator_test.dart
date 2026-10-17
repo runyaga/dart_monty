@@ -34,7 +34,7 @@ void main() {
   });
 
   test('AttachContext.schemas lists every registered function, and none '
-      'without a handler on this backend (D1-3)', () async {
+      'without a handler on this backend', () async {
     final bridge = MontyBridge(
       session: FakeMontySession(),
       logger: BridgeLogger.silent,
@@ -781,7 +781,7 @@ void main() {
       });
     });
 
-    group('D1 contract', () {
+    group('extension ordering contract', () {
       test(
         'equal priorities keep registration order past insertion-sort size',
         () async {

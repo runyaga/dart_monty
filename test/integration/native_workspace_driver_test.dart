@@ -497,7 +497,7 @@ Path('/work/output').read_text()
     expect(File('${root.path}/seed').readAsStringSync(), 'disk');
   });
 
-  test('D4a-transfer-capacity', () async {
+  test('workspace transfers enforce capacity limits', () async {
     final root = Directory('${base.path}/capacity')..createSync();
     final readonly = MountDir(
       hostPath: root.path,

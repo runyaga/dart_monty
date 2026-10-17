@@ -13,7 +13,7 @@ void main() {
   );
   // Accepted explicit limits remain a D5-A gap until child checkout uses the
   // runtime seam. Rejection must not depend on the current checkout stub.
-  test('D3-child-limit-selection omitted rejects owner escalation', () async {
+  test('omitted child limits reject owner escalation', () async {
     final runtime = await startRuntimeWith(
       checkout: ({limits}) async => FakeMontySession(),
       limits: owning,

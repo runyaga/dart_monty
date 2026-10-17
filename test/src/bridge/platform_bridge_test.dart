@@ -874,10 +874,10 @@ void main() {
     );
   });
 
-  // D1-3: host calls on core's feed. Each registered function is a
+  // Host calls on core's feed. Each registered function is a
   // MontyHostFunction in the feed's externalLookup, wrapped so its calls
   // emit dm's call events; a future-mode function is a core coroutine.
-  group('host calls on the session (D1-3)', () {
+  group('host calls on the session', () {
     test('a call emits its events in order under one call id', () async {
       HostContext? seen;
       bridge.register(
@@ -1334,9 +1334,9 @@ void main() {
     });
   });
 
-  // D1-2: the bridge spine. One execute is one feedRun on the session; dm
+  // The bridge spine. One execute is one feedRun on the session; dm
   // builds the events itself.
-  group('execute on the session (D1-2)', () {
+  group('execute on the session', () {
     test(
       'starts with BridgeRunStarted and ends with BridgeRunFinished',
       () async {
@@ -1607,7 +1607,7 @@ void main() {
     });
   });
 
-  group('OS calls on the session (D1-2)', () {
+  group('OS calls on the session', () {
     test('a host-answered call emits OsCallStart then OsCallResult', () async {
       bridge.registerOs((name, args, kwargs) => const MontyString('v'));
       fake

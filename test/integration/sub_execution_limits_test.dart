@@ -12,87 +12,91 @@ import '../src/_recording_session.dart';
 void main() {
   for (final script in [false, true]) {
     for (final mixed in [false, true]) {
-      test('D3-sub-seven-fields script=$script mixed=$mixed', () async {
-        final limits = ResourceLimits(
-          maxFeedDuration: const Duration(seconds: 11),
-          maxTurnDuration: mixed ? null : const Duration(seconds: 3),
-          maxMemory: 16000000,
-          gcInterval: mixed ? null : 123,
-          maxRecursionDepth: 71,
-          maxSuspensions: mixed ? null : 13,
-          maxTotalSleep: const Duration(milliseconds: 17),
-        );
-        final observed = <ResourceLimits?>[];
-        final sessions = <RecordingSession>[];
-        final runtime = await startRuntimeWith(
-          limits: limits,
-          checkout: ({limits}) async {
-            observed.add(limits);
-            final fake = FakeMontySession();
-            if (sessions.isEmpty) {
-              fake.willCall(
-                script ? 'run_script' : 'probe',
-                args: script ? [const MontyString('child.py')] : [],
-              );
-            }
-            fake.willReturn(const MontyInt(42));
-            final session = RecordingSession(fake);
-            sessions.add(session);
-            return session;
-          },
-        );
-        addTearDown(runtime.dispose);
-        runtime.register(
-          script
-              ? buildRunScriptFunction((_) => '42')
-              : HostFunction(
-                  schema: const HostFunctionSchema(name: 'probe'),
-                  handler: (_, ctx) => ctx.subExecute!('42'),
-                ),
-        );
-        await runtime.execute('probe()').result;
-        expect(observed, hasLength(2));
-        expect(
-          observed[1]?.maxFeedDuration,
-          limits.maxFeedDuration,
-          reason: 'maxFeedDuration',
-        );
-        expect(
-          observed[1]?.maxTurnDuration,
-          limits.maxTurnDuration,
-          reason: 'maxTurnDuration',
-        );
-        expect(observed[1]?.maxMemory, limits.maxMemory, reason: 'maxMemory');
-        expect(
-          observed[1]?.gcInterval,
-          limits.gcInterval,
-          reason: 'gcInterval',
-        );
-        expect(
-          observed[1]?.maxRecursionDepth,
-          limits.maxRecursionDepth,
-          reason: 'maxRecursionDepth',
-        );
-        expect(
-          observed[1]?.maxSuspensions,
-          limits.maxSuspensions,
-          reason: 'maxSuspensions',
-        );
-        expect(
-          observed[1]?.maxTotalSleep,
-          limits.maxTotalSleep,
-          reason: 'maxTotalSleep',
-        );
+      test(
+        'sub-executions receive all seven limits script=$script mixed=$mixed',
+        () async {
+          final limits = ResourceLimits(
+            maxFeedDuration: const Duration(seconds: 11),
+            maxTurnDuration: mixed ? null : const Duration(seconds: 3),
+            maxMemory: 16000000,
+            gcInterval: mixed ? null : 123,
+            maxRecursionDepth: 71,
+            maxSuspensions: mixed ? null : 13,
+            maxTotalSleep: const Duration(milliseconds: 17),
+          );
+          final observed = <ResourceLimits?>[];
+          final sessions = <RecordingSession>[];
+          final runtime = await startRuntimeWith(
+            limits: limits,
+            checkout: ({limits}) async {
+              observed.add(limits);
+              final fake = FakeMontySession();
+              if (sessions.isEmpty) {
+                fake.willCall(
+                  script ? 'run_script' : 'probe',
+                  args: script ? [const MontyString('child.py')] : [],
+                );
+              }
+              fake.willReturn(const MontyInt(42));
+              final session = RecordingSession(fake);
+              sessions.add(session);
+              return session;
+            },
+          );
+          addTearDown(runtime.dispose);
+          runtime.register(
+            script
+                ? buildRunScriptFunction((_) => '42')
+                : HostFunction(
+                    schema: const HostFunctionSchema(name: 'probe'),
+                    handler: (_, ctx) => ctx.subExecute!('42'),
+                  ),
+          );
+          await runtime.execute('probe()').result;
+          expect(observed, hasLength(2));
+          expect(
+            observed[1]?.maxFeedDuration,
+            limits.maxFeedDuration,
+            reason: 'maxFeedDuration',
+          );
+          expect(
+            observed[1]?.maxTurnDuration,
+            limits.maxTurnDuration,
+            reason: 'maxTurnDuration',
+          );
+          expect(observed[1]?.maxMemory, limits.maxMemory, reason: 'maxMemory');
+          expect(
+            observed[1]?.gcInterval,
+            limits.gcInterval,
+            reason: 'gcInterval',
+          );
+          expect(
+            observed[1]?.maxRecursionDepth,
+            limits.maxRecursionDepth,
+            reason: 'maxRecursionDepth',
+          );
+          expect(
+            observed[1]?.maxSuspensions,
+            limits.maxSuspensions,
+            reason: 'maxSuspensions',
+          );
+          expect(
+            observed[1]?.maxTotalSleep,
+            limits.maxTotalSleep,
+            reason: 'maxTotalSleep',
+          );
 
-        expect(identical(observed[1], limits), isTrue);
-        expect(sessions[1].closed, isTrue);
-      });
+          expect(identical(observed[1], limits), isTrue);
+          expect(sessions[1].closed, isTrue);
+        },
+      );
     }
   }
   for (final script in [false, true]) {
     for (final sleep in [false, true]) {
       test(
-        'D3-sub-${sleep ? 'sleep' : 'suspension'}-limit script=$script',
+        'sub-executions enforce the ${sleep ? 'sleep' : 'suspension'} '
+        'limit script=$script',
         () async {
           final pool = await Monty.start(
             workerLocation: acceptanceWorkerLocation,

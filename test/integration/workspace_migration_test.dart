@@ -15,7 +15,7 @@ void main() {
     w = Workspace();
   });
   tearDown(() => w.dispose());
-  test('D4a-open-routing', () async {
+  test('open calls route through the workspace', () async {
     final os = composeOsHandlers({'Path.': w.call});
     final value = await h.session.feedRun(
       "with open('a', 'w') as f:\n    f.write('hi')\nopen('a').read()",
@@ -25,7 +25,7 @@ void main() {
     expect(value, const MontyString('hi'));
     expect(w.writeBytes, 2);
   });
-  test('D4a-sync-decline', () async {
+  test('synchronous workspace calls can decline', () async {
     expect(
       () => w.call('Path.read_text', [MontyPath('/outside')], {}),
       throwsA(isA<OsCallNotHandledException>()),
@@ -35,7 +35,7 @@ void main() {
       startsWith('PermissionError:'),
     );
   });
-  test('D4a-no-parent-fs-fallthrough', () async {
+  test('workspace calls do not fall through to parent filesystems', () async {
     var called = false;
     final os = w.compose((name, args, kwargs) {
       called = true;

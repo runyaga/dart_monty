@@ -6,7 +6,7 @@
 ///
 /// Run individually:
 /// ```bash
-/// dart test --run-skipped --tags=integration test/bridge/integration/ffi_mixed_mode_test.dart --name "G1"
+/// dart test --run-skipped --tags=integration test/bridge/integration/ffi_mixed_mode_test.dart --name "20 sequential sync execute calls"
 /// ```
 @Tags(['integration'])
 @TestOn('vm')
@@ -110,7 +110,7 @@ void main() {
   // ========================================================================
 
   group('G. Shared mode stress', () {
-    test('G1. 20 sequential sync execute calls', () async {
+    test('20 sequential sync execute calls', () async {
       final s = (await MontyRuntime.start(pool: pool))..register(syncFn());
       addTearDown(s.dispose);
       for (var i = 0; i < 20; i++) {
@@ -121,7 +121,7 @@ void main() {
     });
 
     test(
-      'G2. 10 sequential delay execute calls',
+      '10 sequential delay execute calls',
       () async {
         final s = (await MontyRuntime.start(pool: pool))..register(delayFn());
         addTearDown(s.dispose);
@@ -135,7 +135,7 @@ void main() {
     );
 
     test(
-      'G3. 10 sequential http execute calls',
+      '10 sequential http execute calls',
       () async {
         final s = (await MontyRuntime.start(pool: pool))..register(httpFn());
         addTearDown(s.dispose);
@@ -150,7 +150,7 @@ void main() {
       timeout: const Timeout(Duration(seconds: 120)),
     );
 
-    test('G4. counter host fn persists Dart-side state', () async {
+    test('counter host function persists Dart-side state', () async {
       final s = (await MontyRuntime.start(pool: pool))..register(counterFn());
       addTearDown(s.dispose);
       for (var i = 1; i <= 5; i++) {
@@ -160,7 +160,7 @@ void main() {
       print('  G4: counter 1→5');
     });
 
-    test('G5. accum host fn builds up across execute calls', () async {
+    test('accum host function builds up across execute calls', () async {
       final s = (await MontyRuntime.start(pool: pool))..register(accumFn());
       addTearDown(s.dispose);
       await s.execute('accum("a")').result;
@@ -170,7 +170,7 @@ void main() {
       expect(r.dartValue, 3);
     });
 
-    test('G6. state accumulation: build list across 10 calls', () async {
+    test('state accumulates in a list across 10 calls', () async {
       final s = (await MontyRuntime.start(pool: pool))..register(syncFn());
       addTearDown(s.dispose);
       await s.execute('items = []').result;
@@ -182,7 +182,7 @@ void main() {
       expect(r.dartValue, 10);
     });
 
-    test('G7. error recovery: bad call then good call', () async {
+    test('a bad call does not prevent a good call', () async {
       final s = (await MontyRuntime.start(pool: pool))..register(syncFn());
       addTearDown(s.dispose);
       await s.execute('x = 42').result;
@@ -197,7 +197,7 @@ void main() {
     });
 
     test(
-      'G8. error recovery: bad http then good sync',
+      'a bad HTTP call does not prevent a good sync call',
       () async {
         final s = (await MontyRuntime.start(pool: pool))
           ..register(syncFn())

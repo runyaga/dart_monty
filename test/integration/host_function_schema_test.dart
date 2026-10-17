@@ -1,4 +1,4 @@
-// G9: HostParam / schema / edge cases.
+// HostParam / schema / edge cases.
 //
 // Covers schema generation, required/optional params, wrong-type args,
 // MontyValueX type assertions, and extension introspection.
@@ -16,10 +16,10 @@ import '_monty_harness.dart';
 
 void main() {
   // ---------------------------------------------------------------------------
-  // G9-1: Schema generation — schemas + llmSchemas
+  // Schema generation.
   // ---------------------------------------------------------------------------
 
-  group('G9-1: schema generation', () {
+  group('schema generation', () {
     late MontyHarness h;
 
     setUp(() async {
@@ -69,10 +69,10 @@ void main() {
   });
 
   // ---------------------------------------------------------------------------
-  // G9-2: Wrong param type — Python passes wrong type
+  // Wrong parameter type handling.
   // ---------------------------------------------------------------------------
 
-  group('G9-2: wrong param type handling', () {
+  group('wrong param type handling', () {
     late MontyHarness h;
 
     setUp(() async {
@@ -118,10 +118,10 @@ void main() {
   });
 
   // ---------------------------------------------------------------------------
-  // G9-3: Optional params — None default in Python
+  // Optional parameters.
   // ---------------------------------------------------------------------------
 
-  group('G9-3: optional params', () {
+  group('optional params', () {
     late MontyHarness h;
 
     setUp(() async {
@@ -163,10 +163,10 @@ void main() {
   });
 
   // ---------------------------------------------------------------------------
-  // G9-4: MontyValue type assertions — dartValue coercions
+  // MontyValue types via dartValue.
   // ---------------------------------------------------------------------------
 
-  group('G9-4: MontyValue types via dartValue', () {
+  group('MontyValue types via dartValue', () {
     late MontyHarness h;
 
     setUp(() async {

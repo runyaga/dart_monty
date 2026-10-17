@@ -1,4 +1,4 @@
-// G8: VFS / OsCall experiments.
+// VFS / OsCall experiments.
 //
 // Covers write/read round-trips, Path.exists, OsCall bridge events,
 // the harness in-memory filesystem, and denied paths.
@@ -16,10 +16,10 @@ import '_monty_harness.dart';
 
 void main() {
   // ---------------------------------------------------------------------------
-  // G8-1: Dart writes, Python reads — round-trip
+  // Dart writes a VFS file and Python reads it.
   // ---------------------------------------------------------------------------
 
-  group('G8-1: Dart writes VFS file, Python reads', () {
+  group('Dart writes VFS file, Python reads', () {
     late MontyHarness h;
 
     setUp(() async {
@@ -63,10 +63,10 @@ cfg['rate']
   });
 
   // ---------------------------------------------------------------------------
-  // G8-2: Path.exists
+  // Path.exists.
   // ---------------------------------------------------------------------------
 
-  group('G8-2: Path.exists', () {
+  group('Path.exists', () {
     late MontyHarness h;
 
     setUp(() async {
@@ -92,10 +92,10 @@ cfg['rate']
   });
 
   // ---------------------------------------------------------------------------
-  // G8-3: OsCall events appear in bridge stream
+  // OsCall events appear in the bridge stream.
   // ---------------------------------------------------------------------------
 
-  group('G8-3: OsCall events in bridge stream', () {
+  group('OsCall events in bridge stream', () {
     late MontyHarness h;
 
     setUp(() async {
@@ -129,10 +129,10 @@ cfg['rate']
   });
 
   // ---------------------------------------------------------------------------
-  // G8-4: Harness VFS independence across test cases
+  // VFS isolation between harness instances.
   // ---------------------------------------------------------------------------
 
-  group('G8-4: VFS isolation between harness instances', () {
+  group('VFS isolation between harness instances', () {
     test('two harness instances have independent filesystems', () async {
       final h1 = MontyHarness()
         ..writeFile('/shared.txt', 'harness-one')

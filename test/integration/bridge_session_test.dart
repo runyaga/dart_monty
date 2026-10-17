@@ -207,7 +207,7 @@ void main() {
     expect(sw.elapsedMilliseconds, greaterThanOrEqualTo(50));
   });
 
-  group('host calls (D1-3)', () {
+  group('host calls', () {
     HostFunction fn(
       String name,
       HostFunctionHandler handler, {

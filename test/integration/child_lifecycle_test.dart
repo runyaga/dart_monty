@@ -23,57 +23,60 @@ import '_child_contract.dart';
 
 void main() {
   for (final providerFirst in [false, true]) {
-    test('D5-parent-dispose-collection providerFirst=$providerFirst', () async {
-      final provider = _CollectionProvider();
-      final sandbox = SandboxExtension();
-      final runtime = await MontyRuntime.start(
-        pool: await childContractPool(),
-        extensions: providerFirst ? [provider, sandbox] : [sandbox, provider],
-      );
-      addTearDown(runtime.dispose);
-      addTearDown(provider.releaseWrite);
-      final handle = await spawnChild(
-        runtime,
-        "from pathlib import Path; Path('output').write_text('done'); 42",
-      );
-      expect(await awaitChild(runtime, handle), const MontyInt(42));
-      final collecting = expectLater(
-        runtime.invoke('sandbox_await', {
-          'handle': handle,
-          'collect': const MontyDict([
-            (MontyString('output'), MontyString('/parent/result')),
-          ]),
-        }),
-        completion(const MontyInt(42)),
-      );
-      await provider.writing.future;
-      var settled = false;
-      Future<void> dispose() async {
-        await runtime.dispose();
-        settled = true;
-      }
+    test(
+      'parent disposal waits for a running collection providerFirst=$providerFirst',
+      () async {
+        final provider = _CollectionProvider();
+        final sandbox = SandboxExtension();
+        final runtime = await MontyRuntime.start(
+          pool: await childContractPool(),
+          extensions: providerFirst ? [provider, sandbox] : [sandbox, provider],
+        );
+        addTearDown(runtime.dispose);
+        addTearDown(provider.releaseWrite);
+        final handle = await spawnChild(
+          runtime,
+          "from pathlib import Path; Path('output').write_text('done'); 42",
+        );
+        expect(await awaitChild(runtime, handle), const MontyInt(42));
+        final collecting = expectLater(
+          runtime.invoke('sandbox_await', {
+            'handle': handle,
+            'collect': const MontyDict([
+              (MontyString('output'), MontyString('/parent/result')),
+            ]),
+          }),
+          completion(const MontyInt(42)),
+        );
+        await provider.writing.future;
+        var settled = false;
+        Future<void> dispose() async {
+          await runtime.dispose();
+          settled = true;
+        }
 
-      final disposing = dispose();
-      // Drain teardown work while the admitted write stays behind the barrier.
-      await Future<void>.delayed(Duration.zero);
-      final disposedDuringWrite = provider.disposals;
-      final settledDuringWrite = settled;
-      provider.releaseWrite();
-      await collecting;
-      await disposing;
-      expect(disposedDuringWrite, 0);
-      expect(settledDuringWrite, isFalse);
-      expect(provider.disposals, 1);
-      expect(
-        await provider.access.call('Path.read_text', [
-          const MontyString('/parent/result'),
-        ], {}),
-        const MontyString('done'),
-      );
-    });
+        final disposing = dispose();
+        // Drain teardown work while the admitted write stays behind the barrier.
+        await Future<void>.delayed(Duration.zero);
+        final disposedDuringWrite = provider.disposals;
+        final settledDuringWrite = settled;
+        provider.releaseWrite();
+        await collecting;
+        await disposing;
+        expect(disposedDuringWrite, 0);
+        expect(settledDuringWrite, isFalse);
+        expect(provider.disposals, 1);
+        expect(
+          await provider.access.call('Path.read_text', [
+            const MontyString('/parent/result'),
+          ], {}),
+          const MontyString('done'),
+        );
+      },
+    );
   }
 
-  test('D5-parent-dispose-close-fault', () async {
+  test('parent disposal reports a child close failure', () async {
     final sessions = <RecordingSession>[];
     var poolCloses = 0;
     final runtime = await startRuntimeWith(
@@ -111,7 +114,7 @@ void main() {
     expect(sessions.map((session) => session.closeCalls), [1, 1]);
   });
 
-  test('D5-terminal-log-fault', () async {
+  test('a throwing terminal log does not fail the child', () async {
     final sandbox = SandboxExtension();
     final sessions = <RecordingSession>[];
     final runtime = await startRuntimeWith(
@@ -134,7 +137,7 @@ void main() {
     expect(sessions[1].closeCalls, 1);
   });
 
-  test('D5-admit-k', () async {
+  test('child admission keeps its checkout', () async {
     final arrived = Completer<MontySession>();
     var checkouts = 0;
     final runtime = await startRuntimeWith(
@@ -163,45 +166,50 @@ void main() {
   });
 
   for (final dispose in [false, true]) {
-    test(dispose ? 'D5-late-checkout' : 'D5-context-late-checkout', () async {
-      final arrived = Completer<MontySession>();
-      final requested = Completer<void>();
-      final lateSession = RecordingSession(FakeMontySession());
-      var checkouts = 0;
-      final runtime = await startRuntimeWith(
-        checkout: ({limits}) async {
-          if (checkouts++ == 0) {
-            return FakeMontySession()
-              ..willCall('sandbox_spawn', args: [const MontyString('42')])
-              ..willReturn(const MontyNone());
-          }
-          requested.complete();
+    test(
+      dispose
+          ? 'a late child checkout is closed after disposal'
+          : 'a late child checkout is closed after cancellation',
+      () async {
+        final arrived = Completer<MontySession>();
+        final requested = Completer<void>();
+        final lateSession = RecordingSession(FakeMontySession());
+        var checkouts = 0;
+        final runtime = await startRuntimeWith(
+          checkout: ({limits}) async {
+            if (checkouts++ == 0) {
+              return FakeMontySession()
+                ..willCall('sandbox_spawn', args: [const MontyString('42')])
+                ..willReturn(const MontyNone());
+            }
+            requested.complete();
 
-          return arrived.future;
-        },
-        extensions: [SandboxExtension()],
-      );
-      addTearDown(runtime.dispose);
-      final events = <BridgeEvent>[];
-      final sub = runtime.events.listen(events.add);
-      addTearDown(sub.cancel);
-      final run = runtime.execute('spawn');
-      final refused = expectLater(run.result, throwsStateError);
-      await requested.future;
-      final stopped = dispose ? runtime.dispose() : run.cancel();
-      arrived.complete(lateSession);
-      await stopped;
-      await refused;
-      // Disposal joins pending preparation even when cancellation won first.
-      await runtime.dispose();
-      expect(lateSession.closeCalls, 1);
-      expect(lateSession.feeds, isEmpty);
-      expect(events.whereType<BridgeChildEvent>(), isEmpty);
-    });
+            return arrived.future;
+          },
+          extensions: [SandboxExtension()],
+        );
+        addTearDown(runtime.dispose);
+        final events = <BridgeEvent>[];
+        final sub = runtime.events.listen(events.add);
+        addTearDown(sub.cancel);
+        final run = runtime.execute('spawn');
+        final refused = expectLater(run.result, throwsStateError);
+        await requested.future;
+        final stopped = dispose ? runtime.dispose() : run.cancel();
+        arrived.complete(lateSession);
+        await stopped;
+        await refused;
+        // Disposal joins pending preparation even when cancellation won first.
+        await runtime.dispose();
+        expect(lateSession.closeCalls, 1);
+        expect(lateSession.feeds, isEmpty);
+        expect(events.whereType<BridgeChildEvent>(), isEmpty);
+      },
+    );
   }
 
   for (final failure in [false, true]) {
-    test('D5-retained-k failed=$failure', () async {
+    test('retained child checkouts handle failure=$failure', () async {
       final sessions = <RecordingSession>[];
       final runtime = await startRuntimeWith(
         checkout: ({limits}) async {
@@ -238,71 +246,74 @@ void main() {
   }
 
   for (final collectFirst in [false, true]) {
-    test('D5-retained-lease collectFirst=$collectFirst', () async {
-      final access = OSAccess(files: [MemoryFile('/parent/seed', 'seed')]);
-      final writing = Completer<void>();
-      final releaseWrite = Completer<void>();
-      var writes = 0;
-      final runtime = await MontyRuntime.start(
-        pool: await childContractPool(),
-        extensions: [SandboxExtension(maxChildren: 1)],
-        os: (name, args, kwargs) {
-          if (name == 'Path.write_bytes') {
-            writes++;
-            writing.complete();
+    test(
+      'retained child leases collect safely collectFirst=$collectFirst',
+      () async {
+        final access = OSAccess(files: [MemoryFile('/parent/seed', 'seed')]);
+        final writing = Completer<void>();
+        final releaseWrite = Completer<void>();
+        var writes = 0;
+        final runtime = await MontyRuntime.start(
+          pool: await childContractPool(),
+          extensions: [SandboxExtension(maxChildren: 1)],
+          os: (name, args, kwargs) {
+            if (name == 'Path.write_bytes') {
+              writes++;
+              writing.complete();
 
-            // Keep synchronous decline on every other OS path.
-            // ignore: prefer-async-await
-            return releaseWrite.future.then(
-              (_) => access.call(name, args, kwargs),
-            );
+              // Keep synchronous decline on every other OS path.
+              // ignore: prefer-async-await
+              return releaseWrite.future.then(
+                (_) => access.call(name, args, kwargs),
+              );
+            }
+
+            return access.call(name, args, kwargs);
+          },
+        );
+        addTearDown(runtime.dispose);
+        final handle = await spawnChild(
+          runtime,
+          "from pathlib import Path; Path('output').write_text('done'); 42",
+        );
+        await awaitChild(runtime, handle);
+        Future<MontyValue> collect() => runtime.invoke('sandbox_await', {
+          'handle': handle,
+          'collect': const MontyDict([
+            (MontyString('output'), MontyString('/parent/result')),
+          ]),
+        });
+        if (collectFirst) {
+          final collecting = collect();
+          await writing.future;
+          var freed = false;
+          Future<void> free() async {
+            await freeChild(runtime, handle);
+            freed = true;
           }
 
-          return access.call(name, args, kwargs);
-        },
-      );
-      addTearDown(runtime.dispose);
-      final handle = await spawnChild(
-        runtime,
-        "from pathlib import Path; Path('output').write_text('done'); 42",
-      );
-      await awaitChild(runtime, handle);
-      Future<MontyValue> collect() => runtime.invoke('sandbox_await', {
-        'handle': handle,
-        'collect': const MontyDict([
-          (MontyString('output'), MontyString('/parent/result')),
-        ]),
-      });
-      if (collectFirst) {
-        final collecting = collect();
-        await writing.future;
-        var freed = false;
-        Future<void> free() async {
+          final freeing = free();
+          await Future<void>.delayed(Duration.zero);
+          expect(freed, isFalse);
+          await expectLater(spawnChild(runtime, '7'), throwsStateError);
+          releaseWrite.complete();
+          expect(await collecting, const MontyInt(42));
+          await freeing;
+          expect(writes, 1);
+        } else {
           await freeChild(runtime, handle);
-          freed = true;
+          await expectLater(collect(), throwsArgumentError);
+          expect(writes, 0);
         }
-
-        final freeing = free();
-        await Future<void>.delayed(Duration.zero);
-        expect(freed, isFalse);
-        await expectLater(spawnChild(runtime, '7'), throwsStateError);
-        releaseWrite.complete();
-        expect(await collecting, const MontyInt(42));
-        await freeing;
-        expect(writes, 1);
-      } else {
-        await freeChild(runtime, handle);
-        await expectLater(collect(), throwsArgumentError);
-        expect(writes, 0);
-      }
-      expect(
-        await awaitChild(runtime, await spawnChild(runtime, '7')),
-        const MontyInt(7),
-      );
-    });
+        expect(
+          await awaitChild(runtime, await spawnChild(runtime, '7')),
+          const MontyInt(7),
+        );
+      },
+    );
   }
 
-  test('D5-live-collect', () async {
+  test('live child collection preserves workspace changes', () async {
     final access = OSAccess(files: [MemoryFile('/parent/input', 'seed')]);
     final runtime = await MontyRuntime.start(
       pool: await childContractPool(),
@@ -347,7 +358,9 @@ sandbox_await(h, collect={'output': '/parent/second'})
 
   for (final streamError in [false, true]) {
     test(
-      streamError ? 'D5-stream-error-no-done' : 'D5-dispose-throws',
+      streamError
+          ? 'a stream error with a throwing disposal still disposes the child once'
+          : 'disposal reports an extension error',
       () async {
         final extension = _LifecycleExtension(
           streamError: streamError,
@@ -387,7 +400,7 @@ sandbox_await(h, collect={'output': '/parent/second'})
     );
   }
 
-  test('D5-attach-seed-failure', () async {
+  test('a failed attachment does not seed a child', () async {
     final extension = _LifecycleExtension(throwAttach: true);
     final sessions = <RecordingSession>[];
     final runtime = await startRuntimeWith(
@@ -422,7 +435,7 @@ sandbox_await(h, collect={'output': '/parent/second'})
     );
   });
 
-  test('D5-free-race', () async {
+  test('freeing a child races safely with its checkout', () async {
     final held = Completer<void>();
     final sessions = <RecordingSession>[];
     final runtime = await startRuntimeWith(
@@ -447,7 +460,7 @@ sandbox_await(h, collect={'output': '/parent/second'})
     held.complete();
   });
 
-  test('D5-child-crash', () async {
+  test('a child crash is reported to its parent', () async {
     final sessions = <RecordingSession>[];
     final runtime = await startRuntimeWith(
       checkout: ({limits}) async {
@@ -477,66 +490,73 @@ sandbox_await(h, collect={'output': '/parent/second'})
   });
 
   for (final crash in [false, true]) {
-    test(crash ? 'D5-parent-crash' : 'D5-cancel-origin', () async {
-      final pool = await childContractPool();
-      final sessions = <RecordingSession>[];
-      final waiting = Completer<void>();
-      final release = Completer<void>();
-      final runtime = await startRuntimeWith(
-        checkout: ({limits}) async {
-          final session = RecordingSession(await pool.checkout(limits: limits));
-          sessions.add(session);
+    test(
+      crash
+          ? 'a parent crash closes its child'
+          : 'a parent cancellation closes its child',
+      () async {
+        final pool = await childContractPool();
+        final sessions = <RecordingSession>[];
+        final waiting = Completer<void>();
+        final release = Completer<void>();
+        final runtime = await startRuntimeWith(
+          checkout: ({limits}) async {
+            final session = RecordingSession(
+              await pool.checkout(limits: limits),
+            );
+            sessions.add(session);
 
-          return session;
-        },
-        extensions: [SandboxExtension()],
-      );
-      addTearDown(runtime.dispose);
-      runtime.register(
-        HostFunction(
-          schema: const HostFunctionSchema(name: 'barrier'),
-          handler: (_, _) async {
-            waiting.complete();
-            await release.future;
-
-            return const MontyNone();
+            return session;
           },
-        ),
-      );
-      // A successful earlier origin retains its child across a later failure.
-      await runtime
-          .execute('old = sandbox_spawn("import time; time.sleep(30)")')
-          .result;
-      final run = runtime.execute(
-        'new = sandbox_spawn("import time; time.sleep(30)")\nbarrier()\nraise ValueError("parent")',
-      );
-      final refused = expectLater(
-        run.result,
-        throwsA(crash ? isA<MontyError>() : isA<StateError>()),
-      );
-      await waiting.future;
-      if (crash) {
-        release.complete();
-      } else {
-        await run.cancel();
-        release.complete();
-      }
-      await refused;
-      for (var i = 0; i < 20 && sessions[2].closeCalls == 0; i++) {
-        await Future<void>.delayed(Duration.zero);
-      }
-      expect(sessions[2].closeCalls, 1);
-      expect(sessions[1].closeCalls, 0);
-      await freeChild(runtime, const MontyInt(0));
-      await freeChild(runtime, const MontyInt(1));
-      expect(
-        await awaitChild(runtime, await spawnChild(runtime, '42')),
-        const MontyInt(42),
-      );
-    });
+          extensions: [SandboxExtension()],
+        );
+        addTearDown(runtime.dispose);
+        runtime.register(
+          HostFunction(
+            schema: const HostFunctionSchema(name: 'barrier'),
+            handler: (_, _) async {
+              waiting.complete();
+              await release.future;
+
+              return const MontyNone();
+            },
+          ),
+        );
+        // A successful earlier origin retains its child across a later failure.
+        await runtime
+            .execute('old = sandbox_spawn("import time; time.sleep(30)")')
+            .result;
+        final run = runtime.execute(
+          'new = sandbox_spawn("import time; time.sleep(30)")\nbarrier()\nraise ValueError("parent")',
+        );
+        final refused = expectLater(
+          run.result,
+          throwsA(crash ? isA<MontyError>() : isA<StateError>()),
+        );
+        await waiting.future;
+        if (crash) {
+          release.complete();
+        } else {
+          await run.cancel();
+          release.complete();
+        }
+        await refused;
+        for (var i = 0; i < 20 && sessions[2].closeCalls == 0; i++) {
+          await Future<void>.delayed(Duration.zero);
+        }
+        expect(sessions[2].closeCalls, 1);
+        expect(sessions[1].closeCalls, 0);
+        await freeChild(runtime, const MontyInt(0));
+        await freeChild(runtime, const MontyInt(1));
+        expect(
+          await awaitChild(runtime, await spawnChild(runtime, '42')),
+          const MontyInt(42),
+        );
+      },
+    );
   }
 
-  test('D5-external-cancel-cleanup', () async {
+  test('external cancellation cleans up a child', () async {
     final pool = await childContractPool();
     final extension = _LifecycleExtension();
     final runtime = await MontyRuntime.start(
@@ -553,7 +573,7 @@ sandbox_await(h, collect={'output': '/parent/second'})
     expect(await runtime.execute('resource_id()').result, const MontyInt(-1));
   });
 
-  test('D5-dispose-throws-coordinator', () async {
+  test('coordinator disposal reports an extension error', () async {
     final pool = await childContractPool();
     final first = ChildContractExtension('first');
     final throwing = ChildContractExtension('throwing', throwOnDispose: true);

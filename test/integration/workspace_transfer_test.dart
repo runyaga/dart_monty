@@ -21,7 +21,7 @@ void main() {
     transfers = WorkspaceTransfers();
     parent = OSAccess(files: [MemoryFile('/parent/in', 'source')]);
   });
-  test('D4a-empty-work', () async {
+  test('an empty workspace can be created', () async {
     final w = await transfers.copyIn();
     addTearDown(w.dispose);
     final bridge = SessionBridge(session: h.session)..registerOs(w.call);
@@ -37,52 +37,58 @@ void main() {
   });
   for (final readOnly in [false, true]) {
     for (final destination in ['.', './', './.', 'a/..']) {
-      test('D4a-root-file-$readOnly-$destination', () async {
-        final calls = <String>[];
-        final mapping = {destination: '/parent/in'};
-        await expectLater(
-          transfers.copyIn(
-            parent: (name, args, kwargs) {
-              calls.add(name);
+      test(
+        'a file cannot replace the root via $destination readOnly=$readOnly',
+        () async {
+          final calls = <String>[];
+          final mapping = {destination: '/parent/in'};
+          await expectLater(
+            transfers.copyIn(
+              parent: (name, args, kwargs) {
+                calls.add(name);
 
-              return parent.call(name, args, kwargs);
-            },
-            files: readOnly ? {} : mapping,
-            roFiles: readOnly ? mapping : {},
-          ),
-          throwsA(isA<ExternalException>()),
-        );
-        expect(
-          calls,
-          everyElement(
-            isIn(['Path.is_symlink', 'Path.stat', 'Path.read_bytes']),
-          ),
-        );
-        expect(
-          (await parent.call('Path.read_text', [
-            MontyPath('/parent/in'),
-          ], {})).dartValue,
-          'source',
-        );
-      });
+                return parent.call(name, args, kwargs);
+              },
+              files: readOnly ? {} : mapping,
+              roFiles: readOnly ? mapping : {},
+            ),
+            throwsA(isA<ExternalException>()),
+          );
+          expect(
+            calls,
+            everyElement(
+              isIn(['Path.is_symlink', 'Path.stat', 'Path.read_bytes']),
+            ),
+          );
+          expect(
+            (await parent.call('Path.read_text', [
+              MontyPath('/parent/in'),
+            ], {})).dartValue,
+            'source',
+          );
+        },
+      );
     }
     for (final destination in ['.', './', './.']) {
-      test('D4a-root-directory-$readOnly-$destination', () async {
-        final mapping = {destination: '/parent'};
-        final w = await transfers.copyIn(
-          parent: parent.call,
-          files: readOnly ? {} : mapping,
-          roFiles: readOnly ? mapping : {},
-        );
-        addTearDown(w.dispose);
-        expect(
-          await h.run(w, "(Path('.').is_dir(), Path('in').read_text())"),
-          [true, 'source'],
-        );
-      });
+      test(
+        'a directory cannot replace the root via $destination ro=$readOnly',
+        () async {
+          final mapping = {destination: '/parent'};
+          final w = await transfers.copyIn(
+            parent: parent.call,
+            files: readOnly ? {} : mapping,
+            roFiles: readOnly ? mapping : {},
+          );
+          addTearDown(w.dispose);
+          expect(
+            await h.run(w, "(Path('.').is_dir(), Path('in').read_text())"),
+            [true, 'source'],
+          );
+        },
+      );
     }
   }
-  test('D4a-captured-context', () async {
+  test('transfers use their captured parent context', () async {
     final w = await transfers.copyIn(
       parent: parent.call,
       files: {'in': '/parent/in'},
@@ -105,7 +111,7 @@ void main() {
       false,
     );
   });
-  test('D4a-missing-adapter', () async {
+  test('transfers reject a missing adapter', () async {
     await expectLater(
       transfers.copyIn(files: {'in': '/parent/in'}),
       throwsA(isA<ExternalException>()),
@@ -118,7 +124,7 @@ void main() {
       throwsA(isA<ExternalException>()),
     );
   });
-  test('D4a-protected-rename', () async {
+  test('transfers preserve protected rename behavior', () async {
     final w = await transfers.copyIn(
       parent: parent.call,
       roFiles: {'d/in': '/parent/in'},
@@ -136,7 +142,7 @@ void main() {
     }
     expect(await h.run(w, "Path('d/in').read_text()"), 'source');
   });
-  test('D4a-staging-failure', () async {
+  test('a staging failure preserves transfer accounting', () async {
     final w = await transfers.copyIn(parent: parent.call);
     addTearDown(w.dispose);
     await h.run(w, "Path('a').write_text('ok')");
@@ -152,7 +158,7 @@ void main() {
     );
     expect(w.writeBytes, 2);
   });
-  test('D4a-collect-retry', () async {
+  test('collection retries after a failed transfer', () async {
     var reject = true;
     final w = await transfers.copyIn(
       parent: (name, args, kwargs) {
@@ -347,7 +353,7 @@ collect_output()
             "$parameter={'$destination': '/parent/in'}",
   };
   for (final entry in invalid.entries) {
-    test('D4a-schema-${entry.key}', () async {
+    test('transfer schema rejects ${entry.key}', () async {
       final runtime = await MontyRuntime.start(
         pool: h.pool,
         os: parent.call,

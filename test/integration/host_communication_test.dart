@@ -1,4 +1,4 @@
-// G7: Dart↔host communication experiments.
+// Dart↔host communication experiments.
 //
 // Covers MontyRuntime.invoke() from Dart, ctx.emitText(), HostContext fields,
 // clearState(), state persistence across execute() calls, and per-execute
@@ -17,10 +17,10 @@ import '_monty_harness.dart';
 
 void main() {
   // ---------------------------------------------------------------------------
-  // G7-1: invoke() from Dart — bypasses Python entirely
+  // invoke() from Dart.
   // ---------------------------------------------------------------------------
 
-  group('G7-1: invoke() from Dart', () {
+  group('invoke() from Dart', () {
     late MontyHarness h;
 
     setUp(() async {
@@ -68,10 +68,10 @@ void main() {
   });
 
   // ---------------------------------------------------------------------------
-  // G7-2: ctx.emitText() — text emissions visible in event stream
+  // ctx.emitText() in a host handler.
   // ---------------------------------------------------------------------------
 
-  group('G7-2: ctx.emitText() in host handler', () {
+  group('ctx.emitText() in host handler', () {
     late MontyHarness h;
 
     setUp(() async {
@@ -99,10 +99,10 @@ void main() {
   });
 
   // ---------------------------------------------------------------------------
-  // G7-3: State persistence across execute() calls
+  // State persists across execute() calls.
   // ---------------------------------------------------------------------------
 
-  group('G7-3: state persists across execute() calls', () {
+  group('state persists across execute() calls', () {
     late MontyHarness h;
 
     setUp(() async {
@@ -128,10 +128,10 @@ void main() {
   });
 
   // ---------------------------------------------------------------------------
-  // G7-4: clearState() resets Python globals
+  // clearState() wipes Python globals.
   // ---------------------------------------------------------------------------
 
-  group('G7-4: clearState() wipes Python globals', () {
+  group('clearState() wipes Python globals', () {
     late MontyHarness h;
 
     setUp(() async {
@@ -160,10 +160,10 @@ void main() {
   });
 
   // ---------------------------------------------------------------------------
-  // G7-7: HostContext.executionId is unique per execute()
+  // executionId uniqueness.
   // ---------------------------------------------------------------------------
 
-  group('G7-7: executionId uniqueness', () {
+  group('executionId uniqueness', () {
     late MontyHarness h;
     final execIds = <String>[];
 

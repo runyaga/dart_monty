@@ -15,7 +15,7 @@ import '../src/_recording_session.dart';
 import '_child_contract.dart';
 
 void main() {
-  test('D5-context-checkout', () async {
+  test('a child checkout receives its parent context', () async {
     final pool = await childContractPool();
     final sessions = <RecordingSession>[];
     final extension = ChildContractExtension('probe');
@@ -63,7 +63,7 @@ void main() {
     }
   });
 
-  test('D5-child-subexecute', () async {
+  test('a child sub-execution receives its context', () async {
     final pool = await childContractPool();
     final observed = <ResourceLimits?>[];
     final sessions = <RecordingSession>[];
@@ -96,7 +96,7 @@ void main() {
   });
 
   // Coordinator isolation complements the live checkout witness above.
-  test('D5-context-coordinator-isolation', () async {
+  test('child coordinators isolate their context', () async {
     final pool = await childContractPool();
     final parentBridge = await childContractBridge(pool);
     final childBridge = await childContractBridge(pool);

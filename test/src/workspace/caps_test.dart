@@ -16,7 +16,7 @@ void registerCapsTests({String? Function()? backing}) {
     addTearDown(w.dispose);
   });
   tearDown(() => w.dispose());
-  test('D4a-caps-seed-retained', () async {
+  test('seeded files retain their memory charge', () async {
     w = Workspace(
       sandboxBaseDir: backing?.call(),
       files: {
@@ -28,12 +28,15 @@ void registerCapsTests({String? Function()? backing}) {
     expect(w.writeBytes, 0);
     expect(await h.run(w, "Path('a').read_text()"), 'é');
   });
-  test('D4a-caps-replace-retained', () async {
-    await h.run(w, "Path('a').write_text('abc')\nPath('a').write_text('x')");
-    expect(w.memoryUsage, 129);
-    expect(w.writeBytes, 4);
-  });
-  test('D4a-caps-append-charge', () async {
+  test(
+    'replacing a file keeps its write charge and replaces its memory charge',
+    () async {
+      await h.run(w, "Path('a').write_text('abc')\nPath('a').write_text('x')");
+      expect(w.memoryUsage, 129);
+      expect(w.writeBytes, 4);
+    },
+  );
+  test('appending files adds a memory charge', () async {
     await h.run(
       w,
       "Path('a').write_text('ab')\nf = open('a', 'a')\nf.write('é')\nf.close()",
@@ -41,17 +44,20 @@ void registerCapsTests({String? Function()? backing}) {
     expect(w.writeBytes, 4);
     expect(w.memoryUsage, 132);
   });
-  test('D4a-caps-open-truncate', () async {
+  test('opening a file for writing retains its write charge', () async {
     await h.run(w, "Path('a').write_text('ab')\nopen('a', 'w').close()");
     expect(w.memoryUsage, 128);
     expect(w.writeBytes, 2);
   });
-  test('D4a-caps-open-append-create', () async {
-    await h.run(w, "open('a', 'a').close()\nopen('a', 'a').close()");
-    expect(w.memoryUsage, 128);
-    expect(w.writeBytes, 0);
-  });
-  test('D4a-caps-mkdir-parents', () async {
+  test(
+    'opening a file for appending charges memory but no written bytes',
+    () async {
+      await h.run(w, "open('a', 'a').close()\nopen('a', 'a').close()");
+      expect(w.memoryUsage, 128);
+      expect(w.writeBytes, 0);
+    },
+  );
+  test('creating parent directories uses memory', () async {
     await h.run(
       w,
       "Path('d/e').mkdir(parents=True)\n"
@@ -59,7 +65,7 @@ void registerCapsTests({String? Function()? backing}) {
     );
     expect(w.memoryUsage, 192);
   });
-  test('D4a-caps-write-lifetime', () async {
+  test('write charges last for the workspace lifetime', () async {
     w = Workspace(sandboxBaseDir: backing?.call(), writeBytesLimit: 3);
     await h.run(w, "Path('a').write_text('ab')\nPath('a').unlink()");
     expect(
@@ -69,7 +75,7 @@ void registerCapsTests({String? Function()? backing}) {
     expect(w.writeBytes, 2);
     expect(w.memoryUsage, 64);
   });
-  test('D4a-caps-cap-owner', () async {
+  test('memory limits are owned by the workspace', () async {
     w = Workspace(sandboxBaseDir: backing?.call(), memoryUsageLimit: 128);
     expect(
       await h.caught(w, "Path('a').write_text('x')"),
@@ -84,7 +90,7 @@ void registerCapsTests({String? Function()? backing}) {
       const MontyInt(1),
     );
   });
-  test('D4a-caps-cap-rejection', () async {
+  test('write limits reject excess writes', () async {
     w = Workspace(sandboxBaseDir: backing?.call(), writeBytesLimit: 2);
     await h.run(w, "Path('a').write_text('ab')");
     await h.caught(w, "Path('a').write_text('c')");
@@ -92,7 +98,7 @@ void registerCapsTests({String? Function()? backing}) {
     expect(w.writeBytes, 2);
     expect(w.memoryUsage, 130);
   });
-  test('D4a-caps-operation-failure', () async {
+  test('a failed operation charges no write bytes', () async {
     expect(
       await h.caught(w, "Path('absent/a').write_text('x')"),
       startsWith('FileNotFoundError:'),
@@ -102,7 +108,7 @@ void registerCapsTests({String? Function()? backing}) {
     await h.run(w, "Path('a').write_text('x')");
     expect(w.writeBytes, 1);
   });
-  test('D4a-caps-feed-boundary', () async {
+  test('write limits apply across feed boundaries', () async {
     w = Workspace(sandboxBaseDir: backing?.call(), writeBytesLimit: 3);
     await h.run(w, "Path('a').write_text('ab')");
     expect(
@@ -111,7 +117,7 @@ void registerCapsTests({String? Function()? backing}) {
     );
     expect(w.writeBytes, 2);
   });
-  test('D4a-caps-read-only', () async {
+  test('read-only files reject writes without changing charges', () async {
     w = Workspace(
       sandboxBaseDir: backing?.call(),
       files: {'ro/a': 'x'},
@@ -136,35 +142,38 @@ void registerCapsTests({String? Function()? backing}) {
     expect(w.writeBytes, 0);
     expect(w.memoryUsage, 193);
   });
-  test('D4a-caps-text-vs-bytes', () async {
+  test('text and byte writes use their encoded sizes', () async {
     await h.run(w, "Path('t').write_text('😀')\nPath('b').write_bytes(b'xy')");
     expect(w.writeBytes, 6);
     expect(w.memoryUsage, 198);
   });
-  test('D4a-caps-seed-and-overwrite', () async {
+  test('seeded files can be overwritten within limits', () async {
     w = Workspace(sandboxBaseDir: backing?.call(), files: {'a': 'seed'});
     await h.run(w, "Path('a').write_text('é')");
     expect(w.memoryUsage, 130);
     expect(w.writeBytes, 2);
   });
-  test('D4a-caps-validation-order', () async {
-    w = Workspace(
-      sandboxBaseDir: backing?.call(),
-      files: {'ro': 'x'},
-      readOnly: {'ro'},
-      writeBytesLimit: 0,
-    );
-    expect(
-      await h.caught(w, "Path('ro').write_text('x')"),
-      startsWith('PermissionError:'),
-    );
-    expect(
-      await h.caught(w, "Path('missing').unlink()"),
-      startsWith('FileNotFoundError:'),
-    );
-    expect(w.writeBytes, 0);
-  });
-  test('D4a-caps-accepted-vs-rejected', () async {
+  test(
+    'a zero write budget still reports permission and missing-file errors',
+    () async {
+      w = Workspace(
+        sandboxBaseDir: backing?.call(),
+        files: {'ro': 'x'},
+        readOnly: {'ro'},
+        writeBytesLimit: 0,
+      );
+      expect(
+        await h.caught(w, "Path('ro').write_text('x')"),
+        startsWith('PermissionError:'),
+      );
+      expect(
+        await h.caught(w, "Path('missing').unlink()"),
+        startsWith('FileNotFoundError:'),
+      );
+      expect(w.writeBytes, 0);
+    },
+  );
+  test('accepted and rejected writes keep distinct charges', () async {
     w = Workspace(sandboxBaseDir: backing?.call(), memoryUsageLimit: 194);
     await h.run(
       w,
@@ -178,7 +187,7 @@ void registerCapsTests({String? Function()? backing}) {
     expect(w.memoryUsage, 129);
     expect(w.writeBytes, 2);
   });
-  test('D4a-caps-workspace-lifetime', () async {
+  test('workspace limits apply for each workspace lifetime', () async {
     final other = Workspace(
       sandboxBaseDir: backing?.call(),
       writeBytesLimit: 1,

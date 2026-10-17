@@ -751,7 +751,7 @@ void main() {
     );
   });
 
-  group('D1 contract', () {
+  group('event loop contract', () {
     test(
       'dispatch while waiting resumes and clears isWaiting at once',
       () async {
