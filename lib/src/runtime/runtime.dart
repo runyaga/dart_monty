@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:dart_monty/src/bridge/event.dart';
 import 'package:dart_monty/src/bridge/logger.dart';
@@ -451,6 +452,100 @@ class MontyRuntime implements MontyRuntimeRef {
     return bridge.invokeHostFunction(name, args, onEvent: onEvent);
   }
 
+  /// Captures the held session's Python state. Shared mode only; rejects an active execution, a clear,
+  /// checkpoint or restore in progress, an ended session and a disposed runtime. Dart extension state and
+  /// pending host futures are not included.
+  Future<Uint8List> checkpoint() async {
+    _requireIdleShared('checkpoint');
+    if (_sharedStale) throw StateError('checkpoint after the held session ended; restore or clearState first');
+    // Hold the admission gate, as restore and clearState do: an execution admitted meanwhile waits.
+    final session = _sharedBridge!.session;
+    final dump = session.dump();
+    final gate = dump.then<void>((_) {}, onError: (Object _) {});
+    _clearing = gate;
+    try {
+      return await dump;
+    } on MontyError catch (e) {
+      // A dump that ends the session retires it, as a failed feed does.
+      if (_endsSession(e)) await _retire(session);
+      rethrow;
+    } finally {
+      if (identical(_clearing, gate)) _clearing = null;
+    }
+  }
+
+  /// Replaces the held session's Python state with [bytes]. Registrations and attached extensions stay; Dart
+  /// extension state is not rolled back.
+  ///
+  /// Executions admitted meanwhile wait, as they do for [clearState]. The held session is dumped as a rollback and
+  /// released before the fresh checkout, so a full pool can restore. When [bytes] fail to load, the rollback is loaded
+  /// instead and the error is rethrown. When both fail, the runtime is left with no program: the next execution gets
+  /// empty globals. A dispose during the restore closes the fresh session instead of publishing it.
+  Future<void> restore(Uint8List bytes) async {
+    _requireIdleShared('restore');
+    if (_subSessions.isNotEmpty) throw StateError('restore while sub-executions hold sessions');
+    final next = _restore(Uint8List.fromList(bytes));
+    _clearing = next;
+    try {
+      await next;
+    } finally {
+      if (identical(_clearing, next)) _clearing = null;
+    }
+  }
+
+  // Capacity-independent: release the held session before checking out, so a full pool can restore.
+  // A healthy session is dumped first; when the new bytes fail to load, that rollback is loaded instead.
+  // When both fail the runtime is left stale (empty globals at the next execute) and the error is rethrown.
+  Future<void> _restore(Uint8List bytes) async {
+    final bridge = _sharedBridge!;
+    final old = bridge.session;
+    Uint8List? rollback;
+    if (!_sharedStale) {
+      try {
+        rollback = await old.dump();
+      } on Object {
+        rollback = null;
+      }
+    }
+    _sharedStale = true;
+    await old.close();
+    try {
+      await _publishLoaded(bridge, bytes);
+    } on Object {
+      if (rollback != null && !_disposed) {
+        try {
+          await _publishLoaded(bridge, rollback);
+        } on Object {
+          // both failed: stay stale
+        }
+      }
+      rethrow;
+    }
+  }
+
+  Future<void> _publishLoaded(SessionBridge bridge, Uint8List bytes) async {
+    final fresh = await _checkoutLive();
+    try {
+      await fresh.loadSession(bytes);
+    } on Object {
+      await fresh.close();
+      rethrow;
+    }
+    if (_disposed) {
+      await fresh.close();
+      throw StateError('MontyRuntime has been disposed');
+    }
+    bridge.session = fresh;
+    _sharedStale = false;
+  }
+
+  void _requireIdleShared(String op) {
+    if (_disposed) throw StateError('MontyRuntime has been disposed');
+    if (_sandbox) throw UnsupportedError('$op is only available in shared mode');
+    if (_sharedRun != null) throw StateError('$op while an execution is running');
+    if (_clearing != null) throw StateError('$op while a clear or restore is in progress');
+  }
+
   /// Clears all persisted Python state: disposes the extensions, closes the
   /// held session and checks out a new one, with a new bridge and
   /// coordinator. The next `execute()` starts with empty globals and
@@ -877,14 +972,15 @@ class MontyRuntime implements MontyRuntimeRef {
     _Execution run,
     Stream<BridgeEvent> stream,
   ) async {
-    final collected = <BridgeEvent>[];
+    // Only the terminal event decides the result; keeping every event grows with the run's length.
+    BridgeEvent? terminal;
     await for (final event in stream) {
-      collected.add(event);
+      if (event is BridgeRunFinished || event is BridgeRunError) terminal = event;
       if (!_eventsController.isClosed) _eventsController.add(event);
       run.events.add(event);
     }
 
-    return extractBridgeResult(collected);
+    return extractBridgeResult([?terminal]);
   }
 }
 

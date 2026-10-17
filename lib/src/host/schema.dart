@@ -99,6 +99,9 @@ Map<String, MontyValue> mapAndValidate(
     }
   }
   for (final entry in kwargs.entries) {
+    if (raw.containsKey(entry.key)) {
+      throw FormatException('$name() got multiple values for argument "${entry.key}"');
+    }
     raw[entry.key] = entry.value;
   }
 

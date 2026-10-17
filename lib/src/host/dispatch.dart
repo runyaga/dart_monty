@@ -396,7 +396,8 @@ class HostDispatch {
         'Argument validation failed',
         attributes: {'function': fn.schema.name, 'error': text},
       );
-      throw ExternalException('RuntimeError', text);
+      // A binding failure is a call-site error, as in Python: TypeError.
+      throw ExternalException('TypeError', text);
     }
   }
 
