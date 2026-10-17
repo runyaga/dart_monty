@@ -2,161 +2,107 @@
 
 ## Quick Orientation
 
-dart_monty is a pure Dart package that exposes the Monty sandboxed Python
-interpreter to Dart and Flutter applications. It wraps pydantic's `monty`
-Rust crate via two execution paths: native (FFI to a shared library) and
-web (JS interop to a WASM module running in a Web Worker).
-
-`MontyRuntime` is the recommended high-level API for stateful sessions with
-extensions and OS-level interception.
+dart_monty is a pure Dart package for running sandboxed Python through
+`dart_monty_core`. `MontyRuntime` owns the high-level execution interface:
+stateful or fresh-session execution, host functions, extensions, OS handlers,
+and bridge events.
 
 ## Architecture Diagrams
 
 ### Diagram 1: High-Level Package Dependency
 
-This diagram provides a simple, high-level overview of the main components and their dependencies, illustrating how the packages fit together.
+```mermaid
+graph TD
+    A[Dart application] --> B[MontyRuntime]
+    B --> C[dart_monty_core]
+    C --> D[Monty pool and sessions]
+    D --> E[Native worker or Web Worker]
+```
+
+### Diagram 2: dart_monty Layers
 
 ```mermaid
 graph TD
-    subgraph User Application
-        A[Dart/Flutter App]
-    end
-
-    subgraph dart_monty
-        B(MontyRuntime API)
-    end
-
-    subgraph dart_monty_core
-        C(Low-Level Engine)
-    end
-
-    subgraph Rust
-        D{Monty Crate}
-    end
-
-    A --> B
-    B --> C
+    A[Runtime] --> B[Bridge]
+    A --> C[Extension]
+    B --> D[Host]
     C --> D
+    C --> E[OS call]
+    E --> F[Workspace]
+    B --> G[Core pool and session]
+    F --> G
 ```
 
-### Diagram 2: API Layering & Abstraction
-
-This diagram illustrates the separation of concerns and how the APIs are layered, from the user-facing runtime down to the platform-specific backends.
-
-```mermaid
-graph TD
-    subgraph dart_monty [High-Level API]
-        A(MontyRuntime)
-        B(ExtensionCoordinator)
-        C(PlatformBridge)
-        D(OsCallHandler)
-    end
-
-    subgraph dart_monty_core [Low-Level Engine]
-        E(MontyPlatform)
-        F(MontyRepl)
-        G[FFI Backend]
-        H[WASM Backend]
-    end
-
-    A --> B & C
-    B --> C
-    C --> D & E
-    E --> F
-    F --> G & H
-```
-
-### Diagram 3: Execution Flow for a Tool Call
-
-This diagram shows the sequence of events when a user calls `execute` and the Python code invokes a host function (a "tool").
+### Diagram 3: Execution Flow for a Host Function
 
 ```mermaid
 sequenceDiagram
     actor User
     participant RT as MontyRuntime
-    participant PB as PlatformBridge
-    participant MR as MontyRepl (Core)
-    participant HF as Host Function (Dart)
+    participant B as MontyBridge
+    participant S as MontySession
+    participant H as HostFunction
 
     User->>RT: execute("my_tool()")
-    RT->>PB: execute("my_tool()")
-    PB->>MR: feedRun("my_tool()")
-    MR-->>PB: Yields (Pending Tool Call)
-    PB->>HF: Invoke handler for "my_tool"
-    HF-->>PB: Returns result
-    PB->>MR: resume(result)
-    MR-->>PB: Completes
-    PB-->>RT: ExecutionHandle completes
-    RT-->>User: Returns MontyResult
+    RT->>B: execute
+    B->>S: feedRun
+    S-->>B: host-function request
+    B->>H: invoke handler
+    H-->>B: MontyValue
+    B->>S: resume result
+    S-->>B: MontyValue
+    B-->>RT: BridgeRunFinished
+    RT-->>User: ExecutionHandle.result
 ```
 
 ## Internal Module Structure
 
 ```text
-dart_monty                           (high-level API package)
+dart_monty
   │
-  ├── lib/src/runtime/               (session management)
-  │     ├── MontyRuntime              (high-level session facade)
-  │     └── ExecutionHandle           (async execution control)
-  │
-  ├── lib/src/bridge/                (tool-calling layer)
-  │     ├── PlatformBridge            (tool schema + dispatch logic)
-  │     └── BridgeEvent               (streamable execution events)
-  │
-  ├── lib/src/extension/             (extension system)
-  │     ├── MontyExtension            (abstract base)
-  │     └── ExtensionCoordinator      (lifecycle and registration)
-  │
-  └── lib/src/os_call/               (VFS and OS-level interception)
-        └── OsCallHandler             (operation interception logic)
-
-dart_monty_core                      (low-level core engine package)
-  │
-  ├── lib/src/platform/               (abstract contract, pure Dart)
-  │     ├── MontyPlatform              (abstract class)
-  │     ├── MontyCoreBindings          (unified bindings contract)
-  │     └── MontyResult, MontyException, MontyStackFrame, ...
-  │
-  ├── lib/src/repl/                   (stateful Python REPL)
-  │     ├── MontyRepl                  (persistent Rust-backed REPL)
-  │     └── ReplPlatform               (adapts MontyRepl to MontyPlatform)
-  │
-  ├── lib/src/ffi/                    (native FFI backend)
-  │     └── MontyFfi                   (FFI implementation)
-  │
-  └── lib/src/wasm/                   (web WASM backend)
-        └── MontyWasm                  (WASM implementation)
+  ├── lib/src/runtime/       MontyRuntime and ExecutionHandle
+  ├── lib/src/bridge/        MontyBridge and BridgeEvent streaming
+  ├── lib/src/extension/     MontyExtension attachment and child policy
+  ├── lib/src/extensions/    Built-in sandbox and event-loop extensions
+  ├── lib/src/host/          Host functions, schemas, parameters, dispatch
+  ├── lib/src/os_call/       OS handler composition
+  └── lib/src/workspace/     Child workspace ownership and transfers
+        │
+        ▼
+dart_monty_core             Monty pool, MontySession, values, OSAccess
+        │
+        ▼
+native worker or Web Worker
 ```
 
 ## Platform Support Matrix
 
-| Platform | Module | Status | Library |
-|----------|--------|--------|---------|
-| macOS | dart_monty_core (FFI) | Supported | `.dylib` |
-| Linux | dart_monty_core (FFI) | Supported | `.so` |
-| Web | dart_monty_core (WASM) | Supported | WASM via Worker |
-| iOS | dart_monty_core (FFI) | Planned (M9) | `.a` static |
-| Android | dart_monty_core (FFI) | Planned (M9) | `.so` via NDK |
-| Windows | dart_monty_core (FFI) | Planned (M9) | `.dll` via MSVC |
+| Runtime layer | Responsibility | Public entry point |
+|---|---|---|
+| dart_monty | Runtime lifecycle and application capabilities | `MontyRuntime.start` |
+| dart_monty | Python-to-Dart calls and execution events | `MontyBridge`, `HostFunction` |
+| dart_monty | Child execution and workspace composition | `SandboxExtension`, `OSAccess` |
+| dart_monty_core | Pool, session, values, limits, and worker transport | `Monty`, `MontySession`, `ResourceLimits` |
 
 ## Choosing the Right API
 
 | Use case | API | Example |
-|----------|-----|---------|
-| Stateful session with tools | `MontyRuntime` | `final session = MontyRuntime(extensions: ...)` |
-| Simple stateful evaluation | `MontyRepl` | `final repl = MontyRepl(); repl.feedRun('x=1')` |
-| One-shot stateless evaluation | `Monty.exec()` | `await Monty.exec('2+2')` |
+|---|---|---|
+| Stateful Python execution with application capabilities | `MontyRuntime` | `final runtime = await MontyRuntime.start()` |
+| Direct core session feed | `Monty` and `MontySession` | `await Monty.withPool((pool) => pool.withSession((session) => session.feedRun('2 + 2')))` |
+| Python-callable Dart capability | `HostFunction` | `runtime.register(function)` |
 
 ## Tool Calling & LLM Integration
 
-The `MontyRuntime` and `PlatformBridge` serve two audiences simultaneously:
+`MontyRuntime` registers `HostFunction` values with its bridge. A function has
+a `HostFunctionSchema` for tool definitions and a handler that returns a
+`MontyValue` when Python calls the function. `runtime.schemas` exposes the
+registered schemas, and `runtime.events` exposes execution and host-call
+events.
 
-1. **Python side** -- host functions are callable from sandboxed Python by
-   name (e.g., `search("query")`).
-2. **LLM side** -- the same functions are advertised as tool schemas
-   (`HostFunctionSchema`) that LLMs use to generate Python code.
+`OsHandler` handles OS calls from Python. Extensions contribute handlers with
+`MontyExtension.osContribution`, or register one during attachment through
+`AttachContext.registerOs`.
 
-This dual-audience pattern means you register a tool once and get both a
-callable Python function and an LLM-compatible tool definition.
-
-For the `OsCallHandler` layer, see [OsCall / VFS Layer](../deep-dives/oscall-vfs.md).
+See [OsCall / VFS Layer](../deep-dives/oscall-vfs.md) for workspace and OS
+access policy.

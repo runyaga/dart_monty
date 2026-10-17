@@ -1,126 +1,72 @@
 # Developer Setup
 
-Everything needed to build, test, and contribute to dart\_monty. The package has no Rust or native code of its own. The worker, native library and Web Worker assets come from `dart_monty_core`.
+Everything needed to build, test, and contribute to dart_monty. The package
+contains Dart sources. The `dart_monty_core` dependency supplies web worker
+assets. Its build hook creates the mount-service code asset only when this
+package opts in with `build_worker: true`. CI builds the worker and native mount
+library separately with core's `tool/build_worker.sh`.
 
-## Required Tools
+## Required tools
 
 ### Dart SDK
 
-Required for all packages (pure Dart).
+Contributors require Dart SDK 3.11 or later.
 
 ```bash
-# macOS
 brew install dart-sdk
-# or via Flutter (includes Dart)
-brew install --cask flutter
+dart --version
 ```
-
-Verify: `dart --version` (>= 3.10)
-
-### Flutter SDK (optional)
-
-Only needed for Flutter-specific integration tests. All dart_monty packages
-are pure Dart and do not require Flutter.
-
-```bash
-brew install --cask flutter
-```
-
-Verify: `flutter --version`
 
 ### Python 3
 
-Used for developer scripts and linting tools.
+Python runs repository scripts and documentation tooling.
 
 ```bash
 brew install python@3.12
+python3 --version
 ```
 
-Verify: `python3 --version` (>= 3.12)
+### Browsers
 
-### pre-commit
+Chrome runs the Chrome cells. Firefox runs the Firefox cells. The cell runner
+uses `CHROME_EXECUTABLE` or `FIREFOX_EXECUTABLE` when set, then searches the
+platform defaults.
 
-Git hook framework that runs linters on every commit.
+## Repository layout
 
-```bash
-pip install pre-commit
-# or
-brew install pre-commit
+The repository root contains these primary directories:
 
-# Install hooks in this repo
-pre-commit install
-```
+- `lib/` contains the package facade and implementation sources.
+- `test/` contains unit, integration, acceptance, fixture, and surface tests.
+- `example/` contains native and web examples.
+- `docs/` contains user, reference, contributor, architecture, and deep-dive
+  pages.
+- `tool/` contains quality gates, test-cell tooling, and test floors.
+- `.github/workflows/` contains CI workflows.
 
-Verify: `pre-commit --version`
+`pubspec.yaml` defines the package version, SDK constraint, dependencies, and
+the pinned `dart_monty_core` override used by this checkout.
 
-## Linting and Analysis Tools
+## Install dependencies
 
-### pymarkdown
-
-Python-based markdown linter (not markdownlint-cli from npm).
-
-```bash
-pip install pymarkdownlnt
-```
-
-Verify: `pymarkdown --version`
-
-Usage:
-
-```bash
-pymarkdown \
-  --set extensions.front-matter.enabled=\$!True \
-  --disable-rules MD013,MD024,MD033,MD036,MD041,MD060 \
-  scan **/*.md
-```
-
-### gitleaks
-
-Secret scanning tool — runs in pre-commit and CI.
-
-```bash
-brew install gitleaks
-```
-
-Verify: `gitleaks version`
-
-### DCM (Dart Code Metrics)
-
-Commercial Dart analysis tool. Optional for local development
-(CI handles it), but useful for deeper analysis.
-
-```bash
-# See https://dcm.dev/docs/getting-started/installation/
-brew tap nicklockwood/formulae
-brew install dcm
-```
-
-Verify: `dcm --version`
-
-## LSP / Editor Setup
-
-### Dart / Flutter
-
-- **VS Code:** Install the [Dart](https://marketplace.visualstudio.com/items?itemName=Dart-Code.dart-code)
-  and [Flutter](https://marketplace.visualstudio.com/items?itemName=Dart-Code.flutter)
-  extensions. The Dart Analysis Server starts automatically.
-- **Neovim / other:** Use `dart language-server` or `analysis_server`.
-
-## Quick Verification
-
-After installing everything, run these from the repo root:
+Run this from the repository root.
 
 ```bash
 dart pub get
+bash tool/resolve_packages.sh
+```
+
+## Quick verification
+
+```bash
 dart format --set-exit-if-changed .
 dart analyze --fatal-infos
 dart test
 ```
 
-The integration and acceptance suites need a worker. On the VM, build
-`dart_monty_worker` with `dart_monty_core`'s `tool/build_worker.sh` and point
-`DART_MONTY_WORKER` at it. In a browser, the suites use `dart_monty_core`'s
-committed Web Worker assets and need Chrome or Firefox.
+The default test run skips slow integration and acceptance tests. The VM cell
+needs a `dart_monty_worker` executable and its path in `DART_MONTY_WORKER`.
+Browser cells use web worker assets from the resolved core package.
 
 ```bash
 DART_MONTY_WORKER=<path>/dart_monty_worker \
@@ -128,21 +74,5 @@ DART_MONTY_WORKER=<path>/dart_monty_worker \
 bash tool/test_cell.sh chrome-dart2js
 ```
 
-`tool/test_cell.sh` takes one of `vm`, `chrome-dart2js`, `chrome-dart2wasm`,
-`firefox-dart2js` and `firefox-dart2wasm`. It runs the integration and
-acceptance suites for that cell and fails when fewer tests ran than the floor
-in `tool/test_floors.tsv`.
-
-## Tool Summary
-
-| Tool | Version | Purpose |
-|------|---------|---------|
-| Dart SDK | >= 3.10 (CI pins 3.13.5) | Compilation, analysis, tests |
-| Flutter SDK | optional | Flutter-specific integration tests |
-| Chrome | current | Browser cells (`chrome-dart2js`, `chrome-dart2wasm`) |
-| Firefox | current | Browser cells (`firefox-dart2js`, `firefox-dart2wasm`) |
-| Python 3 | >= 3.12 | Developer scripts, linting |
-| pre-commit | any | Git hook automation |
-| pymarkdown | any | Markdown linting |
-| gitleaks | any | Secret scanning |
-| DCM | any | Dart code metrics (optional locally) |
+`tool/test_cell.sh` accepts `vm`, `chrome-dart2js`, `chrome-dart2wasm`,
+`firefox-dart2js`, and `firefox-dart2wasm`.

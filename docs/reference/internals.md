@@ -1,62 +1,77 @@
 # Internals
 
-This document covers the internal architecture of dart_monty: platform
-abstractions, the bridge and extension system, session management, state machines,
-and execution paths.
+This page describes the package structure that supports the public
+`package:dart_monty/dart_monty.dart` API.
 
-## Core Architecture
+## Package boundary
 
-The system is split into two main packages:
-- **`dart_monty_core`**: The low-level engine. It provides the abstract `MontyPlatform`, the stateful `MontyRepl`, and the concrete FFI and WASM backend implementations (`MontyFfi`, `MontyWasm`).
-- **`dart_monty`**: The high-level API. It provides the `MontyRuntime` for session management, the `PlatformBridge` for tool-calling, and the `ExtensionCoordinator` for managing extensions.
+`dart_monty_core` provides the worker pool, sessions, Python values, resource
+limits, errors, and OS-handler types. `dart_monty` builds runtime execution,
+host-function dispatch, extensions, bridge events, and browser or native
+backend selection on those types.
 
-## Bridge & Extension System
+Applications import `package:dart_monty/dart_monty.dart`. The facade exports
+the runtime API together with its supported core types. Source libraries under
+`lib/src/` implement the package and do not form an application API.
 
-- **`PlatformBridge`**: The central hub that connects a `MontyPlatform` backend to the tool system. It manages the execution loop, dispatches tool calls to host functions, and streams `BridgeEvent`s.
-- **`ExtensionCoordinator`**: Manages the lifecycle of all registered extensions. It handles registration, validation, attachment to the bridge, and disposal.
-- **`MontyExtension`**: The base class for creating tool bundles. Key features include:
-    - **`osContribution`**: A declarative way for an extension to intercept OS-level calls (like `pathlib`).
-    - **`childPolicy`**: An enum (`clone`, `inherit`, `exclude`) that defines how the extension behaves when a `SandboxExtension` creates a child interpreter.
-    - **`onAttach` / `onDispose`**: Lifecycle hooks for managing resources.
+## Runtime sessions
 
-## Session Management (`MontyRuntime`)
+`MontyRuntime.start` creates a runtime from an optional `Monty` pool. Without
+an injected pool, the runtime starts and owns a pool sized for a root
+execution, a sub-execution, and configured sandbox children. The pool supplies
+`MontySession` instances.
 
-`MontyRuntime` is the primary, user-facing API. It encapsulates a `PlatformBridge`, an `ExtensionCoordinator`, and a `MontyRepl` instance to provide a stateful execution environment with tools.
+Shared mode holds one session and preserves Python state between executions.
+Fresh-session mode, selected with `sandbox: true`, checks out a session for
+each execution and closes it after completion. `clearState()` creates an empty
+shared session. `dispose()` closes live sessions and extensions, then closes an
+owned pool.
 
-- **Shared Mode (default)**: A single `MontyRepl` instance is used for all `execute` calls, so Python state (variables, functions) persists.
-- **Sandbox Mode (`sandbox: true`)**: Each `execute` call gets a fresh, isolated `MontyRepl` instance, which is disposed of after the call completes. This is safer for concurrent operations or untrusted code.
+## Bridge execution and host functions
 
-## State Machine Contract
+`MontyBridge` adapts one `MontySession` to a stream of `BridgeEvent`s. It runs
+Python code, collects printed output, routes OS calls, and dispatches host
+functions. `ExecutionHandle` exposes an execution identifier, event stream,
+result future, and cancellation operation.
 
-The `MontyRepl` in `dart_monty_core` manages the raw execution state (idle, active, disposed). The higher-level `MontyRuntime` builds on this to manage its own lifecycle, ensuring that resources like extensions and the bridge are correctly initialized and torn down.
+`HostFunction` pairs a `HostFunctionSchema` with a handler. A schema declares
+the function name and ordered `HostParam` definitions. The bridge validates
+arguments and invokes the handler with named `MontyValue` arguments and a
+`HostContext`.
 
-## Execution Paths
+```dart
+import 'package:dart_monty/dart_monty.dart';
 
-### Web (WASM)
-The `MontyWasm` backend communicates with a Web Worker. Critically, **COOP/COEP headers are no longer required**. The move to the `wasm32-wasip1` Rust target allows for a more streamlined setup. The `SandboxExtension` works by creating new, isolated REPL sessions within the *same* worker, identified by a unique `replId`, which is more efficient than spinning up new workers.
+final greeting = HostFunction(
+  schema: const HostFunctionSchema(
+    name: 'greet',
+    params: [HostParam(name: 'name', type: HostParamType.string)],
+  ),
+  handler: (args, _) async {
+    final name = (args['name']! as MontyString).value;
+    return MontyString('Hello, $name');
+  },
+);
+```
 
-### Native (FFI)
-The `MontyFfi` backend calls the Rust shared library (`.dylib`, `.so`, `.dll`) via `dart:ffi`. For UI applications, it's recommended to run this in a background isolate to prevent blocking the main thread, which `MontyRuntime` can handle.
+## Extensions and OS handlers
 
-## Cross-Language Memory Contracts
+`MontyExtension` supplies host functions and optional OS-handler
+contributions. The runtime attaches extensions before their first execution or
+direct host-function invocation. It disposes them with the runtime.
 
-- **FFI (Native)**: Strings and bytes are passed as pointers. Dart is responsible for allocating and freeing memory for data it sends to Rust, and for freeing pointers returned from Rust using designated `_free` functions.
-- **Web (WASM)**: All data is passed by value via `postMessage`, using the structured clone algorithm. There is no shared memory.
+`SandboxExtension` exposes child execution facilities to Python. Its child
+limits, child count, depth, and filesystem bounds configure those children.
+`EventLoopExtension` supplies event-loop operations and records its latest
+emitted signal.
 
-## Resource Lifecycle Management
+`OsHandler` receives OS calls in the core value format. `OSAccess` supplies an
+OS handler for configured filesystem access. A runtime accepts one `os`
+handler or a prefix-keyed `osHandlers` map.
 
-### FFI Layer
-- **`MontyHandle`**: The pointer to the Rust interpreter instance is owned by the Dart backend (`MontyFfi`). It is freed exactly once when `dispose()` is called, or on a finalizer if the Dart object is garbage collected.
-- **Rust-allocated Strings**: When Rust returns a string (e.g., an error message), it allocates memory and gives Dart the pointer. Dart reads it into a Dart `String` and immediately calls the corresponding `_free` function to release the memory on the Rust side.
-- **Dart-allocated Strings**: When Dart passes a string to Rust, it allocates memory via `toNativeUtf8`, passes the pointer, and is responsible for freeing that memory after the call returns.
+## Resource and error flow
 
-### WASM Layer
-- **Session Management**: Each `MontyWasm` instance manages sessions within the Web Worker via a unique session ID. `dispose()` sends a message to the worker to terminate that specific session and free its associated resources in the worker's memory.
-- **No Manual Memory**: Since there is no shared memory, all data is copied via the structured clone algorithm, so manual memory management is not required.
-
-### Bridge & Extension Layer
-- **Ownership**: `MontyRuntime` owns the `PlatformBridge` and `ExtensionCoordinator`. When `MontyRuntime.dispose()` is called, it triggers a clean disposal cascade:
-  1. `ExtensionCoordinator.disposeAll()` is called, which calls `onDispose()` on every registered extension in reverse order.
-  2. `PlatformBridge.dispose()` is called.
-  3. The underlying `MontyRepl` instance is disposed.
-- **`SandboxExtension`**: When this extension is disposed, it iterates through all living child interpreters it has spawned and calls `dispose()` on each one to prevent orphaned resources.
+`ResourceLimits` applies to sessions used for root execution. An execution
+result completes with a `MontyValue`. Python failures complete it with a
+`MontyError` subclass. Host handlers use `ExternalException` to report an
+external exception type and message to Python.
