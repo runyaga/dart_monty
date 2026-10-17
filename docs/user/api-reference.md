@@ -1,154 +1,146 @@
-# Monty API — Dart
+# Monty API for Dart
 
-Sandboxed Python interpreter for Dart and Flutter. Pure Dart, no Flutter
-required.
+`dart_monty` provides a sandboxed Python runtime for Dart and Flutter.
 
-## MontyRuntime (Recommended)
+## MontyRuntime
 
-`MontyRuntime` is the high-level API for stateful Python execution with
-tools, extensions, and OS-level interception.
+`MontyRuntime` runs stateful Python code with host functions, extensions, and
+OS interception.
 
 ```dart
 import 'package:dart_monty/dart_monty.dart';
 
-final session = await MontyRuntime.start(
-  extensions: [EventLoopExtension()],
-  osHandlers: {'Path.': OSAccess().call},
-);
-
-// Variables persist natively across calls
-await session.execute('x = 42').result;
-final r = await session.execute('x + 1').result;
-print(r.dartValue); // 43
-
-await session.dispose();
+Future<void> main() async {
+  final runtime = await MontyRuntime.start(
+    extensions: [EventLoopExtension()],
+    osHandlers: {'Path.': OSAccess().call},
+  );
+  try {
+    await runtime.execute('x = 42').result;
+    final value = await runtime.execute('x + 1').result;
+    print(value.dartValue); // 43
+  } finally {
+    await runtime.dispose();
+  }
+}
 ```
 
 ### Execution Modes
 
-- **Shared Mode** (default): One interpreter persists across all calls.
-  Variables and functions survive in the Rust heap.
-- **Sandbox Mode** (`sandbox: true`): Each call creates and disposes a
-  fresh interpreter. Safe for async I/O host functions.
+- **Shared mode** is the default. One interpreter holds variables and
+  functions across executions.
+- **Sandbox mode** uses a fresh interpreter for each execution. Set
+  `sandbox: true` in `MontyRuntime.start`.
 
-## Monty (Low-level)
+## Monty
 
-`Monty` owns a pool; `MontySession` owns stateful Python execution.
+`Monty` owns a pool and `MontySession` runs stateful Python execution.
 
 ```dart
-await Monty.withPool((pool) async {
-  final session = await pool.checkout(typeCheck: true);
-  try {
-    await session.feedRun('x: int = 42');
-    final result = await session.feedRun('x + 1');
-    print(result.dartValue); // 43
-  } finally {
-    await session.close();
-  }
-});
+import 'package:dart_monty/dart_monty.dart';
+
+Future<void> main() async {
+  await Monty.withPool((pool) async {
+    final session = await pool.checkout(typeCheck: true);
+    try {
+      await session.feedRun('x: int = 42');
+      final value = await session.feedRun('x + 1');
+      print(value.dartValue); // 43
+    } finally {
+      await session.close();
+    }
+  });
+}
 ```
 
 ### Session type checking
 
-`checkout(typeCheck: true)` checks each feed before executing it. Rejected
-code throws `MontyTypingError`; import that error from
-`package:dart_monty_core/dart_monty_core.dart`. Use `typeCheckStubs` on checkout
-to declare external names, for example `def fetch(url: str) -> str: ...`.
-The [type-checking demo](../../example/type_check_demo.dart) shows clean code,
-type errors, and host function declarations.
+`checkout(typeCheck: true)` checks each feed before execution. A rejected feed
+throws `MontyTypingError`, which comes from
+`package:dart_monty_core/dart_monty_core.dart`. Use `typeCheckStubs` on
+checkout to declare external names. The
+[type-checking demo](../../example/type_check_demo.dart) includes examples.
 
 ## Per-call inputs
 
-`MontyRuntime.execute(code, inputs: {…})` injects Python variables
-before user code runs:
+`MontyRuntime.execute` binds `inputs` as Python globals before execution.
 
 ```dart
-await runtime
-    .execute('f"{greeting}, {name}!"', inputs: {
-      'greeting': 'hello',
-      'name': 'Alice',
-    })
+final value = await runtime
+    .execute(
+      'f"{greeting}, {name}!"',
+      inputs: {'greeting': 'hello', 'name': 'Alice'},
+    )
     .result;
+print(value.dartValue); // hello, Alice!
 ```
 
-Convertible types: `bool`, `int`, `double`, `String`, `List`, `Map`,
-and `MontyNone()`. Dart `null` throws `MontyInternalError` (use
-`MontyNone()` for Python `None`); unsupported types throw
-`ArgumentError`. Both are synchronous — the script never starts.
+Input values accept `bool`, `int`, `double`, `String`, `List`, `Map`, and
+`MontyNone()`. Dart `null` converts to `MontyNone`.
 
 ## Host Functions
 
-Expose Dart code to Python:
+`HostFunction` exposes a Dart callback to Python.
 
 ```dart
-HostFunction(
+final fetch = HostFunction(
   schema: const HostFunctionSchema(
     name: 'fetch',
-    description: 'Fetch URL content.',
+    description: 'Return content for a URL.',
     params: [HostParam(name: 'url', type: HostParamType.string)],
   ),
-  handler: (args, ctx) async => MontyString(
-    await http.read(Uri.parse((args['url']! as MontyString).value)),
-  ),
-)
+  handler: (args, _) async {
+    final url = (args['url']! as MontyString).value;
+    return MontyString('content for $url');
+  },
+);
+runtime.register(fetch);
 ```
 
-`ctx` (`HostContext`) exposes:
-
-| Field | Purpose |
-|-------|---------|
-| `emit` / `emitText` | Push `BridgeEvent`s mid-call (progress, custom events) |
-| `executionId` | Per-call ID for event correlation |
-| `cancelToken` | Cooperative cancellation for long-running work |
-| `os` | Active `OsCallHandler`, for direct OS-primitive calls |
-| `parent: HostParentRef?` | Narrow view of the owning runtime — `emitChildEvent`, `schemas`. **No `execute()`** (would deadlock). |
-| `subExecute` | Run a sub-script in a fresh interpreter. See `buildRunScriptFunction` and the [tutorial](../tutorials/inputs-and-sub-scripts.md). |
+`HostContext` supplies the active `OsHandler` through `os`, an execution ID,
+a cancellation token, event emission, and an optional sub-executor. Its
+`parent` exposes child-event forwarding and schemas.
 
 ### `buildRunScriptFunction`
 
-Convenience builder for a `run_script` host function — Python calls
-`run_script('foo.py', inputs={…})` and gets back the sub-script's
-last-expression value:
+`buildRunScriptFunction` creates a `run_script` host function. The callback
+maps a requested path to source code, and the sub-script returns its final
+expression value.
 
 ```dart
-runtime.register(buildRunScriptFunction((path) async {
-  return await File(path).readAsString();
-}));
+runtime.register(buildRunScriptFunction((_) async => '40 + 2'));
 ```
 
-See the [Inputs, `run_script`, and Sub-Execution tutorial](../tutorials/inputs-and-sub-scripts.md)
-for the full story.
+See the [Inputs, `run_script`, and Sub-Execution tutorial](../tutorials/inputs-and-sub-scripts.md).
 
 ## Extensions
 
-Group related tools into namespaced units.
+Extensions group related host functions and OS policy.
 
 | Extension | Description |
-|-----------|-------------|
-| `SandboxExtension` | Recursive child interpreters |
-| `EventLoopExtension` | Long-running coroutine exchange |
+| --- | --- |
+| `SandboxExtension` | Manages recursive child interpreters. |
+| `EventLoopExtension` | Exchanges events with long-running coroutines. |
 
 ## OS Call Handlers
 
-Intercept Python `pathlib` and `os` calls. The clock is answered by the worker, not by a handler.
+An `OsHandler` intercepts Python `pathlib` and `os` calls. `OSAccess` is
+available from `package:dart_monty/dart_monty.dart` and supplies an in-memory
+filesystem and environment values. Pass `OSAccess().call` as `os` or through
+`osHandlers` when starting a runtime. `MemoryFile` comes from
+`package:dart_monty_core/dart_monty_core.dart`.
 
-`OSAccess` comes from `package:dart_monty/dart_monty.dart`. Import `MemoryFile`
-directly from `package:dart_monty_core/dart_monty_core.dart`. Register
-`OSAccess.call` with `registerOs`, or use its callback in `osHandlers`. `OSAccess(files: [...],
-environ: {...})` supplies memory files and environment values. Create parent
-directories before writing new files.
-
-Sandbox workspaces default to `/work` and 8 MiB each for cumulative
-write bytes and retained logical memory. `SandboxExtension(writeBytesLimit:,
-memoryUsageLimit:)` accepts explicit null to opt out of a counter. Negative
-values are rejected. See [workspace policy](../deep-dives/oscall-vfs.md).
-On VM, `sandboxBaseDir` selects a fresh owned native directory retained until
-free/disposal. Web refuses host backing; omit the option for memory workspaces.
-D5 uses either backing for live child checkout.
+`ExternalException` communicates an external OS error to Python.
+`OsCallNotHandledException` declines an operation so another handler can
+answer it.
 
 ## Core Types
 
-- `MontyResult`: `.value`, `.error`, `.usage`, `.printOutput`
-- `MontyException`: `.message`, `.excType`, `.traceback`
-- `MontyValue`: Sealed hierarchy representing Python objects (Int, String, List, Map, etc.)
-- `BridgeEvent`: Sealed hierarchy for execution observability.
+- `MontyValue` represents a Python value. Its facade value types include
+  `MontyBool`, `MontyInt`, `MontyFloat`, `MontyString`, `MontyList`,
+  `MontyTuple`, `MontyDict`, and `MontyBytes`.
+- `ExecutionHandle` exposes `result`, `events`, `executionId`, and `cancel`.
+  `result` completes with a `MontyValue` or fails with a `MontyError` subclass.
+- `MontyError` and its subclasses come from `dart_monty_core`.
+- `ResourceLimits` configures runtime resource limits.
+- `BridgeEvent` is the event hierarchy for execution observation.

@@ -1,60 +1,59 @@
 # Installation
 
-Install both `dart_monty` (the API) and `dart_monty_core` (the
-package that owns the native/WASM build outputs) from pub.dev:
-
-```bash
-dart pub add dart_monty dart_monty_core
-```
-
-Or in `pubspec.yaml`:
-
-```yaml
-dependencies:
-  dart_monty: ^0.17.0
-  dart_monty_core: ^0.17.0
-```
-
-Import core directly when using concrete values, snapshots or other names
-outside the nine core names re-exported by `dart_monty`.
-
-For local worktree development, swap the version constraints for
-`path:` deps.
-
-## Bleeding edge (git main)
-
-Use this only if you need an unreleased fix on `main`:
+`dart_monty` and `dart_monty_core` version `0.110.0-dev.2` resolve from
+their Git tags. `dart_monty_core` is not available from pub.dev, and
+`dependency_overrides` in a dependency's pubspec do not apply to your package,
+so the root pubspec overrides the core source:
 
 ```yaml
 dependencies:
   dart_monty:
     git:
       url: https://github.com/runyaga/dart_monty.git
-      ref: main
+      ref: v0.110.0-dev.2
+
+dependency_overrides:
   dart_monty_core:
     git:
       url: https://github.com/runyaga/dart_monty_core.git
-      ref: main
+      ref: v0.110.0-dev.2
 ```
 
-Pin both — without an explicit `dart_monty_core` git entry, pub will
-resolve the transitive dep from pub.dev and the APIs may drift.
+A package that imports core names directly also lists
+`dart_monty_core: ^0.110.0-dev.2` under `dependencies`.
+
+Run `dart pub get` after editing `pubspec.yaml`.
+
+Import `package:dart_monty/dart_monty.dart` for the runtime, host functions,
+`OSAccess`, and the value types `MontyBool`, `MontyInt`, `MontyFloat`,
+`MontyString`, `MontyList`, `MontyTuple`, `MontyDict`, and `MontyBytes`.
+Import `package:dart_monty_core/dart_monty_core.dart` for other core names,
+including `MemoryFile`, `MontyPath`, snapshots, and type-check types.
+
+For local worktree development, use `path:` dependencies for both packages.
 
 ## Platform Requirements
 
-### Native (Desktop/Server)
+### Native (Desktop, Server, and Flutter)
 
-- **macOS, Linux, Windows:** No manual setup. The native binary
-  (built by `dart_monty_core`'s `hook/build.dart`) is compiled
-  automatically when you run `dart pub get` — requires a working
-  Rust toolchain (cargo + rustc).
-- **iOS/Android:** Not yet supported. Planned once the FFI/WASM
-  story stabilises.
+A native program needs a worker executable. Opt in to the build hook in the
+root pubspec and build with `dart build cli`:
+
+```yaml
+hooks:
+  user_defines:
+    dart_monty_core:
+      build_worker: true
+```
+
+Call `runMontyWorkerIfChild(args)` from `package:dart_monty_core/dart_monty_core.dart`
+as the first statement of `main`. The hook compiles the worker library with a
+stable Rust toolchain (`cargo` and `rustc`) and a C linker. Alternatively pass
+the path of a prebuilt worker executable as `workerLocation` to `Monty.start`.
 
 ### Flutter Web
 
-Core declares its worker script and WASM module in its own `flutter.assets`
-stanza. Include those declared assets when bundling a Flutter application:
+Include the assets declared by core when bundling a Flutter application:
 
 ```yaml
 flutter:
@@ -62,23 +61,14 @@ flutter:
     - package: dart_monty_core
 ```
 
-Core probes `assets/packages/dart_monty_core/lib/assets` first, followed by
-`packages/dart_monty_core/assets`. It loads the worker when the pool starts.
-There is no separate initialization API or bridge script to inject. Core
-remains pure Dart; its asset declaration adds no Flutter SDK dependency.
-
-**Security headers.** Serve your web app with:
+The worker loads when a pool starts. A web deployment needs these headers for
+`SharedArrayBuffer`:
 
 - `Cross-Origin-Opener-Policy: same-origin`
 - `Cross-Origin-Embedder-Policy: require-corp`
 
-(Required for `SharedArrayBuffer`, which the WASM worker uses for
-zero-copy communication.)
+### Plain Dart web
 
-### Plain Dart web (no Flutter)
-
-Serve core's `lib/assets/dart_monty_core_worker.js` and
-`lib/assets/dart_monty_core_worker.wasm` together under
-`packages/dart_monty_core/assets`, or pass their directory URL as
-`workerLocation` to `Monty.start`. The worker script loads its sibling WASM
-module. No bridge script tag is needed.
+Serve `dart_monty_core_worker.js` and `dart_monty_core_worker.wasm` from
+core's `lib/assets` directory at `packages/dart_monty_core/assets`. A pool can
+also receive that directory URL through `Monty.start(workerLocation: ...)`.
