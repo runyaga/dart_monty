@@ -41,9 +41,9 @@ void main() {
 
         cap.dispose();
 
-        expect(cap.values.first, isA<EventLoopIdle>());
+        expect(cap.values.firstOrNull, isA<EventLoopIdle>());
         expect(cap.values.any((s) => s is EventLoopExecuting), isTrue);
-        expect(cap.values.last, isA<EventLoopCompleted>());
+        expect(cap.values.lastOrNull, isA<EventLoopCompleted>());
       },
     );
 

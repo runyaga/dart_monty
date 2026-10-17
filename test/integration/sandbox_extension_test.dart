@@ -161,7 +161,7 @@ except Exception as e:
           .whereType<BridgeRunError>()
           .toList();
       expect(failed, isNotEmpty);
-      expect(failed.first.exception, isNotNull);
+      expect(failed.firstOrNull?.exception, isNotNull);
     });
 
     test('ChildFailed contains Python exception type', () async {
@@ -180,8 +180,8 @@ except Exception:
           .whereType<BridgeChildEvent>()
           .map((e) => e.inner)
           .whereType<BridgeRunError>()
-          .first;
-      expect(failed.exception?.exception.excType, contains('ValueError'));
+          .firstOrNull;
+      expect(failed?.exception?.exception.excType, contains('ValueError'));
     });
 
     test('parent continues after child failure', () async {
@@ -235,7 +235,7 @@ results[0]
 
       final entry = result.dartValue! as Map;
       expect(entry['value'], 42);
-      expect(entry['output'] as String, contains('log line'));
+      expect(entry['output'], contains('log line'));
     });
   });
 
@@ -331,8 +331,8 @@ sandbox_await(handle=h1)
           .whereType<BridgeChildEvent>()
           .map((e) => e.inner)
           .toList();
-      expect(childEvents.first, isA<BridgeRunStarted>());
-      expect(childEvents.last, isA<BridgeRunFinished>());
+      expect(childEvents.firstOrNull, isA<BridgeRunStarted>());
+      expect(childEvents.lastOrNull, isA<BridgeRunFinished>());
     });
   });
 } // end main

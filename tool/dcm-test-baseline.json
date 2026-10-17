@@ -4,8 +4,6 @@
     "test/acceptance/_platform_io.dart": 1,
     "test/acceptance/_platform_web.dart": 3,
     "test/acceptance/agent_loop_test.dart": 18,
-    "test/experiments/sandbox_experiment_test.dart": 5,
-    "test/experiments/signals_experiment_test.dart": 2,
     "test/integration/_monty_harness.dart": 10,
     "test/integration/_typed_host_runtime.dart": 40,
     "test/integration/agent_extension_integration_test.dart": 2,
@@ -76,8 +74,8 @@
     "avoid-shadowing": 5,
     "avoid-uncaught-future-errors": 1,
     "avoid-unnecessary-futures": 12,
-    "avoid-unnecessary-type-casts": 4,
-    "avoid-unsafe-collection-methods": 433,
+    "avoid-unnecessary-type-casts": 3,
+    "avoid-unsafe-collection-methods": 427,
     "avoid-unused-assignment": 5,
     "avoid-unused-parameters": 15,
     "binary-expression-operand-order": 3,
@@ -90,5 +88,5 @@
     "prefer-first": 30,
     "prefer-moving-to-variable": 170
   },
-  "total": 851
+  "total": 844
 }
