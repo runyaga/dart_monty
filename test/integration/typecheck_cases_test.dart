@@ -19,14 +19,11 @@ void main() {
     test('${typecheckCase.id} ${typecheckCase.title}', () async {
       final calls = <String>[];
       final checked = await _runCase(pool, typecheckCase, calls, checked: true);
-      final unchecked = await _runCase(
-        pool,
-        typecheckCase,
-        [],
-        checked: false,
-      );
+      final unchecked = await _runCase(pool, typecheckCase, [], checked: false);
       final report = {
         'id': typecheckCase.id,
+        'cls': typecheckCase.cls.name,
+        'group': typecheckCase.group.name,
         'verdict': checked.verdict.name,
         'codes': checked.codes.toList()..sort(),
         'diagnostics': checked.diagnostics,
@@ -52,6 +49,7 @@ void main() {
           isFalse,
           reason: '${typecheckCase.id}: rejected code must not call a host',
         );
+        await _expectRejectedProgramDoesNotRun(pool, typecheckCase);
       }
       expect(
         checked.outcome,
@@ -63,16 +61,51 @@ void main() {
         typecheckCase.uncheckedOutcome,
         reason: '${typecheckCase.id}: unchecked outcome',
       );
-      if (typecheckCase.cls != CaseClass.builtin &&
-          typecheckCase.cls != CaseClass.module) {
-        final actualClass = _deriveClass(checked.verdict, unchecked.outcome);
-        expect(
-          actualClass,
-          typecheckCase.cls,
-          reason: '${typecheckCase.id}: derived class',
-        );
-      }
+      final actualClass = _deriveClass(checked.verdict, unchecked.outcome);
+      expect(
+        actualClass,
+        typecheckCase.cls,
+        reason: '${typecheckCase.id}: derived class',
+      );
     });
+  }
+}
+
+Future<void> _expectRejectedProgramDoesNotRun(
+  Monty pool,
+  TypecheckCase typecheckCase,
+) async {
+  final runtime = await MontyRuntime.start(
+    pool: pool,
+    typeCheck: true,
+    typeCheckStubs: typecheckStubs,
+    typeCheckFormat: 'json',
+  );
+  typecheckHostFunctions([]).forEach(runtime.register);
+  try {
+    for (final setup in typecheckCase.setup) {
+      await runtime
+          .execute(setup, skipTypeCheck: typecheckCase.skipSetup)
+          .result;
+    }
+    await expectLater(
+      runtime.execute('_tc_ran: int = 1\n${typecheckCase.program}').result,
+      throwsA(isA<MontyTypingError>()),
+      reason: '${typecheckCase.id}: prefixed program is rejected',
+    );
+    await expectLater(
+      runtime.execute('_tc_ran', skipTypeCheck: true).result,
+      throwsA(
+        isA<MontyError>().having(
+          (error) => error.exception.excType,
+          'exception type',
+          'NameError',
+        ),
+      ),
+      reason: '${typecheckCase.id}: rejected program did not run',
+    );
+  } finally {
+    await runtime.dispose();
   }
 }
 
@@ -167,7 +200,7 @@ String _pythonRepr(Object? value) => switch (value) {
   null => 'None',
   true => 'True',
   false => 'False',
-  String() => "'${value.replaceAll(r'\', r'\\').replaceAll("'", r"\'")}'",
+  String() => _pythonString(value),
   List<Object?>() => '[${value.map(_pythonRepr).join(', ')}]',
   Map<Object?, Object?>() =>
     '{${value.entries.map((entry) {
@@ -178,6 +211,17 @@ String _pythonRepr(Object? value) => switch (value) {
     }).join(', ')}}',
   _ => '$value',
 };
+
+String _pythonString(String value) {
+  final escaped = value
+      .replaceAll(r'\', r'\\')
+      .replaceAll("'", r"\'")
+      .replaceAll('\n', r'\n')
+      .replaceAll('\r', r'\r')
+      .replaceAll('\t', r'\t');
+
+  return "'$escaped'";
+}
 
 CaseClass _deriveClass(Verdict verdict, String uncheckedOutcome) {
   final failed =

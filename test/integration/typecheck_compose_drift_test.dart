@@ -58,6 +58,11 @@ void main() {
             reason: '${fixture.key}.${entry.key} parameter order',
           );
         }
+        await expectLater(
+          runtime.execute('list_trips(1)').result,
+          throwsA(isA<MontyTypingError>()),
+          reason: '${fixture.key}: family stubs are loaded',
+        );
       } finally {
         await runtime.dispose();
       }

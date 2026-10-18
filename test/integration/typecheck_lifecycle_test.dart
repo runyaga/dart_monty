@@ -1,3 +1,4 @@
+// ignore_for_file: prefer-moving-to-variable, each execute is a feed.
 @Tags(['integration'])
 library;
 
@@ -17,7 +18,8 @@ void main() {
   tearDownAll(() => pool.close());
 
   test('type checking is off by default', () async {
-    final runtime = await _runtime(pool, checked: false);
+    final runtime = await MontyRuntime.start(pool: pool);
+    typecheckHostFunctions([]).forEach(runtime.register);
     try {
       await _expectRuntimeError(
         runtime.execute('get_trip()').result,
@@ -37,6 +39,10 @@ void main() {
     final runtime = await _runtime(pool);
     try {
       await runtime.execute('x: int = "a"', skipTypeCheck: true).result;
+      expect(
+        (await runtime.execute('x', skipTypeCheck: true).result).dartValue,
+        'a',
+      );
       await _expectCodes(runtime.execute('y: int = "b"').result, {
         'invalid-assignment',
       });
@@ -137,35 +143,57 @@ void main() {
         runtime.execute('ok + 1', skipTypeCheck: true).result,
         'NameError',
       );
+      await _expectRuntimeError(
+        runtime.execute('raise TimeoutError()').result,
+        'TimeoutError',
+      );
+      await _expectCodes(
+        runtime.execute('assign_crew("TR-10", "Pilot", "S-1")').result,
+        {'invalid-argument-type'},
+      );
     } finally {
       await runtime.dispose();
     }
   });
 
-  test('restored dumps carry their type-check setting', () async {
-    final checked = await _runtime(pool);
-    final unchecked = await _runtime(pool, checked: false);
-    final checkedTarget = await _runtime(pool, checked: false);
-    final uncheckedTarget = await _runtime(pool);
-    try {
-      await checked.execute('seed: int = 1').result;
-      await unchecked.execute('seed = 1').result;
-      final checkedBytes = await checked.checkpoint();
-      final uncheckedBytes = await unchecked.checkpoint();
-      await checkedTarget.restore(checkedBytes);
-      await uncheckedTarget.restore(uncheckedBytes);
-      await _expectCodes(
-        checkedTarget.execute('assign_crew("TR-10", "Pilot", "S-1")').result,
-        {'invalid-argument-type'},
-      );
-      await uncheckedTarget.execute('x: int = "a"').result;
-    } finally {
-      await checked.dispose();
-      await unchecked.dispose();
-      await checkedTarget.dispose();
-      await uncheckedTarget.dispose();
-    }
-  });
+  test(
+    'a restored dump carries its setting until the session is replaced',
+    () async {
+      final checked = await _runtime(pool);
+      final unchecked = await _runtime(pool, checked: false);
+      final checkedTarget = await MontyRuntime.start(pool: pool);
+      typecheckHostFunctions([]).forEach(checkedTarget.register);
+      final uncheckedTarget = await _runtime(pool);
+      try {
+        await checked.execute('seed: int = 1').result;
+        await unchecked.execute('seed = 1').result;
+        final checkedBytes = await checked.checkpoint();
+        final uncheckedBytes = await unchecked.checkpoint();
+        await checkedTarget.restore(checkedBytes);
+        await uncheckedTarget.restore(uncheckedBytes);
+        await _expectCodes(
+          checkedTarget.execute('assign_crew("TR-10", "Pilot", "S-1")').result,
+          {'invalid-argument-type'},
+        );
+        await uncheckedTarget.execute('x: int = "a"').result;
+        await _expectRuntimeError(
+          checkedTarget
+              .execute('raise TimeoutError()', skipTypeCheck: true)
+              .result,
+          'TimeoutError',
+        );
+        await _expectRuntimeError(
+          checkedTarget.execute('assign_crew("TR-10", "Pilot", "S-1")').result,
+          'ValueError',
+        );
+      } finally {
+        await checked.dispose();
+        await unchecked.dispose();
+        await checkedTarget.dispose();
+        await uncheckedTarget.dispose();
+      }
+    },
+  );
 
   test('error formats include diagnostic positions', () async {
     final jsonRuntime = await _runtime(pool);
@@ -188,9 +216,10 @@ void main() {
       );
       expect(conciseError.display(), contains('main.py:2:'));
       final defaultError = await _typingError(
-        defaultRuntime.execute('x: int = "a"').result,
+        defaultRuntime.execute('x = 1\ny: int = "a"').result,
       );
-      expect(defaultError.display(), contains('invalid-assignment'));
+      expect(defaultError.display(), contains('main.py:2:'));
+      expect(defaultError.display(), isNot(startsWith('[')));
     } finally {
       await jsonRuntime.dispose();
       await conciseRuntime.dispose();
@@ -204,12 +233,16 @@ void main() {
       await _expectCodes(runtime.execute('x: int = "a"').result, {
         'invalid-assignment',
       });
-      expect(
-        (await runtime.execute('get_trip("TR-10")').result).dartValue,
-        _isTrip,
+      await _expectCodes(
+        runtime.execute('assign_crew("TR-10", "Pilot", "S-1")').result,
+        {'invalid-argument-type'},
       );
+      await runtime.execute('y: int = 1').result;
+      await _expectCodes(runtime.execute('z = y + 1').result, {
+        'unresolved-reference',
+      });
       await _expectRuntimeError(
-        runtime.execute('x', skipTypeCheck: true).result,
+        runtime.execute('z = y + 1', skipTypeCheck: true).result,
         'NameError',
       );
     } finally {
@@ -228,6 +261,13 @@ void main() {
       await _expectCodes(runtime.execute('x: int = "a"').result, {
         'invalid-assignment',
       });
+      await _expectCodes(
+        runtime.execute('assign_crew("TR-10", "Pilot", "S-1")').result,
+        {'invalid-argument-type'},
+      );
+      await _expectCodes(runtime.execute('old_name + 1').result, {
+        'unresolved-reference',
+      });
       await _expectRuntimeError(
         runtime.execute('old_name', skipTypeCheck: true).result,
         'NameError',
@@ -245,13 +285,22 @@ void main() {
       await _expectCodes(runtime.execute('x: int = "a"').result, {
         'invalid-assignment',
       });
+      await _expectCodes(
+        runtime.execute('assign_crew("TR-10", "Pilot", "S-1")').result,
+        {'invalid-argument-type'},
+      );
+      await _expectCodes(runtime.execute('old_name + 1').result, {
+        'unresolved-reference',
+      });
+      await _expectRuntimeError(
+        runtime.execute('old_name', skipTypeCheck: true).result,
+        'NameError',
+      );
     } finally {
       await runtime.dispose();
     }
   });
 }
-
-final Matcher _isTrip = isA<Map<Object?, Object?>>();
 
 Future<MontyRuntime> _runtime(
   Monty pool, {

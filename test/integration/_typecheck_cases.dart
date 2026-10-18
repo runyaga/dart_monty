@@ -196,14 +196,9 @@ HostFunction _host(
 
 enum Verdict { pass, reject }
 
-enum CaseClass {
-  accept,
-  catchError,
-  knownFalsePositive,
-  knownMiss,
-  builtin,
-  module,
-}
+enum CaseClass { accept, catchError, knownFalsePositive, knownMiss }
+
+enum CaseGroup { core, builtin, module }
 
 class TypecheckCase {
   const TypecheckCase({
@@ -216,6 +211,7 @@ class TypecheckCase {
     required this.codes,
     required this.checkedOutcome,
     required this.uncheckedOutcome,
+    this.group = CaseGroup.core,
     this.setup = const [],
     this.skipSetup = false,
   });
@@ -224,6 +220,7 @@ class TypecheckCase {
   final String title;
   final String source;
   final CaseClass cls;
+  final CaseGroup group;
   final String program;
   final List<String> setup;
   final bool skipSetup;
@@ -255,11 +252,12 @@ const typecheckCases = [
     program:
         't = get_trip("TR-10")\n'
         'a = find_assets(t["asset_kind"], t["origin_cell"], t["day"])\n'
-        'n = len(a)',
+        'n = len(a)\n'
+        'n',
     verdict: Verdict.pass,
     codes: {},
-    checkedOutcome: 'ok',
-    uncheckedOutcome: 'ok',
+    checkedOutcome: 'ok:2',
+    uncheckedOutcome: 'ok:2',
   ),
   TypecheckCase(
     id: 'A3',
@@ -268,11 +266,11 @@ const typecheckCases = [
     cls: CaseClass.accept,
     program:
         'plan_route("A1", "B2", {"max_leg_steps": 4, '
-        '"avoid_cells": [], "require_chargers": True})',
+        '"avoid_cells": [], "require_chargers": True})["total_steps"]',
     verdict: Verdict.pass,
     codes: {},
-    checkedOutcome: 'ok',
-    uncheckedOutcome: 'ok',
+    checkedOutcome: 'ok:7',
+    uncheckedOutcome: 'ok:7',
   ),
   TypecheckCase(
     id: 'A4',
@@ -568,9 +566,10 @@ const typecheckCases = [
     checkedOutcome: 'not-run',
     uncheckedOutcome: 'ok',
   ),
+  // The comparison is silently False, and the raise makes it observable.
   TypecheckCase(
     id: 'M1',
-    title: 'case-mismatched enum comparison',
+    title: 'case-mismatched enum comparison is always False',
     source: 'x50 T30',
     cls: CaseClass.knownMiss,
     program:
@@ -631,9 +630,10 @@ const typecheckCases = [
   ),
   TypecheckCase(
     id: 'M5',
-    title: 'open is unresolved',
+    title: 'open needs an OS handler',
     source: 'E1',
     cls: CaseClass.catchError,
+    group: CaseGroup.builtin,
     program: 'open("x.txt").read()',
     verdict: Verdict.reject,
     codes: {'unresolved-reference'},
@@ -644,7 +644,8 @@ const typecheckCases = [
     id: 'B1',
     title: 'map builtin',
     source: 'E1',
-    cls: CaseClass.builtin,
+    cls: CaseClass.knownFalsePositive,
+    group: CaseGroup.builtin,
     program: 'list(map(lambda x: x + 1, [1, 2]))',
     verdict: Verdict.reject,
     codes: {'unresolved-reference'},
@@ -655,7 +656,8 @@ const typecheckCases = [
     id: 'B2',
     title: 'filter builtin',
     source: 'E1',
-    cls: CaseClass.builtin,
+    cls: CaseClass.knownFalsePositive,
+    group: CaseGroup.builtin,
     program: 'list(filter(lambda x: x > 1, [1, 2]))',
     verdict: Verdict.reject,
     codes: {'unresolved-reference'},
@@ -666,7 +668,8 @@ const typecheckCases = [
     id: 'B3',
     title: 'getattr builtin',
     source: 'new',
-    cls: CaseClass.builtin,
+    cls: CaseClass.catchError,
+    group: CaseGroup.builtin,
     program: 'getattr("a", "upper")()',
     verdict: Verdict.reject,
     codes: {'unresolved-reference'},
@@ -677,7 +680,8 @@ const typecheckCases = [
     id: 'B4',
     title: 'hasattr builtin',
     source: 'E1',
-    cls: CaseClass.builtin,
+    cls: CaseClass.knownFalsePositive,
+    group: CaseGroup.builtin,
     program: 'hasattr("a", "upper")',
     verdict: Verdict.reject,
     codes: {'unresolved-reference'},
@@ -688,7 +692,8 @@ const typecheckCases = [
     id: 'B5',
     title: 'setattr builtin',
     source: 'new',
-    cls: CaseClass.builtin,
+    cls: CaseClass.knownFalsePositive,
+    group: CaseGroup.builtin,
     program: 'class A:\n    pass\na = A()\nsetattr(a, "x", 1)',
     verdict: Verdict.reject,
     codes: {'unresolved-reference'},
@@ -699,7 +704,8 @@ const typecheckCases = [
     id: 'B6',
     title: 'format builtin',
     source: 'new',
-    cls: CaseClass.builtin,
+    cls: CaseClass.knownFalsePositive,
+    group: CaseGroup.builtin,
     program: 'format(12, "d")',
     verdict: Verdict.reject,
     codes: {'unresolved-reference'},
@@ -710,18 +716,20 @@ const typecheckCases = [
     id: 'B7',
     title: 'eval builtin',
     source: 'new',
-    cls: CaseClass.builtin,
+    cls: CaseClass.accept,
+    group: CaseGroup.builtin,
     program: 'eval("1 + 1")',
     verdict: Verdict.pass,
     codes: {},
-    checkedOutcome: 'ok',
-    uncheckedOutcome: 'ok',
+    checkedOutcome: 'ok:2',
+    uncheckedOutcome: 'ok:2',
   ),
   TypecheckCase(
     id: 'B8',
     title: 'exec builtin',
     source: 'new',
-    cls: CaseClass.builtin,
+    cls: CaseClass.accept,
+    group: CaseGroup.builtin,
     program: 'exec("x = 1")',
     verdict: Verdict.pass,
     codes: {},
@@ -732,7 +740,8 @@ const typecheckCases = [
     id: 'B9',
     title: 'globals builtin',
     source: 'E1',
-    cls: CaseClass.builtin,
+    cls: CaseClass.catchError,
+    group: CaseGroup.builtin,
     program: 'globals()',
     verdict: Verdict.reject,
     codes: {'unresolved-reference'},
@@ -743,7 +752,8 @@ const typecheckCases = [
     id: 'B10',
     title: 'dir builtin',
     source: 'E1',
-    cls: CaseClass.builtin,
+    cls: CaseClass.catchError,
+    group: CaseGroup.builtin,
     program: 'dir("a")',
     verdict: Verdict.reject,
     codes: {'unresolved-reference'},
@@ -754,7 +764,8 @@ const typecheckCases = [
     id: 'D1',
     title: 'sqlite3 module',
     source: 'new',
-    cls: CaseClass.module,
+    cls: CaseClass.catchError,
+    group: CaseGroup.module,
     program: 'import sqlite3',
     verdict: Verdict.reject,
     codes: {'unresolved-import'},
@@ -765,7 +776,8 @@ const typecheckCases = [
     id: 'D2',
     title: 'json module',
     source: 'new',
-    cls: CaseClass.module,
+    cls: CaseClass.accept,
+    group: CaseGroup.module,
     program: 'import json\njson.dumps({"a": 1})',
     verdict: Verdict.pass,
     codes: {},
@@ -776,7 +788,8 @@ const typecheckCases = [
     id: 'D3',
     title: 'enum module',
     source: 'new',
-    cls: CaseClass.module,
+    cls: CaseClass.catchError,
+    group: CaseGroup.module,
     program: 'import enum',
     verdict: Verdict.reject,
     codes: {'unresolved-import'},
@@ -787,7 +800,8 @@ const typecheckCases = [
     id: 'D4',
     title: 'builtins module',
     source: 'new',
-    cls: CaseClass.module,
+    cls: CaseClass.knownMiss,
+    group: CaseGroup.module,
     program: 'import builtins',
     verdict: Verdict.pass,
     codes: {},
@@ -798,7 +812,8 @@ const typecheckCases = [
     id: 'D5',
     title: 'dataclasses module',
     source: 'new',
-    cls: CaseClass.module,
+    cls: CaseClass.accept,
+    group: CaseGroup.module,
     program: 'from dataclasses import dataclass',
     verdict: Verdict.pass,
     codes: {},
@@ -809,7 +824,8 @@ const typecheckCases = [
     id: 'D6',
     title: 'typing module',
     source: 'new',
-    cls: CaseClass.module,
+    cls: CaseClass.accept,
+    group: CaseGroup.module,
     program: 'import typing',
     verdict: Verdict.pass,
     codes: {},
@@ -820,7 +836,8 @@ const typecheckCases = [
     id: 'D7',
     title: 're module',
     source: 'new',
-    cls: CaseClass.module,
+    cls: CaseClass.accept,
+    group: CaseGroup.module,
     program: 'import re\nre.match("a", "a") is not None',
     verdict: Verdict.pass,
     codes: {},
