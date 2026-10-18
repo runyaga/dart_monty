@@ -3,6 +3,8 @@ tags:
     description: Runs in the default unit run and again in every platform cell (tool/test_cell.sh).
   integration:
     skip: "Skipped by default (slow). Run: dart test --run-skipped --tags=integration"
+  bench:
+    skip: "Skipped by default (timing). Run: dart test --run-skipped --tags=bench"
   ladder:
     skip: "Skipped by default (slow). Run: dart test --run-skipped --tags=ladder"
   acceptance:
