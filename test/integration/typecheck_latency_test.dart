@@ -16,7 +16,9 @@ void main() {
   tearDownAll(() => pool.close());
 
   test('type-check latency matrix', () async {
+    await _warmUp(pool);
     for (final stubs in [5, 20, 60]) {
+      await _measureFirstCheck(stubs);
       for (final lines in [10, 50, 200]) {
         await _measureGroup(pool, lines: lines, stubs: stubs);
       }
@@ -30,7 +32,7 @@ void main() {
     try {
       for (var turn = 1; turn <= 30; turn++) {
         final value = await runtime
-            .execute(_program(lines, prefix: 't${turn}_'))
+            .execute(_program(lines, stubs, prefix: 't${turn}_'))
             .result;
         expect(value, isA<MontyValue>());
         if ({1, 10, 20, 30}.contains(turn)) {
@@ -38,7 +40,7 @@ void main() {
           for (var sample = 0; sample < 5; sample++) {
             samples.add(
               await _time(
-                runtime.execute('bad_$turn: int = "x"').result,
+                runtime.execute('bad_${turn}_$sample: int = "x"').result,
                 rejected: true,
               ),
             );
@@ -52,12 +54,51 @@ void main() {
   });
 }
 
+Future<void> _warmUp(Monty pool) async {
+  const stubs = 20;
+  const lines = 50;
+  final runtime = await _runtime(pool, stubs);
+  try {
+    for (var index = 0; index < 3; index++) {
+      final program = _program(lines, stubs, prefix: 'warm_${index}_');
+      await expectLater(
+        runtime.execute('$program\nbad_$index: int = "x"').result,
+        throwsA(isA<MontyTypingError>()),
+      );
+      await runtime.execute(program).result;
+    }
+  } finally {
+    await runtime.dispose();
+  }
+}
+
+Future<void> _measureFirstCheck(int stubs) async {
+  final samples = <double>[];
+  for (var index = 0; index < 3; index++) {
+    final freshPool = await startTestPool(maxProcesses: 1);
+    try {
+      final runtime = await _runtime(freshPool, stubs);
+      try {
+        final rejected = '${_program(10, stubs)}\nbad: int = "x"';
+        samples.add(
+          await _time(runtime.execute(rejected).result, rejected: true),
+        );
+      } finally {
+        await runtime.dispose();
+      }
+    } finally {
+      await freshPool.close();
+    }
+  }
+  _report('first-check', 10, stubs, samples);
+}
+
 Future<void> _measureGroup(
   Monty pool, {
   required int lines,
   required int stubs,
 }) async {
-  final rejected = '${_program(lines)}\nbad: int = "x"';
+  final rejected = '${_program(lines, stubs)}\nbad: int = "x"';
   final runtime = await _runtime(pool, stubs);
   try {
     for (var index = 0; index < 3; index++) {
@@ -100,7 +141,10 @@ Future<void> _measureGroup(
       final fresh = await _runtime(pool, stubs);
       try {
         coldAccept.add(
-          await _time(fresh.execute(_program(lines)).result, rejected: false),
+          await _time(
+            fresh.execute(_program(lines, stubs)).result,
+            rejected: false,
+          ),
         );
       } finally {
         await fresh.dispose();
@@ -163,7 +207,7 @@ String _stubs(int count) {
   return lines.join('\n');
 }
 
-String _program(int count, {String prefix = 'v_'}) {
+String _program(int count, int stubs, {String prefix = 'v_'}) {
   final lines = [
     'def ${prefix}sum_values(items: list[int]) -> int:',
     '    total: int = 0',
@@ -177,7 +221,7 @@ String _program(int count, {String prefix = 'v_'}) {
     final remaining = count - lines.length;
     if (remaining >= 3) {
       lines.addAll([
-        '$name = fn_${index % 5}("x", $index)',
+        '$name = fn_${index % stubs}("x", $index)',
         '${name}_value: int = $name["value"]',
         '${name}_labels: list[str] = $name["labels"]',
       ]);
@@ -214,9 +258,13 @@ void _report(String kind, int lines, int stubs, List<double> rawSamples) {
     'kind': kind,
     'lines': lines,
     'stubs': stubs,
+    'n': samples.length,
     'samples': samples,
     'p50': _percentile(samples, 0.5),
-    'p90': _percentile(samples, 0.9),
+    if (samples.length >= 10)
+      'p90': _percentile(samples, 0.9)
+    else
+      'max': samples.lastOrNull ?? double.nan,
   };
   // ignore: avoid_print, the TCBENCH line is the benchmark report.
   print('TCBENCH ${jsonEncode(payload)}');

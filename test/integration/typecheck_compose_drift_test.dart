@@ -96,6 +96,26 @@ Map<String, List<String>> _stubFunctions(String stubs) {
 List<String> _parameterNames(String text) => text.trim().isEmpty
     ? const []
     : [
-        for (final parameter in text.split(','))
+        for (final parameter in _splitParameters(text))
           parameter.trim().split(':').firstOrNull?.trim() ?? '',
       ];
+
+List<String> _splitParameters(String text) {
+  final parameters = <String>[];
+  var bracketDepth = 0;
+  var start = 0;
+  for (var index = 0; index < text.length; index++) {
+    switch (text[index]) {
+      case '[':
+        bracketDepth++;
+      case ']':
+        bracketDepth--;
+      case ',' when bracketDepth == 0:
+        parameters.add(text.substring(start, index));
+        start = index + 1;
+    }
+  }
+  parameters.add(text.substring(start));
+
+  return parameters;
+}
