@@ -34,7 +34,30 @@ const String errorParityCasesJson = r'''
      "prints": [],
      "ext_calls": [],
      "error_class": "MontyRuntimeError",
-     "display": null
+     "display": {
+      "traceback": "Traceback (most recent call last):\n  File \"<python-input-0>\", line 2, in <module>\n    raise ValueError\nValueError",
+      "type-msg": "ValueError",
+      "msg": "",
+      "str": "ValueError",
+      "exception": {
+       "type": "ValueError",
+       "args": {
+        "t": "tuple",
+        "items": [
+         {
+          "t": "str",
+          "v": ""
+         }
+        ]
+       }
+      },
+      "data": null,
+      "bad_format": {
+       "format": "nope",
+       "type": "ValueError",
+       "message": "Invalid display format: 'nope'. Expected 'traceback', 'type-msg', or 'msg'"
+      }
+     }
     }
    ]
   },
@@ -88,6 +111,7 @@ const String errorParityCasesJson = r'''
         ]
        }
       },
+      "data": null,
       "bad_format": {
        "format": "nope",
        "type": "ValueError",
@@ -147,6 +171,7 @@ const String errorParityCasesJson = r'''
         ]
        }
       },
+      "data": null,
       "bad_format": {
        "format": "nope",
        "type": "ValueError",
@@ -206,6 +231,7 @@ const String errorParityCasesJson = r'''
         ]
        }
       },
+      "data": null,
       "bad_format": {
        "format": "nope",
        "type": "ValueError",
@@ -265,6 +291,7 @@ const String errorParityCasesJson = r'''
         ]
        }
       },
+      "data": null,
       "bad_format": {
        "format": "nope",
        "type": "ValueError",
@@ -315,6 +342,7 @@ const String errorParityCasesJson = r'''
         ]
        }
       },
+      "data": null,
       "bad_format": {
        "format": "nope",
        "type": "ValueError",
@@ -365,6 +393,7 @@ const String errorParityCasesJson = r'''
         ]
        }
       },
+      "data": null,
       "bad_format": {
        "format": "nope",
        "type": "ValueError",
@@ -415,6 +444,7 @@ const String errorParityCasesJson = r'''
         ]
        }
       },
+      "data": null,
       "bad_format": {
        "format": "nope",
        "type": "ValueError",
@@ -475,7 +505,30 @@ const String errorParityCasesJson = r'''
      "prints": [],
      "ext_calls": [],
      "error_class": "MontyRuntimeError",
-     "display": null
+     "display": {
+      "traceback": "Traceback (most recent call last):\n  File \"<python-input-0>\", line 13, in <module>\n    baz()\n    ~~~~~\n  File \"<python-input-0>\", line 10, in baz\n    bar()\n    ~~~~~\n  File \"<python-input-0>\", line 6, in bar\n    foo()\n    ~~~~~\n  File \"<python-input-0>\", line 2, in foo\n    raise ValueError('xxx')\nValueError: xxx",
+      "type-msg": "ValueError: xxx",
+      "msg": "xxx",
+      "str": "ValueError: xxx",
+      "exception": {
+       "type": "ValueError",
+       "args": {
+        "t": "tuple",
+        "items": [
+         {
+          "t": "str",
+          "v": "xxx"
+         }
+        ]
+       }
+      },
+      "data": null,
+      "bad_format": {
+       "format": "nope",
+       "type": "ValueError",
+       "message": "Invalid display format: 'nope'. Expected 'traceback', 'type-msg', or 'msg'"
+      }
+     }
     }
    ]
   },
@@ -503,7 +556,30 @@ const String errorParityCasesJson = r'''
      "prints": [],
      "ext_calls": [],
      "error_class": "MontySyntaxError",
-     "display": null
+     "display": {
+      "traceback": "Traceback (most recent call last):\n  File \"<python-input-0>\", line 1\n    break\n    ~~~~~\nSyntaxError: 'break' outside loop",
+      "type-msg": "SyntaxError: 'break' outside loop",
+      "msg": "'break' outside loop",
+      "str": "'break' outside loop",
+      "exception": {
+       "type": "SyntaxError",
+       "args": {
+        "t": "tuple",
+        "items": [
+         {
+          "t": "str",
+          "v": "'break' outside loop"
+         }
+        ]
+       }
+      },
+      "data": null,
+      "bad_format": {
+       "format": "nope",
+       "type": "ValueError",
+       "message": "Invalid display format: 'nope'. Expected 'traceback', 'type-msg', or 'msg'"
+      }
+     }
     }
    ]
   },
@@ -531,7 +607,30 @@ const String errorParityCasesJson = r'''
      "prints": [],
      "ext_calls": [],
      "error_class": "MontySyntaxError",
-     "display": null
+     "display": {
+      "traceback": "Traceback (most recent call last):\n  File \"<python-input-0>\", line 1\n    continue\n    ~~~~~~~~\nSyntaxError: 'continue' not properly in loop",
+      "type-msg": "SyntaxError: 'continue' not properly in loop",
+      "msg": "'continue' not properly in loop",
+      "str": "'continue' not properly in loop",
+      "exception": {
+       "type": "SyntaxError",
+       "args": {
+        "t": "tuple",
+        "items": [
+         {
+          "t": "str",
+          "v": "'continue' not properly in loop"
+         }
+        ]
+       }
+      },
+      "data": null,
+      "bad_format": {
+       "format": "nope",
+       "type": "ValueError",
+       "message": "Invalid display format: 'nope'. Expected 'traceback', 'type-msg', or 'msg'"
+      }
+     }
     }
    ]
   },
@@ -559,7 +658,30 @@ const String errorParityCasesJson = r'''
      "prints": [],
      "ext_calls": [],
      "error_class": "MontyRuntimeError",
-     "display": null
+     "display": {
+      "traceback": "Traceback (most recent call last):\n  File \"<python-input-0>\", line 1, in <module>\n    import nonexistent_module\nModuleNotFoundError: No module named 'nonexistent_module'",
+      "type-msg": "ModuleNotFoundError: No module named 'nonexistent_module'",
+      "msg": "No module named 'nonexistent_module'",
+      "str": "ModuleNotFoundError: No module named 'nonexistent_module'",
+      "exception": {
+       "type": "ModuleNotFoundError",
+       "args": {
+        "t": "tuple",
+        "items": [
+         {
+          "t": "str",
+          "v": "No module named 'nonexistent_module'"
+         }
+        ]
+       }
+      },
+      "data": null,
+      "bad_format": {
+       "format": "nope",
+       "type": "ValueError",
+       "message": "Invalid display format: 'nope'. Expected 'traceback', 'type-msg', or 'msg'"
+      }
+     }
     }
    ]
   },
@@ -595,7 +717,37 @@ const String errorParityCasesJson = r'''
      "prints": [],
      "ext_calls": [],
      "error_class": "MontyRuntimeError",
-     "display": null
+     "display": {
+      "traceback": "Traceback (most recent call last):\n  File \"<python-input-0>\", line 2, in <module>\n    json.loads('{\"a\": 1,\\n \"b\": }')\n    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\njson.JSONDecodeError: Expecting value: line 2 column 7 (char 15)",
+      "type-msg": "json.JSONDecodeError: Expecting value: line 2 column 7 (char 15)",
+      "msg": "Expecting value: line 2 column 7 (char 15)",
+      "str": "json.JSONDecodeError: Expecting value: line 2 column 7 (char 15)",
+      "exception": {
+       "type": "JSONDecodeError",
+       "args": {
+        "t": "tuple",
+        "items": [
+         {
+          "t": "str",
+          "v": "Expecting value: line 2 column 7 (char 15)"
+         }
+        ]
+       }
+      },
+      "data": {
+       "kind": "json",
+       "msg": "Expecting value",
+       "doc": "{\"a\": 1,\n \"b\": }",
+       "pos": 15,
+       "lineno": 2,
+       "colno": 7
+      },
+      "bad_format": {
+       "format": "nope",
+       "type": "ValueError",
+       "message": "Invalid display format: 'nope'. Expected 'traceback', 'type-msg', or 'msg'"
+      }
+     }
     }
    ]
   },
@@ -623,7 +775,30 @@ const String errorParityCasesJson = r'''
      "prints": [],
      "ext_calls": [],
      "error_class": "MontyRuntimeError",
-     "display": null
+     "display": {
+      "traceback": "Traceback (most recent call last):\n  File \"<python-input-0>\", line 4, in <module>\n    r = (e.encoding, e.start, e.end, e.reason)\nAttributeError: 'UnicodeDecodeError' object has no attribute 'encoding'",
+      "type-msg": "AttributeError: 'UnicodeDecodeError' object has no attribute 'encoding'",
+      "msg": "'UnicodeDecodeError' object has no attribute 'encoding'",
+      "str": "AttributeError: 'UnicodeDecodeError' object has no attribute 'encoding'",
+      "exception": {
+       "type": "AttributeError",
+       "args": {
+        "t": "tuple",
+        "items": [
+         {
+          "t": "str",
+          "v": "'UnicodeDecodeError' object has no attribute 'encoding'"
+         }
+        ]
+       }
+      },
+      "data": null,
+      "bad_format": {
+       "format": "nope",
+       "type": "ValueError",
+       "message": "Invalid display format: 'nope'. Expected 'traceback', 'type-msg', or 'msg'"
+      }
+     }
     }
    ]
   },
@@ -668,6 +843,7 @@ const String errorParityCasesJson = r'''
         ]
        }
       },
+      "data": null,
       "bad_format": {
        "format": "nope",
        "type": "ValueError",
@@ -718,6 +894,7 @@ const String errorParityCasesJson = r'''
         ]
        }
       },
+      "data": null,
       "bad_format": {
        "format": "nope",
        "type": "ValueError",
@@ -762,7 +939,56 @@ const String errorParityCasesJson = r'''
      "prints": [],
      "ext_calls": [],
      "error_class": "MontyRuntimeError",
-     "display": null
+     "display": {
+      "traceback": "Traceback (most recent call last):\n  File \"<python-input-0>\", line 1, in <module>\n    b\"ab\\xff\".decode(\"utf-8\")\n    ~~~~~~~~~~~~~~~~~~~~~~~~~\nUnicodeDecodeError: 'utf-8' codec can't decode byte 0xff in position 2: invalid start byte",
+      "type-msg": "UnicodeDecodeError: 'utf-8' codec can't decode byte 0xff in position 2: invalid start byte",
+      "msg": "'utf-8' codec can't decode byte 0xff in position 2: invalid start byte",
+      "str": "UnicodeDecodeError: 'utf-8' codec can't decode byte 0xff in position 2: invalid start byte",
+      "exception": {
+       "type": "UnicodeDecodeError",
+       "args": {
+        "t": "tuple",
+        "items": [
+         {
+          "t": "str",
+          "v": "utf-8"
+         },
+         {
+          "t": "bytes",
+          "hex": "6162ff"
+         },
+         {
+          "t": "int",
+          "v": "2"
+         },
+         {
+          "t": "int",
+          "v": "3"
+         },
+         {
+          "t": "str",
+          "v": "invalid start byte"
+         }
+        ]
+       }
+      },
+      "data": {
+       "kind": "unicode",
+       "encoding": "utf-8",
+       "object": {
+        "t": "bytes",
+        "hex": "6162ff"
+       },
+       "start": 2,
+       "end": 3,
+       "reason": "invalid start byte"
+      },
+      "bad_format": {
+       "format": "nope",
+       "type": "ValueError",
+       "message": "Invalid display format: 'nope'. Expected 'traceback', 'type-msg', or 'msg'"
+      }
+     }
     }
    ]
   },
@@ -821,6 +1047,7 @@ const String errorParityCasesJson = r'''
         ]
        }
       },
+      "data": null,
       "bad_format": {
        "format": "nope",
        "type": "ValueError",
@@ -891,6 +1118,7 @@ const String errorParityCasesJson = r'''
         ]
        }
       },
+      "data": null,
       "bad_format": {
        "format": "nope",
        "type": "ValueError",
@@ -1065,6 +1293,7 @@ const String errorParityCasesJson = r'''
         ]
        }
       },
+      "data": null,
       "bad_format": {
        "format": "nope",
        "type": "ValueError",
@@ -1115,6 +1344,7 @@ const String errorParityCasesJson = r'''
         ]
        }
       },
+      "data": null,
       "bad_format": {
        "format": "nope",
        "type": "ValueError",
@@ -1308,6 +1538,7 @@ const String errorParityCasesJson = r'''
         ]
        }
       },
+      "data": null,
       "bad_format": {
        "format": "nope",
        "type": "ValueError",
@@ -1366,6 +1597,7 @@ const String errorParityCasesJson = r'''
         ]
        }
       },
+      "data": null,
       "bad_format": {
        "format": "nope",
        "type": "ValueError",
@@ -1417,6 +1649,7 @@ const String errorParityCasesJson = r'''
         ]
        }
       },
+      "data": null,
       "bad_format": {
        "format": "nope",
        "type": "ValueError",
@@ -1467,6 +1700,7 @@ const String errorParityCasesJson = r'''
         ]
        }
       },
+      "data": null,
       "bad_format": {
        "format": "nope",
        "type": "ValueError",
@@ -1526,6 +1760,7 @@ const String errorParityCasesJson = r'''
         ]
        }
       },
+      "data": null,
       "bad_format": {
        "format": "nope",
        "type": "ValueError",
@@ -1559,7 +1794,30 @@ const String errorParityCasesJson = r'''
      "prints": [],
      "ext_calls": [],
      "error_class": "MontyRuntimeError",
-     "display": null
+     "display": {
+      "traceback": "Traceback (most recent call last):\n  File \"<python-input-0>\", line 2, in <module>\n    d['missing']\n    ~~~~~~~~~~~~\nKeyError: missing",
+      "type-msg": "KeyError: missing",
+      "msg": "missing",
+      "str": "KeyError: missing",
+      "exception": {
+       "type": "KeyError",
+       "args": {
+        "t": "tuple",
+        "items": [
+         {
+          "t": "str",
+          "v": "missing"
+         }
+        ]
+       }
+      },
+      "data": null,
+      "bad_format": {
+       "format": "nope",
+       "type": "ValueError",
+       "message": "Invalid display format: 'nope'. Expected 'traceback', 'type-msg', or 'msg'"
+      }
+     }
     }
    ]
   },
@@ -1587,7 +1845,30 @@ const String errorParityCasesJson = r'''
      "prints": [],
      "ext_calls": [],
      "error_class": "MontyRuntimeError",
-     "display": null
+     "display": {
+      "traceback": "Traceback (most recent call last):\n  File \"<python-input-0>\", line 16, in <module>\n    raise ValueError('from inner body')\nValueError: from inner body",
+      "type-msg": "ValueError: from inner body",
+      "msg": "from inner body",
+      "str": "ValueError: from inner body",
+      "exception": {
+       "type": "ValueError",
+       "args": {
+        "t": "tuple",
+        "items": [
+         {
+          "t": "str",
+          "v": "from inner body"
+         }
+        ]
+       }
+      },
+      "data": null,
+      "bad_format": {
+       "format": "nope",
+       "type": "ValueError",
+       "message": "Invalid display format: 'nope'. Expected 'traceback', 'type-msg', or 'msg'"
+      }
+     }
     }
    ]
   },
@@ -1665,6 +1946,7 @@ const String errorParityCasesJson = r'''
         ]
        }
       },
+      "data": null,
       "bad_format": {
        "format": "nope",
        "type": "ValueError",
@@ -1718,6 +2000,7 @@ const String errorParityCasesJson = r'''
         ]
        }
       },
+      "data": null,
       "bad_format": {
        "format": "nope",
        "type": "ValueError",
@@ -1760,7 +2043,30 @@ const String errorParityCasesJson = r'''
      "prints": [],
      "ext_calls": [],
      "error_class": "MontyRuntimeError",
-     "display": null
+     "display": {
+      "traceback": "Traceback (most recent call last):\n  File \"<python-input-0>\", line 12, in <module>\n    a.withdraw(200)\n    ~~~~~~~~~~~~~~~\n  File \"<python-input-0>\", line 7, in withdraw\n    raise ValueError('insufficient funds')\nValueError: insufficient funds",
+      "type-msg": "ValueError: insufficient funds",
+      "msg": "insufficient funds",
+      "str": "ValueError: insufficient funds",
+      "exception": {
+       "type": "ValueError",
+       "args": {
+        "t": "tuple",
+        "items": [
+         {
+          "t": "str",
+          "v": "insufficient funds"
+         }
+        ]
+       }
+      },
+      "data": null,
+      "bad_format": {
+       "format": "nope",
+       "type": "ValueError",
+       "message": "Invalid display format: 'nope'. Expected 'traceback', 'type-msg', or 'msg'"
+      }
+     }
     }
    ]
   }
