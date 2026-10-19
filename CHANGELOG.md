@@ -6,6 +6,14 @@
   `MontyString`, `MontyList`, `MontyTuple`, `MontyDict`, and `MontyBytes` so a
   host function can be written from the dm import alone. The facade has 54
   names.
+- The facade exports `Frame`, `MontyRuntimeError`, `MontySyntaxError`,
+  `MontyTypingError`, `MontyCrashedError`, `MontyExceptionValue` and
+  `FrameTooLargeException`, so a consumer can read traceback frames and the
+  error subtype from the dm import alone. The facade has 61 names.
+- `BridgeRunError` gains `displayMessage`, `cause`, `causeStack` and
+  `throwCause()`. `cause` is the `MontyError` for a Python failure or the
+  recorded throw for an infrastructure failure, and `throwCause()` rethrows it
+  with the captured stack. `message` is unchanged.
 
 ### Changed
 

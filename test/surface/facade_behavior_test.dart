@@ -9,7 +9,7 @@ void main() {
     expect(value, const MontyNone());
   });
 
-  test('all 27 core facade names resolve on this backend', () {
+  test('all 25 core facade names resolve on this backend', () {
     expect([
       Monty,
       MontySession,

@@ -11,7 +11,7 @@
 library;
 
 export 'package:dart_monty_core/dart_monty_core.dart'
-        // Keep the order of the approved 27-name facade.
+        // Keep the order of the approved 25-name facade.
         // ignore: combinators_ordering
         show
         Monty,
