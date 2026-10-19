@@ -207,6 +207,7 @@ class ErrorParityCase {
     this.autoExternals,
     this.limits,
     this.inputs,
+    this.normalizeNumbers = false,
   });
 
   /// Parses an [ErrorParityCase] from a decoded JSON object.
@@ -219,6 +220,7 @@ class ErrorParityCase {
         autoExternals: _optionalStringList(json, 'auto_externals'),
         limits: _optionalMap(json, 'limits'),
         inputs: _optionalMap(json, 'inputs'),
+        normalizeNumbers: json['normalize_numbers'] == true,
         expected: _mapList(json['expected'], ErrorParityStep.fromJson),
       );
 
@@ -242,6 +244,10 @@ class ErrorParityCase {
 
   /// Input variable bindings keyed by name, if any.
   final Map<String, Object?>? inputs;
+
+  /// Whether the oracle recorded this case with every digit run written as
+  /// `N`, so messages and display text compare after the same rewrite.
+  final bool normalizeNumbers;
 
   /// Expected step outcomes (one entry per execution or REPL feed).
   final List<ErrorParityStep> expected;

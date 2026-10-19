@@ -1364,7 +1364,8 @@
       }
      }
     }
-   ]
+   ],
+   "normalize_numbers": true
   },
   {
    "id": "parser_unsupported_inheritance",

@@ -1373,7 +1373,8 @@ const String errorParityCasesJson = r'''
       }
      }
     }
-   ]
+   ],
+   "normalize_numbers": true
   },
   {
    "id": "parser_unsupported_inheritance",
