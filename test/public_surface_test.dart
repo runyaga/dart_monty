@@ -66,7 +66,7 @@ void main() {
             )
             as Map<String, dynamic>;
     expect(memberSignatures(declarations), golden);
-    expect(golden, hasLength(174));
+    expect(golden, hasLength(171));
     final headers =
         jsonDecode(
               File('test/surface/declarations.json').readAsStringSync(),

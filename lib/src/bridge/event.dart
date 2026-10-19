@@ -93,16 +93,6 @@ class BridgeRunError extends BridgeEvent {
     null => message,
   };
 
-  /// Structured Python traceback frames when [exception] is a
-  /// [MontyRuntimeError], or `null` otherwise.
-  List<Frame>? get traceback => switch (exception) {
-    final MontyRuntimeError e => e.traceback,
-    _ => null,
-  };
-
-  /// Structured Python exception value when [exception] is non-null.
-  MontyExceptionValue? get exceptionValue => exception?.exception;
-
   /// The underlying [MontyError] for Python failures, the recorded throw for
   /// infrastructure failures, or `null` for manually constructed events
   /// without an associated cause.
@@ -110,11 +100,6 @@ class BridgeRunError extends BridgeEvent {
 
   /// The captured catch stack trace when recorded by the bridge, or `null`.
   StackTrace? get causeStack => runFailureOf(this)?.$2;
-
-  /// Alias for [printOutput].
-  String? get prints => switch (printOutput) {
-    final text => text,
-  };
 
   /// Rethrows [cause] with [causeStack] via [Error.throwWithStackTrace] when a
   /// stack was captured, throws [cause] directly when only [exception] is

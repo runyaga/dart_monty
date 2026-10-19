@@ -42,15 +42,12 @@ void main() {
       final err = errors.firstOrNull!;
       final runtimeErr = err.exception! as MontyRuntimeError;
       final stack = err.causeStack;
-      final prints = err.prints;
       final cause = err.cause;
 
       expect(err.message, 'ZeroDivisionError: division by zero');
       expect(err.displayMessage, runtimeErr.display());
-      expect(err.traceback, runtimeErr.traceback);
-      expect(err.exceptionValue, runtimeErr.exception);
-      expect(prints, 'hi\n');
-      expect(prints, err.printOutput);
+      expect(runtimeErr.traceback.map((frame) => frame.line), [2]);
+      expect(err.printOutput, 'hi\n');
       expect(stack, isNotNull);
 
       Object? extracted;
@@ -72,7 +69,7 @@ void main() {
   );
 
   test(
-    'MontyCrashedError uses toString() for displayMessage and null traceback',
+    'MontyCrashedError uses toString() for displayMessage',
     () async {
       final fake = FakeMontySession()..willCrash();
       final crashingBridge = MontyBridge(
@@ -88,7 +85,6 @@ void main() {
 
       expect(err.cause, isA<MontyCrashedError>());
       expect(err.displayMessage, err.exception!.toString());
-      expect(err.traceback, isNull);
       expect(err.causeStack, isNotNull);
     },
   );
@@ -110,8 +106,6 @@ void main() {
       final stack = err.causeStack;
 
       expect(err.exception, isNull);
-      expect(err.traceback, isNull);
-      expect(err.exceptionValue, isNull);
       expect(err.displayMessage, err.message);
       expect(identical(err.cause, infraError), isTrue);
       expect(stack, isNotNull);
@@ -134,11 +128,9 @@ void main() {
         printOutput: 'line\n',
       );
       expect(err.displayMessage, 'custom failure');
-      expect(err.traceback, isNull);
-      expect(err.exceptionValue, isNull);
       expect(err.cause, isNull);
       expect(err.causeStack, isNull);
-      expect(err.prints, 'line\n');
+      expect(err.printOutput, 'line\n');
       expect(
         err.throwCause,
         throwsA(

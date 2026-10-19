@@ -13,7 +13,8 @@ void main() {
         expect(errorParityOracle, 'pydantic-monty 1.1.0');
 
         final cases = loadErrorParityCases();
-        expect(cases, hasLength(32));
+        final ofAllCases = hasLength(32);
+        expect(cases, ofAllCases);
 
         final ids = <String>{};
         var exceptionCount = 0;
@@ -44,7 +45,7 @@ void main() {
           }
         }
 
-        expect(ids, hasLength(32));
+        expect(ids, ofAllCases);
         expect(exceptionCount, greaterThan(0));
       },
     );
