@@ -101,6 +101,7 @@ class ErrorParityDisplay {
     required this.msg,
     required this.str,
     required this.exception,
+    this.data,
     this.badFormat,
   });
 
@@ -112,6 +113,7 @@ class ErrorParityDisplay {
         msg: _requireString(json, 'msg'),
         str: _requireString(json, 'str'),
         exception: _requireMap(json, 'exception'),
+        data: _optionalMap(json, 'data'),
         badFormat: _optionalMap(json, 'bad_format'),
       );
 
@@ -130,6 +132,9 @@ class ErrorParityDisplay {
   /// Serialized exception representation (`type` and `args`).
   final Map<String, Object?> exception;
 
+  /// Optional structured payload (such as JSON or Unicode decode error fields).
+  final Map<String, Object?>? data;
+
   /// Expected error when passing an invalid display format.
   final Map<String, Object?>? badFormat;
 
@@ -140,6 +145,7 @@ class ErrorParityDisplay {
     'msg' => msg,
     'str' => str,
     'exception' => exception,
+    'data' => data,
     'bad_format' => badFormat,
     _ => null,
   };
