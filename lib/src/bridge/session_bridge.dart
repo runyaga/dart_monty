@@ -242,8 +242,8 @@ class SessionBridge implements MontyBridge {
           cwd,
         ), emit),
       );
-    } on MontyError catch (e) {
-      end(_pythonError(logger, e, printed));
+    } on MontyError catch (e, st) {
+      end(_pythonError(logger, e, st, printed));
     } on Object catch (e, st) {
       end(_infrastructureError(logger, e, st, printed));
     }
@@ -286,6 +286,7 @@ class SessionBridge implements MontyBridge {
 BridgeRunError _pythonError(
   BridgeLogger logger,
   MontyError error,
+  StackTrace st,
   CollectString printed,
 ) {
   final message = _composeMessage(
@@ -293,12 +294,14 @@ BridgeRunError _pythonError(
     error.exception.message ?? '',
   );
   logger.warning('Python error', attributes: {'error': message});
-
-  return BridgeRunError(
+  final event = BridgeRunError(
     message: message,
     printOutput: _printed(printed),
     exception: error,
   );
+  recordRunFailure(event, error, st);
+
+  return event;
 }
 
 /// Applies extension wrappers before feeding, releasing the run on failure.

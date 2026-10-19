@@ -10,6 +10,7 @@
   "ExternalReturnValue",
   "ExternalSettledResult",
   "Frame",
+  "FrameTooLargeException",
   "FunctionSnapshot",
   "FutureSnapshot",
   "HostClass",
@@ -66,5 +67,6 @@
   "TimeZone",
   "coroutine",
   "instrumentTelemetry",
+  "parityCoroutine",
   "runMontyWorkerIfChild"
 ]

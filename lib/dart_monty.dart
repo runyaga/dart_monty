@@ -11,7 +11,7 @@
 library;
 
 export 'package:dart_monty_core/dart_monty_core.dart'
-        // Keep the order of the approved 18-name facade.
+        // Keep the order of the approved 27-name facade.
         // ignore: combinators_ordering
         show
         Monty,
@@ -31,7 +31,14 @@ export 'package:dart_monty_core/dart_monty_core.dart'
         MontyList,
         MontyTuple,
         MontyDict,
-        MontyBytes;
+        MontyBytes,
+        Frame,
+        MontyRuntimeError,
+        MontySyntaxError,
+        MontyTypingError,
+        MontyCrashedError,
+        MontyExceptionValue,
+        FrameTooLargeException;
 
 export 'src/bridge/bridge.dart' show MontyBridge;
 export 'src/bridge/event.dart'
