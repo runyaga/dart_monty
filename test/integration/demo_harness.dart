@@ -236,7 +236,7 @@ class PageLoad {
     for (final e in consoleErrors) {
       buffer.writeln('console err: $e');
     }
-    for (final e in examples.where((e) => !e.ok)) {
+    for (final e in examples.where((run) => !run.ok)) {
       buffer.writeln('example:     $e');
     }
 

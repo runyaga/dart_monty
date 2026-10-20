@@ -1107,12 +1107,12 @@ class _MockBridge implements MontyBridge {
   Map<String, List<HostFunctionSchema>> get schemasByCategory {
     final result = <String, List<HostFunctionSchema>>{};
     for (final entry in _categoryIndex.entries) {
-      final schemas = <HostFunctionSchema>[];
+      final categorySchemas = <HostFunctionSchema>[];
       for (final name in entry.value) {
         final fn = _functions[name];
-        if (fn != null) schemas.add(fn.schema);
+        if (fn != null) categorySchemas.add(fn.schema);
       }
-      if (schemas.isNotEmpty) result[entry.key] = schemas;
+      if (categorySchemas.isNotEmpty) result[entry.key] = categorySchemas;
     }
 
     return result;
@@ -1319,8 +1319,8 @@ final class _NamedLogger implements BridgeLogger {
   }
 
   @override
-  BridgeLogger child(String name) =>
-      children[name] = _NamedLogger(name, children);
+  BridgeLogger child(String childName) =>
+      children[childName] = _NamedLogger(childName, children);
 
   @override
   void close() {

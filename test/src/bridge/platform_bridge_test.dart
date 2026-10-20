@@ -1841,9 +1841,9 @@ void main() {
         final pending = Completer<MontyValue>();
         final called = Completer<void>();
         final log = _RecordingLogger();
-        final bridge = MontyBridge(session: fake, logger: log);
-        addTearDown(bridge.dispose);
-        bridge.registerOs((name, args, kwargs) {
+        final loggedBridge = MontyBridge(session: fake, logger: log);
+        addTearDown(loggedBridge.dispose);
+        loggedBridge.registerOs((name, args, kwargs) {
           called.complete();
 
           return pending.future;
@@ -1856,7 +1856,7 @@ void main() {
           ..willReturn(const MontyNone());
 
         final events = <BridgeEvent>[];
-        final done = bridge
+        final done = loggedBridge
             .execute('os.getenv("X")')
             .listen(events.add)
             .asFuture<void>();
