@@ -10,7 +10,7 @@
     "test/integration/child_lifecycle_test.dart": 23,
     "test/integration/child_limits_test.dart": 6,
     "test/integration/child_os_policy_test.dart": 17,
-    "test/integration/demo_harness.dart": 5,
+    "test/integration/demo_harness.dart": 4,
     "test/integration/event_loop_extension_test.dart": 1,
     "test/integration/ffi_async_host_fn_test.dart": 28,
     "test/integration/ffi_child_events_test.dart": 3,
@@ -55,7 +55,6 @@
   },
   "by_rule": {
     "avoid-global-state": 3,
-    "avoid-missing-completer-stack-trace": 1,
     "avoid-missing-enum-constant-in-map": 1,
     "avoid-shadowing": 5,
     "avoid-uncaught-future-errors": 1,
@@ -68,5 +67,5 @@
     "prefer-async-await": 14,
     "prefer-moving-to-variable": 170
   },
-  "total": 660
+  "total": 659
 }

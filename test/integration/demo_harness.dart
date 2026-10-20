@@ -425,7 +425,10 @@ class Chrome {
       if (completer == null) return;
       final error = message['error'];
       if (error != null) {
-        completer.completeError(StateError('CDP error: ${jsonEncode(error)}'));
+        completer.completeError(
+          StateError('CDP error: ${jsonEncode(error)}'),
+          StackTrace.current,
+        );
       } else {
         completer.complete(
           (message['result'] as Map<String, dynamic>?) ??
