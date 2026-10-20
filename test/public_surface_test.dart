@@ -26,7 +26,7 @@ void main() {
       final names = inventory.exported(facade, web: web).keys.toSet();
       final golden = {...expected};
       expect(names, golden);
-      expect(names, hasLength(61));
+      expect(names, hasLength(62));
     });
   }
 
@@ -66,14 +66,14 @@ void main() {
             )
             as Map<String, dynamic>;
     expect(memberSignatures(declarations), golden);
-    expect(golden, hasLength(171));
+    expect(golden, hasLength(172));
     final headers =
         jsonDecode(
               File('test/surface/declarations.json').readAsStringSync(),
             )
             as Map<String, dynamic>;
     expect(declarationSignatures(declarations), headers);
-    expect(headers, hasLength(36));
+    expect(headers, hasLength(37));
   });
 
   test('core public surface has 70 names on both platforms', () {

@@ -57,6 +57,7 @@
   "OSAccess",
   "OsCallNotHandledException",
   "OsHandler",
+  "ParityHostFunctionHandler",
   "ResourceLimits",
   "SandboxExtension",
   "buildRunScriptFunction"

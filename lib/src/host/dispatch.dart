@@ -6,7 +6,7 @@ import 'package:dart_monty/src/bridge/event.dart';
 import 'package:dart_monty/src/bridge/logger.dart';
 import 'package:dart_monty/src/host/context.dart';
 import 'package:dart_monty/src/host/function.dart'
-    show DispatchMode, HostFunction;
+    show DispatchMode, HostFunction, HostFunctionParityInternal;
 import 'package:dart_monty/src/host/schema.dart';
 import 'package:dart_monty/src/runtime/execution_handle.dart';
 import 'package:dart_monty/src/runtime/runtime_ref.dart';
@@ -152,6 +152,80 @@ String _boundedText(Object value) {
 String _resultText(MontyValue result) =>
     result is MontyNone ? '' : _boundedText(result);
 
+/// Canonical Monty 1.1.0 conversion failure message for an unconvertible
+/// parity host function return [value].
+String _parityConversionMessage(Object? value) {
+  final typeName = value.runtimeType == Object
+      ? 'builtins.object'
+      : '${value.runtimeType}';
+
+  return 'Cannot convert $typeName to Monty value — '
+      'wrap class instances in pydantic_monty.ClassInstance(...)';
+}
+
+MontyValue _toMontyValue(Object? raw) => switch (raw) {
+  null => const MontyNone(),
+  final MontyValue value => value,
+  _ => MontyValue.fromDart(raw),
+};
+
+Future<MontyValue> _invokeParityDirect(
+  HostFunction fn,
+  Map<String, MontyValue> args,
+  HostContext ctx,
+  BridgeLogger log,
+) async {
+  final Map<String, MontyValue> validatedArgs;
+  try {
+    validatedArgs = mapAndValidateParity(fn.schema, const [], args);
+  } on ParityBindingException catch (e) {
+    throw ExternalException('TypeError', e.message);
+  }
+
+  final raw = await fn.parityHandler!(validatedArgs, ctx);
+  try {
+    return _toMontyValue(raw);
+  } on Object catch (e, st) {
+    final message = _parityConversionMessage(raw);
+    log.error(
+      'Host result serialization error',
+      error: 'TypeError: $message',
+      stackTrace: st,
+      attributes: {
+        'function': fn.schema.name,
+        'type': '${raw.runtimeType}',
+        'errorType': '${e.runtimeType}',
+      },
+    );
+    throw ExternalException('TypeError', message);
+  }
+}
+
+Future<Object?> _invokeParityCall(
+  HostFunction fn,
+  Map<String, MontyValue> validated,
+  HostContext ctx,
+  String Function(Object) fail,
+  BridgeLogger log,
+) async {
+  final Object? raw;
+  try {
+    raw = await fn.parityHandler!(validated, ctx);
+  } on Object catch (e, st) {
+    final text = fail(e);
+    log.error(
+      'Host handler error',
+      error: text,
+      stackTrace: st,
+      attributes: {'function': fn.schema.name, 'type': '${e.runtimeType}'},
+    );
+    if (e is ExternalException) rethrow;
+    throw ExternalException('RuntimeError', text);
+  }
+
+  return raw;
+}
+
 /// [args] as JSON for [BridgeFunctionCallArgs.delta]: a value JSON has no
 /// form for is written as its text ([_writeText]).
 ///
@@ -277,7 +351,7 @@ class HostDispatch {
   /// Silently skips functions whose [HostFunction.handler] is `null` on the
   /// current backend — no `supportedBackends` declaration required.
   void register(HostFunction function, {String? category}) {
-    if (function.handler == null) return;
+    if (!function.hasActiveHandler) return;
     validateDefaults(function.schema);
     final name = function.schema.name;
     _functions[name] = function;
@@ -304,11 +378,6 @@ class HostDispatch {
   }) {
     final fn = _functions[name];
     if (fn == null) throw ArgumentError('Unknown host function: $name');
-    final validatedArgs = mapAndValidate(
-      fn.schema,
-      const [],
-      args,
-    );
     void sink(BridgeEvent event) {
       if (onEvent == null) return;
       try {
@@ -329,6 +398,14 @@ class HostDispatch {
       os: osHandler,
       parent: _runtime,
       subExecute: _subExecuteFor(null),
+    );
+    if (fn.isParity) {
+      return _invokeParityDirect(fn, args, ctx, _log);
+    }
+    final validatedArgs = mapAndValidate(
+      fn.schema,
+      const [],
+      args,
     );
 
     return fn.handler!(validatedArgs, ctx);
@@ -360,14 +437,31 @@ class HostDispatch {
       Map<String, MontyValue> kwargs,
     ) => _call(fn, args, kwargs, emit, os: os, cancelToken: cancelToken);
 
+    Future<Object?> callParity(
+      HostFunction fn,
+      List<MontyValue> args,
+      Map<String, MontyValue> kwargs,
+    ) => _callParity(fn, args, kwargs, emit, os: os, cancelToken: cancelToken);
+
     return {
       for (final MapEntry(key: name, value: fn) in _functions.entries)
-        name: MontyHostFunction(name, switch (fn.dispatch) {
-          DispatchMode.sync => (args, kwargs) => call(fn, args, kwargs),
-          DispatchMode.future => coroutine(
-            (args, kwargs) => call(fn, args, kwargs),
-          ),
-        }),
+        name: fn.isParity
+            ? MontyHostFunction.parity(name, switch (fn.dispatch) {
+                DispatchMode.sync => (args, kwargs) => callParity(
+                  fn,
+                  args,
+                  kwargs,
+                ),
+                DispatchMode.future => parityCoroutine(
+                  (args, kwargs) => callParity(fn, args, kwargs),
+                ),
+              })
+            : MontyHostFunction(name, switch (fn.dispatch) {
+                DispatchMode.sync => (args, kwargs) => call(fn, args, kwargs),
+                DispatchMode.future => coroutine(
+                  (args, kwargs) => call(fn, args, kwargs),
+                ),
+              }),
     };
   }
 
@@ -389,7 +483,16 @@ class HostDispatch {
     String Function(Object) fail,
   ) {
     try {
-      return mapAndValidate(fn.schema, args, kwargs);
+      return fn.isParity
+          ? mapAndValidateParity(fn.schema, args, kwargs)
+          : mapAndValidate(fn.schema, args, kwargs);
+    } on ParityBindingException catch (e) {
+      final text = fail(e.message);
+      _log.warning(
+        'Argument validation failed',
+        attributes: {'function': fn.schema.name, 'error': text},
+      );
+      throw ExternalException('TypeError', text);
     } on Object catch (e) {
       final text = fail(e);
       _log.warning(
@@ -446,6 +549,61 @@ class HostDispatch {
     emit(BridgeCallFinished(callId: callId));
 
     return value;
+  }
+
+  Future<Object?> _callParity(
+    HostFunction fn,
+    List<MontyValue> args,
+    Map<String, MontyValue> kwargs,
+    void Function(BridgeEvent) emit, {
+    required OsHandler? os,
+    required CancelToken? cancelToken,
+  }) async {
+    final name = fn.schema.name;
+    final callId = nextId;
+    _log.trace('Host function call', attributes: {'name': name});
+    emit(BridgeCallStarted(callId: callId));
+    emit(BridgeFunctionCallStart(callId: callId, name: name));
+    String fail(Object error) {
+      final text = _boundedText(error);
+      emit(BridgeFunctionCallResult(callId: callId, result: 'Error: $text'));
+      emit(BridgeCallFinished(callId: callId));
+
+      return text;
+    }
+
+    final validated = _validateCall(fn, args, kwargs, fail);
+    emit(BridgeFunctionCallArgs(callId: callId, delta: _argsJson(validated)));
+    emit(BridgeFunctionCallEnd(callId: callId));
+
+    final ctx = _contextFor(callId, emit, os, cancelToken);
+    final raw = await _invokeParityCall(fn, validated, ctx, fail, _log);
+    final MontyValue serialized;
+    try {
+      serialized = _toMontyValue(raw);
+    } on Object catch (e, st) {
+      final text = 'TypeError: ${_parityConversionMessage(raw)}';
+      _log.error(
+        'Host result serialization error',
+        error: text,
+        stackTrace: st,
+        attributes: {
+          'function': name,
+          'type': '${raw.runtimeType}',
+          'errorType': '${e.runtimeType}',
+        },
+      );
+      emit(BridgeFunctionCallResult(callId: callId, result: text));
+      emit(BridgeCallFinished(callId: callId));
+
+      return raw;
+    }
+    emit(
+      BridgeFunctionCallResult(callId: callId, result: _resultText(serialized)),
+    );
+    emit(BridgeCallFinished(callId: callId));
+
+    return serialized;
   }
 
   HostContext _contextFor(

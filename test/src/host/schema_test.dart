@@ -1,5 +1,6 @@
 import 'package:dart_monty/dart_monty.dart';
-import 'package:dart_monty/src/host/schema.dart' show mapAndValidate;
+import 'package:dart_monty/src/host/schema.dart'
+    show ParityBindingException, mapAndValidate, mapAndValidateParity;
 import 'package:test/test.dart';
 
 void main() {
@@ -374,6 +375,133 @@ void main() {
 
       final result = mapAndValidate(emptySchema, args, kwargs);
       expect(result, isEmpty);
+    });
+  });
+
+  group('mapAndValidateParity', () {
+    const twoSchema = HostFunctionSchema(
+      name: 'two',
+      params: [
+        HostParam(name: 'a', type: HostParamType.integer),
+        HostParam(name: 'b', type: HostParamType.integer),
+      ],
+    );
+    const threeSchema = HostFunctionSchema(
+      name: 'three',
+      params: [
+        HostParam(name: 'a', type: HostParamType.integer),
+        HostParam(name: 'b', type: HostParamType.integer),
+        HostParam(name: 'c', type: HostParamType.integer),
+      ],
+    );
+
+    test('unexpected keyword throws ParityBindingException', () {
+      expect(
+        () => mapAndValidateParity(
+          twoSchema,
+          const [MontyInt(1), MontyInt(2)],
+          const {'tag': MontyString('first')},
+        ),
+        throwsA(
+          isA<ParityBindingException>().having(
+            (e) => e.message,
+            'message',
+            "two() got an unexpected keyword argument 'tag'",
+          ),
+        ),
+      );
+    });
+
+    test('missing 1, 2, and 3 required arguments throw upstream texts', () {
+      expect(
+        () => mapAndValidateParity(twoSchema, const [MontyInt(1)], const {}),
+        throwsA(
+          isA<ParityBindingException>().having(
+            (e) => e.message,
+            'message',
+            "two() missing 1 required positional argument: 'b'",
+          ),
+        ),
+      );
+      expect(
+        () => mapAndValidateParity(twoSchema, const [], const {}),
+        throwsA(
+          isA<ParityBindingException>().having(
+            (e) => e.message,
+            'message',
+            "two() missing 2 required positional arguments: 'a' and 'b'",
+          ),
+        ),
+      );
+      const expectedThree =
+          "three() missing 3 required positional arguments: 'a', 'b', and 'c'";
+      expect(
+        () => mapAndValidateParity(threeSchema, const [], const {}),
+        throwsA(
+          isA<ParityBindingException>().having(
+            (e) => e.message,
+            'message',
+            expectedThree,
+          ),
+        ),
+      );
+    });
+
+    test('too many positional arguments use singular and plural forms', () {
+      expect(
+        () => mapAndValidateParity(
+          twoSchema,
+          const [MontyInt(1), MontyInt(2), MontyInt(3)],
+          const {},
+        ),
+        throwsA(
+          isA<ParityBindingException>().having(
+            (e) => e.message,
+            'message',
+            'two() takes 2 positional arguments but 3 were given',
+          ),
+        ),
+      );
+      const oneSchema = HostFunctionSchema(
+        name: 'one',
+        params: [HostParam(name: 'a', type: HostParamType.integer)],
+      );
+      expect(
+        () => mapAndValidateParity(
+          oneSchema,
+          const [MontyInt(1), MontyInt(2)],
+          const {},
+        ),
+        throwsA(
+          isA<ParityBindingException>().having(
+            (e) => e.message,
+            'message',
+            'one() takes 1 positional argument but 2 were given',
+          ),
+        ),
+      );
+      const zeroSchema = HostFunctionSchema(name: 'zero');
+      expect(
+        () => mapAndValidateParity(zeroSchema, const [MontyInt(1)], const {}),
+        throwsA(
+          isA<ParityBindingException>().having(
+            (e) => e.message,
+            'message',
+            'zero() takes 0 positional arguments but 1 was given',
+          ),
+        ),
+      );
+    });
+
+    test('schema type mismatch still throws FormatException', () {
+      expect(
+        () => mapAndValidateParity(
+          twoSchema,
+          const [MontyString('bad'), MontyInt(2)],
+          const {},
+        ),
+        throwsFormatException,
+      );
     });
   });
 }
