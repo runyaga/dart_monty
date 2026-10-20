@@ -1,6 +1,6 @@
 {
   "_dcm_version": "1.39.0",
-  "_grand_total": 115,
+  "_grand_total": 116,
   "checks": {
     "calculate-metrics": {
       "by_file": {
@@ -64,7 +64,7 @@
         "lib/src/extensions/event_loop.dart": 20,
         "lib/src/extensions/sandbox.dart": 5,
         "lib/src/host/context.dart": 3,
-        "lib/src/host/function.dart": 2,
+        "lib/src/host/function.dart": 3,
         "lib/src/host/param.dart": 1,
         "lib/src/host/schema.dart": 1,
         "lib/src/introspection_functions.dart": 1,
@@ -74,9 +74,9 @@
         "lib/src/runtime/value_x.dart": 9
       },
       "by_rule": {
-        "unnecessarily-public-issue": 74
+        "unnecessarily-public-issue": 75
       },
-      "total": 74
+      "total": 75
     },
     "check-unused-code": {
       "by_file": {

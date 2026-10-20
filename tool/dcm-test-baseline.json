@@ -55,9 +55,7 @@
     "test/src/extensions/run_script_test.dart": 5,
     "test/src/extensions/sandbox_test.dart": 6,
     "test/src/host/context_test.dart": 2,
-    "test/src/host/function_test.dart": 9,
     "test/src/host/param_test.dart": 2,
-    "test/src/host/schema_test.dart": 1,
     "test/src/host/sub_execute_test.dart": 59,
     "test/src/os_call/os_handler_surface_test.dart": 1,
     "test/src/os_call/os_handlers_test.dart": 2,
@@ -69,11 +67,10 @@
     "avoid-global-state": 3,
     "avoid-inferrable-type-arguments": 14,
     "avoid-missing-completer-stack-trace": 1,
-    "avoid-missing-enum-constant-in-map": 1,
     "avoid-nullable-tostring": 2,
     "avoid-shadowing": 5,
     "avoid-uncaught-future-errors": 1,
-    "avoid-unnecessary-futures": 12,
+    "avoid-unnecessary-futures": 9,
     "avoid-unnecessary-type-casts": 3,
     "avoid-unsafe-collection-methods": 427,
     "avoid-unused-assignment": 5,
@@ -86,7 +83,7 @@
     "prefer-async-await": 14,
     "prefer-declaring-const-constructor": 4,
     "prefer-first": 30,
-    "prefer-moving-to-variable": 170
+    "prefer-moving-to-variable": 164
   },
-  "total": 844
+  "total": 834
 }
