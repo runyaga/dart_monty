@@ -1053,7 +1053,7 @@ class _OsContribExtension extends MontyExtension {
   _OsContribExtension({
     required this.namespace,
     required Map<String, OsHandler>? contribution,
-  }) : _contribution = contribution;
+  }) : osContribution = contribution;
 
   @override
   final String namespace;
@@ -1061,10 +1061,8 @@ class _OsContribExtension extends MontyExtension {
   @override
   List<HostFunction> get functions => [];
 
-  final Map<String, OsHandler>? _contribution;
-
   @override
-  Map<String, OsHandler>? get osContribution => _contribution;
+  final Map<String, OsHandler>? osContribution;
 }
 
 /// Extension that captures its coordinator ([coordinatorOf]) during
@@ -1173,15 +1171,16 @@ class _SchemaProbe extends MontyExtension {
   }
 }
 
-/// An extension with [policy]; as a clone factory it records each clone,
+/// An extension with [childPolicy]; as a clone factory it records each clone,
 /// or runs [onClone] instead when given.
 class _PolicyExtension extends MontyExtension {
-  _PolicyExtension(this.namespace, this.policy, {this.onClone});
+  _PolicyExtension(this.namespace, this.childPolicy, {this.onClone});
 
   @override
   final String namespace;
 
-  final ChildPolicy policy;
+  @override
+  final ChildPolicy childPolicy;
   final MontyExtension Function()? onClone;
   final List<_PolicyExtension> clones = [];
   bool disposed = false;
@@ -1191,13 +1190,10 @@ class _PolicyExtension extends MontyExtension {
   List<HostFunction> get functions => [];
 
   @override
-  ChildPolicy get childPolicy => policy;
-
-  @override
   MontyExtension createChildInstance(ChildSpawnContext context) {
     final make = onClone;
     if (make != null) return make();
-    final clone = _PolicyExtension(namespace, policy);
+    final clone = _PolicyExtension(namespace, childPolicy);
     clones.add(clone);
 
     return clone;
