@@ -50,7 +50,13 @@ void main() {
         throw StateError('System policy must not call this handler');
       },
     );
-    final bridge = await childContractBridge(pool);
+    // The child needs a bridge of its own: the probe below must observe the
+    // inherited callback through the child's OS handler, so the parent's
+    // bridge cannot be reused here.
+    final childSession = await pool.checkout();
+    addTearDown(childSession.close);
+    final bridge = MontyBridge(session: childSession);
+    addTearDown(bridge.dispose);
     final child = await parent.spawnChild(
       context: const ChildSpawnContext(childId: 1),
       bridge: bridge,

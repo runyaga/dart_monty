@@ -7,19 +7,14 @@
     "test/integration/child_context_test.dart": 4,
     "test/integration/child_lifecycle_test.dart": 6,
     "test/integration/child_limits_test.dart": 2,
-    "test/integration/child_os_policy_test.dart": 2,
     "test/integration/demo_harness.dart": 2,
-    "test/integration/ffi_async_host_fn_test.dart": 20,
     "test/integration/ffi_child_events_test.dart": 1,
     "test/integration/ffi_raw_bridge_http_test.dart": 1,
     "test/integration/ffi_value_x_test.dart": 1,
     "test/integration/native_workspace_driver_test.dart": 1,
-    "test/integration/os_handlers_session_test.dart": 1,
     "test/integration/sub_execution_limits_test.dart": 1,
     "test/integration/workspace_transfer_test.dart": 1,
     "test/src/bridge/extension_coordinator_test.dart": 5,
-    "test/src/bridge/platform_bridge_test.dart": 2,
-    "test/src/bridge/test_seam_test.dart": 1,
     "test/src/runtime/runtime_pool_test.dart": 63,
     "test/src/workspace/bounds_test.dart": 1
   },
@@ -29,8 +24,7 @@
     "avoid-unused-assignment": 4,
     "match-getter-setter-field-names": 2,
     "member-ordering": 6,
-    "newline-before-return": 2,
-    "prefer-moving-to-variable": 44
+    "prefer-moving-to-variable": 20
   },
-  "total": 124
+  "total": 98
 }

@@ -1217,11 +1217,9 @@ void main() {
       final lines = events.map(_line).toList();
       expect(lines.sublist(1, 3), ['CallStarted 2', 'FunctionCallStart 2 fn']);
       final containsMissingX = contains('Required parameter "x" is missing');
-      expect(
-        lines.elementAtOrNull(3),
-        startsWith('FunctionCallResult 2 Error: '),
-      );
-      expect(lines.elementAtOrNull(3), containsMissingX);
+      final errorLine = lines.elementAtOrNull(3);
+      expect(errorLine, startsWith('FunctionCallResult 2 Error: '));
+      expect(errorLine, containsMissingX);
       expect(lines.sublist(4), ['CallFinished 2', 'RunFinished']);
       final [error] = _errorAnswers(fake);
       expect(error.excType, 'RuntimeError');
