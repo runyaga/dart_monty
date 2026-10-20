@@ -64,12 +64,12 @@ void main() {
         'BridgeRunFinished',
       ]);
       expect(
-        events.whereType<BridgeFunctionCallStart>().single.name,
-        'twice',
+        events.whereType<BridgeFunctionCallStart>().map((e) => e.name),
+        ['twice'],
       );
       expect(
-        events.whereType<BridgeRunFinished>().single.montyValue,
-        const MontyInt(42),
+        events.whereType<BridgeRunFinished>().map((e) => e.montyValue),
+        [const MontyInt(42)],
       );
     },
   );
@@ -84,7 +84,8 @@ void main() {
       addTearDown(bridge.dispose);
       await bridge.execute('give(n=0)').drain<void>();
 
-      return _returned(session).single;
+      final [value] = _returned(session);
+      return value;
     }
 
     test('that is a MontyValue goes to Python unchanged', () async {

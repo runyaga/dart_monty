@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:collection/collection.dart';
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/src/bridge/session_bridge.dart';
 import 'package:dart_monty/src/runtime/runtime.dart' show startRuntimeWith;
@@ -54,10 +55,14 @@ void main() {
   }
 
   /// The values the root session's host calls were answered with.
-  List<ExternalSettledResult> rootAnswers() => [
-    for (final a in (sessions.first.inner as FakeMontySession).answers)
-      if (a.answer case final ExternalSettledResult r) r,
-  ];
+  List<ExternalSettledResult> rootAnswers() {
+    final [root, ...] = sessions;
+
+    return [
+      for (final a in (root.inner as FakeMontySession).answers)
+        if (a.answer case final ExternalSettledResult r) r,
+    ];
+  }
 
   setUp(() {
     sessions = [];
@@ -77,7 +82,7 @@ void main() {
 
     expect(sessions, hasLength(2));
     expect(checkoutLimits, [null, null]);
-    expect(sessions[1].feeds.single.code, '6 * 7');
+    expect(sessions.elementAtOrNull(1)?.feeds.singleOrNull?.code, '6 * 7');
   });
 
   test("returns the sub-script's MontyValue to the handler", () async {
@@ -107,7 +112,7 @@ void main() {
 
     await runtime.execute('probe()').result;
 
-    expect(sessions[1].feeds.single.inputs, {
+    expect(sessions.elementAtOrNull(1)?.feeds.singleOrNull?.inputs, {
       'n': const MontyInt(21),
       's': const MontyString('x'),
     });
@@ -123,8 +128,9 @@ void main() {
     await runtime.execute('probe()').result;
 
     // The root feed has both; the sub-execution's has neither.
-    final rootFeed = sessions.first.feeds.single;
-    final subFeed = sessions[1].feeds.single;
+    final [root, sub, ...] = sessions;
+    final [rootFeed] = root.feeds;
+    final [subFeed] = sub.feeds;
     expect(rootFeed.os, isNotNull);
     expect(rootFeed.externalLookup, contains('probe'));
     expect(subFeed.os, isNull);
@@ -137,8 +143,10 @@ void main() {
     var rootOpenInHandler = false;
     final runtime = await start((ctx) async {
       await ctx.subExecute!('1');
-      subClosedInHandler = sessions[1].closed;
-      rootOpenInHandler = !sessions.first.closed;
+      if (sessions case [var root, var sub, ...]) {
+        subClosedInHandler = sub.closed;
+        rootOpenInHandler = !root.closed;
+      }
 
       return const MontyNone();
     });
@@ -168,7 +176,7 @@ void main() {
     final error = caught! as MontyError;
     expect(error.exception.excType, 'ValueError');
     expect(error.exception.message, 'bad input');
-    expect(sessions[1].closed, isTrue);
+    expect(sessions.elementAtOrNull(1)?.closed, isTrue);
   });
 
   test('a failed checkout fails subExecute with its error', () async {
@@ -229,14 +237,15 @@ void main() {
     for (var i = 0; i < 1000 && sessions.length < 2; i++) {
       await Future<void>.delayed(Duration.zero);
     }
-    for (var i = 0; i < 1000 && sessions[1].feeds.isEmpty; i++) {
+    final sub = sessions.elementAtOrNull(1);
+    for (var i = 0; i < 1000 && (sub?.feeds.isEmpty ?? true); i++) {
       await Future<void>.delayed(Duration.zero);
     }
-    expect(sessions[1].feeds, hasLength(1));
+    expect(sub?.feeds, hasLength(1));
 
     await runtime.dispose();
 
-    expect(sessions[1].closed, isTrue);
+    expect(sessions.elementAtOrNull(1)?.closed, isTrue);
     gate.complete();
   });
 
@@ -246,7 +255,7 @@ void main() {
 
     await runtime.execute('probe()').result;
 
-    expect(rootAnswers().single, isA<ExternalReturnValue>());
+    expect(rootAnswers().singleOrNull, isA<ExternalReturnValue>());
   });
 
   test('a bare-session bridge gives handlers no sub-executor', () async {
@@ -318,8 +327,8 @@ void main() {
     }
 
     expect(caught, isA<StateError>());
-    expect(sessions[1].closed, isTrue);
-    expect(sessions[1].feeds, isEmpty);
+    expect(sessions.elementAtOrNull(1)?.closed, isTrue);
+    expect(sessions.elementAtOrNull(1)?.feeds, isEmpty);
   });
 
   group('the caller ends first', () {
@@ -398,11 +407,11 @@ void main() {
           // The disposed sub may fail the invoke; that is not asserted here.
         }
       }());
-      await until(() => sessions.length > 1 && sessions[1].feeds.isNotEmpty);
+      await until(() => sessions.elementAtOrNull(1)?.feeds.isNotEmpty ?? false);
 
       await runtime.dispose();
 
-      expect(sessions[1].closed, isTrue);
+      expect(sessions.elementAtOrNull(1)?.closed, isTrue);
     });
 
     for (final viaInvoke in [false, true]) {
@@ -463,11 +472,11 @@ void main() {
         feedGate: gate,
         caught: (e) => error = e,
       );
-      await until(() => sessions.length > 1 && sessions[1].feeds.isNotEmpty);
+      await until(() => sessions.elementAtOrNull(1)?.feeds.isNotEmpty ?? false);
 
       await handle.cancel();
 
-      await until(() => sessions[1].closed);
+      await until(() => sessions.elementAtOrNull(1)?.closed ?? false);
       await until(() => error != null);
     });
 
@@ -479,9 +488,8 @@ void main() {
         caught: (e) => error = e,
       );
       // The root's checkout is done; the sub-execution's waits on the gate.
-      await until(
-        () => (sessions.first.inner as FakeMontySession).feeds.isNotEmpty,
-      );
+      final [root, ...] = sessions;
+      await until(() => (root.inner as FakeMontySession).feeds.isNotEmpty);
       await Future<void>.delayed(Duration.zero);
 
       await handle.cancel();
@@ -489,8 +497,8 @@ void main() {
 
       await until(() => error != null);
       expect(error, isA<StateError>());
-      expect(sessions[1].closed, isTrue);
-      expect(sessions[1].feeds, isEmpty);
+      expect(sessions.elementAtOrNull(1)?.closed, isTrue);
+      expect(sessions.elementAtOrNull(1)?.feeds, isEmpty);
     });
 
     test('clearState closes a running sub-execution', () async {
@@ -502,11 +510,11 @@ void main() {
           // The sub error is not asserted; the session's closing is.
         },
       );
-      await until(() => sessions.length > 1 && sessions[1].feeds.isNotEmpty);
+      await until(() => sessions.elementAtOrNull(1)?.feeds.isNotEmpty ?? false);
 
       final clearing = runtime.clearState();
 
-      await until(() => sessions[1].closed);
+      await until(() => sessions.elementAtOrNull(1)?.closed ?? false);
       gate.complete();
       await clearing;
     });
@@ -518,9 +526,8 @@ void main() {
         checkoutGate: gate,
         caught: (e) => error = e,
       );
-      await until(
-        () => (sessions.first.inner as FakeMontySession).feeds.isNotEmpty,
-      );
+      final [root, ...] = sessions;
+      await until(() => (root.inner as FakeMontySession).feeds.isNotEmpty);
       await Future<void>.delayed(Duration.zero);
 
       final clearing = runtime.clearState();
