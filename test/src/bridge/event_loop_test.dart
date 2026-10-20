@@ -437,8 +437,11 @@ void main() {
         expect(emitted.where((e) => e != null), hasLength(1));
         expect(
           emitted.lastOrNull,
-          isA<MontyDict>()
-              .having((e) => (e.dartValue! as Map)['type'], 'type', 'label'),
+          isA<MontyDict>().having(
+            (e) => (e.dartValue! as Map)['type'],
+            'type',
+            'label',
+          ),
         );
       },
     );
@@ -591,8 +594,11 @@ void main() {
       expect(
         answers.map(_dart),
         [
-          isA<Map<String, Object?>>()
-              .having((m) => m['type'], 'type', 'sync_click'),
+          isA<Map<String, Object?>>().having(
+            (m) => m['type'],
+            'type',
+            'sync_click',
+          ),
         ],
       );
     });
@@ -792,7 +798,9 @@ void main() {
 
         expect(plugin.isWaiting, isFalse);
         await done;
-        expect(_returnAnswers(fake).map(_dart), [{'k': 1}]);
+        expect(_returnAnswers(fake).map(_dart), [
+          {'k': 1},
+        ]);
       },
     );
 
@@ -817,7 +825,9 @@ void main() {
       plugin.dispatch(MontyValue.fromDart({'fresh': true}) as MontyDict);
       await second;
 
-      expect(_returnAnswers(fake).map(_dart), [{'fresh': true}]);
+      expect(_returnAnswers(fake).map(_dart), [
+        {'fresh': true},
+      ]);
     });
 
     test('a run that ends with el_recv pending fails that call', () async {
@@ -915,7 +925,9 @@ void main() {
       child.dispatch(MontyValue.fromDart({'child': 1}) as MontyDict);
       await done;
 
-      expect(_returnAnswers(childFake).map(_dart), [{'child': 1}]);
+      expect(_returnAnswers(childFake).map(_dart), [
+        {'child': 1},
+      ]);
       expect(child.lastEmitted, isNull);
     });
 

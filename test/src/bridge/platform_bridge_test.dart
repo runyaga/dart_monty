@@ -144,8 +144,11 @@ void main() {
       expect(settled.singleOrNull?.callId, id);
       expect(
         settled.singleOrNull?.answer,
-        isA<ExternalException>()
-            .having((e) => e.message, 'message', contains('async kaboom')),
+        isA<ExternalException>().having(
+          (e) => e.message,
+          'message',
+          contains('async kaboom'),
+        ),
       );
     });
   });
@@ -192,8 +195,11 @@ void main() {
         expect(settled.singleOrNull?.callId, id);
         expect(
           settled.singleOrNull?.answer,
-          isA<ExternalException>()
-              .having((e) => e.message, 'message', contains('sync boom')),
+          isA<ExternalException>().having(
+            (e) => e.message,
+            'message',
+            contains('sync boom'),
+          ),
         );
       },
     );
@@ -1077,8 +1083,10 @@ void main() {
 
       final events = await bridge.execute('fn(x=1)').toList();
 
-      final text =
-          events.whereType<BridgeFunctionCallResult>().singleOrNull?.result;
+      final text = events
+          .whereType<BridgeFunctionCallResult>()
+          .singleOrNull
+          ?.result;
       expect(text, '${'[' * 100001}${']' * 100001}');
       expect(events.lastOrNull, isA<BridgeRunFinished>());
     });
@@ -1380,8 +1388,8 @@ void main() {
         expect(events.firstOrNull, isA<BridgeRunStarted>());
         expect(events.lastOrNull, isA<BridgeRunFinished>());
         expect(events, hasLength(2));
-        final started = events.firstOrNull as BridgeRunStarted;
-        final finished = events.lastOrNull as BridgeRunFinished;
+        final started = events.firstOrNull! as BridgeRunStarted;
+        final finished = events.lastOrNull! as BridgeRunFinished;
         // Thread and run ids come from the bridge's counter, from '0'.
         expect(started.threadId, '0');
         expect(started.runId, '1');
@@ -1446,7 +1454,7 @@ void main() {
       expect(events.lastOrNull, isA<BridgeRunError>());
       expect(events.whereType<BridgeRunError>(), hasLength(1));
       expect(events.whereType<BridgeRunFinished>(), isEmpty);
-      final error = events.lastOrNull as BridgeRunError;
+      final error = events.lastOrNull! as BridgeRunError;
       expect(error.exception, isA<MontyRuntimeError>());
       expect(error.exception!.exception.excType, 'ValueError');
       expect(error.message, 'ValueError: bad input');
@@ -1665,8 +1673,8 @@ void main() {
           .where((e) => e is BridgeOsCallStart || e is BridgeOsCallResult)
           .toList();
       expect(calls, hasLength(2));
-      final start = calls.firstOrNull as BridgeOsCallStart;
-      final result = calls.elementAtOrNull(1) as BridgeOsCallResult;
+      final start = calls.firstOrNull! as BridgeOsCallStart;
+      final result = calls.elementAtOrNull(1)! as BridgeOsCallResult;
       expect(start.operationName, 'os.getenv');
       // Positional arguments' dartValues joined with ', '.
       expect(start.argumentSummary, 'HOME, null');

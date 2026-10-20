@@ -143,7 +143,7 @@ void main() {
     var rootOpenInHandler = false;
     final runtime = await start((ctx) async {
       await ctx.subExecute!('1');
-      if (sessions case [var root, var sub, ...]) {
+      if (sessions case [final root, final sub, ...]) {
         subClosedInHandler = sub.closed;
         rootOpenInHandler = !root.closed;
       }
