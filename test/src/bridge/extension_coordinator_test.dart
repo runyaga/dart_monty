@@ -94,7 +94,7 @@ void main() {
         );
 
       expect(registry.extensions, hasLength(2));
-      expect(registry.extensions[0].namespace, 'aaa');
+      expect(registry.extensions.first.namespace, 'aaa');
       expect(registry.extensions[1].namespace, 'bbb');
     });
 

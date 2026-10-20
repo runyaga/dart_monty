@@ -326,7 +326,7 @@ cached = Path("/cache.txt").read_text()
         final r = await s.execute('[kv_get("cached"), len(cached)]').result;
         print('  H6: ${r.dartValue}');
         final list = r.dartValue! as List;
-        expect(list[0], 'true');
+        expect(list.first, 'true');
         expect(list[1] as int, greaterThan(0));
       },
       timeout: const Timeout(Duration(seconds: 15)),

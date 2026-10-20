@@ -364,9 +364,9 @@ class Chrome {
     while (DateTime.now().isBefore(deadline)) {
       if (portFile.existsSync()) {
         final lines = portFile.readAsLinesSync();
-        if (lines.length >= 2 && int.tryParse(lines[0]) != null) {
+        if (lines.length >= 2 && int.tryParse(lines.first) != null) {
           final socket = await WebSocket.connect(
-            'ws://127.0.0.1:${lines[0]}${lines[1]}',
+            'ws://127.0.0.1:${lines.first}${lines[1]}',
           );
 
           return Chrome._(process, socket, profile);

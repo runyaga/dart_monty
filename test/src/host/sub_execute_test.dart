@@ -123,8 +123,8 @@ void main() {
     await runtime.execute('probe()').result;
 
     // The root feed has both; the sub-execution's has neither.
-    expect(sessions[0].feeds.single.os, isNotNull);
-    expect(sessions[0].feeds.single.externalLookup, contains('probe'));
+    expect(sessions.first.feeds.single.os, isNotNull);
+    expect(sessions.first.feeds.single.externalLookup, contains('probe'));
     expect(sessions[1].feeds.single.os, isNull);
     expect(sessions[1].feeds.single.externalLookup, isNull);
   });
@@ -136,7 +136,7 @@ void main() {
     final runtime = await start((ctx) async {
       await ctx.subExecute!('1');
       subClosedInHandler = sessions[1].closed;
-      rootOpenInHandler = !sessions[0].closed;
+      rootOpenInHandler = !sessions.first.closed;
 
       return const MontyNone();
     });

@@ -56,7 +56,7 @@ void main() {
       final loud = await spawnChild(runtime, 'print("hello")\n1');
       final silent = await spawnChild(runtime, '2');
       final rows = await gather([loud, silent]);
-      expect((rows[0]! as Map)['output'], contains('hello'));
+      expect((rows.first! as Map)['output'], contains('hello'));
       expect((rows[1]! as Map)['output'], isNull);
     });
     test('gather propagates child failure as ChildSandboxException', () async {
@@ -80,7 +80,7 @@ void main() {
           expect(row.keys, unorderedEquals(['handle', 'value', 'output']));
           expect(row['handle'], isA<int>());
         }
-        expect((rows[0]! as Map)['output'], contains('line1\nline2'));
+        expect((rows.first! as Map)['output'], contains('line1\nline2'));
       },
     );
   });

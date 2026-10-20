@@ -284,7 +284,7 @@ log_event(event='end', seq=2)
 
       final calls = h.callsTo('log_event');
       expect(calls, hasLength(3));
-      expect(calls[0].args['seq'], 0);
+      expect(calls.first.args['seq'], 0);
       expect(calls[1].args['seq'], 1);
       expect(calls[2].args['seq'], 2);
     });

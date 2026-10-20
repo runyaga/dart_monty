@@ -184,7 +184,7 @@ void main() {
 
         final results = result! as List;
         // Each child has its own counter starting at 0.
-        expect(results[0], 1);
+        expect(results.first, 1);
         expect(results[1], 1);
 
         // Parent counter untouched.

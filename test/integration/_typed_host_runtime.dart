@@ -177,9 +177,9 @@ void registerTypedHostRuntimeTests() {
             );
           }
           expect(tokens, hasLength(4));
-          expect(identical(tokens[0], tokens[1]), isTrue);
+          expect(identical(tokens.first, tokens[1]), isTrue);
           expect(identical(tokens[2], tokens[3]), isTrue);
-          expect(identical(tokens[0], tokens[2]), isFalse);
+          expect(identical(tokens.first, tokens[2]), isFalse);
         },
       );
     }
@@ -317,7 +317,7 @@ void registerTypedHostRuntimeTests() {
       for (final code in ['1', '1.0', '-0.0', '2 ** 100']) {
         await runtime.execute(_call(mode, code)).result;
       }
-      expect(seen[0], isA<MontyInt>());
+      expect(seen.first, isA<MontyInt>());
       expect(seen[1], isA<MontyFloat>());
       expect((seen[2] as MontyFloat).value.isNegative, isTrue);
       expect((seen[3] as MontyBigInt).value, BigInt.one << 100);
@@ -328,9 +328,9 @@ void registerTypedHostRuntimeTests() {
           )
           .result;
       final pairs = (seen.last as MontyDict).pairs;
-      expect(pairs[0].$1, isA<MontyInt>());
+      expect(pairs.first.$1, isA<MontyInt>());
       expect(pairs[1].$1, isA<MontyTuple>());
-      expect(identical(pairs[0].$2, pairs[1].$2), isTrue);
+      expect(identical(pairs.first.$2, pairs[1].$2), isTrue);
     });
   }
 

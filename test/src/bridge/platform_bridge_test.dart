@@ -533,10 +533,10 @@ void main() {
 
       expect(result, const MontyString('done'));
       expect(received, hasLength(2));
-      expect(received[0], isA<BridgeFunctionEmit>());
-      expect((received[0] as BridgeFunctionEmit).text, 'one');
+      expect(received.first, isA<BridgeFunctionEmit>());
+      expect((received.first as BridgeFunctionEmit).text, 'one');
       expect((received[1] as BridgeFunctionEmit).text, 'two');
-      expect((received[0] as BridgeFunctionEmit).callId, 'streamer');
+      expect((received.first as BridgeFunctionEmit).callId, 'streamer');
     });
 
     test(
@@ -1636,7 +1636,7 @@ void main() {
           .where((e) => e is BridgeOsCallStart || e is BridgeOsCallResult)
           .toList();
       expect(calls, hasLength(2));
-      final start = calls[0] as BridgeOsCallStart;
+      final start = calls.first as BridgeOsCallStart;
       final result = calls[1] as BridgeOsCallResult;
       expect(start.operationName, 'os.getenv');
       // Positional arguments' dartValues joined with ', '.

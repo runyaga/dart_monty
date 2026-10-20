@@ -296,7 +296,7 @@ void main() {
       'narrate_say',
       'map_add_marker',
     ]);
-    expect(tools.calls[0].$2['url'], isA<String>());
+    expect(tools.calls.first.$2['url'], isA<String>());
     expect(tools.calls[1].$2['text'], 'm');
     final marker = tools.calls[2].$2;
     expect(marker['lat'], isA<double>());

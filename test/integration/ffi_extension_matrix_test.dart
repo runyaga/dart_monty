@@ -201,7 +201,7 @@ r4 = kv_get("all")
 [r1, r2, len(r3), r4]
 ''').result;
         final c3 = r.dartValue! as List;
-        expect(c3[0], 'sync_ok');
+        expect(c3.first, 'sync_ok');
         expect(c3[3], 'sync_ok_delay_ok');
         print('  C3. all 5 fns: PASS');
 
@@ -245,7 +245,7 @@ f = kv_get("ch")
 [a, b, len(c), d, e, f]
 ''').result;
         final d5 = r.dartValue! as List;
-        expect(d5[0], 'sync_ok');
+        expect(d5.first, 'sync_ok');
         expect(d5[4], 'sync_ok-delay_ok');
         print('  D5. ALL plugins+fns: PASS');
 
@@ -279,7 +279,7 @@ saved = Path("/raw.txt").read_text()
 [log, len(saved)]
 ''').result;
         final e3 = r.dartValue! as List;
-        expect(e3[0] as String, startsWith('Saved '));
+        expect(e3.first as String, startsWith('Saved '));
         print('  E3. fs+template+kv+http: PASS');
 
         // ── F. Edge cases ────────────────────────────────────────────

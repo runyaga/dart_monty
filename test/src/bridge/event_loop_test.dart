@@ -155,7 +155,7 @@ void main() {
         // All three resolves should contain events in FIFO order.
         final results = _returnAnswers(fake);
         expect(results, hasLength(3));
-        expect((_dart(results[0])! as Map)['order'], 1);
+        expect((_dart(results.first)! as Map)['order'], 1);
         expect((_dart(results[1])! as Map)['order'], 2);
         expect((_dart(results[2])! as Map)['order'], 3);
       },
@@ -190,7 +190,7 @@ void main() {
       // Both resolves should have the correct events.
       final answers = _returnAnswers(fake);
       expect(answers, hasLength(2));
-      final first = _dart(answers[0])! as Map;
+      final first = _dart(answers.first)! as Map;
       expect(first['cycle'], 1);
       final second = _dart(answers[1])! as Map;
       expect(second['cycle'], 2);
