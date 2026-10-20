@@ -60,11 +60,11 @@ class ServedRequest {
 class DemoServer {
   DemoServer._(this._server, this._root);
 
-  final HttpServer _server;
-  final String _root;
-
   /// Every request answered so far, oldest first.
   final List<ServedRequest> requests = <ServedRequest>[];
+
+  final HttpServer _server;
+  final String _root;
 
   /// The origin pages should be loaded from, e.g. `http://127.0.0.1:53124`.
   String get origin => 'http://127.0.0.1:${_server.port}';
@@ -418,30 +418,6 @@ class Chrome {
     return completer.future.timeout(timeout);
   }
 
-  void _onMessage(dynamic raw) {
-    final message = jsonDecode(raw as String) as Map<String, dynamic>;
-    final id = message['id'];
-    if (id is int) {
-      final completer = _pending.remove(id);
-      if (completer == null) return;
-      final error = message['error'];
-      if (error != null) {
-        completer.completeError(
-          StateError('CDP error: ${jsonEncode(error)}'),
-          StackTrace.current,
-        );
-      } else {
-        completer.complete(
-          (message['result'] as Map<String, dynamic>?) ??
-              const <String, dynamic>{},
-        );
-      }
-
-      return;
-    }
-    _events.add(message);
-  }
-
   /// Loads [url] in a fresh tab and waits for its boot signal.
   ///
   /// Waits on `window.__montyDemoReady` / `window.__montyDemoError` by polling
@@ -584,6 +560,30 @@ class Chrome {
       exampleKeys: exampleKeys,
       examples: examples,
     );
+  }
+
+  void _onMessage(dynamic raw) {
+    final message = jsonDecode(raw as String) as Map<String, dynamic>;
+    final id = message['id'];
+    if (id is int) {
+      final completer = _pending.remove(id);
+      if (completer == null) return;
+      final error = message['error'];
+      if (error != null) {
+        completer.completeError(
+          StateError('CDP error: ${jsonEncode(error)}'),
+          StackTrace.current,
+        );
+      } else {
+        completer.complete(
+          (message['result'] as Map<String, dynamic>?) ??
+              const <String, dynamic>{},
+        );
+      }
+
+      return;
+    }
+    _events.add(message);
   }
 
   Future<Map<String, dynamic>?> _probeBoot(String sessionId) async {

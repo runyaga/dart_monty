@@ -2,19 +2,17 @@
   "_dcm_version": "1.39.0",
   "by_file": {
     "test/acceptance/agent_loop_test.dart": 2,
-    "test/integration/_monty_harness.dart": 1,
     "test/integration/_typed_host_runtime.dart": 6,
     "test/integration/child_context_test.dart": 4,
     "test/integration/child_lifecycle_test.dart": 6,
     "test/integration/child_limits_test.dart": 2,
-    "test/integration/demo_harness.dart": 2,
     "test/integration/ffi_child_events_test.dart": 1,
     "test/integration/ffi_raw_bridge_http_test.dart": 1,
     "test/integration/ffi_value_x_test.dart": 1,
     "test/integration/native_workspace_driver_test.dart": 1,
     "test/integration/sub_execution_limits_test.dart": 1,
     "test/integration/workspace_transfer_test.dart": 1,
-    "test/src/bridge/extension_coordinator_test.dart": 5,
+    "test/src/bridge/extension_coordinator_test.dart": 2,
     "test/src/host/parity_dispatch_test.dart": 1,
     "test/src/runtime/runtime_pool_test.dart": 63,
     "test/src/workspace/bounds_test.dart": 1
@@ -25,8 +23,7 @@
     "avoid-unused-assignment": 4,
     "avoid-unused-ignores": 1,
     "match-getter-setter-field-names": 2,
-    "member-ordering": 6,
     "prefer-moving-to-variable": 20
   },
-  "total": 99
+  "total": 93
 }

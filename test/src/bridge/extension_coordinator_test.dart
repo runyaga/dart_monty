@@ -1020,13 +1020,13 @@ class _LifecycleExtension extends MontyExtension {
   @override
   final List<HostFunction> functions;
 
+  final void Function()? onAttachCallback;
+  final void Function()? onDisposeCallback;
+
   final int _priority;
 
   @override
   int get priority => _priority;
-
-  final void Function()? onAttachCallback;
-  final void Function()? onDisposeCallback;
 
   @override
   Future<void> onAttach(AttachContext host) async {
@@ -1093,6 +1093,7 @@ class _RegistryCapturingExtension extends MontyExtension {
 /// Minimal bridge mock that tracks registered function names.
 class _MockBridge implements MontyBridge {
   final registeredNames = <String>[];
+  OsHandler? capturedOs;
   final _functions = <String, HostFunction>{};
   final _categoryIndex = <String, Set<String>>{};
 
@@ -1131,8 +1132,6 @@ class _MockBridge implements MontyBridge {
   void unregister(String name) {
     // No test unregisters a function from this fake.
   }
-
-  OsHandler? capturedOs;
 
   @override
   void registerOs(OsHandler handler) {

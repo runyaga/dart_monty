@@ -225,6 +225,9 @@ class MontyHarness {
 
   MontyRuntime? _runtime;
 
+  /// The pool [setup] starts for the runtime; [dispose] closes it.
+  Monty? _pool;
+
   // ---------------------------------------------------------------------------
   // Build phase — call before setup()
   // ---------------------------------------------------------------------------
@@ -287,9 +290,6 @@ class MontyHarness {
   // ---------------------------------------------------------------------------
   // Setup / teardown
   // ---------------------------------------------------------------------------
-
-  /// The pool [setup] starts for the runtime; [dispose] closes it.
-  Monty? _pool;
 
   /// Creates and primes the runtime. Must be called before [run].
   Future<void> setup() async {
