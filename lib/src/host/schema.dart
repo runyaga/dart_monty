@@ -208,6 +208,13 @@ Map<String, MontyValue> mapAndValidateParity(
   };
 
   _checkKeywordArgs(name, params, kwargs);
+  for (final key in kwargs.keys) {
+    if (raw.containsKey(key)) {
+      throw ParityBindingException._(
+        "$name() got multiple values for argument '$key'",
+      );
+    }
+  }
   raw.addAll(kwargs);
   _checkMissingArgs(name, params, raw);
 

@@ -417,6 +417,17 @@ void main() {
       );
     });
 
+    test('multiple values for argument throws ParityBindingException', () {
+      expect(
+        () => mapAndValidateParity(
+          twoSchema,
+          const [MontyInt(1), MontyInt(2)],
+          const {'a': MontyInt(4)},
+        ),
+        throwsParityMessage("two() got multiple values for argument 'a'"),
+      );
+    });
+
     test('missing 1, 2, and 3 required arguments throw upstream texts', () {
       expect(
         () => mapAndValidateParity(twoSchema, const [MontyInt(1)], const {}),

@@ -404,4 +404,89 @@ r
       expect(caught.value, expectedMessage);
     },
   );
+
+  test(
+    'multiple values for argument on HostFunction.parity raises catchable '
+    'Python TypeError',
+    () async {
+      const expectedMessage = "two() got multiple values for argument 'a'";
+      bridge.register(
+        HostFunction.parity(
+          schema: const HostFunctionSchema(
+            name: 'two',
+            params: [
+              HostParam(name: 'a', type: HostParamType.integer),
+              HostParam(name: 'b', type: HostParamType.integer),
+            ],
+          ),
+          handler: (_, _) => 0,
+        ),
+      );
+
+      final err = await expectRunError('two(1, 2, a=4)');
+      expect(err.exception, isA<MontyRuntimeError>());
+      final pyException = err.exception!.exception;
+      expect(pyException.excType, 'TypeError');
+      expect(pyException.message, expectedMessage);
+
+      final caught = await expectRunFinished('''
+try:
+    two(1, 2, a=4)
+except TypeError as e:
+    r = str(e)
+r
+''');
+      expect(caught.value, expectedMessage);
+    },
+  );
+
+  test(
+    'parity handler throwing StateError matches legacy HostFunction excType '
+    'and message',
+    () async {
+      bridge
+        ..register(
+          HostFunction(
+            schema: const HostFunctionSchema(name: 'legacy_boom'),
+            handler: (_, _) async => throw StateError('boom'),
+          ),
+        )
+        ..register(
+          HostFunction.parity(
+            schema: const HostFunctionSchema(name: 'parity_boom'),
+            handler: (_, _) => throw StateError('boom'),
+          ),
+        );
+
+      final legacyErr = await expectRunError('legacy_boom()');
+      final parityErr = await expectRunError('parity_boom()');
+
+      final legacyPy = legacyErr.exception!.exception;
+      final parityPy = parityErr.exception!.exception;
+      expect(parityPy.excType, legacyPy.excType);
+      expect(parityPy.message, legacyPy.message);
+    },
+  );
+
+  test('D-1 legacy binder on DispatchMode.future', () async {
+    bridge.register(
+      HostFunction(
+        schema: const HostFunctionSchema(
+          name: 'fetch_item',
+          params: [HostParam(name: 'x', type: HostParamType.integer)],
+        ),
+        dispatch: DispatchMode.future,
+        handler: (_, _) async => const MontyString('ok'),
+      ),
+    );
+
+    final err = await expectRunError("await fetch_item(10, tag='first')");
+    expect(err.exception, isA<MontyRuntimeError>());
+    final pyException = err.exception!.exception;
+    expect(pyException.excType, 'RuntimeError');
+    expect(
+      pyException.message,
+      'FormatException: fetch_item: unknown keyword argument "tag"',
+    );
+  });
 }
