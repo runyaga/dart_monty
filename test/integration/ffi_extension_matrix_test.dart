@@ -306,7 +306,7 @@ saved = Path("/raw.txt").read_text()
         final finished = await printed.events.firstWhere(
           (e) => e is BridgeRunFinished,
         );
-        r = await printed.result;
+        await printed.result;
         expect(
           (finished as BridgeRunFinished).printOutput,
           contains('hello'),
