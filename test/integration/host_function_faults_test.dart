@@ -60,7 +60,7 @@ except Exception as e:
 result
 ''');
 
-      expect(r.dartValue.toString(), contains('caught'));
+      expect(r.dartValue?.toString(), contains('caught'));
     });
 
     test('error in one tool does not block unrelated tools', () async {

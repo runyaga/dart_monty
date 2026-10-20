@@ -222,7 +222,7 @@ void main() {
             run(bridge, 'h = ${spawn("2 + 2")}\nsandbox_await(handle=h)'),
             throwsA(
               predicate(
-                (e) => e.toString().contains('unavailable on web'),
+                (e) => e?.toString().contains('unavailable on web') ?? false,
               ),
             ),
           );

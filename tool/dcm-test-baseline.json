@@ -20,7 +20,7 @@
     "test/integration/ffi_raw_bridge_http_test.dart": 3,
     "test/integration/ffi_value_x_test.dart": 5,
     "test/integration/host_communication_test.dart": 4,
-    "test/integration/host_function_faults_test.dart": 8,
+    "test/integration/host_function_faults_test.dart": 7,
     "test/integration/host_function_schema_test.dart": 6,
     "test/integration/inherited_extension_ownership_test.dart": 19,
     "test/integration/monty_reference_behavior_test.dart": 2,
@@ -29,7 +29,7 @@
     "test/integration/os_handlers_session_test.dart": 5,
     "test/integration/sandbox_error_structure_test.dart": 3,
     "test/integration/sandbox_gather_test.dart": 5,
-    "test/integration/sandbox_inheritance_test.dart": 5,
+    "test/integration/sandbox_inheritance_test.dart": 4,
     "test/integration/sandbox_logging_test.dart": 12,
     "test/integration/sub_execution_limits_test.dart": 18,
     "test/integration/template_stub_extension.dart": 1,
@@ -57,7 +57,6 @@
     "avoid-global-state": 3,
     "avoid-missing-completer-stack-trace": 1,
     "avoid-missing-enum-constant-in-map": 1,
-    "avoid-nullable-tostring": 2,
     "avoid-shadowing": 5,
     "avoid-uncaught-future-errors": 1,
     "avoid-unnecessary-futures": 12,
@@ -69,5 +68,5 @@
     "prefer-async-await": 14,
     "prefer-moving-to-variable": 170
   },
-  "total": 662
+  "total": 660
 }
