@@ -14,7 +14,7 @@
     "test/integration/event_loop_extension_test.dart": 1,
     "test/integration/ffi_async_host_fn_test.dart": 28,
     "test/integration/ffi_child_events_test.dart": 3,
-    "test/integration/ffi_extension_matrix_test.dart": 13,
+    "test/integration/ffi_extension_matrix_test.dart": 12,
     "test/integration/ffi_file_io_test.dart": 1,
     "test/integration/ffi_mixed_mode_test.dart": 4,
     "test/integration/ffi_raw_bridge_http_test.dart": 3,
@@ -57,7 +57,6 @@
     "avoid-global-state": 3,
     "avoid-missing-enum-constant-in-map": 1,
     "avoid-shadowing": 5,
-    "avoid-uncaught-future-errors": 1,
     "avoid-unnecessary-futures": 12,
     "avoid-unsafe-collection-methods": 425,
     "avoid-unused-assignment": 5,
@@ -67,5 +66,5 @@
     "prefer-async-await": 14,
     "prefer-moving-to-variable": 170
   },
-  "total": 659
+  "total": 658
 }

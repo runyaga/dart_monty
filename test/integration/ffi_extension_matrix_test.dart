@@ -300,12 +300,12 @@ saved = Path("/raw.txt").read_text()
         print('  F3. nested dict: PASS');
 
         final printed = session.execute('print("hello")');
-        final finished = printed.events.firstWhere(
+        final finished = await printed.events.firstWhere(
           (e) => e is BridgeRunFinished,
         );
         r = await printed.result;
         expect(
-          (await finished as BridgeRunFinished).printOutput,
+          (finished as BridgeRunFinished).printOutput,
           contains('hello'),
         );
         print('  F4. print capture: PASS');
