@@ -773,7 +773,9 @@ void main() {
       final runtime = await start();
       sessions.single.willReturn(const MontyInt(1));
       final handle = runtime.execute('1');
-      final sub = handle.events.listen((_) {})..pause();
+      final sub = handle.events.listen((_) {
+        // The listener only needs to exist; it is paused immediately.
+      })..pause();
       addTearDown(sub.cancel);
 
       expect(

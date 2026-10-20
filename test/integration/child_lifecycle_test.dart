@@ -93,7 +93,7 @@ void main() {
     sessions.first.closeError = StateError('root close fault');
     var eventsClosed = false;
     final subscription = runtime.events.listen(
-      // ignore: no-empty-block, this witness observes stream closure only.
+      // This witness observes stream closure only.
       (_) {
         // Only stream closure is observed in this disposal witness.
       },
@@ -654,7 +654,7 @@ final class _LifecycleExtension extends MontyExtension {
     if (streamError) {
       (ctx as SessionBridge).addStreamWrapper((_, stream) {
         final controller = StreamController<BridgeEvent>();
-        // ignore: no-empty-block, deliberately discard ordinary events.
+        // Ordinary events are discarded on purpose.
         final sub = stream.listen((_) {
           /* Only the injected error is delivered to the child. */
         });
@@ -691,7 +691,7 @@ final class _TerminalLogFault implements BridgeLogger {
   void info(String message, {Map<String, Object?>? attributes}) =>
       throw StateError('log fault');
   @override
-  // ignore: no-empty-block, only terminal logging throws in this fault probe.
+  // Only terminal logging throws in this fault probe.
   void debug(String message, {Map<String, Object?>? attributes}) {
     /* Creation logging succeeds. */
   }

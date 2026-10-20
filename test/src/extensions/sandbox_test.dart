@@ -1590,7 +1590,7 @@ void main() {
             },
             HostContext(
               emit: (_) {
-                /* Events are observed on the owning runtime. */
+                // Events are observed on the owning runtime.
               },
               executionId: 'test',
             ),
@@ -1615,7 +1615,7 @@ Future<Object?> Function(Map<String, Object?>) _findHandler(
     args.map((key, value) => MapEntry(key, MontyValue.fromDart(value))),
     HostContext(
       emit: (_) {
-        /* Events are observed on the owning runtime. */
+        // Events are observed on the owning runtime.
       },
       executionId: 'test',
       parent: _runtimes[plugin],

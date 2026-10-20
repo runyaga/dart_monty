@@ -12,7 +12,12 @@ import 'package:dart_monty/src/introspection_functions.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:test/test.dart';
 
-final _testCtx = HostContext(emit: (_) {}, executionId: 'test');
+final _testCtx = HostContext(
+  emit: (_) {
+    // These tests do not assert on emitted events.
+  },
+  executionId: 'test',
+);
 
 void main() {
   group('buildIntrospectionFunctions', () {
@@ -323,7 +328,9 @@ class _FakeBridge implements MontyBridge {
   }
 
   @override
-  void registerOs(OsHandler handler) {}
+  void registerOs(OsHandler handler) {
+    // No test registers an OS handler with this fake.
+  }
 
   @override
   Stream<BridgeEvent> execute(String code) => const Stream.empty();
@@ -336,5 +343,7 @@ class _FakeBridge implements MontyBridge {
   }) => throw UnimplementedError();
 
   @override
-  void dispose() {}
+  void dispose() {
+    // The fake holds no resources to release.
+  }
 }

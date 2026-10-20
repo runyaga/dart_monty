@@ -23,7 +23,9 @@ HostContext _ctx(
   List<(String, Map<String, Object?>?)> calls, {
   Future<MontyValue> Function()? answer,
 }) => HostContext(
-  emit: (_) {},
+  emit: (_) {
+    // Not used by these tests.
+  },
   executionId: 'test',
   subExecute: (code, {inputs}) {
     calls.add((code, inputs));
@@ -82,7 +84,12 @@ void main() {
   });
 
   test('fails with StateError without a subExecute', () async {
-    final bare = HostContext(emit: (_) {}, executionId: 'test');
+    final bare = HostContext(
+      emit: (_) {
+        // Not used by this test.
+      },
+      executionId: 'test',
+    );
 
     await expectLater(
       fn.handler!({'path': const MontyString('a.py')}, bare),

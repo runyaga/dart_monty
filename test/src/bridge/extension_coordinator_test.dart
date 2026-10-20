@@ -1130,7 +1130,9 @@ class _MockBridge implements MontyBridge {
   }
 
   @override
-  void unregister(String name) {}
+  void unregister(String name) {
+    // No test unregisters a function from this fake.
+  }
 
   OsHandler? capturedOs;
 
@@ -1150,7 +1152,9 @@ class _MockBridge implements MontyBridge {
   }) => throw UnimplementedError();
 
   @override
-  void dispose() {}
+  void dispose() {
+    // The fake holds no resources to release.
+  }
 }
 
 /// An extension that reports [AttachContext.schemas] from its `onAttach`.
@@ -1282,13 +1286,19 @@ final class _NamedLogger implements BridgeLogger {
   final Map<String, BridgeLogger> children;
 
   @override
-  void trace(String message, {Map<String, Object?>? attributes}) {}
+  void trace(String message, {Map<String, Object?>? attributes}) {
+    // The fake ignores trace records.
+  }
 
   @override
-  void debug(String message, {Map<String, Object?>? attributes}) {}
+  void debug(String message, {Map<String, Object?>? attributes}) {
+    // The fake ignores debug records.
+  }
 
   @override
-  void info(String message, {Map<String, Object?>? attributes}) {}
+  void info(String message, {Map<String, Object?>? attributes}) {
+    // The fake ignores info records.
+  }
 
   @override
   void warning(
@@ -1296,7 +1306,9 @@ final class _NamedLogger implements BridgeLogger {
     Object? error,
     StackTrace? stackTrace,
     Map<String, Object?>? attributes,
-  }) {}
+  }) {
+    // The fake ignores warning records.
+  }
 
   @override
   void error(
@@ -1304,14 +1316,18 @@ final class _NamedLogger implements BridgeLogger {
     Object? error,
     StackTrace? stackTrace,
     Map<String, Object?>? attributes,
-  }) {}
+  }) {
+    // The fake ignores error records.
+  }
 
   @override
   BridgeLogger child(String name) =>
       children[name] = _NamedLogger(name, children);
 
   @override
-  void close() {}
+  void close() {
+    // The fake holds no resources to release.
+  }
 }
 
 /// A [_MockBridge] whose logger records the children made from it.

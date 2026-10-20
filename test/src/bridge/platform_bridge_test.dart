@@ -83,7 +83,9 @@ final class _RuntimeRef implements MontyRuntimeRef {
   }) => throw UnimplementedError('not used');
 
   @override
-  void emitChildEvent(String childHandle, BridgeEvent event) {}
+  void emitChildEvent(String childHandle, BridgeEvent event) {
+    // The fake does not emit child events.
+  }
 
   @override
   List<HostFunctionSchema> get schemas => const [];
@@ -1903,7 +1905,9 @@ final class _RecordingLogger implements BridgeLogger {
   BridgeLogger child(String name) => this;
 
   @override
-  void close() {}
+  void close() {
+    // The fake logger holds no resources to release.
+  }
 }
 
 /// A real [MontyError], raised by a scripted fake session.

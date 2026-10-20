@@ -1,7 +1,6 @@
 {
   "_dcm_version": "1.39.0",
   "by_file": {
-    "test/acceptance/_platform_io.dart": 1,
     "test/acceptance/_platform_web.dart": 3,
     "test/acceptance/agent_loop_test.dart": 17,
     "test/integration/_monty_harness.dart": 3,
@@ -31,30 +30,27 @@
     "test/integration/sandbox_error_structure_test.dart": 3,
     "test/integration/sandbox_gather_test.dart": 5,
     "test/integration/sandbox_inheritance_test.dart": 5,
-    "test/integration/sandbox_logging_test.dart": 13,
+    "test/integration/sandbox_logging_test.dart": 12,
     "test/integration/sub_execution_limits_test.dart": 18,
     "test/integration/template_stub_extension.dart": 1,
     "test/integration/workspace_transfer_test.dart": 10,
-    "test/src/_throwing_session.dart": 3,
     "test/src/bridge/bridge_event_test.dart": 6,
     "test/src/bridge/bridge_logger_test.dart": 1,
-    "test/src/bridge/event_loop_test.dart": 25,
+    "test/src/bridge/event_loop_test.dart": 20,
     "test/src/bridge/execution_handle_test.dart": 2,
-    "test/src/bridge/extension_coordinator_test.dart": 23,
-    "test/src/bridge/introspection_functions_test.dart": 13,
-    "test/src/bridge/monty_extension_test.dart": 5,
+    "test/src/bridge/extension_coordinator_test.dart": 15,
+    "test/src/bridge/introspection_functions_test.dart": 10,
+    "test/src/bridge/monty_extension_test.dart": 1,
     "test/src/bridge/monty_runtime_child_events_test.dart": 1,
-    "test/src/bridge/platform_bridge_test.dart": 113,
+    "test/src/bridge/platform_bridge_test.dart": 111,
     "test/src/bridge/test_seam_test.dart": 3,
-    "test/src/extensions/run_script_test.dart": 5,
-    "test/src/extensions/sandbox_test.dart": 2,
-    "test/src/host/context_test.dart": 2,
+    "test/src/extensions/run_script_test.dart": 3,
     "test/src/host/function_test.dart": 9,
     "test/src/host/param_test.dart": 2,
     "test/src/host/schema_test.dart": 1,
-    "test/src/host/sub_execute_test.dart": 56,
+    "test/src/host/sub_execute_test.dart": 43,
     "test/src/os_call/os_handlers_test.dart": 2,
-    "test/src/runtime/runtime_pool_test.dart": 82,
+    "test/src/runtime/runtime_pool_test.dart": 81,
     "test/src/workspace/bounds_test.dart": 21
   },
   "by_rule": {
@@ -70,9 +66,8 @@
     "avoid-unused-parameters": 15,
     "match-getter-setter-field-names": 2,
     "member-ordering": 6,
-    "no-empty-block": 47,
     "prefer-async-await": 14,
     "prefer-moving-to-variable": 170
   },
-  "total": 709
+  "total": 662
 }

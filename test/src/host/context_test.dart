@@ -4,8 +4,6 @@ import 'package:test/test.dart';
 import '../../integration/_worker.dart';
 
 // Shared no-op emit callback for structural tests that never emit events.
-// Pulled out so the inline lambdas don't trip DCM's no-empty-block rule.
-// ignore: no-empty-block
 void _ignoreEvent(BridgeEvent _) {}
 
 void main() {
@@ -86,8 +84,18 @@ void main() {
   });
 
   test('without a cancelToken a context holds a fresh, live one', () {
-    final a = HostContext(emit: (_) {}, executionId: 'a');
-    final b = HostContext(emit: (_) {}, executionId: 'b');
+    final a = HostContext(
+      emit: (_) {
+        // The test only inspects the cancel token.
+      },
+      executionId: 'a',
+    );
+    final b = HostContext(
+      emit: (_) {
+        // The test only inspects the cancel token.
+      },
+      executionId: 'b',
+    );
 
     expect(a.cancelToken.isCancelled, isFalse);
     expect(a.cancelToken, isNot(same(b.cancelToken)));

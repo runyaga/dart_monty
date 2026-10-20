@@ -213,7 +213,16 @@ void main() {
       return ctx.subExecute!('1');
     });
     final result = runtime.execute('probe()').result;
-    unawaited(result.then((_) {}, onError: (_) {}));
+    unawaited(
+      result.then(
+        (_) {
+          // The root result is not asserted; session state is.
+        },
+        onError: (_) {
+          // The disposed sub may fail the root; that is not asserted here.
+        },
+      ),
+    );
     await entered.future;
     // Wait for the sub-execution's feed to start, so dispose meets it
     // running rather than just checked out.
@@ -292,7 +301,16 @@ void main() {
       ),
     );
     final result = runtime.execute('probe()').result;
-    unawaited(result.then((_) {}, onError: (_) {}));
+    unawaited(
+      result.then(
+        (_) {
+          // The root result is not asserted; caught carries the failure.
+        },
+        onError: (_) {
+          // Not expected to fire: the handler catches the sub failure itself.
+        },
+      ),
+    );
     await entered.future;
 
     await runtime.dispose();
@@ -351,7 +369,16 @@ void main() {
         ),
       );
       final handle = runtime.execute('probe()');
-      unawaited(handle.result.then((_) {}, onError: (_) {}));
+      unawaited(
+        handle.result.then(
+          (_) {
+            // The root result is not asserted; caught receives the failure.
+          },
+          onError: (_) {
+            // Not expected to fire: the handler routes errors to caught.
+          },
+        ),
+      );
 
       return (runtime, handle);
     }
@@ -359,13 +386,24 @@ void main() {
     test('dispose closes a sub-execution started by invoke', () async {
       final gate = Completer<void>();
       addTearDown(() => gate.isCompleted ? null : gate.complete());
-      script[0] = (_) {};
+      script[0] = (_) {
+        // The invoke path runs no code on the root session.
+      };
       script[1] = (sub) => sub
         ..willHold(gate.future)
         ..willReturn(const MontyNone());
       final runtime = await start((ctx) => ctx.subExecute!('1'));
       final invoked = runtime.invoke('probe', {});
-      unawaited(invoked.then((_) {}, onError: (_) {}));
+      unawaited(
+        invoked.then(
+          (_) {
+            // The invoke result is not asserted; session state is.
+          },
+          onError: (_) {
+            // The disposed sub may fail the invoke; that is not asserted here.
+          },
+        ),
+      );
       await until(() => sessions.length > 1 && sessions[1].feeds.isNotEmpty);
 
       await runtime.dispose();
@@ -382,7 +420,9 @@ void main() {
           final paused = Completer<void>();
           Object? error;
           script[0] = viaInvoke
-              ? (_) {}
+              ? (_) {
+                  // The invoke path runs no code on the root session.
+                }
               : (root) => root
                   ..willCall('probe')
                   ..willReturn(const MontyNone());
@@ -400,7 +440,16 @@ void main() {
           final call = viaInvoke
               ? runtime.invoke('probe', {})
               : runtime.execute('probe()').result;
-          unawaited(call.then((_) {}, onError: (_) {}));
+          unawaited(
+            call.then(
+              (_) {
+                // The call's value is not asserted; error carries the refusal.
+              },
+              onError: (_) {
+                // Not expected to fire: the handler catches the refusal itself.
+              },
+            ),
+          );
           await paused.future;
 
           await runtime.clearState();
@@ -455,7 +504,12 @@ void main() {
     test('clearState closes a running sub-execution', () async {
       final gate = Completer<void>();
       addTearDown(() => gate.isCompleted ? null : gate.complete());
-      final (runtime, _) = await holdSub(feedGate: gate, caught: (_) {});
+      final (runtime, _) = await holdSub(
+        feedGate: gate,
+        caught: (_) {
+          // The sub error is not asserted; the session's closing is.
+        },
+      );
       await until(() => sessions.length > 1 && sessions[1].feeds.isNotEmpty);
 
       final clearing = runtime.clearState();

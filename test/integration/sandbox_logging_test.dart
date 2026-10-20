@@ -52,7 +52,13 @@ void main() {
     );
     addTearDown(runtime.dispose);
     await runtime.invoke('sandbox_await_all', {'handles': const MontyList([])});
-    _testCtx = HostContext(emit: (_) {}, executionId: 'test', parent: runtime);
+    _testCtx = HostContext(
+      emit: (_) {
+        // These tests assert on log records, not emitted events.
+      },
+      executionId: 'test',
+      parent: runtime,
+    );
 
     return runtime;
   }

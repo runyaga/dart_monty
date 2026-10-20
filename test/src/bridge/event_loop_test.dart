@@ -172,7 +172,9 @@ void main() {
         ..willReturn(const MontyNone());
 
       final stream = bridge.execute('loop');
-      final sub = stream.listen((_) {});
+      final sub = stream.listen((_) {
+        // The listener only needs to exist to consume the stream.
+      });
 
       // Wait for first recv.
       await _until(() => plugin.isWaiting);
@@ -343,7 +345,9 @@ void main() {
           ..willReturn(const MontyNone());
 
         final stream = bridge.execute('el_recv()');
-        final sub = stream.listen((_) {});
+        final sub = stream.listen((_) {
+          // The listener only needs to exist to consume the stream.
+        });
 
         // Let it reach recv.
         await _until(() => plugin.isWaiting);
@@ -379,7 +383,9 @@ void main() {
         );
 
         final stream = bridge.execute('el_recv()');
-        final sub = stream.listen((_) {});
+        final sub = stream.listen((_) {
+          // The listener only needs to exist to consume the stream.
+        });
 
         await _until(() => plugin.isWaiting);
 
@@ -552,7 +558,9 @@ void main() {
         ..willReturn(const MontyNone());
 
       final stream = syncBridge.execute('el_recv()');
-      final sub = stream.listen((_) {});
+      final sub = stream.listen((_) {
+        // The listener only needs to exist to consume the stream.
+      });
 
       // Let it reach the handler.
       await _until(() => syncPlugin.isWaiting);
@@ -608,7 +616,9 @@ void main() {
           ..willReturn(const MontyNone());
 
         final stream = bridge.execute('el_recv()');
-        final sub = stream.listen((_) {});
+        final sub = stream.listen((_) {
+          // The listener only needs to exist to consume the stream.
+        });
         await _until(() => plugin.isWaiting);
 
         // Plugin is now waiting — dispatch must not throw.

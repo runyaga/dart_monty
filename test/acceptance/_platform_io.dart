@@ -31,7 +31,9 @@ Future<bool> processAlive(int pid) async {
 }
 
 /// Nothing to install: worker processes are counted by the OS.
-void countWorkers() {}
+void countWorkers() {
+  // Nothing to install on this platform.
+}
 
 /// The worker processes this process has started that are still running.
 ///

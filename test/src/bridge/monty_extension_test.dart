@@ -125,13 +125,19 @@ class _NoOpBridge implements MontyBridge {
   Map<String, List<HostFunctionSchema>> get schemasByCategory => {};
 
   @override
-  void register(HostFunction function, {String? category}) {}
+  void register(HostFunction function, {String? category}) {
+    // The fake registers no host functions.
+  }
 
   @override
-  void unregister(String name) {}
+  void unregister(String name) {
+    // Nothing is ever registered with the fake.
+  }
 
   @override
-  void registerOs(OsHandler handler) {}
+  void registerOs(OsHandler handler) {
+    // The fake registers no OS handlers.
+  }
 
   @override
   Stream<BridgeEvent> execute(String code) => const Stream.empty();
@@ -144,5 +150,7 @@ class _NoOpBridge implements MontyBridge {
   }) => throw UnimplementedError();
 
   @override
-  void dispose() {}
+  void dispose() {
+    // The fake holds no resources to release.
+  }
 }
