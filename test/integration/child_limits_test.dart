@@ -141,15 +141,16 @@ void main() {
           awaitChild(runtime, handle),
           throwsA(isA<Exception>()),
         );
+        final childSession = sessions.elementAtOrNull(1);
         expect(
-          sessions.elementAtOrNull(1)?.feedError,
+          childSession?.feedError,
           isA<MontyError>().having(
             (e) => e.exception.message,
             'limit error',
             contains(sleep ? 'sleep limit exceeded' : 'suspension limit'),
           ),
         );
-        expect(sessions.elementAtOrNull(1)?.closeCalls, 1);
+        expect(childSession?.closeCalls, 1);
         expect(
           await awaitChild(runtime, await spawnChild(runtime, '42')),
           const MontyInt(42),

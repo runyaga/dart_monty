@@ -452,11 +452,9 @@ sandbox_await(h, collect={'output': '/parent/second'})
       extensions: [SandboxExtension()],
     );
     final handle = await spawnChild(runtime, '42');
-    await Future.wait([
-      freeChild(runtime, handle),
-      freeChild(runtime, handle),
-      runtime.dispose(),
-    ]);
+    final first = freeChild(runtime, handle);
+    final joined = freeChild(runtime, handle);
+    await Future.wait([first, joined, runtime.dispose()]);
     expect(sessions.elementAtOrNull(1)?.closeCalls, 1);
     held.complete();
   });
@@ -484,10 +482,8 @@ sandbox_await(h, collect={'output': '/parent/second'})
     );
     expect(sessions.elementAtOrNull(1)?.closeCalls, 1);
     await freeChild(runtime, handle);
-    expect(
-      await awaitChild(runtime, await spawnChild(runtime, '42')),
-      const MontyInt(42),
-    );
+    final respawned = await spawnChild(runtime, '42');
+    expect(await awaitChild(runtime, respawned), const MontyInt(42));
   });
 
   for (final crash in [false, true]) {
@@ -587,10 +583,12 @@ sandbox_await(h, collect={'output': '/parent/second'})
       ..register(first)
       ..register(throwing)
       ..register(last);
-    await parent.attachTo(await childContractBridge(pool));
+    final parentBridge = await childContractBridge(pool);
+    await parent.attachTo(parentBridge);
+    final childBridge = await childContractBridge(pool);
     final child = await parent.spawnChild(
       context: const ChildSpawnContext(childId: 1),
-      bridge: await childContractBridge(pool),
+      bridge: childBridge,
     );
     await expectLater(child.disposeAll(), throwsStateError);
     for (final extension in [first, throwing, last]) {
