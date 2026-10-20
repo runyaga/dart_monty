@@ -1,5 +1,4 @@
 import 'package:dart_monty/src/bridge/event.dart';
-import 'package:dart_monty/src/bridge/run_failure.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 
 /// Extracts the terminal value from a completed bridge event list.
@@ -19,10 +18,7 @@ MontyValue extractBridgeResult(List<BridgeEvent> events) {
     if (event is BridgeRunError) {
       final exception = event.exception;
       if (exception != null) throw exception;
-      if (runFailureOf(event) case (final error, final stackTrace)) {
-        Error.throwWithStackTrace(error, stackTrace);
-      }
-      throw StateError(event.message);
+      event.throwCause();
     }
   }
 

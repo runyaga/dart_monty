@@ -9,7 +9,7 @@ void main() {
     expect(value, const MontyNone());
   });
 
-  test('all 18 core facade names resolve on this backend', () {
+  test('all 25 core facade names resolve on this backend', () {
     expect([
       Monty,
       MontySession,
@@ -29,6 +29,13 @@ void main() {
       MontyTuple,
       MontyDict,
       MontyBytes,
-    ], hasLength(18));
+      Frame,
+      MontyRuntimeError,
+      MontySyntaxError,
+      MontyTypingError,
+      MontyCrashedError,
+      MontyExceptionValue,
+      FrameTooLargeException,
+    ], hasLength(25));
   });
 }

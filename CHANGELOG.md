@@ -6,9 +6,28 @@
   `MontyString`, `MontyList`, `MontyTuple`, `MontyDict`, and `MontyBytes` so a
   host function can be written from the dm import alone. The facade has 54
   names.
+- The facade exports `Frame`, `MontyRuntimeError`, `MontySyntaxError`,
+  `MontyTypingError`, `MontyCrashedError`, `MontyExceptionValue` and
+  `FrameTooLargeException`, so a consumer can read traceback frames and the
+  error subtype from the dm import alone. The facade has 61 names.
+- `BridgeRunError` gains `displayMessage`, `cause`, `causeStack` and
+  `throwCause()`. `cause` is the `MontyError` for a Python failure or the
+  recorded throw for an infrastructure failure, and `throwCause()` rethrows it
+  with the captured stack. `message` is unchanged.
+- `HostFunction.parity` registers a host function whose arguments and result
+  follow pydantic-monty 1.1.0. Its handler may return any Dart object: `null`
+  becomes `None`, and an object with no Monty form raises Python `TypeError`
+  (`Cannot convert <type> to Monty value — wrap class instances in
+  pydantic_monty.ClassInstance(...)`). A call that its parameters cannot bind
+  raises Python `TypeError` with the CPython message. The original
+  `HostFunction` constructor is unchanged.
+- `docs/reference/upstream-divergences.md` lists every known behaviour that
+  differs from pydantic-monty 1.1.0. It adds rows D-1 to D-3 to core's
+  C-1 to C-12.
 
 ### Changed
 
+- dart_monty builds on dart_monty_core 0.110.0-dev.4.
 - dart_monty and dart_monty_core are 0.110.0-dev.3. VM tests and native
   programs use the prebuilt worker that core's build hook installs from the
   core release, and CI uses that worker without building one.
