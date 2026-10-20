@@ -48,8 +48,9 @@ void main() {
       {'0'},
     );
     expect(sessions, hasLength(2));
-    expect(sessions.elementAtOrNull(1)?.feeds.singleOrNull?.cwd, '/work');
-    expect(sessions.elementAtOrNull(1)?.closeCalls, 1);
+    final childSession = sessions.elementAtOrNull(1);
+    expect(childSession?.feeds.singleOrNull?.cwd, '/work');
+    expect(childSession?.closeCalls, 1);
     expect(extension.clones.singleOrNull?.context?.workingDirectory, '/work');
     for (final name in ['parent_global', 'raw_parent()']) {
       final handle = await spawnChild(runtime, name);
@@ -97,7 +98,13 @@ void main() {
   test('child coordinators isolate their context', () async {
     final pool = await childContractPool();
     final parentBridge = await childContractBridge(pool);
-    final childBridge = await childContractBridge(pool);
+    // The child needs a bridge of its own: the isolation checks below rely on
+    // the child not seeing the parent's registrations, so the parent's bridge
+    // cannot be reused here.
+    final childSession = await pool.checkout();
+    addTearDown(childSession.close);
+    final childBridge = MontyBridge(session: childSession);
+    addTearDown(childBridge.dispose);
     final extension = ChildContractExtension('probe');
     final parent = ExtensionCoordinator()..register(extension);
     addTearDown(parent.disposeAll);

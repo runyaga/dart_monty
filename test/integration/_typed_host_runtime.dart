@@ -128,15 +128,16 @@ void registerTypedHostRuntimeTests() {
               const MontyBool(false),
             );
             expect(seen.lastOrNull, isA<MontyNone>());
+            final freshSentinel = _sentinel(type);
             expect(
-              await runtime.invoke('probe', {'x': _sentinel(type)}),
+              await runtime.invoke('probe', {'x': freshSentinel}),
               const MontyBool(false),
             );
             expect(
               await runtime
                   .execute(
                     _call(mode, 'value'),
-                    inputs: {'value': _sentinel(type)},
+                    inputs: {'value': freshSentinel},
                   )
                   .result,
               const MontyBool(false),
@@ -180,12 +181,13 @@ void registerTypedHostRuntimeTests() {
             identical(tokens.firstOrNull, tokens.elementAtOrNull(1)),
             isTrue,
           );
+          final secondRunToken = tokens.elementAtOrNull(2);
           expect(
-            identical(tokens.elementAtOrNull(2), tokens.elementAtOrNull(3)),
+            identical(secondRunToken, tokens.elementAtOrNull(3)),
             isTrue,
           );
           expect(
-            identical(tokens.firstOrNull, tokens.elementAtOrNull(2)),
+            identical(tokens.firstOrNull, secondRunToken),
             isFalse,
           );
         },
@@ -340,10 +342,11 @@ void registerTypedHostRuntimeTests() {
           )
           .result;
       final pairs = (seen.lastOrNull! as MontyDict).pairs;
+      final secondPair = pairs.elementAtOrNull(1);
       expect(pairs.firstOrNull?.$1, isMontyInt);
-      expect(pairs.elementAtOrNull(1)?.$1, isA<MontyTuple>());
+      expect(secondPair?.$1, isA<MontyTuple>());
       expect(
-        identical(pairs.firstOrNull?.$2, pairs.elementAtOrNull(1)?.$2),
+        identical(pairs.firstOrNull?.$2, secondPair?.$2),
         isTrue,
       );
     });

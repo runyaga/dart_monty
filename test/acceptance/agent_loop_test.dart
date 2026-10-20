@@ -427,7 +427,9 @@ void main() {
       );
       await runPythonTool(runtime, 'kept = 1');
 
-      final json = _decode(await runPythonTool(runtime, 'while True:\n  pass'));
+      // A variable, not an inline call: the same run is made again below.
+      final infiniteLoop = runPythonTool(runtime, 'while True:\n  pass');
+      final json = _decode(await infiniteLoop);
 
       expect((json['error']! as Map)['excType'], 'TimeoutError');
       expect(_decode(await runPythonTool(runtime, '1+1'))['value'], 2);
