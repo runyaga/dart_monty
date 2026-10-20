@@ -132,8 +132,11 @@ void main() {
           resolvedResults.map(_dart),
           [
             anything,
-            isA<Map<String, Object?>>()
-                .having((m) => m['type'], 'type', 'early_click'),
+            isA<Map<String, Object?>>().having(
+              (m) => m['type'],
+              'type',
+              'early_click',
+            ),
           ],
         );
       },
