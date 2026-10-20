@@ -327,7 +327,7 @@ cached = Path("/cache.txt").read_text()
         print('  H6: ${r.dartValue}');
         final list = r.dartValue! as List;
         expect(list.first, 'true');
-        expect(list[1] as int, greaterThan(0));
+        expect(list[1], greaterThan(0));
       },
       timeout: const Timeout(Duration(seconds: 15)),
     );

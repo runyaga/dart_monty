@@ -1849,7 +1849,7 @@ void main() {
     );
 
     test('AttachContext.registerOs replaces the handler set before', () async {
-      (bridge as AttachContext)
+      bridge
         ..registerOs((name, args, kwargs) => const MontyString('A'))
         ..registerOs((name, args, kwargs) => const MontyString('B'));
       fake

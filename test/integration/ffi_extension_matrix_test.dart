@@ -279,7 +279,7 @@ saved = Path("/raw.txt").read_text()
 [log, len(saved)]
 ''').result;
         final e3 = r.dartValue! as List;
-        expect(e3.first as String, startsWith('Saved '));
+        expect(e3.first, startsWith('Saved '));
         print('  E3. fs+template+kv+http: PASS');
 
         // ── F. Edge cases ────────────────────────────────────────────
