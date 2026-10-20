@@ -14,7 +14,7 @@ environment:
   sdk: ^3.10.0
 
 dependencies:
-  dart_monty_core: ^0.110.0-dev.3
+  dart_monty_core: ^0.110.0-dev.4
   meta: ^1.11.0
   path: ^1.8.0
   signals_core: ^6.2.0
@@ -39,22 +39,19 @@ dev_dependencies:
   test: ^1.25.0
   very_good_analysis: ^10.0.0
 
-# Pinned to the commit behind the dart_monty_core v0.110.0-dev.3 tag. A commit
+# Pinned to the commit behind the dart_monty_core v0.110.0-dev.4 tag. A commit
 # cannot move, so a rebuild months from now resolves the same core this line was
 # tested against. CI requires a full SHA here, so the tag name is not used.
 #
-# dart_monty_core 0.110.0-dev.3 is tagged but is not on pub.dev, so the
+# dart_monty_core is released as git tags only, never on pub.dev, so the
 # `dart_monty_core` constraint above cannot resolve without this override.
 #
 # The pin is an override and not a `dependencies` entry because
 # `dart analyze --fatal-infos` rejects a git dependency in a publishable
-# package (`invalid_dependency`), and overrides are ignored on publish.
-#
-# This package cannot be published while this block exists. Once
-# dart_monty_core 0.110.0-dev.3 is on pub.dev, delete the block.
+# package (`invalid_dependency`).
 dependency_overrides:
   dart_monty_core:
     git:
       url: https://github.com/runyaga/dart_monty_core.git
-      # Commit of the dart_monty_core v0.110.0-dev.3 tag.
-      ref: d3bb80fc3bfb05d5f6707174f1cae3970671f69f
+      # Commit of the dart_monty_core v0.110.0-dev.4 tag.
+      ref: e962659e47d41e7b6bce3f15408f521940a3fcc7
