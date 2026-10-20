@@ -833,6 +833,7 @@ void main() {
       final failure = () async {
         try {
           await pending;
+
           return null;
         } on Object catch (e) {
           return e;

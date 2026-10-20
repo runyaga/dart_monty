@@ -224,6 +224,7 @@ undefined_var_that_errors
       final outcome = () async {
         try {
           await handle.result;
+
           return null;
         } on Object catch (e) {
           return e;

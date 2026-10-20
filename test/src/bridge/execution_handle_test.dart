@@ -15,6 +15,7 @@ void main() {
         Future.any([
           () async {
             await token.future;
+
             return 'cancelled';
           }(),
           Future<String>.value('still-alive'),
@@ -27,6 +28,7 @@ void main() {
       final token = CancelToken();
       final fired = () async {
         await token.future;
+
         return 'done';
       }();
       expect(token.isCancelled, isFalse);

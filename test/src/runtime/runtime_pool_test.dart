@@ -874,6 +874,7 @@ void main() {
       final outcome = () async {
         try {
           await runtime.execute('x').result;
+
           return null;
         } on Object catch (e) {
           return e;
@@ -912,6 +913,7 @@ void main() {
       final clearing = () async {
         try {
           await clearStateFuture;
+
           return null;
         } on Object catch (e) {
           return e;
@@ -986,6 +988,7 @@ void main() {
         final invoked = () async {
           try {
             await invokedFuture;
+
             return null;
           } on Object catch (e) {
             return e;
