@@ -85,6 +85,7 @@ void main() {
       await bridge.execute('give(n=0)').drain<void>();
 
       final [value] = _returned(session);
+
       return value;
     }
 

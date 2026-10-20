@@ -105,6 +105,7 @@ Future<String> _caught(MontyBridge bridge, String expr) async {
   final events = await bridge.execute(_tryCatch(expr)).toList();
 
   final [..., last] = events;
+
   return (last as BridgeRunFinished).value! as String;
 }
 
