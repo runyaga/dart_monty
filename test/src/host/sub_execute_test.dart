@@ -25,14 +25,14 @@ void main() {
   // Scripts the n-th session checked out (0 is the runtime's own).
   late Map<int, void Function(FakeMontySession)> script;
 
-  Future<MontySession> checkout({ResourceLimits? limits}) async {
+  Future<MontySession> checkout({ResourceLimits? limits}) {
     checkoutLimits.add(limits);
     final fake = FakeMontySession();
     script[sessions.length]?.call(fake);
     final session = RecordingSession(fake);
     sessions.add(session);
 
-    return session;
+    return Future.value(session);
   }
 
   /// A shared-mode runtime with the host function `probe`, whose handler
@@ -255,7 +255,7 @@ void main() {
       ..willReturn(const MontyNone());
     final bridge = SessionBridge(session: fake);
     addTearDown(bridge.dispose);
-    HostSubExecutor? seen = (_, {inputs}) async => const MontyNone();
+    HostSubExecutor? seen = (_, {inputs}) => Future.value(const MontyNone());
     bridge.register(
       HostFunction(
         schema: const HostFunctionSchema(name: 'probe'),

@@ -363,16 +363,16 @@ void main() {
     test(
       'setOsHandler(null) clears; restoring via setOsHandler roundtrips',
       () async {
-        Future<MontyValue> handlerA(
+        MontyValue handlerA(
           String op,
           List<MontyValue> args,
           Map<String, MontyValue> kwargs,
-        ) async => const MontyString('A');
-        Future<MontyValue> handlerB(
+        ) => const MontyString('A');
+        MontyValue handlerB(
           String op,
           List<MontyValue> args,
           Map<String, MontyValue> kwargs,
-        ) async => const MontyString('B');
+        ) => const MontyString('B');
 
         final b = MontyBridge(session: fake) as SessionBridge;
         addTearDown(b.dispose);
@@ -436,11 +436,11 @@ void main() {
         expect(capturedOs, isNull);
 
         // After registerOs: ctx.os is the registered handler.
-        Future<MontyValue> handler(
+        MontyValue handler(
           String op,
           List<MontyValue> args,
           Map<String, MontyValue> kwargs,
-        ) async => const MontyString('ok');
+        ) => const MontyString('ok');
         bridge.registerOs(handler);
 
         await bridge.invokeHostFunction('peek_os', const {});

@@ -76,11 +76,11 @@ void registerTypedHostRuntimeTests() {
             Future<MontyValue> handler(
               Map<String, MontyValue> args,
               HostContext ctx,
-            ) async {
+            ) {
               final value = args['x']!;
               seen.add(value);
 
-              return MontyBool(identical(value, sentinel));
+              return Future.value(MontyBool(identical(value, sentinel)));
             }
 
             runtime.register(
@@ -98,7 +98,7 @@ void registerTypedHostRuntimeTests() {
                 ),
                 dispatch: mode,
                 handler: explicitSlot
-                    ? (_, _) async => throw StateError('wrong slot')
+                    ? (_, _) => throw StateError('wrong slot')
                     : handler,
                 ffiHandler: explicitSlot
                     ? (args, ctx) {

@@ -51,4 +51,4 @@ if (!globalThis.__montyLiveWorkers && globalThis.__montyLiveWorkers !== 0) {
 
 /// The Web Workers started and not yet terminated, as [countWorkers]
 /// counts them.
-Future<int?> liveWorkers() async => _liveWorkerCount!.toDartInt;
+Future<int?> liveWorkers() => Future.value(_liveWorkerCount!.toDartInt);
