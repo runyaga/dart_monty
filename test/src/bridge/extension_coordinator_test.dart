@@ -1276,7 +1276,7 @@ class _WasmOnlyExtension extends MontyExtension {
 
 /// A logger that names its children and records them.
 final class _NamedLogger implements BridgeLogger {
-  _NamedLogger(this.name, this.children);
+  const _NamedLogger(this.name, this.children);
 
   final String name;
   final Map<String, BridgeLogger> children;

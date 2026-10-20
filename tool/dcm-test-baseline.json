@@ -35,16 +35,16 @@
     "test/integration/sub_execution_limits_test.dart": 18,
     "test/integration/template_stub_extension.dart": 1,
     "test/integration/workspace_transfer_test.dart": 10,
-    "test/src/_throwing_session.dart": 4,
+    "test/src/_throwing_session.dart": 3,
     "test/src/bridge/bridge_event_test.dart": 6,
     "test/src/bridge/bridge_logger_test.dart": 1,
     "test/src/bridge/event_loop_test.dart": 25,
     "test/src/bridge/execution_handle_test.dart": 2,
-    "test/src/bridge/extension_coordinator_test.dart": 24,
+    "test/src/bridge/extension_coordinator_test.dart": 23,
     "test/src/bridge/introspection_functions_test.dart": 13,
-    "test/src/bridge/monty_extension_test.dart": 6,
+    "test/src/bridge/monty_extension_test.dart": 5,
     "test/src/bridge/monty_runtime_child_events_test.dart": 1,
-    "test/src/bridge/platform_bridge_test.dart": 114,
+    "test/src/bridge/platform_bridge_test.dart": 113,
     "test/src/bridge/test_seam_test.dart": 3,
     "test/src/extensions/run_script_test.dart": 5,
     "test/src/extensions/sandbox_test.dart": 2,
@@ -72,8 +72,7 @@
     "member-ordering": 6,
     "no-empty-block": 47,
     "prefer-async-await": 14,
-    "prefer-declaring-const-constructor": 4,
     "prefer-moving-to-variable": 170
   },
-  "total": 713
+  "total": 709
 }

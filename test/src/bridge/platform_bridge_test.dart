@@ -74,6 +74,7 @@ HostFunction _fnX(
 
 /// A runtime reference that only identifies itself.
 final class _RuntimeRef implements MontyRuntimeRef {
+  const _RuntimeRef();
   @override
   ExecutionHandle execute(
     String code, {
@@ -625,7 +626,7 @@ void main() {
       'generic Object thrown during execution emits BridgeRunError',
       () async {
         final b = MontyBridge(
-          session: ThrowingSession('unexpected string error'),
+          session: const ThrowingSession('unexpected string error'),
           logger: BridgeLogger.silent,
         );
         addTearDown(b.dispose);
@@ -1083,7 +1084,7 @@ void main() {
     });
 
     test('a handler gets the runtime as its parent', () async {
-      final runtime = _RuntimeRef();
+      const runtime = _RuntimeRef();
       final b = SessionBridge(
         session: fake,
         runtime: runtime,
@@ -1110,7 +1111,7 @@ void main() {
     test("a handler's subExecute is the bridge's, on both paths", () async {
       final b = SessionBridge(
         session: fake,
-        runtime: _RuntimeRef(),
+        runtime: const _RuntimeRef(),
         logger: BridgeLogger.silent,
         subExecute: (code, {inputs, cancelToken}) async =>
             MontyString('sub:$code'),

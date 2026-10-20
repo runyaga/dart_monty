@@ -6,7 +6,7 @@ import 'package:dart_monty_core/dart_monty_core.dart';
 /// A session whose feeds throw [error], which is not a [MontyError].
 final class ThrowingSession implements MontySession {
   /// A session whose feeds throw [error].
-  ThrowingSession(this.error);
+  const ThrowingSession(this.error);
 
   /// What every feed throws.
   final Object error;

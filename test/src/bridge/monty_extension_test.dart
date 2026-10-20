@@ -50,7 +50,7 @@ void main() {
       );
 
       // Should complete without error.
-      await plugin.onAttach(_NoOpBridge());
+      await plugin.onAttach(const _NoOpBridge());
     });
 
     test('systemPromptContext defaults to null', () {
@@ -114,6 +114,7 @@ void main() {
 
 /// Minimal [MontyBridge] for lifecycle tests — not exercised.
 class _NoOpBridge implements MontyBridge {
+  const _NoOpBridge();
   @override
   BridgeLogger get logger => BridgeLogger.silent;
 
